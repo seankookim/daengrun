@@ -496,7 +496,19 @@ export function ClubModule({ role, compact }: { role: 'owner' | 'runner'; compac
         <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>하이클럽</Text>
       </Row>
       <ClubSearchBar />
-      {club && <ClubBanner club={club} role={role} reload={reloadAll} />}
+      {/* 같은 세 상태 — 실데이터 → 배너 · 실패(보여줄 값 0) → 라우드 페일 + 재시도 · 로딩 → 침묵.
+          이 arm은 `{club && ...}` 하나여서 실패와 로딩이 똑같이 '아무것도 없음'으로 보였고,
+          clubFailed는 여기서 읽히지 않는 값이었다 (review). 러너 홈이 이 arm을 쓴다. */}
+      {club ? (
+        <ClubBanner club={club} role={role} reload={reloadAll} />
+      ) : clubFailed ? (
+        <View style={s.cFail}>
+          <Text style={s.cFailTxt}>클럽 정보를 불러오지 못했어요</Text>
+          <Pressable onPress={reload} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+            <Text style={s.cFailRetry}>다시 시도</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {board && role === 'runner' && <DemandTicket board={board} reload={reloadAll} />}
       {board && role === 'owner' && <OwnerDemand board={board} reload={reloadAll} />}
     </View>

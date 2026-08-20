@@ -280,6 +280,50 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-novodecies. 👀 TWO SMALL LOOKS FROM UI2'S OVERNIGHT PASS (2026-08-20 morning)
+
+1. **run.tsx R4 colour law:** the runner run screen has two corals (progress bar + strip) and a VOLT main CTA where lab 13 wants
+   coral — the "one coral per frame" rule vs the lab; ui2 left it for you rather than guess. Pick by looking.
+2. **Legacy feed posts read 「러닝 기록」 instead of 「완주」** — old `runs` rows carry no `endReason` on the post, so the honest
+   label is the generic one; a server backfill from `runs.end_reason` would reclassify them if you want that. **A** backfill ·
+   **B** leave as is. (Not decided under the grant: it rewrites what users already see.)
+
+## 0-octodecies. 🟡 THREE ROUTE NAMES ADVERTISE A LENGTH THE LINE DOES NOT HAVE — a naming call, yours (catalog, 2026-08-20 ~04:00)
+
+Measured across all 68 routes (handoff on trunk at 726838c): three original 0078 seeds carry a typed `km` the later-drawn geometry
+does not match — `서리풀–몽마르뜨 종주 5km` km=5.0 measured 4.84 · `한강 반포–잠원 7km` km=7.0 measured 6.72 · `반포한강 그랜드 루프`
+km=5.0 measured 4.78. **Not money** (catalog checked: `bookings.km` comes from the owner's dial, no server path copies `routes.km`)
+— an honesty defect: the catalog advertises 5.0 for a 4.78 km line. The fix is blocked by design: 0100's `routes_name_km_agrees`
+refuses `km` 5.0→4.8 unless the NAME changes in the same statement, so correcting two of the three means **renaming user-facing
+course names** — catalog declined to do that on its own authority at 4 am, correctly. Your call, one letter per route or for
+all: **A** rename the token to the measured length (e.g. `… 4.8km`) · **B** drop the km token from the name (must check the
+unique `(town, name)` index first — 0100's 몽마르뜨 trio trap) · **C** leave as is. `반포한강 그랜드 루프` has no token and can
+be corrected alone whenever. Not decided under the overnight grant: names are product copy you have ruled on by looking before.
+
+## 0-septendecies. 🔴 NO IN-APP ACCOUNT DELETION — an App Store REJECTION waiting (legal, 2026-08-19 night) — building it tonight
+
+`settings.tsx:89` says `계정 삭제 | 문의로 처리` — honest, and legally mild (PIPA 제37조 is satisfiable by a support path) — but **App Store
+Review Guideline 5.1.1(v)** requires an app that creates accounts to let the user INITIATE deletion in-app; a "contact us" path is
+the thing that guideline exists to reject. This app creates accounts (Kakao + email) and is headed for submission. Cheap now,
+expensive when the build comes back from review. **Decision under the grant (🔵 O-6): build it** — server: a definer
+`delete_my_account()` (party gate = auth.uid(); refuses while the user has an active booking/run/unsettled money; anonymises
+what must be kept for ledgers/legal retention, deletes the rest, then removes the auth user via the admin path) under the full
+cycle; client (ui2): the settings row becomes a real, confirmed, irreversible action per the honesty laws. Ranked ABOVE
+§0-sexdecies because it blocks a submission, not a user. Legal also scored §13.2 (3 green / 4 partial / 4 absent — all in
+`docs/legal/`); two reassuring corrections: runner consents ARE persisted and `not null` (0062:81-83), only the VERSION is missing
+— build the location-consent gate versioned; owner-side consent has no record at all.
+
+## 0-sexdecies. 📋 TWO SMALL BUILDS FROM LEGAL'S RETENTION ROW — statutory, not drafting (2026-08-19 night)
+
+Measured by legal (docs on trunk): **(a) nothing purges `runs.trace`** — 17 crons, `purge-chat` and `purge-holds` exist, no
+location TTL or job; the policy says "필요한 기간", and 시행령 제26조의2 caps 개인위치정보 at one year even with separate
+consent. **(b) the policy promises the 위치정보 이용·제공 사실 확인자료 열람권 and no ledger exists** — 위치정보법 제16조 requires
+automatic recording (≥ 6 months). Both are BUILD items, not wording fixes — softening §3/§5 deletes the evidence of the gap,
+not the gap. Shapes exist in-repo: copy `gate_code_access_log` (0001:130) / `club_phone_access_log` (0049:156) for the ledger;
+a cron for the purge with the pin on `cron.job` (0060:144 — a function sat unscheduled while a comment claimed it ran). Latent
+today (one run, Sean's own); ranks ABOVE the 맹견 gate — matters at the first real runner. Queued for a server session /
+announcer-directed build after O-4/O-5; nothing for Sean.
+
 ## 0-overnight. 🔵 DECISIONS TAKEN UNDER THE OVERNIGHT GRANT (2026-08-19 → 20) — each reversible in one word
 
 | # | Item | Decided by | Decision | Basis (one line; full reasoning in the linked record) |
@@ -287,8 +331,8 @@ feed has no reports/moderation table (임시조치 will be needed there first).
 | O-1 | §0-undecies routes_public: logged-in = anon? | catalog | **A — authenticated treated exactly like anon** | a logged-in stranger is still a stranger; any Seoul owner can sign up |
 | O-2 | §0-undecies trim distance | catalog | **least(200 m, 20 % of route length) per end**, one named constant | 200 m exceeds building-entrance scale; ~5 points/end at 42 m spacing; 20 % clamp keeps a 1.6 km route ≥ 60 % of itself |
 | O-3 | §0-quaterdecies anchor 18 vs 44 pt | ui2 (surface owner) | **A′ as zoom-scaled VISIBLE anchors**: 18 pt zoomed out (clusters readable), 30 pt mid, 44 pt visible+tappable at street zoom; selected +8; dev knob removed; recorded in RULINGS 🔵 | measured on the sim: the Naver SDK's only invisible-hit-box path (custom React view marker) drops most markers on iOS (2 of ~10 rendered), so "44 hit area + 18 glyph" is not available; the lab frame shows it |
-| O-4 | §0-decies D1/D2 pre-acceptance contact | announcer | **D2-narrow**: the nomination itself still reaches the runner (system-authored notification — that IS the request flow), but free-text chat, reviews and incidents require the booking to be in an accepted/active state; party membership for those surfaces gets a status filter | closes /cso #2's F2 (B-11) without killing the request flow; attacker-authored push/chat to a stranger is the harm, a system "요청이 왔어요" is the product |
-| O-5 | pay-after-run server mechanism (Sean's ruling af02f12; ui found it is a state transition in a payment costume) | announcer | **contract first, tonight; build only after it is attacked** — candidate: while charging is off, the hold lands in `matching` directly and `payment_ok` is not a client step; when charging flips, payment moves post-run via settle | it touches the money state machine; no code before a reviewed contract |
+| O-4 | §0-decies D1/D2 pre-acceptance contact | announcer | **D2-narrow — BUILT + DEPLOYED as 0114 (2026-08-20 ~07:00)**: the nomination still reaches the runner (system push intact, verified live); free-text chat, reviews, notifications refuse pre-acceptance (42501); incidents get a wider reportable set (accepted + cancelled_owner + refund_pending — a party who WAS accepted may still report) with `booking_not_reportable` otherwise. Contract attacked (660/0) → implemented (694/0, eleven mutations) → reviewer ≠ author (FIX-FIRST docs-only → fixed) → wrapper deploy → DB-boundary + over-the-wire probe 12/12. **/cso #2 is now CLOSED for chat/reviews/notifications/incidents.** Residuals named in the forgery doc: the nomination card still renders four owner-authored strings (memo, tags, name/breed, `bookings.pace_label` — a body passthrough) → ui2 hides memo/tags/pace_label pre-accept (in flight); nomination push not rate-limited (adjacent). Client follow-up ui2: schedule chip, chat.tsx honest copy. | closes /cso #2's F2 (B-11) without killing the request flow; attacker-authored push/chat to a stranger is the harm, a system "요청이 왔어요" is the product |
+| O-5 | pay-after-run server mechanism (Sean's ruling af02f12; ui found it is a state transition in a payment costume) | announcer | **BUILT + DEPLOYED (2026-08-20 ~05:30):** contract → attacked (FIX-CONTRACT-FIRST on the client half) → v2 → implemented (Deno 203/0, 3 mutations) → catalog reviewed ≠ author (LAND-AND-DEPLOY, independent 203/0) → `transition-booking` v34 + `create-booking-hold` v10 live → verified by self-cleaning probe: widget hold → `matching`; `payment_ok` gone; same-dog second hold → 409 (P8). While `payments_live_since` is NULL every hold lands in `matching`; post-flip card-less → 409 `card_required` pre-write; settle already charges only after the return handoff is sealed — exactly where Sean put payment. **Client half LANDED (ui2, 5638037 on trunk, verified by the announcer):** the four post-hold moves in request.tsx (draft.bookingId → createRecurringSeries → requestRunner → route), no push to /owner/pay, CTA "러너 찾기 ›", confirmPayment deleted, pay.tsx confirm path removed (read-only charge view kept for dev/pay-lab). **O-5 is closed end to end.** Smoke line for Sean's build: "러너 찾기 ›" → radar with the new booking; 매주 반복 + 지명 now fire from request.tsx; an OLD build shows a benign 예약이 확정됐어요 with neither — that is the build being old, not a bug. Flip-day in-flight stock named for the money session (§C.3a). | it touches the money state machine; no code before a reviewed contract |
 
 Owner for O-4/O-5: announcer-directed subagents under the full cycle (trust/money offline). Numbers: re-resolved from origin at write time (0112 is next free at this write; catalog's trace revoke also needs one — whoever writes the file first claims the row in the same breath).
 

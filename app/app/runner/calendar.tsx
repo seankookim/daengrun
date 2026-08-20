@@ -218,8 +218,13 @@ const s = StyleSheet.create({
     backgroundColor: '#FAFAFA', alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   notch: { position: 'absolute', left: -9, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
+  // [layout 2026-08-19] top 9 → bottom 9. 도장은 티켓 본문의 우측 상단에 앉아 있었는데, 같은
+  // 행의 우측 끝은 상태 칩('완료')의 자리다 — 도장 우변(right:104)이 칩 우변(right:108)보다
+  // 4pt 더 오른쪽이라 완료된 모든 행에서 칩 위에 겹쳐 찍혔다 (실측). 본문 하단 우측은
+  // '정산 완료' 한 줄만 있고 그 줄은 좌측 65pt 안에서 끝나므로, 아래로 내리면 어떤 행에서도
+  // 글자를 물지 않는다. 좌우는 그대로 — 스텁(우측 98pt)과의 간격도 유지된다.
   finStamp: {
-    position: 'absolute', right: 104, top: 9, borderWidth: 2.5, borderColor: '#6E9BC5',
+    position: 'absolute', right: 104, bottom: 9, borderWidth: 2.5, borderColor: '#6E9BC5',
     paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], zIndex: 2,
   },
   emptyJobs: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20, alignItems: 'center', gap: 12, marginTop: 16 },

@@ -1,24 +1,30 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { TossSheet } from '../../src/components/toss-sheet';
-import {
-  BookingCharge, confirmPayment, confirmToss, createPaymentIntent, createRecurringSeries,
-  fetchBookingCharge, PaymentIntent, requestRunner,
-} from '../../src/lib/api';
+import { BookingCharge, fetchBookingCharge } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
-import { derivePayPhase, PayAttempt, PayPhase } from '../../src/lib/payphase';
-import { TOSS_CLIENT_KEY, TOSS_ENABLED } from '../../src/lib/toss';
-import { draft } from '../../src/store';
+import { derivePayPhase, PayPhase } from '../../src/lib/payphase';
 import { paper, pricing } from '../../src/theme';
 
-// 결제 표면 `/owner/pay?bid=` — 예약 하나의 결제 상태를 서버 진실로만 말하는 화면.
+// 청구 표면 `/owner/pay?bid=` — 예약 하나의 청구 상태를 서버 진실로만 말하는 **읽기 전용** 화면.
 // [정직 배치 2026-08-06 · 웨이브 2 item 1] 100% 목업이던 영수증(지어낸 러닝 기록·가짜 결제수단 끝자리·
 // 목업 draft 재계산 총액·'결제하고 리뷰 남기기')을 통째로 은퇴시키고, PG 상태 머신 위에 다시 세웠다.
 // 페이즈 파생은 src/lib/payphase.ts 하나 — PG 실연동(phase ④)은 드라이버만 추가하면 된다(3차 리빌드 없음).
 //
-// 오늘의 진실: PG는 목업이다. 그래서 '결제됐다'고 말하지 않는다 — 확정 시 실결제가 없다고 화면이 먼저 말한다.
+// ⚠ [O-5 §E.5.1 · 2026-08-19] **이 화면은 파일럿에서 도달할 수 없다.** 결제가 러닝 뒤로 갔고
+//   (create-booking-hold v10이 한 요청 안에서 matching까지 닫는다), `payment_ok`는 삭제됐으며
+//   (transition-booking v34 → 400 unknown action), request.tsx는 더 이상 여기로 push하지 않는다.
+//   그래서 이 화면에서 다음 세 가지가 사라졌다:
+//     · '예약 확정하기' 버튼과 confirmPayment 호출 — 서버에 그런 문이 없다.
+//     · postConfirm 블록(리커링·지명·라우팅) — request.tsx의 홀드 직후로 되돌아갔다.
+//     · 토스 위젯 경로(intent → TossSheet → confirmToss) — 진입점이 확정 버튼뿐이었다.
+//       api.ts의 createPaymentIntent/confirmToss와 toss-sheet.tsx는 그대로 살아 있다(머니 세션의
+//       카드 등록 슬라이스 몫). 여기에 죽은 배선을 남겨두는 것보다 그쪽에서 다시 세우는 게 정직하다.
+//   파일을 지우지 않는 이유: app/dev/pay-lab.tsx가 PayScreen/PayView를 import한다. 라우트가
+//   닿는 모듈은 앱 시작 시 전부 평가되므로 (CLAUDE.md, check-route-native-imports) dev 화면
+//   하나가 프로덕션 실행을 죽일 수 있다 — 정리는 그 랩과 함께 한 번에 한다.
+//
 // 숫자는 전부 bookings 행에서 온다 (클라이언트 재계산 금지). 하드코드 헥스 0 — 토큰과 PaperBtn만 쓴다.
 
 // 화면 상태 = 서버 진실의 파생(PayPhase 9종) + 통신 실패 한 칸.
@@ -42,7 +48,7 @@ const CHIP: Record<PayScreen, string> = {
 const HEAD: Record<PayScreen, string> = {
   loading: '결제 정보를 불러오는 중',
   not_found: '결제 정보를 찾을 수 없어요',
-  mock_pending: '예약 확정 전이에요',
+  mock_pending: '아직 접수되지 않은 예약이에요',
   authorizing: '승인 요청 중',
   authorized: '예약이 확정됐어요',
   disputed: '러닝에 확인이 필요한 일이 있어요',
@@ -73,10 +79,11 @@ const whenLabel = (iso: string): string => {
 };
 
 export default function Pay() {
-  // recurring/after는 draft가 아니라 파라미터로 온다 — 이번 내비게이션의 의도이지 예약 초안의 속성이 아니다
-  // (draft에 남기면 다음 예약까지 따라붙어 오발사한다). after=radar는 파인드나우 전용 (지명 없음).
-  const { bid, recurring, after, exp } = useLocalSearchParams<{ bid?: string; recurring?: string; after?: string; exp?: string }>();
-  // [리뷰 #5] 실홀드 만료 — 이 화면에 오래 머물면 슬롯 홀드(5분)가 조용히 풀린다. 시각을 정직하게 말한다.
+  // [O-5 §E.5.1] recurring/after 파라미터는 사라졌다 — 그것을 소비하던 postConfirm 블록이
+  // request.tsx의 홀드 직후로 돌아갔기 때문이다. 남은 파라미터는 어떤 예약을 읽을지(bid)와
+  // 슬롯 홀드 만료 시각(exp)뿐이고, 둘 다 이 화면이 **보여주기만** 하는 값이다.
+  const { bid, exp } = useLocalSearchParams<{ bid?: string; exp?: string }>();
+  // [리뷰 #5] 실홀드 만료 — 슬롯 홀드(5분)는 조용히 풀린다. 시각을 정직하게 말한다.
   const holdUntil = exp ? new Date(exp) : null;
   const holdLabel = holdUntil && !isNaN(holdUntil.getTime())
     ? `${String(holdUntil.getHours()).padStart(2, '0')}:${String(holdUntil.getMinutes()).padStart(2, '0')}`
@@ -85,192 +92,34 @@ export default function Pay() {
   const [charge, setCharge] = useState<BookingCharge | null>(null);
   const [busy, setBusy] = useState(false);
   const [failReason, setFailReason] = useState<string | null>(null);
-  // PG 시도 레코드 — payphase.ts가 authorizing/failed를 살리는 인자다 (H4: 머신 재작성 없음).
-  // state가 아니라 ref인 이유: 이 값이 바뀌었다고 청구를 다시 읽을 이유가 없다(load의 deps를
-  // 오염시키면 시도할 때마다 fetch가 돈다). 화면은 항상 screen이 그린다.
-  // TOSS_ENABLED가 false면 끝까지 null로 남는다 = 오늘의 화면은 한 픽셀도 달라지지 않는다.
-  const attempt = useRef<PayAttempt | null>(null);
-  const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
-  // 청구 로드 — 반환값은 '방금 파생된 페이즈'다 (재시도가 그 값으로 판단한다, H2)
-  const load = useCallback(async (): Promise<PayScreen> => {
-    if (!bid) { setScreen('not_found'); return 'not_found'; }
+  // 청구 로드 — 이 화면이 하는 일의 전부다 (서버를 앞으로 미는 호출은 하나도 남아 있지 않다).
+  const load = useCallback(async () => {
+    if (!bid) { setScreen('not_found'); return; }
     try {
       const c = await fetchBookingCharge(bid);
-      if (!c) { setCharge(null); setScreen('not_found'); return 'not_found'; } // 0행·남의 예약 (H3/M5)
+      if (!c) { setCharge(null); setScreen('not_found'); return; } // 0행·남의 예약 (H3/M5)
       setCharge(c);
-      // 시도 레코드가 살아 있으면(위젯 진행 중 재로드) 그 사실이 페이즈에 반영된다 —
-      // 진행 중인 승인을 '아직 확정 전'으로 되돌려 보여주지 않는다.
-      const phase = derivePayPhase({ status: c.status, attempt: attempt.current });
-      setScreen(phase);
-      return phase;
+      // attempt 인자는 넘기지 않는다 — 클라이언트가 만드는 PG 시도 레코드가 더 이상 없다.
+      // (payphase.ts의 authorizing/failed는 위젯 슬라이스가 돌아올 때 그 인자와 함께 살아난다.)
+      setScreen(derivePayPhase({ status: c.status }));
     } catch (e) {
       setFailReason(msgOf(e));
       setScreen('error'); // 로딩도 0도 아니다 — 못 불러왔다고 말한다
-      return 'error';
     }
   }, [bid]);
 
   useEffect(() => { load(); }, [load]);
 
-  // ── 확정 이후 블록 (웨이브 2 리뷰 C3/C4) ──────────────────────────────────────────────
-  // request.tsx의 결제 직후 로직이 통째로 여기로 옮겨왔다. 그 자리에 남으면:
-  //   C4 — createRecurringSeries가 확정 전에 돌아 미결제 주간 예약이 생성됐고,
-  //   C3 — 지명 requestRunner가 payment_hold 상태에서 409로 조용히 증발했다.
-  // 이제 confirmPayment가 성공한 뒤에만, 이 순서로 돈다.
-  //
-  // [플랜 §2-5b] 토스 경로에서는 이 블록의 부수효과가 서버로 이사한다: confirm-payment가
-  // meta {preferred_runner_id, recurring}을 받아 CAS 성공 뒤 비치명적으로 수행한다. 결제 직후
-  // 앱이 죽어도 지명·반복이 조용히 증발하지 않는다. 그래서 owner='server'면 여기서는 라우팅만 한다
-  // (두 번 쏘지 않는다 — 지명 중복 발사는 409를 부르고 사용자에겐 거짓 실패로 보인다).
-  const postConfirm = useCallback(async (bookingId: string, owner: 'client' | 'server' = 'client') => {
-    draft.bookingId = bookingId;
-    if (owner === 'server') {
-      // 서버가 지명을 맡았으므로 draft의 지명은 여기서 비운다 (matching.tsx의 자동 재시도가
-      // 서버 지명 위에 한 번 더 쏘지 않도록). 실제 결과는 매칭 화면이 서버 진실로 보여준다.
-      draft.preferredRunnerId = null;
-      draft.preferredRunnerName = null;
-      router.push(after === 'radar' ? '/owner/radar' : '/owner/matching');
-      return;
-    }
-    // 매주 반복 (0026) — 시리즈 생성 실패가 이번 예약을 막지 않는다 (예약은 이미 성립)
-    if (recurring === '1') {
-      try {
-        await createRecurringSeries(bookingId);
-      } catch (e) {
-        Alert.alert('반복 설정 실패', `이번 예약은 확정됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요\n(${msgOf(e)})`);
-      }
-    }
-    // 지명 예약: 확정 직후 여기서 바로 지명 전송 — 러너 선택 화면을 아예 거치지 않는다
-    let nominated: string | null = null;
-    if (draft.preferredRunnerId) {
-      const who = draft.preferredRunnerName ?? '선택한';
-      try {
-        await requestRunner(bookingId, draft.preferredRunnerId);
-        nominated = who;
-        draft.preferredRunnerId = null;
-        draft.preferredRunnerName = null;
-      } catch (e) {
-        // 조용한 warn 삼킴 금지 (C3) — 지명이 실패했다는 사실을 사용자가 알아야 다음 선택을 한다.
-        // preferred는 남긴다: 매칭 화면이 같은 지명을 자동으로 한 번 더 시도한다 (matching.tsx:191)
-        Alert.alert('지명 요청 실패', `${who} 러너에게 우선 요청을 보내지 못했어요 — 매칭 화면에서 다시 골라주세요\n(${msgOf(e)})`);
-      }
-    }
-    if (nominated) {
-      // 지명 완료 — 러너 선택 화면 건너뛰고 내 일정에서 대기
-      Alert.alert('지명 요청 전송', `${nominated} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
-      router.replace('/owner/schedule');
-      return;
-    }
-    router.push(after === 'radar' ? '/owner/radar' : '/owner/matching');
-  }, [recurring, after]);
+  // ── 확정 이후 블록은 여기 없다 (O-5 §E.5.1) ────────────────────────────────────────────
+  // 예전에 이 자리에 postConfirm(draft.bookingId · createRecurringSeries · requestRunner ·
+  // 라우팅)이 있었다. 웨이브 2 리뷰가 C3/C4 때문에 request.tsx에서 이리로 옮겼던 블록인데,
+  // 그 두 이유가 서버 슬라이스로 사라졌다: 홀드가 반환될 때 예약은 이미 matching이라 미결제
+  // 시리즈를 만들 창도, 지명이 409로 증발할 payment_hold도 없다. 블록은 request.tsx의 홀드
+  // 직후로 되돌아갔다 — 이 화면이 아니라 **예약을 만든 화면**이 그 결과를 책임진다.
+  // 여기에 남기면 이 화면이 도달 불가가 되는 순간 세 효과가 통째로 죽는다(리뷰 F1).
 
-  // confirmPayment 1회 — busy 관리는 호출자가 한다 (재시도가 재fetch와 한 덩어리로 묶기 때문)
-  const runConfirm = useCallback(async (bookingId: string) => {
-    try {
-      await confirmPayment(bookingId);
-      setFailReason(null);
-      setScreen('authorized');
-      await postConfirm(bookingId);
-    } catch (e) {
-      setFailReason(msgOf(e)); // 실패 사유는 서버가 한 말 그대로 (침묵도, 각색도 없다)
-      setScreen('failed');
-    }
-  }, [postConfirm]);
-
-  // ── 토스 실결제 경로 (플랜 §3 · TOSS_ENABLED가 true일 때만 도달한다) ────────────────────
-  // 흐름: intent 요청(서버가 order_id를 만든다) → 위젯 열기 → 위젯 성공 콜백 → confirm-payment.
-  // 화면 페이즈는 전부 payphase.ts를 통해서만 바뀐다 — 상태를 여기서 지어내지 않는다.
-  const applyAttempt = useCallback((a: PayAttempt | null) => {
-    attempt.current = a;
-    if (charge) setScreen(derivePayPhase({ status: charge.status, attempt: a }));
-  }, [charge]);
-
-  const startToss = useCallback(async (bookingId: string) => {
-    if (TOSS_CLIENT_KEY == null) {
-      // 키가 없으면 결제창을 열 수 없다 — 빈 웹뷰를 띄우느니 정직하게 실패한다.
-      setFailReason('결제 설정이 없어요 (클라이언트 키 미설정)');
-      applyAttempt({ state: 'declined', reason: 'missing client key' });
-      return;
-    }
-    try {
-      const i = await createPaymentIntent(bookingId); // 서버가 order_id·금액·customerKey를 만든다
-      setIntent(i);
-    } catch (e) {
-      setFailReason(msgOf(e));
-      applyAttempt({ state: 'declined', reason: msgOf(e) });
-    }
-  }, [applyAttempt]);
-
-  // 위젯이 승인 결과를 돌려줬다 — 아직 '결제됨'이 아니다. 서버 confirm만이 그 말을 할 수 있다.
-  const onTossSuccess = useCallback(async (paymentKey: string, orderId: string, amount: number) => {
-    if (!bid) return;
-    setIntent(null);
-    applyAttempt({ state: 'in_flight' }); // → authorizing (뒤로가기 어포던스가 사라지는 화면)
-    try {
-      await confirmToss(orderId, paymentKey, amount, {
-        preferred_runner_id: draft.preferredRunnerId,
-        recurring: recurring === '1',
-      });
-      setFailReason(null);
-      attempt.current = null;
-      setScreen('authorized');
-      await postConfirm(bid, 'server');
-    } catch (e) {
-      // 서버가 한 말 그대로. 승인 후 실패는 서버가 토스 취소까지 마치고 그 사실을 문장에 담는다.
-      setFailReason(msgOf(e));
-      applyAttempt({ state: 'declined', reason: msgOf(e) });
-    }
-  }, [bid, recurring, applyAttempt, postConfirm]);
-
-  const onTossFail = useCallback((code: string, message: string) => {
-    setIntent(null);
-    if (code === 'USER_CANCEL') { applyAttempt(null); return; } // 취소는 실패가 아니다 — 원래 화면으로
-    setFailReason(`${message} (${code})`);
-    applyAttempt({ state: 'declined', reason: code });
-  }, [applyAttempt]);
-
-  // [M2 수용 명기] 이 화면을 떠나면(뒤로/앱 종료) 예약은 payment_hold로 남는다 — fetchMyBookings가
-  // 결제 미완 유령을 걸러(api.ts '유령은 일정이 아니다' 법) 어디에도 안 보이고, 슬롯 홀드는 5분 뒤
-  // 풀린다. 잔존 행 만료는 웨이브 3 서버 슬라이스(expire 확장) 몫 — 수용된 결과다.
-  // [리뷰 #8] busy state는 같은 커밋 안의 더블탭을 못 막는다 — ref가 동기 가드
-  const inFlight = useRef(false);
-
-  const onConfirm = useCallback(async () => {
-    if (!bid || busy || inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
-    // 오늘: 시뮬레이션 경로(transition-booking payment_ok) — 예약이 matching으로 가는 유일한 문.
-    // TOSS_ENABLED가 켜지는 날 그 문이 위젯으로 바뀐다 (플랜 §5-3의 삭제는 그 뒤 단계다).
-    if (TOSS_ENABLED) await startToss(bid);
-    else await runConfirm(bid);
-    setBusy(false);
-    inFlight.current = false;
-  }, [bid, busy, runConfirm, startToss]);
-
-  // 재시도 (H2) — 재fetch → 재파생 → 여전히 payment_hold일 때만 confirm.
-  // 서버가 이미 앞서 갔으면(다른 기기·크론) 새 진실을 그대로 채택한다 (409 레이스 방지).
-  // [리뷰 #2] 첫 confirm이 서버에선 성공했는데 응답만 유실된 경우(fresh=authorized):
-  // post-confirm 블록(리커링·지명·라우팅)을 여기서 반드시 이어간다 — 아니면 지명이 조용히 증발한다.
-  const onRetry = useCallback(async () => {
-    if (!bid || busy || inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
-    const fresh = await load();
-    attempt.current = null; // 새 진실을 읽었으면 지난 시도 레코드는 화면을 지배하지 못한다
-    if (fresh === 'mock_pending') {
-      if (TOSS_ENABLED) await startToss(bid);
-      else await runConfirm(bid);
-    } else if (fresh === 'authorized') {
-      // [리뷰 #2] 서버는 성공했는데 응답만 유실된 경우 — 후속 블록을 여기서 잇는다.
-      // 토스 경로에선 부수효과가 서버 것이므로 라우팅만 이어간다 (§2-5b).
-      await postConfirm(bid, TOSS_ENABLED ? 'server' : 'client');
-    }
-    setBusy(false);
-    inFlight.current = false;
-  }, [bid, busy, load, runConfirm, postConfirm, startToss]);
-
-  // 통신 실패 전용 재시도 — 다시 읽기만 한다 (사용자가 요청하지 않은 결제를 시키지 않는다)
+  // 통신 실패 전용 재시도 — 다시 읽기만 한다. 이 화면에서 서버를 앞으로 미는 버튼은 없다.
   const onReload = useCallback(async () => {
     if (busy) return;
     setBusy(true);
@@ -279,32 +128,15 @@ export default function Pay() {
   }, [busy, load]);
 
   return (
-    <>
-      <PayView
-        screen={screen}
-        charge={charge}
-        busy={busy}
-        failReason={failReason}
-        holdLabel={holdLabel}
-        onConfirm={onConfirm}
-        onRetry={onRetry}
-        onReload={onReload}
-        onBack={() => router.back()}
-      />
-      {/* 위젯은 intent가 손에 있을 때만 존재한다. TossSheet은 지연 로딩 래퍼이고, 이 조건이
-          false인 동안에는 네이티브 모듈이 **임포트조차 되지 않는다**.
-          ⚠ 이 자리에 원래 있던 말은 "마운트되지 않는다 (오늘 앱은 그대로 돈다)"였고, 그건
-          틀렸다. Expo Router는 모든 라우트 모듈을 앱 시작 시 평가하므로 마운트 여부와 무관하게
-          import가 실행됐다 — 그래서 이 트리로 빌드한 앱은 결제 근처도 가기 전에 홈 화면에서
-          RNCWebViewModule 없음으로 죽었다. 마운트를 근거로 임포트를 논증한 것이 오류였다. */}
-      <TossSheet
-        visible={intent != null}
-        intent={intent}
-        onSuccess={(s) => { void onTossSuccess(s.paymentKey, s.orderId, s.amount); }}
-        onFail={(f) => onTossFail(f.code, f.message)}
-        onDismiss={() => { setIntent(null); applyAttempt(null); }}
-      />
-    </>
+    <PayView
+      screen={screen}
+      charge={charge}
+      busy={busy}
+      failReason={failReason}
+      holdLabel={holdLabel}
+      onReload={onReload}
+      onBack={() => router.back()}
+    />
   );
 }
 
@@ -314,15 +146,15 @@ export interface PayViewProps {
   busy: boolean;
   failReason: string | null;
   holdLabel?: string | null; // [리뷰 #5] 실홀드 만료 HH:MM — mock_pending에서만 표시
-  onConfirm: () => void;
-  onRetry: () => void;
+  // [O-5 §E.5.1] onConfirm/onRetry는 삭제됐다 — 이 화면에서 서버를 앞으로 미는 동작이 없다.
+  // 남은 액션은 '다시 불러오기'(읽기)와 '뒤로'뿐이다.
   onReload: () => void;
   onBack: () => void;
 }
 
 // 순수 표현 컴포넌트 — 상태는 위에서만 만든다. dev 페이즈 랩(app/dev/pay-lab.tsx)이 이걸 그대로 쓴다
 // (L2: 프로덕션 화면에 __DEV__ 분기를 만들지 않기 위해 뷰를 밖으로 뽑았다).
-export function PayView({ screen, charge, busy, failReason, holdLabel, onConfirm, onRetry, onReload, onBack }: PayViewProps) {
+export function PayView({ screen, charge, busy, failReason, holdLabel, onReload, onBack }: PayViewProps) {
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(총액)
   const dots = useEllipsis(screen === 'authorizing'); // 스피너 연출 금지 — 말줄임표만 움직인다
   const loud = screen === 'failed' || screen === 'error';
@@ -385,12 +217,12 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onConfirm
         {/* ── 상태 존 — 페이즈마다 말이 다르다 ── */}
         {screen === 'mock_pending' && (
           <View style={s.plate}>
-            {/* 이 문장은 오늘 참이다 (PG 목업). TOSS_ENABLED가 켜지는 순간 거짓이 되므로 같은
-                상수로 갈라둔다 — 플랜 §5-3의 삭제가 오기 전까지 두 세계 모두에서 정직하도록. */}
+            {/* [O-5 §E.5.1] 예전엔 여기 '확정하면 실결제가 없어요'가 있었고 아래에 확정 버튼이
+                있었다. 그 버튼(과 그것이 부르던 payment_ok)이 삭제됐으므로, 이 자리에서 할 수
+                있는 일이 없다는 사실을 그대로 말한다 — 없는 문을 가리키지 않는다. */}
             <Text style={s.plateTxt}>
-              {TOSS_ENABLED
-                ? '카드·간편결제로 결제하면 예약이 확정돼요'
-                : '결제 수단 연동 준비 중 — 파일럿 기간에는 확정 시 실결제가 발생하지 않아요'}
+              이 예약은 아직 접수되지 않았어요 — 이 화면에서 진행할 수 있는 일은 없어요.{'\n'}
+              접수되지 않은 예약은 잠시 뒤 자동으로 정리되고, 청구되는 금액은 없어요.
             </Text>
             {holdLabel && (
               <Text style={[s.plateTxt, { marginTop: 6 }]}>
@@ -440,21 +272,15 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onConfirm
         )}
       </ScrollView>
 
-      {/* ── CTA — 페이즈당 잉크-필 하나 (승인 중에는 아예 없다) ── */}
+      {/* ── CTA — 페이즈당 잉크-필 하나 (승인 중에는 아예 없다) ──
+          [O-5 §E.5.1] 확정 버튼은 삭제됐다. 이 화면의 모든 액션은 읽기(다시 불러오기)이거나
+          다른 화면으로 나가는 문이다 — 예약을 앞으로 미는 버튼은 하나도 없다. */}
       <View style={s.footer}>
-        {screen === 'mock_pending' && (
-          <PaperBtn
-            label={TOSS_ENABLED ? '결제하기' : '예약 확정하기'}
-            busyLabel={TOSS_ENABLED ? '결제창 여는 중...' : '확정 중...'}
-            busy={busy}
-            onPress={onConfirm}
-          />
-        )}
         {screen === 'failed' && (
           <>
             {/* 취소 CTA 없음 (C1) — 0047 전이표상 payment_hold → cancelled_owner는 불허다.
-                죽은 버튼을 두느니 정직한 출구는 재시도와 홈뿐이다. */}
-            <PaperBtn label="다시 시도" busyLabel="확인 중..." busy={busy} onPress={onRetry} />
+                재시도도 '다시 확정'이 아니라 '다시 읽기'다: 확정하는 문이 서버에 없다. */}
+            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중..." busy={busy} onPress={onReload} />
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}
@@ -474,7 +300,9 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onConfirm
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}
-        {(screen === 'cancelled' || screen === 'refund_pending' || screen === 'not_found') && (
+        {/* mock_pending도 여기 들어온다: 접수되지 않은 예약에서 할 수 있는 유일한 정직한 일은
+            나가는 것이다 ('내 일정'은 거짓말이 된다 — payment_hold는 그 목록에 없다). */}
+        {(screen === 'mock_pending' || screen === 'cancelled' || screen === 'refund_pending' || screen === 'not_found') && (
           <PaperBtn label="홈으로" onPress={goHome} />
         )}
       </View>

@@ -1,4 +1,56 @@
-# HANDOFF — client domain (2026-08-19, evening). Everything below is on `origin/redesign-v4`.
+# HANDOFF — client domain (2026-08-19, NIGHT update on top of the evening handoff). Everything below is on `origin/redesign-v4`.
+
+## 0. Night of 2026-08-19 — what moved (read this first, then the evening sections below)
+
+Sean left overnight with: *"i will be gone overnight, do not stop until i come back. let the others
+know as well; continue advancing the app, no permissions asked, do not ask me for input, decide
+independently."* Decisions taken under that grant are marked 🔵 in `docs/labs/RULINGS-2026-08-19-journey.md`;
+he flips any of them with a word.
+
+| Commit | What landed | Device |
+|---|---|---|
+| `bea1bc8` | **Home ⑧ v2 modules** (three chunks 오늘/동네/나; ticket, dark 지금 러너 찾기 island + sheet, 미리 예약 block, featured-runner night card, GO-disc debris all retired; hero un-pinned; rebook row in 오늘; fitness two-number row; club compact row; status-bar strip; club silent catch fixed) + **onboarding §B** (`app/app/onboard/owner.tsx` dog + address → pin as step 2; `runner.tsx` name + 홈 베이스 + GPS plate; `index.tsx` derived first-run gate + no more `name` clobber; `geo.ts requestTrackPermission()`; `particle.ts`) | **verified on sim** (home fully; onboarding screens rendered, CTA not pressed — it writes real rows) |
+| `68a4257` | **Preferences §C** (request.tsx → one screen: 언제 default earliest · dial byte-identical minus its price line · 예상 금액 once · BIG course nudge · rows · one fold · pinned top bar · opaque dock "예약 확인 ›" · course-map round trip fixed) + **rulings #14/#15** (`route-geom.ts` ported from route-guidance.mjs; `route-pick.ts` nearest-point-on-trace + `totalKmFor` = lap + 2×approach; `pickRoute` matches dial on totalKm ±1 km) + **runner/run.tsx** pickup→entry approach leg, lap rotated at entry, "입구" marker, honesty strip; frozen blocks byte-identical; `actual_km` untouched | prefs **verified**; run.tsx **UNVERIFIED** (needs an active booking) |
+| `c73cea5` | **Anchors A′** zoom-scaled 18/30/44 (🔵) · **`routes_public`** for fetchRoutes/fetchRouteById (catalog 0110; they may now revoke trace on the base table) · 8-day date strip · honest "안 고르면…" tail · (api.ts also carries additive `fetchBookingCard`, `RunReport.scheduledAtIso` by timing) | **verified** (3 zooms; 57 courses via the view; retired route detail) |
+| `cf162b1` | **Radar §C-4** rebuilt in place (rings verbatim, clock gone, nominate list, rawStatus header, `?bid=`) · request passes `after=radar` | layout **verified** with an expired booking id (`docs/labs/radar-2026-08-19-sim.png`) |
+| `ae13416` | **owner/live** planned lap + approach + entry marker under the live trace (live trace → voltDeep, was paper.line), map before first fix, legend, geo-failure notes · **report §E** (map → title → numbers → photos · ☆ → rebook panel that names a slot only when true → share → pay row) · `review.tsx ?stars=` | **verified** (live: plan-only map with Sean's stale runner_enroute booking; report: 0 km run fallback) |
+| `d42d461` | **owner/meetup §D restyle** (styling only; 19 frozen ranges proven byte-identical) · **runner journey v4 pass** (home, requests, done, earnings, meetup, availability; R6 return seal + R1c work-gate NOT built — server slice, recorded in RULINGS) · api.ts: `subscribeBooking` per-booking registry (two mounted screens on one booking threw "cannot add postgres_changes callbacks after subscribe()" — measured), `fetchMyRunnerStatus` throws on read error | owner meetup, runner home/requests/earnings **verified**; done/availability/runner meetup unverified |
+| `5638037` | **pay-after-run client half (§E.5)** — request.tsx does the four post-hold moves (bookingId · recurring · nomination · route) and replaces → radar; `booking_status` branched; `/owner/pay` unreachable (file kept for dev/pay-lab); `confirmPayment` deleted; CTA "러너 찾기 ›" | **verified** (CTA not pressed — creates a real booking) |
+| `5f20aa4` · `2ddac83` | ensureThread cross-layer comment + chat predicate narrowed to the measured 42501 shape · **runner/apply.tsx lilac → paper** (nine states proven) · **run.tsx R4/R5 cosmetics** (planned line heavier under the live trace, "실측으로 확정", end-sheet accents retired, one-coral strip stack; 14 frozen ranges byte-identical) | apply seen on sim; run unverified |
+| `45bd558` · `c64537f` | **sim-sweep fix batch** (read-only device sweep of 23 screens, no render errors): retired course no longer bookable; schedule's LIVE pill gated on rawStatus; past bookings read "시간이 지났어요"; stamp/chip overlaps; `StatusBarCover` component on every scrolling screen; sub-14 pt Korean in CourseStrip kickers; chat send truly disabled + phone button gone; 0 km run no longer "완주" in the feed; alerts chip by event · spec/lab doc drift corrected | course-map cover verified |
+| `f1c0c02` | **two adversarial reviews → fix batch** (no P0; P1s: report "다음 주" panel booked TODAY for 1–7-day-old runs; radar had no `expired` branch; hero hid both CTAs on refetch error; pickEarliest before prefRules; subscribeBooking teardown race; pickRoute in-band tie-break; stale nomination leaking; wrong dog named in multi-dog homes; …) + **0114 party-membership client follow-up** (schedule chat chip disabled-with-why + runner card → fact line pre-accept; chat.tsx permanent-refusal copy; runner/requests hides memo/tags/pace_label on runner_pending) | home re-verified |
+
+**Not built (server slices, recorded in RULINGS):** runner R6 return-handoff seal + R1c work-gate (`end_run_tx` has no callers; `settle-run` flips active→completed directly). **Not built (Sean's call):** 커뮤니티/마이 tabs in this style ("later"); run.tsx R4 coral count (progress bar + CTA volt vs the lab's coral CTA — needs a ruling); R5a auto-settle tail copy. **Waiting on server contracts:** O-6 account deletion (settings.tsx row — 5.1.1(v)); 맹견 field; versioned location-consent gate (legal).
+
+**Decided under the grant (🔵):** anchors A′; after=radar; ticket off home (alert line is the ticket);
+rebook row in 오늘; report hero retired; approach leg visible on both maps; `totalKm` shown as
+"왕복 포함 약 X km" (lap km always visible via the raw route name).
+
+**Sean's verbatim rulings tonight:** #14 pickup = the owner's placed point · nearest PATH · runner led
+to the entry, lap starts there; #15 approach COUNTS toward booked km, route selection shows km with it,
+catalog needs a large variety of routes. Both on origin in the RULINGS file.
+
+**Found and fixed (real bugs):** `index.tsx` overwrote `profiles.name` every launch · request.tsx dropped
+the course-map pick (no focus sync) · home overlay plate bled through the hero · live.tsx drew the live
+trace in the coral hairline token · `useClubOverview` swallowed failures · "안 고르면 코스 없이" was
+wrong once any route went active.
+
+**Known-not-bindable tonight (say, don't mock):** "초코와 N번" (no pair count) · runner home-base
+coordinate (no column) · bank account (none; credential) · decline history for owners (runner-self-read
+RLS) · 반환 handoff mode (no server state — club only) · `anchor_name/anchor_detail` (not granted to the
+client since 0107 — `screen-functionality-spec.md` meetup line is stale).
+
+**Smoke list for Sean (hardware/active booking needed):** runner run.tsx approach leg + "입구" marker +
+reached-entry flip · owner/live with live fixes (legend swatches, approach disappears on-route) ·
+onboarding owner CTA → pin → home (writes a dog + address row) · radar with a real `matching` booking
+(nominate ›) · report rebook panel naming a slot (needs a completed run < 7 d old at a SLOT_GROUPS time).
+
+**Doc drift to fix when touching those docs:** journey-v3 says the pay push is at `request.tsx:395` —
+it is ~:497 now; spec says "six public columns" — the view exposes nine; spec's meetup anchor line.
+
+---
+
+## (evening handoff follows) HANDOFF — client domain (2026-08-19, evening). Everything below is on `origin/redesign-v4`.
 
 **Read in order:** this file · `docs/design/screen-functionality-spec.md` (per-screen must-show/do/NOT,
 Sean's target) · `docs/labs/RULINGS-2026-08-19-journey.md` (his 13 journey rulings, verbatim intent) ·
@@ -276,7 +328,17 @@ cd app && npx eas-cli build --platform ios --profile testflight   # publishes un
 supabase db push --linked --include-all                           # ⚠ ships held 0105 as cargo
 ```
 
-## Opener for the next session
+## Opener for the next session (updated for the night of 2026-08-19)
+
+> Client domain (all of `app/`) on daengrun, main checkout `/Users/sean/dev/daengrun` @ `redesign-v4`.
+> Read `docs/handoff-client.md` §0 (the night block) first, then the evening sections; then
+> `docs/labs/RULINGS-2026-08-19-journey.md` (#14/#15 are Sean's; 🔵 items were decided under his overnight
+> grant and he flips them with a word). The journey v3/v4 labs are now BUILT end to end (home → onboarding →
+> prefs → radar → meetup → live → report; runner home → requests → meetup → run → done → earnings). Open:
+> O-6 account-deletion settings row (contract from announcer), the R4 coral/volt ruling, 커뮤니티/마이.
+> Smoke list in §0 is what needs Sean's hardware. Never create a booking on his account (PR-0 signal).
+
+## Opener for the previous (evening) session — kept for the record
 
 > Client domain (all of `app/`) on daengrun, main checkout `/Users/sean/dev/daengrun`.
 > Read `docs/handoff-client.md` fully, then `docs/design/screen-functionality-spec.md` and

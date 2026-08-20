@@ -110,18 +110,22 @@ set client_min_messages = warning;
 -- anon can still read `routes.trace`, so V5/V6's promotions would otherwise die at a gate that is
 -- not what they pin. Restored at the bottom alongside the view.
 do $$
-declare v_def text;
 begin
-  select pg_get_viewdef('public.routes_public'::regclass, true) into v_def;
-  perform set_config('rev.saved_viewdef', v_def, false);
-  execute 'drop view public.routes_public';
+  -- ⚠ RENAME, never drop+recreate. A recreated view gets a FRESH default ACL and the postgres
+  -- default hands anon/authenticated INSERT/UPDATE/DELETE — so a recreate here re-opens the P0
+  -- 0112 closes, and then MASKS it: with this fixture doing its own revoke, suite 147 stayed
+  -- green with 0112's revoke DELETED (measured — mutation D-M1 scored 663/0, i.e. the suite
+  -- was testing this file instead of the migration). A rename carries the ACL across intact.
+  execute 'alter view public.routes_public rename to routes_public__142_saved';
 end $$;
 do $$
 declare
   oo uuid; rr uuid; dg uuid; rt uuid; rt2 uuid; run1 uuid;
   v_public constant text[] := array[
     'id','name','area','km','terrain','features','tags',
-    'trace','trace_thumb','checked_at',
+  -- [0113] trace/trace_thumb LEFT the base readable set — revoked from both client roles, so
+  -- geometry is reachable only through routes_public (trimmed, 4dp). 17 became 15; 148 owns them.
+    'checked_at',
     'town','shade','lighting','status','active','source',
     'elevation_gain_m'];
   v_secret constant text[] := array['verified_run_id','verified_runner_id','checked_by'];
@@ -293,7 +297,6 @@ begin
   -- Deliberately NOT file-level: V1/V2/V7 assert the shipped 17-column read surface, which
   -- INCLUDES trace/trace_thumb, so a wider bracket makes them measure this fixture instead of
   -- 0107. (Measured, not guessed: the file-level version reddened exactly those three.)
-  execute 'revoke select (trace, trace_thumb) on routes from anon, authenticated';
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- V5 — a COMPLIANT projection opens the door — and the wall holds on the row it just stamped.
@@ -456,7 +459,12 @@ begin
 
   -- [0110] geometry grant restored — V7 below executes the client's real select strings verbatim
   -- and they name trace/trace_thumb, so it must run against the SHIPPED grant state.
-  execute 'grant select (trace, trace_thumb) on routes to anon, authenticated';
+
+  -- [0113] Bracket ENDS here, not at end of file: V7 runs the client's real select strings and
+  -- ui moved them onto routes_public, so the SHIPPED view must be back before V7. Restored by
+  -- rename, so definition AND ACL (0112's revoked DML included) return exactly as shipped.
+  execute 'drop view if exists public.routes_public';
+  execute 'alter view public.routes_public__142_saved rename to routes_public';
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- V7 — THE DRIFT TRIPWIRE. The client's select strings, VERBATIM from api.ts, executed as both
@@ -471,15 +479,15 @@ begin
     begin
       perform set_config('request.jwt.claim.sub', '', true);
       set local role anon;
-      execute 'select count(*) from (select ' || v_list_cols || ' from routes where status in (''active'',''candidate'') and town = ''반포동'' order by km) s' into v_n;
-      execute 'select count(*) from (select ' || v_full_cols || ' from routes where id = $1) s' into v_n2 using rt;
+      execute 'select count(*) from (select ' || v_list_cols || ' from routes_public where status in (''active'',''candidate'') and town = ''반포동'' order by km) s' into v_n;
+      execute 'select count(*) from (select ' || v_full_cols || ' from routes_public where id = $1) s' into v_n2 using rt;
       execute 'select count(*) from (select name, area from routes where id = $1) s' into v_n3 using rt;
       execute 'select count(*) from (select id, name, km, status from routes) s' into v_n4;
       reset role;
       set local role authenticated;
       perform set_config('request.jwt.claim.sub', oo::text, true);
-      execute 'select count(*) from (select ' || v_list_cols || ' from routes where status in (''active'',''candidate'') and town = ''반포동'' order by km) s' into v_n;
-      execute 'select count(*) from (select ' || v_full_cols || ' from routes where id = $1) s' into v_n2 using rt;
+      execute 'select count(*) from (select ' || v_list_cols || ' from routes_public where status in (''active'',''candidate'') and town = ''반포동'' order by km) s' into v_n;
+      execute 'select count(*) from (select ' || v_full_cols || ' from routes_public where id = $1) s' into v_n2 using rt;
       execute 'select count(*) from (select name, area from routes where id = $1) s' into v_n3 using rt;
       execute 'select count(*) from (select id, name, km, status from routes) s' into v_n4;
       reset role;
@@ -536,9 +544,5 @@ end $$;
 
 
 -- [0110] Put the shipped world back exactly as it was found, so suite 145 measures 0110 rather
--- than this file's leftovers. Definition restored from the catalog capture above.
-do $$
-begin
-  execute 'create view public.routes_public as ' || current_setting('rev.saved_viewdef');
-  execute 'grant select on public.routes_public to anon, authenticated';
-end $$;
+-- than this file's leftovers. Restored by RENAME, so the definition AND the grant state come
+-- back byte-for-byte as 0110/0112 shipped them — no recreate, no fresh default ACL.

@@ -162,7 +162,10 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // 열렸으므로 가시성은 이제 쿼리의 책임이다 (상세·이력은 fetchRouteById가 전 상태를 읽는다).
   const forTown = async (t: string | null): Promise<RouteRow[]> => {
     for (const status of ['active', 'candidate'] as const) {
-      let q = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', status);
+      // 0110: geometry reads go through the `routes_public` view (catalog-owned projection of the
+      // 16 columns ROUTE_LIST_COLS names); catalog revokes trace/trace_thumb on the base table after
+      // this lands. name/area/km embeds elsewhere stay on `routes` — those columns are not revoked.
+      let q = supabase.from('routes_public').select(ROUTE_LIST_COLS).eq('status', status);
       if (t) q = q.eq('town', t);
       const { data, error } = await q.order('km');
       if (error) throw error;
@@ -176,6 +179,15 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // 만족하지 않으므로 '아직 내놓을 코스'가 아니다. 재빌드되면 자동으로 다시 들어온다.
   const rows = await forTown(town ?? null);
   if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
+
+  // Same token, administrative suffix only: district '성수' ↔ town '성수동'. This is NOT the geographic
+  // judgement the comment below refuses (뚝섬 → 성수동); it is the one normalisation that cannot be wrong,
+  // and it is what made Sean's own account (district '성수') fall through to the unfiltered list while a
+  // 반포동 owner saw only 반포동 — two owners, two rules. (2026-08-20)
+  if (!town.endsWith('동')) {
+    const suffixed = await forTown(`${town}동`);
+    if (suffixed.length > 0) return suffixed.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
+  }
 
   // ── 동네 어휘 폴백 (플랜 "Town vocabulary" — 명세돼 있었지만 만들어지지 않았던 팔) ──
   // `profiles.district`와 `routes.town`은 **서로 다른 어휘**다. 실측(2026-08-13):
@@ -199,7 +211,7 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
 // 없는 행과 숨겨진 행은 다른 사실이므로 null과 예외를 구분해서 돌려준다.
 export async function fetchRouteById(id: string): Promise<RouteInfo | null> {
   const { data, error } = await supabase
-    .from('routes').select(ROUTE_FULL_COLS).eq('id', id).maybeSingle();
+    .from('routes_public').select(ROUTE_FULL_COLS).eq('id', id).maybeSingle(); // 0110 view, see fetchRoutes
   if (error) throw error;
   if (!data) return null;
   const r = data as RouteRow;
@@ -289,8 +301,13 @@ const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, pref
 
 // 다견 가구 지원 — 전체 목록
 export async function fetchMyDogs(): Promise<DogProfile[]> {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return [];
+  // [review P1-10] getUser() does NOT throw on a transient failure — it resolves
+  // `{ user: null, error }`. Discarding that error turned "we could not identify you" into
+  // "you own zero dogs", which is what routed a returning owner into first-run onboarding.
+  // The PostgREST error below was already loud; this one has to be too.
+  const { data: user, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw authErr;
+  if (!user.user) return []; // genuinely signed out — the route guards own that case
   const { data, error } = await supabase.from('dogs').select(DOG_SELECT)
     .eq('owner_id', user.user.id).order('created_at', { ascending: true });
   if (error) throw error; // [적대 리뷰 P1] 실패를 삼키면 '개 없음'으로 둔갑 — 에러 브랜치가 죽는다
@@ -354,7 +371,18 @@ export async function uploadDogPhoto(dogId: string, base64: string): Promise<str
 }
 
 // ---------- bookings (edge functions) ----------
-export interface HoldResult { booking_id: string; hold_expires_at: string; total_price: number }
+// [O-5 §C.1 · create-booking-hold v10] The server answers two different questions and the client
+// must guess neither: `paid_path` = which path this owner is on, `booking_status` = what the row
+// IS at the moment this call returns. While charging is off BOTH paths close the payment step in
+// the same request, so the honest answer is `matching` — and `payment_ok` no longer exists to move
+// a row that stopped short. A caller therefore BRANCHES on `booking_status`; it never assumes it.
+export interface HoldResult {
+  booking_id: string;
+  hold_expires_at: string;
+  total_price: number;
+  paid_path: 'card' | 'widget';
+  booking_status: 'matching' | 'payment_hold';
+}
 
 export async function createBookingHold(p: {
   dog_id: string;
@@ -396,13 +424,10 @@ export async function pauseRecurringSeries(seriesId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function confirmPayment(bookingId: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('transition-booking', {
-    body: { booking_id: bookingId, action: 'payment_ok' },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-}
+// [O-5 §C.2] `confirmPayment` is DELETED, with the server action it called. `payment_ok` verified
+// nothing about payment and moved no money — `transition-booking` now answers it with
+// 400 `unknown action payment_ok`. `create-booking-hold` closes that step itself (§C.1), so there
+// is no second writer of `payment_hold → matching` and no client call to make. Do not re-add it.
 
 // ---------- 토스페이먼츠 실결제 (payments-toss-plan.md §2) ----------
 // CLIENT CONTRACT ONLY — both edge functions are built in a parallel lane. Nothing calls these
@@ -1143,6 +1168,9 @@ export async function settleRun(p: {
 export interface RunnerJob {
   bookingId: string;
   when: string;
+  /** 예정 시각 원본 (bookings.scheduled_at, ISO). `when`은 이미 조판된 라벨이라 '오늘인가'를
+   *  물을 수 없다 — 문자열을 되파싱하는 대신 원본을 함께 싣는다. */
+  scheduledAt: string | null;
   dogName: string;
   km: number;
   payout: number;
@@ -1185,6 +1213,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     return {
       bookingId: r.id,
       when: `${dateLabel} ${timeLabel}`,
+      scheduledAt: r.scheduled_at ?? null,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
       // 완료 = 원장 실수령, 그 외 = 실수수료 견적 (일괄 33%, 0059)
@@ -1202,7 +1231,13 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 export type PatchGrade = 'basic' | 'silver' | 'gold' | 'master';
 export const patchGrade = (n: number): PatchGrade =>
   n >= 25 ? 'master' : n >= 10 ? 'gold' : n >= 5 ? 'silver' : 'basic';
-export interface CoursePatch { routeId: string; name: string; km: number; count: number; grade: PatchGrade; firstAt: string | null }
+export interface CoursePatch { routeId: string; name: string; km: number; count: number; grade: PatchGrade; firstAt: string | null;
+  /** 0082 라이프사이클 상태. 획득 패치는 상태와 무관하게 남는다 (기록 카드 원칙 — 코스가 은퇴해도
+   *  달린 기록은 없던 일이 되지 않는다). 이 값이 필요한 곳은 **목표**를 말하는 소비처뿐이다:
+   *  '다음 승급까지 N회'는 지금 달릴 수 있는 코스에서만 참이다. 이 필드를 채우지 않는 소비처
+   *  (러너 공개 이력·패치 팝)는 목표를 만들지 않으므로 optional 이다. */
+  status?: 'candidate' | 'active' | 'suspended' | 'retired';
+}
 
 // 내(보호자든 러너든 당사자) 완료 러닝을 코스별로 집계 — locked는 아직 못 달린 활성 코스
 export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; locked: { routeId: string; name: string; km: number }[] }> {
@@ -1244,6 +1279,7 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
       earned.push({
         routeId: r.id, name: r.name, km: Number(r.km), count: c.n,
         grade: patchGrade(c.n), firstAt: kstParts(c.first).dateLabel,
+        status: r.status,
       });
     } else locked.push({ routeId: r.id, name: r.name, km: Number(r.km) });
   });
@@ -1603,8 +1639,12 @@ export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: bo
 export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { totalRuns: 0, totalKm: 0, online: false, tier: null };
-  const { data } = await supabase.from('runners')
+  // A failed read must not resolve as "offline, 0 runs" — that is a happy UI on a failure.
+  // Throw so the screen's error state (rsErr / the 온라인 row's failure) can render. No row
+  // (maybeSingle → null) still means "not a runner yet" and keeps the zeros.
+  const { data, error } = await supabase.from('runners')
     .select('total_runs, total_km, online, tier').eq('profile_id', user.user.id).maybeSingle();
+  if (error) throw error;
   return {
     totalRuns: data?.total_runs ?? 0,
     totalKm: Number(data?.total_km ?? 0),
@@ -1915,6 +1955,18 @@ export async function saveRunTrace(bookingId: string, trace: { lat: number; lng:
 export async function fetchRunTrace(bookingId: string): Promise<{ lat: number; lng: number; t: number }[]> {
   const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
   return ((data as any)?.trace ?? []) as { lat: number; lng: number; t: number }[];
+}
+
+// 이 러닝의 실사진 — runs.photos, uploadRunPhoto(append_run_photo)가 돌려주는 것과 **같은 배열**.
+// [2026-08-19 · runner review P2] 추가 이유: run.tsx가 러닝 도중 올린 사진은 이미 같은 booking의
+// runs.photos에 원자 append 돼 있는데, done.tsx의 `photos` state는 [] 로 시작해 업로드 응답으로만
+// 채워졌다 — 4장을 찍고 온 러너가 '오늘의 순간'에서 썸네일 0개를 보고(사진이 사라졌다고 읽고)
+// 6장 캡도 0부터 다시 세었다. 읽기 창구는 fetchRunTrace와 같은 `runs party read` 정책이다.
+// 추가만 한다 (기존 함수·타입 무변경).
+export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('runs').select('photos').eq('booking_id', bookingId).maybeSingle();
+  if (error) throw error;
+  return ((data as any)?.photos ?? []) as string[];
 }
 
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
@@ -2388,6 +2440,12 @@ function mapMsg(m: any, uid?: string | null): ChatMsg {
 }
 
 // 예약당 스레드 1개 — 없으면 생성 (동시 생성 레이스 시 재조회)
+// ⚠ CROSS-LAYER DEPENDENCY (0114 party membership — docs/security-booking-party-forgery.md):
+// before the runner accepts, `threads party insert` refuses the owner with RLS. The measured live
+// shape is HTTP 403, code "42501", message 'new row violates row-level security policy for table
+// "chat_threads"'. app/chat.tsx keys its PERMANENT "러너가 수락하면 채팅을 열 수 있어요" state on that
+// code surviving this function — so the race-recovery below must RETHROW THE ORIGINAL ERROR, never a
+// generic one. Neither side may replace it without the other.
 export async function ensureThread(bookingId: string): Promise<string> {
   const { data: existing } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
   if (existing) return existing.id;
@@ -2395,7 +2453,7 @@ export async function ensureThread(bookingId: string): Promise<string> {
   if (error) {
     const { data: again } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
     if (again) return again.id;
-    throw error;
+    throw error; // original PostgREST error — chat.tsx reads `.code === '42501'` from it
   }
   return data.id;
 }
@@ -2435,31 +2493,105 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
 }
 
 // 새 메시지 실시간 구독 — 해제 함수 반환
+// ── Shared realtime channels — one channel per topic, fan-out to N listeners ───────────────────
+// supabase-js dedupes channels BY TOPIC and throws "cannot add `postgres_changes` callbacks … after
+// `subscribe()`" when a second mounted screen attaches to an already-subscribed channel. Expo Router
+// keeps previous screens mounted, so the same booking / thread / club session watched from two screens
+// (owner live → home → meetup; chat opened from meetup and from schedule) crashed. Measured 2026-08-19
+// on owner/meetup. `removeChannel` AWAITS the leave before teardown, so the registry keeps the entry
+// until that resolves; a listener arriving during teardown waits and then opens a fresh channel.
+// Every consumer keeps its poll fallback — nothing here changes what a screen does on an event.
+type SharedWatcher<P> = { listeners: Set<(p: P) => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
+const sharedWatchers = new Map<string, SharedWatcher<any>>();
+function subscribeShared<P>(
+  topic: string,
+  attach: (ch: ReturnType<typeof supabase.channel>, emit: (p: P) => void) => ReturnType<typeof supabase.channel>,
+  listener: (p: P) => void,
+): () => void {
+  hookTokenRefresh();
+  let w = sharedWatchers.get(topic) as SharedWatcher<P> | undefined;
+  if (w && w.teardown) {
+    let cancelled = false;
+    let inner: (() => void) | null = null;
+    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener); });
+    return () => { cancelled = true; inner?.(); };
+  }
+  if (!w) {
+    const listeners = new Set<(p: P) => void>();
+    const ch = attach(
+      supabase.channel(topic, REALTIME_PRIVATE),
+      (p) => { for (const fn of Array.from(listeners)) fn(p); },
+    );
+    w = { listeners, ch, dropped: false, teardown: null };
+    sharedWatchers.set(topic, w);
+    const mine = w;
+    // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
+  }
+  w.listeners.add(listener);
+  const mine = w;
+  return () => {
+    const cur = sharedWatchers.get(topic);
+    if (cur !== mine) return;
+    cur.listeners.delete(listener);
+    if (cur.listeners.size === 0 && !cur.teardown) {
+      cur.dropped = true;
+      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
+        .then(() => undefined, () => undefined)
+        .finally(() => { if (sharedWatchers.get(topic) === cur) sharedWatchers.delete(topic); });
+    }
+  };
+}
+
 export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
   // P0-1 후속(0108): chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  const ch = supabase
-    .channel(`chat-${threadId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
+  // see subscribeShared; the message is mapped per listener so each screen sees its own `mine`.)
+  return subscribeShared<any>(
+    `chat-${threadId}`,
+    (ch, emit) => ch.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
-      (payload) => onMsg(mapMsg(payload.new, uid)))
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+      (payload) => emit(payload.new)),
+    (row) => onMsg(mapMsg(row, uid)),
+  );
 }
 
 // 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
-// 레이더(찾는 중) 화면용 — 상태 + 수락 러너 이름만 가볍게
-export async function fetchBookingBrief(id: string): Promise<{ status: string; runnerName: string | null }> {
+// 레이더(찾는 중) 화면용 — 상태 + 수락 러너 이름/id만 가볍게.
+// `runnerId`가 있는 이유 (review P1-9): 레이더의 '지명됨' 배지는 낙관적 로컬 상태였고, 러너가
+// 거절하면 서버는 runner_id를 NULL로 되돌리는데 배지는 그대로 남아 — 그 러너만 재지명할 수 없게
+// 됐다. 폴링이 매 틱 서버의 runner_id를 그대로 싣고 오면 배지가 서버 진실을 따라간다.
+export async function fetchBookingBrief(id: string): Promise<{ status: string; runnerName: string | null; runnerId: string | null }> {
   const { data, error } = await supabase.from('bookings')
-    .select('status, runners(profiles(name))').eq('id', id).single();
+    .select('status, runner_id, runners(profiles(name))').eq('id', id).single();
   if (error) throw error;
   const d = data as any;
-  return { status: d.status, runnerName: d.runners?.profiles?.name ?? null };
+  return { status: d.status, runnerName: d.runners?.profiles?.name ?? null, runnerId: d.runner_id ?? null };
+}
+
+// Radar's alert row — one booking, the five fields that row prints, nothing else.
+// Deliberately NOT fetchMyBookings(): that pulls 20 rows with five embeds and is capped at 20,
+// so a real booking can legitimately fall out of it. The alert row must never guess, so it reads
+// its own row. Any field the server does not have comes back null and the screen omits it.
+export async function fetchBookingCard(id: string): Promise<{
+  dateLabel: string; timeLabel: string; km: number | null; dogName: string | null;
+  status: string; runnerName: string | null; runnerId: string | null;
+}> {
+  const { data, error } = await supabase.from('bookings')
+    .select('scheduled_at, km, status, runner_id, dogs(name), runners(profiles(name))')
+    .eq('id', id).single();
+  if (error) throw error;
+  const d = data as any;
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  return {
+    dateLabel, timeLabel,
+    km: d.km == null ? null : Number(d.km),
+    dogName: d.dogs?.name ?? null,
+    status: d.status,
+    runnerName: d.runners?.profiles?.name ?? null,
+    runnerId: d.runner_id ?? null,
+  };
 }
 
 // 커뮤니티 '러너 후기' 탭 — 최근 공개 후기 + 러너 이름 (2-step, 임베드 FK명 의존 없음)
@@ -2487,18 +2619,15 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   // P0-1 후속(0108): bk 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  const ch = supabase
-    .channel(`bk-${bookingId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
+  // see subscribeShared above; the double-subscribe crash was measured on owner/meetup after owner/live.)
+  return subscribeShared<void>(
+    `bk-${bookingId}`,
+    (ch, emit) => ch.on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
-      () => onChange())
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+      () => emit(undefined as void)),
+    () => onChange(),
+  );
 }
 
 // 채팅 컨텍스트 — 상대 이름 + 예약 라벨
@@ -2777,6 +2906,9 @@ export interface FeedPost {
   body: string | null;
   photoUrl: string | null;
   meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[];
+    // runs.end_reason (0028 ②). '완주'라고 말할 수 있는 유일한 근거다 — status='completed'는
+    // 조기 종료 정산도 포함한다. 옛 포스트에는 없다(undefined) → 피드는 완주를 주장하지 않는다.
+    endReason?: string;
     collar?: string; // 칼라 컬러 키 (0033) — 런 카드 트레이스가 강아지 색으로
     club?: string; sessionId?: string; teams?: number; dogs?: number; sessionAt?: string }; // 클럽 리캡 자동 포스트 (0031)
   when: string;
@@ -3213,18 +3345,14 @@ export async function sendClubChatPhoto(
 export function subscribeClubChat(sessionId: string, onInsert: () => void): () => void {
   // P0-1 후속(0108): club-chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  const ch = supabase
-    .channel(`club-chat-${sessionId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry.)
+  return subscribeShared<void>(
+    `club-chat-${sessionId}`,
+    (ch, emit) => ch.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'club_chat_messages', filter: `session_id=eq.${sessionId}` },
-      () => onInsert())
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+      () => emit(undefined as void)),
+    () => onInsert(),
+  );
 }
 // [감사 11] 삭제가 사진 원본을 스토리지에 남기던 것 — 말풍선만 지워지고 공개 URL은 살아 있었다.
 // RPC(본인 5분 내만)가 성공한 뒤에만 원본을 지운다. 원본 정리는 베스트에포트 —
@@ -3436,7 +3564,9 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
     booking_id: bookingId,
     body: body ?? null,
     photo_url: report.run.photos[0] ?? null,
-    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges, trace, ...(collar ? { collar } : {}) },
+    // endReason 동봉 — 피드 카드가 '완주'를 말해도 되는지의 유일한 근거 (0028 ②). 없으면
+    // 카드는 중립적인 '러닝 기록'으로 떨어진다: 0km 조기 종료가 '초코 완주'로 게시된 원인.
+    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, endReason: report.run.endReason ?? undefined, badges, trace, ...(collar ? { collar } : {}) },
   });
   if (error) {
     if (error.code === '23505') throw new Error('이미 피드에 공유한 러닝이에요');
@@ -3581,7 +3711,12 @@ export async function fetchRewardBeacon(): Promise<BeaconInfo> {
   // [director] '다음 패치까지'의 정직한 해석 = 가장 가까운 승급 (최다 완주 코스가 아니라).
   // count 4(실버까지 1회)가 count 11(마스터까지 14회)을 이긴다 — 카피와 선택 기준이 일치해야 한다.
   // 동률이면 count 높은 쪽 (더 진행된 코스). 마스터(25) 도달 코스는 다음 목표가 없으므로 제외.
+  // [honesty 2026-08-19] 목표는 **지금 달릴 수 있는 코스**에서만 나온다. earned는 은퇴·정지
+  // 코스도 담는다 (기록 카드 원칙, fetchCoursePatches 참조) — 그래서 홈 비컨이 "실버까지 2회 ·
+  // 뚝섬 리버뷰 코스"라고, 예약조차 받지 않는 은퇴 코스를 다음 목표로 인쇄하고 있었다.
+  // 획득 패치는 그대로 남고, 승급 목표만 active로 좁힌다.
   const candidates = patches.earned
+    .filter((c) => c.status === 'active')
     .map((c) => {
       const tier = [5, 10, 25].find((t) => t > c.count);
       return tier === undefined ? null : { name: c.name, count: c.count, toNext: tier - c.count };
@@ -3646,6 +3781,13 @@ export async function fetchNotifications(): Promise<LiveNoti[]> {
 // ---------- 러닝 리포트 (보호자) ----------
 export interface RunReport {
   dogName: string; routeName: string; routeArea: string; when: string;
+  // The raw `scheduled_at` behind `when`. `when` is a KST display label ("8월 19일 (화) 오후 7:30")
+  // and cannot be computed on. The report's "다음 주 같은 시간" nudge has to add 7 days to the
+  // instant this run was booked for and then check the result against owner/request.tsx's own
+  // rules (2h notice floor, 8-day strip, nine slots) before it is allowed to name a time.
+  // The select below already fetched this column; it was simply never surfaced.
+  // Additive only — this is a date, not a price. See the `price` note below.
+  scheduledAtIso: string | null;
   runnerName: string | null;
   runnerProfileId: string | null;
   routeId: string | null;
@@ -3680,6 +3822,7 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
     routeName: d.routes?.name ?? '코스 미지정',
     routeArea: d.routes?.area ?? '',
     when: `${dateLabel} ${timeLabel}`,
+    scheduledAtIso: d.scheduled_at ?? null,
     runnerName: d.runners?.profiles?.name ?? null,
     runnerProfileId: d.runner_id ?? null,
     routeId: d.route_id ?? null,

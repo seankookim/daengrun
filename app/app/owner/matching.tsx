@@ -364,9 +364,11 @@ export default function Matching() {
         {/* 데모 매칭 섹션 은퇴 (2026-07-23) — 목업 김민준 화면이 결제 실패를 숨기는 함정이었음.
             이 화면은 이제 실예약 전용. */}
         {!live && (
+          // [§E.5] 요청 화면에 결제 단계는 없다 — 홀드가 잡히면 그 자리에서 matching으로 넘어가고
+          // 바로 러너 찾기로 간다. "결제하면 러너 선택이 열려요"는 없는 단계를 가리키고 있었다.
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
+              진행 중인 예약이 없어요{'\n'}예약하면 러너 선택이 열려요
             </Text>
           </View>
         )}

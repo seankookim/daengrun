@@ -17,8 +17,14 @@ import { colors, paper } from '../../src/theme';
 const TAGS = ['시간 약속 철저', '사진 잘 찍어줘요', '소통이 빨라요', '아이를 잘 다뤄요', '페이스 조절 굿', '또 부르고 싶어요'];
 
 export default function OwnerReview() {
-  const { bid, rid, rname } = useLocalSearchParams<{ bid: string; rid: string; rname?: string }>();
-  const [stars, setStars] = useState(0);
+  const { bid, rid, rname, stars: starsParam } = useLocalSearchParams<{ bid: string; rid: string; rname?: string; stars?: string }>();
+  // The report's star row is an AFFORDANCE, not a submission — it carries the star the owner
+  // tapped over here and pre-selects it. Nothing is written until 후기 등록. The param is a URL
+  // string, so anything outside 1..5 falls back to 0 and submit() keeps refusing.
+  const [stars, setStars] = useState(() => {
+    const n = Number(starsParam);
+    return Number.isInteger(n) && n >= 1 && n <= 5 ? n : 0;
+  });
   const [tags, setTags] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [privateFlag, setPrivateFlag] = useState(false);

@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Icon, Monogram, Row } from '../src/components/ui';
+import { Monogram, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
   ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
@@ -25,7 +25,10 @@ export default function Chat() {
   const { bid } = useLocalSearchParams<{ bid?: string }>();
   const isRunner = session.role === 'runner';
   const [ctx, setCtx] = useState<ChatContext | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error'>('loading');
+  // 'preaccept' = 서버가 **설계상** 거부한 상태 (0114): 러너가 수락하기 전 예약은
+  // chat_threads INSERT가 정책에서 막힌다. 'error'(일시적 실패)와 같은 문장을 쓰면 안 된다 —
+  // 기다려도 절대 열리지 않는데 "잠시 후 다시 시도"라고 말하는 건 시간에 대한 거짓말이다.
+  const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error' | 'preaccept'>('loading');
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -44,8 +47,18 @@ export default function Chat() {
         setMsgs(await fetchMessages(c.threadId));
         setState('ready');
       } catch (e) {
-        console.warn('[chat] open:', (e as Error)?.message);
-        if (alive) setState('error');
+        // [0114 · ui2-2] RLS 거부만 골라낸다. openChatForBooking → ensureThread의 INSERT가
+        // is_booking_party_active에 걸리면 PostgREST가 42501 / "row-level security" 를 올린다
+        // (docs/contracts/party-membership-status-filter-contract.md §C.3). 그 외의 실패
+        // (네트워크·타임아웃·5xx)는 진짜 일시적 실패이므로 종전 재시도 문구를 그대로 쓴다.
+        const err = e as { code?: string; message?: string };
+        // Measured live shape (0114 probe, docs/security-booking-party-forgery.md): HTTP 403, code "42501",
+        // 'new row violates row-level security policy for table "chat_threads"'. The code is the contract;
+        // the message test is only a fallback for an SDK that drops the code.
+        const denied = err?.code === '42501'
+          || /row-level security policy for table "chat_threads"/i.test(err?.message ?? '');
+        console.warn('[chat] open:', err?.message);
+        if (alive) setState(denied ? 'preaccept' : 'error');
       }
     })();
     return () => { alive = false; };
@@ -101,6 +114,9 @@ export default function Chat() {
     }
   };
 
+  // 보내기가 실제로 할 일이 없는 조건 — send()의 가드와 같은 술어를 버튼이 그대로 입는다.
+  const sendBlocked = sending || state !== 'ready' || input.trim().length === 0;
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
@@ -113,9 +129,9 @@ export default function Chat() {
             {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
           </Text>
         </View>
-        <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (준비 중)')}>
-          <Icon name="Phone" glyph="●" size={16} color="#5a7a3c" />
-        </Pressable>
+        {/* [dead button 2026-08-19] 안심 통화 버튼 은퇴. 유일한 효과가 "(준비 중)" 알럿이었다 —
+            없는 기능을 있는 것처럼 배치한 버튼이고, 그건 이 앱이 금지한 것이다. 번호 마스킹
+            연동(PG/통신)이 실제로 붙는 날 같은 자리로 돌아온다. */}
       </Row>
 
       {/* booking context strip */}
@@ -131,6 +147,14 @@ export default function Chat() {
           <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
           <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
             채팅은 예약이 생기면 상대방과 자동으로 연결돼요
+          </Text>
+        </View>
+      )}
+      {state === 'preaccept' && (
+        <View style={s.emptyWrap}>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>러너가 수락하면 채팅을 열 수 있어요</Text>
+          <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
+            요청을 수락한 러너와 바로 연결돼요
           </Text>
         </View>
       )}
@@ -194,13 +218,26 @@ export default function Chat() {
           style={s.input}
           value={input}
           onChangeText={setInput}
-          placeholder={state === 'ready' ? '메시지 보내기' : '연결 중...'}
+          /* 플레이스홀더도 같은 법을 진다 — 수락 전 상태에서 '연결 중...'은 열릴 예정이 없는
+             연결을 기다리라는 말이 된다 */
+          placeholder={state === 'ready' ? '메시지 보내기' : state === 'preaccept' ? '수락 후 열려요' : '연결 중...'}
           placeholderTextColor="#a9a795"
           editable={state === 'ready'}
           onSubmitEditing={() => send(input)}
           returnKeyType="send"
         />
-        <Pressable style={[s.sendBtn, (sending || state !== 'ready') && { opacity: 0.5 }]} onPress={() => send(input)}>
+        {/* [dead button 2026-08-19] 예전엔 opacity 0.5만 걸려 있었다 — 흐릿해 보이지만 여전히
+            눌렸고, 수락 전이나 빈 입력에서도 send()를 호출했다 (send가 안에서 return하므로
+            **아무 일도 안 일어나는 버튼**). 상태를 명시 disabled로 말한다: 불투명도는 표현이지
+            상태가 아니다 (theme.ts:206 매트릭스). */}
+        <Pressable
+          style={[s.sendBtn, sendBlocked && { opacity: 0.5 }]}
+          onPress={() => send(input)}
+          disabled={sendBlocked}
+          accessibilityRole="button"
+          accessibilityLabel="보내기"
+          accessibilityState={{ disabled: sendBlocked }}
+        >
           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>↑</Text>
         </Pressable>
       </Row>

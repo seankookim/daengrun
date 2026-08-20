@@ -400,13 +400,17 @@ export default function ActiveRun() {
   // 입구 도착 — 한 번 켜지면 다시 꺼지지 않는다. **새 구독자를 만들지 않는다**: onTrack이 이미
   // 세팅하는 lastPos(마지막으로 게이트를 통과한 픽스)를 읽을 뿐이다. 추적 싱글턴은 동결이다.
   const [atEntry, setAtEntry] = useState(false);
+  // km at the moment the entry was reached — the "입구 도착" line shows only for the next ~200 m,
+  // not for the whole lap (review 2026-08-19: it was pinned at km 4 of 5).
+  const entryKmRef = useRef<number | null>(null);
   useEffect(() => {
     if (atEntry || !entry || !lastPos) return;
     if (haversineM({ lat: lastPos.lat, lng: lastPos.lng }, entry.point) <= ENTRY_REACHED_M) {
+      entryKmRef.current = km;
       setAtEntry(true);
       haptic('success');
     }
-  }, [atEntry, entry, lastPos]);
+  }, [atEntry, entry, lastPos, km]);
 
   /** 입구까지 남은 **직선** 거리(m). 픽스가 아직 없으면 픽업→입구 거리로 답한다 — 둘 다 실좌표
    *  두 점 사이의 실측이고, 어느 쪽도 도로 경로 길이가 아니다 (문구가 그렇게 말한다). */
@@ -534,10 +538,22 @@ export default function ActiveRun() {
     // 트레이스에서 그대로 읽히는 사실일 때만 말한다.
     const openNote = rotated ? undefined : '시작점이 정해진 코스예요';
     if (atEntry) {
+      // Say it at the entry, then fall silent once the lap is under way (~200 m past the entry).
+      const past = entryKmRef.current != null ? km - entryKmRef.current : 0;
+      if (past > 0.2) return null;
       const rkm = routeGeo?.km;
       return {
         text: rkm != null ? `입구 도착 — 여기서 랩 시작 · 코스 ${rkm}km` : '입구 도착 — 여기서 랩 시작',
         note: openNote,
+      };
+    }
+    // Before the first fix (tracking starts at 시작) the only distance we have is pickup → entry,
+    // which is NOT the runner's remaining distance — label it as the pickup's, and count down only
+    // once fixes arrive.
+    if (!lastPos) {
+      return {
+        text: `픽업에서 입구까지 직선 ${Math.round(entryDistM)}m`,
+        note: ['직선 거리예요 · 길 안내는 실도로 검증 전', openNote].filter(Boolean).join(' · '),
       };
     }
     return {
@@ -947,6 +963,12 @@ export default function ActiveRun() {
     return { text: '위치 기능이 없는 빌드예요 — 새 빌드에서 기록돼요' };
   };
   const strip = blockStrip();
+  // 코랄 예산 (§ 프레임당 채도 하나). 이 패널엔 스트립이 최대 넷까지 **동시에** 뜬다
+  // (추적 상태 · 저장 지연 · 픽업→입구 안내 · 코스 고지). 넷 다 코랄이면 지금 급한 게
+  // 무엇인지가 사라진다 — 심각도 순으로 맨 위 하나만 코랄을 갖고, 나머지는 중립 잉크로
+  // **같은 문장을** 말한다. 문장·재시도 액션·표시 여부는 그대로다: 실패는 여전히 실패로 보인다.
+  const coralOwner: 'block' | 'saveLag' | 'guide' | 'route' | null =
+    strip ? 'block' : saveLag ? 'saveLag' : guide?.warn ? 'guide' : routeNote?.warn ? 'route' : null;
 
   return (
     <View style={s.root}>
@@ -977,21 +999,26 @@ export default function ActiveRun() {
             }}
           >
             {/* 예정 코스(랩) — '인쇄된 코스도'. 흰 케이싱, 실측 트레이스 **아래**.
-                재정 #14: 닫힌 루프면 입구에서 시작하도록 회전된 좌표를 그린다. 색·굵기·zIndex는
-                그대로다 — 회전은 그리는 순서를 바꿀 뿐 이 선이 무엇인지를 바꾸지 않는다. */}
+                재정 #14: 닫힌 루프면 입구에서 시작하도록 회전된 좌표를 그린다. 색·zIndex는
+                그대로다 — 회전은 그리는 순서를 바꿀 뿐 이 선이 무엇인지를 바꾸지 않는다.
+                재정 #9 (2026-08-19): "계획 경로는 고스트보다 진하게". 굵기 3→4, 흰 케이싱 1→2로
+                한 단 올린다. 실측 트레이스(볼트 6pt + 케이싱 2)보다 **여전히 분명히 아래**이고
+                색도 그대로라, 두 선이 한 가지로 읽히는 일은 없다 (CLAUDE.md: 계획선 ≠ 실측선). */}
             {routeCoords.length > 1 && (
               <maps.NaverMapPathOverlay
                 coords={lapCoords}
-                width={3}
+                width={4}
                 color={lilac.accent}
-                outlineWidth={1}
+                outlineWidth={2}
                 outlineColor="#FFFFFF"
                 zIndex={0}
               />
             )}
             {/* 접근 구간 — 픽업에서 입구까지. **직선**이다: 우리에게 도로 라우팅이 없고, 안내 문구도
-                그렇게 말한다. 랩(라일락)과도 실측 트레이스(볼트)와도 다른 잉크·굵기라 세 선이 절대
-                한 가지로 읽히지 않는다. 입구에 닿으면 할 일을 다 했으므로 사라진다. */}
+                그렇게 말한다. 랩(라일락)과도 실측 트레이스(볼트)와도 다른 잉크라 세 선이 절대 한
+                가지로 읽히지 않는다 — 재정 #9로 랩이 4pt가 되어 굵기는 같아졌지만, 잉크(검정 vs
+                라일락)·케이싱(1 vs 2)·형태(직선 vs 랩 곡선)가 셋을 갈라 둔다.
+                입구에 닿으면 할 일을 다 했으므로 사라진다. */}
             {!atEntry && pickupLL && entryCoord && (
               <maps.NaverMapPathOverlay
                 coords={[{ latitude: pickupLL.lat, longitude: pickupLL.lng }, entryCoord]}
@@ -1139,28 +1166,29 @@ export default function ActiveRun() {
           </View>
         )}
         {saveLag && (
-          <View style={s.failStrip}>
-            <Text style={s.failTxt}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+          <View style={[s.failStrip, coralOwner !== 'saveLag' && s.noteStrip]}>
+            <Text style={[s.failTxt, coralOwner !== 'saveLag' && s.mutedTxt]}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
         )}
-        {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 중립 헤어라인 */}
+        {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 중립 헤어라인.
+            위에 더 급한 스트립이 이미 코랄을 쓰고 있으면 이 줄도 중립으로 말한다 (코랄 예산). */}
         {guide && (
-          <View style={[s.failStrip, !guide.warn && s.noteStrip]}>
+          <View style={[s.failStrip, !(guide.warn && coralOwner === 'guide') && s.noteStrip]}>
             <View style={{ flex: 1 }}>
-              <Text style={[s.guideTxt, guide.warn && { color: colors.tang }]}>{guide.text}</Text>
+              <Text style={[s.guideTxt, guide.warn && coralOwner === 'guide' && { color: colors.tang }]}>{guide.text}</Text>
               {guide.note && <Text style={s.guideNote}>{guide.note}</Text>}
             </View>
             {guide.action && (
               <Pressable onPress={guide.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={guide.action}>
-                <Text style={s.failAction}>{guide.action}</Text>
+                <Text style={[s.failAction, coralOwner !== 'guide' && s.mutedAction]}>{guide.action}</Text>
               </Pressable>
             )}
           </View>
         )}
         {/* 코스 오버레이 고지 — 자문이지 차단이 아니다. 코스 선이 없어도 러닝·기록·정산은 그대로 간다 */}
         {routeNote && (
-          <View style={[s.failStrip, !routeNote.warn && s.noteStrip]}>
-            <Text style={[s.failTxt, !routeNote.warn && { color: '#BBBBBB' }]}>{routeNote.text}</Text>
+          <View style={[s.failStrip, !(routeNote.warn && coralOwner === 'route') && s.noteStrip]}>
+            <Text style={[s.failTxt, !(routeNote.warn && coralOwner === 'route') && s.mutedTxt]}>{routeNote.text}</Text>
           </View>
         )}
 
@@ -1213,10 +1241,14 @@ export default function ActiveRun() {
           </View>
         )}
 
+        {/* 수익은 한 줄의 **사실**이다 (v4 랩 R4). 꼬리말 '실측으로 확정'은 장식이 아니라 참이다:
+            settle-run은 actual_km으로 밴드를 계산하고, 이 줄의 두 숫자는 payoutFor()의 추정이다 —
+            러너가 여기 숫자를 확정 금액으로 읽지 않게 그 사실을 같은 줄에서 말한다. */}
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text>
             {targetKm != null ? ` · 완주 시 ${payoutFor(targetKm + 0.02).toLocaleString()}원` : ''}
+            {' · 실측으로 확정'}
           </Text>
         </Row>
 
@@ -1295,12 +1327,14 @@ export default function ActiveRun() {
               지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
             </Text>
 
+            {/* v4 랩 R5a: 세 이유는 **동급**이다. 하나에만 색을 주면 종료 사유를 유도하게 되므로
+                볼트/블루/골드 레일을 전부 내리고 같은 헤어라인 박스로 통일한다 (코랄 0, 볼트 0).
+                어휘·사유별 정산 줄은 그대로 — payoutByReason/REASON_MAP은 정산 입력이라 불가침. */}
             <EndOption
               title="강아지 컨디션"
               // 사진 약속은 내렸다 — 이 스텝이 받는 것은 메모다. 없는 것을 약속하지 않는다.
               desc="지친 기색·이상 징후 등. 종료 전에 메모를 남겨요"
               pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
-              accent="#C6F542"
               onPress={() => endWith('dog')}
             />
             <EndOption
@@ -1309,14 +1343,12 @@ export default function ActiveRun() {
               pay={targetKm != null
                 ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
                 : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
-              accent="#9fc3e8"
               onPress={() => endWith('owner')}
             />
             <EndOption
               title="러너 개인 사유"
               desc="부상·일정 등 러너 사정으로 종료해요"
               pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
-              accent="#e2c56b"
               onPress={() => endWith('runner')}
             />
 
@@ -1330,7 +1362,8 @@ export default function ActiveRun() {
             <View style={s.sheet}>
               <View style={s.sheetHandle} />
               <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>무엇을 보고 멈췄나요?</Text>
-              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 6, lineHeight: 21 }}>
+              {/* 두 문장짜리 안내 — 랩 R5b의 1.5× 행간에 맞춘다 (15pt/22 = 1.47×) */}
+              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 6, lineHeight: 22 }}>
                 여기 적은 내용이 보호자의 기록 카드에 그대로 실려요. 본 것만 적어주세요 — 판단은 보호자와 수의사가 해요.
               </Text>
 
@@ -1379,14 +1412,14 @@ export default function ActiveRun() {
   );
 }
 
-function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc: string; pay: string; accent: string; onPress: () => void }) {
+function EndOption({ title, desc, pay, onPress }: { title: string; desc: string; pay: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={s.endOption}>
-      <View style={[s.endRail, { backgroundColor: accent }]} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#FFFFFF' }}>{title}</Text>
-        <Text style={{ fontSize: 14.5, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>
-        <Text style={{ fontSize: 14, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
+        <Text style={{ fontSize: 14.5, lineHeight: 20, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>
+        {/* 정산 줄은 사유별로 **다른 숫자**지만 같은 잉크로 말한다 — 색이 곧 추천이 되지 않게 */}
+        <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF', marginTop: 5 }}>{pay}</Text>
       </View>
       <Text style={{ fontSize: 17, color: '#BBBBBB' }}>›</Text>
     </Pressable>
@@ -1449,6 +1482,10 @@ const s = StyleSheet.create({
   },
   failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
   failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
+  // 코랄을 더 급한 스트립에 넘겨준 줄의 중립 잉크 — 같은 문장·같은 자리, 채도만 내린다.
+  // 액션은 흰 잉크 + 밑줄을 유지한다: 컨트롤이 컨트롤로 안 읽히면 그건 죽은 버튼이 된다.
+  mutedTxt: { color: '#BBBBBB' },
+  mutedAction: { color: '#FFFFFF' },
   // 같은 스트립 문법의 **자문** 변형 — 코랄은 라우드 페일에만 쓴다 (색 역할 분리 법).
   // 코스 선이 없는 것은 실패가 아니라 사실이므로 중립 헤어라인으로 말한다.
   noteStrip: { borderColor: '#3A3A3A' },
@@ -1480,19 +1517,22 @@ const s = StyleSheet.create({
   // end-run sheets stay in the dark run world — sharp, coral hairline seam at the top edge
   sheet: { backgroundColor: '#141414', borderTopWidth: 1, borderTopColor: paper.line, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#3A3A3A', marginBottom: 14 },
+  // 종료 사유 행 — v4 랩 R5a는 세 행을 **같은 헤어라인 박스**로 그린다(레일 없음, 색 유도 없음).
+  // #222 필은 #141414 시트 위에서 1.1:1이라 사실상 보이지 않았다 — 테두리가 행을 객체로 만든다.
   endOption: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#222222', borderRadius: 0, padding: 14, marginTop: 10,
+    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 0, padding: 14, marginTop: 10,
   },
-  endRail: { width: 4, height: 44 },
   // 컨디션 종료 기록 스텝 — 다크 시트 안의 종이 필드. 보호자가 읽게 될 문장을 쓰는 자리라
   // 캔버스 면 + 코랄 헤어라인 1px로 시트에서 떼어 놓는다 (모서리는 여기도 샤프).
-  noteLabel: { fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginTop: 18, marginBottom: 7 },
+  // 랩 R5b의 리듬: 안내 → 라벨 12 → 필드 6. 18은 라벨을 안내에서 떼어 놓아 한 덩어리로 안 읽혔다.
+  noteLabel: { fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginTop: 14, marginBottom: 6 },
   noteInput: {
     minHeight: 108, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
     backgroundColor: paper.canvas, color: paper.ink,
-    fontSize: 15.5, lineHeight: 21, padding: 12,
+    // 러너가 여러 줄을 쓰는 유일한 칸 — 행간 1.48×(랩과 같은 리딩)로 문장이 서로 붙지 않게
+    fontSize: 15.5, lineHeight: 23, padding: 12,
   },
-  noteHint: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 8 },
+  noteHint: { fontSize: 14, lineHeight: 20, color: '#BBBBBB', marginTop: 8 },
   sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });

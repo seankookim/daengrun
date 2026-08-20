@@ -78,7 +78,10 @@ set client_min_messages = warning;
 -- a workaround — it states the precondition those pins have always silently assumed: **a route
 -- may only be published once its geometry is not already public.** Restored after the do block so
 -- 145 measures the SHIPPED grant state rather than this fixture.
-revoke select (trace, trace_thumb) on routes from anon, authenticated;
+-- [0113] The bracket that used to live here is GONE: client roles no longer hold
+-- select (trace, trace_thumb) on routes in the SHIPPED schema, so 0110 §C's activation gate is
+-- satisfied without any fixture help — and a re-grant at the bottom would have quietly restored
+-- the exposure 0113 removes, which suite 148 would then report as a live defect.
 
 -- Synthetic GPS trace: p_n points stepping north from (p_lat,p_lng). Carries `t`/`v` exactly
 -- like a real runs.trace (0001:243) so R6 can prove promotion strips them.
@@ -370,6 +373,4 @@ end $$;
 
 -- [0107] the test-only projection leaves with this file — 142 must see the SHIPPED schema
 -- (no routes_public), or its fail-closed pin would be measuring this fixture instead of 0107.
--- [0110] hand the base-table geometry grant back exactly as 0107 shipped it — suite 145 pins the
--- shipped state, and a fixture that leaks its own setup would make that pin measure this file.
-grant select (trace, trace_thumb) on routes to anon, authenticated;
+

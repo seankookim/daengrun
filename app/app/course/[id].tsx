@@ -4,6 +4,7 @@ import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet,
 import { Row } from '../../src/components/ui';
 import { CourseDetailBody, traceKind } from '../../src/components/course-detail';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { getNaverMap } from '../../src/lib/geo';
@@ -259,14 +260,29 @@ export default function CourseScreen() {
           </View>
         )}
       </ScrollView>
+      {/* 시스템 바 스트립 — 이 화면은 sticky 헤더가 없어 히어로 지도와 타이틀이 시계 뒤로 지나갔다 */}
+      <StatusBarCover color={paper.canvasSoft} />
 
-      {/* ---------- CTA (보호자만) — 코스에서 바로 예약으로 ---------- */}
+      {/* ---------- CTA (보호자만) — 코스에서 바로 예약으로 ----------
+          [2026-08-19] 은퇴·정지 코스는 예약 문을 열지 않는다. 예전 분기는 candidate 하나만
+          갈랐고 나머지를 전부 '이 코스로 예약하기'로 묶어서, 본문이 "더 이상 운영하지 않는
+          코스예요"라고 말하는 화면이 바로 아래에서 그 코스를 예약하라고 권했다 —
+          같은 화면 안의 두 문장이 서로를 반박하고, 눌러도 서버가 거절한다(auto-pick은
+          status='active' 게이트). 숨기지 않고 **사실 + 실제 목적지**로 바꾼다: 코스 지도. */}
       {route && isOwner && (
         <View style={s.ctaBar}>
-          <PaperBtn
-            label={route.status === 'candidate' ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
-            onPress={() => router.push({ pathname: '/owner/request', params: { routeId: route.id } })}
-          />
+          {route.status === 'retired' || route.status === 'suspended' ? (
+            <PaperBtn
+              variant="secondary"
+              label={route.status === 'retired' ? '운영 종료된 코스예요 — 다른 코스 보기 ›' : '점검 중인 코스예요 — 다른 코스 보기 ›'}
+              onPress={() => router.push('/owner/course-map')}
+            />
+          ) : (
+            <PaperBtn
+              label={route.status === 'candidate' ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
+              onPress={() => router.push({ pathname: '/owner/request', params: { routeId: route.id } })}
+            />
+          )}
         </View>
       )}
     </View>

@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
-import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchRunMeta, MeetupInfo, notifyRunStop, sendChatMessage, subscribeBooking } from '../../src/lib/api';
+import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
-import { draft } from '../../src/store';
-import { paper } from '../../src/theme';
+import { haversineM, nearestOnTrace, rotateLoopAtEntry, snapToRoute } from '../../src/lib/route-geom';
+import { draft, RouteInfo } from '../../src/store';
+import { colors, lilac, paper } from '../../src/theme';
 
 // 라이브 런 (보호자) — 풀스크린 실지도 + 하단 아일랜드. 실예약 전용 화면이다.
 // [정직 배치 2026-08-06 · item 2] 데모 모드 전면 퇴역: 빈 draft(앱 새로 열기·딥링크·백스택 재진입)가
@@ -49,6 +51,28 @@ const PACE_CHIP_A11Y: Record<'good' | 'slow', string> = {
 
 const STOP_REASONS = ['아이 컨디션이 걱정돼요', '급한 일정이 생겼어요', '기타 사유'];
 
+// ---------- 계획 경로 · 접근 구간 상수 (재정 #14/#15 · RULING 9) ----------
+// 입구 마커 에셋 — 러너 화면과 **같은 파일**이다. 두 화면이 같은 점을 다른 글리프로 그리면
+// 그건 같은 점으로 읽히지 않는다.
+const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
+// 입구 도착 판정 반경(m) · 닫힌 루프 임계값(m) — 둘 다 runner/run.tsx와 같은 수를 쓴다.
+// 한 화면만 다른 '도착'/'닫힘' 정의를 갖는 순간 두 지도가 같은 러닝을 다르게 그린다.
+// 표시 전용: 거리·페이스·정산에는 닿지 않는다.
+const ENTRY_REACHED_M = 40;
+const LOOP_CLOSURE_M = 50;
+// 계획 구도가 피해야 할 화면 덮개(pt). 상단 = 상단 바(top 56 + 40) + 그 아래 대기 스트립.
+// 하단은 아일랜드의 **실측** 높이를 쓴다 (이 상수는 그것을 재기 전의 하한이 아니라, 상단 쪽 값).
+const MAP_TOP_COVER_PT = 170;
+const MAP_PAD_PT = 24;
+// 딱 맞게 담으면 선이 화면 가장자리에 닿는다 — 요구 해상도를 15% 여유 있게 잡아 한 걸음 물린다.
+const MAP_FIT_PAD = 1.15;
+// 시뮬레이터 보정(2026-08-19, 코디네이터 실측). 표준 메르카토르 식(256pt 타일 가정)이 낸 줌으로
+// 그렸더니 루프의 일부만 보였다 — 네이버 SDK의 zoom은 그 식이 예측하는 것보다 **한 단계 정도
+// 더 당겨서** 그린다. 식을 손대는 대신 보정값을 한 개만 둔다: 여전히 잘려 보이면 이 값을
+// 올리고(더 넓게), 너무 멀어 보이면 내린다. ⚠ 내가 직접 시뮬레이터에서 잰 값이 아니라
+// 실측 보고를 반영한 상수다 — 다음 시뮬레이터 패스에서 확인 대상.
+const MAP_ZOOM_TRIM = 1;
+
 // 스트림 슬롯 — 라이브 캠이 붙을 자리. 세션이 null이면 아무것도 그리지 않는다
 // (없는 기능의 어포던스 금지). 자리만 아일랜드 레이아웃에 예약해 둔 것 — 나중에 붙어도 재배치 없음.
 function StreamSlot({ session }: { session: LiveStreamSession | null }) {
@@ -62,6 +86,8 @@ function StreamSlot({ session }: { session: LiveStreamSession | null }) {
 
 export default function Live() {
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(km)
+  // 회전·분할 대응 — Dimensions.get은 구독이 없어 stale (fitness.tsx:74와 같은 이유)
+  const { width: winW, height: winH } = useWindowDimensions();
   const [bookingId, setBookingId] = useState<string | null>(draft.bookingId ?? null);
   const [resolve, setResolve] = useState<Resolve>(draft.bookingId ? 'ready' : 'resolving');
   const [stopSheet, setStopSheet] = useState(false);
@@ -86,6 +112,25 @@ export default function Live() {
   // 개처럼 읽힌다. (P0-1)
   const [link, setLink] = useState<LiveLinkState>('connecting');
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
+
+  // ---------- 계획 경로 + 접근 구간 (재정 #14 · RULING 9) ----------
+  // 보호자가 보는 지도는 러너가 보는 지도와 **같은 그림**이어야 한다: 계획된 랩(라일락) 위에
+  // 지금까지 실제로 달린 선(voltDeep), 그리고 아직 입구에 닿기 전이라면 픽업→입구 직선.
+  // 세 선은 색·굵기·z가 전부 달라서 절대 한 가지로 읽히지 않는다 (CLAUDE.md 색 역할 법).
+  const [routeGeo, setRouteGeo] = useState<RouteInfo | null>(null);
+  const [routeState, setRouteState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  // fetchMeetupInfo 실패 — routeState가 'idle'에 머무는 두 이유(예약에 코스가 없다 / 예약
+  // 컨텍스트를 못 읽었다)를 가르는 값이다. 둘을 뭉치면 '코스 없음'이라는 거짓말이 된다.
+  const [infoErr, setInfoErr] = useState(false);
+  const [pickup, setPickup] = useState<{ s: 'loading' } | { s: 'ok'; a: OwnerPickup | null } | { s: 'err' }>({ s: 'loading' });
+  // 두 fetch를 한 버튼으로 되돌리는 재시도 카운터 — 화면에 보이는 '다시 시도'가 실제로 무엇을
+  // 다시 부르는지가 이 값이다 (죽은 버튼 금지).
+  const [geoTry, setGeoTry] = useState(0);
+  // 입구 도착 — 한 번 켜지면 다시 꺼지지 않는다. 픽스가 오기 전에는 false다 (모름 ≠ 도착).
+  const [atEntry, setAtEntry] = useState(false);
+  // 아일랜드 실측 높이 — 범례를 그 위에 정확히 얹기 위한 값. 추정 높이를 쓰면 아일랜드가
+  // 커지는 상태(신선도 스트립·페이스 줄)에서 범례가 그 밑으로 들어간다.
+  const [islandH, setIslandH] = useState(0);
 
   // ---------- pace-state (pace-state-ui-plan §1) ----------
   // ⚠ Elapsed precondition. `startAt.current` above clocks from the FIRST FIX AFTER MOUNT, so an
@@ -124,10 +169,28 @@ export default function Live() {
     resolveBooking();
   }, [bookingId, resolveBooking]);
 
+  // 예약 컨텍스트 (코스 id · 코스 이름 · 아이 · 권장 페이스). 자기 effect를 갖는 이유 둘:
+  // ① 실패를 조용한 catch로 삼키던 것을 상태로 올린다 — 이 fetch가 실패하면 routeId를 못 얻고
+  //    routeState는 'idle'에 머물러 계획선·입구·마커가 통째로 빠지는데, 화면은 아무 말도 하지
+  //    않았다 (geoNote에 idle 분기가 없었다). ② geoTry를 받아 화면의 '다시 시도'가 이것도
+  //    되부른다 — 구독을 세우는 아래 effect에 섞어 두면 재시도가 구독을 통째로 다시 만든다.
   useEffect(() => {
     if (!bookingId) return;
     const bid = bookingId;
-    fetchMeetupInfo(bid).then(setInfo).catch(() => {});
+    let alive = true;
+    setInfoErr(false);
+    fetchMeetupInfo(bid)
+      .then((i) => { if (alive) { setInfo(i); setInfoErr(false); } })
+      .catch((e) => {
+        console.warn('[live] meetup info:', e?.message ?? e);
+        if (alive) setInfoErr(true);
+      });
+    return () => { alive = false; };
+  }, [bookingId, geoTry]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    const bid = bookingId;
     const unsubPos = subscribePos(bid, (p) => {
       const now = Date.now();
       if (!startAt.current) startAt.current = now;
@@ -196,6 +259,139 @@ export default function Live() {
     return () => { alive = false; clearInterval(id); };
   }, [bookingId]);
 
+  // ---------- 코스 트레이스 ----------
+  // fetchMeetupInfo는 route_id와 코스 **이름**만 싣고 트레이스는 싣지 않는다 (api.ts의
+  // fetchMeetupInfo 참조 — 줄 번호로 쓰지 않는다: 종전의 `:1767-1769`는 이미 다른 함수를
+  // 가리키고 있었다). 선은 여기서 따로 온다. fetchRouteById는 라이프사이클 무관으로 읽으므로
+  // 정지된 코스로 예약한 러닝도 계획선을 잃지 않는다. 실패해도 위치·기록·정산에는 닿지 않는다.
+  useEffect(() => {
+    const rid = info?.routeId;
+    if (!rid) return;
+    let alive = true;
+    setRouteState('loading');
+    fetchRouteById(rid)
+      .then((r) => { if (alive) { setRouteGeo(r); setRouteState('ready'); } })
+      .catch((e) => { if (alive) { console.warn('[live] route:', e?.message ?? e); setRouteState('error'); } });
+    return () => { alive = false; };
+  }, [info?.routeId, geoTry]);
+
+  // ---------- 픽업 핀 ----------
+  // 삼상 계약 (api.ts의 fetchOwnerPickupCoords — 심볼로 인용한다, 종전의 `:2686-2689`는 이미
+  // 어긋나 있었다): null = 예약에 주소가 없다 · 행은 있는데 lat이 NULL = 주소는 있으나 핀이
+  // 없다 · throw = 못 불러왔다. 세 번째를 첫 번째로 접으면 '핀이 없어요'라는 거짓말이 되므로
+  // 실패는 실패로 남긴다.
+  useEffect(() => {
+    if (!bookingId) return;
+    const bid = bookingId;
+    let alive = true;
+    setPickup({ s: 'loading' });
+    fetchOwnerPickupCoords(bid)
+      .then((a) => { if (alive) setPickup({ s: 'ok', a }); })
+      .catch((e) => {
+        console.warn('[live] pickup:', e?.message ?? e);
+        if (alive) setPickup({ s: 'err' });
+      });
+    return () => { alive = false; };
+  }, [bookingId, geoTry]);
+
+  // ---------- 지오메트리 (runner/run.tsx:376-398의 거울) ----------
+  // ⚠ entryIdx는 **화면 로컬**이다. 목록의 trace_thumb(≤50점)와 여기 trace(≤200점)는 다른
+  // 배열이라 인덱스가 서로를 가리키지 못한다 (route-geom.ts:24-28). 그래서 다른 화면이 계산한
+  // 값을 받지 않고 **전체 트레이스 위에서** 다시 계산한다.
+  const pickupLL = useMemo(() => {
+    const a = pickup.s === 'ok' ? pickup.a : null;
+    return a && a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null;
+  }, [pickup]);
+  const traceLL = useMemo(() => routeGeo?.trace ?? [], [routeGeo]);
+  const routeCoords = useMemo(
+    () => traceLL.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+    [traceLL],
+  );
+  /** 입구 = 픽업에서 코스 **선 위**로 내린 수선의 발 (정점 최근접도, trace[0]도 아니다). */
+  const entry = useMemo(() => (pickupLL ? nearestOnTrace(pickupLL, traceLL) : null), [pickupLL, traceLL]);
+  const entryCoord = useMemo(
+    () => (entry ? { latitude: entry.point.lat, longitude: entry.point.lng } : null),
+    [entry],
+  );
+  // 회전은 **닫힌 루프에만**. rotateLoopAtEntry가 열린 경로면 입력과 같은 참조를 돌려주므로
+  // 그 항등 비교가 곧 '이 코스는 닫혔는가'의 답이다 (route-geom.ts:176-180).
+  const lapLL = useMemo(
+    () => (entry ? rotateLoopAtEntry(traceLL, entry, LOOP_CLOSURE_M) : traceLL),
+    [entry, traceLL],
+  );
+  const rotated = entry != null && lapLL !== traceLL;
+  const lapCoords = useMemo(
+    () => (rotated ? lapLL.map((p) => ({ latitude: p.lat, longitude: p.lng })) : routeCoords),
+    [rotated, lapLL, routeCoords],
+  );
+
+  // 입구 도착 — 러너 화면(runner/run.tsx)의 술어를 **포함하되 더 넓다**. 같다고 적으면 안 된다:
+  // 첫 줄(entry 점 ≤ ENTRY_REACHED_M)이 러너 쪽과 같은 테스트이고, 둘째 줄(트레이스 위 스냅)은
+  // 이 화면에만 있는 추가 조건이다.
+  // 왜 넓혀 두는가: 보호자는 보통 러닝 **중간에** 이 화면을 연다 — 첫 픽스가 이미 랩 위 어딘가,
+  // 입구에서 한참 떨어진 곳이다. 코스 선 위(≤ 40 m, snapToRoute의 허용치)에 있는 픽스는 접근이
+  // 끝났다는 뜻이므로 접근선을 그리지 않는다.
+  // ⚠ 대가는 알고 받아들인 것이다: 코스 선에서 40 m 안쪽에 픽업이 있는 강변 예약이라면 첫 픽스에
+  //   바로 atEntry가 걸려, 러너는 아직 입구로 안내받는 중인데 보호자 화면엔 '입구까지'가 없다.
+  //   러너 화면이 안내의 정본이고 이 화면은 관전이라 그쪽으로 기울여 둔다.
+  useEffect(() => {
+    if (atEntry || !entry || !pos) return;
+    const fix = { lat: pos.lat, lng: pos.lng };
+    if (haversineM(fix, entry.point) <= ENTRY_REACHED_M) { setAtEntry(true); return; }
+    if (traceLL.length > 1 && snapToRoute(traceLL, fix, { offRouteM: ENTRY_REACHED_M }).onRoute) setAtEntry(true);
+  }, [atEntry, entry, pos, traceLL]);
+
+  /** 접근선이 그려지는 동안인가. 카메라가 담아야 할 것이 무엇인지도 이 술어가 정한다. */
+  const showApproach = !atEntry && pickupLL != null && entryCoord != null;
+
+  /**
+   * 계획 구도 — 첫 픽스 전에 지도가 가질 수 있는 유일한 정직한 카메라.
+   *
+   * 담아야 할 것은 랩만이 아니다. **접근선을 그리는 동안에는 픽업과 입구도 화면 안에 있어야
+   * 한다**: 반포 픽업 + 서울숲 코스처럼 둘이 km 단위로 떨어진 예약에서 랩만 담으면 접근선과
+   * 입구 마커가 화면 밖으로 나가고, 그러면 범례가 **화면에 없는 선**을 가리키게 된다 —
+   * 그리지 않은 선의 스와치를 금지한 것과 같은 거짓말이다. (sim 확인 2026-08-19)
+   *
+   * ⚠ report.tsx:236-243의 `log2(360/latΔ)` 근사는 이 화면에서 쓸 수 없다. 그 식은 (a) 위도
+   * 스팬만 보고 경도를 무시하고 (b) 뷰포트를 256px로 가정한다. report의 지도는 190pt 높이의
+   * 작은 띠라 그 가정으로 충분했지만, 이 화면은 풀스크린이고 세로가 길다 — 같은 식이 한 단계
+   * 이상 당겨진 줌을 내서 루프의 일부만 보였다.
+   *
+   * 그래서 각도가 아니라 **미터로 재고 실제 포인트 크기에 맞춘다**: 웹 메르카토르에서 줌 z의
+   * 해상도는 156543.03 * cos(lat) / 2^z (m/px)이므로, 가로·세로가 각각 요구하는 m/px 중
+   * **큰 쪽**이 두 축을 모두 담는 답이다.
+   *
+   * 카메라는 화면 중앙을 잡는데 상단 크롬과 하단 아일랜드가 지도를 덮으므로, 세로 가용폭은
+   * "중앙을 기준으로 양쪽 모두 가려지지 않는 띠" = height − 2 × (덮개 중 큰 쪽)로 잡는다.
+   * 중심을 위로 밀어 보정하는 대신 보수적으로 담는 쪽을 택했다 — 조금 넓게 보이는 것은
+   * 사실이지만, 아일랜드 뒤에 숨은 선은 없는 선처럼 읽힌다.
+   */
+  const planCam = useMemo(() => {
+    if (lapCoords.length < 2) return null; // 그릴 계획선이 없으면 계획 구도도 없다
+    const pts: { lat: number; lng: number }[] = lapCoords.map((c) => ({ lat: c.latitude, lng: c.longitude }));
+    if (showApproach && pickupLL) pts.push(pickupLL);
+    if (showApproach && entryCoord) pts.push({ lat: entryCoord.latitude, lng: entryCoord.longitude });
+
+    let n = -90, s2 = 90, e = -180, w = 180;
+    for (const p of pts) {
+      n = Math.max(n, p.lat); s2 = Math.min(s2, p.lat);
+      e = Math.max(e, p.lng); w = Math.min(w, p.lng);
+    }
+    const midLat = (n + s2) / 2, midLng = (e + w) / 2;
+    const spanXm = haversineM({ lat: midLat, lng: w }, { lat: midLat, lng: e });
+    const spanYm = haversineM({ lat: s2, lng: midLng }, { lat: n, lng: midLng });
+
+    // 아일랜드를 아직 재지 못했으면 보수적으로 예약한다 — 측정 뒤 구도는 좁아지지 않고
+    // 넓어지기만 하는 방향이라, 처음 한 프레임이 선을 숨기는 일이 없다.
+    const cover = Math.max(MAP_TOP_COVER_PT, islandH > 0 ? islandH : 300);
+    const usableW = Math.max(120, winW - 2 * MAP_PAD_PT);
+    const usableH = Math.max(120, winH - 2 * cover);
+    // 한 점뿐(스팬 0)일 때 줌이 발산하지 않도록 바닥 해상도를 둔다.
+    const mpp = Math.max((spanXm / usableW) * MAP_FIT_PAD, (spanYm / usableH) * MAP_FIT_PAD, 0.3);
+    const zoom = Math.log2((156543.03392 * Math.cos((midLat * Math.PI) / 180)) / mpp) - MAP_ZOOM_TRIM;
+    return { latitude: midLat, longitude: midLng, zoom: Math.min(17, Math.max(9, zoom)) };
+  }, [lapCoords, showApproach, pickupLL, entryCoord, islandH, winW, winH]);
+
   // [honesty audit 2026-08-11 · P1 #3] Before this fix confirmStop made no server call: it closed
   // the sheet, claimed "러너에게 알렸어요", and discarded the chosen reason. No owner-side server
   // transition exists for an active run (transition-booking: cancel_owner covers pre-run states
@@ -249,6 +445,47 @@ export default function Live() {
   const hasElapsed = elapsedSec != null;
   const sec = elapsedSec ?? 0;
   const progressT = hasFix && targetKm != null ? Math.min(km / Math.max(targetKm, 0.1), 1) : 0;
+
+  // ---------- 지도 게이트 (RULING 9) ----------
+  // 예전에는 `maps && pos`였다 — 픽스가 오기 전에는 지도가 통째로 없었다. 계획 경로와 픽업은
+  // 첫 픽스보다 **먼저** 알 수 있는 사실이라, 그것만으로도 지도를 띄운다. 다만 두 경우는
+  // 예외다: 권한 없음(denied)과 연결 실패(error)에서는 지도를 띄우지 않는다 — '권한이 없어요'
+  // 밑에 깔린 계획선은 개가 지금 저기 있다는 말로 읽힌다.
+  const planOnly = pos == null && planCam != null && link !== 'denied' && link !== 'error';
+  // 픽스가 있으면 오늘과 똑같이 러너를 따라가고, 없으면 계획 전체(랩 + 접근선)를 담는다.
+  const camera = useMemo(
+    () => (pos ? { latitude: pos.lat, longitude: pos.lng, zoom: 15 } : planCam),
+    [pos, planCam],
+  );
+
+  // 범례 — **지금 실제로 그려지고 있는 선만** 적는다. 그리지 않은 선의 스와치는 그 자체로
+  // 거짓말이다 (계획선이 없는데 '계획 경로'라고 적으면 화면에 없는 것을 찾게 만든다).
+  const legend: { c: string; t: string }[] = [];
+  if (lapCoords.length > 1) legend.push({ c: lilac.accent, t: '계획 경로' });
+  if (showApproach) legend.push({ c: paper.ink, t: '입구까지' });
+  if (pathLen > 1) legend.push({ c: colors.voltDeep, t: '지금까지' });
+
+  // 계획선·접근선이 빠졌을 때의 정직 고지. 어느 것도 위치·기록·정산을 막지 않는다 (자문이다).
+  // 실패(재시도 가능)와 부재(재시도해도 같은 답)는 다른 사실이므로 버튼도 다르게 붙는다.
+  const geoNote = ((): { text: string; retry: boolean } | null => {
+    // routeState === 'idle'은 '아직 아무것도 시도하지 않았다'는 뜻이고, 그 자리에 머무는 경우가
+    // 셋이다: 예약 컨텍스트를 못 읽었다(infoErr) · 읽는 중이다(info == null) · 읽었는데 이
+    // 예약에 코스가 없다(routeId == null). 첫째와 셋째는 서로 다른 사실이라 다르게 말한다.
+    // 둘째(로딩)는 아무 말도 하지 않는다 — 모르는 것에 문장을 얹지 않는다.
+    if (routeState === 'idle' && infoErr) {
+      return { text: '예약 정보를 불러오지 못했어요 — 계획 경로와 입구 안내선이 빠져요', retry: true };
+    }
+    if (routeState === 'idle' && info != null && info.routeId == null) {
+      return { text: '이 러닝에는 코스가 지정되지 않았어요 — 실시간 경로만 그려져요', retry: false };
+    }
+    if (routeState === 'error') return { text: '계획 경로를 불러오지 못했어요 — 러닝 기록에는 영향 없어요', retry: true };
+    if (pickup.s === 'err') return { text: '픽업 위치를 불러오지 못했어요 — 입구까지의 안내선만 빠져요', retry: true };
+    if (routeState === 'ready' && !routeGeo) return { text: '배정된 코스 정보를 찾을 수 없어요 — 러닝 기록에는 영향 없어요', retry: false };
+    if (routeState === 'ready' && routeGeo && routeCoords.length < 2) {
+      return { text: '이 코스는 아직 실측 전이에요 — 계획 경로 없이 실시간 경로만 그려져요', retry: false };
+    }
+    return null;
+  })();
 
   // The suggestion the caption prints. Priority: the run-start snapshot (frozen truth) → the
   // dog's current pref from a SUCCESSFUL MeetupInfo fetch (pre-run, and pre-0079 the only
@@ -345,31 +582,77 @@ export default function Live() {
       <StatusBar style="dark" />
 
       {/* ---------- 풀스크린 지도 레이어 — 지도가 곧 화면이다 ---------- */}
-      {maps && pos ? (
+      {maps && camera && (pos != null || planOnly) ? (
         <maps.NaverMapView
           style={StyleSheet.absoluteFill}
-          camera={{ latitude: pos.lat, longitude: pos.lng, zoom: 15 }}
+          camera={camera}
           isShowLocationButton={false}
           isShowCompass={false}
           isShowScaleBar={false}
           isShowZoomControls={false}
         >
-          {/* 스무딩은 렌더 전용 — 픽스 게이트는 소스(러너 run.tsx)에서 이미 적용됨 */}
+          {/* 계획된 랩 — '인쇄된 코스도'. 흰 케이싱, 실측선 **아래**(z0). 닫힌 루프면 입구에서
+              시작하도록 회전된 좌표를 그린다 — 회전은 그리는 순서를 바꿀 뿐 이 선이 무엇인지를
+              바꾸지 않는다. */}
+          {lapCoords.length > 1 && (
+            <maps.NaverMapPathOverlay
+              coords={lapCoords}
+              width={3}
+              color={lilac.accent}
+              outlineWidth={1}
+              outlineColor="#FFFFFF"
+              zIndex={0}
+            />
+          )}
+          {/* 접근 구간 — 픽업에서 입구까지. **직선**이다: 우리에게 도로 라우팅이 없고 문구도
+              그렇게 말한다. 입구에 닿으면 할 일을 다 했으므로 사라진다. */}
+          {!atEntry && pickupLL && entryCoord && (
+            <maps.NaverMapPathOverlay
+              coords={[{ latitude: pickupLL.lat, longitude: pickupLL.lng }, entryCoord]}
+              width={4}
+              color={paper.ink}
+              outlineWidth={1}
+              outlineColor="#FFFFFF"
+              zIndex={0}
+            />
+          )}
+          {/* 스무딩은 렌더 전용 — 픽스 게이트는 소스(러너 run.tsx)에서 이미 적용됨.
+              [RULING 9 · 2026-08-19] 색을 paper.line(코랄 브랜드 헤어라인)에서 colors.voltDeep으로
+              고친다. 라이브 = voltDeep, 계획 = lilac.accent가 법이고 run.tsx·report.tsx는 이미
+              그 값을 쓰고 있었다 — 이 화면 하나만 실측선을 섹션 구분선·LIVE 도트·진행 바와 같은
+              토큰으로 그리고 있었다. */}
           {pathLen > 1 && (
             <maps.NaverMapPathOverlay
               coords={smoothTrace(path.current)}
-              color={paper.line}
+              color={colors.voltDeep}
               width={6}
               outlineWidth={2}
               outlineColor="#ffffff"
+              zIndex={1}
             />
           )}
-          <maps.NaverMapMarkerOverlay
-            latitude={pos.lat}
-            longitude={pos.lng}
-            anchor={{ x: 0.5, y: 1 }}
-            caption={{ text: `${dogName} · ${runnerName} 러너` }}
-          />
+          {/* 입구 — 러너가 인도되는 대상. 도착하면 사라진다 (러너 화면과 같은 글리프·같은 캡션). */}
+          {entryCoord && !atEntry && (
+            <maps.NaverMapMarkerOverlay
+              latitude={entryCoord.latitude}
+              longitude={entryCoord.longitude}
+              anchor={{ x: 0.5, y: 0.5 }}
+              width={26}
+              height={26}
+              image={ROUTE_ANCHOR}
+              caption={{ text: '입구', textSize: 12, color: paper.ink, haloColor: '#FFFFFF' }}
+              zIndex={2}
+            />
+          )}
+          {pos && (
+            <maps.NaverMapMarkerOverlay
+              latitude={pos.lat}
+              longitude={pos.lng}
+              anchor={{ x: 0.5, y: 1 }}
+              caption={{ text: `${dogName} · ${runnerName} 러너` }}
+              zIndex={3}
+            />
+          )}
         </maps.NaverMapView>
       ) : (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }]}>
@@ -402,6 +685,35 @@ export default function Live() {
         </View>
       )}
 
+      {/* ---------- 지도 위 대기 스트립 ----------
+          계획선이 먼저 떠 있어도 '내 개의 점이 아직 없다'는 사실은 따로 말한다. 지도를 대체하지
+          않고 지도 위에 조용히 얹힌다 — 대체하면 계획선을 볼 수 없고, 말하지 않으면 계획선이
+          지금 위치처럼 읽힌다. (denied/error는 위에서 이미 지도를 가져갔다) */}
+      {maps && camera && planOnly && (
+        <View style={s.mapNote}>
+          <Text style={s.mapNoteTitle}>러너 위치 수신 대기 중...</Text>
+          <Text style={s.mapNoteBody}>지금은 계획된 코스만 보여요 — 러너가 달리기 시작하면 실시간 경로가 그려져요</Text>
+        </View>
+      )}
+
+      {/* ---------- 범례 — 그려진 선만 ----------
+          아일랜드 실측 높이 위에 얹는다 (islandH가 0인 첫 프레임에는 그리지 않는다 — 아일랜드
+          밑으로 한 번 깜빡이는 것을 막는다). */}
+      {maps && camera && (pos != null || planOnly) && legend.length > 0 && islandH > 0 && (
+        <View style={[s.legend, { bottom: islandH + 10 }]}>
+          {legend.map((l) => (
+            <Row key={l.t} style={{ gap: 4, alignItems: 'center' }}>
+              <Text style={[s.legendSwatch, { color: l.c }]}>━</Text>
+              <Text style={s.legendTxt}>{l.t}</Text>
+            </Row>
+          ))}
+        </View>
+      )}
+
+      {/* 시스템 바 스트립 — 지도가 시계·노치 뒤로 번지던 것. 지도·대기 스트립 **위**,
+          상단 오버레이 **아래**: 뒤로/LIVE/SOS 는 안전 영역 바로 아래에서 시작하므로 가려지지 않는다. */}
+      <StatusBarCover />
+
       {/* ---------- 상단 오버레이 ---------- */}
       <Row style={s.topBar}>
         <Pressable onPress={() => router.back()} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
@@ -420,7 +732,7 @@ export default function Live() {
       </Row>
 
       {/* ---------- 하단 아일랜드 카드 (풀블리드 · 샤프 · 1px 코랄 프레임) ---------- */}
-      <View style={s.island}>
+      <View style={s.island} onLayout={(e) => setIslandH(e.nativeEvent.layout.height)}>
         {/* runner row */}
         <Row style={{ gap: 11, alignItems: 'center' }}>
           <Avatar url={null} char={runnerName[0]} bg={paper.ink} size={44} />
@@ -451,6 +763,23 @@ export default function Live() {
         {/* 러너 빌드가 포그라운드 전용일 때만 (mode 없는 구 빌드에선 아무것도 추측하지 않는다) */}
         {pos?.mode === 'foreground' && (
           <Text style={s.modeNote}>러너 앱이 화면에 떠 있는 동안만 위치가 전송돼요 — 잠시 끊길 수 있어요</Text>
+        )}
+        {/* 계획선/접근선이 빠진 이유. 조용한 고지지 실패 스트립이 아니다 — 러닝 자체는 멀쩡하다.
+            '다시 시도'는 실제로 세 fetch를 다시 부른다 (geoTry: 예약 컨텍스트 · 코스 · 픽업). */}
+        {geoNote && (
+          <Row style={{ marginTop: 10, gap: 8, alignItems: 'center' }}>
+            <Text style={[s.modeNote, { marginTop: 0, flex: 1 }]}>{geoNote.text}</Text>
+            {geoNote.retry && (
+              <Pressable
+                onPress={() => setGeoTry((t) => t + 1)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="코스·픽업 정보 다시 불러오기"
+              >
+                <Text style={s.geoRetry}>다시 시도</Text>
+              </Pressable>
+            )}
+          </Row>
         )}
 
         {/* 라이브 캠 슬롯 — 오늘은 null이라 아무것도 그려지지 않는다 */}
@@ -504,6 +833,8 @@ export default function Live() {
           <Pressable
             onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
             style={({ pressed }) => [s.chatBtn, pressed && s.chatBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="러너와 채팅"
           >
             <Text style={s.chatBtnTxt}>러너와 채팅</Text>
           </Pressable>
@@ -625,6 +956,23 @@ const s = StyleSheet.create({
   signalTxtOn: { fontSize: 14, fontWeight: '800', color: paper.ink },
   signalTxtOff: { fontSize: 14, fontWeight: '800', color: paper.dim },
   modeNote: { fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 },
+  // 잉크 밑줄 — 코랄 강조 예산을 쓰지 않는 어포던스 (실패 스트립의 크리티컬 링크와 역할이 다르다)
+  geoRetry: { fontSize: 14, fontWeight: '800', color: paper.ink, textDecorationLine: 'underline' },
+  // ---------- 지도 위 오버레이 (샤프 코너 · 흰 플레이트) ----------
+  // 상단 바(top 56, 높이 40)를 지나 앉는다. 지도를 가리지 않도록 좌우 여백은 상단 바와 같다.
+  mapNote: {
+    position: 'absolute', top: 106, left: 10, right: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 9, paddingHorizontal: 12,
+  },
+  mapNoteTitle: { fontSize: 14.5, fontWeight: '900', color: paper.ink },
+  mapNoteBody: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 19 },
+  // 범례 — 디테일 텍스트 플로어 14pt (랩의 12.5pt는 이 프로젝트에서 통과하지 않는다)
+  legend: {
+    position: 'absolute', left: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 5, paddingHorizontal: 8,
+  },
+  legendSwatch: { fontSize: 14, fontWeight: '800', lineHeight: 18 },
+  legendTxt: { fontSize: 14, color: paper.text, lineHeight: 18 },
   // 라이브 캠 슬롯 — null이면 렌더되지 않는다 (자리만 예약)
   streamSlot: { marginTop: 12, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 12 },
   streamTxt: { fontSize: 14, fontWeight: '700', color: paper.text },
@@ -644,12 +992,16 @@ const s = StyleSheet.create({
   paceChipInkGood: { color: paper.paceGoodInk },
   paceChipInkSlow: { color: paper.paceSlowInk },
   paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: paper.dim },
-  // 버튼 매트릭스 — primary(잉크 면) 하나 + destructive(캔버스 면 + 크리티컬 잉크·보더)
-  // [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄 필이 0개인 게 맞다:
-  // 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 지고 있다.
+  // 버튼 매트릭스 — secondary(wash 면 + 코랄 헤어라인 + actionInk 라벨) + destructive(캔버스 면
+  // + 크리티컬 잉크·보더). [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄
+  // **필**이 0개인 게 맞다: 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 진다.
+  //
+  // ⚠ 면은 세컨더리로 바뀌었는데 라벨과 pressed 면색이 프라이머리의 것으로 남아 있었다:
+  //   #FFFFFF on paper.wash(#FFF6F4) = 실측 1.05:1 — 이 화면의 유일한 CTA가 사실상 보이지 않았다.
+  //   PaperBtn의 secondary와 같은 값으로 맞춘다 (actionInk on wash = 5.99:1, pressed #FBE7E1).
   chatBtn: { flex: 1, backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, alignItems: 'center', paddingVertical: 14 },
-  chatBtnPressed: { backgroundColor: '#333333' }, // F2.1 매트릭스가 지정한 primary pressed 면색 (토큰 미보유)
-  chatBtnTxt: { fontSize: 16.5, fontWeight: '900', color: '#ffffff' },
+  chatBtnPressed: { backgroundColor: '#FBE7E1' }, // PaperBtn secondary pressed 면색과 동일 (토큰 미보유)
+  chatBtnTxt: { fontSize: 16.5, fontWeight: '900', color: paper.actionInk },
   stopBtn: {
     width: 50, height: 50, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: paper.critical, alignItems: 'center', justifyContent: 'center',

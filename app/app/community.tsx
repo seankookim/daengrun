@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
+import { StatusBarCover } from '../src/components/status-bar-cover';
 import { TabSwipe } from '../src/components/tabswipe';
 import { HeatTrace } from '../src/components/runcard';
 import { Avatar, Icon, Row } from '../src/components/ui';
@@ -38,6 +39,16 @@ const CORAL_INK = '#C6472C';
 
 // 기록 소인(골드) — 화면당 1개. SETTLED 필드가 원본에 없으므로 실데이터인 마일스톤 배지에 바인딩.
 const isMilestone = (b: string) => b.includes('최고') || b.includes('기록') || b.includes('PB');
+
+// [honesty 2026-08-19] 피드 카드는 '{아이} 완주'를 dogName이 있다는 이유만으로 인쇄했다 —
+// 0km 조기 종료 러닝이 '초코 완주'로 게시됐다 (실측). '완주'의 근거는 runs.end_reason='completed'
+// 하나뿐이고 (0028 ②, owner/report.tsx:383과 같은 게이트), 거리가 0이면 그 말은 어느 쪽으로도
+// 참이 아니다. 근거가 없는 옛 포스트(endReason undefined)는 중립적인 '러닝 기록'으로 남는다 —
+// 모르는 것을 완주라고 부르는 것보다 낫다.
+const runWord = (m: FeedPost['meta']) =>
+  m.endReason === 'completed' && (m.km ?? 0) > 0 ? '완주'
+    : m.endReason && m.endReason !== 'completed' ? '조기 종료'
+      : '러닝 기록';
 
 const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
 // [V4] 스트라바식 페이스 — km+시간에서 파생 (실데이터만)
@@ -541,7 +552,7 @@ export default function Community() {
                       <Text style={[s.recordPace, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)} / KM</Text>
                     )}
                     {p.meta.dogName && (
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} 완주</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} {runWord(p.meta)}</Text>
                     )}
                     {fmtDur(p.meta.durationSec) && (
                       <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 4 }}><Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
@@ -682,6 +693,8 @@ export default function Community() {
           </View>
         )}
       </ScrollView>
+      {/* 시스템 바 스트립 — 피드 카드가 시계 뒤로 지나가던 것 */}
+      <StatusBarCover />
       </TabSwipe>
       <BottomNav />
     </View>

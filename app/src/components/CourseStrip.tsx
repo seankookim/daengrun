@@ -55,8 +55,19 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
             style={{ width: 224, backgroundColor: w.bg, padding: 13, overflow: 'hidden' }}
           >
             {/* 월드 킥커 + km 대활자 */}
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label} · {r.terrain.toUpperCase?.() ?? r.terrain}</Text>
+            {/* [14pt 플로어 2026-08-19] 이 줄은 'TRAIL · 포장 100%'를 통째로 8.5pt에 뒀다.
+                레터스페이스 대문자 라틴 킥커만 플로어 면제인데, terrain은 실데이터이고 한글이
+                섞인다 (routes.terrain — '포장 100%'). 킥커와 데이터를 갈라 각자의 법을 지운다:
+                월드 라벨은 킥커 그대로, terrain은 14pt 데이터 줄로. '·'는 크기 차가 대신한다. */}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexShrink: 1 }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label}</Text>
+                {r.terrain ? (
+                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: w.dim, flexShrink: 1 }} numberOfLines={1}>
+                    {r.terrain.toUpperCase?.() ?? r.terrain}
+                  </Text>
+                ) : null}
+              </View>
               <Text style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
             </View>
 
@@ -83,7 +94,9 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
                 borderWidth: 1.5, borderColor: w.tone, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7,
                 transform: [{ rotate: '-5deg' }], opacity: 0.9,
               }}>
-                <Text style={{ fontSize: 9.5, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>✓ {r.checkedAt}</Text>
+                {/* checkedAt은 날짜이거나 '점검 예정'(한글)이다 — 도장 안이라고 면제되지 않는다.
+                    9.5 → 14. 224pt 카드에서 도장 + '미리보기 ›'가 나란히 들어가는 폭은 남는다. */}
+                <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>✓ {r.checkedAt}</Text>
               </View>
               <View style={{ flex: 1 }} />
               <View style={{ borderWidth: 1.2, borderColor: w.tone, paddingVertical: 5, paddingHorizontal: 11 }}>

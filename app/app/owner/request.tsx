@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, createRecurringSeries, DogProfile, fetchAddresses, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
@@ -15,7 +15,7 @@ import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
-// slot-hold countdown on pay. See docs/calendar.md.
+// slot-hold countdown on submit. See docs/calendar.md.
 // [2026-08-10 paper repaint] cream/rounded/forest-green CHROME retired → paper grammar.
 // [2026-08-11 Ⓒ① stepper] declutter-lab pick: one question per screen — 언제 → 몇 km → 확인.
 // Same handlers, same server calls, same honesty gates; only the SEQUENCING changed.
@@ -59,8 +59,12 @@ const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
   return t ? ` · 이동 포함 약 ${fmtKm(t.totalKm)}km` : '';
 };
 
-// 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
-const buildDates = () => Array.from({ length: 7 }, (_, i) => {
+// 실제 오늘부터 8일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
+// 8, not 7: the report's "다음 주 같은 시간 예약" nudge (journey-v3 §E, ruling #11) targets run + 7 days,
+// which a 7-day strip (today..today+6) could never show — the screen would book one date while
+// highlighting another. today+7 is the last selectable day.
+const DATE_STRIP_DAYS = 8;
+const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
   const date = new Date(Date.now() + i * 86400_000);
   return {
     date,
@@ -81,6 +85,9 @@ const toDate = (dateIdx: number, t: string): Date => {
   const [h, m] = t.split(':').map(Number);
   return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m);
 };
+
+// 서버가 한 말 그대로 사용자에게 보여주기 위한 helper (pay.tsx의 같은 helper와 같은 문법)
+const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export default function Request() {
   const insets = useSafeAreaInsets();
@@ -257,10 +264,11 @@ export default function Request() {
   const [slotSheet, setSlotSheet] = useState(false);
   const [recurringOn, setRecurringOn] = useState(false); // 매주 반복 (0026)
   const [holdVisible, setHoldVisible] = useState(false);
-  const holdBid = useRef<string | null>(null); // 홀드로 생성된 예약 id — 결제 화면에 넘길 값
-  const holdExp = useRef<string | null>(null); // 실홀드 만료 ISO — 결제 화면의 정직한 홀드 표시용 (리뷰 #5)
   const [holdSec, setHoldSec] = useState(300);
-  const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
+  // null=진행 중, true=서버 홀드 확보(예약이 실재한다). false는 쓰이지 않는다 — 실패는 상태가
+  // 아니라 Alert다. [O-5] holdBid/holdExp ref는 삭제됐다: 예약 id는 이제 pay() 안에서 그대로
+  // 쓰이고(다음 화면으로 넘기는 파라미터가 아니다), 만료 ISO는 그것을 표시하던 화면과 함께 갔다.
+  const [holdLive, setHoldLive] = useState<null | boolean>(null);
   const [dateIdx, setDateIdx] = useState(0);
 
   // 지명 러너 컨텍스트 — 그 러너의 가용시간 밖 슬롯은 비활성.
@@ -312,16 +320,47 @@ export default function Request() {
     setSlotSheet(false);
   };
 
-  // 가장 빠른 가능 슬롯
-  const pickEarliest = () => {
+  // 가장 빠른 가능 슬롯. 반환값 = 실제로 고를 수 있었는가 — 8일 안에 한 칸도 없으면 false이고,
+  // 그때 화면은 '가장 빠른'이라고 우기는 대신 시간을 되묻는다.
+  const pickEarliest = (): boolean => {
     for (let di = 0; di < DATES.length; di++) {
       for (const g of SLOT_GROUPS) {
         for (const t of g.times) {
-          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); setAutoPicked(true); return; }
+          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); setAutoPicked(true); return true; }
         }
       }
     }
+    return false;
   };
+
+  // ═══ 지명 러너의 가용 규칙이 **뒤늦게** 도착한다 ═══
+  // prefRules fetch는 마운트 effect보다 먼저 선언돼 있을 뿐 먼저 끝나지 않는다. 그래서 위의
+  // pickEarliest()는 prefRules === null 상태에서 돌고, 그때 slotAllowed()는 무조건 true다.
+  // 규칙이 도착해도 다시 고르는 사람이 없어서, 저녁만 뛰는 러너를 지명해 놓고 화면이
+  // "내일 06:30 · 가장 빠른"이라고 적은 바로 아래에 "★ 이 러너의 가능 시간만 선택할 수 있어요"가
+  // 붙고, 시트를 열면 그 칸이 '러너 불가'로 회색이었다 (review P1-5).
+  // 러너당 한 번만 돈다: 그 뒤의 선택은 사용자의 것이고, 사용자가 고른 값을 자동으로 밀지 않는다.
+  const rulesApplied = useRef<string | null>(null);
+  useEffect(() => {
+    if (!preferred || !prefRules) return;
+    if (rulesApplied.current === preferred) return;
+    rulesApplied.current = preferred;
+    const iso = draft.scheduledAtIso;
+    if (!iso) return; // 고른 시각이 없다 — 되고를 것도 없다
+    const when = new Date(iso);
+    const di = DATES.findIndex((d) => d.date.toDateString() === when.toDateString());
+    const t = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
+    if (di >= 0 && slotAllowed(di, t)) return; // 지금 값이 규칙을 통과한다 — 손대지 않는다
+    if (!pickEarliest()) {
+      // 8일 안에 이 러너가 갈 수 있는 칸이 하나도 없다. 아무 시각이나 남겨두면 CTA는 통과하고
+      // 서버가 거절한다 (= 거짓 준비). 비우고 되묻는다 — pay()가 슬롯 시트를 연다.
+      draft.scheduledAtIso = null;
+      syncedIso.current = null;
+      setTimeLabel('시간을 선택해주세요');
+      setAutoPicked(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slotAllowed/pickEarliest는 렌더마다 새 함수다. 트리거는 규칙 도착 하나뿐.
+  }, [preferred, prefRules]);
 
   // 홈 ⑧ '지금 찾기': 플래그가 켜져 들어왔으면 가장 빠른 슬롯을 스스로 고르고 플래그를 끈다.
   // [2026-08-19 §C] 여기에 **기본값 규칙**이 붙었다: 이 화면은 안 건드려도 넘어가야 하므로,
@@ -351,6 +390,33 @@ export default function Request() {
   //     조용한 ack는 나중에 이유 없는 에러가 된다. 취소하면 draft를 되돌려 지도와 어긋나지 않게 한다.
   const seenDraft = useRef({ routeId: draft.routeId, pref: draft.preferredRunnerId });
   useFocusEffect(useCallback(() => {
+    let alive = true;
+    // 코스 하나를 실제로 채택하는 절차 — 목록에서 찾았든, id로 따로 읽어왔든 같은 의식을 거친다.
+    const adopt = (r: RouteInfo) => {
+      const take = () => {
+        setRouteId(r.id);
+        // 지도에서 고른 것도 분명한 수동 의도다. 서버 체크 제약(0082)이 허용하는 값은
+        // auto|carousel|detail_cta|quick_book 넷뿐이라 'map'을 새로 만들 수 없다 —
+        // 새 값은 마이그레이션(서버 슬라이스)이 필요하다. 목록에서 고른 행위이므로 carousel.
+        setPickSource({ mode: 'manual', origin: 'carousel' });
+      };
+      if (r.status === 'candidate' && candidateAck !== r.id) {
+        Alert.alert(
+          '아직 점검 전 코스예요',
+          `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+          [
+            {
+              text: '다른 코스 볼게요',
+              style: 'cancel',
+              onPress: () => { draft.routeId = routeId; seenDraft.current.routeId = routeId; },
+            },
+            { text: '점검 전 코스로 예약', onPress: () => { setCandidateAck(r.id); take(); } },
+          ],
+        );
+      } else {
+        take();
+      }
+    };
     // ── 코스 ──
     if (draft.routeId !== seenDraft.current.routeId) {
       const incoming = draft.routeId;
@@ -363,29 +429,21 @@ export default function Request() {
       } else if (r) {
         // 목록이 실린 뒤에만 소비한다 — 못 찾았으면 다음 실행(routes 로드)에서 다시 시도
         seenDraft.current.routeId = incoming;
-        const take = () => {
-          setRouteId(r.id);
-          // 지도에서 고른 것도 분명한 수동 의도다. 서버 체크 제약(0082)이 허용하는 값은
-          // auto|carousel|detail_cta|quick_book 넷뿐이라 'map'을 새로 만들 수 없다 —
-          // 새 값은 마이그레이션(서버 슬라이스)이 필요하다. 목록에서 고른 행위이므로 carousel.
-          setPickSource({ mode: 'manual', origin: 'carousel' });
-        };
-        if (r.status === 'candidate' && candidateAck !== r.id) {
-          Alert.alert(
-            '아직 점검 전 코스예요',
-            `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
-            [
-              {
-                text: '다른 코스 볼게요',
-                style: 'cancel',
-                onPress: () => { draft.routeId = routeId; seenDraft.current.routeId = routeId; },
-              },
-              { text: '점검 전 코스로 예약', onPress: () => { setCandidateAck(r.id); take(); } },
-            ],
-          );
-        } else {
-          take();
-        }
+        adopt(r);
+      } else if (incoming && routesState === 'ready') {
+        // 목록에 **없는** id. 두 화면이 서로 다른 목록을 본다는 뜻이다: course-map은
+        // fetchRoutes(동네)를, 이 화면은 필터 없이 부르는데, api.ts의 forTown은 active 티어에
+        // 행이 하나라도 있으면 그 티어만 돌려주므로 파일럿이 반포동 밖 코스를 하나만 active로
+        // 올려도 두 목록이 갈라진다. 예전엔 여기서 조용히 버려서 지도에서 고른 코스가 매 예약마다
+        // 영원히 사라졌다 (review P1-7). 그 한 행만 따로 읽어 목록에 얹는다.
+        seenDraft.current.routeId = incoming;
+        fetchRouteById(incoming)
+          .then((r2) => {
+            if (!alive || !r2) return;
+            setRoutes((prev) => (prev.some((x) => x.id === r2.id) ? prev : [...prev, r2]));
+            adopt(r2);
+          })
+          .catch((e) => console.warn('[request] route by id:', (e as Error)?.message ?? e));
       }
     }
     // ── 시각 (러너 프로필의 confirmSlot이 지명과 함께 써 넣는다) ──
@@ -403,7 +461,10 @@ export default function Request() {
       setPreferred(draft.preferredRunnerId);
       setPreferredName(draft.preferredRunnerName);
     }
-  }, [routes, routeId, candidateAck]));
+    return () => { alive = false; };
+  }, [routes, routeId, candidateAck, routesState]));
+
+  const payBusy = useRef(false);
 
   const pay = async () => {
     // 청구 잠금이 반려견 게이트보다 앞선다 — 서버가 어차피 409로 막을 요청을 만들지 않는다.
@@ -440,9 +501,10 @@ export default function Request() {
     setHoldLive(null);
     setHoldVisible(true);
 
-    // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching)
+    // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching, 한 요청 안에서)
+    let res: HoldResult;
     try {
-      const res = await createBookingHold({
+      res = await createBookingHold({
         dog_id: chosen.id, // 선택한 아이로 예약 (다견 가구) — 위 게이트가 존재를 보증
         route_id: routesLive && routeId ? routeId : undefined, // 목업 코스 id는 uuid가 아님
         // 선택 스냅샷 (0082 §C) — 분석 등급, 절대 금액에 닿지 않는다. 오버라이드는 서버가
@@ -460,45 +522,101 @@ export default function Request() {
         pace_label: pace,
         addons,
       });
-      // [정직 배치 2026-08-06 · 웨이브 2 item 1] 결제는 이 화면의 일이 아니다.
-      // 여기서 confirmPayment를 조용히 부르던 자리 = 사용자가 결제 화면을 본 적 없이 예약이 확정되던 경로였다.
-      // 홀드까지가 요청 화면의 몫이고, 확정과 그 이후(리커링·지명·라우팅)는 /owner/pay가
-      // 서버 status를 읽고 말한다 (C3/C4: 미결제 시리즈 생성·지명 409 증발 방지).
-      holdBid.current = res.booking_id;
-      holdExp.current = (res as any).hold_expires_at ?? null; // [리뷰 #5] 실홀드 만료 시각 — 결제 화면이 정직하게 표시
-      setHoldLive(true);
     } catch (e) {
-      // 실패는 실패로 — 데모 폴백 은퇴 (목업 김민준 화면이 실패를 숨기던 함정, 2026-07-23)
+      // 실패는 실패로 — 데모 폴백 은퇴 (목업 김민준 화면이 실패를 숨기던 함정, 2026-07-23).
+      // ⚠ 이 catch는 **홀드 생성 실패 하나만** 잡는다. 아래의 후속 단계는 각자 자기 실패를
+      //   말한다 — 예약이 이미 만들어진 뒤에 '예약 실패'라고 말하면 그게 거짓말이 된다.
       draft.bookingId = null;
       setHoldVisible(false);
       Alert.alert('예약 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
+      return;
     }
+
+    // ═══ 홀드 직후 (O-5 §E.5.1의 네 걸음) — 예전에 /owner/pay가 하던 일이 여기로 돌아왔다 ═══
+    // 서버(create-booking-hold v10)가 한 요청 안에서 payment_hold → matching까지 닫고
+    // `booking_status`로 그 결과를 말한다. `payment_ok`는 삭제됐고(transition-booking v34)
+    // /owner/pay는 이 예약을 앞으로 밀 수 없다 — 그래서 확정 이후의 세 가지(리커링·지명·라우팅)를
+    // 그 화면에 맡겨두면 전부 증발한다(C3/C4). 순서가 계약이다.
+    //
+    // ① bookingId를 맨 먼저, 실패할 수 있는 await보다 앞에. radar.tsx:68과 matching.tsx:141이
+    //    이 값을 읽고, 없으면 레이더가 아니라 홈으로 튄다.
+    const bookingId = res.booking_id;
+    draft.bookingId = bookingId;
+    setHoldLive(true);
+
+    // 서버가 matching이라고 말하지 않았으면 그런 척하지 않는다. payment_hold로 남았다는 건
+    // 이 빌드가 밀 수 없는 상태라는 뜻이다 (그 문을 여는 payment_ok가 삭제됐다).
+    if (res.booking_status !== 'matching') {
+      setHoldVisible(false);
+      Alert.alert('예약 확인 필요', '예약이 결제 대기 상태로 만들어졌어요 — 앱을 업데이트하거나 문의해주세요');
+      router.replace('/owner/schedule');
+      return;
+    }
+
+    // ② 매주 반복 (0026) — 이 앱의 유일한 createRecurringSeries 호출 자리. 실패가 이번 예약을
+    //    막지 않고(예약은 이미 성립), 조용히 삼켜지지도 않는다. 카피는 pay.tsx의 것 그대로.
+    if (recurringOn) {
+      try {
+        await createRecurringSeries(bookingId);
+      } catch (e) {
+        Alert.alert('반복 설정 실패', `이번 예약은 확정됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요\n(${msgOf(e)})`);
+      }
+    }
+
+    // ③ 지명 예약 — 「이 러너와 예약하기」의 약속이 지켜지는 자리. 실패하면 사용자에게 말한다
+    //    (조용한 warn 삼킴 = 기록된 C3 회귀).
+    //    ⚠ 자동 재시도는 **없다**. 종전 주석은 "매칭 화면이 한 번 더 시도한다"고 적었지만, 실패
+    //    경로는 /owner/radar로 가고 matching.tsx는 mode:'rebook'로만 도달 가능하며 거기서도
+    //    자동 재지명을 건너뛴다 — 두 문장 다 코드가 하는 일이 아니었다 (review P1-3). 실패해도
+    //    사람이 고칠 문은 열려 있다: 레이더 화면의 지명 목록이 같은 러너를 그대로 보여준다.
+    //    preferred를 남기는 이유도 그것뿐이다.
+    let nominated: string | null = null;
+    if (draft.preferredRunnerId) {
+      const who = draft.preferredRunnerName ?? '선택한';
+      try {
+        await requestRunner(bookingId, draft.preferredRunnerId);
+        nominated = who;
+        draft.preferredRunnerId = null;
+        draft.preferredRunnerName = null;
+      } catch (e) {
+        Alert.alert('지명 요청 실패', `${who} 러너에게 우선 요청을 보내지 못했어요 — 다음 화면의 러너 목록에서 다시 지명할 수 있어요\n(${msgOf(e)})`);
+      }
+    }
+
+    // ④ 라우팅. replace인 이유: 예약은 이미 실재한다 — 뒤로가기로 이 폼에 돌아오면 같은 값으로
+    //    두 번째 예약을 만들 수 있다. 예전엔 /owner/pay가 사이에 있어서 push가 안전했다.
+    setHoldVisible(false);
+    if (nominated) {
+      // 지명을 보냈으면 레이더에서 볼 것이 없다 — 내 일정에서 수락을 기다린다
+      Alert.alert('지명 요청 전송', `${nominated} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+      router.replace('/owner/schedule');
+      return;
+    }
+    // bid를 파라미터로도 넘긴다 — 레이더는 draft.bookingId 없이 홈으로 튀는 화면이고, 둘 중
+    // 하나만 믿을 이유가 없다 (matching.tsx는 draft만 읽으므로 draft 설정은 위에서 이미 끝냈다).
+    router.replace({ pathname: '/owner/radar', params: { bid: bookingId } });
   };
 
-  // slot-hold: 서버 홀드가 확보된 경우에만 다음 화면으로 (실패는 pay()가 Alert로 처리)
+  // 재진입 가드 — 은퇴한 pay.tsx의 `inFlight` ref가 하던 일이다 (review P1-8).
+  // dogsState === 'ready' 경로는 첫 await 전에 모달을 세우므로 스스로 막히지만, 그렇지 않은
+  // 경로는 `await fetchMyDogs()` 동안 모달도 스피너도 없이 CTA가 살아 있었다: 느린 회선에서
+  // 두 번 누르면 createBookingHold가 두 번 나가고 실예약이 둘 생긴다.
+  const payOnce = () => {
+    if (payBusy.current) return;
+    payBusy.current = true;
+    void pay().finally(() => { payBusy.current = false; });
+  };
+
+  // slot-hold 카운트다운 — 모달이 떠 있는 동안만 돈다.
+  // [O-5 §E.5] 예전에 여기 있던 두 번째 effect(1.4초 뒤 /owner/pay로 push)는 삭제됐다. 그
+  // 1.4초는 '서버 홀드 확보' 줄을 읽히기 위한 **지어낸 대기**였고, 이제 그 자리에는 진짜 일이
+  // 있다(리커링 생성·지명 전송). 모달은 그 실제 소요만큼만 떠 있고, 끝나면 pay()가 직접
+  // 라우팅한다 — 대기를 발명하지 않는다는 것도 '로딩은 0이 아니다'와 같은 법의 뒷면이다.
   useEffect(() => {
     if (!holdVisible) return;
     const tick = setInterval(() => setHoldSec((v) => v - 1), 1000);
     return () => clearInterval(tick);
   }, [holdVisible]);
-
-  useEffect(() => {
-    if (!holdVisible || holdLive !== true) return;
-    const go = setTimeout(() => {
-      setHoldVisible(false);
-      const bid = holdBid.current;
-      if (!bid) return;
-      // 반복 여부는 draft가 아니라 파라미터로 넘긴다 — 이번 내비게이션의 의도이지 예약 초안의 속성이
-      // 아니다 (draft에 남기면 다음 예약까지 따라붙는다). 지명은 draft.preferredRunnerId 그대로 승계.
-      router.push({ pathname: '/owner/pay', params: { bid, ...(recurringOn ? { recurring: '1' } : {}), ...(holdExp.current ? { exp: holdExp.current } : {}) } });
-      // [리뷰 #10] 푸시 후 홀드 상태 초기화 — 일정에서 뒤로 온 사용자가 같은 폼으로 두 번째
-      // payment_hold를 조용히 만들지 않는다 (다시 예약하려면 명시적으로 다시 밟는다)
-      holdBid.current = null;
-      holdExp.current = null;
-      setHoldLive(null);
-    }, 1400);
-    return () => clearTimeout(go);
-  }, [holdVisible, holdLive, recurringOn]);
 
   const selRoute = routes.find((r) => r.id === routeId) ?? null;
 
@@ -558,15 +676,17 @@ export default function Request() {
   const moreSummary = `${pace} · ${addons.length > 0 ? addons.map((k) => pricing.addons[k].label).join(' · ') : '옵션 없음'} · 매주 반복 ${recurringOn ? '켜짐' : '꺼짐'}`;
 
   // CTA 라벨 스왑 = 이 화면의 문법 (티켓 푸터에서 그대로 옮겨왔다). 버튼을 disabled로 죽이지
-  // 않는다 — 누르면 다음에 해야 할 일로 데려간다. 마지막 칸이 '예약 확인'인 이유: 이 버튼은
-  // /owner/pay로 간다. 그 화면의 제목은 '예약 확정 전이에요'이고 버튼은 '예약 확정하기'다 —
-  // 여기서 '러너 찾기'라고 쓰면 목적지와 어긋나는 라벨 거짓말이 된다.
+  // 않는다 — 누르면 다음에 해야 할 일로 데려간다. 막힌 칸들은 그대로다.
+  // [O-5 §E.5 · lab §C] 마지막 칸이 '예약 확인' → '러너 찾기'가 됐다. 예전에는 이 버튼이
+  // /owner/pay('예약 확정 전이에요' + '예약 확정하기')로 갔기 때문에 '러너 찾기'가 목적지와
+  // 어긋나는 라벨 거짓말이었다. 이제 홀드가 곧 matching이고 버튼은 레이더로 간다 — 라벨이
+  // 목적지와 같은 말을 한다.
   const ctaLabel = chargeLocked ? '결제 문제부터'
     : dogsState === 'error' ? '반려견 확인 다시'
     : dogsState === 'loading' && !myDog ? '반려견 확인 중'
     : !myDog ? '반려견부터'
     : !draft.scheduledAtIso ? '시간부터'
-    : '예약 확인';
+    : '러너 찾기';
   // ── 하단 CTA 도크 ──────────────────────────────────────────────────────────────────
   // 도크는 **화면 맨 아래(bottom: 0)까지 불투명**하다. 예전처럼 버튼만 인셋 위에 띄우면
   // 바와 홈 인디케이터 사이의 틈으로 스크롤 콘텐츠(페이스 칩)가 그대로 비쳐 보인다 —
@@ -1093,10 +1213,10 @@ export default function Request() {
           비쳐 보이면 '떠 있는 CTA'가 아니라 반쯤 가린 콘텐츠로 읽힌다. 세이프에어리어는
           도크 안쪽 패딩으로 존중한다. 위 가장자리는 코랄 헤어라인 1px.
           라벨 스왑 = 이 화면의 문법 — 버튼을 disabled로 죽이지 않는다. 누르면 다음에 해야 할
-          일로 데려간다 (결제 관리 → 반려견 등록 → 시간 시트 → 예약 확인). */}
+          일로 데려간다 (결제 관리 → 반려견 등록 → 시간 시트 → 러너 찾기). */}
       <View style={[s.ctaDock, { paddingBottom: ctaDockPadBottom }]}>
         <Pressable
-          onPress={pay}
+          onPress={payOnce}
           style={({ pressed }) => [s.ctaBar, pressed && { backgroundColor: paper.actionPressed }]}
           accessibilityRole="button"
           accessibilityLabel={ctaLabel}

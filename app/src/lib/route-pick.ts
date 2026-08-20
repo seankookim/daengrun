@@ -208,7 +208,12 @@ export function pickRoute(routes: RouteInfo[], targetKm: number, pickup: LatLng 
     if (scored.length > 0) {
       const within = scored.filter((x) => Math.abs(x.t.totalKm - targetKm) <= TOTAL_KM_TOL);
       if (within.length > 0) {
-        const best = [...within].sort((x, y) => (x.t.approachM - y.t.approachM) || byId(x.r, y.r))[0];
+        // Inside the band the dial is still the preference and approach only BREAKS TIES — the
+        // file's composition law. (Review 2026-08-19: sorting by approach alone let a 4 km lap 50 m
+        // closer beat the exact 5 km lap for a 5 km dial.)
+        const best = [...within].sort((x, y) =>
+          (Math.abs(x.t.totalKm - targetKm) - Math.abs(y.t.totalKm - targetKm))
+          || (x.t.approachM - y.t.approachM) || byId(x.r, y.r))[0];
         return { id: best.r.id, rankedBy: 'proximity' };
       }
       const best = [...scored].sort((x, y) =>

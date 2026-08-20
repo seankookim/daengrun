@@ -38,7 +38,7 @@
 
 do $$
 declare
-  rt uuid; oo uuid; rr uuid; dg uuid; run_id uuid;
+  rt uuid; oo uuid; rr uuid; dg uuid; run_id uuid; v_geom_was_public boolean;
   v_bad text := ''; v_msg text; v_n int; v_m int; v_raise text; v_lat text;
 begin
   -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -111,6 +111,16 @@ begin
     rt := t_route('rpp 승격 코스');
     update routes set checked_at = current_date where id = rt;
     run_id := t_settled_run(oo, rr, dg, rt, t_geotrace(37.5118, 126.9950, 40));
+    -- [0113] The shipped world no longer exposes base geometry, so the gate's REFUSING arm has to
+    -- be staged: grant it back briefly to reconstruct the pre-0113 world, prove the gate still
+    -- bites, then revoke and prove it opens. Without this, the arm would silently stop testing
+    -- anything — the same "fixture makes the suite an echo of itself" trap 147 D-M1 caught.
+    -- ⚠ CAPTURE FIRST, RESTORE TO WHAT WAS FOUND. An earlier version left this REVOKED
+    -- unconditionally, which silently established the very property suite 148 exists to test:
+    -- mutation G-M1 deleted 0113's revoke and 148 stayed GREEN because this fixture had closed
+    -- the grant for it. Same trap as 147 D-M1. A fixture may borrow state; it may not set it.
+    v_geom_was_public := has_column_privilege('anon','public.routes','trace','SELECT');
+    grant select (trace, trace_thumb) on routes to anon, authenticated;
     begin
       perform promote_route_from_run(run_id, rt, oo);
       v_bad := v_bad || ' 베이스 지오메트리가 공개된 채로 승격됐다 — 0107의 게이트가 아무도 쓸 필요 없는 뷰로 충족됐다';
@@ -121,7 +131,8 @@ begin
     if (select status from routes where id = rt) <> 'candidate' then
       v_bad := v_bad || ' 거절됐는데 status가 움직였다';
     end if;
-    -- now the world 0112 will create: base geometry no longer public
+    -- the gate's opening arm needs the grant gone; this is the pin's own precondition, not a
+    -- restoration — the restoration happens below, back to whatever was FOUND.
     revoke select (trace, trace_thumb) on routes from anon, authenticated;
     begin
       perform promote_route_from_run(run_id, rt, oo);
@@ -139,13 +150,14 @@ begin
       v_bad := v_bad || format(' 승격 경로가 안 잘렸다: base=%s pub=%s', v_n, v_m);
     end if;
     if v_m < 2 then v_bad := v_bad || ' 너무 잘려 선이 남지 않았다'; end if;
-    grant select (trace, trace_thumb) on routes to anon, authenticated;   -- restore shipped state
 
+    if v_geom_was_public then grant select (trace, trace_thumb) on routes to anon, authenticated; end if;
     if v_bad = '' then
       call _pass('rpp','P3+P4 the gate, then the trim — promotion is REFUSED with route_geometry_still_public while anon can read routes.trace from the base table, proceeds once it cannot, and the promoted route (a real run''s track, pickup at one end) is then endpoint-trimmed in the projection');
     else v_msg := v_bad; call _fail('rpp','P3+P4 the gate, then the trim', v_msg); end if;
   exception when others then
-    grant select (trace, trace_thumb) on routes to anon, authenticated;
+    if v_geom_was_public then grant select (trace, trace_thumb) on routes to anon, authenticated;
+    else revoke select (trace, trace_thumb) on routes from anon, authenticated; end if;
     call _fail('rpp','P3+P4 the gate, then the trim', sqlerrm);
   end;
 end $$;

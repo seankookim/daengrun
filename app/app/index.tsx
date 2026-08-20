@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
-import { ensureRunner, fetchMyDogs } from '../src/lib/api';
+import { ensureRunner } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
 import { paper } from '../src/theme';
@@ -58,7 +58,11 @@ export default function RoleSelect() {
     const { error } = await supabase.from('profiles').upsert(
       existing
         ? { id: auth.user.id, role }
-        : { id: auth.user.id, role, name: auth.user.email?.split('@')[0] ?? '사용자' },
+        // `||`, not `??`: login is Kakao-only and the email scope needs business verification, so
+        // GoTrue can hand back an EMPTY STRING rather than undefined. `''?.split('@')[0]` is `''`
+        // and `'' ?? x` is `''` — the fallback could never fire, and since `name` is now written
+        // only on INSERT it could never self-heal either. `||` catches both shapes.
+        : { id: auth.user.id, role, name: auth.user.email?.split('@')[0] || '사용자' },
     );
     if (error) { fail('프로필 저장 실패', error.message); return; }
 
@@ -73,9 +77,15 @@ export default function RoleSelect() {
     // home screen whose primary action immediately dead-ends.
     let next: '/owner/home' | '/runner/home' | '/onboard/owner' | '/onboard/runner';
     if (role === 'owner') {
-      try {
-        next = (await fetchMyDogs()).length === 0 ? '/onboard/owner' : '/owner/home';
-      } catch (e) { fail('시작하지 못했어요', (e as Error)?.message ?? '알 수 없는 오류'); return; }
+      // A DIRECT count, not `fetchMyDogs().length`. That helper resolves `[]` for a signed-out
+      // user, and `getUser()` returns `{ user: null, error }` — not a throw — on a transient
+      // failure or a 429. A returning owner with two dogs therefore got `[]` with no error and
+      // was replaced onto a first-run screen. Here `error` and `count === 0` are different
+      // answers, and only the second one is "you have no dog yet".
+      const { count, error: dogErr } = await supabase
+        .from('dogs').select('id', { count: 'exact', head: true }).eq('owner_id', auth.user.id);
+      if (dogErr) { fail('시작하지 못했어요', dogErr.message); return; }
+      next = (count ?? 0) === 0 ? '/onboard/owner' : '/owner/home';
     } else {
       // `existing` was read before ensureRunner, which never writes district — still current.
       next = (existing?.district ?? '').trim() === '' ? '/onboard/runner' : '/runner/home';
@@ -83,8 +93,12 @@ export default function RoleSelect() {
 
     setBusy(null);
     session.role = role;
-    if (next === '/onboard/owner' || next === '/onboard/runner') router.replace(next);
-    else router.push(next);
+    // `push`, not `replace`, into onboarding. The root stack is headerShown:false +
+    // gestureEnabled:false, so a `replace` left a mistapped role with NO in-app exit: the CTA
+    // stays disabled until a dog name AND an address are filled, and 나중에 does not render until
+    // an address row exists. Pushing puts role-select back on the stack, and each onboarding
+    // screen renders a back control that is shown only when `router.canGoBack()` is true.
+    router.push(next);
   };
 
   return (

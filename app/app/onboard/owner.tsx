@@ -15,11 +15,14 @@ import { layout, paper } from '../../src/theme';
 // [Sean 2026-08-19] "pick up point should be wherever the home owner puts, and the app should
 // recommend the nearest path." So the pin is NOT an optional link tucked under the field — it is
 // step 2, and the CTA leads into it. That ruling is load-bearing downstream, not decoration:
-// `orderByProximity` (route-pick.ts:86) orders the course list AND the request carousel from the
-// default address's pinned coordinate (course-map.tsx:129,165 · request.tsx:144), and
-// request.tsx:497 already states that "가장 가까운" may only be claimed when that coordinate
-// exists. An unpinned address silently degrades course recommendation — which is exactly what
-// the 픽업 위치 line tells the owner.
+// `orderByProximity` (route-pick.ts) orders the course list AND the request carousel from the
+// default address's pinned coordinate (both `course-map.tsx` and `request.tsx` call it), and
+// request.tsx's course-nudge comment already states that "가장 가까운" may only be claimed when
+// that coordinate exists. An unpinned address silently degrades course recommendation — which is
+// exactly what the 픽업 위치 line tells the owner.
+// (Symbols, not line numbers: the six pointers that used to sit here had all drifted, and one of
+//  them landed on an unrelated branch — a citation that reads as fabricated costs the next reader
+//  more than no citation at all.)
 //
 // Coordinate doctrine (0065): geocoding NEVER writes lat/lng. The edge function is used here only
 // as a *hint* under the address field, and only when it answers positively — `{available:false}`
@@ -160,7 +163,19 @@ export default function OnboardOwner() {
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        {/* latin counter — the one detail-floor exemption on this screen (letterspaced kicker) */}
+        {/* Escape hatch. index.tsx pushes (never replaces) into onboarding precisely so this can
+            exist: the root stack has no header and no back-swipe, so a runner who mistapped
+            보호자예요 previously had no in-app way out. Rendered only when there IS somewhere to go
+            back to — a deep link straight here must not show a dead control. */}
+        {router.canGoBack() && (
+          <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}
+            accessibilityRole="button" accessibilityLabel="역할 다시 고르기">
+            <Text style={s.backTxt}>‹ 역할 다시 고르기</Text>
+          </Pressable>
+        )}
+        {/* The counter is DATA in a kicker slot, so it takes the 14pt detail floor — the
+            exemption covers letterspaced Latin kickers (labels), not the step number itself
+            (DESIGN.md §3, 14pt floor). */}
         <Text style={s.step} accessibilityLabel={step2 ? '2단계, 총 2단계' : '1단계, 총 2단계'}>
           {step2 ? '2 / 2' : '1 / 2'}
         </Text>
@@ -269,7 +284,9 @@ export default function OnboardOwner() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   body: { paddingHorizontal: layout.gutter, paddingTop: 78, paddingBottom: 190 },
-  step: { fontSize: 12, letterSpacing: 2, fontWeight: '700', color: paper.faint },
+  back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
+  backTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  step: { fontSize: 14, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, marginTop: 12 },
   // lab .field — bottom hairline in ink, 20/700 (address 16)
   fieldName: {

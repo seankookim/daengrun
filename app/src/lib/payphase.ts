@@ -23,7 +23,9 @@ export type BookingStatus =
 export type PayPhase =
   | 'loading'        // 청구 fetch 중 — 숫자는 전부 '—', CTA 없음
   | 'not_found'      // 0행·없는 bid·남의 예약 — 재시도 없는 정직한 부재 (H3/M5)
-  | 'mock_pending'   // 오늘: PG는 목업. 정직한 '준비 중' 자세 + 실전이(confirmPayment)
+  // [O-5 §E.5.1] '실전이(confirmPayment)'는 삭제됐다 — payment_hold에 남은 예약을 앞으로 미는
+  // 클라이언트 호출이 더 이상 없다. 이 페이즈는 이제 '아직 접수되지 않음'을 말할 뿐이다.
+  | 'mock_pending'   // PG 목업 · 접수 전 — 화면이 할 수 있는 일은 사실을 말하고 나가는 것뿐
   | 'authorizing'    // 미래 PG: 승인 요청 진행 중 — 취소 어포던스 없는 화면
   | 'authorized'     // 결제 홀드를 지난 예약 — 여기서는 종점, 다음 화면으로 보낸다
   | 'disputed'       // no_show·incident_review — '완료'로 위장하지 않는다 (C5)
@@ -39,8 +41,8 @@ export interface PayAttempt { state: PayAttemptState; reason?: string | null }
 
 // 상태 → 페이즈 (16종 전수). 새 enum 값이 생기면 tsc가 이 자리에서 막는다.
 export const STATUS_PHASE: Record<BookingStatus, PayPhase> = {
-  // draft·quoted: 이 라우트로 도달할 수 없다 — 홀드 생성(create-booking-hold)이 payment_hold까지
-  // 밀어놓고서야 /owner/pay를 연다. 도달했다면 결제 표면이 말할 수 있는 사실이 없다는 뜻이라
+  // draft·quoted: 이 라우트로 도달할 수 없다 — 홀드 생성(create-booking-hold)이 그 두 상태를
+  // 한 요청 안에서 지나쳐 간다. 도달했다면 결제 표면이 말할 수 있는 사실이 없다는 뜻이라
   // '부재'로 떨어뜨린다 (재시도 문을 열지 않는다 — 없는 결제를 기다리게 하지 않는 쪽이 정직하다).
   draft: 'not_found',
   quoted: 'not_found',

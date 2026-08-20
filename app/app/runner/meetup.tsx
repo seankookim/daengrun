@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { clampSuggest } from '../../src/lib/pace';
 import { runnerJob } from '../../src/store';
 import { paper } from '../../src/theme';
 
@@ -31,6 +33,10 @@ const GOLD = '#B99A4F';     // 봉인 골드 — 밴드 소인·SEALED 룰 전�
 const GOLD_SOFT = '#F4EBD3';
 const GOLD_SHEEN = '#D8C185';
 const PERF = 'rgba(255,255,255,0.25)'; // 천공 점선 — 밤 지면 위 흰 선
+
+// 권장 페이스 캡션 — 값이 이미 sec/km라 나눗셈이 없다. run.tsx:68 / live.tsx:43과 같은 M'SS" 문법
+// (같은 숫자가 이 화면과 러닝 화면에서 다르게 보이면 그게 거짓말이다 — 포맷터를 문자 그대로 맞춘다).
+const suggestStr = (sec: number) => `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"`;
 
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
@@ -62,6 +68,9 @@ function useStamp(sealed: boolean, hydrated: { current: boolean }) {
 
 export default function Meetup() {
   const df = useDisplayFont();
+  // [훅 배치 동결법 · v4 R3c] Oswald 숫자 훅은 **useDisplayFont 바로 옆**에만 — 아래 상태 뭉치의
+  // 순서를 건드리지 않는 유일한 자리다. 쓰는 곳은 '이번 러닝' 블록의 목표 km·권장 페이스뿐.
+  const nf = useNumFont();
   const [info, setInfo] = useState<MeetupInfo | null>(null);
   const dogName = info?.dogName ?? '반려견';
   const [stage, setStage] = useState<Stage>('enroute');
@@ -80,6 +89,12 @@ export default function Meetup() {
   const [arrived, setArrived] = useState(false);
   const [arriveBusy, setArriveBusy] = useState(false);
   const [arriveFail, setArriveFail] = useState<string | null>(null); // 도착 전송 실패 — 라우드 인라인 한 줄
+  // [훅 배치 동결법 · 정직법 2026-08-19] 새 useState는 이 상태 뭉치의 **끝**에만 — 위 법이 지정한
+  // 그 자리다. 아래 allChecked·poll부터의 순서는 그대로 밀린다 (모든 렌더에서 같은 위치 = 훅 규칙 준수).
+  // 왜 필요했나: fetchMeetupInfo 실패가 console.warn으로 삼켜져 화면이 '예약 정보 불러오는 중...'에
+  // 영원히 머물렀다 — 로딩으로 위장한 실패다. pickup 삼상태와 같은 문법으로 로드 상태를 한 값에 묶고
+  // (불가능한 조합 차단), try는 재시도 트리거일 뿐 값 자체는 읽지 않는다 (addrTry와 같은 규약).
+  const [infoLoad, setInfoLoad] = useState<{ s: 'loading' | 'ready' | 'err'; try: number }>({ s: 'loading', try: 0 });
   const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -98,10 +113,21 @@ export default function Meetup() {
   }, [jobId]);
 
   // 실컨텍스트 — 강아지·코스 실명/실메모 (runRequests 목업 은퇴, ui-audit P0)
+  // [정직법 2026-08-19] 실패를 삼키지 않는다. 이 effect의 **자리와 dep 규약은 그대로**다 —
+  // 위 fetchCurrentRunnerJobId 다음, 아래 주소 effect 앞. infoLoad.try가 재시도 dep으로 붙는 것은
+  // 바로 아래 addrTry가 쓰는 것과 같은 문법이고, alive 가드도 그 effect에서 그대로 가져왔다
+  // (빠른 재시도 두 번이 순서를 바꿔 도착해도 옛 응답이 새 응답을 덮지 못한다).
   useEffect(() => {
     if (!jobId) return;
-    fetchMeetupInfo(jobId).then(setInfo).catch((e) => console.warn('[r-meetup] info:', e?.message ?? e));
-  }, [jobId]);
+    let alive = true;
+    fetchMeetupInfo(jobId)
+      .then((v) => { if (alive) { setInfo(v); setInfoLoad((L) => ({ ...L, s: 'ready' })); } })
+      .catch((e) => {
+        console.warn('[r-meetup] info:', e?.message ?? e);
+        if (alive) setInfoLoad((L) => ({ ...L, s: 'err' }));
+      });
+    return () => { alive = false; };
+  }, [jobId, infoLoad.try]);
 
   // 픽업 실주소 (0060 definer RPC) — 잡이 정해지면 1회, '다시 시도'면 addrTry가 올라 다시 부른다.
   // [훅 배치 동결법] 새 useEffect는 반드시 이 자리(fetchMeetupInfo 다음)에만 — 하이드레이션
@@ -301,11 +327,14 @@ export default function Meetup() {
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <View style={s.etaPill}>
-            {/* 상태 도트 = 시맨틱 (이동 앰버 → 도착 코랄). 강조 예산 면제, line과 값 공유 금지 */}
-            <View style={[s.etaDot, { backgroundColor: stage === 'enroute' ? paper.pending : paper.line }]} />
+            {/* 상태 도트 = 시맨틱 (이동·도착 앰버 → 인계 완료 세이지). 강조 예산 면제.
+                [v4 R3a/b/c] 도착 상태의 코랄(paper.line)을 앰버로 내렸다: 코랄은 그 프레임의
+                유일한 문(CTA)이 가져가고, 이 점은 '주의/사실'만 말한다. 인계가 실제로 끝난
+                confirmed에서만 ready — 서버 진실(picked_up/active)에서 파생된 스테이지다. */}
+            <View style={[s.etaDot, { backgroundColor: stage === 'confirmed' ? paper.ready : paper.pending }]} />
             {/* [P2-11] GPS 없는 도보 8분·0.8km는 조작이었다 — 스테이지에 묶인 사실만 말한다 */}
             <Text style={s.etaText} numberOfLines={2}>
-              {stage === 'enroute' ? '픽업 장소로 이동 중' : '픽업 장소 도착'}
+              {stage === 'enroute' ? '픽업 장소로 이동 중' : stage === 'confirmed' ? '인계 완료' : '픽업 장소 도착'}
             </Text>
           </View>
           <View style={{ width: 40 }} />
@@ -354,9 +383,14 @@ export default function Meetup() {
               </Pressable>
             </>
           )}
-          <Text style={s.cardBody}>
-            {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
-          </Text>
+          {/* [정직법 · 같은 결함의 이웃] '메모가 없어요'는 예약 정보를 **아는** 상태에서만 참이다.
+              로드 전이나 실패 상태에서 이 문장을 그리면 모르는 것을 없다고 단언하게 된다 —
+              info가 실제로 도착한 뒤에만 그린다 (실패 사실은 바로 아래 줄이 진다). */}
+          {info != null && (
+            <Text style={s.cardBody}>
+              {info.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
+            </Text>
+          )}
         </View>
 
         {/* dog + owner */}
@@ -367,10 +401,33 @@ export default function Meetup() {
               <Text style={s.peerName} numberOfLines={2}>
                 {dogName}{info?.dogBreed ? ` · ${info.dogBreed}` : ''}{info?.dogWeightKg != null ? ` ${info.dogWeightKg}kg` : ''}
               </Text>
-              <Text style={s.peerMeta} numberOfLines={2}>
-                {info ? `${info.when} · ${info.km}km · ${info.paceLabel}` : '예약 정보 불러오는 중...'}
-              </Text>
+              {/* [정직법] 실패는 실패로. 이 줄은 실패했을 때도 '불러오는 중...'이라고 말해서
+                  영원한 로딩으로 위장했다 — 재시도 경로조차 없었다. 이제 세 상태를 각각 그린다. */}
+              {info ? (
+                <Text style={s.peerMeta} numberOfLines={2}>{`${info.when} · ${info.km}km · ${info.paceLabel}`}</Text>
+              ) : infoLoad.s === 'err' ? (
+                <Pressable
+                  onPress={() => setInfoLoad((L) => ({ s: 'loading', try: L.try + 1 }))}
+                  hitSlop={8}
+                  style={{ minHeight: 44, justifyContent: 'center' }}
+                  accessibilityRole="button"
+                  accessibilityLabel="예약 정보 다시 불러오기"
+                >
+                  <Text style={s.peerFail} numberOfLines={2}>
+                    예약 정보를 불러오지 못했어요 · <Text style={s.peerFailRetry}>다시 시도</Text>
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text style={s.peerMeta} numberOfLines={2}>예약 정보 불러오는 중...</Text>
+              )}
             </View>
+            {/* [0114 · ui2-3, verify-only] 수락 전에는 이 문에 닿을 수 없다 — 확인된 게이트 사슬:
+                이 화면의 유일한 진입은 requests.tsx:140(acceptBooking이 resolve한 뒤),
+                home.tsx:292 · calendar.tsx:63(둘 다 fetchRunnerJobs, api.ts:1173이
+                confirmed/runner_enroute/picked_up/active/completed로만 필터)이고, jobId가 비면
+                이 파일 :103-112가 fetchCurrentRunnerJobId(IN_FLIGHT, api.ts:1058-1064)로만
+                복원한 뒤 없으면 Alert + back 한다. `: {}` 폴백조차 bare /chat의
+                IN_FLIGHT 리졸버로 떨어진다. 게이트 추가 불필요 — 상태 게이트가 이미 상류에 있다. */}
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
               <Text style={s.chatChipText}>보호자 채팅</Text>
             </Pressable>
@@ -461,9 +518,11 @@ export default function Meetup() {
         {/* action */}
         {stage === 'enroute' && (
           <View style={s.actions}>
-            {/* 도착 확인은 여전히 러너 자기보고라 세컨더리(잉크-필 CTA는 인계 하나뿐)지만, 이제 서버
-                계약 행동이다 — 탭이 arrived_at을 찍고 보호자에게 알림이 정확히 1회 나간다. */}
-            <PaperBtn label="픽업 장소 도착 확인" variant="secondary" busy={arriveBusy} busyLabel="전송 중..." onPress={reportArrived} />
+            {/* [v4 R3a] 세컨더리 → 프라이머리. 옛 근거는 "러너 자기보고라 한 단계 아래"였는데,
+                이건 서버 계약 행동이다 — 탭이 arrived_at을 찍고 보호자에게 알림이 정확히 1회 나간다.
+                코랄 예산도 깨지 않는다: 스테이지가 배타적이라 enroute 프레임에는 문이 이것 하나뿐이고,
+                인계 CTA는 arrived부터 나온다 (화면당 primary 1개 = PaperBtn 호출자의 책임). */}
+            <PaperBtn label="픽업 장소 도착 확인 ›" busy={arriveBusy} busyLabel="전송 중..." onPress={reportArrived} />
             {/* [wave 3 · 감사 #29 해소] 도착은 더 이상 로컬 스테이지가 아니다 — bookings.arrived_at이
                 정본이고 전송이 실패하면 스테이지는 그대로 남아 재시도 경로가 산다. */}
             {arriveFail
@@ -474,7 +533,18 @@ export default function Meetup() {
         {stage === 'arrived' && (
           <View style={s.actions}>
             {/* 게이트된 CTA — disabled는 명시 fill(disabledFill)로, 불투명도 트릭 금지 */}
-            <PaperBtn label={`${dogName} 인계 받았어요`} onPress={handoff} disabled={!allChecked} />
+            {/* [v4 R3b] 코스 한 줄 — 인계 직전에 '무엇을 뛰기로 했는지'가 CTA 바로 위에 선다.
+                routes.name **원문** (routeDisplayName은 만들었다 지운 물건이다, handoff-client §6).
+                info가 없으면 줄 자체가 없다 — 모르는 것을 '코스 미지정'으로 단언하지 않는다. */}
+            {info && (
+              <View style={s.ctaInfo}>
+                <InfoRow label="코스">
+                  <Text style={s.infoValue} numberOfLines={2}>{info.routeName}</Text>
+                </InfoRow>
+              </View>
+            )}
+            {/* 라벨은 코드 원문 그대로 + 화살표만 (RULING 6: 문에는 작은 화살표 + 굵은 글자) */}
+            <PaperBtn label={`${dogName} 인계 받았어요 ›`} onPress={handoff} disabled={!allChecked} />
             {/* 도착 성공 힌트는 서버 값(arrived_at) 파생이라 리마운트해도 살아남는다 */}
             <Text style={s.ctaHint}>
               {arrived ? '보호자에게 도착 알림이 갔어요 · ' : ''}
@@ -501,6 +571,33 @@ export default function Meetup() {
             <Text style={s.statusSub}>보호자 앱에 확인 요청을 보냈어요</Text>
           </View>
         )}
+        {/* ── 이번 러닝 (v4 R3c) — 인계가 끝난 뒤에만. 네 줄 전부 실필드다:
+              목표 = bookings.km + pace_label · 코스 = routes.name **원문**(routeDisplayName은 만들었다
+              지운 물건이다, handoff-client §6) · 위치 공유 = run2-<id> private 채널의 사실.
+              권장 페이스 = dogs.preferences.paceSuggestSec. clampSuggest는 '확인된 부재'만 기본값으로
+              접는 계약이라(pace.ts:32-36) info가 실제로 도착한 뒤에만 부른다 — 실패한 fetch는 info를
+              null로 남기고, 그러면 이 블록 자체가 안 그려진다. run.tsx가 러닝 중 쓰는 값과 같은 식이라
+              두 화면의 권장 숫자가 갈라지지 않는다. ── */}
+        {stage === 'confirmed' && info && (
+          <View style={s.section}>
+            <Text style={s.cardTitle}>이번 러닝</Text>
+            <InfoRow label="목표">
+              <Text style={[s.infoNum, nf]}>{info.km}km</Text>
+              <Text style={s.infoValue}>· {info.paceLabel}</Text>
+            </InfoRow>
+            <InfoRow label="권장 페이스">
+              <Text style={[s.infoNum, nf]}>{suggestStr(clampSuggest(info.paceSuggestSec))}</Text>
+              <Text style={s.infoValue}>안팎</Text>
+            </InfoRow>
+            <InfoRow label="코스">
+              <Text style={s.infoValue} numberOfLines={2}>{info.routeName}</Text>
+            </InfoRow>
+            <InfoRow label="위치 공유">
+              <Text style={s.infoValue} numberOfLines={2}>러닝 중 · 이 예약의 보호자에게만</Text>
+            </InfoRow>
+          </View>
+        )}
+
         {stage === 'confirmed' && (
           <View style={s.actions}>
             <PaperBtn
@@ -590,6 +687,17 @@ function CheckRow({ icon, label, on, onPress }: { icon: string; label: string; o
   );
 }
 
+// 사실 행 — 라벨 왼쪽 / 값 오른쪽. 값 쪽이 노드를 받는 이유: Oswald는 라틴 전용이라
+// 숫자 조각에만 nf를 씌우고 한글 꼬리는 본문 서체로 남겨야 한다 (섞어 씌우면 한글이 폴백으로 튄다).
+function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Row style={s.infoRow}>
+      <Text style={s.infoLabel}>{label}</Text>
+      <View style={s.infoVal}>{children}</View>
+    </Row>
+  );
+}
+
 function Step({ label, done, active, first, last }: { label: string; done?: boolean; active?: boolean; first?: boolean; last?: boolean }) {
   return (
     <View style={[s.stepRow, first && { marginTop: 0 }]}>
@@ -672,8 +780,22 @@ const s = StyleSheet.create({
   addrFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   peerName: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink },
   peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  // 예약 정보 로드 실패 — 인계 의식 한복판에 스트립을 놓을 자리가 없어 ctaFail과 같은 처방:
+  // 자리는 그대로, 잉크만 critical (강조 예산 면제, line과 값 공유 금지). 문은 ≥44pt.
+  peerFail: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
+  peerFailRetry: { fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 11, alignSelf: 'center' },
   chatChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
+
+  // ── 이번 러닝 사실 행 (R3c) ──
+  infoRow: { justifyContent: 'space-between', gap: 12, marginTop: 10 },
+  infoLabel: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  infoVal: { flexShrink: 1, flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  infoValue: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: paper.ink, textAlign: 'right' },
+  // Oswald 숫자 — lineHeight 21 = 1.31× (BUG A: 명시 lineHeight 없으면 어센더가 잘린다)
+  infoNum: { fontSize: 16, lineHeight: 21, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
+  // 행동 존 안의 사실 한 줄 (R3b 코스) — CTA와 붙지 않게 아래로만 띄운다
+  ctaInfo: { marginBottom: 12 },
 
   // ── 의식 헤더 ──
   kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (14pt 플로어 면제)

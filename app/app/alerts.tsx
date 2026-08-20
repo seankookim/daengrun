@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
+import { StatusBarCover } from '../src/components/status-bar-cover';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
 import { useDisplayFont } from '../src/lib/displayFont';
@@ -22,7 +23,9 @@ const inkFor = (kind: string | null | undefined, title: string): { bg: string; f
   if (/만료|취소|SOS/.test(title)) return { bg: '#FDEDE8', fg: lilac.tang };                  // 크리티컬 탱
   if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return { bg: lilac.amberSoft, fg: lilac.amber }; // 앰버
   if (/수락|확정|매칭/.test(title)) return { bg: '#E3EEF8', fg: '#4A6E93' };                  // 확정 블루 (정본 유지)
-  return { bg: lilac.voltFill, fg: lilac.voltDeep }; // 완료·시작·적립 등 — 기능 볼트(성공 확인 전용)
+  if (/시작|출발|완료|종료|정산|적립/.test(title)) return { bg: lilac.voltFill, fg: lilac.voltDeep }; // 기능 볼트(성공 확인 전용)
+  // 분류되지 않은 알림 — 성공 초록을 기본값으로 주지 않는다. 색도 태그와 같은 말을 해야 한다.
+  return { bg: lilac.inset, fg: lilac.text };
 };
 const glyphFor = (title: string): string => {
   if (/완료|시작|돌파/.test(title)) return '★';
@@ -33,6 +36,10 @@ const glyphFor = (title: string): string => {
   return '런';
 };
 // 정사각 모노 타입 태그 라벨 — inkFor와 동일 버킷에서 파생 (제목 실데이터 기반, 조작 아님)
+// [honesty 2026-08-19] '완료'는 폴백이 아니라 **판정**이다. 예전엔 어느 버킷에도 안 걸린 제목이
+// 전부 '완료'로 떨어졌고, 그 결과 "러닝 시작" 이벤트가 초록 완료 칩을 달고 나왔다 (실측) — 칩이
+// 그 이벤트가 아니라 예약의 종착 상태를 말하는 것처럼 읽힌다. 시작은 자기 칩을 갖고,
+// 분류되지 않는 알림은 아무것도 주장하지 않는 '알림'으로 남는다.
 const tagFor = (kind: string | null | undefined, title: string): string => {
   if (/돌파|기록|달성|경신/.test(title)) return '기록';
   if (kind === 'community') return '클럽';
@@ -40,7 +47,9 @@ const tagFor = (kind: string | null | undefined, title: string): string => {
   if (/반복/.test(title)) return '반복';
   if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return '변경';
   if (/수락|확정|매칭/.test(title)) return '확정';
-  return '완료';
+  if (/시작|출발/.test(title)) return '시작';
+  if (/완료|종료|정산|적립/.test(title)) return '완료';
+  return '알림';
 };
 // 소인 스탬프용 컴팩트 날짜 ("8월 3일 (일)" → "8.3") — 실 dateLabel에서만 파생, 하드코딩 없음
 const stampOf = (dateLabel: string): string => {
@@ -183,7 +192,7 @@ export default function Alerts() {
               <Row style={{ alignItems: 'center', gap: 9, marginTop: gi === 0 ? 14 : 18, marginBottom: 8 }}>
                 <View style={[s.postmark, { transform: [{ rotate: gi % 2 === 0 ? '-7deg' : '6deg' }] }]}>
                   <Text style={[s.postmarkD, nf]}>{stampOf(g.date)}</Text>
-                  <Text style={[s.postmarkK, nf]}>DOGS HIGH</Text>
+                  <Text style={[s.postmarkK, nf]} numberOfLines={1}>DOGS HIGH</Text>
                 </View>
                 <View style={s.groupDash} />
                 <Text style={[s.groupLabel, nf]}>{g.date} · {g.items.length}</Text>
@@ -233,6 +242,9 @@ export default function Alerts() {
           ))}
         </View>
       </ScrollView>
+      {/* 시스템 바 스트립 — 스트립 색은 이 화면의 캔버스(라일락)여야 한다: 흰 띠는 덮개가 아니라
+          두 번째 표면으로 읽힌다. */}
+      <StatusBarCover color={lilac.bg} />
       <BottomNav />
     </View>
   );
@@ -290,8 +302,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.1, shadowRadius: 12,
   },
   postmarkD: { fontSize: 14, lineHeight: 17, color: lilac.head },
-  // 소인 도장 안의 브랜드 각인 — 62px 원 안에 한 줄로 앉아야 하는 시리얼 보이스(장식)라 플로어 면제
-  postmarkK: { fontSize: 12, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
+  // 소인 도장 안의 브랜드 각인 — 62px 원 안에 한 줄로 앉아야 하는 시리얼 보이스(장식)라 플로어 면제.
+  // [layout 2026-08-19] 12pt에서 'DOGS HIGH'의 실폭이 ~62.5pt로 원(62, 안지름 ~58)을 넘겨 좌우로
+  // 삐져나왔다 — 첫 그룹은 화면 좌측 거터(12pt)에 앉아 있어 잘려 보였다. 10pt면 ~52pt로 원 안에
+  // 들어간다. 원을 키우지 않는 이유: 62는 좌측 거터와 레일 사이의 폭 예산이다.
+  postmarkK: { fontSize: 10, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
   groupDash: { flex: 1, borderTopWidth: 1.5, borderTopColor: lilac.hair, borderStyle: 'dashed' },
   groupLabel: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim },
 

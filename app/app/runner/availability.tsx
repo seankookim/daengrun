@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import { AvailRule, fetchMyAvailability, saveMyAvailability } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
@@ -14,11 +15,18 @@ import { layout, paper } from '../../src/theme';
 // [paper repaint 2026-08-11] cream/forest/volt legacy scrapped → paper chrome.
 // Behavior frozen: load/mutate/bump/applyToAll/save, 30-min clamps, dirty gate, sticky
 // save bar. §3b applied: day toggle = explicit ink/canvas chip (no tint pill), stepper
-// values Oswald with lineHeight 25 (BUG A), save = PaperBtn (busy label swap, no opacity),
-// 예약 규칙 placeholder rows lose the 0.55 opacity trick — muted state is explicit dim ink.
+// values Oswald with lineHeight 25 (BUG A), save = PaperBtn (busy label swap, no opacity).
+//
+// [journey v4 · R8 2026-08-19] Two things left, no behaviour moved:
+//  · 전체 적용 was a coral link on EVERY enabled row (seven corals competing with 저장하기).
+//    It is now one ink line under the grid, sourced from Monday. `applyToAll` is called
+//    unchanged — same one-day-to-the-enabled-days semantics.
+//  · The '예약 규칙 (준비 중)' block is gone. Three rows of numbers no server ever returns
+//    (2시간 전 / 4건 / 30분) read as settings the runner owns; the muted ink said "준비 중"
+//    but the numbers still looked like state. A 준비 중 plate is not drawn (lab R8).
 
-const CORAL_INK = '#C6472C'; // reading coral — text links (paper.line fails the 4.5:1 text floor)
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
+const SRC_WD = DAY_ORDER[0];             // 전체 적용의 소스 = 월요일 (그리드 첫 줄)
 const DAY_NAME = '일월화수목금토';
 
 interface DayState { enabled: boolean; startMin: number; endMin: number }
@@ -65,8 +73,14 @@ export default function Availability() {
     }
   };
 
+  // [honesty 2026-08-19 · runner review P2] 이 함수는 **켜져 있는 다른 요일**에만 값을 복사한다
+  // (요일을 켜지도, 끄지도 않는다). 바꿀 대상이 없으면 화면에서는 아무것도 움직이지 않는데도
+  // setDirty(true)가 저장 바를 '저장됨 ✓'(비활성)에서 '저장하기'로 뒤집어, 러너에게 있지도 않은
+  // 미저장 변경을 알리고 아무것도 바꾸지 않는 왕복을 팔았다. 실제 변화가 있을 때만 dirty다.
   const applyToAll = (srcWd: number) => {
     const src = days[srcWd];
+    const changes = days.some((d, i) => i !== srcWd && d.enabled && (d.startMin !== src.startMin || d.endMin !== src.endMin));
+    if (!changes) return;
     setDays((ds) => ds.map((d) => (d.enabled ? { ...d, startMin: src.startMin, endMin: src.endMin } : d)));
     setDirty(true);
   };
@@ -101,8 +115,12 @@ export default function Availability() {
           <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>가용시간 설정</Text>
           <View style={{ width: 40 }} />
         </Row>
+        {/* [honesty 2026-08-19 · runner review P2] '주 N일 러닝'은 로드가 **성공한** 뒤에만.
+            days의 시드는 전부 쉬는 날이라, 로딩 중과 실패 후에 '주 0일 러닝'이 찍혔다 — 서버에
+            무엇이 저장돼 있는지 아직 모르는 화면이 0일이라고 단언하던 자리다. loaded는 성공한
+            로드에서만 true가 된다(실패는 loadErr만 세운다). */}
         <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 16 }}>
-          설정한 시간에만 요청을 받아요 · 주 {activeCount}일 러닝
+          설정한 시간에만 요청을 받아요{loaded ? ` · 주 ${activeCount}일 러닝` : ''}
         </Text>
 
         {!loaded && !loadErr && (
@@ -130,29 +148,24 @@ export default function Availability() {
                 <View key={wd}>
                   {i > 0 && <View style={s.div} />}
                   <View style={{ paddingVertical: 11 }}>
-                    <Row style={{ justifyContent: 'space-between' }}>
-                      <Row style={{ gap: 10 }}>
-                        <Text style={{ width: 24, fontSize: 17, fontWeight: '900', color: d.enabled ? paper.ink : '#BBBBBB' }}>
-                          {DAY_NAME[wd]}
+                    {/* 전체 적용 링크가 이 줄의 오른쪽에서 내려가면서 space-between 래퍼도 함께
+                        은퇴했다 — 자식 하나짜리 정렬 컨테이너는 남겨두면 다음 사람을 속인다 */}
+                    <Row style={{ gap: 10 }}>
+                      <Text style={{ width: 24, fontSize: 17, fontWeight: '900', color: d.enabled ? paper.ink : '#BBBBBB' }}>
+                        {DAY_NAME[wd]}
+                      </Text>
+                      {/* day toggle — explicit state colors (§3b, no tint-pill legacy):
+                          on = ink fill + white label · off = canvas + neutral border + dim */}
+                      <Pressable
+                        onPress={() => mutate(wd, { enabled: !d.enabled })}
+                        style={({ pressed }) => [s.toggleChip, d.enabled ? s.toggleChipOn : s.toggleChipOff, pressed && { transform: [{ scale: 0.96 }] }]}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: d.enabled }}
+                      >
+                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: d.enabled ? '#FFFFFF' : paper.dim }}>
+                          {d.enabled ? '가능' : '쉬는 날'}
                         </Text>
-                        {/* day toggle — explicit state colors (§3b, no tint-pill legacy):
-                            on = ink fill + white label · off = canvas + neutral border + dim */}
-                        <Pressable
-                          onPress={() => mutate(wd, { enabled: !d.enabled })}
-                          style={({ pressed }) => [s.toggleChip, d.enabled ? s.toggleChipOn : s.toggleChipOff, pressed && { transform: [{ scale: 0.96 }] }]}
-                          accessibilityRole="switch"
-                          accessibilityState={{ checked: d.enabled }}
-                        >
-                          <Text style={{ fontSize: 14.5, fontWeight: '800', color: d.enabled ? '#FFFFFF' : paper.dim }}>
-                            {d.enabled ? '가능' : '쉬는 날'}
-                          </Text>
-                        </Pressable>
-                      </Row>
-                      {d.enabled && (
-                        <Pressable onPress={() => applyToAll(wd)} hitSlop={8}>
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: CORAL_INK }}>전체 적용</Text>
-                        </Pressable>
-                      )}
+                      </Pressable>
                     </Row>
                     {d.enabled && (
                       <Row style={{ gap: 8, marginTop: 10, justifyContent: 'center' }}>
@@ -168,28 +181,40 @@ export default function Availability() {
           </View>
         )}
 
+        {/* 전체 적용 — 그리드 아래 잉크 한 줄. 캡션이 소스 요일의 **실제 시간**을 말하므로 이 문은
+            자기가 무엇을 할지 미리 보여준다. 월요일이 쉬는 날이면 문을 그리지 않는다: 화면 어디에도
+            보이지 않는 시간을 나머지 요일에 퍼뜨리는 버튼이 되기 때문이다 (죽은 버튼 금지법의 이웃 —
+            누르면 무언가는 일어나지만 러너가 보지 못한 값이 움직인다). 대신 켜는 방법을 말한다. */}
+        {/* [honesty 2026-08-19 · runner review P2] 켜진 요일이 하나뿐이면 '나머지 가능한 요일'이
+            존재하지 않는다 — 캡션은 없는 요일들을 가리키고, 문은 0개 요일에 값을 복사한 뒤
+            (applyToAll의 no-op 가드 이전에는) 저장 바만 흔들었다. 켜진 요일이 둘 이상일 때만
+            이 블록 전체가 존재한다: 월요일이 꺼진 안내 문장도 마찬가지로 그때만 의미가 있다. */}
+        {loaded && activeCount > 1 && (days[SRC_WD].enabled ? (
+          <Row style={s.applyRow}>
+            <Text style={s.applyCaption} numberOfLines={2}>
+              월요일 {fmtMin(days[SRC_WD].startMin)}–{fmtMin(days[SRC_WD].endMin)}을 나머지 가능한 요일에
+            </Text>
+            <Pressable
+              onPress={() => applyToAll(SRC_WD)}
+              hitSlop={8}
+              style={s.applyBtn}
+              accessibilityRole="button"
+              accessibilityLabel="월요일 시간을 나머지 가능한 요일에 전체 적용"
+            >
+              <Text style={s.applyLink}>전체 적용 ›</Text>
+            </Pressable>
+          </Row>
+        ) : (
+          <Text style={s.applyOff}>월요일을 ‘가능’으로 켜면 그 시간을 나머지 요일에 한 번에 적용할 수 있어요</Text>
+        ))}
+
         <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14, lineHeight: 19 }}>
           30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
-
-        {/* 예약 규칙 — server wiring pending, so the section says so in its title and the rows
-            render in explicit muted ink (the 0.55-opacity paint retired with the paper repaint) */}
-        <Row style={s.secWrap}>
-          <Text style={s.secTitle}>예약 규칙 (준비 중)</Text>
-        </Row>
-        <View style={s.card}>
-          {[['최소 통보 시간', '2시간 전'], ['하루 최대 세션', '4건'], ['세션 후 휴식', '30분']].map(([label, value], i) => (
-            <View key={label}>
-              {i > 0 && <View style={s.div} />}
-              <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
-                <Text style={{ fontSize: 14.5, color: paper.dim }}>{label}</Text>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.dim }}>{value}</Text>
-              </Row>
-            </View>
-          ))}
-        </View>
       </ScrollView>
+      {/* 시스템 바 스트립 — 요일 그리드가 시계 뒤로 지나가던 것 */}
+      <StatusBarCover />
 
       {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill.
           Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
@@ -245,12 +270,12 @@ const s = StyleSheet.create({
   stepper: { gap: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
   stepBtn: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   stepBtnText: { fontSize: 22, fontWeight: '800', color: paper.ink },
-  // §3b section header — full-bleed coral rule (negative gutter margins) + 20/800 ink title
-  secWrap: {
-    marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
-    borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10, marginTop: 22, marginBottom: 10,
-  },
-  secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
+  // 전체 적용 한 줄 — 잉크 링크 (코랄은 이 화면에서 저장하기 하나). 문은 ≥44pt.
+  applyRow: { justifyContent: 'space-between', gap: 12, marginTop: 10 },
+  applyCaption: { flexShrink: 1, fontSize: 14, lineHeight: 19, color: paper.dim },
+  applyBtn: { minHeight: 44, justifyContent: 'center' },
+  applyLink: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  applyOff: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30,

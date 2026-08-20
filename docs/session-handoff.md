@@ -1,3 +1,121 @@
+# CATALOG — MEASURED, NOT FIXED: 3 routes whose `km` disagrees with their own line (2026-08-19)
+
+Measured across all **68** catalog rows (the catalog has grown past 32 — geometry keeps ingesting).
+Cumulative trace length vs the `km` column, drift > 0.15 km:
+
+    서리풀–몽마르뜨 종주 5km   km=5.0  measured=4.84
+    한강 반포–잠원 7km        km=7.0  measured=6.72
+    반포한강 그랜드 루프       km=5.0  measured=4.78
+
+All three are **original 0078 seeds**: `km` was TYPED when the row was created and the geometry was
+DRAWN later by the OSM seeder, so the two were never derived from each other. Every GPX-ingested
+row agrees with its line.
+
+## Why this is not a billing defect — checked before reporting it as one
+
+`bookings.km` comes from the **owner's distance dial** (`app/app/owner/request.tsx:94`, 0.5 km
+steps), NOT from `routes.km`; the route is only *recommended* to match (`autoPick(km)`, :170). No
+server path copies `routes.km` into a booking. So an owner dials 5 km and is billed for 5 km. The
+defect is honesty, not money: the catalog advertises 5.0 for a line that measures 4.78, and with
+Sean's #14/#15 the run is approach-leg + route anyway.
+
+## ⚠ MY OWN 0100 CONSTRAINT BLOCKS THE OBVIOUS FIX — this is the part to read
+
+`routes_name_km_agrees` requires a trailing `<number>km` token in the NAME to round to the `km`
+COLUMN. Two of these three carry such a token (`…종주 5km`, `…반포–잠원 7km`). So correcting
+`km` 5.0 → 4.8 **is refused by the constraint** unless the name changes in the same statement.
+
+That is the constraint working as designed (a length in a name must stay true), and it means the
+honest data fix requires **renaming user-facing course names** — a product decision, not a cleanup.
+I did not do it overnight. Options for Sean:
+  ⓐ rename to the measured figure (`서리풀–몽마르뜨 종주 4.8km`) and correct `km` in one statement;
+  ⓑ drop the km token from those names and correct `km` freely — but check the unique
+    `(town, name)` index first, the way the 몽마르뜨 trio blocked exactly this in 0100;
+  ⓒ re-cut the geometry to actually be 5 km and leave both alone.
+`반포한강 그랜드 루프` has no token, so its `km` can be corrected on its own at any time.
+
+## What I deliberately did NOT do
+
+- No overnight rename of user-facing names.
+- Did not take the 맹견 gate (offered by announcer): dogs schema + booking-time refusal is
+  custody's surface, not catalog's.
+- The anchor `근사값 — 소비 금지` contract stays unflipped — with the entry point computed from the
+  trace (#14/#15) the anchor is a bounding-box prefilter, which the comment already permits.
+
+# CATALOG — THE THREE-STEP GEOMETRY SEQUENCE IS COMPLETE (2026-08-19 overnight)
+
+**0110 → ui (c73cea5) → 0113, all live and verified.** Final probe:
+`anon base trace=refused 42501 | anon via projection rows=68 | anon catalog rows=68 | service_role=reads`
+
+**Promotion is now UNBLOCKED.** 0110 §C refused activation while client roles held base geometry;
+0113 removed that grant, so the gate is satisfied by the shipped schema. A route can be promoted.
+
+## Shipped tonight
+- **0110** `routes_public` — 16 columns, no evidence columns, geometry endpoint-trimmed
+  (**promoted routes only** — candidates are drawn lines and Sean's #14/#15 bills the approach leg
+  off their points) and rounded 6dp→4dp.
+- **0112** 🔴 P0 — anon could UPDATE and DELETE catalog rows straight through `routes_public`
+  (measured: update changed 1 row; delete passed privilege AND RLS, stopped only by an FK). A
+  single-table view is `is_insertable_into=YES` and the postgres default ACL grants client DML.
+  **A definer view has no RLS behind it.** Suite 147 D3 is a whole-schema watchdog.
+- **0113** base geometry closed to client roles; the projection is the only path.
+
+## ⚠ Things that will bite the next person
+- **A recreated view gets a FRESH default ACL** — any migration that recreates `routes_public`
+  re-opens 0112's P0. 147 D3 makes that red instead of quiet.
+- **`service_role` holds TABLE-WIDE select**, so a column revoke against it is a no-op (0098 M4).
+  You cannot fence it out of a column; a leaked service key is unmitigated.
+- **A fixture may borrow state; it may not set it.** Three suites tonight went green for a false
+  reason because a fixture established the property under test. Only mutation testing found them.
+- Smoke: a dev build older than `c73cea5` shows an EMPTY catalog until rebuilt. That is 0113
+  working. (`eas build:list` → `[]`: no installed binaries exist, which is why the revoke was free.)
+
+## Open / not mine
+- The anchor `근사값 — 소비 금지` contract stays UNFLIPPED and should — with the entry point
+  computed from the trace (#14/#15), the anchor is only a bounding-box prefilter, which is the use
+  the comment already permits. No provenance discriminator exists; flipping it would be pure risk.
+- Money/ui: on a **promoted** route, an owner whose pin is nearest a trimmed end gets a displaced
+  entry point and a longer billed approach. Deliberate; nothing is billed differently yet.
+
+# CATALOG — 0112 P0 CLOSED (2026-08-19 overnight). Trace revoke is step 3 and is NOT done.
+
+**Live and verified:** `anon UPDATE=refused 42501 | anon DELETE=refused 42501 | anon SELECT rows=68
+| views still writable by a client role: NONE`.
+
+## What the hole was, because the lesson generalises
+
+`routes_public` (my 0110) is a SINGLE-TABLE view → `is_insertable_into = YES`, and the postgres
+default ACL grants `anon`/`authenticated` INSERT/UPDATE/DELETE on every new relation. 0110 granted
+SELECT and never revoked the rest. Measured as anon, rolled back: **UPDATE changed 1 row; DELETE got
+past privilege AND past RLS, stopped only by a foreign key.** A route with no bookings would have
+been deleted by an anonymous caller.
+
+**RLS did not save it and structurally could not.** A view without `security_invoker` executes
+against its base tables as the VIEW'S OWNER, so RLS on `routes` never runs. Hence:
+- **a TABLE** with client DML is fine — RLS stands behind the privilege (60 of 62 base tables rely
+  on exactly this, measured; a schema-wide default-privilege revoke would break the app).
+- **a definer VIEW** with client DML has nothing behind it.
+The rule is view-specific. Suite 147 D3 enumerates the schema so the next definer view cannot be
+born writable.
+
+## ⚠ STEP 3 (the trace revoke) IS NOT DONE, AND HAS A PRECONDITION NOBODY HAS CHECKED
+
+ui shipped `fetchRoutes`/`fetchRouteById` onto `routes_public` (trunk c73cea5, verified on a
+SIMULATOR). That is **not** evidence about binaries already installed on real devices. Revoking
+`select (trace, trace_thumb)` on `routes` breaks any older build still selecting `trace` — PostgREST
+403s the whole request, so the catalog goes empty for those users. This is the 0082 §A-3 concern
+verbatim ("kept so pre-0082 app builds keep working across a non-atomic Expo rollout") and the
+0088/0091 outage shape.
+
+**Before landing the revoke, establish: is there any installed/TestFlight build older than
+c73cea5 that reads `routes.trace`?** If the answer is "no released binaries yet" the revoke is free.
+If it is "yes", it waits for turnover. Nobody has measured this; do not infer it from a simulator.
+
+## Deploy path
+
+`bash scripts/deploy-migrations.sh` (dry-run, prints pending set) then `--push <exact filenames>`.
+Verified by me: `--push` on a HELD file exits 3, on a non-pending file exits 4, dry-run exits 0.
+
 # CATALOG — 0110 `routes_public` IS LIVE; the revoke is NOT (2026-08-19, overnight)
 
 **Live in production and probed:** `candidate base=200 pub=200 | lat=37.5298 (4dp) | evidence=absent

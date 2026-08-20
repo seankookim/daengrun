@@ -70,3 +70,20 @@ Recorded the moment they arrived so nothing drops. Each line: what he said → w
       Km-tier matching in `pickRoute` uses that total, not `routes.km` alone.
     → Catalog note (for route geometry): more routes per town, so some route's total lands on the
       dial km for any pickup.
+
+## 🔵 Decided under the overnight grant (ui, 2026-08-19 night) — Sean flips with a word
+- **Course-map anchors = A′, zoom-scaled** (18 pt when zoomed out · 30 pt at neighbourhood zoom ·
+  44 pt at street zoom; selected +8). Why not A (18 everywhere): 17 % of the HIG target area on the
+  one screen where the user hunts for a small thing. Why not B (44 everywhere): measured on the
+  simulator, 44 pt glyphs overlap each other at the Banpo cluster. Why not "18 pt glyph + invisible
+  44 pt hit box": the Naver SDK has no hit-slop and its custom-view marker path dropped most markers
+  on iOS when photographed (frame C in `docs/labs/anchor-tap-target-lab.html`). Verified on the
+  simulator at the three zooms. The dev `?anchor=` knob is removed; `anchorSizeForZoom()` in
+  `app/app/owner/course-map.tsx` is the one line to change.
+- **Runner journey v4 — two frames deliberately NOT built (server slice):** R6a/b/c 반환 봉인 (the
+  runner's return-handoff seal) and R1c work-gate. Measured: `settle-run` flips `active → completed`
+  directly, `end_run_tx` has zero callers, `confirm_return_tx` answers a completed booking with
+  `{stamped:false, settled:true, unchanged:true}` — a client button today would draw a seal that never
+  happened; `runner_work_gate` can only block on states the marketplace path never produces. Both need
+  trust/money to re-sequence run end → return stamps → settle. One question for Sean: do we want the
+  return ceremony before charging flips (if yes, it is a server slice first).

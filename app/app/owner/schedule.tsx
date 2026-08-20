@@ -6,6 +6,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelFeeRateFor, cancelPolicy, draft, runners } from '../../src/store';
@@ -26,6 +27,19 @@ const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; ti
   { label: '완료', match: (b) => b.status === 'completed', tint: '#E3EEF8', tintFg: '#4A6E93', sel: '#6E9BC5', selFg: '#fff' },
   { label: '반복', match: (b) => !!b.recurring, tint: '#fff', tintFg: paper.text, sel: paper.ink, selFg: '#fff' },
 ];
+
+// 채팅이 아직 열리지 않는 서버 상태 — 0114가 chat_threads INSERT를 accepted 상태로 좁혔다
+// (is_booking_party_active; docs/contracts/party-membership-status-filter-contract.md §C.1/§E.5).
+// ⚠ rawStatus로만 판단한다: STATUS_MAP은 payment_hold·matching·runner_pending을 전부 'pending'
+// 하나로 뭉개므로(api.ts:690-706) 표시 어휘로 게이트하면 확정 예약까지 같이 잠긴다.
+const CHAT_PRE_ACCEPT = ['draft', 'quoted', 'payment_hold', 'matching', 'runner_pending'];
+
+// '● LIVE' 필이 참인 서버 상태 — 러너가 이 예약을 위해 **지금 밖에 있는** 구간.
+// [honesty 2026-08-19] 이 필은 `b.live`로 렌더됐는데, 그 필드는 "실서버 예약"(데모 아님)이라는
+// 뜻이다 (:77·:122). 데모 예약이 은퇴한 지금 그 값은 모든 행에서 true라 취소됨·완료 행에도
+// 초록 LIVE 필이 붙었다 — 표시 어휘가 아니라 rawStatus로 배지를 게이트하라는 법의 정확한 위반.
+// runner_enroute·picked_up 는 STATUS_MAP이 '확정'·'인계'로 뭉개므로 이 필이 실제로 정보를 더한다.
+const LIVE_RAW = ['runner_enroute', 'picked_up', 'active'];
 
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
@@ -211,8 +225,10 @@ export default function Schedule() {
         {loaded && !loadErr && visible.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 23 }}>
-              {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다(owner/home.tsx:1222) — 죽은 안내 문구 교정 */}
-              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 GO 버튼으로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
+              {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다 — 죽은 안내 문구 교정.
+                  [2026-08-19] 'GO 버튼'도 같은 운명 — 랩 ⑧ v2가 GO 디스크를 은퇴시키고 홈 히어로를
+                  두 문(지금 찾기 / 예약하기)으로 바꿨다. 화면에 없는 버튼으로 안내하지 않는다. */}
+              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 지금 찾기 / 예약하기로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
             </Text>
           </View>
         )}
@@ -247,7 +263,7 @@ export default function Schedule() {
                         {b.recurring && (
                           <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                         )}
-                        {b.live && (
+                        {LIVE_RAW.includes(b.rawStatus ?? '') && (
                           <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                         )}
                       </Row>
@@ -326,6 +342,9 @@ export default function Schedule() {
           <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 새 러닝 예약하기</Text>
         </Pressable>
       </ScrollView>
+      {/* 시스템 바 스트립 — 날짜 그룹 라벨과 카드 상단이 시계 뒤로 지나가던 것 (실측 2026-08-19).
+          ScrollView '뒤'가 아니라 '위'에 있어야 콘텐츠가 그 아래로 흐른다. */}
+      <StatusBarCover />
       </TabSwipe>
       <BottomNav />
 
@@ -379,7 +398,19 @@ export default function Schedule() {
                     </Row>
                   </View>
 
-                  {/* runner */}
+                  {/* runner — before acceptance there IS no runner: a card with a "러" monogram
+                      and "러너를 찾고 있어요 러너" is a person who does not exist. Pre-accept the
+                      card becomes one quiet fact line (review 2026-08-19). */}
+                  {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                    <View style={s.sheetCard}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>
+                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중' : '러너를 찾는 중'}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
+                        러너가 수락하면 여기에 러너 정보와 채팅이 열려요
+                      </Text>
+                    </View>
+                  ) : (
                   <View style={s.sheetCard}>
                     <Row style={{ gap: 12 }}>
                       <Monogram char={runner.char} bg={runner.color} size={46} />
@@ -396,17 +427,39 @@ export default function Schedule() {
                             : '실러너 · 상세 프로필 준비 중'}
                         </Text>
                       </View>
-                      <Pressable
-                        style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
-                      >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>채팅</Text>
-                      </Pressable>
+                      {/* [0114 · ui2-1] 이 카드는 **무조건** 그려지고 runner.name은 미매칭 예약에서
+                          "러너를 찾고 있어요"로 떨어지므로, 수락 전에도 이 칩이 떠 있었다. 0114 이후
+                          서버는 그 예약의 chat_threads INSERT를 거부한다 — 탭한 뒤 실패하는 문이다.
+                          숨기지 않고 **비활성 + 이유**로 그린다: 채팅이 언젠가 열린다는 사실 자체가
+                          보호자에게 필요한 정보이고, 사라진 칩은 그 말을 못 한다. */}
+                      {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                        <View
+                          style={[s.chatChip, s.chatChipOff]}
+                          accessible
+                          accessibilityLabel="채팅 — 러너가 수락하면 열려요"
+                          accessibilityState={{ disabled: true }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.faint }}>채팅</Text>
+                        </View>
+                      ) : (
+                        <Pressable
+                          style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                          onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>채팅</Text>
+                        </Pressable>
+                      )}
                     </Row>
+                    {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') && (
+                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 19 }}>
+                        러너가 수락하면 채팅을 열 수 있어요
+                      </Text>
+                    )}
                     {runner.desc && (
                       <Text style={{ fontSize: 15, color: paper.text, marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
                     )}
                   </View>
+                  )}
 
                   {/* 결제 내역 (charge slice) — 청구는 러닝이 끝난 뒤에 생긴다. 행이 있거나 정산이
                       끝난 예약에서만 렌더한다: 정산 전 '결제 내역 없음'은 알림이 아니라 소음이고,
@@ -607,8 +660,11 @@ export default function Schedule() {
                         : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
                     </Text>
                     {/* TODO(widget slice, R3 P3-8): both sentences assume no captured payment —
-                        true today (TOSS_ENABLED=false, payment_ok writes no payments row, so no
-                        confirmed row can exist), FALSE for a widget-prepaid booking the day that
+                        true today, and MORE true after O-5: the conclusion survives but the
+                        mechanism named here does not. `payment_ok` is deleted (it never wrote a
+                        payments row anyway); today nothing before the run writes one at all —
+                        TOSS_ENABLED=false and money is only taken at settle. FALSE for a
+                        widget-prepaid booking the day that
                         slice ships. The server already branches on payments.status='confirmed'
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
@@ -739,7 +795,10 @@ const s = StyleSheet.create({
   },
   shareTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
   // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
-  seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
+  // marginTop 6 = 회전 여유. 소인은 인플로우라 겹칠 수 없지만, 8° 회전은 레이아웃 박스 밖으로
+  // 위아래 ~5.4pt를 더 그린다 — 그 여유 없이는 84 원의 어깨가 바로 위 상태 필의 4.6pt 아래에서
+  // 끝났다 (실측 2026-08-19). 6pt를 더해 어떤 필 라벨 길이에서도 어깨가 필을 물지 않게 한다.
+  seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 6, transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
   sealNick: { position: 'absolute', backgroundColor: '#fff', borderRadius: 3 },
   // 새 예약 CTA — 대시드 '추가 슬롯' 어포던스는 남고, 코랄 1px + 잉크 라벨로 이관
@@ -765,6 +824,8 @@ const s = StyleSheet.create({
   payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   badgePill: { backgroundColor: '#e3f0c4', paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }, // 목업 러너 전용 배지 — 확정 틴트 시맨틱 유지, 스퀘어만
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
+  // 비활성 칩 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint, 불투명도 트릭 금지)
+  chatChipOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.

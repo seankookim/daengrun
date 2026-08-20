@@ -87,6 +87,13 @@ const line = (northM, lenM, eastFrom = 0) =>
   t('pickRoute: within the band, shortest approach wins', p6.id === 'near100', JSON.stringify(p6));
   t('pickRoute: a pick made from the pickup claims proximity', p6.rankedBy === 'proximity');
 
+  // Inside the band the dial still wins; approach breaks ties only. Dial 5: a 4.0 km lap 150 m away
+  // (total 4.3) must NOT beat the 5.0 km lap 200 m away (total 5.4) — |Δ| 0.7 vs 0.4.
+  const lap4 = R('lap4', 4.0, line(0, 150, 150));
+  const lap5 = R('lap5', 5.0, line(0, 200, 200));
+  const pBand = pickRoute([lap4, lap5], 5, pin);
+  t('pickRoute: inside the band, nearest TOTAL to the dial wins over a shorter approach', pBand.id === 'lap5', JSON.stringify(pBand));
+
   // THE POINT OF RULING #15: dial 5 km no longer picks the 5 km lap whose entry is 600 m away
   // (total 6.2 km), because that is not a 5 km outing for the dog. A lap that TOTALS 5 km wins.
   const total5 = R('total5', 4.5, line(0, 2000, 250));   // 4.5 + 0.5 = 5.0 total
