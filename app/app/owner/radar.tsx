@@ -39,6 +39,17 @@ import { layout, lilac, paper } from '../../src/theme';
 // 코랄 물결 — 잔잔한 리플이 퍼져나간다 (소나가 아니라 산책로 물웅덩이 느낌).
 // [2026-08-19] 모션은 그대로 (3200ms · out(cubic) · 1→2.5 · .4→.14→0 · 네이티브 드라이버).
 // 색만 은퇴한 colors.tang → paper.action. Sean: "지금 코드의 링을 그대로 쓴다".
+// Statuses that end the search but are neither a match nor `cancelled*`/`expired` (which have
+// their own arms in the poll below). Each states what happened and what continues — never a
+// delay this screen is not actually polling for. Landing screen for all of them is 내 일정,
+// whose badges pick the story up where the alert leaves off.
+const TERMINAL_ON_RADAR: Record<string, { title: string; body: string }> = {
+  refund_pending: { title: '환불이 진행 중이에요', body: '이 예약은 환불 절차로 넘어갔어요 — 처리되면 알림으로 알려드릴게요' },
+  no_show: { title: '불발로 처리됐어요', body: '이 예약은 진행되지 않았어요 — 자세한 내용은 알림으로 알려드릴게요' },
+  incident_review: { title: '확인이 진행 중이에요', body: '이 예약은 확인 절차로 넘어갔어요 — 처리되면 알림으로 알려드릴게요' },
+  completed: { title: '이미 끝난 러닝이에요', body: '기록은 내 일정에서 볼 수 있어요' },
+};
+
 function Ripple({ delay }: { delay: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -157,6 +168,18 @@ export default function Radar() {
           // 경로라 'invalid booking transition: expired -> cancelled_owner'를 날것으로 뱉었다.
           matchedRef.current = true;
           Alert.alert('시간이 지났어요', '예약 시간까지 러너를 찾지 못해 요청이 만료됐어요 — 새로 예약해주세요');
+          router.replace('/owner/schedule');
+        } else if (TERMINAL_ON_RADAR[b.status]) {
+          // Same shape as the `expired` arm above, for the three statuses that were never given
+          // one. Without these the screen sits on a spinning ring saying 러너 찾는 중 forever —
+          // `refund_pending` in particular does NOT match `startsWith('cancelled')` even though it
+          // is a legal successor of `cancelled_owner` — and its only CTA (요청 취소) points at a
+          // transition the server will refuse, which is exactly the dead-button-on-a-lie the
+          // expired arm was added to kill. Every arm lands on schedule, whose badge vocabulary
+          // (불발 · 확인 중) continues the sentence the alert starts.
+          matchedRef.current = true;
+          const t = TERMINAL_ON_RADAR[b.status];
+          Alert.alert(t.title, t.body);
           router.replace('/owner/schedule');
         }
       } catch {

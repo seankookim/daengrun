@@ -90,12 +90,13 @@ export default function Schedule() {
   }, {});
 
   const open = (b: Booking) => {
-    // 실예약이 러너 확정 전이면 관리 시트 대신 상태 안내 — 단, '매칭 중' 상태일 때만.
-    // matched(runner_id) 없는 취소·만료 예약까지 "러너를 찾고 있어요"라고 하면 죽은 예약에 대한 거짓말이 된다.
-    if (b.live && !b.matched && b.status === 'pending') {
-      Alert.alert('매칭 중', '러너를 찾고 있어요.\n러너가 확정되면 여기서 일정 변경·취소를 관리할 수 있어요.');
-      return;
-    }
+    // ⚠ The sheet OPENS for a still-matching booking (2026-08-20). It used to short-circuit into a
+    // one-button alert, and because `b.live` is hardcoded true for every row (api.ts) the guard
+    // caught EVERY `matching` booking — so the sheet's own 러너 변경 arm, which explicitly handles
+    // `rawStatus === 'matching'`, was unreachable code. The user-visible consequence was a dead
+    // end: with an `active` booking ranked ahead of it, home's hero never surfaced the searching
+    // booking either, leaving NO path anywhere in the app to cancel or re-nominate it. The sheet's
+    // rawStatus arms already know what to render for this state; the guard predated them.
     setSheetMode('detail');
     setSelected(b);
   };
@@ -409,14 +410,25 @@ export default function Schedule() {
 
                   {/* runner — before acceptance there IS no runner: a card with a "러" monogram
                       and "러너를 찾고 있어요 러너" is a person who does not exist. Pre-accept the
-                      card becomes one quiet fact line (review 2026-08-19). */}
-                  {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                      card becomes one quiet fact line (review 2026-08-19).
+                      ⚠ The gate is `!selected.matched` — i.e. the booking has no `runner_id` —
+                      NOT a list of pre-accept statuses (2026-08-20). The status list missed every
+                      booking that ended WITHOUT ever matching: a cancelled or expired row still
+                      rendered the person-shaped card, monogram 「매」 and all, reading its name off
+                      api.ts's 「매칭 중 러너」 placeholder. That was unreachable while the sheet
+                      refused to open for unmatched bookings; opening it (see `open()` above) made
+                      it reachable, so the gate moves to the fact that actually decides it. */}
+                  {!selected.matched ? (
                     <View style={s.sheetCard}>
                       <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>
-                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중' : '러너를 찾는 중'}
+                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중'
+                          : CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? '러너를 찾는 중'
+                            : '러너가 정해지지 않았어요'}
                       </Text>
                       <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
-                        러너가 수락하면 여기에 러너 정보와 채팅이 열려요
+                        {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '')
+                          ? '러너가 수락하면 여기에 러너 정보와 채팅이 열려요'
+                          : '이 예약은 러너가 정해지기 전에 끝났어요'}
                       </Text>
                     </View>
                   ) : (
