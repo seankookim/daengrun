@@ -6,6 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
+import { DrawButton } from '../../src/components/draw-button';
 import { HomeHero } from '../../src/components/home-hero';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
@@ -303,13 +304,14 @@ export default function OwnerHome() {
                 빠지면 행 높이가 콘텐츠로 주저앉는다 — 러너 홈에서 그렇게 해 봤다가 로고가 다이내믹
                 아일랜드 위로 올라탔다(이 행은 height 고정이라 안 그랬을 뿐). 두 홈 다 스페이서로 간다. */}
             <View style={s.mastSpacer} />
+            {/* [2026-08-20 Sean] 텍스트 워드마크만 가운데 — **마크는 여기서 내려갔다**.
+                마크는 이제 히어로 문구의 오른쪽 여백에 앉는다(home-hero.tsx의 Phrase). 상단에
+                마크와 워드마크가 같이 있으면 37pt 문구 위에 시선이 앉을 자리가 둘이 된다.
+                ⚠ 워드마크는 **본문 900**이지 디스플레이 서체가 아니다: §3의 '화면당 1회'는
+                히어로 문구가 쓴다. 랩에서 열어 둔 질문을 예산을 지키는 쪽으로 닫은 것이고,
+                Sean이 뒤집으면 여기 `df` 한 줄만 되돌리면 된다. */}
             <View style={s.mastLogo}>
-              <BrandMark height={28} />
-              {/* 워드마크는 DESIGN.md §3의 '화면당 1회' 예산을 쓰는 그 한 번이다 — 법이 명시적으로
-                  'hero copy OR wordmark'라고 적어 둔 자리. 그리팅이 비운 슬롯을 그대로 물려받는다.
-                  20pt이므로 14pt 하한 위 — §3의 로고 아트워크 예외(하한 미만 허용)는 쓰지 않는다.
-                  따라서 장식으로 숨기지 않는다: 스크린 리더가 브랜드를 한 번 읽는 게 맞다. */}
-              <Text style={[s.wordmark, df]}>도그스하이</Text>
+              <Text style={s.wordmark}>도그스하이</Text>
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
@@ -319,21 +321,6 @@ export default function OwnerHome() {
               <Icon name="Bell" glyph="◔" size={20} color={lilac.head} />
             </Pressable>
           </View>
-          {/* [2026-08-20 Sean, 브랜드 랩 Ⅰ 병합] 시리얼 행 — 코랄 헤어라인("이 선이 곧 브랜드")이
-              마스트헤드 밑으로 돌아오고, 그 아래 멤버십 메타가 앉는다. MEMBER SINCE는 auth
-              created_at의 실데이터. NO.는 서버가 가입 순번 RPC를 줄 때까지 그리지 않는다 —
-              칸은 설계되어 있고, 필드가 도착하면 한 줄로 켜진다. 14pt 하한 예외: 시리얼 문자열
-              (DESIGN.md §3 명시 예외 — 여권 MRZ와 같은 부류). */}
-          <View style={s.serialRule} />
-          {memberSince && (
-            <View style={s.serialRow}>
-              {memberNo != null && (
-                <Text style={[s.serialTx, nf]}>{`NO. ${String(memberNo).padStart(4, '0')}`}</Text>
-              )}
-              <View style={{ flex: 1 }} />
-              <Text style={[s.serialTx, nf]}>{`MEMBER SINCE ${memberSince}`}</Text>
-            </View>
-          )}
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
               ▲▼ 등락 화살표는 실델타가 있을 때만 — 없는 데이터는 그리지 않는다 */}
           {ticker.length > 0 && (
@@ -383,6 +370,11 @@ export default function OwnerHome() {
             } : null}
             dogName={dogName}
             dialKm={draft.km}
+            // 라이브 점의 유일한 근거. fetchCertifiedRunners는 이미 `.eq('online', true)`로
+            // 거르므로 이 길이가 곧 "지금 온라인인 러너 수"다. 0이면 히어로가 점을 켜지 않고
+            // 문장도 그렇게 말한다 — 아직 안 불러왔을 때도 0이라 점이 늦게 켜질 뿐, 거짓으로
+            // 켜지는 경우는 없다(안전한 방향).
+            onlineRunners={localRunners.length}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             ddayLabel={ddayLabel}
@@ -574,30 +566,37 @@ export default function OwnerHome() {
           </Pressable>
         )}
 
-        {/* 크루 피드에 자랑 — 완료 러닝이 있을 때만 (compose.tsx가 전제조건·중복 공유를 정직하게 처리) */}
+        {/* [2026-08-20 Sean] '나'의 두 행이 그림 행(TIER 4, 64pt)으로. 히어로의 결정 버튼과 같은
+            어휘를 3분의 2 높이로 써서 '나'가 두 번째 막이 아니라 코다로 읽히게 한다.
+            ⚠ 하이 포인트 비컨은 그대로 둔다 — 자체 게이팅(잔액>0 OR 승급 있음)과 진도 바를 가진
+            모듈이라 버튼으로 접으면 그 정직한 게이트를 잃는다. 규칙: 게이트가 있는 모듈은 개종하지
+            않는다. */}
         {lastDone && (
-          <Pressable
-            onPress={() => router.push('/compose')}
-            style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
-            accessibilityRole="button" accessibilityLabel="크루 피드에 자랑"
-          >
-            <Text style={s.rowT}>크루 피드에 자랑</Text>
-            <Text style={s.rowAct}>›</Text>
-          </Pressable>
+          <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+            <DrawButton
+              title="크루 피드에 자랑" sub="지난 러닝 사진을 동네 피드에 올릴 수 있어요"
+              ground="lilac" art="photo" small
+              onPress={() => router.push('/compose')}
+            />
+          </View>
         )}
 
-        {/* 안심 센터 */}
-        <Pressable
-          onPress={() => router.push('/safety')}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
-          accessibilityRole="button" accessibilityLabel="안심 센터"
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowT}>안심 센터</Text>
-            <Text style={s.rowSub}>SOS · 실시간 위치 · 보험</Text>
+        <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+          <DrawButton
+            title="안심 센터" sub="SOS와 실시간 위치, 보험을 확인해요"
+            ground="blue" art="shield" small
+            onPress={() => router.push('/safety')}
+          />
+        </View>
+
+        {/* MEMBER SINCE — 상단의 코랄 헤어라인이 빠지면서 그 자리를 잃었고, 멤버십 메타는
+            원래 '나'의 것이므로 여기가 제 집이다. 실데이터(auth created_at)뿐이고 없으면 안 그린다.
+            NO.는 여전히 서버 필드가 없어 자리만 비워 둔다 — 지어내지 않는다. */}
+        {memberSince && (
+          <View style={s.memberFoot}>
+            <Text style={[s.serialTx, nf]}>{`MEMBER SINCE ${memberSince}`}</Text>
           </View>
-          <Text style={s.rowAct}>›</Text>
-        </Pressable>
+        )}
       </ScrollView>
       {/* 시스템 바만 덮는 불투명 스트립 (Sean 2026-08-19). ScrollView '위'에 있어야 콘텐츠가
           그 아래로 지나간다. [2026-08-19] 같은 결함이 아홉 화면에서 측정돼 공용 컴포넌트로
@@ -647,8 +646,9 @@ const s = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
   // 시리얼 행 — 코랄 풀블리드 헤어라인 + Oswald 레터스페이스 시리얼. 11pt는 §3의 시리얼 예외
   // (여권 MRZ 부류). 잉크는 dim — 메타데이터지 본문이 아니다.
-  serialRule: { height: 1, backgroundColor: paper.line },
-  serialRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter, paddingTop: 7, marginBottom: 2 },
+  // 멤버십 메타는 '나'의 발치에. 11pt는 §3의 시리얼/MRZ 예외(14pt 하한 면제) 안에 있다.
+  memberFoot: { marginTop: 18, paddingTop: 14, paddingHorizontal: layout.gutter, paddingBottom: 4,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', alignItems: 'flex-end' },
   serialTx: { fontSize: 11, letterSpacing: 1.6, color: paper.dim },
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },

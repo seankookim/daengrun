@@ -23,11 +23,12 @@
 // ═══ 정직 ═══
 // 로딩 중엔 두 옵션을 그리지 않는다 — 모르는 상태 위에 결정을 얹지 않는다. 실패는 실패로.
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDisplayFont } from '../lib/displayFont';
 import { haptic } from '../lib/haptics';
 import { draft } from '../store';
 import { paper } from '../theme';
+import { DrawButton } from './draw-button';
 
 export type HomeGoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
 
@@ -57,12 +58,42 @@ interface Props {
   nextIsPast?: boolean;
   /** active 상태에서 라이브 위젯을 렌더할 슬롯. home.tsx가 이미 가진 위젯을 그대로 넘긴다. */
   liveWidget?: React.ReactNode;
+  /** 지금 온라인인 동네 러너 수 (fetchCertifiedRunners는 이미 `.eq('online', true)`로 거른다).
+   *  라이브 점은 **이 값이 0보다 클 때만** 켜진다 — 0명인데 맥박을 그리면 그 점은 거짓말이고,
+   *  한 번 거짓이 되면 인계 화면의 점까지 못 믿게 된다. `.limit(10)` 때문에 10 이상은
+   *  '10명 이상'으로 말한다 (모르는 수를 아는 척하지 않는다). */
+  onlineRunners?: number;
 }
 
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
 const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget }: Props) {
+// ── 히어로 문구 = 상태 그 자체 (Sean 2026-08-20, `home-full-lab.html`) ──────────────────
+// 마크가 문구의 오른쪽 여백에 내려앉기 때문에 **1행은 마크 자리를 비워야 한다**. 랩에서
+// 「s4kim2025 러너의 / 응답을 기다려요」가 마크와 겹치는 걸 보고 얻은 법이고, 여기서는 카피
+// 규율이 아니라 **레이아웃**으로 강제한다: 1행 Text에만 오른쪽 패딩을 주고 2행은 전폭을 쓴다.
+// 그래서 이름·장소처럼 길이를 모르는 값은 항상 2행이나 서브라인으로 간다.
+const MARK_W = 96;
+
+function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
+  return (
+    <View style={s.phw}>
+      <View style={{ position: 'absolute', right: -2, top: -4, zIndex: 1 }} pointerEvents="none">
+        <Image
+          source={require('../../assets/logo-alpha.png')}
+          style={{ width: 58 * (1619 / 971), height: 58 }}
+          resizeMode="contain"
+          accessibilityRole="image"
+          accessibilityLabel="도그스하이"
+        />
+      </View>
+      <Text style={[s.phr, df, { paddingRight: MARK_W }]} numberOfLines={1}>{top}</Text>
+      <Text style={[s.phr, df]} numberOfLines={1}>{bottom}</Text>
+    </View>
+  );
+}
+
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget, onlineRunners = 0 }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -119,83 +150,99 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   const when = next ? [next.dateLabel, next.timeLabel].filter(Boolean).join(' ') : '';
   const runner = next?.runnerName ? `${next.runnerName} 러너` : '러너';
 
-  // ── handoff: 내 차례 — 알림 줄 하나, 버튼 없음 ───────────────────────────
+  const openChat = () => {
+    haptic('light');
+    if (next) router.push(`/chat?bid=${next.id}`);
+    else router.push('/chat');
+  };
+
+  // ── handoff: 내 차례 — 화면에서 유일하게 급한 순간이라 코랄 면을 쓴다 ─────
+  // 미리 예약은 여기서 **사라진다**. 러너가 문 앞에 서 있는데 다음 예약을 권하는 건
+  // 선택지가 아니라 방해다.
   if (state === 'handoff') {
     return (
       <View style={s.wrapTight}>
         {errRow}
-        <Pressable onPress={openNext} style={[s.alertRow, s.alertHot]} accessibilityRole="button" accessibilityLabel="인계 확인">
-          <View style={[s.dot, { backgroundColor: paper.action }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.alertMain}>{runner} 도착</Text>
-            <Text style={s.alertSub}>{name}를 인계하고 확인해주세요</Text>
-          </View>
-          <Text style={[s.alertAct, { color: paper.action, fontSize: 14.5 }]}>인계 확인 ›</Text>
-        </Pressable>
+        <View style={s.chipRow}>
+          <View style={[s.chipDot, { backgroundColor: paper.action }]} />
+          <Text style={[s.chipTx, { color: paper.action }]}>내 차례</Text>
+        </View>
+        <Phrase top="지금 만나요" bottom={`${name} 인계할 시간`} df={df} />
+        <Text style={s.sub}>{runner}가 도착했어요 · 만나서 인계해주세요</Text>
+        <View style={s.opts}>
+          <DrawButton title="인계하기" sub="러너에게 아이를 넘기고 봉인해요" ground="coral" art="leash"
+            dot onPress={openNext} accessibilityLabel="인계하기" />
+          <DrawButton title="채팅" sub="늦거나 못 찾겠다면 바로 알려주세요" ground="lilac" art="chat"
+            small onPress={openChat} />
+        </View>
       </View>
     );
   }
 
   const inFlight = state === 'searching' || state === 'directed' || state === 'confirmed';
+
+  // 상태별 문구·칩·버튼. 1행은 항상 짧게(마크 자리) — 이름·시각처럼 길이를 모르는 값은
+  // 2행이나 서브라인으로 내려보낸다.
+  // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
+  // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
+  // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
+  const chip =
+    state === 'confirmed' ? (nextIsPast ? { c: paper.dim, t: '지난 예약' } : { c: GO_SAGE, t: '확정됨' })
+      : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
+        : state === 'searching' ? { c: WAIT_BLUE, t: '찾는 중' }
+          : { c: paper.dim, t: '비어 있음' };
+  const phrase =
+    state === 'confirmed' ? { top: nextIsPast ? '지난 예약이' : (next?.dateLabel ?? '오늘'), bottom: nextIsPast ? '하나 있어요' : `${name}가 달려요` }
+      : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
+        : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
+          : { top: '오늘은 아직', bottom: '비어 있어요' };
+  const subline =
+    state === 'confirmed'
+      ? (nextIsPast ? '시간이 지났어요 · 일정에서 확인해주세요'
+        : `${when ? when + ' · ' : ''}${runner} 확정${ddayLabel ? ' · ' + ddayLabel : ''}`)
+      : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
+        : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
+          : `${name}와 달릴 시간을 잡아보세요`;
+  // 라이브 점의 근거. 0명이면 점도 없고 문장도 그렇게 말한다.
+  const runnersLine = onlineRunners > 0
+    ? `지금 뛸 수 있는 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 근처에 있어요`
+    : '지금은 대기 중인 러너가 없어요 — 예약해두면 먼저 연결해드려요';
+
   return (
     <View style={s.wrap}>
       {errRow}
-      {inFlight && next && (
-        <Pressable onPress={openNext} style={s.alertRow} accessibilityRole="button">
-          <View style={[s.dot, { backgroundColor: state === 'confirmed' ? GO_SAGE : WAIT_BLUE }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.alertMain}>
-              {when && `${when} · `}
-              {state === 'confirmed' ? `${runner} 확정` : state === 'directed' ? `${runner} 응답 대기` : '러너 찾는 중'}
-            </Text>
-            <Text style={s.alertSub}>
-              {/* 지난 예약이 먼저다 — 상태별 안내문은 전부 '앞으로 일어날 일'을 약속하므로
-                  이미 지난 건에서는 전부 거짓이 된다 (확정만이 아니라 대기·지명도 마찬가지). */}
-              {nextIsPast
-                ? '시간이 지났어요 · 일정에서 확인'
-                : state === 'confirmed'
-                  ? (ddayLabel ? `${ddayLabel}` : '시간에 맞춰 알려드려요')
-                  : state === 'directed' ? '지명 요청을 보냈어요' : '보통 몇 분 안에 응답이 와요'}
-            </Text>
-          </View>
-          <Text style={[s.alertAct, { color: state === 'confirmed' ? GO_SAGE : WAIT_BLUE }]}>
-            {/* '티켓'은 앞으로 있을 인계를 약속하는 말이다 — 지난 건에서는 중립적인 '보기'.
-                목적지(단계 화면)는 그대로다: radar는 지난 건을 일정으로 정직하게 되돌린다. */}
-            {state === 'confirmed' && !nextIsPast ? '티켓 ›' : '보기 ›'}
-          </Text>
-        </Pressable>
-      )}
+      <View style={s.chipRow}>
+        <View style={[s.chipDot, { backgroundColor: chip.c }]} />
+        <Text style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
+      </View>
+      <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
+      <Text style={s.sub}>{subline}</Text>
 
-      <Text style={[s.title, df]}>{inFlight ? '다른 날도 잡아둘까요?' : `${name}, 오늘은?`}</Text>
-
-      <View style={{ marginTop: 14, gap: 9 }}>
-        {/* 지금 찾기 — none 에서만. 진행 중이면 자기 자신과 경쟁시키는 것이다. */}
-        {!inFlight && (
-          <Pressable onPress={findNow} style={({ pressed }) => [s.opt, s.optA, pressed && { opacity: 0.92 }]}
-            accessibilityRole="button" accessibilityLabel="지금 찾기">
-            <View>
-              <Text style={[s.optT, df, { color: '#fff' }]}>지금 찾기</Text>
-              {/* km은 하드코딩이 아니라 다음 화면의 다이얼 초기값(draft.km) 그대로다 —
-                  3km로 예약한 뒤에도 '5km'를 약속하던 것이 이 버튼의 거짓말이었다. */}
-              <Text style={[s.optD, { color: '#FFD9CE' }]}>가장 빠른 시간 · {dialKm}km · {name}</Text>
-            </View>
-            <Text style={[s.optArr, { color: '#FFD9CE' }]}>›</Text>
-          </Pressable>
+      <View style={s.opts}>
+        {state === 'none' && (
+          <DrawButton title="지금 찾기" sub={runnersLine} ground="coral" art="dog"
+            dot={onlineRunners > 0} sheen onPress={findNow} accessibilityLabel="지금 찾기" />
         )}
-        <Pressable onPress={schedule} style={({ pressed }) => [s.opt, s.optB, pressed && { backgroundColor: paper.wash }]}
-          accessibilityRole="button" accessibilityLabel="다음 하이 미리 예약">
-          <View>
-            {/* [2026-08-20 Sean, 브랜드 랩 Ⅰ 병합] 「예약하기」→「다음 하이 미리 예약」 — 그가 직접
-                지정했던 머니 CTA(05aab35)의 복원. 하이 음절이 홈에 돌아온다. 서브텍스트는 은퇴:
-                문장이 이미 날짜를 고르러 간다고 말한다. */}
-            <Text style={[s.optT, df, { color: paper.ink }]}>다음 하이 미리 예약</Text>
-          </View>
-          <Text style={[s.optArr, { color: paper.ink }]}>›</Text>
-        </Pressable>
+        {(state === 'searching' || state === 'directed') && (
+          <DrawButton title={state === 'searching' ? '레이더 보기' : '요청 보기'}
+            sub={state === 'searching' ? '요청이 누구에게 갔는지 볼 수 있어요' : '응답이 없으면 자동으로 다시 찾아요'}
+            ground="blue" art="radar" onPress={openNext} />
+        )}
+        {state === 'confirmed' && (
+          <DrawButton title={nextIsPast ? '보기' : '티켓 보기'} sub="시간과 장소, 러너를 확인해요"
+            ground="gold" art="ticket" onPress={openNext} />
+        )}
+        {state === 'confirmed' && (
+          <DrawButton title="채팅" sub="러너에게 물어볼 게 있다면 편하게 물어보세요"
+            ground="lilac" art="chat" small onPress={openChat} />
+        )}
+        <DrawButton title="미리 예약" sub="날짜와 시간을 골라 잡아둬요" ground="paper" art="calendar"
+          small={inFlight} onPress={schedule} accessibilityLabel="미리 예약" />
       </View>
     </View>
   );
 }
+
 
 const s = StyleSheet.create({
   wrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
@@ -209,11 +256,15 @@ const s = StyleSheet.create({
   alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
   alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
   alertAct: { fontSize: 14, fontWeight: '800' },
-  // 두 옵션 — Fitts: 큰 면, 엄지가 닿는 곳. Von Restorff: 둘 중 하나만 채도.
-  opt: { paddingVertical: 19, paddingHorizontal: 16, minHeight: 104, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  optA: { backgroundColor: paper.action },
-  optB: { backgroundColor: paper.canvas, borderWidth: 1.5, borderColor: paper.ink },
-  optT: { fontSize: 24, fontWeight: '900', lineHeight: 28 },
-  optD: { fontSize: 14, marginTop: 5, lineHeight: 19 },
-  optArr: { fontSize: 22, lineHeight: 26 },
+  // ── v3 히어로 (Sean 2026-08-20) ──────────────────────────────────────────
+  // 상태 칩 · 마크가 내려앉는 문구 · 서브라인 · 그림 버튼들.
+  chipRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
+  chipDot: { width: 9, height: 9, borderRadius: 5 },
+  chipTx: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
+  phw: { marginTop: 5, minHeight: 96 },
+  // 38pt 디스플레이 — 이 화면의 Black Han Sans 사용 1회. 마스트헤드 워드마크는
+  // home.tsx에서 본문 900으로 내려가 §3의 '화면당 1회' 예산을 지킨다.
+  phr: { fontSize: 38, lineHeight: 44, color: paper.ink, fontWeight: '400' },
+  sub: { fontSize: 14.5, color: paper.dim, marginTop: 9, lineHeight: 21 },
+  opts: { marginTop: 14, gap: 10 },
 });
