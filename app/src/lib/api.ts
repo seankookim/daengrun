@@ -3994,6 +3994,12 @@ export interface DeleteAccountResult {
   deleted: Record<string, number>;
   forfeited: Record<string, number>;
   kept: string[];
+  /** O-7 (Sean, 2026-08-20): the runner's payout destination was KEPT INTACT — not blanked — because
+   *  they still have `ledger_items`. A redacted account number is a row nobody can pay into, so the
+   *  money keeps a destination. Its own boolean, NOT a member of `kept` (that is a static table-name
+   *  list); the handler forwards it defaulting false. `true` is the trigger for the confirm sheet's
+   *  「정산 계좌 정보는 지급을 위해 남겨둬요」 line, which belongs with 남는 것, never with 소멸. */
+  bank_kept: boolean;
 }
 
 export class DeleteAccountError extends Error {
