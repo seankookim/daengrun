@@ -229,17 +229,19 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   const [ledger, setLedger] = useState<'unknown' | 'none' | 'some'>('unknown');
   useEffect(() => {
     let alive = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     const read = (attempt: number): void => {
       fetchLedger()
         .then((rows) => { if (alive) setLedger(rows.length > 0 ? 'some' : 'none'); })
         .catch(() => {
           if (!alive) return;
-          if (attempt === 0) setTimeout(() => { if (alive) read(1); }, 1200);
+          if (attempt === 0) retry = setTimeout(() => { if (alive) read(1); }, 1200);
           // else: stay 'unknown' — the conditional sentence below is true either way
         });
     };
     read(0);
-    return () => { alive = false; };
+    // `alive` already blocks the setState, but the pending timer is still ours to clear.
+    return () => { alive = false; if (retry) clearTimeout(retry); };
   }, []);
 
   const busyRef = useRef(false);
