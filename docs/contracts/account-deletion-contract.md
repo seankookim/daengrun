@@ -774,12 +774,12 @@ function owns that column (§C.1.c step 5, F15).
    count in the result. Pinned by §D.P3, which now has **two arms — a negative and a positive.**
 5. `await db.auth.admin.deleteUser(uid)` — hard delete (no `shouldSoftDelete`).
    **Then, and only here, write `account_deletions.auth_deleted`** — `true` on success, `false` on
-   failure, returning **500 `auth_delete_failed`**. 🔴 **F15 moved this out of the RPC.** The
+   failure, returning **202 `auth_delete_pending`** (⚠ AS BUILT: the implementation uses 202/`auth_delete_pending`, not the 500/`auth_delete_failed` this contract first specified — nothing FAILED, the data is redacted as promised and the retry UI renders "pending". **There is ONE token; ui2 keys its copy on `auth_delete_pending`.**). 🔴 **F15 moved this out of the RPC.** The
    transaction in §C.1.b commits before the auth call is even attempted, so a column it wrote
    would be a claim about the future; the edge function is the only place that knows the answer.
    The client must never be told the account is gone while the credential still exists.
 
-   🔴 **The retry path, which the first draft left undefined (F15).** `auth_delete_failed` is a
+   🔴 **The retry path, which the first draft left undefined (F15).** `auth_delete_pending` (as built; see above) is a
    **real, reachable, durable state**, not an error message: the profile is already tombstoned and
    the transaction already committed, so the user is left with a redacted account they can still
    sign into. It needs a UI, and ui2 owns it:
