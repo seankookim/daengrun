@@ -11,7 +11,7 @@ import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
-import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
+import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
@@ -32,6 +32,19 @@ const CERT_BLUE = '#3d8fd4'; // 안심 코스 인증 블루 — certification on
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
 // Lucide icon per addon — pictorial glyphs retired (2026-08-11 emoji purge, "no emojis. no cheap.")
 const ADDON_ICONS: Record<string, string> = { river: 'WavesHorizontal', homecare: 'House', snack: 'Bone', snap: 'Camera', livecam: 'Video' };
+
+// Add-ons we cannot sell — a SKU with no delivery path is kept out of the grid (2026-08-20).
+// `livecam` (₩3,900) carries a price in `theme.ts:223` and the server knows the amount too
+// (`_shared/ctx.ts:20`), but NOTHING renders video: `owner/live.tsx`'s StreamSlot always
+// returns null and its own header says "타입만, 전송 코드 없음" (types only, no transport).
+// Other screens in this same app already say video is not available yet — so the order screen
+// was the one place selling something the app cannot do. "Charging is off, so it is harmless"
+// does not hold: the pilot settles by manual transfer, the add-on is added to the total, and
+// a human sends that total. The neighbouring `snap` SKU got this same honesty treatment
+// (theme.ts:222); this line was simply missed then.
+// To undo: delete the key from this array once a transport path exists. The SKU, its price
+// and the server are untouched.
+const UNBUILT_ADDONS: AddonKey[] = ['livecam'];
 
 // ---- distance dial constants (Sean 2026-08-11: "horizontal scroll, min 1km, 0.5 increments,
 // snaps to nearest like a gear"). Ceiling 10km: covers every certified route (seed max 7km),
@@ -96,7 +109,9 @@ export default function Request() {
   useMemo(() => { DATES = buildDates(); }, []);
   const [km, setKm] = useState(clampKm(draft.km));
   const [pace, setPace] = useState(draft.pace);
-  const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
+  // Stop a hidden SKU surviving in the draft and adding to the total unseen — an add-on that
+  // is absent from the grid but still billed is worse than the original bug (see UNBUILT_ADDONS).
+  const [addons, setAddons] = useState<AddonKey[]>(() => draft.addons.filter((k) => !UNBUILT_ADDONS.includes(k)));
   const [routeId, setRouteId] = useState(draft.routeId);
   // ═══ 선택 출처 (0082 K6 · PR-0 계측의 무결성) ═══
   // 'auto'  = 앱이 골랐다 (거리 최근접). 'manual' = 보호자가 골랐다 — 캐러셀 탭이냐 코스 상세
@@ -1031,7 +1046,7 @@ export default function Request() {
             {/* ── 옵션 ── */}
             <Text style={s.foldHead}>옵션</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
-              {(Object.keys(pricing.addons) as AddonKey[]).map((k) => {
+              {(Object.keys(pricing.addons) as AddonKey[]).filter((k) => !UNBUILT_ADDONS.includes(k)).map((k) => {
                 const a = pricing.addons[k];
                 const sel = addons.includes(k);
                 // 선택 = 코랄 보더 + 코랄 체크 (볼트 필 은퇴) — 잉크 필은 칩 전용, 카드는 보더로 말한다
@@ -1202,7 +1217,19 @@ export default function Request() {
               <FeeRow label="기본 요금" value={fmtWon(pricing.ownerBaseFare)} />
               <FeeRow label={`거리 (${fmtKm(km)}km)`} value={fmtWon(km * pricing.perKm)} />
               {addonSum > 0 && <FeeRow label="프리미엄 옵션" value={fmtWon(addonSum)} />}
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8 }}>취소 수수료 없음</Text>
+              {/* ⚠ This sentence is read at the moment of PURCHASE. Until 2026-08-20 it said a
+                  flat 「취소 수수료 없음」 (no cancellation fee), while the 0066/0085 ladder charges
+                  10% inside 24h of a confirmed booking and 50% once the runner is en route — the
+                  screen taking the order contradicted every other cancel surface in the app
+                  (schedule, meetup, radar). With a 2-hour notice floor, an owner booking for
+                  tonight can read "no fee" and be charged 10% an hour later; that path is open
+                  today. Replaced with the same fact, stated with its condition (matches the
+                  ladder copy in schedule.tsx). */}
+              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
+                시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는{' '}
+                {Math.round(cancelPolicy.feeRate * 100)}%, 러너가 이동을 시작한 뒤에는{' '}
+                {Math.round(cancelPolicy.enrouteFeeRate * 100)}%가 붙어요.
+              </Text>
             </View>
           </>
         )}
