@@ -455,6 +455,11 @@ He also gave the shape of the route, which is what actually replaced the ring of
 
 `docs/routes/geo/plan-route.mjs` is rewritten to that, **destination-led**:
 
+> **Step 1 below is superseded by §23.2.** "the best destination within reach" was implemented
+> as *the one closest to the ideal radius*, and that single line produced all four of Sean's
+> rejections. The rule is now **the NEAREST qualifying green**, and "trail" is no longer a
+> destination category at all. Steps 2–4 stand.
+
 1. find the best green/blue destination within reach — streams and rivers rank **first**, because a
    route can run *along* a linear feature rather than merely touch it (`DEST_RANK`: stream 0,
    lake 1, park 2, trail 3, hill 4);
@@ -641,8 +646,8 @@ supabase db query --linked "select count(*) rows, count(distinct town) towns,
   count(*) filter (where status='retired') retired from routes;"
 ```
 
-> **Superseded by §22 — the catalog is 59 rows / 28 towns / 47 with elevation / 54 candidate /
-> 5 retired / 0 bad shape, measured the same way at 2026-08-19 evening.** The town list below is
+> **Superseded by §22, and again by §23 — the catalog is 68 rows / 28 towns / 56 with elevation /
+> 57 candidate / 11 retired, measured the same way overnight.** The town list below is
 > the 14-town snapshot and is kept as the historical record.
 
 | rows | towns | with elevation | wrong trace shape | retired |
@@ -742,8 +747,9 @@ is not something a scoped agent can infer, and the failure is silent from its si
   directory does not carry two versions of one route — the exact ambiguity the rebuild removed.
 - **The radius estimator still overshoots** (§15). Not fixed, not hidden. Measure-then-name is the
   mitigation and it holds.
-- **The review round is pending.** Sean accepts/rejects and comments in the bench; the builder acts
-  on the exported JSON. Nothing has been rebuilt from a verdict yet.
+- **The review round is pending.** *(Superseded by §23 — it happened: 21 accept / 4 reject /
+  6 rework, and nine routes were rebuilt from the verdicts.)* Sean accepts/rejects and comments in
+  the bench; the builder acts on the exported JSON.
 - **Uncommitted in this worktree** — *resolved; all of it landed. Superseded by §22.10.*
   (deliberately, since this commit touches only the handoff):
   `docs/routes/geo/ROUTE-PLANS.md` (untracked, 135 build commands),
@@ -796,6 +802,9 @@ method (§15) is unchanged: destination-led, 2–4 waypoints, build → MEASURE 
 measurement.
 
 ## 22. Breadth, then depth — 59 rows, 28 towns
+
+> **Superseded on every count by §23** — 68 rows / 28 towns / 57 candidate / 11 retired / 55 GPX,
+> measured 2026-08-19 overnight. The numbers below are the evening snapshot, kept as the record.
 
 Read back from production and from disk tonight, not from a commit message:
 
@@ -869,7 +878,7 @@ the densest part of the map. At a 2 km target, 휘경베스트빌현대아파트
 29 of the harvest's first 135 plans pointed at one.
 
 **Demoted, not rejected**, and the distinction is the whole finding: `plan-route.mjs:57-67` computes
-`covered(f)` and `rankOf` adds **+2.5** to a covered feature's rank (`:83`), so an open segment beats
+`covered(f)` and `rankOf` adds a covered-feature penalty (**+3** since §23.2 rewrote the ranking; it was +2.5), so an open segment beats
 a covered one and any real park beats a 복개천 — but a culverted stream is still buildable. **The tag
 is per-segment.** 도림천 and 우이천 are covered near their heads and open downstream, and 방학천 is
 culvert-tagged yet 도봉 방학천 루프 5.36km built fine. A hard reject would have thrown away good
@@ -917,6 +926,8 @@ to re-record.
 
 ### 22.6 The bench — 46 routes, and the `fitBounds` fix
 
+> **Superseded by §23 — the bench carries 55 routes.** The `fitBounds` fix below still stands.
+
 `bench/routes.json` now carries **46 routes across 28 towns**; the review layer (accept / reject /
 comment, per-route marks, tally, **Export review JSON**, localStorage only, nothing leaves the
 browser) is unchanged from §17 and is the input to Sean's pass.
@@ -952,6 +963,10 @@ remainder would invent the exact field the 흙길 chip reads, in the flattering 
 
 ### 22.9 The queue — what is built, what is left
 
+> **Still accurate on the queue, but no longer the priority input.** Sean's 31-route review
+> (§23) replaced "build the next queue item" with "answer the verdicts"; the six unbuilt
+> queue commands were not run tonight.
+
 `docs/routes/geo/ROUTE-PLANS.md`: 135 build commands, 15 구, three anchors each at ~2 / ~3.2 / ~5 km,
 generated against `plan-route.mjs` md5 `76f2977`. It ends with a **Known-weak plans** section naming
 the plans not worth a browser round-trip rather than dropping them.
@@ -975,6 +990,9 @@ their commands were never run either. The rest are built.
 
 ### 22.10 Open items — honest status
 
+> **Superseded by §23.10.** Two items below are resolved (the GPX/README name divergence, the
+> stale 3.71 km basemap); the basemap gap is now a *different* three routes.
+
 - **~10 vetted plans are unbuilt** (§22.9). Each costs ~4 minutes of the single serial browser.
 - **21 flagged names** in BUILD-QUEUE that may not geocode. A miss is a drop, never a substitution.
 - **Two routes have no basemap:** 잠원 근린공원 루프 5.4km (Overpass throttled, §16) and
@@ -997,6 +1015,11 @@ their commands were never run either. The rest are built.
 
 ### 22.11 One thing that looks like a defect and is not — read this before "fixing" it
 
+> **SUPERSEDED — it was changed, deliberately, in `0b80f24`.** All 55 GPX filenames now match
+> their own `<name>` (measured: 0 mismatches), exactly the way the last paragraph below
+> prescribes: the file is named from `$FINAL`, and `manifest.psv` keeps both measurements.
+> Read §23.5 before touching it again — the rename broke something on the way through.
+
 **23 of the 46 GPX filenames disagree with the route name inside the same file**, by up to 0.02 km:
 `강동_고덕천_강일_루프_6.42km.gpx` contains `<name>강동 고덕천 강일 루프 6.41km</name>`, and the
 production row is the **6.41** one.
@@ -1013,3 +1036,288 @@ matching a catalog row to a file by name will fail on half the catalog**, and th
 exactly like the 3km-file-for-a-5.4km-route bug that started this whole track. If it is ever worth
 changing, the change is to name the file from the same string as the row and let `manifest.psv`
 carry the second measurement — not to re-measure anything.
+
+---
+
+# Current state — 2026-08-19, overnight
+
+§23 supersedes §22 on every number. The method is unchanged in shape — destination-led, 2–4
+waypoints, build → MEASURE → name from the measurement — and changed in one decisive detail:
+**which** green the route goes to (§23.2).
+
+## 23. Sean's 31-route review, and the one line of code underneath all four rejections
+
+Measured tonight, from production and from disk, not from a commit message:
+
+```
+supabase db query --linked "select count(*) rows, count(distinct town) towns,
+  count(elevation_gain_m) elev, count(*) filter (where status='candidate') cand,
+  count(*) filter (where status='retired') ret from routes;"
+ls docs/routes/strava/*.gpx | wc -l
+node -e "console.log(JSON.parse(require('fs').readFileSync('docs/routes/strava/bench/routes.json','utf8')).length)"
+cd docs/routes/strava && node audit-candidates.mjs | tail -2
+```
+
+| rows | towns | with elevation | candidate | retired | GPX | bench | basemaps |
+|---|---|---|---|---|---|---|---|
+| **68** | **28** | **56** | **57** | **11** | **55** | **55** | **52** |
+
+`CANDIDATE AUDIT PASSED` — GPX 55 · candidate 2 · review 41 · superseded 12.
+
+The arithmetic ties out the same way §22's did: 56 rows with elevation = **55 GPX files + the
+retired 반포 서래섬 3.71 km row** whose file was replaced; the **12 nulls are exactly the legacy
+seeded rows** (8 반포동 candidates, 4 성수동 retired), not a coverage gap. 68 = 56 + 12.
+
+Towns (candidate rows only): 반포동 12 · 잠실동 6 · 잠원동 4 · 이촌동 3 · 강일동 2 · 광장동 2 ·
+구암동 2 · 면목동 2 · 목동 2 · 봉천동 2 · 상계동 2 · 신사동 2 · 구로동 · 노량진동 · 도곡동 ·
+독산동 · 문래동 · 방학동 · 번동 · 보문동 · 상암동 · 성수동 · 송파동 · 압구정동 · 제기동 · 평창동 ·
+홍은동 · 황학동.
+
+Shapes across the 55: **6 LOOP · 22 LOLLIPOP · 27 OUT-AND-BACK**, mean retrace 57%. The best two are
+강동 대사골천 상일 루프 2.51km at **0%** and 강서 한강 구암 루프 4.18km at 4.3%.
+
+### 23.1 The verdict, and the single defect under it
+
+**21 accept · 4 reject · 6 rework** across the 31 routes Sean reviewed in the bench.
+
+All four rejections traced to **one deliberate line** in `plan-route.mjs`:
+
+```js
+dests.sort((a,b) => Math.abs(a.d - reach) - Math.abs(b.d - reach))
+```
+
+It preferred the green sitting at the radius that would make the **target distance** come out — so
+it walked past the near park to reach a far one, in order to hit a number. Sean caught it three
+separate times from the map, without seeing any code:
+
+> 압구정: *"could have just gone to the river park"*
+> 강동: *"theres a park right above the left end of the route; why are we going everywhere but there?"*
+> 마포: *"there's a flat park near by, a mountain is a big climb"*
+
+**The class is a proxy metric outranking the goal it stands for.** It is the same failure as naming
+a 5.4 km route "3km" (§1) — a number standing in for the thing, then beating the thing. That one was
+fixed at the *naming* layer in the first week and left running at the *planning* layer for five
+days, where it was harder to see because the output was a plausible route rather than a wrong label.
+It is also the third instance in this file: retrace % optimised until routes got worse (§15),
+distance-fit choosing the destination (here), and the name-vs-geometry original.
+
+Worth stating plainly: **the reviewer found it from four map screenshots and the builder had not
+found it in 31 builds.** No amount of internal consistency was going to surface it, because every
+route it produced passed every gate.
+
+### 23.2 The seven rules, extracted from the feedback and now in code
+
+All in `docs/routes/geo/plan-route.mjs`, each with Sean's words in the comment above it:
+
+| | rule | where |
+|---|---|---|
+| **R1** | destination = the **NEAREST** qualifying green, never the one that fits the target | `:106-127` |
+| **R2** | never a waypoint on the **opposite bearing** — *"you go the opposite direction?"* | `:158-167` |
+| **R3** | **do a lap inside the green**; length comes from the lap, not the walk out | `:135-155` |
+| **R4** | parking lots, factories, stations, terminals are **not destinations** | `:50-58` (`SKIP`) |
+| **R5** | the route must **touch residential** | `:169-175` |
+| **R6** | a **flat park beats a hill** for a dog — *"a mountain is a big climb"* | `KIND.hill = 5` |
+| **R7** | **simpler is better** — *"could be more simple, but okay"* | plain-loop fallback |
+
+Concretely: `reach` is now **how far to LOOK**, not how far to walk. Destinations sort nearest-first
+with kind as a tiebreak inside a 300 m band, so a park 80 m further than a hill still wins.
+
+**"trail" was removed as a destination category.** In this index a trail is usually a named **ROAD**
+(매봉산로, 성암로), and picking one is exactly how a route ends up *"all concrete no park"* — Sean's
+words rejecting 몽마르뜨. Trails remain eligible as **lap** points, which is what a path through a
+park actually is.
+
+Caught while testing the new lap logic, and it would have shipped silently: the lap pool matched on
+category **globally**, so it pulled 망월천 — a stream **33 km away** — into a 2.7 km route. A lap
+point now needs **both** bounds, near the destination *and* within reach of the start; either test
+alone is useless (`:143-152`).
+
+### 23.3 What was rebuilt — and the three towns where the old row is still live
+
+Four rejects rebuilt (`b7794a4`) and five of six reworks answered (`d2d9bf4`):
+
+| | route | measured | note |
+|---|---|---|---|
+| reject | 몽마르뜨 서리풀 공원 루프 | **3.95 km** +84 m, 30% | was: all concrete, never entered a park |
+| reject | 마포 상암 난지천 루프 | **7.10 km** +48 m, 35% | was **+141 m up a mountain** |
+| reject | 압구정 잠원한강공원 루프 | **3.95 km** +23 m | now actually goes to the river park |
+| reject | 이촌 한강공원 루프 | **3.82 km** +11 m | was: never entered the park |
+| rework | 중랑 면목체육공원 루프 | **3.67 km**, retrace **89% → 26%** | *"go straight to the park, do a lap, then come back"* |
+| rework | 도봉 방학천 생활권 루프 | **3.49 km** (was 5.36) | *"no need to go all the way up to the station"* |
+| rework | **강동 대사골천 상일 루프** | **2.51 km, 0% retrace, 0.0 m closure** | **the first perfect LOOP in the catalog** |
+| rework | 광진 뚝섬한강공원 루프 | **2.63 km** | 광나루한강공원 measured 14.84 km from that anchor; the river access beside 광진트라팰리스 is 뚝섬유원지 |
+| rework | 잠실 석촌호수 동서호 루프 | **3.41 km** | **did not actually deliver — see §23.9** |
+| rework | 강서 | **not landed** | §23.4 |
+
+강동 is worth the emphasis: 69 points, closure measured at **0.0 m**, retrace 0, shape LOOP. Nearest
+green, lap inside it, home — the R1/R3 pair producing exactly what it was written to produce, on the
+route whose rejection produced the rules.
+
+**Old rows were RETIRED, never deleted, with Sean's reason recorded per row** — 11 retired now
+(§18's rule: a route id is an identity other artifacts key on). **But the retirement is not
+uniform, and the record should say so:** 강동 이성산천, 도봉 방학천 5.36km, 마포 문화비축기지,
+압구정 은행공원, 이촌 박물관 and 몽마르뜨 언덕 were retired; **중랑 중랑천 면목 루프 3.53km,
+광진 일감호 화양 루프 3.81km and 잠실 석촌호수 루프 3.39km are all still `candidate`** alongside
+their replacements. For 중랑 that is defensible under ruling #15 (variety is wanted, and an 89%
+out-and-back along a stream is a legitimate different route); for 광진 it is not obviously
+defensible, because 일감호 is the route Sean's *"you go the opposite direction?"* was about. **A
+route the owner rejected is still being offered.** Decide it explicitly rather than leaving it.
+
+### 23.4 강서 is the rework that did not land, and the failure is worth more than the route
+
+Sean gave an explicit waypoint sequence for it. Two things killed it:
+
+- `등촌동아아파트` **does not geocode** (`등촌주공` resolves to 등촌주공7단지 — a different place);
+- with `어울림공원` in the chain the route measured **27.64 km**.
+
+**A name that could be anywhere IS anywhere.** Same class as the bare river name in §22.1 — 안양천
+gave 12.96 km on two identical runs, 오목교 gave 5.44 km and a genuine loop. The bridge rule and this
+one are now the two naming traps written up together in `docs/routes/strava/PROMPT.md` (§3), and the
+bridge rule is also in `docs/skills/route-geometry/SKILL.md`.
+
+`plan-route.mjs:61-68` now **FLAGS** generic park names — 어울림 · 중앙 · 근린 · 체육 · 생태 · 시민 ·
+평화 · 호수 · 가족 · 문화 공원 — rather than dropping them, because **with a close anchor they often
+resolve fine** and dropping them would throw away real destinations. The measure-before-save gate is
+what catches the rest, and **it caught this one**: 27.64 km never reached a file, a manifest row or
+the database. The gate is the reason a flag is enough.
+
+### 23.5 One name per route — and the rename broke something on the way through
+
+`0b80f24`. 23 of the 46 GPX files disagreed with their own `<name>` by ~0.01 km, because
+`build-route.sh` named the **file** from the recomputed haversine while the route, the `<name>` and
+the production row all carried Strava's readout. Both numbers are honest and `manifest.psv` keeps
+both columns — **but only one of them can be an identifier.** 24 files renamed; the filename now
+derives from `$FINAL`, the same string the route is saved under (`build-route.sh:238,277`).
+Measured tonight: **0 filename/`<name>` mismatches across 55 files.**
+
+Two things came out of it that matter more than the rename:
+
+- **A plausible causal story that survives unmeasured is how the wrong thing gets "fixed."** The
+  hypothesis was that basemap lookup joined route name to filename and broke on the divergence.
+  Measured: only 2 routes lacked a basemap, both for known reasons, and basemap files are named from
+  the route name — they matched all along. The hypothesis was wrong and is recorded as wrong.
+- **The rename silently dropped a route.** 송파's town mapping keyed on the **filename** prefix
+  `/^송파/`, and the file had just become `올림픽선수촌앞_…`. No error; the only tell was the bench
+  count going 46 → 45. Fixed twice over at `build-manifest.mjs:107-110` — the mapping tests the
+  **route name** first and falls back to the filename. **A mapping keyed to a filename is a mapping
+  keyed to something that is allowed to change.**
+
+### 23.6 One rule in two places — three times in a single day
+
+| rule | copies | what the disagreement did |
+|---|---|---|
+| the 5 km cap | **2** — target and measured guards, both in `build-route.sh` | fixing one left the other enforcing a superseded policy |
+| the 1.5–7.5 km range | **3** — `build-route.sh:67` and `:233`, plus `audit-candidates.mjs:30-31` where it was `[2,5)` | **22 of 46 routes were simultaneously legal to build and illegal to keep** |
+| the surface-mix sum | **2** — `build-route.sh:196-199` and `audit-candidates.mjs:146-155` | both demanded exactly 100%; Strava rounds each share independently, so `75 + 9 + 17 = 101` is a **real reading** that was being refused |
+
+The third copy of the range was another session's candidate gate, discovered only because a handoff
+refresh surfaced `README.md`. All three constants now carry Sean's verbatim quote and an instruction
+to **grep for every copy before editing one** (`audit-candidates.mjs:19-31`, `:152-155`).
+
+**Fixing one copy only moves the failure.** That is now the file's most-repeated finding, and the
+counter is three in one day.
+
+### 23.7 The invisible rejection — restated because the rule is general
+
+`routes_name_km_agrees` rejected a row and **nobody saw it, because the ingest was piped to
+`/dev/null`; the row count coming back two short was the only tell.** Cause: JS `toFixed(1)` on a
+binary float versus Postgres `round(5.75,1)` half-up. Fix: `km` derives from **the km in the NAME**
+(`build-manifest.mjs:105-116`) — one source, two fields, cannot disagree. Full write-up at §22.3.
+
+**The rule, which is not about rounding: never run generated SQL with output suppressed. A refused
+INSERT must be seen.** It is in `ingest.mjs:35-39` as a header comment because it is not a judgement
+call.
+
+### 23.8 Rulings #14 and #15 — and what they do to route geometry
+
+Both verified on origin by the announcer (`docs/handoff-announcer.md`, verbatim in
+`docs/labs/RULINGS-2026-08-19-journey.md`), not relayed as prose:
+
+- **#14** — pickup is **wherever the owner drops a pin**; the app leads the runner to the **nearest
+  point ON the trace**, and the lap starts there.
+- **#15** — the **approach leg counts toward booked km**, so selection shows the total. Sean: *"which
+  is why we need a large variety of routes made."*
+
+My recorded position, measured against the current 55-route corpus rather than argued:
+
+- **This DEMOTES `anchor_lat/lng`, it does not promote it.** If entry is the nearest point on the
+  line, the anchor is a **coarse bounding-box prefilter** and nothing more. Do **not** flip 0078's
+  `근사값 — 소비 금지` comment.
+- **Ranking must be distance-to-TRACE, not distance-to-anchor**, and the snap must be
+  **point-to-SEGMENT**, not point-to-vertex. Measured across all 55 traces: **worst inter-point gap
+  100 m**, per-route mean **31–65 m** (mean of means 46 m). A vertex-only snap is therefore wrong by
+  up to half a gap, systematically, on exactly the routes with the sparsest sampling.
+  `pointToSeg`/`snapToRoute` already exist in `docs/routes/strava/route-guidance.mjs`.
+- **Rotation is safe.** A route entered at an arbitrary point must be traversable as a cycle, which
+  needs the ends to coincide: **0 of 55 routes close worse than 25 m; max closure is 1 m; 42 of 55
+  close under 1 m.**
+- **The approach leg is not in `routes.km`** and should not be written into it — `routes.km` is the
+  route, the approach is computed per booking. #15 is about what the owner is **shown and billed**,
+  and that total is a client-side sum. (This is also why the trace became a money input: see
+  `docs/session-handoff.md` on the 0107 trim.)
+
+Variety is now a product requirement rather than a nice-to-have. 28 towns, **16 of them holding a single candidate
+route**, is thin against a ruling that says the owner picks by total distance from *their* pin.
+
+### 23.9 Two things tonight's own measurements found, neither of them in a commit message
+
+**The 잠실 rework did not actually happen.** `잠실 석촌호수 동서호 루프 3.39km` and the pre-existing
+`잠실 석촌호수 루프 3.39km` have **byte-identical traces** (96 points, same first and last
+coordinate, same 32.2% retrace), and the new one **never reaches the east lobe**: its trace maxes out
+at longitude **127.1037**, while 석촌호수's east lobe sits east of ~127.106. Sean asked for *"another
+loop around the rightside lake"*; what landed is the old route under a name that claims both lobes,
+plus a duplicate row and a duplicate GPX. **This is the §1 failure in its purest form — the name
+claiming what the geometry does not have** — and it was written up in `d2d9bf4` as delivered. Two
+actions owed: retire one of the two rows, and rebuild 잠실 with a waypoint actually inside 동호.
+
+**Three routes have no basemap, and three more are hidden behind a byte-oriented `tr`.** A naive
+name→file match reports six missing; three of those exist under mangled names —
+`잠실_레이크팰리스__석촌호수_…` for `잠실 레이크팰리스·석촌호수 …`. Cause: `fetch-basemaps.sh:13`
+does `tr ' /·' '___'`, and **`tr` works on bytes**: `·` is two UTF-8 bytes (0xC2 0xB7), the
+replacement set has three characters, so both bytes map to `_` and one middle dot becomes **two**
+underscores. `build-route.sh:277` uses `tr ' /' '__'` and leaves `·` alone, so GPX and basemap
+filenames diverge on exactly the routes with a `·` in the name. Fourth instance of keying on a
+filename in this file (§22.11, §23.5, the 송파 drop, this).
+
+### 23.10 Open items — honest status
+
+- **잠실 is a duplicate row + a route that does not match its name** (§23.9). Highest-value fix in
+  the list, because it is a false record, not a missing one.
+- **강서's rework is unbuilt** (§23.4). Needs a resolvable anchor and a non-generic park name.
+- **광진 일감호 루프 3.81km is still `candidate`** though it is the route Sean's rework comment was
+  about (§23.3). A decision, not a build.
+- **Three routes have no basemap:** 중랑 면목체육공원 루프 3.67km, 도봉 방학천 생활권 루프 3.49km
+  (both built after the last `fetch-basemaps.sh` run) and 잠원 근린공원 루프 5.4km (Overpass
+  throttled, outstanding since §20). A rerun costs three queries — the script skips what is cached.
+- **The `·` → `__` basemap filename mangle** (§23.9). One-line fix, but it changes filenames, so do
+  it the way §23.5 says: derive from the route name and let the join use the name.
+- **`route-guidance.mjs` has still never run against a live GPS stream.** Every threshold —
+  including the 40 m off-route default — remains reasoned, not observed. This now matters more, not
+  less: ruling #14 makes `snapToRoute` the thing that decides where a run *starts*.
+- **Sean's next review pass is the input to the next round.** Nine rebuilt routes — eight of them genuinely rebuilt,
+  see §23.9 — and 21 accepted ones are in the bench; nothing after that is planned from his words yet.
+- **The radius estimator still overshoots** (§15). Unchanged, still a hint and not a prediction;
+  measure-then-name is the mitigation and it held again tonight (§23.4).
+- **`docs/routes/strava/README.md`** — corrected in `c6ddd4a` for the 5.00 km cap, `TOL_PCT` and the
+  candidate range, and it now points at the DB for counts. Re-check it rather than trusting this
+  line; it has been wrong for two sprints running.
+- **`docs/skills/route-geometry/SKILL.md` is committed and clean** — §22.10 flagged it as
+  modified-and-unpushed; it landed, and carries the bridge rule at `:159-163`. Resolved.
+- **성수동's 4 retired rows** — still Sean's call (§7).
+
+### 23.11 The standing mandate, and what it does not retire
+
+Sean, leaving for the night: *"do not stop until i come back ... continue advancing the app, no
+permissions asked, do not ask me for input, decide independently."*
+
+That is a real grant and this section is what was done under it. What it does **not** retire, and
+none of these is a permission question:
+
+- **Credential values.** Nothing that requires the *value* of a secret is inside the grant.
+- **One confirmation before irreversibly destroying real production data.** Retiring a row is
+  reversible and was done freely; deleting one is not and was not.
+- **The measure-before-save gates.** They are what caught 27.64 km (§23.4). A mandate to move fast
+  is not a mandate to save unmeasured geometry — the opposite, since nobody is watching tonight.
+- **Facts only he holds.** `shade` and `lighting` stay **NULL**. **No route is marked
+  dog-access-verified by a session that did not verify it** — `candidate-status.psv` says
+  *review/unverified* per route, with the reason, and that stays true until someone walks them.
