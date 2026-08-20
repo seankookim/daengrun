@@ -6,6 +6,15 @@ supersedes its own spec**) · `DESIGN.md` (tokens, laws) · `CLAUDE.md` (permane
 `docs/labs/RULINGS-2026-08-19-journey.md` (his verbatim rulings) · `docs/session-handoff.md`
 (fleet-wide, announcer-owned — **do not edit**).
 
+⚠ **This is not the only client record for 2026-08-20.** A second client session worked `app/` the
+same night and wrote its ending state to
+**`docs/plans/2026-08-20-client-gap-straightening.md`** (appended at the foot, `4fd2ffe`) — ~30
+defect fixes, and a *"What is NOT verified"* section placed deliberately **before** its results.
+Two sessions writing one handoff is how a record gets lost, so we kept them separate on purpose:
+**that file owns their fixes, this file owns mine, and neither is complete alone.** Read both.
+Their doc's unverified section governs the whole night, mine included — four things saw the
+simulator, **everything else is code + gates only, and nothing has ever run on hardware.**
+
 Domain: **client — all of `app/`**. Never write a migration or touch `supabase/`.
 This file **replaces** the 2026-08-20-morning version; git history is the archive
 (`git log --follow docs/handoff-client.md`).
