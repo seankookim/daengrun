@@ -194,6 +194,45 @@ at the end of implementation) and are marked unverified-on-sim in their commits.
 **Frozen-zone approvals are itemized at the final gate** (CEO voice finding 6): B1, B2, B6,
 F11 each get their own line with diff shape — never a workstream-level nod.
 
+### 🔴 Q10 — THE react-doctor PRE-COMMIT GATE HAS BEEN A NO-OP, AND THE OBVIOUS FIX WOULD BLOCK
+### EVERY COMMIT IN THE FLEET (found 2026-08-20 night by the marketing session, mechanism verified here)
+
+Sean's standing order is react-doctor on every UI build. It has not run on a single commit tonight —
+not "ran and warned", **did not scan**.
+
+**Mechanism (measured).** `.githooks/pre-commit` tests `[ -x "./node_modules/.bin/react-doctor" ]`
+from the REPO ROOT. In this repo react-doctor lives at `app/node_modules/.bin/react-doctor` (v0.9.12,
+confirmed present). The root test fails, so the chain falls through to `npx react-doctor@latest`,
+which runs from the root, sees both root-level and `app/`-level `package.json` / `tsconfig.json` /
+`app.json`, and dies with *"Cannot scan staged files while configuration differs between the index
+and worktree"* — then exits 0. That is the message every session has watched scroll past on every
+commit; it is not a comment on the diff, it means nothing was inspected.
+
+**⚠ THE TRAP — do not "just fix the lookup".** The hook invokes `--blocking warning`. A manual run
+from `app/` (`./node_modules/.bin/react-doctor .` — it takes a DIRECTORY, not a file list) reports
+**355 issues: 7 bug errors, 1 security error, 347 warnings**, essentially all pre-existing. So
+repairing the path alone converts a dead gate into one that **blocks every commit in the fleet on a
+347-warning backlog** — three sessions lose the ability to commit at once, in the middle of the
+night. The lookup fix and the blocking level are ONE decision and must land together.
+
+**Sean's call, two parts:** (1) repair the lookup — add `app/node_modules/.bin/react-doctor` to the
+hook's chain; (2) pick the level the hook blocks at — `error` (7+1 today, so the backlog would have
+to be cleared or accepted first) or `off`/report-only until the backlog is worked down.
+
+**Not introduced tonight** — checked by inspection, not assumed: every flagged site sits outside
+this session's diffs (`alerts.tsx`, `shot/[bid].tsx`, `owner/fitness.tsx`, `club-ui.tsx`,
+`tabswipe.tsx`, `theme.ts`), and the two flags inside files I did touch are on pre-existing lines —
+`index.tsx:25` is the `start` declaration (the role-select write, unchanged by me) and
+`owner/radar.tsx:141` is the pre-existing accept-detection poll effect, not the module-scope table I
+added above it. ⚠ Stated honestly: I did NOT run a baseline scan at the pre-session commit, so this
+is inspection, not a diffed count.
+
+**One of the 8 errors deserves its own look regardless of the gate decision:** the single *security*
+error is `react-doctor/supabase-client-owned-authz-field` at `app/index.tsx:25` — the client writing
+`profiles.role`, an authorization field. That is the app's actual design (role select is client-side)
+and 0111 revoked the dangerous client writes, so this is probably accepted-by-design — but it is the
+signup path, it is the only security-category finding in the app, and nobody has ruled on it.
+
 ### QUEUE additions (CEO phase)
 - Q7: E2's sturdier server contract — a closure/`is_loop` flag on `routes_public` so the
   client never re-derives geometry truth from a trimmed trace. (Client fix stands either way.)
