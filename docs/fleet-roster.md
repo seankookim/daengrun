@@ -294,3 +294,9 @@ two false "stranded work" alarms on day one.
 - **Unquoted `git commit -m "…"` lets the SHELL eat backticked identifiers (laughing-elgamal, measured):** `ede1b65`'s message lost
   three identifiers to command substitution; the same content committed via `git commit -F -` with a quoted heredoc survived intact
   (verified by grepping the committed message). Every session here writes identifier-dense messages — use the heredoc form.
+- **An announcer can route work; it cannot widen a session's domain — only the human can (laughing-elgamal → announcer v3,
+  2026-08-20):** offered an unowned two-half slice, the client session took the half in its domain and refused the `supabase/` half
+  rather than treat "unowned" as "mine", even though the announcer's offer was loose enough to read either way. The distinction that
+  makes it a rule: **ownership vacancy is not authorisation.** A session's brief comes from the human; an announcer reallocating
+  vacated work must not silently extend anyone's surface, least of all onto a file (`_shared/ctx.ts`) that 24 functions depend on.
+  Under-claiming and asking for one sentence from Sean is the cheaper error by a wide margin.

@@ -295,6 +295,16 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-quinvicies. 🟡 ONE-WORD DOMAIN QUESTION — may the client session touch `supabase/` for ONE slice? (2026-08-20)
+
+The deep-link slice (§0-unvicies) has two halves in two domains: the client half (`api.ts` keeping the extra field) and the SERVER
+half (`HttpError` gains `detail`; `supabase/functions/_shared/ctx.ts:48` spreads it; the RPC carries a Postgres errdetail).
+Both are unowned now that ui2 has ended. The live client session will take the client half and **declined the server half on its own
+initiative** — its brief says client domain, never `supabase/`, and it would not let an announcer's routing widen that. Correct, and
+noted as correct: `_shared/ctx.ts` is the error contract of **24** edge functions. **A** widen that session's domain for this one
+slice (one sentence from you in its session does it; it still gets its own reviewer) · **B** it waits for a server-domain session
+to come online. Nothing is blocked either way — the slice is a signpost-becomes-a-door upgrade, not on any critical path.
+
 ## 0-unvicies. 📋 QUEUED SLICE (nobody on it): refusals should carry an id, not just a token
 
 Found by ui2 while wiring the account-deletion refusals: a 409 that says `club_custody_owner` tells the owner their dog is out but
