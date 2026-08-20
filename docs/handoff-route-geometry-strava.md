@@ -1321,3 +1321,78 @@ none of these is a permission question:
 - **Facts only he holds.** `shade` and `lighting` stay **NULL**. **No route is marked
   dog-access-verified by a session that did not verify it** — `candidate-status.psv` says
   *review/unverified* per route, with the reason, and that stays true until someone walks them.
+
+## 24. Four failures found AFTER §23 was written — all one shape
+
+§23 reported the six reworks as delivered. Writing it is what exposed that one of
+them was not, and two more failures behind it. Every one is the same shape:
+**a step that does nothing looks exactly like a step that worked.**
+
+### 24.1 The 잠실 rework never happened, and I reported it as done
+
+I saved a route named `잠실 석촌호수 동서호 루프` — east-*west* lakes — and told
+Sean it lapped both lobes. Measured: 96 points and max longitude 127.1035, the
+same as the route it was meant to replace. **It never goes east.** After a day of
+building tooling so a name cannot outrun its geometry, the failure reappeared in
+a status report, which is the one surface none of the tooling watches.
+
+Worse, the claim was **unverifiable in either direction**: `features.json` holds
+`석촌호수` as a single centroid with no per-lobe entry, so "both lobes" was never
+checkable against our own data, and the `>127.106` threshold used to "confirm" it
+was invented on the spot rather than derived.
+
+Rebuilt as `잠실 석촌호수 롯데월드 루프 3.32km`, renamed on Strava and re-exported
+so filename, `<name>` and row agree, and named **only what can be verified**. The
+mis-named row is retired.
+
+**Rule: if a name makes a claim, something must be able to check it. A claim no
+data can test is not a name, it is a wish.**
+
+### 24.2 Three of nine "retired" rows were never retired
+
+The UPDATE named `중랑 ... 3.54km` and `광진 ... 3.82km` — the **measured**
+values — while the rows carry Strava's readout, `3.53` and `3.81`. It matched
+zero rows and reported nothing. So **`광진 일감호 화양 루프 3.81km`, the route
+Sean's "you go the opposite direction?" was about, stayed `candidate` and kept
+being offered.**
+
+Same measured-vs-Strava split that once named the GPX files, this time biting a
+`WHERE` clause. Retired now with `returning name` in a CTE so the statement
+prints back what it actually changed; a zero-row update can no longer be silent.
+
+### 24.3 Three basemaps were not missing, they were mangled
+
+`fetch-basemaps.sh` used `tr ' /·' '___'`. **`tr` is byte-oriented** and `·` is
+two UTF-8 bytes, so one middle dot became **two** underscores, while
+`build-route.sh` left it alone. The files existed under names nothing would
+match. Switched to `sed`. Fourth time in one day that a key derived from a
+filename went wrong.
+
+### 24.4 The artifact's build lived in /tmp, and /tmp was wiped
+
+The published bench was assembled from three fragments in the scratchpad. The
+scratchpad was cleared: the page stayed live but was no longer rebuildable.
+
+`docs/routes/strava/bench/build-artifact.mjs` now derives the artifact from the
+local page, which is in git. One source, two surfaces, differing in exactly three
+ways: the artifact inlines `routes.json`, draws the compacted OSM basemap instead
+of the Naver SDK, and omits the gitignored key file.
+
+It **refuses to emit a page containing `fetch(` or `naver.`**, because the first
+draft left a `fetch('routes.json')` in — the regex anchored on end-of-string and
+the chain was not there, so it matched nothing and said nothing. That page would
+have published, loaded, and quietly failed to boot: under an Artifact's CSP a
+blocked request produces no error a reader would see.
+
+### 24.5 What to take from this
+
+The tooling built during the day works — measure-before-save, the name/km CHECK
+constraint, the shape verifier, the candidate audit. **None of them caught any of
+the four above**, because each watches a specific claim and these failures lived
+in the gaps: a name's *other* claims, an update that matched nothing, a filename
+transform, a build directory.
+
+The generalisation is not "check your work". It is: **make every operation report
+what it actually did.** A count of rows changed. A refusal when the output is
+empty. An assertion that the artifact contains what it must and lacks what it
+must not. Silence is the failure mode, not error.
