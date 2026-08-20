@@ -35,25 +35,47 @@ const PERF = 'rgba(255,255,255,0.25)'; // 천공 점선 — 밤 지면 위 흰 �
 
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
+// [2026-08-20 incident/terminal arms] Legal successors refresh() had no arm for.
+// `runner_enroute → no_show | incident_review` and `picked_up → incident_review` are all in the
+// transition map (0066_enroute_cancel.sql:52-55), and `→ refund_pending` is its else arm (:56) —
+// but refresh() only tested completed / matching / cancelled* / expired, so every one of them fell
+// through to the `sync.ownerConfirmed` branch and set stage 'waiting'. The ceremony ran BACKWARDS:
+// 「인계 완료!」 became 「러너 확인 대기 중...」 with a breathing pulse, the counter dropped 2/2 → 1/2
+// and the runner's stamp un-drew — the screen claiming the runner had not confirmed the handoff at
+// the exact moment something had gone wrong with the dog.
+// These two are true ends (nothing more happens here), so they take the shape of the cancelled /
+// expired arms below: alert, then leave. `incident_review` is NOT one of them — it is a hold the
+// owner waits inside, and it has its own arm.
+const TERMINAL_EXIT: Record<string, { title: string; body: string }> = {
+  no_show: { title: '불발로 처리됐어요', body: '이 예약은 진행되지 않았어요 — 자세한 내용은 알림으로 알려드릴게요' },
+  refund_pending: { title: '환불이 진행 중이에요', body: '처리되면 알림으로 알려드릴게요' },
+};
+
 // 봉인 스탬프 — 빈 자리가 '실제로' 채워지는 순간에만 도장이 내려온다 (클럽 영수증 ② 스탬프 문법).
 // 정지값 = opacity 1 · scale 1 · rotate tilt. sealed는 서버 진실에서만 온다 → 연출이 앞서 나가지 않는다.
 // [P2-12 once-law] 첫 동기화가 '이미 봉인된' 상태로 도착하면 = 재진입이다 → 도장을 다시 찍지 않고
 // 정지값으로 점프한다. 하이드레이션 이후(사용자가 보는 앞에서 일어난 실제 봉인)만 애니메이션.
-function useStamp(sealed: boolean, hydrated: { current: boolean }) {
+function useStamp(sealed: boolean, hydrated: { current: boolean }, still: { current: boolean }) {
   const v = useRef(new Animated.Value(sealed ? 1 : 0)).current;
   const was = useRef(sealed);
   useEffect(() => {
     if (sealed === was.current) return;
     was.current = sealed;
     if (!sealed) { v.setValue(0); return; }
-    if (!hydrated.current) { v.setValue(1); return; } // 재진입 — 정지값 (파문 없음)
+    // `still` = the booking is on an incident hold. A slot really can fill under a hold: the
+    // runner's confirm_handoff writes runner_confirmed_handoff_at BEFORE it attempts (and fails)
+    // the status move (transition-booking/index.ts, case "confirm_handoff"), so peerSealed can flip
+    // true while a case is open. A 340ms gold stamp landing on the frame that says something went
+    // wrong with the dog is the worst possible timing — fill statically instead. The seal is server
+    // truth and stays drawn; only the ceremony around it stops.
+    if (!hydrated.current || still.current) { v.setValue(1); return; } // 재진입 — 정지값 (파문 없음)
     v.setValue(0);
     const a = Animated.timing(v, {
       toValue: 1, duration: 340, easing: Easing.bezier(0.5, 0, 0.7, 0.35), useNativeDriver: true,
     });
     a.start();
     return () => a.stop();
-  }, [sealed, v, hydrated]);
+  }, [sealed, v, hydrated, still]);
   return v;
 }
 
@@ -93,6 +115,18 @@ export default function OwnerMeetup() {
   // observe cancelled_owner before cancelBooking() resolves, and without this both paths
   // would Alert + router.back() (double pop).
   const closingRef = useRef(false);
+  // [2026-08-20 incident hold] `incident_review` is a hold the owner WAITS INSIDE, not an exit:
+  // 0072_incident_settlement.sql:144-179 makes refund_pending its only commercial successor and the
+  // case can also resolve leaving the booking exactly where it is. So the screen stays, keeps
+  // polling, and comes back out of the hold without a remount — `hold` is state, nothing unmounts.
+  // The ref is the ANIMATION gate and is armed inside refresh(), which is the deliberate inverse of
+  // the `hydrated` gate below (P2-12): that one must NOT be armed there because it would beat the
+  // batched re-render; this one MUST beat it, or useStamp/celebrate run their effects for the same
+  // commit with the gate still open and a celebration plays over an incident frame.
+  // (Cited by symbol, not line — this file's own note says line citations here drift.)
+  // Appended at the END of the bundle per the hook-placement freeze above.
+  const [hold, setHold] = useState(false);
+  const holdRef = useRef(false);
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -154,9 +188,28 @@ export default function OwnerMeetup() {
         router.back();
         return;
       }
+      // no_show / refund_pending — same shape as the terminal arm above (alert, then leave).
+      // TERMINAL_EXIT's comment carries the why.
+      if (TERMINAL_EXIT[sync.status]) {
+        const t = TERMINAL_EXIT[sync.status];
+        Alert.alert(t.title, t.body);
+        router.back();
+        return;
+      }
       setPeerConfirmed(sync.runnerConfirmed);
       setArrivedAt(sync.arrivedAt); // 러너 도착 — 표시 조건일 뿐, 스테이지 머신은 건드리지 않는다
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
+      // [2026-08-20 incident hold] The new arm. Server truth above still lands (the runner may
+      // confirm while a case is open), then the stage chain is SKIPPED so the ceremony holds exactly
+      // where it stood — running it would have dropped a sealed handoff back to 'waiting'.
+      // Safe to freeze the stage rather than re-derive it: every door into this screen resolves
+      // through IN_FLIGHT (api.ts:1088 = confirmed/runner_enroute/picked_up/active), which excludes
+      // incident_review, so the hold can only be ENTERED while this screen is already open and
+      // already holding the right stage. If a door ever opens directly onto incident_review, this
+      // arm needs a stage hydration from sync.ownerConfirmed/runnerConfirmed before it returns.
+      holdRef.current = sync.status === 'incident_review';
+      setHold(holdRef.current); // reversible: the next poll that reports another status clears it
+      if (holdRef.current) return;
       if (sync.status === 'active') {
         router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입
       } else if (sync.status === 'picked_up') {
@@ -254,14 +307,16 @@ export default function OwnerMeetup() {
   // [P2-12] 하이드레이션 게이트 — 첫 동기화 '커밋이 지난 뒤'에만 true가 된다.
   // (ref를 sync 함수 안에서 바로 세우면 배치된 리렌더보다 먼저 참이 돼 게이트가 무력화된다.)
   const hydrated = useRef(false);
-  const mineStamp = useStamp(mineSealed, hydrated);
-  const peerStamp = useStamp(peerSealed, hydrated);
+  const mineStamp = useStamp(mineSealed, hydrated, holdRef);
+  const peerStamp = useStamp(peerSealed, hydrated, holdRef);
 
   // 양측 봉인 완료 — 골드 룰이 내려온다 (장식 전용, 정보는 아래 스텝 한글이 진다)
   const celebrate = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!bothSealed) { celebrate.setValue(0); return; }
-    if (!hydrated.current) { celebrate.setValue(1); return; } // 재진입 — 정지값 (스탬프와 같은 once-law)
+    // holdRef = incident hold. Same reason as useStamp's `still`: the second seal can land while a
+    // case is open, and the gold rule must not come down over it. Static value, no animation.
+    if (!hydrated.current || holdRef.current) { celebrate.setValue(1); return; } // 재진입 — 정지값 (스탬프와 같은 once-law)
     const a = Animated.timing(celebrate, {
       toValue: 1, duration: 460, delay: 180, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true,
     });
@@ -397,6 +452,35 @@ export default function OwnerMeetup() {
           so the 8s poll's re-render never hands the content container a fresh style object
           (react-doctor rn-scrollview-dynamic-padding; this screen re-renders on every tick). */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollPad}>
+        {/* [2026-08-20 incident hold] A hold you wait INSIDE, so it is a persistent strip and not an
+            Alert — alerts are for transitions you exit through, and this state has no exit to offer
+            the owner (0072_incident_settlement.sql:144-179: the case resolves to refund_pending or
+            the booking stays put; either way the owner's job is to wait and be reachable).
+            Critical wash + critical ink, NOT amber: amber is this file's word for routine waiting
+            (the 상태 줄 dot above uses paper.pending for '아직 내 차례가 아님'), and a custody
+            incident must never read as routine. It sits at the top of the content column, above the
+            seal band — the seals below stay drawn because they are server truth of a handoff that
+            really happened; only the ceremony's forward motion stops. */}
+        {hold && (
+          <View style={s.hold}>
+            <Text style={s.holdTtl}>확인이 진행 중이에요</Text>
+            <Text style={s.holdBody}>이 예약에 확인이 필요한 일이 접수됐어요. 처리되는 동안 이 화면의 진행이 잠시 멈춰요 — 처리되면 알림으로 알려드릴게요.</Text>
+            {/* Both push, never replace — the owner has to be able to come back to this screen and
+                to the seals, which are the record of what actually happened. */}
+            <Row style={{ gap: 8, marginTop: 12 }}>
+              <Pressable
+                onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}
+                style={s.holdBtn} accessibilityRole="button" accessibilityLabel="러너와 채팅"
+              >
+                <Text style={s.holdBtnTxt}>러너와 채팅</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/safety')} style={s.holdBtnInk} accessibilityRole="button" accessibilityLabel="안전 센터 열기">
+                <Text style={s.holdBtnInkTxt}>안전 센터</Text>
+              </Pressable>
+            </Row>
+          </View>
+        )}
+
         {/* [11b′ 만남 장소] The block the lab asks for, built out of fields this screen ALREADY
             fetches and threw away: fetchOwnerPickupCoords returns { label, addr, detail } and only
             `detail` was ever drawn. label = the place the owner named, addr = its address line.
@@ -538,8 +622,20 @@ export default function OwnerMeetup() {
           </View>
         </View>
 
-        {/* action */}
-        {stage === 'enroute' && (
+        {/* action
+            [2026-08-20 incident hold] All four arms are gated on !hold, and each for a reason the
+            hold makes true. Two of them carry a transition the server now refuses: cancel() quotes
+            0066's ladder and then CASes the row to cancelled_owner, which the transition map does
+            not allow out of incident_review (0066_enroute_cancel.sql:52-56) — a live 예약 취소
+            button whose dialog quotes a 10%/24h or 50% tier for a call that cannot land is a dead
+            button on a lie; and the dock's 인계 확인 would write owner_confirmed_handoff_at and only
+            THEN fail its status move (transition-booking/index.ts, case "confirm_handoff"), leaving
+            a half-written row behind an error toast. The other two stopped being true: '러너 확인
+            대기 중...' with a breathing pulse says the screen is waiting on the runner's tap when it
+            is waiting on a case, and '시작되면 자동으로 라이브 화면으로 전환돼요' promises a
+            transition that is blocked (incident_review → active, 0072_incident_settlement.sql:15).
+            The strip at the top of the column carries this state's only real actions. */}
+        {stage === 'enroute' && !hold && (
           <View style={s.status}>
             <Row style={{ gap: 4 }}>
               <View style={s.pulseStage}><View style={[s.pulseCore, { backgroundColor: paper.pending }]} /></View>
@@ -561,7 +657,7 @@ export default function OwnerMeetup() {
             />
           </View>
         )}
-        {stage === 'arrived' && (
+        {stage === 'arrived' && !hold && (
           <View style={s.actions}>
             {/* [11b′] 계약 행동(인계 확인)은 아래 고정 도크로 내려갔다 — 이 존에는 취소만 남는다.
                 화면당 코랄 면 CTA는 여전히 하나(도크의 그것)이고, 취소는 destructive 문법이다. */}
@@ -581,7 +677,7 @@ export default function OwnerMeetup() {
             <Text style={[s.ctaHint, { marginTop: 8 }]}>이동 중 취소는 결제 금액의 50%가 수수료로 청구돼요 — 출발한 러너의 보상으로 쓰여요</Text>
           </View>
         )}
-        {stage === 'waiting' && (
+        {stage === 'waiting' && !hold && (
           <View style={s.status}>
             <Row style={{ gap: 4 }}>
               <View style={s.pulseStage}>
@@ -599,7 +695,7 @@ export default function OwnerMeetup() {
             <Text style={s.statusText}>러너 확인 대기 중...</Text>
           </View>
         )}
-        {stage === 'confirmed' && (
+        {stage === 'confirmed' && !hold && (
           <View style={s.night}>
             <Text style={s.nightKick}>SEALED</Text>
             <Text style={s.nightText}>인계 완료! 러너가 곧 러닝을 시작해요</Text>
@@ -613,8 +709,9 @@ export default function OwnerMeetup() {
           <Text style={s.foot}>펫보험 파트너십 협의 중 — 사고 시 안심 센터에서 바로 도와드려요</Text>
         </Pressable>
 
-        {/* 도크가 가리는 만큼의 자리 — 마지막 줄(안심 센터)이 고정 CTA 뒤로 숨지 않는다 */}
-        {stage === 'arrived' && <View style={{ height: dockH }} />}
+        {/* 도크가 가리는 만큼의 자리 — 마지막 줄(안심 센터)이 고정 CTA 뒤로 숨지 않는다.
+            !hold: the spacer follows the dock exactly, or a hold leaves a phantom gap. */}
+        {stage === 'arrived' && !hold && <View style={{ height: dockH }} />}
       </ScrollView>
 
       {/* [11b′ · request.tsx:1352 도크 문법] 인계 CTA는 이제 바닥에 고정된다 — 도착한 러너가 문
@@ -622,7 +719,7 @@ export default function OwnerMeetup() {
           면은 불투명 캔버스(반투명이면 '떠 있는 CTA'가 아니라 반쯤 가린 콘텐츠로 읽힌다),
           위 가장자리는 코랄 헤어라인 1px, 세이프에어리어는 도크 안쪽 패딩으로 존중한다.
           onPress·handoff·실패 경로는 전부 그대로 — 컨테이너만 바뀌었다. */}
-      {stage === 'arrived' && (
+      {stage === 'arrived' && !hold && (
         <View style={[s.ctaDock, { paddingBottom: dockPadBottom }]}>
           <Text style={s.dockHint}>러너도 확인하면 러닝이 시작돼요</Text>
           {/* 화면당 코랄 면 CTA 1개 — 이 화면의 계약 행동은 인계 확인 하나뿐.
@@ -874,4 +971,24 @@ const s = StyleSheet.create({
   nightText: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: '#fff', marginTop: 7, textAlign: 'center' },
   nightSub: { fontSize: 14, lineHeight: 19, color: NIGHT_DIM, marginTop: 5, textAlign: 'center' },
   foot: { fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
+
+  // ── incident hold strip — criticalWash ground + critical ink (measured 8.9:1 on #FBEAE7).
+  // Full-bleed like every other section here, but its divider is the critical hairline, not the
+  // coral one: the strip must not read as one more section of the ceremony it is interrupting.
+  hold: {
+    backgroundColor: paper.criticalWash, borderBottomWidth: 1, borderBottomColor: paper.critical,
+    paddingHorizontal: PAD, paddingVertical: 14,
+  },
+  holdTtl: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.critical },
+  holdBody: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: paper.critical, marginTop: 5 },
+  // Two different affordances, never two of the same button: 안전 센터 is the emphasized door
+  // (ink plate + white label — countPillOn's vocabulary; white on coral is forbidden, ink is not),
+  // 채팅 is the critical-hairline plate on canvas. Same 46pt height so neither outranks by size.
+  holdBtn: {
+    flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.critical,
+    alignItems: 'center', paddingVertical: 12,
+  },
+  holdBtnTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
+  holdBtnInk: { flex: 1, backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 13 },
+  holdBtnInkTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#fff' },
 });

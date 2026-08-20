@@ -241,8 +241,25 @@ export default function RunnerHome() {
       .catch((e) => { console.warn('[rhome] inbox:', e?.message ?? e); setInboxErr(true); });
   }, []);
 
+  // [honesty 2026-08-20 · runner journey T3] This fetch was a silent catch, so a failed load
+  // printed 「불러오는 중...」 forever: loading and failure were the same sentence and there was
+  // no way back — the runner watches a spinner-shaped lie until they leave the screen.
+  // Three-stated on the model the editor screen already carries (availability.tsx:49-60 load +
+  // :126-141 loading / loud-fail-with-retry), so both surfaces of the same data fail alike.
+  // ⚠ `avail` stays null on failure ON PURPOSE. It is not just the loading flag: toggleDay
+  // writes the WHOLE rule set back and saveMyAvailability is delete-all-then-insert
+  // (api.ts:1650-1657), so seeding an empty week from a failed read would let one chip tap
+  // erase every slot the runner actually has (the same trap availability.tsx:45-48 names).
+  const [availErr, setAvailErr] = useState(false);
+  const loadAvail = useCallback(() => {
+    setAvailErr(false);
+    fetchMyAvailability()
+      .then(setAvail)
+      .catch((e) => { console.warn('[rhome] avail:', e?.message ?? e); setAvailErr(true); });
+  }, []);
+
   useFocusEffect(useCallback(() => {
-    fetchMyAvailability().then(setAvail).catch((e) => console.warn('[rhome] avail:', e?.message ?? e));
+    loadAvail();
     loadInbox();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
@@ -253,7 +270,7 @@ export default function RunnerHome() {
       .catch(() => {});
     registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
     reloadStatus();
-  }, [loadInbox, reloadStatus]));
+  }, [loadAvail, loadInbox, reloadStatus]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,
@@ -270,6 +287,11 @@ export default function RunnerHome() {
   };
 
   // 요일 탭 = 즉시 열기/닫기 (저장 버튼 없음 — 충동적 슬롯 오픈은 홈에서 바로)
+  // [honesty 2026-08-20 · runner journey T2] Same defect the function above was fixed for, one
+  // control over: the optimistic flip was reverted on a failed save with nothing but a
+  // console.warn, so the 토 chip lit up and then bounced back「이유 없이 제자리로」. A runner reads
+  // that as a broken app and stops opening slots — supply we lose without ever hearing why.
+  // The revert is right and stays; what was missing is saying that the SERVER refused it.
   const toggleDay = (wd: number) => {
     if (!avail) return;
     const has = avail.some((r) => r.weekday === wd);
@@ -281,6 +303,7 @@ export default function RunnerHome() {
     saveMyAvailability(next).catch((e) => {
       setAvail(prev);
       console.warn('[rhome] avail save:', e?.message ?? e);
+      Alert.alert('가용시간을 저장하지 못했어요', '다시 시도해주세요');
     });
   };
 
@@ -860,7 +883,24 @@ export default function RunnerHome() {
             320 − 30 거터 − 26 카드 패딩 = 264, 갭 3×6 = 18을 빼면 칸당 ≈ 35px. 14pt 한글 한 글자는
             ≈ 14px이라 여유가 두 배다. 그래서 **14pt로 짓는다** — 플로어를 지키고 칸도 안 키운다. */}
         <View style={styles.card}>
-          {!avail ? (
+          {/* [honesty 2026-08-20 · T3] 로딩과 실패가 같은 문장이었다 (둘 다 '불러오는 중...').
+              실패는 자기 문장 + 실제로 다시 부르는 문을 갖는다 — 이 카드의 토글은 저장 버튼 없이
+              바로 서버에 쓰기 때문에, 무엇이 저장돼 있는지 모르는 채로는 칩을 아예 그리지 않는다.
+              문법은 이 화면의 recFail/togRetry 그대로 (크리티컬 잉크 + 밑줄, ≥44pt 타깃).
+              ⚠ 실패 행은 **가진 데이터가 없을 때만**이다 (availability.tsx:131의 `!loaded && loadErr`와
+              같은 술어). 이 화면은 포커스마다 다시 부르므로, 한 번 성공해 실값이 있는 상태에서
+              새로고침이 실패했다고 러너에게서 그 실값을 뺏으면 안 된다 — 마지막 서버 진실은
+              여전히 진실이고, 그 위에서의 토글도 실데이터 위의 쓰기다. */}
+          {!avail && availErr ? (
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 9 }}>
+              <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical }}>
+                러닝 가능 시간을 불러오지 못했어요
+              </Text>
+              <Pressable onPress={loadAvail} hitSlop={8} style={styles.togRetry} accessibilityRole="button" accessibilityLabel="러닝 가능 시간 다시 불러오기">
+                <Text style={styles.togRetryTxt}>다시 시도</Text>
+              </Pressable>
+            </Row>
+          ) : !avail ? (
             <Text style={{ fontSize: 14, color: lilac.dim }}>불러오는 중...</Text>
           ) : (
             <>

@@ -512,12 +512,22 @@ export default function RunnerProfileScreen() {
                         ③번 걸음). "결제 후"는 더 이상 존재하지 않는 단계를 가리켰다. */}
                     <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>예약하면 이 러너에게 지명 요청이 먼저 전달돼요</Text>
                   </Pressable>
-                  <Pressable
-                    style={s.ghostCta}
-                    onPress={() => Alert.alert('채팅', '러너와의 채팅은 예약 후 열려요 (실시간 채팅 준비 중)')}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>채팅 문의</Text>
-                  </Pressable>
+                  {/* [honesty 2026-08-20 · runner journey T4] 여기 '채팅 문의' 고스트 버튼이 있었고,
+                      누르면 「러너와의 채팅은 예약 후 열려요 (실시간 채팅 준비 중)」 알럿 하나가
+                      전부였다. 두 가지가 틀렸다.
+                      ① 실시간 채팅은 **이미 출시돼 있다** — app/chat.tsx가 subscribeMessages로
+                         실배달을 받고 사진까지 보낸다 (api.ts:2584). 있는 기능을 없다고 말하면
+                         보호자는 예약 후에도 그 문을 찾지 않는다.
+                      ② 버튼의 유일한 효과가 '안 된다'는 알럿이었다 — 죽은 버튼 금지법이 이 레포에서
+                         이미 같은 이유로 픽업 지도 숏컷을 은퇴시켰다 (runner/home.tsx:92-93).
+                      이 자리에서 진짜 채팅을 열 방법은 없다: 스레드는 예약 단위이고, chat_threads
+                      INSERT는 러너가 수락하기 전까지 정책에서 막힌다 (0114, chat.tsx:29-33의
+                      'preaccept' 상태). 이 화면에는 '이 러너와의 예약' 같은 것이 존재하지 않는다.
+                      그래서 없는 라우트를 지어내는 대신, 문을 내리고 **참인 사실 한 줄**만 남긴다 —
+                      언제 열리는지 알면 보호자는 그때 문을 찾을 수 있다. */}
+                  <Text style={{ fontSize: 14, lineHeight: 19, color: colors.dim, textAlign: 'center', marginTop: 10 }}>
+                    채팅은 이 러너가 예약을 수락하면 열려요
+                  </Text>
                 </>
               ) : (
                 <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
@@ -605,7 +615,9 @@ const s = StyleSheet.create({
   slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
   addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
+  // [2026-08-20 · T4] ghostCta 삭제 — 그 스타일을 쓰던 유일한 소자가 '채팅 문의' 고스트 버튼이었고,
+  // 그 버튼은 은퇴했다 (위 CTA 블록의 주석). 주인 없는 스타일을 남겨두면 다음 사람은 화면 어딘가에
+  // 세컨더리 버튼이 있다고 읽는다.
   editChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start' },
   editBackdrop: { flex: 1, backgroundColor: '#00000055' },
   editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
