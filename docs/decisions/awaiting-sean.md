@@ -280,6 +280,22 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-unvicies. 📋 QUEUED SLICE (nobody on it): refusals should carry an id, not just a token
+
+Found by ui2 while wiring the account-deletion refusals: a 409 that says `club_custody_owner` tells the owner their dog is out but
+not WHICH club session, so the client can only describe the screen in prose instead of deep-linking to it. The field cannot arrive
+without `supabase/functions/_shared/ctx.ts:48`, whose error arm builds the body with exactly one key — and that file is imported by
+**24 edge functions**, so it is the error contract of the whole project. Deliberately NOT bolted onto the 0115 round (already twice
+extended, and its reviewer signed off on a smaller diff). Shape when it runs: `HttpError` gains an optional `detail`; `ctx.ts:48`
+spreads it conditionally (every existing caller keeps its one-key body); the RPC carries the id as a Postgres errdetail, never inside
+the message string (the client matches on the bare token); ui2 extends `fnError` (`api.ts:13-23`) to keep the extra field; its own
+reviewer. Not on any critical path — a signpost becomes a door.
+
+⚠ **Carry this into the slice's brief so it is not rediscovered (ui2):** the id cannot ride the MESSAGE (the client matches on the
+bare token) and cannot ride a new top-level key TODAY (`ctx.ts:48`'s single-key literal). Both halves must move in the same slice or
+the field silently does not exist — the failure that looks like "the server sent it and the client ignored it". ui2 owns the
+`fnError` half and wants it in the same round, not after it.
+
 ## 0-vicies. 🟡 ONE-LINE LOOKUPS FROM UI2 (2026-08-20 morning)
 
 1. **Your stale Aug-4 booking fixture** — delete it or keep it? It is on your account and it shapes what you see on the sim.
