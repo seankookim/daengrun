@@ -6,9 +6,7 @@
 //
 // Sizing: pass `height`; width follows the source aspect. Used at 40 in the owner-home
 // masthead lockup; legible down to ~22.
-import { Image, Text, View } from 'react-native';
-import { useDisplayFont } from '../lib/displayFont';
-import { paper } from '../theme';
+import { Image } from 'react-native';
 
 const ASPECT = 1619 / 971; // source asset
 
@@ -30,20 +28,10 @@ export function BrandMark({ height = 40, tint }: { height?: number; tint?: strin
   );
 }
 
-// Full lockup: mark on the left, wordmark stacked on the right (Sean 2026-08-10).
-export function BrandLockup({ height = 40 }: { height?: number }) {
-  const df = useDisplayFont();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <BrandMark height={height} />
-      <View style={{ marginLeft: 10 }}>
-        <Text style={[{ fontSize: height * 0.66, lineHeight: height * 0.82, color: paper.ink }, df]}>
-          도그스하이
-        </Text>
-        <Text style={{ fontSize: 11.5, fontWeight: '700', letterSpacing: 2.4, color: paper.dim, marginTop: -1 }}>
-          DOGS HIGH
-        </Text>
-      </View>
-    </View>
-  );
-}
+// [2026-08-20 Sean] `BrandLockup` (마크 + 도그스하이 워드마크 + DOGS HIGH) 은퇴.
+// 유일한 소비자였던 보호자 홈이 마크만 쓰도록 바뀌었다 — "글자 로고를 빼라"가 지시였고, 쓰이지
+// 않는 채로 남겨두면 지우라던 바로 그것을 파일이 계속 들고 있게 된다. 두 홈 모두 이제 `BrandMark`다.
+// 되살릴 일이 있으면 git history에 있다 (이 커밋의 부모).
+//
+// 부수적으로 고쳐진 법: 락업의 워드마크도 디스플레이 서체였으므로 보호자 홈엔 Black Han Sans가
+// 두 번(워드마크 + 그리팅) 찍히고 있었다. 이제 그리팅 하나 — '화면당 1회'가 지켜진다.

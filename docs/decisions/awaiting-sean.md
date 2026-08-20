@@ -280,6 +280,10 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-tervicies. ✅ CLOSED SAME DAY — the launch-path null-name write (found on device, fixed by ui2, re-verified independently)
+
+Found on a real cold launch by the verification session: **cold launch → role select → settings** raised 「프로필 저장 실패 — null value in column "name"」. The NOT NULL constraint refused it, so **no data changed** — but something on the launch/role-select path is attempting a `profiles` write with a null `name`. This is the SIGNUP path, which is §0 at the head of this queue and the one thing nobody has been able to test end to end. **CLOSED at `3be5c2b` (+ `836245c`), root cause found and fixed by ui2, then re-verified by the session that found it using its exact original repro (cold launch → OWNER → `daengrun://settings`): no alert, production reads `name='s4kim2025', role='owner'`, district intact; all four client `profiles` writers swept, no sibling path can produce it.** Root cause worth knowing when you run §0: role-select used `upsert` with `{id, role}` for an EXISTING row, and Postgres NOT-NULL-checks the proposed tuple BEFORE conflict resolution — so the deliberately-omitted `name` killed the statement on every launch and **the role write silently never landed**. Nothing was corrupted; the fix chooses the statement (`update({role})` vs `insert({id, role, name})`) rather than shaping the payload. This was a real piece of the signup path being unverifiable — §0 still needs your five-minute run, but with one fewer thing broken under it.
+
 ## 0-duovicies. 🔴 NOTHING PAYS RUNNERS — no payout mechanism exists at all (measured 2026-08-20)
 
 Surfaced by the 0115 review and confirmed by the announcer: `ledger_items` (0001:264-275) records what a runner EARNED and has **no
@@ -313,6 +317,27 @@ the field silently does not exist — the failure that looks like "the server se
    **A** delete · **B** keep. (Not decided under the grant: it is your data.)
 2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
    Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
+
+## 0-quatervicies. 👀 THE MASTHEAD IS IN — one spacing call left, and two reversible judgement calls (2026-08-20)
+
+Your header change is on trunk (`ede1b65`): one row now — BrandMark(30) · rotating greeting(flex) · bell(40); both wordmarks gone;
+everything below moved up ~52 pt (measured on the simulator, not estimated); greeting 22 pt with minimumFontScale 0.65 so it can
+never cross the 14 pt floor. ⚠ CORRECTED (the announcer got this wrong first): `BrandLockup` — the FUNCTION — is retired and has zero live references; the FILE `app/src/components/brandmark.tsx` is very much still on trunk and must be, because it exports `BrandMark`, which has three live consumers (`owner/home.tsx`, `runner/home.tsx`, `paper-btn.tsx`). The announcer's first check grepped for a filename that never existed (`brand-lockup`) and read the 0 as "file deleted" — a wrong measurement described confidently; caught by the session that did the work. Otherwise verified: `StatusBarCover` is still mounted last,
+no absolute header was reintroduced, and Black Han Sans is now used ONCE on that screen (the lockup wordmark had been a second use —
+a design-law violation fixed as a side effect).
+
+**The one call left is yours: ~46 pt still sits between the masthead and the alert line.** It is not a defect anyone introduced — it
+is four small paddings summing (row breathing 9 + brandRow margin 6 + hero wrap paddingTop 12 + alertRow paddingVertical 12), each
+part of the ⑧ v2 grammar you approved by number. Tightening it means editing hero internals, so the session stopped rather than
+resolve it silently. **A** tighter — take the next ~20 pt out of the hero internals · **B** leave it as approved.
+
+**Two judgement calls it made, each one line to revert if you disagree:** (1) the profile avatar left that row — you named three
+elements and it was not one, it was non-pressable decoration costing the greeting ~2 pt of type (its now-dead `fetchMyProfile`
+per-focus fetch went with it); (2) `BrandLockup` was DELETED rather than left unused — owner home was its only consumer, and "remove
+the text logos" is poorly served by a file that still holds them; runner home's stale comment claiming the full lockup was the
+owner's was corrected in the same slice. ⚠ Note for readers, not a defect: that commit's MESSAGE has three identifiers eaten by
+shell backtick substitution; the tree is correct and the reasoning is in the file comments. It was deliberately not amended —
+force-pushing a trunk three live sessions are on to repair prose is the worse trade.
 
 ## 0-novodecies. 👀 TWO SMALL LOOKS FROM UI2'S OVERNIGHT PASS (2026-08-20 morning)
 

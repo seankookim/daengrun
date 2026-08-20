@@ -276,3 +276,21 @@ two false "stranded work" alarms on day one.
 - **A refusal must name a remedy the READER can perform (ui2 → announcer, 0115 `club_custody`):** the same server token covered a
   runner holding a dog (who can finish the handoff) and an owner whose dog is out (who cannot). One token, two audiences, and the
   honest sentence differs — so the token had to split, not the copy. When a gate covers two roles, check whether both can act on it.
+- **`upsert` NOT-NULL-checks the proposed tuple BEFORE conflict resolution (ui2, 2026-08-20, launch-path null-name bug):** an
+  `upsert({id, role})` meant to update an existing row died every time on the deliberately-omitted NOT NULL `name` — so the role
+  write silently never landed and the only symptom was an alert on one screen. Deliberately omitting a column is not the same as
+  not touching it. Fix by choosing the STATEMENT (`update` vs `insert`), not by shaping the payload — and note the failure was
+  invisible on the path its author tested (role-select → home) and visible only on the arm they did not (→ settings).
+- **A grep for a name that never existed returns 0 and looks like proof (announcer v3, 2026-08-20):** I checked whether a retired
+  component's file was gone by grepping the tree for `brand-lockup` — the file is `brandmark.tsx`, so the 0 was my own spelling, not
+  a measurement, and I wrote "the file is gone from the tree" into Sean's queue. It is not: it still exports `BrandMark` to three
+  live consumers. Caught by the session that did the work. **Before reading a 0 as absence, prove the query would have matched
+  something if the thing existed** — grep for the SYMBOL (which had zero hits, correctly) rather than a guessed filename, or list the
+  directory and read it. Same family as ui2's truncated-`head` negative, and the reason both are in this file: a false negative wears
+  the same confident tone as a true one.
+- **A grep HIT count is not a defect count (laughing-elgamal, 2026-08-20):** four hits for a retired identifier looked like four
+  stale references; two were load-bearing (a deliberate history note, and the announcer's own corrected record). Read every hit
+  before calling any of them stale — the mirror of the rule above: prove a 0 would have matched, and prove a hit is actually wrong.
+- **Unquoted `git commit -m "…"` lets the SHELL eat backticked identifiers (laughing-elgamal, measured):** `ede1b65`'s message lost
+  three identifiers to command substitution; the same content committed via `git commit -F -` with a quoted heredoc survived intact
+  (verified by grepping the committed message). Every session here writes identifier-dense messages — use the heredoc form.

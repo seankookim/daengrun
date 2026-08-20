@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
-import { BrandLockup } from '../../src/components/brandmark';
+import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { HomeHero } from '../../src/components/home-hero';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -68,9 +68,13 @@ function kstDayDiff(iso: string, now = Date.now()): number | null {
 
 // [2026-08-19 언핀] 상단 안전 영역. 이제 이 값은 ScrollView 의 첫 여백일 뿐이다 —
 // 구 핀 오버레이의 paddingTop이자 스크롤 예약분(PAD_TOP + headerH + heroH)의 한 항이었다.
+// ⚠ PAD_TOP stays 56 and is NOT part of "move everything up". It is the safe-area floor: the
+// ScrollView paints from y=0 under StatusBarCover (= insets.top, ~59 here, more on a Pro Max), so
+// the masthead's 30pt mark centred in a 48pt row starts at 56+9 = 65 — clear of the strip. Cutting
+// PAD_TOP is what would slide the mark back under the clock. The screen moves up because a whole
+// 44pt row left, not because the top pad shrank.
 const PAD_TOP = 56;
-const HEADER_LOCKUP = 52;  // brand lockup row (40 mark + breathing room)
-const HEADER_GREET = 44;   // greeting line
+const HEADER_MAST = 48;  // masthead row: 30 mark + greeting + bell, tighter than the old 52 lockup
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
@@ -182,7 +186,6 @@ export default function OwnerHome() {
     loadBookings();
     loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
-    fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
@@ -208,7 +211,9 @@ export default function OwnerHome() {
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
   // 보호자 pfp — 헤더 좌측 (마이 프로필 사진과 동일 소스)
-  const [me, setMe] = useState<MyProfile | null>(null);
+  // [2026-08-20] `me` 상태 제거 — 유일한 소비자가 마스트헤드의 pfp 아바타였고 그게 나갔다.
+  // 소비자 없는 fetch를 포커스마다 돌리는 건 조용한 낭비라 호출도 같이 뺐다. 아바타를 되살리려면
+  // fetchMyProfile + 상태를 함께 되살려야 한다.
   // 최근 순간 — 러너가 담아온 실사진 (runs.photos, 0장이면 섹션 숨김)
   const [moments, setMoments] = useState<Moment[]>([]);
   // 동네 랭킹 티커 — 주간 강아지 km TOP (실집계, 리더보드와 동일 소스). 빈 주엔 렌더 안 함
@@ -298,10 +303,35 @@ export default function OwnerHome() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: PAD_TOP, paddingBottom: 30 }}
       >
-          {/* [2026-08-10 Sean] 브랜드 락업 — 달리는 개 마크(좌) + 워드마크(우), 유틸은 그대로 우측. */}
+          {/* [2026-08-20 Sean] 마스트헤드 한 행 — 마크(좌) · 그리팅(가운데) · 벨(우).
+              워드마크 두 개(도그스하이 + DOGS HIGH)는 은퇴했다: 마크가 이미 하는 말을 글자로 다시
+              찍고 있었고, 그 자리를 그리팅에 내주는 편이 화면 위쪽을 실제로 쓴다. 러너 홈은 이미
+              마크만 쓰고 있었으므로(runner/home.tsx) 두 홈의 문법이 이제 같다.
+              부수 효과 하나가 법을 고친다: 락업 워드마크도 디스플레이 서체(df)였으므로 이 화면엔
+              Black Han Sans가 둘이었다 — 이제 그리팅 하나뿐이라 '화면당 1회'가 지켜진다. */}
           <View style={s.brandRow}>
-            <BrandLockup height={40} />
-            <View style={{ flex: 1 }} />
+            <BrandMark height={30} />
+            {/* 그리팅 — 34pt 전용 행에서 마스트헤드 안으로 들어왔다. 폭을 마크와 벨이 나눠 갖으므로
+                크기는 22pt에서 시작해 필요한 만큼만 줄어든다. minimumFontScale은 0.65 = 14.3pt로,
+                디테일 하한 14pt 아래로는 절대 내려가지 않게 잡은 값이다(구 0.55는 18.7pt까지 허용). */}
+            <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
+              <Animated.Text
+                style={[{
+                  fontSize: 22, fontWeight: '900', color: lilac.head,
+                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
+                  transform: [
+                    { perspective: 600 },
+                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
+                  ],
+                }, df]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.65}
+              >
+                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
+                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
+              </Animated.Text>
+            </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
             <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.bellBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
@@ -342,30 +372,6 @@ export default function OwnerHome() {
               </Animated.View>
             </Pressable>
           )}
-          {/* 그리팅 — 헤더의 마지막 요소라 티커가 있든 없든 히어로 바로 위에 앉는다. */}
-          <View style={s.headerRow}>
-            {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램 */}
-            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName ?? '나')[0]} bg={lilac.accent} size={34} />
-            <View style={{ flex: 1, marginLeft: 9 }}>
-              <Animated.Text
-                style={[{
-                  fontSize: 34, fontWeight: '900', color: lilac.head,
-                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
-                  transform: [
-                    { perspective: 600 },
-                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
-                  ],
-                }, df]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.55}
-              >
-                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
-                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
-              </Animated.Text>
-            </View>
-          </View>
-
         {/* ═══ 히어로 = 예약 상태의 함수 (Sean 2026-08-19, 랩 ⑧ v2, 판정 "A") ═══
             상태 판정은 위 goState 그대로 — 바뀐 건 그 상태로 무엇을 그리느냐뿐이다.
             [언핀] 흐름 자식이므로 실측 높이도, 이동 transform도 필요 없다. */}
@@ -642,9 +648,9 @@ const s = StyleSheet.create({
 
   // ── 헤더 (흐름 자식 — 핀 오버레이 은퇴 2026-08-19) ────────────────────────
   // 그리팅 줄 — 헤더의 마지막 요소라 히어로와 항상 맞닿는다
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_GREET, marginBottom: 4, paddingHorizontal: layout.gutter },
-  // [2026-08-10] 락업 행 — 높이 52 = HEADER_LOCKUP (마크 40 + 여유)
-  brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_LOCKUP, marginBottom: 6, paddingHorizontal: layout.gutter },
+  // [2026-08-20] 마스트헤드 행 — 높이 48 = HEADER_MAST (마크 30 + 여유). 구 락업 행(52) + 구
+  // 그리팅 행(44 + marginBottom 4)이 이 한 줄로 접혔다 → 아래 모든 것이 약 52pt 올라온다.
+  brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴

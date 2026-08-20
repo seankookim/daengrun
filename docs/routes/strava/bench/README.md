@@ -1,8 +1,12 @@
-# Route Bench (local) — real Naver map
+# Route Bench — the review surface
 
-The published artifact cannot show a Naver map: an Artifact runs under a CSP that
-blocks every external host, so the Naver SDK loads nothing at all. This local
-copy has no such restriction, so it draws the routes on genuine Naver tiles.
+**Local only.** There was briefly a published-artifact copy as well; it is gone
+(Sean, 2026-08-19: "remove artifact and only use local host"). Two surfaces meant
+two builds, two data paths and two places for a number to drift — and the
+artifact could never show a real map anyway, because an Artifact runs under a CSP
+that blocks every external host and the Naver SDK fails silently there.
+
+One surface, genuine Naver tiles, data straight from routes.json.
 
 ## Run it
 
@@ -13,13 +17,13 @@ copy has no such restriction, so it draws the routes on genuine Naver tiles.
 `config.js` is gitignored. Register `http://localhost:5178` in the Naver console's
 service-URL allowlist or the SDK will refuse to load with an auth error.
 
-## What it does that the artifact cannot
+## What it does
 
 - real Naver basemap, pan/zoom, satellite toggle
 - the route drawn as a polyline on actual streets
 - start/finish marker, direction arrows
 
-## What it shares with the artifact
+## Measurement
 
 Every measurement is recomputed in the browser from the trace — distance,
 climb, closure, and the share of the route you run twice. Nothing is read from a

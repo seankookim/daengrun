@@ -55,15 +55,21 @@ export default function RoleSelect() {
       .from('profiles').select('name, district').eq('id', auth.user.id).maybeSingle();
     if (readErr) { fail('프로필을 불러오지 못했어요', readErr.message); return; }
 
-    const { error } = await supabase.from('profiles').upsert(
-      existing
-        ? { id: auth.user.id, role }
-        // `||`, not `??`: login is Kakao-only and the email scope needs business verification, so
-        // GoTrue can hand back an EMPTY STRING rather than undefined. `''?.split('@')[0]` is `''`
-        // and `'' ?? x` is `''` — the fallback could never fire, and since `name` is now written
-        // only on INSERT it could never self-heal either. `||` catches both shapes.
-        : { id: auth.user.id, role, name: auth.user.email?.split('@')[0] || '사용자' },
-    );
+    // ⚠ UPDATE or INSERT — never `upsert` here. `upsert` is INSERT … ON CONFLICT DO UPDATE, and
+    // Postgres forms and NOT NULL-checks the proposed tuple BEFORE conflict resolution — so an
+    // existing-row payload of `{ id, role }` (correctly omitting `name`, which must not be
+    // rewritten) died on `profiles.name`'s NOT NULL every launch: 「프로필 저장 실패 — null value in
+    // column "name" … violates not-null constraint」. The constraint refused it, so nothing was
+    // corrupted — but the role write silently never landed. Measured on device 2026-08-20; this is
+    // the tail of the same fix that stopped `name` being clobbered, and the two must be solved by
+    // choosing the statement, not by shaping the payload.
+    const { error } = existing
+      ? await supabase.from('profiles').update({ role }).eq('id', auth.user.id)
+      // `||`, not `??`: login is Kakao-only and the email scope needs business verification, so
+      // GoTrue can hand back an EMPTY STRING rather than undefined. `''?.split('@')[0]` is `''`
+      // and `'' ?? x` is `''` — the fallback could never fire, and since `name` is written only on
+      // INSERT it could never self-heal either. `||` catches both shapes.
+      : await supabase.from('profiles').insert({ id: auth.user.id, role, name: auth.user.email?.split('@')[0] || '사용자' });
     if (error) { fail('프로필 저장 실패', error.message); return; }
 
     // 러너 선택 시 runners 행 + 기본 가용시간 확보 (0057 K-3: applicant 민팅)

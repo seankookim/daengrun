@@ -386,20 +386,28 @@ and a probe immediately after showed every name resolving fine.
 counts first. A daemon that dropped its page to the local `/welcome` tab looks identical to a dead
 session and is fixed by one `goto`.
 
-## 12. The review bench
+## 12. The review bench — local only
 
-`docs/routes/strava/bench/` — a dashboard for judging routes, in two surfaces that exist for one
-reason each:
+`docs/routes/strava/bench/` is where routes get judged.
 
-- **Published artifact**: embeds a compacted OSM street basemap (delta-encoded, ~30 KB/route from
-  736 KB raw) because an Artifact's CSP blocks **every** external host — the Naver SDK loads
-  nothing at all there, silently.
-- **Local page** (`python3 -m http.server 5178 --directory docs/routes/strava/bench`): the real
-  Naver map. Key lives in `config.js`, **gitignored**; register `http://localhost:5178` in the NCP
-  service-URL allowlist or you get a 401 that the SDK reports as a 500. Newer keys use `ncpKeyId`,
-  older ones `ncpClientId`.
+```bash
+python3 -m http.server 5178 --directory docs/routes/strava/bench   # then http://localhost:5178
+```
 
-Both carry accept / reject / comment per route, persisted to `localStorage`, with an **Export
-review** button producing `{name, routeId, verdict, comment}` JSON. That export is the input to the
-next fix round. Every number on both pages is recomputed in the browser from the trace — the page
-displays nothing it did not derive.
+Real Naver tiles, the route drawn on actual streets, accept / reject / comment per route persisted
+to `localStorage`, and an **Export review** button producing `{name, routeId, verdict, comment}`
+JSON. **That export is the input to the next fix round** — Sean judges, you act on the JSON.
+
+The Naver key lives in `config.js`, **gitignored**; `config.example.js` has the setup. Register
+`http://localhost:5178` in the NCP service-URL allowlist or the SDK returns a 401 that it reports
+on screen as a 500. Newer keys use `ncpKeyId`, older ones `ncpClientId`.
+
+**There was briefly a second, published-artifact copy. It is gone** (Sean, 2026-08-19: *"remove
+artifact and only use local host"*). Worth knowing why, because the pull toward a shareable copy is
+real: an Artifact runs under a CSP that blocks **every** external host, so the Naver SDK loads
+nothing there and fails *silently* — the artifact needed its own embedded OSM basemap, its own
+inlined data, and its own build. Two surfaces meant two builds, two data paths, and two places for
+a number to drift out of agreement. One surface, one truth.
+
+Every figure on the page is recomputed in the browser from the trace. The page displays nothing it
+did not derive.
