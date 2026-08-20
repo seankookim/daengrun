@@ -295,6 +295,32 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-sexvicies. 🟠 THE DEAD BRAND AND A BANNED WORD ARE WIRED TO CARD STATEMENTS — fix before charging flips (2026-08-20)
+
+Found by the brand round, **verified by the announcer**: `supabase/functions/_shared/charge.ts:117-118` sets the PG `orderName` to
+「**댕런** 산책 이용료」 and 「**댕런** 예약 취소 수수료」. Two problems in five words — `댕런` was retired 2026-07-28, and 「산책」 is on
+`docs/positioning.md:44`'s banned list (안 쓰는 말: 산책, 대행, 돌봄, 시터; the category thesis is 러닝). This is the single
+highest-visibility copy the brand owns: it prints on a real person's card statement.
+
+⚠ **Correction to the urgency, measured:** production has `payments = 0`, `billing_keys = 0`, `payments_live_since = null` — **nothing
+has ever been charged, so no statement has ever printed it.** It is not bleeding now; it becomes real the moment charging flips, and
+that is the deadline. Pinned by `_test/settle_charge_test.ts:311` and `_test/cancel_fee_test.ts:263`, so the pins move in the same
+slice. Proposed: 「도그스하이 러닝 이용료」 / 「도그스하이 예약 취소 수수료」. **A** approve that wording and I run it under the money-path
+gates (/autoplan + reviewer ≠ author, 0059 doctrine — it is copy, but it is copy on the charge path) · **B** different wording, say it
+and I run the same slice · **C** hold until a server-domain session exists. Sibling, CLIENT-domain and already claimable by the live
+client session: `app/app/runner/apply.tsx:655` has a runner consenting to safety terms as a 「**댕런** 러너」 — a legally-flavoured
+consent naming a company that no longer goes by that name.
+
+## 0-quinvicies. 🟡 ONE-WORD DOMAIN QUESTION — may the client session touch `supabase/` for ONE slice? (2026-08-20)
+
+The deep-link slice (§0-unvicies) has two halves in two domains: the client half (`api.ts` keeping the extra field) and the SERVER
+half (`HttpError` gains `detail`; `supabase/functions/_shared/ctx.ts:48` spreads it; the RPC carries a Postgres errdetail).
+Both are unowned now that ui2 has ended. The live client session will take the client half and **declined the server half on its own
+initiative** — its brief says client domain, never `supabase/`, and it would not let an announcer's routing widen that. Correct, and
+noted as correct: `_shared/ctx.ts` is the error contract of **24** edge functions. **A** widen that session's domain for this one
+slice (one sentence from you in its session does it; it still gets its own reviewer) · **B** it waits for a server-domain session
+to come online. Nothing is blocked either way — the slice is a signpost-becomes-a-door upgrade, not on any critical path.
+
 ## 0-unvicies. 📋 QUEUED SLICE (nobody on it): refusals should carry an id, not just a token
 
 Found by ui2 while wiring the account-deletion refusals: a 409 that says `club_custody_owner` tells the owner their dog is out but
@@ -309,7 +335,7 @@ reviewer. Not on any critical path — a signpost becomes a door.
 ⚠ **Carry this into the slice's brief so it is not rediscovered (ui2):** the id cannot ride the MESSAGE (the client matches on the
 bare token) and cannot ride a new top-level key TODAY (`ctx.ts:48`'s single-key literal). Both halves must move in the same slice or
 the field silently does not exist — the failure that looks like "the server sent it and the client ignored it". ui2 owns the
-`fnError` half and wants it in the same round, not after it.
+`fnError` half — ⚠ that session has ENDED (2026-08-20) and the half is UNOWNED; its work is all on trunk through `93ca631`, nothing stranded (verified). Whoever takes the slice takes BOTH halves, or Sean names an owner.
 
 ## 0-vicies. 🟡 ONE-LINE LOOKUPS FROM UI2 (2026-08-20 morning)
 
@@ -318,12 +344,26 @@ the field silently does not exist — the failure that looks like "the server se
 2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
    Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
 
-## 0-quatervicies. 👀 THE MASTHEAD IS IN — one spacing call left, and two reversible judgement calls (2026-08-20)
+## 0-quatervicies. ✅ CLOSED — masthead spacing needs nothing from you (2026-08-20)
+
+**Closed on measurement, not opinion.** The owning session pixel-scanned the CURRENT (`472c1b0`) owner-home frame — ink-band detection
+on the raw 3x screenshot — and the gap between the centred wordmark and the alert line is **28 pt**, not the ~46–50 pt that made the
+question worth asking: retiring the greeting took its own breathing plus one margin out of the sum. 28 pt between a masthead and the
+first content band is ordinary breathing room. Second reason to close rather than re-queue: your brand-identity round will re-propose
+the header treatment wholesale, so a standalone 20 pt decision now would be measured against a layout that may not survive the week.
+If the brand round leaves the header untouched, that session re-raises it against whatever is true then. **The two judgement calls
+stand** (profile avatar out of the row; `BrandLockup` retired) — the newer change restored neither. Original record follows.
+
+⚠ **The state described below is `ede1b65` and Sean has since revised the header AGAIN — `472c1b0` retires the rotating greeting
+entirely and centres the logo (mark + 도그스하이) on BOTH homes.** So the ~46 pt spacing A/B below was measured against a layout that
+no longer exists; the announcer has asked the owning session whether the question survives the rebuild before Sean spends attention
+on it. The two judgement calls (avatar out, `BrandLockup` retired) still stand — they were about elements the newer change did not
+restore. Everything from here is the ede1b65 record, kept because its reasoning is still the reasoning.
 
 Your header change is on trunk (`ede1b65`): one row now — BrandMark(30) · rotating greeting(flex) · bell(40); both wordmarks gone;
 everything below moved up ~52 pt (measured on the simulator, not estimated); greeting 22 pt with minimumFontScale 0.65 so it can
 never cross the 14 pt floor. ⚠ CORRECTED (the announcer got this wrong first): `BrandLockup` — the FUNCTION — is retired and has zero live references; the FILE `app/src/components/brandmark.tsx` is very much still on trunk and must be, because it exports `BrandMark`, which has three live consumers (`owner/home.tsx`, `runner/home.tsx`, `paper-btn.tsx`). The announcer's first check grepped for a filename that never existed (`brand-lockup`) and read the 0 as "file deleted" — a wrong measurement described confidently; caught by the session that did the work. Otherwise verified: `StatusBarCover` is still mounted last,
-no absolute header was reintroduced, and Black Han Sans is now used ONCE on that screen (the lockup wordmark had been a second use —
+no absolute header was reintroduced. ⚠ **The announcer ALSO wrote that Black Han Sans is now used ONCE on that screen. That is FALSE** — the check counted `useDisplayFont` in `owner/home.tsx` the FILE, but a screen is a render TREE: `home-hero.tsx` calls the hook itself and applies it at :92, :169, :177 and :188, so owner home renders FOUR display-font uses and §3's "once per screen" law is violated 4× on the brand's primary screen. The masthead commits' real fix stands — deleting the lockup's second wordmark took the screen from five to four, not two to one. Found by the brand round's archaeology agent, verified by the announcer against the files. (Superseded text: the lockup wordmark had been a second use —
 a design-law violation fixed as a side effect).
 
 **The one call left is yours: ~46 pt still sits between the masthead and the alert line.** It is not a defect anyone introduced — it

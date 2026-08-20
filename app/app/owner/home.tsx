@@ -76,12 +76,6 @@ function kstDayDiff(iso: string, now = Date.now()): number | null {
 const PAD_TOP = 56;
 const HEADER_MAST = 48;  // masthead row: 30 mark + greeting + bell, tighter than the old 52 lockup
 
-// 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
-const GREETINGS = [
-  '오늘도 달린다', '오늘도 젊어진다', '오늘도 건강이다', '오늘도 뜨겁게', '오늘도 화이팅',
-  '남들과는 다른', '가볍게 화이팅', '산책은 기본인', '이 정도면 선수다', '준비는 끝났다',
-] as const;
-
 // ── 덩어리 킥커 — 오늘 / 동네 / 나 ────────────────────────────────────────────
 // 여백 + 작은 한글 라벨 하나가 덩어리의 경계다. 카드도 룰도 쓰지 않는다.
 // 라틴 킥커는 앱 전역에서 은퇴했으므로(2026-08-11) 대문자 로마자는 쓰지 않는다.
@@ -117,20 +111,9 @@ export default function OwnerHome() {
   // 모션이 유일한 채널인 곳이 아니다.
   const reduceMotion = useReducedMotion();
 
-  // 로테이팅 그리팅 — 5초마다 수직 플립 (접힘 → 문구 교체 → 펼침)
-  const [gIdx, setGIdx] = useState(0);
-  const gFlip = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (reduceMotion) { gFlip.setValue(0); return; } // 첫 문구에 정지 — 회전도 순환도 없다
-    const id = setInterval(() => {
-      Animated.timing(gFlip, { toValue: 1, duration: 240, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() => {
-        setGIdx((i) => (i + 1) % GREETINGS.length);
-        Animated.timing(gFlip, { toValue: 0, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-      });
-    }, 5000);
-    return () => clearInterval(id);
-  }, [gFlip, reduceMotion]);
-
+  // [2026-08-20 Sean] 로테이팅 그리팅 은퇴 — 마스트헤드가 가운데 정렬 로고(마크 + 도그스하이)가
+  // 되면서 그리팅이 앉을 자리가 없어졌다. 문구 배열·gIdx·gFlip·5초 인터벌이 전부 함께 나간다:
+  // 소비자 없는 인터벌은 5초마다 아무것도 아닌 것을 애니메이트한다. 되살리려면 이 커밋의 부모.
   // 체력 — [정직 배치 2026-08-06 · item 5] 세 상태를 절대 뭉개지 않는다:
   //   로딩(fit=null, fitErr=false) = 아무것도 안 그린다 (0% 주장 금지)
   //   실패(fitErr) = '나' 덩어리의 그 자리에 라우드 페일 스트립 + 재시도 (0주차로 위장 금지)
@@ -298,7 +281,8 @@ export default function OwnerHome() {
           실측으로도 나빴다: 히어로가 화면의 ~40%를 붙잡고 모듈이 그 아래로 흘러 들어갔다.
           함께 은퇴: s.overlay · 배경판(bgSlide/bgScale) · headerSlide/headerOpacity/heroSlide ·
           scrollY/t/SCROLL_RANGE/HEADER_T_END · heroH 실측 · headerHFor 예산.
-          남은 애니메이션은 **콘텐츠**뿐이다: 그리팅 플립(gFlip)과 랭킹 티커 마퀴(tickerX). */}
+          남은 애니메이션은 **콘텐츠**뿐이다: 랭킹 티커 마퀴(tickerX). (그리팅 플립은 2026-08-20
+          그리팅과 함께 은퇴 — 마스트헤드가 가운데 로고가 되면서 문구 자리가 사라졌다.) */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: PAD_TOP, paddingBottom: 30 }}
@@ -310,27 +294,18 @@ export default function OwnerHome() {
               부수 효과 하나가 법을 고친다: 락업 워드마크도 디스플레이 서체(df)였으므로 이 화면엔
               Black Han Sans가 둘이었다 — 이제 그리팅 하나뿐이라 '화면당 1회'가 지켜진다. */}
           <View style={s.brandRow}>
-            <BrandMark height={30} />
-            {/* 그리팅 — 34pt 전용 행에서 마스트헤드 안으로 들어왔다. 폭을 마크와 벨이 나눠 갖으므로
-                크기는 22pt에서 시작해 필요한 만큼만 줄어든다. minimumFontScale은 0.65 = 14.3pt로,
-                디테일 하한 14pt 아래로는 절대 내려가지 않게 잡은 값이다(구 0.55는 18.7pt까지 허용). */}
-            <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
-              <Animated.Text
-                style={[{
-                  fontSize: 22, fontWeight: '900', color: lilac.head,
-                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
-                  transform: [
-                    { perspective: 600 },
-                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
-                  ],
-                }, df]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.65}
-              >
-                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
-                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
-              </Animated.Text>
+            {/* 가운데 로고 = 마크 + 한글 워드마크. 좌 스페이서(40) · 로고(flex 1) · 벨(40)의 대칭
+                3열이라 로고가 화면 정중앙에 온다. 벨을 absolute로 빼는 방법도 되지만 흐름에서
+                빠지면 행 높이가 콘텐츠로 주저앉는다 — 러너 홈에서 그렇게 해 봤다가 로고가 다이내믹
+                아일랜드 위로 올라탔다(이 행은 height 고정이라 안 그랬을 뿐). 두 홈 다 스페이서로 간다. */}
+            <View style={s.mastSpacer} />
+            <View style={s.mastLogo}>
+              <BrandMark height={28} />
+              {/* 워드마크는 DESIGN.md §3의 '화면당 1회' 예산을 쓰는 그 한 번이다 — 법이 명시적으로
+                  'hero copy OR wordmark'라고 적어 둔 자리. 그리팅이 비운 슬롯을 그대로 물려받는다.
+                  20pt이므로 14pt 하한 위 — §3의 로고 아트워크 예외(하한 미만 허용)는 쓰지 않는다.
+                  따라서 장식으로 숨기지 않는다: 스크린 리더가 브랜드를 한 번 읽는 게 맞다. */}
+              <Text style={[s.wordmark, df]}>도그스하이</Text>
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
@@ -651,6 +626,10 @@ const s = StyleSheet.create({
   // [2026-08-20] 마스트헤드 행 — 높이 48 = HEADER_MAST (마크 30 + 여유). 구 락업 행(52) + 구
   // 그리팅 행(44 + marginBottom 4)이 이 한 줄로 접혔다 → 아래 모든 것이 약 52pt 올라온다.
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
+  mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
+  mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
+  wordmark: { fontSize: 20, lineHeight: 26, color: lilac.head, letterSpacing: 0.2 },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴

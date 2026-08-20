@@ -347,9 +347,22 @@ export default function RunnerHome() {
            브랜드 마크가 하는 말은 "도그스하이"다. 다른 주장이므로 중복 인쇄가 아니다.
            그래서 **마크만** 온다(워드마크 없음): 브랜드 정체성은
            크롬이 한 번, 러너 정체성은 빕이 한 번. 한 화면 한 번 법은 그대로 산다. */}
+      {/* [2026-08-20 Sean] 보호자 홈과 같은 로고를 러너에도 — 마크 + 한글 워드마크, 가운데 정렬.
+          벨은 absolute로 빠져야 로고가 남은 폭이 아니라 화면의 실제 가운데에 앉는다.
+          ⚠ 디스플레이 서체(df)가 이 화면에서 두 번째로 쓰인다: 여기 워드마크와 빕 스트랩의
+          러너 이름(styles.strapName, :1100의 주석이 '화면당 1회 예산'이라고 못박아 둔 그 한 번).
+          DESIGN.md §3 예산은 화면당 1회이므로 이건 초과다 — 로고 예외(§3 :112)는 14pt 하한에
+          관한 것이지 이 예산에 관한 것이 아니다. Sean의 "같은 로고를 러너에도"가 명시적 지시라
+          그대로 넣되, 둘 중 무엇이 df를 양보할지는 그의 판단으로 남긴다. 조용히 고르지 않는다. */}
       <View style={styles.top}>
-        <BrandMark height={24} />
-        <View style={{ flex: 1 }} />
+        {/* 좌측 스페이서 = 벨 폭. 벨을 absolute로 빼면 행에서 빠져 높이가 콘텐츠(24pt 마크)로
+            주저앉고, 로고가 다이내믹 아일랜드 위로 올라탄다 — 시뮬레이터에서 실제로 그렇게 됐다.
+            대칭 스페이서는 벨을 흐름에 남겨 40pt 행 높이를 지키면서 로고를 화면 정중앙에 놓는다. */}
+        <View style={styles.topSpacer} />
+        <View style={styles.topLogo}>
+          <BrandMark height={24} />
+          <Text style={[styles.wordmark, df]}>도그스하이</Text>
+        </View>
         <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
           {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호다 */}
           {unread > 0 && <View style={styles.bellDot} />}
@@ -1048,10 +1061,16 @@ const styles = StyleSheet.create({
     // [2026-08-11] justifyContent 'flex-end' 은퇴 — 좌측에 브랜드 마크가 왔고 간격은 flex 스페이서가 잡는다.
     // paddingHorizontal 12 → layout.gutter(15): 벨의 우측 엣지가 스크롤 콘텐츠 우측 엣지와 3px
     // 어긋나 있었다. 크롬과 본문은 같은 거터를 쓴다.
+    // [2026-08-20] 가운데 로고 — 좌 스페이서(40) · 로고(flex 1, 가운데) · 벨(40)의 대칭 3열.
+    // 거터는 그대로 두 끝에 남고, 양쪽 40이 같으므로 로고는 화면 정중앙에 온다.
     flexDirection: 'row', alignItems: 'center',
     paddingTop: 48, paddingBottom: 9, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
+  topSpacer: { width: 40 },
+  topLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  // 17pt — 14pt 하한 위이므로 §3 로고 예외를 타지 않는다. 보조기술에도 숨기지 않는다.
+  wordmark: { fontSize: 17, lineHeight: 22, color: paper.ink, letterSpacing: 0.2 },
   // [§3b 아이콘 컨트롤 2026-08-11] '아이콘 온리 컨트롤 = 40×40 정사각 · 캔버스 · 코랄 1px'은
   // 바인딩 스펙인데 이 벨만 26×26 + 뉴트럴 #EEE 보더로 남아 있었다 (스펙 제정 이전의 잔재).
   // 44pt 타깃 법(§7b Fitts)에도 26은 미달 — 규격으로 되돌린다. 글리프도 16 → 20.
