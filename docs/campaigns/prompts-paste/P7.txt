@@ -49,7 +49,8 @@ pretty, no head tilt, no begging, no tongue-out cuteness pose; no GPS lines, no
 map overlays, no route graphics, no app screens, no data readouts, no numbers;
 no stock-photo smiling, no pointing at camera; no crowds of onlookers.
 
---ar 4:5 --style raw --stylize 150 --sref <LOCKED_STYLE_REF> --cref <LOCKED_DOG_REF>
+--ar 4:5 --style raw --stylize 150 --sref SREF-01 --cref <LOCKED_DOG_REF>
+# SREF-01 = dumb/ChatGPT Image Aug 4, 2026, 01_08_30 PM (1).png  (generation-prompts.md §2.6)
 
 # Type is set in post in real Black Han Sans — never generated except via GPT-4o,
 # and never for numbers. The violet route trace is vector, plotted from a real GPX

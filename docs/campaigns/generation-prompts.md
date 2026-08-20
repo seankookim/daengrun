@@ -136,8 +136,33 @@ generator inventing them is the exact failure the gate bans.
 | **Imagen** | clean daylight, wide landscape, crowd/lineup geometry | Prompt in plain descriptive prose; it resists dense comma-stacking |
 | **Flux** | macro texture — paw pads, leash fibre, wet asphalt | Photoreal by default; keep the prompt short and physical |
 
+### 2.6 SREF-01 — the locked style anchor
+
 Locking `--sref` to one reference across the whole campaign is what buys the one-photographer rule.
-Pick it once, write the ID into this file, never change it mid-season.
+Decided here rather than deferred, because every prompt in §3 is unusable without it and the choice is
+reversible in one line.
+
+```
+SREF-01 = dumb/ChatGPT Image Aug 4, 2026, 01_08_30 PM (1).png
+```
+
+Why this frame and not a hero: it is the DNA with nothing else going on. Night flash, wet asphalt
+behaving like a mirror, background fallen to near-black, one volt accent worn by the dog and nothing
+else saturated, a Korean runner in plain black, a Jindo-type dog in genuine extension, and correct
+canicross geometry — waist belt, bungee line under real load. No type, no logo, no wordmark, nothing
+for the reference to transfer except light, grade and texture. A hero frame would have dragged its
+composition into every generation.
+
+**Do not change it mid-season.** If it must change, that is a new season with a new ID, not a re-light.
+
+⚠ **Two notes on this file.** It carries a faint mark at the sock, so it is a *reference* only and
+never publishes — and because `--sref` transfers style, the global negative's `no swoosh or any
+sportswear logo` line is load-bearing rather than decorative when this ref is attached.
+
+⚠ **And the finding that produced this pick, because it generalises:** the first anchor I chose looked
+clean at contact-sheet size and, at full resolution, had a swoosh on the shoe and a mark on the sock.
+**Logo contamination in this asset set is invisible at thumbnail scale.** Inspect at 100% before you
+trust any file — including one you only intend to use as a reference.
 
 ---
 

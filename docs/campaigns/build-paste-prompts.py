@@ -40,7 +40,8 @@ for sec in sections:
             txt.append(f"# ROLE: {r1} | IDEA: {r2}")
         if gate: txt.append(f"# GATE: {re.sub(r'[*`]', '', gate.group(1)).strip()}")
         txt += ["", body.strip(), "", DNA, "", ACC, "", NEG, "",
-                "--ar 4:5 --style raw --stylize 150 --sref <LOCKED_STYLE_REF> --cref <LOCKED_DOG_REF>",
+                "--ar 4:5 --style raw --stylize 150 --sref SREF-01 --cref <LOCKED_DOG_REF>",
+                "# SREF-01 = dumb/ChatGPT Image Aug 4, 2026, 01_08_30 PM (1).png  (generation-prompts.md \u00a72.6)",
                 "",
                 "# Type is set in post in real Black Han Sans — never generated except via GPT-4o,",
                 "# and never for numbers. The violet route trace is vector, plotted from a real GPX",

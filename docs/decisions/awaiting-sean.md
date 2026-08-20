@@ -100,6 +100,47 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
+## 0-tredecies. 🟡 CAMPAIGNS ARE BUILT AND LANDED — four small calls, and one of them is permanent (marketing, 2026-08-20 night)
+
+Three campaigns (App Store 사전주문 · TikTok 슬라이드쇼 · Instagram), 49 rendered post files, a
+generation prompt library, and the `dogshigh.kr` landing copy are on trunk. **Nothing here blocks
+publishing except (C), which is irreversible.** Everything else is a preference I have defaulted and
+labelled so it can be flipped in one line.
+
+**Already ruled by you tonight, in your words:** *"color of gps is fine."* **[end of your words]** The
+violet route trace is the campaign's repeating signature. I extended that into a rule you did not ask
+for and should know about: **the trace is now vector-only, plotted from a real GPX, and any pace/km
+readout beside it comes from that same file.** A drawn line with an invented `8:34/km` next to it is a
+fabricated data display and walks straight into our own ban on generated GPS trails; plotted from one
+of your actual runs, it is proof instead. Cost: a frame with no GPX gets no trace and no number.
+
+| | Question | Default I took | Reversible? |
+|---|---|---|---|
+| **A** | Install Black Han Sans and re-render all 49 posts, or ship with the stand-in? | Shipped with Apple SD Gothic Neo Bold as a labelled stand-in. I did not download the font — that is yours. Re-render is one command. | yes |
+| **B** | Who retouches the swooshes? | I routed around them: the manifesto tile is *built*, not cropped from `REMOVE NIKE.png`. Two `dumb/` files still used in TikTok TS-2 need a pass. | yes |
+| **C** | **Bundle ID `com.seankookim.daengrun` carries the dead name and is IMMUTABLE after the first upload.** Migrate before the first build, or keep it forever? | none taken — this one is genuinely permanent and I will not default it | **NO** |
+| **D** | The English line set on the assets (CHASE THAT HIGH · TWO HEARTS. ONE PACE. · A TIRED DOG IS A HAPPY DOG.) — canon, or this season only? | treated as this season's campaign layer; the Korean taglines stay the permanent layer | yes |
+
+**Decided under the overnight grant, one line each, all reversible:** the locked style anchor is
+`SREF-01` (§2.6 of the prompt library) · posts are fitted inside the centre square of their 4:5 frame
+so the grid composition survives any crop ratio · the landing page keeps exactly two buttons and no
+testimonial section, not even an empty one.
+
+**One finding worth more than the four questions:** logo contamination in the asset set is **invisible
+at thumbnail scale.** The first style anchor I picked looked clean on a contact sheet and had a swoosh
+on the shoe at 100%. Inspect at full resolution before trusting any file in `~/Desktop/post`.
+
+**What the campaigns will not say, and why** — 바디캠 (no pipeline), 신원인증 (`identity_verified` is
+hardcoded false), any pass-rate figure (1기 has not run), any release date (not ours to promise), and
+no App Store screenshots at all (they must come from the real app; no build has ever run). None of
+these are faked anywhere in the set.
+
+Files: `docs/campaigns/` (5 docs + 29 paste-ready prompt blocks) · `docs/labs/posts/` (49 files) ·
+`docs/labs/preorder-posts.html` and `preorder-campaign-board.html` (open these to look) ·
+`.claude/brand-voice-guidelines.md`.
+
+---
+
 ## 0. 🔴 SIGNUP — narrowed 2026-08-15, half closed by execution, half still needs one human
 
 **UPDATE (audit, 2026-08-15):** the DATABASE half is closed — trust probed the exact grant chain
