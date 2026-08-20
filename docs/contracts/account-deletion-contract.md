@@ -12,6 +12,12 @@
 >   `unpaid_payout` remains a token but is **knowingly inert**: nothing writes `payouts` (queue §0-duodecies).
 > - **Live verification is §E.4, not §E.8** — there is no §E.8 in this contract (the announcer briefed the
 >   probe with the wrong section id, copied from the other two contracts; the probe caught it).
+> - ⚠ CLIENT-SIDE, found on device 2026-08-20 (verification session, evidence in `docs/labs/`): the O-7 KEEP line is
+>   NONDETERMINISTIC — three consecutive sheet opens gave present → absent (40+ s) → present, because a silent `.catch`
+>   on the ledger fetch turns a transient failure into a SILENTLY MISSING retention disclosure. And the predicates
+>   diverge: the server keeps the bank row on the EXISTENCE of `ledger_items`, the client shows the line on `sum > 0`,
+>   so a net-zero ledger keeps the row with nothing disclosed. Fix direction (ui2 owns): key the pre-call line on
+>   EXISTENCE to match the server, and on fetch failure **fail toward disclosure** — show the line rather than omit it.
 > - Verified on production 2026-08-20, 38/38 assertions, five throwaway accounts created and removed, zero
 >   collateral: 409 `{"error":"active_booking"}` (one key, bare token) · 400 `confirm_required` · a body-supplied
 >   uid IGNORED (the caller was tombstoned, the named victim byte-identical) · happy path tombstone with the

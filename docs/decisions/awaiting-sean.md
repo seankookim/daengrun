@@ -280,6 +280,10 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-tervicies. 🔴 SOMETHING ON THE LAUNCH PATH WRITES A PROFILE WITH A NULL NAME (device, 2026-08-20)
+
+Found on a real cold launch by the verification session: **cold launch → role select → settings** raised 「프로필 저장 실패 — null value in column "name"」. The NOT NULL constraint refused it, so **no data changed** — but something on the launch/role-select path is attempting a `profiles` write with a null `name`. This is the SIGNUP path, which is §0 at the head of this queue and the one thing nobody has been able to test end to end. Client surface (ui2 notified, task chip queued); worth pairing with §0 when you do the five-minute signup run — if the role picker is the writer, this is a piece of why signup has never been verified.
+
 ## 0-duovicies. 🔴 NOTHING PAYS RUNNERS — no payout mechanism exists at all (measured 2026-08-20)
 
 Surfaced by the 0115 review and confirmed by the announcer: `ledger_items` (0001:264-275) records what a runner EARNED and has **no
