@@ -26,6 +26,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isUsableGreen } from './green-filter.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const N = Number(process.argv[2] || 6);
@@ -47,8 +48,9 @@ const feats = JSON.parse(readFileSync(join(DIR, 'features.json'), 'utf8')).featu
 // NOTE: the field is `category`, not `kind`. An ad-hoc check that filtered on
 // `kind` matched ZERO of 18,210 features and reported every route as a road run.
 // A filter that matches nothing looks exactly like a finding.
-const greens = feats.filter((f) => f.lat && ['stream', 'river', 'lake', 'park', 'forest'].includes(f.category)
-  && !/어린이공원|놀이터/.test(f.name || ''));
+// SAME predicate the ranker uses. secondGreen() draws from this pool, and when it
+// drew from a laxer one the names the ranker had just rejected came back via B.
+const greens = feats.filter(isUsableGreen);
 if (!greens.length) { console.error('0 green features parsed — refusing (check the category field)'); process.exit(1); }
 
 const gaps = spawnSync(process.execPath, [join(DIR, 'coverage-gaps.mjs'), String(N)], { encoding: 'utf8' });

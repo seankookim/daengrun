@@ -88,10 +88,8 @@ name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surf
 중랑 봉현마을 신내 루프 1.91km|naver:164jvfe|1.91|1.91|||145|UNKNOWN — Naver supplies no surface split|9.9|LOOP|127.08796,37.59955|127.08650,37.60120; 127.09050,37.60250; 127.09150,37.59980; 127.08796,37.59955
 중랑 봉현마을마당 루프 2.46km|naver:17jigmi|2.46|2.46|||162|UNKNOWN — Naver supplies no surface split|7.8|LOOP|127.08796,37.59955|127.08796000000001,37.601798304014785; 127.0903721871195,37.60231035489854; 127.08854754956195,37.597812642613086; 127.08796,37.59955
 강남 양재대로 생활권 루프 4.27km|naver:1kuxyqj|4.27|4.27|||223|UNKNOWN — Naver supplies no surface split|90.7|OUT-AND-BACK|127.06728,37.48360|127.06450,37.48560; 127.07050,37.48620; 127.07100,37.48280; 127.06728,37.48360
-강서 공항대로36가길 루프 2.85km|naver:12g37d8|2.85|2.85|||131|UNKNOWN — Naver supplies no surface split|17.9|LOOP|126.83231,37.55266|126.83282,37.55394; 126.83747209072217,37.554755508117495; 126.83251532244708,37.54888635857129; 126.83231,37.55266
 강북 SK북한산시티 중앙광장 루프 1.99km|naver:1ctdt83|1.99|1.99|||116|UNKNOWN — Naver supplies no surface split|68.3|OUT-AND-BACK|127.01163,37.61825|127.01275,37.61829; 127.01388353562743,37.616131028352605; 127.00875999181285,37.616797096041374; 127.01163,37.61825
 양천 신트리공원 루프 2.38km|naver:1buv00l|2.38|2.38|||181|UNKNOWN — Naver supplies no surface split|88|OUT-AND-BACK|126.85445,37.51401|126.8565,37.51464; 126.85844086318497,37.5128800942733; 126.85231778775005,37.51190797606062; 126.85445,37.51401
-송파 폭포 루프 1.9km|naver:18b4r9t|1.90|1.90|||129|UNKNOWN — Naver supplies no surface split|62.9|OUT-AND-BACK|127.14187,37.48328|127.14318,37.48362; 127.14499861780699,37.48178024641316; 127.13959999103882,37.48127147700496; 127.14187,37.48328
 서대문 중앙근린공원 루프 4.48km|naver:jk710|4.47|4.48|||258|UNKNOWN — Naver supplies no surface split|45|LOLLIPOP|126.90827,37.57281|126.91326,37.57492; 126.91545523777437,37.57335788416104; 126.90647032873275,37.57051993745647; 126.90827,37.57281
 중랑 신내어울공원 루프 1.59km|naver:d2sir8|1.59|1.59|||125|UNKNOWN — Naver supplies no surface split|57.8|LOLLIPOP|127.10029,37.61303|127.09903,37.61391; 127.10010717179891,37.61608699237687; 127.10362863009485,37.61249658396484; 127.10029,37.61303
 노원 한글비근린공원·등나무근린공원 루프 2.13km|naver:1eknhdt|2.13|2.13|||135|UNKNOWN — Naver supplies no surface split|78.6|OUT-AND-BACK|127.07063,37.64387|127.07432,37.6448; 127.067216,37.640151; 127.07063,37.64387
@@ -101,7 +99,6 @@ name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surf
 영등포 꽃담소공원·양화한강공원 루프 3.24km|naver:1g9vykz|3.24|3.24|||202|UNKNOWN — Naver supplies no surface split|92.4|OUT-AND-BACK|126.90108,37.53191|126.90021,37.53123; 126.899097,37.540754; 126.90108,37.53191
 광진 한강 자전거길 진입·구의공원 루프 4.77km|naver:ckpswi|4.76|4.77|||263|UNKNOWN — Naver supplies no surface split|93|OUT-AND-BACK|127.09661,37.54182|127.10846,37.54547; 127.094556,37.536946; 127.09661,37.54182
 중랑 소망공원·서울장미공원 루프 2.54km|naver:11qdxot|2.54|2.54|||181|UNKNOWN — Naver supplies no surface split|59.7|LOLLIPOP|127.0818,37.61246|127.0749,37.61113; 127.075556,37.616778; 127.0818,37.61246
-관악 흐리목소공원·국사봉배수지공원 루프 3.5km|naver:1o0qxh2|3.49|3.50|||250|UNKNOWN — Naver supplies no surface split|94|OUT-AND-BACK|126.94966,37.49169|126.95294,37.49447; 126.944688,37.492652; 126.94966,37.49169
 송파 새내근린공원·온조마루근린공원 루프 1.52km|naver:okp50x|1.52|1.52|||104|UNKNOWN — Naver supplies no surface split|29.7|LOLLIPOP|127.10625,37.52055|127.10421,37.52095; 127.110052,37.519901; 127.10625,37.52055
 강동 까치근린공원·암사근린공원 루프 2.31km|naver:6zlnb3|2.31|2.31|||136|UNKNOWN — Naver supplies no surface split|28|LOLLIPOP|127.14421,37.5538|127.14971,37.55699; 127.141729,37.556452; 127.14421,37.5538
 마포 부엉이근린공원·향동천 루프 2.73km|naver:1ulztle|2.73|2.73|||102|UNKNOWN — Naver supplies no surface split|90|OUT-AND-BACK|126.88127,37.58428|126.88349,37.58536; 126.883431,37.591766; 126.88127,37.58428
@@ -110,3 +107,28 @@ name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surf
 서초 형촌천·서초문화예술공원 루프 3.65km|naver:1athgse|3.65|3.65|||195|UNKNOWN — Naver supplies no surface split|87.2|OUT-AND-BACK|127.02594,37.46237|127.02247,37.46143; 127.031109,37.468272; 127.02594,37.46237
 성동 남산자락숲길·금옥공원 루프 1.79km|naver:kf15hv|1.79|1.79|||172|UNKNOWN — Naver supplies no surface split|84.3|OUT-AND-BACK|127.01682,37.5533|127.01533,37.55206; 127.021248,37.553388; 127.01682,37.5533
 송파 장지공원·연화 근린공원 루프 2.1km|naver:1ii0wq|2.10|2.10|||140|UNKNOWN — Naver supplies no surface split|88.8|OUT-AND-BACK|127.13403,37.48609|127.13539,37.48695; 127.128877,37.485173; 127.13403,37.48609
+금천 시흥계곡복합환경생태·시흥천 루프 1.84km|naver:1mrk24i|1.84|1.84|||129|UNKNOWN — Naver supplies no surface split|77.8|OUT-AND-BACK|126.91365,37.44906|126.9116,37.44724; 126.910931,37.451742; 126.91365,37.44906
+동대문 새싹마을마당·하늘못 루프 2.39km|naver:1nho6sl|2.39|2.39|||141|UNKNOWN — Naver supplies no surface split|61.7|OUT-AND-BACK|127.05646,37.58863|127.0581,37.58784; 127.061363,37.583871; 127.05646,37.58863
+양천 용왕산·목동 파리공원 루프 3.53km|naver:qyme6|3.53|3.53|||186|UNKNOWN — Naver supplies no surface split|92.4|OUT-AND-BACK|126.87533,37.5403|126.87862,37.54424; 126.877043,37.534793; 126.87533,37.5403
+강남 삼성은행나무공원·삼성목련공원 루프 2.9km|naver:1cv4faf|2.89|2.90|||155|UNKNOWN — Naver supplies no surface split|83.2|OUT-AND-BACK|127.04869,37.51774|127.0458,37.51653; 127.053917,37.518562; 127.04869,37.51774
+동작 대방천·옥만호 루프 3.44km|naver:1nwx3jx|3.44|3.44|||214|UNKNOWN — Naver supplies no surface split|89.1|OUT-AND-BACK|126.91362,37.49593|126.92114,37.49815; 126.916963,37.491506; 126.91362,37.49593
+노원 한내근린공원·나래공원 루프 1.98km|naver:eojyh2|1.98|1.98|||174|UNKNOWN — Naver supplies no surface split|77.7|OUT-AND-BACK|127.06728,37.62358|127.06937,37.6223; 127.070548,37.626974; 127.06728,37.62358
+영등포 앙카라공원·평화공원 루프 2.59km|naver:12o7vh1|2.59|2.59|||135|UNKNOWN — Naver supplies no surface split|83.7|OUT-AND-BACK|126.93272,37.51876|126.93045,37.51752; 126.938253,37.521136; 126.93272,37.51876
+강남 일원진달래공원·일원장미공원 루프 2.32km|naver:1daep1n|2.32|2.32|||126|UNKNOWN — Naver supplies no surface split|59.6|LOLLIPOP|127.0885,37.4844|127.08465,37.48473; 127.08067,37.480883; 127.0885,37.4844
+성동 Rose Garde·금옥공원 루프 2.73km|naver:puzpzq|2.73|2.73|||246|UNKNOWN — Naver supplies no surface split|7.9|LOOP|127.02666,37.55101|127.02898,37.55187; 127.021248,37.553388; 127.02666,37.55101
+노원 갈말근린공원·갈울근린공원 루프 1.87km|naver:15tyemn|1.87|1.87|||96|UNKNOWN — Naver supplies no surface split|85.8|OUT-AND-BACK|127.05806,37.66773|127.05401,37.66572; 127.060647,37.66673; 127.05806,37.66773
+영등포 대방천·메낙골 근린공원 루프 4.42km|naver:3vr0pg|4.42|4.42|||293|UNKNOWN — Naver supplies no surface split|93.7|OUT-AND-BACK|126.91619,37.50521|126.90475,37.49984; 126.915432,37.507373; 126.91619,37.50521
+관악 흐리목소공원·국회단지 어린이 공 루프 3.7km|naver:o7wht2|3.70|3.70|||259|UNKNOWN — Naver supplies no surface split|91.7|OUT-AND-BACK|126.94966,37.49169|126.95294,37.49447; 126.94299,37.490223; 126.94966,37.49169
+동대문 청계천·간데메공원 루프 4.73km|naver:i7bvmf|4.73|4.73|||285|UNKNOWN — Naver supplies no surface split|94.5|OUT-AND-BACK|127.05493,37.57049|127.04857,37.565; 127.048773,37.573348; 127.05493,37.57049
+종로 월암근린공원·의주공원 루프 1.97km|naver:im2667|1.97|1.97|||161|UNKNOWN — Naver supplies no surface split|75.7|OUT-AND-BACK|126.96386,37.57056|126.96561,37.57128; 126.960073,37.573942; 126.96386,37.57056
+동작 청룡연못·슈파크 루프 4.42km|naver:13uf1dh|4.42|4.42|||309|UNKNOWN — Naver supplies no surface split|14.3|LOOP|126.95864,37.50192|126.95716,37.50559; 126.955291,37.496425; 126.95864,37.50192
+송파 정원으로 교감하는 ·송이공원 루프 2.35km|naver:e7gd74|2.35|2.35|||162|UNKNOWN — Naver supplies no surface split|76.4|OUT-AND-BACK|127.11436,37.49952|127.11143,37.49833; 127.118992,37.501311; 127.11436,37.49952
+송파 개롱근린공원·목련공원 루프 3.17km|naver:oaqf1n|3.17|3.17|||205|UNKNOWN — Naver supplies no surface split|82.2|OUT-AND-BACK|127.13269,37.49566|127.13079,37.4937; 127.139137,37.498975; 127.13269,37.49566
+강서 당뒤공원·수명공원 루프 1.84km|naver:j6na0u|1.84|1.84|||117|UNKNOWN — Naver supplies no surface split|49.5|LOLLIPOP|126.83271,37.54236|126.82859,37.54149; 126.834641,37.540907; 126.83271,37.54236
+강서 백합공원·미리내공원 루프 5.04km|naver:1n5bm00|5.04|5.04|||234|UNKNOWN — Naver supplies no surface split|90.6|OUT-AND-BACK|126.83231,37.55266|126.84515,37.5593; 126.834788,37.547698; 126.83231,37.55266
+송파 장지천·능안공원 루프 2.78km|naver:r6a75f|2.78|2.78|||153|UNKNOWN — Naver supplies no surface split|66.2|OUT-AND-BACK|127.14187,37.48328|127.14444,37.48258; 127.144016,37.488379; 127.14187,37.48328
+송파 위례별근린공원·장지천 루프 3.33km|naver:zn5jln|3.33|3.33|||212|UNKNOWN — Naver supplies no surface split|33.1|LOLLIPOP|127.13986,37.4752|127.14607,37.47754; 127.144435,37.482584; 127.13986,37.4752
+도봉 초안산 숲속 공원·느티울근린공원 루프 3.98km|naver:vawk57|3.98|3.98|||250|UNKNOWN — Naver supplies no surface split|89.3|OUT-AND-BACK|127.05422,37.64686|127.04942,37.64478; 127.058103,37.649311; 127.05422,37.64686
+서초 서초래미안 중앙공원·성당 공원 루프 2.44km|naver:12zgwuy|2.44|2.44|||124|UNKNOWN — Naver supplies no surface split|26.1|LOLLIPOP|127.01576,37.49636|127.01869,37.49849; 127.021816,37.492966; 127.01576,37.49636
+강동 파랑새공원·원터근린공원 루프 1.98km|naver:qxrdl9|1.98|1.98|||87|UNKNOWN — Naver supplies no surface split|88.9|OUT-AND-BACK|127.1518,37.54948|127.15092,37.54797; 127.15065,37.553189; 127.1518,37.54948
+강서 방화근린공원·새싹어린이 교통공원 루프 3.82km|naver:5aotqq|3.82|3.82|||262|UNKNOWN — Naver supplies no surface split|71.9|OUT-AND-BACK|126.80921,37.57511|126.81324,37.58178; 126.809428,37.569745; 126.80921,37.57511
