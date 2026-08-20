@@ -309,7 +309,7 @@ reviewer. Not on any critical path — a signpost becomes a door.
 ⚠ **Carry this into the slice's brief so it is not rediscovered (ui2):** the id cannot ride the MESSAGE (the client matches on the
 bare token) and cannot ride a new top-level key TODAY (`ctx.ts:48`'s single-key literal). Both halves must move in the same slice or
 the field silently does not exist — the failure that looks like "the server sent it and the client ignored it". ui2 owns the
-`fnError` half and wants it in the same round, not after it.
+`fnError` half — ⚠ that session has ENDED (2026-08-20) and the half is UNOWNED; its work is all on trunk through `93ca631`, nothing stranded (verified). Whoever takes the slice takes BOTH halves, or Sean names an owner.
 
 ## 0-vicies. 🟡 ONE-LINE LOOKUPS FROM UI2 (2026-08-20 morning)
 
