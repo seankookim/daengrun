@@ -13,6 +13,14 @@ import { pricing } from '../theme';
 // setAuth 함정(소켓 토큰 미무장 = 조용한 실패)의 사본이 둘이면 하나는 반드시 낡는다.
 import { armRealtime, hookTokenRefresh, REALTIME_PRIVATE } from './geo';
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
+/** Thrown when a lookup resolves to zero rows — a record that is absent or not ours, which RLS
+ *  makes indistinguishable and which is NOT a failure. Screens must key on this to choose between
+ *  「…을 찾을 수 없어요」 (no retry: retrying cannot conjure the row) and 「…을 불러오지 못했어요」
+ *  + 다시 시도. Before this, `.single()`'s PGRST116 reached two screens as `error.message` and
+ *  printed 「JSON object requested, multiple (or no) rows returned」 into a Korean app. A stable
+ *  token rather than a message match, for the same reason the delete-account refusals use one. */
+export const NOT_FOUND = 'not_found';
+
 async function fnError(error: unknown, data?: any): Promise<Error> {
   if (data?.error) return new Error(data.error);
   if (error instanceof FunctionsHttpError) {
@@ -1151,8 +1159,15 @@ export interface RescheduleInfo {
 export async function fetchRescheduleInfo(bookingId: string): Promise<RescheduleInfo> {
   const { data, error } = await supabase.from('bookings')
     .select('id, scheduled_at, km, status, runner_id, reschedule_new_time, dogs(name), runners(profiles(name))')
-    .eq('id', bookingId).single();
+    .eq('id', bookingId).maybeSingle();
+  // ⚠ Zero rows is NOT an error, and it must not reach a screen as `error.message`. A booking id
+  // that belongs to someone else (or no longer exists) is filtered by RLS, so `.single()` used to
+  // throw PGRST116 and `owner/reschedule.tsx` rendered its English text verbatim to a Korean user:
+  // 「JSON object requested, multiple (or no) rows returned」. Reachable from any deep link or a
+  // stale push ref_id. A stable token instead, so the screen can tell not-found from failure — the
+  // two need different sentences and only one of them deserves a retry button.
   if (error) throw error;
+  if (!data) throw new Error(NOT_FOUND);
   const d = data as any;
   const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
   return {
@@ -2092,8 +2107,12 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     .from('runners')
     .select('profile_id, tier, bio, specialties, photos, avg_pace_sec_per_km, total_runs, total_km, respond_rate_pct, trainer_certified, online, profiles(name, district, avatar_url)')
     .eq('profile_id', profileId)
-    .single();
+    .maybeSingle();
+  // Same split as fetchRescheduleInfo above: a profile id that does not resolve (retired runner,
+  // bad deep link) is not-found, not a failure, and `runner-profile/[id].tsx` used to print
+  // PostgREST's English straight into a Korean screen.
   if (error) throw error;
+  if (!r) throw new Error(NOT_FOUND);
   const rr = r as any;
   // 가용시간·리뷰는 실패해도 프로필은 뜬다
   const [availRes, revRes] = await Promise.all([

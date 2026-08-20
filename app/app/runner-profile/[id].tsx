@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
-import { checkSlot, CoursePatch, deleteGear, deleteRunnerPhoto, fetchGear, fetchRunnerCourseHistory, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
+import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchRunnerCourseHistory, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
@@ -89,7 +89,11 @@ export default function RunnerProfileScreen() {
 
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
-    fetchRunnerProfile(id).then(setP).catch((e) => setErr(e?.message ?? '불러오기 실패'));
+    // Never render `e.message` — PostgREST's English reached this screen verbatim on a bad or
+    // retired profile id. Not-found and failure get different sentences.
+    fetchRunnerProfile(id).then(setP).catch((e) => setErr(e?.message === NOT_FOUND
+      ? '러너를 찾을 수 없어요'
+      : '러너 정보를 불러오지 못했어요'));
     fetchGear(id).then(setGear).catch(() => {}); // 장비는 실패해도 프로필은 뜬다
     fetchRunnerCourseHistory(id).then(setCourseHist).catch(() => {}); // 0023 미배포 시 조용히 숨김
     supabase.auth.getUser().then(({ data }) => setIsMe(data.user?.id === id)).catch(() => {});

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import {
-  AvailRule, checkSlot, fetchRescheduleInfo, fetchRunnerAvailability,
+  AvailRule, checkSlot, fetchRescheduleInfo, fetchRunnerAvailability, NOT_FOUND,
   requestReschedule, RescheduleInfo, withdrawReschedule,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -63,7 +63,11 @@ export default function Reschedule() {
         // availability to read at all — say that instead of spinning on a fetch we never fire.
         if (i.runnerId) loadRules(i.runnerId); else setRules('error');
       })
-      .catch((e) => setErr(e?.message ?? '불러오기 실패'));
+      // Never render `e.message`: PostgREST's English reached this screen verbatim. Not-found and
+      // failure are different states — only the second one can be retried.
+      .catch((e) => setErr(e?.message === NOT_FOUND
+        ? '이 예약을 찾을 수 없어요'
+        : '예약 정보를 불러오지 못했어요'));
   };
   useEffect(load, [bid]);
 
