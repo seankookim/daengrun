@@ -378,13 +378,39 @@ begin
      where src.relname = 'profiles' and src.relnamespace = 'public'::regnamespace
        and d.refobjsubid > 0
        and not (a.attname = any (v_public))
+       -- [0115, 2026-08-20; TIGHTENED the same day, reviewer finding 4] `deleted_at` is exempt
+       -- ONLY WHERE IT IS FILTER-ONLY. 0115 §E hides a tombstoned runner from the storefront by
+       -- adding `and p.deleted_at is null` to `available_runners` — in the VIEW, because a
+       -- definer view never consults RLS (0112 §0b), the same bypass class this pin exists for.
+       -- pg_depend records that the view DEPENDS on the column and cannot say whether it
+       -- PROJECTS it or only FILTERS on it, so the first version of this exemption was the bare
+       -- `a.attname <> 'deleted_at'` — which gave up the entire property for every view at once:
+       -- a view that put `p.deleted_at` in its SELECT list would have been waved straight
+       -- through, and this pin is the only thing in the repo that would ever have looked.
+       -- The discriminator below is the view's OWN OUTPUT COLUMNS (pg_attribute on the view
+       -- relation): a projected column exists there, a filtered one does not. So the exemption
+       -- now costs exactly what it should — filtering is free, projecting reddens.
+       -- ⚠ RESIDUAL, stated rather than hidden: an ALIASED projection (`select p.deleted_at as
+       -- gone`) lands under the alias and this arm will not name it. Closing that needs the
+       -- rule's parse tree, which is not portable across PG versions; the VISIBILITY property
+       -- itself is owned by **150 N5(b)** (the storefront returns 0 rows for a tombstoned runner,
+       -- mutation-reddens when the clause is removed) and **150 N5(c)** (what a counterparty may
+       -- read of a tombstone, and what it still may not — phone, toss_customer_key, each
+       -- asserting 42501 by name). This arm is the schema-wide net, not the whole guarantee.
+       -- ⚠ Do NOT add `deleted_at` to `v_public` instead: G1 asserts the client-readable set
+       -- EQUALS that whitelist, and `deleted_at` carries no column grant.
+       and not (a.attname = 'deleted_at' and not exists (
+                  select 1 from pg_attribute va
+                   where va.attrelid = v.oid and va.attnum > 0 and not va.attisdropped
+                     and va.attname = 'deleted_at'))
        and (has_table_privilege('authenticated', v.oid, 'select')
             or has_table_privilege('anon', v.oid, 'select'));
     update runners set online = false where profile_id = rr;
     v_msg := 'view read=' || coalesce(v_txt, '<null>') || ' · 화이트리스트 밖 뷰 컬럼=[' || v_txt2 || ']';
     if v_txt = 'pcg_rr|컬럼동' and v_txt2 = ''
       then call _pass('pcg','G6 뷰 우회는 좁은 채로 — available_runners는 그대로 동작하고, '
-                            '클라가 읽을 수 있는 어떤 뷰도 화이트리스트 밖 profiles 컬럼을 내보내지 않는다');
+                            '클라가 읽을 수 있는 어떤 뷰도 화이트리스트 밖 profiles 컬럼을 내보내지 않는다 '
+                            '(deleted_at 면제는 그 뷰가 실제로 투영하지 않을 때만 — 투영하면 여기서 터진다)');
     else call _fail('pcg','G6 뷰 우회', v_msg); end if;
   exception when others then reset role; v_msg := sqlerrm; call _fail('pcg','G6', v_msg);
   end;

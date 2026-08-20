@@ -207,7 +207,7 @@ runner's payouts are settled.
 matters for the delete itself, because `runners` is KEEP+ANON — but two of those children get
 verdicts of their own:
 
-- 🔵 **`bank_accounts` — DELETE (F9), in §C.1.b ④, and only after the `unpaid_payout` gate has
+- 🔵 **`bank_accounts` — CONDITIONAL (Sean, 2026-08-20, O-7 "A-intact-when-owed"; SUPERSEDES the F9 unconditional DELETE below): deleted ONLY when the runner has no `ledger_items`; when they have earnings the row is KEPT INTACT — not anonymised — on the same retention basis as the ledger, ending when they are paid. The RPC reports it as `bank_kept` in the flat result (default false). NO balance gate: `ledger_items` has no paid marker and `payouts` has zero writers, so "unpaid" is uncomputable and a gate on lifetime earnings could never clear — trapping the runner and re-opening 5.1.1(v); `unpaid_payout` therefore remains a token but is knowingly inert.** Superseded text follows: DELETE (F9), in §C.1.b ④, and only after the `unpaid_payout` gate has
   cleared.** `0001:277-283`: `runner_id` PK → `runners`, `bank text not null`,
   `account_enc text not null`, `holder text not null`, `verified_at`. **No retention duty covers
   it**: 전자상거래법 제6조 keeps the *payout record* (`payouts`, `ledger_items`), and those rows
@@ -826,7 +826,7 @@ function owns that column (§C.1.c step 5, F15).
    — **pause, not cancel**, per F13/`0111:193`; `club_custody` → *"지금 맡고 있는 강아지가 있어요.
    인계를 마친 뒤 다시 시도해주세요."*; `club_assignment` → *"확정된 클럽 러닝 배정이 있어요.
    배정을 철회한 뒤 다시 시도해주세요."*). Under the honesty laws a refusal is shown as a refusal
-   — **no silent catch, no happy UI**. **Eleven tokens, eleven copy entries** (§D.N2 pins the set
+   — **no silent catch, no happy UI**. **TWELVE tokens, twelve copy entries** (⚠ AS BUILT: `club_custody_owner` was split out of `club_custody` — a runner holding a dog can finish the handoff, an owner whose dog is out cannot, and a refusal must name a remedy its reader can perform; the client renders by token and encodes no count) (§D.N2 pins the set
    equality, and F3 added two of them).
 3b. 🔴 **`auth_delete_pending` is a screen, not a toast (F15).** ⚠ AS BUILT: **HTTP 202, token `auth_delete_pending`** — there is ONE token (the "500 `auth_delete_failed`" this section first specified was superseded; see :777 and the handler). A 202 with that token means the
    data is already redacted and the credential is not yet gone. Render
@@ -905,7 +905,7 @@ a wrong implementation, which is the failure mode N6 itself was written against.
 - **N2 — every state-gate arm refuses, and every refusal is actionable. ELEVEN arms, not nine.**
   One per token in §C.1.b ②: `active_booking` (each of the 11 statuses), `active_run`,
   `unsettled_run`, `unsettled_payment`, `unpaid_payout`, `km_balance`, `open_incident`,
-  `active_recurring`, `club_host_duty`, **`club_custody`**, **`club_assignment`**. Plus a pin that
+  `active_recurring`, `club_host_duty`, **`club_custody`**, **`club_custody_owner`**, **`club_assignment`**. Plus a pin that
   the token set in the SQL and the copy map in the client are the **same set** — a token with no
   copy is a dead-end refusal and an Apple rejection risk (§B.1).
   - **N2-a (F13):** the `active_recurring` arm must seed `paused = false` and assert that setting
