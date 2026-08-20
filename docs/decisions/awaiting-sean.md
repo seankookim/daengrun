@@ -291,6 +291,11 @@ spreads it conditionally (every existing caller keeps its one-key body); the RPC
 the message string (the client matches on the bare token); ui2 extends `fnError` (`api.ts:13-23`) to keep the extra field; its own
 reviewer. Not on any critical path — a signpost becomes a door.
 
+⚠ **Carry this into the slice's brief so it is not rediscovered (ui2):** the id cannot ride the MESSAGE (the client matches on the
+bare token) and cannot ride a new top-level key TODAY (`ctx.ts:48`'s single-key literal). Both halves must move in the same slice or
+the field silently does not exist — the failure that looks like "the server sent it and the client ignored it". ui2 owns the
+`fnError` half and wants it in the same round, not after it.
+
 ## 0-vicies. 🟡 ONE-LINE LOOKUPS FROM UI2 (2026-08-20 morning)
 
 1. **Your stale Aug-4 booking fixture** — delete it or keep it? It is on your account and it shapes what you see on the sim.
