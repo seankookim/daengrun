@@ -912,8 +912,28 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   // [내성] 한쪽 다리가 죽어도 다른 쪽은 산다 — 오픈 풀 에러가 지명 요청까지 지우던 것 방지
   if (openRes.error) console.warn('[inbox] open pool:', openRes.error.message ?? openRes.error);
   if (directedRes?.error) console.warn('[inbox] directed:', directedRes.error.message ?? directedRes.error);
-  const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true, rate));
-  const open = (openRes.data ?? []).map((r: any) => mapOpenRequestView(r, rate));
+  // ⚠ Drop requests whose start time has already passed, on BOTH legs.
+  // `marketplace_open_requests` (0056) has no time predicate — its WHERE is status/runner/club/
+  // decline only — and both queries order by `scheduled_at` ASCENDING, so a stale row sorts to
+  // index 0 and becomes the FEATURED boarding-pass ticket on runner home. The expiry cron closes
+  // the window within 5 minutes (0017, `*/5 * * * *`), but inside it a runner can accept a run
+  // that already started, and the result is a `confirmed` booking in the past — which has NO
+  // expiry cron of its own (0017 only sweeps matching/runner_pending), so it strands permanently.
+  // That is the same past-confirmed state the owner hero had to grow a whole channel to describe.
+  const startedAlready = (iso: string | null | undefined) => {
+    const t = iso ? Date.parse(iso) : NaN;
+    return !Number.isNaN(t) && t <= Date.now();   // unparseable → keep; never hide a row on a bad date
+  };
+  const rawDirected = (directedRes.data ?? []).filter((r: any) => !startedAlready(r.scheduled_at));
+  const rawOpen = (openRes.data ?? []).filter((r: any) => !startedAlready(r.scheduled_at));
+  // Breadcrumb, deliberately: a client-side filter over a server-side gap makes that gap INVISIBLE,
+  // which is how the view's missing predicate would quietly stop being anyone's problem. Say it out
+  // loud each time it fires so the queued server fix keeps its evidence.
+  const dropped = (directedRes.data ?? []).length - rawDirected.length + (openRes.data ?? []).length - rawOpen.length;
+  if (dropped > 0) console.warn(`[inbox] dropped ${dropped} past-dated request(s) — marketplace_open_requests has no time predicate (queued server-side)`);
+
+  const directed = rawDirected.map((r: any) => mapOpenRequest(r, true, rate));
+  const open = rawOpen.map((r: any) => mapOpenRequestView(r, rate));
   const all = [...directed, ...open];
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];

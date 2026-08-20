@@ -47,8 +47,15 @@ export function MonogramDH({ size = 26 }: { size?: number }) {
 export function ClubMast({ title, sub, right, onBack }: { title: string; sub?: string; right?: ReactNode; onBack?: () => void }) {
   return (
     <View style={s.mast}>
+      {/* The label below is required, not decorative: this ‹ is a bare glyph, so a screen reader
+          announces it as the character itself or as nothing at all. It is also the ONLY exit on
+          most club screens, and after the 2026-08-20 back sweep ~10 of them route their exit
+          through this one control — an unlabelled control that is a screen's only door is the
+          worst place in the app to leave unnamed.
+          ⚠ Comment sits ABOVE the `&&`, never as its first child — that is a parse error, and it
+          is the gotcha this repo's handoff already lists twice. */}
       {onBack && (
-        <Pressable onPress={onBack} hitSlop={8} style={{ marginRight: 2 }}>
+        <Pressable onPress={onBack} hitSlop={8} style={{ marginRight: 2 }} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 21, color: L.head, marginTop: -2 }}>‹</Text>
         </Pressable>
       )}
@@ -155,6 +162,15 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
   return (
     <Pressable
       onPress={off ? undefined : onPress}
+      // ⚠ `disabled` and `accessibilityState` must both be set, and they must agree with the `off`
+      // predicate that already drives the styling. Withholding `onPress` alone leaves the control
+      // announced as an ordinary enabled button — a screen reader user is told they can act on
+      // something that will silently do nothing, which is the assistive-tech version of the
+      // dead-button rule this project already enforces visually.
+      disabled={off}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: off, busy: !!busy }}
       style={({ pressed }) => [
         s.cta,
         tone === 'secondary' && s.ctaSecondary,
