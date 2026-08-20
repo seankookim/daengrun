@@ -1,0 +1,11 @@
+# R1 cut 01 — 1.5s — source plate: P2
+# IMAGE-TO-VIDEO ONLY. Animate the approved plate; never text-to-video.
+# Reject at 0.25x: paw-count change, gait morph, floating leash, duplicate tail, eye glow.
+
+Locked-off macro. The paw completes its strike and the water crown expands outward in slow motion, droplets separating. Camera does not move. No other motion in frame.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no unrequested camera
+move, no text, no logos, no GPS or map overlays, no numbers.
+
+# On-screen Korean and sound for this cut: docs/instagram/reel-scripts.md §1.

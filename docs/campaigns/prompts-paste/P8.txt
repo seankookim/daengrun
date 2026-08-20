@@ -1,0 +1,55 @@
+# P8 — 문 앞에 남는 심장 · the frame every owner already owns
+# ROLE: guilt → relief | IDEA: Shoot at dog-eye height and it stops being an ad.
+# GATE: CONCEPT-ONLY. Never publish frame 1 without frame 2. Sadness that doesn't resolve is
+
+Locked-off shot at 40cm off the floor, from inside a Korean apartment entryway at 6am.
+The front door closing to a narrowing vertical slit of stairwell light; a dog's face
+held in that slit, ears up, completely still. Cold blue interior, one warm sliver from
+outside. Nothing else in frame.
+
+BASE DNA — DOGS HIGH v3.1:
+ACCENT: exactly one saturated in-camera accent — volt yellow-green #C6F542 — worn by
+the dog as a bandana, harness or leash webbing. Never on the coat. Never two accents.
+COLOUR: crushed deep blacks at #0F1D13, or ONE disciplined colour field. No HDR,
+no orange-teal grade, no busy multi-hue frame.
+BODIES: genuine full athletic stride, anatomically correct running gait, mid-air
+moments prized. The dog moves like a teammate, not a pet — no sitting pretty, no
+begging, no cuteness, no costume. Leash geometry physically correct and under real
+load or genuinely slack, never floating.
+ENERGY: candid documentary, mid-effort — open mouths breathing, sweat, breath vapor.
+Nobody performs for the camera.
+CASTING: Korean runners, 20s–30s, real athletic builds, no fashion-model faces.
+Mid-size Korean dogs — Jindo mix, Border Collie, Welsh Corgi, retriever, shepherd mix.
+TEXTURE: 35mm editorial grain, honest optical imperfection, no plastic skin, no
+beauty retouching, no digital over-cleanliness.
+LENS KIT: only two focal lengths exist in this campaign — a 20mm-equivalent wide used
+low and close, and an 85–135mm long lens used compressed. Nothing in between.
+TYPE SPACE: hold clean negative space where the entry's 타이포 스펙 says.
+ANIMAL EYES: any dog toward the lens has natural dark wet eyes with a single small
+specular catchlight — no eye glow, no tapetum eyeshine, no glowing pupils.
+
+ACCENT LAW — DOGS HIGH:
+volt yellow-green #C6F542 — WORN BY THE DOG ONLY (bandana, harness, leash webbing).
+  The single saturated in-camera element. Never on the coat, never on the human.
+coral-red #FF5C3D — TYPE ONLY. Set in post, never generated, never on an object in frame.
+violet #7B6CDF / #9F8FFF — THE ROUTE TRACE ONLY. Vector, never generated.
+Everything else is restrained: crushed near-blacks at #0F1D13, or one disciplined
+colour field. Never a busy multi-hue frame, never HDR, never orange-teal blockbuster.
+
+NEGATIVE: no text anywhere in the image, no lettering, no signage, no logos, no
+watermarks, no brand marks on apparel or shoes, no swoosh or any sportswear logo,
+no invented shop signs; no real athlete, celebrity, or recognisable public figure;
+no extra or missing limbs, no six-legged dogs, no duplicated tails, no fused paws,
+no floating or detached leash, no leash passing through a body; no eye glow, no
+retroreflective eyeshine; no cartoon, no illustration, no 3D render, no CGI look,
+no plastic skin, no beauty retouch, no HDR, no orange-teal grade, no lens flare
+spam; no costumes, no clothing on the dog beyond a bandana or harness; no sitting
+pretty, no head tilt, no begging, no tongue-out cuteness pose; no GPS lines, no
+map overlays, no route graphics, no app screens, no data readouts, no numbers;
+no stock-photo smiling, no pointing at camera; no crowds of onlookers.
+
+--ar 4:5 --style raw --stylize 150 --sref <LOCKED_STYLE_REF> --cref <LOCKED_DOG_REF>
+
+# Type is set in post in real Black Han Sans — never generated except via GPT-4o,
+# and never for numbers. The violet route trace is vector, plotted from a real GPX
+# (docs/campaigns/generation-prompts.md §2.2). No GPX for this frame = no trace, no readout.

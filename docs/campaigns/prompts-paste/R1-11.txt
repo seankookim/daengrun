@@ -1,0 +1,11 @@
+# R1 cut 11 — 2.5s — source plate: new plate
+# IMAGE-TO-VIDEO ONLY. Animate the approved plate; never text-to-video.
+# Reject at 0.25x: paw-count change, gait morph, floating leash, duplicate tail, eye glow.
+
+Backlit silhouette long shot across haze on the water. The pair crosses frame left to right, small in a wide field. Slow, steady, no camera move.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no unrequested camera
+move, no text, no logos, no GPS or map overlays, no numbers.
+
+# On-screen Korean and sound for this cut: docs/instagram/reel-scripts.md §1.

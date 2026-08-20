@@ -1,0 +1,13 @@
+# V5 — 라인업
+# IMAGE-TO-VIDEO ONLY. Animate an approved still; never text-to-video.
+# Reject at 0.25x on: paw-count change, gait morph, detached/floating leash,
+# duplicate tail, eye glow, human drift on a long hold. Keep every shot <= 3s.
+
+Near-static long lens. The line of runners and dogs holds; only mist drifts, bibs flutter, and one dog shifts its weight. The stillness is the point.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no camera shake,
+no zoom, no text, no logos, no GPS or map overlays, no numbers.
+
+# Sound is designed in post: human exhale + dog panting, breath before music.
+# Music by BPM and energy only, royalty-free licensed if the clip will ever be boosted.

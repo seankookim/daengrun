@@ -1,0 +1,11 @@
+# R1 cut 05 — 2.5s — source plate: P1
+# IMAGE-TO-VIDEO ONLY. Animate the approved plate; never text-to-video.
+# Reject at 0.25x: paw-count change, gait morph, floating leash, duplicate tail, eye glow.
+
+Locked top-down. Only the two shadows move, sliding across the bridge stripes at a constant cadence. Absolutely nothing else in frame changes.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no unrequested camera
+move, no text, no logos, no GPS or map overlays, no numbers.
+
+# On-screen Korean and sound for this cut: docs/instagram/reel-scripts.md §1.
