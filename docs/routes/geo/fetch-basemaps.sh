@@ -10,7 +10,11 @@ for(const r of d){
   const la=r.trace.map(p=>p[0]), lo=r.trace.map(p=>p[1]), pad=0.0035;
   console.log(r.name+"\t"+[Math.min(...la)-pad,Math.min(...lo)-pad,Math.max(...la)+pad,Math.max(...lo)+pad].map(x=>x.toFixed(4)).join(","));
 }' | while IFS=$'\t' read -r NAME BB; do
-  SLUG=$(echo "$NAME" | tr ' /·' '___')
+  # NOT tr: it is BYTE-oriented, and '·' is two UTF-8 bytes, so one middle dot
+  # became TWO underscores while build-route.sh left it alone. Three basemaps
+  # existed under mangled names and looked simply missing. Fourth time today that
+  # keying on a transformed filename went wrong; sed handles the character.
+  SLUG=$(printf '%s' "$NAME" | sed 's#[ /·]#_#g')
   RAW="$D/_base/raw-$SLUG.json"; MIN="$D/_base/$SLUG.json"
   [ -s "$MIN" ] && { echo "cached $NAME"; continue; }
   curl -s -m 150 -X POST https://overpass-api.de/api/interpreter --data-urlencode \

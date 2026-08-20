@@ -56,4 +56,4 @@ strava_id|status|dog_access|reason
 3525066052120776794|review|unverified|Built 2026-08-19 to the destination-led rule (nearest green, lap inside it); measured 2.637 km. No dog-access audit by this session.
 3525071384420879450|review|unverified|Built 2026-08-19 to the destination-led rule (nearest green, lap inside it); measured 3.67 km. No dog-access audit by this session.
 3525071384422202458|review|unverified|Built 2026-08-19 to the destination-led rule (nearest green, lap inside it); measured 3.501 km. No dog-access audit by this session.
-3525071856542527520|review|unverified|Built 2026-08-19 to the destination-led rule (nearest green, lap inside it); measured 3.409 km. No dog-access audit by this session.
+3525306225243168114|review|unverified|Built 2026-08-19, renamed from a "동서호" name that claimed both lake lobes when the geometry reaches only 127.1035 and the index has no per-lobe feature to verify against. Named what is verifiable. No dog-access audit by this session.
