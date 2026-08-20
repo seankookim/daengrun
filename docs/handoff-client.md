@@ -450,6 +450,7 @@ byte-identical between the two trees; gates ran green in the main checkout (tsc 
 |---|---|---|
 | O-7 KEEP line no longer claims money is owed | `c60a648` | ✅ landed, 5 gates green |
 | Handoff-CTA ruling written for Sean (both answers) | `72256bb` | 📋 queued, **not built** |
+| Handoff-CTA **plumbing** — `arrived_at` → `fetchMyBookings` + `Booking.arrivedAt` | `36f501b` | ✅ landed; **no gate reads it**, `goState` untouched |
 | Coral-ground A/B queued (`§0-duodetricies`) | `a0bda14` | 📋 queued |
 | Gate list corrected — there are **FIVE** | `02fa629` | ✅ |
 | Coral sub-line AA failure (3.70 → 4.55) | peer session | ✅ fixed by them, my measurement |
@@ -485,11 +486,17 @@ flickers**, because the flicker is at least visible.
 
 ### Two corrections to things you may otherwise believe
 
-1. **react-doctor's pre-commit hook is NOT dead.** A peer reported it as a silent no-op. Its premise
-   is right — `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor` from the repo root,
-   and react-doctor lives under `app/` — but the `npx` fallback at `:21` **runs and scans** (mine
-   printed `Scanning 1 staged files… ✔ Scanned 1 file in 644ms`). The config error they hit is
-   conditional, not structural. **Don't rewrite the hook on that diagnosis.**
+1. **react-doctor's pre-commit hook is NOT dead, but WHEN it scans is unknown — so run it manually.**
+   Two structural facts, measured: `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor`
+   from the repo root while react-doctor lives under `app/`, so it always falls to `npx`; and
+   `grep -n exit .githooks/pre-commit` returns nothing, so **the hook can never fail a commit.**
+   Every hook result is advisory. Sometimes the npx path scans (`✔ Scanned 1 file in 644ms`, main
+   checkout) and sometimes it dies with *"configuration differs between the index and worktree"*,
+   naming root-level config files **that exist in neither the index nor the tree**. ⚠ **Two trigger
+   theories are already falsified:** "it's a dead no-op" (it demonstrably scanned) and "it dies when
+   `app/node_modules` is absent" (I hit the error with deps present, `tsc` running from that same
+   symlinked `node_modules`). **The trigger is OPEN. Do not edit the hook.** The reliable path,
+   always: from `app/`, `./node_modules/.bin/react-doctor <directory>` — a directory, never a file.
 2. **`effect-needs-cleanup` on `delete-account-sheet.tsx:238` is a FALSE POSITIVE.** The effect does
    clean up: `retry` is assigned inside a nested `.catch` and cleared at `:252` with `alive = false`.
    The static pass can't follow the closure. Do not "fix" it and do not suppress it blind.
