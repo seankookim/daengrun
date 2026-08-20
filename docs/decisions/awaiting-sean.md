@@ -318,7 +318,13 @@ the field silently does not exist — the failure that looks like "the server se
 2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
    Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
 
-## 0-quatervicies. 👀 THE MASTHEAD IS IN — one spacing call left, and two reversible judgement calls (2026-08-20)
+## 0-quatervicies. 👀 MASTHEAD — ⚠ SUPERSEDED TWICE; read the last paragraph first (2026-08-20)
+
+⚠ **The state described below is `ede1b65` and Sean has since revised the header AGAIN — `472c1b0` retires the rotating greeting
+entirely and centres the logo (mark + 도그스하이) on BOTH homes.** So the ~46 pt spacing A/B below was measured against a layout that
+no longer exists; the announcer has asked the owning session whether the question survives the rebuild before Sean spends attention
+on it. The two judgement calls (avatar out, `BrandLockup` retired) still stand — they were about elements the newer change did not
+restore. Everything from here is the ede1b65 record, kept because its reasoning is still the reasoning.
 
 Your header change is on trunk (`ede1b65`): one row now — BrandMark(30) · rotating greeting(flex) · bell(40); both wordmarks gone;
 everything below moved up ~52 pt (measured on the simulator, not estimated); greeting 22 pt with minimumFontScale 0.65 so it can
