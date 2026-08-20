@@ -3962,3 +3962,58 @@ export async function ownerLaUnregister(bookingId: string): Promise<void> {
   const { error } = await supabase.rpc('owner_la_unregister', { p_booking: bookingId });
   if (error) throw error;
 }
+
+// ---------- account deletion (App Store 5.1.1(v) · 개인정보보호법 제37조) ----------
+// One additive wrapper over `delete-account`. Contract: docs/contracts/account-deletion-contract.md
+// §C.1.c / §C.2.
+//
+// ⚠ THREE OUTCOMES, TWO ERROR SHAPES, ONE TOKEN CHANNEL.
+//   200 → the flat success payload below.
+//   409 → `{ error: <state-gate token> }` — arrives as a `FunctionsHttpError` because the status
+//         is not 2xx, so the token is inside `error.context.json()`.
+//   202 → `{ error: 'auth_delete_pending' }` — 202 IS `response.ok`, so functions-js resolves it
+//         as *data* with `error === null` (functions-js `FunctionsClient` only throws on
+//         `!response.ok`). The token lands in `data.error` instead.
+//   401 → `{ error: 'unauthorized' | 'not_authenticated' }` — the JWT died before the call.
+// `fnError` already reads both places (`data?.error` first, then the HttpError body), which is why
+// it is reused UNCHANGED rather than re-implemented here: the token survives either shape.
+//
+// 🔴 What `fnError` cannot carry is the STATUS, and the status is the contract for one state:
+// session-expired is keyed on 401, not on a message string. So this wrapper re-throws a subclass
+// that carries both. `status` is null for the 2xx-with-error shape — functions-js discards the
+// Response once it has parsed the body, so there is no honest number to report there; that branch
+// is identified by its token, which is exact.
+export interface DeleteAccountResult {
+  ok: true;
+  tombstoned: boolean;
+  /** true = the RPC's idempotent short-circuit fired (the profile was already tombstoned) — i.e.
+   *  this call only retried the credential delete after a prior `auth_delete_pending`. */
+  already: boolean;
+  storage_removed: number;
+  auth_deleted: boolean;
+  deleted: Record<string, number>;
+  forfeited: Record<string, number>;
+  kept: string[];
+}
+
+export class DeleteAccountError extends Error {
+  constructor(public token: string, public status: number | null) {
+    super(token);
+    this.name = 'DeleteAccountError';
+  }
+}
+
+// ⚠ NO user id in the body. The uid comes from the JWT and from nowhere else — a body field
+// naming a user would be a delete-anyone button. `confirm: 'DELETE'` is asserted here so the
+// 400 `confirm_required` arm can only ever be a bug in this file, never a user-facing state.
+export async function deleteMyAccount(): Promise<DeleteAccountResult> {
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    body: { confirm: 'DELETE' },
+  });
+  if (error || data?.error) {
+    const e = await fnError(error, data);
+    const status = error instanceof FunctionsHttpError ? error.context.status : null;
+    throw new DeleteAccountError(e.message, status);
+  }
+  return data as DeleteAccountResult;
+}

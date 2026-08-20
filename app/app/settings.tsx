@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
+import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { Row } from '../src/components/ui';
 import { fetchMyProfile, MyProfile } from '../src/lib/api';
 import { session } from '../src/store';
@@ -18,6 +19,7 @@ const APP_VERSION = '0.9 (파일럿)';
 export default function Settings() {
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     fetchMyProfile().then(setProfile).catch(() => {});
@@ -69,6 +71,15 @@ export default function Settings() {
         >
           <Text style={[s.actionText, { color: '#d84a2f' }]}>로그아웃</Text>
         </Pressable>
+        <View style={s.div} />
+        {/* [O-6 2026-08-20] 계정 삭제는 '준비 중 · 문의로 처리' InfoRow에서 여기로 승격.
+            App Store 5.1.1(v)는 인앱 개시를 요구한다 — 문의 메일은 개시가 아니고,
+            비활성 카드 안의 회색 라벨은 '찾을 수 있는' 위치도 아니다 (계약 §C.2 1).
+            로그아웃과 같은 코랄 잉크: 둘 다 세션을 끝내는 행이고, 무게 차이는 시트가 진다. */}
+        <Pressable onPress={() => setDeleteOpen(true)} style={s.actionRow} accessibilityRole="button">
+          <Text style={[s.actionText, { color: '#d84a2f' }]}>계정 삭제</Text>
+          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+        </Pressable>
       </View>
 
       {/* DEV 전용 — 프로덕션 빌드에선 렌더되지 않음 (__DEV__ 게이트, 화면 자체도 이중 게이트) */}
@@ -81,17 +92,18 @@ export default function Settings() {
         </View>
       )}
 
-      {/* 준비 중 — 정직 라벨 */}
+      {/* 준비 중 — 정직 라벨. 계정 삭제는 실동작이 되어 위 카드로 떠났다 (O-6). */}
       <Text style={s.section}>준비 중</Text>
       <View style={[s.card, { opacity: 0.55 }]}>
         <InfoRow label="알림 설정" value="푸시 도입 후" />
-        <View style={s.div} />
-        <InfoRow label="계정 삭제" value="문의로 처리" />
       </View>
 
       <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
+
+      {/* 열려 있을 때만 마운트 — 시트의 상태(거절 문구·꾹 누름 확인)가 다음 열기로 새지 않는다 */}
+      {deleteOpen && <DeleteAccountSheet onClose={() => setDeleteOpen(false)} />}
     </ScrollView>
   );
 }
