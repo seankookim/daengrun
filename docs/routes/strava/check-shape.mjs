@@ -88,6 +88,10 @@ function analyse(pts) {
   const total = cum[cum.length - 1];
   const km = total / 1000;
 
+  // hasEle distinguishes "measured, and flat" (0) from "not measured" (null).
+  // Printing +0m/-0m for a file with no <ele> asserts flatness this file cannot
+  // know — Naver's pedestrian router supplies no elevation at all.
+  const hasEle = pts.some((p) => p.ele != null);
   let gain = 0, loss = 0, ref = null;
   for (const p of pts) {
     if (p.ele == null) continue;
@@ -136,7 +140,7 @@ function analyse(pts) {
   else if (closure > 150) verdict = 'OPEN';
   else verdict = 'LOOP';
 
-  return { km, gain, loss, closure, retracePct, verdict, n: pts.length };
+  return { km, gain, loss, hasEle, closure, retracePct, verdict, n: pts.length };
 }
 
 const args = process.argv.slice(2);
@@ -173,7 +177,7 @@ for (const f of files) {
     console.log(JSON.stringify({
       file: f,
       measuredKm: +r.km.toFixed(2),
-      gainM: Math.round(r.gain),
+      gainM: r.hasEle ? Math.round(r.gain) : null,
       lossM: Math.round(r.loss),
       points: r.n,
       closureM: Math.round(r.closure),
@@ -184,7 +188,7 @@ for (const f of files) {
   } else {
     console.log(
       `${f.split('/').pop()}\n` +
-      `  ${r.km.toFixed(2)} km · ${r.n} pts · +${Math.round(r.gain)}m/-${Math.round(r.loss)}m · ` +
+      `  ${r.km.toFixed(2)} km · ${r.n} pts · ${r.hasEle ? `+${Math.round(r.gain)}m/-${Math.round(r.loss)}m` : 'elev n/a'} · ` +
       `closure ${Math.round(r.closure)}m · retrace ${r.retracePct.toFixed(0)}% · ${r.verdict}${flag}`
     );
   }

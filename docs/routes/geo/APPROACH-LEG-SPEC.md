@@ -40,7 +40,39 @@ misprice it by ~800 m, and would simultaneously *over*charge the 1.16× cases.
 ("you can use strava to connect the two points and get a precise km result") is right about
 precision; the measurements are what prove a factor cannot substitute for it.
 
-## 2. Why the runtime router is Naver, not Strava
+## 2. ⚠️ CORRECTION 2026-08-20 — §2 below is WRONG. Naver cannot route pedestrians.
+
+**Do not implement §2 as written.** It recommended NCP Directions for the approach leg. That is not
+possible: **NCP Directions is car-only.** Directions 5 exposes only `trafast` / `tracomfort` /
+`traoptimal` / `traavoidtoll` / `traavoidcaronly`, and the Directions 15 guide states the route
+information "is only available for cars". The Maps product line is six APIs — Dynamic Map, Static
+Map, Geocoding, Reverse Geocoding, Directions 5, Directions 15 — and **none of them is a pedestrian
+router**. An approach leg routed through it would be a car trip: wrong distance, wrong path, possibly
+down roads no one should walk a dog on.
+
+Separately, **NCP forbids storing the result anyway.** Maps 서비스 이용약관 (effective 2025-03-20)
+제7조 ⑪ names 지도 좌표 데이터 as its example of what may not be accumulated and re-used, and calls it
+엄격히 금지 — result data may be used **once**, immediately, and not persisted. So no cached
+`approach_m` column, no cache table, no logged polyline.
+
+**What to do instead**, in preference order:
+
+1. **Keep the client-side segment projection we already have.** `snapToRoute` /
+   `pointToSeg` compute the nearest point on a trace we already own. No API, no cost, no licence
+   question. This gives the entry point and the straight-line approach exactly as measured in §1.
+2. If a true street-following approach distance is wanted, the measured detour spread (1.16×–4.56×)
+   still argues against a constant factor — so the options are a real pedestrian router with terms
+   that permit the use, or showing the approach as an explicit estimate. **TMAP has a 보행자 route
+   API**, but its terms bar retaining results beyond 24 hours, so it can inform a live display and
+   cannot build a stored column.
+3. The genuinely open option is **서울시 자치구별 도보 네트워크 공간정보** (data.go.kr 15125685,
+   KOGL 제1유형 — commercial use and derivatives both permitted). Routing on it ourselves is work,
+   but the output would be ours and storable. Coverage needs checking first: the dataset
+   descriptions disagree about whether park interiors are included.
+
+The measurements in §1 stand — they were made with Strava's router and are unaffected.
+
+## 2b. (SUPERSEDED — kept for the record) Why the runtime router is Naver, not Strava
 
 Strava is the right tool for *measuring* (it is how the table above exists) and the wrong tool for
 *serving*: a new Strava API app is capped at 1 athlete, and API data may only be displayed back to

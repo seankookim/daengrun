@@ -81,16 +81,29 @@ const gpxById = new Map();
 for (const name of gpxFiles) {
   const file = join(dir, name);
   const xml = readFileSync(file, 'utf8');
-  const id = /strava\.com\/routes\/(\d+)/.exec(xml)?.[1];
+  // TWO SOURCES, one corpus. Strava routes key on their Strava id; Naver routes
+  // (naver-route.mjs) key on a stable hash of their waypoint list, written as
+  // <link href="naver:xxxx">. Every route must carry SOME id — an unidentifiable
+  // GPX cannot be joined to its status row, which is how a route gets served with
+  // nobody able to say where it came from.
+  const id = /strava\.com\/routes\/(\d+)/.exec(xml)?.[1]
+    || /<link href="(naver:[0-9a-z]+)"/.exec(xml)?.[1];
   if (!id) {
-    failures.push(`${name}: no Strava route ID in GPX metadata`);
+    failures.push(`${name}: no route ID in GPX metadata (expected a strava.com/routes/<id> link or a naver:<hash> link)`);
     continue;
   }
   if (gpxById.has(id)) failures.push(`${name}: duplicate GPX route ID ${id}`);
   gpxById.set(id, name);
 
-  if (!/<copyright\s+author="OpenStreetMap contributors"/.test(xml)) {
-    failures.push(`${name}: missing OpenStreetMap contributor attribution`);
+  // Attribution must match the source, and every file must assert one. Strava's
+  // export self-declares ODbL/OpenStreetMap; Naver's geometry is NAVER's. Sean
+  // ruled the Naver licence acceptable for our use (2026-08-20); this check
+  // exists so the corpus always RECORDS which source each row came from rather
+  // than silently mixing two legal footings with no way to tell them apart.
+  const osm = /<copyright\s+author="OpenStreetMap contributors"/.test(xml);
+  const naver = /<copyright\s+author="NAVER Corp\."/.test(xml);
+  if (!osm && !naver) {
+    failures.push(`${name}: missing source attribution (expected OpenStreetMap contributors or NAVER Corp.)`);
   }
 
   const checked = spawnSync(process.execPath, [join(dir, 'check-shape.mjs'), '--json', file], {
