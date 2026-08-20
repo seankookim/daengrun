@@ -217,13 +217,21 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   // the call — does this account have ledger rows? — because rows are what make the payout
   // destination worth keeping (O-7: kept intact, not blanked, while `ledger_items` exist).
   //
-  // Two corrections from the 2026-08-20 device pass, both mine:
+  // Three corrections from the 2026-08-20 device pass:
   //  ① EXISTENCE, not a positive sum. The server keeps the row when rows exist; a ledger netting
   //     exactly ₩0 would have been kept server-side and gone unmentioned here.
   //  ② A silent catch is not acceptable on this line. One transient failure in three renders a
   //     sheet with the disclosure missing, and the user cannot tell. So: one retry, and an explicit
   //     `unknown` that still says the true thing conditionally rather than saying nothing.
   //     For a legally relevant KEEP statement the asymmetry favours disclosure.
+  //  ③ The `some` copy asserted an amount was OUTSTANDING ("아직 정산되지 않은 금액이 있어요") off a
+  //     predicate that only proves rows EXIST. `ledger_items` (0001) has no paid/settled marker and
+  //     no migration adds one, so a fully-paid runner still matches — and this screen told them
+  //     money was owed. That is the very fact O-7 was decided on ("unpaid is uncomputable"), which
+  //     is why the balance gate was rejected and `unpaid_payout` is knowingly inert. ①/② asked
+  //     whether the line APPEARED; neither asked whether it was TRUE. The `some` branch is now the
+  //     indicative twin of `unknown`'s conditional: both say the same true thing, at two
+  //     confidences. ⚠ Never restore an amount claim here — nothing client-side can compute one.
   // We never assert a bank account is on file: no client reader for `bank_accounts` exists and
   // registration ships with open banking (earnings.tsx:116).
   const [ledger, setLedger] = useState<'unknown' | 'none' | 'some'>('unknown');
@@ -345,7 +353,7 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               {ledger !== 'none' && (
                 <Text style={[s.p, { marginTop: 6 }]}>
                   {ledger === 'some'
-                    ? '아직 정산되지 않은 금액이 있어요 — 지급에 필요한 정산 정보는 남겨둬요.'
+                    ? '정산 기록이 있어서, 지급에 필요한 정산 정보는 남겨둬요.'
                     : '정산 기록이 있다면 지급에 필요한 정산 정보는 남겨둬요.'}
                 </Text>
               )}
