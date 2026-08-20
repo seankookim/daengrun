@@ -318,6 +318,27 @@ the field silently does not exist — the failure that looks like "the server se
 2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
    Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
 
+## 0-quatervicies. 👀 THE MASTHEAD IS IN — one spacing call left, and two reversible judgement calls (2026-08-20)
+
+Your header change is on trunk (`ede1b65`): one row now — BrandMark(30) · rotating greeting(flex) · bell(40); both wordmarks gone;
+everything below moved up ~52 pt (measured on the simulator, not estimated); greeting 22 pt with minimumFontScale 0.65 so it can
+never cross the 14 pt floor. Verified by the announcer: `BrandLockup` is gone from the tree, `StatusBarCover` is still mounted last,
+no absolute header was reintroduced, and Black Han Sans is now used ONCE on that screen (the lockup wordmark had been a second use —
+a design-law violation fixed as a side effect).
+
+**The one call left is yours: ~46 pt still sits between the masthead and the alert line.** It is not a defect anyone introduced — it
+is four small paddings summing (row breathing 9 + brandRow margin 6 + hero wrap paddingTop 12 + alertRow paddingVertical 12), each
+part of the ⑧ v2 grammar you approved by number. Tightening it means editing hero internals, so the session stopped rather than
+resolve it silently. **A** tighter — take the next ~20 pt out of the hero internals · **B** leave it as approved.
+
+**Two judgement calls it made, each one line to revert if you disagree:** (1) the profile avatar left that row — you named three
+elements and it was not one, it was non-pressable decoration costing the greeting ~2 pt of type (its now-dead `fetchMyProfile`
+per-focus fetch went with it); (2) `BrandLockup` was DELETED rather than left unused — owner home was its only consumer, and "remove
+the text logos" is poorly served by a file that still holds them; runner home's stale comment claiming the full lockup was the
+owner's was corrected in the same slice. ⚠ Note for readers, not a defect: that commit's MESSAGE has three identifiers eaten by
+shell backtick substitution; the tree is correct and the reasoning is in the file comments. It was deliberately not amended —
+force-pushing a trunk three live sessions are on to repair prose is the worse trade.
+
 ## 0-novodecies. 👀 TWO SMALL LOOKS FROM UI2'S OVERNIGHT PASS (2026-08-20 morning)
 
 1. **run.tsx R4 colour law:** the runner run screen has two corals (progress bar + strip) and a VOLT main CTA where lab 13 wants
