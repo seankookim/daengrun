@@ -62,7 +62,8 @@ interface Props {
    *  라이브 점은 **이 값이 0보다 클 때만** 켜진다 — 0명인데 맥박을 그리면 그 점은 거짓말이고,
    *  한 번 거짓이 되면 인계 화면의 점까지 못 믿게 된다. `.limit(10)` 때문에 10 이상은
    *  '10명 이상'으로 말한다 (모르는 수를 아는 척하지 않는다). */
-  onlineRunners?: number;
+  /** null = not yet read (or the read failed) — render as silence, never as zero. */
+  onlineRunners?: number | null;
 }
 
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
@@ -93,7 +94,7 @@ function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget, onlineRunners = 0 }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget, onlineRunners = null }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -214,10 +215,16 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
           : `${name}와 달릴 시간을 잡아보세요`;
-  // 라이브 점의 근거. 0명이면 점도 없고 문장도 그렇게 말한다.
-  const runnersLine = onlineRunners > 0
-    ? `지금 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 대기 중이에요`
-    : '지금은 대기 중인 러너가 없어요';
+  // Basis for the live dot. Zero means no dot and a sentence that says so.
+  // ⚠ `null` = we have not successfully read the count. A failed or pending read must NOT become
+  // 「지금은 대기 중인 러너가 없어요」 — that is an affirmative claim about the world printed on
+  // the funnel's primary CTA, and it was reachable on every cold start and every flaky network.
+  // Unknown falls back to the neutral invitation, which is true regardless of who is online.
+  const runnersLine = onlineRunners == null
+    ? `${name}와 달릴 시간을 잡아보세요`
+    : onlineRunners > 0
+      ? `지금 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 대기 중이에요`
+      : '지금은 대기 중인 러너가 없어요';
 
   return (
     <View style={s.wrap}>
@@ -232,7 +239,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
       <View style={s.opts}>
         {state === 'none' && (
           <DrawButton title="지금 찾기" sub={runnersLine} ground="coral" art="dog"
-            dot={onlineRunners > 0} sheen onPress={findNow} accessibilityLabel="지금 찾기" />
+            dot={(onlineRunners ?? 0) > 0} sheen onPress={findNow} accessibilityLabel="지금 찾기" />
         )}
         {(state === 'searching' || state === 'directed') && (
           <DrawButton title={state === 'searching' ? '레이더 보기' : '요청 보기'}
