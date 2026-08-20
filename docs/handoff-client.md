@@ -1,4 +1,4 @@
-# HANDOFF — client domain (`app/`), written 2026-08-20 early morning
+# HANDOFF — client domain (`app/`), written 2026-08-20 early morning · updated after the O-6 contract landed
 
 **Read with this, in order:** `docs/labs/RULINGS-2026-08-19-journey.md` (Sean's 15 journey rulings +
 the 🔵 block decided under his overnight grant) · `docs/design/screen-functionality-spec.md`
@@ -17,7 +17,7 @@ This file **replaces** the 2026-08-19 evening+night version; git history is the 
 
 | System | State | Tag |
 |---|---|---|
-| Branch / tree | `redesign-v4` @ `460f8cd`, **in sync with origin, working tree clean** | **[verified-now]** |
+| Branch / tree | `redesign-v4` @ `5b9e22f` locally, **8 behind origin** (other sessions pushed docs/queue commits); `app/` is **dirty with O-6 work in flight** — see §16 | **[verified-now]** |
 | `tsc --noEmit` (from `app/`) | clean | **[verified-now]** |
 | `check-rpc-contracts.mjs` | 94 calls / 164 signatures, all match | **[verified-now]** |
 | `check-route-native-imports.mjs` | 56 routes, none | **[verified-now]** |
@@ -28,6 +28,7 @@ This file **replaces** the 2026-08-19 evening+night version; git history is the 
 | Addresses | **1 row total, 1 pinned** (Sean's) — every "no pickup pin" branch is real and reachable | **[verified-now]** |
 | Server pay-after-run | create-booking-hold v10 / transition-booking v34 deployed; a hold returns `booking_status:"matching"`; `payment_ok` deleted | **[reported]** (announcer); the client half is built against it |
 | 0114 party membership | deployed; pre-accept the owner is refused chat/review/notification/incident (42501) | **[reported]** (announcer); client copy keys on the measured error shape |
+| O-6 account deletion | **client half BUILT and on origin** (`bdd3c70`). Row + confirm sheet **verified on the simulator** up to the destructive tap (`docs/labs/o6-delete-account-sheet-2026-08-20.png`). Server `0115` + `delete-account` are on `origin/claude/p0-account-deletion` @ `c8367ef` and **NOT deployed** (absent from `supabase functions list`) — no state has been exercised against the real server | **[verified-now]** |
 | iOS device | **nothing on hardware.** Simulator only (iPhone 17 Pro, iOS 26.5). TestFlight still zero builds | sim **[verified-now]**; TestFlight **[from-history]** |
 
 **Screens I personally saw on the simulator:** owner home, request, course-map, course detail, radar
@@ -61,7 +62,7 @@ The journey Sean approved in the labs is now **built end to end** in the client:
 | 0114 client follow-up | **DONE** (chat chip, chat copy, `runner_pending` field suppression) |
 | R6 runner return seal · R1c work-gate | **NOT BUILT — server slice.** See §6 |
 | 커뮤니티 / 마이 in this style | not started (Sean: "later") |
-| O-6 account deletion (settings row) | **waiting on the server contract** |
+| O-6 account deletion (settings row) | **BUILT** (`bdd3c70`); screen verified on sim, server states unexercised until the function deploys |
 
 ---
 
@@ -181,6 +182,63 @@ The five that bit tonight:
   the onboarding CTA** (it inserts a `dogs` row and an `addresses` row).
 - **Did not touch `supabase/`, `scripts/e2e.mjs`, or any money semantics.**
 
+### O-6 account deletion — the exchange that shaped it (2026-08-20)
+
+The contract is `docs/contracts/account-deletion-contract.md`; the server is on
+`origin/claude/p0-account-deletion` (`0115_account_deletion.sql` + `supabase/functions/delete-account/`).
+Six things were decided or corrected while building the client half, and each is the kind that would
+otherwise be rediscovered painfully:
+
+1. **One auth-failure token, and it is not an error.** The contract's §C.2 3b said
+   `500 auth_delete_failed`; trunk `176c584`/`068e7bc` supersede it — there is **one** token,
+   **`auth_delete_pending`**, returned as **HTTP 202** (`handler.ts:151`). The data is already
+   redacted, the credential outlived it: keep the user **signed in**, show
+   「탈퇴 처리 중이에요 — 잠시 후 다시 시도해주세요」 and one retry button that re-invokes the same
+   function. No "undo" — there is no un-tombstone path, and offering one would be a lie.
+2. **A twelfth token exists that the contract's list of eleven omits.**
+   `0115_account_deletion.sql:209` raises `not_authenticated` when the uid is null, and
+   `handler.ts:103` surfaces every RPC error verbatim, so it arrived as a 409. Reported; **the server
+   is changing it to 401** (every account-state token stays 409). **Key the session-expired state on
+   the HTTP status, not on the string.**
+3. **`club_custody` splits rather than widening — because a refusal must name a remedy its reader can
+   perform.** The gate never checked the dog's *owner*, so an owner could delete while their dog was
+   out with a runner (4 live rows). Widening the token would have produced a sentence telling owners
+   to "finish the handoff", which they cannot do. So: `club_custody` (you are holding someone else's
+   dog — keeps 「인계를 마친 뒤」) and **`club_custody_owner`** (your dog is out with a runner).
+4. **The `club_custody_owner` copy names a place, not an action, and I measured the place.** The
+   suggested string said 「일정 화면에서」 — right for the *marketplace* handoff, wrong for *club*
+   custody. The owner's half of the two-sided return confirm lives at
+   `app/app/club/session/[sid].tsx:344` (`confirmReturn(sdId,'owner')`, rendered :827-843 as
+   「인계받았어요 — 반환 확인 →」); `owner/schedule.tsx` contains **zero** references to `session_dogs`
+   or `confirmReturn`. Shipping it would have sent someone to a screen with no such button — the same
+   dead end the split was made to avoid. Final string:
+   「지금 러너가 우리 아이와 함께 있어요. 반환 확인이 끝나면 탈퇴할 수 있어요 — 클럽 세션 화면에서 내 확인이
+   남아 있는지 볼 수 있어요.」 **No action button**: the token carries neither the session id nor
+   whether the owner's half is pending.
+5. **The refusal-carries-an-id upgrade was RETRACTED from this round, deliberately.** It would let the
+   copy deep-link and go unconditional. It needs `HttpError` to gain a `detail`, `ctx.ts:48` to stop
+   building a single-key literal, the RPC to carry the id as a Postgres errdetail (never in the
+   message — that breaks the bare-token match), and my `fnError` (`api.ts:13-23`) to stop discarding
+   everything but `body.error`. **`_shared/ctx.ts` is the error contract of 24 edge functions**, so
+   this is a scope change to a reviewed round, not an addendum. It is now its own slice
+   (queue §0-unvicies, trunk `75be04f`); **I own the `fnError` half and it must land in the same round
+   as the server half** — one half alone means the field silently does not exist, which presents as
+   "the server sent it and the client ignored it".
+6. **Render refusals BY TOKEN, never by count.** The set moved three times in one hour
+   (eleven → twelve → twelve + a 401). The client uses a `token → copy` map with a fallback arm
+   (raw token + 문의하기 — never a transient-sounding "다시 시도"), and **no count is encoded anywhere**:
+   no fixed-arity union asserted on, no test counting entries. Adding a token is one map entry.
+   ⚠ The final enumeration is still owed by the server implementer; diff it against the map when it
+   arrives. A token with no copy entry is the only remaining failure mode.
+
+**A method note worth keeping** (recorded in `docs/fleet-roster.md` §7-bis): I claimed `already` was
+absent from the success payload after grepping the return object through `head -12`, which cut the
+output one line before it (`handler.ts:158`). **Never claim a symbol is absent on the strength of
+output you truncated yourself** — the failure is not the wrong answer, it is that a self-inflicted
+`head -12` produced the same confident tone as a real read. `already` IS returned and is useful: after
+a 202 retry succeeds, the second call short-circuits and returns `already: true`, so the success copy
+can say the redaction already happened and this pass only removed the credential.
+
 **Carried forward, still binding:** `routeDisplayName()` was built and deleted the same day — names
 render **raw** (on five rows the km token is the only thing distinguishing courses). Auto-pick
 filtering `status='active'` is a **gate**.
@@ -258,6 +316,8 @@ non-zero on failure.
    is true of the app, not the server. **[from-history]**
 
 ### Decisions (each blocks something)
+0. *(not his)* O-6 needs no decision from Sean — the money question in its server half is with him via the
+   announcer and does not touch the client build.
 1. **`run.tsx` R4 colour** — the live-run CTA is **volt** where the lab wants **coral**, and the frame
    carries two saturated elements (progress bar + a strip). Flipping it also flips the run-world's
    volt = personal-run semantic. *Blocks: the last R4 styling pass.*
@@ -362,11 +422,14 @@ behaving as if it is one activation away.
 1. **[needs-user]** TestFlight build + submit (his 2FA). Hand him the smoke list in §1 — the runner
    approach leg, onboarding submission and a real `matching` booking are the three things only a
    device (and a second account) can settle.
-2. **[local-edit]** **O-6 account-deletion settings row** the moment the announcer sends the contract:
-   `settings.tsx`'s "계정 삭제 | 문의로 처리" becomes a real, confirmed, irreversible action (refusals
-   shown as refusals; copy says what is kept and why; sign out after). **Verify first:** the
-   RPC/edge-function name, its refusal codes, and what is tombstoned vs deleted. Claim
-   `app/app/settings.tsx` in REGISTRY's in-flight table before editing.
+2. **[needs-deploy, then local-edit]** **O-6 follow-ups.** The screen is built and on origin
+   (`bdd3c70`); three things remain, none blocking: (a) diff the server implementer's final token
+   enumeration against the copy map in `delete-account-sheet.tsx` — a token with no entry renders as
+   raw text + 문의하기, which is honest but ugly; (b) add the **O-7 KEEP line** to the confirm sheet
+   when the server reports a kept payout destination (Sean's ruling: `bank_accounts` is kept intact,
+   not blanked, while a runner has `ledger_items` — a redacted account number is a row nobody can pay
+   into). Field name still owed; the line belongs with 남는 것, NOT with 소멸; (c) **verify the live
+   states on device once `delete-account` deploys** — success, a 409 refusal, and the 202 retry arm.
 3. **[read-only → local-edit]** If Sean rules on the R4 colour, apply it in `run.tsx` — styling only,
    and prove the frozen ranges byte-identical the way `2ddac83` did.
 
@@ -420,9 +483,14 @@ Transcribed so it is not lost — **home ⑧ v2 as built**: brand lockup row (ru
 피드에 자랑 → 안심 센터. No cards, no coral rules, one coral per frame.
 For pixel-level work on anything else, re-attach the original screenshots.
 
-## Agent work and coverage gaps
+## 16. Agent work and coverage gaps
 
-All subagents completed; none were running at handoff. Their written reports died with the scratchpad
+All subagents have completed; none are running. The O-6 build landed as `bdd3c70` (settings row,
+`delete-account-sheet.tsx`, an additive `deleteMyAccount` in api.ts) and the tree is clean and pushed.
+
+⚠ **Metro was down and the simulator shut down** partway through this session; both were restarted
+(`npx expo start`, `xcrun simctl boot`). If a screen renders "No script URL provided", Metro is not
+up yet — start it and relaunch the app, do not conclude the screen is broken. Their written reports died with the scratchpad
 — what I independently confirmed is exactly the screen list in §1 and what the commit messages claim.
 The 23-screen sweep is **[reported]**.
 
@@ -435,12 +503,25 @@ a DEV row). No accessibility audit beyond the a11y items the reviews named. No p
 
 ## Opener for the next session
 
-> Client domain (all of `app/`) on daengrun, MAIN checkout `/Users/sean/dev/daengrun` @ `redesign-v4`
-> — never a worktree; run `git status` first, other sessions stash into it.
-> Read `docs/handoff-client.md` fully, then `docs/labs/RULINGS-2026-08-19-journey.md` (#14/#15 are
-> Sean's own words; 🔵 items were decided under his overnight grant and one word flips them).
-> The journey labs are now BUILT end to end — settled, do not re-litigate: home is ⑧ v2 · route names
-> render raw · `status='active'` filtering is a gate · `actual_km` unchanged · R6/R1c are a server
-> slice. Nothing has ever run on hardware. Highest-value next moves: the TestFlight build (needs
-> Sean's 2FA), then the O-6 account-deletion settings row when the announcer sends its contract.
-> Never create a booking on Sean's account (PR-0 signal); the onboarding CTA writes real rows.
+> Client domain (all of `app/`) on daengrun. Work in the MAIN checkout `/Users/sean/dev/daengrun` on
+> `redesign-v4` — never a worktree; other sessions switch its branch and stash into it, so run
+> `git status` before you touch anything.
+>
+> Read first: `docs/handoff-client.md` (status, decisions with their WHY, gotchas) then
+> `docs/labs/RULINGS-2026-08-19-journey.md` — #14/#15 are Sean's own words; 🔵 items were decided
+> under his overnight grant and one word from him flips any of them.
+>
+> The journey labs are BUILT end to end (home ⑧ v2 → onboarding → preferences → radar → meetup →
+> live → report; runner home → requests → meetup → run → done → earnings). Settled — do not
+> re-litigate: home is ⑧ v2 · route names render raw · `status='active'` filtering is a gate ·
+> `actual_km` means the whole tracked buffer · R6 return seal and R1c work-gate are a server slice.
+>
+> Nothing has ever run on hardware. Highest-value next move is the TestFlight build (needs Sean's
+> 2FA). O-6 account deletion is built and pushed but its edge function is not deployed — when the
+> announcer says it is live, verify success / a 409 refusal / the 202 retry arm on device, diff the
+> final token enumeration against the copy map, and add the O-7 KEEP line.
+>
+> Gates before every commit, from `app/`: tsc · check-rpc-contracts · check-route-native-imports ·
+> `npm run lint --quiet` (must stay at **6 errors**). Never create a booking on Sean's account
+> (PR-0 signal) and never press the onboarding CTA (it writes real rows). If a screen renders
+> "No script URL provided", Metro is down — start it and relaunch; the screen is fine.
