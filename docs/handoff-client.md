@@ -27,7 +27,7 @@ This file **replaces** the 2026-08-20-morning version; git history is the archiv
 | Owner home v3 | **SHIPPED**, simulator-verified across none / confirmed / past / handoff | **[verified-now]** |
 | Handoff state render | verified by **temporarily forcing `goState`**, screenshotting, reverting. `home.tsx` byte-identical after (checked) | **[verified-now]** |
 | iOS device | **nothing has ever run on hardware.** Simulator only (iPhone 17 Pro `F2FDB7D7-A669-4BBC-8EF4-677597F3851A`). TestFlight zero builds | sim **[verified-now]** · TestFlight **[from-history]** |
-| Other sessions | announcer **offline** since ~14:00. ⚠ **A SECOND CLIENT SESSION is live** (`exciting-rosalind-e6ac13`) claiming all of `app/`; it has already layered `21825ca` + `f6aa011` on top of my files. My work survived intact — verified — but two client sessions share this surface, so read `git log -- <file>` before editing anything in `app/` | **[verified-now]** |
+| Other sessions | ⚠ see the overnight addendum at the foot of this file — it supersedes this row. announcer **offline** since ~14:00. ⚠ **A SECOND CLIENT SESSION is live** (`exciting-rosalind-e6ac13`) claiming all of `app/`; it has already layered `21825ca` + `f6aa011` on top of my files. My work survived intact — verified — but two client sessions share this surface, so read `git log -- <file>` before editing anything in `app/` | **[verified-now]** |
 
 ---
 
@@ -302,13 +302,16 @@ So: rule on the gating (cheap, high value, one ruling), then build.
 
 ## 14. Next 1–3 steps
 
-1. **[read-only]** Confirm tree is `46944a6` and gates green (§15). Re-read
-   `docs/decisions/awaiting-sean.md` §0-septvicies **and the correction below it** — the correction
-   is authoritative; the original spec above it is **wrong** about `runner_enroute`.
-2. **[needs-user → local-edit]** If Sean rules on handoff gating: add `arrived_at` to
-   `fetchMyBookings`' select, thread it onto `Booking`, gate `goState` on `rawStatus`
-   (`runner_enroute` + `arrived_at` → coral). **Prove the frozen meetup ranges byte-identical** the
-   way `2ddac83` did.
+1. **[read-only]** Confirm gates green (§15). Then read
+   **`docs/decisions/handoff-cta-gating.md`** — written 2026-08-20 night, it supersedes
+   `awaiting-sean.md` §0-septvicies' handoff section AND that section's correction. It carries
+   re-verified line numbers (the older ones had drifted) and the fact that settles the question.
+2. **[needs-user → local-edit]** **Sean answers A or B in one word**, then build it. Do NOT build it
+   before he answers — two sessions carved this out for his ruling on 2026-08-20 and he accepted the
+   carve-out; the overnight grant is general and does not reverse a specific reservation. Either
+   answer needs the same additive plumbing first (`arrived_at` into `fetchMyBookings`' select +
+   the `Booking` type). **Prove the frozen meetup ranges byte-identical** the way `2ddac83` did —
+   and do not touch `owner/meetup.tsx`, which is already correct.
 3. **[needs-user]** TestFlight. Smoke list: the runner approach leg · onboarding submission · a real
    `matching` booking · the full handoff sequence. All four need a device and a second account.
 
@@ -424,9 +427,86 @@ byte-identical between the two trees; gates ran green in the main checkout (tsc 
 > online-runner count, the club widget is engraved. Settled — do not re-litigate.
 >
 > The open thread that matters: **home's coral 인계하기 fires one state too late.** `picked_up` means
-> the handoff is already done; the real moment is `runner_enroute` + `arrived_at`. The fix is
-> client-side and small, but it borders the frozen meetup flow, so it waits on Sean's word.
+> the handoff is already done; the real moment is `runner_enroute` + `arrived_at`. Full write-up with
+> both candidate answers: `docs/decisions/handoff-cta-gating.md`. The decisive fact found overnight —
+> **`owner/meetup.tsx:338` already gates coral on `arrivedAt`**, so home is the one screen breaking a
+> rule the app already has. Still waits on Sean: one word, A or B.
+>
+> ⚠ **A second client session works this same surface** (`exciting-rosalind-e6ac13`, four subagents).
+> Read `git log -- <file>` before editing anything in `app/`, and message it before taking a file.
+> It is not adversarial — coordination has worked all night — but nobody is holding a console.
 >
 > Gates before every commit, from `app/`: tsc · check-rpc-contracts · check-route-native-imports ·
 > check-embed-fk · `npm run lint --quiet` (**must stay at 6 errors**). That is FIVE, not four. Never create a booking on Sean's account and
 > never press the onboarding CTA. Reply in English; in-app copy stays Korean.
+
+---
+
+## Addendum — overnight, 2026-08-20 → 21 (second grant, no announcer online)
+
+**[verified-now] unless tagged otherwise.** Everything below is on trunk.
+
+| what | commit | state |
+|---|---|---|
+| O-7 KEEP line no longer claims money is owed | `c60a648` | ✅ landed, 5 gates green |
+| Handoff-CTA ruling written for Sean (both answers) | `72256bb` | 📋 queued, **not built** |
+| Coral-ground A/B queued (`§0-duodetricies`) | `a0bda14` | 📋 queued |
+| Gate list corrected — there are **FIVE** | `02fa629` | ✅ |
+| Coral sub-line AA failure (3.70 → 4.55) | peer session | ✅ fixed by them, my measurement |
+
+### The one code change I made, and why it is not cosmetic
+
+The account-deletion sheet told a departing runner 「아직 정산되지 않은 금액이 있어요」 — *there is an
+amount not yet settled* — whenever `fetchLedger()` returned any row. **Row existence cannot support
+that claim.** `ledger_items` (0001:264-275) has no paid/settled marker and no migration adds one, so
+a runner paid in full still matched. This is the exact fact **O-7 was decided on** ("unpaid is
+uncomputable"), which is why the balance gate was rejected and `unpaid_payout` is knowingly inert —
+the copy asserted precisely the quantity the ruling records as unknowable. It is a legally relevant
+retention disclosure (PIPA 제37조) on the deletion path, where telling someone money is outstanding
+is a reason not to finish leaving. Now binds to what the predicate proves.
+
+**The generalisable part** — two earlier passes fixed this same line (existence-not-sum, then
+retry-instead-of-silent-catch). Both asked whether the line *appeared*. Neither asked whether it was
+*true*. **A disclosure that renders reliably and says something false is worse than one that
+flickers**, because the flicker is at least visible.
+
+### My original brief is now closed except where policy blocks it
+
+- **Token enumeration diff: CLEAN.** All 12 state tokens are in the sheet's `REFUSALS` map, plus
+  `not_authenticated` (401), `auth_delete_pending` (202) and `confirm_required`. Dispatch is
+  `hasOwnProperty` with an explicit `unknown` phase, so a future server token degrades to a named
+  fallback, not a blank sheet.
+- **O-6 remaining arms (409 refusal, 202 retry): unverified BY POLICY, not by neglect.** Neither can
+  be exercised on Sean's account without creating a booking, which he forbade. The announcer already
+  verified both over the wire (38/38 at the DB boundary).
+- **The REGISTRY's "contract sync owed" note is STALE** — `account-deletion-contract.md` already
+  carries the AS DEPLOYED block at its head and the 🔵 CONDITIONAL note inline at §B.3. Left flagged;
+  a client session should not edit REGISTRY.
+
+### Two corrections to things you may otherwise believe
+
+1. **react-doctor's pre-commit hook is NOT dead.** A peer reported it as a silent no-op. Its premise
+   is right — `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor` from the repo root,
+   and react-doctor lives under `app/` — but the `npx` fallback at `:21` **runs and scans** (mine
+   printed `Scanning 1 staged files… ✔ Scanned 1 file in 644ms`). The config error they hit is
+   conditional, not structural. **Don't rewrite the hook on that diagnosis.**
+2. **`effect-needs-cleanup` on `delete-account-sheet.tsx:238` is a FALSE POSITIVE.** The effect does
+   clean up: `retry` is assigned inside a nested `.catch` and cleared at `:252` with `alive = false`.
+   The static pass can't follow the closure. Do not "fix" it and do not suppress it blind.
+
+### ⚠ Two hazards for whoever works the main checkout next
+
+- **`docs/routes/strava/bench/routes.json` is another session's live file, and every recent incoming
+  commit touches it.** `git pull --rebase --autostash` would very likely conflict and strand their
+  in-flight work in a stash. I landed via a separate clean worktree and pushed `HEAD:redesign-v4`
+  instead. **Do the same, or wait for them.**
+- Consequently the main checkout sits **2 ahead** with commits whose patches are already upstream.
+  Verified by patch-id, not assumed — `9e94211…` and `4222c57…` match on both sides — so the next
+  rebase drops them silently. Nothing is lost.
+
+### Known-inert, do NOT "fix"
+
+`unpaid_payout`'s refusal copy (`delete-account-sheet.tsx:104`) has the same uncomputable-amount
+shape, but it is **unreachable** — nothing writes `payouts`, so it never renders. If `payouts` ever
+gains writers the claim becomes computable (`payouts.paid_at`, 0001:295) and the copy becomes
+correct. Leave it; don't let a sweep rewrite it on the assumption the token is live.
