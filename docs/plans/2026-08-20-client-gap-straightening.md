@@ -194,30 +194,67 @@ at the end of implementation) and are marked unverified-on-sim in their commits.
 **Frozen-zone approvals are itemized at the final gate** (CEO voice finding 6): B1, B2, B6,
 F11 each get their own line with diff shape — never a workstream-level nod.
 
-### 🔴 Q10 — THE react-doctor PRE-COMMIT GATE HAS BEEN A NO-OP, AND THE OBVIOUS FIX WOULD BLOCK
-### EVERY COMMIT IN THE FLEET (found 2026-08-20 night by the marketing session, mechanism verified here)
+### 🟠 Q10 — react-doctor's pre-commit hook CANNOT BLOCK, and it silently skipped this session's
+### commits. Corrected twice; read the correction, not the first draft.
 
-Sean's standing order is react-doctor on every UI build. It has not run on a single commit tonight —
-not "ran and warned", **did not scan**.
+Sean's standing order is react-doctor on every UI build.
 
-**Mechanism (measured).** `.githooks/pre-commit` tests `[ -x "./node_modules/.bin/react-doctor" ]`
-from the REPO ROOT. In this repo react-doctor lives at `app/node_modules/.bin/react-doctor` (v0.9.12,
-confirmed present). The root test fails, so the chain falls through to `npx react-doctor@latest`,
-which runs from the root, sees both root-level and `app/`-level `package.json` / `tsconfig.json` /
-`app.json`, and dies with *"Cannot scan staged files while configuration differs between the index
-and worktree"* — then exits 0. That is the message every session has watched scroll past on every
-commit; it is not a comment on the diff, it means nothing was inspected.
+⚠ **MY FIRST WRITE-UP OF THIS WAS WRONG and is corrected here rather than deleted, because the
+wrong version is instructive.** I wrote that the hook "has been a no-op — did not scan" and that
+repairing it would block the whole fleet. Two peer sessions tested the parts I had inferred:
 
-**⚠ THE TRAP — do not "just fix the lookup".** The hook invokes `--blocking warning`. A manual run
-from `app/` (`./node_modules/.bin/react-doctor .` — it takes a DIRECTORY, not a file list) reports
-**355 issues: 7 bug errors, 1 security error, 347 warnings**, essentially all pre-existing. So
-repairing the path alone converts a dead gate into one that **blocks every commit in the fleet on a
-347-warning backlog** — three sessions lose the ability to commit at once, in the middle of the
-night. The lookup fix and the blocking level are ONE decision and must land together.
+**What is TRUE (each measured, by me unless noted):**
+1. **The path fallthrough is real.** `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor`
+   from the REPO ROOT; react-doctor lives at `app/node_modules/.bin/` (v0.9.12). The test always fails.
+2. **But the `npx --yes react-doctor@latest` fallback at :21 DOES scan.** The other client session saw
+   it scan their commit; I reproduced it here — staged one probe `.tsx`, ran the hook's exact npx
+   command from the root, got `Scanning 1 staged files...`. **So it is not a dead gate, and it must
+   not be described as one — the next reader would stop looking at real findings.**
+3. **The hook is nevertheless structurally incapable of BLOCKING.** Found by the marketing session,
+   verified here: `grep -n exit .githooks/pre-commit` returns **nothing**. The failure branch does
+   `cat` → `rm` → `printf >&2` and falls off the end; a script exits with its last command's status
+   and `printf` returns 0. So even a scan reporting errors lets the commit through. It reports; it
+   never gates.
+4. **The config error IS real but CONDITIONAL, and it hit every commit of this session.** *"Cannot
+   scan staged files while configuration differs between the index and worktree: app.json,
+   app/app.json, … tsconfig.json"* printed on every commit I made tonight, so **this session's ~20
+   changed React files went unscanned** even though the hook is capable of scanning.
+5. **TRIGGER IDENTIFIED (measured here, 2026-08-20 night): the error appears exactly when
+   `app/node_modules` is ABSENT.** Observed as a clean A/B without looking for it: with the
+   `app/node_modules` symlink in place, the hook's own npx command scanned a staged probe file
+   (`Scanning 1 staged files...`); the two commits I made immediately after `rm -f app/node_modules`
+   both printed the config error. The mechanism fits every session's experience — the marketing
+   session has no `app/node_modules` in its worktree and saw the error on every commit; the client
+   session in the MAIN CHECKOUT, where deps are installed, saw it scan. Without `app/node_modules`,
+   react-doctor cannot resolve the `app/` project and falls back to comparing the root and `app/`
+   config files, which is what "configuration differs between the index and worktree" reports.
+   ⚠ This session removes the symlink before each commit (it is untracked and must not be staged),
+   which is precisely why EVERY commit here hit it. **Practical rule until the hook is fixed: a
+   worktree with no installed deps gets no react-doctor coverage — run it manually from `app/`.**
 
-**Sean's call, two parts:** (1) repair the lookup — add `app/node_modules/.bin/react-doctor` to the
-hook's chain; (2) pick the level the hook blocks at — `error` (7+1 today, so the backlog would have
-to be cleared or accepted first) or `off`/report-only until the backlog is worked down.
+**Consequence for the fleet-blocking fear in my first draft: it was unfounded.** Because there is no
+`exit 1`, repairing the path cannot block anyone. It would convert "sometimes silently skips" into
+"scans and reports" — strictly better, zero blocking risk.
+
+**Still not fixed here, deliberately.** A hook that works being rewritten on a wrong diagnosis is its
+own defect, and I have now been wrong about this once already. Fixing the path without first
+identifying what triggers the config error would be a change made on an unproven theory, to a shared
+version-controlled file, with three sessions committing against it and Sean asleep.
+
+**Sean's call, three separable parts (only the third is a judgement):**
+1. **Path lookup** — add `app/node_modules/.bin/react-doctor` to the chain. Safe; cannot block.
+   Should follow, not precede, identifying the config-error trigger.
+2. **The missing `exit 1`** — this is the change that would make it an actual gate.
+3. **`--blocking warning` vs `error`** — only becomes live once (2) lands, and this is the one that
+   meets the backlog: a manual run from `app/` (`./node_modules/.bin/react-doctor .` — it takes a
+   DIRECTORY, not a file list) reports **355 issues: 7 bug errors, 1 security error, 347 warnings**,
+   essentially all pre-existing. At `warning` that backlog would block every commit until cleared.
+
+**Adjacent, measured by the marketing session and worth recording so nobody over-generalises:**
+`core.hooksPath` = `/Users/sean/dev/daengrun/.githooks`, which exists and holds both `pre-commit` and
+`pre-push`, in the common git dir so every worktree inherits it. **The migration-number pre-push guard
+is genuinely armed** — this is not a repeat of the 2026-08-15 "five worktrees pointed at a disposable
+tree" failure. Do not generalise from react-doctor to the migration guard.
 
 **Not introduced tonight** — checked by inspection, not assumed: every flagged site sits outside
 this session's diffs (`alerts.tsx`, `shot/[bid].tsx`, `owner/fitness.tsx`, `club-ui.tsx`,
