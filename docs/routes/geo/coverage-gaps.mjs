@@ -115,7 +115,23 @@ function neighbours(c) {
 // called 근린공원 / 문화공원) are rejected for a different reason: they make an
 // unusable ROUTE NAME. A name that could be anywhere is anywhere — that is the
 // 어울림공원 27.64km lesson, applied to naming rather than routing.
-const SKIP = /주차|공장|터미널|역$|배수지|어린이공원|놀이터/;
+// Encoded from BUILD-QUEUE.md's REJECTED section plus what the ranker actually
+// picked on 2026-08-20 and had to be withdrawn. Each clause is a real miss:
+//   배수지        fenced water-treatment reservoirs, mis-tagged as lakes
+//   실로암/기도원  religious-institution grounds, not a public dog route
+//   어린이공원    pocket playgrounds, not destinations
+//   물이 고여있는  a features.json name that is a SENTENCE ("pond with standing
+//                 water (behind the building)") — unusable as a route name
+//   임시/철거     temporary or demolished installations
+// A destination whose NAME cannot appear in a route name is not a destination,
+// however green it is.
+const SKIP = /주차|공장|터미널|역$|배수지|어린이공원|놀이터|실로암|기도원|물이\s*고여|임시운영|철거/;
+// Streets misfiled under a green category. "전농로5길" came through as a park and
+// got built as a destination; a road is never the green a route goes TO.
+const STREETISH = /(로|길)\s*\d*(가|나|다|라|마)?길$|^[가-힣]+대?로$/;
+// A parenthesised annotation means the name carries operating notes or dates, not
+// an identity — it truncates into nonsense in a route name.
+const ANNOTATED = /[（(]/;
 const GENERIC_NAME = /^(근린|문화|체육|생태|시민|평화|호수|가족|중앙|어울림)?\s*(공원|광장)$/;
 const KIND_RANK = { stream: 0, river: 1, lake: 2, park: 3, forest: 4, trail: 5, hill: 6 };
 
@@ -137,6 +153,8 @@ for (let n = 0; n < topN; n++) {
     if (!(kind in KIND_RANK)) continue;
     if (SKIP.test(f.name || '')) continue;
     if (GENERIC_NAME.test((f.name || '').trim())) continue;
+    if (STREETISH.test((f.name || '').trim())) continue;
+    if (ANNOTATED.test(f.name || '')) continue;
     const d = Math.hypot(my(f.lat) - my(best.c.lat), mx(f.lng, f.lat) - mx(best.c.lng, best.c.lat));
     if (d > 1500) continue;
     const score = d + KIND_RANK[kind] * 60 + (f.tunnel ? 400 : 0); // 복개천 demoted, not dropped
