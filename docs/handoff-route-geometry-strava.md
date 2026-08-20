@@ -1478,3 +1478,34 @@ session doesn't pay for the same measurement).
   structurally. 장안동/방이동/송파동 singles are label-splits, not coverage gaps.
 - shade/lighting stay NULL; nothing is dog-access verified; rows are candidate/algo. The
   publish gate is untouched.
+
+---
+
+## 26. Q7 (client session) — measured from the geometry side, 2026-08-20
+
+The client session found that `isOfferable()` judged loop closure on `routes_public`, which
+endpoint-trims active rows by up to 200 m per end (0110), and that 0113 made that trimmed
+projection the only client path. They gated the client so it cannot fire and queued the sturdier
+server-side fix as Q7 in `docs/plans/2026-08-20-client-gap-straightening.md`.
+
+**The geometry number that decides the shape of that fix, measured over all 103 traces:**
+
+| | closure ≤50 m |
+|---|---|
+| RAW trace | **103 / 103** |
+| after a 200 m/end trim | **32 / 103** |
+
+Trimmed closure gap: min 0 m, **median 188 m**, **max 511 m** — and the 511 m case
+(잠원 근린공원 한강 루프 3.55km) has a RAW closure of **0 m**. Worst five after trim: 511 / 459 /
+427 / 423 / 415 m.
+
+**Therefore `is_loop` cannot be derived from the trimmed projection at any threshold.** This is not
+a tuning problem: admitting the worst case needs >511 m, which would classify every route as a
+loop. The flag must be computed on the UNTRIMMED trace and stored on the row, then exposed on the
+projection — which is what Q7 proposes and what this measurement independently justifies.
+
+Confirmed independently on production the same day: **0 active, 0 verified_run_id, 117 rows.** So
+nothing is firing today; this is a correctness requirement for the first promotion, not a live bug.
+
+Not actionable by this session — a projection column is a migration, and migrations are out of this
+track's boundary. Handing the number to whoever takes Q7.
