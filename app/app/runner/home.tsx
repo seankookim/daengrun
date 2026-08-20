@@ -471,8 +471,11 @@ export default function RunnerHome() {
         <Row style={styles.week}>
           <Text style={styles.weekK}>이번 주</Text>
           <Text style={styles.weekV}>
-            <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : String(stats.runs)}</Text>회 ·{' '}
-            <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : String(stats.km)}</Text>km · 정산 예정{' '}
+            {/* Two different unknowns share the same '—': the whole fetch failed (stats null), or
+                it succeeded and only the runs lookup failed (runs/km null while net is real). The
+                second used to render a fabricated 0km beside a real count — see RunnerWeekStats. */}
+            <Text style={[styles.weekNum, nf]}>{stats?.runs == null ? '—' : String(stats.runs)}</Text>회 ·{' '}
+            <Text style={[styles.weekNum, nf]}>{stats?.km == null ? '—' : String(stats.km)}</Text>km · 정산 예정{' '}
             <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>원
           </Text>
         </Row>

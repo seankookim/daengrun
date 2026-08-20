@@ -2415,7 +2415,13 @@ export async function fetchMyName(): Promise<string | null> {
   return data?.name ?? user.user.email?.split('@')[0] ?? null;
 }
 
-export interface RunnerWeekStats { net: number; runs: number; km: number }
+/** ⚠ `runs` and `km` are NULLABLE, and `net` is not — the three are not equally knowable.
+ *  `net` comes straight out of `ledger_items`, so if this function returns at all, the money is
+ *  real. `runs` and `km` need a SECOND read against `runs`, and that read can fail on its own. It
+ *  used to discard its error, which left `km` at its 0 seed and `runCount` unfiltered — so a runner
+ *  whose lookup failed saw 「3회 · 0km · 정산 예정 45,000원」: a real count, real money, and a
+ *  fabricated zero distance. Null means "not known this fetch", which the screen renders as —. */
+export interface RunnerWeekStats { net: number; runs: number | null; km: number | null }
 
 export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   const since = new Date(kstWeekStartMs()).toISOString(); // KST 월요일 시작 — 리더보드와 동일 창
@@ -2429,17 +2435,22 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   // runs = ledger rows that have an actual runs row. En-route cancel compensation (0080
   // record_enroute_cancel_comp) writes a ledger row for a run that never happened — its money
   // belongs in net, but counting it as a run would show "N runs" including a 0km phantom.
-  let km = 0;
-  let runCount = rows.length;
   const ids = rows.map((l: any) => l.booking_id);
-  if (ids.length > 0) {
-    const { data: runsD } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
-    km = (runsD ?? []).reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
-    if (runsD) {
-      const ran = new Set(runsD.map((r: any) => r.booking_id));
-      runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
-    }
+  // No ledger rows at all is a MEASURED zero week, not an unknown — return real zeros.
+  if (ids.length === 0) return { net, runs: 0, km: 0 };
+
+  const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
+  // ⚠ The error is read, not discarded. Without this the catch-all below seeded km at 0 and left
+  // runCount unfiltered, so a failed lookup printed a real run count beside a fabricated 0km.
+  // Both values depend on this read, so both go unknown together; `net` is unaffected because it
+  // came from the ledger rows we already have.
+  if (runsErr || !runsD) {
+    console.warn('[weekStats] runs lookup:', runsErr?.message ?? 'no rows returned');
+    return { net, runs: null, km: null };
   }
+  const km = runsD.reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
+  const ran = new Set(runsD.map((r: any) => r.booking_id));
+  const runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
   return { net, runs: runCount, km: Math.round(km * 10) / 10 };
 }
 
