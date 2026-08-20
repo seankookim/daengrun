@@ -219,18 +219,30 @@ repairing it would block the whole fleet. Two peer sessions tested the parts I h
    scan staged files while configuration differs between the index and worktree: app.json,
    app/app.json, … tsconfig.json"* printed on every commit I made tonight, so **this session's ~20
    changed React files went unscanned** even though the hook is capable of scanning.
-5. **TRIGGER IDENTIFIED (measured here, 2026-08-20 night): the error appears exactly when
-   `app/node_modules` is ABSENT.** Observed as a clean A/B without looking for it: with the
-   `app/node_modules` symlink in place, the hook's own npx command scanned a staged probe file
-   (`Scanning 1 staged files...`); the two commits I made immediately after `rm -f app/node_modules`
-   both printed the config error. The mechanism fits every session's experience — the marketing
-   session has no `app/node_modules` in its worktree and saw the error on every commit; the client
-   session in the MAIN CHECKOUT, where deps are installed, saw it scan. Without `app/node_modules`,
-   react-doctor cannot resolve the `app/` project and falls back to comparing the root and `app/`
-   config files, which is what "configuration differs between the index and worktree" reports.
-   ⚠ This session removes the symlink before each commit (it is untracked and must not be staged),
-   which is precisely why EVERY commit here hit it. **Practical rule until the hook is fixed: a
-   worktree with no installed deps gets no react-doctor coverage — run it manually from `app/`.**
+5. **⚠ THE TRIGGER IS OPEN. Two candidates have been proposed and BOTH are falsified.** This is the
+   third revision of this item; it says "we don't know" on purpose, because a confident wrong
+   trigger is worse than an open question here — it tells the next reader the gate is fine in
+   *their* situation when it may not be.
+   - **Falsified candidate A — "absent `app/node_modules`".** I claimed this as measured. It was a
+     bad experiment: my A/B removed the symlink, which varied TWO things at once (deps became
+     unresolvable *and* `node_modules` stopped being a symlink), so it cannot separate them.
+     Directly falsified by the other client session, which hit the identical error in a worktree
+     where `app/node_modules` was present and working — `app/node_modules/.bin/tsc` had typechecked
+     that same tree seconds earlier and all five gates passed.
+   - **Falsified candidate B — "the hook never scans".** See point 2 above.
+   - **Unconfirmed hypothesis, recorded as a lead and NOT as a finding:** react-doctor resolves
+     through `node_modules`, and when that is a symlink its realpath escapes the worktree into
+     `/Users/sean/dev/daengrun/app/`, straddling two git trees whose index states genuinely differ.
+     Fits every observation so far (both worktree-with-symlink sessions fail; the main checkout with
+     a real `node_modules` succeeds) but **nobody has tested it.**
+   - **The error message is misleading on its face and should not be read literally.** The other
+     session checked every path it names: the four root-level ones (`app.json`, `package.json`,
+     `tsconfig.json`, `eslint.config.mjs`) do not exist at all, and the four `app/`-level ones are
+     tracked and unmodified. Nothing is staged-vs-worktree divergent. It is listing every config
+     path it PROBED, not a real diff.
+   **Practical rule regardless of trigger: do not rely on the hook for react-doctor coverage. Run it
+   manually — from `app/`, `./node_modules/.bin/react-doctor <dir>` works even in a symlinked
+   worktree** (confirmed by both client sessions). It takes a DIRECTORY, not a file list.
 
 **Consequence for the fleet-blocking fear in my first draft: it was unfounded.** Because there is no
 `exit 1`, repairing the path cannot block anyone. It would convert "sometimes silently skips" into
