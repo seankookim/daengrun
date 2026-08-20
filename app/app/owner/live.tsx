@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { homePath } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
@@ -152,6 +153,16 @@ export default function Live() {
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다. 실패(네트워크)는 '진행 중 없음'과 다르다:
   // 조용히 back 하지 않고 재시도 문을 연다.
+  // Leaving this screen must always land somewhere. A cold entry (Live Activity deep link, or a
+  // push tapped after the run already ended) gives this route a single-entry stack, and the root
+  // Stack is headerShown:false + gestureEnabled:false — so a bare router.back() is a NO-OP and the
+  // owner is left staring at an empty screen with a back arrow that does nothing. Only one of the
+  // app's many back sites guarded for this (cards.tsx); this is that idiom.
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace(homePath());
+  }, []);
+
   const resolveBooking = useCallback(() => {
     setResolve('resolving');
     fetchCurrentOwnerBookingId()
@@ -159,10 +170,10 @@ export default function Live() {
         if (id) { draft.bookingId = id; setBookingId(id); setResolve('ready'); return; }
         setResolve('empty');
         Alert.alert('진행 중인 러닝이 없어요', '러닝이 시작되면 이 화면이 열려요');
-        router.back();
+        goBack();
       })
       .catch((e) => { console.warn('[live] resolve:', e?.message ?? e); setResolve('error'); });
-  }, []);
+  }, [goBack]);
 
   useEffect(() => {
     if (bookingId) return;
@@ -559,7 +570,7 @@ export default function Live() {
       <View style={s.root}>
         <StatusBar style="dark" />
         <Row style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
+          <Pressable onPress={goBack} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
         </Row>
         <View style={s.waitWrap}>
           {resolve === 'error' ? (
@@ -716,7 +727,7 @@ export default function Live() {
 
       {/* ---------- 상단 오버레이 ---------- */}
       <Row style={s.topBar}>
-        <Pressable onPress={() => router.back()} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
+        <Pressable onPress={goBack} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
         {/* LIVE는 근거가 있을 때만 — 위치 픽스 전에는 '달리는 중'이라고 말하지 않는다.
             (진행 중 예약에는 confirmed·인계 대기도 포함된다 — 아직 러닝이 아니다) */}
         <View style={s.livePill}>

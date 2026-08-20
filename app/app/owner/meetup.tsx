@@ -215,9 +215,17 @@ export default function OwnerMeetup() {
           text: '취소하기', style: 'destructive',
           onPress: async () => {
             setCancelling(true);
+            // ⚠ ARMED BEFORE THE AWAIT, and that ordering is the whole point. The flag used to be
+            // set on the line AFTER `await cancelBooking(...)` resolved — which left the exact
+            // window it was written to cover unguarded (see its declaration: "realtime can observe
+            // cancelled_owner BEFORE cancelBooking() resolves"). In that window the 8s poll or the
+            // bk- realtime UPDATE saw `cancelled_*`, ran refresh()'s terminal handler unmuted, and
+            // fired its own Alert + router.back(); then this handler resolved and fired a SECOND
+            // alert and a SECOND back() — two stacked alerts contradicting each other and a pop
+            // past this screen to whatever was underneath.
+            closingRef.current = true; // this exit owns navigation — see refresh() guard
             try {
               const r = await cancelBooking(bookingId);
-              closingRef.current = true; // this exit owns navigation — see refresh() guard
               // Alert-then-back mirrors the terminal-state handler in refresh() above.
               Alert.alert(
                 '취소 완료',
