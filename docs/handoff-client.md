@@ -503,12 +503,25 @@ a DEV row). No accessibility audit beyond the a11y items the reviews named. No p
 
 ## Opener for the next session
 
-> Client domain (all of `app/`) on daengrun, MAIN checkout `/Users/sean/dev/daengrun` @ `redesign-v4`
-> — never a worktree; run `git status` first, other sessions stash into it.
-> Read `docs/handoff-client.md` fully, then `docs/labs/RULINGS-2026-08-19-journey.md` (#14/#15 are
-> Sean's own words; 🔵 items were decided under his overnight grant and one word flips them).
-> The journey labs are now BUILT end to end — settled, do not re-litigate: home is ⑧ v2 · route names
-> render raw · `status='active'` filtering is a gate · `actual_km` unchanged · R6/R1c are a server
-> slice. Nothing has ever run on hardware. Highest-value next moves: the TestFlight build (needs
-> Sean's 2FA), then the O-6 account-deletion settings row when the announcer sends its contract.
-> Never create a booking on Sean's account (PR-0 signal); the onboarding CTA writes real rows.
+> Client domain (all of `app/`) on daengrun. Work in the MAIN checkout `/Users/sean/dev/daengrun` on
+> `redesign-v4` — never a worktree; other sessions switch its branch and stash into it, so run
+> `git status` before you touch anything.
+>
+> Read first: `docs/handoff-client.md` (status, decisions with their WHY, gotchas) then
+> `docs/labs/RULINGS-2026-08-19-journey.md` — #14/#15 are Sean's own words; 🔵 items were decided
+> under his overnight grant and one word from him flips any of them.
+>
+> The journey labs are BUILT end to end (home ⑧ v2 → onboarding → preferences → radar → meetup →
+> live → report; runner home → requests → meetup → run → done → earnings). Settled — do not
+> re-litigate: home is ⑧ v2 · route names render raw · `status='active'` filtering is a gate ·
+> `actual_km` means the whole tracked buffer · R6 return seal and R1c work-gate are a server slice.
+>
+> Nothing has ever run on hardware. Highest-value next move is the TestFlight build (needs Sean's
+> 2FA). O-6 account deletion is built and pushed but its edge function is not deployed — when the
+> announcer says it is live, verify success / a 409 refusal / the 202 retry arm on device, diff the
+> final token enumeration against the copy map, and add the O-7 KEEP line.
+>
+> Gates before every commit, from `app/`: tsc · check-rpc-contracts · check-route-native-imports ·
+> `npm run lint --quiet` (must stay at **6 errors**). Never create a booking on Sean's account
+> (PR-0 signal) and never press the onboarding CTA (it writes real rows). If a screen renders
+> "No script URL provided", Metro is down — start it and relaunch; the screen is fine.
