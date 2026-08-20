@@ -192,7 +192,12 @@ KM=$(echo "$DIST" | grep -oE '[0-9.]+' | head -1)
 # silently discarding the unknown share. Refuse an incomplete or malformed mix.
 SURF_COUNT=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | wc -l | tr -d ' ')
 SURF_TOTAL=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | tr -d '%' | awk '{s+=$1} END{print s+0}')
-if [ "$SURF_COUNT" -ne 3 ] || [ "$SURF_TOTAL" -ne 100 ]; then
+# Allow 98-102: Strava rounds each share independently, so a genuine complete
+# mix can sum to 101 ("75% PAVED · 9% DIRT · 17% NOT SPECIFIED" — a real reading
+# that this guard refused). Demanding exactly 100 rejects correct data for an
+# artifact of Strava's own rounding. Three parts present is the real test; the
+# sum is a sanity band, not an identity.
+if [ "$SURF_COUNT" -ne 3 ] || [ "$SURF_TOTAL" -lt 98 ] || [ "$SURF_TOTAL" -gt 102 ]; then
   echo "    incomplete Surface Type '$SURF' — refusing to invent the missing share" >&2
   exit 1
 fi
@@ -248,8 +253,17 @@ SLUG=$(echo "$FINAL" | tr ' /' '__')
 TMP="$OUT/.$SLUG.gpx"
 B download "https://www.strava.com/routes/$ID/export_gpx" "$TMP" --navigate >/dev/null 2>&1
 
-# The file name is derived from the independent trackpoint measurement, not the
-# target and not Strava's readout. Keep both measurements in the catalog row.
+# NAME THE FILE WHAT THE ROUTE IS NAMED. Both measurements are kept in the
+# manifest, but the FILENAME must match the route name, because that name is what
+# every downstream join uses: the catalog row, the basemap cache, the bench.
+#
+# Naming the file from the independent haversine while the route carries Strava's
+# readout made 23 of 46 files disagree with their own <name> by ~0.01 km — the
+# file said 6.42, the route and the production row said 6.41. Nothing was wrong
+# in production, but a row->file match by name silently failed on half the
+# catalog, and the next person to notice would reasonably call it corruption.
+# The two numbers are both honest; they are just two different measurements, and
+# only one of them can be an identifier.
 VERIFY=$(node "$DIR/check-shape.mjs" --json "$TMP") || {
   echo "    exported GPX is unmeasurable — kept at $TMP for diagnosis" >&2
   exit 1
@@ -260,7 +274,7 @@ PTS=$(printf '%s' "$VERIFY" | sed -nE 's/.*"points":([0-9]+).*/\1/p')
 RETRACE=$(printf '%s' "$VERIFY" | sed -nE 's/.*"retracePct":([0-9.]+).*/\1/p')
 SHAPE=$(printf '%s' "$VERIFY" | sed -nE 's/.*"shape":"([^"]+)".*/\1/p')
 [ -n "$MEASURED" ] || { echo "    could not parse independent measurement" >&2; exit 1; }
-FILE_SLUG=$(echo "$NAME ${MEASURED}km" | tr ' /' '__')
+FILE_SLUG=$(echo "$FINAL" | tr ' /' '__')
 mv "$TMP" "$OUT/$FILE_SLUG.gpx"
 
 WP_JOINED=$(IFS=';'; echo "${WAYPOINTS[*]}")
