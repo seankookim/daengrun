@@ -11,7 +11,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -105,6 +105,8 @@ export default function OwnerHome() {
   const p = SURF;
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅 (화면당 1회)
   const nf = useNumFont();     // [V4] 숫자 = Oswald
+  const [memberSince, setMemberSince] = useState<string | null>(null);
+  const [memberNo, setMemberNo] = useState<number | null>(null);
   // 감소된 모션 — GO 디스크의 breath와 함께 이 화면에서 사라졌지만, 남은 두 루프(그리팅
   // 수직 플립 rotateX 0→86deg, 랭킹 티커 마퀴)는 정확히 법이 "전부 멈추라"고 말한 종류다
   // (DESIGN.md §7c · reducedMotion.ts: 루프/유휴 모션 → 완전 정지). 문구와 티커 자체는 남는다 —
@@ -169,6 +171,8 @@ export default function OwnerHome() {
     loadBookings();
     loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
+    fetchMemberMeta().then((m) => { setMemberSince(m.since); setMemberNo(m.no); })
+      .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
@@ -315,6 +319,21 @@ export default function OwnerHome() {
               <Icon name="Bell" glyph="◔" size={20} color={lilac.head} />
             </Pressable>
           </View>
+          {/* [2026-08-20 Sean, 브랜드 랩 Ⅰ 병합] 시리얼 행 — 코랄 헤어라인("이 선이 곧 브랜드")이
+              마스트헤드 밑으로 돌아오고, 그 아래 멤버십 메타가 앉는다. MEMBER SINCE는 auth
+              created_at의 실데이터. NO.는 서버가 가입 순번 RPC를 줄 때까지 그리지 않는다 —
+              칸은 설계되어 있고, 필드가 도착하면 한 줄로 켜진다. 14pt 하한 예외: 시리얼 문자열
+              (DESIGN.md §3 명시 예외 — 여권 MRZ와 같은 부류). */}
+          <View style={s.serialRule} />
+          {memberSince && (
+            <View style={s.serialRow}>
+              {memberNo != null && (
+                <Text style={[s.serialTx, nf]}>{`NO. ${String(memberNo).padStart(4, '0')}`}</Text>
+              )}
+              <View style={{ flex: 1 }} />
+              <Text style={[s.serialTx, nf]}>{`MEMBER SINCE ${memberSince}`}</Text>
+            </View>
+          )}
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
               ▲▼ 등락 화살표는 실델타가 있을 때만 — 없는 데이터는 그리지 않는다 */}
           {ticker.length > 0 && (
@@ -626,6 +645,11 @@ const s = StyleSheet.create({
   // [2026-08-20] 마스트헤드 행 — 높이 48 = HEADER_MAST (마크 30 + 여유). 구 락업 행(52) + 구
   // 그리팅 행(44 + marginBottom 4)이 이 한 줄로 접혔다 → 아래 모든 것이 약 52pt 올라온다.
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
+  // 시리얼 행 — 코랄 풀블리드 헤어라인 + Oswald 레터스페이스 시리얼. 11pt는 §3의 시리얼 예외
+  // (여권 MRZ 부류). 잉크는 dim — 메타데이터지 본문이 아니다.
+  serialRule: { height: 1, backgroundColor: paper.line },
+  serialRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter, paddingTop: 7, marginBottom: 2 },
+  serialTx: { fontSize: 11, letterSpacing: 1.6, color: paper.dim },
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.

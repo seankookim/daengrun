@@ -3846,6 +3846,21 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
 
 // 미읽음 알림 수 — 벨 도트의 실근거. head:true라 행은 안 실어오고 count만 받는다.
 // RLS가 내 알림으로 자기 범위화 + read_at IS NULL 부분 인덱스가 서빙.
+// ── 멤버 메타 (홈 마스트헤드 시리얼 행) ──────────────────────────────────
+// since = auth 유저의 created_at (세션에 이미 있는 실데이터 — profiles.created_at은 0088이
+// 의도적으로 클라이언트에 안 열었고, auth 쪽은 열려 있다).
+// no = 가입 순번. ⚠ 정직법: 클라이언트가 계산할 수 없다(타인 프로필 read 불가). 서버가
+// my_member_no() 류의 definer RPC를 주기 전까지 null이고, null이면 화면은 그 칸을 그리지
+// 않는다 — NO. 0001을 지어내는 순간 모든 번호가 거짓이 된다.
+export async function fetchMemberMeta(): Promise<{ since: string | null; no: number | null }> {
+  const { data } = await supabase.auth.getUser();
+  const iso = data.user?.created_at ?? null;
+  if (!iso) return { since: null, no: null };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { since: null, no: null };
+  return { since: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`, no: null };
+}
+
 export async function fetchUnreadCount(): Promise<number> {
   const { count, error } = await supabase
     .from('notifications')

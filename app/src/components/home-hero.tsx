@@ -183,10 +183,12 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
           </Pressable>
         )}
         <Pressable onPress={schedule} style={({ pressed }) => [s.opt, s.optB, pressed && { backgroundColor: paper.wash }]}
-          accessibilityRole="button" accessibilityLabel="예약하기">
+          accessibilityRole="button" accessibilityLabel="다음 하이 미리 예약">
           <View>
-            <Text style={[s.optT, df, { color: paper.ink }]}>예약하기</Text>
-            <Text style={[s.optD, { color: paper.dim }]}>날짜와 시간을 골라 잡아둬요</Text>
+            {/* [2026-08-20 Sean, 브랜드 랩 Ⅰ 병합] 「예약하기」→「다음 하이 미리 예약」 — 그가 직접
+                지정했던 머니 CTA(05aab35)의 복원. 하이 음절이 홈에 돌아온다. 서브텍스트는 은퇴:
+                문장이 이미 날짜를 고르러 간다고 말한다. */}
+            <Text style={[s.optT, df, { color: paper.ink }]}>다음 하이 미리 예약</Text>
           </View>
           <Text style={[s.optArr, { color: paper.ink }]}>›</Text>
         </Pressable>
