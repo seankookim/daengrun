@@ -1,5 +1,23 @@
 # Contract — in-app account deletion (App Store 5.1.1(v) · PIPA 제37조)
 
+> ## ⚠ AS DEPLOYED — 2026-08-20, verified live. Where this file disagrees below, THIS is what shipped.
+>
+> - **TWELVE state refusal tokens**, not eleven: `club_custody_owner` was split out of `club_custody`
+>   (a holder can finish the handoff; an owner whose dog is out cannot, and a refusal must name a remedy
+>   its reader can perform). `not_authenticated` is the party gate, returns **401**, and is NOT a state token.
+> - **`bank_accounts` is CONDITIONAL, not an unconditional DELETE** (Sean's O-7 "A-intact-when-owed"):
+>   deleted only when the runner has no `ledger_items`; kept **INTACT, not anonymised** when they have
+>   earnings, on the ledger's retention basis. The RPC reports `bank_kept` (own boolean key, default false).
+>   ⚠ §A.2.e, §B.3 and §C.1.b ④ below still describe the unconditional delete — they are superseded here.
+>   `unpaid_payout` remains a token but is **knowingly inert**: nothing writes `payouts` (queue §0-duodecies).
+> - **Live verification is §E.4, not §E.8** — there is no §E.8 in this contract (the announcer briefed the
+>   probe with the wrong section id, copied from the other two contracts; the probe caught it).
+> - Verified on production 2026-08-20, 38/38 assertions, five throwaway accounts created and removed, zero
+>   collateral: 409 `{"error":"active_booking"}` (one key, bare token) · 400 `confirm_required` · a body-supplied
+>   uid IGNORED (the caller was tombstoned, the named victim byte-identical) · happy path tombstone with the
+>   auth user GONE and `toss_customer_key` kept · `bank_kept:true` with the row byte-identical (hex-compared,
+>   non-ASCII included) and `bank_kept:false` with the row gone · stale JWT → 401 · cleanup verified empty.
+
 **Status: CONTRACT ONLY, REVISION 2 — reviewed adversarially, repaired, cleared to build.**
 Nothing is built. Nothing is deployed. No migration file exists yet. Revision 2 applies all 16
 findings from the executed review of §C; the verdict, the finding index and the six 🔵 decisions
