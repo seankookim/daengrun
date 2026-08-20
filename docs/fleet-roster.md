@@ -300,3 +300,9 @@ two false "stranded work" alarms on day one.
   makes it a rule: **ownership vacancy is not authorisation.** A session's brief comes from the human; an announcer reallocating
   vacated work must not silently extend anyone's surface, least of all onto a file (`_shared/ctx.ts`) that 24 functions depend on.
   Under-claiming and asking for one sentence from Sean is the cheaper error by a wide margin.
+- **A screen's type budget is a property of the RENDER TREE, not of one file (brand archaeology → announcer v3, 2026-08-20):** the
+  announcer verified "Black Han Sans once per screen" by counting `useDisplayFont` in `owner/home.tsx` and reported the design law
+  satisfied. Owner home renders four — `home-hero.tsx` calls the hook itself and applies `df` mid-array in style tuples (`[s.title, df]`),
+  which a `grep useDisplayFont` on the route file cannot see and a `grep 'df]'` on one file still misses. **Third wrong-scope
+  verification in one night** (the truncated `head`, the misspelled filename, this): each one measured something true and described
+  something adjacent. For any per-SCREEN law, walk the composed components, not the route file.
