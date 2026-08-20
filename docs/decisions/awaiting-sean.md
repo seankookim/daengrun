@@ -295,6 +295,22 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-sexvicies. 🟠 THE DEAD BRAND AND A BANNED WORD ARE WIRED TO CARD STATEMENTS — fix before charging flips (2026-08-20)
+
+Found by the brand round, **verified by the announcer**: `supabase/functions/_shared/charge.ts:117-118` sets the PG `orderName` to
+「**댕런** 산책 이용료」 and 「**댕런** 예약 취소 수수료」. Two problems in five words — `댕런` was retired 2026-07-28, and 「산책」 is on
+`docs/positioning.md:44`'s banned list (안 쓰는 말: 산책, 대행, 돌봄, 시터; the category thesis is 러닝). This is the single
+highest-visibility copy the brand owns: it prints on a real person's card statement.
+
+⚠ **Correction to the urgency, measured:** production has `payments = 0`, `billing_keys = 0`, `payments_live_since = null` — **nothing
+has ever been charged, so no statement has ever printed it.** It is not bleeding now; it becomes real the moment charging flips, and
+that is the deadline. Pinned by `_test/settle_charge_test.ts:311` and `_test/cancel_fee_test.ts:263`, so the pins move in the same
+slice. Proposed: 「도그스하이 러닝 이용료」 / 「도그스하이 예약 취소 수수료」. **A** approve that wording and I run it under the money-path
+gates (/autoplan + reviewer ≠ author, 0059 doctrine — it is copy, but it is copy on the charge path) · **B** different wording, say it
+and I run the same slice · **C** hold until a server-domain session exists. Sibling, CLIENT-domain and already claimable by the live
+client session: `app/app/runner/apply.tsx:655` has a runner consenting to safety terms as a 「**댕런** 러너」 — a legally-flavoured
+consent naming a company that no longer goes by that name.
+
 ## 0-quinvicies. 🟡 ONE-WORD DOMAIN QUESTION — may the client session touch `supabase/` for ONE slice? (2026-08-20)
 
 The deep-link slice (§0-unvicies) has two halves in two domains: the client half (`api.ts` keeping the extra field) and the SERVER
