@@ -368,6 +368,46 @@ and are stronger).
 
 ---
 
+## Addendum — O-6 account deletion, on-device verification (2026-08-20 afternoon)
+
+**delete-account v1 is DEPLOYED and matches trunk exactly** — `supabase functions download`
+diffed byte-identical against `supabase/functions/delete-account/` and `_shared/ctx.ts`
+**[verified-now]**. Migrations applied through 0115 (per the table above); the wire-level
+verification (38/38 assertions, five throwaway accounts, success/409/202/401/400 all exercised)
+is in the contract's AS DEPLOYED block — that half was already done.
+
+**Token enumeration diff — exact, no orphans either way [verified-now]:** the 0115 RPC raises
+exactly twelve state tokens (`active_booking` `active_run` `unsettled_run` `unsettled_payment`
+`unpaid_payout` `km_balance` `open_incident` `active_recurring` `club_host_duty` `club_custody`
+`club_custody_owner` `club_assignment`); `REFUSALS` in `delete-account-sheet.tsx` holds exactly
+those twelve keys. `not_authenticated`/`unauthorized` ride the 401 status arm, `auth_delete_pending`
+rides the 202 pending arm, `confirm_required` is deliberately unmapped (client-bug indicator →
+fallback arm). The O-7 KEEP line already ships (`8d3c520` → corrected `3be5c2b`) — nothing to add.
+
+**Device pass (sim, Sean's account, post-`3be5c2b` build) [verified-now]:**
+- Sheet disclosure renders in contract order (a)–(e); forfeiture plate sits ABOVE the confirm control.
+- **O-7 KEEP line present on 3 consecutive opens** — the exact repro count of the original
+  nondeterminism — in its `some` branch (his ledger rows are real). The determinism fix holds.
+- Hold-to-confirm armed at 1.5 s; destructive button opened.
+- **The 409 refusal arm, live end to end:** pressing 계정 삭제 returned `active_booking`; the sheet
+  rendered 「아직 삭제할 수 없어요」 with the contract-verbatim copy and 예약 보기 routed to the real
+  schedule screen. **Safety was pre-proven, not assumed:** gate #1's exact predicate was measured
+  true against production first (2 `runner_enroute` + 2 `refund_pending` on his account), and the
+  gate raises before any write. Post-check: `profiles.deleted_at` still null,
+  `account_deletions` = 0 rows. Nothing mutated.
+- **NOT verified on device, stated plainly:** the success and 202-retry arms. Both need a
+  disposable account signed into the app; signup is Kakao-only and no session may create accounts.
+  They remain wire-verified only (throwaway accounts, contract AS DEPLOYED). First candidate for
+  the TestFlight/second-account smoke list.
+
+Logistics note: this addendum was committed from a worktree at the origin tip because the main
+checkout was 2 behind with another session's uncommitted `routes.json` conflicting with the
+incoming route commits — pulling would have required stashing someone else's work. `app/` was
+byte-identical between the two trees; gates ran green in the main checkout (tsc clean · rpc ✅ ·
+56 routes clean · lint 6 errors = baseline).
+
+---
+
 ## Opener for the next session
 
 > Client domain (all of `app/`) on daengrun. Work in the MAIN checkout `/Users/sean/dev/daengrun`
