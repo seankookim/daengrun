@@ -239,9 +239,14 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
             sub={state === 'searching' ? '요청 상황을 볼 수 있어요' : '러너 응답을 기다려요'}
             ground="blue" art="radar" onPress={openNext} />
         )}
+        {/* ⚠ 금색은 **세리머니 색**(여권·도장·영수증)이다. 지난 예약은 기념할 티켓이 아니라
+            정리해야 할 행정 건이므로 금색을 주면 뜻이 뒤집힌다 — 중립 페이퍼로 간다.
+            앞으로의 확정 건만 진짜 티켓이고, 그때만 금색을 쓴다. */}
         {state === 'confirmed' && (
-          <DrawButton title={nextIsPast ? '보기' : '티켓 보기'} sub="시간과 장소를 확인해요"
-            ground="gold" art="ticket" onPress={openNext} />
+          <DrawButton
+            title={nextIsPast ? '예약 보기' : '티켓 보기'}
+            sub={nextIsPast ? '일정에서 정리할 수 있어요' : '시간과 장소를 확인해요'}
+            ground={nextIsPast ? 'paper' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
           <DrawButton title="채팅" sub="러너에게 물어보세요"

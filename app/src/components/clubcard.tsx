@@ -549,16 +549,17 @@ const s = StyleSheet.create({
   cEngraveBody: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 15, paddingVertical: 14 },
   cMono: { width: 42, height: 42, borderWidth: 1.5, borderColor: '#D8C185',
     alignItems: 'center', justifyContent: 'center' },
-  cMonoT: { fontSize: 19, fontWeight: '900', color: '#7A6528' },
+  cMonoT: { fontSize: 19, fontWeight: '900', color: '#5F4E1C' },
   // 각인 문자 — 위 흰 하이라이트 + 아래 어두운 획으로 종이에 눌린 것처럼. 첫 랩에서 크림 위
   // 크림으로 해 이름이 사라졌던 값(#EFE3C2)은 쓰지 않는다: 읽히지 않는 각인은 각인이 아니다.
-  cEngraveT: { fontSize: 20, lineHeight: 26, fontWeight: '900', color: '#7A6528',
+  cEngraveT: { fontSize: 20, lineHeight: 26, fontWeight: '900', color: '#5F4E1C',
     textShadowColor: 'rgba(255,255,255,0.95)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0 },
-  cEngraveSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: '#8A7434', marginTop: 2 },
-  cEngraveAct: { fontSize: 21, color: '#7A6528' },
+  // 3.8:1이던 값(#8A7434)을 재서 교체 — 골드 워시 위 서브라인은 눈으로 고르면 항상 미달한다.
+  cEngraveSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: '#6B5720', marginTop: 2 },
+  cEngraveAct: { fontSize: 21, color: '#5F4E1C' },
   cLedger: { flexDirection: 'row', justifyContent: 'space-between',
     borderTopWidth: 1, borderTopColor: '#E4D5AE', paddingHorizontal: 15, paddingVertical: 7 },
-  cLedgerT: { fontSize: 11, letterSpacing: 1.4, fontWeight: '700', color: '#A08A50' },
+  cLedgerT: { fontSize: 11, letterSpacing: 1.4, fontWeight: '700', color: '#7C682E' },
   cRowT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
   cRowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
   cRowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },

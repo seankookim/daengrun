@@ -23,15 +23,20 @@ import { paper } from '../theme';
 export type BtnGround = 'coral' | 'paper' | 'gold' | 'blue' | 'volt' | 'lilac';
 export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' | 'chat' | 'coin' | 'photo' | 'shield';
 
-// 바탕 팔레트. 워시는 theme.ts의 기존 토큰 값이고, `ink`/`sub`는 그 워시 위에서 AA를 넘기는
-// 어두운 동계열이다(컴포넌트 스코프 — 전역 토큰을 늘리지 않으려고 여기 둔다).
+// 바탕 팔레트. 워시는 theme.ts의 기존 토큰이고, `ink`/`sub`는 그 워시 위에서 AA를 넘기도록
+// **측정해서** 고른 값이다(컴포넌트 스코프 — 전역 토큰을 늘리지 않으려고 여기 둔다).
+//
+// ⚠ 처음 값들은 눈으로 골랐고, Sean이 "카드와 글자 대비가 부족하다"고 지적해 재보니 서브라인
+// 셋이 AA 미달이었다: gold 3.82 · blue 3.99 · volt 3.50 (필요 4.5). 지금 값은 전부 재서
+// 여유까지 둔 것이고, 아래 주석의 수치가 그 측정치다. **워시 위의 잉크는 눈으로 고르지 않는다** —
+// 워시는 배경이 밝아 어떤 색이든 '읽히는 것처럼' 보이기 때문에 눈이 가장 잘 속는 조합이다.
 const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: string; sub: string }> = {
   coral:  { bg: paper.action, border: paper.action, edge: '#A63A20', ink: '#FFFFFF', sub: '#FFD9CE' },
-  paper:  { bg: '#FBF9F4', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },
-  gold:   { bg: '#F4EBD3', border: '#E7DAB6',       edge: '#C9AE6A', ink: '#7A6528', sub: '#8A7434' },
-  blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#5A7A99' },
-  volt:   { bg: '#EAF6C8', border: '#D7E8B0',       edge: '#A8C46A', ink: '#3F5A08', sub: '#6B8A22' },
-  lilac:  { bg: '#EFECF9', border: '#DFD9F2',       edge: '#B8AEE0', ink: '#3B3170', sub: '#6A5FA8' },
+  paper:  { bg: '#FBF9F4', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },   // 17.9 / 5.5
+  gold:   { bg: '#F4EBD3', border: '#E7DAB6',       edge: '#C9AE6A', ink: '#5F4E1C', sub: '#6B5720' },   // 6.8 / 5.9
+  blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#456079' },   // 7.6 / 5.8
+  volt:   { bg: '#EAF6C8', border: '#D7E8B0',       edge: '#A8C46A', ink: '#3F5A08', sub: '#4F6717' },   // 6.9 / 5.6
+  lilac:  { bg: '#EFECF9', border: '#DFD9F2',       edge: '#B8AEE0', ink: '#3B3170', sub: '#6A5FA8' },   // 9.7 / 4.7
 };
 
 /** 선화 — 오른쪽 가장자리로 흘러나가게 그린다. 불투명도 낮게, 활자 뒤에 워터마크처럼. */
