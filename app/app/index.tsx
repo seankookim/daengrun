@@ -110,6 +110,17 @@ export default function RoleSelect() {
     router.push(next);
   };
 
+  // ⚠ The buttons were disabled only while SAVING (`busy != null`), never while auth was still
+  // resolving — but `start()` returns immediately on `!auth`. So during the cold-start window both
+  // halves rendered fully enabled and a tap did NOTHING: a dead button on the first screen of the
+  // app, on the launch path nobody has ever exercised end to end (queue §0). It is also the worst
+  // place in the product for one, because a first-run user has no way to tell a dead control from a
+  // broken app. Label swap rather than a dimmed face is the house grammar (DESIGN.md F2.1: busy =
+  // 라벨 스왑, opacity tricks retired).
+  const notReady = loading || !auth;
+  const label = (role: Role, normal: string) =>
+    busy === role ? '저장 중...' : notReady ? '시작하는 중...' : normal;
+
   return (
     <View style={s.root}>
       <Text style={s.brand}>도그스하이 · DOGS HIGH</Text>
@@ -117,11 +128,14 @@ export default function RoleSelect() {
       <Pressable
         style={({ pressed }) => [s.half, pressed && s.pressed]}
         onPress={() => start('owner')}
-        disabled={busy != null}
+        disabled={busy != null || notReady}
+        accessibilityRole="button"
+        accessibilityLabel="보호자로 시작"
+        accessibilityState={{ disabled: busy != null || notReady, busy: busy === 'owner' }}
       >
         <Text style={s.kicker}>OWNER</Text>
         <Text style={s.name}>보호자예요</Text>
-        <Text style={s.desc}>{busy === 'owner' ? '저장 중...' : '믿을 수 있는 러너에게 맡겨요'}</Text>
+        <Text style={s.desc}>{label('owner', '믿을 수 있는 러너에게 맡겨요')}</Text>
       </Pressable>
 
       <View style={s.divider} />
@@ -129,11 +143,14 @@ export default function RoleSelect() {
       <Pressable
         style={({ pressed }) => [s.half, pressed && s.pressed]}
         onPress={() => start('runner')}
-        disabled={busy != null}
+        disabled={busy != null || notReady}
+        accessibilityRole="button"
+        accessibilityLabel="러너로 시작"
+        accessibilityState={{ disabled: busy != null || notReady, busy: busy === 'runner' }}
       >
         <Text style={s.kicker}>RUNNER</Text>
         <Text style={s.name}>러너예요</Text>
-        <Text style={s.desc}>{busy === 'runner' ? '저장 중...' : '달리면서 수익도 얻어요'}</Text>
+        <Text style={s.desc}>{label('runner', '달리면서 수익도 얻어요')}</Text>
       </Pressable>
     </View>
   );
