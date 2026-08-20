@@ -209,7 +209,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
           : { top: '오늘은 아직', bottom: '비어 있어요' };
   const subline =
     state === 'confirmed'
-      ? (nextIsPast ? `${when} · 일정에서 확인하거나 취소해주세요`
+      ? (nextIsPast ? `${when}에 시작하지 못했어요`
         : `${when ? when + ' · ' : ''}${runner} 확정${ddayLabel ? ' · ' + ddayLabel : ''}`)
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
@@ -242,11 +242,18 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
         {/* ⚠ 금색은 **세리머니 색**(여권·도장·영수증)이다. 지난 예약은 기념할 티켓이 아니라
             정리해야 할 행정 건이므로 금색을 주면 뜻이 뒤집힌다 — 중립 페이퍼로 간다.
             앞으로의 확정 건만 진짜 티켓이고, 그때만 금색을 쓴다. */}
+        {/* ⚠ 지난 건은 amber(= paper.pending의 워시)다. 이유 둘:
+              ① 시맨틱 — '주의가 필요한 미해결 상태'이지 중립 문서가 아니다.
+              ② 충돌 회피 — paper로 두면 바로 아래 '미리 예약'과 **같은 색 두 개**가 된다
+                 (Sean 2026-08-20 지적). 같은 바탕 두 개는 위계가 아니라 반복이다.
+              ⚠ 서브라인이 「정리할 수 있어요」에서 바뀐 것도 정직 문제다: 확정 건 취소는
+              수수료 구간(<24h 10%, 절반은 러너 몫)이 있어 '정리'가 공짜라는 함의를 줄 수 없다.
+            서버가 만료를 처리하기 전까지 홈은 사실만 말하고 목적지는 일정 화면이다. */}
         {state === 'confirmed' && (
           <DrawButton
-            title={nextIsPast ? '예약 보기' : '티켓 보기'}
-            sub={nextIsPast ? '일정에서 정리할 수 있어요' : '시간과 장소를 확인해요'}
-            ground={nextIsPast ? 'paper' : 'gold'} art="ticket" onPress={openNext} />
+            title={nextIsPast ? '예약 확인' : '티켓 보기'}
+            sub={nextIsPast ? '아직 정리되지 않았어요' : '시간과 장소를 확인해요'}
+            ground={nextIsPast ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
           <DrawButton title="채팅" sub="러너에게 물어보세요"

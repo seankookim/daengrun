@@ -20,7 +20,7 @@ import { useDisplayFont } from '../lib/displayFont';
 import { useReducedMotion } from '../lib/reducedMotion';
 import { paper } from '../theme';
 
-export type BtnGround = 'coral' | 'paper' | 'gold' | 'blue' | 'volt' | 'lilac';
+export type BtnGround = 'coral' | 'paper' | 'gold' | 'blue' | 'volt' | 'lilac' | 'amber';
 export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' | 'chat' | 'coin' | 'photo' | 'shield';
 
 // 바탕 팔레트. 워시는 theme.ts의 기존 토큰이고, `ink`/`sub`는 그 워시 위에서 AA를 넘기도록
@@ -37,6 +37,9 @@ const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: stri
   blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#456079' },   // 7.6 / 5.8
   volt:   { bg: '#EAF6C8', border: '#D7E8B0',       edge: '#A8C46A', ink: '#3F5A08', sub: '#4F6717' },   // 6.9 / 5.6
   lilac:  { bg: '#EFECF9', border: '#DFD9F2',       edge: '#B8AEE0', ink: '#3B3170', sub: '#6A5FA8' },   // 9.7 / 4.7
+  // amber = paper.pending의 워시(lilac.amberSoft/amberEdge, 기존 토큰). '주의가 필요한 상태'의
+  // 시맨틱이고, 지난 예약이 정확히 그 상태다. 잉크는 측정값(#C77414 자체는 3.1:1로 미달).
+  amber:  { bg: '#FBEED9', border: '#F2DFC2',       edge: '#DCBE86', ink: '#6E4708', sub: '#7A4F0A' },   // 7.1 / 6.2
 };
 
 /** 선화 — 오른쪽 가장자리로 흘러나가게 그린다. 불투명도 낮게, 활자 뒤에 워터마크처럼. */

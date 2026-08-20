@@ -933,3 +933,44 @@ Routed to the payments session with the right suggestion attached: make it a **p
 test** rather than a one-time audit — every table's anon-visible column set asserted, so a new
 `using (true)` reddens instead of relying on someone repeating the audit. The same
 convention→constraint move as the pre-push hook.
+
+---
+
+## §0-septvicies · 지난 예약(past-time confirmed booking) — Sean ruled A, server slice owed
+
+**Sean, 2026-08-20, in-session:** asked *"so what happens when it's past reservation time? what
+does that mean? how many minutes after? this is a new scenario."* — and he was right that nobody
+had designed it. He then chose **A: grace window + server expiry**.
+
+### What is true today (measured, not assumed)
+
+1. **The threshold is midnight, not minutes.** `home.tsx` computes
+   `nextIsPast = kstDayDiff(scheduledAt) < 0`, and `kstDayDiff` compares KST *calendar day boxes*.
+   So a 15:30 booking is still "upcoming" at 23:59 the same day (8.5h late), while a 23:50 booking
+   flips "past" at 00:01 (11 min late). The trigger has no relationship to the appointment.
+2. **Nothing on the server resolves it.** `expire_unmatched_bookings()` (0017) touches only
+   `matching` and `runner_pending`. A **confirmed** booking whose time passed stays `confirmed`
+   forever — no cron, no state change. (`home.tsx` already carries the note "confirmed엔 만료 크론이
+   없다 — 리뷰 P1".)
+3. **The only owner remedy costs money.** `cancel_owner` accepts `confirmed`, and the fee ladder is
+   0 at ≥24h / **10% inside 24h, half of it the runner's** (0085). A past-time booking is by
+   definition inside that window, so "just cancel it" may charge the owner.
+
+### Client half — SHIPPED (this commit)
+
+Home no longer implies free cleanup. Copy is now 「예약 시간이 / 지났어요」 + 「{when}에 시작하지
+못했어요」, the button reads 「예약 확인 / 아직 정리되지 않았어요」, and it takes the **amber**
+ground (= `paper.pending`'s wash) because the state is *unresolved and needs attention* — which
+also fixes two same-coloured buttons sitting on top of each other.
+
+### Server half — OWED, needs a server-domain session
+
+- **Grace window.** Proposed **scheduled_at + 30 min** (a run is 30–60 min; if no handoff has
+  happened 30 min in, something is wrong). Not shipped as a number anywhere yet — Sean's to set.
+- **Terminal state.** `confirmed` → `no_show` / `expired_confirmed` past the grace window, so the
+  row stops being "upcoming" for both sides.
+- **🔴 MONEY RULING REQUIRED, Sean's alone:** when a confirmed booking simply never starts, who
+  bears it? Owner charged the 10% (as a late cancel)? Runner compensated (half, per 0085)? Both
+  zero (nobody showed, nobody pays)? **The client cannot show a resolution until this is decided**
+  — any button we draw would promise an outcome the ledger has not agreed to.
+- Until then home states the fact and routes to 일정; it promises nothing.
