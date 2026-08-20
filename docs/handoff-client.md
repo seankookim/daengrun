@@ -270,6 +270,18 @@ filtering `status='active'` is a **gate**.
 - **`request.tsx`'s post-hold order is a contract** (§E.5): bookingId first, then recurring, then
   nomination, then route. `radar.tsx` bounces to home without `draft.bookingId`; `matching.tsx` reads
   only the draft.
+- **`owner/home.tsx`'s header is NOT pinned any more, and must not become pinned again.** The brand
+  lockup, ticker and greeting are ordinary children at the top of a plain `ScrollView`; the absolute
+  overlay, the `paddingTop: PAD_TOP + HEADER_H + heroH` reservation and the whole collapse machinery
+  were retired with the GO disc (`bea1bc8`). Two consequences: (a) rearranging the header — e.g. Sean's
+  2026-08-20 revision moving the rotating greeting between the logo and the bell — is a plain JSX
+  reorder, not a negotiation with the morph contract; (b) **reintroducing an absolute header brings
+  back the plate-bleed-through bug** where the collapsing background plate shrank out from under the
+  hero and scroll content ran through the hero text. That was real, visible, and fixed once.
+- **`StatusBarCover` must stay mounted LAST on every screen that uses it** (`45bd558`) — after the
+  ScrollView in tree order. Move it earlier and content scrolls over the system bar again, which is
+  the exact defect it was added to fix on nine screens.
+
 - **DO-NOT-REFACTOR** (reasons in-file): `run.tsx`'s tracking singleton / settle retry loop / overrun
   ceiling / Live Activity / background-mode block / K7 camera contract; both meetup stage machines
   and the last-effect hydration law (new state only at the END of the hook bundle);
