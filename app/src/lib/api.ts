@@ -4006,7 +4006,10 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
     .from('bookings')
     // club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
     // (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
+    // arrived_at: 러너 도착은 상태 전이가 아니라 타임스탬프라(transition-booking:275-277 — 상태를
+    // 옮기면 보험·정산 기점이 앞당겨진다) status만 읽으면 '오는 중'과 '도착해서 기다리는 중'이
+    // 같은 값이다. 홈이 그 둘을 구분하려면 이 컬럼이 있어야 한다.
+    .select('id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -4034,6 +4037,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
       price: r.total_price,
       status: STATUS_MAP[r.status] ?? 'pending',
       rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
+      arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
       recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
       seriesId: r.series_id ?? null,
       live: true,
