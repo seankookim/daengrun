@@ -933,3 +933,97 @@ Routed to the payments session with the right suggestion attached: make it a **p
 test** rather than a one-time audit — every table's anon-visible column set asserted, so a new
 `using (true)` reddens instead of relying on someone repeating the audit. The same
 convention→constraint move as the pre-push hook.
+
+---
+
+## §0-septvicies · 지난 예약(past-time confirmed booking) — Sean ruled A, server slice owed
+
+**Sean, 2026-08-20, in-session:** asked *"so what happens when it's past reservation time? what
+does that mean? how many minutes after? this is a new scenario."* — and he was right that nobody
+had designed it. He then chose **A: grace window + server expiry**.
+
+### What is true today (measured, not assumed)
+
+1. **The threshold is midnight, not minutes.** `home.tsx` computes
+   `nextIsPast = kstDayDiff(scheduledAt) < 0`, and `kstDayDiff` compares KST *calendar day boxes*.
+   So a 15:30 booking is still "upcoming" at 23:59 the same day (8.5h late), while a 23:50 booking
+   flips "past" at 00:01 (11 min late). The trigger has no relationship to the appointment.
+2. **Nothing on the server resolves it.** `expire_unmatched_bookings()` (0017) touches only
+   `matching` and `runner_pending`. A **confirmed** booking whose time passed stays `confirmed`
+   forever — no cron, no state change. (`home.tsx` already carries the note "confirmed엔 만료 크론이
+   없다 — 리뷰 P1".)
+3. **The only owner remedy costs money.** `cancel_owner` accepts `confirmed`, and the fee ladder is
+   0 at ≥24h / **10% inside 24h, half of it the runner's** (0085). A past-time booking is by
+   definition inside that window, so "just cancel it" may charge the owner.
+
+### Client half — SHIPPED (this commit)
+
+Home no longer implies free cleanup. Copy is now 「예약 시간이 / 지났어요」 + 「{when}에 시작하지
+못했어요」, the button reads 「예약 확인 / 아직 정리되지 않았어요」, and it takes the **amber**
+ground (= `paper.pending`'s wash) because the state is *unresolved and needs attention* — which
+also fixes two same-coloured buttons sitting on top of each other.
+
+### Server half — OWED, needs a server-domain session
+
+- **Grace window.** Proposed **scheduled_at + 30 min** (a run is 30–60 min; if no handoff has
+  happened 30 min in, something is wrong). Not shipped as a number anywhere yet — Sean's to set.
+- **Terminal state.** `confirmed` → `no_show` / `expired_confirmed` past the grace window, so the
+  row stops being "upcoming" for both sides.
+- **🔴 MONEY RULING REQUIRED, Sean's alone:** when a confirmed booking simply never starts, who
+  bears it? Owner charged the 10% (as a late cancel)? Runner compensated (half, per 0085)? Both
+  zero (nobody showed, nobody pays)? **The client cannot show a resolution until this is decided**
+  — any button we draw would promise an outcome the ledger has not agreed to.
+- Until then home states the fact and routes to 일정; it promises nothing.
+
+### ⚠ CORRECTION to §0-septvicies (same day) — Sean's question invalidated half the spec
+
+**He asked:** *"what does a late but confirmed run mean? to be a confirmed run, what conditions
+are necessary? has the runner already come to the starting point? if so, there cannot be a
+run-expiry thing as the runner is already there ready for the run."*
+
+He is right, and the spec above was written against a label instead of the state machine.
+
+**The client's `confirmed` is a MERGE of two server states** (`api.ts` STATUS_MAP):
+
+| DB status | maps to | what is actually true |
+|---|---|---|
+| `confirmed` | client `confirmed` | a runner accepted. **Nobody has set off.** Can be days early. |
+| `runner_enroute` | client `confirmed` | runner is travelling; `arrived_at` stamps when they get there |
+| `picked_up` | client `handoff` | **both sides already confirmed the handoff** — the dog is with the runner |
+
+So "late but confirmed" is currently ambiguous between *nobody came* and *the runner is standing
+at your door*, and home renders them identically.
+
+- **`confirmed` past its time** → the runner never set off. Expiry is right, and `no_show` is
+  ALREADY a legal transition from `confirmed` (0001:205) — it is simply never set by anything
+  (zero hits for `no_show` across `supabase/functions/`). The state exists and is unreachable.
+- **`runner_enroute` past its time** → Sean's case exactly. **Expiry here would be harmful** —
+  it would cancel a booking while a runner is physically waiting at the pickup point. Never expire
+  this. The remedy is 인계 or contact, not cancellation.
+
+**Revised ask:** the grace-window expiry applies to `rawStatus = 'confirmed'` ONLY. `runner_enroute`
+is excluded no matter how late it is. The money ruling narrows accordingly: it is about a runner
+who never set off, not a runner who showed up and waited.
+
+### 🔴 SECOND DEFECT, found by the same question — the urgent CTA fires one state too late
+
+`picked_up` is reached only when BOTH `owner_confirmed_handoff_at` and
+`runner_confirmed_handoff_at` are set (`transition-booking/index.ts:300-320`, "둘 다 눌러야
+picked_up (보험 기점)"). Home's `goState === 'handoff'` maps from `picked_up`.
+
+**Therefore home shows the loud coral 「인계하기」 only AFTER the handoff is already done** — and
+during the moment the owner actually has to hand the dog over (`runner_enroute`, especially once
+`arrived_at` is stamped) home shows the calm 「티켓 보기」. The urgent state and the urgent moment
+are off by one.
+
+This is exactly the failure CLAUDE.md names — *"When display vocabulary flattens server states
+(STATUS_MAP), gate logic and badges on `rawStatus`"* — and home gates on the flattened value.
+`Booking.rawStatus` is already populated by `fetchMyBookings` (`api.ts:3915`), so the fix is
+client-side; `arrived_at` would need adding to that select to separate "on the way" from "here".
+
+**Proposed gating (needs Sean's word — it changes which screen shouts, and neighbours the frozen
+meetup flow):**
+- `confirmed` → calm. Accepted, nothing to do yet.
+- `runner_enroute` + no `arrived_at` → calm. 러너가 오는 중.
+- `runner_enroute` + `arrived_at` → **coral, 내 차례, 인계하기.** This is the real handoff moment.
+- `picked_up` → calm. 인계 완료, 곧 출발 — 지도 보기.

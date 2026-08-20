@@ -6,12 +6,13 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
+import { DrawButton } from '../../src/components/draw-button';
 import { HomeHero } from '../../src/components/home-hero';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -105,6 +106,8 @@ export default function OwnerHome() {
   const p = SURF;
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅 (화면당 1회)
   const nf = useNumFont();     // [V4] 숫자 = Oswald
+  const [memberSince, setMemberSince] = useState<string | null>(null);
+  const [memberNo, setMemberNo] = useState<number | null>(null);
   // 감소된 모션 — GO 디스크의 breath와 함께 이 화면에서 사라졌지만, 남은 두 루프(그리팅
   // 수직 플립 rotateX 0→86deg, 랭킹 티커 마퀴)는 정확히 법이 "전부 멈추라"고 말한 종류다
   // (DESIGN.md §7c · reducedMotion.ts: 루프/유휴 모션 → 완전 정지). 문구와 티커 자체는 남는다 —
@@ -169,6 +172,8 @@ export default function OwnerHome() {
     loadBookings();
     loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
+    fetchMemberMeta().then((m) => { setMemberSince(m.since); setMemberNo(m.no); })
+      .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
@@ -299,12 +304,18 @@ export default function OwnerHome() {
                 빠지면 행 높이가 콘텐츠로 주저앉는다 — 러너 홈에서 그렇게 해 봤다가 로고가 다이내믹
                 아일랜드 위로 올라탔다(이 행은 height 고정이라 안 그랬을 뿐). 두 홈 다 스페이서로 간다. */}
             <View style={s.mastSpacer} />
+            {/* [2026-08-20 Sean] 텍스트 워드마크만 가운데 — **마크는 여기서 내려갔다**.
+                마크는 이제 히어로 문구의 오른쪽 여백에 앉는다(home-hero.tsx의 Phrase). 상단에
+                마크와 워드마크가 같이 있으면 37pt 문구 위에 시선이 앉을 자리가 둘이 된다.
+                ⚠ 워드마크는 **본문 900**이지 디스플레이 서체가 아니다: §3의 '화면당 1회'는
+                히어로 문구가 쓴다. 랩에서 열어 둔 질문을 예산을 지키는 쪽으로 닫은 것이고,
+                Sean이 뒤집으면 여기 `df` 한 줄만 되돌리면 된다. */}
             <View style={s.mastLogo}>
-              <BrandMark height={28} />
-              {/* 워드마크는 DESIGN.md §3의 '화면당 1회' 예산을 쓰는 그 한 번이다 — 법이 명시적으로
-                  'hero copy OR wordmark'라고 적어 둔 자리. 그리팅이 비운 슬롯을 그대로 물려받는다.
-                  20pt이므로 14pt 하한 위 — §3의 로고 아트워크 예외(하한 미만 허용)는 쓰지 않는다.
-                  따라서 장식으로 숨기지 않는다: 스크린 리더가 브랜드를 한 번 읽는 게 맞다. */}
+              {/* ⚠ 임시. Sean이 붙여준 진짜 워드마크는 **커스텀 레터링**(각진 지오메트릭)이고
+                  우리가 가진 어떤 서체도 아니다 — 파일(app/assets/wordmark.png)이 들어오면
+                  이 Text를 <Image>로 바꾸면 되고, 그 순간 디스플레이 서체 사용은 다시 화면당
+                  1회(히어로 문구)로 내려간다. 그때까지는 본문 900보다 브랜드에 가까운
+                  Black Han Sans로 둔다 — 지금은 2회이며, 그 사실을 숨기지 않는다. */}
               <Text style={[s.wordmark, df]}>도그스하이</Text>
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
@@ -364,6 +375,11 @@ export default function OwnerHome() {
             } : null}
             dogName={dogName}
             dialKm={draft.km}
+            // 라이브 점의 유일한 근거. fetchCertifiedRunners는 이미 `.eq('online', true)`로
+            // 거르므로 이 길이가 곧 "지금 온라인인 러너 수"다. 0이면 히어로가 점을 켜지 않고
+            // 문장도 그렇게 말한다 — 아직 안 불러왔을 때도 0이라 점이 늦게 켜질 뿐, 거짓으로
+            // 켜지는 경우는 없다(안전한 방향).
+            onlineRunners={localRunners.length}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             ddayLabel={ddayLabel}
@@ -452,6 +468,15 @@ export default function OwnerHome() {
         <CourseStrip headerPad={layout.gutter} />
 
         {/* ══════════════════ 나 ══════════════════ */}
+        {/* 코스 둘러보기 — 스트립은 미리보기고, 전체 카탈로그로 가는 문은 따로 있어야 한다. */}
+        <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+          <DrawButton
+            title="코스 둘러보기" sub="반포 근처 코스를 볼 수 있어요"
+            ground="volt" art="elev" small
+            onPress={() => router.push('/owner/course-map')}
+          />
+        </View>
+
         <ChunkKick label="나" />
 
         {/* 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos).
@@ -555,30 +580,37 @@ export default function OwnerHome() {
           </Pressable>
         )}
 
-        {/* 크루 피드에 자랑 — 완료 러닝이 있을 때만 (compose.tsx가 전제조건·중복 공유를 정직하게 처리) */}
+        {/* [2026-08-20 Sean] '나'의 두 행이 그림 행(TIER 4, 64pt)으로. 히어로의 결정 버튼과 같은
+            어휘를 3분의 2 높이로 써서 '나'가 두 번째 막이 아니라 코다로 읽히게 한다.
+            ⚠ 하이 포인트 비컨은 그대로 둔다 — 자체 게이팅(잔액>0 OR 승급 있음)과 진도 바를 가진
+            모듈이라 버튼으로 접으면 그 정직한 게이트를 잃는다. 규칙: 게이트가 있는 모듈은 개종하지
+            않는다. */}
         {lastDone && (
-          <Pressable
-            onPress={() => router.push('/compose')}
-            style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
-            accessibilityRole="button" accessibilityLabel="크루 피드에 자랑"
-          >
-            <Text style={s.rowT}>크루 피드에 자랑</Text>
-            <Text style={s.rowAct}>›</Text>
-          </Pressable>
+          <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+            <DrawButton
+              title="크루 피드에 자랑" sub="지난 러닝 사진을 동네 피드에 올릴 수 있어요"
+              ground="lilac" art="photo" small
+              onPress={() => router.push('/compose')}
+            />
+          </View>
         )}
 
-        {/* 안심 센터 */}
-        <Pressable
-          onPress={() => router.push('/safety')}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
-          accessibilityRole="button" accessibilityLabel="안심 센터"
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowT}>안심 센터</Text>
-            <Text style={s.rowSub}>SOS · 실시간 위치 · 보험</Text>
+        <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+          <DrawButton
+            title="안심 센터" sub="SOS와 실시간 위치, 보험을 확인해요"
+            ground="blue" art="shield" small
+            onPress={() => router.push('/safety')}
+          />
+        </View>
+
+        {/* MEMBER SINCE — 상단의 코랄 헤어라인이 빠지면서 그 자리를 잃었고, 멤버십 메타는
+            원래 '나'의 것이므로 여기가 제 집이다. 실데이터(auth created_at)뿐이고 없으면 안 그린다.
+            NO.는 여전히 서버 필드가 없어 자리만 비워 둔다 — 지어내지 않는다. */}
+        {memberSince && (
+          <View style={s.memberFoot}>
+            <Text style={[s.serialTx, nf]}>{`MEMBER SINCE ${memberSince}`}</Text>
           </View>
-          <Text style={s.rowAct}>›</Text>
-        </Pressable>
+        )}
       </ScrollView>
       {/* 시스템 바만 덮는 불투명 스트립 (Sean 2026-08-19). ScrollView '위'에 있어야 콘텐츠가
           그 아래로 지나간다. [2026-08-19] 같은 결함이 아홉 화면에서 측정돼 공용 컴포넌트로
@@ -626,10 +658,16 @@ const s = StyleSheet.create({
   // [2026-08-20] 마스트헤드 행 — 높이 48 = HEADER_MAST (마크 30 + 여유). 구 락업 행(52) + 구
   // 그리팅 행(44 + marginBottom 4)이 이 한 줄로 접혔다 → 아래 모든 것이 약 52pt 올라온다.
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
+  // 시리얼 행 — 코랄 풀블리드 헤어라인 + Oswald 레터스페이스 시리얼. 11pt는 §3의 시리얼 예외
+  // (여권 MRZ 부류). 잉크는 dim — 메타데이터지 본문이 아니다.
+  // 멤버십 메타는 '나'의 발치에. 11pt는 §3의 시리얼/MRZ 예외(14pt 하한 면제) 안에 있다.
+  memberFoot: { marginTop: 18, paddingTop: 14, paddingHorizontal: layout.gutter, paddingBottom: 4,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', alignItems: 'flex-end' },
+  serialTx: { fontSize: 11, letterSpacing: 1.6, color: paper.dim },
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
-  wordmark: { fontSize: 20, lineHeight: 26, color: lilac.head, letterSpacing: 0.2 },
+  wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: 0.2, fontWeight: '400' },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴
