@@ -197,7 +197,10 @@ export default function OwnerHome() {
   const nextIsPast = ddayN !== null && ddayN < 0;
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
-  const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
+  // `null` = not loaded yet or the read failed. Distinct from `[]`, which is a measured zero.
+  // The hero's primary CTA prints a sentence about runner availability, and "nobody is available"
+  // is a claim we may only make from a successful read (see the onlineRunners prop below).
+  const [localRunners, setLocalRunners] = useState<LiveRunner[] | null>(null);
   // 보호자 pfp — 헤더 좌측 (마이 프로필 사진과 동일 소스)
   // [2026-08-20] `me` 상태 제거 — 유일한 소비자가 마스트헤드의 pfp 아바타였고 그게 나갔다.
   // 소비자 없는 fetch를 포커스마다 돌리는 건 조용한 낭비라 호출도 같이 뺐다. 아바타를 되살리려면
@@ -375,11 +378,13 @@ export default function OwnerHome() {
             } : null}
             dogName={dogName}
             dialKm={draft.km}
-            // 라이브 점의 유일한 근거. fetchCertifiedRunners는 이미 `.eq('online', true)`로
-            // 거르므로 이 길이가 곧 "지금 온라인인 러너 수"다. 0이면 히어로가 점을 켜지 않고
-            // 문장도 그렇게 말한다 — 아직 안 불러왔을 때도 0이라 점이 늦게 켜질 뿐, 거짓으로
-            // 켜지는 경우는 없다(안전한 방향).
-            onlineRunners={localRunners.length}
+            // The only basis for the live dot. fetchCertifiedRunners already filters
+            // `.eq('online', true)`, so this length IS "runners online right now".
+            // ⚠ `null` when unknown, and the hero must render that as SILENCE, not as zero. The
+            // dot was always safe (an unloaded read merely delayed it), but the SUB-LINE was not:
+            // it printed 「지금은 대기 중인 러너가 없어요」 — an affirmative negative — on the
+            // primary CTA whenever this fetch simply failed or had not returned yet.
+            onlineRunners={localRunners === null ? null : localRunners.length}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             ddayLabel={ddayLabel}
@@ -437,11 +442,11 @@ export default function OwnerHome() {
 
         {/* 동네 러너 = 로스터. [2026-08-19] 피처드 나이트 카드 은퇴 — 화면의 두 번째 다크 섬이었다.
             1번 러너를 포함해 전원이 같은 라이트 미니 카드로 간다 (위계는 순서가 이미 말한다). */}
-        {localRunners.length > 0 && (
+        {(localRunners?.length ?? 0) > 0 && (
           <View>
             <ModH title="동네 러너" link="동네 랭킹 ›" onLink={() => router.push('/leaderboard')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
-              {localRunners.map((r) => (
+              {(localRunners ?? []).map((r) => (
                 <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={30} />

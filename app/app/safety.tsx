@@ -19,12 +19,23 @@ import { colors, paper } from '../src/theme';
 
 export default function Safety() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
-  const [contacts, setContacts] = useState<EmContact[]>([]);
   const [adding, setAdding] = useState(false);
   const [cName, setCName] = useState('');
   const [cPhone, setCPhone] = useState('');
 
-  const load = () => fetchEmergencyContacts().then(setContacts).catch((e) => console.warn('[safety]:', e?.message ?? e));
+  // ⚠ Three states, not two. A failed READ used to fall into the same render as "you have no
+  // contacts" — so an owner opening this screen mid-incident on a flaky connection was told their
+  // emergency roster was empty. On a safety surface that is the worst possible substitution, and
+  // this file already learned the lesson once on the DELETE path (see the comment there); the read
+  // never got the same treatment. `null` = not loaded yet / failed, and it renders as itself.
+  const [contacts, setContacts] = useState<EmContact[] | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+  const load = () => {
+    setLoadErr(false);
+    return fetchEmergencyContacts()
+      .then(setContacts)
+      .catch((e) => { console.warn('[safety]:', e?.message ?? e); setLoadErr(true); });
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const sos = () => {
@@ -88,7 +99,11 @@ export default function Safety() {
           <Icon name="Siren" glyph="✚" size={28} color="#fff" />
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>SOS 긴급 알림</Text>
-            <Text style={{ fontSize: 14, color: '#ffd9cf', marginTop: 3, lineHeight: 18.5 }}>
+            {/* ⚠ White, not a tinted salmon. `#ffd9cf` on this ground measured 2.97:1 — below the
+                4.5 floor — and the sentence carrying it is 「위급 시엔 112·119가 항상 우선이에요」,
+                the single most important line on the screen. White on the tokenized ground
+                (paper.action) measures 4.84:1, the value theme.ts:182 already records. */}
+            <Text style={{ fontSize: 14, color: '#fff', marginTop: 3, lineHeight: 18.5 }}>
               진행 중인 러닝의 상대방에게 즉시 알림{'\n'}위급 시엔 112·119가 항상 우선이에요
             </Text>
           </View>
@@ -107,12 +122,27 @@ export default function Safety() {
         {/* ---------- 긴급 연락처 (실CRUD) ---------- */}
         <Text style={s.section}>긴급 연락처</Text>
         <View style={s.card}>
-          {contacts.length === 0 && !adding && (
+          {/* Failure, loading and genuine-empty are three different sentences. Only the last one
+              may claim the roster is empty. */}
+          {loadErr && (
+            <Row style={{ paddingVertical: 6, alignItems: 'center' }}>
+              <Text style={{ flex: 1, fontSize: 14.5, color: paper.critical, fontWeight: '700' }}>
+                연락처를 불러오지 못했어요
+              </Text>
+              <Pressable onPress={load} style={s.miniBtn} accessibilityRole="button">
+                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.actionInk }}>다시 시도</Text>
+              </Pressable>
+            </Row>
+          )}
+          {!loadErr && contacts === null && (
+            <Text style={{ fontSize: 14.5, color: colors.dim, paddingVertical: 6 }}>불러오는 중...</Text>
+          )}
+          {contacts?.length === 0 && !adding && (
             <Text style={{ fontSize: 14.5, color: colors.dim, paddingVertical: 6 }}>
               아직 없어요 — 위급 시 연락할 가족·지인을 등록해두세요
             </Text>
           )}
-          {contacts.map((c, i) => (
+          {(contacts ?? []).map((c, i) => (
             <View key={c.id}>
               {i > 0 && <View style={s.div} />}
               <Row style={{ paddingVertical: 10, alignItems: 'center' }}>
@@ -177,10 +207,22 @@ export default function Safety() {
             <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
             <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
           </View>
-          <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={() => router.push('/owner/dog')}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
-            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
-          </Pressable>
+          {/* ⚠ Owner-only destination. This screen is a quick link from BOTH homes, and
+              `/owner/dog` has no role guard of its own — so a runner could land on the owner's dog
+              screen and create a real `dogs` row from its empty state. The row is still rendered
+              for a runner (the information is true for them too: medical notes live on the owner's
+              dog profile), it simply stops being a door into an owner-only write surface. */}
+          {session.role === 'runner' ? (
+            <View style={[s.card, { flex: 1, marginTop: 0 }]}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>보호자가 등록한 내용을 러닝 화면에서 볼 수 있어요</Text>
+            </View>
+          ) : (
+            <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={() => router.push('/owner/dog')}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
+            </Pressable>
+          )}
         </Row>
       </ScrollView>
       <BottomNav />
@@ -206,8 +248,11 @@ const s = StyleSheet.create({
   sub: { fontSize: 14, color: colors.dim, marginTop: 4 },
   bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  // Ground is the TOKEN, not an ad-hoc coral. `#e8492a` was untokenized and too light: white
+  // clears only 3.88:1 on it, so nothing this card could print would have passed AA. paper.action
+  // carries white at 4.84:1 (measured; theme.ts:182 states the same number).
   sosCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8492a',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: paper.action,
     borderRadius: 20, padding: 18, marginTop: 18,
   },
   callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },

@@ -277,7 +277,12 @@ export default function Schedule() {
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: 4 }}>
                           <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
-                          <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                          {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
+                              drawn unconditionally, so a booking with no route rendered
+                              「코스 미지정 ✓」: a verification mark on the absence of a course.
+                              The management sheet in this same file retired the same badge for
+                              exactly this reason ("근거 없는 검증 마크 금지"). If this row ever
+                              needs the mark back, it needs the column first. */}
                         </Row>
                         {/* 칼라 컬러 도트 (P1, 0033) — 다견 가구가 한 눈에 '누구 러닝인지' */}
                         <Row style={{ gap: 6, marginTop: 3, alignItems: 'center' }}>
@@ -390,7 +395,11 @@ export default function Schedule() {
                   {/* predictions */}
                   <View style={s.sheetCard}>
                     <Row style={{ justifyContent: 'space-around' }}>
-                      <Pred label="예상 러닝" value={`약 ${runMin}분`} sub="픽업·인계 포함 ~65분" />
+                      {/* ⚠ The total is COMPUTED, not a constant. It used to read a literal
+                          "~65분" beside a real per-booking `runMin`, so a 10 km booking rendered
+                          「예상 러닝 약 80분 / 픽업·인계 포함 ~65분」 — a total smaller than its own
+                          part. Same km*8+25 outing formula the request screen uses. */}
+                      <Pred label="예상 러닝" value={`약 ${runMin}분`} sub={`픽업·인계 포함 약 ${Math.round(selected.km * 8 + 25)}분`} />
                       <View style={s.vDiv} />
                       <Pred label="예상 페이스" value={selected.paceLabel} sub={`${selected.km}km`} />
                       <View style={s.vDiv} />
@@ -781,7 +790,6 @@ const s = StyleSheet.create({
     paddingVertical: 12, borderWidth: 1, borderColor: '#ffc9b8',
   },
   // thumbMap(목업 트레이스 썸네일) 퇴역 — item 6
-  certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: paper.canvas, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
   // [Sean 2026-08-11] 볼트 그린 은퇴. 이 둘은 완료 카드에 붙는 **동급 보조 액션 한 쌍**이지

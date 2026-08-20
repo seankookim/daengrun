@@ -186,7 +186,12 @@ export default function DogProfileScreen() {
         )}
         {loaded && !dog && (
           <Text style={{ padding: 16, fontSize: 14, lineHeight: 19, color: paper.dim }}>
-            아직 반려견이 없어요 — 첫 예약 때 자동으로 만들어져요
+            {/* ⚠ Auto-creation was deliberately retired: request.tsx says "여기서 아이를 만드는
+                일은 영원히 없다" and bounces an owner with no dog straight back to this screen.
+                The old copy promised the opposite, so a new owner could read it, skip
+                registration, tap 러너 찾기, and land right back here — a loop with a polite lie
+                in the middle. */}
+            아직 등록된 아이가 없어요 — 예약하려면 먼저 아이를 등록해주세요
           </Text>
         )}
 
