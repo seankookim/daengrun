@@ -600,3 +600,81 @@ voice argues a materially different arc.
 | 25 | Design | Error-strip copy grammar + placement + ground rules mandated (Pass 4) | MECH | P1+P5 | 20 strips by one grammar, not 15 dialects | per-screen improvisation |
 | 26 | Design | Retry-in-flight uses PaperBtn busy; incident-arm's own errors fall to poll-strip | MECH | P1 | two new states the original plan forgot | unspecified retries |
 | 27 | Design | incident_review arc specified (확인이 필요한 상황이에요 · truth without diagnosis · 안심 센터 primary · no cancel · no unpolled time promise) | MECH | honesty laws | the heavy moment gets a spec, not a vibe | generic spinner/alert |
+
+---
+
+# ENDING STATE — client session `exciting-rosalind-e6ac13`, night of 2026-08-20
+
+Trunk tip when this was written: **`0760445`**. All five gates verified by me at that commit, not
+relayed: tsc ✅ · check-rpc ✅ · check-route-native-imports (56 routes) ✅ · check-embed-fk ✅ ·
+lint **270 problems / 6 errors** — the 6 are the untouched baseline, and total problems are DOWN
+from 279 at session start. Nothing of mine is unpushed. No file is claimed by me.
+
+## What shipped (~30 defects, six pushes)
+
+**Criticals.** Nomination had never worked in production — `REQ_SELECT` carried a bare
+`routes(name)` and `bookings` has two FKs to `routes`, so PostgREST returned zero rows and the
+directed-inbox leg swallowed the error by design. SOS could resolve the wrong party (un-persisted
+`session.role` + Live Activity cold links) and silently tell a runner holding a dog that no run was
+in progress. Checkout printed 「취소 수수료 없음」 against the real 10%/50% ladder. A ₩3,900 라이브캠
+add-on was purchasable with no transport code. Runner payout estimates used the owner's base fare —
+8% low on the accept screen. `isOfferable` would have emptied a town's catalog on the first route
+promotion.
+
+**Journey flow.** The handoff push landed the runner on the request inbox instead of the meetup
+screen. A searching booking had no management path anywhere in the app. `/owner/live` was a trap on
+cold entry. The radar stranded forever on four statuses. The meetup cancel guard was armed one line
+after its own `await`.
+
+**Incident states.** Both custody screens ran the ceremony backwards during an incident (seals
+un-drawing 2/2 → 1/2) and offered buttons the server would refuse; the live screen never left,
+clock counting forever under a network-trouble sentence; the runner was never told at all.
+
+**Realtime + honesty.** A dead channel stayed cached as healthy forever. Chat claimed a connection
+it never verified and had no fallback. Home's hero had no refresh path. Seven screens rendered
+failures as facts. Coral CTA contrast was 3.70:1 (now 4.55 via an existing token).
+
+**`tabswipe`** — a stale spring callback could blank the *incoming* screen's snapshot on a fast
+double tab change. No gate in this repo can see it; it needs two fast swipes on hardware.
+
+## What is NOT verified — read this before trusting anything above
+
+Simulator-verified: the request-screen fee ladder, the removed add-on, the SOS card contrast, the
+schedule sheet opening for a searching booking and its honest runner card.
+**Everything else is code + gates only.** Specifically unverified and needing a device: all push
+routing, the Live Activity cold-launch paths, every realtime behaviour under real network churn,
+KST composition on a non-KST device, and the tabswipe double-swipe. Nothing here has ever run on
+hardware.
+
+## Corrections made against already-committed work (five, both directions)
+
+Recorded because none were caught by any gate — each was caught by reading the thing rather than
+the report about the thing. My own: the react-doctor "absent node_modules" trigger (bad A/B,
+falsified by a peer's counterexample); "these flags share one shape" (three sites, three
+structures); clearing analyzer findings I had not read; and my own comment on my own fix claiming a
+teardown covers a callback it cannot reach. From the peer: their gate count (four → five) and their
+confidence that react-doctor was scanning.
+
+⚠ **The analyzer tally is the durable lesson:** on `effect-needs-cleanup`, the one finding that was
+REAL is the one both sessions were most confident was noise, and the two we would have bet were
+real were false. Neither of us could sort them by intuition. Read every flag.
+
+## Waiting on Sean — three, nothing else blocks
+
+1. **Handoff-CTA A/B** — two sessions independently reserved this for his ruling on the same day.
+   The plumbing half is landed (`arrived_at` threaded through, `goState` deliberately untouched),
+   so the fix is one gate change once he answers.
+2. **Coral CTA ground** (`§0-duodetricies`) — 4.55 is the ceiling-bound maximum on the current
+   ground; darkening it to the existing `edge` token buys real headroom but visibly deepens a CTA
+   he approved by number.
+3. **The pre-commit hook** — `grep -n exit .githooks/pre-commit` returns NOTHING, so it can never
+   block; every react-doctor result is advisory and manual runs are the real gate. Its config-error
+   trigger is **OPEN** (two candidates falsified). **Nobody should touch it until the trigger is
+   known** — a working hook rewritten on a wrong diagnosis is its own defect.
+
+## Next, if nobody redirects
+
+Tranche 3 of the table above: the remaining honesty long tail, `A5` (+not-found), `A6` (PGRST116 →
+honest not-found), `B8`–`B10`, `E5`–`E7`, `E9`, and the one unadjudicated analyzer flag
+(`club-ui.tsx:276`). ⚠ `fitness.tsx:151` is also unadjudicated and is DO-NOT-REFACTOR — an
+analyzer flag is not authority to open a frozen file.
