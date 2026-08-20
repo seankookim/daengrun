@@ -41,6 +41,9 @@ function decimate(pts, n) {
 }
 
 const TOWN = [
+  // Specific rows FIRST: TOWN.find takes the first match, so a specific row
+  // below a generic 구 row never fires (measured: 백제고분군 mapped to 송파동).
+  [/백제고분군/, '방이동'],  // 송파구; 서림올림피아드 + 방이동백제고분군 are 방이동, not 송파동
   [/^반포|^몽마르뜨/, '반포동'], [/^잠원/, '잠원동'], [/^압구정/, '압구정동'],
   [/^도곡/, '도곡동'], [/^잠실/, '잠실동'], [/^이촌/, '이촌동'], [/^성수/, '성수동'],
   // 올림픽선수촌/올림픽공원 sit in 오륜동, 송파구 — mapped by the filename prefix

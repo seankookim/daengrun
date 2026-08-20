@@ -1396,3 +1396,85 @@ The generalisation is not "check your work". It is: **make every operation repor
 what it actually did.** A count of rows changed. A refusal when the output is
 empty. An assertion that the artifact contains what it must and lacks what it
 must not. Silence is the failure mode, not error.
+
+---
+
+# Current state — 2026-08-20, depth day
+
+§25 supersedes §23/§24 on every number.
+
+## 25. Depth: 18 single-route towns → 4, in one session
+
+Measured from production and disk after the second ingest, not from a commit message:
+
+| rows | towns | candidate | retired | GPX | bench | basemaps |
+|---|---|---|---|---|---|---|
+| **87** | **30** | **73** | **14** | **73** | **73** | **73/73, no orphans** |
+
+`CANDIDATE AUDIT PASSED` — GPX 73 · candidate 2 · review 59 · superseded 12. All 73 bench
+routes carry a production `routeId` (was 19/55). Towns with exactly one candidate route:
+**4, down from 18** — 광장동 (river slot structurally closed, see below), and
+송파동/방이동/장안동, which are the price of labeling towns truthfully rather than flattening.
+
+### 25.1 What was built — 18 saved routes, 2 discards
+
+Queue: #16 강북 우이천 수유 3.19 · #17 동대문 중랑천 장안 4.26 · #20 금천 안양천교 3.77 ·
+#23 구로 안양천 2.74. Depth (all 14 DEPTH-PLANS.md towns): 송파(방이) 백제고분군 2.49 ·
+영등포 문래근린공원 1.75 · 동작 사육신공원 2.86 · 동대문 정릉천 제기 1.99 · 성수 거울연못
+서울숲 2.16 · 중구 성북천 황학 3.94 · 압구정 신사근린공원 2.38 · 마포 오리연못 상암 3.62
+(**1% retrace LOOP**, second-cleanest in catalog) · 도곡 양재천 남단 2.96 · 서대문 홍제천
+홍은 4.48 · 도봉 중랑천 방학 5.69 · 중랑 중랑천 사가정 4.73 · 성북 불빛다리 보문 3.94 ·
+종로 평창천 서편 2.00.
+
+Discarded, with reasons recorded: **queue #24 관악 동작충효길** (+139 m mountain
+out-and-back, closure 155 m — would have been the catalog's worst by 6×) and **queue #25
+광진 광나루한강공원** (routed 8.74 km over 광진교 to the SOUTH bank: 광나루한강공원 is
+강동's stretch and 광장동 has no north-bank 나들목 — now a row in GEOGRAPHY.md, so the next
+session doesn't pay for the same measurement).
+
+### 25.2 The geocoder traps this session added to the ledger
+
+- **"~교" autocompletes to "~교회".** 장안교 → 장안교회, 면목교 → 면목교회. A bridge query
+  landing on a CHURCH looks exactly like a resolved bridge until the shape is read.
+- 안양교 resolved **30.91 km** away (안양시); 하늘다리 **18.82 km**; 제기제2교 2.4 km
+  upstream; 성북천 자전거길 took the wrong-구 record of two. The measure gate refused all.
+- **The cure that held: exact coordinates from features.json as waypoints.** Eight of the
+  eighteen saves needed at least one coordinate waypoint. `build-route.sh` now supports a
+  coordinate START too — closing on the resolved display string ("Lat: …") NO-HITs, so it
+  closes on the raw input when the start is a coordinate (`build-route.sh:178`).
+- One save closed **125 m off** because start and end AUTOCOMPLETED to different POIs of the
+  same complex (Galleria Foret vs Hanwha Galleria Foret Tower). Rebuilt with a coordinate
+  start; closure 0. Check closure on every save — the readout won't.
+
+### 25.3 Tooling failures found, all §24.5's shape (silent no-op)
+
+- **fetch-basemaps.sh read `/tmp/routes-data.json`** — a stale scratch survivor. Four new
+  routes were silently skipped with no error line. Now derives from manifest.json (in git)
+  and refuses an empty list.
+- **`bench/routes.json` had NO generator in git** — §24.4 fixed the artifact build but not
+  its input. `bench/build-routes-json.mjs` now exists: GPX + manifest town + production
+  id/terrain (`db-routes.json`), drift report, refuses to shrink silently.
+- **`sed` is byte-oriented in this locale too** — the §24.3 tr→sed "fix" reproduced the
+  `·`→`__` mangle (measured with `od`). Slugs are now computed in node, in one place, and
+  the reconcile uses the same expression. 73/73 basemaps, no orphans.
+- **The TOWN table flattens every 동 into one per 구** — mislabeled 장안동 as 제기동 (4 km
+  apart) and 방이동 as 송파동. Specific rows now precede the generic ones, with the
+  find-first-match trap documented in the table header.
+
+### 25.4 Open items
+
+- **Four stray drafts on the Strava account** (never ingested, local GPX deleted):
+  동대문 1.55 (3525304879955394930) · 동대문 2.89 (3525309749648739456) ·
+  관악 4.63 (3525318566177160320) · 성수 1.98 (3525319981347163692). Deleting them is a
+  click in My Routes; done manually to avoid automating deletes.
+- **The bench artifact was republished once this morning IN IGNORANCE of Sean's 10:31
+  ruling** ("remove artifact and only use local host", 1eb3989) — this worktree predated
+  the merge. Not touched since; the artifact still exists at its URL and deleting it from
+  the gallery remains Sean's. The local page is the only maintained surface.
+- **Sean's review is the next input.** 18 new routes are in the bench (localhost:5178),
+  every number recomputed from the trace. His accept/reject/comment export drives the next
+  round.
+- 광장동 needs an INLAND second route if depth there matters; the river is closed
+  structurally. 장안동/방이동/송파동 singles are label-splits, not coverage gaps.
+- shade/lighting stay NULL; nothing is dog-access verified; rows are candidate/algo. The
+  publish gate is untouched.

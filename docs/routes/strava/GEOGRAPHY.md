@@ -65,6 +65,12 @@ route at all.
 | 성수대교 북단 엘리베이터 | 37.54197, 127.03475 | 24 h alternative to the 보행가교 |
 
 **Three structural gaps that kill naive routes:**
+- **광장동 (광진구) has NO north-bank 나들목 — measured 2026-08-20.** BUILD-QUEUE #25
+  (광장현대5단지 → 광나루한강공원, 2 km) routed **8.74 km over 광진교 to the SOUTH bank**:
+  광나루한강공원 is 강동구's stretch, and the router found no pedestrian bank access on the
+  광진 side, exactly as this table's silence predicted. The route was discarded, not saved.
+  광장동's river slot stays closed until someone verifies a real crossing on the ground;
+  광장동 keeps its inland 뚝섬한강공원-side route instead.
 - **압구정 구현대 (현대3~8차) has no crossing for 2.2 km.** Give it an *inland* route.
 - **Middle 동부이촌동 (강촌·코오롱·삼익) has no crossing for ~1.4 km.**
 - **반포자이 is 1.17 km from its nearest 나들목** — river routes from it only work at 5–7 km.

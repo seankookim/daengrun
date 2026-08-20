@@ -6,21 +6,22 @@ D="$(cd "$(dirname "$0")" && pwd)"; mkdir -p "$D/_base"
 # Route list derives from manifest.json, which is in git. This previously read
 # /tmp/routes-data.json, a scratch file from an earlier session: /tmp got wiped
 # once already (§24.4), and worse, a STALE copy silently hid every route built
-# after it was written — four routes on 2026-08-20 were skipped with no error
-# line at all.
+# after it was written — four routes on 2026-08-20 were skipped with no error.
+#
+# The SLUG is computed in node, in the same line as the bbox. It was first tr
+# (byte-oriented: '·' = 2 UTF-8 bytes became '__', §24.3), then sed — which is
+# ALSO byte-oriented in this shell's locale and produced '__' again, measured
+# 2026-08-20 with od. Every filename decision now happens in one UTF-8-safe
+# place; the shell only ever sees the finished slug.
 node -e '
 const fs=require("fs");
 const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
 if(!d.length){console.error("manifest.json is empty — refusing");process.exit(1)}
 for(const r of d){
   const la=r.trace.map(p=>p.lat), lo=r.trace.map(p=>p.lng), pad=0.0035;
-  console.log(r.name+"\t"+[Math.min(...la)-pad,Math.min(...lo)-pad,Math.max(...la)+pad,Math.max(...lo)+pad].map(x=>x.toFixed(4)).join(","));
-}' "$D/../strava/manifest.json" | while IFS=$'\t' read -r NAME BB; do
-  # NOT tr: it is BYTE-oriented, and '·' is two UTF-8 bytes, so one middle dot
-  # became TWO underscores while build-route.sh left it alone. Three basemaps
-  # existed under mangled names and looked simply missing. Fourth time today that
-  # keying on a transformed filename went wrong; sed handles the character.
-  SLUG=$(printf '%s' "$NAME" | sed 's#[ /·]#_#g')
+  const slug=r.name.replace(/[ /·]/g,"_");
+  console.log(r.name+"\t"+slug+"\t"+[Math.min(...la)-pad,Math.min(...lo)-pad,Math.max(...la)+pad,Math.max(...lo)+pad].map(x=>x.toFixed(4)).join(","));
+}' "$D/../strava/manifest.json" | while IFS=$'\t' read -r NAME SLUG BB; do
   RAW="$D/_base/raw-$SLUG.json"; MIN="$D/_base/$SLUG.json"
   [ -s "$MIN" ] && { echo "cached $NAME"; continue; }
   curl -s -m 150 -X POST https://overpass-api.de/api/interpreter --data-urlencode \

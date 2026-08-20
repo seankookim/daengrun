@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="StravaGPX" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+ <metadata>
+  <name>동대문 정릉천 제기 루프 1.99km</name>
+  <desc>daengrun candidate geometry — measured 1.99km, gain 2</desc>
+  <author>
+   <name>S Kim</name>
+   <link href="https://www.strava.com/athletes/558867461"/>
+  </author>
+  <copyright author="OpenStreetMap contributors">
+   <year>2020</year>
+   <license>https://www.openstreetmap.org/copyright</license>
+  </copyright>
+  <link href="https://www.strava.com/routes/3525322826675445412"/>
+ </metadata>
+ <trk>
+  <name>동대문 정릉천 제기 루프 1.99km</name>
+  <desc>daengrun candidate geometry — measured 1.99km, gain 2</desc>
+  <link href="https://www.strava.com/routes/3525322826675445412"/>
+  <type>running</type>
+  <trkseg>
+   <trkpt lat="37.586650000000006" lon="127.03723000000001">
+    <ele>24.470000000000002</ele>
+   </trkpt>
+   <trkpt lat="37.58655" lon="127.03719000000001">
+    <ele>24.62</ele>
+   </trkpt>
+   <trkpt lat="37.58655" lon="127.03678000000001">
+    <ele>25.470000000000002</ele>
+   </trkpt>
+   <trkpt lat="37.586020000000005" lon="127.03649000000001">
+    <ele>24.93</ele>
+   </trkpt>
+   <trkpt lat="37.585420000000006" lon="127.03620000000001">
+    <ele>23.78</ele>
+   </trkpt>
+   <trkpt lat="37.58567" lon="127.03626000000001">
+    <ele>22.950000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.58617" lon="127.0365">
+    <ele>23.090000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.58683666774121" lon="127.0368533270155">
+    <ele>23.090000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.58750333442924" lon="127.03720666036008">
+    <ele>23.49</ele>
+   </trkpt>
+   <trkpt lat="37.588170000000005" lon="127.03756000000001">
+    <ele>23.05</ele>
+   </trkpt>
+   <trkpt lat="37.58886666766741" lon="127.03789999364764">
+    <ele>23.78</ele>
+   </trkpt>
+   <trkpt lat="37.589563334359624" lon="127.03823999366001">
+    <ele>23.87</ele>
+   </trkpt>
+   <trkpt lat="37.59026" lon="127.03858000000001">
+    <ele>24.0</ele>
+   </trkpt>
+   <trkpt lat="37.590250000000005" lon="127.03858000000001">
+    <ele>24.0</ele>
+   </trkpt>
+   <trkpt lat="37.58955666761311" lon="127.03823999365137">
+    <ele>23.87</ele>
+   </trkpt>
+   <trkpt lat="37.588863334250966" lon="127.03789999363737">
+    <ele>23.78</ele>
+   </trkpt>
+   <trkpt lat="37.588170000000005" lon="127.03756000000001">
+    <ele>23.05</ele>
+   </trkpt>
+   <trkpt lat="37.5875033343652" lon="127.03720666032613">
+    <ele>23.450000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.586836667677176" lon="127.03685332698156">
+    <ele>23.090000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.58617" lon="127.0365">
+    <ele>23.090000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.58567" lon="127.03626000000001">
+    <ele>22.950000000000003</ele>
+   </trkpt>
+   <trkpt lat="37.585420000000006" lon="127.03620000000001">
+    <ele>23.78</ele>
+   </trkpt>
+   <trkpt lat="37.584950000000006" lon="127.03601">
+    <ele>23.83</ele>
+   </trkpt>
+   <trkpt lat="37.58503" lon="127.03543">
+    <ele>24.17</ele>
+   </trkpt>
+   <trkpt lat="37.584415000116046" lon="127.03532499914442">
+    <ele>23.470000000000002</ele>
+   </trkpt>
+   <trkpt lat="37.583800000000004" lon="127.03522000000001">
+    <ele>23.41</ele>
+   </trkpt>
+   <trkpt lat="37.58386" lon="127.03523000000001">
+    <ele>23.42</ele>
+   </trkpt>
+   <trkpt lat="37.58446499993663" lon="127.03532999916985">
+    <ele>23.720000000000002</ele>
+   </trkpt>
+   <trkpt lat="37.58507" lon="127.03543">
+    <ele>24.17</ele>
+   </trkpt>
+   <trkpt lat="37.58574500047805" lon="127.03575999701675">
+    <ele>24.25</ele>
+   </trkpt>
+   <trkpt lat="37.586420000000004" lon="127.03609000000002">
+    <ele>24.59</ele>
+   </trkpt>
+   <trkpt lat="37.586450000000006" lon="127.03695">
+    <ele>24.98</ele>
+   </trkpt>
+   <trkpt lat="37.58655" lon="127.03697000000001">
+    <ele>25.030000000000005</ele>
+   </trkpt>
+   <trkpt lat="37.58655" lon="127.03719000000001">
+    <ele>24.62</ele>
+   </trkpt>
+   <trkpt lat="37.586650000000006" lon="127.03723000000001">
+    <ele>24.470000000000002</ele>
+   </trkpt>
+  </trkseg>
+ </trk>
+</gpx>

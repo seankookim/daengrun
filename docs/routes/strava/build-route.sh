@@ -175,7 +175,15 @@ for wp in "${WAYPOINTS[@]}"; do
   [ -z "$AW" ] && { echo "    'Add waypoint' not found — would silently build an out-and-back"; exit 1; }
   B click "$AW" >/dev/null 2>&1; sleep 3
 done
-fill_last "${RESOLVED_START:-$START}" || exit 1     # close on the RESOLVED start
+# A raw-coordinate START resolves to a display string ('"Lat: 37.5, Lng: 127.0"')
+# that is NOT a geocodable query — retyping it NO-HITs three times and the build
+# dies. A coordinate is already exact, so closing on the original input IS
+# closing on the resolved point; only NAME queries need the resolved-string trick.
+if [[ "$START" =~ ^[0-9.]+,[0-9.]+$ ]]; then
+  fill_last "$START" || exit 1
+else
+  fill_last "${RESOLVED_START:-$START}" || exit 1     # close on the RESOLVED start
+fi
 
 DIST=$(stat "Distance")
 GAIN=$(stat "Elevation Gain")
