@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
@@ -6,6 +5,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import { AvailRule, fetchMyAvailability, saveMyAvailability } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
+import { goBackOrHome } from '../../src/lib/nav';
 import { layout, paper } from '../../src/theme';
 
 // 가용시간 설정 — 실편집기. runner_availability_rules 실저장.
@@ -109,7 +109,7 @@ export default function Availability() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 56, paddingBottom: 120 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>가용시간 설정</Text>

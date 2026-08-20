@@ -13,6 +13,7 @@ import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
+import { goBackOrHome } from '../../src/lib/nav';
 import { draft, TracePoint } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
 
@@ -296,7 +297,7 @@ export default function Report() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           {/* Chrome title, not the display moment — plain 900 ink, the grammar request.tsx and
               review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}
           <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러닝 리포트</Text>

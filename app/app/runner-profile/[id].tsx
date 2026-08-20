@@ -5,6 +5,7 @@ import { Avatar, Icon, Row } from '../../src/components/ui';
 import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchRunnerCourseHistory, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
@@ -247,7 +248,7 @@ export default function RunnerProfileScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
         {/* header (패딩 있는 유일한 상단 영역) */}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러너 프로필</Text>
           <View style={{ width: 40 }} />
         </Row>

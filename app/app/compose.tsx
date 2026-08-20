@@ -6,6 +6,7 @@ import { Row } from '../src/components/ui';
 import { createFreePost, fetchMyBookings, fetchMySharedBookingIds, fetchRunnerJobs, shareRunToFeed } from '../src/lib/api';
 import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
+import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { CollarKey, collarColors, paper } from '../src/theme';
 
@@ -138,7 +139,7 @@ export default function Compose() {
       keyboardShouldPersistTaps="handled"
     >
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>피드 자랑하기</Text>

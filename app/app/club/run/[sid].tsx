@@ -11,6 +11,7 @@ import { supabase } from '../../../src/lib/supabase';
 import { createPosPublisher, distM, GeoPoint, getNaverMap, getTraceSnapshot, LL, resetTrace, seedTrace, smoothTrace, startTracking, TrackHandle, TrackMode } from '../../../src/lib/geo';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { collarColors, CollarKey, lilac, lilacRadius, lilacShadow } from '../../../src/theme';
 
 // 클럽 러닝 (러너) — 정본: master-lab R4 (라일락 라이브 — 야외 역광 가독성은 다크가 아니라 대비 규율로)
@@ -353,7 +354,7 @@ export default function ClubRun() {
         errorLabel="러닝 정보를 불러오지 못했어요"
         deniedLabel="이 세션을 볼 수 없어요 — 없어졌거나 참가자가 아니에요"
         onRetry={load}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -362,7 +363,7 @@ export default function ClubRun() {
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center' }}>진행 중인 러닝이 없어요{'\n'}세션 화면에서 러닝을 시작해주세요</Text>
-          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
+          <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
     );
@@ -376,7 +377,7 @@ export default function ClubRun() {
         <ClubMast
           title="러닝 중"
           sub={`${active.map((d) => d.dogName).join(' · ')}${clubName ? ` — ${clubName}` : ''}`}
-          onBack={() => router.back()}
+          onBack={goBackOrHome}
           right={<LiveDot />}
         />
         {saveLag && (

@@ -8,6 +8,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { colors, paper } from '../../src/theme';
 
 // 일정 변경 = 제안 (reschedule-as-proposal, 0016)
@@ -175,7 +176,7 @@ export default function Reschedule() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 140 }}>
         <Row style={{ gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <Text style={[{ fontSize: 27.5, fontWeight: '900', color: paper.ink }, df]}>일정 변경</Text>
         </Row>
 
@@ -190,7 +191,10 @@ export default function Reschedule() {
                 ? `${preMatchLine} — 러너가 확정되면\n그 러너의 가능 시간에서 변경할 수 있어요`
                 : '진행 중이거나 종료된 예약은 변경할 수 없어요'}
             </Text>
-            <Pressable onPress={() => router.back()} style={s.noticeBtn}>
+            {/* Dead-end notice: this is the only exit from the state, so it takes goBackOrHome
+                (src/lib/nav.ts). The Alert '확인' above keeps a bare back() — that one is the
+                result of a successful request, where popping is the intended effect. */}
+            <Pressable onPress={goBackOrHome} style={s.noticeBtn} accessibilityRole="button" accessibilityLabel="돌아가기">
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>돌아가기</Text>
             </Pressable>
           </View>

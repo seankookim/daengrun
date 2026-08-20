@@ -5,6 +5,7 @@ import { Avatar, Row } from '../../src/components/ui';
 import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import { goBackOrHome } from '../../src/lib/nav';
 import { draft } from '../../src/store';
 import { lilac } from '../../src/theme';
 
@@ -274,7 +275,7 @@ export default function Matching() {
       {/* ── ① 헤더 — 로스터/시트와 분리된 고정 크롬 ── */}
       <View style={s.head}>
         <Row style={{ gap: 9 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 19, fontWeight: '700', color: lilac.head, marginTop: -2 }}>‹</Text>
           </Pressable>
           <Text style={{ fontSize: 17.5, fontWeight: '900', color: lilac.head, letterSpacing: -0.3 }}>

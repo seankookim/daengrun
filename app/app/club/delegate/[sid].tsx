@@ -7,6 +7,7 @@ import {
 } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { lilac } from '../../../src/theme';
 
 // O2 — 위탁 승낙서 (정본: master-lab O2 · ② 코랄 봉인 확정)
@@ -108,7 +109,7 @@ export default function DelegateConsentScreen() {
   return (
     <DawnCanvas>
       <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 44 }} keyboardShouldPersistTaps="handled">
-        <ClubMast title={`${dog?.name ?? '우리 아이'} 위탁 신청`} sub={(clubName || 'HIGH CLUB') + (when ? ` · ${when}` : '')} onBack={() => router.back()} />
+        <ClubMast title={`${dog?.name ?? '우리 아이'} 위탁 신청`} sub={(clubName || 'HIGH CLUB') + (when ? ` · ${when}` : '')} onBack={goBackOrHome} />
 
         {/* ---------- 종이 서식 ---------- */}
         <View style={s.paper}>

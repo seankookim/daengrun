@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { BookingCharge, fetchBookingCharge } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
+import { goBackOrHome } from '../../src/lib/nav';
 import { derivePayPhase, PayPhase } from '../../src/lib/payphase';
 import { paper, pricing } from '../../src/theme';
 
@@ -135,7 +136,7 @@ export default function Pay() {
       failReason={failReason}
       holdLabel={holdLabel}
       onReload={onReload}
-      onBack={() => router.back()}
+      onBack={goBackOrHome}
     />
   );
 }

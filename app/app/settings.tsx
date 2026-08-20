@@ -5,6 +5,7 @@ import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { Row } from '../src/components/ui';
 import { fetchMyProfile, MyProfile } from '../src/lib/api';
+import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { colors, paper } from '../src/theme';
 
@@ -28,7 +29,7 @@ export default function Settings() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingHorizontal: 11, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>설정</Text>
         <View style={{ width: 40 }} />
       </Row>

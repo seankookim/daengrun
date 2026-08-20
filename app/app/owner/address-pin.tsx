@@ -8,6 +8,7 @@ import { Addr, fetchAddresses, setAddressPin } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { paper } from '../../src/theme';
 
@@ -155,7 +156,7 @@ export default function AddressPin() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* header — paddingTop 56 idiom + circleBtn back */}
       <Row style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+        <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
       </Row>

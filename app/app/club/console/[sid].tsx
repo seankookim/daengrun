@@ -11,6 +11,7 @@ import {
   incidentResolve, proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
 
 // 호스트 콘솔 — H1a(심사·결제) + H1b(배정·종료 게이트) (정본: master-lab H1a/H1b)
@@ -94,7 +95,7 @@ export default function HostConsole() {
         mode={boardErr ? 'error' : 'loading'}
         errorLabel="호스트 콘솔을 불러오지 못했어요"
         onRetry={load}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -103,7 +104,7 @@ export default function HostConsole() {
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ fontSize: 14, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
-          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
+          <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
     );
@@ -298,7 +299,7 @@ export default function HostConsole() {
           contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          <ClubMast title="세션 결과" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()}
+          <ClubMast title="세션 결과" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome}
             right={<ClubTag label="DONE" tone="dim" />} />
           <AckStack />
           <BigNumRow items={[
@@ -336,7 +337,7 @@ export default function HostConsole() {
         contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <ClubMast title="호스트 콘솔" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()} />
+        <ClubMast title="호스트 콘솔" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />
         <AckStack />
 
         {/* 성립 미터 */}

@@ -9,6 +9,7 @@ import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBooki
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { cancelPolicy, draft } from '../../src/store';
 import { layout, paper } from '../../src/theme';
 
@@ -366,7 +367,11 @@ export default function OwnerMeetup() {
           screen names itself (인계) and 채팅 sits where every other screen puts it. paddingTop is
           the safe area, injected from JSX (a fixed value here would win over the inset). */}
       <View style={[s.header, { paddingTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+        {/* Chrome only — goBackOrHome, because this screen is a push/Live-Activity destination and
+            its stack can be one entry deep (src/lib/nav.ts). The other back() calls in this file
+            stay bare on purpose: they are the RESULT of an action (cancel, terminal-state exit),
+            where popping is the whole point and landing on home would be a different behaviour. */}
+        <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={s.headerTtl} numberOfLines={1}>인계</Text>

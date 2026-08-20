@@ -10,6 +10,7 @@ import {
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
 import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
@@ -229,7 +230,7 @@ export default function ClubPage() {
 
         {/* ---------- ① 초박형 내비 — 클럽명은 아래 마스트헤드가 가진다 ---------- */}
         <Row style={s.nav}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.navBtn}>
+          <Pressable onPress={goBackOrHome} hitSlop={8} style={s.navBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 17, color: L.head, marginTop: -2 }}>‹</Text>
           </Pressable>
           <Text style={s.crumb}>CLUB{club ? ` · ${club.district}` : ''}</Text>

@@ -8,6 +8,7 @@ import { fetchRunEarning, fetchRunReport, RunEarning, runPhotoAllowed, RunReport
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { lilac, lilacRadius, lilacShadow } from '../../../src/theme';
 
 // O11 — 완료 영수증 (정본: flow-lab O11 + 결정 로그 "영수증 = 사진 인화")
@@ -101,13 +102,16 @@ export default function ClubReceipt() {
     return () => { alive = false; seq.stop(); };
   }, [stampable, stamp, ripple, dip]);
 
+  // goBackOrHome, not back(): a receipt is a push-notification / share-sheet destination, so these
+  // two dead ends are exactly where the stack is a single entry — and LoadGate's own contract is
+  // that 돌아가기 is always walkable. See src/lib/nav.ts.
   if (!report) {
     return (
       <LoadGate
         mode={reportErr ? 'error' : 'loading'}
         errorLabel="영수증을 불러오지 못했어요"
         onRetry={load}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -116,7 +120,7 @@ export default function ClubReceipt() {
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ fontSize: 14, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
-          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
+          <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
     );
@@ -163,7 +167,7 @@ export default function ClubReceipt() {
   return (
     <DawnCanvas>
       <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}>
-        <ClubMast title="완료" sub={`${report.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()} />
+        <ClubMast title="완료" sub={`${report.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />
 
         {/* ---------- 영수증 카드 (캡처 대상) ---------- */}
         {/* ② 종이 눌림은 캡처 대상 '밖' 래퍼에만 — 찍힌 PNG에 비행 중 트랜스폼이 섞이면 안 된다 */}
