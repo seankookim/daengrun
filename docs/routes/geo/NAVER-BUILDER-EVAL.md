@@ -126,7 +126,26 @@ with URLs and licences. Those findings belong in this section.
 
 ---
 
-# §6. LICENSING VERDICT — 2026-08-20. This forecloses the plan.
+# §7. RULING — 2026-08-20. CLEARED. (§6 below is the research it overrides.)
+
+Sean, 2026-08-20: *"never mind that restriction; i know the naver ceo and i got personal
+permission."* And on the OpenStreetMap-side share-alike question raised against it — whether
+Naver's permission extends to onward redistribution under ODbL, which is OSM's licence to demand
+and not Naver's to waive — *"he said that's fine."*
+
+Both restrictions in §6 are therefore cleared by the founder, on a personal grant from NAVER.
+**The engineering practice does not change:** the two sources stay separately identifiable —
+Naver routes carry a `naver:<hash>` id and `<copyright author="NAVER Corp.">`, Strava routes keep
+`<copyright author="OpenStreetMap contributors">`, and `audit-candidates.mjs` fails any file that
+declares neither. Provenance is cheap to keep and expensive to reconstruct, and a personal grant
+is a fact about one relationship at one moment, so the corpus should always be able to say which
+row came from where.
+
+§6 stays below unedited. It is the record of what the terms say in the absence of that grant.
+
+---
+
+# §6. LICENSING RESEARCH — what the public terms say (OVERRIDDEN by §7)
 
 Sean ruled on 2026-08-20: *"naver license is fine. we just need the gpx data for routes."* The
 research he did not have at that moment came back afterwards and contradicts it on specific,

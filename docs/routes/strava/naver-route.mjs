@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-// ############################################################################
-// # DO NOT RUN. Retained as evaluated work only.                             #
-// #                                                                          #
-// # NCP Maps 서비스 이용약관 (2025-03-20) 제7조 ⑪ names 지도 좌표 데이터 as     #
-// # the example of result data that may NOT be stored or DB-ified, and calls  #
-// # it 엄격히 금지. A route polyline is exactly that. map.naver.com's          #
-// # robots.txt is additionally Disallow: / and names ClaudeBot explicitly.    #
-// # Storing Naver geometry beside the ODbL corpus also creates irreconcilable #
-// # obligations (OSMF horizontal-layers + ODbL 4.4 vs NCP 제7조 ⑨).           #
-// #                                                                          #
-// # See docs/routes/geo/NAVER-BUILDER-EVAL.md §6. Sean's call, with those     #
-// # clauses in hand, gates any use of this file.                             #
-// ############################################################################
+// SOURCE: Naver pedestrian router. CLEARED FOR USE — Sean, 2026-08-20:
+// "never mind that restriction; i know the naver ceo and i got personal
+// permission." That resolves NCP 제7조 ⑪ (which otherwise names 지도 좌표
+// 데이터 as 엄격히 금지) and map.naver.com's robots.txt.
+//
+// WHAT HIS PERMISSION DOES NOT REACH, because it is not Naver's licence to
+// grant: the OpenStreetMap side. Our other 86 traces are ODbL. OSMF's
+// horizontal-layers guideline attaches share-alike when OSM and non-OSM data
+// serve the SAME feature type, and route traces are one feature type. So this
+// file keeps the two sources SEPARATELY IDENTIFIABLE — Naver routes get a
+// naver:<hash> id and <copyright author="NAVER Corp.">, Strava routes keep
+// their OSM attribution, and audit-candidates.mjs enforces that every file
+// declares one or the other. That way the ODbL-derived subset can be offered
+// alone if it is ever asked for. Do not collapse the two.
+// Full record: docs/routes/geo/NAVER-BUILDER-EVAL.md §6.
 // naver-route.mjs — build route geometry from Naver's pedestrian router.
 //
 //   node naver-route.mjs "<route name>" <lng,lat> <lng,lat> [<lng,lat> ...]
@@ -151,7 +153,8 @@ const shp = spawnSync(process.execPath, [join(DIR, 'check-shape.mjs'), '--json',
 const line = shp.stdout.trim().split(/\r?\n/).filter(Boolean).at(-1);
 let geo;
 try { geo = JSON.parse(line); } catch { console.error('    check-shape did not return JSON — refusing'); process.exit(1); }
-console.log(`    verified: ${geo.verdict} · retrace ${geo.retracePct}%`);
+if (!geo.shape) { console.error('    check-shape returned no shape — refusing'); process.exit(1); }
+console.log(`    verified: ${geo.shape} · retrace ${geo.retracePct}%`);
 
 // Append to the same manifest.psv the Strava builder writes, so one corpus has one
 // index. gain is left EMPTY and surface_mix says UNKNOWN — both mean "this source
@@ -160,5 +163,5 @@ console.log(`    verified: ${geo.verdict} · retrace ${geo.retracePct}%`);
 // fabricated split reads as measured. --strict will flag these, which is correct:
 // a Naver-sourced route genuinely has less recorded about it than a Strava one.
 const MAN = join(DIR, 'manifest.psv');
-appendFileSync(MAN, `${FINAL}|${RID}|${(recomputed / 1000).toFixed(2)}|${km.toFixed(2)}|||${pts.length}|UNKNOWN — Naver supplies no surface split|${geo.retracePct}|${geo.verdict}|${WPS[0]}|${WPS.slice(1).join('; ')}\n`);
+appendFileSync(MAN, `${FINAL}|${RID}|${(recomputed / 1000).toFixed(2)}|${km.toFixed(2)}|||${pts.length}|UNKNOWN — Naver supplies no surface split|${geo.retracePct}|${geo.shape}|${WPS[0]}|${WPS.slice(1).join('; ')}\n`);
 console.log(`    manifest.psv row appended`);

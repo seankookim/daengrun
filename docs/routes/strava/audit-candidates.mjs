@@ -130,12 +130,30 @@ for (const name of gpxFiles) {
     if (status.status === 'candidate' || strict) failures.push(message);
     else warnings.push(message);
   } else {
-    for (const field of [
-      'measured_km', 'strava_km', 'gain_m_recomputed', 'gain_m_strava',
-      'points', 'retrace_%',
-    ]) {
+    // The gain columns are EMPTY when the source supplied no elevation (Naver's
+    // pedestrian router supplies none). Empty must stay legal and must stay
+    // DISTINCT from 0 — 0 claims a measured flat route. So gain is validated
+    // against the GPX below rather than required numeric here.
+    const NUMERIC = ['measured_km', 'strava_km', 'points', 'retrace_%'];
+    const GAIN = ['gain_m_recomputed', 'gain_m_strava'];
+    for (const field of NUMERIC) {
       if (!manifest[field].trim() || !Number.isFinite(Number(manifest[field]))) {
         failures.push(`${name}: manifest ${field} is not numeric: ${manifest[field]}`);
+      }
+    }
+    for (const field of GAIN) {
+      const v = manifest[field].trim();
+      if (v && !Number.isFinite(Number(v))) {
+        failures.push(`${name}: manifest ${field} is neither empty nor numeric: ${manifest[field]}`);
+      }
+      // An empty gain column must agree with the GPX having no elevation, and a
+      // filled one must agree with the GPX having some. Otherwise a route could
+      // silently lose its climb and nothing would notice.
+      if (!v && geometry.gainM !== null) {
+        failures.push(`${name}: manifest ${field} is empty but the GPX HAS elevation (${geometry.gainM}m)`);
+      }
+      if (v && geometry.gainM === null) {
+        failures.push(`${name}: manifest ${field} is ${v} but the GPX has NO elevation data`);
       }
     }
     if (Math.abs(Number(manifest.measured_km) - geometry.measuredKm) > 0.01) {
@@ -144,7 +162,7 @@ for (const name of gpxFiles) {
     if (Number(manifest.points) !== geometry.points) {
       failures.push(`${name}: manifest points ${manifest.points} != GPX ${geometry.points}`);
     }
-    if (Number(manifest.gain_m_recomputed) !== geometry.gainM) {
+    if (manifest.gain_m_recomputed.trim() && Number(manifest.gain_m_recomputed) !== geometry.gainM) {
       failures.push(`${name}: manifest recomputed gain ${manifest.gain_m_recomputed} != GPX ${geometry.gainM}`);
     }
     if (Math.abs(Number(manifest['retrace_%']) - geometry.retracePct) > 0.1) {
