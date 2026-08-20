@@ -32,7 +32,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth-context';
 import { haptic } from '../lib/haptics';
-import { DeleteAccountError, deleteMyAccount, fetchLedgerTotal } from '../lib/api';
+import { DeleteAccountError, deleteMyAccount, fetchLedger } from '../lib/api';
 import { session } from '../store';
 import { paper } from '../theme';
 import { PaperBtn } from './paper-btn';
@@ -211,19 +211,34 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   // The busy REF is what makes a double-invoke impossible. `busy` state alone cannot: two taps in
   // the same frame both read the pre-render value and both fire. Opacity is not a guard either.
-  // O-7 KEEP disclosure. ⚠ The server's `bank_kept` arrives in the deletion RESULT, and on success we
-  // sign out immediately — there is no post-call screen it could be rendered on. So the confirm sheet
-  // asks the only question it can ask BEFORE the call: does this account have earnings? Ledger rows
-  // are what make the payout destination worth keeping (Sean's O-7: kept intact, not blanked, while
-  // `ledger_items` exist). We do NOT claim a bank account is on file — no client reader for
-  // `bank_accounts` exists, and registration ships with open banking (earnings.tsx:116) — so the copy
-  // names the earnings, not the account. Failure renders nothing rather than a guess.
-  const [hasEarnings, setHasEarnings] = useState(false);
+  // O-7 KEEP disclosure — a retention statement, so its failure mode matters more than its cost.
+  // ⚠ `bank_kept` arrives in the deletion RESULT, and on success we sign out immediately: there is no
+  // post-call screen it could be rendered on. So the sheet asks the only question answerable BEFORE
+  // the call — does this account have ledger rows? — because rows are what make the payout
+  // destination worth keeping (O-7: kept intact, not blanked, while `ledger_items` exist).
+  //
+  // Two corrections from the 2026-08-20 device pass, both mine:
+  //  ① EXISTENCE, not a positive sum. The server keeps the row when rows exist; a ledger netting
+  //     exactly ₩0 would have been kept server-side and gone unmentioned here.
+  //  ② A silent catch is not acceptable on this line. One transient failure in three renders a
+  //     sheet with the disclosure missing, and the user cannot tell. So: one retry, and an explicit
+  //     `unknown` that still says the true thing conditionally rather than saying nothing.
+  //     For a legally relevant KEEP statement the asymmetry favours disclosure.
+  // We never assert a bank account is on file: no client reader for `bank_accounts` exists and
+  // registration ships with open banking (earnings.tsx:116).
+  const [ledger, setLedger] = useState<'unknown' | 'none' | 'some'>('unknown');
   useEffect(() => {
     let alive = true;
-    fetchLedgerTotal()
-      .then((won) => { if (alive) setHasEarnings(won > 0); })
-      .catch(() => { /* unknown → say nothing */ });
+    const read = (attempt: number): void => {
+      fetchLedger()
+        .then((rows) => { if (alive) setLedger(rows.length > 0 ? 'some' : 'none'); })
+        .catch(() => {
+          if (!alive) return;
+          if (attempt === 0) setTimeout(() => { if (alive) read(1); }, 1200);
+          // else: stay 'unknown' — the conditional sentence below is true either way
+        });
+    };
+    read(0);
     return () => { alive = false; };
   }, []);
 
@@ -325,9 +340,11 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               {/* O-7 (Sean): the payout destination is kept INTACT while the runner has earnings —
                   a redacted account number is a row nobody can pay into. A KEEP fact, so it lives
                   here with 남는 것 and never with 소멸. Rendered only when the server says so. */}
-              {hasEarnings && (
+              {ledger !== 'none' && (
                 <Text style={[s.p, { marginTop: 6 }]}>
-                  아직 정산되지 않은 금액이 있어요 — 지급에 필요한 정산 정보는 남겨둬요.
+                  {ledger === 'some'
+                    ? '아직 정산되지 않은 금액이 있어요 — 지급에 필요한 정산 정보는 남겨둬요.'
+                    : '정산 기록이 있다면 지급에 필요한 정산 정보는 남겨둬요.'}
                 </Text>
               )}
 
