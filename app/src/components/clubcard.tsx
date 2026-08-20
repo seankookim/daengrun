@@ -433,17 +433,31 @@ function ClubCompactRow({ club }: { club: ClubOverview }) {
     bits.push(`멤버 ${club.memberCount}명`);
     bits.push(club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중');
   }
+  // [2026-08-20 Sean] 각인 클럽 위젯 — 랩 `home-state-lab.html`의 ③(포일 엣지 + 모노그램 +
+  // 원장 발치)이 이겼다. 이긴 이유는 예쁨이 아니라 **비대칭**이다: 모노그램이 왼쪽, 화살표가
+  // 오른쪽이라 '들어가는 행'으로 읽히고, 가운데 정렬 명패(①)처럼 '보는 판'으로 읽히지 않는다.
+  // 나이트 판(④)은 더 강한 물건이지만 홈에 두 번째 다크 아일랜드를 다시 들여오므로 탈락했다.
+  // 발치의 원장 줄은 소속의 증거(설립·멤버 수)이고 전부 실필드다 — 지어낸 값 0개.
+  const mono = club.name.trim().charAt(0) || '클';
   return (
     <Pressable
       onPress={() => router.push(`/club/${club.id}`)}
-      style={({ pressed }) => [s.cRow, pressed && { backgroundColor: paper.wash }]}
+      style={({ pressed }) => [s.cEngrave, pressed && { opacity: 0.94 }]}
       accessibilityRole="button" accessibilityLabel={`${title} 클럽 홈`}
     >
-      <View style={{ flex: 1 }}>
-        <Text style={s.cRowT} numberOfLines={1}>{title}</Text>
-        <Text style={s.cRowSub} numberOfLines={1}>{bits.join(' · ')}</Text>
+      <View style={s.cFoil} />
+      <View style={s.cEngraveBody}>
+        <View style={s.cMono}><Text style={s.cMonoT}>{mono}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.cEngraveT} numberOfLines={1}>{title}</Text>
+          <Text style={s.cEngraveSub} numberOfLines={1}>{bits.join(' · ')}</Text>
+        </View>
+        <Text style={s.cEngraveAct}>›</Text>
       </View>
-      <Text style={s.cRowAct}>클럽 홈 ›</Text>
+      <View style={s.cLedger}>
+        <Text style={s.cLedgerT}>반포 · 하이클럽</Text>
+        <Text style={s.cLedgerT}>{`멤버 ${club.memberCount}`}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -528,6 +542,23 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
+  // 각인 클럽 위젯 — 골드 워시 + 2px 포일 상단 엣지 + 모노그램 + 원장 발치.
+  cEngrave: { marginHorizontal: 15, marginTop: 4, marginBottom: 4,
+    backgroundColor: '#F4EBD3', borderWidth: 1, borderColor: '#E7DAB6' },
+  cFoil: { height: 2, backgroundColor: '#C9AE6A' },
+  cEngraveBody: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 15, paddingVertical: 14 },
+  cMono: { width: 42, height: 42, borderWidth: 1.5, borderColor: '#D8C185',
+    alignItems: 'center', justifyContent: 'center' },
+  cMonoT: { fontSize: 19, fontWeight: '900', color: '#7A6528' },
+  // 각인 문자 — 위 흰 하이라이트 + 아래 어두운 획으로 종이에 눌린 것처럼. 첫 랩에서 크림 위
+  // 크림으로 해 이름이 사라졌던 값(#EFE3C2)은 쓰지 않는다: 읽히지 않는 각인은 각인이 아니다.
+  cEngraveT: { fontSize: 20, lineHeight: 26, fontWeight: '900', color: '#7A6528',
+    textShadowColor: 'rgba(255,255,255,0.95)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0 },
+  cEngraveSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: '#8A7434', marginTop: 2 },
+  cEngraveAct: { fontSize: 21, color: '#7A6528' },
+  cLedger: { flexDirection: 'row', justifyContent: 'space-between',
+    borderTopWidth: 1, borderTopColor: '#E4D5AE', paddingHorizontal: 15, paddingVertical: 7 },
+  cLedgerT: { fontSize: 11, letterSpacing: 1.4, fontWeight: '700', color: '#A08A50' },
   cRowT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
   cRowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
   cRowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },

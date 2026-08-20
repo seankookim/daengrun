@@ -36,12 +36,15 @@ const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: stri
 
 /** 선화 — 오른쪽 가장자리로 흘러나가게 그린다. 불투명도 낮게, 활자 뒤에 워터마크처럼. */
 function Art({ kind, color, big }: { kind: BtnArt; color: string; big: boolean }) {
-  const w = big ? 150 : 108;
-  const h = big ? 110 : 64;
+  const w = big ? 150 : 112;
+  const h = big ? 110 : 66;
   const p = { stroke: color, strokeWidth: big ? 2 : 1.8, fill: 'none' as const, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
-    <View pointerEvents="none" style={[st.art, { opacity: 0.15, right: big ? -14 : -10 }]}>
-      <Svg width={w} height={h} viewBox={big ? '0 0 150 110' : '0 0 108 64'}>
+    // ⚠ marginTop은 그림의 **실제 높이**의 절반이어야 한다. 처음엔 -55(큰 그림 110의 절반)를
+    // 두 크기에 다 썼고, 작은 버튼(64pt·그림 64)에서 그림이 32pt만큼 위로 밀려 잘렸다 —
+    // 시뮬레이터에서 채팅 말풍선과 달력 상단이 잘린 게 그 값이다.
+    <View pointerEvents="none" style={[st.art, { opacity: 0.15, right: big ? -14 : -10, marginTop: -h / 2 }]}>
+      <Svg width={w} height={h} viewBox={big ? '0 0 150 110' : '0 0 112 66'}>
         {kind === 'dog' && (<>
           <Path d="M8 74c18 2 26-14 44-16s26 10 42 4 22-22 38-22" {...p} />
           <Path d="M18 74l-8 16M46 66l-6 20M78 62l-4 22M108 58l-2 22" {...p} />
@@ -96,7 +99,7 @@ interface Props {
   sub?: string;
   ground?: BtnGround;
   art?: BtnArt;
-  /** 작은 행(64pt) — 나 청크의 코다용. 기본은 큰 결정 버튼(90pt). */
+  /** 작은 행(78pt) — 나 청크의 코다용. 기본은 큰 결정 버튼(96pt). 제목 크기는 둘이 같다. */
   small?: boolean;
   /** 실데이터가 참일 때만 켠다. 거짓이면 호출부가 false를 넘겨야 한다. */
   dot?: boolean;
@@ -135,7 +138,7 @@ export function DrawButton({ title, sub, ground = 'paper', art, small, dot, shee
     return () => loop.stop();
   }, [sheen, reduceMotion, sweep]);
 
-  const H = small ? 64 : 90;
+  const H = small ? 78 : 96;
 
   return (
     <Pressable
@@ -186,9 +189,12 @@ export function DrawButton({ title, sub, ground = 'paper', art, small, dot, shee
               ]}
             />
           ) : null}
-          <Text style={[st.t, df, { color: g.ink, fontSize: small ? 20 : 29 }]} numberOfLines={1}>{title}</Text>
+          {/* 제목은 **크기가 하나다**. 높이는 티어별로 다르되(96/78) 활자는 28로 통일 —
+              크기가 셋이면 위계가 아니라 잡음으로 읽힌다(Sean 2026-08-20 피드백). */}
+          <Text style={[st.t, df, { color: g.ink, fontSize: 28 }]} numberOfLines={1}>{title}</Text>
         </View>
-        {sub ? <Text style={[st.d, { color: g.sub, fontSize: small ? 12.5 : 13 }]} numberOfLines={2}>{sub}</Text> : null}
+        {/* 서브라인 15pt(구 13) · 한 줄 — 길면 버튼이 문단이 된다. 짧게 쓰는 건 호출부의 몫이다. */}
+        {sub ? <Text style={[st.d, { color: g.sub }]} numberOfLines={1}>{sub}</Text> : null}
       </View>
       <Text style={[st.arr, { color: g.sub, fontSize: small ? 18 : 21 }]}>›</Text>
     </Pressable>
@@ -204,10 +210,10 @@ function haptics() {
 
 const st = StyleSheet.create({
   btn: { position: 'relative', overflow: 'hidden', justifyContent: 'space-between' },
-  art: { position: 'absolute', top: '50%', marginTop: -55, zIndex: 1 },
+  art: { position: 'absolute', top: '50%', zIndex: 1 },
   sheen: { position: 'absolute', top: -25, bottom: -25, left: 0, width: 46, zIndex: 2 },
-  t: { fontWeight: '400', lineHeight: 34, zIndex: 3 },
-  d: { marginTop: 5, lineHeight: 19, zIndex: 3 },
-  arr: { position: 'absolute', right: 16, bottom: 12, zIndex: 3 },
+  t: { fontWeight: '400', lineHeight: 33, zIndex: 3 },
+  d: { marginTop: 5, fontSize: 15, lineHeight: 21, zIndex: 3 },
+  arr: { position: 'absolute', right: 16, bottom: 13, zIndex: 3 },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 9 },
 });

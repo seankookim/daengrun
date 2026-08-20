@@ -73,7 +73,7 @@ const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 // 「s4kim2025 러너의 / 응답을 기다려요」가 마크와 겹치는 걸 보고 얻은 법이고, 여기서는 카피
 // 규율이 아니라 **레이아웃**으로 강제한다: 1행 Text에만 오른쪽 패딩을 주고 2행은 전폭을 쓴다.
 // 그래서 이름·장소처럼 길이를 모르는 값은 항상 2행이나 서브라인으로 간다.
-const MARK_W = 96;
+const MARK_W = 104;
 
 function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
   return (
@@ -81,7 +81,7 @@ function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
       <View style={{ position: 'absolute', right: -2, top: -4, zIndex: 1 }} pointerEvents="none">
         <Image
           source={require('../../assets/logo-alpha.png')}
-          style={{ width: 58 * (1619 / 971), height: 58 }}
+          style={{ width: 66 * (1619 / 971), height: 66 }}
           resizeMode="contain"
           accessibilityRole="image"
           accessibilityLabel="도그스하이"
@@ -170,9 +170,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
         <Phrase top="지금 만나요" bottom={`${name} 인계할 시간`} df={df} />
         <Text style={s.sub}>{runner}가 도착했어요 · 만나서 인계해주세요</Text>
         <View style={s.opts}>
-          <DrawButton title="인계하기" sub="러너에게 아이를 넘기고 봉인해요" ground="coral" art="leash"
+          <DrawButton title="인계하기" sub="아이를 넘기고 봉인해요" ground="coral" art="leash"
             dot onPress={openNext} accessibilityLabel="인계하기" />
-          <DrawButton title="채팅" sub="늦거나 못 찾겠다면 바로 알려주세요" ground="lilac" art="chat"
+          <DrawButton title="채팅" sub="늦으면 알려주세요" ground="lilac" art="chat"
             small onPress={openChat} />
         </View>
       </View>
@@ -191,22 +191,33 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
       : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
         : state === 'searching' ? { c: WAIT_BLUE, t: '찾는 중' }
           : { c: paper.dim, t: '비어 있음' };
+  // ⚠ 「지난 예약이 하나 있어요」는 Sean이 "무슨 뜻이냐"고 물은 문장이었다 — 맞는 지적이었고,
+  // 사실은 "예약 시각이 지났는데 아직 확정으로 남아 있다"이다. 그래서 문구가 그걸 그대로 말하고
+  // 정확한 날짜·시각은 서브라인이 든다.
+  //
+  // ⚠⚠ 그리고 **1행에는 길이를 모르는 값을 절대 넣지 않는다.** 방금 `dateLabel + ' 예약'`을
+  // 1행에 넣었다가 「8월 4일 (화) 예약」이 마크 자리에 부딪혀 「8월 4일 (화)…」로 잘리는 걸
+  // 시뮬레이터에서 봤다 — 내가 세운 드롭 법을 내가 어긴 것이다. dateLabel은 '오늘'(2자)일 수도
+  // '8월 4일 (화)'(10자)일 수도 있으므로 1행에 올 수 없다. 짧을 때만 쓰고 아니면 '곧'으로
+  // 접는다: 정확한 날짜는 어차피 바로 아래 17pt 서브라인이 말한다.
+  const shortDate = next?.dateLabel && next.dateLabel.length <= 4 ? next.dateLabel : '곧';
   const phrase =
-    state === 'confirmed' ? { top: nextIsPast ? '지난 예약이' : (next?.dateLabel ?? '오늘'), bottom: nextIsPast ? '하나 있어요' : `${name}가 달려요` }
+    state === 'confirmed'
+      ? (nextIsPast ? { top: '예약 시간이', bottom: '지났어요' } : { top: shortDate, bottom: `${name}가 달려요` })
       : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
         : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
           : { top: '오늘은 아직', bottom: '비어 있어요' };
   const subline =
     state === 'confirmed'
-      ? (nextIsPast ? '시간이 지났어요 · 일정에서 확인해주세요'
+      ? (nextIsPast ? `${when} · 일정에서 확인하거나 취소해주세요`
         : `${when ? when + ' · ' : ''}${runner} 확정${ddayLabel ? ' · ' + ddayLabel : ''}`)
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
           : `${name}와 달릴 시간을 잡아보세요`;
   // 라이브 점의 근거. 0명이면 점도 없고 문장도 그렇게 말한다.
   const runnersLine = onlineRunners > 0
-    ? `지금 뛸 수 있는 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 근처에 있어요`
-    : '지금은 대기 중인 러너가 없어요 — 예약해두면 먼저 연결해드려요';
+    ? `지금 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 대기 중이에요`
+    : '지금은 대기 중인 러너가 없어요';
 
   return (
     <View style={s.wrap}>
@@ -225,18 +236,18 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
         )}
         {(state === 'searching' || state === 'directed') && (
           <DrawButton title={state === 'searching' ? '레이더 보기' : '요청 보기'}
-            sub={state === 'searching' ? '요청이 누구에게 갔는지 볼 수 있어요' : '응답이 없으면 자동으로 다시 찾아요'}
+            sub={state === 'searching' ? '요청 상황을 볼 수 있어요' : '러너 응답을 기다려요'}
             ground="blue" art="radar" onPress={openNext} />
         )}
         {state === 'confirmed' && (
-          <DrawButton title={nextIsPast ? '보기' : '티켓 보기'} sub="시간과 장소, 러너를 확인해요"
+          <DrawButton title={nextIsPast ? '보기' : '티켓 보기'} sub="시간과 장소를 확인해요"
             ground="gold" art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
-          <DrawButton title="채팅" sub="러너에게 물어볼 게 있다면 편하게 물어보세요"
+          <DrawButton title="채팅" sub="러너에게 물어보세요"
             ground="lilac" art="chat" small onPress={openChat} />
         )}
-        <DrawButton title="미리 예약" sub="날짜와 시간을 골라 잡아둬요" ground="paper" art="calendar"
+        <DrawButton title="미리 예약" sub="날짜와 시간을 골라요" ground="paper" art="calendar"
           small={inFlight} onPress={schedule} accessibilityLabel="미리 예약" />
       </View>
     </View>
@@ -260,11 +271,11 @@ const s = StyleSheet.create({
   // 상태 칩 · 마크가 내려앉는 문구 · 서브라인 · 그림 버튼들.
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
   chipDot: { width: 9, height: 9, borderRadius: 5 },
-  chipTx: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
-  phw: { marginTop: 5, minHeight: 96 },
+  chipTx: { fontSize: 13, fontWeight: '800', letterSpacing: 1.4 },
+  phw: { marginTop: 6, minHeight: 108 },
   // 38pt 디스플레이 — 이 화면의 Black Han Sans 사용 1회. 마스트헤드 워드마크는
   // home.tsx에서 본문 900으로 내려가 §3의 '화면당 1회' 예산을 지킨다.
-  phr: { fontSize: 38, lineHeight: 44, color: paper.ink, fontWeight: '400' },
-  sub: { fontSize: 14.5, color: paper.dim, marginTop: 9, lineHeight: 21 },
+  phr: { fontSize: 43, lineHeight: 50, color: paper.ink, fontWeight: '400' },
+  sub: { fontSize: 17, color: paper.dim, marginTop: 10, lineHeight: 24 },
   opts: { marginTop: 14, gap: 10 },
 });

@@ -311,7 +311,12 @@ export default function OwnerHome() {
                 히어로 문구가 쓴다. 랩에서 열어 둔 질문을 예산을 지키는 쪽으로 닫은 것이고,
                 Sean이 뒤집으면 여기 `df` 한 줄만 되돌리면 된다. */}
             <View style={s.mastLogo}>
-              <Text style={s.wordmark}>도그스하이</Text>
+              {/* ⚠ 임시. Sean이 붙여준 진짜 워드마크는 **커스텀 레터링**(각진 지오메트릭)이고
+                  우리가 가진 어떤 서체도 아니다 — 파일(app/assets/wordmark.png)이 들어오면
+                  이 Text를 <Image>로 바꾸면 되고, 그 순간 디스플레이 서체 사용은 다시 화면당
+                  1회(히어로 문구)로 내려간다. 그때까지는 본문 900보다 브랜드에 가까운
+                  Black Han Sans로 둔다 — 지금은 2회이며, 그 사실을 숨기지 않는다. */}
+              <Text style={[s.wordmark, df]}>도그스하이</Text>
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
@@ -463,6 +468,15 @@ export default function OwnerHome() {
         <CourseStrip headerPad={layout.gutter} />
 
         {/* ══════════════════ 나 ══════════════════ */}
+        {/* 코스 둘러보기 — 스트립은 미리보기고, 전체 카탈로그로 가는 문은 따로 있어야 한다. */}
+        <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
+          <DrawButton
+            title="코스 둘러보기" sub="반포 근처 코스를 볼 수 있어요"
+            ground="volt" art="elev" small
+            onPress={() => router.push('/owner/course-map')}
+          />
+        </View>
+
         <ChunkKick label="나" />
 
         {/* 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos).
@@ -653,7 +667,7 @@ const s = StyleSheet.create({
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
-  wordmark: { fontSize: 20, lineHeight: 26, color: lilac.head, letterSpacing: 0.2 },
+  wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: 0.2, fontWeight: '400' },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴
