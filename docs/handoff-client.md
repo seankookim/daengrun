@@ -527,7 +527,16 @@ acting; do not mass-fix and do not mass-dismiss.** What is settled and what is n
 |---|---|---|
 | `delete-account-sheet.tsx:238` | ✅ **FALSE POSITIVE** (verified, me) | `retry` is assigned inside a nested `.catch` callback and cleared at `:252` with `alive = false`. **No early return in this effect.** |
 | `owner/radar.tsx:141` | ✅ **FALSE POSITIVE** (verified, both sessions) | cleanup returns `unsub(); clearInterval(poll); if (nav) clearTimeout(nav)` — all three handles cleared. |
-| `ring.tsx:36` · `tabswipe.tsx:67` · `club-ui.tsx:276` · `fitness.tsx:151` | ⚠ **UNADJUDICATED** | Flagged, not yet read closely. **Not the same as "fine."** ⚠ `tabswipe.tsx:67` looks like it may be a *real* finding — it starts an `Animated.spring` whose `.start()` callback calls `setSnap`, with nothing stopping it on unmount. `fitness.tsx` is **DO-NOT-REFACTOR** (frozen hero) — read `CLAUDE.md` before touching it whatever the analyzer says. |
+| `tabswipe.tsx:67` | 🔴 **TRUE POSITIVE — read, then FIXED** (`8257988`) | The one real finding of the night, and the one both sessions were most confident was noise. `.start()`'s callback called `setSnap(null)` and scheduled a 500 ms timer while the effect returned nothing. The unmount case was the lesser half: on a **fast second tab change** the previous spring was still running, its callback fired *after* the new effect had set the incoming snapshot, and cleared it — the incoming screen lost its snapshot and showed exactly the ghost that callback exists to prevent. Fixed with a liveness guard + timer ownership; the animation is deliberately NOT stopped and `releaseCapture` NOT skipped (the callback must run on `finished=false`, and cancelling would leak the temp jpg the timer exists to delete). **Not device-verified** — needs two fast swipes on hardware. |
+| `ring.tsx:36` | ✅ **FALSE POSITIVE** (verified, peer) | Returns `anim.removeListener(id)`, and the `!animate` early path adds no listener, so there is nothing to clean on it. |
+| `club-ui.tsx:276` | ⚠ **UNADJUDICATED** | Not read by either session. **Not the same as "fine."** |
+| `fitness.tsx:151` | ⚠ **UNADJUDICATED + DO-NOT-REFACTOR** | Frozen collapsing hero. An analyzer flag is **not** authority to open a frozen file — read `CLAUDE.md` first. |
+
+**Night's tally on this rule: two confirmed false positives, one confirmed TRUE positive.** Treat it
+as low-precision in this codebase — neither disable it nor trust it, read every flag. ⚠ The true
+positive was the flag both sessions were most confident was noise; the two we'd have bet were real
+were the false ones. That inversion is the reason "not on tonight's edits" must never be written as
+if it meant "false".
 
 ⚠ **There is no single "shape" here — a peer initially characterised both false positives as the
 analyzer miscounting an early `return;` path, and that is wrong.** The three structures differ:
