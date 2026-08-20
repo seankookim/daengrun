@@ -88,10 +88,15 @@
 -- ─── 🔵 DECISIONS TAKEN AT THE ADVERSARIAL REVIEW (contract §H, §F) ─────────────────────────
 --   · `addresses` is KEEP+ANON, not DELETE (F1/F2) — forced by executed evidence; the SHAPE of
 --     the redaction (placeholder `label`/`addr` rather than relaxing their NOT NULLs) is a call.
---   · `bank_accounts` is DELETE, not KEEP (F9) — no retention duty covers a payment INSTRUMENT;
---     the payout record that IS covered (`payouts`, `ledger_items`) stands alone without it.
+--   · `bank_accounts` is a CONDITIONAL delete — 🔵 Sean, 2026-08-20, **A-intact-when-owed**,
+--     superseding F9's unconditional DELETE. Gone when the runner has no `ledger_items`; KEPT
+--     **INTACT** (not anonymised) when they have any, because the retention basis is an
+--     outstanding obligation and a blanked account number is a row nobody can pay into. The full
+--     argument, including why `unpaid_payout` is knowingly inert (`payouts` has zero writers) and
+--     why gating on lifetime earnings would fail 5.1.1(v), is at the statement in ④.
 --     ⚠ Measured in the reviewer's run: `account_enc` SURVIVES the entire anonymise procedure if
---     the table is not named, because nothing in ③ looks at `bank_accounts` at all.
+--     the table is not named, because nothing in ③ looks at `bank_accounts` at all — so the
+--     delete arm has to name it explicitly, and it does.
 --   · 마일리지 and unopened drops are FORFEIT, with NO GATE (F11) — 하이 포인트 is a
 --     non-transferable promotional balance with no cash-out path, so forfeiting it creates no
 --     잔여 재산 to settle. **The confirm-sheet line is the protection**, so it is contractual
@@ -115,7 +120,7 @@
 --   §A  drop profiles_id_fkey + amend 0075's premise in the catalog
 --   §B  profiles.deleted_at
 --   §C  account_deletions — the ops-only log
---   §D  delete_my_account_tx(p_uid uuid) — party gate → 11-token state gate → tombstone →
+--   §D  delete_my_account_tx(p_uid uuid) — party gate → 12-token state gate → tombstone →
 --       KEEP+ANON → explicit deletes → log
 --   §E  visibility: `profiles tombstone read` policy + `available_runners` create-or-replace
 --   §F  the fail-closed watchdog (N6) — two arms, both refuse to apply
@@ -203,6 +208,9 @@ declare
   v_miles   int;
   v_drops   int;
   v_log_id  uuid;
+  -- true when the payout destination is KEPT INTACT because earnings are outstanding
+  -- (Sean's 2026-08-20 ruling A-intact-when-owed — see ④'s bank_accounts note)
+  v_bank_kept boolean := false;
 begin
   -- ── ① PARTY GATE ───────────────────────────────────────────────────────────────────────
   if p_uid is null then
@@ -226,11 +234,17 @@ begin
                   where profile_id = p_uid order by requested_at desc limit 1));
   end if;
 
-  -- ── ② STATE GATE — ELEVEN tokens ───────────────────────────────────────────────────────
+  -- ── ② STATE GATE — TWELVE tokens ───────────────────────────────────────────────────────
   -- Each raises a STABLE MACHINE TOKEN; the client keys Korean copy on it. Apple expects
   -- deletion not to be gated behind an obstacle the user cannot clear, so every arm below is a
   -- state the user can themselves resolve (finish or cancel the run, settle the charge, pause
-  -- the series, hand the dog back, close the club session) — eleven tokens, eleven copy entries.
+  -- the series, hand the dog back, close the club session) — twelve tokens, twelve copy entries.
+  -- ⚠ `club_custody` and `club_custody_owner` are TWO tokens for ONE condition on purpose, and
+  -- the reason is the honesty law rather than the schema: the remedy differs by side. A person
+  -- HOLDING a dog can finish the handoff themselves; the OWNER whose dog is out with a runner
+  -- cannot — their copy has to say "러너가 인계를 마친 뒤". One token would force one sentence,
+  -- and one of the two readers would be told to perform an action they cannot perform, which is
+  -- a dead-end refusal (§B.1's Apple risk and the honesty laws at once).
 
   -- 1. active_booking — the eleven live statuses, either side of the booking.
   if exists (
@@ -264,7 +278,13 @@ begin
   ) then raise exception 'unsettled_payment'; end if;
 
   -- 5. unpaid_payout — the account may not shed its payout destination while a payout is owed to
-  --    it. `bank_accounts` is deleted in ④, strictly AFTER this arm has passed.
+  --    it. `bank_accounts` is handled in ④, strictly AFTER this arm has passed.
+  --    ⚠ KNOWINGLY INERT TODAY (Sean, 2026-08-20): **nothing in the repo writes `payouts`** — the
+  --    only inserts are suite 150's own fixtures — so this arm cannot fire on real data. It is
+  --    kept because it becomes correct the instant a payout writer lands, and deleting it now
+  --    would drop the gate silently on that day. `ledger_items` is what actually records earnings
+  --    and it has no paid marker, so "unpaid balance" is not computable here at all; ④'s
+  --    conditional `bank_accounts` delete is what carries the obligation instead.
   if exists (select 1 from payouts where runner_id = p_uid and paid_at is null)
     then raise exception 'unpaid_payout'; end if;
 
@@ -275,6 +295,16 @@ begin
     then raise exception 'km_balance'; end if;
 
   -- 7. open_incident — either family, reporter or booking party or case owner.
+  --    ⚠ NOTE (reviewer 5, 2026-08-20 — recorded, not changed): `club_incidents` carries BOTH a
+  --    `state` column and `resolved_at`, and this arm reads ONLY `resolved_at`. The two can
+  --    disagree — nothing in the schema ties them, so a row can sit at a non-terminal `state`
+  --    with `resolved_at` already stamped, or at a terminal `state` with `resolved_at` still
+  --    null. **`resolved_at` is canonical for this gate**, chosen because it is the timestamp the
+  --    retention duty and the dispute record are actually written against (§B.3), and because a
+  --    nullable timestamp cannot drift into a new enum value the way a `state` set can. A row
+  --    whose `state` says open while `resolved_at` is set will NOT refuse deletion; that is the
+  --    accepted consequence of the choice, and the day the two columns are unified is the day
+  --    this arm should be revisited rather than silently widened.
   if exists (
     select 1 from incidents i left join bookings b on b.id = i.booking_id
      where i.resolved_at is null
@@ -333,7 +363,38 @@ begin
             or sd.current_runner_profile_id = p_uid)
   ) then raise exception 'club_custody'; end if;
 
-  -- 11. 🔴 club_assignment (F3, NEW) — a committed assignment on a session still to come.
+  -- 11. 🔴 club_custody_owner — THE ARM THE SECOND REVIEW WAS BOUGHT WITH, and it is arm 10 read
+  --     from the other side. Arm 10 as first written was ONE-SIDED: it asks who is HOLDING the
+  --     dog (responsible / custodian / current_runner) and never asks whose dog it is. The
+  --     reviewer executed it — an owner whose dog was OUT RIGHT NOW deleted their account: phone
+  --     nulled, emergency_contacts and push_tokens gone, dog still in a runner's custody, and the
+  --     runner holding it had no route back to the person responsible for that animal. Production
+  --     had 4 open-custody `session_dogs` rows at the time of the review, so this was reachable,
+  --     not theoretical.
+  --     ⚠ IT IS A SEPARATE TOKEN, NOT AN EXTRA `or` ON ARM 10, and the reason is the copy, not
+  --     the SQL. The holder's remedy is "인계를 마쳐 주세요" — something they do. The owner's
+  --     remedy is "러너가 인계를 마친 뒤 다시 시도해 주세요" — something they WAIT for. Folding
+  --     the two into one token forces one sentence onto two readers, and whichever sentence wins,
+  --     the other reader is handed a refusal naming an action they cannot perform. Under the
+  --     honesty laws that is a dead button in prose form; under 5.1.1(v) it is an unreasonable
+  --     obstacle. Same `checked_out_at is null` condition, deliberately with no session-status
+  --     filter, for the same reason arm 10 has none: a dog that was never checked out is a dog
+  --     nobody accounted for.
+  --     ⚠ The refusal is a BARE TOKEN — it does not carry the club session id. Attaching one was
+  --     ordered and then withdrawn on 2026-08-20 after measurement: a second field cannot reach
+  --     the client without changing `_shared/ctx.ts`'s error arm, which builds the body with
+  --     exactly one key and is imported by 24 edge functions. That is a shared surface and it
+  --     gets its own reviewed slice. Until then the client's copy for this token must describe
+  --     the destination rather than link to it — the return-confirm control lives on
+  --     `app/app/club/session/[sid].tsx` (O10 「인계받았어요 — 반환 확인 →」), NOT on
+  --     `/owner/schedule`, which touches `session_dogs` zero times.
+  if exists (
+    select 1 from session_dogs sd
+     where sd.checked_out_at is null
+       and sd.owner_profile_id = p_uid
+  ) then raise exception 'club_custody_owner'; end if;
+
+  -- 12. 🔴 club_assignment (F3, NEW) — a committed assignment on a session still to come.
   if exists (
     select 1 from session_runner_assignments sra
      join club_sessions cs on cs.id = sra.session_id
@@ -390,6 +451,20 @@ begin
     lng           = null,
     is_default    = false
   where owner_id = p_uid;
+
+  -- ⚠ OPS CONSEQUENCE, STATED RATHER THAN DISCOVERED AT THE WAREHOUSE (reviewer 6, 2026-08-20 —
+  -- recorded, not changed). `gear_claims` is KEEP (전자상거래법 재화공급 record, §B.3) and
+  -- `gear_claims.shipped_to` points at one of the rows just redacted. So a claim still sitting at
+  -- `claimed` — accepted but NOT yet shipped — survives this deletion **with its destination
+  -- reading `삭제된 주소`, lat/lng null and no gate code**. It is not shippable and it is not
+  -- gated on: there is deliberately no `unshipped_gear` token, because gear is a free promotional
+  -- item with no 재화대금 the user handed us (the miles/km asymmetry in the header, one step
+  -- further out) and refusing an account deletion until a warehouse acts is exactly the
+  -- unreasonable obstacle §B.1 warns about — the user cannot ship it to themselves.
+  -- **The ops answer is to cancel the claim, not to chase the address**: the address is gone on
+  -- purpose and no route recovers it. The 삭제된 주소 constant is what makes that state
+  -- recognisable at a glance in the fulfilment queue instead of looking like a data bug.
+  -- Everything already SHIPPED is unaffected — it left before the account did.
 
   -- 🔴 dogs — KEEP+ANON (F16). `dogs` stays because deleting it is the path to payment_attempts.
   -- `name` is KEPT deliberately (see the header 🔵). breed/birth_date/weight_kg/neutered/
@@ -459,11 +534,43 @@ begin
   -- the stored Toss billing key — deleting it is required, not merely allowed
   with d as (delete from billing_keys where profile_id = p_uid returning 1)
     select count(*) into v_n from d; v_counts := v_counts || jsonb_build_object('billing_keys', v_n);
-  -- 🔵 bank_accounts (F9) — STRICTLY AFTER ②'s unpaid_payout arm passed. account_enc is opaque to
-  -- every KEEP/ANON rule in ③ because nothing in ③ looks at this table; deleting it is the only
-  -- thing that removes it.
-  with d as (delete from bank_accounts where runner_id = p_uid returning 1)
-    select count(*) into v_n from d; v_counts := v_counts || jsonb_build_object('bank_accounts', v_n);
+  -- 🔵🔵 bank_accounts — CONDITIONAL DELETE. Sean's ruling **A-intact-when-owed**, 2026-08-20,
+  -- replacing F9's unconditional delete. Read the whole note before changing this statement,
+  -- because a surviving bank row LOOKS like a leak and is not.
+  --
+  --   THE MEASURED PROBLEM. ②'s `unpaid_payout` arm asks `payouts.paid_at is null` — and
+  --   **`payouts` has ZERO WRITERS anywhere in the repo** (the only inserts are in suite 150's
+  --   own fixtures). `ledger_items` (0001:264-275) is the table that actually records what a
+  --   runner EARNED, and it carries **no paid/settled marker of any kind** — base, distance_pay,
+  --   addon_pay, tip, remaining_guarantee, platform_fee, created_at, and nothing else. So
+  --   "unpaid balance" is NOT COMPUTABLE on this schema; only LIFETIME EARNINGS are.
+  --   ⚠ `unpaid_payout` therefore stays as a token but is **knowingly inert today** — it can
+  --   never fire until something writes `payouts`. It is left in place because it becomes correct
+  --   the moment a payout writer lands, and removing it would silently drop the gate that day.
+  --   Do not read its presence as protection.
+  --
+  --   WHY NOT SIMPLY GATE ON `ledger_items` INSTEAD. Because a gate on LIFETIME earnings can
+  --   never clear. It would trap every runner who ever completed a run inside an account they
+  --   cannot leave — and a deletion the user can never complete is not in-app deletion, which is
+  --   App Store 5.1.1(v) failing by the same limb the whole slice exists to satisfy (§B.1: a
+  --   refusal must name something the user can themselves resolve).
+  --
+  --   THE RULING. Delete `bank_accounts` only when the runner has NO `ledger_items` rows. When
+  --   they have any, **KEEP THE ROW INTACT — not anonymised, not redacted.** A blanked
+  --   `account_enc`/`holder` is a row nobody can pay into, which defeats the entire reason for
+  --   keeping it: the money must still have a destination. The retention basis is exactly the one
+  --   that keeps `ledger_items` itself — AN OUTSTANDING OBLIGATION — and it ends when they are
+  --   paid, not when they leave. This is the one place in this migration where PII survives
+  --   *because* it is PII: a payment instrument with no holder name is not a payment instrument.
+  --   The client is told (`bank_kept` in the flat result), so the confirm sheet can say it.
+  select count(*) into v_n from ledger_items where runner_id = p_uid;
+  v_bank_kept := v_n > 0;
+  if v_bank_kept then
+    v_counts := v_counts || jsonb_build_object('bank_accounts', 0);
+  else
+    with d as (delete from bank_accounts where runner_id = p_uid returning 1)
+      select count(*) into v_n from d; v_counts := v_counts || jsonb_build_object('bank_accounts', v_n);
+  end if;
   -- 🔵 boosts + unopened drops (F11) — the forfeit half. A boost is a time-boxed visibility
   -- window and means nothing without a live runner. An UNOPENED drop is a thing that never
   -- happened; an OPENED drop is KEPT because its `contents` explains a miles_ledger credit, and
@@ -518,6 +625,12 @@ begin
     'log_id', v_log_id,
     'deleted', v_counts,
     'forfeited', jsonb_build_object('miles', v_miles, 'drops', coalesce(v_drops, 0)),
+    -- the payout destination survived because earnings are outstanding. Returned as its own
+    -- BOOLEAN rather than folded into `kept`, because `kept` is a static list of table names the
+    -- client renders as prose and this is a per-user FACT the confirm sheet must be able to state
+    -- truthfully — "정산되지 않은 수익이 있어 정산 계좌는 보관됩니다" is a different sentence from
+    -- the standing retention list, and it must not appear when it is false.
+    'bank_kept', v_bank_kept,
     'kept', jsonb_build_array('bookings','payments','ledger_items','payouts','club_fee_items',
                               'gear_claims','payment_attempts','miles_ledger','km_ledger',
                               'km_lots','delegation_consents','club_acks','runner_applications',
@@ -592,6 +705,24 @@ where r.online
 --     point. `phone` and `toss_customer_key` are outside the grant and stay unreadable. `anon`
 --     gets nothing: it holds no column grant on profiles after 0088/0093, and this is
 --     `to authenticated`.
+--     ⚠ WHAT THIS POLICY ALSO DOES, AND IT IS ACCEPTED RATHER THAN OVERLOOKED (reviewer 8,
+--     2026-08-20 — recorded, not changed). The predicate is `deleted_at is not null` with NO
+--     relationship test, so it is not only "the counterparty may see THEIR tombstone" — **any
+--     authenticated user can enumerate every tombstone in the table.** That is a deliberate
+--     trade and it is affordable because of what a tombstone IS by the time this policy can see
+--     it: ③ has already run, so the readable set is the intersection with 0088:135's column
+--     grant — `id, name, handle, avatar_url, district, role` — and on a tombstone those are
+--     `(uuid, '탈퇴한 사용자', null, null, null, 'owner'|'runner')`. Six columns, five of them
+--     constant or null. The only real datum is the id, which the enumerator would need a
+--     counterparty row to make sense of anyway, and the count — i.e. how many people have left.
+--     `phone` and `toss_customer_key` are outside the grant and stay unreadable (150 N5(c)
+--     EXECUTES both, and asserts the refusal is 42501 by name).
+--     A relationship-scoped predicate was considered and NOT taken: "counterparty" spans
+--     bookings, chat threads, reviews and club sessions, so the policy would become a four-way
+--     exists over tables whose own visibility rules are what 0114 just spent a slice getting
+--     right — a large new attack surface bought to hide a departure count. If a future feature
+--     ever widens the column grant on `profiles`, THIS policy is the thing that must be narrowed
+--     in the same breath, because it is the row half of that pair.
 drop policy if exists "profiles tombstone read" on profiles;
 create policy "profiles tombstone read" on profiles for select to authenticated
   using (deleted_at is not null);
@@ -607,9 +738,20 @@ create policy "profiles tombstone read" on profiles for select to authenticated
 -- Two arms, and they are two arms because the closure form ALONE is provably wrong here —
 -- measured on this very schema, not reasoned:
 --
+--   ⚠ BOTH ARMS FILTER `confdeltype in ('c','n','d')` — CASCADE, SET NULL **and SET DEFAULT**.
+--   The third one was missing until 2026-08-20 and the reviewer executed the gap: a fake
+--   `location_access_log(profile_id → profiles ON DELETE SET DEFAULT)` — the exact forward-looking
+--   shape the wildcard below exists for — PASSED BOTH ARMS. 'd' is not an exotic option: it is
+--   what someone writes when they want the row kept with a sentinel parent, and on a nullable
+--   column with no default it behaves EXACTLY like SET NULL, i.e. it mutilates the retention row
+--   into the SET NULL shape §0 condemns. There are five referential actions ('a' NO ACTION,
+--   'r' RESTRICT, 'c' CASCADE, 'n' SET NULL, 'd' SET DEFAULT); the two that are safe here are the
+--   two that REFUSE the delete. Enumerate the dangerous ones, never the safe ones — this bug was
+--   an allow-list of two written where a deny-list of two belonged.
+--
 --   ARM 1 (the closure). Roots = `auth.users` ∪ the RPC's ④ delete list. Edges = FK child→parent
---   with ON DELETE CASCADE or SET NULL. Descend unbounded. FAIL if any retention table is
---   reachable. Recursive and not depth-1 because gate_code_access_log sits TWO hops out
+--   with ON DELETE CASCADE, SET NULL or SET DEFAULT. Descend unbounded. FAIL if any retention
+--   table is reachable. Recursive and not depth-1 because gate_code_access_log sits TWO hops out
 --   (delete list > addresses > gate_code_access_log) and the unbuilt 위치정보 ledger will very
 --   likely sit two or three; depth-1 is why the contract's first version could not see its own
 --   bug. The ④ list is a root set because AN EXPLICIT DELETE IS A CASCADE SOURCE TOO — that is
@@ -635,7 +777,7 @@ create policy "profiles tombstone read" on profiles for select to authenticated
 --   ARM 2 (the direct-edge invariant), which is what the two-name exemption was really guarding
 --   and which arm 1 therefore cannot express: NO RETENTION TABLE MAY MAKE ITS SURVIVAL DEPEND ON
 --   THE `profiles` ROW SURVIVING. Fail if a retention table (or any `%access_log`) holds a
---   CASCADE/SET NULL FK straight into `profiles` or `auth.users`. Exempt: the literal two names
+--   CASCADE/SET NULL/SET DEFAULT FK straight into `profiles` or `auth.users`. Exempt: the two names
 --   `club_acks` and `runner_applications`, which ARE `on delete cascade` today and are KEPT that
 --   way ON PURPOSE — the profiles row is never deleted. The exemption is a two-name list and not
 --   a predicate: a third table joining it must be an argued edit.
@@ -677,7 +819,7 @@ begin
   with recursive edge as (
     select confrelid::regclass::text as parent, conrelid::regclass::text as child, conname
       from pg_constraint
-     where contype = 'f' and confdeltype in ('c', 'n')   -- CASCADE | SET NULL
+     where contype = 'f' and confdeltype in ('c', 'n', 'd')   -- CASCADE | SET NULL | SET DEFAULT
   ), closure(t, path) as (
     select r, r from unnest(v_roots) r
     union
@@ -691,7 +833,8 @@ begin
    where t = any(v_retention) or t like '%access\_log';
 
   if v_bad is not null then
-    raise exception '0115 §F arm 1: a RETENTION table is reachable by CASCADE/SET NULL from a '
+    raise exception '0115 §F arm 1: a RETENTION table is reachable by CASCADE/SET NULL/SET DEFAULT '
+      'from a '
       'table this deletion actually removes rows from: %', v_nl || v_bad
       using hint = 'An explicit delete list is a cascade source. Either take the table out of '
                    'the ④ delete list (make it KEEP+ANON, as `addresses` had to be), or change '
@@ -705,7 +848,7 @@ begin
     into v_bad
     from pg_constraint
    where contype = 'f'
-     and confdeltype in ('c', 'n')
+     and confdeltype in ('c', 'n', 'd')
      and confrelid in ('profiles'::regclass, 'auth.users'::regclass)
      and (conrelid::regclass::text = any(v_retention) or conrelid::regclass::text like '%access\_log')
      -- the named, argued exemption: their parent is the row this design NEVER deletes
@@ -713,7 +856,7 @@ begin
 
   if v_bad is not null then
     raise exception '0115 §F arm 2: a RETENTION table depends on the `profiles` row surviving '
-      '(CASCADE/SET NULL into profiles/auth.users): %', v_nl || v_bad
+      '(CASCADE/SET NULL/SET DEFAULT into profiles/auth.users): %', v_nl || v_bad
       using hint = 'Retention records must outlive the account. Use NO ACTION and let '
                    'delete_my_account_tx keep the row, the way bookings/payments/incidents do. '
                    'The two-name exemption {club_acks, runner_applications} is not a predicate — '

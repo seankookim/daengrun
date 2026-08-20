@@ -43,6 +43,7 @@ function scene(over: { rpc?: (args: Record<string, unknown>) => { data?: unknown
       deleted: { push_tokens: 1 },
       forfeited: { miles: 700, drops: 1 },
       kept: ["bookings"],
+      bank_kept: false,
     },
   }));
   // Both buckets, all five writer prefixes — the three that must survive included.
@@ -112,6 +113,11 @@ Deno.test("delete-account: the RPC's refusal token reaches the client as a 409, 
       "active_recurring",
       "club_host_duty",
       "club_custody",
+      // 🔴 the owner-side twin of club_custody. TWO tokens for one condition, on purpose: the
+      // holder can finish the handoff, the owner can only wait for the runner to finish it, so
+      // one token would force one sentence onto two readers and hand one of them a refusal
+      // naming an action they cannot perform.
+      "club_custody_owner",
       "club_assignment",
     ]
   ) {
@@ -121,6 +127,33 @@ Deno.test("delete-account: the RPC's refusal token reaches the client as a 409, 
     assertEquals(e.message, token, "the token must survive to the client unwrapped");
     assertEquals(db.deletedUsers.length, 0, "a refusal must not delete the credential");
     assertEquals(db.removed.length, 0, "a refusal must not touch storage");
+  }
+});
+
+Deno.test("delete-account: `not_authenticated` from the RPC is a 401, not a 409", async () => {
+  // 🔴 THE ONE TOKEN THAT IS NOT AN ACCOUNT STATE. The RPC's party gate raises it when `p_uid is
+  // null` (0115 §D ①). 409 Conflict means "your account state forbids this, here is what to
+  // clear" — every other token is exactly that. An expired session is the ABSENCE of an account
+  // state and there is nothing about the account for the user to fix, so a 409 would put a
+  // permanent, unactionable refusal in front of someone whose only problem is that they need to
+  // sign in again. **The client keys 401 → session expired → sign out → /login.**
+  const db = scene({ rpc: () => ({ error: { message: "not_authenticated" } }) });
+  const e = await assertRejects(() => deleteAccount(req({ confirm: "DELETE" }, JWT), db as never), HttpError);
+  assertEquals(e.status, 401);
+  assertEquals(e.message, "not_authenticated", "the token stays verbatim — only the status changes");
+  assertEquals(db.deletedUsers.length, 0);
+  assertEquals(db.removed.length, 0);
+});
+
+Deno.test("delete-account: the 401 arm is an EXACT match — a state token that merely mentions it stays a 409", async () => {
+  // The control for the arm above, and the reason `===` is written rather than `.includes()`:
+  // a substring test would let any future token containing the word downgrade a real
+  // account-state refusal into a sign-out, which loses the user's data-state warning entirely.
+  for (const token of ["not_authenticated_yet", "club_not_authenticated", " not_authenticated"]) {
+    const db = scene({ rpc: () => ({ error: { message: token } }) });
+    const e = await assertRejects(() => deleteAccount(req({ confirm: "DELETE" }, JWT), db as never), HttpError);
+    assertEquals(e.status, 409, `${token} is not the party-gate token and must stay a 409`);
+    assertEquals(e.message, token);
   }
 });
 
@@ -233,9 +266,29 @@ Deno.test("delete-account: the result is flat and carries no row contents", asyn
   const out = await deleteAccount(req({ confirm: "DELETE" }, JWT), db as never) as Record<string, unknown>;
   assertEquals(
     Object.keys(out).sort(),
-    ["already", "auth_deleted", "deleted", "forfeited", "kept", "ok", "storage_removed", "tombstoned"],
+    ["already", "auth_deleted", "bank_kept", "deleted", "forfeited", "kept", "ok", "storage_removed", "tombstoned"],
   );
   assertEquals(out.ok, true);
   assertEquals(out.tombstoned, true);
   assertEquals(out.forfeited, { miles: 700, drops: 1 }, "the forfeit counts are the support answer");
+});
+
+Deno.test("delete-account: `bank_kept` is forwarded as a boolean, and defaults FALSE when absent", async () => {
+  // 🔵 A-intact-when-owed (Sean, 2026-08-20). The RPC keeps the payout destination INTACT when the
+  // runner has `ledger_items`, and the confirm sheet has to be able to say so — a fact the client
+  // cannot see is a fact the client will guess.
+  const owed = scene({
+    rpc: () => ({ data: { ok: true, tombstoned: true, log_id: LOG, bank_kept: true } }),
+  });
+  const a = await deleteAccount(req({ confirm: "DELETE" }, JWT), owed as never) as Record<string, unknown>;
+  assertEquals(a.bank_kept, true);
+
+  // ⚠ The default is FALSE, not "whatever the RPC sent". A missing or non-boolean value must not
+  // become truthy: announcing a retained bank account that was in fact deleted is the dishonest
+  // direction, and it is the one a loose `?? ` would produce.
+  for (const data of [{ ok: true }, { ok: true, bank_kept: "true" }, { ok: true, bank_kept: 1 }, { ok: true, bank_kept: null }]) {
+    const db = scene({ rpc: () => ({ data }) });
+    const out = await deleteAccount(req({ confirm: "DELETE" }, JWT), db as never) as Record<string, unknown>;
+    assertEquals(out.bank_kept, false, `${JSON.stringify(data)} must not read as retained`);
+  }
 });

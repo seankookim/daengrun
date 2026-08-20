@@ -64,6 +64,10 @@
 --   M3 ← add a fake `on delete cascade` FK from a retention table to profiles → N6-2
 --   M4 ← remove `p.deleted_at is null` from `available_runners` → N5-b
 --   M5 ← drop the in-body `set search_path` from delete_my_account_tx → 98 H1
+--   M6 ← neutralise arm 11's `sd.owner_profile_id = p_uid` (2026-08-20) → N2-b2
+--   M7 ← narrow both N6 filters back to `('c','n')` with a SET DEFAULT ledger present (2026-08-20)
+--        → NOTHING. That is the finding, not a footnote; see the second block below.
+--   M8 ← invert ④'s `v_bank_kept := v_n > 0` (2026-08-20) → P9 (both arms), P2, N2-5
 --
 --   ✔ MUTATION-PROVEN, 2026-08-20, full harness by absolute path in this worktree.
 --     **Baseline before 0115 = 666/0. Green with 0115 + this suite = 693/0** (+27 pins).
@@ -89,6 +93,50 @@
 --       M5  in-body `set search_path` dropped        → **692/1, red = [98 H1]** — the schema-wide
 --           definer sweep, not a pin in this file, which is the correct owner.
 --     Restore → 693/0.
+--
+--   ✔ SECOND ROUND, 2026-08-20, after the merge with trunk and the reviewer's fix batch.
+--     **Baseline at the branch tip BEFORE this round = 721/0** (0115 + 0114's suite 149 + trunk),
+--     **after = 723/0** (+2: N2-b2, P9). All measured with the full harness by absolute path in this
+--     worktree; `deno test --allow-all supabase/functions/_test/` went **214/0 → 217/0** (+3: the
+--     401 arm, its exact-match control, and `bank_kept`'s forward-and-default arm).
+--     ⚠ M6/M4/M3d below were each measured against the **722/0** intermediate baseline — i.e.
+--     after N2-b2 landed and BEFORE the `bank_accounts` ruling (M8's block) added P9. Their red
+--     SETS are the claim; the totals read 721 for that reason and are not a discrepancy.
+--       M6  arm 11's owner predicate neutralised (`sd.owner_profile_id` compared to the nil uuid,
+--           so the raise stays in prosrc and only the CONDITION dies)
+--                                                   → **721/1, red = [N2-b2] ALONE**, detail line
+--           *"🔴 지금 개가 나가 있는 보호자가 삭제됐다 — 리뷰 지적 그대로 재현"*. The predicate,
+--           not the raise, is mutated on purpose: deleting the whole arm would ALSO redden N2-set
+--           (twelve tokens → eleven), which is N2-set doing its job but would stop M6 isolating.
+--       M4  re-run at the branch tip (the view's `p.deleted_at is null` removed)
+--                                                   → **721/1, red = [N5] alone** — still the
+--           only owner, and 124 G6 stays green because with the clause gone no view references
+--           `deleted_at` at all, so its (now tightened) exemption has nothing to exempt.
+--       M3d `location_access_log (profile_id → profiles ON DELETE **SET DEFAULT**)`
+--                                                   → **721/1, red = [N6-2] alone**, naming
+--           `location_access_log.location_access_log_profile_id_fkey [d]`.
+--     🔴 **AND THE CONTROL THAT MAKES M3d WORTH READING (M7).** The SAME fake ledger, with both
+--     N6 filters narrowed back to their pre-2026-08-20 `confdeltype in ('c','n')`, scores
+--     **722/0 — FULLY GREEN WITH THE HOLE OPEN.** That is the reviewer's finding reproduced
+--     exactly: the watchdog was an allow-list of two referential actions where a deny-list of two
+--     belonged, and 'd' on a nullable column with no default behaves identically to SET NULL. The
+--     forward-looking claim in the header — that the unbuilt 위치정보 ledger will be caught — was
+--     FALSE for one of the five ways that ledger can be written, and nothing in the suite would
+--     ever have said so. Do not narrow these filters again.
+--
+--   ✔ AND THE `bank_accounts` RULING (Sean, 2026-08-20, **A-intact-when-owed**), which replaced
+--     F9's unconditional delete after `payouts` was measured to have zero writers. Baseline with
+--     it and P9 in place = **723/0**.
+--       M8  ④'s condition inverted (`v_bank_kept := v_n = 0`)
+--                                                   → **720/3, red = [N2-5, P2, P9]**, and the
+--           THIRD one is worth stating rather than tidying away. P9 names both directions at once
+--           (`A bank_kept=false (기대 true)` … `B 아무 의무도 없는데 account_enc와 실명 holder가
+--           남았다`) and P2 names the kept-intact arm on the rich fixture. N2-5 reddens because
+--           its runner has no `ledger_items`, so under the inversion their payout destination
+--           survives with nothing owed — its bank-absence check is a real, independent statement
+--           of the same ruling and it is CORRECT for it to fail here. A mutation that reddened
+--           only the two pins written for the ruling would mean N2-5 had stopped asserting
+--           anything about it.
 --
 --   ✔ AND ONE MUTATION THAT CONFIRMS THE CONTRACT'S FORWARD-LOOKING CLAIM RATHER THAN MY CODE.
 --     §B.3 says the unbuilt 위치정보 ledger is caught only if THREE things all hold. Measured:
@@ -201,7 +249,7 @@ declare
     'confirmed','runner_enroute','picked_up','active','incident_review','refund_pending'];
   v_tokens text[] := array['active_booking','active_run','unsettled_run','unsettled_payment',
     'unpaid_payout','km_balance','open_incident','active_recurring','club_host_duty',
-    'club_custody','club_assignment'];
+    'club_custody','club_custody_owner','club_assignment'];
 begin
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -306,8 +354,12 @@ begin
   update payouts set paid_at = now(), status = 'paid' where runner_id = r;
   v_tok := t_acd_try(r);
   if v_tok <> '' then v_bad := v_bad || ' / 지급 뒤에도 거절: ' || v_tok; end if;
+  -- ⚠ This runner has NO `ledger_items` (no booking was ever settled for them), so under Sean's
+  -- 2026-08-20 ruling the payout destination has no obligation to serve and ④ deletes it. The
+  -- claim being pinned HERE is still the ORDERING one — ④ never runs before the gate — and the
+  -- absence below is that ordering's visible end. The ruling's own two directions are P9's.
   if exists (select 1 from bank_accounts where runner_id = r) then
-    v_bad := v_bad || ' / 🔴 bank_accounts가 살아남았다 — account_enc가 전 절차를 통과한 F9 그대로'; end if;
+    v_bad := v_bad || ' / 🔴 bank_accounts가 살아남았다 — 정산 의무(ledger_items)가 없는 러너인데도 남았다'; end if;
   if v_bad = '' then
     call _pass('acd','N2-5 unpaid_payout — 미지급 정산이 있으면 거절하고 bank_accounts는 그대로, 지급 뒤에야 계정과 함께 삭제 (F9 순서)');
   else call _fail('acd','N2-5 unpaid_payout', v_bad); end if;
@@ -461,6 +513,64 @@ begin
 exception when others then call _fail('acd','N2-b club_custody (F3)', sqlerrm);
 end;
 
+-- N2-b2 🔴 club_custody_owner — THE ARM THE SECOND REVIEW WAS BOUGHT WITH, and it is N2-b read
+-- from the other side. Arm 10 as first written asked only WHO IS HOLDING the dog
+-- (responsible / custodian / current_runner) and never asked WHOSE DOG IT IS. The reviewer
+-- executed that gap: an owner whose dog was out with a runner at that moment deleted their
+-- account — phone nulled, emergency_contacts and push_tokens gone — and the runner holding the
+-- animal was left with no route to the person responsible for it. Production held 4 open-custody
+-- session_dogs rows when this was measured, so it was reachable and not theoretical.
+--
+-- ⚠ THE FIXTURE IS BUILT SO THAT ONLY THE OWNER ARM CAN CATCH IT, and that is the whole pin.
+-- custody = 'runner_delegated' with responsible = the runner means the derivation trigger sets
+-- custodian/current_runner to the RUNNER, so the departing owner appears in exactly one column:
+-- `owner_profile_id`. If arm 11 were absent the deletion SUCCEEDS (the review's own finding); if
+-- arm 10 had merely been widened with an `or`, the token would come back `club_custody` and the
+-- owner would be told to finish a handoff only the runner can finish.
+begin
+  v_bad := '';
+  o  := t_user('acd_custo_o', 'owner');     -- the departing OWNER; the dog is out right now
+  r  := t_user('acd_custo_r', 'runner');    -- the runner actually holding it
+  u2 := t_user('acd_custo_h', 'runner');    -- somebody else's club
+  d  := t_dog(o, '단추');
+  insert into clubs (name, district, host_profile_id) values ('acd 보호자 인계 클럽', '반포동', u2) returning id into cl;
+  insert into club_sessions (club_id, host_profile_id, scheduled_at, meetup_point, status, format,
+                             delegated_dog_capacity)
+  values (cl, u2, now() - interval '1 hour', '집결지', 'open', 'delegated_only', 3) returning id into cs;
+  insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id,
+                            custody, checked_in_at, checked_out_at)
+  values (cs, d, o, r, 'runner_delegated', now() - interval '30 minutes', null) returning id into sd;
+
+  -- ① the owner is REFUSED, and with the owner-side token — not the holder's
+  v_tok := t_acd_try(o);
+  if v_tok = 'club_custody' then
+    v_bad := ' 🔴 보호자가 club_custody로 거절됐다 — 러너만 할 수 있는 인계를 보호자에게 시키는 문구가 된다 (토큰이 합쳐졌다)';
+  elsif v_tok <> 'club_custody_owner' then
+    v_bad := ' 🔴 지금 개가 나가 있는 보호자가 ' || coalesce(nullif(v_tok,''),'삭제됐다') || ' — 리뷰 지적 그대로 재현';
+  end if;
+
+  -- ② the two arms stay distinct in the other direction too: the HOLDER still gets club_custody
+  v_tok := t_acd_try(r);
+  if v_tok <> 'club_custody' then
+    v_bad := v_bad || ' / 러너 쪽 토큰=' || coalesce(nullif(v_tok,''),'삭제됨') || ' (기대 club_custody)'; end if;
+
+  -- ③ the remedy: once the dog is handed back, the owner leaves — and the custody row STAYS,
+  --    because it is evidence. A gate that could only be cleared by destroying the evidence
+  --    would be no better than the cascade this whole migration removes.
+  update session_dogs set checked_out_at = now() where id = sd;
+  v_tok := t_acd_try(o);
+  if v_tok <> '' then v_bad := v_bad || ' / 인계가 끝났는데도 보호자가 거절당했다: ' || v_tok; end if;
+  if not exists (select 1 from session_dogs where id = sd) then
+    v_bad := v_bad || ' / session_dogs가 사라졌다 — 커스터디 증거는 KEEP이다'; end if;
+  if not exists (select 1 from session_dogs where id = sd and owner_profile_id = o) then
+    v_bad := v_bad || ' / owner_profile_id가 끊겼다 — 툼스톤을 가리키는 채로 남아야 한다'; end if;
+
+  if v_bad = '' then
+    call _pass('acd','N2-b2 club_custody_owner 🔴 — 지금 자기 개가 러너에게 나가 있는 보호자도 못 나간다. 홀더(club_custody)와 보호자(club_custody_owner)는 구제책이 달라 일부러 토큰이 둘이고, 인계가 끝나면 보호자는 삭제되며 session_dogs는 증거로 남는다');
+  else call _fail('acd','N2-b2 club_custody_owner', v_bad); end if;
+exception when others then call _fail('acd','N2-b2 club_custody_owner', sqlerrm);
+end;
+
 -- N2-c (F3) club_assignment — committed on a FUTURE session refuses; withdrawn, or a past
 -- session, does not.
 begin
@@ -527,9 +637,13 @@ begin
 exception when others then call _fail('acd','N2-e 마일리지 소멸 (F11 🔵)', sqlerrm);
 end;
 
--- N2-set — the token set in the SQL is exactly eleven, and they are the eleven the client must
+-- N2-set — the token set in the SQL is exactly twelve, and they are the twelve the client must
 -- carry copy for. A token with no copy is a dead-end refusal and an Apple rejection risk (§B.1);
 -- a copy entry with no token is a lie. ui2 owns the other half of this equality.
+-- ⚠ It was ELEVEN until 2026-08-20. `club_custody_owner` split off `club_custody` — one condition
+-- read from both sides, deliberately TWO tokens, because the remedy is not the same sentence: the
+-- holder finishes the handoff, the owner can only wait for the runner to finish it. A single
+-- token would have handed one of the two readers a refusal naming an action they cannot perform.
 begin
   v_bad := '';
   select prosrc into v_txt from pg_proc where proname = 'delete_my_account_tx';
@@ -540,11 +654,11 @@ begin
   select count(*) into v_n from (
     select (regexp_matches(v_txt, 'raise exception ''([a-z_]+)''', 'g'))[1] as t) s
    where t <> 'not_authenticated';
-  if v_n <> 11 then v_bad := v_bad || ' / raise 토큰 수=' || v_n || ' (기대 11 + not_authenticated)'; end if;
+  if v_n <> 12 then v_bad := v_bad || ' / raise 토큰 수=' || v_n || ' (기대 12 + not_authenticated)'; end if;
   if v_bad = '' then
-    call _pass('acd','N2-set 상태 게이트는 정확히 11개 토큰 — 클라이언트 카피 11줄과 같은 집합 (토큰 하나가 늘거나 줄면 여기서 터진다)');
-  else call _fail('acd','N2-set 11개 토큰 집합', v_bad); end if;
-exception when others then call _fail('acd','N2-set 11개 토큰 집합', sqlerrm);
+    call _pass('acd','N2-set 상태 게이트는 정확히 12개 토큰 — 클라이언트 카피 12줄과 같은 집합 (토큰 하나가 늘거나 줄면 여기서 터진다). club_custody와 club_custody_owner는 한 조건의 양면이고 구제책이 서로 달라 일부러 두 토큰이다');
+  else call _fail('acd','N2-set 12개 토큰 집합', v_bad); end if;
+exception when others then call _fail('acd','N2-set 12개 토큰 집합', sqlerrm);
 end;
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -709,22 +823,57 @@ begin
     v_bad := v_bad || ' (c) 상대가 읽은 이름=' || coalesce(v_txt, '∅') || ' — 빈 작성자는 정직하지도 5.1.1(v) 안전하지도 않다'; end if;
   execute format('select count(*) from profiles where id = %L and handle is null and avatar_url is null and district is null', r) into v_n;
   if v_n <> 1 then v_bad := v_bad || ' (c) 나머지 네 컬럼이 안 비워졌다'; end if;
+  -- 🔴 THE NEGATIVE ARMS NAME THEIR SQLSTATE (reviewer 7, 2026-08-20). They used to end
+  --    `when others then null`, which swallows EVERY failure: a typo'd column, a dropped table,
+  --    a syntax error and a real 42501 all read as "refused, good". A negative that cannot
+  --    distinguish "blocked" from "broken" is not evidence, and 147's header records the same
+  --    class of false green from the other direction. The refusal MUST be 42501
+  --    (`insufficient_privilege`) — the column grant — and anything else is now a failure that
+  --    says what it actually was. MEASURED before the tightening: phone and toss_customer_key
+  --    both refuse with 42501, and the `district` positive twin below (an IN-grant column, read
+  --    by the same role in the same block) succeeds — so the two arms together show the wall is
+  --    the column grant and not the role, the row, or a broken statement.
   begin
     execute format('select phone from profiles where id = %L', r) into v_txt;
     v_bad := v_bad || ' (c) phone이 읽혔다 — 컬럼 그랜트 밖이어야 한다';
-  exception when insufficient_privilege then null; when others then null; end;
+  exception
+    when insufficient_privilege then null;
+    when others then v_bad := v_bad || ' (c) phone이 42501이 아닌 이유로 막혔다 (' || sqlstate || '): ' || sqlerrm;
+  end;
   begin
     execute format('select toss_customer_key from profiles where id = %L', r) into v_txt;
     v_bad := v_bad || ' (c) toss_customer_key가 읽혔다';
-  exception when insufficient_privilege then null; when others then null; end;
+  exception
+    when insufficient_privilege then null;
+    when others then v_bad := v_bad || ' (c) toss_customer_key가 42501이 아닌 이유로 막혔다 (' || sqlstate || '): ' || sqlerrm;
+  end;
+  -- the POSITIVE twin, in the same role and the same block: an IN-grant column of the same
+  -- tombstone reads clean. Without it the two refusals above prove only that something is broken.
+  begin
+    execute format('select coalesce(district, ''<null>'') from profiles where id = %L', r) into v_txt;
+    if v_txt <> '<null>' then
+      v_bad := v_bad || ' (c) 툼스톤 district=' || v_txt || ' (기대 null)'; end if;
+  exception when others then
+    v_bad := v_bad || ' (c) 그랜트 안쪽 컬럼(district)까지 막혔다 (' || sqlstate || ') — 벽이 컬럼 그랜트가 아니라 역할이나 행이다: ' || sqlerrm;
+  end;
   execute 'reset role';
-  -- anon gets nothing (the policy is `to authenticated`, and anon holds no column grant)
+  -- anon gets nothing. ⚠ WHAT THIS ARM ACTUALLY MEASURES IS THE MISSING COLUMN GRANT, NOT THE
+  -- POLICY. `anon` holds no column grant on `profiles` after 0088/0093, so the statement dies at
+  -- 42501 before any policy is consulted; `profiles tombstone read` being `to authenticated` is a
+  -- SECOND, independent wall that this arm can never reach. Both outcomes are accepted (a 42501,
+  -- or 0 rows if a future grant lets the statement run and the policy then excludes anon) —
+  -- anything else, including a different sqlstate, is a failure. Stated so nobody later reads a
+  -- green here as proof that the policy excludes anon: it is not, and only removing the grant
+  -- question would make it so.
   perform set_config('request.jwt.claim.sub', '', true);
   execute 'set local role anon';
   begin
     execute format('select count(*) from profiles where id = %L', r) into v_n;
     if v_n <> 0 then v_bad := v_bad || ' (c) anon이 툼스톤을 ' || v_n || '행 읽었다'; end if;
-  exception when insufficient_privilege then null; end;
+  exception
+    when insufficient_privilege then null;
+    when others then v_bad := v_bad || ' (c) anon이 42501이 아닌 이유로 막혔다 (' || sqlstate || '): ' || sqlerrm;
+  end;
   execute 'reset role';
 
   -- (d) a kept review authored by / about a tombstone still resolves, and the subject's rating
@@ -767,8 +916,16 @@ begin
   v_roots := v_roots || array['auth.users'];
 
   with recursive edge as (
+    -- 🔴 THREE ACTIONS, NOT TWO — 'd' (SET DEFAULT) was missing until 2026-08-20 and the
+    -- reviewer executed the gap: a fake `location_access_log(profile_id -> profiles ON DELETE
+    -- SET DEFAULT)` — the exact forward-looking shape the %access_log wildcard exists for —
+    -- PASSED BOTH ARMS. On a nullable column with no default, 'd' behaves EXACTLY like SET NULL,
+    -- i.e. it mutilates the retention row into the shape the whole contract condemns. Of the five
+    -- referential actions ('a','r','c','n','d') the two SAFE ones are the two that REFUSE the
+    -- delete; enumerate the dangerous ones, never the safe ones. This bug was an allow-list of
+    -- two written where a deny-list of two belonged.
     select confrelid::regclass::text as parent, conrelid::regclass::text as child
-      from pg_constraint where contype = 'f' and confdeltype in ('c','n')
+      from pg_constraint where contype = 'f' and confdeltype in ('c','n','d')
   ), closure(t, path) as (
     select x, x from unnest(v_roots) x
     union
@@ -784,9 +941,9 @@ begin
                'club_incidents','club_incident_evidence','runs')
       or t like '%access\_log';
   if v_txt is not null then
-    v_bad := v_bad || ' 🔴 삭제되는 테이블에서 보존 테이블에 CASCADE/SET NULL로 닿는다: ' || left(v_txt, 300); end if;
+    v_bad := v_bad || ' 🔴 삭제되는 테이블에서 보존 테이블에 CASCADE/SET NULL/SET DEFAULT로 닿는다: ' || left(v_txt, 300); end if;
   if v_bad = '' then
-    call _pass('acd','N6-1 재귀 폐포 — 실제로 지워지는 테이블(auth.users ∪ prosrc에서 뽑은 ④ 목록)에서 어떤 보존 테이블·%access_log에도 CASCADE/SET NULL로 닿지 않는다. 명시적 삭제 목록도 캐스케이드 원천이다');
+    call _pass('acd','N6-1 재귀 폐포 — 실제로 지워지는 테이블(auth.users ∪ prosrc에서 뽑은 ④ 목록)에서 어떤 보존 테이블·%access_log에도 CASCADE/SET NULL/SET DEFAULT로 닿지 않는다. 명시적 삭제 목록도 캐스케이드 원천이다');
   else call _fail('acd','N6-1 재귀 폐포 (④는 캐스케이드 원천이다)', v_bad); end if;
 exception when others then call _fail('acd','N6-1 재귀 폐포 (④는 캐스케이드 원천이다)', sqlerrm);
 end;
@@ -795,7 +952,7 @@ begin
   select string_agg(conrelid::regclass::text || '.' || conname || ' [' || confdeltype::text || ']', ' · ')
     into v_txt
     from pg_constraint
-   where contype = 'f' and confdeltype in ('c','n')
+   where contype = 'f' and confdeltype in ('c','n','d')   -- 'd' = SET DEFAULT; see N6-1's note
      and confrelid in ('profiles'::regclass, 'auth.users'::regclass)
      and (conrelid::regclass::text in
           ('ledger_items','payments','payouts','payment_attempts','club_fee_items','km_ledger',
@@ -806,7 +963,7 @@ begin
           or conrelid::regclass::text like '%access\_log')
      and conrelid::regclass::text not in ('club_acks','runner_applications');
   if v_txt is null then
-    call _pass('acd','N6-2 직접 간선 — 보존 테이블은 profiles/auth.users에 CASCADE·SET NULL로 매달리지 않는다. 면제는 {club_acks, runner_applications} 두 이름뿐이고 술어가 아니다 (세 번째가 들어오려면 논증이 필요하다). 아직 없는 위치정보 원장이 `profile_id references profiles on delete cascade`로 태어나면 여기서 터진다');
+    call _pass('acd','N6-2 직접 간선 — 보존 테이블은 profiles/auth.users에 CASCADE·SET NULL·SET DEFAULT로 매달리지 않는다. 면제는 {club_acks, runner_applications} 두 이름뿐이고 술어가 아니다 (세 번째가 들어오려면 논증이 필요하다). 아직 없는 위치정보 원장이 `profile_id references profiles on delete cascade`로 태어나면 여기서 터진다');
   else call _fail('acd','N6-2 직접 간선 (보존 테이블은 profiles 생존에 기대면 안 된다)', left(v_txt, 300)); end if;
 exception when others then call _fail('acd','N6-2 직접 간선 (보존 테이블은 profiles 생존에 기대면 안 된다)', sqlerrm);
 end;
@@ -980,16 +1137,27 @@ begin
   exception when not_null_violation then null; when check_violation then null;
     when others then v_bad := v_bad || ' bio=null이 예상 밖 이유로 막혔다: ' || sqlerrm; end;
 
-  -- bank_accounts (F9) — assert ABSENCE explicitly. This is the row whose account_enc survived
-  -- the reviewer's entire run, because nothing in ③ looks at this table.
+  -- bank_accounts — ⚠ THIS ARM'S ASSERTION WAS INVERTED ON 2026-08-20 AND THE PIN IS NOT STALE:
+  -- Sean ruled **A-intact-when-owed**, replacing F9's unconditional delete. This fixture's runner
+  -- settled a booking (t_acd_rich → t_settle), so they HAVE `ledger_items`, so the payout
+  -- destination is KEPT — and kept INTACT, because a blanked account number is a row nobody can
+  -- pay into and the whole point is that the money still has somewhere to go. The precondition is
+  -- asserted first so this can never become a vacuous green if t_settle stops writing a ledger
+  -- row. The OTHER direction — no ledger rows → the row is deleted, `account_enc` gone — and the
+  -- `bank_kept` flag are owned by **P9**, which carries both arms in one place.
+  select count(*) into v_n from ledger_items where runner_id = r;
+  if v_n < 1 then
+    v_bad := v_bad || ' 픽스처 전제 붕괴: 러너에게 ledger_items가 없다 — 이 팔은 아무것도 증명하지 못한다'; end if;
   perform delete_my_account_tx(r);
-  if exists (select 1 from bank_accounts where runner_id = r) then
-    v_bad := v_bad || ' 🔴 bank_accounts가 남았다 — account_enc(암호화된 계좌)와 실명 holder가 그대로'; end if;
+  select count(*) into v_n from bank_accounts
+   where runner_id = r and bank = '카카오뱅크' and account_enc = 'ENC-XYZ' and holder = '홍길동';
+  if v_n <> 1 then
+    v_bad := v_bad || ' 🔴 정산 의무가 남았는데 bank_accounts가 사라졌거나 값이 바뀌었다 — 지울 수 없는 이유(미정산)와 가릴 수 없는 이유(입금 불가)가 같은 이유다'; end if;
 
   if v_bad = '' then
-    call _pass('acd','P2 네 테이블 모두 진짜 툼스톤 — profiles(이름 대체·나머지 null·toss_customer_key 보존) · addresses(gate_code_enc/detail null·lat·lng 쌍으로 null·상수 플레이스홀더) · dogs(사진/메모만, 이름은 그대로) · runner_applications(연락·서술만 가리고 동의 3종과 시각은 그대로, bio=null은 실제로 raise한다) · bank_accounts는 사라진다');
-  else call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 부재', left(v_bad, 400)); end if;
-exception when others then call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 부재', sqlerrm);
+    call _pass('acd','P2 네 테이블 모두 진짜 툼스톤 — profiles(이름 대체·나머지 null·toss_customer_key 보존) · addresses(gate_code_enc/detail null·lat·lng 쌍으로 null·상수 플레이스홀더) · dogs(사진/메모만, 이름은 그대로) · runner_applications(연락·서술만 가리고 동의 3종과 시각은 그대로, bio=null은 실제로 raise한다) · 정산 의무가 남은 러너의 bank_accounts는 그대로 보관된다 (🔵 A-intact-when-owed)');
+  else call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 보관', left(v_bad, 400)); end if;
+exception when others then call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 보관', sqlerrm);
 end;
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -1105,6 +1273,72 @@ begin
     call _pass('acd','P7 로그 — counts·completed_at·forfeited_miles(1000=1200-200)·forfeited_drops(2)가 기록되고 auth_deleted는 NULL이다 (트랜잭션은 auth 삭제를 시도하기도 전에 커밋한다 — 여기 쓰인 값은 미래에 대한 주장일 뿐이다. 엣지 함수가 step 5 뒤에 쓴다)');
   else call _fail('acd','P7 로그 + 소멸량 + auth_deleted 미기재', v_bad); end if;
 exception when others then call _fail('acd','P7 로그 + 소멸량 + auth_deleted 미기재', sqlerrm);
+end;
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════
+-- P9 🔵 bank_accounts — Sean's ruling **A-intact-when-owed** (2026-08-20), BOTH DIRECTIONS in
+-- one pin so neither can drift without the other noticing.
+--
+-- The ruling replaced F9's unconditional delete, and it exists because of a measured dead end:
+-- ②'s `unpaid_payout` arm reads `payouts.paid_at`, and **nothing in the repo writes `payouts`**;
+-- `ledger_items` — the table that records what a runner actually earned — carries no paid marker
+-- at all. So "unpaid balance" is not computable on this schema, only LIFETIME earnings are, and a
+-- gate on lifetime earnings could never clear: it would trap every runner who ever ran inside an
+-- account they cannot leave, which is App Store 5.1.1(v) failing by the limb the whole slice
+-- exists to satisfy. The answer is not a gate but a conditional delete.
+--
+--   has ledger_items  → the row is KEPT **INTACT**. Not anonymised: a blanked `account_enc` or
+--                       `holder` is a row nobody can pay into, and the reason for keeping it is
+--                       precisely that the money must still have a destination. The retention
+--                       basis is the same outstanding obligation that keeps `ledger_items`, and
+--                       it ends when they are paid — not when they leave.
+--   no ledger_items   → nothing is owed, so the payment instrument and the real person's name on
+--                       it go, exactly as F9 argued.
+--
+-- ⚠ Both arms assert the FLAT RESULT's `bank_kept` too, because the confirm sheet has to be able
+-- to say this truthfully and a boolean the client cannot see is a boolean the client will guess.
+-- ══════════════════════════════════════════════════════════════════════════════════════════
+begin
+  v_bad := '';
+
+  -- ── arm A: earnings on the books → the destination survives, byte for byte
+  select f.o, f.r, f.d, f.v_addr, f.bk, f.sd into o, r, d, v_addr, bk, sd from t_acd_rich('p9') f;
+  insert into bank_accounts (runner_id, bank, account_enc, holder)
+  values (r, '토스뱅크', 'ENC-OWED-1', '김러너');
+  select count(*) into v_n from ledger_items where runner_id = r;
+  if v_n < 1 then v_bad := v_bad || ' A 전제 붕괴: 정산된 예약이 원장을 남기지 않았다'; end if;
+  res := delete_my_account_tx(r);
+  if (res->>'bank_kept')::boolean is not true then
+    v_bad := v_bad || ' / A bank_kept=' || coalesce(res->>'bank_kept','∅') || ' (기대 true — 클라가 확인 시트에서 말해야 하는 사실이다)'; end if;
+  select count(*) into v_n from bank_accounts
+   where runner_id = r and bank = '토스뱅크' and account_enc = 'ENC-OWED-1' and holder = '김러너';
+  if v_n <> 1 then
+    v_bad := v_bad || ' / 🔴 A 미정산 수익이 있는데 정산 계좌가 사라졌거나 가려졌다 — 입금할 수 없는 계좌는 보관하는 의미가 없다'; end if;
+  if (res#>>'{deleted,bank_accounts}')::int <> 0 then
+    v_bad := v_bad || ' / A deleted.bank_accounts=' || coalesce(res#>>'{deleted,bank_accounts}','∅') || ' (기대 0)'; end if;
+  -- and the ledger itself is untouched: the obligation is the reason, so destroying it would be
+  -- destroying the reason
+  select count(*) into v_n from ledger_items where runner_id = r;
+  if v_n < 1 then v_bad := v_bad || ' / A ledger_items가 사라졌다 — 보관 근거 자체를 지웠다'; end if;
+
+  -- ── arm B: nothing owed → the instrument and the real name go
+  u := t_user('acd_p9_clean', 'runner');
+  insert into bank_accounts (runner_id, bank, account_enc, holder)
+  values (u, '카카오뱅크', 'ENC-CLEAN-2', '이러너');
+  if exists (select 1 from ledger_items where runner_id = u) then
+    v_bad := v_bad || ' / B 전제 붕괴: 깨끗한 러너에게 원장이 있다'; end if;
+  res := delete_my_account_tx(u);
+  if (res->>'bank_kept')::boolean is not false then
+    v_bad := v_bad || ' / B bank_kept=' || coalesce(res->>'bank_kept','∅') || ' (기대 false)'; end if;
+  if exists (select 1 from bank_accounts where runner_id = u) then
+    v_bad := v_bad || ' / 🔴 B 아무 의무도 없는데 account_enc와 실명 holder가 남았다'; end if;
+  if (res#>>'{deleted,bank_accounts}')::int <> 1 then
+    v_bad := v_bad || ' / B deleted.bank_accounts=' || coalesce(res#>>'{deleted,bank_accounts}','∅') || ' (기대 1)'; end if;
+
+  if v_bad = '' then
+    call _pass('acd','P9 🔵 bank_accounts 양방향 (A-intact-when-owed) — 정산 의무(ledger_items)가 있으면 계좌는 가리지 않고 그대로 보관되고 bank_kept=true, 없으면 계좌도 실명도 사라지고 bank_kept=false. payouts에 기록자가 없어 unpaid_payout은 오늘 발화하지 않고, 평생 수익으로 게이트를 걸면 러너는 영영 못 나간다 (5.1.1(v))');
+  else call _fail('acd','P9 bank_accounts 양방향 (A-intact-when-owed)', v_bad); end if;
+exception when others then call _fail('acd','P9 bank_accounts 양방향 (A-intact-when-owed)', sqlerrm);
 end;
 
 end $$;

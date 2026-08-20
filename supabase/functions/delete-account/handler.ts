@@ -1,6 +1,7 @@
 // In-app account deletion (App Store 5.1.1(v) · PIPA 제37조) — the half that cannot be SQL.
 // input:  { confirm: "DELETE" }   ⚠ NO user id. The uid comes from the JWT and from nowhere else.
-// out:    { ok, tombstoned, storage_removed, auth_deleted, forfeited, kept, deleted }
+// out:    { ok, tombstoned, already, storage_removed, auth_deleted, deleted, forfeited, kept,
+//           bank_kept }
 //
 // ═══ WHY THIS IS SPLIT AND NOT ONE THING ══════════════════════════════════════════════════
 // The `auth.users` row can only be removed by the Auth admin API — there is no in-database call
@@ -98,9 +99,28 @@ export async function deleteAccount(req: Request, db: SupabaseClient): Promise<u
   if (body?.confirm !== "DELETE") throw new HttpError(400, "confirm_required");
 
   // 3. The SQL half, atomically. Any state-gate token surfaces verbatim as a 409 so the client
-  //    can key Korean copy on it (eleven tokens, eleven copy entries).
+  //    can key Korean copy on it (twelve tokens, twelve copy entries).
+  //
+  //    🔴 EXCEPT ONE, AND THE EXCEPTION IS THE POINT: `not_authenticated` IS NOT A 409.
+  //    The RPC's party gate raises it when `p_uid is null` (0115 §D ①). Every other token this
+  //    function forwards is a statement about the ACCOUNT — "your state forbids this, here is what
+  //    to clear" — and 409 Conflict is exactly that claim. An expired or malformed session is not
+  //    an account state; it is the absence of one, and there is nothing about the account for the
+  //    user to fix. Returning 409 for it would put a permanent, unactionable refusal in front of a
+  //    user whose only real problem is that they need to sign in again — a dead-end refusal under
+  //    the honesty laws and an unreasonable obstacle under 5.1.1(v).
+  //    **The client keys 401 → session expired → sign out → /login.** `caller()` above already
+  //    401s on a missing/bad JWT with `unauthorized`; this arm is the same class arriving from one
+  //    layer deeper, and it keeps its own distinct token so the two are never confused.
+  //    ⚠ The comparison is EXACT (`===`), not a prefix or an includes. A substring test would let
+  //    any future token that merely mentions the word downgrade a real account-state refusal into
+  //    a sign-out. Everything that is not literally `not_authenticated` stays a 409 with the token
+  //    verbatim — including tokens that do not exist yet, which is the correct default.
   const { data: tx, error: txError } = await db.rpc("delete_my_account_tx", { p_uid: uid });
-  if (txError) throw new HttpError(409, txError.message);
+  if (txError) {
+    if (txError.message === "not_authenticated") throw new HttpError(401, "not_authenticated");
+    throw new HttpError(409, txError.message);
+  }
   const result = (tx ?? {}) as Record<string, unknown>;
   const logId = (result.log_id as string | null) ?? null;
 
@@ -161,5 +181,12 @@ export async function deleteAccount(req: Request, db: SupabaseClient): Promise<u
     deleted: result.deleted ?? {},
     forfeited: result.forfeited ?? {},
     kept: result.kept ?? [],
+    // 🔵 Sean 2026-08-20, A-intact-when-owed: the payout destination was KEPT INTACT because the
+    // runner has `ledger_items` on the books. A per-user FACT, not a member of `kept` (which is a
+    // static list of table names) — the confirm sheet must be able to say "정산되지 않은 수익이
+    // 있어 정산 계좌는 보관됩니다" exactly when it is true and never when it is not. Defaulting to
+    // FALSE is the safe direction: a client that under-promises retention is honest, one that
+    // announces a retained bank account that was actually deleted is not.
+    bank_kept: result.bank_kept === true,
   };
 }
