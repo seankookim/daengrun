@@ -869,14 +869,26 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
 // 내 수수료율 — 견적용 (일괄 33%, 0059 — 티어 연동 없음). 세션 캐시.
+// ⚠ ONLY A READ ROW MAY BE CACHED. This discarded `error` and cached `?? 0.33`, so one transient
+// failure (or an RLS miss on a session that is not a runner yet) pinned the WHOLE session to 33%
+// until app restart — every payout estimate on every request card computed from a rate nobody
+// ever read. The pilot is a flat 33% (0059) so today's number happens to be right; caching an
+// unknown AS IF it were known is the defect, and it is the one that survives the day the first
+// negotiated rate exists. On failure: return the pilot default for THIS call and cache nothing,
+// so the next call retries.
 let _commissionRate: number | null = null;
 async function myCommissionRate(): Promise<number> {
   if (_commissionRate != null) return _commissionRate;
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return 0.33;
-  const { data } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
-  _commissionRate = Number(data?.commission_rate ?? 0.33);
-  return _commissionRate;
+  const { data, error } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
+  const rate = Number(data?.commission_rate);
+  if (error || !Number.isFinite(rate)) {
+    console.warn('[commission] rate unread, estimating at the pilot 33%:', error?.message ?? 'no runners row');
+    return 0.33;
+  }
+  _commissionRate = rate;
+  return rate;
 }
 
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
@@ -1908,7 +1920,14 @@ export async function uploadRunnerPhoto(base64: string): Promise<string[]> {
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
   const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  // ⚠ The read's error MUST be checked. This is a read-modify-write on a whole array column, so a
+  // discarded error is not a display bug — it is silent data loss: a failed select leaves `row`
+  // null, `row?.photos ?? []` rebuilds the gallery from EMPTY, and the update below overwrites the
+  // runner's existing photos with an array containing only the one just uploaded. Throwing loses
+  // the new upload's row (the object is already in storage and is reclaimed by the sweep); not
+  // throwing loses every photo they had.
+  const { data: row, error: readErr } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  if (readErr) throw readErr;
   const photos = [...(row?.photos ?? []), pub.publicUrl];
   const { error: e2 } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
   if (e2) throw e2;
@@ -1919,7 +1938,11 @@ export async function deleteRunnerPhoto(url: string): Promise<string[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const uid = user.user.id;
-  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  // ⚠ Same read-modify-write hazard as uploadRunnerPhoto above: a discarded read error would make
+  // `row` null, the filter would run over [], and this would delete the ENTIRE gallery instead of
+  // the one photo the runner asked to remove.
+  const { data: row, error: readErr } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  if (readErr) throw readErr;
   const photos = (row?.photos ?? []).filter((p: string) => p !== url);
   const { error } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
   if (error) throw error;
@@ -2426,7 +2449,15 @@ export interface LiveLedgerItem {
   id: string;
   when: string;
   dogName: string;
-  km: number;
+  /** PLANNED km of the booking, and only when a `runs` row proves the run happened.
+   *  null = there is no run to attach a distance to, or we could not establish one — the caller
+   *  omits the km token rather than print a number for a run nobody made. */
+  km: number | null;
+  /** True ONLY when the `runs` lookup succeeded and found nothing for this booking: cancellation
+   *  compensation (0080 record_enroute_cancel_comp · 0085 record_late_cancel_share write a
+   *  ledger row with no run). A FAILED lookup leaves this false with km null — unknown is not
+   *  "cancelled", and a mislabel would tell a runner their completed run was a cancellation. */
+  cancelComp: boolean;
   base: number;
   distancePay: number;
   addonPay: number;
@@ -2439,18 +2470,37 @@ export interface LiveLedgerItem {
 export async function fetchLedger(): Promise<LiveLedgerItem[]> {
   const { data, error } = await supabase
     .from('ledger_items')
-    .select('id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
+    .select('id, booking_id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
-  return (data ?? []).map((l: any) => {
+  const rows = (data ?? []) as any[];
+  // Same 2-step as fetchRunnerWeekStats above, for the same reason and one row lower: a ledger
+  // row does NOT imply a run. record_enroute_cancel_comp (0080) and record_late_cancel_share
+  // (0085) pay cancellation compensation and write NO `runs` row, but `bookings.km` still holds
+  // the PLANNED distance — so the line rendered 「초코 · 5km · 실수령 12,450원」, the runner's own
+  // ledger telling them they ran 5 km on a run that never started. The km belongs to the run,
+  // so it may only be printed when a run exists. (Production 2026-08-20: 0 such rows today —
+  // 8 ledger rows, all with a run. This is armed before it bleeds.)
+  const ids = rows.map((l) => l.booking_id); // ledger_items.booking_id is NOT NULL (0027)
+  let ran: Set<string> | null = null;
+  if (ids.length > 0) {
+    const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id').in('booking_id', ids);
+    // A failed lookup is UNKNOWN, not "no run": leaving `ran` null omits the km token without
+    // claiming a cancellation. The money on the row is already loaded and stays visible.
+    if (runsErr) console.warn('[ledger] runs lookup:', runsErr.message ?? runsErr);
+    else ran = new Set((runsD ?? []).map((r: any) => r.booking_id));
+  }
+  return rows.map((l: any) => {
     const { dateLabel } = kstParts(l.created_at);
     const net = l.base + l.distance_pay + l.addon_pay + l.tip + l.remaining_guarantee - l.platform_fee;
+    const hasRun = ran ? ran.has(l.booking_id) : null;
     return {
       id: l.id,
       when: dateLabel,
       dogName: l.bookings?.dogs?.name ?? '반려견',
-      km: Number(l.bookings?.km ?? 0),
+      km: hasRun === true ? Number(l.bookings?.km ?? 0) : null,
+      cancelComp: hasRun === false,
       base: l.base,
       distancePay: l.distance_pay,
       addonPay: l.addon_pay,
@@ -3928,13 +3978,24 @@ export interface RunReport {
   };
 }
 
-export async function fetchRunReport(bookingId: string): Promise<RunReport> {
+// ZERO ROWS IS A FACT, NOT A FAILURE (2026-08-20). `.single()` collapsed the two: a booking id
+// that resolves to nothing — someone else's uuid (RLS returns 0 rows, never 403), a stale push
+// `ref_id`, a deleted booking — arrived as PostgREST's PGRST116, and the screens rendered its
+// message verbatim: 「JSON object requested, multiple (or no) rows returned」 at a Korean owner —
+// both screens did `setErr(e?.message ?? …)` and printed it (owner/report.tsx:289 and
+// shot/[bid].tsx:533 as of the commit before this one).
+// `maybeSingle()` returns null for 0 rows and STILL THROWS for >1 rows and for every
+// transport/RLS failure, which is the half that must not be lost: if a null swallowed a network
+// error too, an owner on flaky LTE would be told a run that exists cannot be found. Two facts,
+// two return shapes, two sentences on screen.
+export async function fetchRunReportOrNull(bookingId: string): Promise<RunReport | null> {
   const { data, error } = await supabase
     .from('bookings')
     .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes!bookings_route_id_fkey(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) return null;
   const d = data as any;
   const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
   const raw = Array.isArray(d.runs) ? d.runs[0] : d.runs; // unique FK — 어느 형태든 안전하게
@@ -3963,6 +4024,18 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
         }
       : null,
   };
+}
+
+// Throwing form — the contract every caller had before the split above, kept for the two screens
+// whose state machine is keyed on a REJECTION: club/receipt/[bid].tsx:48 and runner/review.tsx:36
+// both do `.then(setReport)` into a `RunReport | null` state, so a silent null would leave
+// receipt's LoadGate at '불러오는 중...' forever — the exact bug its own 2026-08-11 comment
+// records fixing. They keep their (Korean, on-screen) failure copy; the message below is only
+// what they log. Deep-linkable screens use fetchRunReportOrNull and draw the two states apart.
+export async function fetchRunReport(bookingId: string): Promise<RunReport> {
+  const report = await fetchRunReportOrNull(bookingId);
+  if (!report) throw new Error('이 러닝을 찾을 수 없어요');
+  return report;
 }
 
 // 미읽음 알림 수 — 벨 도트의 실근거. head:true라 행은 안 실어오고 count만 받는다.

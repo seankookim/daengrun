@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { homePath } from '../../src/components/bottomnav';
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { checkSlot, CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { checkSlot, CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -136,7 +137,16 @@ export default function Report() {
   const { bid, shot } = useLocalSearchParams<{ bid: string; shot?: string }>();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  // TWO STATES, NEVER ONE SENTENCE (2026-08-20).
+  //  err      = the read FAILED (network, RLS, 5xx). Retryable → 다시 시도.
+  //  notFound = the read SUCCEEDED and there is no such run for me: a foreign booking id, a stale
+  //             push ref_id, a deleted booking, or a link with no bid at all. Nothing to retry →
+  //             an exit. Merging them is what printed 「JSON object requested, multiple (or no)
+  //             rows returned」 at line 289 of the previous revision: `e.message` straight from
+  //             PostgREST, in English, on a Korean owner's screen. Merging them the other way is
+  //             worse — it would tell an owner on flaky LTE that a run they took cannot be found.
+  const [err, setErr] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   // Ⓒ② 오늘의 수확 — 패치 승급 + 이 러닝이 방금 넘긴 도장을 오버레이 '하나'로 (닫기도 하나).
   // null = 그릴 게 없다 (fetch 진행 중 포함) — 둘 다 결과가 온 뒤 내용이 있을 때만 세워진다.
   const [haul, setHaul] = useState<{ patch: CoursePatch | null; stamps: StampInfo[] } | null>(null);
@@ -144,15 +154,24 @@ export default function Report() {
   // (조기 종료·정산 전)이라는 사실이고, 미도착은 '아직 모름'이다. 둘 다 0을 그리지 않는다.
   const [earning, setEarning] = useState<RunEarning | null>(null);
   const [earningLoaded, setEarningLoaded] = useState(false);
-  useEffect(() => {
-    if (!bid) { setErr('예약 정보가 없어요'); return; }
-    fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
+  // Extracted into a callback so the failure state's 다시 시도 has something real to call —
+  // a retry button wired to nothing is a dead button.
+  const load = useCallback(() => {
+    // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
+    // same remedy — leave. Never a retry that would run the same early return again.
+    if (!bid) { setNotFound(true); return; }
+    setErr(false);
+    setNotFound(false);
+    fetchRunReportOrNull(bid)
+      .then((r) => { if (r) setReport(r); else setNotFound(true); })
+      .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); setErr(true); });
     fetchRunStandings(bid).then(setStandings).catch(() => {});
     // 실패 시 loaded 를 세우지 않는다 — 섹션은 조용히 없는 채로 남는다 (거짓 0 금지)
     setEarning(null);
     setEarningLoaded(false);
     fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
   }, [bid]);
+  useEffect(() => { load(); }, [load]);
   // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
   // 소비하므로, 재방문 때 둘 다 조용해진다 — 한쪽만 소비된 어정쩡한 상태가 생기지 않는다.
   // 코스가 없는 러닝(routeId null)도 완주 도장은 찍힌다 → 패치 팝만 건너뛴다.
@@ -286,8 +305,23 @@ export default function Report() {
           ) : <View style={{ width: 40 }} />}
         </Row>
 
-        {err && <View style={s.emptyBox}><Text style={s.emptyText}>{err}</Text></View>}
-        {!err && !report && (
+        {/* Failure: a reversible fact, so it gets a retry rather than a door out. */}
+        {err && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: paper.critical }}>기록을 불러오지 못했어요</Text>
+            <PaperBtn label="다시 시도" variant="secondary" style={{ alignSelf: 'stretch', marginTop: 14 }} onPress={load} />
+          </View>
+        )}
+        {/* Not found: pressing again returns the same zero rows, so the one action is the exit —
+            and it is role-aware (homePath), because this owner screen is reachable by a runner. */}
+        {notFound && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>이 러닝을 찾을 수 없어요</Text>
+            <PaperBtn label="홈으로" variant="secondary" style={{ alignSelf: 'stretch', marginTop: 14 }}
+              onPress={() => router.replace(homePath())} />
+          </View>
+        )}
+        {!err && !notFound && !report && (
           <View style={{ paddingHorizontal: 12, marginTop: 14, gap: 12 }}>
             <Skeleton width="100%" height={210} radius={0} />
             <Skeleton width="100%" height={90} />

@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { homePath } from '../src/components/bottomnav';
 import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
 import { PaperBtn } from '../src/components/paper-btn';
 import { Row } from '../src/components/ui';
@@ -33,6 +34,25 @@ import { paper } from '../src/theme';
 const CONTACT_MAIL = 'mailto:seankookim@uchicago.edu?subject=도그스하이 카드 재연결 문의';
 const RECEIPT_LIMIT = 30;
 
+// `returnTo` is a ROUTE PARAM, and a route param is whatever the URL says — a push payload, a
+// shared link, a typed `daengrun://payments?returnTo=…`. Handing it straight to router.replace()
+// made the destination of a button on OUR screen the choice of whoever wrote the link. Today's
+// two callers (owner/report.tsx:547, club/session/[sid].tsx:623) pass valid hrefs, so nothing is
+// live; this closes the shape before a third caller or a deep link finds it.
+//
+// The check is on the PATH ONLY — the query string is the caller's payload (`bid`, `resumeSd`,
+// `clubName`) and the destination screen validates its own params. A path that is not on this
+// list is not "an odd return", it is a return we cannot vouch for, so the button goes home and
+// SAYS SO (the label follows the destination — a button reading '러닝 리포트로' that lands on the
+// home screen is a dead-button lie in slower motion).
+function allowedReturn(href: string): string | null {
+  const path = href.split('?')[0];
+  if (path === '/owner/report') return href;                    // owner/report.tsx:547
+  const parts = path.split('/');                                // '/club/session/<sid>' → ['', 'club', 'session', '<sid>']
+  if (parts.length === 4 && parts[1] === 'club' && parts[2] === 'session' && parts[3].length > 0) return href;
+  return null;                                                  // club/session/[sid].tsx:623
+}
+
 const linkedLabel = (iso: string | null): string => {
   if (!iso) return '';
   try {
@@ -48,6 +68,8 @@ type LoadState = 'loading' | 'ready' | 'error';
 
 export default function Payments() {
   const { returnTo, returnLabel } = useLocalSearchParams<{ returnTo?: string; returnLabel?: string }>();
+  // null = a return was carried in but it is not an address we can vouch for; the door goes home.
+  const backHref = returnTo ? allowedReturn(returnTo) : null;
   const [card, setCard] = useState<BillingCard | null>(null);
   const [cardState, setCardState] = useState<LoadState>('loading');
   const [rows, setRows] = useState<PaymentRecord[]>([]);
@@ -176,9 +198,9 @@ export default function Payments() {
                 replace = 결제 관리가 스택에 남지 않는다 (돌아간 화면에서 뒤로 = 원래 있던 곳). */}
             {returnTo && (
               <PaperBtn
-                label={returnLabel || '하던 일로 돌아가기 ›'}
+                label={backHref ? (returnLabel || '하던 일로 돌아가기 ›') : '홈으로 ›'}
                 variant="secondary"
-                onPress={() => router.replace(returnTo)}
+                onPress={() => router.replace(backHref ?? homePath())}
                 style={{ marginTop: 12 }}
               />
             )}
@@ -189,10 +211,12 @@ export default function Payments() {
             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>등록된 카드가 없어요</Text>
             {/* ⚠ TODO(card-register): 카드 등록 화면(Ⓐ 랩 선택 대기)이 꽂히는 자리는 정확히 여기다.
                 화면이 생기면 이 준비 중 문구를 '카드 연결하기' CTA로 바꾸고, 연결 성공 시
-                returnTo가 있으면 router.replace(returnTo) — 없으면 이 화면에 남는다.
+                backHref가 있으면 router.replace(backHref) — 없으면 이 화면에 남는다.
                 그때까지는 없는 문을 그리지 않는다 (CLAUDE.md 정직 법). */}
             <Text style={s.note}>
-              {returnTo
+              {/* Promise the return only for an address that passed the check — never name a
+                  destination this screen will not actually go to. */}
+              {backHref
                 ? '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결하고 하던 일로 바로 돌아가요'
                 : '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요'}
             </Text>

@@ -150,8 +150,16 @@ export default function Earnings() {
           <Row key={l.id} style={s.row}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Row style={{ gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                {/* ⚠ Three cases, because a ledger row does not imply a run happened.
+                    `record_enroute_cancel_comp` (0080) and `record_late_cancel_share` (0085) write
+                    `ledger_items` for a CANCELLATION — no `runs` row exists — and this line used to
+                    read the km straight off the booking, so an en-route cancel rendered
+                    「초코 · 5km · 실수령 12,450원」: the runner's own ledger claiming they ran 5km.
+                    `fetchLedger` now resolves km from `runs` and hands back null when there is none;
+                    `cancelComp` distinguishes "cancellation compensation" from "the lookup failed",
+                    and an unknown must not be labelled a cancellation. */}
                 <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>
-                  {l.dogName} · {l.km}km
+                  {l.km != null ? `${l.dogName} · ${l.km}km` : l.cancelComp ? `${l.dogName} · 취소 보상` : l.dogName}
                 </Text>
                 <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>{l.when}</Text>
               </Row>
