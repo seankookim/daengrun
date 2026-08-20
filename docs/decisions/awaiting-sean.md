@@ -974,3 +974,56 @@ also fixes two same-coloured buttons sitting on top of each other.
   zero (nobody showed, nobody pays)? **The client cannot show a resolution until this is decided**
   — any button we draw would promise an outcome the ledger has not agreed to.
 - Until then home states the fact and routes to 일정; it promises nothing.
+
+### ⚠ CORRECTION to §0-septvicies (same day) — Sean's question invalidated half the spec
+
+**He asked:** *"what does a late but confirmed run mean? to be a confirmed run, what conditions
+are necessary? has the runner already come to the starting point? if so, there cannot be a
+run-expiry thing as the runner is already there ready for the run."*
+
+He is right, and the spec above was written against a label instead of the state machine.
+
+**The client's `confirmed` is a MERGE of two server states** (`api.ts` STATUS_MAP):
+
+| DB status | maps to | what is actually true |
+|---|---|---|
+| `confirmed` | client `confirmed` | a runner accepted. **Nobody has set off.** Can be days early. |
+| `runner_enroute` | client `confirmed` | runner is travelling; `arrived_at` stamps when they get there |
+| `picked_up` | client `handoff` | **both sides already confirmed the handoff** — the dog is with the runner |
+
+So "late but confirmed" is currently ambiguous between *nobody came* and *the runner is standing
+at your door*, and home renders them identically.
+
+- **`confirmed` past its time** → the runner never set off. Expiry is right, and `no_show` is
+  ALREADY a legal transition from `confirmed` (0001:205) — it is simply never set by anything
+  (zero hits for `no_show` across `supabase/functions/`). The state exists and is unreachable.
+- **`runner_enroute` past its time** → Sean's case exactly. **Expiry here would be harmful** —
+  it would cancel a booking while a runner is physically waiting at the pickup point. Never expire
+  this. The remedy is 인계 or contact, not cancellation.
+
+**Revised ask:** the grace-window expiry applies to `rawStatus = 'confirmed'` ONLY. `runner_enroute`
+is excluded no matter how late it is. The money ruling narrows accordingly: it is about a runner
+who never set off, not a runner who showed up and waited.
+
+### 🔴 SECOND DEFECT, found by the same question — the urgent CTA fires one state too late
+
+`picked_up` is reached only when BOTH `owner_confirmed_handoff_at` and
+`runner_confirmed_handoff_at` are set (`transition-booking/index.ts:300-320`, "둘 다 눌러야
+picked_up (보험 기점)"). Home's `goState === 'handoff'` maps from `picked_up`.
+
+**Therefore home shows the loud coral 「인계하기」 only AFTER the handoff is already done** — and
+during the moment the owner actually has to hand the dog over (`runner_enroute`, especially once
+`arrived_at` is stamped) home shows the calm 「티켓 보기」. The urgent state and the urgent moment
+are off by one.
+
+This is exactly the failure CLAUDE.md names — *"When display vocabulary flattens server states
+(STATUS_MAP), gate logic and badges on `rawStatus`"* — and home gates on the flattened value.
+`Booking.rawStatus` is already populated by `fetchMyBookings` (`api.ts:3915`), so the fix is
+client-side; `arrived_at` would need adding to that select to separate "on the way" from "here".
+
+**Proposed gating (needs Sean's word — it changes which screen shouts, and neighbours the frozen
+meetup flow):**
+- `confirmed` → calm. Accepted, nothing to do yet.
+- `runner_enroute` + no `arrived_at` → calm. 러너가 오는 중.
+- `runner_enroute` + `arrived_at` → **coral, 내 차례, 인계하기.** This is the real handoff moment.
+- `picked_up` → calm. 인계 완료, 곧 출발 — 지도 보기.
