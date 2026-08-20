@@ -269,3 +269,10 @@ two false "stranded work" alarms on day one.
   `open_incident_tx` is severity, not a note — a probe written from a misremembered signature would have been refused by the
   severity whitelist at `runner_pending` and looked green. Check the signature of every function a negative pin calls, and make
   the positive arm prove the call SHAPE succeeds before the negative arm proves the GATE refuses.
+- **Never claim a symbol is ABSENT from a file on the strength of a truncated grep (ui2, self-reported 2026-08-20):** it grepped the
+  payload keys, piped through `head -12`, lost the line it was looking for, and asserted a negative ("the function does not return
+  `already`") from output it had truncated itself. Absence of evidence from your own pipe is not evidence of absence — read the whole
+  construct before claiming something is missing. Positive claims survive truncation; negative ones do not.
+- **A refusal must name a remedy the READER can perform (ui2 → announcer, 0115 `club_custody`):** the same server token covered a
+  runner holding a dog (who can finish the handoff) and an owner whose dog is out (who cannot). One token, two audiences, and the
+  honest sentence differs — so the token had to split, not the copy. When a gate covers two roles, check whether both can act on it.
