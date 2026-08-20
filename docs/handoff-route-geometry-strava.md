@@ -1509,3 +1509,13 @@ nothing is firing today; this is a correctness requirement for the first promoti
 
 Not actionable by this session — a projection column is a migration, and migrations are out of this
 track's boundary. Handing the number to whoever takes Q7.
+
+**The client half, from the client session (worktree `exciting-rosalind-e6ac13`), so both halves sit
+in one place:** the stopgap lives in `isOfferable()` in `app/src/lib/api.ts`, which now returns true
+for `status === 'active'` without judging closure, commented with `0110:110-111,141-142` and `0113`.
+If a real `is_loop` ever reaches the projection, **that early return is the line to REPLACE, not to
+delete** — the candidate-quality check below it is still doing real work.
+
+They also confirmed the measurement closes a door they had left open: their write-up offered a
+trim-aware client threshold as an alternative to the stored flag, and the 511 m case removes it.
+The stored flag is now a measured requirement rather than a design preference.
