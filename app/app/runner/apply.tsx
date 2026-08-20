@@ -652,7 +652,10 @@ export default function Apply() {
               </Text>
             </View>
 
-            <Check on={cTerms} set={setCTerms} label="댕런 러너로 활동하는 동안 안전 수칙을 지키고 운영자 안내를 따를게요 (필수)" />
+            {/* [2026-08-20] 댕런 → 도그스하이 — 2026-07-28 리브랜드에서 살아남은 마지막 사용자 노출 잔재.
+    동의 문구라 특히: 존재하지 않는 이름의 회사에 동의하는 문장이었다. 서버 짝(charge.ts의
+    orderName)은 §0-sexvicies로 별도 트랙 — 머니 패스라 이 커밋에 담지 않는다. */}
+<Check on={cTerms} set={setCTerms} label="도그스하이 러너로 활동하는 동안 안전 수칙을 지키고 운영자 안내를 따를게요 (필수)" />
             <Check on={cPrivacy} set={setCPrivacy} label="위 안내대로 개인정보를 수집·이용하는 데 동의해요 (필수)" />
             <Check on={cIdCheck} set={setCIdCheck} label="화상 통화에서 신분증으로 신원을 확인하는 데 동의해요 (필수)" />
 
