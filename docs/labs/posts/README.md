@@ -26,9 +26,14 @@ hand-edited, so an edit to the script is the only way to change a file.
 
 ## Files
 
+Marks are extracted from the glyph plates by alpha-keying the black ground, so the edges are the
+original vector edges rather than a re-trace. There is no dark-on-light variant of the two-colour
+lockup — the source plates only carry white-on-black and red-on-black.
+
 | Path | What | Spec |
 |---|---|---|
-| `mark/mark-white.png`, `mark-red.png` | the running-dog mark, extracted to transparency | use these instead of screenshotting a poster |
+| `mark/mark-white.png` | white body + red accent — **for dark grounds** | alpha verified clean on both grounds, no fringing |
+| `mark/mark-red.png` | all-red — **for light grounds** | the white mark is invisible on white; reach for this one |
 | `ig/01–09.jpg` | the nine launch tiles | 1080×1350 (4:5) |
 | `ig/GRID-1x1.jpg`, `GRID-3x4.jpg` | what the profile grid will look like | 1:1 is the worst case — check both, do not guess which one Instagram is showing this month |
 | `tiktok/TS-1…TS-6/NN.jpg` | 40 slides across six slideshows | 1080×1920, forest bands, wordmark + disclosure |

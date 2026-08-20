@@ -20,13 +20,14 @@ This file **replaces** the 2026-08-20-morning version; git history is the archiv
 | `tsc --noEmit` | clean | **[verified-now]** |
 | `check-rpc-contracts.mjs` | ✅ all calls match signatures | **[verified-now]** |
 | `check-route-native-imports.mjs` | ✅ 56 routes, none | **[verified-now]** |
+| `check-embed-fk.mjs` | ✅ 1 pair checked, 107 files — **a fifth gate I had been missing all session** | **[verified-now]** |
 | `npm run lint --quiet` | **279 problems, 6 errors** = the baseline. A 7th is yours | **[verified-now]** |
 | Migrations (production) | applied through **0115** | **[verified-now]** |
 | Edge functions (deployed) | create-booking-hold v10 · transition-booking v34 · settle-run v14 · open-drop v8 · geocode-address v1 · collect-charges v1 · confirm-payment v1 · **delete-account v1** | **[verified-now]** |
 | Owner home v3 | **SHIPPED**, simulator-verified across none / confirmed / past / handoff | **[verified-now]** |
 | Handoff state render | verified by **temporarily forcing `goState`**, screenshotting, reverting. `home.tsx` byte-identical after (checked) | **[verified-now]** |
 | iOS device | **nothing has ever run on hardware.** Simulator only (iPhone 17 Pro `F2FDB7D7-A669-4BBC-8EF4-677597F3851A`). TestFlight zero builds | sim **[verified-now]** · TestFlight **[from-history]** |
-| Other sessions | announcer **offline** (socket gone ~14:00). Route-geometry was the only other live one | **[verified-now]** |
+| Other sessions | announcer **offline** since ~14:00. ⚠ **A SECOND CLIENT SESSION is live** (`exciting-rosalind-e6ac13`) claiming all of `app/`; it has already layered `21825ca` + `f6aa011` on top of my files. My work survived intact — verified — but two client sessions share this surface, so read `git log -- <file>` before editing anything in `app/` | **[verified-now]** |
 
 ---
 
@@ -72,8 +73,10 @@ correction. Earlier: `22a503e` (the merge he'd wanted as a mock), `0a159b6` (las
 ## 4. Standing doctrines (canonical: `CLAUDE.md`, `DESIGN.md`)
 
 The five that bit *this* session:
-1. **Four gates before every commit**, from `app/`: tsc · check-rpc-contracts ·
-   check-route-native-imports · `npm run lint --quiet` (**must stay 6 errors**).
+1. **FIVE gates before every commit**, from `app/`: tsc · check-rpc-contracts ·
+   check-route-native-imports · **check-embed-fk** · `npm run lint --quiet` (**must stay 6 errors**).
+   ⚠ I ran only four all session — `check-embed-fk.mjs` exists and I did not know it. Verified
+   green after the fact (1 pair, 107 files), but the gate list in this file was wrong until now.
 2. **Honesty**: bind real fields or omit. No invented urgency (`지어낸 긴급함 = 학습된 무시`).
    Failures shown as failures. No dead buttons.
 3. **Gate on `rawStatus`, never on display vocabulary** — STATUS_MAP flattens server states.
@@ -316,7 +319,7 @@ So: rule on the gating (cheap, high value, one ruling), then build.
 Safe (read-only):
 ```
 cd app && ./node_modules/.bin/tsc --noEmit
-cd app && node scripts/check-rpc-contracts.mjs && node scripts/check-route-native-imports.mjs
+cd app && node scripts/check-rpc-contracts.mjs && node scripts/check-route-native-imports.mjs && node scripts/check-embed-fk.mjs
 cd app && npm run lint --quiet            # must stay at 6 errors
 git -C /Users/sean/dev/daengrun status -sb
 supabase migration list --linked
@@ -425,5 +428,5 @@ byte-identical between the two trees; gates ran green in the main checkout (tsc 
 > client-side and small, but it borders the frozen meetup flow, so it waits on Sean's word.
 >
 > Gates before every commit, from `app/`: tsc · check-rpc-contracts · check-route-native-imports ·
-> `npm run lint --quiet` (**must stay at 6 errors**). Never create a booking on Sean's account and
+> check-embed-fk · `npm run lint --quiet` (**must stay at 6 errors**). That is FIVE, not four. Never create a booking on Sean's account and
 > never press the onboarding CTA. Reply in English; in-app copy stays Korean.
