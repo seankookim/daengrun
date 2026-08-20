@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAuth } from '../src/auth-context';
+import { markRolePicked, useAuth } from '../src/auth-context';
 import { ensureRunner } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -99,6 +99,9 @@ export default function RoleSelect() {
 
     setBusy(null);
     session.role = role;
+    // This choice is authoritative for the session — a late profile hydration in AuthProvider
+    // must not undo it.
+    markRolePicked();
     // `push`, not `replace`, into onboarding. The root stack is headerShown:false +
     // gestureEnabled:false, so a `replace` left a mistapped role with NO in-app exit: the CTA
     // stays disabled until a dog name AND an address are filled, and 나중에 does not render until

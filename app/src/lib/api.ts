@@ -6,6 +6,8 @@ import { AddonKey, Booking, BookingStatus, GeoRoutePoint, RouteInfo } from '../s
 import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
 import { supabase } from './supabase';
+// Runner settlement constants — different money from the owner fare (theme.ts:210)
+import { pricing } from '../theme';
 
 // 실시간 채널 3족(chat·bk·club-chat)은 geo.ts의 run 채널과 **같은** private+setAuth 경로를 쓴다 —
 // setAuth 함정(소켓 토큰 미무장 = 조용한 실패)의 사본이 둘이면 하나는 반드시 낡는다.
@@ -94,9 +96,24 @@ function closureM(t: GeoRoutePoint[]): number | null {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
-/** 디스커버리에 내놓을 수 있는가. 상세/이력(fetchRouteById)은 이 게이트를 지나지 않는다 —
- *  이미 예약된 코스가 브리핑을 잃으면 안 되기 때문. status 게이트와 같은 자리, 같은 이유. */
+/** May this route be offered in discovery? Detail/history (fetchRouteById) deliberately does NOT
+ *  pass through this gate — an already-booked route must never lose its briefing. Same position
+ *  and same reason as the status gate.
+ *
+ *  ⚠ **`active` routes are NOT closure-judged** (2026-08-20). The 50 m threshold above was
+ *  calibrated on 28 traces read from the `routes` base table. Since then the client's only
+ *  window became the `routes_public` view (0110), and 0113 revoked base-table geometry
+ *  entirely — so the trimmed projection is now the ONLY path a client has. That view removes
+ *  up to 200 m from EACH END of a `status='active'` row (0110:110-111, 141-142: a promoted
+ *  route's trace is a real person's GPS recording with the pickup at each end, so the ends are
+ *  deleted). On an end-trimmed loop the surviving first and last points sit on opposite sides
+ *  of the origin, hundreds of metres apart in a straight line — so this gate would drop EVERY
+ *  promoted route. `fetchRoutes`' forTown never falls back to candidates once any active row
+ *  exists, so the day the pilot promotes its first route that town's catalog empties silently:
+ *  no error, no log, just "등록된 코스가 없어요".
+ *  Closure is a CANDIDATE-QUALITY check. An active route earned its status from a real run. */
 export function isOfferable(r: RouteInfo): boolean {
+  if (r.status === 'active') return true;
   const c = closureM(r.trace);
   return c == null || c <= CLOSURE_MAX_M;
 }
@@ -779,6 +796,19 @@ export interface OpenRequest {
   routeName: string | null;
 }
 
+// The payout estimate printed on a runner's card. ⚠ Computed from the RUNNER settlement base
+// (runnerCompBase 9,900 + perKm×km), never from what the owner pays (base_fare 7,900) —
+// theme.ts:210 ("the two base fares are different money") and server 0101 (RUNNER_COMP_BASE
+// 9900, PER_KM 3000) are the source of truth. Until 2026-08-20 all three mappers used the
+// owner fare and showed ₩15,343 for a 5 km run whose real settlement is ₩16,683 — quoting the
+// runner 8% low on the screen where they decide to accept. run.tsx already drew the correct
+// number via store.ts payoutFor, so the app contradicted itself.
+// addon_fare is added as-is: 0101 puts addon money on the runner's side.
+function estimatedPayout(r: { km: number | string; addon_fare?: number | null }, rate: number): number {
+  const gross = pricing.runnerCompBase + Math.round(Number(r.km) * pricing.perKm) + Number(r.addon_fare ?? 0);
+  return Math.round(gross * (1 - rate));
+}
+
 function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
@@ -791,7 +821,7 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 실수수료 견적 (일괄 33%, 0059)
+    payout: estimatedPayout(r, rate), // runner settlement basis, flat 33% commission (0059)
     directed,
     photoUrl: r.dogs?.photo_url ?? null,
     prefTags: (r.dogs?.preferences as any)?.tags ?? [],
@@ -801,7 +831,15 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
   };
 }
 
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
+// ⚠ `routes!bookings_route_id_fkey(name)` — NEVER bare `routes(name)`. `bookings` has TWO FKs to
+// `routes` (`route_id` 0001:169 and `recommended_route_id` 0082:143), so an unqualified embed is
+// PGRST201 and the whole SELECT dies. Measured 2026-08-20: this const was the ONE site the
+// 4141efc sweep missed, and because the directed leg's error is deliberately swallowed below
+// (so a dead open pool can't take nomination down with it), the failure was silent — every
+// nomination request returned zero rows, i.e. nomination had never worked in production.
+// `scripts/check-embed-fk.mjs` now fails the build on a bare `routes(` inside a bookings
+// select so this cannot recur.
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes!bookings_route_id_fkey(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
 
 // [0042 초크포인트 수리 — 실기기 발견 2026-08-03] 오픈 풀 읽기는 marketplace_open_requests 뷰가 유일한 창구.
 // 0042가 0004의 광폭 정책("runners see open requests")을 폐기했는데 클라이언트는 계속 bookings를 직접 읽어
@@ -818,7 +856,7 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 실수수료 견적 (일괄 33%, 0059)
+    payout: estimatedPayout(r, rate), // runner settlement basis, flat 33% commission (0059)
     directed: false,
     photoUrl: r.photo_url ?? null,
     prefTags: (r.preferences as any)?.tags ?? [],
@@ -1217,7 +1255,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
       // 완료 = 원장 실수령, 그 외 = 실수수료 견적 (일괄 33%, 0059)
-      payout: netByBooking[r.id] ?? Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)),
+      payout: netByBooking[r.id] ?? estimatedPayout(r, rate),
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
       routeId: r.route_id ?? null,
@@ -2684,13 +2722,29 @@ export async function deleteEmergencyContact(id: string): Promise<void> {
 }
 
 // SOS — 진행 중 예약의 상대방에게 즉시 알림 (푸시 도입 전엔 인앱 알림 + 실시간)
+// ⚠ The role argument is a HINT, not the decision (2026-08-20). This used to let one
+// caller-supplied `role` decide both which booking to look up and who to notify. But
+// `session.role` is un-persisted module state whose only writer is the role-select screen, so
+// a cold launch through a Live Activity deep link starts a RUNNER at the default 'owner' —
+// meaning a runner who is holding someone's dog taps SOS, we search for an owner booking,
+// find none, and tell them 「진행 중인 러닝이 없어요」. The alarm disappears silently, which is
+// the worst failure this app has.
+// So: look up BOTH sides (hint first), then derive the counterparty from the booking row by
+// comparing uids. No safety path is ever built on a role the client merely claims.
 export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> {
-  const bookingId = role === 'runner' ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId();
+  const [ownerBid, runnerBid] = await Promise.all([
+    fetchCurrentOwnerBookingId().catch(() => null),
+    fetchCurrentRunnerJobId().catch(() => null),
+  ]);
+  const bookingId = role === 'runner' ? (runnerBid ?? ownerBid) : (ownerBid ?? runnerBid);
   if (!bookingId) return null;
   const { data: bk } = await supabase.from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
   if (!bk) return null;
-  const target = role === 'owner' ? (bk as any).runner_id : (bk as any).owner_id;
-  if (!target) return null;
+  // Counterparty = whichever side of this booking is not me, decided by uid.
+  const { data: me } = await supabase.auth.getUser();
+  const uid = me.user?.id ?? null;
+  const target = uid && (bk as any).owner_id === uid ? (bk as any).runner_id : (bk as any).owner_id;
+  if (!target || target === uid) return null;
   const { error } = await supabase.from('notifications').insert({
     profile_id: target, kind: 'booking',
     title: 'SOS', body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',

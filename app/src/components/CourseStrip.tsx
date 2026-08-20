@@ -96,7 +96,15 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
               }}>
                 {/* checkedAt은 날짜이거나 '점검 예정'(한글)이다 — 도장 안이라고 면제되지 않는다.
                     9.5 → 14. 224pt 카드에서 도장 + '미리보기 ›'가 나란히 들어가는 폭은 남는다. */}
-                <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>✓ {r.checkedAt}</Text>
+                {/* ⚠ The ✓ is gated on a real inspection. `checkedAt` is the string '점검 예정'
+                    for candidates and for any route whose `checked_at` is null, so an
+                    unconditional mark rendered 「✓ 점검 예정」 — a tick on an inspection that has
+                    not happened. request.tsx gates the same mark on `status === 'active'` and
+                    says why ("checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장").
+                    Same gate here; the stamp still renders, it just stops claiming. */}
+                <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>
+                  {r.status === 'active' ? `✓ ${r.checkedAt}` : r.checkedAt}
+                </Text>
               </View>
               <View style={{ flex: 1 }} />
               <View style={{ borderWidth: 1.2, borderColor: w.tone, paddingVertical: 5, paddingHorizontal: 11 }}>

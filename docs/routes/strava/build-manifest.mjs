@@ -44,6 +44,8 @@ const TOWN = [
   // Specific rows FIRST: TOWN.find takes the first match, so a specific row
   // below a generic 구 row never fires (measured: 백제고분군 mapped to 송파동).
   [/백제고분군/, '방이동'],  // 송파구; 서림올림피아드 + 방이동백제고분군 are 방이동, not 송파동
+  [/봉현마을|신내/, '신내동'],  // 중랑구; 정우아파트 sits in 신내동, not 면목동
+  [/^강남/, '개포동'],  // 강남구; 양재대로 anchor at 37.4836,127.0673 sits in 개포동
   [/^반포|^몽마르뜨/, '반포동'], [/^잠원/, '잠원동'], [/^압구정/, '압구정동'],
   [/^도곡/, '도곡동'], [/^잠실/, '잠실동'], [/^이촌/, '이촌동'], [/^성수/, '성수동'],
   // 올림픽선수촌/올림픽공원 sit in 오륜동, 송파구 — mapped by the filename prefix
@@ -91,6 +93,13 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.gpx'))) {
   for (let i = 1; i < pts.length; i++) km += hav(pts[i-1], pts[i]);
   km /= 1000;
 
+  // A file with NO elevation data at all must report NULL, never 0. They are
+  // different claims: 0 means "measured, and it is flat"; null means "not
+  // measured". Naver's pedestrian router returns no elevation field (verified
+  // 2026-08-20), so its GPX carries no <ele> — and reporting those routes as
+  // flat would be a fabricated measurement, the exact class of failure this
+  // corpus keeps catching. 0098's trigger stores NULL happily.
+  const hasEle = pts.some((p) => p.ele != null);
   let gain = 0, ref = null;
   for (const p of pts) {
     if (p.ele == null) continue;
@@ -132,7 +141,7 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.gpx'))) {
     name, town, area: town,
     km: kmRounded,
     measuredKm: +km.toFixed(3),
-    elevationGainM: Math.round(gain),   // no column yet — carried for whoever adds one
+    elevationGainM: hasEle ? Math.round(gain) : null,   // null = source gave no elevation (see hasEle above)
     anchor_lat: pts[0].lat, anchor_lng: pts[0].lon,
     points: pts.length,
     // {lat,lng} OBJECTS, not [lat,lng] arrays. GeoRoutePoint is {lat,lng} and

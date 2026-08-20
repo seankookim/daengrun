@@ -90,12 +90,13 @@ export default function Schedule() {
   }, {});
 
   const open = (b: Booking) => {
-    // 실예약이 러너 확정 전이면 관리 시트 대신 상태 안내 — 단, '매칭 중' 상태일 때만.
-    // matched(runner_id) 없는 취소·만료 예약까지 "러너를 찾고 있어요"라고 하면 죽은 예약에 대한 거짓말이 된다.
-    if (b.live && !b.matched && b.status === 'pending') {
-      Alert.alert('매칭 중', '러너를 찾고 있어요.\n러너가 확정되면 여기서 일정 변경·취소를 관리할 수 있어요.');
-      return;
-    }
+    // ⚠ The sheet OPENS for a still-matching booking (2026-08-20). It used to short-circuit into a
+    // one-button alert, and because `b.live` is hardcoded true for every row (api.ts) the guard
+    // caught EVERY `matching` booking — so the sheet's own 러너 변경 arm, which explicitly handles
+    // `rawStatus === 'matching'`, was unreachable code. The user-visible consequence was a dead
+    // end: with an `active` booking ranked ahead of it, home's hero never surfaced the searching
+    // booking either, leaving NO path anywhere in the app to cancel or re-nominate it. The sheet's
+    // rawStatus arms already know what to render for this state; the guard predated them.
     setSheetMode('detail');
     setSelected(b);
   };
@@ -277,7 +278,12 @@ export default function Schedule() {
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: 4 }}>
                           <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
-                          <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                          {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
+                              drawn unconditionally, so a booking with no route rendered
+                              「코스 미지정 ✓」: a verification mark on the absence of a course.
+                              The management sheet in this same file retired the same badge for
+                              exactly this reason ("근거 없는 검증 마크 금지"). If this row ever
+                              needs the mark back, it needs the column first. */}
                         </Row>
                         {/* 칼라 컬러 도트 (P1, 0033) — 다견 가구가 한 눈에 '누구 러닝인지' */}
                         <Row style={{ gap: 6, marginTop: 3, alignItems: 'center' }}>
@@ -390,7 +396,11 @@ export default function Schedule() {
                   {/* predictions */}
                   <View style={s.sheetCard}>
                     <Row style={{ justifyContent: 'space-around' }}>
-                      <Pred label="예상 러닝" value={`약 ${runMin}분`} sub="픽업·인계 포함 ~65분" />
+                      {/* ⚠ The total is COMPUTED, not a constant. It used to read a literal
+                          "~65분" beside a real per-booking `runMin`, so a 10 km booking rendered
+                          「예상 러닝 약 80분 / 픽업·인계 포함 ~65분」 — a total smaller than its own
+                          part. Same km*8+25 outing formula the request screen uses. */}
+                      <Pred label="예상 러닝" value={`약 ${runMin}분`} sub={`픽업·인계 포함 약 ${Math.round(selected.km * 8 + 25)}분`} />
                       <View style={s.vDiv} />
                       <Pred label="예상 페이스" value={selected.paceLabel} sub={`${selected.km}km`} />
                       <View style={s.vDiv} />
@@ -400,14 +410,25 @@ export default function Schedule() {
 
                   {/* runner — before acceptance there IS no runner: a card with a "러" monogram
                       and "러너를 찾고 있어요 러너" is a person who does not exist. Pre-accept the
-                      card becomes one quiet fact line (review 2026-08-19). */}
-                  {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                      card becomes one quiet fact line (review 2026-08-19).
+                      ⚠ The gate is `!selected.matched` — i.e. the booking has no `runner_id` —
+                      NOT a list of pre-accept statuses (2026-08-20). The status list missed every
+                      booking that ended WITHOUT ever matching: a cancelled or expired row still
+                      rendered the person-shaped card, monogram 「매」 and all, reading its name off
+                      api.ts's 「매칭 중 러너」 placeholder. That was unreachable while the sheet
+                      refused to open for unmatched bookings; opening it (see `open()` above) made
+                      it reachable, so the gate moves to the fact that actually decides it. */}
+                  {!selected.matched ? (
                     <View style={s.sheetCard}>
                       <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>
-                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중' : '러너를 찾는 중'}
+                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중'
+                          : CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? '러너를 찾는 중'
+                            : '러너가 정해지지 않았어요'}
                       </Text>
                       <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
-                        러너가 수락하면 여기에 러너 정보와 채팅이 열려요
+                        {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '')
+                          ? '러너가 수락하면 여기에 러너 정보와 채팅이 열려요'
+                          : '이 예약은 러너가 정해지기 전에 끝났어요'}
                       </Text>
                     </View>
                   ) : (
@@ -781,7 +802,6 @@ const s = StyleSheet.create({
     paddingVertical: 12, borderWidth: 1, borderColor: '#ffc9b8',
   },
   // thumbMap(목업 트레이스 썸네일) 퇴역 — item 6
-  certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: paper.canvas, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
   // [Sean 2026-08-11] 볼트 그린 은퇴. 이 둘은 완료 카드에 붙는 **동급 보조 액션 한 쌍**이지

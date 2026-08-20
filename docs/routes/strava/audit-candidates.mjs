@@ -81,16 +81,29 @@ const gpxById = new Map();
 for (const name of gpxFiles) {
   const file = join(dir, name);
   const xml = readFileSync(file, 'utf8');
-  const id = /strava\.com\/routes\/(\d+)/.exec(xml)?.[1];
+  // TWO SOURCES, one corpus. Strava routes key on their Strava id; Naver routes
+  // (naver-route.mjs) key on a stable hash of their waypoint list, written as
+  // <link href="naver:xxxx">. Every route must carry SOME id — an unidentifiable
+  // GPX cannot be joined to its status row, which is how a route gets served with
+  // nobody able to say where it came from.
+  const id = /strava\.com\/routes\/(\d+)/.exec(xml)?.[1]
+    || /<link href="(naver:[0-9a-z]+)"/.exec(xml)?.[1];
   if (!id) {
-    failures.push(`${name}: no Strava route ID in GPX metadata`);
+    failures.push(`${name}: no route ID in GPX metadata (expected a strava.com/routes/<id> link or a naver:<hash> link)`);
     continue;
   }
   if (gpxById.has(id)) failures.push(`${name}: duplicate GPX route ID ${id}`);
   gpxById.set(id, name);
 
-  if (!/<copyright\s+author="OpenStreetMap contributors"/.test(xml)) {
-    failures.push(`${name}: missing OpenStreetMap contributor attribution`);
+  // Attribution must match the source, and every file must assert one. Strava's
+  // export self-declares ODbL/OpenStreetMap; Naver's geometry is NAVER's. Sean
+  // ruled the Naver licence acceptable for our use (2026-08-20); this check
+  // exists so the corpus always RECORDS which source each row came from rather
+  // than silently mixing two legal footings with no way to tell them apart.
+  const osm = /<copyright\s+author="OpenStreetMap contributors"/.test(xml);
+  const naver = /<copyright\s+author="NAVER Corp\."/.test(xml);
+  if (!osm && !naver) {
+    failures.push(`${name}: missing source attribution (expected OpenStreetMap contributors or NAVER Corp.)`);
   }
 
   const checked = spawnSync(process.execPath, [join(dir, 'check-shape.mjs'), '--json', file], {
@@ -117,12 +130,30 @@ for (const name of gpxFiles) {
     if (status.status === 'candidate' || strict) failures.push(message);
     else warnings.push(message);
   } else {
-    for (const field of [
-      'measured_km', 'strava_km', 'gain_m_recomputed', 'gain_m_strava',
-      'points', 'retrace_%',
-    ]) {
+    // The gain columns are EMPTY when the source supplied no elevation (Naver's
+    // pedestrian router supplies none). Empty must stay legal and must stay
+    // DISTINCT from 0 — 0 claims a measured flat route. So gain is validated
+    // against the GPX below rather than required numeric here.
+    const NUMERIC = ['measured_km', 'strava_km', 'points', 'retrace_%'];
+    const GAIN = ['gain_m_recomputed', 'gain_m_strava'];
+    for (const field of NUMERIC) {
       if (!manifest[field].trim() || !Number.isFinite(Number(manifest[field]))) {
         failures.push(`${name}: manifest ${field} is not numeric: ${manifest[field]}`);
+      }
+    }
+    for (const field of GAIN) {
+      const v = manifest[field].trim();
+      if (v && !Number.isFinite(Number(v))) {
+        failures.push(`${name}: manifest ${field} is neither empty nor numeric: ${manifest[field]}`);
+      }
+      // An empty gain column must agree with the GPX having no elevation, and a
+      // filled one must agree with the GPX having some. Otherwise a route could
+      // silently lose its climb and nothing would notice.
+      if (!v && geometry.gainM !== null) {
+        failures.push(`${name}: manifest ${field} is empty but the GPX HAS elevation (${geometry.gainM}m)`);
+      }
+      if (v && geometry.gainM === null) {
+        failures.push(`${name}: manifest ${field} is ${v} but the GPX has NO elevation data`);
       }
     }
     if (Math.abs(Number(manifest.measured_km) - geometry.measuredKm) > 0.01) {
@@ -131,7 +162,7 @@ for (const name of gpxFiles) {
     if (Number(manifest.points) !== geometry.points) {
       failures.push(`${name}: manifest points ${manifest.points} != GPX ${geometry.points}`);
     }
-    if (Number(manifest.gain_m_recomputed) !== geometry.gainM) {
+    if (manifest.gain_m_recomputed.trim() && Number(manifest.gain_m_recomputed) !== geometry.gainM) {
       failures.push(`${name}: manifest recomputed gain ${manifest.gain_m_recomputed} != GPX ${geometry.gainM}`);
     }
     if (Math.abs(Number(manifest['retrace_%']) - geometry.retracePct) > 0.1) {

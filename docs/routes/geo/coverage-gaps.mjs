@@ -109,7 +109,14 @@ function neighbours(c) {
   return out;
 }
 
-const SKIP = /주차|공장|터미널|역$|배수지/;
+// 어린이공원 are pocket playgrounds, not dog-walk destinations — the depth
+// planner already treats them that way and coverage ranking must agree, or it
+// names a route after a swing set. Bare generic names (a feature literally
+// called 근린공원 / 문화공원) are rejected for a different reason: they make an
+// unusable ROUTE NAME. A name that could be anywhere is anywhere — that is the
+// 어울림공원 27.64km lesson, applied to naming rather than routing.
+const SKIP = /주차|공장|터미널|역$|배수지|어린이공원|놀이터/;
+const GENERIC_NAME = /^(근린|문화|체육|생태|시민|평화|호수|가족|중앙|어울림)?\s*(공원|광장)$/;
 const KIND_RANK = { stream: 0, river: 1, lake: 2, park: 3, forest: 4, trail: 5, hill: 6 };
 
 for (let n = 0; n < topN; n++) {
@@ -129,10 +136,11 @@ for (let n = 0; n < topN; n++) {
     const kind = f.kind || f.category;
     if (!(kind in KIND_RANK)) continue;
     if (SKIP.test(f.name || '')) continue;
+    if (GENERIC_NAME.test((f.name || '').trim())) continue;
     const d = Math.hypot(my(f.lat) - my(best.c.lat), mx(f.lng, f.lat) - mx(best.c.lng, best.c.lat));
     if (d > 1500) continue;
     const score = d + KIND_RANK[kind] * 60 + (f.tunnel ? 400 : 0); // 복개천 demoted, not dropped
-    if (!dest || score < dest.score) dest = { name: f.name, kind, d: Math.round(d), score, tunnel: f.tunnel || '' };
+    if (!dest || score < dest.score) dest = { name: f.name, kind, d: Math.round(d), score, tunnel: f.tunnel || '', lat: f.lat, lng: f.lng };
   }
 
   picks.push({
@@ -148,7 +156,7 @@ for (let n = 0; n < topN; n++) {
 console.log(`\nTOP ${picks.length} COVERAGE GAPS — each row is the next route worth building\n`);
 for (const p of picks) {
   const d = p.dest
-    ? `${p.dest.name} (${p.dest.kind}, ${p.dest.d}m${p.dest.tunnel ? ', ⚠복개' : ''})`
+    ? `${p.dest.name} (${p.dest.kind}, ${p.dest.d}m${p.dest.tunnel ? ', ⚠복개' : ''}) @${p.dest.lat.toFixed(5)},${p.dest.lng.toFixed(5)}`
     : 'NO GREEN IN 1.5km → plain residential loop';
   console.log(`${String(p.rank).padStart(2)}. +${String(p.newly).padStart(3)} complexes | ${String(p.gu).padEnd(5)} | ${p.anchor}`);
   console.log(`    anchor ${p.coord}  ->  ${d}`);

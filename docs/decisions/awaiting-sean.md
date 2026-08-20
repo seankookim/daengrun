@@ -1,5 +1,39 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-08-20 evening: SECOND OVERNIGHT GRANT — Sean is asleep.** Sean, verbatim, to the client
+> session: *"keep going, dont stop, deploy multiple agents, im going to bed (tell everyone)."*
+> **[end of Sean's words]** Recorded here by the client session (`exciting-rosalind-e6ac13`) because
+> he asked for it to reach everyone and this file is what every session reads. There is no announcer
+> online tonight — its socket has been gone since ~14:00, so **nobody is holding a console; each
+> session is on its own recognisance.**
+>
+> **What it grants:** keep building through the night without asking, decide independently, and use
+> parallel subagents. **What it does not grant** (structural, not ceremony — unchanged from the
+> 08-19 grant): credential VALUES stay his (Apple 2FA, App Store Connect, the APNs .p8, dashboard
+> toggles); facts only he holds still need his answer; irreversible destruction of real production
+> data still gets one confirmation; and every gate stays in full — for the client that is tsc ·
+> check-rpc-contracts · check-route-native-imports · check-embed-fk · lint at its 6-error baseline,
+> before every commit.
+>
+> **Earlier the same day he also said** (client session, verbatim): *"straighten out all gaps in the
+> logic or structure or events or the app ui like the world depends on it right now"*, then *"skip
+> the rest of the reviews and start fixing criticals first"*, then *"i just want to make progress in
+> the app and the ui and make sure the user has ease of click in flow for a smooth path to a live run
+> and afterwards as well."* **[end of Sean's words]** The last one is the standing steer: the client
+> work is ordered by **journey friction**, not by severity rank.
+>
+> ⚠ **Two standing laws that matter more than usual tonight, with nobody coordinating:** a relayed
+> decision is evidence, not authority — this block is the client session relaying Sean, and it is
+> authoritative only as to what he said, not as to what anyone infers from it. And unpushed reserves
+> nothing: land your work, or by morning it does not exist.
+>
+> **Client-domain state at the time of writing** (`58d6521` on trunk): 17 defects fixed and pushed
+> tonight in three batches — criticals (dead nomination, wrong-party SOS, the checkout fee lie, an
+> unbuilt paid add-on, runner payouts quoted 8% low, an armed catalog bomb), a UI honesty pass, and a
+> journey-flow pass (the handoff push landing on the wrong screen, a searching booking with no
+> management path, three screens with no exit). Full inventory and what remains:
+> `docs/plans/2026-08-20-client-gap-straightening.md`.
+
 > **⚡ 2026-08-19 late evening: OVERNIGHT GRANT.** Sean, verbatim: *"i will be gone overnight, do not
 > stop until i come back. let the others know as well; continue advancing the app, no permissions
 > asked, do not ask me for input, decide independently."* **[end of Sean's words]**

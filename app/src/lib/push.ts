@@ -28,6 +28,31 @@ const RUN_STOP_TITLE = '러닝 중단 요청';
 // 채팅은 양쪽 역할 모두 채팅 화면으로 간다: 메시지가 도착한 곳이 곧 목적지다.
 const CHAT_TITLE = '새 메시지';
 
+// ── Runner destinations, by EXACT title ────────────────────────────────────────────────
+// Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
+// screen at the one moment that matters most: the owner taps 인계하기, the server sends
+// 「인계 확인 요청」, and `.includes('요청')` dropped the runner on the OPEN-REQUEST INBOX — a list
+// that contains nothing about this booking — while the only screen with the 인계 받았어요 button
+// sat two taps away with no hint. The bug was invisible because the other 요청 titles
+// (일정 변경 요청 · 변경 요청 철회 · 지명 러닝 요청) happen to belong in that inbox.
+// Same discipline as LIVE_TITLES above: exact match, and a title that is not listed falls to the
+// calendar, which is the honest "here is your schedule" default rather than a guess.
+// ⚠ Server contract — these strings are the titles `transition-booking` actually sends. Changing
+// one side without the other silently misroutes; grep the notify() calls before editing.
+const RUNNER_ROUTES: Record<string, string> = {
+  '인계 확인 요청': '/runner/meetup',   // the handoff CTA lives here
+  '인계 완료': '/runner/run',           // both sides sealed — the run is what happens next
+  '러닝 시작': '/runner/run',
+  '지명 러닝 요청': '/runner/requests',
+  '일정 변경 요청': '/runner/requests',
+  '변경 요청 철회': '/runner/requests',
+};
+
+// Owner titles that mean "the meetup is happening NOW". Same self-restore caveat as LIVE_TITLES:
+// /owner/meetup takes no bid, so these only route there when the notification IS the current
+// booking; otherwise they fall to the bid-scoped report.
+const OWNER_MEETUP_TITLES = [...LIVE_TITLES, '인계 확인 요청', '인계 완료'];
+
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
 // 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
@@ -46,8 +71,8 @@ export function routeForNotification(kind: string | null | undefined, refId: str
       // 화면이 뜬다. 게다가 **중단 사유는 채팅에 있다**. 채팅은 bid로 스코프되므로 정확한 예약의
       // 정확한 내용으로 착지한다 — 러너가 알아야 할 것이 실제로 있는 곳.
       if (title === RUN_STOP_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
-      router.push(title.includes('요청') ? '/runner/requests' : '/runner/calendar');
-    } else if (LIVE_TITLES.includes(title)) {
+      router.push(RUNNER_ROUTES[title] ?? '/runner/calendar');
+    } else if (OWNER_MEETUP_TITLES.includes(title)) {
       // /owner/meetup takes no bid — it self-restores to whatever booking is CURRENTLY in
       // flight. Fine for a live push tapped in the moment; wrong for the historical inbox
       // (alerts.tsx shares this router): a months-old "러너 이동 중" row would open today's
