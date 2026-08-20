@@ -6,6 +6,7 @@ import { DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, 
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { colors, layout, paper } from '../../src/theme';
 
 // 리워드 센터 — 실화: 하이 포인트 잔액·드랍 오픈(open-drop)·기어 교환권. 목업 사다리 은퇴.
@@ -76,7 +77,7 @@ export default function Rewards() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>리워드 센터</Text>

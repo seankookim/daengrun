@@ -10,6 +10,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import { goBackOrHome } from '../../src/lib/nav';
 import { layout, paper } from '../../src/theme';
 
 // Runner certification center — the real funnel (0062 / plan §6.2).
@@ -271,7 +272,7 @@ export default function Apply() {
 
         {/* ————— 마스트헤드 ————— */}
         <Row style={{ gap: 10 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={s.rule} />

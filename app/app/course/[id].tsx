@@ -10,6 +10,7 @@ import { traceToBox } from '../../src/lib/trace';
 import { getNaverMap } from '../../src/lib/geo';
 import { fetchRouteById } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { goBackOrHome } from '../../src/lib/nav';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
@@ -214,7 +215,7 @@ export default function CourseScreen() {
     <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isOwner ? 120 : 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>코스 미리보기</Text>
           <View style={{ width: 40 }} />
         </Row>

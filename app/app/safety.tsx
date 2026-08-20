@@ -6,6 +6,7 @@ import { BottomNav } from '../src/components/bottomnav';
 import { Icon, Row } from '../src/components/ui';
 import { addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts, sendSOS } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
+import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { colors, paper } from '../src/theme';
 
@@ -82,7 +83,7 @@ export default function Safety() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Pressable onPress={() => router.back()} style={[s.bell, { marginRight: 12 }]}>
+          <Pressable onPress={goBackOrHome} style={[s.bell, { marginRight: 12 }]} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>

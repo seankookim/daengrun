@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
@@ -8,6 +8,7 @@ import {
   IncidentDetail, SettleOutcome, SettleQuote,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { lilac, lilacRadius, paper } from '../../../src/theme';
 
 // 케이스 상세 — 정본: master-lab '케이스 #24' (코랄 좌괘 + OUTSIDE 플랩이 무게를 진다, 어둠 없이)
@@ -90,7 +91,7 @@ export default function CaseDetail() {
   // [2026-08-11] this screen's error/denied/retry trio was promoted to the shared
   // LoadGate (club-ui.tsx) — it now consumes its own pattern.
   if (denied) {
-    return <LoadGate mode="denied" deniedLabel="케이스 당사자만 볼 수 있어요" onBack={() => router.back()} />;
+    return <LoadGate mode="denied" deniedLabel="케이스 당사자만 볼 수 있어요" onBack={goBackOrHome} />;
   }
   if (!inc) {
     return (
@@ -98,7 +99,7 @@ export default function CaseDetail() {
         mode={loadErr ? 'error' : 'loading'}
         errorLabel="케이스를 불러오지 못했어요"
         onRetry={() => { setLoadErr(false); load(); }}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -133,7 +134,7 @@ export default function CaseDetail() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         keyboardShouldPersistTaps="handled"
       >
-        <ClubMast title={`케이스 ${sev}`} sub={open ? '진행 중' : '해소됨'} onBack={() => router.back()} />
+        <ClubMast title={`케이스 ${sev}`} sub={open ? '진행 중' : '해소됨'} onBack={goBackOrHome} />
 
         <LilacCard crit={open} hero={!open}>
           <Row style={{ gap: 8, alignItems: 'center' }}>

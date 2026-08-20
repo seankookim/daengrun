@@ -8,6 +8,7 @@ import { Row } from '../src/components/ui';
 import {
   BillingCard, PaymentRecord, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
+import { goBackOrHome } from '../src/lib/nav';
 import { paper } from '../src/theme';
 
 // 설정 → 결제 관리 — the "on demand" half of the price-invisibility doctrine (§0-bis).
@@ -135,7 +136,7 @@ export default function Payments() {
       contentContainerStyle={{ paddingTop: 56, paddingBottom: 40 }}
     >
       <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>결제 관리</Text>

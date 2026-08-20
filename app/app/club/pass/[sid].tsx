@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { Row } from '../../../src/components/ui';
@@ -6,6 +6,7 @@ import { checkinClubSession, ClubSessionDetail, fetchClubSession } from '../../.
 import { LoadGate } from '../../../src/components/club-ui';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { colors } from '../../../src/theme';
 
 // 입장권 (D1×D2 하이브리드, Sean 확정) — 집결지에서 호스트에게 '보여주는' 화면.
@@ -36,7 +37,7 @@ export default function ClubPass() {
         mode={sessErr ? 'error' : 'loading'}
         errorLabel="입장권을 불러오지 못했어요"
         onRetry={load}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -62,7 +63,7 @@ export default function ClubPass() {
   return (
     <View style={s.stage}>
       <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 58, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20, color: '#fff' }}>‹</Text></Pressable>
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20, color: '#fff' }}>‹</Text></Pressable>
 
         <View style={s.ticket}>
           <View style={s.neonEdge} />

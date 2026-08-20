@@ -1,8 +1,9 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
+import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { CollarKey, collarColors, collarLabels, layout, paper } from '../../src/theme';
 
@@ -161,7 +162,7 @@ export default function DogProfileScreen() {
             칼라 컬러 링도 제거: 아바타는 사각인데 링만 radius 22라 뒤에서 삐져나와 겹쳐 보였다.
             링은 컬러 프리뷰였을 뿐이고, 아래 칼라 피커 자체가 이미 그 색을 보여준다 (정보 손실 0). */}
         <View style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}>
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <Text style={s.topTitle}>반려견 프로필</Text>

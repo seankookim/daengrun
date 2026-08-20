@@ -1,9 +1,10 @@
 import { useDisplayFont } from '../src/lib/displayFont';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../src/components/ui';
 import { BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
+import { goBackOrHome } from '../src/lib/nav';
 import { colors, paper } from '../src/theme';
 
 // 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
@@ -49,7 +50,7 @@ export default function Leaderboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>동네 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>

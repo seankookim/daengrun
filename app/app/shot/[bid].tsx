@@ -537,7 +537,16 @@ export default function ShotStudio() {
     <View style={{ flex: 1, backgroundColor: '#0C130E' }}>
       {/* 헤더 */}
       <View style={s.head}>
-        <Pressable onPress={() => router.back()} style={s.x}><Text style={{ fontSize: 17, color: '#8fa093' }}>✕</Text></Pressable>
+        {/* ⚠ Guarded, because a bare router.back() is a NO-OP here. This screen is reachable by
+            deep link and from a share sheet, both of which can give it a single-entry stack — and
+            the root Stack is headerShown:false + gestureEnabled:false, so with a dead ✕ there is
+            no way out of the screen at all. The not-found state below already carries its own
+            always-walkable door for exactly this reason; the LOADED screen needed the same. Same
+            idiom as cards.tsx and owner/live.tsx. */}
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace(homePath()))}
+          style={s.x} accessibilityRole="button" accessibilityLabel="닫기"
+        ><Text style={{ fontSize: 17, color: '#8fa093' }}>✕</Text></Pressable>
         <Text style={[{ fontSize: 19, fontWeight: '900', color: '#fff' }, df]}>인증샷</Text>
         <View style={{ width: 34 }} />
       </View>

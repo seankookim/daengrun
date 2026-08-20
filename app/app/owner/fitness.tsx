@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Row } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
+import { goBackOrHome } from '../../src/lib/nav';
 import { fetchFitness, fetchRecentMoments, Fitness, Moment, updateDogGoal } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -284,7 +285,16 @@ export default function FitnessHub() {
         <Animated.View pointerEvents="box-none" style={{ opacity: expOpacity }}>
           {/* 헤더 — 백 칩 · 마스트헤드 */}
           <View pointerEvents="box-none" style={s.headRow}>
-            <Pressable onPress={() => router.back()} style={s.backChip} accessibilityRole="button" accessibilityLabel="뒤로">
+            {/* ⚠ FROZEN FILE, and this edit deliberately stays outside the freeze. DO-NOT-REFACTOR
+                here covers the collapsing hero's ARCHITECTURE: the pinned absolute overlay, the
+                ScrollView paddingTop reservation, transform/opacity on the native driver only, and
+                the hardware-textured ring layers. This changes ONE handler on a Pressable nested in
+                that tree — no transform, no opacity, no style, no layout, no driver. The defect it
+                fixes is real and this screen is its worst case: the back chip was a bare
+                router.back(), which is a no-op on an empty stack, and this screen has NO other exit
+                (the hero overlay covers the top and the root Stack has no header and no back-swipe)
+                — so a user arriving by deep link was trapped with nothing but force-quit. */}
+            <Pressable onPress={goBackOrHome} style={s.backChip} accessibilityRole="button" accessibilityLabel="뒤로">
               <Text style={{ fontSize: 19, fontWeight: '700', color: lilac.head, marginTop: -2 }}>‹</Text>
             </Pressable>
             <View pointerEvents="none" style={{ alignItems: 'center' }}>

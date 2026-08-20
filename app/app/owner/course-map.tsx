@@ -28,6 +28,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
 
@@ -358,7 +359,7 @@ export default function CourseMap() {
         }}
       >
         <View style={s.search}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로" style={s.backBtn}>
+          <Pressable onPress={goBackOrHome} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로" style={s.backBtn}>
             <Text style={{ fontSize: 19, fontWeight: '900', color: paper.ink }}>‹</Text>
           </Pressable>
           <Text style={s.searchTxt} numberOfLines={1}>

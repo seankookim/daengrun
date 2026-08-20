@@ -21,6 +21,7 @@ import { MediaImage } from '../../../src/lib/media';
 // useNumFont는 이 화면에서 은퇴했다 — 숫자 서체가 필요한 유일한 자리가 확정 시트의 요금이었고,
 // 그 요금은 승낙서로 옮겨갔다 (가격 비가시성, 재정 ④).
 import { haptic } from '../../../src/lib/haptics';
+import { goBackOrHome } from '../../../src/lib/nav';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
 
 // 세션 셸 v2 — 테일러드 라일락 (빌드 2a, 정본: master-lab O3~O8 + flow-lab O4·O5)
@@ -194,7 +195,7 @@ export default function ClubSessionShell() {
         mode={sessErr ? 'error' : 'loading'}
         errorLabel="세션을 불러오지 못했어요"
         onRetry={load}
-        onBack={() => router.back()}
+        onBack={goBackOrHome}
       />
     );
   }
@@ -957,7 +958,7 @@ export default function ClubSessionShell() {
         <ClubMast
           title={`${sess.when} 세션`}
           sub={clubName || 'HIGH CLUB'}
-          onBack={() => router.back()}
+          onBack={goBackOrHome}
           right={isDone ? <ClubTag label="DONE" tone="dim" /> : sess.status === 'cancelled' ? <ClubTag label="취소됨" tone="coral" /> : undefined}
         />
         {/* ⑤ 크리티컬 ack — 글래스 크롬 아래, 확인 전까지 따라온다 */}

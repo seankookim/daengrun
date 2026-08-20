@@ -8,6 +8,7 @@ import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunn
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { runnerJob } from '../../src/store';
 import { paper } from '../../src/theme';
@@ -325,7 +326,7 @@ export default function Meetup() {
         )}
 
         <Row style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
+          <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <View style={s.etaPill}>
             {/* 상태 도트 = 시맨틱 (이동·도착 앰버 → 인계 완료 세이지). 강조 예산 면제.
                 [v4 R3a/b/c] 도착 상태의 코랄(paper.line)을 앰버로 내렸다: 코랄은 그 프레임의

@@ -11,6 +11,7 @@ import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
 
@@ -766,7 +767,7 @@ export default function Request() {
           스텝이 사라졌으므로 ‹ 는 그냥 뒤로. */}
       <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
         <Row style={{ gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+          <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>

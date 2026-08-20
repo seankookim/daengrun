@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
@@ -7,6 +7,7 @@ import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
+import { goBackOrHome } from '../src/lib/nav';
 import { routeForNotification } from '../src/lib/push';
 import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
 
@@ -110,7 +111,7 @@ export default function Alerts() {
       >
         {/* ---------- 글래스 마스트 ---------- */}
         <Row style={s.mast}>
-          <Pressable onPress={() => router.back()} style={s.iconBtn}>
+          <Pressable onPress={goBackOrHome} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 15, color: lilac.head, marginTop: -1 }}>‹</Text>
           </Pressable>
           <Text style={[s.crumb, nf]}>MY / ALERTS</Text>
