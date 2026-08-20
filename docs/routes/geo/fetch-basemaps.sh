@@ -1,4 +1,29 @@
 #!/bin/bash
+# ############################################################################
+# # DORMANT — this script's output has NO CONSUMER as of 2026-08-20.         #
+# #                                                                          #
+# # _base/*.json existed for ONE reader: bench/build-artifact.mjs, which      #
+# # embedded a compacted OSM basemap because an Artifact's CSP blocks every   #
+# # external host so the Naver SDK could not load there. Sean removed the     #
+# # artifact entirely (1eb3989, "remove artifact and only use local host")    #
+# # and build-artifact.mjs went with it. The LOCAL bench uses the real Naver  #
+# # SDK; its only mention of a basemap is a comment saying "UNUSED locally".  #
+# #                                                                          #
+# # So this fetches, paces around Overpass throttling, retries, and reconciles#
+# # against a manifest — all producing files nothing opens. It cost real      #
+# # wall-clock on 2026-08-20 before anyone checked who the reader was.        #
+# #                                                                          #
+# # Existing _base/*.json are KEPT, not deleted: they are committed, cheap,   #
+# # and immediately useful if a shareable surface ever returns. But do not    #
+# # run this for new routes without first answering: who reads the output?    #
+# # Guard: set BASEMAPS=1 to run.                                            #
+# ############################################################################
+if [ "${BASEMAPS:-}" != "1" ]; then
+  echo "fetch-basemaps.sh is DORMANT — its output has no consumer (see header)."
+  echo "The artifact that read _base/ was removed in 1eb3989; the local bench uses Naver tiles."
+  echo "Re-read the header before overriding. To run anyway: BASEMAPS=1 $0"
+  exit 0
+fi
 # fetch-basemaps.sh — one local basemap per route, cached and resumable.
 # Paced at 4s: the public Overpass endpoint throttles on bursts and then returns
 # EMPTY results that look exactly like "this area has no streets".
