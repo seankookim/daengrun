@@ -52,6 +52,31 @@ const PACE_CHIP_A11Y: Record<'good' | 'slow', string> = {
 
 const STOP_REASONS = ['아이 컨디션이 걱정돼요', '급한 일정이 생겼어요', '기타 사유'];
 
+// ---------- [2026-08-20] when a run ends through a door that is not `completed` ----------
+// The statuses on which a run is live or about to be — api.ts's IN_FLIGHT set. Anything else means
+// the run this screen is drawing has ENDED, and `done()` below only ever tested for 'completed'.
+// `active → incident_review` is legal (0066_enroute_cancel.sql:54), so on an incident this screen
+// never left: the 1s tick kept advancing the elapsed clock forever off runs.started_at, and the strip
+// said 「위치가 N분째 갱신되지 않았어요 · 채팅으로 확인」 — a network-trouble sentence during a
+// safety event.
+const LIVE_STATUS = new Set(['confirmed', 'runner_enroute', 'picked_up', 'active']);
+// The two held statuses reachable from a live run (`active → incident_review`, then
+// 0072_incident_settlement.sql:179 `incident_review → refund_pending`). Both keep the owner HERE:
+// /safety takes no booking context, and teleporting away from the last-known-position map — the
+// most important artifact they have during a hold — reads as the app malfunctioning at the moment
+// trust is decided. The pill words are the ones this app already uses for these rawStatuses
+// (owner/schedule.tsx:57 '확인 중', owner/pay.tsx:44 '환불 중'), not new vocabulary.
+const HELD_COPY: Record<string, { pill: string; strip: string }> = {
+  incident_review: {
+    pill: '확인 중',
+    strip: '확인이 진행 중이에요 — 위치는 마지막으로 받은 지점이에요. 처리되면 알림으로 알려드릴게요.',
+  },
+  refund_pending: {
+    pill: '환불 중',
+    strip: '환불이 진행 중이에요 — 위치는 마지막으로 받은 지점이에요. 처리되면 알림으로 알려드릴게요.',
+  },
+};
+
 // ---------- 계획 경로 · 접근 구간 상수 (재정 #14/#15 · RULING 9) ----------
 // 입구 마커 에셋 — 러너 화면과 **같은 파일**이다. 두 화면이 같은 점을 다른 글리프로 그리면
 // 그건 같은 점으로 읽히지 않는다.
@@ -112,6 +137,12 @@ export default function Live() {
   // (둘 다 빈 지도다) 화면이 구별해서 말해야 한다 — 그러지 않으면 거절이 정지한
   // 개처럼 읽힌다. (P0-1)
   const [link, setLink] = useState<LiveLinkState>('connecting');
+  // The booking status once it leaves LIVE_STATUS — null while the run is live. Held, not exited:
+  // the map keeps the last received fix rendered (real data), the numbers keep their last values,
+  // and only the claims that stopped being true are taken away. The ref is what the 1s tick reads:
+  // the tick's closure is built once per bookingId and would never see the state.
+  const [held, setHeld] = useState<string | null>(null);
+  const heldRef = useRef(false);
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
 
   // ---------- 계획 경로 + 접근 구간 (재정 #14 · RULING 9) ----------
@@ -227,7 +258,12 @@ export default function Live() {
             endOwnerActivity({ ...laPropsRef.current, phase: 'done', targetKm: '', pace: '', statusLine: '' });
           }
           router.replace({ pathname: '/owner/report', params: { bid } });
+          return;
         }
+        // [2026-08-20] The other way a run ends. No navigation: this screen IS the artifact during
+        // a hold. `held` only ever gates claims — the map, the trace and the last numbers stay.
+        heldRef.current = !LIVE_STATUS.has(st);
+        setHeld(heldRef.current ? st : null); // reversible by the same 10s poll that set it
       } catch { /* 폴백이 처리 */ }
     };
     const unsubBk = subscribeBooking(bid, done);
@@ -235,7 +271,12 @@ export default function Live() {
     const tick = setInterval(() => {
       // Heartbeat only — the first-fix clock no longer feeds a displayed number (§1 precondition).
       if (startAt.current) setLiveSec(Math.floor((Date.now() - startAt.current) / 1000));
-      if (runStartedAt.current) setElapsedSec(Math.max(0, Math.floor((Date.now() - runStartedAt.current) / 1000)));
+      // Elapsed is "how long the run has been going", measured off runs.started_at — a sentence that
+      // only holds while the run is going. Once the booking leaves LIVE_STATUS the count would
+      // climb forever off a run that already ended, so the tick stops WRITING it and the last
+      // value stays on screen: clearing it would fabricate absence, and the run really did run
+      // that long. (staleSec keeps ticking — the location channel's state is still a real fact.)
+      if (runStartedAt.current && !heldRef.current) setElapsedSec(Math.max(0, Math.floor((Date.now() - runStartedAt.current) / 1000)));
       if (lastFixAt.current) setStaleSec(Math.floor((Date.now() - lastFixAt.current) / 1000));
     }, 1000);
     return () => { unsubPos(); unsubBk(); clearInterval(poll); clearInterval(tick); };
@@ -448,6 +489,11 @@ export default function Live() {
   const targetKm = info?.km ?? null; // 목표 거리는 실예약에서만 — draft 목업 5km 폴백 퇴역
   // 첫 GPS 픽스 전에는 거리·시간·페이스를 모른다 — 0을 주장하지 않는다 (로딩 ≠ 0)
   const hasFix = pos != null;
+  // The hold's words, or null. Keyed on `held` and not on a boolean so a status we have no honest
+  // sentence for (no_show / cancelled_* — only reachable on a cold entry that opened this screen
+  // before the run began) does not borrow the incident copy. Those still stop the elapsed clock
+  // via heldRef; they just do not get a strip.
+  const heldCopy = held ? HELD_COPY[held] ?? null : null;
   // 90초 넘게 갱신이 없으면 지도의 점은 더 이상 '지금'이 아니다 — 그렇다고 말한다.
   const stale = hasFix && staleSec >= 90;
   const staleMin = Math.max(1, Math.floor(staleSec / 60));
@@ -530,7 +576,11 @@ export default function Live() {
   const laPropsRef = useRef<OwnerLAProps | null>(null);
   const laLast = useRef(0);
   const laProps: OwnerLAProps = {
-    phase: !hasFix ? 'running' : stale ? 'stale' : 'running',
+    // 'ended' is the phase the widget was built for and nothing ever set: "a run aborted into
+    // incident_review — a live-looking banner surviving an aborted run would be a lie"
+    // (src/activities/OwnerRunActivity.tsx:9-10, which draws 러닝이 종료됐어요 · 앱에서 자세히
+    // 확인하세요). Same fact as the pill above, on the lock screen.
+    phase: heldCopy ? 'ended' : !hasFix ? 'running' : stale ? 'stale' : 'running',
     dogName,
     runnerName,
     km: hasFix ? km.toFixed(2) : '',
@@ -729,11 +779,15 @@ export default function Live() {
       <Row style={s.topBar}>
         <Pressable onPress={goBack} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
         {/* LIVE는 근거가 있을 때만 — 위치 픽스 전에는 '달리는 중'이라고 말하지 않는다.
-            (진행 중 예약에는 confirmed·인계 대기도 포함된다 — 아직 러닝이 아니다) */}
+            (진행 중 예약에는 confirmed·인계 대기도 포함된다 — 아직 러닝이 아니다)
+            [2026-08-20] Fix freshness alone is not enough evidence. A run stopped by an incident
+            can keep receiving fixes, and 「LIVE · {dog}가 달리는 중」 is then a claim the server
+            contradicts. The booking status is the older fact, so it is tested first. */}
         <View style={s.livePill}>
           <Text style={s.livePillTxt}>
-            <Text style={{ color: hasFix && !stale ? paper.line : paper.faint }}>●</Text>
-            {!hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
+            <Text style={{ color: hasFix && !stale && !heldCopy ? paper.line : paper.faint }}>●</Text>
+            {heldCopy ? ` ${dogName} · ${heldCopy.pill}`
+              : !hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
           </Text>
         </View>
         {/* SOS = 긴급 어포던스 — 라우드 페일 토큰이 정확히 이 자리를 위한 색이다 */}
@@ -762,8 +816,40 @@ export default function Live() {
           </View>
         </Row>
 
+        {/* [2026-08-20 hold] This strip REPLACES the staleness strip below, never stacks with it:
+            during an incident 「위치가 N분째 갱신되지 않았어요 · 채팅으로 확인」 puts a
+            network-trouble sentence on a safety event, which was this screen's worst lie. The map
+            keeps the last fix it received — real data is not erased; the sentence is what says that
+            point is not 'now'. Ground is criticalWash on purpose: failStrip (canvas) is this file's
+            token for "it just failed, retry", and this is a hold waiting on someone else's
+            decision. Same values as owner/meetup.tsx's hold strip — one incident, one voice. */}
+        {heldCopy && (
+          <View style={s.holdStrip}>
+            <Text style={s.holdTxt}>{heldCopy.strip}</Text>
+            {/* push, never replace — the owner has to be able to come back to the last-known
+                position map, the most important artifact they have during a hold */}
+            <Row style={{ gap: 10, marginTop: 10 }}>
+              <Pressable
+                onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
+                style={s.holdBtn}
+                accessibilityRole="button"
+                accessibilityLabel="러너와 채팅"
+              >
+                <Text style={s.holdBtnTxt}>러너와 채팅</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/safety')}
+                style={s.holdBtnInk}
+                accessibilityRole="button"
+                accessibilityLabel="안전 센터 열기"
+              >
+                <Text style={s.holdBtnInkTxt}>안전 센터 열기</Text>
+              </Pressable>
+            </Row>
+          </View>
+        )}
         {/* 신선도 — 멈춘 점을 라이브라고 말하지 않는다 */}
-        {stale && (
+        {stale && !heldCopy && (
           <View style={[s.failStrip, { marginTop: 12 }]}>
             <Text style={s.failTxt}>위치가 {staleMin}분째 갱신되지 않았어요</Text>
             <Pressable onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })} hitSlop={8} accessibilityRole="button" accessibilityLabel="러너와 채팅으로 확인">
@@ -839,25 +925,33 @@ export default function Live() {
           </Row>
         )}
 
-        {/* actions — 채팅이 이 화면의 유일한 잉크 CTA, 종료는 destructive */}
-        <Row style={{ gap: 10, marginTop: 14 }}>
-          <Pressable
-            onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
-            style={({ pressed }) => [s.chatBtn, pressed && s.chatBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="러너와 채팅"
-          >
-            <Text style={s.chatBtnTxt}>러너와 채팅</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setStopReason(null); setStopSheet(true); }}
-            style={({ pressed }) => [s.stopBtn, pressed && s.stopBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="러닝 종료 요청"
-          >
-            <Text style={s.stopGlyph}>■</Text>
-          </Pressable>
-        </Row>
+        {/* actions — 채팅이 이 화면의 유일한 잉크 CTA, 종료는 destructive.
+            [2026-08-20 hold] The whole row leaves during a hold and the strip above carries the
+            actions. The stop request promises, about a run that has already ended, 「러너가 확인하면
+            안전하게 정지한 뒤 픽업 장소로 복귀해요」 and 「요금은 예약하신 그대로 청구돼요」 — but an
+            incident is not settled down that path (0072_incident_settlement.sql §B settles the case
+            separately, and it can refund), so both sentences become promises we cannot keep. Chat
+            survives inside the strip, so the same button is never drawn twice. */}
+        {!heldCopy && (
+          <Row style={{ gap: 10, marginTop: 14 }}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
+              style={({ pressed }) => [s.chatBtn, pressed && s.chatBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="러너와 채팅"
+            >
+              <Text style={s.chatBtnTxt}>러너와 채팅</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { setStopReason(null); setStopSheet(true); }}
+              style={({ pressed }) => [s.stopBtn, pressed && s.stopBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="러닝 종료 요청"
+            >
+              <Text style={s.stopGlyph}>■</Text>
+            </Pressable>
+          </Row>
+        )}
       </View>
 
       {/* ---------- stop confirmation sheet ---------- */}
@@ -952,6 +1046,25 @@ const s = StyleSheet.create({
   },
   failTxt: { fontSize: 14, fontWeight: '700', color: paper.critical, flex: 1 },
   failRetry: { fontSize: 14, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // ---------- hold strip (확인 중 · 환불 중) ----------
+  // Same critical vocabulary as failStrip, different ground: failStrip (canvas) is "it just failed,
+  // retry", this is "it is being handled, wait". Ink is critical (#B3261E on #FBEAE7 = 8.9:1
+  // measured). Identical values to owner/meetup.tsx's hold strip — one incident, one voice.
+  holdStrip: {
+    alignSelf: 'stretch', backgroundColor: paper.criticalWash,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 12, paddingHorizontal: 16, marginTop: 12,
+  },
+  holdTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical },
+  // Never two buttons of the same colour: 안전 센터 is the emphasized door (ink plate + white
+  // label), 채팅 is the critical-hairline plate. Both land at 42pt so neither outranks by size.
+  holdBtn: {
+    flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.critical,
+    alignItems: 'center', paddingVertical: 10,
+  },
+  holdBtnTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
+  holdBtnInk: { flex: 1, backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 11 },
+  holdBtnInkTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#ffffff' },
   // ---------- 아일랜드 (풀블리드 · 샤프 · 코랄 프레임) ----------
   island: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

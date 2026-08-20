@@ -93,29 +93,53 @@ export function useClubOverview(): [ClubOverview | null, () => void, boolean] {
 }
 
 // 수요 보드 (0032) — 러너 티켓·스트립 + 보호자 진행 링·동네 리그의 단일 소스
-export function useDemandBoard(): [DemandBoard | null, () => void] {
+// [honesty 2026-08-20] `.catch(() => {})` — the exact silent catch condemned three lines above
+// for the overview fetch, missed on the sibling. A failed board left `board` null forever, and
+// every consumer reads `board && …`, so the 동네 리그 · 관심 진행 링 · 러너 대기 티켓 all vanished
+// with no way to tell a broken fetch from a district that has nothing to show. Same three states
+// as useClubOverview: loading (board null, failed false) · failure (failed true) · real data.
+export function useDemandBoard(): [DemandBoard | null, () => void, boolean] {
   const [board, setBoard] = useState<DemandBoard | null>(null);
-  const load = useCallback(() => { fetchClubDemandBoard().then(setBoard).catch(() => {}); }, []);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => {
+    setFailed(false);
+    fetchClubDemandBoard()
+      .then((b) => { setBoard(b); setFailed(false); })
+      .catch((e) => { console.warn('[club] demand board:', (e as Error)?.message ?? e); setFailed(true); });
+  }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  return [board, load];
+  return [board, load, failed];
 }
 
 // ---------- 동네 클럽 검색 바 + 드롭다운 (라일락 필드 + 헤어라인 드롭) ----------
 function ClubSearchBar() {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<ClubSearchHit[] | null>(null);
+  // [honesty 2026-08-20] `.catch(() => setHits([]))` printed a failed search as zero results:
+  // the dropdown then offered 「'{동네}' 하이클럽 요청하기 · 아직 없어요」 for a club that may
+  // well exist, and an interest row gets registered against a district the user only mistyped
+  // into existence. A search that did not run is not a search that found nothing.
+  const [searchFailed, setSearchFailed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runSearch = (query: string) => {
+    setSearchFailed(false);
+    searchClubs(query)
+      .then((h) => { setHits(h); setSearchFailed(false); })
+      .catch((e) => {
+        console.warn('[club] search:', (e as Error)?.message ?? e);
+        setHits(null); setSearchFailed(true);
+      });
+  };
 
   const onChange = (t: string) => {
     setQ(t);
     if (timer.current) clearTimeout(timer.current);
     const query = t.trim();
-    if (query.length < 1) { setHits(null); return; }
-    timer.current = setTimeout(() => {
-      searchClubs(query).then(setHits).catch(() => setHits([]));
-    }, 280);
+    if (query.length < 1) { setHits(null); setSearchFailed(false); return; }
+    timer.current = setTimeout(() => runSearch(query), 280);
   };
-  const closeAnd = (fn: () => void) => { setQ(''); setHits(null); fn(); };
+  const closeAnd = (fn: () => void) => { setQ(''); setHits(null); setSearchFailed(false); fn(); };
 
   const requestDistrict = () => {
     const d = q.trim();
@@ -140,7 +164,22 @@ function ClubSearchBar() {
         )}
       </View>
       {/* 드롭다운 */}
-      {hits != null && (
+      {/* Failure gets its own row and the whole row is the retry target — s.cFail's grammar
+          (message left, 다시 시도 right), rendered inside the dropdown the hits would have used. */}
+      {searchFailed && (
+        <View style={s.drop}>
+          <Pressable
+            onPress={() => runSearch(q.trim())}
+            style={[s.dropRow, { justifyContent: 'space-between' }]}
+            accessibilityRole="button"
+            accessibilityLabel="다시 시도"
+          >
+            <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: paper.critical }}>클럽을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+          </Pressable>
+        </View>
+      )}
+      {hits != null && !searchFailed && (
         <View style={s.drop}>
           {hits.map((h) => (
             <Pressable key={h.id} onPress={() => closeAnd(() => router.push(`/club/${h.id}`))} style={s.dropRow}>
@@ -325,6 +364,11 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
 
 // ---------- R1-C 스트립 (러너 요청 탭 상단 — 나이트-라일락 다크 아일랜드) ----------
 export function DemandStrip() {
+  // A board failure stays silent HERE on purpose: this strip renders nothing in the success
+  // case too (collecting · not host · interestCount > 0), so a failure row would report the
+  // absence of something the runner would most likely never have seen. The failure itself is
+  // no longer swallowed — useDemandBoard console.warns it — and the loud-fail row lives in
+  // ClubModule, which is the surface that is always present.
   const [board] = useDemandBoard();
   const mine = board?.mine;
   if (!mine || mine.status !== 'collecting' || mine.isHost || mine.interestCount === 0) return null;
@@ -467,7 +511,7 @@ function ClubCompactRow({ club }: { club: ClubOverview }) {
 // 나이트 스텁 카드 + 검색창을 그대로 쓴다 — 이 변경의 사정거리는 보호자 홈 하나다.
 export function ClubModule({ role, compact }: { role: 'owner' | 'runner'; compact?: boolean }) {
   const [club, reload, clubFailed] = useClubOverview();
-  const [board, reloadBoard] = useDemandBoard();
+  const [board, reloadBoard, boardFailed] = useDemandBoard();
   const reloadAll = () => { reload(); reloadBoard(); };
   // 🔴 검색은 접되 지우지 않는다. `searchClubs`의 진입점은 앱 전체에서 이 ClubSearchBar 하나뿐이고
   // (`/club/[id]`에도, 어떤 클럽 인덱스 라우트에도 검색이 없다 — grep으로 확인), 홈에서 그냥
@@ -498,6 +542,16 @@ export function ClubModule({ role, compact }: { role: 'owner' | 'runner'; compac
         </Pressable>
         {findOpen && <View style={{ paddingHorizontal: 15, paddingTop: 10 }}><ClubSearchBar /></View>}
         {board && role === 'owner' && <OwnerDemand board={board} reload={reloadAll} />}
+        {/* Board failure with nothing to show — same loud-fail row. A board that already
+            loaded once keeps its real rows: one failed refetch must not erase real data. */}
+        {board == null && boardFailed && (
+          <View style={s.cFail}>
+            <Text style={s.cFailTxt}>동네 클럽 소식을 불러오지 못했어요</Text>
+            <Pressable onPress={reloadBoard} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+              <Text style={s.cFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }
@@ -525,6 +579,14 @@ export function ClubModule({ role, compact }: { role: 'owner' | 'runner'; compac
       ) : null}
       {board && role === 'runner' && <DemandTicket board={board} reload={reloadAll} />}
       {board && role === 'owner' && <OwnerDemand board={board} reload={reloadAll} />}
+      {board == null && boardFailed && (
+        <View style={[s.cFail, { marginTop: 12 }]}>
+          <Text style={s.cFailTxt}>동네 클럽 소식을 불러오지 못했어요</Text>
+          <Pressable onPress={reloadBoard} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+            <Text style={s.cFailRetry}>다시 시도</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }

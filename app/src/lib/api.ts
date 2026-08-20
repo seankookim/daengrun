@@ -13,6 +13,14 @@ import { pricing } from '../theme';
 // setAuth 함정(소켓 토큰 미무장 = 조용한 실패)의 사본이 둘이면 하나는 반드시 낡는다.
 import { armRealtime, hookTokenRefresh, REALTIME_PRIVATE } from './geo';
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
+/** Thrown when a lookup resolves to zero rows — a record that is absent or not ours, which RLS
+ *  makes indistinguishable and which is NOT a failure. Screens must key on this to choose between
+ *  「…을 찾을 수 없어요」 (no retry: retrying cannot conjure the row) and 「…을 불러오지 못했어요」
+ *  + 다시 시도. Before this, `.single()`'s PGRST116 reached two screens as `error.message` and
+ *  printed 「JSON object requested, multiple (or no) rows returned」 into a Korean app. A stable
+ *  token rather than a message match, for the same reason the delete-account refusals use one. */
+export const NOT_FOUND = 'not_found';
+
 async function fnError(error: unknown, data?: any): Promise<Error> {
   if (data?.error) return new Error(data.error);
   if (error instanceof FunctionsHttpError) {
@@ -869,14 +877,26 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
 // 내 수수료율 — 견적용 (일괄 33%, 0059 — 티어 연동 없음). 세션 캐시.
+// ⚠ ONLY A READ ROW MAY BE CACHED. This discarded `error` and cached `?? 0.33`, so one transient
+// failure (or an RLS miss on a session that is not a runner yet) pinned the WHOLE session to 33%
+// until app restart — every payout estimate on every request card computed from a rate nobody
+// ever read. The pilot is a flat 33% (0059) so today's number happens to be right; caching an
+// unknown AS IF it were known is the defect, and it is the one that survives the day the first
+// negotiated rate exists. On failure: return the pilot default for THIS call and cache nothing,
+// so the next call retries.
 let _commissionRate: number | null = null;
 async function myCommissionRate(): Promise<number> {
   if (_commissionRate != null) return _commissionRate;
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return 0.33;
-  const { data } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
-  _commissionRate = Number(data?.commission_rate ?? 0.33);
-  return _commissionRate;
+  const { data, error } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
+  const rate = Number(data?.commission_rate);
+  if (error || !Number.isFinite(rate)) {
+    console.warn('[commission] rate unread, estimating at the pilot 33%:', error?.message ?? 'no runners row');
+    return 0.33;
+  }
+  _commissionRate = rate;
+  return rate;
 }
 
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
@@ -1139,8 +1159,15 @@ export interface RescheduleInfo {
 export async function fetchRescheduleInfo(bookingId: string): Promise<RescheduleInfo> {
   const { data, error } = await supabase.from('bookings')
     .select('id, scheduled_at, km, status, runner_id, reschedule_new_time, dogs(name), runners(profiles(name))')
-    .eq('id', bookingId).single();
+    .eq('id', bookingId).maybeSingle();
+  // ⚠ Zero rows is NOT an error, and it must not reach a screen as `error.message`. A booking id
+  // that belongs to someone else (or no longer exists) is filtered by RLS, so `.single()` used to
+  // throw PGRST116 and `owner/reschedule.tsx` rendered its English text verbatim to a Korean user:
+  // 「JSON object requested, multiple (or no) rows returned」. Reachable from any deep link or a
+  // stale push ref_id. A stable token instead, so the screen can tell not-found from failure — the
+  // two need different sentences and only one of them deserves a retry button.
   if (error) throw error;
+  if (!data) throw new Error(NOT_FOUND);
   const d = data as any;
   const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
   return {
@@ -1908,7 +1935,14 @@ export async function uploadRunnerPhoto(base64: string): Promise<string[]> {
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
   const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  // ⚠ The read's error MUST be checked. This is a read-modify-write on a whole array column, so a
+  // discarded error is not a display bug — it is silent data loss: a failed select leaves `row`
+  // null, `row?.photos ?? []` rebuilds the gallery from EMPTY, and the update below overwrites the
+  // runner's existing photos with an array containing only the one just uploaded. Throwing loses
+  // the new upload's row (the object is already in storage and is reclaimed by the sweep); not
+  // throwing loses every photo they had.
+  const { data: row, error: readErr } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  if (readErr) throw readErr;
   const photos = [...(row?.photos ?? []), pub.publicUrl];
   const { error: e2 } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
   if (e2) throw e2;
@@ -1919,7 +1953,11 @@ export async function deleteRunnerPhoto(url: string): Promise<string[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const uid = user.user.id;
-  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  // ⚠ Same read-modify-write hazard as uploadRunnerPhoto above: a discarded read error would make
+  // `row` null, the filter would run over [], and this would delete the ENTIRE gallery instead of
+  // the one photo the runner asked to remove.
+  const { data: row, error: readErr } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  if (readErr) throw readErr;
   const photos = (row?.photos ?? []).filter((p: string) => p !== url);
   const { error } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
   if (error) throw error;
@@ -2069,8 +2107,12 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     .from('runners')
     .select('profile_id, tier, bio, specialties, photos, avg_pace_sec_per_km, total_runs, total_km, respond_rate_pct, trainer_certified, online, profiles(name, district, avatar_url)')
     .eq('profile_id', profileId)
-    .single();
+    .maybeSingle();
+  // Same split as fetchRescheduleInfo above: a profile id that does not resolve (retired runner,
+  // bad deep link) is not-found, not a failure, and `runner-profile/[id].tsx` used to print
+  // PostgREST's English straight into a Korean screen.
   if (error) throw error;
+  if (!r) throw new Error(NOT_FOUND);
   const rr = r as any;
   // 가용시간·리뷰는 실패해도 프로필은 뜬다
   const [availRes, revRes] = await Promise.all([
@@ -2373,7 +2415,13 @@ export async function fetchMyName(): Promise<string | null> {
   return data?.name ?? user.user.email?.split('@')[0] ?? null;
 }
 
-export interface RunnerWeekStats { net: number; runs: number; km: number }
+/** ⚠ `runs` and `km` are NULLABLE, and `net` is not — the three are not equally knowable.
+ *  `net` comes straight out of `ledger_items`, so if this function returns at all, the money is
+ *  real. `runs` and `km` need a SECOND read against `runs`, and that read can fail on its own. It
+ *  used to discard its error, which left `km` at its 0 seed and `runCount` unfiltered — so a runner
+ *  whose lookup failed saw 「3회 · 0km · 정산 예정 45,000원」: a real count, real money, and a
+ *  fabricated zero distance. Null means "not known this fetch", which the screen renders as —. */
+export interface RunnerWeekStats { net: number; runs: number | null; km: number | null }
 
 export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   const since = new Date(kstWeekStartMs()).toISOString(); // KST 월요일 시작 — 리더보드와 동일 창
@@ -2387,17 +2435,22 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   // runs = ledger rows that have an actual runs row. En-route cancel compensation (0080
   // record_enroute_cancel_comp) writes a ledger row for a run that never happened — its money
   // belongs in net, but counting it as a run would show "N runs" including a 0km phantom.
-  let km = 0;
-  let runCount = rows.length;
   const ids = rows.map((l: any) => l.booking_id);
-  if (ids.length > 0) {
-    const { data: runsD } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
-    km = (runsD ?? []).reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
-    if (runsD) {
-      const ran = new Set(runsD.map((r: any) => r.booking_id));
-      runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
-    }
+  // No ledger rows at all is a MEASURED zero week, not an unknown — return real zeros.
+  if (ids.length === 0) return { net, runs: 0, km: 0 };
+
+  const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
+  // ⚠ The error is read, not discarded. Without this the catch-all below seeded km at 0 and left
+  // runCount unfiltered, so a failed lookup printed a real run count beside a fabricated 0km.
+  // Both values depend on this read, so both go unknown together; `net` is unaffected because it
+  // came from the ledger rows we already have.
+  if (runsErr || !runsD) {
+    console.warn('[weekStats] runs lookup:', runsErr?.message ?? 'no rows returned');
+    return { net, runs: null, km: null };
   }
+  const km = runsD.reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
+  const ran = new Set(runsD.map((r: any) => r.booking_id));
+  const runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
   return { net, runs: runCount, km: Math.round(km * 10) / 10 };
 }
 
@@ -2426,7 +2479,15 @@ export interface LiveLedgerItem {
   id: string;
   when: string;
   dogName: string;
-  km: number;
+  /** PLANNED km of the booking, and only when a `runs` row proves the run happened.
+   *  null = there is no run to attach a distance to, or we could not establish one — the caller
+   *  omits the km token rather than print a number for a run nobody made. */
+  km: number | null;
+  /** True ONLY when the `runs` lookup succeeded and found nothing for this booking: cancellation
+   *  compensation (0080 record_enroute_cancel_comp · 0085 record_late_cancel_share write a
+   *  ledger row with no run). A FAILED lookup leaves this false with km null — unknown is not
+   *  "cancelled", and a mislabel would tell a runner their completed run was a cancellation. */
+  cancelComp: boolean;
   base: number;
   distancePay: number;
   addonPay: number;
@@ -2439,18 +2500,37 @@ export interface LiveLedgerItem {
 export async function fetchLedger(): Promise<LiveLedgerItem[]> {
   const { data, error } = await supabase
     .from('ledger_items')
-    .select('id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
+    .select('id, booking_id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
-  return (data ?? []).map((l: any) => {
+  const rows = (data ?? []) as any[];
+  // Same 2-step as fetchRunnerWeekStats above, for the same reason and one row lower: a ledger
+  // row does NOT imply a run. record_enroute_cancel_comp (0080) and record_late_cancel_share
+  // (0085) pay cancellation compensation and write NO `runs` row, but `bookings.km` still holds
+  // the PLANNED distance — so the line rendered 「초코 · 5km · 실수령 12,450원」, the runner's own
+  // ledger telling them they ran 5 km on a run that never started. The km belongs to the run,
+  // so it may only be printed when a run exists. (Production 2026-08-20: 0 such rows today —
+  // 8 ledger rows, all with a run. This is armed before it bleeds.)
+  const ids = rows.map((l) => l.booking_id); // ledger_items.booking_id is NOT NULL (0027)
+  let ran: Set<string> | null = null;
+  if (ids.length > 0) {
+    const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id').in('booking_id', ids);
+    // A failed lookup is UNKNOWN, not "no run": leaving `ran` null omits the km token without
+    // claiming a cancellation. The money on the row is already loaded and stays visible.
+    if (runsErr) console.warn('[ledger] runs lookup:', runsErr.message ?? runsErr);
+    else ran = new Set((runsD ?? []).map((r: any) => r.booking_id));
+  }
+  return rows.map((l: any) => {
     const { dateLabel } = kstParts(l.created_at);
     const net = l.base + l.distance_pay + l.addon_pay + l.tip + l.remaining_guarantee - l.platform_fee;
+    const hasRun = ran ? ran.has(l.booking_id) : null;
     return {
       id: l.id,
       when: dateLabel,
       dogName: l.bookings?.dogs?.name ?? '반려견',
-      km: Number(l.bookings?.km ?? 0),
+      km: hasRun === true ? Number(l.bookings?.km ?? 0) : null,
+      cancelComp: hasRun === false,
       base: l.base,
       distancePay: l.distance_pay,
       addonPay: l.addon_pay,
@@ -2539,49 +2619,115 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
 // on owner/meetup. `removeChannel` AWAITS the leave before teardown, so the registry keeps the entry
 // until that resolves; a listener arriving during teardown waits and then opens a fresh channel.
 // Every consumer keeps its poll fallback — nothing here changes what a screen does on an event.
-type SharedWatcher<P> = { listeners: Set<(p: P) => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
+//
+// What a shared channel may tell its screens about itself. Deliberately NARROWER than geo.ts's
+// LiveLinkState: 'denied' there is decided by deniedLike(err) because the owner's map has to say
+// two different sentences (geo.ts:449-450). The topics in this registry (chat / bookings / club
+// chat) act the same way either way — degrade to the poll. What they may NOT do is keep printing
+// 「실시간 연결됨」 over a channel that never joined (chat.tsx did exactly that until 2026-08-20).
+export type ChannelLink = 'connecting' | 'live' | 'error';
+type SharedWatcher<P> = {
+  listeners: Set<(p: P) => void>;
+  links: Set<(s: ChannelLink) => void>;
+  link: ChannelLink;
+  // Has this channel joined since its last failure? Decides retire-vs-wait below — not cosmetic.
+  joined: boolean;
+  ch: ReturnType<typeof supabase.channel>;
+  dropped: boolean;
+  teardown: Promise<void> | null;
+};
 const sharedWatchers = new Map<string, SharedWatcher<any>>();
+// Retire one entry. The map row is deleted only when the leave RESOLVES — deleting it eagerly is
+// the double-subscribe crash this registry exists to prevent (header above): a fresh channel on a
+// topic whose leave is still in flight. Both exits (last listener gone · dead channel) use this.
+function retireShared(topic: string, w: SharedWatcher<any>): void {
+  if (w.teardown) return;
+  w.dropped = true;
+  w.teardown = Promise.resolve(supabase.removeChannel(w.ch))
+    .then(() => undefined, () => undefined)
+    .finally(() => { if (sharedWatchers.get(topic) === w) sharedWatchers.delete(topic); });
+}
 function subscribeShared<P>(
   topic: string,
   attach: (ch: ReturnType<typeof supabase.channel>, emit: (p: P) => void) => ReturnType<typeof supabase.channel>,
   listener: (p: P) => void,
+  onLink?: (s: ChannelLink) => void,
 ): () => void {
   hookTokenRefresh();
   let w = sharedWatchers.get(topic) as SharedWatcher<P> | undefined;
   if (w && w.teardown) {
     let cancelled = false;
     let inner: (() => void) | null = null;
-    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener); });
+    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener, onLink); });
     return () => { cancelled = true; inner?.(); };
   }
   if (!w) {
     const listeners = new Set<(p: P) => void>();
+    const links = new Set<(s: ChannelLink) => void>();
     const ch = attach(
       supabase.channel(topic, REALTIME_PRIVATE),
       (p) => { for (const fn of Array.from(listeners)) fn(p); },
     );
-    w = { listeners, ch, dropped: false, teardown: null };
+    w = { listeners, links, link: 'connecting', joined: false, ch, dropped: false, teardown: null };
     sharedWatchers.set(topic, w);
     const mine = w;
+    const say = (s: ChannelLink) => { mine.link = s; for (const fn of Array.from(mine.links)) fn(s); };
     // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
+    void armRealtime().then(() => {
+      if (mine.dropped) return;
+      // [2026-08-20] subscribe() used to be called with NO callback, so CHANNEL_ERROR and
+      // TIMED_OUT were invisible: the entry stayed in sharedWatchers looking healthy and every
+      // later attach on this topic was handed the same dead channel — leaving the screen and
+      // coming back did NOT help. CHANNEL_ERROR is exactly how a private-channel policy denial
+      // surfaces (geo.ts:447-451 reads it that way for the position channel).
+      mine.ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') { mine.joined = true; say('live'); return; }
+        if (status !== 'CHANNEL_ERROR' && status !== 'TIMED_OUT') return; // CLOSED = our own leave
+        // ⚠ NOT every CHANNEL_ERROR is a dead channel, which is why this retire is conditional.
+        // phoenix pushes an error to EVERY channel when the socket closes
+        // (@supabase/phoenix/assets/js/phoenix/socket.js:547-550 onConnClose → triggerChanError),
+        // and that happens on every backgrounding; it then heals itself on reconnect
+        // (phoenix/channel.js:50-53 — onOpen → if (isErrored()) rejoin()). Retiring on THAT error
+        // would remove the channel, cancel that rejoin, and leave the whole app poll-only after
+        // the first background cycle — a worse bug than the one above.
+        // The two cases separate cleanly: a REFUSED JOIN (policy denial, expired token) is
+        // answered by a server that is right there, so the socket is up and phoenix will retry the
+        // same refused payload forever (channel.js:61-65 — schedule only `if socket.isConnected()`);
+        // a TRANSPORT loss errors with the socket down and repairs itself. So: retire only a
+        // channel that has not joined since its last failure AND failed while connected. A rejoin
+        // that keeps being refused lands here on its next error, which bounds it.
+        const dead = !mine.joined && supabase.realtime.isConnected();
+        mine.joined = false;
+        say('error');
+        if (dead) retireShared(topic, mine);
+      });
+    });
   }
   w.listeners.add(listener);
   const mine = w;
+  // Replay the current link to a late listener — the subscribe() callback above fires once per
+  // channel, so a screen attaching to an already-joined topic would otherwise wait forever for a
+  // status it already missed and render "connecting" over a live channel.
+  if (onLink) { mine.links.add(onLink); onLink(mine.link); }
   return () => {
-    const cur = sharedWatchers.get(topic);
-    if (cur !== mine) return;
-    cur.listeners.delete(listener);
-    if (cur.listeners.size === 0 && !cur.teardown) {
-      cur.dropped = true;
-      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
-        .then(() => undefined, () => undefined)
-        .finally(() => { if (sharedWatchers.get(topic) === cur) sharedWatchers.delete(topic); });
-    }
+    // Detach from MY entry even if it is no longer the registry's (retired above / replaced):
+    // between retire and the leave resolving the channel can still deliver, and an unmounted
+    // screen's setState is not a thing a message may cause.
+    mine.listeners.delete(listener);
+    if (onLink) mine.links.delete(onLink);
+    // Only the topic's current owner may tear it down — a superseded entry must not kill its successor.
+    if (sharedWatchers.get(topic) === mine && mine.listeners.size === 0) retireShared(topic, mine);
   };
 }
 
-export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
+// `onLink` is how the chat header stops lying: the 「● 실시간 연결됨」 line used to be keyed on the
+// FETCH succeeding, so a channel the server refused still printed a live link while the runner's
+// 「5분 늦어요」 went nowhere (chat.tsx, fixed 2026-08-20). Optional — the other consumers of this
+// topic family do not print a link state.
+export function subscribeMessages(
+  threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void,
+  onLink?: (s: ChannelLink) => void,
+): () => void {
   // P0-1 후속(0108): chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
   // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
@@ -2592,6 +2738,7 @@ export function subscribeMessages(threadId: string, uid: string | null, onMsg: (
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
       (payload) => emit(payload.new)),
     (row) => onMsg(mapMsg(row, uid)),
+    onLink,
   );
 }
 
@@ -3861,13 +4008,24 @@ export interface RunReport {
   };
 }
 
-export async function fetchRunReport(bookingId: string): Promise<RunReport> {
+// ZERO ROWS IS A FACT, NOT A FAILURE (2026-08-20). `.single()` collapsed the two: a booking id
+// that resolves to nothing — someone else's uuid (RLS returns 0 rows, never 403), a stale push
+// `ref_id`, a deleted booking — arrived as PostgREST's PGRST116, and the screens rendered its
+// message verbatim: 「JSON object requested, multiple (or no) rows returned」 at a Korean owner —
+// both screens did `setErr(e?.message ?? …)` and printed it (owner/report.tsx:289 and
+// shot/[bid].tsx:533 as of the commit before this one).
+// `maybeSingle()` returns null for 0 rows and STILL THROWS for >1 rows and for every
+// transport/RLS failure, which is the half that must not be lost: if a null swallowed a network
+// error too, an owner on flaky LTE would be told a run that exists cannot be found. Two facts,
+// two return shapes, two sentences on screen.
+export async function fetchRunReportOrNull(bookingId: string): Promise<RunReport | null> {
   const { data, error } = await supabase
     .from('bookings')
     .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes!bookings_route_id_fkey(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) return null;
   const d = data as any;
   const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
   const raw = Array.isArray(d.runs) ? d.runs[0] : d.runs; // unique FK — 어느 형태든 안전하게
@@ -3896,6 +4054,18 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
         }
       : null,
   };
+}
+
+// Throwing form — the contract every caller had before the split above, kept for the two screens
+// whose state machine is keyed on a REJECTION: club/receipt/[bid].tsx:48 and runner/review.tsx:36
+// both do `.then(setReport)` into a `RunReport | null` state, so a silent null would leave
+// receipt's LoadGate at '불러오는 중...' forever — the exact bug its own 2026-08-11 comment
+// records fixing. They keep their (Korean, on-screen) failure copy; the message below is only
+// what they log. Deep-linkable screens use fetchRunReportOrNull and draw the two states apart.
+export async function fetchRunReport(bookingId: string): Promise<RunReport> {
+  const report = await fetchRunReportOrNull(bookingId);
+  if (!report) throw new Error('이 러닝을 찾을 수 없어요');
+  return report;
 }
 
 // 미읽음 알림 수 — 벨 도트의 실근거. head:true라 행은 안 실어오고 count만 받는다.
@@ -3939,7 +4109,10 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
     .from('bookings')
     // club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
     // (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
+    // arrived_at: 러너 도착은 상태 전이가 아니라 타임스탬프라(transition-booking:275-277 — 상태를
+    // 옮기면 보험·정산 기점이 앞당겨진다) status만 읽으면 '오는 중'과 '도착해서 기다리는 중'이
+    // 같은 값이다. 홈이 그 둘을 구분하려면 이 컬럼이 있어야 한다.
+    .select('id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -3967,6 +4140,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
       price: r.total_price,
       status: STATUS_MAP[r.status] ?? 'pending',
       rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
+      arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
       recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
       seriesId: r.series_id ?? null,
       live: true,

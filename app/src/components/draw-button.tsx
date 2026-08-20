@@ -30,8 +30,16 @@ export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' 
 // 셋이 AA 미달이었다: gold 3.82 · blue 3.99 · volt 3.50 (필요 4.5). 지금 값은 전부 재서
 // 여유까지 둔 것이고, 아래 주석의 수치가 그 측정치다. **워시 위의 잉크는 눈으로 고르지 않는다** —
 // 워시는 배경이 밝아 어떤 색이든 '읽히는 것처럼' 보이기 때문에 눈이 가장 잘 속는 조합이다.
+// [contrast 2026-08-20] The coral row was the one ground with no measured pair in its comment,
+// and it was the one that failed: sub #FFD9CE on paper.action (#C6472C) measures 3.70:1 at 15pt
+// (st.d, :232) — under the 4.5 floor, on live text including the owner-home primary CTA's
+// sub-line. Coral is a SATURATED ground, not a 95% wash, so it has no room for a tinted sub:
+// pure white is only 4.84:1 on it, which caps every candidate. paper.wash (#FFF6F4, the coral
+// 95% white wash already in theme.ts:167) measures 4.55:1 — the tint survives, the floor holds,
+// and no new hex enters the palette. Arithmetic is WCAG 2.x relative luminance; the calculator
+// was calibrated against this repo's own recorded value (white on #C6472C = 4.84).
 const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: string; sub: string }> = {
-  coral:  { bg: paper.action, border: paper.action, edge: '#A63A20', ink: '#FFFFFF', sub: '#FFD9CE' },
+  coral:  { bg: paper.action, border: paper.action, edge: '#A63A20', ink: '#FFFFFF', sub: paper.wash },  // 4.84 / 4.55
   paper:  { bg: '#FBF9F4', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },   // 17.9 / 5.5
   gold:   { bg: '#F4EBD3', border: '#E7DAB6',       edge: '#C9AE6A', ink: '#5F4E1C', sub: '#6B5720' },   // 6.8 / 5.9
   blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#456079' },   // 7.6 / 5.8

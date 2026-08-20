@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import {
-  AvailRule, checkSlot, fetchRescheduleInfo, fetchRunnerAvailability,
+  AvailRule, checkSlot, fetchRescheduleInfo, fetchRunnerAvailability, NOT_FOUND,
   requestReschedule, RescheduleInfo, withdrawReschedule,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -34,21 +34,40 @@ export default function Reschedule() {
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const [info, setInfo] = useState<RescheduleInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [rules, setRules] = useState<AvailRule[]>([]);
+  // null = loading · 'error' = load failed — the same three-state idiom slotOk already uses (:46).
+  // [honesty 2026-08-20] This was `AvailRule[]` seeded with `[]`, filled by
+  // `.catch(() => setRules([]))`. A transient availability failure — and the whole loading
+  // window — therefore rendered as 「이 날은 {runner} 러너의 가능 시간이 없어요」 on every day
+  // in the strip (:256). An owner reading that concludes the runner cannot take the new time
+  // and cancels a CONFIRMED booking instead of moving it, which is the 10% fee tier
+  // (`cancelBooking`, src/lib/api.ts:1124). An empty grid must mean the server said empty.
+  const [rules, setRules] = useState<AvailRule[] | null | 'error'>(null);
   const [dayIdx, setDayIdx] = useState(0);
   // null = 확인 중 · 'error' = check failed (availability UNKNOWN — never painted 가능)
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null | 'error'>>({});
   const [picked, setPicked] = useState<{ label: string; start: Date } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Availability load, split out because it is the only thing the retry button re-runs.
+  const loadRules = (runnerId: string) => {
+    setRules(null);
+    fetchRunnerAvailability(runnerId).then(setRules).catch(() => setRules('error'));
+  };
+
   const load = () => {
     if (!bid) { setErr('예약 정보가 없어요'); return; }
     fetchRescheduleInfo(bid)
       .then((i) => {
         setInfo(i);
-        if (i.runnerId) fetchRunnerAvailability(i.runnerId).then(setRules).catch(() => setRules([]));
+        // A confirmed booking always carries a runner. If one is somehow missing there is no
+        // availability to read at all — say that instead of spinning on a fetch we never fire.
+        if (i.runnerId) loadRules(i.runnerId); else setRules('error');
       })
-      .catch((e) => setErr(e?.message ?? '불러오기 실패'));
+      // Never render `e.message`: PostgREST's English reached this screen verbatim. Not-found and
+      // failure are different states — only the second one can be retried.
+      .catch((e) => setErr(e?.message === NOT_FOUND
+        ? '이 예약을 찾을 수 없어요'
+        : '예약 정보를 불러오지 못했어요'));
   };
   useEffect(load, [bid]);
 
@@ -62,7 +81,9 @@ export default function Reschedule() {
     const wd = day.date.getDay();
     const out: { key: string; label: string; start: Date }[] = [];
     const minStart = Date.now() + 2 * 3600_000; // 최소 2시간 통보 (예약 규칙과 동일)
-    rules.filter((r) => r.weekday === wd).forEach((r) => {
+    // Loading ('null') and failure ('error') produce no slots, but they are NOT an empty
+    // availability — the render below tells those three apart before it draws anything.
+    (Array.isArray(rules) ? rules : []).filter((r) => r.weekday === wd).forEach((r) => {
       for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
         const start = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), Math.floor(m / 60), m % 60);
         if (start.getTime() < minStart) continue;
@@ -137,6 +158,19 @@ export default function Reschedule() {
 
   const curSlotIso = info ? new Date(info.scheduledAtIso).toISOString() : null;
 
+  // [honesty 2026-08-20] The pre-match arm read `info.status === 'pending' || 'matching'`.
+  // `pending` is DISPLAY vocabulary: fetchRescheduleInfo hands back `bookings.status` raw
+  // (src/lib/api.ts:1147) and only STATUS_MAP (api.ts:732-735) flattens payment_hold ·
+  // matching · runner_pending into that one badge word. No row can hold it, so the comparison
+  // was dead and `runner_pending` — nominated runner, no answer yet — fell to the else and got
+  // 「진행 중이거나 종료된 예약은 변경할 수 없어요」, false in both halves. The outcome (no
+  // reschedule until a runner is confirmed) was always right; only the sentence lied. Gate on
+  // the raw status, and name which of the two waits the owner is actually in.
+  const preMatch = info?.status === 'matching' || info?.status === 'runner_pending';
+  const preMatchLine = info?.status === 'runner_pending'
+    ? '지명한 러너의 수락을 기다리는 중이에요'
+    : '아직 러너 매칭 전이에요';
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 140 }}>
@@ -152,8 +186,8 @@ export default function Reschedule() {
         {info && info.status !== 'confirmed' && (
           <View style={s.notice}>
             <Text style={s.noticeText}>
-              {info.status === 'pending' || info.status === 'matching'
-                ? '아직 러너 매칭 전이에요 — 러너가 확정되면\n그 러너의 가능 시간에서 변경할 수 있어요'
+              {preMatch
+                ? `${preMatchLine} — 러너가 확정되면\n그 러너의 가능 시간에서 변경할 수 있어요`
                 : '진행 중이거나 종료된 예약은 변경할 수 없어요'}
             </Text>
             <Pressable onPress={() => router.back()} style={s.noticeBtn}>
@@ -203,7 +237,25 @@ export default function Reschedule() {
             </ScrollView>
 
             {/* 슬롯 그리드 — 이 러너의 실가용 시간만 */}
-            {daySlots.length === 0 ? (
+            {/* Three states come before the grid because they mean three different things to
+                the owner: a failed load is not an empty calendar, nor is a load still in flight. */}
+            {rules === 'error' ? (
+              <View style={s.notice}>
+                <Text style={s.noticeText}>가능 시간을 불러오지 못했어요</Text>
+                <Pressable
+                  onPress={() => (info.runnerId ? loadRules(info.runnerId) : load())}
+                  style={s.noticeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="다시 시도"
+                >
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+                </Pressable>
+              </View>
+            ) : rules === null ? (
+              <View style={s.notice}>
+                <Text style={s.noticeText}>가능 시간을 불러오는 중...</Text>
+              </View>
+            ) : daySlots.length === 0 ? (
               <View style={s.notice}>
                 <Text style={s.noticeText}>이 날은 {info.runnerName ?? '러너'} 러너의 가능 시간이 없어요</Text>
               </View>

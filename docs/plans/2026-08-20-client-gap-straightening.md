@@ -28,8 +28,13 @@ at the gate before implementation.
   refactors, not against bug fixes. Sean's gate approval = Sean's word for these.
 - **P4.** The known handoff-CTA off-by-one stays QUEUED (it has its own pending ruling); nothing
   here preempts it.
-- **P5.** Everything lands behind the four gates (tsc · check-rpc · route-native-imports · lint=6),
-  sim-verified where verifiable, honestly marked unverified where hardware is required.
+- **P5.** Everything lands behind the **five** gates (tsc · check-rpc · route-native-imports ·
+  **check-embed-fk** · lint=6) — corrected 2026-08-20 evening: this plan itself was written before
+  `check-embed-fk.mjs` existed (it was added by E1, in this same plan), so it shipped a gate list
+  that omitted its own gate. A peer client session caught it after running only four and believing
+  it was done. Both halves of the lesson are the same one this repo keeps relearning: a written
+  list of gates goes stale the moment a gate is added, and the artifact looked current.
+  Work is sim-verified where verifiable, and honestly marked unverified where hardware is required.
 
 ---
 
@@ -189,6 +194,94 @@ at the end of implementation) and are marked unverified-on-sim in their commits.
 **Frozen-zone approvals are itemized at the final gate** (CEO voice finding 6): B1, B2, B6,
 F11 each get their own line with diff shape — never a workstream-level nod.
 
+### 🟠 Q10 — react-doctor's pre-commit hook CANNOT BLOCK, and it silently skipped this session's
+### commits. Corrected twice; read the correction, not the first draft.
+
+Sean's standing order is react-doctor on every UI build.
+
+⚠ **MY FIRST WRITE-UP OF THIS WAS WRONG and is corrected here rather than deleted, because the
+wrong version is instructive.** I wrote that the hook "has been a no-op — did not scan" and that
+repairing it would block the whole fleet. Two peer sessions tested the parts I had inferred:
+
+**What is TRUE (each measured, by me unless noted):**
+1. **The path fallthrough is real.** `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor`
+   from the REPO ROOT; react-doctor lives at `app/node_modules/.bin/` (v0.9.12). The test always fails.
+2. **But the `npx --yes react-doctor@latest` fallback at :21 DOES scan.** The other client session saw
+   it scan their commit; I reproduced it here — staged one probe `.tsx`, ran the hook's exact npx
+   command from the root, got `Scanning 1 staged files...`. **So it is not a dead gate, and it must
+   not be described as one — the next reader would stop looking at real findings.**
+3. **The hook is nevertheless structurally incapable of BLOCKING.** Found by the marketing session,
+   verified here: `grep -n exit .githooks/pre-commit` returns **nothing**. The failure branch does
+   `cat` → `rm` → `printf >&2` and falls off the end; a script exits with its last command's status
+   and `printf` returns 0. So even a scan reporting errors lets the commit through. It reports; it
+   never gates.
+4. **The config error IS real but CONDITIONAL, and it hit every commit of this session.** *"Cannot
+   scan staged files while configuration differs between the index and worktree: app.json,
+   app/app.json, … tsconfig.json"* printed on every commit I made tonight, so **this session's ~20
+   changed React files went unscanned** even though the hook is capable of scanning.
+5. **⚠ THE TRIGGER IS OPEN. Two candidates have been proposed and BOTH are falsified.** This is the
+   third revision of this item; it says "we don't know" on purpose, because a confident wrong
+   trigger is worse than an open question here — it tells the next reader the gate is fine in
+   *their* situation when it may not be.
+   - **Falsified candidate A — "absent `app/node_modules`".** I claimed this as measured. It was a
+     bad experiment: my A/B removed the symlink, which varied TWO things at once (deps became
+     unresolvable *and* `node_modules` stopped being a symlink), so it cannot separate them.
+     Directly falsified by the other client session, which hit the identical error in a worktree
+     where `app/node_modules` was present and working — `app/node_modules/.bin/tsc` had typechecked
+     that same tree seconds earlier and all five gates passed.
+   - **Falsified candidate B — "the hook never scans".** See point 2 above.
+   - **Unconfirmed hypothesis, recorded as a lead and NOT as a finding:** react-doctor resolves
+     through `node_modules`, and when that is a symlink its realpath escapes the worktree into
+     `/Users/sean/dev/daengrun/app/`, straddling two git trees whose index states genuinely differ.
+     Fits every observation so far (both worktree-with-symlink sessions fail; the main checkout with
+     a real `node_modules` succeeds) but **nobody has tested it.**
+   - **The error message is misleading on its face and should not be read literally.** The other
+     session checked every path it names: the four root-level ones (`app.json`, `package.json`,
+     `tsconfig.json`, `eslint.config.mjs`) do not exist at all, and the four `app/`-level ones are
+     tracked and unmodified. Nothing is staged-vs-worktree divergent. It is listing every config
+     path it PROBED, not a real diff.
+   **Practical rule regardless of trigger: do not rely on the hook for react-doctor coverage. Run it
+   manually — from `app/`, `./node_modules/.bin/react-doctor <dir>` works even in a symlinked
+   worktree** (confirmed by both client sessions). It takes a DIRECTORY, not a file list.
+
+**Consequence for the fleet-blocking fear in my first draft: it was unfounded.** Because there is no
+`exit 1`, repairing the path cannot block anyone. It would convert "sometimes silently skips" into
+"scans and reports" — strictly better, zero blocking risk.
+
+**Still not fixed here, deliberately.** A hook that works being rewritten on a wrong diagnosis is its
+own defect, and I have now been wrong about this once already. Fixing the path without first
+identifying what triggers the config error would be a change made on an unproven theory, to a shared
+version-controlled file, with three sessions committing against it and Sean asleep.
+
+**Sean's call, three separable parts (only the third is a judgement):**
+1. **Path lookup** — add `app/node_modules/.bin/react-doctor` to the chain. Safe; cannot block.
+   Should follow, not precede, identifying the config-error trigger.
+2. **The missing `exit 1`** — this is the change that would make it an actual gate.
+3. **`--blocking warning` vs `error`** — only becomes live once (2) lands, and this is the one that
+   meets the backlog: a manual run from `app/` (`./node_modules/.bin/react-doctor .` — it takes a
+   DIRECTORY, not a file list) reports **355 issues: 7 bug errors, 1 security error, 347 warnings**,
+   essentially all pre-existing. At `warning` that backlog would block every commit until cleared.
+
+**Adjacent, measured by the marketing session and worth recording so nobody over-generalises:**
+`core.hooksPath` = `/Users/sean/dev/daengrun/.githooks`, which exists and holds both `pre-commit` and
+`pre-push`, in the common git dir so every worktree inherits it. **The migration-number pre-push guard
+is genuinely armed** — this is not a repeat of the 2026-08-15 "five worktrees pointed at a disposable
+tree" failure. Do not generalise from react-doctor to the migration guard.
+
+**Not introduced tonight** — checked by inspection, not assumed: every flagged site sits outside
+this session's diffs (`alerts.tsx`, `shot/[bid].tsx`, `owner/fitness.tsx`, `club-ui.tsx`,
+`tabswipe.tsx`, `theme.ts`), and the two flags inside files I did touch are on pre-existing lines —
+`index.tsx:25` is the `start` declaration (the role-select write, unchanged by me) and
+`owner/radar.tsx:141` is the pre-existing accept-detection poll effect, not the module-scope table I
+added above it. ⚠ Stated honestly: I did NOT run a baseline scan at the pre-session commit, so this
+is inspection, not a diffed count.
+
+**One of the 8 errors deserves its own look regardless of the gate decision:** the single *security*
+error is `react-doctor/supabase-client-owned-authz-field` at `app/index.tsx:25` — the client writing
+`profiles.role`, an authorization field. That is the app's actual design (role select is client-side)
+and 0111 revoked the dangerous client writes, so this is probably accepted-by-design — but it is the
+signup path, it is the only security-category finding in the app, and nobody has ruled on it.
+
 ### QUEUE additions (CEO phase)
 - Q7: E2's sturdier server contract — a closure/`is_loop` flag on `routes_public` so the
   client never re-derives geometry truth from a trimmed trace. (Client fix stands either way.)
@@ -264,7 +357,7 @@ with a home exit (A5/A6).
 HOUR 1: E1 (one line + gate script) — nomination lives again. HOUR 2: A1+F2+E3 (safety + money
 truth). HOUR 3-4: E2, B1, C1/C2, E4. HOUR 5-6: state arms (B2-B7), realtime (D1-D4). HOUR 6+:
 honesty sweep (F*), structure (A2-A6), long tail. Order is blast-radius-ascending within
-severity; every hour ends commit-clean behind the four gates.
+severity; every hour ends commit-clean behind the five gates.
 
 ## 0F. Mode selection
 SELECTIVE EXPANSION (per /autoplan override) — confirmed coherent with the directive: hold the
@@ -507,3 +600,94 @@ voice argues a materially different arc.
 | 25 | Design | Error-strip copy grammar + placement + ground rules mandated (Pass 4) | MECH | P1+P5 | 20 strips by one grammar, not 15 dialects | per-screen improvisation |
 | 26 | Design | Retry-in-flight uses PaperBtn busy; incident-arm's own errors fall to poll-strip | MECH | P1 | two new states the original plan forgot | unspecified retries |
 | 27 | Design | incident_review arc specified (확인이 필요한 상황이에요 · truth without diagnosis · 안심 센터 primary · no cancel · no unpolled time promise) | MECH | honesty laws | the heavy moment gets a spec, not a vibe | generic spinner/alert |
+
+---
+
+# ENDING STATE — client session `exciting-rosalind-e6ac13`, night of 2026-08-20
+
+> 📄 **COMPANION RECORD — this file is only half the night.** A second client session worked `app/`
+> in parallel; its record is **`docs/handoff-client.md`** and it owns that session's work (owner-home
+> v3, `draw-button.tsx`, `home-hero.tsx`, the account-deletion sheet, the handoff-CTA plumbing).
+> **This file owns mine. Neither is complete alone**, and they cross-link rather than restate each
+> other so the two cannot drift. Both were current at trunk tip when written.
+
+> 🔴 **THE PILOT BLOCKER IS UNCHANGED BY EVERYTHING BELOW, and it is not ours to move.**
+> **Nothing in this app has ever run on hardware.** Roughly thirty defects were fixed tonight and
+> five wrong claims were caught, and none of that changes the one fact that decides whether the
+> Banpo pilot can start: there is no TestFlight build, and there cannot be one without Sean's Apple
+> 2FA. A green tree is not a working app. Everything in "What is NOT verified" below exists because
+> of this, and the first real device session can invalidate any of it.
+
+Trunk tip when this was written: **`0760445`**. All five gates verified by me at that commit, not
+relayed: tsc ✅ · check-rpc ✅ · check-route-native-imports (56 routes) ✅ · check-embed-fk ✅ ·
+lint **270 problems / 6 errors** — the 6 are the untouched baseline, and total problems are DOWN
+from 279 at session start. Nothing of mine is unpushed. No file is claimed by me.
+
+## What shipped (~30 defects, six pushes)
+
+**Criticals.** Nomination had never worked in production — `REQ_SELECT` carried a bare
+`routes(name)` and `bookings` has two FKs to `routes`, so PostgREST returned zero rows and the
+directed-inbox leg swallowed the error by design. SOS could resolve the wrong party (un-persisted
+`session.role` + Live Activity cold links) and silently tell a runner holding a dog that no run was
+in progress. Checkout printed 「취소 수수료 없음」 against the real 10%/50% ladder. A ₩3,900 라이브캠
+add-on was purchasable with no transport code. Runner payout estimates used the owner's base fare —
+8% low on the accept screen. `isOfferable` would have emptied a town's catalog on the first route
+promotion.
+
+**Journey flow.** The handoff push landed the runner on the request inbox instead of the meetup
+screen. A searching booking had no management path anywhere in the app. `/owner/live` was a trap on
+cold entry. The radar stranded forever on four statuses. The meetup cancel guard was armed one line
+after its own `await`.
+
+**Incident states.** Both custody screens ran the ceremony backwards during an incident (seals
+un-drawing 2/2 → 1/2) and offered buttons the server would refuse; the live screen never left,
+clock counting forever under a network-trouble sentence; the runner was never told at all.
+
+**Realtime + honesty.** A dead channel stayed cached as healthy forever. Chat claimed a connection
+it never verified and had no fallback. Home's hero had no refresh path. Seven screens rendered
+failures as facts. Coral CTA contrast was 3.70:1 (now 4.55 via an existing token).
+
+**`tabswipe`** — a stale spring callback could blank the *incoming* screen's snapshot on a fast
+double tab change. No gate in this repo can see it; it needs two fast swipes on hardware.
+
+## What is NOT verified — read this before trusting anything above
+
+Simulator-verified: the request-screen fee ladder, the removed add-on, the SOS card contrast, the
+schedule sheet opening for a searching booking and its honest runner card.
+**Everything else is code + gates only.** Specifically unverified and needing a device: all push
+routing, the Live Activity cold-launch paths, every realtime behaviour under real network churn,
+KST composition on a non-KST device, and the tabswipe double-swipe. Nothing here has ever run on
+hardware.
+
+## Corrections made against already-committed work (five, both directions)
+
+Recorded because none were caught by any gate — each was caught by reading the thing rather than
+the report about the thing. My own: the react-doctor "absent node_modules" trigger (bad A/B,
+falsified by a peer's counterexample); "these flags share one shape" (three sites, three
+structures); clearing analyzer findings I had not read; and my own comment on my own fix claiming a
+teardown covers a callback it cannot reach. From the peer: their gate count (four → five) and their
+confidence that react-doctor was scanning.
+
+⚠ **The analyzer tally is the durable lesson:** on `effect-needs-cleanup`, the one finding that was
+REAL is the one both sessions were most confident was noise, and the two we would have bet were
+real were false. Neither of us could sort them by intuition. Read every flag.
+
+## Waiting on Sean — three, nothing else blocks
+
+1. **Handoff-CTA A/B** — two sessions independently reserved this for his ruling on the same day.
+   The plumbing half is landed (`arrived_at` threaded through, `goState` deliberately untouched),
+   so the fix is one gate change once he answers.
+2. **Coral CTA ground** (`§0-duodetricies`) — 4.55 is the ceiling-bound maximum on the current
+   ground; darkening it to the existing `edge` token buys real headroom but visibly deepens a CTA
+   he approved by number.
+3. **The pre-commit hook** — `grep -n exit .githooks/pre-commit` returns NOTHING, so it can never
+   block; every react-doctor result is advisory and manual runs are the real gate. Its config-error
+   trigger is **OPEN** (two candidates falsified). **Nobody should touch it until the trigger is
+   known** — a working hook rewritten on a wrong diagnosis is its own defect.
+
+## Next, if nobody redirects
+
+Tranche 3 of the table above: the remaining honesty long tail, `A5` (+not-found), `A6` (PGRST116 →
+honest not-found), `B8`–`B10`, `E5`–`E7`, `E9`, and the one unadjudicated analyzer flag
+(`club-ui.tsx:276`). ⚠ `fitness.tsx:151` is also unadjudicated and is DO-NOT-REFACTOR — an
+analyzer flag is not authority to open a frozen file.

@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandMark } from '../../src/components/brandmark';
@@ -12,7 +12,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -141,7 +141,18 @@ export default function OwnerHome() {
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
   const [bookingsErr, setBookingsErr] = useState(false);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
-  const loadBookings = useCallback(() => {
+  // [realtime 2026-08-20] 이 로드는 **직렬화**된다 — 트리거가 하나(포커스)에서 셋으로 늘었기
+  // 때문이다: 포커스 · bookings UPDATE 실시간 · 앱 복귀. 미트업에서 홈으로 돌아오는 순간 러너의
+  // 전이가 도착하면 두 요청이 같은 틱에 뜨고, 응답이 순서를 바꿔 도착하면 **먼저 뜬 요청이 나중에
+  // 착륙해 새 상태를 덮는다** — 히어로가 한 전이 뒤처지는, 이 변경이 없애려는 바로 그 증상.
+  // 비행 중 트리거는 버리지 않고 `again`으로 접어 뒀다가 착륙 직후 한 번 다시 돈다: 버리면
+  // 다음 내비게이션까지 히어로가 그 자리에 멈춘다 (실시간 이벤트는 페이로드를 싣지 않으므로
+  // 흘려보낸 이벤트를 되찾을 다른 경로가 없다).
+  const bkFlight = useRef(false);
+  const bkAgain = useRef(false);
+  const loadBookings = useCallback(function run() {
+    if (bkFlight.current) { bkAgain.current = true; return; }
+    bkFlight.current = true;
     setBookingsErr(false);
     fetchMyBookings()
       .then((bs) => {
@@ -166,9 +177,15 @@ export default function OwnerHome() {
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
         setBookingsLoaded(true);
       })
-      .catch((e) => { console.warn('[home] bookings:', e?.message ?? e); setBookingsErr(true); }); // 직전 실값은 유지
+      .catch((e) => { console.warn('[home] bookings:', e?.message ?? e); setBookingsErr(true); }) // 직전 실값은 유지
+      .finally(() => {
+        bkFlight.current = false;
+        if (bkAgain.current) { bkAgain.current = false; run(); }
+      });
   }, []);
-  useFocusEffect(useCallback(() => {
+  // 포커스 로드 묶음. 포커스와 **앱 복귀**가 같은 목록을 돌아야 하므로 한 자리에 둔다 —
+  // 두 벌로 갈라 두면 한쪽에만 새 로드가 붙는 날 조용히 어긋난다.
+  const loadAll = useCallback(() => {
     loadBookings();
     loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
@@ -184,7 +201,40 @@ export default function OwnerHome() {
     fetchRewardBeacon()
       .then((b) => { setBeacon(b); setBeaconLoaded(true); })
       .catch((e) => console.warn('[home] beacon:', e?.message ?? e));
-  }, [loadBookings, loadFitness]));
+  }, [loadBookings, loadFitness]);
+
+  // 홈이 포커스를 쥐고 있는가 — 아래 AppState 리스너의 게이트. Expo Router는 이전 화면을 마운트한
+  // 채로 두므로 이 화면의 리스너는 유저가 미트업/라이브에 있는 동안에도 살아 있다. 이 ref가 없으면
+  // 앱 복귀 한 번에 스택에 쌓인 홈까지 전부 재로드한다.
+  const focused = useRef(false);
+  useFocusEffect(useCallback(() => {
+    focused.current = true;
+    loadAll();
+    return () => { focused.current = false; };
+  }, [loadAll]));
+
+  // [resume 2026-08-20] 홈은 라이브 상태를 그리는 화면인데 갱신 경로가 useFocusEffect **하나**였다.
+  // useFocusEffect는 내비게이션 포커스/블러에만 돈다 — 백그라운드는 포커스된 화면을 블러하지
+  // 않으므로 앱을 내렸다 올려도 다시 돌지 않는다. 그래서 홈에서 앱을 내려 두면 러너가
+  // confirmed → runner_enroute → picked_up 으로 움직이는 동안 히어로는 내리기 직전 상태를 계속
+  // 인쇄한다. 실측(전수 grep): AppState는 앱 전체에서 두 파일 — runner/run.tsx:109 ·
+  // onboard/runner.tsx:44 — 에만 있었고 둘 다 예약 화면이 아니다.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && focused.current) loadAll(); });
+    return () => sub.remove();
+  }, [loadAll]);
+
+  // [realtime 2026-08-20] 실예약이 있는 동안 그 예약의 UPDATE를 듣는다 (없으면 채널을 열지 않는다).
+  // 위 두 경로는 여전히 **이벤트가 아니라 유저 행동**에 묶여 있다: 보호자가 홈에 앉아 있는 동안
+  // 러너가 상태를 넘기면 아무것도 다시 읽지 않는다 — 러너가 문 앞에 왔는데 코랄 CTA가 안 뜨는
+  // 상태가 그것이다. 토픽은 미트업·레이더가 쓰는 것과 같은 `bk-<id>`이고, 공유 레지스트리가
+  // 토픽당 채널 1개를 보장하므로(api.ts subscribeShared) 화면이 겹쳐도 채널은 늘지 않는다.
+  // 콜백은 위의 직렬화된 loadBookings — 포커스 로드와 겹쳐도 두 번 뜨지 않는다.
+  const liveId = liveNext?.id ?? null;
+  useEffect(() => {
+    if (!liveId) return;
+    return subscribeBooking(liveId, loadBookings);
+  }, [liveId, loadBookings]);
 
   // D-day — 실 scheduled_at 기준. 값이 없으면 null → 라벨 자체를 안 그린다 (가짜 카운트다운 금지).
   // 0 = 오늘.

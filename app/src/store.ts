@@ -185,6 +185,13 @@ export interface Booking {
   matched?: boolean; // 러너 확정 여부 (live 전용)
   runnerProfileId?: string | null; // 실러너 uuid — 다시 예약 시 지명 프리필
   rawStatus?: string; // 서버 원상태(enum 원문) — 표시 어휘가 뭉갠 구분(runner_enroute 등)을 액션 게이트가 쓴다
+  // 러너 도착 시각 (0060 bookings.arrived_at). null = 아직 도착 보고 없음.
+  // ⚠ 도착은 '상태'가 아니라 타임스탬프다 — 서버가 일부러 그렇게 뒀다 (transition-booking:275-277:
+  // 상태를 옮기면 보험·정산 기점이 앞당겨진다). 그래서 rawStatus만으로는 '오는 중'과 '도착해서
+  // 기다리는 중'을 구분할 수 없고, 이 필드가 그 구분의 유일한 근거다.
+  // 현재 이 값을 읽는 게이트는 없다 — 홈의 인계 CTA 판정은 Sean의 재정(A/B) 대기 중이다:
+  // docs/decisions/handoff-cta-gating.md. 두 답 모두 이 필드를 필요로 해서 배선만 먼저 깔아둔다.
+  arrivedAt?: string | null;
   clubSessionId?: string | null; // 클럽 위탁 예약 (0037 bookings.club_session_id). 마켓플레이스
   // 취소 사다리가 적용되지 않는 예약 — 취소는 클럽 세션 화면의 전용 출구로 가야 한다
   // (서버도 cancel_owner에서 거부한다; 이 필드는 화면이 죽은 버튼을 그리지 않기 위한 것)

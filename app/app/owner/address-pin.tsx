@@ -170,7 +170,17 @@ export default function AddressPin() {
         {resolving ? (
           <Text style={s.bannerStatus}>주소 위치 찾는 중…</Text>
         ) : bottomed ? (
-          <Text style={s.bannerStatus}>지도를 움직여 픽업 위치에 핀을 맞춰주세요</Text>
+          /* [honesty 2026-08-20] `bottomed` means the whole chain missed: geocode said
+             unavailable AND one-shot GPS returned nothing, so the camera is sitting on the
+             BANPO constant (:23) — a place the user never gave us. The banner said only
+             "지도를 움직여…", so a fallback centre was indistinguishable from a located address,
+             and on this screen the pin IS the saved truth (header note, :14-16): a confirmed
+             pin can be kilometres from the address printed one line above. Name the default;
+             the instruction line stays because it is still what the user has to do. */
+          <>
+            <Text style={s.bannerStatus}>주소 위치를 찾지 못했어요 — 반포한강공원을 기본 위치로 보여주고 있어요</Text>
+            <Text style={s.bannerStatus}>지도를 움직여 픽업 위치에 핀을 맞춰주세요</Text>
+          </>
         ) : null}
       </View>
 

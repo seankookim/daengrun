@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchBookingAddress, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
@@ -57,6 +57,12 @@ interface NaverMapHandle {
 // coral progress fill (LIVE = watch). Retired: rounded chrome, opacity press/busy paints
 // (labels already swap), display font on the sheet button (budget = main CTA once).
 // Logic frozen: tracking singleton, settle retry loop, overrun ceiling, Live Activity.
+//
+// [2026-08-20 booking watch] The screen reads the BOOKING's status as well now (25s poll,
+// foreground only) and the ONLY thing it drives is one banner — see the 예약 상태 워치 section
+// above startRun for the measured failure it explains. Everything in the frozen list stays
+// frozen: an incident does not stop tracking here, and the server is what refuses the write
+// (0083_run_end_flow.sql:290) and the settlement (0083:900).
 
 const fmt = (sec: number) =>
   `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -897,6 +903,46 @@ export default function ActiveRun() {
   const [endBusy, setEndBusy] = useState(false);
   const canSubmitNote = conditionNote.trim().length > 0;
 
+  // ---------- 예약 상태 워치 — 읽기 전용 배너 하나 (맨 뒤에 붙인다) ----------
+  // 이 화면은 예약이 자기 발밑에서 바뀔 수 있다는 사실을 몰랐다. 상태를 읽는 자리가 딱 하나
+  // 있었는데(routeNote의 `routeGeo?.status`, :505) 그건 **코스** 라이프사이클이고, 예약 상태는
+  // 한 번도 읽지 않았다. 서버에서 `active → incident_review`는 합법 전이다
+  // (0066_enroute_cancel.sql:54). 운영이 사건을 여는 순간 러너 쪽에서 세 가지가 조용히 깨진다:
+  //   · saveRunTrace의 UPDATE가 _guard_run_cols에 막힌다 — 부킹이 incident_review면
+  //     run_frozen_after_settlement (0083_run_end_flow.sql:290). 60초 주기 저장은 계속 실패하고
+  //     saveLag 스트립만 뜬다.
+  //   · 종료하면 settle이 not_active로 400을 낸다 (0083:900) — 이유 없는 재시도 루프.
+  //   · 그동안 화면도 라이브 액티비티도 아무 일 없다는 듯 '러닝 중'이라고 말한다.
+  // 여기서 하는 일은 **말하는 것뿐**이다: 추적을 멈추지 않고, 종료·천장·LA·정산에 손대지 않는다
+  // (동결 구역). 그 셋은 서버가 이미 자기 방식으로 막고 있고, 러너에게 없던 것은 설명이다.
+  // 25초 폴링인 이유: 이건 초 단위로 움직이는 값이 아니라 사람이 여는 케이스다. 포그라운드일
+  // 때만 돌고 복귀 즉시 한 번 확인한다 — 백그라운드 러닝 중에 네트워크를 깨우지 않는다.
+  // ⚠ 폴링 실패는 배너를 그리지 않는다. 배너는 '사건이 열렸다'는 **긍정 주장**이라 모르는 상태로
+  // 띄울 수 없고, 배너의 부재는 아무것도 주장하지 않는다. 이 패널은 이미 스트립 넷이 코랄 예산을
+  // 두고 다투는 자리(:1012)라, 다섯 번째 실패 스트립은 정작 돈이 걸린 추적 실패에서 코랄을 뺏는다.
+  // 배너가 가리키는 예약 id를 상태에 같이 싣는다 — 채팅 문은 **이 배너가 말한 그 예약**으로만
+  // 열려야 하고, runnerJob.bookingId는 정산 성공 시 null이 되는 가변 모듈 값이다 (:756).
+  const [bookingWatch, setBookingWatch] = useState<{ bid: string; status: string } | null>(null);
+  useEffect(() => {
+    // infoStatus === 'ready'가 곧 "runnerJob.bookingId가 해소됐다"의 신호다 (:366과 같은 전제).
+    if (infoStatus !== 'ready' || !appActive) return;
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    let alive = true;
+    const check = () => {
+      fetchBookingStatus(bid)
+        .then((st) => { if (alive) setBookingWatch({ bid, status: st }); })
+        .catch((e) => { console.warn('[run] booking watch:', e?.message ?? e); });
+    };
+    check();
+    const id = setInterval(check, 25_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [infoStatus, appActive]);
+  // rawStatus 그대로 본다 — STATUS_MAP의 표시 어휘는 incident_review를 뭉개서 이 사실 자체를
+  // 지운다 (api.ts). 'completed'는 여기서 말하지 않는다: 그건 정산이 이미 끝났다는 뜻이고,
+  // 정산 실패 알림이 이미 그 문장을 들고 있다 (:767 "'이미 정산됐다'고 하면 정산은 끝난 거예요").
+  const incidentBid = bookingWatch?.status === 'incident_review' ? bookingWatch.bid : null;
+
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
     setRationale(false);
@@ -967,8 +1013,13 @@ export default function ActiveRun() {
   // (추적 상태 · 저장 지연 · 픽업→입구 안내 · 코스 고지). 넷 다 코랄이면 지금 급한 게
   // 무엇인지가 사라진다 — 심각도 순으로 맨 위 하나만 코랄을 갖고, 나머지는 중립 잉크로
   // **같은 문장을** 말한다. 문장·재시도 액션·표시 여부는 그대로다: 실패는 여전히 실패로 보인다.
-  const coralOwner: 'block' | 'saveLag' | 'guide' | 'route' | null =
-    strip ? 'block' : saveLag ? 'saveLag' : guide?.warn ? 'guide' : routeNote?.warn ? 'route' : null;
+  // [2026-08-20] 인시던트 배너가 체인에 **두 번째**로 들어간다. 첫째가 아닌 이유: blockStrip은
+  // 지금 이 순간 러너가 손으로 고칠 수 있는 실패(권한·천장·예약 컨텍스트)이고, 인시던트는
+  // 러너가 고칠 수 없는 사실이다 — 코랄은 '지금 뭘 해라'를 가리킨다. 그리고 blockStrip에는
+  // 중립 변형이 아예 없어서(:1209 무조건 코랄) 인시던트를 위로 올리면 그 스트립에 손을 대야 한다.
+  // 둘이 동시에 뜨면 인시던트는 같은 문장을 중립 잉크로 말한다 — 사라지지 않는다.
+  const coralOwner: 'block' | 'incident' | 'saveLag' | 'guide' | 'route' | null =
+    strip ? 'block' : incidentBid ? 'incident' : saveLag ? 'saveLag' : guide?.warn ? 'guide' : routeNote?.warn ? 'route' : null;
 
   return (
     <View style={s.root}>
@@ -1165,9 +1216,42 @@ export default function ActiveRun() {
             )}
           </View>
         )}
+        {/* 예약 확인(incident_review) 배너 — 이 화면이 예약 상태를 읽는 유일한 결과물이고, 하는
+            일은 말하는 것뿐이다 (추적·정산·천장·LA 불가침). 문장 순서는 **일어난 일 → 계속되는 일**:
+            먼저 계속되는 일을 말하지 않으면 러너는 기록이 멈춘 줄 알고 스스로 종료해버린다.
+            🔴 카피 한 곳을 브리프의 원문에서 바꿨다: '러닝 기록은 계속 **저장**돼요'는 이 상태에서
+            거짓이다 — 부킹이 incident_review면 saveRunTrace의 UPDATE를 _guard_run_cols가 막는다
+            (0083_run_end_flow.sql:290, run_frozen_after_settlement). 서버 저장은 실제로 멈추고,
+            계속되는 것은 **화면의 누적**이다 (정산에 실려 갈 actual_km도 이 로컬 값이다, :744).
+            그래서 '계속 쌓여요'로 적는다 — 러너가 확인할 수 있는 사실만 말한다. 저장이 멈춘 사실은
+            바로 아래 saveLag 스트립이 자기 문장으로 말한다 (한 화면이 스스로와 모순되지 않게).
+            러닝 전에는 가운데 절이 빠진다: 아직 아무것도 기록되지 않는데 '쌓여요'라고 하면
+            그것도 지어낸 문장이다. 탭 = 이 예약의 채팅 (owner/live:769 '채팅으로 확인'과 같은 문). */}
+        {incidentBid && (
+          <Pressable
+            onPress={() => router.push({ pathname: '/chat', params: { bid: incidentBid } })}
+            style={[s.failStrip, coralOwner !== 'incident' && s.noteStrip]}
+            accessibilityRole="button"
+            accessibilityLabel="예약 확인이 진행 중이에요 — 채팅으로 문의하기"
+          >
+            <Text style={[s.incidentTxt, coralOwner !== 'incident' && s.mutedTxt]}>
+              확인이 진행 중이에요 — {running ? '러닝 기록은 계속 쌓여요. ' : ''}종료·정산은 확인이 끝난 뒤 처리돼요.
+            </Text>
+            <Text style={[s.failAction, coralOwner !== 'incident' && s.mutedAction]}>채팅으로 확인</Text>
+          </Pressable>
+        )}
         {saveLag && (
           <View style={[s.failStrip, coralOwner !== 'saveLag' && s.noteStrip]}>
-            <Text style={[s.failTxt, coralOwner !== 'saveLag' && s.mutedTxt]}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+            {/* [2026-08-20] 인시던트 중에는 '신호가 잡히면 자동 재시도해요'가 거짓이 된다: 재시도는
+                60초마다 실제로 일어나지만(:674) 신호와 무관하게 서버가 거부하므로 영원히 성공하지
+                않는다 — 없는 회복을 기다리게 만드는 문장이다. 같은 자리에서 진짜 이유를 말한다.
+                로컬 버퍼는 메모리에만 있다 (geo.ts에 영속화 없음 — 재진입 시드는 서버 트레이스다,
+                :265) 그래서 앱을 닫으면 마지막 저장 시점까지만 남는 것이 사실이다. */}
+            <Text style={[s.failTxt, coralOwner !== 'saveLag' && s.mutedTxt]}>
+              {incidentBid
+                ? '확인이 시작돼 기록 저장이 멈췄어요 — 거리는 계속 쌓이지만, 앱을 닫으면 마지막 저장 시점까지만 남아요'
+                : '기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요'}
+            </Text>
           </View>
         )}
         {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 중립 헤어라인.
@@ -1481,6 +1565,9 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.coralText,
   },
   failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
+  // 인시던트 배너 — failTxt와 같은 잉크/무게, 다만 두 문장이 확실히 줄바꿈되므로 행간을 준다
+  // (guideTxt와 같은 1.4×). 14pt 디테일 플로어 그대로.
+  incidentTxt: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: '700', color: colors.tang },
   failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
   // 코랄을 더 급한 스트립에 넘겨준 줄의 중립 잉크 — 같은 문장·같은 자리, 채도만 내린다.
   // 액션은 흰 잉크 + 밑줄을 유지한다: 컨트롤이 컨트롤로 안 읽히면 그건 죽은 버튼이 된다.

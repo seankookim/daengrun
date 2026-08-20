@@ -67,7 +67,32 @@ export function TabSwipe({ children }: { children: React.ReactNode }) {
   nav.current = tabNeighbors(pathname);
 
   // 들어오는 쪽 절반 — 나가는 화면(=스냅샷)과 **한 값으로** 묶여 제자리로 온다.
+  // ⚠ The spring's completion callback outlives this effect, so it needs a liveness guard and the
+  // deferred release needs a handle. Flagged by react-doctor (effect-needs-cleanup) and confirmed
+  // by reading: `.start()`'s callback calls `setSnap(null)` and schedules a 500 ms timer, and the
+  // effect returned nothing. Two real consequences, neither hypothetical:
+  //   · unmount mid-animation → `setSnap` on a dead component, plus an orphaned timer;
+  //   · a FAST second tab change → the previous spring is still running, its callback fires after
+  //     the new effect has already set the incoming snapshot, and clears it — the incoming screen
+  //     loses its snapshot and the transition shows the ghost this callback exists to prevent.
+  // The fix guards the setState, and clears the release timer IF ONE EXISTS AT CLEANUP.
+  // ⚠ Precisely: cleanup can only clear a timer that has already been scheduled. In the
+  // fast-tab-change path — the common one — cleanup runs BEFORE the spring completes, so `release`
+  // and `pendingUri` are still null and there is nothing to clear; effect 1's callback then fires
+  // post-cleanup and schedules a fresh 500 ms timer on a dead effect. That is harmless TODAY and is
+  // left alone deliberately: the orphaned timer only calls `reclaim(uri)` — no setState — and
+  // reclaiming is what we want anyway, so the temp file is collected either way.
+  // **Do not read this teardown as covering that callback.** If anything with a side effect is ever
+  // added to it, the callback needs its own guard; the cleanup below will not save you.
+  // It deliberately does NOT stop the animation and does NOT skip `releaseCapture`: the callback
+  // must still run on `finished=false` (see below), and the temp jpg must be reclaimed even when we
+  // are unmounting — so cleanup releases immediately instead of cancelling the release.
   useEffect(() => {
+    let alive = true;
+    let release: ReturnType<typeof setTimeout> | null = null;
+    let pendingUri: string | null = null;
+    const reclaim = (u: string) => { try { require('react-native-view-shot').releaseCapture(u); } catch { /* see note below */ } };
+
     const note = handoff;
     handoff = null;  // 읽는 즉시 소각: 두 번 소비될 수 없다 (연속 스와이프·재마운트 대비)
     if (!note) return;
@@ -78,13 +103,23 @@ export function TabSwipe({ children }: { children: React.ReactNode }) {
       // finished=false(손가락이 스프링을 도중에 잡아챈 경우)에도 내린다 — 안 그러면 스냅샷이
       // 다음 제스처를 따라다니는 유령이 된다.
       .start(() => {
-        setSnap(null);
+        // Guarded: a stale callback must not clear the NEXT transition's snapshot, and must not
+        // setState after unmount.
+        if (alive) setSnap(null);
         // 임시 jpg 회수. 500ms 미루는 건 라이브러리 자신의 방식이다(ViewShot 컴포넌트도 이렇게
         // 미뤄 부른다) — 이미지가 화면에서 내려간 뒤에 지운다. catch가 비어 있는 건 정직법 위반이
         // 아니다: 여기까지 왔다는 건 require가 이미 성공했다는 뜻이고, 실패해도 사용자에게
         // 보이는 결과가 없다(OS tmp 청소로 끝난다).
-        if (uri) setTimeout(() => { try { require('react-native-view-shot').releaseCapture(uri); } catch {} }, 500);
+        if (uri) { pendingUri = uri; release = setTimeout(() => { release = null; pendingUri = null; reclaim(uri); }, 500); }
       });
+
+    return () => {
+      alive = false;
+      // Reclaim NOW rather than cancelling: if we are tearing down, the image is already off
+      // screen, and cancelling the timer would leak the temp file the timer existed to delete.
+      if (release) { clearTimeout(release); release = null; }
+      if (pendingUri) { reclaim(pendingUri); pendingUri = null; }
+    };
   }, [pathname, x]);
 
   const settle = () => Animated.spring(x, {

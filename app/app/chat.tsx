@@ -4,7 +4,7 @@ import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, St
 import { Monogram, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
-  ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
+  ChannelLink, ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
   fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
@@ -33,6 +33,14 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const scroller = useRef<ScrollView>(null);
+  // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
+  // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
+  // 찍었다: 서버가 프라이빗 채널을 거절하거나 조인이 타임아웃해도 화면은 연결됐다고 말했고,
+  // 인계 중인 러너의 「5분 늦어요」는 영영 오지 않았다. 검증하지 않은 연결은 주장하지 않는다.
+  const [link, setLink] = useState<ChannelLink>('connecting');
+  // 폴백 폴링까지 실패한 상태 — 실시간이 끊긴 것과 **메시지가 아예 안 들어오는 것**은 다른 사실이라
+  // 채널도 다르다. 아래 헤더가 이 둘을 다른 문장으로 말한다.
+  const [pollErr, setPollErr] = useState(false);
 
   // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
   useEffect(() => {
@@ -65,17 +73,50 @@ export default function Chat() {
   }, [bid, isRunner]);
 
   // 실시간 수신 — 내 발신도 서버 에코로 수신 (중복은 id로 방지)
+  // [leak 2026-08-20] alive 가드가 없었다. cleanup이 `unsub` 초기값(빈 함수)을 실행한 뒤에
+  // getUser()가 resolve하면 **구독이 그때 붙어 버리고 해제할 주인이 없다**: 리스너가 영원히 남아
+  // sharedWatchers가 0에 도달하지 못하고(채널이 프로세스 수명 내내 조인 상태), 메시지가 올 때마다
+  // 언마운트된 컴포넌트에서 setMsgs가 돈다. 헤더의 상대 이름이 왕복 뒤에야 뜨는 화면이라 유저는
+  // 여기서 자주 튕겨 나가고, 그래서 누수가 쌓인다. 관용구는 runner/meetup.tsx:122-129와 동일.
   useEffect(() => {
     if (!ctx) return;
-    let unsub = () => {};
+    let alive = true;
+    let unsub: (() => void) | null = null;
     supabase.auth.getUser().then(({ data }) => {
+      if (!alive) return; // 왕복 도중 언마운트 — 구독 자체를 열지 않는다
       unsub = subscribeMessages(ctx.threadId, data.user?.id ?? null, (m) => {
         setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
         setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
-      });
+      }, (s) => { if (alive) setLink(s); });
     });
-    return () => unsub();
+    return () => { alive = false; unsub?.(); };
   }, [ctx]);
+
+  // [fallback 2026-08-20] 스레드가 열려 있는 동안의 폴백 리페치.
+  // 레지스트리의 계약은 "모든 소비처가 폴백 폴링을 유지한다"인데(api.ts subscribeShared 헤더)
+  // 채팅에는 그게 **하나도** 없었다 — 인터벌도, 포커스 리페치도. 포커스 리페치만으로는 폴백이
+  // 아니다: 그건 화면을 떠났다 돌아올 때만 도는데, 인계 중 두 사람은 화면을 보며 기다린다.
+  // 실시간이 살아 있으면 15초(에코가 이미 일을 한다), 죽었거나 확인 전이면 5초.
+  useEffect(() => {
+    if (!ctx || state !== 'ready') return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const next = await fetchMessages(ctx.threadId);
+        if (!alive) return;
+        setPollErr(false);
+        // 같은 목록이면 상태를 갈지 않는다 — 매 틱 리렌더는 스크롤을 흔들고 이미지 말풍선을 다시 태운다
+        setMsgs((prev) => (
+          prev.length === next.length && prev[prev.length - 1]?.id === next[next.length - 1]?.id ? prev : next
+        ));
+      } catch (e) {
+        console.warn('[chat] poll:', (e as Error)?.message ?? e);
+        if (alive) setPollErr(true); // 조용히 삼키면 헤더가 '받고 있다'고 우긴다
+      }
+    };
+    const t = setInterval(tick, link === 'live' ? 15_000 : 5_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [ctx, state, link]);
 
   // 사진 메시지 — 픽업 장소·아이 상태 공유의 핵심 수단
   const sendPhoto = async () => {
@@ -117,6 +158,22 @@ export default function Chat() {
   // 보내기가 실제로 할 일이 없는 조건 — send()의 가드와 같은 술어를 버튼이 그대로 입는다.
   const sendBlocked = sending || state !== 'ready' || input.trim().length === 0;
 
+  // 헤더 상태 줄. 세 사실을 뭉개지 않는다:
+  //   실시간 조인 성공 = 「● 실시간 연결됨」 (이제 이 문장의 유일한 근거는 SUBSCRIBED다)
+  //   실시간은 죽었지만 폴링이 돈다 = 그 사실을 말한다 (메시지는 늦게라도 온다)
+  //   실시간도 죽고 폴링도 실패 = critical 잉크의 라우드 페일 (침묵하면 화면이 '받고 있다'고 우긴다)
+  // ⚠ 순서가 의미다. 채널이 살아 있으면(link==='live') 폴 실패는 유저에게 아무것도 뜻하지 않는다 —
+  // 메시지는 에코로 들어오고 있다. 그때 실패를 외치는 것도 지어낸 주장이다. 폴 실패는 **폴링이
+  // 유일한 통로일 때만** 사실이 된다.
+  // 문장은 짧게 유지한다 — 이 줄은 모노그램·백버튼과 한 행을 나눠 쓰므로 길어지면 헤더가 2행이 된다.
+  const linkLine: { tx: string; bad: boolean } | null =
+    state === 'loading' ? { tx: '연결 중...', bad: false }
+      : state !== 'ready' ? null
+        : link === 'live' ? { tx: '● 실시간 연결됨', bad: false }
+          : pollErr ? { tx: '메시지를 못 받고 있어요', bad: true }
+            : link === 'connecting' ? { tx: '연결 중...', bad: false }
+              : { tx: '실시간 끊김 — 새로고침 중', bad: false };
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
@@ -125,8 +182,8 @@ export default function Chat() {
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{ctx?.peerName ?? '채팅'}</Text>
-          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>
-            {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
+          <Text style={{ fontSize: 14, color: linkLine?.bad ? paper.critical : colors.dim, fontWeight: linkLine?.bad ? '700' : '400', marginTop: 1 }}>
+            {linkLine?.tx ?? ''}
           </Text>
         </View>
         {/* [dead button 2026-08-19] 안심 통화 버튼 은퇴. 유일한 효과가 "(준비 중)" 알럿이었다 —

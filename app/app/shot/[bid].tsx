@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { fetchRunReportOrNull, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { homePath } from '../../src/components/bottomnav';
 import { traceToBox } from '../../src/lib/trace';
 import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -171,7 +172,12 @@ export default function ShotStudio() {
   const df = useDisplayFont();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  // Two states, two sentences (2026-08-20). err = the read failed (retryable) · notFound = there
+  // is no such run: someone else's booking id, a stale push ref_id, a link with no bid. Pressing
+  // again would return the same zero rows, so that state gets an exit instead of a retry.
+  // Both used to be one line of `e.message`, and that line was PostgREST's English PGRST116.
+  const [err, setErr] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   // 스킨별 독립 사진 (2026-07-29) — B에서 사진을 바꿔도 A의 사진·크롭이 유지된다.
   // transform은 PhotoLayer 인스턴스별이고 resetKey가 스킨별 uri이므로, 자기 사진이 바뀔 때만 리셋.
   const [photos, setPhotos] = useState<Record<'A' | 'Bp' | 'G', string | null>>({ A: null, Bp: null, G: null });
@@ -183,11 +189,17 @@ export default function ShotStudio() {
   const activeRef = useRef(0); // onScroll compares against this, not the closure's possibly-stale `active`; state stays for render
   const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bp: null, G: null, I: null });
 
-  useEffect(() => {
-    if (!bid) { setErr('러닝 정보가 없어요'); return; }
-    fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
+  // What the failure state's 다시 시도 calls — a retry button wired to nothing is a dead button.
+  const load = useCallback(() => {
+    if (!bid) { setNotFound(true); return; }
+    setErr(false);
+    setNotFound(false);
+    fetchRunReportOrNull(bid)
+      .then((r) => { if (r) setReport(r); else setNotFound(true); })
+      .catch((e) => { console.warn('[shot] run report:', e?.message ?? e); setErr(true); });
     fetchRunStandings(bid).then(setStandings).catch(() => {});
   }, [bid]);
+  useEffect(() => { load(); }, [load]);
 
   const run = report?.run ?? null;
   const pts = useMemo(() => (run && run.trace.length > 1 ? traceToBox(run.trace) : null), [run]);
@@ -530,8 +542,25 @@ export default function ShotStudio() {
         <View style={{ width: 34 }} />
       </View>
 
-      {err && <View style={s.errBox}><Text style={{ fontSize: 14.5, color: '#8fa093', textAlign: 'center' }}>{err}</Text></View>}
-      {!err && report && !run && (
+      {err && (
+        <View style={s.errBox}>
+          <Text style={s.errTxt}>기록을 불러오지 못했어요</Text>
+          <Pressable onPress={load} style={s.errBtn} accessibilityRole="button">
+            <Text style={s.errBtnTxt}>다시 시도</Text>
+          </Pressable>
+        </View>
+      )}
+      {notFound && (
+        <View style={s.errBox}>
+          <Text style={s.errTxt}>이 러닝을 찾을 수 없어요</Text>
+          {/* The ✕ is router.back(), which does nothing on a deep-link cold start (no stack to
+              pop). This state therefore carries its own always-walkable door, role-aware. */}
+          <Pressable onPress={() => router.replace(homePath())} style={s.errBtn} accessibilityRole="button">
+            <Text style={s.errBtnTxt}>홈으로</Text>
+          </Pressable>
+        </View>
+      )}
+      {!err && !notFound && report && !run && (
         <View style={s.errBox}><Text style={{ fontSize: 14.5, color: '#8fa093', textAlign: 'center' }}>러닝이 끝나면 인증샷을 만들 수 있어요</Text></View>
       )}
 
@@ -658,6 +687,13 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 58, paddingHorizontal: 16, paddingBottom: 6 },
   x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
   errBox: { margin: 20, backgroundColor: '#121b14', borderRadius: 16, padding: 24 },
+  errTxt: { fontSize: 14.5, color: '#8fa093', textAlign: 'center' },
+  // Same border as this screen's own dark ghost button (actGhost) — 44pt touch target.
+  errBtn: {
+    marginTop: 14, minHeight: 44, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14, paddingHorizontal: 18,
+  },
+  errBtnTxt: { fontSize: 15, fontWeight: '800', color: '#e6efe0' },
   checker: { position: 'absolute', top: 0, left: 0, right: 0, borderRadius: 20, backgroundColor: '#3f443f', opacity: 0.6 },
   hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   hudV: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 3, textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
