@@ -75,6 +75,12 @@ output, and assert that an artifact contains what it must. **Silence is the fail
 error.**
 
 When you finish a slice: ingest (`build-manifest.mjs` → `ingest.mjs`, never with output
-suppressed), run `audit-candidates.mjs`, regenerate the bench (`bench/build-artifact.mjs`), commit,
-and push to trunk. Sean reviews in the bench and exports accept/reject/comment JSON — that export
-is the input to your next round.
+suppressed), run `audit-candidates.mjs`, regenerate `bench/routes.json`, commit, and push to
+trunk.
+
+**The bench is local only** — `python3 -m http.server 5178 --directory docs/routes/strava/bench`,
+then http://localhost:5178. It needs `config.js` (gitignored) holding a Naver Web Dynamic Map
+client ID, with `http://localhost:5178` in the NCP service-URL allowlist. There is no published
+copy: Sean removed it, because two surfaces meant two builds and two places for a number to drift.
+Sean reviews there and exports accept/reject/comment JSON — that export is the input to your next
+round.
