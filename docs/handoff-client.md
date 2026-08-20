@@ -28,7 +28,7 @@ This file **replaces** the 2026-08-19 evening+night version; git history is the 
 | Addresses | **1 row total, 1 pinned** (Sean's) — every "no pickup pin" branch is real and reachable | **[verified-now]** |
 | Server pay-after-run | create-booking-hold v10 / transition-booking v34 deployed; a hold returns `booking_status:"matching"`; `payment_ok` deleted | **[reported]** (announcer); the client half is built against it |
 | 0114 party membership | deployed; pre-accept the owner is refused chat/review/notification/incident (42501) | **[reported]** (announcer); client copy keys on the measured error shape |
-| O-6 account deletion | **client half being built now** (agent in flight, §16). Server `0115` + `delete-account` exist on `origin/claude/p0-account-deletion` @ `c8367ef` and are **NOT deployed** — the real call has never been exercised | **[verified-now]** for the branch contents; deployment **[reported]** |
+| O-6 account deletion | **client half BUILT and on origin** (`bdd3c70`). Row + confirm sheet **verified on the simulator** up to the destructive tap (`docs/labs/o6-delete-account-sheet-2026-08-20.png`). Server `0115` + `delete-account` are on `origin/claude/p0-account-deletion` @ `c8367ef` and **NOT deployed** (absent from `supabase functions list`) — no state has been exercised against the real server | **[verified-now]** |
 | iOS device | **nothing on hardware.** Simulator only (iPhone 17 Pro, iOS 26.5). TestFlight still zero builds | sim **[verified-now]**; TestFlight **[from-history]** |
 
 **Screens I personally saw on the simulator:** owner home, request, course-map, course detail, radar
@@ -62,7 +62,7 @@ The journey Sean approved in the labs is now **built end to end** in the client:
 | 0114 client follow-up | **DONE** (chat chip, chat copy, `runner_pending` field suppression) |
 | R6 runner return seal · R1c work-gate | **NOT BUILT — server slice.** See §6 |
 | 커뮤니티 / 마이 in this style | not started (Sean: "later") |
-| O-6 account deletion (settings row) | **IN PROGRESS** — contract received, client being built against it; cannot be exercised until the function deploys |
+| O-6 account deletion (settings row) | **BUILT** (`bdd3c70`); screen verified on sim, server states unexercised until the function deploys |
 
 ---
 
@@ -422,11 +422,14 @@ behaving as if it is one activation away.
 1. **[needs-user]** TestFlight build + submit (his 2FA). Hand him the smoke list in §1 — the runner
    approach leg, onboarding submission and a real `matching` booking are the three things only a
    device (and a second account) can settle.
-2. **[local-edit, IN FLIGHT]** **O-6 account-deletion settings row** — contract received and the
-   build is running (§16). What remains after it lands: diff the server implementer's final token
-   enumeration against the copy map (a token with no entry renders raw), then **verify the live
-   states on the simulator once `delete-account` deploys** — success, a 409 refusal, and the 202
-   pending/retry arm. Claim `app/app/settings.tsx` in REGISTRY's in-flight table before the commit.
+2. **[needs-deploy, then local-edit]** **O-6 follow-ups.** The screen is built and on origin
+   (`bdd3c70`); three things remain, none blocking: (a) diff the server implementer's final token
+   enumeration against the copy map in `delete-account-sheet.tsx` — a token with no entry renders as
+   raw text + 문의하기, which is honest but ugly; (b) add the **O-7 KEEP line** to the confirm sheet
+   when the server reports a kept payout destination (Sean's ruling: `bank_accounts` is kept intact,
+   not blanked, while a runner has `ledger_items` — a redacted account number is a row nobody can pay
+   into). Field name still owed; the line belongs with 남는 것, NOT with 소멸; (c) **verify the live
+   states on device once `delete-account` deploys** — success, a 409 refusal, and the 202 retry arm.
 3. **[read-only → local-edit]** If Sean rules on the R4 colour, apply it in `run.tsx` — styling only,
    and prove the frozen ranges byte-identical the way `2ddac83` did.
 
@@ -482,15 +485,12 @@ For pixel-level work on anything else, re-attach the original screenshots.
 
 ## 16. Agent work and coverage gaps
 
-⚠ **ONE AGENT IS STILL RUNNING AT HANDOFF TIME.** The O-6 client build owns
-`app/app/settings.tsx`, `app/src/lib/api.ts` (additive wrapper) and the new
-`app/src/components/delete-account-sheet.tsx` — all three are **dirty in the working tree and
-uncommitted**. Its output lands as a task notification in the session that spawned it; if that
-session is gone, the code is still on disk and `git diff` is the record. **Do not `git pull --rebase`
-with autostash while it writes** — that was the reason this handoff was committed but not pushed.
-Local trunk is 8 behind origin for the same reason; rebase and push once the tree is quiet.
+All subagents have completed; none are running. The O-6 build landed as `bdd3c70` (settings row,
+`delete-account-sheet.tsx`, an additive `deleteMyAccount` in api.ts) and the tree is clean and pushed.
 
-All other subagents completed; none were running. Their written reports died with the scratchpad
+⚠ **Metro was down and the simulator shut down** partway through this session; both were restarted
+(`npx expo start`, `xcrun simctl boot`). If a screen renders "No script URL provided", Metro is not
+up yet — start it and relaunch the app, do not conclude the screen is broken. Their written reports died with the scratchpad
 — what I independently confirmed is exactly the screen list in §1 and what the commit messages claim.
 The 23-screen sweep is **[reported]**.
 
