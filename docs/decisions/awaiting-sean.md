@@ -1131,3 +1131,47 @@ section's.
 2026-08-20 (`docs/plans/2026-08-20-client-gap-straightening.md:29` P4, and this section), and the
 overnight grant's "decide independently" was not read as reversing a specific carve-out he had
 already accepted that day. One word from Sean — **A** or **B** — unblocks it.
+
+---
+
+## §0-duodetricies · The primary CTA's coral is boxed in at AA — deepen it, or accept flat hierarchy?
+
+**One question, one word. Nothing is blocked tonight** — the accessibility failure itself is
+already fixed; this is only about whether to take the better fix, which is visible.
+
+**What happened.** `paper.action` (`#C6472C`) is the coral ground under 홈's primary button. Its
+sub-line was `#FFD9CE`, measured at **3.70:1** — under the 4.5 floor for 15pt text, so it was a
+real AA failure on the most-looked-at control in the app. Found by the peer client session,
+reproduced independently here.
+
+**The part that needs you.** Measuring the *ground* rather than the row showed the row is boxed in:
+
+| ink | on `#C6472C` | |
+|---|---|---|
+| `#FFFFFF` (the title) | **4.84** | ← the ceiling. No ink on this ground does better. |
+| `#FFF6F3` | **4.55** | ← the only tint that passes |
+| `#FFF4F0` · `#FFF1EC` · `#FFEDE7` | 4.48 · 4.39 · 4.27 | all fail |
+
+Because the title already sits at the ceiling, **any compliant sub-line lands within ~0.3 of it** —
+so colour can no longer separate the two lines at all. We shipped `#FFF6F3` (4.55) tonight to clear
+the failure, with size and weight now carrying the hierarchy alone. It is compliant and it is thin.
+
+**The alternative needs your word because it is visible:** deepen the ground to `#A63A20` — a
+colour **already in that row** as its depth edge, so nothing new enters the system.
+
+| | on `#A63A20` |
+|---|---|
+| `#FFD9CE` (the original sub) | **4.95** |
+| `#FFFFFF` (title) | **6.47** |
+
+Real headroom on both lines, and the title/sub separation comes back. **The cost is that the
+primary button gets visibly deeper** — a change to the ⑧ v2 grammar you picked by number, so
+neither session took it at 2am, and especially not as a side effect of an accessibility fix.
+
+- **A — deepen the ground to `#A63A20`.** Better contrast, hierarchy restored, no new token. The
+  main button looks deeper/darker than the one you picked.
+- **B — keep `#C6472C`, stay at 4.55.** Nothing changes visually; the CTA's two lines stay nearly
+  the same colour and lean on size and weight.
+
+**Recommendation: A.** 4.55 is compliance without margin, and the flattened hierarchy is a cost we
+took silently to reach it. But this is taste on a surface you chose, so it is yours.
