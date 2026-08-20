@@ -517,3 +517,21 @@ flickers**, because the flicker is at least visible.
 shape, but it is **unreachable** — nothing writes `payouts`, so it never renders. If `payouts` ever
 gains writers the claim becomes computable (`payouts.paid_at`, 0001:295) and the copy becomes
 correct. Leave it; don't let a sweep rewrite it on the assumption the token is live.
+
+### react-doctor `effect-needs-cleanup` — adjudicated so far (2026-08-21)
+
+Two client sessions independently hit this rule and both flags were false. **Adjudicate before
+acting; do not mass-fix and do not mass-dismiss.** What is settled and what is not:
+
+| site | verdict | why |
+|---|---|---|
+| `delete-account-sheet.tsx:238` | ✅ **FALSE POSITIVE** (verified, me) | `retry` is assigned inside a nested `.catch` callback and cleared at `:252` with `alive = false`. **No early return in this effect.** |
+| `owner/radar.tsx:141` | ✅ **FALSE POSITIVE** (verified, both sessions) | cleanup returns `unsub(); clearInterval(poll); if (nav) clearTimeout(nav)` — all three handles cleared. |
+| `ring.tsx:36` · `tabswipe.tsx:67` · `club-ui.tsx:276` · `fitness.tsx:151` | ⚠ **UNADJUDICATED** | Flagged, not yet read closely. **Not the same as "fine."** ⚠ `tabswipe.tsx:67` looks like it may be a *real* finding — it starts an `Animated.spring` whose `.start()` callback calls `setSnap`, with nothing stopping it on unmount. `fitness.tsx` is **DO-NOT-REFACTOR** (frozen hero) — read `CLAUDE.md` before touching it whatever the analyzer says. |
+
+⚠ **There is no single "shape" here — a peer initially characterised both false positives as the
+analyzer miscounting an early `return;` path, and that is wrong.** The three structures differ:
+`radar` has an early return *and* nested assignment, `delete-account-sheet` has nested assignment
+and **no early return at all**, `ring` has an early return with a **top-level** listener. So a fix
+that removes early returns would churn code and still trip the rule. The only safe rule is the one
+react-doctor prints itself: treat each diagnostic as a starting hypothesis and read the code.
