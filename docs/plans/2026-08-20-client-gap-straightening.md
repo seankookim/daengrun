@@ -605,6 +605,19 @@ voice argues a materially different arc.
 
 # ENDING STATE — client session `exciting-rosalind-e6ac13`, night of 2026-08-20
 
+> 📄 **COMPANION RECORD — this file is only half the night.** A second client session worked `app/`
+> in parallel; its record is **`docs/handoff-client.md`** and it owns that session's work (owner-home
+> v3, `draw-button.tsx`, `home-hero.tsx`, the account-deletion sheet, the handoff-CTA plumbing).
+> **This file owns mine. Neither is complete alone**, and they cross-link rather than restate each
+> other so the two cannot drift. Both were current at trunk tip when written.
+
+> 🔴 **THE PILOT BLOCKER IS UNCHANGED BY EVERYTHING BELOW, and it is not ours to move.**
+> **Nothing in this app has ever run on hardware.** Roughly thirty defects were fixed tonight and
+> five wrong claims were caught, and none of that changes the one fact that decides whether the
+> Banpo pilot can start: there is no TestFlight build, and there cannot be one without Sean's Apple
+> 2FA. A green tree is not a working app. Everything in "What is NOT verified" below exists because
+> of this, and the first real device session can invalidate any of it.
+
 Trunk tip when this was written: **`0760445`**. All five gates verified by me at that commit, not
 relayed: tsc ✅ · check-rpc ✅ · check-route-native-imports (56 routes) ✅ · check-embed-fk ✅ ·
 lint **270 problems / 6 errors** — the 6 are the untouched baseline, and total problems are DOWN
