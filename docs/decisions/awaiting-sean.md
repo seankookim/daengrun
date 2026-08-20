@@ -318,7 +318,15 @@ the field silently does not exist — the failure that looks like "the server se
 2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
    Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
 
-## 0-quatervicies. 👀 MASTHEAD — ⚠ SUPERSEDED TWICE; read the last paragraph first (2026-08-20)
+## 0-quatervicies. ✅ CLOSED — masthead spacing needs nothing from you (2026-08-20)
+
+**Closed on measurement, not opinion.** The owning session pixel-scanned the CURRENT (`472c1b0`) owner-home frame — ink-band detection
+on the raw 3x screenshot — and the gap between the centred wordmark and the alert line is **28 pt**, not the ~46–50 pt that made the
+question worth asking: retiring the greeting took its own breathing plus one margin out of the sum. 28 pt between a masthead and the
+first content band is ordinary breathing room. Second reason to close rather than re-queue: your brand-identity round will re-propose
+the header treatment wholesale, so a standalone 20 pt decision now would be measured against a layout that may not survive the week.
+If the brand round leaves the header untouched, that session re-raises it against whatever is true then. **The two judgement calls
+stand** (profile avatar out of the row; `BrandLockup` retired) — the newer change restored neither. Original record follows.
 
 ⚠ **The state described below is `ede1b65` and Sean has since revised the header AGAIN — `472c1b0` retires the rotating greeting
 entirely and centres the logo (mark + 도그스하이) on BOTH homes.** So the ~46 pt spacing A/B below was measured against a layout that
