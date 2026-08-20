@@ -1,0 +1,11 @@
+# R1 cut 04 — 2.0s — source plate: new plate
+# IMAGE-TO-VIDEO ONLY. Animate the approved plate; never text-to-video.
+# Reject at 0.25x: paw-count change, gait morph, floating leash, duplicate tail, eye glow.
+
+Static low camera between a runner's legs. The dog enters frame from behind and passes through the gap toward the lens. Shallow depth holds focus on the dog as it arrives.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no unrequested camera
+move, no text, no logos, no GPS or map overlays, no numbers.
+
+# On-screen Korean and sound for this cut: docs/instagram/reel-scripts.md §1.

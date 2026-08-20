@@ -1,0 +1,13 @@
+# V6 — 터널
+# IMAGE-TO-VIDEO ONLY. Animate an approved still; never text-to-video.
+# Reject at 0.25x on: paw-count change, gait morph, detached/floating leash,
+# duplicate tail, eye glow, human drift on a long hold. Keep every shot <= 3s.
+
+Hard-flash night look. The pair sprints straight at the lens through a ribbed underpass, wet floor mirroring, rear-curtain drag smearing limbs while the torsos stay frozen. Camera static, low, 20mm.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no camera shake,
+no zoom, no text, no logos, no GPS or map overlays, no numbers.
+
+# Sound is designed in post: human exhale + dog panting, breath before music.
+# Music by BPM and energy only, royalty-free licensed if the clip will ever be boosted.

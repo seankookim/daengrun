@@ -1,0 +1,13 @@
+# V1 — 느슨해지는 줄
+# IMAGE-TO-VIDEO ONLY. Animate an approved still; never text-to-video.
+# Reject at 0.25x on: paw-count change, gait morph, detached/floating leash,
+# duplicate tail, eye glow, human drift on a long hold. Keep every shot <= 3s.
+
+Extreme macro, static camera, shallow depth. Clip A: nylon fibres under tension, minute flex, backlight rimming the cord. Clip B: the cord releases and falls into a soft curve at 240fps, a single dust particle lifting off it.
+
+NEGATIVE (motion): no morphing limbs, no changing paw count, no gait transitions,
+no floating or detaching leash, no duplicated tail, no eye glow, no camera shake,
+no zoom, no text, no logos, no GPS or map overlays, no numbers.
+
+# Sound is designed in post: human exhale + dog panting, breath before music.
+# Music by BPM and energy only, royalty-free licensed if the clip will ever be boosted.
