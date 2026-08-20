@@ -276,3 +276,8 @@ two false "stranded work" alarms on day one.
 - **A refusal must name a remedy the READER can perform (ui2 → announcer, 0115 `club_custody`):** the same server token covered a
   runner holding a dog (who can finish the handoff) and an owner whose dog is out (who cannot). One token, two audiences, and the
   honest sentence differs — so the token had to split, not the copy. When a gate covers two roles, check whether both can act on it.
+- **`upsert` NOT-NULL-checks the proposed tuple BEFORE conflict resolution (ui2, 2026-08-20, launch-path null-name bug):** an
+  `upsert({id, role})` meant to update an existing row died every time on the deliberately-omitted NOT NULL `name` — so the role
+  write silently never landed and the only symptom was an alert on one screen. Deliberately omitting a column is not the same as
+  not touching it. Fix by choosing the STATEMENT (`update` vs `insert`), not by shaping the payload — and note the failure was
+  invisible on the path its author tested (role-select → home) and visible only on the arm they did not (→ settings).
