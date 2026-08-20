@@ -281,3 +281,10 @@ two false "stranded work" alarms on day one.
   write silently never landed and the only symptom was an alert on one screen. Deliberately omitting a column is not the same as
   not touching it. Fix by choosing the STATEMENT (`update` vs `insert`), not by shaping the payload — and note the failure was
   invisible on the path its author tested (role-select → home) and visible only on the arm they did not (→ settings).
+- **A grep for a name that never existed returns 0 and looks like proof (announcer v3, 2026-08-20):** I checked whether a retired
+  component's file was gone by grepping the tree for `brand-lockup` — the file is `brandmark.tsx`, so the 0 was my own spelling, not
+  a measurement, and I wrote "the file is gone from the tree" into Sean's queue. It is not: it still exports `BrandMark` to three
+  live consumers. Caught by the session that did the work. **Before reading a 0 as absence, prove the query would have matched
+  something if the thing existed** — grep for the SYMBOL (which had zero hits, correctly) rather than a guessed filename, or list the
+  directory and read it. Same family as ui2's truncated-`head` negative, and the reason both are in this file: a false negative wears
+  the same confident tone as a true one.

@@ -322,7 +322,7 @@ the field silently does not exist — the failure that looks like "the server se
 
 Your header change is on trunk (`ede1b65`): one row now — BrandMark(30) · rotating greeting(flex) · bell(40); both wordmarks gone;
 everything below moved up ~52 pt (measured on the simulator, not estimated); greeting 22 pt with minimumFontScale 0.65 so it can
-never cross the 14 pt floor. Verified by the announcer: `BrandLockup` is gone from the tree, `StatusBarCover` is still mounted last,
+never cross the 14 pt floor. ⚠ CORRECTED (the announcer got this wrong first): `BrandLockup` — the FUNCTION — is retired and has zero live references; the FILE `app/src/components/brandmark.tsx` is very much still on trunk and must be, because it exports `BrandMark`, which has three live consumers (`owner/home.tsx`, `runner/home.tsx`, `paper-btn.tsx`). The announcer's first check grepped for a filename that never existed (`brand-lockup`) and read the 0 as "file deleted" — a wrong measurement described confidently; caught by the session that did the work. Otherwise verified: `StatusBarCover` is still mounted last,
 no absolute header was reintroduced, and Black Han Sans is now used ONCE on that screen (the lockup wordmark had been a second use —
 a design-law violation fixed as a side effect).
 
