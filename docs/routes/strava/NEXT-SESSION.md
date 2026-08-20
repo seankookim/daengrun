@@ -9,14 +9,19 @@ and it already holds everything three sessions learned by breaking it. Then read
 `docs/handoff-route-geometry-strava.md` **§22–§24** (the current state and the four failures found
 last night), and `docs/routes/geo/BUILD-QUEUE.md` (a vetted, ranked execution queue).
 
-**Where things stand, measured 2026-08-19:** 69 rows in `routes`, 55 candidate, 14 retired, across
-28 towns. 55 GPX, audit passing, everything on origin. Breadth is done — every 자치구 in the queue
-has at least one route.
+**Where things stand, measured 2026-08-20 after the depth day (§25):** 87 rows in `routes`, 73 candidate, 14 retired, across
+30 towns. 73 GPX, 73/73 basemaps, audit passing, everything on origin. Breadth AND the first
+depth pass are done — derive fresh counts before trusting these (§7 of the skill).
 
-**Your job is DEPTH. 18 of 28 towns have exactly one route.** Sean's ruling: the app shows total
-distance including the walk from the owner's pickup pin to the route, *"which is why we need a
-large variety of routes made"*. One route per town gives an owner no choice. 27 vetted plans remain
-in BUILD-QUEUE.md and 12,582 indexed complexes sit behind them.
+**Depth pass one is DONE (2026-08-20): 18 single-route towns → 4.** The remaining singles are
+광장동 (river slot structurally closed — no north-bank 나들목, see GEOGRAPHY.md; an INLAND second
+route is the only depth available there) and 송파동/방이동/장안동 (truthful-label splits, not
+coverage gaps). **Your job now: Sean's bench review export is the input** — 18 new routes await
+his verdicts at localhost:5178 (`python3 -m http.server 5178 --directory docs/routes/strava/bench`).
+Read handoff §25 for the geocoder traps this cost (bridges autocomplete to CHURCHES; the cure is
+coordinate waypoints from features.json) before building anything new. BUILD-QUEUE.md is exhausted:
+every entry is built, discarded-with-reason, or REJECTED. 12,582 indexed complexes back the next
+queue when one is wanted.
 
 ## The method, in one paragraph
 
