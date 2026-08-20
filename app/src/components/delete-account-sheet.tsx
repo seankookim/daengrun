@@ -18,7 +18,7 @@
 //         gets one button that re-invokes the same function — the server short-circuits the SQL
 //         half and retries only the auth delete. There is no un-tombstone path, so no "undo".
 //   401 → the session expired before the call. Its own state, keyed on the STATUS, not on a
-//         message string. (`not_authenticated` / `unauthorized` are also matched as messages
+//         message string. (The party gate arrives as HTTP 401 and is keyed on the status alone
 //         because that arm is mid-move from 409 to 401 server-side; either shape must land here
 //         rather than in the raw-token arm, where a user with a merely-expired session would be
 //         shown a symbol instead of a sentence.)
@@ -32,7 +32,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth-context';
 import { haptic } from '../lib/haptics';
-import { DeleteAccountError, deleteMyAccount } from '../lib/api';
+import { DeleteAccountError, deleteMyAccount, fetchLedgerTotal } from '../lib/api';
 import { session } from '../store';
 import { paper } from '../theme';
 import { PaperBtn } from './paper-btn';
@@ -133,6 +133,7 @@ function HoldToConfirm({ armed, onArm, disabled }: {
   // correctly refuses a ref read there. Lazy useState gives the same single instance per mount
   // without lying about when it is touched.
   const progress = useState(() => new Animated.Value(0))[0];
+
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [trackW, setTrackW] = useState(0);
 
@@ -210,6 +211,22 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   // The busy REF is what makes a double-invoke impossible. `busy` state alone cannot: two taps in
   // the same frame both read the pre-render value and both fire. Opacity is not a guard either.
+  // O-7 KEEP disclosure. ⚠ The server's `bank_kept` arrives in the deletion RESULT, and on success we
+  // sign out immediately — there is no post-call screen it could be rendered on. So the confirm sheet
+  // asks the only question it can ask BEFORE the call: does this account have earnings? Ledger rows
+  // are what make the payout destination worth keeping (Sean's O-7: kept intact, not blanked, while
+  // `ledger_items` exist). We do NOT claim a bank account is on file — no client reader for
+  // `bank_accounts` exists, and registration ships with open banking (earnings.tsx:116) — so the copy
+  // names the earnings, not the account. Failure renders nothing rather than a guess.
+  const [hasEarnings, setHasEarnings] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetchLedgerTotal()
+      .then((won) => { if (alive) setHasEarnings(won > 0); })
+      .catch(() => { /* unknown → say nothing */ });
+    return () => { alive = false; };
+  }, []);
+
   const busyRef = useRef(false);
   // The success path unmounts this component (onClose) and then keeps awaiting signOut, so the
   // `finally` below would setState on a dead component. Guarded rather than ignored.
@@ -244,7 +261,10 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
       haptic('error');
       const status = e instanceof DeleteAccountError ? e.status : null;
       const token = e instanceof Error ? e.message : String(e);
-      if (status === 401 || token === 'not_authenticated' || token === 'unauthorized') {
+      // 401 is the party gate (`not_authenticated`); every state token is a 409. Measured against
+      // delete-account **v1 ACTIVE**, deployed from the tree carrying the 401 fix — the earlier
+      // string match was scaffolding for the window before that deploy and is deleted, not disabled.
+      if (status === 401) {
         setPhase({ k: 'expired' });
       } else if (token === 'auth_delete_pending') {
         setPhase({ k: 'pending' });
@@ -302,6 +322,14 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               <Text style={[s.p, { marginTop: 6 }]}>
                 채팅과 후기는 상대방의 기록이라 그대로 남아요.
               </Text>
+              {/* O-7 (Sean): the payout destination is kept INTACT while the runner has earnings —
+                  a redacted account number is a row nobody can pay into. A KEEP fact, so it lives
+                  here with 남는 것 and never with 소멸. Rendered only when the server says so. */}
+              {hasEarnings && (
+                <Text style={[s.p, { marginTop: 6 }]}>
+                  아직 정산되지 않은 금액이 있어요 — 지급에 필요한 정산 정보는 남겨둬요.
+                </Text>
+              )}
 
               {/* (e) confirmation control, then the destructive button */}
               <HoldToConfirm armed={armed} onArm={() => setArmed(true)} disabled={busy} />
