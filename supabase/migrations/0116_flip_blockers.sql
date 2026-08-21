@@ -253,14 +253,20 @@ language sql stable set search_path = public, pg_temp as $$
   -- "no", but which any caller reading the boolean directly (a pin, a future ops query) would
   -- have to know to coalesce itself. A rule about money answers yes or no.
   select coalesce(
-       -- [fix round F-2] `_charge_bool`, not `is not null`: TS refuses `!raw.kind`, so a kind of
-       -- "" / 0 / false is widget-debris to the handler — SQL agreeing stops such rows inflating
-       -- the wake count and (with the handler's candidate filter) consuming BATCH_LIMIT slots.
+       -- [fix round F-2 / eng round] the kind arm matches THE FENCE, and the fence is the law:
+       -- the handler's candidate query excludes the ->> TEXT forms ("", "0", "false"), and a
+       -- row the fence will never admit must not wake the dispatcher — a first cut used JS
+       -- truthiness here (_charge_bool) and the eng review showed a JSON-string "0" (JS-truthy,
+       -- fence-excluded) waking the batch every five minutes forever for a row it can never
+       -- process. Text-form set, named once, same three members as handler.ts's fence.
        -- Accepted divergences, each bounded and none constructible by a current writer:
        -- 'infinity' next_retry_at (SQL waits, JS retries — bounded by the attempt cap) ·
        -- '2026-02-30' (SQL invalid→due, JS normalizes to Mar 2 — one early attempt) ·
-       -- sub-millisecond dispatched_at at the exact 15-minute boundary (one tick of skew).
-       _charge_bool(p_raw, 'kind')
+       -- sub-millisecond dispatched_at at the exact 15-minute boundary (one tick of skew) ·
+       -- isDue()'s JS-truthiness view of string "0"/"false" kinds is unreachable: the fence
+       -- sits upstream of the batch, so no such row ever reaches isDue.
+       nullif(p_raw->>'kind', '') is not null
+   and (p_raw->>'kind') not in ('0', 'false')
    and coalesce(p_amount, 0) > 0
    and (
         (p_status = 'failed'

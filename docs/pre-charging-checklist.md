@@ -284,3 +284,8 @@ honest test is a real run ending after a real cutover.
   post-0116 sweep will silently never record incident-settled runs. Fine while every incident
   is provisionally waived; NOT fine the day that policy changes. Before flip: either stamp the
   authoritative event in the incident path, or encode + monitor an explicit waiver outcome.
+- [ ] **Refund-shaped payments rows have an ops surface** (0116 eng review finding 3): the
+  sweep deliberately skips a settled booking whose kind-bearing payment is canceled/
+  partial_canceled (double-charge protection), but `payments_reconciliation()` has no arm that
+  reads those rows — nothing summons the human the comment promises. The held club-fee slice
+  (or any refund writer) creates exactly these rows; add the sixth reconciliation arm before flip.
