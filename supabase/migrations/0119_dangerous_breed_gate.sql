@@ -187,12 +187,21 @@ language sql immutable set search_path = public, pg_temp as $$
   -- 공백·하이픈·숫자를 걷어내고 소문자화한 뒤 어간 매칭 — '아메리칸 핏 불 테리어', 'Pit-Bull',
   -- 'PITBULL' 이 같은 문자열이 되게 한다. `coalesce(..., false)`: breed는 nullable이고, NULL을
   -- 그대로 돌려주면 호출부의 `if not ...`가 안 터진다 (이 파일이 §A에서 지목한 바로 그 실패).
+  -- ⚠ [measurement 2026-08-21] The concatenation MUST be parenthesised. `~` and `||` are both
+  -- "any other operator" in postgres, i.e. EQUAL precedence, LEFT associative — so the unbracketed
+  -- form parsed as `((haystack ~ '(도사|tosa') || '|핏불…') || …`, a TEXT expression, and
+  -- `coalesce(text, false)` raised `COALESCE types text and boolean cannot be matched` at CREATE
+  -- (a `language sql` body is parsed at CREATE — the harness comment at 0119's own top says so).
+  -- 0119 did not apply at all until this was bracketed. Proof: `select pg_typeof('x' ~ 'a' || 'b')`
+  -- → `text`. Had it somehow reached runtime it would have been worse than a raise: the regex
+  -- would have been the unterminated `'(도사|tosa'` alone — four of the five statutory breeds
+  -- silently unscreened.
   select coalesce(
     regexp_replace(lower(p_breed), '[^a-z가-힣]', '', 'g') ~
-      '(도사|tosa'
+      ('(도사|tosa'
       || '|핏불|피트불|피불|pitbull|pitbul|apbt'
       || '|스태퍼드|스태포드|스탠퍼드|스탯퍼드|staffordshire|amstaff|staffybull'
-      || '|로트와일|로트바일|롯트와일|롯와일|rottweil|rottie)',
+      || '|로트와일|로트바일|롯트와일|롯와일|rottweil|rottie)'),
     false)
 $$;
 revoke execute on function _breed_reads_as_dangerous(text) from public, anon, authenticated;
