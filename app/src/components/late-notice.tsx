@@ -41,10 +41,14 @@ function copyFor(late: Lateness, side: LateSide, names: { dog?: string; runner?:
   // ── 인계 전, 보호자를 기다리는 중 (러너가 도착 표시를 찍었다)
   if (late.waitingOn === 'owner') {
     return side === 'owner'
+      // ⚠ [codex 2026-08-21] 첫 판은 양쪽에 「보상돼요」라고 적었다. 스테이지 1 은 그걸 줄 수 없다 —
+      // 서버 보상은 보호자가 **실제로 runner_enroute 예약을 취소할 때만** 기록된다
+      // (transition-booking/cancel_owner.ts:99). arrived_at 이 있다는 이유로 자동으로 생기지 않는다.
+      // 막힌 리졸버가 주지 못하는 결과를 화면이 약속하면, 그건 오늘 아침 고친 수수료 거짓말과 같은 종류다.
       ? { kick: '지금 기다리는 중', head: `${runner}님이\n문 앞에서 기다려요`, tone: 'critical',
-          strip: '러너가 기다린 시간은 러너에게 보상돼요.' }
+          strip: '지금 취소하면 취소 수수료가 붙어요 — 일정에서 조건을 확인하세요.' }
       : { kick: `${since}째 대기 중`, head: '보호자가 아직\n나오지 않았어요', tone: 'warn',
-          strip: '기다린 시간은 보상 대상이에요. 떠나기 전에 한 번 더 알려주세요.' };
+          strip: '떠나기 전에 한 번 더 알려주세요.' };
   }
 
   // ── 인계 전, 러너를 기다리는 중

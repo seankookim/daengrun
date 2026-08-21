@@ -115,6 +115,11 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   const openNext = () => {
     if (!next) return;
     draft.bookingId = next.id;
+    // ⚠ [codex 2026-08-21] 지각·천장 초과 건은 미트업으로 보내지 않는다. 두 가지가 동시에 틀렸다:
+    //   ① 버튼이 「일정에서 정리하기」라고 말하는데 미트업으로 갔다 — 목적지가 라벨과 다르면 거짓말.
+    //   ② 미트업은 runner_enroute 를 arrived 스테이지로 매핑하고 arrived_at 이 null 이어도 인계
+    //      CTA 를 연다. 즉 이 버튼이 **16일 된 예약을 되살리는 경로**였다 — 천장 규칙이 막으려던 바로 그것.
+    if (isLate) { router.push('/owner/schedule'); return; }
     if (state === 'active') router.push('/owner/live');
     else if (state === 'handoff' || state === 'confirmed') router.push('/owner/meetup');
     else router.push('/owner/radar');
@@ -190,9 +195,13 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
   // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
   // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
+  // ⚠ [codex 2026-08-21] nextIsPast 는 **KST 캘린더 하루** 차이다 (ddayN < 0). 그래서 09:00 예약이
+  // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
+  // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
+  const isLate = late?.late ?? nextIsPast;
   const chip =
-    state === 'confirmed' ? (nextIsPast
-      // [T6] '지난 예약'만으로는 어제인지 17일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
+    state === 'confirmed' ? (isLate
+      // [T6] '지난 예약'만으로는 어제인지 16일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
       ? { c: paper.dim, t: late?.late ? `지난 예약 · ${sinceLabel(late.sinceMs)}` : '지난 예약' }
       : { c: GO_SAGE, t: '확정됨' })
       : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
@@ -216,7 +225,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
           : { top: '오늘은 아직', bottom: '비어 있어요' };
   const subline =
     state === 'confirmed'
-      ? (nextIsPast ? (
+      ? (isLate ? (
         // [T6] 「시작하지 못했어요」는 참이지만 누가 오지 않았는지는 말하지 않았다. lateness()가
         // 그걸 안다 — arrived_at 이 찍혔으면 러너는 왔고 인계가 안 된 것이고, 아니면 러너가
         // 오지 않은 것이다. 둘은 보호자에게 완전히 다른 사실이다.
@@ -274,11 +283,11 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
             서버가 만료를 처리하기 전까지 홈은 사실만 말하고 목적지는 일정 화면이다. */}
         {state === 'confirmed' && (
           <DrawButton
-            // [T6] 「예약 확인 / 아직 정리되지 않았어요」는 사실이지만 막다른 골목이었다 — 17일간
+            // [T6] 「예약 확인 / 아직 정리되지 않았어요」는 사실이지만 막다른 골목이었다 — 16일간
             // 그 자리에 있던 문장이다. 목적지를 말하는 라벨로 바꾼다. 여전히 공짜라고는 하지 않는다.
-            title={nextIsPast ? '일정에서 정리하기' : '티켓 보기'}
-            sub={nextIsPast ? '취소 조건을 확인하고 닫아요' : '시간과 장소를 확인해요'}
-            ground={nextIsPast ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
+            title={isLate ? '일정에서 정리하기' : '티켓 보기'}
+            sub={isLate ? '취소 조건을 확인하고 닫아요' : '시간과 장소를 확인해요'}
+            ground={isLate ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
           <DrawButton title="채팅" sub="러너에게 물어보세요"

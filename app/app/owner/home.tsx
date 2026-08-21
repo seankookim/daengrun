@@ -261,7 +261,7 @@ export default function OwnerHome() {
   // "시간에 맞춰 알려드려요"를 인쇄했다 (실측 8월 19일). 라벨을 지우는 것과 지났다고 말하는 것은
   // 다른 사실이라 채널도 다르다 — home-hero는 이 플래그를 받아 문장을 바꾼다.
   const nextIsPast = ddayN !== null && ddayN < 0;
-  // [T6] 히어로가 '누구를 기다리다 늦었는지'를 말할 수 있게 판정을 넘긴다. 순수 함수이고
+  // [T6] 히어로가 '누구를 기다리다 늦었는지'를 말할 수 있게 판정을 넘긴다. 시계를 스스로 갖는 함수이고(기본값 Date.now) —
   // liveNext 가 이미 싣고 온 필드만 읽으므로 왕복이 늘지 않는다 (src/lib/lateness.ts).
   const lateVerdict = liveNext
     ? lateness({ scheduledAt: liveNext.scheduledAt ?? null, rawStatus: liveNext.rawStatus,
