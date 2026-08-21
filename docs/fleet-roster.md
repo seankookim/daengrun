@@ -306,3 +306,17 @@ two false "stranded work" alarms on day one.
   which a `grep useDisplayFont` on the route file cannot see and a `grep 'df]'` on one file still misses. **Third wrong-scope
   verification in one night** (the truncated `head`, the misspelled filename, this): each one measured something true and described
   something adjacent. For any per-SCREEN law, walk the composed components, not the route file.
+- **A gate pin proves nothing unless its test row carries a NULL in a party column (0116 B5 → announcer v4, 2026-08-21):** the
+  first version of `club_incident_settle_quote`'s party gate failed OPEN — a cancelled club booking has `runner_id` NULL, so
+  `NULL = <stranger>` collapsed the whole disjunction and `not NULL` never fired; a stranger read the full fare breakdown. Its own
+  suite caught it only because the fixture WAS a cancelled booking, and the fix's `coalesce(…, false)` now has its own mutation pin.
+  The trap was already written down (0058 F1 / 110 S2) and the author quoting it reproduced it one arm over — reading a trap is not
+  immunity; a NULL-bearing fixture row is.
+- **A dismissal is a claim, and nobody audits a dismissal — re-verify anything filed "confirmed false positive" (ui5 + codex →
+  announcer v4, 2026-08-21):** `radar.tsx:141` was carried as *"read and cleared"*; it was a real user-visible race (the nav timer is
+  assigned AFTER an await, cleanup sees null, the landed continuation navigates from a dead screen) — fixed `ec00639`. Second time
+  on this codebase that the effect-cleanup flag everyone was most confident was noise was the real one (tabswipe was first).
+  Corollary, from the same commit: **the analyser flag does NOT clear with the fix** — the rule matches the effect's shape, not the
+  race — so a persisting flag is not evidence the fix regressed; do not send anyone to "fix" it again. Method packaged as the
+  `inherited-claims` skill (`~/.claude/skills/inherited-claims/`): its §4 (re-check false-positive rulings) and §3 (a flag can
+  survive its own fix) are the two arms that would have saved this fleet the most time.

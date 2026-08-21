@@ -392,6 +392,7 @@ for any user, while TS treats the same row as due. [reported by the sweep; not i
 EXECUTE that take a caller-supplied id and contain **no `auth.uid()` anywhere**: `club_incident_settle_quote` (a full money and
 handoff-timing readout of ANY booking), `runner_work_gate` (a liveness oracle for ANY runner), `club_dog_ui_state`, `club_host_stats`.
 No suite pins them. The two HIGH ones are small fixes. Not urgent at 1 real user; it is the same class the /cso audit closed elsewhere.
+**Update 2026-08-21 (0116, measured):** all four are gated in `0116_flip_blockers.sql` (branch, under review). `club_host_stats` is **downgraded to definer hygiene, not a closed exposure** — its three numbers were already computable by any signed-in user through ordinary reads (`club_sessions` public read, `session_people` authed read), so member-only gating would have broken the club storefront's host-trust card without closing anything. The migration, its pin and its REGISTRY row all label it so; treat item 4's original 🟠 as overstated.
 
 **Also recorded, not decisions:** `docs/payments.md` is wholly obsolete · `docs/decisions/README.md`'s ① and ⑩ status rows are false ·
 one assertion still carrying a ✅ on origin (⑪ gates ⑫) is wrong and was retracted elsewhere — a ✅ that is not your current word is
