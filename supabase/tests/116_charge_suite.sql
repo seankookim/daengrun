@@ -552,15 +552,27 @@ begin
     -- "has a row" is the sweep's own definition (round-2 R3 P3-9): kind-bearing, or a row that
     -- settles the question (confirmed/waived). A run missing end_reason or actual_km is outside
     -- the invariant by design — the sweep refuses to price it rather than guess.
+    -- ⚠ [0116 §A] `r.settled_at is not null` ADDED, and this is a pin whose asserted property
+    -- legitimately MOVED, not a drive-by edit. 0083 §6 redefined `runs.ended_at` from "settlement"
+    -- to "the stop", so the invariant as written here was claiming a charge is owed for every run
+    -- that merely STOPPED — i.e. for a dog still on the leash — and it stayed green only because
+    -- the sweep was billing exactly those rows. With the sweep correctly anchored on settlement,
+    -- an ended-but-unreturned run has no payments row BY DESIGN and this count would go red for a
+    -- true reason. The invariant is the same sentence with the corrected anchor: a SETTLED run
+    -- owes a payments row. `t_chg_settled` (line 186) already stamps `settled_at`, so C9's own
+    -- fixtures are untouched; what this line excludes is other suites' stopped-but-unreturned runs.
+    -- The new property — that an unreturned run is NOT billed — is owned by 151 B1, which pins it
+    -- against a row identical to its settled twin in every column but this one.
     select count(*) into v_n from bookings b join runs r on r.booking_id = b.id
-      where r.ended_at is not null and r.end_reason is not null and r.actual_km is not null
+      where r.ended_at is not null and r.settled_at is not null
+        and r.end_reason is not null and r.actual_km is not null
         and r.ended_at >= (select f.payments_live_since from ops_flags f where f.id)
         and not exists (select 1 from payments p where p.booking_id = b.id
                           and ((p.raw->>'kind') is not null or p.status in ('confirmed','waived')));
     if v_n <> 0 then v_bad := v_bad || ' 결제행 없는 정산 예약 ' || v_n || '건 잔존'; end if;
 
     if v_bad = ''
-      then call _pass('chg','C9 불변식 #1 스윕 — 정산됐는데 결제행 없는 예약을 민팅(23900)·[0084] 사건은 waived·기존 행은 불가침·2회차는 0행 (§0-ter #1)');
+      then call _pass('chg','C9 불변식 #1 스윕 — 정산됐는데 결제행 없는 예약을 민팅(23900)·[0084] 사건은 waived·기존 행은 불가침·2회차는 0행 (§0-ter #1). [0116 §A] 불변식의 앵커가 ended_at에서 settled_at으로 이동 — 정지했지만 아직 반환되지 않은 런은 청구 대상이 아니다 (그 성질은 151 B1이 소유)');
     else v_msg := v_bad; call _fail('chg','C9 불변식 #1 스윕', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('chg','C9 불변식 #1 스윕', v_msg);
   end;
