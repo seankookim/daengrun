@@ -25,9 +25,24 @@ const fmtMin = (m: number) => {
   const h = Math.floor(m / 60);
   return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시${m % 60 ? ` ${m % 60}분` : ''}`;
 };
+// [E6] 이 화면의 시각도 기기 로컬이 아니라 **KST 벽시계**로 짓고 읽는다. 서버 가용 규칙(weekday/
+// startMin/endMin)과 checkSlot 검증이 KST 고정인데 그리드와 쓰기가 로컬이었다 — UTC 시뮬레이터·
+// 해외 기기에서 고른 칸이 다른 KST 시각으로 제안됐다. owner/request.tsx와 같은 산술을 같은 이유로
+// 이 파일에도 둔다 (owner/home의 kstDayDiff·runner/home의 kstDay와 같은 관례).
+const KST_MS = 9 * 3_600_000;
+const kstCal = (ms: number) => {
+  const k = new Date(ms + KST_MS);
+  return {
+    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
+    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
+  };
+};
+type KstCal = ReturnType<typeof kstCal>;
+const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
+
 const fmtIso = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}.${d.getDate()} (${DAY[d.getDay()]}) ${fmtMin(d.getHours() * 60 + d.getMinutes())}`;
+  const c = kstCal(Date.parse(iso));
+  return `${c.m + 1}.${c.d} (${DAY[c.wd]}) ${fmtMin(c.h * 60 + c.min)}`;
 };
 
 export default function Reschedule() {
@@ -73,20 +88,20 @@ export default function Reschedule() {
   useEffect(load, [bid]);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.now() + i * 86400_000);
-    return { date: d, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: d.getDate(), w: DAY[d.getDay()] };
+    const cal = kstCal(Date.now() + i * 86400_000);
+    return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
   }), []);
 
   const daySlots = useMemo(() => {
     const day = days[dayIdx];
-    const wd = day.date.getDay();
+    const wd = day.cal.wd; // KST 요일 — rules.weekday가 KST 고정이다
     const out: { key: string; label: string; start: Date }[] = [];
     const minStart = Date.now() + 2 * 3600_000; // 최소 2시간 통보 (예약 규칙과 동일)
     // Loading ('null') and failure ('error') produce no slots, but they are NOT an empty
     // availability — the render below tells those three apart before it draws anything.
     (Array.isArray(rules) ? rules : []).filter((r) => r.weekday === wd).forEach((r) => {
       for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
-        const start = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), Math.floor(m / 60), m % 60);
+        const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
         if (start.getTime() < minStart) continue;
         out.push({ key: start.toISOString(), label: fmtMin(m), start });
       }

@@ -78,12 +78,34 @@ const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
 // which a 7-day strip (today..today+6) could never show — the screen would book one date while
 // highlighting another. today+7 is the last selectable day.
 const DATE_STRIP_DAYS = 8;
-const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
-  const date = new Date(Date.now() + i * 86400_000);
+
+// [E6] 이 화면의 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다. 읽기는 이미 Asia/Seoul 고정이고
+// (api.ts kstParts) 서버 가용 규칙·홀드 검증도 KST 고정인데, 쓰기만 로컬이었다 — UTC 시뮬레이터나
+// 해외 기기에서 사용자가 고른 '오전 7:30'이 16:30 KST로 저장되고, 그리드는 서버가 거절할 칸을
+// 내줬다. 한국은 DST가 없어 고정 오프셋 산술로 충분하다 (owner/home의 kstDayDiff, api.ts의
+// kstWeekStartMs와 같은 전제 — 이 파일에 따로 두는 것도 그 둘과 같은 관례다).
+const KST_MS = 9 * 3_600_000;
+// 어떤 시각의 KST 캘린더 조각. +9로 민 뒤엔 UTC 파트가 곧 KST 파트다.
+const kstCal = (ms: number) => {
+  const k = new Date(ms + KST_MS);
   return {
-    date,
-    d: String(date.getDate()),
-    w: '일월화수목금토'[date.getDay()],
+    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
+    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
+  };
+};
+type KstCal = ReturnType<typeof kstCal>;
+// KST 벽시계(캘린더 날 + 시:분) → 실제 시각. 저장되는 instant는 여기서만 만들어진다.
+const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
+// 날짜 칸 동일성 키 — toDateString()은 기기 로컬이라 KST 날짜 칸과 어긋난다.
+const kstKey = (c: KstCal) => `${c.y}-${c.m}-${c.d}`;
+
+const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
+  const cal = kstCal(Date.now() + i * 86400_000);
+  return {
+    cal, // KST 캘린더 날 — 슬롯 instant 조립과 날짜 칸 비교의 유일한 근거
+    key: kstKey(cal),
+    d: String(cal.d),
+    w: '일월화수목금토'[cal.wd],
     label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined,
   };
 });
@@ -95,9 +117,8 @@ const SLOT_GROUPS = [
 ];
 
 const toDate = (dateIdx: number, t: string): Date => {
-  const base = DATES[dateIdx].date;
   const [h, m] = t.split(':').map(Number);
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m);
+  return kstInstant(DATES[dateIdx].cal, h, m);
 };
 
 // 서버가 한 말 그대로 사용자에게 보여주기 위한 helper (pay.tsx의 같은 helper와 같은 문법)
@@ -303,8 +324,11 @@ export default function Request() {
     const start = toDate(di, t);
     if (start.getTime() < Date.now() + 2 * 3600_000) return false; // 최소 2시간 통보
     if (!prefRules) return true; // 오픈 매칭 — 서버 홀드가 최종 검증
-    const wd = start.getDay();
-    const min = start.getHours() * 60 + start.getMinutes();
+    // 요일·분은 KST 벽시계에서 온다. prefRules의 weekday/startMin/endMin이 KST 고정이라, 합성된
+    // instant를 로컬 getDay()/getHours()로 되읽으면 UTC 기기에서 다른 요일·다른 분을 물어보게 된다.
+    const [slotH, slotM] = t.split(':').map(Number);
+    const wd = DATES[di].cal.wd;
+    const min = slotH * 60 + slotM;
     // 실소요 = km×8 + 25분 버퍼 (서버 hold와 동일 — 60분 고정은 7km+에서 러너 가용시간을 넘겼다)
     const durMin = km * 8 + 25; // draft.km은 pay() 전까지 lag — 화면 상태값 사용
     return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + durMin);
@@ -330,7 +354,8 @@ export default function Request() {
     const iso = when.toISOString();
     draft.scheduledAtIso = iso; // 실제 예약 시각 — +3h 하드코드 은퇴
     syncedIso.current = iso;
-    const day = DATES[di].label ?? `${when.getMonth() + 1}월 ${when.getDate()}일`;
+    const cal = DATES[di].cal;
+    const day = DATES[di].label ?? `${cal.m + 1}월 ${cal.d}일`;
     setTimeLabel(`${day} ${t}`);
     setAutoPicked(false); // 손으로 골랐다 — pickEarliest가 뒤이어 참으로 되돌린다
     setSlotSheet(false);
@@ -364,8 +389,9 @@ export default function Request() {
     const iso = draft.scheduledAtIso;
     if (!iso) return; // 고른 시각이 없다 — 되고를 것도 없다
     const when = new Date(iso);
-    const di = DATES.findIndex((d) => d.date.toDateString() === when.toDateString());
-    const t = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
+    const wcal = kstCal(when.getTime());
+    const di = DATES.findIndex((d) => d.key === kstKey(wcal));
+    const t = `${String(wcal.h).padStart(2, '0')}:${String(wcal.min).padStart(2, '0')}`;
     if (di >= 0 && slotAllowed(di, t)) return; // 지금 값이 규칙을 통과한다 — 손대지 않는다
     if (!pickEarliest()) {
       // 8일 안에 이 러너가 갈 수 있는 칸이 하나도 없다. 아무 시각이나 남겨두면 CTA는 통과하고
@@ -468,7 +494,7 @@ export default function Request() {
       setTimeLabel(draft.timeLabel);
       setAutoPicked(false); // 다른 화면이 고른 시각이다 — '가장 빠른'이라고 주장하지 않는다
       const when = new Date(draft.scheduledAtIso);
-      const di = DATES.findIndex((d) => d.date.toDateString() === when.toDateString());
+      const di = DATES.findIndex((d) => d.key === kstKey(kstCal(when.getTime())));
       if (di >= 0) setDateIdx(di); // 시트가 그 날짜에서 열리도록
     }
     // ── 지명 러너 ──
@@ -723,7 +749,7 @@ export default function Request() {
   const renderDateStrip = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
       {DATES.map((d, i) => (
-        <Pressable key={d.date.toISOString()} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+        <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
           <Text style={{ fontSize: 14, color: dateIdx === i ? '#B8B8B8' : paper.dim }}>{d.w}</Text>
           <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
           {/* 오늘·내일 마커 — 볼트/그린 은퇴, 양 상태 모두 코랄 (잉크 면 위에서도 4.5:1 근처 확보) */}
