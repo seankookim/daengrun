@@ -1,4 +1,8 @@
 #!/bin/bash
+# ⚠ Resolve our own path FIRST, before any cd below changes what a relative $0 means. A first
+# fix resolved it after the cd and still false-fired (and could false-PASS against a nested
+# wrong file — the dangerous direction). BASH_SOURCE at line 2 is unambiguous.
+_SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/$(basename "${BASH_SOURCE[0]:-$0}")"
 # 로컬 PG 하네스 — 전체 마이그레이션 제로 적용 + 시나리오 스위트 (2026-07-29 도입)
 # 용도: 새 마이그레이션은 db push 전에 반드시 이 하네스를 통과해야 한다.
 #   (이넘 캐스트 버그처럼 'SQL이 한 번도 실행된 적 없어서' 실기기에서 터지는 클래스를 차단)
@@ -75,13 +79,6 @@ psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
 # Deleting --single-transaction silently re-opens the enum-migration hole, and no suite can
 # detect that (the suites run after migrations have already applied). This is the only place
 # that regression is catchable, so it is checked here, loudly.
-# ⚠ $0 must be resolved to an ABSOLUTE path before the self-grep: under a relative invocation
-# (`bash supabase/tests/harness.sh` after cd), the script's own cd above makes bare "$0" point
-# at a path that no longer resolves, and this gate FALSE-FIRES as a regression that isn't there
-# (2026-08-21: two false fires, both relative invocations; every absolute invocation passed —
-# the handoff's "absolute path only" note, now enforced here instead of remembered).
-_SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
-[ -f "$_SELF" ] || _SELF="$0"
 grep -q -- '--single-transaction' "$_SELF" || {
   echo "❌ GATE REGRESSION: migrations must apply with --single-transaction (mirrors db push)."
   echo "   Without it, 'alter type ... add value' + same-file use passes here and fails on push."

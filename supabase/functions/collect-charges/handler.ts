@@ -129,40 +129,50 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
     .limit(BATCH_LIMIT);
   if (error) throw new HttpError(500, error.message);
 
-  // [verdict-3 finding 1] TERMINAL rows are candidates forever — an exhausted ladder
-  // (attempts ≥ cap) or a dead card (needs_card_relink) stays status='failed' with a kind, so
-  // 200 of them fill the oldest-first window and every newer due row is scanned never:
-  // reproduced as {"scanned":200,"due":0,"realIncluded":false} while SQL wakes the endpoint
-  // every five minutes. The fix is PAGINATION, not more query predicates: attempts/relink live
-  // inside jsonb where a query-side filter would re-open the wake≠fence disagreements the kind
-  // fence just closed. Walk further pages until a page yields actionable rows, the table runs
-  // out, or the page cap trips; report what was skipped so terminal accumulation is visible
-  // instead of reading as a quiet day.
-  let rows = data ?? [];
-  let scanned = rows.length;
-  let pagesWalked = 1;
-  const MAX_PAGES = 5; // 1000 rows of terminal debris before we stop looking — an ops signal, not a wall
-  while (
-    rows.filter((r) => isDue(r, now)).length === 0 &&
-    rows.filter((r) => isStaleDispatched(r, now)).length === 0 &&
-    scanned === pagesWalked * BATCH_LIMIT &&
-    pagesWalked < MAX_PAGES
-  ) {
-    const { data: more, error: pageErr } = await db.from("payments")
+  // [verdict-3 finding 1 / verdict-4 findings 1-3] TERMINAL rows are candidates forever — an
+  // exhausted ladder (attempts ≥ cap) or a dead card stays status='failed' with a kind, so 200
+  // of them fill the oldest-first window and every newer due row is scanned never (reproduced:
+  // scanned:200/due:0 while SQL wakes the endpoint every five minutes). The fix is PAGINATION,
+  // not more query predicates — attempts/relink live inside jsonb, where a query filter would
+  // re-open the wake≠fence disagreements the kind fence closed. Refined by verdict #4:
+  // · due and stale accumulate ACROSS pages — a permanently-stale row (Toss IN_PROGRESS/5xx
+  //   keeps its marker) must not stop the walk, or one such row starves every deeper due row;
+  //   the walk stops on DUE found, table end, or the cap — never on stale alone.
+  // · `pages` counts queries issued; `truncated:true` + a console.error mark the cap tripping
+  //   with nothing due found — the ops signal the cap promises, instead of a silent quiet day.
+  type CandidateRow = { id: string; booking_id: string; order_id: string; amount: number; status: string; payment_key: string | null; raw: Record<string, unknown> | null };
+  let due: CandidateRow[] = [];
+  let stale: CandidateRow[] = [];
+  let scanned = 0;
+  let pages = 0;
+  let truncated = false;
+  const MAX_PAGES = 5; // 1000 rows of terminal debris per wake before we say so out loud
+  for (;;) {
+    const { data: page0, error: pageErr } = await db.from("payments")
       .select("id, booking_id, order_id, amount, status, payment_key, raw")
       .in("status", ["pending", "failed"])
       .not("raw->kind", "is", null)
       .not("raw->>kind", "in", '("","0","false")')
       .order("created_at", { ascending: true })
-      .range(pagesWalked * BATCH_LIMIT, (pagesWalked + 1) * BATCH_LIMIT - 1);
+      .range(pages * BATCH_LIMIT, (pages + 1) * BATCH_LIMIT - 1);
     if (pageErr) throw new HttpError(500, pageErr.message);
-    const page = more ?? [];
-    if (page.length === 0) break;
+    const page = page0 ?? [];
+    pages += 1;
     scanned += page.length;
-    pagesWalked += 1;
-    rows = page; // earlier pages held nothing actionable; only this page can
+    due = due.concat(page.filter((r) => isDue(r, now)));
+    stale = stale.concat(page.filter((r) => isStaleDispatched(r, now)));
+    if (due.length > 0) break;               // found chargeable work — stop walking
+    if (page.length < BATCH_LIMIT) break;    // table exhausted
+    if (pages >= MAX_PAGES) {                // cap: say so loudly, never silently
+      truncated = true;
+      console.error(
+        `[collect-charges] window truncated: ${scanned} candidates walked across ${pages} pages ` +
+          `with no due row — terminal debris is accumulating; anything due beyond this window ` +
+          `stays starved until it is cleaned up.`,
+      );
+      break;
+    }
   }
-  const due = rows.filter((r) => isDue(r, now));
   const results: RowResult[] = [];
   for (const r of due) {
     // One row's explosion is that row's result, never the batch's. Sequential on purpose: these
@@ -175,7 +185,7 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
   // human means one Toss outage turns into a pile of pendings that age into derived debt and lock
   // real owners out of booking. So: ask Toss what the order IS. The answer resolves the row, or
   // proves the charge never landed and hands it back to the ladder.
-  const stale = rows.filter((r) => isStaleDispatched(r, now));
+  // stale rows were accumulated across every walked page above
   const verified: VerifyResult[] = [];
   for (const r of stale) verified.push(await verifyDispatched(db, r as PendingRow, now));
 
@@ -183,7 +193,8 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
   return {
     mode: "cron",
     scanned,
-    pages: pagesWalked,
+    pages,
+    ...(truncated ? { truncated: true } : {}),
     due: due.length,
     processed: results.length,
     results,
