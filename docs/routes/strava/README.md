@@ -17,6 +17,14 @@ settled run. A drawn line is not a measured line.
 Two distances and two gains are listed per route, because they are two different measurements and
 collapsing them would be the same mistake this directory exists to prevent.
 
+> **⚠ 2026-08-21 — this table is TEN of 152 files, and it stopped being a file listing long ago.**
+> It is the worked example for the "two measurements, never collapsed" rule and is worth reading as
+> that. It is not an inventory: `ls *.gpx | wc -l` returns **152** today. The corpus is also
+> two-sourced now — 86 Strava/OSM rows and 66 `naver:` rows in `manifest.psv` — and no Naver row
+> can appear in a table with a `Strava km` column at all, because Naver's GPX carries no elevation
+> and no builder readout. See `docs/routes/geo/NAVER-BUILDER-EVAL.md` §7 for why Naver is in the
+> corpus. **Read `manifest.psv`, not this table, for what exists.**
+
 | File | Strava ID | Measured km | Strava km | Gain (3 m deadband) | Strava gain | Pts | Shape |
 |---|---|---|---|---|---|---|---|
 | `몽마르뜨_언덕_루프_1.59km.gpx` | 3523203570730615372 | 1.59 | 1.5 | +34 m | 34 m | 38 | OUT-AND-BACK (80% retrace) — superseded |
@@ -57,12 +65,19 @@ Strava counterpart.
 
     ./probe-anchors.sh "<lat/lng>" "<query>" ...      # what does the geocoder resolve this to?
     ./build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" ... "<wp5>" [wp6] [wp7] [wp8]
+    node naver-route.mjs "<name>" <lng,lat> <lng,lat> ...   # Naver builder — COORDINATES, lng,lat
     node check-shape.mjs <file.gpx> ...              # independent distance / elevation / shape
     node check-shape.mjs --json <file.gpx> ...       # machine-readable verification
     node audit-candidates.mjs                        # enforce current dog-route candidate gate
     node audit-candidates.mjs --strict               # complete source facts + measured filename for every GPX
     ./test-build-route-guards.sh                     # browser-free cap/access/input guard tests
     node test-check-shape.mjs                        # real/synthetic geometry regression tests
+
+**⚠ Added to this list 2026-08-21, because it was missing while producing 66 of the 152 files.**
+`naver-route.mjs` takes **coordinates in lng,lat** (the opposite order from `build-route.sh`) and so
+has none of the geocoder traps below; it was CLEARED for use by Sean on 2026-08-20 and its output
+carries `naver:<hash>` + `<copyright author="NAVER Corp.">` so the ODbL subset stays separable.
+`audit-candidates.mjs` fails any file declaring neither source.
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
 so a route's name can never disagree with its geometry. It refuses measurements outside **1.5–7.5 km**
@@ -98,8 +113,10 @@ supabase db query --linked "select count(*) rows, count(distinct town) towns fro
 ```
 
 The method itself lives in `docs/skills/route-geometry/SKILL.md`, the vetted
-execution queue in `docs/routes/geo/BUILD-QUEUE.md`, and the running record in
-`docs/handoff-route-geometry-strava.md`.
+execution queue in `docs/routes/geo/BUILD-QUEUE.md` (**⚠ 2026-08-21: that queue is
+EXHAUSTED — 23 of its 25 destinations are built and the other two have recorded
+reasons; it carries a correction banner saying so. Do not open it as a work
+list**), and the running record in `docs/handoff-route-geometry-strava.md`.
 
 **A GPX file is named exactly what its route is named** — filename, embedded
 `<name>`, and the catalog row all carry the same string. They diverged once

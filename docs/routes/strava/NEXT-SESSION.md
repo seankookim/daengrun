@@ -6,12 +6,22 @@ Paste the block below into a fresh chat. It assumes the repo and nothing else.
 
 You own **route geometry** for daengrun. Invoke `/route-geometry` first — the skill is the method
 and it already holds everything three sessions learned by breaking it. Then read
-`docs/handoff-route-geometry-strava.md` **§22–§24** (the current state and the four failures found
-last night), and `docs/routes/geo/BUILD-QUEUE.md` (a vetted, ranked execution queue).
+`docs/handoff-route-geometry-strava.md` **§25–§26** (⚠ corrected 2026-08-21: this said §22–§24
+"the current state"; the handoff now runs to **§26**, and §25 (depth day, 2026-08-20) plus §26 are
+the current state — §22–§24 are still worth reading, as the four failures and the review that
+produced them, but they are history, not state).
 
 **Where things stand, measured 2026-08-20 after the depth day (§25):** 87 rows in `routes`, 73 candidate, 14 retired, across
 30 towns. 73 GPX, 73/73 basemaps, audit passing, everything on origin. Breadth AND the first
 depth pass are done — derive fresh counts before trusting these (§7 of the skill).
+
+**⚠ 2026-08-21 — the file counts above have doubled since; the DB counts I did not re-measure.**
+Measured today from the repo: **152 GPX**, 152 `manifest.psv` rows, 152 `candidate-status.psv`
+rows (136 `review` · 14 `superseded` · 2 `candidate`), split **86 Strava/OSM + 66 `naver:`**. The
+jump is the Naver builder being cleared on 2026-08-20 (`docs/routes/geo/NAVER-BUILDER-EVAL.md`
+§7). The `routes` row/town numbers are production database state and this session did not query
+it — treat them as of 2026-08-20 and derive, exactly as the sentence above already tells you to.
+**`BUILD-QUEUE.md` is exhausted (re-measured 2026-08-21) — it now carries a banner saying so.**
 
 **Depth pass one is DONE (2026-08-20): 18 single-route towns → 4.** The remaining singles are
 광장동 (river slot structurally closed — no north-bank 나들목, see GEOGRAPHY.md; an INLAND second

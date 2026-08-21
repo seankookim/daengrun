@@ -14,6 +14,27 @@ because an early miss may have left no artifact or note.
 |---:|---:|---:|---:|
 | ≥39 | 19 | ≥20 | 11 |
 
+> **⚠ CORRECTION 2026-08-21 — the row above is a frozen snapshot of the ~19-route era, not a
+> current total.** Only the `Saved` column can be re-derived, and it has moved by an order of
+> magnitude. Measured today:
+>
+> ```
+> ls docs/routes/strava/*.gpx | wc -l        -> 152
+> manifest.psv rows                          -> 152   (86 strava-id + 66 naver:)
+> candidate-status.psv rows                  -> 152   (136 review · 14 superseded · 2 candidate)
+> ```
+>
+> `Attempts` and `Rejected/aborted` are **not** re-derivable — a rejected attempt that left no
+> artifact leaves nothing to count, which is what the `≥` was always saying. They are left at the
+> era value rather than guessed at. The row is kept, not replaced, because the useful thing in it
+> is the ratio it recorded at the time (roughly half of everything attempted was thrown away) and
+> the honesty rule underneath it. **If you need a current count, derive it — do not read one out
+> of this file.**
+>
+> ⚠ `candidate-status.psv` has three continuation lines (a `reason` containing a newline); a bare
+> `wc -l` reports 156 and a bare `cut -f2 | uniq -c` reports a phantom empty status. Filter to rows
+> that begin with a Strava id or `naver:` — that is where the 152 above comes from.
+
 ## Current dog-route pass
 
 | # | District | Anchor | Target | Result | Notes |
@@ -32,6 +53,15 @@ because an early miss may have left no artifact or note.
 Thirteen additional private Strava routes predate the current dog-route pass. Together with the
 six saved rows above, the archive contains 19 unique saved route IDs. All 19 now have independently
 recomputed geometry in `manifest.psv` and an explicit decision in `candidate-status.psv`.
+
+**⚠ CORRECTION 2026-08-21.** "The archive contains 19 unique saved route IDs" was true when
+written and is now false by a factor of eight — **152**, measured above. The invariant in the last
+sentence is the part that survived and it still holds: every saved artifact has a recomputed
+`manifest.psv` row and an explicit `candidate-status.psv` decision, verified today (152 = 152 =
+152). Two things the 19-route era did not have and a reader should not be surprised by: the corpus
+is now **two-sourced** (86 Strava/OSM under ODbL + 66 Naver under Sean's personal grant — see
+`docs/routes/geo/NAVER-BUILDER-EVAL.md` §7), and the dominant status is `review` (136), meaning
+awaiting Sean's bench verdict, not `candidate`.
 Historical records that omitted the exact surface mix or query sequence are marked `NOT RECORDED`;
 they are not promoted by inference.
 

@@ -1,6 +1,20 @@
 #!/usr/bin/env node
 // check-shape.mjs <file.gpx> [...]
 //
+// ⚠ THIS FILE IS CANONICAL. A DIVERGED COPY EXISTS — noted 2026-08-21.
+// `docs/skills/route-geometry/check-shape.mjs` is a fork that predates the
+// `hasEle` change below, and the divergence is not cosmetic: the fork emits
+// `gainM: Math.round(r.gain)`, so a GPX with NO <ele> data at all scores a
+// confident **0 m of climb** instead of `null`. Every Naver-built route is
+// exactly that file — Naver's pedestrian router supplies no elevation — and
+// 66 of the 152 files in this directory are Naver-built, so the fork is wrong
+// about 43% of the corpus in the one direction that matters (Sean rejects
+// routes for climb: "there's a flat park near by, a mountain is a big climb").
+// The fork also lacks the matching 'elev n/a' human-readable branch.
+// I did not edit under docs/skills/ — that tree is owned by the
+// /route-geometry skill. Whoever owns it should re-copy this file wholesale;
+// until then, run THIS one. Reconcile rather than patching a third copy.
+//
 // Independent verification of an exported Strava route. Trusts nothing the
 // builder printed on screen: distance is recomputed from the trackpoints,
 // and the shape is classified from the geometry itself.
