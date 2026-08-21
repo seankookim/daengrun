@@ -1262,6 +1262,10 @@ export interface RunnerJob {
   status: 'confirmed' | 'in_progress' | 'completed';
   rawStatus: string;
   routeId: string | null; // 완료 카드 미니 패치 매핑용
+  /** 러너 도착 시각. 지각 판정이 '러너를 기다린다'와 '보호자를 기다린다'를 가르는 유일한 근거. */
+  arrivedAt?: string | null;
+  /** runs.started_at — 러닝 초과는 예약 시각이 아니라 실제 출발부터 잰다 (R1). */
+  startedAt?: string | null;
   /** The dog's face for the in-flight ticket. A runner may be collecting an animal they have never
    *  met, and until now the ticket named it without showing it. Null is a real answer (no photo on
    *  file) and renders as a monogram — never an empty frame. */
@@ -1274,7 +1278,10 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
   if (!user.user) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, route_id, dogs(name, photo_url)')
+    // arrived_at · runs(started_at): 보호자 쪽 fetchMyBookings 와 **같은 사실**을 읽어야 한다.
+    // 한쪽만 실어오면 같은 예약을 두고 두 화면이 서로 다른 지각 판정을 낸다 — 이 코드베이스가
+    // 가장 싫어하는 종류의 버그다. runs 임베드가 안전한 이유는 R1 과 동일 (unique 단일 FK).
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
     .order('scheduled_at', { ascending: false })
@@ -1311,6 +1318,8 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       rawStatus: r.status,
       routeId: r.route_id ?? null,
       dogPhotoUrl: r.dogs?.photo_url ?? null,
+      arrivedAt: r.arrived_at ?? null,
+      startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
     };
   });
 }
@@ -1913,6 +1922,12 @@ export interface MeetupInfo {
   // Once the run starts, `runs.pace_suggest_sec` (fetchRunMeta) supersedes this — the
   // snapshot is frozen so a mid-run pref edit cannot move the goalpost.
   paceSuggestSec: number | null;
+  // [T5] 지각 판정용 원본. `when` 은 이미 조판된 라벨이라 되파싱할 수 없고, 무엇보다 보호자 쪽과
+  // **같은 사실**을 읽어야 한다 — 한쪽만 실어오면 한 예약을 두고 두 화면이 다른 판정을 낸다.
+  scheduledAt: string | null;
+  rawStatus: string;
+  arrivedAt: string | null;
+  startedAt: string | null;
 }
 
 export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
@@ -1920,13 +1935,17 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences, vaccinations), runners(profiles(name))')
+    .select('scheduled_at, status, arrived_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences, vaccinations), runners(profiles(name)), runs(started_at)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
   const d = data as any;
   const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
   return {
+    scheduledAt: d.scheduled_at ?? null,
+    rawStatus: d.status,
+    arrivedAt: d.arrived_at ?? null,
+    startedAt: (Array.isArray(d.runs) ? d.runs[0]?.started_at : d.runs?.started_at) ?? null,
     runnerName: d.runners?.profiles?.name ?? null,
     dogName: d.dogs?.name ?? '반려견',
     dogBreed: d.dogs?.breed ?? null,

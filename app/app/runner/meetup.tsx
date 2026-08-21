@@ -5,13 +5,15 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { lateness } from '../../src/lib/lateness';
+import { LateNotice } from '../../src/components/late-notice';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { runnerJob } from '../../src/store';
-import { paper } from '../../src/theme';
+import { layout, paper } from '../../src/theme';
 
 // 픽업 이동 & 인계 확인 — the trust-critical handoff moment.
 // accept → navigate to pickup → 도착 확인 → BOTH parties confirm → run unlocks.
@@ -286,11 +288,24 @@ export default function Meetup() {
   };
   const hasCoords = pickup.s === 'ok' && pickup.a != null && pickup.a.lat != null && pickup.a.lng != null;
 
+  // [T5] 지각 판정 — 파생값이므로 훅이 아니다. meetup 의 훅 배치 동결법(:134)과 스테이지 머신은
+  // 건드리지 않는다: 이 화면은 자기 단계를 이미 정확히 말하고 있고, 여기서 더하는 건 '얼마나
+  // 됐는가'와 '지금 누구를 기다리는가' 뿐이다. 랩의 러너 ⑤가 이 자리다.
+  const meetLate = info
+    ? lateness({ scheduledAt: info.scheduledAt, rawStatus: info.rawStatus,
+                 arrivedAt: info.arrivedAt, km: info.km, startedAt: info.startedAt })
+    : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* map plate — real pickup map when coords exist (0065), honest placeholder otherwise.
           Pure JSX swap in the frozen slot; PickupMap is memoized so the 8s poll's re-renders
           never touch the native view (ES-3). Plate keeps its exact 300pt height (DS-7). */}
+      {meetLate?.late && info ? (
+        <View style={{ paddingHorizontal: layout.gutter }}>
+          <LateNotice late={meetLate} side="runner" dogName={info.dogName} runnerName={info.runnerName ?? undefined} />
+        </View>
+      ) : null}
       <View style={s.mapPlate}>
         {hasCoords ? (
           <>

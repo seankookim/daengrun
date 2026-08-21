@@ -17,6 +17,8 @@ import {
 import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
+import { lateness } from '../../src/lib/lateness';
+import { LateNotice } from '../../src/components/late-notice';
 import { runnerJob } from '../../src/store';
 import { colors, layout, lilac, paper } from '../../src/theme';
 
@@ -545,6 +547,15 @@ export default function RunnerHome() {
           return (
             <>
               <SectionHead title="진행 중" />
+              {/* [T5] 지각 알림. 러너 쪽 ④/⑥. actions 없음 — 이 티켓 자체가 이미 문이고,
+                  코랄은 liveOwnsCoral 이 소유한다(① 확정 설계). 사실 한 덩어리만 얹는다. */}
+              <LateNotice
+                late={lateness({ scheduledAt: current.scheduledAt, rawStatus: current.rawStatus,
+                                 arrivedAt: current.arrivedAt ?? null, km: current.km,
+                                 startedAt: current.startedAt ?? null })}
+                side="runner"
+                dogName={current.dogName}
+              />
               <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}>
                 <View style={styles.tMain}>
                   <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
