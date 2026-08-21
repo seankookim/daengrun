@@ -5,6 +5,27 @@ anchor into a distinctive, dog-accessible route candidate.
 
 ## Catalog rules added by the owner
 
+> **⚠ CORRECTION 2026-08-21 — THE 5 km CAP IN THE FIRST RULE IS DEAD. It was superseded on
+> 2026-08-19 and this file is one of the surviving copies.** The live band is **1.5–7.5 km**
+> (Sean, 2026-08-19, verbatim: *"anywhere from around 1.5km+ ish ~ 7 km ish"*), and it is
+> ENFORCED — `build-route.sh` refuses to save a measurement outside it, so this file and the tool
+> now disagree in a direction that costs routes: a reader applying "under 5 km" rejects 5–7.5 km
+> geometry the builder would happily save. `docs/routes/strava/README.md` and `PROMPT.md` both
+> carry the correct band.
+>
+> This is the failure `audit-candidates.mjs:183-185` already names in a comment — *"the THIRD
+> rule today found living in two places and disagreeing (after the 5 km cap in two spots, and the
+> 1.5-7.5 range in three). When a rule is duplicated, fixing one copy just moves the failure."*
+> This is one of those copies. **Rules live in `build-route.sh`; this file records DECISIONS.**
+>
+> Two consequences below, left in place because they are dated records rather than rules:
+> the `Superseded` row for **잠원 한신2차 생활권 6.83 km** ("Exceeds the revised 5 km cap") was a
+> correct decision under the rule of the day and is now a route that would be **in band** — worth
+> re-reviewing rather than silently resurrecting. And every `or ≥5 km` reject condition in the
+> "Next characteristic routes" table should read against 7.5 km. The same dead cap is quoted in
+> `ATTEMPTS.md` and in several `candidate-status.psv` reasons, including one row superseded solely
+> for measuring **5.05 km** — those are the catalog session's to re-judge, not this file's.
+
 - Keep routes under 5 km; prefer roughly 2–4.5 km.
 - A route needs a recognizable experience: park, lake, stream, riverside, hill, or another feature
   worth choosing. A technically clean pavement perimeter is not enough.
