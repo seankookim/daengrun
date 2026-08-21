@@ -1,4 +1,4 @@
-# HANDOFF — client domain (`app/`), written 2026-08-21 midday
+# HANDOFF — client domain (`app/`), written 2026-08-21 afternoon
 
 **Read with this, in order:** `docs/plans/2026-08-20-client-gap-straightening.md` (the 60-item
 inventory + ENDING STATE + Q7–Q10) · `docs/decisions/awaiting-sean.md` · `DESIGN.md` (tokens, laws) ·
@@ -17,7 +17,8 @@ This file **replaces** the 2026-08-21-morning version; git history is the archiv
 
 | System | State | Tag |
 |---|---|---|
-| Trunk | `redesign-v4` @ **`c7dac14`**; my 9 commits all landed, branch `claude/client-redesign-v4-work-3e224f` 0 ahead / 0 behind | **[verified-now]** |
+| Trunk | `redesign-v4` @ **`d595ad4`**; 17 commits landed this session, branch 0 ahead / 0 behind | **[verified-now]** |
+| **`app/test/` suites** | **NEW — app/ had none.** `run-lateness-tests.sh` (33, mutation-verified 3 ways) · `run-kst-tests.sh` (14 under TZ=UTC + 15 under TZ=Asia/Seoul in one invocation) | **[verified-now]** |
 | MAIN CHECKOUT `/Users/sean/dev/daengrun` | clean, **still 3+ behind origin** — I deliberately never fast-forwarded it (§5) | **[verified-now]** |
 | `tsc --noEmit` | clean | **[verified-now]** |
 | `check-rpc-contracts.mjs` | ✅ 95 calls / 165 signatures | **[verified-now]** |
@@ -49,6 +50,34 @@ already render-gated behind `consumedRef` + `report?.run`, `abb65c3d`, Sean, 202
 before the audit. The scout read the line number, not the effect. Do not "fix" it.
 
 ---
+
+## 2-bis. The late-booking protocol (this session's second half)
+
+CEO review + eng review done; stage 1 partly built. Read
+`docs/plans/2026-08-21-late-booking-protocol.md` — its `## GSTACK REVIEW REPORT` is the terminal
+section and carries the verdict plus the unresolved list.
+
+**The finding:** `no_show` is a legal status that **nothing ever writes**, and the only expiry cron
+stops at the match, so a booking has **no clock after a runner accepts**. Sean's Aug 4 booking sat
+16 days because that is the designed behaviour, not an anomaly.
+
+**Sean's decisions:** D1 two-sided check-in · D2 HOLD SCOPE · D3 split at the handoff line
+(`no_show` pre-custody, `incident_review` post — `0066:50` refuses `picked_up → no_show`) ·
+D4 money follows fault · D5 **silence never charges; fault needs a human statement**
+(0068 deleted a timer-driven refund on exactly this reasoning, and push is not evidence).
+
+**Built (T1-T4, T6):** `src/lib/lateness.ts` · `src/lib/kst.ts` · `src/components/late-notice.tsx` ·
+owner home hero + schedule sheet. **Not built: T5** (runner home + meetup mounts) — component and
+pattern are settled, so it is small and well-specified.
+
+🔴 **A LIVE MONEY DEFECT, found while mounting and NOT fixed — it is server-side.**
+`0066:80` charges **50% of the fare** on a `runner_enroute` cancel, unconditional on time, above the
+24h arm, with no staleness carve-out. An owner cancelling a booking a runner abandoned two weeks ago
+pays half, as "runner compensation". The schedule sheet quotes it correctly (`cancelFeeRateFor`), so
+it is disclosed rather than hidden — but it is charged to the wrong party. The plan's FM7 said
+"Handled by D4/D5"; **that was wrong and is corrected** — D4/D5 govern the new protocol's terminals,
+this ladder is live today. Needs a fault dimension or a staleness carve-out in `supabase/`, so it is
+a second reason for the §0-quinvicies ruling.
 
 ## 3. ⚠ Environment — a fresh worktree CANNOT run this app, and nothing said so
 
@@ -186,12 +215,30 @@ checkout**, which is now the narrowest untested hypothesis. **Still nobody shoul
 
 ## 10. Next 1–3 steps
 
-1. **[needs-user]** Any of §7 — the lab number and the simulator question each unblock a whole class.
-2. **[local-edit]** Make the `inherited-claims` §4 framing change (§6): the adversarial pass belongs
-   on your own diff too. Small, and this session is the evidence for it.
-3. **[local-edit]** If continuing without him: `chat.tsx` + `runner/earnings.tsx` virtualization
-   (the real 2 of the fake 19), and `js-hoist-intl` ×4. Both behaviour-preserving, neither needs a
-   design pick. Everything else visual is behind a lab number.
+1. **[local-edit] Finish T5** — mount `LateNotice` on `runner/home.tsx` and `runner/meetup.tsx`.
+   `owner/schedule.tsx` (d595ad4) is the worked example, including why it passes NO actions.
+   ⚠ runner/home carries the settled ① design (do not touch `liveOwnsCoral`); meetup's stage machine
+   is FROZEN (additive render only).
+2. **[needs-user]** §7 — the profile-nudge lab number, the `supabase/` ruling (now blocking BOTH
+   stage 2 and the 50% ladder), and the grace period / maximum-lateness numbers.
+3. **[local-edit]** Make the `inherited-claims` §4 framing change (§6): the adversarial pass belongs
+   on your own diff too. This session is the evidence twice over.
+4. **[local-edit]** Filler: `chat.tsx` + `runner/earnings.tsx` virtualization (the real 2 of the
+   fake 19), `js-hoist-intl` ×4.
+
+## 10-bis. ⚠ Two dead ends recorded so nobody repeats them
+
+**`react-hooks/purity` on a date.** Calling `lateness(b, Date.now())` in render trips it, fairly.
+The obvious fix — hold `now` in state stamped at data-load — is **worse**: it produced a
+react-compiler invariant warning (`InferMutationAliasingEffects`) in `home.tsx` and pushed the purity
+flag into an event handler, +2 warnings for a fix meant to remove one. The answer was to default the
+clock INSIDE the lib (`now: number = Date.now()`), so callers stay pure and tests keep injecting.
+Baseline restored exactly.
+
+**`gstack-review-log` files artifacts under the wrong repo.** It resolves the project from the
+session cwd, which for this session is the mislaunched youtube worktree — so today's gstack
+artifacts are recorded against `youtube`, not `daengrun`. Harmless to the work (reports live in the
+plan files) but the analytics are wrong.
 
 ---
 
