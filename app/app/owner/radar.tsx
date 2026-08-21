@@ -141,11 +141,19 @@ export default function Radar() {
   useEffect(() => {
     if (!bookingId) return;
     let nav: ReturnType<typeof setTimeout> | null = null; // 1.8초 지연 이동 — 언마운트 시 취소
+    // [정리 경합] `nav`는 await **뒤에** 대입된다. 화면을 떠나는 순간 이 요청이 비행 중이면 정리
+    // 함수는 nav === null 을 보고 아무것도 못 지우고, 그 뒤 착륙한 응답이 죽은 화면에서 상태를
+    // 세우고 haptic을 울리고 **아무도 지울 수 없는** 1.8초 타이머를 심는다 — 사용자는 그 사이
+    // 어디로 갔든 1.8초 뒤 일정 화면으로 끌려간다 (cancelled 갈래는 즉시 끌고 간다).
+    // 정리 함수의 clearTimeout만 읽으면 처리된 것처럼 보인다: 이 파일의 분석기 플래그가 한 번
+    // '읽고 해소됨'으로 잘못 기각된 이유다. runner/meetup.tsx·chat.tsx와 같은 alive 관례로 막는다.
+    let alive = true;
     const check = async () => {
       if (matchedRef.current) return;
       const startedAt = Date.now(); // 이 요청보다 **나중에** 일어난 낙관적 지명은 덮지 않는다
       try {
         const b = await fetchBookingBrief(bookingId);
+        if (!alive) return; // 떠난 화면은 상태도 이동도 만들지 않는다
         setPollErr(false);
         setRawStatus(b.status);
         setRunnerName(b.runnerName);
@@ -185,13 +193,14 @@ export default function Radar() {
       } catch {
         // 일시 네트워크 오류 — 다음 틱에 재시도. 조용히 삼키지는 않는다: 계속 실패하면
         // 헤더가 '러너 찾는 중'이라고 우기게 되므로 그 사실을 한 줄로 말한다.
+        if (!alive) return;
         setPollErr(true);
       }
     };
     check();
     const unsub = subscribeBooking(bookingId, check);
     const poll = setInterval(check, 10_000);
-    return () => { unsub(); clearInterval(poll); if (nav) clearTimeout(nav); };
+    return () => { alive = false; unsub(); clearInterval(poll); if (nav) clearTimeout(nav); };
   }, [bookingId]);
 
   const nominate = async (r: LiveRunner) => {
