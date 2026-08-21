@@ -5,9 +5,9 @@ import { Icon, Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot, LoadGate } from '../../../src/components/club-ui';
 import {
   addRunEvent, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
-  fetchSessionRoster, incidentOpen, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
+  fetchRunTrace, fetchSessionRoster, incidentOpen, saveClubRunTrace, SessionRoster, settleRun,
+  uploadRunPhoto,
 } from '../../../src/lib/api';
-import { supabase } from '../../../src/lib/supabase';
 import { createPosPublisher, distM, GeoPoint, getNaverMap, getTraceSnapshot, LL, resetTrace, seedTrace, smoothTrace, startTracking, TrackHandle, TrackMode } from '../../../src/lib/geo';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -85,8 +85,10 @@ export default function ClubRun() {
     if (hydrated.current) return;
     hydrated.current = true;
     try {
-      const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
-      const saved: { lat: number; lng: number; t: number }[] = (data as any)?.trace ?? [];
+      // [0120] 직접 SELECT였다 — 클라이언트 역할은 `runs.trace`를 더 이상 읽지 못한다. 좌표로 가는
+      // 유일한 창구가 `run_trace_read`이고 그 호출이 위치정보법 제16조 확인자료를 남긴다. 이 화면은
+      // 러너(=개인위치정보주체) 본인이 보므로 대장에는 relation='subject'로 적힌다.
+      const saved: { lat: number; lng: number; t: number }[] = await fetchRunTrace(bookingId);
       // [2026-08-08] km 재계산은 seedTrace(=mergeFixes)가 한다 — 라이브와 하이드레이션이
       // 같은 게이트를 쓰지 않으면 두 숫자가 갈라진다. 이미 픽스가 들어온 뒤면 덮지 않는다.
       if (saved.length > 1 && getTraceSnapshot().trace.length === 0) {

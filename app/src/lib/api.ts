@@ -2121,16 +2121,27 @@ export async function saveRunTrace(bookingId: string, trace: { lat: number; lng:
 
 // 1:1 트레이스 시드 — 재진입·앱 종료 후 재개 시 km이 0부터 다시 시작하지 않게 (클럽 hydrateFromServer와 동일 관용구).
 // saveRunTrace는 배열 통째 덮어쓰기라(서버 append-merge 없음) 시드 없이 저장하면 기존 기록이 잘린다.
+//
+// [0120] 이제 `runs.trace` 직접 SELECT가 아니다. 클라이언트 역할은 그 컬럼을 읽지 못한다 —
+// 유일한 창구가 `run_trace_read`이고, 그 호출이 위치정보법 제16조 이용·제공 사실 확인자료를 남긴다.
+// 저장(saveRunTrace)은 그대로다: 라이브 append 표면은 제공 표면이 아니다.
+// ⚠ 이 함수와 0120 §D는 한 커밋에서 움직여야 한다. 컬럼 회수는 필드를 숨기는 게 아니라 PostgREST
+//   요청 전체를 실패시킨다(0088에서 signup이 전부 403났던 그 클래스).
+// 오류는 삼키지 않는다: 예전 형태는 `{ data }`만 보고 실패를 빈 배열로 되돌려줬는데, 시드 실패를
+// 「기록 없음」으로 그리면 다음 저장이 기존 트레이스를 잘라먹는다(바로 이 주석 두 줄 위의 그 사고).
 export async function fetchRunTrace(bookingId: string): Promise<{ lat: number; lng: number; t: number }[]> {
-  const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
-  return ((data as any)?.trace ?? []) as { lat: number; lng: number; t: number }[];
+  const { data, error } = await supabase.rpc('run_trace_read', { p_booking: bookingId });
+  if (error) throw error;
+  return ((data ?? []) as { lat: number; lng: number; t: number }[]);
 }
 
 // 이 러닝의 실사진 — runs.photos, uploadRunPhoto(append_run_photo)가 돌려주는 것과 **같은 배열**.
 // [2026-08-19 · runner review P2] 추가 이유: run.tsx가 러닝 도중 올린 사진은 이미 같은 booking의
 // runs.photos에 원자 append 돼 있는데, done.tsx의 `photos` state는 [] 로 시작해 업로드 응답으로만
 // 채워졌다 — 4장을 찍고 온 러너가 '오늘의 순간'에서 썸네일 0개를 보고(사진이 사라졌다고 읽고)
-// 6장 캡도 0부터 다시 세었다. 읽기 창구는 fetchRunTrace와 같은 `runs party read` 정책이다.
+// 6장 캡도 0부터 다시 세었다. 읽기 창구는 `runs party read` 정책이다 — [0120] fetchRunTrace는 더 이상
+// 이 경로가 아니다(좌표는 정책이 아니라 확인자료를 남기는 definer 창구로만 나간다). photos는 좌표가
+// 아니므로 컬럼 화이트리스트에 남아 있고, 이 select는 그대로 동작한다.
 // 추가만 한다 (기존 함수·타입 무변경).
 export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
   const { data, error } = await supabase.from('runs').select('photos').eq('booking_id', bookingId).maybeSingle();

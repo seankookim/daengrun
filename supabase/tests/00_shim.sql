@@ -107,3 +107,50 @@ grant usage on schema realtime to anon, authenticated;   -- schema USAGE, measur
 grant select, insert, update on realtime.messages to anon, authenticated;
 create or replace function realtime.topic() returns text
 language sql stable as $$ select current_setting('realtime.topic', true) $$;
+
+-- ---------- pg_cron (2026-08-21, location slice — 0120 §H) ----------
+-- The platform owns `pg_cron` in production; the harness has never had one, so EVERY
+-- `cron.schedule` in this repo has taken its `exception when others` arm locally and **no suite has
+-- ever been able to assert that a job is actually scheduled.** That is not a hypothetical gap:
+-- `0060:129-147` records `purge_expired_holds` sitting UNSCHEDULED for months while a comment
+-- claimed it ran every minute, and `legal-ops-domain.md:415` says in as many words that *"the pin
+-- belongs on `cron.job`, not on the function."* Without this stub that pin can only be prose.
+-- Same reason, same shape and same precedent as the `realtime` shim twelve lines up: the shim
+-- exists so a suite can measure the SHIPPING path instead of a helper.
+--
+-- ⚠ WHAT THIS CHANGES FOR EVERY OTHER SUITE, stated rather than discovered. Migrations whose
+-- do-block calls `create extension if not exists pg_cron` FIRST (0014, 0026, 0035, 0037, 0043,
+-- 0045, 0070) still take the exception arm here — a stub cannot fake an extension — so their jobs
+-- do NOT appear locally. The ~9 whose do-block is the bare 0017/0060 form (0017, 0021, 0047, 0060,
+-- 0063, 0076, 0080 ×2, 0083) now insert a `cron.job` row where they previously raised a NOTICE that
+-- the harness filters anyway. Nothing in `supabase/tests/` reads `cron` today (grepped), so the
+-- PREDICTED pin movement is zero — but it is a prediction, not a measurement, and it is written
+-- here so the next red run has somewhere to look.
+create schema if not exists cron;
+create table if not exists cron.job (
+  jobid    bigint generated always as identity primary key,
+  schedule text not null,
+  command  text not null,
+  nodename text not null default 'localhost',
+  nodeport int  not null default 5432,
+  database text not null default current_database(),
+  username text not null default current_user,
+  active   boolean not null default true,
+  jobname  text unique
+);
+-- Signature matches pg_cron's 3-arg form, which is the only one this repo calls (17 call sites).
+create or replace function cron.schedule(job_name text, schedule text, command text) returns bigint
+language plpgsql as $$
+declare v bigint;
+begin
+  insert into cron.job (jobname, schedule, command) values (job_name, schedule, command)
+  on conflict (jobname) do update set schedule = excluded.schedule, command = excluded.command
+  returning jobid into v;
+  return v;
+end $$;
+create or replace function cron.unschedule(job_name text) returns boolean
+language plpgsql as $$ begin delete from cron.job where jobname = job_name; return found; end $$;
+-- No client grant: production's `cron` schema is not reachable by anon/authenticated either, and a
+-- suite that could read it as a client role would be measuring the wrong thing.
+revoke all on schema cron from public;
+revoke all on all tables in schema cron from public;
