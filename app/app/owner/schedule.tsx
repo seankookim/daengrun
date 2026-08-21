@@ -149,6 +149,15 @@ export default function Schedule() {
   const enrouteCancel = selected?.rawStatus === 'runner_enroute';
   const feeRate = selected ? cancelFeeRateFor(selected) : 0;
   const fee = selected ? Math.round(selected.price * feeRate) : 0;
+  // [#1 stopgap · Sean 2026-08-21] 이동 중 취소의 50%는 곧 서버에서 **면제될 수 있다** (0117 §9:
+  // 러너 과실 기록이 있거나 3시간 천장을 지났으면 0). 그 술어의 절반(booking_faults)은 클라이언트가
+  // 볼 수 없으므로 이 미러는 면제를 **알 수 없다** — 그런데도 숫자를 말하면 서버가 청구하지 않을
+  // 금액을 결제 직전에 약속하는 게 된다 (F2 계열).
+  // 그래서 이 팔만 숫자를 접고 정책을 말한다. 0066:89 가 원래 적어둔 자세이기도 하다:
+  // "client copy states the policy in words and the success alert shows server numbers."
+  // ⚠ 임시다. quote_cancel_fee(파티 게이트 읽기)가 배포되면 이 자리는 미러가 아니라 **읽기**가 되고,
+  // 그때 '아직 모름'은 0이 아니라 문장으로 렌더된다 (loading ≠ 0).
+  const enrouteQuoteUnknown = selected?.rawStatus === 'runner_enroute';
 
   // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 정산 전에는 행이 없는 것이
   // 정직한 상태(가격 비가시성)라, 없는 동안에는 섹션 자체가 렌더되지 않는다.
@@ -661,7 +670,8 @@ export default function Schedule() {
                           <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
                             {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
                                 달던 자리(이동 중만 표기하던 이분법)의 교정 */}
-                            {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
+                            {/* 이동 중이면 퍼센트를 붙이지 않는다 — 면제될 수 있는 값을 라벨에 박제하지 않는다. */}
+                            {enrouteQuoteUnknown || fee <= 0 ? '일정 취소하기' : `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)`}
                           </Text>
                         </Pressable>
                       )}
@@ -707,9 +717,11 @@ export default function Schedule() {
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 17 }}>
-                      {fee > 0
-                        ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
-                        : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
+                      {enrouteQuoteUnknown
+                        ? '러너가 출발한 뒤의 취소예요. 취소 수수료가 있을 수 있고, 러너가 오지 않은 경우처럼 면제되기도 해요 — 확정 금액은 취소할 때 바로 알려드려요.'
+                        : fee > 0
+                          ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
+                          : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
                     </Text>
                   </View>
 

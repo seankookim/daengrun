@@ -49,6 +49,21 @@ screens that still cannot resolve anything. Statuses were never the gap.
 
 ### 4.1 The handoff line is the seam (D3)
 
+⚠ **CORRECTION 2026-08-21 — this section over-claimed and the claim shipped.** The diagram below
+describes what the protocol does ONCE A CHECK-IN IS OPEN. It does **not** describe when one opens.
+All three entry points in 0117 are pre-custody only (`open_checkin`'s status gate, and both sweep
+arms: `status in ('confirmed','runner_enroute')`). So a booking already `picked_up` or `active`
+never enters the protocol, and the post-custody cells below are reachable only in the ≤grace window
+where a booking progresses while its check-in is live.
+
+**Consequence: a run that starts and never ends is NOT covered here.** `run-end-recovery` handles
+runs that recorded an end, not runs that never do. Sean ruled (2026-08-21) that this is correctly a
+*different* problem — never-started vs never-finished — and gets its own slice extending run-end
+recovery. It is not a gap in 0117; it is a gap in what this plan claimed.
+
+The client half is corrected: the post-custody surfaces no longer say 「확인이 필요해요」, which
+implied a watcher, and now put the action on the reader (contact / SOS).
+
 ```
   PRE-CUSTODY                          ║  POST-CUSTODY (dog is with the runner)
   confirmed / runner_enroute           ║  picked_up / active
