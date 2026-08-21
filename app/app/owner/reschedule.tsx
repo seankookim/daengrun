@@ -92,6 +92,11 @@ export default function Reschedule() {
     return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
   }), []);
 
+  // [지속시간 드리프트] 이 화면은 슬롯을 60분으로 검증했는데, 수락 시 서버(transition-booking)는
+  // km×8+25분으로 본다 — owner/request.tsx의 slotAllowed가 쓰는 것과 같은 식이다. 10km 예약이면
+  // 서버는 105분을 요구하므로, 60분만 맞는 칸이 UI에선 '가능'이었다가 러너가 수락할 때 거절됐다.
+  // 화면이 서버가 거절할 칸을 내주는 건 이 파일이 이미 금지한 '거짓 준비'(honesty P1)와 같은 것.
+  const durMin = Math.round((info?.km ?? 5) * 8 + 25);
   const daySlots = useMemo(() => {
     const day = days[dayIdx];
     const wd = day.cal.wd; // KST 요일 — rules.weekday가 KST 고정이다
@@ -100,14 +105,15 @@ export default function Reschedule() {
     // Loading ('null') and failure ('error') produce no slots, but they are NOT an empty
     // availability — the render below tells those three apart before it draws anything.
     (Array.isArray(rules) ? rules : []).filter((r) => r.weekday === wd).forEach((r) => {
-      for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
+      // 시작 칸은 60분 간격이되(그리드 눈금), 규칙 창 안에 **실소요**가 들어가야 칸이 산다.
+      for (let m = r.startMin; m + durMin <= r.endMin; m += 60) {
         const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
         if (start.getTime() < minStart) continue;
         out.push({ key: start.toISOString(), label: fmtMin(m), start });
       }
     });
     return out;
-  }, [rules, dayIdx, days]);
+  }, [rules, dayIdx, days, durMin]);
 
   // 슬롯별 서버 검증 — 러너 프로필 그리드와 동일 (규칙 + 예약 충돌 + 휴식 버퍼)
   // [honesty P1 2026-08-11] a failed check used to paint the slot 가능 — a booking
@@ -122,19 +128,19 @@ export default function Reschedule() {
       return next;
     });
     daySlots.forEach((sl) => {
-      const end = new Date(sl.start.getTime() + 60 * 60_000);
+      const end = new Date(sl.start.getTime() + durMin * 60_000);
       checkSlot(info.runnerId!, sl.start.toISOString(), end.toISOString())
         .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
         .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: 'error' })); });
     });
     return () => { alive = false; };
-  }, [info, daySlots]);
+  }, [info, daySlots, durMin]);
 
   // single-slot recheck — the retry path for a failed availability check
   const recheckSlot = (sl: { key: string; start: Date }) => {
     if (!info?.runnerId) return;
     setSlotOk((m) => ({ ...m, [sl.key]: null }));
-    const end = new Date(sl.start.getTime() + 60 * 60_000);
+    const end = new Date(sl.start.getTime() + durMin * 60_000);
     checkSlot(info.runnerId, sl.start.toISOString(), end.toISOString())
       .then((ok) => setSlotOk((m) => ({ ...m, [sl.key]: ok })))
       .catch(() => setSlotOk((m) => ({ ...m, [sl.key]: 'error' })));
