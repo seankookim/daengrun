@@ -1,0 +1,255 @@
+<title>Post-First-Run Profile Nudge Lab</title>
+<style>
+  :root{
+    --ink:#111111; --dim:#666666; --canvas:#FFFFFF;
+    --coral:#C6472C; --coralEdge:#A63A20; --coralSub:#FFF6F4;
+    --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+    --volt:#5E7F0E; --voltFill:#EAF6C8;
+    --violet:#6C5CE7; --violetWash:#EFECF9;
+    --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+    --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92;
+  }}
+  :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1220px;margin:0 auto;padding:30px 20px 70px}
+  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+  h1{font-size:25px;line-height:1.15;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14.5px;margin:0}
+  .said{background:var(--panel);border-left:3px solid var(--coral);padding:13px 16px;margin:20px 0 4px;font-size:14.5px}
+  .said b{color:var(--coral)}
+  .note{background:var(--panel);border:1px solid var(--hair);padding:13px 16px;margin:16px 0 4px;font-size:13.5px;line-height:1.6}
+  .note h4{margin:0 0 7px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  .note code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 4px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:24px;margin-top:24px}
+  .card{background:var(--panel);border:1px solid var(--hair);display:flex;flex-direction:column}
+  .card.rec{border:2px solid var(--coral)}
+  .cardhd{padding:13px 15px;border-bottom:1px solid var(--hair)}
+  .num{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--violet)}
+  .card.rec .num{color:var(--coral)}
+  .cardhd h3{margin:3px 0 3px;font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .cardhd p{margin:0;font-size:13px;color:var(--dim);line-height:1.45}
+  .phone{margin:15px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden;position:relative}
+  .st{display:flex;justify-content:space-between;padding:6px 11px 3px;font-size:10px;color:#999}
+  .mast{text-align:center;padding:4px 11px 9px;border-bottom:1px solid #EFEEEA;font-size:14.5px;font-weight:800}
+  .sec{padding:10px 12px}
+  .kick{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8A8A82;margin-bottom:5px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .muted{color:#6E6E66;font-size:11.5px}
+  .big{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-weight:800;letter-spacing:-.02em}
+  .map{height:74px;background:repeating-linear-gradient(45deg,#F4F3EF,#F4F3EF 7px,#EDECE7 7px,#EDECE7 14px);
+    border:1px solid #E4E3DD;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#9A988F}
+  .btn{display:block;width:100%;text-align:left;padding:12px 13px;position:relative}
+  .btn .t{font-size:16.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  .btn .s{font-size:12px;margin-top:2px}
+  .coralb{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge)}
+  .coralb .s{color:var(--coralSub)}
+  .inkb{background:#fff;color:#111;border:1.5px solid #111}
+  .inkb .s{color:#5E5E58}
+  .gap{border:1.5px solid #111;padding:9px 10px;margin-top:7px;display:flex;gap:9px;align-items:flex-start}
+  .gap .ico{width:20px;height:20px;border:1.5px solid #111;flex:0 0 20px;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .gap .gt{font-size:13px;font-weight:800;line-height:1.25}
+  .gap .gs{font-size:11px;color:#6E6E66;margin-top:2px;line-height:1.35}
+  .gap .arrow{margin-left:auto;font-size:14px;color:#9A988F;align-self:center}
+  .dismiss{text-align:center;font-size:11.5px;color:#8A8A82;padding:9px}
+  .sheetdim{background:#111;opacity:.35;height:52px}
+  .prog{height:5px;background:#EDECE7;margin-top:8px;position:relative}
+  .prog i{position:absolute;left:0;top:0;bottom:0;background:var(--coral);width:50%}
+  .hair{height:1px;background:#EFEEEA;margin:9px 0}
+  .verdict{padding:11px 15px;border-top:1px solid var(--hair);font-size:12.5px;line-height:1.5}
+  .verdict b{font-weight:800}
+  .pro{color:var(--volt);font-weight:800}
+  .con{color:var(--coral);font-weight:800}
+  footer{margin-top:34px;border-top:2.5px solid var(--ink);padding-top:14px;font-size:13.5px;line-height:1.6}
+</style>
+<div class="wrap">
+<header class="top">
+  <h1>첫 러닝 뒤 프로필 넛지 — 배치 4안</h1>
+  <p class="sub">Ruling #3 · 어디에 놓을지만 고르시면 됩니다. 내용(어떤 빈칸을 묻는지)은 4안 공통.</p>
+</header>
+
+<div class="said">
+  <b>Sean, 2026-08-19 (ruling #3):</b> “Post-first-run <b>‘finish your profile’ big nudge</b> — sometime
+  AFTER the first run has taken off (not before, not blocking). <b>Design later; noted.</b>”
+  <br>→ 그 “design later”가 이 랩입니다. 규칙 세 개는 이미 확정: <b>첫 러닝 후</b> · <b>차단하지 않음</b> · <b>크게</b>.
+</div>
+
+<div class="note">
+  <h4>먼저 — 무엇을 물어볼 것인가 (4안 공통, 실제 빈칸에서 나옴)</h4>
+  넛지가 스팸이 되는 이유는 “프로필을 완성하세요”라고만 말하기 때문입니다. 여기서는 <b>각 줄이 방금 끝난 러닝에서
+  무엇이 달라졌을지를 말합니다</b> — 보호자가 이제 막 그 화면들을 봤기 때문에 통합니다.
+  <div class="hair"></div>
+  · <b>강아지 사진</b> → 러너 티켓에 얼굴이 뜹니다 (티켓 B — 이미 배포됨)<br>
+  · <b>백신 정보</b> → 인계 화면에서 러너가 확인합니다 (<code>MeetupInfo</code> tags/vaccines — 이미 배포됨)<br>
+  · <b>현관 상세</b> → 러너가 문 앞에서 헤매지 않습니다 (티켓 D, door-level address — 이미 배포됨)<br>
+  · <b>연락처</b> → ⚠ <b>이번 안에서 제외.</b> <code>profiles.phone</code>은 전원 NULL이고, 읽는 화면이 없습니다.
+  받아두고 아무 데도 안 쓰면 그건 넛지가 아니라 수집입니다 (§12: 전화 버튼은 죽은 버튼이라 넣지 않기로 한 것과 같은 이유).
+  <div class="hair"></div>
+  즉 <b>세 줄뿐이고, 세 줄 다 이미 존재하는 화면에 실제로 나타납니다.</b> 죽은 필드를 묻지 않습니다.
+</div>
+
+<div class="grid">
+
+  <!-- ① -->
+  <div class="card rec">
+    <div class="cardhd">
+      <div class="num">① 리포트 하단 — 추천</div>
+      <h3>기록을 다 본 자리에서</h3>
+      <p>첫 러닝 리포트의 맨 아래. 감정이 가장 높은 지점이고, 방금 본 화면들을 그대로 가리킬 수 있습니다.</p>
+    </div>
+    <div class="phone">
+      <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">러닝 기록</div>
+      <div class="sec">
+        <div class="map">지도 · 오늘의 경로</div>
+        <div class="row" style="margin-top:9px">
+          <span class="muted">초코 · 5.2km</span><span class="big" style="font-size:15px">32:14</span>
+        </div>
+        <div class="hair"></div>
+        <div class="kick">다음 주 같은 시간</div>
+        <div class="btn inkb" style="margin-top:5px"><div class="t">같은 시간 예약 ›</div></div>
+        <div class="hair"></div>
+        <div class="kick">프로필을 마저 채우면</div>
+        <div class="gap"><div class="ico">🐾</div><div><div class="gt">초코 사진</div>
+          <div class="gs">러너 티켓에 얼굴이 떠요</div></div><div class="arrow">›</div></div>
+        <div class="gap"><div class="ico">💉</div><div><div class="gt">백신 정보</div>
+          <div class="gs">인계할 때 러너가 확인해요</div></div><div class="arrow">›</div></div>
+        <div class="gap"><div class="ico">🚪</div><div><div class="gt">현관 상세</div>
+          <div class="gs">문 앞에서 헤매지 않아요</div></div><div class="arrow">›</div></div>
+      </div>
+      <div class="dismiss">나중에 할게요</div>
+    </div>
+    <div class="verdict">
+      <span class="pro">강점</span> 맥락이 가장 강합니다 — 세 줄이 가리키는 화면을 방금 다 봤습니다. 차단이 전혀 없고,
+      리포트를 닫으면 그냥 사라집니다.<br>
+      <span class="con">약점</span> 스크롤 끝이라 못 보고 나갈 수 있습니다. “big nudge”라는 말과 가장 먼 안.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="card">
+    <div class="cardhd">
+      <div class="num">② 홈 행 — 끈질긴 안</div>
+      <h3>다 채울 때까지 홈에</h3>
+      <p>보호자 홈의 히어로 아래 한 행. 다 채우면 사라지고, 닫으면 그 주 동안 숨습니다.</p>
+    </div>
+    <div class="phone">
+      <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">도그스하이</div>
+      <div class="sec">
+        <div class="kick">다음 러닝</div>
+        <div class="row"><span style="font-weight:800">예약이 없어요</span></div>
+        <div class="btn coralb" style="margin-top:7px"><div class="t">러닝 예약하기</div>
+          <div class="s">초코와 함께 · 5km</div></div>
+        <div class="hair"></div>
+        <div class="gap" style="border-width:1.5px">
+          <div class="ico">3</div>
+          <div><div class="gt">프로필 3칸 남았어요</div>
+            <div class="gs">사진 · 백신 · 현관 상세 — 러너가 보는 것들이에요</div>
+            <div class="prog"><i style="width:40%"></i></div></div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="hair"></div>
+        <div class="kick">우리 동네</div>
+        <div class="row"><span class="muted">반포 · 러너 12명</span></div>
+      </div>
+      <div class="dismiss">이번 주는 그만 보기</div>
+    </div>
+    <div class="verdict">
+      <span class="pro">강점</span> 완성률이 가장 높습니다. 홈은 매번 지나가는 자리라 놓칠 수가 없습니다.<br>
+      <span class="con">약점</span> <b>코랄 법과 충돌합니다.</b> 예약 CTA가 이미 코랄이라 이 행은 잉크로 가야 하고,
+      그러면 “big”이 아닙니다. 홈에 영구 행을 하나 더 얹는 값도 큽니다.
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="card">
+    <div class="cardhd">
+      <div class="num">③ 다음 진입 시트 — 가장 센 안</div>
+      <h3>딱 한 번, 크게</h3>
+      <p>첫 러닝이 끝난 뒤 <b>다음번</b> 홈 진입에서 시트로 한 번. 이후로는 다시 뜨지 않습니다.</p>
+    </div>
+    <div class="phone">
+      <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="sheetdim"></div>
+      <div class="sec" style="border-top:1.5px solid #111">
+        <div class="kick">첫 러닝을 마쳤어요</div>
+        <div style="font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin:3px 0 4px">
+          초코의 다음 러닝을<br>더 편하게 만들 수 있어요
+        </div>
+        <div class="muted" style="margin-bottom:8px">세 가지만 채우면 러너가 훨씬 잘 준비해요.</div>
+        <div class="gap"><div class="ico">🐾</div><div><div class="gt">초코 사진</div>
+          <div class="gs">러너 티켓에 얼굴이 떠요</div></div><div class="arrow">›</div></div>
+        <div class="gap"><div class="ico">💉</div><div><div class="gt">백신 정보</div>
+          <div class="gs">인계할 때 러너가 확인해요</div></div><div class="arrow">›</div></div>
+        <div class="gap"><div class="ico">🚪</div><div><div class="gt">현관 상세</div>
+          <div class="gs">문 앞에서 헤매지 않아요</div></div><div class="arrow">›</div></div>
+        <div class="btn coralb" style="margin-top:9px"><div class="t">지금 채우기</div></div>
+      </div>
+      <div class="dismiss">나중에 할게요</div>
+    </div>
+    <div class="verdict">
+      <span class="pro">강점</span> 유일하게 진짜 “big nudge”입니다. 시트 안에서는 코랄이 하나뿐이라 법과도 맞습니다.<br>
+      <span class="con">약점</span> <b>“not blocking”에 가장 가깝게 다가섭니다.</b> 닫을 수 있어도 앱을 열자마자 막아서는
+      느낌이고, 첫 러닝 직후의 좋은 기분 위에 요구를 얹습니다.
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="card">
+    <div class="cardhd">
+      <div class="num">④ 넛지 없음 — 빈칸이 있는 자리에서</div>
+      <h3>묻지 않고, 보여주기</h3>
+      <p>넛지 화면을 만들지 않습니다. 그 필드가 실제로 쓰이는 화면에서 빈칸을 그대로 드러냅니다.</p>
+    </div>
+    <div class="phone">
+      <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">인계 준비</div>
+      <div class="sec">
+        <div class="kick">러너가 보는 화면</div>
+        <div class="gap" style="border-style:dashed">
+          <div class="ico" style="border-style:dashed">?</div>
+          <div><div class="gt">사진이 없어요</div>
+            <div class="gs">러너 티켓에 초코 얼굴 대신 빈 칸이 떠요</div></div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="hair"></div>
+        <div class="row"><span style="font-weight:800">초코</span><span class="muted">말티즈 · 4.2kg</span></div>
+        <div class="gap" style="border-style:dashed;margin-top:7px">
+          <div class="ico" style="border-style:dashed">?</div>
+          <div><div class="gt">백신 정보 없음</div>
+            <div class="gs">러너가 인계 때 확인할 게 없어요</div></div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="hair"></div>
+        <div class="kick">메모</div>
+        <div class="muted">낯선 사람에게 처음엔 짖어요</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="pro">강점</span> 가장 정직합니다 — 빈칸을 빈칸으로 보여주고, 고칠 이유가 눈앞에 있습니다.
+      새 화면도, 새 상태도, 닫기 로직도 없습니다.<br>
+      <span class="con">약점</span> <b>ruling #3이 요구한 “big nudge”가 아닙니다.</b> 그 화면에 가야만 보이고,
+      첫 러닝과 연결되지도 않습니다.
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <b>제 추천은 ①입니다.</b> 셋 중 유일하게 세 규칙을 다 지킵니다 — 첫 러닝 <i>후</i>이고, 차단하지 않고,
+  세 줄이 방금 본 화면을 가리킵니다. ③이 더 “big”하지만 “not blocking”을 가장 세게 시험하고,
+  ②는 코랄 법과 부딪칩니다.
+  <br><br>
+  <b>①과 ④는 배타적이지 않습니다.</b> ①을 첫 러닝 직후 한 번 띄우고, ④의 점선 빈칸을 상시로 두면
+  넛지를 놓친 사람도 필드가 쓰이는 자리에서 다시 만납니다. 원하시면 <b>①+④</b>라고만 하셔도 됩니다.
+  <br><br>
+  <span style="color:var(--dim)">⚠ 아직 코드 없음 — 랩만. 번호만 주시면 그 안으로 짓겠습니다.
+  연락처는 네 안 모두에서 뺐습니다 (<code>profiles.phone</code>을 읽는 화면이 아직 없어서 —
+  받아두기만 하는 필드는 묻지 않습니다).</span>
+</footer>
+</div>
