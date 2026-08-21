@@ -7,7 +7,20 @@
 --
 -- ─── MUTATION MAP (measured, not predicted — each fix deleted in turn, full harness re-run) ───
 --   §A delete `and rn.settled_at is not null` from sweep_settled_without_payments
---                                                              → RED = [B1] (+116 C9)
+--                                                              → RED = [B1]
+--        (116 C9 stays GREEN by design — its updated form is narrower and B1 owns the property;
+--         an earlier draft of this header claimed C9 reds too, which contradicted the REGISTRY)
+--   §A weaken to `coalesce(rn.settled_at, b.run_ended_at) is not null`
+--                                                              → RED = [B1] (fixture stamps run_ended_at)
+--   §B delete the `perform mint_cancel_fee_intent` call        → RED = [B2 ⓕ]
+--   §B drop first-writer-wins (the `coalesce(cancel_fee,0)=0` guard)
+--                                                              → RED = [B2 ⓖ] (numbers DIFFER there)
+--   §C revert the kind arm to bare `IS NOT NULL`               → RED = [B4] (kind:"" arm)
+--   §D ⓐ delete the case_owner arm                             → RED = [B5 ⓖ]
+--   §D ⓐ drop the backup-host reach                            → RED = [B5 ⓗ]
+--   §D ⓒ remove the null-uid exemption                         → RED = [B7]
+--   grant anon EXECUTE on any §D function · re-grant club_host_stats to service_role
+--                                                              → RED = [B9]
 --   §B delete the `update bookings set cancel_fee`             → RED = [B2]
 --   §B delete the ledger_items insert                          → RED = [B2]
 --   §C revert dispatch_due_charges to the open-coded predicate  → RED = [B3]
@@ -43,6 +56,7 @@ declare
   v_since timestamptz;
   v_fee int; v_share int; v_plat int; v_total int; v_ledger bigint; v_pre bigint;
   q record; v_err boolean; v_txt text;
+  co uuid; bh uuid; v_amt int;
 begin
   -- ---------- shared seed ----------
   -- ⚠ THE CLUB FIXTURE IS BUILT HERE, AT TOP LEVEL, AND NOT INSIDE [B2]. A plpgsql
@@ -59,6 +73,8 @@ begin
   oz := t_user('fbl_oz', 'owner');  dz := t_dog(oz, '남의견');
   ol := t_user('fbl_ol', 'owner');  dl := t_dog(ol, '미승인견');
   zz := t_user('fbl_zz', 'owner');                       -- 완전한 무관자
+  co := t_user('fbl_co', 'owner');                       -- 케이스 오너 (B5 ⓖ 전용 — 다른 관계 없음)
+  bh := t_user('fbl_bh', 'runner');                      -- 백업 호스트 (B5 ⓗ 전용)
   rt := t_route('차단 코스');
 
   -- a paid, assigned, accepted club delegation — B2 cancels it, B5 quotes it, B7 projects it
@@ -116,6 +132,13 @@ begin
     insert into runs (booking_id, started_at, ended_at, settled_at, actual_km, end_reason)
     values (b2, now() - interval '4 hours', now() - interval '3 hours', null,
             5.0, 'completed'::end_reason);
+    -- the real stop path (0083) also stamps bookings.run_ended_at — mirrored on the LEASHED
+    -- booking so a predicate weakened to `coalesce(settled_at, run_ended_at)` bills it and
+    -- REDDENS ⓑ, instead of staying green against a fixture the real writer never produces.
+    -- ⚠ b2 ONLY, deliberately: ba belongs to the same runner, and _runner_work_gate_blocking
+    -- names the OLDEST unreturned booking with a stamped run_ended_at — stamping ba too makes
+    -- the gate answer [B6] with ba instead of the booking that pin arranged (measured, 730/2).
+    update bookings set run_ended_at = now() - interval '3 hours' where id = b2;
 
     perform sweep_settled_without_payments();
 
@@ -136,6 +159,9 @@ begin
     select count(*) into v_n2 from payments where booking_id = b2;
     if v_n2 <> 1 then v_bad := v_bad || ' 정산 도장이 찍힌 뒤에도 청구가 안 생겼다=' || v_n2; end if;
 
+    -- [B6]'s control arm assumes rr is NOT yet gated: b2's stamp stays inside B1 (B6 stamps it
+    -- itself, at its own time — measured: leaving this set makes the gate answer B6 early, 730/2)
+    update bookings set run_ended_at = null where id = b2;
     update ops_flags set payments_live_since = v_since, updated_at = now();
 
     if v_bad = ''
@@ -206,6 +232,11 @@ begin
     if (select cancel_fee from bookings where id = b_pay) is distinct from v_fee
       then v_bad := v_bad || ' 재호출이 이미 기록된 청구 금액을 바꿨다'; end if;
 
+    -- ⓓ′ and with charging OFF the mint's own first line refused: fee recorded, NOTHING minted.
+    --    (Scoped to kind='cancel_fee' — the club pay path must stay out of this count.)
+    if exists (select 1 from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee')
+      then v_bad := v_bad || ' 🔴 차징 오프인데 취소 수수료 인텐트가 민팅됐다'; end if;
+
     -- ⓔ NEGATIVE CONTROL — the free tier writes nothing anywhere. Without this arm a plumbing
     --    that wrote a fee unconditionally would pass every assertion above.
     perform set_config('request.jwt.claim.sub', oz::text, false);
@@ -223,11 +254,44 @@ begin
       then v_bad := v_bad || ' 🔴 무료 취소에 원장이 생겼다'; end if;
     perform set_config('request.jwt.claim.sub', '', false);
 
+    -- ⓕ POST-FLIP (fix round F-1): the recorded fee becomes an INTENT, minted from HERE — the
+    --    only application caller of mint_cancel_fee_intent refused club bookings, so the runner
+    --    was credited while the owner was never charged and never debt-gated (review finding 1).
+    select f.payments_live_since into v_since from ops_flags f where f.id;
+    update ops_flags set payments_live_since = now() - interval '7 days', updated_at = now();
+    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 20, rr, 'post_acceptance');
+    select count(*), coalesce(max(amount), 0) into v_n, v_amt
+      from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
+    if v_n <> 1 then v_bad := v_bad || ' 🔴 포스트플립 인텐트 행수=' || v_n || ' (기대 1 — 기록된 수수료가 영영 걷히지 않는다)'; end if;
+    if v_amt <> v_fee then v_bad := v_bad || ' 🔴 민팅 금액=' || v_amt || ' (기록된 수수료 ' || v_fee || '와 다르다)'; end if;
+    -- the debt gate gives dispatch its hour on purpose (0080:526) — a FRESH intent is not yet
+    -- debt, and asserting otherwise would pin the grace window out of existence. Both sides:
+    if owner_has_unsettled_charge(oo)
+      then v_bad := v_bad || ' 갓 민팅된 인텐트가 즉시 부채다 (디스패치 유예 1시간이 사라졌다)'; end if;
+    update payments set raw = raw || jsonb_build_object('dispatched_at', (now() - interval '2 hours')::text)
+      where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
+    if not owner_has_unsettled_charge(oo)
+      then v_bad := v_bad || ' 🔴 부채 게이트가 디스패치 1시간 지난 취소 수수료를 못 본다 — 클럽 취소가 부채가 못 된다'; end if;
+    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 20, rr, 'post_acceptance');
+    select count(*) into v_n from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
+    if v_n <> 1 then v_bad := v_bad || ' 재호출이 인텐트를 복제했다=' || v_n; end if;
+    -- ⓖ first-writer-wins proven with DIFFERENT numbers: ⓓ's re-call repeated the same base and
+    --    pct, so dropping the guard stayed green there — here the tier differs, and a re-price
+    --    under a LIVE intent must change neither the recorded fee nor the minted amount.
+    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 10, rr, 'late_tier');
+    if (select cancel_fee from bookings where id = b_pay) is distinct from v_fee
+      then v_bad := v_bad || ' 🔴 다른 값의 재호출이 살아있는 청구 금액을 바꿨다'; end if;
+    select coalesce(max(amount), 0) into v_amt
+      from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
+    if v_amt <> v_fee then v_bad := v_bad || ' 🔴 다른 값의 재호출이 민팅 금액을 바꿨다=' || v_amt; end if;
+    update ops_flags set payments_live_since = v_since, updated_at = now();
+
     if v_bad = ''
-      then call _pass('fbl','B2 §B 클럽 취소 수수료가 돈에 닿는다 — bookings.cancel_fee(민팅·부채 게이트가 읽는 유일한 숫자)와 러너 공급보상 원장 1행(remaining_guarantee, platform_fee=0 → my_ledger_total에 그대로 더해진다)이 club_fee_items가 이미 계산한 값과 정확히 같고, 재호출은 아무것도 더하지 않으며, 무료 티어는 세 곳 모두에 아무것도 쓰지 않는다 (사다리 선택 없음 — 배관만)');
+      then call _pass('fbl','B2 §B 클럽 취소 수수료가 돈에 닿는다 — bookings.cancel_fee(민팅·부채 게이트가 읽는 유일한 숫자)와 러너 공급보상 원장 1행(remaining_guarantee, platform_fee=0 → my_ledger_total에 그대로 더해진다)이 club_fee_items가 이미 계산한 값과 정확히 같고, 재호출은 아무것도 더하지 않으며, 무료 티어는 세 곳 모두에 아무것도 쓰지 않는다; 차징 오프에선 인텐트가 민팅되지 않고, 플립 뒤엔 기록된 수수료 그대로 한 번만 민팅되어 부채 게이트에 보이며, 다른 값의 재호출은 청구액도 인텐트도 바꾸지 못한다 (사다리 선택 없음 — 배관만)');
     else v_msg := v_bad; call _fail('fbl','B2 §B 클럽 취소 수수료 배관', v_msg); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
+    update ops_flags set payments_live_since = v_since, updated_at = now();  -- ⓕ가 켰다면 되끈다
     v_msg := sqlerrm; call _fail('fbl','B2 §B 클럽 취소 수수료 배관', v_msg);
   end;
 
@@ -304,6 +368,14 @@ begin
   begin
     v_bad := '';
     if charge_max_attempts() <> 3 then v_bad := v_bad || ' 사다리 상한=' || charge_max_attempts() || ' (TS MAX_ATTEMPTS=3과 갈라졌다)'; end if;
+    -- kind arm — TS는 `!raw.kind`(JS truthiness)로 거절한다. SQL이 bare IS NOT NULL이면 ""/0/false
+    -- 행이 SQL에서만 due가 되어 깨움 횟수를 부풀리고 BATCH_LIMIT 슬롯을 갉아먹는다 (fix round F-2).
+    if charge_row_due('failed', 100, '{"kind":"","attempts":0}'::jsonb, now())
+      then v_bad := v_bad || ' 🔴 kind=""가 due다 (TS는 거절 — SQL만 깨어난다)'; end if;
+    if charge_row_due('failed', 100, '{"kind":0,"attempts":0}'::jsonb, now())
+      then v_bad := v_bad || ' kind=0이 due다'; end if;
+    if charge_row_due('failed', 100, '{"kind":false,"attempts":0}'::jsonb, now())
+      then v_bad := v_bad || ' kind=false가 due다'; end if;
     -- failed arm
     if charge_row_due('failed', 100, '{"kind":"k","attempts":3}'::jsonb, now())
       then v_bad := v_bad || ' 소진된 사다리(attempts=3)가 due다'; end if;
@@ -409,6 +481,27 @@ begin
     end;
     if not v_err then v_bad := v_bad || ' 🔴 케이스 주체 부킹이 무관자에게 열려 있다'; end if;
 
+    -- ⓖ the CASE OWNER — a named case authority who is neither host nor booking party gets the
+    --    quote. This was the arm no fixture exercised: delete `i.case_owner = auth.uid()` from
+    --    the gate and THIS reddens (review finding 4).
+    update club_incidents set case_owner = co where id = v_inc;
+    perform set_config('request.jwt.claim.sub', co::text, false);
+    begin
+      select * into q from club_incident_settle_quote(b_mkt, 'settle_measured');
+      if q.refund is null then v_bad := v_bad || ' 케이스 오너가 빈 답을 받았다'; end if;
+    exception when others then v_bad := v_bad || ' 🔴 케이스 오너가 거절당했다=' || sqlerrm;
+    end;
+    -- ⓗ the BACKUP HOST of the booking's own session — the second name in the authority set,
+    --    exercised POSITIVELY (until now only its NULL side was proven, via the exists shape).
+    update club_sessions set backup_host_profile_id = bh where id = v_s;
+    perform set_config('request.jwt.claim.sub', bh::text, false);
+    begin
+      select * into q from club_incident_settle_quote(b_pay, 'settle_measured');
+      if q.refund is null then v_bad := v_bad || ' 백업 호스트가 빈 답을 받았다'; end if;
+    exception when others then v_bad := v_bad || ' 🔴 백업 호스트가 거절당했다=' || sqlerrm;
+    end;
+    update club_sessions set backup_host_profile_id = null where id = v_s;  -- B7 등급 판정 오염 방지
+
     -- ⓕ a server caller (no JWT) is unaffected — the exemption §D relies on, pinned not assumed
     perform set_config('request.jwt.claim.sub', '', false);
     begin
@@ -418,7 +511,7 @@ begin
     end;
 
     if v_bad = ''
-      then call _pass('fbl','B5 §D ⓐ 정산 견적에 당사자 게이트가 생겼다 — 부킹의 호스트·보호자·케이스 호스트는 답을 받고, 무관자는 거절되며, 없는 부킹과 남의 부킹은 같은 문장으로 답하고(열거 오라클 차단), JWT 없는 서버 호출자는 영향이 없다');
+      then call _pass('fbl','B5 §D ⓐ 정산 견적에 당사자 게이트가 생겼다 — 부킹의 호스트·보호자·케이스 호스트·케이스 오너·백업 호스트는 답을 받고, 무관자는 거절되며, 없는 부킹과 남의 부킹은 같은 문장으로 답하고(열거 오라클 차단), JWT 없는 서버 호출자는 영향이 없다');
     else v_msg := v_bad; call _fail('fbl','B5 §D ⓐ 정산 견적 당사자 게이트', v_msg); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
@@ -522,6 +615,13 @@ begin
       then v_bad := v_bad || ' 🔴 보드에서 강아지 ui가 비었다 (게이트가 보드보다 엄격하다)'; end if;
     perform set_config('request.jwt.claim.sub', '', false);
 
+    -- ⓔ the null-uid exemption, pinned (review finding 4): a server caller with no JWT still
+    --    receives the projection — remove the `auth.uid() is not null` guard and THIS reddens
+    --    (the gate would then refuse the server, not the stranger).
+    v_js2 := club_dog_ui_state(sda);
+    if v_js2 is null or (v_js2->>'primaryStage') is null
+      then v_bad := v_bad || ' 🔴 서버 호출자(널 uid)가 프로젝션을 못 받는다'; end if;
+
     if v_bad = ''
       then call _pass('fbl','B7 §D ⓒ 강아지 프로젝션에 보드와 같은 등급 게이트 — 호스트와 위탁 보호자는 읽고, 무관자와 limited 등급의 남의 강아지는 NULL(없는 행과 같은 모양)이며, 자기 강아지는 여전히 읽히고, 호스트의 위임 보드는 ui까지 그대로 렌더된다 (보드는 이 함수를 definer 안에서 부르고 auth.uid()는 그 경계를 넘어 보존된다)');
     else v_msg := v_bad; call _fail('fbl','B7 §D ⓒ 강아지 프로젝션 게이트', v_msg); end if;
@@ -564,6 +664,33 @@ begin
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('fbl','B8 §D ⓓ 호스트 통계 게이트', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [B9] §D the gates sit behind the right DOORS — privileges pinned, not only behaviour
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- A grant is part of the gate. Without this pin `grant execute … to anon` on any of the four
+  -- reddens NOTHING (no pin above ever changes database role), and §D ⓓ's stance depends on
+  -- service_role NOT holding a key that opens onto a wall (fix round F-6).
+  begin
+    v_bad := '';
+    if has_function_privilege('anon', 'club_incident_settle_quote(uuid, text)', 'execute') then v_bad := v_bad || ' anon이 정산 견적 실행 가능'; end if;
+    if has_function_privilege('anon', 'runner_work_gate(uuid)', 'execute') then v_bad := v_bad || ' anon이 작업 게이트 실행 가능'; end if;
+    if has_function_privilege('anon', 'club_dog_ui_state(uuid)', 'execute') then v_bad := v_bad || ' anon이 강아지 프로젝션 실행 가능'; end if;
+    if has_function_privilege('anon', 'club_host_stats(uuid)', 'execute') then v_bad := v_bad || ' anon이 호스트 통계 실행 가능'; end if;
+    if not has_function_privilege('authenticated', 'club_incident_settle_quote(uuid, text)', 'execute') then v_bad := v_bad || ' authenticated가 정산 견적을 잃었다'; end if;
+    if not has_function_privilege('authenticated', 'runner_work_gate(uuid)', 'execute') then v_bad := v_bad || ' authenticated가 작업 게이트를 잃었다'; end if;
+    if not has_function_privilege('authenticated', 'club_dog_ui_state(uuid)', 'execute') then v_bad := v_bad || ' authenticated가 강아지 프로젝션을 잃었다'; end if;
+    if not has_function_privilege('authenticated', 'club_host_stats(uuid)', 'execute') then v_bad := v_bad || ' authenticated가 호스트 통계를 잃었다'; end if;
+    if has_function_privilege('service_role', 'club_host_stats(uuid)', 'execute')
+      then v_bad := v_bad || ' 🔴 service_role이 벽에 대고 여는 열쇠를 다시 쥐었다 (널-uid 면제가 없는 함수의 그랜트 — F-6)'; end if;
+    if not has_function_privilege('service_role', 'runner_work_gate(uuid)', 'execute')
+      then v_bad := v_bad || ' service_role이 작업 게이트를 잃었다 (수락 경로가 죽는다)'; end if;
+    if v_bad = ''
+      then call _pass('fbl','B9 §D 게이트는 올바른 문 뒤에 있다 — anon은 네 함수 모두 실행 불가, authenticated는 넷 다 가능, club_host_stats의 service_role 키는 회수됐고(널-uid 면제가 없는 함수의 그랜트는 벽에 대고 여는 열쇠다), 수락 경로가 쓰는 runner_work_gate의 service_role 키는 살아 있다');
+    else v_msg := v_bad; call _fail('fbl','B9 §D ACL', v_msg); end if;
+  exception when others then
+    v_msg := sqlerrm; call _fail('fbl','B9 §D ACL', v_msg);
   end;
 
   perform set_config('request.jwt.claim.sub', '', false);
