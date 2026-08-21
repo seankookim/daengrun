@@ -51,7 +51,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "doctor": "npx react-doctor@latest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "bash test/run-lateness-tests.sh && bash test/run-kst-tests.sh && bash test/run-pace-tests.sh && bash test/run-geo-tests.sh && bash test/run-route-geom-tests.sh && bash test/run-route-pick-tests.sh"
   },
   "private": true
 }

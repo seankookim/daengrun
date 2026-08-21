@@ -134,5 +134,51 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
      lateness(B('picked_up', T0 - LATENESS_GRACE_MS - 4 * 60 * MIN), T0).resumable === false);
 }
 
+// ───────────────────────────────────────────── started: picked_up is NOT a run in progress
+// The dog is collected but nobody is running yet. Conflating the two made the owner screen say
+// "아직 돌아오지 않았어요" about a dog handed over sixty seconds earlier.
+{
+  const late = T0 - 90 * MIN;
+  t('picked_up → started=false', lateness(B('picked_up', late), T0).started === false);
+  t('active → started=true', lateness(B('active', late, { km: 5 }), T0).started === true);
+  t('confirmed → started=false', lateness(B('confirmed', late), T0).started === false);
+}
+
+// ───────────────────────────────────────────── waitMs: standing at the door ≠ being late
+// 10:00 booking, runner arrives 10:25, now 10:30. Late by 30 (minus grace); waited 5.
+{
+  const sched = T0 - 30 * MIN;
+  const arrived = T0 - 5 * MIN;
+  const r = lateness(B('runner_enroute', sched, { arrivedAt: iso(arrived) }), T0, 0);
+  t('waitingOn flips to owner on arrival', r.waitingOn === 'owner');
+  t('sinceMs measures lateness (30m)', r.sinceMs === 30 * MIN, String(r.sinceMs / MIN));
+  t('waitMs measures the actual wait (5m)', r.waitMs === 5 * MIN, String(r.waitMs / MIN));
+  t('the two are NOT the same number', r.sinceMs !== r.waitMs);
+  // no arrival → nothing to measure from, so it falls back to lateness
+  const noArr = lateness(B('runner_enroute', sched), T0, 0);
+  t('without arrived_at, waitMs falls back to sinceMs', noArr.waitMs === noArr.sinceMs);
+  // a clock-skewed arrival in the future must never produce a negative wait
+  const future = lateness(B('runner_enroute', sched, { arrivedAt: iso(T0 + 10 * MIN) }), T0, 0);
+  t('future arrived_at clamps to 0, never negative', future.waitMs === 0, String(future.waitMs));
+}
+
+// ───────────────────────────────────────────── exact-deadline boundary (codex gap)
+{
+  const g = 30 * MIN;
+  t('exactly at the deadline is NOT late', lateness(B('confirmed', T0 - g), T0, g).late === false);
+  t('one ms past the deadline IS late', lateness(B('confirmed', T0 - g - 1), T0, g).late === true);
+}
+
+// ───────────────────────────────────────────── sinceLabel boundaries (codex gap)
+{
+  const { sinceLabel } = require('./lateness.build.cjs');
+  t('59m stays minutes', sinceLabel(59 * MIN) === '59분', sinceLabel(59 * MIN));
+  t('60m becomes 1 hour', sinceLabel(60 * MIN) === '1시간', sinceLabel(60 * MIN));
+  t('90m is 1시간 30분', sinceLabel(90 * MIN) === '1시간 30분', sinceLabel(90 * MIN));
+  t('23h59m still hours', sinceLabel(23 * 60 * MIN + 59 * MIN).endsWith('분'), sinceLabel(23*60*MIN+59*MIN));
+  t('24h becomes 1일', sinceLabel(24 * 60 * MIN) === '1일', sinceLabel(24 * 60 * MIN));
+  t('sub-minute floors to 0분, never 곧', sinceLabel(59_000) === '0분', sinceLabel(59_000));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

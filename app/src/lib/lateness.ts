@@ -33,6 +33,13 @@ export type Lateness = {
   waitingOn: WaitingOn;
   /** 아직 이대로 진행될 수 있는가. 천장을 넘기면 false — 화면은 '진행' 문을 그리지 않는다. */
   resumable: boolean;
+  /** 러닝이 실제로 시작됐는가 (status === 'active'). picked_up 은 개를 데려갔지만 아직 출발 전이다. */
+  started: boolean;
+  /** 기다리는 쪽이 **실제로 기다린** 시간(ms). arrived_at 이 있으면 그 시각부터, 없으면 sinceMs 와 같다.
+   *  ⚠ sinceMs 와 다른 값이다: sinceMs 는 '예약보다 얼마나 늦었나', 이건 '문 앞에서 얼마나 서 있었나'.
+   *  10:00 예약에 10:25 도착, 지금 10:30 이면 늦음은 30분이지만 러너가 기다린 건 5분이다.
+   *  둘을 뭉치면 화면이 「30분째 대기 중」이라고 사람을 잘못 비난한다. */
+  waitMs: number;
 };
 
 // 유예 30분 · 천장 3시간 — Sean, 2026-08-21 (announcer 경유 전달). 제품 숫자이지 엔지니어의
@@ -75,7 +82,8 @@ export function lateness(
 ): Lateness {
   const status = b.rawStatus ?? '';
   const custody: Custody = POST_CUSTODY.has(status) ? 'post' : 'pre';
-  const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null, resumable: true };
+  const started = status === 'active';
+  const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null, resumable: true, started, waitMs: 0 };
 
   if (!CAN_BE_LATE.has(status)) return none;
   const start = b.scheduledAt ? Date.parse(b.scheduledAt) : NaN;
@@ -100,5 +108,9 @@ export function lateness(
     status === 'runner_enroute' && b.arrivedAt ? 'owner' : 'runner';
 
   const sinceMs = now - deadline;
-  return { late: true, sinceMs, custody, waitingOn, resumable: sinceMs <= ceilingMs };
+  const arrivedMs = b.arrivedAt ? Date.parse(b.arrivedAt) : NaN;
+  const waitMs = waitingOn === 'owner' && !Number.isNaN(arrivedMs)
+    ? Math.max(0, now - arrivedMs)   // 러너가 실제로 문 앞에 서 있던 시간
+    : sinceMs;
+  return { late: true, sinceMs, custody, waitingOn, resumable: sinceMs <= ceilingMs, started, waitMs };
 }

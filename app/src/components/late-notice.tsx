@@ -30,6 +30,14 @@ function copyFor(late: Lateness, side: LateSide, names: { dog?: string; runner?:
 
   // ── 인계 후: 개가 러너에게 있다. '불발'이라는 낱말은 여기서 금지어다. 확인과 도움만 말한다.
   if (late.custody === 'post') {
+    // ⚠ [codex 2026-08-21] picked_up 과 active 를 한 문장으로 뭉치면 거짓말이 된다. 10:00 예약을
+    // 10:11 에 인계받았는데 10:12 에 「아직 돌아오지 않았어요」가 뜬다 — 방금 데려간 개다.
+    // picked_up = 아직 출발 안 함 · active = 나갔는데 안 돌아옴. 다른 사실, 다른 문장.
+    if (late.custody === 'post' && !late.started) {
+      return side === 'owner'
+        ? { kick: '확인이 필요해요', head: `${dog}와의 러닝이\n아직 시작되지 않았어요`, tone: 'warn' }
+        : { kick: `${since} 지남`, head: '아직 러닝을\n시작하지 않았어요', tone: 'warn' };
+    }
     return side === 'owner'
       ? { kick: '확인이 필요해요', head: `${dog}가 아직\n돌아오지 않았어요`, tone: 'critical' }
       // [랩 교정 ⑥] 목업은 「아직 달리는 중인가요?」라는 질문이었다. stage 1 은 답을 받을 수
@@ -47,7 +55,8 @@ function copyFor(late: Lateness, side: LateSide, names: { dog?: string; runner?:
       // 막힌 리졸버가 주지 못하는 결과를 화면이 약속하면, 그건 오늘 아침 고친 수수료 거짓말과 같은 종류다.
       ? { kick: '지금 기다리는 중', head: `${runner}님이\n문 앞에서 기다려요`, tone: 'critical',
           strip: '지금 취소하면 취소 수수료가 붙어요 — 일정에서 조건을 확인하세요.' }
-      : { kick: `${since}째 대기 중`, head: '보호자가 아직\n나오지 않았어요', tone: 'warn',
+      // waitMs — 늦음이 아니라 **서 있던 시간**. sinceMs 를 쓰면 5분 기다린 러너에게 30분이라 말한다.
+      : { kick: `${sinceLabel(late.waitMs)}째 대기 중`, head: '보호자가 아직\n나오지 않았어요', tone: 'warn',
           strip: '떠나기 전에 한 번 더 알려주세요.' };
   }
 
