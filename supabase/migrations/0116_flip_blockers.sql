@@ -90,7 +90,13 @@ begin
       and not exists (
         select 1 from payments p
         where p.booking_id = b.id
-          and ((p.raw->>'kind') is not null or p.status in ('confirmed', 'waived'))
+          -- [fix round F-5] EXACTLY the mint's check (0080:371), status arm included: a
+          -- kind-bearing row that is canceled/partial_canceled satisfies neither side now — the
+          -- mint would re-mint for it, so the sweep must not treat it as existence. Latent today
+          -- (cancellation code overwrites raw without preserving kind) but the comment above
+          -- PROMISES alignment, so the predicate keeps the promise literally.
+          and (((p.raw->>'kind') is not null and p.status in ('pending', 'failed'))
+               or p.status in ('confirmed', 'waived'))
       )
   loop
     -- A finished run with no end_reason cannot be priced honestly, and guessing 'completed'
@@ -207,14 +213,34 @@ begin
   where id = p_booking and coalesce(cancel_fee, 0) = 0;
 
   -- [0116 §B ②③④] the runner's side — supply compensation reaching `my_ledger_total`
-  if p_runner is null then return; end if;
   v_share := v_fee - v_plat;
-  if v_share <= 0 then return; end if;        -- a share that rounds to nothing pays nothing
-  perform pg_advisory_xact_lock(hashtextextended('comp:' || p_booking::text, 0));
-  if exists (select 1 from ledger_items li where li.booking_id = p_booking) then return; end if;
-  insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay,
-                            tip, remaining_guarantee, platform_fee)
-  values (p_runner, p_booking, 0, 0, 0, 0, v_share, 0);
+  if p_runner is not null and v_share > 0 then  -- a share that rounds to nothing pays nothing
+    perform pg_advisory_xact_lock(hashtextextended('comp:' || p_booking::text, 0));
+    if not exists (select 1 from ledger_items li where li.booking_id = p_booking) then
+      insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay,
+                                tip, remaining_guarantee, platform_fee)
+      values (p_runner, p_booking, 0, 0, 0, 0, v_share, 0);
+    end if;
+  end if;
+
+  -- [0116 §B ⑤ / fix round F-1] 🔵 THE INTENT, minted here — because a recorded fee that nothing
+  -- collects is not a fee. The only application call to `mint_cancel_fee_intent` was
+  -- cancel_owner.ts:156, and cancel_owner REFUSES club bookings (0057's own decision), so a
+  -- club cancel/no-show fee reached `bookings.cancel_fee` and then nothing ever minted it: the
+  -- runner's share was CREDITED while the owner was never charged and never debt-gated — the
+  -- platform paying supply compensation out of pocket (adversarial review, finding 1). Minting
+  -- HERE is the exact parallel of the marketplace path and decides NO ladder question: the mint
+  -- reads only `bookings.cancel_fee` (written above), is gated on `payments_live_since` in its
+  -- own first line ("charging is off: fee stays recorded-only" — its words), and is idempotent
+  -- under its own 'mint:' advisory key. Lock order is 'comp:' then 'mint:'; no path in this repo
+  -- holds them reversed (the marketplace path takes them in separate transactions).
+  -- Exception-guarded because the CANCELLATION must not fail on a mint hiccup — the fee stays
+  -- recorded and any later call re-mints idempotently.
+  begin
+    perform mint_cancel_fee_intent(p_booking);
+  exception when others then
+    raise notice '_club_record_cancel_fee: mint deferred for booking % — %', p_booking, sqlerrm;
+  end;
 end $$;
 revoke execute on function _club_record_cancel_fee(uuid, uuid, uuid, text, int, numeric, uuid, text)
   from public, anon, authenticated;
@@ -323,7 +349,14 @@ language sql stable set search_path = public, pg_temp as $$
   -- "no", but which any caller reading the boolean directly (a pin, a future ops query) would
   -- have to know to coalesce itself. A rule about money answers yes or no.
   select coalesce(
-       (p_raw->>'kind') is not null
+       -- [fix round F-2] `_charge_bool`, not `is not null`: TS refuses `!raw.kind`, so a kind of
+       -- "" / 0 / false is widget-debris to the handler — SQL agreeing stops such rows inflating
+       -- the wake count and (with the handler's candidate filter) consuming BATCH_LIMIT slots.
+       -- Accepted divergences, each bounded and none constructible by a current writer:
+       -- 'infinity' next_retry_at (SQL waits, JS retries — bounded by the attempt cap) ·
+       -- '2026-02-30' (SQL invalid→due, JS normalizes to Mar 2 — one early attempt) ·
+       -- sub-millisecond dispatched_at at the exact 15-minute boundary (one tick of skew).
+       _charge_bool(p_raw, 'kind')
    and coalesce(p_amount, 0) > 0
    and (
         (p_status = 'failed'
@@ -687,6 +720,10 @@ begin
   );
 end $$;
 
+-- [fix round] explicit, not inherited: in a world whose default privileges hand PUBLIC EXECUTE
+-- (0069's note), the null-uid exemption above would turn an inherited anon grant into an open
+-- door. Production measured clean; this line makes the file true in every world, and 151 B9 pins it.
+revoke execute on function club_dog_ui_state(uuid) from public, anon;
 grant execute on function club_dog_ui_state(uuid) to authenticated;
 
 comment on function club_dog_ui_state is
@@ -728,7 +765,12 @@ begin
   );
 end $$;
 revoke execute on function club_host_stats(uuid) from public, anon;
-grant execute on function club_host_stats(uuid) to authenticated, service_role;
+-- [fix round F-6] service_role's EXECUTE is revoked, not granted: this function REQUIRES a JWT
+-- sub (not_signed_in otherwise) and deliberately lacks §D's null-uid exemption, so a service-role
+-- grant was a key that opens a door onto a wall — no server caller exists (measured), and if one
+-- appears it must decide about the exemption explicitly rather than inherit a dead grant.
+revoke execute on function club_host_stats(uuid) from service_role;
+grant execute on function club_host_stats(uuid) to authenticated;
 
 comment on function club_host_stats is
   '0031 + [0116 §D ⓓ]: 호스트 신뢰 카드 (검증된 로컬 신뢰 — 팔로워 수가 아니라). 세션 수·누적 팀

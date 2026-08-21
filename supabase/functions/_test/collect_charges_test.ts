@@ -290,6 +290,33 @@ Deno.test("the sweep picks exactly the due rows and leaves the rest alone", asyn
   }
 });
 
+// [fix round F-2 / 151 B4] the kind FENCE — three falsy-but-not-null shapes. `kind:""` is
+// stopped at the QUERY (`.neq`), so it can never occupy a BATCH_LIMIT slot: 200 such rows would
+// otherwise be scanned, rejected by isDue, and starve every real charge sorted behind them while
+// "scanned:200 due:0" reads as a quiet day. `kind:0`/`false` pass the query (PostgREST compares
+// text) and are refused by isDue — SQL's charge_row_due now refuses all three the same way
+// (_charge_bool), so the wake count and the batch agree about junk.
+Deno.test("kind:'' never reaches the batch, and kind:0/false are scanned-but-never-due", async () => {
+  const db = scene({
+    payments: [
+      payRow({ id: "junk-empty", order_id: "dr_junk1", raw: { kind: "", attempts: 0 } }),
+      payRow({ id: "junk-zero", order_id: "dr_junk2", raw: { kind: 0, attempts: 0 } }),
+      payRow({ id: "junk-false", order_id: "dr_junk3", raw: { kind: false, attempts: 0 } }),
+      payRow({ id: "real", order_id: "dr_real", raw: { kind: "settle_charge", attempts: 1, dispatched_at: PAST, next_retry_at: PAST } }),
+    ],
+  });
+  const net = tossOk();
+  try {
+    const out = await collectCharges(cronReq(CRON_KEY), db as never) as Row;
+    assertEquals(out.scanned, 3, "kind:'' must be fenced by the query itself, not by isDue");
+    assertEquals(out.due, 1, "only the real row is due — 0/false are junk to both sides");
+    assertEquals(out.processed, 1);
+    assertEquals((out.results as Row[])[0].order_id ?? "dr_real", "dr_real");
+  } finally {
+    net.restore();
+  }
+});
+
 Deno.test("one row exploding does not 500 the batch — the others still collect", async () => {
   const db = scene({
     payments: [

@@ -180,3 +180,16 @@ Deno.test("[O-5] control: the action list in the file header no longer advertise
     "a `case \"payment_ok\"` arm is back in transition-booking",
   );
 });
+
+// [151 B6's other half / review finding 4] 0116 §D ⓑ gates runner_work_gate so a client may ask
+// only about themselves — and pins it in SQL. What SQL cannot see is whether the ACCEPT PATH still
+// consults the gate at all: delete the rpc("runner_work_gate", …) call from the accept arm and
+// every SQL pin stays green while the ⑫ ruling ("don't let them take new runs until the dog is
+// confirmed by both sides") silently stops being enforced. Same N8 precedent as 0115: a source pin
+// where executing the arm would need infrastructure the fake deliberately lacks. It matches the
+// CALL, not prose — a comment mentioning the gate does not satisfy it.
+Deno.test("the accept arm still consults runner_work_gate (source pin — deleting the call reds this, not SQL)", async () => {
+  const src = await Deno.readTextFile(new URL("../transition-booking/index.ts", import.meta.url));
+  const calls = src.match(/rpc\(\s*["']runner_work_gate["']/g) ?? [];
+  assert(calls.length >= 1, "transition-booking/index.ts no longer calls rpc('runner_work_gate') — the work gate is unenforced on the accept path");
+});
