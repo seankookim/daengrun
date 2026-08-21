@@ -139,6 +139,7 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
   const verified: VerifyResult[] = [];
   for (const r of stale) verified.push(await verifyDispatched(db, r as PendingRow, now));
 
+  const drift = await ladderCapDrift(db);
   return {
     mode: "cron",
     scanned: rows.length,
@@ -146,7 +147,39 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
     processed: results.length,
     results,
     verified,
+    ...(drift ? { cap_drift: drift } : {}),
   };
+}
+
+/**
+ * The one number `isDue()` below and 0080's SQL due-rule BOTH have to agree on.
+ *
+ * 0116 §C moved the SQL side's copy of the rule into `charge_row_due`, and the cap it uses into
+ * `charge_max_attempts()`. The row-selection itself deliberately stays in TS — pushing it into an
+ * RPC would put a THIRD copy of the rule in the Deno fake DB, which is the same disease with an
+ * extra host. What does not stay in TS is the promise that the two numbers match: we ask the DB
+ * what its cap is, every batch, and report a mismatch instead of letting the two sides quietly
+ * disagree about which rows are "spent".
+ *
+ * Non-fatal by construction. If the RPC cannot be read at all (missing grant, a fake db in tests)
+ * that is not a reason to stall collection — an unread cap is not a drifted cap. Only an actual
+ * disagreement is reported, and it is reported LOUDLY: in the log for whoever is watching, and in
+ * the batch response so it is visible to the caller that triggered it.
+ */
+async function ladderCapDrift(
+  db: SupabaseClient,
+): Promise<{ sql: number; ts: number } | null> {
+  const { data, error } = await db.rpc("charge_max_attempts");
+  if (error) return null;
+  const sql = Number(data);
+  if (!Number.isFinite(sql) || sql === MAX_ATTEMPTS) return null;
+  console.error(
+    `[collect-charges] LADDER CAP DRIFT: charge_max_attempts()=${sql} but _shared/charge.ts ` +
+      `MAX_ATTEMPTS=${MAX_ATTEMPTS}. The cron's wake-up rule and the batch's row rule now ` +
+      `disagree about which rows are spent — one side will retry charges the other has given up ` +
+      `on, or neither will. Fix both, in one change.`,
+  );
+  return { sql, ts: MAX_ATTEMPTS };
 }
 
 function isDue(r: { amount: number; status: string; raw: Record<string, unknown> | null }, now: Date): boolean {
@@ -160,9 +193,10 @@ function isDue(r: { amount: number; status: string; raw: Record<string, unknown>
     // arm's, below, which asks Toss first.
     return !raw.dispatched_at;
   }
-  // failed → the ladder decides. ⚠ This predicate is a TWIN of 0080's SQL due-rule; they are
-  // changed together or they disagree, and a disagreement here means either a charge that two
-  // paths both attempt or one that neither does.
+  // failed → the ladder decides. ⚠ The SQL side of this rule is `charge_row_due` (0116 §C), which
+  // is one named object rather than an open-coded predicate, and whose parse helpers were written
+  // to model exactly what the three lines below do with the same jsonb value. Changing either
+  // side's SHAPE still means changing both; the NUMBER is now watched by `ladderCapDrift` above.
   if (raw.needs_card_relink) return false; // a dead key on a timer is three identical notifications
   if (Number(raw.attempts ?? 0) >= MAX_ATTEMPTS) return false; // spent; manual CTA only
   const next = raw.next_retry_at;

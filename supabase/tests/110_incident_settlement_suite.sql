@@ -108,7 +108,15 @@ begin
           -- 한쪽만 태우는 픽스처는 그 분기를 지키지 못한다 — 이 스위트에서 세 번째로 나온 같은 뿌리.
           b_nc := t_av_booking(oo, dg, rt, rr, now() + interval '4 hours', 5.0, 'runner_enroute');
           update bookings set status = 'incident_review' where id = b_nc;   -- 인계 전 사건 (스탬프 없음)
+          -- ⚠ [0116 §D ⓐ] 이 한 줄은 픽스처가 **상태를 빌리는** 것이지 검증 대상 성질을 만드는 것이
+          -- 아니다. b_nc는 클럽 세션도 케이스도 없는 마켓 부킹이고 oo가 그 보호자다 — 견적 함수에
+          -- 당사자 게이트가 생기면서, 호스트 hh는 이 부킹에 대해 (정당하게) 아무 자격이 없다.
+          -- 이 팔이 재는 성질은 오직 산술('인계 없음 ⇒ 기본요금 없음')이므로, 인계 스탬프·km·요금
+          -- 구성은 하나도 건드리지 않고 호출자만 그 부킹의 보호자로 바꾼 뒤 hh로 되돌린다.
+          -- 게이트 자체는 151 B5가 양방향으로 소유한다.
+          perform set_config('request.jwt.claim.sub', oo::text, false);
           select * into q from club_incident_settle_quote(b_nc, 'settle_measured');
+          perform set_config('request.jwt.claim.sub', hh::text, false);
           if q.took_custody = false and q.measured_km = 0 and q.runner_gross = 0 and q.refund = 24900
             then call _pass('stl','S1 견적 산술 — 인계O 2/5km → 15900/9000 · 전액환불 0/24900 · 전액지급 24900/0(수수료 8217) · **인계X → 기본요금 없음** 0/24900');
           else call _fail('stl','S1 인계 없음','custody=' || q.took_custody || ' km=' || q.measured_km

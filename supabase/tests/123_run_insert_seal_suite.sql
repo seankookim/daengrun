@@ -289,9 +289,20 @@ begin
     -- plant collide with `runs_booking_id_key` and this case would report a duplicate-key error
     -- instead of the charge it lost. A pin whose red message does not name the money is a worse
     -- pin, and that is exactly how the M3 mutation run first read.
+    -- ⚠ [0116 §A] `settled_at` ADDED to the positive control, and this is the pin's asserted
+    -- property legitimately MOVING rather than a fixture being tuned until it passes. This block's
+    -- own header (S4, below) already names `and rn.settled_at is not null` as the predicate 0083
+    -- §0f hands the payments session; 0116 §A is that predicate landing. "The server writes this
+    -- row and the sweep mints from it" now means a SETTLED row — an `ended_at` alone means the run
+    -- STOPPED, and billing on it is a charge for a dog still on the leash.
+    -- ⚠ The ATTACK arm above is deliberately NOT given a `settled_at`, and must not be: S4 pins
+    -- that no client can write that column on either verb, so after 0116 §A a successful ghost
+    -- plant cannot reach a charge at all. The attack arm's own two assertions (the plant is
+    -- REFUSED, and no `runs` row survives) are what carry it, and they still redden under 0087's
+    -- mutation. 151 B1 owns the new property in both directions.
     b_c := t_risl_picked(oz, dg, rt, rz);
-    insert into runs (booking_id, ended_at, actual_km, duration_sec, end_reason)
-      values (b_c, now(), 9.9, 3600, 'completed');
+    insert into runs (booking_id, ended_at, settled_at, actual_km, duration_sec, end_reason)
+      values (b_c, now(), now(), 9.9, 3600, 'completed');
     perform sweep_settled_without_payments();
     select count(*) into v_n from payments where booking_id = b_c and (raw->>'kind') is not null;
     if v_n <> 1 then v_bad := v_bad || ' 양성 대조 실패: 서버가 쓴 같은 행을 스윕이 민팅하지 않았다=' || v_n; end if;
@@ -302,7 +313,7 @@ begin
     update ops_flags set payments_live_since = null, updated_at = now();
 
     if v_bad = ''
-      then call _pass('risl','S3 ③ 유령 청구 봉인 — 시작조차 안 한 예약에 ended_at·거리·사유를 심을 수 없고 스윕도 청구를 만들지 않는다 (같은 행을 서버가 쓰면 민팅된다 = 양성 대조)');
+      then call _pass('risl','S3 ③ 유령 청구 봉인 — 시작조차 안 한 예약에 ended_at·거리·사유를 심을 수 없고 스윕도 청구를 만들지 않는다 (서버가 **정산된** 같은 행을 쓰면 민팅된다 = 양성 대조. [0116 §A] 양성 대조가 settled_at을 찍는다 — 스윕의 앵커가 정지가 아니라 정산이 됐고, 그래서 심기가 뚫려도 청구까지는 못 간다)');
     else v_msg := v_bad; call _fail('risl','S3 ③ 유령 청구 봉인', v_msg); end if;
   exception when others then
     update ops_flags set payments_live_since = null;
