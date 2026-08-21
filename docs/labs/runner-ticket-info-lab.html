@@ -1,0 +1,254 @@
+<title>Runner Ticket Info Lab</title>
+<style>
+  :root{
+    --ink:#111111; --dim:#666666;
+    --coral:#C6472C; --coralEdge:#A63A20; --coralSub:#FFF6F4; --critical:#C0341B;
+    --amber:#C77414; --violet:#6C5CE7; --violetWash:#EFECF9;
+    --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+    --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92;
+  }}
+  :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:30px 20px 70px}
+  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+  h1{font-size:25px;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14.5px;margin:0}
+  h2{font-size:13px;letter-spacing:.12em;color:var(--violet);font-weight:800;margin:34px 0 4px}
+  .lede{color:var(--dim);font-size:14px;margin:0 0 16px;max-width:62ch}
+  .said{background:var(--panel);border-left:3px solid var(--coral);padding:12px 15px;margin:18px 0 0;font-size:14.5px}
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:18px}
+  .cell{background:var(--panel);border:1px solid var(--hair);display:flex;flex-direction:column}
+  .cellhd{padding:11px 13px 10px;border-bottom:1px solid var(--hair)}
+  .tag{font-size:10.5px;font-weight:800;letter-spacing:.13em;color:var(--violet)}
+  .cellhd h3{margin:3px 0 2px;font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+  .cellhd p{margin:0;font-size:12.5px;color:var(--dim);line-height:1.45}
+  .cellhd.base .tag{color:var(--dim)}
+  .stage{padding:14px 13px;background:#fff}
+  /* ticket object — ink border + perforated corners, the app's own grammar */
+  .tk{border:1.5px solid #111;padding:11px 12px;background:#fff;color:#111;position:relative}
+  .tkrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-weight:800;letter-spacing:-.02em}
+  .when{font-size:23px}
+  .rel{font-size:23px}
+  .rel.late{color:var(--critical)}
+  .clk{font-size:11.5px;color:#6E6E66;font-weight:700}
+  .stg{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:#7A4708}
+  .dogline{font-size:13.5px;font-weight:700;margin-top:3px}
+  .quiet{font-size:11.5px;color:#6E6E66;margin-top:1px}
+  .addr1{font-size:12.5px;color:#3E3E38;margin-top:5px}
+  .addr2{font-size:13.5px;font-weight:800;color:#111}
+  .act{font-size:12.5px;color:#4A4A44;text-align:right;margin-top:7px}
+  .face{width:42px;height:42px;background:#E8E2DA;border:1px solid #CFC8BE;display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
+  .pay{font-size:13px;font-weight:800;color:#2F7D4F}
+  .del{opacity:.32;text-decoration:line-through}
+  .note{padding:10px 13px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--dim);line-height:1.5}
+  .note b{color:var(--ink)}
+  /* full phone */
+  .phone{width:290px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden}
+  .st{display:flex;justify-content:space-between;padding:6px 11px 3px;font-size:10px;color:#999}
+  .mast{text-align:center;padding:4px 11px 9px;border-bottom:1px solid #EFEEEA;font-size:14.5px;font-weight:800}
+  .sec{padding:10px 12px}
+  .kick{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8A8A82;margin-bottom:5px}
+  .btn{display:block;width:100%;padding:12px 13px}
+  .btn .t{font-size:16.5px;font-weight:800;line-height:1.2}
+  .btn .s{font-size:12px;margin-top:2px}
+  .coral{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge)}
+  .coral .s{color:var(--coralSub)}
+  .inkb{background:#fff;color:#111;border:1.5px solid #111}
+  .inkb .s{color:#5E5E58}
+  .queue{background:var(--violetWash);color:#4A4370;font-size:11.5px;padding:10px;text-align:center}
+  .tabbar{border-top:1px solid #EFEEEA;display:flex;justify-content:space-around;padding:8px 0 9px;font-size:15px;color:#B9B9B2}
+  .two{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .cap{font-size:12.5px;color:var(--dim);max-width:34ch;line-height:1.55}
+  .cap b{color:var(--ink)}
+  .chipsm{display:inline-block;font-size:11px;font-weight:700;background:#F1EFEA;padding:2px 7px;margin:0 4px 4px 0}
+  footer{margin-top:36px;border-top:1px solid var(--hair);padding-top:15px;color:var(--dim);font-size:13.5px}
+  footer b{color:var(--ink)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>러너 티켓 — 무엇을 더 보여줄까</h1>
+    <p class="sub">①로 갑니다. 그 전에, 넣자고 한 네 가지를 하나씩 따로 그렸습니다.</p>
+  </header>
+
+  <div class="said">
+    <b>찾은 것:</b> 러너는 <b>수락하기 전</b>에 강아지에 대해 더 많이 봅니다 — 사진·견종·체중·메모·태그·백신.
+    수락한 뒤, 즉 실제로 그 아이를 데리고 나가는 순간엔 <b>이름과 숫자만</b> 남습니다.
+    아래 A–D는 그 중 티켓에 올릴 값이고, E는 한 탭 뒤로 보낼 값입니다.
+  </div>
+
+  <h2>하나씩 — 무엇이 늘어나는지</h2>
+  <p class="lede">왼쪽이 지금 화면입니다. 오른쪽으로 갈수록 한 가지씩만 더합니다. 각 칸에서 늘어난 줄이 그 값의 진짜 비용입니다.</p>
+
+  <div class="strip">
+
+    <div class="cell">
+      <div class="cellhd base"><div class="tag">지금</div><h3>기준</h3><p>시각 · 단계 · 이름 · km · 날짜 · 주소 한 줄.</p></div>
+      <div class="stage">
+        <div class="tk">
+          <div class="tkrow"><span class="mono when">5:00</span><span class="stg">픽업 이동 중</span></div>
+          <div class="dogline">초코 · 5km</div>
+          <div class="quiet">8월 4일 (화) 오후</div>
+          <div class="quiet" style="margin-top:4px">Home · Nampo-farro 275, Seoc…</div>
+          <div class="act">인계 화면으로 ›</div>
+        </div>
+      </div>
+      <div class="note"><b>문제:</b> 5:00은 지금이 늦은 건지 이른 건지 말해주지 않고, 주소는 문 앞까지 데려다주지 못합니다.</div>
+    </div>
+
+    <div class="cell">
+      <div class="cellhd"><div class="tag">A</div><h3>시간 압력</h3><p>시계 대신 남은 시간. 늦으면 코랄로 뒤집힙니다.</p></div>
+      <div class="stage">
+        <div class="tk">
+          <div class="tkrow"><span class="mono rel">25분 뒤</span><span class="stg">픽업 이동 중</span></div>
+          <div class="clk">오후 5:00 · 8월 4일 (화)</div>
+          <div class="dogline">초코 · 5km</div>
+          <div class="quiet" style="margin-top:4px">Home · Nampo-farro 275, Seoc…</div>
+          <div class="act">인계 화면으로 ›</div>
+        </div>
+        <div class="tk" style="margin-top:10px;border-color:var(--critical)">
+          <div class="tkrow"><span class="mono rel late">12분 늦음</span><span class="stg" style="color:var(--critical)">픽업 이동 중</span></div>
+          <div class="clk">오후 5:00 · 8월 4일 (화)</div>
+          <div class="dogline">초코 · 5km</div>
+          <div class="act" style="color:var(--critical);font-weight:800">인계 화면으로 ›</div>
+        </div>
+      </div>
+      <div class="note"><b>줄 수 변화 없음</b> — 시계는 아래 작은 줄로 내려갑니다. 늦음은 지어낸 긴급함이 아니라 실제 지연이라 코랄을 써도 됩니다.</div>
+    </div>
+
+    <div class="cell">
+      <div class="cellhd"><div class="tag">B</div><h3>강아지 얼굴</h3><p>처음 만나는 아이일 수 있습니다.</p></div>
+      <div class="stage">
+        <div class="tk">
+          <div class="tkrow"><span class="mono when">5:00</span><span class="stg">픽업 이동 중</span></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:7px">
+            <div class="face">🐕</div>
+            <div>
+              <div class="dogline" style="margin:0">초코 · 5km</div>
+              <div class="quiet">8월 4일 (화) 오후</div>
+            </div>
+          </div>
+          <div class="quiet" style="margin-top:5px">Home · Nampo-farro 275, Seoc…</div>
+          <div class="act">인계 화면으로 ›</div>
+        </div>
+      </div>
+      <div class="note"><b>+14pt 높이.</b> 사진이 없는 아이는 자리를 비우지 않고 모노그램으로 대체합니다(빈 액자 금지).</div>
+    </div>
+
+    <div class="cell">
+      <div class="cellhd"><div class="tag">C</div><h3>이 일의 수익</h3><p>이미 데이터에 있는데 안 그리고 있었습니다.</p></div>
+      <div class="stage">
+        <div class="tk">
+          <div class="tkrow"><span class="mono when">5:00</span><span class="stg">픽업 이동 중</span></div>
+          <div class="dogline">초코 · 5km</div>
+          <div class="quiet">8월 4일 (화) 오후</div>
+          <div class="quiet" style="margin-top:4px">Home · Nampo-farro 275, Seoc…</div>
+          <div class="tkrow" style="margin-top:7px">
+            <span class="pay mono">+16,683원</span>
+            <span class="act" style="margin:0">인계 화면으로 ›</span>
+          </div>
+        </div>
+      </div>
+      <div class="note"><b>조용한 초록, 코랄 아님.</b> 이미 수락한 일이라 결정이 아니라 확인입니다 — 행동과 무게를 다투면 안 됩니다.</div>
+    </div>
+
+    <div class="cell">
+      <div class="cellhd"><div class="tag">D</div><h3>문 앞까지의 주소</h3><p>동·호수는 잘려 있었습니다.</p></div>
+      <div class="stage">
+        <div class="tk">
+          <div class="tkrow"><span class="mono when">5:00</span><span class="stg">픽업 이동 중</span></div>
+          <div class="dogline">초코 · 5km</div>
+          <div class="quiet">8월 4일 (화) 오후</div>
+          <div class="addr1">Nampo-farro 275, Seocho-gu</div>
+          <div class="addr2">302동 1104호</div>
+          <div class="act">인계 화면으로 ›</div>
+        </div>
+      </div>
+      <div class="note"><b>+1줄, 그리고 굵기가 뒤집힙니다.</b> 도로명은 지도가 알고, 러너에게 필요한 건 동·호수입니다. <span class="del">Home ·</span> 라벨은 자리만 먹어 뺐습니다.</div>
+    </div>
+
+  </div>
+
+  <h2>넷을 한 화면에 — ①과 함께</h2>
+  <p class="lede">네 가지를 다 넣어도 반초 시선 테스트가 유지되는지가 유일한 질문입니다. 코랄은 여전히 하나, 그 아래 채팅.</p>
+
+  <div class="two">
+    <div class="phone">
+      <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
+      <div class="mast">도그스하이</div>
+      <div class="sec" style="padding-bottom:4px"><div class="quiet" style="margin:0">s4kim2025 · 인증 러너 · 온라인</div></div>
+      <div class="sec" style="padding-top:6px">
+        <div class="tk">
+          <div class="tkrow"><span class="mono rel">25분 뒤</span><span class="stg">픽업 이동 중</span></div>
+          <div class="clk">오후 5:00 · 8월 4일 (화)</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+            <div class="face">🐕</div>
+            <div>
+              <div class="dogline" style="margin:0">초코 · 5km</div>
+              <div class="addr1" style="margin-top:1px">Nampo-farro 275, Seocho-gu</div>
+              <div class="addr2">302동 1104호</div>
+            </div>
+          </div>
+          <div class="tkrow" style="margin-top:8px"><span class="pay mono">+16,683원</span><span class="quiet" style="margin:0">완주 기준</span></div>
+        </div>
+        <div class="btn coral" style="margin-top:9px"><div class="t">인계 화면으로 ›</div><div class="s">초코를 넘겨받을 시간이에요</div></div>
+        <div class="btn inkb" style="margin-top:8px"><div class="t">채팅</div><div class="s">늦으면 미리 알려주세요</div></div>
+      </div>
+      <div class="sec"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
+      <div class="tabbar"><span>⌂</span><span>▦</span><span>◎</span><span>▤</span><span>◍</span></div>
+    </div>
+    <div class="cap">
+      <p><b>티켓에서 행동 링크가 빠졌습니다.</b> 바로 아래 코랄 버튼이 같은 말을 하고 있어서, 한 화면에 같은 문장이 두 번 있었습니다.</p>
+      <p><b>읽는 순서:</b> 25분 뒤 → 얼굴 → 302동 1104호 → 코랄. 시선이 “언제 · 누구 · 어디 · 무엇을”로 한 번에 떨어집니다.</p>
+      <p><b>수익은 마지막입니다.</b> 확인용 값이라 시선의 끝에 둡니다.</p>
+      <p style="margin-bottom:0"><b>지어낸 데이터 없음:</b> 이 다섯 값은 전부 이미 서버에 있습니다. 얼굴만 <code>RunnerJob</code>에 아직 안 실려 있어 한 줄 추가가 필요합니다.</p>
+    </div>
+  </div>
+
+  <h2>한 탭 뒤 — 인계 화면의 강아지 카드</h2>
+  <p class="lede">티켓에 올리기엔 큰 값들. 인계 화면은 이미 주소를 제대로 보여주지만, 강아지에 대해서는 아무것도 말하지 않습니다.</p>
+
+  <div class="two">
+    <div class="phone">
+      <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
+      <div class="mast">인계</div>
+      <div class="sec">
+        <div class="tk">
+          <div style="display:flex;gap:11px;align-items:center">
+            <div class="face" style="width:54px;height:54px;font-size:22px">🐕</div>
+            <div>
+              <div style="font-size:17px;font-weight:800">초코</div>
+              <div class="quiet" style="margin-top:2px">말티즈 · 4.2kg · 보통 7′</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;border-top:1px solid #EFEEEA;padding-top:9px">
+            <div class="kick" style="color:#8A8A82">보호자 메모</div>
+            <div style="font-size:13px;line-height:1.5">다른 개를 보면 당겨요. 목줄 짧게 잡아주세요. 물은 가방에 있어요.</div>
+          </div>
+          <div style="margin-top:9px">
+            <span class="chipsm">소심해요</span><span class="chipsm">다른 개 주의</span><span class="chipsm">간식 OK</span>
+          </div>
+          <div style="margin-top:7px" class="quiet">백신 · 종합 · 광견병 · 켄넬코프</div>
+        </div>
+      </div>
+      <div class="sec" style="padding-top:0"><div class="quiet">Nampo-farro 275, Seocho-gu</div><div class="addr2">302동 1104호</div></div>
+      <div class="sec" style="padding-top:2px"><div class="btn coral"><div class="t">인계 받았어요</div><div class="s">초코를 넘겨받으면 눌러주세요</div></div></div>
+    </div>
+    <div class="cap">
+      <p><b>전부 이미 있는 값입니다</b> — 수락 전 요청 카드가 이미 그리고 있는 바로 그 필드들(<code>OpenRequest</code>: 사진·견종·체중·메모·태그·백신). 수락 후에 사라지는 게 이상한 거였습니다.</p>
+      <p><b>메모가 가장 중요합니다.</b> “다른 개를 보면 당겨요”는 러너의 다음 20분을 바꾸는 문장이고, 지금은 수락하는 순간 안 보입니다.</p>
+      <p><b>0114 주의:</b> 메모·태그는 <b>수락 전에는</b> 가려야 합니다(보호자 작성 텍스트가 낯선 사람에게 가는 문제). 이 카드는 수락 후 화면이라 해당 없음.</p>
+      <p style="margin-bottom:0"><b>없는 것:</b> 맹견 표시는 스키마에 아예 없습니다 — 실제 보호자가 오기 전에 서버에서 만들어야 합니다(legal이 이미 지적).</p>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>고르는 법:</b> A–D는 각각 독립적입니다. “A·B·D만” 같은 답도 됩니다. E(강아지 카드)는 티켓과 무관하게 따로 결정할 수 있습니다.</p>
+    <p style="margin-bottom:0"><b>제 추천: A·C·D를 티켓에, B는 인계 화면에만.</b> A는 줄이 늘지 않고 가장 행동을 바꾸며, D는 실제로 문을 못 찾는 문제를 고칩니다. C는 공짜(이미 있는 값). B의 얼굴은 티켓에서 14pt를 먹는데, 얼굴이 정말 필요한 순간은 문 앞이지 이동 중이 아닙니다 — 거기선 E가 더 크게 보여줍니다.</p>
+  </footer>
+</div>
