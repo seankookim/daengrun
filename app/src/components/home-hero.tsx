@@ -151,9 +151,24 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
     return <View style={s.wrap}>{errRow}</View>;
   }
 
+  // ⚠ [codex #3b 2026-08-21] active 와 handoff 는 자기 위젯으로 **일찍 빠져나가서** 지각 판정을
+  // 한 번도 보지 않았다. 하필 그 둘이 개가 러너에게 있는 상태다 — 즉 지각이 가장 중요한 두 경우에서
+  // 홈이 아무 말도 안 하고 있었다. 헤드라인을 두 개 만들지 않고(설계는 랩 ⑧ v2 로 확정) 사실 한 줄만
+  // 얹는다. 인계 후이므로 '불발'은 여기서도 금지어다 — 문장은 확인과 시간만 말한다.
+  const lateStrip = late?.late ? (
+    <View style={s.lateStrip}>
+      <View style={[s.chipDot, { backgroundColor: paper.critical }]} />
+      <Text style={s.lateStripTx}>
+        {late.started
+          ? `러닝이 예정보다 ${sinceLabel(late.sinceMs)} 길어지고 있어요`
+          : `아직 러닝이 시작되지 않았어요 · ${sinceLabel(late.sinceMs)} 지남`}
+      </Text>
+    </View>
+  ) : null;
+
   // ── active: 라이브 위젯이 존을 대체 ───────────────────────────────────────
   if (state === 'active') {
-    return <View style={s.wrapTight}>{errRow}{liveWidget}</View>;
+    return <View style={s.wrapTight}>{errRow}{lateStrip}{liveWidget}</View>;
   }
 
   const when = next ? [next.dateLabel, next.timeLabel].filter(Boolean).join(' ') : '';
@@ -172,6 +187,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
     return (
       <View style={s.wrapTight}>
         {errRow}
+        {lateStrip}
         <View style={s.chipRow}>
           <View style={[s.chipDot, { backgroundColor: paper.action }]} />
           <Text style={[s.chipTx, { color: paper.action }]}>내 차례</Text>
@@ -310,6 +326,13 @@ const s = StyleSheet.create({
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 44 },
   alertHot: { backgroundColor: paper.wash, marginHorizontal: -18, paddingHorizontal: 18, borderBottomWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  // 지각 한 줄 — 헤드라인이 아니라 사실 띠. critical 워시는 F1.2 라우드-페일 토큰 그대로.
+  lateStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: paper.criticalWash, borderWidth: 1, borderColor: '#F0CFC6',
+    paddingVertical: 9, paddingHorizontal: 11, marginTop: 8,
+  },
+  lateStripTx: { flex: 1, fontSize: 13, fontWeight: '700', color: paper.critical, lineHeight: 18 },
   alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
   alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
   alertAct: { fontSize: 14, fontWeight: '800' },
