@@ -8,6 +8,15 @@ route up to 100 km with up to 100 waypoints and export it as GPX.
 Everything in §3 is a licensing question and is the gate — see the verdict there before building
 anything.**
 
+> **⚠ CORRECTION 2026-08-21 — READ §7 BEFORE ACTING ON ANYTHING ABOVE IT.** §7 (`# §7. RULING —
+> 2026-08-20. CLEARED.`) cleared the Naver source, and §6 is the research §7 overrides. Three
+> passages written before that ruling still read as live restrictions; each is corrected in place
+> below rather than deleted — **§3's closing blockquote**, **§5's "those findings belong in this
+> section"**, and **§6.5's "`naver-route.mjs` … MUST NOT BE RUN"**. If you reached one of them by
+> grep, that line is dead. Measured 2026-08-21 in `docs/routes/strava/manifest.psv`: **66
+> `naver:`-sourced routes alongside 86 Strava/OSM ones**, so the builder is not merely permitted,
+> it is the source of nearly half the corpus.
+
 ## 1. The feature is REAL — confirmed, not inferred
 
 `map.naver.com` → 길찾기 → 도보 shows a panel titled **도보 코스 만들기** carrying a NEW badge, with the
@@ -101,6 +110,16 @@ a licensing question in itself, not just a per-row one.
 > **Status: the licensing research is running as a separate task and its verdict belongs here.**
 > Until it lands, this file's recommendation is: keep building from Strava/OSM, and treat the Naver
 > builder as evaluated-but-not-adopted.
+>
+> **⚠ SUPERSEDED 2026-08-21.** Both clauses of that status are spent. The research is no longer
+> "running" — it landed, as **§6 of this file**, and it did find prohibiting clauses. Sean then
+> overrode them on a personal grant: **§7, RULING 2026-08-20, CLEARED.** So
+> "evaluated-but-not-adopted" is the opposite of the current state (66 Naver routes in the corpus,
+> measured 2026-08-21). What survives from §3 is its *engineering* half, which §7 explicitly
+> keeps: the two sources stay separately identifiable — `naver:<hash>` +
+> `<copyright author="NAVER Corp.">` versus the OSM attribution — and `audit-candidates.mjs`
+> fails any file declaring neither. §3's licence analysis is still the right analysis; it is the
+> RECOMMENDATION built on top of it that a founder ruling replaced.
 
 ## 4. What would actually make this worth switching
 
@@ -123,6 +142,14 @@ If the goal is better Korean pedestrian data with a clean licence, the public-da
 that ends in a redistributable corpus rather than a legal question. The licensing research task was
 asked to name what exists (브이월드 / 국가공간정보포털 / 도로명주소 open data and any 보행자 network),
 with URLs and licences. Those findings belong in this section.
+
+**⚠ CORRECTION 2026-08-21 — the findings arrived and landed in §6.6, not here.** This section has
+read as an open request ever since, which is why it is corrected rather than left: nothing is
+outstanding. §6.6 names **서울시 자치구별 도보 네트워크 공간정보** (data.go.kr 15125685, KOGL 제1유형
+— commercial use and derivatives both permitted), its companion 대로변 횡단보도 (15125686, also Type
+1), the unresolved scope disagreement to clip against a known bbox before building, and the trap
+that matters most — **서울 지천길 선형 (15125809) is KOGL 제4유형, commercial use and modification
+both FORBIDDEN.** Read §6.6; treat this section as the question it asked.
 
 ---
 
@@ -197,6 +224,20 @@ place.
   while building elsewhere is ordinary human use of a public map.
 - **`naver-route.mjs` is retained but MUST NOT BE RUN** pending Sean's decision with these clauses
   in hand. Its header carries this warning.
+
+  **⚠ DEAD LINE — CORRECTED 2026-08-21. Every clause of it is now false, and it is the single
+  most expensive stale line in the route docs**, because it is the one a grep-first session lands
+  on: it reads as a hard stop on work that is not merely allowed but already done.
+  ① *"pending Sean's decision"* — the decision came the next day and is §7 of this file: **CLEARED,
+  2026-08-20**, on a personal grant from NAVER, including the ODbL share-alike question.
+  ② *"Its header carries this warning"* — it does not. `docs/routes/strava/naver-route.mjs:2`
+  reads `SOURCE: Naver pedestrian router. CLEARED FOR USE — Sean, 2026-08-20`, and the rest of
+  its header is the provenance rule §7 imposes, not a prohibition.
+  ③ *"MUST NOT BE RUN"* — it has been run at scale: measured 2026-08-21, `manifest.psv` carries
+  **66** `naver:`-sourced routes against **86** Strava/OSM ones, 152 total.
+  The bullet is kept rather than deleted because §6 is the honest record of what the public terms
+  say **in the absence of** that personal grant, and a grant is a fact about one relationship at
+  one moment. If the grant is ever withdrawn, §6.1–§6.3 are the analysis that applies again.
 
 ### 6.6 The open alternative actually worth pursuing
 
