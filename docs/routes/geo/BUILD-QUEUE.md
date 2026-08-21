@@ -1,13 +1,49 @@
 # BUILD-QUEUE — the 25 plans to run next, best first
 
-Derived 2026-08-19 from `ROUTE-PLANS.md` (126 plans, 15 구) by applying Sean's method:
+> **⚠ CORRECTION 2026-08-21 — THIS QUEUE IS EXHAUSTED. Do not execute it top-down.**
+> `docs/routes/strava/NEXT-SESSION.md` (2026-08-20) states every entry is built,
+> discarded-with-reason, or REJECTED, and I re-measured that claim rather than relaying it:
+> **23 of the 25 destinations now appear in `docs/routes/strava/manifest.psv`**, and the two that
+> do not each have a recorded reason — **#24 관악 동작충효길** was discarded for +139 m of climb
+> (`NAVER-BUILDER-EVAL.md` §1), and **#25 광진 광나루한강공원** is structurally closed
+> (`GEOGRAPHY.md`: 광장동 has no north-bank 나들목; the attempt routed 8.74 km over 광진교 to the
+> SOUTH bank). ⚠ **A name-match against this file will falsely report the queue unbuilt**, which
+> is how the queue reads as live: `build-route.sh` writes the MEASURED km into the name and the
+> naming scheme moved to three parts, so the queue's `강북 우이천 루프` shipped as
+> `강북 우이천 번동 루프 4.48km`. **Match by destination, never by the queue's base name.**
+> What is still worth reading here: the REJECTED sections below, and the geocoder-risk list at the
+> end — those are findings, not a work list. For the next queue, regenerate from `ROUTE-PLANS.md`;
+> `NEXT-SESSION.md` notes 12,582 indexed complexes back it.
+
+Derived 2026-08-19 from `ROUTE-PLANS.md` (**135** plans, 15 구 — corrected 2026-08-21: this line
+said 126, and `grep -c '^\./build-route.sh' ROUTE-PLANS.md` returns 135 both today and at the commit
+this queue was written on, so 126 was a miscount rather than a count that has since drifted) by
+applying Sean's method:
 residential anchor → **go first to the water/green** → spend the route there → come back a
 different way; 2–3 waypoints; nothing that stays in concrete when water is right there.
 
 Execute top-down. Each entry is a ready-to-paste command; where it differs from
 `ROUTE-PLANS.md` the change and the reason are stated. Run from `docs/routes/strava/`.
+**(2026-08-21: "execute top-down" is spent — see the correction at the top. And "where it differs
+from ROUTE-PLANS.md the change is stated" no longer holds either: that file was rewritten 29
+minutes after this one, so the differences these entries describe are against a superseded
+revision.)**
 
 ## Three defects in ROUTE-PLANS.md you will hit if you paste blind
+
+> **⚠ CORRECTION 2026-08-21 — ALL THREE ARE FIXED IN `ROUTE-PLANS.md`. Do not apply these
+> repairs.** This queue was committed at 13:36 on 2026-08-19; `ROUTE-PLANS.md` was regenerated 29
+> minutes later (14:05, `2530383`, 867 insertions / 729 deletions) against `plan-route.mjs` md5
+> `76f2977` — the revision whose stated purpose was exactly these defects. Re-measured today
+> against the current file: **(1)** zero `⚠` markers remain and every command carries its target-km
+> positional in `$3`; **(2)** the 구로구 section's routes read `구로 안양천 루프`, not `로구 …`;
+> **(3)** there is now a whole `## The 복개천 problem (measured, not assumed)` section, and the file
+> states in so many words that 관악구 anchors do not aim at 봉천천, 중구 not at 신당천, 금천구 not at
+> 시흥천. Those stream names still appear in `ROUTE-PLANS.md` — in the culvert-ratio table that
+> demotes them, which is the opposite of picking them as destinations. Kept rather than deleted
+> because the *reasoning* below is why the generator was changed, and re-reading it is how you
+> avoid reintroducing the bugs. **A reader who applies section (3) blind will distrust plans that
+> are fine.**
 
 1. **Every ⚠ command in that file is malformed.** Removing the junk waypoint also removed the
    **target-km positional**. `build-route.sh` binds `TARGET=$3`, so `…"37.6090/126.9563"
