@@ -1,202 +1,191 @@
 <title>Runner Home Glance Lab</title>
 <style>
   :root{
-    --ink:#111111; --dim:#666666; --line:#E8E6E0; --canvas:#FFFFFF;
-    --coral:#C6472C; --coralEdge:#A63A20; --coralWash:#FFF6F4;
+    --ink:#111111; --dim:#666666; --canvas:#FFFFFF;
+    --coral:#C6472C; --coralEdge:#A63A20; --coralSub:#FFF6F4;
     --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
     --volt:#5E7F0E; --voltFill:#EAF6C8;
-    --violet:#6C5CE7; --violetHead:#221E3D; --violetWash:#EFECF9;
+    --violet:#6C5CE7; --violetWash:#EFECF9;
     --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
-    --good:#2F7D4F;
   }
   :root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
     --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92;
   }}
   :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--page); color:var(--ink);
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 72px}
-  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
-  h1{font-size:26px;line-height:1.15;margin:0 0 6px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1220px;margin:0 auto;padding:30px 20px 70px}
+  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+  h1{font-size:25px;line-height:1.15;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
   .sub{color:var(--dim);font-size:14.5px;margin:0}
-  .diag{background:var(--panel);border:1px solid var(--hair);padding:16px 18px;margin:22px 0 8px}
-  .diag h2{font-size:15px;margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:800}
-  .diag p{margin:0 0 8px}
-  .diag p:last-child{margin-bottom:0}
-  .diag b{color:var(--coral)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:26px;margin-top:26px}
+  .said{background:var(--panel);border-left:3px solid var(--coral);padding:13px 16px;margin:20px 0 4px;font-size:14.5px}
+  .said b{color:var(--coral)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:24px;margin-top:24px}
   .card{background:var(--panel);border:1px solid var(--hair);display:flex;flex-direction:column}
-  .cardhd{padding:14px 16px;border-bottom:1px solid var(--hair)}
+  .cardhd{padding:13px 15px;border-bottom:1px solid var(--hair)}
   .num{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--violet)}
-  .cardhd h3{margin:3px 0 4px;font-size:17px;font-weight:800;letter-spacing:-.01em}
-  .cardhd p{margin:0;font-size:13.5px;color:var(--dim);line-height:1.45}
-  .phone{margin:16px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden}
-  .st{display:flex;justify-content:space-between;padding:7px 12px 4px;font-size:10.5px;color:#999}
-  .mast{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 12px 10px;border-bottom:1px solid #EFEEEA}
-  .mast b{font-size:15px;letter-spacing:-.01em}
-  .sec{padding:11px 13px}
-  .kick{font-size:10.5px;font-weight:800;letter-spacing:.12em;color:#8A8A82;text-transform:uppercase;margin-bottom:6px}
+  .cardhd h3{margin:3px 0 3px;font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .cardhd p{margin:0;font-size:13px;color:var(--dim);line-height:1.45}
+  .phone{margin:15px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden;position:relative}
+  .st{display:flex;justify-content:space-between;padding:6px 11px 3px;font-size:10px;color:#999}
+  .mast{text-align:center;padding:4px 11px 9px;border-bottom:1px solid #EFEEEA;font-size:14.5px;font-weight:800}
+  .sec{padding:10px 12px}
+  .kick{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8A8A82;margin-bottom:5px}
   .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .muted{color:#6E6E66;font-size:12px}
+  .muted{color:#6E6E66;font-size:11.5px}
+  .idline{font-size:11.5px;color:#6E6E66}
   .big{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-weight:800;letter-spacing:-.02em}
-  /* action shapes */
-  .draw{display:block;width:100%;text-align:left;border:0;padding:13px 14px;position:relative;cursor:default}
-  .draw .t{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
-  .draw .s{font-size:12.5px;margin-top:2px;opacity:.92}
-  .draw.coral{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge)}
-  .draw.coral .s{color:#FFF6F4}
-  .draw.ink{background:#fff;color:#111;border:1.5px solid #111}
-  .draw.ink .s{color:#5E5E58}
-  .draw.amber{background:var(--amberSoft);color:#7A4708;border:1.5px solid var(--amberEdge)}
-  .draw.volt{background:var(--voltFill);color:#3F5A08;border:1.5px solid #C9DC9B}
-  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;letter-spacing:.09em}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;letter-spacing:.08em}
   .dot{width:7px;height:7px;border-radius:50%}
-  .tick{border:1.5px solid #111;padding:11px 12px}
-  .link{font-size:12.5px;color:#4A4A44;text-align:right}
-  .idbar{background:#111;color:#fff;padding:9px 12px;font-size:12.5px;font-weight:800;letter-spacing:-.01em}
-  .idline{font-size:12px;color:#6E6E66;padding:2px 0 0}
-  .queue{background:var(--violetWash);color:#4A4370;font-size:12px;padding:12px;text-align:center}
-  .note{padding:12px 16px;border-top:1px solid var(--hair);font-size:13px;color:var(--dim);line-height:1.5}
-  .note b{color:var(--ink);font-weight:700}
-  .dock{border-top:2.5px solid var(--coral);padding:10px 13px;background:#fff}
-  footer{margin-top:34px;border-top:1px solid var(--hair);padding-top:16px;color:var(--dim);font-size:13.5px}
+  .tick{border:1.5px solid #111;padding:10px 11px}
+  .btn{display:block;width:100%;text-align:left;padding:12px 13px;position:relative}
+  .btn .t{font-size:16.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  .btn .s{font-size:12px;margin-top:2px}
+  .coral{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge)}
+  .coral .s{color:var(--coralSub)}
+  .inkb{background:#fff;color:#111;border:1.5px solid #111}
+  .inkb .s{color:#5E5E58}
+  .queue{background:var(--violetWash);color:#4A4370;font-size:11.5px;padding:11px;text-align:center}
+  .dock{border-top:2.5px solid var(--coral);background:#fff;padding:9px 12px 10px}
+  .tabbar{border-top:1px solid #EFEEEA;display:flex;justify-content:space-around;padding:8px 0 9px;font-size:15px;color:#B9B9B2}
+  .fade{position:relative}
+  .fade:after{content:"";position:absolute;left:0;right:0;bottom:0;height:26px;background:linear-gradient(transparent,#fff)}
+  .note{padding:11px 15px;border-top:1px solid var(--hair);font-size:12.8px;color:var(--dim);line-height:1.5}
+  .note b{color:var(--ink)}
+  .cost{display:grid;grid-template-columns:auto 1fr;gap:4px 9px;font-size:12.8px;margin-top:7px}
+  .cost dt{font-weight:800;color:var(--ink)}
+  .cost dd{margin:0;color:var(--dim)}
+  footer{margin-top:32px;border-top:1px solid var(--hair);padding-top:15px;color:var(--dim);font-size:13.5px}
   footer b{color:var(--ink)}
-  @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+  .scrolllbl{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--violet);padding:0 15px 2px}
 </style>
 
 <div class="wrap">
   <header class="top">
-    <h1>러너 홈 — 반초 시선 테스트</h1>
-    <p class="sub">네 가지 방향, 같은 상태(픽업 이동 중 · 요청 0건 · 이번 주 0건). 번호로 골라주세요.</p>
+    <h1>러너 홈 — ① 개정판과 엄지 도크</h1>
+    <p class="sub">진단은 그대로: 요청함이 비면 코랄이 아예 안 뜨고, 진짜 할 일이 회색 링크였습니다.</p>
   </header>
 
-  <div class="diag">
-    <h2>진단 — 왜 지금 안 읽히는가</h2>
-    <p>지금 규칙은 “화면에 코랄 하나, 주인은 <b>수락 문</b>”입니다. 그런데 요청함이 비면 <b>코랄이 아예 렌더되지 않습니다.</b> 스크린샷의 상태가 정확히 그랬습니다 — 요청 0건.</p>
-    <p>그 순간 러너가 실제로 해야 할 일(<b>인계 화면으로</b>)은 카드 맨 아래 회색 글자 링크였고, 화면에서 가장 무거운 요소는 아무 동작도 없는 <b>검은 이름 바</b>였습니다. 가장 큰 것이 장식이고, 가장 급한 것이 가장 작았습니다.</p>
-    <p>그래서 이건 색을 더 쓰는 문제가 아니라 <b>우선순위 규칙의 문제</b>입니다: 아이가 이미 걸려 있는 진행 중 작업의 다음 행동이, 아직 수락하지 않은 요청보다 코랄을 먼저 가져가야 합니다.</p>
+  <div class="said">
+    <b>Sean:</b> “①이 좋다, 다만 <b>바로 밑에 채팅</b>이 있어야 한다.” · “엄지 버전은 어떻게 생겼나?”
+    → ①에 채팅 줄을 넣었고, ④는 스크롤 두 상태로 그려서 도크가 무엇을 얻고 무엇을 잃는지 보이게 했습니다.
   </div>
 
   <div class="grid">
 
-    <!-- ① -->
     <section class="card">
       <div class="cardhd">
-        <div class="num">① 최소 수정</div>
-        <h3>코랄의 주인을 바꾼다</h3>
-        <p>규칙 한 줄만 뒤집습니다. 진행 중 작업이 있으면 그 다음 행동이 코랄. 이름 바는 한 줄로 강등.</p>
+        <div class="num">① 개정판 — 흐름 안에</div>
+        <h3>코랄 하나 + 바로 밑 채팅</h3>
+        <p>진행 중 카드 아래에 코랄 기본 행동, 그 바로 밑에 채팅. 보호자 홈과 같은 짝(코랄 + 잉크 아웃라인).</p>
       </div>
       <div class="phone">
         <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
-        <div class="mast"><b>도그스하이</b></div>
+        <div class="mast">도그스하이</div>
         <div class="sec">
-          <div class="idline">s4kim2025 · 인증 러너</div>
-          <div class="row" style="margin-top:8px">
+          <div class="idline">s4kim2025 · 인증 러너 · 온라인</div>
+          <div class="row" style="margin-top:7px">
             <span class="chip" style="color:#7A4708"><span class="dot" style="background:var(--amber)"></span>픽업 이동 중</span>
-            <span class="muted">온라인 ●</span>
           </div>
         </div>
         <div class="sec" style="padding-top:0">
           <div class="tick">
-            <div class="row"><span class="big" style="font-size:26px">5:00</span><span class="muted">8월 4일 (화)</span></div>
-            <div style="font-size:13.5px;font-weight:700;margin-top:2px">초코 · 5km</div>
+            <div class="row"><span class="big" style="font-size:24px">5:00</span><span class="muted">8월 4일 (화)</span></div>
+            <div style="font-size:13px;font-weight:700;margin-top:2px">초코 · 5km</div>
             <div class="muted" style="margin-top:1px">Home · Nampo-farro 275</div>
           </div>
-          <div class="draw coral" style="margin-top:10px">
+          <div class="btn coral" style="margin-top:9px">
             <div class="t">인계 화면으로 ›</div>
             <div class="s">초코를 넘겨받을 시간이에요</div>
           </div>
+          <div class="btn inkb" style="margin-top:8px">
+            <div class="t">채팅</div>
+            <div class="s">늦으면 미리 알려주세요</div>
+          </div>
         </div>
         <div class="sec"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
-        <div class="sec"><div class="kick">이번 주</div><div class="row"><span class="muted">0회 · 0km</span><span class="big" style="font-size:15px">0원</span></div></div>
+        <div class="sec" style="padding-top:0"><div class="row"><span class="muted">이번 주 0회 · 0km</span><span class="big" style="font-size:14px">0원</span></div></div>
+        <div class="tabbar"><span>⌂</span><span>▦</span><span>◎</span><span>▤</span><span>◍</span></div>
       </div>
-      <div class="note"><b>가장 작은 diff.</b> 색 체계·컴포넌트 그대로, 우선순위만 교정. 위험 최소.</div>
+      <div class="note">
+        <b>채팅은 잉크 아웃라인, 코랄이 아닙니다.</b> 화면의 코랄 하나는 지금 할 일이 가져갑니다 — 채팅이 코랄이면 둘이 같은 무게가 되고, 반초 시선 테스트가 다시 무너집니다.
+        <dl class="cost">
+          <dt>얻는 것</dt><dd>규칙 한 줄 + 버튼 한 개. 오늘 넣고 확인 가능.</dd>
+          <dt>잃는 것</dt><dd>스크롤을 내리면 행동이 화면 밖으로 나갑니다.</dd>
+        </dl>
+      </div>
     </section>
 
-    <!-- ② -->
     <section class="card">
       <div class="cardhd">
-        <div class="num">② 보호자 홈 문법</div>
-        <h3>같은 앱처럼 보이게</h3>
-        <p>보호자 홈 ⑧ v2의 드로운 버튼을 그대로 가져옵니다. 상태 칩 → 큰 문장 → 큰 버튼 두 개.</p>
+        <div class="num">④ 엄지 도크 — 상단 스크롤</div>
+        <h3>목록은 위, 행동은 아래 고정</h3>
+        <p>같은 두 버튼이 탭바 바로 위에 붙습니다. 화면 상단은 정보만.</p>
       </div>
+      <div class="scrolllbl">스크롤 최상단</div>
       <div class="phone">
         <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
-        <div class="mast"><b>도그스하이</b></div>
-        <div class="sec">
-          <span class="chip" style="color:#7A4708"><span class="dot" style="background:var(--amber)"></span>픽업 이동 중</span>
-          <div style="font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1.14;margin:8px 0 4px">초코를<br>데리러 가는 중</div>
-          <div class="muted" style="font-size:13px">8월 4일 (화) 오후 5:00 · Home</div>
-        </div>
-        <div class="sec" style="padding-top:2px">
-          <div class="draw coral"><div class="t">인계 화면으로</div><div class="s">도착하면 여기서 인계해요</div></div>
-          <div class="draw ink" style="margin-top:9px"><div class="t">채팅</div><div class="s">늦으면 알려주세요</div></div>
-        </div>
-        <div class="sec"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
-        <div class="sec"><div class="kick">이번 주</div><div class="row"><span class="muted">0회 · 0km</span><span class="big" style="font-size:15px">0원</span></div></div>
-      </div>
-      <div class="note"><b>양쪽 홈이 한 벌.</b> 러너가 보호자 모드로 바꿔도 같은 문법. 가장 일관적, diff는 큼.</div>
-    </section>
-
-    <!-- ③ -->
-    <section class="card">
-      <div class="cardhd">
-        <div class="num">③ 상태가 바닥색</div>
-        <h3>단계마다 화면 색이 바뀐다</h3>
-        <p>진행 중 카드의 <em>배경</em>이 단계 색입니다. 앰버=이동 중, 볼트=인계 완료, 코랄=러닝 중. 색만 보고 압니다.</p>
-      </div>
-      <div class="phone">
-        <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
-        <div class="mast"><b>도그스하이</b></div>
-        <div class="sec" style="padding-bottom:4px"><div class="idline">s4kim2025 · 인증 러너 · 온라인</div></div>
-        <div style="margin:0 13px" class="draw amber">
-          <div class="chip" style="color:#7A4708;margin-bottom:6px"><span class="dot" style="background:var(--amber)"></span>픽업 이동 중</div>
-          <div class="row"><span class="big" style="font-size:26px;color:#7A4708">5:00</span><span style="font-size:12.5px;color:#7A4708">초코 · 5km</span></div>
-          <div style="font-size:12px;color:#8A5A18;margin-top:2px">Home · Nampo-farro 275</div>
-          <div style="background:var(--coral);color:#fff;margin-top:11px;padding:11px 12px;font-size:16px;font-weight:800;box-shadow:0 4px 0 var(--coralEdge)">인계 화면으로 ›</div>
-        </div>
-        <div class="sec"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
-        <div class="sec"><div class="kick">이번 주</div><div class="row"><span class="muted">0회 · 0km</span><span class="big" style="font-size:15px">0원</span></div></div>
-      </div>
-      <div class="note"><b>가장 멀리서 읽힘.</b> 색 하나로 단계를 말합니다. 다만 화면에 큰 색면이 하나 더 생깁니다.</div>
-    </section>
-
-    <!-- ④ -->
-    <section class="card">
-      <div class="cardhd">
-        <div class="num">④ 하단 고정 도크</div>
-        <h3>다음 행동은 항상 엄지 자리</h3>
-        <p>목록은 위, 지금 할 일 하나는 아래 고정. 스크롤 위치와 상관없이 늘 같은 자리에 있습니다.</p>
-      </div>
-      <div class="phone">
-        <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
-        <div class="mast"><b>도그스하이</b></div>
-        <div class="sec" style="padding-bottom:4px"><div class="idline">s4kim2025 · 인증 러너 · 온라인</div></div>
-        <div class="sec" style="padding-top:6px">
+        <div class="mast">도그스하이</div>
+        <div class="sec"><div class="idline">s4kim2025 · 인증 러너 · 온라인</div></div>
+        <div class="sec" style="padding-top:4px">
           <div class="kick">오늘의 루트</div>
           <div class="tick">
-            <div class="row"><span class="big" style="font-size:22px">5:00</span><span class="chip" style="color:#7A4708"><span class="dot" style="background:var(--amber)"></span>이동 중</span></div>
-            <div style="font-size:13px;font-weight:700;margin-top:2px">초코 · 5km · Home</div>
+            <div class="row"><span class="big" style="font-size:21px">5:00</span><span class="chip" style="color:#7A4708"><span class="dot" style="background:var(--amber)"></span>이동 중</span></div>
+            <div style="font-size:12.5px;font-weight:700;margin-top:2px">초코 · 5km · Home</div>
           </div>
-          <div class="row" style="margin-top:9px;opacity:.55"><span class="muted">7:30 · 다음 예약 없음</span></div>
         </div>
-        <div class="sec"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
-        <div class="sec" style="padding-top:0"><div class="row"><span class="muted">이번 주 0회 · 0km</span><span class="big" style="font-size:15px">0원</span></div></div>
+        <div class="sec" style="padding-top:6px"><div class="kick">요청 대기열</div><div class="queue">지금은 새 요청이 없어요</div></div>
+        <div class="sec fade" style="padding-top:0;height:44px"><div class="row"><span class="muted">이번 주 0회 · 0km</span><span class="big" style="font-size:14px">0원</span></div></div>
         <div class="dock">
-          <div class="draw coral"><div class="t">인계 화면으로 ›</div><div class="s">초코 · 5:00 · 지금 할 일</div></div>
+          <div class="btn coral"><div class="t">인계 화면으로 ›</div><div class="s">초코 · 5:00 · 지금 할 일</div></div>
+          <div class="btn inkb" style="margin-top:7px;padding:9px 13px"><div class="t" style="font-size:15px">채팅</div></div>
         </div>
+        <div class="tabbar"><span>⌂</span><span>▦</span><span>◎</span><span>▤</span><span>◍</span></div>
       </div>
-      <div class="note"><b>애플식 엄지 존.</b> 러너는 걸으면서 한 손으로 씁니다. 다만 도크가 세로 공간을 상시 차지합니다.</div>
+      <div class="note"><b>도크가 늘 자리를 차지합니다</b> — 그만큼 목록이 짧아집니다.</div>
+    </section>
+
+    <section class="card">
+      <div class="cardhd">
+        <div class="num">④ 엄지 도크 — 아래로 스크롤</div>
+        <h3>내려도 그 자리에 있다</h3>
+        <p>이게 도크의 전부입니다. 요청을 훑든 주간 기록을 보든, 다음 행동은 엄지 밑에 그대로.</p>
+      </div>
+      <div class="scrolllbl">아래로 스크롤한 상태</div>
+      <div class="phone">
+        <div class="st"><span>8:25</span><span>●●● ᯤ ▮</span></div>
+        <div class="sec" style="padding-top:9px"><div class="kick">이번 주</div>
+          <div class="row"><span class="big" style="font-size:19px">0회 · 0km</span><span class="big" style="font-size:16px">0원</span></div>
+          <div class="muted" style="margin-top:3px">정산 예정 · 지급 일정 미정</div>
+        </div>
+        <div class="sec" style="padding-top:2px"><div class="kick">지난 러닝</div>
+          <div class="row" style="padding:7px 0;border-top:1px solid #EFEEEA"><span style="font-size:12.5px">8월 11일 · 초코</span><span class="big" style="font-size:13px">0km</span></div>
+          <div class="row" style="padding:7px 0;border-top:1px solid #EFEEEA"><span style="font-size:12.5px">8월 8일 · 초코</span><span class="big" style="font-size:13px">3km</span></div>
+          <div class="row" style="padding:7px 0;border-top:1px solid #EFEEEA"><span style="font-size:12.5px">7월 30일 · 초코</span><span class="big" style="font-size:13px">5km</span></div>
+        </div>
+        <div class="sec fade" style="padding-top:0;height:30px"></div>
+        <div class="dock">
+          <div class="btn coral"><div class="t">인계 화면으로 ›</div><div class="s">초코 · 5:00 · 지금 할 일</div></div>
+          <div class="btn inkb" style="margin-top:7px;padding:9px 13px"><div class="t" style="font-size:15px">채팅</div></div>
+        </div>
+        <div class="tabbar"><span>⌂</span><span>▦</span><span>◎</span><span>▤</span><span>◍</span></div>
+      </div>
+      <div class="note">
+        <b>한 손으로 걸으면서 쓰는 화면.</b> 러너는 개를 데리고 이동 중입니다 — 엄지가 닿는 곳에 늘 같은 버튼이 있는 게 애플식 하단 고정의 이유입니다.
+        <dl class="cost">
+          <dt>얻는 것</dt><dd>스크롤 위치와 무관하게 다음 행동이 늘 같은 자리.</dd>
+          <dt>잃는 것</dt><dd>세로 공간 상시 점유 · 진행 중인 일이 없을 땐 도크가 빈 자리가 됩니다(그땐 숨김).</dd>
+        </dl>
+      </div>
     </section>
 
   </div>
 
   <footer>
-    <p><b>추천: ① 먼저, 그 다음 ②.</b> ①은 규칙 한 줄이라 오늘 밤 넣고 확인할 수 있고, 진짜 문제(코랄이 안 뜨는 상태)를 바로 고칩니다. ②는 양쪽 홈을 한 벌로 만드는 큰 작업이라 ①로 효과를 확인한 뒤가 안전합니다. ③은 가장 멀리서 읽히지만 “프레임당 코랄 하나” 예산과 부딪힐 수 있어 한 번 보고 판단하는 게 좋습니다.</p>
-    <p style="margin-bottom:0">번호만 답해주세요 — 조합도 됩니다 (예: “①+④”).</p>
+    <p><b>정직한 차이는 하나뿐입니다:</b> ①은 행동이 카드 옆에 붙어 문맥이 분명하고, ④는 행동이 늘 엄지 밑에 있습니다. 나머지(코랄 하나 · 채팅은 잉크 · 상태 칩)는 두 안이 동일합니다.</p>
+    <p><b>추천: ① 개정판을 먼저.</b> 러너 홈은 화면이 짧아 스크롤이 깊지 않고, ④의 도크는 진행 중인 일이 없을 때 숨김/표시 규칙을 하나 더 만듭니다. ①로 “코랄이 옳은 곳에 있다”를 먼저 확인하고, 실제로 스크롤 때문에 놓친다는 게 보이면 그때 ④로 올리는 게 순서입니다.</p>
+    <p style="margin-bottom:0">“①” 또는 “④”라고만 답해주세요.</p>
   </footer>
 </div>
