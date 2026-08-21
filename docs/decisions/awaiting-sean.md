@@ -488,6 +488,7 @@ client session: `app/app/runner/apply.tsx:655` has a runner consenting to safety
 consent naming a company that no longer goes by that name.
 
 ## 0-quinvicies. 🟡 ONE-WORD DOMAIN QUESTION — may the client session touch `supabase/` for ONE slice? (2026-08-20)
+**✅ RULED 2026-08-21 pm (Sean, structured choice at the announcer's gate): a SERVER SESSION builds the server half** — the client/supabase wall stands; no client exception. Scope of the ruling: late-booking stage 2 (lateness cron · check-in resolver · fault persistence · money-follows-fault) PLUS the 0066 stale-enroute 50% carve-out, both implemented TO the client-written contract (`docs/plans/2026-08-21-late-booking-protocol.md` §12) under D1–D5. **In the same gate he set the two product numbers, verbatim: "grace 30, ceiling 3 hours"** [end of his words] — grace period 30 minutes, self-resolution ceiling 3 hours (resolution never charges, per D5). Implementer spawned by announcer v4 the same hour.
 
 The deep-link slice (§0-unvicies) has two halves in two domains: the client half (`api.ts` keeping the extra field) and the SERVER
 half (`HttpError` gains `detail`; `supabase/functions/_shared/ctx.ts:48` spreads it; the RPC carries a Postgres errdetail).
