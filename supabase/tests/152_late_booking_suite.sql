@@ -77,6 +77,8 @@ declare
   b_fresh uuid; b3 uuid; b2 uuid; b5 uuid; b6 uuid;
   b12 uuid; b12b uuid; b12c uuid; b10 uuid; b15 uuid; b19 uuid;
   b20 uuid; b21 uuid; b24 uuid; v_txt text;
+  b28 uuid; b29 uuid; b29b uuid; b30 uuid; b31 uuid; b32 uuid; b33 uuid; b33b uuid;
+  b34 uuid; b34b uuid; b35 uuid;
   v_bad text := ''; v_js jsonb; v_fee int; v_fee2 int; v_fee3 int; v_fee4 int; v_status text;
   v_n int; v_ver int; v_ts timestamptz; v_dl timestamptz; v_res text; v_st text;
   v_note text := '';
@@ -108,6 +110,30 @@ begin
       call _pass('lb', 'L0 그레이스 30분·실링 3시간 리터럴 (Sean 2026-08-21 원문) + GUC 주입은 하네스만');
     else call _fail('lb', 'L0 그레이스/실링 리터럴', v_bad); end if;
   exception when others then call _fail('lb', 'L0 그레이스/실링 리터럴', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L30] the clock ships OFF (codex CRIT-1) — flag null ⇒ the sweep is a no-op
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- The client has zero answer/fetch call sites at deploy; an armed sweep would void
+  -- bookings on prompts that never rendered (FM2). This pin runs BEFORE the suite arms the
+  -- flag, against a booking the armed sweep would certainly open.
+  b30 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    v_n := late_booking_sweep();
+    if v_n is distinct from 0 then v_bad := v_bad || ' 꺼진 시계가 ' || v_n || '건 처리'; end if;
+    if exists (select 1 from booking_checkins where booking_id = b30) then
+      select bc.opened_at::text || '/v' || bc.version || '/res=' || coalesce(bc.resolution, '무')
+        into v_txt from booking_checkins bc where bc.booking_id = b30;
+      v_bad := v_bad || ' 꺼진 시계가 개시 [' || v_txt || ' flag=' || coalesce((select late_protocol_live_since::text from ops_flags), '무') || ']';
+    end if;
+    if v_bad = '' then
+      call _pass('lb', 'L30 시계는 꺼진 채 출하 — late_protocol_live_since null ⇒ 스위프 0건·개시 없음 (ui5 스테이지2 출하 때 Sean이 켠다, CRIT-1)');
+    else call _fail('lb', 'L30 꺼진 시계', v_bad); end if;
+  exception when others then call _fail('lb', 'L30 꺼진 시계', sqlerrm); end;
+
+  -- arm the clock for the rest of the suite (restored to the shipped default at the end)
+  update ops_flags set late_protocol_live_since = now() - interval '1 day', updated_at = now();
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L3] the carve-out's FAULT arm — a recorded runner fault waives the 50%; an owner
@@ -207,9 +233,11 @@ begin
     if v_st is distinct from 'no_show' then v_bad := v_bad || ' b17 status=' || v_st; end if;
     if v_n is not null then v_bad := v_bad || ' b17 cancel_fee=' || v_n; end if;
     select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b17;
-    if v_res is distinct from 'ceiling' then v_bad := v_bad || ' b17 resolution=' || coalesce(v_res, '행 없음'); end if;
+    if v_res is distinct from 'ceiling_backfill' then v_bad := v_bad || ' b17 resolution=' || coalesce(v_res, '행 없음'); end if;
     select b.status::text into v_st from bookings b where b.id = b_4h;
     if v_st is distinct from 'no_show' then v_bad := v_bad || ' b_4h status=' || v_st; end if;
+    select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b_4h;
+    if v_res is distinct from 'ceiling_backfill' then v_bad := v_bad || ' b_4h resolution=' || coalesce(v_res, '행 없음'); end if;
     if exists (select 1 from booking_faults where booking_id in (b17, b_4h)) then v_bad := v_bad || ' 과실 기록됨'; end if;
     select count(*) into v_n from payments where booking_id in (b17, b_4h);
     if v_n is distinct from 0 then v_bad := v_bad || ' payments=' || v_n; end if;
@@ -217,8 +245,13 @@ begin
     if v_n is distinct from 0 then v_bad := v_bad || ' ledger=' || v_n; end if;
     select count(*) into v_n from notifications where ref_id = b17 and title = '지연 예약이 정리됐어요';
     if v_n is distinct from 2 then v_bad := v_bad || ' b17 알림=' || v_n; end if;
+    -- [codex HIGH-2] 0075 §K fires on the no_show write; with no km hold (these fixtures,
+    -- and everything pre-cutover) km_release nets 0 and writes NOTHING — the release is a
+    -- hold-unwind (slot-holds class), argued in 0117 §5; release mechanics are 113's pins.
+    select count(*) into v_n from km_ledger where booking_id in (b17, b_4h);
+    if v_n is distinct from 0 then v_bad := v_bad || ' km_ledger=' || v_n; end if;
     if v_bad = '' then
-      call _pass('lb', 'L9 실링 자기해소 = 상태 + 기록뿐 — 수수료도 청구도 원장도 과실도 없다 (0068의 법; 8/4 행 형상 포함)');
+      call _pass('lb', 'L9 실링 자기해소 = 상태 + 기록뿐 — 수수료도 청구도 원장도 과실도 km행도 없다 (0068의 법; 8/4 행 형상은 ceiling_backfill로)');
     else call _fail('lb', 'L9 실링 자기해소 무과금', v_bad); end if;
   exception when others then call _fail('lb', 'L9 실링 자기해소 무과금', sqlerrm); end;
 
@@ -492,7 +525,12 @@ begin
     select b.status::text into v_st from bookings b where b.id = b12b;
     if v_st is distinct from 'cancelled_owner' then v_bad := v_bad || ' 종단을 덮어씀=' || v_st; end if;
     select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b12b;
-    if v_res is distinct from 'superseded' then v_bad := v_bad || ' resolution=' || coalesce(v_res, 'null'); end if;
+    if v_res is distinct from 'superseded' then
+      v_bad := v_bad || ' resolution=' || coalesce(v_res, 'null')
+             || ' [dl=' || (select bc2.deadline_at::text from booking_checkins bc2 where bc2.booking_id = b12b)
+             || ' v' || (select bc2.version from booking_checkins bc2 where bc2.booking_id = b12b)
+             || ' flag=' || coalesce((select late_protocol_live_since::text from ops_flags), '무') || ']';
+    end if;
     if exists (select 1 from booking_faults where booking_id = b12b) then v_bad := v_bad || ' 과실'; end if;
     if exists (select 1 from notifications where ref_id = b12b and title = '지연 예약이 정리됐어요')
       then v_bad := v_bad || ' 이중 알림'; end if;
@@ -808,6 +846,193 @@ begin
   exception when others then call _fail('lb', 'L27 위임 소스 핀', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L28]–[L36] the codex FIX-FIRST round (2026-08-21)
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+
+  -- [L28] CRIT-7: an answer is a HUMAN statement — no JWT, no answer, no server exemption
+  b28 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  perform open_checkin(b28);
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', '', false);
+    begin
+      perform answer_checkin(b28, 'owner', 'cannot_proceed', '서버가 지어낸 진술');
+      v_bad := v_bad || ' 무인 진술이 수락됨';
+    exception when others then
+      if sqlerrm <> 'not_signed_in' then v_bad := v_bad || ' 거부 사유=' || sqlerrm; end if;
+    end;
+    if exists (select 1 from booking_checkins bc where bc.booking_id = b28 and bc.owner_answer is not null)
+      then v_bad := v_bad || ' 답이 남음'; end if;
+    if exists (select 1 from booking_faults where booking_id = b28) then v_bad := v_bad || ' 과실이 남음'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L28 무JWT 응답 거부 — 서버는 인간 진술을 지어낼 수 없다 (D5; 돈을 면제시키는 과실행의 위조 경로 봉쇄, CRIT-7)');
+    else call _fail('lb', 'L28 무JWT 응답 거부', v_bad); end if;
+  exception when others then call _fail('lb', 'L28 무JWT 응답 거부', sqlerrm); end;
+
+  -- [L29] CRIT-3: the handoff STAMPS are the custody fact — status is only the fallback
+  b29 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b29);
+  update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
+   where id = b29;                                     -- stamps written, promotion request LOST
+  b29b := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b29b);
+  update bookings set owner_confirmed_handoff_at = now() where id = b29b;   -- ONE stamp ≠ custody
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := answer_checkin(b29, 'owner', 'cannot_proceed');
+    v_js := answer_checkin(b29b, 'owner', 'cannot_proceed');
+    perform set_config('request.jwt.claim.sub', '', false);
+    select b.status::text into v_st from bookings b where b.id = b29;
+    if v_st is distinct from 'incident_review'
+      then v_bad := v_bad || ' 양도장 미승격=' || v_st || ' (no_show면 D3 위반 — 개는 이미 러너 손)'; end if;
+    select b.status::text into v_st from bookings b where b.id = b29b;
+    if v_st is distinct from 'no_show' then v_bad := v_bad || ' 한도장=' || v_st || ' (한쪽 도장은 커스터디가 아니다, 0089)'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L29 커스터디는 도장 우선 — 양측 인계 도장 + 승격 유실 = post(incident_review)·한쪽 도장만은 pre(no_show) (CRIT-3, 0116 정산 견적과 같은 눈)');
+    else call _fail('lb', 'L29 도장 우선 커스터디', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L29 도장 우선 커스터디', sqlerrm);
+  end;
+
+  -- [L31] HIGH-4: arrival evidence blocks the TIMER waiver; only a recorded fault waives then
+  b31 := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+  update bookings set arrived_at = now() - interval '17 days' + interval '20 minutes' where id = b31;
+  begin
+    v_bad := '';
+    select f.fee into v_fee from marketplace_cancel_fee(b31) f;
+    if v_fee is distinct from 12450
+      then v_bad := v_bad || ' 도착 증거에도 면제=' || coalesce(v_fee::text, 'null') || ' (타이머가 러너의 0066 권리를 벗김)'; end if;
+    insert into booking_faults (booking_id, party, source, stated_by)
+    values (b31, 'runner', 'test_ops_statement', rr);
+    select f.fee into v_fee from marketplace_cancel_fee(b31) f;
+    delete from booking_faults where booking_id = b31 and source = 'test_ops_statement';
+    if v_fee is distinct from 0 then v_bad := v_bad || ' 기록된 과실에도 미면제=' || coalesce(v_fee::text, 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L31 도착 증거가 있으면 타이머 면제 없음 (12450 유지) — 그때는 기록된 과실만이 면제한다 (0원) (HIGH-4)');
+    else call _fail('lb', 'L31 도착 증거 vs 타이머', v_bad); end if;
+  exception when others then call _fail('lb', 'L31 도착 증거 vs 타이머', sqlerrm); end;
+
+  -- [L32] HIGH-8: the REAL cancel wins the race — the late genuine statement is refused
+  --       loudly, never swallowed after persisting
+  b32 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b32);
+  update bookings set status = 'cancelled_owner' where id = b32;   -- the real 50% cancel path's
+                                                                   -- DB effect (fee derives §9c)
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    begin
+      perform answer_checkin(b32, 'runner', 'cannot_proceed', '진짜 사정이 있었다');
+      v_bad := v_bad || ' 떠난 예약에 답이 붙음';
+    exception when others then
+      if sqlerrm <> 'not_late_eligible' then v_bad := v_bad || ' 거부 사유=' || sqlerrm; end if;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if exists (select 1 from booking_checkins bc where bc.booking_id = b32 and bc.runner_answer is not null)
+      then v_bad := v_bad || ' 답이 남음'; end if;
+    update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+     where booking_id = b32;
+    perform late_booking_sweep();
+    select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b32;
+    if v_res is distinct from 'superseded' then v_bad := v_bad || ' resolution=' || coalesce(v_res, 'null'); end if;
+    if exists (select 1 from booking_faults where booking_id = b32) then v_bad := v_bad || ' 과실이 적힘'; end if;
+    if (select b.status::text from bookings b where b.id = b32) is distinct from 'cancelled_owner'
+      then v_bad := v_bad || ' 종단이 움직임'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L32 진짜 취소가 이긴 뒤의 진심 어린 진술 = not_late_eligible 로 시끄럽게 거부 — 삼켜지지 않는다; 체크인은 superseded (HIGH-8)');
+    else call _fail('lb', 'L32 취소 후 응답 거부', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L32 취소 후 응답 거부', sqlerrm);
+  end;
+
+  -- [L33] HIGH-6: the written fee is the at-write-time fee — never the quoted one
+  b33  := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  b33b := t_av_booking(oo, dg, rt, rr, now() - interval '17 days',    5.0, 'runner_enroute');
+  begin
+    v_bad := '';
+    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b33;   -- forged/stale quote
+    select b.cancel_fee into v_n from bookings b where b.id = b33;
+    if v_n is distinct from 12450 then v_bad := v_bad || ' 위조 견적이 남음=' || coalesce(v_n::text, 'null'); end if;
+    -- T+2:59:59 quote landing after T+3h: the stale 12450 must store as the waived 0
+    update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b33b;
+    select b.cancel_fee into v_n from bookings b where b.id = b33b;
+    if v_n is distinct from 0 then v_bad := v_bad || ' 실링 넘은 견적이 남음=' || coalesce(v_n::text, 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L33 기록되는 수수료 = 쓰는 시점의 사다리 값 — 위조 99999→12450, 실링을 넘긴 낡은 12450→0 (§9c 트리거, 사다리 위임, HIGH-6)');
+    else call _fail('lb', 'L33 수수료 진실 트리거', v_bad); end if;
+  exception when others then call _fail('lb', 'L33 수수료 진실 트리거', sqlerrm); end;
+
+  -- [L34] HIGH-9: a row-less booking is backfilled only past ceiling + a full grace margin
+  b34  := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours 10 minutes', 5.0, 'confirmed');
+  b34b := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours 40 minutes', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    perform late_booking_sweep();
+    if exists (select 1 from booking_checkins where booking_id = b34) then v_bad := v_bad || ' 마진 안에서 백필'; end if;
+    if (select b.status::text from bookings b where b.id = b34) is distinct from 'confirmed'
+      then v_bad := v_bad || ' 마진 안에서 종결'; end if;
+    select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b34b;
+    if v_res is distinct from 'ceiling_backfill' then v_bad := v_bad || ' 마진 밖 백필=' || coalesce(v_res, '행 없음'); end if;
+    if (select b.status::text from bookings b where b.id = b34b) is distinct from 'no_show'
+      then v_bad := v_bad || ' 마진 밖 미종결'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L34 백필은 실링+그레이스 마진을 넘겨야 — 제공한 적 없는 창을 주장하지 않는다 (제3의 숫자 없이, HIGH-9)');
+    else call _fail('lb', 'L34 백필 마진', v_bad); end if;
+  exception when others then call _fail('lb', 'L34 백필 마진', sqlerrm); end;
+
+  -- [L35] the constraint belts stand on their own (MEDIUM-10a / HIGH-15)
+  b35 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    begin
+      insert into booking_faults (booking_id, party, source, stated_by) values (b35, 'runner', 'x', null);
+      v_bad := v_bad || ' 무인 과실행 통과';
+    exception when others then
+      if sqlstate <> '23502' then v_bad := v_bad || ' 무인 코드=' || sqlstate; end if;
+    end;
+    begin
+      insert into booking_checkins (booking_id, opened_at, deadline_at, owner_answer)
+      values (b35, now(), now() + interval '30 minutes', 'cannot_proceed');
+      v_bad := v_bad || ' 도장 없는 답 통과';
+    exception when others then
+      if sqlstate <> '23514' then v_bad := v_bad || ' 도장쌍 코드=' || sqlstate; end if;
+    end;
+    begin
+      insert into booking_checkins (booking_id, opened_at, deadline_at, resolved_at)
+      values (b35, now(), now(), now());
+      v_bad := v_bad || ' 사유 없는 종결 통과';
+    exception when others then
+      if sqlstate <> '23514' then v_bad := v_bad || ' 종결쌍 코드=' || sqlstate; end if;
+    end;
+    if v_bad = '' then
+      call _pass('lb', 'L35 제약 벨트 자립 — stated_by NULL 23502·답/도장 쌍 23514·종결/사유 쌍 23514 (함수를 다 지워도 테이블이 거짓을 거부)');
+    else call _fail('lb', 'L35 제약 벨트', v_bad); end if;
+  exception when others then call _fail('lb', 'L35 제약 벨트', sqlerrm); end;
+
+  -- [L36] rows are never deleted — the DELETE guards (MEDIUM-10)
+  begin
+    v_bad := '';
+    begin
+      delete from booking_checkins where booking_id = b2;
+      v_bad := v_bad || ' 체크인 삭제 통과';
+    exception when others then
+      if sqlerrm <> 'checkin_immutable' then v_bad := v_bad || ' 체크인 삭제 사유=' || sqlerrm; end if;
+    end;
+    begin
+      delete from booking_faults where booking_id = b2;
+      v_bad := v_bad || ' 과실 삭제 통과';
+    exception when others then
+      if sqlerrm <> 'fault_immutable' then v_bad := v_bad || ' 과실 삭제 사유=' || sqlerrm; end if;
+    end;
+    if v_bad = '' then
+      call _pass('lb', 'L36 프로토콜 기록은 지워지지 않는다 — 체크인·과실행 DELETE 는 트리거가 거부 (postgres여도; 불변성은 테이블 불변식, MEDIUM-10)');
+    else call _fail('lb', 'L36 삭제 벨트', v_bad); end if;
+  exception when others then call _fail('lb', 'L36 삭제 벨트', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed
   -- ══════════════════════════════════════════════════════════════════════════════════════
   begin
@@ -833,7 +1058,15 @@ begin
     if not has_function_privilege('service_role', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' svc¬fee'; end if;
     if not has_function_privilege('service_role', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' svc¬waived'; end if;
     if has_function_privilege('service_role', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' svc open (제2의 시계)'; end if;
-    if has_function_privilege('service_role', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' svc sweep'; end if;
+    if not has_function_privilege('service_role', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' svc¬sweep (스케줄러 폴백, MEDIUM-12)'; end if;
+    if has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc custody'; end if;
+    if has_table_privilege('service_role', 'booking_checkins', 'UPDATE') then v_bad := v_bad || ' svc checkins U'; end if;
+    if has_table_privilege('service_role', 'booking_checkins', 'DELETE') then v_bad := v_bad || ' svc checkins D'; end if;
+    if has_table_privilege('service_role', 'booking_faults', 'UPDATE') then v_bad := v_bad || ' svc faults U'; end if;
+    if has_table_privilege('service_role', 'booking_faults', 'DELETE') then v_bad := v_bad || ' svc faults D'; end if;
+    select count(*) into v_n from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
+     where n2.nspname = 'public' and p2.proname = 'late_booking_sweep' and p2.prosrc like '%lock_timeout%';
+    if v_n is distinct from 1 then v_bad := v_bad || ' 스위프 lock_timeout 없음 (MEDIUM-11)'; end if;
     if has_function_privilege('service_role', '_resolve_checkin(uuid,text)', 'execute') then v_bad := v_bad || ' svc resolver'; end if;
     -- the tables: RLS on, zero policies (fail-closed seal, ops_flags' shape)
     if not (select c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -843,7 +1076,10 @@ begin
     select count(*) into v_n from pg_policies where tablename in ('booking_checkins', 'booking_faults');
     if v_n is distinct from 0 then v_bad := v_bad || ' 정책=' || v_n; end if;
     if v_bad = '' then
-      call _pass('lb', 'L14 표면 봉인 — anon 어디에도 없음·authenticated는 answer/fetch만·시계(open/sweep/resolver)는 service_role조차 없음·두 테이블 RLS on 정책 0');
+      call _pass('lb', 'L14 표면 봉인 — anon 어디에도 없음·authenticated는 answer/fetch/quote만·open/resolver는 service_role조차 없음·스위프만 스케줄러 폴백·테이블 UPDATE/DELETE는 svc도 없음·RLS on 정책 0');
     else call _fail('lb', 'L14 표면 봉인', v_bad); end if;
   exception when others then call _fail('lb', 'L14 표면 봉인', sqlerrm); end;
+
+  -- restore the shipped default: the clock leaves this suite exactly as it deploys — OFF
+  update ops_flags set late_protocol_live_since = null, updated_at = now();
 end $$;
