@@ -1197,7 +1197,7 @@ Ordered by what blocks the most.
 
 ## 3.5 🔵 DECIDED BY A STAND-IN UNDER THE OVERNIGHT GRANTS — reversible in one word
 
-These are **not** ✅. They were taken under Sean's two overnight grants (**R-20**, **R-27**) and each
+These are **not** ✅. They were taken under Sean's two overnight grants (**R-30**, **R-39**) and each
 carries its reasoning so he can flip it in a sentence. Several are already **built and deployed**,
 which raises the cost of reversal but does not change who owns the call.
 
@@ -1209,7 +1209,7 @@ which raises the cost of reversal but does not change who owns the call.
 | **O-4** | **Pre-acceptance contact = D2-narrow.** The nomination still reaches the runner (system push intact); free-text chat, reviews and notifications **refuse** pre-acceptance (42501); incidents get a deliberately **wider** reportable set (accepted + `cancelled_owner` + `refund_pending`) | announcer | **BUILT + DEPLOYED as `0114`, verified live 12/12** | attacker-authored push/chat to a stranger is the harm; a system 「요청이 왔어요」 is the product. Closes /cso #2's F2 |
 | **O-5** | **Pay-after-run server mechanism** — while `payments_live_since` is NULL every hold lands in `matching`; post-flip a card-less owner gets 409 `card_required` pre-write; settle charges only after the return handoff is sealed | announcer | **BUILT + DEPLOYED, client half landed** | implements Sean's ruling **#1**; it touches the money state machine, so no code before a reviewed contract |
 | **O-6** | **Build in-app account deletion** — definer `delete_my_account_tx` behind a party gate and a 12-token state gate; tombstone + KEEP/ANON retention; companion `delete-account` edge function | announcer | **BUILT + DEPLOYED as `0115`, 38/38 over the wire** | App Store **5.1.1(v)** requires in-app initiation; `settings.tsx:89`'s 「계정 삭제 \| 문의로 처리」 is exactly what that guideline exists to reject. Cheap now, expensive when a build comes back from review |
-| **O-7** | `bank_accounts` vs a runner owed money → **A-intact-when-owed** | **Sean himself, 2026-08-20** | shipped in `0115` | ✅-class, not 🔵 — see **R-28** |
+| **O-7** | `bank_accounts` vs a runner owed money → **A-intact-when-owed** | **Sean himself, 2026-08-20** | shipped in `0115` | ✅-class, not 🔵 — see **R-38** |
 | **C-1** | Campaign: locked style anchor `SREF-01`; posts fitted inside the centre square of their 4:5 frame; the landing page keeps exactly two buttons and **no testimonial section, not even an empty one** | marketing | shipped (docs) | reversible one line each |
 | **C-2** | Campaign trace rule: **the GPS trace is vector-only, plotted from a real GPX, and any pace/km readout beside it comes from that same file** | marketing | shipped | a drawn line with an invented `8:34/km` is fabricated data. Cost, accepted: **a frame with no GPX gets no trace and no number** |
 
@@ -1220,8 +1220,8 @@ from the real app; no build has ever run). None of these are faked anywhere in t
 
 ## 3.6 Closed — listed so nobody re-opens them
 
-- **§0-quater launch towns** — ✅ ruled; it is a **rule, not a list** (**R-6**).
-- **§0-septies-bis "no db push without approval"** — ✅ **RETRACTED BY SEAN** (**R-14**). Must not be cited.
+- **§0-quater launch towns** — ✅ ruled; it is a **rule, not a list** (**R-16**).
+- **§0-septies-bis "no db push without approval"** — ✅ **RETRACTED BY SEAN** (**R-29**). Must not be cited.
 - **§0-tervicies launch-path null-name write** — ✅ closed at `3be5c2b`(+`836245c`), root-caused and independently re-verified. Root cause worth carrying: `upsert({id, role})` on an existing row NOT-NULL-checked the proposed tuple **before** conflict resolution, so the deliberately-omitted `name` killed the statement on every launch and **the role write silently never landed.**
 - **§0-quatervicies masthead spacing** — closed **on measurement**: the gap is **28 pt**, not the ~46–50 pt that made the question worth asking. Also: the brand round will re-propose the header wholesale.
 - **§0-quaterdecies 18 vs 44 pt anchors** — superseded by **O-3**.
@@ -1302,7 +1302,7 @@ G1's `dog_condition` arm (**R-9**).
 홈/커뮤니티/기록/샵/마이 with **no calendar tab**; runner tabs 홈/캘린더/요청/수익/마이. **The booking
 flow is NOT seven steps** — the existing one-screen request survives, gaining only a
 scheduling-method + time-slot bottom sheet. Ten core mock screens. [from-doc `docs/calendar.md`]
-⚠ **Partly superseded:** tab *order* changed twice (**R-11**, then **R-24**).
+⚠ **Partly superseded:** tab *order* changed twice (the 2026-08-11 directive list, then **R-27**).
 
 **R-4 · 2026-07-22 — 안심 코스 (certified routes) and runner retention rewards.** Certified routes
 get a blue check (댕런 직접 검수) with the checked date; certification needs written criteria and a

@@ -370,6 +370,36 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-tricies. 🔴 MONEY + SERVER DEFECTS THAT MUST BE FIXED BEFORE CHARGING FLIPS — all inert today (2026-08-20)
+
+Found by the money and server sweeps. **Every one is harmless while charging is off** — `payments_live_since` null, 0 payments,
+0 billing keys, `TOSS_SECRET_KEY` unset, Vault secret absent: four independent off-switches, all measured. Each becomes real on flip day.
+
+**1. 🔴 A charge can mint for a dog still on the leash.** `sweep_settled_without_payments` lacks the `settled_at is not null` guard —
+**verified live by the announcer** (`prosrc like '%settled_at is not null%'` → false, while it does reference `ended_at`). After 0083 the
+return handoff is what says the dog is home; without the guard the sweep can bill on run-end alone. One predicate plus a pin.
+
+**2. 🔴 Club cancel fees are structurally uncollectable, and the runner's share never lands.** `_club_record_cancel_fee` writes
+`club_fee_items` and **never** `bookings.cancel_fee` — **verified live by the announcer** (writes_booking_fee → false, writes_club_items
+→ true). So the charge mint AND the unpaid-debt gate both see zero for a club cancellation, and the runner's supply-compensation share
+never reaches `my_ledger_total`. Two fee ladders exist and nobody has ruled which governs. **This one needs YOUR ruling, not just a fix.**
+
+**3. 🔴 One unparseable timestamp stops charge dispatch for everybody.** `dispatch_due_charges` (SQL) and `isDue()` (TS) have drifted:
+SQL hardcodes `< 3` where TS uses `MAX_ATTEMPTS`, and an unparseable `next_retry_at` makes the SQL side raise — so the batch never wakes
+for any user, while TS treats the same row as due. [reported by the sweep; not independently re-measured]
+
+**4. 🟠 Four definer functions answer questions about strangers.** The server sweep measured four functions with `authenticated`
+EXECUTE that take a caller-supplied id and contain **no `auth.uid()` anywhere**: `club_incident_settle_quote` (a full money and
+handoff-timing readout of ANY booking), `runner_work_gate` (a liveness oracle for ANY runner), `club_dog_ui_state`, `club_host_stats`.
+No suite pins them. The two HIGH ones are small fixes. Not urgent at 1 real user; it is the same class the /cso audit closed elsewhere.
+
+**Also recorded, not decisions:** `docs/payments.md` is wholly obsolete · `docs/decisions/README.md`'s ① and ⑩ status rows are false ·
+one assertion still carrying a ✅ on origin (⑪ gates ⑫) is wrong and was retracted elsewhere — a ✅ that is not your current word is
+exactly what the governance rule exists to prevent · `km_expire_sweep` is defined but **never scheduled** (checked against all 17 live
+cron jobs) · `create-payment-intent` exists locally and is NOT deployed · `addresses` has zero grant/revoke statements in any migration.
+Full detail: `docs/handoff-codex/money-domain.md` (both ledgers for every end scenario, 15 reconciled contradictions, 40 unbuilt items)
+and `docs/handoff-codex/server-domain.md` (69 tables, 190 definers, 64 unbuilt items, 35 traps).
+
 ## 0-undetricies. 🔴 CODEX (gpt-5.6-sol, xhigh) — an independent 30-day read, and one MEASURED bug in the PMF gate itself (2026-08-20)
 
 Sean asked for collaboration with Codex rather than a handoff. Its first pass read the repo cold. **The finding I verified myself and
