@@ -1561,3 +1561,219 @@ Recorded because each has already been relayed as authority at least once.
   is recorded as CODEX's, gets **🔵** and **no ✅ at all**.
 - **Everything in Part 3 §3.5** — stand-in decisions under two overnight grants. Live, deployed, and
   still reversible in one word.
+
+---
+
+# PART 2 (continued) — the complete quote index
+
+§2.1–2.6 above tell the story. This section is the **index**: every recorded Sean quotation found by
+an exhaustive sweep of the tree (all markers, all 1,208 commits on every branch, all decision memos,
+migration and suite headers, and app code comments). Rulings already narrated above are
+cross-referenced rather than repeated; everything else is new here.
+
+⚠ **Read the discrepancy table in §2.9 before quoting any of these.** Several quotes exist in two or
+more materially different renderings, and at least one date is inconsistent across locations.
+
+## 2.7 Index, chronological
+
+### 2026-08-05
+| Quote | Decides | Where |
+|---|---|---|
+| *"use english"* | replies/docs in English | `docs/session-handoff-archive-20260805.md:3` — later hardened into `CLAUDE.md:11-13` (extended, not superseded) |
+| *"yes to claude.md"* | approves creating the law book at repo root | `…archive-20260805.md:174` |
+| *"red for starters, blue when searching, soft green when confirmed"* | the **GO-disc colour law** | `…archive-20260805.md:163`; ⚠ `DESIGN.md:212` records the same ruling in **Korean** — one is a translation and neither says which. The disc was retired 2026-08-19 (**R-26**); the state law survives on the button count + alert line |
+| *"a lot of brands cuz most probably wont say yes."* | brand-outreach longlist sizing | `…archive-20260805.md:284` |
+| *"check whether the 0057 sweep was thorough"* | ordered the verification pass that produced `0058` | `…archive-20260805.md:228` |
+| *"too messy, steering away from the product — shop should be forward facing with product faces at front, creative ui."* + *"research how online markets and shops look and study them before presenting me with the mockups."* | rejects shop lab v1, orders research first | `docs/biz/shop-design-study.md:4`; ⚠ two other files compress it to *"too messy / not product-forward"* **inside quote marks** — that is a paraphrase wearing a quotation |
+| *"premium products of all kinds."* | widens the shelf beyond fitness/recovery | `docs/biz/affiliate-product-research.md:5` |
+| take rate **33 %** | recorded as a decision, not a quote | `0059_take_rate_33.sql:1` — see **R-5** |
+
+### 2026-08-06
+| Quote | Decides | Where |
+|---|---|---|
+| 「다음 하이 미리 예약」 | the money CTA label, personally specified | commit `05aab35` |
+| *"이전 버전처럼"* | the club widget keeps side margins + radius — the **one exception** to full-bleed; codified as a **VETO** of the paper-wave supersession | commit `28c1189`; `DESIGN.md:72` ⚠ dates the veto 2026-08-10 while the commit is 2026-08-06 |
+| **style freeze** — *no NEW aesthetics until 50 paying dogs* | stated as his rule, not his words | `DESIGN.md:10` |
+
+### 2026-08-08
+| Quote | Decides | Where |
+|---|---|---|
+| *"all the time, hard block"* | **background GPS: a run may not start without continuous tracking** | commit `9e2ec68` |
+
+### 2026-08-10
+| Quote | Decides | Where |
+|---|---|---|
+| *"all main tabs"* | scope of the paper-chrome migration | `DESIGN.md:44` |
+| *"use Fable 5 as orchestrator to deploy Opus 5 agents for all the leftover work. let's try to fully finish the app soon by this week."* | the orchestration model, and the deadline framing | `docs/plans/finish-the-app-plan.md:4` |
+| ops authority change (`db push` / `functions deploy` / `git push` allowed) | recorded as his change, not his words | `CLAUDE.md:18` — see **R-40** |
+
+### 2026-08-11
+| Quote | Decides | Where |
+|---|---|---|
+| *"I don't like black buttons. All action buttons must evoke motive and initiate action. Black is the dullest of all. So many black buttons and empty white buttons around the app."* | **retires the ink primary button; creates `paper.action #C6472C`** — the ancestor of every coral-CTA decision since, including **L-1** | commit `0d79b4f` ⚠ **four different recordings** — see §2.9 |
+| *"50% is good"* | the **en-route cancel = 50 %, runner compensation** (**R-6**) | commit `1040bdb`; `0066:2-3` |
+| *"no emojis. no cheap."* | the emoji purge and the anti-cheap law | commit `1040bdb` ⚠ `DESIGN.md:256` renders it *"no emojis, no cheap, declutter"* |
+| *"some runner screens are still in the green first version and need a complete scrap."* | the runner-screen scrap | commit `bc0102f` |
+| *"don't follow the revamp style"* · *"some font sizes overextend and are not shown"* | the club pages | commit `3a9d761` |
+| *"fully integrate and use proactively"* | on the sonner/emilkowalski skills | commit `aea161f` |
+| *"b1 + keep the rewards layout"* | declutter-lab pick for runner home | `app/app/runner/home.tsx:32` |
+| *"러너 페이지의 내 기록 같은 건 마이가 아니라 홈에 있어야 한다. 그리고 이걸 왜 보고 있지? 그래서 뭐?"* | records belong on **home**, not 마이 — and the second half is the standing test he applies to any screen: *why am I looking at this? so what?* | `app/app/runner/home.tsx:1013-1014` ⚠ `my.tsx:315-316` quotes only the first sentence **and dates it a day later** |
+| *"make screens slidable between different tabs"* | tab-swipe | `app/src/components/tabswipe.tsx:6` |
+| *"C) Full cathedral"* | km-token model scope | `docs/plans/km-token-model.md:250` |
+| the **directive list** (§A–§F) — *"Think about Pre pay for km model, follow claude's token model"* · *"Subscription screen, free 5 km on us, onboarding + easily accessible refill button"* · *"Make km token system creative and prevalent, make unique token icon"* · *"Reorganize tab to home being center"* · *"Runner home add logo at top like owner"* · *"Runner side make the current run info widget more action inviting (too nonchalant rn)"* · *"Runner side there is a duplicate high club title"* · *"Runner side, collapse the available time widget"* · *"Runner Make profit number larger in calendar tab"* · *"Tab in screen titles font size difference"* · *"Onboarding screens for both, info, pet, pace, guide buttons, etc"* · *"Check if chat is real"* · *"Make sample routes real in backend"* · *"(also do full design sweep)"* | the 2026-08-11 backlog that **outranks the older P1/P2 list** | `TODOS.md:399-863` ⚠ "home being center" was **REVERSED** by **R-27** |
+| 사업자등록 — register rather than route around it | his decision, not his words | `docs/plans/payments-toss-plan.md:12` |
+
+### 2026-08-12
+| Quote | Decides | Where |
+|---|---|---|
+| *"remove the text under the tab icons to make the icons bigger, add the swipe between screens fluidity, and make the shop icon a shopping bag in the similar style."* | bottom nav | commit `35368de` ⚠ **three partial recordings**, one Korean |
+| *"I dont see the slide to switch tab functionality motion working"* | the swipe bug | commit `ae017a9` |
+| *"remove forest"* | retires the forest palette | commit `ae017a9` |
+| *"just keep it for now, be more creative."* | **PARKS the Profit-tab revamp** — the code is deliberately untouched | `TODOS.md:770` |
+| *"do d next, all 5 of them, then next session do c. im going to bed so ask codex for replies."* | sequencing + the stand-in | `docs/plans/section-d-owner-side.md:6` |
+| *"let's not restrict what the users will be uploading; just give them an accessible way to upload the shareable card that we've already made."* | the free composer — **the line moved from the upload to the CLAIM**: free posts unrestricted, but a post carrying km/duration/trace must reference the author's own booking with a real `runs` row. *Bragging is for everyone; records are for whoever ran.* | `app/app/compose.tsx:15-16`; `0074`'s `feed_claim_gate` ⚠ truncated to the first clause in three places |
+| *"the users themselves should make account ids like instagram and those ids should be shown like insta"* | `profiles.handle` | `0074:3-4` |
+| *"feel free to copy as imitation is the highest form of flattery."* | the Instagram-grammar feed | `TODOS.md:564` |
+| *"story-circlify the club widget"* | the story rail; he picked Ⓑ① (clubs **and** dogs) over the session's Ⓑ③ | `TODOS.md:564,566` |
+| *"special note section editable for owner in preference and always visible in intermediary"* | `0073_address_note` | ⚠ split across two client files, each keeping half |
+| *"payment just before searching for runners is friction"* | first statement of the pay-after-run instinct | `docs/plans/payments-toss-plan.md:16` — **superseded in direction by R-22 #1** |
+| *"abandon the token and whatever"* | 🔴 **kills the km-token/bundles track he had approved the day before** | `docs/plans/payments-toss-plan.md:77` |
+| *"we already have all the screens"* | why the token screens are not worth building | `…payments-toss-plan.md:79` |
+| *"talk w codex or be autonomous"* | the stand-in convention, again | `docs/plans/km-token-model.md:252` |
+| *"심심하다 / 더 창의적일 수 있다"* | rejects the Ⓛ①②③ level chips | `docs/labs/onboarding-level-lab.html:394` |
+| **개인화 법** | no generic 개 in user-facing sentences — always 우리 {강아지 이름} | `docs/labs/record-card-lab.html:70` |
+| **완주 정의** | 완주 = minimum distance only; the "2km 또는 20분" dual threshold is **철회** | `docs/labs/record-card-lab.html:66` |
+| pace-state **D6–D13** | letter/number picks; notably **D7 kept his own 권장 wording, overruling Codex's 기준** | `docs/plans/pace-state-ui-plan.md:149`, `:231` |
+
+### 2026-08-13 — the money-ruling day
+All narrated at **R-9** through **R-15**. Two further quotes not covered there:
+
+| Quote | Decides | Where |
+|---|---|---|
+| *"the runner is paid only once the dog is returned and the runner should know that and be told of that, and it should be clear that custody responsbility is from start to end, and the owner should told of that relief point as well."* (typos his) | the **custody-from-start-to-end** doctrine and the disclosure obligation on **both** sides | `docs/decisions/marketplace-incident-exit.md:131-133` |
+| *"we dont want the runner stranded in the middle of town."* | why ⑫'s work gate cannot strand a runner mid-run | `…marketplace-incident-exit.md:135`, `:148` |
+| *"no, the confirmation must happen with both parties and never just the runner. also handoff."* | **return force becomes ops-only** (`0089`) | `0089_return_force_ops_only.sql:5` ⚠ the leading *"no,"* is dropped in `REGISTRY.md:131` |
+| *"we need a refresh feature right? if that's the case add that."* | OTA / `expo-updates` | `docs/plans/run-end-flow-plan.md:362-363` |
+| *"pay the runner and let them know, reward them ykwim."* | ⑩ in his own words (the ruling narrated at **R-10**) | `docs/decisions/cancel-fee-runner-share.md:3` |
+| *"yes i did, phone numbers should be present during those emergency situations."* | 🔴 **the OPERATIVE version of ⑪'s phone scope** — the *"at all times"* line must not be cited as the ruling | `docs/decisions/incident-verification.md:48` |
+
+### 2026-08-14 — the route-geometry rulings
+| Quote | Decides | Where |
+|---|---|---|
+| *"u just saved for 3km. it isn't it was 5.4km and that km data was shown on the make route screen. get it right."* | 🔴 produced the **measure-then-name law**, now enforced by `0100`'s `routes_name_km_agrees` | `docs/handoff-route-geometry-strava.md:24-26` |
+| *"korea has excellent lighting. it is fine and follow that."* | `null` lighting **passes** the 조명 filter | `…strava.md:414` — explicitly **supersedes** his own earlier *"lighitng is fine."* the same day |
+| *"no need to be stuck on 몽마르트, there are a thousand parks and hills and river side routes and streets in korea. not sure of this irrational determination on 몽마르트. just connect a handful of 서래마을 resident routes with it."* | breaks a single-landmark fixation | `…strava.md:205-207` |
+| *"maybe we first need to organize geographical features with clustered residential area proximities per town and district and then use specific addresses of these parks and residential areas to create specific paths with more than a handful of way points…"* | the whole geography-first pipeline | `…strava.md:211-214` ⚠ the **"more than a handful of way points"** half was **REVERSED by him on 2026-08-19** |
+| *"think big and wide. hundreds of data points for each residential and geographical all across seoul."* | scope of the feature index | `…strava.md:214-215` |
+| *"route shape isnt so much more important than the actual properties and characteristics and variations of the routes. who cares if it's a lolipop or a figure 8 or a curve."* | **properties over shape** | `…strava.md:390-392` ⚠ one file "corrects" his spelling to *lollipop* |
+| *"not sure if korea osm is as good as strava's auto run path finder"* | rejects the GraphHopper/OSM router; **recorded as a retraction of the session's own conclusion** | `…strava.md:273` |
+| *"the kms dont have to be integers. anywhere from around 1.5km+ ish ~ 7 km ish"* | the route length band; **supersedes** an earlier guard reading *"the owner said under 5"* | ⚠ **DATE CONFLICT** — see §2.9 |
+| *"take the owner's entry point and find the closest route that also matches preferences."* | the ancestor of ruling #14 | ⚠ flagged in-repo as **relayed** by the route-geometry session, not heard first-hand |
+| *"use purple as the gpx trace color, and the pickup location should be the house."* | trace colour + pickup semantics | commits `220a4cb`/`321d57f` |
+| *"use full solid thinner lines for map outline."* | retires the dash encoding | commits `accc91a`/`f0ceed4` |
+| *"seongsu can be part of the new scope but not sure of the rows sync with our new purpose"* | 성수동's 4 retired rows stay retired — **still listed as his open call** | `…strava.md:1306` |
+| *"there are a lot of other parks, and plus it doesn't have to be a park, it can be a river, or something else."* | destination categories | `docs/skills/route-geometry/SKILL.md:217-218` |
+| *"just have the skill use the real chrome testing app."* | tooling | `…SKILL.md:49` |
+
+### 2026-08-15
+Narrated at **R-18** through **R-21**. One further quote:
+
+| Quote | Decides | Where |
+|---|---|---|
+| *"do that claude.md fix."* | the hook installs at the **stable clone path**, not `$(git rev-parse --show-toplevel)` | commit `3732a41`; `CLAUDE.md:110-118` |
+
+### 2026-08-19
+Narrated at **R-24** through **R-31**. Further quotes:
+
+| Quote | Decides | Where |
+|---|---|---|
+| *"stop asking me for permission, just go ahead if it's fruitful."* | restates the autonomy grant — **in the same commit that records the overridden constraint had "reached me relayed, quoted as his verbatim words"** | commit `4d8ee34` |
+| 「홈은 두 개의 큰 옵션을 보여준다 — 지금 찾기, 아니면 예약. UI를 그 둘 중심으로.」 | **the home's two-option grammar** — the ancestor of ⑧ v2 | `docs/labs/home-two-options-lab.html:50` |
+| 「⑧이 좋다. ⑩에서 진행 중인 러닝이 있으면 '지금 찾기'는 없어야 한다 — 이미 하나 있으니까. 알림 스타일은 좋다.」 | ⑧, plus the rule that a live run **removes** 지금 찾기 | `home-two-options-lab-v2.html:58` (lab itself now marked SUPERSEDED; ⑧ survives) |
+| 「70클릭 → 7클릭. 있으면 안 되는 것을 최적화하지 마라. 자른 것의 10%를 되살리지 않았다면 덜 자른 것이다.」 | 🔴 **the compression doctrine, and it is a general engineering law**: *don't optimise what shouldn't exist; if you didn't restore 10 % of what you cut, you didn't cut enough* | `docs/labs/journey-mocks-compressed.html:61` |
+| 「홈에서 시작해 선호 → 중간 단계 → 완주까지, 그 사이 모든 화면을 나열하라. 몇 개 더 있다.」 | ordered the full journey inventory | `docs/labs/booking-journey-inventory.html:29` |
+| *"any screens or buttons or things you are missing out or anything that can be done better?"* | ordered the self-check | `docs/labs/journey-self-check.md:3` |
+| *"later, this style in the other tabs"* | 커뮤니티/마이 restyle is **deferred, not cancelled** | `journey-self-check.md:80` ⚠ compressed to just *"later"* in two places |
+| *"what are all functionalities that the home should show? what about other screens?"* | ordered `docs/design/screen-functionality-spec.md` | `:3` |
+| *"on the floor thing, i want to see how it looks like before choosing anything."* | **the labs-by-number method in his own words** | `screen-functionality-spec.md:112-113` |
+| *"there are too many spiky points and seen-twice routes … all routes should not have too many way points. maybe less than four or five max. two or three way points excluding the start/end point should be the sweet spot."* | 🔴 **REVERSES the 5–8-waypoint rule derived from his own 08-14 sentence** | `…strava.md:441-443` |
+| *"if the resident area and the river/park area is near by, … start from the residential area and go first and foremost to these geographical areas, then make a route there before turning back … if there are no parks or rivers near by, make a simple loop."* | the destination-led method, in full | `…strava.md:447-450` |
+| routes *"stay too much in the city concrete area"* | the concrete complaint that produced R6 | commit `3af1a80` |
+
+### 2026-08-20
+Narrated at **R-32** through **R-39**. Further quotes, mostly design-by-looking:
+
+| Quote | Decides | Where |
+|---|---|---|
+| *"you are the cmo of nike. color of gps is fine. cant you make precise prompts for image generation and precise prompts for video generation as campaign material; nike style"* | the campaign brief **in full** | `docs/handoff-codex/marketing-domain.md:40-41` ⚠ the decision queue quotes only *"color of gps is fine."* |
+| *"give the app some brand identity. too plain and simple right now, although i like the simple and intuitive user front design. dispatch a handful of agents."* | the brand round | commit `ec2e8b0` ⚠ **materially different from the handoff's rendering** — see §2.9 |
+| *"i like the no. 00nth member thing and also member since ___ thing. merge I's style with home-two-options-lab-v2."* | membership serial + MEMBER SINCE | commit `22a503e` — **demoted 30 minutes later** to "one candidate among twelve" |
+| *"i like 2's top section above the reservation button. strong, bold, clear. the button can be colored in. let's have the logo drop and fill in the right side of the black phrase. i want to see all states of that version… iterate harshly on the club widget, premium look. show me the full version of 2."* | home v3 direction | commit `e35a183` |
+| *"i like the final presentation in place. in that fashion, give me a full fanned out screen."* | | commit `ba3c9fa` |
+| *"let's give some color and animations or something doesnt have to be animations to the main button. text in button can also be bigger, and subtext should always be 존댓말."* | **subtext is always 존댓말** — a standing copy law | commit `bdc8e54` |
+| *"look into if you can use naver map api to build these routes; better data in korea and also has waypoints"* | the Naver evaluation | `docs/routes/geo/NAVER-BUILDER-EVAL.md:3` |
+| *"naver license is fine. we just need the gpx data for routes."* → session **withdrew** on licence research → *"never mind that restriction; i know the naver ceo and i got personal permission."* + on ODbL share-alike, *"he said that's fine."* | 🔴 **A three-step sequence in 17 minutes**: his clearance → the session's research overriding it → **his personal-permission override of the research.** §7 overrides §6 and §6 is kept unedited beneath it. **A newcomer must treat the Naver provenance as resting on a personal grant, recorded as such on ~7 catalog rows** | `NAVER-BUILDER-EVAL.md:131-134`, `:150` |
+| *"the current route im seeing is just a road run."* | caught a real defect — `infill-gaps.mjs` v1 was sweeping bearings to hit a distance | commit `bbac7ba` |
+| *"pair greens for longer routes."* | the paired-destination method | `docs/routes/geo/infill-gaps.mjs:37` |
+| *"you can use strava to connect the two points and get a precise km result."* | **the approach leg must be routed, not estimated** | `docs/routes/geo/APPROACH-LEG-SPEC.md:39-40` |
+| *"great coverage of river and very appropriate distance. excellent."* | his most enthusiastic route verdict — worth knowing what "good" looks like to him: 강북 우이천 수유 루프, an **80 %-retrace out-and-back** | `APPROACH-LEG-SPEC.md:198-199` |
+
+### 2026-08-21
+| Quote | Decides | Where |
+|---|---|---|
+| *"i also like 1 but should have a chat option right underneath"* · *"how will the thumb version for the runner home look like?"* | the runner-home glance lab v2 | commit `d925ecf` ⚠ the lab records both in **Korean** |
+
+## 2.8 Retracted, superseded and reversed — the full table
+
+| Quote / decision | Fate |
+|---|---|
+| *"work locally first, do not push migrations without my explicit approval"* | 🔴 **NEVER SAID.** Relayed as his verbatim words; he denied it (**R-29**). The docs say plainly: **must not be cited.** |
+| *"b1, and show each other's phone numbers on the screen at all times."* | Narrowed **by him the same day** to *"during those emergency situations."* |
+| *"base fee, flat — base as just 7,900"* | Withdrawn — one session's mis-record of G1 (`0084:106-107`) |
+| G1's `runner_personal` runner-side row | Superseded by ⑨ (**R-13**) |
+| *"lighitng is fine."* | Superseded the same day by *"korea has excellent lighting. it is fine and follow that."* |
+| *"the owner said under 5"* (route km cap) | Superseded by *"the kms dont have to be integers…"* |
+| *"more than a handful of way points"* (08-14) | **Reversed by him** on 08-19 to 2–4 waypoints |
+| *"payment just before searching for runners is friction"* (08-12) | Superseded in direction by pay-after-run (**R-22 #1**) |
+| km-token model, approved 08-11 | **Abandoned 08-12**: *"abandon the token and whatever"* |
+| *"Reorganize tab to home being center"* (08-11, built) | **Reversed 08-19**: *"home tab should be left most, not center."* |
+| home-two-options-lab-v2 ⑧ pick | The lab is marked SUPERSEDED; **⑧ itself survives** |
+| premium-lab ⑦ brief (`8b959b6`) | Superseded by the brand round — **his colour/corner corrections carry forward** (#E8552F, #119B58, square corners) |
+| commit `22a503e`'s merge | Demoted to "one candidate among twelve" 30 minutes later |
+| Naver geometry withdrawal (licence research) | **Overridden by him** 17 minutes later on a personal permission |
+| *"44 pt — Sean's ruling"* | 🔴 **NOT HIS** — the announcer's own inference, self-reported as an error |
+| Korean strings in `harness.sh` and several test suites | 🔴 **NOT HIS WORDS** — translations of English rulings |
+| 예비창업패키지 | *"forget 예비창업패키지"* supersedes an earlier recorded learning |
+| The GO disc and its collapsing hero | Retired by **R-26**; the colour law survives in a different vessel |
+
+## 2.9 ⚠ Wording and date discrepancies — resolve before quoting
+
+Three are material. The rest are footnotes, listed because this repo has already been bitten by
+exactly this class.
+
+**Material:**
+
+1. **The brand-identity brief (2026-08-20).** The commit and the announcer handoff record
+   **materially different sentences**, and **only the handoff carries *"let's start again"*** — which
+   is the sentence used to declare that the round supersedes an entire design thread. Put the two
+   candidate renderings back to Sean in one question rather than picking by recency. (This is
+   precisely the procedure that resolved the contradictory money ruling on 2026-08-13.)
+2. **"the kms dont have to be integers. anywhere from around 1.5km+ ish ~ 7 km ish"** — dated
+   **2026-08-14** in the route handoff and **2026-08-19** in the commit and in
+   `docs/routes/strava/README.md`; undated in two more places.
+3. **"remove artifact and only use local host"** — dated 2026-08-19 in `SKILL.md`, called a
+   "10:31 ruling" in the route handoff, and landed by a **2026-08-20** commit.
+
+**Footnotes:** the black-buttons quote exists in a short and a long English form plus two Korean
+lengths of different truncation · *"for 12,"* present in the memo and absent in four other records
+of ⑫ · the leading *"no,"* present in `0089` and absent in `REGISTRY.md` · the leading *"so"*
+present at one line of the G1 memo and absent at another **in the same file** · *"lolipop"* vs
+*"lollipop"* · the GO-disc colour law in English and Korean with no note of which is his ·
+*"이전 버전처럼"* dated 08-06 by its commit and 08-10 by `DESIGN.md` · the 러너 기록 quote dated
+08-11 in one file and 08-12 in another · shop-lab rejection paraphrased **inside quotation marks**
+in two files.
+
+⚠ **And one structural warning.** ⑨ was recorded by **two sessions independently, with two different
+words for the same decision** — one has *"Yes — both halves, as recorded."*, the other has *"okay"*
+plus an instruction to announce it. **The memo keeps both, deliberately.** Do not "tidy" a memo that
+holds two renderings; the duplication is the evidence.

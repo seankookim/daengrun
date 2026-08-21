@@ -370,6 +370,41 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-undetricies. 🔴 CODEX (gpt-5.6-sol, xhigh) — an independent 30-day read, and one MEASURED bug in the PMF gate itself (2026-08-20)
+
+Sean asked for collaboration with Codex rather than a handoff. Its first pass read the repo cold. **The finding I verified myself and
+which outranks the rest: `scripts/pilot-metrics.mjs:135` computes M1's window from `firstDone.created_at` — the BOOKING'S CREATION
+TIME — while the comment two lines above states the definition as "from the first COMPLETED run".** The file never references
+`runs.ended_at` (0 occurrences). Two consequences, both real: a booking created weeks before the service becomes eligible the moment
+the window elapses from CREATION, and a second booking made BEFORE the first run ever happened counts as a rebooking. **So the 60%
+rebooking gate that CLAUDE.md and the launch checklist make the condition of expansion is currently measuring "booked twice", not
+"came back after a run".** Fix is small (use the run's end, and report "second booking intent" separately from "second completed
+run") and unowned. Nothing is invalidated retroactively — there is 1 real user and 0 real customers, so no decision has yet been made
+on a bad number.
+
+**Codex's three ranked risks, none of them security or compliance** (its words, condensed; full text in the session log):
+1. **No two-sided market evidence** — `docs/validation-interviews.md` says finish 15–20 interviews before writing more code;
+   `docs/interviews/` does not exist; all 9 runners are test data. Its prescription: stop expanding routes/clubs/campaigns/brand for
+   seven days, recruit 3 owners + 3 runners in Banpo, manually fulfil five runs. **It calls the documented 50-dog/22-runner pilot "a
+   scale test masquerading as a pilot" and says the first pilot is 3×3.**
+2. **The native product is hypothetical** — 0 EAS builds ever; nine config plugins; Kakao/Naver/background-GPS/push/Live
+   Activities/Toss are all unproven on hardware; no UI E2E framework and no `test` script in `app/package.json`. Its prescription:
+   cut **Build 0 immediately from clean trunk**, before any remaining polish, and run one two-phone path end to end (cold Kakao
+   signup → book → nominate → accept → arrive → handoff → lock the phone and walk 500 m → realtime + push + return seal + ledger).
+   "A build is a test artifact, not a release commitment."
+3. **No closed-loop operating system** — `ledger_items` has no paid marker and `payouts` has no writer (already §0-duovicies);
+   `OPS_PROFILE_ID` unset and `ops_recipients` empty, so every alert terminates in a log nobody reads; no crash reporting, so a
+   failure on Banpo LTE is invisible. Its prescription: do NOT automate bank movement — make Sean the recipient for every ops event,
+   add an ops-only manual payout journal that links `ledger_items` to a `payouts` row with `paid_at`, and run a twice-daily stuck-state
+   report. "An unrecorded bank transfer is not acceptable; a spreadsheet keyed by ledger-item ids is, for the first five runs."
+
+**It also says the route catalog is not the moat yet** — `positioning.md:33` names dog fitness DATA as the moat, and drawn geometry
+is not that.
+
+**Your calls:** **A** take its sequencing (freeze feature work → Build 0 → 3×3 concierge runs) · **B** keep building and slot Build 0
+in later · **C** something else. Separately and cheaply: **fix the M1 gauge** (yes/no — it is a bug either way, but you may want it
+fixed before anyone quotes a number from it).
+
 ## 0-duodetricies. 🟡 THREE THINGS THE LEGAL/OPS SWEEP FOUND, each verified by the announcer (2026-08-20)
 
 **1. Every logged-in user can read every public runner review — and a shipped legal doc says otherwise.** Measured: `reviews` carries FOUR

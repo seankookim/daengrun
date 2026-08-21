@@ -41,6 +41,77 @@ Sean's manual bank transfer against a ledger the system cannot mark as settled.
 
 ---
 
+## 0. The rulings of record
+
+Every money decision in this product traces to a memo in `docs/decisions/`. **The governance law
+is that `✅` means, and only means, "Sean's own words are on origin"** (`docs/decisions/README.md:110-113`).
+A relayed decision is evidence, not authority — including when it comes from another Claude
+session. And: **unpushed work reserves nothing, decisions included** (`README.md:23-29`) — Sean
+once ruled six decisions in one session, they sat on an unpushed branch while origin told every
+other session the questions were open, and a second session re-asked G1 with a menu missing his
+own answer.
+
+⚠ **`README.md:128-139` states its own most-violated law: "The status line IS the interface —
+keep it true."** It is violated *in that same file today* — see §2.6 R11/R12. **Trust the memo,
+not the index row.**
+
+| id | ruling | Sean's words | date | artifact |
+|---|---|---|---|---|
+| **①** G1 abort basis | **fault-based, BOTH ledgers mirrored.** `dog_condition` → full actuals on both sides; owner-caused → PLANNED (D2); `incident` → owner ₩0, runner normal settle, verify first | *"if it's the runner's own condition, the runner gets paid only base … if it's an external circumstance like owner prompted or dog's issue, then runner gets paid until the distance ran"* · *"but verify incident first to avoid abuse of this feature"* · **"Mirror both sides."** · **"₩9,900 — the runner's own base."** · asked whether this reverses #10: **"No — #10 stands."** (`g1-abort-charge-basis.md:216-223`) | 2026-08-13 | **BUILT** `0084` (`actual_capped`). ⚠ Sean was asked **three times** because the first ruling sat unpushed. **Neither session recommended the option he chose.** |
+| **②** D-3 silent charging | **A — accept as-is. NOTHING TO BUILD.** No per-charge push **and no monthly summary** | (no verbatim recorded) | 2026-08-13 | none. ⚠ `d3-silent-charge-summary.md:7-14`: *"THE MONTHLY-SUMMARY SLICE IS CANCELLED, NOT DEFERRED … must not be inherited as a green light."* **Survives:** the counsel question, and the 전자상거래법 footer stays mandatory the day the numbers exist |
+| **③** ops routing | dedicated `ops_recipients` table, per-event-class | *"build for full scale, not just for pilot"* | 2026-08-13 | **BUILT** `0084 §E`. **0 rows in production** |
+| **④** club base fare | **KEEP ₩9,900** for clubs — the premium stands **and funds host comp (⑦)** — and make the club price-invisible too | *"although notifying the price once"* | 2026-08-13 | no code change. **Overrode both sessions' recommendation to align to 7,900.** The one-line club-premium disclosure is **OWED before cutover** |
+| **⑤** club en-route cancel | **A — leave it.** No en-route club tier, no new money rule. Card-less club state routes to card registration | (no verbatim recorded) | 2026-08-13 | `cancel_owner.ts:58-60` now **REFUSES club bookings** (it had been quoting the marketplace ladder onto them). ⚠ **residual UNRULED** — §2.5 |
+| **⑥** cutover straddle | **FUTURE `payments_live_since`, never `now()`** | (no verbatim recorded) | 2026-08-13 | **BUILT** `0084 §D` (`cutover_must_be_future`) |
+| **⑦** host incentives | **host cut paid from PLATFORM MARGIN, never from runner pay.** ₩1,500–2,000/dog/session | AGREED DIRECTION, not dictation | 2026-08-13 | **UNBUILT.** The rule outranks the number: *"it must not come out of the runner's side, or the host and the runner are drawing from the same won"* (`host-incentives.md:11-18`) |
+| **⑧** card registration | **inline at first booking**, not onboarding; one skippable soft prompt at the end of onboarding | AGREED | 2026-08-13 | **UNBUILT.** ⚠ The load-bearing reason (`card-registration-placement.md:14-18`): *"Under price invisibility, the card-link screen is the only place the owner consents to actuals-based charging."* **This is what ② leans on** — A is defensible *because* consent happened somewhere real |
+| **⑨a** runner stop split | **pass-through pay** — the runner receives their commission share of what the OWNER actually paid, not a fixed base | *"Yes — both halves, as recorded."* and, independently in a second session, **"okay"** + announce it everywhere | 2026-08-13 | **BUILT** `0086` + `122`. Supersedes G1's `runner_personal` runner-side row |
+| **⑨b** `runner_incapacity` | illness/injury is a different class from abandonment; note required; counts against `completion_rate` | same ruling | 2026-08-13 | **UNBUILT AND BLOCKED** — the enum value exists on no branch. See U26 |
+| **⑩** cancel-fee runner share | pay the runner half of the 10% tier and tell them | *"pay the runner and let them know, reward them ykwim."* — and when asked whether "reward" meant points: *"reward was about tone."* → **CLOSED, no currency to design** | 2026-08-13 | **BUILT AND COMPLETE** `0085` + `121` |
+| **⑪** incident verification | an incident is verified by **both** runner and owner; phone numbers visible during it | *"incident verified by both runner and owner."* · *"b1, and show each other's phone numbers on the screen at all times."* · *"yes i did, phone numbers should be present during those emergency situations."* ⚠ **the third narrows the first two** — the incident-scoped door IS the ruling | 2026-08-13 | **BUILT** `0094` + `130`, **schema live in production** — but ⚠ **SERVER-ONLY: nothing calls `open_incident_tx` / `verify_incident_tx`; no user can reach it** (measured). Blocked on `docs/appstore-privacy-answers.md:27` declaring phone purpose as "contact during handoff" |
+| **⑫** marketplace incident exit | **the runner IS paid; the counterweight is a gate on FUTURE WORK** | *"for 12, pay the runner but dont let them make new runs until the dog is confirmed by both sides."* · *"the runner is paid only once the dog is returned and the runner should know that … custody responsibility is from start to end, and the owner should [be] told of that relief point as well."* · *"we dont want the runner stranded in the middle of town."* | 2026-08-13 | **BUILT + DEPLOYED** `0092_runner_work_gate.sql` + `128`. Built as a **DERIVED predicate, not a `runners` flag** ("a flag is a cache of a derivable and drifts") |
+| **§0-sexies** | **A — start the paperwork chain now, keep the charge machine** | *"4: A"* — prompted by his own question *"do i need toss for payments? can i just not ask them to upload credit card info?"* | 2026-08-15 | `docs/biz/payments-paperwork-checklist.md` |
+| **O-5** | payment comes AFTER the run and after handoff-back | see §3.1 | 2026-08-19 | **BUILT + DEPLOYED** 2026-08-20 |
+| **O-7** | **A-intact-when-owed** — a runner's `bank_accounts` row is kept INTACT (not blanked) when they have earnings | basis: he asked *"what's best for the runner"* | 2026-08-20 | **BUILT + DEPLOYED** `0115` — §4.2 |
+
+**Sean's standing autonomy grant**, verbatim (`docs/decisions/awaiting-sean.md:83-85`):
+*"tell the conversations they dont have to ask me for permission on things they have fruitful as
+i want full speed on this app production."* And the retraction of a fabricated restriction
+(`:564-566`): *"i never said 'work locally first, do not push migrations without my explicit
+approval.' dont ask me for permission. im gone for break. full speed on the app."*
+⚠ What the grant does **NOT** waive: credential VALUES · facts only he holds · irreversible
+destruction of production data · **every quality gate, including `/autoplan` on money paths.**
+
+### 0.1 The encoding law — the single most load-bearing sentence in the domain
+
+From the money canon (`~/.claude/projects/-Users-sean-dev-daengrun/memory/daengrun-money-models.md:33-36`),
+verbatim:
+
+> **ENCODE THE FORMULA, NEVER THE FIGURES.** The rule is: `runner_personal` pays the runner
+> `(1 − commission) × the owner's actual charge`. Every number below is a 1km-of-3km ILLUSTRATION
+> of that rule — hardcode one and every other distance is wrong. **This warning exists because
+> the figures were relayed without the rule once already.**
+
+`0086:47-49` obeys it in code: *"THE FORMULA IS THE RULING; THE FIGURES ARE ILLUSTRATIONS. The
+memo's 2,010 / 8,643 are ONE KILOMETRE OF A THREE-KILOMETRE BOOKING. Hard-coding either breaks
+every other distance, so neither appears below."*
+
+### 0.2 ⚠ The money canon in memory is SEVEN DAYS STALE — do not open it first
+
+`daengrun-money-models.md` was last modified **2026-08-13**. Three of its claims are now false:
+
+| the canon says | reality |
+|---|---|
+| `:53-55` — *"the 10% cancel tier pays the runner ₩0 … free margin resting on a false sentence; pay them or fix the copy"*, presented as a **live profit lever** | **shipped 2026-08-13.** `0085` pays the runner 50% of that fee. A fresh agent reading the canon first will **re-open a closed slice.** |
+| `:56-57` — *"the refusal gate and review marker exist but no human verifier is assigned"* | ⑪ was ruled, built and deployed (`0094`). ⚠ **The canon's conclusion survives on a different premise**: ⑪ is server-only with no client surface, so in practice nobody can verify anything yet. |
+| `:87-91` — *"Charge machine BUILT + PUSHED, **NOT deployed**"* | **deployed and running.** `docs/pre-charging-checklist.md:14`: *"Charging is off, the machine is deployed and running, and it is inert at four INDEPENDENT layers."* All 17 cron jobs are active. The *inertness* conclusion is unchanged; the *mechanism* is a gate, not an absence. |
+
+Also stale in detail: `:53-54` attributes the false 50/50 copy to `store.ts`; the shipped sentence
+the runner never saw the other half of was **`app/app/owner/schedule.tsx:604`**, the live cancel
+sheet (`cancel-fee-runner-share.md:20-28`).
+
+---
+
 ## 1. The charge machine, end to end
 
 ### 1.0 The model in one paragraph
@@ -273,6 +344,19 @@ which rate applied. **[measured]** The 2026-08-11 row is `runner_personal` at `a
 with `base 9900, distance 0, gross 9900` — that is the **pre-⑨a shape**; under 0086 the same run
 would pay 0. It is a legacy row, not a live inconsistency. **[measured + inferred]**
 
+⚠ **Three historical-data traps, all of which will look like defects and are not**
+(`docs/pre-charging-checklist.md:143-167`) **[from-doc, and consistent with my own measurements]**:
+1. `ledger_items` has **8 rows, not 0** — they match the 8 `completed` bookings exactly.
+2. **`runs.settled_at` is NULL for all 9 runs, including the 8 that ARE settled** — they predate
+   `0083`. So `settled_at is null` does **not** mean unpaid on historical rows; the ledger row is
+   the evidence. ⚠ This matters directly to U1, whose fix adds `settled_at is not null` to the
+   sweep: the fix is correct going forward and would silently exclude every pre-0083 run — which
+   is fine, because those runs are also pre-cutover and free by construction.
+3. **The one `incident_review` booking is a CLUB booking.** Clubs settle via
+   `club_release_payouts`, and `0097:88` excludes `club_session_id is not null` deliberately.
+   **Do not "fix" that exclusion** — it would report every club booking as an unpaid marketplace
+   run. **There is no unpaid marketplace runner in production today.**
+
 Cron jobs relevant to money, all `active = true` and all no-ops by gate:
 `sweep-settled-charges 2-57/5` · `dispatch-due-charges 4-59/5` · `sweep-payment-intents 3-58/5` ·
 `expire-unmatched */5` · `purge-holds 1-56/5` · `recurring-gen 7 * * * *` ·
@@ -364,6 +448,22 @@ Sources: owner `0084:145-210`; runner `0102:41-121` + `0086:88-109`. **[measured
 The `runner_personal` numbers reproduce ⑨a's memo illustration exactly (⩰2,010 of a ⩰3,000
 charge, vs ⩰8,643 under the retired flat-base rule) — pinned at `122 P1`. **[measured]**
 
+**Platform P&L per arm, at 1km of a 3km booking, c = 0.33** — the table Sean was shown and ruled
+on (`runner-stop-split.md:36-41`; canon `:38-43`) **[from-doc, and I reproduced every figure from
+the shipped SQL]**:
+
+| arm | owner | runner | platform |
+|---|---|---|---|
+| `runner_personal` (chose to stop) | 3,000 | **2,010** | **+990** |
+| `runner_incapacity` (⑨b, **UNBUILT**) | 3,000 | normal settle **8,643** | **−5,643** |
+| `incident` | **0** | 8,643 | **−8,643** — the largest single loss |
+
+⚠ **⑨b would keep TODAY's formula** (`base + distance + addons` less commission — the 8,643 row)
+and **must NOT be routed through `compute_runner_personal_payout`** (`runner-stop-split.md:9-13`).
+Sean's cost framing (`:55-57`): a runner's alternative to stopping is continuing — ill, alone,
+with someone's dog — and at ~2% of runs the whole difference is **~3% of monthly margin**, bought
+with the worst signal you can send to supply.
+
 ⚠ **`incident` is the only arm where the platform funds the runner entirely.** It is currently
 unreachable from a client: `settle-run/handler.ts:42` whitelists `CLIENT_END_REASONS =
 ["completed","dog_condition","owner_request","runner_personal"]` and refuses `owner_forced` /
@@ -397,6 +497,58 @@ consequently **no row anywhere recording the platform's half of a late-cancel fe
 deliberately, so a caller bug cannot get both tiers to write for one booking. `ledger_items` has
 no unique key on `booking_id`, so **the lock IS the serialization**. Pinned by `90_race_check.sh`
 RE (measured expectation: 1 row, sum 12,450).
+
+### 2.2b 🔴 The SECOND cancel ladder — and why club cancel fees are structurally uncollectable
+
+**There are TWO cancel ladders and they are not the same ladder.** A fresh agent who reads only
+`marketplace_cancel_fee` will believe there is one.
+
+`cancel_owner.ts:58-60` **REFUSES club bookings outright** — 409 「클럽 위탁 예약은 여기서 취소할
+수 없어요」 — because the marketplace ladder was being quoted onto club bookings, writing
+`bookings.cancel_fee` at a rate the club never agreed to, *"and post-cutover that wrong number
+becomes a real charge via `mint_cancel_fee_intent`"* (`:44-46`). **[measured]** The club's own
+exit is `session_cancel_delegation` (`0057:190-258`).
+
+The club ladder lives in the `club_config` table (`0048:13-22`) **[measured]**:
+
+| key | value | ⚠ |
+|---|---|---|
+| `cancel_free_hours` | 24 | `[Sean 미확정]` |
+| `cancel_late_pct` | 10 | `[Sean 미확정]` |
+| `cancel_post_accept_pct` | 20 (no-show = this tier) | `[Sean 미확정]` |
+| `fee_platform_split_pct` | 50 (the rest = supply compensation) | `[Sean 미확정]` |
+| `host_fee_krw` | 0 (0 = skip the record) | `[Sean 미확정]` |
+| `vet_limit_krw` | 200,000 | `[Sean 미확정]` |
+
+**Every one of them is marked `[Sean 미확정]`** — they are placeholder defaults, not rulings.
+
+🔴 **The structural hole, measured end to end:**
+
+1. `session_cancel_delegation` sets `bookings.status = 'refund_pending'` and `cancel_reason =
+   'club_owner_cancel'` (`0057:240`) and calls `_club_record_cancel_fee` (`0057:244`).
+2. `_club_record_cancel_fee` (`0048:47-66`) writes **only `club_fee_items`** — two rows, a
+   `platform` share and a `supply_compensation` share (to the runner if there is one). **It never
+   touches `bookings.cancel_fee`.**
+3. `mint_cancel_fee_intent` reads `coalesce(b.cancel_fee, 0)` (`0080:447`), sees **0**, and mints
+   **nothing** (`0080:464`).
+4. `owner_has_unsettled_charge`'s cancel arm is `coalesce(b.cancel_fee, 0) > 0` (`0080:519`) — so
+   it **never fires for a club cancel** either.
+
+**⇒ At cutover, club cancel fees either become real money or stay recorded-only forever, and
+nobody has ruled which.** (`club-enroute-cancel.md:45-50`; also flagged from ④ at
+`club-fare-base-alignment.md:65-67`.) **[measured + from-doc]**
+
+5. And the runner's half is worse: **`my_ledger_total` (`0027:13`) reads ONLY `ledger_items`**
+   **[measured]**, so a club cancel's `supply_compensation` share sits in `club_fee_items`
+   and **never reaches the runner's earnings total**. It is recorded and unpayable — the same
+   shape as the payout hole in §4, one layer earlier.
+
+⚠ Two of the club ladder's tiers describe states the owner can no longer cancel from:
+`session_cancel_delegation` accepts `matching` and `confirmed` only and raises
+`already_handed_off` beyond that, so **"post-acceptance 20%" and "post-handoff" are
+unreachable**. And because ⑤ ruled "leave it", an en-route club booking has **no owner-initiated
+cancel at all** — past handoff it is a case, not a cancellation. `cancel_owner.ts:47-56` names
+this narrowing as deliberate.
 
 ### 2.3 No-show
 
