@@ -47,7 +47,7 @@ Parts are numbered by topic, not by file order. In the file they appear: **0 · 
 | **0** | The 90-second version | top |
 | **1** | What the product IS — thesis, journeys, club, points, money shape | after Part 0 |
 | **4** | The process — gates, migration numbers, deploy, honesty laws, **all 54 method lessons** | after Part 1 |
-| **3** | The open queue right now — errands, facts, calls, look-and-picks, reversible 🔵 decisions | after Part 4 |
+| **3** | The open queue right now — errands, facts, calls, look-and-picks, reversible 🔵 decisions, **plus §3.7 for what landed after this file's first pass** | after Part 4 |
 | **6** | The 20 files to read first, in order | after Part 3 |
 | **2** | Every Sean ruling, chronological, verbatim — plus the full quote index and the discrepancy table | after Part 6 |
 | **5** | 168 unbuilt items, by area | last |
@@ -122,6 +122,14 @@ One claim about that gate is worth carrying, because it was contested and settle
 from `bookings` rows (same owner, second booking). A CEO-review voice claimed the funnel was
 unmeasurable; that was rebutted with evidence and recorded so it does not resurface
 (`docs/plans/2026-08-20-client-gap-straightening.md`, workstream G, **G3**). [from-doc]
+
+🔴 **But the gauge that is actually installed measures the wrong thing.**
+`scripts/pilot-metrics.mjs:135` computes M1's window from `firstDone.created_at` — **the booking's
+creation time** — while the comment two lines above states the definition as *"from the first
+COMPLETED run"*. The file never references `runs.ended_at`. **So the 60 % gate is currently
+measuring "booked twice", not "came back after a run."** Measurable in principle; mis-measured in
+practice. Unowned, small, and it should be fixed before anyone quotes a number from it. Full item at
+Part 3 §3.7. [measured 2026-08-20, verified by the announcer]
 
 What the pilot is NOT, and this is the single most important operational fact for a newcomer:
 
@@ -2289,3 +2297,116 @@ trigger. What is missing is narrower and listed here.
    card statement carrying a dead brand, a catalog advertising a length its line lacks, an "AI
    추천" percentage that is a floor formula. Each is small; together they are the difference between
    a product that can meet a user and one that cannot.
+
+## 3.7 ⚠ Landed in the queue AFTER this file's first pass — read these too
+
+`docs/decisions/awaiting-sean.md` is being written by parallel sessions **while this file is being
+written**. Between my first read of it and my last, four sections changed. That is itself the most
+important thing to know about the queue: **it is live, and a snapshot of it is stale on arrival.**
+Everything above is my 2026-08-21 reading; these landed after it. [measured]
+
+### 🔴 §0-tricies — four money/server defects that must be fixed before charging flips
+
+All inert today behind **four independent, measured off-switches** (`payments_live_since` null ·
+0 payments · 0 billing keys · `TOSS_SECRET_KEY` unset and the Vault secret absent). Each becomes
+real on flip day.
+
+1. 🔴 **A charge can mint for a dog still on the leash.** `sweep_settled_without_payments` lacks the
+   `settled_at is not null` guard — **verified live** (`prosrc like '%settled_at is not null%'` →
+   false, while it does reference `ended_at`). After `0083` the **return handoff** is what says the
+   dog is home; without the guard the sweep bills on run-end alone. **One predicate plus a pin.**
+   (= **U-22** above, now measured rather than reported.)
+2. 🔴 **Club cancel fees are structurally uncollectable, and the runner's share never lands.**
+   `_club_record_cancel_fee` writes `club_fee_items` and **never** `bookings.cancel_fee` — verified
+   live. So the charge mint **and** the unpaid-debt gate both see zero for a club cancellation, and
+   the runner's supply-compensation share never reaches `my_ledger_total`. **Two fee ladders exist
+   and nobody has ruled which governs — this one needs Sean's ruling, not just a fix.**
+   → **Add to §3.3 as a blocking product call.**
+3. 🔴 **One unparseable timestamp stops charge dispatch for everybody.** `dispatch_due_charges`
+   (SQL) and `isDue()` (TS) have drifted — SQL hardcodes `< 3` where TS uses `MAX_ATTEMPTS`, and an
+   unparseable `next_retry_at` makes the SQL side **raise**, so the batch never wakes for any user
+   while TS treats the same row as due. [reported by the sweep; not independently re-measured]
+4. 🟠 **Four definer functions answer questions about strangers.** Measured: four functions with
+   `authenticated` EXECUTE that take a caller-supplied id and contain **no `auth.uid()` anywhere** —
+   `club_incident_settle_quote` (a full money and handoff-timing readout of **any** booking),
+   `runner_work_gate` (a liveness oracle for **any** runner), `club_dog_ui_state`,
+   `club_host_stats`. **No suite pins them.** Same class the /cso audit closed elsewhere.
+
+Recorded alongside, not decisions: `docs/payments.md` is **wholly obsolete** · `docs/decisions/README.md`'s
+① and ⑩ status rows are **false** · **one assertion still carrying a ✅ on origin (⑪ gates ⑫) is
+wrong and was retracted elsewhere** — *a ✅ that is not his current word is exactly what the
+governance rule exists to prevent* · `km_expire_sweep` is defined but **never scheduled** (checked
+against all 17 live cron jobs) · `create-payment-intent` exists locally and is **not deployed** ·
+`addresses` has **zero** grant/revoke statements in any migration (= **U-139**).
+
+### 🔴 §0-undetricies — Codex's independent 30-day read, and a MEASURED bug in the PMF gate itself
+
+Sean asked for **collaboration with Codex rather than a handoff.** Its cold read produced one
+finding that outranks the rest and was independently verified:
+
+🔴 **`scripts/pilot-metrics.mjs:135` computes M1's window from `firstDone.created_at` — the
+BOOKING'S CREATION TIME — while the comment two lines above states the definition as "from the first
+COMPLETED run".** The file never references `runs.ended_at` (0 occurrences). **So the 60 % rebooking
+gate that `CLAUDE.md` and the launch checklist make the condition of expansion is currently
+measuring "booked twice", not "came back after a run."** Fix is small (use the run's end; report
+"second booking intent" separately from "second completed run") and **unowned**. Nothing is
+invalidated retroactively — 1 real user, 0 real customers, so no decision has yet rested on a bad
+number. ⚠ **This directly qualifies Part 1.2 of this document: the PMF gate is measurable, but the
+gauge currently installed measures the wrong thing.**
+
+**Codex's three ranked risks — none of them security or compliance:**
+1. **No two-sided market evidence.** `docs/validation-interviews.md` says finish 15–20 interviews
+   before writing more code; **`docs/interviews/` does not exist**; all 9 runners are test data. Its
+   prescription: freeze routes/clubs/campaigns/brand for seven days, recruit 3 owners + 3 runners in
+   Banpo, manually fulfil five runs. **It calls the documented 50-dog / 22-runner pilot "a scale test
+   masquerading as a pilot" and says the first pilot is 3×3.**
+2. **The native product is hypothetical.** 0 EAS builds ever; nine config plugins; Kakao / Naver /
+   background GPS / push / Live Activities / Toss all unproven on hardware; **no UI E2E framework and
+   no `test` script in `app/package.json`.** Prescription: cut **Build 0 immediately from clean
+   trunk**, before any remaining polish, and run one two-phone path end to end (cold Kakao signup →
+   book → nominate → accept → arrive → handoff → **lock the phone and walk 500 m** → realtime + push
+   + return seal + ledger). *"A build is a test artifact, not a release commitment."*
+3. **No closed-loop operating system.** No paid marker, no payout writer, `OPS_PROFILE_ID` unset and
+   `ops_recipients` empty so every alert terminates in a log nobody reads, no crash reporting.
+   Prescription: **do NOT automate bank movement** — make Sean the recipient for every ops event, add
+   an ops-only **manual payout journal** linking `ledger_items` to a `payouts` row with `paid_at`, and
+   run a twice-daily stuck-state report. *"An unrecorded bank transfer is not acceptable; a
+   spreadsheet keyed by ledger-item ids is, for the first five runs."*
+
+It also says **the route catalog is not the moat yet** — `positioning.md:33` names dog fitness DATA
+as the moat, and drawn geometry is not that.
+
+> **✅ SEAN CHOSE B (2026-08-20): keep building; Build 0 slots in later.** No feature freeze, no 3×3
+> concierge pivot right now. ⚠ **What that does NOT dismiss:** the native surface is still entirely
+> unproven, so every native claim in the app remains code-plus-gates only, and **the day Build 0
+> happens, its blocker list becomes the queue.** Codex's other two risks are **deferred, not closed**.
+> Separately and cheaply: **fix the M1 gauge** — it is a bug either way, but he may want it fixed
+> before anyone quotes a number from it.
+
+### 🟡 §0-duodetricies (the legal/ops one) — three findings, each verified
+
+1. **Every logged-in user can read every public runner review, and a shipped legal doc says
+   otherwise.** `reviews` carries four SELECT policies and `reviews storefront read` is
+   `visibility='public' AND target_kind='runner'` with **no party term** (`0011`). The legal review
+   concluded reviews were not exposed — **because it probed as `anon` (401) while the exposure is to
+   `authenticated`.** ⚠ *Same "read one layer, describe another" family that has now bitten five
+   times.* Measured nuance: **zero** public runner reviews exist today (1 review total), so the
+   POLICY is live and the DATA is empty. **A** intended, it is a storefront, leave it · **B** narrow
+   it. Legal's position: widening this read path is a **legal** decision, not a UI one.
+2. **A decision of Sean's is buried in a code comment rather than in the queue.**
+   `0060_wave3_server_honesty.sql:52-53`: `gate_code_access_log` **has never once been written to** —
+   an empty shell; adding a log would make `booking_pickup_address` volatile. **A** log it (copy the
+   `0049` `club_phone_access_log` pattern) · **B** leave it unlogged **and delete the empty table, so
+   nobody mistakes the shape for the behaviour.** Same family as the 위치정보 제16조 ledger legal wants
+   built (**U-158**).
+3. **Eight `scripts/*.mjs` still tell the reader to put the service key in a root `.env`** — the
+   exact defect the CSO audit closed by moving it to `~/.config/daengrun/ops.env`. Nothing leaks
+   today; **the instructions would re-create it.** Small, unowned, no decision needed.
+
+### ⚠ A numbering collision inside the queue itself
+
+**`§0-duodetricies` is now used twice** — once for the legal/ops sweep above, and once for the coral
+CTA question (**L-1**). `§0-octies` was already used twice (the dashboard toggles and the /cso
+audit). The queue's section labels are **not unique identifiers**; cite by heading text, not by
+number. This is the same class as everything in Part 4.2: *an identifier that is not actually
+unique.* Worth fixing at the source rather than remembering.
