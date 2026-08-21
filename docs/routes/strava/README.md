@@ -8,6 +8,22 @@ GPX exported from Strava's route builder (see the `/route-geometry` skill and
 corpus in `docs/routes/gpx/`. Attribution requirements are in
 [`../gpx/ATTRIBUTION.md`](../gpx/ATTRIBUTION.md) and apply to any surface rendering these traces.
 
+> **⚠ CORRECTION 2026-08-21 — this directory is NO LONGER single-licence, and the paragraph above
+> now covers only 86 of its 152 files.** Since Naver was cleared on 2026-08-20
+> (`docs/routes/geo/NAVER-BUILDER-EVAL.md` §7 — a personal grant to Sean, not a public licence
+> change), **66 files here carry `<copyright author="NAVER Corp.">` and a `naver:<hash>` id
+> instead.** Those are NOT ODbL and an OSM credit on them is wrong in both directions: it
+> mis-attributes NAVER and it claims ODbL for geometry that carries no such grant to anyone
+> downstream.
+>
+> **If you are building a surface that renders traces, the credit is per-row, not per-directory.**
+> Read the source off the row (`naver:` id + NAVER copyright vs Strava id + OSM copyright) — the
+> two are kept separately identifiable on purpose, precisely so the ODbL subset can still be
+> offered alone if it is ever asked for (§6.3 of that file explains why mixing them in one
+> Feature Type is not a theoretical problem). `audit-candidates.mjs:99-106` enforces that every
+> GPX declares one or the other; nothing yet enforces that a *rendering surface* does. That gap
+> belongs to whoever ships the map screen.
+
 **These are candidate geometry, not verified routes.** No GPX from any source can publish a route:
 `routes_active_is_earned` requires a `verified_run_id`, set only by `promote_route_from_run` from a
 settled run. A drawn line is not a measured line.
