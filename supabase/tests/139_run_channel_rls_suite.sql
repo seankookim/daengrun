@@ -27,8 +27,10 @@ begin
 
   -- bookings.runner_id references runners(profile_id), not profiles.
   insert into runners (profile_id) values (v_runner), (v_loser);
-  insert into dogs (owner_id, name) values (v_owner,'L-dog') returning id into v_dog;
-  insert into dogs (owner_id, name) values (v_stranger,'L-dog2') returning id into v_dog2;
+  -- [0119] 이 스위트는 t_dog를 안 쓰고 직접 심는다 — 0119 §D 이후 미신고 강아지는 위탁이
+  -- 거절되므로 신고값이 명시적으로 필요하다. 이 스위트가 핀하는 성질은 바뀌지 않는다.
+  insert into dogs (owner_id, name, dangerous_status) values (v_owner,'L-dog','declared_none') returning id into v_dog;
+  insert into dogs (owner_id, name, dangerous_status) values (v_stranger,'L-dog2','declared_none') returning id into v_dog2;
   insert into bookings (id, owner_id, dog_id, runner_id, status, scheduled_at, km, base_fare, distance_fare, total_price)
     values (gen_random_uuid(), v_owner, v_dog, v_runner, 'active', now(), 3, 7900, 9000, 16900)
     returning id into v_bk;
