@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,14 +110,58 @@ export default function Radar() {
 
   // 알림 줄의 실필드 — 한 번만 읽는다 (날짜·시각·km·강아지는 대기 중에 바뀌지 않는다).
   // runnerId는 재진입 시 '지명됨' 행을 서버 진실로 복원하기 위한 것 — 이름 매칭 금지.
+  // ── 화면 수명 규약 (이 파일 전체가 이 하나만 쓴다) ──────────────────────────────
+  // 이 화면은 두 가지를 동시에 한다: 서버 상태를 계속 읽고, 확정되면 사용자를 옮긴다.
+  // 그 둘의 수명이 다르다.
+  //   · 상태 쓰기는 **마운트**되어 있는 동안 유효하다 — 러너 프로필을 보다 돌아오면 최신이어야 한다.
+  //   · 이동·알럿·햅틱은 **포커스**가 있을 때만 유효하다.
+  // 앞선 수정은 alive(마운트) 하나만 뒀는데 그것으로는 부족했다: :375의
+  // `router.push('/runner-profile/…')`는 이 화면을 **마운트된 채** 남기므로 alive는 계속 true고,
+  // 프로필을 읽는 중에 확정이 도착하면 1.8초 뒤 프로필이 일정 화면으로 갈아치워졌다 — 고치려던
+  // 바로 그 증상이 push 경로에서 그대로 살아 있었다.
+  // 타이머를 집합으로 두는 이유: check()는 realtime과 10초 폴링에서 **겹쳐** 돌 수 있고, 둘 다
+  // await 앞의 matchedRef 검사를 통과하면 각자 타이머를 심는다. 스칼라 하나면 나중 것만 기억하고
+  // 먼저 심은 것은 정리를 빠져나가 죽은 화면에서 이동한다.
+  const aliveRef = useRef(true);    // 마운트 — 상태 쓰기 게이트
+  const focusedRef = useRef(true);  // 포커스 — 이동·알럿·햅틱 게이트
+  const timersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const pendingExitRef = useRef<string | null>(null); // 포커스가 없을 때 미뤄 둔 이동
+
+  useEffect(() => () => {
+    aliveRef.current = false;
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current.clear();
+  }, []);
+
+  // 포커스를 되찾으면 미뤄 둔 이동을 그때 실행한다 — 확정을 삼키지 않되, 남의 화면을 갈아치우지도 않는다.
+  useFocusEffect(useCallback(() => {
+    focusedRef.current = true;
+    const queued = pendingExitRef.current;
+    if (queued) { pendingExitRef.current = null; router.replace(queued as never); }
+    return () => { focusedRef.current = false; };
+  }, []));
+
+  // 이 화면이 만드는 이동은 전부 이 문을 지난다.
+  const exitTo = useCallback((path: string, delayMs = 0) => {
+    if (!aliveRef.current) return;
+    if (!focusedRef.current) { pendingExitRef.current = path; return; }
+    if (delayMs <= 0) { router.replace(path as never); return; }
+    const t = setTimeout(() => {
+      timersRef.current.delete(t);
+      if (aliveRef.current && focusedRef.current) router.replace(path as never);
+    }, delayMs);
+    timersRef.current.add(t);
+  }, []);
+
   const loadCard = useCallback(() => {
     if (!bookingId) return;
     fetchBookingCard(bookingId)
       .then((c) => {
+        if (!aliveRef.current) return;
         setCard(c); setCardErr(false);
         if (c.runnerId) setNominatedId((prev) => prev ?? c.runnerId);
       })
-      .catch(() => setCardErr(true));
+      .catch(() => { if (aliveRef.current) setCardErr(true); });
   }, [bookingId]);
   useEffect(loadCard, [loadCard]);
 
@@ -127,8 +171,8 @@ export default function Radar() {
   const loadAvail = useCallback(() => {
     if (!bookingId) return;
     fetchAvailableRunnersFor(bookingId)
-      .then((a) => { setAvail(a); setAvailErr(null); })
-      .catch((e) => setAvailErr((e as Error)?.message ?? '러너 목록을 불러오지 못했어요'));
+      .then((a) => { if (aliveRef.current) { setAvail(a); setAvailErr(null); } })
+      .catch((e) => { if (aliveRef.current) setAvailErr((e as Error)?.message ?? '러너 목록을 불러오지 못했어요'); });
   }, [bookingId]);
   useEffect(() => {
     if (!bookingId) return;
@@ -140,20 +184,15 @@ export default function Radar() {
   // 수락 감지 — realtime 구독 + 10초 폴링 (벨트+서스펜더)
   useEffect(() => {
     if (!bookingId) return;
-    let nav: ReturnType<typeof setTimeout> | null = null; // 1.8초 지연 이동 — 언마운트 시 취소
-    // [정리 경합] `nav`는 await **뒤에** 대입된다. 화면을 떠나는 순간 이 요청이 비행 중이면 정리
-    // 함수는 nav === null 을 보고 아무것도 못 지우고, 그 뒤 착륙한 응답이 죽은 화면에서 상태를
-    // 세우고 haptic을 울리고 **아무도 지울 수 없는** 1.8초 타이머를 심는다 — 사용자는 그 사이
-    // 어디로 갔든 1.8초 뒤 일정 화면으로 끌려간다 (cancelled 갈래는 즉시 끌고 간다).
-    // 정리 함수의 clearTimeout만 읽으면 처리된 것처럼 보인다: 이 파일의 분석기 플래그가 한 번
-    // '읽고 해소됨'으로 잘못 기각된 이유다. runner/meetup.tsx·chat.tsx와 같은 alive 관례로 막는다.
-    let alive = true;
     const check = async () => {
       if (matchedRef.current) return;
       const startedAt = Date.now(); // 이 요청보다 **나중에** 일어난 낙관적 지명은 덮지 않는다
       try {
         const b = await fetchBookingBrief(bookingId);
-        if (!alive) return; // 떠난 화면은 상태도 이동도 만들지 않는다
+        if (!aliveRef.current) return;
+        // await **뒤에** 다시 본다. 위의 검사는 await 앞이라 realtime과 폴링이 겹쳐 뜨면 둘 다
+        // 통과한다 — 그러면 둘 다 종점 갈래로 들어가 타이머를 두 번 심는다. 먼저 도착한 쪽만 이긴다.
+        if (matchedRef.current) return;
         setPollErr(false);
         setRawStatus(b.status);
         setRunnerName(b.runnerName);
@@ -163,20 +202,20 @@ export default function Radar() {
         if (nominatedAt.current < startedAt) setNominatedId(b.runnerId);
         if (['confirmed', 'runner_enroute', 'picked_up', 'active'].includes(b.status)) {
           matchedRef.current = true;
-          haptic('success');
+          if (focusedRef.current) haptic('success'); // 보고 있지 않은 화면은 진동하지 않는다
           setMatchedName(b.runnerName ?? '러너');
-          nav = setTimeout(() => router.replace('/owner/schedule'), 1800);
+          exitTo('/owner/schedule', 1800);
         } else if (b.status.startsWith('cancelled')) {
           matchedRef.current = true;
-          router.replace('/owner/home');
+          exitTo('/owner/home');
         } else if (b.status === 'expired') {
           // 종점. 0017의 만료 크론이 scheduled_at을 지난 미매칭 예약을 matching|runner_pending →
           // expired로 넘긴다 — 바로 이 화면이 앉아 있는 상태다. 분기가 없던 동안 헤더는 링을
           // 돌리며 '러너 찾는 중'이라 말했고, 화면의 유일한 CTA(요청 취소)는 전이 맵에 없는
           // 경로라 'invalid booking transition: expired -> cancelled_owner'를 날것으로 뱉었다.
           matchedRef.current = true;
-          Alert.alert('시간이 지났어요', '예약 시간까지 러너를 찾지 못해 요청이 만료됐어요 — 새로 예약해주세요');
-          router.replace('/owner/schedule');
+          if (focusedRef.current) Alert.alert('시간이 지났어요', '예약 시간까지 러너를 찾지 못해 요청이 만료됐어요 — 새로 예약해주세요');
+          exitTo('/owner/schedule');
         } else if (TERMINAL_ON_RADAR[b.status]) {
           // Same shape as the `expired` arm above, for the three statuses that were never given
           // one. Without these the screen sits on a spinning ring saying 러너 찾는 중 forever —
@@ -187,36 +226,37 @@ export default function Radar() {
           // (불발 · 확인 중) continues the sentence the alert starts.
           matchedRef.current = true;
           const t = TERMINAL_ON_RADAR[b.status];
-          Alert.alert(t.title, t.body);
-          router.replace('/owner/schedule');
+          if (focusedRef.current) Alert.alert(t.title, t.body);
+          exitTo('/owner/schedule');
         }
       } catch {
         // 일시 네트워크 오류 — 다음 틱에 재시도. 조용히 삼키지는 않는다: 계속 실패하면
         // 헤더가 '러너 찾는 중'이라고 우기게 되므로 그 사실을 한 줄로 말한다.
-        if (!alive) return;
+        if (!aliveRef.current) return;
         setPollErr(true);
       }
     };
     check();
     const unsub = subscribeBooking(bookingId, check);
     const poll = setInterval(check, 10_000);
-    return () => { alive = false; unsub(); clearInterval(poll); if (nav) clearTimeout(nav); };
-  }, [bookingId]);
+    return () => { unsub(); clearInterval(poll); };
+  }, [bookingId, exitTo]);
 
   const nominate = async (r: LiveRunner) => {
     if (!bookingId || nominating) return;
     setNominating(r.profileId);
     try {
       await requestRunner(bookingId, r.profileId);
-      haptic('light');
+      if (!aliveRef.current) return;
+      if (focusedRef.current) haptic('light');
       // 화면에 남는다 — 상태는 realtime/폴링이 runner_pending으로 끌어올린다.
       nominatedAt.current = Date.now();
       setNominatedId(r.profileId);
     } catch (e) {
       // 서버 문장 그대로 (409 "러너 변경은 확정 전에만 가능해요" 등) — 일반화 금지
-      Alert.alert('지명 실패', (e as Error).message);
+      if (focusedRef.current) Alert.alert('지명 실패', (e as Error).message);
     } finally {
-      setNominating(null);
+      if (aliveRef.current) setNominating(null);
     }
   };
 
@@ -230,17 +270,20 @@ export default function Radar() {
           setCancelling(true);
           try {
             const r = await cancelBooking(bookingId);
-            draft.bookingId = null;
+            draft.bookingId = null; // 서버가 이미 취소했다 — 화면이 사라졌어도 이 사실은 남긴다
+            if (!aliveRef.current) return;
             // [post-pay 2026-08-13] 러너를 찾는 동안에는 결제된 금액이 없다 — 환불이 아니라
             // 청구 여부만 말한다 (0066 래더에서 미매칭 취소는 수수료 0).
-            Alert.alert('취소 완료', r.cancel_fee > 0
-              ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요`
-              : '청구되는 금액은 없어요');
-            router.replace('/owner/home');
+            if (focusedRef.current) {
+              Alert.alert('취소 완료', r.cancel_fee > 0
+                ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요`
+                : '청구되는 금액은 없어요');
+            }
+            exitTo('/owner/home');
           } catch (e) {
-            Alert.alert('취소 실패', (e as Error).message);
+            if (aliveRef.current && focusedRef.current) Alert.alert('취소 실패', (e as Error).message);
           } finally {
-            setCancelling(false);
+            if (aliveRef.current) setCancelling(false);
           }
         },
       },
