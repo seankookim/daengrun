@@ -318,6 +318,29 @@ Deno.test("kind:'' never reaches the batch, and kind:0/false are scanned-but-nev
   }
 });
 
+// [verdict-3 finding 1] the terminal-row starvation reproduction, inverted into a pin: 200
+// exhausted rows older than the one real intent must not hide it. Before pagination this
+// exact scene returned {"scanned":200,"due":0,"processed":0} forever.
+Deno.test("200 exhausted rows do not starve the newer real intent — the window paginates", async () => {
+  const junk = Array.from({ length: 200 }, (_, i) => payRow({
+    id: `spent-${i}`, order_id: `dr_spent_${i}`,
+    raw: { kind: "settle_charge", attempts: 3, dispatched_at: PAST, last_error: "400:REJECT" },
+    created_at: `2026-08-01T00:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}Z`,
+  }));
+  const real = payRow({ id: "real", order_id: "dr_real", status: "pending", raw: { kind: "settle_charge", attempts: 0 }, created_at: "2026-08-13T00:00:00Z" });
+  const db = scene({ payments: [...junk, real] });
+  const net = tossOk();
+  try {
+    const out = await collectCharges(cronReq(CRON_KEY), db as never) as Row;
+    assertEquals(out.scanned, 201, "the walk must reach past the terminal page");
+    assertEquals(out.due, 1);
+    assertEquals(out.processed, 1);
+    assertEquals((out.results as Row[])[0].order_id ?? "dr_real", "dr_real");
+  } finally {
+    net.restore();
+  }
+});
+
 Deno.test("one row exploding does not 500 the batch — the others still collect", async () => {
   const db = scene({
     payments: [
