@@ -1455,3 +1455,734 @@ oracle. Note that several deployed entrypoint paths point at **other worktrees a
 ran from, but it means you cannot infer source parity from a path.
 
 ---
+# 6. The exhaustive unbuilt list
+
+Everything server-side that is known-missing or deliberately deferred. Each: **what · why not built ·
+what blocks it · rough size · evidence.** Sizes are S (a few hours / one migration), M (a slice with
+its own adversarial cycle), L (multi-slice).
+
+⚠ **Three corrections to stale prose, before you act on anything:**
+1. **`REGISTRY.md:149-150` says 0106 and 0108 are "NOT deployed". That is STALE.** **[measured]**
+   `supabase migration list --linked` shows 0106, 0107 and 0108 applied in production. Do not treat
+   the drops hole or the realtime chain as open.
+2. **`0110`'s header says "step 3 is 0111's".** Stale — the trace revoke landed as **0113**.
+3. **There is no "notification template RPC" anywhere.** The string `template` does not appear in
+   `supabase/`, `TODOS.md`, `docs/session-handoff.md` or the queue. The real adjacent facts are that
+   `0024_push.sql` pushes `notifications.title`/`body` **verbatim** to a lock screen (which is *why*
+   attacker-authored rows were a P0) and that `0114` re-pointed `noti party insert` to
+   `is_booking_party_active`. **A template-id concept would be new design, not a queued slice.**
+
+## 6.A Legal / compliance
+
+**U-1. 위치정보 purge cron (`runs.trace` TTL ≤ 1 year) — NOTHING purges location data, at all.**
+*What:* a definer sweep + a `cron.schedule` row destroying raw coordinates at or before one year.
+*Why not built:* never scoped; the retention row was criticised twice without being fixed.
+*Blocker:* unowned — no technical blocker. Queued "for a server session after O-4/O-5".
+*Size:* **S–M** (one migration: sweep function + guarded `cron.schedule` + a pin asserting the row
+exists in `cron.job`).
+*Evidence:* `docs/legal/readiness-review-2026-08-19.md:416-426` — **[measured by legal]** 17 crons
+exist, `purge-chat` and `purge-holds` exist, **nothing touches `runs.trace`**; **[measured by me]**
+the live 17-job list contains no location job (§5.8). Control ⑤ scored ❌ at `:462`.
+`0115_account_deletion.sql:84` — *"that purge is owned elsewhere, for EVERY run, not only deleted
+ones."* Idiom to copy: `0060_wave3_server_honesty.sql:144-152` — **and read its warning**, because
+`purge_expired_holds` sat unscheduled for months while a comment claimed it ran.
+⚠ 위치정보법 시행령 제26조의2 caps 개인위치정보 at **one year even with separate retention
+consent**. `privacy-policy.md:98` currently says "필요한 기간", which is not a period and cannot
+become one by drafting.
+
+**U-2. 위치정보 이용·제공 사실 확인자료 ledger (제16조, retain ≥ 6 months) — no such table exists.**
+*What:* an append-only, automatically-written log of every collection/use/provision of a user's
+location, readable by the data subject.
+*Why not built:* the privacy policy **already promises the right** (`privacy-policy.md:85`) — it was
+drafted ahead of the system. **[measured by legal]** no table records location collection, use or
+provision; if a runner exercised the right today there would be nothing to show them.
+*Blocker:* unowned. **Not fixable by editing the policy** — the obligation is statutory, not
+contractual: *"Deleting the sentence removes the evidence of the gap, not the gap."*
+*Size:* **S–M**. Two in-repo idioms to copy verbatim: `gate_code_access_log` (`0001_init.sql:130`)
+and `club_phone_access_log` (`0049_session_shell.sql:156`).
+🔑 **A tripwire is already armed for it:** 0115's N6 watchdog carries a `%access\_log` **wildcard**
+specifically so this unbuilt table trips the FK guard the day it is born with
+`profile_id references profiles on delete cascade` (`0115:755, :788-793, :833`;
+`150_account_deletion_suite.sql:17, :123, :142`). The suite header records that the forward-looking
+claim was itself mutation-tested and was **FALSE for one of five write shapes** until corrected —
+`150:118-125`, *"Do not narrow these filters again."*
+*Evidence:* `docs/legal/readiness-review-2026-08-19.md:428-438`, `:461` · `awaiting-sean.md:504-514`.
+
+**U-3. 맹견 (dangerous-breed) gate — `맹견` appears nowhere in client, schema, or migrations.**
+*What:* a dog-profile field plus a booking-time refusal excluding statutorily-defined 맹견 and
+individually-designated dangerous dogs. **Nothing stops such a booking today.**
+*Why not built:* offered by the announcer to the catalog session and **declined** — *"dogs schema +
+booking-time refusal is custody's surface, not catalog's"* (`docs/session-handoff.md:39-41`).
+Ranked **below** U-1/U-2 by legal's own ordering.
+*Blocker:* ownership only.
+*Size:* **S**.
+*Evidence:* `docs/legal/readiness-review-nonlocation-2026-08-19.md:174-179`, ranked #3 at `:212` ·
+readiness review control ⑪ · `awaiting-sean.md:352`.
+
+**U-4. 위치기반서비스사업 신고 + a separate location consent + a location-specific 약관.**
+The filing has not been made; consent today is only the OS permission dialog and none of the three
+recorded runner consents is a 위치정보 consent. ⚠ **The App Store privacy questionnaire says
+background location is NOT declared while `app.json:74` declares it — stale, not merely unfiled.**
+*Blocker:* **Sean + Korean counsel.** Carries **criminal** rather than revenue-scaled exposure, so
+it does not shrink pre-revenue. Code half: a statutory consent gate ahead of `geo.ts:199`.
+*Evidence:* `awaiting-sean.md:164-178` · `readiness-review-2026-08-19.md:20-22, :216`.
+
+**U-5 (legal-adjacent). Admin location access controls** — dual approval, audit log, time limit:
+**none exist.** Admin access *is* the service key and the SQL console, unlogged and unbounded, and
+`0082_route_ladder.sql:174` records that **this repo has no admin role in RLS to lean on.** Control
+⑦ ❌. *Size:* **M–L.**
+
+**U-6. Consent record completeness.** Runner consents are persisted and `not null check(...)`
+(`0062:81-83`) but carry **no version, no text, no device**; the owner's consent is *implied* at
+login with no record at all. Control ③ 🟡. *Size:* **M.**
+
+**U-7. User-facing location controls** (emergency stop, withdrawal of provision, deletion request,
+data request): none of the four exists. Control ⑨ ❌. *Size:* **M** (client + server).
+
+**U-8. PASS 본인인증 unintegrated — and it is a latent-arming dependency.** `profiles.phone` is NULL
+for every user; *"no migration, no edge function"* (`0088:186`). **Two things arm themselves with no
+code change the day PASS lands:** `incident_contact()` starts returning both parties' name **and**
+phone (`0088:238-270`, `0114:36-38`), and `identity_verified = true` on all 9 seeded runners stops
+being merely dishonest. ⚠ 안심번호 (carrier relay masking) is **deliberately not done** (`0088:176`).
+
+## 6.B Money
+
+**U-9. 🔴 `payouts` has ZERO writers, and `ledger_items` has no paid marker. NOTHING PAYS RUNNERS.**
+*What:* a payout writer (manual ops run or Toss payouts) plus a paid/settled marker on the earnings.
+*Verified:* **[measured]** `payouts` has 0 rows in production; the only `insert into payouts`
+anywhere in the repo is in suite 150's own fixtures (`150_account_deletion_suite.sql:346, :354`).
+`ledger_items` (`0001:264-275`) is `base, distance_pay, addon_pay, tip, remaining_guarantee,
+platform_fee, created_at` — **no `paid_at`, no `settled_at`, no `payout_id`, and no migration adds
+one.** Production has 8 ledger rows across 1 runner, all test data.
+*Consequence:* the platform can compute **lifetime earnings** and cannot answer *"have we paid
+them."* "Unpaid balance" is **not computable on this schema.**
+*Knock-on already handled:* 0115's `unpaid_payout` state-gate token is **knowingly inert** and left
+in place because it becomes correct the moment a writer lands — *"Do not read its presence as
+protection"* (`0115:282-288, :541-550`). Sean's ruling **O-7 A-intact-when-owed** rests on exactly
+this: `bank_accounts` is kept **intact, not anonymised**, whenever the runner has any ledger rows,
+*because a redacted account number is a row nobody can pay into.*
+*Blocker:* unowned; money/trust surface. Inert while charging is off; **real the day it flips.**
+*Size:* **S** for the column, **M–L** for the writer. **U-9 is one slice.**
+*Evidence:* `awaiting-sean.md:362-372`.
+
+**U-10. 🔴 `sweep_settled_without_payments` is missing one predicate — and the money cutover is
+BLOCKED on it.**
+*What:* add `and rn.settled_at is not null` to the sweep's loop.
+*Why:* 0083 redefined `runs.ended_at` to mean the service **STOP**, so the sweep can now see a run
+that stopped but has **not been returned**, and mint a charge **for a dog still on the leash**.
+*Verified:* the function is defined **once**, at `0080_charge_machine.sql:569-624`, and its loop
+selects on `rn.ended_at is not null and rn.ended_at >= v_since` with **no `settled_at` guard**. No
+later migration redefines it.
+⚠ Do **not** substitute `bookings.status` (§0-ter #11 / 116 C8) or `ledger_items` presence
+(0081 writes one for a CANCELLED booking) — see §2.2's settlement-anchor rules.
+*Blocker:* **`ops_flags.payments_live_since` must not be flipped before this lands.**
+*Size:* **S** (one line + a pin).
+*Evidence:* `0083_run_end_flow.sql:86-106` (§0f) · `TODOS.md:189-194` ·
+`119_run_end_suite.sql:61-68` (*"SCENARIO B ITSELF IS NOT CLOSED IN THIS SLICE"*) · `0087:28, :39, :56`.
+
+**U-11. 🔴 0083 §0g step 2 — `_settle_sealed_run` still takes `p_quote`; the recovery sweep can only
+REPORT.** *What:* drop `p_quote`, let `_settle_sealed_run` call `compute_runner_payout` itself, and
+turn `sweep_run_end_recovery`'s arm ⓐ from a `raise notice` into a real idempotent re-drive.
+*Status:* 0101 landed the SQL price and `settle-run` calls it (`handler.ts:150-155`); the re-drive
+half was explicitly left for a separate slice. Verified: `_settle_sealed_run(p_booking uuid, p_quote
+jsonb)` at `0083:870`; arm ⓐ still only raises a notice at `0083:1429-1440`.
+*Size:* **M.** *Evidence:* `0083:108-121` · `0101:21-23` · `TODOS.md:181-188`.
+
+**U-12. 🔴 0083 §0h — `incident_review` has NO marketplace money exit.** A runner is **permanently
+unpaid** for work already done, and every such booking is a manual database job. `club_incident_settle`
+(0072) is structurally club-only (it needs a `club_incidents` row + locked `club_sessions` + subject
+mapping, which a marketplace booking can never have). *Size:* **L.**
+*Evidence:* `0083:123-147` · `0089:39` ("unowned") · `0097:11-14, :32-37, :75-80` · `0096:39-43`.
+
+**U-13. Card-register slice — `billing_keys` has ZERO writers.** Only *reads* exist
+(`create-booking-hold/handler.ts:191`, `_shared/charge.ts:182-185`); writes appear only in suites
+116/117. `_shared/toss.ts` exports `tossConfirm`, `tossCancel`, `tossBillingCharge`,
+`tossGetByOrderId` — **no billing-key issuance function.** The widget
+`/v1/billing/authorizations/…` flow is named as "a separate slice" at `0080:100-103`.
+*Size:* **M–L** (edge fn + client webview + pins).
+
+**U-14. The pre-charging chain — Sean-only values.** Charging is inert at **four independent
+layers**: `TOSS_SECRET_KEY` unset · `CRON_COLLECT_KEY` unset · vault `charge_dispatch` absent ·
+`ops_flags` 0 rows (`payments_live_since` NULL). **[measured]** `payments` 0, `billing_keys` 0.
+Order is load-bearing. `set_payments_live_since` refuses any value `<= now()`
+(`cutover_must_be_future`) — **back-billing is structurally impossible and that refusal is the
+feature.** ⚠ `0084:48` records that **`0080:79-82` step ⑦ is now WRONG and must not be followed.**
+*Evidence:* `docs/pre-charging-checklist.md:20-25, :38-45, :53-141`.
+
+**U-15. km ledger cutover — the whole ledger is wired to NOTHING.** `0075:8-14`: *"아무것도 이
+원장을 호출하지 않는다 … 이건 봉인이 아니라 아직 연결되지 않은 부품이다."* Eight contract items the
+cutover slice must discharge (`0075:15-41`): ① booking-creation + `km_reserve` cannot be one
+transaction from the current caller (PostgREST multi-call) — needs a single definer RPC or
+compensating-delete pins; ② hold-stranding is the §K state-transition trigger, **not** a cron;
+③ 🔑 **`km_expire_sweep` is defined (`0075:696`) but NEVER scheduled — [measured] it appears in none
+of the 17 cron jobs, so no expiry ledger row can ever exist in production**; ④ the cutover flag must
+be **stamped onto the booking at creation**, not read at settle; ⑤ three ₩-reading functions need
+their denominators re-decided (`marketplace_cancel_fee` `0066:80`, `club_incident_settle` `0072:75-81`,
+settle-run's owner_request guarantee); ⑥ an old-hold sweep for bookings stuck in `active` forever;
+⑦ TS normalisation — settle-run rounds after computing and `create-booking-hold` has **no
+positive/finite/≤100 validation on `km`**; ⑧ 🔴 **a Sean decision**: `end_reason` routing — a
+`dog_condition` stop at 0.8 km currently bites the 3 km floor, and `km_release('incident_refund')`
+exists but is unreachable from settle-run. ⚠ `0075:48` — **service_role still holds full DML on the
+ledger.** *Size:* **L**, multi-slice.
+
+**U-16. Dead brand + a banned word are wired to card statements.** `_shared/charge.ts:116-118` —
+`orderNameFor()` returns 「**댕런** 예약 취소 수수료」 / 「**댕런** 산책 이용료」. `댕런` was retired
+2026-07-28 and 「산책」 is on the banned list (`docs/positioning.md:44`). Not bleeding (`payments` 0),
+becomes real the moment charging flips. Pins move in the same slice
+(`_test/settle_charge_test.ts:311`, `_test/cancel_fee_test.ts:263`). **Awaiting Sean's wording pick.**
+*Size:* **S.** *Evidence:* `awaiting-sean.md:387-401`.
+
+**U-17. `runners.commission_rate` has no range CHECK.** 0102 made the *function* raise on an invalid
+rate but explicitly declined the column constraint: *"A CHECK CONSTRAINT ON THE COLUMN WOULD BE
+BETTER AND IS NOT THIS FILE'S … Recorded for trust rather than taken."* `0` and `>= 1` remain
+storable. *Size:* **S.** *Evidence:* `0102:22-31`.
+
+**U-18. `min_fare`'s floor is a tautology on shipped data** — it defaults to **9,900, exactly
+`runnerCompBase`** — so the floor never binds in production and every fixture exercising it is
+invented. See §3.3 detector ④.
+
+**U-19. A price revision reprices an unsettled run's PAYOUT while its CHARGE stays frozen.**
+Deliberate and pre-existing: owner fares are the consented frozen columns; runner pay is live
+constants read at settle. **Flagged to counsel as a worker-status input** (2024두32973).
+*Evidence:* `0101:63-71` · `awaiting-sean.md:342-356`.
+
+**U-20. The 50%-of-planned completion eligibility gate still lives in TypeScript**
+(`settle-run/handler.ts:127`) — a money rule no SQL pin protects. *Size:* **S.** `0101:17-20`.
+
+**U-21. §0-septvicies — past-dated `confirmed` booking, server half OWED.** Client half shipped.
+Server needs a grace window (proposed `scheduled_at + 30 min`), terminal states
+(`no_show`/`expired_confirmed`), and 🔴 **a money ruling only Sean can give**: when a confirmed
+booking never starts, who pays. ⚠ A same-day correction invalidated half the spec — expiry from
+`runner_enroute` would be **harmful**. *Evidence:* `awaiting-sean.md:1028-1122`.
+
+## 6.C Routes / catalog
+
+**U-22. Two unratified 0110 constants awaiting Sean.** 4-decimal precision (**derived** — 42 m mean
+point spacing, so 11 m is below sampling and above door resolution) and the **200 m endpoint trim**
+(*"A JUDGEMENT… There is no measurement that yields 200; do not present it as one"*). Each is
+isolated to **one named constant** so either is a one-line overrule. `0110:42-55`.
+
+**U-23. 🔑 The trim has a LIVE BILLING CONSEQUENCE.** Sean's rulings #14/#15 make the entry point
+*the nearest point on the trace* and make the approach leg **count toward km** — so the trace is a
+**money input**, not a picture. On a **promoted** route, an owner whose pin is nearest a trimmed end
+gets a displaced entry point and a **longer billed approach**. Correct side to err on (the
+alternative publishes a previous owner's home), but *"a real consequence, not a rounding artifact."*
+Inert today — no route is `active`. `0110:60-72`. *Size:* **S** to acknowledge; **M** if it needs a
+fare correction.
+
+**U-24. Promotion is UNBLOCKED and has never been exercised.** 0113 closed the geometry, which by
+0110 §C's trigger is what opens promotion. No route is `active` in production.
+⚠ `routes_active_is_earned` needs a `verified_run_id` from a settled run — **no GPX can satisfy it,
+by design** (`0098:81-83`).
+
+**U-25. `routes` base-table client DML grants remain.** **[measured]** anon and authenticated hold
+INSERT/UPDATE/DELETE on `routes` with **no policy behind them** — detector ③'s shape. 0112 swept
+**views** only. *Size:* **S.**
+
+**U-26. `runs.trace` has NO element contract and no server-side write RPC.** 0099 constrained
+`routes.trace` and explicitly left `runs.trace` alone (*"a different decision on a different table
+with a different threat model"*, `0099:60-63`). `saveRunTrace` is a **raw client UPDATE with no
+server validation** (`api.ts:1743`), while the club path validates shape, monotonic time and speed
+(`0053:124`). Also closes audit backlog ④ (events/photos read-modify-write race). *Size:* **M.**
+
+**U-27. No decimation limit** (`trace ≤ 200` / `trace_thumb ≤ 50`) enforced at DB level;
+`promote_route_from_run` uses crude every-Nth, with **RDP simplification** a named follow-up
+(`0099:64-66`, `0082:293`).
+
+**U-28. Three tolerant readers should be retired once the constraint is trusted** — client
+`normalizeTrace()`, ui `routeDisplayName()`, route-geometry `route-guidance.mjs` (`0099:12-17`).
+
+**U-29. `anchor_lat`/`anchor_lng` remain "근사값 — 소비 금지".** Flipping that contract needs a
+**provenance discriminator that does not exist** (all rows read `source='algo'`). `0098:85-88`.
+Deliberately left unflipped.
+
+**U-30. `elevation_loss_m` deferred** (no producer, no reader); **`shade`/`lighting` have no data
+source**; a dozen routes have NULL elevation. `0098:8, :66-70`.
+
+**U-31. Three route names advertise a length the line does not have.** **[measured by catalog]**
+`서리풀–몽마르뜨 종주 5km` measures 4.84 · `한강 반포–잠원 7km` measures 6.72 · `반포한강 그랜드
+루프` (km=5.0) measures 4.78. All three are original 0078 seeds where `km` was TYPED and the
+geometry DRAWN later. ⚠ **0100's own constraint blocks the obvious fix**: `routes_name_km_agrees`
+requires the name's km token to round to the `km` column, so correcting `km` is refused unless the
+**user-facing name changes in the same statement** — a product decision, not a cleanup.
+**Not a billing defect:** `bookings.km` comes from the owner's distance dial, never from
+`routes.km`. *Blocker:* Sean's naming call. `docs/session-handoff.md:1-40` · `awaiting-sean.md:479`.
+
+**U-32. The GPX corpus + `build-manifest.mjs` + `route-properties.json` are NOT on trunk** — they
+live only on `claude/strava-route-loops-74c5d2`, so the elevation derivation is **not reproducible
+from this tree** (`0098:93-98`).
+
+**U-33. Related deferred:** PostGIS `geography(Point)` + GiST migration (`TODOS.md:288-292`) · a
+towns table + pickup geofence (`TODOS.md:1250`) · phase-tagged custody GPS from pickup —
+⚠ **this interacts with U-1's retention decision** (`TODOS.md:1252`) · suspension ops automation.
+
+## 6.D Notifications / push
+
+**U-34. 🔴 The nomination push is NOT rate-limited — an indefinite push-spam channel at two
+strangers.** `request_runner` no-ops only on the **SAME** target
+(`transition-booking/index.ts:169`). **Alternating between two runners re-fires indefinitely** —
+each call flips `runner_id`, so each is a real change, pushing 「지명 러닝 요청」 at the new target
+and 「지명이 변경됐어요」 at the displaced one (`index.ts:206-207`). Every one is written as
+`service_role`, so **no RLS policy can ever reach it** — which is why 0114 could not touch it.
+*Verified:* `index.ts:157-208` read end to end — owner gate, real-runner gate, same-target no-op,
+status gate, time-clash gate, CAS. **No budget, no throttle, no counter.**
+*Fix:* a per-owner / per-booking nomination budget inside `request_runner`. *"Adjacent slice, same
+file as O-5."* *Size:* **S.**
+*Evidence:* `0114:84-91` · `docs/security-booking-party-forgery.md:200-204` ·
+`149_party_active_suite.sql:81-82` (pinned as an **unowned residual**).
+
+**U-35. 🔴 CSO #13 — `request_runner` lacks a `club_session_id` check.** Verified absent across
+`index.ts:157-208`; the sibling paths **do** check it (`index.ts:138` runner_accept,
+`cancel_owner.ts:57`). *Size:* **S.** `0111:96-97` · `0114:100-101`.
+
+**U-36. 🔴 `bookings.pace_label` is an unvalidated attacker-controlled passthrough onto a stranger's
+card.** `create-booking-hold/handler.ts:297` — `pace_label: b.pace_label ?? null`, **no whitelist
+anywhere.** It renders at `app/runner/requests.tsx:239` on a `runner_pending` nomination card,
+needing no thread and no accept. *Server fix:* a whitelist in `create-booking-hold` — **S.**
+*Client fix (unowned since ui2 ended):* also hide `dogs.memo` (`requests.tsx:264-266`) and
+`dogs.preferences.tags[]` (`:257` — **an unbounded array with no line cap, arguably the larger
+channel**). `dogs.name`/`breed` (`:235`, uncapped) are **kept knowingly** on "a dog's name is not a
+message". `docs/security-booking-party-forgery.md:205-212`.
+
+**U-37. A club notification TITLE still carries a retired verb.** `session_approve_dog`'s approval
+title is still 「위탁 승인 — 결제 대기」; only the **body** was fixed. Left alone because **three
+shipped suites assert club notification titles verbatim**, so a title change is its own slice with
+its own pin sweep — `117 K6` is the model. *Size:* **S–M.** `0084:598-607`.
+
+**U-38. Ops copy is intentionally partial.** `_shared/ops.ts:51-56` — three event classes get the
+generic line rather than bespoke copy written ahead of an emitter. **Not a defect; noted so nobody
+"fixes" it.**
+
+**U-39. `_shared/ctx.ts` `detail` field — the refusal-id slice. BOTH halves must move together or
+the field silently does not exist.**
+*What:* `HttpError` gains an optional `detail`; `ctx.ts:48`'s error arm spreads it conditionally
+(every existing caller keeps its one-key body); the RPC carries the id as a Postgres **errdetail**,
+never inside the message string (the client matches on the bare token); the client extends `fnError`
+(`api.ts:13-23`) to keep the extra field.
+*Verified:* **[measured]** `_shared/ctx.ts:38-40` — `HttpError` has only `status` and `message`; the
+error arm builds a **single-key literal** `{ error: e.message }`.
+*Why it matters:* a 409 that says `club_custody_owner` tells the owner their dog is out but not
+WHICH club session, so the client can only describe the screen in prose instead of deep-linking.
+*Why not built:* deliberately NOT bolted onto the 0115 round (already twice extended; its reviewer
+signed off on a smaller diff). `ctx.ts` is the **error contract of every edge function that imports
+it.** ⚠ The queue doc says "24 edge functions"; there are **9 function directories** — verify before
+quoting that number.
+*Blocker:* 🟡 **one word from Sean** (`awaiting-sean.md:403-411`) — may a client-domain session touch
+`supabase/` for one slice, or does it wait for a server session? **The client session that owned the
+other half has ENDED, so both halves are unowned.**
+*Size:* **S–M.**
+
+**U-40. Ops signals reach NOBODY.** **[measured]** `ops_recipients` = **0 rows**; `OPS_PROFILE_ID`
+unset. So 0084's reconciliation arms **and** 0096/0097's detection all resolve to `console.error`.
+⚠ **Both 0096 and 0097 deliberately declined to build a pager for this reason** — *"an ops class
+whose remedy does not apply is WORSE than an unmonitored state, because it manufactures the
+appearance of resolution"* (`0096:63-79`, `0097:38-41`). An undecided architecture fork is left open:
+a SQL sweep that pages would either duplicate `notifyOps`'s TS routing or need a `pg_net` dispatcher.
+*Blocker:* **Sean's half is one sentence** (who receives, what ack/SLA means). `awaiting-sean.md:263-272`.
+
+## 6.E Security hardening
+
+**U-41. `is_booking_party` residuals — the wide predicate is UNCHANGED and still guards seven
+surfaces.** 0114 added the narrow twin **next to** it and switched only four *write* policies. Still
+on the status-blind predicate: `runs party read` (`0002:106`), reviews SELECT + author scoping
+(`:116`, `:120`), `threads party` SELECT (`:141`), the chat_messages read/send EXISTS clauses
+(`:143`, `:147`), incidents read (`:152`), realtime chat insert (`0008:6`). **Deliberate** — §4 keeps
+every SELECT wide, and 0108's law is *"mirror the table, do not invent."* Explicitly out of scope:
+`is_booking_party` itself, `incident_contact`, `verify_incident_tx`, `noti self update`,
+`runs runner update`, every `club_*` object (`0114:104-106`).
+
+**U-42. `bookings.runner_accepted_at` — the named successor, deliberately not built.** The strictly
+cleaner predicate is a monotone witness stamped by both `runner_accept` arms. Not built because it
+needs a column, **a backfill of every historical booking** (or existing chats lock silently), writes
+in both accept arms, **AND a clear in `request_runner`'s CAS and in `runner_decline`** — otherwise a
+`confirmed → matching → request_runner` reassignment leaves the previous runner's stamp and hands the
+new unaccepted nominee full party rights, **reintroducing this exact hole.** *"The moment to build it
+is when ops or a pilot user actually hits the cost."* *Size:* **M** — edge-function change plus a data
+migration, a different blast radius and a different reviewer. `0114:118-129`.
+
+**U-43. Accepted 0114 residuals — do not let "B-11 closed" absorb them.**
+- **Two states lose SEND and keep READ**: after an owner cancels a *confirmed* booking, and for
+  post-incident `refund_pending`, neither party can send chat or write a review. Reading is
+  unaffected. `0114:107-118`.
+- **Nominate-then-cancel still opens an incident on a stranger** — no push, no free text, but it
+  opens `incident_contact`'s phone door. `0114:74-79`.
+- **`reviews.target_kind`/`target_id`**: a party may review any profile id. Latent; **arms itself the
+  day a rating rollup lands.** `0114:102-103`.
+- **Standing invariant with NO automated pin**: *"If anyone ever adds an INSERT policy for a `chat-`
+  topic, this entire paragraph stops being true."* `0114:144-147`.
+- **O-4 is 🔵, not ✅.** Reversal cost documented at `0114:50-54`.
+- **`payment_ok` verified nothing** — a booking reached `matching` with zero money moved. O-5
+  (pay-after-run) **deleted the arm** in `transition-booking` v34. Confirm before re-listing it.
+
+**U-44. 🔴 Repo-wide grant narrowing — the plan, item by item.**
+
+| # | Surface | State | Size |
+|---|---|---|---|
+| a | **`addresses`** — zero grant/revoke statements in ANY migration. Client can PATCH any column of its own rows. **Real exposure is integrity**: `bookings.address_id` means a write silently rewrites every live booking, and editing `addr` while keeping `lat/lng` produces a **falsely pinned address on a handoff screen** — a safety surface. Fix: `revoke update`, then move `setAddressPin` (`api.ts:2278`) and `setDefaultAddress` (`api.ts:2306`) onto narrow definer RPCs the way `owner_update_address_detail` already is. ⚠ *"Do not do this half-way — an RPC added while the grants stay open is security theater"* — **0073's own header says so about itself.** | **OPEN, P1** — `TODOS.md:930-958`, re-confirmed live **[measured]** | **M** |
+| b | **`runners public read`** — `using (tier <> 'applicant' or profile_id = auth.uid())`. A caller term in **one arm of an OR is not a gate**: the first disjunct alone matches for anon. 9 rows with 7 free-text `bio`s readable with no account. | OPEN | **S** |
+| c | **`club_sessions` / `club_members` / `feed_posts`** — all `using (true)`. anon reads real meetup points, times and host profile ids. **MEASURED 2026-08-14, NOT FIXED.** The name-join returns 0 today only because today's hosts happen not to appear in `available_runners` — *"a stay of execution, not a defence."* **No migration is proposed on purpose:** "should a logged-out person browse club sessions at all?" is a product call. | **OPEN — needs Sean's product call first** (`docs/security-club-session-exposure.md`) | **S** once decided |
+| d | **`runs` INSERT** — privilege granted, no policy. See §3.3 detector ③; the downgrade of a cutover gate rests on this staying closed. | OPEN (latent) | **S** |
+| e | **60 of 62 base tables grant client DML to anon** — the schema-wide sweep was **deliberately not done** in 0112 (views only), named "a separate, riskier slice". | OPEN | **L** |
+| f | **`storage.*` TRUNCATE/TRIGGER/REFERENCES** — 18 aclitems, grantor `supabase_storage_admin`. **No migration can revoke them.** → Supabase support. | OPEN — external | n/a |
+| g | **`supabase_admin` default-privilege rows** — not alterable as `postgres`. Mitigation is an **operational rule only**: never create tables in the Dashboard Table Editor. | OPEN — policy only | n/a |
+| h | `profiles` write whitelist | **CLOSED by 0091** — listed so it is not re-opened as work | — |
+
+**U-45. Two Supabase Dashboard toggles — Sean's, minutes, still unapplied.** See §3.7.
+
+**U-46. Post-platform-upgrade control for 0109** — re-run the two-row query after any platform
+upgrade, restore, or paused-project resume. Expected 0/0; it measured 390/12 before 0109. See §3.2.
+
+**U-47. 🔑 Any logged-in user can bulk-read EVERY runner's weekly schedule — and this is pinned as an
+OPEN FACT.** Suite pin **A4** (`129_availability_anon_suite.sql:92-105`) asserts *"그게 아직
+그렇다"* — **it goes RED when the hole is fixed**, at which point the pin and 0093 §C are deleted
+together. **Do not read a green A4 as a closed hole.**
+
+**U-48. The `_guard_*` class-wide sweep was never done.** 0088 fixed **one** table; *"the class is
+bigger: an RLS policy with no caller term is a row filter."* The privilege-based enumerator (not a
+text grep) is written out in `REGISTRY.md`. `124_profiles_column_grant_suite.sql:519`.
+
+**U-49. The RLS-off detector is prescribed but not automated as a harness sweep** (`0095:42-44` +
+`REGISTRY.md` detector ①). One `_pass`/`_fail` pin would make it permanent.
+
+**U-50. Realtime residuals.**
+- **0104's forced-upgrade item** — an old-binary runner still publishes on the old public namespace.
+  ✅ **Effectively closed by a measured fact**: `eas build:list --json → []`, TestFlight never
+  uploaded, **zero binaries have ever been produced.** ⚠ Re-verify before relying on it; the moment
+  a build ships, the fact expires.
+- **0104's unanswered experiment (owed by the client side):** *is a PUBLIC subscriber on topic
+  `run-X` served the broadcasts of a PRIVATE publisher on the same topic?* Testable with two clients.
+  `0104:12-15`.
+- **0108's accepted delta:** a `no_show` attendee can still READ a host DM addressed to them **on the
+  table** while the room predicate refuses them. Widening the room is a product call, not a
+  mirror-fidelity fix. `0108:49-56`.
+
+**U-51. 0115 residuals.**
+- 🔴 **Contract sync OWED:** `docs/contracts/account-deletion-contract.md` §B.3's retention table and
+  §A.2.e still describe the **unconditional** `bank_accounts` DELETE, superseded by Sean's O-7.
+- **N8 is a function-source pin, not an executed one** — `00_shim.sql` has no `storage.protect_delete`
+  trigger, so **the harness is strictly MORE permissive than production** here and a deleted user's
+  storage objects are swept by the edge function only. `150:43-56`.
+- A `claimed`-but-unshipped gear claim survives deletion with its destination reading 삭제된 주소 —
+  not shippable, not gated on. `0115:455-463`.
+- Deviation from contract: auth-delete failure is **`202 auth_delete_pending`**, not `500`.
+
+**U-52. Smaller open security items.**
+- **Guest RSVP grants `_club_shell_access = 'full'`**, which is what `_club_incident_can_open`
+  accepts. N accounts can add noise; each S1 fans a critical ack to the host and every committed
+  runner. Fix shape: require checked-in presence for a close-blocking case. **S**, P2.
+  `TODOS.md:1027-1035`.
+- **A runner who held a dog through an emergency transfer loses case-open rights afterwards** —
+  `_club_incident_can_open`'s third arm reads `bookings.runner_id` (the *current* runner). Narrow
+  today; real the moment H5 gets a UI. Fix: base the historical arm on `dog_run_segments` / accepted
+  `assignment_events`. **S**, P2. `TODOS.md:1036-1043`.
+- **`collect-charges`'s cron-key comparison is not constant-time** — *"worth a `timingSafeEqual` when
+  someone is next in this file, not worth its own slice."*
+- **`club_critical_titles` has no read policy** — deliberate; add one only if a feature needs the list.
+- **⑪ incident verification requires a privacy-policy update before it ships** (phone disclosure
+  between parties). `0088:280-282`.
+
+## 6.F Ops / infra
+
+**U-53. Sweep functions defined but NEVER scheduled.** **[measured]** by diffing the 17 live cron
+jobs against every definer sweep in the tree:
+- 🔑 **`km_expire_sweep()`** (`0075:696`) — registered nowhere. Flagged in its own file at
+  `0075:25-27`. **Until it lands, no expiry ledger row can ever exist in production.**
+- **`ops_unsettled_runs()`** (`0097:55`) — a `stable` **query** function only. No scheduler, no pager,
+  writes nothing. Deliberate (§U-40).
+- **`payments_reconciliation()`** (`0084:349`) and **`club_drift_check()`** (`0040:336`) — defined,
+  not scheduled. Confirm whether they are meant to be invoked by hand.
+- **An old-hold sweep** for bookings stuck in `active` forever — `0075:35-36` ⑥.
+⚠ **`purge_expired_holds` sat unscheduled for ages while a comment claimed otherwise** (`0060:144`) —
+**the absence of a job is worth checking against `cron.job`, never inferring from a comment.**
+
+**U-54. `create-payment-intent` is not deployed.** **[measured]** 9 local function directories, 8
+deployed slugs. Establish dead-code vs undeployed-dependency before touching the payment path.
+
+**U-55. Missing race pin.** The concurrency half of 0083's guarantees belongs in `90_race_check.sh`
+alongside RD/RE and **is not written** — named as the gap it is (`119_run_end_suite.sql:105-110`).
+
+**U-56. Stale mutation evidence, acknowledged in-file.** 0111's M1–M6 figures are **round-1** numbers
+not re-run in round 2; pass counts are stale by up to 2 (`0111:124-127`).
+
+**U-57. `owner_forced` and `incident` end-reasons have no server caller.** `settle-run` now splits
+`CLIENT_END_REASONS` from `SERVER_ONLY_END_REASONS` and refuses the latter **by name** (a better
+shape than values quietly missing), but **no `transition-booking` action produces an owner-forced end
+today**, and `incident` is unreachable outside the club path. **S**, P2. `TODOS.md:195-203`.
+
+**U-58. Enum-transaction trap, for whoever builds ⑨ `runner_incapacity`.** `harness.sh` self-pins
+`--single-transaction` to mirror `db push`, so `alter type … add value` **plus a use of that value in
+the same file** raises. Give the enum value its own migration, or defer its use.
+
+**U-59. `create-booking-hold` full transactionalization.** Booking insert + status updates +
+slot-hold are separate PostgREST requests → partial-state windows and a TOCTOU on route status.
+Route validation landed in the kernel (K7); the single-transaction rewrite is its own slice and
+coordinates with charge work. **M→S**, P2. `TODOS.md:1245-1248`. (Same defect U-15 ① names from the
+km side.)
+
+**U-60. Gear-claim ops fulfilment path does not exist.** `gear_claims.status`/`shipped_to`/`claimed_at`
+remain service_role-writable **for a path that was never built** (`0106:41-43`).
+
+**U-61. Distance-to-pickup on runner job cards needs a deliberate privacy decision** — it would
+expose address coordinates *before* acceptance, widening the 0060 posture. Likely shape: a coarse
+server-computed bucket ("~1.2km"), **never raw coords.** Blocked on Sean. `TODOS.md:262-268`.
+
+**U-62. Club consent copy hardcodes fee/hold terms while the server reads `club_cfg`** (M2).
+`TODOS.md:1142`.
+
+**U-63. "R6 return seal + R1c work-gate are NOT built"** — ⚠ **needs clarification before anyone
+acts.** This was measured by a client session as a *server* slice, but 0092 built the runner work
+gate and 0083/0089 built the return seal, so it most likely names the **client-facing** halves or a
+specific uncovered arm. Unowned. `awaiting-sean.md:433-435`.
+
+**U-64. `geocode-address` wants a soft per-user rate limit** (`TODOS.md:300`). ⚠ It is a **deliberate
+no-op without its secret** (the 0063 no-phantom-pipeline doctrine): it degrades to
+`{available:false}` rather than failing. **Not a stub — do not "finish" it.**
+
+## 6.G REGISTRY / numbering state
+
+- **`0116` is next free; suite `151` is next free.** `REGISTRY.md:158` carries the
+  `| 0116 | *(next free)* | 151 | — | available |` row. **[measured]**
+- `HELD` is **empty of entries**. **[measured]**
+- Suite numbers **138** and **140** are permanent gaps — 140 belonged to the rejected 0105.
+  **Do not reuse them.**
+
+---
+# 7. Traps
+
+Each of these cost someone a false conclusion. They are ordered roughly by how likely you are to hit
+them in your first week.
+
+## 7.1 Tooling traps
+
+**T-1. `supabase db query` multi-statement returns the LAST ROW-PRODUCING statement.**
+A 0-row `UPDATE` preceded by a `set_config` shows the `set_config` row — **and it looks like the
+write was ALLOWED**. **One statement per call.** Parse the output with Python, not grep — the JSON
+is not line-oriented, and the CLI prints a preamble (`Initialising login role...`) before the JSON
+begins, so `json.load()` on the raw output fails. **[from-doc]** `docs/session-handoff.md:386`;
+**[measured]** this session — I wrote a helper that skips to the first `{` and reads the `rows` key.
+
+**T-2. A data-modifying CTE is invisible to RLS subqueries in the same statement.**
+Chain probes as **separate statements**, never as one `with … as (insert …) select …`.
+
+**T-3. `do $$ … $$` AUTO-COMMITS.** Use an explicit `begin … rollback` around any production probe.
+Every recent REGISTRY row's live probe is a self-rolling-back block for this reason.
+
+**T-4. `supabase db push` applies EVERY pending file.** Never push from a tree carrying an unfinished
+migration. Use `scripts/deploy-migrations.sh`, which cuts a detached tree at trunk and moves `HELD`
+files aside (§2.3).
+
+**T-5. 🔴 `supabase migration repair --status reverted …` is WRONG for this repo.** The CLI suggests
+it after a failed push; following it marks genuinely-APPLIED migrations as reverted and corrupts the
+ledger. The fix is to be on trunk. `scripts/deploy-migrations.sh` never runs it.
+
+**T-5b. `ls supabase/tests | sort` is LEXICAL** — `117_` sorts before `97_`, and `100_` before `10_`.
+**[measured]** the lexical "highest" is `99`; the real answer is `150`. Use
+`grep -oE '^[0-9]+' | sort -n | tail -1`.
+
+**T-5c. The harness's `$0` self-pin needs an ABSOLUTE path**, or you get a false
+`❌ GATE REGRESSION` (§4.1).
+
+**T-5d. `eas build:inspect`'s archive uses `.gitignore`**, and **`.easignore` REPLACES `.gitignore`**
+rather than extending it.
+
+**T-5e. `supabase-js` reuses channels by topic** — one client per listener in tests, or a dedupe
+crash. **[from-doc]** memory note `daengrun-client-night-2026-08-19`.
+
+**T-5f. The management API GET omits `private_only` when unset** — absence is not `false`.
+
+## 7.2 Postgres / Supabase semantics traps
+
+**T-6. 🔴 VIEWS ARE DEFINER BY DEFAULT.** A view created the normal way here has
+`security_invoker = false` with owner `postgres`, so it reads its base tables **as the owner** and
+**RLS never executes**. Consequences, all measured:
+- A **single-table** view is `is_insertable_into = YES`, and the postgres default ACL grants
+  `anon`/`authenticated` INSERT/UPDATE/DELETE on every new relation — so a new view is **born
+  writable past RLS** (0112's P0).
+- **A recreated view gets a FRESH default ACL.** Any migration that recreates `routes_public`
+  re-opens it. Suite **147 D3** is the whole-schema watchdog that makes that red instead of quiet.
+- **A definer view's SELECT list is the only control on its columns** — a table-level revoke is
+  belt-only from the view's seat. **Never `select *` in a view here** (`0107:40-51`).
+- **Change views via `create or replace` ONLY, never DROP** — grants are preserved by replace and
+  lost by drop (`0115:668`, and it is a standing law in `CLAUDE.md`).
+
+**T-7. A bare column REVOKE under a table-wide grant is a NO-OP.** You must
+`revoke <verb> on <table> from <role>` first, **then** `grant <verb> (cols) on <table> to <role>`.
+That is the shape 0088/0091/0107/0113 all use.
+
+**T-8. `has_column_privilege` metadata looks IDENTICAL for "granted all" and "whitelisted".**
+Execute the read **as the role**; do not read a catalog. This is suite law L3 and it was broken by
+the person who wrote it, in the very next suite (§4.5).
+
+**T-9. `service_role` holds TABLE-WIDE SELECT, so a column revoke against it is a no-op.** You
+cannot fence `service_role` out of a column. **A leaked service key is unmitigated.** `0098 M4`.
+
+**T-10. PostgREST fails the WHOLE REQUEST when a select names a column the role lacks.** It does not
+hide the field — it 403s. **This is why revoke-first is an outage.** 0088 revoked `select (role)` on
+`profiles` and **every signup 403'd** until 0091 put it back. ⚠ And the counter-intuitive half:
+**the FIRST signup fails too**, because PostgREST emits `"id" = EXCLUDED."id"` on upsert, so `id`
+needs an **UPDATE** column grant (`0091:104`, `:191`).
+
+**T-11. A table with RLS OFF contributes ZERO rows to `pg_policies`** — it is invisible to exactly
+the query that catches its siblings, and in a listing it looks identical to a correctly
+fail-closed table. §3.3 detector ①.
+
+**T-12. Presence of `auth.uid()` in a policy does not mean gated by `auth.uid()`.** A caller term in
+**one arm of an OR** is not a gate. §3.3 detector ②.
+
+**T-13. `set local role anon` leaves an earlier `request.jwt.claim.sub` in place**, so `auth.uid()`
+keeps returning a real user and a policy gated inside a function still passes. **Six false positives
+in suite 124.** Clear the claim first; always `reset role` after.
+
+**T-14. Only sqlstate `42501` is a refusal.** `0A000` (cannot truncate a table referenced by an FK),
+`23503` (FK), `23505` (unique), `42703` (no such column) and a lock failure must **not** read as "the
+seal worked". And a `SET ROLE` that silently failed will run your attack as `postgres` — assert
+`current_user` after the switch.
+
+**T-15. `create or replace` RESETS `proconfig` but PRESERVES the ACL.** So a redefinition silently
+loses an ALTER-applied `search_path` and does **not** re-open `anon`. §5.2.
+
+**T-16. `current_user` inside a SECURITY DEFINER function is the OWNER, not the caller.** Role
+judgement must live in an **INVOKER** trigger (`0087:254`, `0106:72`, and the full derivation in
+`0057`'s header, which also explains why `auth.uid()` is the *wrong* role test in this codebase).
+Corollary: a definer cron running as `postgres` is invisible to any `current_user`-keyed trigger —
+which is how `generate_recurring_bookings` walked past 0105's guard (§3.2, 0111 ②).
+
+**T-17. The NULL fail-open family.**
+- A bare `X <> auth.uid()` is `X <> NULL` = NULL, and `if NULL then` **does not branch** — it passes
+  silently (`0058`'s header). Use `is distinct from`.
+- A CHECK constraint treats a NULL result as PASS, so `(both null) or (both between …)` admits
+  half-pairs, because `false OR NULL` is NULL. The trick is
+  `(lat is null) = (lng is null)`, which is a plain boolean even when one side is NULL
+  (`0065:6-10`).
+- `service_role` has no JWT `sub`, so `auth.uid()` is NULL and an owner gate **passes silently**
+  (`0077`'s header) — hence `not_signed_in` plus `is distinct from`.
+- A predicate returning NULL instead of false is invisible to a plpgsql `if` **in both directions** —
+  hence `coalesce(exists(...), false)` in `is_booking_party_active`.
+
+**T-18. Default privileges are selected by the CREATOR ROLE of the future object and are NOT merged
+across creators.** You can only `alter default privileges` for roles you are or are a member of, and
+`postgres` is **not** a member of `supabase_admin` — which is why §3.6's residuals exist. `0109:64-80`.
+
+**T-19. A REVOKE only removes aclitems whose grantor is the issuing role.** 0109's single statement
+worked **because all 390 aclitems carried grantor `postgres`** — measured, not inferred from
+ownership. Had even one carried a different grantor, the arm would have left it standing.
+
+**T-20. RLS does NOT cover TRUNCATE** (nor TRIGGER, nor REFERENCES). PG docs, "Row Security
+Policies". §3.2 / 0109.
+
+**T-21. `alter type … add value` followed by a use of that value IN THE SAME TRANSACTION raises.**
+`db push` applies each file in one transaction, so an enum value and its first use must be in
+**different migrations**. The harness self-pins `--single-transaction` to mirror this; without it the
+harness was *more permissive than production*, and failed **inconsistently** (`language sql` bodies
+break at CREATE, plpgsql bodies survive), which is worse than failing always.
+
+**T-22. Supabase's tooling and several bootstrap snippets RE-GRANT.** `enable row level security`
+alone is not enough, and `revoke all` alone is not enough either — you need both, and you need a pin
+watching. `0095:47-50`.
+
+**T-23. `realtime.messages` is owned by `supabase_realtime_admin` and
+`pg_has_role('postgres','supabase_realtime_admin','member')` is FALSE — yet `create policy` on it
+SUCCEEDS as `postgres`.** Measured and rolled back against production before 0103 was written.
+**Do not "fix" that migration on the theory that it cannot have permission. Ask the engine, not the
+catalog.** `0103:44-48`.
+
+**T-24. `realtime.messages` RLS is consulted ONLY for channels the CLIENT marks private.** A public
+channel does not *fail* the policy — it never *meets* it. Hence the namespace bump.
+
+**T-25. Two sibling CTEs can be a DECLARED CONTRACT, not an accident.** `0060:95-97` and
+`0080:922-924` both forbid merging them into a single UPDATE — the merged form would send a refund
+sentence to `payment_hold` owners who were never charged. *"결제된 적이 없는 홀드에 환불은
+거짓말이다."*
+
+**T-26. `ceil` against 199/49, NOT integer division against 200/50** — `v_n / 200` truncates
+(`0082:295`).
+
+## 7.3 Process traps
+
+**T-27. Fresh worktrees can arrive 100+ commits behind, carrying REGISTRY rows without files.** Base
+every worktree on `origin/redesign-v4`. `main` is **deleted** — cutting from it now fails loudly.
+
+**T-28. `refs/remotes/origin/HEAD` is cached locally and does NOT follow a remote default-branch
+change. A `git fetch` does NOT update it.** Only `git remote set-head origin -a` does, **once per
+clone** (remote-tracking refs live in the *common* git dir, so every worktree inherits one run).
+This clone is already done.
+
+**T-29. `core.hooksPath` must point at the MAIN CLONE's stable path**, never
+`$(git rev-parse --show-toplevel)` — inside a worktree that resolves to the disposable worktree, and
+**git runs no hooks and says NOTHING** when the path has vanished. Measured 2026-08-15: five
+worktrees pointed at one recycled tree, silently disarming the guard.
+
+**T-30. A relayed decision is evidence, not authority — including from another session.** On
+2026-08-13 two sessions held contradictory records of the same money decision, both in good faith,
+and it resolved only by putting both candidate answers back to Sean in one question. **Unpushed work
+reserves nothing — decisions included.**
+
+**T-31. `git`'s silence is not evidence about production.** `supabase functions list` /
+`functions download` is the only source on what is deployed; `db query --linked` reads live rows past
+RLS; `functions deploy` printing "No change found" is a parity oracle.
+
+**T-32. "0 rows" through an anon key means HIDDEN, not EMPTY** — and an empty result is not a
+control. `club_sessions`'s name-join returns 0 only because today's hosts happen not to appear in
+`available_runners`.
+
+**T-33. A shipped suite whose pinned behaviour legitimately changes MUST be updated in the same
+slice.** "Don't touch shipped suites" protects against drive-by edits, not against a decision that
+moves what the pin asserts — leaving it stale just makes the harness red for a true reason. Update
+the pin, say WHY in a comment, and name which new pin owns the new property.
+
+**T-34. Some pins assert an OPEN hole and go RED when it is fixed.** Suite 129's **A4** is one
+(§U-47). A green A4 does **not** mean the hole is closed.
+
+**T-35. Deliberate non-uniformity that looks like a bug.** Availability is **three distinct
+predicates on purpose** — do not unify them (`CLAUDE.md`). `0079:144` — *"THE MATH IS DUPLICATED ON
+PURPOSE."* `0086`'s formula is the ruling and the figures are illustrations.
+
+---
+
+# 8. Your first day, if you are picking this up cold
+
+1. **Orient without changing anything.**
+   ```
+   cd /Users/sean/dev/daengrun/.claude/worktrees/announcer-v3-handoff-f0774a
+   git fetch && git log --oneline origin/redesign-v4 -5
+   supabase migration list --linked          # expect 0001-0104, 0106-0115
+   supabase functions list                   # expect 8 slugs
+   supabase db query --linked "select count(*) from ops_flags"   # expect 0 -> charging OFF
+   ```
+2. **Run the harness** (§4.1). Expect `723 pass / 0 fail`. If it is not green, fix that before
+   anything else — a red harness makes every later measurement ambiguous.
+3. **Re-run the four audit queries** in §3.3 and the 0109 control in §3.2. They take a minute and
+   they are the difference between reading this document and knowing it is still true.
+4. **Read `CLAUDE.md`, then `supabase/migrations/REGISTRY.md` in full**, then
+   `docs/security-booking-party-forgery.md`. Those three carry more of this project's hard-won
+   process than any code file.
+5. **Before writing a migration:** claim the number on trunk first (§2.1), name whose version of any
+   shared object you build on (§2.2), and plan the mutation for every pin you write (§4.5 L9).
+
+## What I would do first, and why
+
+**In order, with the reasoning rather than just the rank:**
+
+1. **U-10** — one predicate in `sweep_settled_without_payments`. It is an **S**, and until it lands
+   `payments_live_since` cannot be flipped; the failure mode is charging an owner for a dog still on
+   the leash.
+2. **U-9** — the payout writer + a paid marker. **Nothing pays runners**, and "unpaid" is not
+   computable on this schema. Inert while charging is off; the day it flips this is the loudest
+   possible failure.
+3. **U-1 + U-2** — the location purge cron and the 위치정보 access ledger. Statutory, not draftable
+   away, ranked above the 맹견 gate by legal's own ordering, and U-2 already has a tripwire armed in
+   0115/suite 150. **S–M each.**
+4. **§5.4's four ungated definers** — `club_incident_settle_quote` and `runner_work_gate` are money
+   and liveness oracles for any signed-in user, they are **S** each, and no suite pins them. This is
+   the highest security value per hour on the board.
+5. **U-34 / U-35 / U-36** — the three small `transition-booking` / `create-booking-hold` residuals
+   the 0114 reviewer named (nomination rate limit, `club_session_id` check, `pace_label` whitelist).
+   All **S**, all in files someone is about to touch anyway.
+6. **U-44a** — the `addresses` seal. **M**, P1, and its exposure is a **safety** surface (a falsely
+   pinned address on a handoff screen), not just a privacy one. ⚠ Do not do it half-way.
+
+**One-sentence unblocks that only Sean can give:** the two dashboard toggles (§3.7) · who receives
+ops alerts (U-40) · the card-statement wording (U-16) · ratifying 4dp + 200 m (U-22) · whether a
+logged-out person may browse club sessions (U-44c) · `end_reason` routing for km (U-15 ⑧) · who pays
+for a no-show confirmed booking (U-21) · may a client-domain session touch `supabase/` for one slice
+(U-39).

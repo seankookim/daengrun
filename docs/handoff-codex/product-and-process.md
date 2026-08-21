@@ -24,6 +24,37 @@ Snapshot taken at trunk `redesign-v4`, worktree HEAD `9475c79`, 2026-08-21. Migr
 to `0115_account_deletion.sql`; harness suites to `150`. [measured]
 (`ls supabase/migrations`, `ls supabase/tests`)
 
+## Sibling reports — read this one first, then the depth
+
+This file is the connective tissue. Five domain reports were written alongside it, same day, same
+audience, and each goes far deeper than the summaries here. Where they disagree with me on a domain
+fact, **they win.**
+
+| File | Owns |
+|---|---|
+| `docs/handoff-codex/server-domain.md` | database, RLS, grants, edge functions, security |
+| `docs/handoff-codex/money-domain.md` | ledgers, charge, settle, payouts, every money ruling in depth |
+| `docs/handoff-codex/catalog-domain.md` | routes, geometry, the Strava pipeline, promotion |
+| `docs/handoff-codex/legal-ops-domain.md` | compliance, filings, release and ops |
+| `docs/handoff-codex/marketing-domain.md` | campaigns, brand voice, go-to-market |
+
+## Contents
+
+Parts are numbered by topic, not by file order. In the file they appear: **0 · 1 · 4 · 3 · 6 · 2 · 5**.
+
+| Part | Topic | Find it |
+|---|---|---|
+| **0** | The 90-second version | top |
+| **1** | What the product IS — thesis, journeys, club, points, money shape | after Part 0 |
+| **4** | The process — gates, migration numbers, deploy, honesty laws, **all 54 method lessons** | after Part 1 |
+| **3** | The open queue right now — errands, facts, calls, look-and-picks, reversible 🔵 decisions | after Part 4 |
+| **6** | The 20 files to read first, in order | after Part 3 |
+| **2** | Every Sean ruling, chronological, verbatim — plus the full quote index and the discrepancy table | after Part 6 |
+| **5** | 168 unbuilt items, by area | last |
+
+**If you read only three things here:** Part 3 (what is waiting on the human), Part 4.7 (the method
+lessons), and Part 2.8 (what has been retracted or superseded, so you do not cite a dead ruling).
+
 ---
 
 # PART 0 — the 90-second version
@@ -104,9 +135,48 @@ What the pilot is NOT, and this is the single most important operational fact fo
 
 ## 1.3 The owner journey, end to end
 
-> ⚠ The definitive, file-cited BUILT-vs-DESIGNED map is being produced by a parallel specialty
-> report. What follows is the product-level shape and the decisions that shaped it. Where a step's
-> build state matters to a decision, it is stated.
+**Nearly all of it is BUILT.** The gaps are named inline. Route files and RPCs, measured:
+
+| # | Step | Route file | Server call |
+|---|---|---|---|
+| 1 | Sign-in (Kakao only) | `app/app/login.tsx:29` | `signInWithOAuth({provider:'kakao'})` → `openAuthSessionAsync` → `exchangeCodeForSession` |
+| 2 | Role select | `app/app/index.tsx:14` | `profiles` read, UPDATE-or-INSERT, `ensureRunner()` |
+| 3 | Owner onboarding | `app/app/onboard/owner.tsx:50` | `addDog`, `addAddress`, `updateMyDog`, `geocode-address` |
+| 4 | Pickup pin | `app/app/owner/address-pin.tsx` | `setAddressPin` |
+| 5 | Owner home | `app/app/owner/home.tsx` | 8 fetchers + `subscribeBooking` |
+| 6 | Course browse | `owner/course-map.tsx`, `course/[id].tsx` | `fetchRoutes`/`fetchRouteById` on the **`routes_public` view** |
+| 7 | Request | `owner/request.tsx` | `createBookingHold`, `createRecurringSeries`, `requestRunner` |
+| 8 | Matching / radar | `owner/radar.tsx`, `owner/matching.tsx` | `runners_available_for`, `requestRunner` |
+| 9 | Schedule / cancel | `owner/schedule.tsx` | `fetchMyBookings`, `cancelBooking`, `pauseRecurringSeries` |
+| 10 | Reschedule | `owner/reschedule.tsx` | `requestReschedule` + accept/decline/withdraw |
+| 11 | Handoff (인계) | `owner/meetup.tsx` | `confirmHandoff(id,'owner')`, `fetchBookingSync`, `subscribeBooking` |
+| 12 | Live run | `owner/live.tsx` | realtime broadcast, `notifyRunStop`, `ownerLaRegister` |
+| 13 | Report | `owner/report.tsx` | `fetchRunReportOrNull`, `fetchRunStandings`, `fetchPatchPop`, `fetchStampPop`, `fetchRunEarning` |
+| 14 | Charge surface | `app/app/payments.tsx` | `my_billing_card`, `fetchMyPayments`, `retryCollect` — **built, inert** |
+| 15 | Review | `owner/review.tsx` | direct `reviews` insert |
+| 16 | Rebooking | `owner/report.tsx:265` + cron | draft prefill; `generate_recurring_bookings()` |
+
+**Six mechanics worth carrying, each of which cost someone a day:**
+
+- **There is no `onboarded` flag — first run is DERIVED.** An owner with 0 dogs → `/onboard/owner`;
+  a runner with a blank `district` → `/onboard/runner`. Both reads must fail **loudly** — a direct
+  `count`, never `fetchMyDogs().length`, because that helper resolves `[]` for a signed-out user and
+  a returning owner with two dogs was being dropped onto a first-run screen.
+- **The role write is UPDATE-or-INSERT, never `upsert`** — see the NOT-NULL lesson at §2.6 / method
+  lesson 49.
+- **Because there is one door, sign-in failure STAYS ON SCREEN** with 다시 시도 + 문의하기 rather than
+  flashing an Alert. One door changes what failure costs.
+- **Price is shown exactly once**, quietly under the dial. `livecam` is suppressed from the grid by
+  `UNBUILT_ADDONS` (`request.tsx:49`) — the price still exists in `theme.ts` and `ctx.ts`.
+- **`create-booking-hold` REFUSES a body-supplied `runner_id` with 400** rather than stripping it —
+  a 200 with a booking id would tell the caller the nomination happened. Ownership is re-verified on
+  `dog_id` and `address_id`; `km` is type-strict, not coerced.
+- **`owner/pay.tsx` is unreachable in the pilot.** The `payment_ok` action is **deleted** from
+  `transition-booking` and now returns 400 `unknown action`, pinned. `pay.tsx` survives only because
+  a dev lab imports it. Accepted cost, stated in the code: an abandoned booking used to die silently
+  at 30 minutes; it now sits in the open pool immediately and expires at `scheduled_at`.
+
+Narrative, with the decisions that shaped each step:
 
 1. **Launch / role select** — `app/app/index.tsx`. One app, role toggle at signup, switchable later
    (many runners are also owners). [from-doc `docs/product-notes.md`]
@@ -155,6 +225,59 @@ What the pilot is NOT, and this is the single most important operational fact fo
     fired by an hourly cron; the recurring-bookings **UX** is largely unbuilt (Part 5, **U-19**).
 
 ## 1.4 The runner journey, end to end
+
+Route files and RPCs, measured. **Everything is BUILT except the payout layer and the return seal.**
+
+| # | Step | Route file | Server call |
+|---|---|---|---|
+| 1 | Role pick → runner row | `app/app/index.tsx:77` | `ensureRunner()` → `runners` insert + 7 availability rules + `runner_booking_rules` |
+| 2 | Onboarding (동네) | `onboard/runner.tsx` | `updateMyProfile` |
+| 3 | **Cert funnel** | `runner/apply.tsx` | `runner_my_application`, `runner_apply_submit`, `runner_apply_withdraw` |
+| 4 | Availability | `runner/availability.tsx` | `fetchMyAvailability`/`saveMyAvailability`, `is_slot_available` |
+| 5 | Runner home | `runner/home.tsx` | 13 calls incl. `setRunnerOnline`, `fetchRunnerWeekStats`, `fetchRunnerJobs` |
+| 6 | Inbox | `runner/requests.tsx` | `fetchRunnerInbox`, `acceptBooking` |
+| 7 | Meetup / handoff | `runner/meetup.tsx` | `runnerEnroute`, `runnerArrived`, `confirmHandoff`, `startRunServer` |
+| 8 | Running (GPS) | `runner/run.tsx` | `saveRunTrace`, `addRunEvent`, `uploadRunPhoto`, `settleRun` |
+| 9 | Done | `runner/done.tsx` | `fetchRunTrace`, `fetchRunPhotos`, `fetchDrops` |
+| 10 | Runner→owner review | `runner/review.tsx` | `fetchRunReport` + `reviews` insert |
+| 11 | **Earnings / 정산** | `runner/earnings.tsx` | `fetchLedger`/`my_ledger_total` — **ledger built, NO payout run** |
+| 12 | Rewards | `runner/rewards.tsx` | `fetchMiles`, `fetchDrops`, `openDrop`, `fetchGearClaims` |
+| 13 | Calendar | `runner/calendar.tsx` | `fetchRunnerJobs` |
+| 14 | Public profile | `runner-profile/[id].tsx` | `fetchRunnerProfile`, gear CRUD, `fetchRunnerCourseHistory` |
+
+**Mechanics worth carrying:**
+
+- **The cert funnel is three steps, not five**: 지원서 → 화상 확인 → 승인. Until 2026-08-05 the screen
+  drew a hardcoded 5-step progress bar for a funnel that did not exist. `runner_applications` has
+  **no client RLS policies at all** — three RPCs are the only way in or out, and there is no
+  `.from('runner_applications')` anywhere in `api.ts` **by design**. `decided_by`/`decided_note`
+  never cross the projection. The attempt cap is 3 and `canReapply` is **server-computed and must
+  never be recomputed client-side.** Nine renderings, because there are nine distinct facts — and
+  `submitted`/`under_review` carry **no CTA**, because the next actor is the operator and a greyed
+  「승인 대기」 button would be a dead button.
+- **`0061`'s insert guard forcibly overwrites a client-supplied `tier` and sets
+  `commission_rate := 0.33`** — a client had succeeded in inserting `tier=master,
+  commission_rate=0.000`.
+- **The open pool never reads `runners.online`** — its gate is `is_active_runner()`
+  (`tier <> 'applicant'`). Lab copy claiming otherwise was measured false and not built.
+- **`enroute` is time-gated to 24 h before start.** Without it the 24-hour pickup-address window is
+  decoration: one tap on a 30-day-out booking would open the owner's home address. Both `enroute`
+  and `arrived` are CAS + `{unchanged:true}` on re-fire, so a double-tap loser is never locked out.
+- **Arrival is a timestamp, not a status** (`arrived_at` CASed on `is null AND
+  status='runner_enroute'`), because moving the status would pull the insurance and settlement datum
+  forward. This is the server being deliberately right, and it is why **P-2** is a client-only fix.
+- **The three end-run reasons are rendered in identical hairline boxes with no colour steering** —
+  colouring one would steer the choice of end reason. `dog_condition` routes to a note-writing step
+  first, because the owner has to read a real sentence.
+- **`settle-run`'s ordering law:** `settle_run_tx` commits FIRST. The runner is paid whether or not
+  the owner's card works; the collection branch is caught, cannot change the HTTP status, and its
+  outcome **never reaches the response** — because whether the owner's card worked is not the
+  runner's business.
+- **`settle-run` refuses `owner_forced` and `incident` from a client BY NAME**, deliberately
+  narrower than the six-value enum: `incident` charges the owner ₩0 under G1, and this is a public
+  HTTP endpoint, so an assigned runner POSTing it would be a self-serve free-run button.
+
+Narrative:
 
 1. **Recruitment / certification funnel** — `docs/plans/runner-funnel-plan.md` (969 lines) and
    `docs/specs/runner-cert-funnel-spec.md` (621 lines). `runner_applications` exists (`0062`).
@@ -1777,3 +1900,274 @@ in two files.
 words for the same decision** — one has *"Yes — both halves, as recorded."*, the other has *"okay"*
 plus an instruction to announce it. **The memo keeps both, deliberately.** Do not "tidy" a memo that
 holds two renderings; the duplication is the evidence.
+
+---
+
+# PART 5 — exhaustive inventory of what has been discussed and NOT built
+
+**168 items.** Sources: `docs/plans/**`, `docs/labs/**`, `docs/decisions/**`, `docs/specs/**`,
+`docs/contracts/**`, `docs/biz/**`, `docs/gstack/**`, `docs/legal/**`, `TODOS.md` (1,281 lines),
+`docs/todo.md`, `docs/feature-audit.md`, `docs/launch-checklist.md`, and the "ideas discussed, not
+built" sections of every past handoff — each cross-checked against code where cheap.
+
+**Sizes are estimates**, marked (est): **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ more, or
+needs migrations + an adversarial cycle · **XL** ≈ hardware or an external contract.
+
+⚠ **Two pre-existing registers exist and are each incomplete on their own**:
+`docs/session-handoff.md:379` (§12 "Ideas discussed, not built") and `docs/handoff-client.md:270-286`
+(§12). `TODOS.md` is the master and is 1,281 lines of **interleaved done and not-done** — `[x]` and
+`~~strikethrough~~` mark completion, `[ ]` does not.
+
+⚠ **Do NOT cite `docs/mock-status.md` (2026-07-22) or `docs/fake-inventory.md` (2026-07-23) as
+current state.** Most items they list as mock have since been made real.
+
+## 5.A Ops · admin · support
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-1 | **Ops dashboard (standalone local web tool)** | Sean commissioned it (**R-20**); the detection RPCs exist and **nothing renders them**. The in-app RPC is **CANCELLED, not deferred**. Blocked: nobody owns it, and §8 (a service-key-on-a-laptop review) is a gate. Scaffolding: `ops_gated_runners()` / `ops_unsettled_runs()` service_role-only (`0096`, `0097`), `scripts/runner-ops.mjs` as the CLI half. **No web tool exists anywhere in the repo.** | M |
+| U-2 | **Ops escalation recipients** | `ops_recipients` = 0 rows, `OPS_PROFILE_ID` unset → every ops signal lands nowhere. Blocked on one sentence from Sean (**P-6**). | S |
+| U-3 | **An ops/admin ROLE** | *"There is no ops role, so a marketplace incident has no one with authority to settle it."* Club cases have an owner; a non-club `incident_review` has no adjudicator. Greenfield. | M |
+| U-4 | **CS channel (1:1 문의, FAQ)** | Only a `mailto:` exists (`settings.tsx:62`). The audit's own note: 채널톡 연동이 가장 빠름. | S–M |
+| U-5 | **User block / report** | Greenfield. | M |
+| U-6 | **Community moderation / 임시조치** | *"the community feed has no reports/moderation table"* — and legal names the feed as where 임시조치 will be needed **first**. Greenfield. | M |
+| U-7 | **Suspension ops automation** | Notify upcoming bookings + a pre-run start gate when a route is suspended. K7 blocks new holds; existing bookings are manual at pilot scale. | S |
+| U-8 | **Summer heat / weather ops blackout rules** | Temperature-and-time blackout and weather cancellation **as operating rules, explicitly before any weather API**. Both `/autoplan` review voices flagged it as load-bearing safety. Zero weather code exists; only mock strings. | S |
+| U-9 | **Crash reporting / analytics** | No Sentry, no PostHog/Amplitude — *"gap #60 on a Banpo LTE phone is invisible."* Queued **to Sean**: a native dependency days before the first TestFlight build is his risk call. | S–M |
+
+## 5.B Notifications · Live Activity
+
+⚠ **Correcting a claim a newcomer will hear:** push **does** work. `0024_push.sql:26` bridges
+`notifications` INSERTs to Expo Push via `pg_net`, and `0090_chat_notify.sql` gives chat its own
+trigger. What is missing is narrower and listed here.
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-10 | 🔴 **Owner Live Activity APNs relay edge function — does not exist** | `0063` built the entire server pipeline (token registry, push composer, triggers, staleness sweep) and the client controller shipped — but **the relay that signs the ES256 provider JWT was never written**. `supabase/functions/` contains no such function. Until an ops config row exists, `_owner_la_push` is a **silent no-op**, and the migration says so in its own header. | M |
+| U-11 | `owner_la_push_config` row + the APNs `.p8` | Sean-only credential step. | S |
+| U-12 | **Kakao 알림톡** | The Korean standard booking-notification channel, directly effective against no-shows. Greenfield. | M |
+| U-13 | **Real arrival notification (도착 알림)** | `runner/meetup.tsx` self-reports arrival as pure client state; **the owner is never told**. Deferred as W2D-1, blocked at the time by the deploy law. The idiom is proven (`sendSOS`). | S |
+| U-14 | Notification `kind` / `ref_id` hygiene | Club events are labelled `kind='booking'` carrying session/assignment ids → raw English PGRST error on tap. Server half of client-gap **C2**. | S |
+| U-15 | Notifications template RPC | Clients can INSERT arbitrary title/body notifications for a counterparty. Folds into the party-sweep. | M |
+| U-16 | Nomination push rate-limiting | Named as a residual of O-4; unowned. | S |
+
+## 5.C Money · payments · ledger
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-17 | 🔴 **Card registration screen (빌링키 register flow)** | The placement decision is **made** (⑧: inline at first booking); the screen does not exist. `billing_keys` = 0. Two in-code TODOs mark the exact insertion points (`payments.tsx:213`, `club/session/[sid].tsx:614`). Blocked on Sean's Ⓐ lab pick. | M |
+| U-18 | 🔴 **Nothing pays runners** | `ledger_items` has no paid/settled marker; `payouts.paid_at` has **zero writers anywhere**. Unowned. Needs a payout writer, then a paid marker, and only then does the account-deletion balance gate become implementable. | L |
+| U-19 | **Toss go-live** | Live keys, `confirm-payment` verification, the sandbox matrix. Blocked on the paperwork chain. Functions are deployed and inert. | L |
+| U-20 | **Refund / cancel path under real charges** | A go-live gate: no real charge before matching-expiry auto-refund and `cancel_owner` refund are wired — `0060`'s copy **already promises** 전액 환불 처리돼요. | M |
+| U-21 | **Emergency-stop refund path (G1), both ends** | Sean confirmed the runner emergency-stop's return-money flow is **unbuilt on both ends**. P1 once charges are real. | M |
+| U-22 | 🔴 **`sweep_settled_without_payments` needs one predicate** | `0083` changed `ended_at` to mean the service STOP, so `0080`'s sweep can mint a charge for a dog **still on the leash**. `payments_live_since` must not be flipped before this lands. One line, load-bearing. | S |
+| U-23 | `owner_forced` / `incident` have no server caller | | S |
+| U-24 | **⑨b `runner_incapacity`** | Ruled, still unbuilt and blocked. The enum value must enter `end_run_tx`'s freeze set and `CLIENT_END_REASONS` **in one commit** (the freeze list must stay a strict subset), and it keeps today's formula — so it must **not** be routed through ⑨a's pass-through function. Needs its own abuse story. | M |
+| U-25 | **Club refund copy promises 전액 환불 for money never taken — six functions** | `club_cancel_session`, `club_finish_session`, `club_assignment_recovery`, `club_stale_delegation_sweep`, `session_runner_withdraw`, `session_cancel_delegation`. *"the lie is in the TITLES too and three shipped suites assert them verbatim."* **Before the flip.** | M |
+| U-26 | **Club price-invisibility build** | Ruled ④; the session screen shows the fare at five points today (one has since been consolidated). | S–M |
+| U-27 | Card-path `postConfirm` parity | The card path CASes straight to `matching`, so preferred-runner nomination and recurring-series creation never run for card-linked bookings. Unreachable until U-17 ships. | S |
+| U-28 | Widget-slice copy conditionals | `pay.tsx` `refund_pending` and `schedule.tsx` cancel sentences assume no captured payment. | S |
+| U-29 | Toss sandbox §4-2 additions | Two simultaneous captures on one orderId · the ₩100 card minimum behind `below_pg_minimum` · the 자동결제 TEST-key matrix. Needs our own dashboard keys. | S |
+| U-30 | `confirm_return_tx` two-connection race pin | Named, never simulated; belongs in `90_race_check.sh`. | S |
+| U-31 | **Host compensation slice** | ⑦ agreed direction, **numbers pending**: a coordination cut per delegated dog from platform margin; host's own dog free at N dogs; a verified 호스트 badge; a recurring series earning the host on every recurrence. Blocked on Sean's numbers. | M |
+| U-32 | **Rewards ③ — spendable points (fee-side)** | Points against fees; pure ledger. `miles_ledger.reason='shop_spend'` has **zero writers**. Explicitly *"build after first real settlements"*; the ledger contract draft says *"not for implementation until the PG rail lands and Sean approves."* | L |
+| U-33 | **km-token cutover screens (E2/E4/E5/E6/E10)** | Ledger built, screens not. **Track abandoned** — see Part 1.7. Four Sean questions also unresolved (**P-15**). | L |
+| U-34 | **Live-cam subscription package** | A dog-mounted camera as a subscribe thank-you + a live widget in the owner's running screen. Open: hardware sourcing and harness safety, streaming infra (WebRTC/RTSP), subscription billing on the same 빌링키, package pricing. | L–XL |
+| U-35 | 라이브캠 add-on SKU honesty | ₩3,900 in `theme.ts:223`, `StreamSlot` returns null. ⚠ **Partly resolved**: it is now suppressed from the request grid by `UNBUILT_ADDONS` (`request.tsx:49`), but the price still exists in `theme.ts` and `ctx.ts:20`. Sean had previously ruled it stays for demand testing (D4=C); the client-gap plan recommends the opposite. | S |
+| U-36 | PG `orderName` brand + banned word | See **P-5**. | S |
+| U-37 | Rate snapshot column | Deferred fast-follow from `0059`; a pre-PG go-live gate. | S |
+| U-38 | Marketplace `incident_review` commercial exit (non-club) | The money half of U-3. | M |
+| U-39 | **Tips** | `runner/earnings.tsx:171` renders `l.tip`; **no tipping flow exists anywhere.** | S–M |
+| U-40 | Receipts / 세금계산서 | Greenfield. | M |
+| U-41 | Runner early settlement (빠른 정산 신청) + 계좌 등록 | The buttons were **removed rather than converted to a waitlist**, because no intent store exists. *"If early settlement is a real product intent, it needs a table + a real flow."* Sean's call. | M |
+
+> **Recorded so nobody rebuilds it:** the **monthly charge summary** slice is **CANCELLED, not
+> deferred** (ruling ②). No per-charge push either.
+
+## 5.D Runner supply · certification
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-42 | 🔴 **The full runner certification funnel** | Education modules + quiz, trial run + evaluator, KYC/PASS, document-upload screens, an ops console, a module catalog. Only the minimal application funnel shipped (`0062`). `runners.education_modules_done` is *"never written, never read."* Spec status: **design-only, no migration code.** Needs 3 migrations, 2 new edge functions, and 2 new client screens. | L |
+| U-43 | **Six open Sean questions gating U-42** | Q1 KYC provider · Q2 education content source · Q3 **trial-run evaluator supply — named as "the single biggest blocker to a working funnel"** · Q4 범죄경력회보서 legal handling · Q5 re-application numbers · Q6 the tier ladder. | — |
+| U-44 | 🔴 **`identity_verified` production cleanup + the 신원인증 badge** | *"There is not one honestly-verified runner in the database."* See **F-1** — mechanically small, but the decision is Sean's because wiping the marketplace is product-visible. | S |
+| U-45 | Tier promotion server-side (veteran / master) | Three unbacked ladders coexist; none is enforced. | M |
+| U-46 | **Runner personal safety** | Night-running runner SOS; location share to the runner's **own** emergency contact. The audit's words: *"미고려 — 안심센터가 개 중심으로만 설계됨."* | M |
+| U-47 | 🔴 **R6 return-seal client screens + R1c work-gate surface** | Server built (`0083`/`0089`/`0092`/`0096`); **no client screen exists**, and `runner/done.tsx:165` says so in a comment: that one sentence is the only place the app tells the runner to hand the dog back. ⚠ `ops_flags.return_seal_since` ships NULL and **must stay NULL** until this lands. Design exists (`journey-v4-runner.html`, R1c frame). | M |
+| U-48 | **Runner recruitment campaign execution** | 20–30 certified runners before demand launch; crew partnerships, campus channels, info sessions, bibs/patches, ~₩1.2M budget. Ops, Sean. | L |
+
+## 5.E Safety · incident · custody
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-49 | 🔴 **⑪ incident CLIENT surface** | `0094` + suite 130 are **live in production** and grep finds **zero callers** of `open_incident_tx` / `verify_incident_tx` / `incident_contact` in `app/`. Blocker: the App Store phone-purpose declaration must move first (**P-8**). Designs drawn: `run-end-incident-lab-v2.html` (⑪-P1/⑪-P2). | M |
+| U-50 | **개 분실 프로토콜 (lost dog)** | One-button report → owner + nearby runners fan-out → last-GPS radius map → auto-generated flyer. The audit's words: *"최악 시나리오 미고려."* Greenfield. | L |
+| U-51 | **신호 끊김 (signal-loss) screen** | A panic-prevention screen for the owner when the runner's phone dies or enters a tunnel. Partial: `LiveLinkState`'s four states exist client-side; the dedicated last-location / elapsed / procedure screen does not. | M |
+| U-52 | 제3자 사고 프로토콜 + 응급 동물병원 이송 동의 | Greenfield; ties to insurance and legal. | M |
+| U-53 | **맹견 gate** | A dog-profile field plus a booking-time refusal. **`맹견` appears nowhere in client, schema or migrations.** Legal ranks it *"small, absent, and asked for."* Declined by the catalog session as custody's surface; **currently unowned.** | S |
+| U-54 | **Insurance** | No policy exists. `safety.tsx:187` is honest (협의 중). Binding `insurance_active` is **explicitly deferred until a policy exists.** External / Sean. | L |
+| U-55 | **노쇼 handling** | `no_show` is set by nothing. Designed: owner no-show 10-minute wait policy; runner no-show → auto substitute search. | M |
+| U-56 | **QR / one-time-code handoff** | The original design; today it is button-trust. *"강화 필요: 버튼 신뢰가 아니라 QR/일회용 코드 (초기 논의에 있었음)."* | M |
+| U-57 | Per-session runner equipment/condition checklist | Only a static list in 안심센터 today. | S |
+| U-58 | Run pause / resume (runner) | Verified absent in `runner/run.tsx`. | S |
+| U-59 | **Off-route alert to the owner** | `route-geom.ts` has an off-route helper (40 m default — **reasoned, not observed**) but no alert path. Deferred as route-plan trigger T5. | M |
+
+## 5.F Club — open audit items and unbuilt phases
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-60 | Club session stale sweep at T+24h | A host who never presses 종료 leaves paid delegations in `matching` forever. **Nothing sweeps it.** | S |
+| U-61 | Guest RSVP grants `_club_shell_access='full'` | N accounts can open close-blocking cases. | S |
+| U-62 | A runner who held a dog through an emergency transfer **loses case-open rights** | | S |
+| U-63 | **M1 — `ui.allowedActions` is always `[]`** | The **structural cause of the whole club dead-button class**: every action gate is a client re-derivation of a server predicate. Five migration sites cited. | M |
+| U-64 | M2 — fee/hold terms hardcoded in consent copy | The server reads `club_cfg`; a config change silently makes the **legal checkbox** false. | S |
+| U-65 | M3 / M4 / M6 / M7 | A disabled `ClubCta` used as a status label · a frozen `Date.now()` objection window · `_club_refund_bookings` silent no-op · a delegating owner never added to `session_people`, so their 입장권 door never appears and the recap under-counts. | S each |
+| U-66 | `_club_finalize_return` extraction | Pressing both override buttons strands the payout with no button and a wrong blocker label; the existing pin covers only the single-sided path, **so it is green today**. | S |
+| U-67 | H5 residual | A transfer stalled on a *completed* booking (`session_transfer_cancel` has no production call site); the clinic/authority record is dev-lab only. | M |
+| U-68 | **Club P-B remainder** | Automatic session recap · attendance streak · club patch · next-RSVP embedded in the recap · host trust card · feed auto-inflow. Partial: the demand board is built. | L |
+| U-69 | **Club P-D expansion** | Earned user-created clubs · co-host · group SKU · town #2 · club 대항전. | L |
+| U-70 | 단체샷 의식 · 폴라로이드 승급 · 커스터디 이벤트 타임라인 병합 | Marked `[ready]` in `docs/todo.md`. | M |
+| U-71 | Club `meetup_point` picker reuse | It is **free text** today; needs lat/lng columns. | M |
+
+## 5.G Community · growth · commerce
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-72 | 🔴 **District-scoped feed — "동네" is still not a neighbourhood** | `fetchFeed()` has no district filter; `fetchClubOverview` hard-codes 반포동. Named as *"the remaining P1"*, and it **blocks the story rail from ever meaning "our neighbourhood's dogs."** | M |
+| U-73 | **Shop v2 — real SKUs / affiliate shelf** | Six hardcoded mock items in `store.ts`. Blocked on real affiliate links; slotted Nov–Dec. Labs exist (`shop-redesign-lab*.html`, `shop-shotgun-lab.html`) and **the shotgun's winning language was never applied to the shop screen.** | M |
+| U-74 | 🔴 **Shop truth pass never landed (or regressed)** | Sean ruled 2026-08-05 that all six cards become 도그스하이 에디션; `store.ts:330-335` still carries `× 바잇미`, `× 페스룸`, `× 페티즌`, `댕러민`. Called *"the sharpest live honesty violation in the repo, and it blocks outreach."* Re-found independently as client-gap **F6**. ~1 file. | S |
+| U-75 | Branded 간식 타임 · sponsored gear · club/event sponsor line | Three brand-deal directions **not selected** — *"they remain proposals to re-raise at their calendar slots."* Two need migrations. | S–M each |
+| U-76 | `cards_owned` has **zero readers** | The table exists; the card-acquisition engine does not. | S–M |
+| U-77 | **Referral / invite codes / coupons / first-run discount** | **Zero grep hits anywhere in the repo.** The audit calls coupons 파일럿 획득 도구. Greenfield. | M |
+| U-78 | **즐겨찾는 러너 (favourite runner)** | No favourites table. The audit: *"리텐션 핵심인데 없음."* Partial: ⟳ 이대로 다시 예약 prefill exists. | S–M |
+| U-79 | 사진 공개 동의 → 코스 공개 갤러리 | | M |
+| U-80 | **기록증 (the certificate) + 동네 기록소** | Designed in the brand lab as the object filling Korea's 수료증 gap; **zero server changes needed.** Status: *unruled*, *"the brand lab's recommended territory, unpicked."* | M |
+| U-81 | **B2B revenue ladder R2–R7** | Sampling-as-a-service · affiliate shop · **insurance referral (12.8 % penetration — needs a 보험대리점 posture check)** · 단지 contracts · corporate benefits · data products. Sequenced Sep–2027. | L |
+| U-82 | Naver cafe three-lane presence + agent listening back office | Ops. | M |
+| U-83 | Hangang Saturday event program | Permits (미래한강본부 장소사용), a portable leaderboard kit, sponsor slots, same-day finisher photo delivery. Ops. | L |
+| U-84 | Press kit | Boilerplate, founder bio, 5 approved photos, a fact sheet. `docs/press-kit/` **does not exist**. | S |
+| U-85 | **Campaign publishing** | 49 rendered posts + landing copy are on trunk and unpublished, behind four calls — one of which (**P-13**, the bundle ID) is permanent. | S each |
+
+## 5.H Owner UX · journey
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-86 | **journey-v4's ten "missing owner rooms"** | A 취소 · B 일정 변경 · C 알림 · D 채팅 · **E 레이더 타임아웃** · **F 미결제 홈** · **G 입금 확인** · H 점검 전 코스 · **I 인계 SOS** · **J 리포트 신고**. The lab's own framing: those doors *"appeared eight times as a › and never once opened."* A–D now have real screens; **E, F, G, I, J have no screen.** | M |
+| U-87 | **Post-first-run "finish your profile" nudge** | Sean's ruling **#3**. Verified absent (zero hits for 프로필 완성). | S |
+| U-88 | Handoff CTA off-by-one | See **P-2**. Plumbing landed (`arrivedAt` on `Booking`, `36f501b`); **no gate reads it.** ~20 lines, gated on one word. | S |
+| U-89 | What an owner sees with no card registered | See **P-4** — *every* owner, for the whole pilot. | S–M |
+| U-90 | 지난 예약 server half | Grace window, terminal state, cron. See **P-1**. | M |
+| U-91 | Coral CTA ground A/B | See **L-1**. | S |
+| U-92 | **Profit tab revamp — PARKED by Sean** | Four *objects*, not four palettes: 급여명세서 · 오도미터 · 경주 성적표 · 통장 정리. *"just keep it for now, be more creative."* The code is deliberately untouched. ⚠ Whichever wins must also be applied to `runner/calendar.tsx` **in the same commit.** | M |
+| U-93 | Font consistency on the pre-reserve card (D12) | Deliberately sequenced after D11; still open; **needs device eyes** — *"do not authorise a vague normalise pass."* | S |
+| U-94 | Runner-side full design sweep | *"still open; do it after the three lab picks land."* | M |
+| U-95 | `rewards.tsx` raw English enum + swallowed catches | A failed load renders as **an absence of rewards**. | S |
+| U-96 | Momentum projection for the gear dial | Apple's `current + (v/1000)·d/(1−d)`, d≈0.998. | S |
+| U-97 | **Reduced motion is wired into only 2 loops** | Radar sweep, pulse rings, seal stamps, ring morph and Live Activity all ignore the OS setting. | M |
+| U-98 | **절취선 renders as a SOLID line** | 15 single-side dashed borders render solid on iOS Fabric (which honours `dashed` only at uniform border width); the perforation is a signature of the paper world. **The fix is a shared `<Perforation />` primitive, not 15 style edits** — the RN border property cannot express the shape. All 15 sites are listed in `TODOS.md:845-857`. | S |
+| U-99 | `my.tsx` and `cards.tsx` scroll under the status bar | Missing top safe-area inset on those two screens only. | S |
+| U-100 | **Emoji-by-font-fallback in production data** | `seed.sql:33-37` `routes.features` carries `♒` and `☀`, rendering as colour emoji on owner-home course cards. A data change **plus** a render-path decision. | S |
+| U-101 | Skeleton loaders on list surfaces | `Skeleton` exists and is used on 3 files; list surfaces still render 불러오는 중… text. | S |
+| U-102 | **A real tab pager** | Edge-swipe shipped instead; all four measured blockers still hold (no gesture stack, no tab container, four collision sites, `SealSlide` refuses termination). *"Revisit after payments if edge-swipe proves too hidden."* Router-architecture migration + native rebuild. | L |
+| U-103 | 나이트 러너 dark theme (full app) | Half-dark was retired; the theme code is preserved. *"라이트 통일 — 나이트 러너 테마는 전 화면 완성 후."* | L |
+| U-104 | Chat as a home row | Open question. ⚠ Related and live: Sean, 2026-08-21 — *"i also like 1 but should have a chat option right underneath."* | S |
+| U-105 | **App Store icon still wears the retired forest/volt palette; the Android icon is unreplaced Expo boilerplate** | *"Outside-world exposure, unowned."* | S |
+| U-106 | **Five signature motions** (리드 · 각인 · 보폭 · 파문 · 종이) | Only the depth-press shipped. | M |
+| U-107 | Logo speed streak `#F20914` untokenized | Proposed token name `streak`. | XS |
+| U-108 | Mascot pose sheet | Direction confirmed (크림 진도 + 볼트 반다나), never drawn. External illustration. | M |
+| U-109 | **Matching engine v2 (fit 실화)** | 견종 · 체중 · 에너지 레벨 × 코스 특성. Today's scores are **floor formulas rendered as percentages under an "AI 추천" label** (client-gap F23). | L |
+| U-110 | **Recurring bookings v2** | A real PG charge step, price-revision handling, multi-day. Scaffolding: `0026` + cron + `createRecurringSeries` all exist; the **UX** is the gap. | M |
+| U-111 | 유연 시간대 · 그룹 러닝/다견 동시 · 보호자 이중 예약 방지 | Greenfield. | M / L / S |
+| U-112 | 러너 런 리포트 작성기 (배변·급수·행동 메모) | Notes are displayed; there is no authoring tool beyond the one-tap event strip. | S–M |
+| U-113 | 장비 v2 — 관리자 검수 인증 + 샵 연동 | | M |
+
+## 5.I Routes · maps · geo
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-114 | 🔴 **Route promotion — 0 of ~100 routes are `active`** | Every catalog row is `candidate` with `checked_at` null. The gate is now technically open (0110→ui→0113 complete) but **the founder-walk has not happened** — *"Sean founder-walks the 9 (checked_at + trace + anchor coords) — still the gate before external owners book."* | L |
+| U-115 | Three route names advertise a length the line lacks | See **P-10**. | S |
+| U-116 | The 25-route BUILD-QUEUE + three defects in `ROUTE-PLANS.md` | 126 plans across 15 구; every ⚠ command is malformed (missing target-km positional), 구로구 names are corrupted, culverted streams unfiltered. Ops. | L |
+| U-117 | Anchor `근사값 — 소비 금지` contract flip | Needs a **measured provenance discriminator**; needs Sean's word. Currently the anchor is only a bounding-box prefilter, which the comment already permits — so **flipping it would be pure risk.** | S |
+| U-118 | `lighting` / `shade` sourcing | **No geometry source supplies these** — the two fields that decide whether a route is safe at 6 am. Someone must survey them. Strava explicitly cannot; leave NULL rather than invent. | M |
+| U-119 | **Route-discovery demand-triggered phases T1–T6** | Full-screen map browse + filter panel · weighted recommendation scoring · **paid pioneer runs (개척 런)** · OSM candidate generation + enrichment · off-route detection + follow-nav · hazard one-tap reporting + auto-suspension. Specced, not built; **each carries its own trigger and kill line.** | L |
+| U-120 | Distance-to-pickup on runner job cards | Needs a deliberate **privacy** decision (a coarse bucket computed server-side). Sean's call. | S–M |
+| U-121 | **`runs.trace` server append RPC** | `saveRunTrace` is a raw client UPDATE with no validation; the club path validates shape / monotonic time / speed. Promotion guards close the certification hole, but **the write path itself stays forgeable and RMW-racy.** | M |
+| U-122 | `create-booking-hold` full transactionalization | Booking insert + status updates + slot-hold are separate requests → partial-state windows and TOCTOU on route status. | M |
+| U-123 | `towns` table + pickup-geofence derivation | Constants suffice for 반포/성수; a real table with bboxes when town #2 commits. | S |
+| U-124 | Phase-tagged custody GPS from pickup | The deadhead metric is a straight-line proxy. Needs consent/retention decisions. Feeds anchor economics and 접근-is-exercise dose honesty. | M |
+| U-125 | RDP trace simplification replacing the every-Nth cap | in `promote_route_from_run`. | S |
+| U-126 | PostGIS geography migration | | M |
+| U-127 | Daum-postcode (juso) address search | | M |
+| U-128 | Reverse-geocode pin → road address display | Needs `NAVER_GEOCODE_SECRET`. | S |
+| U-129 | Pickup mini-map on the owner/schedule booking sheet | | S |
+| U-130 | Mid-booking pin staleness on runner/meetup | The fix folds an address refetch into the **frozen** meetup poll. Codex's accepted recommendation: **defer automatic polling; ship an explicit refresh instead.** | S |
+| U-131 | `geocode-address` soft rate limit | | S |
+| U-132 | Owner/runner "current booking" resolver divergence | | S |
+| U-133 | **DESIGN.md distillation** from 파이널 시스템 + catalog labs | Reviews keep re-deriving the system from HTML labs. | S |
+
+## 5.J Infra · gates · platform
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-134 | 🔴 **`check-rpc` never removes a dropped signature, and no gate checks RPC return SHAPE** | A `drop function` leaves the name validated forever; changing a return type from `uuid` to `jsonb` passes **both** gates and renders `/club/case/[object Object]`. | S–M |
+| U-135 | **react-doctor's pre-commit hook cannot block, and its config-error trigger is unknown** | `grep -n exit .githooks/pre-commit` returns **nothing** — the failure branch falls off the end and a script exits with its last command's status. It reports; it never gates. A manual run reports **355 issues (7 bug errors, 1 security error, 347 warnings)**. Deliberately not fixed: *"A hook that works being rewritten on a wrong diagnosis is its own defect."* Three separable Sean calls: the path lookup · the missing `exit 1` · `--blocking warning` vs `error`. ⚠ One finding deserves its own ruling: `supabase-client-owned-authz-field` at `app/index.tsx:25` — **the client writing `profiles.role`. Nobody has ruled on it.** **Practical rule meanwhile: run it manually from `app/`; it takes a DIRECTORY, not a file list.** | S |
+| U-136 | Silent-catch gate script (G1) | `scripts/check-silent-catch.mjs`, to land green **after** the F sweep. | S |
+| U-137 | **Refusals should carry an id, not just a token** | `HttpError` gains `detail`; `_shared/ctx.ts:48` is the error contract of **24** edge functions. Both halves must move in one slice or the field silently does not exist. ⚠ The owner session has **ended**; the half is unowned (**P-11**). | S |
+| U-138 | Server-domain queue Q1 / Q3 / Q6 / Q7 | Open-pool view time predicate · distinct chat pre-accept vs non-party tokens · livecam SKU server price · a closure/`is_loop` flag on `routes_public`. | S each |
+| U-139 | 🔴 **`addresses` has no column grants; broad UPDATE is open to `authenticated`** | **Zero** grant/revoke statements for `addresses` in any migration. A client can PATCH `lat`, `lng`, `addr`, `is_default` on its own rows — **silently rewriting every live booking pointing at that row.** ⚠ *"Do not do this half-way. An RPC added while the grants stay open is security theater."* Pattern exists (`owner_update_address_detail`, `0073`); two direct writers to convert. **P1.** | M |
+| U-140 | Repo-wide narrowing of anon/authenticated table grants (E-10) | *"risky, not started."* | L |
+| U-141 | Cron stagger doctrine could not be honoured literally | Every mod-5 offset is taken. | S |
+| U-142 | Geo test runner produced 37/1 under concurrent load | The failing test's identity was **lost to a `tail`**. Fix: a unique temp dir so a concurrent run cannot race it. *"If it recurs, capture the ❌ line first."* | S |
+| U-143 | **OTA refresh needs Sean's prebuild** | `expo-updates` is configured; `npx expo prebuild -p ios --clean` + a build + `eas update` are his. ⚠ *"It does NOT retroactively help binaries already installed — so it must ship BEFORE a real user population exists."* | S |
+| U-144 | **TestFlight build** | Zero builds have ever run. See **E-4**. | — |
+| U-145 | 🔴 **Bundle-ID rename, and it sits directly before U-144** | `app.json:22` is `com.seankookim.daengrun` — the retired brand — and a bundle ID is **immutable after the first upload**. *"If you do the 2FA step before ruling on this, the retired name is locked into the store identity forever."* | S |
+| U-146 | Two dashboard toggles | See **E-2**, **E-3**. | — |
+| U-147 | `[auth]` in `config.toml` | Blocked: `config push` would clobber Kakao. The auth-surface check pins the full config via the keychain token instead. | S |
+| U-148 | SMS / phone sign-in | *"deferred past pilot."* | M |
+| U-149 | Signup end-to-end verification (the GoTrue half) | See **E-1**. | — |
+| U-150 | **Android, entirely** | The Instagram share module is `platforms: ["apple"]`; Live Activities are Apple-only; Play closed testing requires 12 testers × 14 days. *"Android not implemented."* | L |
+| U-151 | **Real Meta App ID for the Instagram share module** | Currently defaulted to the bundle id. *"Same class as the Toss contract — registration, not code."* Sean-only. ⚠ Related: the Instagram hand-off is **not verified end to end and cannot be** — Instagram will not install on the Simulator. | S |
+
+## 5.K Legal · compliance
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-152 | 🔴 **위치기반서비스사업 신고 (KCC)** | See **E-5**. Criminal exposure that does not shrink pre-revenue. | — |
+| U-153 | 사업자등록 → 통신판매업 → PG 계약 → 자동결제 심사 | ⚠ **The chain is NOT serial** — start the PG application before the 통신판매업 filing completes. | — |
+| U-154 | Privacy policy + ToS counsel review + public hosting | Drafts exist and are audited against real code paths; **counsel review and a public URL do not.** ⚠ *"A released blocker is not an approval."* | — |
+| U-155 | **App Privacy labels — the questionnaire is STALE, not merely unfiled** | `app.json:74` enables background location; the privacy sheet says it is **not** declared. *"Asking 'has it been filed yet' accepts a premise that is already false."* | S |
+| U-156 | `appstore-privacy-answers.md:27` phone-purpose amendment | Must move before ⑪ ships. Tiny, and gating. | XS |
+| U-157 | **Nothing purges `runs.trace`** | 17 crons exist (`purge-chat`, `purge-holds` among them); **no location TTL**. 시행령 제26조의2 caps 개인위치정보 at one year even with separate consent. ⚠ *"Softening §3/§5 deletes the evidence of the gap, not the gap."* Shape exists to copy (`gate_code_access_log`, `0001:130`). | S–M |
+| U-158 | **위치정보 이용·제공 사실 확인자료 ledger** | 위치정보법 제16조 requires automatic recording for ≥6 months; **the policy promises the 열람권 and no ledger exists.** | M |
+| U-159 | **Versioned location-consent gate + owner-side consent record** | Runner consents ARE persisted and `not null` (`0062:81-83`) but carry **no version**; **owner-side consent has no record at all.** | M |
+| U-160 | Logged-out browse decision | See **P-9**. Two independent future thresholds that must not be merged. | S |
+| U-161 | KIPRIS trademark search + one 변리사 consult | 하이독 (HIGHDOG) is a reversed-order near-mark in the pet space. Sean. | — |
+| U-162 | **Bodycam reconciliation across external documents** | In-app copy was cleaned to GPS-only truth; `positioning.md`, the investor one-pager (**₩18M for 25 units**) and the Instagram launch plan still promise bodycam. **No pipeline exists.** Reconcile before public launch. Docs only. | S |
+| U-163 | 🔴 **15–20 owner interviews + the two anchor-free price questions** | The gate the product set for itself. `validation-interviews.md` says *"코드를 더 쓰기 전에 이걸 끝낸다"* — **and we are 60+ migrations past that line with zero interviews.** Sean. | — |
+
+## 5.L i18n · accessibility
+
+| # | Item | What / why it stopped | Size |
+|---|---|---|---|
+| U-164 | **No i18n framework of any kind** | Zero hits for `i18n`, `useTranslation`, `react-intl`; every string is hardcoded Korean across ~57 route files. ⚠ **It is not discussed as a work item anywhere in `docs/`, and that absence is itself the finding** — the English-everywhere-except-in-app-content law presumes a single-locale product. Greenfield. | L |
+| U-165 | Reduced motion | See U-97. | M |
+| U-166 | Anchor tap-target size | Decided under the grant as **O-3**; Sean can still flip by looking. | S |
+| U-167 | Remaining TASTE calls | F19 (Black Han Sans used **4×** on owner home against the "once per screen" law) · F23 (fake AI-recommendation percentage bars) · F6 (= U-74). | S each |
+| U-168 | Colour-contrast sweep beyond the coral row | Five ground rows carry measured annotations; the coral row **never did** until 2026-08-20, and it failed at 3.70:1. The class is "a token row without a measured number next to it." | S |
+
+## 5.M Five cross-cutting facts about this inventory
+
+1. **Roughly a third of it is unblocked only by one sentence from Sean** — filings, credential
+   values, Apple 2FA, dashboard toggles, and the ~16 lettered product calls in Part 3.
+2. **Two items are irreversible and currently ordered wrong:** the bundle-ID rename (**U-145** /
+   **P-13**) must precede the TestFlight upload (**U-144** / **E-4**).
+3. **Two items block the charging cutover specifically:** U-22 (`sweep_settled_without_payments`) and
+   U-25 (club refund copy). `payments_live_since` must not be flipped before both.
+4. **One item blocks the return-seal cutover:** U-47. `return_seal_since` must stay NULL until it
+   ships.
+5. **The largest single category is not features — it is honesty debt on things that already
+   exist**: a shop naming unsigned partners, a badge asserting verification that never happened, a
+   card statement carrying a dead brand, a catalog advertising a length its line lacks, an "AI
+   추천" percentage that is a floor formula. Each is small; together they are the difference between
+   a product that can meet a user and one that cannot.

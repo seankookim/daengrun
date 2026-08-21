@@ -401,8 +401,7 @@ on a bad number.
 **It also says the route catalog is not the moat yet** — `positioning.md:33` names dog fitness DATA as the moat, and drawn geometry
 is not that.
 
-**Your calls:** **A** take its sequencing (freeze feature work → Build 0 → 3×3 concierge runs) · **B** keep building and slot Build 0
-in later · **C** something else. Separately and cheaply: **fix the M1 gauge** (yes/no — it is a bug either way, but you may want it
+**✅ SEAN CHOSE B (2026-08-20): keep building; Build 0 slots in later.** No feature freeze, no 3×3 concierge pivot right now. What that does NOT dismiss, and what a later Build 0 inherits: the native surface is still entirely unproven (0 builds ever), so every native claim in the app — Kakao login, Naver maps, background GPS, push, Live Activities, Toss — remains code-plus-gates only, and the day Build 0 happens its blocker list becomes the queue. Codex's other two risks (no market evidence; no closed-loop ops) are NOT closed by choosing B — they are deferred, and the ops one overlaps §0-duovicies (nothing pays runners). Separately and cheaply: **fix the M1 gauge** (yes/no — it is a bug either way, but you may want it
 fixed before anyone quotes a number from it).
 
 ## 0-duodetricies. 🟡 THREE THINGS THE LEGAL/OPS SWEEP FOUND, each verified by the announcer (2026-08-20)
