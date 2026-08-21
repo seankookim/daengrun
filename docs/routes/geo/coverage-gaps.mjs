@@ -127,10 +127,44 @@ for (let n = 0; n < topN; n++) {
   let dest = null;
   for (const f of features) {
     if (!isUsableGreen(f)) continue;
+    // Parks INSIDE a private apartment estate are not public destinations. The
+    // ranker picked "삼성동힐스테이트1차 공원1" for 강남 — a complex's own garden,
+    // numbered because the estate has several. Same family as the withdrawn
+    // "아이파크 내 인공 폭포".
+    if (/아파트|힐스테이트|자이|래미안|푸르지오|e편한세상|아이파크|캐슬/.test(f.name || '')) continue;
     const kind = f.kind || f.category;
     const d = Math.hypot(my(f.lat) - my(best.c.lat), mx(f.lng, f.lat) - mx(best.c.lng, best.c.lat));
     if (d > 1500) continue;
-    const score = d + KIND_RANK[kind] * 60 + (f.tunnel ? 400 : 0); // 복개천 demoted, not dropped
+    // MAJOR-GREEN PREFERENCE — Sean, 2026-08-21, rejecting 강서 궁산 등촌 5.59km:
+    // "why are we making these purposeless long road runs, esp when the river and
+    // park is less than a km away". Also "head into the river" (영등포, which had
+    // 샛강 675m away and never went) and "could have just gone to the river park".
+    //
+    // MEASURED against his 130-verdict round-3 export: 67% of REJECTED routes
+    // ignored a river/stream or large park within 1km of their anchor, vs 43% of
+    // accepted ones — and every named case matches a comment one-to-one.
+    //
+    // This does NOT undo R1. R1 forbids picking a destination because it makes a
+    // DISTANCE come out; this picks by what the green IS. A river at 900m may now
+    // outrank a pocket park at 200m, but nothing is ever chosen to hit a number.
+    //
+    // Two other hypotheses were measured and FALSIFIED first, and are recorded so
+    // nobody re-runs them: green SHARE of the trace does not separate his verdicts
+    // (38.7% accept vs 33.6% reject by centroid; 5.5% vs 4.9% with real polygons —
+    // a 98%-green route was rejected and a 3% one accepted).
+    // ⚠ MEASURED LIMIT, stated rather than papered over: `lengthM` is populated for
+    // 129/129 streams but only 16/1241 parks and 2/76 lakes. A size test on parks
+    // or lakes would therefore be DEAD CODE that reads as if it works — so this
+    // credit applies to waterways only, and the park half of Sean's complaint
+    // ("the river AND PARK is less than a km away") is NOT yet handled.
+    // Two rejects prove the gap: 강서 궁산 등촌 and 강남 삼성은행나무공원 both keep
+    // picking a pocket park because no park anywhere carries an area to outrank it.
+    // Fixing it needs a park-area harvest (Overpass way/relation area per 구);
+    // queued, not faked.
+    const major = ['river', 'stream'].includes(kind);
+    const MAJOR_CREDIT = 700;   // his own bound: "less than a km away" is worth walking to
+    const effective = Math.max(0, d - (major ? MAJOR_CREDIT : 0));
+    const score = effective + KIND_RANK[kind] * 60 + (f.tunnel ? 400 : 0); // 복개천 demoted, not dropped
     if (!dest || score < dest.score) dest = { name: f.name, kind, d: Math.round(d), score, tunnel: f.tunnel || '', lat: f.lat, lng: f.lng };
   }
 
