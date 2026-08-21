@@ -297,7 +297,7 @@ Deno.test("the sweep picks exactly the due rows and leaves the rest alone", asyn
 // false starving identically (their ->> text is not ""), so the fence names the whole falsy set —
 // and SQL's charge_row_due refuses the same three via _charge_bool: the wake count, the candidate
 // query and the batch now agree about junk.
-Deno.test("kind:'' never reaches the batch, and kind:0/false are scanned-but-never-due", async () => {
+Deno.test("all three falsy-text kinds are fenced at the query — none is ever scanned", async () => {
   const db = scene({
     payments: [
       payRow({ id: "junk-empty", order_id: "dr_junk1", raw: { kind: "", attempts: 0 } }),

@@ -107,27 +107,6 @@ async function runOwner(req: Request, db: SupabaseClient) {
 // ② cron mode — the ladder sweep
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 async function runBatch(db: SupabaseClient, now: Date = new Date()) {
-  // The CANDIDATE predicate is in the query, not in TS: `raw->kind is not null` is the difference
-  // between "200 rows of anything" and "200 rows we could actually collect". The widget era left
-  // pending/failed rows behind that this function will never touch, and with a TS-only filter a
-  // few hundred of them would fill BATCH_LIMIT and starve every real charge behind them — a
-  // silent, permanent stall that looks exactly like "nothing was due". The ladder arithmetic stays
-  // in TS below because it lives inside jsonb and is three-way; the volume no longer does.
-  const { data, error } = await db.from("payments")
-    .select("id, booking_id, order_id, amount, status, payment_key, raw")
-    .in("status", ["pending", "failed"])
-    .not("raw->kind", "is", null)
-    // [fix round F-2 / round 2 finding 2] and not FALSY either: isDue() refuses `!raw.kind`, so a
-    // kind of "" / 0 / false passes a bare not-null query, fails that check, and permanently
-    // occupies one of BATCH_LIMIT's slots — 200 such rows starve every real charge behind them,
-    // forever, while "scanned:200 due:0" reads as a quiet day. PostgREST compares the ->> TEXT
-    // form, so the falsy set is exactly ("", "0", "false"). No current writer produces any of
-    // them, which is why the fence belongs in the query: the first bug that does hits a fence
-    // instead of a stall.
-    .not("raw->>kind", "in", '("","0","false")')
-    .order("created_at", { ascending: true })
-    .limit(BATCH_LIMIT);
-  if (error) throw new HttpError(500, error.message);
 
   // [verdict-3 finding 1 / verdict-4 findings 1-3] TERMINAL rows are candidates forever — an
   // exhausted ladder (attempts ≥ cap) or a dead card stays status='failed' with a kind, so 200
@@ -147,20 +126,27 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
   let pages = 0;
   let truncated = false;
   const MAX_PAGES = 5; // 1000 rows of terminal debris per wake before we say so out loud
+  const seenIds = new Set<string>();
   for (;;) {
     const { data: page0, error: pageErr } = await db.from("payments")
       .select("id, booking_id, order_id, amount, status, payment_key, raw")
       .in("status", ["pending", "failed"])
       .not("raw->kind", "is", null)
       .not("raw->>kind", "in", '("","0","false")')
+      // id as the tiebreak: offset pagination over non-unique created_at can skip or repeat
+      // rows at page boundaries when timestamps tie — a repeated stale row would reach Toss
+      // twice. The id order makes pages stable; the seen-set below is the belt.
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(pages * BATCH_LIMIT, (pages + 1) * BATCH_LIMIT - 1);
     if (pageErr) throw new HttpError(500, pageErr.message);
     const page = page0 ?? [];
     pages += 1;
     scanned += page.length;
-    due = due.concat(page.filter((r) => isDue(r, now)));
-    stale = stale.concat(page.filter((r) => isStaleDispatched(r, now)));
+    const fresh = page.filter((r) => !seenIds.has(r.id));
+    for (const r of fresh) seenIds.add(r.id);
+    due = due.concat(fresh.filter((r) => isDue(r, now)));
+    stale = stale.concat(fresh.filter((r) => isStaleDispatched(r, now)));
     if (due.length > 0) break;               // found chargeable work — stop walking
     if (page.length < BATCH_LIMIT) break;    // table exhausted
     if (pages >= MAX_PAGES) {                // cap: say so loudly, never silently
