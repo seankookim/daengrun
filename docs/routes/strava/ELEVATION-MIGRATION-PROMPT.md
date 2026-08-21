@@ -1,6 +1,34 @@
 # Prompt — add an elevation column to `routes`
 
+> # ⚠ DO NOT RUN THIS PROMPT. IT WAS COMPLETED ON 2026-08-14. — note added 2026-08-21
+>
+> This is the worst kind of stale doc: it is self-contained, it reads as live, and following it
+> produces **duplicate work AND a migration-number collision**. The migration it asks for is
+> **`supabase/migrations/0098_route_elevation.sql`** — `REGISTRY.md` row 0098 reads
+> **BUILT + DEPLOYED + VERIFIED 2026-08-14** (applied to production and read back: 32 rows · 20
+> measured · 12 NULL · range 0–63). Verified today: `0098:120` is
+> `alter table routes add column elevation_gain_m integer;`.
+>
+> **Every judgment call this prompt leaves open was made, and made the way the prompt argued
+> for:** nullable with no default; the `routes_elevation_gain_nonneg` floor with deliberately no
+> upper bound; and the column comment says in so many words that NULL means "no measurement",
+> never "flat". 0098 also went further than the ask — §B-bis clears the value automatically when
+> `trace` changes, because a gain measured on a replaced line describes a route that no longer
+> exists.
+>
+> **Kept, not deleted, for two reasons.** Its §"Process gates" (take the number from the remote
+> tip; a number is taken when EITHER its row or its file reaches origin; `ls | sort` is lexical so
+> `117_` sorts before `97_`) is repo law that outlived this one migration and is worth reading
+> before any migration. And the stale figures below are a dated snapshot worth keeping honest:
+> "32 rows across 8 towns, 20 with GPX" was true on 2026-08-14 — measured 2026-08-21 there are
+> **152 GPX files** in `docs/routes/strava/`, and the `routes` row count is production DB state
+> this session did not query.
+>
+> If you actually need a NEW elevation-related column, this is not your prompt; start from the
+> REGISTRY and take a fresh number.
+
 Hand this to a fresh session. It is self-contained.
+**(⚠ It is also finished — see the banner above before reading another line.)**
 
 ---
 

@@ -97,6 +97,14 @@ the worst `trace_thumb` inter-point gap is **384 m** (마포 상암 난지천 �
 thumb-based snap can place the entry point **up to 192 m** from the true nearest point — which then
 flows straight into the billed approach.
 
+**⚠ 2026-08-21 — "the 83-route corpus" is undated and the corpus has since grown to 152 GPX
+files** (`ls docs/routes/strava/*.gpx | wc -l`). Nothing in the argument changes: the 384 m / 192 m
+figures are a **floor**, not a ceiling, and a bigger corpus can only make the worst gap worse. But
+whoever implements the billed approach should **re-derive the worst gap over the current corpus
+before quoting a bound**, because this one is a number about a set that no longer exists. The same
+applies to the "all 83 routes → 7,694 segment" compute figure further down: it is a sizing
+estimate, so scale it, do not quote it.
+
 `trace_thumb` is for DRAWING. `trace` is for SNAPPING. They are not interchangeable and the bug is
 invisible: the map still looks right.
 
