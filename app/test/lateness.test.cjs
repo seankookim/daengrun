@@ -78,16 +78,18 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
 {
   const km = 5, dur = expectedDurationMs(km); // 5*8+25 = 65 min
   t('expectedDurationMs matches km*8+25', dur === 65 * MIN, String(dur / MIN));
+  // ⚠ both cases must supply startedAt now: a missing one REFUSES rather than falling back, so
+  // omitting it would make these pass for the wrong reason (refusal, not a correct calculation).
   const started = T0 - 30 * MIN;
   t('active mid-run is NOT late',
-     lateness(B('active', started, { km }), T0).late === false);
+     lateness(B('active', started, { km, startedAt: iso(started) }), T0).late === false);
   // ⚠ derive from the constant, never hardcode it — this case was written when grace was 10 min
   // and it correctly went red the moment Sean set grace to 30. That redness is the suite working.
   const longAgo = T0 - (65 * MIN + LATENESS_GRACE_MS + 5 * MIN); // past expected end + grace
   t('active past its expected end IS late',
-     lateness(B('active', longAgo, { km }), T0).late === true);
+     lateness(B('active', longAgo, { km, startedAt: iso(longAgo) }), T0).late === true);
   t('active without km refuses to judge (no guessing)',
-     lateness(B('active', longAgo, { km: null }), T0).late === false);
+     lateness(B('active', longAgo, { km: null, startedAt: iso(longAgo) }), T0).late === false);
 }
 
 // ───────────────────────────────────────────── honesty: unknown time is not lateness
@@ -192,20 +194,26 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('active started 40m ago is NOT late (65m run + 30m grace)', anchored.late === false,
      JSON.stringify(anchored));
 
-  // the same row WITHOUT started_at falls back to scheduled_at and reads wildly overdue —
-  // this is the bug, pinned so the fallback cannot silently become the default again
+  // ⚠ [codex 2026-08-21] The first version FELL BACK to scheduled_at here and pinned that as
+  // correct. It is not. start_run_tx writes status='active' and runs.started_at in one
+  // transaction (0087:193-214), so an active booking with no start time is a broken embed or a
+  // broken RLS policy — never a slow write. Falling back would resurrect the very bug this
+  // commit fixed AND bury the signal that something is broken. It refuses to judge instead.
   const unanchored = lateness(B('active', sched, { km }), T0);
-  t('without started_at it falls back to scheduled_at and reads late', unanchored.late === true);
-  t('…and the two disagree, which is the whole point',
-     anchored.late !== unanchored.late);
+  t('active WITHOUT started_at refuses to judge (does not fall back)', unanchored.late === false,
+     JSON.stringify(unanchored));
+  t('…and reports no waiting party, since it reached no verdict', unanchored.waitingOn === null);
 
   // genuinely overrunning, measured from the real start
   const longRun = lateness(B('active', sched, { km, startedAt: iso(T0 - (dur + 40 * MIN)) }), T0);
   t('active past start+duration+grace IS late', longRun.late === true, JSON.stringify(longRun));
 
-  // garbage timestamp must not poison the verdict — fall back, do not throw or NaN
-  const junk = lateness(B('active', T0 - 10 * MIN, { km, startedAt: 'not-a-date' }), T0);
-  t('unparseable started_at falls back rather than producing NaN', junk.late === false);
+  // Unparseable is the same class as missing: refuse, never guess, never NaN. Pinned against a
+  // scheduled_at far enough in the past that a FALLBACK would read late — so this case now
+  // distinguishes "refused" from "fell back", which the first version could not.
+  const junk = lateness(B('active', T0 - 400 * MIN, { km, startedAt: 'not-a-date' }), T0);
+  t('unparseable started_at refuses (and would read LATE if it fell back)', junk.late === false,
+     JSON.stringify(junk));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -3033,6 +3033,37 @@ export interface Addr {
   lat: number | null; lng: number | null;
 }
 
+// ── 프로필 빈칸 (ruling #3, Sean 선택 ②) ──────────────────────────────────────
+// 무엇을 묻는지가 이 기능의 전부다. 세 칸만 묻고, 셋 다 **러너가 실제로 보는 화면**에 나타난다:
+// 사진 → 러너 티켓 · 백신 → 인계 화면 · 현관 상세 → 티켓 주소. 그래서 넛지가 스팸이 아니다.
+// ⚠ 연락처는 묻지 않는다. profiles.phone 은 전원 NULL 이고 읽는 화면이 없다 — 받아두기만 하는
+// 필드를 묻는 건 넛지가 아니라 수집이고, §12 가 전화 버튼을 거부한 것과 같은 이유다.
+export type ProfileGap = 'photo' | 'vaccines' | 'doorDetail';
+
+export async function fetchProfileGaps(): Promise<ProfileGap[]> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id;
+  if (!uid) return [];
+  // 두 개의 좁은 읽기. 실패는 삼키지 않되 '빈칸 없음'으로 위장하지도 않는다 — 던져서 호출부가
+  // 줄을 아예 그리지 않게 한다. 모르는 것을 '다 채워졌다'로 그리는 게 이 화면의 유일한 거짓말이다.
+  const [dogs, addrs] = await Promise.all([
+    supabase.from('dogs').select('photo_url, vaccinations').eq('owner_id', uid),
+    supabase.from('addresses').select('detail').eq('owner_id', uid).eq('is_default', true).limit(1),
+  ]);
+  if (dogs.error) throw dogs.error;
+  if (addrs.error) throw addrs.error;
+  const rows = dogs.data ?? [];
+  if (rows.length === 0) return []; // 아이가 없으면 물을 것도 없다
+
+  const gaps: ProfileGap[] = [];
+  // 한 마리라도 비어 있으면 빈칸이다 — 다견 가구에서 '한 마리는 채웠으니 됐다'는 러너에게 거짓이다.
+  if (rows.some((d: any) => !d.photo_url)) gaps.push('photo');
+  if (rows.some((d: any) => !Array.isArray(d.vaccinations) || d.vaccinations.length === 0)) gaps.push('vaccines');
+  const detail = (addrs.data ?? [])[0]?.detail;
+  if (!detail || !String(detail).trim()) gaps.push('doorDetail');
+  return gaps;
+}
+
 export async function fetchAddresses(): Promise<Addr[]> {
   const { data, error } = await supabase.from('addresses')
     .select('id, label, addr, detail, is_default, lat, lng').order('created_at');

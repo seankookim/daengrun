@@ -96,12 +96,16 @@ export function lateness(
   let due = start;
   if (status === 'active') {
     if (b.km == null || !Number.isFinite(b.km)) return none;
-    // ⚠ 실제 출발 시각부터 잰다. 예약 시각을 기준으로 하면 20분 늦게 출발한 러닝이 20분 일찍
-    // '초과'가 되고, 일찍 출발한 러닝은 실제로 길어졌는데도 정상으로 보인다. started_at 은
-    // 서버가 쓰는 값이라(runs) 클라이언트 추정보다 신뢰도가 높다. 없으면 예약 시각으로 폴백.
+    // ⚠ 실제 출발 시각부터 잰다. 예약 시각으로 재면 20분 늦게 출발한 러닝이 20분 일찍 '초과'가 된다.
+    // started_at 이 없으면 **판정하지 않는다** — 예약 시각으로 폴백하지 않는다.
+    // 왜: start_run_tx 는 status='active' 와 runs.started_at 을 같은 트랜잭션에서 쓴다
+    // (0087:193-214). 그러니 active 인데 started_at 이 없다는 건 정상적인 지연 도착이 아니라
+    // **임베드나 RLS 가 깨졌다는 뜻**이다. 그때 예약 시각으로 조용히 되돌아가면 두 가지를 동시에
+    // 잃는다: 방금 고친 버그가 되살아나고, 깨졌다는 신호가 영원히 묻힌다.
+    // 시각을 모르면 늦었다고 말하지 않는다는 이 파일의 규칙(위 scheduledAt 분기)과 같은 처리다.
     const startedMs = b.startedAt ? Date.parse(b.startedAt) : NaN;
-    const base = Number.isNaN(startedMs) ? start : startedMs;
-    due = base + expectedDurationMs(b.km);
+    if (Number.isNaN(startedMs)) return none;
+    due = startedMs + expectedDurationMs(b.km);
   }
 
   const deadline = due + graceMs;
