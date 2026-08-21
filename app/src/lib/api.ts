@@ -4198,18 +4198,29 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
 // DESC + limit 20이라 '가장 먼 미래' 20건을 남기는데, 진행 중 예약의 scheduled_at은 지금 — 즉 그
 // 20건 전부보다 과거다. 미래 예약이 20건을 넘기는 순간 개가 나가 있는 동안 히어로가 '비어 있어요'로
 // 접힌다. fetchBookingCard가 세운 원칙과 같다: 추측하면 안 되는 리더는 자기 행을 따로 읽는다.
-// 다만 여기서 읽는 근거는 id가 아니라 '진행 중'이라는 조건이므로 IN_FLIGHT로 필터하고 캡을 두지
-// 않는다 (진행 중 예약은 정의상 한 자릿수 — 서버가 동시 진행을 막는다).
+// 여기서 읽는 근거는 id가 아니라 '진행 중'이라는 조건이므로 IN_FLIGHT로 필터한다.
+// ⚠ [정정 2026-08-21] 이 주석은 처음에 "진행 중 예약은 정의상 한 자릿수 — 서버가 동시 진행을
+// 막는다"고 적고 캡을 두지 않았다. **그런 불변식은 없다.** 확인 결과 bookings에는 owner당 진행 중
+// 행을 하나로 묶는 unique/exclusion 제약이 없다 — 0001_init.sql:396-398은 평범한 인덱스뿐이다.
+// 개가 여러 마리면 동시 진행이 정상이고, confirmed에는 만료 크론이 없어(리뷰 P1) 지난 행이 쌓인다.
+// 캡이 없으면 PostgREST 기본 상한에 걸리는 날 **어느 행이 빠질지 서버가 정한다** — B9에서 고친 것과
+// 똑같은 '조용히 사라지는 행' 문제를 다른 문으로 다시 들이는 셈이다.
+// 그래서 결정적으로 자른다: 24시간 전부터, 가까운 순(오름차순), 10건. 오름차순인 게 핵심 —
+// 내림차순은 '가장 먼 미래' 우선이라 진행 중인 건(지금 ≈ 과거)을 밀어내고, 그게 정확히 B9였다.
 // ⚠ 여기서 랭킹하지 않는다. 히어로의 정렬(RANK + 과거 6h 유예 타이브레이크)이 유일한 결정자로
 // 남아야 하므로, 이 함수는 그 행이 **목록에 존재하게** 만들기만 하고 고르는 일은 하지 않는다.
 export async function fetchInFlightOwnerBookings(): Promise<Booking[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];
+  const since = new Date(Date.now() - 24 * 3_600_000).toISOString(); // 하루 넘게 '진행 중'인 행은 잔재다
   const { data, error } = await supabase
     .from('bookings')
     .select(MY_BOOKING_SELECT)
     .eq('owner_id', user.user.id)
-    .in('status', IN_FLIGHT);
+    .in('status', IN_FLIGHT)
+    .gte('scheduled_at', since)
+    .order('scheduled_at', { ascending: true })
+    .limit(10);
   // 정직 배치 (fetchCurrentOwnerBookingId와 같은 이유): 네트워크 실패가 '진행 중 없음'으로 위장하면
   // 히어로가 개가 나가 있는데 비었다고 조용히 거짓말한다. 호출부가 실패를 실패로 말하게 던진다.
   if (error) throw error;

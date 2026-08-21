@@ -161,8 +161,15 @@ export default function OwnerHome() {
     Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
       .then(([bs, inFlight]) => {
         // 합집합 — 20행 창에 이미 들어 있으면 중복시키지 않는다 (id 기준).
+        // ⚠ [정정 2026-08-21] 겹치는 행은 **진행 중 사본이 이긴다.** 두 읽기는 동시에 나가므로 그
+        // 사이에 전이가 착륙하면 목록 사본이 한 단계 낡을 수 있고(confirmed vs active), 먼저 온
+        // 쪽을 그냥 두면 히어로가 낡은 쪽을 그린다 — 실시간 이벤트를 한 번 놓치면 새로고침까지
+        // 그대로 남는다. 두 사본이 있으면 진행 중 읽기가 더 좁고 더 최신이므로 그쪽을 쓴다.
+        const liveById = new Map(inFlight.map((b) => [b.id, b]));
         const seen = new Set(bs.map((b) => b.id));
-        const rows = inFlight.length ? [...bs, ...inFlight.filter((b) => !seen.has(b.id))] : bs;
+        const rows = inFlight.length
+          ? [...bs.map((b) => liveById.get(b.id) ?? b), ...inFlight.filter((b) => !seen.has(b.id))]
+          : bs;
         // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
         // 스테일 '매칭 중'이 확정 러닝(인계 확인)을 가리는 사고 방지
         const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
