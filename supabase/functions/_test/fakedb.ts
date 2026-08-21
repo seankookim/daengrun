@@ -270,6 +270,13 @@ class Q implements PromiseLike<any> {
           return val === null ? !(cell === null || cell === undefined) : cell !== val;
         case "not:eq":
           return cell !== val;
+        case "not:in": {
+          // PostgREST `col=not.in.(a,b,c)` — compare the ->> TEXT form, the way PostgREST does:
+          // 0 → "0", false → "false". Parses the parenthesized, comma-separated, quoted list.
+          const items = String(val).replace(/^\(|\)$/g, "").split(",")
+            .map((x) => x.trim().replace(/^"|"$/g, ""));
+          return !items.includes(String(cell));
+        }
         case "in":
           return (val as any[]).includes(cell);
         case "gte":

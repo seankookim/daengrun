@@ -11,7 +11,6 @@
 --   §A `sweep_settled_without_payments`   ← 0080 §G   (0083 §0f handed this predicate to 0080's
 --                                                      owner explicitly; this is that handoff
 --                                                      being collected, not a drive-by edit)
---   §B `_club_record_cancel_fee`          ← 0048 §B
 --   §C `dispatch_due_charges`             ← 0080 §K ⓑ
 --   §D `club_incident_settle_quote`       ← 0072 §A
 --       `runner_work_gate`                ← 0092 §7
@@ -90,13 +89,17 @@ begin
       and not exists (
         select 1 from payments p
         where p.booking_id = b.id
-          -- [fix round F-5] EXACTLY the mint's check (0080:371), status arm included: a
-          -- kind-bearing row that is canceled/partial_canceled satisfies neither side now — the
-          -- mint would re-mint for it, so the sweep must not treat it as existence. Latent today
-          -- (cancellation code overwrites raw without preserving kind) but the comment above
-          -- PROMISES alignment, so the predicate keeps the promise literally.
-          and (((p.raw->>'kind') is not null and p.status in ('pending', 'failed'))
-               or p.status in ('confirmed', 'waived'))
+          -- ⚠ [review round 2, finding 4] DELIBERATELY WIDER than the mint's own existence
+          -- check, not equal to it. The mint recognizes kind-bearing rows only at
+          -- pending/failed; if the sweep matched that exactly, a kind-bearing row in a refund
+          -- vocabulary (canceled/partial_canceled — admitted by the schema, emitted by no
+          -- current writer) would blind NEITHER side and the sweep would hand the mint a
+          -- booking it double-charges (first capture's remainder + a fresh full intent). Any
+          -- kind-bearing row means THIS MACHINE has already touched the booking, and a human
+          -- resolves refund-shaped rows — the sweep stays out. Round 1 "aligned" the two
+          -- predicates; the reviewer showed the ₩15,000+₩20,000 overcharge; 151 B1 ⓒ′ pins
+          -- the wider form (re-align it and that arm reds).
+          and ((p.raw->>'kind') is not null or p.status in ('confirmed', 'waived'))
       )
   loop
     -- A finished run with no end_reason cannot be priced honestly, and guessing 'completed'
@@ -141,119 +144,20 @@ null) — the flip must never bill a pilot-era run retroactively';
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- §B  F2 — the club cancel fee never reaches the money, and the runner's share never lands
+-- §B  — DELIBERATELY ABSENT (recut 2026-08-21, Sean's decision via /autoplan gate)
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- `_club_record_cancel_fee` (0048 §B) computes the fee, splits it, and writes BOTH halves to
--- `club_fee_items` — a ledger of intent that nothing downstream reads. It never writes
--- `bookings.cancel_fee`. Verified live by the announcer (writes_booking_fee → false,
--- writes_club_items → true). Two consequences, both dormant only because charging is off:
---   · `mint_cancel_fee_intent` (0080 §E) reads `coalesce(b.cancel_fee, 0)` and mints NOTHING at
---     0, so a club cancellation is structurally uncollectable.
---   · `owner_has_unsettled_charge` (0080 §F) scopes on `coalesce(b.cancel_fee, 0) > 0`, so the
---     debt gate cannot see it either.
---   · and `my_ledger_total` (0027) sums `ledger_items`, which this function never writes — so the
---     runner's supply-compensation share exists as a club_fee_items row and as nothing the runner
---     can ever be paid from.
---
--- ⚠ WHAT THIS SECTION DELIBERATELY DOES **NOT** DO — read before "finishing" it.
--- TWO FEE LADDERS EXIST and which one governs a club cancellation is Sean's open ruling
--- (§0-tricies item 2):
---   · the club ladder — `club_cfg('cancel_post_accept_pct')` 20 / `cancel_late_pct` 10 / free,
---     split 50/50 platform:runner by `club_cfg('fee_platform_split_pct')` (0048/0057)
---   · the marketplace ladder — 0066's 0 / 50% en-route / 0 / 10%, with 0085 paying the runner
---     50% of the fee
--- This file CHOOSES NEITHER. It takes the amounts the existing code ALREADY computed — `v_fee`
--- and the supply-compensation share `v_fee - v_plat` — and connects them to the two places that
--- were never wired. If Sean later rules that the marketplace ladder governs, the ladder changes
--- in `session_cancel_delegation`'s percentage arms and this plumbing keeps working unchanged.
--- Writing the ruling into this file would have made a decision that is not this slice's to make.
---
--- ── Two idioms borrowed verbatim, and why each ────────────────────────────────────────────
--- ① FIRST WRITER WINS on `bookings.cancel_fee` (`and coalesce(cancel_fee, 0) = 0`). Post-cutover
---    a payments row is minted FROM this number, so silently re-pricing it under a live charge
---    intent is the one thing a second call must not do. Same direction as 0080 §E and 0085: an
---    already-recorded amount is REPORTED, never overwritten.
--- ② The ledger write takes 0080 §K's `comp:` advisory key and 0085's existence check, because it
---    is a THIRD writer into the same one-row-per-booking space. `ledger_items` has no unique key
---    on booking_id (0001:264, 0080:1112 explains why), so the shared lock IS the serialization —
---    read-then-insert under a per-booking lock. Sharing the key means the club comp writer and
---    the two marketplace comp writers cannot interleave past each other's existence check even
---    if a caller bug got two of them running for one booking.
--- ③ The share sits in `remaining_guarantee` with `platform_fee` = 0. MEASURED TRAP, transcribed
---    from 0085: `my_ledger_total` subtracts `platform_fee`, so recording the platform's half
---    there — which reads as the honest double-entry thing to do — nets the runner to ZERO at a
---    50/50 split. The ledger is the RUNNER's book of what they are owed, not a double-entry one.
---    The platform's half stays in `club_fee_items`, where 0048 already puts it.
--- ④ `p_runner` is passed in, not read back from `bookings.runner_id`, because
---    `session_cancel_delegation` NULLs `runner_id` before calling this (it revokes the assignment
---    first). The caller's captured runner is the only correct one.
-create or replace function _club_record_cancel_fee(
-  p_session uuid, p_sd uuid, p_booking uuid, p_kind text,
-  p_base int, p_pct numeric, p_runner uuid, p_rule text
-) returns void
-language plpgsql security definer set search_path = public, pg_temp as $$
-declare v_fee int; v_plat int; v_share int;
-begin
-  v_fee := round(p_base * p_pct / 100.0)::int;
-  if v_fee <= 0 then return; end if;
-  v_plat := round(v_fee * coalesce(club_cfg('fee_platform_split_pct'), 50) / 100.0)::int;
-  insert into club_fee_items (session_id, session_dog_id, booking_id, kind, amount_krw,
-    recipient_type, recipient_profile_id, basis)
-  values
-    (p_session, p_sd, p_booking, p_kind, v_plat, 'platform', null,
-     jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule, 'share', 'platform')),
-    (p_session, p_sd, p_booking, p_kind, v_fee - v_plat,
-     case when p_runner is not null then 'runner' else 'platform' end, p_runner,
-     jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule, 'share', 'supply_compensation'));
-
-  if p_booking is null then return; end if;   -- session-level fee with no booking: nothing to bill
-
-  -- [0116 §B ①] the owner's side — the number the charge mint and the debt gate both read
-  update bookings set cancel_fee = v_fee
-  where id = p_booking and coalesce(cancel_fee, 0) = 0;
-
-  -- [0116 §B ②③④] the runner's side — supply compensation reaching `my_ledger_total`
-  v_share := v_fee - v_plat;
-  if p_runner is not null and v_share > 0 then  -- a share that rounds to nothing pays nothing
-    perform pg_advisory_xact_lock(hashtextextended('comp:' || p_booking::text, 0));
-    if not exists (select 1 from ledger_items li where li.booking_id = p_booking) then
-      insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay,
-                                tip, remaining_guarantee, platform_fee)
-      values (p_runner, p_booking, 0, 0, 0, 0, v_share, 0);
-    end if;
-  end if;
-
-  -- [0116 §B ⑤ / fix round F-1] 🔵 THE INTENT, minted here — because a recorded fee that nothing
-  -- collects is not a fee. The only application call to `mint_cancel_fee_intent` was
-  -- cancel_owner.ts:156, and cancel_owner REFUSES club bookings (0057's own decision), so a
-  -- club cancel/no-show fee reached `bookings.cancel_fee` and then nothing ever minted it: the
-  -- runner's share was CREDITED while the owner was never charged and never debt-gated — the
-  -- platform paying supply compensation out of pocket (adversarial review, finding 1). Minting
-  -- HERE is the exact parallel of the marketplace path and decides NO ladder question: the mint
-  -- reads only `bookings.cancel_fee` (written above), is gated on `payments_live_since` in its
-  -- own first line ("charging is off: fee stays recorded-only" — its words), and is idempotent
-  -- under its own 'mint:' advisory key. Lock order is 'comp:' then 'mint:'; no path in this repo
-  -- holds them reversed (the marketplace path takes them in separate transactions).
-  -- Exception-guarded because the CANCELLATION must not fail on a mint hiccup — the fee stays
-  -- recorded and any later call re-mints idempotently.
-  begin
-    perform mint_cancel_fee_intent(p_booking);
-  exception when others then
-    raise notice '_club_record_cancel_fee: mint deferred for booking % — %', p_booking, sqlerrm;
-  end;
-end $$;
-revoke execute on function _club_record_cancel_fee(uuid, uuid, uuid, text, int, numeric, uuid, text)
-  from public, anon, authenticated;
-
-comment on function _club_record_cancel_fee is
-  '0048 §B + [0116 §B]: 클럽 취소·노쇼 수수료 분배. club_fee_items 두 행(플랫폼 몫 + 공급 보상)에
-더해 이제 **bookings.cancel_fee**(보호자가 실제로 청구받는 금액 — 0080 §E 민팅과 §F 부채 게이트가
-읽는 유일한 숫자)와 **ledger_items.remaining_guarantee**(러너의 공급 보상 — my_ledger_total이
-읽는 유일한 곳)까지 쓴다. cancel_fee는 먼저 쓴 값이 이긴다(살아있는 청구 인텐트의 금액을 조용히
-바꾸지 않는다). 원장 쓰기는 0080 §K의 comp: 자문 락 + 부킹당 1행 검사 — 세 comp 작성자가 같은
-키 공간을 공유한다. platform_fee는 0 (my_ledger_total이 그것을 빼기 때문). ⚠ 어느 사다리가
-지배하는지는 결정되지 않았다 — 이 파일은 배관만 잇고 기존 계산식을 그대로 쓴다';
-
+-- The club cancel-fee half of §0-tricies item 2 was cut from this migration after two
+-- adversarial review rounds + a dual-voice strategy review agreed on the same three facts:
+-- its writes (`bookings.cancel_fee`, the runner's `ledger_items` share) are NOT gated on
+-- `payments_live_since` and would run live pre-flip; "plumbing only" still made the unruled
+-- club ladder effective policy under first-writer-wins; and the shared recorder ignores
+-- p_kind, so no-show fees rode along beyond the queue item's scope. Sean chose the recut, and
+-- separately RULED the ladder (2026-08-21, structured choice: "Use the club rules as written"
+-- — club_config values confirmed: free ≥24h · 10% late · 20% post-accept/no-show · 50/50
+-- platform:runner split). The complete club-fee slice — recorder + intent mint + event-time
+-- cutover + no-show as its own named policy + the 「모의 시대」 copy flip + ops-visible mint
+-- failure + recovery sweep — is a HELD follow-up designed against that ruling; its spec lives
+-- in this row's REGISTRY entry. `_club_record_cancel_fee` is untouched by this migration.
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- §C  F3 — one unparseable timestamp stopped charge dispatch for EVERYBODY
@@ -363,7 +267,10 @@ language sql stable set search_path = public, pg_temp as $$
           and coalesce(_charge_int(p_raw, 'attempts'), 0) < charge_max_attempts()
           and coalesce(_charge_bool(p_raw, 'needs_card_relink'), false) = false
           and coalesce(_charge_ts(p_raw, 'next_retry_at'), '-infinity'::timestamptz) <= p_at)
-     or (p_status = 'pending' and (p_raw->>'dispatched_at') is null)
+     -- [review round 2, finding 3] `not _charge_bool`, not `is null`: TS treats a falsy
+     -- dispatched_at ("" / 0 / false) as never-dispatched and collects; a bare null-check left
+     -- SQL seeing non-null text, failing the cast, and never waking — the row stranded forever.
+     or (p_status = 'pending' and not _charge_bool(p_raw, 'dispatched_at'))
      or (p_status = 'pending'
           and _charge_ts(p_raw, 'dispatched_at') <= p_at - interval '15 minutes')
    ), false)

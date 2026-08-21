@@ -12,17 +12,12 @@
 --         an earlier draft of this header claimed C9 reds too, which contradicted the REGISTRY)
 --   §A weaken to `coalesce(rn.settled_at, b.run_ended_at) is not null`
 --                                                              → RED = [B1] (fixture stamps run_ended_at)
---   §B delete the `perform mint_cancel_fee_intent` call        → RED = [B2 ⓕ]
---   §B drop first-writer-wins (the `coalesce(cancel_fee,0)=0` guard)
---                                                              → RED = [B2 ⓖ] (numbers DIFFER there)
 --   §C revert the kind arm to bare `IS NOT NULL`               → RED = [B4] (kind:"" arm)
 --   §D ⓐ delete the case_owner arm                             → RED = [B5 ⓖ]
 --   §D ⓐ drop the backup-host reach                            → RED = [B5 ⓗ]
 --   §D ⓒ remove the null-uid exemption                         → RED = [B7]
 --   grant anon EXECUTE on any §D function · re-grant club_host_stats to service_role
 --                                                              → RED = [B9]
---   §B delete the `update bookings set cancel_fee`             → RED = [B2]
---   §B delete the ledger_items insert                          → RED = [B2]
 --   §C revert dispatch_due_charges to the open-coded predicate  → RED = [B3]
 --   §C delete the `charge_max_attempts()` arm of charge_row_due → RED = [B4]
 --   §D ⓐ delete the club_incident_settle_quote party gate      → RED = [B5]
@@ -152,6 +147,20 @@ begin
     select count(*) into v_n from payments where booking_id = ba;
     if v_n <> 1 then v_bad := v_bad || ' 2회차 스윕이 행을 더 만들었다=' || v_n; end if;
 
+    -- ⓒ′ [round 2, review finding 4] a kind-bearing row in a REFUND vocabulary blinds the sweep
+    --    — deliberately. If the sweep's existence check matched the mint's exactly (pending/
+    --    failed only), a canceled settle_charge row would blind neither side and the sweep
+    --    would hand the mint a booking it double-charges (first capture's remainder + a fresh
+    --    full intent). The predicate is WIDER than the mint's on purpose; this arm is the pin
+    --    that keeps it that way — re-align the predicate and THIS reddens.
+    -- a REAL canceled charge carries its payment_key (payments_settled_has_key enforces it —
+    -- a first draft of this arm flipped only the status and the constraint refused, correctly)
+    update payments set status = 'canceled', payment_key = 'tviva_fbl_cxl' where booking_id = ba;
+    perform sweep_settled_without_payments();
+    select count(*) into v_n from payments where booking_id = ba;
+    if v_n <> 1 then v_bad := v_bad || ' 🔴 취소된 kind 행이 스윕을 못 막았다(행수=' || v_n || ') — 이중 청구'; end if;
+    update payments set status = 'pending', payment_key = null where booking_id = ba;  -- 뒤 팔 복원
+
     -- the moment the return seal lands, the same row becomes billable — the gate is settlement,
     -- not a permanent refusal (the arm that catches "just never mint anything")
     update runs set settled_at = now() where booking_id = b2;
@@ -173,127 +182,10 @@ begin
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- [B2] §B the club cancel fee reaches the money, and the runner's share reaches the ledger
+  -- [B2] — DELIBERATELY ABSENT (recut 2026-08-21): §B left this migration; its pins go with
+  -- it into the held club-fee slice, to be rewritten against Sean's recorded ladder ruling.
+  -- The fixtures above (the paid, accepted delegation) stay — B5 quotes it and B7 projects it.
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- `_club_record_cancel_fee` wrote `club_fee_items` and nothing else, so `mint_cancel_fee_intent`
-  -- (which reads `bookings.cancel_fee`) and `owner_has_unsettled_charge` (which scopes on it) both
-  -- saw ZERO for a club cancellation, and the runner's supply-compensation share existed only as a
-  -- row nothing pays from. 66 F5 already pins the LADDER; this pins the PLUMBING, and pins it as
-  -- plumbing: every number asserted here is compared against what the existing club_fee_items rows
-  -- already say, never against a rate this suite invents. Which ladder governs is Sean's open
-  -- ruling (§0-tricies item 2) and no pin here has an opinion about it.
-  begin
-    v_bad := '';
-    select total_price into v_total from bookings where id = b_pay;
-    perform set_config('request.jwt.claim.sub', rr::text, false);
-    v_pre := my_ledger_total();
-
-    perform set_config('request.jwt.claim.sub', oo::text, false);
-    perform session_cancel_delegation(sda);                    -- 수락 후 취소 = 사다리 상단
-
-    -- what the EXISTING code computed, read back from its own ledger of intent
-    select coalesce(sum(amount_krw), 0) into v_fee
-      from club_fee_items where session_dog_id = sda and kind = 'cancel_fee';
-    select coalesce(sum(amount_krw), 0) into v_share
-      from club_fee_items where session_dog_id = sda and kind = 'cancel_fee'
-        and basis->>'share' = 'supply_compensation';
-    select coalesce(sum(amount_krw), 0) into v_plat
-      from club_fee_items where session_dog_id = sda and kind = 'cancel_fee'
-        and basis->>'share' = 'platform';
-    if v_fee <= 0 then v_bad := v_bad || ' 픽스처가 수수료를 만들지 못했다 (핀이 공허해진다)'; end if;
-    if v_share <= 0 then v_bad := v_bad || ' 픽스처가 러너 몫을 만들지 못했다'; end if;
-    if v_fee <> v_plat + v_share then v_bad := v_bad || ' 픽스처 산술 불일치 ' || v_fee || '<>' || v_plat || '+' || v_share; end if;
-
-    -- ⓐ the owner's side — the number the mint and the debt gate read
-    if (select cancel_fee from bookings where id = b_pay) is distinct from v_fee
-      then v_bad := v_bad || ' 🔴 bookings.cancel_fee=' || coalesce((select cancel_fee from bookings where id = b_pay)::text, '∅')
-        || ' (기록된 수수료 ' || v_fee || '와 다르다 — 청구 민팅과 부채 게이트가 0을 본다)'; end if;
-
-    -- ⓑ the runner's side — a ledger row carrying exactly the supply-compensation share
-    select count(*) into v_n from ledger_items where booking_id = b_pay;
-    if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n || ' (부킹당 1행)'; end if;
-    if not exists (select 1 from ledger_items li where li.booking_id = b_pay
-                     and li.runner_id = rr and li.remaining_guarantee = v_share
-                     and li.platform_fee = 0)
-      then v_bad := v_bad || ' 🔴 러너 공급보상이 원장에 없다 (기대 remaining_guarantee=' || v_share || ', platform_fee=0)'; end if;
-
-    -- ⓒ and it actually reaches what the runner is SHOWN. platform_fee is subtracted by
-    --    my_ledger_total (0085's measured trap), so a "double-entry" write here would net to 0.
-    perform set_config('request.jwt.claim.sub', rr::text, false);
-    v_ledger := my_ledger_total();
-    if v_ledger - v_pre <> v_share
-      then v_bad := v_bad || ' my_ledger_total 증가분=' || (v_ledger - v_pre) || ' (기대 ' || v_share || ')'; end if;
-
-    -- ⓓ idempotence: the shared `comp:` key space means one booking gets one ledger row even if a
-    --    second comp writer runs. Calling the recorder again must add nothing.
-    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 20, rr, 'post_acceptance');
-    select count(*) into v_n from ledger_items where booking_id = b_pay;
-    if v_n <> 1 then v_bad := v_bad || ' 재호출이 원장 행을 추가했다=' || v_n; end if;
-    if (select cancel_fee from bookings where id = b_pay) is distinct from v_fee
-      then v_bad := v_bad || ' 재호출이 이미 기록된 청구 금액을 바꿨다'; end if;
-
-    -- ⓓ′ and with charging OFF the mint's own first line refused: fee recorded, NOTHING minted.
-    --    (Scoped to kind='cancel_fee' — the club pay path must stay out of this count.)
-    if exists (select 1 from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee')
-      then v_bad := v_bad || ' 🔴 차징 오프인데 취소 수수료 인텐트가 민팅됐다'; end if;
-
-    -- ⓔ NEGATIVE CONTROL — the free tier writes nothing anywhere. Without this arm a plumbing
-    --    that wrote a fee unconditionally would pass every assertion above.
-    perform set_config('request.jwt.claim.sub', oz::text, false);
-    sdz := session_delegate_dog(v_s2, dz, t_consent());
-    perform set_config('request.jwt.claim.sub', hh::text, false);
-    perform session_approve_dog(sdz, true);
-    perform set_config('request.jwt.claim.sub', oz::text, false);
-    b_free := session_pay_delegation(sdz, 'idem-fbl-free', true);
-    perform session_cancel_delegation(sdz);                    -- 24h 밖 · 미배정 = 무료
-    if exists (select 1 from club_fee_items where session_dog_id = sdz)
-      then v_bad := v_bad || ' 무료창인데 수수료 행이 생겼다 (픽스처가 무료 티어가 아니다)'; end if;
-    if coalesce((select cancel_fee from bookings where id = b_free), 0) <> 0
-      then v_bad := v_bad || ' 🔴 무료 취소에 청구 금액이 기록됐다=' || (select cancel_fee from bookings where id = b_free); end if;
-    if exists (select 1 from ledger_items where booking_id = b_free)
-      then v_bad := v_bad || ' 🔴 무료 취소에 원장이 생겼다'; end if;
-    perform set_config('request.jwt.claim.sub', '', false);
-
-    -- ⓕ POST-FLIP (fix round F-1): the recorded fee becomes an INTENT, minted from HERE — the
-    --    only application caller of mint_cancel_fee_intent refused club bookings, so the runner
-    --    was credited while the owner was never charged and never debt-gated (review finding 1).
-    select f.payments_live_since into v_since from ops_flags f where f.id;
-    update ops_flags set payments_live_since = now() - interval '7 days', updated_at = now();
-    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 20, rr, 'post_acceptance');
-    select count(*), coalesce(max(amount), 0) into v_n, v_amt
-      from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
-    if v_n <> 1 then v_bad := v_bad || ' 🔴 포스트플립 인텐트 행수=' || v_n || ' (기대 1 — 기록된 수수료가 영영 걷히지 않는다)'; end if;
-    if v_amt <> v_fee then v_bad := v_bad || ' 🔴 민팅 금액=' || v_amt || ' (기록된 수수료 ' || v_fee || '와 다르다)'; end if;
-    -- the debt gate gives dispatch its hour on purpose (0080:526) — a FRESH intent is not yet
-    -- debt, and asserting otherwise would pin the grace window out of existence. Both sides:
-    if owner_has_unsettled_charge(oo)
-      then v_bad := v_bad || ' 갓 민팅된 인텐트가 즉시 부채다 (디스패치 유예 1시간이 사라졌다)'; end if;
-    update payments set raw = raw || jsonb_build_object('dispatched_at', (now() - interval '2 hours')::text)
-      where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
-    if not owner_has_unsettled_charge(oo)
-      then v_bad := v_bad || ' 🔴 부채 게이트가 디스패치 1시간 지난 취소 수수료를 못 본다 — 클럽 취소가 부채가 못 된다'; end if;
-    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 20, rr, 'post_acceptance');
-    select count(*) into v_n from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
-    if v_n <> 1 then v_bad := v_bad || ' 재호출이 인텐트를 복제했다=' || v_n; end if;
-    -- ⓖ first-writer-wins proven with DIFFERENT numbers: ⓓ's re-call repeated the same base and
-    --    pct, so dropping the guard stayed green there — here the tier differs, and a re-price
-    --    under a LIVE intent must change neither the recorded fee nor the minted amount.
-    perform _club_record_cancel_fee(v_s, sda, b_pay, 'cancel_fee', v_total, 10, rr, 'late_tier');
-    if (select cancel_fee from bookings where id = b_pay) is distinct from v_fee
-      then v_bad := v_bad || ' 🔴 다른 값의 재호출이 살아있는 청구 금액을 바꿨다'; end if;
-    select coalesce(max(amount), 0) into v_amt
-      from payments where booking_id = b_pay and raw->>'kind' = 'cancel_fee';
-    if v_amt <> v_fee then v_bad := v_bad || ' 🔴 다른 값의 재호출이 민팅 금액을 바꿨다=' || v_amt; end if;
-    update ops_flags set payments_live_since = v_since, updated_at = now();
-
-    if v_bad = ''
-      then call _pass('fbl','B2 §B 클럽 취소 수수료가 돈에 닿는다 — bookings.cancel_fee(민팅·부채 게이트가 읽는 유일한 숫자)와 러너 공급보상 원장 1행(remaining_guarantee, platform_fee=0 → my_ledger_total에 그대로 더해진다)이 club_fee_items가 이미 계산한 값과 정확히 같고, 재호출은 아무것도 더하지 않으며, 무료 티어는 세 곳 모두에 아무것도 쓰지 않는다; 차징 오프에선 인텐트가 민팅되지 않고, 플립 뒤엔 기록된 수수료 그대로 한 번만 민팅되어 부채 게이트에 보이며, 다른 값의 재호출은 청구액도 인텐트도 바꾸지 못한다 (사다리 선택 없음 — 배관만)');
-    else v_msg := v_bad; call _fail('fbl','B2 §B 클럽 취소 수수료 배관', v_msg); end if;
-  exception when others then
-    perform set_config('request.jwt.claim.sub', '', false);
-    update ops_flags set payments_live_since = v_since, updated_at = now();  -- ⓕ가 켰다면 되끈다
-    v_msg := sqlerrm; call _fail('fbl','B2 §B 클럽 취소 수수료 배관', v_msg);
-  end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [B3] §C one unparseable timestamp must fail its OWN ROW, never the batch
@@ -398,6 +290,15 @@ begin
     -- pending arms
     if not charge_row_due('pending', 100, '{"kind":"k"}'::jsonb, now())
       then v_bad := v_bad || ' 미발송 인텐트가 due가 아니다'; end if;
+    -- [round 2, review finding 3] falsy dispatched_at = never dispatched, TS's own reading
+    -- (`!raw.dispatched_at`). A bare null-check left SQL seeing non-null text, failing the
+    -- cast, and never waking — the intent stranded forever while TS considered it due.
+    if not charge_row_due('pending', 100, '{"kind":"k","dispatched_at":""}'::jsonb, now())
+      then v_bad := v_bad || ' 🔴 dispatched_at=""가 due가 아니다 (TS는 미발송으로 본다 — 행이 영영 잠든다)'; end if;
+    if not charge_row_due('pending', 100, '{"kind":"k","dispatched_at":0}'::jsonb, now())
+      then v_bad := v_bad || ' dispatched_at=0이 due가 아니다'; end if;
+    if not charge_row_due('pending', 100, '{"kind":"k","dispatched_at":false}'::jsonb, now())
+      then v_bad := v_bad || ' dispatched_at=false가 due가 아니다'; end if;
     if charge_row_due('pending', 100, ('{"kind":"k","dispatched_at":"' || now()::text || '"}')::jsonb, now())
       then v_bad := v_bad || ' 방금 발송된 pending이 due다 (블라인드 재청구)'; end if;
     if not charge_row_due('pending', 100,

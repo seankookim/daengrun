@@ -383,6 +383,7 @@ return handoff is what says the dog is home; without the guard the sweep can bil
 `club_fee_items` and **never** `bookings.cancel_fee` — **verified live by the announcer** (writes_booking_fee → false, writes_club_items
 → true). So the charge mint AND the unpaid-debt gate both see zero for a club cancellation, and the runner's supply-compensation share
 never reaches `my_ledger_total`. Two fee ladders exist and nobody has ruled which governs. **This one needs YOUR ruling, not just a fix.**
+**✅ RULED 2026-08-21 (Sean, structured choice at the /autoplan gate — his selection verbatim: "Use the club rules as written") [end of his words]:** the club ladder as configured governs — free ≥24h · 10% late · 20% post-accept/no-show · fee split 50% platform / 50% runner supply-compensation. The club_config 미확정 marks are lifted for these five values. **Build state:** §B was RECUT out of 0116 the same day (its writes ran live pre-flip and encoded policy before this ruling existed); the complete club-fee slice — recorder + mint + event-time cutover + no-show as its own policy + the 「모의 시대」 copy flip — is a held follow-up designed against this ruling; spec in REGISTRY row 0116.
 
 **3. 🔴 One unparseable timestamp stops charge dispatch for everybody.** `dispatch_due_charges` (SQL) and `isDue()` (TS) have drifted:
 SQL hardcodes `< 3` where TS uses `MAX_ATTEMPTS`, and an unparseable `next_retry_at` makes the SQL side raise — so the batch never wakes
