@@ -4138,16 +4138,51 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 
 // 예약의 routeId는 서버 route_id 그대로 — 코스 미지정이면 null (목업 'seoulforest-loop' 박제 제거).
+// 보호자 예약 행 — 홈 히어로와 일정 화면이 같은 모양을 읽는다. 셀렉트를 두 벌로 갈라 두면 routes
+// 임베드의 FK 지정(0082로 bookings→routes FK가 둘이 된 뒤로 필수 — check-embed-fk가 지키는 그 줄)이
+// 한쪽에서만 빠지는 날이 온다. 그래서 셀렉트와 매퍼는 한 자리에 두고 두 리더가 공유한다.
+// club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
+// (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
+// arrived_at: 러너 도착은 상태 전이가 아니라 타임스탬프라(transition-booking:275-277 — 상태를
+// 옮기면 보험·정산 기점이 앞당겨진다) status만 읽으면 '오는 중'과 '도착해서 기다리는 중'이
+// 같은 값이다. 홈이 그 둘을 구분하려면 이 컬럼이 있어야 한다.
+const MY_BOOKING_SELECT =
+  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))';
+
+function mapMyBooking(r: any): Booking {
+  const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+  const routeName = r.routes?.name ?? '코스 미지정';
+  return {
+    id: r.id,
+    dateLabel,
+    timeLabel,
+    scheduledAt: r.scheduled_at, // 원본 ISO — D-day·정렬용 (라벨은 위 kstParts 산출물)
+    dogName: r.dogs?.name ?? '반려견',
+    dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
+    runnerId: r.runner_id ?? '', // 실 러너 uuid (매칭 전 ''). 목업 상수 'minjun' 박제 제거 — 가짜 데이터 금지
+    runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
+    routeId: r.route_id ?? null, // 실 코스 uuid (미지정이면 null)
+    routeName,
+    km: Number(r.km),
+    paceLabel: r.pace_label ?? "보통 7'",
+    price: r.total_price,
+    status: STATUS_MAP[r.status] ?? 'pending',
+    rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
+    arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
+    recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
+    seriesId: r.series_id ?? null,
+    live: true,
+    matched: !!r.runner_id,
+    runnerProfileId: r.runner_id ?? null,
+    clubSessionId: r.club_session_id ?? null,
+  };
+}
+
 export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] Booking.routeId가 이미 string | null — Omit 잔재 정리
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    // club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
-    // (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
-    // arrived_at: 러너 도착은 상태 전이가 아니라 타임스탬프라(transition-booking:275-277 — 상태를
-    // 옮기면 보험·정산 기점이 앞당겨진다) status만 읽으면 '오는 중'과 '도착해서 기다리는 중'이
-    // 같은 값이다. 홈이 그 둘을 구분하려면 이 컬럼이 있어야 한다.
-    .select('id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
+    .select(MY_BOOKING_SELECT)
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -4156,34 +4191,29 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
     .limit(20);
   if (error) throw error;
 
-  return (data ?? []).map((r: any) => {
-    const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
-    const routeName = r.routes?.name ?? '코스 미지정';
-    return {
-      id: r.id,
-      dateLabel,
-      timeLabel,
-      scheduledAt: r.scheduled_at, // 원본 ISO — D-day·정렬용 (라벨은 위 kstParts 산출물)
-      dogName: r.dogs?.name ?? '반려견',
-      dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
-      runnerId: r.runner_id ?? '', // 실 러너 uuid (매칭 전 ''). 목업 상수 'minjun' 박제 제거 — 가짜 데이터 금지
-      runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
-      routeId: r.route_id ?? null, // 실 코스 uuid (미지정이면 null)
-      routeName,
-      km: Number(r.km),
-      paceLabel: r.pace_label ?? "보통 7'",
-      price: r.total_price,
-      status: STATUS_MAP[r.status] ?? 'pending',
-      rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
-      arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
-      recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
-      seriesId: r.series_id ?? null,
-      live: true,
-      matched: !!r.runner_id,
-      runnerProfileId: r.runner_id ?? null,
-      clubSessionId: r.club_session_id ?? null,
-    };
-  });
+  return (data ?? []).map(mapMyBooking);
+}
+
+// [B9] 진행 중 예약은 위 20행 창에서 **정당하게** 떨어질 수 있다. fetchMyBookings는 scheduled_at
+// DESC + limit 20이라 '가장 먼 미래' 20건을 남기는데, 진행 중 예약의 scheduled_at은 지금 — 즉 그
+// 20건 전부보다 과거다. 미래 예약이 20건을 넘기는 순간 개가 나가 있는 동안 히어로가 '비어 있어요'로
+// 접힌다. fetchBookingCard가 세운 원칙과 같다: 추측하면 안 되는 리더는 자기 행을 따로 읽는다.
+// 다만 여기서 읽는 근거는 id가 아니라 '진행 중'이라는 조건이므로 IN_FLIGHT로 필터하고 캡을 두지
+// 않는다 (진행 중 예약은 정의상 한 자릿수 — 서버가 동시 진행을 막는다).
+// ⚠ 여기서 랭킹하지 않는다. 히어로의 정렬(RANK + 과거 6h 유예 타이브레이크)이 유일한 결정자로
+// 남아야 하므로, 이 함수는 그 행이 **목록에 존재하게** 만들기만 하고 고르는 일은 하지 않는다.
+export async function fetchInFlightOwnerBookings(): Promise<Booking[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(MY_BOOKING_SELECT)
+    .eq('owner_id', user.user.id)
+    .in('status', IN_FLIGHT);
+  // 정직 배치 (fetchCurrentOwnerBookingId와 같은 이유): 네트워크 실패가 '진행 중 없음'으로 위장하면
+  // 히어로가 개가 나가 있는데 비었다고 조용히 거짓말한다. 호출부가 실패를 실패로 말하게 던진다.
+  if (error) throw error;
+  return (data ?? []).map(mapMyBooking);
 }
 
 // ---------- 클럽 수요 보드 (0032, P-B) — 듀얼: 러너 티켓·스트립 + 보호자 진행 링·동네 리그 ----------

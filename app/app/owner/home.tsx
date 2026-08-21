@@ -12,7 +12,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -154,8 +154,15 @@ export default function OwnerHome() {
     if (bkFlight.current) { bkAgain.current = true; return; }
     bkFlight.current = true;
     setBookingsErr(false);
-    fetchMyBookings()
-      .then((bs) => {
+    // [B9] 목록과 '진행 중'을 함께 읽는다. fetchMyBookings는 scheduled_at DESC + limit 20이라
+    // 미래 예약이 20건을 넘으면 지금 진행 중인 건(= 그 20건보다 과거)이 창 밖으로 밀려나고,
+    // 개가 나가 있는 동안 히어로가 '비어 있어요'로 접혔다. 두 번째 리더는 IN_FLIGHT를 캡 없이
+    // 읽어 그 행이 **목록에 있게만** 한다 — 고르는 일은 아래 정렬이 그대로 전담한다.
+    Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
+      .then(([bs, inFlight]) => {
+        // 합집합 — 20행 창에 이미 들어 있으면 중복시키지 않는다 (id 기준).
+        const seen = new Set(bs.map((b) => b.id));
+        const rows = inFlight.length ? [...bs, ...inFlight.filter((b) => !seen.has(b.id))] : bs;
         // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
         // 스테일 '매칭 중'이 확정 러닝(인계 확인)을 가리는 사고 방지
         const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
@@ -171,10 +178,11 @@ export default function OwnerHome() {
         // 이 두 원상태의 정직한 표시(불발 / 확인 중)는 일정 화면이 rawStatus로 전담한다 → NEXT에서 제외.
         const stale = (b: Booking) => b.rawStatus === 'no_show' || b.rawStatus === 'incident_review';
         setLiveNext(
-          bs.filter((b) => b.status in RANK && !stale(b))
+          rows.filter((b) => b.status in RANK && !stale(b))
             .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null,
         );
-        setLastDone(bs.find((b) => b.status === 'completed') ?? null);
+        // completed는 IN_FLIGHT에 없으므로 rows와 bs가 같은 답을 준다 — 한 값을 읽게 rows로 통일.
+        setLastDone(rows.find((b) => b.status === 'completed') ?? null);
         setBookingsLoaded(true);
       })
       .catch((e) => { console.warn('[home] bookings:', e?.message ?? e); setBookingsErr(true); }) // 직전 실값은 유지
