@@ -56,6 +56,8 @@
 --      (the D5 inversion)                                        → 748/4 RED=[L5, L6, L9, L12c]
 --      every no-fault arm reddens at once: silence, the expired proceedings, the ceiling and
 --      the post-custody dark case all refuse a fault row nobody stated.
+--   M15 no-row fetch answer reverted to the bare {open:false}
+--      (coordinator amendment, 2026-08-21; green then 753/0)     → 752/1 RED=[L19] alone
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
