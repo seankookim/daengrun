@@ -983,3 +983,61 @@ Deno.test("one row's verification exploding does not 500 the batch", async () =>
     net.restore();
   }
 });
+
+// ═══ the ladder cap is ONE number on two sides of a wire (0116 §C) ═════════════════════════
+// 0080 §K's own comment said the SQL due-predicate and `isDue()` are "one rule written twice …
+// they must change together". Two copies kept in agreement by discipline is a promise, not a
+// mechanism, and they had already drifted: SQL hardcoded `< 3` where TS reads MAX_ATTEMPTS.
+// 0116 §C moved the SQL side into `charge_row_due` + `charge_max_attempts()`, and the batch now
+// ASKS the database what its cap is. These three tests are the detector's own pins: it must fire
+// on a real disagreement, stay silent on agreement, and never be a reason a batch fails.
+Deno.test("a DB ladder cap that disagrees with MAX_ATTEMPTS is reported, loudly and in the response", async () => {
+  const db = scene();
+  db.rpcs["charge_max_attempts"] = () => ({ data: 5 });
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await collectCharges(cronReq(CRON_KEY), db as never) as Row;
+    assertEquals(out.cap_drift, { sql: 5, ts: 3 });
+    assert(
+      cap.lines.some((l) => l.includes("LADDER CAP DRIFT") && l.includes("charge_max_attempts()=5")),
+      `no drift log, got: ${cap.lines.join(" | ")}`,
+    );
+    // and it is a REPORT, not a refusal — the collection it was called to do still happened
+    assertEquals(pay(db).status, "confirmed");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("a DB cap that AGREES says nothing at all — a detector that always fires is noise", async () => {
+  const db = scene();
+  db.rpcs["charge_max_attempts"] = () => ({ data: 3 });
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await collectCharges(cronReq(CRON_KEY), db as never) as Row;
+    assertEquals(out.cap_drift, undefined);
+    assertEquals(cap.lines.filter((l) => l.includes("LADDER CAP DRIFT")).length, 0);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("an UNREADABLE cap is not a drifted cap — the batch collects anyway", async () => {
+  const db = scene();
+  db.rpcs["charge_max_attempts"] = () => ({ error: { message: "permission denied for function" } });
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await collectCharges(cronReq(CRON_KEY), db as never) as Row;
+    assertEquals(out.cap_drift, undefined);
+    assertEquals(cap.lines.filter((l) => l.includes("LADDER CAP DRIFT")).length, 0);
+    assertEquals(pay(db).status, "confirmed");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
