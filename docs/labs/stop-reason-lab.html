@@ -1,0 +1,173 @@
+<title>Stop Reason Ask Lab</title>
+<style>
+  :root{ --ink:#111111; --dim:#666666; --coral:#C6472C; --coralEdge:#A63A20; --coralSub:#FFF6F4;
+    --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2; --critical:#B3261E; --criticalWash:#FBEAE7;
+    --violet:#6C5CE7; --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+    --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }}
+  :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1150px;margin:0 auto;padding:30px 20px 70px}
+  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+  h1{font-size:25px;line-height:1.15;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14.5px;margin:0}
+  .said{background:var(--panel);border-left:3px solid var(--coral);padding:13px 16px;margin:20px 0 4px;font-size:14.5px}
+  .said b{color:var(--coral)}
+  .note{background:var(--panel);border:1px solid var(--hair);padding:13px 16px;margin:16px 0 4px;font-size:13.5px;line-height:1.6}
+  .note h4{margin:0 0 7px;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 4px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:22px;margin-top:20px}
+  .card{background:var(--panel);border:1px solid var(--hair);display:flex;flex-direction:column}
+  .card.rec{border:2px solid var(--coral)}
+  .cardhd{padding:13px 15px;border-bottom:1px solid var(--hair)}
+  .num{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--violet)}
+  .card.rec .num{color:var(--coral)}
+  .cardhd h3{margin:3px 0 3px;font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .cardhd p{margin:0;font-size:12.5px;color:var(--dim);line-height:1.45}
+  .phone{margin:15px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden}
+  .dim{background:#111;opacity:.4;height:44px}
+  .sheet{padding:14px 13px 12px}
+  .kick{font-size:10.5px;font-weight:800;letter-spacing:.12em;color:var(--critical);margin-bottom:6px}
+  .head{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin:0 0 4px}
+  .sub2{font-size:12.5px;color:#5E5E58;line-height:1.45}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .chip{border:1.5px solid #111;padding:11px 13px;font-size:14.5px;font-weight:700;background:#fff}
+  .chip.sos{border-color:var(--critical);color:var(--critical);background:var(--criticalWash)}
+  .skip{text-align:center;font-size:13px;color:#6E6E66;padding:13px 0 3px;font-weight:600;
+    text-decoration:underline;text-underline-offset:3px}
+  .field{border:1.5px solid #C9C7C0;padding:11px;margin-top:9px;font-size:13px;color:#9A988F;background:#FAFAF8}
+  .cta{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge);padding:12px 13px;margin-top:10px;
+    font-size:16px;font-weight:800;text-align:center}
+  .inkb{border:1.5px solid #111;padding:11px 13px;margin-top:8px;font-size:15px;font-weight:800;text-align:center}
+  .verdict{padding:11px 15px;border-top:1px solid var(--hair);font-size:12.5px;line-height:1.5}
+  .pro{color:#5E7F0E;font-weight:800}.con{color:var(--coral);font-weight:800}
+  .taps{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    border:1.5px solid var(--ink);padding:2px 7px;margin-top:9px}
+  footer{margin-top:32px;border-top:2.5px solid var(--ink);padding-top:14px;font-size:13.5px;line-height:1.65}
+</style>
+<div class="wrap">
+<header class="top">
+  <h1>「왜 멈췄나요」 — 물어보는 방법 3안</h1>
+  <p class="sub">Stage 2 · cannot_proceed 를 누른 직후. 이 화면을 보는 사람은 다친 개를 안고 있을 수 있습니다.</p>
+</header>
+
+<div class="said">
+  <b>Sean, 2026-08-21:</b> “ask why they stopped.”
+  <br>→ 묻는 것은 <b>의무</b>, 답하는 것은 <b>선택</b>. 이유는 <code>p_reason</code> 으로 진술과 함께
+  불변 저장되고, 양측이 <code>fetch_checkin</code> 으로 읽습니다.
+</div>
+
+<div class="note">
+  <h4>이 화면의 진짜 제약</h4>
+  응급일 때 누르는 화면입니다. <b>엄지 하나, 한 동작.</b> 그래서 세 안의 차이는 예쁨이 아니라
+  <b>탭 수</b>와 <b>실수 비용</b>입니다.
+  <div style="height:1px;background:#EFEEEA;margin:9px 0"></div>
+  · <b>자유 입력은 응급에서 최악의 입력</b>입니다 — 키보드가 뜨고, 두 손이 필요하고, 문장을 지어야 합니다.
+  <br>· 그래서 셋 다 <b>칩이 곧 답</b>입니다. 자유 입력은 “그 외”를 위한 보조.
+  <br>· <b>인계 후에는 「아이가 아파요」가 기록이 아니라 도움이어야 합니다.</b> 이유를 문자열로 저장하고
+  끝내면, 앱이 사고를 접수만 하고 아무것도 하지 않은 게 됩니다 (③/⑥의 SOS 와 같은 자리).
+  <br>· 건너뛰기는 <b>숨기지 않습니다</b>. 의무는 묻는 것이지 답하게 만드는 게 아닙니다 — 강요된 이유는
+  거짓 이유가 되고, 거짓 이유는 없는 이유보다 나쁩니다.
+</div>
+
+<div class="grid">
+
+  <div class="card rec">
+    <div class="cardhd"><div class="num">① 칩 = 제출 · 추천</div>
+      <h3>한 번 누르면 끝</h3>
+      <p>칩을 누르는 순간 전송됩니다. 확인 단계 없음. 커스텀은 아래 한 줄.</p></div>
+    <div class="phone">
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="kick">● 러닝을 멈춥니다</div>
+        <div class="head">무슨 일이 있었나요?</div>
+        <div class="sub2">보호자에게 그대로 전해져요. 안 골라도 괜찮아요.</div>
+        <div class="chips">
+          <div class="chip sos">아이가 아파요</div>
+          <div class="chip sos">제가 다쳤어요</div>
+          <div class="chip">날씨가 위험해요</div>
+          <div class="chip">아이가 힘들어해요</div>
+          <div class="chip">그 외 — 직접 쓰기</div>
+        </div>
+        <div class="skip">지금은 말하기 어려워요</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="taps">응급 경로 = 탭 1회</span><br>
+      <span class="pro">강점</span> 가장 빠릅니다. 빨간 두 칩은 저장과 <b>동시에 SOS</b>를 엽니다 —
+      다친 개를 문자열로 접수하고 끝내지 않습니다.<br>
+      <span class="con">약점</span> 오탭이 곧 전송입니다. 되돌리기(스낵바 5초)가 반드시 붙어야 하고,
+      그게 없으면 이 안은 위험합니다.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num">② 선택 후 확인</div>
+      <h3>고르고, 누르고</h3>
+      <p>칩을 고른 뒤 확인 버튼. 표준 폼 문법.</p></div>
+    <div class="phone">
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="kick">● 러닝을 멈춥니다</div>
+        <div class="head">무슨 일이 있었나요?</div>
+        <div class="sub2">보호자에게 그대로 전해져요.</div>
+        <div class="chips">
+          <div class="chip" style="background:#111;color:#fff">아이가 아파요</div>
+          <div class="chip">제가 다쳤어요</div>
+          <div class="chip">날씨가 위험해요</div>
+          <div class="chip">아이가 힘들어해요</div>
+        </div>
+        <div class="field">직접 쓰기 (선택)</div>
+        <div class="cta">보내기</div>
+        <div class="skip">건너뛰기</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="taps">응급 경로 = 탭 2회</span><br>
+      <span class="pro">강점</span> 오탭이 전송되지 않습니다. 익숙한 문법이라 설명이 필요 없습니다.<br>
+      <span class="con">약점</span> 응급에서 두 번째 탭이 안 눌리는 일이 실제로 일어납니다 — 그러면
+      <b>이유도 SOS도 없이</b> 끝납니다. 가장 급한 사람이 가장 많이 실패하는 구조입니다.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num">③ 위급 먼저, 이유 나중</div>
+      <h3>먼저 갈라놓기</h3>
+      <p>「긴급인가요?」를 먼저 묻고, 아닐 때만 이유 칩을 보여줍니다.</p></div>
+    <div class="phone">
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="kick">● 러닝을 멈춥니다</div>
+        <div class="head">지금 도움이<br>필요한가요?</div>
+        <div class="sub2">아이나 러너가 다쳤다면 먼저 알려주세요.</div>
+        <div class="chip sos" style="display:block;text-align:center;margin-top:12px;padding:15px">
+          네 — 지금 도움이 필요해요
+        </div>
+        <div class="inkb">아니요, 다른 이유예요</div>
+        <div class="skip">지금은 말하기 어려워요</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="taps">응급 경로 = 탭 1회 · 그 외 = 탭 2회</span><br>
+      <span class="pro">강점</span> 위급을 <b>구조적으로</b> 앞에 둡니다. 가장 급한 사람이 가장 큰 버튼을 봅니다.<br>
+      <span class="con">약점</span> 안 급한 사람에게 한 화면이 더 붙고, 「도움이 필요한가요」는
+      응급이 아닌 사람에게 과장으로 읽힐 수 있습니다. 실제로 이유의 대부분은 교통·일정입니다.
+    </div>
+  </div>
+</div>
+
+<footer>
+  <b>제 추천은 ①입니다 — 단, 되돌리기가 조건입니다.</b>
+  응급에서 탭 하나와 탭 둘의 차이는 UX 취향이 아니라 결과의 차이입니다. ②는 가장 급한 사람이
+  가장 자주 실패하고, ③은 위급을 잘 다루지만 흔한 경우에 세금을 매깁니다.
+  ①이 빠르면서 안전하려면 <b>전송 후 5초 되돌리기</b>가 반드시 있어야 하고, 그게 없으면 저는 ②를 권합니다.
+  <br><br>
+  <b>세 안 공통, 그리고 이게 이 랩의 핵심입니다:</b> 인계 후 <span style="color:var(--critical);font-weight:800">빨간 칩</span>은
+  이유를 저장하는 동시에 SOS를 엽니다. 다친 개를 문자열로 기록만 하고 화면을 닫는 앱은
+  “물어봤다”는 알리바이만 갖게 됩니다.
+  <br><br>
+  <span style="color:var(--dim)">⚠ 아직 코드 없음 — 랩만. 칩 문구는 인계 전/후로 다릅니다 (인계 전 러너: 차·몸·일정 / 보호자: 일정·아이 상태).</span>
+</footer>
+</div>
