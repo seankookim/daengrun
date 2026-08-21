@@ -4,8 +4,10 @@ import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, 
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import { lateness } from '../../src/lib/lateness';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
+import { LateNotice } from '../../src/components/late-notice';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
@@ -378,6 +380,20 @@ export default function Schedule() {
                       </Text>
                     </View>
                   </Row>
+
+                  {/* [T4] 지각 알림 — 히어로의 「일정에서 정리하기」가 도착하는 자리다. 상태 필은
+                      '확정됨'이라고만 말하는데, 그 확정이 16일 전이면 사실의 절반이다.
+                      ⚠ actions 를 넘기지 않는다: 이 시트는 이미 자기 출구(취소·러너 변경·다시 예약)를
+                      아래에 갖고 있고, 그 취소가 0066 사다리를 정확히 견적한다(cancelFeeRateFor,
+                      네 갈래 미러). 여기서 버튼을 또 그리면 두 번째 코랄이거나, 값을 모르는 중복
+                      출구가 된다 — 알림은 사실만 말하고 문은 아래 것을 쓴다. */}
+                  <LateNotice
+                    late={lateness({ scheduledAt: selected.scheduledAt ?? null, rawStatus: selected.rawStatus,
+                                     arrivedAt: selected.arrivedAt ?? null, km: selected.km })}
+                    side="owner"
+                    dogName={selected.dogName}
+                    runnerName={selected.runnerName}
+                  />
 
                   {/* route card — 예약 행이 실제로 들고 있는 값만. 목업 특징칩·점검 도장·설명 퇴역 (item 6).
                       '안심 코스 · N.NN 점검' 도장은 실 checked_at이 있을 때만 찍힌다 — 지금 이 행에는 없다. */}

@@ -58,7 +58,10 @@ const CAN_BE_LATE = new Set(['confirmed', 'runner_enroute', 'picked_up', 'active
  *  두 벌로 갈라지면 '가능하다던 칸이 거절되는' 드리프트가 다시 생긴다. */
 export const expectedDurationMs = (km: number) => Math.round(km * 8 + 25) * 60_000;
 
-export function lateness(b: LateInput, now: number, graceMs = LATENESS_GRACE_MS): Lateness {
+// `now` 는 기본값을 갖는다. 화면이 렌더 중에 Date.now() 를 부르면 react-hooks/purity 가 잡고,
+// 그걸 피하려고 상태로 올리면 이번엔 컴파일러가 다른 데서 체한다 (실측 2026-08-21). 시계를
+// 이 함수 안에 두면 호출부는 순수해지고, 테스트는 계속 명시적으로 주입한다 — 양쪽 다 만족한다.
+export function lateness(b: LateInput, now: number = Date.now(), graceMs = LATENESS_GRACE_MS): Lateness {
   const status = b.rawStatus ?? '';
   const custody: Custody = POST_CUSTODY.has(status) ? 'post' : 'pre';
   const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null };
