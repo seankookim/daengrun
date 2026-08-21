@@ -235,7 +235,10 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   const shortDate = next?.dateLabel && next.dateLabel.length <= 4 ? next.dateLabel : '곧';
   const phrase =
     state === 'confirmed'
-      ? (nextIsPast ? { top: '예약 시간이', bottom: '지났어요' } : { top: shortDate, bottom: `${name}가 달려요` })
+      // ⚠ [codex 2026-08-21] 헤드라인만 nextIsPast 로 남아 있었다 — 칩·서브라인·버튼은 isLate 로
+      // 옮겼는데 여기를 빠뜨렸다. 그 결과 10:00 예약을 10:31 에 보면 칩은 「지난 예약」, 서브라인은
+      // 「러너가 도착하지 않았어요」, 헤드라인은 「오늘 초코가 달려요」였다. 한 화면이 자기를 반박했다.
+      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: shortDate, bottom: `${name}가 달려요` })
       : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
         : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
           : { top: '오늘은 아직', bottom: '비어 있어요' };
