@@ -314,7 +314,10 @@ two false "stranded work" alarms on day one.
   immunity; a NULL-bearing fixture row is.
 - **A dismissal is a claim, and nobody audits a dismissal — re-verify anything filed "confirmed false positive" (ui5 + codex →
   announcer v4, 2026-08-21):** `radar.tsx:141` was carried as *"read and cleared"*; it was a real user-visible race (the nav timer is
-  assigned AFTER an await, cleanup sees null, the landed continuation navigates from a dead screen) — fixed `ec00639`. Second time
+  assigned AFTER an await, cleanup sees null, the landed continuation navigates from a dead screen) — fixed `ec00639`, **completed `a043490`**: the independent pass over the fix found the fix itself
+  incomplete (alive meant mounted-not-focused, overlapping polls each armed an orphan timer, four other continuations unguarded), and
+  ec00639's own message — "kills all four symptoms at once" — overclaimed; it killed one path of one symptom. The author's own
+  correction, worth the whole entry: **run the adversarial pass on your OWN diff, not just on inherited claims.** Second time
   on this codebase that the effect-cleanup flag everyone was most confident was noise was the real one (tabswipe was first).
   Corollary, from the same commit: **the analyser flag does NOT clear with the fix** — the rule matches the effect's shape, not the
   race — so a persisting flag is not evidence the fix regressed; do not send anyone to "fix" it again. Method packaged as the
