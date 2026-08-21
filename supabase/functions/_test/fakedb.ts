@@ -183,7 +183,7 @@ class Q implements PromiseLike<any> {
   private filters: Filter[] = [];
   private returning = false;
   private shape: "many" | "single" | "maybe" = "many";
-  private orderBy: { col: string; asc: boolean } | null = null;
+  private orderBys: { col: string; asc: boolean }[] = [];
   private offset = 0;
   private cap: number | null = null;
 
@@ -234,7 +234,9 @@ class Q implements PromiseLike<any> {
     return this;
   }
   order(col: string, opts?: { ascending?: boolean }) {
-    this.orderBy = { col, asc: opts?.ascending !== false };
+    // PostgREST CHAINS .order calls (primary, then tiebreak); a single-slot model silently made
+    // the LAST call the only sort and reordered pages under the paginated candidate walk.
+    this.orderBys.push({ col, asc: opts?.ascending !== false });
     return this;
   }
   range(from_: number, to: number) {
@@ -305,9 +307,14 @@ class Q implements PromiseLike<any> {
 
     if (this.op === "select") {
       out = store.filter((r) => this.matches(r));
-      if (this.orderBy) {
-        const { col, asc } = this.orderBy;
-        out = [...out].sort((a, b) => (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : 0) * (asc ? 1 : -1));
+      if (this.orderBys.length) {
+        out = [...out].sort((a, b) => {
+          for (const { col, asc } of this.orderBys) {
+            const d = (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : 0) * (asc ? 1 : -1);
+            if (d !== 0) return d;
+          }
+          return 0;
+        });
       }
       if (this.offset || this.cap !== null) out = out.slice(this.offset, this.cap === null ? undefined : this.offset + this.cap);
     } else if (this.op === "insert") {
