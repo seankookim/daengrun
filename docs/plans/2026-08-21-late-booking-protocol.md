@@ -151,6 +151,43 @@ Runner reliability tiering · owner punctuality scoring · automatic re-matching
 M1 instrumentation for late bookings. All raised and deliberately deferred under HOLD SCOPE (D2);
 designing a reputation system before observing one real late booking is premature.
 
+## 8-bis. The stop-reason ask — DECIDED (Sean, 2026-08-21)
+
+Ruling: *"ask why they stopped."* Asking is mandatory; answering is not. Reason rides `p_reason`,
+stored immutable with the statement.
+
+**Shape: ③ + ③-A, with one reason borrowed from ③-C.** `docs/labs/stop-reason-lab.html`.
+
+- **Step 1 — triage, no gateway between the user and help.** 「지금 도움이 필요한가요?」 Emergency is
+  ONE tap and acts immediately: it does not terminate or classify the booking.
+  ⚠ Two copy constraints, both learned the hard way today: **119 is honest only as a `tel:` link**
+  (it opens the dialler; the app reports nothing to anyone), and 「상대방에게 긴급 알림」 is the whole
+  of what `sendSOS` does — one `notifications` row to the counterparty (`api.ts:2935`). There is no
+  ops team. I wrote 「운영팀이 바로 확인해요」 into an approved lab this morning and it was false.
+- **Step 2 — reuse the reason flow this app already has, twice.** `club/run/[sid].tsx:47` and
+  `runner/run.tsx:901` both run `endStep: 'reason' | 'note'` off `END_REASONS`, and the tap count is
+  decided **per reason** by `needsNote`, which is itself bought by the server requiring evidence
+  (`settle-run:74`). Not a design preference — a server contract. Reuse it verbatim.
+- **One reason is added** (③-C's real find): 「상대방과 연락이 안 돼요」. It exists in no run-end
+  vocabulary because a run-end has no counterparty to lose — and it may be the single most common
+  cause in a lateness protocol.
+- **One reason is reworded**: 「보호자 요청」 reads wrong when the owner going silent is *why* you
+  are stopping.
+
+**Deferred, its own commit (Sean agreed):** ③-B, extracting a shared `ReasonPicker` so the three
+call sites stop duplicating the two-step logic. Right by the duplicated-rule lesson, but
+`runner/run.tsx` carries in-file DO-NOT-REFACTOR freezes and `club/run` is a settlement path — a
+refactor does not ride along with a feature.
+
+⚠ **Not buildable yet.** `answer_checkin(…, p_reason)` lives on `claude/late-booking-server-stage2`
+and is not deployed. Building the surface against an undeployed RPC is how a client ships against a
+contract that then moves.
+
+**The policy invariant that has to be written somewhere that is not code:**
+*a missing reason must never by itself create an adverse inference or a different fee.* Without it,
+"answering is optional" decays into compelled disclosure the moment a fee policy reads fault rows —
+because `cannot_proceed` writes a fault row whether or not a reason is given.
+
 ## 9. Next steps
 
 1. **[needs-Sean]** Ruling on the server half (§6) — the cron, the resolver, fault persistence.
