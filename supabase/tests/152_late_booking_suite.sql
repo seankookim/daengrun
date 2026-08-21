@@ -76,6 +76,7 @@ declare
   b_arm uuid; b_in uuid; b_club uuid; b_picked uuid; b17 uuid; b_4h uuid;
   b_fresh uuid; b3 uuid; b2 uuid; b5 uuid; b6 uuid;
   b12 uuid; b12b uuid; b12c uuid; b10 uuid; b15 uuid; b19 uuid;
+  b20 uuid; b21 uuid; b24 uuid; v_txt text;
   v_bad text := ''; v_js jsonb; v_fee int; v_fee2 int; v_fee3 int; v_fee4 int; v_status text;
   v_n int; v_ver int; v_ts timestamptz; v_dl timestamptz; v_res text; v_st text;
   v_note text := '';
@@ -626,19 +627,130 @@ begin
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L20]–[L24] the REASON amendment (Sean 2026-08-21, verbatim: "ask why they stopped.")
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- One copy of the rule under test: the reason is taken at ANSWER time in the same
+  -- statement as the answer, immutable with it, and the resolver copies it onto the fault
+  -- row — so an emergency abort is distinguishable from a flake when §4.2 fee arms are
+  -- someday priced against fault rows.
+
+  -- [L20] stored with the statement, copied to the fault, rendered to the parties;
+  --       and the no-reason statement stays legal (nullable — the surface asks, never mandates)
+  b20 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  perform open_checkin(b20);
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := answer_checkin(b20, 'owner', 'cannot_proceed', '개가 산책 중 다쳤어요');
+    if v_js->>'owner_reason' is distinct from '개가 산책 중 다쳤어요'
+      then v_bad := v_bad || ' fetch에 사유 없음=' || coalesce(v_js->>'owner_reason', 'null'); end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+    select bc.owner_reason into v_txt from booking_checkins bc where bc.booking_id = b20;
+    if v_txt is distinct from '개가 산책 중 다쳤어요' then v_bad := v_bad || ' 체크인 사유=' || coalesce(v_txt, 'null'); end if;
+    select f.reason into v_txt from booking_faults f where f.booking_id = b20 and f.party = 'owner';
+    if v_txt is distinct from '개가 산책 중 다쳤어요' then v_bad := v_bad || ' 과실행 사유 미복사=' || coalesce(v_txt, 'null'); end if;
+    -- the pre-amendment statement (L2's b2) carries a NULL reason — asked, not mandated
+    select f.reason into v_txt from booking_faults f where f.booking_id = b2 and f.party = 'owner';
+    if v_txt is not null then v_bad := v_bad || ' 무사유 진술에 사유=' || v_txt; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L20 사유는 진술과 함께 저장·과실행으로 복사·당사자에게 렌더 — 무사유 진술도 여전히 합법 (Sean: "ask why they stopped")');
+    else call _fail('lb', 'L20 사유 저장·복사·렌더', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L20 사유 저장·복사·렌더', sqlerrm);
+  end;
+
+  -- [L21] a reason is REFUSED on any non-cannot_proceed answer (0114's free-text class)
+  b21 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  perform open_checkin(b21);
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    begin
+      perform answer_checkin(b21, 'owner', 'proceeding', '자유 텍스트');
+      v_bad := v_bad || ' proceeding에 사유 수락';
+    exception when others then
+      if sqlerrm <> 'reason_not_applicable' then v_bad := v_bad || ' proceeding 거부 사유=' || sqlerrm; end if;
+    end;
+    begin
+      perform answer_checkin(b21, 'owner', 'other_side_absent', '자유 텍스트');
+      v_bad := v_bad || ' 고발에 사유 수락';
+    exception when others then
+      if sqlerrm <> 'reason_not_applicable' then v_bad := v_bad || ' 고발 거부 사유=' || sqlerrm; end if;
+    end;
+    -- the refusal is about the REASON, not the answer: the same answer without one is taken
+    v_js := answer_checkin(b21, 'owner', 'proceeding');
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_js->>'owner_answer' is distinct from 'proceeding' then v_bad := v_bad || ' 무사유 진행이 거부됨'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L21 사유는 cannot_proceed에만 — proceeding·고발엔 reason_not_applicable, 같은 답의 무사유는 수락 (행복 경로 자유텍스트 금지, 0114류)');
+    else call _fail('lb', 'L21 사유 게이트', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L21 사유 게이트', sqlerrm);
+  end;
+
+  -- [L22] the check-in reason is immutable with its answer (guard trigger arm)
+  begin
+    v_bad := '';
+    begin
+      update booking_checkins set owner_reason = '나중에 고친 사유', version = version + 1
+       where booking_id = b20;
+      v_bad := v_bad || ' 사유 개서가 통과';
+    exception when others then
+      if sqlerrm <> 'checkin_answer_immutable' then v_bad := v_bad || ' 개서 거부 사유=' || sqlerrm; end if;
+    end;
+    if v_bad = '' then
+      call _pass('lb', 'L22 체크인 사유 불변 — 답과 한 몸으로 가드 트리거가 개서를 거부 (postgres여도)');
+    else call _fail('lb', 'L22 체크인 사유 불변', v_bad); end if;
+  exception when others then call _fail('lb', 'L22 체크인 사유 불변', sqlerrm); end;
+
+  -- [L23] the fault row is write-once, whole row — a recorded statement is never edited
+  begin
+    v_bad := '';
+    begin
+      update booking_faults set reason = '수정된 진술' where booking_id = b20;
+      v_bad := v_bad || ' 과실행 개서가 통과';
+    exception when others then
+      if sqlerrm <> 'fault_immutable' then v_bad := v_bad || ' 과실 개서 거부 사유=' || sqlerrm; end if;
+    end;
+    if v_bad = '' then
+      call _pass('lb', 'L23 과실행은 행 전체 write-once — 진술의 정정은 미래의 소스 있는 새 기록이지 편집이 아니다');
+    else call _fail('lb', 'L23 과실행 불변', v_bad); end if;
+  exception when others then call _fail('lb', 'L23 과실행 불변', sqlerrm); end;
+
+  -- [L24] the table itself refuses a reason without its statement (belt under the §6 gate)
+  b24 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    begin
+      insert into booking_checkins (booking_id, opened_at, deadline_at,
+                                    owner_answer, owner_at, owner_reason)
+      values (b24, now(), now() + interval '30 minutes',
+              'proceeding', now(), '행복 경로의 자유 텍스트');
+      v_bad := v_bad || ' 제약이 통과시킴';
+    exception when others then
+      if sqlstate <> '23514' then v_bad := v_bad || ' 제약 위반 코드=' || sqlstate || '/' || sqlerrm; end if;
+    end;
+    if v_bad = '' then
+      call _pass('lb', 'L24 테이블 제약 벨트 — cannot_proceed 아닌 답에 사유가 붙은 행은 23514로 거부 (게이트 아래 CHECK)');
+    else call _fail('lb', 'L24 사유 제약 벨트', v_bad); end if;
+  exception when others then call _fail('lb', 'L24 사유 제약 벨트', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed
   -- ══════════════════════════════════════════════════════════════════════════════════════
   begin
     v_bad := '';
     -- anon: nowhere
-    if has_function_privilege('anon', 'answer_checkin(uuid,text,text)', 'execute') then v_bad := v_bad || ' anon answer'; end if;
+    if has_function_privilege('anon', 'answer_checkin(uuid,text,text,text)', 'execute') then v_bad := v_bad || ' anon answer'; end if;
     if has_function_privilege('anon', 'fetch_checkin(uuid)', 'execute') then v_bad := v_bad || ' anon fetch'; end if;
     if has_function_privilege('anon', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' anon open'; end if;
     if has_function_privilege('anon', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' anon sweep'; end if;
     if has_function_privilege('anon', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' anon waived'; end if;
     if has_function_privilege('anon', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' anon fee'; end if;
     -- authenticated: exactly the two party calls
-    if not has_function_privilege('authenticated', 'answer_checkin(uuid,text,text)', 'execute') then v_bad := v_bad || ' auth¬answer'; end if;
+    if not has_function_privilege('authenticated', 'answer_checkin(uuid,text,text,text)', 'execute') then v_bad := v_bad || ' auth¬answer'; end if;
     if not has_function_privilege('authenticated', 'fetch_checkin(uuid)', 'execute') then v_bad := v_bad || ' auth¬fetch'; end if;
     if has_function_privilege('authenticated', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' auth open'; end if;
     if has_function_privilege('authenticated', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' auth sweep'; end if;

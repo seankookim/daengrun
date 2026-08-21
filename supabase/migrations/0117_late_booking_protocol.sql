@@ -51,6 +51,19 @@
 --      OWNER's cancel of a live departure; it must not price a runner's recorded failure or
 --      a booking the ceiling already declared rotten.
 --
+-- ─── Why a cannot_proceed carries a REASON (Sean, 2026-08-21, verbatim: "ask why they
+-- stopped.") ─────────────────────────────────────────────────────────────────────────────
+--   An emergency abort (injured dog, injured runner) must be distinguishable from a flake
+--   when the §4.2 fee arms are someday priced against fault rows — the reason is the record
+--   that makes that possible, and capturing it later would mean asking people to remember an
+--   emergency after the fact. ONE copy of the rule: the reason is taken at ANSWER time, in
+--   the same statement as the answer (per-side columns on booking_checkins, immutable with
+--   the answer under the same guard), and the resolver COPIES it onto the fault row it
+--   writes — the fault row is a snapshot of the statement, so the copy happens exactly where
+--   the statement becomes a fault and nowhere else. The column is NULLABLE: the surface must
+--   ASK; a mandate to answer is not invented. A reason is REFUSED on any other answer — a
+--   free-text channel on a happy path is the abuse class 0114 closed elsewhere.
+--
 -- ─── Scope lines, stated rather than implied ───────────────────────────────────────────────
 --   · CLUB bookings are excluded everywhere (club_session_id is null in every sweep arm,
 --     'club_out_of_scope' in every entry point — 0096's idiom). The club has its own recovery
@@ -122,8 +135,11 @@ create table booking_checkins (
                                                      -- least(open/answer + grace, ceiling_at)
   owner_answer  checkin_answer,                      -- null = unanswered ≠ answered-no
   owner_at      timestamptz,                         -- SERVER clock, never client (§6)
+  owner_reason  text,                                -- only with cannot_proceed (header note);
+                                                     -- nullable — the surface asks, never mandates
   runner_answer checkin_answer,
   runner_at     timestamptz,
+  runner_reason text,
   resolved_at   timestamptz,                         -- CAS target (§5)
   resolution    text,                                -- 'cannot_proceed' | 'void' | 'ceiling'
                                                      --  | 'superseded' (§5 header)
@@ -131,6 +147,9 @@ create table booking_checkins (
   -- answers and their stamps travel together, both directions:
   constraint checkin_owner_stamp  check ((owner_answer  is null) = (owner_at  is null)),
   constraint checkin_runner_stamp check ((runner_answer is null) = (runner_at is null)),
+  -- a reason exists only on a cannot_proceed statement — table-level belt under the §6 gate
+  constraint checkin_owner_reason  check (owner_reason  is null or owner_answer  = 'cannot_proceed'),
+  constraint checkin_runner_reason check (runner_reason is null or runner_answer = 'cannot_proceed'),
   constraint checkin_resolution_pair check ((resolved_at is null) = (resolution is null))
 );
 
@@ -170,12 +189,14 @@ begin
   end if;
   if old.owner_answer is not null and
      (new.owner_answer is distinct from old.owner_answer
-      or new.owner_at is distinct from old.owner_at) then
+      or new.owner_at is distinct from old.owner_at
+      or new.owner_reason is distinct from old.owner_reason) then
     raise exception 'checkin_answer_immutable';
   end if;
   if old.runner_answer is not null and
      (new.runner_answer is distinct from old.runner_answer
-      or new.runner_at is distinct from old.runner_at) then
+      or new.runner_at is distinct from old.runner_at
+      or new.runner_reason is distinct from old.runner_reason) then
     raise exception 'checkin_answer_immutable';
   end if;
   if old.resolved_at is not null and
@@ -207,12 +228,27 @@ create table booking_faults (
                                           -- The resolver only ever writes the side's own id —
                                           -- fault here is SELF-stated ('cannot_proceed'); an
                                           -- accusation (other_side_absent) never lands here.
+  reason     text,                        -- the stater's own words, COPIED from the check-in
+                                          -- at resolution (header note: emergency vs flake).
+                                          -- Nullable — the surface asks, never mandates.
   detail     text,
   created_at timestamptz not null default now(),
   unique (booking_id, party)
 );
 
 alter table booking_faults enable row level security;
+
+-- A fault row is a recorded human statement: write-once, whole row. Corrections are a future
+-- ops process writing its own sourced record — never an edit that changes what someone said.
+create or replace function _booking_faults_guard() returns trigger
+language plpgsql as $$
+begin
+  raise exception 'fault_immutable';
+end $$;
+
+create trigger booking_faults_guard
+  before update on booking_faults
+  for each row execute function _booking_faults_guard();
 -- SEALED like §2: no client surface. Money reads it through enroute_cancel_fee_waived (§9);
 -- future settlement reads it server-side. Silence can never appear here (D5) because the only
 -- writer records a party's own statement and stated_by refuses NULL structurally.
@@ -397,13 +433,13 @@ begin
   -- ─── fault — D5: only a side's own statement, only their own name ────────────────────────
   if v_resolution = 'cannot_proceed' then
     if c.owner_answer = 'cannot_proceed' then
-      insert into booking_faults (booking_id, party, source, stated_by)
-      values (p_booking, 'owner', 'checkin_cannot_proceed', b.owner_id)
+      insert into booking_faults (booking_id, party, source, stated_by, reason)
+      values (p_booking, 'owner', 'checkin_cannot_proceed', b.owner_id, c.owner_reason)
       on conflict (booking_id, party) do nothing;
     end if;
     if c.runner_answer = 'cannot_proceed' then
-      insert into booking_faults (booking_id, party, source, stated_by)
-      values (p_booking, 'runner', 'checkin_cannot_proceed', b.runner_id)
+      insert into booking_faults (booking_id, party, source, stated_by, reason)
+      values (p_booking, 'runner', 'checkin_cannot_proceed', b.runner_id, c.runner_reason)
       on conflict (booking_id, party) do nothing;
     end if;
   end if;
@@ -443,7 +479,8 @@ accusations and expired proceedings resolve to no-fee terminals; ceiling resolut
 0068 — a timer may flip status, never money. superseded = another path owned the outcome.';
 
 -- ═══ §6 answer_checkin ════════════════════════════════════════════════════════════════════
-create or replace function answer_checkin(p_booking uuid, p_side text, p_answer text)
+create or replace function answer_checkin(p_booking uuid, p_side text, p_answer text,
+                                          p_reason text default null)
 returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -452,6 +489,12 @@ begin
   if p_side not in ('runner', 'owner') then raise exception 'bad_side'; end if;
   if p_answer not in ('proceeding', 'cannot_proceed', 'other_side_absent') then
     raise exception 'bad_answer';
+  end if;
+  -- a reason rides ONLY a cannot_proceed statement (header note — Sean: "ask why they
+  -- stopped."). On any other answer it would be a free-text channel on a happy path, the
+  -- abuse class 0114 closed elsewhere.
+  if p_reason is not null and p_answer <> 'cannot_proceed' then
+    raise exception 'reason_not_applicable';
   end if;
 
   select bk.id, bk.status::text as status, bk.scheduled_at, bk.owner_id, bk.runner_id,
@@ -501,13 +544,18 @@ begin
 
   -- SERVER timestamps only (§12): v_now is this transaction's clock; no client value exists
   -- in this signature at all.
+  -- the reason writes in the SAME statement as the answer and is immutable with it (guard
+  -- trigger arm). A replay of the same answer with a different reason is answered by the
+  -- idempotence branch above: first write wins, the late reason is ignored, nothing moves.
   if p_side = 'owner' then
     update booking_checkins
-       set owner_answer = p_answer::checkin_answer, owner_at = v_now, version = c.version + 1
+       set owner_answer = p_answer::checkin_answer, owner_at = v_now, owner_reason = p_reason,
+           version = c.version + 1
      where booking_id = p_booking and resolved_at is null and version = c.version;
   else
     update booking_checkins
-       set runner_answer = p_answer::checkin_answer, runner_at = v_now, version = c.version + 1
+       set runner_answer = p_answer::checkin_answer, runner_at = v_now, runner_reason = p_reason,
+           version = c.version + 1
      where booking_id = p_booking and resolved_at is null and version = c.version;
   end if;
   if not found then raise exception 'checkin_conflict'; end if;   -- unreachable under the row
@@ -517,8 +565,8 @@ begin
   return fetch_checkin(p_booking);
 end $$;
 
-revoke execute on function answer_checkin(uuid, text, text) from public, anon;
-grant  execute on function answer_checkin(uuid, text, text) to authenticated, service_role;
+revoke execute on function answer_checkin(uuid, text, text, text) from public, anon;
+grant  execute on function answer_checkin(uuid, text, text, text) to authenticated, service_role;
 
 comment on function answer_checkin is
   '0117 §6 (§12): per-side check-in answer — party-gated, first write wins, immutable,
@@ -565,8 +613,10 @@ begin
     'deadline_at',   c.deadline_at,
     'owner_answer',  c.owner_answer,
     'owner_at',      c.owner_at,
+    'owner_reason',  c.owner_reason,
     'runner_answer', c.runner_answer,
     'runner_at',     c.runner_at,
+    'runner_reason', c.runner_reason,
     'resolved_at',   c.resolved_at,
     'resolution',    c.resolution,
     'version',       c.version,
