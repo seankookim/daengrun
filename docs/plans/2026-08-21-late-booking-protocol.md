@@ -248,6 +248,51 @@ answer := 'proceeding' | 'cannot_proceed' | 'other_side_absent'
 per-side IMMUTABLE, first write wins, idempotent on replay. `fetch_checkin(booking)` — what the
 surface renders.
 
+### ⚠ AMENDMENT 2026-08-21 — what the party gate must REFUSE
+
+This clause originally said only that the reads are "party-gated". **That was satisfiable while
+wrong, and it was satisfied while wrong.** A gate that never fires is still a gate, so an
+implementation shipped one, my conformance read passed it, and a blind reviewer caught it. The
+contract, not the implementation, is what failed first — so the contract is what gets fixed.
+
+**Every party-gated call in this protocol (`fetch_checkin`, `quote_cancel_fee`, `answer_checkin`)
+MUST refuse a caller whose `auth.uid()` is NULL.** Not "should have a gate" — must refuse, and the
+refusal must be reachable.
+
+⚠ **`current_user` cannot identify a caller inside `SECURITY DEFINER`.** It is the function OWNER,
+not the invoker. So a service-role exemption written as
+
+```sql
+elsif current_user not in ('service_role', 'postgres') then raise exception 'not_signed_in';
+```
+
+is **not an exemption — it is an open door**: the predicate is always false, the exception never
+fires, and every null-uid caller passes. This exact line shipped in `fetch_checkin` and
+`quote_cancel_fee`.
+
+**The correct pattern is already in the same file**, in `answer_checkin`:
+
+```sql
+if v_uid is null then raise exception 'not_signed_in'; end if;
+```
+
+Unconditional, invoker-derived, no `current_user` anywhere. If a genuine service-role path is
+needed, it must be expressed some way other than `current_user` — a separate function, an explicit
+argument the definer validates, or a role check that survives the definer boundary.
+
+### The rule this amendment generalises
+
+**Specify what a mechanism must REFUSE, not that the mechanism exists.** Every clause in this
+contract naming a guard, a lock, a constraint or a gate should say what it must PREVENT, in terms
+an implementer can test and a reviewer can falsify. A clause that names only the mechanism can be
+satisfied by a mechanism that does nothing, and neither conformance review nor the author will
+catch it — because both are asking whether the named thing is present, and it is.
+
+Corollary, learned the same day: **conformance review and security review are different questions,
+and passing one says nothing about the other.** "Does this match §12" and "does this actually
+refuse anyone" have different answers, and only the second one keeps a stranger out of both
+parties' check-in answers.
+
 **Resolution, one transaction, CAS on `(resolved_at, version)`, re-reading `bookings.status` under
 the same lock** (FM6; `90_race_check.sh` already has a two-connection harness for exactly this):
 
