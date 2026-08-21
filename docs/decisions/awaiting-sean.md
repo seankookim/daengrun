@@ -370,6 +370,20 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-septemvicies. 🔴 IRREVERSIBLE, AND IT SITS DIRECTLY BEFORE YOUR TESTFLIGHT ERRAND (2026-08-20)
+
+**`app/app.json:22` — `"bundleIdentifier": "com.seankookim.daengrun"`** (and the widget target at `:99` mirrors it). **[measured by the
+announcer]** It carries the RETIRED brand name, and a bundle ID is **immutable once the first build is uploaded to App Store Connect** —
+after that, changing it means a NEW app: new listing, new reviews, new URL, pre-orders and any App Store momentum start from zero.
+
+⚠ **This is ordered wrong on your queue and only you can fix the order.** TestFlight (your Apple 2FA errand) is the first upload. If
+you do the 2FA step before ruling on this, the retired name is locked into the store identity forever. The campaign session refused to
+default this one — correctly; it is the only irreversible item in its whole set.
+
+**A** rename now to a 도그스하이-derived id (e.g. `com.seankookim.dogshigh`) BEFORE any upload — costs one edit to `app.json` plus a
+rebuild, and it must happen before TestFlight · **B** keep `com.seankookim.daengrun` knowingly, accepting that the store identity
+carries a name the product no longer uses · **C** decide at upload time (⚠ not really an option — the upload IS the decision).
+
 ## 0-sexvicies. 🟠 THE DEAD BRAND AND A BANNED WORD ARE WIRED TO CARD STATEMENTS — fix before charging flips (2026-08-20)
 
 Found by the brand round, **verified by the announcer**: `supabase/functions/_shared/charge.ts:117-118` sets the PG `orderName` to
