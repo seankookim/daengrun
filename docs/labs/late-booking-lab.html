@@ -108,6 +108,11 @@
   스케줄 시트는 이 50%를 <b>정확히 미리</b> 보여줍니다(<code>cancelFeeRateFor</code>). 그러니 숨겨진
   과금은 아니지만, 그 시트 바로 위에서 제 목업이 "공짜"라고 말할 뻔했습니다.
   <div class="hair"></div>
+  <b>정정 ② (codex, 같은 날):</b> ③의 SOS 부제가 「운영팀이 바로 확인해요」였습니다. <b>운영팀은 없습니다.</b>
+  <code>sendSOS</code>(api.ts:2935)가 하는 일은 <b>상대방에게 알림 하나</b>를 넣는 것뿐입니다 —
+  ops 큐도, 119 연결도, 에스컬레이션도 없습니다. 승인된 랩 안에 있던 거짓 문장이고, 그대로
+  지었으면 코드 안의 거짓말이 됐을 겁니다 (오늘 세 번째, 셋 다 제가 썼습니다).
+  <div class="hair"></div>
   <b>화면이 할 수 있는 정직한 일:</b> 공짜라고 말하지 않고, 조건이 적힌 곳으로 보내는 것.
   <b>화면이 할 수 없는 일:</b> 요금 사다리를 고치는 것 — 그건 서버이고 Sean 의 재정 대기입니다.
   (계획의 FM7 을 제가 "D4/D5 가 처리함"으로 적어뒀는데, 틀렸습니다. 미래 위험이 아니라 오늘 살아 있는
@@ -180,7 +185,8 @@
         <div class="btn coralb"><div class="t">러너에게 연락</div><div class="s">채팅이 가장 빨라요</div></div>
         <div class="btn inkb"><div class="t">실시간 위치 보기</div></div>
         <div class="btn inkb" style="border-color:var(--coral);color:var(--coral)"><div class="t">긴급 도움 요청</div>
-          <div class="s" style="color:var(--coral)">SOS · 운영팀이 바로 확인해요</div></div>
+          <div class="s" style="color:var(--coral)">SOS · 러너에게 긴급 알림이 가요</div>
+          <div class="muted" style="margin-top:6px">↑ 첫 판: 「운영팀이 바로 확인해요」 — 삭제됨</div></div>
       </div>
     </div>
     <div class="verdict"><span class="lbl">법:</span> 인계 후에는 <code>no_show</code> 가 DB에서 거부됩니다
