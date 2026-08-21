@@ -587,6 +587,11 @@ server_now (so no countdown trusts a phone clock).';
 -- contention) and never with expire-unmatched or expire-reschedules, the two bookings-writers.
 -- Grace is 30 minutes; a ≤10-minute detection lag is inside the design (the deadline, not the
 -- tick, is the contract).
+-- Per-row exception isolation in every arm, because this repo has already paid for the
+-- alternative twice: 0116 §C ("one poisoned row fails ITS OWN ROW, never the batch") and
+-- 0111's generate_recurring_bookings ("continue + raise warning, never raise — one row would
+-- abort the whole hourly sweep forever"). A booking whose state surprises the resolver must
+-- not stop the clock for every other late booking.
 create or replace function late_booking_sweep() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare r record; n int := 0;
@@ -596,8 +601,12 @@ begin
     select bc.booking_id from booking_checkins bc
     where bc.resolved_at is null and bc.deadline_at <= now()
   loop
-    perform _resolve_checkin(r.booking_id, 'deadline');
-    n := n + 1;
+    begin
+      perform _resolve_checkin(r.booking_id, 'deadline');
+      n := n + 1;
+    exception when others then
+      raise warning 'late_booking_sweep deadline % : %', r.booking_id, sqlerrm;
+    end;
   end loop;
 
   -- ⓑ the ceiling: pre-custody marketplace bookings past maximum lateness — WITH or WITHOUT
@@ -613,8 +622,12 @@ begin
       and not exists (select 1 from booking_checkins bc
                       where bc.booking_id = b.id and bc.resolved_at is not null)
   loop
-    perform _resolve_checkin(r.id, 'ceiling');
-    n := n + 1;
+    begin
+      perform _resolve_checkin(r.id, 'ceiling');
+      n := n + 1;
+    exception when others then
+      raise warning 'late_booking_sweep ceiling % : %', r.id, sqlerrm;
+    end;
   end loop;
 
   -- ⓒ arm the protocol: pre-custody marketplace bookings past grace, under the ceiling,
@@ -627,8 +640,12 @@ begin
       and late_ceiling_at(b.scheduled_at) > now()
       and not exists (select 1 from booking_checkins bc where bc.booking_id = b.id)
   loop
-    perform open_checkin(r.id);
-    n := n + 1;
+    begin
+      perform open_checkin(r.id);
+      n := n + 1;
+    exception when others then
+      raise warning 'late_booking_sweep open % : %', r.id, sqlerrm;
+    end;
   end loop;
 
   return n;

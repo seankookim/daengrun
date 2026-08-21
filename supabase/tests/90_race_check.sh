@@ -150,3 +150,112 @@ if [ "$LROWS" = "1" ] && [ "$LSUM" = "12450" ]; then
 else
   psql -qc "call _fail('race','RE 동시 인루트 보상','rows=$LROWS sum=$LSUM (1/12450 기대 — 두 번째 행 = 이중 지급)')"
 fi
+
+# ---------- [0117] RS/RF 월드 빌더 ----------
+# RD/RE와 같은 이유로 여기 둔다: 이 두 레이스는 지연 프로토콜 슬라이스(0117)와 그 커스터디
+# 이웃(0083/0096 confirm_return_tx — TODOS.md:253이 "named, not simulated"라 적은 그 레이스,
+# 스위트 119:108-110이 갭으로 명명한 것)의 것이고, 픽스처가 검사와 같은 파일에 있어야
+# 락/CAS를 지운 사람이 무엇이 왜 빨개졌는지 한 번에 읽는다.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RS/RF 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_s() returns text
+language plpgsql as $$
+declare os uuid; rs uuid; ds uuid; rt uuid; bs uuid;
+begin
+  os := t_user('race_s_owner', 'owner'); rs := t_user('race_s_runner', 'runner');
+  ds := t_dog(os, '레이스S'); rt := t_route('레이스S 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (os, ds, rs, rt, 'confirmed', now() - interval '40 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bs;
+  perform open_checkin(bs);
+  -- 마감을 과거로 노화 (가드 트리거가 허용하는 형태: 미종결 + version 한 단계) — 마감 경로가
+  -- 지금 당장 해소하고 싶어지는 상태를 만든다.
+  update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+   where booking_id = bs;
+  return bs::text || '|' || os::text;
+end $$;
+
+create or replace function race_setup_f() returns text
+language plpgsql as $$
+declare ofu uuid; rfu uuid; dfu uuid; rtf uuid; bf uuid;
+begin
+  ofu := t_user('race_f_owner', 'owner'); rfu := t_user('race_f_runner', 'runner');
+  dfu := t_dog(ofu, '레이스F'); rtf := t_route('레이스F 코스');
+  -- 반환 씰 직전의 정확한 상태: active + 동결된 러닝 + 러너 도장 하나. 두 번째 도장이
+  -- 정산을 연다 — 그 "두 번째 도장"이 동시에 두 번 오는 것이 이 레이스다.
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare,
+                        run_ended_at, runner_confirmed_return_at)
+  values (ofu, dfu, rfu, rtf, 'active', now() - interval '2 hours', 5.0,
+          9900, 15000, 0, 24900, 9900,
+          now() - interval '5 minutes', now() - interval '3 minutes')
+  returning id into bf;
+  insert into runs (booking_id, started_at, ended_at, actual_km, duration_sec, end_reason)
+  values (bf, now() - interval '65 minutes', now() - interval '5 minutes', 5.0, 2100, 'completed');
+  return bf::text;
+end $$;
+SQL
+
+# ---------- RS: 응답 vs 마감 해소 — 해소는 정확히 1회, 인간 진술이 침묵 void를 이긴다 ----------
+# FM6/FM8의 레이스 본체. 보호자의 cannot_proceed 트랜잭션이 부킹 락을 2초 쥐고 있는 동안,
+# 마감이 지난 체크인을 본 마감 경로(_resolve_checkin 'deadline' — 스위프 팔 ⓐ가 행마다 타는
+# 바로 그 코드)가 같은 행을 해소하려 든다. 후행은 락 대기 → 커밋 후 재독 → resolved_at을 보고
+# 물러서야 한다. 굳이 late_booking_sweep() 전체가 아니라 행 단위 경로를 부르는 이유: 스위프의
+# 전역 스캔은 이 파일 앞 스위트들(10~80)이 남긴 무관한 과거 예약까지 종결시켜 뒤 스위트(95+)의
+# 세계를 오염시킨다 — 전역 동작 자체는 152가 통제된 세계에서 고정한다.
+# ⚠ 벨트가 네 겹이라는 걸 정직하게 적는다 (RB처럼 이 핀은 "속성" 핀이다): ① 부킹 FOR UPDATE
+#   ② 체크인 FOR UPDATE ③ CAS 술어(resolved_at is null and version =) ④ 가드 트리거
+#   (재종결 raise). READ COMMITTED에서 UPDATE의 where 재평가 자체가 저장소 수준 CAS라서,
+#   어느 한 겹만 지워서는 이 검사가 빨개지지 않는다 — 셋을 다 지워도 ④가 raise로 잡는다.
+#   단일 커넥션 면(조기 후퇴 + CAS 동시 삭제 → 트리거 raise)은 152 L13이 M8로 계측한다.
+IDS=$(psql -qt -c "select race_setup_s()" | xargs)
+BS=${IDS%%|*}; OS=${IDS#*|}
+psql -q > .pgtest/race_s1.out 2>&1 <<SQL &
+begin;
+select set_config('request.jwt.claim.sub', '$OS', false);
+select answer_checkin('$BS', 'owner', 'cannot_proceed');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select _resolve_checkin('$BS', 'deadline');" > .pgtest/race_s2.out 2>&1
+wait
+RES=$(psql -qt -c "select resolution || '/' || version::text from booking_checkins where booking_id = '$BS'" | xargs)
+NF=$(psql -qt -c "select count(*) from booking_faults where booking_id = '$BS'" | xargs)
+NN=$(psql -qt -c "select count(*) from notifications where ref_id = '$BS' and title = '지연 예약이 정리됐어요'" | xargs)
+ST=$(psql -qt -c "select status from bookings where id = '$BS'" | xargs)
+if [ "$RES" = "cannot_proceed/3" ] && [ "$NF" = "1" ] && [ "$ST" = "no_show" ] && [ "$NN" = "2" ]; then
+  psql -qc "call _pass('race','RS 응답 vs 마감 해소 — cannot_proceed가 이기고 해소 1회 (resolution/version=cannot_proceed/3·과실 1행·알림 2건·no_show; CAS+행 락이 침묵 void의 덮어쓰기를 봉쇄)')"
+else
+  psql -qc "call _fail('race','RS 응답 vs 마감 해소','res=$RES faults=$NF status=$ST noti=$NN (cannot_proceed/3·1·no_show·2 기대)')"
+fi
+
+# ---------- RF: confirm_return_tx 이중 탭 — 두 번째 도장에 동시 착지, 원장 행은 정확히 1개 ----------
+# TODOS.md:253 / 스위트 119:108-110이 명명만 하고 시뮬레이션하지 못한 레이스, 여기서 닫는다.
+# 보호자 확인 두 개가 (러너 도장이 이미 있는 부킹에) 동시에 착지하면: 선행이 도장→씰→정산까지
+# 가고, 후행은 confirm_return_tx 머리의 bookings FOR UPDATE에서 대기하다 재독에서
+# status='completed'를 보고 멱등 답("unchanged")으로 물러서야 한다. FOR UPDATE가 없으면 둘 다
+# active를 읽고 둘 다 _settle_sealed_run으로 들어간다 — ledger_items에는 booking_id 유니크가
+# 없으므로(0001:264) 두 번째 행 = 러너 이중 지급이다 (RE와 같은 병, 다른 문).
+IDS=$(psql -qt -c "select race_setup_f()" | xargs)
+BF=$IDS
+QUOTE='{"base":9900,"distance_pay":15000,"addon_pay":0,"guarantee":0,"fee":4980}'
+psql -q > .pgtest/race_f1.out 2>&1 <<SQL &
+begin;
+select confirm_return_tx('$BF', 'owner', '$QUOTE'::jsonb);
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select confirm_return_tx('$BF', 'owner', '$QUOTE'::jsonb);" > .pgtest/race_f2.out 2>&1
+wait
+LR=$(psql -qt -c "select count(*) from ledger_items where booking_id = '$BF'" | xargs)
+SA=$(psql -qt -c "select (settled_at is not null)::text from runs where booking_id = '$BF'" | xargs)
+BST=$(psql -qt -c "select status || '/' || (settlement_ready_at is not null)::text from bookings where id = '$BF'" | xargs)
+UN=$(grep -c '"unchanged" *: *true' .pgtest/race_f2.out || true)
+if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "$UN" = "1" ]; then
+  psql -qc "call _pass('race','RF confirm_return_tx 이중 탭 — 정산 1회·원장 1행·후행은 unchanged (머리의 FOR UPDATE 재독이 이중 지급을 봉쇄; 119:108의 명명된 갭 닫힘)')"
+else
+  psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN (1·true·completed/true·1 기대)')"
+fi
