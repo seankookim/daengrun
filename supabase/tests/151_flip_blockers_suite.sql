@@ -93,7 +93,8 @@ begin
   -- a 'limited' member for B7: a dog delegated into the same session but never approved
   perform set_config('request.jwt.claim.sub', ol::text, false);
   sdl := session_delegate_dog(v_s, dl, t_consent());
-  -- the free-window session for B2's negative control. ⚠ NO `session_checkin` — check-in has a
+  -- the free-window session (built for B2, which left with §B — kept: harmless, and the held
+  -- slice's suite will want it back). ⚠ NO `session_checkin` — check-in has a
   -- window and a session 48h out refuses it; the control needs the CLOCK, not attendance.
   perform set_config('request.jwt.claim.sub', hh::text, false);
   v_s2 := club_create_session(v_club, now() + interval '48 hours', '무료창 집결지', rt, 8, 'mixed');
@@ -178,6 +179,7 @@ begin
     else v_msg := v_bad; call _fail('fbl','B1 §A 스윕 앵커', v_msg); end if;
   exception when others then
     update ops_flags set payments_live_since = v_since, updated_at = now();
+    update bookings set run_ended_at = null where id = b2;  -- [eng round] B6의 통제 팔 보호 — B1 실패가 B6에 연쇄 착색되지 않게
     v_msg := sqlerrm; call _fail('fbl','B1 §A 스윕 앵커', v_msg);
   end;
 
@@ -268,6 +270,12 @@ begin
       then v_bad := v_bad || ' kind=0이 due다'; end if;
     if charge_row_due('failed', 100, '{"kind":false,"attempts":0}'::jsonb, now())
       then v_bad := v_bad || ' kind=false가 due다'; end if;
+    -- [eng round] the STRING forms — JS-truthy but fence-excluded; the wake rule must agree
+    -- with the fence, or these wake the dispatcher forever for rows the batch never admits
+    if charge_row_due('failed', 100, '{"kind":"0","attempts":0}'::jsonb, now())
+      then v_bad := v_bad || ' 🔴 kind="0"(문자열)이 due다 — 펜스가 영영 거르는 행이 배치를 영영 깨운다'; end if;
+    if charge_row_due('failed', 100, '{"kind":"false","attempts":0}'::jsonb, now())
+      then v_bad := v_bad || ' kind="false"(문자열)가 due다'; end if;
     -- failed arm
     if charge_row_due('failed', 100, '{"kind":"k","attempts":3}'::jsonb, now())
       then v_bad := v_bad || ' 소진된 사다리(attempts=3)가 due다'; end if;
