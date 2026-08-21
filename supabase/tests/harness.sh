@@ -75,7 +75,14 @@ psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
 # Deleting --single-transaction silently re-opens the enum-migration hole, and no suite can
 # detect that (the suites run after migrations have already applied). This is the only place
 # that regression is catchable, so it is checked here, loudly.
-grep -q -- '--single-transaction' "$0" || {
+# ⚠ $0 must be resolved to an ABSOLUTE path before the self-grep: under a relative invocation
+# (`bash supabase/tests/harness.sh` after cd), the script's own cd above makes bare "$0" point
+# at a path that no longer resolves, and this gate FALSE-FIRES as a regression that isn't there
+# (2026-08-21: two false fires, both relative invocations; every absolute invocation passed —
+# the handoff's "absolute path only" note, now enforced here instead of remembered).
+_SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
+[ -f "$_SELF" ] || _SELF="$0"
+grep -q -- '--single-transaction' "$_SELF" || {
   echo "❌ GATE REGRESSION: migrations must apply with --single-transaction (mirrors db push)."
   echo "   Without it, 'alter type ... add value' + same-file use passes here and fails on push."
   exit 1
