@@ -784,7 +784,7 @@ zero — so the exclusion is already applied by your judgement and is simply und
 migration: a recorded owner id + a documented count query. One line from you confirms this is the
 flagged-test-owner policy, and then it gets written into the PR-0 doc.
 
-## 0-octies. /cso AUDIT 2026-08-19 — P0 status: 1 CLOSED (GPS), 2 CLOSED (drops), 1 IN REBUILD (booking) — none need Sean
+## 0-octies-bis. (renumbered by the announcer 2026-08-20 — this id was used twice; content unchanged) /cso AUDIT 2026-08-19 — P0 status: 1 CLOSED (GPS), 2 CLOSED (drops), 1 IN REBUILD (booking) — none need Sean
 
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.
