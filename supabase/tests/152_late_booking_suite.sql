@@ -100,6 +100,27 @@
 --   (the fee trigger repriced a fee-less km fixture → trigger narrowed to fee-carrying
 --   cancels) and 99 S1 (a definer trigger function → made invoker, enforce_booking_transition's
 --   shape).
+--   ─── codex ROUND 2 (six findings; F3+F6 one root). Green 775/0, deno 225/0. Same method,
+--       each alone, full harness, per-run _t dumped in-task on an uncontended cluster ──────
+--   M32 the clock's km-lifetime restore deleted (r2 F1)          → 774/1 RED=[L37], and the red
+--        NAMES the extension it re-created (`시계가 수명을 연장함 (…+72h)`)
+--   M33 the table revokes back to UPDATE/DELETE only (r2 F2)     → 774/1 RED=[L14], naming the
+--        reopened INSERT grants for anon/authenticated/service_role
+--   M34 the marker stops travelling with the fee (r2 F3)         → 774/1 RED=[L39] — and the red
+--        is the split brain itself: `ⓐ marker=null … ⓓ 러너 배분=0` (no marker ⇒ the runner's
+--        half is never written, which is the defect as originally found)
+--   M35 the ops override is ignored (r2 F6)                      → 774/1 RED=[L40] (정정이 덮임=2490)
+--   M36 the waiver stops checking arrived_at (r2 F7)             → 774/1 RED=[L31] ALONE
+--   M37 the waiver stops checking the handoff stamps (r2 F7)     → 774/1 RED=[L31b] ALONE
+--        (M36/M37 are why the round-1 single pin was split: one predicate, one pin, each
+--         deletion named by exactly one red)
+--   M38 fetch's custody reverts to status-only, resolver intact  → 774/1 RED=[L29b] alone with
+--        L29 GREEN — the false green F7 named, now caught by the surface's own pin
+--   M39 a COPIED ladder with a dead `marketplace_cancel_fee` reference beside it (the shape
+--        that satisfies a substring check)                        → 774/1 RED=[L27]
+--        (`사다리 없이도 견적이 나왔다 (사본)`) — round 1's prosrc-LIKE pin would have passed
+--   M40 (deno) the handler branches on its own quote again        → deno 223/2 RED=[both crossed-
+--        boundary tests] — the stored fee, marker, share, mint and response all diverge again
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
