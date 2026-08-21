@@ -117,12 +117,14 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
     .select("id, booking_id, order_id, amount, status, payment_key, raw")
     .in("status", ["pending", "failed"])
     .not("raw->kind", "is", null)
-    // [fix round F-2] and not EMPTY either: isDue() refuses `!raw.kind`, so a `kind:""` row would
-    // pass this query, fail that check, and permanently occupy one of BATCH_LIMIT's slots — 200
-    // such rows starve every real charge behind them, forever, while "scanned:200 due:0" reads as
-    // a quiet day. No current writer produces "", which is exactly why the filter belongs in the
-    // query: the first bug that does will hit a fence instead of a stall.
-    .neq("raw->>kind", "")
+    // [fix round F-2 / round 2 finding 2] and not FALSY either: isDue() refuses `!raw.kind`, so a
+    // kind of "" / 0 / false passes a bare not-null query, fails that check, and permanently
+    // occupies one of BATCH_LIMIT's slots — 200 such rows starve every real charge behind them,
+    // forever, while "scanned:200 due:0" reads as a quiet day. PostgREST compares the ->> TEXT
+    // form, so the falsy set is exactly ("", "0", "false"). No current writer produces any of
+    // them, which is why the fence belongs in the query: the first bug that does hits a fence
+    // instead of a stall.
+    .not("raw->>kind", "in", '("","0","false")')
     .order("created_at", { ascending: true })
     .limit(BATCH_LIMIT);
   if (error) throw new HttpError(500, error.message);

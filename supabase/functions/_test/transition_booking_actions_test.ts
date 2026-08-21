@@ -188,8 +188,16 @@ Deno.test("[O-5] control: the action list in the file header no longer advertise
 // confirmed by both sides") silently stops being enforced. Same N8 precedent as 0115: a source pin
 // where executing the arm would need infrastructure the fake deliberately lacks. It matches the
 // CALL, not prose — a comment mentioning the gate does not satisfy it.
-Deno.test("the accept arm still consults runner_work_gate (source pin — deleting the call reds this, not SQL)", async () => {
+Deno.test("the ACCEPT ARM itself consults runner_work_gate (arm-scoped source pin, round 2 finding 8)", async () => {
   const src = await Deno.readTextFile(new URL("../transition-booking/index.ts", import.meta.url));
-  const calls = src.match(/rpc\(\s*["']runner_work_gate["']/g) ?? [];
-  assert(calls.length >= 1, "transition-booking/index.ts no longer calls rpc('runner_work_gate') — the work gate is unenforced on the accept path");
+  // Scoped to the runner_accept arm — from its case label to the next case label — because the
+  // reviewer showed a file-scoped match staying green with the accept gate deleted and the call
+  // merely relocated. A call that exists elsewhere in the file must not satisfy this pin.
+  const armStart = src.search(/case\s+["']runner_accept["']/);
+  assert(armStart >= 0, "the runner_accept arm no longer exists by that name — re-scope this pin");
+  const rest = src.slice(armStart);
+  const nextCase = rest.slice(20).search(/case\s+["']/);
+  const arm = nextCase >= 0 ? rest.slice(0, nextCase + 20) : rest;
+  assert(/rpc\(\s*["']runner_work_gate["']/.test(arm),
+    "the runner_accept arm no longer calls rpc('runner_work_gate') — the ⑫ gate is unenforced exactly where acceptance happens");
 });

@@ -270,3 +270,17 @@ Run in this order; stop at the first surprise.
 
 ⚠ **Do not smoke the machine by calling `collect-charges` directly.** It mints and charges. The
 honest test is a real run ending after a real cutover.
+
+## Hard blockers added 2026-08-21 (0116 landing review — do not flip without these)
+
+- [ ] **The club-fee slice has LANDED AND DEPLOYED** (held follow-up of 0116 §B, spec in
+  REGISTRY row 0116). Until it lands: club cancel/no-show fees are computed into
+  `club_fee_items` only — `bookings.cancel_fee` stays empty, no intent is ever minted, the
+  runner's share reaches no ledger. Flipping charging without this slice means club
+  cancellations silently cost nobody anything. Sean's ladder ruling (2026-08-21: club rules
+  as written) is recorded; the slice builds against it.
+- [ ] **Incident settlements and `runs.settled_at` are reconciled** (0116 review finding 3):
+  `club_incident_settle` writes a legitimate settlement and never stamps `settled_at`, so the
+  post-0116 sweep will silently never record incident-settled runs. Fine while every incident
+  is provisionally waived; NOT fine the day that policy changes. Before flip: either stamp the
+  authoritative event in the incident path, or encode + monitor an explicit waiver outcome.
