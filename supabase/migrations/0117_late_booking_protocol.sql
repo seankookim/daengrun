@@ -789,8 +789,13 @@ as $$
   where b.id = p_booking
 $$;
 
--- Server-only surface, re-stated from 0066 (create or replace preserves ACLs; stating them
--- keeps this file the full truth of the object it now owns).
+-- The LADDER stays server-only (re-stated from 0066; create or replace preserves ACLs) —
+-- but 0066:89's posture "NOT a client quote API — client copy states the policy in words"
+-- was KNOWINGLY REVERSED by Sean on 2026-08-21 (structured choice: "Real quote API + words
+-- meanwhile"): clients now read the number through quote_cancel_fee below, a party-gated
+-- window onto this one function. The reversal exists because the client's mirror could not
+-- see the fault half of the §9 waiver (booking_faults is sealed), and Sean chose reading
+-- over mirroring. Direct EXECUTE on the ladder itself remains service_role-only.
 revoke execute on function marketplace_cancel_fee(uuid) from public, anon, authenticated;
 grant execute on function marketplace_cancel_fee(uuid) to service_role;
 
@@ -798,4 +803,44 @@ comment on function marketplace_cancel_fee is
   '0117 (base ←0066): owner-cancel fee ladder — unmatched 0 / runner_enroute 50% (runner
 compensation, Sean 2026-08-11) WAIVED to 0 on recorded runner fault or past the lateness
 ceiling (0117 §9, Sean 2026-08-21) / >=24h 0 / <24h 10%. Returns quoted status for the
-caller''s CAS. Server-only (service_role).';
+caller''s CAS. Direct EXECUTE server-only (service_role); clients read the number through
+quote_cancel_fee (0117 §9b — 0066:89''s no-client-quote posture reversed by Sean 2026-08-21).';
+
+-- ── §9b quote_cancel_fee — the party-gated window (Sean 2026-08-21: "Real quote API + words
+-- meanwhile") ──────────────────────────────────────────────────────────────────────────────
+-- ONE fee implementation, by construction: this function CALLS marketplace_cancel_fee and
+-- computes nothing itself (a rule copied N times is a rule you fix N-1 times — the quote is
+-- a gate around the rule, never a second copy; suite 152 pins the delegation at the SOURCE
+-- level, N8''s precedent, because a faithfully-copied ladder would pass every behavior pin
+-- right up until the day the two copies drift). Party gate: owner or runner of the booking;
+-- a FOREIGN booking answers not_found exactly like a MISSING one — a quote endpoint that
+-- said not_party would be an enumeration oracle for valid booking ids. Null-uid server
+-- callers pass (0096''s caller-class idiom).
+create or replace function quote_cancel_fee(p_booking uuid)
+returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare b record; v_uid uuid := auth.uid(); v_fee int; v_status text;
+begin
+  select bk.id, bk.owner_id, bk.runner_id into b
+  from bookings bk where bk.id = p_booking;
+  if b.id is null then raise exception 'not_found'; end if;
+  if v_uid is not null then
+    if v_uid is distinct from b.owner_id and v_uid is distinct from b.runner_id then
+      raise exception 'not_found';   -- indistinguishable from missing — no enumeration oracle
+    end if;
+  elsif current_user not in ('service_role', 'postgres') then
+    raise exception 'not_signed_in';
+  end if;
+
+  select f.fee, f.status into v_fee, v_status from marketplace_cancel_fee(p_booking) f;
+  return jsonb_build_object('fee', v_fee, 'status', v_status);
+end $$;
+
+revoke execute on function quote_cancel_fee(uuid) from public, anon;
+grant  execute on function quote_cancel_fee(uuid) to authenticated, service_role;
+
+comment on function quote_cancel_fee is
+  '0117 §9b (Sean 2026-08-21, reversing 0066:89''s no-client-quote posture): party-gated
+read-only window onto marketplace_cancel_fee — THE number, one implementation, zero copies
+(delegation pinned at source level). Foreign bookings answer not_found like missing ones (no
+enumeration oracle). The client renders words for context from the returned status arm.';

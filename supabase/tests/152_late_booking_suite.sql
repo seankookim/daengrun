@@ -738,6 +738,76 @@ begin
   exception when others then call _fail('lb', 'L24 사유 제약 벨트', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L25]–[L27] the quote window (Sean 2026-08-21: "Real quote API + words meanwhile",
+  --             reversing 0066:89's no-client-quote posture)
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+
+  -- [L25] parties read THE number — quote == marketplace_cancel_fee on the same fixtures,
+  --       including the waived stale-enroute row and the live-enroute 50% row, both sides
+  begin
+    v_bad := '';
+    select f.fee into v_fee from marketplace_cancel_fee(b19) f;        -- the rule, direct
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := quote_cancel_fee(b19);                                     -- the window, as owner
+    if (v_js->>'fee')::int is distinct from v_fee or v_fee is distinct from 0
+      then v_bad := v_bad || ' 묵은 인루트 quote=' || coalesce(v_js->>'fee', 'null') || ' 직접=' || v_fee; end if;
+    if v_js->>'status' is distinct from 'runner_enroute' then v_bad := v_bad || ' status=' || coalesce(v_js->>'status', 'null'); end if;
+    select f.fee into v_fee from marketplace_cancel_fee(b_fresh) f;
+    v_js := quote_cancel_fee(b_fresh);
+    if (v_js->>'fee')::int is distinct from v_fee or v_fee is distinct from 12450
+      then v_bad := v_bad || ' 생생 인루트 quote=' || coalesce(v_js->>'fee', 'null') || ' 직접=' || v_fee; end if;
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := quote_cancel_fee(b_fresh);                                 -- the runner reads the same number
+    perform set_config('request.jwt.claim.sub', '', false);
+    if (v_js->>'fee')::int is distinct from 12450 then v_bad := v_bad || ' 러너 측 quote=' || coalesce(v_js->>'fee', 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L25 견적 창 = 사다리와 같은 수 — 면제된 묵은 인루트 0·생생한 인루트 12450, 보호자·러너 동수 (구현은 하나, 창은 게이트)');
+    else call _fail('lb', 'L25 견적 동수', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L25 견적 동수', sqlerrm);
+  end;
+
+  -- [L26] no enumeration oracle — a FOREIGN booking answers exactly like a MISSING one
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oz::text, false);
+    begin
+      v_js := quote_cancel_fee(b_fresh);                               -- someone else's booking
+      v_bad := v_bad || ' 무관자 견적 통과';
+    exception when others then
+      if sqlerrm <> 'not_found' then v_bad := v_bad || ' 무관자 사유=' || sqlerrm || ' (not_party는 존재 오라클)'; end if;
+    end;
+    begin
+      v_js := quote_cancel_fee(gen_random_uuid());                     -- a booking that isn't
+      v_bad := v_bad || ' 무존재 견적 통과';
+    exception when others then
+      if sqlerrm <> 'not_found' then v_bad := v_bad || ' 무존재 사유=' || sqlerrm; end if;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L26 열거 오라클 없음 — 남의 예약과 없는 예약이 같은 not_found (유효 id 확인 채널 봉쇄)');
+    else call _fail('lb', 'L26 무오라클', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L26 무오라클', sqlerrm);
+  end;
+
+  -- [L27] the one-copy law at SOURCE level (N8's precedent): a faithfully-copied ladder
+  --       would pass L25 right up until the two copies drift — so the delegation itself is
+  --       pinned: quote_cancel_fee's body must reference marketplace_cancel_fee.
+  begin
+    v_bad := '';
+    select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'quote_cancel_fee'
+       and p.prosrc like '%marketplace_cancel_fee%';
+    if v_n is distinct from 1 then v_bad := v_bad || ' 위임 소스 미확인 (사다리 사본?)'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L27 견적은 위임이다 — prosrc가 marketplace_cancel_fee를 부른다 (한 벌 법; 사본 사다리는 표류 전까지 L25를 통과하므로 소스 핀이 든다)');
+    else call _fail('lb', 'L27 위임 소스 핀', v_bad); end if;
+  exception when others then call _fail('lb', 'L27 위임 소스 핀', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed
   -- ══════════════════════════════════════════════════════════════════════════════════════
   begin
@@ -749,9 +819,12 @@ begin
     if has_function_privilege('anon', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' anon sweep'; end if;
     if has_function_privilege('anon', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' anon waived'; end if;
     if has_function_privilege('anon', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' anon fee'; end if;
+    if has_function_privilege('anon', 'quote_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' anon quote'; end if;
     -- authenticated: exactly the two party calls
     if not has_function_privilege('authenticated', 'answer_checkin(uuid,text,text,text)', 'execute') then v_bad := v_bad || ' auth¬answer'; end if;
     if not has_function_privilege('authenticated', 'fetch_checkin(uuid)', 'execute') then v_bad := v_bad || ' auth¬fetch'; end if;
+    if not has_function_privilege('authenticated', 'quote_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' auth¬quote'; end if;
+    if has_function_privilege('authenticated', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' auth 사다리 직접'; end if;
     if has_function_privilege('authenticated', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' auth open'; end if;
     if has_function_privilege('authenticated', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' auth sweep'; end if;
     if has_function_privilege('authenticated', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' auth waived'; end if;
