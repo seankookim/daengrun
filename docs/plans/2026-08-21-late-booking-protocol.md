@@ -151,3 +151,123 @@ designing a reputation system before observing one real late booking is prematur
 - **The grace period and the ceiling are unset numbers.** Both are product calls.
 - **Who works the stuck queue.** D5 accepts 0068's residual — a human resolves what silence cannot.
   At pilot scale that human is Sean, and there is no ops surface for it today.
+
+---
+
+# ENGINEERING PLAN — `/plan-eng-review`, 2026-08-21
+
+Four decisions (D1 target · D2 staging · D3 contract-first · D4 test home).
+
+## 11. Staging (D2) — the domain line is the seam
+
+**Stage 1 (client, mine, no ruling needed).** Detect and state lateness honestly; offer exits that
+already exist. **Stage 1 physically cannot take a check-in answer** — an answer needs durable server
+state and no column exists. Stage 1 is therefore the client-only approach rejected in the CEO
+review, re-cast as a prerequisite rather than a substitute: codex's FM2 says a clock whose prompt
+may never arrive cannot be trusted, so the state-derived surface must exist BEFORE the server clock
+is allowed to mean anything.
+
+**Stage 2 (server, needs Sean's §0-quinvicies ruling).** The clock, the resolver, fault, money.
+
+⚠ Named risk, accepted with eyes open: stage 1 alone leaves the rot intact and will look finished.
+
+## 12. The resolver contract (D3) — defined here, implemented in stage 2
+
+Written by the client side, which cannot verify it. Stage 2 implements *to* this; if it diverges,
+the divergence is a decision, not a discovery.
+
+```
+booking_checkins
+  booking_id    uuid  pk → bookings
+  opened_at     timestamptz  not null   -- when the clock fired
+  deadline_at   timestamptz  not null   -- BOUNDED. FM3: "both confirm then vanish" dies here
+  owner_answer  answer null             -- null = unanswered ≠ answered-no
+  owner_at      timestamptz null        -- SERVER clock, never client
+  runner_answer answer null
+  runner_at     timestamptz null
+  resolved_at   timestamptz null        -- CAS target
+  resolution    text null
+  version       int not null default 0  -- optimistic lock
+
+answer := 'proceeding' | 'cannot_proceed' | 'other_side_absent'
+```
+
+**Three calls.** `open_checkin(booking)` — cron only. `answer_checkin(booking, side, answer)` —
+per-side IMMUTABLE, first write wins, idempotent on replay. `fetch_checkin(booking)` — what the
+surface renders.
+
+**Resolution, one transaction, CAS on `(resolved_at, version)`, re-reading `bookings.status` under
+the same lock** (FM6; `90_race_check.sh` already has a two-connection harness for exactly this):
+
+| Inputs | Pre-custody | Post-custody |
+|---|---|---|
+| both `proceeding` | new bounded `deadline_at`, no terminal | same |
+| either `cannot_proceed` | `no_show`, fault = that side | `incident_review` |
+| one `other_side_absent`, other silent | **void, no fee, no fault** (D5) | `incident_review` |
+| both silent at deadline | **void, no fee, no fault** (D5) | `incident_review` |
+
+Silence never appears in a fault column. `no_show` never appears post-custody (D3, guard `0066:50`).
+
+## 13. Client contract for stage 1 (no server state required)
+
+```ts
+// src/lib/lateness.ts  (D4 — pure, testable, .cjs suite alongside route-pick/pace/geo)
+lateness(b: {scheduledAt, status, arrivedAt}, now): {
+  late: boolean
+  sinceMs: number
+  custody: 'pre' | 'post'        // status ∈ picked_up|active → 'post'
+  waitingOn: 'runner' | 'owner' | 'both' | null
+}
+```
+
+Derivable entirely from fields `fetchMyBookings` already selects. No new round trip.
+
+## 14. Architecture constraints found in review
+
+- **[P1] (9/10) Cron tick collision.** `0060:145` — *"every mod-5 minute offset is taken."* Its own
+  precedent picked a tick "touching neither `bookings` nor `runs`", which a lateness sweep cannot
+  honour. Stage 2 must either share a tick with a `bookings` job (and reason about lock contention)
+  or run at a coarser cadence. Grace is minutes-scale, so `*/10` is likely fine and free-er.
+- **[P1] (9/10) A second race lands beside an untested one.** `TODOS.md:253` — `confirm_return_tx`'s
+  two-connection race is "named, not simulated". The resolver touches the same custody path. Stage 2
+  should add BOTH to `90_race_check.sh`, not just its own.
+- **[P2] (8/10) `arrived_at` is self-attested.** It is the only signal separating "en route" from "at
+  the door", and stage 1's copy wants it — but the gate that reads it is reserved under Sean's
+  handoff-CTA A/B. Stage 1 must not consume it as a gate; display only.
+
+## 15. Stage 1 task list
+
+| # | Task | Files | Effort (human / CC) |
+|---|---|---|---|
+| T1 | `src/lib/lateness.ts` + `app/test/lateness.test.cjs` | 2 new | 2h / 15m |
+| T2 | Move E6 KST helpers to `src/lib` + tests (D4 settles this) | 4 | 3h / 20m |
+| T3 | Shared late-booking surface component | 1 new | 4h / 25m |
+| T4 | Mount on owner home + schedule; custody-aware copy and exits | 2 | 3h / 20m |
+| T5 | Mount on runner home + meetup | 2 | 3h / 20m |
+| T6 | Replace 「아직 정리되지 않았어요」 with a real path | 1 | 1h / 10m |
+
+Ordering: T1 → T2 (same extraction, same suite) → T3 → T4/T5 → T6. T1 first because everything
+downstream renders off its output, and it is the one piece with a test path.
+
+## GSTACK REVIEW REPORT
+
+| Run | Status | Findings |
+|---|---|---|
+| Scope gate (D1) | ✅ | Target = this plan doc, not the branch diff |
+| Step 0 scope challenge | ✅ | Complexity gate TRIGGERED (7-8 client files, 3 new server services) → staged, not reduced |
+| §1 Architecture | ✅ | 1 P1 raised to Sean (stage 1 cannot take an answer) + 2 P1 / 1 P2 recorded in §14 |
+| §2 Code quality | ✅ | No blocking findings. One judgment recorded: shared component, not per-screen |
+| §3 Tests | ✅ | Client had NO test path for this; resolved by D4 (`src/lib` + `.cjs` suite) |
+| §4 Performance | ✅ | No issues — derivation is arithmetic over already-fetched fields |
+| Outside voice (codex gpt-5.6-sol xhigh) | ✅ absorbed | Ran during the CEO phase against this same design; returned REQUEST CHANGES; all findings folded into §7 and §12 (silence-is-not-evidence, FM3 unbounded-after-confirm, FM4 no max lateness, FM6 race model) |
+
+**VERDICT: APPROVED FOR STAGE 1.** The client half is buildable now against the §12 contract, with
+T1 carrying the test coverage. Stage 2 is BLOCKED on Sean's `supabase/` ruling and must not be
+started from this session's domain.
+
+**CODEX absorbed:** yes — request-changes findings integrated rather than deferred.
+
+**UNRESOLVED DECISIONS:**
+- Sean's ruling on the `supabase/` half (§0-quinvicies) — without it stage 2 cannot start and the rot survives stage 1.
+- The grace period and the maximum-lateness ceiling are unset product numbers, not engineering ones.
+- Who works the stuck queue that D5 deliberately accepts — at pilot scale there is no ops surface and no on-call.
