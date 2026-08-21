@@ -1,0 +1,296 @@
+<title>Late Booking Surface Lab</title>
+<style>
+  :root{
+    --ink:#111111; --dim:#666666;
+    --coral:#C6472C; --coralEdge:#A63A20; --coralSub:#FFF6F4; --coralWash:#FDF1EE;
+    --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+    --volt:#5E7F0E; --voltFill:#EAF6C8;
+    --violet:#6C5CE7; --violetWash:#EFECF9;
+    --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+    --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92;
+  }}
+  :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --hair:#33332E; --ink:#F2F1EC; --dim:#9C9A92; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:30px 20px 70px}
+  header.top{border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+  h1{font-size:25px;line-height:1.15;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14.5px;margin:0}
+  .said{background:var(--panel);border-left:3px solid var(--coral);padding:13px 16px;margin:20px 0 4px;font-size:14.5px}
+  .said b{color:var(--coral)}
+  .note{background:var(--panel);border:1px solid var(--hair);padding:13px 16px;margin:16px 0 4px;font-size:13.5px;line-height:1.6}
+  .note h4{margin:0 0 7px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 4px}
+  h2.band{margin:34px 0 4px;font-size:17px;font-weight:800;letter-spacing:-.01em;
+    border-bottom:1.5px solid var(--ink);padding-bottom:7px}
+  h2.band span{font-weight:600;color:var(--dim);font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:22px;margin-top:18px}
+  .card{background:var(--panel);border:1px solid var(--hair);display:flex;flex-direction:column}
+  .cardhd{padding:12px 14px;border-bottom:1px solid var(--hair)}
+  .num{font-size:11.5px;font-weight:800;letter-spacing:.13em;color:var(--violet)}
+  .num.post{color:var(--amber)}
+  .cardhd h3{margin:3px 0 3px;font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+  .cardhd p{margin:0;font-size:12.5px;color:var(--dim);line-height:1.45}
+  .st8{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim);
+    padding:7px 14px;background:var(--page);border-bottom:1px solid var(--hair)}
+  .phone{margin:14px;border:1.5px solid var(--ink);background:#fff;color:#111;overflow:hidden}
+  .stbar{display:flex;justify-content:space-between;padding:6px 11px 3px;font-size:10px;color:#999}
+  .mast{text-align:center;padding:4px 11px 9px;border-bottom:1px solid #EFEEEA;font-size:14px;font-weight:800}
+  .sec{padding:11px 12px}
+  .kick{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8A8A82;margin-bottom:5px}
+  .kick.warn{color:var(--amber)}
+  .kick.bad{color:var(--coral)}
+  .head{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.2;margin:2px 0 3px}
+  .sub2{font-size:12.5px;color:#5E5E58;line-height:1.4}
+  .muted{color:#6E6E66;font-size:11.5px}
+  .hair{height:1px;background:#EFEEEA;margin:10px 0}
+  .btn{display:block;width:100%;text-align:left;padding:11px 12px;margin-top:7px}
+  .btn .t{font-size:15.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  .btn .s{font-size:11.5px;margin-top:2px}
+  .coralb{background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coralEdge)}
+  .coralb .s{color:var(--coralSub)}
+  .inkb{background:#fff;color:#111;border:1.5px solid #111}
+  .inkb .s{color:#5E5E58}
+  .ghost{background:repeating-linear-gradient(45deg,#F7F6F3,#F7F6F3 6px,#EFEEEA 6px,#EFEEEA 12px);
+    color:#9A988F;border:1.5px dashed #C9C7C0}
+  .ghost .s{color:#A9A79F}
+  .stamp{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.1em;
+    border:1.5px dashed #C9C7C0;color:#9A988F;padding:2px 6px;margin-top:8px}
+  .strip{background:var(--amberSoft);border:1px solid var(--amberEdge);padding:9px 10px;font-size:12px;color:#7A4A0C}
+  .strip.bad{background:var(--coralWash);border-color:#F0CFC6;color:#8C3722}
+  .verdict{padding:10px 14px;border-top:1px solid var(--hair);font-size:12.5px;line-height:1.5}
+  .lbl{font-weight:800}
+  footer{margin-top:34px;border-top:2.5px solid var(--ink);padding-top:14px;font-size:13.5px;line-height:1.65}
+  table.mx{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
+  table.mx th,table.mx td{border:1px solid var(--hair);padding:7px 9px;text-align:left}
+  table.mx th{background:var(--page);font-weight:800;font-size:12px}
+</style>
+<div class="wrap">
+<header class="top">
+  <h1>지각 예약 — 새 화면 6종</h1>
+  <p class="sub">Stage 1 (클라이언트 전용). 기존 카드·행 문법을 그대로 쓰되, 상태와 문장은 전부 새것입니다.</p>
+</header>
+
+<div class="said">
+  <b>확정된 것 (오늘 재정):</b> 인계선에서 갈린다 — 인계 전은 <b>불발(no_show)</b>이 가능하고,
+  인계 후는 <b>사고(incident_review)</b>뿐입니다. 침묵은 절대 과금하지 않습니다.
+  돈은 <b>사람이 말한 사실</b>만 따라갑니다.
+</div>
+
+<div class="note">
+  <h4>⚠ 이 목업이 그리지 <i>않는</i> 것</h4>
+  <b>「아직 진행하나요?」 확인 버튼은 없습니다.</b> 그 대답을 저장할 곳이 서버에 없어서
+  (<code>booking_checkins</code> 는 stage 2), stage 1 은 물리적으로 답을 받을 수 없습니다.
+  그려두면 고르실 수 있지만 만들 수는 없습니다 — 그래서 <b>점선 회색</b>으로만 자리를 표시했습니다.
+  나머지 버튼은 전부 <b>오늘 이미 존재하는</b> 동작입니다 (취소·러너 변경·채팅·길찾기·SOS).
+  <div class="hair"></div>
+  <h4>어떤 화면이 언제 뜨는가 — <code>lateness()</code> 출력이 그대로 화면이 됩니다</h4>
+  <table class="mx">
+    <tr><th>custody</th><th>waitingOn</th><th>보호자가 보는 것</th><th>러너가 보는 것</th></tr>
+    <tr><td>pre</td><td>runner</td><td>① 러너가 안 왔어요</td><td>④ 늦었어요 (내 차례)</td></tr>
+    <tr><td>pre</td><td>owner <span class="muted">(arrived_at 있음)</span></td><td>② 러너가 문 앞에</td><td>⑤ 보호자가 응답 안 함</td></tr>
+    <tr><td>post</td><td>runner</td><td>③ 아직 안 돌아왔어요</td><td>⑥ 러닝이 길어지는 중</td></tr>
+  </table>
+</div>
+
+<h2 class="band">보호자 <span>· owner</span></h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="cardhd"><div class="num">① PRE · 러너 대기</div>
+      <h3>러너가 오지 않았어요</h3>
+      <p>확정됐는데 예약 시각 + 유예가 지나도록 러너가 출발/도착하지 않음.</p></div>
+    <div class="st8">confirmed · late · pre · waitingOn=runner</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">도그스하이</div>
+      <div class="sec">
+        <div class="kick warn">● 예약 시각이 지났어요</div>
+        <div class="head">러너가 아직<br>도착하지 않았어요</div>
+        <div class="sub2">오후 3:30 예약 · <b>25분 지남</b></div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">러너에게 물어보기</div><div class="s">채팅으로 지금 확인해요</div></div>
+        <div class="btn inkb"><div class="t">다른 러너 찾기</div><div class="s">지금 갈 수 있는 러너로 바꿔요</div></div>
+        <div class="btn inkb"><div class="t">예약 취소</div><div class="s">러너가 오지 않았다면 수수료 없어요</div></div>
+        <div class="stamp">STAGE 2 · 「아직 진행하나요?」 확인</div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">코랄:</span> 채팅. 지금 보호자가 할 수 있는 가장 빠른 실제 행동이고,
+      취소는 되돌릴 수 없으니 잉크로 둡니다.</div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num">② PRE · 보호자 대기</div>
+      <h3>러너가 문 앞에 있어요</h3>
+      <p><code>arrived_at</code> 이 찍혔는데 인계가 안 된 상태. 기다리는 쪽이 보호자로 뒤집힙니다.</p></div>
+    <div class="st8">runner_enroute · arrived_at ✓ · waitingOn=owner</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">도그스하이</div>
+      <div class="sec">
+        <div class="kick bad">● 지금 기다리는 중</div>
+        <div class="head">민준님이<br>문 앞에서 기다려요</div>
+        <div class="sub2">12분째 · 초코를 데리러 왔어요</div>
+        <div class="strip bad" style="margin-top:9px">러너가 기다린 시간은 러너에게 보상돼요.</div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">지금 나갈게요</div><div class="s">러너에게 바로 알려요</div></div>
+        <div class="btn inkb"><div class="t">채팅</div><div class="s">늦는 이유를 알려주세요</div></div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">왜 다른가:</span> 이 화면만 <b>보호자가 지각한 쪽</b>입니다.
+      경고 스트립이 보상 사실을 미리 말합니다 — 나중에 청구되고 나서 알게 되는 게 최악입니다.</div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num post">③ POST · 사고 영역</div>
+      <h3>아직 돌아오지 않았어요</h3>
+      <p>개가 러너에게 있는데 러닝이 예상 종료 + 유예를 넘김. <b>불발이라는 말을 쓰지 않습니다.</b></p></div>
+    <div class="st8">picked_up | active · late · post · → incident_review</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">도그스하이</div>
+      <div class="sec">
+        <div class="kick bad">● 확인이 필요해요</div>
+        <div class="head">초코가 아직<br>돌아오지 않았어요</div>
+        <div class="sub2">예상 종료 오후 4:35 · <b>40분 지남</b></div>
+        <div class="strip bad" style="margin-top:9px">위치가 20분째 갱신되지 않았어요.</div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">러너에게 연락</div><div class="s">채팅이 가장 빨라요</div></div>
+        <div class="btn inkb"><div class="t">실시간 위치 보기</div></div>
+        <div class="btn inkb" style="border-color:var(--coral);color:var(--coral)"><div class="t">긴급 도움 요청</div>
+          <div class="s" style="color:var(--coral)">SOS · 운영팀이 바로 확인해요</div></div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">법:</span> 인계 후에는 <code>no_show</code> 가 DB에서 거부됩니다
+      (<code>0066:50</code>). 문장도 같아야 합니다 — 이건 불발이 아니라 사고입니다.</div>
+  </div>
+</div>
+
+<h2 class="band">러너 <span>· runner</span></h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="cardhd"><div class="num">④ PRE · 내 차례</div>
+      <h3>늦었어요</h3>
+      <p>수락해놓고 출발 표시가 없는 상태. 러너 홈 티켓 위에 얹힙니다.</p></div>
+    <div class="st8">confirmed · late · pre · waitingOn=runner</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">오늘의 러닝</div>
+      <div class="sec">
+        <div class="kick bad">● 25분 늦음</div>
+        <div class="head">초코가<br>기다리고 있어요</div>
+        <div class="sub2">반포 3동 · 오후 3:30 예약</div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">지금 출발</div><div class="s">보호자에게 바로 알려요</div></div>
+        <div class="btn inkb"><div class="t">보호자에게 알리기</div><div class="s">늦는 이유를 전해요</div></div>
+        <div class="btn inkb"><div class="t">못 가게 됐어요</div><div class="s">다른 러너를 찾을 수 있게 해요</div></div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">정직:</span> 「못 가게 됐어요」가 벌처럼 보이면 안 됩니다.
+      조용히 사라지는 것보다 눌러주는 편이 모두에게 낫고, 그게 이 프로토콜이 원하는 유일한 신호입니다.</div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num">⑤ PRE · 보호자 무응답</div>
+      <h3>문 앞인데 응답이 없어요</h3>
+      <p>도착 표시 후 인계가 안 됨. 러너가 시간을 쓰고 있는 유일한 화면.</p></div>
+    <div class="st8">runner_enroute · arrived_at ✓ · waitingOn=owner</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">인계 대기</div>
+      <div class="sec">
+        <div class="kick warn">● 12분째 대기 중</div>
+        <div class="head">보호자가 아직<br>나오지 않았어요</div>
+        <div class="sub2">초코 · 반포 3동 102-1401</div>
+        <div class="strip" style="margin-top:9px">기다린 시간은 보상 대상이에요. 떠나기 전에 한 번 더 알려주세요.</div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">보호자 호출</div><div class="s">채팅 알림을 한 번 더 보내요</div></div>
+        <div class="btn inkb"><div class="t">길찾기 다시 열기</div><div class="s">주소가 맞는지 확인해요</div></div>
+        <div class="stamp">STAGE 2 · 「기다리다 돌아감」 신고</div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">stage 1 한계:</span> 「기다리다 돌아감」이 정확히 <b>사람이 말하는 사실</b>이고
+      보상이 걸리는 문장인데, 저장할 곳이 아직 없습니다. 그래서 점선입니다.</div>
+  </div>
+
+  <div class="card">
+    <div class="cardhd"><div class="num post">⑥ POST · 러닝 초과</div>
+      <h3>예정보다 길어지고 있어요</h3>
+      <p>러닝 중인데 예상 종료를 넘김. 비난이 아니라 확인입니다.</p></div>
+    <div class="st8">active · late (end+grace) · post</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mast">러닝 중</div>
+      <div class="sec">
+        <div class="kick warn">● 예상보다 40분 초과</div>
+        <div class="head">아직 달리는<br>중인가요?</div>
+        <div class="sub2">초코 · 5.2km · 예상 종료 오후 4:35</div>
+        <div class="strip" style="margin-top:9px">보호자 화면에도 같은 사실이 보이고 있어요.</div>
+        <div class="hair"></div>
+        <div class="btn coralb"><div class="t">러닝 종료</div><div class="s">기록을 지금 마감해요</div></div>
+        <div class="btn inkb"><div class="t">보호자에게 알리기</div></div>
+        <div class="btn inkb" style="border-color:var(--coral);color:var(--coral)"><div class="t">문제가 생겼어요</div>
+          <div class="s" style="color:var(--coral)">SOS</div></div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">양쪽 대칭:</span> ③과 ⑥은 같은 사실의 두 얼굴입니다.
+      스트립이 상대도 같은 걸 본다고 말해줍니다 — 몰래 감시당한다는 느낌을 없애는 한 줄.</div>
+  </div>
+</div>
+
+<h2 class="band">그리고 지금 화면 <span>· 시뮬레이터에 떠 있는 그것</span></h2>
+<div class="grid">
+  <div class="card" style="border:2px solid var(--coral)">
+    <div class="cardhd"><div class="num" style="color:var(--coral)">T6 · 지금 vs 바뀐 뒤</div>
+      <h3>「아직 정리되지 않았어요」</h3>
+      <p>17일째 그대로인 그 히어로. 왼쪽이 지금, 오른쪽이 ①을 적용한 뒤.</p></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div class="phone" style="margin-right:7px">
+        <div class="stbar"><span>지금</span><span></span></div>
+        <div class="sec">
+          <div class="kick">● 지난 예약</div>
+          <div class="head" style="font-size:17px">예약 시간이<br>지났어요</div>
+          <div class="sub2">8월 4일 (화) 오후 3:30에<br>시작하지 못했어요</div>
+          <div class="hair"></div>
+          <div class="btn" style="background:var(--amberSoft);border:1px solid var(--amberEdge)">
+            <div class="t" style="font-size:14px">예약 확인</div>
+            <div class="s" style="color:#7A4A0C">아직 정리되지 않았어요</div></div>
+          <div class="muted" style="margin-top:9px">→ 눌러도 갈 곳이 없음</div>
+        </div>
+      </div>
+      <div class="phone" style="margin-left:7px">
+        <div class="stbar"><span>바뀐 뒤</span><span></span></div>
+        <div class="sec">
+          <div class="kick warn">● 17일 지난 예약</div>
+          <div class="head" style="font-size:17px">이 예약은<br>진행되지 않았어요</div>
+          <div class="sub2">8월 4일 (화) 오후 3:30<br>러너가 도착하지 않았어요</div>
+          <div class="hair"></div>
+          <div class="btn coralb"><div class="t" style="font-size:14px">정리하기</div>
+            <div class="s">수수료 없이 닫아요</div></div>
+          <div class="btn inkb"><div class="t" style="font-size:14px">다시 예약</div>
+            <div class="s">같은 코스로</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="verdict"><span class="lbl">이것 하나가 T6:</span> 상태를 말하고, 나갈 문을 줍니다.
+      stage 2 없이도 오늘 지을 수 있고, 시뮬레이터에서 바로 확인됩니다.</div>
+  </div>
+</div>
+
+<footer>
+  <b>고르실 것은 하나입니다: 이대로 지을까요, 아니면 특정 화면을 바꿀까요.</b>
+  전부 기존 문법(카드·행·스트립·코랄 1개)만 씁니다 — 새 시각 언어는 없습니다.
+  <br><br>
+  제가 제일 확신 없는 두 가지, 먼저 말씀드립니다:
+  <b>②의 보상 경고 스트립</b> — 청구 사실을 미리 알리는 게 친절인지 압박인지 갈립니다.
+  그리고 <b>⑥의 「아직 달리는 중인가요?」</b> — 질문형인데 stage 1 은 답을 받을 수 없어서,
+  질문처럼 보이면 안 될 수도 있습니다 (「러닝이 길어지고 있어요」로 서술형이 나을지도).
+  <br><br>
+  <span style="color:var(--dim)">⚠ 코드 없음 — 목업만. 점선 회색 두 곳은 stage 2(서버 재정 대기)입니다.</span>
+</footer>
+</div>
