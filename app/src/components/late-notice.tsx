@@ -15,20 +15,10 @@
 // 조립하므로 화면당 코랄 한 개를 지키는 책임도 호출자에게 있다 (PaperBtn 의 계약과 동일).
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { Lateness } from '../lib/lateness';
+import { sinceLabel, type Lateness } from '../lib/lateness';
 import { paper } from '../theme';
 
 export type LateSide = 'owner' | 'runner';
-
-/** 지각 시간을 사람 말로. 분 단위 아래는 '곧'이 아니라 그냥 분으로 — 반올림이 거짓이 되지 않게. */
-const sinceLabel = (ms: number): string => {
-  const min = Math.floor(ms / 60_000);
-  if (min < 60) return `${min}분`;
-  const h = Math.floor(min / 60);
-  const rem = min % 60;
-  if (h < 24) return rem ? `${h}시간 ${rem}분` : `${h}시간`;
-  return `${Math.floor(h / 24)}일`;
-};
 
 type Copy = { kick: string; head: string; tone: 'warn' | 'critical'; strip?: string };
 

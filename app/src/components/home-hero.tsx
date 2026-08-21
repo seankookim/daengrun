@@ -28,6 +28,7 @@ import { useDisplayFont } from '../lib/displayFont';
 import { haptic } from '../lib/haptics';
 import { draft } from '../store';
 import { paper } from '../theme';
+import { sinceLabel, type Lateness } from '../lib/lateness';
 import { DrawButton } from './draw-button';
 
 export type HomeGoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
@@ -56,6 +57,8 @@ interface Props {
    *  ddayLabel = null 은 "카운트다운을 그리지 않는다"는 뜻일 뿐 "아직 안 왔다"는 뜻이 아니다 —
    *  그 둘을 한 채널에 뭉쳤던 것이 8월 4일 예약에 "시간에 맞춰 알려드려요"를 인쇄한 원인이다. */
   nextIsPast?: boolean;
+  /** [T6] 지각 판정. 있으면 지난-예약 문장이 '언제'만이 아니라 '누구를 기다리다'까지 말한다. */
+  late?: Lateness | null;
   /** active 상태에서 라이브 위젯을 렌더할 슬롯. home.tsx가 이미 가진 위젯을 그대로 넘긴다. */
   liveWidget?: React.ReactNode;
   /** 지금 온라인인 동네 러너 수 (fetchCertifiedRunners는 이미 `.eq('online', true)`로 거른다).
@@ -94,7 +97,7 @@ function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget, onlineRunners = null }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, late, liveWidget, onlineRunners = null }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -188,7 +191,10 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
   // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
   const chip =
-    state === 'confirmed' ? (nextIsPast ? { c: paper.dim, t: '지난 예약' } : { c: GO_SAGE, t: '확정됨' })
+    state === 'confirmed' ? (nextIsPast
+      // [T6] '지난 예약'만으로는 어제인지 17일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
+      ? { c: paper.dim, t: late?.late ? `지난 예약 · ${sinceLabel(late.sinceMs)}` : '지난 예약' }
+      : { c: GO_SAGE, t: '확정됨' })
       : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
         : state === 'searching' ? { c: WAIT_BLUE, t: '찾는 중' }
           : { c: paper.dim, t: '비어 있음' };
@@ -210,7 +216,17 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
           : { top: '오늘은 아직', bottom: '비어 있어요' };
   const subline =
     state === 'confirmed'
-      ? (nextIsPast ? `${when}에 시작하지 못했어요`
+      ? (nextIsPast ? (
+        // [T6] 「시작하지 못했어요」는 참이지만 누가 오지 않았는지는 말하지 않았다. lateness()가
+        // 그걸 안다 — arrived_at 이 찍혔으면 러너는 왔고 인계가 안 된 것이고, 아니면 러너가
+        // 오지 않은 것이다. 둘은 보호자에게 완전히 다른 사실이다.
+        // ⚠ 여기서 수수료를 말하지 않는다. 취소는 사다리가 있고(0066), 그 숫자는 조건이 적힌
+        // 일정 시트가 말한다 — 히어로가 값을 주장하면 그게 거짓말이 된다 (:256 의 기존 규칙).
+        late?.late && late.waitingOn === 'owner'
+          ? `${when} · 러너가 도착했지만 인계되지 않았어요`
+          : late?.late
+            ? `${when} · 러너가 도착하지 않았어요`
+            : `${when}에 시작하지 못했어요`)
         : `${when ? when + ' · ' : ''}${runner} 확정${ddayLabel ? ' · ' + ddayLabel : ''}`)
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
@@ -258,8 +274,10 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
             서버가 만료를 처리하기 전까지 홈은 사실만 말하고 목적지는 일정 화면이다. */}
         {state === 'confirmed' && (
           <DrawButton
-            title={nextIsPast ? '예약 확인' : '티켓 보기'}
-            sub={nextIsPast ? '아직 정리되지 않았어요' : '시간과 장소를 확인해요'}
+            // [T6] 「예약 확인 / 아직 정리되지 않았어요」는 사실이지만 막다른 골목이었다 — 17일간
+            // 그 자리에 있던 문장이다. 목적지를 말하는 라벨로 바꾼다. 여전히 공짜라고는 하지 않는다.
+            title={nextIsPast ? '일정에서 정리하기' : '티켓 보기'}
+            sub={nextIsPast ? '취소 조건을 확인하고 닫아요' : '시간과 장소를 확인해요'}
             ground={nextIsPast ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (

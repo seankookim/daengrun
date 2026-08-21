@@ -37,6 +37,16 @@ export type Lateness = {
 // 인자로 받는 이유: 제품 숫자를 엔지니어가 정하지 않기 위해서다. 그가 답하면 이 기본값만 바뀐다.
 export const LATENESS_GRACE_MS = 10 * 60_000;
 
+/** 지각 시간을 사람 말로. 분 아래를 '곧'으로 뭉개지 않는다 — 반올림이 거짓이 되지 않게. */
+export const sinceLabel = (ms: number): string => {
+  const min = Math.floor(ms / 60_000);
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60);
+  const rem = min % 60;
+  if (h < 24) return rem ? `${h}시간 ${rem}분` : `${h}시간`;
+  return `${Math.floor(h / 24)}일`;
+};
+
 /** 인계선 — 0066:50 이 그은 그 선. picked_up 부터는 개가 러너에게 있다. */
 const POST_CUSTODY = new Set(['picked_up', 'active']);
 

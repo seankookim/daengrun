@@ -16,6 +16,7 @@ import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchF
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { lateness } from '../../src/lib/lateness';
 import { registerPushToken } from '../../src/lib/push';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
@@ -260,6 +261,12 @@ export default function OwnerHome() {
   // "시간에 맞춰 알려드려요"를 인쇄했다 (실측 8월 19일). 라벨을 지우는 것과 지났다고 말하는 것은
   // 다른 사실이라 채널도 다르다 — home-hero는 이 플래그를 받아 문장을 바꾼다.
   const nextIsPast = ddayN !== null && ddayN < 0;
+  // [T6] 히어로가 '누구를 기다리다 늦었는지'를 말할 수 있게 판정을 넘긴다. 순수 함수이고
+  // liveNext 가 이미 싣고 온 필드만 읽으므로 왕복이 늘지 않는다 (src/lib/lateness.ts).
+  const lateVerdict = liveNext
+    ? lateness({ scheduledAt: liveNext.scheduledAt ?? null, rawStatus: liveNext.rawStatus,
+                 arrivedAt: liveNext.arrivedAt ?? null, km: liveNext.km }, Date.now())
+    : null;
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   // `null` = not loaded yet or the read failed. Distinct from `[]`, which is a measured zero.
@@ -454,6 +461,7 @@ export default function OwnerHome() {
             onRetry={loadBookings}
             ddayLabel={ddayLabel}
             nextIsPast={nextIsPast}
+            late={lateVerdict}
             liveWidget={liveNext?.status === 'active' ? (
               <Pressable
                 onPress={() => { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
