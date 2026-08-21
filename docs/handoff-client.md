@@ -67,8 +67,32 @@ D4 money follows fault · D5 **silence never charges; fault needs a human statem
 (0068 deleted a timer-driven refund on exactly this reasoning, and push is not evidence).
 
 **Built (T1-T4, T6):** `src/lib/lateness.ts` · `src/lib/kst.ts` · `src/components/late-notice.tsx` ·
-owner home hero + schedule sheet. **Not built: T5** (runner home + meetup mounts) — component and
-pattern are settled, so it is small and well-specified.
+owner home hero + schedule sheet. Grace 30 / ceiling 3h are Sean's numbers (relayed).
+
+**`npm test` now exists and is green** — six suites, 228 assertions. Before today, both new suites
+AND the four that predate this session (pace, geo, route-geom, route-pick) only ran when someone
+typed their shell script by hand.
+
+**Three review rounds hit this slice and each found real defects in my own landed work.** The
+worst: my 「일정에서 정리하기」 button routed to `/owner/meetup`, whose handoff CTA opens for
+`runner_enroute` even with `arrived_at` null — a one-tap revival path for the 16-day booking, added
+in the same session as the ceiling meant to prevent it. Fixed at de7ae3d. Read that commit before
+trusting anything else here.
+
+### Remaining, both fully scoped
+
+**R1 — `active` anchors to `scheduled_at`, not the real start.** A run scheduled 10:00 but started
+10:20 is called overdue 20 minutes early. `runs.started_at` is the trusted value and
+`fetchMyBookings` does not select it. ✅ **Verified safe to embed:** `runs.booking_id` is a SINGLE
+FK with `unique` (`0001_init.sql:236`), so `runs(started_at)` cannot hit the PGRST201 class that
+killed nomination (E1) — no FK qualifier needed, though `check-embed-fk` only polices `routes(`
+anyway. Touch points: `MY_BOOKING_SELECT` + `mapMyBooking` (api.ts), `Booking` (store.ts),
+`LateInput`/`lateness()` (lateness.ts), and the `active` branch's `due`. Add a case pinning
+"started late, not yet overdue".
+
+**R2 — T5, the two runner mounts.** `owner/schedule.tsx` (d595ad4) is the worked example, including
+why it passes NO `actions`. ⚠ `runner/home.tsx` carries the settled ① design — do not touch
+`liveOwnsCoral`; `runner/meetup.tsx`'s stage machine is FROZEN, additive render only.
 
 🔴 **A LIVE MONEY DEFECT, found while mounting and NOT fixed — it is server-side.**
 `0066:80` charges **50% of the fare** on a `runner_enroute` cancel, unconditional on time, above the
@@ -215,10 +239,8 @@ checkout**, which is now the narrowest untested hypothesis. **Still nobody shoul
 
 ## 10. Next 1–3 steps
 
-1. **[local-edit] Finish T5** — mount `LateNotice` on `runner/home.tsx` and `runner/meetup.tsx`.
-   `owner/schedule.tsx` (d595ad4) is the worked example, including why it passes NO actions.
-   ⚠ runner/home carries the settled ① design (do not touch `liveOwnsCoral`); meetup's stage machine
-   is FROZEN (additive render only).
+1. **[local-edit]** R1 then R2 (§2-bis) — R1 first, because R2 mounts the component whose copy R1
+   corrects, and mounting before fixing multiplies the wrong sentence across two more screens.
 2. **[needs-user]** §7 — the profile-nudge lab number, the `supabase/` ruling (now blocking BOTH
    stage 2 and the 50% ladder), and the grace period / maximum-lateness numbers.
 3. **[local-edit]** Make the `inherited-claims` §4 framing change (§6): the adversarial pass belongs
