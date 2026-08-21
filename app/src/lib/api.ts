@@ -1262,6 +1262,10 @@ export interface RunnerJob {
   status: 'confirmed' | 'in_progress' | 'completed';
   rawStatus: string;
   routeId: string | null; // 완료 카드 미니 패치 매핑용
+  /** The dog's face for the in-flight ticket. A runner may be collecting an animal they have never
+   *  met, and until now the ticket named it without showing it. Null is a real answer (no photo on
+   *  file) and renders as a monogram — never an empty frame. */
+  dogPhotoUrl: string | null;
 }
 
 export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
@@ -1270,7 +1274,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
   if (!user.user) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, route_id, dogs(name)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, route_id, dogs(name, photo_url)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
     .order('scheduled_at', { ascending: false })
@@ -1306,6 +1310,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
       routeId: r.route_id ?? null,
+      dogPhotoUrl: r.dogs?.photo_url ?? null,
     };
   });
 }
@@ -1888,6 +1893,12 @@ export interface MeetupInfo {
   dogWeightKg: number | null;
   dogMemo: string | null;
   dogPhotoUrl: string | null;
+  /** Handling facts the runner needs once the dog is theirs. Both live on `dogs` and were already
+   *  shown on the PRE-accept request card (`OpenRequest`), then vanished at the moment of
+   *  acceptance — the one moment they start to matter. Empty array = the owner recorded none,
+   *  which is a real answer and renders as nothing rather than as a claim. */
+  dogPrefTags: string[];
+  dogVaccines: string[];
   routeName: string;
   // K7: 러너 지도가 코스 선을 그리려면 **어느 코스인지**를 알아야 한다. 트레이스 자체는 여기서
   // 싣지 않는다 — 목록/컨텍스트 셀렉트에 수백 점을 태우지 않는 것이 0082 K1의 규약이고,
@@ -1909,7 +1920,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
+    .select('scheduled_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences, vaccinations), runners(profiles(name))')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1922,6 +1933,10 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     dogWeightKg: d.dogs?.weight_kg != null ? Number(d.dogs.weight_kg) : null,
     dogMemo: d.dogs?.memo ?? null,
     dogPhotoUrl: d.dogs?.photo_url ?? null,
+    // Same unwrap shapes the pre-accept request card already uses (`mapOpenRequest`), so the two
+    // surfaces cannot disagree about what a tag or a vaccine record is.
+    dogPrefTags: (d.dogs?.preferences as any)?.tags ?? [],
+    dogVaccines: ((d.dogs?.vaccinations as any[]) ?? []).map((v: any) => v.type).filter(Boolean),
     routeName: d.routes?.name ?? '코스 미지정',
     routeId: d.route_id ?? null,
     km: Number(d.km),

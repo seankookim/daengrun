@@ -433,6 +433,23 @@ export default function Meetup() {
               <Text style={s.chatChipText}>보호자 채팅</Text>
             </Pressable>
           </Row>
+
+          {/* Handling facts, added 2026-08-21. These two live on `dogs` and were ALREADY shown on
+              the pre-accept request card, then disappeared the moment the runner accepted — the one
+              moment they start to matter, because the dog is now theirs. Rendered only when the
+              owner actually recorded something: an empty array is a real answer and gets no line,
+              not an empty label. Additive render only; the stage machine, the 8s poll and the
+              handoff seals are untouched. */}
+          {(info?.dogPrefTags?.length || info?.dogVaccines?.length) ? (
+            <Row style={{ gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
+              {(info?.dogPrefTags ?? []).map((t) => (
+                <View key={`t-${t}`} style={s.dogTag}><Text style={s.dogTagTxt}>{t}</Text></View>
+              ))}
+              {(info?.dogVaccines ?? []).length > 0 && (
+                <Text style={s.dogVax} numberOfLines={2}>백신 · {(info?.dogVaccines ?? []).join(' · ')}</Text>
+              )}
+            </Row>
+          ) : null}
         </View>
 
         {/* handoff ceremony — 이중 봉인 + 정직한 순서 */}
@@ -787,6 +804,11 @@ const s = StyleSheet.create({
   peerFailRetry: { fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 11, alignSelf: 'center' },
   chatChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
+  // Handling facts. 14pt holds the detail floor; the wash keeps them quiet next to the memo, which
+  // is the sentence that actually changes the next twenty minutes.
+  dogTag: { backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, paddingHorizontal: 8, paddingVertical: 3 },
+  dogTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.ink },
+  dogVax: { fontSize: 14, lineHeight: 18, color: paper.dim, alignSelf: 'center' },
 
   // ── 이번 러닝 사실 행 (R3c) ──
   infoRow: { justifyContent: 'space-between', gap: 12, marginTop: 10 },

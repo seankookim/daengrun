@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { Avatar } from '../../src/components/ui';
 import { BrandMark } from '../../src/components/brandmark';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { CourseStrip } from '../../src/components/CourseStrip';
@@ -82,6 +83,49 @@ const isTodayKst = (iso: string | null) => {
 const declinedIds = new Set<string>();
 
 // 진행 단계 메타 — 서버 상태 → 러너가 지금 뭘 해야 하는지 (라벨·액션 동결, 색만 라일락으로 재매핑)
+// ── A · TIME PRESSURE ─────────────────────────────────────────────────────────────────────
+// The ticket printed a clock ("5:00"), which cannot answer the only question a runner in transit
+// actually has: am I late? The relative form can, and it is the value that changes what they do
+// next — so it takes the big slot and the clock demotes to the quiet line beneath.
+// `late` is a MEASURED delay, not manufactured urgency, so it is allowed to spend critical ink
+// (the 지어낸 긴급함 = 학습된 무시 law forbids inventing pressure, not reporting it).
+// Returns null when there is no timestamp — the caller then keeps the plain clock rather than
+// guessing, because "no scheduled_at" is not "on time".
+// The coral button's second line. Says what the stage means for the runner right now rather than
+// repeating the label above it — an empty subline would be decoration, so every stage has one.
+function stageSub(rawStatus: string, dogName: string): string {
+  switch (rawStatus) {
+    case 'confirmed': return `${dogName}에게 출발할 시간이에요`;
+    case 'runner_enroute': return `${dogName}를 넘겨받을 시간이에요`;
+    case 'picked_up': return '보호자와 인계를 마쳤어요 — 시작해요';
+    case 'active': return '러닝 기록이 쌓이는 중이에요';
+    default: return '이어서 진행해요';
+  }
+}
+
+const LATE_CAP_MIN = 12 * 60;   // beyond half a day late, it is a stranded booking, not a late runner
+const AHEAD_CAP_MIN = 24 * 60;  // beyond a day out, "N시간 뒤" is not a thing anyone acts on
+
+function relWhen(iso: string | null): { text: string; late: boolean } | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const min = Math.round((t - Date.now()) / 60000);
+  // ⚠ BOTH ENDS ARE CLAMPED, and the reason was only visible on a device. Sean's stale Aug-4
+  // fixture rendered 「400시간 59분 늦음」 in critical red across the whole ticket — at that scale the
+  // relative form stops being information and becomes a number nobody can act on, shouting. Past a
+  // half-day the fact is not "the runner is late", it is "this booking is stranded", so say that
+  // instead; past a day ahead the countdown is not actionable either and the date does the work.
+  if (min < -LATE_CAP_MIN) return { text: '지난 예약', late: true };
+  if (min > AHEAD_CAP_MIN) return null;   // keep the clock + date — a countdown adds nothing here
+  if (min < 0) {
+    const l = Math.abs(min);
+    return { text: l >= 60 ? `${Math.floor(l / 60)}시간 ${l % 60}분 늦음` : `${l}분 늦음`, late: true };
+  }
+  if (min === 0) return { text: '지금', late: false };
+  return { text: min >= 60 ? `${Math.floor(min / 60)}시간 ${min % 60}분 뒤` : `${min}분 뒤`, late: false };
+}
+
 const STAGE: Record<string, { label: string; action: string; color: string }> = {
   confirmed: { label: '픽업 대기', action: '픽업 이동 시작 ›', color: lilac.amber },
   runner_enroute: { label: '픽업 이동 중', action: '인계 화면으로 ›', color: lilac.amber },
@@ -345,7 +389,11 @@ export default function RunnerHome() {
   // [v4] 회당 평균·오늘 확보 합·이번 달/누적은 히어로와 함께 은퇴했다 (돈은 한 줄). 파생값도 같이 간다 —
   // 계산만 남아 아무도 읽지 않는 상태가 다음 세션에게는 "여기 있었는데 왜 안 그리지?"가 된다.
   // 화면의 유일한 코랄 소유권: LIVE(active) 러닝이 있으면 그 카드가 가져가고, 수락 문은 고스트로 내려간다.
-  const liveOwnsCoral = current?.rawStatus === 'active';
+  // ⚠ WIDENED from `active` only. The rule was "the LIVE run owns coral, the 수락 door otherwise",
+  // which left every pre-run stage (confirmed · runner_enroute · picked_up) with no coral owner at
+  // all — and when the inbox was also empty, no coral on the screen whatsoever. Any in-flight job
+  // now owns it, because a dog already committed outranks a request nobody has accepted.
+  const liveOwnsCoral = current != null;
 
   // when 문자열 파싱 — 마지막 토큰 = 시간, 앞 = 요일/날짜 (소스 다음예약 파싱과 동일)
   const parseWhen = (w: string) => {
@@ -493,6 +541,7 @@ export default function RunnerHome() {
         {current && (() => {
           const { wd, wt } = parseWhen(current.when);
           const st = STAGE[current.rawStatus];
+          const rel = relWhen(current.scheduledAt);
           return (
             <>
               <SectionHead title="진행 중" />
@@ -500,20 +549,47 @@ export default function RunnerHome() {
                 <View style={styles.tMain}>
                   <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
                     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                      {/* 시각이 첫 소자 — parseWhen이 마지막 토큰을 시간으로 가른다 (요일/날짜는 아래 조용한 줄) */}
-                      <Text style={[styles.tBig, nf]}>{wt}</Text>
-                      <Text style={[styles.objStage, { color: st?.color ?? CORAL_INK }]}>
+                      {/* A — the actionable datum leads. `rel` is null only when there is no
+                          scheduled_at, and then the clock keeps the slot rather than guessing. */}
+                      <Text style={[styles.tBig, nf, rel?.late ? { color: paper.critical } : null]}>
+                        {rel ? rel.text : wt}
+                      </Text>
+                      <Text style={[styles.objStage, { color: rel?.late ? paper.critical : st?.color ?? CORAL_INK }]}>
                         {st?.label ?? current.rawStatus}
                       </Text>
                     </Row>
-                    <Text style={styles.objMain}>
-                      <Text style={{ fontWeight: '800' }}>{current.dogName}</Text> · <Text style={[styles.objNum, nf]}>{current.km}</Text>km
-                    </Text>
-                    {wd ? <Text style={styles.objQuiet}>{wd}</Text> : null}
-                    {/* 주소는 서버가 준 행이 있을 때만 — 없으면 줄 자체가 없다 (죽은 줄·거짓 줄 금지) */}
-                    {jobAddr && (
-                      <Text style={styles.objQuiet} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
-                    )}
+                    {/* The clock demotes but does not disappear — a runner still needs the actual
+                        appointment to say it out loud to an owner. */}
+                    <Text style={styles.objClock}>{rel ? `${wt}${wd ? ` · ${wd}` : ''}` : wd}</Text>
+
+                    {/* B — the face. Avatar falls back to a monogram when photo_url is null, so the
+                        row never becomes an empty frame. */}
+                    <Row style={{ gap: 10, marginTop: 9, alignItems: 'center' }}>
+                      <Avatar url={current.dogPhotoUrl} char={current.dogName[0] ?? '견'} bg={lilac.head} size={42} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.objMain, { marginTop: 0 }]}>
+                          <Text style={{ fontWeight: '800' }}>{current.dogName}</Text> · <Text style={[styles.objNum, nf]}>{current.km}</Text>km
+                        </Text>
+                        {/* D — door-level address. The road name is what a map needs; 동·호수 is what
+                            the RUNNER needs, and it used to be dropped entirely by a single
+                            numberOfLines={1} line that also spent its width on the label. */}
+                        {jobAddr && (
+                          <>
+                            <Text style={styles.objAddr} numberOfLines={1}>{jobAddr.addr}</Text>
+                            {jobAddr.detail ? <Text style={styles.objDetail} numberOfLines={1}>{jobAddr.detail}</Text> : null}
+                          </>
+                        )}
+                      </View>
+                    </Row>
+
+                    {/* C — what this job pays. Already in RunnerJob and never rendered: the runner
+                        could see earnings for finished runs but not for the one they are walking to.
+                        Quiet green, never coral — the decision is already made, so this is
+                        confirmation and must not compete with the action for weight. */}
+                    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginTop: 9 }}>
+                      <Text style={[styles.objPay, nf]}>+{current.payout.toLocaleString()}원</Text>
+                      <Text style={styles.objQuiet}>완주 기준</Text>
+                    </Row>
                   </View>
                 </View>
 
@@ -523,10 +599,43 @@ export default function RunnerHome() {
                   <View style={[styles.perfNotch, { right: -8, borderRightColor: 'transparent' }]} />
                 </View>
 
-                {/* 라벨은 STAGE[rawStatus].action 실값 그대로 — 단계마다 다음 행동이 다르다 */}
+                {/* The stub keeps the ticket's shape but no longer carries the action — the coral
+                    button below says the same sentence, and one screen must not say it twice. */}
                 <View style={styles.tStub}>
-                  <Text style={styles.objActTxt}>{st?.action ?? '이어서 진행 ›'}</Text>
+                  <Text style={styles.objStubTxt}>{current.dogName}와 함께</Text>
                 </View>
+              </Pressable>
+
+              {/* ① — THE COLOUR RULE, FLIPPED. The screen's single coral used to belong to the
+                  수락 door, which means an EMPTY inbox rendered no coral at all: in that state the
+                  runner's real next action (인계 화면으로) was a grey stub link at the bottom of a
+                  card, while the heaviest thing on screen was a black identity bar that does
+                  nothing. A job already in flight — a dog already committed — outranks a request
+                  nobody has accepted. So it takes the coral, and the 수락 door drops to a ghost
+                  (see `liveOwnsCoral`, extended below to every in-flight stage rather than `active`
+                  alone). Label is STAGE[rawStatus].action, so it stays the stage's own next step. */}
+              <Pressable
+                onPress={() => openJob(current)}
+                style={({ pressed }) => [styles.jobCta, pressed && styles.pressed96]}
+                accessibilityRole="button"
+                accessibilityLabel={st?.action ?? '이어서 진행'}
+              >
+                <Text style={styles.jobCtaT}>{st?.action ?? '이어서 진행 ›'}</Text>
+                <Text style={styles.jobCtaS}>{stageSub(current.rawStatus, current.dogName)}</Text>
+              </Pressable>
+
+              {/* Chat sits directly beneath, INK OUTLINE not coral (Sean: "should have a chat option
+                  right underneath"). Two corals in one frame is exactly how the half-second glance
+                  breaks — chat earns a full row, not equal weight with the thing the dog is
+                  waiting on. */}
+              <Pressable
+                onPress={() => router.push({ pathname: '/chat', params: { bid: current.bookingId } })}
+                style={({ pressed }) => [styles.jobChat, pressed && styles.pressed96]}
+                accessibilityRole="button"
+                accessibilityLabel="보호자와 채팅"
+              >
+                <Text style={styles.jobChatT}>채팅</Text>
+                <Text style={styles.jobChatS}>늦으면 미리 알려주세요</Text>
               </Pressable>
             </>
           );
@@ -1219,6 +1328,26 @@ const styles = StyleSheet.create({
   // 오브젝트 본문 — 두 티켓이 공유하는 줄들
   objStage: { fontSize: 14, lineHeight: 18, fontWeight: '800', flexShrink: 0 }, // 색 = STAGE[rawStatus].color (인라인)
   objMain: { marginTop: 8, fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
+  // A — the demoted clock. 14pt keeps the detail floor; it is a supporting fact, not a datum.
+  objClock: { marginTop: 3, fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim },
+  // D — road name quiet, 동·호수 loud. The bold half is the half that finds the door.
+  objAddr: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  objDetail: { marginTop: 1, fontSize: 15, lineHeight: 19, fontWeight: '800', color: lilac.head },
+  // C — confirmation, not a call to action. Green reads as money without spending the coral budget.
+  objPay: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: '#2F7D4F' },
+  objStubTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim },
+  // ① the coral action. 4px depth edge = the same drawn-button grammar the owner home uses, so a
+  // dual-role user meets one language. Solid coral: title white is 4.84:1 on paper.action (the
+  // ground's ceiling), sub is paper.wash at 4.55:1 — both measured, both above the 4.5 floor.
+  jobCta: { marginTop: 10, backgroundColor: paper.action, paddingHorizontal: 14, paddingVertical: 13,
+    borderBottomWidth: 4, borderBottomColor: '#A63A20' },
+  jobCtaT: { fontSize: 18, lineHeight: 23, fontWeight: '800', color: '#FFFFFF' },
+  jobCtaS: { marginTop: 2, fontSize: 14, lineHeight: 18, color: paper.wash },
+  // chat — ink outline, deliberately not a second coral (see the JSX note).
+  jobChat: { marginTop: 8, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head,
+    paddingHorizontal: 14, paddingVertical: 11 },
+  jobChatT: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: lilac.head },
+  jobChatS: { marginTop: 1, fontSize: 14, lineHeight: 18, color: lilac.dim },
   objNum: { fontSize: 15, lineHeight: 20, color: lilac.head }, // Oswald 숫자 — lineHeight 1.33× (BUG A)
   objQuiet: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
   // 스텁의 액션 줄 — 코랄 면(nowBar) 은퇴 후의 자리. 카드 전체가 탭 타깃이라 이 줄은 라벨이지 버튼이 아니다.
