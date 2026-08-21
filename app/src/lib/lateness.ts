@@ -20,6 +20,8 @@ export type LateInput = {
   arrivedAt?: string | null;
   /** active 예약의 '끝났어야 할 시각' 산출용. 없으면 러닝 중 지각은 판정하지 않는다. */
   km?: number | null;
+  /** runs.started_at. active 의 기준점 — 없으면 scheduled_at 으로 떨어진다. */
+  startedAt?: string | null;
 };
 
 export type Custody = 'pre' | 'post';
@@ -94,7 +96,12 @@ export function lateness(
   let due = start;
   if (status === 'active') {
     if (b.km == null || !Number.isFinite(b.km)) return none;
-    due = start + expectedDurationMs(b.km);
+    // ⚠ 실제 출발 시각부터 잰다. 예약 시각을 기준으로 하면 20분 늦게 출발한 러닝이 20분 일찍
+    // '초과'가 되고, 일찍 출발한 러닝은 실제로 길어졌는데도 정상으로 보인다. started_at 은
+    // 서버가 쓰는 값이라(runs) 클라이언트 추정보다 신뢰도가 높다. 없으면 예약 시각으로 폴백.
+    const startedMs = b.startedAt ? Date.parse(b.startedAt) : NaN;
+    const base = Number.isNaN(startedMs) ? start : startedMs;
+    due = base + expectedDurationMs(b.km);
   }
 
   const deadline = due + graceMs;

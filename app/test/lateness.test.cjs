@@ -180,5 +180,33 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('sub-minute floors to 0분, never 곧', sinceLabel(59_000) === '0분', sinceLabel(59_000));
 }
 
+// ───────────────────────────────────────────── active measures from the REAL start (R1)
+// A run scheduled 10:00 but started 10:20 must not be called overdue 20 minutes early. The
+// server writes runs.started_at; scheduled_at is only when it was SUPPOSED to begin.
+{
+  const km = 5, dur = expectedDurationMs(km);          // 65 min
+  const sched = T0 - 200 * MIN;                        // scheduled long ago
+  const started = T0 - 40 * MIN;                       // but only actually started 40m ago
+
+  const anchored = lateness(B('active', sched, { km, startedAt: iso(started) }), T0);
+  t('active started 40m ago is NOT late (65m run + 30m grace)', anchored.late === false,
+     JSON.stringify(anchored));
+
+  // the same row WITHOUT started_at falls back to scheduled_at and reads wildly overdue —
+  // this is the bug, pinned so the fallback cannot silently become the default again
+  const unanchored = lateness(B('active', sched, { km }), T0);
+  t('without started_at it falls back to scheduled_at and reads late', unanchored.late === true);
+  t('…and the two disagree, which is the whole point',
+     anchored.late !== unanchored.late);
+
+  // genuinely overrunning, measured from the real start
+  const longRun = lateness(B('active', sched, { km, startedAt: iso(T0 - (dur + 40 * MIN)) }), T0);
+  t('active past start+duration+grace IS late', longRun.late === true, JSON.stringify(longRun));
+
+  // garbage timestamp must not poison the verdict — fall back, do not throw or NaN
+  const junk = lateness(B('active', T0 - 10 * MIN, { km, startedAt: 'not-a-date' }), T0);
+  t('unparseable started_at falls back rather than producing NaN', junk.late === false);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

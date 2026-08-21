@@ -389,7 +389,8 @@ export default function Schedule() {
                       출구가 된다 — 알림은 사실만 말하고 문은 아래 것을 쓴다. */}
                   <LateNotice
                     late={lateness({ scheduledAt: selected.scheduledAt ?? null, rawStatus: selected.rawStatus,
-                                     arrivedAt: selected.arrivedAt ?? null, km: selected.km })}
+                                     arrivedAt: selected.arrivedAt ?? null, km: selected.km,
+                                     startedAt: selected.startedAt ?? null })}
                     side="owner"
                     dogName={selected.dogName}
                     runnerName={selected.runnerName}

@@ -192,6 +192,9 @@ export interface Booking {
   // 현재 이 값을 읽는 게이트는 없다 — 홈의 인계 CTA 판정은 Sean의 재정(A/B) 대기 중이다:
   // docs/decisions/handoff-cta-gating.md. 두 답 모두 이 필드를 필요로 해서 배선만 먼저 깔아둔다.
   arrivedAt?: string | null;
+  /** runs.started_at — 러닝이 실제로 시작된 시각. null = 아직 시작 전.
+   *  ⚠ scheduled_at 과 다르다: 20분 늦게 출발한 러닝의 '초과'는 출발 시각부터 재야 한다. */
+  startedAt?: string | null;
   clubSessionId?: string | null; // 클럽 위탁 예약 (0037 bookings.club_session_id). 마켓플레이스
   // 취소 사다리가 적용되지 않는 예약 — 취소는 클럽 세션 화면의 전용 출구로 가야 한다
   // (서버도 cancel_owner에서 거부한다; 이 필드는 화면이 죽은 버튼을 그리지 않기 위한 것)

@@ -4147,7 +4147,10 @@ export async function markAllNotificationsRead(): Promise<void> {
 // 옮기면 보험·정산 기점이 앞당겨진다) status만 읽으면 '오는 중'과 '도착해서 기다리는 중'이
 // 같은 값이다. 홈이 그 둘을 구분하려면 이 컬럼이 있어야 한다.
 const MY_BOOKING_SELECT =
-  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))';
+  // runs(started_at): 러닝이 **실제로** 시작된 시각. 예약 시각으로 초과를 재면 20분 늦게 출발한
+  // 러닝을 20분 일찍 '초과'라고 부른다. runs.booking_id 는 unique 단일 FK(0001_init.sql:236)라
+  // 임베드가 모호하지 않다 — E1(PGRST201)이 여기서는 발생할 수 없다.
+  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
 
 function mapMyBooking(r: any): Booking {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
@@ -4169,6 +4172,9 @@ function mapMyBooking(r: any): Booking {
     status: STATUS_MAP[r.status] ?? 'pending',
     rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
     arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
+    // runs 는 예약당 0~1행(unique). 배열로 오면 첫 행, 객체로 오면 그대로 — PostgREST 가 관계
+    // 카디널리티를 어떻게 접든 같은 값을 읽게 한다. 없으면 null = '아직 시작 안 함'.
+    startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
     recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
     seriesId: r.series_id ?? null,
     live: true,

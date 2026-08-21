@@ -265,7 +265,8 @@ export default function OwnerHome() {
   // liveNext 가 이미 싣고 온 필드만 읽으므로 왕복이 늘지 않는다 (src/lib/lateness.ts).
   const lateVerdict = liveNext
     ? lateness({ scheduledAt: liveNext.scheduledAt ?? null, rawStatus: liveNext.rawStatus,
-                 arrivedAt: liveNext.arrivedAt ?? null, km: liveNext.km })
+                 arrivedAt: liveNext.arrivedAt ?? null, km: liveNext.km,
+                                     startedAt: liveNext.startedAt ?? null })
     : null;
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
