@@ -370,6 +370,105 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-tricies. 🔴 MONEY + SERVER DEFECTS THAT MUST BE FIXED BEFORE CHARGING FLIPS — all inert today (2026-08-20)
+
+Found by the money and server sweeps. **Every one is harmless while charging is off** — `payments_live_since` null, 0 payments,
+0 billing keys, `TOSS_SECRET_KEY` unset, Vault secret absent: four independent off-switches, all measured. Each becomes real on flip day.
+
+**1. 🔴 A charge can mint for a dog still on the leash.** `sweep_settled_without_payments` lacks the `settled_at is not null` guard —
+**verified live by the announcer** (`prosrc like '%settled_at is not null%'` → false, while it does reference `ended_at`). After 0083 the
+return handoff is what says the dog is home; without the guard the sweep can bill on run-end alone. One predicate plus a pin.
+
+**2. 🔴 Club cancel fees are structurally uncollectable, and the runner's share never lands.** `_club_record_cancel_fee` writes
+`club_fee_items` and **never** `bookings.cancel_fee` — **verified live by the announcer** (writes_booking_fee → false, writes_club_items
+→ true). So the charge mint AND the unpaid-debt gate both see zero for a club cancellation, and the runner's supply-compensation share
+never reaches `my_ledger_total`. Two fee ladders exist and nobody has ruled which governs. **This one needs YOUR ruling, not just a fix.**
+
+**3. 🔴 One unparseable timestamp stops charge dispatch for everybody.** `dispatch_due_charges` (SQL) and `isDue()` (TS) have drifted:
+SQL hardcodes `< 3` where TS uses `MAX_ATTEMPTS`, and an unparseable `next_retry_at` makes the SQL side raise — so the batch never wakes
+for any user, while TS treats the same row as due. [reported by the sweep; not independently re-measured]
+
+**4. 🟠 Four definer functions answer questions about strangers.** The server sweep measured four functions with `authenticated`
+EXECUTE that take a caller-supplied id and contain **no `auth.uid()` anywhere**: `club_incident_settle_quote` (a full money and
+handoff-timing readout of ANY booking), `runner_work_gate` (a liveness oracle for ANY runner), `club_dog_ui_state`, `club_host_stats`.
+No suite pins them. The two HIGH ones are small fixes. Not urgent at 1 real user; it is the same class the /cso audit closed elsewhere.
+
+**Also recorded, not decisions:** `docs/payments.md` is wholly obsolete · `docs/decisions/README.md`'s ① and ⑩ status rows are false ·
+one assertion still carrying a ✅ on origin (⑪ gates ⑫) is wrong and was retracted elsewhere — a ✅ that is not your current word is
+exactly what the governance rule exists to prevent · `km_expire_sweep` is defined but **never scheduled** (checked against all 17 live
+cron jobs) · `create-payment-intent` exists locally and is NOT deployed · `addresses` has zero grant/revoke statements in any migration.
+Full detail: `docs/handoff-codex/money-domain.md` (both ledgers for every end scenario, 15 reconciled contradictions, 40 unbuilt items)
+and `docs/handoff-codex/server-domain.md` (69 tables, 190 definers, 64 unbuilt items, 35 traps).
+
+## 0-undetricies. 🔴 CODEX (gpt-5.6-sol, xhigh) — an independent 30-day read, and one MEASURED bug in the PMF gate itself (2026-08-20)
+
+Sean asked for collaboration with Codex rather than a handoff. Its first pass read the repo cold. **The finding I verified myself and
+which outranks the rest: `scripts/pilot-metrics.mjs:135` computes M1's window from `firstDone.created_at` — the BOOKING'S CREATION
+TIME — while the comment two lines above states the definition as "from the first COMPLETED run".** The file never references
+`runs.ended_at` (0 occurrences). Two consequences, both real: a booking created weeks before the service becomes eligible the moment
+the window elapses from CREATION, and a second booking made BEFORE the first run ever happened counts as a rebooking. **So the 60%
+rebooking gate that CLAUDE.md and the launch checklist make the condition of expansion is currently measuring "booked twice", not
+"came back after a run".** Fix is small (use the run's end, and report "second booking intent" separately from "second completed
+run") and unowned. Nothing is invalidated retroactively — there is 1 real user and 0 real customers, so no decision has yet been made
+on a bad number.
+
+**Codex's three ranked risks, none of them security or compliance** (its words, condensed; full text in the session log):
+1. **No two-sided market evidence** — `docs/validation-interviews.md` says finish 15–20 interviews before writing more code;
+   `docs/interviews/` does not exist; all 9 runners are test data. Its prescription: stop expanding routes/clubs/campaigns/brand for
+   seven days, recruit 3 owners + 3 runners in Banpo, manually fulfil five runs. **It calls the documented 50-dog/22-runner pilot "a
+   scale test masquerading as a pilot" and says the first pilot is 3×3.**
+2. **The native product is hypothetical** — 0 EAS builds ever; nine config plugins; Kakao/Naver/background-GPS/push/Live
+   Activities/Toss are all unproven on hardware; no UI E2E framework and no `test` script in `app/package.json`. Its prescription:
+   cut **Build 0 immediately from clean trunk**, before any remaining polish, and run one two-phone path end to end (cold Kakao
+   signup → book → nominate → accept → arrive → handoff → lock the phone and walk 500 m → realtime + push + return seal + ledger).
+   "A build is a test artifact, not a release commitment."
+3. **No closed-loop operating system** — `ledger_items` has no paid marker and `payouts` has no writer (already §0-duovicies);
+   `OPS_PROFILE_ID` unset and `ops_recipients` empty, so every alert terminates in a log nobody reads; no crash reporting, so a
+   failure on Banpo LTE is invisible. Its prescription: do NOT automate bank movement — make Sean the recipient for every ops event,
+   add an ops-only manual payout journal that links `ledger_items` to a `payouts` row with `paid_at`, and run a twice-daily stuck-state
+   report. "An unrecorded bank transfer is not acceptable; a spreadsheet keyed by ledger-item ids is, for the first five runs."
+
+**It also says the route catalog is not the moat yet** — `positioning.md:33` names dog fitness DATA as the moat, and drawn geometry
+is not that.
+
+**✅ SEAN CHOSE B (2026-08-20): keep building; Build 0 slots in later.** No feature freeze, no 3×3 concierge pivot right now. What that does NOT dismiss, and what a later Build 0 inherits: the native surface is still entirely unproven (0 builds ever), so every native claim in the app — Kakao login, Naver maps, background GPS, push, Live Activities, Toss — remains code-plus-gates only, and the day Build 0 happens its blocker list becomes the queue. Codex's other two risks (no market evidence; no closed-loop ops) are NOT closed by choosing B — they are deferred, and the ops one overlaps §0-duovicies (nothing pays runners). Separately and cheaply: **fix the M1 gauge** (yes/no — it is a bug either way, but you may want it
+fixed before anyone quotes a number from it).
+
+## 0-duodetricies. 🟡 THREE THINGS THE LEGAL/OPS SWEEP FOUND, each verified by the announcer (2026-08-20)
+
+**1. Every logged-in user can read every public runner review — and a shipped legal doc says otherwise.** Measured: `reviews` carries FOUR
+SELECT policies, and `reviews storefront read` is `visibility='public' AND target_kind='runner'` with **no party term** (0011). The
+non-location legal review concluded reviews were not exposed — but it probed as **anon** (401) and the exposure is to **authenticated**.
+Same "read one layer, describe another" family that has bitten five times now. ⚠ Nuance the sweep overstated and I measured: there are
+**zero** public runner reviews today (1 review total), so the POLICY is live and the DATA is empty — it becomes real the first time a
+public runner review is written. **A** intended, it is a storefront, leave it · **B** narrow it (a review of a runner is about a named
+person) — legal's position was that widening this read path is a legal decision, not a UI one.
+
+**2. A decision of yours is buried in a code comment, not in this queue.** `supabase/migrations/0060_wave3_server_honesty.sql:52-53`
+(verbatim intent): *gate_code_access_log has never once been written to — it is an empty shell; adding a log would make
+`booking_pickup_address` volatile — awaiting Sean's judgement; use the club_phone_access_log (0049) pattern if he wants it.* So the
+gate-code viewing log exists as a TABLE with no writer, and whether to actually log gate-code access is your open call. It is the same
+family as the 위치정보 제16조 access ledger legal wants built. **A** log it (function becomes volatile; copy the 0049 pattern) · **B**
+leave it unlogged and delete the empty table so nobody mistakes the shape for the behaviour.
+
+**3. Eight `scripts/*.mjs` still tell the reader to put the service key in a root `.env`** — the exact defect the CSO audit closed by
+moving it to `~/.config/daengrun/ops.env`. Nothing is leaking today (the key is not in the repo), but the instructions would re-create
+it. Small cleanup, unowned, no decision needed — flagged so it is not rediscovered as news.
+
+## 0-septemvicies. 🔴 IRREVERSIBLE, AND IT SITS DIRECTLY BEFORE YOUR TESTFLIGHT ERRAND (2026-08-20)
+
+**`app/app.json:22` — `"bundleIdentifier": "com.seankookim.daengrun"`** (and the widget target at `:99` mirrors it). **[measured by the
+announcer]** It carries the RETIRED brand name, and a bundle ID is **immutable once the first build is uploaded to App Store Connect** —
+after that, changing it means a NEW app: new listing, new reviews, new URL, pre-orders and any App Store momentum start from zero.
+
+⚠ **This is ordered wrong on your queue and only you can fix the order.** TestFlight (your Apple 2FA errand) is the first upload. If
+you do the 2FA step before ruling on this, the retired name is locked into the store identity forever. The campaign session refused to
+default this one — correctly; it is the only irreversible item in its whole set.
+
+**A** rename now to a 도그스하이-derived id (e.g. `com.seankookim.dogshigh`) BEFORE any upload — costs one edit to `app.json` plus a
+rebuild, and it must happen before TestFlight · **B** keep `com.seankookim.daengrun` knowingly, accepting that the store identity
+carries a name the product no longer uses · **C** decide at upload time (⚠ not really an option — the upload IS the decision).
+
 ## 0-sexvicies. 🟠 THE DEAD BRAND AND A BANNED WORD ARE WIRED TO CARD STATEMENTS — fix before charging flips (2026-08-20)
 
 Found by the brand round, **verified by the announcer**: `supabase/functions/_shared/charge.ts:117-118` sets the PG `orderName` to
@@ -685,7 +784,7 @@ zero — so the exclusion is already applied by your judgement and is simply und
 migration: a recorded owner id + a documented count query. One line from you confirms this is the
 flagged-test-owner policy, and then it gets written into the PR-0 doc.
 
-## 0-octies. /cso AUDIT 2026-08-19 — P0 status: 1 CLOSED (GPS), 2 CLOSED (drops), 1 IN REBUILD (booking) — none need Sean
+## 0-octies-bis. (renumbered by the announcer 2026-08-20 — this id was used twice; content unchanged) /cso AUDIT 2026-08-19 — P0 status: 1 CLOSED (GPS), 2 CLOSED (drops), 1 IN REBUILD (booking) — none need Sean
 
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.

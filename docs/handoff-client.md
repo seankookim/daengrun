@@ -1,23 +1,16 @@
-# HANDOFF — client domain (`app/`), written 2026-08-20 afternoon
+# HANDOFF — client domain (`app/`), written 2026-08-21 morning
 
-**Read with this, in order:** `docs/decisions/awaiting-sean.md` (his live decision queue —
-§0-sexvicies and §0-septvicies are mine, both open, and §0-septvicies has a **correction that
-supersedes its own spec**) · `DESIGN.md` (tokens, laws) · `CLAUDE.md` (permanent laws) ·
-`docs/labs/RULINGS-2026-08-19-journey.md` (his verbatim rulings) · `docs/session-handoff.md`
-(fleet-wide, announcer-owned — **do not edit**).
-
-⚠ **This is not the only client record for 2026-08-20.** A second client session worked `app/` the
-same night and wrote its ending state to
-**`docs/plans/2026-08-20-client-gap-straightening.md`** (appended at the foot, `4fd2ffe`) — ~30
-defect fixes, and a *"What is NOT verified"* section placed deliberately **before** its results.
-Two sessions writing one handoff is how a record gets lost, so we kept them separate on purpose:
-**that file owns their fixes, this file owns mine, and neither is complete alone.** Read both.
-Their doc's unverified section governs the whole night, mine included — four things saw the
-simulator, **everything else is code + gates only, and nothing has ever run on hardware.**
+**Read with this, in order:** `docs/plans/2026-08-20-client-gap-straightening.md` (the 60-item gap
+inventory + its ENDING STATE section + Q7–Q10 queue) · `docs/decisions/awaiting-sean.md` (his live
+decision queue; §0-duodetricies and §0-undetricies are recent) · `DESIGN.md` (tokens, laws) ·
+`CLAUDE.md` (permanent laws) · `docs/labs/RULINGS-2026-08-19-journey.md` (his verbatim rulings) ·
+`docs/session-handoff.md` (fleet-wide, announcer-owned — **do not edit**).
 
 Domain: **client — all of `app/`**. Never write a migration or touch `supabase/`.
-This file **replaces** the 2026-08-20-morning version; git history is the archive
-(`git log --follow docs/handoff-client.md`).
+This file **replaces** the 2026-08-20-afternoon version; git history is the archive
+(`git log --follow docs/handoff-client.md`). ⚠ A *second* client session wrote the version this
+replaces; it went offline overnight. Its content is preserved in git and its facts are folded in
+below where still true.
 
 ---
 
@@ -25,304 +18,284 @@ This file **replaces** the 2026-08-20-morning version; git history is the archiv
 
 | System | State | Tag |
 |---|---|---|
-| Branch / tree | `redesign-v4` @ `46944a6`, **0 ahead / 0 behind origin**, clean except untracked `ingest.sql` (not mine) | **[verified-now]** |
+| Trunk | `redesign-v4` @ **`13749af`**; my branch `claude/client-redesign-v4-267d6b` **0 ahead / 0 behind / clean** | **[verified-now]** |
+| MAIN CHECKOUT `/Users/sean/dev/daengrun` | **clean, 0 ahead / 0 behind** at `f82e779`→ now trunk. Was stuck mid-merge; I abandoned it deliberately (§6) | **[verified-now]** |
 | `tsc --noEmit` | clean | **[verified-now]** |
 | `check-rpc-contracts.mjs` | ✅ all calls match signatures | **[verified-now]** |
-| `check-route-native-imports.mjs` | ✅ 56 routes, none | **[verified-now]** |
-| `check-embed-fk.mjs` | ✅ 1 pair checked, 107 files — **a fifth gate I had been missing all session** | **[verified-now]** |
-| `npm run lint --quiet` | **279 problems, 6 errors** = the baseline. A 7th is yours | **[verified-now]** |
-| Migrations (production) | applied through **0115** | **[verified-now]** |
-| Edge functions (deployed) | create-booking-hold v10 · transition-booking v34 · settle-run v14 · open-drop v8 · geocode-address v1 · collect-charges v1 · confirm-payment v1 · **delete-account v1** | **[verified-now]** |
-| Owner home v3 | **SHIPPED**, simulator-verified across none / confirmed / past / handoff | **[verified-now]** |
-| Handoff state render | verified by **temporarily forcing `goState`**, screenshotting, reverting. `home.tsx` byte-identical after (checked) | **[verified-now]** |
-| iOS device | **nothing has ever run on hardware.** Simulator only (iPhone 17 Pro `F2FDB7D7-A669-4BBC-8EF4-677597F3851A`). TestFlight zero builds | sim **[verified-now]** · TestFlight **[from-history]** |
-| Other sessions | ⚠ see the overnight addendum at the foot of this file — it supersedes this row. announcer **offline** since ~14:00. ⚠ **A SECOND CLIENT SESSION is live** (`exciting-rosalind-e6ac13`) claiming all of `app/`; it has already layered `21825ca` + `f6aa011` on top of my files. My work survived intact — verified — but two client sessions share this surface, so read `git log -- <file>` before editing anything in `app/` | **[verified-now]** |
+| `check-route-native-imports.mjs` | ✅ **57 routes**, none | **[verified-now]** |
+| `check-embed-fk.mjs` | ✅ 1 pair checked · 109 files — **NEW GATE, written this session** | **[verified-now]** |
+| `npm run lint --quiet` | **270 problems, 6 errors** = baseline (was 279/6 at session start — net −9 warnings). A 7th error is yours | **[verified-now]** |
+| Migrations (production) | applied through **0115** (0105 absent by design — superseded) | **[verified-now]** |
+| Edge functions | create-booking-hold v10 · transition-booking v34 · settle-run v14 · open-drop v8 · geocode-address v1 · collect-charges v1 · confirm-payment v1 · delete-account v1 — all ACTIVE | **[verified-now]** |
+| iOS device | 🔴 **nothing has ever run on hardware.** Simulator only (iPhone 17 Pro `F2FDB7D7-A669-4BBC-8EF4-677597F3851A`). TestFlight zero builds | **[verified-now]** |
+| Bundle id | **`com.seankookim.dogshigh`** (renamed by another session at `b6ee192`, Sean's call). `app.json` `scheme` remains `"daengrun"` — different thing, must stay | **[verified-now]** |
+| Other sessions | **announcer-v3 is ONLINE** (started ~1h ago). Route-geometry, marketing, and the 2nd client session are all gone | **[verified-now]** |
 
 ---
 
 ## 2. Goal & current state
 
-Banpo pilot, PMF gate M1 rebooking 60%. This session was **owner-home design → implementation**,
-plus one brand-identity research round.
+Banpo pilot, PMF gate M1 rebooking 60%. This session ran overnight under Sean's second grant, then
+interactively with him this morning.
 
 | Workstream | State |
 |---|---|
-| Brand identity research (7 agents) | **DONE** — synthesis lab `ec2e8b0`; six decision dials unanswered |
-| Home v3 design labs (6 labs) | **DONE** — published as artifacts, committed with generators |
-| Home v3 implementation | **SHIPPED** — `a8248ae` → `794f07e` → `1dcc42c` → `144ea61` |
-| `draw-button.tsx` (new) | **SHIPPED** — 10 drawings, 7 grounds, measured contrast |
-| Engraved club widget | **SHIPPED** (`clubcard.tsx` `ClubCompactRow`) |
-| Past-booking state | **client half shipped**; server half queued §0-septvicies |
-| Handoff CTA off-by-one-state | **FOUND, NOT FIXED** — needs his ruling |
-| Wordmark asset | **BLOCKED on Sean** — interim Black Han Sans |
-| 반환 확인 (R6) · R1c work-gate | still server slices, unchanged |
-| 커뮤니티 / 마이 in this style | not started (Sean: "later") |
+| Gap straightening (60 items) | **~40 fixed and pushed.** Remainder is low-severity tail + Sean-gated |
+| Runner home ① redesign | **SHIPPED** (`65a9ca5`) — his pick, four additions, coral rule flipped |
+| Runner ticket info (A·B·C·D) | **SHIPPED** in the same commit |
+| Handoff dog card (tags/vaccines) | **SHIPPED**; the rest of "E" was **withdrawn as duplicate** (§6) |
+| Back-button trap class | **CLOSED** — 45 screens, one shared guard |
+| Raw-English-to-Korean-user class | **CLOSED** — no path can print PostgREST English now |
+| Naver appname vs bundle id | **FIXED** (`13749af`) — device-unverifiable |
+| Coral CTA ground A/B | **BLOCKED on Sean** (`§0-duodetricies`) |
+| Handoff-CTA gating | **BLOCKED on Sean.** Plumbing landed (`arrived_at` threaded, `goState` untouched) |
+| TestFlight | **BLOCKED on Sean's 2FA.** Sean chose "keep building, Build 0 later" (`4d7f57d`) |
 
 ---
 
 ## 3. What shipped this session (by theme)
 
-**Brand research** — `ec2e8b0`: seven agents (repo archaeology · apple-design motion audit · voice
-extraction · four market clusters · 배민 deep-dive) → `docs/labs/brand-identity-lab.html`. Thesis:
-*the brand evicted from the app and the market's whitespace are the same thing* — "warm ·
-typographic · numeral-owning · record-issuing" is the unclaimed seat in Korean pet apps.
+**Criticals.** Runner nomination had **never worked in production** — `REQ_SELECT` carried a bare
+`routes(name)` and `bookings` has two FKs to `routes`, so PostgREST answered PGRST201 and the
+directed-inbox leg swallowed the error by design. Fixed + a new gate (`check-embed-fk.mjs`) that
+makes the class impossible. Also: SOS resolved the wrong party on a cold Live Activity deep link
+(silently telling a runner holding a dog that no run was in progress); the checkout fee card said
+「취소 수수료 없음」 against the real 10%/50% ladder; a ₩3,900 라이브캠 add-on was purchasable with no
+transport code; runner payout estimates used the OWNER's base fare (8% low on the accept screen);
+and `isOfferable` would have emptied a town's catalog on the first route promotion.
 
-**Design labs** (live HTML, generators committed beside each, all published as artifacts):
-`634fbdf` attention-lab (12 시선 structures) · `e35a183` state-lab (logo drop + 7 states + 10 club
-widgets) · `0acce78` v3-lab (feature/route table first, then mocks) · `bdc8e54` cta-life-lab
-(10 button treatments) · `5a71ad9` cta-drawings-lab · `ba3c9fa` home-full-lab (3 states fanned).
+**Journey flow.** The handoff push landed the runner on the request inbox instead of the meetup
+screen (`title.includes('요청')` — now an exact-title table). A searching booking had **no management
+path anywhere in the app**. `/owner/live` was a cold-entry trap. The radar stranded forever on four
+statuses. The meetup cancel guard was armed one line after its own `await`.
 
-**Implementation** — `a8248ae` v3 build · `794f07e` his seven corrections + club widget ·
-`1dcc42c` measured contrast · `144ea61` past-booking honesty + amber ground · `46944a6` queue
-correction. Earlier: `22a503e` (the merge he'd wanted as a mock), `0a159b6` (last user-facing
-댕런 removed from the runner consent line).
+**Incident states.** Both custody screens ran the ceremony **backwards** during an incident (seals
+un-drawing 2/2 → 1/2 while something had gone wrong with the dog); `owner/live` never left, clock
+counting forever under a network-trouble sentence; `runner/run` had zero booking-status reads.
+
+**Realtime + honesty.** Dead channels cached as healthy forever; chat claimed a connection it never
+verified and had no fallback; home's hero had no refresh path at all; seven screens rendered
+failures as facts; coral CTA contrast was 3.70:1.
+
+**Structure.** 45 trap screens (`src/lib/nav.ts`), `+not-found.tsx`, `payments` returnTo allowlist,
+a photo-gallery **wipe** on a failed read, week-stats phantom km, past-dated inbox requests, dead
+launch-screen buttons during the auth window, club a11y.
+
+**Runner home ①** (`65a9ca5`) + **labs**: `runner-home-glance-lab.html`, `runner-ticket-info-lab.html`.
 
 ---
 
 ## 4. Standing doctrines (canonical: `CLAUDE.md`, `DESIGN.md`)
 
-The five that bit *this* session:
 1. **FIVE gates before every commit**, from `app/`: tsc · check-rpc-contracts ·
    check-route-native-imports · **check-embed-fk** · `npm run lint --quiet` (**must stay 6 errors**).
-   ⚠ I ran only four all session — `check-embed-fk.mjs` exists and I did not know it. Verified
-   green after the fact (1 pair, 107 files), but the gate list in this file was wrong until now.
-2. **Honesty**: bind real fields or omit. No invented urgency (`지어낸 긴급함 = 학습된 무시`).
-   Failures shown as failures. No dead buttons.
-3. **Gate on `rawStatus`, never on display vocabulary** — STATUS_MAP flattens server states.
-   *I violated this; it produced the handoff off-by-one. See §7.*
-4. **One coral per frame**; coral = your turn only.
+   ⚠ The plan file's own P5 listed four until I corrected it — a written gate list goes stale the
+   moment a gate is added.
+2. **Honesty**: bind real fields or omit; failures shown as failures; loading is not 0; no dead
+   buttons; **error and not-found are different states with different sentences**.
+3. **Gate on `rawStatus`, never on STATUS_MAP display vocabulary.**
+4. **One coral per frame**; coral = your turn. On runner home it now belongs to the **in-flight job**.
 5. **DO-NOT-REFACTOR**: `owner/fitness.tsx` collapsing hero · both meetup stage machines ·
    `run.tsx`'s in-file freezes · the three availability predicates.
+6. **English comments everywhere.** Korean only inside user-facing strings.
 
 ---
 
 ## 5. Working-relationship norms
 
-- **Terse, by number, and he means it.** "A", "②", "then handoff", "implement everything."
-- **He looks at the screen and finds what code review misses.** Every defect that mattered this
-  session came from him reading a screenshot: inconsistent title sizes, clipped icons, weak
-  contrast, two same-coloured buttons, copy that meant nothing.
-- **He questions premises, not pixels.** *"what does a late but confirmed run mean?"* opened a
-  state-machine defect no design review would have found. When he asks what something **means**,
-  treat it as a spec gap, not a copy request.
-- **He asked for mocks and I shipped code once** (`22a503e`) — corrected with *"i wanted a merged
-  mock."* Default to a lab first unless he says implement.
-- **English replies** (he asked twice). In-app copy stays Korean.
-- Autonomy is broad; his account, credentials, TestFlight and money rulings are not.
+- **Terse, by number.** "①", "A", "sure.", "let's work with 1".
+- **He checks the running app, and he is right when he does.** He challenged my proposed 인계 card
+  with *"doesnt the 인계 screen clash with the already existing one? check with the current app ui"* —
+  it did, and two of my claims were false. **When he says check, check the running app, not the code.**
+- **Labs first, he picks by number** (`DESIGN.md`: labs are the sanctioned mockup arena). He once
+  corrected a session for shipping code when he wanted a mock. Do not skip the lab.
+- **He grants wide autonomy overnight** and expects work to continue without permission-asking —
+  but credential VALUES, his account, and product calls with real-world consequences stay his.
+- **English replies.** In-app copy stays Korean.
 
 ---
 
 ## 6. Decision log with WHY
 
-**His rulings this session:** ② direction (from the attention lab) · **the logo drop** (mark leaves
-the masthead, fills the phrase's ragged right) · **keep the live dot** (overruling me — I repaired
-it instead of obeying, binding it to real online-runner count) · colours + drawings in the other
-buttons · **§0-septvicies = A** (grace window + server expiry), which his next question then
-narrowed.
+**Sean's decisions this session:** ① (runner home, "let's work with 1") · chat directly beneath the
+coral, which forced chat to be **ink outline** not a second coral (two corals breaks the glance) ·
+the four ticket additions together · "keep building, Build 0 later" (`4d7f57d`) · the bundle rename
+(`b6ee192`).
 
-**Reversals / supersessions:**
-- **Wordmark font.** `a8248ae` set body-900 to protect §3's one-per-screen budget; `794f07e` moved
-  it to Black Han Sans on his instruction. Home knowingly spends the display font **twice** until
-  the real logotype lands, and says so in-file.
-- **§0-septvicies narrowed the same day** (`46944a6`): expiry applies to `rawStatus='confirmed'`
-  only. **`runner_enroute` must never expire.**
+**My reversals / corrections — five, all against things already committed:**
+1. **react-doctor "trigger = absent node_modules"** — I called it measured. It was a bad A/B (removing
+   the symlink varied two things at once). A peer falsified it with a counterexample. **Trigger is
+   now OPEN**; see Q10.
+2. **"These analyzer flags share one shape"** — three sites, three structures. Wrong mechanism.
+3. **Clearing four analyzer findings I had not read** — "not on tonight's edits" ≠ "false".
+   `tabswipe.tsx` then turned out to be a **real bug**.
+4. **My own comment on my own fix** claiming a teardown covers a callback it cannot reach.
+5. **The 인계 card (E)** — ~90% duplicate of a shipped screen. Withdrawn. Two claims inside it were
+   false: the memo does NOT disappear on accept, and a map/navigation handoff already exists.
 
 **Refusals:**
-- **Did not implement the handoff-gating fix** — changes which screen shouts, borders the frozen
-  meetup flow. Queued for his word.
+- **Did not implement the handoff-CTA gating** — Sean reserved it; a peer wanted to build it and I
+  flagged that a general grant is not authority to reverse a specific reservation. They stood down.
+- **Did not repair the react-doctor hook** — trigger unknown; a working hook rewritten on a wrong
+  diagnosis is its own defect.
+- **Did not resolve the routes.json rebase conflict** — route data, not my domain to adjudicate.
 - **Did not touch `supabase/`** at any point.
-- **Did not invent the grace-window number** — proposed 30 min, flagged as his.
-- **Did not force-push** to repair a garbled commit message (`ede1b65`); three sessions were live
-  on trunk and the tree was correct. Prose damage < diverged trunk.
 
-**Two defects I shipped and then caught myself:**
-1. Green 「확정됨」 chip above 「지난 예약이 하나 있어요」 — chip and phrase contradicting each other.
-2. `dateLabel + ' 예약'` on phrase line 1 → 「8월 4일 (화)…」 truncated against the mark. **I broke my
-   own drop law.** Line 1 now takes fixed-length strings only.
+**The merge decision (this morning), stated deliberately:** the main checkout was mid-merge
+(MERGE_HEAD `94e46fb`, 2 unresolved, 103 staged). I patch-id'd its 4 local commits: **3 already
+upstream**, 1 genuinely unpushed (`45de013`, routes). Finishing would have produced a merge commit
+for landed work → **ABANDONED**. `merge --abort` (non-destructive), then rebase — which conflicted
+on the unpushed one against much newer route data. Preserved it as branch
+**`rescue/routes-basemap-45de013`** and reset the main checkout to origin. **Nothing lost; main
+checkout finally clean.** Backup existed at `/Users/sean/dev/daengrun-rescue-2026-08-20/`.
 
 ---
 
 ## 7. Architecture & contracts
 
-- **`src/components/draw-button.tsx` (NEW)** — ground wash + SVG line drawing + 4px depth edge +
-  optional live dot + optional foil sheen. Grounds: coral · paper · gold · blue · volt · lilac ·
-  amber. **Every ink/sub pair is measured**, ratio written beside its row. Rule in-file: *ink on a
-  wash is never chosen by eye* — three of five failed AA when I picked by eye (3.82 / 3.99 / 3.50).
-- **The drop law, enforced by layout not discipline** (`home-hero.tsx` `Phrase`): line 1 is its own
-  `Text` with `paddingRight: MARK_W` reserving the mark's box; line 2 runs full width.
-  **Variable-length values (names, dates, places) may never sit on line 1.**
-- **Live-dot honesty contract**: `onlineRunners` = `fetchCertifiedRunners().length`, which already
-  filters `.eq('online', true)`. Dot renders only when `> 0`. `.limit(10)` → ten-or-more says
-  "10명 이상".
-- **⚠ STATUS_MAP flattening (`api.ts:715-730`) — the fact that matters most next session:**
-
-  | DB status | client sees | truth |
-  |---|---|---|
-  | `confirmed` | confirmed | runner accepted, **nobody set off** |
-  | `runner_enroute` | confirmed | runner travelling; `arrived_at` stamps on arrival |
-  | `picked_up` | **handoff** | **both sides already confirmed** — dog is with the runner |
-
-  `picked_up` requires BOTH `owner_confirmed_handoff_at` and `runner_confirmed_handoff_at`
-  (`transition-booking/index.ts:300-320`, "둘 다 눌러야 picked_up (보험 기점)"). So **home's loud
-  coral 인계하기 fires after the handoff is already done**, while the real handoff moment
-  (`runner_enroute` + `arrived_at`) renders calm. `Booking.rawStatus` is already populated
-  (`api.ts:3915`) — the fix is client-side; `arrived_at` needs adding to `fetchMyBookings`' select.
-- **`no_show` exists and is unreachable** — legal transition from `confirmed` (`0001:205`), set by
-  **nothing** in `supabase/functions/` (grep: zero hits).
-- **Cancel fee ladder**: 0 at ≥24h, **10% inside 24h, half of it the runner's** (0085). A past-time
-  booking is definitionally inside that window — which is why home must not imply free cleanup.
-- **`owner/home.tsx`'s header is NOT pinned and must not become pinned again** (carried forward
-  from `93ca631`). The masthead and ticker are ordinary children of a plain `ScrollView`; the
-  absolute overlay, the `paddingTop: PAD_TOP + HEADER_H + heroH` reservation and the collapse
-  machinery retired with the GO disc (`bea1bc8`). **Reintroducing an absolute header brings back
-  the plate-bleed-through bug** where scroll content ran through the hero text. Real, visible,
-  fixed once.
-- **`StatusBarCover` must stay mounted LAST** on every screen that uses it (`45bd558`) — after the
-  ScrollView in tree order. Move it earlier and content scrolls over the system bar again, the
-  exact defect it was added to fix on nine screens.
-- **DO-NOT-REFACTOR** (reasons in-file): `run.tsx`'s tracking singleton / settle retry loop /
-  overrun ceiling / Live Activity / background-mode block / K7 camera contract; both meetup stage
-  machines and the last-effect hydration law; `owner/fitness.tsx`'s collapsing hero; the three
-  availability predicates.
-- **`routes` embeds MUST name the FK**: `routes!bookings_route_id_fkey(name)`. Unqualified =
-  PGRST201 = the whole list dies.
+- **`src/lib/nav.ts` (NEW)** — `goBackOrHome()`. `router.back()` is a no-op on an empty stack and
+  this app manufactures them (every route is `daengrun://<path>`, pushes deep-link, two Live
+  Activities open from the lock screen) while the root Stack has **no header and no back-swipe**.
+  Fallback is role-aware. ⚠ Inherits the `session.role` module-state limitation.
+- **`scripts/check-embed-fk.mjs` (NEW, 5th gate)** — refuses an unqualified `routes(` inside a
+  `bookings` select. Mutation-verified: reverting the one-line fix reddens it.
+- **`NOT_FOUND` token (`api.ts`)** — zero rows is not an error. Screens pick between
+  「…을 찾을 수 없어요」 (no retry — retrying cannot conjure a row) and 「…을 불러오지 못했어요」 + 다시 시도.
+- **`relWhen()` (`runner/home.tsx`)** — relative time, **clamped both ends**: >12h late reads
+  「지난 예약」, >24h ahead falls back to the date. The clamp exists because the device rendered
+  「400시간 59분 늦음」 in critical red. **Do not remove the clamp.**
+- **`liveOwnsCoral` (`runner/home.tsx`)** — widened from `active` to **any in-flight job**. This is
+  the ① rule. Reverting it reintroduces "no coral anywhere when the inbox is empty".
+- **⚠ `appname` vs `scheme`** (`runner/meetup.tsx:271` / `app.json:42`) — `appname` must equal the
+  **bundle id** (`com.seankookim.dogshigh`); `scheme` is our own protocol and stays `"daengrun"`.
+  They look alike and are unrelated. A stale `appname` does not fail loudly — Naver opens and the
+  runner has no route back.
+- **`subscribeShared` retire is CONDITIONAL** (`!joined && isConnected()`) — phoenix errors every
+  channel on backgrounding and heals via rejoin; unconditional retiring would leave the app
+  poll-only after the first background cycle. **DO-NOT-REFACTOR** without reading that reasoning.
+- **`RunnerWeekStats.runs`/`.km` are nullable, `net` is not** — they need a second read that can fail
+  independently; `net` comes straight from the ledger.
+- Carried forward, still true: `owner/home.tsx`'s header must NOT become pinned · `StatusBarCover`
+  mounts LAST · `routes` embeds MUST name the FK · the drop-law layout in `home-hero.tsx`.
 
 ---
 
-## 8. File map
+## 8. File map (this session)
 
 | Path | Role |
 |---|---|
-| `app/src/components/draw-button.tsx` | **NEW** — drawn action button + 10 SVG drawings |
-| `app/src/components/home-hero.tsx` | rewritten: chip · logo-drop phrase · state-driven button sets |
-| `app/app/owner/home.tsx` | wordmark-only masthead (no rule), 코스 둘러보기, 나 drawn rows, MEMBER SINCE foot |
-| `app/src/components/clubcard.tsx` | `ClubCompactRow` → engraved widget (foil edge, monogram, ledger foot) |
-| `app/src/lib/api.ts` | `fetchMemberMeta()` added (auth `created_at` → MEMBER SINCE) |
-| `docs/labs/{brand-identity,home-attention,home-state,home-v3,cta-life,cta-drawings,home-full}-lab.html` | the labs, each with `build-*.py` beside it |
-| `docs/decisions/awaiting-sean.md` | §0-septvicies **+ its correction** |
-
-Lab generators subset the real fonts from `app/node_modules/@expo-google-fonts/` and inline them:
-`python3 docs/labs/build-<name>.py`. Requires `pip3 install fonttools brotli`.
+| `app/src/lib/nav.ts` | **NEW** — the shared back guard |
+| `app/scripts/check-embed-fk.mjs` | **NEW** — 5th commit gate |
+| `app/app/+not-found.tsx` | **NEW** — Korean not-found, role-aware exit |
+| `app/src/lib/api.ts` | NOT_FOUND · subscribeShared status · payout constant · isOfferable gate · REQ_SELECT FK · ledger/week-stats truth · photo-wipe guard · inbox time filter · `RunnerJob.dogPhotoUrl` · `MeetupInfo` tags/vaccines |
+| `app/app/runner/home.tsx` | ① rule + ticket A·B·C·D + `relWhen` + availability three-state |
+| `app/app/runner/meetup.tsx` | tags/vaccines line · appname fix · back guard |
+| `app/app/owner/{live,meetup,radar,schedule,report,reschedule}.tsx` | incident arms · terminal states · sheet reachability · not-found split |
+| `app/app/chat.tsx` | real SUBSCRIBED indicator · poll fallback · leak fix |
+| `docs/plans/2026-08-20-client-gap-straightening.md` | the inventory, audit trail, ENDING STATE, Q7–Q10 |
+| `docs/labs/runner-home-glance-lab.html` | ①–④ + thumb dock (artifact `2c120fff…`) |
+| `docs/labs/runner-ticket-info-lab.html` | A–D drawn separately + the correction (artifact `4246799d…`) |
 
 ---
 
 ## 9. Pending on Sean
 
 ### Ops (only he can)
-1. **TestFlight** — `npx eas-cli build --platform ios --profile testflight`, then submit. His 2FA.
-   **Nothing has ever run on hardware.**
-2. **Save the wordmark** to `app/assets/wordmark.png`. His attached logotype is **custom lettering**
-   (angular geometric), not any font we own, and it is not on disk anywhere. One edit swaps
-   `<Text>` → `<Image>`, and display-font use drops back to once per screen.
-3. **Disable email signup** — Supabase dashboard → Auth → Providers. **[from-history]**
+1. 🔴 **TestFlight** — `npx eas-cli build --platform ios --profile testflight`. **His 2FA.** He chose
+   to defer ("keep building, Build 0 later", `4d7f57d`) — deferred, **not** closed.
+2. **Disable email signup** — Supabase dashboard → Auth → Providers. **[from-history]**
 
 ### Decisions (each blocks something)
-1. 🔴 **§0-septvicies money ruling** — when a `confirmed` run never starts: owner pays the 10%?
-   runner compensated (half, per 0085)? zero both ways? *Blocks any resolution button for a stale
-   booking — the client cannot draw one until the ledger agrees.*
-2. 🔴 **Handoff gating** — move the coral 인계하기 to `runner_enroute` + `arrived_at`? *Blocks: the
-   urgent CTA currently fires one state late. Borders the frozen meetup flow, which is why I
-   stopped.*
-3. **Grace-window number** — proposed `scheduled_at + 30min`. *Blocks the expiry spec.*
-4. **§0-sexvicies** — card-statement copy 「댕런 산책 이용료」 → 「도그스하이 러닝 이용료」. Armed, not
-   bleeding (zero charges ever). *Must not survive the charging flip.*
-5. **Brand lab's six dials** (`ec2e8b0`) — body font · BHS discipline · violet demotion + `#F20914`
-   tokenization + App Store icon · motion · voice · material intensity. All unanswered.
-6. **Display-font budget** — home spends Black Han Sans twice until the logotype lands. Accept, or
-   move the wordmark back to body-900?
+1. **Coral CTA ground A/B** (`§0-duodetricies`) — `paper.wash` on the current coral is 4.55:1, which
+   is the ceiling-bound maximum; darkening the ground to the existing `edge` token buys real
+   headroom but visibly deepens a CTA he approved by number. *Blocks: nothing urgent; it is a
+   taste call with measurements attached.*
+2. **Handoff-CTA gating** — move the coral 인계하기 to `runner_enroute` + `arrived_at`? Plumbing is
+   landed. *Blocks: the owner CTA still fires one state late.*
+3. **react-doctor hook** (Q10) — three separable parts: repair the path lookup · add the missing
+   `exit 1` · choose the blocking level against a 347-warning backlog. **Nobody should touch it
+   until the config-error trigger is known.**
+4. **Runner home leftovers** — B (dog face) is currently ON the ticket per his "four together"; my
+   own recommendation had been face-on-handoff-only. He may want to revisit after seeing it.
 
 ---
 
 ## 10. Known bugs, gotchas, failure modes
 
-- **⚠ JSX comments cannot sit between attributes, or as the first child of `&&`.** Hit twice; both
-  times `tsc` emitted ~7 cascading errors starting far from the real line.
-- **⚠ A downscaled screenshot lies about contrast and weight.** My first contrast check sampled the
-  caption text instead of the button title and reported "fine"; a **1:1 crop** showed the titles
-  were white. **Always crop one specimen at full resolution.**
-- **⚠ The booted simulator can change under you.** Mid-session the booted device switched to a
-  non-Pro sim and `simctl launch` failed with a bare code-4. Always target the UDID.
-- **`sips --cropOffset` is `top left`**, and `sips -Z` resizes the *max* dimension — my crops landed
-  on the wrong variant twice.
-- **`git commit -m` with backticks lets the shell eat identifiers** — `ede1b65` is missing three.
-  Use `git commit -F -` with a quoted heredoc.
-- **react-doctor's pre-commit hook prints a large report and exits 0** — not a gate.
-- **Metro down renders "No script URL provided"** — start it and relaunch; the screen is fine.
-- **The 6 lint errors are the baseline**, all `exhaustive-deps`.
+- **⚠ JSX comments cannot be the first child of `&&`** — I hit this AGAIN this session (club-ui).
+  Parse error, ~7 cascading tsc errors starting far from the real line.
+- **⚠ react-doctor's pre-commit hook cannot block** — `grep -n exit .githooks/pre-commit` returns
+  NOTHING. It reports and exits 0 always. Its config error is **conditional, trigger UNKNOWN**.
+  Run it manually: from `app/`, `./node_modules/.bin/react-doctor <dir>` (takes a DIRECTORY).
+- **⚠ `effect-needs-cleanup` is low-precision here** — 2 confirmed false positives (`radar.tsx:141`,
+  `ring.tsx:36`, both read and cleared) and 1 confirmed **real** bug (`tabswipe.tsx`). The real one
+  was the flag both sessions were most confident was noise. **Read every flag.**
+- **This worktree has NO `node_modules`** — it is a symlink I create for gates and delete before
+  each commit: `ln -sfn /Users/sean/dev/daengrun/app/node_modules node_modules`. Metro needs it too.
+- **The simulator can go to Shutdown** and screenshots then fail with "No Image available to
+  encode" / "Timeout waiting for screen surfaces". `xcrun simctl boot <UDID>`, wait ~30s, relaunch.
+- **A downscaled screenshot lies about contrast** — crop one specimen at full resolution.
+- **The 6 lint errors are baseline** (all `exhaustive-deps`, none in files I touched).
 
 ---
 
 ## 11. Known-good — do not "fix" these
 
-- The **drop-law layout** (line-1 padding). Looks redundant; it is what makes truncation
-  structurally impossible.
-- **Measured contrast values** in `draw-button.tsx`. Do not tidy them to rounder hexes.
-- The **live dot's zero-state** (no dot, no pulse, different subline) — the branch that makes the
-  dot believable everywhere else.
-- The **하이 포인트 beacon is deliberately NOT a drawn row** — it owns real gating (balance > 0 OR a
-  promotion) and a progress bar; converting it loses the honest gate.
-- **Amber = `paper.pending`'s wash** for the unresolved state — semantic, not decorative.
-- **Routes were not changed** anywhere in v3. Every destination already existed.
-- Route names render **raw**; `status='active'` filtering is a **gate**; `actual_km` means the whole
-  tracked buffer.
+- The **`relWhen` clamp** and the **`liveOwnsCoral` widening** — both are the fix, not incidental.
+- **Measured contrast values** in `draw-button.tsx`, including the coral row's new `// 4.84 / 4.55`.
+  `paper.wash` was chosen over a new literal deliberately (existing token, zero new colours).
+- **Chat as ink outline, not coral** — Sean's instruction plus the one-coral law.
+- The **conditional `subscribeShared` retire** (see §7).
+- **`runner/meetup.tsx`'s existing dog card, memo, map and 길찾기** — all already correct. My
+  proposed replacement was withdrawn as duplicate.
+- The **three-state fetch idiom** applied across ~15 screens; **the drop-law layout**; **route names
+  render raw**; **`status='active'` filtering is a gate**; **`actual_km` = whole tracked buffer**.
 
 ---
 
 ## 12. Ideas & discussions not yet built
 
-- **② 동네 기록소** — the brand lab's recommended territory, unpicked.
-- **기록증 (the certificate)** — designed in the brand lab as the object filling Korea's 수료증 gap.
-  런데이 ends its 8-week arc with no object; 런클립 users pay for the *typography* of their proof.
-  Zero server changes needed. Unruled.
-- **Five signature motions** (리드 · 각인 · 보폭 · 파문 · 종이) from the motion audit. Only the
-  depth-press (리드's static half) shipped.
-- **App Store icon still wears the retired forest/volt palette**; Android icon is unreplaced Expo
-  boilerplate. Outside-world exposure, unowned.
-- **The logo's speed streak is `#F20914`** — fire red, matching none of the four corals, untokenized.
-  Proposed name `streak`.
-- **채팅 as a home row** — I put it in confirmed/handoff. Open: does it earn a row on home, or belong
-  inside the ticket screen?
-- **Post-first-run "finish your profile" nudge** — Sean wants it after the first real run.
+- **④ thumb dock** — drawn in the lab, Sean chose ① instead. If scroll depth ever becomes a real
+  problem, promoting ① → ④ is a small move. Needs a show/hide rule for when no job is in flight.
+- **맹견 flag** — absent from the schema entirely. Legal flagged it as real before real owners.
+  Server work.
+- **Owner phone / PASS** — `profiles.phone` is NULL for everyone. Any call button would be a dead
+  button. Do not add one.
+- **Route selection showing lap + approach total** (ruling #15) — `route-pick.ts` implements it;
+  worth re-verifying it reaches every surface.
+- Carried forward and still unbuilt: 기록증 (the certificate) · ② 동네 기록소 · five signature motions ·
+  App Store icon still wears the retired palette · 채팅 as a home row · post-first-run profile nudge.
 
 ---
 
 ## 13. Strategic read (my recommendation)
 
-**Rule on the handoff gating, then build the TestFlight binary. Everything else waits.**
+**The next real move is a hardware build, and everything else is second.** ~40 defects are fixed and
+none of it changes the one fact that decides whether the pilot can start: nothing has ever run on a
+phone. Sean deferred Build 0 deliberately this session, which is his call — but every screen shipped
+before that binary increases what the first device session can invalidate. Four whole classes of
+this session's work are **not simulator-testable**: push routing, Live Activity cold-launch, realtime
+under network churn, and the Naver callback. They are code-verified and could all be wrong.
 
-The handoff off-by-one is the most consequential thing found this session and it is not a design
-issue. Today the app is calm at the exact moment a runner is standing at the door holding out their
-hands for the dog, and loud once the dog has already changed hands. That is a trust-path defect in
-the one interaction this product exists to make safe, and the fix is ~20 client-side lines gated
-only on his word because it borders the frozen meetup flow.
+**The argument against me:** the app was genuinely full of lies a week before a pilot, several of
+them safety-path (SOS resolving the wrong party, the ceremony running backwards during an incident,
+nomination dead in production). Shipping a binary that does those things confidently would have been
+worse than shipping it late. That argument is why I did the work in the order I did.
 
-Everything else on home is polish by comparison. The v3 screen is shipped, gated and verified; the
-brand dials keep; the labs are committed.
-
-**The argument against me:** "the meetup path is frozen for a reason, and this app has never run on
-hardware — change nothing near trust until a real device has exercised it." That is fair, and it
-points the same way I do: **TestFlight is the gate on knowing whether any of this is real.** No
-client code has met live GPS, push, background location, or a second account. Every screen shipped
-before that binary increases what the first device session can invalidate.
-
-So: rule on the gating (cheap, high value, one ruling), then build.
+**So:** build the binary, then work the hardware smoke list, and treat the remaining tail as filler
+between device sessions rather than as the main line.
 
 ---
 
 ## 14. Next 1–3 steps
 
-1. **[read-only]** Confirm gates green (§15). Then read
-   **`docs/decisions/handoff-cta-gating.md`** — written 2026-08-20 night, it supersedes
-   `awaiting-sean.md` §0-septvicies' handoff section AND that section's correction. It carries
-   re-verified line numbers (the older ones had drifted) and the fact that settles the question.
-2. **[needs-user → local-edit]** **Sean answers A or B in one word**, then build it. Do NOT build it
-   before he answers — two sessions carved this out for his ruling on 2026-08-20 and he accepted the
-   carve-out; the overnight grant is general and does not reverse a specific reservation. Either
-   answer needs the same additive plumbing first (`arrived_at` into `fetchMyBookings`' select +
-   the `Booking` type). **Prove the frozen meetup ranges byte-identical** the way `2ddac83` did —
-   and do not touch `owner/meetup.tsx`, which is already correct.
-3. **[needs-user]** TestFlight. Smoke list: the runner approach leg · onboarding submission · a real
-   `matching` booking · the full handoff sequence. All four need a device and a second account.
+1. **[read-only]** Verify the status table's first three rows yourself (§15). Then read
+   `docs/plans/2026-08-20-client-gap-straightening.md` — the ENDING STATE section and Q7–Q10.
+2. **[needs-user]** TestFlight, or Sean's ruling on any of §9's four decisions. The coral A/B and the
+   handoff-CTA gating are both one word from him.
+3. **[local-edit]** If continuing without him: the remaining tail is E6 (device-local time on
+   booking writes — latent on KST hardware), B9 (hero live booking can fall off a 20-row list),
+   B10 (`sealStampFresh` consumed on call, not on render). All low-severity; none user-visible today.
 
 ---
 
@@ -330,13 +303,15 @@ So: rule on the gating (cheap, high value, one ruling), then build.
 
 Safe (read-only):
 ```
+git -C /Users/sean/dev/daengrun status -sb
+cd app && ln -sfn /Users/sean/dev/daengrun/app/node_modules node_modules
 cd app && ./node_modules/.bin/tsc --noEmit
 cd app && node scripts/check-rpc-contracts.mjs && node scripts/check-route-native-imports.mjs && node scripts/check-embed-fk.mjs
-cd app && npm run lint --quiet            # must stay at 6 errors
-git -C /Users/sean/dev/daengrun status -sb
+cd app && npm run lint --quiet                    # must stay at 6 errors
+cd app && ./node_modules/.bin/react-doctor app    # takes a DIRECTORY; advisory only
 supabase migration list --linked
 supabase functions list
-xcrun simctl openurl F2FDB7D7-A669-4BBC-8EF4-677597F3851A "daengrun://owner/home"
+xcrun simctl openurl F2FDB7D7-A669-4BBC-8EF4-677597F3851A "daengrun://runner/home"
 xcrun simctl io F2FDB7D7-A669-4BBC-8EF4-677597F3851A screenshot /tmp/shot.png
 ```
 Expensive / changes the world:
@@ -351,205 +326,50 @@ supabase db push --linked                                          # never from 
 
 ## Environment & test-data state
 
-Nothing seeded or deleted. His account still holds the stale **8월 4일 (화) 오후 3:30** booking that
-drives the past-booking state — it is the only reason that state could be verified at all. Simulator
-left on `owner/home` running the current Metro bundle. The scratchpad (screenshots, lab renders,
-build scripts) is **ephemeral and will not survive**; the labs and generators are committed, the
-screenshots are not.
-
-## Ephemeral artifacts — transcribed
-
-**Sean's attached wordmark** (the one thing to re-attach): 도그스하이 in a **custom angular
-geometric face** — squared counters, chamfered corners, flat terminals, near-monospace rhythm,
-solid near-black (~`#14181C`) on white, roughly 2000×700px, wide letterspacing. **Not** Black Han
-Sans, not any font in the repo. Re-attach it, or save it to `app/assets/wordmark.png`.
-
-**Home v3 as built** (if the screenshots are gone): status bar → 도그스하이 wordmark centred (24pt)
-with bell right, **no rule under it** → state chip (9px dot + 13pt letterspaced label) → 43pt/50
-display phrase over two lines with the running-dog mark (66pt) dropped into line 1's right → 17pt
-subline → drawn buttons (96pt primary / 78pt secondary, 28pt titles, 15pt sublines, 4px depth edge)
-→ 동네 kicker → engraved gold club widget (foil top edge, 반 monogram, ledger foot) → 동네 러너
-strip → 동네 코스 tiles → 코스 둘러보기 → 나 kicker → record row → 하이 포인트 beacon → two drawn
-rows → MEMBER SINCE 2026.07 right-aligned foot.
+Nothing seeded or deleted by me. **Production reads only.** Sean's account still holds the stale
+**8월 4일 (화) 오후 3:30** booking (`runner_enroute`) — it is why the runner ticket renders 「지난 예약」
+and it is the only reason several states could be verified at all. Measured this session: 0 open
+requests, 0 past-dated, 0 phantom ledger rows, 0 active routes, `payments`/`billing_keys` = 0.
+Metro is running on :8081 pointed at this worktree. The simulator is on `runner/home`.
+The scratchpad (screenshots, downloaded function source) is **ephemeral**; labs are committed.
 
 ## Agent work
 
-Seven research agents ran during the brand round; **all completed, none running**. Their findings
-live in `ec2e8b0`'s lab and commit message; **raw outputs died with the scratchpad**, so everything
-sourced from them is **[reported]** unless the lab cites a file:line I checked. Coverage gap worth
-naming: market research exhausted its 200-call WebSearch budget mid-run, so rebrand history and
-agency attribution are thinner than the colour/type findings (those came from direct asset fetching
-and are stronger).
+Six subagents ran: 4 read-only scouts (state machines · UI honesty · navigation · data contracts)
+that produced the 59-item inventory, then implementer agents for the four overnight lanes, the
+not-found/data-truth batch, and the back-button sweep. **I re-read every diff and re-ran every gate
+myself** rather than trusting reports — two agents overruled my instructions with evidence and were
+right both times (the run-trace freeze, the phoenix rejoin). Raw agent outputs are gone with the
+scratchpad; everything load-bearing is in commit messages.
 
----
-
-## Addendum — O-6 account deletion, on-device verification (2026-08-20 afternoon)
-
-**delete-account v1 is DEPLOYED and matches trunk exactly** — `supabase functions download`
-diffed byte-identical against `supabase/functions/delete-account/` and `_shared/ctx.ts`
-**[verified-now]**. Migrations applied through 0115 (per the table above); the wire-level
-verification (38/38 assertions, five throwaway accounts, success/409/202/401/400 all exercised)
-is in the contract's AS DEPLOYED block — that half was already done.
-
-**Token enumeration diff — exact, no orphans either way [verified-now]:** the 0115 RPC raises
-exactly twelve state tokens (`active_booking` `active_run` `unsettled_run` `unsettled_payment`
-`unpaid_payout` `km_balance` `open_incident` `active_recurring` `club_host_duty` `club_custody`
-`club_custody_owner` `club_assignment`); `REFUSALS` in `delete-account-sheet.tsx` holds exactly
-those twelve keys. `not_authenticated`/`unauthorized` ride the 401 status arm, `auth_delete_pending`
-rides the 202 pending arm, `confirm_required` is deliberately unmapped (client-bug indicator →
-fallback arm). The O-7 KEEP line already ships (`8d3c520` → corrected `3be5c2b`) — nothing to add.
-
-**Device pass (sim, Sean's account, post-`3be5c2b` build) [verified-now]:**
-- Sheet disclosure renders in contract order (a)–(e); forfeiture plate sits ABOVE the confirm control.
-- **O-7 KEEP line present on 3 consecutive opens** — the exact repro count of the original
-  nondeterminism — in its `some` branch (his ledger rows are real). The determinism fix holds.
-- Hold-to-confirm armed at 1.5 s; destructive button opened.
-- **The 409 refusal arm, live end to end:** pressing 계정 삭제 returned `active_booking`; the sheet
-  rendered 「아직 삭제할 수 없어요」 with the contract-verbatim copy and 예약 보기 routed to the real
-  schedule screen. **Safety was pre-proven, not assumed:** gate #1's exact predicate was measured
-  true against production first (2 `runner_enroute` + 2 `refund_pending` on his account), and the
-  gate raises before any write. Post-check: `profiles.deleted_at` still null,
-  `account_deletions` = 0 rows. Nothing mutated.
-- **NOT verified on device, stated plainly:** the success and 202-retry arms. Both need a
-  disposable account signed into the app; signup is Kakao-only and no session may create accounts.
-  They remain wire-verified only (throwaway accounts, contract AS DEPLOYED). First candidate for
-  the TestFlight/second-account smoke list.
-
-Logistics note: this addendum was committed from a worktree at the origin tip because the main
-checkout was 2 behind with another session's uncommitted `routes.json` conflicting with the
-incoming route commits — pulling would have required stashing someone else's work. `app/` was
-byte-identical between the two trees; gates ran green in the main checkout (tsc clean · rpc ✅ ·
-56 routes clean · lint 6 errors = baseline).
+**Coverage gaps, named:** the club domain (~9 screens, ~4,000 lines) was triaged, not audited —
+only its navigation and the components it shares. `owner/request.tsx` (1,530 lines) and
+`owner/pay.tsx` were triaged; the request screen's hold countdown and payphase machine deserve their
+own pass when charging flips. No test suite was written; `app/test/` was not extended.
 
 ---
 
 ## Opener for the next session
 
-> Client domain (all of `app/`) on daengrun. Work in the MAIN checkout `/Users/sean/dev/daengrun`
-> on `redesign-v4` — never a worktree; run `git status` before you touch anything.
+> Client domain (all of `app/`) on daengrun. Work in a worktree cut from `origin/redesign-v4` —
+> the MAIN CHECKOUT is clean and in sync as of 2026-08-21, keep it that way.
 >
-> Read `docs/handoff-client.md` fully, then `docs/decisions/awaiting-sean.md` — §0-septvicies has a
-> **correction below it that supersedes the original spec**; read both and trust the correction.
+> Read `docs/handoff-client.md` fully, then `docs/plans/2026-08-20-client-gap-straightening.md`
+> (ENDING STATE + Q7–Q10). ~40 defects were fixed and pushed; trunk is `13749af`.
 >
-> Owner home v3 is shipped and simulator-verified (`46944a6`): the mark drops into the hero phrase,
-> actions are drawn buttons on measured-contrast washes, the live dot is bound to the real
-> online-runner count, the club widget is engraved. Settled — do not re-litigate.
+> Five gates before every commit, from `app/`: tsc · check-rpc-contracts ·
+> check-route-native-imports · **check-embed-fk** · `npm run lint --quiet` (**must stay 6 errors**).
+> This worktree has no `node_modules` — symlink it from the main checkout, and delete it before
+> committing.
 >
-> The open thread that matters: **home's coral 인계하기 fires one state too late.** `picked_up` means
-> the handoff is already done; the real moment is `runner_enroute` + `arrived_at`. Full write-up with
-> both candidate answers: `docs/decisions/handoff-cta-gating.md`. The decisive fact found overnight —
-> **`owner/meetup.tsx:338` already gates coral on `arrivedAt`**, so home is the one screen breaking a
-> rule the app already has. Still waits on Sean: one word, A or B.
+> Settled, do not re-litigate: runner home is **①** (coral belongs to the in-flight job, chat is ink
+> outline beneath it) · the ticket carries relative time / face / payout / door-level address · the
+> `relWhen` clamp and `liveOwnsCoral` widening are the fix, not incidental · the 인계 screen's
+> existing dog card, memo and 길찾기 are correct and must not be "replaced".
 >
-> ⚠ **A second client session works this same surface** (`exciting-rosalind-e6ac13`, four subagents).
-> Read `git log -- <file>` before editing anything in `app/`, and message it before taking a file.
-> It is not adversarial — coordination has worked all night — but nobody is holding a console.
+> Four things wait on Sean: TestFlight (his 2FA), the coral CTA ground A/B, the handoff-CTA gating,
+> and the react-doctor hook — **which nobody should repair until its trigger is known.**
 >
-> Gates before every commit, from `app/`: tsc · check-rpc-contracts · check-route-native-imports ·
-> check-embed-fk · `npm run lint --quiet` (**must stay at 6 errors**). That is FIVE, not four. Never create a booking on Sean's account and
-> never press the onboarding CTA. Reply in English; in-app copy stays Korean.
-
----
-
-## Addendum — overnight, 2026-08-20 → 21 (second grant, no announcer online)
-
-**[verified-now] unless tagged otherwise.** Everything below is on trunk.
-
-| what | commit | state |
-|---|---|---|
-| O-7 KEEP line no longer claims money is owed | `c60a648` | ✅ landed, 5 gates green |
-| Handoff-CTA ruling written for Sean (both answers) | `72256bb` | 📋 queued, **not built** |
-| Handoff-CTA **plumbing** — `arrived_at` → `fetchMyBookings` + `Booking.arrivedAt` | `36f501b` | ✅ landed; **no gate reads it**, `goState` untouched |
-| Coral-ground A/B queued (`§0-duodetricies`) | `a0bda14` | 📋 queued |
-| Gate list corrected — there are **FIVE** | `02fa629` | ✅ |
-| Coral sub-line AA failure (3.70 → 4.55) | peer session | ✅ fixed by them, my measurement |
-
-### The one code change I made, and why it is not cosmetic
-
-The account-deletion sheet told a departing runner 「아직 정산되지 않은 금액이 있어요」 — *there is an
-amount not yet settled* — whenever `fetchLedger()` returned any row. **Row existence cannot support
-that claim.** `ledger_items` (0001:264-275) has no paid/settled marker and no migration adds one, so
-a runner paid in full still matched. This is the exact fact **O-7 was decided on** ("unpaid is
-uncomputable"), which is why the balance gate was rejected and `unpaid_payout` is knowingly inert —
-the copy asserted precisely the quantity the ruling records as unknowable. It is a legally relevant
-retention disclosure (PIPA 제37조) on the deletion path, where telling someone money is outstanding
-is a reason not to finish leaving. Now binds to what the predicate proves.
-
-**The generalisable part** — two earlier passes fixed this same line (existence-not-sum, then
-retry-instead-of-silent-catch). Both asked whether the line *appeared*. Neither asked whether it was
-*true*. **A disclosure that renders reliably and says something false is worse than one that
-flickers**, because the flicker is at least visible.
-
-### My original brief is now closed except where policy blocks it
-
-- **Token enumeration diff: CLEAN.** All 12 state tokens are in the sheet's `REFUSALS` map, plus
-  `not_authenticated` (401), `auth_delete_pending` (202) and `confirm_required`. Dispatch is
-  `hasOwnProperty` with an explicit `unknown` phase, so a future server token degrades to a named
-  fallback, not a blank sheet.
-- **O-6 remaining arms (409 refusal, 202 retry): unverified BY POLICY, not by neglect.** Neither can
-  be exercised on Sean's account without creating a booking, which he forbade. The announcer already
-  verified both over the wire (38/38 at the DB boundary).
-- **The REGISTRY's "contract sync owed" note is STALE** — `account-deletion-contract.md` already
-  carries the AS DEPLOYED block at its head and the 🔵 CONDITIONAL note inline at §B.3. Left flagged;
-  a client session should not edit REGISTRY.
-
-### Two corrections to things you may otherwise believe
-
-1. **react-doctor's pre-commit hook is NOT dead, but WHEN it scans is unknown — so run it manually.**
-   Two structural facts, measured: `.githooks/pre-commit:5` probes `./node_modules/.bin/react-doctor`
-   from the repo root while react-doctor lives under `app/`, so it always falls to `npx`; and
-   `grep -n exit .githooks/pre-commit` returns nothing, so **the hook can never fail a commit.**
-   Every hook result is advisory. Sometimes the npx path scans (`✔ Scanned 1 file in 644ms`, main
-   checkout) and sometimes it dies with *"configuration differs between the index and worktree"*,
-   naming root-level config files **that exist in neither the index nor the tree**. ⚠ **Two trigger
-   theories are already falsified:** "it's a dead no-op" (it demonstrably scanned) and "it dies when
-   `app/node_modules` is absent" (I hit the error with deps present, `tsc` running from that same
-   symlinked `node_modules`). **The trigger is OPEN. Do not edit the hook.** The reliable path,
-   always: from `app/`, `./node_modules/.bin/react-doctor <directory>` — a directory, never a file.
-2. **`effect-needs-cleanup` on `delete-account-sheet.tsx:238` is a FALSE POSITIVE.** The effect does
-   clean up: `retry` is assigned inside a nested `.catch` and cleared at `:252` with `alive = false`.
-   The static pass can't follow the closure. Do not "fix" it and do not suppress it blind.
-
-### ⚠ Two hazards for whoever works the main checkout next
-
-- **`docs/routes/strava/bench/routes.json` is another session's live file, and every recent incoming
-  commit touches it.** `git pull --rebase --autostash` would very likely conflict and strand their
-  in-flight work in a stash. I landed via a separate clean worktree and pushed `HEAD:redesign-v4`
-  instead. **Do the same, or wait for them.**
-- Consequently the main checkout sits **2 ahead** with commits whose patches are already upstream.
-  Verified by patch-id, not assumed — `9e94211…` and `4222c57…` match on both sides — so the next
-  rebase drops them silently. Nothing is lost.
-
-### Known-inert, do NOT "fix"
-
-`unpaid_payout`'s refusal copy (`delete-account-sheet.tsx:104`) has the same uncomputable-amount
-shape, but it is **unreachable** — nothing writes `payouts`, so it never renders. If `payouts` ever
-gains writers the claim becomes computable (`payouts.paid_at`, 0001:295) and the copy becomes
-correct. Leave it; don't let a sweep rewrite it on the assumption the token is live.
-
-### react-doctor `effect-needs-cleanup` — adjudicated so far (2026-08-21)
-
-Two client sessions independently hit this rule and both flags were false. **Adjudicate before
-acting; do not mass-fix and do not mass-dismiss.** What is settled and what is not:
-
-| site | verdict | why |
-|---|---|---|
-| `delete-account-sheet.tsx:238` | ✅ **FALSE POSITIVE** (verified, me) | `retry` is assigned inside a nested `.catch` callback and cleared at `:252` with `alive = false`. **No early return in this effect.** |
-| `owner/radar.tsx:141` | ✅ **FALSE POSITIVE** (verified, both sessions) | cleanup returns `unsub(); clearInterval(poll); if (nav) clearTimeout(nav)` — all three handles cleared. |
-| `tabswipe.tsx:67` | 🔴 **TRUE POSITIVE — read, then FIXED** (`8257988`) | The one real finding of the night, and the one both sessions were most confident was noise. `.start()`'s callback called `setSnap(null)` and scheduled a 500 ms timer while the effect returned nothing. The unmount case was the lesser half: on a **fast second tab change** the previous spring was still running, its callback fired *after* the new effect had set the incoming snapshot, and cleared it — the incoming screen lost its snapshot and showed exactly the ghost that callback exists to prevent. Fixed with a liveness guard + timer ownership; the animation is deliberately NOT stopped and `releaseCapture` NOT skipped (the callback must run on `finished=false`, and cancelling would leak the temp jpg the timer exists to delete). **Not device-verified** — needs two fast swipes on hardware. |
-| `ring.tsx:36` | ✅ **FALSE POSITIVE** (verified, peer) | Returns `anim.removeListener(id)`, and the `!animate` early path adds no listener, so there is nothing to clean on it. |
-| `club-ui.tsx:276` | ⚠ **UNADJUDICATED** | Not read by either session. **Not the same as "fine."** |
-| `fitness.tsx:151` | ⚠ **UNADJUDICATED + DO-NOT-REFACTOR** | Frozen collapsing hero. An analyzer flag is **not** authority to open a frozen file — read `CLAUDE.md` first. |
-
-**Night's tally on this rule: two confirmed false positives, one confirmed TRUE positive.** Treat it
-as low-precision in this codebase — neither disable it nor trust it, read every flag. ⚠ The true
-positive was the flag both sessions were most confident was noise; the two we'd have bet were real
-were the false ones. That inversion is the reason "not on tonight's edits" must never be written as
-if it meant "false".
-
-⚠ **There is no single "shape" here — a peer initially characterised both false positives as the
-analyzer miscounting an early `return;` path, and that is wrong.** The three structures differ:
-`radar` has an early return *and* nested assignment, `delete-account-sheet` has nested assignment
-and **no early return at all**, `ring` has an early return with a **top-level** listener. So a fix
-that removes early returns would churn code and still trip the rule. The only safe rule is the one
-react-doctor prints itself: treat each diagnostic as a starting hypothesis and read the code.
+> ⚠ Nothing has ever run on hardware. Push routing, Live Activity cold-launch, realtime, and the
+> Naver callback are all code-verified only. Never create a booking on Sean's account; never press
+> the onboarding CTA. Reply in English; in-app copy stays Korean.

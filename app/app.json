@@ -19,7 +19,7 @@
         "NSSupportsLiveActivities": true,
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.seankookim.daengrun"
+      "bundleIdentifier": "com.seankookim.dogshigh"
     },
     "android": {
       "adaptiveIcon": {
@@ -96,10 +96,10 @@
               "appExtensions": [
                 {
                   "targetName": "ExpoWidgetsTarget",
-                  "bundleIdentifier": "com.seankookim.daengrun.ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.seankookim.dogshigh.ExpoWidgetsTarget",
                   "entitlements": {
                     "com.apple.security.application-groups": [
-                      "group.com.seankookim.daengrun"
+                      "group.com.seankookim.dogshigh"
                     ]
                   }
                 }
@@ -109,7 +109,7 @@
         },
         "projectId": "0436bc27-2933-4627-a0bf-9527e65c1ad9"
       },
-      "instagramAppId": "com.seankookim.daengrun"
+      "instagramAppId": "com.seankookim.dogshigh"
     },
     "owner": "seankookim",
     "runtimeVersion": {

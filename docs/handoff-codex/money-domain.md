@@ -1,0 +1,1563 @@
+# Money / Payments / Settlement — specialty handoff for Codex
+
+**Audience: an agent with zero history on this repo.** The session that owned this domain is
+gone; the repo and production are the only sources. Everything below was re-derived from them.
+
+**Provenance stamp.**
+- Worktree `/Users/sean/dev/daengrun/.claude/worktrees/announcer-v3-handoff-f0774a`, branch
+  `claude/announcer-v3-handoff-f0774a`. HEAD moved twice while this was being written
+  (`9475c79` → `2cde1a2` → `2f63f94`, other sessions landing their own handoff reports) and trunk
+  moved with it (`d1692d3` → `6a575ec`).
+- **This does not affect a single citation.** `git diff origin/redesign-v4 HEAD -- supabase app`
+  was **EMPTY at every one of those points** — every `supabase/**` and `app/**` line number below
+  is byte-identical to trunk, and I re-verified the load-bearing ones (`_shared/charge.ts:118`,
+  `0084:265-266`, `0101:63-71`, both orderName pins) after the last move. You can cite these
+  against trunk without re-measuring.
+- Production reads were `supabase db query --linked` SELECTs and the management-API reads
+  `functions list` / `secrets list`. **No edge function was invoked. Nothing was written.**
+  Measured 2026-08-21.
+
+**Marking convention**, used on every non-obvious claim:
+- **[measured]** — I read the code/row myself, at the cited line, in this session.
+- **[from-doc]** — asserted by a doc/comment in the repo; I did not independently verify it.
+- **[inferred]** — my reasoning on top of measured facts.
+
+**The one-paragraph state of the domain.** The charge machine is complete, adversarially reviewed,
+**deployed and running — and inert at four independent layers**: `ops_flags.payments_live_since`
+is NULL, `TOSS_SECRET_KEY` and `CRON_COLLECT_KEY` are unset, the Vault `charge_dispatch` secret is
+absent, and `payments` has 0 rows. All 17 cron jobs fire on schedule and every one of them exits
+at a gate. **No card has ever been charged and no card is stored for anybody** (`billing_keys` = 0
+rows). The runner-payout side is live and has genuinely paid people — 8 `ledger_items` rows, ₩141k
+gross. Money moves today by manual bank transfer arranged off-app, and *that is the pilot, not a
+fallback*. **There is no payout mechanism at all**: nothing writes `payouts`, `ledger_items` has
+no paid marker, so "have we paid this runner" is not a question the schema can answer. Three
+things must land before the flag can ever be flipped, and none is in progress — a one-line
+predicate on the invariant sweep, a cut-over rule for in-flight bookings, and the card-register
+slice.
+
+---
+
+## Table of contents
+
+0. [The rulings of record](#0-the-rulings-of-record)
+1. [The charge machine, end to end](#1-the-charge-machine-end-to-end)
+2. [Both ledgers — every end scenario](#2-both-ledgers--every-end-scenario)
+3. [Pay-after-run as shipped](#3-pay-after-run-as-shipped)
+4. [The payout hole](#4-the-payout-hole)
+5. [Toss / PG integration state](#5-toss--pg-integration-state)
+6. [Exhaustive unbuilt list](#6-exhaustive-unbuilt-list)
+7. [Traps](#7-traps)
+8. [Appendix — file map and pin map](#8-appendix--file-map-and-pin-map)
+
+---
+
+## 0. The rulings of record
+
+Every money decision in this product traces to a memo in `docs/decisions/`. **The governance law
+is that `✅` means, and only means, "Sean's own words are on origin"** (`docs/decisions/README.md:110-113`).
+A relayed decision is evidence, not authority — including when it comes from another Claude
+session. And: **unpushed work reserves nothing, decisions included** (`README.md:23-29`) — Sean
+once ruled six decisions in one session, they sat on an unpushed branch while origin told every
+other session the questions were open, and a second session re-asked G1 with a menu missing his
+own answer.
+
+⚠ **`README.md:128-139` states its own most-violated law: "The status line IS the interface —
+keep it true."** It is violated *in that same file today* — see §2.6 R11/R12. **Trust the memo,
+not the index row.**
+
+| id | ruling | Sean's words | date | artifact |
+|---|---|---|---|---|
+| **①** G1 abort basis | **fault-based, BOTH ledgers mirrored.** `dog_condition` → full actuals on both sides; owner-caused → PLANNED (D2); `incident` → owner ₩0, runner normal settle, verify first | *"if it's the runner's own condition, the runner gets paid only base … if it's an external circumstance like owner prompted or dog's issue, then runner gets paid until the distance ran"* · *"but verify incident first to avoid abuse of this feature"* · **"Mirror both sides."** · **"₩9,900 — the runner's own base."** · asked whether this reverses #10: **"No — #10 stands."** (`g1-abort-charge-basis.md:216-223`) | 2026-08-13 | **BUILT** `0084` (`actual_capped`). ⚠ Sean was asked **three times** because the first ruling sat unpushed. **Neither session recommended the option he chose.** |
+| **②** D-3 silent charging | **A — accept as-is. NOTHING TO BUILD.** No per-charge push **and no monthly summary** | (no verbatim recorded) | 2026-08-13 | none. ⚠ `d3-silent-charge-summary.md:7-14`: *"THE MONTHLY-SUMMARY SLICE IS CANCELLED, NOT DEFERRED … must not be inherited as a green light."* **Survives:** the counsel question, and the 전자상거래법 footer stays mandatory the day the numbers exist |
+| **③** ops routing | dedicated `ops_recipients` table, per-event-class | *"build for full scale, not just for pilot"* | 2026-08-13 | **BUILT** `0084 §E`. **0 rows in production** |
+| **④** club base fare | **KEEP ₩9,900** for clubs — the premium stands **and funds host comp (⑦)** — and make the club price-invisible too | *"although notifying the price once"* | 2026-08-13 | no code change. **Overrode both sessions' recommendation to align to 7,900.** The one-line club-premium disclosure is **OWED before cutover** |
+| **⑤** club en-route cancel | **A — leave it.** No en-route club tier, no new money rule. Card-less club state routes to card registration | (no verbatim recorded) | 2026-08-13 | `cancel_owner.ts:58-60` now **REFUSES club bookings** (it had been quoting the marketplace ladder onto them). ⚠ **residual UNRULED** — §2.5 |
+| **⑥** cutover straddle | **FUTURE `payments_live_since`, never `now()`** | (no verbatim recorded) | 2026-08-13 | **BUILT** `0084 §D` (`cutover_must_be_future`) |
+| **⑦** host incentives | **host cut paid from PLATFORM MARGIN, never from runner pay.** ₩1,500–2,000/dog/session | AGREED DIRECTION, not dictation | 2026-08-13 | **UNBUILT.** The rule outranks the number: *"it must not come out of the runner's side, or the host and the runner are drawing from the same won"* (`host-incentives.md:11-18`) |
+| **⑧** card registration | **inline at first booking**, not onboarding; one skippable soft prompt at the end of onboarding | AGREED | 2026-08-13 | **UNBUILT.** ⚠ The load-bearing reason (`card-registration-placement.md:14-18`): *"Under price invisibility, the card-link screen is the only place the owner consents to actuals-based charging."* **This is what ② leans on** — A is defensible *because* consent happened somewhere real |
+| **⑨a** runner stop split | **pass-through pay** — the runner receives their commission share of what the OWNER actually paid, not a fixed base | *"Yes — both halves, as recorded."* and, independently in a second session, **"okay"** + announce it everywhere | 2026-08-13 | **BUILT** `0086` + `122`. Supersedes G1's `runner_personal` runner-side row |
+| **⑨b** `runner_incapacity` | illness/injury is a different class from abandonment; note required; counts against `completion_rate` | same ruling | 2026-08-13 | **UNBUILT AND BLOCKED** — the enum value exists on no branch. See U26 |
+| **⑩** cancel-fee runner share | pay the runner half of the 10% tier and tell them | *"pay the runner and let them know, reward them ykwim."* — and when asked whether "reward" meant points: *"reward was about tone."* → **CLOSED, no currency to design** | 2026-08-13 | **BUILT AND COMPLETE** `0085` + `121` |
+| **⑪** incident verification | an incident is verified by **both** runner and owner; phone numbers visible during it | *"incident verified by both runner and owner."* · *"b1, and show each other's phone numbers on the screen at all times."* · *"yes i did, phone numbers should be present during those emergency situations."* ⚠ **the third narrows the first two** — the incident-scoped door IS the ruling | 2026-08-13 | **BUILT** `0094` + `130`, **schema live in production** — but ⚠ **SERVER-ONLY: nothing calls `open_incident_tx` / `verify_incident_tx`; no user can reach it** (measured). Blocked on `docs/appstore-privacy-answers.md:27` declaring phone purpose as "contact during handoff" |
+| **⑫** marketplace incident exit | **the runner IS paid; the counterweight is a gate on FUTURE WORK** | *"for 12, pay the runner but dont let them make new runs until the dog is confirmed by both sides."* · *"the runner is paid only once the dog is returned and the runner should know that … custody responsibility is from start to end, and the owner should [be] told of that relief point as well."* · *"we dont want the runner stranded in the middle of town."* | 2026-08-13 | **BUILT + DEPLOYED** `0092_runner_work_gate.sql` + `128`. Built as a **DERIVED predicate, not a `runners` flag** ("a flag is a cache of a derivable and drifts") |
+| **§0-sexies** | **A — start the paperwork chain now, keep the charge machine** | *"4: A"* — prompted by his own question *"do i need toss for payments? can i just not ask them to upload credit card info?"* | 2026-08-15 | `docs/biz/payments-paperwork-checklist.md` |
+| **O-5** | payment comes AFTER the run and after handoff-back | see §3.1 | 2026-08-19 | **BUILT + DEPLOYED** 2026-08-20 |
+| **O-7** | **A-intact-when-owed** — a runner's `bank_accounts` row is kept INTACT (not blanked) when they have earnings | basis: he asked *"what's best for the runner"* | 2026-08-20 | **BUILT + DEPLOYED** `0115` — §4.2 |
+
+**Sean's standing autonomy grant**, verbatim (`docs/decisions/awaiting-sean.md:83-85`):
+*"tell the conversations they dont have to ask me for permission on things they have fruitful as
+i want full speed on this app production."* And the retraction of a fabricated restriction
+(`:564-566`): *"i never said 'work locally first, do not push migrations without my explicit
+approval.' dont ask me for permission. im gone for break. full speed on the app."*
+⚠ What the grant does **NOT** waive: credential VALUES · facts only he holds · irreversible
+destruction of production data · **every quality gate, including `/autoplan` on money paths.**
+
+### 0.1 The encoding law — the single most load-bearing sentence in the domain
+
+From the money canon (`~/.claude/projects/-Users-sean-dev-daengrun/memory/daengrun-money-models.md:33-36`),
+verbatim:
+
+> **ENCODE THE FORMULA, NEVER THE FIGURES.** The rule is: `runner_personal` pays the runner
+> `(1 − commission) × the owner's actual charge`. Every number below is a 1km-of-3km ILLUSTRATION
+> of that rule — hardcode one and every other distance is wrong. **This warning exists because
+> the figures were relayed without the rule once already.**
+
+`0086:47-49` obeys it in code: *"THE FORMULA IS THE RULING; THE FIGURES ARE ILLUSTRATIONS. The
+memo's 2,010 / 8,643 are ONE KILOMETRE OF A THREE-KILOMETRE BOOKING. Hard-coding either breaks
+every other distance, so neither appears below."*
+
+### 0.2 ⚠ The money canon in memory is SEVEN DAYS STALE — do not open it first
+
+`daengrun-money-models.md` was last modified **2026-08-13**. Three of its claims are now false:
+
+| the canon says | reality |
+|---|---|
+| `:53-55` — *"the 10% cancel tier pays the runner ₩0 … free margin resting on a false sentence; pay them or fix the copy"*, presented as a **live profit lever** | **shipped 2026-08-13.** `0085` pays the runner 50% of that fee. A fresh agent reading the canon first will **re-open a closed slice.** |
+| `:56-57` — *"the refusal gate and review marker exist but no human verifier is assigned"* | ⑪ was ruled, built and deployed (`0094`). ⚠ **The canon's conclusion survives on a different premise**: ⑪ is server-only with no client surface, so in practice nobody can verify anything yet. |
+| `:87-91` — *"Charge machine BUILT + PUSHED, **NOT deployed**"* | **deployed and running.** `docs/pre-charging-checklist.md:14`: *"Charging is off, the machine is deployed and running, and it is inert at four INDEPENDENT layers."* All 17 cron jobs are active. The *inertness* conclusion is unchanged; the *mechanism* is a gate, not an absence. |
+
+Also stale in detail: `:53-54` attributes the false 50/50 copy to `store.ts`; the shipped sentence
+the runner never saw the other half of was **`app/app/owner/schedule.tsx:604`**, the live cancel
+sheet (`cancel-fee-runner-share.md:20-28`).
+
+---
+
+## 1. The charge machine, end to end
+
+### 1.0 The model in one paragraph
+
+Booking is free. Matching is free. The run happens. `settle_run_tx` commits **first** — the
+runner's `ledger_items` row is written and the runner is paid regardless of whether the owner's
+card works — and **only then** does the owner's card get charged, from the edge, outside that
+transaction, on the booking's **frozen** fare columns. The charge is invisible (no widget, no
+owner present, server-initiated against a stored 빌링키). The ordering law is stated verbatim in
+`supabase/functions/settle-run/handler.ts:216`: *"정산은 여기서 끝났다. 아래는 수금이고, 수금은
+정산을 되돌리지 않는다."* **[measured]**
+
+Source of the model: `docs/plans/payments-toss-plan.md` §0-bis (Sean, 2026-08-12 — two-way
+payments become one way: per-run, INVISIBLE, POST-PAY), cited at
+`supabase/migrations/0080_charge_machine.sql:3-6`. **[from-doc]**
+
+### 1.1 The migration chain, in dependency order
+
+| # | file | what it added to money |
+|---|---|---|
+| 0001 | `0001_init.sql` | `ledger_items` (`:264-275`), `bank_accounts` (`:277-283`), `payouts` (`:285-296`), `runners.commission_rate numeric(4,3) not null default 0.20` (`:75`), `booking_status` enum (`:9-14`), `end_reason` enum (`:18`) |
+| 0066 | `0066_enroute_cancel.sql` | the transition map's current definition (`:37-63`) and **`marketplace_cancel_fee`** — the whole cancel ladder (`:72-83`) |
+| 0071 | `0071_payments.sql` | `payments` table — "the accounting artifact for money coming IN". Client never writes; ONE RLS policy (owner reads own) |
+| 0075 | `0075_km_ledger.sql` | `km_lots` / `km_ledger` — the 하이 포인트 / km-token currency. **Nothing calls it.** `:8-11` says so explicitly |
+| 0076 | `0076_payment_intent.sql` | intent-before-money for the widget flow; the stale-intent sweep |
+| 0080 | `0080_charge_machine.sql` | **THE FILE.** 1262 lines. `billing_keys`, `ops_flags`, `compute_owner_charge`, both mints, the derived debt gate, the invariant-#1 sweep, the recurring money gates, reconciliation, en-route comp, the pg_net dispatcher |
+| 0081 | `0081_club_money_gates.sql` | the club booking path gets the same two gates (`session_pay_delegation`, `:176-179`); `club_fare` grant hygiene (`:283-284`) |
+| 0083 | `0083_run_end_flow.sql` | run-end freeze; **changes `runs.ended_at` to mean the service STOP** (`:216-217`) — see the flip blocker in §7 |
+| 0084 | `0084_g1_ops_cutover.sql` | Sean's G1 ruling → `compute_owner_charge` recreated; reviewable incident waive; `ops_recipients`; **the cutover setter that refuses the past** |
+| 0085 | `0085_cancel_share.sql` | `record_late_cancel_share` — the 10% tier's runner half |
+| 0086 | `0086_runner_stop_passthrough.sql` | `compute_runner_personal_payout` — ⑨a pass-through pay |
+| 0097 | `0097_unsettled_run_detection.sql` | `ops_unsettled_runs()` — detection only, writes nothing |
+| 0101 | `0101_compute_runner_payout.sql` | the runner's price moves out of TypeScript into SQL |
+| 0102 | `0102_payout_commission_guard.sql` | an invalid commission RAISES instead of silently paying ₩0 |
+| 0111 | `0111_booking_entry_rebuild.sql` | booking-entry forgery closure; `generate_recurring_bookings`'s live definition (`:339-355` money gates) |
+| 0115 | `0115_account_deletion.sql` | the deletion gate's money tokens, incl. the knowingly-inert `unpaid_payout` |
+
+**Live definition of each money function** (measured by grepping every `create or replace`):
+
+| function | LIVE definition |
+|---|---|
+| `compute_owner_charge` | **`0084:145`** (was `0080:236`) |
+| `mint_settle_charge_intent` | **`0084:249`** (was `0080:346`) |
+| `payments_reconciliation` | **`0084:349`** (was `0080:855`) |
+| `compute_runner_payout` | **`0102:41`** (was `0101:83`) |
+| `compute_runner_personal_payout` | `0086:88` |
+| `mint_cancel_fee_intent` | `0080:426` |
+| `owner_has_unsettled_charge` | `0080:507` · `my_unsettled_charge` `0080:541` |
+| `sweep_settled_without_payments` | **`0080:569` — never recreated** (this matters, §7) |
+| `sweep_stale_payment_intents` | `0080:818` |
+| `dispatch_due_charges` | `0080:1171` |
+| `record_enroute_cancel_comp` | `0080:1119` · `record_late_cancel_share` | `0085:44` |
+| `generate_recurring_bookings` | **`0111`** (was `0080:681`, was `0026`) |
+| `expire_unmatched_bookings` | `0080:929` |
+| `settle_run_tx` | **`0083`** (was `0028:18`) · `_settle_sealed_run` `0083:870` |
+| `marketplace_cancel_fee` | `0066:72` · `club_fare` `0043:14` |
+
+### 1.2 Every state a booking's money passes through
+
+```
+booking created (FREE — nothing is charged, ever, at booking time)
+    │   create-booking-hold writes the FROZEN fare columns:
+    │   base_fare · distance_fare · addon_fare · total_price · min_fare   (handler.ts:287-300)
+    │
+    ├── cancelled ──► marketplace_cancel_fee (0066:72) quotes a fee from bookings.total_price
+    │                  ──► bookings.cancel_fee written by cancel_owner.ts CAS (:89)
+    │                  ──► mint_cancel_fee_intent (0080:426) → payments row kind='cancel_fee'
+    │                  ──► record_late_cancel_share / record_enroute_cancel_comp → ledger_items
+    │
+    └── run happens ──► run STOP (0083 end_run_tx freezes actual_km/end_reason/ended_at)
+            │
+            ├─ return handoff must be sealed — settle_run_tx raises `return_not_sealed`
+            │  until the dog is confirmed home (0083:681-687)
+            │
+            ▼
+        settle-run/handler.ts
+            ① party gate (:54-60)
+            ② input band: 0 ≤ actual_km ≤ planned*2 + 2  (:121)  ← runner-payout fraud bound
+               completed additionally requires actual ≥ planned*0.5 (:127)
+            ③ commission read server-side: runners.commission_rate, fallback 0.33 (:107-108)
+            ④ compute_runner_payout (SQL) → 6 numbers (:150-155)
+            ⑤ settle_run_tx — atomic: claim active→completed, runs row, ledger_items,
+               miles, stats, drops, notifications (:173-184).  ← THE SETTLEMENT ANCHOR
+            ⑥ ═══ settlement is over. Collection begins and cannot undo it. ═══ (:216)
+            ⑦ collectAfterSettle → mint_settle_charge_intent (:297-301)
+            ⑧ dispatchCharge → _shared/charge.ts → Toss billing API (:326)
+               whole branch in try/catch — a declined card returns 200 with the runner paid
+```
+
+**Where prices come from — the single most misread thing in this domain.**
+
+- The owner's charge is built **only** from `bookings.base_fare / distance_fare / addon_fare /
+  km` — the FROZEN numbers the owner consented to. `compute_owner_charge` reads exactly those
+  four columns (`0084:162-164`) and **never** reads `PRICING`. **[measured]** Rationale at
+  `0080:207-211`: *"A price revision must not reprice a booking the owner already consented to"*
+  (0026's 동의한 가격만 청구한다).
+- The runner's payout is built from **LIVE** constants — `RUNNER_COMP_BASE = 9900`,
+  `PER_KM = 3000` are compile-time constants in `compute_runner_payout` (`0102:50-51`), and
+  the addon sum comes from `bookings.addons[].price` (the jsonb array) rather than the frozen
+  `addon_fare` column (`0102:98-99`). **[measured]** Rationale at `0101:63-71` — a payout is not
+  a consented price. **The consequence: a price revision reprices every unsettled run's PAYOUT
+  and leaves its CHARGE alone.** This is deliberate and stated; see §7.
+- **`routes.km` NEVER enters the price.** The number that becomes money is the **owner's km
+  dial**: the client sends `km` (1.0–10.0 in 0.5 steps, `app/app/owner/request.tsx:55-59`), the
+  server re-validates the type and range at `create-booking-hold/handler.ts:102-105` (strict on
+  TYPE — `"5"` is refused, not coerced), and computes
+  `distanceFare = round(km * 3000)`, `total = 7900 + distanceFare + addonFare`
+  (`handler.ts:287-288`). **[measured]** `routes.km` is used only for route-catalog plausibility
+  (`0082:272-274`) and for filtering which courses the dial offers. A booking whose route is 3km
+  and whose dial says 5km is priced at 5km, and the client discloses the mismatch rather than
+  reconciling it (`app/app/owner/request.tsx:870-872`).
+
+### 1.3 The constants, measured
+
+| constant | value | where |
+|---|---|---|
+| `ownerBaseFare` | **7,900** | `supabase/functions/_shared/ctx.ts:16` (+ client mirror `app/src/theme.ts:214`) |
+| `runnerCompBase` | **9,900** | `ctx.ts:17`; hard-coded again as `RUNNER_COMP_BASE` in `0102:50` |
+| `perKm` | **3,000** | `ctx.ts:18`; `PER_KM` in `0102:51` |
+| `minFare` (runner gross floor) | **9,900** | `ctx.ts:19`; written to `bookings.min_fare` at `create-booking-hold/handler.ts:300` |
+| addons | river 3,000 · homecare 2,000 · snack 2,000 · snap 4,000 · livecam 3,900 | `ctx.ts:22-28` |
+| commission | column `runners.commission_rate numeric(4,3) not null default 0.20` (`0001:75`); **production: all 9 runners at 0.330** **[measured]**; settle-run fallback `0.33` (`settle-run/handler.ts:108`) |
+| `club_fare(km)` | **9,900 + round(km × 3,000)** — the PRE-D2 owner base | `0043:14-17` |
+| `PG_MIN_CHARGE` | **100** (Toss's card minimum) | `0084:155` |
+| cancel ladder | unmatched/no runner **0** · `runner_enroute` **50%** of `total_price` · ≥24h **0** · <24h **10%** | `0066:73-83` |
+| late-cancel runner share | **50% of the fee** | `0085:76` |
+| en-route comp | **100% of the fee to the runner**, `platform_fee = 0` | `0080:1148-1150` |
+| retry ladder | attempt 1 → +1h · attempt 2 → +24h · attempt 3 → stop | `_shared/charge.ts:56-57` |
+| billing HTTP timeout | 10s | `_shared/toss.ts:36` |
+| verify-after (dispatched pending) | 15 min | `collect-charges/handler.ts:38` |
+| debt threshold (dispatched pending) | 1 hour | `0080:526` |
+
+⚠ **The D2 decoupling is the load-bearing fact about 7,900 vs 9,900.** They are DIFFERENT MONEY
+(Sean, 2026-08-12). `ctx.ts:5-10` says it in capitals: *"하나를 다른 하나에 '맞추는' 수정은
+버그가 아니라 사고다."* `0101:44-47` repeats it because reading the owner's 7,900 into the
+runner's base *"silently underpays every runner on every run, forever, and no owner-side pin
+would notice."* Margin is distance-dependent: 23.4% at 2km → 29.5% at 10km **[from-doc,
+`ctx.ts:8`]**.
+
+### 1.4 `min_fare` as the runner floor — and where it does NOT apply
+
+`bookings.min_fare` is written at booking time as `PRICING.minFare` = 9,900
+(`create-booking-hold/handler.ts:300`; the recurring cron copies it from the series at
+`0111:373`; `session_pay_delegation` writes 9,900 at `0081:198`). It is applied **once**, in
+`compute_runner_payout`'s general arm: `gross = greatest(base + distance + addon,
+coalesce(min_fare, 0))` (`0102:103`). **[measured]**
+
+**It does NOT apply to the `runner_personal` arm** — `0101:118-119`, `0086:66-68`. That arm
+delegates to `compute_runner_personal_payout`, whose whole point is that a stopped run no longer
+pays a full base. Wiring the floor back in there is the single most likely "helpful fix" that
+would silently revert ⑨a.
+
+**It is a floor on the RUNNER's gross only.** It never touches the owner's charge. A
+`runner_personal` stop under ~34m produces a sub-₩100 owner charge → `below_pg_minimum` → 0 →
+`waived` row → **the runner is paid 0 too**, because the pass-through reads that same zero
+(`0086:69-70`). **[measured]** Nobody pays, nobody is paid.
+
+### 1.5 The four off-switches
+
+All four measured against production **2026-08-21**:
+
+| # | switch | state | where |
+|---|---|---|---|
+| ① | `ops_flags.payments_live_since` | **NULL** (updated_at `2026-08-13 07:57:02+00`) | table `0080:181-185`; gate `0084:263-266` |
+| ② | edge secret `TOSS_SECRET_KEY` | **UNSET** — `secrets list` returns only the 7 Supabase built-ins | read at `_shared/toss.ts:24-28`, throws 503 without it |
+| ③ | edge secret `CRON_COLLECT_KEY` | **UNSET** — an unset key authenticates nobody (503, never an open endpoint) | `collect-charges/handler.ts:59-62` |
+| ④ | Vault secret `charge_dispatch` | **ABSENT** — `select count(*) from vault.secrets` = **0** | read at `0080:1216-1226`; absent → NOTICE + return 0 |
+
+Plus a fifth, structural: **`billing_keys` has 0 rows**, so `dispatchCharge` returns
+`skipped_no_card` before touching Toss (`_shared/charge.ts:185-190`). And a sixth on the client:
+`TOSS_ENABLED: boolean = false`, hard-coded at `app/src/lib/toss.ts:16`. **[measured]**
+
+`ops_flags` is a **timestamp, not a boolean**, and the reasoning is load-bearing (`0080:30-45`):
+- ⓐ while NULL the mints write **nothing** — otherwise card-less pilot owners would accumulate
+  `pending` rows that the 1h stale sweep flips to `failed`, manufacturing debt and an account
+  lock for the whole pilot;
+- ⓑ a boolean flip would let the §G sweep retroactively mint charges for runs that already
+  happened. Scoping every mint to `runs.ended_at >= payments_live_since` makes the switch **a
+  line in time**: what happened before the cutover stays free, forever, by construction.
+
+**The setter refuses the past.** `set_payments_live_since(p_when)` raises
+`cutover_must_be_future` on anything `<= now()` (`0084:476-479`), because Sean's ruling ⑥ is that
+the flag goes to a FUTURE moment past the longest in-flight booking. The operator's input is
+`longest_inflight_booking_end()` (`0084:432-440`). ⚠ `0080:79-82`'s original step ⑦
+(`= now()`) is **WRONG and superseded** — `0084:48-61` says so explicitly. ⚠ **It is a setter,
+not a trigger**: a raw `update ops_flags set payments_live_since = now()` still works for anyone
+holding service_role. `0084:458-467` names this honestly and explains why the trigger is not
+written (five shipped pins across two suites deliberately set the flag to `now() - interval '7
+days'` to simulate the post-cutover era: `116:214`, `116:744`, `116:768`, `117:339`, `117:375`,
+`117:419`). **[measured]**
+
+### 1.6 Production, measured 2026-08-21
+
+```
+ops_flags.payments_live_since   NULL
+payments                        0 rows
+billing_keys                    0 rows
+bank_accounts                   0 rows
+payouts                         0 rows
+ops_recipients                  0 rows
+km_lots / km_ledger             0 / 0 rows
+club_fee_items                  0 rows
+ledger_items                    8 rows        ← the only money that has ever moved in this DB
+bookings                        28 rows
+runs                            9 rows
+runners.commission_rate         0.330 × 9 runners (no other value exists)
+vault.secrets                   0
+edge secrets                    7 Supabase built-ins only
+cron.job                        17 jobs, all active
+```
+
+Deployed edge functions **[measured via `functions list`]**:
+
+| function | version | verify_jwt |
+|---|---|---|
+| `create-booking-hold` | **v10** | true |
+| `transition-booking` | **v34** | true |
+| `settle-run` | v14 | true |
+| `confirm-payment` | v1 | true |
+| `collect-charges` | v1 | **false** (X-Cron-Key is the credential) |
+| `delete-account` | v1 | true |
+| `open-drop` v8 · `geocode-address` v1 | | |
+| **`create-payment-intent`** | **NOT DEPLOYED** | — |
+
+`ledger_items` aggregate **[measured]**: base 79,200 (= 8 × 9,900) · distance_pay 54,480 ·
+addon_pay 0 · tip 0 · remaining_guarantee 7,500 · platform_fee 29,523 over 8 rows. Implied rates
+per row are **0.200 for the older rows and 0.330 for the newest** — i.e. the historical ledger
+was written under two different commission rates and there is no record in `ledger_items` of
+which rate applied. **[measured]** The 2026-08-11 row is `runner_personal` at `actual_km 0.00`
+with `base 9900, distance 0, gross 9900` — that is the **pre-⑨a shape**; under 0086 the same run
+would pay 0. It is a legacy row, not a live inconsistency. **[measured + inferred]**
+
+⚠ **Three historical-data traps, all of which will look like defects and are not**
+(`docs/pre-charging-checklist.md:143-167`) **[from-doc, and consistent with my own measurements]**:
+1. `ledger_items` has **8 rows, not 0** — they match the 8 `completed` bookings exactly.
+2. **`runs.settled_at` is NULL for all 9 runs, including the 8 that ARE settled** — they predate
+   `0083`. So `settled_at is null` does **not** mean unpaid on historical rows; the ledger row is
+   the evidence. ⚠ This matters directly to U1, whose fix adds `settled_at is not null` to the
+   sweep: the fix is correct going forward and would silently exclude every pre-0083 run — which
+   is fine, because those runs are also pre-cutover and free by construction.
+3. **The one `incident_review` booking is a CLUB booking.** Clubs settle via
+   `club_release_payouts`, and `0097:88` excludes `club_session_id is not null` deliberately.
+   **Do not "fix" that exclusion** — it would report every club booking as an unpaid marketplace
+   run. **There is no unpaid marketplace runner in production today.**
+
+Cron jobs relevant to money, all `active = true` and all no-ops by gate:
+`sweep-settled-charges 2-57/5` · `dispatch-due-charges 4-59/5` · `sweep-payment-intents 3-58/5` ·
+`expire-unmatched */5` · `purge-holds 1-56/5` · `recurring-gen 7 * * * *` ·
+`club-payout-release 0 18 * * *` (KST 03:00). **[measured]**
+
+### 1.7 The gates and sweeps in detail
+
+**The debt gate (§F, `0080:507-529`)** — `owner_has_unsettled_charge(owner)`. Debt is **DERIVED**;
+there is no `collection_status` column and the file says there never will be. Two shapes:
+`failed`, or `pending` whose `raw.dispatched_at` is older than 1h. Both restricted to
+**server-minted rows** (`raw->>'kind' is not null`), so widget-era debris can never lock an owner.
+"Settled" anchors on `runs.ended_at` / `ledger_items` existence / `cancel_fee > 0` — **never**
+`bookings.status`, because an `incident_review` or `refund_pending` transition after settlement
+must not drop a failed charge out of the lock.
+
+Three callers of that gate — **all three booking-creating paths**:
+1. `create-booking-hold/handler.ts:178` — 500 on RPC error, deliberately (a money gate that fails
+   open is not a gate);
+2. `generate_recurring_bookings` `0111:341` — **pauses with a notification** rather than
+   refusing, because a cron has no screen;
+3. `session_pay_delegation` `0081:176` — the club path, closed by 0081.
+
+A second gate rides alongside in 2 and 3: **no `billing_keys` row while charging is live** →
+blocked (`0111:343`, `0081:179`). This one IS flag-keyed; the debt gate is not, and does not need
+to be (a failed charge row cannot exist pre-cutover).
+
+**The invariant-#1 sweep (§G, `0080:569-625`)** — every SETTLED booking has a `payments` row.
+Bookings-anchored on purpose: the payments-anchored reconciliation arms structurally cannot see a
+crash that left no row at all. Skips (with a NOTICE, never a guess) any run missing `end_reason`
+or `actual_km`. **This function has a known hole and is the flip blocker — see §7.**
+
+**The stale-intent sweep (§I, `0080:818-840`)** — only **never-dispatched** pendings may
+auto-fail. A dispatched pending may already have charged the card; closing it `failed` would
+erase that from the ledger. Kind-bearing closures notify the owner; kind-less widget debris stays
+silent.
+
+**Reconciliation (`0084:349-406`)** — five disjoint-by-status arms:
+`orphan_capture` (confirmed) · `stale_pending` (pending, never dispatched) ·
+`stale_dispatched` (pending, dispatched) · `ladder_exhausted` (failed, attempts ≥ 3) ·
+`incident_waive_pending` (waived, `raw.review = 'incident_pending'`, no `review_resolved_at`).
+
+**The dispatcher (`0080:1171-1246`)** — pg_cron cannot make an authenticated HTTP call, so this
+reads the Vault secret `charge_dispatch` `{"url","cron_key"}` and `net.http_post`s
+`/collect-charges`. Fully exception-guarded: a dispatcher must never be why a cron job dies.
+⚠ Its due-predicate (`0080:1198-1213`) and `isDue()` in `collect-charges/handler.ts:152` are
+**ONE RULE WRITTEN TWICE**. They must change together.
+
+---
+
+## 2. Both ledgers — every end scenario
+
+**Notation.** Marketplace booking, planned `K` km, no addons unless stated.
+`P = round(K × 3000)` (the frozen `distance_fare`). Owner quote = `7900 + P`.
+`c` = commission (production: 0.33). Runner net = gross − fee, and the subtraction is the
+CALLER's — `settle-run/handler.ts:264` returns `net: gross - fee`, never a second rounding
+(`0101:57-61`, `0086:52-55`). Platform take = owner charge − runner net.
+
+⚠ **All owner charges below are what the machine WOULD compute. Today it computes them and
+throws them away**: the mint returns zero rows while `payments_live_since` is NULL. The runner
+column is real and already happening.
+
+### 2.1 Marketplace, run reached settlement
+
+| end_reason | OWNER is charged | rule string | RUNNER is paid (gross) | ledger row shape |
+|---|---|---|---|---|
+| **`completed`** | `7900 + round(P/K × min(actual,K)) + addon_fare` | `actual_capped` | `max(9900 + round(actual×3000) + Σaddons, min_fare)`; fee = `round(gross×c)` | base 9900 · distance · addon · guarantee 0 |
+| **`dog_condition`** | **identical to `completed`** | `actual_capped` | **identical to `completed`** | same |
+| **`owner_request`** | `7900 + P + addon_fare` — **exactly the full quote, not min()** | `owner_caused_planned` | `max(9900+round(actual×3000)+Σaddons, min_fare)` **+ guarantee** where guarantee = `max(0, round((P − round(actual×3000)) × 0.5))` | guarantee column carries the 50% |
+| **`owner_forced`** | identical to `owner_request` | `owner_caused_planned` | identical to `owner_request` | same |
+| **`runner_personal`** | `round(P/K × min(actual,K))` — **distance ONLY, base waived, addons waived** | `runner_personal_distance_only` | `gross = the owner charge above`; fee = `round(gross×c)` | **base 0 · distance = whole gross · addon 0 · guarantee 0** |
+| **`incident`** | **0** | `incident_pending_review` + `raw.review='incident_pending'` | **the FULL general arm** — `max(9900+distance+addons, min_fare)` | base 9900 · … |
+| any of the above where `0 < amount < 100` | **0** | `below_pg_minimum` → `waived` row | (runner unaffected except on the `runner_personal` arm, where it reads the same 0) | — |
+| unknown `end_reason` | **RAISE** `unknown_end_reason` | — | **RAISE** | nothing written |
+
+Sources: owner `0084:145-210`; runner `0102:41-121` + `0086:88-109`. **[measured]**
+
+**Worked examples** (K = 3, no addons, c = 0.33; quote = 7,900 + 9,000 = 16,900):
+
+| scenario | owner | runner gross | fee | runner net | platform |
+|---|---|---|---|---|---|
+| completed, actual 3.0 | 16,900 | 9,900+9,000 = 18,900 | 6,237 | 12,663 | **+4,237** |
+| completed, actual 1.6 (≥50% gate passes) | 7,900 + 4,800 = 12,700 | 9,900+4,800 = 14,700 | 4,851 | 9,849 | **+2,851** |
+| dog_condition, actual 0.2 | 7,900 + 600 = **8,500** | max(9,900+600, 9,900) = 10,500 | 3,465 | 7,035 | **+1,465** |
+| owner_request, actual 0 | **16,900** (full quote) | 9,900 + 0 + guarantee 4,500 = 14,400 | 4,752 | 9,648 | **+7,252** |
+| runner_personal, actual 1.0 | **3,000** | 3,000 | 990 | **2,010** | **+990** |
+| incident, actual 2.0 | **0** | 9,900+6,000 = 15,900 | 5,247 | 10,653 | **−10,653** |
+| runner_personal, actual 0.03 (≈30m) | 0 (`below_pg_minimum`) | 0 | 0 | 0 | 0 |
+
+The `runner_personal` numbers reproduce ⑨a's memo illustration exactly (⩰2,010 of a ⩰3,000
+charge, vs ⩰8,643 under the retired flat-base rule) — pinned at `122 P1`. **[measured]**
+
+**Platform P&L per arm, at 1km of a 3km booking, c = 0.33** — the table Sean was shown and ruled
+on (`runner-stop-split.md:36-41`; canon `:38-43`) **[from-doc, and I reproduced every figure from
+the shipped SQL]**:
+
+| arm | owner | runner | platform |
+|---|---|---|---|
+| `runner_personal` (chose to stop) | 3,000 | **2,010** | **+990** |
+| `runner_incapacity` (⑨b, **UNBUILT**) | 3,000 | normal settle **8,643** | **−5,643** |
+| `incident` | **0** | 8,643 | **−8,643** — the largest single loss |
+
+⚠ **⑨b would keep TODAY's formula** (`base + distance + addons` less commission — the 8,643 row)
+and **must NOT be routed through `compute_runner_personal_payout`** (`runner-stop-split.md:9-13`).
+Sean's cost framing (`:55-57`): a runner's alternative to stopping is continuing — ill, alone,
+with someone's dog — and at ~2% of runs the whole difference is **~3% of monthly margin**, bought
+with the worst signal you can send to supply.
+
+⚠ **`incident` is the only arm where the platform funds the runner entirely.** It is currently
+unreachable from a client: `settle-run/handler.ts:42` whitelists `CLIENT_END_REASONS =
+["completed","dog_condition","owner_request","runner_personal"]` and refuses `owner_forced` /
+`incident` **by name** (`:91-97`). `0084:39-43` records the hole this closes: under ruling ①,
+`incident` = charge nothing, so an assigned runner POSTing it would hand themselves a free run.
+**But `owner_forced` and `incident` also have no server caller** — no `transition-booking` action
+produces either. **[measured]** So both are priced and unreachable.
+
+### 2.2 Marketplace, cancelled before the run
+
+`marketplace_cancel_fee` (`0066:72-83`) quotes from `bookings.total_price` and the row's CURRENT
+status. `cancel_owner.ts` CASes the booking on the quoted status (`:89`), writes
+`bookings.cancel_fee` and a tier-naming `cancel_reason`, then mints and pays.
+
+| tier | condition | owner is charged | runner is paid | who keeps the rest |
+|---|---|---|---|---|
+| **unmatched** | `runner_id is null` OR status in `matching`/`runner_pending` | **0** — `mint_cancel_fee_intent` writes **nothing at all** (`0080:464`) | 0 | — |
+| **early** | confirmed, `scheduled_at >= now() + 24h` | **0** — same, nothing minted | 0 | — |
+| **late (10%)** | confirmed, `< 24h` | `round(total_price × 0.1)`, `cancel_reason='owner_cancel_late'` | **50% of the fee** via `record_late_cancel_share` (`0085:76`) → `remaining_guarantee`, `platform_fee = 0` | platform keeps the other 50% |
+| **en route (50%)** | `runner_enroute` | `round(total_price × 0.5)`, `cancel_reason='owner_cancel_enroute'` | **100% of the fee** via `record_enroute_cancel_comp` (`0080:1148-1150`) → `remaining_guarantee`, `platform_fee = 0` | platform keeps **0** — this is compensation, not revenue (Sean, 2026-08-11) |
+| **picked_up** | — | **impossible** — `picked_up → cancelled_owner` is not in the transition map; that is an incident, not a cancellation | — | — |
+
+⚠ **`platform_fee` is deliberately 0 on both comp rows and this is NOT sloppiness.**
+`my_ledger_total` (`0027:13`) sums `base + distance_pay + addon_pay + tip + remaining_guarantee −
+platform_fee`, so writing the platform's half into `platform_fee` would **net the runner to zero
+at a 50/50 split** — a row that looks correct in the table and pays nothing in the app. The
+ledger is the RUNNER's ledger, not a double-entry book (`0085:35-43`). **[measured]** There is
+consequently **no row anywhere recording the platform's half of a late-cancel fee.**
+
+⚠ Both comp writers share the advisory-lock key `'comp:' || booking` (`0080:1133`, `0085:59`) —
+deliberately, so a caller bug cannot get both tiers to write for one booking. `ledger_items` has
+no unique key on `booking_id`, so **the lock IS the serialization**. Pinned by `90_race_check.sh`
+RE (measured expectation: 1 row, sum 12,450).
+
+### 2.2b 🔴 The SECOND cancel ladder — and why club cancel fees are structurally uncollectable
+
+**There are TWO cancel ladders and they are not the same ladder.** A fresh agent who reads only
+`marketplace_cancel_fee` will believe there is one.
+
+`cancel_owner.ts:58-60` **REFUSES club bookings outright** — 409 「클럽 위탁 예약은 여기서 취소할
+수 없어요」 — because the marketplace ladder was being quoted onto club bookings, writing
+`bookings.cancel_fee` at a rate the club never agreed to, *"and post-cutover that wrong number
+becomes a real charge via `mint_cancel_fee_intent`"* (`:44-46`). **[measured]** The club's own
+exit is `session_cancel_delegation` (`0057:190-258`).
+
+The club ladder lives in the `club_config` table (`0048:13-22`) **[measured]**:
+
+| key | value | ⚠ |
+|---|---|---|
+| `cancel_free_hours` | 24 | `[Sean 미확정]` |
+| `cancel_late_pct` | 10 | `[Sean 미확정]` |
+| `cancel_post_accept_pct` | 20 (no-show = this tier) | `[Sean 미확정]` |
+| `fee_platform_split_pct` | 50 (the rest = supply compensation) | `[Sean 미확정]` |
+| `host_fee_krw` | 0 (0 = skip the record) | `[Sean 미확정]` |
+| `vet_limit_krw` | 200,000 | `[Sean 미확정]` |
+
+**Every one of them is marked `[Sean 미확정]`** — they are placeholder defaults, not rulings.
+
+🔴 **The structural hole, measured end to end:**
+
+1. `session_cancel_delegation` sets `bookings.status = 'refund_pending'` and `cancel_reason =
+   'club_owner_cancel'` (`0057:240`) and calls `_club_record_cancel_fee` (`0057:244`).
+2. `_club_record_cancel_fee` (`0048:47-66`) writes **only `club_fee_items`** — two rows, a
+   `platform` share and a `supply_compensation` share (to the runner if there is one). **It never
+   touches `bookings.cancel_fee`.**
+3. `mint_cancel_fee_intent` reads `coalesce(b.cancel_fee, 0)` (`0080:447`), sees **0**, and mints
+   **nothing** (`0080:464`).
+4. `owner_has_unsettled_charge`'s cancel arm is `coalesce(b.cancel_fee, 0) > 0` (`0080:519`) — so
+   it **never fires for a club cancel** either.
+
+**⇒ At cutover, club cancel fees either become real money or stay recorded-only forever, and
+nobody has ruled which.** (`club-enroute-cancel.md:45-50`; also flagged from ④ at
+`club-fare-base-alignment.md:65-67`.) **[measured + from-doc]**
+
+5. And the runner's half is worse: **`my_ledger_total` (`0027:13`) reads ONLY `ledger_items`**
+   **[measured]**, so a club cancel's `supply_compensation` share sits in `club_fee_items`
+   and **never reaches the runner's earnings total**. It is recorded and unpayable — the same
+   shape as the payout hole in §4, one layer earlier.
+
+⚠ Two of the club ladder's tiers describe states the owner can no longer cancel from:
+`session_cancel_delegation` accepts `matching` and `confirmed` only and raises
+`already_handed_off` beyond that, so **"post-acceptance 20%" and "post-handoff" are
+unreachable**. And because ⑤ ruled "leave it", an en-route club booking has **no owner-initiated
+cancel at all** — past handoff it is a case, not a cancellation. `cancel_owner.ts:47-56` names
+this narrowing as deliberate.
+
+### 2.3 No-show
+
+**There is no money rule, because there is no no-show.** `no_show` exists in the
+`booking_status` enum (`0001:12`) and in the transition map from `confirmed` and `runner_enroute`
+(`0047:37-38`), and the client renders it as 「불발」 / phase `disputed`
+(`app/src/lib/payphase.ts:64`, `app/app/owner/schedule.tsx:56`) — but **`grep -rn "no_show"
+supabase/functions/` returns ZERO hits.** Nothing in the repo ever writes that status.
+**[measured]** So: no fee, no comp, no charge, no ledger row, no policy. If a real no-show
+happens today it is a manual database job.
+
+### 2.4 Incident
+
+Two entirely separate machines, and only one of them exists for the marketplace.
+
+**Club incident** — `club_incident_settle` (live at `0080:977`, logic byte-faithful from
+`0072:102-207`). A host/case-owner picks one of `refund_full | settle_measured | pay_full`;
+`club_incident_settle_quote` prices it; the function writes the runner's `ledger_items` row
+(`0080:1023-1028`) and a `club_fee_items` evidence row (`0080:1032-1039`), moves the booking to
+`refund_pending` if `refund > 0`, sets `session_dogs.payout_state`, and notifies both sides. The
+owner's refund sentence is conditional on a `confirmed` payment actually existing (`0080:1063-1071`)
+— *"이번 건은 청구되지 않아요"* under post-pay.
+
+**Marketplace incident — the exit does not exist.** `0083:123-147` (§0h) is the statement of
+record: every marketplace money entry point requires `status = 'active'`; the transition map
+allows `incident_review → refund_pending` and nothing else; `club_incident_settle` is
+unreachable (it calls `_club_require_v2()` and needs a `club_incidents` row + session lock +
+subject mapping). **Every marketplace `incident_review` booking is a manual database job**, and
+its runner is permanently unpaid. `ops_unsettled_runs()` (`0097:60-104`) exists solely to make
+that visible; it writes nothing and, per its own header, **does not page** (`ops_recipients` is
+0 rows and `OPS_PROFILE_ID` is unset — measured). Production has **1 booking in
+`incident_review`** **[from-doc: pay-after-run-contract A.4 status spread]**.
+
+### 2.5 Club delegation
+
+`session_pay_delegation(session_dog, idem_key, method_consent)` — live at `0081:122`, insert at
+`0081:198`. It inserts a booking **directly**, bypassing `create-booking-hold` entirely, with:
+
+```
+base_fare 9900 · distance_fare club_fare(km) − 9900 · addon_fare 0
+total_price club_fare(km) · min_fare 9900
+```
+
+**A club owner pays ₩2,000 more than a marketplace owner for the same distance**, because
+`club_fare` (`0043:14`) carries the pre-D2 owner base of 9,900 and the D2 decoupling swept only
+TypeScript. `0081:42-45` and `TODOS.md:139-147` both record this as **a PRICE question and Sean's
+call, NOT a bug** — the booking decomposition is internally consistent, so `compute_owner_charge`
+charges exactly the quote. Recommendation on record: align to 7,900 before the cutover; the change
+would be `club_fare`'s literal plus the 24,900 literals in `117 K3/K7` and `50 D5`.
+**Decide before the flip — post-flip, two live prices exist in the wild.** **[from-doc]**
+
+Club settlement goes through the **same** `settle-run` path (`0081:20-30` traces it:
+`club_start_delegated_runs` `0050:169-198` → `app/app/club/run/[sid].tsx:247` →
+`settle-run/handler.ts` → `mint_settle_charge_intent`). There is **no club exclusion anywhere in
+the charge branch.** So the moment the flag flips, a club-delegated run charges the owner's card
+on that 9,900-base quote.
+
+`club_release_payouts` (live at `0072:221`, cron `club-payout-release 0 18 * * *`) flips
+`session_dogs.payout_state` — **it does not write `payouts` and it does not move money.**
+**[measured]**
+
+### 2.6 Reconciling the artifacts
+
+I found and resolved the following. **Which artifact wins is stated in each case.**
+
+| # | contradiction | resolution — who wins |
+|---|---|---|
+| **R1** | `0080:228-232` says `dog_condition`/`incident` → amount 0, rule `g1_waive`. | **`0084:145` wins.** The provisional is RETIRED: `dog_condition` is now an ordinary `actual_capped` charge and `incident` answers `incident_pending_review`. `g1_waive` exists nowhere in any code path — anything still grepping it is reading a decision Sean overruled (`0084:62-65`). |
+| **R2** | Two sessions recorded G1 differently; one had *"base fee only, 7,900 flat"* for `dog_condition`. | **Withdrawn.** Sean confirmed FULL ACTUALS directly on 2026-08-13 (`0084:106-107`). The accepted cost is named: a dog that limps at 200m is billed ~₩8,500 and only a sub-₩100 total auto-waives. **Do not add a condition discount later** (`0084:124-125`). |
+| **R3** | `0080:79-82` step ⑦ prescribes `payments_live_since = now()`. | **`0084:48-61` wins** — ruling ⑥ replaces it with `longest_inflight_booking_end()` + a future timestamp. `now()` is precisely the value that charges the straddlers, and the adversarial round executed the case for real (card-less owner, 24,900 pending intent, account lock). |
+| **R4** | `0080:658` cites `session_pay_delegation` at `0037:242-249`. | **Dead code.** The live insert is `session_pay_delegation(uuid,text,boolean)` at **`0053:37`, insert `0053:86`** (`0081:12-18`). 0037's insert lived in `session_approve_dog`, which `0043:252` replaced with a hold-only version. |
+| **R5** | `docs/payments.md` describes the pre-run model as current in four places (`:3`, `:20-22`, `:27`, `:32`), including an operator calling `payment_ok` after confirming a deposit. | **Wholly superseded.** `payment_ok` is DELETED (`transition-booking/index.ts:6-30`); `:27`'s operator step was already impossible (403 owner-only, no admin role). The file needs a banner or a rewrite. It is the most dangerous stale doc in the domain for a fresh reader. |
+| **R6** | `docs/plans/payments-toss-plan.md` §2's flow diagram still shows the pre-run widget model while §0-bis states post-pay. | **§0-bis wins**; §2 is the stale half and it is the half with the diagram (`pay-after-run-contract.md` G.2). |
+| **R7** | `party-membership-status-filter-contract.md` claimed `146 D-15` pins the bare `payment_ok` CAS. | **False.** D-15 pins **`request_runner`'s** CAS (`146:776`, `:797`). NOTHING pinned `payment_ok` before its deletion — which is why pin N9 exists (`pay-after-run-contract.md` F13). |
+| **R8** | `0080:1182`/`:1253` cite `collect-charges/handler.ts:107` for `isDue`; `0080:1202` cites `:110`; `0080:504` cites `:75`; `0080:56` cites `settle-run/handler.ts:187`; `0101:6`/`:41` cite `settle-run/handler.ts:135-187`. | **Rotted pointers, not behavioural divergence.** Measured today: `isDue` is at `collect-charges/handler.ts:152`, the kind filter at `:98`/`:119`, settle-run's collection catch at `:328`, and the TypeScript arithmetic 0101 was ported FROM has since been deleted. The predicates still agree. |
+| **R9** | `0080:222` says the platform absorbs the runner's `min_fare` floor at tiny actuals on `runner_personal`. | **Ended by `0086`.** That behaviour is retired; the floor does not apply to that arm any more (`0086:66-68`). `0080:222` describes the world before ⑨a. |
+| **R10** | `docs/mock-status.md:62` and `docs/todo.md:56` list `payment_ok` as the booking pipeline's payment step. | Documentation drift; both are wrong. Fix opportunistically. |
+| **R11** | `docs/decisions/README.md:11` states ①'s SUPERSEDED `runner_personal` rule (*"runner 9,900 base only"*) and marks it **"Buildable"** — seven rows above `:19`, which announces the supersession, and while the ① memo itself says **BUILT**. | **The memo wins, always.** `g1-abort-charge-basis.md:14` correctly marks the row SUPERSEDED and `:3` says BUILT. This is exactly the stale-status-line failure `README.md:128-139` documents about itself. |
+| **R12** | `docs/decisions/README.md:162` marks ⑩ **"unbuilt"**. | **False** — `cancel-fee-runner-share.md:3-4` says BUILT AND COMPLETE, and `0085` is in the tree. |
+| **R13** | `docs/decisions/awaiting-sean.md:911-916` asserts, **carrying a ✅**, that ⑪ and ⑫ *"are one slice, not two … a dependency, not a sequencing preference."* | **FALSE and still on origin with the ✅.** `marketplace-incident-exit.md:9-12` retracts it in the author's own voice: *"The 'confirmed by both sides' in his ruling is the DOG'S RETURN, not an incident verification … This session claimed ⑫'s exit was ⑪'s machine and pushed that as 'a dependency, not a preference'; it was wrong, and it drove an assignment."* **⑪ is independent, and does not gate ⑫.** This is the clearest live example of `README.md:31-46`'s law — *an inference placed next to a ruling inherits the ruling's authority.* |
+| **R14** | `docs/patent-constraints.md:82` asserts a **tier commission ladder (인증 20% / 베테랑 18% / 마스터 15%)** as satisfying a patent claim's 등급→수수료 tail; `docs/ui-audit.md:92` calls the same ladder *"the strongest motivator in the system"*. | **Superseded.** Commission is **33% flat, no tier linkage** (Sean 2026-08-05, migration `0059`; `docs/product-notes.md:39`), and production confirms a single value 0.330 across all 9 runners **[measured]**. ⚠ **This is a patent-facing claim resting on a pricing structure that no longer exists** — surface it outside the money domain. |
+| **R15** | The money canon in memory presents the 10% cancel tier's ₩0-to-runner as a **live profit lever**, and says no human verifier is assigned for `incident`. | Both stale — §0.2. |
+
+---
+
+## 3. Pay-after-run as shipped
+
+### 3.1 Sean's ruling
+
+**Journey ruling #1, 2026-08-19:** *"Payment comes AFTER the run and after handoff-back. Not
+between reserve and live."* Quoted at `create-booking-hold/handler.ts:36-37` and at
+`transition-booking/index.ts:8-9`. **[measured, quoted from the shipped code]**
+
+The contract that implemented it: **`docs/contracts/pay-after-run-contract.md`** (1259 lines).
+⚠ **Its header still says "CONTRACT ONLY. Nothing is built. Nothing is deployed."** — that is
+stale; **§I at `:1248-1259` records the deployment.** Read §I first.
+
+The contract was written by a read-only scout under decision O-5 (*"contract first, tonight;
+build only after it is attacked"*), then went through an adversarial review that returned
+**FIX-CONTRACT-FIRST** with 16 findings, two BLOCK. Its server shape survived intact; what failed
+was its account of the client. The full finding table is `:1196-1218`.
+
+### 3.2 What actually shipped
+
+**§I, `:1248-1259`** — branch `claude/p0-pay-after-run` @ `a87e0f3` → trunk `daf8614`, deployed
+announcer v3, 2026-08-20 ~05:30, reviewer ≠ author, Deno 203/0.
+Deployed in order: **`transition-booking` v33→34, then `create-booking-hold` v9→10.**
+Production today confirms both **[measured]**. **Zero migrations. Zero transition-map edges.**
+
+**`create-booking-hold` v10** (`supabase/functions/create-booking-hold/handler.ts`):
+
+1. Reads `ops_flags.payments_live_since` beside the billing-key lookup, **before any write**
+   (`:211`), fail-closed on error (`:212` → 500). `chargingLive = !!flags?.payments_live_since`
+   (`:213`).
+2. `if (chargingLive && paidPath === "widget") throw HttpError(409, card_required)` (`:237`) —
+   placed with the other pre-write gates, so **no booking and no hold row are created**.
+3. The instant CAS `payment_hold → matching` becomes `if (paidPath === "card" || !chargingLive)`
+   (`:345`). While charging is off, **BOTH paths land in `matching` inside the request that
+   creates them.** `payment_hold` is a transient instant state for everyone.
+4. Response gains `booking_status: "matching" | "payment_hold"` (`:4-5`) — *"A client must never
+   have to guess whether a further call is required."*
+
+**`transition-booking` v34** (`supabase/functions/transition-booking/index.ts`): the
+`case "payment_ok"` arm is **deleted**, the header action list no longer names it, and
+`app/src/lib/api.ts:452-455` carries a do-not-re-add note where `confirmPayment` used to be.
+
+### 3.3 Why `payment_ok` was deleted
+
+`index.ts:11-14`, verbatim: *"What it was: a bare owner-gated CAS `payment_hold → matching` that
+read no `payments` row, no `billing_keys` row, no `ops_flags`, no amount and no Toss anything.
+It was named for money and moved none — a costume, which is the exact shape this repo's honesty
+law is about."* **[measured]**
+
+What replaces it: **nothing.** `create-booking-hold` now performs the same CAS inside the request
+that creates the booking. The transition-map edge itself is unchanged and still pinned by
+`109 P6`; only the second, redundant writer of it is gone.
+
+The removal was done in **ONE move, not two** (announcer decision 1, `:1222-1229`): the planned
+idempotent shim existed only to protect installed builds from a false-expiry 409, and the review
+measured that an old build **never makes the call at all** — `payphase.ts:50` maps
+`matching → 'authorized'`, whose footer is 「내 일정에서 확인하기」, so 「예약 확정하기」 is
+never rendered. There are also zero installed builds.
+
+⚠ **Nothing in the repo asserted `payment_ok` before it was deleted** — not one SQL suite, not
+one Deno test. That is why pin **N9** exists: `action: 'payment_ok'` on a real booking, as its
+real owner, must return **400 `unknown action payment_ok`** (`index.ts:397-398`, pinned in
+`_test/transition_booking_actions_test.ts`). Without it the removal would be invisible to every
+gate in the repo. `index.ts:24-29` says so.
+
+⚠ **Nobody may report a security win from this change.** The nomination chain becomes shorter,
+not narrower — `create-booking-hold` (own dog) → `request_runner` (any real runner) still yields
+`runner_id = victim` at `runner_pending` without acceptance, because `is_booking_party` has no
+status filter (`0002:15-22`). That is a different slice (`index.ts:31-34`).
+
+### 3.4 Accepted consequences
+
+**Abandonment stops being silent** (contract §C.1a, `:404-436`; restated at
+`create-booking-hold/handler.ts:56-63`). A booking that used to die silently at 30 minutes
+(`e_hold`, `0080:948-955`) is now `matching` from hold-creation, so it is in
+`marketplace_open_requests` **immediately** — publishing dog name, breed, weight, memo, photo,
+preferences and vaccinations (`0056:44-58`) to every active runner — and instead expires at
+`scheduled_at` via `e_match` **with** a notification whose post-pay arm already says the honest
+thing: *"시작 시간까지 러너를 찾지 못했어요 — 결제된 금액이 없어 청구되지 않아요"* (`0080:944-946`).
+A force-quit during the hold modal can now get you a matched runner. `e_hold` has **no pilot
+input any more** — its pin (`100 W7`) stays green only because the suite inserts fixtures
+directly in SQL.
+
+**A hole closed for free**: the same-dog clash guard checks a LIVE list that excludes
+`payment_hold` (`handler.ts:263`), so two overlapping holds for the same dog used to both
+succeed. After the change the first is already `matching` when the second runs its guard, so the
+second is refused. Pinned as a **positive** (P8), and verified live over the wire on deploy day.
+
+### 3.5 🔴 The flip-day in-flight-stock problem
+
+**This is the single most important thing in this report that is not yet owned by anyone.**
+Contract §C.3a, `:526-572`.
+
+**The mint keys on RUN END, not on booking creation.** `0084:265-266`:
+
+```sql
+select coalesce(r.ended_at, now()) into v_ended from runs r where r.booking_id = p_booking;
+if coalesce(v_ended, now()) < v_since then return; end if;   -- pilot-era run: free, forever
+```
+
+The comment is true for a run that **ended before** the flip. But a booking **created** before
+the flip whose run ends **after** it is not a pilot-era run by this predicate. So on flip day
+every already-`matching`/`confirmed` booking held by a card-less owner walks this chain
+**[measured, each link at its own line]**:
+
+1. run ends after `payments_live_since` → `mint_settle_charge_intent` mints a **`pending`** row
+   (`0084:295`);
+2. `dispatchCharge` finds no billing key → returns `skipped_no_card` and deliberately writes
+   **no** dispatch marker — `_shared/charge.ts:185-190`, and the comment says why: the
+   never-dispatched pending is the only shape the stale sweep may close;
+3. one hour later `sweep_stale_payment_intents` flips it to **`failed`** and, because the row is
+   server-minted, fires an owner notification: *"지난 러닝 이용료 결제를 시도하지 못했어요 —
+   설정 > 결제 관리에서 확인해주세요"* (`0080:818-837`);
+4. `owner_has_unsettled_charge` now returns true (`0080:511-528`) and **the debt lock locks them
+   out of creating any new booking** (`create-booking-hold/handler.ts:178`), and pauses their
+   recurring series (`0111:341`), and blocks their club delegations (`0081:176`).
+
+**The owners hit by this are precisely the ones who did nothing wrong: they booked while booking
+was free.** `create-booking-hold`'s `card_required` refusal (C.3) **cannot help** — it bounds new
+entries only; it cannot reach a booking created yesterday.
+
+Three candidate cut-over shapes, none chosen (`:556-566`):
+- **(i)** the mint gains a `bookings.created_at >= v_since` arm alongside the run-end arm.
+  Cleanest semantics ("the deal you booked under is the deal you get"). Changes a definer
+  function → a migration.
+- **(ii)** **drain** — pick a flip moment with no unfinished runs. The pilot's volume makes this
+  realistic; `longest_inflight_booking_end()` (`0084:432`) is exactly the query for it, and
+  `set_payments_live_since` already refuses anything not in the future.
+- **(iii)** **annotate** — mark the pre-flip stock and have the mint skip it. (i) with an explicit
+  column.
+
+⚠ **This is a precondition of the flip, not a follow-up to it** (`:589-593`). One of the three
+must be chosen and pinned before the flag is ever set.
+
+### 3.6 What must happen the day charging flips — the ordered runbook
+
+Assembled from `0080:47-82` (as corrected by `0084:48-61`), `docs/biz/payments-paperwork-checklist.md`
+§5, and contract §C.4. **Every step is measurable; none of it has been done.**
+
+**Preconditions (all currently UNMET):**
+
+| # | precondition | state |
+|---|---|---|
+| A | 사업자등록 → 통신판매업 → PG 계약 → **자동결제(빌링) 심사** all returned | not started as far as the repo can see |
+| B | the **card-register slice** exists (nothing writes `billing_keys` today) | not built — §6 |
+| C | **`sweep_settled_without_payments` gains `and rn.settled_at is not null`** | **NOT DONE — this alone blocks the flip.** §7 |
+| D | the **in-flight cut-over rule** (§3.5) is chosen and pinned | not chosen |
+| E | Sean answers **F.1** — post-flip, may a card-less owner create a booking? (a) refuse inline, or (b) let them book and catch them with the debt lock after one uncollected run. The answer applies to **two** surfaces: `create-booking-hold`'s `card_required` AND `generate_recurring_bookings`'s `no_card` pause arm, which answer it differently on purpose (a cron has no screen) | open |
+| F | club base price ruling (9,900 vs 7,900) | open |
+| G | the club refund-copy slice (six functions still promise 전액 환불 for money never taken) | not built |
+| H | 전자상거래법 사업자정보 footer, buildable only once ①③ return real numbers | not built |
+
+**Then, in this order** — the ordering is load-bearing, not tidiness:
+
+1. `supabase db push` any migration the preconditions produced (C, D). Nothing else may go first:
+   the debt gate turns an RPC error into a 500 **deliberately**, so a pre-migration function
+   deploy makes **every** booking creation fail.
+2. `supabase functions deploy create-booking-hold`.
+3. `supabase functions deploy collect-charges --no-verify-jwt` — the cron reaches it through
+   `net.http_post`, which carries no user JWT, so `X-Cron-Key` IS the credential for that path.
+4. `supabase functions deploy settle-run` and `transition-booking` (order free — both catch every
+   charge-path error).
+5. App build / submit — the card-register screens.
+6. Set the credentials **in one sitting**: `TOSS_SECRET_KEY` → `CRON_COLLECT_KEY` **and** the
+   Vault secret `charge_dispatch = {"url": "https://<ref>.supabase.co/functions/v1", "cron_key":
+   "<the same value>"}`. ⚠ **Both or neither**: the secret alone posts a key nothing accepts (401
+   every tick); the env alone leaves the dispatcher no-op'ing loudly. Two of these are **one value
+   in two places with nothing verifying they agree** — the quietest failure available in this
+   system.
+7. `OPS_PROFILE_ID` and/or `ops_recipients` rows (currently 0 rows, so an alert would resolve to
+   `console.error`).
+8. **LAST**: `select longest_inflight_booking_end();` then
+   `select set_payments_live_since('<that + margin>');` — **never `now()`, never a past
+   timestamp.**
+9. **Post-flip canary** — does not exist. §6.
+
+---
+
+## 4. The payout hole
+
+**This is the largest structural gap in the domain and it is not a bug in anything; it is an
+absence.**
+
+### 4.1 The measurement
+
+- `payouts` (`0001:285-296`) has `id, runner_id, period_start, period_end, gross, tax_withheld
+  (3.3%), net, status, instant, paid_at`. It has an RLS policy (`0002:126` — "payouts self read")
+  and RLS enabled (`0002:42`).
+- **`payouts` has ZERO WRITERS anywhere in the repo.** Measured: `grep -rn payouts` across
+  `supabase/functions/`, `app/src`, `app/app`, `app/scripts` returns only `club_release_payouts`
+  (a differently-named function that touches `session_dogs.payout_state`, not this table), a
+  comment in `app/src/store.ts:233`, and two Oswald-font comments. The only INSERTs in the whole
+  repo are **suite 150's own fixtures**. **[measured]**
+- Production: **`payouts` = 0 rows.** **[measured]**
+- **`ledger_items` has no paid/settled marker of any kind** — `base, distance_pay, addon_pay,
+  tip, remaining_guarantee, platform_fee, created_at`, and nothing else (`0001:264-275`).
+  **[measured]**
+
+**Therefore "unpaid balance" is NOT COMPUTABLE on this schema. Only LIFETIME EARNINGS are.**
+That sentence is `0115:541-547`'s, and it is exactly right.
+
+### 4.2 What it means for the account-deletion gate — Sean's O-7 ruling
+
+`delete_my_account_tx` enumerates 12 refusal tokens; two of them are money
+(`0115:274-289`) **[measured]**:
+
+- **`unsettled_payment`** — written as *NOT IN* the terminal set on purpose, so a status added
+  later defaults to REFUSING rather than passing. Only `pending` refuses today. This one is live
+  and correct.
+- **`unpaid_payout`** — `if exists (select 1 from payouts where runner_id = p_uid and paid_at is
+  null) then raise exception 'unpaid_payout'`. **KNOWINGLY INERT** (`0115:282-287`): it cannot
+  fire on real data. It is kept because it becomes correct the instant a payout writer lands, and
+  deleting it now would drop the gate silently on that day. **Do not read its presence as
+  protection.**
+
+**Sean's ruling A-intact-when-owed (2026-08-20)** — `0115:537-570`, superseding an earlier
+unconditional `bank_accounts` DELETE:
+
+> Delete `bank_accounts` **only when the runner has NO `ledger_items` rows.** When they have any,
+> **KEEP THE ROW INTACT — not anonymised, not redacted.** A blanked `account_enc`/`holder` is a
+> row nobody can pay into, which defeats the entire reason for keeping it: the money must still
+> have a destination.
+
+Implementation `0115:567-576`: `v_bank_kept := (count from ledger_items) > 0`. The RPC returns
+**`bank_kept boolean`** in the flat result (its own key, NOT a member of the static `kept`
+table-name array) and `handler.ts` forwards it defaulting FALSE, so the confirm sheet can state
+it exactly when true. Pinned by **P9** (both directions, both values) and `P2`'s bank arm was
+INVERTED in the same slice.
+
+**Why not simply gate on `ledger_items` instead**: a gate on LIFETIME earnings can never clear.
+It would trap every runner who ever completed a run inside an account they cannot leave — and a
+deletion the user can never complete is not in-app deletion, which is App Store 5.1.1(v) failing
+by the same limb the whole slice exists to satisfy (`0115:552-557`).
+
+This is the one place in the migration where **PII survives *because* it is PII**: a payment
+instrument with no holder name is not a payment instrument.
+
+Production check: `bank_accounts` = **0 rows**, so nothing is currently retained under this rule.
+**[measured]**
+
+### 4.3 What a payout mechanism would need
+
+**[inferred, from the schema + the constraints the rest of the domain has already established]**
+
+1. **A paid marker on the earnings side.** Either `ledger_items.payout_id uuid references
+   payouts` (the cleanest — it makes "unpaid" a join, and makes `unpaid_payout` fire on real
+   data), or a `settled_at`/`paid_at` on `ledger_items`. A boolean is the wrong shape; the rest of
+   this repo consistently prefers a timestamp (see `ops_flags`).
+2. **A period-close writer** — the thing that groups a runner's unpaid `ledger_items` into a
+   `payouts` row, computing `gross`, `tax_withheld` (3.3% — the column already says so;
+   `app/app/runner/earnings.tsx:83` computes it client-side as an *estimate* today), `net`.
+   Must be idempotent per `(runner_id, period)` and must take a per-runner advisory lock, because
+   `ledger_items` has no unique key to fall back on — the same argument `0080:1111-1118` makes
+   for the comp writers.
+3. **A transfer executor** — 오픈뱅킹/펌뱅킹 or a manual-transfer record. `docs/payments.md:23`
+   names this as a separate track and says the pilot is "수기 이체 + ledger_items 대조"
+   **[from-doc]**. Even a purely manual flow needs step 2 so that "what do I owe this runner"
+   stops being a spreadsheet question.
+4. **`paid_at` written by exactly one path**, and the `unpaid_payout` gate flipping from inert to
+   live the same day. `0115:282-287` is already written to expect this.
+5. **A runner-facing statement** that distinguishes earned / pending / paid. Today
+   `/runner/earnings` shows lifetime + "정산 예정" derived from ledger rows alone, and honestly
+   admits it: the 빠른 정산 신청 and 계좌 등록 buttons were **removed** on 2026-08-11 because they
+   were dead doors (`app/app/runner/earnings.tsx:20-24`), and the bank-account row is a sentence
+   rather than a button (`:116-121`). **[measured]**
+6. **Withholding/invoicing** — see §6.
+
+Size: **L.** This is a slice with its own adversarial cycle (0059 doctrine: any money-path change
+runs `/autoplan`), not a follow-up.
+
+---
+
+## 5. Toss / PG integration state
+
+### 5.1 What exists and is real
+
+| piece | state | where |
+|---|---|---|
+| `_shared/toss.ts` | **complete, 132 lines.** `tossConfirm` (widget capture) · `tossCancel` (release) · `tossBillingCharge` (the 자동결제 call) · `tossGetByOrderId` (the already-processed evidence read) | `supabase/functions/_shared/toss.ts` |
+| `_shared/charge.ts` | **complete, 496 lines.** THE one place a billing-key charge is dispatched. Ladder, dispatch-claim CAS, relink class, already-processed arm, double-capture detection, owner notifications | `supabase/functions/_shared/charge.ts` |
+| `collect-charges` | **deployed v1**, `verify_jwt: false`. Two callers (owner CTA with JWT; cron with `X-Cron-Key`), one execution core. Batch never 500s on one row | `supabase/functions/collect-charges/handler.ts` |
+| `confirm-payment` | **deployed v1.** The widget capture path with the full §2-7 auto-cancel machine and `notifyOps('payment_manual_cancel')` | `supabase/functions/confirm-payment/handler.ts` |
+| `billing_keys` table | exists, **SEALED** (RLS on, ZERO policies). Only client surface is `my_billing_card()` → brand/last4/linked_at | `0080:102-135` |
+| `/payments` screen | **real and bound.** Card row, receipt list from real `payments` columns, three loud banners (debt / relink / declined), one write action (`retryCollect`, sends **no amount**) | `app/app/payments.tsx` |
+| `toss-sheet.tsx` + `toss-sheet-impl.tsx` | exist; **orphaned** — no route imports the wrapper | `app/src/components/` |
+| the auth scheme | Basic `base64(secretKey + ":")`, read **per call** never cached in module scope (a module-level read would freeze a stale value across a rotation) | `_shared/toss.ts:23-29` |
+
+### 5.2 What is stubbed or absent
+
+- **`create-payment-intent` is NOT DEPLOYED** **[measured, `functions list`]**. Its handler
+  exists and is tested, but the widget path could not complete in production even if
+  `TOSS_ENABLED` were flipped.
+- **There is no card-register screen anywhere in the repo.** ⚠ `app/app/cards.tsx` is a **trap
+  for a fresh reader**: it is the passport ANNEX (stamps + course patches), not payment cards.
+  The empty-state stub that names the missing screen is `app/app/payments.tsx:210-225` — TODO at
+  `:213-216`, copy at `:220-222` 「카드 등록 화면은 준비 중이에요」. A second stub site routes to
+  `/payments` rather than to a register screen: `app/app/club/session/[sid].tsx:613-628`, TODO at
+  `:614-618` (*"등록 화면이 생기면 여기 pathname만 그 화면으로 바꾼다"*), triggered by the
+  server's `billing_key_required` refusal at `:654-655`.
+- **Card RELINK has no screen either** — it degrades to a `mailto:` contact link
+  (`app/app/payments.tsx:35`, `:147-154`; banner copy `app/src/components/charge-states.tsx:91-94`).
+- **The 전자상거래법 사업자정보 footer is deliberately MISSING** — `app/app/payments.tsx:31-33`:
+  those numbers do not exist yet (사업자등록 pending) and *"fabricating them would be both a lie
+  and a legal claim."*
+- **`ops_recipients` is 0 rows and `OPS_PROFILE_ID` is unset**, so every ops alert resolves to
+  `console.error` today (`_shared/ops.ts:13-16`; `0097:44-48` refuses to page for exactly this
+  reason — *"a signal whose remedy does not apply is worse than an unmonitored state"*).
+
+### 5.3 The native-import lesson (`toss-sheet.tsx`)
+
+Worth reading even though it is a client fact, because it is the reason `check-route-native-imports.mjs`
+is one of the three commit gates.
+
+`toss-sheet-impl.tsx` imports `@tosspayments/widget-sdk-react-native`, whose real work happens in
+`react-native-webview` — a native module. **Expo Router evaluates every route module at launch**,
+so a module-scope import anywhere under `app/app/` runs at startup. A commit added the dep
+without `pod install`, the pod never reached `Podfile.lock`, and **every binary from that tree
+died on the HOME screen with `RNCWebViewModule` missing** — having never opened a payment screen
+(`app/src/components/toss-sheet.tsx:4-9`). **[from-doc, quoting the file's own account]**
+
+Three guards that **could not** have helped (`:12-16`): (a) a feature flag gates BEHAVIOUR, an
+import is evaluated at REGISTRATION; (b) `if (!visible) return null` inside the component — the
+same mistake one layer down; (c) a dev route's `if (!__DEV__) return <Redirect/>` — **a dev-only
+screen can still crash a production launch**, described there as the widest version of the hazard.
+
+The fix shape, `app/src/components/toss-sheet.tsx:45-55`:
+
+```tsx
+const Impl = lazy(async () => ({ default: (await import('./toss-sheet-impl')).TossSheet }));
+
+export function TossSheet(props: TossSheetProps) {
+  if (!props.visible || props.intent == null || TOSS_CLIENT_KEY == null) return null;
+  return <Suspense fallback={null}><Impl {...props} /></Suspense>;
+}
+```
+
+⚠ **Ordering is load-bearing** (`:23-26`): `React.lazy` triggers its import when the element is
+RENDERED, so the `return null` must sit ABOVE any `<Sheet …/>` in the tree. Wrapping the impl in
+a lazy component and then rendering it unconditionally with an internal guard **re-creates the
+original bug exactly.**
+
+The enforcement is `app/scripts/check-route-native-imports.mjs` (`NATIVE_ONLY` at `:32-37`), one
+of the three mandatory commit-gate scripts. It walks every route's static import graph and ignores
+`import type` and dynamic `await import()`. **[measured — the subagent ran it: `✅ 라우트 57개에서
+네이티브 최상위 import 없음`]**
+
+### 5.4 The paperwork chain — what actually blocks the flip
+
+`docs/biz/payments-paperwork-checklist.md`, written 2026-08-15 on Sean's ruling **"4: A"** (start
+the paperwork chain now, keep the charge machine). **Owner: Sean — every step is a filing or a
+credential.** **[from-doc]**
+
+**The chain is NOT serial**, and this is the thing that surprises people (`:19-33`):
+
+```
+사업자등록 ──► 통신판매업 신고 ──► PG 계약 ──► 자동결제(빌링) 심사
+                    ▲                  │
+                    └──────────────────┘
+   통신판매업 needs 구매안전서비스 이용 확인증, which the PG (or a bank) issues.
+   The PG then wants the 통신판매업 신고증 to finish the contract.
+```
+
+**So start the PG application BEFORE the 통신판매업 filing is complete**, to get the 확인증 out
+of them. Waiting for one to finish before starting the other is the single most common way this
+chain takes twice as long as it needs to.
+
+- ① **사업자등록** (홈택스/세무서) — 개인사업자 is the fast path. ⚠ **업태/종목 matters
+  downstream**: it appears on the PG application and should describe a service
+  intermediary/platform, not a pet-goods retailer.
+- ② **PG application, started EARLY** (토스페이먼츠). Ask immediately for the
+  **구매안전서비스 이용 확인증**.
+- ③ **통신판매업 신고** (정부24/구청) — produces the **신고번호 that must appear in the app**.
+- ④ **자동결제(빌링) 심사 — a SEPARATE review on top of the PG contract, and the one that
+  actually gates us.** A standard contract lets you charge a card the user is looking at; 빌링키 —
+  charging later, with nobody present — is reviewed separately and more carefully. **Plan for it
+  to be the longest single step.**
+
+What ④'s reviewer inspects, and our state (`:73-86`): 이용약관 ✅ · 개인정보처리방침 ✅ ·
+취소·환불 정책 ✅ (with a counsel flag on 청약철회권 배제 범위) · 고객센터 연락처 ⚠ (a `mailto:`
+today) · **전자상거래법 사업자정보 footer ❌ (missing, and correctly so)** · 가격 표시 ⚠ (the
+price-invisibility doctrine shows the price once at request — confirm this satisfies 표시 의무).
+
+Not on the critical path (`:97-105`): switching PGs (포트원 aggregates, but our code is written to
+Toss's billing API — decide it if Toss refuses us, not before); the card-register UI slice (real,
+but untestable end-to-end without ④); a live key (the last thing, not an early one).
+
+⚠ **The 빌링키 charge-notice obligation** — whether and how we must notify before each automatic
+charge — is **counsel's question**, riding in `docs/biz/location-law-counsel-brief.md`. It may add
+a requirement to ④'s disclosure list; **answer it before building the notice, not after.**
+
+---
+
+## 6. Exhaustive unbuilt list
+
+Sized S/M/L. "Blocked on" names the *actual* blocker, not the nearest one.
+
+### 6.1 🔴 Flip blockers — the flag must not be set until these land
+
+| # | what | why not built | blocked on | size |
+|---|---|---|---|---|
+| **U1** | **`sweep_settled_without_payments` needs `and rn.settled_at is not null`** (`0080:586-587`). 0083 made `runs.ended_at` mean the service STOP, so the sweep can now mint a charge for a **dog still on the leash**. | 0083 deliberately did not recreate a function 0080 owns (silent-revert class); the payments session was to do it and the session is gone. | nothing. One predicate, one migration. Do NOT use `bookings.status` (`§0-ter #11` / `116 C8`) and do NOT use `ledger_items` presence (`0080 §K` writes a ledger row for a CANCELLED booking). `0083:86-105` is the spec. | **S** |
+| **U1b** | 🔴 **The `dispatch_due_charges` / `isDue()` drift** (§7.4 item 1). Two measured divergences: the hardcoded `< 3` vs `MAX_ATTEMPTS`, and — the dangerous one — an unparseable `next_retry_at` makes the **SQL side RAISE and the whole batch never wake for anybody**, while TS would treat that row as due. | one rule written twice; both sides document that neither can pin the other. | nothing. Wrap the cast (`case when … ~ timestamp-ish`) or use a `jsonb`-safe read, and hoist the cap into one place. Then pin the pair. | **S** |
+| **U2** | **The in-flight cut-over rule** (§3.5). Pick (i) `created_at` arm in the mint, (ii) drain, or (iii) annotate — and pin it. | measured in a contract review; ownership was handed to "the money session," which no longer exists. | Sean's F.1 answer helps but does not decide it. | **S–M** |
+| **U3** | **The card-register slice** — 빌링키 발급 via the Toss widget's `/v1/billing/authorizations/…`, writing `billing_keys` + `profiles.toss_customer_key`. Nothing writes `billing_keys` today. | blocked on ④ 자동결제 심사 for end-to-end testing, and on Sean's Ⓐ lab pick for placement (`docs/decisions/card-registration-placement.md` — "inline at first booking", a one-step consent sheet, not an onboarding step). | ④; the placement pick. Two stub sites already name where it plugs in (`payments.tsx:213-216`, `club/session/[sid].tsx:614-618`). | **M** |
+| **U4** | **Sean's F.1 answer** — post-flip, may a card-less owner create a booking? (a) refuse inline, (b) let them book and catch them with the debt lock. ⚠ The answer must be stated ONCE and applied to **two** surfaces (`create-booking-hold`'s `card_required` AND `generate_recurring_bookings`'s `no_card` pause), which express it differently on purpose. | it is a product call. | Sean. | — |
+| **U5** | **Club owner base — 9,900 vs 7,900.** `club_fare` (`0043:14`) carries the pre-D2 base. | a PRICE question, explicitly not a bug. | Sean. Change = `club_fare`'s literal + the 24,900 literals in `117 K3/K7` and `50 D5`. | **S** |
+| **U6** | **Club refund copy** — six functions still promise 전액 환불 for money never taken (`club_cancel_session`, `club_finish_session`, `club_assignment_recovery`, `club_stale_delegation_sweep`, `session_runner_withdraw`, `session_cancel_delegation`). | the lie is in the **TITLES** too and three shipped suites assert them verbatim (`65:248`, `95:212`, `107:114`); the shared helper `_club_refund_bookings` takes its copy from callers so it cannot own the fix; all six also set `refund_pending`, which is the same false statement in a status. `0081:52-70` records all four reasons. | its own slice + memo ⑤'s ruling for the cancel path. | **M** |
+| **U7** | **전자상거래법 사업자정보 footer** (상호·사업자등록번호·통신판매업신고번호·대표·주소·연락처). | the numbers do not exist. Building it with placeholders would be a lie **and a legal claim**. | ① and ③ returning. Then it is a small client slice. | **S** |
+| **U7b** | 🔴 **Club cancel fees are structurally uncollectable** (§2.2b). At cutover they either become real money or stay recorded-only forever. Also: the runner's `supply_compensation` share never reaches `my_ledger_total`. | never ruled. `_club_record_cancel_fee` writes `club_fee_items` only, by design, from an era when nothing was collectable. | **Sean.** Then either bridge `club_fee_items` → `bookings.cancel_fee` (+ `ledger_items` for the runner half), or state the recorded-only intent explicitly. | **M** |
+| **U7c** | **The club price-invisibility disclosure line.** ④ requires one disclosure before cutover, in Sean's wording. The **notification half already shipped** in `0084 §F` (the fare was removed from `session_approve_dog`'s owner notification), so **club pricing is currently disclosed inconsistently between the app and its notifications.** | needs Sean's wording. | Sean. | **S** |
+| **U7d** | **`club_config`'s six money values are all `[Sean 미확정]`** (`0048:13-22`) — the club free window, late %, post-accept %, platform/supply split, host fee, vet limit. They are placeholder defaults being used as policy. | never ruled. | Sean. | **S** (ruling) |
+
+### 6.2 The payout family
+
+| # | what | why not built | blocked on | size |
+|---|---|---|---|---|
+| **U8** | **A `payouts` writer + a paid marker on `ledger_items`.** See §4.3 for the shape. Until it exists, `unpaid_payout` is inert, `bank_accounts` retention rides on lifetime earnings, and "what do I owe this runner" is a spreadsheet question. | never scoped. The pilot pays by manual transfer. | nothing technical. Needs its own adversarial cycle (0059). | **L** |
+| **U9** | **Withholding / 3.3% and invoicing.** `payouts.tax_withheld` exists as a column with no writer; the runner screen computes 3.3% client-side as an *estimate* (`app/app/runner/earnings.tsx:83`). Real 원천징수 needs 지급명세서 filing. | no payout writer to hang it on; also a paperwork question. | U8 + 사업자등록. | **M** |
+| **U10** | **A runner statement that distinguishes earned / pending / paid.** Today `/runner/earnings` can only show lifetime + a "정산 예정" derived from ledger rows. | U8. | U8. | **S** (once U8 exists) |
+| **U11** | **Marketplace incident-settlement exit** (`0083 §0h`) — the sibling of `club_incident_settle` for a booking with no club: ops-called, party-gated, idempotent, reads the frozen measurement, three outcomes, writes `ledger_items` + a payments adjustment, moves the booking OUT of `incident_review`. Until it exists **every marketplace `incident_review` booking is a manual database job and its runner is permanently unpaid.** | needs (a) a runner-payout price in SQL — **now available**, 0101/0102 closed that half; (b) an `incident_review → completed` edge or its own terminal; (c) an ops actor model outside the club host/case-owner one. | (b) and (c). | **M** |
+| **U12** | **`_settle_sealed_run` still takes `p_quote`** (`0083:870`), so §9's recovery sweep can only REPORT a sealed-but-unsettled booking, never re-drive it. 0101 deliberately left this ("sequencing step 2, a separate slice", `0101:21-22`). | scoped out of 0101. | nothing — `compute_runner_payout` now exists to hand it. | **S** |
+
+### 6.3 Money-mechanism gaps
+
+| # | what | why not built | blocked on | size |
+|---|---|---|---|---|
+| **U13** | **Refunds.** `tossCancel` exists and `payments.refunded_amount` exists, but the **only** writer is `confirm-payment`'s auto-cancel-after-failed-capture arm (`confirm-payment/handler.ts:247`). There is no refund path a human or an incident can invoke. `0071:47-49` says the column exists first, honestly, and `_shared/toss.ts:4` says the refund slice (§5-4) will reuse `tossCancel`. | post-pay deleted most of the need (there is usually nothing captured to refund) but not all of it: a wrong-amount capture, a disputed incident, a double capture. | its own adversarial cycle (toss-plan §5-4). | **M** |
+| **U14** | **Receipts.** `/payments` renders `payments` rows as receipt lines, which is the on-demand half of 가격 비가시성. There is no receipt document, no 현금영수증, no emailed receipt. | ④'s disclosure list may require one. | ④; counsel. | **S–M** |
+| **U15** | **Statements / an owner spend history beyond 30 rows.** `fetchMyPayments(30)` truncates and the screen **discloses** the truncation (`app/app/payments.tsx:251-253`) rather than paginating. | volume does not justify it. | — | **S** |
+| **U16** | **Disputes / chargebacks.** Nothing models a chargeback. `payments.raw` holds the PG response as evidence (`0071:49`) and `payments_reconciliation`'s `orphan_capture` arm finds captures whose booking did not proceed — that is the whole of it. `_shared/charge.ts:417-434` detects a **double capture** (two payment keys against one order), marks `needs_manual_review` and logs *"one of these needs a refund"* — but nothing acts on it. | no volume, no PG contract. | PG contract. | **M** |
+| **U17** | **Post-flip canary.** Nothing watches the first real charges. The pieces exist (`payments_reconciliation()` 5 arms, `ops_unsettled_runs()`, `ops_recipients`) but nothing schedules them and no recipient is provisioned. The gstack `/canary` skill is the intended vehicle. | ops routing has 0 recipients; nobody has defined severity or response time (`0097:44-48` says those are Sean's). | Sean naming a recipient. | **S** |
+| **U18** | **Constant-time compare for `X-Cron-Key`.** `collect-charges/handler.ts:63` is `if (cronKey !== expected)` — a plain string compare, byte-early-exit, theoretically timing-attackable. The unset-key case is already handled correctly (503, never an open endpoint, `:59-62`). | never raised as a finding. | nothing. `crypto.timingSafeEqual` over `TextEncoder`-encoded buffers, with a length guard. | **S** |
+| **U19** | **The 「도그스하이 러닝 이용료」 orderName fix.** See §6.4 — it has its own block because it is the one item where the *pin* is part of the defect. | — | — | **S** |
+| **U20** | **A check constraint on `runners.commission_rate`.** `0102:29-30` names it: *"A CHECK CONSTRAINT ON THE COLUMN WOULD BE BETTER AND IS NOT THIS FILE'S."* `0` and `>= 1` are storable values today; 0102 makes the *function* raise, which is the loud-failure half. | `runners` is not money's surface. | a `runners` slice. | **S** |
+| **U21** | **A BEFORE UPDATE trigger on `ops_flags`** to make `set_payments_live_since` airtight. `0084:458-467` explains why it is not written: five shipped pins across two suites deliberately set the flag to `now() - 7 days` to simulate the post-cutover era, and a trigger would fail the harness rather than fail a mistake. The correct sequencing is a follow-up slice that gives the suites a bypass (a session GUC, the `0082 §E app.route_promote` pattern) and then adds the trigger. | the suite bypass. | that bypass. | **S–M** |
+| **U22** | **`ops_flags` fail-open on a MISSING row.** The deploy note (`pay-after-run-contract.md:1251-1254`) records it: the read is fail-closed on *error* but `maybeSingle()` on an absent row yields `chargingLive = false` — charging treated as OFF. Not remotely reachable (RLS-on-zero-policies refuses anon), bites only if an operator removes the row post-flip. Harden with `.single()` or treat absence as live. | shipped as a known, argued residual. | nothing. | **S** |
+| **U23** | **Pin the "redundant" money guard** `paidPath === 'card' \|\| !chargingLive` so a future reader cannot simplify it away. Named as an open cheap follow-up in the same deploy note. | — | nothing. | **S** |
+| **U24** | **The km / 하이 포인트 currency cutover.** `0075` built two ledger tables, consumption/reserve/settle/expire functions — and **nothing calls any of it** (`0075:8-11`, in red). It is *"not a seal — it is a part that is not connected yet."* Its header lists **eight** contract items the cutover slice must honour, including ⑤: three functions that read ₩ (`marketplace_cancel_fee`'s `total_price × 0.5`, `club_incident_settle`, settle-run's owner_request guarantee) need their denominator re-decided, because post-cutover `total_price` is a price nobody paid. `km_expire_sweep` is not even scheduled (`0075:29-32`). | it is a **cutover**, not a migration: changing the billing currency with no balance screen and no top-up screen blocks bookings. Needs screens + Sean's approval together. | screens + Sean. | **L** |
+| **U25** | **`owner_forced` and `incident` have no server caller.** `settle-run` refuses both **by name** (a better shape than one list with values quietly missing), so they are reachable in principle by a server caller — but no `transition-booking` action produces either. | never scoped. | U11 would produce the caller for `incident`. | **S** |
+| **U26** | **⑨b `runner_incapacity`.** Blocked by a real structural trap: `0083:366` freezes `end_reason` at run-STOP to the same four values `CLIENT_END_REASONS` accepts at settle, and the freeze happens EARLIER. **A value in one set and not the other strands the run forever** — never paid, never out of `active`, and no test sees it because each side is individually correct. **The enum value must enter BOTH sets in ONE commit.** Also: `harness.sh:25-29` self-pins `--single-transaction`, so `alter type … add value` plus a USE of that value in the same file raises `unsafe use of new value of enum type` on push while passing locally — give the enum value its own migration. | the trap above + the abuse story for a self-declared reason is unwritten. | Sean on the abuse story. | **M** |
+| **U27** | **Card-path postConfirm parity.** `create-booking-hold`'s card path CASes straight to `matching`, never passing `confirm-payment`, so §2-5b's server-side preferred-runner nomination + recurring-series creation would silently never run for card-linked bookings. Unreachable today (nothing writes `billing_keys`); becomes real the day card-register ships. | U3. | U3. | **S** |
+| **U28** | **Widget-slice copy conditionals.** `pay.tsx`'s `refund_pending` copy and `schedule.tsx`'s cancel sentences assume no captured payment — true today, false for widget-prepaid bookings. In-file TODOs name the predicate (`fetchBookingPayments` / confirmed-row branch, mirroring `cancel_owner.ts`'s `isPrepaid`). | `TOSS_ENABLED` is false. | the widget go-live gate. | **S** |
+| **U29** | **Toss sandbox §4-2 probes** — ① what Toss actually does with two SIMULTANEOUS captures on one orderId (the residual crux of the claim-CAS argument; the platform behaviour is **unmeasured**); ② verify the ₩100 card minimum backing `below_pg_minimum`; ③ the 자동결제 TEST-key matrix once dashboard keys exist (the docs demo keys are widget-only). | no dashboard keys. | ②. | **S** |
+| **U30** | **A no-show money rule.** The status exists in the enum, the transition map and the client, and **nothing writes it.** Whether a no-show charges the owner, compensates the runner, or does neither is undecided and unrepresented. | never scoped. | Sean. | **S** (rule) + **S** (writer) |
+| **U31b** | **⑪'s incident verification has no client surface.** `0094` + suite 130 are live in production; **nothing calls `open_incident_tx` or `verify_incident_tx`** — measured, zero hits across `supabase/functions/`, `app/src`, `app/app`. So the machine that governs the `incident` ₩0 exists and nobody can reach it. | blocked on `docs/appstore-privacy-answers.md:27`, which declares the phone-number purpose as *"contact during handoff"* — **an incident is not a handoff, so the declared purpose must move first.** 안심번호 (masked relay) is a trade-off Sean should confirm knowingly. `profiles.phone` is NULL for every user. | the privacy declaration. | **M** |
+| **U31c** | **⑦ host incentives are entirely unbuilt** — the host cut, the free host dog at N dogs, the 호스트 badge, the ₩10,000 deposit returned as 하이 포인트. ④'s ₩2,000 club premium exists **to fund this** and currently funds nothing. | agreed direction, never scoped. | — | **M** |
+| **U31d** | **The `ledger_items` re-anchor + `set_payments_live_since` hard refusals** are named as cutover gates in `docs/handoff-club-delegation-money-gaps.md:130-153` and are still unbuilt. Overlaps U1 and U21. | — | — | **S** |
+| **U31** | **The club money boundary is R6 and unowned.** `0080 §J-ⓑ` and `0081` each touched exactly one sentence of the club money path and said so; `0072`'s incident settlement, `club_fee_items`, `session_dogs.payout_state`, `club_release_payouts` and the club refund copy all sit outside every marketplace money slice's contract. Nothing writes `review_resolved_at`, so `payments_reconciliation`'s `incident_waive_pending` arm lists **every incident waive ever minted, forever** — deliberately, as the safe direction (`0084:345-348`); `0072`'s `club_incident_settle` is the intended writer and wiring it was left out of scope. | a boundary that every slice respected and nobody owns. | someone owning it. | **M–L** |
+
+### 6.4 U19 in full — the orderName fix, where the pin is part of the defect
+
+`_shared/charge.ts:116-118`, **measured verbatim today**:
+
+```ts
+function orderNameFor(kind: unknown): string {
+  if (kind === "cancel_fee") return "댕런 예약 취소 수수료";
+  return "댕런 산책 이용료";
+}
+```
+
+**This is the line the owner reads on their card statement and on their Toss receipt.** Two
+problems in one string:
+1. **댕런 is the RETIRED brand.** The product is 도그스하이 (see `docs/rebrand.md`).
+2. **산책 is BANNED vocabulary.** The product is 러닝, not 산책 — and the ban is not cosmetic:
+   the whole positioning rests on it. Everywhere else in the app already says 러닝
+   (`0080:776` 「반복 러닝 예약 생성」, `0080:834` 「지난 러닝 이용료 결제를 시도하지 못했어요」,
+   `0080:784` 「지명 러닝 요청」). **The charge module is the one place that still says both wrong
+   things, and it is the most externally-visible string in the entire product.**
+
+Target: **「도그스하이 러닝 이용료」** and **「도그스하이 예약 취소 수수료」**.
+
+⚠ **Two Deno pins assert the wrong strings and must move in the same commit** **[measured]**:
+- `supabase/functions/_test/settle_charge_test.ts:311` —
+  `assertEquals(call.body.orderName, "댕런 산책 이용료");`
+- `supabase/functions/_test/cancel_fee_test.ts:263` —
+  `assertEquals(billing.body.orderName, "댕런 예약 취소 수수료"); // not "산책 이용료" — no run happened`
+
+Note the second pin's comment is arguing a *correct* point (the cancel fee must not claim a run
+happened) while pinning a *wrong* string. Keep the argument, change the literal. Also update the
+comment at `_shared/charge.ts:114-115`, which itself quotes 「산책 이용료」.
+
+This is a genuine **S** and it is the highest-value pre-flip cleanup in the domain because it is
+the one money string a real customer will read. ⚠ It is **already queued as an open question for
+Sean** — `docs/decisions/awaiting-sean.md:373-387` (§0-sexvicies), with A/B/C options awaiting his
+pick. **Do not "just fix it"** — the wording is a brand call, and the queue entry is where his
+answer belongs. Nothing has printed yet (`payments` = 0 rows), so there is no urgency, only a
+deadline: the first real charge.
+
+### 6.5 Open money questions — nobody has ruled these
+
+These are in `docs/decisions/awaiting-sean.md` and are **his**, not yours to decide.
+
+| id | question | citation |
+|---|---|---|
+| **⑫-residual** | Both sides verify an incident but fault is unresolved after the SLA — does the platform absorb a measured runner payout at owner ₩0? Codex recommends yes and **explicitly declines to encode it**. | `marketplace-incident-exit.md:242-250` |
+| **§0-nonies** | 🔴 **A price change repays old work at the new rate but still charges the old.** See §7.2 — this is the measured asymmetry of `0101:63-71`. A third option is named: freeze the runner rate onto the booking. ⚠ **It only has a cheap answer BEFORE the first revision.** | `awaiting-sean.md:646-679` |
+| **§0-septvicies** | 🔴 **A confirmed booking that simply never starts — who bears it?** Owner charged 10% as a late cancel? Runner compensated (half, per 0085)? Both zero? Narrowed by Sean's own follow-up to `rawStatus = 'confirmed'` only, never `runner_enroute`. The grace window (proposed +30 min) is also his. **The client cannot show a resolution until this is decided** — any button drawn would promise an outcome the ledger has not agreed to. | `awaiting-sean.md:1047-1051`, `:1079-1081` |
+| **⑤-residual** | At cutover, do **club cancel fees** become real money or stay recorded-only forever? (U7b) | `club-enroute-cancel.md:45-50` |
+| **§9** | 🔴 **What does an owner SEE when no card is registered — and that is now the pilot's DEFAULT.** How a 보호자 is told what they owe and when · whether the app shows an amount at all · whether transfer details live in the app. Named as *"the last honesty gap on the payment surface."* | `awaiting-sean.md:962-994` |
+| **§0-sexvicies** | The `orderName` wording (U19). | `awaiting-sean.md:373-387` |
+| **§0-duovicies** | 🔴 **NOTHING PAYS RUNNERS** — the payout hole, already logged as an open item and **unowned**. | `awaiting-sean.md:362-371` |
+| **§0-quinquies** | Who receives ops events, and what acknowledgment/SLA means. ✅ **partially answered** 2026-08-15 (*"2: A, give me a dashboard…"*, alerts → Sean's own account) but **the `ops_recipients` rows are still unwritten**, so every money alert lands nowhere. | `awaiting-sean.md:263-272` |
+| **②-counsel** | The 빌링키 pre-charge notice obligation, plus §10.4: variable post-service charges on a stored key with **no pre-charge amount notice** (because ② cancelled it) — *"not the fixed-amount subscription the source review answered."* | `d3-silent-charge-summary.md:26-31`; `awaiting-sean.md:342-356` |
+| **legal §4** | 🔴 The terms claim pure intermediation and runner independence **while the code holds every economic control** — prices, runner-pay constants, commission (all server-side), who sees work, the cancel ladder, GPS. No runner-set price exists anywhere. *"against 2024두32973 that is the worker-status question made factual."* ⚠ `0101:63-71`'s live-constant repricing is cited as part of that factual record. | `awaiting-sean.md:348-351` |
+
+### 6.6 The pilot's honesty contract for any money UI
+
+`docs/pre-charging-checklist.md:222-256` is the money owner's statement of fact for anyone
+building a money surface during the pilot. It is short and binding **[from-doc]**:
+
+- **TRUE:** nothing is charged, ever, by any path · no card is stored for anybody · **the runner
+  IS credited** (do not let a "payments are off" message imply the runner was not recorded as
+  owed) · money moves by manual transfer arranged off-app — **"That is the pilot, not a
+  fallback."**
+- **MAY NOT SAY:** 결제 완료 · 자동 결제 · 결제 수단 · any card CTA that does not open a working
+  register flow · any "charged"/"paid" state not derived from a real `payments` row.
+- **MAY SAY:** the booking's own frozen price · that payment is arranged directly during the
+  pilot · the existing 준비 중 empty state.
+- ⚠ **The tempting trap**: showing a total and letting placement imply it was collected.
+  **"If the screen shows an amount, it has to say what happened to it."**
+
+Four money-copy lies have already been found and fixed under this rule
+(`cancel-fee-runner-share.md:90-190`): a hardcoded `condition_note` on the club surface · a run
+report printing the frozen PLANNED total as 「결제 금액」 beside a nonexistent 고객센터 · a live
+screen saying 「최소 기본요금 9,900원은 결제되며」 (**9,900 is the RUNNER's floor; the owner's base
+is 7,900 and `compute_owner_charge` never reads `min_fare`**) · a runner-guarantee clause true
+only for `owner_request`/`owner_forced`. ⚠ The fix for the second was **removing `RunReport.price`
+from the type, the select and the mapper** — not correcting the number.
+
+---
+
+## 7. Traps
+
+Everything here is a way someone could silently change what a person is charged or paid.
+
+### 7.1 The laws that make silent change hard
+
+**① Amounts are NEVER client-supplied.** Stated at `app/src/lib/api.ts:462-465`
+(*"클라 금액 불신 원칙 … These wrappers pass data, they do not assert facts"*) and enforced on
+the server at every entry:
+- `create-booking-hold` takes `km` + addon **keys** and prices it server-side
+  (`handler.ts:284-288`); an unknown addon key is a 400 (`:284`).
+- `settle-run` takes `actual_km` and computes nothing itself — the whole price comes from
+  `compute_runner_payout` (`handler.ts:150-155`, header at `:131-136`: *"THE PRICE COMES FROM SQL.
+  ALL OF IT."*). And on the **frozen path** the body's `actual_km` is not even read: the four
+  measurements come from the runs row (`:115-118`), which closed a residual where *"inside the
+  ≤0.005km rounding band the body's number still reached the mint"* (`:217-220`).
+- `create-payment-intent` reads the amount only from `bookings.total_price` and refuses a body
+  `amount` by never reading it (`handler.ts:73-74`).
+- `confirm-payment` **does not read the body's amount** (`handler.ts:77`) — it sends
+  `intent.amount` to Toss (`:130`) and then verifies Toss's returned `totalAmount` against the
+  intent (`:157`), auto-cancelling on mismatch.
+- `tossBillingCharge` sends only our row's numbers — *"there is no request body anywhere in the
+  post-pay path — the owner is not even in the loop — so an amount dispute is impossible by
+  construction"* (`_shared/toss.ts:98-101`).
+- `collect-charges`'s owner CTA takes `{ booking_id }` only, and the client comment says
+  「금액은 보내지 않는다」 (`app/src/lib/api.ts:684-693`).
+
+**[measured]** The **only** client wrapper that carries an amount is `confirmToss`
+(`app/src/lib/api.ts:501-511`), the widget confirm — and it **has zero call sites**. The one
+user-typed ₩ value the client transmits is `vetLimitKrw`, a liability **cap** inside the club
+delegation consent (`app/src/lib/api.ts:3356-3364`), not a charge.
+
+**② Idempotency, in four independent layers.**
+- **Our order_id** — `dr_` + a UUID, minted server-side (`0084:293`, `create-payment-intent/handler.ts:68`),
+  `unique` at the DB (`0071:42`). It is also the Toss `orderId`, and Toss refuses a second
+  successful charge against a paid orderId. **This — not the idempotency header — is what forbids
+  a double charge** (`_shared/charge.ts:26-28`).
+- **Per-attempt `Idempotency-Key`** = `${order_id}_a${attempt}` (`_shared/charge.ts:238`). ⚠ This
+  is the OPPOSITE of what the plan assumed, and the reasoning is written out at `:20-28`: Toss
+  retains a key for **15 days** and **replays the first response it saw**, so a ladder re-sending
+  one key would get the original decline played back at +1h and +24h — three rungs, one real
+  attempt, indistinguishable from the outside.
+- **`payment_key` unique** (`0071:40`) — the PG's own idempotency truth.
+- **The dispatch CLAIM** (`_shared/charge.ts:212-226`): the row is CASed on **status AND the
+  attempt counter** before the HTTP call. The status half alone is not enough — the cron and the
+  owner's CTA can be inside the function at the same instant on the same row in the same status,
+  both read `attempts=N`, both write `N+1`, both charge, and the row records ONE dispatch for two
+  calls to Toss. With `raw->>attempts` in the predicate exactly one writes; the loser leaves
+  without touching a card. ⚠ There is a documented special case: a row minted before the counter
+  existed has no `attempts` key, `raw->>'attempts'` is SQL NULL, and `eq` never matches NULL — so
+  the claim uses `.is("raw->>attempts", null)` for that shape (`:219-221`), or it would be
+  permanently stuck at `row_moved`.
+
+**③ Advisory locks are the construction, not decoration.** `0080:318-326` is explicit: *"'Never a
+second row' was previously asserted as if the exists-check produced it; it does not."* Each mint
+takes `pg_advisory_xact_lock(hashtextextended('mint:' || booking, 0))` **first**, because each
+mint generates its OWN order_id so the unique index would never fire. Both comp writers share
+`'comp:' || booking`. `ledger_items` has **no unique key on booking_id** (`0001:264`), so the lock
+is the entire serialization. Pinned by `90_race_check.sh` RD (1 row, 1 order_id) and RE (1 row,
+sum 12,450), and the mutation is documented: delete the one `pg_advisory_xact_lock` line and the
+follower does not wait → 2 rows → RED.
+
+**④ The 0111 body-`runner_id` refusal.** `create-booking-hold` used to take `runner_id` from the
+REQUEST BODY and write it into both the booking and the `slot_holds` row, **as service_role**.
+Since `runner_availability_rules` is readable by any logged-in user, an attacker could read a
+victim's published schedule, pick a passing slot, and land `owner_id = attacker, runner_id =
+victim` — which is exactly what `is_booking_party()` reads. It is now **refused at the validation
+head with a 400, not stripped** (`handler.ts:9-30`, `:71-88`), and the reasoning is a money-honesty
+argument: *"a caller that sends `runner_id` and gets a 200 WITH A BOOKING ID has every reason to
+believe the nomination happened, and nothing in the response says otherwise."* Blast radius was
+MEASURED, not reasoned: zero call sites send the field. **[measured; and verified live over the
+wire on deploy day per `pay-after-run-contract.md:1255-1257`]**
+⚠ **Real semantic change, stated rather than discovered:** the hold row no longer names a runner,
+so it blocks nobody's slot.
+
+**⑤ Money functions are server-only, and the GRANT is the whole seal.** `compute_owner_charge`,
+`compute_runner_payout`, `compute_runner_personal_payout`, both mints, `owner_has_unsettled_charge`,
+`record_*_comp/share`, `dispatch_due_charges`, `sweep_*`, `longest_inflight_booking_end`,
+`set_payments_live_since` are all `revoke … from public, anon, authenticated; grant … to
+service_role`. `0101:158-166` spells out the stakes: these are `security definer` over `bookings`
+with **no party gate** — deliberately, since no client can reach them — *"but that safety lives
+ENTIRELY in the line above: grant execute to `authenticated` for some convenience feature and
+this becomes a pricing oracle … Nothing else in the harness would redden."* **`137 R6` is the pin
+that watches the grant.**
+⚠ **`club_fare` was the counter-example**: a plain `immutable` SQL formula, it kept PostgREST's
+default PUBLIC execute and was callable as `POST /rest/v1/rpc/club_fare` by an anon key holder
+until `0081:283-284` revoked it. The pricing formula was never swept.
+
+**⑥ Every definer carries `set search_path = public, pg_temp` IN THE BODY.** ALTER-applied config
+is **reset by `create or replace`** (measured). Test `98 H1` watches the whole schema and fails
+the harness on any omission. ⚠ `0086:140-146` records the specific landmine: `0028:30`'s body says
+only `set search_path = public` and passes today because `0055`'s blanket ALTER retro-sealed it —
+so **a byte-faithful reproduction of 0028 would silently un-seal it.**
+
+**⑦ Shipped files are immutable (0057 §2).** A correction to a shipped migration lands in a new
+one. This is why `0084` carries the corrections to `0080`'s step ⑦ and G1 arm rather than editing
+them, and why `0081` carries the citation correction for `0080:658`.
+
+**⑧ A migration number is taken when EITHER its row or its file reaches origin.** Six collisions
+in one day. `.githooks/pre-push` enforces it. Enable once per clone with the **main clone's**
+path, never `$(git rev-parse --show-toplevel)` (inside a worktree that resolves to the worktree,
+and worktrees are disposable — git runs no hooks and says NOTHING when hooksPath names a vanished
+directory). Current tips **[measured on origin]**: migrations **0115**, suites **150**.
+
+### 7.2 The asymmetry that will look like a bug and is not
+
+**A price revision reprices every unsettled run's PAYOUT while leaving its CHARGE alone.**
+`0101:63-71`, verbatim:
+
+> The owner's charge is built from `bookings.base_fare / distance_fare / addon_fare` — the numbers
+> the owner CONSENTED to. The runner's payout is not a consented price; it is
+> `PRICING.runnerCompBase` and `PRICING.perKm` at settle time … ⚠ The consequence is real and is
+> the pre-existing rule, not a new one: a price revision reprices every unsettled run's PAYOUT
+> while leaving its CHARGE alone. **If that is ever wrong it is a product decision with its own
+> slice, not something to quietly fix inside a port.**
+
+Concretely: raise `PER_KM` from 3,000 to 3,500 today and every booking already on the books pays
+its runner at 3,500/km while charging its owner at the 3,000/km it froze. Margin moves for the
+whole in-flight stock, silently. **[inferred from measured code]** This is on record as an open
+money policy (§0-nonies) and is independent of the pay-after-run contract.
+
+Second asymmetry, same family: **`compute_runner_payout`'s `runner_personal` arm rejects an
+invalid commission and — before 0102 — the general arm did not.** 0102 closed it. The remaining
+deliberate asymmetry is that the general arm's validation now exists but was *added*, so a settle
+that succeeds today still succeeds; production has no invalid rate (all 9 runners at 0.330).
+
+Third: **`incident` charges the owner 0 and pays the runner the full general arm.** The platform
+funds the entire run. That is architectural, not generous — `club_incident_settle` owns an
+incident's money and charging at settle would pre-empt it — but it is an unbounded cost the
+moment `incident` gets a server caller (U25).
+
+### 7.3 Pins that look load-bearing and are NOT
+
+| pin / gate | why it looks load-bearing | what it actually does |
+|---|---|---|
+| **`unpaid_payout`** in `delete_my_account_tx` (`0115:288`) | it is one of the 12 enumerated refusal tokens and reads like a money guard | **structurally dead.** `payouts` has zero writers, so it can never fire on real data. `bank_accounts` deletion is guarded by the *conditional delete* at `0115:567-576`, not by this token. `0115:286-287`: *"Do not read its presence as protection."* |
+| **`100 W7`** (the `e_hold` silent-expiry pin) | green, and it asserts a real product property | the **product no longer produces its input**. After the pay-after-run change nothing lands in `payment_hold` and stays; W7 stays green only because the suite inserts fixtures directly in SQL. The reaper is still correct; it has nothing to reap. |
+| **`146 D-15`** | two contracts described it as pinning the bare `payment_ok` CAS | it pins **`request_runner`'s** CAS (`146:776`, `:797`). NOTHING pinned `payment_ok`; that is why **N9** had to be created when it was deleted. |
+| **`payments_reconciliation`'s `incident_waive_pending` arm** | it looks like a live ops board | **nothing writes `review_resolved_at`**, so it lists every incident waive ever minted, forever. Deliberate and the safe direction (`0084:345-348`), but do not read a growing count as new events. |
+| **the `set_payments_live_since` setter** | reads as a seal on the cutover | it is a **function, not a constraint**. `update ops_flags set payments_live_since = now()` still works for service_role or a SQL console. `0084:458-467` says so plainly. |
+| **`ops_flags` being called "sealed"** | `0080:191` uses the word | ⚠ **`anon`/`authenticated` still hold table-level DML.** RLS-with-zero-policies (`0080:187`) is what closes it, not a revoke — the same shape as `slot_holds`. Do not describe it as sealed in a privilege sense (`pay-after-run-contract.md` F15). |
+| **`payments` not being in the `68 V1` sealed array** | looks like an omission | deliberate. That pin asserts **policy count = 0**, and `payments` has exactly one (owner reads own receipt). `109` pins the stricter shape instead (`0071:26-29`). |
+| **`0080:222`'s "platform absorbs the min_fare floor"** | reads as current behaviour | ended by `0086`. |
+| **`0080:1182`/`:1253` etc.** | precise `file:line` citations | **rotted pointers** (§2 R8). The predicates agree; the line numbers do not. |
+| **`ops_unsettled_runs()`** | named like an alarm | **detection only, and it does not page.** `0097:44-48` — `ops_recipients` is 0 rows and `OPS_PROFILE_ID` is unset, so a pager would resolve to `console.error`. |
+| **the ledger's `platform_fee` column on comp rows** | 0 looks like a missing write | deliberate — writing the platform's half there would **net the runner to zero** through `my_ledger_total` (`0085:35-43`). |
+
+### 7.4 One rule written twice — the pairs that must move together
+
+1. 🔴 `dispatch_due_charges`'s due-predicate (`0080:1198-1213`) **⟷** `isDue()`
+   (`collect-charges/handler.ts:152`). SQL decides whether to WAKE the batch; TS decides which
+   rows the batch touches. A SQL predicate narrower than the TS one leaves rows nobody ever wakes
+   for; wider, and it posts every five minutes forever for work the function declines.
+   **⚠ THEY HAVE ALREADY DRIFTED, in two measurable ways** — and neither side can pin the other,
+   *"and both say so"* (`docs/handoff-club-delegation-money-gaps.md:132-139`):
+   - **the attempt cap**: SQL hardcodes `< 3` (`0080:1207`); TS imports `MAX_ATTEMPTS`
+     (`_shared/charge.ts:57`, used at `collect-charges/handler.ts:169`). Change the constant and
+     only one side moves. **[measured]**
+   - **an unparseable `next_retry_at`**: SQL casts it — `(p.raw->>'next_retry_at')::timestamptz`
+     (`0080:1209`) — which **RAISES**, and the function's own catch-all turns that into a NOTICE
+     and `return 0`, so **the batch never wakes at all** (`0080:1242-1245`). TS deliberately
+     treats it as **DUE** (`handler.ts:180-182`: *"An unparseable timestamp goes the same way for
+     the same reason"* — one extra attempt, bounded by the cap). So on one poisoned row the SQL
+     side silently stops collecting for **everybody**. **[measured]**
+2. `CRON_COLLECT_KEY` (edge env) **⟷** the Vault secret's `cron_key` (`0080:74-78`). **One value
+   in two places with nothing verifying they agree.**
+3. `record_late_cancel_share`'s `0.5` (`0085:76`) **⟷** the client copy the owner was shown
+   before confirming (`app/src/store.ts:197`, rendered at `app/app/owner/schedule.tsx:604`).
+   0085 exists *because* those two disagreed for weeks: the app promised the runner 50% and the
+   ledger wrote nothing. Sean's ruling was **"pay the runner and let them know, reward them
+   ykwim"** — the fix was to pay, not to soften the copy. `121` pins the amount against a literal.
+4. `0083:366`'s freeze list **⟷** `settle-run`'s `CLIENT_END_REASONS` (`handler.ts:42`). The
+   freeze set must be a strict SUBSET; a value in one and not the other strands the run forever.
+5. `PRICING` in `_shared/ctx.ts` **⟷** the hard-coded `RUNNER_COMP_BASE`/`PER_KM` in `0102:50-51`
+   **⟷** the client mirror in `app/src/theme.ts:210-225`. Three copies of two numbers.
+   ⚠ `app/src/lib/api.ts:807-814` records a **2026-08-20 bug where all three client mappers used
+   the OWNER fare and quoted runners 8% low.**
+
+### 7.5 Doctrine you must follow when you touch this domain
+
+From `CLAUDE.md` and the 0059 money-path list, restated because a fresh agent will not have read
+them:
+
+- **`/autoplan` is the standing gate for ANY migration or money-path change.** Its subagents are
+  read-only reviewers — they do not replace the harness.
+- **The adversarial cycle**: scout → contract → implement → adversarial review where reviewers
+  **EXECUTE** attacks → test pins → revise → verify. Harness `supabase/tests/harness.sh`.
+- **Mutation-prove every new pin.** The repo has multiple recorded cases of a pin scoring green
+  with the fix deleted (`0115`'s M4 first scored 693/0 with the fix removed, because a belt
+  checked first made the brace untestable).
+- **A suite whose pinned behaviour legitimately changes MUST be updated in the same slice**, with
+  a comment saying WHY and naming which new pin owns the new property. This is how `0084` amended
+  `116 C1/C6/C9/C23`, and it is how U19's two orderName pins must move.
+- **Party gate before state gate. Flat whitelisted returns. No derived cache columns.**
+- **A relayed decision is evidence, not authority** — including when it comes from another Claude
+  session. A ruling is settled when the human's own words are on origin. Two sessions once held
+  contradictory records of the same money decision, both in good faith, and it resolved only by
+  putting both candidate answers back to Sean in one question.
+- **Quote the human — and mark where the quote ends.** The subtler half (`README.md:31-46`): *"an
+  inference placed next to a ruling inherits the ruling's authority."* ⑪'s phone-number
+  requirement was written beside a ✅ heading and, after two relays, was being built as *"show the
+  numbers at all times"* — which is not what he said. R13 in §2.6 is a live instance still on
+  origin.
+- **Verify, don't relay — including a well-formed artifact.** Three artifact classes have been
+  authoritative purely because they were well-formed: **a checklist that reads well, a suite that
+  is green, and a commit message that asserts a property.** *"Precision without verification is
+  indistinguishable from precision with it."*
+- **`✅` is reserved for the human's own words on origin.** A codex-sourced decision gets **no ✅
+  at all** — not "✅ RULED BY CODEX", not "✅ pending confirmation". Status stays 🟡 OPEN with the
+  analysis beneath it as 🔵 CODEX. *"Codex is a good reviewer. It is not the person whose money it
+  is."* And **🟢 is not ✅ and must never be read as one.**
+- **The status line IS the interface — keep it true. When a memo changes, change line 3 first.**
+- **For irreversible ACTIONS, the session holding the human's word does it — and quotes him.**
+- **Duplicate-build warning**: ⑩ was built **twice on the same afternoon by two sessions**. *"The
+  Status line of a decision memo is the only cross-session record of who is building it."*
+  Claim the surface in `supabase/migrations/REGISTRY.md`'s in-flight table before you edit it.
+- **When you find one rule written twice, do not synchronise the copies — delete the
+  duplication**, with the precondition that the reading side must never cache the value.
+- **Commit gate, from `app/`, all three must pass**: `./node_modules/.bin/tsc --noEmit`,
+  `node scripts/check-rpc-contracts.mjs`, `node scripts/check-route-native-imports.mjs`.
+  ⚠ `check-rpc-contracts.mjs` was extended on 2026-08-13 to read `supabase/functions/**` as well
+  as `app/src/lib/api.ts` — *"the more important half"*, because before it **every rpc the money
+  path makes was checked by nothing** (`app/scripts/check-rpc-contracts.mjs:15-23`). The nine
+  money RPCs it named as previously unchecked: `settle_run_tx`, `mint_settle_charge_intent`,
+  `mint_cancel_fee_intent`, `compute_runner_personal_payout`, `record_enroute_cancel_comp`,
+  `record_late_cancel_share`, `ops_recipients_for`, `owner_has_unsettled_charge`,
+  `marketplace_cancel_fee`.
+
+---
+
+## 8. Appendix — file map and pin map
+
+### 8.1 Where the money lives
+
+```
+supabase/migrations/
+  0001_init.sql              ledger_items :264 · bank_accounts :277 · payouts :285
+                             runners.commission_rate :75 · booking_status :9 · end_reason :18
+  0043_payment_separation.sql club_fare :14
+  0066_enroute_cancel.sql    transition map :37 · marketplace_cancel_fee :72
+  0071_payments.sql          payments table + the one RLS policy
+  0075_km_ledger.sql         km_lots / km_ledger — BUILT, WIRED TO NOTHING
+  0076_payment_intent.sql    intent-before-money (widget)
+  0080_charge_machine.sql    ★ the machine. 1262 lines. Read §0 through §0e first.
+  0081_club_money_gates.sql  the club path's two gates
+  0083_run_end_flow.sql      §0f/§0g/§0h — three named handoffs, one still open
+  0084_g1_ops_cutover.sql    ★ Sean's rulings as SQL + the cutover guard
+  0085_cancel_share.sql      ⑩ the 10% tier's runner half
+  0086_runner_stop_passthrough.sql  ⑨a pass-through pay
+  0097_unsettled_run_detection.sql  ops_unsettled_runs() — detection only
+  0101 / 0102                compute_runner_payout (0102 is the live one)
+  0111_booking_entry_rebuild.sql    generate_recurring_bookings' live money gates :339-355
+  0115_account_deletion.sql  the money tokens + O-7 bank_accounts ruling :537-576
+
+supabase/functions/
+  _shared/ctx.ts             PRICING :4-29 — the constants
+  _shared/toss.ts            the four Toss calls
+  _shared/charge.ts          ★ THE dispatcher. orderName defect at :116-118
+  _shared/ops.ts             ops routing + the redacted-payload law
+  create-booking-hold/handler.ts   pricing :284-300 · debt gate :178 · flag :211 · CAS :345
+  settle-run/handler.ts      band :121 · commission :107 · payout :150 · tx :173 · charge :221
+  collect-charges/handler.ts cron auth :57-65 · owner mode :72 · isDue :152 · verify arm :197
+  confirm-payment/handler.ts widget capture + §2-7 auto-cancel
+  create-payment-intent/handler.ts  NOT DEPLOYED
+  transition-booking/cancel_owner.ts  the whole cancel money path
+
+app/
+  src/theme.ts:210-225       client pricing mirror
+  src/store.ts:213-231       cancelPolicy display mirror (server re-quotes)
+  src/lib/api.ts:462-465     클라 금액 불신 원칙
+  app/payments.tsx           the owner's money screen (real)
+  app/runner/earnings.tsx    the runner's money screen (real ledger, stubbed payout ops)
+  app/owner/request.tsx      the km dial :1321-1424 — where a price is born
+  src/components/charge-states.tsx   the three debt banners
+  scripts/check-route-native-imports.mjs   the gate the Toss SDK crash bought
+
+docs/
+  contracts/pay-after-run-contract.md  ★ 1259 lines. §I at :1248 is the deploy record.
+  biz/payments-paperwork-checklist.md  the paper half — the real critical path
+  pre-charging-checklist.md            the config half
+  decisions/                           the money memos (see 8.3)
+  payments.md                          ⚠ WHOLLY STALE — do not read as current
+  plans/payments-toss-plan.md          §0-bis is current; §2's diagram is not
+```
+
+### 8.2 Pin map
+
+| suite | owns |
+|---|---|
+| `10_settle_suite.sql` | `settle_run_tx`'s own scenarios |
+| `105_enroute_cancel_suite.sql` | the en-route cancel tier |
+| `109_payments_suite.sql` | payments SHAPE (P4-P11), the `payment_hold → matching` edge (P6) |
+| `110_incident_settlement_suite.sql` | club incident settlement (S1-S6) |
+| **`116_charge_suite.sql`** | **the charge machine, C1-C25.** C1 is the basis table itself |
+| `117_club_money_suite.sql` | club gates K1-K8 (K3/K7 carry the 24,900 literals) |
+| **`120_g1_ops_cutover_suite.sql`** | J1-J10 — the G1 ruling, ops routing, the cutover setter (J7), `longest_inflight_booking_end` (J8) |
+| `121_cancel_share_suite.sql` | ⑩'s amount, against a literal |
+| `122_runner_stop_pay_suite.sql` | ⑨a pass-through, P1-P4 |
+| `133_unsettled_run_detection_suite.sql` | `ops_unsettled_runs()` |
+| **`137_runner_payout_suite.sql`** | R1-R7. R1's 21 cases are **literals CAPTURED from a run of the pre-change TypeScript**, not re-derived from the SQL. **R6 pins the GRANT** |
+| `90_race_check.sh` | RD (one mint per booking) · RE (one comp row per booking) |
+| `_test/settle_charge_test.ts` · `cancel_fee_test.ts` · `collect_charges_test.ts` · `confirm_payment_test.ts` · `create_payment_intent_test.ts` · `booking_card_path_test.ts` · `transition_booking_actions_test.ts` | the edge functions |
+
+⚠ `137 R1`'s captured-literal design is the right one and worth preserving: it proves the SQL
+port reproduces the TypeScript **to the won**, which re-deriving from the SQL could not.
+
+### 8.3 The decision memos — file → id map
+
+The rulings themselves are in **§0**. This is the path map:
+
+| file in `docs/decisions/` | id |
+|---|---|
+| `g1-abort-charge-basis.md` | ① |
+| `d3-silent-charge-summary.md` | ② |
+| `ops-profile-id-vs-admin-role.md` | ③ |
+| `club-fare-base-alignment.md` | ④ |
+| `club-enroute-cancel.md` | ⑤ |
+| `cutover-straddle.md` | ⑥ |
+| `host-incentives.md` | ⑦ |
+| `card-registration-placement.md` | ⑧ |
+| `runner-stop-split.md` | ⑨a / ⑨b |
+| `cancel-fee-runner-share.md` | ⑩ |
+| `incident-verification.md` | ⑪ |
+| `marketplace-incident-exit.md` | ⑫ |
+| `g0-runner-payout-in-sql.md` | §0g (not a Sean ruling — money's own spec) |
+| `chat-notifications.md` | ⑬ — built `0090`; it blocked ⑪/⑫ because *"every ⑫ ruling is tell someone something, and the channel they'd reach for is the one that doesn't ring"* |
+| `awaiting-sean.md` | the standing queue + the O-numbered overnight decisions (O-4/O-5/O-7) |
+| `README.md` | the index **and the governance laws** — trust the laws, verify the status rows (R11/R12) |
+
+⚠ **`docs/decisions-open-money.md` is referenced by `0084:10` and `0081:44` as the file carrying
+the six rulings of record** ("each carrying ✅ SEAN'S RULING in his own words"). It has since been
+split into the per-decision files above — cite the per-decision file, and if you cannot find a
+ruling there, `git log --follow` the old path rather than assuming the ruling was lost.
+
+### 8.4 Reading order for a fresh money agent
+
+The handoff doc prescribes its own opener (`docs/handoff-club-delegation-money-gaps.md:5-6`):
+*"read `docs/handoff-club-delegation-money-gaps.md`, then `docs/decisions/README.md`, then
+`docs/retro-2026-08-13.md`."* Amended for what has since changed, read in this order:
+
+1. **this file**;
+2. `docs/pre-charging-checklist.md` — the measured state and §4-bis's honesty contract;
+3. `docs/contracts/pay-after-run-contract.md` — **§I first** (`:1248`), then §C.3a;
+4. `supabase/migrations/0080_charge_machine.sql` §0–§0e (the header alone is the design doc);
+5. `supabase/migrations/0084_g1_ops_cutover.sql` §0–§0c (what 0080 got superseded on);
+6. `docs/decisions/README.md` **for the governance laws, not for the status rows**;
+7. the individual memos for any ruling you are about to touch.
+
+**Do NOT start with** `docs/payments.md` (fully obsolete) or the memory canon
+`daengrun-money-models.md` (seven days stale in three material places — §0.2).
+
+### 8.5 Ten things a fresh reader will get wrong
+
+1. **`app/app/cards.tsx` is not payment cards.** It is the stamps/patches collection screen.
+   There is no card-register route in the repo.
+2. **`toss-sheet.tsx` protects nothing at runtime today** — nothing imports it. The live guard is
+   the commit gate `check-route-native-imports.mjs`.
+3. **The only client wrapper that sends an amount is dead code** (`confirmToss`, zero call sites).
+   Everything reachable sends km, keys and enums; the server prices it.
+4. **`g1_waive` and "dog_condition is a special case" are RETIRED.** Grepping the string finds
+   `0084:62-65` and `0084:127`, which exist precisely to tell you the decision was overruled.
+5. **`docs/payments.md` is a time capsule.** It describes `payment_ok` and pre-run payment as
+   current. Both are gone. Handed "read the money docs", an agent will build a Toss-widget pre-pay
+   flow that was deleted on 2026-08-20.
+6. **There are TWO cancel ladders**, and the club's is uncollectable (§2.2b).
+7. **`compute_owner_charge`'s `runner_personal_distance_only` arm is NOT stale.** ⑨ changed the
+   RUNNER side only; #10 stands. `runner-stop-split.md:85` says outright: *"do not 'fix' it."*
+   **Two readers have already looked at that line and seen a bug. It isn't one.**
+8. **`min_fare` is the RUNNER's floor, not the owner's base.** `compute_owner_charge` never reads
+   it. A shipped screen once told owners 「최소 기본요금 9,900원은 결제되며」 and it was a lie in
+   two directions at once.
+9. **`0097`'s club exclusion is correct — do not "fix" it.** Clubs pay through
+   `club_release_payouts`; removing the exclusion would report every club booking as an unpaid
+   marketplace run.
+10. **`runs.settled_at is null` does not mean unpaid** on pre-0083 rows. The ledger row is the
+    evidence.
+
+### 8.6 The three sharpest facts, if you read nothing else
+
+1. **Nothing pays runners.** `payouts` has zero writers, `ledger_items` has no paid marker, and
+   the whole settlement story ends at a ledger row nobody can mark settled (§4).
+2. **The flip is blocked on a one-line predicate** — `sweep_settled_without_payments` can mint a
+   charge for a dog still on the leash (U1) — **and on an unchosen in-flight cut-over rule** that
+   would otherwise convert every card-less owner's in-flight booking into a failed charge, a
+   notification and an account lock (§3.5).
+3. **Two cancel ladders exist and the club's is structurally uncollectable** (§2.2b) — the only
+   money hole nobody has ruled on either side.

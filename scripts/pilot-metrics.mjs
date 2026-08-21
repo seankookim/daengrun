@@ -75,7 +75,7 @@ const INTENT = new Set([
 
 const main = async () => {
   const [bookings, profiles, testRows, runners] = await Promise.all([
-    q('bookings?select=id,owner_id,runner_id,status,created_at,scheduled_at&order=created_at.asc'),
+    q('bookings?select=id,owner_id,runner_id,status,created_at,scheduled_at,run_ended_at&order=created_at.asc'),
     q('profiles?select=id,name,role'),
     q('club_test_accounts?select=profile_id'),
     q('runners?select=profile_id'),
@@ -126,13 +126,27 @@ const main = async () => {
   // 자격: 첫 **완료된** 러닝이 있고, 그로부터 관찰 창이 이미 닫힌 보호자.
   // 성공: 그 완료 시점 이후 창 안에 **또 예약했다** (INTENT 상태 아무거나).
   let eligible = 0, rebooked = 0, sameRunner = 0, stillOpen = 0, noCompleted = 0;
+  // 러닝을 마쳤지만 종료 시각이 없는 보호자 — 코호트에서 빼고 **세어서 보여준다**
+  let noEndTs = 0;
+  // [Codex] '다시 예약했다'(의사)와 '두 번째 러닝을 실제로 마쳤다'(성과)는 다른 질문이다. 둘 다 낸다.
+  let rebookedCompleted = 0;
   const detail = [];
   for (const [owner, list] of byOwner) {
     // [적대 리뷰] `completed`만 보면, 나중에 분쟁으로 incident_review로 옮겨간 예약은 '완료된 첫
     // 러닝'에서 사라진다 — 러닝은 실제로 일어났는데 코호트에서 빠진다. 둘 다 첫 러닝으로 센다.
-    const firstDone = list.find((b) => b.status === 'completed' || b.status === 'incident_review');
-    if (!firstDone) { noCompleted += 1; continue; }
-    const t0 = new Date(firstDone.created_at).getTime();
+    // [2026-08-20 · Codex 발견, 계측으로 확인] t0 는 **러닝이 끝난 시각**이다 — 예약을 만든
+    // 시각이 아니다. 예전 코드는 firstDone.created_at 를 썼고, 그 결과 (a) 서비스 몇 주 전에
+    // 만들어진 예약이 창을 이미 다 쓴 것으로 계산됐고 (b) 첫 러닝이 일어나기 *전에* 만들어진
+    // 두 번째 예약이 '재예약'으로 잡혔다. M1 이 묻는 것은 '러닝을 겪고 나서 다시 왔는가'이므로
+    // 러닝의 종료 시각만이 t0 가 될 수 있다.
+    const done = list.filter((b) => b.status === 'completed' || b.status === 'incident_review');
+    if (done.length === 0) { noCompleted += 1; continue; }
+    // 완료 시각이 기록되지 않은 행은 조용히 created_at 로 대체하지 않는다 — 그것이 바로 이 버그였다.
+    const dated = done.filter((b) => b.run_ended_at);
+    if (dated.length === 0) { noEndTs += 1; continue; }
+    const firstDone = dated.reduce((a, b) =>
+      new Date(a.run_ended_at).getTime() <= new Date(b.run_ended_at).getTime() ? a : b);
+    const t0 = new Date(firstDone.run_ended_at).getTime();
     const closed = now - t0 >= windowMs;
     const later = list.filter((b) => b.id !== firstDone.id
       && new Date(b.created_at).getTime() > t0
@@ -147,6 +161,8 @@ const main = async () => {
     if (later.length > 0) {
       rebooked += 1;
       if (later.some((b) => b.runner_id && b.runner_id === firstDone.runner_id)) sameRunner += 1;
+      // 두 번째가 실제로 끝났는가 — 의사와 성과를 섞지 않는다
+      if (later.some((b) => b.status === 'completed' || b.status === 'incident_review')) rebookedCompleted += 1;
     }
     detail.push({ owner, state: later.length ? 'rebooked' : 'lapsed', later: later.length });
   }
@@ -154,6 +170,8 @@ const main = async () => {
   const pct = (n, d) => (d === 0 ? null : Math.round((n / d) * 1000) / 10);
   const m1 = pct(rebooked, eligible);
   const m1Same = pct(sameRunner, eligible);
+  // 확장 게이트(60%)가 묻는 것은 재예약 '의사'다 — m1. 성과는 따로 본다.
+  const m1Completed = pct(rebookedCompleted, eligible);
 
   // ---------- km 원장 게이지 (0075 · CEO 리뷰 E10, codex 채택) ----------
   // 셋 다 원장에서 직접 유도 — 캐시 없음. 테이블이 아직 없으면(0075 미푸시) 정직하게 '—'.
@@ -198,10 +216,11 @@ const main = async () => {
     cohort: {
       eligible, rebooked, sameRunner,
       stillInWindow: stillOpen, ownersWithNoCompletedRun: noCompleted,
+      ownersWithCompletedRunButNoEndTimestamp: noEndTs,
       testBookingsExcluded: excluded,
       testBookingsExcludedBy: Object.fromEntries(excludedBy),
     },
-    m1RebookPct: m1, m1SameRunnerPct: m1Same,
+    m1RebookPct: m1, m1SameRunnerPct: m1Same, m1SecondRunCompletedPct: m1Completed,
     km,   // null = 0075 미푸시 (게이지 부재 ≠ 0)
     verdict: m1 === null ? 'NOT_MEASURABLE' : m1 >= 60 ? 'PASS' : 'BELOW_GATE',
   };
@@ -217,9 +236,11 @@ const main = async () => {
   console.log('  ─────────────────────────────────────');
   console.log(`  M1 재예약율                          ${show(m1)}   (게이트 60%)`);
   console.log(`  M1 같은 러너 재예약율                ${show(m1Same)}`);
+  console.log(`  M1 두 번째 러닝까지 마친 비율        ${show(m1Completed)}   ← 의사가 아니라 성과`);
   console.log('');
   console.log(`  아직 창 안 (분모 제외)               ${stillOpen}`);
   console.log(`  완료 러닝이 아직 없는 보호자         ${noCompleted}`);
+  console.log(`  완료했지만 종료 시각이 없는 보호자   ${noEndTs}   ← 코호트에서 제외됨(조용히 대체하지 않는다)`);
   console.log(`  배제한 테스트 예약                   ${excluded}`);
   for (const [who, n] of excludedBy) console.log(`      └ ${who}: ${n}건`);
   console.log('');
