@@ -97,6 +97,23 @@
   </table>
 </div>
 
+<div class="note" style="border:2px solid var(--coral)">
+  <h4 style="color:var(--coral)">⚠ 정정 2026-08-21 — 제가 두 곳에 거짓 문장을 그렸습니다</h4>
+  첫 판에서 ①의 취소 버튼은 「러너가 오지 않았다면 <b>수수료 없어요</b>」, T6 은
+  「<b>수수료 없이</b> 닫아요」였습니다. <b>둘 다 사실이 아닙니다.</b>
+  <div class="hair"></div>
+  <code>0066:80</code> — <code>when b.status = 'runner_enroute' then round(b.total_price * 0.5)</code>.
+  이 갈래는 <b>시간 조건이 없고</b> 24시간 갈래보다 위에 있습니다. 그래서 8월 4일에 버려진
+  그 예약을 지금 취소하면 <b>총액의 50%가 '러너 보상'으로 청구</b>됩니다 — 오지 않은 러너에게.
+  스케줄 시트는 이 50%를 <b>정확히 미리</b> 보여줍니다(<code>cancelFeeRateFor</code>). 그러니 숨겨진
+  과금은 아니지만, 그 시트 바로 위에서 제 목업이 "공짜"라고 말할 뻔했습니다.
+  <div class="hair"></div>
+  <b>화면이 할 수 있는 정직한 일:</b> 공짜라고 말하지 않고, 조건이 적힌 곳으로 보내는 것.
+  <b>화면이 할 수 없는 일:</b> 요금 사다리를 고치는 것 — 그건 서버이고 Sean 의 재정 대기입니다.
+  (계획의 FM7 을 제가 "D4/D5 가 처리함"으로 적어뒀는데, 틀렸습니다. 미래 위험이 아니라 오늘 살아 있는
+  결함이고, 새 프로토콜과 무관하게 이미 그렇습니다.)
+</div>
+
 <h2 class="band">보호자 <span>· owner</span></h2>
 <div class="grid">
 
@@ -115,7 +132,8 @@
         <div class="hair"></div>
         <div class="btn coralb"><div class="t">러너에게 물어보기</div><div class="s">채팅으로 지금 확인해요</div></div>
         <div class="btn inkb"><div class="t">다른 러너 찾기</div><div class="s">지금 갈 수 있는 러너로 바꿔요</div></div>
-        <div class="btn inkb"><div class="t">예약 취소</div><div class="s">러너가 오지 않았다면 수수료 없어요</div></div>
+        <div class="btn inkb"><div class="t">예약 취소</div><div class="s">취소 조건을 먼저 확인해요</div></div>
+        <div class="muted" style="margin-top:7px">↑ 첫 판: 「러너가 오지 않았다면 수수료 없어요」 — 삭제됨</div>
         <div class="stamp">STAGE 2 · 「아직 진행하나요?」 확인</div>
       </div>
     </div>
@@ -270,15 +288,18 @@
           <div class="head" style="font-size:17px">이 예약은<br>진행되지 않았어요</div>
           <div class="sub2">8월 4일 (화) 오후 3:30<br>러너가 도착하지 않았어요</div>
           <div class="hair"></div>
-          <div class="btn coralb"><div class="t" style="font-size:14px">정리하기</div>
-            <div class="s">수수료 없이 닫아요</div></div>
+          <div class="btn coralb"><div class="t" style="font-size:14px">일정에서 정리하기</div>
+            <div class="s">취소 조건을 확인하고 닫아요</div></div>
           <div class="btn inkb"><div class="t" style="font-size:14px">다시 예약</div>
             <div class="s">같은 코스로</div></div>
+          <div class="muted" style="margin-top:7px">↑ 첫 판: 「정리하기 / 수수료 없이 닫아요」 — 삭제됨</div>
         </div>
       </div>
     </div>
-    <div class="verdict"><span class="lbl">이것 하나가 T6:</span> 상태를 말하고, 나갈 문을 줍니다.
-      stage 2 없이도 오늘 지을 수 있고, 시뮬레이터에서 바로 확인됩니다.</div>
+    <div class="verdict"><span class="lbl">이것 하나가 T6:</span> 상태를 말하고, 나갈 문을 줍니다 —
+      <b>공짜라고는 말하지 않습니다.</b> 목적지(일정 시트)가 50%를 정확히 알려주고, 거기서 결정합니다.
+      home-hero.tsx:256 의 기존 주석이 이미 이 규칙을 적어뒀고, 제 첫 판이 그걸 어겼습니다:
+      「서버가 만료를 처리하기 전까지 홈은 사실만 말하고 목적지는 일정 화면이다.」</div>
   </div>
 </div>
 
