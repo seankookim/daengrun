@@ -31,11 +31,19 @@ export type Lateness = {
   sinceMs: number;
   custody: Custody;
   waitingOn: WaitingOn;
+  /** 아직 이대로 진행될 수 있는가. 천장을 넘기면 false — 화면은 '진행' 문을 그리지 않는다. */
+  resumable: boolean;
 };
 
-// ⚠ PROVISIONAL — 유예 시간은 Sean 미정 (플랜 §10 '해소되지 않음'). 상수로 박아두지 않고
-// 인자로 받는 이유: 제품 숫자를 엔지니어가 정하지 않기 위해서다. 그가 답하면 이 기본값만 바뀐다.
-export const LATENESS_GRACE_MS = 10 * 60_000;
+// 유예 30분 · 천장 3시간 — Sean, 2026-08-21 (announcer 경유 전달). 제품 숫자이지 엔지니어의
+// 숫자가 아니라서 처음부터 인자로 빼뒀고, 이제 그 기본값이 채워졌다. 여전히 주입 가능하다.
+export const LATENESS_GRACE_MS = 30 * 60_000;
+
+// 천장 — 이 시간을 넘기면 이 예약은 '늦은 예약'이 아니라 '끝난 일'이다.
+// 왜 필요한가: 천장이 없으면 두 번의 탭으로 16일 된 예약이 되살아난다 (codex 지적, 플랜 §4.3).
+// 넘긴 뒤에는 화면이 '진행' 계열 동작을 제안하지 않는다 — 종점만 남는다.
+// 인계 후에도 같다: 3시간을 넘긴 러닝은 정상 러닝이 아니라 확인이 필요한 사건이다.
+export const LATENESS_CEILING_MS = 3 * 3_600_000;
 
 /** 지각 시간을 사람 말로. 분 아래를 '곧'으로 뭉개지 않는다 — 반올림이 거짓이 되지 않게. */
 export const sinceLabel = (ms: number): string => {
@@ -61,10 +69,13 @@ export const expectedDurationMs = (km: number) => Math.round(km * 8 + 25) * 60_0
 // `now` 는 기본값을 갖는다. 화면이 렌더 중에 Date.now() 를 부르면 react-hooks/purity 가 잡고,
 // 그걸 피하려고 상태로 올리면 이번엔 컴파일러가 다른 데서 체한다 (실측 2026-08-21). 시계를
 // 이 함수 안에 두면 호출부는 순수해지고, 테스트는 계속 명시적으로 주입한다 — 양쪽 다 만족한다.
-export function lateness(b: LateInput, now: number = Date.now(), graceMs = LATENESS_GRACE_MS): Lateness {
+export function lateness(
+  b: LateInput, now: number = Date.now(),
+  graceMs = LATENESS_GRACE_MS, ceilingMs = LATENESS_CEILING_MS,
+): Lateness {
   const status = b.rawStatus ?? '';
   const custody: Custody = POST_CUSTODY.has(status) ? 'post' : 'pre';
-  const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null };
+  const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null, resumable: true };
 
   if (!CAN_BE_LATE.has(status)) return none;
   const start = b.scheduledAt ? Date.parse(b.scheduledAt) : NaN;
@@ -88,5 +99,6 @@ export function lateness(b: LateInput, now: number = Date.now(), graceMs = LATEN
   const waitingOn: WaitingOn =
     status === 'runner_enroute' && b.arrivedAt ? 'owner' : 'runner';
 
-  return { late: true, sinceMs: now - deadline, custody, waitingOn };
+  const sinceMs = now - deadline;
+  return { late: true, sinceMs, custody, waitingOn, resumable: sinceMs <= ceilingMs };
 }

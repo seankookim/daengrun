@@ -81,7 +81,9 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   const started = T0 - 30 * MIN;
   t('active mid-run is NOT late',
      lateness(B('active', started, { km }), T0).late === false);
-  const longAgo = T0 - (65 + 10 + 5) * MIN; // past end + grace
+  // ⚠ derive from the constant, never hardcode it — this case was written when grace was 10 min
+  // and it correctly went red the moment Sean set grace to 30. That redness is the suite working.
+  const longAgo = T0 - (65 * MIN + LATENESS_GRACE_MS + 5 * MIN); // past expected end + grace
   t('active past its expected end IS late',
      lateness(B('active', longAgo, { km }), T0).late === true);
   t('active without km refuses to judge (no guessing)',
@@ -105,6 +107,31 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('the real 17-day booking reads late, pre-custody, waiting on runner',
      r.late === true && r.custody === 'pre' && r.waitingOn === 'runner'
      && r.sinceMs > 16 * 24 * 3600_000, JSON.stringify(r));
+}
+
+// ───────────────────────────────────────────── the ceiling (Sean: grace 30, ceiling 3h)
+// Without a ceiling, two taps revive a 16-day-old booking. Past it the screen must stop
+// offering "proceed" and offer only terminals, so `resumable` is what the UI branches on.
+{
+  const { LATENESS_GRACE_MS, LATENESS_CEILING_MS } = require('./lateness.build.cjs');
+  t('grace default is 30 min', LATENESS_GRACE_MS === 30 * MIN, String(LATENESS_GRACE_MS / MIN));
+  t('ceiling default is 3 hours', LATENESS_CEILING_MS === 180 * MIN, String(LATENESS_CEILING_MS / MIN));
+
+  const at = (lateBy) => lateness(B('confirmed', T0 - LATENESS_GRACE_MS - lateBy), T0);
+  t('not late → resumable', lateness(B('confirmed', T0 + 60 * MIN), T0).resumable === true);
+  t('late but inside the ceiling → resumable', at(60 * MIN).resumable === true);
+  t('exactly at the ceiling → still resumable', at(LATENESS_CEILING_MS).resumable === true);
+  t('one minute past the ceiling → NOT resumable', at(LATENESS_CEILING_MS + MIN).resumable === false);
+
+  // The live row: 16 days past. Nothing about it is resumable.
+  const aug4 = Date.parse('2026-08-04T06:30:00Z');
+  const now = Date.parse('2026-08-21T02:00:00Z');
+  t('the real 16-day booking is NOT resumable',
+     lateness(B('runner_enroute', aug4), now).resumable === false);
+
+  // Post-custody past the ceiling is an incident, not a long run — same flag, same meaning.
+  t('picked_up past the ceiling is NOT resumable',
+     lateness(B('picked_up', T0 - LATENESS_GRACE_MS - 4 * 60 * MIN), T0).resumable === false);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
