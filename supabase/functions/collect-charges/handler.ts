@@ -129,7 +129,39 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
     .limit(BATCH_LIMIT);
   if (error) throw new HttpError(500, error.message);
 
-  const rows = data ?? [];
+  // [verdict-3 finding 1] TERMINAL rows are candidates forever — an exhausted ladder
+  // (attempts ≥ cap) or a dead card (needs_card_relink) stays status='failed' with a kind, so
+  // 200 of them fill the oldest-first window and every newer due row is scanned never:
+  // reproduced as {"scanned":200,"due":0,"realIncluded":false} while SQL wakes the endpoint
+  // every five minutes. The fix is PAGINATION, not more query predicates: attempts/relink live
+  // inside jsonb where a query-side filter would re-open the wake≠fence disagreements the kind
+  // fence just closed. Walk further pages until a page yields actionable rows, the table runs
+  // out, or the page cap trips; report what was skipped so terminal accumulation is visible
+  // instead of reading as a quiet day.
+  let rows = data ?? [];
+  let scanned = rows.length;
+  let pagesWalked = 1;
+  const MAX_PAGES = 5; // 1000 rows of terminal debris before we stop looking — an ops signal, not a wall
+  while (
+    rows.filter((r) => isDue(r, now)).length === 0 &&
+    rows.filter((r) => isStaleDispatched(r, now)).length === 0 &&
+    scanned === pagesWalked * BATCH_LIMIT &&
+    pagesWalked < MAX_PAGES
+  ) {
+    const { data: more, error: pageErr } = await db.from("payments")
+      .select("id, booking_id, order_id, amount, status, payment_key, raw")
+      .in("status", ["pending", "failed"])
+      .not("raw->kind", "is", null)
+      .not("raw->>kind", "in", '("","0","false")')
+      .order("created_at", { ascending: true })
+      .range(pagesWalked * BATCH_LIMIT, (pagesWalked + 1) * BATCH_LIMIT - 1);
+    if (pageErr) throw new HttpError(500, pageErr.message);
+    const page = more ?? [];
+    if (page.length === 0) break;
+    scanned += page.length;
+    pagesWalked += 1;
+    rows = page; // earlier pages held nothing actionable; only this page can
+  }
   const due = rows.filter((r) => isDue(r, now));
   const results: RowResult[] = [];
   for (const r of due) {
@@ -150,7 +182,8 @@ async function runBatch(db: SupabaseClient, now: Date = new Date()) {
   const drift = await ladderCapDrift(db);
   return {
     mode: "cron",
-    scanned: rows.length,
+    scanned,
+    pages: pagesWalked,
     due: due.length,
     processed: results.length,
     results,

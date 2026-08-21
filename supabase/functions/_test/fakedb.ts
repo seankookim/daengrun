@@ -184,6 +184,7 @@ class Q implements PromiseLike<any> {
   private returning = false;
   private shape: "many" | "single" | "maybe" = "many";
   private orderBy: { col: string; asc: boolean } | null = null;
+  private offset = 0;
   private cap: number | null = null;
 
   constructor(
@@ -234,6 +235,12 @@ class Q implements PromiseLike<any> {
   }
   order(col: string, opts?: { ascending?: boolean }) {
     this.orderBy = { col, asc: opts?.ascending !== false };
+    return this;
+  }
+  range(from_: number, to: number) {
+    // PostgREST .range(from, to) — inclusive window after ordering. Modeled as offset+limit.
+    this.offset = from_;
+    this.cap = to - from_ + 1;
     return this;
   }
   limit(n: number) {
@@ -302,7 +309,7 @@ class Q implements PromiseLike<any> {
         const { col, asc } = this.orderBy;
         out = [...out].sort((a, b) => (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : 0) * (asc ? 1 : -1));
       }
-      if (this.cap !== null) out = out.slice(0, this.cap);
+      if (this.offset || this.cap !== null) out = out.slice(this.offset, this.cap === null ? undefined : this.offset + this.cap);
     } else if (this.op === "insert") {
       const items = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
       out = items.map((it) => {
