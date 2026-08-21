@@ -145,6 +145,13 @@ export class FakeDb {
     };
   }
 
+  /**
+   * BEFORE-UPDATE row triggers, by table. The handler under test never sees these directly; it
+   * sees a row that no longer matches what it wrote, which is the production truth whenever SQL
+   * owns a column the handler also touches. Mutate the passed row in place.
+   */
+  triggers: Record<string, (row: Row, before: Row) => void> = {};
+
   from(table: string) {
     return {
       select: (_cols?: string) => new Q(this, table, "select"),
@@ -327,7 +334,15 @@ class Q implements PromiseLike<any> {
       this.db.log.push(`insert:${this.table}`);
     } else if (this.op === "update") {
       out = store.filter((r) => this.matches(r));
-      for (const r of out) Object.assign(r, this.payload);
+      for (const r of out) {
+        const before = { ...r };
+        Object.assign(r, this.payload);
+        // BEFORE-UPDATE triggers, modeled (0117 §9c is the first one that matters to a handler):
+        // SQL can rewrite what a handler wrote, so a fake in which the written row always equals
+        // the payload lets a handler branch on its own pre-write quote and still pass — which is
+        // exactly the split brain codex r2 F3 found in cancel_owner.ts.
+        this.db.triggers[this.table]?.(r, before);
+      }
       this.db.log.push(`update:${this.table}:${out.length}`);
     } else {
       out = store.filter((r) => this.matches(r));

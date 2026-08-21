@@ -58,6 +58,22 @@
 --      the post-custody dark case all refuse a fault row nobody stated.
 --   M15 no-row fetch answer reverted to the bare {open:false}
 --      (coordinator amendment, 2026-08-21; green then 753/0)     → 752/1 RED=[L19] alone
+--   ─── the REASON amendment (Sean: "ask why they stopped."), green then 758/0 ──────────────
+--   ⚠ [codex r2 F7] these five WERE measured when they were run, and this header omitted them
+--   while the REGISTRY row claimed them — the map jumped M15 → M22. A ledger that overstates
+--   its own measurements is the one defect class this fleet cannot tolerate, so they are
+--   written back here from the run logs rather than quietly dropped from the registry.
+--   M16 answer_checkin's reason gate deleted (a reason on any answer)
+--                                                                 → 757/1 RED=[L21]
+--        (the red arrives as the TABLE's 23514, which is the belt L24 owns — the gate and the
+--         constraint are both real and the pin names which one answered)
+--   M17 the resolver stops copying the reason onto the fault row  → 757/1 RED=[L20] (과실행 사유 미복사)
+--   M18 the guard trigger loses its reason-immutability terms     → 757/1 RED=[L22]
+--   M19 booking_faults loses its whole-row write-once guard       → 757/1 RED=[L23]
+--   M20 the reason-only-with-cannot_proceed CHECKs dropped        → 757/1 RED=[L24]
+--   M21 quote_cancel_fee inlines a faithful COPY of the ladder    → 760/1 RED=[L27] alone,
+--        with L25 measured GREEN under the copy — the whole argument for a source-level pin
+--        (and, after r2 F7, for L27's executed drop-and-break rather than a substring match)
 --   ─── the codex FIX-FIRST round (L28–L36 + L9/L14/L30 extensions), measured on the rebased
 --       tree (green 769/0; each mutation alone, full harness, per-run _t dumped in-task) ───
 --   M22 quote_cancel_fee's no-oracle raise neutralized              → 768/1 RED=[L26]
@@ -105,6 +121,10 @@ declare
   b20 uuid; b21 uuid; b24 uuid; v_txt text;
   b28 uuid; b29 uuid; b29b uuid; b30 uuid; b31 uuid; b32 uuid; b33 uuid; b33b uuid;
   b34 uuid; b34b uuid; b35 uuid;
+  b31b uuid; b31f uuid; b3f uuid; b3o uuid; b29c uuid; b29d uuid;
+  b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
+  ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
+  v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
   v_bad text := ''; v_js jsonb; v_fee int; v_fee2 int; v_fee3 int; v_fee4 int; v_status text;
   v_n int; v_ver int; v_ts timestamptz; v_dl timestamptz; v_res text; v_st text;
   v_note text := '';
@@ -167,16 +187,19 @@ begin
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- top-level actions, pin compares. b3 is a live future en-route booking — the control
   -- proves 0066's 50% still stands where no fault and no rot exist (105 E2's twin).
-  b3 := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
-  select f.fee into v_fee from marketplace_cancel_fee(b3) f;                    -- control: 12450
+  -- ⚠ ONE FIXTURE PER ARM, and it is not a style choice: after r2 F2 a fault row cannot be
+  -- deleted (booking_faults is write-once, whole row, DELETE included), so an insert/delete
+  -- cycle on a single booking is no longer expressible — nor should it be, since the thing
+  -- under test is a record of a human statement.
+  b3  := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
+  b3f := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
+  b3o := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
   insert into booking_faults (booking_id, party, source, stated_by)
-  values (b3, 'runner', 'test_ops_statement', rr);
-  select f.fee into v_fee2 from marketplace_cancel_fee(b3) f;                   -- waived: 0
-  delete from booking_faults where booking_id = b3;
-  insert into booking_faults (booking_id, party, source, stated_by)
-  values (b3, 'owner', 'test_ops_statement', oo);
-  select f.fee into v_fee3 from marketplace_cancel_fee(b3) f;                   -- owner fault: 12450
-  delete from booking_faults where booking_id = b3;
+  values (b3f, 'runner', 'test_ops_statement', rr),
+         (b3o, 'owner',  'test_ops_statement', oo);
+  select f.fee into v_fee  from marketplace_cancel_fee(b3)  f;                  -- control: 12450
+  select f.fee into v_fee2 from marketplace_cancel_fee(b3f) f;                  -- waived: 0
+  select f.fee into v_fee3 from marketplace_cancel_fee(b3o) f;                  -- owner fault: 12450
   begin
     v_bad := '';
     if v_fee  is distinct from 12450 then v_bad := v_bad || ' 무과실 통제=' || coalesce(v_fee::text, 'null'); end if;
@@ -373,6 +396,9 @@ begin
       perform answer_checkin(b2, 'runner', 'proceeding');             -- late response vs resolution (FM8)
       v_bad := v_bad || ' 종결 후 응답 수락';
     exception when others then
+      -- 두 거절이 모두 참인 자리다 (체크인은 종결됐고, 그 종결이 부킹도 옮겼다). 창을 닫은
+      -- 것의 이름이 더 구체적이므로 checkin_resolved 가 이긴다 — not_late_eligible 은 남의
+      -- 경로가 부킹을 가져갔는데 체크인은 아직 열려 있는 경우(L32)의 이름이다.
       if sqlerrm <> 'checkin_resolved' then v_bad := v_bad || ' 종결 후 사유=' || sqlerrm; end if;
     end;
     perform set_config('request.jwt.claim.sub', '', false);
@@ -866,10 +892,31 @@ begin
      where n.nspname = 'public' and p.proname = 'quote_cancel_fee'
        and p.prosrc like '%marketplace_cancel_fee%';
     if v_n is distinct from 1 then v_bad := v_bad || ' 위임 소스 미확인 (사다리 사본?)'; end if;
+    -- [codex r2 F7] …and a SUBSTRING is not a call: a comment, or a dead reference beside a
+    -- copied ladder, satisfies the check above. So the delegation is EXECUTED: drop the ladder
+    -- inside an unwound subtransaction and require the quote to break. A copy would keep
+    -- answering — which is exactly the drift this pin exists to forbid.
+    v_txt := '';
+    begin
+      drop function marketplace_cancel_fee(uuid);
+      begin
+        v_js := quote_cancel_fee(b_fresh);
+        v_txt := '사다리 없이도 견적이 나왔다 (사본)';
+      exception when others then
+        if sqlstate = '42883' then v_txt := 'ok'; else v_txt := '다른 실패=' || sqlstate; end if;
+      end;
+      raise exception 'unwind152';           -- roll the DROP back, always
+    exception when others then
+      if sqlerrm <> 'unwind152' then v_bad := v_bad || ' 언와인드 경로=' || sqlerrm; end if;
+    end;
+    if v_txt <> 'ok' then v_bad := v_bad || ' 실행 위임 미확인: ' || v_txt; end if;
+    -- the ladder is back (the whole suite after this line depends on it)
+    select f.fee into v_fee from marketplace_cancel_fee(b_fresh) f;
+    if v_fee is distinct from 12450 then v_bad := v_bad || ' 사다리 복원 실패=' || coalesce(v_fee::text, 'null'); end if;
     if v_bad = '' then
-      call _pass('lb', 'L27 견적은 위임이다 — prosrc가 marketplace_cancel_fee를 부른다 (한 벌 법; 사본 사다리는 표류 전까지 L25를 통과하므로 소스 핀이 든다)');
-    else call _fail('lb', 'L27 위임 소스 핀', v_bad); end if;
-  exception when others then call _fail('lb', 'L27 위임 소스 핀', sqlerrm); end;
+      call _pass('lb', 'L27 견적은 살아있는 위임이다 — 사다리를 드롭하면 견적이 42883으로 깨지고, 언와인드 뒤 복원된다 (문자열 일치가 아니라 실행으로, F7)');
+    else call _fail('lb', 'L27 위임 실행 핀', v_bad); end if;
+  exception when others then call _fail('lb', 'L27 위임 실행 핀', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L28]–[L36] the codex FIX-FIRST round (2026-08-21)
@@ -922,7 +969,38 @@ begin
     call _fail('lb', 'L29 도장 우선 커스터디', sqlerrm);
   end;
 
+  -- [L29b] codex r2 F7: fetch's custody classification, pinned SEPARATELY from the resolver's.
+  -- Round 1's L29 read the outcome only through the resolver, so reverting fetch's copy alone
+  -- stayed green. Here the surface is asked directly, BEFORE anything resolves.
+  -- its OWN fixtures: b29/b29b are resolved by L29 above, and a resolved booking is 'out' —
+  -- a fetch-side custody pin has to read a LIVE booking or it measures the terminal instead.
+  b29c := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b29c);
+  update bookings set owner_confirmed_handoff_at = now() where id = b29c;      -- one stamp
+  b29d := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b29d);
+  update bookings set owner_confirmed_handoff_at = now(),
+                      runner_confirmed_handoff_at = now() where id = b29d;      -- both stamps
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := fetch_checkin(b29c);                       -- one stamp — not custody yet
+    if v_js->>'custody' is distinct from 'pre' then v_bad := v_bad || ' 한도장 fetch custody=' || coalesce(v_js->>'custody', 'null'); end if;
+    v_js := fetch_checkin(b29d);                       -- both stamps, status not yet promoted
+    if v_js->>'custody' is distinct from 'post' then v_bad := v_bad || ' 양도장 fetch custody=' || coalesce(v_js->>'custody', 'null'); end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L29b fetch 자신의 커스터디 분류 — 한쪽 도장 pre·양쪽 도장 post(승격 전에도), 표면이 리졸버와 독립으로 답한다 (F7)');
+    else call _fail('lb', 'L29b fetch 커스터디 분류', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L29b fetch 커스터디 분류', sqlerrm);
+  end;
+
   -- [L31] HIGH-4: arrival evidence blocks the TIMER waiver; only a recorded fault waives then
+  -- [codex r2 F7] SPLIT: round 1 asserted both evidence kinds in ONE pin, so deleting EITHER
+  -- predicate left the other arm red and the pin could not name which fell. One fixture per
+  -- predicate: b31 carries only arrived_at, b31b carries only the handoff stamps.
   b31 := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
   update bookings set arrived_at = now() - interval '17 days' + interval '20 minutes' where id = b31;
   begin
@@ -930,15 +1008,32 @@ begin
     select f.fee into v_fee from marketplace_cancel_fee(b31) f;
     if v_fee is distinct from 12450
       then v_bad := v_bad || ' 도착 증거에도 면제=' || coalesce(v_fee::text, 'null') || ' (타이머가 러너의 0066 권리를 벗김)'; end if;
+    -- the faulted twin is its own booking (fault rows are write-once — r2 F2)
+    b31f := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+    update bookings set arrived_at = now() - interval '17 days' + interval '20 minutes' where id = b31f;
     insert into booking_faults (booking_id, party, source, stated_by)
-    values (b31, 'runner', 'test_ops_statement', rr);
-    select f.fee into v_fee from marketplace_cancel_fee(b31) f;
-    delete from booking_faults where booking_id = b31 and source = 'test_ops_statement';
+    values (b31f, 'runner', 'test_ops_statement', rr);
+    select f.fee into v_fee from marketplace_cancel_fee(b31f) f;
     if v_fee is distinct from 0 then v_bad := v_bad || ' 기록된 과실에도 미면제=' || coalesce(v_fee::text, 'null'); end if;
     if v_bad = '' then
-      call _pass('lb', 'L31 도착 증거가 있으면 타이머 면제 없음 (12450 유지) — 그때는 기록된 과실만이 면제한다 (0원) (HIGH-4)');
-    else call _fail('lb', 'L31 도착 증거 vs 타이머', v_bad); end if;
-  exception when others then call _fail('lb', 'L31 도착 증거 vs 타이머', sqlerrm); end;
+      call _pass('lb', 'L31 arrived_at 증거가 있으면 타이머 면제 없음 (12450 유지) — 그때는 기록된 과실만이 면제한다 (0원) (HIGH-4)');
+    else call _fail('lb', 'L31 arrived_at 증거 vs 타이머', v_bad); end if;
+  exception when others then call _fail('lb', 'L31 arrived_at 증거 vs 타이머', sqlerrm); end;
+
+  -- [L31b] the OTHER evidence kind, on its own fixture: handoff stamps with no arrived_at
+  b31b := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+  update bookings set owner_confirmed_handoff_at = now() - interval '17 days' + interval '25 minutes',
+                      runner_confirmed_handoff_at = now() - interval '17 days' + interval '25 minutes'
+   where id = b31b;
+  begin
+    v_bad := '';
+    select f.fee into v_fee from marketplace_cancel_fee(b31b) f;
+    if v_fee is distinct from 12450
+      then v_bad := v_bad || ' 인계 도장 증거에도 면제=' || coalesce(v_fee::text, 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L31b 인계 도장 증거가 있으면 타이머 면제 없음 — arrived_at 이 없어도 (증거는 두 종류, 술어도 두 개, HIGH-4/F7)');
+    else call _fail('lb', 'L31b 인계 도장 증거 vs 타이머', v_bad); end if;
+  exception when others then call _fail('lb', 'L31b 인계 도장 증거 vs 타이머', sqlerrm); end;
 
   -- [L32] HIGH-8: the REAL cancel wins the race — the late genuine statement is refused
   --       loudly, never swallowed after persisting
@@ -986,8 +1081,18 @@ begin
     update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b33b;
     select b.cancel_fee into v_n from bookings b where b.id = b33b;
     if v_n is distinct from 0 then v_bad := v_bad || ' 실링 넘은 견적이 남음=' || coalesce(v_n::text, 'null'); end if;
+    -- [codex r2 F7] the CONFIRMED tiers, which round 1's en-route-only arms never touched:
+    -- a <24h cancel stores 10% over any claim, and a ≥24h cancel stores 0 over any claim.
+    b39c := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b39c;
+    select b.cancel_fee into v_n from bookings b where b.id = b39c;
+    if v_n is distinct from 2490 then v_bad := v_bad || ' 확정 24h내 저장=' || coalesce(v_n::text, 'null'); end if;
+    b39d := t_av_booking(oo, dg, rt, rr, now() + interval '48 hours', 5.0, 'confirmed');
+    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b39d;
+    select b.cancel_fee into v_n from bookings b where b.id = b39d;
+    if v_n is distinct from 0 then v_bad := v_bad || ' 확정 24h이전 저장=' || coalesce(v_n::text, 'null'); end if;
     if v_bad = '' then
-      call _pass('lb', 'L33 기록되는 수수료 = 쓰는 시점의 사다리 값 — 위조 99999→12450, 실링을 넘긴 낡은 12450→0 (§9c 트리거, 사다리 위임, HIGH-6)');
+      call _pass('lb', 'L33 기록되는 수수료 = 쓰는 시점의 사다리 값 — 인루트 위조 99999→12450·실링 넘긴 12450→0·확정 24h내 →2490·24h이전 →0 (§9c, 네 티어 전부, HIGH-6/F7)');
     else call _fail('lb', 'L33 수수료 진실 트리거', v_bad); end if;
   exception when others then call _fail('lb', 'L33 수수료 진실 트리거', sqlerrm); end;
 
@@ -1059,6 +1164,112 @@ begin
   exception when others then call _fail('lb', 'L36 삭제 벨트', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L37] codex r2 F1 — the CLOCK may return km, but it may not extend km's LIFETIME
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Refuted round 1's "pure unwind": `_km_close_hold` (0075:353) also pushes an ALREADY EXPIRED
+  -- lot to now()+72h — new spendable lifetime granted by a timer, 0068's forbidden direction.
+  -- Both ways in one pin: the CLOCK-caused terminal returns quantity and leaves the expiry in
+  -- the past; the HUMAN-caused terminal keeps 0075's grace (a person acted — the same class as
+  -- the owner cancel that has always extended).
+  ow37 := t_user('lb_ow37', 'owner'); dg37 := t_dog(ow37, '실링견');
+  lot37 := km_grant(ow37, 10, 'recovery', 1);
+  b37 := t_av_booking(ow37, dg37, rt, rr, now() - interval '17 days', 5.0, 'confirmed');
+  perform km_reserve(b37);                              -- hold taken while the lot was valid…
+  update km_lots set expires_at = now() - interval '1 day' where id = lot37;   -- …then it expired
+
+  ow37h := t_user('lb_ow37h', 'owner'); dg37h := t_dog(ow37h, '진술견');
+  lot37h := km_grant(ow37h, 10, 'recovery', 1);
+  b37h := t_av_booking(ow37h, dg37h, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+  perform km_reserve(b37h);
+  update km_lots set expires_at = now() - interval '1 day' where id = lot37h;
+  perform open_checkin(b37h);
+  perform set_config('request.jwt.claim.sub', ow37h::text, false);
+  v_js := answer_checkin(b37h, 'owner', 'cannot_proceed', '사람이 말한 종결');
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  perform late_booking_sweep();                          -- the ceiling resolves b37
+
+  begin
+    v_bad := '';
+    if (select b.status::text from bookings b where b.id = b37) is distinct from 'no_show'
+      then v_bad := v_bad || ' 실링 미해소'; end if;
+    -- quantity comes back — the unwind half still happens
+    select km_remaining, expires_at into v_km, v_exp from km_lots where id = lot37;
+    if v_km is distinct from 10 then v_bad := v_bad || ' km 미반환=' || coalesce(v_km::text, 'null'); end if;
+    -- …but the lifetime does not
+    if v_exp > now() then v_bad := v_bad || ' 시계가 수명을 연장함 (' || v_exp || ') — 0068 금지 방향'; end if;
+    -- the human-stated terminal KEEPS 0075's grace: the suppression is targeted, not blanket
+    select km_remaining, expires_at into v_km, v_exp2 from km_lots where id = lot37h;
+    if v_km is distinct from 10 then v_bad := v_bad || ' 진술측 km 미반환=' || coalesce(v_km::text, 'null'); end if;
+    if v_exp2 <= now() then v_bad := v_bad || ' 사람이 말했는데 0075 유예가 사라짐 (' || v_exp2 || ')'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L37 시계는 km을 돌려주되 수명을 늘리지 않는다 — 실링 종결은 만료를 과거로 남기고, 사람이 진술한 종결은 0075의 72h 유예를 그대로 받는다 (r2 F1)');
+    else call _fail('lb', 'L37 시계와 km 수명', v_bad); end if;
+  exception when others then call _fail('lb', 'L37 시계와 km 수명', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L39] codex r2 F3 — the MARKER travels with the FEE, and the marker is what pays
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- The split brain's root: the fee was corrected by SQL while the tier marker was chosen by
+  -- the edge's earlier quote, so a boundary-crossing cancel stored 10% with NO marker and the
+  -- runner's half was never written. One ladder read now writes both. The final arm proves the
+  -- marker actually reaches the money.
+  b39  := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours',  5.0, 'confirmed');
+  b39b := t_av_booking(oo, dg, rt, rr, now() + interval '48 hours', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    -- ⓐ <24h confirmed: the edge's stale ≥24h quote claims 0; the row must still carry the
+    --    10% tier AND its marker (round 1 stored the fee and left cancel_reason null)
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b39;
+    select b.cancel_fee, b.cancel_reason into v_n, v_txt from bookings b where b.id = b39;
+    if v_n is distinct from 2490 then v_bad := v_bad || ' ⓐ fee=' || coalesce(v_n::text, 'null'); end if;
+    if v_txt is distinct from 'owner_cancel_late' then v_bad := v_bad || ' ⓐ marker=' || coalesce(v_txt, 'null'); end if;
+    -- ⓑ ≥24h confirmed: free, and NO marker — a tier that pays nobody must not look like one
+    update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b39b;
+    select b.cancel_fee, b.cancel_reason into v_n, v_txt from bookings b where b.id = b39b;
+    if v_n is distinct from 0 then v_bad := v_bad || ' ⓑ fee=' || coalesce(v_n::text, 'null'); end if;
+    if v_txt is not null then v_bad := v_bad || ' ⓑ marker=' || v_txt; end if;
+    -- ⓒ en-route: the tier is recorded even when the ceiling waived the amount to 0
+    select b.cancel_reason into v_txt from bookings b where b.id = b33b;
+    if v_txt is distinct from 'owner_cancel_enroute' then v_bad := v_bad || ' ⓒ 면제된 인루트 marker=' || coalesce(v_txt, 'null'); end if;
+    -- ⓓ THE CONSEQUENCE: the stored marker is what the money reads. 0085 gates on it, so the
+    --    runner's half exists for ⓐ and cannot exist for ⓑ — this is the half that was silently
+    --    lost when the marker followed a dead quote.
+    select sh.comp into v_share from record_late_cancel_share(b39) sh;
+    if v_share is distinct from 1245 then v_bad := v_bad || ' ⓓ 러너 배분=' || coalesce(v_share::text, 'null'); end if;
+    select sh.comp into v_share from record_late_cancel_share(b39b) sh;
+    if v_share is distinct from 0 then v_bad := v_bad || ' ⓓ 무료 취소가 배분됨=' || coalesce(v_share::text, 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L39 마커는 수수료와 함께 이동한다 — 한 번의 사다리 읽기가 둘 다 쓰고(24h내 2490/late·24h이전 0/무마커·면제된 인루트도 티어 기록), 그 마커가 러너 배분 1245를 실제로 연다 (r2 F3의 뿌리)');
+    else call _fail('lb', 'L39 마커·수수료 동행', v_bad); end if;
+  exception when others then call _fail('lb', 'L39 마커·수수료 동행', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L40] codex r2 F6 — a deliberate ops correction is not clobbered
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  b40 := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    perform set_config('app.ops_cancel_fee_override', 'on', true);
+    update bookings set status = 'cancelled_owner', cancel_fee = 777 where id = b40;
+    perform set_config('app.ops_cancel_fee_override', '', true);
+    select b.cancel_fee into v_n from bookings b where b.id = b40;
+    if v_n is distinct from 777 then v_bad := v_bad || ' 운영 정정이 덮임=' || coalesce(v_n::text, 'null'); end if;
+    -- and with the override OFF the same shape is corrected — the exemption is deliberate,
+    -- not a hole that is always open
+    b39c := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+    update bookings set status = 'cancelled_owner', cancel_fee = 777 where id = b39c;
+    select b.cancel_fee into v_n from bookings b where b.id = b39c;
+    if v_n is distinct from 2490 then v_bad := v_bad || ' 무플래그인데 미정정=' || coalesce(v_n::text, 'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L40 의도된 운영 정정은 살아남는다 (app.ops_cancel_fee_override=on 한 트랜잭션) · 플래그 없으면 같은 문장도 사다리로 정정된다 (r2 F6)');
+    else call _fail('lb', 'L40 운영 정정 면제', v_bad); end if;
+  exception when others then
+    perform set_config('app.ops_cancel_fee_override', '', true);
+    call _fail('lb', 'L40 운영 정정 면제', sqlerrm);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed
   -- ══════════════════════════════════════════════════════════════════════════════════════
   begin
@@ -1086,10 +1297,17 @@ begin
     if has_function_privilege('service_role', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' svc open (제2의 시계)'; end if;
     if not has_function_privilege('service_role', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' svc¬sweep (스케줄러 폴백, MEDIUM-12)'; end if;
     if has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc custody'; end if;
-    if has_table_privilege('service_role', 'booking_checkins', 'UPDATE') then v_bad := v_bad || ' svc checkins U'; end if;
-    if has_table_privilege('service_role', 'booking_checkins', 'DELETE') then v_bad := v_bad || ' svc checkins D'; end if;
-    if has_table_privilege('service_role', 'booking_faults', 'UPDATE') then v_bad := v_bad || ' svc faults U'; end if;
-    if has_table_privilege('service_role', 'booking_faults', 'DELETE') then v_bad := v_bad || ' svc faults D'; end if;
+    -- [codex r2 F2] ALL FOUR write verbs, all three client-reachable roles. Round 1 revoked
+    -- only UPDATE/DELETE, leaving service_role able to INSERT a fabricated check-in (a fault
+    -- row waives money) and TRUNCATE the protocol's ledger. The definer functions own writes.
+    foreach v_txt in array array['anon', 'authenticated', 'service_role'] loop
+      foreach v_res in array array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] loop
+        if has_table_privilege(v_txt, 'booking_checkins', v_res)
+          then v_bad := v_bad || ' ' || v_txt || ' checkins ' || v_res; end if;
+        if has_table_privilege(v_txt, 'booking_faults', v_res)
+          then v_bad := v_bad || ' ' || v_txt || ' faults ' || v_res; end if;
+      end loop;
+    end loop;
     select count(*) into v_n from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
      where n2.nspname = 'public' and p2.proname = 'late_booking_sweep' and p2.prosrc like '%lock_timeout%';
     if v_n is distinct from 1 then v_bad := v_bad || ' 스위프 lock_timeout 없음 (MEDIUM-11)'; end if;

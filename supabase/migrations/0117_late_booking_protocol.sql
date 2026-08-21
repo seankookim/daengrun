@@ -9,6 +9,37 @@
 --                                                  statement
 -- Product numbers, Sean 2026-08-21, verbatim: "grace 30, ceiling 3 hours".
 --
+-- ═══ DEPLOY EFFECTS — what changes the moment this file is pushed [codex r2 F8] ═══════════
+-- Written because "it deploys inert" was said upward and was wrong. Only the CLOCK is behind
+-- ops_flags.late_protocol_live_since; everything else is live on push.
+--
+-- ① LIVE AT PUSH, changes behavior immediately:
+--    · `marketplace_cancel_fee` is REPLACED (§9). An en-route booking past the ceiling with no
+--      arrival/handoff evidence now quotes 0 instead of 50%. Sean's 2026-08-04 row is the
+--      known case; any other stale en-route row changes price the same way.
+--    · The §9c trigger attaches: every marketplace transition into `cancelled_owner` that
+--      carries a fee re-derives `cancel_fee` AND `cancel_reason` from the ladder. Stored
+--      numbers and tier markers change for cancels whose quote was stale or wrong.
+--    · `quote_cancel_fee` and `fetch_checkin` become callable by any authenticated party
+--      (reads only). `answer_checkin` becomes callable — but it raises `checkin_not_open`
+--      until a check-in row exists, and only the gated sweep creates one.
+--    · The new tables and the fault/checkin guards exist. Nothing writes to them yet.
+--    · ⚠ The paired edge deploy (`transition-booking`, cancel_owner.ts consuming the WRITTEN
+--      fee) belongs with this file: with the trigger live and the OLD edge, the stored fee is
+--      right while the response text and the runner-share decision still follow the old
+--      pre-write quote. Push them together, or push the edge first — it is correct against
+--      both ladders.
+--
+-- ② WAITS FOR THE FLAG (`update ops_flags set late_protocol_live_since = now()`):
+--    the sweep — arming check-ins, deadline resolutions, ceiling resolutions and every
+--    booking-status write this protocol performs. While NULL the sweep returns 0 and no
+--    booking changes status because of lateness. Flip it when ui5's stage-2 surface ships.
+--
+-- ③ UNREACHABLE WHILE CHARGING IS OFF (`payments_live_since` NULL): collection only —
+--    `mint_cancel_fee_intent` writes nothing, so no card is touched. Stored fees, markers,
+--    ledger comp rows and response copy are all REACHABLE — being uncollected is not the
+--    same as being unwritten, and the runner's ledger row is money to a human either way.
+--
 -- ─── STANDING DECISION THIS FILE MUST NOT OVERTURN: 0068_retire_t10_hard_stop ──────────────
 -- 0068 DELETED an automatic refund fired by a cron, because "refunding when the host closes
 -- the session is true; refunding ten minutes before it starts is false", and accepted a stuck
@@ -255,7 +286,12 @@ create trigger booking_checkins_no_delete
   before delete on booking_checkins
   for each row execute function _booking_checkins_no_delete();
 
-revoke update, delete on booking_checkins from anon, authenticated, service_role;
+revoke insert, update, delete, truncate on booking_checkins
+  from anon, authenticated, service_role;   -- [codex r2 F2] all four write verbs: the
+  -- definer functions own every write, so no role needs table-level DML. Round 1 revoked
+  -- only UPDATE/DELETE, which left service_role able to INSERT a fabricated check-in and
+  -- TRUNCATE the protocol's ledger — the guards bind writers, the grants bind roles, and
+  -- an immutability claim needs both.
 
 -- ═══ §3 booking_faults — D4's output, D5's constraint ═════════════════════════════════════
 create table booking_faults (
@@ -290,7 +326,10 @@ create trigger booking_faults_guard
   before update or delete on booking_faults
   for each row execute function _booking_faults_guard();
 
-revoke update, delete on booking_faults from anon, authenticated, service_role;
+revoke insert, update, delete, truncate on booking_faults
+  from anon, authenticated, service_role;   -- [codex r2 F2] same, and it matters more here:
+  -- a fabricated fault row waives money (§9), and a TRUNCATE erases the statements that
+  -- justify a waiver already granted.
 -- SEALED like §2: no client surface. Money reads it through enroute_cancel_fee_waived (§9);
 -- future settlement reads it server-side. Silence can never appear here (D5) because the only
 -- writer records a party's own statement and stated_by refuses NULL structurally.
@@ -392,6 +431,7 @@ declare
   b record; c record;
   v_custody text; v_resolution text; v_terminal text;
   v_any_cannot boolean; v_both_proceed boolean; v_backfill boolean := false;
+  v_lot_ids uuid[]; v_lot_exp timestamptz[];
 begin
   if p_cause not in ('answer', 'deadline', 'ceiling') then raise exception 'bad_cause'; end if;
 
@@ -502,17 +542,39 @@ begin
   -- ─── the terminal — a STATUS, never money (0068's law; the file header owns the argument).
   -- enforce_booking_transition validates the edge (confirmed/runner_enroute → no_show,
   -- picked_up/active → incident_review are all in 0066 §1's map).
-  -- [codex HIGH-2, analyzed] the no_show write fires 0075 §K's km_release_on_terminal.
-  -- That is NOT 0068's class: km_release nets the booking's OPEN HOLD (booking_reserve less
-  -- releases/debits; v_held <= 0 returns 0) and closes it via _km_close_hold — it can only
-  -- return km the booking itself reserved, mints nothing, and 0075 §K was built expressly so
-  -- that EVERY terminal path, including future ones, unwinds the hold ("트리거는 미래의 종결
-  -- 경로까지 덮는다"). A hold-unwind on a timer is the slot-holds class (0060 ③-2: pure
-  -- cleanup), not an automatic refund of paid money — pre-cutover no km holds exist at all.
-  -- Suite 152 L9 asserts the no-hold case writes zero km_ledger rows; the release mechanics
-  -- themselves are suite 113's pins.
+  -- [codex r2 F1 — my round-1 analysis was REFUTED, with the mechanism, and this is the fix]
+  -- The no_show write fires 0075 §K's km_release_on_terminal → km_release → `_km_close_hold`,
+  -- and that function does NOT merely return quantity: `0075:353-358` also EXTENDS an already
+  -- EXPIRED lot to `now() + interval '72 hours'`. Returning held km is a pure unwind; handing
+  -- back 72 hours of new spendable lifetime is VALUE CREATED BY A TIMER — 0068's forbidden
+  -- direction, and my round-1 note ("a pure hold-unwind") was wrong about the second half.
+  --
+  -- The fix keeps ONE copy of the netting rule (0075 owns `_km_close_hold`; this file
+  -- re-creates nothing of 0075's — REGISTRY's silent-collision law): for a CLOCK-CAUSED
+  -- terminal we snapshot the owner's already-expired lots before the status write and restore
+  -- their `expires_at` after it. Quantity comes back; lifetime does not. Only lots that are
+  -- ALREADY expired can be extended by that arm (its own `expires_at <= now()` condition), so
+  -- the snapshot is exactly the affected set — precise and complete.
+  --
+  -- HUMAN-caused terminals (`cannot_proceed`) keep 0075's grace deliberately: there a person
+  -- acted, which is the same class as the owner cancel that already extends. The clock never
+  -- gets to grant it. An operator who wants to extend a lot can still do it deliberately —
+  -- what is refused is the extension nobody asked for.
+  if v_resolution in ('ceiling', 'ceiling_backfill', 'void') then
+    select array_agg(l.id), array_agg(l.expires_at) into v_lot_ids, v_lot_exp
+    from km_lots l
+    where l.profile_id = b.owner_id and l.expires_at is not null and l.expires_at <= now();
+  end if;
   if v_terminal is not null then
     update bookings set status = v_terminal::booking_status where id = p_booking;
+
+    -- …and the clock's grace is taken back (F1 above). `is distinct from` keeps this a no-op
+    -- in the ordinary case where nothing was extended.
+    if v_lot_ids is not null then
+      update km_lots l set expires_at = x.exp
+      from unnest(v_lot_ids, v_lot_exp) as x(id, exp)
+      where l.id = x.id and l.expires_at is distinct from x.exp;
+    end if;
 
     insert into notifications (profile_id, kind, title, body, ref_id)
     select p.profile_id,
@@ -579,28 +641,40 @@ begin
 
   if b.club_session_id is not null then raise exception 'club_out_of_scope'; end if;
 
-  -- [codex HIGH-8] a booking that has left the protocol's states takes no further answers —
-  -- when the real 50% cancel wins the race against a genuine cannot_proceed, the late answer
-  -- is refused LOUDLY here, before anything persists; it must not be swallowed into a
-  -- superseded resolution that reads as if the statement were considered.
-  if b.status not in ('confirmed', 'runner_enroute', 'picked_up', 'active') then
-    raise exception 'not_late_eligible';
-  end if;
-
   select * into c from booking_checkins bc
    where bc.booking_id = p_booking for update;                      -- checkin ②
   if c.booking_id is null then raise exception 'checkin_not_open'; end if;
 
   -- idempotent on replay (§12): the SAME side re-sending the SAME answer is the same tap —
   -- answered state returned, nothing rewritten, server timestamp untouched.
+  -- ⚠ THIS SITS ABOVE EVERY STATE GATE, and that ordering is this repo's own law: 0083's
+  -- `_settle_sealed_run` ① and `confirm_return_tx` both answer "already done" before they
+  -- refuse on status ("idempotence BEFORE the state gate (110 S3's law)"). A client retrying
+  -- a call that already SUCCEEDED — and whose success is what terminated the booking — cannot
+  -- distinguish its own landed answer from a lost one, so raising here would punish the
+  -- retry for having worked. A replay of an identical recorded statement is not a new
+  -- statement; the gate below exists for new ones.
   if (p_side = 'owner'  and c.owner_answer  = p_answer::checkin_answer)
   or (p_side = 'runner' and c.runner_answer = p_answer::checkin_answer) then
     return fetch_checkin(p_booking);
   end if;
 
   -- resolved check-ins take no further answers (FM8: offered actions expire with the
-  -- check-in; a late response never retracts a resolution).
+  -- check-in; a late response never retracts a resolution). This sits ABOVE the state gate
+  -- deliberately: when a check-in resolved and its own terminal moved the booking, BOTH
+  -- refusals are true, and the protocol's own record is the more specific answer — it names
+  -- what closed the window rather than what the window's closing caused.
   if c.resolved_at is not null then raise exception 'checkin_resolved'; end if;
+
+  -- [codex HIGH-8] a booking that left the protocol's states by SOMEONE ELSE'S path takes no
+  -- new answers either — when the real 50% cancel wins the race against a genuine
+  -- cannot_proceed, the late answer is refused LOUDLY here, before anything persists, instead
+  -- of being swallowed into a superseded resolution that reads as if it were considered.
+  -- Reached exactly when the check-in is still OPEN and the booking is already gone, which is
+  -- that race and nothing else.
+  if b.status not in ('confirmed', 'runner_enroute', 'picked_up', 'active') then
+    raise exception 'not_late_eligible';
+  end if;
 
   -- per-side IMMUTABLE, first write wins (§12): a different second answer is refused, not
   -- merged, not overwritten.
@@ -716,9 +790,14 @@ server_now (so no countdown trusts a phone clock).';
 -- a sweep that armed at deploy would open check-ins nobody can answer and void bookings on a
 -- prompt that never rendered — FM2's exact failure, self-inflicted. ops_flags gains
 -- late_protocol_live_since (payments_live_since's idiom: a MOMENT, not a boolean, NULL until
--- Sean sets it) and the sweep returns 0 while it is null. 0117 therefore lands and deploys
--- inert; Sean flips the switch when ui5's stage-2 client half ships. Cron registration below
--- is unconditional — a registered tick on a gated sweep is a no-op, not a clock.
+-- Sean sets it) and the sweep returns 0 while it is null. Cron registration below is
+-- unconditional — a registered tick on a gated sweep is a no-op, not a clock.
+--
+-- ⚠ [codex r2 F8] THE FLAG GATES THE CLOCK, NOT THE FILE. An earlier draft of this comment
+-- said "0117 lands and deploys inert", and that was FALSE — it contradicted §9's own sentence
+-- two hundred lines below. The file's DEPLOY EFFECTS are written out at the head of this
+-- migration; read them there. Charging being off (payments_live_since) prevents COLLECTION,
+-- not a wrong stored number, a wrong response or a wrong runner-share decision.
 alter table ops_flags add column if not exists late_protocol_live_since timestamptz;
 comment on column ops_flags.late_protocol_live_since is
   '0117: NULL = the late-booking clock is off (sweep returns 0 — no check-ins open, no
@@ -853,11 +932,13 @@ end $$;
 --     booking with a runner fault is not producible by this file alone — the arm is
 --     defense-in-depth for the fault table's future human writers (ops adjudication), and the
 --     predicate is specified against the STATE, not against today's writers.
---   · the ceiling has passed (late_ceiling_at ≤ now()): the departure story is dead no matter
---     what was or wasn't recorded. THIS is the honest fallback for every booking that
---     predates the protocol — it needs no checkin row and no fault row, only scheduled_at,
---     so the 2026-08-04 row (runner_enroute, 17 days stale) quotes 0 the moment this file
---     lands, sweep or no sweep.
+--   · the ceiling has passed (late_ceiling_at ≤ now()) with no arrival or handoff evidence on
+--     the row: the departure story is dead no matter what was or wasn't recorded. THIS is the
+--     honest fallback for every booking that predates the protocol — it needs no checkin row
+--     and no fault row, only scheduled_at, so the 2026-08-04 row (runner_enroute, 17 days
+--     stale) quotes 0 the moment this file lands, sweep or no sweep. ⚠ That sentence is
+--     exactly why "the flag makes this file inert" is false, and it is listed as an
+--     AT-PUSH-TIME behavior change in the DEPLOY EFFECTS block at the head of the file.
 -- Fee 0 also zeroes the runner's compensation automatically: record_enroute_cancel_comp
 -- (0080 §K) reads bookings.cancel_fee and refuses fee ≤ 0 — no second rule needed, and none
 -- added (the comp writers are NOT touched).
@@ -983,8 +1064,31 @@ create or replace function _booking_cancel_fee_truth() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 declare v_fee int;
 begin
+  -- [codex r2 F6] the deliberate ops correction. Round 1 clobbered a one-statement operator
+  -- fix of a wrong stored fee — the trigger would recompute it right back. An ops write says
+  -- so, in the same transaction, and owns the number it writes:
+  --     set local app.ops_cancel_fee_override = 'on';
+  --     update bookings set status = 'cancelled_owner', cancel_fee = <n> where id = …;
+  -- Nothing client-side can reach this: GUCs are per-session and the client never opens one.
+  if coalesce(current_setting('app.ops_cancel_fee_override', true), '') = 'on' then
+    return new;
+  end if;
+
   select f.fee into v_fee from marketplace_cancel_fee(old.id) f;
   new.cancel_fee := v_fee;
+  -- [codex r2 F3] THE MARKER TRAVELS WITH THE FEE, in the same statement, from the same read.
+  -- The tier marker is what selects the downstream consequence (0080 §K gates the en-route
+  -- compensation on 'owner_cancel_enroute'; 0085 gates the runner's half on
+  -- 'owner_cancel_late'), so a fee corrected here while the marker was chosen by someone
+  -- else's earlier quote is precisely the split brain: stored 10% with no marker pays the
+  -- runner nothing. One statement, one read of the ladder, fee and consequence together.
+  -- The en-route marker is written even at a waived 0 because it records the TIER, and both
+  -- comp writers already refuse fee <= 0 on their own.
+  new.cancel_reason := case
+    when old.status = 'runner_enroute' then 'owner_cancel_enroute'
+    when v_fee > 0                     then 'owner_cancel_late'
+    else null
+  end;
   return new;
 end $$;
 
@@ -1001,10 +1105,12 @@ create trigger booking_cancel_fee_truth
   execute function _booking_cancel_fee_truth();
 
 comment on function _booking_cancel_fee_truth is
-  '0117 §9c (codex HIGH-6): 마켓플레이스 예약이 cancelled_owner 로 전이하는 그 문장에서
-cancel_fee 를 사다리(marketplace_cancel_fee)로 재산출한다 — 기록되는 수수료는 언제나 쓰는
-시점의 수수료다, 견적 시점이 아니라. BEFORE UPDATE 는 전이 전 행을 읽으므로 CAS 가 맞춘
-상태로 가격한다. 사다리 위임 — 사본 없음. 클럽 제외 (클럽 사다리는 club_config).';
+  '0117 §9c (codex HIGH-6 + r2 F3/F6): 마켓플레이스 예약이 cancelled_owner 로 전이하는 그
+문장에서 cancel_fee 와 티어 마커(cancel_reason)를 사다리 한 번 읽어 함께 쓴다 — 기록되는
+수수료도, 그 수수료의 결과(러너 보상·배분·청구)도 하나의 숫자가 정한다. BEFORE UPDATE 는
+전이 전 행을 읽으므로 CAS 가 맞춘 상태로 가격한다. 사다리 위임 — 사본 없음. 클럽 제외.
+운영 정정은 같은 트랜잭션에서 app.ops_cancel_fee_override = ''on'' 으로 이 트리거를 비켜간다
+(그 문장이 쓰는 숫자를 그 문장이 책임진다).';
 
 comment on function quote_cancel_fee is
   '0117 §9b (Sean 2026-08-21, reversing 0066:89''s no-client-quote posture): party-gated

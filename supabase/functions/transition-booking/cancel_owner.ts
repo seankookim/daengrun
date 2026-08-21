@@ -83,13 +83,17 @@ export async function cancelOwner(
   // a confirmed booking cancelled inside 24h, fee 10%, HALF of it the runner's (0085). Written
   // only when there is a fee to split — a ≥24h or unmatched cancel is free, has no runner
   // share, and must not carry a marker that would make 0085 look at it.
-  const lateShareTier = quoted !== "runner_enroute" && fee > 0;
+  // [0117 §9c / codex r2 F3] THE TIER MARKER IS NO LONGER WRITTEN HERE. `cancel_reason` is
+  // derived by the SQL trigger from the same ladder read that writes `cancel_fee`, because the
+  // marker is what selects the downstream consequence and a marker chosen from THIS quote
+  // while the fee was corrected by SQL is the split brain: a cancel that crosses the 24h
+  // boundary between quote and write quoted 0, stored 10%, wrote no marker, paid the runner
+  // nothing and told the owner "no charge" — with the row saying otherwise.
+  // `cancel_fee: fee` stays as the CLAIM that arms the trigger (its WHEN clause requires a
+  // fee-carrying cancel so a status-only ops flip is left alone); the trigger overwrites it
+  // with the truth. Everything below reads the row back and branches off THAT.
   const { data: done, error: ce } = await db.from("bookings")
-    .update({
-      status: "cancelled_owner", cancel_fee: fee,
-      ...(quoted === "runner_enroute" ? { cancel_reason: "owner_cancel_enroute" } : {}),
-      ...(lateShareTier ? { cancel_reason: "owner_cancel_late" } : {}),
-    })
+    .update({ status: "cancelled_owner", cancel_fee: fee })
     .eq("id", bookingId).eq("status", quoted).select("id");
   if (ce) throw new HttpError(409, ce.message);
   if (!done || done.length === 0) {
@@ -97,13 +101,38 @@ export async function cancelOwner(
   }
 
   // ══ Cancelled. Everything below is money, and money never unwinds the cancel. ══
+  // [codex r2 F3] ONE NUMBER DECIDES EVERYTHING DOWNSTREAM, and it is the number in the ROW.
+  // Re-read after the CAS, in the same request: the trigger has by now written the fee and the
+  // tier marker from a single ladder read against the status the CAS actually matched. The
+  // response, the two comp writers and the mint all branch off these values; `fee`/`quoted`
+  // above are only what we asked for.
+  // If the re-read itself fails we fall back to the quote and say so in the log — the cancel is
+  // already committed and must not fail, and the SQL comp writers gate on the STORED marker
+  // anyway, so a stale local number cannot pay anyone the wrong amount (it can only make this
+  // response and the copy less accurate than the row, which the log then names).
+  const { data: stored, error: se } = await db.from("bookings")
+    .select("cancel_fee, cancel_reason").eq("id", bookingId).maybeSingle();
+  if (se) {
+    console.error(`[transition] stored-fee re-read failed booking=${bookingId}: ${se.message}`);
+  }
+  const storedFee = se || !stored ? fee : Number((stored as Booking).cancel_fee ?? 0);
+  const storedReason = se || !stored ? null : ((stored as Booking).cancel_reason ?? null);
+  if (!se && storedFee !== fee) {
+    // Not an error — this is the trigger doing its job across a boundary the quote missed.
+    console.log(
+      `[transition] cancel fee corrected booking=${bookingId} quoted=${fee} stored=${storedFee}` +
+        ` reason=${storedReason ?? "none"}`,
+    );
+  }
   // Order: the runner's ledger row, then the two humans are told, then we talk to Toss. A billing
   // call that hangs must not delay the runner's push, and the en-route sentence below claims the
   // compensation is recorded — so the record is written before the sentence is spoken.
-  const compRecorded = quoted === "runner_enroute" ? await compensateRunner(db, bookingId) : false;
+  const compRecorded = storedReason === "owner_cancel_enroute"
+    ? await compensateRunner(db, bookingId)
+    : false;
   // [0085 ⑩] The 10% tier's half. Same contract as compensateRunner: never throws, never
   // unwinds the cancel, and returns the amount only when a row exists to back the sentence.
-  const lateShare = lateShareTier ? await shareLateCancelFee(db, bookingId) : 0;
+  const lateShare = storedReason === "owner_cancel_late" ? await shareLateCancelFee(db, bookingId) : 0;
 
   if (bk.runner_id) {
     // En-route copy tells the runner compensation is owed — recorded fact only, no payout
@@ -123,7 +152,7 @@ export async function cancelOwner(
     await notify(
       bk.runner_id,
       lateShare > 0 ? "시간을 비워둔 보상이 기록됐어요" : "예약 취소됨",
-      quoted === "runner_enroute" && compRecorded
+      storedReason === "owner_cancel_enroute" && compRecorded
         ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
         : lateShare > 0
         ? `보호자가 예약을 취소했어요. 비워두신 시간에 대해 취소 수수료의 절반인 ${lateShare.toLocaleString("ko-KR")}원이 보상으로 기록됐어요`
@@ -131,8 +160,8 @@ export async function cancelOwner(
     );
   }
 
-  await collectCancelFee(db, bookingId, fee);
-  return { cancel_fee: fee };
+  await collectCancelFee(db, bookingId, storedFee);
+  return { cancel_fee: storedFee };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
