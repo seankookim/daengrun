@@ -4,6 +4,28 @@ Generated 2026-08-19 against `plan-route.mjs` at md5 `76f2977` (the revision tha
 복개천 and fixes the `구로구 → "로구"` label bug). Regenerate if that script changes again —
 it was rewritten twice while this file was being produced.
 
+> **⚠ THAT SELF-CHECK IS TRIPPED — measured 2026-08-21. The script HAS changed again, and this
+> file was not regenerated.**
+>
+> ```
+> md5 docs/routes/geo/plan-route.mjs        -> a2388bcf8f2bf3fb36a7e83c5e576230   (today)
+> same file at 2530383 (this file's commit) -> 76f29770c220b54af99c5bab32b7d53b   (matches above)
+> ```
+>
+> The change is `d2d9bf4` (2026-08-19 18:16, ~4 h after this file was generated): it added a
+> `GENERIC` name filter that flags park names which resolve somewhere else entirely —
+> 어울림/중앙/근린/체육/생태/시민/평화/호수/가족/문화 공원. That was earned by a 강서 route measuring
+> **27.64 km** off `어울림공원`, the same class as a bare river name (`안양천` → 12.96 km, cured by
+> naming a bridge). **The flags are advisory, not exclusions**, so the 135 plans below are not
+> wrong — but any plan here whose destination matches that pattern is unflagged in this file and
+> would be flagged if regenerated. Treat a generic 공원 destination below with the suspicion the
+> current script would have printed for you.
+>
+> This file was NOT regenerated as part of that note: regenerating changes plan text that
+> `BUILD-QUEUE.md` and `DEPTH-PLANS.md` were derived against, and both are already exhausted. The
+> next session that wants a fresh queue should regenerate then, in one move, and re-derive the
+> queue from the output.
+
 Source data: the residential harvest is now **complete at 25/25 구** (12,582 unique complexes);
 `features.json` already covered all 25.
 

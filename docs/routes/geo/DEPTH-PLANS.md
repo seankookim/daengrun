@@ -1,5 +1,19 @@
 # DEPTH-PLANS — a second route, at a different km, for the 14 one-route towns
 
+> **⚠ CORRECTION 2026-08-21 — EXHAUSTED, like `BUILD-QUEUE.md`. Not a work list any more.**
+> Measured today against `docs/routes/strava/manifest.psv`: **13 of the 14 destinations are
+> built**, and the fourteenth was built through this file's own documented fallback —
+> **성북 하늘다리 보문** shipped as **`성북 불빛다리 보문 루프 3.94km`**, because `하늘다리`
+> resolved **18.82 km** away, exactly the risk the "names not confident of geocoding" list at the
+> bottom flagged. So the file is 14 for 14, and the fallback rule is the reason.
+> `docs/routes/strava/NEXT-SESSION.md` (2026-08-20) reports the wider depth pass as done,
+> **18 single-route towns → 4**, of which the remaining four are structural, not gaps
+> (광장동's river slot is closed — no north-bank 나들목 — and 송파동/방이동/장안동 are truthful-label
+> splits). ⚠ Same matching trap as BUILD-QUEUE: **match by destination, not by the base names
+> here.** `build-route.sh` appends the measured km, so `성북 … 루프` never appears verbatim.
+> What is still worth reading: the method restated below (it is Sean's, from the 31-route review),
+> and the geocoding-risk list at the end — findings, not tasks.
+
 Written 2026-08-20. Input: the 14 towns that carry exactly ONE candidate route and need a
 second at a different distance, because the owner's km dial varies and a town with one route
 answers only one dial position.
