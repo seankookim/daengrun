@@ -58,6 +58,32 @@
 --      the post-custody dark case all refuse a fault row nobody stated.
 --   M15 no-row fetch answer reverted to the bare {open:false}
 --      (coordinator amendment, 2026-08-21; green then 753/0)     → 752/1 RED=[L19] alone
+--   ─── the codex FIX-FIRST round (L28–L36 + L9/L14/L30 extensions), measured on the rebased
+--       tree (green 769/0; each mutation alone, full harness, per-run _t dumped in-task) ───
+--   M22 quote_cancel_fee's no-oracle raise neutralized              → 768/1 RED=[L26]
+--   M23 answer_checkin regains the server-caller exemption (the
+--       pre-CRIT-7 shape)                                           → 768/1 RED=[L28] — the red's
+--       detail shows the full fabrication: answer accepted, persisted, fault row born humanless
+--   M24 _checkin_custody loses the stamps arm                       → 768/1 RED=[L29] (양도장 미승격=no_show)
+--   M25 the sweep's late_protocol_live_since gate deleted           → 768/1 RED=[L30]
+--   M26 the waiver's arrival-evidence conditions deleted            → 768/1 RED=[L31] (면제=0 — the
+--       timer strips the runner's 0066 entitlement, exactly HIGH-4's sentence)
+--   M27 answer_checkin's left-protocol state gate deleted           → 768/1 RED=[L32]
+--   M28 the §9c fee-truth trigger never attaches                    → 768/1 RED=[L33] (both arms:
+--       forged 99999 survives, the past-ceiling stale 12450 survives)
+--   M29 the backfill grace margin deleted                           → 768/1 RED=[L34]
+--   M29b the backfill cause token reverts to 'ceiling'              → 767/2 RED=[L9, L34] — the
+--       token is owned by both readers of the record, coherently
+--   M30 the two DELETE guards never attach                          → 768/1 RED=[L36]
+--   M31 booking_faults.stated_by loses NOT NULL                     → 768/1 RED=[L35]
+--   ⚠ Two earlier readings of this round (766/3, 767/2 with phantom [L30, L12b] reds carrying
+--   two DIFFERENT frozen now() values inside one _t) were cluster-contention braids — two
+--   harness runs racing one postmaster, the exact shared-machine class harness.sh's header
+--   records. Every number above is from a run whose _t was dumped by the same task on an
+--   uncontended cluster. The round's two REAL collaterals, both fixed before landing: 113 K7
+--   (the fee trigger repriced a fee-less km fixture → trigger narrowed to fee-carrying
+--   cancels) and 99 S1 (a definer trigger function → made invoker, enforce_booking_transition's
+--   shape).
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
