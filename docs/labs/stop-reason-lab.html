@@ -158,6 +158,72 @@
   </div>
 </div>
 
+<h2 style="margin:34px 0 4px;font-size:17px;font-weight:800;border-bottom:1.5px solid var(--ink);padding-bottom:7px">
+  ④ 두 갈래 — codex 안, <span style="color:var(--coral)">현재 추천</span></h2>
+
+<div class="grid">
+  <div class="card rec" style="max-width:560px">
+    <div class="cardhd"><div class="num">④ 게이트 없음 · 결합 없음</div>
+      <h3>도움과 사유를 분리한다</h3>
+      <p>긴급은 항상 보이고 즉시 작동합니다 — 예약을 끝내지도, 사건을 분류하지도 않습니다.
+         사유는 그 아래에서 고른 뒤 확인합니다 (불변 기록이니까).</p></div>
+    <div class="phone">
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="head" style="margin-bottom:10px">무슨 일이 있었나요?</div>
+
+        <div style="border:2px solid var(--critical);background:var(--criticalWash);padding:13px">
+          <div style="font-size:17px;font-weight:800;color:var(--critical)">긴급 도움</div>
+          <div style="font-size:12.5px;color:#8C3722;margin-top:3px;line-height:1.45">
+            초코나 제가 다쳤거나 지금 위험해요</div>
+          <div style="display:flex;gap:7px;margin-top:10px">
+            <div style="flex:1;border:1.5px solid var(--critical);color:var(--critical);background:#fff;
+                        padding:10px;text-align:center;font-weight:800;font-size:14.5px">119 전화</div>
+            <div style="flex:1;background:var(--critical);color:#fff;padding:10px;text-align:center;
+                        font-weight:800;font-size:14.5px">상대방에게 알림</div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:#EFEEEA;margin:14px 0"></div>
+
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:.12em;color:#8A8A82">중단 사유 · 선택</div>
+        <div class="sub2" style="margin-top:4px">상대방도 이 내용을 확인해요. 사유 입력은 선택이에요.</div>
+        <div class="chips">
+          <div class="chip" style="background:#111;color:#fff">초코 상태</div>
+          <div class="chip">제 부상</div>
+          <div class="chip">주변 안전</div>
+          <div class="chip">개인 사정</div>
+          <div class="chip">직접 입력</div>
+        </div>
+        <div class="inkb" style="margin-top:11px">러닝 중단 알리기</div>
+        <div class="skip">사유 없이 중단 알리기</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="taps">긴급 = 탭 1회, 언제나</span> &nbsp;<span class="taps">사유 = 탭 2회</span><br>
+      <span class="pro">왜 낫나</span> ①의 결합이 사라집니다 — 긴급은 되돌릴 필요가 없고(예약을 건드리지
+      않으니까), 사유는 되돌릴 필요가 없습니다(확인 단계가 있으니까). 각자 맞는 안전장치를 갖습니다.<br>
+      <span class="pro">칩</span> 진단이 아니라 넓은 사실 범주입니다. 「초코 상태」는 러너가 관찰한 것이고,
+      「아이가 아파요」는 러너가 <b>진단</b>한 것입니다 — 후자를 불변 기록으로 남기면 안 됩니다.<br>
+      <span class="con">약점</span> 화면이 가장 붐빕니다. 그리고 긴급을 누른 사람이 사유를 영영 안 적을 수
+      있는데, <b>그건 허용입니다</b>: 물었고, 안전이 먼저였고, 침묵은 여전히 과실이 아닙니다 (D5).
+    </div>
+  </div>
+</div>
+
+<div class="note" style="border:2px solid var(--ink)">
+  <h4>⚠ 119 를 적으려면 진짜여야 합니다</h4>
+  <b>「119 전화」는 <code>tel:119</code> 링크일 때만 정직합니다</b> — 기기의 다이얼러를 여는 것이지
+  앱이 어디론가 신고하는 게 아닙니다. 그리고 <b>「상대방에게 알림」이 <code>sendSOS</code>가 실제로
+  하는 전부입니다</b> (api.ts:2935 — 상대방 <code>notifications</code> 행 하나). 오늘 랩 ③에서
+  「운영팀이 바로 확인해요」라고 썼다가 정정한 게 정확히 이 지점입니다.
+  <div class="hair" style="height:1px;background:#EFEEEA;margin:9px 0"></div>
+  <b>그리고 정책 불변식 하나를 지금 적어야 합니다</b> (codex 지적, 동의):
+  <br><b>「사유 없음」은 그 자체로 불리한 추정이나 다른 요금을 만들지 않는다.</b>
+  <br>이게 없으면 <code>cannot_proceed</code>가 사유와 무관하게 fault 행을 만드는 이상,
+  “답은 선택”은 시간이 지나면 거짓이 됩니다. 서버가 아니라 <b>정책</b>에 적어야 하는 문장입니다.
+</div>
+
 <div class="note" style="border:2px solid var(--coral)">
   <h4 style="color:var(--coral)">⚠ 정정 — codex 리뷰 후 제 추천을 철회합니다 (①  →  ②)</h4>
   랩을 올린 뒤 codex 에 전체 맥락을 주고 공격을 부탁했고, <b>①을 기각했습니다. 동의합니다.</b>
