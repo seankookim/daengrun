@@ -102,7 +102,7 @@ Targets: demand = owners of high-energy breeds (보더콜리, 웰시코기, 리�
 **Vocabulary law, enforced:** use 러닝 · 운동 · 페이스 · 기록 · 체력 · 크루 · 피트니스. Never
 산책 · 대행 · 돌봄 · 시터 (`docs/positioning.md:44`). This has already bitten once: the payment-gateway
 `orderName` string in `supabase/functions/_shared/charge.ts:117-118` prints 「댕런 산책 이용료」 on a card
-statement — both a retired brand name and a banned word. Still unfixed; see Part 3, item **B-2**.
+statement — both a retired brand name and a banned word. Still unfixed; see Part 3, item **P-5**.
 
 Moat, as written: (1) runner brand/community identity; (2) dog fitness data (breed-level pace,
 recovery, cumulative km); (3) live trust stack (GPS + bodycam, live not retrospective).
@@ -131,7 +131,7 @@ What the pilot is NOT, and this is the single most important operational fact fo
   [from-doc `docs/decisions/awaiting-sean.md:274-283`]
 - **Consequently `billing_keys` is empty and "no card registered" is not an edge case — it is what
   every owner sees, every time, for the whole pilot** (§9 of the queue). The screen currently says
-  「준비 중」 and stops; what it *should* say is still open and is Sean's (Part 3, item **P-6**).
+  「준비 중」 and stops; what it *should* say is still open and is Sean's (Part 3, item **P-4**).
 
 ## 1.3 The owner journey, end to end
 
@@ -180,11 +180,11 @@ Narrative, with the decisions that shaped each step:
 
 1. **Launch / role select** — `app/app/index.tsx`. One app, role toggle at signup, switchable later
    (many runners are also owners). [from-doc `docs/product-notes.md`]
-2. **Sign-in** — **Kakao only.** Ruled by Sean 2026-08-15 (Part 2, ruling **R-9**). The email OTP
+2. **Sign-in** — **Kakao only.** Ruled by Sean 2026-08-15 (Part 2, ruling **R-19**). The email OTP
    door was removed from the client; **the server toggle has never been flipped** and email signup
-   is still open server-side (Part 3, item **E-1**). SMS/phone sign-in has never existed and is
+   is still open server-side (Part 3, item **E-2**). SMS/phone sign-in has never existed and is
    deferred past the pilot.
-3. **Onboarding** — Sean ruled 2026-08-19 (ruling **R-16 / journey #2**) that onboarding must gain
+3. **Onboarding** — Sean ruled 2026-08-19 (ruling **R-22 / journey #2**) that onboarding must gain
    **two required things**: owner → home/starting address; runner → home-base location **plus GPS
    permission requested during onboarding**, not deferred to first run. Also ruled: a
    **post-first-run "finish your profile" nudge**, after the first run has taken off, never before
@@ -192,7 +192,7 @@ Narrative, with the decisions that shaped each step:
 4. **Dog profile** — `app/app/owner/dog.tsx`. Auto-creation of a dog at first booking was
    deliberately retired; the honest copy is a registration invitation. Note a live gap: **맹견
    (statutorily dangerous dogs) appears nowhere in client, schema or migrations** — no field, no
-   booking-time refusal (Part 5, **U-31**).
+   booking-time refusal (Part 5, **U-53**).
 5. **Request** — `app/app/owner/request.tsx`, a deliberately **one-screen** flow (dog / distance
    dial / pace / time / pickup / options with live price), not a 7-step wizard. Decided 2026-07-22
    (`docs/calendar.md`). The distance **dial** is the price input: `bookings.km` comes from the
@@ -206,7 +206,7 @@ Narrative, with the decisions that shaped each step:
    **nearest path**; the runner is led from the pickup to the **nearest point ON the route** (the
    entry), and the lap starts there. Ruling **#15** then settled that the **approach leg counts
    toward the booked km**, and route selection must show km **including** it. Both verbatim in
-   Part 2 (**R-18**, **R-19**).
+   Part 2 (**R-24**, **R-25**).
 7. **Matching / radar** — after the hold, the booking goes to `matching` and the owner watches a
    radar screen. Sean asked what the radar looks like and asked for a **radar animation**, with an
    explicit constraint: *animation ≠ counter*, no ticking clock (#7).
@@ -222,7 +222,7 @@ Narrative, with the decisions that shaped each step:
     reservation path is home → slots → **예상 금액 shown ONCE** → radar. No money screen mid-flow.
     Built and deployed as O-5 (Part 3).
 12. **Rebooking** — the PMF gate. Recurring bookings (`recurring_series`) exist server-side and are
-    fired by an hourly cron; the recurring-bookings **UX** is largely unbuilt (Part 5, **U-19**).
+    fired by an hourly cron; the recurring-bookings **UX** is largely unbuilt (Part 5, **U-110**).
 
 ## 1.4 The runner journey, end to end
 
@@ -282,7 +282,7 @@ Narrative:
 1. **Recruitment / certification funnel** — `docs/plans/runner-funnel-plan.md` (969 lines) and
    `docs/specs/runner-cert-funnel-spec.md` (621 lines). `runner_applications` exists (`0062`).
    The approval RPC persists consent (`0062:81-83`, `not null`) but **not the consent version** —
-   legal's finding; the location-consent gate must be built versioned (Part 5, **U-27**).
+   legal's finding; the location-consent gate must be built versioned (Part 5, **U-159**).
    `runner_app_contact_present` (`0062:97`) requires **kakao OR phone**, so a runner can be fully
    approved having given only a KakaoTalk ID. [measured, queue §6]
 2. **Identity verification — does not exist.** All 9 `runners` rows carry `identity_verified = true`;
@@ -290,7 +290,7 @@ Narrative:
    an operator video-verified each runner's ID. **This is a live honesty-law breach unless Sean
    personally video-verified those 9 people** — a fact only he holds (Part 3, item **F-1**).
 3. **Runner tabs** — 캘린더 · 요청 · **홈** · 수익 · 마이 (`docs/calendar.md`), except home was moved
-   **leftmost** on both roles by Sean on 2026-08-19 (**R-13**).
+   **leftmost** on both roles by Sean on 2026-08-19 (**R-27**).
 4. **Availability** — weekly recurring rules, min-notice, max distance, max sessions/day, mandatory
    rest, group capacity. ⚠ `CLAUDE.md`: **availability is deliberately three distinct predicates —
    do not unify them.**
@@ -318,8 +318,105 @@ Narrative:
 
 ## 1.5 Club / 하이 클럽 and 인계 (delegation)
 
-Sources: `docs/club-run-logic.md` (397 lines), `docs/hi-club-plan.md`,
-`docs/handoff-club-delegation-money-gaps.md`, `docs/decisions/club-*.md`.
+Sources: `docs/club-run-logic.md` (v3.3, 397 lines — the canonical spec), `docs/hi-club-plan.md`
+(v2.1), `docs/handoff-club-delegation-money-gaps.md`, `docs/decisions/club-*.md`.
+
+🔴 **Read this before anything else about the club: it is the largest and most rigorous subsystem in
+the product, ~90 `club_*`/`session_*` functions across 21 migrations, with nine screens bound to
+real RPCs — and it is FLAG-GATED (`club_flag('club_delegation_v2')` via `_club_require_v2()`) and
+has never run with real users.** The spec says so itself: *"delegation never shipped; data = Sean's
+test rows."*
+
+**The product model, in Sean's own framing:** the club system fixes a place and time; several
+runners (each handling 0–2 delegated dogs) and owners (running their own dog, or delegating and
+going home) run as **one gathering**, all belonging to the same club. **Mixed format is
+first-class** — and that is the trust funnel: attend with your dog → observe a runner → repeat →
+delegate to that runner. Retention unit is the **정기 시리즈**, not the club.
+
+**Two design laws with teeth:**
+- **유령 객체 금지.** Before activation you get a demand-collection screen, not a club page.
+- **「신청은 사적 공간의 문이 아니다」** — *requesting is not a door into a private room.* Requested /
+  expired / rejected get their own record, an 개요, and a limited host-message channel — **no group
+  chat.** Approved, attending, committed and host get the full roster and group chat. Public gets
+  개요 only. Phone numbers follow rule B (host↔all; owner↔accepted runner; otherwise 호스트 경유),
+  lifecycle-scoped, consent-gated, and **access-logged.**
+
+**The object model is one authoritative table per concern, with no polymorphic mixing:**
+`club_members` · `club_sessions` · `session_people` · `session_dogs` (ALL dogs, `custody` ∈
+`owner_handled | runner_delegated`) · `session_runner_assignments` · `assignment_events` (history;
+current = latest) · `bookings + payment_attempts + ledger_items` · `dog_custody_events` (physical
+responsibility — **the columns on `session_dogs` are a cached projection**) · `club_incidents` ·
+`runs + dog_run_segments` · `delegation_consents` (immutable).
+
+**Per delegated dog there are four independent state axes**, and the cross-axis invariants are the
+part to internalise:
+- `service_state`: `requested → approved → confirmed → in_service → ended`
+- `charge_state`: `none → hold → paid` — **a cached projection**, not truth
+- `hold_status`: **hold expiry is real-time, never cron-dependent** — every capacity predicate
+  evaluates `hold_status='active' AND hold_expires_at > now()` directly; the */5 cron only stamps
+  and notifies
+- `assignment_state`: `unassigned → proposed(runner, expires) → accepted | declined`, and
+  `accepted → revoked → replacement_needed`. **An active proposal RESERVES the proposed runner's
+  load.**
+- `custody_phase`: `with_custodian → outbound_pending | transfer_pending | return_pending → …`
+
+🔴 **Invariants:** `confirmed ⇐ charge=paid ∧ hold=consumed`. `in_service ⇐ assignment=accepted ∧
+custodian=that runner`. **Custody transitions are NEVER gated on charge — safety over commerce.**
+`ended` requires a custodian in the terminal allowlist `{owner, authorized_person, clinic,
+authority}` — **`host` and `runner` are never a resolved terminal state.** An open incident on a dog
+⇒ `payout_hold=held` **and** consent-free cancellation blocked.
+
+**Assignment is Model A, fixed:** host proposes → runner accepts → the owner sees the confirmed
+runner card and holds an objection right until handoff. **While merely proposed the owner sees
+「배정 진행 중」 with no candidate card** — runner privacy; declines stay invisible churn. Proposals
+open at check-in, target T-30, and **expire in 5 minutes.** Capacity: certified **1**, veteran/master
+**2**, applicant **0**, and `handler_load` counts the runner's **own** attending dogs, so a veteran
+running their own dog has one delegated slot.
+
+🔴 **The T-10 hard stop is the club's best single idea:** paid ∧ not accepted → **automatic full
+refund** plus options (attend-conversion offer, or next-session priority). ***A paid dog
+structurally cannot be stuck.***
+
+**Objection splits in two:** an ordinary *preference* objection until T-20, **once**, cause required
+→ refund or attend-offer; a *material* safety/identity/disclosure objection until the outbound
+handoff, **unlimited**. After handoff it is never a cancel — early return or incident only.
+
+**Runner→runner delegation is ONE atomic transaction of six steps**, so assignment truth can never
+diverge from custody: close A's interval → verify B's eligibility and cap → create-and-accept B's
+assignment → record the custody event → open a new `dog_run_segment` under B → notify owner + host.
+**Clinic/authority transfers END or SUSPEND the service** — a clinic never becomes an "assigned
+runner" — and a mid-run one runs the whole incident path atomically, moving the booking to
+`incident_review` and **never to `completed`**, so stats, patches and reviews stay clean.
+
+⚠ **Event ordering truth is the monotonic `seq`, never `occurred_at`** — events written in one
+transaction share a frozen `now()`. Locks decide validity; `seq` orders valid events.
+
+**Overrides:** `witness_confirm` (host not a party + ≥1 strong artifact) · `assisted_confirm` (the
+party confirms on the host's device) · **self-override banned** (host-as-runner → backup/ops) ·
+disputes are never overridable and become incidents.
+
+**Cancellation ladder (server-side, single truth):** free till paid · ≥24 h free · <24 h **10 %** ·
+post-acceptance **20 %** · post-handoff = early-return settle. **Blocked while an incident is open.**
+Late-cancel/no-show fees go **50 % platform / 50 % supply compensation** — to the accepted runner if
+one existed, else pro-rata across present committed runners, else platform.
+A host force-resolving a dog whose run never ended **does not fabricate a return**: the booking drops
+to `incident_review` and returns a case id the host must immediately own, because
+`club_finish_session` refuses to close otherwise.
+
+**Payout release requires** `payable ∧ no hold ∧ custody resolved ∧ no open linked incident`, is
+idempotent one-way, and `payout_hold` is the serialization point.
+
+**Client-side, the app never invents state text.** `club_dog_ui_state` returns
+`primaryStage / secondaryBadges / blockingIssues / primaryIssue / requiredActors / severity /
+allowedActions`, and the session shell renders `ui.primaryStage` **word for word.** Ten FlapStates
+(`PENDING · HOLDING · CLEARED · BOARDED · RUNNING · RETURNS · SETTLED · OUTSIDE · REFUND · REFUSED`)
+are derived with **custody evaluated first** — and `completed` maps to `RETURNS`, not `SETTLED`,
+while custody is unresolved, because **settlement ≠ return.**
+⚠ But `ui.allowedActions` is **always `[]`** today (U-63) — which is the structural cause of the
+whole club dead-button class.
+
+⚠ **Stale header comment:** `app/app/club/session/[sid].tsx:31-32` says 인계/반환 and the console are
+"build 3, not yet" while importing them at `:10-17`. **Prefer imports and call sites over prose.**
 
 - A **club** is a host-run group: `clubs`, `club_members`, `club_series`, `club_sessions`,
   `club_chat`, plus `club_test_accounts` marking the seeded fixtures. Sessions have a `meetup_point`
@@ -364,7 +461,7 @@ Three facts about it that a newcomer will otherwise learn the hard way:
    exists and is unreachable. [measured, queue §0-septvicies]
 3. **A confirmed booking whose time passes is never resolved by anything.**
    `expire_unmatched_bookings()` (0017) touches only `matching` and `runner_pending`. Sean surfaced
-   this himself (**R-24**) and chose grace-window + server expiry; **the server half is still owed**
+   this himself (**R-37**) and chose grace-window + server expiry; **the server half is still owed**
    and its money ruling is still open (Part 3, **P-1**).
 
 ## 1.7 The points economy — 하이 포인트 (댕마일), and the km token that was abandoned
@@ -479,10 +576,31 @@ Kept short — a parallel specialty report owns money in depth.
 | Runner stop (⑨) | **pass-through pay** (runner gets their commission share of what the owner actually paid) + new `runner_incapacity` enum; platform absorbs | `docs/decisions/runner-stop-split.md` |
 | Charging live? | **No.** `payments_live_since = null`, `payments = 0`, `billing_keys = 0` | [measured] |
 
+🔴 **The two bases are DECOUPLED ON PURPOSE and must never be unified.** `ownerBaseFare = 7,900` is a
+price-perception experiment; `runnerCompBase = 9,900` is the floor of the "minimum wage × 2" pitch.
+The platform absorbs the ₩2,000 gap. `supabase/functions/_shared/ctx.ts:9` says it in capitals:
+*"하나를 다른 하나에 '맞추는' 수정은 버그가 아니라 사고다"* — **a change that "aligns" one to the other
+is not a bug, it is an accident.** Margin is therefore distance-dependent: **23.4 % at 2 km → 29.5 %
+at 10 km.**
+
+**Worked example, a completed 5 km run:** runner gross `9,900 + 5×3,000 = 24,900`; fee
+`24,900 × 0.33 = 8,217`; **runner net 16,683.** Owner charged `7,900 + 15,000 = 22,900`. **Platform
+keeps 6,217.**
+
 🔴 **The asymmetry a newcomer must not step on:** owner charge is frozen at booking time; runner pay
-is read live from SQL constants. So a price revision **retroactively repays completed-but-unsettled
-work at the new rate while leaving the owner's charge frozen** — the platform silently absorbs the
-difference in whichever direction. This is Sean's open policy question (Part 3, **P-4**).
+is read live from SQL constants (`0101:92-93`). So a price revision **retroactively repays
+completed-but-unsettled work at the new rate while leaving the owner's charge frozen** — the
+platform silently absorbs the difference in whichever direction. This is Sean's open policy question
+(Part 3, **P-3**).
+
+⚠ **Five things every porter of the payout function has got wrong**, each named in `0101`'s own
+header: base is **9,900 not 7,900** · `runner_personal` zeroes base and addon so the payout becomes
+distance only · the `min_fare` floor does **not** apply to `runner_personal` · the guarantee is
+**clamped at 0**, because an owner-caused stop past the planned distance once produced a *negative*
+guarantee, i.e. a pay cut · the fee is rounded **once**, so the runner's share and the platform's sum
+to gross exactly. And the function's `revoke … from public, anon, authenticated` **is the entire
+seal** — granting it to `authenticated` turns it into a pricing oracle over any booking with no RLS
+consulted.
 
 ---
 
@@ -630,7 +748,7 @@ have — until one exists, say in the handoff **who is deploying**.
 ## 4.4 Branches, worktrees, and the in-flight claims table
 
 - **`redesign-v4` is the trunk and the GitHub default. `main` is DELETED**, on Sean's word
-  (**R-4**). It was 269 commits behind at migration `0036`, and every stale worktree that day traced
+  (**R-15**). It was 269 commits behind at migration `0036`, and every stale worktree that day traced
   back to sessions landing there by default. Recoverable:
   `git push origin f50260edb5d5b84490942f39651169f3bb433e72:refs/heads/main`.
 - **Base every worktree on `origin/redesign-v4`.**

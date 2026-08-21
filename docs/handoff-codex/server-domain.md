@@ -3,6 +3,10 @@
 **For:** Codex, a fresh agent with zero history of this project.
 **Written:** 2026-08-21, from worktree `/Users/sean/dev/daengrun/.claude/worktrees/announcer-v3-handoff-f0774a`
 at `9475c79` (branch `claude/announcer-v3-handoff-f0774a`, cut from trunk `origin/redesign-v4`).
+⚠ **This worktree is shared with other live sessions** — HEAD moved to `4d7f57d` while this was being
+written, and another session's commit swept this file in. Every `file:line` citation below was read
+at `9475c79` and re-verified stable: `git diff --stat 9475c79 HEAD -- supabase/ TODOS.md CLAUDE.md
+scripts/` is **empty**. **[measured]**
 **Author's standing:** the session that owned this domain is gone. Everything here was re-derived
 from the repo and from production reads; nothing is relayed from a conversation.
 
@@ -502,7 +506,7 @@ Everything else is feature work. **[from-doc]** — classification derived from 
 | **PostgREST** (anon key + Kakao JWT) | Table/column GRANTs + RLS policies. Default-deny is doing most of the work. |
 | **PostgREST RPC** | `security definer` functions: EXECUTE grant, then an in-function **party gate**, then a **state gate**. |
 | **Realtime** | `realtime.messages` RLS (3 policies) + project-level `private_only = true`. |
-| **Storage** | `storage.objects` RLS (7 policies across `avatars` + `media`). |
+| **Storage** | `storage.objects` RLS (8 policies across `avatars` + `media`). |
 | **Edge Functions** | Deno + `service_role` key. `verify_jwt` per function; `caller(req, db)` in `_shared/ctx.ts:33` re-derives the uid from the JWT via `auth.getUser`. |
 | **Cron** | `pg_cron` as `postgres`; 17 jobs, each calling one definer function. |
 
@@ -897,7 +901,7 @@ anon; the name-join returns 0 only because today's hosts happen not to appear in
 
 ## 3.4 Storage
 
-**[measured]** 7 policies on `storage.objects`, two buckets:
+**[measured]** 8 policies on `storage.objects`, two buckets:
 
 - **`avatars`** — public read (`bucket_id='avatars'`), owner-folder insert/update/delete keyed on
   `(storage.foldername(name))[1] = auth.uid()::text`. **Deliberately public** (suite 104 M12).
