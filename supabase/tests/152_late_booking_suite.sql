@@ -121,6 +121,34 @@
 --        (`사다리 없이도 견적이 나왔다 (사본)`) — round 1's prosrc-LIKE pin would have passed
 --   M40 (deno) the handler branches on its own quote again        → deno 223/2 RED=[both crossed-
 --        boundary tests] — the stored fee, marker, share, mint and response all diverge again
+--   ─── the BLIND independent round + Sean's stalemate ruling. Green 780/0, deno 229/0 ──────
+--   M41 the definer identity exemption returns (BLOCKER-10)      → 779/1 RED=[L41], the red
+--        naming both surfaces: `무JWT fetch 통과 … 무JWT quote 통과 (남의 예약 가격 열람)`
+--   M42 the post-handoff cancel guard never attaches (BLOCKER-6) → 779/1 RED=[L42]
+--   M43 the club gate on the quote is removed (MAJOR-9)          → 779/1 RED=[L43], red shows the
+--        club booking handed a marketplace price (`마켓 견적을 줌=2490`)
+--   M44 the repair sweep writes nothing (BLOCKER-5)              → 779/1 RED=[L44], diagnostic
+--        naming the torn row (`cancelled_owner/12450/owner_cancel_enroute`)
+--   M46 the km restore goes owner-wide and unlocked (MAJOR-7)    → 779/1 RED=[L46]
+--        ⚠ FIRST MEASURED 780/0 — GREEN WITH THE FIX REVERTED. The behavioural arm cannot see
+--        this revert and never could: an owner-wide snapshot still only captures lots that are
+--        ALREADY expired, so a non-expired neighbour is out of scope in BOTH versions, and the
+--        real hazard (a human's fresh extension clobbered by the clock) needs two connections.
+--        The pin now carries a SOURCE assertion as well (L27's precedent), which is what reds.
+--   M47 the silent-stalemate arm is deleted — the clock charges
+--        the owner again (Sean's finding-1 ruling)               → 777/3 RED=[L9b, L25, L33]
+--        Three surfaces of one ruling losing effect: the rule's own pin, the quote window that
+--        renders it, and the refusal that depends on the price it produces.
+--        ⚠ A first attempt scored 780/0 and was a DRIVER BUG, not a suite weakness — the
+--        mutation inserted a dead `where false` clause beside the real arm and left it intact.
+--        Recorded because a green mutation is worthless evidence until you prove it mutated.
+--   M48 the stale quote is silently corrected again (BLOCKER-3)  → 778/2 RED=[L33, L40]
+--   M49 the ceiling grace margin comes back (MAJOR-8)            → 779/1 RED=[L34] (`실링 직후
+--        미종결` — 3h becomes 3h30m again)
+--   M50 service_role regains SELECT on both tables (MAJOR-11)    → 779/1 RED=[L14]
+--   M40b (deno) compensateRunner returns true unconditionally
+--        (BLOCKER-2)                                             → deno 228/1 RED=[the zero-fee
+--        honesty test] — the runner is told ₩12,450 "was recorded" when nothing was written
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
@@ -1485,8 +1513,18 @@ begin
     perform late_booking_sweep();                                   -- ceiling-resolves b46
     if (select expires_at from km_lots where id = lot37b) is distinct from v_exp
       then v_bad := v_bad || ' 남의 로트 만료가 건드려짐'; end if;
+    -- ⚠ 이 핀의 행동 팔만으로는 범위 축소를 잡지 못한다 — 측정으로 확인했다 (M46 → 780/0
+    -- GREEN). 보호자 전체 스냅샷도 `expires_at <= now()` 인 로트만 담으므로, 만료되지 않은
+    -- 남의 로트는 어느 버전에서도 애초에 대상이 아니다. 진짜 위험(사람이 방금 연장한 다른
+    -- 로트를 시계가 되돌린다)은 두 커넥션이 있어야 재현되고, 그건 90_race_check.sh 의 땅이다.
+    -- 단일 커넥션에서 되돌림을 확정적으로 잡는 것은 소스 핀이다 (L27 과 같은 이유).
+    select count(*) into v_n from pg_proc p3 join pg_namespace n3 on n3.oid = p3.pronamespace
+     where n3.nspname = 'public' and p3.proname = '_resolve_checkin'
+       and p3.prosrc like '%kl.booking_id = p_booking%'      -- 이 예약이 쥔 로트만
+       and p3.prosrc like '%for update%';                     -- 그리고 락 아래에서
+    if v_n is distinct from 1 then v_bad := v_bad || ' 만료 복구가 예약 범위/락을 잃음 (MAJOR-7)'; end if;
     if v_bad = '' then
-      call _pass('lb', 'L46 시계의 만료 복구는 이 예약이 쥔 로트에만 — 같은 보호자의 무관한 로트는 손대지 않는다 (락 아래 범위 한정, MAJOR-7)');
+      call _pass('lb', 'L46 시계의 만료 복구는 이 예약이 쥔 로트에만, 락 아래 — 행동 팔 + 소스 핀 (동시성 위험은 레이스 파일의 땅, MAJOR-7)');
     else call _fail('lb', 'L46 만료 복구 범위', v_bad); end if;
   exception when others then call _fail('lb', 'L46 만료 복구 범위', sqlerrm); end;
 
