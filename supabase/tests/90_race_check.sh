@@ -234,10 +234,16 @@ fi
 # ---------- RF: confirm_return_tx 이중 탭 — 두 번째 도장에 동시 착지, 원장 행은 정확히 1개 ----------
 # TODOS.md:253 / 스위트 119:108-110이 명명만 하고 시뮬레이션하지 못한 레이스, 여기서 닫는다.
 # 보호자 확인 두 개가 (러너 도장이 이미 있는 부킹에) 동시에 착지하면: 선행이 도장→씰→정산까지
-# 가고, 후행은 confirm_return_tx 머리의 bookings FOR UPDATE에서 대기하다 재독에서
-# status='completed'를 보고 멱등 답("unchanged")으로 물러서야 한다. FOR UPDATE가 없으면 둘 다
-# active를 읽고 둘 다 _settle_sealed_run으로 들어간다 — ledger_items에는 booking_id 유니크가
-# 없으므로(0001:264) 두 번째 행 = 러너 이중 지급이다 (RE와 같은 병, 다른 문).
+# 가고, 후행은 물러나 멱등 답("unchanged")을 내야 한다. ledger_items에는 booking_id 유니크가
+# 없으므로(0001:264) 두 번째 정산 = 러너 이중 지급이다 (RE와 같은 병, 다른 문).
+# ⚠ 어느 벨트가 실제로 드는지, 계측으로 적는다 (2026-08-21, 각 뮤테이션 단독 적용·전체 하네스):
+#   · 머리의 bookings FOR UPDATE만 지우면 → 752/0 GREEN — 후행은 도장 UPDATE의 행 쓰기락에서
+#     어차피 직렬화되고, READ COMMITTED의 문장 단위 재독 + confirm 자신의 completed 조기 답 +
+#     _settle_sealed_run의 자체 락·멱등팔이 그대로 든다. 즉 이 핀은 RB처럼 "속성" 핀이다 —
+#     단일 벨트 삭제로는 안 빨개지고, 그래서 초판 통과 문구가 머리 락 하나에 공을 돌린 것은
+#     계측이 반증했다.
+#   · _settle_sealed_run의 completed 멱등팔을 지우면 → 751/1 RED=[119 R9] — 그 팔의 주인은
+#     순차 멱등(두 번째 확인)이지 이 레이스가 아니다. RF 자체는 confirm의 completed 답이 지킨다.
 IDS=$(psql -qt -c "select race_setup_f()" | xargs)
 BF=$IDS
 QUOTE='{"base":9900,"distance_pay":15000,"addon_pay":0,"guarantee":0,"fee":4980}'
@@ -255,7 +261,7 @@ SA=$(psql -qt -c "select (settled_at is not null)::text from runs where booking_
 BST=$(psql -qt -c "select status || '/' || (settlement_ready_at is not null)::text from bookings where id = '$BF'" | xargs)
 UN=$(grep -c '"unchanged" *: *true' .pgtest/race_f2.out || true)
 if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "$UN" = "1" ]; then
-  psql -qc "call _pass('race','RF confirm_return_tx 이중 탭 — 정산 1회·원장 1행·후행은 unchanged (머리의 FOR UPDATE 재독이 이중 지급을 봉쇄; 119:108의 명명된 갭 닫힘)')"
+  psql -qc "call _pass('race','RF confirm_return_tx 이중 탭 — 정산 1회·원장 1행·후행은 unchanged (도장 행 쓰기락 직렬화 + completed 멱등 답 + _settle 자체 락의 겹벨트; 119:108의 명명된 갭 닫힘)')"
 else
   psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN (1·true·completed/true·1 기대)')"
 fi

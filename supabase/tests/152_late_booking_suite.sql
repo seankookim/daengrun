@@ -15,34 +15,55 @@
 -- trigger permits on an unresolved row), never by shrinking the knobs under every pin, so
 -- the suite exercises the same arithmetic production runs.
 --
--- ─── MUTATION MAP (measured — each mutation applied alone to an otherwise-intact 0117,
---     full harness re-run, then the file restored via git checkout; sets are exact) ─────────
---   M1 sweep: delete `and b.club_session_id is null` from arms ⓑ+ⓒ        → 754/1 RED=[L1]
---   M2 marketplace_cancel_fee: revert the en-route arm to unconditional
---      `round(b.total_price * 0.5)` (delete the waiver consult)            → 753/2 RED=[L3, L9b]
---   M3 waiver: delete the booking_faults EXISTS arm                        → 754/1 RED=[L3]
---   M4 waiver: delete the past-ceiling EXISTS arm                          → 754/1 RED=[L9b]
---   M5 resolver: collapse the custody split (terminal always 'no_show')    → 753/2 RED=[L12, L12c]
---      (both arrive as `invalid booking transition: picked_up -> no_show` — 0066 §1's
---       trigger is the belt the pin predicted)
---   M6 answer_checkin: delete the 'proceeding' past-ceiling refusal        → 754/1 RED=[L10]
---   M7 drop trigger booking_checkins_guard                                 → 754/1 RED=[L7]
---   M8 resolver: delete BOTH already-resolved belts (the early return and
---      the `resolved_at is null and version =` CAS predicates)             → 754/1 RED=[L13]
---   M9 late_ceiling(): literal '3 hours' → '1 hour'                        → 752/3 RED=[L0, L9b, L15]
---      (L9b's fresh +2h twin falls past a 1-hour ceiling and quotes 0; L15's bound lands on
---       sched+1h < opened_at and the guarded insert refuses — the knob is load-bearing in
---       three independent places, which is the point of naming it once)
---   M10 resolver: renewal loses its bound (`least(...)` → `now() + late_grace()`)
---                                                                          → 754/1 RED=[L15]
---   M11 open_checkin: initial deadline loses its bound (same edit)         → 754/1 RED=[L15]
---   M14 resolver: write fault on EVERY terminal (`v_resolution =
---      'cannot_proceed'` → `v_terminal is not null`) — the D5 violation    → 751/4 RED=[L5, L6, L9, L12c]
---      (every no-fault arm reddens at once: silence, expired proceedings, the ceiling and
---       the post-custody dark case all refuse a fault row nobody stated)
+-- ─── MUTATION MAP — MEASURED 2026-08-21, not predicted. Method: each mutation applied alone
+--     to an otherwise-intact tree, FULL harness re-run, file restored via `git checkout`.
+--     Green baseline for every run: 752/0. M5 and M9 were re-measured after a fixture
+--     restructure (three single-consumer fixture actions moved inside their pins, b15's open
+--     guarded — no assertion changed); their FIRST runs aborted the whole suite at a
+--     top-level fixture line, which is itself recorded below because it is the failure mode
+--     the restructure exists to prevent. All other mutations were measured against the
+--     pre-restructure suite, whose success-path world is byte-identical. ──────────────────
+--   M1 sweep arms ⓑⓒ lose `club_session_id is null` + open_checkin loses its
+--      club_out_of_scope belt (one doctrine: club excluded)      → 751/1 RED=[L1] (클럽 예약 개시)
+--   M2 marketplace_cancel_fee: en-route arm back to unconditional
+--      `round(b.total_price * 0.5)` (waiver consult deleted)     → 750/2 RED=[L3, L9b]
+--   M3 waiver loses the booking_faults EXISTS arm                → 751/1 RED=[L3]
+--   M4 waiver loses the past-ceiling EXISTS arm                  → 751/1 RED=[L9b]
+--      (M3/M4 red DISJOINT pins — the two arms are separately load-bearing)
+--   M5 resolver custody split collapsed (terminal always
+--      'no_show')                                                → 750/2 RED=[L12, L12c]
+--      L12 arrives as `invalid booking transition: picked_up -> no_show` — 0066 §1's trigger
+--      is the belt the pin predicted; L12c shows the isolated sweep arm leaving the row
+--      untouched (status=picked_up, resolution=null). First run: suite ABORT at b12's
+--      then-top-level answer — why that answer now lives inside the pin.
+--   M6 answer_checkin loses the 'proceeding' past-ceiling gate   → 751/1 RED=[L10] (answer_immutable —
+--      the wrongly-accepted proceeding then collides with the terminal statement)
+--   M7 guard trigger never attached                              → 750/2 RED=[L7, L13]
+--      L13 is honest collateral: with the trigger gone L7's retraction un-resolves b2, and
+--      L13's re-resolve then moves what should have been immovable. Two pins, one corrupted
+--      world, both name it.
+--   M8 resolver loses BOTH already-resolved belts (early return
+--      + CAS predicates)                                         → 751/1 RED=[L13] (checkin_resolution_immutable
+--      — the trigger, belt #4, catches the CAS-less overwrite exactly as designed)
+--   M9 late_ceiling() literal '3 hours' → '1 hour'               → 746/6 RED=[L0, L1, L6a, L10, L15, L18]
+--      the knob is load-bearing in six independent places (literal pin, open bound, renewal
+--      bound, the open refusal, b15's guarded world, the fetch surface) — the point of
+--      naming it once. First run: suite ABORT at b10's then-top-level open.
+--   M10 renewal loses its bound (`least(…)` → now()+grace)       → 751/1 RED=[L15] (갱신 마감 arm)
+--   M11 open_checkin loses its bound (same edit)                 → 751/1 RED=[L15] (개시 마감 arm)
+--      (M10/M11 share the pin; the detail string names which arm — distinct evidence)
+--   M14 fault follows the TERMINAL instead of the statement
+--      (the D5 inversion)                                        → 748/4 RED=[L5, L6, L9, L12c]
+--      every no-fault arm reddens at once: silence, the expired proceedings, the ceiling and
+--      the post-custody dark case all refuse a fault row nobody stated.
+--   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
+--      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
+--      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
+--      751/1 RED=[119 R9] (that arm belongs to the sequential pin, not the race).
 --   Absence-of-money pins (L9's no-payments/no-ledger/no-cancel_fee arms) have no deletable
---   fix line — the fix IS that no charging code exists (0068's law); they are held by the
---   positive controls in 105/121 which prove the money writers still fire where they should.
+--   fix line — the fix IS that no charging code exists (0068's law); M14 proves the sibling
+--   no-fault arms are not vacuous, and 105/121's positive controls prove the money writers
+--   still fire where they should.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
@@ -55,6 +76,7 @@ declare
   b12 uuid; b12b uuid; b12c uuid; b10 uuid; b15 uuid;
   v_bad text := ''; v_js jsonb; v_fee int; v_fee2 int; v_fee3 int; v_fee4 int; v_status text;
   v_n int; v_ver int; v_ts timestamptz; v_dl timestamptz; v_res text; v_st text;
+  v_note text := '';
 begin
   -- ─────────────────────────────── shared seed (top level) ───────────────────────────────
   oo := t_user('lb_oo', 'owner');  rr := t_user('lb_rr', 'runner');
@@ -408,12 +430,16 @@ begin
   b12 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
   perform open_checkin(b12);
   update bookings set status = 'picked_up' where id = b12;             -- custody advanced mid-protocol
-  perform set_config('request.jwt.claim.sub', oo::text, false);
-  v_js := answer_checkin(b12, 'owner', 'cannot_proceed');
-  perform set_config('request.jwt.claim.sub', '', false);
 
   begin
     v_bad := '';
+    -- the answer lives INSIDE the pin on purpose: b12 feeds no other pin, and a resolver
+    -- mutation that raises here (the first M5 run aborted the whole suite at this line as
+    -- `invalid booking transition: picked_up -> no_show`) must become THIS pin's named red,
+    -- not a suite-wide blackout. 151's top-level law covers shared state only.
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := answer_checkin(b12, 'owner', 'cannot_proceed');
+    perform set_config('request.jwt.claim.sub', '', false);
     select b.status::text into v_st from bookings b where b.id = b12;
     if v_st is distinct from 'incident_review' then v_bad := v_bad || ' status=' || v_st || ' (no_show는 인계 후 불법 — D3)'; end if;
     select count(*) into v_n from booking_faults where booking_id = b12 and party = 'owner';
@@ -424,7 +450,10 @@ begin
     if v_bad = '' then
       call _pass('lb', 'L12 인계 후 cannot_proceed → incident_review (락 아래서 재독한 커스터디가 종단을 고른다, FM6/D3) + 진술 측 과실 + 안전 알림');
     else call _fail('lb', 'L12 인계 후 커스터디 분기', v_bad); end if;
-  exception when others then call _fail('lb', 'L12 인계 후 커스터디 분기', sqlerrm); end;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L12 인계 후 커스터디 분기', sqlerrm);
+  end;
 
   b12c := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
   perform open_checkin(b12c);
@@ -473,10 +502,13 @@ begin
   -- b10: past the ceiling the protocol offers only terminals (§4.3 / FM4)
   -- ══════════════════════════════════════════════════════════════════════════════════════
   b10 := t_av_booking(oo, dg, rt, rr, now() - interval '2 hours 50 minutes', 5.0, 'confirmed');
-  perform open_checkin(b10);
-  perform set_config('app.late_ceiling', '2 hours', true);             -- the clock crosses the ceiling
   begin
     v_bad := '';
+    -- open under the DEFAULT ceiling, inside the pin (b10 feeds no other pin): a knob
+    -- mutation that makes this open refuse (M9's first run aborted the suite here) reds
+    -- this pin by name instead of killing the report.
+    perform open_checkin(b10);
+    perform set_config('app.late_ceiling', '2 hours', true);           -- then the clock crosses it
     perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
       perform answer_checkin(b10, 'owner', 'proceeding');
@@ -502,13 +534,20 @@ begin
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- b15: the deadline is BOUNDED by the ceiling, at open and at renewal
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- b15 is read by BOTH L15 and L18, so its world is built at top level (151's law) but the
+  -- open is GUARDED: a knob mutation that makes it refuse must red the two consumers by name
+  -- rather than abort the suite before the report prints (M9's first measured run did exactly
+  -- that, one fixture earlier).
   b15 := t_av_booking(oo, dg, rt, rr, now() - interval '2 hours 50 minutes', 5.0, 'confirmed');
-  perform open_checkin(b15);
   begin
-    v_bad := '';
+    perform open_checkin(b15);
+  exception when others then v_note := ' b15 개시 실패=' || sqlerrm;
+  end;
+  begin
+    v_bad := v_note;
     select bc.deadline_at into v_dl from booking_checkins bc where bc.booking_id = b15;
     if v_dl is distinct from late_ceiling_at(now() - interval '2 hours 50 minutes')
-      then v_bad := v_bad || ' 개시 마감=' || v_dl || ' (실링=now+10m 기대)'; end if;
+      then v_bad := v_bad || ' 개시 마감=' || coalesce(v_dl::text, '행 없음') || ' (실링=now+10m 기대)'; end if;
     perform set_config('request.jwt.claim.sub', oo::text, false);
     v_js := answer_checkin(b15, 'owner', 'proceeding');
     perform set_config('request.jwt.claim.sub', rr::text, false);
@@ -516,7 +555,7 @@ begin
     perform set_config('request.jwt.claim.sub', '', false);
     select bc.deadline_at, bc.resolved_at into v_dl, v_ts from booking_checkins bc where bc.booking_id = b15;
     if v_dl is distinct from late_ceiling_at(now() - interval '2 hours 50 minutes')
-      then v_bad := v_bad || ' 갱신 마감=' || v_dl || ' (30분이 아니라 실링에 캡)'; end if;
+      then v_bad := v_bad || ' 갱신 마감=' || coalesce(v_dl::text, '행 없음') || ' (30분이 아니라 실링에 캡)'; end if;
     if v_ts is not null then v_bad := v_bad || ' 갱신이 종결시킴'; end if;
     if v_bad = '' then
       call _pass('lb', 'L15 마감은 언제나 유계 — 개시도 갱신도 min(…, scheduled+실링)에 캡 (§12 BOUNDED, FM3/FM4의 산술적 반)');
@@ -534,7 +573,7 @@ begin
     perform set_config('request.jwt.claim.sub', oo::text, false);
     v_js := fetch_checkin(b15);
     if (v_js->>'open')::boolean is distinct from true then v_bad := v_bad || ' open≠true'; end if;
-    if v_js->>'custody' is distinct from 'pre' then v_bad := v_bad || ' custody=' || (v_js->>'custody'); end if;
+    if v_js->>'custody' is distinct from 'pre' then v_bad := v_bad || ' custody=' || coalesce(v_js->>'custody', 'null'); end if;
     if (v_js->>'past_ceiling')::boolean is distinct from false then v_bad := v_bad || ' past_ceiling 오탐'; end if;
     if v_js->>'server_now' is null then v_bad := v_bad || ' server_now 없음'; end if;
     if v_js->>'owner_answer' is distinct from 'proceeding' then v_bad := v_bad || ' owner_answer=' || coalesce(v_js->>'owner_answer', 'null'); end if;
