@@ -73,7 +73,7 @@ declare
   v_club uuid; v_s uuid;
   b_arm uuid; b_in uuid; b_club uuid; b_picked uuid; b17 uuid; b_4h uuid;
   b_fresh uuid; b3 uuid; b2 uuid; b5 uuid; b6 uuid;
-  b12 uuid; b12b uuid; b12c uuid; b10 uuid; b15 uuid;
+  b12 uuid; b12b uuid; b12c uuid; b10 uuid; b15 uuid; b19 uuid;
   v_bad text := ''; v_js jsonb; v_fee int; v_fee2 int; v_fee3 int; v_fee4 int; v_status text;
   v_n int; v_ver int; v_ts timestamptz; v_dl timestamptz; v_res text; v_st text;
   v_note text := '';
@@ -593,6 +593,34 @@ begin
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
     call _fail('lb', 'L18 fetch_checkin', sqlerrm);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L19] the NO-ROW answer still carries the derived trio (coordinator amendment 2026-08-21)
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- No protocol row is the NORMAL state of every pre-protocol booking — the Aug-4 shape §9
+  -- waives on scheduled_at alone. A bare {open:false} would strand the client fee-quote
+  -- mirror without past_ceiling/server_now and force it back onto a client clock (FM2/FM6).
+  -- b19 is created HERE, after the suite's last sweep, so it has no row by construction.
+  b19 := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := fetch_checkin(b19);                                        -- 17일 묵은 무행 부킹
+    if (v_js->>'open')::boolean is distinct from false then v_bad := v_bad || ' open≠false'; end if;
+    if (v_js->>'past_ceiling')::boolean is distinct from true then v_bad := v_bad || ' 무행인데 past_ceiling 미표시'; end if;
+    if v_js->>'custody' is distinct from 'pre' then v_bad := v_bad || ' custody=' || coalesce(v_js->>'custody', 'null'); end if;
+    if v_js->>'server_now' is null then v_bad := v_bad || ' server_now 없음'; end if;
+    v_js := fetch_checkin(b_fresh);                                    -- 젊은 무행 부킹 (양방향 쌍)
+    if (v_js->>'past_ceiling')::boolean is distinct from false then v_bad := v_bad || ' 젊은 무행에 past_ceiling 오탐'; end if;
+    if v_js->>'server_now' is null then v_bad := v_bad || ' 젊은 무행 server_now 없음'; end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L19 무행 응답도 파생 3종 동봉 — 프로토콜 이전(8/4 형상) 부킹의 past_ceiling=true·젊은 부킹 false·custody·server_now (클라 시계 복귀 금지, FM2/FM6)');
+    else call _fail('lb', 'L19 무행 파생 3종', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L19 무행 파생 3종', sqlerrm);
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════

@@ -547,7 +547,16 @@ begin
 
   select * into c from booking_checkins bc where bc.booking_id = p_booking;
   if c.booking_id is null then
-    return jsonb_build_object('open', false);
+    -- No protocol row is the NORMAL state of every booking that predates the protocol — the
+    -- 2026-08-04 shape, which §9 waives on scheduled_at alone. A bare {open:false} here would
+    -- strand the client's fee-quote mirror without past_ceiling or server_now, forcing it
+    -- back onto a client clock — exactly what FM2/FM6 refuse to trust. The booking row is
+    -- already loaded; the derived trio costs nothing and lies to no one.
+    return jsonb_build_object(
+      'open',         false,
+      'past_ceiling', late_ceiling_at(b.scheduled_at) <= now(),
+      'custody',      case when b.status in ('picked_up', 'active') then 'post' else 'pre' end,
+      'server_now',   now());
   end if;
 
   return jsonb_build_object(
