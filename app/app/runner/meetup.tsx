@@ -267,8 +267,15 @@ export default function Meetup() {
   // 길찾기 (0065) — nmap scheme (whitelisted in app.json LSApplicationQueriesSchemes)
   // with a Naver web-map fallback; only rendered when coordinates exist (dead-button
   // law). Plain function, not a hook — the hook-freeze law leaves hook order untouched.
+  // ⚠ `appname` MUST equal the app's real bundle identifier (app.json `ios.bundleIdentifier`,
+  // now com.seankookim.dogshigh). Naver's nmap:// scheme uses it to route the user BACK, so a
+  // stale value does not fail loudly — it opens Naver Maps and then strands the runner there with
+  // no way home, which is the worst shape of failure on a screen someone is using while walking a
+  // dog. It read com.seankookim.daengrun until 2026-08-21, left behind by the bundle rename.
+  // ⚠ NOT the same string as app.json's `scheme`, which is still "daengrun" and must stay — that
+  // one is our own deep-link protocol and every daengrun:// link in the app depends on it.
   const openDirections = async (dlat: number, dlng: number, name: string) => {
-    const nmap = `nmap://route/walk?dlat=${dlat}&dlng=${dlng}&dname=${encodeURIComponent(name)}&appname=com.seankookim.daengrun`;
+    const nmap = `nmap://route/walk?dlat=${dlat}&dlng=${dlng}&dname=${encodeURIComponent(name)}&appname=com.seankookim.dogshigh`;
     const web = `https://map.naver.com/p/directions/-/${dlng},${dlat},${encodeURIComponent(name)}/-/walk`;
     try {
       if (await Linking.canOpenURL(nmap)) { await Linking.openURL(nmap); return; }
