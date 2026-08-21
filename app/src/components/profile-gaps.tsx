@@ -14,10 +14,10 @@ import { haptic } from '../lib/haptics';
 
 /** 각 빈칸이 **러너에게 무엇을 바꾸는지**. 「프로필을 완성하세요」가 스팸인 이유는 이걸 말하지
  *  않기 때문이다 — 셋 다 러너가 실제로 보는 화면을 가리킨다. */
-const GAP_LABEL: Record<ProfileGap, { t: string; s: string }> = {
-  photo:      { t: '사진',      s: '러너 티켓에 얼굴이 떠요' },
-  vaccines:   { t: '백신 정보', s: '인계할 때 러너가 확인해요' },
-  doorDetail: { t: '현관 상세', s: '문 앞에서 헤매지 않아요' },
+// ⚠ 각 칸이 '무엇을 바꾸는가'는 여기 두지 않는다 — 행은 요약이고 그 설명은 실제로 채우는
+// 화면(owner/dog)의 몫이다. 정의만 해두고 렌더하지 않던 필드는 지웠다 (codex 2026-08-21).
+const GAP_LABEL: Record<ProfileGap, string> = {
+  photo: '사진', vaccines: '백신 정보', doorDetail: '현관 상세',
 };
 
 const TOTAL = 3;
@@ -38,13 +38,13 @@ export function ProfileGaps({ gaps, onOpen }: {
         onPress={() => { haptic('light'); onOpen(); }}
         style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
         accessibilityRole="button"
-        accessibilityLabel={`프로필 ${gaps.length}칸 남았어요. ${gaps.map((g) => GAP_LABEL[g].t).join(', ')}`}
+        accessibilityLabel={`프로필 ${gaps.length}칸 남았어요. ${gaps.map((g) => GAP_LABEL[g]).join(', ')}`}
       >
         <View style={s.count}><Text style={s.countTx}>{gaps.length}</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>프로필 {gaps.length}칸 남았어요</Text>
           <Text style={s.sub} numberOfLines={2}>
-            {gaps.map((g) => GAP_LABEL[g].t).join(' · ')} — 러너가 보는 것들이에요
+            {gaps.map((g) => GAP_LABEL[g]).join(' · ')} — 러너가 보는 것들이에요
           </Text>
           {/* 진행 막대는 장식이 아니라 사실이다: 3칸 중 몇 칸. 0칸일 때는 이 행 자체가 없다. */}
           <View style={s.bar}><View style={[s.barFill, { width: `${(done / TOTAL) * 100}%` }]} /></View>

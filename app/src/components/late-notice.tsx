@@ -13,7 +13,6 @@
 //
 // ⚠ 코랄 하나 법: 이 컴포넌트는 primary 를 **스스로 만들지 않는다**. actions 를 호출자가
 // 조립하므로 화면당 코랄 한 개를 지키는 책임도 호출자에게 있다 (PaperBtn 의 계약과 동일).
-import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { sinceLabel, type Lateness } from '../lib/lateness';
 import { paper } from '../theme';
@@ -76,16 +75,13 @@ function copyFor(late: Lateness, side: LateSide, names: { dog?: string; runner?:
     : { kick: `${since} 늦음`, head: `${dog}가\n기다리고 있어요`, tone: 'critical' };
 }
 
-export function LateNotice({
-  late, side, dogName, runnerName, whenLabel, actions,
-}: {
+// ⚠ whenLabel·actions 프롭 제거 (codex 2026-08-21): 네 마운트 어디서도 넘기지 않는 죽은 계약이었다.
+// 아무도 쓰지 않는 프롭은 아무도 검사하지 않는 약속이다. 필요해지면 그때 되살린다.
+export function LateNotice({ late, side, dogName, runnerName }: {
   late: Lateness;
   side: LateSide;
   dogName?: string;
   runnerName?: string;
-  /** 예약 시각 한 줄 (kstParts 산출물). 없으면 줄을 그리지 않는다 — 모르면 말하지 않는다. */
-  whenLabel?: string | null;
-  actions?: ReactNode;
 }) {
   if (!late.late) return null; // 늦지 않았으면 아무것도 그리지 않는다
   const c = copyFor(late, side, { dog: dogName, runner: runnerName });
@@ -98,14 +94,12 @@ export function LateNotice({
         <Text style={[s.kick, { color: accent }]}>{c.kick}</Text>
       </View>
       <Text style={s.head}>{c.head}</Text>
-      {whenLabel ? <Text style={s.sub}>{whenLabel}</Text> : null}
       {c.strip ? (
         <View style={[s.strip, { backgroundColor: c.tone === 'critical' ? paper.criticalWash : '#FBEED9',
           borderColor: c.tone === 'critical' ? '#F0CFC6' : '#F2DFC2' }]}>
           <Text style={[s.stripText, { color: c.tone === 'critical' ? '#8C3722' : '#7A4A0C' }]}>{c.strip}</Text>
         </View>
       ) : null}
-      {actions ? <View style={s.actions}>{actions}</View> : null}
     </View>
   );
 }
@@ -116,8 +110,6 @@ const s = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   kick: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
   head: { fontSize: 25, fontWeight: '900', letterSpacing: -0.5, lineHeight: 30, color: paper.ink },
-  sub: { fontSize: 13.5, color: paper.text, marginTop: 5, lineHeight: 19 },
   strip: { borderWidth: 1, padding: 10, marginTop: 11 },
   stripText: { fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
-  actions: { marginTop: 12, gap: 8 },
 });

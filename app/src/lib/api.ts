@@ -1324,6 +1324,45 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
   });
 }
 
+// [B9, 러너 쪽] fetchRunnerJobs 도 scheduled_at DESC + limit 20 이다 — 보호자 홈에서 고친 것과
+// **같은 결함이 러너 홈에 그대로 남아 있었다** (codex 2026-08-21). 진행 중인 일은 지금(=그 20건보다
+// 과거)이라 미래 일정이 20건을 넘으면 창 밖으로 밀려나고, 러너 홈의 '진행 중'이 사라진다.
+// 랭킹하지 않는다: runner/home 의 current 선택이 유일한 결정자로 남고, 이 함수는 그 행이 목록에
+// 있게만 한다. 24시간 전부터, 가까운 순, 10건 — fetchInFlightOwnerBookings 와 같은 경계.
+export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
+  const rate = await myCommissionRate();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .eq('runner_id', user.user.id)
+    .in('status', IN_FLIGHT)
+    .gte('scheduled_at', since)
+    .order('scheduled_at', { ascending: true })
+    .limit(10);
+  // 정직 배치: 실패가 '진행 중 없음'으로 위장하면 러너 홈이 개를 데리고 있는데 비었다고 말한다.
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+    return {
+      bookingId: r.id,
+      when: `${dateLabel} ${timeLabel}`,
+      scheduledAt: r.scheduled_at ?? null,
+      dogName: r.dogs?.name ?? '반려견',
+      km: Number(r.km),
+      payout: estimatedPayout(r, rate), // 진행 중은 정의상 completed 가 아니므로 원장 조회 불필요
+      status: r.status === 'confirmed' ? 'confirmed' : 'in_progress',
+      rawStatus: r.status,
+      routeId: r.route_id ?? null,
+      dogPhotoUrl: r.dogs?.photo_url ?? null,
+      arrivedAt: r.arrived_at ?? null,
+      startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
+    } as RunnerJob;
+  });
+}
+
 // ---------- 코스 패치 (2026-07-28 확정) — 파생 데이터, 마이그레이션 0 ----------
 // 사다리: ×1 획득 → ×5 실버 → ×10 골드 → ×25 코스 마스터 (드랍 5/10 리듬과 동기).
 // 골드/마스터 도달 시 포인트 보너스는 서버(settle_run_tx, 0025)가 지급 — 클라는 표시만.

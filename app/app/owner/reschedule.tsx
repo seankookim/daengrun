@@ -11,6 +11,7 @@ import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { colors, paper } from '../../src/theme';
 import { kstCal, kstInstant } from '../../src/lib/kst';
+import { expectedDurationMs } from '../../src/lib/lateness';
 
 // 일정 변경 = 제안 (reschedule-as-proposal, 0016)
 // 확정 예약은 계약 — 여기서 고른 새 시간은 '요청'일 뿐, 러너가 수락해야 실제로 바뀐다.
@@ -87,7 +88,7 @@ export default function Reschedule() {
   // km×8+25분으로 본다 — owner/request.tsx의 slotAllowed가 쓰는 것과 같은 식이다. 10km 예약이면
   // 서버는 105분을 요구하므로, 60분만 맞는 칸이 UI에선 '가능'이었다가 러너가 수락할 때 거절됐다.
   // 화면이 서버가 거절할 칸을 내주는 건 이 파일이 이미 금지한 '거짓 준비'(honesty P1)와 같은 것.
-  const durMin = Math.round((info?.km ?? 5) * 8 + 25);
+  const durMin = expectedDurationMs(info?.km ?? 5) / 60_000; // 한 벌: src/lib/lateness.ts
   const daySlots = useMemo(() => {
     const day = days[dayIdx];
     const wd = day.cal.wd; // KST 요일 — rules.weekday가 KST 고정이다

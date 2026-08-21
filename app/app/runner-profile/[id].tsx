@@ -10,6 +10,7 @@ import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
+import { expectedDurationMs } from '../../src/lib/lateness';
 
 // 러너 공개 프로필 — 풀블리드(인스타 스타일) 스토어프런트.
 // 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
@@ -118,6 +119,7 @@ export default function RunnerProfileScreen() {
     return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
   }), []);
 
+  const durMin = expectedDurationMs(draft.km ?? 5) / 60_000; // 한 벌: src/lib/lateness.ts
   const daySlots = useMemo(() => {
     if (!p) return [] as { key: string; label: string; start: Date }[];
     const day = days[dayIdx];
@@ -126,14 +128,16 @@ export default function RunnerProfileScreen() {
     const out: { key: string; label: string; start: Date }[] = [];
     const minStart = Date.now() + 2 * 3600_000;
     rules.forEach((r) => {
-      for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
+      // ⚠ [codex 2026-08-21] 여기만 60분 고정이었다 — reschedule 에서 고친 드리프트가 세 번째
+      // 예약 입구에 그대로 남아 있었다. 서버 수락 검증은 km×8+25 를 본다.
+      for (let m = r.startMin; m + durMin <= r.endMin; m += 60) {
         const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
         if (start.getTime() < minStart) continue;
         out.push({ key: start.toISOString(), label: fmtMin(m), start });
       }
     });
     return out;
-  }, [p, dayIdx, days]);
+  }, [p, dayIdx, days, durMin]);
 
   useEffect(() => {
     if (!p || daySlots.length === 0) return;
@@ -144,7 +148,7 @@ export default function RunnerProfileScreen() {
       return next;
     });
     daySlots.forEach((sl) => {
-      const end = new Date(sl.start.getTime() + 60 * 60_000);
+      const end = new Date(sl.start.getTime() + durMin * 60_000);
       checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
         .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
         // [honesty P1 2026-08-11] failure used to paint the slot 가능 — a booking
@@ -152,13 +156,13 @@ export default function RunnerProfileScreen() {
         .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: 'error' })); });
     });
     return () => { alive = false; };
-  }, [p, daySlots]);
+  }, [p, daySlots, durMin]);
 
   // single-slot recheck — the retry path for a failed availability check
   const recheckSlot = (sl: { key: string; start: Date }) => {
     if (!p) return;
     setSlotOk((m) => ({ ...m, [sl.key]: null }));
-    const end = new Date(sl.start.getTime() + 60 * 60_000);
+    const end = new Date(sl.start.getTime() + durMin * 60_000);
     checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
       .then((ok) => setSlotOk((m) => ({ ...m, [sl.key]: ok })))
       .catch(() => setSlotOk((m) => ({ ...m, [sl.key]: 'error' })));
@@ -170,8 +174,11 @@ export default function RunnerProfileScreen() {
     draft.preferredRunnerId = p.profileId;
     draft.preferredRunnerName = p.name;
     draft.scheduledAtIso = sl.start.toISOString();
-    const d = sl.start;
-    draft.timeLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAY[d.getDay()]}) ${sl.label}`;
+    // ⚠ [codex 2026-08-21] instant 는 KST 로 옳게 지었는데 **라벨을 기기 로컬 getter 로** 다시
+    // 조판했다. UTC 기기에서 07:30 KST 슬롯이 전날 날짜로 표시되고 owner/request 가 그 라벨을
+    // 그대로 보여준다 — E6 가 이 화면에서만 절반 남아 있었다.
+    const c = kstCal(sl.start.getTime());
+    draft.timeLabel = `${c.m + 1}월 ${c.d}일 (${DAY[c.wd]}) ${sl.label}`;
     router.push('/owner/request');
   };
 

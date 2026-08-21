@@ -11,7 +11,7 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
@@ -196,6 +196,21 @@ export default function RunnerHome() {
   const [stats, setStats] = useState<RunnerWeekStats | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
+  // [B9 · codex 2026-08-21] fetchRunnerJobs 도 scheduled_at DESC + limit 20 이다 — 보호자 홈에서
+  // 고친 것과 **같은 결함이 러너 홈에 남아 있었다**. 진행 중인 일은 지금(= 그 20건보다 과거)이라
+  // 미래 일정이 20건을 넘으면 창 밖으로 밀려나고, 개를 데리고 있는데 '진행 중'이 사라진다.
+  // 캡 없는 진행 중 읽기를 합쳐 그 행이 **목록에 있게**만 한다 — current 의 선택 규칙은 그대로다.
+  const loadJobs = useCallback(() => {
+    Promise.all([fetchRunnerJobs(), fetchInFlightRunnerJobs()])
+      .then(([js, inFlight]) => {
+        const seen = new Set(js.map((j) => j.bookingId));
+        const liveById = new Map(inFlight.map((j) => [j.bookingId, j]));
+        setJobs(inFlight.length
+          ? [...js.map((j) => liveById.get(j.bookingId) ?? j), ...inFlight.filter((j) => !seen.has(j.bookingId))]
+          : js);
+      })
+      .catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+  }, []);
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
   // [honesty repair 2026-08-08 / plan §6.1-2, §6.3] The seed used to be tier: 'certified' — the same
   // lie fetchMyRunnerStatus told one layer down, and it painted 인증 러너 on the bib of an applicant
@@ -231,7 +246,7 @@ export default function RunnerHome() {
   // [실동작] 홈 티켓의 수락/거절 — 라벨만 있고 요청함으로 도망가던 문을 진짜 문으로.
   const reloadQueue = () => {
     loadInbox();
-    fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+    loadJobs();
   };
   const acceptFront = () => {
     const rq = inbox[0];
@@ -310,13 +325,13 @@ export default function RunnerHome() {
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
-    fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+    loadJobs();
     fetchCoursePatches()
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
     registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
     reloadStatus();
-  }, [loadAvail, loadInbox, reloadStatus]));
+  }, [loadAvail, loadInbox, loadJobs, reloadStatus]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,

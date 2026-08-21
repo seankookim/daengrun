@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { lateness } from '../../src/lib/lateness';
@@ -77,7 +77,16 @@ export default function Schedule() {
 
   const load = () => {
     setLoadErr(false);
-    return fetchMyBookings()
+    // [B9] 홈에서만 고쳤던 합집합을 여기에도. 히어로의 「일정에서 정리하기」가 **도착하는 화면**이
+    // 20행 창만 읽으면, 늦었다고 알려준 그 예약이 여기서는 없는 일이 된다 (codex 2026-08-21).
+    return Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
+      .then(([bs, inFlight]) => {
+        const seen = new Set(bs.map((b) => b.id));
+        const liveById = new Map(inFlight.map((b) => [b.id, b]));
+        return inFlight.length
+          ? [...bs.map((b) => liveById.get(b.id) ?? b), ...inFlight.filter((b) => !seen.has(b.id))]
+          : bs;
+      })
       .then((b) => { setLiveBookings(b); setLoaded(true); })
       .catch((e) => { console.warn('[schedule] bookings:', e?.message ?? e); setLoadErr(true); });
   };
