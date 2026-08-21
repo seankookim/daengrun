@@ -14,6 +14,7 @@ import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
+import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
 // slot-hold countdown on submit. See docs/calendar.md.
@@ -79,25 +80,10 @@ const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
 // highlighting another. today+7 is the last selectable day.
 const DATE_STRIP_DAYS = 8;
 
-// [E6] 이 화면의 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다. 읽기는 이미 Asia/Seoul 고정이고
-// (api.ts kstParts) 서버 가용 규칙·홀드 검증도 KST 고정인데, 쓰기만 로컬이었다 — UTC 시뮬레이터나
-// 해외 기기에서 사용자가 고른 '오전 7:30'이 16:30 KST로 저장되고, 그리드는 서버가 거절할 칸을
-// 내줬다. 한국은 DST가 없어 고정 오프셋 산술로 충분하다 (owner/home의 kstDayDiff, api.ts의
-// kstWeekStartMs와 같은 전제 — 이 파일에 따로 두는 것도 그 둘과 같은 관례다).
-const KST_MS = 9 * 3_600_000;
-// 어떤 시각의 KST 캘린더 조각. +9로 민 뒤엔 UTC 파트가 곧 KST 파트다.
-const kstCal = (ms: number) => {
-  const k = new Date(ms + KST_MS);
-  return {
-    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
-    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
-  };
-};
-type KstCal = ReturnType<typeof kstCal>;
-// KST 벽시계(캘린더 날 + 시:분) → 실제 시각. 저장되는 instant는 여기서만 만들어진다.
-const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
-// 날짜 칸 동일성 키 — toDateString()은 기기 로컬이라 KST 날짜 칸과 어긋난다.
-const kstKey = (c: KstCal) => `${c.y}-${c.m}-${c.d}`;
+// [E6] 슬롯 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다 — 서버 가용 규칙과 홀드 검증이
+// KST 고정이라, 로컬로 지으면 UTC 시뮬레이터·해외 기기에서 화면이 07:30을 보여주고 16:30 KST를
+// 저장한다. 산술은 src/lib/kst.ts 한 곳에 있다 (세 입구가 복제하던 것을 모았다 — 그 복제가
+// E6 를 처음 고칠 때 셋 중 둘만 고치게 만든 원인이다). 테스트: app/test/run-kst-tests.sh
 
 const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
   const cal = kstCal(Date.now() + i * 86400_000);

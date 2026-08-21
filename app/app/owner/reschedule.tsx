@@ -10,6 +10,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { colors, paper } from '../../src/theme';
+import { kstCal, kstInstant } from '../../src/lib/kst';
 
 // 일정 변경 = 제안 (reschedule-as-proposal, 0016)
 // 확정 예약은 계약 — 여기서 고른 새 시간은 '요청'일 뿐, 러너가 수락해야 실제로 바뀐다.
@@ -25,20 +26,10 @@ const fmtMin = (m: number) => {
   const h = Math.floor(m / 60);
   return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시${m % 60 ? ` ${m % 60}분` : ''}`;
 };
-// [E6] 이 화면의 시각도 기기 로컬이 아니라 **KST 벽시계**로 짓고 읽는다. 서버 가용 규칙(weekday/
-// startMin/endMin)과 checkSlot 검증이 KST 고정인데 그리드와 쓰기가 로컬이었다 — UTC 시뮬레이터·
-// 해외 기기에서 고른 칸이 다른 KST 시각으로 제안됐다. owner/request.tsx와 같은 산술을 같은 이유로
-// 이 파일에도 둔다 (owner/home의 kstDayDiff·runner/home의 kstDay와 같은 관례).
-const KST_MS = 9 * 3_600_000;
-const kstCal = (ms: number) => {
-  const k = new Date(ms + KST_MS);
-  return {
-    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
-    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
-  };
-};
-type KstCal = ReturnType<typeof kstCal>;
-const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
+// [E6] 슬롯 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다 — 서버 가용 규칙과 홀드 검증이
+// KST 고정이라, 로컬로 지으면 UTC 시뮬레이터·해외 기기에서 화면이 07:30을 보여주고 16:30 KST를
+// 저장한다. 산술은 src/lib/kst.ts 한 곳에 있다 (세 입구가 복제하던 것을 모았다 — 그 복제가
+// E6 를 처음 고칠 때 셋 중 둘만 고치게 만든 원인이다). 테스트: app/test/run-kst-tests.sh
 
 const fmtIso = (iso: string) => {
   const c = kstCal(Date.parse(iso));

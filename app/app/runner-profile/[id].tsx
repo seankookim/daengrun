@@ -9,6 +9,7 @@ import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
+import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
 
 // 러너 공개 프로필 — 풀블리드(인스타 스타일) 스토어프런트.
 // 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
@@ -24,23 +25,10 @@ const TILE = (W - 4) / 3; // 3열 엣지-투-엣지, 2px 갭
 
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-// [E6 · 세 번째 예약 입구] 이 화면도 confirmSlot(:166)에서 draft.scheduledAtIso를 써 넣는다 —
-// owner/request.tsx·owner/reschedule.tsx와 같은 쓰기 경로다. 첫 E6 커밋이 "쓰는 화면은 둘"이라고
-//적었는데 셋이었다: 러너 프로필의 슬롯 그리드가 빠져 있었다. 기기 로컬로 지으면 UTC 시뮬레이터·
-// 해외 기기에서 화면은 07:00을 보여주고 16:00 KST를 저장한다 (가용 규칙이 KST 고정이라 클라이언트
-// 검사와 서버 검증이 **둘 다 옮겨진 시각에 동의해** 버려서, 조용히 틀린다).
-// 한국은 DST가 없어 고정 오프셋으로 충분 (api.ts kstWeekStartMs와 같은 산술).
-const KST_MS = 9 * 3_600_000;
-const kstCal = (ms: number) => {
-  const k = new Date(ms + KST_MS);
-  return {
-    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
-    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
-  };
-};
-type KstCal = ReturnType<typeof kstCal>;
-const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
-const kstKey = (c: KstCal) => `${c.y}-${c.m}-${c.d}`;
+// [E6] 슬롯 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다 — 서버 가용 규칙과 홀드 검증이
+// KST 고정이라, 로컬로 지으면 UTC 시뮬레이터·해외 기기에서 화면이 07:30을 보여주고 16:30 KST를
+// 저장한다. 산술은 src/lib/kst.ts 한 곳에 있다 (세 입구가 복제하던 것을 모았다 — 그 복제가
+// E6 를 처음 고칠 때 셋 중 둘만 고치게 만든 원인이다). 테스트: app/test/run-kst-tests.sh
 
 function availabilitySummary(rules: RunnerPublicProfile['availability']): string[] {
   if (rules.length === 0) return [];
