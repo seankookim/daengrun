@@ -34,8 +34,13 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('inside grace is not late', r.late === false, JSON.stringify(r));
 }
 {
+  // ⚠ sinceMs is measured from the APPOINTMENT, not from the grace deadline (codex 2026-08-21):
+  // runner/home's ticket counts from scheduled_at via relWhen(), and two origins on one screen
+  // produced 「60분 늦음」 beside 「30분 늦음」 for one booking. Grace decides WHETHER it is late.
   const r = lateness(B('confirmed', T0 - LATENESS_GRACE_MS - MIN), T0);
-  t('one minute past grace is late', r.late === true && r.sinceMs === MIN, JSON.stringify(r));
+  t('one minute past grace is late', r.late === true, JSON.stringify(r));
+  t('…and sinceMs counts from the appointment, not the deadline',
+     r.sinceMs === LATENESS_GRACE_MS + MIN, String(r.sinceMs / MIN));
 }
 {
   const r = lateness(B('confirmed', T0 - 60 * MIN), T0, 0);
@@ -119,11 +124,13 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('grace default is 30 min', LATENESS_GRACE_MS === 30 * MIN, String(LATENESS_GRACE_MS / MIN));
   t('ceiling default is 3 hours', LATENESS_CEILING_MS === 180 * MIN, String(LATENESS_CEILING_MS / MIN));
 
-  const at = (lateBy) => lateness(B('confirmed', T0 - LATENESS_GRACE_MS - lateBy), T0);
+  // scheduled `sinceBy` ago — sinceMs now equals that directly, same origin as the ceiling
+  const at = (sinceBy) => lateness(B('confirmed', T0 - sinceBy), T0);
   t('not late → resumable', lateness(B('confirmed', T0 + 60 * MIN), T0).resumable === true);
   t('late but inside the ceiling → resumable', at(60 * MIN).resumable === true);
   t('exactly at the ceiling → still resumable', at(LATENESS_CEILING_MS).resumable === true);
   t('one minute past the ceiling → NOT resumable', at(LATENESS_CEILING_MS + MIN).resumable === false);
+  t('sinceMs and the ceiling share an origin', at(90 * MIN).sinceMs === 90 * MIN, String(at(90*MIN).sinceMs/MIN));
 
   // The live row: 16 days past. Nothing about it is resumable.
   const aug4 = Date.parse('2026-08-04T06:30:00Z');

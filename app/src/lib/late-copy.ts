@@ -66,6 +66,17 @@ export function copyFor(
           strip: '떠나기 전에 한 번 더 알려주세요.' };
   }
 
+  // ── 천장을 넘겼다: 이건 '늦은 예약'이 아니라 끝난 일이다. 진행을 암시하지 않는다.
+  // (resumable 은 여기서 소비된다 — 아무도 읽지 않는 필드는 아무도 검사하지 않는 계약이다,
+  //  codex 2026-08-21. 인계 후는 위에서 이미 처리됐으므로 여기 도달하면 인계 전이다.)
+  if (!late.resumable) {
+    return side === 'owner'
+      ? { kick: `${since} 지남`, head: '이 예약은\n진행되지 않았어요', tone: 'warn',
+          strip: '지금은 진행할 수 없어요 — 일정에서 정리하거나 다시 예약해 주세요.' }
+      : { kick: `${since} 지남`, head: '이 예약은\n진행할 수 없어요', tone: 'warn',
+          strip: '너무 오래 지나 시작할 수 없어요.' };
+  }
+
   // ── 인계 전, 러너를 기다리는 중
   return side === 'owner'
     ? { kick: '예약 시각이 지났어요', head: '러너가 아직\n도착하지 않았어요', tone: 'warn' }

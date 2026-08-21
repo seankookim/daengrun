@@ -29,7 +29,11 @@ export type WaitingOn = 'runner' | 'owner' | null;
 
 export type Lateness = {
   late: boolean;
-  /** 늦은 시간(ms). late=false 면 0. */
+  /** 늦은 시간(ms) — **약속 시각 기준**이지 유예 마감 기준이 아니다. late=false 면 0.
+   *  ⚠ 왜 유예를 빼지 않는가 (codex 2026-08-21): runner/home 의 티켓은 relWhen() 으로 예약 시각부터
+   *  세고, 이 값은 유예 마감부터 셌다. 그래서 한 화면에서 티켓은 「60분 늦음」, 알림은 「30분 늦음」
+   *  이라고 말했다 — 둘 다 참인데 사용자에겐 그냥 버그다. 유예는 '늦었다고 말할지'를 정하는 문턱이지
+   *  '얼마나 늦었는지'의 원점이 아니다. 사람이 늦은 정도는 약속으로부터 잰다. */
   sinceMs: number;
   custody: Custody;
   waitingOn: WaitingOn;
@@ -48,7 +52,8 @@ export type Lateness = {
 // 숫자가 아니라서 처음부터 인자로 빼뒀고, 이제 그 기본값이 채워졌다. 여전히 주입 가능하다.
 export const LATENESS_GRACE_MS = 30 * 60_000;
 
-// 천장 — 이 시간을 넘기면 이 예약은 '늦은 예약'이 아니라 '끝난 일'이다.
+// 천장 — 약속 시각으로부터 이 시간을 넘기면 '늦은 예약'이 아니라 '끝난 일'이다.
+//   (sinceMs 와 같은 원점을 쓴다 — 문턱과 원점이 다르면 두 숫자가 생긴다.)
 // 왜 필요한가: 천장이 없으면 두 번의 탭으로 16일 된 예약이 되살아난다 (codex 지적, 플랜 §4.3).
 // 넘긴 뒤에는 화면이 '진행' 계열 동작을 제안하지 않는다 — 종점만 남는다.
 // 인계 후에도 같다: 3시간을 넘긴 러닝은 정상 러닝이 아니라 확인이 필요한 사건이다.
@@ -118,7 +123,7 @@ export function lateness(
   const waitingOn: WaitingOn =
     status === 'runner_enroute' && b.arrivedAt ? 'owner' : 'runner';
 
-  const sinceMs = now - deadline;
+  const sinceMs = now - due;   // 약속(또는 예상 종료)으로부터. 유예는 위 문턱에서 이미 제 몫을 했다.
   const arrivedMs = b.arrivedAt ? Date.parse(b.arrivedAt) : NaN;
   const waitMs = waitingOn === 'owner' && !Number.isNaN(arrivedMs)
     ? Math.max(0, now - arrivedMs)   // 러너가 실제로 문 앞에 서 있던 시간
