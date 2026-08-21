@@ -289,3 +289,13 @@ honest test is a real run ending after a real cutover.
   partial_canceled (double-charge protection), but `payments_reconciliation()` has no arm that
   reads those rows — nothing summons the human the comment promises. The held club-fee slice
   (or any refund writer) creates exactly these rows; add the sixth reconciliation arm before flip.
+- [ ] **The 0066 `runner_enroute` 50% arm has a staleness/fault carve-out** (found by ui5,
+  verified by the announcer 2026-08-21: the arm sits ABOVE the 24h arm, unconditional on time,
+  live in production). Until fixed: an owner cancelling a booking whose runner vanished weeks
+  ago pays 50% "runner compensation" to a runner who never arrived — Sean's own Aug-4 row is
+  the standing example (17 days at `runner_enroute`, because nothing ever writes `no_show` and
+  no clock covers confirmed/enroute/picked_up/active). The fee is RECORDED today and becomes a
+  real charge at flip. The fix is server-side (fault dimension or staleness carve-out in
+  `marketplace_cancel_fee`) and pairs naturally with the late-booking stage-2 slice — both
+  blocked on §0-quinvicies. NOTE: an earlier client plan carried this as "Handled by D4/D5" —
+  that was wrong (the ladder is live and protocol-independent); corrected here at the source.
