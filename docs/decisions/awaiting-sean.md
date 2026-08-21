@@ -370,6 +370,27 @@ re-open App Store 5.1.1(v)), and instead keeps the payout destination intact whi
 runner, all test data, charging off — and it becomes real the day charging flips. Needs: a payout writer (manual ops run or Toss
 payout), a paid marker on the earnings, and then the deletion gate becomes implementable. Unowned; money/trust surface.
 
+## 0-duodetricies. 🟡 THREE THINGS THE LEGAL/OPS SWEEP FOUND, each verified by the announcer (2026-08-20)
+
+**1. Every logged-in user can read every public runner review — and a shipped legal doc says otherwise.** Measured: `reviews` carries FOUR
+SELECT policies, and `reviews storefront read` is `visibility='public' AND target_kind='runner'` with **no party term** (0011). The
+non-location legal review concluded reviews were not exposed — but it probed as **anon** (401) and the exposure is to **authenticated**.
+Same "read one layer, describe another" family that has bitten five times now. ⚠ Nuance the sweep overstated and I measured: there are
+**zero** public runner reviews today (1 review total), so the POLICY is live and the DATA is empty — it becomes real the first time a
+public runner review is written. **A** intended, it is a storefront, leave it · **B** narrow it (a review of a runner is about a named
+person) — legal's position was that widening this read path is a legal decision, not a UI one.
+
+**2. A decision of yours is buried in a code comment, not in this queue.** `supabase/migrations/0060_wave3_server_honesty.sql:52-53`
+(verbatim intent): *gate_code_access_log has never once been written to — it is an empty shell; adding a log would make
+`booking_pickup_address` volatile — awaiting Sean's judgement; use the club_phone_access_log (0049) pattern if he wants it.* So the
+gate-code viewing log exists as a TABLE with no writer, and whether to actually log gate-code access is your open call. It is the same
+family as the 위치정보 제16조 access ledger legal wants built. **A** log it (function becomes volatile; copy the 0049 pattern) · **B**
+leave it unlogged and delete the empty table so nobody mistakes the shape for the behaviour.
+
+**3. Eight `scripts/*.mjs` still tell the reader to put the service key in a root `.env`** — the exact defect the CSO audit closed by
+moving it to `~/.config/daengrun/ops.env`. Nothing is leaking today (the key is not in the repo), but the instructions would re-create
+it. Small cleanup, unowned, no decision needed — flagged so it is not rediscovered as news.
+
 ## 0-septemvicies. 🔴 IRREVERSIBLE, AND IT SITS DIRECTLY BEFORE YOUR TESTFLIGHT ERRAND (2026-08-20)
 
 **`app/app.json:22` — `"bundleIdentifier": "com.seankookim.daengrun"`** (and the widget target at `:99` mirrors it). **[measured by the
