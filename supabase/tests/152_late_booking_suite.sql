@@ -172,7 +172,7 @@ declare
   b34 uuid; b34b uuid; b35 uuid;
   b31b uuid; b31f uuid; b3f uuid; b3o uuid; b29c uuid; b29d uuid;
   b41 uuid; b42 uuid; b43 uuid; b44 uuid; b45 uuid; b46 uuid; b47 uuid; b48 uuid;
-  v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint;
+  v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint; b49 uuid; b50 uuid;
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -298,14 +298,56 @@ begin
     -- no fault is FOUND by silence — a stalemate is the absence of a finding
     if exists (select 1 from booking_faults f where f.booking_id = b47)
       then v_bad := v_bad || ' 침묵에 과실행'; end if;
-    -- ⓑ a human statement still moves money: the ground becomes fault, not the clock
-    if not cancel_moves_no_money(b3f) then v_bad := v_bad || ' 진술된 과실이 무이동을 못 만듦'; end if;
+    -- ⓑ ⚠ THE CLOCK CLOSES THE BOOKING, NOT THE QUESTION — on THIS booking, through the REAL
+    -- path. Round 4's version cheated: it asserted a different, still-live booking whose fault
+    -- row postgres had inserted directly, which proves nothing about whether a human can still
+    -- speak AFTER the clock has closed their booking. Here b17 is already resolved and
+    -- terminal, and the owner uses the shipped call.
+    -- b49 lives the WHOLE arc on ONE booking: silent → closed by the clock through the real
+    -- resolution path → still a stalemate → a human speaks → the stalemate releases. (b17 is
+    -- L9's ceiling fixture and must stay silent and fault-free for it; using b17 here would
+    -- make L9 red for the right reason, which is still the wrong test.)
+    b49 := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+    perform _resolve_checkin(b49, 'ceiling');                 -- the real path, not a fixture
+    if (select b.status::text from bookings b where b.id = b49) is distinct from 'no_show'
+      then v_bad := v_bad || ' 시계가 b49를 닫지 못함'; end if;
+    if not cancel_moves_no_money(b49) then v_bad := v_bad || ' 닫힌 직후 교착이 아님'; end if;
+    if exists (select 1 from booking_faults f where f.booking_id = b49)
+      then v_bad := v_bad || ' 시계가 과실을 적었다'; end if;
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := state_after_the_fact(b49, 'owner', '러너가 오지 않았어요');
+    perform set_config('request.jwt.claim.sub', '', false);
+    if coalesce((v_js->>'recorded')::boolean, false) is not true
+      then v_bad := v_bad || ' 사후 진술이 기록되지 않음'; end if;
+    if not exists (select 1 from booking_faults f
+                   where f.booking_id = b49 and f.party = 'owner'
+                     and f.source = 'post_resolution_statement' and f.stated_by = oo)
+      then v_bad := v_bad || ' 사후 과실행 없음'; end if;
+    -- …and the stalemate stops answering for it: the question is open again
+    if cancel_moves_no_money(b49)
+      then v_bad := v_bad || ' 진술 뒤에도 교착이 영구적'; end if;
+    if (v_js->>'moves_no_money')::boolean is distinct from false
+      then v_bad := v_bad || ' 반환값이 교착 해제를 말하지 않음'; end if;
+    -- the door is only open where SILENCE closed it: a booking whose terminal already came
+    -- from a statement has nothing left open. (Its own fixture — b2 is L2's and does not exist
+    -- yet at this point in the file, which is how a NULL slipped into the first draft.)
+    b50 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+    perform open_checkin(b50);
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    perform answer_checkin(b50, 'owner', 'cannot_proceed', '제가 못 가게 됐어요');
+    begin
+      perform state_after_the_fact(b50, 'owner', '이미 말했다');
+      v_bad := v_bad || ' 진술 종결에도 사후 진술이 열림';
+    exception when others then
+      if sqlerrm <> 'nothing_left_open' then v_bad := v_bad || ' 사후 거부 사유=' || sqlerrm; end if;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
     -- ⓒ nobody silent, nobody stated ⇒ 0066's 50% is untouched
     select f.fee into v_fee2 from marketplace_cancel_fee(b_fresh) f;
     if v_fee2 is distinct from 12450 then v_bad := v_bad || ' 생생한 인루트=' || coalesce(v_fee2::text, 'null'); end if;
     if cancel_moves_no_money(b_fresh) then v_bad := v_bad || ' 생생한 인루트가 교착으로 판정됨'; end if;
     if v_bad = '' then
-      call _pass('lb', 'L9b 침묵 교착 = 아무도 내지 않고 아무도 받지 않는다 (Sean: "Nobody pays, nobody is paid") — 보호자 0·러너 보상 0·원장 없음·과실 없음 · 진술된 과실은 여전히 돈을 움직이고 · 생생한 인루트의 50%는 그대로');
+      call _pass('lb', 'L9b 침묵 교착 = 아무도 내지 않고 아무도 받지 않는다 (Sean: "Nobody pays, nobody is paid") — 보호자 0·러너 보상 0·원장 없음·과실 없음 · 그리고 시계가 닫은 뒤에도 당사자가 같은 예약에 사후 진술을 남기면 교착은 풀린다 (영구적이 아니다) · 생생한 인루트 50%는 그대로');
     else call _fail('lb', 'L9b 침묵 교착 규칙', v_bad); end if;
   exception when others then call _fail('lb', 'L9b 침묵 교착 규칙', sqlerrm); end;
 
@@ -457,8 +499,13 @@ begin
       then v_bad := v_bad || ' 원장 행이 생겼다'; end if;
     if exists (select 1 from payments pm where pm.booking_id = b2)
       then v_bad := v_bad || ' 결제 인텐트가 생겼다'; end if;
+    -- ⚠ [blind r5 RC-3] 이 핀이 주장하는 것은 "리졸버는 돈을 움직이지 않는다"이지
+    -- "과실이 기록돼도 돈이 움직이지 않는 것이 옳다"가 아니다. 후자는 D4(돈은 과실을 따른다)의
+    -- 부재를 바람직한 것으로 고정하는 것이고, 그건 핀이 없느니만 못하다. 지금 이 예약(보호자
+    -- 과실, 인루트 아님)에 대해 어떤 청구·보상이 따라야 하는지는 계획 §4.2 — Sean의 대기 중
+    -- 결정이며, 그 결정이 내려지면 이 핀의 문구가 아니라 이 핀의 기대값이 바뀌어야 한다.
     if v_bad = '' then
-      call _pass('lb', 'L2 cannot_proceed = 본인 진술 즉시 종결 — no_show + 진술한 측의 과실행 1개(stated_by=본인) + 서버 타임스탬프 + 돈은 무이동');
+      call _pass('lb', 'L2 cannot_proceed = 본인 진술 즉시 종결 — no_show + 진술한 측의 과실행 1개(stated_by=본인) + 서버 타임스탬프 · 리졸버 자신은 돈을 움직이지 않는다 (과실의 소비=§4.2는 Sean 대기, 여기서 바람직하다고 고정하지 않는다)');
     else call _fail('lb', 'L2 cannot_proceed 즉시 종결', v_bad); end if;
   exception when others then call _fail('lb', 'L2 cannot_proceed 즉시 종결', sqlerrm); end;
 
@@ -1489,6 +1536,22 @@ begin
     perform sweep_cancel_money_gaps();
     select count(*) into v_n from ledger_items li where li.booking_id = b44;
     if v_n is distinct from 1 then v_bad := v_bad || ' 재실행이 행을 늘림=' || v_n; end if;
+    -- ⚠ [blind r5 F5] 원장 행이 있다고 수수료가 걷힌 것은 아니다. 가장 흔한 찢어짐 —
+    -- 보상은 썼고 collectCancelFee 직전에 죽는다 — 을 라운드 4의 술어는 아예 보지 못했고,
+    -- 그래서 수금 호출을 통째로 지워도 이 핀이 초록이었다. 이 팔이 그 구멍이다.
+    update ops_flags set payments_live_since = now() - interval '7 days', updated_at = now();
+    b48 := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+    update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b48;
+    perform record_enroute_cancel_comp(b48);          -- 보상은 기록됐고…
+    delete from payments where booking_id = b48;      -- …인텐트는 없다 (여기서 죽었다)
+    perform set_config('app.cancel_gap_grace', '-1 minutes', true);
+    perform sweep_cancel_money_gaps();
+    if not exists (select 1 from payments pm where pm.booking_id = b48)
+      then v_bad := v_bad || ' 수금 인텐트가 복구되지 않음 (원장만 보는 술어)'; end if;
+    if (select count(*) from ledger_items li where li.booking_id = b48) is distinct from 1
+      then v_bad := v_bad || ' 보상이 중복 기록됨'; end if;
+    update ops_flags set payments_live_since = null, updated_at = now();
+
     -- 방금 취소된(아직 안 찢어진) 행은 건드리지 않는다 — 창을 실제 값으로 되돌리고 확인한다
     perform set_config('app.cancel_gap_grace', '15 minutes', true);
     b45 := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
@@ -1521,7 +1584,12 @@ begin
     select count(*) into v_n from pg_proc p3 join pg_namespace n3 on n3.oid = p3.pronamespace
      where n3.nspname = 'public' and p3.proname = '_resolve_checkin'
        and p3.prosrc like '%kl.booking_id = p_booking%'      -- 이 예약이 쥔 로트만
-       and p3.prosrc like '%for update%';                     -- 그리고 락 아래에서
+       and p3.prosrc like '%for update%'                      -- 락 아래에서
+       -- [blind r5 F8] 그리고 오름차순으로. "정렬이 있다"는 교착을 막지 못한다 — 두 트랜잭션이
+       -- 반대 순서로 같은 두 로트를 잡으면 그대로 데드락이고, `order by l.id desc` 도 이전
+       -- 소스 핀을 통과했다. 방향이 규약이다.
+       and p3.prosrc like '%order by l.id%'
+       and p3.prosrc not like '%order by l.id desc%';
     if v_n is distinct from 1 then v_bad := v_bad || ' 만료 복구가 예약 범위/락을 잃음 (MAJOR-7)'; end if;
     if v_bad = '' then
       call _pass('lb', 'L46 시계의 만료 복구는 이 예약이 쥔 로트에만, 락 아래 — 행동 팔 + 소스 핀 (동시성 위험은 레이스 파일의 땅, MAJOR-7)');

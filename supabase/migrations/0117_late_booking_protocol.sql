@@ -505,6 +505,23 @@ begin
                           b.owner_confirmed_handoff_at, b.runner_confirmed_handoff_at)
   end;
 
+  -- ⚠ [blind r5 F6] A HANDOFF IN FLIGHT IS NOT A DEAD BOOKING. `_checkin_custody` reads state
+  -- at ONE INSTANT, and the handoff is not one instant: the two stamps and the promotion to
+  -- `picked_up` commit in SEPARATE requests (transition-booking/index.ts). So the clock could
+  -- see exactly one stamp at 13:00:00, commit `no_show`, and the runner's in-flight request
+  -- would then land the second stamp — leaving a durable `no_show` on a booking whose two
+  -- humans had both confirmed the dog changed hands. ONE stamp means a handoff is HAPPENING;
+  -- the clock steps aside and lets it finish (the next tick re-evaluates, and by then the
+  -- promotion has either landed — post-custody — or the row is genuinely stale again).
+  if p_cause in ('deadline', 'ceiling')
+     and (b.owner_confirmed_handoff_at is not null or b.runner_confirmed_handoff_at is not null)
+     and v_custody <> 'post' then
+    update booking_checkins
+       set resolved_at = now(), resolution = 'superseded', version = c.version + 1
+     where booking_id = p_booking and resolved_at is null and version = c.version;
+    return;
+  end if;
+
   v_any_cannot   := c.owner_answer = 'cannot_proceed' or c.runner_answer = 'cannot_proceed';
   v_both_proceed := c.owner_answer = 'proceeding' and c.runner_answer = 'proceeding';
 
@@ -766,6 +783,80 @@ comment on function answer_checkin is
 idempotent on replay, server timestamps only, ''proceeding'' refused past the ceiling (FM4).
 Resolves in the same transaction when the answer decides (cannot_proceed → terminal + fault;
 second proceeding → bounded renewal).';
+
+-- ═══ §6b state_after_the_fact — the question the clock did not close [blind r5 RC-1] ══════
+-- Sean, 2026-08-21: *"a later human statement is still what moves money."* Round 4 wrote that
+-- sentence into the header and then shipped the opposite: `answer_checkin` refuses a resolved
+-- check-in (correctly — an in-window answer cannot retract a resolution), `no_show` is
+-- terminal, and the stalemate arm was unconditional. Together those three made the stalemate
+-- PERMANENT. This is the door that keeps the question open.
+--
+-- It is deliberately NOT a re-opening of the check-in. The protocol's window closed and its
+-- record is immutable; what remains available is the thing the window was asking for — a
+-- person saying what happened — and it lands where every other statement lands: a
+-- `booking_faults` row, with `stated_by` naming the human (D5 as schema, §3).
+--
+-- ⚠ WHAT THE STATEMENT ENTITLES IS NOT DECIDED HERE. Recording it stops the stalemate arm
+-- from claiming "nothing moves" (§9 ①/②), which is the half this file owns; the TRANSFER that
+-- should follow a fault on a closed booking — the runner's compensation for an owner-caused
+-- no-show, and its mirror — is §4.2 of the plan and is Sean's queued question. The fault row
+-- is written so that ruling can be applied to real statements rather than to memory.
+create or replace function state_after_the_fact(
+  p_booking uuid, p_side text, p_reason text default null
+) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare b record; c record; v_uid uuid := auth.uid(); v_party uuid;
+begin
+  if p_side not in ('runner', 'owner') then raise exception 'bad_side'; end if;
+
+  select bk.id, bk.owner_id, bk.runner_id, bk.club_session_id, bk.status::text as status
+    into b
+  from bookings bk where bk.id = p_booking for update;
+  if b.id is null then raise exception 'not_found'; end if;
+
+  -- a statement is a HUMAN act (§6's law, same reasoning): no JWT, no statement.
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if p_side = 'runner' and v_uid is distinct from b.runner_id then raise exception 'not_party'; end if;
+  if p_side = 'owner'  and v_uid is distinct from b.owner_id  then raise exception 'not_party'; end if;
+  if b.club_session_id is not null then raise exception 'club_out_of_scope'; end if;
+
+  select * into c from booking_checkins bc where bc.booking_id = p_booking for update;
+  if c.booking_id is null or c.resolved_at is null then
+    -- the window is still open (or never opened): the in-window call owns this.
+    raise exception 'checkin_not_resolved';
+  end if;
+  -- only a NO-FAULT resolution leaves a question open. A resolution that already recorded a
+  -- statement was not silence, and `cannot_proceed`'s terminal is not re-litigated here.
+  if c.resolution not in ('void', 'ceiling', 'ceiling_backfill') then
+    raise exception 'nothing_left_open';
+  end if;
+
+  v_party := case when p_side = 'owner' then b.owner_id else b.runner_id end;
+  if v_party is null then raise exception 'not_party'; end if;
+
+  -- first statement wins, per side — the same immutability every other statement has.
+  insert into booking_faults (booking_id, party, source, stated_by, reason)
+  values (p_booking, p_side, 'post_resolution_statement', v_party, p_reason)
+  on conflict (booking_id, party) do nothing;
+
+  return jsonb_build_object(
+    'recorded', true,
+    'party', p_side,
+    -- the observable consequence THIS file owns: the stalemate stops answering for this
+    -- booking. What the fault then entitles is Sean's §4.2 question.
+    'moves_no_money', cancel_moves_no_money(p_booking),
+    'server_now', now());
+end $$;
+
+revoke execute on function state_after_the_fact(uuid, text, text) from public, anon;
+grant  execute on function state_after_the_fact(uuid, text, text) to authenticated, service_role;
+
+comment on function state_after_the_fact is
+  '0117 §6b (Sean 2026-08-21 + blind r5 RC-1): 시계가 닫은 것은 예약이지 질문이 아니다. 침묵으로
+종결된(void/ceiling/ceiling_backfill) 예약에 대해 당사자가 사후에 자기 진술을 남긴다 — 체크인을
+다시 열지 않고, 그 진술은 다른 모든 진술과 같은 자리(booking_faults, stated_by=본인)에 적힌다.
+그 순간 §9의 교착 팔은 이 예약에 대해 "아무것도 움직이지 않는다"고 답하기를 멈춘다. 그 진술이
+무엇을 청구할 자격이 되는지(러너 보상 등)는 계획 §4.2 — Sean의 대기 중 결정이다.';
 
 -- ═══ §7 fetch_checkin — what the surface renders ══════════════════════════════════════════
 create or replace function fetch_checkin(p_booking uuid) returns jsonb
@@ -1041,9 +1132,16 @@ language sql stable security definer set search_path = public, pg_temp as $$
   -- ① money follows fault (D4): the runner's own recorded statement
   select exists (select 1 from booking_faults f
                  where f.booking_id = p_booking and f.party = 'runner')
-  -- ② the silent stalemate (Sean's ruling): nobody spoke, nothing is known, nothing moves
+  -- ② the silent stalemate (Sean's ruling) — and it is the outcome of SILENCE, so it holds
+  --    only while the silence does. [blind r5 RC-1] The arm was unconditional, which made the
+  --    stalemate PERMANENT: once the clock had closed a booking, no statement could change what
+  --    it cost, and Sean's ruling says the opposite ("the clock closes the booking; it does not
+  --    close the question"). `not exists (…booking_faults…)` is what makes the silence a
+  --    PREMISE of this arm rather than a one-way door: the moment either party states what
+  --    happened — through §6 in the window, or §6b after it — this arm stops answering.
       or exists (select 1 from bookings b
                  where b.id = p_booking and late_ceiling_at(b.scheduled_at) <= now()
+                   and not exists (select 1 from booking_faults f2 where f2.booking_id = b.id)
                    -- [codex HIGH-4] the TIMER waives only when nothing says the runner showed
                    -- up. With arrival or handoff evidence on the row, an owner waiting out
                    -- the clock must not strip the runner's 0066 entitlement — with evidence,
@@ -1171,26 +1269,48 @@ create or replace function sweep_cancel_money_gaps() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare r record; n int := 0;
 begin
+  -- [blind r5 NOTE-10] gated by the SAME flag as the rest of the protocol. Ungated, this cron
+  -- would start writing runner ledger rows for HISTORICAL cancellations the moment the file
+  -- landed — money appearing in people's ledgers because a migration was pushed, which is the
+  -- deploy-day surprise the flag exists to prevent. It repairs what the protocol era produced.
+  if (select f.late_protocol_live_since from ops_flags f) is null then return 0; end if;
   if not pg_try_advisory_lock(hashtextextended('cancel_money_gaps', 0)) then return 0; end if;
   for r in
-    select b.id, b.cancel_reason
+    select b.id, b.cancel_reason,
+           not exists (select 1 from ledger_items li where li.booking_id = b.id) as comp_missing,
+           not exists (select 1 from payments pm where pm.booking_id = b.id)     as intent_missing
     from bookings b
     where b.status = 'cancelled_owner'
       and b.club_session_id is null
       and coalesce(b.cancel_fee, 0) > 0
       and b.cancel_reason in ('owner_cancel_enroute', 'owner_cancel_late')
       and b.runner_id is not null
-      and not exists (select 1 from ledger_items li where li.booking_id = b.id)
+      -- [blind r5 F5] A LEDGER ROW IS NOT EVIDENCE THE FEE WAS COLLECTED. Round 4 excluded any
+      -- booking that had one, so the commonest tear — comp written, then the worker dies before
+      -- `collectCancelFee` — was invisible to the repair that existed for it, and deleting the
+      -- collection call outright left the pin green. The two halves are independent facts and
+      -- each is checked for itself.
+      and (not exists (select 1 from ledger_items li where li.booking_id = b.id)
+           or not exists (select 1 from payments pm where pm.booking_id = b.id))
       -- give the request that owns this cancel time to finish its own writes; only rows that
       -- are STILL bare after the window are torn.
       and b.updated_at < now() - cancel_gap_grace()
     order by b.id
   loop
     begin
-      if r.cancel_reason = 'owner_cancel_enroute' then
-        perform record_enroute_cancel_comp(r.id);
-      else
-        perform record_late_cancel_share(r.id);
+      if r.comp_missing then
+        if r.cancel_reason = 'owner_cancel_enroute' then
+          perform record_enroute_cancel_comp(r.id);
+        else
+          perform record_late_cancel_share(r.id);
+        end if;
+      end if;
+      -- the owner's side of the same tear. `mint_cancel_fee_intent` is idempotent and returns
+      -- ZERO ROWS while charging is off (0080 §E), so this is inert pre-cutover and cannot
+      -- double-mint after it. Dispatch stays with the edge/ladder — this only restores the
+      -- intent the dying request never wrote.
+      if r.intent_missing then
+        perform mint_cancel_fee_intent(r.id);
       end if;
       n := n + 1;
       insert into notifications (profile_id, kind, title, body, ref_id)

@@ -274,3 +274,93 @@ if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "
 else
   psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN err1=$F1_ERR (1·true·completed/true·1·0 기대)')"
 fi
+
+# ---------- [0117 r5] RH/RK 월드 빌더 ----------
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RH/RK 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_h() returns text
+language plpgsql as $$
+declare oh uuid; rh uuid; dh uuid; rt uuid; bh uuid;
+begin
+  update ops_flags set late_protocol_live_since = now() - interval '1 day', updated_at = now();
+  oh := t_user('race_h_owner', 'owner'); rh := t_user('race_h_runner', 'runner');
+  dh := t_dog(oh, '레이스H'); rt := t_route('레이스H 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (oh, dh, rh, rt, 'runner_enroute', now() - interval '3 hours 10 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bh;
+  return bh::text;
+end $$;
+
+create or replace function race_setup_k() returns text
+language plpgsql as $$
+declare ok1 uuid; dk uuid; rt uuid; bk1 uuid; bk2 uuid; lot uuid;
+begin
+  ok1 := t_user('race_k_owner', 'owner'); dk := t_dog(ok1, '레이스K'); rt := t_route('레이스K 코스');
+  lot := km_grant(ok1, 20, 'recovery', 1);
+  insert into bookings (owner_id, dog_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (ok1, dk, rt, 'confirmed', now() - interval '3 hours 10 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bk1;
+  insert into bookings (owner_id, dog_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (ok1, dk, rt, 'confirmed', now() - interval '3 hours 12 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bk2;
+  perform km_reserve(bk1); perform km_reserve(bk2);
+  update km_lots set expires_at = now() - interval '1 day' where id = lot;
+  return bk1::text || '|' || bk2::text;
+end $$;
+SQL
+
+# ---------- RH: 인계 중간에 시계가 끼어든다 — 두 도장 찍힌 no_show 는 없어야 한다 ----------
+# [blind r5 F6] 인계는 한 순간이 아니다: 도장 → 재독 → picked_up 승격이 각각 다른 요청이다.
+# A 가 첫 도장을 찍고 2초 쥐고 있는 동안 B(스위프)가 같은 예약을 본다. 라운드 4의 stamps-first
+# 규칙은 "한 시점의 상태"를 읽으므로 이 인터리빙을 볼 수 없었다 — 단일 커넥션 핀(L42)도 마찬가지.
+# 시계는 도장이 하나라도 있으면 물러서야 한다.
+BH=$(psql -qt -c "select race_setup_h()" | xargs)
+psql -q > .pgtest/race_h1.out 2>&1 <<SQL &
+begin;
+update bookings set owner_confirmed_handoff_at = now() where id = '$BH';
+select pg_sleep(2);
+update bookings set runner_confirmed_handoff_at = now() where id = '$BH';
+update bookings set status = 'picked_up' where id = '$BH';
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select late_booking_sweep();" > .pgtest/race_h2.out 2>&1
+wait
+HST=$(psql -qt -c "select status from bookings where id = '$BH'" | xargs)
+HSTAMPS=$(psql -qt -c "select (owner_confirmed_handoff_at is not null)::int + (runner_confirmed_handoff_at is not null)::int from bookings where id = '$BH'" | xargs)
+H1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_h1.out || true)
+if [ "$HSTAMPS" = "2" ] && [ "$HST" != "no_show" ] && [ "$H1_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RH 인계 인터리빙 — 도장 하나가 보이면 시계는 물러선다 (양쪽 도장 + no_show 아님; 인계는 한 순간이 아니다)')"
+else
+  psql -qc "call _fail('race','RH 인계 인터리빙','status=$HST stamps=$HSTAMPS err=$H1_ERR (2·no_show아님·0 기대 — 두 도장 찍힌 no_show 는 개가 넘어간 뒤의 불발이다)')"
+fi
+
+# ---------- RK: 같은 로트를 쥔 두 종결이 동시에 — 데드락 없이 둘 다 끝난다 ----------
+# [blind r5 F8] L46 은 "범위+락+오름차순"을 소스로 고정하지만, 그 규약이 실제로 직렬화하는지는
+# 두 커넥션이 있어야 보인다. 같은 만료 로트를 공유하는 두 예약을 동시에 실링 해소한다.
+IDS=$(psql -qt -c "select race_setup_k()" | xargs)
+BK1=${IDS%%|*}; BK2=${IDS#*|}
+psql -q > .pgtest/race_k1.out 2>&1 <<SQL &
+begin;
+select _resolve_checkin('$BK1', 'ceiling');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select _resolve_checkin('$BK2', 'ceiling');" > .pgtest/race_k2.out 2>&1
+wait
+K_DEAD=$(cat .pgtest/race_k1.out .pgtest/race_k2.out | grep -ci "deadlock" || true)
+K_ERR=$(cat .pgtest/race_k1.out .pgtest/race_k2.out | grep -ciE "^ERROR|FATAL" || true)
+K_ST=$(psql -qt -c "select count(*) from bookings where id in ('$BK1','$BK2') and status = 'no_show'" | xargs)
+K_EXP=$(psql -qt -c "select count(*) from km_lots l join km_ledger kl on kl.lot_id = l.id where kl.booking_id in ('$BK1','$BK2') and l.expires_at > now()" | xargs)
+if [ "$K_DEAD" = "0" ] && [ "$K_ERR" = "0" ] && [ "$K_ST" = "2" ] && [ "$K_EXP" = "0" ]; then
+  psql -qc "call _pass('race','RK 같은 로트 동시 종결 — 데드락 없음·둘 다 no_show·시계가 수명을 늘리지 않음 (오름차순 락 규약이 실제로 직렬화한다)')"
+else
+  psql -qc "call _fail('race','RK 같은 로트 동시 종결','deadlock=$K_DEAD err=$K_ERR no_show=$K_ST 연장된로트=$K_EXP (0·0·2·0 기대)')"
+fi
+psql -qc "update ops_flags set late_protocol_live_since = null, updated_at = now()"

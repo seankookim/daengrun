@@ -29,9 +29,16 @@ type Notify = (profileId: string, title: string, body: string) => PromiseLike<un
 
 export async function cancelOwner(
   db: SupabaseClient,
-  args: { bookingId: string; uid: string; bk: Booking; notify: Notify },
+  args: {
+    bookingId: string;
+    uid: string;
+    bk: Booking;
+    notify: Notify;
+    /** [blind r5 RC-2] the fee the CLIENT DISPLAYED when the human tapped cancel. */
+    expectedFee?: number | null;
+  },
 ): Promise<{ cancel_fee: number }> {
-  const { bookingId, uid, bk, notify } = args;
+  const { bookingId, uid, bk, notify, expectedFee } = args;
   if (bk.owner_id !== uid) throw new HttpError(403, "owner only");
 
   // ── Club bookings do not belong to this ladder (2026-08-13) ───────────────────────────────
@@ -77,10 +84,20 @@ export async function cancelOwner(
     // [blind review BLOCKER-5] RE-READ, do not trust the preload. `bk` was fetched before this
     // request did anything; two requests can both preload the PRE-cancel row, and the loser
     // would answer the owner with a stale ₩0 for a cancellation that actually recorded a fee.
-    // The row is the truth and it is one round trip away.
-    const { data: fresh } = await db.from("bookings")
+    const { data: fresh, error: fe } = await db.from("bookings")
       .select("cancel_fee").eq("id", bookingId).maybeSingle();
-    return { cancel_fee: Number((fresh as Booking | null)?.cancel_fee ?? bk.cancel_fee ?? 0) };
+    // ⚠ [blind r5 MAJOR-7] A FAILED READ IS NOT A ₩0 CANCELLATION. Round 4 discarded this error
+    // and fell back to the same stale preload the re-read exists to distrust — so a transient
+    // failure produced the exact lie ("no charge") on a booking the other request had just
+    // charged ₩12,450 for. There is no safe number to invent here: the cancel already happened,
+    // and the honest answer is to say we could not read it.
+    if (fe || !fresh) {
+      console.error(
+        `[transition] already-cancelled re-read failed booking=${bookingId}: ${fe?.message ?? "no row"}`,
+      );
+      throw new HttpError(409, "이미 취소된 예약이에요 — 금액을 불러오지 못했어요, 새로고침해주세요");
+    }
+    return { cancel_fee: Number((fresh as Booking).cancel_fee ?? 0) };
   }
   // CAS on the quoted status — after 0066 both confirmed AND runner_enroute may become
   // cancelled_owner, so the trigger no longer catches a quote-then-depart race (a 0/10%
@@ -100,8 +117,24 @@ export async function cancelOwner(
   // `cancel_fee: fee` stays as the CLAIM that arms the trigger (its WHEN clause requires a
   // fee-carrying cancel so a status-only ops flip is left alone); the trigger overwrites it
   // with the truth. Everything below reads the row back and branches off THAT.
+  // ⚠ [blind r5 RC-2] THE CLAIM IS THE HUMAN'S NUMBER WHEN WE HAVE IT. Round 4 validated the
+  // EDGE's own quote against the ladder, which proves the edge is self-consistent and says
+  // nothing about the screen: the client sends only an id and an action, so a price shown at
+  // 09:59:59 and tapped at 10:00:01 was never part of what the write agreed to. Sending
+  // `meta.expected_fee` makes the displayed price the token §9c validates — if the ladder has
+  // moved since the human looked, the transition is REFUSED and they are re-quoted.
+  // ⚠ RESIDUAL, stated rather than hidden: clients that do not send it fall back to the edge's
+  // quote and are exactly as exposed as before. `quote_cancel_fee` has no client call site yet
+  // — the client half belongs to ui5 and is routed through the announcer.
+  const claimedFee = typeof expectedFee === "number" ? expectedFee : fee;
+  if (typeof expectedFee !== "number") {
+    console.log(
+      `[transition] cancel without a shown price booking=${bookingId} quoted=${fee}` +
+        ` — edge quote used as the claim (RC-2 residual: client does not send meta.expected_fee)`,
+    );
+  }
   const { data: done, error: ce } = await db.from("bookings")
-    .update({ status: "cancelled_owner", cancel_fee: fee })
+    .update({ status: "cancelled_owner", cancel_fee: claimedFee })
     .eq("id", bookingId).eq("status", quoted).select("id");
   if (ce) {
     // [BLOCKER-3] the ladder moved between the quote and the write, so the write refused rather

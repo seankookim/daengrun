@@ -868,6 +868,87 @@ Deno.test("[blind BLOCKER-5] the already-cancelled answer is re-read, never take
   assertEquals(updatesToBookings(db).length, 0, "and writes nothing");
 });
 
+Deno.test("[blind r5 RC-2] the price the HUMAN saw is what the write claims", async () => {
+  // Round 4 validated the EDGE's quote against the ladder — which proves the edge agrees with
+  // itself and says nothing about the screen. The client sends only an id and an action, so a
+  // price shown at 09:59:59 and tapped at 10:00:01 was never part of what the write agreed to.
+  // `meta.expected_fee` carries the shown number, and THAT is what lands in the CAS for SQL to
+  // validate (0117 §9c refuses it if the ladder has moved).
+  const db = scene({ status: "confirmed" });
+  const claims: unknown[] = [];
+  db.triggers["bookings"] = (row, before) => {
+    if (row.status !== "cancelled_owner" || before.status === "cancelled_owner") return;
+    claims.push(row.cancel_fee); // what the handler WROTE, before SQL would validate it
+    row.cancel_reason = "owner_cancel_late";
+  };
+  installShare(db);
+  installMint(db);
+  const net = tossOk();
+  try {
+    await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+      expectedFee: 999, // the number on the screen — deliberately not the edge's quote
+    });
+  } finally {
+    net.restore();
+  }
+  assertEquals(claims, [999], "the CAS must claim the shown price, not the edge's re-quote");
+
+  // …and with no shown price the old behaviour stands, loudly: the edge's quote is the claim.
+  const db2 = scene({ status: "confirmed" });
+  const claims2: unknown[] = [];
+  db2.triggers["bookings"] = (row, before) => {
+    if (row.status !== "cancelled_owner" || before.status === "cancelled_owner") return;
+    claims2.push(row.cancel_fee);
+    row.cancel_reason = "owner_cancel_late";
+  };
+  installShare(db2);
+  installMint(db2);
+  const cap = captureLogs();
+  const net2 = tossOk();
+  try {
+    await cancelOwner(db2 as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db2.rows("bookings")[0], notify: notifier(db2),
+    });
+  } finally {
+    net2.restore();
+    cap.restore();
+  }
+  assertEquals(claims2, [FEE_10], "without a shown price the edge quote is the claim");
+  assert(
+    cap.lines.some((l) => l.includes("cancel without a shown price")),
+    "the residual must be said out loud in the log",
+  );
+});
+
+Deno.test("[blind r5 MAJOR-7] a failed re-read never answers 'no charge'", async () => {
+  // The double-tap branch used to discard the re-read's error and fall back to the very preload
+  // the re-read exists to distrust — so a transient failure told the owner ₩0 about a
+  // cancellation the winning request had just charged ₩6,950 for.
+  const db = scene({ status: "runner_enroute" });
+  const row = db.rows("bookings")[0];
+  const stalePreload = { ...row, cancel_fee: null };
+  row.status = "cancelled_owner";
+  row.cancel_fee = FEE_50;
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_50, status: "cancelled_owner" }] });
+  db.failures["bookings:select"] = "connection reset";
+  const cap = captureLogs();
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: stalePreload, notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a failed re-read must not answer with a number");
+    assertEquals((err as { status?: number }).status, 409);
+    const msg = String((err as Error).message);
+    assert(!msg.includes("0원"), `it must not claim a price: ${msg}`);
+    assertStringIncludes(msg, "새로고침");
+  } finally {
+    net.restore();
+    cap.restore();
+  }
+});
+
 Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the migrations", async () => {
   // 121's header named this gap; this closes it. The marker string lived in THREE places —
   // cancel_owner.ts writes it, 0085 gates on it, and this file asserted the TS value — so a
