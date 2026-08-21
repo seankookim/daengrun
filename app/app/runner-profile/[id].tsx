@@ -24,6 +24,24 @@ const TILE = (W - 4) / 3; // 3열 엣지-투-엣지, 2px 갭
 
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
+// [E6 · 세 번째 예약 입구] 이 화면도 confirmSlot(:166)에서 draft.scheduledAtIso를 써 넣는다 —
+// owner/request.tsx·owner/reschedule.tsx와 같은 쓰기 경로다. 첫 E6 커밋이 "쓰는 화면은 둘"이라고
+//적었는데 셋이었다: 러너 프로필의 슬롯 그리드가 빠져 있었다. 기기 로컬로 지으면 UTC 시뮬레이터·
+// 해외 기기에서 화면은 07:00을 보여주고 16:00 KST를 저장한다 (가용 규칙이 KST 고정이라 클라이언트
+// 검사와 서버 검증이 **둘 다 옮겨진 시각에 동의해** 버려서, 조용히 틀린다).
+// 한국은 DST가 없어 고정 오프셋으로 충분 (api.ts kstWeekStartMs와 같은 산술).
+const KST_MS = 9 * 3_600_000;
+const kstCal = (ms: number) => {
+  const k = new Date(ms + KST_MS);
+  return {
+    y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(),
+    wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes(),
+  };
+};
+type KstCal = ReturnType<typeof kstCal>;
+const kstInstant = (c: KstCal, h: number, min: number) => new Date(Date.UTC(c.y, c.m, c.d, h, min) - KST_MS);
+const kstKey = (c: KstCal) => `${c.y}-${c.m}-${c.d}`;
+
 function availabilitySummary(rules: RunnerPublicProfile['availability']): string[] {
   if (rules.length === 0) return [];
   const key = (r: { startMin: number; endMin: number }) => `${r.startMin}-${r.endMin}`;
@@ -108,20 +126,20 @@ export default function RunnerProfileScreen() {
   const canBook = session.role === 'owner';
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.now() + i * 86400_000);
-    return { date: d, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: d.getDate(), w: DAY[d.getDay()] };
+    const cal = kstCal(Date.now() + i * 86400_000);
+    return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
   }), []);
 
   const daySlots = useMemo(() => {
     if (!p) return [] as { key: string; label: string; start: Date }[];
     const day = days[dayIdx];
-    const wd = day.date.getDay();
+    const wd = day.cal.wd; // KST 요일 — availability.weekday가 KST 고정이다
     const rules = p.availability.filter((r) => r.weekday === wd);
     const out: { key: string; label: string; start: Date }[] = [];
     const minStart = Date.now() + 2 * 3600_000;
     rules.forEach((r) => {
       for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
-        const start = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), Math.floor(m / 60), m % 60);
+        const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
         if (start.getTime() < minStart) continue;
         out.push({ key: start.toISOString(), label: fmtMin(m), start });
       }
@@ -426,7 +444,7 @@ export default function RunnerProfileScreen() {
                   <Text style={{ fontSize: 14, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
-                      <Pressable key={d.date.toISOString()} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}>
+                      <Pressable key={kstKey(d.cal)} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}>
                         <Text style={{ fontSize: 14, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                         <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
                         {d.label && <Text style={{ fontSize: 9, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
