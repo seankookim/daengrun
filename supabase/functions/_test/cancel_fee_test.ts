@@ -154,19 +154,21 @@ function installShare(db: FakeDb, over: { fail?: string; written?: boolean } = {
   return seen;
 }
 
-function installComp(db: FakeDb, over: { fail?: string; written?: boolean } = {}) {
+function installComp(db: FakeDb, over: { fail?: string; written?: boolean; comp?: number } = {}) {
   const seen: Row[] = [];
   db.rpcs["record_enroute_cancel_comp"] = (args: Row) => {
     seen.push(args);
     if (over.fail) return { error: { message: over.fail } };
     const written = over.written ?? true;
-    if (written) {
+    // 0080:1135's zero-fee answer is {comp: 0, written: false} — a call that wrote NOTHING.
+    const comp = over.comp ?? FEE_50;
+    if (written && comp > 0) {
       db.rows("ledger_items").push({
         runner_id: RUNNER, booking_id: args.p_booking, base: 0, distance_pay: 0,
         addon_pay: 0, tip: 0, remaining_guarantee: FEE_50, platform_fee: 0,
       });
     }
-    return { data: [{ comp: FEE_50, written }] };
+    return { data: [{ comp, written: written && comp > 0 }] };
   };
   return seen;
 }
@@ -757,6 +759,113 @@ Deno.test("[codex r2 F3] the reverse crossing — a quote of 10% that stores 0 c
   // in SQL — the handler must not invent a second copy of that rule.
   assertEquals(comp.length, 1, "the stored en-route marker must reach the comp writer");
   assertEquals(db.rows("ledger_items").length, 1, "the stub wrote; SQL's own fee<=0 gate is 116/121's pin");
+});
+
+Deno.test("[blind BLOCKER-2] a cancellation that moves NO money tells the runner nothing was recorded", async () => {
+  // Sean's stalemate ruling: "Nobody pays, nobody is paid." The en-route TIER is still recorded
+  // (the marker says what kind of cancellation this was), so the comp writer IS called — and it
+  // answers {comp: 0, written: false} because there is no fee to share. The handler used to
+  // `return true` regardless, so the runner was told "취소 수수료(결제 금액의 50%)가 러너
+  // 보상으로 기록됐어요" about a ledger row that does not exist. A receipt for nothing.
+  const db = scene({ status: "runner_enroute", quoteFee: 0, storedFee: 0 });
+  const comp = installComp(db, { comp: 0, written: false });
+  const mint = installMint(db);
+  const notes: Row[] = [];
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: (profileId: string, title: string, body: string) => {
+        notes.push({ profileId, title, body });
+        return Promise.resolve(null);
+      },
+    });
+  } finally {
+    net.restore();
+  }
+
+  assertEquals(out, { cancel_fee: 0 });
+  assertEquals(db.rows("bookings")[0].cancel_reason, "owner_cancel_enroute", "the tier is still recorded");
+  assertEquals(comp.length, 1, "the tier marker still routes to the comp writer");
+  assertEquals(db.rows("ledger_items").length, 0, "nobody is paid");
+  assertEquals(mint.length, 0, "nobody pays");
+  const toRunner = notes.find((n) => n.profileId === RUNNER);
+  assert(toRunner, "the runner still hears about the cancellation");
+  const body = String(toRunner.body);
+  assert(!body.includes("기록됐어요"), `no receipt may be spoken: ${body}`);
+  assert(!body.includes("50%"), `no amount may be spoken: ${body}`);
+  assertEquals(toRunner.title, "예약 취소됨");
+});
+
+Deno.test("[blind BLOCKER-3] a stale quote is REFUSED, and nothing downstream runs", async () => {
+  // "The price shown IS the price charged" cannot be made true by silently correcting the
+  // stored number — a correction commits a price the human never saw. §9c refuses the
+  // transition instead, and the owner is asked to re-confirm the new number.
+  const db = scene({ status: "confirmed" });
+  db.failures["bookings:update"] = 'new row violates … cancel_fee_requote';
+  const share = installShare(db);
+  const mint = installMint(db);
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a stale quote must not commit");
+    assertEquals((err as { status?: number }).status, 409);
+    assertStringIncludes(String((err as Error).message), "다시 진행");
+  } finally {
+    net.restore();
+  }
+  assertEquals(share.length, 0, "a refused cancel pays no share");
+  assertEquals(mint.length, 0, "a refused cancel mints nothing");
+  assertEquals(db.rows("bookings")[0].status, "confirmed", "the booking must be untouched");
+});
+
+Deno.test("[blind BLOCKER-6] a cancel refused after handoff routes to the incident path", async () => {
+  const db = scene({ status: "runner_enroute" });
+  db.failures["bookings:update"] = "cancel_after_handoff";
+  const comp = installComp(db);
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a post-handoff cancel must be refused");
+    assertEquals((err as { status?: number }).status, 409);
+    assertStringIncludes(String((err as Error).message), "인계");
+  } finally {
+    net.restore();
+  }
+  assertEquals(comp.length, 0, "a refused cancel compensates nobody");
+});
+
+Deno.test("[blind BLOCKER-5] the already-cancelled answer is re-read, never taken from the preload", async () => {
+  // Two requests can both preload the PRE-cancel row. The loser sees `cancelled_owner` from its
+  // own quote and used to answer with its stale copy's cancel_fee — telling the owner ₩0 about a
+  // cancellation that recorded ₩6,950.
+  const db = scene({ status: "runner_enroute" });
+  const row = db.rows("bookings")[0];
+  const stalePreload = { ...row, cancel_fee: null };      // what this request loaded earlier
+  row.status = "cancelled_owner";                          // what the winner already committed
+  row.cancel_fee = FEE_50;
+  row.cancel_reason = "owner_cancel_enroute";
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_50, status: "cancelled_owner" }] });
+  const mint = installMint(db);
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: stalePreload, notify: notifier(db),
+    });
+  } finally {
+    net.restore();
+  }
+  assertEquals(out, { cancel_fee: FEE_50 }, "the loser must answer with the row, not its preload");
+  assertEquals(mint.length, 0, "the double tap mints nothing a second time");
+  assertEquals(updatesToBookings(db).length, 0, "and writes nothing");
 });
 
 Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the migrations", async () => {

@@ -221,14 +221,21 @@ SQL
 sleep 0.6
 psql -qt -c "select _resolve_checkin('$BS', 'deadline');" > .pgtest/race_s2.out 2>&1
 wait
+# ⚠ [blind review MAJOR-12] THE PARTICIPANTS MUST BE PROVEN TO HAVE RUN. This file has no
+# `set -e` and never checked the psql exit codes, so a losing call replaced with `select 1/0`
+# still produced a green PASS — the race would have been "verified" by two commands that never
+# executed. Both sides are now required to have succeeded before the state assertion counts.
+S1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_s1.out || true)
+S2_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_s2.out || true)
 RES=$(psql -qt -c "select resolution || '/' || version::text from booking_checkins where booking_id = '$BS'" | xargs)
 NF=$(psql -qt -c "select count(*) from booking_faults where booking_id = '$BS'" | xargs)
 NN=$(psql -qt -c "select count(*) from notifications where ref_id = '$BS' and title = '지연 예약이 정리됐어요'" | xargs)
 ST=$(psql -qt -c "select status from bookings where id = '$BS'" | xargs)
-if [ "$RES" = "cannot_proceed/3" ] && [ "$NF" = "1" ] && [ "$ST" = "no_show" ] && [ "$NN" = "2" ]; then
+if [ "$RES" = "cannot_proceed/3" ] && [ "$NF" = "1" ] && [ "$ST" = "no_show" ] && [ "$NN" = "2" ] \
+   && [ "$S1_ERR" = "0" ] && [ "$S2_ERR" = "0" ]; then
   psql -qc "call _pass('race','RS 응답 vs 마감 해소 — cannot_proceed가 이기고 해소 1회 (resolution/version=cannot_proceed/3·과실 1행·알림 2건·no_show; CAS+행 락이 침묵 void의 덮어쓰기를 봉쇄)')"
 else
-  psql -qc "call _fail('race','RS 응답 vs 마감 해소','res=$RES faults=$NF status=$ST noti=$NN (cannot_proceed/3·1·no_show·2 기대)')"
+  psql -qc "call _fail('race','RS 응답 vs 마감 해소','res=$RES faults=$NF status=$ST noti=$NN err1=$S1_ERR err2=$S2_ERR (cannot_proceed/3·1·no_show·2·0·0 기대)')"
 fi
 
 # ---------- RF: confirm_return_tx 이중 탭 — 두 번째 도장에 동시 착지, 원장 행은 정확히 1개 ----------
@@ -256,12 +263,14 @@ SQL
 sleep 0.6
 psql -qt -c "select confirm_return_tx('$BF', 'owner', '$QUOTE'::jsonb);" > .pgtest/race_f2.out 2>&1
 wait
+F1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_f1.out || true)
 LR=$(psql -qt -c "select count(*) from ledger_items where booking_id = '$BF'" | xargs)
 SA=$(psql -qt -c "select (settled_at is not null)::text from runs where booking_id = '$BF'" | xargs)
 BST=$(psql -qt -c "select status || '/' || (settlement_ready_at is not null)::text from bookings where id = '$BF'" | xargs)
 UN=$(grep -c '"unchanged" *: *true' .pgtest/race_f2.out || true)
-if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "$UN" = "1" ]; then
+if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "$UN" = "1" ] \
+   && [ "$F1_ERR" = "0" ]; then
   psql -qc "call _pass('race','RF confirm_return_tx 이중 탭 — 정산 1회·원장 1행·후행은 unchanged (도장 행 쓰기락 직렬화 + completed 멱등 답 + _settle 자체 락의 겹벨트; 119:108의 명명된 갭 닫힘)')"
 else
-  psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN (1·true·completed/true·1 기대)')"
+  psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN err1=$F1_ERR (1·true·completed/true·1·0 기대)')"
 fi

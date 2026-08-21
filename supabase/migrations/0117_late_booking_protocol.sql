@@ -24,11 +24,18 @@
 --      (reads only). `answer_checkin` becomes callable — but it raises `checkin_not_open`
 --      until a check-in row exists, and only the gated sweep creates one.
 --    · The new tables and the fault/checkin guards exist. Nothing writes to them yet.
---    · ⚠ The paired edge deploy (`transition-booking`, cancel_owner.ts consuming the WRITTEN
---      fee) belongs with this file: with the trigger live and the OLD edge, the stored fee is
---      right while the response text and the runner-share decision still follow the old
---      pre-write quote. Push them together, or push the edge first — it is correct against
---      both ladders.
+--    · 🔴 DEPLOY ORDER IS **MIGRATION FIRST, EDGE SECOND** — and an earlier version of this
+--      block said edge-first was also safe, which was FALSE [blind review BLOCKER-4].
+--      EDGE-FIRST IS UNSAFE: the new handler does not write `cancel_reason` (§9c owns it), so
+--      with no trigger yet an en-route cancel stores the fee with reason NULL, the only
+--      compensation writer is gated on that marker, and the runner is paid NOTHING.
+--      MIGRATION-FIRST IS SAFE, and the refuse-and-requote rule above is what makes it so: the
+--      old handler writes its own quoted fee and marker, and the trigger either agrees (the
+--      write lands, marker re-derived identically) or REFUSES the transition (the owner gets a
+--      409 re-quote instead of a wrong price). Both halves of the old handler's behaviour —
+--      its response number and its share decision — are then correct by construction, because
+--      the only writes that commit are the ones whose quote still matched.
+--      Atomic is still better; when it cannot be atomic, this is the order.
 --
 -- ② WAITS FOR THE FLAG (`update ops_flags set late_protocol_live_since = now()`):
 --    the sweep — arming check-ins, deadline resolutions, ceiling resolutions and every
@@ -129,6 +136,16 @@ $$ select coalesce(nullif(current_setting('app.late_ceiling', true), '')::interv
 -- THE single copy of the ceiling arithmetic. The sweep's arm ⓑ, arm ⓒ's negation, the
 -- 'proceeding' answer gate, the renewal bound and the §9 fee carve-out all call THIS —
 -- never `scheduled_at + interval '3 hours'` open-coded.
+-- How long a torn cancellation is left alone before §9e repairs it. A knob for the same reason
+-- the other two are: `t_bookings_touch` (0002:12) rewrites `bookings.updated_at` on every write,
+-- so no fixture can age a row into the window — the harness injects instead.
+create or replace function cancel_gap_grace() returns interval
+language sql stable set search_path = public, pg_temp as
+$$ select coalesce(nullif(current_setting('app.cancel_gap_grace', true), '')::interval,
+                   interval '15 minutes') $$;
+revoke execute on function cancel_gap_grace() from public, anon, authenticated;
+grant  execute on function cancel_gap_grace() to service_role;
+
 create or replace function late_ceiling_at(p_scheduled timestamptz) returns timestamptz
 language sql stable set search_path = public, pg_temp as
 $$ select p_scheduled + late_ceiling() $$;
@@ -286,8 +303,18 @@ create trigger booking_checkins_no_delete
   before delete on booking_checkins
   for each row execute function _booking_checkins_no_delete();
 
-revoke insert, update, delete, truncate on booking_checkins
-  from anon, authenticated, service_role;   -- [codex r2 F2] all four write verbs: the
+revoke select, insert, update, delete, truncate on booking_checkins
+  from anon, authenticated, service_role;   -- [MAJOR-11] SELECT too: nothing server-side reads
+  -- these tables directly (the definer functions do, as owner), so a readable-by-service_role
+  -- table is a standing copy of both parties' statements behind a key that lives in edge
+  -- functions. What service_role MAY do with this protocol is exactly: call the party RPCs
+  -- with a real JWT, and run `late_booking_sweep` as a scheduler fallback (§8).
+  -- ⚠ INHERITED AND NOT FOUGHT HERE: service_role can still UPDATE `ops_flags`, so it can arm
+  -- the late-protocol flag and then run the sweep it holds EXECUTE on. That reach is not new
+  -- and not mine — every flag in that table has it (`payments_live_since` included, 0080 §C)
+  -- — and NOTHING enforces "only a human flips it": the property is a convention, and 0084 §D
+  -- deliberately shipped a guard that is advisory rather than a constraint. Said out loud
+  -- rather than implied, because a reader could otherwise mistake the flag for a control.   -- [codex r2 F2] all four write verbs: the
   -- definer functions own every write, so no role needs table-level DML. Round 1 revoked
   -- only UPDATE/DELETE, which left service_role able to INSERT a fabricated check-in and
   -- TRUNCATE the protocol's ledger — the guards bind writers, the grants bind roles, and
@@ -326,8 +353,9 @@ create trigger booking_faults_guard
   before update or delete on booking_faults
   for each row execute function _booking_faults_guard();
 
-revoke insert, update, delete, truncate on booking_faults
-  from anon, authenticated, service_role;   -- [codex r2 F2] same, and it matters more here:
+revoke select, insert, update, delete, truncate on booking_faults
+  from anon, authenticated, service_role;   -- [MAJOR-11] as above, and more so: these rows are
+  -- the human statements that money follows.   -- [codex r2 F2] same, and it matters more here:
   -- a fabricated fault row waives money (§9), and a TRUNCATE erases the statements that
   -- justify a waiver already granted.
 -- SEALED like §2: no client surface. Money reads it through enroute_cancel_fee_waived (§9);
@@ -561,9 +589,26 @@ begin
   -- gets to grant it. An operator who wants to extend a lot can still do it deliberately —
   -- what is refused is the extension nobody asked for.
   if v_resolution in ('ceiling', 'ceiling_backfill', 'void') then
-    select array_agg(l.id), array_agg(l.expires_at) into v_lot_ids, v_lot_exp
-    from km_lots l
-    where l.profile_id = b.owner_id and l.expires_at is not null and l.expires_at <= now();
+    -- [blind review MAJOR-7] SCOPED to the lots THIS booking actually holds, locked, in a
+    -- deterministic order. Round 2 snapshotted every expired lot the owner had, unlocked:
+    -- a concurrent HUMAN cancellation that legitimately extended one of the owner's other
+    -- lots would be overwritten by this path's stale restore, and two resolutions touching
+    -- overlapping owner-wide sets could take the same rows in opposite orders and deadlock.
+    -- The booking's own holds are the only lots this terminal may touch.
+    -- the lock has to happen BEFORE the aggregate (`FOR UPDATE` is not allowed with aggregate
+    -- functions), so the CTE locks the rows in id order and the aggregation reads what it locked.
+    with locked as (
+      select l.id, l.expires_at
+      from km_lots l
+      where l.expires_at is not null and l.expires_at <= now()
+        and l.id in (select distinct kl.lot_id from km_ledger kl
+                     where kl.booking_id = p_booking and kl.lot_id is not null)
+      order by l.id
+      for update
+    )
+    select array_agg(id order by id), array_agg(expires_at order by id)
+      into v_lot_ids, v_lot_exp
+    from locked;
   end if;
   if v_terminal is not null then
     update bookings set status = v_terminal::booking_status where id = p_booking;
@@ -733,12 +778,19 @@ begin
   from bookings bk where bk.id = p_booking;
   if b.id is null then raise exception 'not_found'; end if;
 
-  if v_uid is not null then
-    if v_uid is distinct from b.owner_id and v_uid is distinct from b.runner_id then
-      raise exception 'not_party';
-    end if;
-  elsif current_user not in ('service_role', 'postgres') then
-    raise exception 'not_signed_in';
+  -- ⚠ [blind review BLOCKER-10] THE `current_user` EXEMPTION IS GONE, and it was a hole, not
+  -- a convenience. Inside a SECURITY DEFINER function `current_user` is the function OWNER
+  -- (postgres) — never the caller — so `current_user in ('service_role','postgres')` is TRUE
+  -- for every caller alive, and any principal holding EXECUTE with no `sub` claim (a
+  -- service-key JWT, or a direct session that cleared the claim) read arbitrary bookings'
+  -- check-in answers and reasons. A definer cannot ask who called it; it can only ask who the
+  -- JWT says it is. So: a read of two people's statements requires being one of them, full
+  -- stop. No server caller needs this function today (the sweep resolves through
+  -- `_resolve_checkin`; the edge prices through `marketplace_cancel_fee`), and a future one
+  -- must arrive with an explicit ops surface rather than through an identity gap.
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if v_uid is distinct from b.owner_id and v_uid is distinct from b.runner_id then
+    raise exception 'not_party';
   end if;
 
   select * into c from booking_checkins bc where bc.booking_id = p_booking;
@@ -824,6 +876,11 @@ language plpgsql security definer set search_path = public, pg_temp as $$
 declare r record; n int := 0;
 begin
   if (select f.late_protocol_live_since from ops_flags f) is null then return 0; end if;
+  -- [MINOR-14] ONE sweep at a time. `lock_timeout` alone turns a collision into a silently
+  -- skipped row (the booking waits a full tick, or forever if the pattern repeats); a session
+  -- lock makes a duplicate tick leave immediately, which is what a duplicate tick should do.
+  -- try, not wait: a slow predecessor must not queue ticks behind it.
+  if not pg_try_advisory_lock(hashtextextended('late_booking_sweep', 0)) then return 0; end if;
   -- [codex MEDIUM-11] one abandoned row lock must not stall the whole batch: with a bounded
   -- lock wait, a blocked row times out, its per-row handler logs, and the sweep moves on.
   perform set_config('lock_timeout', '2000', true);
@@ -832,6 +889,9 @@ begin
   for r in
     select bc.booking_id from booking_checkins bc
     where bc.resolved_at is null and bc.deadline_at <= now()
+    -- [MINOR-14] deterministic candidate order: overlapping ticks take rows in the same
+    -- sequence, so they queue instead of deadlocking.
+    order by bc.booking_id
   loop
     begin
       perform _resolve_checkin(r.booking_id, 'deadline');
@@ -853,11 +913,14 @@ begin
       and late_ceiling_at(b.scheduled_at) <= now()
       and not exists (select 1 from booking_checkins bc
                       where bc.booking_id = b.id and bc.resolved_at is not null)
-      -- [codex HIGH-9] a row-less booking (pre-protocol, or the cron was down for its whole
-      -- window) is BACKFILLED only once the ceiling is past by a full grace margin — the
-      -- protocol never claims a window it did not offer, and no third number is invented.
-      and (exists (select 1 from booking_checkins bc where bc.booking_id = b.id)
-           or late_ceiling_at(b.scheduled_at) + late_grace() <= now())
+      -- [blind review MAJOR-8] NO EXTRA MARGIN. Round 2 delayed row-less bookings by a full
+      -- grace period past the ceiling so the protocol would not "claim a window it never
+      -- offered" — but that made the ruled 3h ceiling a 3h30m ceiling in fact, and during the
+      -- extra half hour the confirmed tier still charged 10% and accrued a runner share. The
+      -- honesty that margin was buying is carried by the CAUSE TOKEN instead
+      -- (`ceiling_backfill` says in the record that no answer window ever existed), which
+      -- costs nothing and keeps Sean's number the number.
+    order by b.id
   loop
     begin
       perform _resolve_checkin(r.id, 'ceiling');
@@ -876,6 +939,7 @@ begin
       and b.scheduled_at + late_grace() <= now()
       and late_ceiling_at(b.scheduled_at) > now()
       and not exists (select 1 from booking_checkins bc where bc.booking_id = b.id)
+    order by b.id
   loop
     begin
       perform open_checkin(r.id);
@@ -885,7 +949,12 @@ begin
     end;
   end loop;
 
+  perform pg_advisory_unlock(hashtextextended('late_booking_sweep', 0));
   return n;
+exception when others then
+  -- session-scoped: it must not survive a failed tick
+  perform pg_advisory_unlock(hashtextextended('late_booking_sweep', 0));
+  raise;
 end $$;
 
 revoke execute on function late_booking_sweep() from public, anon, authenticated;
@@ -917,16 +986,41 @@ do $$ begin
   -- nested on purpose: plpgsql compiles statements lazily, so the cron.job reference is
   -- never parsed where pg_cron (and its schema) does not exist — the local harness.
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    if not exists (select 1 from cron.job where jobname = 'late-booking-sweep') then
-      raise exception 'late-booking-sweep cron registration missing';
+    -- [MINOR-13] the NAME is not the job. A pre-existing entry with someone else's schedule or
+    -- command satisfied a name check while the protocol's clock ran at the wrong cadence — or
+    -- called something else entirely. The SHAPE is verified: our cadence, our command.
+    if not exists (select 1 from cron.job
+                   where jobname = 'late-booking-sweep'
+                     and schedule = '3-53/10 * * * *'
+                     and command like '%late_booking_sweep()%') then
+      raise exception 'late-booking-sweep cron registration missing or wrong shape';
     end if;
   end if;
 end $$;
 
 -- ═══ §9 the 0066 carve-out — money follows fault (D4), and the ceiling is a fact ══════════
--- FM7 named the injustice: "owner charged the 50% en-route arm for a runner's failure."
+-- ⚠ THE RULING THIS SECTION IMPLEMENTS — Sean, 2026-08-21, verbatim: **"Nobody pays, nobody
+-- is paid."** A booking 3h+ past its start with NO arrival evidence, NO handoff stamps and NO
+-- human statement from either side moves NO MONEY IN EITHER DIRECTION: the owner is not
+-- charged (they may have waited for a runner who never came) and the runner is not
+-- compensated (no run happened, and only a clock says so). D5 applied symmetrically — silence
+-- never charges AND silence never pays.
+--
+-- THAT IS WHY THIS IS NOT A "WAIVER", and the name below says so. "Waiving the fee" describes
+-- the same act as TAKING ₩12,450 from the runner on a timer, which is exactly what 0068
+-- forbids; the honest description is that the clock found a stalemate and the protocol
+-- declines to move money at all. Two consequences, both asserted rather than implied:
+--   · NO FAULT IS FOUND ON THIS PATH. Silence produces no `booking_faults` row, ever — the
+--     resolver writes fault only from a side's own `cannot_proceed` (§5), and nothing in this
+--     section writes one. A stalemate is the absence of a finding, not a finding of innocence.
+--   · A HUMAN STATEMENT STILL MOVES MONEY LATER. The stalemate is the outcome of silence, not
+--     a terminal on the truth: an after-the-fact statement from either side is still the thing
+--     that produces fault (§3) and, through it, money. The clock closes the booking; it does
+--     not close the question.
+--
+-- FM7 named the other half: "owner charged the 50% en-route arm for a runner's failure."
 -- 0066's arm prices ONE thing — an owner walking away from a runner who is actually coming.
--- Two states falsify that story, and both are now knowable:
+-- Two states falsify that story, and they are DIFFERENT GROUNDS with different reasons:
 --   · a booking_faults row naming the RUNNER (their own recorded statement — D5-clean). Today
 --     the §5 resolver writes fault only together with a terminal, so a cancellable en-route
 --     booking with a runner fault is not producible by this file alone — the arm is
@@ -942,10 +1036,12 @@ end $$;
 -- Fee 0 also zeroes the runner's compensation automatically: record_enroute_cancel_comp
 -- (0080 §K) reads bookings.cancel_fee and refuses fee ≤ 0 — no second rule needed, and none
 -- added (the comp writers are NOT touched).
-create or replace function enroute_cancel_fee_waived(p_booking uuid) returns boolean
+create or replace function cancel_moves_no_money(p_booking uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
+  -- ① money follows fault (D4): the runner's own recorded statement
   select exists (select 1 from booking_faults f
                  where f.booking_id = p_booking and f.party = 'runner')
+  -- ② the silent stalemate (Sean's ruling): nobody spoke, nothing is known, nothing moves
       or exists (select 1 from bookings b
                  where b.id = p_booking and late_ceiling_at(b.scheduled_at) <= now()
                    -- [codex HIGH-4] the TIMER waives only when nothing says the runner showed
@@ -957,14 +1053,18 @@ language sql stable security definer set search_path = public, pg_temp as $$
                    and b.runner_confirmed_handoff_at is null)
 $$;
 
-revoke execute on function enroute_cancel_fee_waived(uuid) from public, anon, authenticated;
-grant  execute on function enroute_cancel_fee_waived(uuid) to service_role;
+revoke execute on function cancel_moves_no_money(uuid) from public, anon, authenticated;
+grant  execute on function cancel_moves_no_money(uuid) to service_role;
 
-comment on function enroute_cancel_fee_waived is
-  '0117 §9: THE carve-out predicate, one copy — the en-route 50% owner-cancel fee is waived
-when a recorded fault names the runner (D4/D5: their own statement) OR the lateness ceiling
-has passed (the honest fallback for pre-protocol bookings — scheduled_at is all it needs).
-Fee 0 flows to the comp writers by their own fee<=0 guards; nothing else changes.';
+comment on function cancel_moves_no_money is
+  '0117 §9 (Sean 2026-08-21, "Nobody pays, nobody is paid."): TRUE means THIS CANCELLATION
+MOVES NO MONEY — not that a fee was forgiven. Two distinct grounds: ① a recorded fault names
+the RUNNER (D4, money follows fault — their own statement, never silence) · ② the SILENT
+STALEMATE: past the lateness ceiling with no arrival evidence, no handoff stamps and no
+statement from either side, so neither party is charged and neither is paid. The runner side
+follows automatically: cancel_fee 0 makes both comp writers (0080 §K, 0085) refuse on their
+own fee<=0 gates, so nobody is paid either. NO fault row is ever written here — silence
+produces no finding, and a later human statement is still what can move money.';
 
 -- ── marketplace_cancel_fee — EXTENDS ←0066 (REGISTRY silent-collision law) ─────────────────
 -- Base named: 0066 §2 is both the first and the newest definition (verified by grep across
@@ -985,7 +1085,7 @@ as $$
       -- for a live departure, and charges 0 where the departure story is falsified — a
       -- recorded runner fault or a booking past the lateness ceiling (Sean 2026-08-21).
       when b.status = 'runner_enroute' then
-        case when enroute_cancel_fee_waived(b.id) then 0
+        case when cancel_moves_no_money(b.id) then 0
              else round(b.total_price * 0.5)::int end
       when b.scheduled_at >= now() + interval '24 hours' then 0
       else round(b.total_price * 0.1)::int
@@ -1012,6 +1112,122 @@ ceiling (0117 §9, Sean 2026-08-21) / >=24h 0 / <24h 10%. Returns quoted status 
 caller''s CAS. Direct EXECUTE server-only (service_role); clients read the number through
 quote_cancel_fee (0117 §9b — 0066:89''s no-client-quote posture reversed by Sean 2026-08-21).';
 
+-- ── §9d post-handoff cancels are refused BY THE STAMPS, not by the status [BLOCKER-6] ─────
+-- 0066 §1 closed `picked_up → cancelled_owner` because "past the handoff it's an incident".
+-- That guard reads STATUS — and the handoff writes the two stamps and promotes the status in
+-- SEPARATE statements (transition-booking/index.ts:313-322), so there is a window where both
+-- humans have confirmed the dog changed hands and the row still says `runner_enroute`. An
+-- owner cancel landing in that window stored `cancelled_owner` + the 50% + the en-route
+-- compensation, and the later promotion to `picked_up` then failed: the durable terminal said
+-- pre-custody about a dog that was already gone. My §5 resolver was fixed for exactly this
+-- (stamps-first custody, CRIT-3); the cancellation path was not. Same rule, same one copy —
+-- `_checkin_custody` is the only definition of "where is the dog", and both callers ask it.
+create or replace function _booking_cancel_custody_guard() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if _checkin_custody(old.status, old.owner_confirmed_handoff_at,
+                      old.runner_confirmed_handoff_at) = 'post' then
+    raise exception 'cancel_after_handoff'
+      using hint = 'both handoff stamps exist — past the handoff this is an incident, not a cancellation';
+  end if;
+  return new;
+end $$;
+
+create trigger booking_cancel_custody_guard
+  before update of status on bookings
+  for each row
+  -- ⚠ SCOPED TO THE STATES THE TRANSITION MAP ALLOWS. `picked_up → cancelled_owner` is already
+  -- refused by 0066 §1 with `invalid booking transition`, and 105 E6 pins that exact sentence;
+  -- firing here first would replace a shipped suite's error with mine for no gain. The hole
+  -- this guard closes is the one the map CANNOT see: `runner_enroute` with both handoff stamps
+  -- already written, which the map happily allows.
+  when (new.status = 'cancelled_owner' and old.status is distinct from new.status
+        and old.status in ('confirmed', 'runner_enroute')
+        and old.club_session_id is null)
+  execute function _booking_cancel_custody_guard();
+
+comment on function _booking_cancel_custody_guard is
+  '0117 §9d (blind review BLOCKER-6): 인계 도장 두 개가 찍힌 예약은 status 가 아직
+runner_enroute 여도 취소될 수 없다 — 개는 이미 러너 손에 있고, 그 지점부터는 인시던트지
+취소가 아니다 (0066 §1 의 규칙을 상태가 아니라 도장으로 읽는다). 커스터디 정의는
+_checkin_custody 한 벌 — 리졸버와 취소 경로가 같은 것을 묻는다.';
+
+-- ── §9e the cancel-money repair sweep [blind review BLOCKER-5] ────────────────────────────
+-- A cancellation is committed by ONE statement and its money consequences are written by
+-- SEVERAL requests afterwards. A worker that dies between them leaves a permanent partial
+-- commit: `cancelled_owner` with a fee recorded, no runner compensation, no charge intent —
+-- and the retry path cannot repair it, because a second tap sees `cancelled_owner` and
+-- returns the already-cancelled answer. Nothing looked for those rows, so the runner simply
+-- never got paid and nobody found out.
+--
+-- This is NOT the class 0068 retired. 0068 deleted a cron that DECIDED money on a timer
+-- (a refund fired because a clock passed T-10). Here a human already decided — they cancelled,
+-- and the tier was priced at that moment — and the sweep only finishes writing what that
+-- decision entailed. The precedent is 0080's own `sweep_settled_without_payments`, which
+-- exists for exactly this shape on the settle path. Both writers are idempotent and gated
+-- (0080 §K and 0085 refuse anything but their tier, and refuse fee <= 0), and the mint writes
+-- nothing while charging is off — so a re-drive can only complete, never duplicate.
+create or replace function sweep_cancel_money_gaps() returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare r record; n int := 0;
+begin
+  if not pg_try_advisory_lock(hashtextextended('cancel_money_gaps', 0)) then return 0; end if;
+  for r in
+    select b.id, b.cancel_reason
+    from bookings b
+    where b.status = 'cancelled_owner'
+      and b.club_session_id is null
+      and coalesce(b.cancel_fee, 0) > 0
+      and b.cancel_reason in ('owner_cancel_enroute', 'owner_cancel_late')
+      and b.runner_id is not null
+      and not exists (select 1 from ledger_items li where li.booking_id = b.id)
+      -- give the request that owns this cancel time to finish its own writes; only rows that
+      -- are STILL bare after the window are torn.
+      and b.updated_at < now() - cancel_gap_grace()
+    order by b.id
+  loop
+    begin
+      if r.cancel_reason = 'owner_cancel_enroute' then
+        perform record_enroute_cancel_comp(r.id);
+      else
+        perform record_late_cancel_share(r.id);
+      end if;
+      n := n + 1;
+      insert into notifications (profile_id, kind, title, body, ref_id)
+      select b.runner_id, 'booking', '시간을 비워둔 보상이 기록됐어요',
+             '취소 보상 기록이 지연됐다가 방금 반영됐어요', b.id
+      from bookings b
+      where b.id = r.id and b.runner_id is not null
+        and not exists (select 1 from notifications nt
+                        where nt.ref_id = b.id and nt.profile_id = b.runner_id
+                          and nt.title = '시간을 비워둔 보상이 기록됐어요');
+    exception when others then
+      raise warning 'sweep_cancel_money_gaps % : %', r.id, sqlerrm;
+    end;
+  end loop;
+  perform pg_advisory_unlock(hashtextextended('cancel_money_gaps', 0));
+  return n;
+exception when others then
+  perform pg_advisory_unlock(hashtextextended('cancel_money_gaps', 0));
+  raise;
+end $$;
+
+revoke execute on function sweep_cancel_money_gaps() from public, anon, authenticated;
+grant  execute on function sweep_cancel_money_gaps() to service_role;
+
+comment on function sweep_cancel_money_gaps is
+  '0117 §9e (blind review BLOCKER-5): 취소는 한 문장으로 커밋되고 그 돈의 결과는 이어지는
+요청들이 쓴다 — 그 사이에 워커가 죽으면 수수료만 적힌 채 러너 보상도 청구 인텐트도 없는
+영구 부분 커밋이 남고, 재시도는 이미-취소됨으로 빠져나가 복구하지 못한다. 이 스윕이 그
+행들을 찾아 멱등한 보상 기록을 다시 몬다 (0080의 sweep_settled_without_payments 와 같은
+형상). 타이머가 돈을 결정하지 않는다 — 사람이 이미 결정한 것을 마저 쓸 뿐이다 (0068 구분).';
+
+do $$ begin
+  perform cron.schedule('cancel-money-gaps', '6-56/10 * * * *', 'select sweep_cancel_money_gaps()');
+exception when others then
+  raise notice 'pg_cron unavailable — sweep_cancel_money_gaps() 를 외부 스케줄러로 호출하세요';
+end $$;
+
 -- ── §9b quote_cancel_fee — the party-gated window (Sean 2026-08-21: "Real quote API + words
 -- meanwhile") ──────────────────────────────────────────────────────────────────────────────
 -- ONE fee implementation, by construction: this function CALLS marketplace_cancel_fee and
@@ -1027,16 +1243,21 @@ returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare b record; v_uid uuid := auth.uid(); v_fee int; v_status text;
 begin
-  select bk.id, bk.owner_id, bk.runner_id into b
+  select bk.id, bk.owner_id, bk.runner_id, bk.club_session_id into b
   from bookings bk where bk.id = p_booking;
   if b.id is null then raise exception 'not_found'; end if;
-  if v_uid is not null then
-    if v_uid is distinct from b.owner_id and v_uid is distinct from b.runner_id then
-      raise exception 'not_found';   -- indistinguishable from missing — no enumeration oracle
-    end if;
-  elsif current_user not in ('service_role', 'postgres') then
-    raise exception 'not_signed_in';
+  -- [BLOCKER-10] same correction as fetch_checkin: a definer's `current_user` is its OWNER, so
+  -- the old exemption admitted every caller that arrived without a `sub` claim. A price quote
+  -- for someone else's booking is exactly the read this gate exists to refuse.
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if v_uid is distinct from b.owner_id and v_uid is distinct from b.runner_id then
+    raise exception 'not_found';   -- indistinguishable from missing — no enumeration oracle
   end if;
+  -- [MAJOR-9] the club never gets a marketplace number. `cancel_owner` already refuses club
+  -- bookings before quoting (their ladder lives in club_config: free_hours 24 / late 10% /
+  -- post-accept 20%), so a quote surface that answered for them would publish a price the club
+  -- side never agreed to — and the client would render it as the fee.
+  if b.club_session_id is not null then raise exception 'club_out_of_scope'; end if;
 
   select f.fee, f.status into v_fee, v_status from marketplace_cancel_fee(p_booking) f;
   return jsonb_build_object('fee', v_fee, 'status', v_status);
@@ -1075,7 +1296,20 @@ begin
   end if;
 
   select f.fee into v_fee from marketplace_cancel_fee(old.id) f;
-  new.cancel_fee := v_fee;
+
+  -- ⚠ [blind review BLOCKER-3] THE WRITE VALIDATES THE QUOTE; IT DOES NOT SILENTLY CORRECT IT.
+  -- Round 2 made the STORED number right and left the promise wrong: a status-only CAS cannot
+  -- enforce a TIME-DEPENDENT price, so a booking quoted at 10:00:00 and written at 10:00:02
+  -- still committed — at a different number than the human was shown. "The price shown IS the
+  -- price charged" is only true if the shown price is part of what the write agrees to. So the
+  -- claimed fee IS the token: when it no longer matches the ladder, the transition is REFUSED
+  -- and the caller must re-quote. Nobody is charged a number they were not shown; the cost is
+  -- one extra round trip on a boundary crossing, which is the honest trade.
+  if new.cancel_fee is distinct from v_fee then
+    raise exception 'cancel_fee_requote'
+      using detail = format('quoted=%s derived=%s', new.cancel_fee, v_fee),
+            hint = 'the ladder moved between the quote and the write — re-quote and re-confirm';
+  end if;
   -- [codex r2 F3] THE MARKER TRAVELS WITH THE FEE, in the same statement, from the same read.
   -- The tier marker is what selects the downstream consequence (0080 §K gates the en-route
   -- compensation on 'owner_cancel_enroute'; 0085 gates the runner's half on

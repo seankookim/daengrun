@@ -143,6 +143,8 @@ declare
   b28 uuid; b29 uuid; b29b uuid; b30 uuid; b31 uuid; b32 uuid; b33 uuid; b33b uuid;
   b34 uuid; b34b uuid; b35 uuid;
   b31b uuid; b31f uuid; b3f uuid; b3o uuid; b29c uuid; b29d uuid;
+  b41 uuid; b42 uuid; b43 uuid; b44 uuid; b45 uuid; b46 uuid; b47 uuid; b48 uuid;
+  v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint;
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -232,25 +234,52 @@ begin
   exception when others then call _fail('lb', 'L3 인루트 50% 러너-과실 면제', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- [L9b] the carve-out's CEILING arm — the 2026-08-04 row's exit, BEFORE any sweep runs
+  -- [L9b] THE SILENT-STALEMATE RULE — Sean 2026-08-21, verbatim: "Nobody pays, nobody is paid."
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- b17 is Sean's live row's exact shape: runner_enroute, 17 days stale, born before the
-  -- protocol (no check-in row, no fault row). The quote must be 0 on scheduled_at alone —
-  -- the honest fallback needs no protocol state. The fresh twin proves the arm still prices
-  -- a live departure at 50%.
+  -- ⚠ REWRITTEN after the blind review's sharpest finding: the previous version pinned the
+  -- TIMER AS THE AUTHORITY ("past the ceiling ⇒ fee 0"), so a D4/D5-compliant correction would
+  -- have REDDENED it — the suite was holding the disputed behaviour in place as if it were
+  -- settled. What is ruled is not a waiver but a STALEMATE: silence moves no money in EITHER
+  -- direction, and a human statement is still what moves money. So this pin now asserts the
+  -- rule, both halves, and would go red if the clock ever started paying OR charging anyone.
+  --   ⓐ silence ⇒ owner charged 0 AND runner compensated 0 AND no fault row exists
+  --   ⓑ a stated runner fault ⇒ money follows the STATEMENT (still 0 to the owner) — the
+  --      ground is different even where the number agrees, which is why ⓒ exists:
+  --   ⓒ a live en-route booking with nobody silent ⇒ the 50% still stands (the clock is not
+  --      the thing that zeroed ⓐ; absence of evidence is)
   b17    := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
   b_fresh := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
   begin
     v_bad := '';
+    -- ⓐ the stalemate itself
     select f.fee, f.status into v_fee, v_status from marketplace_cancel_fee(b17) f;
-    if v_fee is distinct from 0 then v_bad := v_bad || ' 17일 묵은 행 fee=' || coalesce(v_fee::text, 'null'); end if;
+    if v_fee is distinct from 0 then v_bad := v_bad || ' 침묵 교착인데 보호자 청구=' || coalesce(v_fee::text, 'null'); end if;
     if v_status is distinct from 'runner_enroute' then v_bad := v_bad || ' status=' || coalesce(v_status, 'null'); end if;
+    if not cancel_moves_no_money(b17) then v_bad := v_bad || ' 교착 판정 실패'; end if;
+    -- …and the OTHER direction, which the old pin never asserted: nobody is PAID either. The
+    -- comp writers refuse on their own fee<=0 gates, so a stalemate cancellation that somehow
+    -- paid the runner would show up as a ledger row here.
+    -- ⚠ on its OWN booking: b17 is the ceiling arm's fixture (L9 needs it row-less and
+    -- unresolved), and cancelling it here would hand L9 a booking another path already took.
+    b47 := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b47;
+    select cm.comp into v_comp from record_enroute_cancel_comp(b47) cm;
+    if coalesce(v_comp, 0) <> 0 then v_bad := v_bad || ' 침묵에 러너 보상=' || v_comp; end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b47)
+      then v_bad := v_bad || ' 침묵에 원장 행'; end if;
+    -- no fault is FOUND by silence — a stalemate is the absence of a finding
+    if exists (select 1 from booking_faults f where f.booking_id = b47)
+      then v_bad := v_bad || ' 침묵에 과실행'; end if;
+    -- ⓑ a human statement still moves money: the ground becomes fault, not the clock
+    if not cancel_moves_no_money(b3f) then v_bad := v_bad || ' 진술된 과실이 무이동을 못 만듦'; end if;
+    -- ⓒ nobody silent, nobody stated ⇒ 0066's 50% is untouched
     select f.fee into v_fee2 from marketplace_cancel_fee(b_fresh) f;
-    if v_fee2 is distinct from 12450 then v_bad := v_bad || ' 생생한 인루트 fee=' || coalesce(v_fee2::text, 'null'); end if;
+    if v_fee2 is distinct from 12450 then v_bad := v_bad || ' 생생한 인루트=' || coalesce(v_fee2::text, 'null'); end if;
+    if cancel_moves_no_money(b_fresh) then v_bad := v_bad || ' 생생한 인루트가 교착으로 판정됨'; end if;
     if v_bad = '' then
-      call _pass('lb', 'L9b 실링 경과 인루트 취소 = 0원 (8/4 행의 출구 — 프로토콜 이전 예약도 scheduled_at만으로) · 정상 인루트는 12450 유지');
-    else call _fail('lb', 'L9b 실링 면제 + 생생한 인루트 보존', v_bad); end if;
-  exception when others then call _fail('lb', 'L9b 실링 면제 + 생생한 인루트 보존', sqlerrm); end;
+      call _pass('lb', 'L9b 침묵 교착 = 아무도 내지 않고 아무도 받지 않는다 (Sean: "Nobody pays, nobody is paid") — 보호자 0·러너 보상 0·원장 없음·과실 없음 · 진술된 과실은 여전히 돈을 움직이고 · 생생한 인루트의 50%는 그대로');
+    else call _fail('lb', 'L9b 침묵 교착 규칙', v_bad); end if;
+  exception when others then call _fail('lb', 'L9b 침묵 교착 규칙', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- arming world + sweep #1 (top level — L1 and L9 both read its effects)
@@ -394,6 +423,12 @@ begin
     if v_n is distinct from 1 then v_bad := v_bad || ' 과실행 총=' || v_n; end if;
     select count(*) into v_n from notifications where ref_id = b2 and title = '지연 예약이 정리됐어요';
     if v_n is distinct from 2 then v_bad := v_bad || ' 알림=' || v_n; end if;
+    -- [blind review MAJOR-12] "돈은 무이동" 은 cancel_fee 만 봐서는 참이 아니다 — 원장 행이나
+    -- 결제 인텐트를 끼워 넣어도 예전 핀은 초록이었다. 세 곳 전부 본다.
+    if exists (select 1 from ledger_items li where li.booking_id = b2)
+      then v_bad := v_bad || ' 원장 행이 생겼다'; end if;
+    if exists (select 1 from payments pm where pm.booking_id = b2)
+      then v_bad := v_bad || ' 결제 인텐트가 생겼다'; end if;
     if v_bad = '' then
       call _pass('lb', 'L2 cannot_proceed = 본인 진술 즉시 종결 — no_show + 진술한 측의 과실행 1개(stated_by=본인) + 서버 타임스탬프 + 돈은 무이동');
     else call _fail('lb', 'L2 cannot_proceed 즉시 종결', v_bad); end if;
@@ -588,7 +623,9 @@ begin
   perform set_config('request.jwt.claim.sub', oo::text, false);
   v_js := answer_checkin(b12b, 'owner', 'other_side_absent');
   perform set_config('request.jwt.claim.sub', '', false);
-  update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b12b;   -- another path owned it
+  -- the claim must match the ladder now that a stale quote is REFUSED (BLOCKER-3): this is a
+  -- confirmed booking inside 24h, so the real cancel price is 10% = 2490.
+  update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b12b;   -- another path owned it
   update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
    where booking_id = b12b;
   perform late_booking_sweep();
@@ -918,6 +955,7 @@ begin
     -- inside an unwound subtransaction and require the quote to break. A copy would keep
     -- answering — which is exactly the drift this pin exists to forbid.
     v_txt := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);   -- BLOCKER-10: quote needs a party
     begin
       drop function marketplace_cancel_fee(uuid);
       begin
@@ -930,6 +968,7 @@ begin
     exception when others then
       if sqlerrm <> 'unwind152' then v_bad := v_bad || ' 언와인드 경로=' || sqlerrm; end if;
     end;
+    perform set_config('request.jwt.claim.sub', '', false);
     if v_txt <> 'ok' then v_bad := v_bad || ' 실행 위임 미확인: ' || v_txt; end if;
     -- the ladder is back (the whole suite after this line depends on it)
     select f.fee into v_fee from marketplace_cancel_fee(b_fresh) f;
@@ -1095,21 +1134,36 @@ begin
   b33b := t_av_booking(oo, dg, rt, rr, now() - interval '17 days',    5.0, 'runner_enroute');
   begin
     v_bad := '';
-    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b33;   -- forged/stale quote
-    select b.cancel_fee into v_n from bookings b where b.id = b33;
-    if v_n is distinct from 12450 then v_bad := v_bad || ' 위조 견적이 남음=' || coalesce(v_n::text, 'null'); end if;
-    -- T+2:59:59 quote landing after T+3h: the stale 12450 must store as the waived 0
-    update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b33b;
-    select b.cancel_fee into v_n from bookings b where b.id = b33b;
-    if v_n is distinct from 0 then v_bad := v_bad || ' 실링 넘은 견적이 남음=' || coalesce(v_n::text, 'null'); end if;
+    -- ⚠ [blind review BLOCKER-3] REFUSED, NOT CORRECTED. "보여준 가격이 청구되는 가격" 은
+    -- 조용한 정정으로는 참이 될 수 없다 — 정정은 사람이 못 본 숫자로 커밋하는 것이다.
+    begin
+      update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b33;
+      v_bad := v_bad || ' 위조 견적이 통과';
+    exception when others then
+      if sqlerrm <> 'cancel_fee_requote' then v_bad := v_bad || ' 위조 거부 사유=' || sqlerrm; end if;
+    end;
+    if (select b.status::text from bookings b where b.id = b33) <> 'runner_enroute'
+      then v_bad := v_bad || ' 거부됐는데 상태가 움직임'; end if;
+    -- T+2:59:59 에 뜬 12450 이 T+3h 이후에 착지 = 교착 규칙이 0을 말하는 지금은 불일치 → 거부
+    begin
+      update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b33b;
+      v_bad := v_bad || ' 낡은 견적이 통과';
+    exception when others then
+      if sqlerrm <> 'cancel_fee_requote' then v_bad := v_bad || ' 낡은 견적 거부 사유=' || sqlerrm; end if;
+    end;
+    -- 그리고 맞는 견적은 그대로 커밋된다 (거부가 전부를 막는 벽이 되면 안 된다)
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b33b;
+    select b.cancel_fee, b.cancel_reason into v_n, v_txt from bookings b where b.id = b33b;
+    if v_n is distinct from 0 then v_bad := v_bad || ' 맞는 견적 저장=' || coalesce(v_n::text, 'null'); end if;
+    if v_txt is distinct from 'owner_cancel_enroute' then v_bad := v_bad || ' 티어 마커=' || coalesce(v_txt, 'null'); end if;
     -- [codex r2 F7] the CONFIRMED tiers, which round 1's en-route-only arms never touched:
     -- a <24h cancel stores 10% over any claim, and a ≥24h cancel stores 0 over any claim.
     b39c := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
-    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b39c;
+    update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b39c;
     select b.cancel_fee into v_n from bookings b where b.id = b39c;
     if v_n is distinct from 2490 then v_bad := v_bad || ' 확정 24h내 저장=' || coalesce(v_n::text, 'null'); end if;
     b39d := t_av_booking(oo, dg, rt, rr, now() + interval '48 hours', 5.0, 'confirmed');
-    update bookings set status = 'cancelled_owner', cancel_fee = 99999 where id = b39d;
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b39d;
     select b.cancel_fee into v_n from bookings b where b.id = b39d;
     if v_n is distinct from 0 then v_bad := v_bad || ' 확정 24h이전 저장=' || coalesce(v_n::text, 'null'); end if;
     if v_bad = '' then
@@ -1118,22 +1172,27 @@ begin
   exception when others then call _fail('lb', 'L33 수수료 진실 트리거', sqlerrm); end;
 
   -- [L34] HIGH-9: a row-less booking is backfilled only past ceiling + a full grace margin
-  b34  := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours 10 minutes', 5.0, 'confirmed');
-  b34b := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours 40 minutes', 5.0, 'confirmed');
+  -- ⚠ [blind review MAJOR-8] 실링은 3시간이다 — 3시간 30분이 아니라. 라운드 2 는 무행 예약에
+  -- 그레이스 마진을 더해 "제공한 적 없는 창" 문제를 샀는데, 그 대가로 Sean 이 정한 숫자가
+  -- 사실상 3.5시간이 되고 그 30분 동안 확정 티어는 여전히 10% 를 물리고 러너 배분까지 쌓였다.
+  -- 정직함은 마진이 아니라 CAUSE 토큰이 산다 (ceiling_backfill = 답변 창은 없었다).
+  b34  := t_av_booking(oo, dg, rt, rr, now() - interval '2 hours 50 minutes', 5.0, 'confirmed');
+  b34b := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours 5 minutes',  5.0, 'confirmed');
   begin
     v_bad := '';
     perform late_booking_sweep();
-    if exists (select 1 from booking_checkins where booking_id = b34) then v_bad := v_bad || ' 마진 안에서 백필'; end if;
+    -- 실링 이전: 손대지 않는다 (체크인은 열릴 수 있어도 종결은 아니다)
     if (select b.status::text from bookings b where b.id = b34) is distinct from 'confirmed'
-      then v_bad := v_bad || ' 마진 안에서 종결'; end if;
+      then v_bad := v_bad || ' 실링 전에 종결됨'; end if;
+    -- 실링 직후: 마진 없이 즉시, 그리고 자기 CAUSE 로
     select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b34b;
-    if v_res is distinct from 'ceiling_backfill' then v_bad := v_bad || ' 마진 밖 백필=' || coalesce(v_res, '행 없음'); end if;
+    if v_res is distinct from 'ceiling_backfill' then v_bad := v_bad || ' 실링 직후 백필=' || coalesce(v_res, '행 없음'); end if;
     if (select b.status::text from bookings b where b.id = b34b) is distinct from 'no_show'
-      then v_bad := v_bad || ' 마진 밖 미종결'; end if;
+      then v_bad := v_bad || ' 실링 직후 미종결'; end if;
     if v_bad = '' then
-      call _pass('lb', 'L34 백필은 실링+그레이스 마진을 넘겨야 — 제공한 적 없는 창을 주장하지 않는다 (제3의 숫자 없이, HIGH-9)');
-    else call _fail('lb', 'L34 백필 마진', v_bad); end if;
-  exception when others then call _fail('lb', 'L34 백필 마진', sqlerrm); end;
+      call _pass('lb', 'L34 실링은 3시간 — 넘긴 무행 예약은 마진 없이 즉시 ceiling_backfill 로 종결되고, 실링 전에는 종결되지 않는다 (MAJOR-8)');
+    else call _fail('lb', 'L34 실링 3시간', v_bad); end if;
+  exception when others then call _fail('lb', 'L34 실링 3시간', sqlerrm); end;
 
   -- [L35] the constraint belts stand on their own (MEDIUM-10a / HIGH-15)
   b35 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
@@ -1241,18 +1300,18 @@ begin
     v_bad := '';
     -- ⓐ <24h confirmed: the edge's stale ≥24h quote claims 0; the row must still carry the
     --    10% tier AND its marker (round 1 stored the fee and left cancel_reason null)
-    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b39;
+    update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b39;
     select b.cancel_fee, b.cancel_reason into v_n, v_txt from bookings b where b.id = b39;
     if v_n is distinct from 2490 then v_bad := v_bad || ' ⓐ fee=' || coalesce(v_n::text, 'null'); end if;
     if v_txt is distinct from 'owner_cancel_late' then v_bad := v_bad || ' ⓐ marker=' || coalesce(v_txt, 'null'); end if;
     -- ⓑ ≥24h confirmed: free, and NO marker — a tier that pays nobody must not look like one
-    update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b39b;
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b39b;
     select b.cancel_fee, b.cancel_reason into v_n, v_txt from bookings b where b.id = b39b;
     if v_n is distinct from 0 then v_bad := v_bad || ' ⓑ fee=' || coalesce(v_n::text, 'null'); end if;
     if v_txt is not null then v_bad := v_bad || ' ⓑ marker=' || v_txt; end if;
     -- ⓒ en-route: the tier is recorded even when the ceiling waived the amount to 0
     select b.cancel_reason into v_txt from bookings b where b.id = b33b;
-    if v_txt is distinct from 'owner_cancel_enroute' then v_bad := v_bad || ' ⓒ 면제된 인루트 marker=' || coalesce(v_txt, 'null'); end if;
+    if v_txt is distinct from 'owner_cancel_enroute' then v_bad := v_bad || ' ⓒ 교착 인루트 marker=' || coalesce(v_txt, 'null'); end if;
     -- ⓓ THE CONSEQUENCE: the stored marker is what the money reads. 0085 gates on it, so the
     --    runner's half exists for ⓐ and cannot exist for ⓑ — this is the half that was silently
     --    lost when the marker followed a dead quote.
@@ -1278,10 +1337,13 @@ begin
     if v_n is distinct from 777 then v_bad := v_bad || ' 운영 정정이 덮임=' || coalesce(v_n::text, 'null'); end if;
     -- and with the override OFF the same shape is corrected — the exemption is deliberate,
     -- not a hole that is always open
-    b39c := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
-    update bookings set status = 'cancelled_owner', cancel_fee = 777 where id = b39c;
-    select b.cancel_fee into v_n from bookings b where b.id = b39c;
-    if v_n is distinct from 2490 then v_bad := v_bad || ' 무플래그인데 미정정=' || coalesce(v_n::text, 'null'); end if;
+    b41 := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+    begin
+      update bookings set status = 'cancelled_owner', cancel_fee = 777 where id = b41;
+      v_bad := v_bad || ' 무플래그 777 이 통과';
+    exception when others then
+      if sqlerrm <> 'cancel_fee_requote' then v_bad := v_bad || ' 무플래그 거부 사유=' || sqlerrm; end if;
+    end;
     if v_bad = '' then
       call _pass('lb', 'L40 의도된 운영 정정은 살아남는다 (app.ops_cancel_fee_override=on 한 트랜잭션) · 플래그 없으면 같은 문장도 사다리로 정정된다 (r2 F6)');
     else call _fail('lb', 'L40 운영 정정 면제', v_bad); end if;
@@ -1289,6 +1351,144 @@ begin
     perform set_config('app.ops_cancel_fee_override', '', true);
     call _fail('lb', 'L40 운영 정정 면제', sqlerrm);
   end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L41]–[L46] the BLIND round (independent reviewer, no knowledge of the author's reasoning)
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+
+  -- [L41] BLOCKER-10: a DEFINER cannot identify its caller by current_user
+  -- The old gate read `current_user not in ('service_role','postgres')` — and inside a definer
+  -- current_user IS postgres, so the branch was unreachable and every caller with EXECUTE and
+  -- no `sub` claim read arbitrary bookings. The suite runs AS postgres with the claim cleared,
+  -- which is exactly the shape that used to pass.
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', '', false);
+    begin
+      v_js := fetch_checkin(b2);
+      v_bad := v_bad || ' 무JWT fetch 통과 (definer 신원 구멍)';
+    exception when others then
+      if sqlerrm <> 'not_signed_in' then v_bad := v_bad || ' fetch 거부 사유=' || sqlerrm; end if;
+    end;
+    begin
+      v_js := quote_cancel_fee(b_fresh);
+      v_bad := v_bad || ' 무JWT quote 통과 (남의 예약 가격 열람)';
+    exception when others then
+      if sqlerrm <> 'not_signed_in' then v_bad := v_bad || ' quote 거부 사유=' || sqlerrm; end if;
+    end;
+    -- 그리고 진짜 당사자는 여전히 읽는다 (거부가 전부를 막는 벽이 되면 안 된다)
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := quote_cancel_fee(b_fresh);
+    if (v_js->>'fee')::int is distinct from 12450 then v_bad := v_bad || ' 당사자 견적 실패'; end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L41 definer 는 current_user 로 호출자를 알 수 없다 — sub 클레임 없는 호출은 fetch·quote 모두 not_signed_in, 당사자는 그대로 읽는다 (BLOCKER-10)');
+    else call _fail('lb', 'L41 definer 신원 구멍', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L41 definer 신원 구멍', sqlerrm);
+  end;
+
+  -- [L42] BLOCKER-6: both handoff stamps ⇒ the cancel path refuses, by the STAMPS not the status
+  b42 := t_av_booking(oo, dg, rt, rr, now() + interval '1 hour', 5.0, 'runner_enroute');
+  update bookings set owner_confirmed_handoff_at = now(),
+                      runner_confirmed_handoff_at = now() where id = b42;
+  b43 := t_av_booking(oo, dg, rt, rr, now() + interval '1 hour', 5.0, 'runner_enroute');
+  update bookings set owner_confirmed_handoff_at = now() where id = b43;   -- ONE stamp only
+  begin
+    v_bad := '';
+    begin
+      update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b42;
+      v_bad := v_bad || ' 인계 후 취소가 통과 (개는 이미 러너 손)';
+    exception when others then
+      if sqlerrm <> 'cancel_after_handoff' then v_bad := v_bad || ' 거부 사유=' || sqlerrm; end if;
+    end;
+    if (select b.status::text from bookings b where b.id = b42) <> 'runner_enroute'
+      then v_bad := v_bad || ' 거부됐는데 상태가 움직임'; end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b42)
+      then v_bad := v_bad || ' 거부됐는데 보상이 적힘'; end if;
+    -- 한쪽 도장만으로는 인계가 아니다 — 정상 취소는 그대로 된다
+    update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b43;
+    if (select b.status::text from bookings b where b.id = b43) <> 'cancelled_owner'
+      then v_bad := v_bad || ' 한도장인데 취소가 막힘'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L42 인계 도장 두 개면 취소 불가 — status 가 아직 runner_enroute 여도 (같은 커스터디 한 벌; 한도장 취소는 정상 통과, BLOCKER-6)');
+    else call _fail('lb', 'L42 인계 후 취소 봉쇄', v_bad); end if;
+  exception when others then call _fail('lb', 'L42 인계 후 취소 봉쇄', sqlerrm); end;
+
+  -- [L43] MAJOR-9: the club never gets a marketplace number
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    begin
+      v_js := quote_cancel_fee(b_club);
+      v_bad := v_bad || ' 클럽 예약에 마켓 견적을 줌=' || coalesce(v_js->>'fee', 'null');
+    exception when others then
+      if sqlerrm <> 'club_out_of_scope' then v_bad := v_bad || ' 클럽 거부 사유=' || sqlerrm; end if;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L43 클럽 예약에는 마켓플레이스 사다리를 노출하지 않는다 — club_out_of_scope (클럽 사다리는 club_config, MAJOR-9)');
+    else call _fail('lb', 'L43 클럽 견적 차단', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L43 클럽 견적 차단', sqlerrm);
+  end;
+
+  -- [L44] BLOCKER-5: a torn cancel is REPAIRABLE — the sweep finds it and finishes the writes
+  b44 := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+  update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b44;
+  delete from ledger_items where booking_id = b44;                 -- the worker died here
+  -- `t_bookings_touch` rewrites updated_at on every write, so the row cannot be aged from a
+  -- fixture; the window is injected exactly like grace and the ceiling are.
+  -- a NEGATIVE window: inside one transaction `now()` is frozen, and `t_bookings_touch` stamps
+  -- updated_at with that same instant — so `updated_at < now() - 0s` is false for every row the
+  -- suite just wrote. Shifting the window one minute into the future makes "already torn" true.
+  perform set_config('app.cancel_gap_grace', '-1 minutes', true);
+  begin
+    v_bad := '';
+    if exists (select 1 from ledger_items li where li.booking_id = b44)
+      then v_bad := v_bad || ' 픽스처가 이미 보상됨'; end if;
+    v_n := sweep_cancel_money_gaps();
+    if v_n < 1 then v_bad := v_bad || ' 스윕이 찢어진 취소를 못 찾음'; end if;
+    select coalesce(sum(li.remaining_guarantee), 0) into v_ledger from ledger_items li where li.booking_id = b44;
+    if v_ledger is distinct from 12450 then
+      v_bad := v_bad || ' 복구 보상=' || coalesce(v_ledger::text, 'null') || ' [스윕=' || v_n
+             || ' 상태=' || (select b.status::text || '/' || coalesce(b.cancel_fee::text,'∅')
+                             || '/' || coalesce(b.cancel_reason,'∅') from bookings b where b.id = b44) || ']';
+    end if;
+    -- 멱등: 두 번 돌아도 두 번 지급하지 않는다
+    perform sweep_cancel_money_gaps();
+    select count(*) into v_n from ledger_items li where li.booking_id = b44;
+    if v_n is distinct from 1 then v_bad := v_bad || ' 재실행이 행을 늘림=' || v_n; end if;
+    -- 방금 취소된(아직 안 찢어진) 행은 건드리지 않는다 — 창을 실제 값으로 되돌리고 확인한다
+    perform set_config('app.cancel_gap_grace', '15 minutes', true);
+    b45 := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+    update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b45;
+    delete from ledger_items where booking_id = b45;
+    perform sweep_cancel_money_gaps();
+    perform set_config('app.cancel_gap_grace', '', true);
+    if exists (select 1 from ledger_items li where li.booking_id = b45)
+      then v_bad := v_bad || ' 진행 중인 요청을 스윕이 앞질렀다'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L44 찢어진 취소는 복구된다 — 15분 지난 무보상 취소를 스윕이 찾아 멱등하게 마저 쓰고(12450), 재실행은 이중 지급하지 않으며, 방금 커밋된 취소는 건드리지 않는다 (BLOCKER-5)');
+    else call _fail('lb', 'L44 취소 돈 복구 스윕', v_bad); end if;
+  exception when others then call _fail('lb', 'L44 취소 돈 복구 스윕', sqlerrm); end;
+
+  -- [L46] MAJOR-7: the km restore touches only the lots THIS booking held
+  b46 := t_av_booking(ow37, dg37, rt, rr, now() - interval '17 days', 5.0, 'confirmed');
+  begin
+    v_bad := '';
+    lot37b := km_grant(ow37, 5, 'recovery', 1);                    -- an UNRELATED lot…
+    update km_lots set expires_at = now() + interval '10 days' where id = lot37b;   -- …not expired
+    v_exp := (select expires_at from km_lots where id = lot37b);
+    perform late_booking_sweep();                                   -- ceiling-resolves b46
+    if (select expires_at from km_lots where id = lot37b) is distinct from v_exp
+      then v_bad := v_bad || ' 남의 로트 만료가 건드려짐'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L46 시계의 만료 복구는 이 예약이 쥔 로트에만 — 같은 보호자의 무관한 로트는 손대지 않는다 (락 아래 범위 한정, MAJOR-7)');
+    else call _fail('lb', 'L46 만료 복구 범위', v_bad); end if;
+  exception when others then call _fail('lb', 'L46 만료 복구 범위', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed
@@ -1300,7 +1500,9 @@ begin
     if has_function_privilege('anon', 'fetch_checkin(uuid)', 'execute') then v_bad := v_bad || ' anon fetch'; end if;
     if has_function_privilege('anon', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' anon open'; end if;
     if has_function_privilege('anon', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' anon sweep'; end if;
-    if has_function_privilege('anon', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' anon waived'; end if;
+    if has_function_privilege('anon', 'cancel_moves_no_money(uuid)', 'execute') then v_bad := v_bad || ' anon 무이동'; end if;
+    if has_function_privilege('anon', 'sweep_cancel_money_gaps()', 'execute') then v_bad := v_bad || ' anon 복구스윕'; end if;
+    if has_function_privilege('authenticated', 'sweep_cancel_money_gaps()', 'execute') then v_bad := v_bad || ' auth 복구스윕'; end if;
     if has_function_privilege('anon', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' anon fee'; end if;
     if has_function_privilege('anon', 'quote_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' anon quote'; end if;
     -- authenticated: exactly the two party calls
@@ -1310,11 +1512,11 @@ begin
     if has_function_privilege('authenticated', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' auth 사다리 직접'; end if;
     if has_function_privilege('authenticated', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' auth open'; end if;
     if has_function_privilege('authenticated', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' auth sweep'; end if;
-    if has_function_privilege('authenticated', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' auth waived'; end if;
+    if has_function_privilege('authenticated', 'cancel_moves_no_money(uuid)', 'execute') then v_bad := v_bad || ' auth 무이동'; end if;
     if has_function_privilege('authenticated', '_resolve_checkin(uuid,text)', 'execute') then v_bad := v_bad || ' auth resolver'; end if;
     -- service_role: the fee path and the party calls, NEVER the clock
     if not has_function_privilege('service_role', 'marketplace_cancel_fee(uuid)', 'execute') then v_bad := v_bad || ' svc¬fee'; end if;
-    if not has_function_privilege('service_role', 'enroute_cancel_fee_waived(uuid)', 'execute') then v_bad := v_bad || ' svc¬waived'; end if;
+    if not has_function_privilege('service_role', 'cancel_moves_no_money(uuid)', 'execute') then v_bad := v_bad || ' svc¬무이동'; end if;
     if has_function_privilege('service_role', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' svc open (제2의 시계)'; end if;
     if not has_function_privilege('service_role', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' svc¬sweep (스케줄러 폴백, MEDIUM-12)'; end if;
     if has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc custody'; end if;
@@ -1322,7 +1524,7 @@ begin
     -- only UPDATE/DELETE, leaving service_role able to INSERT a fabricated check-in (a fault
     -- row waives money) and TRUNCATE the protocol's ledger. The definer functions own writes.
     foreach v_txt in array array['anon', 'authenticated', 'service_role'] loop
-      foreach v_res in array array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] loop
+      foreach v_res in array array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] loop
         if has_table_privilege(v_txt, 'booking_checkins', v_res)
           then v_bad := v_bad || ' ' || v_txt || ' checkins ' || v_res; end if;
         if has_table_privilege(v_txt, 'booking_faults', v_res)
@@ -1332,6 +1534,16 @@ begin
     select count(*) into v_n from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
      where n2.nspname = 'public' and p2.proname = 'late_booking_sweep' and p2.prosrc like '%lock_timeout%';
     if v_n is distinct from 1 then v_bad := v_bad || ' 스위프 lock_timeout 없음 (MEDIUM-11)'; end if;
+    -- [blind MINOR-14] 동시 틱은 겹치지 않는다: 세션 락 + 결정적 순서. lock_timeout 만으로는
+    -- 충돌이 "조용히 건너뛴 행"이 된다.
+    select count(*) into v_n from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
+     where n2.nspname = 'public' and p2.proname = 'late_booking_sweep'
+       and p2.prosrc like '%pg_try_advisory_lock%' and p2.prosrc like '%order by%';
+    if v_n is distinct from 1 then v_bad := v_bad || ' 스위프 전역 락/정렬 없음 (MINOR-14)'; end if;
+    select count(*) into v_n from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
+     where n2.nspname = 'public' and p2.proname = 'sweep_cancel_money_gaps'
+       and p2.prosrc like '%pg_try_advisory_lock%';
+    if v_n is distinct from 1 then v_bad := v_bad || ' 복구 스윕 락 없음'; end if;
     if has_function_privilege('service_role', '_resolve_checkin(uuid,text)', 'execute') then v_bad := v_bad || ' svc resolver'; end if;
     -- the tables: RLS on, zero policies (fail-closed seal, ops_flags' shape)
     if not (select c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace

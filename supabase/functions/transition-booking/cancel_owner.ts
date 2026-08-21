@@ -73,7 +73,15 @@ export async function cancelOwner(
   // different number: the 24h tier moves), mints a SECOND fee intent, dispatches it, writes a
   // second compensation and notifies the runner all over again. The already-cancelled answer is
   // the fee that was actually recorded, and nothing else happens.
-  if (quoted === "cancelled_owner") return { cancel_fee: Number(bk.cancel_fee ?? 0) };
+  if (quoted === "cancelled_owner") {
+    // [blind review BLOCKER-5] RE-READ, do not trust the preload. `bk` was fetched before this
+    // request did anything; two requests can both preload the PRE-cancel row, and the loser
+    // would answer the owner with a stale ₩0 for a cancellation that actually recorded a fee.
+    // The row is the truth and it is one round trip away.
+    const { data: fresh } = await db.from("bookings")
+      .select("cancel_fee").eq("id", bookingId).maybeSingle();
+    return { cancel_fee: Number((fresh as Booking | null)?.cancel_fee ?? bk.cancel_fee ?? 0) };
+  }
   // CAS on the quoted status — after 0066 both confirmed AND runner_enroute may become
   // cancelled_owner, so the trigger no longer catches a quote-then-depart race (a 0/10%
   // fee landing on a runner who set out between quote and write). 0 rows = re-quote.
@@ -95,7 +103,20 @@ export async function cancelOwner(
   const { data: done, error: ce } = await db.from("bookings")
     .update({ status: "cancelled_owner", cancel_fee: fee })
     .eq("id", bookingId).eq("status", quoted).select("id");
-  if (ce) throw new HttpError(409, ce.message);
+  if (ce) {
+    // [BLOCKER-3] the ladder moved between the quote and the write, so the write refused rather
+    // than charging a number the owner was never shown. The client re-quotes and re-confirms —
+    // one extra round trip instead of a silent price change.
+    if (ce.message.includes("cancel_fee_requote")) {
+      throw new HttpError(409, "취소 수수료가 방금 바뀌었어요 — 새 금액을 확인한 뒤 다시 진행해주세요");
+    }
+    // [BLOCKER-6] both handoff stamps exist: the dog is already with the runner even though the
+    // status has not caught up. Past the handoff this is an incident, not a cancellation.
+    if (ce.message.includes("cancel_after_handoff")) {
+      throw new HttpError(409, "이미 인계가 확인된 예약이에요 — 취소가 아니라 진행 중 문제로 도와드릴게요");
+    }
+    throw new HttpError(409, ce.message);
+  }
   if (!done || done.length === 0) {
     throw new HttpError(409, "예약 상태가 방금 바뀌었어요 — 화면을 새로고침한 뒤 다시 시도해주세요");
   }
@@ -115,8 +136,17 @@ export async function cancelOwner(
   if (se) {
     console.error(`[transition] stored-fee re-read failed booking=${bookingId}: ${se.message}`);
   }
+  // The fallback is now SOUND rather than lossy [BLOCKER-5]: after §9c's refuse-and-requote,
+  // a write that COMMITTED is a write whose quote still matched, so `fee` IS the stored fee —
+  // and the marker is derived by the same rule the trigger uses, from the status the CAS
+  // matched, instead of collapsing to null (which silently skipped the runner's share).
+  const fallbackReason = quoted === "runner_enroute"
+    ? "owner_cancel_enroute"
+    : fee > 0
+    ? "owner_cancel_late"
+    : null;
   const storedFee = se || !stored ? fee : Number((stored as Booking).cancel_fee ?? 0);
-  const storedReason = se || !stored ? null : ((stored as Booking).cancel_reason ?? null);
+  const storedReason = se || !stored ? fallbackReason : ((stored as Booking).cancel_reason ?? null);
   if (!se && storedFee !== fee) {
     // Not an error — this is the trigger doing its job across a boundary the quote missed.
     console.log(
@@ -281,10 +311,18 @@ async function compensateRunner(db: SupabaseClient, bookingId: string): Promise<
     const { data, error } = await db.rpc("record_enroute_cancel_comp", { p_booking: bookingId });
     if (error) throw new Error(error.message);
     const row = (Array.isArray(data) ? data[0] : data) as { comp: number; written: boolean } | null | undefined;
+    const comp = Number(row?.comp ?? 0);
     console.log(
-      `[transition] enroute comp booking=${bookingId} comp=${row?.comp ?? 0} written=${row?.written ?? false}`,
+      `[transition] enroute comp booking=${bookingId} comp=${comp} written=${row?.written ?? false}`,
     );
-    return true;
+    // ⚠ [blind review BLOCKER-2] RETURN WHAT SQL DID, not that the call happened. This used to
+    // `return true` unconditionally, so the zero-fee path — 0080:1135 answers
+    // {comp: 0, written: false} for a cancellation that moves no money — still told the runner
+    // "취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요". That is a receipt for a ledger
+    // row that does not exist, and under Sean's stalemate ruling it is the exact sentence the
+    // ruling forbids: nobody is paid, so nobody may be told they were. `comp > 0` means a row
+    // exists (written now, or already there on a retry — 0085's idiom).
+    return comp > 0;
   } catch (e) {
     // The booking id and the error text stay HERE, in the log — the notification body carries
     // neither (_shared/ops.ts's redaction rule), so this line is where a human finds the case.
