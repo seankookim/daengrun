@@ -150,7 +150,9 @@ decision provenance). The bullets below are the load-bearing extract; on any con
 
 ## Process — gstack sprint
 
-Adopted from garrytan/gstack as the process layer. Each engagement runs Think (scout the real state; challenge the premise) → Plan (scope, contracts, arbitration) → Build (scoped Opus subagents via precision-director) → Review (adversarial, reviewers execute attacks) → Test (commit gate + harness where applicable) → Ship (commit; Sean pushes) → Reflect (retro note in the handoff). Office-hours format for strategy questions; plan-ceo-review ceremony (user picks via structured options) before expansions.
+Adopted from garrytan/gstack as the process layer. Each engagement runs Think (scout the real state; challenge the premise) → Plan (scope, contracts, arbitration) → Build (scoped Opus subagents via precision-director) → Review (adversarial, reviewers execute attacks) → Test (commit gate + harness where applicable) → Ship (commit each verified slice **and push it**) → Reflect (retro note in the handoff). Office-hours format for strategy questions; plan-ceo-review ceremony (user picks via structured options) before expansions.
+
+⚠ **Corrected 2026-08-21 (Sean).** This line read *“Ship (commit; Sean pushes)”* and had been stale since **2026-08-10**, when Sean granted Claude `git push` (§Operations — Sean-only). It contradicted two other parts of this same file and cost at least one session a round trip asking for permission it already had. **Ship means push.** Commit each verified slice against green gates and push it the same session — do not sit on a batch. Work that exists only in a worktree is invisible to every other session and to the announcer's stranded-work sweeps, and it *reserves nothing* (the same reason a relayed decision isn't settled until the words are on origin). A 729-line uncommitted migration was nearly destroyed this way. Branch short-lived from current trunk; the conditions in §Operations — gates green first, never from a worktree carrying an unfinished migration, verify after — all still hold.
 
 ## gstack
 
