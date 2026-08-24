@@ -17,6 +17,10 @@
 --   G7  the declaration latches            ⟷ correcting upward, and un-answering, still work
 --   G8  the pair constraint refuses halves ⟷ both complete shapes are accepted
 --   G9  the doors themselves
+--   G10 late declaration re-gates UPDATE   ⟷ picked_up/active marketplace return stays open
+--   G11 check→INSERT declaration race      ⟷ every other recurring series still generates,
+--                                            with one aggregate WARNING rather than N
+--   G12 DELETE cannot erase the latch       ⟷ ordinary DELETE and the ops escape hatch stay open
 --
 -- ─── PREDICTED MUTATION MAP — ⚠ PREDICTIONS, NOT MEASUREMENTS ─────────────────────────────────
 -- ⚠ **THIS SESSION DID NOT RUN THE HARNESS.** Parallel harness runs braid on one postmaster and
@@ -45,6 +49,25 @@
 --   0119 §F delete the ⓑ stamp discipline                      → RED = [G7 ⓓ, G7 ⓔ]
 --   0119 §A delete the pair CHECK constraint                   → RED = [G8]
 --   grant execute on dog_custody_gate to authenticated         → RED = [G9]
+--
+-- ─── FIX-FIRST ROUND — PREDICTED MUTATIONS, NOT MEASUREMENTS ───────────────────────────────────
+-- No harness or test was run while authoring this round. PREDICTED post-fix clean count: 743/0
+-- (the previously measured 740/0 plus G10, G11 and G12). Every red set below is PREDICTED.
+--   F1 post-apply DROP `bookings_dangerous_dog_move`             → RED = [G9, G10 late-accept]
+--   F1 delete its old picked_up/active exemption                → migration VERIFY aborts;
+--        if VERIFY is bypassed, RED = [G10 real homeward arm]
+--   F2 delete only the per-row INSERT exception handler         → RED = [G11] alone
+--   F2 replace its three-token filter with catch-all continue   → RED = [G11 unknown-P0001 arm]
+--   F5 drop owner_handled from the session UPDATE trigger WHEN  → migration VERIFY aborts;
+--        if VERIFY is bypassed, RED = [G5 real return-home arm]
+--   F5 drop owner_handled from the session INSERT trigger WHEN  → migration VERIFY aborts
+--        (the predecessor mutation applied; this one must not)
+--   F4 post-apply DROP `dogs_dangerous_delete`                   → RED = [G9, G12 auth-delete]
+--   F4 remove its current_user scope so it blocks ops too       → RED = [G12 ops arm] alone
+--   F7 restore a refused-series WARNING inside the loop         → RED = [G11 warning-shape arm]
+-- PREDICTED G11 runtime shape: its clean series has 1 booking, each of 3 refused series has 0, and one
+-- aggregate WARNING naming count=3 plus 3 distinct dog ids. These are predictions for the measuring
+-- agent to falsify, not observed counts.
 --
 -- ─── Two fixture facts that are load-bearing ────────────────────────────────────────────────
 --  ① **The positive-control booking carries `runner_id = NULL`, deliberately.** That is the real
@@ -92,14 +115,43 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
+-- G11's test-only TOCTOU injector. The recurring belt has already read the dog before this trigger
+-- can run. Its name sorts before `bookings_dangerous_dog`, so the INSERT sees declared_none at the
+-- belt, this trigger flips it, and the production trigger raises the real custody token. Because
+-- the production INSERT now owns a per-row exception subtransaction, this update is rolled back
+-- with the refused INSERT and the loop can continue. A second GUC makes the same trigger raise an
+-- unrelated P0001, proving the handler re-raises anything outside the three custody tokens.
+create or replace function _mgn_flip_dog_during_recurring_insert() returns trigger
+language plpgsql security invoker set search_path = public, pg_temp as $$
+declare
+  v_target text := nullif(current_setting('mgn.toctou_series', true), '');
+  v_error_target text := nullif(current_setting('mgn.toctou_error_series', true), '');
+begin
+  if v_error_target is not null and new.series_id::text is not distinct from v_error_target then
+    raise exception using errcode = 'P0001', message = 'mgn_unknown_insert_failure';
+  elsif v_target is not null and new.series_id::text is not distinct from v_target then
+    update dogs
+       set dangerous_status = 'declared_dangerous', dangerous_basis = 'designated'
+     where id = new.dog_id;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists a_mgn_flip_dog_during_recurring_insert on bookings;
+create trigger a_mgn_flip_dog_during_recurring_insert before insert on bookings
+  for each row when (new.series_id is not null)
+  execute function _mgn_flip_dog_during_recurring_insert();
+
 do $$
 declare
   oc uuid; od uuid; ou uuid; ox uuid; og5 uuid; or1 uuid; or2 uuid;
   hh uuid; rr uuid; rt uuid;
   dc uuid; dd uuid; du uuid; dx uuid; dn uuid; dg5 uuid; dz uuid; dr1 uuid; dr2 uuid; dtmp uuid;
+  dlate uuid; dlate_u uuid; dhome uuid; dr3 uuid; dr4 uuid; dr5 uuid; dr6 uuid; dr7 uuid;
+  ddel_bad uuid; ddel_ok uuid; ddel_ops uuid;
   v_club uuid; v_s uuid; sd_g5 uuid; sd_rsvp uuid; sd_tmp uuid;
-  ser1 uuid; ser2 uuid;
-  v_bad text; v_msg text; v_err text; v_n int; v_n2 int; v_bid uuid;
+  ser1 uuid; ser2 uuid; ser3 uuid; ser4 uuid; ser5 uuid; ser6 uuid; ser7 uuid;
+  v_bad text; v_msg text; v_err text; v_src text; v_n int; v_n2 int; v_bid uuid;
   v_dow int; v_rule jsonb; v_at timestamptz; v_at2 timestamptz;
   b_ok uuid;
 begin
@@ -390,16 +442,25 @@ begin
     if dog_custody_gate(dg5) is distinct from 'dog_dangerous_custody_refused' then
       v_bad := v_bad || ' 픽스처가 상황을 재현하지 못한다 — 신고 후에도 게이트가 거절하지 않는다'; end if;
 
-    -- ⓐ 🔴 the row that is ALREADY there keeps working. Two writes: a plain custody-row update,
-    --   and one that names `custody` itself without moving it (the shape a "tidy" merged trigger
-    --   would still refuse).
+    -- ⓐ 🔴 the row that is ALREADY there keeps working. First exercise two ordinary writes, then
+    --   execute the return nobody had run before this fix round: runner_delegated → owner_handled.
+    --   PREDICTED mutation: remove `owner_handled` from THIS UPDATE trigger's own WHEN (not its
+    --   sibling INSERT trigger) → migration VERIFY aborts; with VERIFY bypassed, this arm is red.
     begin
       update session_dogs set checked_in_at = now() where id = sd_g5;
       update session_dogs set custody = custody where id = sd_g5;
+      update session_dogs
+         set custody = 'owner_handled', responsible_profile_id = og5
+       where id = sd_g5;
     exception when others then
       v_bad := v_bad || ' 🔴 이미 위탁 중인 개의 커스터디 행에 쓸 수 없다 [' || sqlerrm
                      || '] — 반환 경로가 죽는다. 게이트가 덫이 됐다';
     end;
+    -- PREDICTED count: exactly one returned row, now owner_handled by its owner.
+    select count(*) into v_n from session_dogs
+     where id = sd_g5 and custody = 'owner_handled' and responsible_profile_id = og5;
+    if v_n <> 1 then
+      v_bad := v_bad || ' 🔴 위탁 중이던 맹견이 owner_handled로 돌아오지 못했다 — 실제 반환 전이가 열려 있지 않다'; end if;
 
     -- ⓑ 🔴 but a row MOVING INTO a stranger's custody is still refused. Without this arm the
     --   `_move` trigger could simply be deleted and ⓐ would stay green. `sd_tmp` is this pin's
@@ -417,7 +478,7 @@ begin
     elsif v_err <> 'dog_dangerous_custody_refused' then v_bad := v_bad || ' 이동 거절 토큰이 다르다 [' || v_err || ']'; end if;
 
     if v_bad = ''
-      then call _pass('mgn','G5 게이트는 덫이 아니다 — 러닝 중에 보호자가 맹견 신고를 해도 이미 위탁 중인 커스터디 행은 계속 쓸 수 있고(반환 포함), 동시에 동반 행을 UPDATE로 위탁 행으로 바꾸는 옆문은 막힌다. INSERT만 막으면 옆문이 열리고, UPDATE를 통째로 막으면 개가 러너에게 갇힌다');
+      then call _pass('mgn','G5 게이트는 덫이 아니다 — 러닝 중에 보호자가 맹견 신고를 해도 이미 위탁 중인 행의 **실제 반환 전이(runner_delegated→owner_handled)**가 성공하고, 동시에 동반 행을 UPDATE로 위탁 행으로 바꾸는 옆문은 막힌다. 두 session 트리거의 WHEN은 각자 owner_handled 면제를 가져야 한다');
     else v_msg := v_bad; call _fail('mgn','G5 덫 방지', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('mgn','G5 덫 방지', v_msg);
   end;
@@ -626,15 +687,17 @@ begin
     if has_function_privilege('anon',          'dog_custody_refusal_detail(text)', 'execute') then v_bad := v_bad || ' anon이 거절문 함수를 실행할 수 있다'; end if;
     if not has_function_privilege('service_role', 'dog_custody_gate(uuid)', 'execute') then v_bad := v_bad || ' 🔴 service_role이 게이트를 잃었다 (엣지 함수 경로가 죽는다)'; end if;
 
-    -- the four triggers, by name and table. A dropped trigger is the cheapest way to turn this
+    -- PREDICTED count=6: the six triggers by name and table. A dropped trigger is the cheapest way to turn this
     -- whole slice off, and it leaves no other trace.
     select count(*) into v_n from pg_trigger t join pg_class c on c.oid = t.tgrelid
      where not t.tgisinternal
-       and ((c.relname = 'bookings'     and t.tgname = 'bookings_dangerous_dog')
+       and ((c.relname = 'bookings'     and t.tgname in ('bookings_dangerous_dog',
+                                                         'bookings_dangerous_dog_move'))
          or (c.relname = 'session_dogs' and t.tgname in ('session_dogs_dangerous_dog',
                                                           'session_dogs_dangerous_dog_move'))
-         or (c.relname = 'dogs'         and t.tgname = 'dogs_dangerous_declaration'));
-    if v_n <> 4 then v_bad := v_bad || ' 🔴 게이트 트리거가 4개가 아니다=' || v_n; end if;
+         or (c.relname = 'dogs'         and t.tgname in ('dogs_dangerous_declaration',
+                                                         'dogs_dangerous_delete')));
+    if v_n <> 6 then v_bad := v_bad || ' 🔴 게이트 트리거가 6개가 아니다=' || v_n; end if;
 
     -- 98 H1 sweeps every definer in public, but say it here too: this slice's own definers.
     select count(*) into v_n from pg_proc p
@@ -644,10 +707,264 @@ begin
     if v_n <> 0 then v_bad := v_bad || ' 🔴 이 슬라이스의 definer ' || v_n || '개가 본문 search_path 봉인 없이 산다'; end if;
 
     if v_bad = ''
-      then call _pass('mgn','G9 게이트는 올바른 문 뒤에 있다 — dog_custody_gate는 당사자 게이트 없는 definer라 클라이언트 역할에 EXECUTE가 없고(남의 강아지 uuid로 맹견 여부를 묻는 오라클이 된다) service_role만 쥐며, 네 트리거가 이름·테이블까지 제자리에 있고, 이 슬라이스의 definer 둘 다 본문에 search_path=public, pg_temp를 쓴다');
+      then call _pass('mgn','G9 게이트는 올바른 문 뒤에 있다 — dog_custody_gate는 당사자 게이트 없는 definer라 클라이언트 역할에 EXECUTE가 없고(남의 강아지 uuid로 맹견 여부를 묻는 오라클이 된다) service_role만 쥐며, 여섯 트리거가 이름·테이블까지 제자리에 있고, 이 슬라이스의 definer 둘 다 본문에 search_path=public, pg_temp를 쓴다');
     else v_msg := v_bad; call _fail('mgn','G9 문·권한', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('mgn','G9 문·권한', v_msg);
   end;
 
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [G10] late declarations re-gate outward booking UPDATEs, never the trip home
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- PREDICTED mutations:
+  --   · post-apply DROP bookings_dangerous_dog_move → late-accept is red (+ G9 count);
+  --   · delete its old picked_up/active exemption → migration VERIFY aborts; with VERIFY bypassed,
+  --     start_run_tx is refused and the real homeward arm is red.
+  begin
+    v_bad := '';
+
+    -- The constructed attack: INSERT while declared_none, declare dangerous, then accept through
+    -- the role the edge actually uses. The refusal must happen on this UPDATE with the existing
+    -- custody token, and the pre-custody row must remain unassigned.
+    dlate := t_dog(oc, '늦은신고');
+    v_bid := t_av_booking(oc, dlate, rt, null::uuid,
+                          now() + interval '26 hours', 5.0, 'matching');
+    update dogs
+       set dangerous_status = 'declared_dangerous', dangerous_basis = 'designated'
+     where id = dlate;
+    v_err := null;
+    begin
+      set local role service_role;
+      update bookings set runner_id = rr, status = 'confirmed' where id = v_bid;
+    exception when others then v_err := sqlerrm;
+    end;
+    reset role;
+    if v_err is distinct from 'dog_dangerous_custody_refused' then
+      v_bad := v_bad || ' 🔴 늦게 맹견 신고된 부킹의 service_role 수락 결과가 틀리다 ['
+                     || coalesce(v_err, '통과') || ']'; end if;
+    -- PREDICTED count=1: the refused row is still matching and unassigned.
+    select count(*) into v_n from bookings
+     where id = v_bid and status = 'matching' and runner_id is null;
+    if v_n <> 1 then
+      v_bad := v_bad || ' 🔴 거절된 늦은 수락이 부킹을 배정/확정 상태로 남겼다'; end if;
+
+    -- The other refused state can also arise after INSERT: declared_none → undeclared is deliberately
+    -- allowed by the latch because it buys no custody. The UPDATE gate must read it at acceptance.
+    dlate_u := t_dog(oc, '늦은미신고');
+    v_bid := t_av_booking(oc, dlate_u, rt, null::uuid,
+                          now() + interval '27 hours', 5.0, 'matching');
+    update dogs set dangerous_status = 'undeclared' where id = dlate_u;
+    v_err := null;
+    begin
+      set local role service_role;
+      update bookings set runner_id = rr, status = 'confirmed' where id = v_bid;
+    exception when others then v_err := sqlerrm;
+    end;
+    reset role;
+    if v_err is distinct from 'dog_dangerous_undeclared' then
+      v_bad := v_bad || ' 🔴 부킹 뒤 미신고로 돌아간 개의 수락 결과가 틀리다 ['
+                     || coalesce(v_err, '통과') || ']'; end if;
+    -- PREDICTED count=1: the late-undeclared row also stays matching and unassigned.
+    select count(*) into v_n from bookings
+     where id = v_bid and status = 'matching' and runner_id is null;
+    if v_n <> 1 then
+      v_bad := v_bad || ' 🔴 거절된 미신고 수락이 부킹을 배정/확정 상태로 남겼다'; end if;
+
+    -- Positive control in the outage direction: a safe dog reaches picked_up first, is declared
+    -- dangerous only then, and executes the real marketplace return chain. `start_run_tx` exercises
+    -- picked_up→active (making the old-status exemption load-bearing); end_run_tx and both
+    -- confirm_return_tx calls exercise the actual stop and two doorstep return stamps.
+    dhome := t_dog(oc, '귀가중');
+    b_ok := t_av_booking(oc, dhome, rt, rr,
+                         now() - interval '30 minutes', 5.0, 'picked_up');
+    update dogs
+       set dangerous_status = 'declared_dangerous', dangerous_basis = 'designated'
+     where id = dhome;
+    begin
+      perform start_run_tx(b_ok);
+      perform end_run_tx(b_ok, 5.0, 1800, 'completed', null, '[]'::jsonb);
+      perform confirm_return_tx(b_ok, 'runner', null);
+      perform confirm_return_tx(b_ok, 'owner', null);
+    exception when others then
+      v_bad := v_bad || ' 🔴 이미 picked_up이던 맹견의 실제 귀가 전이가 막혔다 [' || sqlerrm || ']';
+    end;
+    -- PREDICTED count=1: the active row carries the stop and both return stamps.
+    select count(*) into v_n from bookings
+     where id = b_ok and status = 'active' and run_ended_at is not null
+       and runner_confirmed_return_at is not null and owner_confirmed_return_at is not null
+       and settlement_ready_at is not null;
+    if v_n <> 1 then
+      v_bad := v_bad || ' 🔴 귀가 전이가 끝났지만 양측 반환 씰이 온전하지 않다'; end if;
+
+    if v_bad = ''
+      then call _pass('mgn','G10 늦은 신고는 다시 문을 닫되 귀가는 막지 않는다 — declared_none으로 생성된 부킹도 뒤늦게 맹견 또는 미신고 상태가 되면 service_role 수락 UPDATE에서 각각 기존 토큰으로 거절되고, 이미 picked_up이던 행은 start→stop→러너 반환 확인→보호자 반환 확인의 실제 귀가 체인을 끝낸다');
+    else v_msg := v_bad; call _fail('mgn','G10 늦은 신고·귀가 방향', v_msg); end if;
+  exception when others then
+    reset role; v_msg := sqlerrm; call _fail('mgn','G10 늦은 신고·귀가 방향', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [G11] a declaration between belt-check and INSERT skips one row, not the whole sweep
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- PREDICTED mutations:
+  --   · delete the per-row INSERT exception handler → this call raises and every series is 0;
+  --   · catch every P0001 instead of only the three custody tokens → the unknown-error arm is red;
+  --   · restore a refused-series WARNING inside the loop → the warning-shape arm is red.
+  -- PREDICTED execution: clean series 1 booking; race + two pre-refused series 0;
+  -- exactly one aggregate WARNING reports 3 series and 3 distinct dogs.
+  begin
+    v_bad := '';
+    -- G6's already-pinned refused series would legitimately join this later sweep. Pause that one
+    -- fixture so this pin's expected aggregate is exactly its own three dogs, not four.
+    update recurring_series set paused = true where id = ser2;
+    v_dow  := extract(dow from ((now() at time zone 'Asia/Seoul') + interval '1 day'))::int;
+    v_rule := jsonb_build_object('weekdays', jsonb_build_array(v_dow), 'time', '10:00', 'tz', 'Asia/Seoul');
+
+    dr3 := t_dog(or1, '레이스견');
+    insert into dogs (owner_id, name, dangerous_status, dangerous_basis)
+      values (or2, '반복맹견둘', 'declared_dangerous', 'designated') returning id into dr4;
+    insert into dogs (owner_id, name, dangerous_status, dangerous_basis)
+      values (or2, '반복맹견셋', 'declared_dangerous', 'listed_breed') returning id into dr5;
+    dr6 := t_dog(or1, '반복정상둘');
+
+    insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
+                                  base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values (or1, dr3, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
+      returning id into ser3;
+    insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
+                                  base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values (or2, dr4, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
+      returning id into ser4;
+    insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
+                                  base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values (or2, dr5, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
+      returning id into ser5;
+    insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
+                                  base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values (or1, dr6, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
+      returning id into ser6;
+
+    perform set_config('mgn.toctou_series', ser3::text, true);
+    v_err := null;
+    begin
+      perform generate_recurring_bookings();
+    exception when others then v_err := sqlerrm;
+    end;
+    perform set_config('mgn.toctou_series', '', true);
+
+    if v_err is not null then
+      v_bad := v_bad || ' 🔴 체크 뒤 신고 레이스 하나가 스윕 전체를 죽였다 [' || v_err || ']'; end if;
+    -- PREDICTED counts: clean=1; race/pre-refused=0; raced dog rolled back to declared_none=1.
+    select count(*) into v_n from bookings where series_id = ser6;
+    if v_n <> 1 then v_bad := v_bad || ' 🔴 무관한 정상 시리즈가 생성되지 않았다=' || v_n; end if;
+    select count(*) into v_n from bookings where series_id in (ser3, ser4, ser5);
+    if v_n <> 0 then v_bad := v_bad || ' 🔴 레이스/맹견 시리즈가 부킹을 만들었다=' || v_n; end if;
+    select count(*) into v_n from dogs where id = dr3 and dangerous_status = 'declared_none';
+    if v_n <> 1 then
+      v_bad := v_bad || ' 레이스 트리거의 신고 UPDATE가 거절된 INSERT와 함께 롤백되지 않았다'; end if;
+
+    -- PostgreSQL exposes WARNINGs to the client but not to an exception handler. Execute the N=3
+    -- case above so the measuring agent sees the runtime cardinality, and pair it with a structural
+    -- pin that can fail: the one custody-warning statement must occur once, after the loop.
+    select pg_get_functiondef('generate_recurring_bookings()'::regprocedure) into v_src;
+    v_n := position('recurring custody gate skipped % series' in v_src);
+    v_n2 := position('end loop;' in v_src);
+    if v_n = 0 or v_n2 = 0 or v_n < v_n2
+       or position('recurring custody gate skipped % series' in substring(v_src from v_n + 1)) > 0 then
+      v_bad := v_bad || ' 🔴 맹견 반복 경고가 루프 뒤 한 문장으로 집계되지 않았다'; end if;
+
+    -- The handler is narrow by contract. A different P0001 from the same INSERT must still abort
+    -- the invocation; swallowing it would hide arbitrary booking/notification defects as skips.
+    dr7 := t_dog(or1, '반복알수없는오류');
+    insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
+                                  base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values (or1, dr7, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
+      returning id into ser7;
+    perform set_config('mgn.toctou_error_series', ser7::text, true);
+    v_err := null;
+    begin
+      perform generate_recurring_bookings();
+    exception when others then v_err := sqlerrm;
+    end;
+    perform set_config('mgn.toctou_error_series', '', true);
+    if v_err is distinct from 'mgn_unknown_insert_failure' then
+      v_bad := v_bad || ' 🔴 알려지지 않은 P0001을 반복 벨트가 삼켰다 ['
+                     || coalesce(v_err, '통과') || ']'; end if;
+    -- PREDICTED count=0: the re-raised invocation leaves no target booking.
+    select count(*) into v_n from bookings where series_id = ser7;
+    if v_n <> 0 then v_bad := v_bad || ' 알려지지 않은 오류 뒤 대상 부킹이 남았다=' || v_n; end if;
+
+    if v_bad = ''
+      then call _pass('mgn','G11 반복 벨트의 TOCTOU는 한 행에 갇힌다 — 체크 뒤 INSERT 직전에 맹견으로 바뀐 시리즈는 실제 INSERT 트리거 토큰으로 건너뛰고, 미리 거절된 두 시리즈와 함께 0건이며, 무관한 시리즈는 1건 생성된다. 세 거절은 루프 뒤 WARNING 한 번에 집계되고(PREDICTED count=3/distinct dogs=3), 다른 P0001은 그대로 다시 raise된다');
+    else v_msg := v_bad; call _fail('mgn','G11 반복 TOCTOU·경고 집계', v_msg); end if;
+  exception when others then
+    perform set_config('mgn.toctou_series', '', true);
+    perform set_config('mgn.toctou_error_series', '', true);
+    v_msg := sqlerrm; call _fail('mgn','G11 반복 TOCTOU·경고 집계', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [G12] DELETE cannot erase the declaration latch, and the guard must not become a wall
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- PREDICTED mutations:
+  --   · post-apply DROP dogs_dangerous_delete → auth dangerous DELETE succeeds (+ G9 count);
+  --   · remove the current_user scope → the postgres ops arm is red, while the ordinary arm keeps
+  --     an over-broad "deny every dog DELETE" mutation red as well.
+  begin
+    v_bad := '';
+    insert into dogs (owner_id, name, dangerous_status, dangerous_basis)
+      values (oc, '삭제우회', 'declared_dangerous', 'designated') returning id into ddel_bad;
+    ddel_ok := t_dog(oc, '일반삭제');
+    insert into dogs (owner_id, name, dangerous_status, dangerous_basis)
+      values (oc, '운영삭제', 'declared_dangerous', 'listed_breed') returning id into ddel_ops;
+
+    perform set_config('request.jwt.claim.sub', oc::text, false);
+    v_err := null;
+    begin
+      set local role authenticated;
+      delete from dogs where id = ddel_bad;
+    exception when others then v_err := sqlerrm;
+    end;
+    reset role;
+    if v_err is distinct from 'dog_dangerous_declaration_delete_final' then
+      v_bad := v_bad || ' 🔴 authenticated 맹견 DELETE 결과가 틀리다 ['
+                     || coalesce(v_err, '통과') || ']'; end if;
+    -- PREDICTED counts: refused dangerous row remains=1; ordinary delete leaves=0; ops delete leaves=0.
+    select count(*) into v_n from dogs where id = ddel_bad;
+    if v_n <> 1 then v_bad := v_bad || ' 거절된 맹견 DELETE가 행을 지웠다'; end if;
+
+    v_err := null;
+    begin
+      set local role authenticated;
+      delete from dogs where id = ddel_ok;
+    exception when others then v_err := sqlerrm;
+    end;
+    reset role;
+    if v_err is not null then
+      v_bad := v_bad || ' 🔴 평범한 강아지 DELETE까지 막혔다 [' || v_err || ']'; end if;
+    select count(*) into v_n from dogs where id = ddel_ok;
+    if v_n <> 0 then v_bad := v_bad || ' 평범한 강아지 DELETE가 행을 남겼다'; end if;
+
+    -- The explicit ops escape hatch: INVOKER keeps current_user=postgres here, so a verified
+    -- de-designation/data-correction path is not trapped by the app-role latch.
+    begin
+      delete from dogs where id = ddel_ops;
+    exception when others then
+      v_bad := v_bad || ' 🔴 postgres 운영 DELETE가 막혔다 [' || sqlerrm || ']';
+    end;
+    select count(*) into v_n from dogs where id = ddel_ops;
+    if v_n <> 0 then v_bad := v_bad || ' postgres 운영 DELETE가 행을 남겼다'; end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+
+    if v_bad = ''
+      then call _pass('mgn','G12 DELETE로 신고 래치를 지울 수 없다 — authenticated 보호자는 맹견 행을 삭제할 수 없지만 평범한 강아지는 그대로 삭제하며, INVOKER current_user가 postgres인 운영 경로는 맹견 행도 처리할 수 있다');
+    else v_msg := v_bad; call _fail('mgn','G12 DELETE 래치·운영 경로', v_msg); end if;
+  exception when others then
+    reset role; perform set_config('request.jwt.claim.sub', '', false);
+    v_msg := sqlerrm; call _fail('mgn','G12 DELETE 래치·운영 경로', v_msg);
+  end;
+
   perform set_config('request.jwt.claim.sub', '', false);
 end $$;
+
+drop trigger if exists a_mgn_flip_dog_during_recurring_insert on bookings;
+drop function if exists _mgn_flip_dog_during_recurring_insert();

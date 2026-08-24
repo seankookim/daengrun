@@ -22,13 +22,16 @@
 --
 -- ═══ WHOSE OBJECTS THIS FILE RE-CREATES (REGISTRY.md silent-collision law) ═══════════════════
 -- ONE existing object is re-created, and only because leaving it alone would ship a NEW bug:
---   §E `generate_recurring_bookings`  ← 0111 §3   (byte-faithful + one `continue` belt)
+--   §E `generate_recurring_bookings`  ← 0111 §3   (custody belt + token-only row isolation)
 -- Everything else is NEW and nothing in the repo creates or replaces any of it:
 --   type   `dog_dangerous_status`
 --   cols   `dogs.dangerous_status` · `dogs.dangerous_basis` · `dogs.dangerous_declared_at`
 --   funcs  `_breed_reads_as_dangerous` · `dog_custody_gate` · `dog_custody_refusal_detail`
 --          `_guard_dangerous_dog_custody` · `_guard_dog_dangerous_declaration`
---   trigs  `bookings_dangerous_dog` · `session_dogs_dangerous_dog` · `dogs_dangerous_declaration`
+--          `_guard_dangerous_dog_delete`
+--   trigs  `bookings_dangerous_dog` · `bookings_dangerous_dog_move`
+--          `session_dogs_dangerous_dog` · `session_dogs_dangerous_dog_move`
+--          `dogs_dangerous_declaration` · `dogs_dangerous_delete`
 -- Checked against every remote branch on 2026-08-21: the only unlanded migration above 0116 is
 -- `0117_late_booking_protocol` on `origin/claude/late-booking-server-stage2`, which touches
 -- check-ins, faults and cancel money — no overlap with `dogs`, `session_dogs` or the recurring
@@ -219,7 +222,7 @@ comment on function _breed_reads_as_dangerous is
 -- §C  THE RULE — one object, and it fails CLOSED in every direction
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- Returns NULL when custody may pass to a runner, and otherwise the refusal TOKEN. One definition,
--- called by both triggers in §D and by the cron belt in §E — 0116 §C's lesson, one file back:
+-- called by every custody trigger in §D and by the cron belt in §E — 0116 §C's lesson, one file back:
 -- 「Two copies of a rule kept in agreement by discipline is a promise, not a mechanism.」
 --
 -- ── The NULL discipline, stated once ────────────────────────────────────────────────────────
@@ -351,6 +354,40 @@ drop trigger if exists bookings_dangerous_dog on bookings;
 create trigger bookings_dangerous_dog before insert on bookings
   for each row execute function _guard_dangerous_dog_custody();
 
+-- A declaration can land AFTER this INSERT. The edge accepts a runner with a service_role UPDATE,
+-- then advances through enroute, arrival and the two handoff stamps; an INSERT-only gate leaves
+-- every one of those doors open. Re-use the same function and token, but only while the row moves
+-- TOWARD stranger custody:
+--   · a non-null runner is assigned or changed;
+--   · the state advances through request/accept/enroute/pickup/start;
+--   · arrival or either outbound handoff stamp is newly recorded.
+-- The outer old-status exemption is the outage direction. Once a row is picked_up/active the dog
+-- is already out, so this trigger must never stand between that dog and home — including run-stop,
+-- both return confirmations, settlement and incident/ops exits. Every nullable comparison below is
+-- `is distinct from` plus an explicit non-null direction; a NULL can neither hide a move nor turn a
+-- clearing/homeward write into an outward one.
+drop trigger if exists bookings_dangerous_dog_move on bookings;
+create trigger bookings_dangerous_dog_move before update on bookings
+  for each row when (
+    old.status is distinct from 'picked_up'
+    and old.status is distinct from 'active'
+    and (
+      (new.runner_id is not null and new.runner_id is distinct from old.runner_id)
+      or (new.dog_id is distinct from old.dog_id
+          and coalesce(new.status in
+            ('runner_pending', 'confirmed', 'runner_enroute', 'picked_up', 'active'), false))
+      or (new.status is distinct from old.status
+          and coalesce(new.status in
+            ('runner_pending', 'confirmed', 'runner_enroute', 'picked_up', 'active'), false))
+      or (new.arrived_at is not null and new.arrived_at is distinct from old.arrived_at)
+      or (new.owner_confirmed_handoff_at is not null
+          and new.owner_confirmed_handoff_at is distinct from old.owner_confirmed_handoff_at)
+      or (new.runner_confirmed_handoff_at is not null
+          and new.runner_confirmed_handoff_at is distinct from old.runner_confirmed_handoff_at)
+    )
+  )
+  execute function _guard_dangerous_dog_custody();
+
 -- ⚠ THE `when` CLAUSE IS `is distinct from 'owner_handled'`, NOT `= 'runner_delegated'`.
 -- Same reasoning as §C ⓑ, one layer out: a trigger `when` that evaluates to NULL does not fire,
 -- and `= 'runner_delegated'` would also silently exempt any custody value a later migration adds.
@@ -382,7 +419,7 @@ revoke execute on function _guard_dangerous_dog_custody() from public, anon, aut
 grant  execute on function _guard_dangerous_dog_custody() to service_role;
 
 comment on function _guard_dangerous_dog_custody is
-  '0119 §D — 커스터디가 낯선 사람에게 넘어가는 두 지점(bookings INSERT · session_dogs의 위탁 행)에서
+  '0119 §D — 커스터디가 낯선 사람에게 넘어가는 지점(bookings INSERT/외향 UPDATE · session_dogs의 위탁 행)에서
 서버가 거절한다. ⚠ `current_user` 분기 없음: 0083 §2의 가드는 클라이언트로부터 서버 컬럼을 지키므로
 역할을 묻지만, 이 가드는 제품 자신으로부터 개를 지키고 제품은 service_role과 definer로 쓴다 — 역할
 분기를 넣으면 실제 writer 전부가 면제된다 (게다가 definer 안에서 current_user는 함수 소유자다).
@@ -392,12 +429,13 @@ comment on function _guard_dangerous_dog_custody is
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- §E  THE CRON BELT — because a raise inside an hourly loop is an outage for EVERYBODY
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- ← builds on 0111 §3. Body below is 0111 byte-faithful except for the ⓕ block; nothing else in
--- the function is touched.
+-- ← builds on 0111 §3. The custody additions are confined to the ⓕ belt, its per-row INSERT
+-- handler, and one aggregate warning after the loop; the pre-existing scheduling/money logic is
+-- untouched.
 --
 -- 🔴 WITHOUT THIS SECTION §D SHIPS A NEW BUG, AND IT IS THE ONE THE PREVIOUS MIGRATION FIXED.
--- `generate_recurring_bookings` (cron `recurring-gen`, `7 * * * *`) inserts inside a `for` loop
--- with **no per-row exception handler**. The moment §D's trigger raises for one 맹견 series, the
+-- `generate_recurring_bookings` (cron `recurring-gen`, `7 * * * *`) originally inserted inside a
+-- `for` loop with **no per-row exception handler**. The moment §D's trigger raised for one 맹견 series, the
 -- whole sweep aborts — and every OTHER owner's recurring booking silently stops being generated,
 -- for as long as that series exists. That is `0116 §C` verbatim ("one unparseable timestamp
 -- stopped charge dispatch for EVERYBODY"), reproduced one migration later by the file that quotes
@@ -424,6 +462,8 @@ declare
   v_block text;                -- [0080] null | 'debt' | 'no_card'
   v_notified uuid[] := '{}';   -- [0080] owners already told this sweep (ⓓ)
   v_gate text;                 -- [0119 ⓕ] null | a dog_custody_gate refusal token
+  v_gate_skips int := 0;       -- [0119 F7] refused series this sweep
+  v_gate_dogs uuid[] := '{}';  -- [0119 F7] distinct refused dogs this sweep
 begin
   select (select f.payments_live_since from ops_flags f where f.id) is not null into v_live;
 
@@ -506,28 +546,49 @@ begin
       continue;
     end if;
 
-    -- ⓕ [0119 §E] 맹견 게이트 — `continue`, never `raise`, for 0111 ⓔ's reason AND for 0116 §C's:
-    -- this loop has no per-row handler, so ONE refused series would abort the sweep and stop
-    -- generating recurring bookings for EVERY owner until that series was found and deleted.
+    -- ⓕ [0119 §E] custody gate — `continue`, never `raise`, for 0111 ⓔ's reason AND 0116 §C's.
+    -- The token-only handler immediately below is the backstop for a declaration racing this check;
+    -- without it ONE refused INSERT would abort the sweep for every owner.
     -- The trigger in §D is still what refuses; this only keeps the refusal from becoming an
     -- outage. The owner is not notified here — §D's token reaches them the moment they touch a
     -- booking themselves, and a silent hourly push about a dog they cannot currently delegate is
     -- a notification with no action attached to it.
     v_gate := dog_custody_gate(s.dog_id);
     if v_gate is not null then
-      raise warning 'recurring_series % skipped: % (dog %)', s.id, v_gate, s.dog_id;
+      v_gate_skips := v_gate_skips + 1;
+      if array_position(v_gate_dogs, s.dog_id) is null then
+        v_gate_dogs := v_gate_dogs || s.dog_id;
+      end if;
       continue;
     end if;
 
-    insert into bookings
-      (owner_id, dog_id, runner_id, route_id, address_id, series_id, status, scheduled_at,
-       km, pace_label, addons, base_fare, distance_fare, addon_fare, total_price, min_fare)
-    values
-      (s.owner_id, s.dog_id, v_runner, s.route_id, s.address_id, s.id,
-       (case when v_runner is null then 'matching' else 'runner_pending' end)::booking_status,
-       v_sched, s.km, s.pace_label, s.addons,
-       s.base_fare, s.distance_fare, s.addon_fare, s.total_price, s.min_fare)
-    returning id into v_bid;
+    -- The pre-check is an operations belt, not a lock. A declaration can commit after it and before
+    -- the INSERT trigger reads the dog. Isolate that one row in its own subtransaction: only the
+    -- three custody-refusal tokens are skippable; any other P0001 (and every other SQLSTATE) remains
+    -- a real sweep failure and is re-raised.
+    begin
+      insert into bookings
+        (owner_id, dog_id, runner_id, route_id, address_id, series_id, status, scheduled_at,
+         km, pace_label, addons, base_fare, distance_fare, addon_fare, total_price, min_fare)
+      values
+        (s.owner_id, s.dog_id, v_runner, s.route_id, s.address_id, s.id,
+         (case when v_runner is null then 'matching' else 'runner_pending' end)::booking_status,
+         v_sched, s.km, s.pace_label, s.addons,
+         s.base_fare, s.distance_fare, s.addon_fare, s.total_price, s.min_fare)
+      returning id into v_bid;
+    exception when sqlstate 'P0001' then
+      get stacked diagnostics v_gate = message_text;
+      if v_gate in ('dog_dangerous_undeclared',
+                    'dog_dangerous_custody_refused',
+                    'dog_dangerous_breed_conflict') then
+        v_gate_skips := v_gate_skips + 1;
+        if array_position(v_gate_dogs, s.dog_id) is null then
+          v_gate_dogs := v_gate_dogs || s.dog_id;
+        end if;
+        continue;
+      end if;
+      raise;
+    end;
 
     insert into notifications (profile_id, kind, title, body, ref_id)
     values (s.owner_id, 'booking', '반복 러닝 예약 생성',
@@ -543,6 +604,13 @@ begin
 
     n := n + 1;
   end loop;
+
+  -- One ops signal per sweep, not one per refused series (~70/week/series). Count series, name each
+  -- dog once, and keep WARNING severity: a skipped series must remain visible without flooding.
+  if v_gate_skips > 0 then
+    raise warning 'recurring custody gate skipped % series; distinct dogs: %',
+      v_gate_skips, array_to_string(v_gate_dogs, ',');
+  end if;
   return n;
 end $$;
 
@@ -552,12 +620,13 @@ comment on function generate_recurring_bookings is
 뒤엔 카드 없는 보호자도 중단. 보호자당 스윕 1회만 통지. 그 둘이 없으면 ≤1건 노출 한도가 거짓이 된다
 + [0111] 복사 시점 소유권 재확인 (두 번째 벨트): 시리즈의 dog/address가 시리즈 소유자의 것이 아니면
 warning 후 continue — raise면 한 행이 매시간 스윕 전체를 죽인다
-+ [0119 §E] 맹견 게이트도 같은 이유로 continue: 거절은 §D의 트리거가 하고, 여기 belt는 그 거절이
-전체 스윕의 정지가 되지 않게만 한다 (0116 §C — 오염된 한 행이 모두의 배치를 재웠던 그 형태)';
++ [0119 §E] the custody gate also continues. If a declaration races the check, the per-row INSERT
+handler swallows only the three known refusal tokens and re-raises everything else. One WARNING per
+sweep reports the refused-series count and distinct dog ids (0116 §C outage shape)';
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- §F  THE LATCH — a declaration an owner can take back is not a declaration
+-- §F  THE LATCH — UPDATE and DELETE cannot erase a dangerous declaration
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- `dogs owner all` (0002:63) is `for all using (owner_id = auth.uid())` and `authenticated` holds
 -- table-wide UPDATE, so the owner writes this field directly through the ordinary dog-profile
@@ -623,6 +692,37 @@ comment on function _guard_dog_dangerous_declaration is
 일부러 허용 — 그 상태 자체가 거절되므로 아무것도 사지 못하고, 막으면 폼 오탭이 영구가 된다.
 ⓑ dangerous_declared_at은 서버만 찍는다 (0083 §2: 미리 담아 온 도장은 도장이 아니다)';
 
+-- DELETE+recreate is an UPDATE latch with one extra statement. `dogs owner all` authorizes DELETE,
+-- so an owner could otherwise remove a declared-dangerous row (when no FK blocks it) and recreate
+-- an evasive declared-none dog. This guard is deliberately INVOKER and caller-role scoped, exactly
+-- like 0057/0058: inside it current_user remains authenticated/anon for an app write, while postgres
+-- and service_role remain the ops escape hatch for a verified de-designation or data correction.
+create or replace function _guard_dangerous_dog_delete() returns trigger
+language plpgsql security invoker set search_path = public, pg_temp as $$
+begin
+  if current_user in ('authenticated', 'anon')
+     and old.dangerous_status = 'declared_dangerous' then
+    raise exception using
+      errcode = 'P0001',
+      message = 'dog_dangerous_declaration_delete_final',
+      detail  = '맹견 신고가 있는 강아지는 앱에서 삭제할 수 없어요 — 지정 해제 서류가 있다면 '
+                || '문의로 보내주시면 운영자가 확인하고 처리해 드릴게요',
+      hint    = '0119 §F — DELETE 후 재생성으로 편도 신고를 지울 수 없다';
+  end if;
+  return old;
+end $$;
+
+drop trigger if exists dogs_dangerous_delete on dogs;
+create trigger dogs_dangerous_delete before delete on dogs
+  for each row execute function _guard_dangerous_dog_delete();
+
+revoke execute on function _guard_dangerous_dog_delete() from public, anon, authenticated;
+grant  execute on function _guard_dangerous_dog_delete() to service_role;
+
+comment on function _guard_dangerous_dog_delete is
+  '0119 §F — closes DELETE+recreate around the declared_dangerous latch. INVOKER current_user
+refuses app-role deletes while leaving postgres/service_role available for verified ops changes';
+
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- VERIFY, DO NOT ASSUME — fail closed, in BOTH directions (0111's shape)
@@ -631,39 +731,140 @@ comment on function _guard_dog_dangerous_declaration is
 -- OUTAGE ship silently: a `session_dogs` trigger with no `when` clause refuses 동반 attendance
 -- too, and that is the one path this whole design keeps open on purpose.
 do $$
-declare v_n int; v_when text;
+declare r record; v_def text;
 begin
-  select count(*) into v_n from pg_trigger t join pg_class c on c.oid = t.tgrelid
+  -- tgtype is checked as an exact bit-set: ROW=1, BEFORE=2, INSERT=4, DELETE=8, UPDATE=16.
+  -- Each trigger is fetched independently. That makes its table/event/timing/enabled/function/WHEN
+  -- facts belong to that trigger alone; a healthy sibling cannot donate a substring through an
+  -- aggregate and hide a mutated definition.
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
    where not t.tgisinternal
-     and ((c.relname = 'bookings'     and t.tgname = 'bookings_dangerous_dog')
-       or (c.relname = 'session_dogs' and t.tgname in ('session_dogs_dangerous_dog',
-                                                       'session_dogs_dangerous_dog_move'))
-       or (c.relname = 'dogs'         and t.tgname = 'dogs_dangerous_declaration'));
-  if v_n <> 4 then
-    raise exception '0119: expected 4 gate triggers, found %', v_n
-      using hint = 'bookings_dangerous_dog · session_dogs_dangerous_dog(_move) · dogs_dangerous_declaration';
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'bookings'
+     and t.tgname = 'bookings_dangerous_dog';
+  if not found then
+    raise exception '0119: bookings_dangerous_dog is missing from public.bookings';
+  end if;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 7
+     or r.tgfoid is distinct from '_guard_dangerous_dog_custody()'::regprocedure::oid
+     or r.tgqual is not null then
+    raise exception '0119: bookings_dangerous_dog has the wrong event/timing/enabled/function/WHEN shape';
   end if;
 
-  -- OVER-REACH check ①: the club triggers must carry their WHEN clauses, or 동반 참여 is refused
-  -- too and §C's third token names a remedy that no longer exists.
-  select string_agg(pg_get_triggerdef(t.oid), ' || ') into v_when
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
     from pg_trigger t join pg_class c on c.oid = t.tgrelid
-   where c.relname = 'session_dogs'
-     and t.tgname in ('session_dogs_dangerous_dog', 'session_dogs_dangerous_dog_move');
-  if v_when is null or v_when not like '%owner_handled%' then
-    raise exception '0119 OVER-REACH: session_dogs dangerous-dog triggers lost the owner_handled exemption'
+   where not t.tgisinternal
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'bookings'
+     and t.tgname = 'bookings_dangerous_dog_move';
+  if not found then
+    raise exception '0119: bookings_dangerous_dog_move is missing from public.bookings';
+  end if;
+  v_def := r.def;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 19
+     or r.tgfoid is distinct from '_guard_dangerous_dog_custody()'::regprocedure::oid
+     or r.tgqual is null
+     or v_def is null
+     or v_def not ilike '%old.status IS DISTINCT FROM ''picked_up''%'
+     or v_def not ilike '%old.status IS DISTINCT FROM ''active''%'
+     or v_def not ilike '%new.runner_id IS NOT NULL%'
+     or v_def not ilike '%new.runner_id IS DISTINCT FROM old.runner_id%'
+     or v_def not ilike '%new.dog_id IS DISTINCT FROM old.dog_id%'
+     or v_def not ilike '%new.status IS DISTINCT FROM old.status%'
+     or v_def not ilike '%new.arrived_at IS NOT NULL%'
+     or v_def not ilike '%new.arrived_at IS DISTINCT FROM old.arrived_at%'
+     or v_def not ilike '%new.owner_confirmed_handoff_at IS NOT NULL%'
+     or v_def not ilike '%new.owner_confirmed_handoff_at IS DISTINCT FROM old.owner_confirmed_handoff_at%'
+     or v_def not ilike '%new.runner_confirmed_handoff_at IS NOT NULL%'
+     or v_def not ilike '%new.runner_confirmed_handoff_at IS DISTINCT FROM old.runner_confirmed_handoff_at%'
+     or position('runner_pending' in lower(v_def)) = 0
+     or position('confirmed' in lower(v_def)) = 0
+     or position('runner_enroute' in lower(v_def)) = 0
+     or position('picked_up' in lower(v_def)) = 0
+     or position('active' in lower(v_def)) = 0 then
+    raise exception '0119: bookings_dangerous_dog_move lost its outward-only or already-in-custody exemption'
+      using hint = 'assignment/acceptance/enroute/handoff/pickup are gated; picked_up/active rows and every homeward write are exempt';
+  end if;
+
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+   where not t.tgisinternal
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'session_dogs'
+     and t.tgname = 'session_dogs_dangerous_dog';
+  if not found then
+    raise exception '0119: session_dogs_dangerous_dog is missing from public.session_dogs';
+  end if;
+  v_def := r.def;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 7
+     or r.tgfoid is distinct from '_guard_dangerous_dog_custody()'::regprocedure::oid
+     or r.tgqual is null or v_def is null
+     or v_def not ilike '%new.custody IS DISTINCT FROM ''owner_handled''%' then
+    raise exception '0119 OVER-REACH: session_dogs_dangerous_dog lost its own owner_handled WHEN exemption'
       using hint = '동반(owner_handled)은 부킹을 만들지 않고 소유자가 리드를 쥔다 — 거절 대상이 아니다';
   end if;
 
-  -- OVER-REACH check ②: the UPDATE arm must be conditioned on the custody/dog actually MOVING.
-  -- Without it the gate re-fires on every write to a row already in custody — including the ones
-  -- that bring the dog home — and a mid-run declaration would trap the dog with its runner.
-  -- `ilike '%old.custody%'` rather than the whole normalized predicate: pg_get_triggerdef
-  -- re-prints the expression in its own style, and pinning that rendering makes this check fail
-  -- on a Postgres upgrade instead of on the defect it is watching for.
-  if v_when not ilike '%old.custody%' then
-    raise exception '0119 OVER-REACH: the session_dogs UPDATE arm lost its movement condition'
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+   where not t.tgisinternal
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'session_dogs'
+     and t.tgname = 'session_dogs_dangerous_dog_move';
+  if not found then
+    raise exception '0119: session_dogs_dangerous_dog_move is missing from public.session_dogs';
+  end if;
+  v_def := r.def;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 19
+     or r.tgfoid is distinct from '_guard_dangerous_dog_custody()'::regprocedure::oid
+     or r.tgqual is null or v_def is null
+     or v_def not ilike '%new.custody IS DISTINCT FROM ''owner_handled''%'
+     or v_def not ilike '%old.custody IS DISTINCT FROM new.custody%'
+     or v_def not ilike '%old.dog_id IS DISTINCT FROM new.dog_id%' then
+    raise exception '0119 OVER-REACH: session_dogs_dangerous_dog_move lost its own exemption or movement condition'
       using hint = '이미 위탁 중인 행의 쓰기(반환 포함)까지 거절하게 된다 — 게이트가 덫이 된다';
+  end if;
+
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+   where not t.tgisinternal
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'dogs'
+     and t.tgname = 'dogs_dangerous_declaration';
+  if not found then
+    raise exception '0119: dogs_dangerous_declaration is missing from public.dogs';
+  end if;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 23
+     or r.tgfoid is distinct from '_guard_dog_dangerous_declaration()'::regprocedure::oid
+     or r.tgqual is not null then
+    raise exception '0119: dogs_dangerous_declaration has the wrong event/timing/enabled/function/WHEN shape';
+  end if;
+
+  select t.tgenabled, t.tgtype::int as tgtype, t.tgqual, t.tgfoid,
+         pg_get_triggerdef(t.oid) as def
+    into r
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+   where not t.tgisinternal
+     and c.relnamespace = 'public'::regnamespace
+     and c.relname = 'dogs'
+     and t.tgname = 'dogs_dangerous_delete';
+  if not found then
+    raise exception '0119: dogs_dangerous_delete is missing from public.dogs';
+  end if;
+  if r.tgenabled is distinct from 'O' or r.tgtype is distinct from 11
+     or r.tgfoid is distinct from '_guard_dangerous_dog_delete()'::regprocedure::oid
+     or r.tgqual is not null then
+    raise exception '0119: dogs_dangerous_delete has the wrong event/timing/enabled/function/WHEN shape';
   end if;
 
   -- The rule must actually refuse an undeclared dog. A gate that exists is not a gate that guards.
@@ -671,5 +872,5 @@ begin
     raise exception '0119: dog_custody_gate(null) returned NULL — the gate fails OPEN';
   end if;
 
-  raise notice '0119: 3 gate triggers present; club trigger keeps the owner_handled exemption; the gate refuses a null dog';
+  raise notice '0119: 6 gate triggers verified independently; outward and homeward WHEN clauses hold; the gate refuses a null dog';
 end $$;
