@@ -310,7 +310,8 @@ export default function RunnerProfileScreen() {
                 <View style={s.heroDiv} />
                 <HeroStat value={`${p.totalKm}km`} label="누적 거리" />
                 <View style={s.heroDiv} />
-                <HeroStat value={p.paceLabel} label="평균 페이스" />
+                {/* null = 기록 없음 — 지어낸 7'00" 대신 사실을 말한다 (api.ts pace null-honesty) */}
+                <HeroStat value={p.paceLabel ?? '기록 전'} label="평균 페이스" />
                 <View style={s.heroDiv} />
                 <HeroStat value={p.respondRate != null ? `${p.respondRate}%` : '신규'} label="응답률" />
               </Row>

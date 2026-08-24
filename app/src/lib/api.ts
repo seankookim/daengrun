@@ -792,6 +792,10 @@ export interface OpenRequest {
   weightKg: number;
   memo: string | null;
   when: string;
+  /** 예정 시각 원본 (bookings.scheduled_at, ISO). 만료 기한은 정책 숫자가 아니라 이 시각 그 자체다 —
+   *  expire_unmatched_bookings(0080 ⓐ)가 여기 지나면 지운다. 카운트다운·정렬·겹침 검사는 전부 이
+   *  원본에서 파생해야 한다: 조판된 `when`을 재파싱하는 순간 시계가 두 개가 된다. */
+  scheduledAt: string;
   km: number;
   paceLabel: string;
   payout: number; // 수수료 33% 제외 추정 (0059)
@@ -820,6 +824,7 @@ function estimatedPayout(r: { km: number | string; addon_fare?: number | null },
 function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
+    scheduledAt: r.scheduled_at,
     bookingId: r.id,
     dogId: r.dogs?.id ?? null,
     dogName: r.dogs?.name ?? '반려견',
@@ -855,6 +860,7 @@ const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, 
 function mapOpenRequestView(r: any, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
+    scheduledAt: r.scheduled_at,
     bookingId: r.id,
     dogId: r.dog_id ?? null,
     dogName: r.dog_name ?? '반려견',
@@ -975,8 +981,11 @@ export interface LiveRunner {
   district: string;
   tier: string;
   totalRuns: number;
-  paceLabel: string;
-  paceSec: number;
+  /** 평균 페이스. NULL = 기록 없음(신규 러너) — 화면은 그 조각을 **생략**한다. 예전엔 ?? 420 으로
+   *  7'00"를 지어냈는데, 그 값이 지명 결정에 보이는 화면(radar R①)까지 올라가면 장식이 아니라
+   *  조작이다. 모르는 값은 모른다고 둔다 (정직 법 — mapDog 의 fallback 방향과 같은 결정). */
+  paceLabel: string | null;
+  paceSec: number | null;
   respondRate: number | null;
   avatarUrl: string | null;
   bio: string | null;
@@ -991,14 +1000,14 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
     .limit(10);
   if (error) throw error;
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.profiles?.name ?? '러너',
       district: r.profiles?.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.profiles?.avatar_url ?? null,
@@ -1021,14 +1030,14 @@ export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveR
       : raw);
   }
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.avatar_url ?? null,
@@ -1043,14 +1052,14 @@ export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
   const { data, error } = await supabase.from('available_runners').select('*').limit(10);
   if (error) throw error;
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.avatar_url ?? null,
@@ -2196,8 +2205,11 @@ export interface RunnerPublicProfile {
   specialties: string[];
   totalRuns: number;
   totalKm: number;
-  paceLabel: string;
-  paceSec: number; // 실측 s/km (없으면 420 폴백) — 라벨 역파싱은 최대 59초 손실이라 원값을 준다
+  /** 평균 페이스. NULL = 기록 없음(신규 러너) — 화면은 그 조각을 **생략**한다. 예전엔 ?? 420 으로
+   *  7'00"를 지어냈는데, 그 값이 지명 결정에 보이는 화면(radar R①)까지 올라가면 장식이 아니라
+   *  조작이다. 모르는 값은 모른다고 둔다 (정직 법 — mapDog 의 fallback 방향과 같은 결정). */
+  paceLabel: string | null;
+  paceSec: number | null; // 실측 s/km (없으면 420 폴백) — 라벨 역파싱은 최대 59초 손실이라 원값을 준다
   respondRate: number | null;
   trainerCertified: boolean;
   online: boolean;
@@ -2224,7 +2236,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     supabase.from('runner_availability_rules').select('weekday, start_min, end_min').eq('runner_id', profileId).then((x) => x, () => ({ data: null } as any)),
     supabase.from('reviews').select('rating, note, tags, created_at').eq('target_id', profileId).eq('target_kind', 'runner').eq('visibility', 'public').order('created_at', { ascending: false }).limit(5).then((x) => x, () => ({ data: null } as any)),
   ]);
-  const pace = rr.avg_pace_sec_per_km ?? 420;
+  const pace: number | null = rr.avg_pace_sec_per_km ?? null;   // null = no record; not invented
   const reviews = (revRes.data ?? []).map((v: any) => {
     const { dateLabel } = kstParts(v.created_at);
     return { rating: v.rating, note: v.note, tags: v.tags ?? [], when: dateLabel };
@@ -2240,7 +2252,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     specialties: rr.specialties ?? [],
     totalRuns: rr.total_runs ?? 0,
     totalKm: Number(rr.total_km ?? 0),
-    paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+    paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
     paceSec: pace,
     respondRate: rr.respond_rate_pct,
     trainerCertified: !!rr.trainer_certified,
