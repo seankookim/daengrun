@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner Live &amp; Meetup — Enhancement Lab</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────────
+   ENHANCEMENT LAB — owner live + meetup cluster
+   Screens: owner/radar.tsx · owner/meetup.tsx · owner/live.tsx · owner/course-map.tsx
+
+   ZERO NEW HEXES. Every colour below is copied out of app/src/theme.ts or out of
+   a screen-local const that theme.ts's comments already sanction (meetup's NIGHT
+   / GOLD artifact vocabulary). Lab chrome (--page/--panel/--hair) is page
+   furniture, NOT app tokens — it never appears inside a phone frame.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root{
+  /* paper world — theme.ts `paper` */
+  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
+  --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+  --line:#E8552F; --wash:#FFF6F4;
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --disabled:#F2F2F2; --pending:#C77414;
+  --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315;
+  --ready:#119B58; --readyDeep:#0E7F49;
+  --paceGoodWash:#E7F5EE; --paceGoodInk:#0E7F49;
+  --paceSlowWash:#FBEED9; --paceSlowInk:#9D580A;
+  /* lilac world — theme.ts `lilac` (planned-route line, violet waiting dot) */
+  --accent:#6C5CE7; --lilacHead:#221E3D;
+  /* artifact world — owner/meetup.tsx screen consts (theme.ts sanctions these) */
+  --night:#1C1837; --nightDim:#C6BEEB;
+  --gold:#B99A4F; --goldSoft:#F4EBD3; --goldSheen:#D8C185; --sealInk:#8a6f2a;
+  /* V4 — theme.ts `colors` */
+  --voltDeep:#7FA818;
+  /* neutral card lines already used in these four files */
+  --nl:#EEEEEE; --nl2:#EDEBE6; --nl3:#F0EEE9; --grab:#E2E0DA;
+  /* lab chrome only */
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
+}
+.wrap{max-width:1720px;margin:0 auto}
+
+/* ── page header ── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
+h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
+.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1000px}
+.lede b{color:var(--ink);font-weight:700}
+.note{background:var(--panel);border:1px solid var(--hair);padding:14px 17px;margin:18px 0 0;font-size:13.5px;line-height:1.68}
+.note h4{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.note b{color:var(--ink)}
+.note.warn{border:2px solid var(--line)}
+.note.warn h4{color:var(--line)}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
+ul.tight{margin:7px 0 0 18px}
+ul.tight li{margin-bottom:5px}
+
+/* ── screen section ── */
+h2.band{margin:58px 0 6px;padding-top:22px;border-top:1px solid var(--line);font-size:21px;font-weight:800;letter-spacing:-.01em}
+h2.band .sig{display:inline-block;background:var(--ink);color:#fff;font-size:14px;font-weight:800;
+  padding:2px 10px;margin-right:11px;vertical-align:2px;letter-spacing:.06em}
+h2.band span.f{font-weight:600;color:var(--dim);font-size:14px;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.sub{font-size:14.5px;color:var(--dim);line-height:1.78;max-width:1050px;margin-top:8px}
+.sub b{color:var(--ink)}
+.frozen{display:inline-block;background:var(--criticalWash);border:1px solid var(--critical);color:var(--critical);
+  font-size:12.5px;font-weight:800;padding:3px 9px;margin-top:10px}
+
+/* ── variant rail ── */
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:baseline;gap:11px;font-size:16.5px;font-weight:800;margin-bottom:6px;line-height:1.3}
+.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
+  background:var(--action);color:#fff;font-size:19px;font-weight:800;letter-spacing:.02em;padding:0 9px}
+.badge.now{background:var(--ink)}
+.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:96px}
+.why b{color:var(--ink)}
+.cost{font-size:12.5px;line-height:1.62;color:var(--text);background:var(--panel);
+  border:1px solid var(--hair);border-left:3px solid var(--action);padding:10px 12px;margin-top:12px}
+.cost b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px}
+.cost.now{border-left-color:var(--ink)}
+.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.6;color:var(--dim);
+  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:8px}
+
+/* ── phone frame ── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;
+  display:flex;flex-direction:column}
+.phone.h740{height:740px}
+.phone.h620{height:620px}
+.phone.h905{height:905px}
+.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
+  font-size:11px;color:var(--faint);font-weight:600}
+.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.pad{padding-left:15px;padding-right:15px}
+.pad26{padding-left:26px;padding-right:26px}
+.rule{height:1px;background:var(--line)}
+.nrule{height:1px;background:var(--nl)}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+
+/* app type — the 14pt floor is literal here: 1px = 1pt at 390 frame width */
+.t14{font-size:14px;line-height:19px}
+.t145{font-size:14.5px;line-height:20px}
+.t15{font-size:15px;line-height:20px}
+.t165{font-size:16.5px;line-height:22px}
+.t17{font-size:17px;line-height:23px}
+.t20{font-size:20px;line-height:26px}
+.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
+.dim{color:var(--dim)}.faint{color:var(--faint)}.txt{color:var(--text)}
+.crit{color:var(--critical)}
+.kick{font-size:11px;letter-spacing:2.6px;font-weight:700;color:var(--faint);text-transform:uppercase}
+.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+
+/* app components */
+.sq{width:40px;height:40px;border:1px solid var(--line);background:var(--canvas);
+  display:flex;align-items:center;justify-content:center;font-size:20.5px;color:var(--ink)}
+.sos{width:40px;height:40px;background:var(--critical);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:14px;font-weight:900}
+.inkpill{background:var(--ink);color:#fff;font-size:14px;font-weight:900;padding:11px 16px}
+.alertstrip{display:flex;align-items:center;gap:10px;background:var(--wash);padding:12px 15px}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.ctacoral{background:var(--action);color:#fff;font-size:17px;font-weight:800;text-align:center;padding:16px 12px}
+.ctaoff{background:var(--disabled);color:var(--dim);font-size:17px;font-weight:800;text-align:center;padding:16px 12px}
+.btnsec{background:var(--wash);border:1px solid var(--line);color:var(--actionInk);
+  font-size:16.5px;font-weight:900;text-align:center;padding:14px 12px}
+.btnquiet{background:var(--canvas);border:1px solid var(--nl);color:var(--ink);
+  font-size:16.5px;font-weight:800;text-align:center;padding:14px 12px}
+.btndest{width:50px;height:50px;border:1px solid var(--critical);background:var(--canvas);color:var(--critical);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+.destbar{border:1px solid var(--critical);color:var(--critical);background:var(--canvas);
+  font-size:16px;font-weight:800;text-align:center;padding:14px 12px}
+.chip{border:1px solid var(--line);background:var(--canvas);color:var(--text);
+  font-size:14px;line-height:18px;font-weight:600;padding:9px 14px}
+.chip.on{background:var(--wash);color:var(--actionInk);font-weight:800}
+.pacechip{font-size:16px;line-height:20px;font-weight:800;padding:6px 10px;display:inline-block}
+.pgood{background:var(--paceGoodWash);color:var(--paceGoodInk)}
+.pslow{background:var(--paceSlowWash);color:var(--paceSlowInk)}
+.failstrip{display:flex;align-items:center;justify-content:space-between;gap:9px;background:var(--canvas);
+  border-top:1px solid var(--critical);border-bottom:1px solid var(--critical);padding:12px 15px}
+.failstrip .t{font-size:14px;line-height:18px;font-weight:700;color:var(--critical)}
+.failstrip .a{font-size:14px;font-weight:800;color:var(--critical);text-decoration:underline;white-space:nowrap}
+.holdstrip{background:var(--criticalWash);border-top:1px solid var(--critical);border-bottom:1px solid var(--critical);padding:12px 15px}
+.sigpill{border:1px solid var(--line);background:var(--wash);color:var(--ink);font-size:14px;font-weight:800;padding:5px 10px}
+.sigpill.off{border-color:var(--faint);background:var(--canvas);color:var(--dim)}
+.avat{width:44px;height:44px;border-radius:50%;background:var(--ink);color:#fff;flex:0 0 44px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900}
+.avat.s38{width:38px;height:38px;flex:0 0 38px;font-size:15px}
+.avat.s46{width:46px;height:46px;flex:0 0 46px;font-size:18px}
+.avat.dogph{background:var(--nl2);color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.06em}
+.track{height:5px;background:var(--disabled);overflow:hidden}
+.track i{display:block;height:5px;background:var(--line)}
+.dock{border-top:1px solid var(--line);background:var(--canvas);padding:12px 15px 22px}
+
+/* maps (abstract — never claims real geometry) */
+.map{position:relative;background:#F6F5F2;overflow:hidden}
+.map .rd{position:absolute;background:var(--disabled)}
+.map .lbl{position:absolute;right:7px;bottom:6px;font-size:10px;color:var(--faint);
+  background:rgba(255,255,255,.86);padding:2px 5px;letter-spacing:.04em}
+.trace{position:absolute;height:0;border-top:4px solid var(--voltDeep)}
+.plan{position:absolute;height:0;border-top:3px solid var(--accent)}
+.plan.dash{border-top-style:dashed;border-top-width:3.5px}
+.ghost{position:absolute;height:0;border-top:2px solid var(--faint)}
+.anch{position:absolute;width:15px;height:15px;background:var(--ink);transform:rotate(45deg)}
+.anch.sel{background:var(--accent);width:19px;height:19px}
+.house{position:absolute;width:22px;height:22px;border:2px solid var(--ink);background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.plate{position:absolute;background:rgba(255,255,255,.92);padding:5px 8px;display:flex;gap:10px;align-items:center}
+.plate .sw{font-size:14px;line-height:18px;font-weight:800}
+.plate .tx{font-size:14px;line-height:18px;color:var(--text)}
+.mapnote{position:absolute;left:10px;right:10px;background:rgba(255,255,255,.92);padding:9px 12px}
+
+/* radar ceremony */
+.radar{position:relative;display:flex;align-items:center;justify-content:center}
+.ring{position:absolute;width:130px;height:130px;border-radius:50%;border:2px solid var(--action);
+  animation:rip 3.2s cubic-bezier(.22,.61,.36,1) infinite}
+.ring.d2{animation-delay:1.05s}.ring.d3{animation-delay:2.1s}
+@keyframes rip{0%{transform:scale(1);opacity:.4}60%{opacity:.14}100%{transform:scale(2.5);opacity:0}}
+.ringstatic{position:absolute;width:130px;height:130px;border-radius:50%;border:2px solid var(--nl)}
+.core{width:64px;height:64px;border-radius:50%;background:var(--action);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;z-index:1}
+
+/* meetup seal band */
+.band-night{background:var(--night);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  display:flex;padding:14px 8px;position:relative}
+.slot{flex:1;display:flex;flex-direction:column;align-items:center;gap:0}
+.stage{width:68px;height:68px;display:flex;align-items:center;justify-content:center}
+.seal{width:64px;height:64px;border-radius:50%;border:2px solid var(--gold);background:var(--goldSoft);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-7deg)}
+.seal.r{transform:rotate(6deg)}
+.seal .mk{font-size:21px;line-height:25px;font-weight:900;color:var(--sealInk)}
+.seal .cp{font-size:8.5px;font-weight:800;letter-spacing:1.6px;color:var(--sealInk)}
+.sempty{width:64px;height:64px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.25);
+  background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center}
+.sempty .cp{font-size:8.5px;font-weight:800;letter-spacing:1.6px;color:var(--nightDim)}
+.slot .nm{font-size:14px;line-height:18px;font-weight:800;color:#fff;margin-top:8px}
+.slot .st{font-size:14px;line-height:18px;font-weight:600;color:var(--nightDim);margin-top:2px}
+.slot .st.on{color:var(--goldSheen);font-weight:800}
+.slot .tm{font-size:14px;line-height:18px;font-weight:600;color:var(--goldSheen);margin-top:2px;font-family:'Oswald',sans-serif}
+.perf{position:absolute;left:50%;top:0;bottom:0;width:0;border-left:1.5px dashed rgba(255,255,255,.25)}
+.countpill{border:1px solid var(--line);background:var(--canvas);font-size:14px;line-height:18px;
+  font-weight:800;color:var(--text);padding:4px 9px}
+.countpill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.step{display:flex;gap:10px;align-items:flex-start;margin-top:9px}
+.sdot{width:20px;height:20px;border-radius:50%;border:1px solid var(--faint);background:var(--canvas);flex:0 0 20px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff}
+.sdot.done{background:var(--ink);border-color:var(--ink)}
+.sdot.act{border:2px solid var(--line)}
+.sdot.act i{width:7px;height:7px;border-radius:50%;background:var(--line);display:block}
+.slbl{font-size:14.5px;line-height:20px;font-weight:500;color:var(--dim)}
+.slbl.done{color:var(--ink);font-weight:700}
+.slbl.act{color:var(--text);font-weight:700}
+.nightcard{background:var(--night);padding:20px 26px;text-align:center;border-bottom:1px solid var(--line)}
+
+/* sheet (course-map) */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--canvas);box-shadow:0 -6px 26px rgba(0,0,0,.13)}
+.sheet .srule{height:2px;background:var(--line)}
+.sheet .grabz{padding:9px 0;display:flex;justify-content:center}
+.sheet .grabz i{width:38px;height:4px;border-radius:99px;background:var(--grab);display:block}
+.li{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid var(--nl3)}
+.li.on{background:var(--wash);border-left:3px solid var(--line);margin:0 -14px;padding-left:11px;padding-right:14px}
+.searchbar{display:flex;align-items:center;gap:8px;background:var(--canvas);border:1px solid var(--nl2);
+  padding:9px 10px;box-shadow:0 3px 12px rgba(0,0,0,.09)}
+.infocard{background:var(--canvas);border:1px solid var(--nl2);padding:13px;box-shadow:0 3px 14px rgba(0,0,0,.1)}
+
+/* open questions */
+footer{margin-top:64px;border-top:2.5px solid var(--ink);padding-top:18px}
+footer h3{font-size:19px;font-weight:800;margin-bottom:10px}
+ol.q{margin-left:20px;max-width:1080px}
+ol.q li{margin-bottom:11px;font-size:14px;line-height:1.72;color:var(--text)}
+ol.q li b{color:var(--ink)}
+</style>
+</head>
+<body><div class="wrap">
+
+<header class="top">
+  <h1>Owner live + meetup — enhancement lab</h1>
+  <div class="law">enh-owner-live-lab · 2026-08-24 · 4 screens · 12 variants · new hexes: 0 · new columns / tables / RPCs: 0</div>
+  <p class="lede">Four screens the owner passes through in one booking: <b>finding a runner → handing the dog over →
+  watching the run → picking the course for the next one</b>. Every frame below is a restyle or a re-arrangement of
+  code that exists today. Where a variant prints a value, the field that would bind it is named under the frame;
+  where a variant needs something the client does not carry yet, the frame says so and the cost line prices it.
+  Nothing here needs a migration.</p>
+</header>
+
+<div class="note warn">
+  <h4>What this lab refuses to draw</h4>
+  <b>No new clock on radar.</b> <code>owner/radar.tsx</code>'s own header says it: “애니메이션 ≠ 카운터 — 이 화면에는
+  숫자가 하나도 없다.” The elapsed M:SS and the 10-minute amber nudge were deliberately deleted; none of R①–R③
+  brings either back.<br>
+  <b>No stage-machine change on meetup.</b> <code>owner/meetup.tsx</code> is frozen (DESIGN.md §9). M①–M③ are paint,
+  slot content, and conditional density. None of them writes a stage, moves a poll, touches
+  <code>confirmHandoff</code>, or re-orders the hydration gate.<br>
+  <b>No "fix" to radar's two-flag lifetime.</b> <code>radar.tsx</code>'s <code>aliveRef</code> (mount — gates state
+  writes) and <code>focusedRef</code> (focus — gates navigation, alerts, haptics) are deliberately two different
+  flags: a <code>router.push</code> to a runner profile leaves this screen mounted-but-unfocused, and collapsing
+  them re-introduces the bug where a confirmation 1.8s later replaced the profile the owner was reading. Untouched
+  in every variant.<br>
+  <b>No runner-position claim on the meetup plate.</b> <code>PickupMap</code> is a static pin with every gesture
+  disabled — it has never shown where the runner is, and M③ does not start.
+</div>
+
+<div class="note">
+  <h4>Reading the frames</h4>
+  Frames are 390px wide, which is 1:1 with points on the target device — so the <b>14pt detail floor is literal
+  here</b>: any text you can measure at 14px in a frame ships at 14pt. The only sub-floor type in this lab is the
+  seal band's <code>OWNER</code>/<code>RUNNER</code> latin letterspaced caps (8.5pt), which is the existing
+  sanctioned kicker exemption, already in the shipped file.<br>
+  <b>Black Han Sans budget:</b> exactly one use in this whole lab — meetup's 인계 확인 title, where it already is.
+  Radar, live and course-map carry no display font today and none of their variants adds one.<br>
+  <b>Coral budget:</b> radar spends it on the core disc + nomination links, meetup on the CTA dock, course-map on
+  the sheet CTA. <code>owner/live.tsx</code> deliberately has <b>zero coral fills</b> (its own comment: “예산은 상한이지
+  할당량이 아니다” — the emphasis is carried by the ink LIVE pill); L①–L③ keep it at zero.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ R -->
+<h2 class="band"><span class="sig">R</span>러너 찾는 중 <span class="f">· app/app/owner/radar.tsx</span></h2>
+<p class="sub">The screen is a function of <code>rawStatus</code>: <code>matching</code> → 러너 찾는 중,
+<code>runner_pending</code> → {러너} 러너 응답 대기. The nomination list is the screen's real action — it replaced
+the amber nudge outright — but it currently sits under 200pt of ceremony and each row prints only two of the
+<b>eight</b> facts <code>fetchAvailableRunnersFor</code> already returns.</p>
+
+<div class="rail">
+
+  <!-- R 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">Ripple ceremony first, list second. Each row: avatar, name, <code>tier · district</code>,
+    지명 ›. <b>totalRuns, paceLabel, respondRate and bio arrive in the same payload and are dropped on the floor</b>
+    — so the owner is asked to nominate a stranger on two facts.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:8px;padding-top:8px;padding-bottom:10px">
+          <div style="width:32px;font-size:22px;color:var(--ink)">‹</div>
+          <div class="grow t165 b8" style="text-align:center">러너 찾는 중</div>
+          <div style="width:32px"></div>
+        </div>
+        <div class="pad">
+          <div class="row" style="gap:10px;padding:12px 0">
+            <div class="dot" style="background:var(--accent)"></div>
+            <div class="grow">
+              <div class="t14 b8">8월 24일 오후 7:30 · 5km · 초코</div>
+              <div class="t14 dim">가까운 러너에게 요청을 보냈어요</div>
+            </div>
+          </div>
+          <div class="radar" style="height:200px;margin-top:10px">
+            <div class="ring"></div><div class="ring d2"></div><div class="ring d3"></div>
+            <div class="core">초</div>
+          </div>
+          <div class="t14 dim" style="text-align:center;margin-top:12px">러너가 응답하면 알림으로 와요 · 앱을 닫아도 돼요</div>
+          <div class="t14 b8 dim" style="margin-top:20px">바로 지명할 수도 있어요</div>
+          <div class="row" style="padding:10px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">민</div>
+            <div class="grow"><div class="t14 b8">김민준</div><div class="t14 dim">인증 러너 · 서초구</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:10px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">서</div>
+            <div class="grow"><div class="t14 b8">이서연</div><div class="t14 dim">베테랑 · 동작구</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:10px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">준</div>
+            <div class="grow"><div class="t14 b8">박준호</div><div class="t14 dim">인증 러너 · 서초구</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+        </div>
+      </div>
+      <div class="dock"><div class="btnquiet">요청 취소</div></div>
+    </div>
+    <div class="binds">bookings.scheduled_at → dateLabel/timeLabel · bookings.km · dogs.name<br>
+      available_runners → LiveRunner{name, tier, district}</div>
+    <div class="cost now"><b>current cost</b>Nothing. This is the shipped screen, drawn for comparison.</div>
+  </div>
+
+  <!-- R① -->
+  <div class="col">
+    <div class="cap"><span class="badge">R①</span>목록이 화면이다</div>
+    <p class="why">Ceremony 200 → 132pt; the list starts above the fold and each row carries the facts that make a
+    nomination a decision instead of a coin flip — <b>all four already in memory</b>: <code>totalRuns</code>,
+    <code>paceLabel</code>, <code>respondRate</code>, plus the count line built from the list itself.
+    <b>Honest absence:</b> <code>respondRate</code> is nullable, and when it is null that fragment vanishes —
+    no “–%”, no “정보 없음”.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:8px;padding-top:8px;padding-bottom:10px">
+          <div style="width:32px;font-size:22px;color:var(--ink)">‹</div>
+          <div class="grow t165 b8" style="text-align:center">러너 찾는 중</div>
+          <div style="width:32px"></div>
+        </div>
+        <div class="pad">
+          <div class="row" style="gap:10px;padding:12px 0">
+            <div class="dot" style="background:var(--accent)"></div>
+            <div class="grow">
+              <div class="t14 b8">8월 24일 오후 7:30 · 5km · 초코</div>
+              <div class="t14 dim">가까운 러너에게 요청을 보냈어요</div>
+            </div>
+          </div>
+          <div class="radar" style="height:132px">
+            <div class="ring" style="width:96px;height:96px"></div>
+            <div class="ring d2" style="width:96px;height:96px"></div>
+            <div class="core" style="width:54px;height:54px;font-size:18px">초</div>
+          </div>
+          <div class="t14 dim" style="text-align:center;margin-top:10px">러너가 응답하면 알림으로 와요 · 앱을 닫아도 돼요</div>
+          <div class="row between" style="margin-top:18px;align-items:baseline">
+            <div class="t14 b8 dim">바로 지명할 수도 있어요</div>
+            <div class="t14 b8 faint">지금 3명</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">민</div>
+            <div class="grow">
+              <div class="t14 b8">김민준</div>
+              <div class="t14 dim">인증 러너 · 서초구</div>
+              <div class="t14 dim">러닝 128회 · 평균 <span class="numf">6'40"</span> · 응답률 92%</div>
+            </div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">서</div>
+            <div class="grow">
+              <div class="t14 b8">이서연</div>
+              <div class="t14 dim">베테랑 · 동작구</div>
+              <div class="t14 dim">러닝 341회 · 평균 <span class="numf">6'05"</span> · 응답률 88%</div>
+            </div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">준</div>
+            <div class="grow">
+              <div class="t14 b8">박준호</div>
+              <div class="t14 dim">인증 러너 · 서초구</div>
+              <div class="t14 dim">러닝 12회 · 평균 <span class="numf">7'20"</span></div>
+            </div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="t14 faint" style="margin-top:8px">↑ 세 번째 행: 응답률 필드가 null이라 그 조각만 빠짐</div>
+        </div>
+      </div>
+      <div class="dock"><div class="btnquiet">요청 취소</div></div>
+    </div>
+    <div class="binds">LiveRunner.totalRuns · LiveRunner.paceLabel (avg_pace_sec_per_km)<br>
+      LiveRunner.respondRate (runners.respond_rate_pct — NULLABLE)<br>
+      “지금 3명” = avail.length, the list already on screen — never a claim about how many were pushed to</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b> — all four ride
+      <code>fetchAvailableRunnersFor</code> today. New routes: none. Frozen surfaces: none.
+      Risk: three lines per row pushes Miller's ceiling; the row grows 58 → 76pt, so the fold shows ~3 runners
+      instead of ~5. Tap targets unchanged (<code>rowActBtn</code> is already minHeight 44).</div>
+  </div>
+
+  <!-- R② -->
+  <div class="col">
+    <div class="cap"><span class="badge">R②</span>기다림의 그림이 상태를 따른다</div>
+    <p class="why">Today the ripple spreads identically in both states. But <code>runner_pending</code> is not a
+    search — <b>one named person is deciding</b>, and an outward-spreading ripple claims a breadth the system is not
+    doing. DESIGN.md §6: an animation may only claim what the system knows. So the ring stops, goes neutral, and the
+    line names who we are waiting on. The list stays: the server accepts re-nomination in both states.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:8px;padding-top:8px;padding-bottom:10px">
+          <div style="width:32px;font-size:22px;color:var(--ink)">‹</div>
+          <div class="grow t165 b8" style="text-align:center">김민준 러너 응답 대기</div>
+          <div style="width:32px"></div>
+        </div>
+        <div class="pad">
+          <div class="row" style="gap:10px;padding:12px 0">
+            <div class="dot" style="background:var(--accent)"></div>
+            <div class="grow">
+              <div class="t14 b8">8월 24일 오후 7:30 · 5km · 초코</div>
+              <div class="t14 dim">지명 요청을 보냈어요</div>
+            </div>
+          </div>
+          <div class="radar" style="height:184px;margin-top:6px">
+            <div class="ringstatic"></div>
+            <div class="core">초</div>
+          </div>
+          <div class="t14 b8" style="text-align:center;margin-top:14px">김민준 러너가 확인 중이에요</div>
+          <div class="t14 dim" style="text-align:center;margin-top:3px">응답이 오면 알림으로 와요 · 앱을 닫아도 돼요</div>
+          <div class="t14 b8 dim" style="margin-top:20px">다른 러너를 지명할 수도 있어요</div>
+          <div class="row" style="padding:11px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">민</div>
+            <div class="grow"><div class="t14 b8">김민준</div><div class="t14 dim">인증 러너 · 서초구</div></div>
+            <div class="t14 b8 dim">지명됨</div>
+          </div>
+          <div class="row" style="padding:11px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">서</div>
+            <div class="grow"><div class="t14 b8">이서연</div><div class="t14 dim">베테랑 · 동작구</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:11px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">준</div>
+            <div class="grow"><div class="t14 b8">박준호</div><div class="t14 dim">인증 러너 · 서초구</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+        </div>
+      </div>
+      <div class="dock"><div class="btnquiet">요청 취소</div></div>
+    </div>
+    <div class="binds">rawStatus (fetchBookingBrief.status) gates the whole frame<br>
+      runnerName (bookings → runners → profiles.name) — already held in <code>runnerName</code> state<br>
+      the 지명됨 row follows server <code>runner_id</code>, not the optimistic local value (review P1-9)</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surfaces: none.
+      <b>Real cost:</b> it edits a frame Sean already picked (journey-v3 §C frame 4, RULING 7 — “지금 코드의 링을
+      그대로 쓴다”). Also the kicker changes from 바로 지명할 수도 있어요 to 다른 러너를 지명할 수도 있어요, which is
+      a second copy decision riding this one.</div>
+  </div>
+
+  <!-- R③ -->
+  <div class="col">
+    <div class="cap"><span class="badge">R③</span>한 컬럼 — 의식을 알림 줄로 접는다</div>
+    <p class="why">The most aggressive read: waiting is not a peak moment (§7b protects the GO press, the seal and
+    run completion — not a queue), so the 200pt ceremony is spending the screen's whole first fold on a state the
+    owner can leave. The ripple survives as an 8pt breathing dot in the alert row; the list gets the screen.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:8px;padding-top:8px;padding-bottom:10px">
+          <div style="width:32px;font-size:22px;color:var(--ink)">‹</div>
+          <div class="grow t165 b8" style="text-align:center">러너 찾는 중</div>
+          <div style="width:32px"></div>
+        </div>
+        <div class="alertstrip">
+          <div class="dot" style="background:var(--action);animation:rip 2.4s ease-out infinite"></div>
+          <div class="grow">
+            <div class="t14 b8">가까운 러너에게 요청을 보냈어요</div>
+            <div class="t14 dim">8월 24일 오후 7:30 · 5km · 초코</div>
+          </div>
+        </div>
+        <div class="pad">
+          <div class="t14 dim" style="padding:12px 0">러너가 응답하면 알림으로 와요 · 앱을 닫아도 돼요</div>
+          <div class="rule" style="margin:0 -15px"></div>
+          <div class="row between" style="padding:14px 0 4px;align-items:baseline">
+            <div class="t17 b8">바로 지명하기</div>
+            <div class="t14 b8 faint">지금 4명</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">민</div>
+            <div class="grow"><div class="t14 b8">김민준</div><div class="t14 dim">인증 러너 · 서초구</div>
+              <div class="t14 dim">러닝 128회 · 평균 <span class="numf">6'40"</span> · 응답률 92%</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">서</div>
+            <div class="grow"><div class="t14 b8">이서연</div><div class="t14 dim">베테랑 · 동작구</div>
+              <div class="t14 dim">러닝 341회 · 평균 <span class="numf">6'05"</span> · 응답률 88%</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">준</div>
+            <div class="grow"><div class="t14 b8">박준호</div><div class="t14 dim">인증 러너 · 서초구</div>
+              <div class="t14 dim">러닝 12회 · 평균 <span class="numf">7'20"</span></div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+          <div class="row" style="padding:12px 0;border-bottom:1px solid var(--nl);gap:11px">
+            <div class="avat s38">하</div>
+            <div class="grow"><div class="t14 b8">정하윤</div><div class="t14 dim">마스터 · 용산구</div>
+              <div class="t14 dim">러닝 502회 · 평균 <span class="numf">5'48"</span> · 응답률 96%</div></div>
+            <div class="t14 b8" style="color:var(--action)">지명 ›</div>
+          </div>
+        </div>
+      </div>
+      <div class="dock"><div class="btnquiet">요청 취소</div></div>
+    </div>
+    <div class="binds">same fields as R① — this variant changes only how much room the ceremony gets</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surfaces: none.
+      <b>Highest cost of the three:</b> it retires the ripple ceremony Sean picked, and with it the one moment on
+      this screen that feels like the product rather than a table. If the answer to Q1 is “the ring is fixed”, this
+      variant is dead and R① is the fallback.</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ M -->
+<h2 class="band"><span class="sig">M</span>인계 <span class="f">· app/app/owner/meetup.tsx</span></h2>
+<p class="sub">The double-seal ceremony. <b>Frozen surface</b> — DESIGN.md §9 permits “styling / pure-JSX slot
+changes only; new state only at the end of the hook bundle”. Every variant below stays inside that sentence and
+says which clause it is using. The frames draw <code>stage === 'arrived'</code> (runner en route / at the door),
+because that is the state that carries the CTA and the one the enhancements bite on.</p>
+<p class="sub"><b>Frame height note:</b> the four 인계 frames are drawn at full column height (905) rather than the
+740 used elsewhere — this screen genuinely scrolls, and cutting it at a fixed fold would slice the seal band in
+half. Everything below ~740 in these frames is real content that sits below the first screenful on device.</p>
+<div class="frozen">FROZEN: stage machine · subscribe/poll · confirmHandoff · once-law hydration order — untouched in M①–M③</div>
+
+<div class="rail">
+
+  <!-- M 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면 (arrived)</div>
+    <p class="why">Header, coral wash status strip, 190pt pickup plate, 만남 장소, runner card, 챙겼나요 chips,
+    ceremony, cancel zone, 안심 센터 line, fixed dock. <b>Eight stacked groups for a 20-second doorstep
+    interaction</b>, and the dog being handed over is named only inside the CTA label.</p>
+    <div class="phone h905">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:12px;padding-top:6px;padding-bottom:10px">
+          <div class="sq">‹</div>
+          <div class="grow t20 b8">인계</div>
+          <div class="t14 b8">채팅 ›</div>
+        </div>
+        <div class="alertstrip">
+          <div class="dot" style="background:var(--action)"></div>
+          <div class="grow t14 b8">김민준 러너 도착</div>
+        </div>
+        <div class="map" style="height:190px;border-bottom:1px solid var(--line)">
+          <div class="rd" style="top:88px;left:-20px;right:-20px;height:16px;transform:rotate(10deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:200px;width:13px;transform:rotate(-14deg)"></div>
+          <div class="house" style="left:150px;top:86px">픽</div>
+          <div class="lbl">네이버 지도 · PickupMap</div>
+        </div>
+        <div class="pad26" style="padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="t14 b7 dim">만남 장소</div>
+          <div class="t17 b8" style="margin-top:4px">반포 래미안 정문</div>
+          <div class="t14 txt" style="margin-top:2px">서울 서초구 신반포로 270</div>
+          <div class="t14 b7 dim" style="margin-top:5px">경비실 오른쪽 화단 앞에서 만나요</div>
+          <div class="t14 b8" style="color:var(--actionInk);text-align:right;margin-top:7px">메모 수정 ›</div>
+        </div>
+        <div class="pad26 row" style="gap:12px;padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="avat s46">민</div>
+          <div class="grow"><div class="t17 b8">김민준 러너</div>
+            <div class="t14 dim" style="margin-top:3px">8월 24일 오후 7:30 · 반포 강변 코스 5km</div></div>
+        </div>
+        <div class="pad26" style="padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="t14 b7 dim">챙겼나요</div>
+          <div class="row" style="gap:6px;margin-top:8px">
+            <div class="chip on">목줄 ✓</div><div class="chip">물</div><div class="chip">간식</div>
+          </div>
+          <div class="t14 dim" style="margin-top:8px">내가 챙길 것들이에요 — 체크하지 않아도 인계할 수 있어요</div>
+        </div>
+        <div class="pad26" style="padding-top:14px">
+          <div class="row between" style="align-items:flex-start">
+            <div><div class="kick">HANDOFF</div>
+              <div class="dispf" style="font-size:20px;margin-top:3px">인계 확인</div></div>
+            <div class="countpill">확인 0/2</div>
+          </div>
+        </div>
+        <div class="band-night" style="margin-top:14px">
+          <div class="perf"></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">OWNER</div></div></div>
+            <div class="nm">나</div><div class="st">확인 전</div></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">RUNNER</div></div></div>
+            <div class="nm">러너</div><div class="st">확인 대기</div></div>
+        </div>
+      </div>
+      <div class="dock">
+        <div class="t14 b7 dim" style="text-align:center">러너도 확인하면 러닝이 시작돼요</div>
+        <div class="ctacoral" style="margin-top:8px">초코를 인계했어요 ›</div>
+      </div>
+    </div>
+    <div class="binds">MeetupInfo{runnerName, dogName, when, routeName, km} · bookings.arrived_at (status line)<br>
+      OwnerPickup{label, addr, detail} · addresses.lat/lng → PickupMap</div>
+    <div class="cost now"><b>current cost</b>Nothing. Shipped screen, drawn for comparison. Steps rail and the
+      cancel zone sit below the fold in this frame — they exist, they are just off-screen here.</div>
+  </div>
+
+  <!-- M① -->
+  <div class="col">
+    <div class="cap"><span class="badge">M①</span>아이도 이 화면에 있다</div>
+    <p class="why">The screen's own law is “낯선 사람이 내 개를 데려간다: 신원이 먼저다” — and today it draws
+    <b>one</b> of the two identities. <code>fetchMeetupInfo</code> already returns <code>dogPhotoUrl</code>,
+    <code>dogBreed</code>, <code>dogWeightKg</code>, <code>dogPrefTags</code>; the runner's screen shows them and
+    the owner's never has. Same precedent as the 만남 장소 memo fix: <b>the person who wrote the facts could not
+    see what was handed over.</b></p>
+    <div class="phone h905">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:12px;padding-top:6px;padding-bottom:10px">
+          <div class="sq">‹</div><div class="grow t20 b8">인계</div><div class="t14 b8">채팅 ›</div>
+        </div>
+        <div class="alertstrip">
+          <div class="dot" style="background:var(--action)"></div>
+          <div class="grow t14 b8">김민준 러너 도착</div>
+        </div>
+        <div class="map" style="height:190px;border-bottom:1px solid var(--line)">
+          <div class="rd" style="top:88px;left:-20px;right:-20px;height:16px;transform:rotate(10deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:200px;width:13px;transform:rotate(-14deg)"></div>
+          <div class="house" style="left:150px;top:86px">픽</div>
+          <div class="lbl">네이버 지도 · PickupMap</div>
+        </div>
+        <div class="pad26" style="padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="t14 b7 dim">만남 장소</div>
+          <div class="t17 b8" style="margin-top:4px">반포 래미안 정문</div>
+          <div class="t14 b7 dim" style="margin-top:4px">경비실 오른쪽 화단 앞에서 만나요</div>
+          <div class="t14 b8" style="color:var(--actionInk);text-align:right;margin-top:6px">메모 수정 ›</div>
+        </div>
+        <div class="pad26" style="padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="row" style="gap:12px">
+            <div class="avat s46">민</div>
+            <div class="grow"><div class="t17 b8">김민준 러너</div>
+              <div class="t14 dim" style="margin-top:3px">8월 24일 오후 7:30 · 반포 강변 코스 5km</div></div>
+          </div>
+          <div class="nrule" style="margin:12px 0"></div>
+          <div class="row" style="gap:12px;align-items:flex-start">
+            <div class="avat s46 dogph">사진</div>
+            <div class="grow">
+              <div class="t17 b8">초코</div>
+              <div class="t14 dim" style="margin-top:3px">푸들 · 6.4kg</div>
+              <div class="row" style="gap:6px;margin-top:7px;flex-wrap:wrap">
+                <div class="chip" style="padding:5px 9px">낯가림 있어요</div>
+                <div class="chip" style="padding:5px 9px">자전거 무서워해요</div>
+              </div>
+            </div>
+          </div>
+          <div class="t14 dim" style="margin-top:9px">러너에게도 이 내용이 보여요</div>
+        </div>
+        <div class="pad26" style="padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
+          <div class="t14 b7 dim">챙겼나요</div>
+          <div class="row" style="gap:6px;margin-top:8px">
+            <div class="chip on">목줄 ✓</div><div class="chip">물</div><div class="chip">간식</div>
+          </div>
+        </div>
+        <div class="pad26" style="padding-top:14px">
+          <div class="row between" style="align-items:flex-start">
+            <div><div class="kick">HANDOFF</div>
+              <div class="dispf" style="font-size:20px;margin-top:3px">인계 확인</div></div>
+            <div class="countpill">확인 0/2</div>
+          </div>
+        </div>
+        <div class="band-night" style="margin-top:14px">
+          <div class="perf"></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">OWNER</div></div></div>
+            <div class="nm">나</div><div class="st">확인 전</div></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">RUNNER</div></div></div>
+            <div class="nm">러너</div><div class="st">확인 대기</div></div>
+        </div>
+      </div>
+      <div class="dock">
+        <div class="t14 b7 dim" style="text-align:center">러너도 확인하면 러닝이 시작돼요</div>
+        <div class="ctacoral" style="margin-top:8px">초코를 인계했어요 ›</div>
+      </div>
+    </div>
+    <div class="binds">MeetupInfo.dogPhotoUrl (dogs.photo_url) — null → Monogram initial, the existing fallback<br>
+      MeetupInfo.dogBreed · MeetupInfo.dogWeightKg — null → that fragment is omitted, no “–kg”<br>
+      MeetupInfo.dogPrefTags — <b>empty array is a real answer</b> (api.ts: “the owner recorded none”) → the chip
+      row does not render at all</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b> — every field is already in the
+      <code>MeetupInfo</code> this screen fetches and discards. New routes: none. Frozen surface: <b>yes, used
+      under the permitted clause</b> — pure-JSX inside an existing <code>s.section</code>, zero new hooks, zero new
+      state, no machine read or write. Risk: +96pt of column height, which pushes the ceremony further below the
+      fold. Pairs badly with M③ unless the collapse rule wins.</div>
+  </div>
+
+  <!-- M② -->
+  <div class="col">
+    <div class="cap"><span class="badge">M②</span>소인에 시각이 남는다</div>
+    <p class="why">A seal that says 확인 완료 but not <b>when</b> is half a record. The two timestamps are
+    <code>bookings.owner_confirmed_handoff_at</code> / <code>runner_confirmed_handoff_at</code> — and
+    <code>fetchBookingSync</code> <b>already SELECTs both and throws the values away</b>
+    (<code>!!data.owner_confirmed_handoff_at</code>). Carrying the raw strings is two lines in api.ts. Frame drawn
+    at 2/2 so the gold rule and both stamps are visible.</p>
+    <div class="phone h905">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:12px;padding-top:6px;padding-bottom:10px">
+          <div class="sq">‹</div><div class="grow t20 b8">인계</div><div class="t14 b8">채팅 ›</div>
+        </div>
+        <div class="alertstrip">
+          <div class="dot" style="background:var(--action)"></div>
+          <div class="grow t14 b8">김민준 러너 도착</div>
+        </div>
+        <div class="map" style="height:140px;border-bottom:1px solid var(--line)">
+          <div class="rd" style="top:60px;left:-20px;right:-20px;height:16px;transform:rotate(10deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:210px;width:13px;transform:rotate(-14deg)"></div>
+          <div class="house" style="left:150px;top:58px">픽</div>
+          <div class="lbl">네이버 지도 · PickupMap</div>
+        </div>
+        <div class="pad26 row between" style="padding-top:11px;padding-bottom:11px;border-bottom:1px solid var(--line);align-items:center">
+          <div class="grow"><div class="t14 b8">반포 래미안 정문</div>
+            <div class="t14 dim">경비실 오른쪽 화단 앞에서 만나요</div></div>
+          <div class="t14 b8" style="color:var(--actionInk);white-space:nowrap;margin-left:10px">수정 ›</div>
+        </div>
+        <div class="pad26 row" style="gap:12px;padding-top:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+          <div class="avat s46">민</div>
+          <div class="grow"><div class="t17 b8">김민준 러너</div>
+            <div class="t14 dim" style="margin-top:3px">8월 24일 오후 7:30 · 반포 강변 코스 5km</div></div>
+        </div>
+        <div class="pad26" style="padding-top:16px">
+          <div class="row between" style="align-items:flex-start">
+            <div><div class="kick">HANDOFF</div>
+              <div class="dispf" style="font-size:20px;margin-top:3px">인계 확인</div></div>
+            <div class="countpill on">확인 2/2</div>
+          </div>
+        </div>
+        <div class="band-night" style="margin-top:14px;padding-top:18px;padding-bottom:18px">
+          <div class="perf"></div>
+          <div class="slot">
+            <div class="stage"><div class="seal"><div class="mk">✓</div><div class="cp">OWNER</div></div></div>
+            <div class="nm">나</div><div class="st on">확인 완료</div><div class="tm">오후 7:31</div>
+          </div>
+          <div class="slot">
+            <div class="stage"><div class="seal r"><div class="mk">✓</div><div class="cp">RUNNER</div></div></div>
+            <div class="nm">러너</div><div class="st on">확인 완료</div><div class="tm">오후 7:32</div>
+          </div>
+        </div>
+        <div class="pad26" style="padding-top:12px">
+          <div class="row" style="gap:9px;align-items:center">
+            <div style="flex:1;height:1px;background:var(--goldSheen)"></div>
+            <div style="font-size:9.5px;font-weight:800;letter-spacing:2.6px;color:var(--sealInk)">SEALED</div>
+            <div style="flex:1;height:1px;background:var(--goldSheen)"></div>
+          </div>
+          <div style="margin-top:12px">
+            <div class="step"><div class="sdot done">✓</div><div class="slbl done">러너 수락 완료</div></div>
+            <div class="step"><div class="sdot done">✓</div><div class="slbl done">러너 픽업 장소 도착</div></div>
+            <div class="step"><div class="sdot done">✓</div><div class="slbl done">내 인계 확인 완료</div></div>
+            <div class="step"><div class="sdot done">✓</div><div class="slbl done">러너 인계 확인 완료</div></div>
+          </div>
+        </div>
+        <div class="nightcard" style="margin-top:14px">
+          <div style="font-size:10px;font-weight:800;letter-spacing:2.6px;color:var(--goldSheen)">SEALED</div>
+          <div style="font-size:18px;line-height:24px;font-weight:900;color:#fff;margin-top:7px">인계 완료! 러너가 곧 러닝을 시작해요</div>
+          <div class="t14" style="color:var(--nightDim);margin-top:5px">시작되면 자동으로 라이브 화면으로 전환돼요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">bookings.owner_confirmed_handoff_at / runner_confirmed_handoff_at — already SELECTed by
+      fetchBookingSync, currently reduced to booleans<br>
+      null timestamp → no time line at all (never “—:—”); the seal itself keeps coming from the same boolean</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none — no migration, no new column, no new
+      RPC.</b> Two extra fields on the <code>BookingSync</code> return shape, from a SELECT that already runs.
+      New routes: none. Frozen surface: <b>yes — needs the §9 escape hatch</b>: <code>refresh()</code> would set one
+      more state, so the <code>useState</code> must be appended at the <b>end</b> of the hook bundle (after
+      <code>hold</code>), behind the hydration gate. That is the clause Sean has to bless. Risk: the timestamps
+      make the ceremony a receipt, which is on-brand — but the band grows ~22pt and pushes the steps rail down.</div>
+  </div>
+
+  <!-- M③ -->
+  <div class="col">
+    <div class="cap"><span class="badge">M③</span>도착 모드 — 문 앞에서는 크롬이 접힌다</div>
+    <p class="why">At <code>stage === 'arrived'</code> the runner is standing at the door. This is a
+    <b>20-second interaction with 8 competing groups</b>. So: the plate drops to 104pt, 만남 장소 becomes one line,
+    the runner card becomes one line, and the ceremony + dock own the viewport. <b>The plate loses nothing real</b>
+    — <code>PickupMap</code> is a static pin with every gesture disabled; it never showed the runner.</p>
+    <div class="phone h905">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="pad row" style="gap:12px;padding-top:6px;padding-bottom:10px">
+          <div class="sq">‹</div><div class="grow t20 b8">인계</div><div class="t14 b8">채팅 ›</div>
+        </div>
+        <div class="alertstrip">
+          <div class="dot" style="background:var(--action)"></div>
+          <div class="grow t14 b8">김민준 러너 도착 — 지금 인계할 차례예요</div>
+        </div>
+        <div class="map" style="height:104px;border-bottom:1px solid var(--line)">
+          <div class="rd" style="top:42px;left:-20px;right:-20px;height:14px;transform:rotate(10deg)"></div>
+          <div class="house" style="left:150px;top:40px">픽</div>
+          <div class="lbl">네이버 지도</div>
+        </div>
+        <div class="pad26 row between" style="padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--line);align-items:center">
+          <div class="grow t14 b8">반포 래미안 정문 · 경비실 오른쪽 화단 앞</div>
+          <div class="t14 b8" style="color:var(--actionInk);white-space:nowrap;margin-left:10px">수정 ›</div>
+        </div>
+        <div class="pad26 row" style="gap:10px;padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--line);align-items:center">
+          <div class="avat s38">민</div>
+          <div class="grow t14 b8">김민준 러너 <span class="dim" style="font-weight:400">· 반포 강변 코스 5km</span></div>
+        </div>
+        <div class="pad26" style="padding-top:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+          <div class="t14 b7 dim">챙겼나요</div>
+          <div class="row" style="gap:6px;margin-top:8px">
+            <div class="chip on">목줄 ✓</div><div class="chip on">물 ✓</div><div class="chip">간식</div>
+          </div>
+        </div>
+        <div class="pad26" style="padding-top:16px">
+          <div class="row between" style="align-items:flex-start">
+            <div><div class="kick">HANDOFF</div>
+              <div class="dispf" style="font-size:20px;margin-top:3px">인계 확인</div></div>
+            <div class="countpill">확인 0/2</div>
+          </div>
+        </div>
+        <div class="band-night" style="margin-top:14px;padding-top:20px;padding-bottom:20px">
+          <div class="perf"></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">OWNER</div></div></div>
+            <div class="nm">나</div><div class="st">확인 전</div></div>
+          <div class="slot"><div class="stage"><div class="sempty"><div class="cp">RUNNER</div></div></div>
+            <div class="nm">러너</div><div class="st">확인 대기</div></div>
+        </div>
+        <div class="pad26" style="padding-top:14px">
+          <div class="step"><div class="sdot done">✓</div><div class="slbl done">러너 수락 완료</div></div>
+          <div class="step"><div class="sdot done">✓</div><div class="slbl done">러너 픽업 장소 도착</div></div>
+          <div class="step"><div class="sdot act"><i></i></div><div class="slbl act">초코 인계 확인 (양측 모두 확인해야 시작돼요)</div></div>
+          <div class="step"><div class="sdot"></div><div class="slbl">러너 인계 확인 대기</div></div>
+        </div>
+        <div class="pad26" style="padding-top:14px">
+          <div class="destbar">예약 취소</div>
+          <div class="t14 b7 dim" style="text-align:center;margin-top:8px">이동 중 취소는 결제 금액의 50%가 수수료로 청구돼요</div>
+        </div>
+      </div>
+      <div class="dock">
+        <div class="t14 b7 dim" style="text-align:center">러너도 확인하면 러닝이 시작돼요</div>
+        <div class="ctacoral" style="margin-top:8px">초코를 인계했어요 ›</div>
+      </div>
+    </div>
+    <div class="binds">no new binds — the collapse is gated on <code>stage</code>, a value the screen already reads.
+      The alert line's second clause (“지금 인계할 차례예요”) is gated on the same <code>arrivedAt</code> that
+      already colours the dot coral.</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surface:
+      <b>read-only</b> — <code>stage</code> is consumed, never written; no new hook, no new state, the
+      <code>dockH</code> arithmetic is unchanged. Risk: two densities of the same screen means two layouts to
+      QA, and the 만남 장소 one-liner drops the <code>addr</code> line — a stranger at the door is exactly when an
+      owner might want to re-read the address. If that lands wrong, keep <code>addr</code> and cut the plate to 80.</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ L -->
+<h2 class="band"><span class="sig">L</span>라이브 런 <span class="f">· app/app/owner/live.tsx</span></h2>
+<p class="sub">Full-screen map + a fixed bottom island. The island is ~300pt of a 740pt screen and never moves,
+so on the screen whose whole point is “where is my dog right now”, the map gets 60%. Every honest state this
+screen already owns — <code>연결 안 됨</code>, <code>권한 없음</code>, <code>갱신 없음</code>,
+<code>확인 중</code> (incident hold) — is content, not clutter (§7b), and survives every variant.</p>
+
+<div class="rail">
+
+  <!-- L 현재 (running) -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>정상 — 픽스 수신 중</div>
+    <p class="why">Runner row + signal pill, three stats, coral progress fill, pace chip + 권장 caption, 채팅
+    (secondary) + ■ (destructive). <b>Correct today:</b> zero coral fills, the pace number blanks when stale, and
+    every number is “—” before the first fix. The cost is purely spatial.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:180px;left:-30px;right:-30px;height:18px;transform:rotate(-7deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:120px;width:14px;transform:rotate(9deg)"></div>
+          <div class="plan" style="left:40px;top:250px;width:230px;transform:rotate(-12deg)"></div>
+          <div class="plan" style="left:250px;top:210px;width:110px;transform:rotate(58deg)"></div>
+          <div class="trace" style="left:44px;top:252px;width:130px;transform:rotate(-12deg)"></div>
+          <div class="anch" style="left:36px;top:244px"></div>
+          <div style="position:absolute;left:168px;top:224px;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff"></div>
+          <div class="row" style="position:absolute;left:10px;right:10px;top:16px;justify-content:space-between">
+            <div class="sq">‹</div>
+            <div class="inkpill"><span style="color:var(--line)">●</span> LIVE · 초코가 달리는 중</div>
+            <div class="sos">SOS</div>
+          </div>
+          <div class="plate" style="left:10px;bottom:10px">
+            <span><span class="sw" style="color:var(--accent)">━</span> <span class="tx">계획 경로</span></span>
+            <span><span class="sw" style="color:var(--voltDeep)">━</span> <span class="tx">지금까지</span></span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--line);background:var(--canvas);padding:18px 18px 30px">
+          <div class="row" style="gap:11px">
+            <div class="avat">민</div>
+            <div class="grow"><div class="t17 b9">김민준 러너</div>
+              <div class="t15 dim">반포 강변 코스 · 5km</div></div>
+            <div class="sigpill"><span style="color:var(--line)">●</span> 위치 수신</div>
+          </div>
+          <div class="row between" style="margin-top:14px;align-items:flex-end">
+            <div><span class="numf" style="font-size:34.5px;line-height:42px;font-weight:900">2.31</span><span class="t15 b7 dim"> km</span></div>
+            <div style="text-align:center"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">24:18</div>
+              <div class="t14 dim">시간</div></div>
+            <div style="text-align:right"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">10'31"</div>
+              <div class="t14 dim">페이스</div></div>
+          </div>
+          <div class="track" style="margin-top:12px"><i style="width:46%"></i></div>
+          <div class="row between" style="margin-top:12px;align-items:center">
+            <div class="pacechip pgood">페이스 양호</div>
+            <div class="t14 dim">권장 <span class="numf">8'00"</span></div>
+          </div>
+          <div class="row" style="gap:10px;margin-top:14px">
+            <div class="btnsec grow">러너와 채팅</div>
+            <div class="btndest">■</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">LivePos.km (broadcast) · runs.started_at → elapsed · paceStr(sec,km) = cumulative<br>
+      MeetupInfo.km → targetKm (progress fill) · runs.pace_suggest_sec → 권장 · pace.ts state → chip</div>
+    <div class="cost now"><b>current cost</b>Nothing. Shipped screen. The island is 300pt tall and fixed.</div>
+  </div>
+
+  <!-- L 현재-B (stale) -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재-B</span>고장난 상태 — 90초 무갱신</div>
+    <p class="why">Included so the variants get judged against the unhappy frame too. <b>The pill stops saying
+    LIVE, the dot goes faint, the pace number empties (없음 ≠ 느림), the pace chip leaves the row and only the
+    권장 caption stays, and a critical hairline strip names the fact with a real action.</b> This is the honesty
+    bar every variant below has to clear.</p>
+    <div class="phone h620">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:150px;left:-30px;right:-30px;height:18px;transform:rotate(-7deg)"></div>
+          <div class="plan" style="left:40px;top:210px;width:230px;transform:rotate(-12deg)"></div>
+          <div class="trace" style="left:44px;top:212px;width:130px;transform:rotate(-12deg)"></div>
+          <div style="position:absolute;left:168px;top:184px;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff"></div>
+          <div class="row" style="position:absolute;left:10px;right:10px;top:16px;justify-content:space-between">
+            <div class="sq">‹</div>
+            <div class="inkpill"><span style="color:var(--faint)">●</span> 초코 · 위치 갱신 없음</div>
+            <div class="sos">SOS</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--line);background:var(--canvas);padding:18px 0 30px">
+          <div class="row" style="gap:11px;padding:0 18px">
+            <div class="avat">민</div>
+            <div class="grow"><div class="t17 b9">김민준 러너</div>
+              <div class="t15 dim">반포 강변 코스 · 5km</div></div>
+            <div class="sigpill off"><span style="color:var(--faint)">●</span> 갱신 없음</div>
+          </div>
+          <div class="failstrip" style="margin-top:12px">
+            <div class="t">위치가 3분째 갱신되지 않았어요</div>
+            <div class="a">채팅으로 확인</div>
+          </div>
+          <div class="row between" style="margin-top:14px;align-items:flex-end;padding:0 18px">
+            <div><span class="numf" style="font-size:34.5px;line-height:42px;font-weight:900">2.31</span><span class="t15 b7 dim"> km</span></div>
+            <div style="text-align:center"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">24:18</div>
+              <div class="t14 dim">시간</div></div>
+            <div style="text-align:right"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">—</div>
+              <div class="t14 dim">페이스</div></div>
+          </div>
+          <div class="track" style="margin-top:12px;margin-left:18px;margin-right:18px"><i style="width:46%"></i></div>
+          <div class="row" style="margin-top:12px;padding:0 18px;justify-content:flex-end">
+            <div class="t14 dim">권장 <span class="numf">8'00"</span></div>
+          </div>
+          <div class="row" style="gap:10px;margin-top:14px;padding:0 18px">
+            <div class="btnsec grow">러너와 채팅</div>
+            <div class="btndest">■</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">staleSec ≥ 90 (local freshness clock off the last received fix) — NOT a server field.<br>
+      The map keeps drawing the last real fix; only the claims that stopped being true are withdrawn.</div>
+    <div class="cost now"><b>current cost</b>Nothing. Shipped behaviour, drawn as the honesty bar.</div>
+  </div>
+
+  <!-- L① -->
+  <div class="col">
+    <div class="cap"><span class="badge">L①</span>지도를 돌려준다 — 2단 아일랜드</div>
+    <p class="why">The island gets a peek detent (runner row + km + signal + 채팅) and a full detent (everything
+    today), driven by <b><code>translateY</code>, not height</b> — §6 forbids layout animation, and a transform is
+    compositor-only. Spring, grabbable mid-flight, velocity handoff (§7c). Map gains ~150pt. <b>Any active failure
+    strip forces the full detent open</b> — decluttering never becomes hiding.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:180px;left:-30px;right:-30px;height:18px;transform:rotate(-7deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:120px;width:14px;transform:rotate(9deg)"></div>
+          <div class="rd" style="top:400px;left:-30px;right:-30px;height:14px;transform:rotate(5deg)"></div>
+          <div class="plan" style="left:40px;top:290px;width:250px;transform:rotate(-12deg)"></div>
+          <div class="plan" style="left:270px;top:236px;width:130px;transform:rotate(58deg)"></div>
+          <div class="trace" style="left:44px;top:292px;width:150px;transform:rotate(-12deg)"></div>
+          <div class="anch" style="left:36px;top:284px"></div>
+          <div style="position:absolute;left:188px;top:258px;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff"></div>
+          <div class="row" style="position:absolute;left:10px;right:10px;top:16px;justify-content:space-between">
+            <div class="sq">‹</div>
+            <div class="inkpill"><span style="color:var(--line)">●</span> LIVE · 초코가 달리는 중</div>
+            <div class="sos">SOS</div>
+          </div>
+          <div class="plate" style="left:10px;bottom:10px">
+            <span><span class="sw" style="color:var(--accent)">━</span> <span class="tx">계획 경로</span></span>
+            <span><span class="sw" style="color:var(--voltDeep)">━</span> <span class="tx">지금까지</span></span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--line);background:var(--canvas);padding:0 18px 26px">
+          <div style="padding:9px 0;display:flex;justify-content:center"><i style="width:38px;height:4px;border-radius:99px;background:var(--grab);display:block"></i></div>
+          <div class="row" style="gap:11px">
+            <div class="avat">민</div>
+            <div class="grow">
+              <div class="t17 b9">김민준 러너</div>
+              <div class="t15 dim">반포 강변 코스 · 5km</div>
+            </div>
+            <div style="text-align:right">
+              <div><span class="numf" style="font-size:26px;line-height:32px;font-weight:900">2.31</span><span class="t14 b7 dim"> km</span></div>
+            </div>
+          </div>
+          <div class="row between" style="margin-top:11px;align-items:center">
+            <div class="sigpill"><span style="color:var(--line)">●</span> 위치 수신</div>
+            <div class="pacechip pgood">페이스 양호</div>
+          </div>
+          <div class="track" style="margin-top:12px"><i style="width:46%"></i></div>
+          <div class="row" style="gap:10px;margin-top:14px">
+            <div class="btnsec grow">러너와 채팅</div>
+            <div class="btndest">■</div>
+          </div>
+          <div class="t14 faint" style="text-align:center;margin-top:10px">위로 끌면 시간 · 페이스 · 권장이 함께 나와요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">no new binds — peek shows a strict SUBSET of the numbers already drawn.<br>
+      Gate: hold strip / stale strip / geoNote / mode note present → the island cannot rest at peek.</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surfaces:
+      none (<code>live.tsx</code> is not in DESIGN.md §9 — only meetup's machine and fitness's hero are). New
+      client state: one <code>Animated.Value</code> + a <code>PanResponder</code>. <b>Wiring cost:</b> the legend
+      is positioned at <code>bottom: islandH + 10</code> off a measured layout — with a transform the measured
+      height never changes, so the legend must ride the same animated value or it will float mid-map.
+      Open decision in Q4: does ■ 종료 요청 stay in the peek?</div>
+  </div>
+
+  <!-- L② -->
+  <div class="col">
+    <div class="cap"><span class="badge">L②</span>지금 페이스 / 평균 페이스</div>
+    <p class="why">The chip says 양호 / 권장보다 느려요 from a <b>rolling 3-minute window that is already computed
+    every second</b> (<code>windowPaceSec(pacePairs)</code>) — and then thrown away as a number. The printed
+    10'31" is the cumulative average, which after a slow first km can say “slow” for the rest of a run the runner
+    already fixed. This variant prints both, labelled.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:180px;left:-30px;right:-30px;height:18px;transform:rotate(-7deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:120px;width:14px;transform:rotate(9deg)"></div>
+          <div class="plan" style="left:40px;top:250px;width:230px;transform:rotate(-12deg)"></div>
+          <div class="trace" style="left:44px;top:252px;width:130px;transform:rotate(-12deg)"></div>
+          <div class="anch" style="left:36px;top:244px"></div>
+          <div style="position:absolute;left:168px;top:224px;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff"></div>
+          <div class="row" style="position:absolute;left:10px;right:10px;top:16px;justify-content:space-between">
+            <div class="sq">‹</div>
+            <div class="inkpill"><span style="color:var(--line)">●</span> LIVE · 초코가 달리는 중</div>
+            <div class="sos">SOS</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--line);background:var(--canvas);padding:18px 18px 30px">
+          <div class="row" style="gap:11px">
+            <div class="avat">민</div>
+            <div class="grow"><div class="t17 b9">김민준 러너</div>
+              <div class="t15 dim">반포 강변 코스 · 5km</div></div>
+            <div class="sigpill"><span style="color:var(--line)">●</span> 위치 수신</div>
+          </div>
+          <div class="row between" style="margin-top:14px;align-items:flex-end">
+            <div><span class="numf" style="font-size:34.5px;line-height:42px;font-weight:900">2.31</span><span class="t15 b7 dim"> km</span></div>
+            <div style="text-align:center"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">24:18</div>
+              <div class="t14 dim">시간</div></div>
+            <div style="text-align:right">
+              <div class="numf" style="font-size:23px;line-height:28px;font-weight:900">8'12"</div>
+              <div class="t14 dim">지금 페이스</div>
+            </div>
+          </div>
+          <div class="track" style="margin-top:12px"><i style="width:46%"></i></div>
+          <div class="row between" style="margin-top:12px;align-items:center">
+            <div class="pacechip pgood">페이스 양호</div>
+            <div style="text-align:right">
+              <div class="t14 dim">권장 <span class="numf">8'00"</span></div>
+              <div class="t14 faint">평균 <span class="numf">10'31"</span></div>
+            </div>
+          </div>
+          <div class="row" style="gap:10px;margin-top:14px">
+            <div class="btnsec grow">러너와 채팅</div>
+            <div class="btndest">■</div>
+          </div>
+          <div class="t14 faint" style="margin-top:12px;line-height:19px">
+            ↑ 창(3분) 값이 게이트(0.30km · 180초) 아래면 “지금 페이스”는 <span class="numf">—</span>, 평균만 남아요
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">windowPaceSec(pacePairs.current, Date.now()) — already computed on the 1s tick to derive
+      the chip; the pairs are local arrival stamps + cumulative km (LivePos carries no timestamp)<br>
+      gates: PACE_GATE_KM 0.30 · PACE_GATE_ELAPSED_SEC 180 → null → renders “—”, never 0</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surfaces:
+      none. <b>The cost is doctrine, not code:</b> <code>pace-state-ui-plan §1</code> says explicitly “the state
+      judges a rolling window; the pace NUMBER printed stays the cumulative average — two numbers, two jobs.”
+      This makes it three numbers on one row and needs a plan amendment (Q3). Second risk: the two numbers will
+      visibly disagree, which is honest but invites “which is right?” — the labels have to carry it at ≥14pt.</div>
+  </div>
+
+  <!-- L③ -->
+  <div class="col">
+    <div class="cap"><span class="badge">L③</span>누구의 러닝인지 — custody 헤더</div>
+    <p class="why">The dog exists on this screen only as a word inside the ink pill. <code>dogPhotoUrl</code> is
+    <b>already fetched here</b> and unused. The pill grows into a custody strip: the dog's face, the runner's name,
+    the state dot. The island's runner row then stops repeating the name and carries 코스 · 목표 instead.
+    Still ink, still zero coral fills.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:200px;left:-30px;right:-30px;height:18px;transform:rotate(-7deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:120px;width:14px;transform:rotate(9deg)"></div>
+          <div class="plan" style="left:40px;top:270px;width:230px;transform:rotate(-12deg)"></div>
+          <div class="trace" style="left:44px;top:272px;width:130px;transform:rotate(-12deg)"></div>
+          <div class="anch" style="left:36px;top:264px"></div>
+          <div style="position:absolute;left:168px;top:244px;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff"></div>
+          <div class="row" style="position:absolute;left:10px;right:10px;top:16px;justify-content:space-between">
+            <div class="sq">‹</div><div class="sos">SOS</div>
+          </div>
+          <div style="position:absolute;left:10px;right:10px;top:64px;background:var(--ink);padding:10px 12px;display:flex;align-items:center;gap:10px">
+            <div class="avat s38 dogph" style="border-radius:50%">사진</div>
+            <div class="grow">
+              <div style="font-size:15px;line-height:20px;font-weight:900;color:#fff">
+                <span style="color:var(--line)">●</span> 초코가 달리는 중</div>
+              <div class="t14" style="color:#D8D5D0">김민준 러너와 함께 · 방금 업데이트</div>
+            </div>
+          </div>
+          <div class="plate" style="left:10px;bottom:10px">
+            <span><span class="sw" style="color:var(--accent)">━</span> <span class="tx">계획 경로</span></span>
+            <span><span class="sw" style="color:var(--voltDeep)">━</span> <span class="tx">지금까지</span></span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--line);background:var(--canvas);padding:18px 18px 30px">
+          <div class="row between" style="align-items:center">
+            <div class="grow"><div class="t17 b9">반포 강변 코스</div>
+              <div class="t15 dim">목표 5km · 리버뷰 코스</div></div>
+            <div class="sigpill"><span style="color:var(--line)">●</span> 위치 수신</div>
+          </div>
+          <div class="row between" style="margin-top:14px;align-items:flex-end">
+            <div><span class="numf" style="font-size:34.5px;line-height:42px;font-weight:900">2.31</span><span class="t15 b7 dim"> km</span></div>
+            <div style="text-align:center"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">24:18</div>
+              <div class="t14 dim">시간</div></div>
+            <div style="text-align:right"><div class="numf" style="font-size:23px;line-height:28px;font-weight:900">10'31"</div>
+              <div class="t14 dim">페이스</div></div>
+          </div>
+          <div class="track" style="margin-top:12px"><i style="width:46%"></i></div>
+          <div class="row between" style="margin-top:12px;align-items:center">
+            <div class="pacechip pgood">페이스 양호</div>
+            <div class="t14 dim">권장 <span class="numf">8'00"</span></div>
+          </div>
+          <div class="row" style="gap:10px;margin-top:14px">
+            <div class="btnsec grow">러너와 채팅</div>
+            <div class="btndest">■</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">MeetupInfo.dogPhotoUrl (dogs.photo_url) — already fetched on this screen, unused today;
+      null → the existing initial monogram<br>
+      the strip's second line reuses the existing statusLine vocabulary (방금 업데이트 / N분째 위치가 갱신되지 않았어요)<br>
+      “리버뷰 코스” = a purchased add-on; drawn here only if the booking's addon list is carried — <b>it is not on
+      MeetupInfo today</b>, so ship without it or price the field (see cost)</div>
+    <div class="cost"><b>what this costs</b>New server fields for the dog photo: <b>none</b>.
+      <b>Two priced extras if wanted:</b> (a) the runner's face — <code>MeetupInfo</code> carries no runner avatar,
+      so it needs <code>runners(profiles(avatar_url))</code> added to <code>fetchMeetupInfo</code>'s select
+      (existing column, <b>no migration</b>); (b) the add-on line — no add-on field on <code>MeetupInfo</code> at
+      all, so <b>drop it</b> unless someone adds it. New routes: none. Frozen surfaces: none.
+      Risk: a 74pt strip floating over the map eats the same space L① is trying to win back — L① and L③ compete.</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ C -->
+<h2 class="band"><span class="sig">C</span>코스 지도 <span class="f">· app/app/owner/course-map.tsx</span></h2>
+<p class="sub">Full-bleed map + a three-detent sheet. The screen's own law: “화면에서 채도를 가진 획은 선택된 코스
+하나뿐” and “보이지 않는 기준으로 매긴 순위는 사용자가 검증할 수 없다.” It obeys the first. It obeys the second on
+the map (the pickup house is drawn) and <b>breaks it in the list</b>, which is silently sorted by distance with
+nothing on screen saying so.</p>
+
+<div class="rail">
+
+  <!-- C 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면 (list detent)</div>
+    <p class="why">Rows carry name, 점검 예정 tag, terrain·shade·lighting, and km. <b>The ordering
+    (<code>orderByProximity</code>) is invisible, and the 실측 vs 예정 distinction — which the file calls
+    load-bearing — lives only in a floating card above the map</b>, never per row.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:230px;left:-30px;right:-30px;height:16px;transform:rotate(-6deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:230px;width:12px;transform:rotate(11deg)"></div>
+          <div class="ghost" style="left:40px;top:200px;width:120px;transform:rotate(-20deg)"></div>
+          <div class="ghost" style="left:200px;top:170px;width:140px;transform:rotate(25deg)"></div>
+          <div class="plan" style="left:60px;top:260px;width:200px;transform:rotate(-10deg)"></div>
+          <div class="anch sel" style="left:52px;top:252px"></div>
+          <div class="anch" style="left:34px;top:194px"></div>
+          <div class="anch" style="left:194px;top:164px"></div>
+          <div class="house" style="left:150px;top:300px">픽</div>
+          <div style="position:absolute;left:12px;right:12px;top:14px">
+            <div class="searchbar">
+              <div style="width:30px;text-align:center;font-size:19px;font-weight:900">‹</div>
+              <div class="grow t14 b7 txt">27개 코스</div>
+            </div>
+            <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+              <div class="chip" style="padding:6px 11px;font-size:14px">평지</div>
+              <div class="chip on" style="padding:6px 11px;font-size:14px">그늘 최상</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">조명</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">루프</div>
+            </div>
+            <div class="infocard" style="margin-top:8px">
+              <div class="t14 b8">예정 경로를 보고 있어요</div>
+              <div class="t14 dim" style="margin-top:5px">지도의 선은 예정 경로예요 — 첫 반려견 동반 러닝이 실측 지도를 만들어요</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet" style="height:400px">
+          <div class="srule"></div>
+          <div class="grabz"><i></i></div>
+          <div class="row" style="padding:0 14px 4px;align-items:flex-start">
+            <div class="grow">
+              <div class="t14 b7 dim">반포 · 강변</div>
+              <div style="font-size:19px;line-height:25px;font-weight:800;margin-top:3px">반포 한강 리버뷰 루프</div>
+              <div class="t14 b7 faint" style="margin-top:2px">이동 포함 약 6.4km</div>
+            </div>
+            <div style="margin-left:10px"><span class="numf" style="font-size:26px;font-weight:800">5</span><span style="font-size:12px;font-weight:700;color:var(--faint)">km</span></div>
+          </div>
+          <div style="padding:8px 14px 0;overflow:hidden">
+            <div class="li on"><div class="grow"><div class="t145 b8">반포 한강 리버뷰 루프</div>
+              <div class="t14 dim">평지 · 그늘 최상 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">5</div></div>
+            <div class="li"><div class="grow"><div class="row" style="gap:6px"><div class="t145 b8">서래섬 순환</div>
+              <div class="t14 b8" style="color:var(--pending)">점검 예정</div></div>
+              <div class="t14 dim">평지 · 그늘 최상</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">3.2</div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">잠원 둔치 직선</div>
+              <div class="t14 dim">평지 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">4.1</div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">동작대교 왕복</div>
+              <div class="t14 dim">언덕 · 조명 없음</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">6.8</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">routes.name / km / terrain / shade / lighting / status · orderByProximity(pickup)<br>
+      totalKmFor(sel, pickup).totalKm → “이동 포함 약 6.4km” (peek head only, and only when a pin exists)</div>
+    <div class="cost now"><b>current cost</b>Nothing. Shipped screen.</div>
+  </div>
+
+  <!-- C① -->
+  <div class="col">
+    <div class="cap"><span class="badge">C①</span>순서에 이유를 붙인다</div>
+    <p class="why">The list is ranked by straight-line distance from the pickup pin and says nothing about it.
+    This variant prints the basis on every row and names the ordering once. <b>Honest collapse:</b> when there is
+    no pinned address, <code>orderByProximity</code> returns the catalogue order unchanged — so the distance
+    fragments <i>and</i> the 가까운 순 line both disappear together. The claim never outlives its basis.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:230px;left:-30px;right:-30px;height:16px;transform:rotate(-6deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:230px;width:12px;transform:rotate(11deg)"></div>
+          <div class="ghost" style="left:40px;top:200px;width:120px;transform:rotate(-20deg)"></div>
+          <div class="ghost" style="left:200px;top:170px;width:140px;transform:rotate(25deg)"></div>
+          <div class="plan" style="left:60px;top:260px;width:200px;transform:rotate(-10deg)"></div>
+          <div class="anch sel" style="left:52px;top:252px"></div>
+          <div class="anch" style="left:34px;top:194px"></div>
+          <div class="anch" style="left:194px;top:164px"></div>
+          <div class="house" style="left:150px;top:300px">픽</div>
+          <div style="position:absolute;left:12px;right:12px;top:14px">
+            <div class="searchbar">
+              <div style="width:30px;text-align:center;font-size:19px;font-weight:900">‹</div>
+              <div class="grow t14 b7 txt">27개 코스</div>
+            </div>
+            <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+              <div class="chip" style="padding:6px 11px;font-size:14px">평지</div>
+              <div class="chip on" style="padding:6px 11px;font-size:14px">그늘 최상</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">조명</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet" style="height:430px">
+          <div class="srule"></div>
+          <div class="grabz"><i></i></div>
+          <div class="row" style="padding:0 14px 4px;align-items:flex-start">
+            <div class="grow">
+              <div class="t14 b7 dim">반포 · 강변</div>
+              <div style="font-size:19px;line-height:25px;font-weight:800;margin-top:3px">반포 한강 리버뷰 루프</div>
+              <div class="t14 b7 faint" style="margin-top:2px">이동 포함 약 6.4km · 픽업에서 0.7km</div>
+            </div>
+            <div style="margin-left:10px"><span class="numf" style="font-size:26px;font-weight:800">5</span><span style="font-size:12px;font-weight:700;color:var(--faint)">km</span></div>
+          </div>
+          <div style="padding:10px 14px 0;overflow:hidden">
+            <div class="t14 b7 dim" style="padding-bottom:6px">픽업에서 가까운 순 · 반포 래미안 정문 기준</div>
+            <div class="li on"><div class="grow"><div class="t145 b8">반포 한강 리버뷰 루프</div>
+              <div class="t14 dim">평지 · 그늘 최상 · 조명</div></div>
+              <div style="text-align:right;margin-left:10px">
+                <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">5km</div>
+                <div class="t14 faint">픽업에서 0.7km</div></div></div>
+            <div class="li"><div class="grow"><div class="row" style="gap:6px"><div class="t145 b8">서래섬 순환</div>
+              <div class="t14 b8" style="color:var(--pending)">점검 예정</div></div>
+              <div class="t14 dim">평지 · 그늘 최상</div></div>
+              <div style="text-align:right;margin-left:10px">
+                <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">3.2km</div>
+                <div class="t14 faint">픽업에서 1.4km</div></div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">잠원 둔치 직선</div>
+              <div class="t14 dim">평지 · 조명</div></div>
+              <div style="text-align:right;margin-left:10px">
+                <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">4.1km</div>
+                <div class="t14 faint">픽업에서 2.6km</div></div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">이촌 한강 산책로</div>
+              <div class="t14 dim">평지 · 그늘 최상 · 조명</div></div>
+              <div style="text-align:right;margin-left:10px">
+                <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">7km</div>
+                <div class="t14 faint">거리 미상</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">nearestOnTraceFor(route, pickup).distM — already walked by orderByProximity for the sort<br>
+      route with no measurable entry → “거리 미상” (route-pick's own rule: 거리 미상 ≠ 멀다, it sinks but never
+      disappears)<br>
+      pickup null → no distance column, no 가까운 순 line, list falls back to catalogue order</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b> — <code>nearestOnTraceFor</code> and
+      <code>totalKmFor</code> both exist in <code>src/lib/route-pick.ts</code>. New routes: none. Frozen surfaces:
+      none. <b>Perf note:</b> the projection walks every segment, so measure ONCE per route (decorate-sort already
+      does exactly this) and reuse the value for the row — do not call it again in the renderer.
+      Risk: “픽업에서 0.7km” is a straight line, not a walk; the peek head already labels its cousin 약, and the
+      row is too narrow for that hedge — see Q8.</div>
+  </div>
+
+  <!-- C② -->
+  <div class="col">
+    <div class="cap"><span class="badge">C②</span>선이 무엇인지 선으로 말한다</div>
+    <p class="why">The file commits, in its own comment, to “점선 = 인쇄된 코스, 실선 = 지금 그어지고 있는 잉크 …
+    선은 실측과 똑같이 자신 있게 그리면 사람은 카피가 아니라 선을 믿는다.” <b>And then draws every trace solid.</b>
+    <code>assets/route-dash.png</code> and <code>route-dash-purple.png</code> are in the repo and referenced by
+    <b>nothing</b> in <code>src/</code> or <code>app/</code>. This variant honours the vocabulary and adds the
+    legend plate live.tsx already uses.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:230px;left:-30px;right:-30px;height:16px;transform:rotate(-6deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:230px;width:12px;transform:rotate(11deg)"></div>
+          <div class="ghost" style="left:40px;top:200px;width:120px;transform:rotate(-20deg)"></div>
+          <div class="ghost" style="left:200px;top:170px;width:140px;transform:rotate(25deg)"></div>
+          <div class="plan dash" style="left:60px;top:260px;width:200px;transform:rotate(-10deg)"></div>
+          <div class="anch sel" style="left:52px;top:252px"></div>
+          <div class="anch" style="left:34px;top:194px"></div>
+          <div class="anch" style="left:194px;top:164px"></div>
+          <div class="house" style="left:150px;top:300px">픽</div>
+          <div style="position:absolute;left:12px;right:12px;top:14px">
+            <div class="searchbar">
+              <div style="width:30px;text-align:center;font-size:19px;font-weight:900">‹</div>
+              <div class="grow t14 b7 txt">27개 코스</div>
+            </div>
+            <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+              <div class="chip" style="padding:6px 11px;font-size:14px">평지</div>
+              <div class="chip on" style="padding:6px 11px;font-size:14px">그늘 최상</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">조명</div>
+            </div>
+          </div>
+          <div class="plate" style="left:12px;bottom:12px;flex-wrap:wrap;max-width:330px">
+            <span><span class="sw" style="color:var(--accent)">━</span> <span class="tx">실측 코스</span></span>
+            <span><span class="sw" style="color:var(--accent)">┄</span> <span class="tx">예정 경로</span></span>
+            <span><span class="sw" style="color:var(--faint)">━</span> <span class="tx">다른 코스</span></span>
+          </div>
+        </div>
+        <div class="sheet" style="height:400px">
+          <div class="srule"></div>
+          <div class="grabz"><i></i></div>
+          <div class="row" style="padding:0 14px 4px;align-items:flex-start">
+            <div class="grow">
+              <div class="t14 b7" style="color:var(--pending)">점검 예정 · 반포</div>
+              <div style="font-size:19px;line-height:25px;font-weight:800;margin-top:3px">반포 한강 리버뷰 루프</div>
+              <div class="t14 b7 faint" style="margin-top:2px">이동 포함 약 6.4km</div>
+            </div>
+            <div style="margin-left:10px"><span class="numf" style="font-size:26px;font-weight:800">5</span><span style="font-size:12px;font-weight:700;color:var(--faint)">km</span></div>
+          </div>
+          <div style="padding:8px 14px 0;overflow:hidden">
+            <div class="li on"><div class="grow"><div class="row" style="gap:6px;align-items:center">
+              <div class="t145 b8">반포 한강 리버뷰 루프</div>
+              <div class="t14 b8" style="color:var(--accent)">┄ 예정</div></div>
+              <div class="t14 dim">평지 · 그늘 최상 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">5</div></div>
+            <div class="li"><div class="grow"><div class="row" style="gap:6px;align-items:center">
+              <div class="t145 b8">서래섬 순환</div>
+              <div class="t14 b8" style="color:var(--accent)">┄ 예정</div></div>
+              <div class="t14 dim">평지 · 그늘 최상</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">3.2</div></div>
+            <div class="li"><div class="grow"><div class="row" style="gap:6px;align-items:center">
+              <div class="t145 b8">잠원 둔치 직선</div>
+              <div class="t14 b8" style="color:var(--accent)">━ 실측</div></div>
+              <div class="t14 dim">평지 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">4.1</div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">동작대교 왕복</div>
+              <div class="t14 dim">언덕 · 조명 없음 · 선 없음</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">6.8</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">traceKind(route) — 'verified' (status active) / 'planned' / 'none', already exported from
+      <code>src/components/course-detail.tsx</code><br>
+      dash render: NaverMapPathOverlay <code>patternImage</code> + <code>patternInterval</code>, recipe already
+      written in runner/run.tsx's header comment (24×8 ink square, white line body)<br>
+      trace.length &lt; 2 → kind 'none' → row says 선 없음, and the anchor still draws (the anchor is real from day one)</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. New assets:
+      <b>none — both dash PNGs are already in <code>app/assets/</code>, unused.</b> Frozen surfaces: none.
+      <b>Blocker to verify first (Q9):</b> nothing in this repo has ever rendered a patterned polyline, so
+      <code>patternImage</code>/<code>patternInterval</code> must be confirmed on the installed Naver SDK build in
+      the simulator before this variant is buildable. Second risk: at city zoom a 3-swatch legend competes with
+      the anchor captions.</div>
+  </div>
+
+  <!-- C③ -->
+  <div class="col">
+    <div class="cap"><span class="badge">C③</span>칩은 시트로, 지도는 지도로</div>
+    <p class="why">The floating column is a search bar + a wrapping chip row + up to one info card, and it grows —
+    which is exactly why <code>chromeH</code> has to be measured and fed to <code>mapPadding</code>. Worse, the
+    예정 경로 card <b>sits on top of the lines it is describing</b>. This variant leaves one line on the map and
+    moves filters and notices into the sheet, where they cover nothing.</p>
+    <div class="phone h740">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="map" style="flex:1">
+          <div class="rd" style="top:200px;left:-30px;right:-30px;height:16px;transform:rotate(-6deg)"></div>
+          <div class="rd" style="top:0;bottom:0;left:230px;width:12px;transform:rotate(11deg)"></div>
+          <div class="ghost" style="left:40px;top:170px;width:120px;transform:rotate(-20deg)"></div>
+          <div class="ghost" style="left:200px;top:130px;width:140px;transform:rotate(25deg)"></div>
+          <div class="ghost" style="left:70px;top:330px;width:150px;transform:rotate(14deg)"></div>
+          <div class="plan" style="left:60px;top:240px;width:210px;transform:rotate(-10deg)"></div>
+          <div class="anch sel" style="left:52px;top:232px"></div>
+          <div class="anch" style="left:34px;top:164px"></div>
+          <div class="anch" style="left:194px;top:124px"></div>
+          <div class="anch" style="left:64px;top:324px"></div>
+          <div class="house" style="left:150px;top:280px">픽</div>
+          <div style="position:absolute;left:12px;right:12px;top:14px">
+            <div class="searchbar">
+              <div style="width:30px;text-align:center;font-size:19px;font-weight:900">‹</div>
+              <div class="grow t14 b7 txt">27개 코스</div>
+              <div class="t14 b8" style="color:var(--actionInk);white-space:nowrap">필터 1 ›</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet" style="height:434px">
+          <div class="srule"></div>
+          <div class="grabz"><i></i></div>
+          <div class="row" style="padding:0 14px 4px;align-items:flex-start">
+            <div class="grow">
+              <div class="t14 b7 dim">반포 · 강변</div>
+              <div style="font-size:19px;line-height:25px;font-weight:800;margin-top:3px">반포 한강 리버뷰 루프</div>
+              <div class="t14 b7 faint" style="margin-top:2px">이동 포함 약 6.4km</div>
+            </div>
+            <div style="margin-left:10px"><span class="numf" style="font-size:26px;font-weight:800">5</span><span style="font-size:12px;font-weight:700;color:var(--faint)">km</span></div>
+          </div>
+          <div style="padding:10px 14px 0;overflow:hidden">
+            <div class="row" style="gap:6px;flex-wrap:wrap">
+              <div class="chip" style="padding:6px 11px;font-size:14px">평지</div>
+              <div class="chip on" style="padding:6px 11px;font-size:14px">그늘 최상</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">조명</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">루프</div>
+              <div class="chip" style="padding:6px 11px;font-size:14px">언덕 적음</div>
+            </div>
+            <div class="t14 dim" style="margin-top:9px;padding-bottom:9px;border-bottom:1px solid var(--nl3)">
+              지도의 선은 예정 경로예요 — 첫 반려견 동반 러닝이 실측 지도를 만들어요</div>
+            <div class="li on"><div class="grow"><div class="t145 b8">반포 한강 리버뷰 루프</div>
+              <div class="t14 dim">평지 · 그늘 최상 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">5</div></div>
+            <div class="li"><div class="grow"><div class="row" style="gap:6px"><div class="t145 b8">서래섬 순환</div>
+              <div class="t14 b8" style="color:var(--pending)">점검 예정</div></div>
+              <div class="t14 dim">평지 · 그늘 최상</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">3.2</div></div>
+            <div class="li"><div class="grow"><div class="t145 b8">잠원 둔치 직선</div>
+              <div class="t14 dim">평지 · 조명</div></div>
+              <div class="numf" style="font-size:16px;font-weight:800;color:var(--text)">4.1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">no new binds. “필터 1” = the count of active chip predicates (useRouteChips), so the state
+      stays visible after the row is folded away — a filter you cannot see is a filter that lies about the count
+      beside it.<br>
+      the error card keeps its 다시 시도 (load) — it moves, it does not disappear</div>
+    <div class="cost"><b>what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen surfaces:
+      none. Component cost: <code>RouteChipRow</code> already takes <code>variant="floating"</code>, so this needs
+      a second (in-sheet) variant on that shared component — and it is shared with
+      <code>owner/request.tsx</code>, so the change has a second caller to check.
+      <b>Risk (Hick vs discoverability):</b> filters behind a tap is a smaller first screen but a hidden control;
+      the count chip is the whole mitigation, so it must never be omitted. Q10: where does the auto-lit
+      (조명 자동켜짐) notice go, since growing the chip row is what caused <code>chromeH</code> to exist?</div>
+  </div>
+
+</div>
+
+
+<footer>
+  <h3>OPEN QUESTIONS — things the code could not decide for me</h3>
+  <ol class="q">
+    <li><b>Is radar's ripple open for edit at all?</b> It is a Sean-picked frame (journey-v3 §C frame 4, RULING 7 —
+      “지금 코드의 링을 그대로 쓴다”). R② changes what it does in <code>runner_pending</code>; R③ retires it.
+      If the ring is fixed, both die and R① is the only live option.</li>
+    <li><b>R①, null <code>respondRate</code>:</b> when the field is null, drop only that fragment (drawn) or drop
+      the whole third line? A runner with 12 runs and no response rate currently shows a visibly shorter line than
+      their neighbours, which reads as a quality signal it is not.</li>
+    <li><b>L②, does <code>pace-state-ui-plan §1</code> get amended?</b> The plan is explicit that the window feeds
+      the STATE and the cumulative average is the NUMBER — “two numbers, two jobs”. Printing the window value makes
+      three numbers on one row. Screen decision or plan amendment?</li>
+    <li><b>L①, does ■ 종료 요청 survive the peek detent?</b> Putting a run-stop behind a drag is a real cost on a
+      custody screen; keeping it makes the peek a two-button row and pushes km down. (SOS is unaffected — it lives
+      in the top bar, above the island.)</li>
+    <li><b>L③, is the runner's face worth one more embed?</b> <code>MeetupInfo</code> has no runner avatar;
+      <code>profiles.avatar_url</code> exists and <code>fetchCertifiedRunners</code> already selects it elsewhere.
+      One added join in <code>fetchMeetupInfo</code>, no migration — or does <code>Avatar char</code> stay?</li>
+    <li><b>M②, approve the hook-bundle append?</b> Carrying the two handoff timestamps means
+      <code>refresh()</code> sets one more state on a frozen screen. §9 allows it only at the very end of the
+      bundle (after <code>hold</code>) and behind the hydration gate. That is Sean's call, not mine.</li>
+    <li><b>M③, is collapsing the pickup plate acceptable at the door?</b> My argument is that
+      <code>PickupMap</code> is a static pin and never showed the runner — but the one-line 만남 장소 also drops
+      the <code>addr</code> line, and a stranger at the door is exactly when someone re-reads an address.</li>
+    <li><b>C①, how do we hedge a straight-line distance in a list row?</b> The peek head says 이동 포함 <b>약</b>
+      6.4km because the approach is a straight line with no routing engine. “픽업에서 0.7km” carries the same
+      uncertainty with no room for the hedge. Prefix every row with 약, or state it once in the 가까운 순 line?</li>
+    <li><b>C②, does the installed Naver SDK expose <code>patternImage</code>/<code>patternInterval</code> on
+      <code>NaverMapPathOverlay</code>?</b> The two dash PNGs shipped, the recipe is written down in
+      runner/run.tsx's header, and <b>no code path has ever used either</b>. Needs one simulator pass before the
+      variant is buildable — and someone should say whether the assets were left behind deliberately.</li>
+    <li><b>C③, where does the auto-lit (조명 자동켜짐) notice live once the chips are in the sheet?</b> Its growth
+      is the documented reason <code>chromeH</code> is measured rather than constant.</li>
+    <li><b>Anchor sizing is still unruled</b> (<code>anchorSizeForZoom</code>: 18 / 30 / 44 by zoom, recorded
+      2026-08-19 in <code>docs/labs/RULINGS-2026-08-19-journey.md</code> as awaiting a word from Sean). No variant
+      here touches it, but C②'s legend and C①'s denser rows both assume the current behaviour.</li>
+    <li><b>Two of the meetup variants compete for the same vertical space.</b> M① adds ~96pt of identity block;
+      M③ takes ~120pt out of the chrome. They are compatible only if M③'s collapse rule wins at
+      <code>arrived</code> and M①'s block renders in full at <code>enroute</code>. Is that split acceptable, or
+      should one of them be dropped?</li>
+  </ol>
+</footer>
+
+</div></body></html>

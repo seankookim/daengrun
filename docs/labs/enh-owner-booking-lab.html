@@ -1,0 +1,1687 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner Booking Flow — Enhancement Lab (2026-08-24)</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────────
+   NEW HEX: 0. Every colour below is copied out of app/src/theme.ts.
+     paper:  canvas #FFFFFF · soft #FBFAF7 · ink #111111 · text #333333 · dim #666666
+             faint #999999 · line #E8552F · wash #FFF6F4 · critical #B3261E
+             criticalWash #FBEAE7 · disabledFill #F2F2F2 · inkPressed #333333
+             pending #C77414 · action #C6472C · actionPressed #A83315 · actionInk #A83315
+             ready #119B58 · readyDeep #0E7F49 · paceSlowWash #FBEED9 · paceSlowInk #9D580A
+     lilac:  bg #F4F2FB · card #FFFFFF · inset #EFECF9 · hair #E6E2F4 · hair2 #EDEAF8
+             head #221E3D · text #4B4668 · dim #7C76A0 · accent #6C5CE7 · amber #C77414
+             gold #B99A4F · coral #F0765A
+     v4:     cream #FFFFFF · line #D8DAD2 · dim #586055 · volt #C6F542 · voltDeep #7FA818
+     screen-local semantics kept as-is: CERT_BLUE #3d8fd4 (request.tsx:33),
+     CORAL_DEEP #C6472C (matching.tsx:20 — identical to paper.action), #EEEEEE row rules.
+   FONTS: Black Han Sans / Oswald / IBM Plex Sans KR are NAMED but not fetched — this file
+     loads nothing from a network. Where the app would use them the lab falls back to a
+     system stack, so treat weight/size here as intent, not as a rendering of the shipped face.
+   ───────────────────────────────────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#FBFAF7;color:#111111;padding:36px 22px 90px;-webkit-font-smoothing:antialiased;
+  font:15px/1.6 'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif}
+.wrap{max-width:1720px;margin:0 auto}
+h1{font-family:'Black Han Sans',-apple-system,sans-serif;font-size:34px;font-weight:900;line-height:1.15;letter-spacing:-.01em}
+.law{font-size:12px;letter-spacing:2.4px;color:#999999;text-transform:uppercase;margin:11px 0 16px;font-weight:700}
+.lede{font-size:15px;color:#333333;line-height:1.8;max-width:1020px}
+.lede b{color:#111111;font-weight:700}
+h2{font-size:22px;font-weight:800;margin:62px 0 6px;padding-top:22px;border-top:1px solid #E8552F}
+h2 .n{color:#E8552F;font-weight:800;margin-right:10px}
+h2 .path{font-weight:600;color:#666666;font-size:14px;margin-left:10px}
+.sub{font-size:14.5px;color:#666666;line-height:1.8;max-width:1020px;margin-top:8px}.sub b{color:#111111}
+.box{background:#FFFFFF;border:1px solid #EEEEEE;padding:15px 18px;margin:18px 0 4px;font-size:14px;line-height:1.75}
+.box h4{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#666666}
+.box.rule{border:1.5px solid #E8552F}
+.box.rule h4{color:#E8552F}
+.box.loud{border:1.5px solid #B3261E;background:#FBEAE7}
+.box.loud h4{color:#B3261E}
+.box ul{margin:6px 0 0 18px}.box li{margin-bottom:5px}
+code{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12.5px;background:#F2F2F2;padding:1px 5px}
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:22px;align-items:flex-start}
+.col{width:390px}
+.cap{font-size:16.5px;font-weight:800;margin:0 0 6px;line-height:1.35}
+.cap b{color:#E8552F;margin-right:8px;font-weight:800;font-size:18px}
+.cap.now b{color:#666666}
+.why{font-size:13.5px;color:#666666;line-height:1.7;margin:0 0 10px;min-height:132px}
+.why b{color:#111111}
+.cost{font-size:12.5px;color:#333333;line-height:1.65;margin:0 0 14px;padding:9px 11px;background:#FFF6F4;border-left:3px solid #C6472C}
+.cost span{font-weight:800;letter-spacing:.08em;font-size:11px;color:#A83315;display:block;margin-bottom:3px}
+.binds{font-size:12px;color:#666666;line-height:1.6;margin-top:10px}
+.binds b{color:#111111;font-weight:700}
+/* ── device frame ── */
+.ph{width:390px;background:#FFFFFF;border:1.5px solid #111111;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;height:706px}
+.ph.lilac{background:#F4F2FB}
+.nb{flex:0 0 26px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;color:#999999;font-weight:700}
+.scr{flex:1;overflow:hidden;position:relative}
+.cut{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(rgba(255,255,255,0),#FFFFFF)}
+.cut.l{background:linear-gradient(rgba(244,242,251,0),#F4F2FB)}
+.pad{padding:0 15px}
+/* ── in-app grammar ── */
+.tbar{display:flex;align-items:center;gap:12px;padding:8px 15px 10px}
+.bk{width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;font-size:20px;color:#111111;flex:0 0 40px}
+.ttl{font-size:20px;font-weight:800;color:#111111}
+.ttl.big{font-size:24px;font-weight:900}
+.hr{height:1px;background:#E8552F;margin:0}
+.hrn{height:1px;background:#EEEEEE}
+.k{font-size:11.5px;font-weight:800;letter-spacing:2.4px;color:#999999;text-transform:uppercase}
+.q{font-size:14px;color:#666666;line-height:1.42}
+.qi{font-size:14px;color:#333333;line-height:1.45}
+.num{font-variant-numeric:tabular-nums;font-family:'Oswald',-apple-system,sans-serif;font-weight:700}
+.r2{display:flex;align-items:flex-start;gap:10px;padding:14px 0;border-bottom:1px solid #EEEEEE;min-height:52px}
+.r2 .lb{font-size:14px;color:#666666;width:56px;flex:0 0 56px}
+.r2 .vl{flex:1;text-align:right;font-size:15px;font-weight:800;color:#111111}
+.r2 .vs{font-size:14px;font-weight:600;color:#666666}
+.r2 .ac{font-size:14px;font-weight:800;color:#111111;margin-left:8px}
+.dock{border-top:1px solid #E8552F;background:#FFFFFF;padding:12px 15px 16px}
+.cta{background:#C6472C;color:#FFFFFF;padding:16px 14px;font-size:17px;font-weight:800;text-align:center}
+.cta.split{display:flex;align-items:center;justify-content:space-between;text-align:left}
+.cta .amt{font-size:20px;font-weight:800}
+.cta2{background:#FFFFFF;border:1px solid #E8552F;color:#111111;padding:14px;font-size:16px;font-weight:800;text-align:center}
+.ctaink{background:#111111;color:#FFFFFF;padding:15px 14px;font-size:17px;font-weight:800;text-align:center}
+.warn{font-size:14px;font-weight:800;color:#C77414;line-height:1.4;margin-top:8px}
+.failstrip{background:#FBEAE7;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;padding:11px 12px;
+  display:flex;justify-content:space-between;gap:10px;align-items:center}
+.failstrip .t{font-size:14px;font-weight:700;color:#B3261E;line-height:1.3}
+.failstrip .a{font-size:14px;font-weight:800;color:#B3261E;text-decoration:underline;white-space:nowrap}
+.plate{background:#FFF6F4;padding:11px 12px;font-size:14px;font-weight:700;color:#333333;line-height:1.45}
+.nudge{display:flex;border:1.5px solid #111111;margin-top:16px}
+.nmap{width:96px;background:#0e150f;display:flex;align-items:center;justify-content:center;color:#8fa093;font-size:12px}
+.nbody{flex:1;padding:12px 13px}
+.chip{border:1px solid #EEEEEE;padding:8px 12px;font-size:14px;font-weight:700;color:#333333;white-space:nowrap}
+.chip.on{background:#111111;border-color:#111111;color:#FFFFFF}
+.chip.coral{border-color:#E8552F;color:#111111}
+.chip.amber{background:#C77414;color:#FFFFFF;border-color:#C77414;font-weight:800}
+.chiprow{display:flex;gap:8px;margin-top:10px;overflow:hidden}
+.dial{display:flex;align-items:flex-end;justify-content:center;gap:0;height:46px;position:relative;margin-top:12px}
+.dial i{display:block;width:2px;background:#DDDDDD;margin:0 12px}
+.dial i.mj{background:#111111;width:2px}
+.needle{position:absolute;left:50%;margin-left:-1px;top:-4px;width:2px;height:32px;background:#E8552F}
+.est{font-size:14px;color:#666666;text-align:center;margin-top:12px}
+.est b{font-size:15px;font-weight:800;color:#111111}
+.tag{background:#FFF6F4;padding:6px 10px;font-size:14px;font-weight:800;color:#111111}
+.tag.a{background:#FBEED9;color:#9D580A}
+.tag.g{background:#E7F5EE;color:#0E7F49}
+.tbl{margin-top:16px}
+.trow{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-top:1px solid #E8552F}
+.trow .l{font-size:14.5px;font-weight:600;color:#333333}
+.trow .s{font-size:14px;color:#666666}
+.trow .v{font-size:17px;font-weight:600;color:#333333}
+.totalrow{display:flex;align-items:baseline;justify-content:space-between;padding:14px 15px}
+.totalrow .l{font-size:14.5px;font-weight:800;color:#111111}
+.totalrow .v{font-size:36px;font-weight:900;color:#111111;line-height:1.24}
+/* lilac world (matching, current) */
+.lhead{background:#FFFFFF;border-bottom:1px solid #E6E2F4;padding:14px 14px 12px}
+.lrow{display:flex;align-items:center;gap:8px;padding:11px 8px;min-height:60px;border-radius:11px;border:1.5px solid transparent}
+.lrow.sel{background:#FFFFFF;border-color:#6C5CE7;box-shadow:0 5px 12px rgba(108,92,231,.18)}
+.av{width:40px;height:40px;border-radius:50%;background:#6C5CE7;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex:0 0 40px}
+.lsheet{background:#FFFFFF;border-top:1px solid #E6E2F4;padding:16px 18px 18px;position:relative}
+.holo{position:absolute;top:0;left:0;right:0;height:3px;display:flex}
+.holo i{flex:1}
+.trk{flex:1;height:9px;border-radius:5px;background:#EFECF9;border:1px solid #E6E2F4;overflow:hidden}
+.trk i{display:block;height:100%;background:#6C5CE7}
+.trk i.w{background:#C77414}
+.lcta{margin-top:13px;border-radius:12px;background:#C6472C;color:#FFFFFF;padding:15px;display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800}
+.lplate{background:rgba(28,24,55,.55);border-radius:7px;padding:5px 9px;font-size:14px;font-weight:600;color:#FFFFFF}
+/* legacy v4 world (reschedule, current) */
+.v4card{background:#111111;border-radius:20px;padding:18px;margin-top:16px;border:1.5px solid rgba(198,245,66,.4)}
+.v4notice{background:#FFFFFF;border:1px solid #D8DAD2;border-radius:16px;padding:18px;margin-top:16px;text-align:center}
+.v4slot{width:31%;background:#FFFFFF;border:1px solid #D8DAD2;border-radius:13px;text-align:center;padding:11px 0}
+.v4day{width:54px;background:#FFFFFF;border:1px solid #D8DAD2;border-radius:14px;text-align:center;padding:10px 0}
+.v4day.on{background:#111111;border-color:#111111}
+.v4volt{background:#C6F542;border-radius:13px;text-align:center;padding:13px;font-size:15.5px;font-weight:900;color:#111111}
+/* paper slot grid */
+.pslot{width:31.5%;border:1px solid #EEEEEE;text-align:center;padding:11px 0}
+.pslot.on{background:#111111;border-color:#111111;color:#FFFFFF}
+.pslot.off{background:#F2F2F2;border-color:#F2F2F2}
+.pday{width:54px;border:1px solid #EEEEEE;text-align:center;padding:9px 0}
+.pday.on{background:#111111;border-color:#111111;color:#FFFFFF}
+.map{background:#EFF1EC;flex:1;position:relative;display:flex;align-items:center;justify-content:center}
+.cross{width:12px;height:12px;background:#E8552F;border:1px solid #FFFFFF;position:relative}
+.cross:after{content:'';position:absolute;left:5px;top:12px;width:2px;height:18px;background:#E8552F}
+.acard{border:1px solid #E8552F;padding:14px 14px 0;margin-top:10px}
+.astrip{margin:10px -14px 0;border-top:1px solid #E8552F;padding:13px 14px;font-size:14px;font-weight:700;min-height:44px}
+table.mx{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:14px;background:#FFFFFF}
+table.mx th,table.mx td{border:1px solid #EEEEEE;padding:8px 10px;text-align:left;vertical-align:top}
+table.mx th{background:#FBFAF7;font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#666666}
+footer{margin-top:70px;border-top:2px solid #E8552F;padding-top:18px;font-size:14.5px;line-height:1.85;max-width:1100px}
+footer h3{font-size:19px;font-weight:800;margin-bottom:10px}
+footer ol{margin:10px 0 0 20px}footer li{margin-bottom:11px}
+footer b{color:#111111}
+.flag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.09em;padding:2px 6px;background:#FBEED9;color:#9D580A;margin-right:6px}
+.flag.new{background:#FBEAE7;color:#B3261E}
+.flag.free{background:#E7F5EE;color:#0E7F49}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>보호자 예약 흐름 — 인핸스먼트 랩</h1>
+<div class="law">enh-owner-booking-lab · 2026-08-24 · 6 screens · 20 variants · new hex 0 · new server reads 1 (flagged) · new routes 0</div>
+<p class="lede">
+Six real screens, read in source before they were drawn: <b>request · matching · pay · reschedule ·
+address-pin · addresses</b>. Every frame starts from what the file actually renders today, so the
+enhancement is legible <b>as a change</b> and not as a redesign. Pick by number
+(<b>R① M③ P② …</b>); a pick is an instruction to build that one variant, and the "what this costs"
+line under each is the whole bill.
+</p>
+
+<div class="box rule">
+  <h4>Rules this lab is bound by — a variant that breaks one is unusable, not merely worse</h4>
+  <ul>
+    <li><b>Korean in the frames, English around them.</b> Every string inside a phone frame is
+      product copy; every heading, rationale and annotation is English (CLAUDE.md §Language).</li>
+    <li><b>No invented data.</b> Where a frame shows a value, the <code>binds</code> line under it
+      names the field. Exactly <b>one</b> variant (P③'s refund arm) needs something the client cannot
+      read today — it carries <span class="flag new">NEEDS NEW SERVER DATA</span>, and it is the only
+      one. One more (P①) needs a new <i>link</i> in a file outside this cluster, and says so.</li>
+    <li><b>Tokens only.</b> Zero new hexes. Two variants are purely a <i>role correction</i> between
+      tokens that already exist (<code>paper.line</code> is the brand hairline, not a button face).</li>
+    <li><b>Type floor 14pt</b> inside every frame. The only sub-14 text is the latin letterspaced
+      kicker class and the device status bar.</li>
+    <li><b>One coral surface per frame</b>, and Black Han Sans at most once.</li>
+    <li><b>Frozen surfaces:</b> this cluster touches <i>none</i> of the DO-NOT-REFACTOR list — the
+      fitness collapsing hero and the meetup stage machine are elsewhere. It does border one
+      contract-ordered sequence; see the box below.</li>
+  </ul>
+</div>
+
+<div class="box loud">
+  <h4>Two things in this cluster are load-bearing and no variant may touch them</h4>
+  <b>① The cancel-fee ladder sentence (request.tsx:1237-1243).</b> It reads
+  「시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는 10%, 러너가 이동을 시작한 뒤에는 50%가 붙어요.」
+  and those two numbers are <b>computed</b>, not typed:
+  <code>Math.round(cancelPolicy.feeRate*100)</code> and <code>cancelPolicy.enrouteFeeRate*100</code>
+  from <code>src/store.ts:221-227</code>, which mirrors the server ladder (0066/0085). Where this
+  lab prints that sentence it prints the same computed values. <b>Any variant that moves the
+  sentence must keep it bound to <code>cancelPolicy</code></b> — a hardcoded percentage on the order
+  screen is a legal statement the server can contradict the next time the ladder moves.
+  <div style="height:9px"></div>
+  <b>② The four steps after <code>createBookingHold</code> resolves (request.tsx:564-628)</b> —
+  ① bookingId first, ② recurring series, ③ nomination, ④ routing — are ordered by contract, and the
+  comment says so ("순서가 계약이다"). Every request variant here is above that line: dock, copy,
+  disclosure. None reorders it.
+</div>
+
+<div class="box">
+  <h4>Read before drawing — where each screen currently lives in the token map</h4>
+  <table class="mx">
+    <tr><th>screen</th><th>world today</th><th>DESIGN.md §2 target</th><th>note</th></tr>
+    <tr><td><code>owner/request.tsx</code></td><td>paper</td><td>paper</td><td>already migrated (2026-08-10 repaint + 2026-08-19 §C re-sequence)</td></tr>
+    <tr><td><code>owner/matching.tsx</code></td><td><b>lilac</b></td><td>paper</td><td>service/transaction screen sitting in the delegation world — the one clear world mismatch in this cluster</td></tr>
+    <tr><td><code>owner/pay.tsx</code></td><td>paper</td><td>paper</td><td>read-only, and <b>unreachable in the pilot</b> (its own header says so, §E.5.1)</td></tr>
+    <tr><td><code>owner/reschedule.tsx</code></td><td><b>V4 legacy</b> (cream/#D8DAD2/volt/radius 20)</td><td>paper</td><td>the least-migrated screen in the cluster; still imports <code>colors.volt</code> for its primary</td></tr>
+    <tr><td><code>owner/address-pin.tsx</code></td><td>paper</td><td>paper</td><td>migrated, but its confirm bar overrides PaperBtn's fill with <code>paper.line</code></td></tr>
+    <tr><td><code>owner/addresses.tsx</code></td><td>paper</td><td>paper</td><td>the 2026-08-10 repaint precedent; two coral <i>text</i> labels sit under the contrast floor</td></tr>
+  </table>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">1</span>러닝 요청<span class="path">app/app/owner/request.tsx</span></h2>
+<p class="sub">
+One scrolling screen, everything pre-filled, a fixed coral dock at the bottom whose label swaps
+instead of going disabled. The dial is Sean's (RULING 4) and stays verbatim in every variant.
+<b>The problem this section attacks:</b> the screen takes an order, but the two facts a purchase
+needs — <i>what it costs</i> and <i>what cancelling costs</i> — are the quietest thing on it (a 14pt
+dim line) and a thing behind a fold. The estimate is 14pt while the km readout is 54pt.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>as it renders today</div>
+    <p class="why">Rows → dial → one quiet estimate line → the big course nudge → rows → one fold
+    holding pace, add-ons, weekly repeat, the course carousel <b>and the fee breakdown with the
+    cancel ladder</b>. Dock label swaps through 결제 문제부터 / 반려견부터 / 시간부터 / 러너 찾기.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from request.tsx:800-1265.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러닝 요청</div></div>
+        <div class="pad">
+          <div style="border-top:1px solid #EEEEEE">
+            <div class="r2"><div class="lb">언제</div><div class="vl">내일 19:30<span class="vs"> · 가장 빠른</span></div><div class="ac">변경 ›</div></div>
+          </div>
+          <div style="text-align:center;margin-top:18px">
+            <span class="num" style="font-size:54px;line-height:1.26;color:#111111">5<span style="font-size:21px">km</span></span>
+          </div>
+          <div class="dial"><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><div class="needle"></div></div>
+          <div class="est">예상 금액 <b class="num">22,900</b>원</div>
+          <div class="nudge">
+            <div class="nmap">코스 지도<br>준비 중</div>
+            <div class="nbody">
+              <div style="font-size:15px;font-weight:800;line-height:1.33">반포한강 그랜드 루프</div>
+              <div class="q" style="margin-top:3px">픽업 위치에서 가장 가까운 코스 · 안 고르면 코스 없이 접수돼요</div>
+              <div style="font-size:14px;font-weight:800;margin-top:7px">지도에서 고르기 ›</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #EEEEEE;margin-top:16px">
+            <div class="r2"><div class="lb">러너</div><div class="vl">자동 매칭</div><div class="ac">직접 고르기 ›</div></div>
+            <div class="r2"><div class="lb">어디서</div><div class="vl">우리집</div><div class="ac">변경 ›</div></div>
+            <div class="r2"><div class="lb">누가</div><div class="vl">초코<span class="vs">  ·  포메라니안</span></div><div class="ac">변경 ▾</div></div>
+          </div>
+          <div class="q" style="margin-top:10px">코스·러너·주소는 지금 안 정해도 돼요 — 위에 보이는 그대로 접수돼요</div>
+          <div style="border-top:1px solid #EEEEEE;margin-top:16px">
+            <div class="r2" style="align-items:center"><div style="flex:1"><div style="font-size:15px;font-weight:800">페이스 · 옵션 · 매주 반복 · 코스 목록</div><div class="q" style="margin-top:3px">보통 7' · 옵션 없음 · 매주 반복 꺼짐</div></div><div class="ac">열기 ▾</div></div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock"><div class="cta">러너 찾기 ›</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>bookings.scheduled_at</code> · <code>bookings.km</code> ·
+      <code>pricing.ownerBaseFare + km×perKm</code> · <code>routes.name/status</code> ·
+      <code>addresses.label</code> · <code>dogs.name/breed</code>.
+      The estimate is client-computed with the same formula <code>create-booking-hold</code> uses.</p>
+  </div>
+
+  <!-- R① -->
+  <div class="col">
+    <div class="cap"><b>R①</b>The dock carries the money and the ladder</div>
+    <p class="why">The dock becomes the one place a purchase is stated: <b>total on the button</b>
+    (same <code>total</code>, one number, no second price anywhere), and the cancel-fee sentence
+    pinned <b>above</b> it, out of the fold. Right now an owner can book tonight's run — the notice
+    floor is 2 hours — without ever having seen the ladder, because it lives inside
+    「페이스 · 옵션 · 매주 반복 · 코스 목록」. The estimate line under the dial retires; two prices on
+    one screen is exactly what §C already deleted once.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: the dock JSX + <code>s.ctaBar</code>, and
+      moves one <code>&lt;Text&gt;</code> out of the fold. The sentence stays bound to
+      <code>cancelPolicy</code> — see the loud box above. Dock grows ~40px: <code>ctaDockH</code> is
+      already computed, so the ScrollView reservation follows automatically.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러닝 요청</div></div>
+        <div class="pad">
+          <div style="border-top:1px solid #EEEEEE">
+            <div class="r2"><div class="lb">언제</div><div class="vl">내일 19:30<span class="vs"> · 가장 빠른</span></div><div class="ac">변경 ›</div></div>
+          </div>
+          <div style="text-align:center;margin-top:18px">
+            <span class="num" style="font-size:54px;line-height:1.26;color:#111111">5<span style="font-size:21px">km</span></span>
+          </div>
+          <div class="dial"><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><div class="needle"></div></div>
+          <div class="nudge" style="margin-top:20px">
+            <div class="nmap">코스 지도<br>준비 중</div>
+            <div class="nbody">
+              <div style="font-size:15px;font-weight:800;line-height:1.33">반포한강 그랜드 루프</div>
+              <div class="q" style="margin-top:3px">픽업 위치에서 가장 가까운 코스 · 안 고르면 코스 없이 접수돼요</div>
+              <div style="font-size:14px;font-weight:800;margin-top:7px">지도에서 고르기 ›</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #EEEEEE;margin-top:16px">
+            <div class="r2"><div class="lb">러너</div><div class="vl">자동 매칭</div><div class="ac">직접 고르기 ›</div></div>
+            <div class="r2"><div class="lb">어디서</div><div class="vl">우리집</div><div class="ac">변경 ›</div></div>
+            <div class="r2"><div class="lb">누가</div><div class="vl">초코<span class="vs">  ·  포메라니안</span></div><div class="ac">변경 ▾</div></div>
+          </div>
+          <div class="q" style="margin-top:10px">코스·러너·주소는 지금 안 정해도 돼요 — 위에 보이는 그대로 접수돼요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock">
+        <div class="q" style="margin-bottom:10px;font-size:14px;line-height:1.45">
+          시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는 10%, 러너가 이동을 시작한 뒤에는 50%가 붙어요.
+        </div>
+        <div class="cta split"><span>러너 찾기 ›</span><span class="amt num">22,900원</span></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> button amount = the same <code>total</code> the estimate line
+      renders today (<code>pricing.ownerBaseFare + km*perKm + addonSum</code>). Ladder numbers =
+      <code>cancelPolicy.feeRate</code> / <code>cancelPolicy.enrouteFeeRate</code>, computed at render.</p>
+  </div>
+
+  <!-- R② -->
+  <div class="col">
+    <div class="cap"><b>R②</b>The dock says <i>why</i> it is not 러너 찾기</div>
+    <p class="why">The label swap is good law (no dead buttons) but it makes the owner decode a
+    two-word noun. 「반려견부터」 does not say what happened, and the cause can be three screens up.
+    A single line above the bar states the blocker and where the tap goes; when nothing blocks, the
+    same slot holds the cancel-fee sentence. <b>One line, five states, never empty.</b> Composable
+    with R① — this is the line R① fills with the ladder.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: one derived string beside
+      <code>ctaLabel</code> (same five predicates, already computed) + one
+      <code>&lt;Text&gt;</code> in the dock. The charge-locked arm keeps its
+      <code>ChargeBanner</code> at the top — this line does not replace it.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러닝 요청</div></div>
+        <div class="pad">
+          <div style="border-top:1px solid #EEEEEE">
+            <div class="r2"><div class="lb">언제</div><div class="vl" style="font-size:14px;font-weight:400;color:#666666">시간을 선택해주세요</div><div class="ac">변경 ›</div></div>
+          </div>
+          <div style="text-align:center;margin-top:18px">
+            <span class="num" style="font-size:54px;line-height:1.26;color:#111111">5<span style="font-size:21px">km</span></span>
+          </div>
+          <div class="dial"><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><div class="needle"></div></div>
+          <div class="est">예상 금액 <b class="num">22,900</b>원</div>
+          <div class="nudge">
+            <div class="nmap">코스 지도<br>준비 중</div>
+            <div class="nbody">
+              <div style="font-size:15px;font-weight:800;line-height:1.33">반포한강 그랜드 루프</div>
+              <div class="q" style="margin-top:3px">픽업 위치에서 가장 가까운 코스 · 안 고르면 코스 없이 접수돼요</div>
+              <div style="font-size:14px;font-weight:800;margin-top:7px">지도에서 고르기 ›</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #EEEEEE;margin-top:16px">
+            <div class="r2"><div class="lb">러너</div><div class="vl">자동 매칭</div><div class="ac">직접 고르기 ›</div></div>
+            <div class="r2"><div class="lb">어디서</div><div class="vl">우리집</div><div class="ac">변경 ›</div></div>
+            <div class="r2"><div class="lb">누가</div><div class="vl">초코<span class="vs">  ·  포메라니안</span></div><div class="ac">변경 ▾</div></div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock">
+        <div style="font-size:14px;font-weight:800;color:#C77414;line-height:1.45;margin-bottom:10px">
+          아직 시간을 안 골랐어요 — 누르면 시간 선택이 열려요
+        </div>
+        <div class="cta">시간부터 ›</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> nothing new — the five arms are the existing predicates
+      <code>chargeLocked</code> / <code>dogsState</code> / <code>myDog</code> /
+      <code>draft.scheduledAtIso</code>. The amber ink is <code>paper.pending</code> (semantic
+      waiting), not a warning colour: nothing has failed.</p>
+  </div>
+
+  <!-- R③ -->
+  <div class="col">
+    <div class="cap"><b>R③</b>명세 leaves the fold</div>
+    <p class="why">The fee card — 기본 요금 / 거리 / 프리미엄 옵션 + the ladder — is the last block
+    <i>inside</i> 「페이스 · 옵션 · 매주 반복 · 코스 목록」. Nothing about a price breakdown belongs
+    behind a disclosure named after pace chips. This variant lifts the whole card out, as the last
+    block before the dock, and leaves the fold holding only what it is named after. The estimate line
+    under the dial retires — the card's total replaces it, so the screen still states one price once.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: move one <code>&lt;View style={s.feeCard}&gt;</code>
+      out of the <code>moreOpen</code> branch; delete <code>s.estimate</code>. Adds ~110px of scroll
+      height to every visit — that is the trade, and it is the reason this is a separate number from R①.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="pad" style="padding-top:8px">
+          <div class="q" style="text-align:center;font-size:14px;color:#999999">↑ 언제 · 거리 · 코스 · 러너 · 어디서 · 누가</div>
+          <div style="border-top:1px solid #EEEEEE;margin-top:12px">
+            <div class="r2" style="align-items:center"><div style="flex:1"><div style="font-size:15px;font-weight:800">페이스 · 옵션 · 매주 반복 · 코스 목록</div><div class="q" style="margin-top:3px">보통 7' · 옵션 없음 · 매주 반복 꺼짐</div></div><div class="ac">열기 ▾</div></div>
+          </div>
+          <div style="border:1px solid #EEEEEE;padding:6px 12px 12px;margin-top:18px">
+            <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="q">기본 요금</span><span class="qi num" style="font-weight:600">7,900원</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="q">거리 (5km)</span><span class="qi num" style="font-weight:600">15,000원</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #EEEEEE">
+              <span style="font-size:14.5px;font-weight:800">예상 금액</span>
+              <span class="num" style="font-size:22px;font-weight:900;line-height:1.24">22,900원</span></div>
+            <div class="q" style="margin-top:10px;line-height:1.45">
+              시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는 10%, 러너가 이동을 시작한 뒤에는 50%가 붙어요.
+            </div>
+          </div>
+          <div class="q" style="margin-top:14px;font-size:14px">
+            매주 반복을 켜면 회당 22,900원으로 같은 요일·시간에 자동 예약돼요 — 일정 탭에서 언제든 해지
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock"><div class="cta split"><span>러너 찾기 ›</span><span class="amt num">22,900원</span></div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>pricing.ownerBaseFare</code> ·
+      <code>km × pricing.perKm</code> · <code>pricing.addons[k].price</code> ·
+      <code>cancelPolicy</code>. The recurring line reuses the existing toggle copy
+      (<code>fmtWon(total)</code>) — same number, no second total.</p>
+  </div>
+
+  <!-- R④ -->
+  <div class="col">
+    <div class="cap"><b>R④</b>시간을 한 탭으로 — the sheet stops being the only door</div>
+    <p class="why">Time is the value owners change most, and it is the only row whose edit costs a
+    modal. The 언제 row grows a strip of the next three <b>actually allowed</b> slots, computed by
+    the same <code>slotAllowed</code> predicate the sheet uses (2-hour floor, nominated-runner
+    availability, real duration <code>km×8+25</code>). Tapping one is <code>pickSlot</code>, exactly
+    as the sheet does; 다른 시간 › still opens the sheet. When a nominated runner has no slot inside
+    eight days the strip renders the honest empty instead of chips.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: a small memo over
+      <code>DATES × SLOT_GROUPS</code> filtered by <code>slotAllowed</code> (the loop
+      <code>pickEarliest</code> already runs, taking three instead of one) + one row in the JSX.
+      <b>Density warning:</b> this adds 3 competing targets to the top group — the one variant here
+      that spends Hick/Miller budget rather than saving it.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러닝 요청</div></div>
+        <div class="pad">
+          <div style="border-top:1px solid #EEEEEE">
+            <div class="r2" style="border-bottom:0;padding-bottom:6px"><div class="lb">언제</div><div class="vl">내일 19:30<span class="vs"> · 가장 빠른</span></div><div class="ac">다른 시간 ›</div></div>
+            <div class="chiprow" style="padding-bottom:14px;border-bottom:1px solid #EEEEEE;margin-top:6px">
+              <span class="chip on">내일 19:30</span><span class="chip">내일 21:00</span><span class="chip">모레 06:30</span>
+            </div>
+          </div>
+          <div style="text-align:center;margin-top:18px">
+            <span class="num" style="font-size:54px;line-height:1.26;color:#111111">5<span style="font-size:21px">km</span></span>
+          </div>
+          <div class="dial"><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><i style="height:14px"></i><i class="mj" style="height:28px"></i><div class="needle"></div></div>
+          <div class="est">예상 금액 <b class="num">22,900</b>원</div>
+          <div class="nudge">
+            <div class="nmap">코스 지도<br>준비 중</div>
+            <div class="nbody">
+              <div style="font-size:15px;font-weight:800;line-height:1.33">반포한강 그랜드 루프</div>
+              <div class="q" style="margin-top:3px">픽업 위치에서 가장 가까운 코스 · 안 고르면 코스 없이 접수돼요</div>
+              <div style="font-size:14px;font-weight:800;margin-top:7px">지도에서 고르기 ›</div>
+            </div>
+          </div>
+          <div class="warn" style="margin-top:14px">★ 민준 러너의 가능 시간만 선택할 수 있어요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock"><div class="cta">러너 찾기 ›</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> chips = <code>slotAllowed(dateIdx, t)</code> over
+      <code>SLOT_GROUPS</code> — the same predicate the sheet greys out with 마감 / 러너 불가.
+      Nominated-runner rules come from <code>runner_availability_rules</code> via
+      <code>fetchRunnerAvailability</code>; while those are still loading the strip must render
+      nothing rather than three chips it may have to retract.</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">2</span>러너 선택 / 러너 변경<span class="path">app/app/owner/matching.tsx</span></h2>
+<p class="sub">
+A roster of one-line runners over a decision sheet that never empties. <b>Two facts found in
+source before drawing.</b> ① It is the only screen in this cluster still in the <b>tailored lilac</b>
+world, while DESIGN.md §2 puts service/transaction screens in paper. ② The 「러너 선택」 arm is
+effectively unreachable today: <code>request.tsx</code> routes a fresh hold to
+<code>/owner/radar</code>, and the only <code>router.push</code> into this file is
+<code>schedule.tsx:649</code> with <code>mode:'rebook'</code>. In the pilot this screen <i>is</i>
+러너 변경. Variants must not pretend otherwise.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>lilac world, sheet always mounted</div>
+    <p class="why">Header + subtitle, rail legend (매치 · 페이스 · 응답), rows at 62pt with a violet
+    selection ring, a 「이 순서는 어떻게 나왔나요」 card, then the sticky sheet: holo trim, avatar,
+    display-font name, 매치 %, three bars, gear chips, coral CTA with a dark plate.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from matching.tsx:255-520.</p>
+    <div class="ph lilac">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="lhead">
+          <div style="display:flex;align-items:center;gap:9px">
+            <div style="width:34px;height:34px;border-radius:10px;border:1px solid #E6E2F4;background:#FFFFFF;display:flex;align-items:center;justify-content:center;color:#221E3D">‹</div>
+            <div style="font-size:17.5px;font-weight:900;color:#221E3D">러너 변경</div>
+            <div style="border:1px solid #E6E2F4;background:#EFECF9;border-radius:7px;padding:3px 8px;font-size:14px;font-weight:700;color:#6C5CE7">재요청</div>
+          </div>
+          <div style="font-size:14px;line-height:1.42;color:#4B4668;margin-top:9px">이 예약 그대로 다른 러너에게 다시 요청해요<br>새 러너를 지명하면 기존 지명은 자동으로 취소돼요</div>
+        </div>
+        <div style="padding:6px 10px 0">
+          <div style="display:flex;gap:8px;padding:4px 9px 7px;font-size:11.5px;font-weight:700;letter-spacing:1.4px;color:#7C76A0">
+            <span style="flex:1">러너 3명 · AI 추천 순</span><span style="width:46px;text-align:right">매치</span><span style="width:46px;text-align:right">페이스</span><span style="width:40px;text-align:right">응답</span>
+          </div>
+          <div class="lrow sel"><span style="width:16px;text-align:center"><span style="display:inline-block;width:17px;height:17px;border-radius:6px;background:#6C5CE7;color:#FFF;font-size:12px;font-weight:900;line-height:17px">✓</span></span><span class="av">민</span><span style="flex:1;font-size:15px;font-weight:800;color:#221E3D">민준 <span style="font-size:14px;color:#6C5CE7">베테랑</span></span><span class="num" style="width:46px;text-align:right;font-size:18.5px;color:#6C5CE7">88<span style="font-size:12px">%</span></span><span class="num" style="width:46px;text-align:right;font-size:14px;color:#4B4668">6'40"</span><span class="num" style="width:40px;text-align:right;font-size:14px;color:#4B4668">92%</span></div>
+          <div class="hrn" style="background:#EDEAF8;margin:0 10px"></div>
+          <div class="lrow"><span class="num" style="width:16px;text-align:center;font-size:14px;color:#7C76A0">02</span><span class="av" style="background:#6C5CE7">서</span><span style="flex:1;font-size:15px;font-weight:800;color:#221E3D">서연 <span style="font-size:14px;color:#7C76A0">러너</span> <span style="border:1px solid #E6E2F4;background:#FFF;border-radius:6px;padding:2px 6px;font-size:14px;font-weight:700;color:#6C5CE7">현재 지명</span></span><span class="num" style="width:46px;text-align:right;font-size:18.5px;color:#221E3D">81<span style="font-size:12px">%</span></span><span class="num" style="width:46px;text-align:right;font-size:14px;color:#4B4668">7'10"</span><span style="width:40px;text-align:right;font-size:14px;color:#7C76A0">신규</span></div>
+        </div>
+        <div class="cut l"></div>
+      </div>
+      <div class="lsheet">
+        <div class="holo"><i style="background:#CFC5F6"></i><i style="background:#FFDCD1"></i><i style="background:#F3E9C6"></i><i style="background:#EAF6C8"></i><i style="background:#CDEAF3"></i></div>
+        <div style="display:flex;gap:9px;align-items:center;margin-bottom:12px">
+          <span style="font-size:11.5px;font-weight:700;letter-spacing:1.4px;color:#7C76A0">선택한 러너</span>
+          <span style="flex:1;height:1px;background:#E6E2F4"></span>
+          <span style="border:1px solid #E6E2F4;border-radius:8px;padding:6px 10px;font-size:14px;font-weight:700;color:#221E3D">프로필 ›</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="av" style="width:52px;height:52px;flex:0 0 52px;font-size:19px">민</span>
+          <div style="flex:1">
+            <div style="font-size:20px;color:#221E3D;font-weight:900">민준 <span style="font-size:14px;color:#6C5CE7;font-weight:700">베테랑</span></div>
+            <div style="font-size:14px;line-height:1.4;color:#4B4668;margin-top:5px">반포동에서 <b class="num">26</b>번 달렸어요</div>
+          </div>
+          <div style="text-align:right"><div class="num" style="font-size:27px;color:#221E3D;line-height:1.1">88<span style="font-size:14px;color:#4B4668">%</span></div><div style="font-size:11.5px;font-weight:700;letter-spacing:1.4px;color:#7C76A0">매치</div></div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #EDEAF8;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#4B4668">응답 신뢰도</span><span class="trk"><i style="width:92%"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px;color:#221E3D">92</span></div>
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#4B4668">러닝 경험</span><span class="trk"><i style="width:92%"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px;color:#221E3D">92</span></div>
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#4B4668">페이스 적합</span><span class="trk"><i class="w" style="width:78%"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px;color:#C77414">78</span></div>
+        </div>
+        <div class="lcta"><span>지명 요청</span><span style="flex:1"></span><span class="lplate num">6'40" | 응답 92%</span><span>›</span></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>runners_available_for(p_booking)</code> RPC →
+      <code>runners.respond_rate_pct / total_runs / avg_pace_sec_per_km / tier</code>,
+      <code>profiles.name / district / avatar_url</code>, gear from <code>fetchGearFor</code> (0019).
+      <b>매치 % is not a server field</b> — it is <code>matchFor()</code>, a client weighted sum
+      (matching.tsx:42-58), and it renormalises when respond rate is unknown.
+      <br><b>Floor defect reproduced here, not fixed here:</b> <code>s.kick</code> (matching.tsx:428)
+      is 12pt and it carries Korean — 선택한 러너 · 매치 · 러너 N명 · AI 추천 순 — while DESIGN.md §3
+      says Korean never rides the latin letterspaced-caps exemption. This frame shows it as shipped;
+      M① / M② / M③ all render those labels at 14.</p>
+  </div>
+
+  <!-- M① -->
+  <div class="col">
+    <div class="cap"><b>M①</b>Paper repaint — chrome only, every predicate intact</div>
+    <p class="why">The booking flow is paper end to end except here. An owner goes
+    schedule (paper) → this screen (lilac) → back to schedule (paper), and the world flips twice in
+    two taps. DESIGN.md §2 already assigns this class of screen to paper, and
+    <code>addresses.tsx</code> is the standing precedent for repainting opportunistically. Sharp
+    corners, full-bleed coral rules instead of rounded cards, ink selection instead of a violet ring,
+    the sheet keeps its holo edge (budget: one edge per surface) and the CTA is
+    <code>paper.action</code> — which is the <i>same hex</i> the sheet's CTA already uses.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: essentially the whole
+      <code>StyleSheet</code> (~25 rules) and the inline colour props; <b>zero</b> logic —
+      <code>matchFor</code>, the roster load, the pref-injection effect, the auto-nominate guard and
+      the sheet-as-sibling-View structure are untouched. Note <code>CORAL_DEEP</code> at
+      matching.tsx:20 is already <code>#C6472C</code> = <code>paper.action</code>: the repaint
+      deletes a local constant rather than adding one.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러너 변경</div><div class="tag">재요청</div></div>
+        <div class="pad"><div class="q" style="padding-bottom:12px">이 예약 그대로 다른 러너에게 다시 요청해요<br>새 러너를 지명하면 기존 지명은 자동으로 취소돼요</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="display:flex;gap:8px;padding:9px 0 7px;font-size:11.5px;font-weight:800;letter-spacing:2.2px;color:#999999">
+            <span style="flex:1">RUNNERS 3</span><span style="width:44px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">매치</span><span style="width:48px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">페이스</span><span style="width:40px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">응답</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE;background:#FFF6F4;margin:0 -15px;padding-left:15px;padding-right:15px">
+            <span style="width:16px;text-align:center;font-size:14px;font-weight:900;color:#111111">✓</span>
+            <span class="av" style="border-radius:0;background:#111111">민</span>
+            <span style="flex:1;font-size:15px;font-weight:800">민준 <span style="font-size:14px;color:#666666;font-weight:700">베테랑</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px">88<span style="font-size:12px">%</span></span>
+            <span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">6'40"</span>
+            <span class="num" style="width:40px;text-align:right;font-size:14px;color:#333333">92%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">02</span>
+            <span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">서</span>
+            <span style="flex:1;font-size:15px;font-weight:800">서연 <span class="tag" style="padding:2px 6px;font-size:14px">현재 지명</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px">81<span style="font-size:12px">%</span></span>
+            <span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">7'10"</span>
+            <span style="width:40px;text-align:right;font-size:14px;color:#666666">신규</span>
+          </div>
+          <div style="border-top:1px solid #EEEEEE;padding:14px 0">
+            <div style="font-size:14px;font-weight:800">이 순서는 어떻게 나왔나요</div>
+            <div class="q" style="margin-top:6px">응답률 · 러닝 경험 · 페이스 적합 세 축을 합쳐 매치 점수가 돼요</div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 15px 16px;background:#FFFFFF;position:relative">
+        <div class="holo"><i style="background:#CFC5F6"></i><i style="background:#FFDCD1"></i><i style="background:#F3E9C6"></i><i style="background:#EAF6C8"></i><i style="background:#CDEAF3"></i></div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="av" style="width:52px;height:52px;flex:0 0 52px;font-size:19px;border-radius:0;background:#111111">민</span>
+          <div style="flex:1">
+            <div style="font-size:20px;font-weight:900">민준 <span style="font-size:14px;color:#666666;font-weight:700">베테랑</span></div>
+            <div class="qi" style="margin-top:4px">반포동에서 <b class="num">26</b>번 달렸어요</div>
+          </div>
+          <div style="text-align:right"><div class="num" style="font-size:27px;line-height:1.12">88<span style="font-size:14px;color:#666666">%</span></div><div style="font-size:14px;font-weight:700;color:#666666">매치</div></div>
+        </div>
+        <div class="lcta" style="border-radius:0;margin-top:12px"><span>지명 요청</span><span style="flex:1"></span><span class="lplate num" style="border-radius:0">6'40" | 응답 92%</span><span>›</span></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> identical to 현재 — this variant changes no data path. The one
+      display-font slot (the runner's name in the sheet) survives the repaint as the screen's single
+      Black Han Sans use.</p>
+  </div>
+
+  <!-- M② -->
+  <div class="col">
+    <div class="cap"><b>M②</b>원값이 크고, 매치는 순위가 된다</div>
+    <p class="why">매치 88% is the biggest number on the sheet, and it is the only number on the
+    sheet we <b>computed</b> rather than measured — a weighted opinion whose respond-rate axis
+    silently renormalises for new runners. Under §7 the measured field should carry the weight. This
+    variant demotes the composite to a rank chip (<b>AI 1순위</b>, already rendered) and promotes the
+    two raw fields the owner is actually choosing between: 응답률 and 누적 러닝. The three bars stay,
+    because they are the disclosure of how the rank was reached.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: the sheet's identity block + the roster's
+      매치 column header; <code>matchFor</code> keeps its job (ordering) and keeps its disclosure
+      card. <b>Open question below</b> — dropping the % from the roster row may make the list harder
+      to scan, and this is the one variant that changes what the screen <i>claims</i>, not how it looks.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러너 변경</div><div class="tag">재요청</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="display:flex;gap:8px;padding:9px 0 7px;font-size:11.5px;font-weight:800;letter-spacing:2.2px;color:#999999">
+            <span style="flex:1">RUNNERS 3</span><span style="width:56px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">응답률</span><span style="width:56px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">러닝</span><span style="width:48px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">페이스</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE;background:#FFF6F4;margin:0 -15px;padding-left:15px;padding-right:15px">
+            <span style="width:16px;text-align:center;font-size:14px;font-weight:900">✓</span><span class="av" style="border-radius:0;background:#111111">민</span>
+            <span style="flex:1;font-size:15px;font-weight:800">민준<div style="font-size:14px;color:#666666;font-weight:700">1순위 · 베테랑</div></span>
+            <span class="num" style="width:56px;text-align:right;font-size:18.5px">92<span style="font-size:12px">%</span></span>
+            <span class="num" style="width:56px;text-align:right;font-size:16px;color:#333333">26회</span>
+            <span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">6'40"</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">02</span><span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">서</span>
+            <span style="flex:1;font-size:15px;font-weight:800">서연<div style="font-size:14px;color:#666666;font-weight:700">2순위 · 현재 지명</div></span>
+            <span style="width:56px;text-align:right;font-size:14px;color:#666666">신규</span>
+            <span class="num" style="width:56px;text-align:right;font-size:16px;color:#333333">4회</span>
+            <span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">7'10"</span>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 15px 16px;background:#FFFFFF">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="av" style="width:52px;height:52px;flex:0 0 52px;font-size:19px;border-radius:0;background:#111111">민</span>
+          <div style="flex:1">
+            <div style="font-size:20px;font-weight:900">민준 <span class="tag" style="padding:2px 7px;font-size:14px">AI 1순위</span></div>
+            <div class="qi" style="margin-top:4px">반포동에서 <b class="num">26</b>번 달렸어요</div>
+          </div>
+          <div style="text-align:right"><div class="num" style="font-size:27px;line-height:1.12">92<span style="font-size:14px;color:#666666">%</span></div><div style="font-size:14px;font-weight:700;color:#666666">응답률</div></div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #EEEEEE;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#333333">응답 신뢰도</span><span class="trk" style="border-radius:0;background:#F2F2F2;border-color:#EEEEEE"><i style="width:92%;background:#111111;border-radius:0"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px">92</span></div>
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#333333">러닝 경험</span><span class="trk" style="border-radius:0;background:#F2F2F2;border-color:#EEEEEE"><i style="width:92%;background:#111111;border-radius:0"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px">92</span></div>
+          <div style="display:flex;gap:10px;align-items:center"><span style="width:84px;font-size:14px;color:#333333">페이스 적합</span><span class="trk" style="border-radius:0;background:#F2F2F2;border-color:#EEEEEE"><i style="width:78%;background:#C77414;border-radius:0"></i></span><span class="num" style="width:34px;text-align:right;font-size:14px;color:#C77414">78</span></div>
+        </div>
+        <div class="cta split" style="margin-top:13px"><span>지명 요청 ›</span><span class="num" style="font-size:14px">6'40" · 응답 92%</span></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> 응답률 = <code>runners.respond_rate_pct</code> (null renders 신규,
+      never a number) · 러닝 = <code>runners.total_runs</code> · 페이스 =
+      <code>runners.avg_pace_sec_per_km</code>. 순위 = position in <code>scored</code>, which is
+      <code>matchFor</code>'s ordering — a rank is a claim we can defend; a percent implies precision
+      we do not have.</p>
+  </div>
+
+  <!-- M③ -->
+  <div class="col">
+    <div class="cap"><b>M③</b>시트를 접는다 — the roster gets the screen back</div>
+    <p class="why">The sheet costs roughly 45% of the viewport permanently, so a roster of six
+    runners is a 2.5-row window. This variant gives the sheet two <b>discrete</b> states: a two-line
+    commit bar (name · 매치 · 지명 요청) and the full sheet on tap. Selecting a different row while
+    collapsed keeps it collapsed — the ring already tells you who is selected. <b>Motion note:</b>
+    §6 forbids animating layout, so this is a state swap, not a collapse animation; the only
+    permitted flourish is opacity/transform on the contents.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: one <code>useState</code> for the sheet
+      state + a second render branch. Risk: the collapsed bar must never be the state in which a
+      first-time owner nominates — <b>default open on mount</b>, collapse only after the owner taps a
+      second row (i.e. after they have started comparing).</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러너 변경</div><div class="tag">재요청</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="display:flex;gap:8px;padding:9px 0 7px;font-size:11.5px;font-weight:800;letter-spacing:2.2px;color:#999999">
+            <span style="flex:1">RUNNERS 5</span><span style="width:44px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">매치</span><span style="width:48px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">페이스</span><span style="width:40px;text-align:right;font-size:14px;letter-spacing:0;color:#666666">응답</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE;background:#FFF6F4;margin:0 -15px;padding-left:15px;padding-right:15px">
+            <span style="width:16px;text-align:center;font-size:14px;font-weight:900">✓</span><span class="av" style="border-radius:0;background:#111111">민</span>
+            <span style="flex:1;font-size:15px;font-weight:800">민준 <span style="font-size:14px;color:#666666;font-weight:700">베테랑</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px">88<span style="font-size:12px">%</span></span><span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">6'40"</span><span class="num" style="width:40px;text-align:right;font-size:14px;color:#333333">92%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">02</span><span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">서</span>
+            <span style="flex:1;font-size:15px;font-weight:800">서연 <span class="tag" style="padding:2px 6px;font-size:14px">현재 지명</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px">81<span style="font-size:12px">%</span></span><span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">7'10"</span><span style="width:40px;text-align:right;font-size:14px;color:#666666">신규</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">03</span><span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">지</span>
+            <span style="flex:1;font-size:15px;font-weight:800">지훈 <span style="font-size:14px;color:#666666;font-weight:700">러너</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px;color:#666666">76<span style="font-size:12px">%</span></span><span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">8'00"</span><span class="num" style="width:40px;text-align:right;font-size:14px;color:#333333">67%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">04</span><span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">하</span>
+            <span style="flex:1;font-size:15px;font-weight:800">하윤 <span style="font-size:14px;color:#666666;font-weight:700">러너</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px;color:#666666">74<span style="font-size:12px">%</span></span><span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">7'30"</span><span style="width:40px;text-align:right;font-size:14px;color:#666666">신규</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #EEEEEE">
+            <span class="num" style="width:16px;text-align:center;font-size:14px;color:#666666">05</span><span class="av" style="border-radius:0;background:#EEEEEE;color:#111111">준</span>
+            <span style="flex:1;font-size:15px;font-weight:800">준서 <span style="font-size:14px;color:#666666;font-weight:700">러너</span></span>
+            <span class="num" style="width:44px;text-align:right;font-size:18.5px;color:#666666">71<span style="font-size:12px">%</span></span><span class="num" style="width:48px;text-align:right;font-size:14px;color:#333333">8'20"</span><span class="num" style="width:40px;text-align:right;font-size:14px;color:#333333">55%</span>
+          </div>
+          <div class="q" style="text-align:center;margin-top:14px">지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:12px 15px 16px;background:#FFFFFF">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="av" style="width:36px;height:36px;flex:0 0 36px;font-size:15px;border-radius:0;background:#111111">민</span>
+          <div style="flex:1"><div style="font-size:15px;font-weight:800">민준 · 매치 <span class="num">88%</span></div><div class="q" style="font-size:14px">자세히 보기 ▴</div></div>
+        </div>
+        <div class="cta" style="margin-top:10px">지명 요청 ›</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> unchanged. The collapsed bar shows only fields the expanded sheet
+      already shows — no new claim is made in the smaller space.</p>
+  </div>
+
+  <!-- M④ -->
+  <div class="col">
+    <div class="cap"><b>M④</b>0명일 때 문이 있는 화면</div>
+    <p class="why">Today the three non-happy states are one centred sentence in a rounded box, and
+    the honest one — 「이 시간에 갈 수 있는 러너가 지금 없어요」 — offers <b>no action at all</b>.
+    That is decluttering into a dead end. Same three states, same sentences, but each gains the door
+    that actually exists: retry (already written, currently only on the error arm), and 내 일정 —
+    where the cancel sheet quotes this booking's own fee tier before committing. <b>The empty state
+    must not quote a fee here</b>; the schedule sheet computes it per booking from
+    <code>cancelFeeRateFor</code>, and a second copy of that number is how ladders drift.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> (<code>/owner/schedule</code> already exists) · frozen surfaces: <b>none</b>.
+      Touches: the three <code>emptyBox</code> arms. The waiting state keeps its own sentence —
+      loading is not empty and neither is a failure.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl">러너 변경</div><div class="tag">재요청</div></div>
+        <div class="hr"></div>
+        <div class="pad" style="padding-top:22px">
+          <div class="k">STATE · NO AVAILABLE RUNNERS</div>
+          <div style="font-size:19px;font-weight:800;line-height:1.35;margin-top:9px">이 시간에 갈 수 있는<br>러너가 지금 없어요</div>
+          <div class="qi" style="margin-top:9px">오픈 매칭으로 등록돼 있어요 — 일정이 빈 러너가 응답할 수 있어요.<br>기다리는 동안 이 예약은 그대로 살아 있어요.</div>
+          <div style="margin-top:18px" class="cta2">러너 다시 찾기</div>
+          <div style="margin-top:10px" class="cta2">내 일정에서 이 예약 보기 ›</div>
+          <div class="q" style="margin-top:12px">일정 화면에서 시간 변경·취소를 할 수 있어요 — 취소 조건은 그 화면이 예약별로 알려드려요</div>
+          <div style="height:22px"></div>
+          <div class="hrn"></div>
+          <div class="k" style="margin-top:18px">STATE · LOAD FAILED</div>
+          <div class="failstrip" style="margin:9px -15px 0"><span class="t">러너 목록을 불러오지 못했어요</span><span class="a">다시 시도</span></div>
+          <div class="k" style="margin-top:18px">STATE · LOADING</div>
+          <div class="qi" style="margin-top:8px">이 시간에 갈 수 있는 러너를 찾는 중…</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:12px 15px 16px;background:#FFFFFF">
+        <div class="q" style="text-align:center">선택한 러너가 없어 지명 시트는 열리지 않아요</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> the three states are the existing predicates
+      <code>rosterError</code> / <code>rosterLoading</code> / <code>liveRunners.length === 0</code>.
+      This frame stacks all three for comparison — the shipped screen renders exactly one.</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">3</span>결제 · 청구<span class="path">app/app/owner/pay.tsx</span></h2>
+<p class="sub">
+Read-only, nine phases, every number straight off the <code>bookings</code> row.
+<b>It is also unreachable</b>: <code>request.tsx</code> no longer pushes here,
+<code>payment_ok</code> is deleted, and the only importer is <code>app/dev/pay-lab.tsx</code>.
+So P② and P③ are conditional on P① (or on the widget slice bringing its own entry point) — say so
+when picking, because building a better orphan is still an orphan.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>authorized phase, as written</div>
+    <p class="why">Kicker + phase chip, headline, one 14.5pt meta line carrying 반려견 · 코스 · 일시,
+    the charge table on full-bleed coral rules, the pilot notice, one PaperBtn out.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from pay.tsx:160-300.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="padding:22px 18px 0;display:flex;align-items:flex-start">
+          <div style="flex:1"><div style="font-size:26px;line-height:1.15">‹</div><div class="k" style="margin-top:6px;letter-spacing:2.6px">PAYMENT</div></div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:.8px;color:#666666">AUTHORIZED</div>
+        </div>
+        <div style="font-size:25.5px;line-height:1.25;font-weight:900;padding:0 18px;margin-top:10px">예약이 확정됐어요</div>
+        <div style="font-size:14.5px;line-height:1.32;color:#666666;padding:0 18px;margin-top:6px">초코 · 반포한강 그랜드 루프 · 8월 25일 (화) 오후 7:30</div>
+        <div class="tbl">
+          <div class="trow"><span class="l">기본요금</span><span class="v num">7,900<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="trow"><span class="l">거리요금 · 5km</span><span class="v num">15,000<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="hr"></div><div style="height:3px"></div><div class="hr"></div>
+          <div class="totalrow"><span class="l">결제 금액</span><span class="v num">22,900<span style="font-size:15px;color:#666666"> 원</span></span></div>
+        </div>
+        <div style="font-size:15px;line-height:1.4;color:#333333;padding:0 18px;margin-top:16px">이 예약은 결제 홀드를 지났어요 — 파일럿 기간이라 실결제는 발생하지 않았어요</div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 18px 20px"><div class="ctaink">내 일정에서 확인하기</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>bookings.base_fare / distance_fare / addon_fare /
+      total_price / km / addons / status / scheduled_at</code> · <code>dogs.name</code> ·
+      <code>routes.name</code> (null → 코스 미지정). Loading renders 「—」, never 0.</p>
+  </div>
+
+  <!-- P① -->
+  <div class="col">
+    <div class="cap"><b>P①</b>문을 하나 낸다 — 결제 내역 from 내 일정</div>
+    <p class="why">Every number this screen renders is live and correct for any booking status; the
+    only thing missing is a way in. A 결제 내역 row on the schedule booking sheet
+    (<code>/owner/pay?bid=</code>) turns a maintained orphan into the app's receipt surface, and it
+    is the only place an owner can currently see what a past run was billed. <b>The phase chip stops
+    being decoration</b> the moment cancelled / refund_pending / disputed bookings can reach it.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · <b>new link:
+      one row in <code>owner/schedule.tsx</code></b> (outside this cluster's six files) · frozen
+      surfaces: <b>none</b>. Precondition to check first: <code>mock_pending</code> and
+      <code>not_found</code> must stay unreachable-by-accident — the link should only render for a
+      booking whose raw status has a charge to show.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="padding:22px 18px 0;display:flex;align-items:flex-start">
+          <div style="flex:1"><div style="font-size:26px;line-height:1.15">‹</div><div class="k" style="margin-top:6px;letter-spacing:2.6px">PAYMENT</div></div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:.8px;color:#666666">CANCELLED</div>
+        </div>
+        <div style="font-size:25.5px;line-height:1.25;font-weight:900;padding:0 18px;margin-top:10px">취소된 예약이에요</div>
+        <div style="font-size:14.5px;line-height:1.32;color:#666666;padding:0 18px;margin-top:6px">초코 · 코스 미지정 · 8월 20일 (목) 오전 7:30</div>
+        <div class="tbl">
+          <div class="trow"><span class="l">기본요금</span><span class="v num">7,900<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="trow"><span class="l">거리요금 · 3km</span><span class="v num">9,000<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="hr"></div><div style="height:3px"></div><div class="hr"></div>
+          <div class="totalrow"><span class="l">결제 금액</span><span class="v num">16,900<span style="font-size:15px;color:#666666"> 원</span></span></div>
+        </div>
+        <div style="font-size:15px;line-height:1.4;color:#333333;padding:0 18px;margin-top:16px">이 예약은 취소된 상태예요 — 이 화면에서 진행할 결제가 없어요</div>
+        <div class="plate" style="margin:16px 18px 0">이 화면은 내 일정 › 예약 › 결제 내역에서 열려요</div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 18px 20px"><div class="ctaink">홈으로</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>fetchBookingCharge(bid)</code> — one row, RLS-scoped;
+      returns null for someone else's booking, which the screen already renders as 내 예약이 아니에요.
+      The plate in this frame is <b>lab annotation, not shipped copy</b> — delete it when building.</p>
+  </div>
+
+  <!-- P② -->
+  <div class="col">
+    <div class="cap"><b>P②</b>영수증답게 — 무엇에 대한 청구인지 먼저</div>
+    <p class="why">반려견 · 코스 · 일시 are the identity of the charge, and they are set in the
+    screen's smallest type (14.5pt dim, one line, truncating). The total gets a 38pt Oswald jump; the
+    thing being paid for gets a footnote. This variant promotes them to a three-row head above the
+    table, using exactly the fields <code>BookingCharge</code> already carries, and keeps
+    <code>routeName</code>'s null case honest (코스 미지정, never a blank or a guess).</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: <code>s.meta</code> becomes three rows in
+      the same table grammar. Reachability precondition: <b>P① or the widget slice</b>. Do not spend
+      the display-font budget here — this screen's one type jump is the total.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="padding:22px 18px 0;display:flex;align-items:flex-start">
+          <div style="flex:1"><div style="font-size:26px;line-height:1.15">‹</div><div class="k" style="margin-top:6px;letter-spacing:2.6px">PAYMENT</div></div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:.8px;color:#666666">AUTHORIZED</div>
+        </div>
+        <div style="font-size:25.5px;line-height:1.25;font-weight:900;padding:0 18px;margin-top:10px">예약이 확정됐어요</div>
+        <div class="tbl" style="margin-top:18px">
+          <div class="trow" style="padding-top:11px;padding-bottom:11px"><span class="l">반려견</span><span style="font-size:15px;font-weight:800">초코</span></div>
+          <div class="trow" style="padding-top:11px;padding-bottom:11px"><span class="l">코스</span><span style="font-size:15px;font-weight:800">반포한강 그랜드 루프</span></div>
+          <div class="trow" style="padding-top:11px;padding-bottom:11px"><span class="l">일시</span><span class="num" style="font-size:15px;font-weight:700">8월 25일 (화) 오후 7:30</span></div>
+          <div style="height:16px"></div>
+          <div class="trow"><span class="l">기본요금</span><span class="v num">7,900<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="trow"><span class="l">거리요금 · 5km<div class="s">프리미엄 옵션 · 리버뷰 코스</div></span><span class="v num">15,000<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="trow"><span class="l">프리미엄 옵션<div class="s">리버뷰 코스</div></span><span class="v num">3,000<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="hr"></div><div style="height:3px"></div><div class="hr"></div>
+          <div class="totalrow"><span class="l">결제 금액</span><span class="v num">25,900<span style="font-size:15px;color:#666666"> 원</span></span></div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 18px 20px"><div class="ctaink">내 일정에서 확인하기</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>charge.dogName</code> · <code>charge.routeName</code> ·
+      <code>charge.scheduledAt</code> (formatted Asia/Seoul, as today) · addon labels resolved
+      through <code>pricing.addons</code> with the raw key as fallback — an unknown key prints the
+      key, never an invented name.</p>
+  </div>
+
+  <!-- P③ -->
+  <div class="col">
+    <div class="cap"><b>P③</b>실패와 환불이 사실을 말한다</div>
+    <p class="why">Two defects, both visible in source. <b>①</b> The <code>failed</code> strip reads
+    「예약 확정 전이가 실패했어요」 — a leftover from when this screen drove a transition it no longer
+    owns; it is not a sentence a Korean owner can parse, and there is no 확정 here to fail.
+    <b>②</b> <code>refund_pending</code> always says 환불이 진행 중이에요, but the screen's own TODO
+    (pay.tsx:265) records that <code>club_incident_settle</code> sets that status <i>regardless of
+    capture</i> — with no captured payment there is nothing to refund, and 0080 §J-ⓑ already made the
+    matching notification conditional. This variant splits the sentence on a real predicate.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span><span class="flag new">NEEDS NEW SERVER DATA</span>
+    the refund arm needs a payments read (<code>fetchBookingPayments</code> — <b>does not exist
+    today</b>) to know whether money was captured. The copy fix in ① costs nothing and should ship
+    regardless. New routes: <b>none</b> · frozen surfaces: <b>none</b>. Until the read exists, the
+    honest fallback is the sentence that is true in both cases (도그스하이가 정리해서 알려드려요).</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="padding:22px 18px 0;display:flex;align-items:flex-start">
+          <div style="flex:1"><div style="font-size:26px;line-height:1.15">‹</div><div class="k" style="margin-top:6px;letter-spacing:2.6px">PAYMENT</div></div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:.8px;color:#B3261E">FAILED</div>
+        </div>
+        <div style="font-size:25.5px;line-height:1.25;font-weight:900;padding:0 18px;margin-top:10px">결제가 완료되지 않았어요</div>
+        <div class="tbl">
+          <div class="trow"><span class="l">기본요금</span><span class="v num">7,900<span style="font-size:14px;color:#666666"> 원</span></span></div>
+          <div class="hr"></div><div style="height:3px"></div><div class="hr"></div>
+          <div class="totalrow"><span class="l">결제 금액</span><span class="v num">22,900<span style="font-size:15px;color:#666666"> 원</span></span></div>
+        </div>
+        <div class="failstrip" style="margin-top:18px;display:block">
+          <div class="t">결제 승인이 완료되지 않았어요 — 이 예약은 아직 접수되지 않았어요<br><span style="font-weight:400">card_declined: 한도 초과</span></div>
+        </div>
+        <div class="k" style="margin:20px 18px 0">STATE · REFUND_PENDING</div>
+        <div style="font-size:15px;line-height:1.4;color:#333333;padding:0 18px;margin-top:8px">
+          <b>결제된 금액이 있을 때</b> — 환불이 진행 중이에요, 완료되면 알려드려요<br>
+          <b>결제된 금액이 없을 때</b> — 청구된 금액이 없어 환불할 것도 없어요
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="border-top:1px solid #E8552F;padding:14px 18px 20px">
+        <div class="ctaink">다시 불러오기</div>
+        <div class="cta2" style="margin-top:10px">홈으로</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> the strip's second line is <code>failReason</code> — the server's
+      own words, already rendered verbatim today. The refund split needs
+      <code>payments</code> rows for the booking; <b>no such client read exists</b>, which is why
+      this variant is flagged.</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">4</span>일정 변경<span class="path">app/app/owner/reschedule.tsx</span></h2>
+<p class="sub">
+Reschedule-as-proposal (0016): the owner proposes, the runner accepts, and until then the original
+time holds. Logically the most careful screen in the cluster — three-state availability, per-slot
+server verification, raw-status gating, duration drift already fixed. <b>Visually it is the least
+migrated:</b> <code>colors.cream</code> canvas, <code>#D8DAD2</code> borders, radius 20/16/13,
+<code>colors.volt</code> as the primary button, and three hardcoded amber hexes.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>V4 legacy world</div>
+    <p class="why">Rounded ink contract card with a volt-alpha border, amber pending banner
+    (<code>#FDE8D0</code> / <code>#F59A43</code> / <code>#9D580A</code>, none of them tokens), day
+    strip and slot grid in rounded #D8DAD2 boxes, and a floating dark confirm bar whose button is
+    <code>colors.volt</code> — a retired-palette green as the commit surface of a booking change.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from reschedule.tsx:180-330.</p>
+    <div class="ph" style="background:#FFFFFF">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="padding:18px 16px 0;display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:20px;border:1px solid #D8DAD2;display:flex;align-items:center;justify-content:center;font-size:20px">‹</div>
+          <div style="font-size:27.5px;font-weight:900">일정 변경</div>
+        </div>
+        <div style="padding:0 16px">
+          <div class="v4card">
+            <div style="font-size:14.5px;font-weight:800;color:#b8c4ae;letter-spacing:1px">현재 확정 일정</div>
+            <div style="font-size:21px;font-weight:900;color:#FFFFFF;margin-top:5px">8월 26일 (수) 오후 7시 30분</div>
+            <div style="font-size:15.5px;color:#b8c4ae;margin-top:4px">초코 · 5km · 민준 러너</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:#FDE8D0;border-radius:16px;padding:14px;margin-top:10px">
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:900;color:#9D580A">변경 요청 대기 중 → 8.27 (목) 오전 7시</div>
+              <div style="font-size:14px;color:#9D580A;margin-top:2px">러너 수락 전까지 기존 시간 유지 · 새로 고르면 요청이 교체돼요</div>
+            </div>
+            <div style="border:1.5px solid #F59A43;border-radius:99px;padding:7px 13px;font-size:14px;font-weight:800;color:#9D580A">철회</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:18px">
+            <div class="v4day on"><div style="font-size:14px;font-weight:700;color:#b8c4ae">오늘</div><div style="font-size:17px;font-weight:900;color:#FFFFFF;margin-top:2px">24</div></div>
+            <div class="v4day"><div style="font-size:14px;font-weight:700;color:#586055">내일</div><div style="font-size:17px;font-weight:900;margin-top:2px">25</div></div>
+            <div class="v4day"><div style="font-size:14px;font-weight:700;color:#586055">수</div><div style="font-size:17px;font-weight:900;margin-top:2px">26</div></div>
+            <div class="v4day"><div style="font-size:14px;font-weight:700;color:#586055">목</div><div style="font-size:17px;font-weight:900;margin-top:2px">27</div></div>
+            <div class="v4day"><div style="font-size:14px;font-weight:700;color:#586055">금</div><div style="font-size:17px;font-weight:900;margin-top:2px">28</div></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+            <div class="v4slot"><div style="font-size:14px;font-weight:800">오전 6시</div><div style="font-size:14px;font-weight:700;color:#82887a;margin-top:2px">가능</div></div>
+            <div class="v4slot"><div style="font-size:14px;font-weight:800">오전 7시</div><div style="font-size:14px;font-weight:700;color:#82887a;margin-top:2px">확인 중</div></div>
+            <div class="v4slot" style="background:#f0eee5;border-color:#e5e2d4"><div style="font-size:14px;font-weight:800;color:#b7b4a5">오전 8시</div><div style="font-size:14px;font-weight:700;color:#b7b4a5;margin-top:2px">마감</div></div>
+            <div class="v4slot"><div style="font-size:14px;font-weight:800">오후 6시</div><div style="font-size:14px;font-weight:700;color:#B3261E;margin-top:2px">확인 실패 · 재시도</div></div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="position:absolute;left:11px;right:11px;bottom:18px;background:#111111;border-radius:20px;padding:14px;border:1.5px solid rgba(198,245,66,.5)">
+        <div style="font-size:14px;font-weight:800;color:#FFFFFF">8.27 (목) 오전 7시로 변경 요청</div>
+        <div class="v4volt" style="margin-top:10px">러너에게 변경 요청 ➤</div>
+        <div style="font-size:14px;color:#b8c4ae;text-align:center;margin-top:8px">러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>bookings.scheduled_at / km / status / runner_id /
+      reschedule_new_time</code> · <code>runner_availability_rules</code> ·
+      <code>is_slot_available(p_runner,p_start,p_end)</code> per slot ·
+      duration = <code>expectedDurationMs(km)</code>.</p>
+  </div>
+
+  <!-- S① -->
+  <div class="col">
+    <div class="cap"><b>S①</b>Paper repaint — and three hexes become tokens they already equal</div>
+    <p class="why">The mechanical part of this migration is unusually clean: the banner's ink
+    <code>#9D580A</code> <b>is already</b> <code>paper.paceSlowInk</code>, and its fill
+    <code>#FDE8D0</code> is one step from <code>paper.paceSlowWash #FBEED9</code>. So the amber
+    banner becomes tokens with no visible change. The contract card <b>stays dark</b> — it is the
+    artifact (「dark is the artifact, light is the screen」) — but sharpens its corners and drops the
+    volt-alpha border. The volt commit button becomes <code>paper.action</code>: white 17/800 on
+    <code>#C6472C</code> measures 4.84:1, and a fee-bearing commit should not be sitting on a retired
+    palette's neon.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: the whole <code>StyleSheet</code> +
+      inline colours; zero logic — the three-state <code>rules</code>, the per-slot
+      <code>slotOk</code> map, <code>preMatch</code>'s raw-status gate and the withdraw path are
+      untouched. Deletes 6 hardcoded hexes and the last <code>colors.volt</code> use in this flow.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl big">일정 변경</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="background:#111111;padding:14px;margin-top:12px">
+            <div style="font-size:14.5px;font-weight:800;letter-spacing:1px;color:#B8B8B8">현재 확정 일정</div>
+            <div style="font-size:21px;font-weight:900;color:#FFFFFF;margin-top:6px">8월 26일 (수) 오후 7시 30분</div>
+            <div style="font-size:15px;color:#B8B8B8;margin-top:4px">초코 · 5km · 민준 러너</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:#FBEED9;padding:12px;margin-top:10px">
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:900;color:#9D580A">변경 요청 대기 중 → 8.27 (목) 오전 7시</div>
+              <div style="font-size:14px;color:#9D580A;margin-top:2px;line-height:1.4">러너 수락 전까지 기존 시간 유지 · 새로 고르면 요청이 교체돼요</div>
+            </div>
+            <div style="border:1px solid #9D580A;padding:9px 12px;font-size:14px;font-weight:800;color:#9D580A">철회</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:13px">
+            <div class="pday on"><div style="font-size:14px;font-weight:700;color:#B8B8B8">오늘</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">24</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">내일</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">25</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">수</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">26</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">목</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">27</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">금</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">28</div></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 6시</div><div style="font-size:14px;font-weight:700;color:#0E7F49;margin-top:2px">가능</div></div>
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 7시</div><div style="font-size:14px;font-weight:700;color:#666666;margin-top:2px">확인 중</div></div>
+            <div class="pslot off"><div style="font-size:14px;font-weight:800;color:#999999">오전 8시</div><div style="font-size:14px;font-weight:700;color:#999999;margin-top:2px">마감</div></div>
+            <div class="pslot" style="border-color:#B3261E"><div style="font-size:14px;font-weight:800">오후 6시</div><div style="font-size:14px;font-weight:700;color:#B3261E;margin-top:2px">확인 실패 · 재시도</div></div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock">
+        <div style="font-size:14px;font-weight:800">8.27 (목) 오전 7시로 변경 요청</div>
+        <div class="cta" style="margin-top:10px">러너에게 변경 요청 ›</div>
+        <div class="q" style="text-align:center;margin-top:8px">러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> unchanged. 가능 uses <code>paper.readyDeep #0E7F49</code>
+      (5.06:1) rather than the old olive <code>#82887a</code>; 확인 실패 keeps
+      <code>paper.critical</code>, which the screen already uses.</p>
+  </div>
+
+  <!-- S② -->
+  <div class="col">
+    <div class="cap"><b>S②</b>요일에 표시를 — stop tapping seven days blind</div>
+    <p class="why">Availability rules for the whole week are already in memory
+    (<code>rules: AvailRule[]</code>, one fetch), yet the day strip shows nothing about them: the
+    owner taps day after day to find out the runner does not work Wednesdays. A dot on days where
+    the runner has a rule turns seven taps into one. <b>The copy limit matters:</b> a rule says the
+    runner <i>works</i> that weekday — it says nothing about conflicts, the 2-hour floor, or this
+    booking's duration, all of which <code>is_slot_available</code> decides per slot afterwards. So
+    the marker is a dot and the legend reads 러너 운영 요일, never 가능 N칸.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new fetches:
+      <b>none</b> (derived from the array already loaded) · new routes: <b>none</b> · frozen
+      surfaces: <b>none</b>. Touches: one <code>useMemo</code> over
+      <code>rules.map(r =&gt; r.weekday)</code> + a dot in the day chip. While
+      <code>rules === null</code> the strip must show <b>no dots at all</b> — an absent dot must
+      never be readable as "runner is off".</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl big">일정 변경</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="background:#111111;padding:16px;margin-top:14px">
+            <div style="font-size:14.5px;font-weight:800;letter-spacing:1px;color:#B8B8B8">현재 확정 일정</div>
+            <div style="font-size:21px;font-weight:900;color:#FFFFFF;margin-top:6px">8월 26일 (수) 오후 7시 30분</div>
+            <div style="font-size:15px;color:#B8B8B8;margin-top:4px">초코 · 5km · 민준 러너</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:18px">
+            <div style="font-size:14px;font-weight:800">언제로 옮길까요</div>
+            <div class="q" style="font-size:14px">● 민준 러너 운영 요일</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <div class="pday on"><div style="font-size:14px;font-weight:700;color:#B8B8B8">오늘</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">24</div><div style="height:5px;width:5px;background:#E8552F;margin:4px auto 0"></div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">내일</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">25</div><div style="height:5px;width:5px;background:#E8552F;margin:4px auto 0"></div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">수</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">26</div><div style="height:5px;margin-top:4px"></div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">목</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">27</div><div style="height:5px;width:5px;background:#E8552F;margin:4px auto 0"></div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">금</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">28</div><div style="height:5px;width:5px;background:#E8552F;margin:4px auto 0"></div></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 6시</div><div style="font-size:14px;font-weight:700;color:#0E7F49;margin-top:2px">가능</div></div>
+            <div class="pslot on"><div style="font-size:14px;font-weight:800">오전 7시</div><div style="font-size:14px;font-weight:700;color:#B8B8B8;margin-top:2px">선택함</div></div>
+            <div class="pslot off"><div style="font-size:14px;font-weight:800;color:#999999">오전 8시</div><div style="font-size:14px;font-weight:700;color:#999999;margin-top:2px">마감</div></div>
+          </div>
+          <div class="q" style="margin-top:12px">점이 없는 날은 이 러너가 뛰지 않는 요일이에요 — 칸이 열려도 실제 가능 여부는 칸마다 확인해요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock">
+        <div style="font-size:14px;font-weight:800">8.25 (월) 오전 7시로 변경 요청</div>
+        <div class="cta" style="margin-top:10px">러너에게 변경 요청 ›</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> dots = distinct <code>runner_availability_rules.weekday</code> for
+      this booking's runner (already fetched by <code>fetchRunnerAvailability</code>). Slot states
+      still come from <code>is_slot_available</code>, unchanged — the dot never promises a slot.</p>
+  </div>
+
+  <!-- S③ -->
+  <div class="col">
+    <div class="cap"><b>S③</b>확인 중 · 확인 실패를 한 줄로 요약</div>
+    <p class="why">Each slot verifies itself against the server, so a nine-slot day can render nine
+    「확인 중」 labels and, on a flaky connection, several 「확인 실패 · 재시도」 that must each be
+    tapped individually. The per-slot truth is right and stays; what is missing is a summary and a
+    bulk retry. One line above the grid counts the three states and offers 전체 다시 확인, which loops
+    the <code>recheckSlot</code> that already exists. The line disappears entirely when every slot
+    has an answer — it is a state, not furniture.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: a derived count over the existing
+      <code>slotOk</code> map + one row. <b>Guardrail:</b> a bulk retry fires N RPCs at once — cap it
+      to the current day's slots (which is what the effect already does) and swap the label to
+      확인 중… while in flight rather than disabling it.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div class="tbar"><div class="bk">‹</div><div class="ttl big">일정 변경</div></div>
+        <div class="hr"></div>
+        <div class="pad">
+          <div style="background:#111111;padding:16px;margin-top:14px">
+            <div style="font-size:14.5px;font-weight:800;letter-spacing:1px;color:#B8B8B8">현재 확정 일정</div>
+            <div style="font-size:21px;font-weight:900;color:#FFFFFF;margin-top:6px">8월 26일 (수) 오후 7시 30분</div>
+            <div style="font-size:15px;color:#B8B8B8;margin-top:4px">초코 · 5km · 민준 러너</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px">
+            <div class="pday on"><div style="font-size:14px;font-weight:700;color:#B8B8B8">오늘</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">24</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">내일</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">25</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">수</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">26</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">목</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">27</div></div>
+            <div class="pday"><div style="font-size:14px;font-weight:700;color:#666666">금</div><div class="num" style="font-size:17px;font-weight:900;margin-top:2px">28</div></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:11px 12px;background:#FBEAE7;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px">
+            <span style="font-size:14px;font-weight:700;color:#B3261E;line-height:1.35">3칸은 확인 중, 2칸은 확인하지 못했어요</span>
+            <span style="font-size:14px;font-weight:800;color:#B3261E;text-decoration:underline;white-space:nowrap">전체 다시 확인</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 6시</div><div style="font-size:14px;font-weight:700;color:#0E7F49;margin-top:2px">가능</div></div>
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 7시</div><div style="font-size:14px;font-weight:700;color:#666666;margin-top:2px">확인 중</div></div>
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오전 8시</div><div style="font-size:14px;font-weight:700;color:#666666;margin-top:2px">확인 중</div></div>
+            <div class="pslot" style="border-color:#B3261E"><div style="font-size:14px;font-weight:800">오후 5시</div><div style="font-size:14px;font-weight:700;color:#B3261E;margin-top:2px">확인 실패</div></div>
+            <div class="pslot" style="border-color:#B3261E"><div style="font-size:14px;font-weight:800">오후 6시</div><div style="font-size:14px;font-weight:700;color:#B3261E;margin-top:2px">확인 실패</div></div>
+            <div class="pslot"><div style="font-size:14px;font-weight:800">오후 7시</div><div style="font-size:14px;font-weight:700;color:#666666;margin-top:2px">확인 중</div></div>
+          </div>
+          <div class="q" style="margin-top:12px">확인되지 않은 칸은 고를 수 없어요 — 러너가 실제로 갈 수 있는지 서버에 물어보고 있어요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div class="dock"><div class="q" style="text-align:center">고른 시간이 없어 요청 바는 아직 열리지 않아요</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> counts derived from the existing <code>slotOk</code> record —
+      <code>null</code> = 확인 중, <code>'error'</code> = 확인 실패, <code>false</code> = 마감,
+      <code>true</code> = 가능. No new state shape.</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">5</span>픽업 위치 핀<span class="path">app/app/owner/address-pin.tsx</span></h2>
+<p class="sub">
+Pin-is-truth (0065 DS-4): coordinates are written only from a pin the owner confirmed; geocoding is
+a pre-centre hint that is never silently saved. The centre chain, the one-recenter rule and the
+"first pan wins" law are all correct and stay. Everything below is about the two moments the screen
+is currently quiet: <b>what the confirm button is made of</b>, and <b>what happens when the map
+cannot load</b>.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>as it renders today</div>
+    <p class="why">Back square, one display-font title, banner (address + chain status), full-bleed
+    map with a fixed crosshair, eight Banpo spot chips, and a confirm bar whose PaperBtn fill is
+    overridden to <code>paper.line</code>.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from address-pin.tsx:160-250.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr" style="display:flex;flex-direction:column">
+        <div style="padding:16px 16px 0"><div class="bk">‹</div></div>
+        <div style="font-size:24px;font-weight:900;padding:0 16px;margin-top:12px">어디서 만날까요?</div>
+        <div style="padding:8px 16px 12px;border-bottom:1px solid #E8552F">
+          <div style="font-size:14px;line-height:1.35;font-weight:700">우리집 · 서울 서초구 신반포로 194</div>
+          <div class="q" style="margin-top:4px;font-weight:600">지도를 움직여 픽업 위치에 핀을 맞춰주세요</div>
+        </div>
+        <div class="map"><div class="cross"></div></div>
+        <div style="border-top:1px solid #E8552F">
+          <div class="chiprow" style="padding:10px 16px;margin-top:0">
+            <span class="chip" style="border-color:#999999">잠수교 남단 입구</span>
+            <span class="chip" style="border-color:#999999">세빛섬 앞</span>
+            <span class="chip" style="border-color:#999999">서래섬</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:10px 16px 20px;background:#FFFFFF">
+        <div style="background:#E8552F;color:#FFFFFF;padding:15px;text-align:center;font-size:17px;font-weight:800">이 위치로 지정</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>addresses.label / addr / lat / lng</code> ·
+      centre chain = existing pin → <code>geocode-address</code> edge fn → one-shot GPS → BANPO
+      constant · save = <code>setAddressPin(id, lat, lng)</code>.</p>
+  </div>
+
+  <!-- N① -->
+  <div class="col">
+    <div class="cap"><b>N①</b>확정 버튼을 액션 토큰으로 — a role fix, measured</div>
+    <p class="why">The confirm bar overrides PaperBtn's fill with <code>paper.line</code>. That token
+    is the brand hairline — the line that separates sections — and using it as a button face breaks
+    the same role-separation law that keeps <code>critical</code> and <code>line</code> from ever
+    sharing a value. It is also the weaker choice on contrast: <b>white 17/800 on
+    <code>#E8552F</code> measures 3.64:1</b>, under the 4.5 floor for a label that size, while
+    <code>paper.action #C6472C</code> measures <b>4.84:1</b> — the number theme.ts:182 itself records.
+    Same hue family, zero new colours, one style line. This is the smallest item in the lab and
+    probably the highest ratio.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: delete
+      <code>style={{backgroundColor: paper.line}}</code> from the PaperBtn (it then uses the primary
+      action face by default). Same fix applies to the chip <code>on</code> state, which currently
+      says "selected" with the hairline colour.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr" style="display:flex;flex-direction:column">
+        <div style="padding:16px 16px 0"><div class="bk">‹</div></div>
+        <div style="font-size:24px;font-weight:900;padding:0 16px;margin-top:12px">어디서 만날까요?</div>
+        <div style="padding:8px 16px 12px;border-bottom:1px solid #E8552F">
+          <div style="font-size:14px;line-height:1.35;font-weight:700">우리집 · 서울 서초구 신반포로 194</div>
+          <div class="q" style="margin-top:4px;font-weight:600">지도를 움직여 픽업 위치에 핀을 맞춰주세요</div>
+        </div>
+        <div class="map"><div class="cross"></div></div>
+        <div style="border-top:1px solid #E8552F">
+          <div class="chiprow" style="padding:10px 16px;margin-top:0">
+            <span class="chip" style="border-color:#C6472C;color:#A83315;font-weight:800">잠수교 남단 입구</span>
+            <span class="chip" style="border-color:#999999">세빛섬 앞</span>
+            <span class="chip" style="border-color:#999999">서래섬</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:10px 16px 20px;background:#FFFFFF">
+        <div class="cta">이 위치로 지정</div>
+        <div class="q" style="text-align:center;margin-top:8px;font-size:14px">저장 중에는 라벨만 바뀌어요 — 버튼이 회색이 되지 않아요</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> no data change. <b>Measured, WCAG 2.x relative luminance:</b>
+      white on <code>#E8552F</code> = 3.64:1 · white on <code>#C6472C</code> = 4.84:1 (matches the
+      value recorded in theme.ts) · <code>#A83315</code> on white = 6.67:1.</p>
+  </div>
+
+  <!-- N② -->
+  <div class="col">
+    <div class="cap"><b>N②</b>지오코딩이 이미 준 것을 버리지 않는다</div>
+    <p class="why"><code>tryGeocode</code> receives <code>{lat, lng, roadAddress}</code> and throws
+    two-thirds of it away: the road address is never shown, and the coordinate is used to centre and
+    then forgotten. So the screen cannot tell the owner the one thing that matters on a pin-is-truth
+    screen — <b>how far the pin they are about to confirm has drifted from the address it belongs
+    to</b>. This variant keeps the geocode result in state and adds one quiet line: the matched road
+    address, and the straight-line distance from it, updated on camera idle. Above a threshold the
+    line changes tone (it never blocks the save — the pin is still the truth).</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> — the edge fn already
+      returns <code>roadAddress</code> · new routes: <b>none</b> · frozen surfaces: <b>none</b>.
+      Touches: keep the geocode result in a <code>useState</code>, compute with
+      <code>distM</code> (<code>src/lib/geo.ts</code>) on idle. <b>Honesty conditions:</b> render
+      <i>nothing</i> when the geocode missed or was unavailable — a distance from a fallback centre
+      is a fabricated measurement — and label it 직선거리 · 약, as the request screen already does
+      for approach distance.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr" style="display:flex;flex-direction:column">
+        <div style="padding:16px 16px 0"><div class="bk">‹</div></div>
+        <div style="font-size:24px;font-weight:900;padding:0 16px;margin-top:12px">어디서 만날까요?</div>
+        <div style="padding:8px 16px 12px;border-bottom:1px solid #E8552F">
+          <div style="font-size:14px;line-height:1.35;font-weight:700">우리집 · 서울 서초구 신반포로 194</div>
+          <div class="q" style="margin-top:4px;font-weight:600">지도에서 찾은 주소 · 서초구 신반포로 194</div>
+          <div style="font-size:14px;font-weight:800;color:#9D580A;margin-top:4px">지금 핀은 이 주소에서 직선거리 약 <span class="num">420m</span> 떨어져 있어요</div>
+        </div>
+        <div class="map"><div class="cross"></div></div>
+        <div style="border-top:1px solid #E8552F">
+          <div class="chiprow" style="padding:10px 16px;margin-top:0">
+            <span class="chip" style="border-color:#999999">잠수교 남단 입구</span>
+            <span class="chip" style="border-color:#999999">세빛섬 앞</span>
+            <span class="chip" style="border-color:#999999">서래섬</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:10px 16px 20px;background:#FFFFFF"><div class="cta">이 위치로 지정</div></div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>geocode-address</code> response
+      <code>{available, lat, lng, roadAddress}</code> (supabase/functions/geocode-address) ·
+      distance = <code>distM()</code> haversine, so it is a straight line and must say so.
+      Renders only on <code>available === true</code> with numeric coordinates.</p>
+  </div>
+
+  <!-- N③ -->
+  <div class="col">
+    <div class="cap"><b>N③</b>지도가 없을 때도 끝낼 수 있게</div>
+    <p class="why">When the Naver SDK is unavailable the screen renders a 92pt placeholder and then
+    hides the chips <i>and</i> the confirm bar — correct under the dead-button law, but the owner is
+    now on a screen with one exit and their address still has no pin, which is the exact state that
+    blocks the course recommendation on the request screen. The eight curated spots already carry
+    real coordinates in the client, and <code>setAddressPin</code> needs no map. So the fallback
+    becomes a list: pick a named place, confirm, done. <b>The copy must be explicit that this is not
+    a pin they placed</b> — it is a named landmark they chose.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: one branch of the
+      <code>maps ? … : …</code> ternary. <b>Design question for Sean, in the open list:</b> is
+      confirming a coordinate you cannot see on a map honest enough for a pickup point, or is the
+      dead end the more honest state? The list is a list of real, named places — but the owner never
+      sees where the pin lands.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr" style="display:flex;flex-direction:column">
+        <div style="padding:16px 16px 0"><div class="bk">‹</div></div>
+        <div style="font-size:24px;font-weight:900;padding:0 16px;margin-top:12px">어디서 만날까요?</div>
+        <div style="padding:8px 16px 12px;border-bottom:1px solid #E8552F">
+          <div style="font-size:14px;line-height:1.35;font-weight:700">우리집 · 서울 서초구 신반포로 194</div>
+        </div>
+        <div class="failstrip" style="border-top:0"><span class="t">지도를 불러올 수 없어요 — 지도에 핀을 직접 찍을 수 없어요</span></div>
+        <div style="padding:14px 16px 0">
+          <div style="font-size:15px;font-weight:800">만날 지점을 고를 수 있어요</div>
+          <div class="q" style="margin-top:4px">아래 장소 중 하나를 고르면 그 지점이 픽업 위치가 돼요 — 지도를 볼 수 있게 되면 언제든 다시 맞출 수 있어요</div>
+          <div style="margin-top:12px">
+            <div style="border:1px solid #EEEEEE;padding:13px 12px;font-size:15px;font-weight:700;min-height:44px">잠수교 남단 입구</div>
+            <div style="border:1px solid #C6472C;border-top:0;padding:13px 12px;font-size:15px;font-weight:800;min-height:44px;background:#FFF6F4">세빛섬 앞 <span style="float:right;color:#A83315">✓</span></div>
+            <div style="border:1px solid #EEEEEE;border-top:0;padding:13px 12px;font-size:15px;font-weight:700;min-height:44px">서래섬 동측 입구</div>
+            <div style="border:1px solid #EEEEEE;border-top:0;padding:13px 12px;font-size:15px;font-weight:700;min-height:44px">반포한강공원 4주차장</div>
+            <div style="border:1px solid #EEEEEE;border-top:0;padding:13px 12px;font-size:15px;font-weight:700;min-height:44px">몽마르뜨공원 입구</div>
+          </div>
+        </div>
+        <div class="cut"></div>
+      </div>
+      <div style="padding:10px 16px 20px;background:#FFFFFF;border-top:1px solid #E8552F">
+        <div class="cta">세빛섬 앞으로 지정</div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> the eight rows are the <code>SPOTS</code> constant
+      (address-pin.tsx:29-38) — real named places with real coordinates, already shipped as camera
+      shortcuts. Save path is the same <code>setAddressPin</code>; bounds check
+      (<code>inBounds</code>) still runs.</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">6</span>주소 관리<span class="path">app/app/owner/addresses.tsx</span></h2>
+<p class="sub">
+Real CRUD, three honest load states, and the pin/memo strips that carry a row into the picker. The
+memo line is not decoration — the assigned runner reads that exact sentence on the handoff screen.
+Two things to fix: <b>coral used as reading ink</b>, and <b>a card with three gestures, two of them
+invisible</b>.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>as it renders today</div>
+    <p class="why">Cards with a coral 1px border; tap = set default, long-press = delete (announced
+    once in a footer line), plus two full-width strips per card for pin state and pickup memo. The
+    invitation labels 위치 지정 필요 › and 픽업 메모 추가 › are 14pt in <code>paper.line</code>.</p>
+    <p class="cost"><span>BASELINE</span>Nothing to build. Drawn from addresses.tsx:95-215.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0">
+          <div class="bk">‹</div><div style="font-size:23px;font-weight:900">주소 관리</div><div style="width:40px"></div>
+        </div>
+        <div class="q" style="text-align:center;padding:0 16px;margin-top:6px">기본 주소가 예약의 픽업 장소로 쓰여요 · 탭해서 기본 지정</div>
+        <div style="padding:0 16px">
+          <div class="acard">
+            <div style="display:flex;gap:7px;align-items:center">
+              <span style="font-size:16.5px;font-weight:900">우리집</span>
+              <span style="background:#FFF6F4;border:1px solid #E8552F;padding:3px 8px;font-size:14px;font-weight:800;color:#E8552F">기본 픽업</span>
+            </div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 서초구 신반포로 194</div>
+            <div style="font-size:14.5px;color:#666666;margin-top:2px">공동현관 #1204 · 경비실에 맡겨주세요</div>
+            <div class="astrip" style="color:#666666">위치 지정됨 ›</div>
+            <div class="astrip" style="color:#666666">메모 · 공동현관 #1204 · 경비실에 맡겨주세요 ›</div>
+          </div>
+          <div class="acard" style="margin-top:10px">
+            <div style="font-size:16.5px;font-weight:900">서울숲 입구</div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 성동구 뚝섬로 273</div>
+            <div class="astrip" style="color:#E8552F;font-weight:800">위치 지정 필요 ›</div>
+            <div class="astrip" style="color:#E8552F;font-weight:800">픽업 메모 추가 ›</div>
+          </div>
+          <div style="border:1px solid #E8552F;text-align:center;padding:14px;font-size:16px;font-weight:800;margin-top:10px">＋ 주소 추가</div>
+          <div class="q" style="text-align:center;margin-top:12px">주소를 길게 누르면 삭제돼요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>addresses.label / addr / detail / is_default / lat</code> ·
+      memo write = <code>updateAddressDetail</code> (0073 owns trim, empty→NULL and the 60-char cap).</p>
+  </div>
+
+  <!-- A① -->
+  <div class="col">
+    <div class="cap"><b>A①</b>코랄 텍스트를 읽는 코랄로</div>
+    <p class="why">위치 지정 필요 › and 픽업 메모 추가 › are the two most action-shaped labels on the
+    screen, and they render in <code>paper.line</code> — <b>3.64:1 on white</b>, below the 4.5 floor
+    that detail text at this size needs. theme.ts already provides the reading version of that hue,
+    <code>actionInk #A83315</code> at <b>6.67:1</b>, and the two-tier law (display colour for
+    surfaces, ink version for text) is exactly what it exists for. Same fix belongs on
+    <code>request.tsx</code>'s 픽업 위치 지정 필요 › and 픽업 위치 맞추기 ›, which are the same
+    sentence in the same colour.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b> · new colours: <b>none</b>. Touches:
+      <code>s.pinNeedTxt</code> here + 2 inline colours in <code>request.tsx</code>. The card border
+      and the 기본 픽업 tag stay <code>paper.line</code> — those are edges and surfaces, which is
+      what that token is for.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0">
+          <div class="bk">‹</div><div style="font-size:23px;font-weight:900">주소 관리</div><div style="width:40px"></div>
+        </div>
+        <div class="q" style="text-align:center;padding:0 16px;margin-top:6px">기본 주소가 예약의 픽업 장소로 쓰여요 · 탭해서 기본 지정</div>
+        <div style="padding:0 16px">
+          <div class="acard">
+            <div style="display:flex;gap:7px;align-items:center">
+              <span style="font-size:16.5px;font-weight:900">우리집</span>
+              <span style="background:#FFF6F4;border:1px solid #E8552F;padding:3px 8px;font-size:14px;font-weight:800;color:#A83315">기본 픽업</span>
+            </div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 서초구 신반포로 194</div>
+            <div class="astrip" style="color:#666666">위치 지정됨 ›</div>
+            <div class="astrip" style="color:#666666">메모 · 공동현관 #1204 · 경비실에 맡겨주세요 ›</div>
+          </div>
+          <div class="acard" style="margin-top:10px">
+            <div style="font-size:16.5px;font-weight:900">서울숲 입구</div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 성동구 뚝섬로 273</div>
+            <div class="astrip" style="color:#A83315;font-weight:800">위치 지정 필요 ›</div>
+            <div class="astrip" style="color:#A83315;font-weight:800">픽업 메모 추가 ›</div>
+          </div>
+          <div style="border:1px solid #E8552F;text-align:center;padding:14px;font-size:16px;font-weight:800;margin-top:10px">＋ 주소 추가</div>
+          <div class="q" style="text-align:center;margin-top:12px">주소를 길게 누르면 삭제돼요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> unchanged. <b>Measured:</b> <code>#E8552F</code> on white =
+      3.64:1 (fails at 14pt) · <code>#A83315</code> on white = 6.67:1 (passes at any size).</p>
+  </div>
+
+  <!-- A② -->
+  <div class="col">
+    <div class="cap"><b>A②</b>주소를 저장 전에 확인한다</div>
+    <p class="why">The 주소 field is free text with no verification, and a typo only surfaces later —
+    on the pin screen, as a map centred somewhere the owner never meant, or as a runner standing on
+    the wrong street. The <code>geocode-address</code> edge function already exists and already
+    returns the matched <code>roadAddress</code>; this variant calls it from the form's 확인 button
+    and shows what it found before saving. <b>It never rewrites what the owner typed</b> and never
+    blocks the save: <code>{available:false}</code> (secret absent, NCP down) and a miss both fall
+    through to today's behaviour, stated.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new edge function:
+      <b>none</b> (<code>geocode-address</code> ships today, auth-gated, 100-char cap) · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: a small async handler in this screen
+      reusing the same invoke <code>address-pin.tsx</code> makes. <b>Note:</b> the fn returns the
+      <i>first</i> match only — a chooser over several candidates would be a real server change.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0">
+          <div class="bk">‹</div><div style="font-size:23px;font-weight:900">주소 관리</div><div style="width:40px"></div>
+        </div>
+        <div style="padding:16px 16px 0">
+          <div style="border:1px solid #E8552F;padding:14px">
+            <div style="border:1px solid #E8552F;padding:11px 12px;font-size:15.5px;color:#111111">우리집</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <div style="flex:1;border:1px solid #E8552F;padding:11px 12px;font-size:15.5px;color:#111111">서울 서초구 신반포로 194</div>
+              <div style="border:1px solid #E8552F;padding:11px 14px;font-size:14px;font-weight:800;color:#A83315;display:flex;align-items:center">확인</div>
+            </div>
+            <div style="background:#E7F5EE;padding:10px 12px;margin-top:8px">
+              <div style="font-size:14px;font-weight:800;color:#0E7F49">이 주소를 찾았어요</div>
+              <div style="font-size:14px;color:#0E7F49;margin-top:2px;line-height:1.4">서울특별시 서초구 신반포로 194 · 저장하면 지도에서 핀을 맞출 수 있어요</div>
+            </div>
+            <div style="border:1px solid #E8552F;padding:11px 12px;font-size:15.5px;color:#999999;margin-top:8px">상세 (동·호, 만날 지점 메모 — 선택)</div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <div class="ctaink" style="flex:1.4">저장</div>
+              <div class="cta2" style="flex:1">취소</div>
+            </div>
+          </div>
+          <div style="margin-top:18px" class="k">STATE · NO MATCH</div>
+          <div style="background:#FFF6F4;padding:10px 12px;margin-top:8px">
+            <div style="font-size:14px;font-weight:800;color:#A83315">이 주소는 지도에서 찾지 못했어요</div>
+            <div style="font-size:14px;color:#333333;margin-top:2px;line-height:1.4">그래도 저장할 수 있어요 — 저장 뒤 지도에서 픽업 위치를 직접 맞추면 돼요</div>
+          </div>
+          <div style="margin-top:16px" class="k">STATE · VERIFY UNAVAILABLE</div>
+          <div class="q" style="margin-top:8px">지금은 주소 확인을 할 수 없어요 — 저장 뒤 지도에서 맞춰주세요</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>supabase.functions.invoke('geocode-address', {query})</code>
+      → <code>{available, lat, lng, roadAddress}</code>. Three arms map 1:1 to the three documented
+      responses: hit (roadAddress) · miss (<code>lat:null</code>) · unavailable
+      (<code>available:false</code>). The green plate uses <code>paper.paceGoodWash/Ink</code>
+      (4.50:1), not a new colour.</p>
+  </div>
+
+  <!-- A③ -->
+  <div class="col">
+    <div class="cap"><b>A③</b>보이지 않는 제스처를 보이는 행으로</div>
+    <p class="why">One card carries three gestures: tap = set default, long-press = delete, and two
+    inner strips that must swallow the outer press. Two of the three are invisible, and the
+    destructive one is the least discoverable — announced by a single grey line under the whole list.
+    This variant makes the card a card again: 기본으로 지정 becomes an explicit chip on non-default
+    rows, delete becomes a visible row inside the card, and the outer Pressable retires. Long-press
+    can stay as a shortcut, but it stops being the only way.</p>
+    <p class="cost"><span>WHAT THIS COSTS</span>New server fields: <b>none</b> · new routes:
+      <b>none</b> · frozen surfaces: <b>none</b>. Touches: the card JSX + removing
+      <code>onPress</code>/<code>onLongPress</code> from the wrapper. Adds a 4th row to each card —
+      that is the Miller cost, and the reason 기본으로 지정 renders <i>only</i> on rows that are not
+      already default. Delete keeps its confirm Alert and its failure Alert exactly as today.</p>
+    <div class="ph">
+      <div class="nb"><span>9:41</span><span>▮▮</span></div>
+      <div class="scr">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0">
+          <div class="bk">‹</div><div style="font-size:23px;font-weight:900">주소 관리</div><div style="width:40px"></div>
+        </div>
+        <div class="q" style="text-align:center;padding:0 16px;margin-top:6px">기본 주소가 예약의 픽업 장소로 쓰여요</div>
+        <div style="padding:0 16px">
+          <div class="acard">
+            <div style="display:flex;gap:7px;align-items:center">
+              <span style="font-size:16.5px;font-weight:900">우리집</span>
+              <span style="background:#FFF6F4;border:1px solid #E8552F;padding:3px 8px;font-size:14px;font-weight:800;color:#A83315">기본 픽업</span>
+            </div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 서초구 신반포로 194</div>
+            <div class="astrip" style="color:#666666">위치 지정됨 ›</div>
+            <div class="astrip" style="color:#666666">메모 · 공동현관 #1204 ›</div>
+            <div class="astrip" style="color:#B3261E;font-weight:800">주소 삭제</div>
+          </div>
+          <div class="acard" style="margin-top:10px">
+            <div style="display:flex;gap:7px;align-items:center;justify-content:space-between">
+              <span style="font-size:16.5px;font-weight:900">서울숲 입구</span>
+              <span style="border:1px solid #E8552F;padding:6px 10px;font-size:14px;font-weight:800;color:#A83315">기본으로 지정</span>
+            </div>
+            <div style="font-size:14.5px;color:#333333;margin-top:5px">서울 성동구 뚝섬로 273</div>
+            <div class="astrip" style="color:#A83315;font-weight:800">위치 지정 필요 ›</div>
+            <div class="astrip" style="color:#A83315;font-weight:800">픽업 메모 추가 ›</div>
+            <div class="astrip" style="color:#B3261E;font-weight:800">주소 삭제</div>
+          </div>
+          <div style="border:1px solid #E8552F;text-align:center;padding:14px;font-size:16px;font-weight:800;margin-top:10px">＋ 주소 추가</div>
+        </div>
+        <div class="cut"></div>
+      </div>
+    </div>
+    <p class="binds"><b>binds:</b> <code>setDefaultAddress(id)</code> ·
+      <code>deleteAddress(id)</code> — both already wired, both already surface their failures as
+      Alerts (the silent-delete bug was fixed 2026-08-11 and stays fixed).</p>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<footer>
+<h3>OPEN QUESTIONS — things the code could not decide for me</h3>
+<ol>
+  <li><b>Does the total belong on the CTA (R①)?</b> §3b defines a <i>Money</i> button — coral,
+    white 31 display, full-bleed, "no price sub-plate" — but the shipped money button lives on
+    owner home, and this dock is a label-swap button whose label is sometimes 시간부터. R① draws the
+    compromise (label left, amount right at 20). If the Money grammar is meant to apply here, the
+    label swap and the display-size amount have to be reconciled first.</li>
+
+  <li><b>Where does the cancel ladder belong on the order screen?</b> R① pins it above the dock, R③
+    keeps it inside the fee card but pulls the card out of the fold. It cannot stay where it is —
+    an owner can book two hours out having never opened 「페이스 · 옵션 · 매주 반복 · 코스 목록」.
+    Both options were drawn because this is a legal-copy placement call, not a design one.</li>
+
+  <li><b>Is 매치 % a claim we want to keep making (M②)?</b> It is computed, not measured, and it
+    silently renormalises for runners with no respond-rate data. The screen already discloses this
+    in prose. Demoting it to a rank is more honest and less scannable. Sean's call.</li>
+
+  <li><b>Should the 「러너 선택」 arm of matching.tsx exist at all?</b> Nothing routes to it: fresh
+    holds go to <code>/owner/radar</code>, and the only push is <code>schedule.tsx</code>'s rebook.
+    Either it gets a real entry point or the screen should be named 러너 변경 in the code as well as
+    on screen — right now it carries a second personality no user can reach.</li>
+
+  <li><b>Is pay.tsx worth reviving (P①)?</b> Every number it renders is live and correct, and it is
+    the only receipt surface in the app — but it has no door. Reviving it costs one row in
+    <code>schedule.tsx</code>; leaving it costs nothing until the widget slice lands and it has to
+    be re-verified anyway.</li>
+
+  <li><b>Can we ask the server whether money was captured (P③)?</b> The refund sentence is
+    unconditionally 「환불이 진행 중이에요」, which the screen's own TODO says is wrong for
+    uncaptured incidents. There is no client read for <code>payments</code> rows today. Is a narrow
+    <code>fetchBookingPayments</code> in scope, or does the honest interim sentence ship first?</li>
+
+  <li><b>Does the availability dot (S②) over-promise?</b> A dot means "this runner has a rule on
+    this weekday" — not that a slot is bookable. My copy says so explicitly. If that distinction is
+    too fine for an owner in a hurry, the dot should be dropped rather than softened, because the
+    failure mode is an owner who believes a day is open and finds an empty grid.</li>
+
+  <li><b>Is the map-less spot list (N③) honest?</b> It writes real coordinates for real named
+    places, but the owner confirms a pickup point they never saw on a map. The alternative is the
+    current dead end. I could not resolve this from the code — 0065's "pin is truth" doctrine was
+    written for a world where the map loads.</li>
+
+  <li><b>Should the address-pin drift line (N②) have a threshold?</b> I drew it as one quiet line
+    that changes tone. I do not know at what distance a drift stops being normal (an apartment
+    complex entrance is legitimately 200m from its registered address) and I did not want to invent
+    a number. Needs one real value from the pilot, or no threshold at all.</li>
+
+  <li><b>Does 매주 반복 need to be outside the fold?</b> It is a recurring-charge consent — the
+    toggle copy states price, cadence and cancellation, which is right — but it lives inside a fold
+    named after pace chips. No variant here moves it, because moving it changes what the screen
+    asks for, not how it looks. Flagging it as the next question after the ladder.</li>
+
+  <li><b>Verification status:</b> nothing in this file has been rendered on a simulator. These are
+    HTML mocks; every measurement quoted (3.64 / 4.84 / 6.67 / 5.06) is a WCAG relative-luminance
+    computation from the hex values in <code>theme.ts</code>, not a device reading, and no claim is
+    made about how any of this looks on hardware.</li>
+</ol>
+</footer>
+
+</div></body></html>

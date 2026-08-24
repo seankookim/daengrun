@@ -1,0 +1,2019 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club Surfaces — Enhancement Lab</title>
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   ENHANCEMENT LAB — 하이클럽 (club) cluster, eight screens
+   club/[id] · club/session/[sid] · club/delegate/[sid] · club/pass/[sid]
+   club/console/[sid] · club/run/[sid] · club/case/[cid] · club/receipt/[bid]
+
+   ZERO NEW HEXES. Every colour inside a phone frame is copied out of
+   app/src/theme.ts (paper · lilac · colors.night* · collarColors) or out of
+   src/components/club-ui.tsx, which theme.ts's comment law already sanctions
+   (#EEEEEE neutral card line, #FBFAFE ticket stub, the holo foil stops).
+   Lab chrome (--page/--panel/--hair) is page furniture and never appears
+   inside a frame.
+
+   TYPE FLOOR IS LITERAL HERE: frames are 390px wide, so 1px = 1pt. Korean
+   detail text is never below 14px in any frame. The only sub-14 text inside a
+   frame is a LATIN letterspaced kicker, a serial, or a split-flap glyph.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  /* paper world — theme.ts `paper` */
+  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
+  --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+  --line:#E8552F; --wash:#FFF6F4;
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --disabled:#F2F2F2; --pending:#C77414;
+  --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315;
+  --ready:#119B58; --readyDeep:#0E7F49;
+  /* lilac world — theme.ts `lilac` (club's component kit lives here) */
+  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4; --lhair2:#EDEAF8;
+  --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
+  --accent:#6C5CE7; --accentDeep:#7867EC;
+  --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
+  --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+  --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
+  --tang:#E8552F;
+  --gold:#B99A4F; --goldSoft:#F4EBD3; --goldSheen:#D8C185; --sealInk:#8a6f2a;
+  /* night artifact world — theme.ts `colors` (입장권 only) */
+  --nightBg:#0D0A1E; --nightCard:#14102B; --nightEdge:#2A2350; --nightDim:#8F86C2;
+  --neon:#9F8FFF; --volt:#C6F542; --club:#7B6CDF;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4;
+  /* club-ui.tsx component values (existing, not new) */
+  --nl:#EEEEEE; --stub:#FBFAFE; --grab:#E6E2F4;
+  /* consent-document world — club/delegate screen consts */
+  --docInk:#26231b; --docLine:#E4DFD1; --docDim:#8a8272; --docChip:#FBF9F3; --docClause:#F6F3EA;
+  /* lab chrome only — never inside a frame */
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
+}
+.wrap{max-width:1760px;margin:0 auto}
+
+/* ── page header ── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
+h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
+.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1040px}
+.lede b{color:var(--ink);font-weight:700}
+.note{background:var(--panel);border:1px solid var(--hair);padding:14px 17px;margin:18px 0 0;font-size:13.5px;line-height:1.68}
+.note h4{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.note b{color:var(--ink)}
+.note.warn{border:2px solid var(--line)}
+.note.warn h4{color:var(--line)}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
+ul.tight{margin:7px 0 0 18px}
+ul.tight li{margin-bottom:5px}
+table.mx{border-collapse:collapse;width:100%;font-size:13px;margin-top:11px}
+table.mx th,table.mx td{border:1px solid var(--hair);padding:7px 9px;text-align:left;vertical-align:top}
+table.mx th{background:var(--page);font-weight:800;font-size:12px;letter-spacing:.03em}
+
+/* ── screen section ── */
+h2.band{margin:60px 0 6px;padding-top:22px;border-top:1px solid var(--line);font-size:21px;font-weight:800;letter-spacing:-.01em}
+h2.band .sig{display:inline-block;background:var(--ink);color:#fff;font-size:14px;font-weight:800;
+  padding:2px 10px;margin-right:11px;vertical-align:2px;letter-spacing:.06em}
+h2.band span.f{font-weight:600;color:var(--dim);font-size:14px;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.sub{font-size:14.5px;color:var(--dim);line-height:1.78;max-width:1080px;margin-top:8px}
+.sub b{color:var(--ink)}
+.frozen{display:inline-block;background:var(--criticalWash);border:1px solid var(--critical);color:var(--critical);
+  font-size:12.5px;font-weight:800;padding:4px 10px;margin-top:11px}
+
+/* ── variant rail ── */
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:baseline;gap:11px;font-size:16.5px;font-weight:800;margin-bottom:6px;line-height:1.3}
+.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
+  background:var(--action);color:#fff;font-size:19px;font-weight:800;padding:0 9px}
+.badge.now{background:var(--ink)}
+.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:186px}
+.why b{color:var(--ink)}
+.cost{font-size:12.5px;line-height:1.62;color:var(--text);background:var(--panel);
+  border:1px solid var(--hair);border-left:3px solid var(--action);padding:10px 12px;margin-top:12px}
+.cost b.h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px}
+.cost.now{border-left-color:var(--ink)}
+.cost.newdata{border-left-color:var(--critical)}
+.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.62;color:var(--dim);
+  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:8px}
+
+/* ── phone frame ── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone.h620{height:620px}.phone.h700{height:700px}.phone.h760{height:760px}.phone.h820{height:820px}.phone.h880{height:880px}
+.phone.night{background:var(--nightBg);color:#fff}
+.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
+  font-size:11px;color:var(--faint);font-weight:600}
+.phone.night .stbar{color:var(--nightDim)}
+.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.pad{padding-left:15px;padding-right:15px}
+.pad12{padding-left:12px;padding-right:12px}
+.rule{height:1px;background:var(--line)}
+.nrule{height:1px;background:var(--nl)}
+.lrule{height:1px;background:var(--lhair)}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}
+.mt4{margin-top:4px}.mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+
+/* app type — floor is literal */
+.t14{font-size:14px;line-height:19px}
+.t145{font-size:14.5px;line-height:20px}
+.t15{font-size:15px;line-height:20px}
+.t16{font-size:16px;line-height:21px}
+.t165{font-size:16.5px;line-height:22px}
+.t17{font-size:17px;line-height:23px}
+.t19{font-size:19px;line-height:25px}
+.t21{font-size:21px;line-height:27px}
+.b6{font-weight:600}.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
+.dim{color:var(--dim)}.faint{color:var(--faint)}.txt{color:var(--text)}
+.ldim{color:var(--ldim)}.ltext{color:var(--ltext)}.lhead{color:var(--lhead)}
+.acc{color:var(--accent)}.crit{color:var(--critical)}.amberink{color:var(--amber)}
+.voltink{color:var(--voltDeep)}.tangink{color:var(--tang)}
+.kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--ldim);text-transform:uppercase}
+.kick.dark{color:var(--nightDim)}
+.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+
+/* club components — mirrored from src/components/club-ui.tsx */
+.mast{display:flex;align-items:center;gap:9px;padding:12px 15px;border-bottom:1px solid var(--line);background:var(--canvas)}
+.mono{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--lhead);
+  background:linear-gradient(135deg,#CFC4FF 0%,#FFD9CB 30%,#CDEBDD 55%,#CFE0FF 80%,#E8D5FF 100%)}
+.card{background:var(--canvas);border:1px solid var(--nl);padding:13px;margin-top:10px}
+.card.hero{border-left:3px solid var(--accent)}
+.card.critl{border-left:3px solid var(--tang)}
+.lcard{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:14px;margin-top:10px;
+  box-shadow:0 6px 14px rgba(28,24,55,.09)}
+.tag{display:inline-flex;align-items:center;padding:5px 9px;font-size:16px;line-height:20px;font-weight:800;letter-spacing:.3px}
+.tag.volt{background:var(--voltFill);color:var(--voltDeep)}
+.tag.amber{background:var(--amberSoft);color:var(--amber)}
+.tag.coral{background:var(--lcoralSoft);color:#C24A2E}
+.tag.lilac{background:var(--lhair2);color:var(--accent)}
+.tag.gold{background:var(--goldSoft);color:var(--sealInk)}
+.tag.dimt{background:var(--linset);color:var(--ldim)}
+.flap{display:inline-flex;gap:1.5px}
+.flap i{min-width:13px;padding:2px 3px;background:#EDEAF8;border-radius:2px;border-top:1px solid #fff;
+  border-bottom:2px solid #CFC8EC;font-style:normal;font-size:9px;line-height:12px;font-weight:600;
+  letter-spacing:.5px;text-align:center;font-family:'Oswald',sans-serif}
+.cta{display:block;width:100%;text-align:center;padding:15px 12px;margin-top:12px;background:var(--action);
+  color:#fff;font-size:17px;font-weight:800;letter-spacing:.3px;box-shadow:0 6px 14px rgba(198,71,44,.30)}
+.cta.sec{background:var(--wash);border:1px solid var(--line);color:var(--actionInk);font-size:16px;box-shadow:none}
+.cta.dest{background:var(--canvas);border:1px solid var(--critical);color:var(--critical);font-size:16px;box-shadow:none}
+.cta.quiet{background:var(--lcard);border:1px solid var(--lhair);color:var(--ldim);font-size:16px;box-shadow:none}
+.cta.off{background:var(--linset);color:var(--ldim);box-shadow:none}
+.link{display:block;text-align:center;margin-top:11px;font-size:14px;line-height:19px;font-weight:800;color:var(--accent)}
+.link.d{color:var(--ldim)}
+.bignum{display:flex;border:1px solid var(--nl);margin-top:11px;background:var(--canvas)}
+.bignum > div{flex:1;padding:9px 6px;border-right:1px solid var(--lhair)}
+.bignum > div:last-child{border-right:0}
+.bignum .v{font-size:21px;line-height:27px}
+.bignum .u{font-size:14px;color:var(--lcoral)}
+.bignum .l{font-size:14px;line-height:18px;font-weight:700;letter-spacing:.5px;color:var(--ldim);
+  margin-top:4px;padding-top:3px;border-top:1px solid var(--lhair)}
+.ticket{border:1px solid var(--nl);margin-top:10px;position:relative;background:var(--canvas)}
+.holo{height:3px;background:linear-gradient(90deg,#CFC4FF,#FFD9CB 35%,#CDEBDD 65%,#CFE0FF)}
+.tkTop{padding:13px 13px 11px}
+.perf{position:relative;height:0;margin:0 10px;border-top:1.5px dashed #D8D2EE}
+.notch{position:absolute;top:-7px;width:14px;height:14px;border-radius:7px;border:1px solid var(--lhair);background:var(--canvas)}
+.tkStub{padding:11px 13px 13px;background:var(--stub)}
+.door{flex:1;padding:13px 12px;border-radius:8px;position:relative;overflow:hidden}
+.door.coral{background:linear-gradient(135deg,#F5825F,#F0765A 55%,#E5654A);
+  box-shadow:0 5px 12px rgba(240,118,90,.34)}
+.door.quiet{background:var(--linset);border:1px solid var(--lhair)}
+.doorSub{font-size:14px;line-height:19px;margin-top:4px}
+.doorSub.onCoral{color:rgba(255,255,255,.88)}
+.bars{display:flex;gap:2px;height:13px;align-items:stretch}
+.bars i{background:var(--lhead);opacity:.8;display:block}
+.deadline{display:flex;align-items:center;gap:12px;background:var(--amberSoft);padding:11px 13px;margin-top:10px;border-radius:6px}
+.dcopy{font-size:14px;line-height:20px;color:#7a5a2a;flex:1}
+.ring{position:relative;width:78px;height:78px;flex:0 0 78px;border-radius:50%;
+  background:repeating-conic-gradient(from -90deg,var(--lhair) 0 3.6deg,transparent 3.6deg 15deg)}
+.ring .lit{position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(from -90deg,var(--accent) 0 3.6deg,transparent 3.6deg 15deg);
+  -webkit-mask-image:conic-gradient(from -90deg,#000 0 60%,transparent 60% 100%);
+  mask-image:conic-gradient(from -90deg,#000 0 60%,transparent 60% 100%)}
+.ring .hole{position:absolute;inset:9px;border-radius:50%;background:var(--amberSoft);
+  display:flex;align-items:center;justify-content:center;font-size:17px;line-height:21px}
+.ring.sm{width:28px;height:28px;flex:0 0 28px}
+.ring.sm .hole{inset:5px;font-size:0}
+.ring.late .lit{background:repeating-conic-gradient(from -90deg,var(--lcoralDeep) 0 3.6deg,transparent 3.6deg 15deg);
+  -webkit-mask-image:conic-gradient(from -90deg,#000 0 14%,transparent 14% 100%);
+  mask-image:conic-gradient(from -90deg,#000 0 14%,transparent 14% 100%)}
+.strip{background:var(--amberSoft);border:1px solid var(--amberEdge);padding:8px 12px;margin-top:8px;
+  font-size:14px;line-height:19px;color:#7a5a2a}
+.dogdot{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#5d5138}
+.dogdot.s30{width:30px;height:30px;flex:0 0 30px;font-size:13px}
+.dogdot.sky{border-color:var(--collarSky)}
+.chip{display:inline-flex;align-items:center;padding:9px 14px;border-radius:99px;border:1.3px solid var(--lhair);
+  background:var(--lcard);font-size:15px;line-height:20px;font-weight:800;color:var(--ltext)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.abtn{flex-grow:1;text-align:center;padding:9px 10px;border-radius:8px;background:var(--voltFill);
+  font-size:14px;line-height:19px;font-weight:800;color:var(--voltDeep)}
+.abtn.ghost{background:var(--linset);color:var(--ldim)}
+.abtn.warn{background:var(--amberSoft);color:var(--amber)}
+.abtn.off{background:var(--linset);color:var(--ldim);flex-grow:0}
+.abtn.chipr{background:var(--lhair2);color:var(--accent);flex-grow:0}
+.drow{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:11px;margin-top:8px}
+.sechead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)}
+.secN{background:var(--accent);color:#fff;border-radius:6px;padding:1px 8px;font-size:14px;font-weight:700}
+.sec3b{margin-top:18px}
+.sec3b .t{font-size:20px;line-height:26px;font-weight:800;color:var(--ink);margin-top:8px}
+.map{height:240px;background:#E9E5F8;border:1px solid var(--lhair);border-radius:8px;margin-top:10px;
+  display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.map .trace{position:absolute;left:12%;top:65%;width:76%;height:2px;background:var(--accent);
+  transform:rotate(-14deg);box-shadow:0 8px 0 -1px rgba(108,92,231,.5)}
+.sos{width:58px;height:58px;flex:0 0 58px;border-radius:29px;background:var(--tang);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;
+  box-shadow:0 8px 14px rgba(232,85,47,.45)}
+.cam{width:46px;height:46px;flex:0 0 46px;border-radius:23px;background:var(--lcard);border:1px solid var(--lhair);
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--lhead)}
+.endbtn{background:var(--linset);border-radius:5px;padding:7px 12px;font-size:14px;line-height:19px;font-weight:800;color:var(--ltext)}
+.endbtn.big{padding:12px 14px;min-height:44px;display:flex;align-items:center}
+/* night ticket */
+.ntk{background:var(--nightCard);border:1px solid var(--nightEdge);border-radius:6px;position:relative;overflow:hidden;padding-bottom:14px}
+.ntk .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--neon)}
+.nperf{position:relative;height:14px;margin:2px 0;display:flex;align-items:center}
+.nperf .dash{flex:1;border-top:1px dashed #3A3168;margin:0 10px}
+.nperf .nn{position:absolute;width:14px;height:14px;background:var(--nightBg);transform:rotate(45deg)}
+.ngrid{display:flex;margin:8px 16px 0;border:1px solid var(--nightEdge)}
+.ngrid > div{flex:1;padding:9px 11px}
+.ngrid > div:first-child{border-right:1px solid var(--nightEdge)}
+.ncellK{font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--nightDim)}
+.ncellV{font-size:15px;line-height:20px;font-weight:800;color:#fff;margin-top:3px}
+.checkin{background:var(--club);border:1.2px solid var(--neon);border-radius:6px;text-align:center;padding:14px;
+  font-size:15.5px;font-weight:900;color:#fff;letter-spacing:1px;box-shadow:0 0 12px rgba(159,143,255,.45)}
+.stamp{display:inline-flex;flex-direction:column;align-items:center;border:2.5px solid var(--volt);border-radius:6px;
+  padding:8px 18px;transform:rotate(-7deg);background:rgba(198,245,66,.06)}
+.nbars{display:flex;gap:2px;height:26px;align-items:flex-end;margin:10px 16px 0;opacity:.75}
+.nbars i{background:var(--nightDim);display:block}
+/* consent document */
+.doc{background:#fff;border:1px solid #E2DDD0;border-radius:2px;padding:13px;margin-top:12px;position:relative;
+  box-shadow:0 8px 18px rgba(28,24,55,.14)}
+.doc .inner{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid #d9d3c2;border-radius:1px;pointer-events:none}
+.docHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
+.docRow{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--docLine);padding:8px 0}
+.docKey{width:96px;flex:0 0 96px;font-size:14px;line-height:18px;letter-spacing:.2px;color:var(--docDim);font-weight:700}
+.docIn{flex:1;border-bottom:1.5px dashed #C9C2AE;padding-bottom:2px;font-size:14px;font-weight:700;color:var(--docInk)}
+.docChip{border:1.3px solid #C9C2AE;border-radius:4px;padding:5px 9px;background:var(--docChip);font-size:14px;font-weight:700;color:var(--docInk)}
+.docChip.on{background:var(--docInk);border-color:var(--docInk);color:#fff}
+.clause{background:var(--docClause);border-left:2.5px solid var(--docInk);border-radius:4px;padding:9px;margin-top:10px;
+  font-size:14px;line-height:18px;color:#4a463c}
+.fee{border-top:1.5px solid var(--docInk);margin-top:12px;padding-top:9px}
+.seal{position:relative;height:44px;margin-top:12px;border-radius:8px;background:var(--lcoralSoft);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#C24A2E}
+.seal .paw{position:absolute;left:0;top:0;width:44px;height:44px;border-radius:8px;background:#fff;border:1px solid var(--lcoral);
+  display:flex;align-items:center;justify-content:center;font-size:14px;line-height:17px;font-weight:800;color:var(--lcoral);text-align:center}
+/* receipt */
+.rcpt{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;margin-top:12px;overflow:hidden;position:relative;
+  box-shadow:0 6px 14px rgba(28,24,55,.09)}
+.rcpt .gframe{position:absolute;left:5px;right:5px;top:5px;bottom:5px;border:1px solid var(--goldSheen);border-radius:4px;opacity:.55;pointer-events:none}
+.photo{height:190px;background:var(--linset);display:flex;align-items:center;justify-content:center;color:var(--ldim);font-size:14px}
+.gseal{width:62px;height:62px;border-radius:31px;background:var(--goldSoft);border:2px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;transform:rotate(-8deg);
+  font-size:9px;font-weight:800;letter-spacing:1.5px;color:var(--sealInk);box-shadow:0 3px 8px rgba(185,154,79,.35)}
+.numRow{display:flex;background:var(--linset);border:1px solid var(--lhair);border-radius:6px;margin-top:14px;overflow:hidden;align-self:stretch}
+.numRow > div{flex:1;padding:9px 0;text-align:center;border-right:1px solid var(--lhair)}
+.numRow > div:last-child{border-right:0}
+.thumbs{display:flex;gap:6px;margin-top:10px}
+.thumbs i{flex:1;height:56px;background:var(--linset);border:1px solid var(--lhair);display:block}
+/* misc */
+.tabs{display:flex;border-bottom:1px solid var(--lhair2);margin-top:8px}
+.tabs > div{flex:1;text-align:center;padding:9px 0;font-size:14px;font-weight:800;color:var(--ldim);position:relative}
+.tabs > div.on{color:var(--lhead)}
+.tabs > div.on:after{content:"";position:absolute;left:28%;right:28%;bottom:-1px;height:2.5px;background:var(--accent);border-radius:2px}
+.tl{border-left:2px solid var(--lhair);padding-left:12px;margin:10px 0 0 3px}
+.ev{position:relative;padding:5px 0;font-size:14px;line-height:18px;color:var(--ltext)}
+.ev:before{content:"";position:absolute;left:-16.5px;top:10px;width:7px;height:7px;border-radius:4px;background:#CFC8EC}
+.settleRow{display:flex;align-items:center;gap:10px;margin-top:10px;border-top:1px solid var(--lhair);padding-top:10px}
+.settleBtn{background:var(--action);color:#fff;padding:11px 14px;min-height:44px;display:flex;align-items:center;
+  font-size:14px;font-weight:800;flex-shrink:0}
+.plate{background:var(--linset);border-left:3px solid var(--amber);padding:11px;margin-top:10px;
+  font-size:14px;line-height:19px;font-weight:700;color:var(--ltext)}
+footer{margin-top:56px;border-top:2.5px solid var(--ink);padding-top:16px}
+footer h3{font-size:17px;font-weight:800;margin-bottom:10px}
+ol.q{margin-left:20px;font-size:14px;line-height:1.75}
+ol.q li{margin-bottom:11px}
+ol.q b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>하이클럽 — Enhancement Lab</h1>
+  <p class="law">CLUB CLUSTER · 8 SCREENS · 2 VARIANTS EACH · SEAN PICKS BY NUMBER</p>
+  <p class="lede">Eight club surfaces, drawn as they ship today (<b>현재</b>) and then twice each. Every frame is
+  390px wide so <b>1px = 1pt</b>: the 14pt Korean floor is literal, not implied. No frame introduces a hex that is
+  not already in <code>app/src/theme.ts</code> or <code>src/components/club-ui.tsx</code> — the style freeze is
+  treated as binding, so every enhancement is craft, scale, order, or honesty, never a new look.
+  Each variant carries a <b>what this costs</b> line naming new server fields, new routes, and frozen surfaces
+  touched. Where a variant needs data the server does not return today, it says so and is marked
+  <b style="color:var(--critical)">NEW SERVER DATA</b> rather than quietly inventing a field.</p>
+
+  <div class="note warn">
+    <h4>⚠ Cluster rule — club exits are not the marketplace ladder</h4>
+    Club bookings are <b>excluded from the 0066 marketplace cancel ladder</b> and the schedule sheet already
+    routes them away (<code>owner/schedule.tsx:663</code> — 위탁 예약은 클럽 세션 화면에서 처리해요). The club has
+    its own exits, in its own words, judged by its own server function
+    (<code>0048 session_cancel_delegation</code> → <code>club_cfg('cancel_free_hours'|'cancel_late_pct'|'cancel_post_accept_pct')</code>).
+    Nothing in this lab may quote a marketplace fee, a 50% 러너 보상 arm, or 「러너 변경」 — those words do not
+    exist in this world.
+    <table class="mx">
+      <tr><th>state</th><th>the exit that exists today</th><th>who judges</th><th>screen</th></tr>
+      <tr><td>PENDING (심사 중)</td><td>신청 취소 — 무료</td><td><code>cancelDelegation</code></td><td>session shell</td></tr>
+      <tr><td>HOLDING (승인·20분 홀드)</td><td>신청 취소 — 무료, 자리는 즉시 풀림</td><td><code>cancelDelegation</code></td><td>session shell</td></tr>
+      <tr><td>CLEARED (자리 확정)</td><td>취소 — 24h 전 무료 · 이후 10% · 배정 수락 후 20%</td><td>server, at the moment of the call</td><td>session shell</td></tr>
+      <tr><td>CLEARED + 배정됨</td><td>배정 이의 1회 (T−20) · 안전 우려 (인계 전까지 무제한)</td><td><code>ownerObjection</code></td><td>session shell</td></tr>
+      <tr><td>인계 후 (BOARDED·RUNNING)</td><td><b>취소는 없다</b> — 케이스(S1/S2)만</td><td><code>incidentOpen</code> · 케이스 오너</td><td>run · case</td></tr>
+      <tr><td>세션 전체</td><td>호스트 세션 취소 — 전액 환불 (인계 전에만)</td><td><code>cancelClubSession</code></td><td>console</td></tr>
+      <tr><td>러닝 미종료 (러너 두절)</td><td>강제 종결 → S2 케이스 (반환으로 기록하지 않음)</td><td><code>hostForceResolve</code></td><td>console</td></tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <h4>What the code already gets right — and none of it is up for cutting</h4>
+    <ul class="tight">
+      <li><b>Three states, three sentences.</b> <code>LoadGate</code> separates 불러오는 중 / 불러오지 못했어요 / 권한
+        없음 on every deep-linked club screen, and 돌아가기 is always mounted. No variant here removes a state.</li>
+      <li><b>Price invisibility (재정 ④).</b> The club fare is spoken <b>once</b>, on the 승낙서, and nowhere else.
+        The session shell deliberately holds <code>board.session.fare</code> and never draws it. Two variants below
+        get close to that line; both stop at the percentage and hand the won amount to Sean as a question.</li>
+      <li><b>Dead-button refusals are already named.</b> The console's runner chips print 만석 / 체크인 전 / 배정 창
+        닫힘 rather than failing after the tap. K② extends that grammar; it does not invent it.</li>
+      <li><b>Loud failures.</b> 트레이스 저장이 밀리고 있어요, 비상 연락처를 불러오지 못했어요 — 다시 시도,
+        견적을 불러오지 못했어요. These are content (§7b), and they survive every variant.</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h4>Findings this lab is built on — each one is in the shipped source</h4>
+    <table class="mx">
+      <tr><th>#</th><th>finding</th><th>where</th><th>which variant</th></tr>
+      <tr><td>F1</td><td>Black Han Sans is used <b>5×</b> on the club home (masthead 40, ticket 시각 19, 세 개의 문 16) — §8 budget is 1 per screen</td><td><code>club/[id].tsx</code> 281·361·403·422·439</td><td>C①</td></tr>
+      <tr><td>F2</td><td>Korean data inside a latin-kicker slot: <code>crumb</code> renders <code>CLUB · {district}</code> at 9pt, 콜로폰 repeats the district at 7.5pt</td><td><code>club/[id].tsx</code> 236·575·647·752</td><td>C①</td></tr>
+      <tr><td>F3</td><td>The 20-minute hold that decides whether a delegation survives is invisible on the club root, which already holds the board that carries <code>holdExpiresAt</code></td><td><code>club/[id].tsx</code> 114</td><td>C②</td></tr>
+      <tr><td>F4</td><td>취소 규정 recites all three arms and lets the server decide — the owner never learns which rung they are on</td><td><code>club/session/[sid].tsx</code> doCancelPaid</td><td>S②</td></tr>
+      <tr><td>F5</td><td>The consent paper's cancel terms (below the document) name two arms; the pay sheet names three. One rule, two wordings</td><td><code>delegate/[sid].tsx</code> 「승인 후 20분…」 vs shell 「…10% · 20%」</td><td>D①</td></tr>
+      <tr><td>F6</td><td>입장권 prints <code>people.length</code>/capacity, but <code>people</code> is filled only for parties — <code>peopleCount</code> is the canonical number</td><td><code>pass/[sid].tsx</code> vs <code>api.ts:3349</code></td><td>P①</td></tr>
+      <tr><td>F7</td><td>입장권 DATE is device-local (<code>d.getHours()</code>); every other club surface is pinned to Asia/Seoul</td><td><code>pass/[sid].tsx</code> vs <code>kstParts</code></td><td>P①</td></tr>
+      <tr><td>F8</td><td>The console renders five sections always, three of them empty at the meetup, above the one section with a five-minute clock</td><td><code>console/[sid].tsx</code> §1–§5</td><td>K①</td></tr>
+      <tr><td>F9</td><td>러닝 종료 (마리별) → opens <code>active[0]</code>'s sheet: with two dogs the big button silently picks the first</td><td><code>run/[sid].tsx</code> onPress</td><td>R①</td></tr>
+      <tr><td>F10</td><td>The per-dog 종료 control is ~30pt tall on a live custody screen (Fitts floor 44)</td><td><code>run/[sid].tsx</code> <code>endBtn</code></td><td>R①</td></tr>
+      <tr><td>F11</td><td>The case screen never names what the case stopped — <code>subjects</code> carries <code>{type,id}</code> with no label</td><td><code>case/[cid].tsx</code> · <code>api.ts:3727</code></td><td>A①</td></tr>
+      <tr><td>F12</td><td><code>run.photos</code> is an array; the receipt prints <code>photos[0]</code> and drops the rest</td><td><code>receipt/[bid].tsx</code></td><td>T①</td></tr>
+      <tr><td>F13</td><td>동네 피드에 자랑하기 discovers its own refusal after the tap (<code>runPhotoAllowed</code> runs on press)</td><td><code>receipt/[bid].tsx</code> <code>shareFeed</code></td><td>T②</td></tr>
+    </table>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ C -->
+<h2 class="band"><span class="sig">C</span>하이클럽 홈 <span class="f">· app/app/club/[id].tsx</span></h2>
+<p class="sub">The club's root, and the only club screen a member reaches without a deep link. Structure: 초박 내비 →
+holo photo strip → editorial masthead → boarding-pass ticket with <b>two deliberately unequal doors</b> → 시리즈
+리듬 → 출석·호스트 신뢰 tiles → host tool. Its honest states are already good (loading ≠ 빈 클럽 ≠ 실패 in the
+masthead, OFFICIAL only for a club that exists). What it spends badly is <b>type budget</b> — five Black Han Sans
+uses against a budget of one (F1) — and what it withholds is <b>my own clock</b>: this screen already fetches the
+delegation board, so it holds <code>holdExpiresAt</code> and says nothing about it (F3).</p>
+<p class="sub"><b>Standing exception, respected in all three frames:</b> DESIGN.md §2 gives the club widget its side
+margins as a night-artifact island; card corners stay sharp. Neither variant touches the two-door law
+(코랄 = 위탁 · 콰이엇 = 함께 뛰기) or the price-invisibility ruling that took the fare off the door.</p>
+
+<div class="rail">
+
+  <!-- C 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">Masthead 40 Black Han Sans, ticket time 19 BHS, and each door label 16 BHS —
+    <b>five display-font uses on one screen</b>. The crumb prints <code>CLUB · 반포동</code> at 9pt with 3px
+    tracking: Korean data wearing a latin kicker's clothes, which §3 names explicitly. My own delegation, if I have
+    one, appears only as a two-line subline inside the coral door.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">CLUB · 반포동</div>
+          <div style="width:30px"></div>
+        </div>
+        <div style="height:86px;background:linear-gradient(135deg,#8A7BF0,#6C5CE7 60%,#5A4BC7);position:relative">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"></div>
+          <div class="holo" style="position:absolute;bottom:0;left:0;right:0"></div>
+        </div>
+        <div style="padding:15px 14px 0">
+          <div class="row gap8"><div class="kick" style="font-size:8px">RUNNING CLUB</div>
+            <div class="grow lrule"></div><div class="kick" style="font-size:8px">DOGS HIGH</div></div>
+          <div class="row gap10" style="align-items:flex-start;margin-top:9px">
+            <div class="grow dispf lhead" style="font-size:40px;line-height:44px">반포 하이클럽</div>
+            <div style="width:21px;height:74px;border:1px solid var(--lhead);border-radius:2px;display:flex;align-items:center;justify-content:center">
+              <div style="font-size:7.5px;letter-spacing:2.2px;font-weight:700;color:var(--lhead);transform:rotate(90deg);white-space:nowrap">OFFICIAL</div></div>
+          </div>
+          <div class="t15 ltext" style="margin-top:9px;max-width:300px">한강을 따라 매주 함께 달리는 반포동 러닝 클럽</div>
+          <div class="row" style="margin-top:13px;border-top:1px solid var(--lhair);border-bottom:1px solid var(--lhair)">
+            <div class="grow" style="padding:9px 0"><div class="kick" style="font-size:7.5px">DISTRICT</div>
+              <div class="t15 b7 lhead">반포동</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">MEMBERS</div>
+              <div class="t15 b7 lhead"><span class="numf t16">12</span>명</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">HOST</div>
+              <div class="t15 b7 lhead">김민준</div></div>
+          </div>
+        </div>
+        <div class="pad12">
+          <div class="ticket">
+            <div class="holo"></div>
+            <div class="tkTop">
+              <div class="row between">
+                <div class="row gap6"><div style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff">➤</div>
+                  <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--lhead)">NEXT SESSION · BOARDING</div></div>
+                <div class="row gap6"><span class="tag lilac">D-2</span><span class="tag volt">5자리</span></div>
+              </div>
+              <div class="row gap8" style="align-items:baseline;margin-top:11px">
+                <div class="dispf acc" style="font-size:19px;line-height:24px">토</div>
+                <div class="numf lhead" style="font-size:33px;line-height:40px">09:00</div>
+                <div style="font-size:9.5px;letter-spacing:1.5px;font-weight:700;color:var(--ldim)">8.26 SAT</div>
+              </div>
+              <div class="row gap6" style="margin-top:8px;flex-wrap:wrap">
+                <span style="font-size:12px;color:var(--lcoral)">●</span>
+                <span class="t15 b7 lhead">잠수교 북단 계단 앞</span>
+                <span class="t15 ldim">· 4팀 참여 중 / 정원 9</span>
+              </div>
+              <div class="row" style="margin-top:11px;border-top:1px solid var(--lhair2);padding-top:10px">
+                <div class="grow"><div class="kick" style="font-size:7.5px">COURSE</div><div class="t15 b7 lhead"><span class="numf">5</span> <span style="font-size:12px;font-weight:500;color:var(--ltext)">km</span></div></div>
+                <div class="grow" style="padding-left:11px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">HOST</div><div class="t15 b7 lhead">김민준</div></div>
+                <div class="grow" style="padding-left:11px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">CREW</div><div class="t15 b7 lhead"><span class="numf">12</span> <span style="font-size:12px;font-weight:500;color:var(--ltext)">멤버</span></div></div>
+              </div>
+            </div>
+            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
+            <div class="tkStub">
+              <div class="row gap8" style="align-items:stretch">
+                <div class="door coral">
+                  <div class="dispf" style="font-size:16px;line-height:21px;color:#fff">위탁하기</div>
+                  <div class="doorSub onCoral">5km 완주 위탁</div>
+                </div>
+                <div class="door quiet">
+                  <div class="dispf lhead" style="font-size:16px;line-height:21px">함께 뛰기</div>
+                  <div class="doorSub ldim"><b class="acc">무료</b> · 같이 새벽을 달려요</div>
+                </div>
+              </div>
+              <div class="row between mt12">
+                <div class="bars">
+                  <i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:1px"></i>
+                </div>
+                <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)">HIGH CLUB · 826</div>
+              </div>
+            </div>
+          </div>
+          <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair2);border-radius:8px;padding:10px 12px;margin-top:10px">
+            <div style="width:28px;height:28px;border-radius:6px;background:var(--linset);border:1px solid var(--lhair);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent)">⟳</div>
+            <div class="grow"><div class="t15 b7 lhead">매주 토요일 <span class="numf acc">09:00</span></div>
+              <div class="t15 ldim">잠수교 북단 계단 앞 집결 · 같은 리듬으로 계속돼요</div></div>
+          </div>
+          <div class="row between" style="margin-top:18px;padding-top:11px;border-top:1px solid var(--lhair)">
+            <div style="font-size:7.5px;letter-spacing:2.2px;font-weight:700;color:var(--ldim)">반포동</div>
+            <div style="font-size:7.5px;letter-spacing:2.2px;font-weight:700;color:var(--ldim)">DOGS HIGH · HIGH CLUB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_overview → name · district · memberCount · hostName · photoUrl · description<br>
+      nextSession → scheduledAt (KST via ticketParts) · meetupPoint · rsvpCount · capacity · routeKm · format<br>
+      club_series → weekday · time · meetupPoint (⟳ 리듬 행)</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — this is the shipped screen, drawn for comparison.
+      Note the 7.5pt 반포동 in the colophon and the 9pt 반포동 in the crumb: the same word, twice, both below the floor.</div>
+  </div>
+
+  <!-- C① -->
+  <div class="col">
+    <div class="cap"><span class="badge">C①</span>활자 예산과 14pt 바닥</div>
+    <p class="why"><b>One Black Han Sans, on the masthead.</b> The ticket time keeps Oswald (it is a number, that is
+    its font), the three doors drop to body-bold 17/800 — which is also the §3b primary-button size, so the doors
+    stop competing with the club's name and start reading as controls. The crumb becomes pure latin
+    (<code>HIGH CLUB</code>); 반포동 already lives at 15/700 in the DISTRICT cell eight lines below, so nothing is
+    lost. The colophon keeps its latin serial and drops the duplicated district, and the ticket's Korean unit suffix (멤버, shipped at 12pt under a 「단위 접미사 예외」 comment) comes up to 14 — km stays at 12 because it is latin.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">HIGH CLUB</div>
+          <div style="width:30px"></div>
+        </div>
+        <div style="height:86px;background:linear-gradient(135deg,#8A7BF0,#6C5CE7 60%,#5A4BC7);position:relative">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"></div>
+          <div class="holo" style="position:absolute;bottom:0;left:0;right:0"></div>
+        </div>
+        <div style="padding:15px 14px 0">
+          <div class="row gap8"><div class="kick" style="font-size:8px">RUNNING CLUB</div>
+            <div class="grow lrule"></div><div class="kick" style="font-size:8px">DOGS HIGH</div></div>
+          <div class="row gap10" style="align-items:flex-start;margin-top:9px">
+            <div class="grow dispf lhead" style="font-size:40px;line-height:44px">반포 하이클럽</div>
+            <div style="width:21px;height:74px;border:1px solid var(--lhead);border-radius:2px;display:flex;align-items:center;justify-content:center">
+              <div style="font-size:7.5px;letter-spacing:2.2px;font-weight:700;color:var(--lhead);transform:rotate(90deg);white-space:nowrap">OFFICIAL</div></div>
+          </div>
+          <div class="t15 ltext" style="margin-top:9px;max-width:300px">한강을 따라 매주 함께 달리는 반포동 러닝 클럽</div>
+          <div class="row" style="margin-top:13px;border-top:1px solid var(--lhair);border-bottom:1px solid var(--lhair)">
+            <div class="grow" style="padding:9px 0"><div class="kick" style="font-size:7.5px">DISTRICT</div>
+              <div class="t15 b7 lhead">반포동</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">MEMBERS</div>
+              <div class="t15 b7 lhead"><span class="numf t16">12</span>명</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">HOST</div>
+              <div class="t15 b7 lhead">김민준</div></div>
+          </div>
+        </div>
+        <div class="pad12">
+          <div class="ticket">
+            <div class="holo"></div>
+            <div class="tkTop">
+              <div class="row between">
+                <div class="row gap6"><div style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff">➤</div>
+                  <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--lhead)">NEXT SESSION · BOARDING</div></div>
+                <div class="row gap6"><span class="tag lilac">D-2</span><span class="tag volt">5자리</span></div>
+              </div>
+              <div class="row gap8" style="align-items:baseline;margin-top:11px">
+                <div class="t19 b8 acc">토</div>
+                <div class="numf lhead" style="font-size:33px;line-height:40px">09:00</div>
+                <div style="font-size:9.5px;letter-spacing:1.5px;font-weight:700;color:var(--ldim)">8.26 SAT</div>
+              </div>
+              <div class="row gap6" style="margin-top:8px;flex-wrap:wrap">
+                <span style="font-size:12px;color:var(--lcoral)">●</span>
+                <span class="t15 b7 lhead">잠수교 북단 계단 앞</span>
+                <span class="t15 ldim">· 4팀 참여 중 / 정원 9</span>
+              </div>
+              <div class="row" style="margin-top:11px;border-top:1px solid var(--lhair2);padding-top:10px">
+                <div class="grow"><div class="kick" style="font-size:7.5px">COURSE</div><div class="t15 b7 lhead"><span class="numf">5</span> <span style="font-size:12px;font-weight:500;color:var(--ltext)">km</span></div></div>
+                <div class="grow" style="padding-left:11px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">HOST</div><div class="t15 b7 lhead">김민준</div></div>
+                <div class="grow" style="padding-left:11px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">CREW</div><div class="t15 b7 lhead"><span class="numf">12</span> <span style="font-size:14px;font-weight:500;color:var(--ltext)">멤버</span></div></div>
+              </div>
+            </div>
+            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
+            <div class="tkStub">
+              <div class="row gap8" style="align-items:stretch">
+                <div class="door coral">
+                  <div class="t17 b8" style="color:#fff">위탁하기</div>
+                  <div class="doorSub onCoral">5km 완주 위탁</div>
+                </div>
+                <div class="door quiet">
+                  <div class="t17 b8 lhead">함께 뛰기</div>
+                  <div class="doorSub ldim"><b class="acc">무료</b> · 같이 새벽을 달려요</div>
+                </div>
+              </div>
+              <div class="row between mt12">
+                <div class="bars">
+                  <i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:1px"></i>
+                </div>
+                <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)">HIGH CLUB · 826</div>
+              </div>
+            </div>
+          </div>
+          <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair2);border-radius:8px;padding:10px 12px;margin-top:10px">
+            <div style="width:28px;height:28px;border-radius:6px;background:var(--linset);border:1px solid var(--lhair);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent)">⟳</div>
+            <div class="grow"><div class="t15 b7 lhead">매주 토요일 <span class="numf acc">09:00</span></div>
+              <div class="t15 ldim">잠수교 북단 계단 앞 집결 · 같은 리듬으로 계속돼요</div></div>
+          </div>
+          <div class="row between" style="margin-top:18px;padding-top:11px;border-top:1px solid var(--lhair)">
+            <div style="font-size:8.5px;letter-spacing:2.2px;font-weight:700;color:var(--ldim)">EST. 2026 · BANPO</div>
+            <div style="font-size:8.5px;letter-spacing:2.2px;font-weight:700;color:var(--ldim)">DOGS HIGH · HIGH CLUB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">no new binds — identical payload to 현재.<br>
+      the only deletion is the duplicated <code>club.district</code> in the colophon (it stays in the DISTRICT cell)</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none. Component cost: none — four inline style objects in one file.
+      <b>What it gives up:</b> the doors lose the display voice. The argument for accepting that is §8's own
+      sentence — the budget <i>is</i> the aesthetic — plus the fact that a 16pt Black Han Sans label is the one size
+      at which that face reads as decoration rather than as a headline.</div>
+  </div>
+
+  <!-- C② -->
+  <div class="col">
+    <div class="cap"><span class="badge">C②</span>티켓이 내 시계를 먼저 말한다</div>
+    <p class="why">The 20-minute hold is the club's only self-destructing state, and today it is only visible one tap
+    deeper. When <code>board.dogs</code> holds one of mine at <code>flap === 'HOLDING'</code>, the ticket stub
+    swaps the 위탁하기 door for 자리 확정 with a real <code>DrainRing</code> bound to <code>holdExpiresAt</code>, and
+    the ticket head carries the server's own <code>ui.primaryStage</code> word. <b>Honest by construction:</b> the
+    ring is drawn only when the server gave an expiry, and an elapsed hold says so instead of counting down to
+    00:00 (the session shell's own rule). With nothing of mine live, this is exactly today's ticket.</p>
+    <div class="phone h880">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">HIGH CLUB</div>
+          <div style="width:30px"></div>
+        </div>
+        <div style="height:86px;background:linear-gradient(135deg,#8A7BF0,#6C5CE7 60%,#5A4BC7);position:relative">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"></div>
+          <div class="holo" style="position:absolute;bottom:0;left:0;right:0"></div>
+        </div>
+        <div style="padding:15px 14px 0">
+          <div class="row gap8"><div class="kick" style="font-size:8px">RUNNING CLUB</div>
+            <div class="grow lrule"></div><div class="kick" style="font-size:8px">DOGS HIGH</div></div>
+          <div class="row gap10" style="align-items:flex-start;margin-top:9px">
+            <div class="grow dispf lhead" style="font-size:40px;line-height:44px">반포 하이클럽</div>
+            <div style="width:21px;height:74px;border:1px solid var(--lhead);border-radius:2px;display:flex;align-items:center;justify-content:center">
+              <div style="font-size:7.5px;letter-spacing:2.2px;font-weight:700;color:var(--lhead);transform:rotate(90deg);white-space:nowrap">OFFICIAL</div></div>
+          </div>
+          <div class="row" style="margin-top:13px;border-top:1px solid var(--lhair);border-bottom:1px solid var(--lhair)">
+            <div class="grow" style="padding:9px 0"><div class="kick" style="font-size:7.5px">DISTRICT</div>
+              <div class="t15 b7 lhead">반포동</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">MEMBERS</div>
+              <div class="t15 b7 lhead"><span class="numf t16">12</span>명</div></div>
+            <div class="grow" style="padding:9px 0 9px 12px;border-left:1px solid var(--lhair2)"><div class="kick" style="font-size:7.5px">HOST</div>
+              <div class="t15 b7 lhead">김민준</div></div>
+          </div>
+        </div>
+        <div class="pad12">
+          <div class="ticket">
+            <div class="holo"></div>
+            <div class="tkTop">
+              <div class="row between">
+                <div class="row gap6"><div style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff">➤</div>
+                  <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--lhead)">NEXT SESSION · BOARDING</div></div>
+                <div class="row gap6"><span class="tag amber">확정 대기</span></div>
+              </div>
+              <div class="row gap8" style="align-items:baseline;margin-top:11px">
+                <div class="t19 b8 acc">토</div>
+                <div class="numf lhead" style="font-size:33px;line-height:40px">09:00</div>
+                <div style="font-size:9.5px;letter-spacing:1.5px;font-weight:700;color:var(--ldim)">8.26 SAT</div>
+              </div>
+              <div class="row gap8" style="margin-top:9px;align-items:center">
+                <div class="dogdot s30">몽</div>
+                <div class="grow"><div class="t15 b8 lhead">몽이의 위탁 — 승인됐어요</div>
+                  <div class="t14 ldim">자리 확정만 남았어요</div></div>
+                <div class="flap"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></div>
+              </div>
+            </div>
+            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
+            <div class="tkStub">
+              <div class="deadline" style="margin-top:0">
+                <div class="ring"><div class="lit"></div><div class="hole numf lhead">12:04</div></div>
+                <div class="dcopy">안에 확정하지 않으면 자리가 풀려요</div>
+              </div>
+              <div class="row gap8" style="align-items:stretch;margin-top:10px">
+                <div class="door coral">
+                  <div class="t17 b8" style="color:#fff">자리 확정</div>
+                  <div class="doorSub onCoral">몽이 · 확정하러 가기 →</div>
+                </div>
+                <div class="door quiet">
+                  <div class="t17 b8 lhead">함께 뛰기</div>
+                  <div class="doorSub ldim"><b class="acc">무료</b> · 같이 새벽을 달려요</div>
+                </div>
+              </div>
+              <div class="row between mt12">
+                <div class="bars">
+                  <i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:1px"></i>
+                </div>
+                <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)">HIGH CLUB · 826</div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:10px">
+            <div class="t14 b8 lhead">홀드가 끝난 뒤엔 이렇게 말해요</div>
+            <div class="deadline" style="margin-top:8px">
+              <div class="ring late"><div class="lit"></div><div class="hole numf" style="color:var(--lcoralDeep)">00:00</div></div>
+              <div class="dcopy">홀드가 끝났어요 — 승인부터 다시 필요할 수 있어요</div>
+            </div>
+            <div class="t14 dim mt8">카운트다운이 0에 닿는 순간 문구가 바뀌고, 확정 문은 닫혀요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_delegation_board.dogs[] → isMine · flap (client-side flapOf) · holdExpiresAt (0043: now()+20min)<br>
+      · ui.primaryStage (server projection — the client never writes the state word)<br>
+      the board is ALREADY fetched here: club/[id].tsx:114 fetchDelegationBoard(c.nextSession.id)</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b> — every value is in the board
+      this screen already loads. New routes: none. Frozen surfaces: none.
+      <b>Real cost:</b> a 1-second interval on the club root while (and only while) a hold is live — the same
+      <code>ticking</code> guard the session shell uses, so it must be conditional, not mounted. <b>Risk:</b> the
+      두 문 law says the doors are unequal but stable; swapping the coral door's identity is the second such swap
+      (내 위탁 already exists) and three door identities on one slot is the point where the slot stops teaching.
+      <b>Second-order:</b> the last card in the frame is documentation of the expired state, not a real element.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ S -->
+<h2 class="band"><span class="sig">S</span>세션 셸 <span class="f">· app/app/club/session/[sid].tsx</span></h2>
+<p class="sub">1,533 lines and three audiences in one screen: 보호자 (위탁 상태 머신), 러너 (제안 · 담당 · 확약),
+호스트 (콘솔로 나가는 문). Access is one server verdict (<code>club_my_shell_access</code>), the state word is the
+server's (<code>ui.primaryStage</code> rendered verbatim — the client never invents a state), and the fare is
+deliberately absent on every one of the five places it used to appear. The frames below draw the owner in
+<b>HOLDING</b>, because that is the state with a clock on it.</p>
+<div class="frozen">FROZEN-ADJACENT: confirmHandoff · the 인계/반환 mirror · polling · once-law hydration order.
+Both variants are slot-order and copy only — no hook is added, moved, or reordered.</div>
+
+<div class="rail">
+
+  <!-- S 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">개요 renders in a fixed order: 집결 팩트 → 제안 → 담당 → 확약 → 내 위탁 카드 → 함께 뛰기. So the
+    owner whose hold is draining reads a 집결지 card first and meets their own clock about 210pt down. The exits
+    below the CTA are three links of equal weight — 취소 규정 · 배정 방식, 신청 취소 (무료) — and the first of them
+    opens the same sheet as the CTA.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">8월 26일 오전 9:00 세션</div>
+            <div class="t14 b7 ldim">반포 하이클럽</div></div></div>
+        <div class="pad12" style="padding-top:8px">
+          <div class="tabs"><div class="on">개요</div><div>참가자<span class="t14 voltink">  4</span></div><div>채팅</div></div>
+          <div class="card">
+            <div class="kick" style="font-size:8.5px;letter-spacing:2px">MEET</div>
+            <div class="t145 b8 lhead" style="margin-top:3px">잠수교 북단 계단 앞</div>
+            <div class="t14 ldim mt4">호스트 김민준 · 4팀 / 9</div>
+          </div>
+          <div class="card hero">
+            <div class="t14 b7 acc" style="letter-spacing:.5px">몽이의 위탁</div>
+            <div class="row gap10 mt8"><div class="dogdot">몽</div>
+              <div class="grow t14 b8 lhead">승인됐어요 — 자리 확정만 남았어요</div>
+              <div class="flap"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></div></div>
+          </div>
+          <div class="deadline">
+            <div class="ring"><div class="lit"></div><div class="hole numf lhead">12:04</div></div>
+            <div class="dcopy">안에 확정하지 않으면 자리가 풀려요</div>
+          </div>
+          <div class="bignum">
+            <div><div class="numf v lhead">5<span class="u">km</span></div><div class="l">잠수교 코스</div></div>
+            <div><div class="numf v lhead">3<span class="u">명</span></div><div class="l">확약 러너</div></div>
+          </div>
+          <div class="cta">자리 확정하기 →</div>
+          <div class="link">취소 규정 · 배정 방식 →</div>
+          <div class="link d">신청 취소 (무료)</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_delegation_board → dogs[].{ui.primaryStage, flap, holdExpiresAt, isMine} · session.{routeKm, routeName, viability.presentRunners}<br>
+      club_session_detail → when · meetupPoint · hostName · peopleCount · capacity<br>
+      hold window 20min = 0043 approve: hold_expires_at = now() + 20 minutes</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. The 요금 that used to sit in the
+      BigNumRow, the CTA label, and the sheet head is correctly gone (재정 ④).</div>
+  </div>
+
+  <!-- S① -->
+  <div class="col">
+    <div class="cap"><span class="badge">S①</span>시계가 있는 블록이 맨 위로</div>
+    <p class="why">One sentence, applied to all three audiences: <b>the block that has a server-given expiry on it
+    is drawn first.</b> HOLDING hold, 5분 배정 제안, 체크인 창 — same rule, so this is not per-role bespoke. 집결
+    팩트 collapses to a single line under it (집결지 · 호스트 · 팀 수 are all still on screen, at 14). Below the CTA
+    the three equal links become one exit (신청 취소) plus the rule link folded into the confirm sheet where the
+    rule already lives.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">8월 26일 오전 9:00 세션</div>
+            <div class="t14 b7 ldim">반포 하이클럽</div></div></div>
+        <div class="pad12" style="padding-top:8px">
+          <div class="tabs"><div class="on">개요</div><div>참가자<span class="t14 voltink">  4</span></div><div>채팅</div></div>
+          <div class="deadline">
+            <div class="ring"><div class="lit"></div><div class="hole numf lhead">12:04</div></div>
+            <div class="dcopy"><b>몽이</b>의 자리가 12분 뒤 풀려요 — 안에 확정해주세요</div>
+          </div>
+          <div class="card hero" style="margin-top:8px">
+            <div class="t14 b7 acc" style="letter-spacing:.5px">몽이의 위탁</div>
+            <div class="row gap10 mt8"><div class="dogdot">몽</div>
+              <div class="grow t14 b8 lhead">승인됐어요 — 자리 확정만 남았어요</div>
+              <div class="flap"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></div></div>
+          </div>
+          <div class="cta">자리 확정하기 →</div>
+          <div class="link d">신청 취소 (무료)</div>
+          <div class="row gap8 mt16" style="border-top:1px solid var(--nl);padding-top:11px">
+            <span style="font-size:12px;color:var(--lcoral)">●</span>
+            <div class="grow t14 lhead"><b>잠수교 북단 계단 앞</b> <span class="ldim">· 호스트 김민준 · 4팀 / 9</span></div>
+          </div>
+          <div class="bignum">
+            <div><div class="numf v lhead">5<span class="u">km</span></div><div class="l">잠수교 코스</div></div>
+            <div><div class="numf v lhead">3<span class="u">명</span></div><div class="l">확약 러너</div></div>
+          </div>
+          <div class="link d mt16">문제가 생겼나요 — 신고 · SOS</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">identical payload; only JSX order changes.<br>
+      the ordering predicate is already computed today: holdLeft != null · proposalExpiresAt != null · inCheckinWindow</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: <b>none touched</b> — no hook is added or moved; this is a reorder of sibling JSX blocks inside the
+      existing 개요 branch, which §9 permits explicitly ("styling / pure-JSX slot changes only").
+      <b>Risk:</b> the rule must be written down in the file header or the next person restores 집결 팩트 to the top
+      because "facts first" also sounds like a rule. <b>Trade:</b> a member with no delegation now meets a
+      one-line 집결지 instead of a card — that is the same information, one third of the height, and it is what the
+      screen's own MEET card already contains.</div>
+  </div>
+
+  <!-- S② -->
+  <div class="col">
+    <div class="cap"><span class="badge">S②</span>취소 규정 — 지금 내가 선 칸</div>
+    <p class="why">Today's exit recites the whole ladder in an <code>Alert</code> and ends with 수수료는 서버가
+    시점 기준으로 판정해요. True, and useless at the moment of deciding. This sheet marks <b>which rung is live
+    now</b> and <b>when it changes</b> (the 24h line is computable from <code>scheduled_at</code>), keeps the server
+    as final judge in the same words, and stops at the percentage. <b>It does not print won</b> — that is the
+    price-invisibility line, and Q3 asks Sean to draw it. Club-only vocabulary throughout: no marketplace arm, no
+    러너 보상 50%, no 러너 변경.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="justify-content:flex-end;background:rgba(28,24,55,.45)">
+        <div style="background:var(--lbg);border-top-left-radius:14px;border-top-right-radius:14px;padding:16px 16px 34px">
+          <div style="width:40px;height:4px;border-radius:2px;background:var(--lhair);margin:0 auto 12px"></div>
+          <div class="t15 b8 lhead">몽이 위탁 취소</div>
+          <div class="t14 ltext mt6">지금 취소하면 아래 <b>①</b> 규정이 적용돼요. 최종 판정은 서버가 취소하는 시점에 해요.</div>
+
+          <div class="lcard" style="border-left:3px solid var(--accent)">
+            <div class="row between"><div class="t15 b8 lhead">① 무료 취소</div><span class="tag lilac">지금 여기</span></div>
+            <div class="t14 ltext mt4">시작 24시간 전까지는 수수료가 없어요</div>
+            <div class="t14 ldim mt4">8월 25일 (월) 오전 9:00까지 · <span class="numf">23</span>시간 남음</div>
+          </div>
+          <div class="lcard" style="box-shadow:none">
+            <div class="t15 b8 ldim">② 위탁 요금의 10%</div>
+            <div class="t14 ldim mt4">시작 24시간 안쪽에서 취소할 때</div>
+          </div>
+          <div class="lcard" style="box-shadow:none">
+            <div class="t15 b8 ldim">③ 위탁 요금의 20%</div>
+            <div class="t14 ldim mt4">담당 러너가 배정을 수락한 뒤에 취소할 때</div>
+          </div>
+          <div class="plate">인계가 끝난 뒤에는 취소가 없어요 — 그때부터는 케이스로 다뤄요</div>
+          <div class="cta dest">취소하기</div>
+          <div class="cta quiet">유지</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">arms + thresholds are SERVER law: 0048 session_cancel_delegation →<br>
+      club_cfg('cancel_free_hours')=24 · club_cfg('cancel_late_pct')=10 · club_cfg('cancel_post_accept_pct')=20<br>
+      「지금 여기」 predicate needs: assignmentState==='accepted' → ③ · scheduled_at−now &lt; free_hours → ② · else ①<br>
+      countdown line binds club_session.scheduled_at (KST label via kstParts)</div>
+    <div class="cost newdata"><b class="h">what this costs — NEW SERVER DATA (recommended)</b>
+      Two honest builds exist and they are not equal:<br>
+      <b>(a) client mirror</b> of the three <code>club_config</code> defaults — zero server work, and it lies the
+      moment a club is tuned. This is exactly how the marketplace mirror broke twice
+      (<code>cancelPolicy</code> shipped missing two arms and quoted 10% where the server charged 0).<br>
+      <b>(b) server field</b>: <code>club_delegation_board.dogs[].cancelRule</code> = <code>{rule, pct, freeUntil}</code>,
+      computed by the same SQL branch that charges. One additive field on an existing RPC, no new route.<br>
+      Frozen surfaces: none. <b>Open:</b> whether the won amount may appear here at all (Q3).</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ D -->
+<h2 class="band"><span class="sig">D</span>위탁 승낙서 <span class="f">· app/app/club/delegate/[sid].tsx</span></h2>
+<p class="sub">The document world — the one surface in the app that keeps square corners (radius 2), ink rules and
+dashed inputs, because a document should look like a document. It is also, by Sean's 재정 ④, <b>the only place in
+the entire app where a club fare is spoken</b>, and the fare is a precondition of the seal: no fare, no signature.
+The seal is a gesture (drag or 700ms long-press), so a mis-tap cannot sign. Everything here is already careful.
+The gap is that <b>the terms and the signing hand are not on the same paper</b> (F5).</p>
+
+<div class="rail">
+
+  <!-- D 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">The paper carries 위탁견 · 비상 연락처 · 픽업 지정인 · 진료 한도 · 사진 동의 · 조항 · 요금.
+    The cancel terms sit <b>below</b> the paper as a dim line naming two arms (승인 후 20분 · 24시간 전까지 무료),
+    while the pay sheet one screen later names three. Session facts — the date and the meeting point being signed
+    for — appear only in the masthead subtitle, one line, ellipsised.</p>
+    <div class="phone h880">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">몽이 위탁 신청</div>
+            <div class="t14 b7 ldim">반포 하이클럽 · 8월 26일 오전 9:00</div></div></div>
+        <div class="pad12">
+          <div class="doc">
+            <div class="inner"></div>
+            <div class="docHead"><div class="dispf" style="font-size:16px;color:var(--docInk)">위탁 승낙서</div>
+              <div style="font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700">CONSENT · v1 — 不變</div></div>
+            <div class="docRow"><div class="docKey">위탁견</div>
+              <div class="row gap6"><span class="docChip on">몽이 · 8kg</span><span class="docChip">초코 · 12kg</span></div></div>
+            <div class="docRow"><div class="docKey">비상 연락처 *</div><div class="docIn">010-2847-1102</div></div>
+            <div class="docRow"><div class="docKey">픽업 지정인</div><div class="docIn" style="color:#c9c2b2">본인 (미지정 시)</div></div>
+            <div class="docRow"><div class="docKey">진료 한도</div>
+              <div class="row gap4"><span style="font-size:12px;font-weight:700;color:var(--docInk)">₩</span>
+                <span class="docIn" style="flex:0 0 84px">200000</span>
+                <span class="t14" style="color:var(--docDim)">까지 사전 승인</span></div></div>
+            <div class="docRow"><div class="docKey">사진 동의</div>
+              <div style="width:20px;height:20px;border-radius:4px;background:var(--docInk);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">✓</div>
+              <div class="grow t14" style="color:var(--docDim)">러닝 사진이 내 책과 클럽에 실릴 수 있어요</div></div>
+            <div class="clause">인계부터 <b style="color:var(--docInk)">양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자예요.
+              긴급 시 위 한도 안에서 바로 진료할 수 있어요.</div>
+            <div class="fee">
+              <div class="row" style="align-items:flex-start;gap:8px">
+                <div class="docKey">위탁 요금</div>
+                <div class="grow" style="text-align:right">
+                  <div class="t19 b8" style="color:var(--docInk)">24,900원</div>
+                  <div class="t14" style="color:var(--docDim)">5km · 잠수교 코스</div></div>
+              </div>
+              <div class="t14" style="color:var(--docDim);margin-top:7px">클럽 위탁은 1:1 러닝과 기본요금이 달라요 — 호스트가 자리를 운영하고 집결지가 있어요.<br>요금 안내는 여기 한 번이에요 — 청구가 생기면 설정 › 결제 관리에 남아요.</div>
+            </div>
+            <div class="seal"><div class="paw">위탁<br>승낙</div>끌어서 봉인 &nbsp;›››</div>
+          </div>
+          <div style="text-align:center;margin-top:11px">
+            <span class="tag dimt">수정하려면 재동의 — 새 판이 쌓여요</span>
+            <div class="t14 ldim mt6">승인 후 20분 안에 자리 확정 · 시작 24시간 전까지 무료 취소</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_delegation_board.session → fare (= club_fare(km), 0043) · routeKm · routeName<br>
+      my_dogs → name · weightKg · id · consent{emergencyContact, pickupName, vetLimitKrw, photoConsent}<br>
+      seal enabled ⟺ dog != null &amp;&amp; emergency.length ≥ 9 &amp;&amp; fare != null</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. Note the two-arm line under the
+      paper versus the three-arm sentence in the pay sheet: one rule, two wordings, on the same journey.</div>
+  </div>
+
+  <!-- D① -->
+  <div class="col">
+    <div class="cap"><span class="badge">D①</span>조항이 종이 안에서 끝난다</div>
+    <p class="why">The three-arm ladder moves <b>onto the paper</b>, directly under the fare, worded with the same
+    string the pay sheet uses — and the two call sites become <b>one exported constant</b> so they cannot drift
+    again (the <code>CHARGE_LABEL</code> precedent, already duplicated across two club files today). The pilot
+    plate that the pay sheet carries (실결제가 발생하지 않아요) joins it, because the paper is where a fare is first
+    claimed and the honest thing is to say in the same breath that nothing is charged yet.</p>
+    <div class="phone h880">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">몽이 위탁 신청</div>
+            <div class="t14 b7 ldim">반포 하이클럽 · 8월 26일 오전 9:00</div></div></div>
+        <div class="pad12">
+          <div class="doc">
+            <div class="inner"></div>
+            <div class="docHead"><div class="dispf" style="font-size:16px;color:var(--docInk)">위탁 승낙서</div>
+              <div style="font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700">CONSENT · v1 — 不變</div></div>
+            <div class="docRow"><div class="docKey">위탁견</div>
+              <div class="row gap6"><span class="docChip on">몽이 · 8kg</span><span class="docChip">초코 · 12kg</span></div></div>
+            <div class="docRow"><div class="docKey">비상 연락처 *</div><div class="docIn">010-2847-1102</div></div>
+            <div class="docRow"><div class="docKey">진료 한도</div>
+              <div class="row gap4"><span style="font-size:12px;font-weight:700;color:var(--docInk)">₩</span>
+                <span class="docIn" style="flex:0 0 84px">200000</span>
+                <span class="t14" style="color:var(--docDim)">까지 사전 승인</span></div></div>
+            <div class="clause">인계부터 <b style="color:var(--docInk)">양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자예요.
+              긴급 시 위 한도 안에서 바로 진료할 수 있어요.</div>
+            <div class="fee">
+              <div class="row" style="align-items:flex-start;gap:8px">
+                <div class="docKey">위탁 요금</div>
+                <div class="grow" style="text-align:right">
+                  <div class="t19 b8" style="color:var(--docInk)">24,900원</div>
+                  <div class="t14" style="color:var(--docDim)">5km · 잠수교 코스</div></div>
+              </div>
+              <div class="row" style="align-items:flex-start;gap:8px;margin-top:9px;border-top:1px solid var(--docLine);padding-top:9px">
+                <div class="docKey">취소 규정</div>
+                <div class="grow t14" style="color:#4a463c;line-height:19px">
+                  시작 <b style="color:var(--docInk)">24시간 전까지 무료</b><br>
+                  이후 위탁 요금의 <b style="color:var(--docInk)">10%</b><br>
+                  배정 수락 후 <b style="color:var(--docInk)">20%</b><br>
+                  <span style="color:var(--docDim)">인계 후에는 취소 대신 케이스로 다뤄요</span></div>
+              </div>
+              <div class="row" style="align-items:flex-start;gap:8px;margin-top:9px">
+                <div class="docKey">자리 홀드</div>
+                <div class="grow t14" style="color:#4a463c;line-height:19px">호스트 승인 후 <b style="color:var(--docInk)">20분</b> 안에 자리를 확정해요</div>
+              </div>
+              <div class="plate" style="background:var(--docClause);border-left-color:var(--amber);color:#4a463c">
+                결제 수단 연동 준비 중 — 파일럿 기간에는 자리 확정 시 실결제가 발생하지 않아요</div>
+            </div>
+            <div class="seal"><div class="paw">위탁<br>승낙</div>끌어서 봉인 &nbsp;›››</div>
+          </div>
+          <div style="text-align:center;margin-top:11px">
+            <span class="tag dimt">수정하려면 재동의 — 새 판이 쌓여요</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">no new binds. The three arms are the SAME strings as the pay sheet (0048's ladder),<br>
+      lifted to one exported const so the two surfaces cannot diverge — today they already have.<br>
+      pilot plate = the string already shipping in session/[sid].tsx payPlate</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none. Component cost: one shared constant used by two files.
+      <b>Real cost:</b> the paper grows ~86pt, so the seal moves further below the fold on 375dp — see D② for the
+      same problem from the other direction; they are additive and should be judged together, not separately.
+      <b>Second-order win:</b> the terms become part of the immutable v1 document the server stamps, so what the
+      owner agreed to is what the record says.</div>
+  </div>
+
+  <!-- D② -->
+  <div class="col">
+    <div class="cap"><span class="badge">D②</span>무엇에 서명하는지 종이가 말한다</div>
+    <p class="why">A consent that names the dog, the vet limit and the fee — but not the <b>session</b>. Date and
+    meeting point exist only in the ellipsised masthead subtitle, and <code>board.session</code> is already loaded
+    here (it is where the fare comes from). This adds one 세션 row at the head of the document, above 위탁견,
+    because that is the order a paper form reads: what event, then whose dog, then the money. The seal's
+    disabled-reason line (already shipping) pins directly under the seal so the reason never scrolls away from
+    the control it explains.</p>
+    <div class="phone h880">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">몽이 위탁 신청</div>
+            <div class="t14 b7 ldim">반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="doc">
+            <div class="inner"></div>
+            <div class="docHead"><div class="dispf" style="font-size:16px;color:var(--docInk)">위탁 승낙서</div>
+              <div style="font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700">CONSENT · v1 — 不變</div></div>
+            <div class="docRow" style="border-bottom-width:1.5px"><div class="docKey">세션</div>
+              <div class="grow"><div class="t14 b8" style="color:var(--docInk)">8월 26일 (토) 오전 9:00</div>
+                <div class="t14" style="color:var(--docDim)">잠수교 북단 계단 앞 집결 · 반포 하이클럽</div></div></div>
+            <div class="docRow"><div class="docKey">위탁견</div>
+              <div class="row gap6"><span class="docChip on">몽이 · 8kg</span><span class="docChip">초코 · 12kg</span></div></div>
+            <div class="docRow"><div class="docKey">비상 연락처 *</div><div class="docIn" style="color:#c9c2b2">010-0000-0000</div></div>
+            <div class="docRow"><div class="docKey">진료 한도</div>
+              <div class="row gap4"><span style="font-size:12px;font-weight:700;color:var(--docInk)">₩</span>
+                <span class="docIn" style="flex:0 0 84px">200000</span>
+                <span class="t14" style="color:var(--docDim)">까지 사전 승인</span></div></div>
+            <div class="clause">인계부터 <b style="color:var(--docInk)">양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자예요.</div>
+            <div class="fee">
+              <div class="row" style="align-items:flex-start;gap:8px">
+                <div class="docKey">위탁 요금</div>
+                <div class="grow" style="text-align:right">
+                  <div class="t19 b8" style="color:var(--docInk)">24,900원</div>
+                  <div class="t14" style="color:var(--docDim)">5km · 잠수교 코스</div></div>
+              </div>
+              <div class="t14" style="color:var(--docDim);margin-top:7px">클럽 위탁은 1:1 러닝과 기본요금이 달라요 — 요금 안내는 여기 한 번이에요.</div>
+            </div>
+            <div class="seal" style="background:var(--linset)">
+              <div class="paw" style="border-color:var(--lhair);color:var(--ldim)">위탁<br>승낙</div>
+              <span style="color:var(--ldim)">끌어서 봉인 &nbsp;›››</span></div>
+            <div class="t14" style="color:#a4917f;text-align:center;margin-top:7px">비상 연락처를 채우면 봉인이 열려요</div>
+          </div>
+          <div style="text-align:center;margin-top:11px">
+            <span class="tag dimt">수정하려면 재동의 — 새 판이 쌓여요</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_delegation_board.session → when (KST label) · meetupPoint — ALREADY fetched on this screen<br>
+      the disabled-reason line is the string already shipping (강아지 목록/요금/비상 연락처 branches)</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b> — <code>meetupPoint</code> and
+      <code>scheduledAt</code> ride the board this screen already loads for the fare. New routes: none. Frozen
+      surfaces: none.
+      <b>Real cost:</b> +46pt of paper before the seal, on a screen whose action is a <i>gesture</i> at the bottom.
+      Combined with D① that is ~130pt, which on a 375dp device puts the seal fully below the fold — acceptable only
+      if the disabled-reason line stays pinned to it (drawn) so a stalled owner is never hunting for why.
+      <b>Alternative if that is too much:</b> the 세션 row replaces the mast subtitle rather than adding to it.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ P -->
+<h2 class="band"><span class="sig">P</span>입장권 <span class="f">· app/app/club/pass/[sid].tsx</span></h2>
+<p class="sub">The cluster's night artifact — and it <b>stays dark</b> (§1: "dark is the artifact, light is the
+screen"). Held up to a host at 06:50 in the dark at 잠수교. Everything about the ceremony is right: ADMIT language,
+bib box, perforation, barcode, the CHECKED stamp. Two things on it are <b>not true</b>, and both are one-line
+fixes: the team count is read from a list the server only fills for parties (F6), and the time is the device's,
+not Seoul's (F7).</p>
+
+<div class="rail">
+
+  <!-- P 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why"><code>TEAMS {sess.people.length}/{capacity}</code> — but <code>people</code> is filled only for
+    session parties (0052 §2) and <code>peopleCount</code> is the canonical number the session shell already
+    prefers. <code>DATE</code> uses <code>d.getHours()</code>, so a phone on another timezone prints an hour the
+    club home (pinned to Asia/Seoul) does not. And the pre-window line says 시작 2시간 전부터 without naming when
+    that is.</p>
+    <div class="phone night h700">
+      <div class="stbar"><span>6:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:18px;justify-content:center">
+        <div style="position:absolute;top:12px;left:16px;width:40px;height:40px;border-radius:6px;background:var(--nightCard);border:1px solid var(--nightEdge);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">‹</div>
+        <div class="ntk">
+          <div class="edge"></div>
+          <div class="row gap12" style="padding:16px 16px 16px 19px;align-items:flex-start">
+            <div class="grow">
+              <div style="font-size:9.5px;letter-spacing:3px;font-weight:700;color:var(--neon)">ADMIT — TEAM OF 2 (YOU + DOG)</div>
+              <div class="dispf" style="font-size:25px;color:#fff;margin-top:5px">반포 하이클럽</div>
+              <div class="t14" style="color:var(--nightDim);margin-top:3px">호스트 김민준 러너 · HIGH-VERIFIED</div>
+            </div>
+            <div style="border:1px solid var(--nightEdge);border-radius:4px;padding:6px 12px;text-align:center;background:#1B1536">
+              <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--nightDim)">TEAMS</div>
+              <div class="numf" style="font-size:21px;color:var(--neon)">2<span class="t14" style="color:var(--nightDim)">/9</span></div>
+            </div>
+          </div>
+          <div class="nperf"><div class="nn" style="left:-7px"></div><div class="dash"></div><div class="nn" style="right:-7px"></div></div>
+          <div class="ngrid">
+            <div><div class="ncellK">DATE</div><div class="ncellV">토 09:00</div></div>
+            <div><div class="ncellK">MEET</div><div class="ncellV">잠수교 북단 계단 앞</div></div>
+          </div>
+          <div style="padding:13px 16px 0">
+            <div class="ncellK">TEAM</div>
+            <div class="dispf" style="font-size:27px;color:#fff;margin-top:3px">김서연 + 몽이</div>
+          </div>
+          <div style="padding:12px 16px 4px;min-height:74px;display:flex;align-items:center">
+            <div class="checkin grow">✓ 집결지 도착 체크인</div>
+          </div>
+          <div class="nbars">
+            <i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i>
+          </div>
+          <div style="font-size:8.5px;letter-spacing:2.5px;font-weight:700;color:var(--nightDim);margin:6px 0 0 16px">DOGS HIGH · A3F91C48</div>
+        </div>
+        <div class="t14" style="color:var(--nightDim);text-align:center;margin-top:14px">집결지에서 호스트에게 이 화면을 보여주세요</div>
+      </div>
+    </div>
+    <div class="binds">club_session_detail → people[] (parties only!) · capacity · meetupPoint · scheduledAt · myAttendance · hostName<br>
+      TEAMS currently = people.length — peopleCount exists on the same payload and is the canonical count<br>
+      serial = sess.id.slice(0,8) — MRZ class, exempt from the 14pt floor</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. The two defects are visible in
+      this frame: <code>2/9</code> where the club home's ticket says 4팀, and a device-local 09:00.</div>
+  </div>
+
+  <!-- P① -->
+  <div class="col">
+    <div class="cap"><span class="badge">P①</span>티켓이 서버의 숫자를 쓴다</div>
+    <p class="why">Three honesty fixes, no new look. <b>TEAMS</b> reads <code>peopleCount ?? people.length</code> —
+    the same fallback the session shell already uses for old servers. <b>DATE</b> goes through the club's own KST
+    helper, so the ticket, the club home and the console all print one hour. <b>The pre-window line names the
+    time</b> the check-in actually opens (start − 2h), instead of asking the reader to do the arithmetic in the
+    dark. Nothing is added to the ticket; three values become true.</p>
+    <div class="phone night h700">
+      <div class="stbar"><span>6:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:18px;justify-content:center">
+        <div style="position:absolute;top:12px;left:16px;width:40px;height:40px;border-radius:6px;background:var(--nightCard);border:1px solid var(--nightEdge);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">‹</div>
+        <div class="ntk">
+          <div class="edge"></div>
+          <div class="row gap12" style="padding:16px 16px 16px 19px;align-items:flex-start">
+            <div class="grow">
+              <div style="font-size:9.5px;letter-spacing:3px;font-weight:700;color:var(--neon)">ADMIT — TEAM OF 2 (YOU + DOG)</div>
+              <div class="dispf" style="font-size:25px;color:#fff;margin-top:5px">반포 하이클럽</div>
+              <div class="t14" style="color:var(--nightDim);margin-top:3px">호스트 김민준 러너 · HIGH-VERIFIED</div>
+            </div>
+            <div style="border:1px solid var(--nightEdge);border-radius:4px;padding:6px 12px;text-align:center;background:#1B1536">
+              <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--nightDim)">TEAMS</div>
+              <div class="numf" style="font-size:21px;color:var(--neon)">4<span class="t14" style="color:var(--nightDim)">/9</span></div>
+            </div>
+          </div>
+          <div class="nperf"><div class="nn" style="left:-7px"></div><div class="dash"></div><div class="nn" style="right:-7px"></div></div>
+          <div class="ngrid">
+            <div><div class="ncellK">DATE · KST</div><div class="ncellV">토 09:00</div></div>
+            <div><div class="ncellK">MEET</div><div class="ncellV">잠수교 북단 계단 앞</div></div>
+          </div>
+          <div style="padding:13px 16px 0">
+            <div class="ncellK">TEAM</div>
+            <div class="dispf" style="font-size:27px;color:#fff;margin-top:3px">김서연 + 몽이</div>
+          </div>
+          <div style="padding:12px 16px 4px;min-height:74px;display:flex;flex-direction:column;justify-content:center">
+            <div class="t14" style="color:var(--nightDim);text-align:center">RSVP ✓ — 체크인은 <span class="numf" style="color:#fff">오전 7:00</span>부터 열려요</div>
+            <div class="t14" style="color:var(--nightDim);text-align:center;margin-top:4px">지금은 오전 6:41이에요</div>
+          </div>
+          <div class="nbars">
+            <i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i>
+          </div>
+          <div style="font-size:8.5px;letter-spacing:2.5px;font-weight:700;color:var(--nightDim);margin:6px 0 0 16px">DOGS HIGH · A3F91C48</div>
+        </div>
+        <div class="t14" style="color:var(--nightDim);text-align:center;margin-top:14px">집결지에서 호스트에게 이 화면을 보여주세요</div>
+      </div>
+    </div>
+    <div class="binds">peopleCount ?? people.length (api.ts:3349 — undefined on pre-push servers, hence the ??)<br>
+      kstParts(sess.scheduledAt) — the helper club/[id].tsx and api.ts already use<br>
+      체크인 창 = scheduled_at − 2h ~ +6h (0030 session_checkin) — the open time is derived, not invented</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none. Component cost: none — this screen builds its own date string today; it can call the shared
+      helper instead.
+      <b>Note:</b> the DATE cell gains the latin suffix <code>· KST</code>. That is a kicker (latin caps, exempt),
+      and it is the honest way to say which clock a ticket is on for someone travelling.</div>
+  </div>
+
+  <!-- P② -->
+  <div class="col">
+    <div class="cap"><span class="badge">P②</span>도장은 한 번 찍힌다 · 엄지가 닿는 곳에</div>
+    <p class="why">Check-in is a <b>peak moment</b> (§7b Peak-End) and today it just… appears. This lands the
+    CHECKED stamp as a ceremony <b>once per session id</b> — the module-level Set idiom the receipt already uses
+    (<code>sealStampFresh</code>) — so it never replays on re-entry hydration, and it honours
+    <code>isReduceMotionEnabled</code> with a short cross-fade instead. The 체크인 control moves to the ticket's
+    foot at ≥44pt, which is where a thumb is when a phone is held up to a host.</p>
+    <div class="phone night h700">
+      <div class="stbar"><span>8:52</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:18px;justify-content:center">
+        <div style="position:absolute;top:12px;left:16px;width:40px;height:40px;border-radius:6px;background:var(--nightCard);border:1px solid var(--nightEdge);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">‹</div>
+        <div class="ntk">
+          <div class="edge"></div>
+          <div class="row gap12" style="padding:16px 16px 16px 19px;align-items:flex-start">
+            <div class="grow">
+              <div style="font-size:9.5px;letter-spacing:3px;font-weight:700;color:var(--neon)">ADMIT — TEAM OF 2 (YOU + DOG)</div>
+              <div class="dispf" style="font-size:25px;color:#fff;margin-top:5px">반포 하이클럽</div>
+              <div class="t14" style="color:var(--nightDim);margin-top:3px">호스트 김민준 러너 · HIGH-VERIFIED</div>
+            </div>
+            <div style="border:1px solid var(--nightEdge);border-radius:4px;padding:6px 12px;text-align:center;background:#1B1536">
+              <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--nightDim)">TEAMS</div>
+              <div class="numf" style="font-size:21px;color:var(--neon)">4<span class="t14" style="color:var(--nightDim)">/9</span></div>
+            </div>
+          </div>
+          <div class="nperf"><div class="nn" style="left:-7px"></div><div class="dash"></div><div class="nn" style="right:-7px"></div></div>
+          <div class="ngrid">
+            <div><div class="ncellK">DATE · KST</div><div class="ncellV">토 09:00</div></div>
+            <div><div class="ncellK">MEET</div><div class="ncellV">잠수교 북단 계단 앞</div></div>
+          </div>
+          <div style="padding:13px 16px 0">
+            <div class="ncellK">TEAM</div>
+            <div class="dispf" style="font-size:27px;color:#fff;margin-top:3px">김서연 + 몽이</div>
+          </div>
+          <div style="padding:14px 16px 4px;min-height:88px;display:flex;align-items:center;justify-content:center">
+            <div class="stamp">
+              <div style="font-size:17px;font-weight:900;letter-spacing:3px;color:var(--volt)">CHECKED</div>
+              <div style="font-size:8.5px;font-weight:700;letter-spacing:2px;color:rgba(198,245,66,.75);margin-top:2px">ARRIVED · GOOD RUN</div>
+            </div>
+          </div>
+          <div class="nbars">
+            <i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i><i style="width:2px;height:100%"></i>
+          </div>
+          <div style="font-size:8.5px;letter-spacing:2.5px;font-weight:700;color:var(--nightDim);margin:6px 0 0 16px">DOGS HIGH · A3F91C48</div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="checkin" style="opacity:.35">✓ 집결지 도착 체크인</div>
+          <div class="t14" style="color:var(--nightDim);text-align:center;margin-top:8px">도장이 찍히면 이 버튼 자리는 사라져요 — 위 스탬프가 결과예요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">myAttendance === 'checked_in' → stamp · checkinClubSession(sess.id) → the control<br>
+      once-law key = session id (module-level Set, the sealStampFresh idiom in api.ts)<br>
+      motion: transform + opacity only (native driver) — DESIGN.md §6</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none — this screen has no state machine, only a check-in call.
+      <b>Real cost:</b> a new once-per-entity ceremony is a new thing that can replay wrongly; the Set idiom exists
+      precisely because that bug has happened before, and the token must be burned when the card actually renders,
+      not on the loading branch (the receipt's own P1 fix). Reduced-motion path is mandatory, not optional.
+      <b>Trade shown in-frame:</b> the button sits below the ticket rather than inside it, which is +48pt of scroll
+      before the barcode on a 375dp screen.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ K -->
+<h2 class="band"><span class="sig">K</span>호스트 콘솔 <span class="f">· app/app/club/console/[sid].tsx</span></h2>
+<p class="sub">The operating table: 심사 → 결제 현황(읽기 전용) → 배정 → 케이스 → 진행·종료. Its refusals are already
+exemplary — runner chips name 만석 / 체크인 전 / 배정 창 닫힘 <i>before</i> the tap, the finish gate prints the
+server's own blockers, and 강제 종결 says plainly that the app does not know where the dog is. What it lacks is
+<b>ordering under time pressure</b> (F8): at 08:55 the host wants 배정, and gets there past two sections that say
+nothing is there.</p>
+
+<div class="rail">
+
+  <!-- K 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">All five sections always render. 심사 and 결제 현황 print their empty lines at the meetup, and
+    the section header grammar here (14/800 + violet number + a subtitle) is not §3b's (20/800 over a full-bleed
+    coral rule, <b>no subtitle</b>). The 성립 미터 at the top is good and stays in both variants.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>8:55</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
+            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="bignum">
+            <div><div class="numf v lhead">3/6</div><div class="l">위탁</div></div>
+            <div><div class="numf v lhead">3</div><div class="l">결제</div></div>
+            <div><div class="numf v lhead">2</div><div class="l">러너</div></div>
+            <div><div class="numf v lhead">OK</div><div class="l">성립</div></div>
+          </div>
+          <div class="sechead"><div class="secN">1</div><div class="t14 b8 lhead">심사</div>
+            <div class="t14 ldim" style="margin-left:auto">승인 = 결제 요청 발송</div></div>
+          <div class="t14 ldim" style="text-align:center;margin-top:10px">대기 중인 신청이 없어요</div>
+          <div class="sechead"><div class="secN">2</div><div class="t14 b8 lhead">결제 현황</div>
+            <div class="t14 ldim" style="margin-left:auto">읽기 전용</div></div>
+          <div class="drow"><div class="row gap10"><div class="dogdot s30">몽</div>
+            <div class="grow"><div class="t14 b8 lhead">몽이</div><div class="t14 ltext">김서연</div></div>
+            <span class="tag volt">자리 확정</span></div></div>
+          <div class="drow"><div class="row gap10"><div class="dogdot s30 sky">초</div>
+            <div class="grow"><div class="t14 b8 lhead">초코</div><div class="t14 ltext">박지훈</div></div>
+            <span class="tag volt">자리 확정</span></div></div>
+          <div class="sechead"><div class="secN">3</div><div class="t14 b8 lhead">배정 제안</div>
+            <div class="t14 ldim" style="margin-left:auto">러너 수락으로 확정</div></div>
+          <div class="drow"><div class="row gap10"><div class="dogdot">몽</div>
+            <div class="grow"><div class="t14 b8 lhead">몽이</div><div class="t14 ltext">배정 대기</div></div></div>
+            <div class="row gap8 mt10" style="flex-wrap:wrap">
+              <span class="abtn chipr">김민준(나) 0/2</span>
+              <span class="abtn off">이서연 1/1 만석</span>
+              <span class="abtn off">박준호 0/2 체크인 전</span>
+            </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_delegation_board → dogs[] (approval · chargeState · assignmentState · proposalExpiresAt) ·<br>
+      runners[] (name · assigned · cap · checkedIn · isMe) · session.{reservedCount, delegatedCapacity, checkinOpen, viability}<br>
+      club_session_incidents → severity · summary · caseOwner</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. Two of the four visible section
+      headers describe themselves in a subtitle, which §3b retired app-wide.</div>
+  </div>
+
+  <!-- K① -->
+  <div class="col">
+    <div class="cap"><span class="badge">K①</span>지금 할 일</div>
+    <p class="why">A triage head under the 성립 미터, built entirely from arrays already in memory: 승인 대기 ·
+    배정 대기 · 제안 소멸 · 케이스 오너 미지정. Each row scrolls to its own section. Sections with nothing in them
+    collapse to <b>one line</b> instead of a heading plus an empty sentence. <b>Decluttering never becomes
+    hiding</b> (§7b): 종료 차단, 위탁 정원 0, 배정 창 닫힘 and every case row stay at full size — only <i>emptiness</i>
+    is compressed, never a warning.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>8:55</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
+            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="bignum">
+            <div><div class="numf v lhead">3/6</div><div class="l">위탁</div></div>
+            <div><div class="numf v lhead">3</div><div class="l">결제</div></div>
+            <div><div class="numf v lhead">2</div><div class="l">러너</div></div>
+            <div><div class="numf v lhead">OK</div><div class="l">성립</div></div>
+          </div>
+          <div class="card hero" style="margin-top:11px">
+            <div class="t14 b7 acc" style="letter-spacing:.5px">지금 할 일</div>
+            <div class="row between" style="margin-top:9px;padding:7px 0;border-bottom:1px solid var(--nl)">
+              <div class="t15 b8 lhead">배정 대기 <span class="numf acc">2</span></div><div class="t14 b8 acc">배정으로 →</div></div>
+            <div class="row between" style="padding:7px 0;border-bottom:1px solid var(--nl)">
+              <div class="t15 b8 lhead">제안 소멸 <span class="numf" style="color:var(--lcoralDeep)">1</span></div><div class="t14 b8 acc">재제안 →</div></div>
+            <div class="row between" style="padding:7px 0">
+              <div class="t15 b8 lhead">케이스 오너 미지정 <span class="numf" style="color:var(--tang)">1</span></div><div class="t14 b8 acc">케이스로 →</div></div>
+          </div>
+          <div class="row between" style="margin-top:14px;padding:10px 0;border-bottom:1px solid var(--lhair2)">
+            <div class="t14 b8 ldim">심사 — 대기 없음</div><div class="t14 ldim">승인 3건 완료</div></div>
+          <div class="row between" style="padding:10px 0;border-bottom:1px solid var(--lhair2)">
+            <div class="t14 b8 ldim">결제 현황 — 3건 자리 확정</div><div class="t14 b8 acc">펼치기 ›</div></div>
+          <div class="sec3b"><div class="rule"></div><div class="row between"><div class="t">배정</div><div class="t14 b8 acc" style="margin-top:8px">러너 2명 ›</div></div></div>
+          <div class="drow"><div class="row gap10"><div class="dogdot">몽</div>
+            <div class="grow"><div class="t14 b8 lhead">몽이</div><div class="t14 ltext">배정 대기</div></div></div>
+            <div class="row gap8 mt10" style="flex-wrap:wrap">
+              <span class="abtn chipr">김민준(나) 0/2</span>
+              <span class="abtn off">이서연 1/1 만석</span>
+            </div></div>
+          <div class="drow"><div class="row gap10"><div class="dogdot sky">초</div>
+            <div class="grow"><div class="t14 b8 lhead">초코</div><div class="t14 ltext">제안 → 박준호 소멸 — 다시 제안하세요</div></div>
+            <span class="tag dimt">소멸</span></div>
+            <div class="row gap8 mt10"><span class="abtn ghost">정리하고 재제안</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">every count is an existing array length: pending · review · unassigned · proposed(expired) · unownedCases<br>
+      「제안 소멸」 uses the SAME expired predicate the row already computes (proposalExpiresAt − now ≤ 0)<br>
+      no count is invented: a section with no data prints its real zero as a collapsed line, not as absence</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none (the console owns no frozen machine).
+      <b>Component cost:</b> one ref per section + <code>scrollTo</code> — the first scroll-anchoring in the club
+      cluster, so it needs a measured-layout pattern rather than magic offsets.
+      <b>Risk (this is the real one):</b> a triage head is a second place that counts things, and if it ever
+      disagrees with the section below it, the host trusts neither. Both must read the same arrays in the same
+      render — no memo that can go stale, no separate fetch.</div>
+  </div>
+
+  <!-- K② -->
+  <div class="col">
+    <div class="cap"><span class="badge">K②</span>배정판 — 이유가 이름 뒤에 숨지 않는다</div>
+    <p class="why">The assignment section is the console's peak: a five-minute clock, a host standing in the cold,
+    and a row of chips reading <code>이서연 1/1 만석</code> — name, load and refusal crushed into one 14pt line. This
+    turns each runner into a two-line row <b>sorted by whether they can actually take a dog</b> (체크인 완료 →
+    만석 → 체크인 전 → 배정 창 닫힘), with the reason on its own line. The refusal vocabulary is <b>unchanged</b> —
+    it is already correct and already pre-tap; it is only being given room to be read.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>8:55</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
+            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="sec3b"><div class="rule"></div><div class="t">배정</div></div>
+          <div class="card" style="margin-top:8px">
+            <div class="row gap10"><div class="dogdot">몽</div>
+              <div class="grow"><div class="t15 b8 lhead">몽이</div><div class="t14 ltext">김서연 보호자 · 배정 대기</div></div>
+              <span class="tag amber">대기</span></div>
+            <div class="t14 b8 ldim" style="margin-top:11px;letter-spacing:.3px">누구에게 제안할까요</div>
+            <div class="row between" style="padding:10px 0;border-top:1px solid var(--nl);margin-top:6px">
+              <div class="grow"><div class="t15 b8 lhead">김민준 (나)</div>
+                <div class="t14 voltink">체크인 완료 · 오늘 담당 <span class="numf">0</span>/<span class="numf">2</span></div></div>
+              <div class="abtn" style="flex-grow:0;padding:11px 14px;min-height:44px;display:flex;align-items:center">내가 맡기</div></div>
+            <div class="row between" style="padding:10px 0;border-top:1px solid var(--nl)">
+              <div class="grow"><div class="t15 b8 lhead">최유진</div>
+                <div class="t14 voltink">체크인 완료 · 오늘 담당 <span class="numf">1</span>/<span class="numf">3</span></div></div>
+              <div class="abtn" style="flex-grow:0;padding:11px 14px;min-height:44px;display:flex;align-items:center">제안</div></div>
+            <div class="row between" style="padding:10px 0;border-top:1px solid var(--nl)">
+              <div class="grow"><div class="t15 b8 ldim">이서연</div>
+                <div class="t14 ldim">오늘 담당이 가득 찼어요 <span class="numf">1</span>/<span class="numf">1</span></div></div>
+              <div class="t14 b8 ldim">만석</div></div>
+            <div class="row between" style="padding:10px 0;border-top:1px solid var(--nl)">
+              <div class="grow"><div class="t15 b8 ldim">박준호</div>
+                <div class="t14 ldim">아직 체크인 전이에요 — 집결지 체크인 후 제안할 수 있어요</div></div>
+              <div class="t14 b8 ldim">대기</div></div>
+          </div>
+          <div class="card" style="margin-top:10px">
+            <div class="row gap10"><div class="dogdot sky">초</div>
+              <div class="grow"><div class="t15 b8 lhead">초코</div>
+                <div class="t14 ltext">제안 → 박준호 · <span class="numf">03:12</span> 남음</div></div>
+              <div class="ring sm"><div class="lit"></div><div class="hole"></div></div>
+              <span class="tag amber">수락 대기</span></div>
+            <div class="row gap8 mt10"><span class="abtn ghost" style="padding:11px 10px;min-height:44px;display:flex;align-items:center;justify-content:center">제안 취소</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">board.runners[] → name · isMe · assigned · cap · checkedIn · profileId<br>
+      block reasons are the SERVER's three refusals, already mirrored client-side today:<br>
+      full (_club_runner_load 0048:478) · runner_not_checked_in (0048:465) · assign_window (0048:454)<br>
+      proposal ring = proposalExpiresAt, 5min window (0047/0048)</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none. Component cost: the chip is screen-local, so it has exactly one caller to change.
+      <b>Real cost — vertical:</b> four runners as rows is ~200pt where four chips were ~70pt. That is affordable
+      only with K①'s collapse of the empty sections; on its own this pushes 케이스 and 종료 below two screens.
+      <b>Judge K① and K② together</b>, or take K② with a cap (show 3 runners + N명 더).</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ R -->
+<h2 class="band"><span class="sig">R</span>클럽 러닝 <span class="f">· app/app/club/run/[sid].tsx</span></h2>
+<p class="sub">A runner, outdoors, one hand, holding one to three other people's dogs. The screen's engineering is
+the most careful in the cluster — 60-second batched trace with the server's own 8m/s gate applied before send,
+km from GPS only (no demo fallback), a settle that refuses without a real <code>started_at</code>, a per-dog km cut
+from that dog's own start. Its <b>interaction</b> has not had the same attention: the big CTA silently targets the
+first dog (F9) and the per-dog control is a 30pt target (F10).</p>
+
+<div class="rail">
+
+  <!-- R 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">Map 240 → BigNumRow at 21pt → one row per dog with a small 종료 chip → SOS · 카메라 · a full
+    width <code>러닝 종료 (마리별) →</code> which opens <code>active[0]</code>. With two dogs the label promises a
+    choice and the button makes one for you. The banners (트레이스 저장 밀림 · 앱을 켜 둔 동안만 기록) are correct
+    and loud; they stack.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:12</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:0 12px">
+        <div class="mast" style="padding-left:0;padding-right:0"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">러닝 중</div>
+            <div class="t14 b7 ldim">몽이 · 초코 — 반포 하이클럽</div></div>
+          <div style="width:26px;height:26px;border-radius:13px;background:rgba(240,118,90,.22);display:flex;align-items:center;justify-content:center">
+            <div style="width:12px;height:12px;border-radius:6px;background:var(--lcoral)"></div></div></div>
+        <div class="strip">앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</div>
+        <div class="map"><div class="trace"></div>
+          <div style="position:absolute;left:76%;top:52%;width:12px;height:12px;border-radius:6px;background:var(--accent);border:2px solid #fff"></div></div>
+        <div class="bignum">
+          <div><div class="numf v lhead">3.2<span class="u">km</span></div><div class="l">거리 (실측)</div></div>
+          <div><div class="numf v lhead">6'12"</div><div class="l">페이스</div></div>
+          <div><div class="numf v lhead">19:52</div><div class="l">경과</div></div>
+        </div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30">몽</div>
+          <div class="grow"><div class="t14 b8 lhead">몽이 · 김서연 보호자</div>
+            <div class="t14 acc b7">비상 010-2847-1102 — 탭하면 전화</div></div>
+          <div class="endbtn">종료</div>
+        </div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30 sky">초</div>
+          <div class="grow"><div class="t14 b8 lhead">초코 · 박지훈 보호자</div>
+            <div class="t14 acc b7">비상 010-9931-7740 — 탭하면 전화</div></div>
+          <div class="endbtn">종료</div>
+        </div>
+        <div class="grow"></div>
+        <div class="row gap12" style="margin-bottom:10px">
+          <div class="sos">SOS</div>
+          <div class="cam">◉</div>
+          <div class="grow"><div class="cta" style="margin-top:0;padding:18px 12px">러닝 종료 (마리별) →</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">geo.startTracking snapshot → km (8m/s gated) · last fix · trace length<br>
+      runs.started_at (fetchRunStartedAt) → 경과 · per-dog km cut · settleRun{actual_km, duration_sec, end_reason}<br>
+      session_roster.dogs[].detail.emergencyContact → 비상 (열람이 서버에 기록됨)</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. Three coral objects share it: the
+      LIVE dot, the tang SOS, and the action-coral CTA. SOS is a safety control and reads as budget-exempt; the
+      pair of coral <i>surfaces</i> (SOS + CTA) is the part worth a ruling (Q8).</div>
+  </div>
+
+  <!-- R① -->
+  <div class="col">
+    <div class="cap"><span class="badge">R①</span>종료는 아이를 고르고 시작한다</div>
+    <p class="why">With one dog, nothing changes — the CTA names that dog and opens its sheet, exactly as today.
+    With two or more, the CTA opens a <b>picker of the active dogs</b> instead of silently choosing the first, and
+    each dog row's 종료 grows to a 44pt target. The picker is the same 시트 grammar the screen already uses, and
+    each line carries that dog's own elapsed, because the per-dog settle is already cut from that dog's
+    <code>started_at</code> — the number in the picker is the number that gets settled.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:12</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:0 12px">
+        <div class="mast" style="padding-left:0;padding-right:0"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">러닝 중</div>
+            <div class="t14 b7 ldim">몽이 · 초코 — 반포 하이클럽</div></div>
+          <div style="width:26px;height:26px;border-radius:13px;background:rgba(240,118,90,.22);display:flex;align-items:center;justify-content:center">
+            <div style="width:12px;height:12px;border-radius:6px;background:var(--lcoral)"></div></div></div>
+        <div class="map" style="height:200px"><div class="trace"></div>
+          <div style="position:absolute;left:76%;top:52%;width:12px;height:12px;border-radius:6px;background:var(--accent);border:2px solid #fff"></div></div>
+        <div class="bignum">
+          <div><div class="numf v lhead">3.2<span class="u">km</span></div><div class="l">거리 (실측)</div></div>
+          <div><div class="numf v lhead">6'12"</div><div class="l">페이스</div></div>
+          <div><div class="numf v lhead">19:52</div><div class="l">경과</div></div>
+        </div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30">몽</div>
+          <div class="grow"><div class="t14 b8 lhead">몽이 · 김서연 보호자</div>
+            <div class="t14 acc b7">비상 010-2847-1102 — 탭하면 전화</div></div>
+          <div class="endbtn big">종료</div>
+        </div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30 sky">초</div>
+          <div class="grow"><div class="t14 b8 lhead">초코 · 박지훈 보호자</div>
+            <div class="t14 acc b7">비상 010-9931-7740 — 탭하면 전화</div></div>
+          <div class="endbtn big">종료</div>
+        </div>
+        <div class="grow"></div>
+        <div style="margin:0 -12px;background:rgba(28,24,55,.45);padding-top:40px">
+          <div style="background:var(--lbg);border-top-left-radius:14px;border-top-right-radius:14px;padding:16px 16px 20px">
+            <div style="width:40px;height:4px;border-radius:2px;background:var(--lhair);margin:0 auto 12px"></div>
+            <div class="t15 b8 lhead">어느 아이의 러닝을 끝낼까요</div>
+            <div class="t14 ldim mt4">아이마다 따로 정산돼요 — 각자의 시작 시각부터 실측으로 계산돼요</div>
+            <div class="row between" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:6px;padding:13px;margin-top:9px">
+              <div class="row gap10"><div class="dogdot s30">몽</div><div class="t15 b8 lhead">몽이</div></div>
+              <div class="t14 ldim"><span class="numf">19:52</span> · <span class="numf">3.2</span>km</div></div>
+            <div class="row between" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:6px;padding:13px;margin-top:8px">
+              <div class="row gap10"><div class="dogdot s30 sky">초</div><div class="t15 b8 lhead">초코</div></div>
+              <div class="t14 ldim"><span class="numf">14:03</span> · <span class="numf">2.4</span>km</div></div>
+            <div class="cta quiet">아직</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">picker rows = the same `active` array the CTA already reads (runnerId === me &amp;&amp; bookingStatus==='active')<br>
+      per-row km/elapsed = the SAME per-dog cut doSettle performs (pts filtered by that dog's started_at)<br>
+      if fetchRunStartedAt has not answered for a dog, that row shows no number — it does not show 0</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none — the settle path, the GPS gate and the trace batching are untouched.
+      <b>Real cost:</b> the per-dog numbers in the picker must be computed with the same loop as
+      <code>doSettle</code>, or the picker becomes a second, disagreeing source of truth — extract that loop into
+      one function used by both, or show no numbers at all.
+      <b>Second-order:</b> 44pt row targets cost ~28pt of height across two dogs, taken from the map (240 → 200),
+      which is the right trade on a screen where the map is orientation and the buttons are custody.</div>
+  </div>
+
+  <!-- R② -->
+  <div class="col">
+    <div class="cap"><span class="badge">R②</span>팔 길이에서 읽히는 러닝</div>
+    <p class="why">The one screen read at arm's length in daylight, with the numbers at 21pt in a shared row.
+    Distance — the number that <b>is</b> the settlement — goes to Oswald 40 with an explicit lineHeight 50 (BUG A:
+    Oswald clips ascenders without ≥1.2×); pace and elapsed become its secondary pair. The two amber strips merge
+    into one strip that names both conditions when both are true, instead of stacking two boxes above the map.
+    <b>Nothing is hidden:</b> both sentences still appear in full, in one box.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>9:12</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:0 12px">
+        <div class="mast" style="padding-left:0;padding-right:0"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">러닝 중</div>
+            <div class="t14 b7 ldim">몽이 · 초코 — 반포 하이클럽</div></div>
+          <div style="width:26px;height:26px;border-radius:13px;background:rgba(240,118,90,.22);display:flex;align-items:center;justify-content:center">
+            <div style="width:12px;height:12px;border-radius:6px;background:var(--lcoral)"></div></div></div>
+        <div class="strip">앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요<br>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</div>
+        <div class="row between" style="align-items:flex-end;margin-top:10px">
+          <div><div class="numf lhead" style="font-size:40px;line-height:50px">3.2<span style="font-size:19px;color:var(--lcoral)">km</span></div>
+            <div class="t14 b7 ldim" style="letter-spacing:.5px">거리 (실측) — 이 숫자로 정산돼요</div></div>
+          <div style="text-align:right">
+            <div class="numf lhead t21">6'12"</div><div class="t14 ldim">페이스</div>
+            <div class="numf lhead t21" style="margin-top:6px">19:52</div><div class="t14 ldim">경과</div></div>
+        </div>
+        <div class="map" style="height:268px;margin-top:12px"><div class="trace"></div>
+          <div style="position:absolute;left:76%;top:52%;width:12px;height:12px;border-radius:6px;background:var(--accent);border:2px solid #fff"></div></div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30">몽</div>
+          <div class="grow t14 b8 lhead">몽이 · 김서연 보호자</div>
+          <div class="t14 acc b7">비상 ›</div>
+          <div class="endbtn big">종료</div>
+        </div>
+        <div class="row gap10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="dogdot s30 sky">초</div>
+          <div class="grow t14 b8 lhead">초코 · 박지훈 보호자</div>
+          <div class="t14 acc b7">비상 ›</div>
+          <div class="endbtn big">종료</div>
+        </div>
+        <div class="grow"></div>
+        <div class="row gap12" style="margin-bottom:10px">
+          <div class="sos">SOS</div>
+          <div class="cam">◉</div>
+          <div class="grow"><div class="cta" style="margin-top:0;padding:18px 12px">러닝 종료 →</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">same three values as today — km.toFixed(1) · paceStr(elapsed, km) · mmssStr(elapsed)<br>
+      「이 숫자로 정산돼요」 is true: settleRun sends actual_km computed from this same gated trace<br>
+      비상 › still opens tel: — the number itself moves into the row's tap, roster access unchanged</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none.
+      <b>Component cost:</b> <code>BigNumRow</code> is shared with the session shell, the console and the receipt,
+      so this must be a <code>size</code> variant on that component (or a screen-local block), never an edit to its
+      default — three other screens depend on the 21pt row.
+      <b>Trade shown in-frame:</b> the emergency number is no longer printed in the row, only its door. That is a
+      real loss on a safety surface (a runner can read a number aloud without tapping) and the reason Q9 exists.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ A -->
+<h2 class="band"><span class="sig">A</span>케이스 <span class="f">· app/app/club/case/[cid].tsx</span></h2>
+<p class="sub">Where a club run goes when something is wrong — and, since 0072, the <b>only exit for money that is
+standing still</b>. Its discipline is already the strictest in the cluster: quotes come from the server or the
+buttons are not drawn at all (금액 없는 결정 금지), the timeline trusts only the server's evidence sequence, and
+열람 is a server chokepoint. What it does not do is say <b>what the case stopped</b> (F11) — the header names a
+severity and a summary, never the dog or the booking whose settlement is frozen.</p>
+
+<div class="rail">
+
+  <!-- A 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">케이스 S2 · 진행 중, the summary line, who opened it, who owns it, then the evidence timeline.
+    <code>subjects</code> is used only to find the booking to settle — its dog is never named, because the payload
+    carries <code>{type, id}</code> and no label. The settle card's irreversibility is spoken only inside the
+    confirm dialog, after the tap.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>10:22</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">케이스 S2</div>
+            <div class="t14 b7 ldim">진행 중</div></div></div>
+        <div class="pad12">
+          <div class="card critl">
+            <div class="row gap8"><span class="tag amber">S2</span><span class="tag amber">진행 중</span></div>
+            <div class="t145 b8 tangink" style="margin-top:9px">3km 지점에서 리드줄이 풀려 10분간 놓쳤어요</div>
+            <div class="t14 ltext mt6">개설 김민준 · 케이스 오너 <b class="lhead">김민준</b></div>
+          </div>
+          <div style="margin-top:14px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)"><div class="t14 b8 lhead">기록</div></div>
+          <div class="tl">
+            <div class="ev"><span class="ldim">09:41 </span><b class="lhead">기록</b> — 3km 지점에서 리드줄이 풀렸어요 <span class="ldim">· 김민준</span></div>
+            <div class="ev"><span class="ldim">09:43 </span><b class="lhead">위치 증거</b> — 좌표 기록됨 <span class="ldim">· 김민준</span></div>
+            <div class="ev"><span class="ldim">09:52 </span><b class="lhead">기록</b> — 10분 뒤 다시 붙잡았어요, 외상 없음 <span class="ldim">· 김민준</span></div>
+          </div>
+          <div class="row gap8" style="background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.85);border-radius:10px;padding:7px;margin-top:12px;align-items:flex-end">
+            <div class="grow" style="background:#fff;border:1px solid var(--lhair);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--ldim)">상황 기록 추가...</div>
+            <div style="background:var(--accent);border-radius:8px;padding:10px 13px;font-size:14px;font-weight:900;color:#fff">기록</div>
+          </div>
+          <div class="cta sec">예약 정산 결정하기</div>
+          <div class="cta">케이스 해소</div>
+          <div class="t14 ldim" style="text-align:center;margin-top:12px">케이스는 세션이 끝나도 계속돼요 — 해소되면 알려드려요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_incident_detail → severity · state · summary · openedBy · caseOwner · evidence[]{kind,payload,by,at}<br>
+      subjects[] = {type:'booking'|'dog', id} — ids only, NO labels (api.ts:3727)<br>
+      names are resolved in a second step from profiles; dogs are NOT resolved</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. Note what a reader cannot learn
+      here: which dog, whose booking, and whether a payout is being held because of this case.</div>
+  </div>
+
+  <!-- A① -->
+  <div class="col">
+    <div class="cap"><span class="badge">A①</span>무엇이 멈춰 있는지 머리에서 말한다</div>
+    <p class="why">A case is a hold on money and a claim about a dog. The header states both: 대상 · 정산 보류 중.
+    Two honest builds, and the frame draws the cheap one: <b>(a)</b> the three call sites that open a case already
+    hold the dog's name (세션 셸, 콘솔, 러닝) and can pass it as a route param — a bare push deep-link simply omits
+    the line, which is the honest absence rather than a guess. <b>(b)</b> <code>club_incident_detail</code> returns
+    subject labels, and every entry point gets it. (b) is the one that survives notifications.</p>
+    <div class="phone h760">
+      <div class="stbar"><span>10:22</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">케이스 S2</div>
+            <div class="t14 b7 ldim">진행 중 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="card critl">
+            <div class="row gap8"><span class="tag amber">S2</span><span class="tag amber">진행 중</span></div>
+            <div class="row gap10 mt10"><div class="dogdot">몽</div>
+              <div class="grow"><div class="t15 b8 lhead">몽이 — 8월 26일 러닝</div>
+                <div class="t14 ltext">담당 러너 김민준 · 보호자 김서연</div></div></div>
+            <div class="t145 b8 tangink" style="margin-top:11px">3km 지점에서 리드줄이 풀려 10분간 놓쳤어요</div>
+            <div class="row between" style="margin-top:11px;padding-top:9px;border-top:1px solid var(--nl)">
+              <div class="t14 ltext">이 예약의 정산</div><span class="tag amber">보류 중</span></div>
+            <div class="t14 ltext mt6">개설 김민준 · 케이스 오너 <b class="lhead">김민준</b></div>
+          </div>
+          <div style="margin-top:14px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)"><div class="t14 b8 lhead">기록</div></div>
+          <div class="tl">
+            <div class="ev"><span class="ldim">09:41 </span><b class="lhead">기록</b> — 3km 지점에서 리드줄이 풀렸어요 <span class="ldim">· 김민준</span></div>
+            <div class="ev"><span class="ldim">09:43 </span><b class="lhead">위치 증거</b> — 좌표 기록됨 <span class="ldim">· 김민준</span></div>
+            <div class="ev"><span class="ldim">09:52 </span><b class="lhead">기록</b> — 10분 뒤 다시 붙잡았어요, 외상 없음 <span class="ldim">· 김민준</span></div>
+          </div>
+          <div class="row gap8" style="background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.85);border-radius:10px;padding:7px;margin-top:12px;align-items:flex-end">
+            <div class="grow" style="background:#fff;border:1px solid var(--lhair);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--ldim)">상황 기록 추가...</div>
+            <div style="background:var(--accent);border-radius:8px;padding:10px 13px;font-size:14px;font-weight:900;color:#fff">기록</div>
+          </div>
+          <div class="cta sec">예약 정산 결정하기</div>
+          <div class="cta">케이스 해소</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">(a) route param from the three openers — session shell openCase(dogId,dogName) · console<br>
+      doForceResolve(d) · run fireSos(d) all hold d.dogName at the moment they push<br>
+      (b) NEW: club_incident_detail.subjects[] gains {label, dogName, ownerName, runnerName}<br>
+      「정산 보류 중」 must bind a REAL field — payoutHold exists on DelegationDog, NOT on IncidentDetail</div>
+    <div class="cost newdata"><b class="h">what this costs — NEW SERVER DATA for the full version</b>
+      <b>(a) params only:</b> zero server, zero routes; the line is absent on push deep-links, which is exactly the
+      case a runner opens at 06:50 from a notification — so (a) is a half fix by construction.<br>
+      <b>(b) labels on the RPC:</b> one additive projection on <code>club_incident_detail</code>, no new route, and
+      it must respect the same party chokepoint the detail already enforces.<br>
+      <b>⚠ The 정산 보류 chip cannot be built today at all:</b> <code>payoutHold</code> lives on
+      <code>DelegationDog</code>, and this screen never loads a board. Either it comes with (b) or the chip is not
+      drawn — an invented hold state on a money screen is the worst possible place to guess.</div>
+  </div>
+
+  <!-- A② -->
+  <div class="col">
+    <div class="cap"><span class="badge">A②</span>결정 카드 — 근거가 버튼 위에 있다</div>
+    <p class="why">The three outcomes are a one-way door, and today the measured km that justifies the middle one
+    is printed <b>below</b> the buttons, while 한 번만 결정할 수 있어요 lives inside the confirm dialog. This puts
+    the evidence line at the top of the card, keeps the server's three quotes exactly as they are, and moves the
+    irreversibility onto the card where the reading happens. The refusal path is untouched: no quote → no button,
+    with 다시 시도.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>10:22</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">케이스 S2</div>
+            <div class="t14 b7 ldim">진행 중 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="lcard" style="margin-top:12px">
+            <div class="t15 b8 lhead">예약 정산</div>
+            <div class="t14 ltext mt6" style="line-height:19px">이 예약은 사건으로 멈춰 있어요. 셋 중 하나를 고르면 환불과 러너 정산이
+              실제로 움직여요.</div>
+            <div class="row between" style="background:var(--linset);border-radius:6px;padding:10px 12px;margin-top:10px">
+              <div class="t14 b8 lhead">실측 <span class="numf">3.2</span>km</div>
+              <div class="t14 ltext">인계 완료</div></div>
+            <div class="settleRow">
+              <div class="grow"><div class="t14 b8 lhead">실측대로 정산</div>
+                <div class="t14 ldim">달린 만큼 러너에게, 나머지는 환불</div>
+                <div class="t14 ltext mt4">환불 <span class="numf">9,900</span>원 · 러너 <span class="numf">10,050</span>원</div></div>
+              <div class="settleBtn">선택</div></div>
+            <div class="settleRow">
+              <div class="grow"><div class="t14 b8 lhead">전액 환불</div>
+                <div class="t14 ldim">제공된 게 없어요 — 러너 정산 없음</div>
+                <div class="t14 ltext mt4">환불 <span class="numf">24,900</span>원 · 러너 <span class="numf">0</span>원</div></div>
+              <div class="settleBtn">선택</div></div>
+            <div class="settleRow">
+              <div class="grow"><div class="t14 b8 lhead">전액 지급</div>
+                <div class="t14 ldim">서비스는 이행됐어요 — 환불 없음</div>
+                <div class="t14 ltext mt4">환불 <span class="numf">0</span>원 · 러너 <span class="numf">16,683</span>원</div></div>
+              <div class="settleBtn">선택</div></div>
+            <div class="plate" style="border-left-color:var(--critical)">한 번만 결정할 수 있어요 — 고른 근거는 이 케이스에 남아요</div>
+            <div class="cta quiet">닫기</div>
+          </div>
+          <div class="card" style="margin-top:10px">
+            <div class="t14 b8 lhead">견적을 못 받은 경우엔 이렇게</div>
+            <div class="t14 crit mt6">견적을 불러오지 못했어요 — 금액 없이 결정할 수는 없어요.</div>
+            <div class="cta sec">다시 시도</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">incidentSettleQuote(bid, outcome) ×3 → {refund, runnerNet, measuredKm, tookCustody}<br>
+      every won figure in this frame is a SERVER quote — the client computes no money (0072)<br>
+      the failure card is the shipped quoteErr branch, drawn as documentation of the refusal path</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none. Component cost: none.
+      <b>Note on money and price invisibility:</b> these won figures are legitimate here and always were — §0-bis's
+      silence is about the happy path, and 예외는 시끄럽다. This is the loudest exception in the app.
+      <b>Second-order:</b> putting 실측 3.2km above the options makes the middle option's arithmetic checkable at a
+      glance, which is the whole anti-gaming argument (G1) — the reader can judge whether the account is true.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ T -->
+<h2 class="band"><span class="sig">T</span>완료 영수증 <span class="f">· app/app/club/receipt/[bid].tsx</span></h2>
+<p class="sub">The cluster's Peak-End surface and the one place gold is allowed to live (§8: gold = SETTLED only).
+The stamp ceremony is already correct in the ways that are hard: once per booking via the module-level Set, the
+token burned when the card actually renders (not on the loading branch), the capture gate that refuses to share a
+PNG mid-flight, and no skeleton inside the card because a skeleton would be captured. Two things it does not do:
+it prints one of N photos (F12), and its feed door discovers its own refusal only after the tap (F13).</p>
+<div class="frozen">CEREMONY: the once-law (sealStampFresh), the capture gate (stamping), and 「도장 찍는 중…」 —
+both variants leave all three exactly as they are.</div>
+
+<div class="rail">
+
+  <!-- T 현재 -->
+  <div class="col">
+    <div class="cap"><span class="badge now">현재</span>오늘 출하되는 화면</div>
+    <p class="why">Best shot, gold seal, one display line, the three-cell number rule, 하이 포인트 when a ledger row
+    exists (and silence when it does not — correct), credit lines. Then three doors: 이미지로 공유, 동네 피드에
+    자랑하기, 상세 리포트. The second one calls <code>runPhotoAllowed</code> <b>on press</b>, so a run with a
+    non-consenting dog fails at the tap.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>10:40</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">완료</div>
+            <div class="t14 b7 ldim">8월 26일 (토) 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="rcpt">
+            <div class="gframe"></div>
+            <div class="photo">러닝 사진 (photos[0])</div>
+            <div style="display:flex;justify-content:center;margin-top:-26px"><div class="gseal">SETTLED</div></div>
+            <div style="text-align:center;padding:0 14px 18px">
+              <div class="dispf lhead" style="font-size:19px;margin-top:10px">몽이, 오늘 <span style="color:var(--lcoral)">5.1km</span></div>
+              <div class="t14 ldim mt4">김민준와 · 6'04" · 31:02</div>
+              <div style="margin-top:10px"><span class="flap"><i>S</i><i>E</i><i>T</i><i>T</i><i>L</i><i>E</i><i>D</i></span></div>
+              <div class="numRow">
+                <div><div class="numf lhead" style="font-size:18px">5.1<span class="t14" style="color:var(--lcoral)">km</span></div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">실측 거리</div></div>
+                <div><div class="numf lhead" style="font-size:18px">6'04"</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">페이스</div></div>
+                <div><div class="numf lhead" style="font-size:18px">31:02</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">시간</div></div>
+              </div>
+              <div style="align-self:stretch;margin-top:11px;padding-top:9px;border-top:1px solid var(--lhair);text-align:left">
+                <div class="row between"><div class="t14 b7 ldim" style="letter-spacing:.5px">하이 포인트</div>
+                  <div class="numf lhead" style="font-size:18px;line-height:22px">+520</div></div>
+                <div class="t14 ldim mt4">완주 +500 · 응가 +20</div>
+              </div>
+              <div class="t14 b7 ldim" style="letter-spacing:.5px;margin-top:14px">반포 하이클럽</div>
+              <div style="font-size:7.5px;letter-spacing:2px;font-weight:700;color:var(--ldim);margin-top:2px">DOGS HIGH</div>
+            </div>
+          </div>
+          <div class="cta" style="padding:18px 12px">이미지로 공유 →</div>
+          <div class="cta sec">동네 피드에 자랑하기</div>
+          <div class="link">상세 리포트 (지도·이벤트) →</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">fetchRunReport(bid) → dogName · runnerName · run{actualKm, durationSec, paceSecPerKm, photos[]}<br>
+      fetchRunEarning(bid) → miles_ledger rows (null = no rows = the line is absent, never 0)<br>
+      photos[] is an ARRAY — only [0] is drawn today</div>
+    <div class="cost now"><b class="h">current cost</b>Nothing — shipped screen. 하이 포인트 correctly disappears
+      rather than printing 0 for an early-ended run.</div>
+  </div>
+
+  <!-- T① -->
+  <div class="col">
+    <div class="cap"><span class="badge">T①</span>인화는 한 장이 아니다</div>
+    <p class="why"><code>run.photos</code> arrives as an array — a club run with two runners and a camera button
+    routinely has three or four — and the card prints exactly one, forever. Best shot stays the print; the rest
+    become a contact strip under the numbers, at the size a contact strip is (a thumbnail is a glyph, not detail
+    text). <b>With no photos the card is exactly today's photo-less paper</b>: no stock image, no placeholder, no
+    wallpaper (사진법, §8: photos are content).</p>
+    <div class="phone h880">
+      <div class="stbar"><span>10:40</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">완료</div>
+            <div class="t14 b7 ldim">8월 26일 (토) 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="rcpt">
+            <div class="gframe"></div>
+            <div class="photo">베스트 샷 (photos[0])</div>
+            <div style="display:flex;justify-content:center;margin-top:-26px"><div class="gseal">SETTLED</div></div>
+            <div style="text-align:center;padding:0 14px 18px">
+              <div class="dispf lhead" style="font-size:19px;margin-top:10px">몽이, 오늘 <span style="color:var(--lcoral)">5.1km</span></div>
+              <div class="t14 ldim mt4">김민준와 · 6'04" · 31:02</div>
+              <div class="numRow">
+                <div><div class="numf lhead" style="font-size:18px">5.1<span class="t14" style="color:var(--lcoral)">km</span></div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">실측 거리</div></div>
+                <div><div class="numf lhead" style="font-size:18px">6'04"</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">페이스</div></div>
+                <div><div class="numf lhead" style="font-size:18px">31:02</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">시간</div></div>
+              </div>
+              <div class="thumbs"><i></i><i></i><i></i></div>
+              <div class="t14 ldim" style="text-align:left;margin-top:6px">오늘 찍은 사진 <span class="numf">4</span>장</div>
+              <div style="align-self:stretch;margin-top:11px;padding-top:9px;border-top:1px solid var(--lhair);text-align:left">
+                <div class="row between"><div class="t14 b7 ldim" style="letter-spacing:.5px">하이 포인트</div>
+                  <div class="numf lhead" style="font-size:18px;line-height:22px">+520</div></div>
+                <div class="t14 ldim mt4">완주 +500 · 응가 +20</div>
+              </div>
+              <div class="t14 b7 ldim" style="letter-spacing:.5px;margin-top:14px">반포 하이클럽</div>
+              <div style="font-size:7.5px;letter-spacing:2px;font-weight:700;color:var(--ldim);margin-top:2px">DOGS HIGH</div>
+            </div>
+          </div>
+          <div class="cta" style="padding:18px 12px">이미지로 공유 →</div>
+          <div class="cta sec">동네 피드에 자랑하기</div>
+          <div class="link">상세 리포트 (지도·이벤트) →</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">run.photos[] → [0] printed · slice(1,4) as the strip · length → 「N장」 (real count, or the line is absent)<br>
+      each path is a private-bucket media path → MediaImage signs it and renders expiry as an explicit failure (0064)<br>
+      photos.length === 0 → strip and count line both absent; the card is unchanged from today</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b> — the array is already in the
+      report. New routes: none. Frozen surfaces: the ceremony is untouched.
+      <b>Real cost:</b> the captured PNG grows by ~70pt, and a strip of <code>MediaImage</code>s inside the capture
+      target means <b>three more signed URLs must resolve before the share is honest</b> — a thumbnail that has not
+      loaded would be captured as an empty box. The capture gate must extend to cover them, or the strip must sit
+      <i>outside</i> <code>cardRef</code> (safer, and drawn that way here: it is below the numbers but inside the
+      card visually — implementer must choose one and say which).</div>
+  </div>
+
+  <!-- T② -->
+  <div class="col">
+    <div class="cap"><span class="badge">T②</span>공유 문이 미리 대답한다</div>
+    <p class="why">동네 피드에 자랑하기 is a real button with a real refusal — for a delegated run whose dog's owner
+    did not consent to photos, it <b>always</b> fails, and only after the tap (0053 §3a gate). Calling
+    <code>runPhotoAllowed</code> at load turns a failure into a stated fact, in the same words, before the finger
+    moves. The image share is unaffected — that is a private capture, not a publication, so it stays a full door.
+    The graceful path stays: an older server that has no such RPC is treated as allowed, exactly as today.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>10:40</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">완료</div>
+            <div class="t14 b7 ldim">8월 26일 (토) 오전 9:00 · 반포 하이클럽</div></div></div>
+        <div class="pad12">
+          <div class="rcpt">
+            <div class="gframe"></div>
+            <div style="display:flex;justify-content:center;margin-top:16px"><div class="gseal">SETTLED</div></div>
+            <div style="text-align:center;padding:0 14px 18px">
+              <div class="dispf lhead" style="font-size:19px;margin-top:10px">몽이, 오늘 <span style="color:var(--lcoral)">5.1km</span></div>
+              <div class="t14 ldim mt4">김민준와 · 6'04" · 31:02</div>
+              <div class="numRow">
+                <div><div class="numf lhead" style="font-size:18px">5.1<span class="t14" style="color:var(--lcoral)">km</span></div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">실측 거리</div></div>
+                <div><div class="numf lhead" style="font-size:18px">6'04"</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">페이스</div></div>
+                <div><div class="numf lhead" style="font-size:18px">31:02</div>
+                  <div class="t14 b7 ldim" style="letter-spacing:.5px">시간</div></div>
+              </div>
+              <div class="t14 b7 ldim" style="letter-spacing:.5px;margin-top:14px">반포 하이클럽</div>
+              <div style="font-size:7.5px;letter-spacing:2px;font-weight:700;color:var(--ldim);margin-top:2px">DOGS HIGH</div>
+            </div>
+          </div>
+          <div class="cta" style="padding:18px 12px">이미지로 공유 →</div>
+          <div class="card" style="margin-top:12px">
+            <div class="t15 b8 lhead">동네 피드 공유는 지금 할 수 없어요</div>
+            <div class="t14 ltext mt6">함께 달린 아이 중에 사진 공개에 동의하지 않은 아이가 있어요 — 이 러닝은 피드에 올릴 수 없어요.</div>
+            <div class="t14 ldim mt6">이미지로 공유는 그대로 쓸 수 있어요 (내 기기에서만 저장·전송돼요)</div>
+          </div>
+          <div class="link">상세 리포트 (지도·이벤트) →</div>
+          <div class="card" style="margin-top:14px">
+            <div class="t14 b8 lhead">동의가 있는 경우엔 오늘과 같아요</div>
+            <div class="cta sec">동네 피드에 자랑하기</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">runPhotoAllowed(bid) — EXISTS today, called on press; this calls it at load instead<br>
+      photo consent origin = delegation_consents.photo_consent (latest per dog), gated server-side by 0053 §3a<br>
+      RPC missing on an older server → allowed = true (the shipped graceful path, unchanged)</div>
+    <div class="cost"><b class="h">what this costs</b>New server fields: <b>none</b>. New routes: none. Frozen
+      surfaces: none — the ceremony, the capture gate and the once-law are untouched.
+      <b>Real cost:</b> one extra RPC on every receipt open, including the ~90% of receipts where the answer is
+      「가능」 and nothing changes. <b>Honest failure mode:</b> if that call itself fails, the door must render as
+      today's button (allowed), not as a refusal — refusing on a network error would be inventing a consent
+      decision, which is worse than the current late failure. <b>Second-order:</b> this is the first place in the
+      app that explains 사진 동의 to the person who did not make it; the wording must not blame the other owner.</div>
+  </div>
+
+</div>
+
+<footer>
+  <h3>OPEN QUESTIONS — what the code could not decide for me</h3>
+  <ol class="q">
+    <li><b>C①, does the ticket keep any display voice at all?</b> Retiring Black Han Sans from the doors and the
+      ticket day leaves the masthead as the only display use — correct by §8. But 하이클럽's boarding-pass identity
+      was picked as a lockup of big type (변형 D), and the day glyph (토) at 19 BHS is part of that pick. If the
+      ticket is treated as a lockup rather than as copy, it could hold the one use and the <i>masthead</i> would
+      drop instead. One of them must, and it is not my call which.</li>
+    <li><b>C②, is a third identity on the coral door acceptable?</b> The slot is already 위탁하기 / 내 위탁; adding
+      자리 확정 makes three. The alternative is a strip above the ticket, which costs vertical space on the root
+      but leaves the door law intact.</li>
+    <li><b>S②, may the cancel fee be spoken in won?</b> The marketplace prints the exact fee before commit; the
+      club prints no money outside the 승낙서 (재정 ④). A percentage of a number the owner saw once, days ago, is
+      technically disclosed and practically unknowable. Three options: percent only (drawn), percent + won at the
+      moment of cancel, or a link to 설정 › 결제 관리. <b>This is a money ruling, not a design pick.</b></li>
+    <li><b>S②, mirror or server field?</b> A client mirror of <code>club_config</code> defaults ships today and
+      lies the day a club is tuned; the board field is one additive projection and cannot. The marketplace has
+      already been bitten twice by exactly this. Do we take the field?</li>
+    <li><b>D①+D②, how much paper before the seal is too much?</b> Both variants push the seal down (~130pt
+      combined). The seal is a <i>gesture</i>, so unlike a button it cannot be reached by muscle memory from a
+      thumb. Take one, take both with the pinned reason line, or move the fee+terms block <i>above</i> the fields?</li>
+    <li><b>P②, is the check-in stamp a sanctioned ceremony?</b> §7b protects peak moments (GO press, handoff seal,
+      run completion) and lists three. Check-in at the meetup is arguably a fourth; if it is not, P② is only the
+      thumb-zone half.</li>
+    <li><b>K①, does a triage head belong on a host screen at all?</b> It is a second counter of the same arrays.
+      The alternative is pure reordering (배정 first when <code>checkinOpen</code>, 심사 first when not) with no new
+      element — less useful, and impossible to disagree with itself.</li>
+    <li><b>R, how many coral surfaces may a live run screen have?</b> Today: LIVE dot (lilac coral), SOS (tang), CTA
+      (action coral). §8 says one primary coral surface per screen; §2 says critical ink is budget-exempt. Is SOS
+      "critical" for budget purposes, or does the end CTA drop to secondary while a run is live?</li>
+    <li><b>R②, may the emergency number leave the row?</b> Trading the printed number for a 비상 › door buys the
+      big distance number. On a custody screen, a number you can read aloud without tapping is worth something I
+      cannot measure from the code. Roster access rules are unaffected either way (열람 is still logged on fetch).</li>
+    <li><b>A①, do we add subject labels to <code>club_incident_detail</code>?</b> The params-only build is free and
+      breaks exactly where cases matter most — a push notification at 06:50. And <b>the 정산 보류 chip cannot be
+      built at all without it</b>, because <code>payoutHold</code> is not on this payload.</li>
+    <li><b>T①, does the contact strip go inside the captured card?</b> Inside = a richer share and three more
+      signed URLs that must resolve before the capture is honest; outside = a plain card and the strip is a
+      browsing affordance only. The capture gate already exists for the stamp; extending it to images is new.</li>
+    <li><b>Cluster-wide: is the club home still mid-migration on purpose?</b> <code>club/[id].tsx</code> paints a
+      paper canvas but keeps lilac cards with <code>lilacRadius</code> + soft shadow for the 시리즈 리듬 row and the
+      collecting card, while its own tiles and host tool are paper (radius 0, #EEE). Both grammars are on one
+      screen today. Every frame in section C preserves that as-is rather than picking a side — but somebody should
+      pick a side, and DESIGN.md §2 says the fate is decided "per screen at migration time".</li>
+    <li><b>Cluster-wide: 화면당 하나의 CTA vs. the shell's reality.</b> The session shell can legitimately render
+      자리 확정하기 (coral) and 함께 뛰기 (coral when I have no delegation) and 러너 확약 (coral) in one scroll —
+      three action-coral surfaces, each correct in isolation. §7b says two ink CTAs cancel each other out; three
+      coral ones do worse. Does the shell need an explicit priority rule ("only the block with a clock keeps
+      coral"), and if so, is S① that rule or a separate one?</li>
+  </ol>
+</footer>
+
+</div></body></html>

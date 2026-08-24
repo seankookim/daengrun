@@ -1,0 +1,1537 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner Home + Schedule — Enhancement Lab (2026-08-24)</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════════════
+   NEW HEXES: 0. Every colour below is copied from app/src/theme.ts or from a
+   component-scope palette that already ships (draw-button.tsx G map,
+   schedule.tsx STATUS_STYLE). Nothing was invented.
+
+   paper   #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text
+           #666666 dim · #999999 faint · #E8552F line · #FFF6F4 wash
+           #B3261E critical · #FBEAE7 criticalWash · #F2F2F2 disabledFill
+           #C77414 pending · #C6472C action · #A83315 actionPressed/actionInk
+           #119B58 ready · #0E7F49 readyDeep
+   lilac   #F4F2FB bg · #EFECF9 inset · #E6E2F4 hair · #221E3D head · #4B4668 text
+           #7C76A0 dim · #6C5CE7 accent · #F0765A coral · #E45F41 coralDeep
+           #FBEED9 amberSoft · #F2DFC2 amberEdge · #EAF6C8 voltFill · #5E7F0E voltDeep
+           #1C1837 night
+   drawbtn #A63A20 coralEdge · #FBF9F4 paperBg · #F4EBD3/#E7DAB6/#C9AE6A/#5F4E1C/#6B5720 gold
+           #EDF2F8/#D8E3EF/#A9BDD2/#2E4F70/#456079 blue · #EAF6C8/#D7E8B0/#A8C46A/#3F5A08/#4F6717 volt
+           #EFECF9/#DFD9F2/#B8AEE0/#3B3170/#6A5FA8 lilac · #FBEED9/#F2DFC2/#DCBE86/#6E4708/#7A4F0A amber
+   sched   #e3f0c4/#3d5a2b/#5a7a3c confirmed · #FDE8D0/#9D580A/#F59A43 pending
+           #eaf7c8/#4a6d1f/#C6F542 active · #E3EEF8/#4A6E93/#6E9BC5 completed
+           #ececec/#8a8a8a/#c9c9c9 cancelled · #ffe9e2/#ffc9b8/#d84a2f live button
+   neutral #EEEEEE chrome hairline (home/schedule both use it)
+
+   FONTS ARE SIMULATED. No CDN in this file, so Black Han Sans / Oswald /
+   IBM Plex Sans KR are approximated by the system stack. `.bhs` = where Black
+   Han Sans would be, `.osw` = where Oswald would be. Judge SIZE and COUNT here,
+   not letterforms.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --pg:#FAF9F7; --pnl:#FFFFFF; --ink:#111111; --txt:#333333; --dim:#666666;
+  --faint:#999999; --coral:#E8552F; --act:#C6472C; --hair:#DEDCD6; --violet:#6C5CE7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --pg:#151513; --pnl:#1D1D1A; --ink:#F2F1EC; --txt:#DAD8D1; --dim:#9C9A92; --hair:#33332E;
+  }
+}
+:root[data-theme="dark"]{
+  --pg:#151513; --pnl:#1D1D1A; --ink:#F2F1EC; --txt:#DAD8D1; --dim:#9C9A92; --hair:#33332E;
+}
+html{color-scheme:light dark}
+body{
+  background:var(--pg); color:var(--ink);
+  font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  -webkit-font-smoothing:antialiased; padding:38px 22px 110px;
+}
+.wrap{max-width:1290px;margin:0 auto}
+
+/* ── page chrome ─────────────────────────────────────────────────────────── */
+h1{font-size:34px;line-height:1.14;font-weight:800;letter-spacing:-.025em}
+.law{font-size:11.5px;letter-spacing:2.4px;color:var(--faint);text-transform:uppercase;margin:11px 0 15px;font-weight:700}
+.lede{font-size:15px;color:var(--dim);line-height:1.82;max-width:960px}
+.lede b{color:var(--ink);font-weight:700}
+h2{font-size:23px;font-weight:800;margin:64px 0 6px;padding-top:22px;border-top:1.5px solid var(--coral);letter-spacing:-.02em}
+h2 .n{color:var(--coral);font-weight:800;margin-right:11px}
+h2 .path{font:12.5px/1 ui-monospace,"SF Mono",Menlo,monospace;color:var(--dim);font-weight:500;margin-left:10px;letter-spacing:0}
+h3.sub{font-size:16px;font-weight:800;margin:40px 0 4px;letter-spacing:-.01em}
+p.sub{font-size:14.5px;color:var(--dim);line-height:1.8;max-width:960px;margin-top:6px}
+p.sub b{color:var(--ink)}
+.note{background:var(--pnl);border:1px solid var(--hair);padding:15px 18px;margin:20px 0 6px;font-size:14px;line-height:1.75;max-width:1100px}
+.note h4{margin:0 0 8px;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.note.bad{border:2px solid var(--act)}
+.note.bad h4{color:var(--act)}
+.note b{color:var(--ink)}
+code{font:12.5px/1.5 ui-monospace,"SF Mono",Menlo,monospace;background:var(--pg);padding:1px 5px;border:1px solid var(--hair)}
+.hairline{height:1px;background:var(--hair);margin:12px 0}
+table{border-collapse:collapse;margin-top:16px;font-size:13.5px;width:100%;max-width:1180px}
+th,td{border-bottom:1px solid var(--hair);padding:9px 11px;text-align:left;vertical-align:top}
+th{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);font-weight:700}
+td b{color:var(--ink)}
+ol.q{margin:16px 0 0 20px;max-width:1080px}
+ol.q li{margin-bottom:14px;font-size:14.5px;line-height:1.75;color:var(--txt)}
+ol.q li b{color:var(--ink)}
+.foot{margin-top:70px;padding-top:20px;border-top:1.5px solid var(--coral);font-size:13.5px;color:var(--dim);line-height:1.85;max-width:1080px}
+.foot b{color:var(--ink)}
+
+/* ── variant rail ────────────────────────────────────────────────────────── */
+.rail{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start;margin-top:24px}
+.col{width:390px}
+.badge{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
+.badge .no{font-size:40px;font-weight:800;line-height:1;color:var(--act);letter-spacing:-.03em}
+.badge .no.cur{color:var(--faint)}
+.badge .ttl{font-size:17px;font-weight:800;letter-spacing:-.015em;line-height:1.25}
+.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:8px 0 12px;min-height:132px}
+.why b{color:var(--ink)}
+.crop{font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--faint);margin:0 0 7px}
+.cost{margin-top:12px;border-left:3px solid var(--act);background:var(--pnl);padding:11px 13px;font-size:13px;line-height:1.68}
+.cost .h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--act);display:block;margin-bottom:5px}
+.cost b{color:var(--ink)}
+.cost.free{border-left-color:#5E7F0E}
+.cost.free .h{color:#5E7F0E}
+.bind{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11.5px;color:var(--dim)}
+
+/* ════ PHONE — 390pt wide, 1px = 1pt so the 14pt floor is measurable here ════ */
+.phone{width:390px;background:#FFFFFF;border:1px solid var(--hair);
+       box-shadow:0 18px 44px rgba(0,0,0,.09);overflow:hidden;position:relative;
+       display:flex;flex-direction:column;color:#111}
+.phone *{color:inherit}
+.stbar{flex:0 0 26px;display:flex;align-items:center;justify-content:space-between;
+       padding:0 16px;font-size:11px;color:#999;font-weight:700;background:#fff}
+.scr{position:relative;overflow:hidden;background:#FFFFFF}
+.scr.h1010{height:1010px}
+.scr.h800{height:800px}
+.scr.h780{height:780px}
+.scr.h700{height:700px}
+.scr.h560{height:560px}
+.scr.h660{height:660px}
+.scr.h470{height:470px}
+.scr.h430{height:430px}
+.scr.h380{height:380px}
+.fade{position:absolute;left:0;right:0;bottom:0;height:52px;pointer-events:none;
+      background:linear-gradient(to bottom,rgba(255,255,255,0),#fff)}
+.tabs{flex:0 0 50px;border-top:1px solid #EEEEEE;display:flex;align-items:center;
+      justify-content:space-around;font-size:19px;color:#C9C9C9;background:#fff}
+.tabs .on{color:#111}
+.pad{padding:0 15px}       /* layout.gutter = 15 */
+.pad18{padding:0 18px}     /* hero wrap = 18 */
+.bleed{margin-left:0;margin-right:0}
+
+/* type primitives — every value below is a real shipped value */
+.bhs{font-weight:800;letter-spacing:-.03em}      /* Black Han Sans slot */
+.osw{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}  /* Oswald slot */
+.kick{font-size:14px;line-height:18px;font-weight:800;color:#666;letter-spacing:1px;margin:30px 0 6px}
+.quiet{font-size:14px;line-height:20px;color:#666}
+.modh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:14px 0 8px}
+.modh .t{font-size:15px;line-height:20px;font-weight:800;color:#111}
+.modh .l{font-size:14px;line-height:19px;font-weight:700;color:#666}
+.row{display:flex;align-items:center;gap:10px;min-height:44px;padding:13px 15px;
+     border-bottom:1px solid #EEEEEE}
+.row .t{flex:1;font-size:14px;line-height:19px;font-weight:800;color:#111}
+.row .s{font-size:14px;line-height:19px;font-weight:600;color:#666;margin-top:1px}
+.row .a{font-size:14px;line-height:19px;font-weight:800;color:#666}
+
+/* masthead + ticker */
+.mast{display:flex;align-items:center;height:48px;padding:0 15px;margin-bottom:6px}
+.mast .sp{width:40px}
+.mast .lg{flex:1;text-align:center;font-size:24px;line-height:30px;letter-spacing:.2px}
+.mast .bell{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+            font-size:20px;color:#221E3D;position:relative}
+.mast .bell i{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:3px;background:#F0765A}
+.ticker{overflow:hidden;margin-top:8px;padding:5px 15px;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;
+        white-space:nowrap;font-size:14px;color:#4B4668;font-weight:600}
+.ticker .lead{color:#7C76A0;font-weight:600;margin-right:10px}
+.ticker .r{color:#6C5CE7;font-weight:800}
+.ticker .km{color:#E45F41;font-weight:800}
+.ticker .up{color:#5E7F0E;font-weight:800}
+.ticker .dn{color:#E8552F;font-weight:800}
+.ticker .sep{display:inline-block;width:3px;height:3px;border-radius:2px;background:#E6E2F4;
+             vertical-align:middle;margin:0 8px}
+
+/* hero */
+.chip{display:flex;align-items:center;gap:7px;margin-top:2px}
+.chip i{width:9px;height:9px;border-radius:5px;display:block}
+.chip span{font-size:13px;font-weight:800;letter-spacing:1.4px}
+.chip.fix span{font-size:14px;letter-spacing:.6px}
+.phw{margin-top:6px;position:relative;min-height:108px}
+.phr{font-size:43px;line-height:50px;color:#111}
+.phr.pr{padding-right:104px}
+.mark{position:absolute;right:-2px;top:-4px;width:110px;height:66px;
+      display:flex;align-items:center;justify-content:flex-end}
+.mark svg{display:block}
+.hsub{font-size:17px;line-height:24px;color:#666;margin-top:10px}
+.opts{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+
+/* DrawButton */
+.dbtn{position:relative;overflow:hidden;min-height:96px;padding:16px 18px;
+      display:flex;flex-direction:column;justify-content:space-between;border-style:solid;
+      border-width:1px;border-bottom-width:4px}
+.dbtn.small{min-height:78px;padding:13px 16px}
+.dbtn.coda{min-height:56px;padding:11px 14px;border-bottom-width:3px}
+.dbtn .t{font-size:28px;line-height:33px;position:relative;z-index:3}
+.dbtn.coda .t{font-size:17px;line-height:22px;font-weight:800;letter-spacing:-.01em}
+.dbtn .s{font-size:15px;line-height:21px;margin-top:5px;position:relative;z-index:3;
+         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dbtn.coda .s{font-size:14px;line-height:19px;margin-top:2px}
+.dbtn .arr{position:absolute;right:16px;bottom:13px;font-size:21px;z-index:3}
+.dbtn.small .arr{font-size:18px}
+.dbtn.coda .arr{font-size:17px;bottom:10px}
+.dbtn .art{position:absolute;right:-14px;top:50%;transform:translateY(-50%);opacity:.15;z-index:1}
+.dbtn .live{display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:9px;
+            vertical-align:middle;position:relative;top:-3px}
+.g-coral{background:#C6472C;border-color:#C6472C;border-bottom-color:#A63A20;color:#FFFFFF}
+.g-coral .s,.g-coral .arr{color:#FFF6F4}
+.g-paper{background:#FBF9F4;border-color:#111111;border-width:1.5px;border-bottom-width:4px;border-bottom-color:#111111;color:#111111}
+.g-paper .s,.g-paper .arr{color:#666666}
+.g-gold{background:#F4EBD3;border-color:#E7DAB6;border-bottom-color:#C9AE6A;color:#5F4E1C}
+.g-gold .s,.g-gold .arr{color:#6B5720}
+.g-blue{background:#EDF2F8;border-color:#D8E3EF;border-bottom-color:#A9BDD2;color:#2E4F70}
+.g-blue .s,.g-blue .arr{color:#456079}
+.g-volt{background:#EAF6C8;border-color:#D7E8B0;border-bottom-color:#A8C46A;color:#3F5A08}
+.g-volt .s,.g-volt .arr{color:#4F6717}
+.g-lilac{background:#EFECF9;border-color:#DFD9F2;border-bottom-color:#B8AEE0;color:#3B3170}
+.g-lilac .s,.g-lilac .arr{color:#6A5FA8}
+.g-amber{background:#FBEED9;border-color:#F2DFC2;border-bottom-color:#DCBE86;color:#6E4708}
+.g-amber .s,.g-amber .arr{color:#7A4F0A}
+
+/* honest states */
+.failstrip{display:flex;align-items:center;justify-content:space-between;gap:9px;
+           background:#FFFFFF;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;
+           padding:11px 15px}
+.failstrip .t{font-size:14px;line-height:18px;font-weight:700;color:#B3261E}
+.failstrip .a{font-size:14px;line-height:18px;font-weight:800;color:#B3261E;text-decoration:underline}
+.latestrip{display:flex;align-items:center;gap:7px;background:#FBEAE7;border:1px solid #F0CFC6;
+           padding:9px 11px;margin-top:8px}
+.latestrip i{width:9px;height:9px;border-radius:5px;background:#B3261E;flex:0 0 9px}
+.latestrip .t{flex:1;font-size:14px;line-height:19px;font-weight:700;color:#B3261E}
+.gaps{display:flex;align-items:center;gap:11px;border:1.5px solid #111;background:#fff;
+      padding:12px 13px;margin:10px 15px 0}
+.gaps .c{width:26px;height:26px;border:1.5px solid #111;display:flex;align-items:center;
+         justify-content:center;font-size:14px;font-weight:800}
+.gaps .t{font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+.gaps .s{font-size:14px;color:#666;margin-top:2px;line-height:18px}
+.gaps .bar{height:4px;background:#EDECE7;margin-top:7px}
+.gaps .bar i{display:block;height:4px;background:#C6472C}
+.gaps .ch{font-size:19px;color:#999}
+
+/* club engrave row + roster + moments */
+.club{margin:0 15px;border:1px solid #E6E2F4;background:#fff;display:flex;align-items:center;
+      gap:11px;padding:12px 13px;position:relative;overflow:hidden}
+.club .foil{position:absolute;left:0;top:0;bottom:0;width:4px;
+            background:linear-gradient(180deg,#D8C185,#F4EBD3,#B99A4F)}
+.club .mono{width:34px;height:34px;border:1px solid #E6E2F4;background:#F4F2FB;color:#221E3D;
+            display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;margin-left:4px}
+.club .t{font-size:15px;font-weight:800;color:#221E3D}
+.club .s{font-size:14px;color:#7C76A0;margin-top:2px;line-height:18px}
+.club .ch{font-size:18px;color:#7C76A0}
+.hstrip{display:flex;gap:9px;padding-left:15px;overflow:hidden}
+.rcard{flex:0 0 146px;border:1px solid #EEEEEE;background:#fff;padding:10px}
+.rcard .top{display:flex;align-items:center;gap:8px;position:relative}
+.rcard .av{width:30px;height:30px;border-radius:15px;background:#6C5CE7;color:#fff;
+           display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+.rcard .on{position:absolute;left:22px;top:0;width:7px;height:7px;border-radius:4px;
+           background:#F0765A;border:1.5px solid #fff}
+.rcard .nm{font-size:14px;font-weight:800;color:#221E3D}
+.rcard .tr{font-size:14px;color:#7C76A0;margin-top:1px}
+.rcard .ft{display:flex;gap:10px;margin-top:9px;padding-top:8px;border-top:1px solid #EEEEEE;
+           align-items:baseline;font-size:14px;line-height:18px;font-weight:800;color:#221E3D}
+.rcard .ft em{font-style:normal;color:#7C76A0;font-weight:600}
+.mcard{flex:0 0 118px;height:146px;border:1px solid #EEEEEE;background:#EFECF9;position:relative}
+.mcard.big{flex-basis:150px}
+.mcard .pill{position:absolute;left:7px;bottom:7px;background:rgba(28,24,55,.62);color:#fff;
+             padding:3px 7px;font-size:14px;line-height:18px;font-weight:800}
+.mcard .pill em{font-style:normal;font-weight:600;color:rgba(255,255,255,.82)}
+
+/* beacon */
+.beacon{display:flex;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;margin-top:12px}
+.beacon .cell{flex:1;padding:13px 15px}
+.beacon .div{width:1px;background:#EEEEEE;margin:11px 0}
+.beacon .k{font-size:16px;line-height:21px;font-weight:700;color:#7C76A0;letter-spacing:.5px}
+.beacon .v{font-size:16px;line-height:38px;font-weight:700;color:#221E3D;margin-top:4px}
+.beacon .v b{font-size:30px;line-height:38px;font-weight:800}
+.beacon .g{font-size:16px;line-height:21px;font-weight:800;color:#6C5CE7;margin-top:6px}
+
+/* week strip (variant ②) */
+.week{margin:0 15px;padding-top:2px}
+.week .days{display:flex;gap:9px;margin-top:9px}
+.week .d{flex:1;text-align:center}
+.week .d .m{height:34px;border:1px solid #EEEEEE;background:#fff;display:flex;
+            align-items:center;justify-content:center;font-size:15px;color:#999}
+.week .d.on .m{background:#EAF6C8;border-color:#D7E8B0;color:#3F5A08;font-weight:800}
+.week .d.today .m{border-color:#111;border-width:1.5px}
+.week .d .lb{font-size:14px;line-height:19px;color:#666;margin-top:5px;font-weight:600}
+.week .d.on .lb{color:#111;font-weight:800}
+.week .sum{display:flex;align-items:baseline;justify-content:space-between;margin-top:12px;gap:10px}
+.week .sum .n{font-size:14px;line-height:19px;color:#111;font-weight:800}
+.week .sum .n b{font-size:22px;line-height:27px;font-weight:800}
+.week .sum .a{font-size:14px;line-height:19px;font-weight:800;color:#666}
+
+/* upcoming rail (variant ①) */
+.up{border-top:1px solid #EEEEEE}
+.up .r{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid #EEEEEE}
+.up .r i{width:9px;height:9px;border-radius:5px;flex:0 0 9px}
+.up .r .tm{font-size:15px;line-height:20px;font-weight:800;color:#111;flex:0 0 auto;white-space:nowrap}
+.up .r .bd{flex:1;min-width:0}
+.up .r .t{font-size:14px;line-height:19px;font-weight:800;color:#111;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up .r .s{font-size:14px;line-height:19px;color:#666}
+.up .r .d{font-size:14px;line-height:19px;font-weight:800;color:#666}
+
+/* schedule */
+.sthead{padding:0 16px}
+.sttitle{font-size:30px;line-height:37px;font-weight:800;letter-spacing:-.03em;color:#111}
+.stsub{font-size:14.5px;color:#666;margin-top:4px}
+.plus{width:40px;height:40px;border:1px solid #E8552F;background:#fff;display:flex;
+      align-items:center;justify-content:center;font-size:19.5px;color:#111}
+.chips{display:flex;gap:8px;margin-top:12px;padding:0 16px;overflow:hidden}
+.chips .c{border:1px solid #EEE;background:#fff;padding:8px 14px;font-size:14px;font-weight:700;
+          color:#333;white-space:nowrap}
+.chips .c.on{background:#111;border-color:#111;color:#fff;font-weight:800}
+.grp{font-size:14px;font-weight:800;color:#666;padding:0 12px;margin:18px 0 8px}
+.grp b{color:#111}
+.bcard{display:flex;background:#fff;border-top:1px solid #EEE;border-bottom:1px solid #EEE;
+       margin-top:-1px;position:relative;overflow:hidden}
+.bcard .rail8{width:8px;flex:0 0 8px}
+.bcard .body{flex:1;padding:14px;min-width:0}
+.bcard .r1{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.bcard .tm{font-size:20px;line-height:25px;font-weight:800;color:#111}
+.pill{padding:4px 9px;font-size:14px;font-weight:800}
+.pill.recur{background:#e3f0c4;color:#4a6d1f;padding:2px 7px}
+.pill.live{background:#5a7a3c;color:#fff;padding:2px 7px;font-weight:800}
+.bcard .rt{font-size:15px;font-weight:800;color:#111}
+.bcard .who{font-size:15px;color:#333;margin-top:3px;display:flex;align-items:center;gap:6px}
+.bcard .who .col{width:10px;height:10px;border-radius:5px;border:1.5px solid #fff;flex:0 0 10px}
+.bcard .mny{font-size:14.5px;line-height:19px;color:#666;margin-top:2px}
+.bcard .ch{font-size:16px;color:#666;align-self:center;padding-left:10px}
+.perf{position:absolute;left:3px;top:0;bottom:0;width:10px;display:flex;flex-direction:column;
+      align-items:center;justify-content:space-evenly}
+.perf .dot{width:2.5px;height:2.5px;border-radius:2px;background:#EEE}
+.seal{width:84px;height:84px;border-radius:42px;border:2.5px solid #6E9BC5;display:flex;
+      flex-direction:column;align-items:center;justify-content:center;transform:rotate(8deg);
+      opacity:.88;flex:0 0 84px;margin-left:8px}
+.seal .a{font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:#6E9BC5}
+.seal .b{font-size:14px;font-weight:800;color:#6E9BC5;margin-top:1px}
+.seal .c{font-size:6.5px;font-weight:700;letter-spacing:1px;color:rgba(110,155,197,.85);margin-top:1px}
+.golive{margin-top:11px;background:#ffe9e2;border:1px solid #ffc9b8;text-align:center;
+        padding:12px;font-size:16px;font-weight:800;color:#d84a2f}
+.sharerow{display:flex;gap:8px;background:#fff;border-bottom:1px solid #EEE;margin-top:-1px;
+          padding:9px 14px}
+.sharerow .b{flex:1;text-align:center;background:#FFF6F4;border:1px solid #E8552F;padding:11px;
+             font-size:16px;font-weight:800;color:#A83315}
+.emptycta{margin:20px 12px 0;border:1px dashed #E8552F;background:#fff;text-align:center;
+          padding:14px;font-size:16px;font-weight:800;color:#111}
+.coralcta{margin:20px 12px 0;background:#C6472C;border-bottom:4px solid #A63A20;text-align:center;
+          padding:15px;font-size:17px;font-weight:800;color:#fff}
+.emptybox{margin:24px 12px 0;padding:18px;background:#fff;border:1px solid #EEE;text-align:center;
+          font-size:15px;line-height:23px;color:#666}
+.nowband{margin:14px 12px 0;background:#fff;border:1px solid #EEE;border-left:8px solid #C6F542;
+         padding:13px 14px}
+.nowband .k{font-size:14px;font-weight:800;letter-spacing:.6px;color:#4a6d1f}
+.nowband .t{font-size:17px;line-height:23px;font-weight:800;color:#111;margin-top:4px}
+.nowband .s{font-size:14px;line-height:19px;color:#666;margin-top:3px}
+.divpast{display:flex;align-items:center;gap:10px;margin:26px 0 4px;padding:0 12px}
+.divpast .l{flex:1;height:1px;background:#EEE}
+.divpast .t{font-size:14px;font-weight:800;color:#999;letter-spacing:.5px}
+.paychip{display:inline-block;padding:3px 8px;font-size:14px;font-weight:800;margin-top:4px}
+.paychip.ok{background:#E7F5EE;color:#0E7F49}
+.paychip.rev{background:#FBEED9;color:#9D580A}
+.paychip.non{background:#F2F2F2;color:#666}
+.labtag{font-size:12px;letter-spacing:1.4px;font-weight:800;color:#999;
+        border-bottom:1px dashed #DDD;padding-bottom:5px;margin-bottom:9px}
+.ann{font-size:12.5px;line-height:1.6;color:var(--dim);background:var(--pnl);
+     border:1px dashed var(--hair);padding:8px 10px;margin-top:9px}
+.ann b{color:var(--ink)}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>보호자 홈 + 내 일정 — 강화 랩</h1>
+<div class="law">enhancement lab · 2026-08-24 · owner/home.tsx + owner/schedule.tsx · 새 헥스 0개 · 새 서버 컬럼 0개(④b 제외)</div>
+<p class="lede">
+This lab enhances <b>two screens that already ship</b> — it does not redesign them. Every frame was
+drawn after reading <code>app/app/owner/home.tsx</code> (814 lines),
+<code>app/src/components/home-hero.tsx</code>, <code>app/src/components/draw-button.tsx</code> and
+<code>app/app/owner/schedule.tsx</code> (893 lines). The <b>현재</b> frames are what the code renders
+today, not a straw man; the numbered variants change one thing each.
+<br><br>
+<b>The GO disc is not coming back.</b> Home lab ⑧ v2 (Sean, 2026-08-19, ruling "A") retired the disc
+and its collapse. The state law it carried — <b>coral = your turn · blue = waiting · sage = ready</b> —
+now rides <b>the number of buttons plus the alert line</b>, and every variant here obeys that: no
+variant adds a second coral surface, and no variant adds a button to a state that currently has none.
+</p>
+
+<div class="note">
+  <h4>Fixtures — every number in a frame is a placeholder shaped like its real field</h4>
+  No frame claims a measured value. The shapes below are the repo's own fixture names so the
+  frames read continuously with <code>store.ts</code>. Each frame annotates the field that would bind it.
+  <div class="hairline"></div>
+  아이 <b>초코</b> <span class="bind">bookings.dogs(name)</span> · 러너 <b>김민준</b>
+  <span class="bind">bookings.runners.profiles(name)</span> · 코스 <b>서울숲 순환 코스</b>
+  <span class="bind">routes.name</span> · 예약 <b>8월 26일 (화) 오후 6:30 · 5km · 24,900원</b>
+  <span class="bind">bookings.scheduled_at → kstParts() · bookings.km · bookings.total_price</span> ·
+  온라인 러너 <b>3명</b> <span class="bind">fetchCertifiedRunners().length (already .eq('online',true), .limit(10))</span> ·
+  이번 주 <b>3.2 / 10.0km · 연속 2일</b> <span class="bind">Fitness.weekKm / goalKm / streakDays</span> ·
+  하이 포인트 <b>1,250</b> <span class="bind">rpc my_miles_balance</span>
+</div>
+
+<div class="note bad">
+  <h4>⚠ Four things I found in the code while drawing this — read before picking</h4>
+  These are not proposals. They are what the shipped code does today, and three of the variants
+  below exist because of them.
+  <div class="hairline"></div>
+  <b>1. The confirmed hero's first line is always 「곧」.</b>
+  <code>home-hero.tsx:238</code> reads
+  <code>next.dateLabel.length &lt;= 4 ? next.dateLabel : '곧'</code>. But <code>dateLabel</code> for a
+  real booking comes from <code>kstParts()</code> (<code>api.ts:728</code>), which always emits
+  <code>N월 N일 (요일)</code> — never a ≤4-character string. So the ≤4 arm is
+  unreachable for server rows and <b>a booking six days out prints 「곧 / 초코가 달려요」</b>. The
+  correct relative label is already computed one file up (<code>ddayLabel</code>, from
+  <code>kstDayDiff</code> on <code>scheduled_at</code>) and is only used in the sub-line. → variant ①.
+  <div class="hairline"></div>
+  <b>2. 내 일정 opens on the FURTHEST-future booking.</b>
+  <code>fetchMyBookings</code> is <code>.order('scheduled_at', ascending: false).limit(20)</code>
+  and <code>schedule.tsx</code> groups rows in iteration order, so descending = furthest future first,
+  today's run below it, past runs below that. Home already learned this exact lesson and fixed it in
+  its own ranking (<code>home.tsx:181-185</code>, the "[FIX] 동순위 타이브레이크" comment); the schedule
+  list never got the fix. → variant ①(일정).
+  <div class="hairline"></div>
+  <b>3. The 인계하기 CTA asks for an action that is already finished.</b>
+  <code>STATUS_MAP</code> maps <code>picked_up → 'handoff'</code>, and <code>picked_up</code> is set only
+  after <b>both</b> sides confirm. So home's coral 「인계하기」 fires <i>after</i> the handoff, while the
+  moment that actually needs the owner (<code>runner_enroute</code> + <code>arrived_at</code>) renders as
+  the calm confirmed state. This is written up as
+  <code>docs/decisions/handoff-cta-gating.md</code> — <b>still AWAITING SEAN, answers A and B</b>. Variant
+  ④ draws both answers rather than choosing one. Note the plumbing that doc said was missing has since
+  landed: <code>arrived_at</code> is in <code>MY_BOOKING_SELECT</code> today.
+  <div class="hairline"></div>
+  <b>4. Black Han Sans is used up to 8× on owner home.</b> §3/§8 say once per screen.
+  <code>draw-button.tsx:210</code> puts <code>useDisplayFont()</code> on every button title at 28pt, so
+  the <code>none</code> state renders 지금 찾기 · 미리 예약 · 코스 둘러보기 · 크루 피드에 자랑 · 안심 센터
+  (5) + the hero's two 43pt lines (2) + the masthead wordmark (1). <code>home.tsx:403</code> already
+  confesses the wordmark makes it 2 and says it is not hiding that; the buttons were never counted.
+  → variant ③, and open question 4.
+</div>
+
+<div class="note">
+  <h4>Type floor — three breaches already shipping on owner home</h4>
+  Detail text floor is 14pt; Korean never rides the letterspaced-kicker exemption
+  (DESIGN.md §3, 2026-08-10 audit law). Found while measuring:
+  <code>home-hero.tsx:349</code> <b>chipTx 13pt</b> (Korean: 확정됨 · 내 차례 · 찾는 중 · 응답 대기) ·
+  <code>home-hero.tsx:341</code> <b>lateStripTx 13pt</b> (Korean critical sentence) ·
+  <code>profile-gaps.tsx:75</code> <b>sub 12.5pt</b> (Korean). The 현재 frames below draw them at their
+  real sizes; every variant frame draws them at <b>14</b>. Fixing them is free and inside no ruling —
+  see open question 3.
+</div>
+
+<div class="note">
+  <h4>Frozen surfaces this cluster touches</h4>
+  <b>owner/fitness's collapsing hero — untouched</b> (not in this cluster; variant ② only links to it).
+  <b>meetup's stage machine / polling / confirmHandoff — untouched.</b> Variant ④ changes when home's
+  handoff CTA appears and what it says; the destination is still <code>/owner/meetup</code> and meetup's
+  own machine decides everything after the tap. <b>Owner home's hero left the freeze on 2026-08-19</b>
+  (Sean: "A") together with the GO disc, so restructuring the hero is legal — the freeze stays for
+  fitness only.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     A. OWNER HOME
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">A</span>보호자 홈<span class="path">app/app/owner/home.tsx · src/components/home-hero.tsx</span></h2>
+<p class="sub">
+Three <b>현재</b> frames first, because this screen is a function of booking state and one frame cannot
+show it. The hero's six states (<code>none / searching / directed / confirmed / handoff / active</code>)
+are computed in <code>home.tsx:313-319</code> and are mutually exclusive and gapless — the variants add
+no seventh state.
+</p>
+
+<h3 class="sub">현재 — what ships today</h3>
+<div class="rail">
+
+  <!-- 현재 A: none -->
+  <div class="col">
+    <div class="badge"><span class="no cur">현재</span><span class="ttl">none — 예약이 없을 때</span></div>
+    <p class="why">
+      <b>goState = 'none'</b>, bookings loaded, a previous completed run exists. Masthead → ticker →
+      hero (chip + 43pt phrase + two drawing buttons) → profile-gaps row → 오늘 → 동네 → 나.
+      Five 28pt display-font button titles live on this one screen.
+    </p>
+    <p class="crop">화면 상단 ~ 동네 킥커</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h700">
+        <div class="mast">
+          <div class="sp"></div>
+          <div class="lg bhs">도그스하이</div>
+          <div class="bell">◔<i></i></div>
+        </div>
+        <div class="ticker">
+          <span class="lead">동네 리그</span><span class="r">1위</span> 초코 <span class="km">14.2km</span>
+          <span class="up"> ▲2</span><span class="sep"></span><span class="r">2위</span> 보리
+          <span class="km">11.8km</span><span class="dn"> ▼1</span><span class="sep"></span>
+          <span class="r">3위</span> 하루 <span class="km">9.4km</span>
+        </div>
+        <div class="pad18" style="padding-top:12px">
+          <div class="chip"><i style="background:#666"></i><span style="color:#666">비어 있음</span></div>
+          <div class="phw">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">오늘은 아직</div>
+            <div class="phr bhs">비어 있어요</div>
+          </div>
+          <div class="hsub">초코와 달릴 시간을 잡아보세요</div>
+          <div class="opts">
+            <div class="dbtn g-coral">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M8 74c18 2 26-14 44-16s26 10 42 4 22-22 38-22"/><path d="M18 74l-8 16M46 66l-6 20M78 62l-4 22M108 58l-2 22"/></g></svg></div>
+              <div class="t bhs"><span class="live" style="background:#fff"></span>지금 찾기</div>
+              <div class="s">지금 러너 3명이 대기 중이에요</div>
+              <div class="arr">›</div>
+            </div>
+            <div class="dbtn g-paper">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#111" stroke-width="2"><rect x="16" y="24" width="112" height="70"/><path d="M16 44h112M40 24v-12M104 24v-12M40 60h14M68 60h14M96 60h14M40 78h14M68 78h14"/></g></svg></div>
+              <div class="t bhs">미리 예약</div>
+              <div class="s">날짜와 시간을 골라요</div>
+              <div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="gaps">
+          <div class="c">2</div>
+          <div style="flex:1">
+            <div class="t">프로필 2칸 남았어요</div>
+            <div class="s" style="font-size:12.5px;line-height:17px">사진 · 현관 상세 — 러너가 보는 것들이에요</div>
+            <div class="bar"><i style="width:33%"></i></div>
+          </div>
+          <div class="ch">›</div>
+        </div>
+        <div class="pad"><div class="kick">오늘</div><div class="quiet">예정된 러닝이 없어요</div></div>
+        <div class="row">
+          <div style="flex:1"><div class="t">지난번처럼 다시 예약</div><div class="s">5km · 김민준 러너</div></div>
+          <div class="a">시간만 고르기 ›</div>
+        </div>
+        <div class="pad"><div class="kick">동네</div></div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Bindings:</b> ticker <span class="bind">rpc leaderboard_dogs_weekly_delta</span> (▲▼ only when
+      <code>delta != null</code>) · sub-line of 지금 찾기 <span class="bind">fetchCertifiedRunners().length</span>,
+      and <b>null renders as silence</b> — a failed read must never print 「대기 중인 러너가 없어요」
+      (home-hero.tsx:266-274) · 지난번처럼 <span class="bind">rows.find(status==='completed')</span> ·
+      gaps <span class="bind">fetchProfileGaps() → dogs.photo_url / vaccinations / addresses.detail</span>,
+      gated on a first completed run (ruling #3).
+      <b>Measured breach drawn honestly:</b> the gaps sub-line is 12.5pt here.
+    </div>
+  </div>
+
+  <!-- 현재 B: confirmed -->
+  <div class="col">
+    <div class="badge"><span class="no cur">현재</span><span class="ttl">confirmed — 확정된 예약이 있을 때</span></div>
+    <p class="why">
+      <b>goState = 'confirmed'</b>. The 오늘 chunk disappears entirely (the hero's alert line <i>is</i>
+      the ticket, v2 lab), and the hero grows a third button. Note the first line: <b>「곧」</b> — for a
+      D-2 booking, because of finding 1 above. Sage lives only in the chip; the buttons stay gold /
+      lilac / paper, so there is still exactly zero coral on this frame.
+    </p>
+    <p class="crop">화면 상단 ~ 동네 킥커</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h700">
+        <div class="mast">
+          <div class="sp"></div><div class="lg bhs">도그스하이</div><div class="bell">◔<i></i></div>
+        </div>
+        <div class="ticker">
+          <span class="lead">동네 리그</span><span class="r">1위</span> 초코 <span class="km">14.2km</span>
+          <span class="up"> ▲2</span><span class="sep"></span><span class="r">2위</span> 보리 <span class="km">11.8km</span>
+        </div>
+        <div class="pad18" style="padding-top:12px">
+          <div class="chip"><i style="background:#119B58"></i><span style="color:#119B58">확정됨</span></div>
+          <div class="phw">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">곧</div>
+            <div class="phr bhs">초코가 달려요</div>
+          </div>
+          <div class="hsub">8월 26일 (화) 오후 6:30 · 김민준 러너 확정 · D-2</div>
+          <div class="opts">
+            <div class="dbtn g-gold">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#5F4E1C" stroke-width="2"><path d="M14 26h120v24a10 10 0 0 0 0 20v24H14V70a10 10 0 0 0 0-20z"/><path d="M74 26v8M74 44v8M74 62v8M74 80v8" stroke-dasharray="1 7"/></g></svg></div>
+              <div class="t bhs">티켓 보기</div>
+              <div class="s">시간과 장소를 확인해요</div>
+              <div class="arr">›</div>
+            </div>
+            <div class="dbtn g-lilac small">
+              <div class="t bhs">채팅</div>
+              <div class="s">러너에게 물어보세요</div>
+              <div class="arr">›</div>
+            </div>
+            <div class="dbtn g-paper small">
+              <div class="t bhs">미리 예약</div>
+              <div class="s">날짜와 시간을 골라요</div>
+              <div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="pad"><div class="kick">동네</div></div>
+        <div class="club">
+          <div class="foil"></div><div class="mono">반</div>
+          <div style="flex:1;min-width:0"><div class="t">반포동 하이클럽</div><div class="s">8월 27일 (수) 07:30 · 3자리 남음</div></div>
+          <div class="ch">›</div>
+        </div>
+        <div class="row" style="margin-top:0"><div class="t">동네 클럽 찾기</div><div class="a">›</div></div>
+        <div class="pad"><div class="modh"><span class="t">동네 러너</span><span class="l">동네 랭킹 ›</span></div></div>
+        <div class="hstrip">
+          <div class="rcard"><div class="top"><div class="av">김</div><div class="on"></div>
+            <div style="flex:1;min-width:0"><div class="nm">김민준</div><div class="tr">certified · 반포동</div></div></div>
+            <div class="ft"><span class="osw">42<em> RUNS</em></span><span class="osw">6'40"</span></div></div>
+          <div class="rcard"><div class="top"><div class="av">이</div><div class="on"></div>
+            <div style="flex:1;min-width:0"><div class="nm">이서연</div><div class="tr">certified · 잠원동</div></div></div>
+            <div class="ft"><span class="osw">18<em> RUNS</em></span><span class="osw">7'10"</span></div></div>
+          <div class="rcard"><div class="top"><div class="av">박</div><div class="on"></div>
+            <div style="flex:1;min-width:0"><div class="nm">박지호</div><div class="tr">verified · 반포동</div></div></div>
+            <div class="ft"><span class="osw">7<em> RUNS</em></span><span class="osw">7'50"</span></div></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>The screen knows more than it says.</b> <code>loadBookings</code> reads up to 20 rows plus every
+      in-flight row, ranks them, and then keeps exactly two: <code>liveNext</code> and
+      <code>lastDone</code> (<code>home.tsx:192-197</code>). An owner with three upcoming runs sees one.
+      → variant ①.
+    </div>
+  </div>
+
+  <!-- 현재 C: handoff -->
+  <div class="col">
+    <div class="badge"><span class="no cur">현재</span><span class="ttl">handoff — 이미 끝난 인계를 요구하는 화면</span></div>
+    <p class="why">
+      <b>goState = 'handoff'</b> comes from <code>picked_up</code>, which the server sets only after
+      <b>both</b> sides confirm. So this coral CTA asks the owner to do a thing that is already done —
+      a dead button in the honesty sense (it routes somewhere real, but the ask is false). Meanwhile the
+      real moment — runner standing at the door — renders as the calm confirmed frame above.
+    </p>
+    <p class="crop">히어로 존만</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h470">
+        <div class="mast">
+          <div class="sp"></div><div class="lg bhs">도그스하이</div><div class="bell">◔<i></i></div>
+        </div>
+        <div class="pad18" style="padding-top:12px">
+          <div class="chip"><i style="background:#C6472C"></i><span style="color:#C6472C">내 차례</span></div>
+          <div class="phw">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">지금 만나요</div>
+            <div class="phr bhs">초코 인계할 시간</div>
+          </div>
+          <div class="hsub">김민준 러너가 도착했어요 · 만나서 인계해주세요</div>
+          <div class="opts">
+            <div class="dbtn g-coral">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 30c26 0 30 26 52 26s34-30 60-30"/><circle cx="10" cy="30" r="6"/><path d="M122 26c10 0 16 8 16 18s-8 18-18 18M60 62v26M50 88h20"/></g></svg></div>
+              <div class="t bhs"><span class="live" style="background:#fff"></span>인계하기</div>
+              <div class="s">아이를 넘기고 봉인해요</div>
+              <div class="arr">›</div>
+            </div>
+            <div class="dbtn g-lilac small">
+              <div class="t bhs">채팅</div><div class="s">늦으면 알려주세요</div><div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Also unused:</b> <code>lateness()</code> computes <code>waitMs</code> — "문 앞에서 얼마나 서
+      있었나", explicitly distinguished from <code>sinceMs</code> in its own comment — and <b>nothing on
+      this screen reads it</b>. The late strip only appears after the 30-minute grace, so between arrival
+      and lateness the screen knows the runner has been waiting 6 minutes and says nothing. → variant ④.
+    </div>
+  </div>
+
+</div><!-- /rail 현재 -->
+
+<h3 class="sub">강화안 — 번호로 고르세요</h3>
+
+<div class="rail">
+
+  <!-- ① -->
+  <div class="col">
+    <div class="badge"><span class="no">①</span><span class="ttl">다음 일정 — 히어로가 하나를 말하면, 나머지는 어디에</span></div>
+    <p class="why">
+      Home already holds every upcoming booking in memory and throws all but one away. This adds a
+      quiet rail of the <b>next 2</b> under the hero, and fixes the 「곧」 defect at the same time: the
+      first line becomes the relative label the screen <i>already computes</i>
+      (<code>ddayLabel</code> → 오늘 / 내일 / D-2), which is both short enough for the mark and true for
+      a booking six days out. The rail renders only when a <b>second</b> future booking exists — one
+      booking must never produce a rail that repeats the hero.
+    </p>
+    <p class="crop">히어로 ~ 동네 킥커</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h780">
+        <div class="mast"><div class="sp"></div><div class="lg bhs">도그스하이</div><div class="bell">◔<i></i></div></div>
+        <div class="pad18" style="padding-top:12px">
+          <div class="chip fix"><i style="background:#119B58"></i><span style="color:#119B58">확정됨</span></div>
+          <div class="phw">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr osw">D-2</div>
+            <div class="phr bhs">초코가 달려요</div>
+          </div>
+          <div class="hsub">8월 26일 (화) 오후 6:30 · 김민준 러너 확정</div>
+          <div class="opts">
+            <div class="dbtn g-gold">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#5F4E1C" stroke-width="2"><path d="M14 26h120v24a10 10 0 0 0 0 20v24H14V70a10 10 0 0 0 0-20z"/><path d="M74 26v8M74 44v8M74 62v8M74 80v8" stroke-dasharray="1 7"/></g></svg></div>
+              <div class="t bhs">티켓 보기</div><div class="s">시간과 장소를 확인해요</div><div class="arr">›</div>
+            </div>
+            <div class="dbtn g-lilac small">
+              <div class="t bhs">채팅</div><div class="s">러너에게 물어보세요</div><div class="arr">›</div>
+            </div>
+            <div class="dbtn g-paper small">
+              <div class="t bhs">미리 예약</div><div class="s">날짜와 시간을 골라요</div><div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="pad"><div class="modh" style="margin-top:22px"><span class="t">다음 일정</span><span class="l">전체 4건 ›</span></div></div>
+        <div class="up">
+          <div class="r">
+            <i style="background:#119B58"></i>
+            <div class="tm osw">8/29 (금)</div>
+            <div class="bd"><div class="t">오후 7:00 · 초코 · 김민준 러너</div><div class="s">서울숲 순환 코스 · 5km</div></div>
+            <div class="d osw">D-5</div>
+          </div>
+          <div class="r">
+            <i style="background:#6C5CE7"></i>
+            <div class="tm osw">9/02 (화)</div>
+            <div class="bd"><div class="t">오전 7:00 · 보리 · 러너 찾는 중</div><div class="s">코스 미지정 · 3km</div></div>
+            <div class="d osw">D-9</div>
+          </div>
+        </div>
+        <div class="pad"><div class="kick">동네</div></div>
+        <div class="club">
+          <div class="foil"></div><div class="mono">반</div>
+          <div style="flex:1;min-width:0"><div class="t">반포동 하이클럽</div><div class="s">8월 27일 (수) 07:30 · 3자리 남음</div></div>
+          <div class="ch">›</div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Row dot = the state law, not a new colour.</b> sage <code>#119B58</code> = 확정 · violet
+      <code>#6C5CE7</code> = 대기(찾는 중/응답 대기) · coral is reserved and never appears in a rail row,
+      because a rail row is information, not your turn.
+      <b>Honest states:</b> while loading the rail renders nothing (the hero already says
+      「예약을 확인하는 중이에요」); on error it renders nothing (the hero already carries the retry row —
+      <code>home.tsx:501</code> bans a duplicate error strip). Rows exclude
+      <code>no_show</code> / <code>incident_review</code>, exactly like the hero's <code>stale()</code> filter.
+    </div>
+    <div class="cost free">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0.</b> Every row is already in <code>rows</code> inside
+      <code>loadBookings</code> — the change is keeping the sorted array in state instead of discarding it.
+      <b>New routes: 0</b> (<code>/owner/schedule</code>, and each row opens the same sheet path).
+      <b>Frozen surfaces: none.</b><br>
+      Carries a bug fix: <code>shortDate</code>'s unreachable ≤4 arm → <code>ddayLabel</code>.
+      <b>Watch:</b> the D-label is Oswald inside a Black Han Sans line — two display faces on one line.
+      See open question 1.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <div class="badge"><span class="no">②</span><span class="ttl">이번 주 — 이미 서버에서 오는 요일 스탬프</span></div>
+    <p class="why">
+      <code>Fitness.runDays: boolean[]</code> (KST 월~일) is fetched on <b>every</b> home focus and its
+      own type comment calls it <i>"홈 히어로 요일 스탬프"</i> — and nothing renders it. Today the 나
+      chunk prints one text row, and a second row lower down (주간 목표 넛지) re-states the same two
+      numbers with a different sentence. This folds both into one strip: the week you actually ran, the
+      two numbers once, and the nudge's action only under the nudge's existing gate.
+    </p>
+    <p class="crop">나 덩어리</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h560">
+        <div class="pad"><div class="kick" style="margin-top:20px">나</div></div>
+        <div class="pad"><div class="modh" style="margin-top:2px"><span class="t">최근 순간</span></div></div>
+        <div class="hstrip">
+          <div class="mcard big"><div class="pill osw">5.2km<em>  8월 21일 (목)</em></div></div>
+          <div class="mcard"><div class="pill osw">4.8km<em>  8월 18일</em></div></div>
+          <div class="mcard"><div class="pill osw">6.0km<em>  8월 14일</em></div></div>
+        </div>
+        <div class="pad"><div class="modh" style="margin-top:22px"><span class="t">이번 주</span><span class="l">체력 ›</span></div></div>
+        <div class="week">
+          <div class="days">
+            <div class="d on"><div class="m">●</div><div class="lb">월</div></div>
+            <div class="d"><div class="m">·</div><div class="lb">화</div></div>
+            <div class="d on"><div class="m">●</div><div class="lb">수</div></div>
+            <div class="d"><div class="m">·</div><div class="lb">목</div></div>
+            <div class="d today"><div class="m">·</div><div class="lb">금</div></div>
+            <div class="d"><div class="m">·</div><div class="lb">토</div></div>
+            <div class="d"><div class="m">·</div><div class="lb">일</div></div>
+          </div>
+          <div class="sum">
+            <div class="n"><b class="osw">3.2</b> / <b class="osw">10.0</b>km · 연속 <b class="osw">2</b>일</div>
+          </div>
+          <div class="row" style="padding-left:0;padding-right:0;margin-top:8px">
+            <div style="flex:1"><div class="t">주간 목표까지 <span class="osw">6.8</span>km</div>
+              <div class="s">주말 러닝으로 채워볼까요?</div></div>
+            <div class="a">예약 ›</div>
+          </div>
+        </div>
+        <div class="beacon">
+          <div class="cell"><div class="k">하이 포인트</div>
+            <div class="v"><b class="osw">1,250</b> 포인트</div><div class="g">샵 보기 ›</div></div>
+          <div class="div"></div>
+          <div class="cell"><div class="k">다음 승급</div>
+            <div class="v">실버까지 <b class="osw">2</b>회</div><div class="g">카드 보기 ›</div></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Three states, never flattened</b> (the rule <code>home.tsx:122-125</code> already states):
+      <b>loading</b> = the strip is not drawn at all (seven empty marks would be a claimed zero) ·
+      <b>fitErr</b> = the existing full-bleed loud-fail strip 「체력 기록을 불러오지 못했어요 · 다시 시도」
+      occupies this exact slot · <b>a real week 0</b> = seven empty marks and <b class="osw">0.0</b>km,
+      which is a measured zero and stays.<br>
+      <b>Bindings:</b> marks <span class="bind">Fitness.runDays[0..6]</span> · today's outline
+      <span class="bind">KST weekday, client clock</span> · numbers
+      <span class="bind">Fitness.weekKm / goalKm / streakDays</span> · nudge row keeps its shipped gate
+      <span class="bind">weekKm&gt;0 &amp;&amp; weekKm&lt;goalKm &amp;&amp; getDay()&gt;=4</span>.
+    </div>
+    <div class="cost free">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0</b> — all four values are already on the <code>Fitness</code> object home
+      fetches today. <b>New routes: 0</b> (<code>/owner/fitness</code>, <code>/owner/request</code>).
+      <b>Frozen surfaces: none</b> — fitness's own collapsing hero is untouched; this only links to it.<br>
+      <b>Content change to confirm:</b> the standalone 주간 목표 넛지 row is absorbed, so it stops
+      appearing twice on one screen. Same "appear once" reasoning Sean applied when 지난번처럼 moved up
+      to 오늘 (2026-08-19). If you want the nudge kept where it is, ② still works — the strip just
+      loses its bottom row.
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <div class="badge"><span class="no">③</span><span class="ttl">코다 3단 — 그림 버튼의 위계 복구</span></div>
+    <p class="why">
+      Von Restorff (§7b): exactly one isolated emphasis per screen. Today the hero's decision buttons
+      and the utility coda wear <b>the same clothes</b> — 96pt vs 78pt, identical 28pt display titles —
+      so the hero has no isolation left to spend. Three moves: <b>(a)</b> a third tier at 56pt for the
+      coda, drawing kept, title at body 17/800; <b>(b)</b> Black Han Sans on the hero phrase <i>only</i>
+      (wordmark → body 900, button titles → body 800), taking the screen from 8 uses back to the §8
+      budget of 1; <b>(c)</b> the 동네 리그 ticker moves out of the header into the 동네 chunk, where its
+      content lives, freeing the fold for the decision.
+    </p>
+    <p class="crop">전체 (압축)</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h1010">
+        <div class="mast">
+          <div class="sp"></div>
+          <div class="lg" style="font-weight:800;font-size:22px;letter-spacing:-.02em">도그스하이</div>
+          <div class="bell">◔<i></i></div>
+        </div>
+        <div class="pad18" style="padding-top:4px">
+          <div class="chip fix"><i style="background:#666"></i><span style="color:#666">비어 있음</span></div>
+          <div class="phw">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">오늘은 아직</div>
+            <div class="phr bhs">비어 있어요</div>
+          </div>
+          <div class="hsub">초코와 달릴 시간을 잡아보세요</div>
+          <div class="opts">
+            <div class="dbtn g-coral">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M8 74c18 2 26-14 44-16s26 10 42 4 22-22 38-22"/><path d="M18 74l-8 16M46 66l-6 20M78 62l-4 22M108 58l-2 22"/></g></svg></div>
+              <div class="t" style="font-weight:800;font-size:26px;line-height:32px;letter-spacing:-.02em"><span class="live" style="background:#fff"></span>지금 찾기</div>
+              <div class="s">지금 러너 3명이 대기 중이에요</div><div class="arr">›</div>
+            </div>
+            <div class="dbtn g-paper small">
+              <div class="t" style="font-weight:800;font-size:22px;line-height:28px;letter-spacing:-.02em">미리 예약</div>
+              <div class="s">날짜와 시간을 골라요</div><div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="pad"><div class="kick">오늘</div><div class="quiet">예정된 러닝이 없어요</div></div>
+        <div class="row">
+          <div style="flex:1"><div class="t">지난번처럼 다시 예약</div><div class="s">5km · 김민준 러너</div></div>
+          <div class="a">시간만 고르기 ›</div>
+        </div>
+        <div class="pad"><div class="kick">동네</div></div>
+        <div class="ticker" style="margin:0 0 10px">
+          <span class="lead">동네 리그</span><span class="r">1위</span> 초코 <span class="km">14.2km</span>
+          <span class="up"> ▲2</span><span class="sep"></span><span class="r">2위</span> 보리 <span class="km">11.8km</span>
+        </div>
+        <div class="club">
+          <div class="foil"></div><div class="mono">반</div>
+          <div style="flex:1;min-width:0"><div class="t">반포동 하이클럽</div><div class="s">8월 27일 (수) 07:30 · 3자리 남음</div></div>
+          <div class="ch">›</div>
+        </div>
+        <div class="pad" style="padding-top:14px">
+          <div class="dbtn g-volt coda" style="margin-bottom:8px">
+            <div class="art" style="right:-8px"><svg width="112" height="60" viewBox="0 0 112 66"><g fill="none" stroke="#3F5A08" stroke-width="1.8" stroke-linecap="round"><path d="M6 58l26-30 22 20 26-46 24 32"/><path d="M6 62h100" stroke-dasharray="2 6"/></g></svg></div>
+            <div class="t">코스 둘러보기</div><div class="s">반포 근처 코스를 볼 수 있어요</div><div class="arr">›</div>
+          </div>
+          <div class="dbtn g-lilac coda" style="margin-bottom:8px">
+            <div class="art" style="right:-8px"><svg width="112" height="60" viewBox="0 0 112 66"><g fill="none" stroke="#3B3170" stroke-width="1.8"><rect x="20" y="12" width="46" height="34"/><rect x="34" y="20" width="46" height="34"/><circle cx="50" cy="34" r="6"/></g></svg></div>
+            <div class="t">크루 피드에 자랑</div><div class="s">지난 러닝 사진을 올려요</div><div class="arr">›</div>
+          </div>
+          <div class="dbtn g-blue coda">
+            <div class="art" style="right:-8px"><svg width="112" height="60" viewBox="0 0 112 66"><g fill="none" stroke="#2E4F70" stroke-width="1.8" stroke-linejoin="round"><path d="M60 8l24 8v18c0 15-11 23-24 28-13-5-24-13-24-28V16z"/><path d="M50 34l7 7 15-15"/></g></svg></div>
+            <div class="t">안심 센터</div><div class="s">SOS와 실시간 위치, 보험을 확인해요</div><div class="arr">›</div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>The drawing survives.</b> Sean's 2026-08-20 pick was the drawing row; only its height and type
+      change. Line art keeps the same 0.15 opacity and the same "preview of the destination" rule —
+      elevation profile → course map, photo stack → compose, shield → safety.
+      <b>Bindings unchanged:</b> 크루 피드 still gated on <code>lastDone</code>; 코스 둘러보기 and 안심
+      센터 are unconditional today and stay unconditional.
+    </div>
+    <div class="cost free">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0. New routes: 0. Frozen surfaces: none.</b><br>
+      <b>Touches a Sean decision (2026-08-20):</b> the "'나'의 두 행이 그림 행" ruling. This keeps the
+      drawing family and adds a third tier under it — but if the answer is "the coda was supposed to be
+      that big", ③ splits cleanly: take (b) the font budget and (c) the ticker move without (a) the tier.
+      <b>Also unblocks:</b> §8's Black Han Sans budget, currently 8× on this screen.
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <div class="badge"><span class="no">④</span><span class="ttl">인계의 순간 — 대기 중인 재정(A/B)을 그림으로</span></div>
+    <p class="why">
+      <code>docs/decisions/handoff-cta-gating.md</code> has been AWAITING SEAN since 2026-08-20 with two
+      candidate answers and no picture attached. Both frames below are that document, drawn. Both add the
+      one fact the screen already knows and never says: <b>how long the runner has been standing there</b>
+      (<code>lateness().waitMs</code>, from <code>bookings.arrived_at</code>). Neither touches meetup.
+    </p>
+    <p class="crop">④A 도착에서 코랄 · ④B 도착은 조용, 완료 문구만 교정</p>
+
+    <div class="phone" style="margin-bottom:16px">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h430">
+        <div class="pad18" style="padding-top:14px">
+          <div class="labtag">LAB · A · RUNNER_ENROUTE + ARRIVED_AT</div>
+          <div class="chip fix"><i style="background:#C6472C"></i><span style="color:#C6472C">내 차례</span></div>
+          <div class="phw" style="min-height:104px">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">지금 만나요</div>
+            <div class="phr bhs">초코 인계할 시간</div>
+          </div>
+          <div class="hsub">김민준 러너가 도착했어요 · <b style="color:#111;font-weight:800">4분째</b> 문 앞이에요</div>
+          <div class="opts">
+            <div class="dbtn g-coral">
+              <div class="art"><svg width="150" height="110" viewBox="0 0 150 110"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 30c26 0 30 26 52 26s34-30 60-30"/><circle cx="10" cy="30" r="6"/><path d="M122 26c10 0 16 8 16 18s-8 18-18 18M60 62v26M50 88h20"/></g></svg></div>
+              <div class="t bhs"><span class="live" style="background:#fff"></span>인계하기</div>
+              <div class="s">아이를 넘기고 봉인해요</div><div class="arr">›</div>
+            </div>
+            <div class="dbtn g-lilac small">
+              <div class="t bhs">채팅</div><div class="s">늦으면 알려주세요</div><div class="arr">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h430">
+        <div class="pad18" style="padding-top:14px">
+          <div class="labtag">LAB · B · PICKED_UP (인계 완료)</div>
+          <div class="chip fix"><i style="background:#119B58"></i><span style="color:#119B58">인계 완료</span></div>
+          <div class="phw" style="min-height:104px">
+            <div class="mark">
+              <svg width="96" height="58" viewBox="0 0 150 90"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".9"><path d="M12 66c22 2 30-18 52-20s30 12 50 4 26-26 34-26"/><path d="M24 66l-8 18M54 58l-6 22M92 54l-4 24M128 48l-2 22"/></g></svg>
+            </div>
+            <div class="phr bhs pr">잘 다녀올게요</div>
+            <div class="phr bhs">초코 출발 준비</div>
+          </div>
+          <div class="hsub">김민준 러너가 초코를 데리고 있어요 · 출발하면 실시간으로 볼 수 있어요</div>
+          <div class="opts">
+            <div class="dbtn g-lilac small">
+              <div class="art" style="right:-10px"><svg width="112" height="60" viewBox="0 0 112 66"><g fill="none" stroke="#3B3170" stroke-width="1.8"><rect x="14" y="14" width="78" height="30" rx="6"/><path d="M32 52l10-8h-10zM28 24h48M28 34h32"/></g></svg></div>
+              <div class="t bhs">채팅</div><div class="s">러너에게 물어보세요</div><div class="arr">›</div>
+            </div>
+          </div>
+          <div class="quiet" style="margin-top:12px">러닝이 시작되면 알려드릴게요</div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="ann">
+      <b>④A</b> = the decision doc's answer A: coral fires at <code>rawStatus === 'runner_enroute'
+      &amp;&amp; arrivedAt</code>, which is <b>exactly the rule meetup already ships with your sign-off</b>
+      (<code>meetup.tsx:335-338</code>: "코랄은 arrivedAt이 참일 때만 켜진다"). <b>④B</b> = answer B: home
+      stays calm through arrival and only <code>picked_up</code>'s copy is corrected so it stops asking for
+      a finished action. <b>Picking A means shipping B's copy too</b> — A needs a calm <code>picked_up</code>
+      frame, which is the second frame here.<br>
+      <b>The clock is a fact, not a timer.</b> Minute granularity via <code>sinceLabel(waitMs)</code>,
+      re-read on the loads that already exist (focus · AppState resume · the <code>bk-&lt;id&gt;</code>
+      realtime subscription). No per-second loop — §6 bans idle motion, and a ticking second is battery
+      spent on a number that changes once a minute. <b>If <code>arrived_at</code> is null the clause is
+      omitted entirely</b> — never 「0분째」, never a guessed arrival.
+    </div>
+    <div class="cost">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0.</b> <code>arrived_at</code>, <code>owner_confirmed_handoff_at</code> and
+      <code>runner_confirmed_handoff_at</code> are all in <code>MY_BOOKING_SELECT</code> today, and
+      <code>Booking.arrivedAt</code> already exists (its comment says "현재 이 값을 읽는 게이트는 없다" —
+      this is the gate). <b>New routes: 0.</b><br>
+      <b>Frozen surface: adjacent, not touched.</b> meetup's stage machine, polling and confirmHandoff are
+      unchanged; home only decides <i>when it points at meetup</i>. The transition itself stays the
+      server's (<code>picked_up</code> still requires both stamps).<br>
+      <b>Blocked on a decision, not on code:</b> A vs B is Sean's pending ruling. ④ is a picture, not a
+      pre-emption.
+    </div>
+  </div>
+
+</div><!-- /rail home variants -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     B. SCHEDULE
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">B</span>내 일정<span class="path">app/app/owner/schedule.tsx</span></h2>
+<p class="sub">
+An agenda list of full-bleed bands grouped by <code>dateLabel</code>, five filter chips that double as
+the rail-colour legend, and a management sheet. The list itself has <b>zero coral surfaces</b> today and
+<b>three doors into <code>/owner/request</code></b>. The sheet is not restyled by any variant here — it
+is already the most carefully-honest surface in the file (four-arm cancel ladder mirror, rawStatus-gated
+actions, "결제 내역" only when settled).
+</p>
+
+<h3 class="sub">현재 — what ships today</h3>
+<div class="rail">
+  <div class="col">
+    <div class="badge"><span class="no cur">현재</span><span class="ttl">목록 — 가장 먼 미래가 맨 위</span></div>
+    <p class="why">
+      Rows arrive <code>scheduled_at</code> <b>DESC</b> and are grouped in iteration order, so the list
+      opens on 9월 2일 and today's run is two groups down. Group headers carry no relative anchor because
+      <code>kstParts</code> never emits 오늘/내일. The completed row prints
+      <code>bookings.total_price</code> — the quote, not the charge.
+    </p>
+    <p class="crop">화면 전체 (압축)</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h800">
+        <div class="sthead" style="padding-top:14px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="sttitle bhs">내 일정</div><div class="stsub">예약 <span class="osw">4</span>건</div></div>
+          <div class="plus">＋</div>
+        </div>
+        <div class="chips">
+          <div class="c on">전체</div><div class="c" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div>
+          <div class="c" style="background:#FDE8D0;color:#9D580A">응답 대기</div>
+          <div class="c" style="background:#E3EEF8;color:#4A6E93">완료</div><div class="c">반복</div>
+        </div>
+
+        <div class="grp">9월 2일 (화)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#F59A43"></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오전 7:00</div>
+              <div class="pill" style="background:#FDE8D0;color:#9D580A">러너 응답 대기</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0">
+                <div class="rt">코스 미지정</div>
+                <div class="who"><span class="col" style="background:#5BB8D4"></span>보리 · 매칭 중 · <span class="osw">3km</span></div>
+                <div class="mny osw">18,900원 · 가볍게 8'+</div>
+              </div>
+              <div class="ch">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">8월 29일 (금)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#5a7a3c"></div>
+          <div class="perf"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="body">
+            <div class="r1"><div style="display:flex;gap:6px;align-items:center"><div class="tm osw">오후 7:00</div>
+              <div class="pill recur">⟳ 매주</div></div>
+              <div class="pill" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0">
+                <div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,900원 · 보통 7'</div>
+              </div>
+              <div class="ch">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">8월 21일 (목)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#6E9BC5"></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#E3EEF8;color:#4A6E93">완료</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0">
+                <div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,960원 · 보통 7'</div>
+              </div>
+              <div class="seal"><div class="a">FINISHER</div><div class="b osw">08.21</div><div class="c">DOGS HIGH</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="sharerow"><div class="b">공유 카드</div><div class="b">피드 자랑</div></div>
+        <div class="emptycta">＋ 새 러닝 예약하기</div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>What is already right here and must survive every variant:</b> the rail colour is semantic and
+      the filter chips are its legend · the perforation appears only on <code>confirmed</code> (확정 =
+      계약 = 티켓) · <code>● LIVE</code> is gated on <code>rawStatus ∈ LIVE_RAW</code>, not on the
+      flattened word · <code>no_show</code> / <code>incident_review</code> get their own honest badges
+      (불발 / 확인 중) instead of falling through to 「러너 응답 대기」 · there is deliberately no ✓ on the
+      route row because no <code>checked_at</code> backs it.
+    </div>
+  </div>
+</div>
+
+<h3 class="sub">강화안 — 번호로 고르세요</h3>
+<div class="rail">
+
+  <!-- ① -->
+  <div class="col">
+    <div class="badge"><span class="no">①</span><span class="ttl">다가오는 순서 · 지난 일정은 아래로</span></div>
+    <p class="why">
+      The one that matters most, and the cheapest. Sort ascending for future rows so the list opens on
+      <b>the next thing that will happen</b>, label the groups with the relative anchor
+      (<code>kstDayDiff</code>, the helper home already has), and put past rows below a full-bleed
+      divider. Nothing is hidden — decluttering never becomes hiding (§7b); past rows keep their full
+      cards, seals and share rows.
+    </p>
+    <p class="crop">목록 상단 ~ 지난 일정 경계</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h700">
+        <div class="sthead" style="padding-top:14px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="sttitle bhs">내 일정</div><div class="stsub">다가오는 <span class="osw">2</span>건 · 전체 <span class="osw">4</span>건</div></div>
+          <div class="plus">＋</div>
+        </div>
+        <div class="chips">
+          <div class="c on">전체</div><div class="c" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div>
+          <div class="c" style="background:#FDE8D0;color:#9D580A">응답 대기</div>
+          <div class="c" style="background:#E3EEF8;color:#4A6E93">완료</div><div class="c">반복</div>
+        </div>
+
+        <div class="grp"><b>내일</b> · 8월 26일 (화) <span class="osw">D-1</span></div>
+        <div class="bcard">
+          <div class="rail8" style="background:#5a7a3c"></div>
+          <div class="perf"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,900원 · 보통 7'</div></div>
+              <div class="ch">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">8월 29일 (금) <span class="osw">D-4</span></div>
+        <div class="bcard">
+          <div class="rail8" style="background:#5a7a3c"></div>
+          <div class="perf"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="body">
+            <div class="r1"><div style="display:flex;gap:6px;align-items:center"><div class="tm osw">오후 7:00</div>
+              <div class="pill recur">⟳ 매주</div></div>
+              <div class="pill" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,900원 · 보통 7'</div></div>
+              <div class="ch">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divpast"><div class="t">지난 일정</div><div class="l"></div></div>
+        <div class="grp">8월 21일 (목)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#6E9BC5"></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#E3EEF8;color:#4A6E93">완료</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,960원 · 보통 7'</div></div>
+              <div class="seal"><div class="a">FINISHER</div><div class="b osw">08.21</div><div class="c">DOGS HIGH</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="sharerow"><div class="b">공유 카드</div><div class="b">피드 자랑</div></div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Bindings:</b> group anchor <span class="bind">kstDayDiff(bookings.scheduled_at)</span> — 0 = 오늘,
+      1 = 내일, else <code>D-n</code>; past rows get no D-label (a negative countdown is not a fact anyone
+      asked for) · sub-title count <span class="bind">rows with scheduled_at in the future, and
+      liveBookings.length</span>, both already in memory.<br>
+      <b>Honest caveat the frame must carry:</b> 「다가오는 2건」 counts <i>the 20-row window</i>, not the
+      account. See cost.
+    </div>
+    <div class="cost">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0. New routes: 0. Frozen surfaces: none.</b> A client sort plus moving
+      <code>kstDayDiff</code> out of <code>home.tsx</code> into <code>src/lib</code> so both screens read
+      one implementation (the same reasoning that put <code>lateness()</code> there).<br>
+      <b>⚠ What the sort cannot fix — needs a new server READ (not a new column).</b>
+      <code>fetchMyBookings</code> is DESC + <code>limit(20)</code>, so an owner with more than 20 rows
+      keeps the <b>furthest</b> 20 and loses the nearest ones. Reordering in the client cannot recover a
+      row the query dropped. Fix shape: order ascending from <code>now − 30d</code>, same limit. Blast
+      radius: home ranks off the same reader, and <code>fetchInFlightOwnerBookings</code> exists precisely
+      because of this window — so this is a slice with its own review, not a line in this one.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <div class="badge"><span class="no">②</span><span class="ttl">지금 — 진행 중인 예약은 목록의 한 항목이 아니다</span></div>
+    <p class="why">
+      A booking whose runner is <b>out with the dog right now</b> is currently just a card somewhere in
+      a DESC list — it can sit below three future bookings. This pins a band above the list, gated on the
+      rawStatus set <b>this file already defines</b> (<code>LIVE_RAW = runner_enroute · picked_up ·
+      active</code>). It renders only when that gate is true: no empty band, no placeholder, no second
+      band when two dogs are out (both rows stack in the same band).
+    </p>
+    <p class="crop">목록 상단</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h560">
+        <div class="sthead" style="padding-top:14px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="sttitle bhs">내 일정</div><div class="stsub">다가오는 <span class="osw">2</span>건 · 전체 <span class="osw">4</span>건</div></div>
+          <div class="plus">＋</div>
+        </div>
+        <div class="nowband">
+          <div class="k">지금 · <span class="pill live" style="display:inline-block;margin-left:2px">● LIVE</span></div>
+          <div class="t">초코가 김민준 러너와 달리는 중이에요</div>
+          <div class="s">오후 6:30 시작 · 서울숲 순환 코스 <span class="osw">5km</span></div>
+          <div class="golive">● 실시간 보기 ›</div>
+        </div>
+        <div class="chips" style="margin-top:16px">
+          <div class="c on">전체</div><div class="c" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div>
+          <div class="c" style="background:#FDE8D0;color:#9D580A">응답 대기</div>
+          <div class="c" style="background:#E3EEF8;color:#4A6E93">완료</div><div class="c">반복</div>
+        </div>
+        <div class="grp"><b>내일</b> · 8월 26일 (화) <span class="osw">D-1</span></div>
+        <div class="bcard">
+          <div class="rail8" style="background:#5a7a3c"></div>
+          <div class="perf"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw">24,900원 · 보통 7'</div></div>
+              <div class="ch">›</div>
+            </div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Three sentences, one per raw state — the band never guesses:</b><br>
+      <code>active</code> → 「초코가 김민준 러너와 달리는 중이에요」 + 실시간 보기
+      (<code>/owner/live</code>, the route the card's own button already uses).<br>
+      <code>picked_up</code> → 「김민준 러너가 초코를 데리고 있어요 · 출발하면 실시간으로 볼 수 있어요」,
+      <b>no button</b> — matching the sheet's shipped sentence for handoff (「변경·취소는 불가능해요」).<br>
+      <code>runner_enroute</code> + <code>arrived_at</code> → 「러너가 도착했어요」 → 인계
+      (<code>/owner/meetup</code>). <b>Without</b> <code>arrived_at</code> → 「픽업으로 이동 중이에요」,
+      no button. This is the same arrival rule as home ④ and meetup, so all three screens say one thing.<br>
+      <b>Colour:</b> the band keeps the file's existing live vocabulary (<code>#ffe9e2</code> face /
+      <code>#ffc9b8</code> border / <code>#d84a2f</code> ink — "라이브는 상태색이지 버튼 스타일이 아니다")
+      and a volt rail. <b>The list still has no coral surface</b>, which leaves the budget free for ③.
+    </div>
+    <div class="cost free">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0</b> (<code>rawStatus</code>, <code>arrivedAt</code>, <code>LIVE_RAW</code> all
+      present in this file today). <b>New routes: 0</b> (<code>/owner/live</code>, <code>/owner/meetup</code>).
+      <b>Frozen surfaces: none</b> — the band links into meetup, it does not decide anything meetup decides.<br>
+      <b>Dependency:</b> the arrival sentence should ship in the same slice as home ④, or the two screens
+      will disagree about what arrival means. If ④ is not picked, ② ships with the two unambiguous arms
+      (<code>active</code>, <code>picked_up</code>) and leaves <code>runner_enroute</code> as a plain
+      「픽업으로 이동 중이에요」 line.
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <div class="badge"><span class="no">③</span><span class="ttl">문 하나 — 진입점 정리와 빈 화면의 정직</span></div>
+    <p class="why">
+      This screen has <b>three</b> doors into <code>/owner/request</code>: the ＋ square, the dashed
+      bottom band, and an empty state that <i>points at a different screen</i> (「홈의 지금 찾기 /
+      예약하기로」) while two booking buttons sit on this one. §8: emphasis budget = one CTA per screen.
+      Keep the ＋ as the icon control (§3b: 40×40, canvas, 1px coral), make the bottom band the screen's
+      single primary — coral face, white 17/800, the button-matrix primary — and rewrite the empty state
+      to name what <b>this</b> screen can do.
+    </p>
+    <p class="crop">빈 상태 · 목록 발치</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h660">
+        <div class="sthead" style="padding-top:14px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="sttitle bhs">내 일정</div><div class="stsub">예약 <span class="osw">0</span>건</div></div>
+          <div class="plus">＋</div>
+        </div>
+        <div class="chips">
+          <div class="c on">전체</div><div class="c" style="background:#e3f0c4;color:#3d5a2b">예약 확정</div>
+          <div class="c" style="background:#FDE8D0;color:#9D580A">응답 대기</div>
+          <div class="c" style="background:#E3EEF8;color:#4A6E93">완료</div><div class="c">반복</div>
+        </div>
+        <div class="emptybox">아직 예약이 없어요<br>여기서 바로 잡을 수 있어요</div>
+        <div class="coralcta">＋ 새 러닝 예약하기</div>
+        <div style="margin:26px 12px 0;padding-top:16px;border-top:1px solid #EEE">
+          <div style="font-size:14px;font-weight:800;color:#666;letter-spacing:.6px;margin-bottom:6px">필터에 걸린 게 없을 때</div>
+          <div class="emptybox" style="margin:0">이 조건의 일정이 없어요<br><span style="color:#111;font-weight:700">전체</span>로 보면 <span class="osw" style="font-weight:800">4</span>건이 있어요</div>
+        </div>
+        <div style="margin:26px 12px 0;padding-top:16px;border-top:1px solid #EEE">
+          <div style="font-size:14px;font-weight:800;color:#666;letter-spacing:.6px;margin-bottom:6px">불러오기 실패 — 빈 일정으로 분장하지 않는다</div>
+          <div style="background:#FBEAE7;padding:13px;margin:0 0 0 0">
+            <div style="font-size:14px;font-weight:700;color:#B3261E">일정을 불러오지 못했어요</div>
+            <div style="font-size:16px;font-weight:800;color:#B3261E;text-decoration:underline;margin-top:10px">다시 시도</div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>Two empties, two different facts</b> — the shipped code already separates them
+      (<code>liveBookings.length === 0</code> vs a filter with no matches) and this only fixes the copy:
+      the first stops sending the user to another screen, the second says how many rows the 전체 chip
+      would show <span class="bind">all.length</span> instead of a dead end.<br>
+      <b>The failure state is content, not clutter</b> (§7b) — drawn here so a variant about "fewer
+      doors" cannot be read as "fewer honest states".
+    </div>
+    <div class="cost free">
+      <span class="h">what this costs</span>
+      <b>New server fields: 0. New routes: 0. Frozen surfaces: none.</b> Copy + one style change.<br>
+      <b>Spends the screen's coral budget.</b> Compatible with ② only because ② deliberately uses the
+      live vocabulary rather than coral. If both ② and ③ ship, the list has exactly one coral surface —
+      the booking CTA — which is the rule.
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <div class="badge"><span class="no">④</span><span class="ttl">완료 = 영수증 — 예약가와 청구액은 다른 숫자다</span></div>
+    <p class="why">
+      A completed card prints <code>b.price</code> = <code>bookings.total_price</code>, which is the
+      <b>quote</b>. What the owner was actually charged is a <code>payments</code> row, and settlement
+      uses actual km — so the two can differ. The sheet in this same file is scrupulous about this (it
+      renders 결제 내역 only when settled or rows exist, and says 「아직 청구 내역이 없어요」 rather than
+      staying silent). The list is not. Two honest ways out, drawn side by side.
+    </p>
+    <p class="crop">완료 행 · a와 b</p>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮ ▮</span></div>
+      <div class="scr h700">
+        <div class="pad" style="padding-top:14px">
+          <div class="labtag">LAB · ④A — no money claim · cost 0</div>
+        </div>
+        <div class="grp" style="margin-top:10px">8월 21일 (목)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#6E9BC5"></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#E3EEF8;color:#4A6E93">완료</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny">결제 내역은 탭해서 확인해요</div></div>
+              <div class="seal"><div class="a">FINISHER</div><div class="b osw">08.21</div><div class="c">DOGS HIGH</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="sharerow"><div class="b">공유 카드</div><div class="b">피드 자랑</div></div>
+
+        <div class="pad" style="padding-top:26px">
+          <div class="labtag" style="color:#C6472C;border-bottom-color:#F0CFC6">LAB · ④B — real charged amount · +1 read</div>
+        </div>
+        <div class="grp" style="margin-top:10px">8월 21일 (목)</div>
+        <div class="bcard">
+          <div class="rail8" style="background:#6E9BC5"></div>
+          <div class="body">
+            <div class="r1"><div class="tm osw">오후 6:30</div>
+              <div class="pill" style="background:#E3EEF8;color:#4A6E93">완료</div></div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="flex:1;min-width:0"><div class="rt">서울숲 순환 코스</div>
+                <div class="who"><span class="col" style="background:#FF8A5C"></span>초코 · 김민준 러너 · <span class="osw">5km</span></div>
+                <div class="mny osw" style="color:#111;font-weight:800">26,400원 청구</div>
+                <div><span class="paychip ok">결제 완료</span></div></div>
+              <div class="seal"><div class="a">FINISHER</div><div class="b osw">08.21</div><div class="c">DOGS HIGH</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="sharerow"><div class="b">공유 카드</div><div class="b">피드 자랑</div></div>
+        <div class="pad" style="padding-top:16px">
+          <div style="font-size:14px;line-height:19px;color:#666">다른 상태들:
+            <span class="paychip rev">검토 중</span> <span class="paychip non">청구 없음</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▦</span><span>◎</span><span>◈</span><span>☰</span></div>
+    </div>
+    <div class="ann">
+      <b>④B's chips are the three facts the projection already distinguishes</b>
+      <span class="bind">PaymentRecord.status · underReview · refundedAmount</span>: 결제 완료
+      (<code>confirmed</code>) · 검토 중 (<code>underReview</code> — 0084 §B's incident mark, which is why
+      a reviewed 0원 must not read the same as a settled 0원) · 청구 없음 (settled, no rows). <b>Loading is
+      not 0 and not "청구 없음"</b> — until the read lands the row shows ④A's sentence, then swaps.<br>
+      <b>Not proposed:</b> printing actual km on the row. <code>MY_BOOKING_SELECT</code> carries
+      <code>runs(started_at)</code> only — <code>actual_km</code> would be a new column in an existing
+      select, and the row would then be claiming a distance from a field it does not read today.
+    </div>
+    <div class="cost">
+      <span class="h">what this costs</span>
+      <b>④A: nothing.</b> One line deleted, one replaced. Zero fields, zero routes.<br>
+      <b>④B: one new list-level read — no new server data.</b> <code>fetchBookingPayments</code> exists but
+      is per-booking; a list needs one query over <code>payments</code> for the visible completed ids
+      (existing columns, existing RLS path). That is a query, not a schema change — but it is a new
+      round trip on a tab-root screen, so it belongs in a slice with its own review.<br>
+      <b>Frozen surfaces: none.</b> The FINISHER seal (Sean's sizing feedback: 84, not 64) is untouched.
+    </div>
+  </div>
+
+</div><!-- /rail schedule variants -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     COST SUMMARY
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">C</span>무엇이 무엇을 요구하는가</h2>
+<table>
+  <tr><th>안</th><th>화면</th><th>바꾸는 것 하나</th><th>새 서버 데이터</th><th>새 라우트</th><th>동결 표면</th><th>딸려오는 결정</th></tr>
+  <tr><td><b>A①</b> 다음 일정</td><td>홈</td><td>이미 읽은 행을 버리지 않는다</td><td>없음</td><td>없음</td><td>없음</td><td>「곧」 버그 수정 · D 라벨 서체(Q1)</td></tr>
+  <tr><td><b>A②</b> 이번 주</td><td>홈</td><td><code>runDays</code>를 처음으로 그린다</td><td>없음</td><td>없음</td><td>없음</td><td>주간 목표 넛지 흡수(Q5)</td></tr>
+  <tr><td><b>A③</b> 코다 3단</td><td>홈</td><td>그림 버튼의 티어와 서체</td><td>없음</td><td>없음</td><td>없음</td><td>2026-08-20 코다 판정 · BHS 예산(Q4)</td></tr>
+  <tr><td><b>A④</b> 인계의 순간</td><td>홈</td><td>코랄이 켜지는 시각</td><td>없음</td><td>없음</td><td>인접(미트업 불변)</td><td><b>Sean 대기 중 A/B 재정</b></td></tr>
+  <tr><td><b>B①</b> 다가오는 순서</td><td>일정</td><td>정렬과 그룹 라벨</td><td>없음 <span class="bind">(단, 20행 창은 별도 슬라이스)</span></td><td>없음</td><td>없음</td><td><code>kstDayDiff</code>를 <code>src/lib</code>로</td></tr>
+  <tr><td><b>B②</b> 지금 밴드</td><td>일정</td><td>진행 중 예약을 목록 밖으로</td><td>없음</td><td>없음</td><td>없음</td><td>A④와 같은 도착 규칙</td></tr>
+  <tr><td><b>B③</b> 문 하나</td><td>일정</td><td>진입점 3개 → 1개 + 빈 상태 문구</td><td>없음</td><td>없음</td><td>없음</td><td>코랄 예산을 이 화면에서 쓴다</td></tr>
+  <tr><td><b>B④a</b> 돈 침묵</td><td>일정</td><td>완료 행에서 견적가 제거</td><td>없음</td><td>없음</td><td>없음</td><td>—</td></tr>
+  <tr><td><b>B④b</b> 실청구액</td><td>일정</td><td>완료 행에 실제 청구액</td><td><b>새 읽기 1개</b> (기존 컬럼)</td><td>없음</td><td>없음</td><td>탭 루트 왕복 1회 추가</td></tr>
+</table>
+<p class="sub" style="margin-top:14px">
+<b>Natural pairs:</b> <b>A①+B①</b> (both are "say the next thing first", one screen each) ·
+<b>A④+B②</b> (arrival means one thing in the whole app) · <b>A③+B③</b> (both are emphasis-budget
+repairs). <b>A② and B④ are independent</b> — they can ship alone.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     OPEN QUESTIONS
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2><span class="n">D</span>OPEN QUESTIONS — things I could not decide from the code</h2>
+<ol class="q">
+  <li><b>The hero's first line, when it is a countdown.</b> A① replaces the unreachable 「곧」 with
+    <code>오늘 / 내일 / D-2</code>. <code>D-2</code> is numerals, so it wants Oswald — but it sits inside
+    a Black Han Sans line, putting two display faces on one line. Three answers and I do not know which is
+    yours: <b>(i)</b> Oswald numerals as drawn, <b>(ii)</b> Black Han Sans throughout and accept the
+    numerals in the display face, <b>(iii)</b> Korean only — 오늘 / 내일 / 「이번 주」 / 「다음 주」, no
+    D-numbers on the headline at all (the exact D-label stays in the sub-line, where it already is).</li>
+
+  <li><b>Does the 다음 일정 rail belong on home at all, or is it the 일정 tab's job?</b> The counter-argument
+    is real: home's whole 2026-08-19 direction was "덜 하게", and a rail is more. The argument for is that
+    home is the only screen an owner opens by reflex, and it already <i>has</i> the rows. I drew it capped
+    at 2 rows and gated on a second future booking existing, but the cap is a guess — 2, 3, or "today and
+    tomorrow only"?</li>
+
+  <li><b>Three type-floor breaches on owner home — fix in this pass or as their own sweep?</b>
+    <code>home-hero.tsx</code> chipTx 13pt and lateStripTx 13pt (both Korean), <code>profile-gaps.tsx</code>
+    sub 12.5pt. All three are one-line changes inside components this cluster touches, none is inside a
+    ruling, and the variant frames already draw them at 14. But raising the chip to 14 makes the status
+    word visibly larger on every state, which is a look change, not just a compliance change.</li>
+
+  <li><b>Is a DrawButton title a "display font use" under §8?</b> The budget says Black Han Sans once per
+    screen; <code>draw-button.tsx</code> puts it on every button title, so home renders it 8×. Either the
+    budget means what it says (→ A③b), or the drawing-button family is its own class and the budget counts
+    <i>hero</i> uses only — in which case §3/§8 should say so, because right now the code and the law book
+    disagree and the code has a comment admitting it.</li>
+
+  <li><b>Absorbing the 주간 목표 넛지 into the week strip.</b> A② folds it in, on the same "appears once"
+    reasoning you applied when 지난번처럼 moved into 오늘. But the nudge's gate (Thursday onward, behind
+    goal) is a deliberate nag with its own timing, and merging it into a strip that is always visible may
+    blunt it. Keep it separate?</li>
+
+  <li><b>B④: silence or the real number?</b> ④a is free and honest by omission; ④b is honest by statement
+    and costs a round trip on a tab-root screen. My weak preference is <b>④a now, ④b when the widget
+    payment slice lands</b> (that slice has to touch this projection anyway — see the TODO already sitting
+    in <code>schedule.tsx</code>'s cancel sheet).</li>
+
+  <li><b>The 20-row window (B①'s caveat).</b> Changing <code>fetchMyBookings</code> to ascending-from-30-days-ago
+    fixes a real loss (an owner with 20+ future bookings never sees the near ones), but home ranks off the
+    same reader and <code>fetchInFlightOwnerBookings</code> exists only to patch this window. Is that a slice
+    you want opened, or does the pilot's booking volume make it theoretical for now?</li>
+
+  <li><b>Where does 동네 리그 live?</b> A③ moves the marquee out of the header into the 동네 chunk. It is a
+    looping animation sitting above the screen's primary decision, and its content is neighbourhood data —
+    but it is also the first thing that makes home feel inhabited on a cold account. Move, keep, or keep it
+    at the top only when a booking exists (the fold is less contested then)?</li>
+
+  <li><b>Duplication between home ④ and schedule ② is deliberate — confirm that is wanted.</b> With both,
+    an owner whose runner has arrived sees it on home <i>and</i> on 내 일정. I read that as redundancy by
+    design (the moment is time-critical and the two screens are one tap apart), not as clutter — but it is
+    the kind of thing that is obvious in one direction only after you say it out loud.</li>
+
+  <li><b>Nothing here proposes a new empty-state illustration, a new colour, or a new motion.</b> If the
+    answer to "how do we make home feel better" is closer to <i>craft</i> than to <i>information</i>, none
+    of these ten frames is that answer, and I would rather be told so than guess — the style freeze (to 50
+    paying dogs) is the reason I did not draw it.</li>
+</ol>
+
+<div class="foot">
+<b>고르는 법:</b> 번호 하나, 또는 조합 (예: 「A① + A④B + B① + B③」). 「없음」도 답입니다 — 현재 프레임 세 개는
+그대로 두면 무엇이 남는지 보라고 그린 것이지, 반드시 고쳐야 한다는 뜻이 아닙니다.<br>
+<b>정직 처리 공통:</b> 모든 변형에서 로딩은 0이 아니고, 실패는 실패로 그려지며, 값이 없으면 요소가 빠집니다.
+어떤 프레임도 서버에 없는 필드를 그리지 않았고, 하나 필요했던 곳(B④b의 실청구액)은 <b>새 읽기가 필요하다고
+명시</b>했습니다.<br>
+<b>숫자는 전부 자리 표시자</b>입니다 — 위 FIXTURES 상자에 각각 어느 필드가 채우는지 적어 뒀습니다.
+<b>서체는 시뮬레이션</b>입니다 (이 파일엔 CDN이 없습니다): 크기와 <i>횟수</i>를 보시고 글자 모양은 보지 마세요.<br>
+<b>읽은 것:</b> DESIGN.md · theme.ts · CLAUDE.md · owner/home.tsx · home-hero.tsx · draw-button.tsx ·
+profile-gaps.tsx · clubcard.tsx(compact) · owner/schedule.tsx · store.ts(Booking·cancelPolicy) ·
+lib/api.ts(fetchMyBookings·fetchInFlightOwnerBookings·fetchFitness·fetchProfileGaps·fetchRewardBeacon·kstParts) ·
+lib/lateness.ts · docs/decisions/handoff-cta-gating.md.
+</div>
+
+</div></body></html>
