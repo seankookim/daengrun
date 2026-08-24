@@ -1001,11 +1001,15 @@ begin
       v_bad := v_bad || ' 도사견을 놓쳤다'; end if;
     if not _breed_reads_as_dangerous('아메리칸 핏 불 테리어') then
       v_bad := v_bad || ' 분리형 핏불 매치가 죽었다 (경계 수정이 과잉이다)'; end if;
+    -- (closure re-verdict F2) the vocabulary ban alone could not assert the text REMAINS a
+    -- refusal — 「맹견도 러너에게 맡길 수 있어요…동반…」 would have passed it. The policy sentence
+    -- is now pinned as an EXACT LITERAL: any drift (permissive rewrite, new conditional grammar,
+    -- lost alternative) reds this arm with the actual text quoted. Changing the copy is allowed —
+    -- by changing it HERE in the same slice, which is what a policy-copy pin is for.
     select dog_custody_refusal_detail('dog_dangerous_custody_refused') into v_msg;
-    if v_msg ~ '(입마개|보험|허가|절차|준비|서류|신청)' then
-      v_bad := v_bad || ' 거절 사유가 조건부 경로를 암시한다=' || v_msg; end if;
-    if position('동반' in v_msg) = 0 then
-      v_bad := v_bad || ' 거절 사유가 실재하는 대안(동반)을 잃었다'; end if;
+    if v_msg is distinct from
+       '맹견은 러너 위탁 대상이 아니에요. 보호자가 함께 뛰는 클럽 세션 동반 참여는 그대로 이용하실 수 있어요' then
+      v_bad := v_bad || ' 거절 문구가 정본에서 이탈=' || coalesce(v_msg, 'null'); end if;
     if v_bad = '' then
       call _pass('mgn','G13 경계와 문구 — 진도 사냥개는 통과하고 도사·도사 견·도사견은 잡히며(분리형 핏불도 그대로), 거절 문구는 조건부 경로 어휘 없이 실재하는 동반 대안만 말한다 (final review F1/F5)');
     else v_msg := v_bad; call _fail('mgn','G13 경계와 문구', v_msg); end if;
