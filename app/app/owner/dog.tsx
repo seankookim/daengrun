@@ -167,14 +167,9 @@ export default function DogProfileScreen() {
           </Pressable>
           <Text style={s.topTitle}>반려견 프로필</Text>
         </View>
-        <View style={{ paddingHorizontal: layout.gutter, paddingTop: 16 }}>
-          <Pressable onPress={pickPhoto} disabled={uploading} style={{ alignSelf: 'flex-start' }}>
-            <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={paper.ink} size={88} />
-            <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
-          </Pressable>
-          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
-        </View>
-
+        {/* [2026-08-24 · lab D①] 사진 블록이 여기서 dog 게이트 안으로 내려갔다. 두 가지가 같이
+            해결된다: 프레임이 요구하는 '사진 + 스위처 한 줄'이 되고, 아이가 없거나 로딩 중일 때
+            아무 일도 하지 않는 Pressable(= pickPhoto 의 `if (!dog) return`)이 사라진다. */}
         {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 14, color: paper.dim }}>불러오는 중...</Text>}
         {/* loud-fail strip — failure is never dressed as the empty state */}
         {!loaded && loadErr && (
@@ -196,54 +191,59 @@ export default function DogProfileScreen() {
           </Text>
         )}
 
+        {/* ═══ [2026-08-24 · Sean "I also like the new dog profile 1"] 네 개의 섹션 (lab D①) ═══
+            Ten label+field groups stood in one undifferentiated column; §7b caps a group at 5–9.
+            The 권장 최소 페이스 block had already proved the §3b section grammar works on this
+            screen (full-bleed coral rule pulled out of the gutter + 20/800 ink title), so it is
+            applied four times — 기본 정보 · 러닝 설정 · 건강 · 러너에게 전달되는 것. Ten controls
+            become four groups of two or three and the scroll gains landmarks.
+            PURE LAYOUT: the save payload is byte-for-byte the same, no field is added or removed,
+            no read changes. 칼라 moves into 기본 정보; the photo and the switcher share one row;
+            three field labels are absorbed by the section titles that now say the same thing. */}
         {dog && (
-          <View style={{ paddingHorizontal: layout.gutter, marginTop: 18 }}>
-            {/* 다견 스위처 */}
-            <Row style={{ gap: 8, flexWrap: 'wrap' }}>
-              {dogs.map((d) => (
-                <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
-                </Pressable>
-              ))}
-              <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>＋ 추가</Text>
+          <View style={{ paddingHorizontal: layout.gutter }}>
+            {/* 사진 + 다견 스위처 — 한 줄 */}
+            <Row style={{ gap: 14, paddingTop: 16 }}>
+              <Pressable onPress={pickPhoto} disabled={uploading} accessibilityRole="button" accessibilityLabel="반려견 사진 변경">
+                <Avatar url={dog.photoUrl} char={(name || '멍')[0]} bg={paper.ink} size={88} />
+                <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
               </Pressable>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+                  {dogs.map((d) => (
+                    <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]} accessibilityRole="button" accessibilityLabel="반려견 추가">
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>＋</Text>
+                  </Pressable>
+                </Row>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
+              </View>
             </Row>
 
-            {/* 칼라 컬러 (P1, 0033) — 내 아이의 색: 아바타 링·일정 카드 도트가 이 색으로 */}
-            <Text style={s.label}>칼라 컬러 — 내 아이의 색</Text>
-            <Row style={{ gap: 9, flexWrap: 'wrap' }}>
-              {(Object.keys(collarColors) as CollarKey[]).map((k) => (
-                <Pressable
-                  key={k}
-                  onPress={() => setCollar((cur) => (cur === k ? null : k))}
-                  style={[s.collarDot, { backgroundColor: collarColors[k] }, collar === k && s.collarDotOn]}
-                >
-                  {collar === k && <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                </Pressable>
-              ))}
-            </Row>
-            <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>
-              {collar ? `${collarLabels[collar]} — ${name || '아이'}의 시그니처 컬러예요` : '고르면 일정·카드에서 이 색으로 보여요 (선택)'}
-            </Text>
-
-            {/* 기본 정보 */}
-            <Text style={s.label}>이름</Text>
-            <TextInput value={name} onChangeText={setName} style={s.input} maxLength={12} placeholder="초코" placeholderTextColor="#b0ada0" />
+            {/* ── ① 기본 정보 ── */}
+            <View style={s.secRule} />
+            <Text style={[s.secH, { marginBottom: 4 }]}>기본 정보</Text>
+            <Text style={[s.label, { marginTop: 8 }]}>이름</Text>
+            <TextInput value={name} onChangeText={setName} style={s.input} maxLength={12} placeholder="초코" placeholderTextColor={paper.faint} />
             <Row style={{ gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>견종</Text>
-                <TextInput value={breed} onChangeText={setBreed} style={s.input} maxLength={20} placeholder="웰시코기" placeholderTextColor="#b0ada0" />
+                <TextInput value={breed} onChangeText={setBreed} style={s.input} maxLength={20} placeholder="웰시코기" placeholderTextColor={paper.faint} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>몸무게 (kg)</Text>
-                <TextInput value={weight} onChangeText={setWeight} style={s.input} keyboardType="decimal-pad" maxLength={5} placeholder="6.5" placeholderTextColor="#b0ada0" />
+                <TextInput value={weight} onChangeText={setWeight} style={s.input} keyboardType="decimal-pad" maxLength={5} placeholder="6.5" placeholderTextColor={paper.faint} />
               </View>
             </Row>
             <Row style={{ gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>생일 (YYYY-MM-DD)</Text>
-                <TextInput value={birth} onChangeText={setBirth} style={s.input} maxLength={10} placeholder="2021-03-15" placeholderTextColor="#b0ada0" />
+                {/* 라벨에서 (YYYY-MM-DD)를 뺀다 — 형식은 플레이스홀더가 가르치고, 틀리면 save()가
+                    같은 문장으로 되돌려준다. 라벨 줄은 옆 칸의 '중성화'와 한 줄로 읽혀야 한다. */}
+                <Text style={s.label}>생일</Text>
+                <TextInput value={birth} onChangeText={setBirth} style={s.input} maxLength={10} placeholder="2021-03-15" placeholderTextColor={paper.faint} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>중성화</Text>
@@ -257,11 +257,33 @@ export default function DogProfileScreen() {
               </View>
             </Row>
 
-            {/* 권장 최소 페이스 (pace-state-ui-plan §4) — 러닝 중 페이스 신호의 기준.
-                §3b 섹션 헤더 문법(풀블리드 코랄 룰 + 20/800 잉크)으로 자기 섹션을 갖는다:
-                이름·견종 사이에 묻히면 안 되는 '행동 컨트롤'이다. 저장은 기존 버튼 하나. */}
+            {/* 칼라 컬러 (P1, 0033) — 아바타 링·일정 카드 도트가 이 색으로 */}
+            <Text style={s.label}>칼라 컬러</Text>
+            <Row style={{ gap: 9, flexWrap: 'wrap' }}>
+              {(Object.keys(collarColors) as CollarKey[]).map((k) => (
+                <Pressable
+                  key={k}
+                  onPress={() => setCollar((cur) => (cur === k ? null : k))}
+                  style={[s.collarDot, { backgroundColor: collarColors[k] }, collar === k && s.collarDotOn]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: collar === k }}
+                  accessibilityLabel={`칼라 컬러 ${collarLabels[k]}`}
+                >
+                  {collar === k && <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                </Pressable>
+              ))}
+            </Row>
+            {/* 선택했을 때도 '어디에 쓰이는지'를 말한다 — 이름만 되뇌는 문장은 정보가 0이다 */}
+            <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>
+              {collar ? `${collarLabels[collar]} — 일정·카드에서 이 색으로 보여요` : '고르면 일정·카드에서 이 색으로 보여요 (선택)'}
+            </Text>
+
+            {/* ── ② 러닝 설정 ──
+                권장 최소 페이스 (pace-state-ui-plan §4) — 러닝 중 페이스 신호의 기준.
+                섹션 이름이 '러닝 설정'으로 올라가고, 항목 이름은 아래 헬퍼 첫 낱말이 가져간다.
+                저장은 여전히 화면 하단 버튼 1개. */}
             <View style={s.secRule} />
-            <Text style={s.secH}>권장 최소 페이스</Text>
+            <Text style={s.secH}>러닝 설정</Text>
             <View style={s.paceRow} accessibilityRole="radiogroup" accessibilityLabel="권장 최소 페이스">
               {PACE_OPTIONS.map((o) => {
                 const on = paceSuggest === o.sec;
@@ -281,23 +303,12 @@ export default function DogProfileScreen() {
             </View>
             {/* 헬퍼는 색이 아니라 '행동'을 설명한다 — 화면의 색 규칙은 여기서 가르치지 않는다 */}
             <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
-              이 값보다 느려지면 러너에게 안내해요
+              권장 최소 페이스 — 이 값보다 느려지면 러너에게 안내해요
             </Text>
 
-            {/* 성향 메모 */}
-            <Text style={s.label}>러너에게 전달되는 성향 메모</Text>
-            <TextInput
-              value={memo}
-              onChangeText={setMemo}
-              style={[s.input, { height: 88, textAlignVertical: 'top', paddingTop: 12 }]}
-              multiline
-              maxLength={200}
-              placeholder="예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요"
-              placeholderTextColor="#b0ada0"
-            />
-
-            {/* 예방접종 */}
-            <Text style={s.label}>예방접종 (완료한 항목 선택)</Text>
+            {/* ── ③ 건강 ── (라벨 '예방접종 (완료한 항목 선택)'은 섹션 제목이 흡수했다) */}
+            <View style={s.secRule} />
+            <Text style={s.secH}>건강</Text>
             <Row style={{ gap: 8, flexWrap: 'wrap' }}>
               {VACCINE_CATALOG.map((v) => {
                 const on = vaccines.includes(v);
@@ -306,6 +317,9 @@ export default function DogProfileScreen() {
                     key={v}
                     onPress={() => setVaccines((cur) => (on ? cur.filter((x) => x !== v) : [...cur, v]))}
                     style={[s.tagChip, on && s.tagChipOn]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={`예방접종 ${v}`}
                   >
                     <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{v}</Text>
                   </Pressable>
@@ -313,20 +327,37 @@ export default function DogProfileScreen() {
               })}
             </Row>
 
-            {/* 선호 태그 */}
-            <Text style={s.label}>선호 러닝 조건 · 성향 태그</Text>
-            <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+            {/* ── ④ 러너에게 전달되는 것 ── */}
+            <View style={s.secRule} />
+            <Text style={s.secH}>러너에게 전달되는 것</Text>
+            <TextInput
+              value={memo}
+              onChangeText={setMemo}
+              style={[s.input, { height: 88, textAlignVertical: 'top', paddingTop: 12 }]}
+              multiline
+              maxLength={200}
+              placeholder="예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요"
+              placeholderTextColor={paper.faint}
+              accessibilityLabel="러너에게 전달되는 성향 메모"
+            />
+            <Row style={{ gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
               {PREF_CATALOG.map((t) => {
                 const on = tags.includes(t);
                 return (
-                  <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tagChip, on && s.tagChipOn]}>
+                  <Pressable
+                    key={t}
+                    onPress={() => toggleTag(t)}
+                    style={[s.tagChip, on && s.tagChipOn]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                  >
                     <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
                   </Pressable>
                 );
               })}
             </Row>
             <Text style={{ fontSize: 14, color: paper.dim, marginTop: 12, lineHeight: 19 }}>
-              태그와 메모는 러너의 요청 카드에 그대로 표시돼요{'\n'}주간 목표 거리는 체력 리포트에서 조정해요
+              주간 목표 거리는 체력 리포트에서 조정해요
             </Text>
           </View>
         )}
