@@ -56,6 +56,39 @@
 --     them the other way round and ⓐ would be green for the wrong reason — refused by the
 --     duplicate check, not by the 맹견 gate — which is the vacuity class this suite is written
 --     against.
+-- ─── MEASURED 2026-08-24 (announcer session, main loop) — 16 full harness runs ─────────────────
+-- FIRST-EVER measurement of this slice. Baseline 740/0 (731 base + G1~G9). Final clean 740/0,
+-- tree byte-identical to tip 2371502. Every mutation grep/py-proven applied before its run.
+--   M1  drop bookings trigger      → 735/5 RED=[G1,G2,G3,G4,G9]   predicted [G1,G2,G3,G6?]
+--       ⚠ miss(benign): G9 co-fires on ANY door deletion (count 4→3); G4's fixture couples to
+--       this trigger (its 동반 arm books through bookings). G6 stayed GREEN with §E intact —
+--       the author's own hypothesis, CONFIRMED: the belt and the trigger are different objects.
+--   M2  drop session trigger       → 738/2 RED=[G4,G9]            predicted [G4]      (+G9 count)
+--   M3  drop _move trigger         → 738/2 RED=[G5,G9]            predicted [G5 ⓑ]    (+G9 count)
+--   M4  drop _move's movement cond → MIGRATION ABORTS at 0119's own VERIFY; zero suites run.
+--       predicted [G5 ⓐ]. Guard STRONGER than mapped — and therefore G5 ⓐ's recorded red set is
+--       UNREACHABLE by this mutation (the 0118 P11-ARM2 class). Do not cite [G5 ⓐ] as measured.
+--   M5  drop owner_handled WHEN    → migration APPLIES (⚠ the VERIFY does NOT refuse, contrary
+--       to the map AND to the verify block's own stated purpose at 0119:630-632), then suite 154
+--       ABORTS as PARSE/EXEC FAILED — the 동반 fixture hits the unexempted gate and the DO block
+--       dies. Red either way, but LOUD-UGLY not LOUD-NAMED, and the verify's coverage claim is
+--       false for this trigger. → follow-up for the review round: teach the VERIFY the plain
+--       trigger's WHEN, the way it already knows _move's.
+--   M6  §C fail-open rewrite       → 739/1 RED=[G2 ⓐ+ⓒ] alone     EXACT — the headline mutation
+--   M7  drop outer coalesce        → 739/1 RED=[G2 ⓒ] alone       EXACT
+--   M8  delete breed arm           → 739/1 RED=[G3 ⓐ] alone       EXACT
+--   M9  §B drop coalesce           → 740/0 GREEN. Prediction REFUTED — and classified, not
+--       shrugged at: _breed_reads_as_dangerous has exactly ONE call site (0119:262) and it is
+--       the POSITIVE form, where NULL and false behave identically. The mutation is a semantic
+--       no-op; no behavioral pin can red on it. The coalesce is defense-in-depth for a future
+--       NEGATED caller. G2 ⓔ is not theatre — its property (nameless dog bookable) holds.
+--   M10 delete §E belt             → 739/1 RED=[G6] alone, both arms EXACT
+--   M11 delete §F latch            → 739/1 RED=[G7 ⓐ] alone       EXACT
+--   M12 delete §F stamp discipline → 739/1 RED=[G7 ⓓⓔ] alone      EXACT
+--   M13 delete §A pair CHECK       → 739/1 RED=[G8] alone, all 3 halves EXACT
+--   M14 grant gate to authenticated→ 739/1 RED=[G9] alone         EXACT
+-- Net: 8 exact · 3 benign supersets · 1 guard-stronger-than-map (M4) · 1 refuted-as-no-op (M9)
+-- · 1 verify-coverage gap found (M5). Zero mutations scored a dangerous green.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
