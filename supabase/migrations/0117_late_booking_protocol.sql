@@ -579,7 +579,7 @@ begin
   --     slow. A handoff has not been "in flight" for three hours — at the ceiling a one-stamp
   --     booking is rotted, not mid-handoff, and the ceiling exists precisely to end it. So the
   --     step-aside is DEADLINE-ONLY, and the ceiling arm below terminates it — to
-  --     `incident_review`, never `no_show`, because a human's stamp is on the row (see v_evidence).
+  --     `incident_review`, never `no_show`, because this pairing has a stamp on the row (v_evidence).
   if p_cause = 'deadline'
      and (b.owner_confirmed_handoff_at is not null or b.runner_confirmed_handoff_at is not null)
      and v_custody <> 'post' then
@@ -591,6 +591,20 @@ begin
   -- showed up" — but the resolver, four hundred lines away, read none of them and could write the
   -- irreversible `no_show` that makes `record_enroute_cancel_comp` unreachable forever. Same
   -- three columns, same rule, one place to change it.
+  --
+  -- ⚠ READ THIS AS "DID ANYTHING HAPPEN IN **THIS PAIRING**", NOT "DID A HUMAN TURN UP".
+  -- The distinction is not pedantry and it was nearly lost in the wording above: all three
+  -- columns are PAIRING-SCOPED and a third party can erase them. `transition-booking/index.ts:130`
+  -- resets `owner_confirmed_handoff_at`, `runner_confirmed_handoff_at` AND `arrived_at` together
+  -- when a runner is reassigned, so an owner who demonstrably came outside becomes byte-identical
+  -- to one who never did the moment the booking is re-matched. (Verified in that file, 2026-08-24;
+  -- the club side has six functions doing the same thing for the same reason.)
+  -- That is CORRECT for choosing THIS booking's terminal — the new pairing genuinely has not
+  -- arrived or handed over, and the previous runner's compensation is the reassignment path's
+  -- business, not the resolver's. It would be WRONG the moment any arm used one of these columns
+  -- to conclude something about a PERSON across pairings — attendance, reliability, fault. No arm
+  -- here does; if one ever wants to, it needs a column that survives reassignment, and none of
+  -- these three is that column.
   v_evidence := b.arrived_at is not null
              or b.owner_confirmed_handoff_at is not null
              or b.runner_confirmed_handoff_at is not null;
