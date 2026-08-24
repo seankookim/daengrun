@@ -289,3 +289,29 @@ record an allocation he never made. He confirmed.
   unruled consistency fix.
 - **The 0117 client mirror** (`store.ts:228-235` returns 50% for any `runner_enroute` row, knowing
   nothing about 0117's waiver arm) is scoped but unstarted, and is a genuine deploy-day blocker.
+
+---
+
+# PART 3 — the slot-based ruling and the autonomy grant
+
+**Sean, 2026-08-24 (after the supply-comp explainer):**
+> **"go ahead with that and all other queues. i gave you fable, so use it to orchestrate workflow with opus 5 models"** [end of his words]
+
+Decoded:
+- **Supply compensation is SLOT-BASED.** The runner's half of a club fee compensates the *held slot*,
+  not attendance. Consequences: the both-parties-no-show credit is CORRECT behaviour and comes off
+  the queue · R5-class timer cuts against a runner who held a slot are unambiguously defects (already
+  fixed by ui6) · the unaccepted-late-cancel supply half has no basis when no slot was held — the
+  **relabel** ships now (honesty law: the row must not claim to compensate supply that never existed);
+  whether the owner should then pay 5% instead of 10% stays queued as the one remaining money number.
+- **"all other queues"** = proceed on the queue items carrying a documented recommendation, marked 🔵
+  under this blanket grant: R10 (allow-list source filter), R11 (hoist `cancel_moves_no_money` above
+  the tier split), R12 (the runner's push names the waiver rule), R13 (verify-then-apply — ui6's L37
+  may already encode the recommended shape). **Still genuinely his, not proceeding:** §4.2 (no
+  recommendation exists), the 5% question above, and the handoff-durability column (documented
+  residual stands).
+- **Orchestration**: session model is Fable; all workflow agents run **Opus 5** explicitly.
+
+Round 3 of 0118 landed at `206bb1f`, **745/0**, 7 mutations + 1 control, zero theatre. The final
+blind review of round 3 died on a 529 server overload — it is superseded by the round-4 review,
+which reads the same diff plus the slot-based edits.
