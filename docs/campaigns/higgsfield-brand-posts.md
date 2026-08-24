@@ -352,3 +352,37 @@ scene blocks. Contact sheet artifact:
    `Not authenticated` CLI errors (token-refresh race under parallel calls — retry succeeds).
 4. Operational limits (2026-08-24): `plus` plan, 1,210 credits at start; a 28-frame batch ran
    end-to-end in ~15 minutes including throttling.
+
+## 8. Round 2 (2026-08-24) — picks, finished posters, model verdict
+
+**Sean's picks from batch 1** (in B01–B14 order): "1, 2, none, none (dog is facing the other way),
+2, both, 2 (but remove the logos), both, 1, either( remove logos), 1, none (stairs dont make
+sense), 1, none. be more creative, different lenses, story, add slogans, add the route traces for
+some ... is this the best image model? also, make sure not to have logos and be more creative in
+the posters." [end of his words] Plus mid-round: "trace is too small. ill add the brand logo
+manually" [end of his words].
+
+**What ran:** 12 picked plates de-branded via `nano_banana_pro` image edit (2 credits each —
+removed every swoosh/bib/dog-vest while holding faces, poses, light; verified on contact). Then a
+local deterministic finishing pass (PIL + real Anton/Oswald/Black Han Sans/Playfair from Google
+Fonts) composited slogans and violet street-style route traces + pace blocks — **no logo overlays,
+per Sean's ruling; he places the mark manually.** Finished posters:
+`higgsfield-out/posters/P-*.jpg`. Slogan ledger: B01 RUN BEFORE SUNRISE · B02 EARN THAT HIGH. ·
+B05 OUT OF THE DARK. · B06 diptych NOBODY'S WATCHING. → GOOD. · B07 오늘도, 간다 · B08 LEFT IT ALL
+OUT. / ASK THE DOG WHO WON. · B09 PACK ANIMALS. · B10 ALL-WEATHER ANIMAL. · B11 FIRST LIGHT CLUB ·
+B13 GOOD KIND OF TIRED.
+
+**New concepts** (batch2, replacing rejected B03/B04/B12/B14): N1 fisheye vault · N2 drone
+crosswalk · N3 long-exposure ghosts · N4 convenience-store window · N5 elevator mirror · N6 palace
+wall · B04R stair reshoot (direction fixed). Findings: **N3 failed twice** — Soul cannot render
+translucent long-exposure motion ghosts, it produces panned runners instead; the marathon prior
+still injects bibs/logos into new frames despite v4.2's positive language, so the de-brand stage
+stays mandatory for every pick.
+
+**Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
+2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
+at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
+and it *won* the N4 store-window A/B (moodier interior, better window story) while losing N1
+(less dynamic dog). Use Seedream for quiet cinematic frames, Soul for everything kinetic,
+**Nano Banana Pro** for edits/de-branding, GPT Image for type-in-frame. No single model wins all
+three jobs; the pipeline is the answer.
