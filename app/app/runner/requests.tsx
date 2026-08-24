@@ -5,10 +5,11 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
-import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, OpenRequest, RescheduleRequest } from '../../src/lib/api';
+import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, MyRunnerStatus, OpenRequest, RescheduleRequest } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { expectedDurationMs } from '../../src/lib/lateness';
 import { runnerJob } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
 
@@ -34,6 +35,7 @@ import { layout, lilac, paper } from '../../src/theme';
 //      retired with the rest of the v4 money heroes (home hero, done receipt, earnings ticket).
 //      The rate stops being printed: "수수료 제외" as words. 33% is a real column
 //      (runners.commission_rate) — this is the lab's design choice, not a correction.
+//      ⚠ SUPERSEDED 2026-08-24 — see the margin-secrecy block below. The words go too.
 //   3. The empty state gains two REAL summary rows (온라인 from fetchMyRunnerStatus, 러닝 가능
 //      시간 from fetchMyAvailability). A row that has not loaded renders nothing; a row that
 //      failed says so quietly with a retry — never a default dressed up as an answer.
@@ -41,6 +43,34 @@ import { layout, lilac, paper } from '../../src/theme';
 // nowhere), the "홈 베이스에서 1.2km" line (OpenRequest has no pickup/distance field), and the
 // "근처 요청 · 온라인일 때만" kicker — measured false: the open pool's gate is is_active_runner()
 // (tier <> 'applicant', 0004:4-10), which never reads runners.online.
+//
+// [MARGIN SECRECY + THE FOUR NUMBERS · Sean 2026-08-24, verbatim] "For runner money, don't show
+// them the 수수료. I don't think we should be showing them the calcuations ever; only show the
+// final profit per run; keep the margin a secret. You can show the expected profit at first per
+// run next to how far away the starting point is and how long the run is and how long it will
+// take total."
+//   · 「수수료 제외」 is GONE from the money line. It printed no number, but it named the
+//     mechanism and invited the arithmetic; the rule is that a runner's decision is made on ONE
+//     figure. `req.payout` is the only money this screen reads, and it is already net.
+//   · 「예상」 STAYS, and that is not a contradiction of the secrecy rule. Secrecy is about the
+//     margin; 예상 is about the number not being final. api.ts:815 computes this client-side
+//     from the runner settlement basis and the BOOKING's planned km, and the server finalises it
+//     on actual distance (0101 §A). Dropping 예상 would sell an estimate as a settled amount —
+//     the exact lie home.tsx:287 and the confirm dialog below already refuse to tell.
+//   · 「총 N분」 is new: his "how long it will take total". It is `expectedDurationMs(km)` from
+//     lateness.ts — km×8+25min, THE one shared duration formula (owner/request's slotAllowed and
+//     the server's own accept validation use it). A second formula here would reproduce the
+//     "the slot it offered me gets rejected" drift in a third place.
+//   · NOT BUILT — "how far away the starting point is". `OpenRequest` carries no coordinate and
+//     no address, and that is a gate, not an omission: `booking_pickup_address` (0060, widened
+//     0065) hands out lat/lng ONLY to a booking's ASSIGNED runner, and only in-flight or inside
+//     24 h of a confirmed start. A pre-accept card is on the far side of that gate by design.
+//     The line above already recorded the same finding for the lab's 「홈 베이스에서 1.2km」.
+//     Building it needs a server decision about pre-accept location disclosure, not a mapper field.
+//   · "but also show them what's next" — the flow after 수락 is stated where the decision is made
+//     (the confirm dialog) and once at the foot of the screen. Both name the real stages the
+//     booking actually walks: confirmed → runner_enroute → 인계(picked_up) → active → completed,
+//     and completion is what writes `ledger_items`, i.e. what the 수익 screen then shows.
 
 const CORAL_INK = '#C6472C';      // accept-door fill (white label holds ≥4.5:1)
 const CORAL_INK_DEEP = '#B23E25';
@@ -55,6 +85,27 @@ const splitWhen = (w: string): [string, string] => {
 };
 
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+// 「how long it will take total」 (Sean 2026-08-24) — 한 요청이 실제로 잡아먹는 시간.
+// ⚠ 식은 **하나뿐이다**: lateness.ts의 expectedDurationMs (km×8+25분). owner/request의 slotAllowed와
+// 서버의 수락 검증이 쓰는 바로 그 식이고, 여기서 두 번째 식을 세우면 '가능하다던 칸이 거절되는'
+// 드리프트가 이 화면에도 생긴다. 25분은 러닝이 아니라 픽업·인계 몫이라 카드가 아니라 확인창에서
+// 그렇게 밝힌다.
+// km을 못 믿으면 **아무 말도 하지 않는다** (null → 토큰 생략): 모르는 시간을 25분으로 반올림해
+// 인쇄하는 것이 이 파일이 계속 막아 온 그 거짓말이다.
+const totalTimeLabel = (km: number): string | null => {
+  if (!Number.isFinite(km) || km <= 0) return null;
+  const min = Math.round(expectedDurationMs(km) / 60_000);
+  const h = Math.floor(min / 60);
+  const rem = min % 60;
+  if (h === 0) return `${min}분`;
+  return rem ? `${h}시간 ${rem}분` : `${h}시간`;
+};
+
+// 수락 뒤에 오는 순서 — 예약이 실제로 밟는 서버 상태를 사람 말로 옮긴 것이다
+// (confirmed → runner_enroute → picked_up(양측 인계 확인) → active → completed).
+// 완료가 곧 settle_run_tx이고, 그것이 ledger_items를 써서 수익 화면의 한 줄이 된다.
+const NEXT_STEPS = '픽업 이동 → 인계 확인 → 러닝 → 완료 후 수익에 기록';
 
 // 가용시간 한 줄 요약 — 규칙 행이 정본이다. 요일마다 시간이 다르면 시간을 지어내지 않고 그렇다고 말한다.
 // [honesty 2026-08-19 · runner review P2] 빈 규칙 집합은 "설정한 적 없음"이 아니다:
@@ -90,8 +141,12 @@ export default function Requests() {
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
   // [R2c] 빈 상태의 두 요약 행 — 인박스와 독립적으로 살고 죽는다. null = 아직 안 들어옴(그리지 않음).
-  const [online, setOnline] = useState<boolean | null>(null);
-  const [onlineErr, setOnlineErr] = useState(false);
+  // [runner-home lab B① 2026-08-24] 종전엔 `st.online` 하나만 남기고 나머지를 버렸다. 같은 응답의
+  // `tier`가 '조용한 날'과 '구조적으로 도달 불가'를 가르는 값이다 — 오픈 풀은 is_active_runner()
+  // (tier <> 'applicant', 0004:4-10)에서 끝나고, 지명은 보호자가 목록에서 골라야 오는데 미인증
+  // 러너는 그 목록에 없다. 응답 전체를 들고 있는다 (새 페치 0개).
+  const [rs, setRs] = useState<MyRunnerStatus | null>(null);
+  const [rsErr, setRsErr] = useState(false);
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [availErr, setAvailErr] = useState(false);
 
@@ -102,13 +157,13 @@ export default function Requests() {
   // exhaustive-deps가 `load`를 unstable로 보고 useFocusEffect에 새 에러를 만든다 (린트 베이스라인 6개 유지).
   const load = () => {
     setLoadErr(false);
-    setOnlineErr(false);
+    setRsErr(false);
     setAvailErr(false);
     // 실패하면 **값을 버린다**: 옛 값 옆에 실패 줄을 같이 그리면 둘 다 못 믿는 화면이 되고,
     // 옛 값만 조용히 남기면 그건 오래된 사실을 지금 사실로 파는 것이다. 하나의 행 = 하나의 상태.
     fetchMyRunnerStatus()
-      .then((st) => setOnline(st.online))
-      .catch((e) => { console.warn('[requests] status:', e?.message ?? e); setOnline(null); setOnlineErr(true); });
+      .then(setRs)
+      .catch((e) => { console.warn('[requests] status:', e?.message ?? e); setRs(null); setRsErr(true); });
     fetchMyAvailability()
       .then(setAvail)
       .catch((e) => { console.warn('[requests] availability:', e?.message ?? e); setAvail(null); setAvailErr(true); });
@@ -130,9 +185,16 @@ export default function Requests() {
   const accept = (req: OpenRequest) => {
     if (accepting || asking) return;
     setAsking(true);
+    const dur = totalTimeLabel(req.km);
     Alert.alert('요청 수락',
-      // '실수령'은 확정 금액을 뜻한다 — 이 값은 api.ts:427의 **추정치**다 (실거리·수수료율로 서버가 확정).
-      `${req.dogName} · ${req.when}\n예상 ${req.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?\n수락하면 이 시간에 갈 사람은 나예요.`,
+      // '실수령'은 확정 금액을 뜻한다 — 이 값은 api.ts의 **추정치**다 (서버가 실거리로 확정).
+      // [2026-08-24] 결정하는 자리라서 네 가지가 다 여기 있다: 거리 · 총 소요 · 예상 금액 · 그다음.
+      // 소요 시간 줄은 km을 못 믿으면 통째로 빠진다 (없는 시간을 인쇄하지 않는다).
+      `${req.dogName} · ${req.when}\n`
+      + (dur ? `${req.km}km · 총 ${dur} (픽업·인계 포함)\n` : `${req.km}km\n`)
+      + `예상 ${req.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?\n`
+      + '수락하면 이 시간에 갈 사람은 나예요.\n'
+      + `다음 순서: ${NEXT_STEPS}`,
       [
         { text: '아직', style: 'cancel', onPress: () => setAsking(false) },
         { text: '수락', style: 'default', onPress: () => { setAsking(false); void commitAccept(req); } },
@@ -165,6 +227,11 @@ export default function Requests() {
   const coralResched = resched.length > 0 ? resched[0].bookingId : null;
   const coralDirected = coralResched === null && directed.length > 0 ? directed[0].bookingId : null;
 
+  // [lab B①] 인증 전 — home.tsx:438이 계산하는 것과 **같은** 술어다 (한 규칙, 두 구현이 아니라
+  // 한 규칙을 같은 모양으로 옮긴 것). rs가 없으면(로딩·실패) 절대 참이 되지 않는다: 모르는 tier에
+  // 대고 '지원하세요'라고 말하는 것은 인증된 러너를 쫓아내는 거짓말이다.
+  const preCert = rs !== null && !rsErr && (rs.tier === null || rs.tier === 'applicant');
+
   const renderRequest = (req: OpenRequest) => {
     const [wd, wt] = splitWhen(req.when);
     const coral = req.bookingId === coralDirected;
@@ -179,6 +246,7 @@ export default function Requests() {
     // 닿는 잔여 경로다. 이름·견종·체중·백신은 남는다 — 러너가 수락 여부를 판단하는 정보이고,
     // 케어 지시(메모)는 수락한 러너의 잡 화면에서 볼 것이다. 오픈 풀(matching) 카드는 그대로.
     const preAccept = !!req.directed;
+    const totalTime = totalTimeLabel(req.km);
     return (
       <View key={req.bookingId} style={s.reqCard}>
         <View style={s.cardBody}>
@@ -210,16 +278,21 @@ export default function Requests() {
               <Text style={{ fontSize: 18, fontWeight: '800', color: paper.ink }}>
                 {req.dogName} · {req.breed} {req.weightKg}kg
               </Text>
-              {/* 돈은 한 줄 — 개의 줄 안에서, 사실로. Oswald 숫자 lineHeight 19 = 1.27× (BUG A).
-                  '예상'은 장식이 아니라 계약이다: 이 값은 견적이고 실거리·수수료율로 서버가 확정한다.
-                  요율(33%)은 인쇄하지 않는다 — 실컬럼이지만 러너의 결정에 들어가는 수는 실수령이다. */}
+              {/* 결정에 필요한 수는 한 줄에 — 개의 줄 안에서, 사실로. Oswald 숫자 lineHeight 19 = 1.27× (BUG A).
+                  [2026-08-24] 「수수료 제외」 삭제. 숫자를 인쇄하진 않았지만 구조를 이름으로 불렀고,
+                  이 화면의 규칙은 러너가 **하나의 수**로 결정한다는 것이다 (마진은 우리 몫의 비밀).
+                  '예상'은 장식이 아니라 계약이라 남는다: 이 값은 견적이고 서버가 실거리로 확정한다.
+                  「총 N분」 = expectedDurationMs(km) — 앱 전체가 공유하는 단 하나의 소요 식.
+                  ⚠ 「출발지까지 N km」는 여기 없다. OpenRequest에 좌표가 없고, 없는 이유가 있다 —
+                  픽업 주소는 배정된 러너에게만 열리는 게이트다 (0060/0065). 파일 머리 참조. */}
               <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
                 <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text>
-                {preAccept ? '' : ` · ${req.paceLabel}`} · 예상{' '}
+                {preAccept ? '' : ` · ${req.paceLabel}`}
+                {totalTime ? ` · 총 ${totalTime}` : ''} · 예상{' '}
                 <Text style={[{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19, fontVariant: ['tabular-nums'] as const }, nf]}>
                   {req.payout.toLocaleString()}
                 </Text>
-                원 · 수수료 제외
+                원
               </Text>
             </View>
           </Row>
@@ -426,7 +499,61 @@ export default function Requests() {
             </Pressable>
           </View>
         )}
-        {loaded && !loadErr && live.length === 0 && resched.length === 0 && (
+        {/* ---------- 미인증 러너의 빈 인박스 — 조용한 날이 아니라 **닫힌 문**이다 (lab B①).
+            홈은 2026-08-08 정직 수리에서 이미 이 거짓말을 고쳤는데(「인증 전에는 요청이 오지 않아요」
+            + /runner/apply 실문), 요청 화면만 수리 이전 문장을 계속 출하하고 있었다.
+            게이트는 tier 하나이고, **로드에 성공했을 때만** 갈린다 — 모르는 tier로 이 상태를
+            그리면 인증된 러너에게 지원하라고 말하게 된다. 온라인 행은 이 상태에서 **일부러 뺀다**:
+            미인증 러너에게 토글은 아무것도 바꾸지 못하고, 두 번째 헛다리가 된다. ---------- */}
+        {loaded && !loadErr && live.length === 0 && resched.length === 0 && preCert && (
+          <>
+            <View style={s.stateBlock}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>인증 전에는 요청이 오지 않아요</Text>
+              <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>
+                인증된 러너에게만 요청이 열려요{'\n'}지원은 몇 분이면 끝나요
+              </Text>
+            </View>
+            {/* 실문 — /runner/apply는 존재하고 홈이 이미 같은 곳으로 보낸다. 고스트 문법(잉크 윤곽):
+                이 화면의 코랄 예산은 수락 문의 것이고, 빈 인박스에는 수락할 것이 없다. */}
+            <Pressable
+              onPress={() => router.push('/runner/apply')}
+              style={({ pressed }) => [s.applyDoor, pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] }]}
+              accessibilityRole="button"
+              accessibilityLabel="인증 센터로 이동해 러너 지원하기"
+            >
+              <Text style={{ fontSize: 17, fontWeight: '800', color: paper.ink }}>인증 센터에서 지원하기 ›</Text>
+            </Pressable>
+            {/* 러닝 가능 시간은 남는다 — 인증 전에 설정해두는 것이 실제로 쓸모 있고, 편집기는 지금 열린다. */}
+            <View style={s.sumGroup}>
+              {avail !== null && (
+                <Pressable
+                  onPress={() => router.push('/runner/availability')}
+                  style={({ pressed }) => [s.sumRow, pressed && { backgroundColor: paper.wash }]}
+                >
+                  <Text style={s.sumLabel}>러닝 가능 시간</Text>
+                  <Text style={s.sumValue}>{availSummary(avail)}</Text>
+                  <Text style={s.sumAction}>시간 조정 ›</Text>
+                </Pressable>
+              )}
+              {availErr && (
+                <Row style={s.sumRow}>
+                  <Text style={s.sumLabel}>러닝 가능 시간</Text>
+                  <Text style={s.sumState}>불러오지 못했어요</Text>
+                  <Pressable onPress={load} style={s.sumRetry} accessibilityRole="button">
+                    <Text style={s.sumAction}>다시 시도</Text>
+                  </Pressable>
+                </Row>
+              )}
+            </View>
+            {avail !== null && (
+              <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 12 }}>
+                지금 설정해두면 인증되는 즉시 보호자 예약 화면에 반영돼요
+              </Text>
+            )}
+          </>
+        )}
+
+        {loaded && !loadErr && live.length === 0 && resched.length === 0 && !preCert && (
           <>
             <View style={s.stateBlock}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>지금은 열린 요청이 없어요</Text>
@@ -436,13 +563,13 @@ export default function Requests() {
                 둘 다 실필드다: runners.online · runner_availability_rules.
                 아직 안 들어온 행은 **그리지 않는다** (기본값을 답으로 위장하지 않는다). ---------- */}
             <View style={s.sumGroup}>
-              {online !== null && (
+              {rs !== null && (
                 <Row style={s.sumRow}>
                   <Text style={s.sumLabel}>온라인</Text>
-                  <Text style={s.sumValue}>{online ? '켜짐' : '꺼짐'}</Text>
+                  <Text style={s.sumValue}>{rs.online ? '켜짐' : '꺼짐'}</Text>
                 </Row>
               )}
-              {onlineErr && (
+              {rsErr && (
                 <Row style={s.sumRow}>
                   <Text style={s.sumLabel}>온라인</Text>
                   <Text style={s.sumState}>상태를 불러오지 못했어요</Text>
@@ -474,9 +601,14 @@ export default function Requests() {
           </>
         )}
 
+        {/* 화면의 콜로폰 — 수락이 무엇을 만드는지, 그리고 **그다음에 무엇이 오는지**.
+            (Sean 2026-08-24: "but also show them what's next.") 상자를 두르지 않는다:
+            이 파일의 법대로, 활자가 위계를 진다. */}
         <View style={s.note}>
           <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, textAlign: 'center' }}>
-            수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}응답 기한이 지나면 요청은 자동 만료됩니다
+            수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}
+            그다음은 {NEXT_STEPS}{'\n'}
+            응답 기한이 지나면 요청은 자동 만료됩니다
           </Text>
         </View>
       </ScrollView>
@@ -522,6 +654,11 @@ const s = StyleSheet.create({
   doorOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
   // 로딩·빈 상태 — 상자 없이 활자만 (빈 인박스에 테두리를 그리면 없는 내용에 무게가 생긴다)
   stateBlock: { marginTop: 40, paddingHorizontal: 10, alignItems: 'center' },
+  // [lab B①] 인증 문 — doorGhost와 같은 문법(캔버스 + 잉크 1.5px), 카드 밖이라 자기 여백을 갖는다.
+  applyDoor: {
+    backgroundColor: paper.canvas, borderWidth: 1.5, borderColor: paper.ink,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 14, minHeight: 48, marginTop: 16,
+  },
   // ── R2c 요약 행 — owner/request.tsx의 prefRow 문법 (딤 라벨 왼쪽 · 굵은 값 오른쪽 · 잉크 액션) ──
   sumGroup: { marginTop: 40, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   sumRow: {

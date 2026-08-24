@@ -340,18 +340,17 @@ export default function Apply() {
                     <Text style={s.cellU}>km</Text>
                   </Row>
                 </View>
-                <View style={[s.cell, s.cellDiv]}>
-                  <Text style={s.cellK}>정산 수수료</Text>
-                  <Row style={s.cellVal}>
-                    <Text style={[s.cellV, nf]}>{Math.round(cert.commissionRate * 100)}</Text>
-                    <Text style={s.cellU}>%</Text>
-                  </Row>
-                </View>
+                {/* [2026-08-24 Sean] the 정산 수수료 cell (33%) stood here and is REMOVED — "don't
+                    show them the 수수료. I don't think we should be showing them the calcuations
+                    ever; only show the final profit per run; keep the margin a secret." This was
+                    the last surface printing the rate itself, on the runner's own certification
+                    card. The column (runners.commission_rate, 0059) is untouched — settlement
+                    still uses it; the runner just no longer reads it here. */}
               </Row>
             </View>
             <Text style={s.recFoot}>
-              {/* [2026-08-19] '네 값' → '세 값'. 위 그리드는 완주·누적 거리·정산 수수료 셋을 그린다 */}
-              세 값 모두 서버 러너 레코드에서 그대로 읽어요 — 완주와 거리는 정산이 올리고, 수수료율은 정산에 그대로 쓰여요
+              {/* '세 값' → '두 값' — the grid now draws 완주 and 누적 거리 only (fee cell retired above) */}
+              두 값 모두 서버 러너 레코드에서 그대로 읽어요 — 완주와 거리는 정산이 올려요
             </Text>
           </View>
         )}

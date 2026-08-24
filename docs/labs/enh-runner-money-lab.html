@@ -1083,6 +1083,81 @@ labels the third as untracked, on the screen, in Korean. The screen's single cor
 
 </div>
 
+<div class="note warn" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “For runner money, don't show them the 수수료. I don't think we should be showing them the calcuations ever; only show
+  the final profit per run; keep the margin a secret. You can show the expected profit at first per run next to how far
+  away the starting point is and how long the run is and how long it will take total. I like b1 but also show them what's
+  next. I like c4.”
+  <ul style="margin:8px 0 0 18px;line-height:1.75">
+    <li><b>마진 비밀 — IMPLEMENTED (A 전체를 지배한다).</b> <code>app/app/runner/earnings.tsx</code>의 러닝별 내역에서
+      여섯 토큰(<code>기본 · 거리 · 옵션 · 잔여 보장 · 팁 · 수수료</code>)이 통째로 사라지고 <code>Bd()</code> 헬퍼도 함께
+      삭제됐다 — 남겨두면 규칙이 JSX 한 줄 거리에서 되살아난다. <b>수수료 토큰만 빼는 것으로는 비밀이 지켜지지 않는다:</b>
+      순액 옆에 성분이 하나라도 인쇄되면 수수료는 뺄셈으로(<code>fee = Σ성분 − net</code>), 요율은 나눗셈으로 복원된다.
+      그래서 한 행은 이제 정확히 한 숫자(<b>실수령</b>)만 진다. <code>app/app/runner/requests.tsx</code>의
+      「원 · <b>수수료 제외</b>」에서도 그 낱말이 빠졌다.
+      <b>이 화면들이 읽는 돈 필드는 이제 셋뿐이다: <code>LiveLedgerItem.net</code> · <code>my_ledger_total</code> ·
+      <code>OpenRequest.payout</code>.</b> <code>base·distancePay·addonPay·tip·guarantee·fee</code>는 더 이상 읽지 않는다.
+      <b>이 픽은 A②(한 러닝의 산수)를 거부한다</b> — 그 변형은 정확히 그가 금지한 산수이고, 열린 질문 2(요율을 인쇄할까)와
+      3(애드온 이름)도 같은 문장으로 닫혔다: <b>둘 다 아니오</b>.</li>
+    <li><b>원천징수 3.3% — HELD, 형태만 바꿨다 (🔵 판단).</b> 「원천징수 3.3% 약 −1,524원 예정」의 <b>계산 결과</b>는
+      지웠고(그것이 그가 금지한 산수다), 사실은 낱말로 남겼다: 「지급 일정 미정 · 지급할 때 사업소득 3.3%가 원천징수돼요」.
+      근거: 이건 <b>우리 마진이 아니라 법정 원천징수</b>라 <code>commission_rate</code>에 대해 아무것도 흘리지 않고,
+      말해주지 않으면 러너가 지급일에 덜 받는다. 그가 뒤집으면 한 줄 삭제다. (열린 질문 8은 <b>남기되 숫자 없이</b>로 닫혔다.)</li>
+    <li><b>요청 카드의 네 수 — 3/4 IMPLEMENTED.</b> <code>requests.tsx</code>의 돈 줄이
+      「<b>4.0km</b> · 보통 7' · <b>총 57분</b> · 예상 <b>13,668</b>원」이 됐다. 거리 = <code>OpenRequest.km</code>,
+      총 소요 = <code>expectedDurationMs(km)</code> (lateness.ts, km×8+25분 — owner/request의 slotAllowed와 서버 수락
+      검증이 쓰는 <b>단 하나의</b> 소요 식; 두 번째 식을 세우면 '가능하다던 칸이 거절되는' 드리프트가 여기서도 생긴다),
+      예상 금액 = <code>OpenRequest.payout</code>. km을 못 믿으면 총 소요 토큰은 <b>통째로 빠진다</b>.
+      확인창은 결정하는 자리라 넷을 다 싣는다(거리 · 총 소요(픽업·인계 포함) · 예상 금액 · 다음 순서).</li>
+    <li><b>「how far away the starting point is」 — NOT BUILT, 그리고 막힌 곳이 게이트다.</b>
+      <code>OpenRequest</code>에는 좌표도 주소도 없고, 그건 누락이 아니라 <b>설계된 차단</b>이다:
+      <code>booking_pickup_address</code>(0060, 0065가 lat/lng까지 확장)는 <b>배정된 러너에게만</b>, 그것도 진행 중이거나
+      확정 시작 24시간 이내에만 행을 준다. 수락 <b>전</b> 카드는 그 게이트 바깥이다. requests.tsx:41은 이미 같은 사실을
+      랩의 「홈 베이스에서 1.2km」에 대해 기록해 두었다 — <b>코드가 먼저 옳았다.</b> 이건 매퍼 필드 하나가 아니라
+      <b>수락 전 위치 공개에 대한 제품·보안 판단</b>이다 (요약의 needs 목록 참조).</li>
+    <li><b>b1 = B① 포인트 내역 — IMPLEMENTED</b> (<code>app/app/runner/rewards.tsx</code>). <code>fetchMiles()</code>가
+      매 포커스마다 실어오고 이 화면만 버리던 <code>recent[]</code>(실 <code>miles_ledger</code> 10행)를 잔액 아래에 그린다.
+      부호는 <code>delta</code>가 진다(<code>shop_spend</code>는 음수). 적립 규칙 한 줄은 <b>삭제가 아니라 폴백</b>이 됐다 —
+      내역이 비었거나 못 불러온 러너는 여전히 규칙을 읽는다. 새 페치·새 컬럼·새 라우트 0개.
+      <b>한 곳만 랩과 다르다</b>: 마이너스 색이 <code>coralText</code>(#d84a2f)가 아니라 <code>tang</code>(#FF5C3D)이다 —
+      잉크 면 위에서 역할이 뒤집힌다. 실측 #d84a2f on #111111 = <b>4.48:1</b>(15pt 볼드는 큰 활자가 아니다), tang = 6.24:1.
+      신규 색 0개.</li>
+    <li><b>“also show them what's next” — IMPLEMENTED, 두 자리에서 (그의 문장이 두 가지로 읽혀 양쪽을 다 지었다).</b>
+      ① <b>리워드 B③</b>: 빈 상태가 <b>다음에 올 상자의 이름</b>을 맞게 말한다. 종전 <code>5 − totalRuns%5</code>는
+      5의 배수를 세면서 노상 「보급」이라고 불렀는데, <code>settle_run_tx</code>(0083 §6:812-816)는 새 누적이
+      <b>10의 배수면 픽</b>을 민팅한다 — 17완주 러너는 「보급」을 듣고 픽을 받았다. 이제 픽이면 「픽 드랍」이라 말하고
+      한 줄 더 붙는다(부스트 · 5,000 포인트 · 기어 중 하나를 직접 골라요 = <code>drops.contents.options</code> 그대로).
+      <code>rs === null</code>이면 개수도 이름도 나가지 않는다(기존 게이트 유지). <code>runners.total_runs</code>는
+      완주에서만 오르고(0083:796 <code>v_is_full</code>) 그게 드랍을 민팅하는 바로 그 게이트라 둘은 어긋날 수 없다.
+      ② <b>요청 화면</b>: 수락 뒤의 실제 순서를 확인창과 화면 콜로폰에 한 번씩 — 「픽업 이동 → 인계 확인 → 러닝 →
+      완료 후 수익에 기록」. 지어낸 단계가 아니라 예약이 밟는 서버 상태다
+      (<code>confirmed → runner_enroute → picked_up → active → completed</code>, 그리고 완료가 <code>ledger_items</code>를 쓴다).</li>
+    <li><b>c4 = C④ (인증 센터 · 열 칸의 벽을 두 장으로) — NOT BUILT: 이 클러스터의 파일이 아니다.</b>
+      C 밴드는 <code>app/app/runner/apply.tsx</code>인데 이 슬라이스의 파일 청구는 earnings · rewards ·
+      <b>requests</b>였다(랩의 세 번째 화면이 아니다). 픽은 살아 있고 소유자만 없다 — 요약의 flags로 넘긴다.
+      ⚠ 같은 파일에 <b>더 급한 것</b>이 있다: <code>apply.tsx:344</code>가 <b>정산 수수료 33%</b>를 러너 레코드 셀로
+      인쇄하고 :354가 「수수료율은 정산에 그대로 쓰여요」라고 설명한다. 그건 오늘 그가 비밀로 하라고 말한 바로 그 수다.</li>
+    <li><b>lab B②(픽 드랍 두 번 누르기 · 셋의 정체) · B④(부스트 스트립 · 적립 규칙 실금액) — NOT BUILT (미픽).</b>
+      그는 b1과 what's next만 골랐고, 이 랩의 법은 그가 본 것을 짓는 것이지 개선안을 얹는 것이 아니다.
+      열린 질문 4(부스트: 말할까 · 감출까 · 지을까)는 <b>여전히 열려 있고</b>, B②가 그 답의 (a)안이었다.</li>
+    <li><b>A①(기간 세 줄) · A③(실거리·취소 보상 relabel) · A④(지급 블록) — NOT BUILT (미픽).</b>
+      A③의 (a)는 <b>실측된 결함</b>이라 그냥 두지 않고 api 패치로 넘겼다: <code>fetchLedger</code>가
+      <code>bookings.km</code>(계획)를 <code>runs.actual_km</code>(실주행)로 계산된 돈 옆에 인쇄한다.
+      고치는 데 필요한 것은 이미 도는 쿼리의 컬럼 하나(<code>runs</code> 조회를 <code>select('booking_id, actual_km')</code>로)
+      — 마이그레이션도 RPC도 아니다. api.ts는 이 슬라이스의 청구 밖이라 손대지 않았다.</li>
+    <li><b>요청 화면에 덤으로 — runner-home 랩 B① IMPLEMENTED.</b> 그 클러스터가 requests.tsx를 여기로 넘겼고
+      (“For runner home I like all new updates you are showing me”), B①은 <b>정직 수리</b>다: 미인증 러너의 빈 인박스가
+      「지금은 열린 요청이 없어요」라고 말하고 있었는데, 그 러너에게는 조용한 날이 아니라 <b>닫힌 문</b>이다
+      (오픈 풀은 <code>is_active_runner()</code>에서 끝나고, 지명은 보호자가 못 보는 목록에서 고를 수 없다).
+      홈은 2026-08-08에 같은 거짓말을 이미 고쳤고 요청 화면만 수리 이전 문장을 출하 중이었다. 새 페치 0개 —
+      이미 부르던 <code>fetchMyRunnerStatus()</code>가 <code>tier</code>를 버리던 것을 그만뒀을 뿐이다.
+      이 상태에서 <b>온라인 행은 일부러 뺐다</b>(미인증에게 토글은 두 번째 헛다리다). 문은 고스트다 — 코랄 예산은 수락 문의 것.
+      <b>B② (마감 카운트다운) · B③ (겹침 경고) — NOT BUILT:</b> 둘 다 <code>OpenRequest.scheduledAt</code>이 필요한데
+      매퍼가 <code>when</code>을 조판한 뒤 버린다. 홈 A②가 같은 이유로 같은 자리에서 멈췄다 — 한 api 패치가 셋을 연다.</li>
+  </ul>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
 <div class="foot">
   <h3>OPEN QUESTIONS — things the code could not settle</h3>
