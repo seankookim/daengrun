@@ -979,6 +979,40 @@ begin
     v_msg := sqlerrm; call _fail('mgn','G12 DELETE 래치·운영 경로', v_msg);
   end;
 
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [G13] final review F1/F5 — the screen must not manufacture a breed, the copy must not
+  --       manufacture a door. ⓐ '진도 사냥개' stripped to '진도사냥개' contained '도사' and a
+  --       correctly-declared Jindo was trapped on every booking; the 2-char stem now matches on
+  --       word boundaries only, while '도사 견'-style splits still catch through the stripped
+  --       '도사견'. ⓑ the custody-refusal detail named 입마개·보험·절차 as 「준비되지 않은」 —
+  --       a conditional route nobody ruled; the client-side vocabulary ban now binds the
+  --       server's own words too.
+  begin
+    v_bad := '';
+    if _breed_reads_as_dangerous('진도 사냥개') then
+      v_bad := v_bad || ' 진도 사냥개가 도사로 읽혔다 (단어 경계를 넘는 조립 매치)'; end if;
+    if _breed_reads_as_dangerous('진도사냥개') then
+      v_bad := v_bad || ' 진도사냥개(무공백)가 도사로 읽혔다'; end if;
+    if not _breed_reads_as_dangerous('도사') then
+      v_bad := v_bad || ' 단독 도사를 놓쳤다'; end if;
+    if not _breed_reads_as_dangerous('도사 견') then
+      v_bad := v_bad || ' 도사 견(분리형)을 놓쳤다'; end if;
+    if not _breed_reads_as_dangerous('도사견') then
+      v_bad := v_bad || ' 도사견을 놓쳤다'; end if;
+    if not _breed_reads_as_dangerous('아메리칸 핏 불 테리어') then
+      v_bad := v_bad || ' 분리형 핏불 매치가 죽었다 (경계 수정이 과잉이다)'; end if;
+    select dog_custody_refusal_detail('dog_dangerous_custody_refused') into v_msg;
+    if v_msg ~ '(입마개|보험|허가|절차|준비|서류|신청)' then
+      v_bad := v_bad || ' 거절 사유가 조건부 경로를 암시한다=' || v_msg; end if;
+    if position('동반' in v_msg) = 0 then
+      v_bad := v_bad || ' 거절 사유가 실재하는 대안(동반)을 잃었다'; end if;
+    if v_bad = '' then
+      call _pass('mgn','G13 경계와 문구 — 진도 사냥개는 통과하고 도사·도사 견·도사견은 잡히며(분리형 핏불도 그대로), 거절 문구는 조건부 경로 어휘 없이 실재하는 동반 대안만 말한다 (final review F1/F5)');
+    else v_msg := v_bad; call _fail('mgn','G13 경계와 문구', v_msg); end if;
+  exception when others then
+    v_msg := sqlerrm; call _fail('mgn','G13 경계와 문구', v_msg);
+  end;
+
   perform set_config('request.jwt.claim.sub', '', false);
 end $$;
 

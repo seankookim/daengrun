@@ -199,9 +199,17 @@ language sql immutable set search_path = public, pg_temp as $$
   -- → `text`. Had it somehow reached runtime it would have been worse than a raise: the regex
   -- would have been the unterminated `'(도사|tosa'` alone — four of the five statutory breeds
   -- silently unscreened.
+  -- (final review F1) the space-stripping exists to catch '핏 불' — and it MANUFACTURED a match:
+  -- '진도 사냥개' strips to '진도사냥개', which contains '도사', and a correctly declared-none
+  -- Jindo got dog_dangerous_breed_conflict on every booking. The 2-char 도사 stem (and its
+  -- romanizations) is the only one short enough to be assembled across a word join, so it alone
+  -- moves to a WORD-BOUNDARY match on the original string, while '도사견/토사견' stay in the
+  -- stripped form so '도사 견' still catches. Every longer stem keeps the stripped-form behaviour.
   select coalesce(
+    lower(p_breed) ~ '(^|[^a-z가-힣])(도사|토사|tosa)([^a-z가-힣]|$)', false)
+  or coalesce(
     regexp_replace(lower(p_breed), '[^a-z가-힣]', '', 'g') ~
-      ('(도사|tosa'
+      ('(도사견|토사견|tosainu|tosaken'
       || '|핏불|피트불|피불|pitbull|pitbul|apbt'
       || '|스태퍼드|스태포드|스탠퍼드|스탯퍼드|staffordshire|amstaff|staffybull'
       || '|로트와일|로트바일|롯트와일|롯와일|rottweil|rottie)'),
@@ -297,8 +305,11 @@ language sql immutable set search_path = public, pg_temp as $$
     when 'dog_dangerous_breed_conflict' then
       '견종과 맹견 여부 답변이 서로 달라요 — 강아지 프로필에서 둘 중 맞는 쪽으로 고쳐주세요'
     when 'dog_dangerous_custody_refused' then
-      '맹견은 아직 러너 위탁을 받지 못해요 (입마개·보험·전담 러너 확인 절차가 준비되지 않았어요). '
-      || '보호자가 함께 뛰는 클럽 세션 동반 참여는 그대로 이용하실 수 있어요'
+      -- (final review F5) the old text named 입마개·보험·확인 절차 as 「준비되지 않은」 things —
+      -- implying a conditional route the product has not ruled and cannot verify. The client-side
+      -- vocabulary ban existed for exactly this sentence shape, and the server's own words had
+      -- escaped it. State the refusal and the one real alternative; imply no door.
+      '맹견은 러너 위탁 대상이 아니에요. 보호자가 함께 뛰는 클럽 세션 동반 참여는 그대로 이용하실 수 있어요'
     else '강아지 정보를 확인해주세요'
   end
 $$;
