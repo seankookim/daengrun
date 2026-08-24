@@ -1,0 +1,309 @@
+# 도그스하이 — Higgsfield brand-post campaign (poster season v4)
+
+*Written 2026-08-24. Companion to `docs/campaigns/generation-prompts.md` (v3.1) and
+`docs/instagram/prompt-library.md` (§0 gates unchanged and still binding). This file exists because
+Sean picked six finished posts as the reference set for the next drop — the "poster" look — and asked
+for a creative recreation generated through the **Higgsfield MCP**.*
+
+**Status of the tooling:** the official Higgsfield MCP is registered at user scope
+(`claude mcp add --transport http --scope user higgsfield https://mcp.higgsfield.ai/mcp`, done
+2026-08-24). It authenticates by browser OAuth — **one-time, Sean, via `/mcp` in an interactive
+session** — after which any session can call `generate_image` (Soul, GPT Image, Flux, Nano Banana
+et al.) and `generate_video` directly. Until that OAuth happens, every prompt below is also
+paste-ready on higgsfield.ai by hand.
+
+---
+
+## 0. The six reference posts, codified
+
+The reference set (Sean, 2026-08-24: "attached images are some of the posts that i think are nice"):
+
+| Ref | Look | Type voice |
+|---|---|---|
+| BORN TO RUN | dusk-ridge silhouette, one clean sky field, violet trace + pace block | editorial serif, white, masthead |
+| CHASE THAT HIGH. | street doc, raking light on stone, compressed profile | condensed grotesque italic, stacked, white + red pay-off word |
+| RUN THAT LIFE. | on-camera flash on film, post-run candid, wet dog | condensed stacked, red + white alternating |
+| Two Hearts. One Race. | overcast editorial calm, muted film grade | quiet serif + tiny red kicker |
+| 도그스하이 (yellow) | panning motion blur, night street crew | Korean graffiti display, volt-yellow, + yellow route outline |
+| YOUR FASTEST FRIEND. / MY RUN MATE | sprinkler chaos wide · direct-flash portrait | condensed heavy, white with one red word |
+
+What the set actually does — this is the v4 system:
+
+1. **Three type voices, three temperatures.** Editorial serif (calm, filmic) · condensed grotesque,
+   often italic (loud, sport) · Korean graffiti display (street, crew). One voice per frame, never
+   mixed.
+2. **Red is the pay-off.** One word (or one line) of the stack flips to brand red `#E8352A`; the
+   rest stays white/cream. Red never appears as an object in frame.
+3. **The violet route trace survives from v3.1** and its law is UNCHANGED: vector, plotted from a
+   real GPX, with readouts only from that same file. §2.2 of `generation-prompts.md` governs.
+4. **The wordmark + running-dog logo are vector overlays.** Never generated — generators drift the
+   letterforms and the mark (prompt-library §0.1). Source: `docs/brand/dogshigh-icon-a-1024.png` +
+   the 도그스하이 lockup.
+5. **English display lines join the system.** 2–4 words, athlete's verb, period. Korean carries the
+   caption and the graffiti colorway. (v3.1 was Korean-display-first; the six refs Sean picked are
+   English-display-first. Codified here, flagged in §5-A.)
+
+⚠ **Deltas from v3.1's accent law, stated honestly rather than papered over:** the reference posts
+do not wear volt on the dog (harnesses are peach/olive/black), and volt-yellow appears as a *type
+colorway* in the 도그스하이 post. v4 as written follows the refs: gear color is quiet and free,
+volt is the Korean-graffiti colorway only, red owns the pay-off, violet owns the trace. If Sean
+wants the volt-on-dog law back, that is §5-A option B and only the PROMPT blocks change.
+
+**Unchanged and still absolute** (from prompt-library §0.2 + generation-prompts §2.2):
+- Honesty gate — every post below is brand-world/concept and captions as such (컨셉/예고). No
+  implied customer, no implied delivered run. AI event imagery expires the day the real event runs.
+- **No generated GPS lines, no generated numbers, ever.** Trace + pace/km blocks go on in post,
+  from a real GPX or not at all.
+- No real athlete or celebrity, no sportswear logos, inspect at 100% before trusting any frame
+  (logo contamination is invisible at thumbnail scale — measured, §2.6 of generation-prompts.md).
+
+---
+
+## 1. Higgsfield operating notes
+
+- **Default model: Soul** — it is the reason to use Higgsfield at all; its stylized-realism grades
+  (film flash, editorial muted, motion pan) map 1:1 onto the six refs. Use **GPT Image (via
+  Higgsfield)** only when type must be generated in-frame (route 1), because Soul, like MJ/Flux,
+  breaks Hangul. **Flux** for the two macro/texture frames.
+- **Aspect:** 4:5 feed · 9:16 story. Generate 4:5 masters; recrop, don't regenerate, for story.
+- **Per-frame call shape (once OAuth is done):** `generate_image` with model + the full paste block
+  below (SCENE + DNA v4 + NEGATIVE) + aspect. Batch all ten, contact-sheet them, Sean picks by
+  number — he picks by looking.
+- **Type route per frame** is marked R1 (generated in-frame, GPT Image, exact string quoted) or
+  R2 (set in post — Figma, real fonts). English display survives R1 well; Korean display defaults
+  to R2 unless marked; the wordmark/logo/numbers are ALWAYS R2 vector (law).
+- Every SCENE block already reserves negative space for its type. Do not crop it away.
+
+### 1.1 DNA v4 (paste into every prompt)
+
+```
+BASE DNA — DOGS HIGH v4 (poster season):
+GRADE: one of three locked looks per frame, named in the scene block —
+ (a) FILM FLASH: on-camera direct flash on 35mm color film, hard shadow edge,
+     slightly lifted blacks, honest skin;
+ (b) EDITORIAL MUTE: overcast soft light, desaturated film grade, unhurried;
+ (c) MOTION PAN: slow-shutter panning blur, subject half-sharp, street at night.
+COLOUR: restrained, one disciplined colour field per frame. No HDR, no orange-teal,
+no busy multi-hue frame. Gear on dog and human stays quiet/neutral.
+BODIES: genuine full athletic stride, anatomically correct running gait. The dog is
+the athlete, never the pet — no sitting pretty, no head tilt, no costume, working
+mouth-open effort. Leash geometry physically correct, under real load or truly slack.
+ENERGY: candid documentary, mid-effort or just-after-effort. Nobody performs for
+the camera. Sweat, breath, wet fur are wanted.
+CASTING: Korean runners, 20s–30s, real athletic builds, no fashion-model faces.
+Mid-size Korean dogs — Jindo mix, Border Collie, Welsh Corgi, retriever, shepherd mix.
+TEXTURE: 35mm editorial grain, honest optical imperfection, no plastic skin, no
+beauty retouch, no digital over-cleanliness.
+TYPE SPACE: hold clean uncluttered negative space exactly where the scene block says.
+ANIMAL EYES: any dog toward the lens has natural dark wet eyes with a single small
+specular catchlight — no eye glow, no tapetum eyeshine.
+```
+
+### 1.2 Global negative (paste into every prompt; for R1 frames delete the first clause only)
+
+```
+NEGATIVE: no text anywhere in the image, no lettering, no signage, no logos, no
+watermarks, no brand marks on apparel or shoes, no swoosh or any sportswear logo,
+no invented shop signs; no real athlete, celebrity, or recognisable public figure;
+no extra or missing limbs, no six-legged dogs, no duplicated tails, no fused paws,
+no floating or detached leash, no leash passing through a body; no eye glow, no
+retroreflective eyeshine; no cartoon, no illustration, no 3D render, no CGI look,
+no plastic skin, no beauty retouch, no HDR, no orange-teal grade; no costumes, no
+clothing on the dog beyond a bandana or harness; no sitting pretty, no begging, no
+tongue-out cuteness pose; no GPS lines, no map overlays, no route graphics, no app
+screens, no data readouts, no numbers; no stock-photo smiling; no crowds of onlookers.
+```
+
+---
+
+## 2. THE TEN POSTS
+
+Format: **ROLE** · **IDEA** · **MODEL/AR/GRADE** · **SCENE** (paste + DNA v4 + NEGATIVE) ·
+**TYPE** (voice · route · exact copy) · **OVERLAY** (vector, post) · **GATE**.
+
+### H1 — 능선의 실루엣 · the masthead poster
+**ROLE** drop hero, pinned post. **IDEA** The pair as one silhouette against one clean sky — the
+viewer's own mornings, projected. **MODEL** Soul · 4:5 · grade (b).
+```
+EDITORIAL MUTE. Low hilltop trail against a vast clean dawn sky in a single cold
+blue-grey gradient, horizon low in the frame. A Korean runner in plain dark running
+kit and a mid-size Jindo-mix dog, both in full silhouette on the ridge line, caught
+in a walking recovery stride, the dog two paces ahead and looking back at the runner.
+Dry grass and one bare branch silhouetted at the frame edge. The upper two thirds of
+the sky held completely empty and clean. Long-lens compression, 35mm grain.
+```
+**TYPE** editorial serif, white, tracking wide, masthead across the top: `RUN BEFORE SUNRISE` (R1
+via GPT Image or R2 — serif masthead survives both). **OVERLAY** violet trace + PACE/KM block mid-right
+IF a real GPX exists for a dawn run; otherwise nothing (law §0). Logo + 도그스하이 lower-left.
+**GATE** CONCEPT-ONLY.
+
+### H2 — 스트리트 페이스 · the sport poster
+**ROLE** grid tile 2, the loud one. **IDEA** City light falls on the pair like it falls on any
+athlete at work. **MODEL** Soul · 4:5 · raking daylight (grade b, hard variant).
+```
+Compressed long-lens side profile on a Seoul street: one hard blade of morning sun
+raking across a monumental grey stone facade, the rest of the wall in soft shadow.
+A Korean woman running left-to-right through the light blade, mid-stride, crossbody
+leash line to a Border Collie trotting exactly at her knee, both fully lit for one
+step. Plain white tee, neutral shorts, olive harness on the dog. Wide clean shadow
+field upper-left held empty. Documentary street photography, 35mm grain.
+```
+**TYPE** condensed grotesque italic, stacked upper-left: `EARN` / `THAT` / `HIGH.` — first two lines
+white, last line red `#E8352A` (R1 via GPT Image, English survives; else R2). **OVERLAY** white logo
+mark upper-right, large, à la the CHASE ref. No trace on this frame.
+**GATE** CONCEPT-ONLY.
+
+### H3 — 플래시 필름 · after the run
+**ROLE** the emotional tile; pairs with H8. **IDEA** The high is what's on their faces when it's
+over. **MODEL** Soul · 4:5 · grade (a).
+```
+FILM FLASH. Dusk in a Han River park, direct on-camera flash: two Korean runners in
+their 20s crouched on the grass toweling down a soaking-wet shepherd-mix dog that is
+mid-shake, water flying, tongue loose, everyone lit hard against a darkening tree
+line. Genuine laughter mid-effort, not posed. Wet grass detail in flash falloff.
+Right third of frame held clear of bodies for type. 35mm color film look.
+```
+**TYPE** condensed stacked, right third: `RUN` / `THAT` / `LIFE.` alternating red/white (R2 — this
+lockup exists from the ref post; reuse it). **OVERLAY** violet trace + readout upper-right from a
+real GPX or omit. Logo + 도그스하이 bottom-center.
+**GATE** CONCEPT-ONLY.
+
+### H4 — 세리프의 정적 · the quiet one
+**ROLE** pace-breaker between loud tiles; carries the platform line. **IDEA** After the effort,
+before the words. **MODEL** Soul · 2:3 or 4:5 · grade (b).
+```
+EDITORIAL MUTE. Overcast flat sky, muted film grade. A Korean man in his 30s in plain
+dark running kit leans on a weathered Han River railing, one hand resting on the head
+of a black retriever-mix dog sitting square beside him, both looking out at the grey
+water, breath settled. Wide calm negative space in the sky across the top third.
+Quiet, unhurried, nothing performing. 35mm grain, soft contrast.
+```
+**TYPE** quiet serif, white, centered top: `Two Hearts. One Pace.` with the tiny red kicker line
+`DOG'S HIGH / 도그스하이` centered beneath it (R2 — serif + kicker is a lockup). **OVERLAY** small
+logo bottom-right only. No trace.
+**GATE** CONCEPT-ONLY.
+
+### H5 — 한글 콜로웨이 · the street drop
+**ROLE** the Korean-type statement tile; crew recruitment energy. **IDEA** The brand name IS the
+image; the city supplies the rest. **MODEL** Soul · 9:16 master · grade (c).
+```
+MOTION PAN. Night street in Seoul, slow-shutter panning shot: a small crew of Korean
+runners sweeps left-to-right past closed metal shutters, bodies half-sharp with
+motion trails, and low in the foreground a Jindo-mix dog in full sprint extension,
+sharper than the humans, collar only, no leash in this frame reading as loose
+off-lead chaos — keep one runner's hand and a slack lead visibly connected to the
+dog. Sodium and shutter greys, one muted red-white striped pole blurring past.
+Upper-left third held as shutter-grey emptiness for large type.
+```
+**TYPE** Korean graffiti display, volt-yellow `#EDF356`, tilted, huge, upper-left: `도그스하이`
+(R2 ONLY — Hangul display never generated). Small italic kicker bottom-left: `RUN 06 / SEOUL`
+(R2; the run number is a real series index, not invented data). **OVERLAY** the yellow route
+outline in the same volt — SAME LAW as violet: real GPX or nothing. White logo bottom-center.
+**GATE** CONCEPT-ONLY.
+
+### H6 — 팩 애니멀 · the chaos tile
+**ROLE** reach post; the shareable one. **IDEA** Joy at pack scale — what the feed stops scrolling
+for. **MODEL** Soul · 4:5 · grade (a) daylight-flash variant.
+```
+FILM FLASH, fill-flash against late dusk sky. Low wide-angle inside a fenced dog run:
+five dogs of mixed Korean breeds — shepherd mix, black retriever, Border Collie,
+Jindo mix, one Corgi — caught mid-leap and mid-shake under a sprinkler arc, water
+crown backlit, grass flying, every face pointed up at the spray in working joy, not
+posed cuteness. Deep blue evening sky across the top half of frame held clean for
+stacked type. Hard flash catchlights, natural dark wet eyes, 35mm grain.
+```
+**TYPE** condensed heavy, stacked across the sky: `YOUR` / `FASTEST` / `FRIEND.` — middle word red
+(R2; this lockup exists from the ref). Small `도그스하이` beneath the stack. **OVERLAY** logo
+bottom-right. No trace — group frames never carry data.
+**GATE** CONCEPT-ONLY.
+
+### H7 — 플래시 포트레이트 · my pacer
+**ROLE** the intimate tile; profile-picture energy. **IDEA** Dog-first portrait — the athlete gets
+the hero crop, the human is furniture. **MODEL** Soul · 2:3 · grade (a).
+```
+FILM FLASH. Narrow apartment entryway at night, direct hard flash: a brown-and-white
+Jindo-mix dog stands square between its seated owner's sneakered feet, facing the
+camera dead-on with calm working eyes, single catchlight, leash clipped and slack.
+The owner's legs and running shoes frame the dog; the human's face is out of frame
+entirely. Textured doormat, hard flash shadows on the door behind. Top fifth of
+frame held for one display word. 35mm color film.
+```
+**TYPE** condensed heavy white across the top: `MY` / `PACER` (R1 via GPT Image or R2). 도그스하이 +
+logo small, left, under the headline. **OVERLAY** violet trace bottom-right corner IF real GPX
+(the ref post carries exactly this placement); readout only from the same file.
+**GATE** CONCEPT-ONLY.
+
+### H8 — 다 쓴 개 · the result
+**ROLE** conversion tile; what the customer is buying. **IDEA** A spent dog is the product shot.
+**MODEL** Flux (texture) or Soul · 4:5 · grade (b) warm-interior variant.
+```
+Locked-off frame at floor level in a Korean apartment living room at night, one warm
+practical lamp: a shepherd-mix dog lies flat out on its side on the wood floor,
+utterly spent, chest mid-breath, one paw extended, eyes half closed — the dignity of
+an athlete after the session, not a sad dog. A slack leash and harness dropped in
+soft focus behind. Everything else minimal. Left third held in lamp-warm emptiness.
+```
+**TYPE** quiet serif OR condensed light, cream, left third: `GOOD KIND` / `OF TIRED.` (R2).
+**OVERLAY** none. This is the frame that needs nothing.
+**GATE** CONCEPT-ONLY.
+
+### H9 — 다리 아래 · the monument
+**ROLE** scale tile; the one that says Seoul without a landmark. **IDEA** Two small figures, one
+huge honest city. **MODEL** Soul · 4:5 · grade (b) pre-dawn variant.
+```
+EDITORIAL MUTE, pre-dawn blue hour. Ultra-wide from low under a massive concrete Han
+River bridge deck, rhythmic pillars receding, the river steel-grey: tiny in the
+middle distance, one Korean runner and one mid-size dog run in step along the empty
+riverside path, the only motion in the frame. Monumental negative space across the
+concrete deck above holds clean for a masthead. Cold restraint, 35mm grain.
+```
+**TYPE** editorial serif white masthead on the bridge deck: `FIRST LIGHT CLUB` (R1/R2). **OVERLAY**
+violet trace along the lower edge if a real GPX exists; logo bottom-left.
+**GATE** CONCEPT-ONLY.
+
+### H10 — 우천 결행 · all-weather animal
+**ROLE** the values tile — we publish our own no-run thresholds, and below them, we run. **IDEA**
+Rain is not a cancellation; it's a grade. **MODEL** Soul · 4:5 · grade (a) night-rain variant.
+```
+FILM FLASH at night in light rain: a Korean runner and a Border Collie mid-stride
+through a crosswalk, flash freezing the raindrops into bright streaks, wet asphalt
+mirroring the pair, dog's coat slicked and dark, both mouths open working, leash
+under honest load. Background city bokeh crushed dark. Bottom quarter of the wet
+asphalt reflection zone held for type.
+```
+**TYPE** condensed italic across the bottom: `ALL-WEATHER` / `ANIMAL.` second line red (R2).
+Caption carries the honesty hook: the real 기상 threshold table link — 우천 결행은 기준 이하일 때만.
+**OVERLAY** none.
+**GATE** CONCEPT-ONLY. Caption must state the real no-run thresholds exist and where they live.
+
+---
+
+## 3. Rollout & captions
+
+Suggested order (loud–quiet alternation, hero first): **H1 → H2 → H6 → H4 → H5 → H3 → H7 → H10 →
+H9 → H8.** Every caption reads as 컨셉/예고 (honesty gate): the service line is "곧, 반포에서" — no
+implied customers, no implied completed runs. Korean captions; English display stays in the image.
+
+Story crops: H1, H5 (native 9:16), H2, H10. The trace/readout, when a GPX exists, goes on the story
+crop too — same file, same numbers.
+
+## 4. Production checklist (per frame, before it may publish)
+
+1. 100% zoom sweep: glyphs (if R1), logos on apparel/shoes, limb/paw count, leash continuity, eyes.
+2. Type: real fonts for R2; R1 only for English display, proofread letterforms.
+3. Wordmark + running-dog logo overlaid as vector, never generated.
+4. Trace/readout: from a real GPX or absent. No exceptions, including "plausible" numbers.
+5. Caption gated: 컨셉/예고 framing present.
+6. File into the campaign folder with its H-number; Sean picks by number.
+
+## 5. Decisions for Sean (lettered, blocking generation of the affected frames only)
+
+- **A. Accent law v4 vs v3.1** — the six refs you picked drop volt-on-dog and use red type + violet
+  trace + volt as Korean-type colorway. **A1** codify v4 as written here · **A2** keep v3.1's
+  volt-on-dog law and I re-cut the ten scene blocks to wear it. (H2/H5/H6 change most.)
+- **B. English-first display** — v4 leads English display lines with Korean captions (as your refs
+  do). **B1** keep · **B2** Korean display leads, English demoted to kicker.
+- **C. GPX source** — traces/readouts need real runs. **C1** you export 2–3 runs from Strava (the
+  route-geometry pipeline ingests them) · **C2** ship the season traceless until real runs exist.
+- **D. OAuth** — run `/mcp` once in an interactive `claude` session and authenticate `higgsfield`,
+  then any session can batch-generate all ten via `generate_image`.
