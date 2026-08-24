@@ -406,7 +406,10 @@ export default function Schedule() {
                   <LateNotice
                     late={lateness({ scheduledAt: selected.scheduledAt ?? null, rawStatus: selected.rawStatus,
                                      arrivedAt: selected.arrivedAt ?? null, km: selected.km,
-                                     startedAt: selected.startedAt ?? null })}
+                                     startedAt: selected.startedAt ?? null,
+                                     // [F7] 커스터디는 status 만으로 판정할 수 없다 (lateness.ts 참조)
+                                     ownerHandoffAt: selected.ownerHandoffAt ?? null,
+                                     runnerHandoffAt: selected.runnerHandoffAt ?? null })}
                     side="owner"
                     dogName={selected.dogName}
                     runnerName={selected.runnerName}

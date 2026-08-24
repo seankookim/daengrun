@@ -272,7 +272,10 @@ export default function OwnerHome() {
   const lateVerdict = liveNext
     ? lateness({ scheduledAt: liveNext.scheduledAt ?? null, rawStatus: liveNext.rawStatus,
                  arrivedAt: liveNext.arrivedAt ?? null, km: liveNext.km,
-                                     startedAt: liveNext.startedAt ?? null })
+                 startedAt: liveNext.startedAt ?? null,
+                 // [F7] 인계 소인 두 개 — 커스터디는 status 만으로 판정할 수 없다 (lateness.ts 참조)
+                 ownerHandoffAt: liveNext.ownerHandoffAt ?? null,
+                 runnerHandoffAt: liveNext.runnerHandoffAt ?? null })
     : null;
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)

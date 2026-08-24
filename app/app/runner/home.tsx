@@ -567,7 +567,10 @@ export default function RunnerHome() {
               <LateNotice
                 late={lateness({ scheduledAt: current.scheduledAt, rawStatus: current.rawStatus,
                                  arrivedAt: current.arrivedAt ?? null, km: current.km,
-                                 startedAt: current.startedAt ?? null })}
+                                 startedAt: current.startedAt ?? null,
+                                 // [F7] 커스터디는 status 만으로 판정할 수 없다 (lateness.ts 참조)
+                                 ownerHandoffAt: current.ownerHandoffAt ?? null,
+                                 runnerHandoffAt: current.runnerHandoffAt ?? null })}
                 side="runner"
                 dogName={current.dogName}
               />
