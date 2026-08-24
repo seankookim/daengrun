@@ -1534,3 +1534,52 @@ begin
       using hint = 'add the key to _club_ruled_cfg_keys() — which seals it against NULL/DELETE/RENAME/TRUNCATE — and give it a ruled value; or read it through club_cfg, whose fallback must then fail CLOSED';
   end if;
 end $$;
+
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- §I — THE OBLIGATION COLUMNS ARE RECORDER-ONLY (final blind review, 2026-08-24, BLOCKER)
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- The reviewer CONSTRUCTED this end-to-end: `set local role service_role`, write the pair
+-- (club_fee_kind / club_fee_event_at / club_fee_cutover_at) by hand on a confirmed booking whose
+-- session is in the FUTURE, call mint_cancel_fee_intent — a pending fee that passed neither the
+-- time gate nor the attendance gate enters the normal dispatcher. It works because service_role
+-- holds production-shaped table DML (00_shim.sql mirrors it), 0058's deny-all guard deliberately
+-- passes every server role (the edge's own CAS writes status/cancel_fee), and
+-- _club_fee_event_collectable reads only these forgeable columns plus the flag.
+--
+-- The boundary is clean because NOTHING legitimate writes these three columns except the
+-- postgres-owned recorder chain (_club_record_fee and its callers, all SECURITY DEFINER owned by
+-- postgres — inside them current_user IS postgres): no edge function touches them (grep over
+-- supabase/functions/ = 0), no client may write bookings at all (0058). So: allow postgres,
+-- refuse everyone else, INSERT and UPDATE both. `cancel_fee` itself stays writable by
+-- service_role — the marketplace cancel path legitimately CASes it, and forging cancel_fee alone
+-- cannot mint a CLUB fee (the collectable predicate requires the pair this guard now seals).
+-- ⚠ The MARKETPLACE half of the same class — a service key forging cancel_fee on a marketplace
+-- booking and minting through the 0080 path — PRE-DATES this file and is the repo's standing
+-- "leaked service key" item (handoff dormant list); it is recorded there, not closed here.
+-- INVOKER on purpose (0057's argument): a DEFINER trigger sees the owner, never the caller.
+create or replace function _guard_club_fee_provenance() returns trigger
+language plpgsql security invoker set search_path = public, pg_temp as $$
+begin
+  if current_user <> 'postgres' then
+    if tg_op = 'INSERT' then
+      if new.club_fee_kind is not null
+         or new.club_fee_event_at is not null
+         or new.club_fee_cutover_at is not null then
+        raise exception 'club_fee_provenance'
+          using detail = '클럽 수수료 의무 컬럼은 서버 레코더만 기록해요';
+      end if;
+    else
+      if new.club_fee_kind is distinct from old.club_fee_kind
+         or new.club_fee_event_at is distinct from old.club_fee_event_at
+         or new.club_fee_cutover_at is distinct from old.club_fee_cutover_at then
+        raise exception 'club_fee_provenance'
+          using detail = '클럽 수수료 의무 컬럼은 서버 레코더만 기록해요';
+      end if;
+    end if;
+  end if;
+  return new;
+end $$;
+
+create trigger bookings_club_fee_provenance
+  before insert or update on bookings
+  for each row execute function _guard_club_fee_provenance();

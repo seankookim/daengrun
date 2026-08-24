@@ -365,6 +365,7 @@ declare
   s_free uuid; sd_free uuid; b_free uuid; s_pre uuid; sd_pre uuid; b_pre uuid;
   s_fail uuid; sd_fail uuid; b_fail uuid; s_ns uuid; sd_ns uuid; b_ns uuid;
   s_gate uuid; sd_gate uuid; b_comp uuid; b_partial uuid; b_plain uuid; b_unsettled uuid;
+  b16 uuid;  -- [P16] §I provenance forgery target
   b_cancel uuid; b_future uuid;
   o_fut uuid; d_fut uuid; s_fut uuid; sd_fut uuid; b_fut uuid;
   o_att uuid; d_att uuid; s_att uuid; sd_att uuid; b_att uuid;
@@ -1700,6 +1701,70 @@ begin
     else v_msg:=v_bad; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg); end if;
   exception when others then
     v_msg:=sqlerrm; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [P16] §I — the obligation columns refuse every writer that is not the recorder (BEHAVIORAL)
+  -- The final blind review CONSTRUCTED the attack this pin replays: service_role writes the
+  -- club_fee_* pair by hand on a booking whose session never happened, then mints. A catalog/ACL
+  -- assertion cannot see this boundary — 0058's guard passes service_role by design and the
+  -- reviewer's point was that only an EXECUTED forgery proves the refusal. Three arms:
+  -- ① the forgery UPDATE as service_role is refused with club_fee_provenance and leaves no trace;
+  -- ② the same role may still write an UNPROTECTED column (cancel_fee — the edge's own CAS path),
+  --   so the guard cannot be "fixed" by over-blocking the legitimate writer;
+  -- ③ the trigger covers INSERT too (tgtype), so a preset pair cannot arrive by insert either.
+  -- The recorder's own writes stay proven by P1/P4 (definer owned by postgres → current_user is
+  -- postgres inside → the guard passes them), which ran green earlier in this same file.
+  begin
+    v_bad := '';
+    b16 := t_av_booking(o4, d4, rt, r, now() + interval '6 hours', 5.0, 'confirmed');
+    begin
+      set local role service_role;
+      -- the reviewer's constructed attack VERBATIM, cancel_fee included — without it the pair
+      -- CHECK would block the forgery incidentally and this pin would be testing the wrong guard
+      update bookings
+         set cancel_fee = 4980,
+             club_fee_kind = 'no_show_fee',
+             club_fee_event_at = clock_timestamp(),
+             club_fee_cutover_at = clock_timestamp() - interval '1 day'
+       where id = b16;
+      reset role;
+      v_bad := v_bad || ' 위조 UPDATE가 통과했다 (게이트 없는 수수료가 주조 가능)';
+    exception when others then
+      if sqlerrm not like '%club_fee_provenance%' then
+        v_bad := v_bad || ' 다른 실패=' || sqlerrm;
+      end if;
+    end;
+    reset role;
+    if exists (select 1 from bookings b where b.id = b16 and (b.club_fee_kind is not null
+               or b.club_fee_event_at is not null or b.club_fee_cutover_at is not null)) then
+      v_bad := v_bad || ' 거절됐다면서 컬럼이 남았다';
+    end if;
+    -- ② the over-block direction: the SAME role writing an UNPROTECTED column must succeed
+    begin
+      set local role service_role;
+      update bookings set cancel_fee = 0 where id = b16;
+      reset role;
+    exception when others then
+      reset role;
+      v_bad := v_bad || ' 정당한 엣지 컬럼(cancel_fee)까지 막았다=' || sqlerrm;
+    end;
+    -- ③ coverage breadth: the trigger fires on INSERT and UPDATE both
+    if not exists (
+      select 1 from pg_trigger
+      where tgname = 'bookings_club_fee_provenance'
+        and tgrelid = 'bookings'::regclass
+        and (tgtype & 4) <> 0    -- INSERT bit
+        and (tgtype & 16) <> 0   -- UPDATE bit
+    ) then
+      v_bad := v_bad || ' 트리거가 INSERT+UPDATE 양쪽을 안 덮는다';
+    end if;
+    if v_bad = '' then
+      call _pass('ccf', 'P16 §I 의무 컬럼 출처 봉인 — service_role의 club_fee_* 위조 UPDATE는 club_fee_provenance로 거절되고 흔적을 남기지 않으며, 같은 역할의 정당한 cancel_fee 쓰기는 통과하고, 트리거는 INSERT·UPDATE를 모두 덮는다 (레코더 경로는 P1/P4가 이미 초록)');
+    else v_msg := v_bad; call _fail('ccf', 'P16 §I 의무 컬럼 출처 봉인', v_msg); end if;
+  exception when others then
+    reset role;
+    v_msg := sqlerrm; call _fail('ccf', 'P16 §I 의무 컬럼 출처 봉인', v_msg);
   end;
 
   update ops_flags set payments_live_since=v_since, updated_at=now() where id;
