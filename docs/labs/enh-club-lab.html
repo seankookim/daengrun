@@ -1964,6 +1964,53 @@ both variants leave all three exactly as they are.</div>
 
 </div>
 
+<div class="note warn" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim) — section T only</h4>
+  “The t screen (finished receipt) should have the shareable card thing nudge and social media share
+  nudge. I like t2 but t1's image carousel should be incldued.”
+  <ul class="tight">
+    <li><b>T② — IMPLEMENTED</b> (<code>app/app/club/receipt/[bid].tsx</code>). <code>runPhotoAllowed(bid)</code>
+      is asked once at load, so a run that will be refused says so before the finger moves; the door is
+      replaced by the stated fact (the lab's own wording, which does not blame the other owner) and the
+      이미지로 공유 line stays. Three values, three meanings: <code>null</code> = not known yet → today's
+      button, <code>true</code> = open, <code>false</code> = refused. <b>A failed call renders as the
+      button</b>, never as a refusal. The press-time check stays as well — consent can change between load
+      and tap — and a refusal first learned there now closes the door too, so the same fact is never
+      learned twice.</li>
+    <li><b>T① — IMPLEMENTED</b>, and answering open question 11: the contact strip goes <b>INSIDE</b>
+      <code>cardRef</code>. A print that shows one of four photos is not the print. Best shot stays the
+      인화, <code>photos.slice(1)</code> becomes the strip at the lab's own dimensions (gap 6, height 56,
+      flex:1 cells), and the count line prints the real <code>photos.length</code>. Nothing is silently
+      dropped: the runner uploader caps at 6 (<code>app/runner/done.tsx</code>), so the strip is at most
+      five cells and draws every remaining photo. <b>0 or 1 photo → the block is absent</b> and the card is
+      exactly today's paper — no stock image, no placeholder.</li>
+    <li><b>Capture gate extension — IMPLEMENTED</b> (the cost T① itself named). Photos are signed
+      (<code>resolveMediaUrl</code>) and pulled into RN's image cache (<code>Image.prefetch</code>) before
+      the share door opens; until then the coral CTA reads 「사진 불러오는 중…」 and is disabled, next to the
+      existing 「도장 찍는 중…」. Honest limit, written in the file: prefetch proves <i>cached</i>, not
+      <i>decoded</i> — it is strictly stronger than no gate, not a proof.</li>
+    <li><b>Shareable-card nudge — IMPLEMENTED.</b> The 이미지로 공유 door shipped silent; it now carries
+      「오늘의 카드가 나왔어요」 + what the share sheet actually does + 「내 기기에서만 저장·전송돼요」.
+      Under it, a real door to <code>/shot/[bid]</code>, the 인증샷 스튜디오 that is this app's shareable
+      card — the same route <code>owner/report.tsx</code> already calls “샷 스튜디오가 넛지의 얼굴”
+      (RULING #12). The club receipt was the one completion screen without it.</li>
+    <li><b>Social-share nudge — IMPLEMENTED.</b> 동네 피드 door gets its own line, bound to
+      <code>report.dogName</code> — and it is drawn <b>only when the feed door exists</b>: when T②'s
+      pre-flight says refused, the nudge goes with the door rather than inviting a share that cannot
+      happen.</li>
+    <li><b>Budgets held.</b> No new display-font use, no new hex — every value is a <code>lilac</code>
+      token. Coral is still exactly one surface (이미지로 공유); the studio link is an accent text link,
+      like 상세 리포트. Thumbnails are glyphs (floor-exempt); every sentence added is ≥14pt.</li>
+    <li><b>Ceremony untouched</b>, as the frozen banner requires: <code>sealStampFresh</code>'s once-law,
+      the <code>stamping</code> gate and 「도장 찍는 중…」 are byte-identical.</li>
+    <li><b>EVERYTHING ELSE IN THIS LAB — HELD, not rejected.</b> His own instruction —
+      “Straighten this idea out first, every detail and each scenario and screen and choice everyone
+      needs to make and delineate all flows of events” — puts C/S/D/P/K/R/A and the delegation
+      restructure behind the spec. No frame outside T was built, and no open question outside 11 was
+      spent.</li>
+  </ul>
+</div>
+
 <footer>
   <h3>OPEN QUESTIONS — what the code could not decide for me</h3>
   <ol class="q">
