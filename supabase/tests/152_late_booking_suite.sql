@@ -179,6 +179,12 @@
 --   it by returning fetch_checkin(p_booking). Both go red on M51 together; if only L48 reds,
 --   something has changed about that `return fetch_checkin(p_booking)` and the inheritance
 --   claim needs re-reading rather than assuming.
+--   ─── bounded R10/R11 fix round — PREDICTED only; this author was forbidden to run the
+--       SQL harness. These are mutation instructions, NOT measured results or pass counts. ────
+--   M52 delete `and f.source = 'checkin_cannot_proceed'` from cancel_moves_no_money arm ①
+--                                                                  → PREDICTED RED=[L58] only
+--   M53 move `when cancel_moves_no_money(b.id) then 0` back inside only the runner_enroute
+--       arm (the pre-R11 tier split)                                → PREDICTED RED=[L59] only
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
@@ -208,6 +214,8 @@ declare
   b_r2 uuid; b_r5 uuid; b_r7 uuid; b_r8 uuid; b_r9 uuid; b_r3 uuid;  -- [R2/R5/R7/R8/R9/R3]
   v_dupes text; v_open boolean;
   b_r6 uuid; b_r17 uuid; b_r17b uuid;   -- [R6/R17]
+  b58_checkin uuid; b58_post uuid;       -- [L58] R10 source allow-list
+  b59_fault uuid; b59_control uuid; b59_ceiling uuid;  -- [L59] R11 tier-independent no-money
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -281,8 +289,8 @@ begin
   b3f := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
   b3o := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
   insert into booking_faults (booking_id, party, source, stated_by)
-  values (b3f, 'runner', 'test_ops_statement', rr),
-         (b3o, 'owner',  'test_ops_statement', oo);
+  values (b3f, 'runner', 'checkin_cannot_proceed', rr),
+         (b3o, 'owner',  'checkin_cannot_proceed', oo);
   select f.fee into v_fee  from marketplace_cancel_fee(b3)  f;                  -- control: 12450
   select f.fee into v_fee2 from marketplace_cancel_fee(b3f) f;                  -- waived: 0
   select f.fee into v_fee3 from marketplace_cancel_fee(b3o) f;                  -- owner fault: 12450
@@ -292,7 +300,7 @@ begin
     if v_fee2 is distinct from 0     then v_bad := v_bad || ' 러너 과실 미면제=' || coalesce(v_fee2::text, 'null'); end if;
     if v_fee3 is distinct from 12450 then v_bad := v_bad || ' 보호자 과실이 면제됨=' || coalesce(v_fee3::text, 'null'); end if;
     if v_bad = '' then
-      call _pass('lb', 'L3 인루트 50% 면제 — 기록된 러너 과실이면 0, 무과실·보호자 과실이면 12450 유지 (D4/FM7)');
+      call _pass('lb', 'L3 인루트 50% 면제 — 체크인에서 기록된 러너 과실이면 0, 무과실·보호자 과실이면 12450 유지 (D4/FM7)');
     else call _fail('lb', 'L3 인루트 50% 러너-과실 면제', v_bad); end if;
   exception when others then call _fail('lb', 'L3 인루트 50% 러너-과실 면제', sqlerrm); end;
 
@@ -2186,6 +2194,79 @@ begin
   exception when others then call _fail('lb', 'L57 R17 종료 후 도장', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L58] R10 — fault money is source-allow-listed, never future-source-by-default
+  -- Identical live en-route fixtures differ only in source. `party` names the SPEAKER, so a
+  -- runner's post-resolution statement is not itself a finding that the runner forfeited the
+  -- held-slot compensation. Positive naming is load-bearing because source is open text and a
+  -- future human source must not acquire a waiver merely by not being today's excluded value.
+  b58_checkin := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
+  b58_post    := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
+  insert into booking_faults (booking_id, party, source, stated_by)
+  values (b58_checkin, 'runner', 'checkin_cannot_proceed', rr),
+         (b58_post,    'runner', 'post_resolution_statement', rr);
+  begin
+    v_bad := '';
+    select f.fee into v_fee  from marketplace_cancel_fee(b58_checkin) f;
+    select f.fee into v_fee2 from marketplace_cancel_fee(b58_post) f;
+    if v_fee is distinct from 0 then
+      v_bad := v_bad || ' 체크인 러너 과실 미면제=' || coalesce(v_fee::text, 'null');
+    end if;
+    if not cancel_moves_no_money(b58_checkin) then
+      v_bad := v_bad || ' 체크인 소스가 허용 목록에서 빠짐';
+    end if;
+    if v_fee2 is distinct from 12450 then
+      v_bad := v_bad || ' 사후 진술이 러너 과실로 읽힘=' || coalesce(v_fee2::text, 'null');
+    end if;
+    if cancel_moves_no_money(b58_post) then
+      v_bad := v_bad || ' 사후 진술 소스가 돈 면제를 얻음';
+    end if;
+    if v_bad = '' then
+      call _pass('lb', 'L58 R10 과실 소스 허용 목록 — 동일한 러너 진술이어도 checkin_cannot_proceed 만 무금전·0원, post_resolution_statement 는 50%·12450 유지 (사후 말한 러너가 스스로 보상을 없애지 않는다)');
+    else call _fail('lb', 'L58 R10 과실 소스 허용 목록', v_bad); end if;
+  exception when others then call _fail('lb', 'L58 R10 과실 소스 허용 목록', sqlerrm); end;
+
+  -- [L59] R11 — no-money stands above the 50%/10% split
+  -- Two otherwise-identical <24h confirmed fixtures prove the fault waiver and its positive
+  -- 10% control. A third fixture owns the other no-money ground: 5h05m past schedule, no fault,
+  -- arrival or handoff evidence. Cancelling the fault fixture through the real trigger proves
+  -- the same ladder read accepts 0 and leaves 0085's runner-share writer closed.
+  b59_fault   := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+  b59_control := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+  b59_ceiling := t_av_booking(oo, dg, rt, rr, now() - interval '5 hours 5 minutes', 5.0, 'confirmed');
+  insert into booking_faults (booking_id, party, source, stated_by)
+  values (b59_fault, 'runner', 'checkin_cannot_proceed', rr);
+  begin
+    v_bad := '';
+    select f.fee into v_fee  from marketplace_cancel_fee(b59_fault) f;
+    select f.fee into v_fee2 from marketplace_cancel_fee(b59_control) f;
+    select f.fee into v_fee3 from marketplace_cancel_fee(b59_ceiling) f;
+    if v_fee is distinct from 0 then
+      v_bad := v_bad || ' 10% 티에서 러너 과실 미면제=' || coalesce(v_fee::text, 'null');
+    end if;
+    if v_fee2 is distinct from 2490 then
+      v_bad := v_bad || ' 무과실 10% 통제=' || coalesce(v_fee2::text, 'null');
+    end if;
+    if v_fee3 is distinct from 0 then
+      v_bad := v_bad || ' 과거 실링 confirmed=' || coalesce(v_fee3::text, 'null');
+    end if;
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b59_fault;
+    select b.cancel_fee, b.cancel_reason into v_fee4, v_txt from bookings b where b.id = b59_fault;
+    if v_fee4 is distinct from 0 then
+      v_bad := v_bad || ' 트리거 기록 fee=' || coalesce(v_fee4::text, 'null');
+    end if;
+    if v_txt is not null then v_bad := v_bad || ' 0원 티에 marker=' || v_txt; end if;
+    select sh.comp, sh.written into v_share, v_ok from record_late_cancel_share(b59_fault) sh;
+    if v_share is distinct from 0 or v_ok is distinct from false then
+      v_bad := v_bad || ' 무금전 취소에 러너 배분=' || coalesce(v_share::text, 'null') || '/' || coalesce(v_ok::text, 'null');
+    end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b59_fault) then
+      v_bad := v_bad || ' 무금전 취소에 원장 행';
+    end if;
+    if v_bad = '' then
+      call _pass('lb', 'L59 R11 무금전 판정은 티어 분기보다 먼저 — 체크인 러너 과실의 confirmed 10% 티어와 5시간5분 과거·무도착 실링은 모두 0원, 동일 10% 티어 무과실 통제는 2490원 유지 · 트리거 재견적도 0원에 동의하고 러너 배분·원장을 쓰지 않는다');
+    else call _fail('lb', 'L59 R11 무금전 판정 호스트', v_bad); end if;
+  exception when others then call _fail('lb', 'L59 R11 무금전 판정 호스트', sqlerrm); end;
+
   -- [L54] pin labels are unique — asserted over what was actually EMITTED
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- Two sessions independently took the next free number (L47) an hour apart, both in good faith.

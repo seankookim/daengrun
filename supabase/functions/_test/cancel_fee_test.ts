@@ -798,6 +798,11 @@ Deno.test("[blind BLOCKER-2] a cancellation that moves NO money tells the runner
   assert(!body.includes("기록됐어요"), `no receipt may be spoken: ${body}`);
   assert(!body.includes("50%"), `no amount may be spoken: ${body}`);
   assertEquals(toRunner.title, "예약 취소됨");
+  // PREDICTED (Deno not run in this round): the waived runner is told why both money directions are 0.
+  assertEquals(
+    body,
+    "보호자가 예약을 취소했어요. 3시간이 지나도록 도착 기록이 없거나 러너의 진행 불가 기록이 확인되면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요",
+  );
 });
 
 Deno.test("[blind BLOCKER-3] a stale quote is REFUSED, and nothing downstream runs", async () => {

@@ -180,6 +180,10 @@ export async function cancelOwner(
     : null;
   const storedFee = se || !stored ? fee : Number((stored as Booking).cancel_fee ?? 0);
   const storedReason = se || !stored ? fallbackReason : ((stored as Booking).cancel_reason ?? null);
+  // A zero-fee en-route marker is unambiguous: this was the paying 50% tier, and SQL's
+  // no-money rule short-circuited it. The notification must name that rule because the same
+  // short circuit also refuses the runner compensation this tier normally records.
+  const noMoneyWaiverApplied = storedReason === "owner_cancel_enroute" && storedFee === 0;
   if (!se && storedFee !== fee) {
     // Not an error — this is the trigger doing its job across a boundary the quote missed.
     console.log(
@@ -219,6 +223,8 @@ export async function cancelOwner(
         ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
         : lateShare > 0
         ? `보호자가 예약을 취소했어요. 비워두신 시간에 대해 취소 수수료의 절반인 ${lateShare.toLocaleString("ko-KR")}원이 보상으로 기록됐어요`
+        : noMoneyWaiverApplied
+        ? "보호자가 예약을 취소했어요. 3시간이 지나도록 도착 기록이 없거나 러너의 진행 불가 기록이 확인되면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요"
         : "보호자가 예약을 취소했어요",
     );
   }

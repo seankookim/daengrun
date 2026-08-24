@@ -14,9 +14,10 @@
 -- ops_flags.late_protocol_live_since; everything else is live on push.
 --
 -- ① LIVE AT PUSH, changes behavior immediately:
---    · `marketplace_cancel_fee` is REPLACED (§9). An en-route booking past the ceiling with no
---      arrival/handoff evidence now quotes 0 instead of 50%. Sean's 2026-08-04 row is the
---      known case; any other stale en-route row changes price the same way.
+--    · `marketplace_cancel_fee` is REPLACED (§9). A matched booking past the ceiling with no
+--      arrival/handoff evidence now quotes 0 before either paying tier is selected (50%
+--      en-route or 10% confirmed). Sean's 2026-08-04 row is the known en-route case; stale
+--      confirmed rows change price the same way.
 --    · The §9c trigger attaches: every marketplace transition into `cancelled_owner` that
 --      carries a fee re-derives `cancel_fee` AND `cancel_reason` from the ladder. Stored
 --      numbers and tier markers change for cancels whose quote was stale or wrong.
@@ -85,11 +86,10 @@
 --      party reads only their OWN reason text; the counterparty gets a boolean saying a reason
 --      exists, never the words (ruling 4B — see the REASON note below).
 --   §8 late_booking_sweep + cron — */10 per 0060:145 stagger doctrine (see §8 header).
---   §9 the 0066 carve-out — enroute_cancel_fee_waived() + marketplace_cancel_fee re-created
+--   §9 the 0066 carve-out — cancel_moves_no_money() + marketplace_cancel_fee re-created
 --      (base = 0066, the newest definition — verified by grep: 0085 explicitly leaves it
---      untouched, nothing after re-creates it). D4/FM7: the 50% en-route arm prices an
---      OWNER's cancel of a live departure; it must not price a runner's recorded failure or
---      a booking the ceiling already declared rotten.
+--      untouched, nothing after re-creates it). D4/FM7: neither paying tier may price a
+--      check-in-sourced runner failure or a booking the ceiling already declared rotten.
 --
 -- ─── Why a cannot_proceed carries a REASON (Sean, 2026-08-21, verbatim: "ask why they
 -- stopped.") ─────────────────────────────────────────────────────────────────────────────
@@ -1336,19 +1336,21 @@ end $$;
 --   · NO FAULT IS FOUND ON THIS PATH. Silence produces no `booking_faults` row, ever — the
 --     resolver writes fault only from a side's own `cannot_proceed` (§5), and nothing in this
 --     section writes one. A stalemate is the absence of a finding, not a finding of innocence.
---   · A HUMAN STATEMENT STILL MOVES MONEY LATER. The stalemate is the outcome of silence, not
---     a terminal on the truth: an after-the-fact statement from either side is still the thing
---     that produces fault (§3) and, through it, money. The clock closes the booking; it does
---     not close the question.
+--   · A HUMAN STATEMENT STILL ENDS THE SILENCE LATER. The stalemate is the outcome of silence,
+--     not a terminal on the truth: an after-the-fact statement from either side still produces
+--     a sourced record (§3), so the silence arm stops answering. It does NOT inherit the
+--     check-in fault's money effect merely because both records use booking_faults. The clock
+--     closes the booking; it does not close the question, and the source says which question
+--     was actually answered.
 --
 -- FM7 named the other half: "owner charged the 50% en-route arm for a runner's failure."
 -- 0066's arm prices ONE thing — an owner walking away from a runner who is actually coming.
 -- Two states falsify that story, and they are DIFFERENT GROUNDS with different reasons:
---   · a booking_faults row naming the RUNNER (their own recorded statement — D5-clean). Today
---     the §5 resolver writes fault only together with a terminal, so a cancellable en-route
---     booking with a runner fault is not producible by this file alone — the arm is
---     defense-in-depth for the fault table's future human writers (ops adjudication), and the
---     predicate is specified against the STATE, not against today's writers.
+--   · a booking_faults row naming the RUNNER whose source is exactly
+--     `checkin_cannot_proceed` (their own in-window answer — D5-clean). This is deliberately an
+--     ALLOW-LIST, never `source <> 'post_resolution_statement'`: booking_faults.source is open
+--     text and §3 explicitly anticipates future human sources, so a deny-list would silently
+--     grant EVERY future source a money waiver nobody ruled.
 --   · the ceiling has passed (late_ceiling_at ≤ now()) with no arrival or handoff evidence on
 --     the row: the departure story is dead no matter what was or wasn't recorded. THIS is the
 --     honest fallback for every booking that predates the protocol — it needs no checkin row
@@ -1361,9 +1363,12 @@ end $$;
 -- added (the comp writers are NOT touched).
 create or replace function cancel_moves_no_money(p_booking uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  -- ① money follows fault (D4): the runner's own recorded statement
+  -- ① money follows the allow-listed fault (D4): only the runner's own check-in answer.
+  --    `source` is an open text namespace; positively name the one ruled source so future
+  --    human writers cannot acquire a money waiver merely by not being today's denied value.
   select exists (select 1 from booking_faults f
-                 where f.booking_id = p_booking and f.party = 'runner')
+                 where f.booking_id = p_booking and f.party = 'runner'
+                   and f.source = 'checkin_cannot_proceed')
   -- ② the silent stalemate (Sean's ruling) — and it is the outcome of SILENCE, so it holds
   --    only while the silence does. [blind r5 RC-1] The arm was unconditional, which made the
   --    stalemate PERMANENT: once the clock had closed a booking, no statement could change what
@@ -1388,8 +1393,9 @@ grant  execute on function cancel_moves_no_money(uuid) to service_role;
 
 comment on function cancel_moves_no_money is
   '0117 §9 (Sean 2026-08-21, "Nobody pays, nobody is paid."): TRUE means THIS CANCELLATION
-MOVES NO MONEY — not that a fee was forgiven. Two distinct grounds: ① a recorded fault names
-the RUNNER (D4, money follows fault — their own statement, never silence) · ② the SILENT
+MOVES NO MONEY — not that a fee was forgiven. Two distinct grounds: ① a
+checkin_cannot_proceed-sourced fault names the RUNNER (D4, money follows the allow-listed
+in-window answer, never an arbitrary future source) · ② the SILENT
 STALEMATE: past the lateness ceiling with no arrival evidence, no handoff stamps and no
 statement from either side, so neither party is charged and neither is paid. The runner side
 follows automatically: cancel_fee 0 makes both comp writers (0080 §K, 0085) refuse on their
@@ -1398,11 +1404,11 @@ produces no finding, and a later human statement is still what can move money.';
 
 -- ── marketplace_cancel_fee — EXTENDS ←0066 (REGISTRY silent-collision law) ─────────────────
 -- Base named: 0066 §2 is both the first and the newest definition (verified by grep across
--- migrations; 0085's header explicitly leaves it as 0066 wrote it). Everything below is
--- byte-faithful to 0066 except the runner_enroute arm, which now consults the §9 waiver.
--- The ladder's other tiers are deliberately untouched: the carve-out Sean ruled is about the
--- en-route arm; whether the <24h 10% tier should also be ceiling-aware is an open product
--- question recorded in the build report, not decided here.
+-- migrations; 0085's header explicitly leaves it as 0066 wrote it). The tier arithmetic below
+-- stays byte-faithful to 0066. The one extension is a no-money predicate ahead of BOTH paying
+-- tiers: supply compensation is for a HELD SLOT, and a check-in-sourced runner failure or a
+-- past-ceiling booking with no arrival/handoff evidence has no slot claim to preserve. The
+-- unmatched and >=24h arms already quote 0; the hoist cannot change their result.
 create or replace function marketplace_cancel_fee(p_booking uuid)
 returns table (fee int, status text)
 language sql stable
@@ -1411,12 +1417,12 @@ as $$
   select
     case
       when b.runner_id is null or b.status in ('matching', 'runner_pending') then 0
-      -- [0117 §9] the en-route arm keeps 0066's 50% (runner compensation, Sean 2026-08-11)
-      -- for a live departure, and charges 0 where the departure story is falsified — a
-      -- recorded runner fault or a booking past the lateness ceiling (Sean 2026-08-21).
-      when b.status = 'runner_enroute' then
-        case when cancel_moves_no_money(b.id) then 0
-             else round(b.total_price * 0.5)::int end
+      -- [0117 §9] TRUE means this cancellation moves no money, so it must stand above the
+      -- 50%/10% split. Keeping it inside runner_enroute paid an absent runner half of the 10%
+      -- tier even though the same function had already declared the cancellation no-money.
+      when cancel_moves_no_money(b.id) then 0
+      -- A live departure keeps 0066's 50% runner compensation (Sean 2026-08-11).
+      when b.status = 'runner_enroute' then round(b.total_price * 0.5)::int
       when b.scheduled_at >= now() + interval '24 hours' then 0
       else round(b.total_price * 0.1)::int
     end,
@@ -1436,9 +1442,10 @@ revoke execute on function marketplace_cancel_fee(uuid) from public, anon, authe
 grant execute on function marketplace_cancel_fee(uuid) to service_role;
 
 comment on function marketplace_cancel_fee is
-  '0117 (base ←0066): owner-cancel fee ladder — unmatched 0 / runner_enroute 50% (runner
-compensation, Sean 2026-08-11) WAIVED to 0 on recorded runner fault or past the lateness
-ceiling (0117 §9, Sean 2026-08-21) / >=24h 0 / <24h 10%. Returns quoted status for the
+  '0117 (base ←0066): owner-cancel fee ladder — unmatched 0 / a no-money short circuit on a
+checkin_cannot_proceed-sourced runner fault or silent past-ceiling booking with no arrival or
+handoff evidence / runner_enroute 50% (runner compensation, Sean 2026-08-11) / >=24h 0 /
+<24h 10%. The no-money test precedes both paying tiers. Returns quoted status for the
 caller''s CAS. Direct EXECUTE server-only (service_role); clients read the number through
 quote_cancel_fee (0117 §9b — 0066:89''s no-client-quote posture reversed by Sean 2026-08-21).';
 
