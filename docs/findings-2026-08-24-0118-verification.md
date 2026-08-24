@@ -176,3 +176,116 @@ would have destroyed them. Also note the branch `claude/daengrun-redesign-v4-77e
    later. See the decision brief in this session's workflow output.
 5. **The 0117 client mirror** — the cancel-fee quote swap is unstarted and is a genuine deploy-day
    blocker, independent of the flag question.
+
+---
+
+# PART 2 — Sean's rulings, what shipped, and what the fleet found
+
+Appended the same day, after the verification above turned into work.
+
+## 6. Sean's rulings — verbatim
+
+> **"1C, 2A, 4B — do it, and scope 5."** [end of his words]
+
+> **"fix both and re-measure, ship strict on grace, and sure on ui6. off for break, keep going"** [end of his words]
+
+Decoded, with what each now binds:
+
+| # | Ruling | Binds |
+|---|---|---|
+| **1C** | the club no-show fee needs **both** gates — time AND attendance | `club_finish_session`'s fee arm only; the session must still finish and still refund |
+| **2A** | `club_config` is the single source; a missing value fails **loud** (`missing_club_config:<name>`) | the four ladder sites; `host_fee_krw` stays `coalesce(...,0)` because it fails CLOSED |
+| **4B** | a party reads only their **own** stop-reason | `fetch_checkin` / `answer_checkin` §7 |
+| **grace** | **ship STRICT** — no grace interval on the time gate | a host finishing at `scheduled_at + 1s` bills every un-handed-off owner. If that ever changes it is one term plus one config key. Decision, not oversight. |
+| **ui6** | allocation of R2/R3/R5/R6/R7/R8/R9/R17 to the client session **confirmed** | settled in his own words, not by relay |
+
+**Still unruled and still blocking:** R11 (the 10% tier pays an absent runner ₩1,245 while charging
+the wronged owner ₩2,490 — the stalemate rule inverted) · R13 (does the stalemate rule cover granted
+km?) · R12 (what is the runner *told* when the ceiling waives their 50%?) · §4.2 · the 0118
+unaccepted-late-cancel split (his ladder ruling says 50/50 and never named the no-runner case).
+
+## 7. 4B — LANDED
+
+`origin/claude/late-booking-server-stage2` @ **`9aaeb7b`**, harness **785/0**.
+
+`fetch_checkin` now emits `owner_has_reason` / `runner_has_reason` to **both** readers and merges the
+caller's own text back in. The counterparty's key is **absent, not null** — `runner_reason: null` sent
+to the owner would be a false statement about the record in exactly the case where a reason was given,
+and would contradict the boolean beside it.
+
+Mutation-verified twice: reverting the narrowing reds **L48 and L48b together**; breaking *only* the
+inheritance (`answer_checkin` re-adding the keys while `fetch_checkin` stays narrowed) reds **L48b
+alone** — which is what proves L48b is not a duplicate of L48. The leak assertion greps the whole
+serialized payload, not just the key: its failure text quotes the planted token verbatim.
+
+⚠ **L20's prose was corrected, not its assertions.** It claimed the reason renders "to the parties",
+but every read it performs is under the author's own JWT. The word was wrong when written, and that
+was the hole: **no shipped pin ever set the JWT to the counterparty in either direction**, so 4B could
+have been reverted with the suite staying green.
+
+## 8. 0118 — BLOCKED, in a fix round. The gate was inert.
+
+The 1C attendance gate read `session_dogs.checked_in_at`. That column is **unproducible for a
+delegation-only owner**, verified at source:
+
+- `session_checkin` (`0030_hi_club.sql:254-259`) raises `not_joined` unless a `session_people` row
+  exists, and only then stamps `checked_in_at`.
+- `session_delegate_dog` (`0048:135-153`) deliberately creates none —
+  `[R4] 멤버십 자동 가입 폐지 — RSVP/위탁 ≠ 가입 (가입은 club_join 명시 행위)`.
+
+So the gate was inert for exactly the population 1C exists to protect: the owner who handed over their
+dog is still billed 20%, the runner who walked away is still credited the supply half.
+
+**And the pin passed anyway** — P10's fixture called `session_rsvp` first, manufacturing the membership
+row a real delegating owner never has. A pin passing for the wrong reason, past an explicit instruction
+to guard against exactly that. A blind reviewer caught it.
+
+**Second defect, an interaction between the two rulings:** 2A's `club_cfg_required` raises *inside*
+`club_finish_session` with no handler, so a NULL ladder key rolls the whole transaction back — the
+session never reaches `done` and the refunds never commit. 1C requires finish+refund to survive. Being
+fixed by making the bad state **unreachable** (refuse NULL on the four ruled names at write time)
+rather than by catching the exception, which would reintroduce the silent fallback 2A removed.
+
+⚠ **The methodological lesson, which cost this round:** the reviewer proposed
+`bookings.owner_confirmed_handoff_at` as the replacement. Its only writer is an *edge function*
+(`transition-booking/index.ts:314`), and whether a club booking's client ever calls `confirm_handoff`
+could not be established by reading. **A replacement signal is being established empirically — by
+driving the real RPCs in the harness — before anything is written.** Installing a second unproducible
+signal would reproduce the same bug one column over. *A gate reading an unproducible column is worse
+than no gate, because it looks closed.*
+
+## 9. Cross-session — what the fleet exchange actually produced
+
+**A pin-label collision, caught before it entered history.** Two sessions independently claimed
+`[L47]` in `152_late_booking_suite.sql`, an hour apart, both cut from `e132b3d` where L46 was the
+highest. The pushed one kept it; mine moved to **L48/L48b**. Worth recording because of the failure
+mode: **a duplicate `[L47]` would NOT have failed the harness.** Two arms report under one name, the
+suite passes, and every future mutation map citing `RED=[L47]` is ambiguous forever. It corrupts the
+record rather than the code. The other session is adding a pin-label uniqueness assertion — as its own
+pin, so it runs even when everything else passes.
+
+**A harness claim, narrowed.** The broadcast form was "harness.sh connects as `PGUSER=postgres`, so no
+privilege bug of this class can surface." Too broad: most ACL pins here are `has_function_privilege`
+**catalog lookups**, which take the role as an argument, are correct regardless of connected role, and
+cannot be plan-cached because nothing is planned. The surviving claim is narrower and real: **an arm
+that proves a privilege by EXECUTING as another role can be vacuous**, because EXECUTE is checked at
+parse time and plpgsql caches plans per session. `discard plans` appears in **zero** suites. Sweep
+target is the `set local role` cluster in `100_wave3_suite.sql`, not every privilege pin. Both trunk
+records were corrected by their author.
+
+**A relayed allocation, held as evidence until confirmed.** A peer reported that Sean had assigned
+them eight findings. Rather than drop the item or treat it as settled, it went back to him as a
+one-word confirmation — cost him one word, could not ask him something already answered, and could not
+record an allocation he never made. He confirmed.
+
+## 10. Owed, not done
+
+- **REGISTRY rows are stale.** 0117's row predates 4B by four pins; 0118's mutation-map header still
+  says the shipped map "has NOT been re-measured" — it now has been (742/0 plus this fix round).
+  Deliberately not touched while another session is pushing to 0117.
+- **R20** (three RPCs answer `not_party` where `quote_cancel_fee` answers `not_found` — an enumeration
+  oracle) is unowned. Declined for 4B on purpose: LOW, pre-existing repo-wide in shipped
+  `confirm_return_tx`, and it moves three shipped assertions. Do not expand a ruled slice with an
+  unruled consistency fix.
+- **The 0117 client mirror** (`store.ts:228-235` returns 50% for any `runner_enroute` row, knowing
+  nothing about 0117's waiver arm) is scoped but unstarted, and is a genuine deploy-day blocker.
