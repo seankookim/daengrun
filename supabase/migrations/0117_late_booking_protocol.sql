@@ -821,7 +821,10 @@ begin
   end if;
 
   select bk.id, bk.status::text as status, bk.scheduled_at, bk.owner_id, bk.runner_id,
-         bk.club_session_id
+         bk.club_session_id,
+         -- [R6] the custody inputs. The guard below asks _checkin_custody rather than status
+         -- alone, so it needs the same two columns the resolver and fetch_checkin read.
+         bk.owner_confirmed_handoff_at, bk.runner_confirmed_handoff_at
     into b
   from bookings bk where bk.id = p_booking for update;              -- lock order: bookings ①
   if b.id is null then raise exception 'not_found'; end if;
@@ -878,6 +881,35 @@ begin
   if (p_side = 'owner' and c.owner_answer is not null)
   or (p_side = 'runner' and c.runner_answer is not null) then
     raise exception 'answer_immutable';
+  end if;
+
+  -- ⚠ [R6, 2026-08-24] THE OWNER'S 'cannot_proceed' IS NOT A CHEAPER CANCEL BUTTON.
+  -- The resolver writes no money by design, so an owner answering 진행할 수 없어요 on a booking
+  -- whose runner is already en route ends it at `no_show` with NO fee and NO ledger row — while
+  -- the cancel button beside it prices the identical act at 50% and pays the runner ₩12,450
+  -- (`record_enroute_cancel_comp` requires `cancelled_owner` + `owner_cancel_enroute` + fee > 0,
+  -- none of which a `no_show` booking has). Two doors, same act, and the cheaper one is the one
+  -- that silently zeroes the other party — a silent runner-pay cut, which 0068 forbids and which
+  -- the runner is never told existed: they are simply informed 「수수료는 청구되지 않았어요」.
+  -- §9's waiver arm cannot save them either — it requires `arrived_at is null`, so the runner who
+  -- actually drove out and stamped 도착 is exactly the one who loses the money.
+  -- Until §4.2 is ruled, refuse the free exit and name the door that prices the act honestly.
+  -- SCOPED TO `runner_enroute` on purpose: before the runner sets out there is nothing to
+  -- compensate and the answer is a legitimate statement, so `confirmed` is untouched. The runner's
+  -- own `cannot_proceed` is untouched too — a runner standing themselves down is not a path that
+  -- takes someone else's money.
+  -- ⚠ SCOPED BY CUSTODY, not by status alone. A booking carrying BOTH handoff stamps is
+  -- post-custody even while status still says `runner_enroute` (the promotion can be lost —
+  -- that is CRIT-3 and L29 pins it), and there §9d's own cancel guard raises
+  -- `cancel_after_handoff`. Pointing that owner at the cancel path would be an instruction to a
+  -- door that refuses — a dead end dressed as help, which is the exact class this file keeps
+  -- getting caught by. Past the handoff there is also no en-route compensation left to protect:
+  -- the dog already changed hands, so the answer is a legitimate statement and stays legitimate.
+  if p_side = 'owner' and p_answer = 'cannot_proceed' and b.status = 'runner_enroute'
+     and _checkin_custody(b.status::booking_status,
+                          b.owner_confirmed_handoff_at, b.runner_confirmed_handoff_at) = 'pre' then
+    raise exception 'use_cancel_path'
+      using hint = 'the runner is en route — cancelling prices this act and pays their compensation; a check-in answer would end it at zero';
   end if;
 
   -- §4.3 / FM4: past the ceiling the protocol offers only terminals. Two taps must not
@@ -1429,6 +1461,49 @@ create trigger booking_cancel_custody_guard
         and old.status in ('confirmed', 'runner_enroute')
         and old.club_session_id is null)
   execute function _booking_cancel_custody_guard();
+
+-- ═══ §9f  R17 — a handoff stamp may not land on a booking the clock already closed ═══════════
+-- `late_booking_sweep` is a FUNCTION, so there is no commit between rows: one `FOR UPDATE` lock
+-- spans the whole batch, and `lock_timeout` bounds how long the sweep WAITS, never how long it
+-- HOLDS. On a tick with thirty expired check-ins the resolver can write `no_show` at 11:03:03 and
+-- hold that row until the batch commits at 11:03:09 — and a runner who taps 인계 확인 at 11:03:04
+-- simply BLOCKS, then lands their stamp on a row that now says the booking never happened.
+-- Nothing refused it: `enforce_booking_transition` returns early when `old.status = new.status`
+-- (0066:41), and a stamp write does not move status, so the transition map never looks.
+-- The durable record then says the dog was never picked up while the runner is holding the dog —
+-- D3's exact prohibition, arrived at by a lock rather than by a decision.
+--
+-- This is the CHEAP half of the fix and it is stated as such: it closes the window where the
+-- stamp lands wrong. The expensive half — converting the sweep to a PROCEDURE with a commit per
+-- iteration, so the batch stops holding thirty bookings hostage for six seconds — is NOT done
+-- here, and every owner cancel, `start_run` and `answer_checkin` on the other rows still stalls
+-- for the batch. The batch does not create that race; it widens it from ~1ms to ~6s.
+--
+-- SETTING a stamp on a terminal booking is refused; CLEARING one is not — `runner_accept`'s
+-- reset patch legitimately nulls both stamps when an owner swaps runners, and that is an unwind,
+-- not an attestation.
+create or replace function _booking_handoff_stamp_guard() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  raise exception 'handoff_on_closed_booking'
+    using hint = 'this booking already reached a terminal status — a handoff stamp cannot be recorded against it';
+end $$;
+
+create trigger booking_handoff_stamp_guard
+  before update of owner_confirmed_handoff_at, runner_confirmed_handoff_at on bookings
+  for each row
+  when (old.status not in ('confirmed', 'runner_enroute', 'picked_up', 'active')
+        and ((new.owner_confirmed_handoff_at is not null
+              and new.owner_confirmed_handoff_at is distinct from old.owner_confirmed_handoff_at)
+          or (new.runner_confirmed_handoff_at is not null
+              and new.runner_confirmed_handoff_at is distinct from old.runner_confirmed_handoff_at)))
+  execute function _booking_handoff_stamp_guard();
+
+comment on function _booking_handoff_stamp_guard is
+  '0117 §9f (R17): 종료된 예약에는 인계 도장을 찍을 수 없다. 스윕이 배치 락을 쥔 6초 동안 러너의
+인계 확인이 대기하다가 방금 no_show 가 된 행에 착지하던 창을 닫는다 — 0066:41 은 status 가 그대로면
+일찍 반환하므로 전이 맵은 도장 쓰기를 보지 않는다. 해제(null)는 허용: runner_accept 의 리셋은
+진술이 아니라 되돌리기다.';
 
 comment on function _booking_cancel_custody_guard is
   '0117 §9d (blind review BLOCKER-6): 인계 도장 두 개가 찍힌 예약은 status 가 아직

@@ -207,6 +207,7 @@ declare
   b_r1a uuid; b_r1b uuid; v_fee_r1 int;   -- [R1] the service_role cancel arms (L47)
   b_r2 uuid; b_r5 uuid; b_r7 uuid; b_r8 uuid; b_r9 uuid; b_r3 uuid;  -- [R2/R5/R7/R8/R9/R3]
   v_dupes text; v_open boolean;
+  b_r6 uuid; b_r17 uuid; b_r17b uuid;   -- [R6/R17]
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -1130,7 +1131,18 @@ begin
     v_bad := '';
     perform set_config('request.jwt.claim.sub', oo::text, false);
     v_js := answer_checkin(b29, 'owner', 'cannot_proceed');
-    v_js := answer_checkin(b29b, 'owner', 'cannot_proceed');
+    -- ⚠ [R6, 2026-08-24] THIS CALL MOVED FROM THE OWNER TO THE RUNNER, and the pin's property did
+    -- not change with it. b29b is ONE stamp — pre-custody, runner en route — which is exactly the
+    -- shape R6 now refuses from the OWNER (`use_cancel_path`): their check-in answer would end the
+    -- booking at zero while the cancel button beside it pays the runner ₩12,450. The runner's own
+    -- cannot_proceed is untouched by that guard and drives the identical custody→terminal path, so
+    -- L29 still asserts what it always asserted: stamps-first custody, one stamp ≠ custody.
+    -- b29 is left on the owner deliberately — it carries BOTH stamps, so it is post-custody and
+    -- R6 does not fire there. That is itself worth exercising: it is the arm proving the guard is
+    -- scoped by custody rather than by status. The new property (the owner's free exit is refused)
+    -- is owned by L56, not by this pin.
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := answer_checkin(b29b, 'runner', 'cannot_proceed');
     perform set_config('request.jwt.claim.sub', '', false);
     select b.status::text into v_st from bookings b where b.id = b29;
     if v_st is distinct from 'incident_review'
@@ -2100,6 +2112,78 @@ begin
       call _pass('lb', 'L55 R3 — 수리 스윕에 **하한**이 있다: 플래그 이전의 취소는 소급 원장도 청구 인텐트도 얻지 않고, 플래그 이후의 같은 행은 여전히 수리된다 (플래그는 스윕이 언제 도는지를 정할 뿐 어느 행을 고르는지를 정하지 않았다 — 그게 소급 청구 기계였다)');
     else call _fail('lb', 'L55 R3 소급 청구', v_bad); end if;
   exception when others then call _fail('lb', 'L55 R3 소급 청구', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L56] R6 — the owner's cannot_proceed is not a cheaper cancel button
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Two doors price the same act differently: the cancel button charges 50% and pays the runner
+  -- ₩12,450; the check-in answer ends at no_show with no fee and no ledger row. The cheaper door
+  -- silently zeroes the other party, and the runner is told only 「수수료는 청구되지 않았어요」.
+  -- §9's waiver arm cannot rescue them — it needs arrived_at null, so the runner who actually
+  -- drove out is precisely the one who loses it.
+  b_r6 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  update bookings set arrived_at = now() - interval '5 minutes' where id = b_r6;
+  perform open_checkin(b_r6);
+  begin
+    v_bad := '';
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    begin
+      v_js := answer_checkin(b_r6, 'owner', 'cannot_proceed');
+      v_bad := v_bad || ' 무료 출구가 열려 있다 (러너 12450 이 조용히 0 이 된다)';
+    exception when others then
+      if sqlerrm not like '%use_cancel_path%' then v_bad := v_bad || ' 거부 사유=' || sqlerrm; end if;
+    end;
+    -- the RUNNER's own cannot_proceed is untouched — standing yourself down is not a path that
+    -- takes someone else's money, and refusing it would strand a runner with no way to report.
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := answer_checkin(b_r6, 'runner', 'cannot_proceed');
+    perform set_config('request.jwt.claim.sub', '', false);
+    select bc.runner_answer::text into v_txt from booking_checkins bc where bc.booking_id = b_r6;
+    if v_txt is distinct from 'cannot_proceed' then v_bad := v_bad || ' 러너 진술이 막혔다=' || coalesce(v_txt,'null'); end if;
+    if v_bad = '' then
+      call _pass('lb', 'L56 R6 — 러너가 이동 중일 때 보호자의 cannot_proceed 는 use_cancel_path 로 거부된다 (같은 행위의 두 문 중 싼 쪽이 상대의 12450 을 조용히 0 으로 만들던 것 — 0068 의 무언의 러너 급여 삭감) · 러너 자신의 진술은 그대로 받는다');
+    else call _fail('lb', 'L56 R6 무료 출구', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L56 R6 무료 출구', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L57] R17 — a handoff stamp cannot land on a booking the clock already closed
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- The sweep is a FUNCTION, so one FOR UPDATE lock spans the whole batch and a runner's
+  -- 인계 확인 can BLOCK for seconds and then land on a row that just became no_show. Nothing
+  -- refused it: enforce_booking_transition returns early when status does not move (0066:41), and
+  -- a stamp write does not move status. The record then says the dog was never picked up while
+  -- the runner is holding it. This pins the CHEAP half; the batch-lock half is still open.
+  b_r17 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  update bookings set status = 'no_show' where id = b_r17;
+  begin
+    v_bad := '';
+    begin
+      update bookings set runner_confirmed_handoff_at = now() where id = b_r17;
+      v_bad := v_bad || ' 종료된 예약에 인계 도장이 찍혔다';
+    exception when others then
+      if sqlerrm not like '%handoff_on_closed_booking%' then v_bad := v_bad || ' 거부 사유=' || sqlerrm; end if;
+    end;
+    -- clearing is NOT refused: runner_accept's reset nulls both stamps when an owner swaps
+    -- runners, and an unwind is not an attestation. Without this arm the guard would break a
+    -- legitimate path while looking correct.
+    begin
+      update bookings set runner_confirmed_handoff_at = null, owner_confirmed_handoff_at = null
+       where id = b_r17;
+    exception when others then v_bad := v_bad || ' 해제까지 막혔다=' || sqlerrm; end;
+    -- and a LIVE booking still takes stamps normally — the guard is scoped, not a blanket ban.
+    -- ⚠ its OWN fixture: b_r8 has been through L52 and is `incident_review` by now, so reusing it
+    -- here asserted the opposite of what this arm means (measured — it went red saying the live
+    -- stamp was blocked). A control arm has to be genuinely live, not merely nearby.
+    b_r17b := t_av_booking(oo, dg, rt, rr, now() - interval '10 minutes', 5.0, 'runner_enroute');
+    begin
+      update bookings set runner_confirmed_handoff_at = now() where id = b_r17b;
+    exception when others then v_bad := v_bad || ' 살아있는 예약의 도장이 막혔다=' || sqlerrm; end;
+    if v_bad = '' then
+      call _pass('lb', 'L57 R17 — 종료된 예약에는 인계 도장을 찍을 수 없다(handoff_on_closed_booking): 스윕 배치 락 뒤에 착지하던 도장이 막힌다 · 해제(null)와 살아있는 예약은 그대로 (0066:41 은 status 가 안 움직이면 일찍 반환하므로 전이 맵은 이 쓰기를 아예 보지 않았다)');
+    else call _fail('lb', 'L57 R17 종료 후 도장', v_bad); end if;
+  exception when others then call _fail('lb', 'L57 R17 종료 후 도장', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L54] pin labels are unique — asserted over what was actually EMITTED
