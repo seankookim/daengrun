@@ -21,9 +21,22 @@ is required and was done constantly.
 > session — L42 had already fired the guard as `postgres`, so the cached plan was reused with no
 > ACL re-check (measured: `current_user=service_role`, `has_function_privilege=false`, and the
 > UPDATE **still succeeded**). `discard plans` is what makes the arm non-vacuous. The general
-> consequence: `harness.sh` connects as `PGUSER=postgres`, the function owner, so **no privilege
-> bug of this class can surface without an explicit `set role` + `discard plans`.** A green harness
-> is not evidence about role-dependent permissions anywhere in this repo. Worth a sweep.
+> consequence: `harness.sh` connects as `PGUSER=postgres`, the function owner.
+>
+> ⚠ **Scope of that claim, narrowed 2026-08-24 after a peer challenge — the first version here was
+> too broad and this correction matters.** I originally wrote that *no* privilege bug of this class
+> can surface from this harness. That overstates it. Most ACL pins in this repo are **catalog
+> lookups** (`has_function_privilege`, used across suites 100, 102, 109, 111, 113, 116, 117, 119,
+> 120, 122). Those take the role as an **argument**, read `pg_proc.proacl` directly, and are immune
+> to plan caching because nothing is planned — they are correct regardless of who is connected and
+> need no re-audit. My own measurement already showed this and I misread it: **L14 is a catalog pin
+> and it went RED under mutation M-R1a.**
+>
+> The defensible claim is narrower: **an arm that proves a privilege by EXECUTING as another role
+> can be vacuous** — a green harness is not evidence about role-dependent permissions *where the
+> pin proves it by executing*. `discard plans` appears in **zero** suites. The sweep target is the
+> `set local role` / `reset role` execution arms — `100_wave3_suite.sql` has a cluster around
+> lines ~154-165, ~454-467 and ~509 — not every privilege pin.
 >
 > The description below is kept as the record of what was wrong and how it was found.
 
