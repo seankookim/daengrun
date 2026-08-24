@@ -162,6 +162,23 @@
 --   M40b (deno) compensateRunner returns true unconditionally
 --        (BLOCKER-2)                                             → deno 228/1 RED=[the zero-fee
 --        honesty test] — the runner is told ₩12,450 "was recorded" when nothing was written
+--   ─── RULING 4B — a party reads only their OWN reason text (2026-08-24) ──────────────────
+--   ⚠ NOT MEASURED BY THE AUTHOR OF THIS CHANGE. This slice was written under an explicit
+--   instruction not to run the harness (a single dedicated agent owns all runs on this
+--   machine, strictly serially — parallel runs braid and produce phantom reds with two
+--   different frozen now() values, the class already recorded above). So the entry below is
+--   the mutation to APPLY, not a result: no pass/fail count is claimed here, because a
+--   predicted number written into this map is the one defect this ledger cannot absorb.
+--   M51 §7's two `if v_uid is not distinct from …` arms deleted and the payload reverted to
+--       unconditional `'owner_reason', c.owner_reason` / `'runner_reason', c.runner_reason`
+--       (the pre-4B shape)                                          → EXPECT RED=[L48, L48b],
+--       L20 GREEN throughout (L20 reads under the author's own JWT and is unaffected by the
+--       revert — which is precisely why it never caught this).
+--   Note the two pins are ONE mechanism deliberately split by SURFACE, not by predicate:
+--   L48 owns fetch_checkin's own payload, L48b owns the claim that answer_checkin inherits
+--   it by returning fetch_checkin(p_booking). Both go red on M51 together; if only L48 reds,
+--   something has changed about that `return fetch_checkin(p_booking)` and the inheritance
+--   claim needs re-reading rather than assuming.
 --   Race-file mutations (measured with the same method, recorded in 90_race_check.sh):
 --      confirm_return_tx head FOR UPDATE deleted → 752/0 GREEN (the control that corrected
 --      RF's belt attribution) · _settle_sealed_run completed-idempotence arm deleted →
@@ -185,6 +202,7 @@ declare
   b34 uuid; b34b uuid; b35 uuid;
   b31b uuid; b31f uuid; b3f uuid; b3o uuid; b29c uuid; b29d uuid;
   b41 uuid; b42 uuid; b43 uuid; b44 uuid; b45 uuid; b46 uuid; b47 uuid; b48 uuid;
+  b47a uuid; b47b uuid; b47c uuid;                     -- [L48/L48b] ruling 4B, 2026-08-24
   v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint; b49 uuid; b50 uuid;
   b_r1a uuid; b_r1b uuid; v_fee_r1 int;   -- [R1] the service_role cancel arms (L47)
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
@@ -871,8 +889,15 @@ begin
   -- row — so an emergency abort is distinguishable from a flake when §4.2 fee arms are
   -- someday priced against fault rows.
 
-  -- [L20] stored with the statement, copied to the fault, rendered to the parties;
+  -- [L20] stored with the statement, copied to the fault, rendered to ITS AUTHOR;
   --       and the no-reason statement stays legal (nullable — the surface asks, never mandates)
+  -- ⚠ PIN PROSE UPDATED, ASSERTIONS UNCHANGED (ruling 4B, 2026-08-24). This pin read the
+  -- reason back out of the fetch payload under the OWNER'S OWN JWT (sub = oo, two lines below)
+  -- and called that "rendered to the parties" — the word was wrong even when it was written,
+  -- and the hole it hid is that NO shipped pin ever set the JWT to the counterparty. The
+  -- render property this pin owns is the AUTHOR's own read, which is exactly what it measures
+  -- and what still holds. Who may read SOMEONE ELSE'S reason is now owned by [L48] (the fetch
+  -- surface, both directions) and [L48b] (answer_checkin's inherited return).
   b20 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
   perform open_checkin(b20);
   begin
@@ -890,7 +915,7 @@ begin
     select f.reason into v_txt from booking_faults f where f.booking_id = b2 and f.party = 'owner';
     if v_txt is not null then v_bad := v_bad || ' 무사유 진술에 사유=' || v_txt; end if;
     if v_bad = '' then
-      call _pass('lb', 'L20 사유는 진술과 함께 저장·과실행으로 복사·당사자에게 렌더 — 무사유 진술도 여전히 합법 (Sean: "ask why they stopped")');
+      call _pass('lb', 'L20 사유는 진술과 함께 저장·과실행으로 복사·본인에게 렌더 — 무사유 진술도 여전히 합법 (Sean: "ask why they stopped"; 남의 사유 열람은 L48/L48b)');
     else call _fail('lb', 'L20 사유 저장·복사·렌더', v_bad); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
@@ -1609,6 +1634,119 @@ begin
       call _pass('lb', 'L46 시계의 만료 복구는 이 예약이 쥔 로트에만, 락 아래 — 행동 팔 + 소스 핀 (동시성 위험은 레이스 파일의 땅, MAJOR-7)');
     else call _fail('lb', 'L46 만료 복구 범위', v_bad); end if;
   exception when others then call _fail('lb', 'L46 만료 복구 범위', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L48] / [L48b] RULING 4B — a party reads only their OWN reason text (2026-08-24)
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- THE HOLE THESE PINS CLOSE IS A PIN-SHAPED ONE. L20 already read a reason back out of the
+  -- fetch payload — but under the AUTHOR'S own JWT (sub = oo), so the shipped suite asserted
+  -- nothing at all about the counterparty, in either direction, and §7 handed both sides'
+  -- free text to whichever party called. A fix with no red behind it is a fix that can be
+  -- reverted silently, which is why these are written as failing-on-revert pins rather than
+  -- as a note. Sean authorized ASKING for the reason and STORING it ("ask why they stopped.");
+  -- he was never asked whether the other side gets to READ it, and the text can carry a door
+  -- code or a medical emergency into two immutable tables that survive account deletion.
+  --
+  -- The reason strings below carry an ASCII token on purpose (DOORCODE-4417 / MEDNOTE-9021):
+  -- the last arm greps the WHOLE serialized payload for it, so a future key that re-exposes
+  -- the text under some other name reds these pins too — a per-key assertion would not.
+  -- 두 픽스처는 이 핀만의 것이라 begin 안에 산다 — 151의 교훈이 M5/M9 재구성으로 굳은 형태:
+  -- 단일 소비자 픽스처가 최상위에서 터지면 스위트 전체가 ABORT 하고, 안에서 터지면 이 핀 하나가
+  -- 붉어진다. (여러 핀이 공유하는 픽스처만 최상위에 남는다 — b20 이 그 예다.)
+  begin
+    v_bad := '';
+    b47a := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+    b47b := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+    perform open_checkin(b47a);
+    perform open_checkin(b47b);
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    perform answer_checkin(b47a, 'owner', 'cannot_proceed', '현관 비밀번호 DOORCODE-4417, 아이가 아파요');
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform answer_checkin(b47b, 'runner', 'cannot_proceed', '무릎 부상 MEDNOTE-9021, 못 갑니다');
+
+    -- ── ① the RUNNER reads a check-in whose OWNER stated a reason ──────────────────────────
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := fetch_checkin(b47a);
+    if jsonb_exists(v_js, 'owner_reason') then v_bad := v_bad || ' 러너가 오너 사유 키를 받음=' || coalesce(v_js->>'owner_reason', 'null'); end if;
+    if v_js::text like '%DOORCODE-4417%' then v_bad := v_bad || ' 오너 사유 본문이 응답 어딘가에 있음'; end if;
+    -- 그러나 "사유가 있었다"는 사실은 본다 (읽지 않고 알기 — 상대편 카피용 불리언)
+    if (v_js->>'owner_has_reason')::boolean is distinct from true
+      then v_bad := v_bad || ' owner_has_reason=' || coalesce(v_js->>'owner_has_reason', 'null'); end if;
+    if (v_js->>'runner_has_reason')::boolean is distinct from false
+      then v_bad := v_bad || ' runner_has_reason 오탐=' || coalesce(v_js->>'runner_has_reason', 'null'); end if;
+    -- 그리고 파티 게이트는 그대로다: 공유 사실(답·해소)은 여전히 렌더된다
+    if v_js->>'owner_answer' is distinct from 'cannot_proceed'
+      then v_bad := v_bad || ' 공유 사실까지 좁아짐(owner_answer=' || coalesce(v_js->>'owner_answer', 'null') || ')'; end if;
+    if v_js->>'resolution' is distinct from 'cannot_proceed'
+      then v_bad := v_bad || ' 해소 미렌더=' || coalesce(v_js->>'resolution', 'null'); end if;
+    -- 자기 쪽 키는 있다 — 값이 null인 것은 "안 남겼다"는 참말이고, 없는 키와 구별된다
+    if not jsonb_exists(v_js, 'runner_reason') then v_bad := v_bad || ' 본인 키 누락(runner_reason)'; end if;
+    if v_js->>'runner_reason' is not null then v_bad := v_bad || ' 안 남긴 사유가 생김'; end if;
+
+    -- ── ② the OWNER reads a check-in whose RUNNER stated a reason (거울) ───────────────────
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := fetch_checkin(b47b);
+    if jsonb_exists(v_js, 'runner_reason') then v_bad := v_bad || ' 오너가 러너 사유 키를 받음=' || coalesce(v_js->>'runner_reason', 'null'); end if;
+    if v_js::text like '%MEDNOTE-9021%' then v_bad := v_bad || ' 러너 사유 본문이 응답 어딘가에 있음'; end if;
+    if (v_js->>'runner_has_reason')::boolean is distinct from true
+      then v_bad := v_bad || ' runner_has_reason=' || coalesce(v_js->>'runner_has_reason', 'null'); end if;
+    if (v_js->>'owner_has_reason')::boolean is distinct from false
+      then v_bad := v_bad || ' owner_has_reason 오탐=' || coalesce(v_js->>'owner_has_reason', 'null'); end if;
+    if not jsonb_exists(v_js, 'owner_reason') then v_bad := v_bad || ' 본인 키 누락(owner_reason)'; end if;
+
+    -- ── ③ 본인은 그대로 읽는다 — 좁힘이 전부를 막는 벽이 되면 안 된다 (L41의 자세) ─────────
+    v_js := fetch_checkin(b47a);                                     -- 오너가 자기 사유를
+    if v_js->>'owner_reason' is distinct from '현관 비밀번호 DOORCODE-4417, 아이가 아파요'
+      then v_bad := v_bad || ' 본인 사유를 못 읽음=' || coalesce(v_js->>'owner_reason', 'null'); end if;
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := fetch_checkin(b47b);                                     -- 러너가 자기 사유를
+    if v_js->>'runner_reason' is distinct from '무릎 부상 MEDNOTE-9021, 못 갑니다'
+      then v_bad := v_bad || ' 러너가 본인 사유를 못 읽음=' || coalesce(v_js->>'runner_reason', 'null'); end if;
+
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L48 사유 본문은 본인만 — 상대는 owner_has_reason/runner_has_reason 불리언만 받고(있다는 사실은 알되 읽지는 못한다), 상대 키는 null이 아니라 아예 없다(null은 "안 남겼다"는 거짓말), 공유 사실과 본인 사유는 그대로 (양방향, 사유 수집 승인 ≠ 공개 승인)');
+    else call _fail('lb', 'L48 사유 자기열람', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L48 사유 자기열람', sqlerrm);
+  end;
+
+  -- [L48b] answer_checkin 은 fetch_checkin(p_booking) 을 그대로 돌려주므로 좁힘을 상속한다 —
+  --        가정하지 말고 측정한다. 도달 경로는 멱등 재전송뿐이다: 사유는 cannot_proceed 에만
+  --        붙고 그 답은 즉시 해소를 부르므로, 상대가 "사유가 이미 적힌 체크인"에 대해
+  --        answer_checkin 을 성공시키는 유일한 길은 §6의 멱등 분기(해소 게이트보다 위에 있다).
+  --        러너가 먼저 other_side_absent(무해소) → 오너가 cannot_proceed+사유(해소) →
+  --        러너가 같은 답을 재전송 → 그 반환값이 러너 JWT 아래의 fetch 페이로드다.
+  begin
+    v_bad := '';
+    b47c := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'confirmed');
+    perform open_checkin(b47c);
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform answer_checkin(b47c, 'runner', 'other_side_absent');     -- 무해소 (한쪽 고발)
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    perform answer_checkin(b47c, 'owner', 'cannot_proceed', '현관 비밀번호 DOORCODE-4417');  -- 해소
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := answer_checkin(b47c, 'runner', 'other_side_absent');     -- 멱등 재전송의 반환값
+    if jsonb_exists(v_js, 'owner_reason') then v_bad := v_bad || ' answer 반환에 오너 사유 키=' || coalesce(v_js->>'owner_reason', 'null'); end if;
+    if v_js::text like '%DOORCODE-4417%' then v_bad := v_bad || ' answer 반환 어딘가에 사유 본문'; end if;
+    if (v_js->>'owner_has_reason')::boolean is distinct from true
+      then v_bad := v_bad || ' answer 반환 owner_has_reason=' || coalesce(v_js->>'owner_has_reason', 'null'); end if;
+    if v_js->>'resolution' is distinct from 'cannot_proceed'
+      then v_bad := v_bad || ' 멱등 재전송이 fetch 모양을 안 돌려줌'; end if;
+    -- 그리고 저자 쪽에서는 같은 호출이 자기 사유를 그대로 담는다 (상속이지 삭제가 아니다)
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    v_js := answer_checkin(b47c, 'owner', 'cannot_proceed', '현관 비밀번호 DOORCODE-4417');
+    if v_js->>'owner_reason' is distinct from '현관 비밀번호 DOORCODE-4417'
+      then v_bad := v_bad || ' 저자의 answer 반환에 본인 사유 없음=' || coalesce(v_js->>'owner_reason', 'null'); end if;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = '' then
+      call _pass('lb', 'L48b answer_checkin 의 반환도 호출자 기준으로 좁혀진다 — fetch_checkin 을 그대로 돌려주므로 상속된다는 주장을 멱등 재전송 경로로 실제 측정 (상대는 불리언만, 저자는 본문)');
+    else call _fail('lb', 'L48b answer 반환 상속', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L48b answer 반환 상속', sqlerrm);
+  end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L14] the ACL/RLS catalog — who can execute what, and the tables are sealed

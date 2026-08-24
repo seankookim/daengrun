@@ -81,7 +81,9 @@
 --      timestamps only (owner_at/runner_at = now(), never a client value). Refuses
 --      'proceeding' past the ceiling (§4.3 / FM4: two taps must not resurrect a 17-day row).
 --   §7 fetch_checkin — what the surface renders (party-gated read; carries past_ceiling and
---      server_now so the client neither derives the ceiling nor trusts its own clock).
+--      server_now so the client neither derives the ceiling nor trusts its own clock). Each
+--      party reads only their OWN reason text; the counterparty gets a boolean saying a reason
+--      exists, never the words (ruling 4B — see the REASON note below).
 --   §8 late_booking_sweep + cron — */10 per 0060:145 stagger doctrine (see §8 header).
 --   §9 the 0066 carve-out — enroute_cancel_fee_waived() + marketplace_cancel_fee re-created
 --      (base = 0066, the newest definition — verified by grep: 0085 explicitly leaves it
@@ -101,6 +103,19 @@
 --   the statement becomes a fault and nowhere else. The column is NULLABLE: the surface must
 --   ASK; a mandate to answer is not invented. A reason is REFUSED on any other answer — a
 --   free-text channel on a happy path is the abuse class 0114 closed elsewhere.
+--   ⚠ WHO MAY READ IT IS A SEPARATE QUESTION, AND ITS ANSWER IS "ONLY THE AUTHOR" (ruling 4B,
+--   2026-08-24). Sean authorized ASKING and STORING; he was never asked whether the other side
+--   gets to read the words, and the first draft of §7 handed both reasons to whichever party
+--   called. A reason typed in the worst minute of a booking can carry a door code or a medical
+--   emergency, it is written to two immutable tables and it survives account deletion — so the
+--   disclosure would be permanent, and only the narrow reading is reversible later. §7 now
+--   returns the caller's own text and a per-side BOOLEAN for both sides; the argument, the
+--   naming and the key-absent-not-null choice are written at the return itself. `booking_faults`
+--   needs no equivalent narrowing: its `reason` copy is read by nothing — `cancel_moves_no_money`
+--   (§9) touches that table only through two `exists (…)` tests and selects no column from it,
+--   and no other function, view or client path reads it (verified by grep across migrations,
+--   edge functions and app/ on 2026-08-24). The table is also revoked from every role (§3), so
+--   the copy is reachable only by a future reader that must decide this question for itself.
 --
 -- ─── Scope lines, stated rather than implied ───────────────────────────────────────────────
 --   · CLUB bookings are excluded everywhere (club_session_id is null in every sweep arm,
@@ -879,7 +894,7 @@ comment on function state_after_the_fact is
 -- ═══ §7 fetch_checkin — what the surface renders ══════════════════════════════════════════
 create or replace function fetch_checkin(p_booking uuid) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare b record; c record; v_uid uuid := auth.uid();
+declare b record; c record; v_uid uuid := auth.uid(); v_out jsonb;
 begin
   select bk.id, bk.status::text as status, bk.scheduled_at, bk.owner_id, bk.runner_id,
          bk.club_session_id, bk.owner_confirmed_handoff_at, bk.runner_confirmed_handoff_at
@@ -917,25 +932,71 @@ begin
       'server_now',   now());
   end if;
 
-  return jsonb_build_object(
-    'open',          c.resolved_at is null,
-    'opened_at',     c.opened_at,
-    'deadline_at',   c.deadline_at,
-    'owner_answer',  c.owner_answer,
-    'owner_at',      c.owner_at,
-    'owner_reason',  c.owner_reason,
-    'runner_answer', c.runner_answer,
-    'runner_at',     c.runner_at,
-    'runner_reason', c.runner_reason,
-    'resolved_at',   c.resolved_at,
-    'resolution',    c.resolution,
-    'version',       c.version,
+  -- ⚠ [ruling 4B, 2026-08-24] A PARTY READS ONLY THEIR OWN REASON TEXT. What Sean authorized
+  -- was ASKING for it and STORING it ("ask why they stopped."); he was never asked whether the
+  -- OTHER side gets to read it, and until now they did — the payload below returned both
+  -- `owner_reason` and `runner_reason` to whichever party called. A reason is typed in the
+  -- worst minute of a booking and can carry a door code, an address detail or a medical
+  -- emergency; it lands in TWO immutable tables (booking_checkins here, booking_faults at
+  -- resolution) and survives account deletion, so a disclosure here is permanent and
+  -- unretractable. An authorization to collect is not an authorization to publish, and the
+  -- narrow reading is the reversible one: showing the counterparty this text later is a
+  -- product decision anyone can make, un-showing it is not.
+  --
+  -- WHAT THE COUNTERPARTY STILL GETS — `owner_has_reason` / `runner_has_reason`, both sides,
+  -- unconditionally, for every caller:
+  --   · the name follows the payload's own convention (side prefix + snake_case, like
+  --     `owner_answer` / `owner_at`), and BOTH sides carry it for BOTH readers so the client
+  --     renders one shape rather than branching on who it is;
+  --   · it is a strict boolean (`… is not null`), never NULL — no tri-state for a client to
+  --     mis-coalesce, this repo's four-times-landed fail-open shape;
+  --   · it leaks nothing the reader does not already hold: the answer itself is in the
+  --     payload, and a reason can only ride `cannot_proceed` (§6's gate + §2's CHECK), so
+  --     "text was attached" is the only new bit — enough for honest copy ("상대가 사유를
+  --     남겼어요"), not enough to read a stranger's emergency.
+  --
+  -- THE COUNTERPARTY'S KEY IS ABSENT, NOT NULL. Emitting `runner_reason: null` to the owner
+  -- would be a FALSE statement about the record ("the runner gave no reason") in exactly the
+  -- case where they gave one — the honesty law's own shape, and it would make the boolean and
+  -- the text contradict each other in the same object. Absent means "not yours to read";
+  -- null would mean "there is none".
+  --
+  -- THE PARTY GATE ABOVE IS UNTOUCHED, deliberately. Both parties still legitimately read this
+  -- check-in — the answers, the stamps, the resolution and the derived trio are shared facts of
+  -- one booking. It is only the free text that narrows. The no-row branch above is likewise
+  -- untouched: it has no statements to narrow, and its exact four-key shape is pinned (L19).
+  v_out := jsonb_build_object(
+    'open',              c.resolved_at is null,
+    'opened_at',         c.opened_at,
+    'deadline_at',       c.deadline_at,
+    'owner_answer',      c.owner_answer,
+    'owner_at',          c.owner_at,
+    'owner_has_reason',  c.owner_reason is not null,
+    'runner_answer',     c.runner_answer,
+    'runner_at',         c.runner_at,
+    'runner_has_reason', c.runner_reason is not null,
+    'resolved_at',       c.resolved_at,
+    'resolution',        c.resolution,
+    'version',           c.version,
     -- the surface must not derive these: the ceiling constant lives server-side only, and a
     -- client clock is exactly what FM2/FM6 refuse to trust.
-    'past_ceiling',  late_ceiling_at(b.scheduled_at) <= now(),
-    'custody',       _checkin_custody(b.status::booking_status,
-                                      b.owner_confirmed_handoff_at, b.runner_confirmed_handoff_at),
-    'server_now',    now());
+    'past_ceiling',      late_ceiling_at(b.scheduled_at) <= now(),
+    'custody',           _checkin_custody(b.status::booking_status,
+                                          b.owner_confirmed_handoff_at, b.runner_confirmed_handoff_at),
+    'server_now',        now());
+
+  -- two independent tests, not an if/else: a caller who is somehow BOTH parties on one booking
+  -- is reading two statements that are both their own, and gets both. `is not distinct from`
+  -- keeps this strictly boolean where runner_id is NULL (an unmatched booking has no runner —
+  -- `v_uid = b.runner_id` would be NULL there, and a NULL in a guard is how this repo has
+  -- shipped fail-open four separate times).
+  if v_uid is not distinct from b.owner_id then
+    v_out := v_out || jsonb_build_object('owner_reason', c.owner_reason);
+  end if;
+  if v_uid is not distinct from b.runner_id then
+    v_out := v_out || jsonb_build_object('runner_reason', c.runner_reason);
+  end if;
+  return v_out;
 end $$;
 
 revoke execute on function fetch_checkin(uuid) from public, anon;
@@ -944,7 +1005,12 @@ grant  execute on function fetch_checkin(uuid) to authenticated, service_role;
 comment on function fetch_checkin is
   '0117 §7 (§12): the render read — party-gated; {open:false} before the clock fires; carries
 past_ceiling (so the client can stop offering "proceed" without knowing the constant) and
-server_now (so no countdown trusts a phone clock).';
+server_now (so no countdown trusts a phone clock). REASON TEXT IS SELF-ONLY (ruling 4B,
+2026-08-24): the caller''s own owner_reason/runner_reason key is present, the counterparty''s
+key is ABSENT (not null — null would assert "no reason given"), and both sides always carry
+the boolean owner_has_reason/runner_has_reason so the other party can see THAT a reason was
+given without reading it. The party gate itself is unchanged — both parties still read the
+check-in; only the free text narrows.';
 
 -- ═══ §8 the sweep + its cron tick ═════════════════════════════════════════════════════════
 -- [codex CRIT-1] THE CLOCK SHIPS OFF. The client has zero answer/fetch call sites today, so
