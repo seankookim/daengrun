@@ -399,6 +399,20 @@ S18 bus-window, S22 ice-bath) — Soul collages multi-panel when a prompt descri
 scales/framings in one image.** Marathon-prior contamination persists on raw frames; the de-brand
 stage remains mandatory per pick. Credits after three rounds + edits: 822 of 1,210 remain.
 
+## 8-ter. Round 4 (2026-08-24) — the nineteen
+
+Sean picked 19 of the 30 S-frames (S02 03 04 09 10 12 13 14 16 18 19 20 23 24 25 26 28 29 30 —
+including the three collage frames, kept deliberately) with two rulings: Nike marks gone, and
+**the garment logo goes full chest width, like a graphic tee**. All 19 ran the reference-image
+edit (de-brand + full-width mark, white-on-dark/black-on-light) and were finished with culture
+slogans. Slogan ledger: EARNED IT. · CHASE THE SUN. · WE GO FIRST. · 막차 클럽 · NO OFF SEASON. ·
+같은 눈빛 · SAME START. · SHOW UP ANYWAY. · DOORS OPEN. GO. · YOU COULD BE OUT THERE. · ONE MORE. ·
+EVERY LIGHT IS A START. · RECOVER HARDER. · NO STADIUM NEEDED. (trace + 10.2km/7:58 card in the
+empty stands) · KEEP GOING. · LET IT POUR. · PROOF OF WORK. · SMALL. UNSTOPPABLE. · Two Hearts.
+One Finish. Full set now 31 finished posters in `higgsfield-out/posters/`; poster-level logo
+placement remains Sean's manual step. ⚠ Oswald has no Hangul — any kicker mixing scripts must
+split fonts or it renders tofu (caught on S30 before ship).
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
