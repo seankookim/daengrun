@@ -1624,6 +1624,93 @@ invisible</b>.
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="box rule" style="margin-top:54px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “For owner booking, I like the current runner request. For runner selection, I like m2. M4 sure. For the
+  receipt, I like the current receipt. For other scenarios, the screen shows too many horizontal red lines;
+  this doesn't look clean. I like the new schedule change screens. I just realized that I like the current
+  #e8552f red color. Maybe the map picker should have a comment addition box. Sure to all of the address
+  management screen things.”
+  <ul style="margin:12px 0 0 20px">
+    <li style="margin-bottom:11px"><b>R (러닝 요청) — NO CHANGE, and that is the pick.</b>
+      “I like the current runner request”, so <code>app/app/owner/request.tsx</code> was not touched. R①–R④
+      are not built and are not pending: the current dock, the fold and the ladder's placement stand as
+      shipped. Open questions 1, 2 and 10 (money button grammar · where the cancel ladder lives · 매주 반복
+      outside the fold) survive this pick — none of them was answered by it.</li>
+    <li style="margin-bottom:11px"><b>P (결제 · 청구) — NO CHANGE.</b> “I like the current receipt.”
+      <code>pay.tsx</code> is outside this slice's file claim and was not edited; P①'s door from 내 일정 and
+      P③'s refund arm (the one <span class="flag new">NEEDS NEW SERVER DATA</span> variant) stay open questions
+      5 and 6.</li>
+    <li style="margin-bottom:11px"><b>M② 원값이 크고, 매치는 순위가 된다 — IMPLEMENTED</b>
+      (<code>app/app/owner/matching.tsx</code>). The composite 매치 % is gone from the roster row, the sheet's
+      big number and the rebook delta; it keeps its real job — ordering — and keeps its disclosure card.
+      What took the display weight are the two measured fields: 응답률 (<code>runners.respond_rate_pct</code>,
+      <b>null renders 신규, never a number</b>) and 누적 러닝 (<code>runners.total_runs</code>), with
+      페이스 third. Rank is position in <code>scored</code>. The rebook delta now reads
+      「N순위 → M순위 · 응답 ±X」 instead of a match delta, because a difference of two computed scores is
+      even less defensible than one. <code>matchFor</code> itself is byte-identical — no data path moved.
+      The frame Sean picked is drawn in <b>paper</b>, so M①'s repaint rode in as its substrate (this screen
+      was the flow's last lilac island; DESIGN.md §2 assigns it to paper anyway).</li>
+    <li style="margin-bottom:11px"><b>M④ 0명일 때 문이 있는 화면 — IMPLEMENTED.</b> Same three predicates
+      (<code>rosterError</code> / <code>rosterLoading</code> / <code>liveRunners.length === 0</code>), same
+      sentences, and the empty arm finally has the two doors that already existed: 러너 다시 찾기
+      (<code>loadRoster</code>) and 내 일정에서 이 예약 보기 (<code>/owner/schedule</code>). As the variant
+      demanded, <b>no fee is quoted here</b> — the schedule sheet computes it per booking from
+      <code>cancelFeeRateFor</code>, and a second copy is how ladders drift. The failure arm became the
+      loud-fail strip with a label-swapping retry (opacity trick retired), and the 시트 자리 says why it is
+      closed rather than going dark.</li>
+    <li style="margin-bottom:11px"><b>S①S②S③ 일정 변경 — ALL THREE IMPLEMENTED</b>
+      (<code>app/app/owner/reschedule.tsx</code>). S①: the last V4 legacy screen in this flow is paper —
+      <code>colors.volt</code> is gone from a fee-bearing commit button (now <code>paper.action</code> via
+      PaperBtn), six hardcoded hexes are tokens (<code>#FDE8D0/#9D580A</code> → <code>paceSlowWash/
+      paceSlowInk</code>, <code>#82887a</code> → <code>readyDeep</code>, <code>#DCD6C4</code> → the neutral
+      rule), and the contract card stays dark and only sharpens. S②: weekday dots derived from the
+      <code>rules</code> array already in memory (zero new fetches) — and <b>no dots at all</b> while
+      <code>rules</code> is null or 'error', because an absent dot must never read as “runner is off”.
+      S③: one summary line over the current day's slots with 전체 다시 확인 looping the existing
+      <code>recheckSlot</code>; it is loud only when a check actually failed, quiet while merely verifying,
+      and it disappears entirely once every slot has an answer. Open question 7 (does the dot over-promise?)
+      is answered by his pick — the copy limit the variant specified shipped with it.</li>
+    <li style="margin-bottom:11px"><b>A①A②A③ 주소 관리 — ALL THREE IMPLEMENTED</b>
+      (<code>app/app/owner/addresses.tsx</code>). A①: 위치 지정 필요 › · 픽업 메모 추가 › · 기본 픽업 move
+      from <code>paper.line</code> (3.64:1) to <code>paper.actionInk</code> (6.67:1); the card border and the
+      tag's fill stay <code>paper.line</code> — edges and surfaces are what that token is for. A②: the form's
+      주소 field gained 확인, calling the shipped <code>geocode-address</code> edge function; its three
+      documented responses map 1:1 to three arms (hit → <code>roadAddress</code> on
+      <code>paceGoodWash</code> · miss → “찾지 못했어요, 그래도 저장할 수 있어요” · unavailable → one quiet
+      line), it never rewrites what the owner typed and <b>never blocks the save</b>. A③: 기본으로 지정 is an
+      explicit chip on non-default rows, 주소 삭제 is a visible row inside the card, the outer Pressable and
+      both invisible gestures retired — and the footer line that advertised the long-press went with them,
+      since a hint for a gesture that no longer exists is just a lie.</li>
+    <li style="margin-bottom:11px"><b>“Too many horizontal red lines” — APPLIED AS A COUNT, NOT A HUE.</b>
+      <code>#E8552F</code> is untouched (his own sentence keeps it). What changed is how many full-bleed
+      coral rules a screen may stack: <b>two</b>, and they mark sections (header · dock). Everything inside a
+      list or a card — roster row separators, slot and day chips, the three strips in an address card — uses
+      the neutral <code>#EEEEEE</code> rule this repo already ruled on (<code>theme.ts:206</code>,
+      <code>request.tsx:1465</code>). An address card went from four coral horizontals to one coral border.</li>
+    <li style="margin-bottom:11px"><b>Map-picker comment box — 🔵 BUILT</b>
+      (<code>app/app/owner/address-pin.tsx</code>). His “maybe” had one hard condition — bind or omit — and it
+      binds: the column exists (<code>addresses.detail</code>, <code>0001:122</code>), the write path exists
+      and is narrow (<code>owner_update_address_detail</code>, 0073 — trim, empty→NULL, 60-char cap), and the
+      sentence already has a reader (the assigned runner, on the handoff screen). So the box is not a new
+      field, it is the same field asked for at the moment the owner is already answering “where exactly”.
+      It renders even when the map SDK is missing (the memo is independent of the pin), saves as a
+      <b>secondary</b> button so the screen keeps one coral primary, and re-reads the row from the server
+      after a save rather than mirroring the server's normalisation. Failure is an Alert, same sentence as
+      the list screen.</li>
+    <li style="margin-bottom:11px"><b>N①N②N③ — NOT BUILT (not picked).</b> One measurement from N① is worth
+      recording anyway: the confirm bar's <code>style={{backgroundColor: paper.line}}</code> was already
+      <b>dead</b> — <code>paper-btn.tsx:70-73</code> moved the caller's style ahead of the matrix, so the
+      button has been rendering <code>paper.action</code> for some time and this file is the one that review
+      note names. The dead prop was deleted; nothing about the render changed.</li>
+    <li><b>Held, and named so it is not lost:</b> A①'s companion fix — the same two coral labels in
+      <code>request.tsx</code> (픽업 위치 지정 필요 › · 픽업 위치 맞추기 ›, identical sentence, identical
+      3.64:1) — was <b>not applied</b>, because “I like the current runner request” scoped that file to no
+      change in this slice. It is a contrast repair, not a redesign, and it should ride the next slice that
+      opens that file.</li>
+  </ul>
+</div>
+
 <footer>
 <h3>OPEN QUESTIONS — things the code could not decide for me</h3>
 <ol>
