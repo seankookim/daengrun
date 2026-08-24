@@ -840,6 +840,13 @@ begin
     return;
   end if;
 
+  -- Product ruling, 2026-08-24: supply compensation is SLOT-BASED, not attendance-based. A
+  -- committed runner receives this half even when both runner and owner no-show; deliberate,
+  -- closing the prior finding. The accepted narrow exposure -- farming that absence/no-show
+  -- intersection -- remains visible in the recorded data.
+  -- With no runner, no slot was held and this half compensates nothing. The platform retains it
+  -- PENDING the still-open decision whether unaccepted-cancel fees should drop to the platform
+  -- half only; this does not change the amount, split or recipient.
   insert into club_fee_items (session_id, session_dog_id, booking_id, kind, amount_krw,
                               recipient_type, recipient_profile_id, basis)
   values
@@ -849,7 +856,10 @@ begin
     (p_session, p_sd, p_booking, p_kind, v_share,
      case when p_runner is not null then 'runner' else 'platform' end, p_runner,
      jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule,
-                        'share', 'supply_compensation', 'eventAt', v_event_at));
+                        'share', case
+                          when p_runner is not null then 'supply_compensation'
+                          else 'unassigned_supply_retained'
+                        end, 'eventAt', v_event_at));
 
   -- Sean 2026-08-21, §0-quinvicies, verbatim: "Join the pool — accrue it". The runner share
   -- enters the same ledger/my_ledger_total pool as the eight existing earning writers even while

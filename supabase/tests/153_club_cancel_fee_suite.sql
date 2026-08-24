@@ -264,6 +264,18 @@
 -- and the suite makes both `h` and `r` veterans, so two dogs on `r` should be legal — but P13
 -- asserts that precondition explicitly rather than assuming it, so a capacity refusal shows up as
 -- a named 🔴 전제 실패 instead of a vacuous pass.
+--
+-- ═══ 2026-08-24, SLOT-BASED SUPPLY RULING — PREDICTED, NOT MEASURED ══════════════════════════
+-- The product owner ruled that the runner half compensates a HELD SLOT, not attendance. The
+-- runner arm therefore keeps `supply_compensation`; with no runner, the unchanged platform-held
+-- half is relabelled `unassigned_supply_retained` pending the still-open fee-reduction question.
+-- **P15 (new)** owns both directions. No earlier pin in suite 153 read `club_fee_items.basis` at
+-- all, which is exactly how a recipient and amount could be right while this label lied.
+-- PREDICTED pass count: **746 / 0** (745 + P15). PREDICTED red sets:
+--   `supabase/migrations/0118_club_cancel_fee_collection.sql:861`, change the no-runner ELSE
+--       `unassigned_supply_retained` → `supply_compensation` ........ P15 arm ① alone
+--   `supabase/migrations/0118_club_cancel_fee_collection.sql:860`, change the with-runner THEN
+--       `supply_compensation` → `unassigned_supply_retained` ........ P15 arm ② alone
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
@@ -1657,6 +1669,37 @@ begin
     perform set_config('test.fail_club_booking','',false);
     perform set_config('test.fail_club_queue','',false);
     v_msg:=sqlerrm; call _fail('ccf','P14 R4B 큐 없는 채무의 가시성',v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [P15] SLOT-BASED SUPPLY RULING — basis.share tells held from unassigned supply
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- NEW 2026-08-24. No earlier suite-153 pin read `club_fee_items.basis` at all; that blind spot
+  -- is exactly how the no-runner row could name supply compensation despite no runner holding a
+  -- slot. P1 already proves these two charged fixtures and their destinations: `b_acc` had a
+  -- committed runner, while `b_late` had none. Exact counts keep either arm from passing on a
+  -- missing row, NULL basis, an arbitrary replacement label, a revert, or an over-broad rename.
+  begin
+    v_bad := '';
+    -- ① No runner: the retained half has the new exact label and never the held-slot label.
+    if (select count(*) from club_fee_items
+        where booking_id=b_late and recipient_type='platform'
+          and recipient_profile_id is null
+          and basis->>'share'='unassigned_supply_retained') <> 1
+       or exists (select 1 from club_fee_items
+                  where booking_id=b_late and basis->>'share'='supply_compensation')
+      then v_bad:=v_bad||' 러너 없는 몫의 basis.share가 미배정 공급 보유분을 정확히 말하지 않는다'; end if;
+
+    -- ② Committed runner: the held-slot half remains supply compensation.
+    if (select count(*) from club_fee_items
+        where booking_id=b_acc and recipient_type='runner' and recipient_profile_id=r
+          and basis->>'share'='supply_compensation') <> 1
+      then v_bad:=v_bad||' 슬롯을 맡은 러너 몫의 basis.share가 공급 보상을 유지하지 않는다'; end if;
+
+    if v_bad='' then call _pass('ccf','P15 슬롯 기준 공급 보상 표기 — basis.share는 러너 슬롯이 있으면 supply_compensation이고 슬롯이 없으면 unassigned_supply_retained이며, 미배정 몫을 공급 보상으로 거짓 표기하지 않는다');
+    else v_msg:=v_bad; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg); end if;
+  exception when others then
+    v_msg:=sqlerrm; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg);
   end;
 
   update ops_flags set payments_live_since=v_since, updated_at=now() where id;
