@@ -224,7 +224,12 @@ export async function cancelOwner(
         : lateShare > 0
         ? `보호자가 예약을 취소했어요. 비워두신 시간에 대해 취소 수수료의 절반인 ${lateShare.toLocaleString("ko-KR")}원이 보상으로 기록됐어요`
         : noMoneyWaiverApplied
-        ? "보호자가 예약을 취소했어요. 3시간이 지나도록 도착 기록이 없거나 러너의 진행 불가 기록이 확인되면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요"
+        // (review r3 F1) the copy must name the rule EXACTLY as SQL enforces it: the fault
+        // ground accepts only a check-in cannot_proceed record, and the silence ground needs
+        // BOTH kinds of evidence absent AND both parties silent — an earlier draft said "no
+        // arrival OR any cannot-proceed record", which promised waivers SQL refuses (one
+        // handoff stamp, or a future fault source, both defeat it).
+        ? "보호자가 예약을 취소했어요. 체크인에서 러너가 진행 불가를 남겼거나, 예정 시간 후 3시간 동안 도착·인계 기록과 양측 진술이 모두 없으면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요"
         : "보호자가 예약을 취소했어요",
     );
   }

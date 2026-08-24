@@ -798,11 +798,39 @@ Deno.test("[blind BLOCKER-2] a cancellation that moves NO money tells the runner
   assert(!body.includes("기록됐어요"), `no receipt may be spoken: ${body}`);
   assert(!body.includes("50%"), `no amount may be spoken: ${body}`);
   assertEquals(toRunner.title, "예약 취소됨");
-  // PREDICTED (Deno not run in this round): the waived runner is told why both money directions are 0.
+  // The waived runner is told why both money directions are 0 — in the rule's EXACT terms
+  // (review r3 F1: the earlier draft overstated the waiver; one handoff stamp defeats it).
   assertEquals(
     body,
-    "보호자가 예약을 취소했어요. 3시간이 지나도록 도착 기록이 없거나 러너의 진행 불가 기록이 확인되면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요",
+    "보호자가 예약을 취소했어요. 체크인에서 러너가 진행 불가를 남겼거나, 예정 시간 후 3시간 동안 도착·인계 기록과 양측 진술이 모두 없으면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요",
   );
+});
+
+Deno.test("[r3 F4] a genuinely-free cancel does not borrow the waiver explanation", async () => {
+  // The >=24h free tier is fee 0 with NO en-route marker. The waiver copy names a specific
+  // rule about arrival evidence and statements; speaking it to a runner whose booking was
+  // simply cancelled a day early would be a false explanation. This is the negative control
+  // the exact-copy test above cannot provide: under the mutation
+  // `noMoneyWaiverApplied = storedFee === 0` (marker check dropped) THIS case goes red.
+  const db = scene({ status: "confirmed", quoteFee: 0, storedFee: 0 });
+  const net = tossOk();
+  const notes: Row[] = [];
+  try {
+    await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: (profileId: string, title: string, body: string) => {
+        notes.push({ profileId, title, body });
+        return Promise.resolve(null);
+      },
+    });
+  } finally {
+    net.restore();
+  }
+  const toRunner = notes.find((n) => n.profileId === RUNNER);
+  assert(toRunner, "the runner hears about the cancellation");
+  assertEquals(String(toRunner.body), "보호자가 예약을 취소했어요", "generic body only — no borrowed rule");
 });
 
 Deno.test("[blind BLOCKER-3] a stale quote is REFUSED, and nothing downstream runs", async () => {

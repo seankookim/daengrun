@@ -214,7 +214,7 @@ declare
   b_r2 uuid; b_r5 uuid; b_r7 uuid; b_r8 uuid; b_r9 uuid; b_r3 uuid;  -- [R2/R5/R7/R8/R9/R3]
   v_dupes text; v_open boolean;
   b_r6 uuid; b_r17 uuid; b_r17b uuid;   -- [R6/R17]
-  b58_checkin uuid; b58_post uuid;       -- [L58] R10 source allow-list
+  b58_checkin uuid; b58_post uuid; b58_future uuid;  -- [L58] R10 source allow-list
   b59_fault uuid; b59_control uuid; b59_ceiling uuid;  -- [L59] R11 tier-independent no-money
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
@@ -2206,9 +2206,14 @@ begin
   -- future human source must not acquire a waiver merely by not being today's excluded value.
   b58_checkin := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
   b58_post    := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
+  -- (review r3 F2) the third fixture is what makes this an ALLOW-LIST pin rather than a
+  -- party-polarity pin: a deny-list rewrite (`source <> 'post_resolution_statement'`) keeps the
+  -- first two arms green and fails ONLY here — an arbitrary future source must not waive.
+  b58_future  := t_av_booking(oo, dg, rt, rr, now() + interval '3 hours', 5.0, 'runner_enroute');
   insert into booking_faults (booking_id, party, source, stated_by)
   values (b58_checkin, 'runner', 'checkin_cannot_proceed', rr),
-         (b58_post,    'runner', 'post_resolution_statement', rr);
+         (b58_post,    'runner', 'post_resolution_statement', rr),
+         (b58_future,  'runner', 'future_ops_source', rr);
   begin
     v_bad := '';
     select f.fee into v_fee  from marketplace_cancel_fee(b58_checkin) f;
@@ -2225,8 +2230,15 @@ begin
     if cancel_moves_no_money(b58_post) then
       v_bad := v_bad || ' 사후 진술 소스가 돈 면제를 얻음';
     end if;
+    select f.fee into v_fee3 from marketplace_cancel_fee(b58_future) f;
+    if v_fee3 is distinct from 12450 then
+      v_bad := v_bad || ' 미래 소스가 요금을 면제=' || coalesce(v_fee3::text, 'null');
+    end if;
+    if cancel_moves_no_money(b58_future) then
+      v_bad := v_bad || ' 미래 소스가 돈 면제를 얻음 (deny-list 형태로 되돌아갔나)';
+    end if;
     if v_bad = '' then
-      call _pass('lb', 'L58 R10 과실 소스 허용 목록 — 동일한 러너 진술이어도 checkin_cannot_proceed 만 무금전·0원, post_resolution_statement 는 50%·12450 유지 (사후 말한 러너가 스스로 보상을 없애지 않는다)');
+      call _pass('lb', 'L58 R10 과실 소스 허용 목록 — 동일한 러너 진술이어도 checkin_cannot_proceed 만 무금전·0원, post_resolution_statement 도 임의의 미래 소스도 50%·12450 유지 (허용 목록이지 제외 목록이 아니다)');
     else call _fail('lb', 'L58 R10 과실 소스 허용 목록', v_bad); end if;
   exception when others then call _fail('lb', 'L58 R10 과실 소스 허용 목록', sqlerrm); end;
 
@@ -2267,8 +2279,32 @@ begin
     if exists (select 1 from ledger_items li where li.booking_id = b59_fault) then
       v_bad := v_bad || ' 무금전 취소에 원장 행';
     end if;
+    -- (review r3 F3a) the CEILING ground exercised THROUGH the trigger, not just the quote — a
+    -- copied trigger ladder could keep every quote assertion green while refusing this write.
+    update bookings set status = 'cancelled_owner', cancel_fee = 0 where id = b59_ceiling;
+    select b.cancel_fee into v_fee4 from bookings b where b.id = b59_ceiling;
+    if v_fee4 is distinct from 0 then
+      v_bad := v_bad || ' 트리거 경유 실링 fee=' || coalesce(v_fee4::text, 'null');
+    end if;
+    -- (review r3 F3b, L27's idiom) delegation is EXECUTED, not substring-matched: drop the
+    -- ladder in an unwound subtransaction and require the TRIGGER to break. A copied ladder
+    -- inside the trigger would keep answering — exactly the drift this arm forbids.
+    v_txt := '';
+    begin
+      drop function marketplace_cancel_fee(uuid);
+      begin
+        update bookings set status = 'cancelled_owner', cancel_fee = 2490 where id = b59_control;
+        v_txt := '사다리 없이도 트리거가 통과했다 (사본)';
+      exception when others then
+        if sqlstate = '42883' then v_txt := 'ok'; else v_txt := '다른 실패=' || sqlstate; end if;
+      end;
+      raise exception 'unwind152';           -- roll the DROP back, always
+    exception when others then
+      if sqlerrm <> 'unwind152' then v_bad := v_bad || ' 언와인드 경로=' || sqlerrm; end if;
+    end;
+    if v_txt <> 'ok' then v_bad := v_bad || ' ' || v_txt; end if;
     if v_bad = '' then
-      call _pass('lb', 'L59 R11 무금전 판정은 티어 분기보다 먼저 — 체크인 러너 과실의 confirmed 10% 티어와 5시간5분 과거·무도착 실링은 모두 0원, 동일 10% 티어 무과실 통제는 2490원 유지 · 트리거 재견적도 0원에 동의하고 러너 배분·원장을 쓰지 않는다');
+      call _pass('lb', 'L59 R11 무금전 판정은 티어 분기보다 먼저 — 체크인 러너 과실의 confirmed 10% 티어와 5시간5분 과거·무도착 실링은 모두 0원(견적과 트리거 양쪽에서), 동일 10% 티어 무과실 통제는 2490원 유지 · 트리거는 사다리에 실행 위임한다(사본이면 42883이 안 난다) · 러너 배분·원장을 쓰지 않는다');
     else call _fail('lb', 'L59 R11 무금전 판정 호스트', v_bad); end if;
   exception when others then call _fail('lb', 'L59 R11 무금전 판정 호스트', sqlerrm); end;
 
