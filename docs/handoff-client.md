@@ -38,9 +38,31 @@ Add a pin that an owner cancel from `runner_enroute` with one stamp succeeds, an
 with BOTH stamps still raises `cancel_after_handoff` (the guard's intended refusal) rather than a
 permission error — otherwise the two failures are indistinguishable in the suite.
 
+🔴 **Three things that make this worse than the paragraph above, all from the live reproduction —
+whoever fixes this needs them:**
+
+1. **Suite 152 pins the bug.** `152:1628` asserts the privilege is ABSENT —
+   `if has_function_privilege('service_role', '_checkin_custody(...)', 'execute') then v_bad := v_bad || ' svc custody'`.
+   **Adding the grant turns 152 RED.** That pin must flip in the same slice (CLAUDE.md: a suite
+   whose pinned behaviour legitimately changes is updated in that slice, with the reason).
+2. **The harness is structurally blind to it.** `harness.sh:31` connects as `PGUSER=postgres`, the
+   function owner, and 152 contains **zero** `set role` statements. A green harness says nothing
+   about this class of defect. That is a gap worth closing beyond this one bug.
+3. **Free cancels die too.** I originally wrote "every cancel that carries a fee". The trigger's
+   WHEN clause does not test the fee, so **every** owner cancel out of `confirmed` or
+   `runner_enroute` fails — the ≥24h zero-fee tier included. Only `matching`/`runner_pending`
+   survive, because the WHEN clause excludes them.
+
 **Provenance:** found by a five-lens blind review of 0117 at `e132b3d`, run this session because
-round 6 was dispatched and never returned. **Four of the five lenses found it independently**, and
-adversarial verification confirmed it in every case. I then re-derived it myself from the file.
+round 6 was dispatched and never returned. **Four of the five lenses found it independently.** A
+verifier then **reproduced it live**: applied every migration + 0117 to a PG16 cluster and ran the
+edge's exact write under `set local role service_role`, getting
+`ERROR: permission denied for function _checkin_custody / CONTEXT: PL/pgSQL function
+_booking_cancel_custody_guard() line 3 at IF`. I re-derived the static chain myself independently.
+
+**The full report is now in the repo: `docs/reviews/2026-08-24-0117-blind-review.md`** — R1-R20,
+each with file:line, a concrete failure and the cheapest fix. It is in the repo precisely because
+the review it replaces existed only in a chat transcript and died with it.
 
 ---
 
@@ -98,13 +120,30 @@ terminals — needs a new `closed` `RunnerJob` arm plus calendar/home surface, i
 F9, F10, F11, and the doc items F12–F18. The durable F1–F20 record with file:line is at
 `…/wf_a68ecb4d-309/journal.jsonl` (longest string value = the synthesis).
 
-This session's blind review of 0117 raised **~38 findings across five lenses**, of which the
-verifiers refuted only one. Recurring themes beyond §1: the deadline arm terminating a live
-post-custody run (independently rediscovered by 4 of 5 lenses — this is F2's server half, still
-unfixed); `_resolve_checkin` writing `incident_review` from `confirmed`, an edge `0066` refuses;
-`state_after_the_fact` filing the **speaker** in `booking_faults.party`, the column §3 defines as
-the party **at fault**; and the forbidden "waiver" framing surviving in durable artifacts Sean's
-ruling required 0117 to fix.
+## 3-bis. The 0117 blind review — `docs/reviews/2026-08-24-0117-blind-review.md`
+
+38 raised across five lenses, **31 survived** adversarial verification. Verdict: **not safe to
+deploy AND not safe to flip** — three BLOCKERs, two of which are live the instant the migration
+lands, before any flag:
+
+- **R1** — the `_checkin_custody` grant (§1 above). Reproduced live.
+- **R2** — the deadline arm writes `incident_review` on a live post-custody run: no marketplace
+  money exit (`0083 §0h`), the runner walks the dog and can never be paid, and `0097`'s detector
+  is structurally blind to the row because its predicate needs `runs.ended_at is not null` on a
+  run that can never end. This is **F2's server half**, independently rediscovered by 4 of 5
+  lenses. `152:687-692` pins the current outcome, so it is deliberate, not an oversight.
+- **R3** — §9e's repair sweep has no lower time bound, so the first tick after the payments
+  cutover mints chargeable intents for pre-cutover cancellations. Reproduced: a 90-day-old cancel
+  acquired a `pending` ₩2,490 intent marked due for dispatch.
+
+**Eight findings contradict a Sean ruling** — the lost dispatch had reported three. The report says
+"Eight, not three" and enumerates them rather than padding: R2, R5, R6, R7, R9, R8, R17 and R11
+against *no silent runner-pay cut*, **D3**, **D5**, the ruled ceiling, and the silent-stalemate
+rule. R11 is the one that is unchanged trunk behaviour 0117 consciously declined to fix, so it is a
+scope escalation rather than a regression — worth putting to Sean as its own question.
+
+Still open from the earlier 36-agent audit as well: F5, F6, F8, F9, F10, F11 and the doc items
+F12–F18.
 
 ---
 
