@@ -193,3 +193,105 @@ approved item) · chat.
    `club_incident_open`'s gates are severity/summary/party — 🔵 preliminary reading says a case
    CAN be opened mid-run today; the blind review verifies and the morning brief states it flatly.
 7. Deferred by him: community/account commentary — nothing here anticipates it.
+
+---
+
+# GSTACK REVIEW REPORT
+
+**/autoplan run, 2026-08-24 night — CEO phase complete with three voices; Design/Eng phases
+deliberately deferred (see Decision Audit Trail #7). Sean away; the two human-only gates (premise
+confirmation, user challenges) are QUEUED FOR HIM below, not auto-decided.**
+
+## Voices
+
+| Voice | Form | Headline |
+|---|---|---|
+| Claude CEO subagent (independent, no prior context) | 15 ranked findings, 5 CRITICAL | "Freeze at document stage. The straightening is done; the building is not what he ordered." |
+| Codex CEO voice (gpt-5.6-sol, adversarial) | strategy + marketplace-dynamics + sequencing | "The current sequence does nearly the reverse: architecture first, evidence later." |
+| Blind codex spec-vs-code review | still running at report time — folds into the morning brief | — |
+
+## CEO CONSENSUS TABLE
+
+| Dimension | Claude | Codex | Consensus |
+|---|---|---|---|
+| Premises valid? | CHALLENGE (F5: the ambiguity his directive fixes has a one-sentence alternative) | CHALLENGE (same, listed among 10 dismissed alternatives) | **DISAGREE with the spec's premise-acceptance → USER CHALLENGE #1** |
+| Right problem NOW? | NO (F1: one user, zero builds, no metric moves) | NO ("architecture first, evidence later") | **CONFIRMED: not now, not as one piece** |
+| Scope calibration? | Overbuilt as a single slice (F15: 4-way split) | Overbuilt (manual Mode C; board first; retire last) | **CONFIRMED: split** |
+| Alternatives explored? | NO (F5/F15 missing) | NO (10 named alternatives absent) | **CONFIRMED: the spec under-explored** |
+| Competitive/market risks? | F3 insurance · F4 intermediary status | disintermediation · runner concentration · host curation loss | **CONFIRMED: unaddressed, two are counsel-grade** |
+| 6-month trajectory? | F12: five regret scenarios, kill criterion missing | same shape | **CONFIRMED: name a kill criterion** |
+
+## FACT CORRECTIONS TO THIS SPEC (not taste — verified, the spec was wrong)
+
+1. **§5's claim "the 0118 time+attendance gates survive unchanged in meaning" is FALSE.**
+   Home pickup makes every Mode B/C owner produce `owner_confirmed_handoff_at` at their own door,
+   hours before the session — the exact signal the corrected 0118 attendance gate honors. The 20%
+   no-show rung becomes structurally unreachable for delegated dogs: **the third inertness of that
+   same gate, this time by design.** Any home-pickup variant needs a NEW no-show predicate
+   (candidate: the runner's arrival at the start point) and a P4/P9/P10/P12 re-pin.
+2. **§12.6 is answered: cases CAN be opened mid-run, today.** Verified three ways — the gates at
+   `0067:116-146` carry no run-phase restriction (codex), and the shipped R screen already has the
+   entry point at `club/run/[sid].tsx:294` (ui6, at source). His question's answer is YES; the R
+   screen respec must carry that entry point forward.
+3. **§4.1's "address exposure follows the existing gate_code_access_log idiom" overstates reuse.**
+   No club migration touches addresses; `0042:11` deliberately excludes address from the
+   marketplace view. A club address-read path is NEW security surface (0116 §D party-gate law,
+   0088 whole-request-403 hazard) — its own numbered work item, not reuse.
+4. **§10's retirement blast radius was understated by an order of magnitude**: the five functions
+   appear across ~17 suites (~88 pins), 10 migrations, api.ts, and the 693-line host console.
+   Correct form: DEPRECATE (revoke `authenticated` EXECUTE + refusal pins) — closure is the server
+   refusing, not the function vanishing — reversible at ~5 revokes instead of ~88 edits.
+5. **§2's free mode-switch contradicts the fee ladder**: the booking mints at delegation time
+   (0037:244/0081:184), so B→A inside 24h hits the strict 10% rung Sean ruled. Either the UI says
+   so or the mint moves to pairing time — a priced decision, not an implication.
+6. **§7's dogless companion is a safety question wearing a money answer**: an unpaid person with
+   customers' dogs, no booking, no identity verification, no party standing in
+   `club_incident_open`. Board visibility without accountability.
+7. **Six silent decisions claimed as "nothing he didn't say" — now marked 🔴** (modes mutually
+   exclusive per session · per-dog approval · transit-inside-custody stated-then-asked · pending
+   picks and capacity · Mode A "copy only" unverified · **the missing scenario: a Mode B owner who
+   ATTENDS the session** — in a Banpo pilot the most likely real case, and the flow forces a
+   pointless return trip to an empty home).
+
+## USER CHALLENGES — queued for Sean (never auto-decided)
+
+**#1 — The premise itself has a cheaper fix than the restructure.**
+You said: at-the-scene matching is ambiguous about pickup when the runner runs the club route.
+Both models recommend: before building home pickup, consider that the ambiguity resolves with ONE
+SENTENCE — *the owner brings the dog to the start point and hands off there* (what Mode A owners
+already do). What we might be missing: you may want home pickup for its own sake (convenience as
+the product), not just to fix the ambiguity. If we're wrong and you did want home pickup itself,
+the cost of asking is one morning; the cost of NOT asking is the insurance leg (F3), the
+intermediary-status exposure (F4, counsel-grade, brief still unsent), and a new address surface.
+
+**#2 — Sequencing.** Both models, independently, recommend nearly the same split:
+① runner-money secrecy (ruled, small, independent) · ② the PUBLIC BOARD over existing states (your
+most explicit want, zero regulatory/insurance/retirement risk) · ③ owner-picks + runner-approves
+with handoff still at the start point · ④ home pickup + Mode C, gated on counsel + insurance —
+Mode C **manual/concierge** in the pilot ("building an algorithm with one user is theatre").
+Kill criterion proposed: if no club session with ≥2 delegated dogs runs within N weeks of the
+first build, the restructure shelves and scene matching stays.
+
+## Decision Audit Trail
+
+| # | Phase | Decision | Class | Principle | Rationale |
+|---|---|---|---|---|---|
+| 1 | CEO | Mode = SELECTIVE EXPANSION | mechanical | autoplan override | mandated |
+| 2 | CEO | Fact corrections 1-6 applied to spec text | mechanical | P1 | verified against code, not taste |
+| 3 | CEO | Six silent decisions re-marked 🔴 | mechanical | integrity claim | the spec's own standard |
+| 4 | CEO | Deprecate-not-retire (correction 4) | taste→adopted | P5/P6 | both voices + house closure doctrine |
+| 5 | CEO | Mode C manual in pilot | taste→queued | P3 | codex; needs Sean (it reshapes his Mode C) |
+| 6 | CEO | Kill criterion added as proposal | taste→queued | P8 | number is his |
+| 7 | CEO | **Design/Eng phases DEFERRED** to the variant Sean picks | taste→surfaced | P3/P6 + Sean's own trim directive | running full dual-voice design+eng on a spec whose CEO verdict is "freeze at document stage, split 4 ways" reviews screens that may never exist; the phases run on the chosen variant tomorrow |
+
+## VERDICT
+
+**SPEC: SOUND AS A DECISION DOCUMENT, NOT APPROVED AS A BUILD PLAN.** The CEO phase's product is
+the two USER CHALLENGES above plus the fact corrections. Nothing builds until Sean answers #1/#2.
+The already-ruled, already-independent slice (runner-money secrecy) proceeds regardless.
+
+**UNRESOLVED DECISIONS:**
+- Sean: User Challenge #1 (premise: home pickup vs one-sentence fix vs middle path ③)
+- Sean: User Challenge #2 (sequencing + manual Mode C + kill criterion N)
+- Sean: the seven 🔴 in §12 + the six newly marked in correction 7
+- Counsel: F3 (transit insurance) and F4 (intermediary status under Mode C) — ride the unsent briefs
