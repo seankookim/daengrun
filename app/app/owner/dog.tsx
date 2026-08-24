@@ -68,7 +68,16 @@ export default function DogProfileScreen() {
   // strings are kept here and untouched = exact string equality against them. Retype the same
   // number in different clothes and you typed it; leave the field alone and it round-trips.
   const initRef = useRef({ name: '', birth: '', weight: '' });
+  // ⚠ [re-verdict item 5, round 2] The baseline guard needs the SCREEN's current dog, and inside
+  // save()'s closure there is no such thing: the closure's `dog` is frozen at render, and savedId
+  // was derived FROM it, so `dog.id === savedId` compared a value with itself and always passed.
+  // A's completion then overwrote initRef while the screen showed B — resurrecting the F3 failure
+  // (B's untouched legacy whitespace name / 95kg read as freshly typed) through the baseline
+  // instead of the patch. A ref is the one thing an await can read at completion TIME rather than
+  // at capture time; selectDog is its only writer, same as initRef.
+  const activeIdRef = useRef<string | null>(null);
   const selectDog = (d: DogProfile) => {
+    activeIdRef.current = d.id;
     initRef.current = {
       name: d.name,
       birth: d.birthDate ?? '',
@@ -226,8 +235,9 @@ export default function DogProfileScreen() {
       });
       setDogs((ds) => ds.map((x) => (x.id === savedId ? adopt(x) : x)));
       setDog((cur) => (cur && cur.id === savedId ? adopt(cur) : cur));
-      // the saved values are the new hydration baseline — only when the screen still shows this dog
-      if (dog.id === savedId) {
+      // the saved values are the new hydration baseline — only when the screen STILL shows this
+      // dog at completion time (activeIdRef), never per the closure's snapshot (see the ref above).
+      if (activeIdRef.current === savedId) {
         initRef.current = {
           name: nameUntouched ? initRef.current.name : name.trim(),
           birth: birthUntouched ? initRef.current.birth : (birth.trim() || ''),
