@@ -7,7 +7,7 @@ import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { DrawButton } from '../../src/components/draw-button';
-import { HomeHero } from '../../src/components/home-hero';
+import { HomeHero, elapsedLabel } from '../../src/components/home-hero';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
@@ -16,6 +16,7 @@ import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchF
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { kstCal } from '../../src/lib/kst';
 import { lateness } from '../../src/lib/lateness';
 import { ProfileGaps } from '../../src/components/profile-gaps';
 import { registerPushToken } from '../../src/lib/push';
@@ -67,6 +68,18 @@ function kstDayDiff(iso: string, now = Date.now()): number | null {
     return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
   };
   return Math.floor((dayMs(t) - dayMs(now)) / 86400_000);
+}
+
+// KST 요일 — 아래 짧은 날짜 칸에서만 쓴다. api.ts 의 DAYS 와 같은 순서(0=일)다.
+const KST_WD = ['일', '월', '화', '수', '목', '금', '토'] as const;
+// 다음 일정 레일의 왼쪽 고정 칸 — 「8/29 (금)」. dateLabel(「8월 29일 (금)」)은 이 폭에 들어가지
+// 않고, 들어가게 줄이면 본문(아이·러너·코스)이 잘린다. 새 사실이 아니라 **같은 scheduled_at 의
+// 다른 표기**이고, 산술은 앱 공용 KST 한 벌(src/lib/kst.ts)을 그대로 쓴다.
+function shortKstDate(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const c = kstCal(t);
+  return `${c.m + 1}/${c.d} (${KST_WD[c.wd]})`;
 }
 
 // [2026-08-19 언핀] 상단 안전 영역. 이제 이 값은 ScrollView 의 첫 여백일 뿐이다 —
@@ -138,6 +151,10 @@ export default function OwnerHome() {
   // 실예약 next booking — 히어로가 진짜 다음 일정을 말한다
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
   const [lastDone, setLastDone] = useState<Booking | null>(null);
+  // [A① 2026-08-24 Sean, "For owner home's A, I like 1"] 히어로 **다음** 2건. 홈은 이 행들을 이미
+  // 메모리에 들고 있으면서 하나만 쓰고 나머지를 버렸다 — 새 읽기 0개, 새 필드 0개.
+  // 빈 배열이면 레일 자체가 렌더되지 않는다: 예약이 하나뿐인 계정에서 레일은 히어로를 되풀이할 뿐이다.
+  const [upcoming, setUpcoming] = useState<Booking[]>([]);
   // [honesty 2026-08-11] fitErr와 같은 모델 — 예약 로드 실패가 "예정된 러닝이 없어요"로
   // 분장하던 것 교정. 로딩/실패/실빈을 히어로가 구분해 말한다.
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
@@ -189,9 +206,23 @@ export default function OwnerHome() {
         // 히어로가 '지명 대기'라고 거짓말한다(불발·확인 중은 다가오는 러닝이 아니다).
         // 이 두 원상태의 정직한 표시(불발 / 확인 중)는 일정 화면이 rawStatus로 전담한다 → NEXT에서 제외.
         const stale = (b: Booking) => b.rawStatus === 'no_show' || b.rawStatus === 'incident_review';
-        setLiveNext(
-          rows.filter((b) => b.status in RANK && !stale(b))
-            .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null,
+        const next = rows.filter((b) => b.status in RANK && !stale(b))
+          .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null;
+        setLiveNext(next);
+        // [A①] 히어로가 고른 행을 뺀 **다가오는** 예약 2건. 규칙 네 개, 전부 이미 있는 값으로:
+        //   ① 히어로의 행은 제외 — 레일은 정보지, 히어로의 메아리가 아니다.
+        //   ② 예정 시각이 미래인 행만 — 지난 건은 히어로의 지각 문장과 일정 화면의 몫이다.
+        //   ③ confirmed·pending 만 — 진행 중(handoff·active)은 히어로/라이브 위젯이 이미 말하고 있고,
+        //      레일 행에 코랄이나 라이브 어휘를 들이면 '내 차례'가 두 곳에서 켜진다.
+        //   ④ no_show·incident_review 는 히어로와 같은 stale() 로 제외 — 다가오는 러닝이 아니다.
+        // 가까운 순으로 2건. 정렬은 도착한 행 안에서만 참이다 (fetchMyBookings 의 20행 창 — 아래 주석).
+        const nowMs = Date.now();
+        setUpcoming(
+          rows.filter((b) => b.id !== next?.id && !stale(b)
+            && (b.status === 'confirmed' || b.status === 'pending')
+            && !!b.scheduledAt && Date.parse(b.scheduledAt) > nowMs)
+            .sort((a, b) => at(a) - at(b))
+            .slice(0, 2),
         );
         // completed는 IN_FLIGHT에 없으므로 rows와 bs가 같은 답을 준다 — 한 값을 읽게 rows로 통일.
         setLastDone(rows.find((b) => b.status === 'completed') ?? null);
@@ -261,12 +292,18 @@ export default function OwnerHome() {
   // D-day — 실 scheduled_at 기준. 값이 없으면 null → 라벨 자체를 안 그린다 (가짜 카운트다운 금지).
   // 0 = 오늘.
   const ddayN = liveNext?.scheduledAt ? kstDayDiff(liveNext.scheduledAt) : null;
-  const ddayLabel = ddayN === null || ddayN < 0 ? null : ddayN === 0 ? 'D-DAY' : `D-${ddayN}`;
+  // [A① 2026-08-24 Sean] 히어로 1행이 쓰는 상대 라벨. 구 ddayLabel('D-DAY' | 'D-n')은 서브라인의
+  // 꼬리표였고, 1행은 도달 불가능한 분기 탓에 언제나 「곧」이었다 (home-hero.tsx:shortDate 참조).
+  // 오늘/내일은 한국어가 D-0/D-1보다 짧고 정확하다 — 마크 자리를 비워야 하는 1행에 딱 맞는다.
+  // 값이 없거나 지난 예약이면 null: 히어로가 그때 자기 문장(「예약 시간이 지났어요」)을 쓴다.
+  const relLabel = ddayN === null || ddayN < 0 ? null : ddayN === 0 ? '오늘' : ddayN === 1 ? '내일' : `D-${ddayN}`;
   // [honesty 2026-08-19] 지난 예약은 null이 아니라 **자기 사실**을 말한다. 예전엔 ddayN < 0 이
   // ddayLabel = null 로 접혔고, 히어로는 null을 '아직 안 왔다'로 읽어 8월 4일 확정 건에
   // "시간에 맞춰 알려드려요"를 인쇄했다 (실측 8월 19일). 라벨을 지우는 것과 지났다고 말하는 것은
   // 다른 사실이라 채널도 다르다 — home-hero는 이 플래그를 받아 문장을 바꾼다.
   const nextIsPast = ddayN !== null && ddayN < 0;
+  // [A④] 러닝이 얼마나 됐는지 — 라이브 위젯의 한 절. 시계는 함수 안에 있다(home-hero.tsx:elapsedLabel).
+  const runElapsed = liveNext?.status === 'active' ? elapsedLabel(liveNext.startedAt) : null;
   // [T6] 히어로가 '누구를 기다리다 늦었는지'를 말할 수 있게 판정을 넘긴다. 시계를 스스로 갖는 함수이고(기본값 Date.now) —
   // liveNext 가 이미 싣고 온 필드만 읽으므로 왕복이 늘지 않는다 (src/lib/lateness.ts).
   const lateVerdict = liveNext
@@ -332,6 +369,11 @@ export default function OwnerHome() {
         [5, 10, 25].find((tier) => tier > beacon.next!.count) ?? -1
       ] ?? null
     : null;
+
+  // ── 다음 일정 레일의 문 — 행도 헤더 링크도 같은 목적지다 (A①). 일정 화면이 이 예약들의 관리
+  // 시트를 갖고 있으므로 죽은 버튼이 아니다. 행별 프리셀렉트는 파라미터 왕복이 필요해 이 슬라이스
+  // 밖이다 — 반쯤 되는 딥링크보다 확실한 목적지 하나가 낫다.
+  const openSchedule = () => { haptic('light'); router.push('/owner/schedule'); };
 
   // ── 지난번처럼 다시 예약 — PMF 게이트(M1 재예약 60%)라 '오늘' 덩어리 안, 화면 위쪽에 앉는다.
   // 프리필은 실 마지막 완료 러닝에서만 온다 (km · 페이스 · 그 러너). 시각은 비워서 request가 묻는다.
@@ -411,38 +453,6 @@ export default function OwnerHome() {
               <Icon name="Bell" glyph="◔" size={20} color={lilac.head} />
             </Pressable>
           </View>
-          {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
-              ▲▼ 등락 화살표는 실델타가 있을 때만 — 없는 데이터는 그리지 않는다 */}
-          {ticker.length > 0 && (
-            <Pressable onPress={() => router.push('/leaderboard')} style={s.rankticker}>
-              <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
-                {[0, 1].map((dup) => (
-                  <View
-                    key={dup}
-                    style={{ flexDirection: 'row', alignItems: 'center' }}
-                    onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
-                  >
-                    {/* [§3b 2026-08-11] latin kicker 'THIS WEEK' retired app-wide — the lead is the Korean
-                        data-class label alone, 14pt / lineHeight 18. */}
-                    <Text style={s.tickerLead}>동네 리그</Text>
-                    <View style={s.tickerSep} />
-                    {ticker.map((d, i) => (
-                      <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={s.tickerItem}>
-                          <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{i + 1}위 </Text>
-                          {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{d.km}km</Text>
-                          {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 14 }}> ▲{d.delta}</Text>}
-                          {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 14 }}> ▼{-d.delta}</Text>}
-                          {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 14 }}> NEW</Text>}
-                        </Text>
-                        <View style={s.tickerSep} />
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </Animated.View>
-            </Pressable>
-          )}
         {/* ═══ 히어로 = 예약 상태의 함수 (Sean 2026-08-19, 랩 ⑧ v2, 판정 "A") ═══
             상태 판정은 위 goState 그대로 — 바뀐 건 그 상태로 무엇을 그리느냐뿐이다.
             [언핀] 흐름 자식이므로 실측 높이도, 이동 transform도 필요 없다. */}
@@ -457,6 +467,11 @@ export default function OwnerHome() {
               // 어긋난다 — 히어로는 예약이 있으면 이 값을 쓴다 (review P1-6). 히어로가 읽지 않던
               // `km`은 함께 빠졌다: 안 읽히는 필드는 계약이 아니다.
               dogName: liveNext.dogName,
+              // [A④] 문 앞 대기 문장의 두 입력. rawStatus 없이는 runner_enroute 와 confirmed 가
+              // 구분되지 않고(STATUS_MAP이 둘을 'confirmed'로 뭉갠다), arrived_at 없이는 '오는 중'과
+              // '도착해서 기다리는 중'이 구분되지 않는다 — 둘 다 실려야 문장 하나가 성립한다.
+              rawStatus: liveNext.rawStatus ?? null,
+              arrivedAt: liveNext.arrivedAt ?? null,
             } : null}
             dogName={dogName}
             dialKm={draft.km}
@@ -469,7 +484,7 @@ export default function OwnerHome() {
             onlineRunners={localRunners === null ? null : localRunners.length}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
-            ddayLabel={ddayLabel}
+            relLabel={relLabel}
             nextIsPast={nextIsPast}
             late={lateVerdict}
             liveWidget={liveNext?.status === 'active' ? (
@@ -482,7 +497,11 @@ export default function OwnerHome() {
                     면제가 아니므로 아래 14pt 줄로 내렸다 (구 코드는 '● LIVE · 민준 러너'를 통째로 11pt에 뒀다). */}
                 <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '800', color: '#8F88B8' }}>● LIVE</Text>
                 {/* 아이 이름도 이 **예약의** 아이다 — dogName(첫 등록 아이)이 아니라 (review P1-6) */}
-                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 달리는 중이에요 — 지도 보기 ›</Text>
+                {/* [A④ 2026-08-24 Sean, "how long runner has been running"] 경과는 runs.started_at
+                    에서만 온다 — 예약 시각으로 재면 20분 늦게 출발한 러닝이 20분 더 달린 것이 된다
+                    (lateness.ts:147 이 같은 이유로 폴백을 금지한다). started_at 이 없거나 1분 미만이면
+                    절이 통째로 빠진다: 문장은 여전히 참이고, 숫자만 없다. */}
+                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 {runElapsed ? `${runElapsed}째 ` : ''}달리는 중이에요 — 지도 보기 ›</Text>
               </Pressable>
             ) : null}
           />
@@ -494,6 +513,47 @@ export default function OwnerHome() {
           {lastDone && (
             <ProfileGaps gaps={profileGaps} onOpen={() => router.push('/owner/dog')} />
           )}
+
+        {/* ══════════════════ 다음 일정 (A① · Sean 2026-08-24) ══════════════════
+            히어로는 한 건을 말한다. 나머지는 여기, 조용한 행 두 개로. 새 읽기 0개 — loadBookings 가
+            이미 들고 있던 배열을 버리지 않는 것뿐이다.
+            정직 처리: 로딩 중엔 upcoming 이 [] 이라 아무것도 안 그린다(히어로가 「예약을 확인하는
+            중이에요」를 이미 말한다) · 실패도 [] 유지 + 히어로가 재시도 줄을 든다(중복 에러 스트립
+            금지, :501 의 규칙) · 두 번째 미래 예약이 없으면 섹션 자체가 없다.
+            ⚠ 행의 점은 GO 상태법 그대로다: 세이지 = 확정 · 바이올렛 = 대기. **코랄은 여기 없다** —
+            레일 행은 정보지 내 차례가 아니고, 코랄은 화면당 하나다. */}
+        {upcoming.length > 0 && (
+          <View>
+            <ModH title="다음 일정" link="전체 ›" onLink={openSchedule} />
+            <View style={s.upRail}>
+              {upcoming.map((b) => {
+                const n = b.scheduledAt ? kstDayDiff(b.scheduledAt) : null;
+                const d = n === null || n < 0 ? null : n === 0 ? '오늘' : n === 1 ? '내일' : `D-${n}`;
+                return (
+                  <Pressable
+                    key={b.id}
+                    onPress={openSchedule}
+                    style={({ pressed }) => [s.upRow, pressed && { backgroundColor: paper.wash }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${b.dateLabel} ${b.timeLabel} 예약 — 일정에서 보기`}
+                  >
+                    <View style={[s.upDot, { backgroundColor: b.status === 'confirmed' ? paper.ready : lilac.accent }]} />
+                    <Text style={[s.upTm, nf]}>{b.scheduledAt ? shortKstDate(b.scheduledAt) : b.dateLabel}</Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      {/* 러너 이름은 매칭된 예약에만 있다 — api 는 미매칭 행에 '매칭 중'을 넣지만,
+                          그건 이름 칸에 들어갈 값이 아니라 상태다 (「매칭 중 러너」로 읽힌다). */}
+                      <Text style={s.upT} numberOfLines={1}>
+                        {b.timeLabel} · {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'}
+                      </Text>
+                      <Text style={s.upS} numberOfLines={1}>{b.routeName} · {b.km}km</Text>
+                    </View>
+                    {d ? <Text style={[s.upD, nf]}>{d}</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* ══════════════════ 오늘 ══════════════════
             진행 중인 러닝이 있으면 이 덩어리는 통째로 없다 — 히어로의 알림 줄이 곧 티켓이다
@@ -526,6 +586,44 @@ export default function OwnerHome() {
         {/* ══════════════════ 동네 ══════════════════ */}
         <ChunkKick label="동네" />
 
+        {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
+            ▲▼ 등락 화살표는 실델타가 있을 때만 — 없는 데이터는 그리지 않는다.
+
+            [A③(c) · Sean 2026-08-24 "3의 focus scheme"] 이 줄은 마스트헤드 바로 아래, 화면의
+            결정(히어로) **위**에 있었다 — 루프 애니메이션 하나가 폴드에서 가장 비싼 자리를 쥐고
+            있었던 셈이다. 내용은 원래 동네 데이터이므로 자기 덩어리로 내려온다. 바뀐 것은 자리뿐:
+            같은 실집계, 같은 마퀴, 같은 목적지, 빈 주엔 여전히 렌더 안 함, reduceMotion 정지도 그대로. */}
+        {ticker.length > 0 && (
+          <Pressable onPress={() => router.push('/leaderboard')} style={s.rankticker}>
+            <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
+              {[0, 1].map((dup) => (
+                <View
+                  key={dup}
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
+                >
+                  {/* [§3b 2026-08-11] latin kicker 'THIS WEEK' retired app-wide — the lead is the Korean
+                      data-class label alone, 14pt / lineHeight 18. */}
+                  <Text style={s.tickerLead}>동네 리그</Text>
+                  <View style={s.tickerSep} />
+                  {ticker.map((d, i) => (
+                    <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={s.tickerItem}>
+                        <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{i + 1}위 </Text>
+                        {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{d.km}km</Text>
+                        {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 14 }}> ▲{d.delta}</Text>}
+                        {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 14 }}> ▼{-d.delta}</Text>}
+                        {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 14 }}> NEW</Text>}
+                      </Text>
+                      <View style={s.tickerSep} />
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </Animated.View>
+          </Pressable>
+        )}
+
         {/* 하이클럽 — compact: 라이트 modh 행 하나. [2026-08-19] 나이트 스텁 카드는 홈에서
             은퇴했다 (모든 상태에서 두 번째 다크 섬이었고, 랩 ⑧의 foot는 클럽 검색창을
             "제자리(club)로 갔다"고 적었다). 카드 자체는 러너 홈(RunnerClubCard)에 그대로 산다. */}
@@ -552,7 +650,9 @@ export default function OwnerHome() {
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8 }}>
                     <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 14, color: lilac.dim }}> RUNS</Text></Text>
-                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
+                    {r.paceLabel != null && (
+                      <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
+                    )}
                   </View>
                 </Pressable>
               ))}
@@ -748,6 +848,21 @@ const s = StyleSheet.create({
   // Oswald 숫자는 명시 lineHeight ≥1.2× (BUG A — 없으면 어센더가 잘린다)
   rowNum: { fontSize: 14, lineHeight: 19, fontWeight: '900', color: paper.ink },
 
+  // ── 다음 일정 레일 (A① · 2026-08-24) ────────────────────────────────────
+  // row 문법의 사촌: 같은 헤어라인, 같은 14pt 본문, 앞에 상태 점 하나와 뒤에 D-라벨이 붙는다.
+  // 상자도 카드도 없다 — 세 덩어리 문법(선 0개, 상자 0개)은 이 레일에도 적용된다.
+  upRail: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  upRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44,
+    paddingVertical: 12, paddingHorizontal: layout.gutter,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+  },
+  upDot: { width: 9, height: 9, borderRadius: 5 },
+  // Oswald — 15/20 (1.33×, BUG A 여유)
+  upTm: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  upT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  upS: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  upD: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
 
   // ── 헤더 (흐름 자식 — 핀 오버레이 은퇴 2026-08-19) ────────────────────────
   // 그리팅 줄 — 헤더의 마지막 요소라 히어로와 항상 맞닿는다
@@ -764,9 +879,11 @@ const s = StyleSheet.create({
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
   wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: 0.2, fontWeight: '400' },
+  // [A③(c) 2026-08-24] 헤더에서 '동네' 덩어리로 내려왔다 — marginTop 8(헤더 간격)은 킥커의
+  // marginBottom 이 이미 하는 일이라 빠지고, 아래 클럽 행과의 간격만 남는다.
   rankticker: {
-    overflow: 'hidden', marginTop: 8, paddingVertical: 5,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴
+    overflow: 'hidden', marginBottom: 10, paddingVertical: 5,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 룰 = 뉴트럴
   },
   tickerLead: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginRight: 2 },
   tickerItem: { fontSize: 14, fontWeight: '600', color: lilac.text },

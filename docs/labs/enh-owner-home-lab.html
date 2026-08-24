@@ -1534,4 +1534,36 @@ lib/api.ts(fetchMyBookings·fetchInFlightOwnerBookings·fetchFitness·fetchProfi
 lib/lateness.ts · docs/decisions/handoff-cta-gating.md.
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SEAN'S PICK — 2026-08-24
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 style="margin:64px 0 4px;font-size:19px;font-weight:800;border-top:none;border-bottom:1.5px solid var(--ink);padding:0 0 8px">
+  ✅ Sean 2026-08-24 (verbatim): <span style="color:var(--act)">A① + A③의 focus scheme + A④의 경과 · B① + B②</span></h2>
+
+<div class="note" style="border:2px solid var(--ink)">
+  <h4>그가 쓴 문장 그대로</h4>
+  <div style="border-left:3px solid var(--act);padding-left:13px;font-size:14.5px;line-height:1.85">
+    “For owner home's A, I like 1, and I like 3's focus scheme. I also like the general Korean font
+    that I see here and the sizing of fonts and spacing between elements. I also like 4's how long
+    runner has been running thing.<br>
+    For owner home's B, I like 1 and 2, with the relevance sort and the current event highlight.”
+  </div>
+  <div class="hairline"></div>
+  <b>Implemented</b> — <code>app/app/owner/home.tsx</code> · <code>app/src/components/home-hero.tsx</code> ·
+  <code>app/app/owner/schedule.tsx</code>. 새 서버 필드 0개 · 새 읽기 0개 · 새 헥스 0개 · 새 라우트 0개.
+  <div class="hairline"></div>
+  <table>
+    <tr><th>고른 것</th><th>상태</th><th>무엇이 바뀌었나 · 무엇에 묶였나</th></tr>
+    <tr><td><b>A①</b> 다음 일정</td><td><b>구현</b></td><td>히어로 1행이 <code>relLabel</code>(오늘 · 내일 · D-n)을 말한다 — 도달 불가능하던 <code>shortDate</code> ≤4 분기 탓에 실서버 행에서 언제나 「곧」이던 결함이 여기서 닫힌다. 서브라인의 D 꼬리표는 한 화면에 두 번 나오지 않도록 제거. 히어로 아래 조용한 레일 2행 = <code>loadBookings</code>가 이미 들고 있던 행들(히어로의 행 제외 · 미래 · confirmed/pending · <code>stale()</code> 제외 · 가까운 순 2건). 두 번째 미래 예약이 없으면 섹션 자체가 없다.</td></tr>
+    <tr><td><b>A③</b> focus scheme</td><td><b>부분 구현</b></td><td><b>(c) 구현</b> — 동네 리그 티커가 마스트헤드 아래(폴드, 히어로 위)에서 <b>동네 덩어리</b>로 내려갔다. 자리만 바뀌고 데이터·마퀴·목적지·reduceMotion 정지는 그대로.<br><b>(a) 코다 3단(56pt)과 (b) 버튼 타이틀의 본문 800 강등은 미구현</b> — 둘 다 <code>src/components/draw-button.tsx</code>(<code>H = small ? 78 : 96</code>, <code>st.t</code>에 <code>useDisplayFont()</code> 28pt) 안에 있고 그 파일은 이 슬라이스의 파일 클레임 밖이다. 필요한 변경은 not_built에 정확한 형태로 남겼다. 마스트헤드 워드마크는 <b>A①의 프레임대로 Black Han Sans 유지</b>(A①과 A③이 이 한 요소에서 상호 배타 → 낮은 번호 채택).</td></tr>
+    <tr><td><b>A④</b> 경과 시계</td><td><b>구현(그 요소만)</b></td><td>두 자리 모두: <code>active</code> = <code>runs.started_at</code> 기준 「N분째 달리는 중」(라이브 위젯) · <code>runner_enroute</code> + <code>arrived_at</code> = 「N분째 문 앞이에요」(히어로 서브라인, 지각 문장에도). 값이 없거나 1분 미만이면 절이 통째로 빠진다 — 「0분째」도, 추측한 도착도 없다. <b>A/B 재정은 건드리지 않았다</b>: 코랄이 언제 켜지는가는 여전히 <code>docs/decisions/handoff-cta-gating.md</code> 대기이고, 칩·버튼·상태 판정은 한 줄도 바뀌지 않았다 (랩 ④의 두 프레임이 공통으로 더한 요소가 이 절이라 어느 쪽으로 결정돼도 살아남는다).</td></tr>
+    <tr><td><b>A</b> 한글 서체·크기·간격</td><td><b>구현</b></td><td>변형 프레임들이 그린 값으로: 히어로 상태 칩 13 → <b>14</b>(트래킹 1.4 → 0.6) · 지각 스트립 13 → <b>14</b>. 한글은 레터스페이스 라틴 킥커 면제를 타지 못한다 (DESIGN.md §3, 2026-08-10 감사 법). <code>profile-gaps.tsx</code>의 12.5pt는 파일 클레임 밖 → not_built.</td></tr>
+    <tr><td><b>B①</b> 다가오는 순서</td><td><b>구현</b></td><td>미래는 가까운 순, 지난 것은 <b>지난 일정</b> 구분선 아래로 최근 순. 그룹 라벨에 상대 앵커(<b>오늘</b> · <b>내일</b> · D-n, D만 Oswald). 헤더는 「다가오는 N건 · 전체 M건」. 지난 카드는 소인도 공유 행도 그대로 — 정리는 숨김이 아니다.<br><b>⚠ 20행 창은 못 고쳤다</b>(코드 주석에 명시): <code>fetchMyBookings</code>가 DESC + <code>limit(20)</code>이라 미래 예약 20건 초과 계정은 <b>가장 가까운 건이 애초에 도착하지 않는다</b>. 클라이언트 정렬로 되찾을 수 없는 행이라 읽기를 바꾸는 별도 슬라이스다 (api_needs).</td></tr>
+    <tr><td><b>B②</b> 지금 밴드</td><td><b>구현</b></td><td>목록 위 밴드, 게이트는 이 파일이 이미 갖고 있던 <code>LIVE_RAW</code>. 문장은 rawStatus마다 하나: <code>active</code>(+경과, 실시간 보기) · <code>picked_up</code>(버튼 없음 — 아직 출발 전) · <code>runner_enroute</code>는 <code>arrived_at</code> 유무로 「도착했어요(+N분째)」/「픽업으로 이동 중이에요」. 진행 중 행은 목록에서 빠지지만 밴드는 <b>필터 칩과 무관하게 항상</b> 그려지고 행 전체가 관리 시트로 가는 문이라 이동 중 취소(0066 50% 티어) 경로가 살아 있다. 빈 목록 문구에 세 번째 갈래를 더했다.<br><b>⚠ 도착에 인계 CTA를 붙이지 않았다</b> — 그건 A④의 A/B 재정이고, 랩 B②의 의존성 노트가 「④가 안 골렸으면 두 갈래만」이라고 적은 그대로 사실만 말한다.</td></tr>
+  </table>
+  <div class="hairline"></div>
+  <b>고르지 않은 것은 그대로 두었다:</b> A②(이번 주 스트립) · B③(문 하나) · B④(완료 행의 돈) —
+  코드 한 줄도 건드리지 않았다. 열린 질문 2·5·6·9는 여전히 열려 있다.
+</div>
+
 </div></body></html>
