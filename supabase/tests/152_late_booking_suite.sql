@@ -205,6 +205,8 @@ declare
   b47a uuid; b47b uuid; b47c uuid;                     -- [L48/L48b] ruling 4B, 2026-08-24
   v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint; b49 uuid; b50 uuid;
   b_r1a uuid; b_r1b uuid; v_fee_r1 int;   -- [R1] the service_role cancel arms (L47)
+  b_r2 uuid; b_r5 uuid; b_r7 uuid; b_r8 uuid; b_r9 uuid; b_r3 uuid;  -- [R2/R5/R7/R8/R9/R3]
+  v_dupes text; v_open boolean;
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -1920,6 +1922,211 @@ begin
   exception when others then
     begin reset role; exception when others then null; end;
     call _fail('lb', 'L47 R1 서비스롤 취소 경로', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L49] R2 — a STARTED run is never terminated by the check-in clock
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Entry into the protocol is pre-custody-only; RESOLUTION never was. A check-in armed before
+  -- the handoff follows the booking across it, and nothing closes it at the handoff line, so the
+  -- deadline arm was terminating runs in progress. L12c already pins the picked_up case and stays
+  -- green, which is exactly why this pin has to exist: the defect lives in `active`, and no
+  -- existing arm reached it. incident_review on a marketplace booking has NO money exit.
+  b_r2 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b_r2);
+  update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now(),
+                      status = 'picked_up' where id = b_r2;
+  update bookings set status = 'active' where id = b_r2;
+  update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+   where booking_id = b_r2;
+  perform late_booking_sweep();
+  begin
+    v_bad := '';
+    select b.status::text into v_st from bookings b where b.id = b_r2;
+    if v_st is distinct from 'active' then v_bad := v_bad || ' 진행 중 러닝의 상태가 움직였다=' || v_st; end if;
+    select bc.resolution into v_res from booking_checkins bc where bc.booking_id = b_r2;
+    if v_res is distinct from 'superseded' then v_bad := v_bad || ' resolution=' || coalesce(v_res,'null'); end if;
+    if exists (select 1 from booking_faults where booking_id = b_r2) then v_bad := v_bad || ' 진행 중인데 과실'; end if;
+    -- the safety push is for a dog that needs checking, not for a healthy one mid-walk
+    select count(*) into v_n from notifications where ref_id = b_r2 and title = '확인이 필요해요';
+    if v_n is distinct from 0 then v_bad := v_bad || ' 건강한 러닝에 안전 알림=' || v_n; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L49 R2 — 인계 전 걸린 체크인이 인계선을 넘어가도 **진행 중 러닝**(active)은 종결시키지 않는다: superseded 로 닫고 상태는 active 그대로, 과실 없음, 안전 알림 없음 (incident_review 는 마켓플레이스 출구가 없다 — 러너가 개를 데리고 나가 있는데 영영 정산 불가)');
+    else call _fail('lb', 'L49 R2 진행 중 러닝 보호', v_bad); end if;
+  exception when others then call _fail('lb', 'L49 R2 진행 중 러닝 보호', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L50] R5 — a clock never writes no_show over evidence that the runner showed up
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- §9 arm ② already refuses to waive the runner's 50% when arrived_at or a handoff stamp is on
+  -- the row. The resolver read none of them and could write no_show, which is irreversible and
+  -- makes record_enroute_cancel_comp — the ONLY writer of that ₩12,450 — unreachable forever,
+  -- because no_show -> cancelled_owner is not a legal edge. L31 pins the entitlement; it never
+  -- runs the sweep, so it was vacuous the moment the flag went on.
+  b_r5 := t_av_booking(oo, dg, rt, rr, now() - interval '4 hours', 5.0, 'runner_enroute');
+  update bookings set arrived_at = now() - interval '3 hours 30 minutes' where id = b_r5;
+  perform late_booking_sweep();
+  begin
+    v_bad := '';
+    select b.status::text into v_st from bookings b where b.id = b_r5;
+    if v_st = 'no_show' then v_bad := v_bad || ' 도착 증거 위에 no_show (러너 12450 이 영구히 도달 불가)';
+    elsif v_st is distinct from 'incident_review' then v_bad := v_bad || ' status=' || v_st; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L50 R5 — 도착 표시가 찍힌 예약을 실링이 no_show 로 닫지 않는다: incident_review (사람이 복구 가능, 돈은 그대로) — 타이머가 러너의 0066 보상을 지우지 못한다');
+    else call _fail('lb', 'L50 R5 증거 위의 종점', v_bad); end if;
+  exception when others then call _fail('lb', 'L50 R5 증거 위의 종점', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L51] R7 — one recorded 진행하겠습니다 + the other side's silence is not a no-show
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- v_both_proceed needs BOTH, so a one-sided answer skipped the renewal and was terminated at
+  -- ~T+1h, two hours under Sean's ceiling, on the strength of the OTHER party's silence (D5).
+  -- The client author had already documented this as 「엣지가 아니라 정상 경로」.
+  b_r7 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b_r7);
+  perform set_config('request.jwt.claim.sub', rr::text, false);
+  v_js := answer_checkin(b_r7, 'runner', 'proceeding');
+  perform set_config('request.jwt.claim.sub', '', false);
+  update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+   where booking_id = b_r7;
+  perform late_booking_sweep();
+  begin
+    v_bad := '';
+    select b.status::text into v_st from bookings b where b.id = b_r7;
+    if v_st = 'no_show' then v_bad := v_bad || ' 기록된 진행 진술 위에 no_show (D5 위반)';
+    elsif v_st is distinct from 'runner_enroute' then v_bad := v_bad || ' status=' || v_st; end if;
+    select bc.resolved_at is null, bc.deadline_at into v_open, v_dl
+      from booking_checkins bc where bc.booking_id = b_r7;
+    if not v_open then v_bad := v_bad || ' 체크인이 닫혔다'; end if;
+    if v_dl <= now() then v_bad := v_bad || ' 마감이 갱신되지 않았다=' || v_dl; end if;
+    -- and the renewal is bounded by Sean's ceiling, not by a fourth number
+    if v_dl > late_ceiling_at(now() - interval '40 minutes') then v_bad := v_bad || ' 갱신이 실링을 넘겼다'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L51 R7 — 한쪽만 진행하겠다고 답하고 다른 쪽이 침묵하면 종결이 아니라 **갱신**: 체크인은 열린 채, 마감은 미래로, 갱신 상한은 Sean 의 3시간 실링 (타이머가 기록된 인간 진술을 뒤집지 않는다, D5)');
+    else call _fail('lb', 'L51 R7 한쪽 진행 진술', v_bad); end if;
+  exception when others then
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('lb', 'L51 R7 한쪽 진행 진술', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L52] R8 — the handoff step-aside actually steps aside, and the ceiling still fires
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- It used to CLOSE the row as 'superseded' while its own comment promised the next tick would
+  -- re-evaluate. Nothing did: every sweep arm, answer_checkin and state_after_the_fact all refuse
+  -- a resolved row, so one stamp evicted the booking from the protocol permanently — still priced
+  -- at the live 50% arm, and Sean's ceiling never fired for it.
+  b_r8 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b_r8);
+  update bookings set owner_confirmed_handoff_at = now() where id = b_r8;   -- ONE stamp
+  update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+   where booking_id = b_r8;
+  perform late_booking_sweep();
+  begin
+    v_bad := '';
+    select bc.resolved_at is null into v_open from booking_checkins bc where bc.booking_id = b_r8;
+    if not v_open then v_bad := v_bad || ' 비켜서기가 행을 닫았다 (다음 틱이 재평가할 수 없다)'; end if;
+    select b.status::text into v_st from bookings b where b.id = b_r8;
+    if v_st is distinct from 'runner_enroute' then v_bad := v_bad || ' 비켜서기인데 상태가 움직였다=' || v_st; end if;
+    -- …and the ceiling is NOT swallowed by the same step-aside: age it past 3h and sweep again
+    update bookings set scheduled_at = now() - interval '4 hours' where id = b_r8;
+    update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+     where booking_id = b_r8;
+    perform late_booking_sweep();
+    select b.status::text into v_st from bookings b where b.id = b_r8;
+    if v_st = 'runner_enroute' then v_bad := v_bad || ' 실링이 영영 안 온다 (R8 재발)';
+    elsif v_st = 'no_show' then v_bad := v_bad || ' 도장 위에 no_show (증거를 타이머가 덮었다)';
+    elsif v_st is distinct from 'incident_review' then v_bad := v_bad || ' 실링 종점=' || v_st; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L52 R8 — 도장 하나짜리 인계 진행 중에는 시계가 **행을 닫지 않고** 비켜선다(다음 틱이 재평가), 그러나 실링에서는 비켜서지 않고 incident_review 로 종결한다 — 3시간짜리 인계는 진행 중이 아니라 썩은 것이고, 사람 진술 위에 no_show 는 여전히 금지');
+    else call _fail('lb', 'L52 R8 비켜서기/실링', v_bad); end if;
+  exception when others then call _fail('lb', 'L52 R8 비켜서기/실링', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L53] R9 — a deadline renewed after the cursor opened is not overrun
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- The resolver never re-read deadline_at. The sweep SELECTS on it; the renewal moves it forward
+  -- WITHOUT setting resolved_at, so neither the early-out nor the CAS backed off. Here the
+  -- renewal is simulated directly: a check-in whose deadline is in the FUTURE must survive a
+  -- 'deadline' resolution, which is what a renewal that committed mid-batch looks like.
+  b_r9 := t_av_booking(oo, dg, rt, rr, now() - interval '40 minutes', 5.0, 'runner_enroute');
+  perform open_checkin(b_r9);
+  update booking_checkins set deadline_at = now() + interval '30 minutes', version = version + 1
+   where booking_id = b_r9;
+  begin
+    v_bad := '';
+    perform _resolve_checkin(b_r9, 'deadline');     -- the tick that was already in flight
+    select bc.resolved_at is null into v_open from booking_checkins bc where bc.booking_id = b_r9;
+    if not v_open then v_bad := v_bad || ' 갱신된 체크인을 낡은 틱이 닫았다'; end if;
+    select b.status::text into v_st from bookings b where b.id = b_r9;
+    if v_st is distinct from 'runner_enroute' then v_bad := v_bad || ' status=' || v_st; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L53 R9 — 마감을 락 아래서 다시 읽는다: 커서가 열린 뒤 갱신된 체크인은 이미 날아온 deadline 틱이 죽이지 못한다 (두 사람이 3초 전에 확인한 예약에 「응답이 확인되지 않아…」를 보내지 않는다, D5)');
+    else call _fail('lb', 'L53 R9 낡은 틱', v_bad); end if;
+  exception when others then call _fail('lb', 'L53 R9 낡은 틱', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L55] R3 — the repair sweep does not reach back before the flags
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- §9e had only an UPPER time bound. The flag gates WHEN the sweep starts, not WHICH rows it
+  -- selects, so the first tick after the flip reached over all of history and minted chargeable
+  -- intents for cancellations people were told cost nothing — unattended, within ten minutes.
+  -- ⚠ The row cannot be AGED: `t_bookings_touch` rewrites updated_at on every write, and inside
+  -- one transaction now() is frozen, so every row this suite writes is stamped with the same
+  -- instant. L44 solves the identical problem for the upper bound by injecting a NEGATIVE grace
+  -- window; the lower bound is the mirror image, so move the FLAG instead of the row — a protocol
+  -- that goes live one minute from now makes everything already written "pre-flag". Same
+  -- inversion, same reason.
+  b_r3 := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+  update bookings set status = 'cancelled_owner', cancel_fee = 12450 where id = b_r3;
+  delete from ledger_items where booking_id = b_r3;                -- the worker died here (as L44)
+  perform set_config('app.cancel_gap_grace', '-1 minutes', true);
+  update ops_flags set late_protocol_live_since = now() + interval '1 minute', updated_at = now();
+  perform sweep_cancel_money_gaps();
+  begin
+    v_bad := '';
+    if exists (select 1 from ledger_items li where li.booking_id = b_r3)
+      then v_bad := v_bad || ' 플래그 이전 취소에 소급 원장'; end if;
+    -- belt, and honestly labelled as one: mint_cancel_fee_intent is already inert while charging
+    -- is off (0080 §E), so this arm cannot fail today. It is here for the day payments go live.
+    if exists (select 1 from payments pm where pm.booking_id = b_r3)
+      then v_bad := v_bad || ' 플래그 이전 취소에 소급 청구 인텐트'; end if;
+    -- ANTI-VACUITY, and it is the half that matters: with the flag genuinely in the past the SAME
+    -- row IS repaired. Without this the pin would pass just as happily against a sweep that does
+    -- nothing at all, which is the failure mode L47 had this morning.
+    update ops_flags set late_protocol_live_since = now() - interval '1 day', updated_at = now();
+    perform sweep_cancel_money_gaps();
+    if not exists (select 1 from ledger_items li where li.booking_id = b_r3)
+      then v_bad := v_bad || ' 하한을 통과해도 수리되지 않는다 — 핀이 공허하다'; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L55 R3 — 수리 스윕에 **하한**이 있다: 플래그 이전의 취소는 소급 원장도 청구 인텐트도 얻지 않고, 플래그 이후의 같은 행은 여전히 수리된다 (플래그는 스윕이 언제 도는지를 정할 뿐 어느 행을 고르는지를 정하지 않았다 — 그게 소급 청구 기계였다)');
+    else call _fail('lb', 'L55 R3 소급 청구', v_bad); end if;
+  exception when others then call _fail('lb', 'L55 R3 소급 청구', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L54] pin labels are unique — asserted over what was actually EMITTED
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Two sessions independently took the next free number (L47) an hour apart, both in good faith.
+  -- It is the migration-number collision one layer down and the pin namespace has no hook watching
+  -- it. What makes it worth a pin rather than a note: a duplicate label DOES NOT FAIL THE HARNESS.
+  -- Two arms simply report under one token, the suite stays green, and every mutation map citing
+  -- `RED=[L47]` becomes permanently ambiguous — the corruption lands in the RECORD, not the code,
+  -- which is the direction nobody notices.
+  -- Asserted over `_t` — the labels as they were actually emitted — not over a declared list: ours
+  -- collided in the emitted strings, and a list-based check passes happily while two arms print
+  -- the same token. This is its own pin, never a condition inside another, because a guard that
+  -- only runs when something else already failed is the shape that teaches people to ignore guards.
+  begin
+    v_bad := '';
+    select string_agg(tok || '×' || cnt, ', ' order by tok) into v_dupes
+    from (
+      select substring(t.name from '^L[0-9]+[a-z]?') as tok, count(*) as cnt
+      from _t t where t.suite = 'lb' and t.name ~ '^L[0-9]+'
+      group by 1 having count(*) > 1
+    ) d;
+    if v_dupes is not null then v_bad := ' 중복 핀 라벨: ' || v_dupes; end if;
+    if v_bad = '' then
+      call _pass('lb', 'L54 핀 라벨은 유일하다 — 방출된 문자열 기준. 중복 라벨은 하네스를 붉게 만들지 않고 조용히 변이 지도를 영구히 모호하게 만든다 (2026-08-24 두 세션이 한 시간 차로 L47 을 동시에 집었다)');
+    else call _fail('lb', 'L54 핀 라벨 유일성', v_bad); end if;
+  exception when others then call _fail('lb', 'L54 핀 라벨 유일성', sqlerrm); end;
 
   -- restore the shipped default: the clock leaves this suite exactly as it deploys — OFF
   update ops_flags set late_protocol_live_since = null, updated_at = now();

@@ -492,12 +492,17 @@ declare
   b record; c record;
   v_custody text; v_resolution text; v_terminal text;
   v_any_cannot boolean; v_both_proceed boolean; v_backfill boolean := false;
+  -- [R5/R7/R8] evidence that a human did something, and the one-sided-proceeding case
+  v_evidence boolean; v_one_proceed boolean; v_renew_to timestamptz;
   v_lot_ids uuid[]; v_lot_exp timestamptz[];
 begin
   if p_cause not in ('answer', 'deadline', 'ceiling') then raise exception 'bad_cause'; end if;
 
   select bk.id, bk.status::text as status, bk.scheduled_at, bk.owner_id, bk.runner_id,
-         bk.club_session_id, bk.owner_confirmed_handoff_at, bk.runner_confirmed_handoff_at
+         bk.club_session_id, bk.owner_confirmed_handoff_at, bk.runner_confirmed_handoff_at,
+         -- [R5] arrived_at was NEVER read here, while §9 arm ② already treats it as the evidence
+         -- that stops a timer stripping the runner's 0066 entitlement. One rule, one input.
+         bk.arrived_at
     into b
   from bookings bk where bk.id = p_booking for update;              -- ① bookings lock
   if b.id is null then raise exception 'not_found'; end if;
@@ -528,6 +533,20 @@ begin
   if c.resolved_at is not null then return; end if;   -- already resolved — back off silently
                                                       -- (the CAS below is the second belt)
 
+  -- ⚠ [R9] THE DEADLINE IS RE-READ UNDER THE LOCK, and until now it never was. The sweep SELECTS
+  -- on `deadline_at <= now()` (§8 arm ⓐ) and the resolver then never looked at the column again,
+  -- so a renewal that committed between the cursor opening and this row being reached was
+  -- invisible: the renewal moves `deadline_at` forward WITHOUT setting `resolved_at`, so neither
+  -- the early-out above nor the CAS below backs off — the CAS re-reads `c` under the lock and
+  -- matches the renewed version happily.
+  -- Concrete: 11:03:00 the cursor includes the booking · 11:03:01 both parties tap 진행할게요 and
+  -- `answer_checkin` renews to 11:33 · 11:03:04 the loop reaches the row and terminates it. Both
+  -- humans get 「응답이 확인되지 않아…」 about a booking they confirmed three seconds earlier —
+  -- a timer overruling two recorded statements, which is D5 in its sharpest form.
+  -- Only 'deadline' is gated: 'ceiling' is a different clock and legitimately fires on a booking
+  -- whose deadline is still in the future, and 'answer' has no deadline semantics at all.
+  if p_cause = 'deadline' and c.deadline_at > now() then return; end if;
+
   -- custody re-read under the lock (FM6) — the terminal is chosen by where the dog is NOW,
   -- not by where it was when the clock fired. D3: no_show is pre-custody vocabulary only;
   -- past the handoff the honest terminal is incident_review, and enforce_booking_transition
@@ -546,30 +565,90 @@ begin
   -- humans had both confirmed the dog changed hands. ONE stamp means a handoff is HAPPENING;
   -- the clock steps aside and lets it finish (the next tick re-evaluates, and by then the
   -- promotion has either landed — post-custody — or the row is genuinely stale again).
-  if p_cause in ('deadline', 'ceiling')
+  -- ⚠ [R8, 2026-08-24] TWO CORRECTIONS TO THIS STEP-ASIDE, which promised one thing and did another.
+  -- (a) It CLOSED the row (`resolved_at`, `resolution='superseded'`) while its own comment above
+  --     promised "the clock steps aside and lets it finish (the next tick re-evaluates)". Nothing
+  --     re-evaluated: arm ⓐ needs `resolved_at is null`, ⓑ excludes a resolved check-in, ⓒ excludes
+  --     any booking with a check-in row, `answer_checkin` raises `checkin_resolved`, and
+  --     `state_after_the_fact` raises `nothing_left_open` because 'superseded' is not admitted.
+  --     One stamp therefore evicted the booking from the protocol PERMANENTLY — it sat at
+  --     `runner_enroute` forever, still priced at the live 50% arm, and Sean's 3-hour ceiling
+  --     never fired for it. A step-aside that closes the row is not a step-aside. Now a bare
+  --     `return`: the row stays open and the next tick genuinely re-evaluates.
+  -- (b) It also caught `p_cause = 'ceiling'`, which is what made (a) permanent rather than merely
+  --     slow. A handoff has not been "in flight" for three hours — at the ceiling a one-stamp
+  --     booking is rotted, not mid-handoff, and the ceiling exists precisely to end it. So the
+  --     step-aside is DEADLINE-ONLY, and the ceiling arm below terminates it — to
+  --     `incident_review`, never `no_show`, because a human's stamp is on the row (see v_evidence).
+  if p_cause = 'deadline'
      and (b.owner_confirmed_handoff_at is not null or b.runner_confirmed_handoff_at is not null)
      and v_custody <> 'post' then
-    update booking_checkins
-       set resolved_at = now(), resolution = 'superseded', version = c.version + 1
-     where booking_id = p_booking and resolved_at is null and version = c.version;
     return;
   end if;
 
+  -- ⚠ [R5] EVIDENCE THAT A HUMAN SHOWED UP OR ATTESTED. §9's arm ② already refuses to waive the
+  -- runner's 50% when any of these is set — "the TIMER waives only when nothing says the runner
+  -- showed up" — but the resolver, four hundred lines away, read none of them and could write the
+  -- irreversible `no_show` that makes `record_enroute_cancel_comp` unreachable forever. Same
+  -- three columns, same rule, one place to change it.
+  v_evidence := b.arrived_at is not null
+             or b.owner_confirmed_handoff_at is not null
+             or b.runner_confirmed_handoff_at is not null;
+
   v_any_cannot   := c.owner_answer = 'cannot_proceed' or c.runner_answer = 'cannot_proceed';
   v_both_proceed := c.owner_answer = 'proceeding' and c.runner_answer = 'proceeding';
+  -- [R7] exactly one side spoke, and what they said was 'proceeding'.
+  v_one_proceed  := (c.owner_answer = 'proceeding' and c.runner_answer is null)
+                 or (c.runner_answer = 'proceeding' and c.owner_answer is null);
+
+  -- ═══ THE TERMINAL RULES, stated once because three arms below share them ═══════════════════
+  -- ⚠ [R2] POST-CUSTODY IS NOT ONE CASE. `active` and `picked_up` are different facts and only
+  -- one of them is an incident. A check-in armed BEFORE the handoff follows the booking across
+  -- it — entry is pre-custody-only but RESOLUTION never was, and nothing closes an open check-in
+  -- at the handoff line — so a run that started at 10:45 was being terminated at 11:03.
+  -- `incident_review` on a marketplace booking has NO money exit (0083 §0h, and 0072's exit is
+  -- club-only): measured on that row, `end_run_tx` → not_active, `confirm_return_tx` →
+  -- run_not_ended, `→ completed` → invalid booking transition, ledger_items 0, and
+  -- `ops_unsettled_runs()` cannot even SEE it because its predicate needs `ended_at is not null`
+  -- on a run that can never end. The runner walks the dog and can never be paid; both parties get
+  -- a SAFETY push about a healthy dog. 0083:1443-1445 refuses this same escalation for this same
+  -- reason.
+  --   · status 'active'    → the run started. Write NO terminal; run-end machinery owns it.
+  --                          ('superseded' — the same conclusion the both-proceeding arm already
+  --                           reached, now applied to every arm instead of one.)
+  --   · status 'picked_up' → dog collected, nothing started. That IS the genuine incident.
+  -- ⚠ [R5] AND A CLOCK MAY NEVER WRITE `no_show` OVER EVIDENCE. `no_show` is irreversible
+  -- (0066:56) and it makes `record_enroute_cancel_comp` — the ONLY writer of the runner's
+  -- ₩12,450 — permanently unreachable, because `no_show -> cancelled_owner` is not a legal edge.
+  -- A runner who drove out and stamped 도착 would be paid ₩0 by a timer, which is the exact strip
+  -- §9 arm ② exists to prevent. With evidence on the row the honest clock-caused terminal is
+  -- `incident_review`: recoverable by a human, and it moves no money by itself.
+  -- (`runner_enroute → incident_review` is a legal edge in 0066 §1; `confirmed →` is not, which is
+  --  why the evidence branch is reachable only from `runner_enroute` — a `confirmed` booking has
+  --  no arrived_at and no stamps by construction.)
 
   if v_custody = 'out' then
     v_resolution := 'superseded';
-  elsif p_cause = 'ceiling' then
-    if v_custody = 'pre' then
-      v_resolution := case when v_backfill then 'ceiling_backfill' else 'ceiling' end;
-      v_terminal := 'no_show';
+  elsif v_custody = 'post' then
+    -- [R2] one rule for every post-custody cause, instead of three arms disagreeing.
+    if b.status = 'active' then
+      v_resolution := 'superseded';                     -- the run DID start; run-end owns it
     else
-      v_resolution := 'superseded';                     -- picked up while the arm ran: started
+      v_resolution := case
+                        when p_cause = 'ceiling' then (case when v_backfill then 'ceiling_backfill' else 'ceiling' end)
+                        when v_any_cannot         then 'cannot_proceed'
+                        else 'void'
+                      end;
+      v_terminal   := 'incident_review';                -- picked_up, nothing started
     end if;
+    if p_cause = 'answer' and not v_any_cannot then return; end if;   -- silence is not a verdict
+  elsif p_cause = 'ceiling' then
+    v_resolution := case when v_backfill then 'ceiling_backfill' else 'ceiling' end;
+    -- [R5][R8] pre-custody at the ceiling: `no_show` only when NOTHING says a human acted.
+    v_terminal := case when v_evidence then 'incident_review' else 'no_show' end;
   elsif v_any_cannot then
     v_resolution := 'cannot_proceed';
-    v_terminal   := case v_custody when 'pre' then 'no_show' else 'incident_review' end;
+    v_terminal   := 'no_show';                          -- pre-custody; a party stated it
   elsif v_both_proceed then
     if p_cause = 'answer' then
       -- the renewal — bounded (FM3), one effective shot: answers are immutable, so no third
@@ -581,18 +660,41 @@ begin
        where booking_id = p_booking and resolved_at is null and version = c.version;
       return;
     end if;
-    -- deadline expired after both said proceeding:
-    if v_custody = 'pre' then v_resolution := 'void'; v_terminal := 'no_show';
-      -- FM3's second watchdog: they confirmed, then nothing started. No fault, no fee — a
-      -- 'proceeding' that never materialised is still not a statement of fault (D5).
-    else v_resolution := 'superseded';                  -- the run DID start; run-end owns it
-    end if;
+    -- deadline expired after both said proceeding (pre-custody; post was handled above):
+    -- FM3's second watchdog. They confirmed, then nothing started. No fault, no fee — a
+    -- 'proceeding' that never materialised is still not a statement of fault (D5).
+    v_resolution := 'void';
+    v_terminal   := case when v_evidence then 'incident_review' else 'no_show' end;   -- [R5]
   else
     -- silence / one-sided claims / mixed — only the deadline may resolve these (D5: the
     -- silent side keeps the whole window; an early answer is never a verdict on them).
     if p_cause = 'answer' then return; end if;
+
+    -- ⚠ [R7] ONE RECORDED 'proceeding' PLUS THE OTHER SIDE'S SILENCE IS NOT A NO-SHOW.
+    -- `v_both_proceed` requires BOTH, so a one-sided 'proceeding' skipped the renewal entirely
+    -- and fell straight in here — terminated at roughly T+1h, two hours under Sean's ceiling,
+    -- on the strength of the OTHER party's silence. D5 says a timer may not overrule a human's
+    -- recorded statement, and this is the modal path, not an edge: the client author had already
+    -- documented it as 「지각 프로토콜의 엣지가 아니라 정상 경로」 — runner answers 진행하겠습니다,
+    -- owner silent, deadline passes, `no_show`, and the runner is then bounced off their own
+    -- meetup screen because `no_show -> picked_up` is not a legal edge.
+    -- So: while the ceiling still allows it, renew instead of terminating. The renewal is bounded
+    -- by `least(now() + grace, ceiling_at)` — the same shape the both-proceeding arm uses — and it
+    -- is self-limiting WITHOUT a counter: once the ceiling is reached `least(...)` can no longer
+    -- exceed now(), the guard below fails, and this arm terminates like any other. The bound is
+    -- therefore Sean's ruled 3 hours rather than a fourth number invented here.
+    if v_one_proceed then
+      v_renew_to := least(now() + late_grace(), late_ceiling_at(b.scheduled_at));
+      if v_renew_to > now() then
+        update booking_checkins
+           set deadline_at = v_renew_to, version = c.version + 1
+         where booking_id = p_booking and resolved_at is null and version = c.version;
+        return;
+      end if;
+    end if;
+
     v_resolution := 'void';
-    v_terminal   := case v_custody when 'pre' then 'no_show' else 'incident_review' end;
+    v_terminal   := case when v_evidence then 'incident_review' else 'no_show' end;   -- [R5]
   end if;
 
   -- ─── the CAS, §12 verbatim: (resolved_at, version) ───────────────────────────────────────
@@ -1360,7 +1462,7 @@ begin
   if (select f.late_protocol_live_since from ops_flags f) is null then return 0; end if;
   if not pg_try_advisory_lock(hashtextextended('cancel_money_gaps', 0)) then return 0; end if;
   for r in
-    select b.id, b.cancel_reason,
+    select b.id, b.cancel_reason, b.updated_at,
            not exists (select 1 from ledger_items li where li.booking_id = b.id) as comp_missing,
            not exists (select 1 from payments pm where pm.booking_id = b.id)     as intent_missing
     from bookings b
@@ -1379,6 +1481,19 @@ begin
       -- give the request that owns this cancel time to finish its own writes; only rows that
       -- are STILL bare after the window are torn.
       and b.updated_at < now() - cancel_gap_grace()
+      -- ⚠ [R3, 2026-08-24] THE LOWER BOUND. Every temporal clause above it is an UPPER bound, and
+      -- without this line the sweep is precisely the retroactive-billing machine that
+      -- `sweep_settled_without_payments` names in its own header. The comment at the top of this
+      -- function claims the flag confines it to "what the protocol era produced" — IT DOES NOT.
+      -- The flag gates WHEN the sweep starts, not WHICH rows it selects, so the first tick after
+      -- the flip reaches back over all of history.
+      -- Reproduced: a 90-day-old `cancelled_owner` row (fee 2490, `owner_cancel_late`, no payments
+      -- row) acquired a pending ₩2,490 charge intent marked due for dispatch AND a retroactive
+      -- ₩1,245 runner ledger row on the first tick — and `cron.schedule('cancel-money-gaps',
+      -- '6-56/10 * * * *')` makes that unattended and inside ten minutes of the flip.
+      -- `mint_cancel_fee_intent` cannot save us here: 0080 says its anchor is `now()` "because a
+      -- cancel has no run to date it by", which is true only when it is called AT cancel time.
+      and b.updated_at >= (select f.late_protocol_live_since from ops_flags f)
     order by b.id
   loop
     begin
@@ -1393,7 +1508,18 @@ begin
       -- ZERO ROWS while charging is off (0080 §E), so this is inert pre-cutover and cannot
       -- double-mint after it. Dispatch stays with the edge/ladder — this only restores the
       -- intent the dying request never wrote.
-      if r.intent_missing then
+      -- [R3] THE SECOND BOUND, and it is a different line in time from the one in the row filter.
+      -- The protocol flip says which tears this sweep OWNS; the payments cutover says which of
+      -- them may be CHARGED. A cancel made after the protocol flip but before charging went live
+      -- was told it cost nothing, so minting an intent for it later is the same deploy-day
+      -- surprise one flag narrower. This mirrors `mint_settle_charge_intent`'s own
+      -- `pilot-era run: free, forever` guard rather than inventing a second rule.
+      -- Belt and braces on purpose: 0080 §E already makes the mint return zero rows while
+      -- charging is off, but that is a property of another file that this sweep must not depend
+      -- on to avoid billing someone retroactively.
+      if r.intent_missing
+         and (select f.payments_live_since from ops_flags f) is not null
+         and r.updated_at >= (select f.payments_live_since from ops_flags f) then
         perform mint_cancel_fee_intent(r.id);
       end if;
       n := n + 1;
