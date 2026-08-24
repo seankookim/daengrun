@@ -312,17 +312,34 @@ begin
         execute 'select trace from runs limit 1';
         v_bad := v_bad || ' ' || v_msg || ' 이(가) runs.trace를 직접 읽었다';
       exception when insufficient_privilege then null; end;
-      -- the three shipped client query shapes must all survive (0088/0091's outage direction)
-      begin execute 'select photos, booking_id from runs limit 1';
-      exception when others then v_bad := v_bad || ' ' || v_msg || ' photos/booking_id 실패: ' || sqlerrm; end;
-      begin execute 'select started_at, pace_suggest_sec from runs limit 1';
-      exception when others then v_bad := v_bad || ' ' || v_msg || ' started_at/pace 실패: ' || sqlerrm; end;
-      begin execute 'select booking_id, actual_km, settled_at, events, end_reason, condition_note, duration_sec, avg_pace_sec_per_km, id, ended_at from runs limit 1';
-      exception when others then v_bad := v_bad || ' ' || v_msg || ' 화이트리스트 잔여 컬럼 실패: ' || sqlerrm; end;
+      -- ⚠ FIXED at first measurement (2026-08-24): the whitelist-readability half runs for
+      -- authenticated ONLY. As written it asserted anon could read the whitelist columns — and
+      -- that was FALSE IN PRODUCTION when written: measured live, anon holds no EXECUTE on
+      -- is_booking_party (authenticated does), so the "runs party read" policy itself refuses
+      -- every anon read of runs at the executor. anon's runs access is closed by a different
+      -- door, one migration older than this file, and the client's three query shapes are all
+      -- authenticated. The pin was asserting a world that never existed — the harness faithfully
+      -- reproduced production and went red on the pin, not the code.
+      if v_msg = 'authenticated' then
+        -- the three shipped client query shapes must all survive (0088/0091's outage direction)
+        begin execute 'select photos, booking_id from runs limit 1';
+        exception when others then v_bad := v_bad || ' ' || v_msg || ' photos/booking_id 실패: ' || sqlerrm; end;
+        begin execute 'select started_at, pace_suggest_sec from runs limit 1';
+        exception when others then v_bad := v_bad || ' ' || v_msg || ' started_at/pace 실패: ' || sqlerrm; end;
+        begin execute 'select booking_id, actual_km, settled_at, events, end_reason, condition_note, duration_sec, avg_pace_sec_per_km, id, ended_at from runs limit 1';
+        exception when others then v_bad := v_bad || ' ' || v_msg || ' 화이트리스트 잔여 컬럼 실패: ' || sqlerrm; end;
+      else
+        -- anon: EVERY runs read must refuse (the policy's own gate) — assert the closure rather
+        -- than skipping the role, so a future grant of is_booking_party to anon surfaces here.
+        begin
+          execute 'select photos, booking_id from runs limit 1';
+          v_bad := v_bad || ' anon이 runs 화이트리스트를 읽었다 (is_booking_party가 anon에 열렸나)';
+        exception when others then null; end;
+      end if;
       execute 'reset role';
     end loop;
     if v_bad = '' then
-      call _pass('loc','L10 원본 컬럼이 닫혔다 — anon도 authenticated도 runs.trace를 직접 읽지 못하고, 나머지 13개 컬럼(클라이언트가 실제로 쏘는 세 가지 질의 형상 전부)은 그대로 읽힌다. 과잉 회수는 필드를 숨기는 게 아니라 요청 전체를 403으로 만든다(0088→0091)');
+      call _pass('loc','L10 원본 컬럼이 닫혔다 — 두 클라 역할 다 runs.trace를 직접 읽지 못하고, authenticated의 세 가지 실제 질의 형상은 그대로 읽히며, anon은 runs 전체가 정책 게이트에서 거절된다(프로덕션 측정과 일치). 과잉 회수는 필드를 숨기는 게 아니라 요청 전체를 403으로 만든다(0088→0091)');
     else v_msg := v_bad; call _fail('loc','L10 원본 컬럼이 닫혔다', v_msg);
     end if;
   exception when others then execute 'reset role'; call _fail('loc','L10 원본 컬럼이 닫혔다', sqlerrm); end;
