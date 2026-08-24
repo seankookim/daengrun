@@ -1,297 +1,155 @@
-# HANDOFF — client domain (`app/`), written 2026-08-21 afternoon
+# HANDOFF — client domain (`app/`), written 2026-08-21 night
 
-**Read with this, in order:** `docs/plans/2026-08-20-client-gap-straightening.md` (the 60-item
-inventory + ENDING STATE + Q7–Q10) · `docs/decisions/awaiting-sean.md` · `DESIGN.md` (tokens, laws) ·
-`CLAUDE.md` (permanent laws — **§Process was corrected this session, see §6**) ·
-`docs/labs/RULINGS-2026-08-19-journey.md` (his verbatim rulings) · `docs/session-handoff.md`
-(fleet-wide, announcer-owned — **do not edit**) · `~/.claude/skills/inherited-claims/SKILL.md`
-(written this session; its §4 is about this session's own biggest mistake).
+**Read in order:** this file · `docs/plans/2026-08-21-late-booking-protocol.md` (the protocol, its
+§12 server contract, and the **AMENDMENT at §12** you must not undo) · `CLAUDE.md` ·
+`docs/handoff-codex/` · `~/.claude/skills/inherited-claims/SKILL.md` (written this session; its §4
+is about this session's own repeated mistake).
 
-Domain: **client — all of `app/`**. Never write a migration or touch `supabase/` (reading it to
-verify a claim is fine and was necessary this session — see §6).
-This file **replaces** the 2026-08-21-morning version; git history is the archive.
+Domain: **client — all of `app/`**. Never write a migration. Reading `supabase/` to verify a claim
+is required and was done constantly.
 
 ---
 
-## 1. Status table
+## 1. Status
 
-| System | State | Tag |
-|---|---|---|
-| Trunk | `redesign-v4` @ **`d595ad4`**; 17 commits landed this session, branch 0 ahead / 0 behind | **[verified-now]** |
-| **`app/test/` suites** | **NEW — app/ had none.** `run-lateness-tests.sh` (33, mutation-verified 3 ways) · `run-kst-tests.sh` (14 under TZ=UTC + 15 under TZ=Asia/Seoul in one invocation) | **[verified-now]** |
-| MAIN CHECKOUT `/Users/sean/dev/daengrun` | clean, **still 3+ behind origin** — I deliberately never fast-forwarded it (§5) | **[verified-now]** |
-| `tsc --noEmit` | clean | **[verified-now]** |
-| `check-rpc-contracts.mjs` | ✅ 95 calls / 165 signatures | **[verified-now]** |
-| `check-route-native-imports.mjs` | ✅ 57 routes | **[verified-now]** |
-| `check-embed-fk.mjs` | ✅ 1 pair · 109 files | **[verified-now]** |
-| `npm run lint --quiet` | **270 problems, 6 errors** = baseline. I broke it to 7 once and fixed it (§6) | **[verified-now]** |
-| iOS simulator | 🔴 **App now RUNS on the sim from a worktree** — first time this session. Parked at role-select, see §4 | **[verified-now]** |
-| Hardware | 🔴 **still nothing, ever.** Everything below is code + gates + one simulator boot | **[verified-now]** |
-| Installed sim bundle id | **`com.seankookim.daengrun`** — the OLD id. The rename to `dogshigh` is config-only (§4) | **[verified-now]** |
-
----
-
-## 2. What shipped (9 commits, all on trunk, all five gates green each)
-
-| Commit | What |
+| | |
 |---|---|
-| `5a9315c` | **B9** — hero collapsed to 비어 있어요 while the dog was out |
-| `6b1a80c` | **E6** — request + reschedule composed write instants in device time |
-| `c87205e` | **CLAUDE.md** — "Ship" means push (§6) |
-| `ec00639` | **radar** — accept-detection navigating from a dead screen (**incomplete, see `a043490`**) |
-| `f21c442` | **lab** — post-first-run profile nudge, 4 placements, awaiting Sean's number |
-| `f94250e` | **E6 third site** — runner-profile was also composing locally |
-| `b318d08` | **B9 corrections** — my false server-invariant claim + stale-copy merge |
-| `1893372` | **reschedule** — 60min slot check vs km×8+25 acceptance |
-| `a043490` | **radar** — one lifecycle convention; `alive` had fixed a third of it |
-
-**B10 is a FALSE ITEM.** The plan lists `sealStampFresh` as consuming its token on call. It doesn't —
-already render-gated behind `consumedRef` + `report?.run`, `abb65c3d`, Sean, 2026-08-05, two weeks
-before the audit. The scout read the line number, not the effect. Do not "fix" it.
+| Trunk | `redesign-v4`, my ~35 commits landed, branch `claude/client-redesign-v4-work-3e224f` in sync |
+| Five gates | tsc 0 · rpc ✅ · route-native 57 ✅ · embed-fk ✅ · **lint 270 / 6 errors** (baseline) |
+| **`npm test`** | **NEW — six suites chained, green.** Was: nothing. Nobody ran the four that predate me |
+| Suites added | `lateness` (65) · `late-copy` (34) · `kst` (14 UTC + 15 Seoul) — all mutation-verified |
+| Simulator | app RUNS from a worktree; owner hero verified on screen twice |
+| Hardware | 🔴 still nothing, ever |
+| 0117 (server) | **NOT deployed, NOT landed.** Production is 0115/0116 |
 
 ---
 
-## 2-bis. The late-booking protocol (this session's second half)
+## 2. 🔴 READ THIS FIRST — a 36-agent audit found 20 confirmed defects, 2 are BLOCKERs
 
-CEO review + eng review done; stage 1 partly built. Read
-`docs/plans/2026-08-21-late-booking-protocol.md` — its `## GSTACK REVIEW REPORT` is the terminal
-section and carries the verdict plus the unresolved list.
+`/workflows` run `wf_a68ecb4d-309`, four lenses + adversarial verification (31 raised, 20 survived,
+11 refuted). Full report in that run's `journal.jsonl`. **Do not flip
+`ops_flags.late_protocol_live_since` before F1, F2, F3, F4 and F6 land** — every one is inert today
+and fires on the first late booking after the flip.
 
-**The finding:** `no_show` is a legal status that **nothing ever writes**, and the only expiry cron
-stops at the match, so a booking has **no clock after a runner accepts**. Sean's Aug 4 booking sat
-16 days because that is the designed behaviour, not an anomaly.
+**F1 · BLOCKER (server).** `_checkin_custody` requires BOTH handoff stamps for `'post'`. One stamp
+is the *normal interval*, not a failure. So: owner hands the dog over and taps 인계했어요, runner's
+phone dies → the deadline arm classifies `runner_enroute` as pre-custody and writes **`no_show` over
+the owner's own attestation**. `0066:56` makes that irreversible, the run can never settle, and
+`0075:750` fires a km release for a dog that is out walking.
 
-**Sean's decisions:** D1 two-sided check-in · D2 HOLD SCOPE · D3 split at the handoff line
-(`no_show` pre-custody, `incident_review` post — `0066:50` refuses `picked_up → no_show`) ·
-D4 money follows fault · D5 **silence never charges; fault needs a human statement**
-(0068 deleted a timer-driven refund on exactly this reasoning, and push is not evidence).
+**F2 · BLOCKER (server).** Entry is pre-custody-only; **resolution is not.** Sweep arm ⓐ selects on
+the check-in row alone, so a check-in armed at 10:33 resolves a run that started at 10:52 → a run 11
+minutes in flips to `incident_review`, which per `0097:80` has **no marketplace money exit**. I
+asserted the opposite in `late-copy.ts:33-35` — that post-custody never enters the protocol. Half
+true: entry doesn't, resolution does.
 
-**Built (T1-T4, T6):** `src/lib/lateness.ts` · `src/lib/kst.ts` · `src/components/late-notice.tsx` ·
-owner home hero + schedule sheet. Grace 30 / ceiling 3h are Sean's numbers (relayed).
+**F3 · HIGH (mine).** The 3-hour ceiling is **a sentence with no gate anywhere.** `resumable` has no
+mount consumer and no server rule enforces it. Sean's Aug-4 row shows 「이 예약은 진행할 수
+없어요」 with a coral 「픽업 이동 시작」 82 lines below — and `runner/meetup.tsx:184` fires
+`runnerEnroute()` from a **mount effect**, so merely opening the screen revives it. FM4 is not
+handled; the plan says it is.
 
-**`npm test` now exists and is green** — six suites, 228 assertions. Before today, both new suites
-AND the four that predate this session (pace, geo, route-geom, route-pick) only ran when someone
-typed their shell script by hand.
+**F4 · HIGH.** `runner/meetup.tsx:157`'s terminal guard is a **deny-list** that predates both new
+terminals. On the protocol's modal path (runner proceeding, owner silent) the runner stands on a
+`no_show` booking with a live 인계 확인 button and unbounded retry.
 
-**Three review rounds hit this slice and each found real defects in my own landed work.** The
-worst: my 「일정에서 정리하기」 button routed to `/owner/meetup`, whose handoff CTA opens for
-`runner_enroute` even with `arrived_at` null — a one-tap revival path for the 16-day booking, added
-in the same session as the ceiling meant to prevent it. Fixed at de7ae3d. Read that commit before
-trusting anything else here.
+**F5 · HIGH — one half FIXED TONIGHT.** The hero's handoff frame tells the owner to hand over a dog
+already handed over (`'handoff'` is written only after BOTH confirmations). It also carried **a live
+TDZ crash I introduced**: `openNext` read `isLate` declared 95 lines below the branch that returns
+first. **Crash fixed** (`isLate` hoisted above `openNext`). **The mislabelled frame is NOT fixed** —
+it is a UI change Sean should see.
 
-### Remaining, both fully scoped
-
-**R1 — `active` anchors to `scheduled_at`, not the real start.** A run scheduled 10:00 but started
-10:20 is called overdue 20 minutes early. `runs.started_at` is the trusted value and
-`fetchMyBookings` does not select it. ✅ **Verified safe to embed:** `runs.booking_id` is a SINGLE
-FK with `unique` (`0001_init.sql:236`), so `runs(started_at)` cannot hit the PGRST201 class that
-killed nomination (E1) — no FK qualifier needed, though `check-embed-fk` only polices `routes(`
-anyway. Touch points: `MY_BOOKING_SELECT` + `mapMyBooking` (api.ts), `Booking` (store.ts),
-`LateInput`/`lateness()` (lateness.ts), and the `active` branch's `due`. Add a case pinning
-"started late, not yet overdue".
-
-**R2 — T5, the two runner mounts.** `owner/schedule.tsx` (d595ad4) is the worked example, including
-why it passes NO `actions`. ⚠ `runner/home.tsx` carries the settled ① design — do not touch
-`liveOwnsCoral`; `runner/meetup.tsx`'s stage machine is FROZEN, additive render only.
-
-🔴 **A LIVE MONEY DEFECT, found while mounting and NOT fixed — it is server-side.**
-`0066:80` charges **50% of the fare** on a `runner_enroute` cancel, unconditional on time, above the
-24h arm, with no staleness carve-out. An owner cancelling a booking a runner abandoned two weeks ago
-pays half, as "runner compensation". The schedule sheet quotes it correctly (`cancelFeeRateFor`), so
-it is disclosed rather than hidden — but it is charged to the wrong party. The plan's FM7 said
-"Handled by D4/D5"; **that was wrong and is corrected** — D4/D5 govern the new protocol's terminals,
-this ladder is live today. Needs a fault dimension or a staleness carve-out in `supabase/`, so it is
-a second reason for the §0-quinvicies ruling.
-
-## 3. ⚠ Environment — a fresh worktree CANNOT run this app, and nothing said so
-
-Cost this session roughly an hour. All three are invisible until you try to run:
-
-1. **`node_modules`** — symlink from the main checkout, delete before committing. (Known.)
-2. **`.env` is gitignored.** Only `.env.example` comes across, so Metro bundles and then dies at
-   `supabase.ts:12` with `supabaseUrl is required`. Symlink it (do not copy — it is a credential
-   file you have no reason to read): `ln -sfn /Users/sean/dev/daengrun/app/.env app/.env`
-3. **The Metro cache is SHARED between worktrees**, because it lives inside the `node_modules` every
-   worktree symlinks to the same target. My Metro tried to bundle *another worktree's* `_layout.tsx`.
-   **Always `npx expo start --clear` after switching worktrees.**
-
-⚠ And the practice bites its own tail: **"delete the symlink before committing" leaves Metro dead
-for whoever comes next.** The previous session did exactly that and went offline; the simulator sat
-on a red screen for hours pointed at a worktree with no dependencies. If you delete it and stop
-working, say so, or restore it.
+F6-F20 (fee/reschedule doors, `RunnerJob` status arms, 112·119 copy, stale records) are in the
+journal with file:line, concrete failure, and cheapest fix for each.
 
 ---
 
-## 4. The simulator — running, and where it is parked
+## 3. §12 clauses that are satisfiable-but-wrong
 
-Metro now serves THIS worktree on :8081 and the app bundles clean (3580 modules). The sim is
-iPhone 17 Pro `F2FDB7D7-A669-4BBC-8EF4-677597F3851A`.
-
-**It is parked at role-select and I did not go further.** `session.role` is module state and is not
-persisted, so every cold launch lands there, and every screen worth verifying is behind it. Tapping
-either card is `index.tsx:25` writing `profiles.role` **on Sean's account row**. His standing order
-is never to press the onboarding CTA, so this is a blocking question, recorded in §7.
-
-⚠ **The installed binary is `com.seankookim.daengrun`, the OLD bundle id.** The rename to
-`com.seankookim.dogshigh` (`b6ee192`) is config-only — no native rebuild has happened. Consequence
-that will waste someone's afternoon: **the Naver appname fix at `13749af` sets appname to
-`dogshigh`, which does not match the installed app.** The Naver callback cannot be validly tested on
-this simulator until a native rebuild. A failure there today means nothing about the fix.
+The amendment at `§12` states the rule — **specify what a mechanism must REFUSE, not that it
+exists** — and the audit then applied it to my remaining clauses. **C1, C3, C4, C5** each name a
+mechanism and no refusal. **C2 (`§13:315`) is worse: it states the custody rule outright wrong**
+(`status ∈ picked_up|active → 'post'`), the server implemented something stricter, and client and
+server now disagree on the D3 line while both "conform". Exact replacement wording for all five is
+in the journal. **Apply them before round 5.**
 
 ---
 
-## 5. Things I deliberately did NOT do
+## 4. What happened to my conformance verdict
 
-- **Never fast-forwarded the main checkout.** Cutting from `origin/redesign-v4` needs no touch to it,
-  and the brief said keep it clean. It is clean and behind; that is intentional, not drift.
-- **Never touched `supabase/`.** I read migrations to verify a claim (§6) and wrote nothing. When the
-  announcer's fleet law asked every session to claim files in `supabase/migrations/REGISTRY.md`, I
-  refused — that is inside `supabase/`. The announcer now records client claims on our behalf.
-- **Never repaired the react-doctor hook.** Trigger still open. But **new data point, §8.**
-- **Never created a booking, never pressed onboarding, never typed a credential.** A throwaway sim
-  account was suggested; creating accounts and entering passwords are things I do not do. If Sean
-  makes one and leaves the sim logged in, the whole §7 question dissolves.
+I returned CONFORMS on `a984584`. A blind reviewer later found `fetch_checkin` and
+`quote_cancel_fee` gate with `elsif current_user not in ('service_role','postgres')` — under
+SECURITY DEFINER `current_user` IS the owner, so the predicate is always false and the gate never
+fires. **I quoted that exact block and passed it.**
+
+The lesson, now in `§12` and the announcer skill: **conformance review and security review are
+different questions, and passing one says nothing about the other.** I asked "does this match §12";
+§12 said "party-gated"; a gate was present. The verdict is **stale-in-scope, not withdrawn** — true
+of `a984584`, superseded, and NOT a live landing gate.
 
 ---
 
-## 6. Corrections — three against my own work, one against the law file
+## 5. ⚠ Environment — a fresh worktree cannot run this app
 
-**Against CLAUDE.md.** `:153` read *"Ship (commit; Sean pushes)"*. Stale since **2026-08-10**, when
-Sean granted `git push` at `:18`. The file contradicted itself in three places (`:18` grant · `:129`
-"unpushed work reserves nothing" · `:153`). I obeyed `:153` and asked for permission granted eleven
-days earlier, while a peer relayed the opposite as fleet law. Corrected in place with a dated note.
-**A stale law is worse than a missing one, because it gets obeyed.**
+1. `ln -sfn /Users/sean/dev/daengrun/app/node_modules app/node_modules`
+2. `ln -sfn /Users/sean/dev/daengrun/app/.env app/.env` — gitignored; without it Metro dies at
+   `supabase.ts:12`
+3. `npx expo start --clear` — **the Metro cache lives inside the shared `node_modules`**, so a new
+   worktree bundles a *different* worktree's tree until cleared
+4. Delete the node_modules symlink before committing — **and restore it after**, or you leave the
+   next session a dead Metro (that is what happened to me)
 
-**Against myself, three — all found by a codex pass (gpt-5.6-sol xhigh) over my landed diff, all
-confirmed by my own reading before I changed anything:**
-1. **I asserted a server invariant I never checked.** My B9 comment justified an uncapped query with
-   "서버가 동시 진행을 막는다". No such constraint exists — `0001_init.sql:396-398` are plain indexes,
-   multiple dogs is legitimate, `confirmed` has no expiry cron. Now bounded 24h/ascending/limit 10.
-   Ascending is load-bearing: descending re-creates B9 inside B9's own fix.
-2. **My radar fix was a third of a fix.** `alive` means mounted; `:375` is `router.push`, which leaves
-   radar mounted, so the bug survived on the likeliest path. Also two overlapping `check()` calls
-   armed two timers into a scalar holding one.
-3. **E6 covered two of three booking entrances.** I had grepped for `scheduled_at:` and found the two
-   that write it as a column, missing runner-profile, which writes it into `draft`.
+⚠ The installed sim binary is `com.seankookim.daengrun`, the **old** bundle id. The `dogshigh`
+rename is config-only, so the Naver appname fix at `13749af` **cannot be validly tested there**.
 
-**The durable form of this, and the sharpest thing in this handoff:** I wrote
-`~/.claude/skills/inherited-claims` this session — a skill about not trusting claims you inherited —
-and then, in the same session, asserted an unverified invariant and filed my own incomplete fix as
-complete. **§4 of that skill ("re-check anything filed as resolved") applies to your own diff, not
-just to inherited ones.** That framing change to the skill is still unmade; it is the first thing I
-would do next.
+---
+
+## 6. My failure pattern, stated so it can be watched for
+
+I shipped **five false claims** today and caught every one only after shipping. All five were
+**promises about what the system would do**, never statements about what it knows:
+「수수료 없이 닫아요」 · 「확인이 필요해요」 · 「운영팀이 바로 확인해요」 · a fee-waiver line for an
+undeployed policy · 「이 예약은 진행할 수 없어요」 for a thing nothing prevents.
+
+Four review rounds, one coherence audit and one 36-agent audit each found real defects in my own
+landed work. **The app also corrected me three times** — `home-hero.tsx:256` on the fee,
+`END_REASONS` on one-tap-vs-two, `relWhen()` on which clock wins. When this codebase and I disagree,
+it has been right every time so far.
 
 ---
 
 ## 7. Waiting on Sean
 
-1. 🔴 **TestFlight** — his 2FA. Unchanged.
-2. 🔵 **Profile-nudge lab — pick a number.** `docs/labs/profile-nudge-lab.html` (`f21c442`), four
-   placements for ruling #3. ①+④ is a valid answer. My recommendation is ①. **No code until he picks**
-   — he has corrected a session before for shipping when he wanted a mock.
-3. 🔵 **The simulator question.** May I tap past role-select, which writes a real `profiles.role` on
-   his account row? yes / no / **he creates a throwaway and leaves the sim logged in** (best — I
-   cannot create it myself). Until answered, nothing in this app can be verified on a screen.
-4. 🔵 **E6 test home.** The KST arithmetic has no test home: `app/test/` only covers pure
-   `src/lib/*` via `.cjs`, and the helpers live in `.tsx` screens. Giving it a test means extracting
-   to a shared lib — which unifies what `kstDayDiff`/`kstDay` and CLAUDE.md's do-not-unify law keep
-   per-screen. **A taste call about his own convention, so it is his.**
-5. **Coral CTA ground A/B** and **handoff-CTA gating** — unchanged, still reserved.
-6. **DROPPED from his queue this session** (adjudicated, verified, no ruling needed):
-   `fitness.tsx:152` is a genuine false positive (listener removed by exact id at `:157`), and
-   `index.tsx:25`, the only security error, is accepted-by-design — `profiles.role` is
-   CHECK-constrained to owner/runner, no server code authorizes from it, privilege gates on
-   server-controlled `runners.tier`.
+1. **CRIT-1 flag window.** 0117 ships the clock OFF behind a flag. My client does not know about it,
+   so between deploy and flip the app says "late" while nothing acts — the same implies-a-watcher
+   problem we just closed. Flip with the deploy, or my copy learns the flag?
+2. **Stop-reason build** — ③+③-A settled (`§8-bis`), blocked on deploy.
+3. **F5's mislabelled handoff frame** — UI change, wants his eye.
+4. TestFlight · coral CTA ground A/B · handoff-CTA gating — unchanged.
 
----
-
-## 8. Q10 — a new data point, narrowing the trigger
-
-Every commit this session fired the react-doctor config error, **and on each one I had deleted the
-`node_modules` symlink first** (per the commit law), so `app/node_modules` was **absent**. The other
-client session hit the identical error with it **present and working**.
-
-→ **node_modules state does not trigger it in either direction.** It also weakens the recorded
-"symlink realpath escapes into two git trees" lead, since on my runs there was no symlink to resolve
-through. The surviving common factor across every failing observation is **linked worktree vs. main
-checkout**, which is now the narrowest untested hypothesis. **Still nobody should touch the hook.**
-
----
-
-## 9. Known-good — do not "fix" these
-
-- **`radar.tsx:141` still reports `effect-needs-cleanup` and always will.** The rule matches effect
-  SHAPE (async + timer), not lifecycle correctness. It was flagged, wrongly cleared as a false
-  positive, found real, fixed twice — **a persisting flag here is not an unfixed bug.**
-- **`shot/[bid].tsx:587`** (`setState in onScroll`) — false positive, and the canonical fix is a
-  regression: `active` drives a live dot indicator (`:614`), so `onMomentumScrollEnd` would lag it
-  behind the finger. The `activeRef` guard plus `disableIntervalMomentum` already bound it.
-- **The "19 non-virtualized lists" number is inflated.** `request.tsx:751` is an 8-item date strip,
-  `reschedule.tsx:250` a 7-day strip, `community.tsx:317` a bounded rail — `FlatList` would be worse.
-  Only `chat.tsx:237` and `runner/earnings.tsx:149` are genuinely unbounded. It is a ~4-site job.
-- Carried forward, still true: the `relWhen` clamp · `liveOwnsCoral` widening · chat as ink outline ·
-  the conditional `subscribeShared` retire · `runner/meetup.tsx`'s existing dog card, memo and 길찾기.
-- **Rulings #5, #9, #15 are all BUILT** — I checked each in code. #15 (total km incl. approach)
-  reaches every surface: `totalSuffix`, `nudgeTotalLine`, `course-map.tsx:337`, `route-pick.ts:206`.
-  The old handoff's "worth re-verifying" is closed.
-
----
-
-## 10. Next 1–3 steps
-
-1. **[local-edit]** R1 then R2 (§2-bis) — R1 first, because R2 mounts the component whose copy R1
-   corrects, and mounting before fixing multiplies the wrong sentence across two more screens.
-2. **[needs-user]** §7 — the profile-nudge lab number, the `supabase/` ruling (now blocking BOTH
-   stage 2 and the 50% ladder), and the grace period / maximum-lateness numbers.
-3. **[local-edit]** Make the `inherited-claims` §4 framing change (§6): the adversarial pass belongs
-   on your own diff too. This session is the evidence twice over.
-4. **[local-edit]** Filler: `chat.tsx` + `runner/earnings.tsx` virtualization (the real 2 of the
-   fake 19), `js-hoist-intl` ×4.
-
-## 10-bis. ⚠ Two dead ends recorded so nobody repeats them
-
-**`react-hooks/purity` on a date.** Calling `lateness(b, Date.now())` in render trips it, fairly.
-The obvious fix — hold `now` in state stamped at data-load — is **worse**: it produced a
-react-compiler invariant warning (`InferMutationAliasingEffects`) in `home.tsx` and pushed the purity
-flag into an event handler, +2 warnings for a fix meant to remove one. The answer was to default the
-clock INSIDE the lib (`now: number = Date.now()`), so callers stay pure and tests keep injecting.
-Baseline restored exactly.
-
-**`gstack-review-log` files artifacts under the wrong repo.** It resolves the project from the
-session cwd, which for this session is the mislaunched youtube worktree — so today's gstack
-artifacts are recorded against `youtube`, not `daengrun`. Harmless to the work (reports live in the
-plan files) but the analytics are wrong.
+Settled, do not re-litigate: runner home ① · grace 30 / ceiling 3h (his words, direct) · profile
+nudge ② with no dismiss · late-booking lab approved · B10 is a false item · `radar.tsx:141`'s
+analyser flag persists **by design** after a real fix.
 
 ---
 
 ## Opener for the next session
 
-> Client domain (all of `app/`) on daengrun. Work in a worktree cut from `origin/redesign-v4` —
-> the main checkout is clean but **deliberately a few commits behind**; leave it that way.
+> Client domain (all of `app/`) on daengrun. Cut a worktree from `origin/redesign-v4`.
 >
-> Read `docs/handoff-client.md` fully, then the plan's ENDING STATE + Q7–Q10. Trunk is `c7dac14`.
+> **Read `docs/handoff-client.md` §2 first — a 36-agent audit found 20 confirmed defects, two of
+> them BLOCKERs, and the full report with file:line and fixes is in `/workflows` run
+> `wf_a68ecb4d-309`'s `journal.jsonl`. Nothing may flip `late_protocol_live_since` until F1-F4 and
+> F6 land.**
 >
-> ⚠ **A fresh worktree cannot run the app.** Symlink `app/node_modules` AND `app/.env` from the main
-> checkout, and `npx expo start --clear` — the Metro cache is shared between worktrees and will
-> bundle someone else's tree. Delete the node_modules symlink before committing; if you stop working
-> after deleting it, restore it or you leave Metro dead for the next session.
+> ⚠ A fresh worktree **cannot run the app**: symlink `app/node_modules` AND `app/.env`, and
+> `npx expo start --clear` (the Metro cache is shared between worktrees). Restore the symlink after
+> committing or you strand the next session.
 >
-> Five gates before every commit, from `app/`: tsc · check-rpc-contracts ·
-> check-route-native-imports · check-embed-fk · `npm run lint --quiet` (**must stay 6 errors** — a
-> 7th is yours; I made one and it was a real missing dependency, not noise).
+> Five gates from `app/`: tsc · check-rpc-contracts · check-route-native-imports · check-embed-fk ·
+> `npm run lint --quiet` (**must stay 6 errors**). **`npm test` now exists** — six suites, run it.
 >
-> **Ship means push** (CLAUDE.md §Process, corrected 2026-08-21) — commit each verified slice against
-> green gates and land it on trunk the same session.
+> **Ship means push** (CLAUDE.md §Process). Land on trunk the same session.
 >
-> Settled, do not re-litigate: runner home ① · the ticket's four additions · the `relWhen` clamp and
-> `liveOwnsCoral` widening · the 인계 screen's existing dog card, memo and 길찾기 · **B10 is a false
-> item** · **`radar.tsx:141`'s analyser flag persists by design and is not a bug**.
->
-> Four things wait on Sean: TestFlight, the profile-nudge lab number, the simulator role-select
-> question, and the E6 test-home decision. The react-doctor hook stays untouched — trigger still
-> open, though this session eliminated node_modules state as the cause in both directions.
->
-> ⚠ Nothing has ever run on hardware. The app now runs on the SIMULATOR, parked at role-select.
-> The installed binary carries the OLD bundle id, so the Naver callback cannot be validly tested
-> there. Never create a booking on Sean's account; never press the onboarding CTA. Reply in English;
-> in-app copy stays Korean.
+> The client's job now is §2's F3, F4, and the client halves of F1/F2 — not new surface. And when
+> the code and your plan disagree, the code has been right every time.

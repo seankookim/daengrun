@@ -112,6 +112,13 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // 지금 찾기 = 요청 화면의 pickEarliest 경로. 새 화면 없음 — 홈이 그걸 묻어 두던 걸 그만둘 뿐.
   const findNow = () => { haptic('light'); clearNomination(); draft.autoEarliest = true; router.push('/owner/request'); };
   const schedule = () => { haptic('light'); clearNomination(); draft.autoEarliest = false; router.push('/owner/request'); };
+  // ⚠ [codex 2026-08-21] nextIsPast 는 **KST 캘린더 하루** 차이다 (ddayN < 0). 그래서 09:00 예약이
+  // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
+  // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
+  const isLate = late?.late ?? nextIsPast;
+  // ⚠ [워크플로 감사 2026-08-21] 이 선언은 openNext **위**에 있어야 한다. 아래에 두면 handoff
+  // 분기(:186)가 그 전에 return 하므로, 그 분기의 코랄 버튼이 openNext 를 부르는 순간 isLate 가
+  // TDZ 에 걸려 ReferenceError 로 죽는다 — 내가 isLate 를 도입하면서 만든 실제 크래시였다.
   const openNext = () => {
     if (!next) return;
     draft.bookingId = next.id;
@@ -211,10 +218,6 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
   // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
   // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
-  // ⚠ [codex 2026-08-21] nextIsPast 는 **KST 캘린더 하루** 차이다 (ddayN < 0). 그래서 09:00 예약이
-  // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
-  // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
-  const isLate = late?.late ?? nextIsPast;
   const chip =
     state === 'confirmed' ? (isLate
       // [T6] '지난 예약'만으로는 어제인지 16일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
