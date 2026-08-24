@@ -296,14 +296,38 @@ crop too — same file, same numbers.
 5. Caption gated: 컨셉/예고 framing present.
 6. File into the campaign folder with its H-number; Sean picks by number.
 
-## 5. Decisions for Sean (lettered, blocking generation of the affected frames only)
+## 5. Decisions — RULED (Sean, 2026-08-24)
 
-- **A. Accent law v4 vs v3.1** — the six refs you picked drop volt-on-dog and use red type + violet
-  trace + volt as Korean-type colorway. **A1** codify v4 as written here · **A2** keep v3.1's
-  volt-on-dog law and I re-cut the ten scene blocks to wear it. (H2/H5/H6 change most.)
-- **B. English-first display** — v4 leads English display lines with Korean captions (as your refs
-  do). **B1** keep · **B2** Korean display leads, English demoted to kicker.
-- **C. GPX source** — traces/readouts need real runs. **C1** you export 2–3 runs from Strava (the
-  route-geometry pipeline ingests them) · **C2** ship the season traceless until real runs exist.
-- **D. OAuth** — run `/mcp` once in an interactive `claude` session and authenticate `higgsfield`,
-  then any session can batch-generate all ten via `generate_image`.
+Sean: "the purple color is fine. both korean and english is fine. no need for real runs."
+[end of his words]
+
+- **A → v4 codified as written.** Violet trace stands; volt-on-dog law is not restored for this
+  season.
+- **B → both.** English and Korean display both in the system, per frame as specced.
+- **C → no real runs required.** ⚠ This knowingly relaxes generation-prompts.md §2.2 for THIS
+  CAMPAIGN: the trace and pace/km blocks may be designed rather than plotted from a GPX. They are
+  still vector overlays set in post (never generated in-frame — generators draw mush), and every
+  post still captions as 컨셉/예고 under the honesty gate. Product surfaces (app screens, 체력나이,
+  earnings) remain under the absolute no-fabrication rule — this ruling covers brand posters only.
+- **D → done differently and better.** Sean routed setup through the official CLI instead of the
+  MCP: `@higgsfield/cli` installed globally (bin at `/Users/sean/.local/node/bin/higgsfield`; that
+  dir may be off a session's PATH — use the absolute path), OAuth completed 2026-08-24, workspace
+  `5af4abde` (Private, plus plan) selected, and the 8 `higgsfield-*` companion skills installed into
+  `.agents/skills/` + `.claude/skills/`. The MCP registration from earlier today also stands.
+
+## 6. Smoke test findings (H2, Soul 2.0, 2026-08-24 — job 38e635eb)
+
+Result: `higgsfield-out/H2-smoke-test.png`. The grade, light blade, compression, gait and harness
+all landed first try. Measured facts for the batch run:
+
+1. **Soul ignores logo bans in the negative block.** The smoke frame put a Nike swoosh on BOTH
+   shoes despite `no swoosh or any sportswear logo` in the prompt. Fix: state it POSITIVELY in
+   every scene block with visible feet/apparel — `plain unbranded running shoes and apparel, blank
+   logo-free gear` — and keep the 100%-zoom sweep (§4.1) as the real gate. An edit-model pass
+   (Flux Kontext / Nano Banana) can de-logo a keeper frame.
+2. **Soul has no 4:5.** Options: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3. Use **3:4** for feed masters,
+   9:16 for story natives; crop 3:4 → 4:5 in post.
+3. **Cost: 0.12 credits per Soul frame at 2k.** The whole ten-post set with variants is ~₩0-scale
+   against the 1,210-credit balance.
+4. CLI shape that works: `higgsfield generate create text2image_soul_v2 --prompt "<scene + DNA +
+   negative>" --aspect-ratio 3:4 --json`, then `generate wait <id>` and curl `result_url`.
