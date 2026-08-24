@@ -1207,8 +1207,13 @@ begin
     -- the faulted twin is its own booking (fault rows are write-once — r2 F2)
     b31f := t_av_booking(oo, dg, rt, rr, now() - interval '17 days', 5.0, 'runner_enroute');
     update bookings set arrived_at = now() - interval '17 days' + interval '20 minutes' where id = b31f;
+    -- ⚠ source MOVED 'test_ops_statement' → 'checkin_cannot_proceed' (R10, 2026-08-24). The
+    -- waiver became an ALLOW-LIST over booking_faults.source, so a synthetic ops-shaped source
+    -- no longer waives — that refusal is exactly R10's point and is owned by L58's negative arm.
+    -- L31's own property is unchanged: with arrival evidence, only a recorded fault waives.
+    -- The row below mirrors the shape §5's resolver actually writes.
     insert into booking_faults (booking_id, party, source, stated_by)
-    values (b31f, 'runner', 'test_ops_statement', rr);
+    values (b31f, 'runner', 'checkin_cannot_proceed', rr);
     select f.fee into v_fee from marketplace_cancel_fee(b31f) f;
     if v_fee is distinct from 0 then v_bad := v_bad || ' 기록된 과실에도 미면제=' || coalesce(v_fee::text, 'null'); end if;
     if v_bad = '' then
