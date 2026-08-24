@@ -21,10 +21,54 @@
 --   columns `bookings.club_fee_event_at`, `bookings.club_fee_cutover_at`,
 --     `bookings.club_fee_kind`
 --   table `club_fee_mint_failures`
---   functions `_club_fee_event_collectable`, `_cancel_fee_existing_payment`,
+--   functions `club_cfg_required`, `_club_config_ruled_row_guard`,
+--     `_club_fee_event_collectable`, `_cancel_fee_existing_payment`,
 --     `_club_fee_event_clock`, `_club_note_fee_mint_failure`,
 --     `_club_try_mint_cancel_fee`, `_club_record_fee`, `_club_record_no_show_fee`,
 --     `sweep_club_cancel_fee_intents`, `club_fee_mint_reconciliation`
+--   constraint `club_config_ruled_value_present` + triggers `_club_config_ruled_rows`,
+--     `_club_config_no_truncate` on `club_config`
+--
+-- ═══ TWO RULINGS APPLIED IN PLACE, 2026-08-24, BEFORE THIS FILE EVER LANDED ══════════════════
+-- 0118 was still unlanded (production ledger head 0116) when Sean ruled on two defects three
+-- reviewers found in it. Both are fixed in this file rather than in a follow-up migration,
+-- because a defect that never reached a database does not need a correction migration — it needs
+-- the file to stop being wrong.
+--   R1C  the no-show fee arm in §E now requires that the session has STARTED and that the booking
+--        carries NO attendance evidence of either producible kind. Before: a host closing
+--        tomorrow's session billed every owner 20%, and an owner who handed the dog over was
+--        billed while the runner who walked away was credited the supply half. The gates sit in
+--        the fee's WHERE — the session still finishes and still refunds when they fail.
+--        Suite 153 P4/P9/P10/P12 own this.
+--        ⚠ CORRECTED 2026-08-24, after measurement, before landing: the first draft of the
+--        attendance gate read only `session_dogs.checked_in_at`, which a DELEGATION-ONLY owner
+--        can never write — `session_checkin` raises `not_joined` without a `session_people` row
+--        and `session_delegate_dog` deliberately creates none. That draft was INERT for exactly
+--        the population the ruling was about. The gate now also honours
+--        `bookings.owner_confirmed_handoff_at`, the one signal that owner can produce.
+--        🔴 One residual is left OPEN and named at the gate: `owner_confirmed_handoff_at` is
+--        erased by six reassignment paths, so an owner who confirmed handoff and then had the
+--        dog reassigned is charged. See the §E comment — it needs a product decision, not a
+--        wider WHERE clause.
+--        The §H apply-time block is deliberately NOT extended to assert these clauses: an
+--        assertion there aborts the MIGRATION, so a mutation that deletes a gate would kill the
+--        harness instead of turning P9, P10 or P12 red, and the pins would stop being
+--        individually attributable. The suite owns the gates; §H keeps owning the ruled constants.
+--        NO GRACE INTERVAL — Sean RULED that on 2026-08-24: ship strict. Recorded at the gate.
+--   R2A  `club_cfg_required` (§A) replaces the five `coalesce(club_cfg(k), <ruled number>)` reads
+--        that would keep charging the old rate after the config row went NULL. Suite 153 P11
+--        owns this. The §H apply-time assertion below is NOT one of those sites and is left
+--        alone: it asserts config still EQUALS the ruled values, which is the opposite of
+--        reading a number out of code.
+--        ⚠ SECOND HALF, added 2026-08-24: R2A and R1C conflicted as first written. The raise has
+--        no handler inside `club_finish_session`, so an emptied ladder key rolled the WHOLE
+--        transaction back — the session never reached 'done' and neither refund helper ever
+--        committed, stranding every owner in it. Resolved by making the bad state UNREACHABLE
+--        (a CHECK + a row trigger on `club_config`, §A) rather than by catching the exception:
+--        a handler that swallows `missing_club_config:<name>` and finishes anyway is the silent
+--        fallback R2A just deleted, wearing a different hat. The loud failure now lands on the
+--        ops UPDATE/DELETE that would break policy, naming the key, instead of on an owner
+--        waiting for a refund.
 --
 -- Every created/replaced function carries `set search_path = public, pg_temp` IN ITS BODY.
 -- `create or replace` wipes ALTER-applied proconfig; suite 98 H1 owns that invariant.
@@ -39,8 +83,10 @@
 -- §A  Persist the event, seal it from clients, and persist mint failures
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- Lift the four stored [Sean 미확정] marks. No number is copied into application code; the
--- recorders below continue reading `club_cfg()` exactly as 0048 did. No-show is the fifth ruled
--- value and deliberately reads the current post-acceptance value through its OWN policy wrapper.
+-- recorders below read the config exactly as 0048 did, except that after R2A they go through
+-- `club_cfg_required` so an emptied row refuses instead of resurrecting the constant that used
+-- to sit in the `coalesce`. No-show is the fifth ruled value and deliberately reads the current
+-- post-acceptance value through its OWN policy wrapper.
 update club_config set note = case name
   when 'cancel_free_hours'      then 'Sean 2026-08-21 ruled: owner cancellation is free at least 24 hours before the session'
   when 'cancel_late_pct'        then 'Sean 2026-08-21 ruled: late owner cancellation fee percentage'
@@ -49,6 +95,153 @@ update club_config set note = case name
   else note end
 where name in ('cancel_free_hours', 'cancel_late_pct', 'cancel_post_accept_pct',
                'fee_platform_split_pct');
+
+-- ── R2A (Sean 2026-08-24): club_config is the SINGLE source, and it must fail LOUD ──────────
+-- `club_config.value_num` is NULLABLE and `club_cfg` (0048:24-26) is a bare `select value_num`,
+-- so every `coalesce(club_cfg('cancel_late_pct'), 10)` below was a SECOND copy of a ruled number
+-- that quietly took over the moment the row went NULL. That is not a fallback, it is a policy
+-- fork: deleting the late-cancel rate did NOT stop charging late-cancel owners — they kept
+-- paying 10% while the config said "no policy". A missing ruled number is not the old number.
+-- This wrapper makes the read refuse, and the refusal NAMES the key so the operator who emptied
+-- it can put it back.
+--
+-- It reads THROUGH `club_cfg` rather than re-querying `club_config`: one accessor, one place the
+-- table/column name appears. The raise is why this is plpgsql and not `language sql` like its
+-- base — a bare SQL function cannot refuse.
+--
+-- SCOPE — this does NOT replace `club_cfg` everywhere. A `coalesce(club_cfg(k), 0)` whose zero
+-- means "record nothing" (see `host_fee_krw` in §E) already fails CLOSED and must keep working.
+-- Only reads where the fallback constant would CHARGE somebody move to this wrapper.
+--
+-- security definer + in-body `set search_path = public, pg_temp`: `club_config` has RLS with no
+-- policies, so a non-definer read returns nothing; and ALTER-applied proconfig is wiped by
+-- `create or replace`, so 98 H1 requires the header form. Suite 153 P8 pins this signature.
+create or replace function club_cfg_required(p_name text) returns numeric
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+declare v numeric;
+begin
+  v := club_cfg(p_name);
+  if v is null then
+    raise exception 'missing_club_config:%', p_name;
+  end if;
+  return v;
+end $$;
+revoke execute on function club_cfg_required(text) from public, anon, authenticated;
+comment on function club_cfg_required is
+  '0118 R2A: club_config read that RAISES missing_club_config:<name> instead of silently falling
+back to a ruled number copied into code. Use for every value whose absence would otherwise charge
+somebody the old rate. Reads whose fallback is a fail-CLOSED zero keep using club_cfg';
+
+-- ── R2A second half (2026-08-24): make the refusal UNREACHABLE, do NOT catch it ─────────────
+-- The wrapper above and ruling R1C conflicted as first written, and the conflict was not
+-- theoretical: `club_cfg_required` raises INSIDE `club_finish_session` (§E) with no handler, so
+-- a single NULLed ladder key rolled the ENTIRE transaction back. The session never reached
+-- 'done'; `_club_refund_bookings` and `_club_refund_confirmed` never committed. Every owner in
+-- that session sat waiting for a refund because an operator emptied a percentage. R1C's whole
+-- shape — the fee gates live in a WHERE so the session still finishes and still refunds when no
+-- fee is due — was defeated by a raise two sections away.
+--
+-- CATCHING IT IS THE WRONG FIX, and it is worth writing down why so nobody re-adds the handler:
+-- an `exception when others then <finish anyway>` around the fee arm swallows
+-- `missing_club_config:<name>` and continues with no fee. That is a silent fallback to "charge
+-- nothing" — the same class of invisible policy fork R2A just removed, only in the other
+-- direction. The failure would be as unobservable as the coalesce was.
+--
+-- So the bad state is made UNREACHABLE instead. The loud failure moves to the ops write that
+-- would have broken policy, at the moment it is attempted, naming the key — instead of onto an
+-- owner waiting for money hours later. After this, no reachable value of `club_config` can make
+-- a ladder read raise, so the un-handled raise in §E has nothing left to fire on.
+--
+-- TWO DOORS, because `club_cfg_required` refuses on BOTH a NULL value and an ABSENT row:
+--   1. CHECK `club_config_ruled_value_present` — a ruled name may not hold a NULL `value_num`.
+--   2. TRIGGER `_club_config_ruled_rows` — a ruled row may not be DELETEd, and may not be
+--      RENAMED out of the ruled set. A rename is a delete as far as `club_cfg('cancel_late_pct')`
+--      is concerned, so both are the same door and both are shut.
+--   (+ a statement trigger for TRUNCATE, which bypasses row triggers entirely.)
+-- INSERT needs no door of its own: the CHECK already rejects a NULL insert, and `name` is the
+-- primary key, so a ruled row cannot be duplicated or shadowed. Delete, rename, truncate and
+-- NULL-update are the complete set of ways to reach the state that raises.
+--
+-- SCOPE — only the four names Sean ruled. `vet_limit_krw`, `host_fee_krw`, `min_paid_dogs` and
+-- the rest stay freely editable AND deletable; this is not a freeze on `club_config`. Suite 153
+-- P11 owns both halves: the four keys refuse to be emptied, a non-ruled key still can be.
+--
+-- ⚠ Existing rows are verified BEFORE the constraint is added, and the verification names the
+-- offending key. Without it the migration would abort on a bare constraint violation that says
+-- only "check constraint violated" — true, useless. §H asserts the same four values equal
+-- 24/10/20/50 at the END of this file; this block runs first precisely so the operator gets the
+-- key name rather than a constraint name.
+do $$
+declare v_bad text;
+begin
+  select string_agg(k.n, ', ' order by k.n) into v_bad
+  from unnest(array['cancel_free_hours', 'cancel_late_pct',
+                    'cancel_post_accept_pct', 'fee_platform_split_pct']) as k(n)
+  where not exists (select 1 from club_config cc where cc.name = k.n and cc.value_num is not null);
+  if v_bad is not null then
+    raise exception '0118 R2A: cannot seal the ruled club_config ladder — missing or NULL: %', v_bad
+      using hint = 'restore the ruled value for each named key (24 / 10 / 20 / 50), then re-apply';
+  end if;
+end $$;
+
+alter table club_config drop constraint if exists club_config_ruled_value_present;
+alter table club_config add constraint club_config_ruled_value_present check (
+  -- NULL-collapse-proof on purpose: a CHECK whose expression evaluates to NULL PASSES, so a
+  -- collapsing predicate here would fail OPEN and seal nothing. `name` is the primary key and
+  -- cannot be NULL, and the coalesce makes that independent of anyone ever changing that.
+  coalesce(name, '') not in ('cancel_free_hours', 'cancel_late_pct',
+                             'cancel_post_accept_pct', 'fee_platform_split_pct')
+  or value_num is not null
+);
+
+comment on constraint club_config_ruled_value_present on club_config is
+  '0118 R2A: the four Sean-ruled ladder keys may not hold a NULL value_num. club_cfg_required
+raises on NULL, and that raise inside club_finish_session would roll back the session finish and
+its refunds — so the refusal is moved to the ops UPDATE that would cause it';
+
+create or replace function _club_config_ruled_row_guard() returns trigger
+language plpgsql security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_ruled text[] := array['cancel_free_hours', 'cancel_late_pct',
+                          'cancel_post_accept_pct', 'fee_platform_split_pct'];
+begin
+  if tg_op = 'TRUNCATE' then
+    raise exception 'ruled_club_config_row_required:*'
+      using detail = 'club_config holds Sean-ruled money policy; truncating it would make every ladder read raise inside club_finish_session and strand refunds';
+  end if;
+  if tg_op = 'DELETE' then
+    if old.name = any (v_ruled) then
+      raise exception 'ruled_club_config_row_required:%', old.name
+        using detail = 'club_cfg_required raises on an ABSENT row exactly as it does on a NULL one, and that raise rolls back a session finish. Change the value, never remove the row';
+    end if;
+    return old;
+  end if;
+  if old.name = any (v_ruled) and new.name is distinct from old.name then
+    raise exception 'ruled_club_config_row_required:%', old.name
+      using detail = 'renaming a ruled key removes it as far as club_cfg(<name>) is concerned — same rollback, different spelling';
+  end if;
+  return new;
+end $$;
+
+comment on function _club_config_ruled_row_guard is
+  '0118 R2A: the DELETE/rename/TRUNCATE half of the ruled-ladder seal. The CHECK constraint
+covers a NULL value; this covers an absent row. Both exist so that no reachable club_config
+state can make club_cfg_required raise inside club_finish_session, where the raise would roll
+back the finish and its refunds';
+
+drop trigger if exists _club_config_ruled_rows on club_config;
+create trigger _club_config_ruled_rows
+  before update or delete on club_config
+  for each row execute function _club_config_ruled_row_guard();
+
+drop trigger if exists _club_config_no_truncate on club_config;
+create trigger _club_config_no_truncate
+  before truncate on club_config
+  for each statement execute function _club_config_ruled_row_guard();
 
 -- `cancel_fee` is shared with marketplace cancellations, so the club event facts are explicitly
 -- namespaced. NULL/NULL means "not a club-fee event". Existing pilot rows are NOT backfilled:
@@ -359,7 +552,8 @@ begin
   end if;
   v_fee := round(p_base * p_pct / 100.0)::int;
   if coalesce(v_fee, 0) <= 0 then return; end if;
-  v_plat := round(v_fee * coalesce(club_cfg('fee_platform_split_pct'), 50) / 100.0)::int;
+  -- R2A: NULLing the split must not silently resurrect 50/50 out of this line.
+  v_plat := round(v_fee * club_cfg_required('fee_platform_split_pct') / 100.0)::int;
   v_share := v_fee - v_plat;
 
   -- Capture timestamp + cutover while holding the ops_flags row lock, BEFORE a possibly long
@@ -447,7 +641,7 @@ as $$
 begin
   perform _club_record_fee(
     p_session, p_sd, p_booking, 'no_show_fee', p_base,
-    coalesce(club_cfg('cancel_post_accept_pct'), 20), p_runner,
+    club_cfg_required('cancel_post_accept_pct'), p_runner,
     'no_show_ladder_top'
   );
 end $$;
@@ -552,12 +746,16 @@ begin
   if v_bst not in ('matching', 'confirmed') then raise exception 'already_handed_off'; end if;
 
   -- The ruled ladder remains club_cfg single truth: accepted first, then <24h, then free.
+  -- R2A: `club_cfg_required`, not `coalesce(club_cfg(k), <ruled number>)`. Every rung is a rate
+  -- somebody is CHARGED, so an empty config must stop the charge, not fall back to it. The
+  -- free-window arm below stays a literal 0 — that is this ladder's own "no fee", not a config
+  -- value with a shadow copy.
   if v_bst = 'confirmed' and v_runner is not null then
-    v_pct := coalesce(club_cfg('cancel_post_accept_pct'), 20);
+    v_pct := club_cfg_required('cancel_post_accept_pct');
     v_rule := 'post_acceptance';
   elsif s.scheduled_at - now()
-        < make_interval(hours => coalesce(club_cfg('cancel_free_hours'), 24)::int) then
-    v_pct := coalesce(club_cfg('cancel_late_pct'), 10);
+        < make_interval(hours => club_cfg_required('cancel_free_hours')::int) then
+    v_pct := club_cfg_required('cancel_late_pct');
     v_rule := 'late_cancel';
   else
     v_pct := 0;
@@ -670,9 +868,99 @@ begin
     b.id, b.total_price::int, b.runner_id
   )
   from bookings b
-  where b.club_session_id = p_session and b.status = 'confirmed' and b.runner_id is not null;
+  where b.club_session_id = p_session and b.status = 'confirmed' and b.runner_id is not null
+    -- ═══ R1C (Sean 2026-08-24): a no-show fee needs a TIME gate and an ATTENDANCE gate ═══════
+    -- Until this line the money predicate was `confirmed and runner_id is not null` and nothing
+    -- else. Two people were charged 20% for a no-show that had not happened:
+    --   (a) TIME — a host could close TOMORROW's session today and every owner was billed for
+    --       failing to show up to a session that has not started. `now() >= s.scheduled_at` is
+    --       the whole claim the fee rests on: the appointment arrived and the dog did not.
+    --   (b) ATTENDANCE — an owner who turned up and handed the dog over was billed, while the
+    --       runner who walked away was CREDITED the supply half of that same fee.
+    --
+    -- ⚠ ATTENDANCE TAKES **TWO** SIGNALS, NOT ONE. Corrected 2026-08-24 after measurement and
+    -- before this file landed. The first draft of this gate read `session_dogs.checked_in_at`
+    -- alone, and for the population the ruling was actually about that column can never be
+    -- written — the gate was INERT for exactly the people it was made to protect.
+    -- MEASURED, driving the real RPC chain against a full-migration database:
+    --   • `session_checkin` raises `not_joined` for a delegation-only owner. The mechanism is
+    --     the missing `session_people` row and nothing else: the function's own `session_dogs`
+    --     UPDATE would have matched 1 row (`responsible_profile_id` is still the owner
+    --     pre-handoff), and injecting the one missing `session_people` row makes the identical
+    --     call stamp `checked_in_at`. `session_delegate_dog` (0048:135-153) creates no such row,
+    --     and a direct client INSERT is refused by RLS. `club_join` does not help — membership
+    --     is not the gate, participation is.
+    --   • A whole-schema before/after row-count diff over `public` when that owner taps
+    --     인계 확인 shows NO table gaining a row. The tap writes exactly ONE column on ONE row:
+    --     `bookings.owner_confirmed_handoff_at`. A `service_role` write of it on a club booking
+    --     at `confirmed` is ACCEPTED (rows=1), status stays `confirmed`, and
+    --     `session_dogs.checked_in_at` does not move (the custody trigger keys on `picked_up`).
+    --   • `bookings.arrived_at` is the RUNNER's arrival, is refused to clients by
+    --     `booking_protected_columns`, and its CAS matches 0 rows at `confirmed`. Not evidence.
+    -- So the gate is the PAIR, and a fee requires that NEITHER exists:
+    --   • `session_dogs.checked_in_at` — the owner who RSVP'd as a person and checked in
+    --     (`session_rsvp(session, null)` then `session_checkin`: MEASURED producible with the
+    --     booking still `confirmed` and the dog still `runner_delegated`), and the same column
+    --     stamped by 0038/0045's custody trigger at `picked_up`. Suite 153 P10 owns this arm.
+    --   • `bookings.owner_confirmed_handoff_at` — the delegation-only owner who tapped 인계 확인.
+    --     `transition-booking/index.ts:314` is the ONLY non-null writer in the schema and all
+    --     edge functions, under service_role; direct client forgery is refused by 0057 §3's
+    --     `booking_protected_columns` guard. The button's render condition
+    --     (`app/club/session/[sid].tsx:784`) is `assigned && checkinOpen`, and `checkinOpen` is a
+    --     pure time predicate (0053:244), NOT membership-derived — so this owner does get it.
+    --     SOURCE-READ for the client half; MEASURED for the database half. Suite 153 P12 owns it.
+    -- Either signal ALONE was wrong. `checked_in_at` alone bills the delegation-only owner who
+    -- turned up; `owner_confirmed_handoff_at` alone bills the RSVP owner who checked in but never
+    -- had a handoff stamp written. Both together are correct on all five measured populations.
+    --
+    -- 🔴 OPEN RESIDUAL — NAMED, NOT CLOSED. `owner_confirmed_handoff_at` is NOT DURABLE. Six
+    -- functions NULL it on a `confirmed` booking, because the field means "THIS PAIRING's
+    -- handoff", not "the owner attended": `session_propose_dog` (0048:484),
+    -- `session_proposal_respond`, `session_assignment_revoke`, `session_cancel_delegation`,
+    -- `session_owner_objection`, `_club_dog_materiality_tg`. MEASURED end-to-end: owner taps
+    -- 인계 확인 → host reassigns the dog to another runner → the stamp is ERASED, status goes to
+    -- `matching`, the new runner accepts, and the booking is back at `confirmed` with the stamp
+    -- still NULL. That owner demonstrably turned up and is now byte-identical to one who never
+    -- came, so this gate charges them 20%. `session_dogs.checked_in_at` SURVIVES the identical
+    -- reassignment — nothing in the schema ever sets it back to NULL — so the residual is exactly:
+    --     *a delegation-only owner whose dog is reassigned AFTER they confirmed handoff.*
+    -- It is strictly narrower than the defect R1C fixed, and it is not closable inside this file:
+    -- closing it needs a durable "this owner attended" fact that the reassignment paths do not
+    -- reset, which is a new column and a product decision about what the stamp means. The one
+    -- durable trace that survives today is a `notifications` row addressed to the runner
+    -- (`transition-booking/index.ts:329`, title 인계 확인 요청) — named here for whoever picks
+    -- this up, NOT used: it is an incidental side-effect rather than a designed evidence record,
+    -- and it was source-read, never measured. LEFT OPEN AND ESCALATED rather than papered over.
+    -- (An owner whose dog is NEVER assigned has no handoff button at all — but `runner_id is not
+    -- null` above already excludes them, so they are refunded, not charged. No gap there.)
+    --
+    -- NO GRACE INTERVAL — RULED, not argued. Sean ruled on 2026-08-24: ship STRICT, no grace
+    -- window and no `club_config` key for one. This line used to argue for strictness on its own
+    -- merits; it is now recording a decision. What strictness COSTS, written down so the ruling
+    -- can be revisited on facts rather than rediscovered: a host who finishes at
+    -- `scheduled_at + 1 second` bills every owner who has not handed off by that instant —
+    -- someone stuck in traffic five minutes out pays 20%. If that ever needs to change it is one
+    -- term on this line plus one `club_config` key read through `club_cfg_required`; nothing else
+    -- in this file moves.
+    --
+    -- SHAPE: these gates are in the fee's WHERE, not in an `if ... raise`. When they fail the
+    -- session still finishes and `_club_refund_confirmed` below still refunds — that is the
+    -- pre-0118 behaviour and 0045's contract. A no-show fee is an addition to finishing, never a
+    -- precondition for it. Both attendance terms are NULL-collapse-proof by construction: a
+    -- `not exists` subquery (so a missing `session_dogs` row cannot make the term NULL and drop
+    -- the booking) and a bare `is null` on the booking's own column. Never `not (A and B)` over a
+    -- nullable column — the fail-open shape this repo has been bitten by four times.
+    and now() >= s.scheduled_at
+    and not exists (
+      select 1 from session_dogs sd
+      where sd.booking_id = b.id and sd.checked_in_at is not null
+    )
+    and b.owner_confirmed_handoff_at is null;
   perform _club_refund_confirmed(p_session, 'club_not_picked_up');
 
+  -- R2A EXEMPT, on purpose. This coalesce falls back to ZERO, and zero here means "record no
+  -- host fee at all" — deleting the key stops a PAYMENT, it does not silently keep making one.
+  -- That is fail-CLOSED, the opposite of the ladder's fail-open constants, so it keeps `club_cfg`.
   if coalesce(club_cfg('host_fee_krw'), 0) > 0 and exists (
     select 1 from bookings where club_session_id = p_session and status = 'completed'
   ) then
