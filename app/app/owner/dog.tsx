@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DangerousBasis, DangerousStatus, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
@@ -61,7 +61,19 @@ export default function DogProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // ⚠ [0119 re-verdict F3] "untouched" means THE OWNER DID NOT EDIT THE FIELD — which is a fact
+  // about strings, not about parsed values. The first fix compared parsed numbers, and parsing is
+  // exactly where the two diverge: retyping a legacy 95 as "95.0" parses back to 95, read as
+  // untouched, and a freshly TYPED out-of-policy value walked around the guard. The hydrated RAW
+  // strings are kept here and untouched = exact string equality against them. Retype the same
+  // number in different clothes and you typed it; leave the field alone and it round-trips.
+  const initRef = useRef({ name: '', birth: '', weight: '' });
   const selectDog = (d: DogProfile) => {
+    initRef.current = {
+      name: d.name,
+      birth: d.birthDate ?? '',
+      weight: d.weightKg != null ? String(d.weightKg) : '',
+    };
     setDog(d);
     setName(d.name);
     setBreed(d.breed ?? '');
@@ -119,8 +131,10 @@ export default function DogProfileScreen() {
       });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       setUploading(true);
-      const url = await uploadDogPhoto(dog.id, res.assets[0].base64);
-      setDog((d) => (d ? { ...d, photoUrl: url } : d));
+      const photoDogId = dog.id;   // [F5] same race shape as save() — key the adoption
+      const url = await uploadDogPhoto(photoDogId, res.assets[0].base64);
+      setDogs((ds) => ds.map((x) => (x.id === photoDogId ? { ...x, photoUrl: url } : x)));
+      setDog((d) => (d && d.id === photoDogId ? { ...d, photoUrl: url } : d));
     } catch (e) {
       Alert.alert('업로드 실패', (e as Error).message);
     } finally {
@@ -133,7 +147,18 @@ export default function DogProfileScreen() {
 
   const save = async () => {
     if (!dog) return;
-    if (!name.trim()) { Alert.alert('이름을 입력해주세요'); return; }
+    // [F5] the identity this save belongs to — every state write below is keyed to it, because the
+    // owner can switch dogs while the await is in flight and an unkeyed updater would stamp dog A's
+    // snapshot onto dog B (measured shape in the re-verdict; a data race, not mere staleness).
+    const savedId = dog.id;
+    const nameUntouched = name === initRef.current.name;
+    const birthUntouched = birth === initRef.current.birth;
+    const weightUntouched = weight === initRef.current.weight;
+    // ⚠ [F3] `dogs.name` is `text not null` with NO non-empty CHECK (0001:37), so a whitespace name
+    // is a database-legal legacy state — and this guard used to hard-block it BEFORE the mandatory
+    // declaration below, which made that owner unable to answer at all. Untouched → not ours to
+    // re-litigate; typed → still required.
+    if (!nameUntouched && !name.trim()) { Alert.alert('이름을 입력해주세요'); return; }
     const w = weight.trim() ? Number(weight) : null;
     // ⚠ [0119 F2] THESE GUARDS ONLY JUDGE WHAT THE OWNER ACTUALLY TYPED, and that is a fix, not a
     // loosening. `dogs.weight_kg` is `numeric(4,1)` with NO check constraint, so 95.0 is a perfectly
@@ -145,8 +170,6 @@ export default function DogProfileScreen() {
     // aimed exactly at the legacy population the no-backfill decision was written to protect.
     // So: a value the owner did not touch is not theirs to re-litigate. A value they DID type is
     // still checked, which is what these guards were for.
-    const weightUntouched = w === dog.weightKg || (w == null && dog.weightKg == null);
-    const birthUntouched = (birth.trim() || null) === (dog.birthDate ?? null);
     if (!weightUntouched && weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
     if (!birthUntouched && birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
     // ⚠ [0119] 신고는 선택 항목이 아니다. 답이 없으면 서버가 예약 자체를 거절하므로(그리고 기존
@@ -163,11 +186,14 @@ export default function DogProfileScreen() {
     }
     setSaving(true);
     try {
-      await updateMyDog(dog.id, {
-        name: name.trim(),
+      await updateMyDog(savedId, {
+        // Untouched fields are OMITTED from the patch entirely (undefined drops at JSON.stringify),
+        // so a database-legal legacy value the owner never edited round-trips byte-identical
+        // instead of being laundered through this screen's parsing.
+        name: nameUntouched ? undefined : name.trim(),
         breed: breed.trim() || undefined,
-        birth_date: birth.trim() || null,
-        weight_kg: w,
+        birth_date: birthUntouched ? undefined : (birth.trim() || null),
+        weight_kg: weightUntouched ? undefined : w,
         neutered: neutered ?? undefined,
         memo: memo.trim() || undefined,
         prefTags: tags,
@@ -186,14 +212,28 @@ export default function DogProfileScreen() {
       // screen was designed to disable and gets a server refusal instead. Same disabled-control-
       // with-a-reason rule as everywhere else, applied one state later.
       // Only fields this save actually wrote are adopted; nothing here invents a server value.
-      setDog((cur) => (cur ? {
+      // ⚠ [F5] Adoption is keyed to savedId AND applied to the COLLECTION, both halves measured:
+      // (a) without the id guard, switching dogs mid-save stamped A's snapshot onto B (the race);
+      // (b) without the collection write, switching away and back re-hydrated A's PRE-save row
+      //     from `dogs` and re-enabled the control the §F latch had just locked.
+      const adopt = (cur: DogProfile): DogProfile => ({
         ...cur,
-        name: name.trim(),
-        birthDate: birth.trim() || null,
-        weightKg: w,
+        name: nameUntouched ? cur.name : name.trim(),
+        birthDate: birthUntouched ? cur.birthDate : (birth.trim() || null),
+        weightKg: weightUntouched ? cur.weightKg : w,
         dangerousStatus: danger,
         dangerousBasis: danger === 'declared_dangerous' ? basis : null,
-      } : cur));
+      });
+      setDogs((ds) => ds.map((x) => (x.id === savedId ? adopt(x) : x)));
+      setDog((cur) => (cur && cur.id === savedId ? adopt(cur) : cur));
+      // the saved values are the new hydration baseline — only when the screen still shows this dog
+      if (dog.id === savedId) {
+        initRef.current = {
+          name: nameUntouched ? initRef.current.name : name.trim(),
+          birth: birthUntouched ? initRef.current.birth : (birth.trim() || ''),
+          weight: weightUntouched ? initRef.current.weight : (w != null ? String(w) : ''),
+        };
+      }
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
       Alert.alert('저장 실패', (e as Error).message);

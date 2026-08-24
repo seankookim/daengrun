@@ -339,7 +339,19 @@ export default function ClubSessionShell() {
       {
         text: '맡겼어요',
         onPress: () => confirmHandoff(d.bookingId!, 'owner').then(() => { haptic('success'); load(); })
-          .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message)),
+          .catch((e) => {
+            // [0119 re-verdict F4] the gate also fires HERE (breed changed after pay → the handoff
+            // is the last custody boundary) — a raw token with no door is the dead end F3 closed
+            // on the marketplace path, reappearing one surface over.
+            const r = dangerousRefusalFrom(e);
+            if (r) {
+              Alert.alert(r.title, r.body, r.action
+                ? [{ text: '닫기', style: 'cancel' }, { text: r.action.label, onPress: () => router.push(r.action!.route) }]
+                : [{ text: '확인' }]);
+              return;
+            }
+            Alert.alert('인계 확인 실패', (e as Error).message);
+          }),
       },
     ]);
   };
@@ -356,6 +368,10 @@ export default function ClubSessionShell() {
         text: '이 아이, 내가 맡을게요',
         onPress: () => respondProposal(d.sdId, true).then(() => { haptic('success'); load(); })
           .catch((e) => {
+            // [0119 F4] a dog declared/screened dangerous between proposal and accept refuses at
+            // the accept — runner-side copy: no action button, states who unblocks it.
+            const r = dangerousRefusalFrom(e, 'runner');
+            if (r) { Alert.alert(r.title, r.body); load(); return; }
             const m = (e as Error).message;
             // 서버가 재검증한다 — 낡은 수락은 정직한 한 문장으로
             Alert.alert('수락 실패',
@@ -382,7 +398,11 @@ export default function ClubSessionShell() {
   const doRunnerHandoff = (d: DelegationDog) => {
     if (!d.bookingId) return;
     confirmHandoff(d.bookingId, 'runner').then(() => { haptic('success'); load(); })
-      .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message));
+      .catch((e) => {
+        const r = dangerousRefusalFrom(e, 'runner');   // [0119 F4] same boundary, runner side
+        if (r) { Alert.alert(r.title, r.body); load(); return; }
+        Alert.alert('인계 확인 실패', (e as Error).message);
+      });
   };
   const doRunnerReturn = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
