@@ -413,6 +413,29 @@ One Finish. Full set now 31 finished posters in `higgsfield-out/posters/`; poste
 placement remains Sean's manual step. ⚠ Oswald has no Hangul — any kicker mixing scripts must
 split fonts or it renders tofu (caught on S30 before ship).
 
+## 8-quater. Rounds 5–6 (2026-08-24) — trace v4, type toolkit, the credit stop
+
+Round-5 rulings (Sean): traces "more rugged but not sharp" (B01/B11/S24 read as puddles) — trace
+v4 is 17–21 vertices with ONE Chaikin pass: segments visible, tips soft. Subtext sizes bumped
+globally (44–48pt → 56–64pt). S12 rebuilt: 같은 | (eye) | 눈빛 split around the eye panel with the
+white mark set INSIDE the pupil at 82% alpha, lens-style. S13 type off the dog's face; S16 off the
+white shirt. Full-res delivery: `higgsfield-out/posters/` (1536×2048 q92 JPG), zipped to Sean in
+two parts; source PNGs in batch1–6 dirs and the higgsfield.ai generations library; 4K upscale
+available per pick via `bytedance_image_upscale`.
+
+Round 6: 30 new concepts (S31–S60) generated; type toolkit added to the compositor — hollow
+outline, vertical rail, label chips, serif+red-rule, edge-bleed word — rotated across the finishes
+(slogan ledger in the sheet). 17 finished (S31–S47). **S48–S60 stopped at the de-brand stage:
+workspace credits ran out mid-wave.** Ledger truth from `account transactions`: this campaign has
+spent ~87 credits total (59 Soul jobs ≈ 7, 38 Nano Banana Pro edits ≈ 80 — Nano is 2/edit, the
+earlier estimate held); **the balance was consumed by three "YouTube Faceless Video" jobs at
+05:25–05:30 KST, 246 credits each = 738, launched before this session's first generation and not
+by this pipeline.** ~26 credits finish the 13 pending posters (batch6 resubmit + composite; the
+layouts are already written in posters30.py).
+
+⚠ Nano edit residue: an invented-Hangul store sign survived one de-brand pass (S38) — a local
+Gaussian blur band in the compositor is the recorded fallback when re-editing isn't worth a credit.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
