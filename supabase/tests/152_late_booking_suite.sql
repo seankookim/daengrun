@@ -129,6 +129,19 @@
 --        club booking handed a marketplace price (`마켓 견적을 줌=2490`)
 --   M44 the repair sweep writes nothing (BLOCKER-5)              → 779/1 RED=[L44], diagnostic
 --        naming the torn row (`cancelled_owner/12450/owner_cancel_enroute`)
+--   M-R1a the `grant execute on _checkin_custody to service_role` → 781/2 RED=[L47, L14], both
+--        is deleted, i.e. R1 is reintroduced                            naming the real error
+--        (`permission denied for function _checkin_custody`). ⚠ FIRST MEASURED 782/1 — L47 stayed
+--        GREEN with the bug reintroduced, and the reason is worth more than the pin: function
+--        EXECUTE is checked when a statement is PARSED, not when it runs, and plpgsql caches the
+--        guard's plan per session. Earlier arms (L42) had already fired that guard as postgres, so
+--        the cached plan was reused without an ACL re-check. Measured directly at the time:
+--        `current_user=service_role, has_function_privilege=false`, and the UPDATE STILL SUCCEEDED.
+--        `discard plans` inside both arms is what makes them non-vacuous. Same property explains
+--        why the bug hid from a full adversarial round: invisible in a warm session, certain in a
+--        cold one — and production is always cold here, because nothing runs this path as the owner.
+--   M-R1b the cancel guard's custody test never matches      → 781/2 RED=[L47, L42], L47 arm B
+--        (the guard runs but never refuses)                        catches it independently of L42
 --   M46 the km restore goes owner-wide and unlocked (MAJOR-7)    → 779/1 RED=[L46]
 --        ⚠ FIRST MEASURED 780/0 — GREEN WITH THE FIX REVERTED. The behavioural arm cannot see
 --        this revert and never could: an owner-wide snapshot still only captures lots that are
@@ -173,6 +186,7 @@ declare
   b31b uuid; b31f uuid; b3f uuid; b3o uuid; b29c uuid; b29d uuid;
   b41 uuid; b42 uuid; b43 uuid; b44 uuid; b45 uuid; b46 uuid; b47 uuid; b48 uuid;
   v_comp int; v_ok boolean; lot37b uuid; v_ledger bigint; b49 uuid; b50 uuid;
+  b_r1a uuid; b_r1b uuid; v_fee_r1 int;   -- [R1] the service_role cancel arms (L47)
   b37 uuid; b37h uuid; b39 uuid; b39b uuid; b39c uuid; b39d uuid; b40 uuid;
   ow37 uuid; dg37 uuid; lot37 uuid; ow37h uuid; dg37h uuid; lot37h uuid;
   v_exp timestamptz; v_exp2 timestamptz; v_km numeric; v_share int;
@@ -1625,7 +1639,24 @@ begin
     if not has_function_privilege('service_role', 'cancel_moves_no_money(uuid)', 'execute') then v_bad := v_bad || ' svc¬무이동'; end if;
     if has_function_privilege('service_role', 'open_checkin(uuid)', 'execute') then v_bad := v_bad || ' svc open (제2의 시계)'; end if;
     if not has_function_privilege('service_role', 'late_booking_sweep()', 'execute') then v_bad := v_bad || ' svc¬sweep (스케줄러 폴백, MEDIUM-12)'; end if;
-    if has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc custody'; end if;
+    -- ⚠ [R1, 2026-08-24] THIS PIN WAS INVERTED AND IT PINNED A LIVE BLOCKER IN PLACE.
+    -- It asserted service_role must NOT hold EXECUTE on _checkin_custody, under the line above's
+    -- rule "service_role: the fee path and the party calls, NEVER the clock". The rule is right;
+    -- _checkin_custody is not an instance of it. It is not a clock and not a knob — it is a pure
+    -- classifier over three arguments that reads no table (unlike late_grace/late_ceiling, which
+    -- ARE the clock and stay revoked from every client role). Meanwhile §9d's cancel guard is an
+    -- INVOKER trigger, so it calls this function AS service_role on every owner cancel out of
+    -- confirmed/runner_enroute. With the privilege absent, that cancel raised
+    -- `permission denied for function _checkin_custody` — every owner cancel, paying and free
+    -- alike, from the moment the migration landed and with no flag involved.
+    -- So the pin now asserts the privilege is PRESENT. The property it used to own — "clients and
+    -- service_role cannot reach the clock" — is unchanged and still owned by the late_grace /
+    -- late_ceiling / late_ceiling_at revokes and by the anon/authenticated arms above; the
+    -- property it owns NOW is "the cancel guard can actually run".
+    -- ⚠ The harness cannot catch this class on its own: harness.sh connects as PGUSER=postgres,
+    -- the function owner, and this suite contains no `set role`. That is why L47 below executes
+    -- the cancel AS service_role instead of asking the catalog.
+    if not has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc¬custody (R1: §9d 인보커 트리거가 못 돈다)'; end if;
     -- [codex r2 F2] ALL FOUR write verbs, all three client-reachable roles. Round 1 revoked
     -- only UPDATE/DELETE, leaving service_role able to INSERT a fabricated check-in (a fault
     -- row waives money) and TRUNCATE the protocol's ledger. The definer functions own writes.
@@ -1662,6 +1693,86 @@ begin
       call _pass('lb', 'L14 표면 봉인 — anon 어디에도 없음·authenticated는 answer/fetch/quote만·open/resolver는 service_role조차 없음·스위프만 스케줄러 폴백·테이블 UPDATE/DELETE는 svc도 없음·RLS on 정책 0');
     else call _fail('lb', 'L14 표면 봉인', v_bad); end if;
   exception when others then call _fail('lb', 'L14 표면 봉인', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [L47] R1 — THE CANCEL GUARD ACTUALLY RUNS, EXECUTED AS service_role
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Why this exists and why L14's catalog arm above is not enough: harness.sh connects as
+  -- PGUSER=postgres, which OWNS every function here, so `permission denied` can never surface
+  -- from a suite that only ever runs as the owner. R1 lived through a full adversarial round and
+  -- a green 152 for exactly that reason — and L14 was not merely blind to it, it PINNED it.
+  -- The real chain: §9d's `_booking_cancel_custody_guard` is INVOKER, so on an owner cancel it
+  -- calls `_checkin_custody` as whoever ran the UPDATE, and that is service_role because
+  -- cancel_owner.ts writes bookings.status with a plain `.update()` on the service-role client.
+  -- Trigger order is alphabetical, so booking_cancel_custody_guard fires FIRST — ahead of
+  -- booking_cancel_fee_truth and booking_transition — which is why this failure preempted the
+  -- entire paying AND free cancel path.
+  -- Two arms, because a grant is only half the property: the guard must RUN (arm A) and it must
+  -- still REFUSE (arm B). Deleting the grant reddens A; neutering the guard reddens B.
+  begin
+    v_bad := '';
+
+    -- ── A. a plain confirmed cancel, as service_role, must not die on privilege.
+    b_r1a := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours', 5.0, 'confirmed');
+    select f.fee into v_fee_r1 from marketplace_cancel_fee(b_r1a) f;
+    begin
+      set local role service_role;
+      -- ⚠ `discard plans` is LOAD-BEARING and this arm is vacuous without it (measured).
+      -- Function EXECUTE is checked when a statement is PARSED, not when it runs, and plpgsql
+      -- caches the guard's plan per session. Earlier tests in this same suite (L42 etc.) already
+      -- fired the cancel guard as postgres, so the call to `_checkin_custody` inside it was
+      -- already parsed and cached under a role that owns it — and the cached plan is reused
+      -- without re-checking the ACL. Measured directly: with the grant deleted, this arm reported
+      -- `current_user=service_role, has_function_privilege=false` and the UPDATE still SUCCEEDED.
+      -- That is also why the bug hid: it is invisible in a warm session and certain in a cold one,
+      -- and production is always cold for this path (nothing runs it as the owner).
+      discard plans;
+      update bookings set status = 'cancelled_owner', cancel_fee = v_fee_r1
+       where id = b_r1a and status = 'confirmed';
+      reset role;
+    exception
+      when insufficient_privilege then
+        reset role; v_bad := v_bad || ' A:권한거부(R1 재발)=' || sqlerrm;
+      when others then
+        -- not R1, but a cancel that cannot run is still a red suite — name the sqlstate so the
+        -- next reader is not sent hunting for a privilege bug that is not there.
+        reset role; v_bad := v_bad || ' A:' || sqlstate || '=' || sqlerrm;
+    end;
+    if (select status from bookings where id = b_r1a) is distinct from 'cancelled_owner'
+      then v_bad := v_bad || ' A:취소 미반영'; end if;
+
+    -- ── B. the guard still refuses a cancel past the handoff — and refuses it for the RIGHT
+    -- reason. A permission error here would look like a pass to any test that only asserts
+    -- "the cancel was refused", which is how a broken guard hides behind a correct outcome.
+    b_r1b := t_av_booking(oo, dg, rt, rr, now() - interval '3 hours', 5.0, 'runner_enroute');
+    update bookings set owner_confirmed_handoff_at = now() - interval '20 minutes',
+                        runner_confirmed_handoff_at = now() - interval '19 minutes'
+     where id = b_r1b;
+    select f.fee into v_fee_r1 from marketplace_cancel_fee(b_r1b) f;
+    begin
+      set local role service_role;
+      discard plans;   -- same reason as arm A: a warm plan cache hides the ACL entirely
+      update bookings set status = 'cancelled_owner', cancel_fee = v_fee_r1
+       where id = b_r1b and status = 'runner_enroute';
+      reset role;
+      v_bad := v_bad || ' B:인계 후 취소가 통과됨';
+    exception
+      when insufficient_privilege then
+        reset role; v_bad := v_bad || ' B:권한거부(가드가 아니라 권한이 막았다)=' || sqlerrm;
+      when others then
+        reset role;
+        if sqlerrm not like '%cancel_after_handoff%'
+          then v_bad := v_bad || ' B:거부 사유=' || sqlstate || '/' || sqlerrm; end if;
+    end;
+    if (select status from bookings where id = b_r1b) is distinct from 'runner_enroute'
+      then v_bad := v_bad || ' B:상태가 움직였다'; end if;
+
+    if v_bad = '' then
+      call _pass('lb', 'L47 R1 — service_role 로 실행한 보호자 취소가 권한으로 죽지 않는다(§9d 가드가 인보커라 _checkin_custody EXECUTE 가 필요하다) · 인계 도장 두 개면 여전히 cancel_after_handoff 로 거부된다(권한 오류가 아니라) · 하네스는 postgres 로 붙으므로 이 종류는 set role 없이는 보이지 않는다');
+    else call _fail('lb', 'L47 R1 서비스롤 취소 경로', v_bad); end if;
+  exception when others then
+    begin reset role; exception when others then null; end;
+    call _fail('lb', 'L47 R1 서비스롤 취소 경로', sqlerrm); end;
 
   -- restore the shipped default: the clock leaves this suite exactly as it deploys — OFF
   update ops_flags set late_protocol_live_since = null, updated_at = now();

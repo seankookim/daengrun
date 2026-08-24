@@ -170,6 +170,24 @@ language sql stable set search_path = public, pg_temp as $$
 $$;
 revoke execute on function _checkin_custody(booking_status, timestamptz, timestamptz)
   from public, anon, authenticated, service_role;
+grant  execute on function _checkin_custody(booking_status, timestamptz, timestamptz)
+  to service_role;
+-- ⚠ [R1, 2026-08-24 — this grant is LOAD-BEARING, do not "tidy" it back into the revoke above.]
+-- The revoke line and this grant were one line apart and the grant was missing, which made every
+-- marketplace owner cancel raise `permission denied for function _checkin_custody` the moment this
+-- migration landed — before any flag, because §9d's trigger has no flag in its WHEN clause.
+-- The chain: `_booking_cancel_custody_guard` (§9d) is plpgsql with NO `security definer`, so it
+-- executes as the role running the statement; that role is service_role, because cancel_owner.ts
+-- writes `bookings.status` with a plain `.update()` on the service-role client rather than through
+-- a definer RPC. The other three callers (§5 resolver, §7 fetch_checkin ×2) are SECURITY DEFINER
+-- and run as the owner, which is why only the INVOKER trigger broke and why nothing else noticed.
+--
+-- Granting is safe and is not a widening of the money surface: `_checkin_custody` is
+-- `language sql stable` over its three ARGUMENTS and touches no table, so a caller learns nothing
+-- it did not already hand in — and service_role holds bypassrls on `bookings` regardless. The
+-- revoke from public/anon/authenticated stands and is what actually matters: clients must never
+-- ask the internals where the dog is, they read the derived answer through fetch_checkin (§7).
+-- Reproduced before fixing, under `set local role service_role`, with the edge's exact write.
 
 revoke execute on function late_grace()                   from public, anon, authenticated;
 revoke execute on function late_ceiling()                 from public, anon, authenticated;
