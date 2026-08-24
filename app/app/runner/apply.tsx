@@ -131,6 +131,10 @@ export default function Apply() {
 
   // ——— the form ———
   const [formOpen, setFormOpen] = useState(false);
+  // [C4] 열 칸의 벽을 두 장으로. 1장 = 뛰는 조건(지역·페이스·체중·반경·전문 분야), 2장 = 사람
+  // (소개·경력·반려견 경험·연락처·동의) — 이 폼이 원래 갖고 있던 이음새다. 단계는 클라이언트에만
+  // 존재하고(서버·라우트·스키마 변화 0), 접수는 여전히 열 칸을 한 번에 검증한다.
+  const [page, setPage] = useState<1 | 2>(1);
   const [district, setDistrict] = useState('');
   const [paceMin, setPaceMin] = useState('');
   const [paceSec, setPaceSec] = useState('');
@@ -163,7 +167,10 @@ export default function Apply() {
   // for one, so the constraint is a backstop and never the UX. A constraint violation that reaches
   // the server is therefore a bug in this function, and api.ts surfaces it raw rather than dressing
   // it up as a funnel state.
-  const validate = (): string | null => {
+  // [C4] validation split at the page seam; validate() composes BOTH so submit still judges
+  // all ten at once. A page-1 error found at submit time bounces back to page 1 — an error
+  // about a field the reader cannot see is a dead end.
+  const validateConditions = (): string | null => {
     const d = district.trim();
     if (d.length < 1) return '활동 지역을 적어주세요';
     if (d.length > 40) return '활동 지역은 40자까지 적을 수 있어요';
@@ -184,7 +191,10 @@ export default function Apply() {
     if (r < 0.5 || r > 20) return '활동 반경은 0.5~20km 사이로 적어주세요';
 
     if (specialties.length > SPECIALTY_MAX) return `전문 분야는 ${SPECIALTY_MAX}개까지 고를 수 있어요`;
+    return null;
+  };
 
+  const validatePerson = (): string | null => {
     const b = bio.trim();
     if (b.length < 10) return '한 줄 소개를 10자 이상 적어주세요';
     if (b.length > 500) return '한 줄 소개는 500자까지 적을 수 있어요';
@@ -206,9 +216,20 @@ export default function Apply() {
     return null;
   };
 
+  const validate = (): string | null => validateConditions() ?? validatePerson();
+
+  const goPerson = () => {
+    const bad = validateConditions();
+    if (bad) { setFormErr(bad); return; }
+    setFormErr(null);
+    setPage(2);
+  };
+
   const submit = async () => {
     if (submitting) return;
-    const bad = validate();
+    const bad1 = validateConditions();
+    if (bad1) { setFormErr(bad1); setPage(1); return; }   // [C4] the error must be visible
+    const bad = validatePerson();
     if (bad) { setFormErr(bad); return; }
     setFormErr(null);
     setSubmitting(true);
@@ -263,6 +284,7 @@ export default function Apply() {
 
   const openForm = () => {
     setFormErr(null);
+    setPage(1);
     setFormOpen(true);
   };
 
@@ -534,6 +556,28 @@ export default function Apply() {
             <Text style={s.formT}>러너 지원서</Text>
             <Text style={s.formD}>적어주신 내용은 운영자가 심사에 쓰고, 승인되면 그대로 러너 프로필이 돼요</Text>
 
+            {/* [C4] 두 장은 실제 탭이다 — 깔때기 마커가 아니라 오갈 수 있는 문. 2장으로 가는 길만
+                1장 검증을 지나고(다음 버튼과 같은 문), 1장으로 돌아가는 길은 조건이 없다. */}
+            <Row style={s.stepRow}>
+              <Pressable
+                onPress={() => setPage(1)}
+                style={[s.stepChip, page === 1 && s.stepChipOn]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: page === 1 }}
+              >
+                <Text style={[s.stepTxt, page === 1 && s.stepTxtOn]}>1장 · 뛰는 조건</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { if (page === 1) goPerson(); }}
+                style={[s.stepChip, page === 2 && s.stepChipOn]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: page === 2 }}
+              >
+                <Text style={[s.stepTxt, page === 2 && s.stepTxtOn]}>2장 · 사람</Text>
+              </Pressable>
+            </Row>
+
+            {page === 1 && (<View>
             <Field label="활동 지역" hint="주로 뛰는 동네를 적어주세요 (예: 성수동)">
               <TextInput
                 value={district} onChangeText={setDistrict} maxLength={40}
@@ -600,6 +644,20 @@ export default function Apply() {
               )}
             </Field>
 
+            {formErr !== null && (
+              <View style={[s.errBox, { marginTop: 13 }]}>
+                <View style={s.errTick} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.errT}>다음 장으로 넘어가지 못했어요</Text>
+                  <Text style={s.errD}>{formErr}</Text>
+                </View>
+              </View>
+            )}
+            {/* 코랄은 2장 끝의 접수 버튼 하나뿐 (화면당 코랄 1) — 다음은 세컨더리다 */}
+            <PaperBtn label="다음 · 사람 이야기 ›" variant="secondary" onPress={goPerson} style={s.submit} />
+            </View>)}
+
+            {page === 2 && (<View>
             <Field label="한 줄 소개" hint="보호자에게 보이는 소개예요 · 10~500자">
               <TextInput
                 value={bio} onChangeText={setBio} maxLength={500} multiline
@@ -680,6 +738,7 @@ export default function Apply() {
               onPress={submit}
               style={s.submit}
             />
+            </View>)}
             <Pressable
               onPress={() => { if (!submitting) { setFormOpen(false); setFormErr(null); } }}
               style={s.formCancel}
@@ -970,6 +1029,12 @@ const s = StyleSheet.create({
   checkBoxOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   checkMark: { fontSize: 12, lineHeight: 15, fontWeight: '900', color: '#FFFFFF' },
   checkTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: paper.text },
+  // [C4] step tabs — neuterChip 문법 (잉크 면 선택, 명시 fill, 14pt)
+  stepRow: { gap: 8, marginTop: 14, marginBottom: 4 },
+  stepChip: { flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 11, borderRadius: 0 },
+  stepChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
+  stepTxt: { fontSize: 14, fontWeight: '800', color: paper.dim },
+  stepTxtOn: { color: '#FFFFFF' },
   submit: { marginTop: 16 },
   formCancel: { marginTop: 9, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
   formCancelTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
