@@ -21,7 +21,7 @@
 --   columns `bookings.club_fee_event_at`, `bookings.club_fee_cutover_at`,
 --     `bookings.club_fee_kind`
 --   table `club_fee_mint_failures`
---   functions `club_cfg_required`, `_club_config_ruled_row_guard`,
+--   functions `club_cfg_required`, `_club_ruled_cfg_keys`, `_club_config_ruled_row_guard`,
 --     `_club_fee_event_collectable`, `_cancel_fee_existing_payment`,
 --     `_club_fee_event_clock`, `_club_note_fee_mint_failure`,
 --     `_club_try_mint_cancel_fee`, `_club_record_fee`, `_club_record_no_show_fee`,
@@ -69,6 +69,79 @@
 --        fallback R2A just deleted, wearing a different hat. The loud failure now lands on the
 --        ops UPDATE/DELETE that would break policy, naming the key, instead of on an owner
 --        waiting for a refund.
+--
+-- ═══ THIRD FIX ROUND, 2026-08-24, STILL BEFORE LANDING ══════════════════════════════════════
+-- A blind adversarial review of the R1C/R2A blob returned three more defects. Same reasoning as
+-- above: 0118 has never reached a database (production ledger head is 0116), so they are fixed
+-- IN PLACE rather than in a correction migration.
+--   R3S  SERVICE-ROLE CLOSURE — R1C's gates were bypassable. Every revoke in this file read
+--        `from public, anon, authenticated` and never named `service_role`. But service_role does
+--        NOT receive function EXECUTE through PUBLIC — it receives it through Supabase's function
+--        DEFAULT PRIVILEGES, which those revokes do not touch. `supabase/tests/00_shim.sql:69-74`
+--        models exactly that and says so in its own comment ("§1/§4의 public·anon 회수와 무관하게
+--        유지"). So R1C's time and attendance gates, which live ONLY in `club_finish_session`'s
+--        WHERE, were one service-key call away from irrelevant: `_club_record_no_show_fee(...)`
+--        called directly mints a 20% fee against an owner who turned up, on a session that has
+--        not started. A ruling is only as strong as its weakest path.
+--        THE RULE, so this is decidable and not remembered: **the explicit
+--        `grant execute … to service_role` lines in this file ARE the allowlist.** A function with
+--        one keeps service_role; a function without one is server-internal and is revoked from
+--        service_role too.
+--        VERIFIED BEFORE REVOKING, not assumed. `supabase/functions/` and `app/` reference exactly
+--        one of these by name — `mint_cancel_fee_intent`, at
+--        `transition-booking/cancel_owner.ts:156` on the service key — and it KEEPS its grant.
+--        Every in-DB caller of the eight revoked functions is SECURITY DEFINER owned by postgres,
+--        so the EXECUTE check inside them is against the owner, never against service_role:
+--        `club_cancel_session` (0038:229), `club_finish_session` (§E), `session_cancel_delegation`
+--        (§D), `_club_record_fee` (§C), `sweep_club_cancel_fee_intents` (§F). The pg_cron job runs
+--        as postgres.
+--        REVOKED from service_role (8, each tagged `R3S` at its revoke line): `club_cfg_required`,
+--          `_club_fee_event_clock`, `_club_note_fee_mint_failure`, `_club_try_mint_cancel_fee`,
+--          `_club_record_fee`, `_club_record_cancel_fee`, `_club_record_no_show_fee`,
+--          `_club_refund_confirmed`.
+--        KEPT for service_role, each with its reason (9):
+--          `mint_cancel_fee_intent`        — an edge function calls it (cancel_owner.ts:156).
+--          `sweep_club_cancel_fee_intents` — the recovery entry point: pg_cron and manual ops.
+--          `payments_reconciliation`, `club_fee_mint_reconciliation` — ops READ queries.
+--          `_club_fee_event_collectable`, `_cancel_fee_existing_payment` — read-only predicates
+--            this file deliberately granted, so ops can ask "is this collectable / already
+--            settled?" without touching a writer.
+--          `_club_ruled_cfg_keys`          — REQUIRED at runtime: `_club_config_ruled_row_guard`
+--            is SECURITY INVOKER, so an ops UPDATE of club_config on the service key evaluates it
+--            AS service_role. Revoking it would break every ops write to club_config.
+--          `session_cancel_delegation`, `club_finish_session` — client RPCs granted to
+--            `authenticated`; each opens with an `auth.uid()` party gate, so a service_role call
+--            with no JWT claim gets `not_found` / `not_host_or_closed`. Revoking `authenticated`
+--            RPCs from service_role is a schema-wide posture change this slice does not own.
+--          (`_club_config_ruled_row_guard` needs no decision: a direct call raises "trigger
+--            functions can only be called as triggers", and PostgreSQL does not check EXECUTE
+--            when a trigger fires. Not a door.)
+--        `club_cfg_required` is READ-ONLY and service_role holds BYPASSRLS, so ITS revoke closes
+--        no live exposure — it is hygiene, the same "key onto a wall" call 0116 F-6 made for
+--        `club_host_stats`. Revoked anyway so the allowlist rule has no exceptions to remember.
+--        ⚠ PINNED IN BOTH DIRECTIONS by suite 153 P8: a named arm per revoked function (delete a
+--        revoke line → P8 red, naming it) AND a named arm per kept function (over-revoke something
+--        ops needs → P8 red, naming it).
+--   R3Q  ONE BOOKING'S BOOKKEEPING FAILURE NO LONGER DESTROYS EVERY OWNER'S REFUND. A `raise`
+--        inside a PL/pgSQL EXCEPTION section is not caught by that same section, so a failure of
+--        `_club_note_fee_mint_failure` propagated out of `_club_try_mint_cancel_fee` →
+--        `_club_record_fee` → `club_finish_session`, which has no handler. That escape was
+--        designed when the only caller was `session_cancel_delegation` — ONE booking, ONE owner —
+--        where rolling the cancellation back is proportionate. R1C then wired the recorder into
+--        `club_finish_session`, which runs it ONCE PER CONFIRMED BOOKING: in a session with five
+--        no-show bookings, booking #3's queue write taking the whole transaction down means no
+--        session 'done' and NONE of the five owners refunded — defeating the exact property R1C
+--        exists to establish. The queue write now has its own nested BEGIN/EXCEPTION, so booking
+--        #3's bookkeeping failure fails BOOKING #3. Full reasoning and the named cost at §C's
+--        `_club_try_mint_cancel_fee`; suite 153 P13 owns it.
+--   R3K  THE SEALED KEY LIST IS ONE ARRAY, AND CONTAINMENT IS ASSERTED. R2A's safety argument is
+--        "the raise in §E is unreachable, therefore it cannot roll back a refund", which rests on
+--        {keys read through `club_cfg_required`} ⊆ {sealed keys}. That list was typed out four
+--        times and nothing enforced the subset. It now lives once in `_club_ruled_cfg_keys()`
+--        (§A) — the pre-check, the CHECK constraint's literal, the trigger's list, suite 153 P11
+--        and the §H assertion all derive from it — and §H refuses to apply the migration if any
+--        `club_cfg_required('<key>')` literal anywhere in schema public names an unsealed key.
+--        A constraint, not a discipline.
 --
 -- Every created/replaced function carries `set search_path = public, pg_temp` IN ITS BODY.
 -- `create or replace` wipes ALTER-applied proconfig; suite 98 H1 owns that invariant.
@@ -128,7 +201,10 @@ begin
   end if;
   return v;
 end $$;
-revoke execute on function club_cfg_required(text) from public, anon, authenticated;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
+revoke execute on function club_cfg_required(text)
+  from public, anon, authenticated, service_role;
 comment on function club_cfg_required is
   '0118 R2A: club_config read that RAISES missing_club_config:<name> instead of silently falling
 back to a ruled number copied into code. Use for every value whose absence would otherwise charge
@@ -160,6 +236,9 @@ somebody the old rate. Reads whose fallback is a fail-CLOSED zero keep using clu
 --      RENAMED out of the ruled set. A rename is a delete as far as `club_cfg('cancel_late_pct')`
 --      is concerned, so both are the same door and both are shut.
 --   (+ a statement trigger for TRUNCATE, which bypasses row triggers entirely.)
+--   Both doors, the pre-check, §H and suite 153 P11 read the SAME array — `_club_ruled_cfg_keys()`
+--   (R3K, below). The list is not typed twice anywhere any more, and §H refuses to apply this
+--   migration if a `club_cfg_required('<key>')` call site names a key that array does not seal.
 -- INSERT needs no door of its own: the CHECK already rejects a NULL insert, and `name` is the
 -- primary key, so a ruled row cannot be duplicated or shadowed. Delete, rename, truncate and
 -- NULL-update are the complete set of ways to reach the state that raises.
@@ -168,6 +247,40 @@ somebody the old rate. Reads whose fallback is a fail-CLOSED zero keep using clu
 -- the rest stay freely editable AND deletable; this is not a freeze on `club_config`. Suite 153
 -- P11 owns both halves: the four keys refuse to be emptied, a non-ruled key still can be.
 --
+-- ── R3K (2026-08-24): ONE ARRAY, FIVE CONSUMERS ─────────────────────────────────────────────
+-- The sealed key list used to be TYPED OUT FOUR TIMES — the pre-check below, the CHECK
+-- constraint, the row trigger's `v_ruled`, and suite 153's P11 ARM1 loop. R2A's entire safety
+-- argument is "the raise in §E is UNREACHABLE, therefore it cannot roll back a refund", and that
+-- argument rests on {keys read through `club_cfg_required`} ⊆ {sealed keys}. Four hand-maintained
+-- copies do not enforce a subset relation; they only make one likely. A later slice that follows
+-- `club_cfg_required`'s own instruction ("use this for every value whose absence would otherwise
+-- CHARGE somebody") and adds a fifth key without touching all four arrays silently reintroduces
+-- exactly the rollback this file just closed — a NULLed key, an unhandled raise inside
+-- `club_finish_session`, and a session's worth of refunds lost.
+-- So the list lives HERE, once. The pre-check reads it, the CHECK constraint's array literal is
+-- GENERATED from it, the trigger reads it, §H asserts CONTAINMENT against it, and suite 153 P11
+-- reads it too. Adding a key is now one edit, and forgetting to seal one aborts the migration.
+create or replace function _club_ruled_cfg_keys() returns text[]
+language sql immutable
+set search_path = public, pg_temp
+as $$
+  select array['cancel_free_hours', 'cancel_late_pct',
+               'cancel_post_accept_pct', 'fee_platform_split_pct']::text[]
+$$;
+-- ⚠ service_role is NOT revoked here, and that is a decision, not an oversight (R3S names it too).
+-- `_club_config_ruled_row_guard` below is SECURITY INVOKER, so when ops UPDATEs a `club_config`
+-- row on the service key the trigger body evaluates this call AS service_role. Revoking it would
+-- make every ops write to club_config die with `permission denied for function
+-- _club_ruled_cfg_keys` — a fresh production breakage introduced by a hygiene revoke. What it
+-- returns is a constant list of config KEY NAMES: no row, no policy, no money. Suite 153 P8 pins
+-- both halves — client roles closed, service_role deliberately open.
+revoke execute on function _club_ruled_cfg_keys() from public, anon, authenticated;
+
+comment on function _club_ruled_cfg_keys is
+  '0118 R2A/R3K: the single source of the Sean-ruled club_config key set. The pre-check, the
+club_config_ruled_value_present CHECK literal, the _club_config_ruled_row_guard trigger, the §H
+containment assertion and suite 153 P11 all derive from this one array — nothing retypes it';
+
 -- ⚠ Existing rows are verified BEFORE the constraint is added, and the verification names the
 -- offending key. Without it the migration would abort on a bare constraint violation that says
 -- only "check constraint violated" — true, useless. §H asserts the same four values equal
@@ -177,8 +290,7 @@ do $$
 declare v_bad text;
 begin
   select string_agg(k.n, ', ' order by k.n) into v_bad
-  from unnest(array['cancel_free_hours', 'cancel_late_pct',
-                    'cancel_post_accept_pct', 'fee_platform_split_pct']) as k(n)
+  from unnest(_club_ruled_cfg_keys()) as k(n)
   where not exists (select 1 from club_config cc where cc.name = k.n and cc.value_num is not null);
   if v_bad is not null then
     raise exception '0118 R2A: cannot seal the ruled club_config ladder — missing or NULL: %', v_bad
@@ -187,14 +299,22 @@ begin
 end $$;
 
 alter table club_config drop constraint if exists club_config_ruled_value_present;
-alter table club_config add constraint club_config_ruled_value_present check (
-  -- NULL-collapse-proof on purpose: a CHECK whose expression evaluates to NULL PASSES, so a
-  -- collapsing predicate here would fail OPEN and seal nothing. `name` is the primary key and
-  -- cannot be NULL, and the coalesce makes that independent of anyone ever changing that.
-  coalesce(name, '') not in ('cancel_free_hours', 'cancel_late_pct',
-                             'cancel_post_accept_pct', 'fee_platform_split_pct')
-  or value_num is not null
-);
+-- R3K: the sealed set is not retyped here — the array literal is GENERATED from
+-- `_club_ruled_cfg_keys()` at apply time.
+-- NULL-collapse-proof on purpose: a CHECK whose expression evaluates to NULL PASSES, so a
+-- collapsing predicate here would fail OPEN and seal nothing. `name` is the primary key and
+-- cannot be NULL, and the coalesce makes that independent of anyone ever changing that.
+-- ⚠ BAKED AS A LITERAL rather than left as a live `_club_ruled_cfg_keys()` call in the CHECK
+-- expression, on purpose: pg_dump emits CHECK constraints INLINE with CREATE TABLE, which comes
+-- BEFORE functions in a dump — a constraint that calls a user function restores in the wrong
+-- order and fails. Generating the literal keeps the one source without that hazard.
+do $$
+begin
+  execute format(
+    'alter table club_config add constraint club_config_ruled_value_present check (
+       coalesce(name, '''') <> all (%L::text[]) or value_num is not null)',
+    _club_ruled_cfg_keys());
+end $$;
 
 comment on constraint club_config_ruled_value_present on club_config is
   '0118 R2A: the four Sean-ruled ladder keys may not hold a NULL value_num. club_cfg_required
@@ -206,8 +326,8 @@ language plpgsql security invoker
 set search_path = public, pg_temp
 as $$
 declare
-  v_ruled text[] := array['cancel_free_hours', 'cancel_late_pct',
-                          'cancel_post_accept_pct', 'fee_platform_split_pct'];
+  -- R3K: read, never retyped. See `_club_ruled_cfg_keys()` above for why this is one array.
+  v_ruled text[] := _club_ruled_cfg_keys();
 begin
   if tg_op = 'TRUNCATE' then
     raise exception 'ruled_club_config_row_required:*'
@@ -284,8 +404,16 @@ on conflict do nothing;
 -- `_shared/ops.ts`, so it cannot use that module's OPS_PROFILE_ID fallback. It does route to any
 -- provisioned `ops_recipients(event_class='club_fee_mint_failed')`, and the sealed table plus the
 -- reconciliation function below remain the safety net when (as measured today) routing has zero
--- recipients. If writing this row fails, the exception escapes and the cancellation rolls back;
--- invisible success is not an allowed outcome.
+-- recipients.
+-- ⚠ WHAT HAPPENS WHEN THE QUEUE WRITE ITSELF FAILS — CHANGED 2026-08-24 (R3Q). This paragraph
+-- used to end "the exception escapes and the cancellation rolls back; invisible success is not an
+-- allowed outcome." That was written when the only caller was `session_cancel_delegation`: ONE
+-- booking, ONE owner, where rolling the cancellation back is proportionate and the owner sees an
+-- error instead of a lie. R1C then wired the recorder into `club_finish_session`, which runs it
+-- ONCE PER CONFIRMED BOOKING — and at session scope the same escape means booking #3's queue
+-- write takes down the whole transaction: no session 'done', and NONE of the five owners in that
+-- session refunded. So the queue write now fails only its own booking (§C,
+-- `_club_try_mint_cancel_fee`), and the honest accounting of what that costs is written there.
 create table if not exists club_fee_mint_failures (
   booking_id uuid primary key references bookings(id) on delete cascade,
   fee_kind text not null check (fee_kind in ('cancel_fee', 'no_show_fee')),
@@ -455,7 +583,10 @@ begin
   event_at := clock_timestamp();
   return next;
 end $$;
-revoke execute on function _club_fee_event_clock() from public, anon, authenticated;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
+revoke execute on function _club_fee_event_clock()
+  from public, anon, authenticated, service_role;
 
 create or replace function _club_note_fee_mint_failure(
   p_booking uuid, p_code text, p_message text
@@ -497,12 +628,43 @@ begin
         and n.created_at >= now() - interval '1 hour'
     );
 end $$;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
 revoke execute on function _club_note_fee_mint_failure(uuid, text, text)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- This is the ONLY exception guard around the mint. It is not a NOTICE swallow: failure becomes
--- a durable queue row. If the queue write itself fails, that error escapes this handler and rolls
--- the whole event back, which is the only honest fallback.
+-- a durable queue row.
+--
+-- ═══ R3Q (2026-08-24): THE QUEUE WRITE FAILS ITS OWN BOOKING, NOT THE SESSION ═══════════════
+-- A `raise` inside a PL/pgSQL EXCEPTION section is NOT caught by that same section. So until this
+-- round, a failure of `_club_note_fee_mint_failure` propagated straight out of this function →
+-- `_club_record_fee` → `club_finish_session`, which has no handler at all. The file argued for
+-- that escape and the argument was sound FOR ITS TIME: the only caller was
+-- `session_cancel_delegation`, one booking and one owner, where rolling the cancellation back is
+-- proportionate.
+-- R1C changed the caller set. `club_finish_session` now runs the recorder ONCE PER CONFIRMED
+-- BOOKING, so in a session with five no-show bookings, booking #3's bookkeeping failure lost the
+-- WHOLE transaction: the session never reached 'done' and none of the five owners were refunded.
+-- That is exactly the property R1C exists to establish ("the session still finishes and still
+-- refunds"), defeated by a write that is not the money.
+--
+-- So the queue write gets its own nested BEGIN/EXCEPTION. Booking #3's failure now fails BOOKING
+-- #3: no intent, `false` returned, and a WARNING that carries BOTH errors — the mint's and the
+-- queue's — because the queue error alone would not say what it was hiding.
+--
+-- WHAT THIS COSTS, stated rather than implied. That one booking ends up with a fee recorded on
+-- `bookings`, no payment intent, and NO queue row — so `club_fee_mint_reconciliation()`, which
+-- reads the queue, cannot see it either. The only thing left is the server log line.
+-- WHAT STILL RECOVERS IT: §F's `sweep_club_cancel_fee_intents` works from the RECORDED obligation
+-- (`_club_fee_event_collectable` over `bookings` + no existing payment row), NOT from the queue.
+-- The booking is picked up on the next tick and the frozen amount is minted then. The loss is ops
+-- VISIBILITY until that happens, not the money. Suite 153 P13 pins the whole shape: a session
+-- where one booking's queue write fails still finishes, still refunds every owner, and the
+-- affected booking's intent is still recovered by the sweep.
+-- NOT DONE, and deliberately: no second fallback write here. Anything this handler tried would
+-- run in the same transaction that just failed a write, so it would be a guess dressed as a
+-- guarantee. A WARNING plus a recovery path that does not depend on this table is the honest set.
 create or replace function _club_try_mint_cancel_fee(p_booking uuid) returns boolean
 language plpgsql security definer
 set search_path = public, pg_temp
@@ -511,6 +673,8 @@ declare
   v_rows int;
   v_state text;
   v_message text;
+  v_q_state text;
+  v_q_message text;
 begin
   if not _club_fee_event_collectable(p_booking) then return false; end if;
 
@@ -519,7 +683,16 @@ begin
     if v_rows = 0 then raise exception 'mint_returned_no_row'; end if;
   exception when others then
     get stacked diagnostics v_state = returned_sqlstate, v_message = message_text;
-    perform _club_note_fee_mint_failure(p_booking, v_state, v_message);
+    -- R3Q: its OWN subtransaction. Without this inner block the raise below would leave this
+    -- handler and roll back every other booking in the caller's transaction.
+    begin
+      perform _club_note_fee_mint_failure(p_booking, v_state, v_message);
+    exception when others then
+      get stacked diagnostics v_q_state = returned_sqlstate, v_q_message = message_text;
+      raise warning 'club_fee_mint_failure_unrecorded booking=% mint=%/% queue=%/%',
+        p_booking, v_state, left(coalesce(v_message, ''), 200),
+        v_q_state, left(coalesce(v_q_message, ''), 200);
+    end;
     return false;
   end;
 
@@ -527,7 +700,10 @@ begin
   where booking_id = p_booking and resolved_at is null;
   return true;
 end $$;
-revoke execute on function _club_try_mint_cancel_fee(uuid) from public, anon, authenticated;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
+revoke execute on function _club_try_mint_cancel_fee(uuid)
+  from public, anon, authenticated, service_role;
 
 -- One writer for BOTH named policies. The wrappers decide policy; this function alone writes the
 -- amount, two club_fee_items rows, runner compensation and immediate mint attempt.
@@ -609,8 +785,12 @@ begin
 
   perform _club_try_mint_cancel_fee(p_booking);
 end $$;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
+-- THE function R3S exists for: with service_role EXECUTE it writes a fee, two club_fee_items
+-- rows, a runner ledger credit and a payment intent on ANY booking, with no gate of any kind.
 revoke execute on function _club_record_fee(uuid, uuid, uuid, text, int, numeric, uuid, text)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- Existing signature retained for the three historical cancellation definitions, but the kind
 -- is now an assertion rather than a passenger. Passing no_show_fee here fails loudly.
@@ -626,8 +806,10 @@ begin
   perform _club_record_fee(p_session, p_sd, p_booking, 'cancel_fee',
                            p_base, p_pct, p_runner, p_rule);
 end $$;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
 revoke execute on function _club_record_cancel_fee(uuid, uuid, uuid, text, int, numeric, uuid, text)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- No-show is a named policy function. It reads today's ruled 20% from club_cfg just like the
 -- cancellation ladder, but a future ruling changes this arm alone rather than a p_kind passenger
@@ -645,8 +827,12 @@ begin
     'no_show_ladder_top'
   );
 end $$;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
+-- R1C's time and attendance gates live in club_finish_session's WHERE, NOT in here. Until this
+-- line a service-key call reached straight past both of them and billed a present owner 20%.
 revoke execute on function _club_record_no_show_fee(uuid, uuid, uuid, int, uuid)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- EXTENDS 0038:211-227. This remains the ONE confirmed→cancelled_runner→refund_pending transition.
 -- 0024's AFTER INSERT push trigger freezes NEW title/body immediately, so a post-insert correction
@@ -685,8 +871,10 @@ begin
   end loop;
   return n;
 end $$;
+-- R3S: `service_role` is named on purpose — it holds function EXECUTE through Supabase's
+-- function DEFAULT PRIVILEGES, which a `from public, anon, authenticated` revoke does not touch.
 revoke execute on function _club_refund_confirmed(uuid, text)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -1124,7 +1312,7 @@ rows to prevent a second full charge; this human queue is the corresponding reso
 -- §H  Apply-time assertions for the ruled constants and the copy/policy split
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 do $$
-declare v_finish_src text; v_refund_src text;
+declare v_finish_src text; v_refund_src text; v_unsealed text;
 begin
   if club_cfg('cancel_free_hours') is distinct from 24
      or club_cfg('cancel_late_pct') is distinct from 10
@@ -1141,5 +1329,34 @@ begin
      or v_finish_src not like '%_club_refund_confirmed%'
      or v_refund_src not like '%club_fee_kind = ''no_show_fee''%' then
     raise exception '0118: club_finish_session did not switch to the named no-show policy/copy arm';
+  end if;
+
+  -- ── R3K CONTAINMENT (2026-08-24) — the assertion that makes R2A a constraint ──────────────
+  -- R2A's safety argument is that `club_cfg_required`'s raise is UNREACHABLE from the money path,
+  -- and that holds only while every key it reads is sealed by `_club_ruled_cfg_keys()`. This
+  -- extracts every literal key from every function body in schema `public` and refuses to APPLY
+  -- the migration if one of them is outside the sealed array. A future slice that adds a fifth
+  -- ruled read without sealing the key fails HERE, at apply time, naming the key — instead of
+  -- stranding a session's refunds the first time an operator empties it.
+  -- ⚠ This is the one apply-time assertion in this file that is allowed to be about a GATE-shaped
+  -- property, and it does not collide with any pin: it checks only found ⊆ sealed. Reverting a
+  -- call site to `coalesce(club_cfg(k), <n>)` REMOVES a literal, so this stays green and 153 P11
+  -- ARM4 reddens; widening the seal to a non-ruled key keeps containment true, so this stays green
+  -- and P11 ARM2 reddens. Neither mutation is stolen from its pin.
+  -- LIMITS, stated rather than implied: it sees single-quoted literal call sites only. A
+  -- `club_cfg_required(v_name)` computed at runtime is invisible to it, and so is a caller outside
+  -- schema public. Both are review items; neither is reachable today.
+  select coalesce(string_agg(distinct q.k, ', ' order by q.k), '') into v_unsealed
+  from (
+    select (regexp_matches(p.prosrc,
+              'club_cfg_required\(\s*''([a-zA-Z0-9_]+)''', 'g'))[1] as k
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.prokind = 'f' and p.prosrc like '%club_cfg_required(%'
+  ) q
+  where not (q.k = any (_club_ruled_cfg_keys()));
+  if v_unsealed <> '' then
+    raise exception '0118 R3K: club_cfg_required reads an UNSEALED club_config key: %', v_unsealed
+      using hint = 'add the key to _club_ruled_cfg_keys() — which seals it against NULL/DELETE/RENAME/TRUNCATE — and give it a ruled value; or read it through club_cfg, whose fallback must then fail CLOSED';
   end if;
 end $$;

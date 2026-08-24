@@ -12,6 +12,12 @@
 -- Every pin dies to the deletion of its own fix. No pin here is theatre.
 --
 -- ─── MEASURED MUTATION MAP (prediction → measured; 19/20 exact, 1 named mismatch) ───────────
+-- ⚠⚠ SUPERSEDED 2026-08-24, kept rather than deleted. Everything from here to the next banner is
+-- the PRE-RULING measurement of 0118 as it stood on 2026-08-21 — 739/0, P1~P8, twenty mutations.
+-- R1C/R2A then changed the blob and the current numbers are 743/0 with P9~P12; the third fix
+-- round (R3S/R3Q/R3K) adds P13 and is UNMEASURED. Both are recorded below, each against the tree
+-- it was taken on. This map is still true of the commit it names and is still the provenance of
+-- P1~P8's red sets, which is why it stays; it is NOT the current pass count.
 -- P1 `_club_record_fee` ledger `platform_fee` 0 → `v_plat`
 --            predicted [P1,P2,P4] · MEASURED 736/3 red=[ccf P1, ccf P2, ccf P4] — EXACT
 --    ledger eligibility `if p_runner is not null` → `if (select runner_id from bookings
@@ -112,11 +118,74 @@
 --      `revoke execute` line left a new SECURITY DEFINER door open with the suite fully green.
 --      P8 now carries anon and authenticated arms for it, and its search_path array carries the
 --      new trigger function (security INVOKER, so 98 H1 does not watch that one).
--- ⚠ The pass/fail counts and the mutation map above have NOT been re-measured against the edited
--- blob, and nothing here claims they have — nor have P9~P12 or the rewritten P11 been executed
--- at all: the harness is owned by another agent this session and running it in parallel braids
--- the results. Everything in this 2026-08-24 block is PREDICTED. A dedicated harness agent owns
--- the numbers; this block is the record of what changed and why, not a result.
+-- ═══ MEASURED — the R1C/R2A round, on commit 73e65c9 plus that round's edits ═════════════════
+-- This block was written as PREDICTED because the harness belonged to another agent at the time.
+-- It has since been RUN, by a dedicated harness agent, and these are the numbers. They belong to
+-- 73e65c9 + the R1C/R2A edits — NOT to the third fix round recorded after them.
+--   harness ......... 743 pass / 0 fail   (739 pre-existing + P9 + P10 + P11 + P12)
+--   harness runs .... 17
+--   mutations ....... 14, one at a time, full harness each, tree verified clean between
+-- RED SETS, measured:
+--   drop the handoff term (the old checked_in_at-only gate) ......... P12 ALONE
+--   drop the checked_in_at term ..................................... P10 alone
+--   drop the time gate .............................................. P9 alone
+--   drop the WHOLE gate ............................................. P9 + P10 + P12
+--       ⓘ P4 correctly stays GREEN — it is the positive control for a REAL no-show, and a
+--         gate-less fee still bills a real no-show. That is the "which pin owns which property"
+--         separation working, not a hole.
+--   CHECK neutered .................................................. P11 ARM1
+--   drop the row trigger ............................................ P11 ARM1
+--   drop the TRUNCATE trigger ....................................... P11 ARM1
+--   ladder site reverted to coalesce ................................ P11 ARM4
+--   no-show arm reverted ............................................ P8
+--   delete club_cfg_required's revoke ............................... P8 + [sec] S1
+--   widen the seal to a non-ruled key ............................... P11 ARM2
+--   strip the key name from the raise ............................... P11 ARM3
+--   strip search_path from the INVOKER guard ........................ P8
+--       ⓘ 98 H1 stays GREEN here — it watches SECURITY DEFINERs only, and the guard is INVOKER.
+--         That is precisely why P8's search_path array had to grow the new trigger function:
+--         without the addition nothing anywhere would have caught it.
+--
+-- ═══ 2026-08-24, THIRD FIX ROUND (R3S / R3Q / R3K) — PREDICTED, NOT MEASURED ═════════════════
+-- A blind review of the ruled blob returned three more defects; all three are fixed in place and
+-- move this suite again. NOTHING in this block has been executed — the harness is owned by a
+-- separate agent this session and running it in parallel braids the results. Labelled PREDICTED
+-- and it stays PREDICTED until that agent replaces it with numbers.
+--   R3S  service_role was never named in ANY revoke in 0118, and it does not receive function
+--        EXECUTE through PUBLIC — it receives it through Supabase's function DEFAULT PRIVILEGES,
+--        which `from public, anon, authenticated` leaves untouched (00_shim.sql:69-74 models this
+--        and says so). So R1C's gates, which live only in club_finish_session's WHERE, were one
+--        service-key call away from irrelevant. Eight server-internal functions are now revoked
+--        from service_role as well. **P8 grows two NAMED arms** — one listing any of the eight
+--        that service_role can still reach, one listing any of the seven ops genuinely needs that
+--        has been over-revoked — plus a client-role arm for `_club_ruled_cfg_keys()`.
+--   R3Q  a `raise` inside a PL/pgSQL EXCEPTION section is not caught by that section, so a failed
+--        queue write escaped `_club_try_mint_cancel_fee` and rolled back `club_finish_session` —
+--        one booking's bookkeeping destroying every owner's refund, at the exact scope R1C exists
+--        to protect. The queue write gets its own nested block. **P13 (new)** owns it.
+--   R3K  the sealed-key list existed in four places with nothing enforcing containment. It is now
+--        one array, `_club_ruled_cfg_keys()`, and §H refuses to apply the migration if any
+--        `club_cfg_required('<key>')` literal in schema public names an unsealed key. **P11 and
+--        P8 read that array instead of retyping it**; P11's ARM structure is unchanged.
+-- PREDICTED pass count: **744 / 0** (743 + P13). PREDICTED red sets for this round's mutations:
+--   delete any one of the eight new `service_role` revokes ......... P8 alone (naming the function)
+--   re-grant service_role on one of them ........................... P8 alone (same)
+--   revoke service_role from `_club_ruled_cfg_keys()` .............. P8 alone — and NOTE: this
+--       one is predicted to redden P8's over-revoke arm and NOTHING else, because the suite runs
+--       as postgres; the ops breakage it represents (an INVOKER trigger evaluating it as
+--       service_role) is not reproducible under this harness. Named because a pin that cannot
+--       see the real failure should say so.
+--   delete the nested BEGIN/EXCEPTION in `_club_try_mint_cancel_fee` ... P13 alone
+--   delete `_club_ruled_cfg_keys()`'s use in the trigger / pre-check / CHECK ... the migration
+--       fails to APPLY (the function is the only definition left), so this is a harness-wide
+--       failure rather than a pin — recorded so nobody logs it as a mutation with a red set.
+--   add `club_cfg_required('<unsealed_key>')` to any function body ..... the migration REFUSES to
+--       apply, naming the key. That abort IS the fix; it is not a pin and has no red set.
+-- ⚠ Also unmeasured and therefore unclaimed: whether P13's two-dog fixture survives every
+-- capacity check on the way in. `_club_runner_cap` returns 2 for a veteran (0037:37, SOURCE-READ)
+-- and the suite makes both `h` and `r` veterans, so two dogs on `r` should be legal — but P13
+-- asserts that precondition explicitly rather than assuming it, so a capacity refusal shows up as
+-- a named 🔴 전제 실패 instead of a vacuous pass.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
@@ -183,6 +252,21 @@ begin
   return new;
 end $$;
 
+-- Suite-only fault injector #2 (R3Q, 2026-08-24). Makes the DURABLE QUEUE write fail — the write
+-- that used to escape `_club_try_mint_cancel_fee`'s handler and roll back the caller's whole
+-- transaction. Keyed on its own GUC so it can be aimed at exactly one booking while another
+-- booking in the same session finishes normally; that contrast IS the pin.
+create or replace function t153_reject_queue() returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if new.booking_id::text = current_setting('test.fail_club_queue', true) then
+    raise exception 't153_forced_queue_failure';
+  end if;
+  return new;
+end $$;
+
 do $$
 declare
   h uuid; r uuid; o1 uuid; o2 uuid; o3 uuid; o4 uuid; o5 uuid; og uuid; z uuid; op uuid;
@@ -201,7 +285,9 @@ declare
   v_vet numeric; v_vetnote text; v_key text;
   v_since timestamptz; v_fee int; v_share int; v_n int; v_n2 int;
   v_total bigint; v_push_base bigint; v_push jsonb;
-  v_bad text; v_msg text; v_e1 text; v_e2 text; v_src text; v_err boolean;
+  v_bad text; v_msg text; v_e1 text; v_e2 text; v_src text; v_err boolean; v_acl text;
+  o_q1 uuid; d_q1 uuid; o_q2 uuid; d_q2 uuid; s_q uuid; sd_q1 uuid; sd_q2 uuid;
+  b_q1 uuid; b_q2 uuid; v_fee1 int; v_fee2 int;
 begin
   select payments_live_since into v_since from ops_flags where id;
   update ops_flags set payments_live_since = null, updated_at = now() where id;
@@ -591,6 +677,57 @@ begin
        or not has_function_privilege('service_role','sweep_club_cancel_fee_intents()','execute')
        or not has_function_privilege('service_role','payments_reconciliation()','execute')
       then v_bad:=v_bad||' 함수 문 ACL 불일치'; end if;
+
+    -- ══ ADDED 2026-08-24 (R3S) — the door none of the arms above ever watched ═══════════════
+    -- Every arm above tests `anon` and `authenticated`. NONE tested `service_role`, and
+    -- service_role does not get function EXECUTE through PUBLIC — it gets it through Supabase's
+    -- function DEFAULT PRIVILEGES, which a `revoke ... from public, anon, authenticated` leaves
+    -- completely untouched (`00_shim.sql:69-74` models exactly that and says so). So R1C's time
+    -- and attendance gates, which live ONLY in club_finish_session's WHERE, were bypassable by
+    -- anything holding the service key: `_club_record_no_show_fee(...)` called directly bills a
+    -- present owner 20% on a session that has not started. The gates were pinned (P9/P10/P12) and
+    -- the DOOR AROUND THEM was not.
+    -- Reported BY NAME rather than as one more `or` in the disjunction above, because "함수 문 ACL
+    -- 불일치" over twenty arms tells whoever reddens it nothing about which door opened.
+    select coalesce(string_agg(q.sig, ', ' order by q.sig), '') into v_acl
+    from unnest(array[
+      'club_cfg_required(text)',
+      '_club_fee_event_clock()',
+      '_club_note_fee_mint_failure(uuid,text,text)',
+      '_club_try_mint_cancel_fee(uuid)',
+      '_club_record_fee(uuid,uuid,uuid,text,integer,numeric,uuid,text)',
+      '_club_record_cancel_fee(uuid,uuid,uuid,text,integer,numeric,uuid,text)',
+      '_club_record_no_show_fee(uuid,uuid,uuid,integer,uuid)',
+      '_club_refund_confirmed(uuid,text)'
+    ]) q(sig)
+    where has_function_privilege('service_role', q.sig::regprocedure, 'execute');
+    if v_acl <> '' then
+      v_bad := v_bad || ' 🔴 service_role가 서버 내부 writer를 아직 직접 부를 수 있다=' || v_acl; end if;
+
+    -- The other half. Over-revoking is a real failure too: `mint_cancel_fee_intent` is called by
+    -- transition-booking/cancel_owner.ts:156 on the service key, the sweep is the cron/ops entry
+    -- point, the two reconciliation queries are how a human sees the queue, and
+    -- `_club_ruled_cfg_keys()` is evaluated AS the writer by the SECURITY INVOKER club_config
+    -- trigger — revoking that one breaks every ops write to club_config. R3S's rule is "the
+    -- explicit grants in 0118 are the allowlist", and this arm is the allowlist.
+    select coalesce(string_agg(q.sig, ', ' order by q.sig), '') into v_acl
+    from unnest(array[
+      'mint_cancel_fee_intent(uuid)',
+      'sweep_club_cancel_fee_intents()',
+      'payments_reconciliation()',
+      'club_fee_mint_reconciliation()',
+      '_club_fee_event_collectable(uuid)',
+      '_cancel_fee_existing_payment(uuid)',
+      '_club_ruled_cfg_keys()'
+    ]) q(sig)
+    where not has_function_privilege('service_role', q.sig::regprocedure, 'execute');
+    if v_acl <> '' then
+      v_bad := v_bad || ' 🔴 ops가 실제로 쓰는 문까지 service_role에서 회수됐다=' || v_acl; end if;
+
+    -- R3K's single source is closed to CLIENT roles even though it is open to service_role.
+    if has_function_privilege('anon','_club_ruled_cfg_keys()','execute')
+       or has_function_privilege('authenticated','_club_ruled_cfg_keys()','execute')
+      then v_bad:=v_bad||' 봉인 키 목록이 클라이언트 롤에 열려 있다'; end if;
     if exists(select 1 from pg_policy where polrelid='club_fee_mint_failures'::regclass)
        or has_table_privilege('authenticated','club_fee_mint_failures','select')
       then v_bad:=v_bad||' 실패 큐가 client-visible'; end if;
@@ -604,6 +741,8 @@ begin
       -- R2A's second half: the trigger fn that makes club_cfg_required's raise unreachable from
       -- the money path. security INVOKER, so 98 H1 does not watch it — this array does.
       '_club_config_ruled_row_guard()'::regprocedure,
+      -- R3K's single source of the sealed key set. Also INVOKER, also invisible to 98 H1.
+      '_club_ruled_cfg_keys()'::regprocedure,
       '_club_fee_event_collectable(uuid)'::regprocedure,
       '_cancel_fee_existing_payment(uuid)'::regprocedure,
       'mint_cancel_fee_intent(uuid)'::regprocedure,
@@ -641,7 +780,7 @@ begin
        or v_src like '%from ops_recipients r%'
       then v_bad:=v_bad||' ops recipient 활성 규칙을 직접 복사했다'; end if;
 
-    if v_bad='' then call _pass('ccf','P8 봉인/한 규칙 — client는 0058의 기존 whole-row guard를 통해 event facts를 못 바꾸고 실패 큐·server mints/sweep도 못 만지며 두 live RPC는 유지된다; 17개 생성/재생성 함수(R2A의 club_cfg_required·_club_config_ruled_row_guard 포함)가 모두 in-body public,pg_temp이고 club_cfg_required 문은 anon·authenticated 양쪽에 닫혀 있고 recovery는 같은 mint helper만 호출해 club_cfg/total_price/scheduled_at을 다시 읽지 않는다');
+    if v_bad='' then call _pass('ccf','P8 봉인/한 규칙 — client는 0058의 기존 whole-row guard를 통해 event facts를 못 바꾸고 실패 큐·server mints/sweep도 못 만지며 두 live RPC는 유지된다; 18개 생성/재생성 함수(R2A의 club_cfg_required·_club_config_ruled_row_guard, R3K의 _club_ruled_cfg_keys 포함)가 모두 in-body public,pg_temp이고 club_cfg_required 문은 anon·authenticated 양쪽에 닫혀 있으며 R3S의 서버 내부 writer 여덟 개는 service_role에서도 회수되고 ops가 실제 쓰는 일곱 개는 그대로 남아 있고 recovery는 같은 mint helper만 호출해 club_cfg/total_price/scheduled_at을 다시 읽지 않는다');
     else v_msg:=v_bad; call _fail('ccf','P8 봉인·ACL·search_path·one-copy',v_msg); end if;
   exception when others then reset role; v_msg:=sqlerrm; call _fail('ccf','P8 봉인·ACL·search_path·one-copy',v_msg); end;
 
@@ -825,6 +964,12 @@ begin
   --          constant. Dies if anyone reverts a site to `coalesce(club_cfg(k), <number>)`.
   --   ARM 5  the ladder still CHARGES exactly as ruled, end to end, through all four sites.
   --
+  -- ⚠ R3K (2026-08-24): every sealed-key list in this pin now READS `_club_ruled_cfg_keys()`, the
+  -- migration's single source, instead of retyping the four names — which this file alone did five
+  -- times. A retyped list here is a list that can drift from the one the CHECK and the trigger
+  -- actually use, and a drifted list makes this pin test a set the seal does not cover and PASS
+  -- for the wrong reason. The ARM structure is unchanged; only where the names come from moved.
+  --
   -- ⚠ HONEST LOSS OF STRENGTH, named rather than hidden: ARM 4 is a SOURCE assertion where the
   -- old pin had a behavioural one. It proves a site reads the wrapper; it does not prove the
   -- wrapper refuses AT that site. That behavioural proof cannot be reproduced any more, because
@@ -836,8 +981,14 @@ begin
   -- "record nothing" — fail-CLOSED — and 66 F8 owns that arm.
   begin
     v_bad := '';
+    -- R3K (2026-08-24): every sealed-key list in this pin now READS the migration's single
+    -- source, `_club_ruled_cfg_keys()`. It used to retype the four names five times in this file
+    -- alone — a fifth and sixth copy of a list whose whole job is to be identical to the one the
+    -- CHECK and the trigger use. If the two ever drifted, this pin would test a set the seal does
+    -- not cover and pass for the wrong reason. Widening the seal still reddens ARM 2 (a widened
+    -- array makes `vet_limit_krw` unemptiable), which is the red set the map records.
     select jsonb_object_agg(name, value_num) into v_cfg from club_config
-    where name in ('cancel_free_hours','cancel_late_pct','cancel_post_accept_pct','fee_platform_split_pct');
+    where name = any (_club_ruled_cfg_keys());
 
     -- ── ARM 1 — the ruled four cannot be emptied by any reachable route ──────────────────
     -- Each attempt sits in its own subtransaction. ⚠ EVERY attempt ends in a deliberate raise,
@@ -849,8 +1000,7 @@ begin
     -- inside the handler (which runs after the rollback), so nothing depends on whether plpgsql
     -- preserves assignments across a subtransaction abort.
     v_e1 := '';
-    for v_key in select unnest(array['cancel_free_hours','cancel_late_pct',
-                                     'cancel_post_accept_pct','fee_platform_split_pct'])
+    for v_key in select unnest(_club_ruled_cfg_keys())
     loop
       begin
         update club_config set value_num=null where name=v_key;
@@ -891,8 +1041,7 @@ begin
         then v_e1 := v_e1 || ' TRUNCATE 거절 이유가 다르다=' || sqlerrm; end if;
     end;
     if (select jsonb_object_agg(name, value_num) from club_config
-        where name in ('cancel_free_hours','cancel_late_pct','cancel_post_accept_pct',
-                       'fee_platform_split_pct')) is distinct from v_cfg
+        where name = any (_club_ruled_cfg_keys())) is distinct from v_cfg
       then v_e1 := v_e1 || ' 봉인 시도 뒤 사다리가 그대로가 아니다'; end if;
     if v_e1 <> '' then v_bad := v_bad || ' ARM1' || v_e1; end if;
 
@@ -992,8 +1141,7 @@ begin
                       and recipient_type='runner' and amount_krw=4980-v_n)
       then v_bad:=v_bad||' ARM5 플랫폼/공급 분배가 ruled split대로 갈라지지 않는다'; end if;
     if (select count(*) from club_config where value_num is null
-        and name in ('cancel_free_hours','cancel_late_pct','cancel_post_accept_pct',
-                     'fee_platform_split_pct')) <> 0
+        and name = any (_club_ruled_cfg_keys())) <> 0
       then v_bad:=v_bad||' 핀이 club_config를 NULL로 두고 나갔다'; end if;
 
     if v_bad='' then call _pass('ccf','P11 R2A 봉인+wrapper — 룰된 네 키는 NULL·DELETE·RENAME·TRUNCATE 어느 쪽으로도 비울 수 없고(그래서 club_finish_session 안의 무핸들러 raise가 도달 불가), 비룰 키(vet_limit_krw)는 여전히 자유롭게 수정·삭제되며, club_cfg_required는 실제로 없는 키에 대해 missing_club_config:<name>으로 이름을 담아 거절하되 있는 값은 그대로 돌려주고, 네 사다리 사이트는 모두 wrapper를 읽어 fallback 상수가 없고 ruled 사다리대로 청구한다');
@@ -1003,7 +1151,7 @@ begin
     -- undoes ARM 2's delete on its own; this only guarantees the ladder and the non-ruled key are
     -- never left broken for the suites that run after 153 even if that ever stops being true.
     update club_config set value_num=(coalesce(v_cfg,'{}'::jsonb)->>name)::numeric
-    where name in ('cancel_free_hours','cancel_late_pct','cancel_post_accept_pct','fee_platform_split_pct')
+    where name = any (_club_ruled_cfg_keys())
       and jsonb_typeof(coalesce(v_cfg,'{}'::jsonb)->name) = 'number';
     -- Guarded: if the raise happened BEFORE ARM 2 captured it, v_vet is NULL and the
     -- subtransaction rollback has already put the real row back — writing NULL over it here
@@ -1141,9 +1289,148 @@ begin
   exception when others then reset role; v_msg:=sqlerrm;
     call _fail('ccf','P12 R1C 출석 게이트 ②인계 확인',v_msg); end;
 
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [P13] R3Q — one booking's BOOKKEEPING failure must not destroy the other owners' refunds
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- NEW 2026-08-24 (third fix round). A `raise` inside a PL/pgSQL EXCEPTION section is NOT caught
+  -- by that same section, so a failure of `_club_note_fee_mint_failure` used to propagate out of
+  -- `_club_try_mint_cancel_fee` → `_club_record_fee` → `club_finish_session`, which has no handler
+  -- at all. At the scale that escape was designed for — `session_cancel_delegation`, one booking,
+  -- one owner — it was proportionate. R1C made `club_finish_session` run the recorder ONCE PER
+  -- CONFIRMED BOOKING, and at session scope the identical escape means one booking's queue write
+  -- takes down the whole transaction: no session 'done', and NOT ONE of that session's owners
+  -- refunded. That is exactly the property R1C exists to establish, lost to a write that is not
+  -- the money. §C now gives the queue write its own nested BEGIN/EXCEPTION; this pin owns it.
+  --
+  -- FIXTURE — one session, TWO delegating owners, both real no-shows, both billable. Two and not
+  -- five because a veteran runner's `delegated_capacity` is 2 (`_club_runner_cap`, 0037:37 —
+  -- SOURCE-READ, not measured here) and `session_assign_dog` re-checks it per dog, so two is the
+  -- largest honest session one runner can hold. Two is sufficient: the property is "owner #1's
+  -- refund survives booking #2's bookkeeping failure", and one surviving owner proves that exactly
+  -- as well as four would. Booking #2 carries BOTH injectors — the payments trigger so its mint
+  -- fails (otherwise the queue write is never attempted) and the queue trigger on top of it.
+  --
+  -- WHAT IT ASSERTS, and why none of it belongs in P4:
+  --   • the session still reaches 'done' and BOTH owners reach refund_pending/club_not_picked_up
+  --     — the R1C property, and the thing that was actually broken;
+  --   • owner #1's intent is minted normally, so the damage really was confined to booking #2;
+  --   • booking #2 keeps its RECORDED fee, has no intent, and has NO queue row — the cost of the
+  --     fix, asserted rather than described, so nobody can later assume the queue row survives;
+  --   • with both injectors removed the recovery sweep mints booking #2's frozen amount anyway,
+  --     because §F works from the recorded obligation on `bookings` and not from the queue. That
+  --     recovery is the entire reason a WARNING is an acceptable answer here, so it is pinned, not
+  --     asserted in prose.
+  -- ⚠ HONEST CROSS-TALK, named rather than discovered later: P13 needs a fee to fail on, so it
+  -- co-fires with any mutation that deletes the no-show fee ARM outright — the same relationship
+  -- P4 has. It does NOT co-fire with the GATE mutations: its fixture satisfies both gates (started
+  -- session, no check-in, no handoff stamp), so P9/P10/P12's red sets stay theirs. Delete the
+  -- nested BEGIN/EXCEPTION in §C and this pin reddens on its own — `club_finish_session` raises
+  -- and nothing happens at all.
+  begin
+    v_bad := '';
+    -- CUTOVER ORDER as in P4/P9/P10/P12: flag NULL while the bookings are BUILT (0081 §A's money
+    -- gate refuses a card-less harness owner once the pilot is live), flipped live before the call.
+    update ops_flags set payments_live_since=null, updated_at=now() where id;
+    o_q1 := t_user('ccf_owner_q_ok','owner');   d_q1 := t_dog(o_q1,'큐정상견');
+    o_q2 := t_user('ccf_owner_q_fail','owner'); d_q2 := t_dog(o_q2,'큐실패견');
+    j := t153_delegation(c,h,r,o_q1,d_q1,rt,90,true);
+    s_q := (j->>'session')::uuid; sd_q1 := (j->>'sessionDog')::uuid; b_q1 := (j->>'booking')::uuid;
+
+    -- SECOND dog into the SAME session, through the same production RPCs t153_delegation uses.
+    -- Inlined rather than added to that helper because every other pin wants one dog per session.
+    perform set_config('request.jwt.claim.sub', o_q2::text, false);
+    sd_q2 := session_delegate_dog(s_q, d_q2, t_consent());
+    perform set_config('request.jwt.claim.sub', h::text, false);
+    perform session_approve_dog(sd_q2, true);
+    perform set_config('request.jwt.claim.sub', o_q2::text, false);
+    b_q2 := session_pay_delegation(sd_q2, 'idem-153-p13-' || gen_random_uuid()::text, true);
+    perform set_config('request.jwt.claim.sub', h::text, false);
+    perform session_assign_dog(sd_q2, r);
+    perform set_config('request.jwt.claim.sub', r::text, false);
+    perform session_proposal_respond(sd_q2, true);
+
+    -- PRECONDITIONS — both bookings must be real, billable no-shows in ONE session, or this pin
+    -- proves nothing. Asserted, because a silent capacity refusal above would otherwise leave a
+    -- one-booking session and quietly restore the very scope the escape was proportionate for.
+    if (select count(*) from bookings
+        where club_session_id=s_q and status='confirmed' and runner_id=r) <> 2
+      then v_bad:=v_bad||' 🔴 전제 실패: 한 세션에 confirmed+러너 예약이 둘이 아니다(용량 거절?)'; end if;
+    if exists (select 1 from session_dogs where booking_id in (b_q1,b_q2) and checked_in_at is not null)
+       or exists (select 1 from bookings where id in (b_q1,b_q2) and owner_confirmed_handoff_at is not null)
+      then v_bad:=v_bad||' 🔴 전제 실패: 진짜 노쇼여야 하는 fixture에 출석 증거가 있다'; end if;
+
+    update club_sessions set scheduled_at = now() - interval '30 minutes' where id=s_q;
+    update ops_flags set payments_live_since=now()-interval '7 days', updated_at=now() where id;
+
+    -- Booking #2 fails its mint AND then fails its queue write. Booking #1 is untouched.
+    create trigger t153_force_payment_failure before insert on payments
+      for each row execute function t153_reject_payment();
+    create trigger t153_force_queue_failure before insert on club_fee_mint_failures
+      for each row execute function t153_reject_queue();
+    perform set_config('test.fail_club_booking', b_q2::text, false);
+    perform set_config('test.fail_club_queue', b_q2::text, false);
+
+    perform set_config('request.jwt.claim.sub', h::text, false);
+    perform club_finish_session(s_q);
+
+    -- ① THE PROPERTY. Before R3Q this raised out of club_finish_session and none of the following
+    --    was true — no 'done', no refunds, for either owner.
+    if (select status from club_sessions where id=s_q) <> 'done'
+       or (select status from bookings where id=b_q1) <> 'refund_pending'
+       or (select cancel_reason from bookings where id=b_q1) <> 'club_not_picked_up'
+       or (select status from bookings where id=b_q2) <> 'refund_pending'
+       or (select cancel_reason from bookings where id=b_q2) <> 'club_not_picked_up'
+      then v_bad:=v_bad||' 🔴 한 예약의 장부 실패가 세션 종료와 모든 보호자의 환불을 되돌렸다'; end if;
+
+    -- ② The healthy booking is genuinely unaffected — the failure was confined to booking #2.
+    select round(total_price*club_cfg('cancel_post_accept_pct')/100.0)::int into v_fee1
+    from bookings where id=b_q1;
+    if (select cancel_fee from bookings where id=b_q1) <> v_fee1
+       or (select count(*) from payments where booking_id=b_q1) <> 1
+       or not exists (select 1 from payments where booking_id=b_q1 and amount=v_fee1)
+      then v_bad:=v_bad||' 옆 예약의 장부 실패가 정상 예약의 수수료/인텐트까지 휩쓸었다'; end if;
+
+    -- ③ THE COST, asserted rather than described: booking #2 keeps its recorded obligation, has no
+    --    intent, and its queue row does NOT exist. The last clause is also the injector's own
+    --    positive control — if the queue trigger never bit, this pin would pass vacuously.
+    select round(total_price*club_cfg('cancel_post_accept_pct')/100.0)::int into v_fee2
+    from bookings where id=b_q2;
+    if (select cancel_fee from bookings where id=b_q2) <> v_fee2
+       or not _club_fee_event_collectable(b_q2)
+      then v_bad:=v_bad||' 실패한 예약의 채무 기록/collectable 자체가 남지 않았다'; end if;
+    if exists (select 1 from payments where booking_id=b_q2)
+      then v_bad:=v_bad||' 민트가 실패해야 하는데 인텐트가 생겼다(주입기가 안 물었다)'; end if;
+    if exists (select 1 from club_fee_mint_failures where booking_id=b_q2)
+      then v_bad:=v_bad||' 큐 쓰기가 실패해야 하는데 큐 행이 남았다(주입기가 안 물었다 — 이 핀은 아무것도 증명하지 않는다)'; end if;
+
+    drop trigger t153_force_queue_failure on club_fee_mint_failures;
+    drop trigger t153_force_payment_failure on payments;
+    perform set_config('test.fail_club_booking','',false);
+    perform set_config('test.fail_club_queue','',false);
+
+    -- ④ AND THE MONEY IS NOT LOST. §F sweeps from the recorded obligation on `bookings`, not from
+    --    the queue, so the booking whose queue row never existed is still recovered at its FROZEN
+    --    amount. This is what makes a WARNING an honest answer instead of a swallow.
+    perform sweep_club_cancel_fee_intents();
+    if (select count(*) from payments where booking_id=b_q2) <> 1
+       or not exists (select 1 from payments where booking_id=b_q2 and amount=v_fee2)
+      then v_bad:=v_bad||' 회복 스윕이 큐 행 없이 기록된 채무를 복구하지 못했다'; end if;
+
+    if v_bad='' then call _pass('ccf','P13 R3Q 장부 실패의 폭발 반경 — 한 세션의 두 노쇼 예약 중 하나의 durable-queue 쓰기가 실패해도 세션은 done이 되고 두 보호자 모두 club_not_picked_up 환불을 받으며 정상 예약의 인텐트는 그대로 발행된다; 실패한 예약은 채무만 기록된 채 인텐트도 큐 행도 없지만(그 대가를 명시적으로 고정한다) 회복 스윕이 고정액으로 인텐트를 복구한다');
+    else v_msg:=v_bad; call _fail('ccf','P13 R3Q 장부 실패의 폭발 반경',v_msg); end if;
+  exception when others then
+    drop trigger if exists t153_force_queue_failure on club_fee_mint_failures;
+    drop trigger if exists t153_force_payment_failure on payments;
+    perform set_config('test.fail_club_booking','',false);
+    perform set_config('test.fail_club_queue','',false);
+    v_msg:=sqlerrm; call _fail('ccf','P13 R3Q 장부 실패의 폭발 반경',v_msg);
+  end;
+
   update ops_flags set payments_live_since=v_since, updated_at=now() where id;
   perform set_config('request.jwt.claim.sub','',false);
 end $$;
 
 drop function t153_reject_payment();
+drop function t153_reject_queue();
 drop function t153_delegation(uuid,uuid,uuid,uuid,uuid,uuid,int,boolean);
