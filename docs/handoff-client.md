@@ -8,7 +8,25 @@ is required and was done constantly.
 
 ---
 
-## 1. 🔴 A NEW DEPLOY BLOCKER — and it is not in F1–F20
+## 1. ✅ FIXED — the deploy blocker that was not in F1–F20
+
+> **Closed 2026-08-24 by `4bce47d`** on `claude/late-booking-server-stage2` (also preserved as
+> `claude/fix-r1-custody-grant`). One grant line in §1, `152:1628` flipped — that pin asserted the
+> privilege must be ABSENT, so it was actively holding the bug in place — and a new **L47** that
+> executes the cancel AS `service_role`. **Harness 783/0** (was 782/0). Both mutations executed:
+> grant deleted → 781/2 RED=[L47, L14]; guard neutered → 781/2 RED=[L47, L42].
+>
+> ⚠ **L47 first measured GREEN with the bug reintroduced,** and that is the more valuable finding.
+> Function EXECUTE is checked at **parse** time, not execution, and plpgsql caches plans per
+> session — L42 had already fired the guard as `postgres`, so the cached plan was reused with no
+> ACL re-check (measured: `current_user=service_role`, `has_function_privilege=false`, and the
+> UPDATE **still succeeded**). `discard plans` is what makes the arm non-vacuous. The general
+> consequence: `harness.sh` connects as `PGUSER=postgres`, the function owner, so **no privilege
+> bug of this class can surface without an explicit `set role` + `discard plans`.** A green harness
+> is not evidence about role-dependent permissions anywhere in this repo. Worth a sweep.
+>
+> The description below is kept as the record of what was wrong and how it was found.
+
 
 **Every marketplace owner cancel raises `permission denied for function _checkin_custody` the
 moment 0117 is applied.** This is not gated by `ops_flags.late_protocol_live_since`. It breaks on
