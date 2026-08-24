@@ -302,6 +302,70 @@ footer b{color:#111111}
   <code>LateNotice</code>의 키커·스트립(12/12.5pt — <b>이건 오늘 코드에 있는 그대로이고, 아래 열린 질문 4번입니다</b>).
 </div>
 
+<div class="note hot" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “Runner run's b screen I can't see the map; not much space for it, but this is important as the
+  runner needs to see where to go at all times. I like 6 and it's #ff5c3e as well. For the runner
+  done screen (C), make sure there's a mandatory nudge for pictures (make that a requirement and
+  nudge them during the runner live screen so they don't forget. For D, I like 11.”
+  <ul style="margin:9px 0 0 18px">
+    <li style="margin-bottom:6px"><b>B · 지도는 항상 보인다 — IMPLEMENTED</b>
+      (<code>app/app/runner/run.tsx</code>). 원인은 랩이 적어둔 그대로였습니다: 스트립이 <b>다크 패널
+      안</b>에 있고 패널은 줄지 않으므로, 뜨는 스트립마다 그만큼이 지도 판에서 빠져나갔습니다(넷이면
+      작은 화면에서 지도 ~70pt). 두 가지가 들어갔습니다 — 스트립 스택이 <b>지도 위 종이 레인</b>으로
+      나가 패널 높이가 스트립 수와 무관해졌고, 지도 판에 <b>바닥</b>(<code>MAP_MIN_H</code> = 화면
+      높이의 26%)이 생겼습니다. 레인은 「패널과 바닥이 쓰고 남은 방」만 쓰고 그 이상은 <b>레인 안에서
+      스크롤</b>합니다 — 아무것도 감추지 않습니다(심각도 체인이 이미 맨 위를 가장 급한 것으로 정합니다).</li>
+    <li style="margin-bottom:6px"><b>⑥ — IMPLEMENTED.</b> <code>ceilingHit</code> 프레임이 종료 전용이
+      됐습니다: 배지 「기록이 멈췄어요 / 지금까지의 거리는 그대로 남아 있어요」, 위치 공유 「중지」(참입니다 —
+      <code>publishPos</code>는 <code>onTrack</code>에서만 불립니다), 진행 줄 「기록 정지 · N.NNkm」와
+      위치 점 회수, km은 흰 잉크 + 「km · 정지」, 페이스 「—」, 페이스 칩 줄은 없음(살아 있는 주장이라
+      거둡니다), 수익 줄에서 「완주 시」 제거, 이벤트 칩 넷은 <b>남기되 명시 fill로 비활성</b>
+      (<code>paper.disabledFill</code> + faint, 불투명도 트릭 없음), <code>❙❙</code>를 내려 <b>문은 하나</b>.
+      천장 로직·<code>openEndSheet()</code>는 손대지 않았습니다.</li>
+    <li style="margin-bottom:6px"><b>#ff5c3e — IMPLEMENTED as a role token.</b> 이 값은 출하 팔레트에
+      없었습니다(측정: <code>app/</code> 전체 0건). <code>colors.runLive = '#FF5C3E'</code> 하나를
+      <code>theme.ts</code>에 추가했고 — 이름은 <b>역할</b>(라이브 러닝 표면)이지 색이 아닙니다 —
+      진행 필·위치 점·천장 종료 CTA가 전부 그 토큰을 씁니다(리터럴 사용처 0). 주석에 그의 문장이
+      그대로 들어가 있습니다. ⚠ <code>colors.tang</code>(#FF5C3D)과 1/255 차이라 「중복 헥스」로 보이지만
+      <b>그가 이 화면을 보고 이 값을 지목했습니다</b> — 그의 말 없이 합치지 마세요. 흰 라벨 대비 실측
+      3.06:1 → 큰 볼드(19.5/800)에만, 작은 흰 글씨는 여전히 잉크 판이 필요합니다.</li>
+    <li style="margin-bottom:6px"><b>C · 사진 요건 — IMPLEMENTED (클라이언트 게이트).</b>
+      <code>done.tsx</code>에서 <b>앞으로 가는 두 문</b>(리뷰 남기기 · 다음 요청 보기)이 실사진 0장이면
+      잠깁니다 — <code>PaperBtn disabled</code> = <code>disabledFill</code> + faint, 아래 한 줄이 이유를
+      말합니다. 판정은 <code>runs.photos</code> 실배열 길이 하나뿐이고 세 상태를 가릅니다: 아는 0(잠금) ·
+      로딩(잠그되 「사진을 확인하고 있어요」) · <b>읽기 실패(잠그지 않음 — 0이라고 주장할 수 없습니다)</b>.
+      예약이 없으면 업로드 경로도 없으므로 요건도 없습니다. 「홈으로」는 <b>열어 둡니다</b>: 이 시점
+      러너의 손에 아직 개가 있고(화면이 인계를 부탁하는 중입니다), 카메라·업로드가 죽은 러너를 화면에
+      가두면 요건이 아니라 덫이 됩니다. ⚠ <b>서버는 여전히 사진 없이 정산합니다</b> — 진짜 강제는
+      run-end 서버 슬라이스입니다.</li>
+    <li style="margin-bottom:6px"><b>C · 러닝 화면 알림 — IMPLEMENTED.</b> 스냅 칩 <b>바로 위</b>에
+      「사진 1장이 필요해요 — 아래 스냅으로 남겨주세요」. 근거는 <b>서버 진실</b>입니다
+      (<code>fetchRunPhotos</code> 1회 + 업로드 응답) — 로컬 <code>evCounts.photo</code>는 리마운트하면
+      0으로 돌아가 이미 찍은 러너에게 거짓말을 합니다. 로딩·읽기 실패에는 뜨지 않습니다(로딩 ≠ 0).
+      천장 프레임에서는 칩이 잠기므로 남은 경로(「종료 후 완료 화면에서 남길 수 있어요」)를 가리킵니다.</li>
+    <li style="margin-bottom:6px"><b>D ⑪ — IMPLEMENTED</b> (<code>review.tsx</code>). 라틴 키커
+      <code>REVIEW</code> 은퇴(두 분기 모두), 제목 §3b 규격 <b>30/900 · lineHeight 37 · Black Han Sans</b>
+      — 이 화면의 디스플레이 서체 예산은 비어 있었고 이제 제목이 씁니다(화면당 1회 유지). 별점 낱말은
+      랩 제안 그대로 <b>1 많이 힘들었어요 · 2 아쉬웠어요 · 3 무난했어요 · 4 좋았어요 · 5 아주 좋았어요</b>,
+      라벨과 같은 베이스라인 오른쪽. <b>표시 전용</b>입니다 — 서버로 가는 값은 여전히
+      <code>reviews.rating</code> 하나(열린 질문 7은 문구만 남았고, 바꾸려면 한 줄입니다).</li>
+    <li style="margin-bottom:6px"><b>⑤ — 절반만, 그리고 그 이유.</b> 그는 ⑤를 고르지 않았지만 ⑥의 프레임이
+      <b>⑤의 지면 위에</b> 그려져 있고(랩 자신이 「⑤+⑥은 같은 슬라이스」라고 적었습니다), 무엇보다
+      「지도가 안 보인다」의 원인이 정확히 그 지면 문제였습니다. 그래서 <b>스트립의 이사와 팔레트 전환만</b>
+      가져왔습니다(문장·순서·재시도 액션·<code>coralOwner</code> 체인 전부 그대로, 신규 헥스 0). ⑤가
+      경고했던 트레이드(「스트립이 넷이면 지도가 좁아진다」)는 <b>지도 바닥 + 레인 상한</b>으로 막았습니다.</li>
+    <li style="margin-bottom:6px"><b>NOT BUILT — ①②③④(meetup, 이 클러스터 밖·동결) · ⑦ · ⑧ · ⑨ · ⑩ · ⑫.</b>
+      고르지 않으신 것은 짓지 않았습니다. 그래서 열린 질문 5(「신호 대기」 문구) · 6(완료 화면의 코랄이
+      리뷰인가 다음 요청인가 — 코랄은 오늘 그대로 「다음 요청 보기」에 있고, 이제 사진 요건이 걸려 있을 뿐입니다) ·
+      9는 그대로 열려 있습니다. 열린 질문 10(⧉ panel/island)은 <b>한 겹 가벼워졌습니다</b>: 스트립이 패널
+      밖으로 나가면서 두 레이아웃이 같은 레인을 공유합니다.</li>
+    <li><b>미검증:</b> 시뮬레이터에서 확인하지 않았습니다(중앙 게이트에서 tsc·lint 일괄). 레이아웃 스모크
+      항목: 스트립 0/1/3/4개 각각에서 지도 판이 살아 있는지 · 작은 화면(SE급)에서 종료 CTA가 잘리지 않는지 ·
+      <code>ceilingHit</code> 프레임의 문이 하나뿐인지 · 사진 0장에서 두 문이 잠기고 1장 올리면 즉시 열리는지.</li>
+  </ul>
+</div>
+
 <!-- ══════════════════════════════════════════════════════════════════════
      A · runner/meetup
      ══════════════════════════════════════════════════════════════════════ -->

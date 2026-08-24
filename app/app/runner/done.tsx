@@ -32,6 +32,10 @@ import { colors, layout, paper } from '../../src/theme';
 // them. Omitted rather than invented.
 //
 // Behavior frozen: fetchDrops/addPhoto/uploadRunPhoto, photo cap 6, the dogName re-read, all routes.
+//
+// [2026-08-24 · Sean] 사진 1장이 **요건**이 됐다 — 앞으로 가는 두 문이 실사진 0장에서 잠긴다.
+// 판정 근거·세 상태·왜 '홈으로'는 잠그지 않는지는 아래 photoRequired 블록의 주석에 있다.
+// 사진 자체의 경로(addPhoto/uploadRunPhoto/6장 상한)는 그대로다 — 새 저장소도 새 필드도 없다.
 
 const W = Dimensions.get('window').width;
 const TRACE_W = W - layout.gutter * 2;
@@ -129,6 +133,26 @@ export default function RunDone() {
       setUploading(false);
     }
   };
+
+  // ── 사진 요건 (Sean 2026-08-24, verbatim) ──
+  // "For the runner done screen (C), make sure there's a mandatory nudge for pictures (make that
+  //  a requirement and nudge them during the runner live screen so they don't forget."
+  //
+  // 요건의 근거는 **실사진**이다: 서버가 돌려준 runs.photos 배열의 길이 하나만 본다 (업로드 응답과
+  // 마운트 읽기가 같은 배열이다). 세 상태를 구분한다 —
+  //   · ready & 0장  → 잠근다. 이유를 명시 fill(disabledFill)과 한 줄로 말한다 (불투명도 트릭 금지).
+  //   · loading      → 아직 0인지 모른다. 잠그되 이유는 '확인 중'이다 (로딩 ≠ 0).
+  //   · err          → 0이라고 **주장할 수 없다** → 잠그지 않는다. 섹션 헤더의 '다시 시도'가 진짜 경로다.
+  // 예약이 없으면 업로드 경로 자체가 없다 → 요건도 없다 (없는 문을 요구하지 않는다).
+  //
+  // ⚠ 이건 **클라이언트 게이트**다. 서버는 사진 없이 끝난 러닝을 여전히 정산한다 — 진짜 강제는
+  // run-end 서버 슬라이스의 몫이고, 그때까지 이 화면이 할 수 있는 최대치가 여기까지다.
+  // '홈으로'(quiet)는 잠그지 않는다: 이 시점 러너의 손에는 아직 개가 있고(바로 위 문장이 인계를
+  // 부탁하고 있다), 카메라·업로드가 죽은 러너를 화면에 가두면 그건 요건이 아니라 덫이 된다.
+  const photoRequired = !!runResult.bookingId;
+  const photoMissing = photoRequired && photoState === 'ready' && photos.length === 0;
+  const photoUnknown = photoRequired && photoState === 'loading';
+  const forwardBlocked = photoMissing || photoUnknown;
 
   const km = runResult.km;
   // '완주' is a claim — spoken only when the server-recorded end was a completed run, exactly as
@@ -247,7 +271,11 @@ export default function RunDone() {
               <Text style={s.secQuiet}>6장까지</Text>
             )}
           </Row>
-          <Text style={s.secQuiet}>보호자 리포트에 실려요</Text>
+          {/* 요건은 개수를 **아는** 상태에서만 말한다 — 로딩·실패 중에 '필수'라고 하면 이미 찍은
+              러너에게도 같은 문장이 뜬다 */}
+          <Text style={photoMissing ? s.secRequired : s.secQuiet}>
+            {photoMissing ? '사진 1장은 필수예요 · 보호자 리포트에 실려요' : '보호자 리포트에 실려요'}
+          </Text>
           {photos.length > 0 && (
             <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
               {photos.map((url) => (
@@ -278,20 +306,30 @@ export default function RunDone() {
 
       {/* ══════ ⑦ 출구 — 코랄은 '다음 요청 보기' 하나 (프레임당 채도 1) ══════
           리뷰는 runResult.bookingId를 읽어 쓰므로, 예약이 없으면 그 화면은 제출할 수 없다 —
-          문 자체를 그리지 않는다 (죽은 버튼 금지). 홈은 조용한 출구로 남는다. */}
+          문 자체를 그리지 않는다 (죽은 버튼 금지). 홈은 조용한 출구로 남는다.
+          [2026-08-24] 앞으로 가는 두 문(리뷰·다음 요청)이 사진 요건을 진다. 리뷰도 함께 잠그는
+          이유: 리뷰 제출은 dismissTo('/runner/home')로 이 러닝을 떠나므로, 열어 두면 요건이
+          한 탭짜리 우회로가 된다. 잠긴 상태는 명시 fill + 아래 한 줄이 이유를 말한다. */}
       {runResult.bookingId && (
         <PaperBtn
           label={dogName ? `${dogName} 리뷰 남기기 ›` : '반려견 리뷰 남기기 ›'}
           variant="secondary"
+          disabled={forwardBlocked}
           style={{ marginTop: 22 }}
           onPress={() => router.push('/runner/review')}
         />
       )}
       <PaperBtn
         label="다음 요청 보기 ›"
+        disabled={forwardBlocked}
         style={{ marginTop: runResult.bookingId ? 8 : 22 }}
         onPress={() => router.replace('/runner/requests')}
       />
+      {forwardBlocked && (
+        <Text style={s.gateHint}>
+          {photoUnknown ? '사진을 확인하고 있어요' : '「오늘의 순간」에 사진 1장을 추가하면 다음으로 넘어갈 수 있어요'}
+        </Text>
+      )}
       <PaperBtn label="홈으로" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>
   );
@@ -339,6 +377,10 @@ const s = StyleSheet.create({
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   secAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
   secQuiet: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  // 사진 요건 — 실패가 아니라 **요건**이라 critical이 아니고, 그냥 사실보다는 무겁게 (텍스트 잉크 700)
+  secRequired: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.text },
+  // 잠긴 문의 이유 한 줄 — review.tsx의 ctaHint와 같은 문법
+  gateHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
   // 섹션 헤더 자리의 실패 + 재시도 — 라우드-페일 잉크, 밑줄 (스트립을 세우기엔 한 줄짜리 사실)
   secFail: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ---------- ⑥ 드랍 ----------

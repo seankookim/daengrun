@@ -1,10 +1,10 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
@@ -30,6 +30,23 @@ const ENTRY_REACHED_M = 40;
 // '닫힌 루프' 임계값(m). api.ts의 CLOSURE_MAX_M(디스커버리 게이트)과 같은 수를 쓴다 — 한 화면만
 // 다른 '닫힘' 정의를 갖게 하지 않는다. route-geom의 기본값(25)보다 느슨하므로 명시적으로 넘긴다.
 const LOOP_CLOSURE_M = 50;
+
+// ---------- 지도 바닥 (Sean 2026-08-24) ----------
+// Verbatim: "Runner run's b screen I can't see the map; not much space for it, but this is
+// important as the runner needs to see where to go at all times."
+//
+// Measured cause: the strips lived INSIDE the dark panel, and the panel does not shrink — the map
+// plate is the only flexible child, so every strip that appeared came straight out of the map. Up
+// to four can be up at once (추적 상태 · 인시던트 · 저장 지연 · 입구 안내 · 코스 고지), and on a
+// small phone that left the map ~70pt tall.
+//
+// Two changes make the plate a floor instead of a leftover: the strip stack moved OFF the panel
+// onto the paper ground ABOVE the map (lab ⑤, the ground frame ⑥ is drawn on), so the panel's
+// height no longer depends on how many strips are up; and the lane itself may only use the room
+// that is left after the panel and this floor. Nothing is hidden — the lane scrolls, and the
+// severity chain (coralOwner) already puts the most urgent strip first (§7b: 덜어내기 ≠ 숨기기).
+const WIN_H = Dimensions.get('window').height;
+const MAP_MIN_H = Math.round(WIN_H * 0.26);
 
 type CamMode = 'approach' | 'fit' | 'follow' | 'free';
 type LatLng = { latitude: number; longitude: number };
@@ -57,6 +74,16 @@ interface NaverMapHandle {
 // coral progress fill (LIVE = watch). Retired: rounded chrome, opacity press/busy paints
 // (labels already swap), display font on the sheet button (budget = main CTA once).
 // Logic frozen: tracking singleton, settle retry loop, overrun ceiling, Live Activity.
+//
+// [2026-08-24 Sean · lab ⑥ + "the runner needs to see where to go at all times"] Two changes, and
+// neither touches the frozen list. (1) The strip stack left the dark panel for a PAPER lane above
+// the map, so the panel's height no longer depends on how many strips are up and the map plate has
+// a floor it cannot be pushed below (MAP_MIN_H). Same sentences, same order, same retry actions,
+// same coralOwner severity chain — only the ground and the palette changed. (2) The `ceilingHit`
+// frame is now EXIT-ONLY: the badge says the record stopped (it did — the same effect calls
+// handle.stop()), km freezes at its last accepted value, pace empties, the event chips stay but go
+// explicitly disabled, and the single coral door opens today's end sheet. The ceiling logic itself
+// is untouched: setCeilingHit is still the only input.
 //
 // [2026-08-20 booking watch] The screen reads the BOOKING's status as well now (25s poll,
 // foreground only) and the ONLY thing it drives is one banner — see the 예약 상태 워치 section
@@ -188,7 +215,11 @@ export default function ActiveRun() {
       const b64 = res.assets[0].base64;
       setSnapBusy(true);
       haptic('light');
-      await uploadRunPhoto(bid, b64);
+      // 서버가 append 후 최신 photos 배열 전체를 돌려준다 — 사진 요건 알림도 이 진실을 쓴다
+      // (done.tsx:123과 같은 규약), 로컬 카운터를 따로 굴리지 않는다.
+      const nextPhotos = await uploadRunPhoto(bid, b64);
+      setPhotoCount(nextPhotos.length);
+      setPhotoState('ready');
       await addRunEvent(bid, 'photo'); // 알림: '새 사진 도착'
       // 보호자 채팅으로 직송 — 사진 + 위치/거리/재미 한 줄
       const threadId = await ensureThread(bid);
@@ -943,6 +974,35 @@ export default function ActiveRun() {
   // 정산 실패 알림이 이미 그 문장을 들고 있다 (:767 "'이미 정산됐다'고 하면 정산은 끝난 거예요").
   const incidentBid = bookingWatch?.status === 'incident_review' ? bookingWatch.bid : null;
 
+  // ---------- 사진 요건 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
+  // Verbatim: "For the runner done screen (C), make sure there's a mandatory nudge for pictures
+  // (make that a requirement and nudge them during the runner live screen so they don't forget."
+  // 요건 자체는 done 화면이 잠근다(사진 0장이면 앞으로 가는 문이 disabledFill로 잠긴다). 이 화면이
+  // 하는 일은 **잊지 않게 말해 주는 것**뿐이다 — 추적·정산·천장·LA에는 손대지 않는다.
+  //
+  // ⚠ 로컬 evCounts.photo로는 이 문장을 말할 수 없다: 리마운트하면 0으로 돌아가서, 이미 네 장을 찍은
+  // 러너에게 '사진이 없어요'라고 거짓말을 하게 된다. 서버 진실(runs.photos)을 한 번 읽는다 —
+  // done.tsx가 같은 예약에서 쓰는 그 리더(fetchRunPhotos)다. 로딩은 0이 아니고, 실패도 0이 아니다:
+  // 둘 다 알림을 그리지 않는다(없는 사실을 주장하지 않는다).
+  const [photoState, setPhotoState] = useState<'idle' | 'loading' | 'ready' | 'err'>('idle');
+  const [photoCount, setPhotoCount] = useState(0);
+  useEffect(() => {
+    // infoStatus === 'ready'가 곧 "runnerJob.bookingId가 해소됐다"의 신호다 (:366과 같은 전제).
+    if (infoStatus !== 'ready') return;
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    let alive = true;
+    setPhotoState('loading');
+    fetchRunPhotos(bid)
+      .then((p) => { if (alive) { setPhotoCount(p.length); setPhotoState('ready'); } })
+      .catch((e) => { console.warn('[run] photos:', e?.message ?? e); if (alive) setPhotoState('err'); });
+    return () => { alive = false; };
+  }, [infoStatus]);
+
+  // 패널의 실제 높이 — 스트립 레인이 쓸 수 있는 방을 정하는 유일한 입력이다 (MAP_MIN_H 주석 참고).
+  // 패널은 자기 콘텐츠 높이를 그대로 받으므로(축소 없음) 이 값은 측정 즉시 안정된다.
+  const [panelH, setPanelH] = useState(0);
+
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
     setRationale(false);
@@ -1020,10 +1080,87 @@ export default function ActiveRun() {
   // 둘이 동시에 뜨면 인시던트는 같은 문장을 중립 잉크로 말한다 — 사라지지 않는다.
   const coralOwner: 'block' | 'incident' | 'saveLag' | 'guide' | 'route' | null =
     strip ? 'block' : incidentBid ? 'incident' : saveLag ? 'saveLag' : guide?.warn ? 'guide' : routeNote?.warn ? 'route' : null;
+  // 레인이 쓸 수 있는 방 = 화면 − 패널 − 지도 바닥. island 레이아웃은 패널이 지도 **위에** 뜨므로
+  // 흐름에서 자리를 차지하지 않는다(빼지 않는다). 72는 한 줄짜리 스트립 하나가 보이는 최소치다.
+  const laneMax = Math.max(72, WIN_H - (layout === 'panel' ? panelH : 0) - MAP_MIN_H);
 
   return (
     <View style={s.root}>
-      {/* 코스 맵 — 실지도 (GPS 픽스 수신 시), 아니면 대기 배경 */}
+      {/* ── 스트립 레인 — 지도 **위**의 종이 지면 (Sean 2026-08-24: 지도는 항상 보여야 한다) ──
+          문장·순서·재시도 액션·표시 조건은 오늘 코드 그대로다. 바뀐 것은 지면과 팔레트뿐:
+          다크 패널의 코랄 문법 → 종이 라우드-페일 문법(criticalWash 면 + critical 1px + critical 잉크,
+          자문은 wash 면 + coral 헤어라인 + 읽는 잉크). meetup·done·review가 이미 쓰는 그 문법이고
+          신규 헥스는 0개다. 심각도 체인(coralOwner)도 그대로 — 맨 위 하나만 코랄. */}
+      {/* 스크롤 인디케이터는 **끄지 않는다**: 레인이 잘렸다는 사실 자체가 러너가 알아야 할 정보다 */}
+      <ScrollView style={[s.lane, { maxHeight: laneMax }]} contentContainerStyle={s.laneContent}>
+        {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지) */}
+        {strip && (
+          <View style={s.pStrip}>
+            <Text style={s.pTxt}>{strip.text}</Text>
+            {strip.action && (
+              <Pressable onPress={strip.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={strip.action}>
+                <Text style={s.pAction}>{strip.action}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {/* 예약 확인(incident_review) 배너 — 이 화면이 예약 상태를 읽는 유일한 결과물이고, 하는
+            일은 말하는 것뿐이다 (추적·정산·천장·LA 불가침). 문장 순서는 **일어난 일 → 계속되는 일**:
+            먼저 계속되는 일을 말하지 않으면 러너는 기록이 멈춘 줄 알고 스스로 종료해버린다.
+            🔴 '러닝 기록은 계속 **저장**돼요'는 이 상태에서 거짓이다 — 부킹이 incident_review면
+            saveRunTrace의 UPDATE를 _guard_run_cols가 막는다 (0083_run_end_flow.sql:290). 서버 저장은
+            실제로 멈추고, 계속되는 것은 **화면의 누적**이다 (정산에 실려 갈 actual_km도 이 로컬 값이다).
+            러닝 전에는 가운데 절이 빠진다. 탭 = 이 예약의 채팅 (owner/live:769와 같은 문). */}
+        {incidentBid && (
+          <Pressable
+            onPress={() => router.push({ pathname: '/chat', params: { bid: incidentBid } })}
+            style={[s.pStrip, coralOwner !== 'incident' && s.pStripNote]}
+            accessibilityRole="button"
+            accessibilityLabel="예약 확인이 진행 중이에요 — 채팅으로 문의하기"
+          >
+            <Text style={[s.pTxt, coralOwner !== 'incident' && s.pTxtNote]}>
+              확인이 진행 중이에요 — {running ? '러닝 기록은 계속 쌓여요. ' : ''}종료·정산은 확인이 끝난 뒤 처리돼요.
+            </Text>
+            <Text style={[s.pAction, coralOwner !== 'incident' && s.pActionNote]}>채팅으로 확인</Text>
+          </Pressable>
+        )}
+        {saveLag && (
+          <View style={[s.pStrip, coralOwner !== 'saveLag' && s.pStripNote]}>
+            {/* [2026-08-20] 인시던트 중에는 '신호가 잡히면 자동 재시도해요'가 거짓이 된다: 재시도는
+                60초마다 실제로 일어나지만 신호와 무관하게 서버가 거부하므로 영원히 성공하지 않는다.
+                로컬 버퍼는 메모리에만 있어서(geo.ts에 영속화 없음) 앱을 닫으면 마지막 저장 시점까지만
+                남는 것이 사실이다. */}
+            <Text style={[s.pTxt, coralOwner !== 'saveLag' && s.pTxtNote]}>
+              {incidentBid
+                ? '확인이 시작돼 기록 저장이 멈췄어요 — 거리는 계속 쌓이지만, 앱을 닫으면 마지막 저장 시점까지만 남아요'
+                : '기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요'}
+            </Text>
+          </View>
+        )}
+        {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 자문 변형.
+            위에 더 급한 스트립이 이미 코랄을 쓰고 있으면 이 줄도 자문으로 말한다 (코랄 예산). */}
+        {guide && (
+          <View style={[s.pStrip, !(guide.warn && coralOwner === 'guide') && s.pStripNote]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.pGuideTxt, guide.warn && coralOwner === 'guide' && { color: paper.critical }]}>{guide.text}</Text>
+              {guide.note && <Text style={s.pGuideNote}>{guide.note}</Text>}
+            </View>
+            {guide.action && (
+              <Pressable onPress={guide.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={guide.action}>
+                <Text style={[s.pAction, coralOwner !== 'guide' && s.pActionNote]}>{guide.action}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {/* 코스 오버레이 고지 — 자문이지 차단이 아니다. 코스 선이 없어도 러닝·기록·정산은 그대로 간다 */}
+        {routeNote && (
+          <View style={[s.pStrip, !(routeNote.warn && coralOwner === 'route') && s.pStripNote]}>
+            <Text style={[s.pTxt, !(routeNote.warn && coralOwner === 'route') && s.pTxtNote]}>{routeNote.text}</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* 코스 맵 — 실지도 (GPS 픽스 수신 시), 아니면 대기 배경. minHeight = 지도 바닥 */}
       <View style={s.mapArea}>
         {maps && initialCam.current && (
           <maps.NaverMapView
@@ -1139,20 +1276,29 @@ export default function ActiveRun() {
         )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.volt }}>
-              {running
-                ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
-                : dogName ? `${dogName}와 러닝 준비` : '러닝 준비'}
+            {/* ⑥ 천장 프레임 — 배지가 **참인 문장**을 말한다: 같은 effect가 handle.stop()을 불렀으므로
+                기록은 실제로 멈췄고, 지금까지의 트레이스는 그대로 남아 정산에 실린다. */}
+            <Text style={{ fontSize: 14, fontWeight: '700', color: ceilingHit ? '#FFFFFF' : colors.volt }}>
+              {ceilingHit
+                ? '기록이 멈췄어요'
+                : running
+                  ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
+                  : dogName ? `${dogName}와 러닝 준비` : '러닝 준비'}
             </Text>
             {running && gps && !ceilingHit && (
               <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
             )}
+            {ceilingHit && (
+              <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>지금까지의 거리는 그대로 남아 있어요</Text>
+            )}
           </View>
           <Row style={{ gap: 8 }}>
             <View style={s.camStatus}>
-              <View style={[s.recDot, !(running && gps) && { backgroundColor: '#BBBBBB' }]} />
+              <View style={[s.recDot, !(running && gps && !ceilingHit) && { backgroundColor: '#BBBBBB' }]} />
+              {/* 천장에서 '중지'는 참이다 — publishPos는 onTrack에서만 불리고, 추적이 멈추면
+                  보호자에게 가는 위치도 그 자리에서 멈춘다. */}
               <Text style={s.camText}>
-                {running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
+                {ceilingHit ? '위치 공유 중지' : running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
               </Text>
             </View>
             <Pressable onPress={toggleLayout} style={s.layoutBtn}>
@@ -1168,13 +1314,15 @@ export default function ActiveRun() {
             <>
               <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                 <Text style={{ fontSize: 14, color: paper.dim }}>{info?.routeName} 코스 · {targetKm}km</Text>
+                {/* ⑥ 천장에서 '남은 거리'는 0이고 아무 말도 하지 않는다 — 멈춘 값을 그대로 말한다 */}
                 <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
-                  남은 거리 {remaining.toFixed(1)}km
+                  {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
                 </Text>
               </Row>
               <View style={s.track}>
                 <View style={[s.trackFill, { width: `${progress * 100}%` }]} />
-                <View style={[s.trackDot, { left: `${Math.max(progress * 100 - 2, 0)}%` }]} />
+                {/* 점은 '지금 여기'를 뜻한다 — 기록이 멈추면 그 주장을 거둔다 */}
+                {!ceilingHit && <View style={[s.trackDot, { left: `${Math.max(progress * 100 - 2, 0)}%` }]} />}
               </View>
             </>
           ) : infoStatus === 'loading' ? (
@@ -1183,8 +1331,12 @@ export default function ActiveRun() {
         </View>
       </View>
 
-      {/* 스탯 + 컨트롤 — panel: 하단 고정 / island: 지도 위 플로팅 */}
-      <View style={[s.panel, layout === 'island' && s.panelIsland]}>
+      {/* 스탯 + 컨트롤 — panel: 하단 고정 / island: 지도 위 플로팅.
+          onLayout: 이 패널의 실제 높이가 스트립 레인의 상한을 정한다 (MAP_MIN_H 주석). */}
+      <View
+        style={[s.panel, layout === 'island' && s.panelIsland]}
+        onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}
+      >
         {/* island 모드: 코스·남은 거리·진행바가 카드 안으로 들어온다 (숨기지 않는다) */}
         {layout === 'island' && targetKm != null && remaining != null && (
           <View style={{ marginBottom: 12 }}>
@@ -1193,7 +1345,7 @@ export default function ActiveRun() {
                 {info?.routeName} 코스 · {targetKm}km
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
-                남은 거리 {remaining.toFixed(1)}km
+                {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
               </Text>
             </Row>
             <View style={{ height: 5, backgroundColor: '#333333', overflow: 'hidden' }}>
@@ -1204,78 +1356,10 @@ export default function ActiveRun() {
         {layout === 'island' && targetKm == null && infoStatus === 'loading' && (
           <Text style={{ fontSize: 14, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중...</Text>
         )}
-        {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지).
-            팔레트는 이 화면의 다크 패널에 맞춰 코랄, 문법은 paper 라우드 페일 그대로 */}
-        {strip && (
-          <View style={s.failStrip}>
-            <Text style={s.failTxt}>{strip.text}</Text>
-            {strip.action && (
-              <Pressable onPress={strip.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={strip.action}>
-                <Text style={s.failAction}>{strip.action}</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-        {/* 예약 확인(incident_review) 배너 — 이 화면이 예약 상태를 읽는 유일한 결과물이고, 하는
-            일은 말하는 것뿐이다 (추적·정산·천장·LA 불가침). 문장 순서는 **일어난 일 → 계속되는 일**:
-            먼저 계속되는 일을 말하지 않으면 러너는 기록이 멈춘 줄 알고 스스로 종료해버린다.
-            🔴 카피 한 곳을 브리프의 원문에서 바꿨다: '러닝 기록은 계속 **저장**돼요'는 이 상태에서
-            거짓이다 — 부킹이 incident_review면 saveRunTrace의 UPDATE를 _guard_run_cols가 막는다
-            (0083_run_end_flow.sql:290, run_frozen_after_settlement). 서버 저장은 실제로 멈추고,
-            계속되는 것은 **화면의 누적**이다 (정산에 실려 갈 actual_km도 이 로컬 값이다, :744).
-            그래서 '계속 쌓여요'로 적는다 — 러너가 확인할 수 있는 사실만 말한다. 저장이 멈춘 사실은
-            바로 아래 saveLag 스트립이 자기 문장으로 말한다 (한 화면이 스스로와 모순되지 않게).
-            러닝 전에는 가운데 절이 빠진다: 아직 아무것도 기록되지 않는데 '쌓여요'라고 하면
-            그것도 지어낸 문장이다. 탭 = 이 예약의 채팅 (owner/live:769 '채팅으로 확인'과 같은 문). */}
-        {incidentBid && (
-          <Pressable
-            onPress={() => router.push({ pathname: '/chat', params: { bid: incidentBid } })}
-            style={[s.failStrip, coralOwner !== 'incident' && s.noteStrip]}
-            accessibilityRole="button"
-            accessibilityLabel="예약 확인이 진행 중이에요 — 채팅으로 문의하기"
-          >
-            <Text style={[s.incidentTxt, coralOwner !== 'incident' && s.mutedTxt]}>
-              확인이 진행 중이에요 — {running ? '러닝 기록은 계속 쌓여요. ' : ''}종료·정산은 확인이 끝난 뒤 처리돼요.
-            </Text>
-            <Text style={[s.failAction, coralOwner !== 'incident' && s.mutedAction]}>채팅으로 확인</Text>
-          </Pressable>
-        )}
-        {saveLag && (
-          <View style={[s.failStrip, coralOwner !== 'saveLag' && s.noteStrip]}>
-            {/* [2026-08-20] 인시던트 중에는 '신호가 잡히면 자동 재시도해요'가 거짓이 된다: 재시도는
-                60초마다 실제로 일어나지만(:674) 신호와 무관하게 서버가 거부하므로 영원히 성공하지
-                않는다 — 없는 회복을 기다리게 만드는 문장이다. 같은 자리에서 진짜 이유를 말한다.
-                로컬 버퍼는 메모리에만 있다 (geo.ts에 영속화 없음 — 재진입 시드는 서버 트레이스다,
-                :265) 그래서 앱을 닫으면 마지막 저장 시점까지만 남는 것이 사실이다. */}
-            <Text style={[s.failTxt, coralOwner !== 'saveLag' && s.mutedTxt]}>
-              {incidentBid
-                ? '확인이 시작돼 기록 저장이 멈췄어요 — 거리는 계속 쌓이지만, 앱을 닫으면 마지막 저장 시점까지만 남아요'
-                : '기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요'}
-            </Text>
-          </View>
-        )}
-        {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 중립 헤어라인.
-            위에 더 급한 스트립이 이미 코랄을 쓰고 있으면 이 줄도 중립으로 말한다 (코랄 예산). */}
-        {guide && (
-          <View style={[s.failStrip, !(guide.warn && coralOwner === 'guide') && s.noteStrip]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.guideTxt, guide.warn && coralOwner === 'guide' && { color: colors.tang }]}>{guide.text}</Text>
-              {guide.note && <Text style={s.guideNote}>{guide.note}</Text>}
-            </View>
-            {guide.action && (
-              <Pressable onPress={guide.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={guide.action}>
-                <Text style={[s.failAction, coralOwner !== 'guide' && s.mutedAction]}>{guide.action}</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-        {/* 코스 오버레이 고지 — 자문이지 차단이 아니다. 코스 선이 없어도 러닝·기록·정산은 그대로 간다 */}
-        {routeNote && (
-          <View style={[s.failStrip, !(routeNote.warn && coralOwner === 'route') && s.noteStrip]}>
-            <Text style={[s.failTxt, !(routeNote.warn && coralOwner === 'route') && s.mutedTxt]}>{routeNote.text}</Text>
-          </View>
-        )}
-
+        {/* 스트립 스택은 이 패널을 떠나 지도 위 종이 레인으로 갔다 (Sean 2026-08-24 — 지도는
+            항상 보여야 한다). 지워진 것은 없다: 같은 문장·같은 순서·같은 재시도 액션이
+            root 최상단의 레인에서 종이 문법으로 뜬다. 덕분에 이 패널의 높이는 스트립 수와
+            무관해지고, 지도 판이 스트립 때문에 줄어드는 일이 사라진다. */}
         {/* 고정된 고객 채팅 */}
         <Pressable
           style={s.chatPin}
@@ -1293,17 +1377,23 @@ export default function ActiveRun() {
           <Text style={{ fontSize: 14, color: colors.volt }}>채팅 ›</Text>
         </Pressable>
 
+        {/* ⑥ 천장: km은 **멈춘 값**으로 남고 볼트(= 지금 뛰는 중)를 내려놓는다. 페이스도 비운다 —
+            기록이 멈춘 뒤의 페이스는 '지금'이 아니고, 그건 paceStale이 90초 뒤에 할 말을
+            천장이 이미 확정지은 것이다. */}
         <Row style={{ justifyContent: 'space-around', marginVertical: 22 }}>
-          <MiniStat value={km.toFixed(2)} label="km" big />
+          <MiniStat value={km.toFixed(2)} label={ceilingHit ? 'km · 정지' : 'km'} big stopped={ceilingHit} />
           <MiniStat value={fmt(sec)} label="시간" />
           {/* 90초 넘게 새 픽스가 없으면 마지막 페이스는 더 이상 '지금'이 아니다 — 숫자를 비운다 */}
-          <MiniStat value={paceStale ? '—' : paceStr(sec, km)} label="페이스" />
+          <MiniStat value={paceStale || ceilingHit ? '—' : paceStr(sec, km)} label="페이스" />
         </Row>
 
         {/* 페이스 상태 (plan §3b Ⓑ①) — 스탯 줄과 수익 줄 사이 한 줄. panel·island 두 레이아웃이
             이 슬롯 하나를 공유한다. 워시 칩이 자기 배경을 들고 다녀서 다크 패널 위에서도 대비는
-            칩 안에서 완결된다. 기준(권장 캡션)이 판정(칩)을 앞선다 — 캡션은 아는 순간부터. */}
-        {(suggestSec != null || pace !== '') && (
+            칩 안에서 완결된다. 기준(권장 캡션)이 판정(칩)을 앞선다 — 캡션은 아는 순간부터.
+            ⑥ 천장에서는 이 줄이 통째로 없다: 페이스 판정은 **살아 있는 주장**이라, 기록이 멈춘
+            뒤에도 「양호」를 걸어 두면 그건 더 이상 참이 아니다 (사실을 감추는 게 아니라
+            주장을 거두는 것 — 숫자 자체는 위 스탯 줄에 「—」로 남는다). */}
+        {!ceilingHit && (suggestSec != null || pace !== '') && (
           <View style={{ marginBottom: 14 }}>
             <Row>
               {pace !== '' && (
@@ -1331,52 +1421,93 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text>
-            {targetKm != null ? ` · 완주 시 ${payoutFor(targetKm + 0.02).toLocaleString()}원` : ''}
+            {/* 천장에 닿으면 '완주 시'는 더 이상 갈 수 있는 길이 아니다 — 없는 미래를 말하지 않는다 */}
+            {targetKm != null && !ceilingHit ? ` · 완주 시 ${payoutFor(targetKm + 0.02).toLocaleString()}원` : ''}
             {' · 실측으로 확정'}
           </Text>
         </Row>
 
+        {/* 사진 요건 알림 (Sean 2026-08-24) — 완료 화면이 사진 1장을 요구하므로, 잊기 전에 여기서
+            말한다. 서버 진실을 아는 상태(ready)에서 0장일 때만 뜬다: 로딩 중이거나 못 읽었을 때
+            띄우면 이미 찍은 러너에게 거짓말이 된다. 문장 바로 아래가 스냅 칩이라 지시가 죽지 않는다.
+            천장 프레임에서는 칩이 잠기므로 남은 경로(완료 화면)를 그대로 가리킨다. */}
+        {running && photoState === 'ready' && photoCount === 0 && (
+          <Text style={s.photoNudge}>
+            {ceilingHit
+              ? '사진 1장이 필요해요 — 종료 후 완료 화면에서 남길 수 있어요'
+              : '사진 1장이 필요해요 — 아래 스냅으로 남겨주세요 · 보호자 리포트에 실려요'}
+          </Text>
+        )}
+
         {/* 러닝 이벤트 스트립 — 원탭이 보호자 알림으로 (응가 도장 포함).
-            리프레시: 다크 타일 → 파스텔 스탬프 필 (다크 위에서 팝, 도장 문화의 색) */}
+            리프레시: 다크 타일 → 파스텔 스탬프 필 (다크 위에서 팝, 도장 문화의 색)
+            ⑥ 천장: 기록이 멈춘 뒤에도 칩을 누르면 서버에 이벤트가 들어간다 — 멈춘 러닝에 케어
+            기록이 계속 붙는다. 감추지 않고 **명시 fill로 비활성**한다(disabledFill, 불투명도 트릭 금지):
+            칩이 있었다는 사실은 남고, 누를 수 없다는 사실도 보인다. */}
         {running && (
           <View style={{ flexDirection: 'row', gap: 7, marginBottom: 14 }}>
             {([['poop', '응가', '#FFCDB6'], ['snack', '간식', '#F2DA96'], ['water', '물', '#C3D9AE']] as const).map(([k, label, bg]) => (
-              <Pressable key={k} onPress={() => fireEvent(k)} style={[s.eventBtn, { backgroundColor: bg }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#111111' }}>
+              <Pressable
+                key={k}
+                onPress={() => fireEvent(k)}
+                disabled={ceilingHit}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: ceilingHit }}
+                style={[s.eventBtn, { backgroundColor: ceilingHit ? paper.disabledFill : bg }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
             ))}
             {/* busy = label swap ('전송 중') — opacity paint retired */}
-            <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }]}>
-              <Icon name="Camera" glyph="◉" size={15} color={'#111111'} />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#111111' }}>
+            <Pressable
+              onPress={firePhoto}
+              disabled={snapBusy || ceilingHit}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: ceilingHit, busy: snapBusy }}
+              style={[s.eventBtn, { backgroundColor: ceilingHit ? paper.disabledFill : '#DDF0A6' }]}
+            >
+              <Icon name="Camera" glyph="◉" size={15} color={ceilingHit ? paper.faint : '#111111'} />
+              <Text style={{ fontSize: 14, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>
             </Pressable>
           </View>
         )}
 
+        {/* ⑥ 천장 프레임의 문은 **하나**다: 일시정지(❙❙)는 같은 종료 시트를 여는 두 번째 문이라
+            내려놓고, CTA가 코랄로 바뀌어 화면의 유일한 문이 된다 (§5 코랄 = 당신 차례).
+            누르면 열리는 것은 오늘의 openEndSheet() 그대로 — 새 문이 아니다. */}
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-          {running && (
+          {running && !ceilingHit && (
             <Pressable style={s.moreBtn} onPress={openEndSheet}>
               <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
           <Pressable
             // busy = label swap below ('위치 확인 중...') — the opacity paint retired (§2 button law)
-            style={({ pressed }) => [s.btn, { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt }]}
+            style={({ pressed }) => [
+              s.btn,
+              ceilingHit
+                ? { backgroundColor: pressed ? paper.actionPressed : colors.runLive }
+                : { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt },
+            ]}
             disabled={starting}
             onPress={() => {
               if (running) { openEndSheet(); return; }
               beginRun();
             }}
           >
-            <Text style={[{ fontSize: 19.5, fontWeight: '800', color: colors.ink }, df]}>
-              {running ? '러닝 종료' : starting ? '위치 확인 중...' : '러닝 시작'}
+            <Text style={[{ fontSize: 19.5, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
+              {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중...' : '러닝 시작'}
             </Text>
           </Pressable>
         </View>
+        {/* 천장 종료가 무엇으로 정산되는지 — 시트를 열기 전에 미리 말한다 (시트의 사유별 금액은 그대로) */}
+        {ceilingHit && (
+          <Text style={s.ceilingNote}>종료하면 지금까지 기록된 {km.toFixed(2)}km로 정산돼요</Text>
+        )}
       </View>
 
       {/* ---------- 위치 사전 설명 (OS 시트 직전, 최초 1회) ----------
@@ -1510,11 +1641,13 @@ function EndOption({ title, desc, pay, onPress }: { title: string; desc: string;
   );
 }
 
-function MiniStat({ value, label, big }: { value: string; label: string; big?: boolean }) {
+// stopped: 기록이 멈춘 프레임(천장). 볼트는 '지금 뛰는 중'을 뜻하는 색이라 그 주장만 거둔다 —
+// 숫자는 마지막 채택 픽스까지의 값 그대로 남는다 (라벨이 「km · 정지」로 그 사실을 말한다).
+function MiniStat({ value, label, big, stopped }: { value: string; label: string; big?: boolean; stopped?: boolean }) {
   const nf = useNumFont(); // Oswald live stats — lineHeight 55/35 = 1.25× (BUG A)
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={[{ fontSize: big ? 44 : 28, lineHeight: big ? 55 : 35, fontWeight: '900', color: big ? colors.volt : '#FFFFFF', fontVariant: ['tabular-nums'] as const }, nf]}>
+      <Text style={[{ fontSize: big ? 44 : 28, lineHeight: big ? 55 : 35, fontWeight: '900', color: big && !stopped ? colors.volt : '#FFFFFF', fontVariant: ['tabular-nums'] as const }, nf]}>
         {value}
       </Text>
       <Text style={{ fontSize: 14.5, color: '#BBBBBB', marginTop: 2 }}>{label}</Text>
@@ -1525,7 +1658,29 @@ function MiniStat({ value, label, big }: { value: string; label: string; big?: b
 const s = StyleSheet.create({
   // paper chrome — white map-world canvas; the sage placeholder ground retired
   root: { flex: 1, backgroundColor: paper.canvas },
-  mapArea: { flex: 1, paddingTop: 56 },
+  // 지도 판은 남는 자리가 아니라 **바닥이 있는 자리**다 (Sean 2026-08-24 — MAP_MIN_H 주석).
+  // 위쪽 56pt 여백은 스트립 레인이 들고 갔다(레인은 스트립이 없어도 그 높이로 선다) — 지도의
+  // 시작 위치는 오늘과 같고, 스트립이 뜰 때 지도가 먹히지 않을 뿐이다.
+  mapArea: { flex: 1, minHeight: MAP_MIN_H },
+  // ── 스트립 레인 (지도 위 종이 지면) ──
+  // flexShrink: 스트립이 많으면 레인이 먼저 줄고(내부 스크롤), 지도는 바닥 아래로 내려가지 않는다.
+  lane: { flexGrow: 0, flexShrink: 1, backgroundColor: paper.canvas },
+  laneContent: { paddingTop: 56, paddingHorizontal: 16, paddingBottom: 4 },
+  // 종이 라우드-페일 (F1.2) — criticalWash 면 + critical 1px + critical 잉크. meetup·done·review와
+  // 같은 문법이고 신규 헥스 0개. 자문 변형은 wash 면 + 코랄 헤어라인 + 읽는 잉크.
+  pStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    backgroundColor: paper.criticalWash, borderWidth: 1, borderColor: paper.critical,
+    paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8,
+  },
+  pStripNote: { backgroundColor: paper.wash, borderColor: paper.line },
+  pTxt: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical },
+  pTxtNote: { color: paper.text },
+  pAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  pActionNote: { color: paper.actionInk },
+  // 픽업→입구 안내 — 두 줄(사실 / 그 사실의 한계). 디테일 플로어 14pt.
+  pGuideTxt: { fontSize: 14.5, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  pGuideNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
   // small white/volt text sits on an ink plate (§3 plate law) — sharp
   statusBadge: { backgroundColor: paper.ink, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 14 },
   camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12 },
@@ -1533,11 +1688,13 @@ const s = StyleSheet.create({
   camText: { fontSize: 14, fontWeight: '700', color: paper.ink },
   trackWrap: { position: 'absolute', left: 20, right: 20, bottom: 24 },
   // coral fill = LIVE (watch) semantic; bar sharp, position dot keeps its circle (marker exception)
+  // [Sean 2026-08-24] 이 화면의 코랄은 colors.runLive(#FF5C3E)다 — 그가 이 화면을 보고 그 값을
+  // 지목했다. 진행 필·위치 점·천장 종료 CTA가 **같은 토큰**을 쓴다 (리터럴 금지, theme.ts 참고).
   track: { height: 10, backgroundColor: '#EEEEEE' },
-  trackFill: { height: 10, backgroundColor: colors.tang },
+  trackFill: { height: 10, backgroundColor: colors.runLive },
   trackDot: {
     position: 'absolute', top: -4, width: 18, height: 18, borderRadius: 9,
-    backgroundColor: colors.tang, borderWidth: 3, borderColor: '#fff',
+    backgroundColor: colors.runLive, borderWidth: 3, borderColor: '#fff',
   },
   // dark run-panel artifact — sharp, seamed to the paper world by a coral hairline
   panel: { backgroundColor: paper.ink, borderTopWidth: 1, borderTopColor: paper.line, padding: 20, paddingBottom: 34 },
@@ -1556,29 +1713,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#222222', borderRadius: 0, padding: 12,
   },
-  // Loud fail (F1.2 grammar): full-bleed strip, 1px hairline top and bottom, 14pt/700 ink,
-  // underlined action. Palette is coral because this screen is still on the dark tokens —
-  // porting the grammar, not the paper palette.
-  failStrip: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-    marginHorizontal: -20, paddingHorizontal: 20, paddingVertical: 12, marginBottom: 12,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.coralText,
-  },
-  failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
-  // 인시던트 배너 — failTxt와 같은 잉크/무게, 다만 두 문장이 확실히 줄바꿈되므로 행간을 준다
-  // (guideTxt와 같은 1.4×). 14pt 디테일 플로어 그대로.
-  incidentTxt: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: '700', color: colors.tang },
-  failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
-  // 코랄을 더 급한 스트립에 넘겨준 줄의 중립 잉크 — 같은 문장·같은 자리, 채도만 내린다.
-  // 액션은 흰 잉크 + 밑줄을 유지한다: 컨트롤이 컨트롤로 안 읽히면 그건 죽은 버튼이 된다.
-  mutedTxt: { color: '#BBBBBB' },
-  mutedAction: { color: '#FFFFFF' },
-  // 같은 스트립 문법의 **자문** 변형 — 코랄은 라우드 페일에만 쓴다 (색 역할 분리 법).
-  // 코스 선이 없는 것은 실패가 아니라 사실이므로 중립 헤어라인으로 말한다.
-  noteStrip: { borderColor: '#3A3A3A' },
-  // 픽업→입구 안내 — 자문 스트립과 같은 문법, 두 줄(사실 / 그 사실의 한계). 디테일 플로어 14pt.
-  guideTxt: { fontSize: 14.5, lineHeight: 20, fontWeight: '700', color: '#FFFFFF' },
-  guideNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 4 },
+  // [2026-08-24] 다크 패널의 스트립 스타일(failStrip/failTxt/incidentTxt/failAction/
+  // mutedTxt/mutedAction/noteStrip/guideTxt/guideNote)은 은퇴했다 — 스택이 지도 위 종이
+  // 레인으로 옮겨가면서 종이 문법(pStrip 계열)이 그 자리를 가져갔다. 문장과 심각도 체인은
+  // 그대로다; 바뀐 것은 지면과 팔레트뿐이다.
   // 내 위치로 — 팬 오버라이드를 되돌리는 유일한 컨트롤 (44pt 터치 타깃)
   recenterBtn: {
     // 진행바(trackWrap, bottom 24)를 피해 그 위에 앉는다
@@ -1597,6 +1735,10 @@ const s = StyleSheet.create({
   paceChipInkSlow: { color: paper.paceSlowInk },
   paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
   paceCare: { marginTop: 7, fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
+  // 사진 요건 알림 — 바로 아래 스냅 칩을 가리키는 한 줄. 흰 잉크(다크 패널 위 12.6:1)
+  photoNudge: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: '#FFFFFF', marginBottom: 10 },
+  // 천장 종료의 정산 예고 — 판정이 아니라 사실이라 중립 잉크
+  ceilingNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', textAlign: 'center', marginTop: 10 },
   moreBtn: { width: 44, height: 52, borderRadius: 0, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },
   // event stamp chips — pastel stamp fills survive (stamp-culture semantics), corners sharp
   eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
