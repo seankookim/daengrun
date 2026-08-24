@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
+import { addDog, DangerousBasis, DangerousStatus, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { CollarKey, collarColors, collarLabels, layout, paper } from '../../src/theme';
@@ -55,6 +55,9 @@ export default function DogProfileScreen() {
   const [vaccines, setVaccines] = useState<string[]>([]);
   const [collar, setCollar] = useState<CollarKey | null>(null); // 칼라 컬러 (0033)
   const [paceSuggest, setPaceSuggest] = useState<number>(nearestPaceOption(null)); // 권장 최소 페이스 sec/km
+  // [0119] 맹견 신고. `undeclared` 는 결함이 아니라 '아직 묻지 않았다'는 정상 상태다.
+  const [danger, setDanger] = useState<DangerousStatus>('undeclared');
+  const [basis, setBasis] = useState<DangerousBasis | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -65,6 +68,8 @@ export default function DogProfileScreen() {
     setBirth(d.birthDate ?? '');
     setWeight(d.weightKg != null ? String(d.weightKg) : '');
     setNeutered(d.neutered);
+    setDanger(d.dangerousStatus);
+    setBasis(d.dangerousBasis);
     setMemo(d.memo ?? '');
     setTags(d.prefTags);
     setVaccines(d.vaccines);
@@ -132,6 +137,18 @@ export default function DogProfileScreen() {
     const w = weight.trim() ? Number(weight) : null;
     if (weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
     if (birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
+    // ⚠ [0119] 신고는 선택 항목이 아니다. 답이 없으면 서버가 예약 자체를 거절하므로(그리고 기존
+    // 반려견에 대한 백필은 일부러 하지 않았다), 답 없이 저장하면 '저장은 됐는데 예약이 안 되는'
+    // 상태로 내보내는 것이 된다. 여기서 막고 이유를 말하는 편이 정직하다.
+    if (danger === 'undeclared') {
+      Alert.alert('맹견 여부를 알려주세요', '동물보호법상 맹견은 러너에게 맡길 수 없어요. 답하지 않으면 예약을 만들 수 없어서 먼저 여쭤봐요.');
+      return;
+    }
+    // 짝이 맞지 않는 신고는 DB CHECK 가 거절한다 — 400 을 받아 '저장 실패'로 보여주기 전에 막는다.
+    if (danger === 'declared_dangerous' && !basis) {
+      Alert.alert('어떤 경우인지 알려주세요', '법정 견종인지, 기질평가로 지정받았는지 골라주세요.');
+      return;
+    }
     setSaving(true);
     try {
       await updateMyDog(dog.id, {
@@ -145,6 +162,10 @@ export default function DogProfileScreen() {
         vaccines,
         collar,
         paceSuggestSec: paceSuggest,
+        // 짝으로만 보낸다 (api.ts 의 union 이 그 외의 조합을 타입에서 막는다).
+        dangerous: danger === 'declared_dangerous'
+          ? { status: 'declared_dangerous', basis: basis! }
+          : { status: 'declared_none' },
       });
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
@@ -256,6 +277,77 @@ export default function DogProfileScreen() {
                 </Row>
               </View>
             </Row>
+
+            {/* ═══ 맹견 신고 (0119) ═══════════════════════════════════════════════════════
+                자기 섹션을 갖는 이유: 이건 취향이 아니라 법적 게이트다. 답이 없으면 서버가
+                예약 INSERT 와 인계 방향 전이를 전부 거절한다.
+                ⚠ 이 화면은 판정하지 않는다 — 보호자의 진술을 받을 뿐이다 (특허 설계 게이트:
+                학습 모델도, 점수도, 견종 추론도 없다. 이진 질문 하나).
+                ⚠ `undeclared` 는 막다른 길이 아니라 '아직 안 물어봤다'이고, 그래서 문구는
+                거절이 아니라 요청이다. */}
+            <View style={s.secRule} />
+            <Text style={s.secH}>맹견 여부</Text>
+            <Text style={s.dangerIntro}>
+              동물보호법상 맹견은 러너에게 맡길 수 없어요. 한 번만 여쭤봐요.
+            </Text>
+            <View style={s.dangerRow} accessibilityRole="radiogroup" accessibilityLabel="맹견 여부">
+              {([['declared_none', '맹견이 아니에요'], ['declared_dangerous', '맹견이에요']] as const).map(([v, label]) => {
+                const on = danger === v;
+                // 신고는 한 방향으로 잠긴다 (0119 §F): 맹견으로 신고한 뒤에는 화면에서 되돌릴 수
+                // 없다. 서버가 거절할 버튼을 그려두면 그게 죽은 버튼이므로, 아예 비활성으로 두고
+                // 아래에서 사유를 말한다.
+                const locked = dog?.dangerousStatus === 'declared_dangerous' && v === 'declared_none';
+                return (
+                  <Pressable
+                    key={v}
+                    onPress={() => { if (locked) return; setDanger(v); if (v === 'declared_none') setBasis(null); }}
+                    disabled={locked}
+                    style={[s.neuterChip, on && { backgroundColor: paper.ink, borderColor: paper.ink }, locked && s.chipLocked]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    accessibilityLabel={label}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? '#fff' : locked ? paper.faint : paper.ink }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {danger === 'declared_dangerous' && (
+              <>
+                <Text style={s.label}>어떤 경우인가요</Text>
+                <View style={s.dangerRow} accessibilityRole="radiogroup" accessibilityLabel="맹견 지정 근거">
+                  {([['listed_breed', '법정 견종'], ['designated', '기질평가 지정']] as const).map(([v, label]) => {
+                    const on = basis === v;
+                    return (
+                      <Pressable
+                        key={v}
+                        onPress={() => setBasis(v)}
+                        style={[s.neuterChip, on && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={label}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: on ? '#fff' : paper.ink }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+            {/* 결과를 숨기지 않는다. 다만 '허가증을 내면 된다'는 암시는 절대 하지 않는다 —
+                입마개·맹견사육허가·책임보험을 확인할 수단이 이 제품에 없고, 확인자 없는 조건은
+                양식일 뿐이다 (0119 REGISTRY 의 판단, Sean 미결). 대신 실제로 열려 있는 문 하나만
+                말한다: 클럽 동반 참여는 막히지 않는다. */}
+            {danger === 'declared_dangerous' && (
+              <Text style={s.dangerNote}>
+                맹견은 러너에게 맡기는 예약을 만들 수 없어요. 보호자님이 함께 가는 클럽 동반 참여는 그대로 이용할 수 있어요.
+              </Text>
+            )}
+            {dog?.dangerousStatus === 'declared_dangerous' && (
+              <Text style={s.dangerNote}>
+                맹견 신고는 화면에서 되돌릴 수 없어요. 잘못 고르셨다면 고객센터로 알려주세요.
+              </Text>
+            )}
 
             {/* 권장 최소 페이스 (pace-state-ui-plan §4) — 러닝 중 페이스 신호의 기준.
                 §3b 섹션 헤더 문법(풀블리드 코랄 룰 + 20/800 잉크)으로 자기 섹션을 갖는다:
@@ -392,6 +484,12 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
   paceChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
+  // [0119] 신고 섹션. 14pt 바닥 준수 — 법적 고지를 장식 클래스로 내리지 않는다.
+  dangerRow: { flexDirection: 'row', gap: 8 },
+  dangerIntro: { fontSize: 14, lineHeight: 19, color: paper.dim, marginBottom: 11 },
+  dangerNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 },
+  // 잠긴 칩은 명시 fill — 불투명도 트릭 금지 (DESIGN.md, disabledFill 이 그 법의 물화).
+  chipLocked: { backgroundColor: paper.disabledFill, borderColor: paper.disabledFill },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,
