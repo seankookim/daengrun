@@ -1281,3 +1281,46 @@ neither session took it at 2am, and especially not as a side effect of an access
 
 **Recommendation: A.** 4.55 is compliance without margin, and the flattened hierarchy is a cost we
 took silently to reach it. But this is taste on a surface you chose, so it is yours.
+
+## §0-undetricies · The pick-sheet fleet's seven residual questions — 2026-08-24 night
+
+Your 2026-08-24 commentary (docs/decisions/2026-08-24-sean-ui-club-commentary.md) is fully
+executed: trunk e031a31..1bb7891, ten commits, every pick built or listed here. These seven are
+what the fleet could not decide for you. Each is one word or one sentence; none blocks anything
+else. Asked here rather than only in chat so both sessions cite the same lines when you answer.
+
+**Q1 — "For owner records report, I like 1": WHICH report?** Read as the running report's ①
+(the stars variant your next clause names) and built as such. If you meant the 체력 리포트's ①,
+that pick is unspent — fitness.tsx is frozen and nothing was guessed. · 「러닝 리포트가 맞아」 /
+「체력 리포트였어」
+
+**Q2 — photo gate width.** Both forward doors on the done screen gate on ≥1 photo (리뷰 남기기
+included — its submit exits to home, so leaving it open is a one-tap bypass). Cost: a photo-less
+runner cannot review in that moment, and review volume feeds the rebooking gate. · A 두 문 다
+(as built) / B 다음 요청 보기만
+
+**Q3 — should the photo requirement be REAL?** Tonight's gate is client-only; an old build walks
+past it. Real = settle-run refuses end_reason 'completed' with zero photos (small server slice,
+exact shape recorded in 33c4849's report). · 서버로 / 클라이언트로 충분
+
+**Q4 — course-map peek's 12pt km unit.** It is exactly what the 현재 frame draws, and it is
+under the 14pt floor with no exemption. Fidelity or floor — one wins. · 12 유지 / 14로
+
+**Q5 — the 20-row booking window.** fetchMyBookings keeps the FURTHEST 20 (DESC limit 20), so
+B①'s relevance sort ranks only what arrives, honestly caveated. Truly fixing it flips the query
+ascending with a 30-day floor — which drops older completed rows from 지난 일정. Product call,
+blast radius recorded in e031a31. · 고쳐 (own slice) / 지금은 그대로
+
+**Q6 — "how far away the starting point is": not built, and it is a GATE.** Pickup coordinates
+are assigned-runner-only by design (0060/0065); a pre-accept card is pre-assignment. A coarse
+zone label (「반포동에서 출발」) is buildable without widening the address surface. · 동 라벨로 /
+빼자 / 좌표 열어 (this one is a real privacy decision)
+
+**Q7 — the 원천징수 line.** Kept in words only (「지급할 때 사업소득 3.3%가 원천징수돼요」,
+arithmetic stripped): statutory tax is not our margin, and a runner never told is short at
+payout. One-line delete if you read it as calculation-adjacent. · 유지 / 삭제
+
+Adjacent, already queued elsewhere, listed so this section is complete: the draw-button §8
+question (is a DrawButton title a display-font use? — blocks A③'s coda tier and font demotion,
+enh-owner-home-lab open question 4) · 맹견 refused-vs-conditions · the club spec packet · 0119's
+land word.
