@@ -57,6 +57,31 @@
 --       it cannot even complete: `location_retention_log.run_id` is NO ACTION, so the delete raises
 --       rather than taking the evidence with it. That refusal is the FK doing its job.
 
+-- ─── MEASURED 2026-08-24 (announcer session, main loop) — 13 full harness runs ─────────────────
+-- FIRST-EVER measurement. Baseline was 750/1: L10's anon arm asserted anon could read the runs
+-- whitelist — FALSE IN PRODUCTION when written (measured live: anon holds no EXECUTE on
+-- is_booking_party, so the party-read policy refuses every anon runs read at the executor). Pin
+-- fixed to production's world (751/0), commit 8b0fd27. Then the 9-mutation map, one at a time,
+-- byte-clean reverts proven between runs; final clean 751/0.
+--   M1 ledger insert deleted   → 746/5 RED=[L13,L14,L17,L18,L19]  predicted [L13,L14,L17,L18] (+L19)
+--   M2 anchor → plain ended_at → 747/4 RED=[L2,L3,L4,L8]          predicted [L2] alone (superset —
+--      the surviving NULL row shifts every downstream count; L2's own arm fired verbatim).
+--      ⚠ measurement note: the FIRST M2 attempt scored a FALSE GREEN — the mutation had matched a
+--      COMMENT restating the anchor, not the code. Caught by echoing what was replaced. A green
+--      mutation is worthless until the mutation provably applied TO THE CODE.
+--   M3 cap 1y→2y               → 745/6 RED=[L1,L2,L3,L4,L8,L16]   predicted [L1,L3] (wide superset)
+--   M4 cron block deleted      → 750/1 RED=[L7] alone             EXACT — 0060's failure, refused
+--   M5 revoke+whitelist gone   → 749/2 RED=[L10,L10c]             predicted [L10] (+the catalog arm)
+--   M6 subject FK → cascade    → 749/2 RED=[L20 + 150 N6-2]       EXACT incl. the predicted
+--      cross-suite co-fire — "two independent guards" measured as exactly that.
+--   M7 dedup dropped           → 750/1 RED=[L17] alone, both window arms  EXACT
+--   M8 purge limit dropped     → 750/1 RED=[L4] alone             EXACT
+--   M9 delete rows not trace   → 745/6 RED=[L1,L2,L3,L4,L8,L16], and the FK REFUSED the delete
+--      verbatim ("violates foreign key constraint location_retention_log_run_id_fkey") — the map's
+--      own sentence, measured. Composition differs (predicted L5; measured L2/L16 instead) because
+--      the FK raise aborts the purge earlier than the prediction assumed.
+-- Net: 5 exact · 4 benign supersets/shifts · 1 pin corrected against production (L10) · zero
+-- dangerous greens (the one green was the measurer's own mutation hitting a comment — caught).
 set client_min_messages = warning;
 
 do $$
