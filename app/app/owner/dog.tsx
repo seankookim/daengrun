@@ -135,8 +135,20 @@ export default function DogProfileScreen() {
     if (!dog) return;
     if (!name.trim()) { Alert.alert('이름을 입력해주세요'); return; }
     const w = weight.trim() ? Number(weight) : null;
-    if (weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
-    if (birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
+    // ⚠ [0119 F2] THESE GUARDS ONLY JUDGE WHAT THE OWNER ACTUALLY TYPED, and that is a fix, not a
+    // loosening. `dogs.weight_kg` is `numeric(4,1)` with NO check constraint, so 95.0 is a perfectly
+    // legal stored value while this screen refuses anything over 90 — the client has always been
+    // stricter than the database. That was harmless while saving was optional. It stops being
+    // harmless the moment the declaration below becomes MANDATORY: an owner whose dog has sat at
+    // 95kg since before this rule existed could not save 「맹견 아님」 without first falsifying or
+    // deleting a valid weight, and until they save it their bookings are refused. That is an outage
+    // aimed exactly at the legacy population the no-backfill decision was written to protect.
+    // So: a value the owner did not touch is not theirs to re-litigate. A value they DID type is
+    // still checked, which is what these guards were for.
+    const weightUntouched = w === dog.weightKg || (w == null && dog.weightKg == null);
+    const birthUntouched = (birth.trim() || null) === (dog.birthDate ?? null);
+    if (!weightUntouched && weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
+    if (!birthUntouched && birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
     // ⚠ [0119] 신고는 선택 항목이 아니다. 답이 없으면 서버가 예약 자체를 거절하므로(그리고 기존
     // 반려견에 대한 백필은 일부러 하지 않았다), 답 없이 저장하면 '저장은 됐는데 예약이 안 되는'
     // 상태로 내보내는 것이 된다. 여기서 막고 이유를 말하는 편이 정직하다.
@@ -167,6 +179,21 @@ export default function DogProfileScreen() {
           ? { status: 'declared_dangerous', basis: basis! }
           : { status: 'declared_none' },
       });
+      // ⚠ [0119 F4] ADOPT THE WRITE WE JUST MADE. `dog` is the screen's record of SERVER truth and
+      // the §F latch reads it (`dog?.dangerousStatus === 'declared_dangerous'`), so leaving it stale
+      // means: declare 맹견, save successfully, and the 「맹견이 아니에요」 chip stays enabled and the
+      // irreversible-warning stays hidden — until a remount. The owner then taps a control this
+      // screen was designed to disable and gets a server refusal instead. Same disabled-control-
+      // with-a-reason rule as everywhere else, applied one state later.
+      // Only fields this save actually wrote are adopted; nothing here invents a server value.
+      setDog((cur) => (cur ? {
+        ...cur,
+        name: name.trim(),
+        birthDate: birth.trim() || null,
+        weightKg: w,
+        dangerousStatus: danger,
+        dangerousBasis: danger === 'declared_dangerous' ? basis : null,
+      } : cur));
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
       Alert.alert('저장 실패', (e as Error).message);

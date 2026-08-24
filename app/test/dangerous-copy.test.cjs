@@ -67,5 +67,46 @@ for (const t of TOKENS) {
   ok(!/다시 시도|재시도/.test(b), `러너 ${t} 는 재시도를 권하지 않는다 — 같은 답이 영원히 돌아온다`);
 }
 
+// ── 미신고는 '곧 풀린다'고 약속하지 않는다 ─────────────────────────────────────
+// 미신고 = '아직 모른다'이지 '곧 열린다'가 아니다. 보호자가 「맹견이에요」라고 답하면 이 예약은
+// 영영 진행되지 않으므로, 답이 **결정한다**고만 말해야 한다.
+// ⚠ 앞선 핀(재시도 권유 금지)은 이 명제를 잡지 못했다 — 「한 번 더 눌러주세요」도 통과했다.
+// 그래서 여기서는 문자열 금지가 아니라 **조건 표지의 존재**를 요구한다: 진행/예약을 언급하는
+// 문장은 반드시 조건을 함께 말해야 한다. (문자열 금지는 옳은 문장을 붉게 만든 전력이 있다.)
+for (const side of ['owner', 'runner']) {
+  for (const t of ['dog_dangerous_undeclared', 'dog_dangerous_breed_conflict']) {
+    const b = refusalFor(t, side).body;
+    const mentions = /진행|예약/.test(b);
+    // 조건은 **답의 내용**에 걸려야 한다. 답하는 행위에 거는 것은 조건처럼 보이는 약속이다:
+    // 「신고하면 다시 진행할 수 있어요」는 문법상 조건문이지만, 맹견이라고 신고해도 진행된다는
+    // 뜻으로 읽힌다 — 그리고 그건 거짓이다. (첫 판의 이 핀은 정확히 그 문장을 통과시켰고,
+    // 변이 A 가 그걸 드러냈다. 명제가 '조건문일 것'이 아니라 '내용 조건일 것'이었다.)
+    const contentConditional = /아니라면|아닌 경우|답에 따라|어느 쪽|있는지|여부가/.test(b);
+    const actConditional = /(신고|답)(해|하)?(면|시면)[^.]*(진행|예약)/.test(b);
+    ok(!mentions || (contentConditional && !actConditional),
+      `${side}/${t} 는 답의 **내용**에 조건을 건다 (답하는 행위가 아니라)`);
+  }
+}
+
+// 정책 문장 자체를 리터럴로 박는다 — 이 두 문장은 '무엇이 결정되는가'를 말하는 문장이고,
+// 동등해 보이는 다른 표현으로 조용히 바뀌면 약속으로 되돌아간다.
+ok(refusalFor('dog_dangerous_undeclared', 'runner').body
+   === '반려견의 맹견 여부 확인이 끝나지 않았어요. 보호자의 답에 따라 이 예약을 진행할 수 있는지 정해져요.',
+   '러너 미신고 정책 문장 리터럴');
+ok(refusalFor('dog_dangerous_undeclared', 'owner').body
+   === '동물보호법상 맹견은 러너에게 맡길 수 없어요. 반려견 프로필에서 한 번만 답해주세요 — 맹견이 아니라면 바로 예약할 수 있어요.',
+   '보호자 미신고 정책 문장 리터럴');
+
+// ── 평범한 전이 거절을 맹견으로 오인하지 않는다 ───────────────────────────────
+// transition-booking 의 set() 은 모든 트리거 거절을 같은 409 로 던진다. 그 통로를 공유하는
+// 이상, 관계없는 거절이 맹견 문구를 뒤집어쓰면 사용자는 있지도 않은 문제를 고치러 간다.
+for (const m of [
+  'invalid booking transition: no_show -> picked_up',
+  'cancel_after_handoff',
+  'cancel_fee_requote',
+]) {
+  ok(dangerousRefusalFrom({ message: m }) === null, `평범한 전이 거절은 맹견으로 오인되지 않는다 (${m.slice(0, 28)})`);
+}
+
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
