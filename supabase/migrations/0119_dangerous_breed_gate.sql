@@ -372,7 +372,14 @@ create trigger bookings_dangerous_dog_move before update on bookings
     old.status is distinct from 'picked_up'
     and old.status is distinct from 'active'
     and (
-      (new.runner_id is not null and new.runner_id is distinct from old.runner_id)
+      -- (re-verdict F1b, 2026-08-24) the runner-change arm is scoped to OUTWARD statuses. Unscoped,
+      -- it trapped the one legitimate post-completion runner change: an emergency transfer bringing
+      -- a return_pending dog HOME (session_transfer_accept reassigns runner_id on a completed
+      -- booking, 0058:133). A dog declared dangerous while out must still come home — the header's
+      -- own law, and this arm was the one place the fix round broke it.
+      (new.runner_id is not null and new.runner_id is distinct from old.runner_id
+       and coalesce(old.status in
+         ('matching', 'runner_pending', 'confirmed', 'runner_enroute'), false))
       or (new.dog_id is distinct from old.dog_id
           and coalesce(new.status in
             ('runner_pending', 'confirmed', 'runner_enroute', 'picked_up', 'active'), false))
@@ -786,7 +793,10 @@ begin
      or position('confirmed' in lower(v_def)) = 0
      or position('runner_enroute' in lower(v_def)) = 0
      or position('picked_up' in lower(v_def)) = 0
-     or position('active' in lower(v_def)) = 0 then
+     or position('active' in lower(v_def)) = 0
+     -- (F1b) 'matching' appears ONLY in the runner-arm's outward-status scope — its absence means
+     -- the arm went unscoped again and a completed-booking emergency transfer home is trapped.
+     or position('matching' in lower(v_def)) = 0 then
     raise exception '0119: bookings_dangerous_dog_move lost its outward-only or already-in-custody exemption'
       using hint = 'assignment/acceptance/enroute/handoff/pickup are gated; picked_up/active rows and every homeward write are exempt';
   end if;

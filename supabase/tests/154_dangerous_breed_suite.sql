@@ -795,8 +795,24 @@ begin
     if v_n <> 1 then
       v_bad := v_bad || ' 🔴 귀가 전이가 끝났지만 양측 반환 씰이 온전하지 않다'; end if;
 
+    -- (re-verdict F1b, 2026-08-24) the constructed case the fix round itself broke: a COMPLETED
+    -- booking sits OUTSIDE the picked_up/active top exemption, and its one legitimate runner
+    -- change is the emergency transfer bringing a return_pending dog HOME
+    -- (session_transfer_accept reassigns runner_id, 0058:133). The unscoped runner arm refused
+    -- it. The arm is now scoped to outward statuses; this arm reds if that scope is ever removed
+    -- AND the apply-time VERIFY (which owns the first belt) is bypassed.
+    update bookings set status = 'completed' where id = b_ok;
+    begin
+      v_bid := t_user('mgn_transfer_runner', 'runner');    -- a real second runner (v_bid reused)
+      set local role service_role;
+      update bookings set runner_id = v_bid where id = b_ok; -- transfer shape: a NEW custodian id
+      reset role;
+    exception when others then
+      reset role;
+      v_bad := v_bad || ' 🔴 completed 부킹의 비상 인계(러너 교체) 귀가가 막혔다 [' || sqlerrm || ']';
+    end;
     if v_bad = ''
-      then call _pass('mgn','G10 늦은 신고는 다시 문을 닫되 귀가는 막지 않는다 — declared_none으로 생성된 부킹도 뒤늦게 맹견 또는 미신고 상태가 되면 service_role 수락 UPDATE에서 각각 기존 토큰으로 거절되고, 이미 picked_up이던 행은 start→stop→러너 반환 확인→보호자 반환 확인의 실제 귀가 체인을 끝낸다');
+      then call _pass('mgn','G10 늦은 신고는 다시 문을 닫되 귀가는 막지 않는다 — declared_none으로 생성된 부킹도 뒤늦게 맹견 또는 미신고 상태가 되면 service_role 수락 UPDATE에서 각각 기존 토큰으로 거절되고, 이미 picked_up이던 행은 실제 귀가 체인을 끝내며, completed 부킹의 비상 인계(러너 교체)도 막히지 않는다 (F1b)');
     else v_msg := v_bad; call _fail('mgn','G10 늦은 신고·귀가 방향', v_msg); end if;
   exception when others then
     reset role; v_msg := sqlerrm; call _fail('mgn','G10 늦은 신고·귀가 방향', v_msg);
