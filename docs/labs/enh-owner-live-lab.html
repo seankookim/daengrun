@@ -280,6 +280,45 @@ ol.q li b{color:var(--ink)}
 </div>
 
 
+<div class="note warn" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “For the owner live radar just make sure the radar doesn't intrude into the surrounding text;
+  I like r1.”<br>
+  “The intermediary meetup screen and live run and course map I like the current one, just make sure
+  the actual ui is what I see in the mock. course map's listed maps should have km unit on the right
+  side not just a number.”
+  <ul class="tight">
+    <li><b>R① — IMPLEMENTED</b> (<code>app/app/owner/radar.tsx</code>). Ceremony 200 → 132pt; every row
+      now carries <code>totalRuns · paceLabel · respondRate</code>, all three already returned by
+      <code>fetchAvailableRunnersFor</code> and previously discarded. Null <code>respondRate</code>
+      drops <b>that fragment only</b> (open question 2, answered by the pick — the frame drew it).
+      “지금 N명” is <code>avail.length</code>, i.e. the rows on screen, never a claim about how many
+      runners were pushed to.</li>
+    <li><b>Radar containment — IMPLEMENTED</b>, and it is arithmetic, not a frame: the ring's
+      <b>start radius</b> shrank (52) so that <code>52 × 2.5 = 130 ≤ 132pt</code> stage, and the stage
+      took <code>overflow:'hidden'</code> as a hard gate on top. R①'s own frame drew a 96pt ring, which
+      at ×2.5 is 240pt and still crosses the text — the lab was wrong there, so the built screen
+      follows the instruction rather than the frame. The 2026-08-19 motion is untouched
+      (3200ms · out(cubic) · 1→2.5 · .4→.14→0 · native driver).</li>
+    <li><b>R②, R③ — NOT BUILT.</b> He picked R①, which answers open question 1: the ripple is neither
+      re-scoped (R②) nor retired (R③). <code>aliveRef</code>/<code>focusedRef</code> stay two flags.</li>
+    <li><b>course-map km unit — IMPLEMENTED</b> (<code>owner/course-map.tsx</code>, list rows):
+      “<code>5 km</code>”, unit at the 14pt floor. The value is <code>routes.km</code> alone; the
+      travel-inclusive estimate (<code>totalKmFor</code>) stays in the peek head where it carries its
+      “이동 포함 약” label — two unlabelled km on one surface is the failure being avoided.</li>
+    <li><b>현재 parity — VERIFIED.</b> The one real drift inside a claimed file: the lab draws both km
+      figures in <code>.numf</code> and the shipped screen used no numeral font — now Oswald with an
+      explicit lineHeight (BUG A). <code>owner/meetup.tsx</code> and <code>owner/live.tsx</code> read
+      clean against their 현재 frames (read-only this pass).</li>
+    <li><b>M①–M③ · L①–L③ · C①–C③ — NOT BUILT.</b> “I like the current one” — the 현재 frames are the
+      design. Open questions 3–12 stay open and unspent.</li>
+    <li><b>HELD, needs a word:</b> the peek head's <code>km</code> unit ships at 12pt — below the
+      14pt floor, but it is exactly what the 현재 frame draws. Left as-is rather than silently
+      deviating from the mock he approved.</li>
+  </ul>
+</div>
+
+
 <!-- ══════════════════════════════════════════════════════════════════════════ R -->
 <h2 class="band"><span class="sig">R</span>러너 찾는 중 <span class="f">· app/app/owner/radar.tsx</span></h2>
 <p class="sub">The screen is a function of <code>rawStatus</code>: <code>matching</code> → 러너 찾는 중,
