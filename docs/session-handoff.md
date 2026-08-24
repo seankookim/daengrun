@@ -26,10 +26,10 @@ said so and I did NOT confirm · **[from-history]** earlier in conversation · *
 | 0117 late-booking | branch `claude/late-booking-server-stage2` @ `e132b3d`, **18 commits, all pushed, NOT landed**. Harness 782/0, deno 231/0 | [reported] by its implementer; I did not re-run |
 | 0118 club cancel-fee | branch `claude/club-fee-slice` @ `d1a9ea4`, **pushed by me at handoff**. 857-line migration + 546-line suite. **NEVER MEASURED — no harness has ever run on it** | [verified-now] (existence + push), [verified-now] (never measured) |
 | 0119 맹견 gate | branch `claude/wf-maenggyeon` @ `2371502`, **pushed by me at handoff**. **NEVER MEASURED** | [verified-now] |
-| 0120 location retention | branch `claude/wf-location` @ `8d3d5cc`, **pushed by me at handoff**. **NEVER MEASURED**. ⚠ Touches `app/` (see §7) | [verified-now] |
+| 0120 location retention | branch `claude/wf-location` @ `8d3d5cc`, **pushed by me at handoff**. 463-line migration + **suite 155** + `00_shim` + harness. **NEVER MEASURED.** Touches `app/` — correctly and in one commit (see §7) | [verified-now] |
 | Counsel-brief de-staling | **PRODUCED NOTHING.** `claude/wf-docs` has 0 commits — that agent died before committing | [verified-now] |
 | ui5 (client session) | Stage-1 complete, audited, on trunk @ `ca8b3a1`. Ended clean, no claims held. `npm test` now EXISTS and is green across six suites (`app/` had zero this morning) | [reported] |
-| **0117: two NEW blockers** | Found by a 36-agent client-side audit (run `wf_a68ecb4d-309`, 31 raised → 20 survived). **Both inert today; both fire on the first late booking after the flag flips.** See §7-bis | **F1 [verified-now]**, F2 [reported] |
+| **0117: two NEW blockers** | Found by a 36-agent client-side audit (run `wf_a68ecb4d-309`, 31 raised → 20 survived). **Both inert today; both fire on the first late booking after the flag flips.** See §7-bis | **both [verified-now]** — I confirmed each in code |
 
 ---
 
@@ -147,11 +147,16 @@ anyone. ui5's own conformance verdict had quoted and passed the exact broken gat
 - **DO-NOT-REFACTOR:** fitness collapsing hero · meetup stage machine (additive renders only) · three
   availability predicates · runner-home ① design + `liveOwnsCoral` · owner-home header must never be
   pinned · `StatusBarCover` stays the **last child inside `TabSwipe`**, before the root `BottomNav`.
-- **⚠ 0120 ORDERING/COUPLING (easy to lose, expensive to relearn):** `0120` revokes the client's
-  direct `runs.trace` SELECT. **The migration and its `app/src/lib/api.ts` change must land in ONE
-  commit** — a column revoke does not hide a field, it **fails the entire PostgREST request** (the
-  0088 class where signup 403'd for everyone). The branch already pairs them; do not split.
-  ⚠ This puts a *server* slice inside ui5's claimed file. Coordinate before landing.
+- **0120 COUPLING — a PROPERTY of the change, not an outstanding task. [verified-now]** `0120`
+  revokes the client's direct `runs.trace` SELECT, and a column revoke does not hide a field — it
+  **fails the entire PostgREST request** (the 0088 class where signup 403'd for everyone). The
+  author already landed it correctly: `8d3d5cc` carries the migration, `app/src/lib/api.ts`,
+  `app/app/club/run/[sid].tsx`, suite 155, `00_shim.sql` and the harness entry **in one commit**.
+  Verified clean to land: merge-base is `168d29f` (branched ~1h before handoff) and there are
+  **zero `api.ts` commits between that base and trunk**, so the client session's same-day rewrite of
+  that file is already underneath it. **The live risk is only if someone SPLITS the commit** or lands
+  the migration from another branch first — then every reader touching `runs` breaks, not just the
+  trace one.
 - **0117 deploy order: MIGRATION FIRST, then the edge function.** Edge-first pays runners ₩0 on
   en-route cancels (measured). The migration's own comment claiming edge-first is safe was FALSE and
   is corrected. [reported]
@@ -183,15 +188,19 @@ settle, and `0075:750` fires a km release for a dog that is out walking.
 **Fix (their words):** one guard before the terminal write, **scoped to clock causes only** — do
 **NOT** touch `_checkin_custody` itself; the cancel guard and 0072/0116 money share it.
 
-**F2 — a check-in armed pre-custody terminates a run in progress. [reported]**
+**F2 — a check-in armed pre-custody terminates a run in progress. [verified-now]**
 Entry is pre-custody-only; **resolution is not.** The sweep's silence arm selects on the check-in row
 alone and nothing closes an open check-in at the handoff line. Armed 10:33 → handoff 10:50 → run
 starts 10:52 → deadline 11:03 flips a run eleven minutes in to `incident_review`, which per
 `0097:80` has **no marketplace money exit** — the runner is permanently unpaid and it takes a manual
 DB job per case.
-**Fix (their words):** extend the concession already present at ~`:535`/`:555` (`superseded` — the
-run DID start, run-end owns it) to the silence arm. [I verified those `superseded` arms exist;
-I did NOT verify the silence arm lacks it.]
+**VERIFIED in `_resolve_checkin` (0117:525-561):** the `v_both_proceed` arm carries the concession —
+`else v_resolution := 'superseded'; -- the run DID start; run-end owns it` — but the final `else`
+(silence / one-sided / mixed) three lines below writes
+`v_terminal := case v_custody when 'pre' then 'no_show' else 'incident_review' end;`
+**unconditionally by custody, with no `superseded` branch.** So a check-in armed pre-custody, whose
+run then starts, resolves at deadline to `incident_review`.
+**Fix:** extend the same concession to that `else` arm.
 
 **§12 CONTRACT AMENDMENTS — round 6 must use the AMENDED clauses, not the originals. [reported]**
 After the blind reviewer found the `current_user`-inside-DEFINER gate that a conformance review had
