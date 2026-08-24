@@ -331,3 +331,24 @@ all landed first try. Measured facts for the batch run:
    against the 1,210-credit balance.
 4. CLI shape that works: `higgsfield generate create text2image_soul_v2 --prompt "<scene + DNA +
    negative>" --aspect-ratio 3:4 --json`, then `generate wait <id>` and curl `result_url`.
+
+## 7. Batch 1 (28 frames, 2026-08-24) — measured findings
+
+Sean's direction for the batch: "be extremely creative with angles, context, aesthetic, but they
+all must be trendy and deliver the same core nike hard effort wannabe culture" [end of his words].
+14 concepts (B01–B14) × 2 variants, Soul 2.0, 3:4, ~3.4 credits. Frames in
+`higgsfield-out/batch1/`; prompts archived in the session scratchpad and re-derivable from §2's
+scene blocks. Contact sheet artifact:
+<https://claude.ai/code/artifact/7b378c23-a4c1-4212-b6c9-ad64a7b657d6>
+
+1. **Soul's prior is marathon-culture-coded, and "hard effort" language amplifies it.** Asking for
+   grind/race energy pulls race bibs WITH invented text, swooshes on caps/shoes/shorts — one frame
+   painted a giant swoosh on a tunnel wall — and clothing on dogs. Negatives do not stop it;
+   positive "plain unbranded" language reduces but does not eliminate it.
+2. **The pipeline therefore has a mandatory de-branding stage:** pick → edit-model pass (Nano
+   Banana Pro / Flux Kontext: remove logos, bib text, dog clothing; ~0.1–0.2 credits) → the §4
+   100%-zoom sweep → type/wordmark/trace in post. No batch-1 frame publishes raw.
+3. Plus-plan concurrency is **8 jobs**; a submit loop must throttle and also survive transient
+   `Not authenticated` CLI errors (token-refresh race under parallel calls — retry succeeds).
+4. Operational limits (2026-08-24): `plus` plan, 1,210 credits at start; a 28-frame batch ran
+   end-to-end in ~15 minutes including throttling.
