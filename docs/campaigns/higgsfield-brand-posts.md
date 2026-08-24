@@ -379,6 +379,26 @@ translucent long-exposure motion ghosts, it produces panned runners instead; the
 still injects bibs/logos into new frames despite v4.2's positive language, so the de-brand stage
 stays mandatory for every pick.
 
+## 8-bis. Round 3 (2026-08-24) — garment logos, trace v3, 30 more
+
+Sean's round-3 rulings (paraphrased; full text in session): smoother traces, clear of subjects,
+Strava-style DISTANCE/PACE cards (B06B fixed at 5.4 km · 8:12, his numbers); **the 도그스하이 mark
+is now painted realistically onto runners' clothing in-image** — done via `nano_banana_pro` with
+`app/assets/logo.png` passed as an `--image-references` second input ("print this exact logo,
+white on dark garments, black on light"), which held the mark's shape across 17 edits including
+all four crew shirts in one pass; PACK ANIMALS. → **EVERY DAMN DAWN.** and ALL-WEATHER ANIMAL. →
+**RUN THE RAIN.**; B11 rebuilt (backpack removed, dog swapped to a golden retriever in gallop —
+one semantic edit, worked first try); N1-v2 eye and Seedream-N1 anatomy repaired by targeted edits.
+
+Trace v3: irregular polygon + one spur, corners softened with two Chaikin passes + white start
+dot — reads as streets, not spikes, not blobs. Strava card: DISTANCE/PACE small-cap labels,
+Oswald numerals, violet pace.
+
+30 new concepts (S01–S30) generated; **four misfired as collages (S12 eye-macro, S13 curb-edge,
+S18 bus-window, S22 ice-bath) — Soul collages multi-panel when a prompt describes two disjoint
+scales/framings in one image.** Marathon-prior contamination persists on raw frames; the de-brand
+stage remains mandatory per pick. Credits after three rounds + edits: 822 of 1,210 remain.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
