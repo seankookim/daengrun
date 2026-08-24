@@ -15,9 +15,10 @@
 -- ⚠⚠ SUPERSEDED 2026-08-24, kept rather than deleted. Everything from here to the next banner is
 -- the PRE-RULING measurement of 0118 as it stood on 2026-08-21 — 739/0, P1~P8, twenty mutations.
 -- R1C/R2A then changed the blob and the current numbers are 743/0 with P9~P12; the third fix
--- round (R3S/R3Q/R3K) adds P13 and is UNMEASURED. Both are recorded below, each against the tree
--- it was taken on. This map is still true of the commit it names and is still the provenance of
--- P1~P8's red sets, which is why it stays; it is NOT the current pass count.
+-- round (R3S/R3Q/R3K) adds P13 and the fourth (R4A~R4F) adds P14, both UNMEASURED on the harness.
+-- All are recorded below, each against the tree it was taken on. This map is still true of the
+-- commit it names and is still the provenance of P1~P8's red sets, which is why it stays; it is
+-- NOT the current pass count.
 -- P1 `_club_record_fee` ledger `platform_fee` 0 → `v_plat`
 --            predicted [P1,P2,P4] · MEASURED 736/3 red=[ccf P1, ccf P2, ccf P4] — EXACT
 --    ledger eligibility `if p_runner is not null` → `if (select runner_id from bookings
@@ -140,6 +141,13 @@
 --   no-show arm reverted ............................................ P8
 --   delete club_cfg_required's revoke ............................... P8 + [sec] S1
 --   widen the seal to a non-ruled key ............................... P11 ARM2
+--       ⚠ SUPERSEDED BY R3K, 2026-08-24 — this line is true of the tree it was measured on and
+--         false of the current one. When it was taken, the ruled key list was typed out FOUR
+--         times, so "widen the seal" meant widening ONE of them (the CHECK literal or the
+--         trigger's array) and P11 ARM2 saw it. R3K collapsed all four into
+--         `_club_ruled_cfg_keys()`, and the R2A pre-check reads that same array and demands a
+--         non-NULL `club_config` row for every key in it — so widening it with a key that has no
+--         row now ABORTS THE MIGRATION instead. See the fourth-round block below.
 --   strip the key name from the raise ............................... P11 ARM3
 --   strip search_path from the INVOKER guard ........................ P8
 --       ⓘ 98 H1 stays GREEN here — it watches SECURITY DEFINERs only, and the guard is INVOKER.
@@ -181,6 +189,76 @@
 --       failure rather than a pin — recorded so nobody logs it as a mutation with a red set.
 --   add `club_cfg_required('<unsealed_key>')` to any function body ..... the migration REFUSES to
 --       apply, naming the key. That abort IS the fix; it is not a pin and has no red set.
+--       ⚠ AMENDED BY R4A (below): that is true only for a call site added to 0118 ITSELF. A call
+--       site added by a LATER migration cannot abort a migration that has already applied — it
+--       reddens P11 ARM6, which is where the red set for this mutation now lives.
+--
+-- ═══ 2026-08-24, FOURTH FIX ROUND (R4A/R4B/R4C/R4D/R4E/R4F) — PREDICTED, NOT MEASURED ════════
+-- A second blind review returned six items; one of them was a MEASUREMENT that refuted a comment
+-- in this very file. The harness still belongs to a separate agent this session, so everything
+-- here is labelled PREDICTED and stays that way until that agent replaces it with numbers.
+--   R4A  §H's containment scan was INERT for the thing it was built to catch. Migrations apply
+--        ONCE, in ascending order, so a `club_cfg_required('<key>')` added by 0119 lands in
+--        pg_proc long after 0118's DO block last ran: §H stays green forever and the first
+--        symptom is an operator NULLing that key and rolling back a session's refunds. The
+--        identical scan is now **P11 ARM6**, and suites run after every migration. §H is kept as
+--        the apply-time half, with its comment corrected to say what it can actually see.
+--   R4B  a fee could be RECORDED and then be invisible to every reconciliation query: R3Q lets
+--        the durable-queue write fail its own booking, and `club_fee_mint_reconciliation()` reads
+--        that queue. `payments_reconciliation()` gains a seventh, QUEUE-INDEPENDENT arm
+--        (`club_fee_unminted`) keyed on the obligation through the sweep's own two predicates.
+--        **P14 (new)** owns it, both ways.
+--   R4C  the scan matched inside COMMENTS (`prosrc` keeps them), so writing
+--        `club_cfg_required('grace_minutes')` in `club_finish_session`'s existing prose about a
+--        future grace key would have ABORTED the migration and killed the whole harness for a
+--        sentence nobody executes. Line comments are stripped before matching now, in both the
+--        LIKE and the regex — a change that can only produce a false negative.
+--   R4D  the scan read `prokind = 'f'` and never saw PROCEDURES (`_pass`/`_fail` are two of this
+--        harness's own). Now `prokind in ('f','p')` in §H and ARM6 alike.
+--   R4E  R3Q's stated rationale covered `club_finish_session` only, while the fix landed in the
+--        SHARED recorder — so `session_cancel_delegation` lost its loud failure too and the file
+--        argued for one thing and did another. The rationale now says the escape is removed for
+--        BOTH callers, and why R4B's arm is what makes that acceptable. No pin moves.
+--   R4F  A FALSE RECORD, refuted by measurement. Two comments (0118 §H and this file's R1C/R2A
+--        map) claimed "widen `_club_ruled_cfg_keys()` with a non-ruled key → §H green, P11 ARM2
+--        red". MEASURED: the migration aborts far earlier, at the R2A pre-check —
+--        `0118 R2A: cannot seal the ruled club_config ladder — missing or NULL: <key>` — because
+--        that pre-check reads the same array and demands a non-NULL row for every key in it.
+--        Both comments corrected. The mutation that DOES still reach ARM2 is a widening that
+--        names a key which already holds a non-NULL row (`vet_limit_krw`); that variant is
+--        SOURCE-READ from the pre-check's predicate, NOT measured, and is labelled so here.
+-- PREDICTED pass count: **745 / 0** (744 + P14). PREDICTED red sets for this round's mutations:
+--   delete the `club_fee_unminted` UNION arm from `payments_reconciliation()` ... P14 alone
+--   delete that arm's `< now() - interval '1 hour'` term ....................... P14 alone (②)
+--       ⓘ "alone" is load-bearing here and was checked rather than assumed: 109 P10 asserts a
+--         clean fixture returns ZERO reconciliation rows, and 116 C11 / 120 J4 assert arm
+--         disjointness — all three would be exposed to a threshold-less arm. They are not,
+--         because every suite that records a club fee (30/50/60/65/66/67/68/96/99/107/108) runs
+--         BEFORE 116, the first suite that sets `payments_live_since`, so each of those fees
+--         carries a NULL cutover snapshot and `_club_fee_event_collectable` rejects it forever.
+--   re-key that arm on `club_fee_mint_failures` instead of on the booking ...... P14 alone (③);
+--       P13 stays green on purpose — it asserts the queue row is ABSENT, which a queue-keyed arm
+--       agrees with. That separation is the point of the new pin.
+--   drop that arm's `_club_fee_event_collectable` term ........................ P14 alone (⑥)
+--   delete P11 ARM6 while leaving §H .......................................... nothing reddens,
+--       and that is the finding R4A is about: the guard would be back to being unable to see a
+--       future slice. There is no pin that can catch the DELETION of a pin; what ARM6 buys is
+--       that a 0119 call site reddens the harness instead of nothing at all.
+--   add `club_cfg_required('<unsealed_key>')` to a function body IN A LATER MIGRATION ... P11
+--       ARM6 alone, naming the key. (In 0118 itself the migration still refuses to apply.)
+--   write `club_cfg_required('grace_minutes')` inside a COMMENT in any body ..... nothing —
+--       green everywhere, which is the R4C fix. Before it, the migration aborted.
+-- ⚠ R4C AND R4D ARE MEASURED, and by what: not by this harness (another agent owns it), but by
+-- running BOTH versions of the scan — the old `prokind='f'` + raw-prosrc one and the new
+-- `prokind in ('f','p')` + comment-stripped one — against four purpose-built objects on a
+-- throwaway PG16 cluster: a sealed call site, an unsealed call site, an unsealed key that appears
+-- ONLY inside a `--` comment, and a PROCEDURE with an unsealed call site.
+--   NEW scan → `grace_minutes, proc_only_key`  (the two real sites; the comment ignored)
+--   OLD scan → `grace_minutes`                 (blind to the procedure)
+--   with the two real sites removed and only the comment left:
+--   NEW scan → nothing.  OLD scan → `grace_minutes` — i.e. §H would have raised, and under
+--   `--single-transaction` that aborts the migration and takes the whole harness with it.
+-- That is the defect and the fix, both reproduced, on the actual catalog rather than on reasoning.
 -- ⚠ Also unmeasured and therefore unclaimed: whether P13's two-dog fixture survives every
 -- capacity check on the way in. `_club_runner_cap` returns 2 for a veteran (0037:37, SOURCE-READ)
 -- and the suite makes both `h` and `r` veterans, so two dogs on `r` should be legal — but P13
@@ -286,8 +364,10 @@ declare
   v_since timestamptz; v_fee int; v_share int; v_n int; v_n2 int;
   v_total bigint; v_push_base bigint; v_push jsonb;
   v_bad text; v_msg text; v_e1 text; v_e2 text; v_src text; v_err boolean; v_acl text;
+  v_e6 text;
   o_q1 uuid; d_q1 uuid; o_q2 uuid; d_q2 uuid; s_q uuid; sd_q1 uuid; sd_q2 uuid;
   b_q1 uuid; b_q2 uuid; v_fee1 int; v_fee2 int;
+  o_uq uuid; d_uq uuid; b_uq uuid; b_uq2 uuid; v_age interval;
 begin
   select payments_live_since into v_since from ops_flags where id;
   update ops_flags set payments_live_since = null, updated_at = now() where id;
@@ -1140,11 +1220,43 @@ begin
        or not exists (select 1 from club_fee_items where booking_id=b_cfgsplit
                       and recipient_type='runner' and amount_krw=4980-v_n)
       then v_bad:=v_bad||' ARM5 플랫폼/공급 분배가 ruled split대로 갈라지지 않는다'; end if;
+    -- ── ARM 6 — CONTAINMENT, and unlike §H this copy RE-RUNS ────────────────────────────
+    -- NEW 2026-08-24 (R4A). 0118 §H performs this identical scan at APPLY time, and that copy
+    -- cannot catch the thing the scan exists for: migrations apply ONCE, in ascending order, on
+    -- a fresh database, so a `club_cfg_required('<new key>')` written by 0119 lands in pg_proc
+    -- long after 0118's DO block has run for the last time. §H would stay green forever and the
+    -- first symptom would be an operator NULLing that key and rolling back a session's refunds.
+    -- Suites run AFTER every migration, so THIS arm sees the 0119 call site and reddens the
+    -- harness. That is the whole difference between a guard and a constraint, and it is the
+    -- third guard in this slice that looked closed and was not.
+    -- Keep the two copies textually identical; §H's is the one that also aborts a bad 0118
+    -- before it can land.
+    -- ⚠ Line comments are STRIPPED before matching (R4C). `prosrc` keeps comments, and
+    -- `club_finish_session`'s body already discusses a future grace key "read through
+    -- club_cfg_required" — matching that prose would redden this arm (and abort the migration in
+    -- §H) for a sentence nobody executes. Stripping can only cause a false NEGATIVE.
+    -- ⚠ Procedures are included (R4D): `prokind = 'f'` alone is blind to `'p'`, and this repo
+    -- uses procedures (`_pass`/`_fail` are two).
+    v_e6 := '';
+    select coalesce(string_agg(distinct q.k, ', ' order by q.k), '') into v_e6
+    from (
+      select (regexp_matches(src.body,
+                'club_cfg_required\(\s*''([a-zA-Z0-9_]+)''', 'g'))[1] as k
+      from pg_proc pr
+      join pg_namespace ns on ns.oid = pr.pronamespace
+      cross join lateral (select regexp_replace(pr.prosrc, '--[^\n]*', '', 'g') as body) src
+      where ns.nspname = 'public' and pr.prokind in ('f', 'p')
+        and src.body like '%club_cfg_required(%'
+    ) q
+    where not (q.k = any (_club_ruled_cfg_keys()));
+    if v_e6 <> '' then v_bad := v_bad ||
+      ' ARM6 봉인 밖 club_config 키를 club_cfg_required가 읽는다(_club_ruled_cfg_keys()를 안 넓힌 슬라이스가 있다)=' || v_e6; end if;
+
     if (select count(*) from club_config where value_num is null
         and name = any (_club_ruled_cfg_keys())) <> 0
       then v_bad:=v_bad||' 핀이 club_config를 NULL로 두고 나갔다'; end if;
 
-    if v_bad='' then call _pass('ccf','P11 R2A 봉인+wrapper — 룰된 네 키는 NULL·DELETE·RENAME·TRUNCATE 어느 쪽으로도 비울 수 없고(그래서 club_finish_session 안의 무핸들러 raise가 도달 불가), 비룰 키(vet_limit_krw)는 여전히 자유롭게 수정·삭제되며, club_cfg_required는 실제로 없는 키에 대해 missing_club_config:<name>으로 이름을 담아 거절하되 있는 값은 그대로 돌려주고, 네 사다리 사이트는 모두 wrapper를 읽어 fallback 상수가 없고 ruled 사다리대로 청구한다');
+    if v_bad='' then call _pass('ccf','P11 R2A 봉인+wrapper — 룰된 네 키는 NULL·DELETE·RENAME·TRUNCATE 어느 쪽으로도 비울 수 없고(그래서 club_finish_session 안의 무핸들러 raise가 도달 불가), 비룰 키(vet_limit_krw)는 여전히 자유롭게 수정·삭제되며, club_cfg_required는 실제로 없는 키에 대해 missing_club_config:<name>으로 이름을 담아 거절하되 있는 값은 그대로 돌려주고, 네 사다리 사이트는 모두 wrapper를 읽어 fallback 상수가 없고 ruled 사다리대로 청구하며, schema public의 어떤 함수·프로시저 본문도 봉인 밖 키를 club_cfg_required로 읽지 않는다(§H는 적용 시점의 호출부만 볼 수 있으므로 0119+ 슬라이스를 잡는 쪽은 이 ARM6이다)');
     else v_msg:=v_bad; call _fail('ccf','P11 R2A 사다리 봉인·fail-loud',v_msg); end if;
   exception when others then
     -- Belt and braces. A raise out of this block already rolls its subtransaction back, which
@@ -1425,6 +1537,126 @@ begin
     perform set_config('test.fail_club_booking','',false);
     perform set_config('test.fail_club_queue','',false);
     v_msg:=sqlerrm; call _fail('ccf','P13 R3Q 장부 실패의 폭발 반경',v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [P14] R4B — the recorded fee whose QUEUE ROW never existed is still visible to an operator
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- NEW 2026-08-24 (fourth fix round). P13 pins R3Q's BLAST RADIUS: one booking's durable-queue
+  -- write can fail without taking the session and every other owner's refund down with it. This
+  -- pin owns the state P13 leaves behind, which a blind review showed was worse than the file
+  -- claimed. `_club_note_fee_mint_failure` writes its queue row and its `notifications` rows in
+  -- ONE subtransaction, and `notifications` carries two AFTER INSERT triggers (`notifications_push`
+  -- 0024:44, `club_ack_fanout` 0049:320) — a pg_net write or a removed recipient profile makes
+  -- that write fail IDENTICALLY on every attempt, on top of a mint failure that is usually
+  -- deterministic too. The booking then carries cancel_fee + club_fee_event_at + club_fee_kind,
+  -- has NO payments row and NO club_fee_mint_failures row, and `club_fee_mint_reconciliation()`
+  -- reads the queue — so nothing an operator could query named the debt. §C's "the loss is ops
+  -- VISIBILITY, not the money" was FALSE for exactly this state.
+  -- §G arm seven, `club_fee_unminted`, is keyed on the OBLIGATION instead — the same two
+  -- predicates §F's sweep uses — so it cannot drift from the sweep and cannot be defeated by the
+  -- queue. This pin asserts the arm both ways, because an arm that lists everything is as useless
+  -- as an arm that lists nothing:
+  --   ① the queue-keyed query really is blind (also the injectors' positive control);
+  --   ② a JUST-recorded fee is NOT on the board — the one-hour threshold that keeps this from
+  --      firing during the normal window between a failed mint and the next sweep tick;
+  --   ③ aged past it, the booking IS listed, with the frozen amount and a NULL payment_id;
+  --   ④ the sweep still recovers the money from the same record; and
+  --   ⑤ once the intent exists the row LEAVES the board;
+  --   ⑥ a fee recorded while charging was OFF never appears at all, backdated so that this is
+  --      not a vacuous pass — a permanent false positive would train ops to ignore the board.
+  -- ⚠ Delete arm seven and ③ reddens alone. Delete the one-hour threshold and ② reddens alone.
+  -- Re-key the arm on `club_fee_mint_failures` and ③ reddens (P13 stays green — it asserts the
+  -- queue row is ABSENT, which a queue-keyed arm agrees with).
+  begin
+    v_bad := '';
+    update ops_flags set payments_live_since=now()-interval '7 days', updated_at=now() where id;
+    o_uq := t_user('ccf_owner_unminted','owner'); d_uq := t_dog(o_uq,'큐없는견');
+    b_uq := t_av_booking(o_uq,d_uq,rt,null,now()-interval '3h',5.0,'refund_pending');
+    update bookings set club_session_id=s_ns where id=b_uq;
+
+    -- BOTH injectors, exactly as P13 arms them: the mint fails, and then the queue write that
+    -- records the mint failure fails too.
+    create trigger t153_force_payment_failure before insert on payments
+      for each row execute function t153_reject_payment();
+    create trigger t153_force_queue_failure before insert on club_fee_mint_failures
+      for each row execute function t153_reject_queue();
+    perform set_config('test.fail_club_booking', b_uq::text, false);
+    perform set_config('test.fail_club_queue', b_uq::text, false);
+    perform _club_record_fee(s_ns,null,b_uq,'cancel_fee',24900,20,null,'p14');
+    drop trigger t153_force_queue_failure on club_fee_mint_failures;
+    drop trigger t153_force_payment_failure on payments;
+    perform set_config('test.fail_club_booking','',false);
+    perform set_config('test.fail_club_queue','',false);
+
+    -- 전제: 채무는 기록됐고, 인텐트도 큐 행도 없다 (주입기가 물지 않았으면 이 핀은 공허하다)
+    if (select cancel_fee from bookings where id=b_uq) <> 4980
+       or not _club_fee_event_collectable(b_uq)
+      then v_bad:=v_bad||' 🔴 전제 실패: 채무가 기록되지 않았거나 collectable이 아니다'; end if;
+    if exists (select 1 from payments where booking_id=b_uq)
+      then v_bad:=v_bad||' 🔴 전제 실패: 민트가 실패해야 하는데 인텐트가 생겼다'; end if;
+    if exists (select 1 from club_fee_mint_failures where booking_id=b_uq)
+      then v_bad:=v_bad||' 🔴 전제 실패: 큐 쓰기가 실패해야 하는데 큐 행이 남았다'; end if;
+
+    -- ① 큐 기반 질의는 구조적으로 눈이 멀어 있다 — 이게 결함이고, 사실로 고정한다
+    if exists (select 1 from club_fee_mint_reconciliation() where booking_id=b_uq)
+      then v_bad:=v_bad||' 큐 행이 없는데 큐 기반 질의가 본다'; end if;
+
+    -- ② 방금 기록된 수수료는 아직 조정 큐에 올라오지 않는다 (1시간 임계)
+    if exists (select 1 from payments_reconciliation()
+               where kind='club_fee_unminted' and booking_id=b_uq)
+      then v_bad:=v_bad||' 방금 기록된 수수료가 즉시 조정 큐에 올라온다(1시간 임계가 없다 — 아무도 안 읽는 보드가 된다)'; end if;
+
+    -- ③ THE PROPERTY. 이벤트 시각을 임계 밖으로 물린다 (now()는 트랜잭션 시작 시각으로 고정이고
+    --    event_at은 clock_timestamp()라서 age는 정확히 2시간이 아니라 그보다 살짝 작다 — 그래서
+    --    비교는 1시간 초과로 한다.)
+    update bookings set club_fee_event_at = club_fee_event_at - interval '2 hours' where id=b_uq;
+    select count(*) into v_n from payments_reconciliation()
+    where kind='club_fee_unminted' and booking_id=b_uq;
+    if v_n <> 1
+      then v_bad:=v_bad||' 큐 행 없는 채무가 payments_reconciliation()에 안 보인다(행수='||v_n||')'; end if;
+    -- ⚠ alias `pr7`, never `r`: `r` is this suite's RUNNER uuid variable, and plpgsql's default
+    -- variable_conflict=error would refuse `r.age` as an ambiguous reference.
+    select pr7.age into v_age from payments_reconciliation() pr7
+    where pr7.kind='club_fee_unminted' and pr7.booking_id=b_uq;
+    if not exists (select 1 from payments_reconciliation()
+                   where kind='club_fee_unminted' and booking_id=b_uq
+                     and amount=4980 and payment_id is null and payment_status is null)
+       or v_age is null or v_age <= interval '1 hour'
+      then v_bad:=v_bad||' 보이긴 하는데 금액/결제행 부재/경과시간이 사실과 다르다(age='||coalesce(v_age::text,'∅')||')'; end if;
+
+    -- ④ 돈은 잃지 않았다 — 스윕은 같은 기록에서 고정액을 복구한다
+    perform sweep_club_cancel_fee_intents();
+    if (select count(*) from payments where booking_id=b_uq) <> 1
+       or not exists (select 1 from payments where booking_id=b_uq and amount=4980)
+      then v_bad:=v_bad||' 회복 스윕이 큐 행 없이 기록된 채무를 복구하지 못했다'; end if;
+
+    -- ⑤ 발행되면 보드에서 내려간다 (arm이 _cancel_fee_existing_payment를 실제로 읽는다는 증거)
+    if exists (select 1 from payments_reconciliation()
+               where kind='club_fee_unminted' and booking_id=b_uq)
+      then v_bad:=v_bad||' 인텐트가 발행됐는데도 조정 큐에 남아 있다'; end if;
+
+    -- ⑥ 청구 OFF 시대에 기록된 수수료는 영원히 안 보인다 — 임계 밖으로 물려 공허하지 않게 만든다
+    update ops_flags set payments_live_since=null, updated_at=now() where id;
+    b_uq2 := t_av_booking(o_uq,d_uq,rt,null,now()-interval '3h',5.0,'refund_pending');
+    update bookings set club_session_id=s_ns where id=b_uq2;
+    perform _club_record_fee(s_ns,null,b_uq2,'cancel_fee',24900,20,null,'p14_off');
+    update bookings set club_fee_event_at = club_fee_event_at - interval '2 hours' where id=b_uq2;
+    update ops_flags set payments_live_since=now()-interval '7 days', updated_at=now() where id;
+    if (select club_fee_cutover_at from bookings where id=b_uq2) is not null
+      then v_bad:=v_bad||' 🔴 전제 실패: 청구 OFF 시대인데 컷오버 스냅샷이 찍혔다'; end if;
+    if exists (select 1 from payments_reconciliation()
+               where kind='club_fee_unminted' and booking_id=b_uq2)
+      then v_bad:=v_bad||' 청구 OFF 시대에 기록된 수수료가 조정 보드에 영구 상주한다'; end if;
+
+    if v_bad='' then call _pass('ccf','P14 R4B 큐 없는 채무의 가시성 — 민트도 durable-queue 쓰기도 실패한 예약은 club_fee_mint_reconciliation()에는 구조적으로 안 보이지만, 채무 자체를 키로 삼는 payments_reconciliation()의 일곱째 arm(club_fee_unminted)에 1시간 뒤 고정액으로 등장하고(방금 기록된 건 안 뜬다), 스윕이 인텐트를 복구하면 보드에서 내려가며, 청구 OFF 시대에 기록된 수수료는 아무리 오래돼도 뜨지 않는다');
+    else v_msg:=v_bad; call _fail('ccf','P14 R4B 큐 없는 채무의 가시성',v_msg); end if;
+  exception when others then
+    drop trigger if exists t153_force_queue_failure on club_fee_mint_failures;
+    drop trigger if exists t153_force_payment_failure on payments;
+    perform set_config('test.fail_club_booking','',false);
+    perform set_config('test.fail_club_queue','',false);
+    v_msg:=sqlerrm; call _fail('ccf','P14 R4B 큐 없는 채무의 가시성',v_msg);
   end;
 
   update ops_flags set payments_live_since=v_since, updated_at=now() where id;

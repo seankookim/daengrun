@@ -11,7 +11,7 @@
 --   §C `_club_refund_confirmed`       ← 0038:211-227
 --   §D `session_cancel_delegation`    ← 0057:190-258 (the latest of 0048/0050/0057)
 --   §E `club_finish_session`          ← 0048 §J (the latest definition)
---   §G `payments_reconciliation`      ← 0084 §C (five arms; this adds the sixth)
+--   §G `payments_reconciliation`      ← 0084 §C (five arms; this adds the sixth and seventh)
 -- It also REPLACES `_club_record_cancel_fee` ←0048 §B under the same signature, but narrows it
 -- to cancellation only. No-show gets its own named function, `_club_record_no_show_fee`.
 -- 0117's late-booking truth explicitly excludes club_session_id rows; this file preserves that
@@ -141,7 +141,53 @@
 --        (§A) — the pre-check, the CHECK constraint's literal, the trigger's list, suite 153 P11
 --        and the §H assertion all derive from it — and §H refuses to apply the migration if any
 --        `club_cfg_required('<key>')` literal anywhere in schema public names an unsealed key.
---        A constraint, not a discipline.
+--        A constraint, not a discipline. ⚠ Read R4A below before trusting that last sentence: §H
+--        can only see the call sites that exist WHEN IT APPLIES, and the running half of the
+--        constraint is suite 153 P11 ARM6.
+--
+-- ═══ FOURTH FIX ROUND, 2026-08-24, STILL BEFORE LANDING ═════════════════════════════════════
+-- A second blind review, plus one measurement that refuted a comment. Same reasoning again: this
+-- file has never reached a database, so all six land in place.
+--   R4A  THE CONTAINMENT GUARD WAS INERT FOR THE THING IT WAS BUILT TO CATCH. §H scans
+--        `pg_proc.prosrc` for `club_cfg_required('<key>')` call sites — but migrations apply ONCE,
+--        in ascending order, on a fresh database. When 0119 adds a call site and forgets to seal
+--        the key, §H has already run and never runs again: the harness stays green and the first
+--        symptom is an operator NULLing that key and rolling back a session's refunds. The
+--        identical scan now also lives in suite 153 P11 ARM6, and suites run AFTER every
+--        migration, so the 0119 call site reddens the harness. §H is KEPT — it aborts a bad 0118
+--        before it can land — and its comment now says what it actually validates: the call sites
+--        present as of this migration. Third guard in this slice that looked closed and was not.
+--   R4B  A RECORDED FEE COULD BECOME INVISIBLE TO EVERY RECONCILIATION QUERY. R3Q's nested handler
+--        lets the durable-queue write fail its own booking — but `_club_note_fee_mint_failure`
+--        writes the queue row and its `notifications` rows in ONE subtransaction, and
+--        `notifications` carries two AFTER INSERT triggers (`notifications_push` 0024:44,
+--        `club_ack_fanout` 0049:320). If either raises, the queue write fails identically on every
+--        attempt, and the mint failure that got us there is usually deterministic too. The state
+--        left behind — fee recorded on `bookings`, no payments row, no queue row — was visible to
+--        NOTHING: `club_fee_mint_reconciliation()` reads the queue. §G gains arm seven,
+--        `club_fee_unminted`, keyed on the OBLIGATION through the same two predicates §F's sweep
+--        uses. Suite 153 P14 owns it. §C's claim that "the loss is ops VISIBILITY, not the money"
+--        was false for that state and is corrected where it was written.
+--   R4C  §H'S SCAN COULD ABORT THE MIGRATION ON A COMMENT. `prosrc` retains comments, and
+--        `club_finish_session`'s body already discusses a future grace key "read through
+--        `club_cfg_required`" (§E). The moment someone wrote that concretely the whole harness
+--        would die for a sentence nobody executes. Line comments are now stripped before matching,
+--        in both the LIKE and the regex — a change that can only produce a false NEGATIVE.
+--   R4D  the scan read `prokind = 'f'` and was blind to PROCEDURES, which this repo uses. Now
+--        `prokind in ('f','p')`, in §H and in P11 ARM6 alike.
+--   R4E  R3Q'S STATED RATIONALE DID NOT COVER WHAT IT CHANGED. It argued about
+--        `club_finish_session` and explicitly named `session_cancel_delegation` as the caller
+--        whose rollback was RIGHT — but the nested handler landed in the SHARED recorder, so the
+--        delegation path lost its loud failure too. The escape is now removed for BOTH callers ON
+--        PURPOSE, with the reason written at §C: the debt is recorded before the mint, §F recovers
+--        the intent from that record, R4B's arm makes it visible without a queue row, and the
+--        rollback was never free — it threw away the owner's cancellation.
+--   R4F  A FALSE RECORD, REFUTED BY MEASUREMENT. Two comments claimed that widening
+--        `_club_ruled_cfg_keys()` with a non-ruled key leaves §H green and reddens P11 ARM2.
+--        MEASURED: the migration aborts far earlier, at R2A's pre-check, because that pre-check
+--        reads the same array and demands a non-NULL `club_config` row for every key in it. Both
+--        comments now record the measured truth. A comment asserting an impossible result is as
+--        damaging as a bad test, because the next session trusts it.
 --
 -- Every created/replaced function carries `set search_path = public, pg_temp` IN ITS BODY.
 -- `create or replace` wipes ALTER-applied proconfig; suite 98 H1 owns that invariant.
@@ -237,8 +283,11 @@ somebody the old rate. Reads whose fallback is a fail-CLOSED zero keep using clu
 --      is concerned, so both are the same door and both are shut.
 --   (+ a statement trigger for TRUNCATE, which bypasses row triggers entirely.)
 --   Both doors, the pre-check, §H and suite 153 P11 read the SAME array — `_club_ruled_cfg_keys()`
---   (R3K, below). The list is not typed twice anywhere any more, and §H refuses to apply this
---   migration if a `club_cfg_required('<key>')` call site names a key that array does not seal.
+--   (R3K, below). The list is not typed twice anywhere any more. §H refuses to apply THIS
+--   migration if a `club_cfg_required('<key>')` call site PRESENT AT THAT MOMENT names a key the
+--   array does not seal; a call site added by a LATER migration is caught by suite 153 P11 ARM6,
+--   which runs the identical scan after every migration (R4A — §H alone cannot see the future
+--   slice it was written for, because a migration applies once).
 -- INSERT needs no door of its own: the CHECK already rejects a NULL insert, and `name` is the
 -- primary key, so a ruled row cannot be duplicated or shadowed. Delete, rename, truncate and
 -- NULL-update are the complete set of ways to reach the state that raises.
@@ -414,6 +463,11 @@ on conflict do nothing;
 -- write takes down the whole transaction: no session 'done', and NONE of the five owners in that
 -- session refunded. So the queue write now fails only its own booking (§C,
 -- `_club_try_mint_cancel_fee`), and the honest accounting of what that costs is written there.
+-- ⚠ AND IT IS BOTH CALLERS, not just the session one — amended 2026-08-24 (R4E) because the
+-- paragraph above argued about `club_finish_session` while the change landed in the SHARED
+-- recorder, so `session_cancel_delegation` lost its loud failure too and the words did not say so.
+-- What makes that acceptable is not the old argument (it does not apply) but §G arm seven: the
+-- obligation is now visible to an operator WITHOUT the queue row. See §C for the full reasoning.
 create table if not exists club_fee_mint_failures (
   booking_id uuid primary key references bookings(id) on delete cascade,
   fee_kind text not null check (fee_kind in ('cancel_fee', 'no_show_fee')),
@@ -653,18 +707,43 @@ revoke execute on function _club_note_fee_mint_failure(uuid, text, text)
 -- #3: no intent, `false` returned, and a WARNING that carries BOTH errors — the mint's and the
 -- queue's — because the queue error alone would not say what it was hiding.
 --
--- WHAT THIS COSTS, stated rather than implied. That one booking ends up with a fee recorded on
--- `bookings`, no payment intent, and NO queue row — so `club_fee_mint_reconciliation()`, which
--- reads the queue, cannot see it either. The only thing left is the server log line.
--- WHAT STILL RECOVERS IT: §F's `sweep_club_cancel_fee_intents` works from the RECORDED obligation
--- (`_club_fee_event_collectable` over `bookings` + no existing payment row), NOT from the queue.
--- The booking is picked up on the next tick and the frozen amount is minted then. The loss is ops
--- VISIBILITY until that happens, not the money. Suite 153 P13 pins the whole shape: a session
--- where one booking's queue write fails still finishes, still refunds every owner, and the
--- affected booking's intent is still recovered by the sweep.
+-- ⚠ SCOPE OF THE CHANGE, CORRECTED 2026-08-24 (R4E). Everything above argues about
+-- `club_finish_session`, but the nested handler lives in this SHARED function, so
+-- `session_cancel_delegation` — the one-booking, one-owner caller whose rollback the paragraph
+-- calls proportionate and RIGHT — lost its loud failure in the same edit. The words claimed one
+-- scope and the code took both. Rather than re-scope the swallow (a caller-shaped `if` inside the
+-- recorder would put policy in the wrong place and make the two paths diverge under the next
+-- change), the escape is removed for BOTH CALLERS on purpose, and here is why that is now
+-- acceptable for the delegation path too:
+--   • the fee is RECORDED before the mint is attempted, so nothing about the debt is lost;
+--   • §F's sweep recovers the intent from that record, not from the queue;
+--   • §G arm seven (`club_fee_unminted`, added the same day) surfaces the obligation to an
+--     operator WITHOUT a queue row — the visibility that used to justify the rollback;
+--   • and the rollback itself was never free: it threw away the owner's CANCELLATION, which is
+--     the thing they actually asked for, because a bookkeeping row could not be written.
+--
+-- WHAT THIS COSTS, stated rather than implied — AMENDED 2026-08-24 (R4B), because the previous
+-- version of this paragraph was WRONG about the most important sentence. That one booking ends up
+-- with a fee recorded on `bookings`, no payment intent, and NO queue row — so
+-- `club_fee_mint_reconciliation()`, which reads the queue, is structurally blind to it. The old
+-- text then said "the loss is ops VISIBILITY, not the money", and that was FALSE for this exact
+-- state: no reconciliation query named the debt at all, so a recorded fee could sit invisible to
+-- every operator, and the failure that produced it is typically deterministic — the same mint
+-- failing, the same queue write failing, on every attempt.
+-- WHAT NOW SEES IT: §G arm seven, `club_fee_unminted`, keyed on the OBLIGATION rather than on the
+-- queue — a booking with a recorded, collectable club fee and no payments row for an hour appears
+-- in `payments_reconciliation()` whether or not a queue row was ever written.
+-- WHAT STILL RECOVERS IT: §F's `sweep_club_cancel_fee_intents` works from the same RECORDED
+-- obligation (`_club_fee_event_collectable` over `bookings` + no existing payment row), NOT from
+-- the queue. The booking is picked up on the next tick and the frozen amount is minted then.
+-- Suite 153 P13 pins the blast radius (a session where one booking's queue write fails still
+-- finishes, still refunds every owner, and that booking's intent is still recovered by the sweep);
+-- P14 pins the visibility (the same queue-less booking IS listed by `payments_reconciliation()`
+-- and is NOT listed by `club_fee_mint_reconciliation()`).
 -- NOT DONE, and deliberately: no second fallback write here. Anything this handler tried would
 -- run in the same transaction that just failed a write, so it would be a guess dressed as a
--- guarantee. A WARNING plus a recovery path that does not depend on this table is the honest set.
+-- guarantee. A WARNING, a recovery path and an ops query that all work without this table is the
+-- honest set.
 create or replace function _club_try_mint_cancel_fee(p_booking uuid) returns boolean
 language plpgsql security definer
 set search_path = public, pg_temp
@@ -1225,7 +1304,9 @@ grant execute on function club_fee_mint_reconciliation() to service_role;
 
 comment on function club_fee_mint_reconciliation is
   '0118 §F: open durable club-fee mint failures. This is the ops-visible safety net when SQL
-cannot reach _shared/ops.ts and no club_fee_mint_failed ops recipient is provisioned';
+cannot reach _shared/ops.ts and no club_fee_mint_failed ops recipient is provisioned. It reads the
+QUEUE, so it is structurally blind to a booking whose queue write ALSO failed (R3Q allows that);
+payments_reconciliation() arm seven, club_fee_unminted, is the query that sees those';
 
 -- 2-57/5 is the settled-charge sweep; this takes every other one of those ticks, then the
 -- existing 4-59/5 dispatcher gets a newly minted row two minutes later. Guarded for the harness.
@@ -1238,12 +1319,52 @@ end $$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- §G  payments_reconciliation arm six: refund-shaped server rows summon a human
+-- §G  payments_reconciliation arms six and seven: the rows a human has to look at
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- EXTENDS 0084 §C byte-faithfully plus the final UNION. The six arms remain disjoint by status
--- and marker. 0116 made canceled/partial_canceled kind rows intentionally sweep-blind after a
--- reviewer reproduced a fresh-full-intent double charge next to the refund remainder. "A human
--- resolves it" was not a mechanism; this arm is the queue.
+-- EXTENDS 0084 §C byte-faithfully plus two final UNIONs. 0116 made canceled/partial_canceled kind
+-- rows intentionally sweep-blind after a reviewer reproduced a fresh-full-intent double charge
+-- next to the refund remainder. "A human resolves it" was not a mechanism; ARM SIX is the queue.
+-- ARMS ONE THROUGH SIX are byte-identical to what 0084/0118 already shipped and remain disjoint
+-- by status and marker. ARM SEVEN is disjoint from them in the only way the shipped disjointness
+-- pins can measure — it emits NO payments row, so it can never collide with them on `payment_id`
+-- — but it is not disjoint BY BOOKING, and saying so is more useful than claiming otherwise: a
+-- club booking whose original run payment sits `pending` with no `raw.kind` can be listed by
+-- `stale_pending` (that payment is stale) and by `club_fee_unminted` (the cancel fee has no
+-- intent) at the same time. Those are two different findings about the same booking, and
+-- `_cancel_fee_existing_payment` — the one copy of "does a row already settle this charge?" —
+-- is what decides that such a payment does not answer the fee.
+--
+-- ═══ ARM SEVEN — `club_fee_unminted`, ADDED 2026-08-24 (R4B) ════════════════════════════════
+-- WHY IT IS KEYED ON THE OBLIGATION AND NOT ON THE QUEUE. `_club_note_fee_mint_failure` writes
+-- its `club_fee_mint_failures` row and its `notifications` rows in ONE subtransaction, and
+-- `notifications` carries two AFTER INSERT triggers (`notifications_push` 0024:44, `club_ack_fanout`
+-- 0049:320). If either raises — a pg_net write, or a removed recipient profile hitting the FK —
+-- the queue write fails, and it fails IDENTICALLY on every attempt because nothing about it is
+-- transient. The mint failure that got us there is usually deterministic too. The resulting state
+-- is the one this arm exists for: `bookings` carries cancel_fee + club_fee_event_at +
+-- club_fee_kind, there is NO payments row, and NO club_fee_mint_failures row.
+-- `club_fee_mint_reconciliation()` reads the queue, so it is BLIND to exactly this booking —
+-- §C's old claim that "the loss is ops VISIBILITY, not the money" was false for it: nothing an
+-- operator can query named the debt at all.
+-- So this arm asks the obligation itself, through the same two predicates §F's sweep uses —
+-- `_club_fee_event_collectable` (which is what keeps a pilot-era or charging-off event out) and
+-- `_cancel_fee_existing_payment` (which is what keeps a minted or refund-shaped booking out). It
+-- cannot drift from the sweep, because it IS the sweep's work queue; a row here means recovery
+-- has been trying and failing.
+-- ⚠ ONE HOUR, deliberately, matching arms two and three. The sweep runs every ten minutes, so an
+-- hour is six failed recoveries — long enough that a row here is a real defect rather than the
+-- normal window between a failed immediate mint and its next tick. Without the threshold this arm
+-- would list every fee in the seconds after it is recorded and become the board nobody reads.
+-- ⚠ `payment_id` is NULL here and `payment_status` is NULL, because there IS no payments row —
+-- that absence is the finding. NAMED CONSEQUENCE for whoever adds arm eight: 116 C11 and 120 J4
+-- assert disjointness with `group by payment_id having count(*) > 1`, and SQL groups NULLs
+-- together, so two simultaneous rows from this arm would read as one row in two arms. Neither
+-- suite can see one today, and the reason is worth writing down because it is not "nothing
+-- records a club fee": suites 30/50/60/65/66/67/68/96/99/107/108 all do, and they all run before
+-- 116 — the FIRST suite that sets `payments_live_since`. A fee recorded while the flag is NULL
+-- gets a NULL cutover snapshot, which `_club_fee_event_collectable` rejects forever. So those
+-- rows can never reach this arm, threshold or no threshold. That is a property of the fixture
+-- ORDER, not a guarantee about the query.
 create or replace function payments_reconciliation()
 returns table (
   kind text,
@@ -1297,15 +1418,26 @@ as $$
   where p.status in ('canceled', 'partial_canceled')
     and (p.raw->>'kind') is not null
     and exists (select 1 from runs r where r.booking_id = b.id and r.settled_at is not null)
+  union all
+  select 'club_fee_unminted'::text, null::uuid, b.id, b.cancel_fee, null::text,
+         b.status::text, false, now() - b.club_fee_event_at
+  from bookings b
+  where b.club_fee_event_at is not null
+    and b.club_fee_event_at < now() - interval '1 hour'
+    and _club_fee_event_collectable(b.id)
+    and not exists (select 1 from _cancel_fee_existing_payment(b.id))
 $$;
 revoke execute on function payments_reconciliation() from public, anon, authenticated;
 grant execute on function payments_reconciliation() to service_role;
 
 comment on function payments_reconciliation is
-  '0084 §C + 0118 §G: 결제 조정 질의 6종. The sixth,
+  '0084 §C + 0118 §G: 결제 조정 질의 7종. The sixth,
 refund_shaped_server_charge, surfaces kind-bearing canceled/partial_canceled rows on a settled
 run. 0116 deliberately keeps automatic sweeps away from these
-rows to prevent a second full charge; this human queue is the corresponding resolution mechanism';
+rows to prevent a second full charge; this human queue is the corresponding resolution mechanism.
+The seventh, club_fee_unminted, is QUEUE-INDEPENDENT: a club fee recorded on bookings, collectable,
+with no payments row and no recovery for an hour. It sees the booking whose durable-queue write
+ALSO failed, which club_fee_mint_reconciliation() structurally cannot';
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -1331,28 +1463,60 @@ begin
     raise exception '0118: club_finish_session did not switch to the named no-show policy/copy arm';
   end if;
 
-  -- ── R3K CONTAINMENT (2026-08-24) — the assertion that makes R2A a constraint ──────────────
+  -- ── R3K CONTAINMENT (2026-08-24) — the APPLY-TIME half; the half that RUNS is 153 P11 ARM6 ─
   -- R2A's safety argument is that `club_cfg_required`'s raise is UNREACHABLE from the money path,
   -- and that holds only while every key it reads is sealed by `_club_ruled_cfg_keys()`. This
-  -- extracts every literal key from every function body in schema `public` and refuses to APPLY
-  -- the migration if one of them is outside the sealed array. A future slice that adds a fifth
-  -- ruled read without sealing the key fails HERE, at apply time, naming the key — instead of
-  -- stranding a session's refunds the first time an operator empties it.
-  -- ⚠ This is the one apply-time assertion in this file that is allowed to be about a GATE-shaped
-  -- property, and it does not collide with any pin: it checks only found ⊆ sealed. Reverting a
-  -- call site to `coalesce(club_cfg(k), <n>)` REMOVES a literal, so this stays green and 153 P11
-  -- ARM4 reddens; widening the seal to a non-ruled key keeps containment true, so this stays green
-  -- and P11 ARM2 reddens. Neither mutation is stolen from its pin.
-  -- LIMITS, stated rather than implied: it sees single-quoted literal call sites only. A
-  -- `club_cfg_required(v_name)` computed at runtime is invisible to it, and so is a caller outside
-  -- schema public. Both are review items; neither is reachable today.
+  -- extracts every literal key from every function and procedure body in schema `public` and
+  -- refuses to APPLY this migration if one of them is outside the sealed array.
+  -- ⚠ WHAT THIS COPY ACTUALLY DOES — CORRECTED 2026-08-24 (R4A). It used to say "a future slice
+  -- that adds a fifth ruled read fails HERE, at apply time". IT CANNOT. Migrations apply ONCE, in
+  -- ascending order, on a fresh database: by the time 0119 adds `club_cfg_required('grace_minutes')`
+  -- and forgets the seal, this DO block has already run and never runs again — the harness stays
+  -- green and the first symptom is an operator NULLing that key and rolling back a session's
+  -- refunds. What this block validates is THE CALL SITES PRESENT AS OF THIS MIGRATION: the five
+  -- R2A wrote (four distinct keys), plus anything already in the schema when it applies. Worth
+  -- keeping — it
+  -- aborts before a bad 0118 can land, and it names the key — but it is not the constraint.
+  -- THE CONSTRAINT THAT RUNS IS SUITE 153 P11 ARM6. It is this identical scan, and suites execute
+  -- AFTER every migration, so a 0119 call site is visible to it and reddens the harness. This is
+  -- the third guard in this slice that looked closed and was not; the scan only becomes a
+  -- constraint by living where it re-runs.
+  -- ⚠ It does not collide with any pin: it checks only found ⊆ sealed. Reverting a call site to
+  -- `coalesce(club_cfg(k), <n>)` REMOVES a literal, so this stays green and 153 P11 ARM4 reddens.
+  -- ⚠ MUTATION NOTE, CORRECTED 2026-08-24 (R4F) — the line here used to read "widening the seal to
+  -- a non-ruled key keeps containment true, so this stays green and P11 ARM2 reddens". That result
+  -- CANNOT OCCUR as written, and a comment asserting an impossible result is a false record.
+  -- MEASURED: the migration aborts far earlier, at the R2A pre-check above, with
+  -- `0118 R2A: cannot seal the ruled club_config ladder — missing or NULL: <key>` — because that
+  -- pre-check reads THE SAME array and demands a non-NULL `club_config` row for every key in it,
+  -- so a widened seal never reaches §H at all. (Before R3K the four key lists were separate, and
+  -- widening one of the other three did reach P11 ARM2; that is the measurement this stale line
+  -- came from.) The only widening that still reaches ARM2 is one naming a key that ALREADY holds a
+  -- non-NULL row, e.g. `vet_limit_krw` — SOURCE-READ from the pre-check's own predicate, NOT
+  -- measured, and labelled that way in 153's mutation map too.
+  -- LIMITS, stated rather than implied: it sees single-quoted literal call sites only, in schema
+  -- public. A `club_cfg_required(v_name)` computed at runtime is invisible to it, and so is a
+  -- caller outside that schema. Both are review items; neither is reachable today.
+  -- ⚠ LINE COMMENTS ARE STRIPPED BEFORE MATCHING, and that is load-bearing rather than tidy:
+  -- `prosrc` keeps comments, `club_finish_session`'s body ALREADY discusses a future grace key
+  -- "read through `club_cfg_required`" (§E, the no-grace ruling), and the moment an editor writes
+  -- that sentence CONCRETELY this migration would abort — the whole harness dying for a sentence
+  -- nobody executes. Stripping can only move the scan toward a false negative, never toward a
+  -- spurious abort, so it is the safe direction to be wrong in.
+  -- ⚠ KEEP THIS QUERY TEXTUALLY IDENTICAL to suite 153 P11 ARM6's, aliases included, so the two
+  -- copies diff cleanly and neither can drift into being a different check. The multi-letter
+  -- aliases are the SUITE's constraint rather than this file's: its DO block declares `r` (the
+  -- runner uuid) among many short names, and plpgsql's default `variable_conflict = error` turns
+  -- a one-letter table alias that collides with a declared variable into a runtime refusal.
   select coalesce(string_agg(distinct q.k, ', ' order by q.k), '') into v_unsealed
   from (
-    select (regexp_matches(p.prosrc,
+    select (regexp_matches(src.body,
               'club_cfg_required\(\s*''([a-zA-Z0-9_]+)''', 'g'))[1] as k
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.prokind = 'f' and p.prosrc like '%club_cfg_required(%'
+    from pg_proc pr
+    join pg_namespace ns on ns.oid = pr.pronamespace
+    cross join lateral (select regexp_replace(pr.prosrc, '--[^\n]*', '', 'g') as body) src
+    where ns.nspname = 'public' and pr.prokind in ('f', 'p')
+      and src.body like '%club_cfg_required(%'
   ) q
   where not (q.k = any (_club_ruled_cfg_keys()));
   if v_unsealed <> '' then
