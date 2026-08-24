@@ -1653,9 +1653,18 @@ begin
     -- service_role cannot reach the clock" — is unchanged and still owned by the late_grace /
     -- late_ceiling / late_ceiling_at revokes and by the anon/authenticated arms above; the
     -- property it owns NOW is "the cancel guard can actually run".
-    -- ⚠ The harness cannot catch this class on its own: harness.sh connects as PGUSER=postgres,
-    -- the function owner, and this suite contains no `set role`. That is why L47 below executes
-    -- the cancel AS service_role instead of asking the catalog.
+    -- ⚠ THIS catalog arm is the reliable guard; L47 below is the proof. Keep both, and do not
+    -- conclude from L47's story that catalog pins are suspect — they are not. `has_function_
+    -- privilege` takes the ROLE AS AN ARGUMENT and reads pg_proc.proacl directly, so it answers
+    -- correctly no matter which role is connected and nothing about it is planned, which makes it
+    -- immune to the plan-cache trap that made L47 vacuous until `discard plans` was added.
+    -- Measured: this line went RED under mutation M-R1a while L47 was still green.
+    -- What IS true, and is why L47 exists at all: harness.sh connects as PGUSER=postgres, the
+    -- owner of every function here, so an arm that proves a privilege by EXECUTING as another
+    -- role sees nothing without `set role` + `discard plans`. That is a narrow claim about
+    -- execute-as-role arms, not about privilege pins in general.
+    -- (First written here as the general form; corrected 2026-08-24 after announcer v5 challenged
+    --  it and the L14-vs-L47 mutation split settled which half was true.)
     if not has_function_privilege('service_role', '_checkin_custody(booking_status,timestamptz,timestamptz)', 'execute') then v_bad := v_bad || ' svc¬custody (R1: §9d 인보커 트리거가 못 돈다)'; end if;
     -- [codex r2 F2] ALL FOUR write verbs, all three client-reachable roles. Round 1 revoked
     -- only UPDATE/DELETE, leaving service_role able to INSERT a fabricated check-in (a fault
