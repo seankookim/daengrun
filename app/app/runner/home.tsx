@@ -55,9 +55,42 @@ import { colors, layout, lilac, paper } from '../../src/theme';
 //    MyRunnerStatus carries no radius) and its "지명 요청도 오프라인이면 오지 않아요" (measured false —
 //    fetchRunnerInbox's directed leg has no online filter, api.ts:826-830).
 
+// 2026-08-24 runner-home enhancement wave (docs/labs/enh-runner-home-lab.html · Sean, verbatim:
+// "For runner home I like all new updates you are showing me"). Shape ① is settled and nothing
+// below adds, removes or reorders a module — every change lives inside 온라인 토글 / 이번 주 /
+// 요청 대기열 / the empty state.
+//  · A④ the switch says what it actually does. `online` is read by exactly three surfaces and the
+//    open pool is none of them (measured: 0056's marketplace_open_requests has no online predicate,
+//    its gate is is_active_runner(); 0054 runners_available_for and fetchCertifiedRunners are the
+//    ones that read r.online = true). The old offline sub-line 「새 요청이 멈춰 있어요」 was the
+//    biggest false claim on this screen.
+//  · A③ 오늘 — one row above 이번 주, from jobs already in memory + the isTodayKst() below.
+//  · A② the front request gets its face (OpenRequest.photoUrl was fetched and never drawn) and the
+//    expiry sentence 0080 actually enforces.
+//    ⚠ HELD, not dropped: the lab's countdown (「5시간 뒤」) on the request ticket needs
+//    OpenRequest.scheduledAt, which the mapper drops after formatting `when` (api.ts:787-805).
+//    Re-parsing the typeset `when` string to fake it is exactly what RunnerJob.scheduledAt exists
+//    to prevent, so the ticket keeps the full clock until that one mapper field lands.
+//  · A① the quiet day explains itself — 온라인 · 러닝 가능 시간 as two summary rows (the second a
+//    real door to the editor) + the sentence that kills the wrong inference.
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
 const hh = (m: number) => String(Math.floor(m / 60)).padStart(2, '0');
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+// [A① 2026-08-24] 가용시간 한 줄 요약 — 빈 상태의 두 번째 요약 행. requests.tsx:65가 이미 쓰는
+// 함수를 그대로 가져온다 (통합하지 않는 이유: 네 줄짜리 표시 포맷터를 api.ts로 올리면 데이터 층에
+// 표시 어휘가 생긴다). 이 함수가 **지어내지 않는** 두 가지가 요점이다 — 요일마다 시간이 다르면
+// 시간을 만들지 않고 「요일마다 다름」이라 말하고, 빈 규칙 집합은 「아직 설정 안 했어요」가 아니라
+// 「설정된 요일이 없어요」다 (모든 요일을 끈 러너는 그 빈 집합을 **의도적으로** 저장한다 —
+// availability.tsx:92-95). 로딩·실패는 호출부가 가른다: avail이 null이면 행 자체를 그리지 않는다.
+const availSummary = (rules: AvailRule[]): string => {
+  if (rules.length === 0) return '설정된 요일이 없어요';
+  const same = rules.every((r) => r.startMin === rules[0].startMin && r.endMin === rules[0].endMin);
+  return same
+    ? `주 ${rules.length}일 · ${hhmm(rules[0].startMin)}–${hhmm(rules[0].endMin)}`
+    : `주 ${rules.length}일 · 요일마다 다름`;
+};
 
 // 코랄-텍스트 법: 흰 텍스트는 오직 어두운 터미널 스톱(≥ #C6472C, 백지 4.84:1) 위에.
 // 밝은 --coral(#F0765A)은 fill/edge/dot·글로우 섀도로만 생존, 절대 그 위에 흰 소자 텍스트 금지.
@@ -418,6 +451,26 @@ export default function RunnerHome() {
     return i < 0 ? { wd: '', wt: w } : { wd: w.slice(0, i), wt: w.slice(i + 1) };
   };
 
+  // [A③ 2026-08-24] 오늘 — 이번 주 위의 한 줄. 이번 주는 "이번 주가 어땠나"에 답하고, 아침 6시에
+  // 앱을 여는 러너의 질문은 다른 것이다: **오늘 얼마나 남았나**. 두 값 다 이미 메모리에 있다
+  // (jobs + 이 파일이 이미 정의한 isTodayKst — 오늘의 루트가 쓰는 그 함수).
+  // ⚠ 이 줄은 오늘의 루트와 **같은 사실을 두 번** 쓴다 (요약 ↔ 상세). 랩이 그 사실을 숨기지 않고
+  // 이름 붙여 올렸고 Sean이 전부 채택했으므로 둘 다 남긴다 — 요약은 개수와 다음 시각, 상세는
+  // 정차역마다 개·거리·금액. 로딩/실패에는 jobs가 빈 배열이라 행 자체가 그려지지 않는다 ('0건' 없음).
+  const todayJobs = jobs
+    .flatMap((j) => (j.status !== 'completed' && isTodayKst(j.scheduledAt)
+      ? [{ job: j, t: Date.parse(j.scheduledAt as string) }] : []))
+    .sort((a, b) => a.t - b.t);
+  // 다음 = 오늘 것 중 **아직 오지 않은** 가장 이른 것. 랩의 바인딩은 "그중 가장 이른 것"이지만,
+  // 오늘 오전 7:30에 잡혀 아직 안 끝난 예약을 저녁 8시에 「다음 오전 7:30」이라 부르면 '다음'이라는
+  // 말이 거짓이 된다 (그 상황은 실제로 존재한다 — 홈이 '지난 예약'을 클램프하는 이유와 같은 사실).
+  // 지나간 건뿐이면 건수만 인쇄한다: 개수는 여전히 참이고, 없는 '다음'을 만들지 않는다.
+  // `when` = `${dateLabel} ${timeLabel}`이고 timeLabel은 '오후 7:30'이라, parseWhen의 wd 꼬리가
+  // 오전/오후이고 wt가 시각이다 (api.ts kstParts:728-729).
+  const nextTodayJob = todayJobs.find((x) => x.t >= Date.now()) ?? null;
+  const nextToday = nextTodayJob ? parseWhen(nextTodayJob.job.when) : null;
+  const nextTodayMer = nextToday ? (nextToday.wd.split(' ').pop() ?? '') : '';
+
   // 오늘의 루트 — 진행 중 + 다음 예약을 정차역 타임라인으로 (모든 job 데이터·openJob 보존)
   const routeStops: { job: RunnerJob; kind: 'on' | 'next' }[] = [
     ...(current ? [{ job: current, kind: 'on' as const }] : []),
@@ -516,14 +569,43 @@ export default function RunnerHome() {
               <Text style={[styles.togLbl, { color: rs.online ? lilac.head : lilac.dim }]}>
                 {rs.online ? '온라인' : '오프라인'}
               </Text>
+              {/* [A④ 2026-08-24] 두 문장이 바뀐다. 데이터·핸들러·낙관 되돌림·세 번째 상태는 한 글자도
+                  건드리지 않는다 — 이 토글이 **실제로 하는 일**만 말하게 한다.
+                  꺼짐이 하던 약속: 「새 요청이 멈춰 있어요」. 오픈 풀은 online을 읽지 않는다 —
+                  0056 marketplace_open_requests의 술어는 status='matching' · runner_id is null ·
+                  club_session_id is null · is_active_runner()가 전부이고, 그 안에 online은 없다.
+                  online을 실제로 읽는 곳은 셋: fetchCertifiedRunners(보호자 러너 목록) ·
+                  0054 runners_available_for(`r.online = true`, 지명 화면) · 0015/0003 지금-가능 표면.
+                  즉 **인증된 러너가 오프라인이어도 열린 요청은 그대로 온다**. 이 파일 머리(:55-56)가
+                  이미 이웃한 실측("지명 요청도 오프라인이면 오지 않아요 — measured false")을 적어
+                  뒀는데 토글만 교정을 못 받았다. */}
               <Text style={styles.togSub}>
-                {rs.online ? '요청을 받는 중' : '새 요청이 멈춰 있어요 · 확정된 러닝은 그대로'}
+                {rs.online
+                  ? '보호자의 러너 목록과 추천에 보여요'
+                  : '보호자의 러너 목록·추천에서 빠져요 · 열린 요청과 확정된 러닝은 그대로'}
               </Text>
             </View>
             <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
               <View style={styles.swKnob} />
             </View>
           </Pressable>
+        )}
+
+        {/* [A③] 오늘 — 같은 행 문법, 같은 Oswald 숫자, 이번 주 바로 위. 없으면 없는 대로
+            (건수 0을 인쇄하지 않는다 — 오늘 일이 없는 것과 아직 못 불러온 것은 다른 사실이다). */}
+        {todayJobs.length > 0 && (
+          <Row style={styles.week}>
+            <Text style={styles.weekK}>오늘</Text>
+            <Text style={styles.weekV}>
+              <Text style={[styles.weekNum, nf]}>{todayJobs.length}</Text>건
+              {nextToday ? (
+                <>
+                  {` · 다음${nextTodayMer ? ` ${nextTodayMer}` : ''} `}
+                  <Text style={[styles.weekNum, nf]}>{nextToday.wt}</Text>
+                </>
+              ) : null}
+            </Text>
+          </Row>
         )}
 
         {/* ————— ③ 이번 주 — [v4] 장부 히어로가 한 줄이 됐다. 같은 fetchRunnerWeekStats, 같은 세 값,
@@ -703,23 +785,39 @@ export default function RunnerHome() {
                       <View style={styles.monoTagStar}><Text style={styles.monoTagStarTxt}>★ 나를 지명</Text></View>
                     )}
                   </Row>
-                  <Text style={styles.objMain}>
-                    <Text style={{ fontWeight: '800' }}>{inbox[0].dogName}</Text>
-                    {inbox[0].breed ? ` · ${inbox[0].breed}` : ''}
-                    {inbox[0].weightKg > 0 ? ` ${inbox[0].weightKg}kg` : ''}
-                    {' · '}<Text style={[styles.objNum, nf]}>{inbox[0].km}</Text>km
-                    {/* [0114 residual · party-membership-status-filter-contract §C.6] 지명(directed =
-                        status 'runner_pending', api.ts fetchRunnerInbox의 directed 레그) 카드에는
-                        `bookings.pace_label`을 인쇄하지 않는다 — 수락 전 러너에게 닿는 보호자 작성
-                        자유 텍스트의 무검증 통과 경로다. 오픈 풀(matching) 카드는 그대로.
-                        견종·체중·이름은 남는다: 러너가 실제로 결정에 쓰는 정보다. */}
-                    {!inbox[0].directed && inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
-                  </Text>
-                  <Text style={styles.objQuiet}>
-                    실거리로 확정
-                    {inbox[0].repeatPrior != null && inbox[0].repeatPrior > 0 ? ` · ⟳ ${inbox[0].repeatPrior + 1}번째 함께` : ''}
-                    {inbox[0].routeName ? ` · ${inbox[0].routeName}` : ''}
-                  </Text>
+                  {/* [A② 2026-08-24] 마감. 서버의 만료 규칙은 정책 숫자가 아니라 **이 러닝의 시작
+                      시각 그 자체**다: expire_unmatched_bookings(0080 ⓐ, 0017/0037/0060 계승)가
+                      `status in ('matching','runner_pending') and scheduled_at < now()`인 예약을
+                      expired로 넘긴다. 요청함 화면의 푸터가 이미 약속하던 문장이고, 여기서는
+                      새 컬럼도 새 쿼리도 없이 참이다. */}
+                  <Text style={styles.objClock}>시작 시각이 지나면 자동 만료돼요</Text>
+                  {/* [A② 2026-08-24] 얼굴. `photoUrl`은 요청마다 이미 실려 오고(api.ts OpenRequest)
+                      요청함 화면은 그리는데, 홈 티켓만 개 이름을 부르면서 보여주지 않았다.
+                      Avatar는 photo_url이 null이면 모노그램으로 떨어지므로 빈 액자가 되지 않는다.
+                      42가 아니라 40인 것은 랩의 선택 그대로다 — 진행 중 티켓의 개(내가 이미 데리고
+                      가는 개)가 아직 아무도 수락하지 않은 요청보다 한 단 위다. */}
+                  <Row style={{ gap: 10, marginTop: 9, alignItems: 'center' }}>
+                    <Avatar url={inbox[0].photoUrl} char={inbox[0].dogName[0] ?? '견'} bg={lilac.head} size={40} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.objMain, { marginTop: 0 }]}>
+                        <Text style={{ fontWeight: '800' }}>{inbox[0].dogName}</Text>
+                        {inbox[0].breed ? ` · ${inbox[0].breed}` : ''}
+                        {inbox[0].weightKg > 0 ? ` ${inbox[0].weightKg}kg` : ''}
+                        {' · '}<Text style={[styles.objNum, nf]}>{inbox[0].km}</Text>km
+                        {/* [0114 residual · party-membership-status-filter-contract §C.6] 지명(directed =
+                            status 'runner_pending', api.ts fetchRunnerInbox의 directed 레그) 카드에는
+                            `bookings.pace_label`을 인쇄하지 않는다 — 수락 전 러너에게 닿는 보호자 작성
+                            자유 텍스트의 무검증 통과 경로다. 오픈 풀(matching) 카드는 그대로.
+                            견종·체중·이름은 남는다: 러너가 실제로 결정에 쓰는 정보다. */}
+                        {!inbox[0].directed && inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
+                      </Text>
+                      <Text style={styles.objQuiet}>
+                        실거리로 확정
+                        {inbox[0].repeatPrior != null && inbox[0].repeatPrior > 0 ? ` · ⟳ ${inbox[0].repeatPrior + 1}번째 함께` : ''}
+                        {inbox[0].routeName ? ` · ${inbox[0].routeName}` : ''}
+                      </Text>
+                    </View>
+                  </Row>
                 </View>
               </View>
 
@@ -816,9 +914,42 @@ export default function RunnerHome() {
             ) : !inboxLoaded ? (
               <Text style={styles.emptyInboxTxt}>요청을 확인하는 중이에요…</Text>
             ) : (
-              <Text style={styles.emptyInboxTxt}>
-                {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
-              </Text>
+              // [A① 2026-08-24] 조용한 날이 스스로를 설명한다. 종전 한 줄은 두 갈래였는데 오프라인
+              // 갈래(「오프라인 상태 — 켜야 요청을 받아요」)가 A④와 **같은 거짓말**이었다: 오픈 풀은
+              // online을 읽지 않으므로 켠다고 열린 요청이 오는 게 아니다. 이 화면은 왜 조용한지에
+              // 답할 두 값을 이미 들고 있다 (rs · avail, 포커스마다 다시 읽는다).
+              // ⚠ 로드되지 않은 행은 그리지 않는다: avail이 null(로딩·실패)이면 러닝 가능 시간 행이
+              // 통째로 빠진다 — 모르는 값을 '설정 없음'으로 위장하지 않는다. 이 갈래 자체가 이미
+              // rsLoaded && !rsErr && !preCert && inboxLoaded && !inboxErr 안이므로 온라인 행은 실값이다.
+              <>
+                <Text style={styles.emptyInboxHead}>지금은 새 요청이 없어요</Text>
+                <View style={styles.emptySum}>
+                  <Row style={styles.sumRow}>
+                    <Text style={styles.sumLbl}>온라인</Text>
+                    <Text style={styles.sumVal}>{rs.online ? '켜짐' : '꺼짐'}</Text>
+                  </Row>
+                  {avail && (
+                    <Row style={[styles.sumRow, styles.sumRowDiv]}>
+                      <Text style={styles.sumLbl}>러닝 가능 시간</Text>
+                      <Text style={styles.sumVal} numberOfLines={1}>{availSummary(avail)}</Text>
+                      <Pressable
+                        onPress={() => router.push('/runner/availability')}
+                        hitSlop={8}
+                        style={styles.sumAct}
+                        accessibilityRole="button"
+                        accessibilityLabel="러닝 가능 시간 조정"
+                      >
+                        <Text style={styles.sumActTxt}>시간 조정 ›</Text>
+                      </Pressable>
+                    </Row>
+                  )}
+                </View>
+                {/* 실측된 문장이지 주장이 아니다 — 오픈 풀 = marketplace_open_requests(online 술어 없음),
+                    지명 목록 = runners_available_for/fetchCertifiedRunners(`r.online = true`). */}
+                <Text style={styles.emptyInboxNote}>
+                  열린 요청은 온라인과 무관하게 도착해요 — 지명은 온라인일 때만 새로 들어와요
+                </Text>
+              </>
             )}
           </View>
         )}
@@ -924,11 +1055,14 @@ export default function RunnerHome() {
                   <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
                     {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{left}</Text>회
                   </Text>
-                  {/* [v4] '수수료 일괄 33%' → 요율을 인쇄하지 않는다. 33%는 진짜 컬럼이지만
-                      (runners.commission_rate, 0059) 랩의 선택은 "러너에게 보이는 돈은 실수령"이다 —
-                      요율은 수익 화면의 내역 행이 실제 수수료 **금액**으로 말한다. 값을 지운 게 아니라
-                      이 자리에서 인쇄하지 않을 뿐이고, 화면 어디에도 계산은 없다. */}
-                  <Text style={styles.fee}>수수료 제외 실수령</Text>
+                  {/* [2026-08-24 Sean] "don't show them the 수수료… keep the margin a secret."
+                      The word itself goes, not just the rate: 「수수료 제외」 names the deduction and
+                      hands back the arithmetic by subtraction. 「실수령 기준」 states the same basis
+                      with no reference to what was taken. (The earlier note here said the 수익
+                      screen's breakdown row speaks the fee amount — that row is now gone too, same
+                      ruling, so this caption was the last place the word survived on a runner
+                      surface besides apply.tsx, fixed in the same commit.) */}
+                  <Text style={styles.fee}>실수령 기준</Text>
                 </Row>
                 <Row style={{ alignItems: 'center', marginTop: 11, gap: 0 }}>
                   {[0, 1, 2, 3, 4].map((i) => {
@@ -1413,6 +1547,20 @@ const styles = StyleSheet.create({
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
   emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
   emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk, textAlign: 'center', marginTop: 5 },
+  // [A① 2026-08-24] 조용한 날의 두 줄 요약. 랩의 .sumrow 문법 그대로: 라벨 고정 열 · 값 우측 정렬 ·
+  // 문은 행 끝. 이 상태의 코랄 수는 **0개**이고 그건 합법이다 (requests.tsx R2c 선례) — 누를 것이
+  // 없는 화면에 클라이맥스를 만들면 그 코랄이 가리키는 행동이 없다.
+  emptyInboxHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head, textAlign: 'center' },
+  emptySum: { marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  // min-height 52 + 14/18 두 소자 = 랩 치수. 문(시간 조정)은 자기 44pt 타깃을 따로 진다.
+  sumRow: { alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 12 },
+  sumRowDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  sumLbl: { width: 96, flexShrink: 0, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  sumVal: { flex: 1, minWidth: 0, textAlign: 'right', fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
+  sumAct: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
+  sumActTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.head },
+  // 닫는 문장은 좌측 정렬 — 두 줄로 접히는 문장을 가운데 정렬하면 읽는 눈이 매 줄 시작점을 다시 찾는다.
+  emptyInboxNote: { marginTop: 11, fontSize: 14, lineHeight: 19, color: lilac.dim },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },

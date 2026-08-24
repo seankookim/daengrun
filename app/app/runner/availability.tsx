@@ -25,6 +25,29 @@ import { layout, paper } from '../../src/theme';
 //    (2시간 전 / 4건 / 30분) read as settings the runner owns; the muted ink said "준비 중"
 //    but the numbers still looked like state. A 준비 중 plate is not drawn (lab R8).
 
+// 2026-08-24 enhancement wave (docs/labs/enh-runner-home-lab.html D①② · Sean: "For runner home I
+// like all new updates you are showing me"). Two changes, zero behaviour moved:
+//  · D① what these rules actually govern. 「설정한 시간에만 요청을 받아요」 is true of the owner's
+//    SLOT PICKER and false of the open pool — 0056's marketplace_open_requests reads neither this
+//    table nor `online` (its predicates are status='matching' · runner_id is null ·
+//    club_session_id is null · is_active_runner()). A runner who sets 주 2일 and then keeps getting
+//    open requests currently has no way to reconcile the screen with reality, and the wrong
+//    inference (「설정이 안 먹네」) is the one that makes them stop maintaining it.
+//    ⚠ This does NOT unify the three predicates (DESIGN.md §9, DO-NOT-REFACTOR) — it publishes
+//    their jurisdiction. This table feeds exactly one of them (0003 is_slot_available §1, weekly
+//    rule containment) plus the runner's public profile grid; 0015 available_runners and
+//    0054 runners_available_for never read it (they read `online` + live bookings, which is why
+//    that sentence lives on the home toggle instead — one fact, one home).
+//  · D② the save bar says what it will overwrite. saveMyAvailability is delete-all-then-insert:
+//    one 저장하기 replaces the runner's entire week. The screen already refuses to mount the bar
+//    from an unseeded grid; what it never did was say what the write contains.
+//  NOT built (lab D③ 예약 규칙 — 하루 최대 러닝 / 러닝 사이 휴식): both numbers are really enforced
+//  (is_slot_available §5 and §3, defaults coalesce(…,4)/coalesce(…,30)) and the row exists with
+//  self-all RLS, but the client has NO read/write pair over runner_booking_rules — api.ts only
+//  ever inserts the row at apply time (api.ts:784). Drawing steppers seeded from the hardcoded
+//  defaults would print a default as if it were a saved value, which is the exact failure R8
+//  deleted the old 준비 중 plate for. It needs the api.ts pair first.
+
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const SRC_WD = DAY_ORDER[0];             // 전체 적용의 소스 = 월요일 (그리드 첫 줄)
 const DAY_NAME = '일월화수목금토';
@@ -41,6 +64,10 @@ export default function Availability() {
   const [loadErr, setLoadErr] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // [D② 2026-08-24] 마지막으로 **성공한 로드**의 스냅샷. 저장 바의 diff는 오직 이것과 비교한다 —
+  // 기본값과 비교하면 서버에 없던 변경을 지어내게 되고, 실패한 로드에서는 스냅샷 자체가 없다
+  // (그때는 저장 바가 아예 마운트되지 않는다 — 아래 loaded 게이트).
+  const [base, setBase] = useState<DayState[] | null>(null);
 
   // [honesty P1 2026-08-11] A failed load used to setLoaded(true) and render the
   // default all-쉬는날 grid as if it were the runner's saved rules — one 저장하기
@@ -53,6 +80,7 @@ export default function Availability() {
         const next = Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY }));
         rules.forEach((r) => { next[r.weekday] = { enabled: true, startMin: r.startMin, endMin: r.endMin }; });
         setDays(next);
+        setBase(next.map((d) => ({ ...d }))); // [D②] diff의 기준선 — days와 객체를 공유하지 않는다
         setLoaded(true);
       })
       .catch((e) => { console.warn('[avail] load:', e?.message ?? e); setLoadErr(true); });
@@ -88,12 +116,16 @@ export default function Availability() {
   const save = async () => {
     if (!loaded) return; // hard guard — never write from a grid the server didn't seed
     setSaving(true);
+    // [D②] 이 저장이 서버에 쓴 바로 그 상태가 다음 diff의 기준선이 된다. 갱신하지 않으면 두 번째
+    // 편집이 **이미 저장된 변경까지** 다시 열거한다 (저장 전 로드와 비교하게 되므로).
+    const written = days.map((d) => ({ ...d }));
     try {
       const rules: AvailRule[] = days
         .map((d, wd) => ({ weekday: wd, startMin: d.startMin, endMin: d.endMin, enabled: d.enabled }))
         .filter((d) => d.enabled)
         .map(({ weekday, startMin, endMin }) => ({ weekday, startMin, endMin }));
       await saveMyAvailability(rules);
+      setBase(written);
       setDirty(false);
       Alert.alert('저장 완료', '보호자 예약 화면과 내 공개 프로필에 바로 반영됐어요');
     } catch (e) {
@@ -104,6 +136,35 @@ export default function Availability() {
   };
 
   const activeCount = days.filter((d) => d.enabled).length;
+
+  // [D② 2026-08-24] 저장이 무엇을 덮어쓰는지. saveMyAvailability는 delete-all-then-insert이므로
+  // 저장하기 한 번이 러너의 **주 전체**를 교체한다. 이 절들은 전부 마지막 성공 로드(base)와 현재
+  // 그리드의 비교이고, 기본값에서 파생된 문장은 하나도 없다.
+  // 가장 파괴적인 저장 — 모든 요일 해제 — 은 침묵하지 않고 자기 결과를 말한다: 0003
+  // is_slot_available §1이 해당 요일의 규칙 행을 찾지 못하면 그 슬롯은 무조건 false다.
+  const diffClauses = ((): string[] => {
+    if (!base) return [];
+    const changedDays = DAY_ORDER.filter((wd) => base[wd].enabled !== days[wd].enabled
+      || (base[wd].enabled && days[wd].enabled
+        && (base[wd].startMin !== days[wd].startMin || base[wd].endMin !== days[wd].endMin)));
+    if (changedDays.length === 0) return [];
+    if (activeCount === 0 && base.some((d) => d.enabled)) {
+      return ['모든 요일 해제 · 보호자 예약 화면에서 내 슬롯이 사라져요'];
+    }
+    return changedDays.map((wd) => {
+      const a = base[wd];
+      const b = days[wd];
+      const nm = DAY_NAME[wd];
+      if (!a.enabled) return `${nm} 추가`;
+      if (!b.enabled) return `${nm} 해제`;
+      if (a.endMin === b.endMin) return `${nm} ${fmtMin(a.startMin)} → ${fmtMin(b.startMin)}`;
+      if (a.startMin === b.startMin) return `${nm} ${fmtMin(a.endMin)} → ${fmtMin(b.endMin)}`;
+      return `${nm} ${fmtMin(a.startMin)}–${fmtMin(a.endMin)} → ${fmtMin(b.startMin)}–${fmtMin(b.endMin)}`;
+    });
+  })();
+  // 세 절까지만 인쇄하고 나머지는 세어서 말한다 — 저장 바에서 네 줄로 자라면 버튼을 밀어낸다.
+  const diffShown = diffClauses.slice(0, 3).join(' · ');
+  const diffMore = diffClauses.length > 3 ? ` 외 ${diffClauses.length - 3}개` : '';
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -119,9 +180,29 @@ export default function Availability() {
             days의 시드는 전부 쉬는 날이라, 로딩 중과 실패 후에 '주 0일 러닝'이 찍혔다 — 서버에
             무엇이 저장돼 있는지 아직 모르는 화면이 0일이라고 단언하던 자리다. loaded는 성공한
             로드에서만 true가 된다(실패는 loadErr만 세운다). */}
-        <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 16 }}>
-          설정한 시간에만 요청을 받아요{loaded ? ` · 주 ${activeCount}일 러닝` : ''}
+        {/* [D①] 종전 문장은 「설정한 시간에만 요청을 받아요」였다 — 보호자 슬롯 시트에는 참이고
+            오픈 풀에는 거짓이다. 이 줄은 이 표가 실제로 정하는 것만 말한다. */}
+        <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 14 }}>
+          보호자가 예약할 수 있는 시간이에요{loaded ? ` · 주 ${activeCount}일` : ''}
         </Text>
+
+        {/* [D①] 관할 세 줄. 데이터가 아니라 **이 표의 관할 범위**라 로드 상태와 무관하게 그린다
+            (러너의 값을 주장하지 않는다). 지명(0054)은 여기 없다 — 그것은 online과 확정 예약을
+            읽으므로 홈 토글의 문장이 진다. 한 사실은 한 집에서만 말한다. */}
+        <View style={s.juris}>
+          <Row style={s.jurisRow}>
+            <Text style={s.jurisLbl}>보호자 예약 화면의 내 슬롯</Text>
+            <Text style={s.jurisOwn}>이 설정이 정해요</Text>
+          </Row>
+          <Row style={[s.jurisRow, s.jurisDiv]}>
+            <Text style={s.jurisLbl}>내 공개 프로필 시간표</Text>
+            <Text style={s.jurisOwn}>이 설정이 정해요</Text>
+          </Row>
+          <Row style={[s.jurisRow, s.jurisDiv]}>
+            <Text style={s.jurisLbl}>열린 요청(오픈 풀)</Text>
+            <Text style={s.jurisState}>시간과 무관하게 도착해요</Text>
+          </Row>
+        </View>
 
         {!loaded && !loadErr && (
           <View style={s.card}><Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
@@ -220,6 +301,15 @@ export default function Availability() {
           Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
       {loaded && (
         <View style={s.saveBar}>
+          {/* [D②] 저장 전 한 줄. 바뀐 게 없으면(그리고 저장됨 ✓ 상태면) 그리지 않는다 — 30분
+              클램프에 걸려 값이 제자리인 조작도 dirty를 세우므로, 절이 0개인 dirty가 실제로 있다.
+              그때 「바뀌는 것 · 」만 남기면 없는 변경을 있다고 말하는 셈이다. */}
+          {dirty && diffClauses.length > 0 && (
+            <Text style={s.diff} numberOfLines={2}>
+              <Text style={s.diffK}>바뀌는 것 · </Text>
+              <Text style={s.diffV}>{diffShown}{diffMore}</Text>
+            </Text>
+          )}
           <PaperBtn
             label={dirty ? '저장하기' : '저장됨 ✓'}
             busyLabel="저장 중..."
@@ -264,6 +354,17 @@ const s = StyleSheet.create({
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   div: { height: 1, backgroundColor: '#EEEEEE' },
+  // [D①] 관할 표 — 값이 아니라 범위를 인쇄하는 표라 카드 문법을 그대로 쓰되 값 열이 없다.
+  juris: { borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 13, marginBottom: 12 },
+  jurisRow: { alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 11 },
+  jurisLbl: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 19, color: paper.dim },
+  jurisOwn: { flexShrink: 0, fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  jurisState: { flexShrink: 0, fontSize: 14, lineHeight: 19, color: paper.dim },
+  jurisDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  // [D②] 저장 바의 diff 줄 — 라벨은 딤, 절은 잉크 (무엇이 바뀌는지가 읽히는 쪽이어야 한다)
+  diff: { marginBottom: 9 },
+  diffK: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  diffV: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
   toggleChip: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 0 },
   toggleChipOn: { backgroundColor: paper.ink },
   toggleChipOff: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
