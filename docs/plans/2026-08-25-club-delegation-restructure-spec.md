@@ -295,3 +295,35 @@ The already-ruled, already-independent slice (runner-money secrecy) proceeds reg
 - Sean: User Challenge #2 (sequencing + manual Mode C + kill criterion N)
 - Sean: the seven 🔴 in §12 + the six newly marked in correction 7
 - Counsel: F3 (transit insurance) and F4 (intermediary status under Mode C) — ride the unsent briefs
+
+## ADDENDUM — the blind spec-vs-code review landed after the report above
+
+**SPEC-VERDICT: RETHINK** — *"pairing, booking/payment, custody, cancellation, and finish order are
+one coupled state machine, but the spec defines only the pairing and UI layers."* This sharpens the
+CEO verdict rather than contradicting it: whichever variant Sean picks, the money/custody/cancel
+layers must be specified as ONE machine before any migration is authored.
+
+Further fact corrections (verified against shipped code, in addition to 1-7 above):
+
+8. **§6's board claim "the data shape is close" is FALSE.** `_club_shell_access` (0049:9) grants
+   nothing for club membership alone; `club_delegation_board` (0053:251/:329) returns runners only
+   to host/full actors and dogs only to host/full or the limited owner, and queries only
+   `runner_delegated` dogs — Mode A dogs and companions are absent. A club-member board is a NEW
+   sanitized projection, not an extension.
+9. **§3/§7's capacity claims contradict `_club_runner_load`** (0047:50): accepted bookings, ACTIVE
+   PROPOSALS, and the runner's own owner-handled dog all count today; proposal creation refuses a
+   full runner (0047:104) and acceptance rechecks (0057:121). "Multiple pending picks, pairing
+   consumes capacity" cannot coexist with "cap semantics unchanged" — pick one and specify the
+   concurrent-approval conflict outcome.
+10. **The two-phase finish touches more consumers than §5/§10 name**: incident settlement, the
+    return-delay recovery, payout release, and the console screens all read the finish/return
+    ordering (0045:327, 0116:577, 0068:96, 0072:221). Required: a consumer-by-consumer migration
+    table separating unchanged event-consumers from ordering-consumers that must be rewritten.
+11. **§12.6's answer upgraded from preliminary to VERIFIED**: `club_incident_open` carries no phase
+    gate (0070:393, 0067:68) and the shipped run screen already invokes it for SOS
+    (club/run/[sid].tsx:285). The reworked runner screen must PRESERVE that entry point.
+
+**Net for the morning**: the A/B/C choice stands as written; the RETHINK adds that variants A and C
+both require a follow-up spec covering the coupled machine (payment timing, capacity, custody
+producer, cancellation arms, finish ordering) with the consumer table — variant B (board-only)
+requires only correction 8's sanitized projection.
