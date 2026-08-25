@@ -4,10 +4,27 @@
 of him: **"Remove it completely"** (rulings doc F1). Informed and settled. The counsel
 communication (the pending brief package — `docs/legal/` briefs Sean sends by email; the flag
 line goes into the TRANSIT-INSURANCE brief since it is the one touching custody exposure)
-gains one line stating the check was removed by decision on 2026-08-25. ⚠ WORDING (codex #8):
-the line says the CHECK/FEATURE was removed and the declaration fields deleted from the
-schema — never "data destroyed": a dropped column is logical forgetting (heap/WAL/backups
-retain bytes until their own lifecycles), and counsel must not receive an overclaim.
+gains one line stating the check was removed by decision on 2026-08-25.
+
+⚠ **WORDING — CORRECTED 2026-08-25 (second blind review, codex finding 7).** This paragraph
+used to say the line tells counsel the declaration fields were "deleted from the schema". That
+contradicts §0 of this same contract two paragraphs down, which requires those fields to
+**survive Slice A** — and it is the half a reader would act on first. The rule, per slice:
+
+- **Slice A (now):** the line says **the CHECK/BEHAVIOR was removed, and the declaration fields
+  remain temporarily for compatibility with already-installed client bundles.** Nothing is
+  deleted; Slice A deletes no data and drops no column.
+- **Slice B (after the distribution measurement):** only then may the line say the fields were
+  **deleted**.
+- **Never, in either slice: "data destroyed."** A dropped column is logical forgetting —
+  heap, WAL and backups retain bytes until their own lifecycles — and counsel must not receive
+  an overclaim in either direction.
+
+⚠ **STATUS: the line does NOT exist yet.** Measured 2026-08-25 against
+`docs/legal/contract-status-counsel-brief.md`: `맹견` appears nowhere in it, and nowhere in
+`docs/legal/` outside the two readiness reviews. It is REQUIRED and PENDING. A handoff note in
+`docs/handoff-codex/legal-ops-domain.md` §2.5 briefly described it as already present; that
+sentence is corrected in place, with the correction left visible rather than swapped out.
 
 **Review history.** v1 → two independent voices (Claude eng: FIX-FIRST/14 with two findings
 measured on a live PG16; codex: FIX-FIRST/8). All folded here; the three critical redesigns:
@@ -146,8 +163,10 @@ slice lands — not an implementation detail.
 
 - No change to any money, custody, or club object beyond the listed drops.
 - No breed-data edits; `dogs.breed` free text untouched.
-- Slice A deletes no data at all; Slice B deletes the three columns' contents (logically —
-  see the counsel-wording rule) after the census and the distribution measurement.
+- Slice A deletes no data at all, and its counsel wording must say exactly that: the behavior
+  was removed, the fields remain temporarily for compatibility. Slice B deletes the three
+  columns' contents (logically — see the counsel-wording rule) after the census and the
+  distribution measurement, and only Slice B's line may use the word "deleted".
 - Does not edit the legal readiness review (history); the ruling record + the brief line
   carry the change.
 

@@ -62,6 +62,61 @@ begin
   exception when others then call _fail('hard','H1 definer 전수 봉인', sqlerrm);
   end;
 
+  -- ---------- [H9] 상시 불변: public의 definer 함수 전수 ACL — PUBLIC·anon 실행 불가 ----------
+  -- H1's sibling, and deliberately placed next to it: same sweep, same table, different property.
+  -- H1 asks "is every definer sealed against pg_temp shadowing?"; H9 asks "can anybody EXECUTE it?"
+  --
+  -- WHY IT EXISTS (2026-08-25). `create or replace function` preserves the owner and ACL of a
+  -- function that is already there — and CREATES them when it is not. On a database where the
+  -- target is absent, a `create or replace` in a later migration is a plain CREATE, and a freshly
+  -- created function inherits the default privileges, which in this stack include **PUBLIC
+  -- EXECUTE** (0116:636 records that mechanism in its own words). A `security definer` born
+  -- PUBLIC-executable is a privilege hole with no symptom: it works, it is fast, and nothing in the
+  -- schema complains. Migrations that revoke explicitly in the same file (0026:152, 0116:636,
+  -- 0121:50/75/94/185/205/434) are immune; a `create or replace` that relies on preservation is not.
+  --
+  -- ⚠ SCOPE — SAY IT HERE OR THE PIN IS A LIE ABOUT ITSELF. This asserts the ACLs of **the schema
+  --   as this harness built it**, and the harness always applies every migration in numeric order
+  --   from an empty database. On that path preservation always holds, because the first definition
+  --   always ran first. So this pin **structurally cannot see the partial-apply path** that
+  --   motivates it — it proves "nothing in the built schema is PUBLIC-executable", NOT "every apply
+  --   path yields a correct ACL". Those are different sentences and only the first one is pinned
+  --   here. A green H9 therefore clears nothing about any specific function's absent-apply
+  --   behaviour; that has to be closed migration-by-migration, in the file's own VERIFY (0127
+  --   §D-bis + VERIFY ③-bis is the worked example), or by a static source-level gate over the
+  --   migration text, which is a different lane's slice.
+  --   It also cannot say anything about a function that does not exist yet.
+  --
+  -- WHAT IT DOES CATCH, and it is worth having on its own: anyone who ships a definer with a bad
+  -- ACL outright — a missing revoke on a brand-new function, a `grant execute … to public` written
+  -- by hand, an ALTER that widens one later. That is a real class and it has no other standing pin.
+  --
+  -- THE ALLOWLIST IS EMPTY, AND THAT IS A MEASUREMENT. All 219 `public` definers in the built
+  -- schema on 2026-08-25 were executable by neither PUBLIC nor `anon`; the array below is the
+  -- mechanism for a future justified exception, not a list of current sins. **Do not add a name to
+  -- it to make a red run green.** A red here is a finding. An entry needs a written reason on its
+  -- own line, and "the pin was annoying" is not one. (`anon` is included in the forbidden set
+  -- because an anon-executable definer is the exact shape 0116's note was written about; nothing
+  -- in this schema legitimately needs it today.)
+  begin
+    select count(*),
+           coalesce(string_agg(p.oid::regprocedure::text || ' [' ||
+                      coalesce(array_to_string(p.proacl, ' '), '<null = 기본값 PUBLIC>') || ']',
+                      ', ' order by p.oid::regprocedure::text), '')
+      into v_n, v_bad
+    from pg_proc p
+    where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.prokind = 'f'
+      and (has_function_privilege('public', p.oid, 'execute')
+        or has_function_privilege('anon',   p.oid, 'execute'))
+      and p.oid::regprocedure::text <> all (array[]::text[]);   -- ← justified exceptions, with reasons
+    if v_n = 0
+      then call _pass('hard','H9 definer 전수 ACL — public의 security definer 함수 중 PUBLIC이나 anon이 실행할 수 있는 것은 하나도 없다. ⚠ 범위: 이 하네스가 **처음부터 순서대로** 쌓아 만든 스키마의 ACL만 본다. 함수가 이미 있으면 create or replace가 ACL을 보존하므로 이 경로에서는 보존이 항상 성립하고, 따라서 이 핀은 「함수가 없는 DB에 적용될 때」라는 정작 문제인 경로를 구조적으로 볼 수 없다. 그건 마이그레이션 각자의 VERIFY가 닫는다(0127 §D-bis / VERIFY ③-bis가 그 예). 여기서 잡히는 것은 「애초에 잘못된 ACL로 배포된 definer」이고, 그건 그것대로 다른 상시 핀이 없는 실재하는 부류다');
+    else call _fail('hard','H9 definer 전수 ACL',
+                    'PUBLIC/anon 실행 가능한 definer ' || v_n || '개 — 허용목록으로 덮지 말고 해당 파일에 revoke를 넣을 것: ' || left(v_bad, 600));
+    end if;
+  exception when others then call _fail('hard','H9 definer 전수 ACL', sqlerrm);
+  end;
+
   -- ---------- [H2] 거절 제외 — 뷰는 '거절한 러너에게만' 그 부킹을 숨긴다 ----------
   -- 거절은 부킹을 죽이지 않는다(0056 §3): rA에게만 사라지고 rB에게는 그대로 오픈이어야 한다.
   -- 두 경로 모두 확인 — definer 뷰를 postgres 세션에서 부를 때와, 실제 앱처럼 authenticated 역할

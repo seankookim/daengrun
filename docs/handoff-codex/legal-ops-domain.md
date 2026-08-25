@@ -362,10 +362,28 @@ errand is the moment it stops being free.
 > the second time with this section in front of him. The 「Size: small — a dog-profile field plus
 > a booking-time refusal」 line below is exactly what got built; it was not wrong about the work,
 > only about whether the work was wanted. **Do not re-open this as an unaddressed finding.** The
-> product's exposure here is now carried by the transit-insurance brief's counsel line, which
-> states the check was removed by decision on 2026-08-25 — worded as a removed feature, never as
-> 「data destroyed」, since a dropped column is logical forgetting and counsel must not be
-> overclaimed to. Everything after this box is preserved as it was written.
+> product's exposure here is **not yet carried anywhere in the counsel package — that line is
+> REQUIRED and PENDING, not present.**
+>
+> ⚠ **Corrected 2026-08-25, same day, by the session that wrote it.** This paragraph originally
+> read *"is now carried by the transit-insurance brief's counsel line, which states the check was
+> removed by decision on 2026-08-25."* I checked `docs/legal/contract-status-counsel-brief.md`
+> afterwards: **no such line exists.** `맹견` appears nowhere in that file, or anywhere else in
+> `docs/legal/` outside the two readiness reviews. I had described a document's intended future
+> state as its present state, in a handoff whose whole job is to tell the next session what is
+> true — the exact failure this repo calls a relayed intention read as a fact. It is written down
+> here rather than quietly fixed, because the next person needs to know the claim was wrong, not
+> just that the file now says something else.
+>
+> **What is actually owed, and still open:** the pending brief package (the `docs/legal/` briefs
+> Sean sends by email) gains ONE line, in the TRANSIT-INSURANCE brief since that is the one
+> touching custody exposure, stating that the 맹견 check was removed by decision on 2026-08-25.
+> Wording is constrained by the contract: for Slice A it says **the BEHAVIOR was removed and the
+> declaration fields remain temporarily for compatibility** — not that they were deleted, because
+> Slice A deliberately keeps them. Only after Slice B may the line say the fields were deleted, and
+> **never** 「data destroyed」: a dropped column is logical forgetting (heap, WAL and backups retain
+> bytes on their own lifecycles) and counsel must not receive an overclaim in either direction.
+> Everything after this box is preserved as it was written.
 
 **Statute:** 동물보호법 맹견 provisions (statutorily-defined breeds and individually-designated
 dangerous dogs); the source review asks for both to be excluded from the MVP outright.

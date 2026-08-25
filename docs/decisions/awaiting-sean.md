@@ -1427,8 +1427,22 @@ payout. One-line delete if you read it as calculation-adjacent. · 유지 / 삭�
 
 Adjacent, already queued elsewhere, listed so this section is complete: the draw-button §8
 question (is a DrawButton title a display-font use? — blocks A③'s coda tier and font demotion,
-enh-owner-home-lab open question 4) · 맹견 refused-vs-conditions · the club spec packet · 0119's
-land word.
+enh-owner-home-lab open question 4) · ~~맹견 refused-vs-conditions~~ **CLOSED 2026-08-25 —
+MOOTED, not answered** · the club spec packet · 0119's land word (left OPEN —
+this session closed only the item it verified; that one belongs to whoever owns it).
+
+> **맹견 refused-vs-conditions — CLOSED 2026-08-25, mooted by F1.** The question was *"is a
+> declared 맹견 REFUSED outright, or allowed under conditions?"* and it presumed a gate. Sean
+> answered the prior question instead, twice, the second time with the legal-review context in
+> front of him: **"Remove it completely"** (`docs/decisions/2026-08-25-console-rulings.md` F1,
+> 04:39:43Z). With no gate there is no refusal and no condition to differentiate, so there is
+> nothing left here to decide. Built as `0127` Slice A (behavior out, columns held) plus a later
+> Slice B (columns out, scheduled by a distribution measurement).
+> ⚠ Closed as MOOTED — do not re-read this as "Sean chose refused" or "Sean chose conditions".
+> He chose neither; the branch they both hung from is gone. Anyone reopening it should read
+> `docs/contracts/maenggyeon-gate-removal-contract.md` first.
+> Still open and NOT closed by this: the counsel line owed to the transit-insurance brief
+> (required, pending — see the contract's WORDING box for what Slice A's version may say).
 
 ## §0-tertricies · 🔴 0123 DISTANCE (your ruling B) — the blind review BROKE the privacy claim; one knob is yours before deploy (2026-08-25)
 
