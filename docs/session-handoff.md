@@ -1,20 +1,22 @@
-# Session handoff — announcer v5, 2026-08-24 → 08-25 morning
+# Session handoff — spec-v2 session, 2026-08-25 afternoon (v6)
 
-**Read with this:** `/announcer` (method — updated this session, read §11) ·
-`docs/decisions/2026-08-24-sean-ui-club-commentary.md` (**both of Sean's commentaries VERBATIM
-plus every extracted ruling** — the highest-value file this session produced) ·
-`docs/plans/2026-08-25-club-delegation-restructure-spec.md` (the club spec + its four-voice
-GSTACK REVIEW REPORT + RETHINK addendum) · `docs/decisions/awaiting-sean.md` **§0-undetricies
-(line 1285)** — the client session's seven one-word questions, none yet answered ·
-`docs/findings-2026-08-24-0118-verification.md` (the day's measured record, 3 parts) ·
-`supabase/migrations/REGISTRY.md` (the ledger; 0118/0119/0120 rows carry full measurement
-records on their branches) · the console artifact
-<https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> (Sean's single place to
-look — keep it CURRENT; it is the morning brief). Prior handoff archived at
-`docs/session-handoff-archive-20260821-v4.md`.
+**Read with this:** `/announcer` (method) ·
+`docs/plans/2026-08-25-club-delegation-spec-v2.md` (**the club spec of record** — coupled
+machine, per-side/per-state screens, host respec, Mode C algorithm, six gated slices, review
+log §15; Sean's twelve 🔴 in its §14) ·
+`docs/contracts/r17-sweep-per-row-commit-contract.md` (R17 remainder: shelf design + DEFER
+verdict + the flip-activation re-scope + Sean's User Challenge) ·
+`docs/decisions/awaiting-sean.md` §0-undetricies (his seven answers, VERBATIM, with
+dispositions) · the console artifact
+<https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> (Sean's single place
+to look — CURRENT as of this handoff). Prior handoff archived at
+`docs/session-handoff-archive-20260825-v5-morning.md` — ⚠ it asserts production 0116, 0117
+unlanded, §4.2 unruled, spec v2 unstarted: ALL FALSE since this morning's landings. One R17
+reviewer grounded on it and had to be corrected mid-review; verify any handoff's status table
+against the live system before building on it.
 
-Tags: **[verified-now]** checked this session against code/live/gate · **[reported]** an agent or
-peer said so, unconfirmed · **[from-history]** earlier in conversation · **[uncertain]**.
+Tags: **[verified-now]** checked this session against code/live/gate · **[reported]** a peer
+said so, unconfirmed by me · **[from-history]** earlier in conversation.
 
 ---
 
@@ -22,110 +24,93 @@ peer said so, unconfirmed · **[from-history]** earlier in conversation · **[un
 
 | System | State | Provenance |
 |---|---|---|
-| Production migrations | **0116 head, UNCHANGED all session.** Charging OFF · 0 payments · 0 billing_keys · ₩111,657 owed / 0 payouts · 11 auth users. Nothing was deployed by this session. | [verified-now] via `supabase_migrations.schema_migrations` — never `migration list` (it misreports; see archive §1) |
-| Trunk `redesign-v4` | `c8abc1a` — carries the 0118 + 0119 landings, this handoff, the commentary/spec docs, ui6's UI-pick commits + campaign r7 + the 도그스하이 orderName edit. Merged-trunk verification: **harness 760/0 · deno 225/0 · tsc ✅ · rpc ✅ · route-native ✅** | [verified-now] |
-| **0118 club fee** | **LANDED on trunk 2026-08-25.** Four adversarial rounds, ruling B implemented+measured (runnerless cancel = platform half only; FULL-revert mutation reds all five owners — F5, P1, P14, P15, ARM5 — see §6). NOT deployed: production stays 0116 until a deliberate `db push` | [verified-now] |
-| **0119 맹견 gate** | **LANDED on trunk 2026-08-25** (merged @ b28a787 after ui6's hand-resolution of dog.tsx/requests.tsx). ⚠ Deploy-order law in §6 is now LIVE: no binary built from trunk reaches a device before `db push` applies 0119 | [verified-now] |
-| **0117 late-booking** | branch fat and healthy (796/0 · deno 232/0, R1-R17 + 4B + R10-13 all closed) but **NOT landing**: §4.2's two statement-money arms are UNRULED. When it does land, **the landing vehicle is `claude/cancel-fee-mirror`** (next row), not the stage2 branch alone | [verified-now] |
-| **0120 location law** | **PARKED** at `b06f878` with all nine review findings recorded in its REGISTRY row. Clock not running (oldest trace ~weeks vs 1-year cap) | [verified-now] |
-| Cancel-fee mirror | **SHIPPED to `claude/cancel-fee-mirror` @ `c5bc01d`** — cut from stage2 (quote_cancel_fee in-tree) with trunk merged in; strict-parse quote, failed quote BLOCKS the commit button, %-constants retired, cancelFeeRateFor deleted. **This branch IS the 0117 deploy unit: merging IT to trunk at deploy time ships migration + client together.** Never land the client half early (DOG_SELECT-400 class) and never land 0117 without it. ui6 merged trunk through 7dc88c9 into it same night — **trunk ⊆ mirror re-verified here: the 0117 deploy-time landing is a fast-forward as of 2026-08-25**. Deployer still re-verifies the ancestor at deploy time (trunk moves), then runs `db push` + the mirror's trunk merge in one breath, `supabase migration list` after (§Operations). Branch existence + stage2 ancestry [verified-now]; the client behavior claims are ui6's gates (tsc 0 · rpc ✅ · lint baseline 6 · 0 FAIL) [reported] |
-| Club restructure | **GREENLIT by Sean** (his clarified model: the paired runner owns the dog door-to-door). Spec v1 + four-voice review + RETHINK on origin; **spec v2 ordered** — full per-side/per-state delineation incl. recalibrated host screen + the Mode C ranking algorithm he sketched. NOT STARTED | [verified-now] |
-| Runner-money strip | Designed, unbuilt: server-computed net + column revoke + api.ts swap, ATOMIC. ⚠ `runners.commission_rate` must NOT seal until the estimate moves server-side — its silent 0.33 fallback would quote a guessed rate (recorded in ui6's 2130f2e) | [verified-now] |
-| 158-token session artifacts | This session's branch `claude/session-handoff-migration-verify-7d7f35` @ `0bba02f` holds the commentary/spec/findings docs — **merge it to trunk with the landings** so the record is where everyone reads | [verified-now] |
+| Production | **0119 head.** 0117·0118·0119 + the client mirror deployed together this morning (combined harness 825/0; five edge functions redeployed for parity — see the REGISTRY 0117 row's deploy record). Charging OFF · late-booking clock OFF (`late_protocol_live_since` null) · 0 payments · 0 billing keys · 11 auth users. | [verified-now] live ledger table, twice independently (this session + announcer v5), plus payments/billing_keys re-queried post-deploy |
+| Trunk `redesign-v4` | ≥ `7fcc91a` — carries the deploy-morning landings, Sean's seven answers + their build-item commits (Q1/Q2+Q3/Q7), the counsel-brief 4th question, spec v2, the R17 contract+review, and ui6's 0122/157 claim row. **Trunk = production migrations: binaries are safe on devices.** | [verified-now] |
+| **Club spec v2** | **DONE, LANDED on trunk.** Grounded in three at-source scouts; hardened by two blind adversarial rounds (fresh Claude voice 15 findings, codex 9 — several design-breaking, every one answered in-design; dispositions in §15 of the spec). Six slices S1-S6 sequenced, each gated: **nothing builds until Sean answers §14** (twelve questions, most one word). S5 additionally hard-gated on the finish-ceiling ruling; S6 on the counsel brief. | [verified-now] |
+| **Runner-money strip** (announcer v5) | contract v2.1 (`b310442`, three blind rounds) · migration **0121 + suite 156 AUTHORED and pushed** @ `b6f3d13` on `claude/runner-money-strip` (server half complete: §A-§F net objects, §G two-step seal, §G′ club_fare revoke, §H incident redaction incl. historical sweep) · client swap + deno half IN PROGRESS · measurement next · **NOT landed, NOT deployed** · client-atomic with §G (0088 law). v5 is merging trunk into the branch and will claim its exact api.ts function surfaces in the in-flight table with the client-swap commit. | [reported — v5's own words, this afternoon] |
+| **R17 remainder** | **DEFERRED by dual-voice /autoplan review** — the lock-convoy premise fails load arithmetic at pilot scale (≈0.1-0.3 candidates/tick at 50 users; the sweep is deployed but dormant behind the null flag), and the per-row-commit contract as drafted had four design defects (recorded IN the contract). Re-scoped to a **flip-activation package** (preflight · per-arm LIMIT · statement_timeout fuse · 250ms lock wait · partial unresolved-deadline index · off-peak first flip with backlog drained manually) built when the clock flip is scheduled. **USER CHALLENGE queued to Sean** (his queue said build; both models say defer): console card A/B. No migration number is held by this work. | [verified-now] |
+| ui6 / Q-slices | Sean's seven answers executing (Q1 care stats · Q2/Q3 photo ASK not gate · Q7 원천징수 small-once landed this morning); the Q6 동 slice renumbered **0121→0122, suite 157** after collision 7 (below) — REGISTRY row claimed on trunk FIRST, files rename pending their live blind reviewer's return. Touches `addresses.dong`, a definer 동-surface, `runner/requests.tsx`, `runner/home.tsx` — no club files. | [reported + row verified on origin] |
+| 0120 location law | Parked at `b06f878`, unchanged, clock not running. | [from-history, unchanged] |
+| Console | Refreshed three times today; current: spec-v2 §14 card on top, R17 challenge, fee 10-vs-5, custody A/B, 맹견 conditions, feed_posts, Q5 answer-back, board readership, standing items. | [verified-now] |
 
-## 2. Sean's rulings this session — ALL verbatim in the commentary doc
+## 2. Sean's words today — where they are
 
-08-24: **1C** (both no-show gates) · **2A** (config fails loud) · **4B** (own-reason-only) ·
-**strict grace** · **ui6's allocation** ("sure on ui6") · **slot-based supply comp** ("go ahead
-with that and all other queues") · the fable/opus orchestration grant.
-08-25: **Club #1 clarified** — home pickup was never "another stranger"; the paired runner
-carries responsibility from the getgo; CEO answer was yes-with-riders (honest transit copy until
-insurance signs · no-show predicate moves to arrival-at-start · Mode C rides the counsel brief) ·
-**Mode C = build the algorithm** (proximity → runner distance pref → owner distance pref → pace →
-rest; deterministic, patent-safe, needs a runner home-address column) · **B for the fee** (done,
-measured) · **ship the mirror** (ui6, in flight) · **land 0118+0119** (in progress) ·
-**도그스하이 not 댕런** (done, trunk) · **rescue deleted** (done, 157MB).
+Morning (verbatim in `docs/decisions/2026-08-24-sean-ui-club-commentary.md` §08-25): club
+clarified + greenlit with riders · Mode C = build the algorithm · 도그스하이 · rescue deleted.
+Midday (verbatim in `awaiting-sean.md` §0-undetricies): **all seven pick-sheet answers** —
+Q1 러닝 리포트 B① + care stats · Q2 no traps, huge photo nudge · Q3 photo-less accepted +
+reminders · Q4 12pt stays (closed) · Q5 clarification returned (his counter-question about
+runner-side screens is ANSWERED on the console: yes, requests/calendar/availability are
+built) · Q6 RULED distance+동 on request cards (server slice dispatched) · Q7 keep, small,
+once. Plus: *"feel free to do 0117 whenever is apt"* → landed + deployed same morning.
 
-**STILL HIS, unanswered:** §4.2's two statement-money arms (explained to him ELI5 — awaiting
-words) · 맹견 refused-vs-conditions (moves ui6's copy only) · breed-alias scope · feed_posts
-`using (true)` vs the 동네 피드 name · picture requirement server-enforced? · ui6's SEVEN at
-§0-undetricies · community/account commentary (he owes it: "later").
+**STILL HIS, in blocking order:** spec v2 §14 (twelve — blocks all club slices) · CRIT-1
+clock flip · R17 challenge A/B · fee 10%-vs-5% unaccepted cancel · custody durable-attendance
+A/B · 맹견 refused-vs-conditions · breed-alias scope · feed_posts `using(true)` vs the name ·
+board readership (spec 14.9) · counsel briefs (now FOUR questions — S6's gate) ·
+community/account commentary ("later").
 
-## 3. The day's method lessons — now in `/announcer` §11 (v5)
+## 3. Method lessons this session
 
-1. **Commit before ANY mutation/checkout — unconditional.** Violated FIVE times in one day,
-   twice by the author of the rule minutes after writing it down. `git checkout` against
-   uncommitted work destroys the work, not the mutation.
-2. **A pin with no recorded mutation result is an untested claim.** Six self-correcting pins in
-   one day, all one class: *a proposition with an unstated scope* (fixture-context, grammatical,
-   collection-vs-current, closure-time). The strongest form found: **both operands of a guard
-   came from the same closure — it asked "is this dog this dog" and always heard yes.**
-3. **A signal is only a gate input if the real flow can produce it — and nothing can erase it.**
-   Verified empirically (throwaway suite driving real RPCs), never by inspection: inspection
-   answers "does this column mean what I think" and never "can it be taken away from me."
-4. **Same column, two questions**: pairing-scoped evidence is correct for "which terminal does
-   this pairing get" and wrong for "did this person fail" — subject determines validity.
-5. Vendor diversification under outage: codex authors / Claude measures / blind codex reviews
-   kept the whole day moving through a 3-wipeout Anthropic 529 storm.
+1. **Collision 7 (near-miss, 0121): a claim living in a peer message is invisible to the
+   hook and the in-flight table.** ui6 announced 0121 mid-build by message; v5's 0121 file
+   reached origin first, hook-verified, in good faith. Caught only because one session held
+   both claims. The mechanical fix, already adopted by ui6 for 0122: **the REGISTRY in-flight
+   row precedes authoring, not the push.** (Also in the migration-ledger memory.)
+2. **A stale handoff poisons downstream reviewers.** The R17 CEO voice grounded on the
+   morning handoff's status table and produced findings from a world where 0117 was
+   unlanded. Corrected before weighing. When a reviewer's input includes a handoff, hand it
+   the live facts explicitly or instruct it to re-verify the table.
+3. **CEO-review-before-build paid for itself in one day**: R17's remainder was a
+   fully-contracted, fully-trapped slice that two independent voices killed with arithmetic
+   the contract never did. The load-model line ("candidates/tick × per-row cost") is now the
+   mandatory first line of any performance-motivated slice.
+4. **A contract under review is a moving target** — the strip's `rate()` helper died between
+   my citing it and the spec landing (view bodies don't shield function EXECUTE). Citing a
+   contract-in-flight requires the re-verify-at-bind clause the spec now carries.
+5. **Blind dual-voice review works on SPECS, not just migrations**: 24 findings against spec
+   v2 draft 1, three design-breaking (the free-24h repricing, the inescapable state, the
+   enroute money dead zone), all caught before a line of SQL existed.
 
-## 4. Fleet & peers
+## 4. Fleet & peers (as of handoff)
 
-- **ui6** (`daengrun-redesign-v4-77ea99-1c` on the peer list — ⚠ its socket CHANGED once
-  mid-day; peer-list absence is NOT session death, ask before reallocating): holds all of
-  `app/`, the mirror slice, the 0119 merge, C④ done. Battle-tested, self-correcting, honest
-  about non-fixes. The collaboration protocol that worked: path-keyed claims · verbatim rulings
-  on origin before action · verify the peer's claims at source, expect them to verify yours ·
-  deliberate deviations stated BEFORE doing (their merge-not-rebase), with a window to object.
-- Codex (`codex exec`, gpt-5.6-sol xhigh): author with `-s workspace-write` (CANNOT commit —
-  index.lock denied — apply its tree and commit yourself), review with `-s read-only`, ALWAYS
-  `< /dev/null` (wedges silently without it). Cannot run the harness.
-- Suite-152 pin namespace: ui6 L49-L57+, announcer L48/L48b; L54 asserts label uniqueness over
-  EMITTED labels. Resolve next numbers from the branch TIP at write time, never from memory.
+- **This session** (spec-v2, worktree `club-delegation-spec-v2-a41fbc`): queue complete —
+  spec v2 landed, R17 reviewed+challenged, console current, this handoff. Holds nothing
+  uncommitted; everything pushed to origin (branch + trunk).
+- **announcer v5**: the strip (status above). Harness: FREE — nobody is running it;
+  announce-before-run remains the law, one run machine-wide.
+- **ui6** (`daengrun-redesign-v4-77ea99-1c`): Q-slices + the 0122 rename pending its
+  reviewer. Standing agreement: no club-screen edits before Sean's §14 words; pings me first.
+- Coordination protocol that worked today: claims verified at source in BOTH directions
+  (every relay re-checked by its receiver), deviations announced before acting, corrections
+  relayed to all recipients.
 
-## 5. Next 1-5 steps, in order
+## 5. Next steps, in order
 
-1. **[land]** Merge `claude/club-fee-slice` → trunk. Conflicts expected: REGISTRY.md (keep both
-   rows) + harness.sh suite line (**153 above 154** when 0119 follows — the REGISTRY's own
-   recorded rule). Then FULL harness on merged trunk + commit gate, push.
-3. **[land]** When ui6 pings green on the 0119 branch merge: ff-merge → trunk harness → push.
-   Also merge this session's docs branch (`claude/session-handoff-migration-verify-7d7f35`).
-4. **[build]** Spec v2 (greenlit): the coupled machine (pairing/payment/custody/cancel/finish as
-   ONE state machine, per the RETHINK), per-side/per-state screens, host respec, the ranking
-   algorithm, the consumer-by-consumer migration table. The four-voice report + addendum lists
-   every known contradiction to resolve — start from its fact corrections, not from spec v1's
-   claims.
-5. **[build]** The runner-money strip slice (small, ruled, contract in §1) · R17's remainder
-   (sweep → per-row commits; RELEASED 2026-08-25 to the spec-v2 session — never started, zero code exists) · counsel briefs still unsent (Sean).
+1. **[Sean]** §14 words → S2 (member board) unlocks for the server side, client half to ui6.
+2. **[v5]** strip client swap + deno → measurement (announce harness) → land atomic.
+3. **[ui6]** 0122/157 rename after review → land the 동 slice.
+4. **[Sean]** R17 challenge A/B — if A, the flip-activation package rides CRIT-1 planning;
+   if B, the corrected contract builds from the shelf (its four defects are annotated).
+5. **[any]** When CRIT-1 flip is scheduled: the flip-activation package (preflight counts,
+   LIMIT, fuse, index, off-peak runbook) is the pre-flip slice regardless of R17's answer.
 
-## 6. The F5 anomaly — RESOLVED, and worth keeping as a lesson
+## 6. Gotchas that will bite again
 
-Under the partial revert-mutation (halving only), 66 F5 stayed green while P1/P14/ARM5 reddened.
-Explanation, verified by a second measurement: **F5 reads the club_fee_items SUM, and the partial
-mutation reverted the fee columns but not the item-split — so the observable F5 watches never
-changed.** A pin and a mutation must name the same observable. The FULL revert (halving + item
-split together) reds all five owners — F5 `fee=2490`, P15 "공급 몫 행이 존재한다", P1, P14, ARM5 —
-recorded on the branch at `fc26796`. Every arm of ruling B now has a mutation red that names it.
+- The morning handoff's world is gone: 0117 is deployed, the clock flag is the only gate
+  left. **Do not re-litigate the deploy** — verify the ledger table, not `migration list`.
+- One harness at a time, machine-wide; `[axes] X8` still reds randomly (~1/17) — rerun,
+  never "fix".
+- REGISTRY numbers: two-sided at write time, and now: **row precedes authoring** (lesson 1).
+- The spec's slice gates are LOAD-BEARING: S5 without the ceiling ruling ships an
+  inescapable custody state (round-1 F2's exact finding) — the gate is not process theater.
+- `docs/contracts/r17-sweep-per-row-commit-contract.md` §1/§3 must NOT be built verbatim —
+  the STATUS banner and the report's defect list exist precisely because a future session
+  might read the body and start typing.
 
-**Deploy-order law for 0119 (from ui6 — put this wherever the deploy checklist lives):** landing
-0119 on trunk does NOT ship it; DOG_SELECT names the two new columns, so the first binary built
-from trunk after the merge must not reach the simulator/TestFlight before `supabase db push`
-applies 0119. Merge order is free; deploy order is not.
+## 7. Environment at handoff
 
-## 7. Gotchas that will bite again (beyond §3)
-
-- Harness serialization: ONE run at a time machine-wide; parallel runs braid into phantom reds.
-  `[axes] X8` (70:168) is a known random flake (~1/17) — rerun, never "fix".
-- The main clone's local `redesign-v4` was found STALE mid-session (at a client-session commit).
-  `git fetch && merge --ff-only origin/redesign-v4` before committing there.
-- `supabase migration list` misreports head; query the ledger table. `db query --linked` never
-  meets RLS. The repo's silence is not evidence about production.
-- REGISTRY numbers: two-sided at write time from origin (row + file). Suite numbers likewise.
-- react-doctor's pre-commit noise about unstaged config files is pre-existing; commits succeed.
-
-## 8. Environment at handoff
-
-Worktrees: `measure-0118` (branch, clean at `0443184` unless the F5 rerun left mutation residue —
-it self-reverts), `measure-0119` (branch tip), `slice-0117-4b` (branch tip), `measure-0120`
-(parked tip), `daengrun-route-depth-b5bef1` (this session's docs branch). Nothing uncommitted
-anywhere [verified-now at write time]. Nothing on production. All review/measurement logs in this
-session's scratchpad die with it — everything that matters is in the docs above.
+This worktree: clean, branch `claude/club-delegation-spec-v2-a41fbc` = trunk + this handoff
+commit, everything pushed. No migration numbers held. No harness run this session (none
+needed — docs only). Scratchpad artifacts (scout reports, review logs) die with the session;
+everything that matters is in the docs above, on origin. [verified-now at write time]
