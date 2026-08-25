@@ -14,13 +14,14 @@ arrival-at-start · Mode C rides the counsel brief.
 RETHINK verdict (*"pairing, booking/payment, custody, cancellation, and finish order are one
 coupled state machine"*), not from spec v1's claims. Every code fact below was re-scouted at
 trunk tip (≥ `5bd2d59`, after the 0118+0119 landings) with file:line citations. This is the
-SECOND draft: the first draft went through a blind adversarial review that returned 15 findings
-(three design-breaking), every one of which is answered in-text below and logged in §15.
+THIRD draft: draft 1 went through TWO independent blind adversarial reviews (a fresh Claude
+voice and a codex voice, neither shown the author's reasoning) returning 15 + 9 findings,
+several design-breaking; every one is answered in-text below and logged in §15.
 Decisions Sean has not made are 🔴 (§14). Proposals this spec makes on its own authority are 🔵
 — reversible in one word.
 
-Status: DRAFT v2.1 — blind round 1 folded in; codex round pending; then Sean. Nothing here is
-built.
+Status: DRAFT v2.2 — both blind rounds folded in (Claude voice: 15 findings; codex voice: 9
+findings; dispositions in §15); ready for Sean. Nothing here is built.
 
 ---
 
@@ -197,7 +198,7 @@ this. Reasons, in order of weight: (a) the fee ladder's base is `bookings.total_
 under lock (0118:1035) — mint-at-pairing would leave P3 cancels with no fee object while a
 runner's attention was already spent; (b) the idempotency contract, the unsettled-charge gate,
 the billing-key gate, and the capacity re-check all live inside `session_pay_delegation`'s lock
-(0081:145-192) and are measured; (c) slot-based comp needs the booking to exist BEFORE
+(0081:139-192) and are measured; (c) slot-based comp needs the booking to exist BEFORE
 acceptance so the supply half has a ledger anchor the moment P4 arms. The C5 consequence is
 handled as UI honesty (§5.3), not as a mint move. The club-vs-marketplace base-fare gap
 (9,900 vs 7,900, memo ④, 0081:174-182) is inherited unchanged and stays on Sean's queue — not
@@ -268,6 +269,31 @@ only one.
    public km-linear `club_fare` (0043:14), so its §0 named residual (rate regressable from
    net-vs-km) applies to club too; if club pricing ever decouples runner net from the public
    per-km line, that is the door to closing it — a pricing decision, Sean's, not assumed here.
+
+### 5.5 The objection arbitrage (round-2 F4) — a shipped hole the long pairing window would blow open
+
+`session_owner_objection` (0047:250) was designed for the at-the-scene world: `preference`
+objections are windowed (T−20, once) but `safety` objections are unlimited (0047:257-275), and
+`p_want_refund=true` exits a `confirmed` booking to a FULL refund with no fee and no supply
+comp (0047:280-287) — while `p_want_refund=false` demotes to `matching`, from which a cancel
+prices on the cheaper runnerless rungs. Today the exposure window is minutes (a pairing cannot
+exist before T−2h); under v2 a pairing lives for days, and the objection becomes the obvious
+free-cancel lever around the whole ladder.
+
+S3 re-specifies it (🔵, a behavior change to a shipped function, its pins updated in-slice):
+- **Objection un-pairs; it never refunds.** Both kinds return the pairing to P2 (runner
+  cleared, stamps cleared, seat KEPT — the owner objected to a runner, not to the service).
+  The full-refund exit at P4 exists only through cancel (the §5.2 ladder) or incident
+  adjudication.
+- **`safety` objections open an incident row** in the same transaction — free, unlimited, and
+  ACCOUNTABLE: a safety claim about a runner is exactly what the incident machinery exists to
+  record, and a pattern of them is visible instead of silently farming free exits.
+- **The demote-then-cancel arbitrage is priced away by the same move**: with no refund exit
+  and the seat kept, an owner who objects and then cancels prices on the ladder as of the
+  cancel — and 🔴 14.11's rung question includes whether the post-accept rung should read
+  "was OWNER-dissolved after an acceptance inside the window" from `assignment_events`
+  (event-anchored, author-sensitive) rather than live state, which closes the residual
+  demote-first arbitrage for good. One package, one word.
 
 ---
 
@@ -380,9 +406,20 @@ RANK within eligible, in order (first difference wins):
   1. pickup_dist band (500 m buckets — banding kills float-order flap)
   2. |dog_pace − runner_pace| band (30 sec/km buckets)
   3. fewer accepted dogs this session (spread load)
-  4. earlier session_runner_commit (seq — commitment rewarded)
+  4. earlier commitment (NEW `session_runner_assignments.committed_at` — round-2 F7a: the
+     table has NO order column today (0030:93-99) and recommit is an order-losing upsert
+     (0043:242-245); the column lands in S6 with upsert semantics that preserve first-commit)
   5. runner_profile_id (total order; determinism terminator)
 ```
+
+**Distance is definer-internal, never rendered per-runner (round-2 F7c).** The first draft
+showed owners a distance band per committed runner; because an owner controls their query
+coordinate (their own pin), repeated picks from chosen pins would intersect 500m annuli and
+triangulate a runner's home. So: the pick list renders pace fit, tier, and load/cap — no
+distance-derived value, banded or otherwise. Proximity exists only inside `session_auto_pick`'s
+ranking, whose output is one runner, not a geometry. The runner-home pin itself rides the same
+client-write path whose falsely-pinned-address repair is already a named open slice (0073:35-38)
+— S6 depends on that repair for input honesty and says so.
 
 `pickup_dist` is the equirectangular approximation already precedented inline at 0110:92-106 —
 no PostGIS (`0001:4` installs pgcrypto only), correct to well under a band width at district
@@ -393,9 +430,11 @@ one performable remedy, never shown a fabricated "no runners". A genuinely empty
 gets the honest sentence (「지금 연결할 수 있는 크루 러너가 없어요」) and the Mode B list.
 
 **Missing-column work list (S6):** `runners.home_address_id` (+ onboarding surface) + the
-input CHECKs above · `club_sessions.start_lat/lng` or a geocoded meetup point (`meetup_point`
-is free text, 0030:57; `routes.anchor_lat/lng` exist but are marked do-not-consume until
-founder-walk GPS, 0078:23-24 — the spec does NOT lean on them) · nothing else.
+input CHECKs above · `session_runner_assignments.committed_at` (rank tiebreak 4) ·
+`club_sessions.start_lat/lng` or a geocoded meetup point (`meetup_point` is free text,
+0030:57; `routes.anchor_lat/lng` exist but are marked do-not-consume until founder-walk GPS,
+0078:23-24 — the spec does NOT lean on them) · the 0073 pinned-address repair as a
+dependency.
 
 **Counsel rider**: Mode C ships behind the intermediary-status brief (Sean's accepted rider).
 S6 is sequenced last for exactly this reason (§12).
@@ -419,7 +458,7 @@ not this spec's default.
 
 The marketplace's `runner_enroute` status is NOT reused. Routing P5 through it would (a) strand
 the pairing outside every club money predicate — the no-show WHERE and `_club_refund_confirmed`
-both select `status='confirmed'` (0118:1162, 0118:954), so an owner no-show at the door would be
+both select `status='confirmed'` (0118:1156-1162, 0118:945-954), so an owner no-show at the door would be
 neither charged nor refunded; (b) kill the owner's cancel with a false `already_handed_off`
 (0118:1037) — the exact un-priced en-route hole `cancel_owner.ts:50-55` already documents; and
 (c) collide with `enroute`'s own 24h wall (index.ts:242-245). And NOT routing through it while
@@ -488,22 +527,37 @@ unreachable: the third inertness of that gate, this time by design.
   consequence: the recap counter `v_dogs` reads `checked_in_at` (0118:1133-1134) and its
   meaning sharpens from "handed off" to "was at the start" — correct for a recap, noted for
   the pin.
-- **Owner no-show (the chargeable fact)**: runner arrived at the door
-  (`pickup_arrived_at` present — producer: the §7.1 edge action) AND no handoff occurred
-  (both handoff stamps null) AND the pairing was live at `scheduled_at`. Fee: the ladder's
-  top rung via `_club_record_no_show_fee` — the same writer, the same two-gate SHAPE as 0118
-  (time gate `now() ≥ scheduled_at` strict; evidence gates as `not exists` + bare `is null`,
-  never `not(A and B)` over nullables — 0118:1237-1244). A pairing with NO arrival stamp
-  charges the owner nothing — one-sided absence is not evidence of the owner's fault.
+- **Owner no-show (the chargeable fact), 집 픽업 arm**: runner arrived at the door
+  (`pickup_arrived_at` present — producer: the §7.1 edge action, **proximity-verified**: the
+  stamp is accepted only with a client-reported location within ~150m of the pinned pickup
+  address, checked server-side against `addresses.lat/lng`; an un-pinned address therefore
+  can never produce arrival evidence, so a no-show charge is impossible against it — stated,
+  not silent) AND no handoff occurred (both handoff stamps null) AND the pairing was live at
+  `scheduled_at`. A bare self-attested tap is NOT accepted as evidence for a 20% charge
+  (round-2 F2) — and the charge fires only at the host's confirmation tap, whose evidence
+  view (§10.2) shows every no-show candidate first; the owner's dispute rail is the incident
+  machinery.
+- **Owner no-show, 현장 인계 arm** (round-2 F1b — the first draft's predicate demanded a door
+  stamp this mode never produces): 현장 pairings keep TODAY'S shipped evidence semantics
+  byte-identical — no `session_dogs.checked_in_at` and no handoff stamps at confirmation time
+  (0118:1246-1250's own shape) — which is correct there because the handoff point IS the
+  start.
 - **Runner no-show at the door**: `pickup_arrived_at` absent at `scheduled_at` → pairing
   dissolves at host confirmation into the refund arm (owner charged nothing), runner strike
   via `assignment_events` (0057:174), policy numbers Sean's.
+- **Stamp lifecycle (round-2 F2)**: the four §7.1 stamps are CLEARED by every
+  pairing-dissolution path — they join the handoff stamps in the eraser set
+  (0118:1207-1216's six paths, plus §6.2's widened revokes), each clearing pinned. The first
+  draft claimed "a reassignment creates a pairing whose stamps start null" — false as
+  written: dissolution reuses the same `session_dogs` row (0057:132-136 clears only the
+  handoff stamps), so without explicit clearing a replaced runner's stale arrival would
+  charge an owner for a successor runner who never appeared. The clearing IS the fix.
 - **Suite consequence, same slice**: 153's P4/P9/P10/P12 re-pin to the new predicate; each
   re-pinned pin names its successor in a comment (the suite-updates-in-slice law).
 
-The pairing-scope lesson is honored: all three facts are per-pairing and reassignment-safe by
-construction (a reassignment creates a new pairing whose stamps start null — demotion to P2
-already re-derives the money rung, §5.2). The one thing per-pairing keying cannot express —
+The pairing-scope lesson is honored: all facts are per-pairing, and dissolution clears them
+(above) so demotion to P2 re-derives the money rung cleanly (§5.2). The one thing per-pairing
+keying cannot express —
 "this OWNER attended, durably" — is Sean's open Custody A/B decision and is deliberately NOT
 smuggled in here; if he picks B, the durable column lands in S4 alongside this predicate.
 
@@ -548,8 +602,11 @@ v2's mapping — three changes, everything else untouched:
    pairing resolves and both gates pass; the host CAN still close manually.
 
 The load-bearing ordering invariants, preserved and named: runner-paid-at-settle precedes
-return (shipped, 0083:677-688) · `payable` requires `resolved` (0070:381) · `released`
-requires no open incident (0072:227-245) · chat/phone lifetime keys on unresolved custody and
+return (shipped, 0083:677-688) · `payable` requires `resolved` on the normal path
+(0070:369-375) with the one shipped exception — an incident SETTLEMENT may set `payable` and
+release without custody resolution (0072:187-190, 0072:232-244), human judgment substituting
+for the custody question · `released` requires no open incident (0072:227-245) · chat/phone
+lifetime keys on unresolved custody and
 therefore correctly survives through the return legs (0049:36-43, 0049:174-180 — verified,
 both key on `<> 'resolved'`).
 
@@ -647,7 +704,7 @@ public via `club_session_detail`.
 
 **Privacy rows (each verified against a shipped precedent):** no addresses ever (§8.4); the
 area band is not on the board · no money — fares appear ONLY on the consent screen (Sean's
-ruling ④, `delegate/[sid].tsx:20-27`) · pick-pending runner names render to the CHOOSER and
+ruling ④ — header law `delegate/[sid].tsx:20-27`, rendered fare `:201-237`) · pick-pending runner names render to the CHOOSER and
 the picked runner only (the 0053:315-323 sub-gate's logic, inverted for the new chooser: in
 Mode B the owner authored the pick and sees it; other members see 수락 대기 with no name until
 P4 makes the pairing public — Sean's board shows pairs, not courtships) · a 맹견-refused or
@@ -672,9 +729,9 @@ Legend: ● = primary surface · ○ = visible state · — = not shown. Every c
 |---|---|---|
 | P0 신청 대기 | ● application card (exists: approval badge) | withdraw (free) |
 | P1 승인 — 결제 대기 | ● hold card + DrainRing 20min (exists, `:751`) | pay (`자리 확정하기` — gains address pick §8.1 + pickup-mode pick §7.2) · withdraw (free) |
-| P2 결제 완료 — 러너 선택 | ● NEW pick surface: committed-runner list (name, tier, pace, load/cap, distance band — **never money**) + 자동 연결 door (Mode C; requires pinned address, §6.5) | pick (B) · auto-pick (C) · cancel (ladder-quoted first, §5.4) |
+| P2 결제 완료 — 러너 선택 | ● NEW pick surface: committed-runner list (name, tier, pace fit, load/cap — **never money, never distance**: round-2 F7c's triangulation oracle) + 자동 연결 door (Mode C; requires pinned address, §6.5) | pick (B) · auto-pick (C) · cancel (ladder-quoted first, §5.4) |
 | P3 수락 대기 | ● pick-pending card + TTL ring (DrainRing idiom) | withdraw pick (free — §6.2's widened revoke) · cancel (quoted) |
-| P4 페어링 확정 | ● paired card: runner name/photo, pickup window, pickup mode | cancel (quoted — free ≥24h per §5.2) · objection (unchanged, 0047:250) |
+| P4 페어링 확정 | ● paired card: runner name/photo, pickup window, pickup mode | cancel (quoted — free ≥24h per §5.2) · objection (re-specified, §5.5) |
 | P5 픽업 이동 중 | ○ runner en-route + arrival state (§7.1 stamps) | cancel still available until the door both-stamp (§5.3) · chat |
 | P6 인계 | ● both-stamp door handoff (exists: `confirmHandoff(...,'owner')`, `:341` — re-copy for the door) | confirm handoff |
 | P7-P8 이동/러닝 | ○ timeline states + live | open case (party standing unchanged) |
@@ -789,7 +846,7 @@ Classes: **U** unchanged · **RA** re-anchored (same logic, new event/caller) ·
 | C3 | custody trigger `_club_custody_transition_v2` 0045:34 | booking status picked_up/completed | picked_up arm: unchanged mechanics, fires at door; drops the premature `checked_in_at` stamp for door-mode (§7.4); completed arm writes `finished_pending_host` | RW (S4+S5) |
 | C4 | `session_confirm_return` 0069:84 | `return_pending` | untouched | U |
 | C5 | `_club_finalize_return` 0070:343 | both stamps, weaker-kind record | untouched | U |
-| C6 | `club_release_payouts` 0072:221 | payable + resolved + no open incident | untouched — release keys on `resolved`, not on finish | U |
+| C6 | `club_release_payouts` 0072:221 | payable + no hold + (`resolved` **OR an `incident_settlement` fee item** — 0072:232-244, round-2 F6) + no open incident | untouched — release keys on resolved-or-adjudicated, not on finish; the incident arm deliberately lets a human settlement release money while custody is still unresolved, and that remains true for `finished_pending_host` | U |
 | C7 | return-delay alarm 0068:96-121 | `return_pending` + `scheduled_at`+6h | gains the `finished_pending_host`-age arm (§7.6.3); its `return_pending` arm re-bases on `run_confirmed_at` so returns aren't "late" before they can begin | RW (S5) |
 | C8 | `club_stale_delegation_sweep` 0070:302 | stale open sessions, `matching` bookings | untouched (it is the no-host-ever recovery for un-picked seats; it never covered `completed` — §7.6's escapes do) | U |
 | C9-C11 | incident settle/quote/resolve 0080:977, 0116:413, 0072:260 | incident_review, stamps, settlement items | untouched; quote's `took_custody` reads handoff stamps which exist in both pickup modes (0116:420) | U |
@@ -882,7 +939,22 @@ fabricated G4/0119-row attribution removed; corrected in §11 · F14 → dissolv
 corrected in place (line-number fixes; the runner-money contract and 0117 facts now cited as
 on-branch, not trunk).
 
-**Round 2 — blind codex voice: pending; folds in here when it lands.**
+**Round 2 — blind codex voice (gpt-5.6-sol, read-only sandbox), 2026-08-25.** Reviewed
+draft 1 concurrently with round 1; verdict REQUEST CHANGES, 9 findings + 27 citation checks
+(135 verified). Four were already answered by the round-1 fold (its F1 enroute dead zone,
+F3 circular confirm gate, F5 stranded transfer family, F8 dead withdraw button — the v2.1
+designs for §7.1/§7.5/§7.6/§6.2 hold against codex's concrete sequences). Five were NEW and
+are folded here as v2.2: F1b → §7.4's 현장 인계 arm keeps today's evidence semantics (the
+door-stamp predicate can never fire for a mode with no door) · F2 → the §7.1 stamps are
+proximity-verified at write and CLEARED by every dissolution path (the "stamps start null"
+claim was false — dissolution reuses the row; explicit clearing is the fix), and the fee
+fires only at the host's evidence-shown confirmation tap · F4 → §5.5: objection un-pairs but
+never refunds; safety objections open an incident; the event-anchored rung question joins
+🔴 14.11 · F6 → C6/§7.5 corrected: release is resolved-OR-incident-settled (0072:232-244),
+not resolved-only · F7 → §6.5: `committed_at` added (rank tiebreak 4 referenced a column
+that does not exist), owner-visible distance bands deleted (triangulation oracle), input
+CHECKs + the 0073 pin-repair dependency named. Codex's citation deltas patched. What codex
+could not attack: the 0119 coverage and the load formula — both held.
 
 *The spec decides nothing Sean didn't say; every 🔵 is reversible in one word; every 🔴 blocks
 only its own slice.*
