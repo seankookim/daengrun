@@ -113,7 +113,7 @@ export default function ClubReceipt() {
   }, [stampable, stamp, ripple, dip]);
 
   // ---------- ③ 피드 문의 선-판정 (랩 T② · 결함 F13) ----------
-  // 동네 피드 공유는 진짜로 거절될 수 있는 문이다 — 위탁 러닝에 사진 공개 미동의 견이 있으면
+  // 하이 피드 공유는 진짜로 거절될 수 있는 문이다 — 위탁 러닝에 사진 공개 미동의 견이 있으면
   // 0053 §3a가 막는다. 오늘까지 그 거절은 **누른 뒤에** 알림으로 왔다. 같은 RPC를 로드 때 한 번
   // 물어, 거절을 손가락이 움직이기 전의 사실로 바꾼다. 세 값 세 뜻:
   //   null = 아직 모른다 → 오늘과 똑같은 문(누를 때 다시 확인한다)  ·  true = 가능  ·  false = 불가
@@ -216,7 +216,7 @@ export default function ClubReceipt() {
       }
       await shareRunToFeed(bid!);
       haptic('success');
-      Alert.alert('피드에 올라갔어요', '동네 피드에서 오늘의 기록을 볼 수 있어요');
+      Alert.alert('피드에 올라갔어요', '하이 피드에서 오늘의 기록을 볼 수 있어요');
     } catch (e) {
       Alert.alert('공유 실패', (e as Error).message);
     } finally {
@@ -362,11 +362,11 @@ export default function ClubReceipt() {
           <Text style={s.studioLink}>인증샷 카드로 꾸미기 →</Text>
         </Pressable>
 
-        {/* 동네 피드 문 — T②: 거절을 탭 뒤가 아니라 탭 전에 말한다.
+        {/* 하이 피드 문 — T②: 거절을 탭 뒤가 아니라 탭 전에 말한다.
             false(확정 거절)면 문 대신 사실을 그린다. null(아직 모름)·true면 오늘과 같은 문이다. */}
         {feedAllowed === false ? (
           <View style={s.refuse}>
-            <Text style={s.refuseHead}>동네 피드 공유는 지금 할 수 없어요</Text>
+            <Text style={s.refuseHead}>하이 피드 공유는 지금 할 수 없어요</Text>
             {/* 문장은 다른 보호자를 탓하지 않는다 — 동의는 각자의 결정이고, 여기선 사실만 말한다 */}
             <Text style={s.refuseBody}>
               함께 달린 아이 중에 사진 공개에 동의하지 않은 아이가 있어요 — 이 러닝은 피드에 올릴 수 없어요.
@@ -381,10 +381,10 @@ export default function ClubReceipt() {
             <View style={s.nudge}>
               <Text style={s.nudgeHead}>동네에 자랑하기</Text>
               <Text style={s.nudgeBody}>
-                {report.dogName}의 오늘 기록이 동네 피드에 공개돼요{bestShot ? ' — 베스트 샷 한 장이 함께 올라가요' : ''}.
+                {report.dogName}의 오늘 기록이 하이 피드에 공개돼요{bestShot ? ' — 베스트 샷 한 장이 함께 올라가요' : ''}.
               </Text>
             </View>
-            <ClubCta label="동네 피드에 자랑하기" tone="secondary" onPress={shareFeed} busy={busy} style={{ marginTop: 10, paddingVertical: 15 }} />
+            <ClubCta label="하이 피드에 자랑하기" tone="secondary" onPress={shareFeed} busy={busy} style={{ marginTop: 10, paddingVertical: 15 }} />
           </>
         )}
         <Pressable onPress={() => router.push({ pathname: '/owner/report', params: { bid: bid! } })}>

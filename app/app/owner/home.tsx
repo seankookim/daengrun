@@ -784,7 +784,7 @@ export default function OwnerHome() {
         {lastDone && (
           <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
             <DrawButton
-              title="크루 피드에 자랑" sub="지난 러닝 사진을 동네 피드에 올릴 수 있어요"
+              title="크루 피드에 자랑" sub="지난 러닝 사진을 하이 피드에 올릴 수 있어요"
               ground="lilac" art="photo" small
               onPress={() => router.push('/compose')}
             />
