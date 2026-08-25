@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Participant Run View — Club v2 Lab (remade)</title>
+<title>Club v2 — Participant Run Lab (r3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
 /* ═════════════════════════════════════════════════════════════════════════════
    REMAKE after Sean's critique: "too many words, information density not
@@ -15,143 +18,210 @@
    the MAP with the course line, THREE ink numerals, one finish action, SOS,
    one compact crew line. Word budget ≤10 beyond numerals/names/1-word states.
 
-   ZERO NEW HEXES. Map surface #E9E5F8, doc-paper values (#26231b · #E2DDD0 ·
-   #d9d3c2 · #8a8272 · #E4DFD1), lilac accent/coral/tang, paper.action #C6472C,
-   paper.readyDeep #0E7F49, voltFill #EAF6C8, dogdot #C9B89A/#FF8A5C/#5d5138 —
-   all copied from app/src/theme.ts or values enh-club-lab already sanctions.
-   Lab chrome (--page/--hair) never appears inside a frame.
-
    FLOOR IS LITERAL: frames are 390px, 1px = 1pt, Korean never below 14px
-   inside a frame (the dogless inset is an explicitly SCALED preview of the
-   same 390px markup, not a second frame). Oswald numerals carry explicit
-   line-height ≥1.2× (BUG A). Black Han Sans once per screen (route name).
+   inside a frame. Oswald numerals carry explicit line-height ≥1.2× (BUG A).
+   Black Han Sans once per screen (route name).
+
+   ── ROUND 3 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "the lab isnt good enough; still too cramped, remove the purple and the old
+   v0 font, have some consistency between font styles and schema, and is not
+   intuitive. clean look without cards within cards."
+
+   Follow-up 1 — WHICH purple: "i like the accent color, not the pale color;
+   product wide and mock wide."  → #6C5CE7 SURVIVES as a sparse accent (active
+   state · one kicker underline · one selected chip; here it is the COURSE LINE
+   and nothing else). The PALE LILAC WORLD (theme.ts lilac.bg canvas,
+   lilac.inset, lilac.hair hairlines — every lilac-tinted wash) is RETIRED from
+   the mocked screens, including the old lilac map surface and its violet park wash,
+   which are now warm paper (docClause) and an ink-alpha band.
+   Follow-up 2 — WHICH font: the v0 font = the Plex-family Korean sans that
+   headed every lab since v0. Removed entirely, its Google Fonts request
+   included. Body type is now 'Apple SD Gothic Neo' / 'Noto Sans KR' /
+   system, identically in all four labs.
+
+   pale lilac retired product-wide by this ruling; the app sweep follows the
+   picked variant's ground values — DESIGN.md carries it.
+
+   THE NEW GROUND: warm consent-document paper (docChip / docClause) under the
+   map, and ONE surface level above it — a single paper instrument strip with
+   rule-divided cells, no inner double frame, no card inside a card. The
+   dogless view is now a FULL 390px frame: the old scaled preview shrank the
+   same markup below the type floor to save lab width.
    ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* lab chrome only */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666;
-  /* map + lilac world (theme.ts lilac · sanctioned #E9E5F8) */
-  --mapbg:#E9E5F8; --accent:#6C5CE7; --coral:#F0765A; --tang:#E8552F;
-  /* paper action + ready (theme.ts paper) */
-  --action:#C6472C; --readyDeep:#0E7F49; --voltFill:#EAF6C8;
-  /* consent-document paper world (club/delegate consts, sanctioned in enh-club-lab) */
-  --docInk:#26231b; --docEdge:#E2DDD0; --docFrame:#d9d3c2; --docDim:#8a8272; --docLine:#E4DFD1;
+  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
+  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
+  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
+  --docDash:#C9C2AE; --docWhite:#FFFFFF;
+  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks — theme.ts paper / lilac */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:22px; --l1:29px;      /* display — Black Han Sans, once per screen */
+  --t2:17px; --l2:23px;      /* title */
+  --t3:15px; --l3:21px;      /* body */
+  --t4:14px; --l4:19px;      /* detail — Korean floor */
+  --tk:11px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:34px; --nl1:42px;     /* numeral hero   (lh 1.24×) */
+  --n2:22px; --nl2:28px;     /* numeral large  (lh 1.27×) */
+  --n3:17px; --nl3:22px;     /* numeral inline (lh 1.29×) */
+  /* lab chrome only — never inside a frame */
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--page);color:var(--ink);
-  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased;padding:34px 20px 70px}
-.wrap{max-width:1180px;margin:0 auto}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
 
-/* header — two lines, that's all */
-header{border-bottom:2.5px solid var(--ink);padding-bottom:14px}
-h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
-header p{font-size:14.5px;color:var(--dim);margin-top:6px}
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
 
-.rail{display:flex;gap:28px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:16px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:21px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:16px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
 .col{width:390px}
-.col.small{width:246px}
-.cap{font-size:14px;line-height:1.5;color:var(--dim);margin-bottom:10px}
-.cap b{color:var(--ink);font-weight:800}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:16px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
 
-/* phone frame */
-.phone{width:390px;height:820px;background:var(--mapbg);border:1px solid var(--hair);
-  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative}
-.stbar{position:absolute;left:0;right:0;top:0;height:24px;display:flex;justify-content:space-between;
-  align-items:center;padding:0 14px;font-size:11px;color:var(--docDim);font-weight:600;z-index:3}
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+.mast .bk{font-size:22px;line-height:22px;color:var(--docDim)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── FILE-LOCAL — the map screen ──────────────────────────────────────────── */
+.cap .n.alt{background:transparent;border:2px solid var(--ink);color:var(--ink);
+  font-size:var(--tk);letter-spacing:1.4px}
+.phone.map{height:820px;position:relative;display:block;background:var(--docClause)}
+.phone.map .stbar{position:absolute;left:0;right:0;top:0;height:28px;z-index:3}
 .mapfull{position:absolute;inset:0}
-.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
-.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
 
-/* paper surfaces — the delegate document grammar: warm white, radius 2, inner rule frame */
-.paper{position:absolute;background:#fff;border:1px solid var(--docEdge);border-radius:2px;
-  box-shadow:0 8px 18px rgba(28,24,55,.14)}
-.paper .frame{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid var(--docFrame);
-  border-radius:1px;pointer-events:none}
+/* the ONE paper level over the map — no inner frame, no nested box */
+.paper{position:absolute;background:var(--docWhite);border:1px solid var(--docEdge);
+  box-shadow:0 10px 24px rgba(28,24,55,.16);z-index:3}
+.mastchip{left:16px;top:44px;padding:10px 14px;display:flex;align-items:center;gap:11px}
+.mastchip .back{font-size:20px;line-height:20px;color:var(--docDim)}
+.livedot{width:10px;height:10px;border-radius:5px;background:var(--coral)}
 
-/* masthead chip */
-.mastchip{left:12px;top:34px;padding:8px 12px;display:flex;align-items:center;gap:9px;z-index:3}
-.mastchip .back{font-size:20px;line-height:20px;color:var(--docInk)}
-.mastchip .name{font-size:17px;line-height:22px;color:var(--docInk)}
-.livedot{width:20px;height:20px;border-radius:10px;background:rgba(240,118,90,.22);
-  display:flex;align-items:center;justify-content:center}
-.livedot i{width:9px;height:9px;border-radius:5px;background:var(--coral);display:block}
-
-/* instrument strip */
-.strip{left:12px;right:12px;bottom:96px;z-index:3}
+.strip{left:16px;right:16px;bottom:110px;padding:4px 0 0}
 .nums{display:flex;align-items:stretch}
-.nums > div{flex:1;padding:12px 8px 9px;text-align:center;border-right:1px solid var(--docLine)}
+.nums > div{flex:1;padding:16px 8px 14px;text-align:center;border-right:1px solid var(--docLine)}
 .nums > div:last-child{border-right:0}
-.nums .v{font-size:33px;line-height:42px;color:var(--docInk)}
-.nums .u{font-size:15px;color:var(--coral)}
-.nums .l{font-size:14px;line-height:18px;font-weight:700;letter-spacing:.3px;color:var(--docDim);margin-top:1px}
-.crew{display:flex;align-items:center;gap:10px;border-top:1.5px solid var(--docInk);
-  margin:0 10px;padding:9px 2px 10px}
-.crew .t{font-size:14px;line-height:19px;font-weight:700;color:var(--docInk)}
-.crew .others{font-size:14px;line-height:19px;font-weight:700;color:var(--docDim);margin-left:auto}
-.dot{display:inline-block;width:8px;height:8px;border-radius:4px;vertical-align:1px;margin:0 3px 0 6px}
-.dot.run{background:var(--coral)}
-.dot.home{background:var(--docDim)}
-.dot.rel{background:var(--readyDeep)}
-.dogdot{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:#C9B89A;border:2px solid #FF8A5C;
-  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#5d5138}
+.nums .v{font-size:var(--n1);line-height:var(--nl1);color:var(--docInk)}
+.nums .v .u{font-family:var(--fBody);font-size:var(--t3);font-weight:700;color:var(--coral)}
+.nums .l{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:4px}
+.crew{display:flex;align-items:center;gap:11px;border-top:1.5px solid var(--docInk);
+  margin:0 14px;padding:14px 0 15px}
+.crew .t{font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--docInk)}
+.crew .others{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-left:auto}
+.sdot{display:inline-block;width:8px;height:8px;border-radius:4px;vertical-align:1px;margin:0 4px 0 7px}
+.sdot.run{background:var(--coral)}
+.sdot.home{background:var(--docDim)}
+.sdot.rel{background:var(--readyDeep)}
 
-/* thumb row */
-.thumb{position:absolute;left:12px;right:12px;bottom:20px;display:flex;gap:12px;align-items:center;z-index:3}
-.sos{width:58px;height:58px;flex:0 0 58px;border-radius:29px;background:var(--tang);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;
-  box-shadow:0 8px 14px rgba(232,85,47,.45)}
-.cta{flex:1;height:58px;display:flex;align-items:center;justify-content:center;background:var(--action);
-  color:#fff;font-size:18px;font-weight:800;letter-spacing:.4px;border-radius:2px;
-  box-shadow:0 6px 14px rgba(198,71,44,.30)}
+.thumb{position:absolute;left:16px;right:16px;bottom:24px;display:flex;gap:14px;align-items:center;z-index:3}
+.sos{width:62px;height:62px;flex:0 0 62px;border-radius:31px;background:var(--action);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:var(--t4);letter-spacing:1.2px;font-weight:800;
+  box-shadow:0 8px 16px rgba(198,71,44,.34)}
+.cta{flex:1;height:62px;display:flex;align-items:center;justify-content:center;background:var(--action);
+  color:#fff;font-size:18px;font-weight:800;letter-spacing:.4px;box-shadow:0 8px 16px rgba(198,71,44,.30)}
 
-/* record paper (frame ②) */
-.record{left:12px;right:12px;bottom:20px;padding:14px 14px 14px;z-index:3}
-.docHead{display:flex;justify-content:space-between;align-items:baseline;
-  border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
-.docHead .t{font-size:16px;color:var(--docInk)}
-.docHead .serial{font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700}
-.hero{font-size:47px;line-height:59px;color:var(--docInk);margin-top:8px}
-.hero .u{font-size:19px;color:var(--coral)}
-.rlbl{font-size:14px;line-height:18px;font-weight:700;color:var(--docDim)}
-.pair{display:flex;margin-top:8px;border-top:1px solid var(--docLine)}
-.pair > div{flex:1;padding:8px 0 2px;border-right:1px solid var(--docLine)}
-.pair > div:last-child{border-right:0;padding-left:12px}
-.pair .v{font-size:24px;line-height:31px;color:var(--docInk)}
-.stamp{position:absolute;right:16px;top:56px;transform:rotate(-8deg);border:2.5px solid var(--readyDeep);
-  border-radius:4px;background:var(--voltFill);padding:7px 14px;text-align:center}
-.stamp .k{font-size:17px;line-height:22px;font-weight:900;letter-spacing:2px;color:var(--readyDeep)}
-.stamp .e{font-size:8px;letter-spacing:2px;font-weight:700;color:var(--readyDeep);margin-top:1px}
-.meline{display:flex;align-items:center;gap:9px;border-top:1.5px solid var(--docInk);margin-top:11px;padding-top:10px}
-.meline .t{font-size:15px;line-height:20px;font-weight:800;color:var(--docInk)}
-.cta.inpaper{margin-top:12px;height:52px}
-
-/* scaled dogless inset — same 390px markup, scale(.6) */
-.insetbox{width:246px;height:502px;overflow:hidden;position:relative}
-.insetbox .phone{transform:scale(.6285);transform-origin:top left}
+/* ② the record — same paper level, rule-divided */
+.record{left:16px;right:16px;bottom:24px;padding:20px 18px 20px}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2.5px solid var(--docInk);padding-bottom:8px}
+.rhead .t{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.hero{font-size:var(--n1);line-height:var(--nl1);color:var(--docInk);margin-top:18px}
+.hero .u{font-family:var(--fBody);font-size:var(--t2);font-weight:700;color:var(--coral)}
+.rlbl{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:2px}
+.pair{display:flex;margin-top:18px;border-top:1px solid var(--docLine)}
+.pair > div{flex:1;padding:14px 0 0}
+.pair > div + div{border-left:1px solid var(--docLine);padding-left:16px}
+.pair .v{font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.stamp{position:absolute;right:20px;top:96px;transform:rotate(-8deg);border:2.5px solid var(--readyDeep);
+  border-radius:4px;padding:8px 15px;text-align:center}
+.stamp .k{font-size:var(--t2);line-height:var(--l2);font-weight:800;letter-spacing:2px;color:var(--readyDeep)}
+.stamp .e{font-size:var(--ts);letter-spacing:2px;font-weight:700;color:var(--readyDeep);margin-top:2px}
+.meline{display:flex;align-items:center;gap:11px;border-top:1.5px solid var(--docInk);margin-top:20px;padding-top:15px}
+.meline .t{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.cta.inpaper{margin-top:18px;height:56px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<header>
-  <h1>참가자 러닝 뷰 — deleted, rebuilt</h1>
-  <p>Map + three ink numerals + one action + SOS on a paper instrument strip. ≤10 words per frame.</p>
+<header class="top">
+  <h1>참가자 러닝 뷰 — map, three numerals, one action</h1>
+  <p class="law">Round 3 · warm paper ground · accent = the course line only · one surface level</p>
 </header>
+
+<section class="toc">
+  <h2>Two moments and one no-dog case — pick what should ship</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>러닝 중</b> — the map is the screen; one paper strip carries the numerals and the crew.</span></li>
+    <li><span class="n">②</span><span><b>기록</b> — the strip becomes a record; my dog is released the moment I stop.</span></li>
+    <li><span class="n">ALT</span><span><b>강아지 없는 크루</b> — ① minus the dog chip; the crew line stands alone.</span></li>
+  </ol>
+  <p class="say">Say <b>①</b> or <b>②</b> (or <b>ALT</b>) — and one word if something inside it should change.</p>
+</section>
 
 <div class="rail">
 
   <!-- ═══════════════════════════════════════ ① running -->
   <div class="col">
-    <p class="cap"><b>① Running</b> — the map is the screen; one paper strip carries the numerals, my dog, the crew line.</p>
-    <div class="phone">
+    <div class="cap"><span class="n">①</span><span class="d">러닝 중 — <b>map + three numerals + one action</b>.</span></div>
+    <div class="phone map">
       <div class="stbar"><span>6:12</span><span>▮▮▮</span></div>
       <div class="mapfull">
         <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="390" height="820" fill="#F6F3EA"/>
           <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
           <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
           <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
           <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
-          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(108,92,231,.10)"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(38,35,27,.06)"/>
           <!-- course (routes_public.trace): white casing + accent -->
           <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
             stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
@@ -160,33 +230,35 @@ header p{font-size:14.5px;color:var(--dim);margin-top:6px}
           <!-- my traveled portion -->
           <path d="M60 560 C130 480 90 380 170 320 C222 281 268 286 296 260"
             stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <circle cx="60" cy="560" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-          <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
-          <circle cx="130" cy="310" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-          <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
+          <circle cx="60" cy="560" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">S</text>
+          <circle cx="130" cy="310" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">F</text>
           <!-- own position — the only live dot -->
-          <circle cx="296" cy="260" r="13" fill="rgba(240,118,90,.25)"/>
+          <circle cx="296" cy="260" r="14" fill="rgba(240,118,90,.25)"/>
           <circle cx="296" cy="260" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
         </svg>
       </div>
+
       <div class="paper mastchip">
         <span class="back">‹</span>
-        <span class="name dispf">반포 새벽 코스</span>
-        <div class="livedot"><i></i></div>
+        <span class="disp">반포 새벽 코스</span>
+        <span class="livedot"></span>
       </div>
+
       <div class="paper strip">
-        <div class="frame"></div>
         <div class="nums">
-          <div><div class="numf v">2.7<span class="u">km</span></div><div class="l">거리</div></div>
-          <div><div class="numf v">6'05"</div><div class="l">페이스</div></div>
-          <div><div class="numf v">16:24</div><div class="l">경과</div></div>
+          <div><div class="num v">2.7<span class="u">km</span></div><div class="l">거리</div></div>
+          <div><div class="num v">6'05"</div><div class="l">페이스</div></div>
+          <div><div class="num v">16:24</div><div class="l">경과</div></div>
         </div>
         <div class="crew">
           <div class="dogdot">수</div>
-          <span class="t">수리<i class="dot run"></i>러닝</span>
-          <span class="others">초코<i class="dot run"></i>러닝 · 보리<i class="dot home"></i>귀가</span>
+          <span class="t">수리<i class="sdot run"></i>러닝</span>
+          <span class="others">초코<i class="sdot run"></i>러닝 · 보리<i class="sdot home"></i>귀가</span>
         </div>
       </div>
+
       <div class="thumb">
         <div class="sos">SOS</div>
         <div class="cta">종료</div>
@@ -194,97 +266,48 @@ header p{font-size:14.5px;color:var(--dim);margin-top:6px}
     </div>
   </div>
 
-  <!-- dogless inset — same markup, minus the dog chip, scaled -->
-  <div class="col small">
-    <p class="cap"><b>Dogless crew</b> — same screen minus the dog chip (scaled preview).</p>
-    <div class="insetbox">
-      <div class="phone">
-        <div class="stbar"><span>6:12</span><span>▮▮▮</span></div>
-        <div class="mapfull">
-          <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
-            <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
-            <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
-            <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
-            <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(108,92,231,.10)"/>
-            <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
-              stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
-            <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
-              stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
-            <path d="M60 560 C130 480 90 380 170 320 C222 281 268 286 296 260"
-              stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
-            <circle cx="60" cy="560" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-            <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
-            <circle cx="130" cy="310" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-            <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
-            <circle cx="296" cy="260" r="13" fill="rgba(240,118,90,.25)"/>
-            <circle cx="296" cy="260" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
-          </svg>
-        </div>
-        <div class="paper mastchip">
-          <span class="back">‹</span>
-          <span class="name dispf">반포 새벽 코스</span>
-          <div class="livedot"><i></i></div>
-        </div>
-        <div class="paper strip">
-          <div class="frame"></div>
-          <div class="nums">
-            <div><div class="numf v">2.7<span class="u">km</span></div><div class="l">거리</div></div>
-            <div><div class="numf v">6'05"</div><div class="l">페이스</div></div>
-            <div><div class="numf v">16:24</div><div class="l">경과</div></div>
-          </div>
-          <div class="crew">
-            <span class="others" style="margin-left:0">초코<i class="dot run"></i>러닝 · 보리<i class="dot home"></i>귀가</span>
-          </div>
-        </div>
-        <div class="thumb">
-          <div class="sos">SOS</div>
-          <div class="cta">종료</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ═══════════════════════════════════════ ② finished -->
   <div class="col">
-    <p class="cap"><b>② Finished</b> — the record on paper; my dog is released the moment I stop (즉시 해제).</p>
-    <div class="phone">
+    <div class="cap"><span class="n">②</span><span class="d">기록 — <b>즉시 해제</b> the moment I stop.</span></div>
+    <div class="phone map">
       <div class="stbar"><span>6:53</span><span>▮▮▮</span></div>
       <div class="mapfull">
         <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="390" height="820" fill="#F6F3EA"/>
           <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
           <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
           <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
           <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
-          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(108,92,231,.10)"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(38,35,27,.06)"/>
           <!-- course, fully traveled -->
           <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
             stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
           <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
             stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <circle cx="60" cy="560" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-          <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
-          <circle cx="130" cy="310" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
-          <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
-          <circle cx="130" cy="310" r="19" fill="rgba(240,118,90,.25)"/>
+          <circle cx="60" cy="560" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">S</text>
+          <circle cx="130" cy="310" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">F</text>
+          <circle cx="130" cy="310" r="20" fill="rgba(240,118,90,.25)"/>
           <circle cx="130" cy="310" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
         </svg>
       </div>
+
       <div class="paper mastchip">
         <span class="back">‹</span>
-        <span class="name dispf">반포 새벽 코스</span>
+        <span class="disp">반포 새벽 코스</span>
       </div>
+
       <div class="paper record">
-        <div class="frame"></div>
-        <div class="docHead">
-          <span class="t" style="font-weight:800">내 기록</span>
+        <div class="rhead">
+          <span class="t">내 기록</span>
           <span class="serial">DOGS HIGH · 08.25</span>
         </div>
-        <div class="numf hero">4.2<span class="u">km</span></div>
+        <div class="num hero">4.2<span class="u">km</span></div>
         <div class="rlbl">거리</div>
         <div class="pair">
-          <div><div class="numf v">6'02"</div><div class="rlbl">페이스</div></div>
-          <div><div class="numf v">41:20</div><div class="rlbl">경과</div></div>
+          <div><div class="num v">6'02"</div><div class="rlbl">페이스</div></div>
+          <div><div class="num v">41:20</div><div class="rlbl">경과</div></div>
         </div>
         <div class="stamp">
           <div class="k">즉시 해제</div>
@@ -292,9 +315,61 @@ header p{font-size:14.5px;color:var(--dim);margin-top:6px}
         </div>
         <div class="meline">
           <div class="dogdot">수</div>
-          <span class="t">수리<i class="dot rel"></i>해제</span>
+          <span class="t">수리<i class="sdot rel"></i>해제</span>
         </div>
         <div class="cta inpaper">확인</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ALT — dogless crew, full size -->
+  <div class="col">
+    <div class="cap"><span class="n alt">ALT</span><span class="d">강아지 없는 크루 — <b>① minus the dog chip</b>, same markup, full size.</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>6:12</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="390" height="820" fill="#F6F3EA"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(38,35,27,.06)"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M60 560 C130 480 90 380 170 320 C222 281 268 286 296 260"
+            stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <circle cx="60" cy="560" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="60" y="565" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">S</text>
+          <circle cx="130" cy="310" r="13" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="130" y="315" text-anchor="middle" font-size="12" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">F</text>
+          <circle cx="296" cy="260" r="14" fill="rgba(240,118,90,.25)"/>
+          <circle cx="296" cy="260" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">반포 새벽 코스</span>
+        <span class="livedot"></span>
+      </div>
+
+      <div class="paper strip">
+        <div class="nums">
+          <div><div class="num v">2.7<span class="u">km</span></div><div class="l">거리</div></div>
+          <div><div class="num v">6'05"</div><div class="l">페이스</div></div>
+          <div><div class="num v">16:24</div><div class="l">경과</div></div>
+        </div>
+        <div class="crew">
+          <span class="others" style="margin-left:0">초코<i class="sdot run"></i>러닝 · 보리<i class="sdot home"></i>귀가</span>
+        </div>
+      </div>
+
+      <div class="thumb">
+        <div class="sos">SOS</div>
+        <div class="cta">종료</div>
       </div>
     </div>
   </div>

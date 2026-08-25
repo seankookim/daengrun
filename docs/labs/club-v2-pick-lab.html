@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Runner Pick Lab (remake)</title>
+<title>Club v2 — Runner Pick Lab (r3)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
 /* ═════════════════════════════════════════════════════════════════════════════
    PICK LAB — REMAKE after Sean's critique (2026-08-25): "too many words,
@@ -20,209 +21,284 @@
 
    PAPER GRAMMAR = club/delegate/[sid].tsx verbatim: warm white doc, ink
    rules, dashed cells, letterspaced Latin kickers, serials, square corners.
-   ZERO NEW HEXES — theme.ts (paper·lilac) + the delegate screen's doc consts
-   + club-ui's sanctioned values, exactly the enh-club-lab palette.
    390px frames, 1px = 1pt. Korean floor 14px (sub-14 = Latin kickers/serials/
    glyphs only). Black Han Sans ≤1/screen. Oswald line-height ≥1.2×.
+
+   ── ROUND 3 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "the lab isnt good enough; still too cramped, remove the purple and the old
+   v0 font, have some consistency between font styles and schema, and is not
+   intuitive. clean look without cards within cards."
+
+   Follow-up 1 — WHICH purple: "i like the accent color, not the pale color;
+   product wide and mock wide."  → #6C5CE7 SURVIVES as a sparse accent (active
+   state · one kicker underline · one selected chip). The PALE LILAC WORLD
+   (theme.ts lilac.bg canvas, lilac.inset, lilac.hair hairlines — every lilac-tinted
+   wash) is RETIRED from the mocked screens. Never an accent background wash,
+   never a canvas.
+   Follow-up 2 — WHICH font: the v0 font = the Plex-family Korean sans that
+   headed every lab since v0. Removed entirely, its Google Fonts request
+   included. Body type is now 'Apple SD Gothic Neo' / 'Noto Sans KR' /
+   system, identically in all four labs.
+
+   pale lilac retired product-wide by this ruling; the app sweep follows the
+   picked variant's ground values — DESIGN.md carries it.
+
+   THE NEW GROUND: the consent document promoted to the screen canvas
+   (docChip #FBF9F3 · docInk #26231b · docLine/docEdge hairlines). ONE surface
+   level per screen — sections separate by whitespace and ink rules, never by
+   a rounded box inside another box. The card that used to hold the document
+   IS the screen now.
    ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* lilac world — theme.ts `lilac` (delegation surface canvas) */
-  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4;
-  --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
-  --accent:#6C5CE7; --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
-  --amber:#C77414; --amberSoft:#FBEED9;
-  --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
-  /* consent-document world — club/delegate/[sid].tsx consts (sanctioned in enh-club-lab) */
-  --docInk:#26231b; --docLine:#E4DFD1; --docDim:#8a8272; --docChip:#FBF9F3; --docClause:#F6F3EA;
-  --docEdge:#E2DDD0; --docFrame:#d9d3c2; --docDash:#C9C2AE;
-  /* collar — theme.ts collarColors */
-  --collarTang:#FF8A5C;
+  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
+  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
+  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
+  --docDash:#C9C2AE; --docWhite:#FFFFFF;
+  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks — theme.ts paper / lilac */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:22px; --l1:29px;      /* display — Black Han Sans, once per screen */
+  --t2:17px; --l2:23px;      /* title */
+  --t3:15px; --l3:21px;      /* body */
+  --t4:14px; --l4:19px;      /* detail — Korean floor */
+  --tk:11px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:34px; --nl1:42px;     /* numeral hero   (lh 1.24×) */
+  --n2:22px; --nl2:28px;     /* numeral large  (lh 1.27×) */
+  --n3:17px; --nl3:22px;     /* numeral inline (lh 1.29×) */
   /* lab chrome only — never inside a frame */
   --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--page);color:var(--ink);
-  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased;padding:34px 20px 90px}
-.wrap{max-width:1400px;margin:0 auto}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
 
-/* header — two lines, that's all */
-header.top{border-bottom:2.5px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
-h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
-.law{font-size:11.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:7px}
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
 
-.rail{display:flex;gap:30px;flex-wrap:wrap;margin-top:30px;align-items:flex-start}
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:16px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:21px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:16px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
 .col{width:390px}
-.cap{display:flex;align-items:baseline;gap:10px;font-size:15px;font-weight:700;color:var(--dim);margin-bottom:10px}
-.cap .n{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;
-  background:var(--ink);color:#fff;font-size:17px;font-weight:800}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:16px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
 
-/* phone frame */
-.phone{width:390px;background:var(--lbg);border:1px solid var(--hair);
-  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;display:flex;flex-direction:column}
-.h430{height:430px}.h445{height:445px}
-.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
-  font-size:11px;color:var(--faint);font-weight:600}
-.scr{flex:1;overflow:hidden}
-.mast{display:flex;align-items:center;gap:9px;padding:11px 14px 10px}
-.bk{font-size:20px;color:var(--lhead)}
-.dogdot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
-  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#5d5138}
-.mline{font-size:14px;line-height:19px;font-weight:700;color:var(--ltext)}
-.numf{font-family:'Oswald','Roboto Condensed',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
-.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+.mast .bk{font-size:22px;line-height:22px;color:var(--docDim)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
 
-/* paper document — delegate/[sid].tsx grammar, byte-true */
-.doc{background:#fff;border:1px solid var(--docEdge);border-radius:2px;padding:13px;margin:4px 12px 0;position:relative;
-  box-shadow:0 8px 18px rgba(28,24,55,.14)}
-.doc .inner{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid var(--docFrame);border-radius:1px;pointer-events:none}
-.docHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
-.serial{font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700}
-.kick{font-size:8.5px;letter-spacing:2px;color:var(--docDim);font-weight:700}
-.docChipTag{display:inline-flex;border:1.3px solid var(--docDash);border-radius:4px;padding:2px 7px;background:var(--docChip);
-  font-size:14px;line-height:18px;font-weight:700;color:var(--docInk)}
-
-/* start-list rows — printed roster */
-.colhead{display:grid;grid-template-columns:1fr 66px 46px 14px;gap:8px;align-items:baseline;
-  padding:8px 0 4px;border-bottom:1px solid var(--docLine)}
-.srow{display:grid;grid-template-columns:1fr 66px 46px 14px;gap:8px;align-items:center;
-  padding:11px 0;border-bottom:1px solid var(--docLine)}
-.srow:last-of-type{border-bottom:0}
-.rname{font-size:16px;line-height:21px;font-weight:800;color:var(--docInk);display:flex;align-items:center;gap:7px;min-width:0}
-.rpace{font-size:17px;line-height:22px;color:var(--docInk);text-align:right}
-.rpace .u{font-size:12px;color:var(--docDim);font-family:'IBM Plex Sans KR',sans-serif;font-weight:500}
-.rload{font-size:17px;line-height:22px;color:var(--docInk);text-align:right}
-.chev{font-size:16px;color:var(--docDim);text-align:right}
+/* ── FILE-LOCAL — runner pick ─────────────────────────────────────────────── */
+/* these three screens are short — hold a phone's height so the air reads as air */
+.phone{min-height:620px}
+.headline{display:flex;justify-content:space-between;align-items:baseline;margin-top:26px}
+.cols{display:grid;grid-template-columns:1fr 74px 46px 34px;gap:10px;align-items:baseline;
+  margin-top:22px;padding-bottom:8px}
+.srow{display:grid;grid-template-columns:1fr 74px 46px 34px;gap:10px;align-items:center;
+  padding:16px 0;border-top:1px solid var(--docLine)}
+.rname{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk);
+  display:flex;align-items:center;gap:9px;min-width:0}
+.tag{display:inline-flex;border:1.3px solid var(--docDash);border-radius:4px;padding:2px 8px;
+  font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
+.tag.sel{border-color:var(--accent);color:var(--accent)}
+.rpace{font-size:var(--n3);line-height:var(--nl3);color:var(--docInk);text-align:right}
+.rpace .u{font-family:var(--fBody);font-size:12px;font-weight:600;color:var(--docDim)}
+.rload{font-size:var(--n3);line-height:var(--nl3);color:var(--docInk);text-align:right}
+.tail{font-size:var(--t4);line-height:var(--l4);color:var(--docDim);text-align:right;font-weight:700}
+.chev{font-size:18px;color:var(--docDim);text-align:right}
 .srow.off .rname,.srow.off .rpace,.srow.off .rload{color:var(--docDim)}
-.srow.off{background:var(--docClause);margin:0 -13px;padding-left:13px;padding-right:13px}
-.full{font-size:14px;line-height:18px;font-weight:800;color:var(--docDim);text-align:right;grid-column:3 / 5;letter-spacing:.5px}
 
-/* quiet door */
-.autodoor{display:flex;align-items:center;gap:8px;border-top:1.5px solid var(--docInk);margin-top:2px;padding-top:11px;padding-bottom:2px}
-.autodoor .t{font-size:15px;line-height:20px;font-weight:800;color:var(--docDim);flex:1}
+.door{display:flex;align-items:center;gap:10px;margin-top:22px;padding-top:18px;border-top:1.5px solid var(--docInk)}
+.door .t{flex:1;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
 
-/* wait ring */
-.ring{position:relative;width:96px;height:96px;border-radius:50%;margin:14px auto 0;
+.quiet{margin-top:26px;text-align:center;font-size:var(--t4);line-height:var(--l4);
+  font-weight:700;color:var(--docDim)}
+
+/* wait ring — the one animated-looking accent on this screen */
+.ring{position:relative;width:132px;height:132px;border-radius:50%;margin:34px auto 0;
   background:repeating-conic-gradient(from -90deg,var(--docLine) 0 3.6deg,transparent 3.6deg 15deg)}
 .ring .lit{position:absolute;inset:0;border-radius:50%;
   background:repeating-conic-gradient(from -90deg,var(--accent) 0 3.6deg,transparent 3.6deg 15deg);
   -webkit-mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%);
   mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%)}
-.ring .hole{position:absolute;inset:11px;border-radius:50%;background:#fff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .hole{position:absolute;inset:13px;border-radius:50%;background:var(--docChip);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 
-/* paired stamp · perforation · stub · barcode */
-.stamp{position:absolute;right:16px;top:52px;border:2.5px solid var(--lcoralDeep);border-radius:4px;padding:5px 12px;
-  transform:rotate(-7deg);font-size:16px;font-weight:900;letter-spacing:3px;color:var(--lcoralDeep);background:rgba(255,220,209,.25)}
-.perf{position:relative;height:0;margin:12px -3px 0;border-top:1.5px dashed var(--docDash)}
-.notch{position:absolute;top:-7px;width:14px;height:14px;border-radius:7px;border:1px solid var(--docEdge);background:var(--lbg)}
-.cells{display:flex;border:1px solid var(--docLine);margin-top:12px}
-.cells > div{flex:1;padding:9px 11px}
-.cells > div + div{border-left:1px solid var(--docLine)}
-.bars{display:flex;gap:2px;align-items:flex-end;height:24px;margin-top:12px;opacity:.65}
+/* paired stub — stamp · perforation · rule-divided cells · barcode */
+.paired{margin-top:28px}
+.pname{font-family:var(--fDisp);font-weight:400;font-size:32px;line-height:41px;color:var(--docInk);letter-spacing:-.01em}
+.pfact{font-size:var(--t4);line-height:var(--l4);color:var(--docDim);margin-top:6px}
+.stamp{position:absolute;right:24px;top:104px;border:2.5px solid var(--coralDeep);border-radius:4px;
+  padding:7px 14px;transform:rotate(-7deg);font-size:var(--t2);line-height:var(--l2);font-weight:800;
+  letter-spacing:3px;color:var(--coralDeep);background:rgba(255,220,209,.25)}
+.perf{position:relative;height:0;margin:26px -20px 0;border-top:1.5px dashed var(--docDash)}
+.cells{display:flex;margin-top:22px}
+.cells > div{flex:1}
+.cells > div + div{border-left:1px solid var(--docLine);padding-left:16px}
+.cellv{margin-top:8px;font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.cellk{display:inline-flex;margin-top:8px;background:var(--docInk);color:var(--docChip);
+  padding:4px 10px;font-size:var(--t4);line-height:var(--l4);font-weight:700}
+.bars{display:flex;gap:2px;align-items:flex-end;height:28px;margin-top:30px;opacity:.6}
 .bars i{display:block;background:var(--docDim)}
-
-.quiet{display:block;text-align:center;margin-top:12px;font-size:14px;line-height:19px;font-weight:700;color:var(--ldim)}
+.stubfoot{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="top">
-  <h1>클럽 v2 — 러너 픽 Lab · remake</h1>
-  <p class="law">Paper grammar · row tap = pick · &lt;15 words/frame · theme.ts hexes only · 14px floor</p>
+  <h1>클럽 v2 — 러너 픽 Lab</h1>
+  <p class="law">Round 3 · paper ground · sparse accent · one surface level · row tap = pick</p>
 </header>
+
+<section class="toc">
+  <h2>Three moments of one flow — pick the one that should ship</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>스타트 리스트</b> — nothing chosen yet; the row itself is the pick.</span></li>
+    <li><span class="n">②</span><span><b>수락 대기</b> — the list is gone; one runner and one clock remain.</span></li>
+    <li><span class="n">③</span><span><b>확정 스텁</b> — the pick is done; only a receding cancel remains.</span></li>
+  </ol>
+  <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b> — and one word if something inside it should change.</p>
+</section>
 
 <div class="rail">
 
   <!-- ① START LIST -->
   <div class="col">
-    <div class="cap"><span class="n">①</span>Start-list paper — the row itself is the pick.</div>
-    <div class="phone h430">
+    <div class="cap"><span class="n">①</span><span class="d">스타트 리스트 — <b>the row is the pick</b>, no buttons.</span></div>
+    <div class="phone">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
-          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+          <div class="mline">몽이 · 토 <span class="num">09:00</span> · 잠수교 <span class="num">5</span>km</div></div>
+        <div class="inkrule"></div>
 
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead">
-            <div class="dispf" style="font-size:17px;color:var(--docInk)">러너 선택</div>
-            <div class="serial">START LIST · P2</div>
-          </div>
-
-          <div class="colhead">
-            <div class="kick">RUNNER</div>
-            <div class="kick" style="text-align:right">PACE</div>
-            <div class="kick" style="text-align:right">LOAD</div>
-            <div></div>
-          </div>
-
-          <div class="srow">
-            <div class="rname">박지훈 <span class="docChipTag">베테랑</span></div>
-            <div class="rpace numf">6'30"<span class="u">/km</span></div>
-            <div class="rload numf">1/2</div>
-            <div class="chev">›</div>
-          </div>
-
-          <div class="srow">
-            <div class="rname">이서연 <span class="docChipTag">마스터</span></div>
-            <div class="rpace numf">6'05"<span class="u">/km</span></div>
-            <div class="rload numf">0/3</div>
-            <div class="chev">›</div>
-          </div>
-
-          <div class="srow off">
-            <div class="rname">김도윤 <span class="docChipTag" style="color:var(--docDim)">인증</span></div>
-            <div class="rpace numf">6'45"<span class="u">/km</span></div>
-            <div class="full numf">2/2 <span style="font-family:'IBM Plex Sans KR',sans-serif">만석</span></div>
-          </div>
-
-          <div class="autodoor">
-            <div class="t">⚡ 자동 연결</div>
-            <div class="chev">›</div>
-          </div>
+        <div class="headline">
+          <div class="disp">러너 선택</div>
+          <div class="serial">START LIST · P2</div>
         </div>
 
-        <div class="quiet">몽이 <span class="numf">6'40"</span>/km</div>
+        <div class="cols">
+          <div class="kick acc">Runner</div>
+          <div class="kick" style="text-align:right">Pace</div>
+          <div class="kick" style="text-align:right">Load</div>
+          <div></div>
+        </div>
+
+        <div class="srow">
+          <div class="rname">박지훈 <span class="tag">베테랑</span></div>
+          <div class="rpace num">6'30"<span class="u">/km</span></div>
+          <div class="rload num">1/2</div>
+          <div class="chev">›</div>
+        </div>
+
+        <div class="srow">
+          <div class="rname">이서연 <span class="tag">마스터</span></div>
+          <div class="rpace num">6'05"<span class="u">/km</span></div>
+          <div class="rload num">0/3</div>
+          <div class="chev">›</div>
+        </div>
+
+        <div class="srow off">
+          <div class="rname">김도윤 <span class="tag">인증</span></div>
+          <div class="rpace num">6'45"<span class="u">/km</span></div>
+          <div class="rload num">2/2</div>
+          <div class="tail">만석</div>
+        </div>
+
+        <div class="door">
+          <div class="t">⚡ 자동 연결</div>
+          <div class="chev">›</div>
+        </div>
+
+        <div class="quiet">몽이 <span class="num">6'40"</span>/km</div>
       </div>
     </div>
   </div>
 
   <!-- ② 2H WAIT -->
   <div class="col">
-    <div class="cap"><span class="n">②</span>Two-hour wait — a ring and one line.</div>
-    <div class="phone h430">
+    <div class="cap"><span class="n">②</span><span class="d">수락 대기 — <b>one runner, one clock</b>; the list is gone.</span></div>
+    <div class="phone">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
-          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+          <div class="mline">몽이 · 토 <span class="num">09:00</span> · 잠수교 <span class="num">5</span>km</div></div>
+        <div class="inkrule"></div>
 
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead">
-            <div class="dispf" style="font-size:17px;color:var(--docInk)">수락 대기</div>
-            <div class="serial">PICK PENDING · 2H</div>
-          </div>
-
-          <div class="srow" style="border-bottom:1px solid var(--docLine)">
-            <div class="rname">박지훈 <span class="docChipTag">베테랑</span></div>
-            <div class="rpace numf">6'30"<span class="u">/km</span></div>
-            <div class="rload numf">1/2</div>
-            <div></div>
-          </div>
-
-          <div class="ring">
-            <div class="lit"></div>
-            <div class="hole">
-              <div class="numf" style="font-size:23px;line-height:29px;color:var(--docInk)">1:14</div>
-              <div class="serial">LEFT</div>
-            </div>
-          </div>
-
-          <div style="font-size:14px;line-height:19px;color:var(--docDim);text-align:center;margin:12px 0 4px">
-            박지훈 님이 수락을 정하는 중</div>
+        <div class="headline">
+          <div class="disp">수락 대기</div>
+          <div class="serial">PICK PENDING · 2H</div>
         </div>
+
+        <div class="cols">
+          <div class="kick acc">Runner</div>
+          <div class="kick" style="text-align:right">Pace</div>
+          <div class="kick" style="text-align:right">Load</div>
+          <div></div>
+        </div>
+
+        <div class="srow">
+          <div class="rname">박지훈 <span class="tag sel">베테랑</span></div>
+          <div class="rpace num">6'30"<span class="u">/km</span></div>
+          <div class="rload num">1/2</div>
+          <div></div>
+        </div>
+
+        <div class="ring">
+          <div class="lit"></div>
+          <div class="hole">
+            <div class="num" style="font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)">1:14</div>
+            <div class="serial">LEFT</div>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;text-align:center;font-size:var(--t4);line-height:var(--l4);color:var(--docDim)">
+          박지훈 님이 수락을 정하는 중</div>
 
         <div class="quiet">지목 취소 — 무료</div>
       </div>
@@ -231,51 +307,50 @@ h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
 
   <!-- ③ PAIRED -->
   <div class="col">
-    <div class="cap"><span class="n">③</span>Paired stub — runner, pickup, window; one dim cancel.</div>
-    <div class="phone h445">
+    <div class="cap"><span class="n">③</span><span class="d">확정 스텁 — <b>runner, pickup, window</b>; one dim cancel.</span></div>
+    <div class="phone" style="position:relative">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
-          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+          <div class="mline">몽이 · 토 <span class="num">09:00</span> · 잠수교 <span class="num">5</span>km</div></div>
+        <div class="inkrule"></div>
 
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead">
-            <div class="serial" style="font-size:8.5px;letter-spacing:2.5px">PAIRED — TEAM OF 2</div>
-            <div class="serial">RUNNER · v1</div>
+        <div class="headline">
+          <div class="kick acc">Paired — team of 2</div>
+          <div class="serial">RUNNER · v1</div>
+        </div>
+
+        <div class="paired">
+          <div class="pname">박지훈</div>
+          <div class="pfact">베테랑 · <span class="num" style="color:var(--docInk)">6'30"</span>/km</div>
+        </div>
+        <div class="stamp">확정</div>
+
+        <div class="perf"></div>
+
+        <div class="cells">
+          <div>
+            <div class="kick">Pickup</div>
+            <div><span class="cellk">집 픽업</span></div>
           </div>
-
-          <div style="padding:12px 0 2px">
-            <div class="dispf" style="font-size:25px;line-height:31px;color:var(--docInk)">박지훈</div>
-            <div style="font-size:14px;line-height:19px;color:var(--docDim);margin-top:3px">
-              베테랑 · <span class="numf" style="color:var(--docInk)">6'30"</span>/km</div>
+          <div>
+            <div class="kick">Window</div>
+            <div class="cellv num">08:20–08:40</div>
           </div>
-          <div class="stamp">확정</div>
+        </div>
 
-          <div class="perf"><span class="notch" style="left:-20px"></span><span class="notch" style="right:-20px"></span></div>
-
-          <div class="cells">
-            <div>
-              <div class="kick">PICKUP</div>
-              <div style="margin-top:5px"><span class="docChipTag" style="background:var(--docInk);border-color:var(--docInk);color:#fff">집 픽업</span></div>
-            </div>
-            <div>
-              <div class="kick">WINDOW</div>
-              <div class="numf" style="font-size:19px;line-height:25px;color:var(--docInk);margin-top:3px">08:20–08:40</div>
-            </div>
-          </div>
-
-          <div class="bars">
-            <i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
-            <i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
-            <i style="width:2px;height:100%"></i><i style="width:3px;height:58%"></i><i style="width:2px;height:100%"></i>
-            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i>
-            <i style="width:2px;height:100%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i>
-            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:100%"></i>
-            <i style="width:2px;height:58%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:100%"></i>
-            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i>
-          </div>
-          <div class="serial" style="margin-top:6px">DOGS HIGH · 8A3F21C4</div>
+        <div class="bars">
+          <i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
+          <i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
+          <i style="width:2px;height:100%"></i><i style="width:3px;height:58%"></i><i style="width:2px;height:100%"></i>
+          <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i>
+          <i style="width:2px;height:100%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i>
+          <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:100%"></i>
+          <i style="width:2px;height:58%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:100%"></i>
+          <i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i>
+        </div>
+        <div class="stubfoot">
+          <span class="serial">DOGS HIGH · 8A3F21C4</span>
         </div>
 
         <div class="quiet">취소 ›</div>

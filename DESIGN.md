@@ -33,13 +33,35 @@ pick the world its screen belongs to — never mix within one surface.
 | World | Export | Jurisdiction | Status |
 |---|---|---|---|
 | **Paper 순백/코랄** | `paper` | Service/transaction screens (meetup×2, addresses, address-pin, settings-adjacent) | **TARGET** — Sean 2026-08-06, 디자인 샷건 pick ① |
-| **Tailored lilac** | `lilac` | Owner home + fitness + delegation/club-consignment surfaces | Active; per-screen fate decided at migration time (delegation-premium-refresh2 정본 2026-08-01) |
+| **Tailored lilac** | `lilac` | ⚠ **PALE MEMBERS RETIRED PRODUCT-WIDE — Sean 2026-08-25** (see amendment below). Accent #6C5CE7 survives as an accent. | Retiring; sweep slice queued (ui6), exact replacement ground ratified by the club-v2 lab pick |
 | **V4 athletic editorial** | `colors` | Numbers/brand accents everywhere; runner home; legacy screens (request, review) awaiting migration | Legacy screens migrate opportunistically — repaint when already editing (addresses.tsx precedent, 2026-08-10) |
 | **Night club** | `colors.night*` | 하이클럽 world (D1×D2 hybrid: night stub × race program) | Deliberate keep — ceremony world |
 
 Sub-palettes with single jurisdictions: gold = PB/milestone events only (일상은
 볼트, 사건만 골드) · terracotta = shop only (부티크 온도) · collar palette =
 per-dog personal color, must never equal a system signal color.
+
+### ⚠ Pale-lilac retirement (2026-08-25, Sean — supersedes the "hues may survive as washes" carve-out for LILAC only)
+
+Sean, reviewing the club-v2 labs (verbatim): *"the lab isnt good enough; still too cramped,
+remove the purple and the old v0 font, have some consistency between font styles and schema,
+and is not intuitive. clean look without cards within cards."* Scope answers, verbatim: purple →
+*"i like the accent color, not the pale color; product wide and mock wide"* · v0 font →
+**IBM Plex Sans KR** (a labs-only font; the app never shipped it — labs use the app's real
+system-Korean stack from now on).
+
+What this rules: **the pale lilac family — `lilac.bg` #F4F2FB as any canvas, and the
+lilac-tinted insets/washes/hairlines (#EFECF9, #E6E2F4 class) as component fills — retires
+product-wide.** The 2026-08-10 grammar below said tinted canvases retire but "their hues may
+survive as accents/washes inside components"; for lilac, that carve-out is now CLOSED — the
+pale tints go entirely. **#6C5CE7 itself survives as an ACCENT** (active states, selection,
+links-class emphasis), never as a ground or wash. Coral remains the action color. The
+replacement ground for surfaces that rode lilac is the warm consent-doc paper grammar
+(club/delegate's doc world) — exact values are ratified by whichever club-v2 lab variant Sean
+picks, then swept through `theme.ts` in one slice (owner home/fitness included; fitness's
+freeze covers its hero ARCHITECTURE, and a ground-color token change is styling — verify the
+non-native-driver rule is untouched when sweeping). Update CLAUDE.md's design extract
+("tailored lilac (bg #F4F2FB…)") in the same sweep — on any conflict this file wins.
 
 ### Paper chrome migration grammar (2026-08-10, Sean: "all main tabs")
 
@@ -342,6 +364,7 @@ matching compositor · availability = 3 deliberately distinct predicates.
 
 | Decision | Where | Date |
 |---|---|---|
+| Pale-lilac retirement product-wide; #6C5CE7 accent-only; labs drop IBM Plex | §2 amendment (Sean verbatim), club-v2 lab remake round 3 | 2026-08-25 |
 | 순백/코랄 global canvas, pick ① | design shotgun, `theme.ts` paper block | 2026-08-06 |
 | Red Core GO disc (Ⓑ①) | `docs/labs/glowup-go-lab.html` | 2026-08-05 |
 | GO color progression + tint wash | Sean direction, `owner/home.tsx:51-84` | 2026-08-05 |
