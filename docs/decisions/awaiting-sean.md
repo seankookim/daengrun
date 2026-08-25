@@ -1432,6 +1432,14 @@ land word.
 
 ## §0-tertricies · 🔴 0123 DISTANCE (your ruling B) — the blind review BROKE the privacy claim; one knob is yours before deploy (2026-08-25)
 
+> ✅ **ANSWERED 2026-08-25 05:19:37Z (console, third round, T1)** — Sean: **"7 days"**, verbatim
+> comment: *"wait, this is fine. no need to over worry about such abuse."* The comment sets the
+> POSTURE: lightest option, no over-engineering of this abuse class. Built as `_base_change_cooldown()`
+> = 7 days (0123 §4b, his words quoted at the constant), copy 「기준 위치는 자주 바꿀 수 없어요」/
+> dated unlock line in base-pin & settings; counters kept (cheap, already built); freeze table,
+> coordinate history, per-address ledger, velocity heuristics all considered-and-dropped under this
+> posture, named in the migration header. Deployed with the 0123 landing.
+
 The reviewer executed the attack end-to-end through the two shipped RPCs, no shortcuts: **323
 probes (each = move base, read bands) localized a stranger's pickup address to 8.8 meters.** The
 migration's header claimed the grid makes anything under ~1.1 km impossible — wrong by ~125×.
