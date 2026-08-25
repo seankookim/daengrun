@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Host Console Remake — Club v2 Lab</title>
+<title>Club v2 — Host Console Lab (r3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
 /* ═════════════════════════════════════════════════════════════════════════════
    CLUB v2 CONSOLE — REMAKE (Sean's critique, verbatim: "too many words,
@@ -12,225 +15,299 @@
 
    Deleted: evidence tables, phase tabs, gate checklists, money previews,
    explainer lines, section intros, three variants. Rebuilt as ONE design at
-   three moments: a paper log the host holds. One attention card = the single
+   three moments: a paper log the host holds. One attention region = the single
    next action. Below it, a printed roster the host can ignore — every pairing
    has its row (dog — runner · state word), so completeness lives in the print,
    not in words. The only sentence-shaped survivor is the money line on the
    armed finish button (money moved blind is dishonest).
 
-   FORMAT LAW: zero new hexes — every in-frame colour is theme.ts (paper ·
-   lilac · collarColors) or club/delegate's document consts. 390px frames so
-   1px = 1pt; 14pt Korean floor (sub-14 = Latin letterspaced kickers only);
-   Black Han Sans once per frame (운영 일지); Oswald numerals lh ≥1.2.
+   FORMAT LAW: 390px frames so 1px = 1pt; 14pt Korean floor (sub-14 = Latin
+   letterspaced kickers/serials only); Black Han Sans once per frame (운영 일지);
+   Oswald numerals lh ≥1.2.
    Fixture unchanged from spec v2 §10.2: fare 12,900/pairing · 두부 no-show
    fee 2,580 (20%) + 10,320 refund · 콩이 unpaired full 12,900 refund ·
    auto-confirm 16:19 (last finish 10:19 + 6h).
+
+   ── ROUND 3 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "the lab isnt good enough; still too cramped, remove the purple and the old
+   v0 font, have some consistency between font styles and schema, and is not
+   intuitive. clean look without cards within cards."
+
+   Follow-up 1 — WHICH purple: "i like the accent color, not the pale color;
+   product wide and mock wide."  → #6C5CE7 SURVIVES as a sparse accent (active
+   state · one kicker underline · one selected chip). The PALE LILAC WORLD
+   (theme.ts lilac.bg canvas, lilac.inset, lilac.hair hairlines — every lilac-tinted
+   wash) is RETIRED from the mocked screens. Never an accent background wash,
+   never a canvas.
+   Follow-up 2 — WHICH font: the v0 font = the Plex-family Korean sans that
+   headed every lab since v0. Removed entirely, its Google Fonts request
+   included. Body type is now 'Apple SD Gothic Neo' / 'Noto Sans KR' /
+   system, identically in all four labs.
+
+   pale lilac retired product-wide by this ruling; the app sweep follows the
+   picked variant's ground values — DESIGN.md carries it.
+
+   THE NEW GROUND: the consent document promoted to the screen canvas
+   (docChip #FBF9F3 · docInk #26231b · docLine/docEdge hairlines). ONE surface
+   level per screen — the attention block is no longer a bordered card inside
+   a paper card inside a screen; it is the TOP REGION of the paper, closed by
+   an ink rule. The pale-lilac holo monogram is gone; the masthead mark is
+   an ink serial square.
    ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* paper world — theme.ts `paper` */
-  --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
-  --action:#C6472C; --actionInk:#A83315; --wash:#FFF6F4; --line:#E8552F;
-  --critical:#B3261E; --criticalWash:#FBEAE7; --disabled:#F2F2F2;
-  /* lilac world — theme.ts `lilac` (state-word inks) */
-  --amber:#C77414; --amberSoft:#FBEED9; --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
-  --coralDeep:#E45F41; --lhead:#221E3D; --ldim:#7C76A0;
-  /* consent-document world — club/delegate screen consts */
-  --docInk:#26231b; --docLine:#E4DFD1; --docDim:#8a8272; --docChip:#FBF9F3; --docEdge:#E2DDD0; --docFrame:#d9d3c2;
+  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
+  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
+  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
+  --docDash:#C9C2AE; --docWhite:#FFFFFF;
+  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks — theme.ts paper / lilac */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
   /* collar palette — theme.ts collarColors */
-  --cTang:#FF8A5C; --cSky:#5BB8D4; --cRose:#E58BA9; --cTeal:#3EC6A8; --cMoss:#8AA84E; --cGold:#E0B457;
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:22px; --l1:29px;      /* display — Black Han Sans, once per screen */
+  --t2:17px; --l2:23px;      /* title */
+  --t3:15px; --l3:21px;      /* body */
+  --t4:14px; --l4:19px;      /* detail — Korean floor */
+  --tk:11px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:34px; --nl1:42px;     /* numeral hero   (lh 1.24×) */
+  --n2:22px; --nl2:28px;     /* numeral large  (lh 1.27×) */
+  --n3:17px; --nl3:22px;     /* numeral inline (lh 1.29×) */
   /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --hair:#DEDCD6;
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--page);color:var(--ink);
-  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased;padding:34px 20px 90px}
-.wrap{max-width:1300px;margin:0 auto}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
 
-/* ── 2-line header ── */
-h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em;border-bottom:2.5px solid var(--ink);padding-bottom:13px}
-.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:9px}
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
 
-/* ── frame rail ── */
-.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:30px;align-items:flex-start}
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:16px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:21px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:16px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
 .col{width:390px}
-.cap{display:flex;align-items:baseline;gap:10px;font-size:14.5px;font-weight:700;color:var(--dim);margin-bottom:10px;line-height:1.4}
-.cap .badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:30px;
-  background:var(--ink);color:#fff;font-size:16px;font-weight:800;padding:0 8px}
-.cap b{color:var(--ink)}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:16px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
 
-/* ── phone frame ── */
-.phone{width:390px;height:760px;background:var(--canvas);border:1px solid var(--hair);
-  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;display:flex;flex-direction:column}
-.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
-  font-size:11px;color:var(--faint);font-weight:600}
-.mast{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line)}
-.mast .bk{font-size:21px;color:var(--lhead)}
-.mono{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:800;color:var(--lhead);
-  background:linear-gradient(135deg,#CFC4FF 0%,#FFD9CB 30%,#CDEBDD 55%,#CFE0FF 80%,#E8D5FF 100%)}
-.mT{font-size:16.5px;line-height:22px;font-weight:800;color:var(--lhead)}
-.mS{font-size:14px;line-height:19px;font-weight:700;color:var(--ldim)}
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+.mast .bk{font-size:22px;line-height:22px;color:var(--docDim)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
 
-/* ── the paper (document grammar: radius 2 · inner frame · ink rules) ── */
-.paperwrap{flex:1;padding:12px 12px 0;background:var(--canvas)}
-.doc{position:relative;background:#fff;border:1px solid var(--docEdge);border-radius:2px;padding:13px;
-  box-shadow:0 8px 18px rgba(28,24,55,.14)}
-.doc .inner{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid var(--docFrame);border-radius:1px;pointer-events:none}
-.docHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
-.dispf{font-family:'Black Han Sans','IBM Plex Sans KR',sans-serif;font-weight:400;font-size:18px;color:var(--docInk)}
-.docMono{font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700}
-.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;
-  font-variant-numeric:tabular-nums;line-height:1.25}
+/* ── FILE-LOCAL — host console ────────────────────────────────────────────── */
+.mark{width:28px;height:28px;flex:0 0 28px;border:1.5px solid var(--docInk);display:flex;
+  align-items:center;justify-content:center;font-size:var(--tk);letter-spacing:1px;font-weight:800;color:var(--docInk)}
+.mT{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.mS{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:2px}
 
-/* attention card — the ONE thing that needs the host */
-.att{border:2px solid var(--docInk);border-radius:2px;margin-top:11px;padding:11px;background:var(--docChip)}
-.att .kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--action);text-transform:uppercase}
-.att .who{display:flex;align-items:center;gap:10px;margin-top:7px}
-.att .nm{font-size:17px;line-height:23px;font-weight:800;color:var(--docInk)}
-.att .fact{font-size:14px;line-height:19px;font-weight:700;color:var(--docDim);margin-top:2px}
-.att .acts{display:flex;gap:8px;margin-top:11px}
-.btnP{flex:1;text-align:center;padding:13px 10px;border-radius:2px;background:var(--action);color:#fff;
-  font-size:16px;line-height:21px;font-weight:800}
-.btnG{flex:0 0 auto;text-align:center;padding:13px 16px;border-radius:2px;background:#fff;
-  border:1.3px solid var(--docDim);color:var(--docDim);font-size:16px;line-height:21px;font-weight:800}
-.money{font-size:14px;line-height:19px;font-weight:800;color:var(--actionInk);background:var(--wash);
-  border:1px solid var(--line);border-radius:2px;padding:8px 10px;margin-top:11px;text-align:center}
-.auto{font-size:14px;line-height:19px;font-weight:700;color:var(--docDim);text-align:center;margin-top:8px}
+.logline{display:flex;justify-content:space-between;align-items:baseline;margin-top:26px}
 
-/* dog dots — collar palette */
-.dot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#C9B89A;border:2px solid var(--cTang);
-  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#5d5138}
-.dot.sm{width:22px;height:22px;flex-basis:22px;font-size:11px;border-width:1.6px}
-.dot.sky{border-color:var(--cSky)}.dot.rose{border-color:var(--cRose)}.dot.teal{border-color:var(--cTeal)}
-.dot.moss{border-color:var(--cMoss)}.dot.goldc{border-color:var(--cGold)}
+/* attention region — the ONE thing that needs the host. No box: a region. */
+.att{padding:22px 0 24px}
+.who{display:flex;align-items:center;gap:12px;margin-top:16px}
+.who .nm{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.who .fact{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:3px}
+.acts{display:flex;gap:10px;margin-top:20px}
+.btnP{flex:1;text-align:center;padding:16px 12px;background:var(--action);color:#fff;
+  font-size:var(--t2);line-height:var(--l2);font-weight:800}
+.btnG{flex:0 0 auto;text-align:center;padding:16px 20px;background:transparent;
+  border:1.3px solid var(--docDash);color:var(--docDim);font-size:var(--t2);line-height:var(--l2);font-weight:800}
+.money{font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--actionInk);
+  text-align:center;margin-top:18px}
+.auto{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);text-align:center;margin-top:10px}
 
 /* printed roster — one line per pairing, host can ignore */
-.ros{margin-top:6px}
-.rrow{display:flex;align-items:center;gap:9px;padding:9px 1px;border-bottom:1px solid var(--docLine)}
-.rrow:last-child{border-bottom:0}
-.rnm{flex:1;min-width:0;font-size:15px;line-height:20px;font-weight:700;color:var(--docInk);
+.rrow{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--docLine)}
+.dot{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+.dot.sky{border-color:var(--collarSky)}.dot.rose{border-color:var(--collarRose)}.dot.teal{border-color:var(--collarTeal)}
+.dot.moss{border-color:var(--collarMoss)}.dot.goldc{border-color:var(--collarGold)}
+.dot.lg{width:34px;height:34px;flex-basis:34px;font-size:var(--t3)}
+.rnm{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rnm .rn{color:var(--docDim);font-weight:700}
-.st{flex:0 0 auto;font-size:14px;line-height:19px;font-weight:800}
-.st.ok{color:var(--voltDeep)}.st.live{color:var(--coralDeep)}.st.warn{color:var(--amber)}
+.st{flex:0 0 auto;font-size:var(--t4);line-height:var(--l4);font-weight:800}
+.st.ok{color:var(--readyDeep)}.st.live{color:var(--coralText)}.st.warn{color:var(--amber)}
 .st.crit{color:var(--critical)}.st.dim{color:var(--docDim)}
+
 /* doors — case · emergency, one recessive row each */
-.door{display:flex;align-items:center;gap:9px;padding:10px 1px;border-top:1.5px solid var(--docInk)}
-.door + .door{border-top:1px solid var(--docLine)}
-.door .dnm{flex:1;font-size:14px;line-height:19px;font-weight:700;color:var(--docDim)}
-.door .go{font-size:14px;font-weight:800;color:var(--docDim)}
+.door{display:flex;align-items:center;gap:10px;padding:15px 0;border-top:1px solid var(--docLine)}
+.door.first{border-top:1.5px solid var(--docInk);margin-top:24px}
+.door .dnm{flex:1;font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
+.door .go{font-size:var(--t4);font-weight:800;color:var(--docDim)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>호스트 콘솔 — 종이 리메이크</h1>
-<p class="law">ONE CARD NEEDS YOU · THE REST IS PRINT · SPEC V2 §10.2 · ZERO NEW HEXES · 390PX = PT</p>
+<header class="top">
+  <h1>호스트 콘솔 — 운영 일지</h1>
+  <p class="law">Round 3 · paper ground · one card needs you · the rest is print · spec v2 §10.2</p>
+</header>
+
+<section class="toc">
+  <h2>One design at three moments — pick the moment that is wrong</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>07:55 사전</b> — the applicant is the one thing; five confirmed pairings are print.</span></li>
+    <li><span class="n">②</span><span><b>09:58 진행</b> — attention moves to the uncovered dog; runs and the case are print.</span></li>
+    <li><span class="n">③</span><span><b>10:24 종료</b> — the confirm tap carries its one money line; auto-confirm is a numeral.</span></li>
+  </ol>
+  <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b> — and one word if something inside it should change.</p>
+</section>
 
 <div class="rail">
 
   <!-- ══ ① pre-session ══ -->
   <div class="col">
-    <p class="cap"><span class="badge">①</span>Pre-session 07:55 — <b>the applicant is the one thing</b>; five confirmed pairings are print.</p>
+    <div class="cap"><span class="n">①</span><span class="d">07:55 — <b>the applicant is the one thing</b>.</span></div>
     <div class="phone">
       <div class="stbar"><span>7:55</span><span>▮▮▮</span></div>
-      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
-        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
-      <div class="paperwrap">
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="mark">DH</div>
+          <div><div class="mT">반포 하이클럽</div>
+            <div class="mS">8월 26일 <span class="num">09:00</span> · 호스트</div></div></div>
+        <div class="inkrule"></div>
 
-          <div class="att">
-            <div class="kick">Now</div>
-            <div class="who"><div class="dot goldc">플</div>
-              <div><div class="nm">플로 · 윤태오</div>
-                <div class="fact">신청 <span class="numf">07:50</span></div></div></div>
-            <div class="acts"><span class="btnP">승인</span><span class="btnG">거절</span></div>
-          </div>
-
-          <div class="ros">
-            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st dim">확정</span></div>
-            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
-            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
-            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st dim">확정</span></div>
-            <div class="rrow"><div class="dot sm teal">콩</div><div class="rnm">콩이 <span class="rn">— 이서연</span></div><span class="st dim">확정</span></div>
-          </div>
-
-          <div class="door"><span class="dnm">케이스 <span class="numf">0</span></span><span class="go">→</span></div>
-          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="logline">
+          <span class="disp">운영 일지</span>
+          <span class="serial">HOST LOG · v2</span>
         </div>
+
+        <div class="att">
+          <span class="kick acc">Now</span>
+          <div class="who"><div class="dot lg goldc">플</div>
+            <div><div class="nm">플로 · 윤태오</div>
+              <div class="fact">신청 <span class="num">07:50</span></div></div></div>
+          <div class="acts"><span class="btnP">승인</span><span class="btnG">거절</span></div>
+        </div>
+        <div class="thinrule"></div>
+
+        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st dim">확정</span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st dim">확정</span></div>
+        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 이서연</span></div><span class="st dim">확정</span></div>
+
+        <div class="door first"><span class="dnm">케이스 <span class="num">0</span></span><span class="go">→</span></div>
+        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
       </div>
     </div>
   </div>
 
   <!-- ══ ② mid-session ══ -->
   <div class="col">
-    <p class="cap"><span class="badge">②</span>Mid-session 09:58 — <b>attention moves to the uncovered dog</b>; runs and the case are print.</p>
+    <div class="cap"><span class="n">②</span><span class="d">09:58 — <b>attention moves to the uncovered dog</b>.</span></div>
     <div class="phone">
       <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
-      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
-        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
-      <div class="paperwrap">
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="mark">DH</div>
+          <div><div class="mT">반포 하이클럽</div>
+            <div class="mS">8월 26일 <span class="num">09:00</span> · 호스트</div></div></div>
+        <div class="inkrule"></div>
 
-          <div class="att">
-            <div class="kick">Now</div>
-            <div class="who"><div class="dot teal">콩</div>
-              <div><div class="nm">콩이 · 정다은</div>
-                <div class="fact">러너 이탈 <span class="numf">07:58</span> · 재배정 ~<span class="numf">15:00</span></div></div></div>
-            <div class="acts"><span class="btnP">박준호 재배정</span></div>
-          </div>
-
-          <div class="ros">
-            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st live">러닝 중</span></div>
-            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">완료 <span class="numf">09:47</span></span></div>
-            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st warn">인계됨</span></div>
-            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 후보</span></div>
-            <div class="rrow"><div class="dot sm goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
-          </div>
-
-          <div class="door"><span class="dnm">케이스 <span class="numf">1</span> — 몽이 S2</span><span class="go">→</span></div>
-          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="logline">
+          <span class="disp">운영 일지</span>
+          <span class="serial">HOST LOG · v2</span>
         </div>
+
+        <div class="att">
+          <span class="kick acc">Now</span>
+          <div class="who"><div class="dot lg teal">콩</div>
+            <div><div class="nm">콩이 · 정다은</div>
+              <div class="fact">러너 이탈 <span class="num">07:58</span> · 재배정 ~<span class="num">15:00</span></div></div></div>
+          <div class="acts"><span class="btnP">박준호 재배정</span></div>
+        </div>
+        <div class="thinrule"></div>
+
+        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st live">러닝 중</span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">완료 <span class="num">09:47</span></span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st warn">인계됨</span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 후보</span></div>
+        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
+
+        <div class="door first"><span class="dnm">케이스 <span class="num">1</span> — 몽이 S2</span><span class="go">→</span></div>
+        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
       </div>
     </div>
   </div>
 
   <!-- ══ ③ finish-armed ══ -->
   <div class="col">
-    <p class="cap"><span class="badge">③</span>Finish armed 10:24 — <b>the confirm tap with its one money line</b>; auto-confirm is a numeral.</p>
+    <div class="cap"><span class="n">③</span><span class="d">10:24 — <b>the confirm tap with its one money line</b>.</span></div>
     <div class="phone">
       <div class="stbar"><span>10:24</span><span>▮▮▮</span></div>
-      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
-        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
-      <div class="paperwrap">
-        <div class="doc">
-          <div class="inner"></div>
-          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="mark">DH</div>
+          <div><div class="mT">반포 하이클럽</div>
+            <div class="mS">8월 26일 <span class="num">09:00</span> · 호스트</div></div></div>
+        <div class="inkrule"></div>
 
-          <div class="att">
-            <div class="kick">Now</div>
-            <div class="acts" style="margin-top:8px"><span class="btnP" style="font-size:17px;padding:15px 10px">러닝 종료 확인</span></div>
-            <div class="money">청구 <span class="numf">2,580</span>원 · 환불 <span class="numf">23,220</span>원</div>
-            <div class="auto">미확인 시 <span class="numf">16:19</span> 자동 확인</div>
-          </div>
-
-          <div class="ros">
-            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진 · <span class="numf">4.0</span>km</span></div><span class="st ok">완료 <span class="numf">10:12</span></span></div>
-            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준 · <span class="numf">3.1</span>km</span></div><span class="st ok">완료 <span class="numf">09:47</span></span></div>
-            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준 · <span class="numf">3.4</span>km</span></div><span class="st ok">완료 <span class="numf">10:19</span></span></div>
-            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 −<span class="numf">2,580</span>원</span></div>
-            <div class="rrow"><div class="dot sm teal">콩</div><div class="rnm">콩이 <span class="rn">— 미배정</span></div><span class="st warn">환불 <span class="numf">12,900</span>원</span></div>
-            <div class="rrow"><div class="dot sm goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
-          </div>
-
-          <div class="door"><span class="dnm">케이스 <span class="numf">1</span> — 몽이 S2</span><span class="go">→</span></div>
-          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="logline">
+          <span class="disp">운영 일지</span>
+          <span class="serial">HOST LOG · v2</span>
         </div>
+
+        <div class="att">
+          <span class="kick acc">Now</span>
+          <div class="acts"><span class="btnP">러닝 종료 확인</span></div>
+          <div class="money">청구 <span class="num">2,580</span>원 · 환불 <span class="num">23,220</span>원</div>
+          <div class="auto">미확인 시 <span class="num">16:19</span> 자동 확인</div>
+        </div>
+        <div class="thinrule"></div>
+
+        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진 · <span class="num">4.0</span>km</span></div><span class="st ok">완료 <span class="num">10:12</span></span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준 · <span class="num">3.1</span>km</span></div><span class="st ok">완료 <span class="num">09:47</span></span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준 · <span class="num">3.4</span>km</span></div><span class="st ok">완료 <span class="num">10:19</span></span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 −<span class="num">2,580</span>원</span></div>
+        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 미배정</span></div><span class="st warn">환불 <span class="num">12,900</span>원</span></div>
+        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
+
+        <div class="door first"><span class="dnm">케이스 <span class="num">1</span> — 몽이 S2</span><span class="go">→</span></div>
+        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
       </div>
     </div>
   </div>
