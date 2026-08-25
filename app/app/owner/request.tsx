@@ -11,7 +11,6 @@ import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
-import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { goBackOrHome } from '../../src/lib/nav';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -558,20 +557,6 @@ export default function Request() {
       //   말한다 — 예약이 이미 만들어진 뒤에 '예약 실패'라고 말하면 그게 거짓말이 된다.
       draft.bookingId = null;
       setHoldVisible(false);
-      // [0119] 맹견 게이트의 거절은 **서버가 답한 것**이지 서버가 실패한 것이 아니다. 「예약 실패 —
-      // dog_dangerous_undeclared」로 내보내면 사용자는 고칠 수 있는 일을 앞에 두고 막다른 길을 본다.
-      // 토큰이면 그 상태를 그리고, 아직 답하지 않은 경우에는 답하러 가는 문까지 연다.
-      const refusal = dangerousRefusalFrom(e);
-      if (refusal) {
-        Alert.alert(
-          refusal.title,
-          refusal.body,
-          refusal.action
-            ? [{ text: '닫기', style: 'cancel' }, { text: refusal.action.label, onPress: () => router.push(refusal.action!.route) }]
-            : [{ text: '확인' }],
-        );
-        return;
-      }
       Alert.alert('예약 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
       return;
     }

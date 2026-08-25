@@ -307,20 +307,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     route_status_at_booking: routeStatus,
     route_chips: b.route_chips ?? {},
   }).select("id").single();
-  // [0119] A custody-gate refusal is the SERVER answering, not the server failing — it must reach
-  // the client as a 409 with the token verbatim (the dog screen renders 미신고 as 「답해 주세요」,
-  // which it cannot do from a generic 500). Every other insert error stays a 500: those ARE
-  // failures. The token IS the message text because the trigger raises it as message_text.
-  if (bErr) {
-    const dangerTokens = [
-      "dog_dangerous_undeclared",
-      "dog_dangerous_custody_refused",
-      "dog_dangerous_breed_conflict",
-    ];
-    const hit = dangerTokens.find((t) => bErr.message?.includes(t));
-    if (hit) throw new HttpError(409, hit);
-    throw new HttpError(500, bErr.message);
-  }
+  if (bErr) throw new HttpError(500, bErr.message);
 
   for (const s of ["quoted", "payment_hold"]) {
     const { error } = await db.from("bookings").update({ status: s }).eq("id", booking.id);

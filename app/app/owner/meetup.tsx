@@ -6,7 +6,6 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
 import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, quoteCancelFee, subscribeBooking } from '../../src/lib/api';
-import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
@@ -251,17 +250,7 @@ export default function OwnerMeetup() {
     try {
       await confirmHandoff(bookingId, 'owner');
       setStage('waiting');
-    } catch (e) {
-      // ⚠ [0119 F1 · 동결 준수] 이 탭이 커스터디 직전의 **마지막 관문**이다: 수락 뒤에 맹견으로
-      // 신고된 반려견은 인계를 완주해선 안 되므로, 같은 트리거가 인계 도장 쓰기 자체를 막는다.
-      // 그 거절이 여기로 오면 「다시 시도해주세요」는 거짓말이다 — 다시 눌러도 영원히 같은 답이고,
-      // 러너는 문 앞에서 무한히 재시도하게 된다.
-      // 🔒 동결 범위 안이다 (meetup 은 스테이지 머신·폴링·confirmHandoff 흐름 동결, 스타일/문구만):
-      // 새 상태도, 새 흐름 간선도, 폴링 변경도 없다. 이미 존재하던 이 catch 안의 **문구만** 갈린다.
-      // 스테이지도 일부러 그대로 둔다 — 실패 시 CTA 가 돌아오는 기존 재시도 경로는 건드리지 않고,
-      // 대신 문구가 재시도가 소용없다는 사실을 말한다.
-      const refusal = dangerousRefusalFrom(e, 'owner');
-      if (refusal) { Alert.alert(refusal.title, refusal.body); return; }
+    } catch {
       Alert.alert('인계 확인이 전송되지 않았어요', '다시 시도해주세요');
     }
   };

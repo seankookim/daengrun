@@ -295,21 +295,7 @@ export interface DogProfile {
   // null means the key is absent, and only a CONFIRMED-absent key may coalesce to 480.
   // A failed fetch must stay unknown, so the defaulting lives in the UI, never here.
   paceSuggestSec: number | null;
-  // [0119] 맹견 신고 — 보호자의 진술이지 우리의 판정이 아니다. 세 값이고 NULL이 없는 이유는
-  // '아직 묻지 않았다'가 사실 중 하나이기 때문이다 (게이트 컬럼의 NULL 은 이 저장소가 가장 자주
-  // 반복한 버그다). `undeclared` 는 결함이 아니라 정상 초기 상태 — 화면은 이걸 막다른 길이 아니라
-  // 「답해 주세요」로 그린다.
-  dangerousStatus: DangerousStatus;
-  // `declared_dangerous` 일 때만 non-null, 그 짝은 DB CHECK 이 강제한다
-  // (dogs_dangerous_basis_pairs_with_status). 어느 문으로 맹견이 되었는지만 기록하고,
-  // 게이트는 이 값을 읽지 않는다 — 읽으면 검증되지 않은 근거가 판정에 들어간다.
-  dangerousBasis: DangerousBasis | null;
 }
-
-/** 0119 `dog_dangerous_status`. 서버 enum 원문과 문자열이 같아야 한다 — 표시 어휘가 아니다. */
-export type DangerousStatus = 'undeclared' | 'declared_none' | 'declared_dangerous';
-/** 0119 `dogs.dangerous_basis`. 법정 견종이거나, 기질평가로 시·도지사가 지정했거나. */
-export type DangerousBasis = 'listed_breed' | 'designated';
 
 function mapDog(d: any): DogProfile {
   return {
@@ -326,13 +312,6 @@ function mapDog(d: any): DogProfile {
     weeklyGoalKm: Number(d.weekly_goal_km ?? 15),
     collar: d.collar ?? null,
     paceSuggestSec: readPaceSuggest((d.preferences as any)?.paceSuggestSec),
-    // The column is `not null default 'undeclared'`, so a row always carries a real value and the
-    // fallback below is for a payload that never arrived (a stale select, a shape change). It
-    // resolves to `undeclared` — the state that ASKS — and never to `declared_none`, which would be
-    // the client inventing an owner's legal statement about their own dog. Same direction as the
-    // migration's no-backfill decision, for the same reason.
-    dangerousStatus: (d.dangerous_status ?? 'undeclared') as DangerousStatus,
-    dangerousBasis: (d.dangerous_basis ?? null) as DangerousBasis | null,
   };
 }
 
@@ -346,13 +325,7 @@ function readPaceSuggest(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// ⚠ [0119] `dangerous_status`/`dangerous_basis` are named here, which means THIS FILE CANNOT SHIP
-// BEFORE THE MIGRATION. PostgREST answers a select naming an absent column with a 400, so a client
-// carrying these two columns against a pre-0119 database breaks `fetchMyDogs` outright — the owner
-// sees a load failure where their dogs were, on every screen that reads a dog. The two halves land
-// together or not at all. (`dangerous_declared_at` is deliberately NOT read: it is server-stamped
-// and nothing on the client renders it, so reading it would only invite someone to write it.)
-const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km, collar, dangerous_status, dangerous_basis';
+const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km, collar';
 
 // 다견 가구 지원 — 전체 목록
 export async function fetchMyDogs(): Promise<DogProfile[]> {
@@ -388,23 +361,9 @@ export async function updateMyDog(dogId: string, p: {
   neutered?: boolean; memo?: string; prefTags?: string[]; vaccines?: string[];
   collar?: string | null; // 칼라 컬러 (0033)
   paceSuggestSec?: number; // 권장 최소 페이스 sec/km (pace-state-ui-plan §4)
-  // [0119] 신고는 짝으로만 움직인다 — 하나만 보내는 건 애초에 표현할 수 없게 한 타입이다.
-  dangerous?: { status: 'declared_none' } | { status: 'declared_dangerous'; basis: DangerousBasis };
 }): Promise<void> {
-  const { prefTags, vaccines, paceSuggestSec, dangerous, ...rest } = p;
+  const { prefTags, vaccines, paceSuggestSec, ...rest } = p;
   const patch: Record<string, unknown> = { ...rest };
-  // ⚠ [0119] THE PAIR IS WRITTEN AS A PAIR, and the union above is why this is three lines instead
-  // of a validation. `dogs_dangerous_basis_pairs_with_status` refuses a `declared_dangerous` with no
-  // basis and a basis on any other status, so a patch that sets one field alone is a 400 the owner
-  // reads as "저장하지 못했어요" with nothing they can do about it. Making the illegal pair
-  // unrepresentable in the caller's type moves that failure from runtime to tsc.
-  // `dangerous_declared_at` is NOT written here: 0119 stamps it server-side in both directions, and
-  // a client-supplied timestamp on a legal record is the class 0083 §2 closed.
-  // No `undeclared` arm: this call SAVES an answer, and there is no way to un-answer by saving.
-  if (dangerous) {
-    patch.dangerous_status = dangerous.status;
-    patch.dangerous_basis = dangerous.status === 'declared_dangerous' ? dangerous.basis : null;
-  }
   if (vaccines) patch.vaccinations = vaccines.map((type) => ({ type, at: null }));
   // ⚠ `preferences` is a jsonb DOCUMENT, and this write used to REPLACE it with `{tags}`.
   // The moment a second key lives in there (paceSuggestSec), every profile save would wipe

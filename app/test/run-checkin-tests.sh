@@ -1,6 +1,6 @@
 #!/bin/bash
 # Compile-and-run tests for the 0117 check-in answer surface — same idiom as
-# run-late-copy-tests.sh / run-dangerous-copy-tests.sh: bundle the REAL sources with esbuild
+# run-late-copy-tests.sh: bundle the REAL sources with esbuild
 # rather than a retyped copy, so the sentences and the gates these cases pin are the ones a
 # person actually meets.
 #

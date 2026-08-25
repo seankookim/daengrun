@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { dangerousRefusalFrom } from '../../../src/lib/dangerous-copy';
 import { ClubMast, ClubTag, DawnCanvas, SealSlide, clubText } from '../../../src/components/club-ui';
 import {
   DelegationBoard, DelegationConsent, DogProfile, delegateDog, fetchDelegationBoard, fetchMyDogs,
@@ -94,18 +93,6 @@ export default function DelegateConsentScreen() {
       ]);
     } catch (e) {
       const m = (e as Error).message;
-      // [0119 F3] 맹견 게이트는 클럽 경로에서도 뜬다 (session_dogs 트리거 — 호스트가 결정을
-      // 쓰기 전에 막는다). 아래 매핑 사슬의 끝은 `m` 원문이므로, 매핑이 없으면 보호자가
-      // `dog_dangerous_undeclared` 라는 영문 토큰을 그대로 읽고, 답하러 갈 문도 없다.
-      // 마켓플레이스와 **같은 문장·같은 문**을 쓴다 — 같은 거절에 두 가지 말이 있으면
-      // 두 가지 정책처럼 읽힌다.
-      const refusal = dangerousRefusalFrom(e);
-      if (refusal) {
-        Alert.alert(refusal.title, refusal.body, refusal.action
-          ? [{ text: '닫기', style: 'cancel' }, { text: refusal.action.label, onPress: () => router.push(refusal.action!.route) }]
-          : [{ text: '확인' }]);
-        return;
-      }
       Alert.alert('신청 실패',
         m.includes('format_closed') ? '이 세션은 위탁을 받지 않아요 — 보호자 동반 전용이에요'
         : m.includes('route_required') ? '이 세션엔 아직 코스가 없어요 — 호스트가 코스를 정하면 위탁 요금이 정해져요'

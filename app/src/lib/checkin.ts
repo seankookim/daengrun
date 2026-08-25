@@ -248,9 +248,9 @@ const TOKENS: CheckinToken[] = [
 
 /**
  * Pull §6's refusal token out of whatever PostgREST handed back. Not found → null, and the
- * caller falls back to its ordinary failure path (dangerous-copy.ts's contract, same reason:
+ * caller falls back to its ordinary failure path. `includes` rather than `===` because
  * `raise exception` reaches the client inside a longer message on some paths and bare on
- * others, so `===` matching silently loses one of them).
+ * others, so `===` matching silently loses one of them.
  */
 export function checkinTokenFrom(err: unknown): CheckinToken | null {
   const msg = (err as { message?: unknown } | null)?.message;
