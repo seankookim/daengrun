@@ -74,7 +74,12 @@ DROP, in order (each an explicit statement; `create or replace` cannot drop a tr
 
 ## 2. Slice A client + edge inventory (ui6 executes; SAME git landing as the migration)
 
-- **`dangerousRefusalFrom` call sites — SEVEN in SIX files** (v1 named three):
+- **`dangerousRefusalFrom` call sites — NINE in SIX files** (v1 named three; v2 said SEVEN and
+  was wrong **while its own enumeration below totalled nine** — `club/session` carries four, and
+  the prose contradicted the list beside it. Measured at implementation, 2026-08-25. The lesson
+  is not the number: a count written in prose next to an enumeration is a second source that can
+  drift from the first, and the enumeration is the one that was right. Where they disagree,
+  count the list.):
   `club/delegate/[sid].tsx:102` · `club/session/[sid].tsx` ×4 (:346/:373/:402/:670) ·
   `runner/requests.tsx:374` · `owner/request.tsx:564` · **`owner/meetup.tsx:255`** ·
   **`runner/meetup.tsx:258`**. ⚠ The two meetup files are DO-NOT-REFACTOR; the removal
@@ -96,7 +101,10 @@ DROP, in order (each an explicit statement; `create or replace` cannot drop a tr
 - **Edge:** `create-booking-hold/handler.ts:314-322` token→409 mapping removed; the function
   REDEPLOYED in the landing, version read back. `_test/booking_danger_token_test.ts`
   DELETED — it injects the refusal itself and would stay green forever pinning a behavior
-  the server can no longer produce (the unstated-scope class, live in the repo).
+  the server can no longer produce (the unstated-scope class, live in the repo). ⚠ Its real path
+  is `supabase/functions/_test/booking_danger_token_test.ts` — the tests sit in a SHARED `_test/`
+  directory at the functions root, not under each function. This contract said
+  `create-booking-hold/_test/…` and no such path exists; corrected at implementation.
 - Client copy: the 「무료로 크루 참가」-style surfaces are untouched; only 맹견 strings go.
 
 ## 3. Pre-slice census (ask production, don't infer)

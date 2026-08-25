@@ -189,6 +189,52 @@ anything reaches an environment · `/investigate` on a live defect · `/retro` a
 finding is a snapshot, so re-read before acting on it, and claim shared surfaces in REGISTRY's
 in-flight table (path-keyed, tree named) before a subagent edits one.
 
+🔴 **`git add … && git commit` IS UNSAFE WHILE ANY OTHER AGENT CAN WRITE YOUR TREE — use
+`git commit -- <explicit paths>`** (added 2026-08-25; failure measured, fix measured).
+
+**Two agents in one worktree share ONE git index.** `git add <named paths>` controls what you
+ADD; it does not un-stage what someone else already staged. A commit naming three files can
+silently carry another agent's staged work — including `git rm` deletions, which leave no dirty
+file behind to notice afterwards. It happened here: a suite-header commit swallowed four
+client-file deletions from a different slice, under a message that mentions none of them. **The
+tree was correct and only the attribution was wrong, which is exactly why nobody catches it** —
+no failing gate, no conflict, no dirty file, no symptom. The subagent reported it; the author
+did not notice and would not have.
+
+The claims table above cannot help: claims stop two sessions editing the same PATH, and here the
+paths never overlapped. The collision is in the INDEX, not the files.
+
+**THE FIX — mechanical, measured in a scratch repo on 2026-08-25:**
+```
+git commit -m "msg" -- path/one path/two      # commits ONLY those paths
+```
+With another agent's modification AND deletion sitting staged, `git add mine && git commit`
+produced a 3-file commit; `git commit -- mine` produced a 1-file commit **and left the other
+agent's staged work still staged**, untouched, for them to commit themselves. Prefer it always —
+it costs nothing when you are alone in the tree.
+
+⚠ **Know exactly what the pathspec form does, because its trap is in the same family as the bug
+it fixes:** it commits each named path's **WORKING-TREE** state and ignores the rest of the
+index. That is precisely why it is safe here — and precisely why it **must never be used to land
+a `git add -p` partial stage.** Measured separately (2026-08-25): with `staged-version` staged
+and `worktree-version` on disk, `git commit -- mine.txt` landed **worktree-version** and left the
+index clean — the deliberately staged subset was silently discarded, no warning. So: pathspec
+form when another agent can write your tree; plain `git add` + `git commit` when you are alone
+and staging a deliberate partial. Never the two habits mixed.
+
+⚠ **"It's only a reviewer, it can't write" is FALSE and is the belief that produced this bug.**
+An agent type without Edit/Write but **with Bash can write** — `echo >`, `git add`, `git commit`
+all run in your tree. A peer audited its own day, reported its reviewers "read-only by
+construction", then corrected itself: its `precision-reviewer` carries Bash, so its clean result
+measured that agent's BEHAVIOUR, not its capability. The criterion is **"can this agent write to
+my tree?", where Bash counts as YES** — never "does its type list Edit/Write". The only genuine
+by-construction safety is a sandbox that refuses writes (`codex exec -s read-only`); everything
+else is discipline, and by this file's own law discipline fails eventually.
+
+**The durable form, when you can pay for it:** give write-capable or Bash-carrying agents their
+OWN worktree (`isolation: "worktree"`), so the index they share is not the index you commit
+from. Then the timing question stops existing instead of having to be remembered.
+
 - Product ideas/brainstorming → /office-hours
 - Strategy/scope → /plan-ceo-review
 - Architecture → /plan-eng-review

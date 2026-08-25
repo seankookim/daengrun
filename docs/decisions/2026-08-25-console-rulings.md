@@ -174,10 +174,22 @@ Dispositions (recording session — NOT his words):
    commit WITHOUT the host's permission. `session_approve_dog`'s admission role, the P1
    hold-to-pay step, and the console admission queue RETIRE (deprecate-by-refusal per house
    doctrine). The spec had proposed admission survives; his question overrules it.
-4. **NO HOST PAIR-REALLOCATION — RULED, SUPERSEDES his own 14:26 tap** ("Give the host the
-   2-hour backstop", base-cooldown round). The later word governs: 재배정 retires; a bailed
-   runner returns the dog to the owner's re-pick / auto-connect; the incident path is
-   re-thought without a host matching pen. Both timestamps recorded; supersession explicit.
+4. **NO HOST PAIR-REALLOCATION — reverses his own earlier tap, and I am NOT treating that as
+   settled without him seeing it.** The earlier tap is **card 10, "Host recovery pen inside
+   T−2h" → "Give the host the 2-hour backstop", at 04:26:44Z** — not "14:26", and not the
+   base-cooldown round; both were mine and both were wrong, corrected here rather than
+   quietly. The subject matter DOES match: card 10's recovery pen is §6.6's 재배정, so this
+   afternoon's "pair reallocation functionality for the host? is that really necessary, i
+   dont think so" is about the same object he approved this morning.
+   ⚠ **But he phrased it as a question with an opinion, not as an instruction**, and it
+   reverses something he had explicitly tapped Approve on hours earlier. Two readings are
+   live: (a) he has changed his mind and the pen retires, (b) he is asking why it exists and
+   would keep it if told. The recording session's judgement is (a) — "i dont think so" is a
+   view, not a request for a briefing — **but a reversal of his own explicit approval is
+   exactly the thing that must not be executed on an inference.** So: the spec is re-scoped
+   as (a), no implementation slice may build against it, and the question goes to the console
+   for him to confirm in one tap. If he confirms, this becomes a settled ruling and card 10
+   is superseded; if not, §6.6 stands unchanged and only this note is discarded.
 5. **Instagram-like profiles with posts, reachable by tapping names** — the first words of
    his deferred community/account commentary; a NEW spec lane, not a club-v2 bolt-on.
    Parked as its own future spec with this verbatim as the seed.
