@@ -6,6 +6,7 @@ import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, MyRunnerStatus, OpenRequest, RescheduleRequest } from '../../src/lib/api';
+import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -209,6 +210,11 @@ export default function Requests() {
       Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요');
       router.push('/runner/meetup');
     } catch (e) {
+      // [0119] 맹견 게이트는 배정·수락에서도 뜬다 (F1). 러너에게는 고칠 수 있는 일이 없으므로
+      // 문 없는 사실 하나만 말한다 — 「수락 실패 · dog_dangerous_undeclared」로 내보내면
+      // 러너는 자기가 뭘 잘못했는지 찾다가 재시도만 반복한다.
+      const refusal = dangerousRefusalFrom(e, 'runner');
+      if (refusal) { Alert.alert(refusal.title, refusal.body); load(); return; }
       Alert.alert('수락 실패', (e as Error).message);
       load();
     } finally {

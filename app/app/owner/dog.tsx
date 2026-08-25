@@ -1,8 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
+import { addDog, DangerousBasis, DangerousStatus, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { CollarKey, collarColors, collarLabels, layout, paper } from '../../src/theme';
@@ -55,16 +55,42 @@ export default function DogProfileScreen() {
   const [vaccines, setVaccines] = useState<string[]>([]);
   const [collar, setCollar] = useState<CollarKey | null>(null); // 칼라 컬러 (0033)
   const [paceSuggest, setPaceSuggest] = useState<number>(nearestPaceOption(null)); // 권장 최소 페이스 sec/km
+  // [0119] 맹견 신고. `undeclared` 는 결함이 아니라 '아직 묻지 않았다'는 정상 상태다.
+  const [danger, setDanger] = useState<DangerousStatus>('undeclared');
+  const [basis, setBasis] = useState<DangerousBasis | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // ⚠ [0119 re-verdict F3] "untouched" means THE OWNER DID NOT EDIT THE FIELD — which is a fact
+  // about strings, not about parsed values. The first fix compared parsed numbers, and parsing is
+  // exactly where the two diverge: retyping a legacy 95 as "95.0" parses back to 95, read as
+  // untouched, and a freshly TYPED out-of-policy value walked around the guard. The hydrated RAW
+  // strings are kept here and untouched = exact string equality against them. Retype the same
+  // number in different clothes and you typed it; leave the field alone and it round-trips.
+  const initRef = useRef({ name: '', birth: '', weight: '' });
+  // ⚠ [re-verdict item 5, round 2] The baseline guard needs the SCREEN's current dog, and inside
+  // save()'s closure there is no such thing: the closure's `dog` is frozen at render, and savedId
+  // was derived FROM it, so `dog.id === savedId` compared a value with itself and always passed.
+  // A's completion then overwrote initRef while the screen showed B — resurrecting the F3 failure
+  // (B's untouched legacy whitespace name / 95kg read as freshly typed) through the baseline
+  // instead of the patch. A ref is the one thing an await can read at completion TIME rather than
+  // at capture time; selectDog is its only writer, same as initRef.
+  const activeIdRef = useRef<string | null>(null);
   const selectDog = (d: DogProfile) => {
+    activeIdRef.current = d.id;
+    initRef.current = {
+      name: d.name,
+      birth: d.birthDate ?? '',
+      weight: d.weightKg != null ? String(d.weightKg) : '',
+    };
     setDog(d);
     setName(d.name);
     setBreed(d.breed ?? '');
     setBirth(d.birthDate ?? '');
     setWeight(d.weightKg != null ? String(d.weightKg) : '');
     setNeutered(d.neutered);
+    setDanger(d.dangerousStatus);
+    setBasis(d.dangerousBasis);
     setMemo(d.memo ?? '');
     setTags(d.prefTags);
     setVaccines(d.vaccines);
@@ -114,8 +140,10 @@ export default function DogProfileScreen() {
       });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       setUploading(true);
-      const url = await uploadDogPhoto(dog.id, res.assets[0].base64);
-      setDog((d) => (d ? { ...d, photoUrl: url } : d));
+      const photoDogId = dog.id;   // [F5] same race shape as save() — key the adoption
+      const url = await uploadDogPhoto(photoDogId, res.assets[0].base64);
+      setDogs((ds) => ds.map((x) => (x.id === photoDogId ? { ...x, photoUrl: url } : x)));
+      setDog((d) => (d && d.id === photoDogId ? { ...d, photoUrl: url } : d));
     } catch (e) {
       Alert.alert('업로드 실패', (e as Error).message);
     } finally {
@@ -128,24 +156,94 @@ export default function DogProfileScreen() {
 
   const save = async () => {
     if (!dog) return;
-    if (!name.trim()) { Alert.alert('이름을 입력해주세요'); return; }
+    // [F5] the identity this save belongs to — every state write below is keyed to it, because the
+    // owner can switch dogs while the await is in flight and an unkeyed updater would stamp dog A's
+    // snapshot onto dog B (measured shape in the re-verdict; a data race, not mere staleness).
+    const savedId = dog.id;
+    const nameUntouched = name === initRef.current.name;
+    const birthUntouched = birth === initRef.current.birth;
+    const weightUntouched = weight === initRef.current.weight;
+    // ⚠ [F3] `dogs.name` is `text not null` with NO non-empty CHECK (0001:37), so a whitespace name
+    // is a database-legal legacy state — and this guard used to hard-block it BEFORE the mandatory
+    // declaration below, which made that owner unable to answer at all. Untouched → not ours to
+    // re-litigate; typed → still required.
+    if (!nameUntouched && !name.trim()) { Alert.alert('이름을 입력해주세요'); return; }
     const w = weight.trim() ? Number(weight) : null;
-    if (weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
-    if (birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
+    // ⚠ [0119 F2] THESE GUARDS ONLY JUDGE WHAT THE OWNER ACTUALLY TYPED, and that is a fix, not a
+    // loosening. `dogs.weight_kg` is `numeric(4,1)` with NO check constraint, so 95.0 is a perfectly
+    // legal stored value while this screen refuses anything over 90 — the client has always been
+    // stricter than the database. That was harmless while saving was optional. It stops being
+    // harmless the moment the declaration below becomes MANDATORY: an owner whose dog has sat at
+    // 95kg since before this rule existed could not save 「맹견 아님」 without first falsifying or
+    // deleting a valid weight, and until they save it their bookings are refused. That is an outage
+    // aimed exactly at the legacy population the no-backfill decision was written to protect.
+    // So: a value the owner did not touch is not theirs to re-litigate. A value they DID type is
+    // still checked, which is what these guards were for.
+    if (!weightUntouched && weight.trim() && (Number.isNaN(w) || w! <= 0 || w! > 90)) { Alert.alert('몸무게를 확인해주세요', 'kg 숫자로 입력해요 (예: 6.5)'); return; }
+    if (!birthUntouched && birth.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birth.trim())) { Alert.alert('생일 형식', 'YYYY-MM-DD 형식으로 입력해주세요 (예: 2021-03-15)'); return; }
+    // ⚠ [0119] 신고는 선택 항목이 아니다. 답이 없으면 서버가 예약 자체를 거절하므로(그리고 기존
+    // 반려견에 대한 백필은 일부러 하지 않았다), 답 없이 저장하면 '저장은 됐는데 예약이 안 되는'
+    // 상태로 내보내는 것이 된다. 여기서 막고 이유를 말하는 편이 정직하다.
+    if (danger === 'undeclared') {
+      Alert.alert('맹견 여부를 알려주세요', '동물보호법상 맹견은 러너에게 맡길 수 없어요. 답하지 않으면 예약을 만들 수 없어서 먼저 여쭤봐요.');
+      return;
+    }
+    // 짝이 맞지 않는 신고는 DB CHECK 가 거절한다 — 400 을 받아 '저장 실패'로 보여주기 전에 막는다.
+    if (danger === 'declared_dangerous' && !basis) {
+      Alert.alert('어떤 경우인지 알려주세요', '법정 견종인지, 기질평가로 지정받았는지 골라주세요.');
+      return;
+    }
     setSaving(true);
     try {
-      await updateMyDog(dog.id, {
-        name: name.trim(),
+      await updateMyDog(savedId, {
+        // Untouched fields are OMITTED from the patch entirely (undefined drops at JSON.stringify),
+        // so a database-legal legacy value the owner never edited round-trips byte-identical
+        // instead of being laundered through this screen's parsing.
+        name: nameUntouched ? undefined : name.trim(),
         breed: breed.trim() || undefined,
-        birth_date: birth.trim() || null,
-        weight_kg: w,
+        birth_date: birthUntouched ? undefined : (birth.trim() || null),
+        weight_kg: weightUntouched ? undefined : w,
         neutered: neutered ?? undefined,
         memo: memo.trim() || undefined,
         prefTags: tags,
         vaccines,
         collar,
         paceSuggestSec: paceSuggest,
+        // 짝으로만 보낸다 (api.ts 의 union 이 그 외의 조합을 타입에서 막는다).
+        dangerous: danger === 'declared_dangerous'
+          ? { status: 'declared_dangerous', basis: basis! }
+          : { status: 'declared_none' },
       });
+      // ⚠ [0119 F4] ADOPT THE WRITE WE JUST MADE. `dog` is the screen's record of SERVER truth and
+      // the §F latch reads it (`dog?.dangerousStatus === 'declared_dangerous'`), so leaving it stale
+      // means: declare 맹견, save successfully, and the 「맹견이 아니에요」 chip stays enabled and the
+      // irreversible-warning stays hidden — until a remount. The owner then taps a control this
+      // screen was designed to disable and gets a server refusal instead. Same disabled-control-
+      // with-a-reason rule as everywhere else, applied one state later.
+      // Only fields this save actually wrote are adopted; nothing here invents a server value.
+      // ⚠ [F5] Adoption is keyed to savedId AND applied to the COLLECTION, both halves measured:
+      // (a) without the id guard, switching dogs mid-save stamped A's snapshot onto B (the race);
+      // (b) without the collection write, switching away and back re-hydrated A's PRE-save row
+      //     from `dogs` and re-enabled the control the §F latch had just locked.
+      const adopt = (cur: DogProfile): DogProfile => ({
+        ...cur,
+        name: nameUntouched ? cur.name : name.trim(),
+        birthDate: birthUntouched ? cur.birthDate : (birth.trim() || null),
+        weightKg: weightUntouched ? cur.weightKg : w,
+        dangerousStatus: danger,
+        dangerousBasis: danger === 'declared_dangerous' ? basis : null,
+      });
+      setDogs((ds) => ds.map((x) => (x.id === savedId ? adopt(x) : x)));
+      setDog((cur) => (cur && cur.id === savedId ? adopt(cur) : cur));
+      // the saved values are the new hydration baseline — only when the screen STILL shows this
+      // dog at completion time (activeIdRef), never per the closure's snapshot (see the ref above).
+      if (activeIdRef.current === savedId) {
+        initRef.current = {
+          name: nameUntouched ? initRef.current.name : name.trim(),
+          birth: birthUntouched ? initRef.current.birth : (birth.trim() || ''),
+          weight: weightUntouched ? initRef.current.weight : (w != null ? String(w) : ''),
+        };
+      }
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
       Alert.alert('저장 실패', (e as Error).message);
@@ -278,11 +376,85 @@ export default function DogProfileScreen() {
               {collar ? `${collarLabels[collar]} — 일정·카드에서 이 색으로 보여요` : '고르면 일정·카드에서 이 색으로 보여요 (선택)'}
             </Text>
 
+            {/* [merge 2026-08-25] 맹견 섹션의 원래 앵커(권장 최소 페이스 섹션 헤더)는 D① 재구성이
+                지웠다. 새 자리는 프로필 기본값(칼라까지)과 ② 러닝 설정 사이 — 법적 게이트는 취향
+                섹션보다 앞선다는 원래 배치 논리 그대로다. 섹션 본문은 0119 쪽을 그대로 계승한다
+                (F3/F5 의 untouched 추적·잠금 문구 포함). */}
+            {/* ═══ 맹견 신고 (0119) ═══════════════════════════════════════════════════════
+                자기 섹션을 갖는 이유: 이건 취향이 아니라 법적 게이트다. 답이 없으면 서버가
+                예약 INSERT 와 인계 방향 전이를 전부 거절한다.
+                ⚠ 이 화면은 판정하지 않는다 — 보호자의 진술을 받을 뿐이다 (특허 설계 게이트:
+                학습 모델도, 점수도, 견종 추론도 없다. 이진 질문 하나).
+                ⚠ `undeclared` 는 막다른 길이 아니라 '아직 안 물어봤다'이고, 그래서 문구는
+                거절이 아니라 요청이다. */}
+            <View style={s.secRule} />
+            <Text style={s.secH}>맹견 여부</Text>
+            <Text style={s.dangerIntro}>
+              동물보호법상 맹견은 러너에게 맡길 수 없어요. 한 번만 여쭤봐요.
+            </Text>
+            <View style={s.dangerRow} accessibilityRole="radiogroup" accessibilityLabel="맹견 여부">
+              {([['declared_none', '맹견이 아니에요'], ['declared_dangerous', '맹견이에요']] as const).map(([v, label]) => {
+                const on = danger === v;
+                // 신고는 한 방향으로 잠긴다 (0119 §F): 맹견으로 신고한 뒤에는 화면에서 되돌릴 수
+                // 없다. 서버가 거절할 버튼을 그려두면 그게 죽은 버튼이므로, 아예 비활성으로 두고
+                // 아래에서 사유를 말한다.
+                const locked = dog?.dangerousStatus === 'declared_dangerous' && v === 'declared_none';
+                return (
+                  <Pressable
+                    key={v}
+                    onPress={() => { if (locked) return; setDanger(v); if (v === 'declared_none') setBasis(null); }}
+                    disabled={locked}
+                    style={[s.neuterChip, on && { backgroundColor: paper.ink, borderColor: paper.ink }, locked && s.chipLocked]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    accessibilityLabel={label}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? '#fff' : locked ? paper.faint : paper.ink }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {danger === 'declared_dangerous' && (
+              <>
+                <Text style={s.label}>어떤 경우인가요</Text>
+                <View style={s.dangerRow} accessibilityRole="radiogroup" accessibilityLabel="맹견 지정 근거">
+                  {([['listed_breed', '법정 견종'], ['designated', '기질평가 지정']] as const).map(([v, label]) => {
+                    const on = basis === v;
+                    return (
+                      <Pressable
+                        key={v}
+                        onPress={() => setBasis(v)}
+                        style={[s.neuterChip, on && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={label}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: on ? '#fff' : paper.ink }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+            {/* 결과를 숨기지 않는다. 다만 '허가증을 내면 된다'는 암시는 절대 하지 않는다 —
+                입마개·맹견사육허가·책임보험을 확인할 수단이 이 제품에 없고, 확인자 없는 조건은
+                양식일 뿐이다 (0119 REGISTRY 의 판단, Sean 미결). 대신 실제로 열려 있는 문 하나만
+                말한다: 클럽 동반 참여는 막히지 않는다. */}
+            {danger === 'declared_dangerous' && (
+              <Text style={s.dangerNote}>
+                맹견은 러너에게 맡기는 예약을 만들 수 없어요. 보호자님이 함께 가는 클럽 동반 참여는 그대로 이용할 수 있어요.
+              </Text>
+            )}
+            {dog?.dangerousStatus === 'declared_dangerous' && (
+              <Text style={s.dangerNote}>
+                맹견 신고는 화면에서 되돌릴 수 없어요. 잘못 고르셨다면 고객센터로 알려주세요.
+              </Text>
+            )}
+
             {/* ── ② 러닝 설정 ──
                 권장 최소 페이스 (pace-state-ui-plan §4) — 러닝 중 페이스 신호의 기준.
                 섹션 이름이 '러닝 설정'으로 올라가고, 항목 이름은 아래 헬퍼 첫 낱말이 가져간다.
-                저장은 여전히 화면 하단 버튼 1개. */}
-            <View style={s.secRule} />
+                저장은 여전히 화면 하단 버튼 1개. */}            <View style={s.secRule} />
             <Text style={s.secH}>러닝 설정</Text>
             <View style={s.paceRow} accessibilityRole="radiogroup" accessibilityLabel="권장 최소 페이스">
               {PACE_OPTIONS.map((o) => {
@@ -423,6 +595,12 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
   paceChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
+  // [0119] 신고 섹션. 14pt 바닥 준수 — 법적 고지를 장식 클래스로 내리지 않는다.
+  dangerRow: { flexDirection: 'row', gap: 8 },
+  dangerIntro: { fontSize: 14, lineHeight: 19, color: paper.dim, marginBottom: 11 },
+  dangerNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 },
+  // 잠긴 칩은 명시 fill — 불투명도 트릭 금지 (DESIGN.md, disabledFill 이 그 법의 물화).
+  chipLocked: { backgroundColor: paper.disabledFill, borderColor: paper.disabledFill },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,
