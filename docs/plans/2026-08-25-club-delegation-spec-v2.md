@@ -20,16 +20,20 @@ several design-breaking; every one is answered in-text below and logged in §15.
 Decisions Sean has not made are 🔴 (§14). Proposals this spec makes on its own authority are 🔵
 — reversible in one word.
 
-Status: DRAFT **v2.4** — both blind rounds folded in (Claude voice: 15 findings; codex voice: 9
+Status: DRAFT **v2.5** — both blind rounds folded in (Claude voice: 15 findings; codex voice: 9
 findings; dispositions in §15), then **re-scoped 2026-08-25 evening by Sean's sixth-round
-rulings** (§16) and amended the same evening by his **seventh round** — the club sign-up setup
-screen (§16.7). Nothing here is built.
+rulings** (§16), amended the same evening by his **seventh round** — the club sign-up setup
+screen (§16.7) — and **v2.5: §16.3's drafted retirement of the host recovery pen is WITHDRAWN**,
+because he confirmed at `2026-08-25T09:03:48.227Z` that the pen stays (§16.3). Nothing here is
+built.
 
 ⚠ **READ §16 FIRST.** Four of his rulings change this machine. One REVERSES a position this
-document argued for at length (§4.2, host admission) and is settled. **One — §16.3, the host
-recovery pen — is PROVISIONAL: it reverses his OWN explicit approval (console card 10, 04:26:44Z)
-and arrived as a question carrying an opinion, so it awaits one confirming tap and NO slice builds
-against it.** §6.6's superseded text is preserved verbatim at §6.6-orig. Every section touched
+document argued for at length (§4.2, host admission) and is settled. **One — §16.3, the retirement
+of the host recovery pen — was never executed: it reversed his OWN explicit approval (console
+card 10, 04:26:44Z), so it was held PROVISIONAL, put back to him, and he answered
+「keep host reassignment functionality when such cases happen for that pair. if no one can, the
+host can take care.」 (09:03:48Z). §6.6 therefore stands as originally written, and §16.3 is now
+an amendment record of a withdrawn amendment rather than a live change.** Every section touched
 carries an inline `[AMENDED 2026-08-25 · §16.n]` marker. Where a ruling collides with money or
 custody correctness the collision is stated in §16 as a collision, not smoothed away.
 
@@ -110,8 +114,8 @@ C9-C14). The 맹견 gate fires at P0 (INSERT) and at every custody-bound move ex
 zero 0119 changes, and §7.1's stamp design is chosen specifically so that stays true (§13 C28).
 
 **What actually changed vs today, in one sentence each:**
-1. The chooser at P3 is the owner or the platform; the host keeps only a marked recovery role
-   (§6.6, 🔵/🔴).
+1. The chooser at P3 is the owner or the platform; the host keeps only a recovery role
+   (§6.6 — RULED 2026-08-25 09:03:48Z, the pen stays).
 2. P5-P7 are new legs: custody starts at the owner's door and the dog travels to the start
    inside the runner's custody (§7).
 3. P9→P10 inverts today's automatic `completed → return_pending` (0045:55-59): the return leg
@@ -211,7 +215,7 @@ in §16.1 is display and copy.
 | Owner | per-session mode fork; Mode B pick + pick withdrawal; per-pairing pickup mode; custody timeline visibility | nothing | `session_dogs.owner_profile_id`; shell `limited/full` (0049:9) |
 | Paired runner | approves picks made days ahead; a self-exit lever (§6.2); door pickup; transit custody; per-dog finish; return leg | being chosen at the scene | `session_runner_assignments` commit (0043:217); tier cap (0037:37) |
 | Dogless companion | board visibility; ride-along | — (never paid — ruled) | `session_rsvp(dog:=null)` → `session_people(role='runner_attending')` (0048:181) — §4.4 |
-| Host **[AMENDED · §16.2, §16.3]** | run-end confirmation; session lifecycle (kept); force-resolve/override/cases (kept, with widened phases §7.6); materiality re-review (kept — safety, §4.2); `session_assignment_revoke` (kept — un-pair, but **no re-pair**) | choosing runners **at all** (§6.6 as amended — ⚠️ PROVISIONAL, §16.3) · **admission: approve AND reject** (§4.2 as amended) · the recovery pen (§6.6 as amended — ⚠️ PROVISIONAL, §16.3) · the club's only exclusion lever, with nothing replacing it (§4.2c ②) | `host_profile_id`; backup-host asymmetries per §14.5 (a money-routing question, not just permissions) |
+| Host **[AMENDED · §16.2]** | run-end confirmation; session lifecycle (kept); force-resolve/override/cases (kept, with widened phases §7.6); materiality re-review (kept — safety, §4.2); `session_assignment_revoke` (kept — un-pair, §6.6a); **the recovery pen (KEPT — §6.6; RULED 09:03:48Z, §16.3)** | the PRIMARY matching role — the chooser at P3 becomes the owner or the platform (§6.1), and the pen survives only as recovery inside `[T−2h, T+6h]` (§6.6) · **admission: approve AND reject** (§4.2 as amended) · the club's only exclusion lever, with nothing replacing it (§4.2c ②) | `host_profile_id`; backup-host asymmetries per §14.5 (a money-routing question, not just permissions) |
 | Club member (non-party) | the sanitized board (§9) — with its readership honestly stated (🔴 14.9) | — | NEW projection; today they see the `session` object only (0053:229-249 emits it ungated) |
 
 ---
@@ -228,13 +232,21 @@ exists to keep this true).
 
 RULED 2026-08-25 evening (sixth round — §16, verbatim at
 `docs/decisions/2026-08-25-console-rulings.md:158-165`): **the session runs as one pack** ·
-**no host approval of owners or runners** (this REVERSES §4.2's original argument) · **no host
+**no host approval of owners or runners** (this REVERSES §4.2's original argument) ·
 Instagram-style profiles are their own future lane, parked at
-`docs/plans/2026-08-25-profiles-lane-seed.md`. ⚠️ **NOT ruled — PROVISIONAL, pending one
-confirming tap: no host pair-reallocation** (§16.3), because it reverses his own explicit
-approval on console card 10 at 04:26:44Z and arrived as a question carrying an opinion rather
-than an instruction. §6.6 is re-scoped as retired and marked provisional; its original text is
-preserved at §6.6-orig.
+`docs/plans/2026-08-25-profiles-lane-seed.md`.
+
+RULED 2026-08-25 **09:03:48Z** (console card `host-realloc-confirm`, verbatim at
+`docs/decisions/2026-08-25-console-rulings.md:277`): **「keep host reassignment functionality when
+such cases happen for that pair. if no one can, the host can take care.」** — **the host's pair
+reassignment STAYS.** This settles, in favour of his own 04:26:44Z approval, the question his
+sixth round opened (*"pair reallocation functionality for the host? is that really necessary, i
+dont think so"*). §6.6 stands as originally written and §16.3's drafted retirement is withdrawn
+— see §16.3 for the approve → doubt → confirm sequence. ⚠️ Two things this ruling does NOT settle,
+both measured and recorded at §6.6c rather than reconciled away: the shipped
+`session_assignment_revoke` returns the booking to the matching POOL rather than handing it to a
+runner the host picks, and his last-resort clause 「if no one can, the host can take care」 has no
+mechanism today and is unpriced.
 
 RULED 2026-08-25 evening (seventh round — §16.7, verbatim there): **the club sign-up flow is a
 setup screen** (self-run vs request-a-runner → pickup point → session details → return point) ·
@@ -246,7 +258,9 @@ monitors pickup statuses** (§10.2a).
 
 PROPOSED by this spec (🔵, each reversible): per-pairing pickup mode {door, start-point} (§7.2)
 · pick TTL 2h with lapse-back (§6.3) · the three unconditional escape hatches for
-`finished_pending_host` (§7.6) · host recovery-propose window (§6.6) — ⚠️ **re-scoped to RETIRED by §16.3, PROVISIONALLY** (preserved at §6.6-orig; restored if he declines the reversal) ·
+`finished_pending_host` (§7.6) · host recovery-propose window (§6.6) — **RETAINED**; the drafted
+§16.3 retirement is withdrawn (RULED 09:03:48Z), and the window itself remains this spec's own
+🔵 proposal ·
 companions = runner-tier RSVP (§4.4) · Mode C pilot inputs and their new CHECK bounds (§6.5) ·
 mode-switch fee copy (§5.3) · address at T−24h, area band at pairing (§8) · **[NEW, §16.2]**
 `approval='approved'` at sign-up (§4.2b) · **[NEW, §16.2]** re-keying the `full` shell grade from
@@ -311,8 +325,10 @@ kept below only where it names something the ruling now leaves uncovered.
   read `approval = 'approved'` (`0048:232`) — under 4.2b that predicate becomes true one step
   earlier, which is a widening in the *safe* direction (more dogs re-reviewed, never fewer).
 - **`session_assignment_revoke`** (`0057:158-185`, host-only at `:168`) — dissolving a pairing
-  before handoff. It is not admission and Sean's ruling does not touch it. But see §6.6 as
-  amended: ruling §16.3 would remove the host's ability to *re-pair* after dissolving — ⚠️ PROVISIONAL.
+  before handoff. It is not admission and Sean's ruling does not touch it. The host's ability to
+  *re-pair* after dissolving also survives (§6.6, RULED 09:03:48Z). ⚠️ But what this function
+  actually does on revoke is return the booking to the matching POOL — not hand it to a runner the
+  host picks (`0057:177-179`, measured). That gap between the ruling and the mechanism is §6.6c.
 - **The `approval` COLUMN itself** (`session_dogs.approval`, `0030:87`, widened `0048:73-75`).
   Retire the ACTOR, keep the COLUMN — see 4.2b.
 
@@ -592,10 +608,10 @@ S3 re-specifies it (🔵, a behavior change to a shipped function, its pins upda
   committed runner pairs themselves, both-stamps their own handoff (the edge fn supports one
   account on both sides, index.ts:305-312), and collects the runner payout — or the supply
   half of their own cancel fee — on a booking they own (round-1 F5, both paths). Refusal pins
-  on both RPCs. ⚠️ [AMENDED · §16.3, PROVISIONAL] the clause that followed — "the host recovery
-  propose (§6.6) keeps its shipped self-proposal semantics" — holds only if Sean declines the
-  reversal; under the re-scope `session_propose_dog` and its self-proposal arm (`0048:492-503`)
-  both retire, so there is no surviving self-proposal path at all.
+  on both RPCs. The host recovery propose (§6.6) keeps its shipped self-proposal semantics —
+  `session_propose_dog` and its auto-accepting self-proposal arm (`0048:492-503`) survive inside
+  the recovery window, which is the "host covers at the scene" path. (§16.3 drafted their
+  retirement; that amendment is withdrawn — RULED 09:03:48Z.)
 - The runner's accept gate — the part Sean kept ("which the runner can approve") — is
   byte-identical, including the load re-check `load − 1 ≥ cap → runner_cap_full` (0057:126).
 
@@ -611,9 +627,8 @@ Today's propose gates assume the meetup: assign window `[T−2h, T+6h]` (0048:45
 `runner_not_checked_in` (0048:465-467). A pick made days early can satisfy neither. v2:
 
 - **Window**: picks open at session creation and close at `scheduled_at`. The T−2h..T+6h
-  window RETAINS one job: check-in. ⚠️ [AMENDED · §16.3, PROVISIONAL] it also bounded the
-  host-side *recovery* propose, which the re-scope retires; if Sean declines the reversal that
-  second job returns with §6.6-orig.
+  window RETAINS two jobs: check-in, and bounding the host-side *recovery* propose (§6.6, which
+  stays — RULED 09:03:48Z).
 - **Checked-in**: dropped for picks; replaced by `committed` (`runner_not_committed`,
   0048:464) + cap headroom + the 0119 gate + §6.5's hard filters. The runner's physical
   presence obligation moves to P5/P7 (§7.4).
@@ -723,65 +738,34 @@ dependency.
 **Counsel rider**: Mode C ships behind the intermediary-status brief (Sean's accepted rider).
 S6 is sequenced last for exactly this reason (§12).
 
-### 6.6 The recovery pen — **RETIRED, PROVISIONALLY** [AMENDED 2026-08-25 · §16.3]
+### 6.6 The recovery pen — **KEPT** [RULED 2026-08-25 09:03:48Z · §16.3 withdrawn]
 
-⚠️ **PROVISIONAL — PENDING SEAN'S CONFIRMATION. This is the ONE amendment in §16 that rests on a
-reversal of his own explicit prior approval, and he has not re-confirmed it. The other three
-(§16.1 pack model, §16.2 no host approval, §16.4 profiles lane) were instructions and are not
-provisional. No implementation slice may build against this section until he taps.**
+**The host's residual matching role: recovery only (🔵 — and RULED, 14.10).**
 
-His words (sixth round, same paragraph, `docs/decisions/2026-08-25-console-rulings.md:158-165`):
+When a pick lapses inside T−2h, or a pairing dissolves at the meetup (revoke, decline,
+no-show), someone must cover NOW. This spec proposes the host regains the propose pen **only
+inside the old window [T−2h, T+6h]** and only for dogs at P2 — `session_propose_dog` survives
+with its gate narrowed to that recovery window. Board copy names it 재배정, distinct from
+picks. The window itself remains a 🔵 proposal; **that the host has the pen at all is now RULED**,
+not proposed.
 
-> "pair reallocation functionality for the host? is that really necessary, i dont think so."
+**Provenance, because this section was drafted retired and then restored.** §16.3 drafted the
+pen's retirement off his sixth-round *"pair reallocation functionality for the host? is that
+really necessary, i dont think so"*, held it PROVISIONAL because it reversed his own
+04:26:44Z approval of console card 10, and put the question back to him. He answered on the
+console at `2026-08-25T09:03:48.227Z`:
 
-**Why it is provisional, stated exactly** (the recording session's own reasoning, at
-`docs/decisions/2026-08-25-console-rulings.md:172-188`): earlier the same day he tapped
-**"Give the host the 2-hour backstop"** on **console card 10, "Host recovery pen inside T−2h",
-at 04:26:44Z** (`docs/decisions/2026-08-25-console-rulings.md:20`). The subject matter matches —
-card 10's recovery pen IS this section's 재배정 — so the two are about the same object. But the
-later word is **phrased as a question carrying an opinion, not as an instruction**, and two
-readings are live: (a) he has changed his mind and the pen retires; (b) he is asking why it
-exists and would keep it if told. The recording session's judgement is (a) and this spec is
-re-scoped as (a) — but a reversal of his own explicit approval must not be EXECUTED on an
-inference, so the question is on the console for him to confirm in one tap. **If he confirms,
-card 10 is superseded and this section becomes settled. If he does not, §6.6-orig below is
-restored unchanged and only the markers are discarded.** §14.10 carries the same marker.
+> "keep host reassignment functionality when such cases happen for that pair. if no one can, the
+> host can take care."
 
-**§6.6b's honest account of what the pen was covering is the load-bearing part of this
-section right now** — it is what he needs in front of him to answer.
+So the pen stays, and §16.3 is now a record of a withdrawn amendment. The full sequence and why
+it cost a marker change rather than a rebuild is in §16.3; the ruling's own record is
+`docs/decisions/2026-08-25-console-rulings.md` (eighth and ninth rounds).
 
-#### 6.6-orig — the SUPERSEDED text, preserved verbatim (restore target if he says keep the pen)
+⚠️ **His answer is NOT fully expressed by the shipped mechanism, and §6.6c states that gap as a
+gap.** Read §6.6c before implementing anything in this section.
 
-> **The host's residual matching role: recovery only (🔵 — and 🔴 14.10).**
->
-> When a pick lapses inside T−2h, or a pairing dissolves at the meetup (revoke, decline,
-> no-show), someone must cover NOW. This spec proposes the host regains the propose pen **only
-> inside the old window [T−2h, T+6h]** and only for dogs at P2 — `session_propose_dog` survives
-> with its gate narrowed to that recovery window. Board copy names it 재배정, distinct from
-> picks. This is a 🔵 proposal wearing a 🔴 (14.10): Sean's words were "replace" and "instead of
-> the host", and a recovery window is a residue of the replaced thing — he may prefer owner-only
-> re-picks with no host pen at all. The kill-criterion fallback (§12) is likewise HIS choice,
-> not this spec's default.
-
-Restoring 6.6-orig means: keep `session_propose_dog` with the narrowed window (§11's original
-row), keep the console chip grid behind a recovery gate, keep §14.10 as approved, and discard
-§6.6a/§6.6b and C43's re-copy. Nothing else in §16 depends on this section.
-
-#### The retirement as re-scoped (reading (a))
-
-The superseded proposal was: the host regains `session_propose_dog` inside `[T−2h, T+6h]`, board
-copy 재배정. **All of it retires.** `session_propose_dog` (`0048:441`, host-only at `:452`)
-deprecates by refusal, and with it goes the auto-accepting self-proposal arm (`0048:492-503`) —
-the "host covers at the scene" path. Its one client caller is the console chip grid
-(`console/[sid].tsx:167-186`, `doPropose` at `:174`, grid at `:445-460`, proposed rows
-`:465-490`); `api.ts:3677-3678` `proposeDog` goes with it. `session_proposal_revoke`
-(`0047:201-218`, host-only at `:210`) keeps only the widened owner-author arm from §6.2.
-
-#### 6.6a The bail path, re-derived without a pen
-
-Sean's replacement, in his words: the dog goes back to the owner. Mechanically that is the
-ladder walking backwards to **P2**, from which the owner's own re-pick (§6.1 `session_pick_runner`)
-or auto-connect (§6.5 `session_auto_pick`) is the only door. Per entry point:
+#### 6.6a Bail shapes — where each one lands, and who acts next
 
 | Bail shape | Mechanism (unchanged) | Lands at | Who acts next |
 |---|---|---|---|
@@ -789,52 +773,86 @@ or auto-connect (§6.5 `session_auto_pick`) is the only door. Per entry point:
 | Pick TTL lapses | `club_assignment_recovery` ②, `0068:41-57` | P2 | owner |
 | Owner withdraws their own pick | `session_proposal_revoke`, gate widened §6.2 | P2 | owner |
 | Runner self-exits a pairing | `session_assignment_revoke`, gate widened §6.2; strike at `0057:174` | P2 | owner |
-| Host dissolves a pairing (runner gone dark) | `session_assignment_revoke`, `0057:158-185`, host arm KEPT | P2 | **owner** — the host can un-pair but can no longer re-pair |
+| Host dissolves a pairing (runner gone dark) | `session_assignment_revoke`, `0057:158-185`, host arm KEPT | P2 | owner re-picks; **or the host, inside the recovery window (§6.6)** — but see §6.6c on what the shipped function actually does |
 | Runner no-show at the door | §7.4's predicate; pairing dissolves at run-end confirmation | refund arm | — |
 
-Two copy strings become **dead instructions** the moment the pen retires, and both are server
-notification bodies, so no screen edit reaches them:
+Three copy strings were flagged as dead instructions while §16.3's retirement was drafted. **With
+the pen restored, two of them are correct again inside the recovery window** — the host really can
+propose again — and the residual is narrower than the retirement made it look:
 
 - `0068:51-53` — the lapse notification goes to the **host** with 「제안이 응답 없이 만료됐어요
-  — 다시 제안하세요」 ("propose again"). Recipient and copy both move to the **owner**.
-- `0068:71-75` — the T−30 runner-late alarm tells the host 「교체 제안을 준비하세요」 ("prepare a
-  replacement proposal"). No such action exists any more. Re-copy, and 🔵 add the owner as a
-  recipient, since the owner is now the only actor who can respond.
-- Client: `console/[sid].tsx:432` renders 「거절됨 — 다른 러너에게 제안하세요」 — same class.
+  — 다시 제안하세요」 ("propose again"). Correct for a lapse inside `[T−2h, T+6h]`. ⚠️ Residual: a
+  **v2 owner-authored pick** that lapses OUTSIDE that window tells the host to do something only
+  the owner can do there. 🔵 add the owner as a recipient; the recipient does not move.
+- `0068:71-75` — the T−30 runner-late alarm 「교체 제안을 준비하세요」 is inside the window by
+  construction (T−30 < T−2h is false — T−30 is *within* the window), so it is correct as shipped.
+  🔵 add the owner as a recipient.
+- Client: `console/[sid].tsx:432` 「거절됨 — 다른 러너에게 제안하세요」 — correct while the grid is
+  gated to the recovery window (§10.2).
 
-#### 6.6b What the pen was covering that now has NO cover — stated as a hole
+#### 6.6b What the pen covers — the case that makes it worth keeping
 
-The pen's real job was never "matching"; it was **latency at the worst moment**. Three honest
-statements, in decreasing order of how much v2's own design already absorbs:
+The pen's real job was never "matching"; it is **latency at the worst moment**. Three honest
+statements, in decreasing order of how much v2's own design already absorbs. They were written to
+put in front of Sean as the answer to his own question, and his 09:03:48Z 「keep」 is the answer to
+them — so they are retained, re-pointed at the world where the pen exists:
 
-1. **v2 shrinks the pen's job a great deal on its own, and this deserves saying because it makes
-   the ruling more coherent than the struck §6.6 assumed.** In the at-the-scene world the pen
+1. **v2 shrinks the pen's job a great deal on its own.** In the at-the-scene world the pen
    covered a dog physically present at the meetup with no runner, whose owner had often already
    left. Under v2, custody starts at the owner's **door** (§7.1): a bail before P6 leaves the dog
-   at home with its owner, who is reachable, holds the re-pick surface, and is exactly the person
-   Sean's ruling names. A bail after P6 was never the pen's business — the runner is holding the
-   dog and that is incident machinery (§7.3, 0070/0072/0080), untouched.
-2. **The uncovered case is the late bail in 집 픽업 mode, inside the last hour.** A pick that
-   lapses or a runner who self-exits at T−40min returns the dog to P2. The owner must now, in
-   minutes: notice, open the pick surface, find a committed runner with cap headroom, and get an
-   accept — while the pack is forming at the meetup point. The pen let the host, who is standing
-   at the meetup and can see who actually turned up, close that in one tap on behalf of an owner
-   who might be at work. **Nothing replaces that.** The measured aggravating facts: capacity is
-   consumed by live picks (`_club_runner_load`, `0047:52-66`), so a runner sitting on someone
-   else's lapsing pick is invisible as available; and the pick TTL is 2h (RULED 14.1), which
-   inside the last hour clamps to `scheduled_at` (§6.3) and can therefore be minutes.
+   at home with its owner, who is reachable and holds the re-pick surface. A bail after P6 was
+   never the pen's business — the runner is holding the dog and that is incident machinery
+   (§7.3, 0070/0072/0080), untouched. So the pen is a narrow backstop, not a second matcher, and
+   the narrowed `[T−2h, T+6h]` gate is sized to exactly that.
+2. **The case it exists for is the late bail in 집 픽업 mode, inside the last hour.** A pick that
+   lapses or a runner who self-exits at T−40min returns the dog to P2. Without the pen the owner
+   must, in minutes: notice, open the pick surface, find a committed runner with cap headroom, and
+   get an accept — while the pack is forming at the meetup point. The pen lets the host, who is
+   standing at the meetup and can see who actually turned up, close that on behalf of an owner who
+   might be at work. The measured aggravating facts that make the owner-only path hard here:
+   capacity is consumed by live picks (`_club_runner_load`, `0047:52-66`), so a runner sitting on
+   someone else's lapsing pick is invisible as available; and the pick TTL is 2h (RULED 14.1),
+   which inside the last hour clamps to `scheduled_at` (§6.3) and can therefore be minutes.
 3. **The pack model (§16.1) sharpens it.** One shared start means the pack does not wait. An
-   unpaired dog at `scheduled_at` is a dog that does not run. Today the terminal outcome is
-   honest — the never-picked-up refund arm fires at run-end confirmation (§7.5.2) and the owner
-   pays nothing — so **nobody is charged for the hole; they just lose the session.** That is the
-   full extent of the damage and it is bounded, which is a real argument that Sean's ruling is
-   affordable. It is not an argument that the hole is not there.
+   unpaired dog at `scheduled_at` is a dog that does not run. The terminal outcome without a
+   backstop is honest — the never-picked-up refund arm fires at run-end confirmation (§7.5.2) and
+   the owner pays nothing — so nobody would be *charged* for the gap; they would just lose the
+   session. That bound is why the retirement was affordable; it is not why it was right.
 
-**What this spec does NOT do about it:** invent a replacement. No auto-reassign, no host
-"suggest" affordance, no standby-runner pool. Sean removed a mechanism; a differently-named
-version of the same mechanism would be the spec overruling him. §14 **OPEN-E** asks the one
-question that would let an implementer size the mitigation honestly, and until he answers it the
-late-bail path is: owner re-picks, or the dog does not run and is refunded.
+**What this spec still does NOT do:** invent machinery beyond the pen. No auto-reassign, no
+standby-runner pool. §14 OPEN-E, which asked whether "the dog does not run and is fully refunded"
+was an acceptable outcome, is **dissolved by this ruling** — the pen is the mitigation.
+
+#### 6.6c ⚠️ The ruling and the shipped mechanism DISAGREE — three open items, recorded not reconciled
+
+All three were measured at source while executing this reversion. **The model owes the ruling, not
+the reverse:** none of the following is licence to reinterpret his words to fit the code, and the
+implementing slice owns closing each one.
+
+1. 🔴 **`session_assignment_revoke` does not hand the dog to a runner the host chooses — it
+   returns the booking to the MATCHING POOL.** Live definition `0057:158-185` (0047:221 is
+   superseded by it); the write is `0057:177-179`: `update bookings set runner_id = null,
+   status = 'matching', owner_confirmed_handoff_at = null, runner_confirmed_handoff_at = null`.
+   The host un-assigns; the pool re-fills. **His ruling implies the host picks** — 「keep host
+   reassignment functionality… **if no one can, the host can take care**」 only makes sense if the
+   host is looking at candidates and can see that none exist. ⚠️ Do NOT assert that the pool
+   re-fill IS what he meant. The slice owes either a host-chooses path (which §6.6's
+   `session_propose_dog` pen supplies for a dog at P2, i.e. AFTER a revoke — so the two-step
+   revoke→propose may already be the shape, and that is a design claim to verify, not to assume)
+   or an explicit question back to him.
+2. ✅ **It refuses once handoff has happened** — `perform 1 from bookings where … (
+   owner_confirmed_handoff_at is not null or runner_confirmed_handoff_at is not null); if found
+   then raise exception 'already_handed_off'` (`0057:171-173`). So reassignment exists only
+   BEFORE custody transfers. This **fits** the case he was answering (*"left before the start of
+   the session?"*, seventh round) and forecloses any mid-run reassignment story. Recorded as a
+   verified limit, not a gap.
+3. 🔴 **「if no one can, the host can take care」 has NO mechanism today.** Nothing anywhere
+   expresses the host becoming the runner for that pair. It carries an unpriced **money**
+   question — is the host paid runner-pay on top of the host fee? — and a **party-gate** question,
+   since host and runner would be one person on one booking (and §6.1's self-pairing refusals
+   exist precisely to stop one account holding both sides). ⚠️ His separate 09:05:51Z ruling
+   **"Same pay either way"** does NOT cover this: that one is about a runner whose *leg* is
+   skipped, not about who walks the dog. OPEN and unpriced; nothing builds against it.
 
 ---
 
@@ -1205,7 +1223,9 @@ fee (§5.3) · a failed quote blocks the cancel confirm (§5.4) · the shipped �
 
 ### 10.2 Host — `club/console/[sid].tsx` respec (693 lines today)
 
-**[AMENDED · §16.2 and §16.3 — the console loses TWO of its three sections.]** ⚠️ The §16.2 half (admission queue) is settled; the §16.3 half (propose grid) is **PROVISIONAL** and reverts with §6.6-orig if Sean declines the reversal.
+**[AMENDED · §16.2 — the console loses ONE of its three sections.]** §16.3 had drafted a second
+loss (the propose grid); that amendment is **withdrawn** (RULED 09:03:48Z, §16.3), so the grid
+stays, gated to §6.6's recovery window.
 
 KEEPS: materiality re-review (`doReview`, `:147-158`; rows `:379-394`) · cases section
 (assign/resolve, `:512-541`) · force-resolve + custody override with the self-override dead-button
@@ -1217,16 +1237,21 @@ LOSES — **the admission queue entirely** (§16.2): the `pending` filter `:128`
 `:130-145`, the whole 심사 section `:352-378` including the 승인/거절 buttons at `:374-375` and
 the capacity-0 warning `:354-360`, and the `approval === 'approved'` stat chip at `:306`.
 
-LOSES — **the runner-chip propose grid entirely** (§16.3): `:161-186` (buckets + `doPropose`),
-the chip grid `:445-460` with its whole `blocked`/`why` pre-gate, the proposed rows and their
-`DrainRing` + revoke `:465-490`, and `:432`'s 「거절됨 — 다른 러너에게 제안하세요」. The struck
-§6.6's "narrows to a recovery window and renames 재배정" is superseded: **there is no recovery
-window and no 재배정.** The accepted-pairs rows `:491-509` survive as a WATCH surface, keeping
-only `doRevoke` (`assignmentRevoke`, `:187-197`) — the host may un-pair, never re-pair.
+KEEPS, NARROWED — **the runner-chip propose grid** (§6.6): `:161-186` (buckets + `doPropose`),
+the chip grid `:445-460` with its `blocked`/`why` pre-gate, the proposed rows and their
+`DrainRing` + revoke `:465-490`, and `:432`'s 「거절됨 — 다른 러너에게 제안하세요」 all survive, but
+the whole grid is **gated to the recovery window `[T−2h, T+6h]` and to dogs at P2**, and is
+relabelled 재배정 so it reads as recovery rather than as matching. Outside the window it does not
+render at all — the owner's pick surface is the only door (§10.1). The accepted-pairs rows
+`:491-509` keep `doRevoke` (`assignmentRevoke`, `:187-197`). ⚠️ §6.6c ①: `doRevoke` returns the
+booking to the matching pool, so "revoke then re-propose" is two taps on two different surfaces —
+the S5 author must not render it as one hand-pick action until that gap is closed.
 
-Net: after both amendments the console is one operational surface (run-end confirmation, pairs
-timeline, cases, custody tools, session lifecycle) and zero gatekeeping surfaces. `club/[id].tsx:467`'s
-console subtitle 「승인 · 배정 · 세션 운영」 is false in two of its three words and re-writes.
+Net: after §16.2 the console loses its gatekeeping surface and keeps one operational surface plus
+one narrow recovery surface (run-end confirmation, pairs timeline, recovery 재배정, cases, custody
+tools, session lifecycle). `club/[id].tsx:467`'s console subtitle 「승인 · 배정 · 세션 운영」 is
+false in its first word (there is no 승인) and misleading in its second (배정 is recovery-only),
+and re-writes.
 GAINS: ● the run-end confirmation (§7.5) — one button, enabled when no pairing is still out
 (picked_up/active), with the blocker rendering server-classified (§9 kills the duplicated
 predicate); its evidence view shows the §7.4 arrival/no-show flags per pairing so the host
@@ -1299,21 +1324,23 @@ answered.)
 
 ## 11. Deprecations — closure by refusal, reversible (C4)
 
-**[AMENDED 2026-08-25 · §16.2 and §16.3 — four rows changed, three added.]** ⚠️ Every row tagged §16.3 is **PROVISIONAL** (see §6.6); every row tagged §16.2 is settled.
+**[AMENDED 2026-08-25 · §16.2 — three rows added, one changed.]** §16.3 had additionally rewritten
+four rows to retire the propose family; that amendment is **withdrawn** (RULED 09:03:48Z), so those
+rows read as originally drafted.
 
 | Surface | Action | Pins |
 |---|---|---|
 | **`session_approve_dog(uuid, boolean)`** `0084:610-648` **[NEW ROW · §16.2]** | **Deprecate by refusal**: `create or replace` to a body that raises `host_admission_retired`; revoke EXECUTE from `authenticated`. Name and signature KEPT — installed bundles call it (`api.ts:3691-3692` ← `console/[sid].tsx:138`) and must get a named token, never a missing function | 1 refusal pin + an ACL pin. ⚠ 18 shipped suites call it in fixture setup — see §16.2's suite table; that sweep is IN this slice, not deferred |
 | **`session_reconsider_dog`** `0043:362-382` **[NEW ROW · §16.2]** | Deprecate by refusal — its `approval='rejected'` precondition (`0043:371`) can no longer be produced | 1 refusal pin |
 | **`session_delegate_dog`** `0048:89-155` **[NEW ROW · §16.2]** | `create or replace`: insert `approval='approved'` (`0048:136`) instead of `'pending'`; host notification `0048:152-153` retires or re-copies; 🔴 the hold write is §14 OPEN-A | positive pins on the new resting state; the `dog_capacity_full` arm (`0048:118-119`) RE-PINNED unchanged in-slice because 66 F6 pins it from another file |
-| ~~`session_propose_dog` host-primary role~~ **[AMENDED · §16.3]** | ~~gate NARROWS to the §6.6 recovery window~~ → **Deprecate by refusal.** There is no recovery window. Same name/signature kept for installed bundles (`api.ts:3677-3678` ← `console/[sid].tsx:174`); the auto-accepting self-proposal arm `0048:492-503` goes with it | 1 refusal pin + an ACL pin; the `assign_window` pins it carried retire with a comment naming `session_pick_runner`'s window pins as successor |
-| `session_assign_dog` | already an alias (0047:143-146) over the now-refusing propose — revoke `authenticated` EXECUTE + refusal pin; `api.ts:3696-3697` call site deleted (its one consumer is `dev/club-lab.tsx:278`; **verified: no production screen calls it**) | 1 refusal pin |
-| `session_proposal_revoke` `0047:201-218` | gate CHANGES: ~~host OR~~ **the live pick's author-owner only** (§6.2 + §16.3). ⚠ Observed while verifying: this function has **no `auth.uid() is null` guard** (its sibling got one at `0057:162`; this one was never hardened) — the slice that touches it adds one | gate pins both ways + a null-uid pin |
-| `session_assignment_revoke` `0057:158-185` | gate WIDENS: host OR the assigned runner (self-exit, §6.2). **Host arm KEPT** — un-pair is not re-pair (§6.6a) | gate pins both ways |
+| `session_propose_dog` host-primary role | **gate NARROWS to the §6.6 recovery window** `[T−2h, T+6h]`, dogs at P2 only. Name, signature and the auto-accepting self-proposal arm (`0048:492-503`) all KEPT — that arm is the "host covers at the scene" path the pen exists for. Its client caller (`api.ts:3677-3678` ← `console/[sid].tsx:174`) stays, behind the narrowed gate | gate pins both ways (inside/outside the window); the `assign_window` pins it carries stay live and gain a P2 pin |
+| `session_assign_dog` | already an alias (0047:143-146) over propose — revoke `authenticated` EXECUTE + refusal pin; `api.ts:3696-3697` call site deleted (its one consumer is `dev/club-lab.tsx:278`; **verified: no production screen calls it**) | 1 refusal pin |
+| `session_proposal_revoke` `0047:201-218` | gate WIDENS: host **OR** the live pick's author-owner (§6.2). The host arm stays — it is the pen's revoke half (§6.6). ⚠ Observed while verifying: this function has **no `auth.uid() is null` guard** (its sibling got one at `0057:162`; this one was never hardened) — the slice that touches it adds one | gate pins both ways + a null-uid pin |
+| `session_assignment_revoke` `0057:158-185` | gate WIDENS: host OR the assigned runner (self-exit, §6.2). **Host arm KEPT** (§6.6, RULED). ⚠️ §6.6c ①: its body returns the booking to `matching` (`0057:177-179`), it does not re-pair — the re-pair half is `session_propose_dog` behind the recovery gate | gate pins both ways; a pin on the `matching` resting state so the two-step shape is asserted, not assumed |
 | ~~`session_reconsider_dog`,~~ `session_review_dog` | `session_review_dog` (`0048:259-286`) **KEPT** — verified it gates on `review_needed` (`0048:269`) and reads `approval` nowhere, so it is safety, not admission. `session_reconsider_dog` moved to its own row above | — |
 | `session_proposal_respond`, `session_owner_objection` | KEPT — the accept/objection rails the pick layer rides | gate-delta pins only |
 | Console admission queue (client) **[NEW ROW · §16.2]** | removed: `:128`, `:130-145`, `:306`, `:352-378` | — |
-| Console propose grid (client) | ~~removed outside recovery window~~ → **removed entirely**: `:161-186`, `:432`, `:445-490` | — |
+| Console propose grid (client) | **removed outside the recovery window** and relabelled 재배정 inside it (§10.2): `:161-186`, `:432`, `:445-490` all survive behind the gate | — |
 | `club_expire_delegation_holds()` `0043:385-408` **[NEW ROW · §16.2]** | Depends on §14 OPEN-A: if sign-up writes no hold, this cron has nothing to sweep and its 「결제 기한 만료」 notification (`0043:395-396`) never fires — retire it in the same breath rather than leaving a live cron that can never match a row | 1 pin either way |
 
 Suite 154 (0119) note, corrected from the first draft: **G4 drives `session_delegate_dog`
@@ -1335,7 +1362,7 @@ the same slice with a WHY comment naming the successor pin.
 | S1 | Runner-money strip (independent, claimed by announcer v5, contract @ f6ed2cf on its branch) | — (in flight) |
 | S2 | §9 member board projection (+ 🔴 14.9 readership word) + operational-board state columns + the console-predicate de-duplication | spec review + Sean's read |
 | **S2.5** **[NEW · §16.2]** | **Admission retirement.** `session_approve_dog` + `session_reconsider_dog` → refusal; `session_delegate_dog` writes `approval='approved'`; the `session_runner_withdraw` eviction fix (§4.2b ③); the shell-grade re-key if OPEN-B says so; the hold decision from OPEN-A; the console + client copy half; **and the measured fixture sweep across 18 shipped suites + `upgrade_seed_v1.sql` (§16.2), which is IN this slice**. Sequenced before S3 because S3's pick gates read `approval` (`0048:457`) | **🔴 OPEN-A and OPEN-B answered.** Not gated on S2 |
-| S3 | Pick layer (§6.1-6.4): `session_pick_runner`, self-pick refusals, gate moves + the two widenings, TTL (2h — RULED 14.1), deprecations §11 **including §16.3's `session_propose_dog` refusal and the console grid removal**, viability re-read (§13). ⚠ §5.2's LADDER implementation (rung reorder + runnerless-zero, both ruled) moved OUT of S3 into announcer v5's single ladder-amendment slice — one function, one slice, per the silent-collision law | S2 (board renders picks) + **S2.5** (pick gates read `approval`) — 14.1/14.11 ruled; ⚠️ **the §16.3 half of S3 is BLOCKED on 14.10's confirm** (§6.6 is provisional), the rest is not |
+| S3 | Pick layer (§6.1-6.4): `session_pick_runner`, self-pick refusals, gate moves + the two widenings, TTL (2h — RULED 14.1), deprecations §11 **including `session_propose_dog`'s narrowing to the §6.6 recovery window and the console grid's gating**, viability re-read (§13). ⚠ §5.2's LADDER implementation (rung reorder + runnerless-zero, both ruled) moved OUT of S3 into announcer v5's single ladder-amendment slice — one function, one slice, per the silent-collision law | S2 (board renders picks) + **S2.5** (pick gates read `approval`) — 14.1/14.10/14.11 ruled. ⚠️ **§6.6c ①** (host-chooses vs pool re-fill) is this slice's to close or to route back to Sean; **§6.6c ③** (host-as-runner) is NOT in S3 and nothing may build against it |
 | S4 | Door custody (§7.1-7.4): the four stamps + club edge action, address slice (§8), no-show re-anchor + 153 P4/P9/P10/P12 re-pins, copy-drift rows (§13), client legs | S3; riders (honest transit copy); 🔴 14.2 |
 | S5 | Two-phase finish (§7.5): `finished_pending_host` + the three §7.6 escapes, `club_confirm_run_end` (6h auto-confirm ceiling — RULED 14.3), closer split, console respec | S4 — **gate OPEN** (14.3 and 14.5 both ruled) |
 | S6 | Mode C (§6.5): columns + CHECK bounds, ranking definer, `session_auto_pick`, onboarding surface, pinned-address door | S3; **counsel brief answered** (rider); 🔴 14.4 |
@@ -1397,8 +1424,8 @@ Classes: **U** unchanged · **RA** re-anchored (same logic, new event/caller) ·
 | C40 | **`_club_delegated_reserved`** `0043:70-79` **[NEW · §16.2]** | active unexpired hold **OR** live booking | Body untouched; its INPUT changes. Approve was the only hold writer (`0084:635-637`), so after the retirement the hold term is dead unless OPEN-A puts a hold at sign-up. **The cap survives** (0081:154's guard is then always true, so the pay-time check always fires); **the reservation does not** — §4.2c ① | U (body) / RA (semantics), S2.5 |
 | C41 | **`_club_compute_axes`** `0048:709-714` **[NEW · §16.2]** | `approval` → `service_state` | Code KEPT; the `pending`→`requested` and `rejected`→`host_rejected` arms become legacy-only (no producer for new rows). Do not delete — historical rows render through them | U (flagged), S2.5 |
 | C42 | **`_club_delegation_board_impl`** `0053:239/241/283/333` **[NEW · §16.2]** | approved-count, pending-count, `'approval'` field, the owner's own rejected/withdrawn self-arm | pending-count becomes a constant 0; the `rejected` half of the self-arm loses its producer. Additive-only slices (S2) must not be blamed for it — this is S2.5's | RW (S2.5) |
-| C43 | **`club_assignment_recovery`** `0068:41-57` and `0068:58-81` **[NEW · §16.3]** | expired-proposal cleanup; T−30 runner-late alarm | **RW — both notify the HOST to do a thing the host can no longer do**: `0068:51-53` 「다시 제안하세요」 and `0068:71-75` 「교체 제안을 준비하세요」. Recipient moves to the owner; 🔵 the T−30 alarm gains the owner as a recipient (§6.6a). ⚠️ PROVISIONAL with §16.3 | RW (S3) |
-| — | **Copy-drift work list** (client + notification strings that state the OLD flow, each re-written in its slice): 0081:222 「집결지에서 배정」 · 0057:140 「집결지에서 인계」 · 0048:511 「5분 안에」 (+0084:603-607's warning that suites assert club titles verbatim — re-pin with the copy) · index.ts:324 「곧 러닝을 시작해요」 · 0118:1133-1134 recap `v_dogs` meaning note (§7.4) · **[§16.2]** 0084:641-643 approve notification · 0084:625-628 reject notification · 0048:152-153 「승인/거절을 결정하세요」 · 0043:394-396 hold-expiry notification · 0043:444-450 eviction notifications · client: `session/[sid].tsx:46/:702/:753`, `delegate/[sid].tsx:92/:116/:261`, `club/[id].tsx:467` · **[§16.3, PROVISIONAL]** 0068:51-53 · 0068:71-75 · `console/[sid].tsx:432` | | | (S2.5, S3-S5) |
+| C43 | **`club_assignment_recovery`** `0068:41-57` and `0068:58-81` | expired-proposal cleanup; T−30 runner-late alarm | **U for the host arm** — with the pen kept (§6.6), `0068:51-53` 「다시 제안하세요」 and `0068:71-75` 「교체 제안을 준비하세요」 both address an action the host still has, and T−30 is inside the recovery window by construction. **RA, narrowly:** a v2 owner-authored pick that lapses OUTSIDE `[T−2h, T+6h]` still notifies only the host; 🔵 add the owner as a recipient on both (§6.6a). §16.3 had this as a full RW recipient-move; that is withdrawn | RA (S3) |
+| — | **Copy-drift work list** (client + notification strings that state the OLD flow, each re-written in its slice): 0081:222 「집결지에서 배정」 · 0057:140 「집결지에서 인계」 · 0048:511 「5분 안에」 (+0084:603-607's warning that suites assert club titles verbatim — re-pin with the copy) · index.ts:324 「곧 러닝을 시작해요」 · 0118:1133-1134 recap `v_dogs` meaning note (§7.4) · **[§16.2]** 0084:641-643 approve notification · 0084:625-628 reject notification · 0048:152-153 「승인/거절을 결정하세요」 · 0043:394-396 hold-expiry notification · 0043:444-450 eviction notifications · client: `session/[sid].tsx:46/:702/:753`, `delegate/[sid].tsx:92/:116/:261`, `club/[id].tsx:467` · **[§6.6, narrowed]** 0068:51-53 and 0068:71-75 — recipient ADD (owner), not a move; `console/[sid].tsx:432` needs no re-copy, only the recovery gate | | | (S2.5, S3-S5) |
 
 ---
 
@@ -1421,15 +1448,18 @@ Classes: **U** unchanged · **RA** re-anchored (same logic, new event/caller) ·
 8. **Refund quirk: FIX** ✅ — rides S4.
 9. **Board public: accepted** ✅ ("it's like a public dashboard") — future idea parked: live
    ranked dashboard in community.
-10. **Host recovery backstop: approved** ✅ — ⚠️ **CONTESTED, NOT STRUCK. PENDING HIS CONFIRM.**
-    This was console **card 10, "Host recovery pen inside T−2h" → "Give the host the 2-hour
-    backstop", 04:26:44Z** (`docs/decisions/2026-08-25-console-rulings.md:20`). Later the same
-    day, about the same object, he wrote: *"pair reallocation functionality for the host? is
-    that really necessary, i dont think so."* That is a question carrying an opinion, not an
-    instruction, and it reverses this very tap — so **card 10 stands until he confirms the
-    reversal in one tap**, and §6.6 is re-scoped as retired but marked PROVISIONAL with its
-    original text preserved at §6.6-orig. Full reasoning at
-    `docs/decisions/2026-08-25-console-rulings.md:172-188`.
+10. **Host recovery backstop: approved** ✅ — **SETTLED, and settled TWICE.** Console **card 10,
+    "Host recovery pen inside T−2h" → "Give the host the 2-hour backstop", 04:26:44Z**
+    (`docs/decisions/2026-08-25-console-rulings.md:20`). Later the same day, about the same
+    object, he wrote *"pair reallocation functionality for the host? is that really necessary, i
+    dont think so."* — a question carrying an opinion, not an instruction, and a reversal of this
+    very tap. It was NOT executed; it was held provisional and put back to him, and at
+    **09:03:48Z** he answered 「keep host reassignment functionality when such cases happen for
+    that pair. if no one can, the host can take care.」 Card 10 stands, §6.6 stands, and §16.3 is
+    a withdrawn amendment. Full sequence at §16.3 and at
+    `docs/decisions/2026-08-25-console-rulings.md` (eighth and ninth rounds).
+    ⚠️ The second half of his 09:03:48Z answer is a NEW arm with no mechanism and no price —
+    §6.6c ③. It is not covered by this ✅.
     **The rest of his 14.10 comment is unaffected either way** — 「make sure all the host ui and
     screens include all steps of the flow」 is about completeness, not about the pen, and §10.2's
     bar stands: the host console is a complete per-state enumeration of what the host CAN do.
@@ -1453,10 +1483,13 @@ counsel briefs (S6's gate) · the Mode A participation-fee follow-up · the 맹�
 
 ### 14-OPEN. New questions created by the sixth-round rulings [2026-08-25 · §16]
 
-🔴 **Six** (five from the sixth round, **OPEN-F added by the seventh, §16.7**)**, each answerable
-in one sentence, each blocking only its own slice.** None is a
+🔴 **Six were opened** (five from the sixth round, **OPEN-F added by the seventh, §16.7**)**, each
+answerable in one sentence, each blocking only its own slice.** None is a
 disagreement with a ruling; each is a thing a ruling left undetermined and that this spec refuses
-to guess. They are ordered by which slice they block.
+to guess. They are ordered by which slice they block. **OPEN-E is now DISSOLVED** by the
+09:03:48Z ruling (§16.3) — it is kept below, struck, rather than deleted. **Two NEW open items
+were opened by that same ruling and live at §6.6c, not here**, because they are gaps between his
+words and the shipped mechanism rather than questions the spec declined to answer.
 
 **OPEN-A — the seat reservation (blocks S2.5).**
 > When an owner signs up a dog and has not yet paid, does their slot stay held for them for a
@@ -1498,17 +1531,19 @@ exclusion mechanism anywhere in the club — there is no blocklist, no ban, no `
 spec deliberately proposes no replacement, because Sean removed a bouncer and a differently-named
 bouncer would be the spec overruling him.
 
-**OPEN-E — the late bail (blocks nothing; it sizes the mitigation).**
+**OPEN-E — the late bail. ~~OPEN~~ → DISSOLVED 2026-08-25 09:03:48Z.**
 > If a runner drops out an hour before the session and the owner cannot find another one in time,
 > is "the dog does not run and is fully refunded" the right outcome — or should something else
 > happen?
 
-*Why it exists (analysis, §6.6b):* the pen's only real job was closing that gap in one tap on
-behalf of an owner who might be at work. The current terminal outcome IS the refund arm and nobody
-is charged, which bounds the damage — but nobody has said out loud that losing the session is
-acceptable, and the answer determines whether any mitigation is worth building. ⚠️ **This question
-is downstream of §6.6's own confirm**: if he declines the reversal and keeps the pen, OPEN-E
-largely dissolves, because the pen IS the mitigation. Put §14.10's confirm to him first.
+*Why it existed, and why it is gone:* it existed only under §16.3's retirement of the pen, and its
+own text said so — "if he declines the reversal and keeps the pen, OPEN-E largely dissolves,
+because the pen IS the mitigation." He kept the pen. **The mitigation is the pen** (§6.6), the
+late-bail path is the host's recovery 재배정 inside `[T−2h, T+6h]`, and the refund arm remains the
+terminal outcome only when even that fails. Kept here rather than deleted because the question
+being asked and then dissolved is the evidence that no replacement mechanism was invented.
+⚠️ What is NOT dissolved and is now tracked at **§6.6c**: whether the pen as shipped actually lets
+the host *choose*, and whether 「if no one can, the host can take care」 has any mechanism or price.
 
 **OPEN-F — what a runner earns when a leg disappears (blocks the §16.7 slice's money half only).
 [NEW · §16.7]** 🔴 **MONEY — Sean's, and no number is proposed here.** One card, two arms,
@@ -1599,9 +1634,10 @@ HTML labs; recorded verbatim with its dispositions at
 `docs/decisions/2026-08-25-console-rulings.md:156-196`. **His full paragraph, unaltered:**
 
 **Status of the four, up front:** §16.1 (pack model), §16.2 (no host approval) and §16.4
-(profiles lane) are **instructions and are settled**. §16.3 (no host pair-reallocation) is
-**PROVISIONAL** — it reverses his own explicit approval on console card 10 and arrived as a
-question carrying an opinion, so it awaits one confirming tap and no slice builds against it.
+(profiles lane) are **instructions and are settled**. §16.3 (no host pair-reallocation) was held
+**PROVISIONAL** — it reversed his own explicit approval on console card 10 and arrived as a
+question carrying an opinion — and is now **WITHDRAWN**: he confirmed at 09:03:48Z that the host's
+reassignment stays. §16.3 below is retained as the record of that sequence.
 
 > "i like the pin board 1, but what does the different states mean? aren't they all supposed
 > to be in near sync? same start time, maybe different arrival states as some can be doing
@@ -1700,36 +1736,53 @@ suite files plus `upgrade_seed_v1.sql`.** The peer named 4 of the 18.
 updated in the same slice, with a WHY comment naming which new pin owns the new property. A
 contract that ships without this table hands the implementer a red harness and no explanation.
 
-### 16.3 NO HOST PAIR-REALLOCATION → §6.6 re-scoped **PROVISIONALLY**, plus §2, §3, §10.2, §11, §13 (C43), §14.10 marked contested
+### 16.3 NO HOST PAIR-REALLOCATION → **DRAFTED, HELD PROVISIONAL, WITHDRAWN 2026-08-25 09:03:48Z**
 
-⚠️ **THE ONE PROVISIONAL AMENDMENT. Pending Sean's confirmation; no slice builds against it.**
-It reverses **console card 10, "Host recovery pen inside T−2h" → "Give the host the 2-hour
-backstop", 04:26:44Z** (`docs/decisions/2026-08-25-console-rulings.md:20`) — his own explicit
-approval of this same object, hours earlier. His later word is a question carrying an opinion
-("i dont think so"), not an instruction. The recording session reads it as a change of mind and
-the spec is re-scoped accordingly, but **a reversal of his own approval is not executed on an
-inference** — the confirm card is on the console, and §6.6's superseded text is preserved verbatim
-at **§6.6-orig** so restoration is a marker change, not archaeology. Full reasoning at
-`docs/decisions/2026-08-25-console-rulings.md:172-188`. §14.10 above is marked CONTESTED, not
-struck. **§16.1, §16.2 and §16.4 are NOT provisional** — those were instructions, not reversals.
+⚠️ **This amendment is WITHDRAWN. §6.6 stands as originally written.** The entry is kept — not
+deleted — because the sequence is the most useful thing in it.
 
-Amendment: `session_propose_dog` deprecates by refusal (taking the auto-accepting self-proposal
-arm `0048:492-503` with it), the console chip grid is deleted entirely, 재배정 does not exist.
-§6.6a re-derives every bail shape to P2 and the owner's own re-pick / auto-connect. §6.6b states
-the hole rather than covering it:
+**The sequence, in his own words and timestamps:**
 
-- v2's own door-custody design already shrinks the pen's job a great deal (a pre-P6 bail leaves
-  the dog at home with a reachable owner) — which makes the ruling **more coherent** than the
-  struck §6.6 assumed, and this spec says so.
-- **The uncovered case is the late bail in 집 픽업 mode inside the last hour**, where the owner
-  may be at work and the pack does not wait (§16.1). Aggravated by live picks consuming capacity
-  (`_club_runner_load`, `0047:52-66`) and by the TTL clamping to `scheduled_at` (§6.3).
-- The damage is **bounded and nobody is charged** — the never-picked-up refund arm fires at
-  run-end confirmation. That is a real argument that the ruling is affordable, not an argument
-  that the hole is absent. → **OPEN-E**.
+| # | When | His words | What the spec did |
+|---|---|---|---|
+| ① approve | **04:26:44Z** | console card 10, "Host recovery pen inside T−2h" → **"Give the host the 2-hour backstop"** (`docs/decisions/2026-08-25-console-rulings.md:20`) | §6.6 written with the pen; §14.10 ✅ |
+| ② doubt | sixth round, same day | *"pair reallocation functionality for the host? is that really necessary, **i dont think so**."* | ⚠️ **NOT EXECUTED.** §6.6 re-scoped as retired but marked PROVISIONAL, original text preserved verbatim at §6.6-orig, every downstream row tagged PROVISIONAL, §14.10 marked CONTESTED not struck, and the question put back to him on the console with §6.6b's account of what the pen covers in front of him |
+| ③ confirm | **09:03:48.227Z** | card `host-realloc-confirm`: **「keep host reassignment functionality when such cases happen for that pair. if no one can, the host can take care.」** (`docs/decisions/2026-08-25-console-rulings.md:277`) | This reversion: §6.6-orig's text becomes §6.6 again, every PROVISIONAL marker cleared, §14.10 back to SETTLED, OPEN-E dissolved, §6.6c opened |
 
-Two shipped **notification bodies** become dead instructions and no screen edit reaches them:
-`0068:51-53` 「다시 제안하세요」 and `0068:71-75` 「교체 제안을 준비하세요」 (C43).
+**Why the hold was worth what it cost.** ② was a question carrying an opinion, not an instruction,
+and it reversed ①. The recording session's own reading of ② was that he had changed his mind — and
+that reading was **wrong**, as ③ proves. Because the retirement was held rather than executed,
+being wrong cost a marker change instead of a rebuild: no migration was written, no suite was
+re-pinned, no client file was touched, and `session_propose_dog` was never deprecated. **A ruling
+that reverses the human's own explicit approval is the exact case where you stop and ask** — and
+the value of asking is not that you were right to doubt, it is that the cost of being wrong stays
+bounded. Had ② been executed on the inference, ③ would have arrived against a landed deprecation.
+
+**What ③ additionally changes, beyond restoring ①.** Three consequences the eighth round records
+(`docs/decisions/2026-08-25-console-rulings.md`, eighth round):
+- **The `reassign_dogs_first` trap dissolves.** `session_runner_withdraw` refuses while that
+  runner holds a `confirmed`/`picked_up`/`active` booking (`0043:420-424`, verified);
+  `session_assignment_revoke`
+  (`0057:158-185`, host-only at `:168`) is the only actor that can move such a dog. Retiring the
+  host arm would have made the guard unsatisfiable and trapped runners in commitments they could
+  not exit. With the pen kept, the guard stays satisfiable.
+- **159's L5 pin stays reachable** — the accept → host-revoke → near-cancel FREE scenario keeps a
+  live flow behind it. No pin rescoping, no fixture migration.
+- **The seventh round's "someone else should carry it over" is MECHANISM, not gap** — the
+  carrying-over IS the host's reassignment. His two answers agree: the earlier one says what
+  happens to the dog, this one says who makes it happen.
+
+**What ③ does NOT settle — see §6.6c, and do not reconcile it silently.** 「if no one can, the host
+can take care」 implies a host who is looking at candidates, and the shipped
+`session_assignment_revoke` returns the booking to the matching pool instead (`0057:177-179`); the
+last-resort host-as-runner arm has no mechanism and no price. **The model owes the ruling, not the
+reverse.**
+
+**Markers cleared by this reversion** (each verified in place): §0 header · §1 item 1 · §2 host
+row · §3 authority map · §3 proposed list · §4.2's `session_assignment_revoke` note · §6.1's
+self-proposal clause · §6.2's window clause · §6.6 heading and body (§6.6-orig folded back in;
+the duplicate section is gone) · §6.6a · §6.6b · §10.2 · §11 header and four rows · §12 S3 ·
+§13 C43 and the copy-drift row · §14.10 · §14 OPEN-E · §16 status block · §16.6 · §16.7h.
 
 ### 16.4 INSTAGRAM-STYLE PROFILES → parked, NOT in this spec
 
