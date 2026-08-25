@@ -392,7 +392,8 @@ const s = StyleSheet.create({
   wrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
   wrapTight: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
   title: { fontSize: 24, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 30 },
-  quiet: { fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 20 },
+  // [2026-08-25 Sean] 14 → 15 — 한글 작업 플로어 상향(DESIGN.md §2 개정). 아래 알림/지각/칩도 같다.
+  quiet: { fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 21 },
   // 알림 줄 부품 — 점 · 굵은 줄 · 얇은 줄 · 우측 행동. 카드 아님, 룰 하나(아래).
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 44 },
   alertHot: { backgroundColor: paper.wash, marginHorizontal: -18, paddingHorizontal: 18, borderBottomWidth: 0 },
@@ -405,17 +406,20 @@ const s = StyleSheet.create({
   },
   // [타입 플로어 2026-08-24] 13 → 14. 한글은 레터스페이스 라틴 킥커 면제를 타지 못한다 (DESIGN.md §3,
   // 2026-08-10 감사 법) — 그리고 이건 크리티컬 문장이라 가장 작으면 안 되는 줄이다.
-  lateStripTx: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.critical, lineHeight: 19 },
-  alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
-  alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
-  alertAct: { fontSize: 14, fontWeight: '800' },
+  // [2026-08-25 Sean] 같은 이유로 한 칸 더: 14 → 15 (작업 플로어).
+  lateStripTx: { flex: 1, fontSize: 15, fontWeight: '700', color: paper.critical, lineHeight: 21 },
+  alertMain: { fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 },
+  alertSub: { fontSize: 15, color: paper.dim, marginTop: 1, lineHeight: 21 },
+  alertAct: { fontSize: 15, fontWeight: '800' },
   // ── v3 히어로 (Sean 2026-08-20) ──────────────────────────────────────────
   // 상태 칩 · 마크가 내려앉는 문구 · 서브라인 · 그림 버튼들.
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
   chipDot: { width: 9, height: 9, borderRadius: 5 },
   // [타입 플로어 2026-08-24] 13 → 14, 트래킹 1.4 → 0.6. 칩 문구는 전부 한글(확정됨 · 내 차례 ·
   // 찾는 중 · 응답 대기)이고 한글은 킥커 면제 밖이다. 랩의 모든 변형 프레임이 이 값으로 그려졌다.
-  chipTx: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.6 },
+  // [2026-08-25 Sean] 14 → 16: 플로어(15)만 넘긴 게 아니라 §3b 의 상태 칩 스펙(16/800)에 맞췄다.
+  // 같은 어휘(확정됨 · LIVE …)를 쓰는 칩이 화면마다 다른 크기일 이유가 없다.
+  chipTx: { fontSize: 16, lineHeight: 21, fontWeight: '800', letterSpacing: 0.6 },
   phw: { marginTop: 6, minHeight: 108 },
   // 38pt 디스플레이 — 이 화면의 Black Han Sans 사용 1회. 마스트헤드 워드마크는
   // home.tsx에서 본문 900으로 내려가 §3의 '화면당 1회' 예산을 지킨다.
