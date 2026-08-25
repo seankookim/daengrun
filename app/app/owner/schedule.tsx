@@ -9,6 +9,7 @@ import { kstCal } from '../../src/lib/kst';
 import { lateness, sinceLabel, LATENESS_CEILING_MS } from '../../src/lib/lateness';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
+import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
@@ -629,6 +630,22 @@ export default function Schedule() {
                     side="owner"
                     dogName={selected.dogName}
                     runnerName={selected.runnerName}
+                  />
+
+                  {/* [0117 stage 2] 체크인 답 표면 — 계획 §13/§15 T4 가 가리키는 그 자리, 지각
+                      알림 **바로 아래**다. LateNotice 는 사실을 말하고(자기 파일 9줄: "이 컴포넌트는
+                      답을 받지 않는다"), 이 컴포넌트가 답을 받는다.
+                      · 서버가 체크인을 열지 않았으면 아무것도 그리지 않는다 — 시계는 아직
+                        ops_flags.late_protocol_live_since 로 꺼져 있고, 그동안 이 자리는 빈 자리다.
+                      · 코랄을 쓰지 않는다: 이 시트의 강조 예산은 아래 취소·러너 변경 문이 갖는다.
+                      · onAnswered → load(): 답이 예약 상태를 바꿨을 수 있으니 목록을 다시 읽는다.
+                        cancelBooking 성공 후 이 화면이 이미 하는 것과 같은 처리다. */}
+                  <CheckinAnswer
+                    key={selected.id}
+                    bookingId={selected.id}
+                    side="owner"
+                    rawStatus={selected.rawStatus}
+                    onAnswered={load}
                   />
 
                   {/* route card — 예약 행이 실제로 들고 있는 값만. 목업 특징칩·점검 도장·설명 퇴역 (item 6).
