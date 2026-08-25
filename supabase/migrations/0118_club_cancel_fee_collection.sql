@@ -854,9 +854,8 @@ begin
   -- committed runner receives this half even when both runner and owner no-show; deliberate,
   -- closing the prior finding. The accepted narrow exposure -- farming that absence/no-show
   -- intersection -- remains visible in the recorded data.
-  -- With no runner, no slot was held and this half compensates nothing. The platform retains it
-  -- PENDING the still-open decision whether unaccepted-cancel fees should drop to the platform
-  -- half only; this does not change the amount, split or recipient.
+  -- (That decision closed 2026-08-25 — ruling B above: with no runner the supply half is not
+  -- charged at all, so this insert writes the only row for a runnerless fee.)
   insert into club_fee_items (session_id, session_dog_id, booking_id, kind, amount_krw,
                               recipient_type, recipient_profile_id, basis)
   values
