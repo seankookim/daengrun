@@ -18,7 +18,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useDisplayFont } from '../lib/displayFont';
 import { useReducedMotion } from '../lib/reducedMotion';
-import { paper } from '../theme';
+import { lilac, paper } from '../theme';
 
 export type BtnGround = 'coral' | 'paper' | 'gold' | 'blue' | 'volt' | 'lilac' | 'amber';
 export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' | 'chat' | 'coin' | 'photo' | 'shield';
@@ -68,13 +68,33 @@ export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' 
 // that would restore a visible lip is paper.ink (2.92:1), which puts a black edge under coral and
 // changes the drawing Sean picked by number — not a call to make as a side effect of a colour
 // ruling. Flagged for him rather than taken.
+// [2026-08-25 · pale-ground retirement sweep — Sean: "i like the accent color, not the pale color;
+// product wide and mock wide" + "white backgrounds". DESIGN.md §2's amendment is the spec.]
+// Two rows moved, both re-measured here (WCAG 2.x relative luminance):
+//
+//  · `paper` — bg #FBF9F4 → #FFFFFF. This is the 미리 예약 card on owner home (the screenshot Sean
+//    marked). The warm tint retires as a GROUND; the row's ink pair is unchanged and both got
+//    better: paper.ink 17.9 → 18.9, paper.dim 5.5 → 5.7. Its 1.5px paper.ink border is what makes
+//    a now-white card still read as a card on a white canvas.
+//
+//  · `lilac` — the whole point of the ruling: the accent survives, the pale ground dies. Rather
+//    than retire the tone (which would push its three call sites — owner/home's 순간 row and
+//    home-hero's two 채팅 buttons — onto `paper` and lose the one violet affordance on the screen),
+//    it becomes an ACCENT-OUTLINE: white face + a 1px #6C5CE7 (lilac.accent) border, keeping the
+//    ink/sub violets it already measured. bg #EFECF9 → #FFFFFF · border #DFD9F2 → lilac.accent ·
+//    edge #B8AEE0 → #3B3170 (the row's OWN ink — the `paper` row's grammar, where border and edge
+//    are the same dark trim; no new hex, and the pale lilac lip is gone). Measured on the new
+//    white face: ink #3B3170 = 11.29 (was 9.70), sub #6A5FA8 = 5.50 (was 4.73). A solid accent
+//    border also serves the same round's other ruling — a clickable choice must LOOK clickable.
+//    ⚠ ClubTag's `tone="lilac"` (club/[id].tsx:356, club/session/[sid].tsx:940) is a DIFFERENT
+//    table — TAG_TONES in club-ui.tsx — and is swept there. Neither call site needed editing.
 const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: string; sub: string }> = {
   coral:  { bg: '#A63A20', border: '#A63A20', edge: paper.actionPressed, ink: '#FFFFFF', sub: '#FFD9CE' },  // 6.47 / 4.95
-  paper:  { bg: '#FBF9F4', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },   // 17.9 / 5.5
+  paper:  { bg: '#FFFFFF', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },   // 18.9 / 5.7
   gold:   { bg: '#F4EBD3', border: '#E7DAB6',       edge: '#C9AE6A', ink: '#5F4E1C', sub: '#6B5720' },   // 6.8 / 5.9
   blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#456079' },   // 7.6 / 5.8
   volt:   { bg: '#EAF6C8', border: '#D7E8B0',       edge: '#A8C46A', ink: '#3F5A08', sub: '#4F6717' },   // 6.9 / 5.6
-  lilac:  { bg: '#EFECF9', border: '#DFD9F2',       edge: '#B8AEE0', ink: '#3B3170', sub: '#6A5FA8' },   // 9.7 / 4.7
+  lilac:  { bg: '#FFFFFF', border: lilac.accent,    edge: '#3B3170', ink: '#3B3170', sub: '#6A5FA8' },   // 11.3 / 5.5
   // amber = paper.pending의 워시(lilac.amberSoft/amberEdge, 기존 토큰). '주의가 필요한 상태'의
   // 시맨틱이고, 지난 예약이 정확히 그 상태다. 잉크는 측정값(#C77414 자체는 3.1:1로 미달).
   amber:  { bg: '#FBEED9', border: '#F2DFC2',       edge: '#DCBE86', ink: '#6E4708', sub: '#7A4F0A' },   // 7.1 / 6.2

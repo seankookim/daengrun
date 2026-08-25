@@ -62,13 +62,27 @@ export const colors = {
 // 공식: 크리스프 코너 + 소프트 라이트. 나이트 월드(nightBg 등)는 위탁 표면에서 은퇴 — 점진 교체.
 // 포일 예산: 홀로=모노그램+티켓 엣지만 · 골드=SETTLED 전용 · 사진법: 콘텐츠 5슬롯, 월페이퍼 금지.
 export const lilac = {
-  bg: '#F4F2FB',        // 캔버스 — 새벽빛 워시는 화면별 오버레이(coral 11%·violet 9% 블룸)
+  // ⚠ PALE MEMBERS RETIRED — Sean 2026-08-25, twice in one round: "i like the accent color, not
+  // the pale color; product wide and mock wide" (scope) and "white backgrounds" (the replacement
+  // ground, ratified round 4). DESIGN.md §2's pale-lilac amendment is the spec. The four pale
+  // members below become the paper world's neutrals; NO new hex enters the palette — every
+  // replacement is a value the system already ships (#FFFFFF = paper.canvas · #F2F2F2 =
+  // paper.disabledFill's value, the only neutral FILL the paper world owns · #EEEEEE = the paper
+  // chrome grammar's neutral card line, DESIGN.md §2 "cards separate with neutral #EEE 1px").
+  // Old values kept here on purpose — supersede, don't erase.
+  bg: '#FFFFFF',        // [2026-08-25 pale retirement] 구 #F4F2FB — 캔버스는 순백. 새벽빛 워시(dawn*)는 화면별 오버레이로 남는다
   card: '#FFFFFF',
-  inset: '#EFECF9',     // 필드·웰
-  hair: '#E6E2F4',      // 헤어라인 법 — 모든 면 1px 트림
-  hair2: '#EDEAF8',     // 이중 프레임 안쪽 선
+  inset: '#F2F2F2',     // [2026-08-25 pale retirement] 구 #EFECF9 — 필드·웰은 뉴트럴 (paper.disabledFill과 같은 값, 역할 토큰은 별개)
+  hair: '#EEEEEE',      // [2026-08-25 pale retirement] 구 #E6E2F4 — 헤어라인 법 유지, 색만 뉴트럴 (페이퍼 크롬의 #EEE)
+  hair2: '#F2F2F2',     // [2026-08-25 pale retirement] 구 #EDEAF8 — 이중 프레임 안쪽 선 (hair보다 한 단 옅게 유지)
   head: '#221E3D',      // 제목 잉크
   text: '#4B4668',
+  // ⚠ MEASURED on the new white ground (WCAG 2.x relative luminance, 2026-08-25 sweep):
+  // #7C76A0 on #FFFFFF = 4.24:1 — the ground change IMPROVED it (3.82 on the old #F4F2FB) but it
+  // still sits under the 4.5 body floor. It is a pre-existing failure the sweep did not create and
+  // could not clear without changing an ink Sean listed as a KEEP; report.tsx:1212 already routes
+  // around it (units use `text`, not `dim`). The only sanctioned fix is paper.dim #666666 (5.74 on
+  // white) — flagged for Sean rather than taken, because it repaints every lilac caption at once.
   dim: '#7C76A0',      // [Sean] 디테일 회색 한 단계 진하게 — 가독 (구 #928DAD)
   accent: '#6C5CE7',    // 바이올렛 — 마스트 룰·셸 인디케이터·섹션 넘버·링크 (예산제)
   accentDeep: '#7867EC',

@@ -29,6 +29,10 @@ import { colors, lilac, paper } from '../../src/theme';
 // paper.inkPressed 동반 은퇴 — 다크 카드 위의 더 밝은 안쪽 패널은 paper.inkPressed(#333)가 같은 역할을 한다 (신규 색 0개).
 // 읽는 바이올렛 (colors.clubInk와 같은 값 — '텍스트용 2단' 문법). 적립 스트립 키커 전용.
 // lilac.bg(#F4F2FB) 위 실측 대비: accent #6C5CE7 = 4.38:1 (AA 미달) · #4A3DA8 = 7.50:1 (통과).
+// [2026-08-25 pale retirement — re-measured on the new ground, both values SUPERSEDED, not erased]
+// lilac.bg is now #FFFFFF, so: accent #6C5CE7 = 4.86:1 (it now clears AA) · #4A3DA8 = 8.32:1.
+// READ_VIOLET stays anyway — it is the 'reading' step of the two-step violet grammar, not a
+// contrast workaround, and 8.32 on a 14pt kicker is the margin this strip should have.
 const READ_VIOLET = '#4A3DA8';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3;
@@ -1200,16 +1204,22 @@ const s = StyleSheet.create({
   // 은퇴 팔레트(연두 워시)의 마지막 잔재 + 알약 코너. 코랄 워시 위 샤프 칩으로.
   stampChip: { backgroundColor: paper.wash, borderRadius: 0, paddingVertical: 7, paddingHorizontal: 13 },
   // ---------- 리워드 ① 적립 스트립 — 조용한 라일락 영수증 (섹션 리듬은 s.section과 동일) ----------
+  // [2026-08-25 pale retirement] lilac.bg is white now, so this strip no longer reads as a tinted
+  // band — it separates by its bottom hairline and its kicker alone. That is the ruling's intent
+  // ("white backgrounds"), not an oversight: the token stays bound so the next ground ruling
+  // reaches this strip too.
   earnSection: {
     backgroundColor: lilac.bg, paddingHorizontal: 12, paddingVertical: 16,
     borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
   // 한글 키커 — 라틴 대문자 예외가 아니므로 플로어 14를 그대로 지킨다.
   // 색은 accent(#6C5CE7)가 아니라 READ_VIOLET: lilac.bg 위에서 accent는 4.38:1로 AA를 못 넘는다
+  // ([2026-08-25] 흰 그라운드에서 accent는 4.86으로 통과하지만 READ_VIOLET 8.32를 유지 — 위 상수 주석 참조)
   earnKicker: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: READ_VIOLET },
   // [BUG A] Oswald 숫자는 lineHeight 명시 없이는 어센더가 잘린다 — 34 × 1.2 = 41
   earnTotal: { fontSize: 34, lineHeight: 41, fontWeight: '900', color: lilac.head },
   // 단위는 lilac.dim(#7C76A0)이 아니라 text — dim은 lilac.bg 위에서 3.82:1로 AA 미달
+  // ([2026-08-25] 흰 그라운드에서도 dim은 4.24로 여전히 미달 — 이 회피는 계속 유효하다. theme.ts의 dim 주석 참조)
   earnUnit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.text },
   earnLabel: { fontSize: 14, lineHeight: 19, color: lilac.text },
   earnDelta: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: lilac.head },

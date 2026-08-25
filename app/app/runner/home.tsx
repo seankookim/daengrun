@@ -1694,7 +1694,10 @@ const styles = StyleSheet.create({
   // [2026-08-25] 15/20 으로 올라가도 20 < 26 이라 칸 높이는 그대로다.
   sq: {
     flex: 1, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#E6E2F4',
+    // [2026-08-25 pale retirement] hardcoded #E6E2F4 (lilac.hair's OLD value) → the token, which
+    // now carries the neutral #EEEEEE. The literal was a copy of the token and drifted out of the
+    // sweep's reach; binding it back is what keeps the next ruling from missing this cell.
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
   },
   sqOn: { backgroundColor: lilac.accent, borderColor: lilac.accent },
   sqTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
