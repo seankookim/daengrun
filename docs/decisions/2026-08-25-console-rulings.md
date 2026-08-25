@@ -127,3 +127,19 @@ an instruction not to over-engineer this abuse class. The 0123 fix round ships w
 cooldown + the honest wording; the heavier counters stay only insofar as they are already
 built and cheap. Unblocks the 0123 deploy (ui6). Clock-flip, revoke-edge, and route-km cards
 remain open on the console; the two soft confirms default to as-built if never tapped.
+
+## Fourth round — 2026-08-25 14:20-14:23 KST
+
+| # | Question | His answer (verbatim label) | Time (UTC) |
+|---|---|---|---|
+| Q1 | Turn on the late-booking system? | "Turn it on (with the pre-flight)" | 05:20:16 |
+| Q2 | Host-revoke → cancel pricing edge | "Free is right (as built)" | 05:21:30 |
+| Q3 | Route-name lengths | "Corrected numbers are right (live now)" | 05:22:55 |
+
+Dispositions: Q1 = **CRIT-1 RESOLVED — the clock flip is ordered**, on the card's own terms:
+pre-flight first (live candidate counts for all three sweep arms, manual drain of any backlog,
+off-peak timing if the backlog is non-trivial), then `ops_flags.late_protocol_live_since` set,
+then verified by readback. The R17 flip-activation package's preflight arm is now due; per its
+own verdict, the bounded-batching migration builds only if the preflight finds a real batch
+(≥~10 candidates). Q2 = the 0124 present-tense reading stands (L5 pin is the law). Q3 = route
+names closed as option A.
