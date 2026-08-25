@@ -352,3 +352,18 @@ normally. The bailing runner gets nothing, having done nothing. No second-dog ar
 「if no one can, the host can take care」. That is the host acting AS the runner, not a runner
 skipping a leg. Whether the host is paid runner-pay on top of the host fee is untouched by
 "same pay either way", and the addendum above still stands.
+
+### Addendum 2 — the shipped owner copy is NOT over-promising (checked, because it was raised)
+
+`0047:246` notifies the owner: 「담당 재배정 중」 / 「담당 러너를 다시 배정하고 있어요 — 자리는
+유지돼요」. Raised as possibly over-promising a host hand-pick. **It does not.** Read against what
+the function actually does:
+- 「다시 배정하고 있어요」 — the booking goes to `matching` and is re-filled. That IS reassignment;
+  the sentence names the outcome and is silent on WHO chooses, which is exactly right while the
+  agent is unruled.
+- 「자리는 유지돼요」 — TRUE: the `session_dogs` row and its capacity slot survive; only
+  `bookings.runner_id` is nulled and the status moves. The owner does not lose their place.
+
+So the string is **agent-neutral and accurate under either reading** of Sean's ruling, and needs
+no change whichever way the hand-pick question lands. Recording the check rather than the worry,
+because "this copy might be lying" is exactly the claim that should not sit unverified in a note.
