@@ -1297,6 +1297,13 @@ took silently to reach it. But this is taste on a surface you chose, so it is yo
 > Dispositions: Q1 = B① confirmed + care stats (급수/배변 등) must survive in every state — build
 > item. Q2 = gates OFF, huge nudge — build item (reverses the as-built gate). Q3 = no server
 > enforcement; reminders pre-run AND during live — build item. Q4 = 12pt stays — CLOSED, no change.
+> **Distance RULED 2026-08-25, Sean verbatim: "go with B for distance, and the runner should be
+> able to switch this address in settings."** = stored home base, runner-editable in settings.
+> Consequences accepted with the ruling: a stored runner coordinate is 개인위치정보 at rest (the
+> counsel brief's Q3 already asks about the 1-year cap — the product answer now rides with it),
+> deletion wires into account-delete from day one, base input is quantized per the scout's
+> anti-multilateration contract, and the policy §1 line for the new stored item is Sean's wording
+> (MAJOR-3 discipline). Slice: 0123/158.
 > Q5 = clarification returned to Sean (it is the OWNER's booking list; runner calendar shares the
 > window shape). Q6 = RULED: distance-to-start + 동 on runner request cards — needs a server slice
 > (coords are assigned-runner-only by 0060/0065; the shape is a definer surface returning

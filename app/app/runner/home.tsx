@@ -837,7 +837,14 @@ export default function RunnerHome() {
                             견종·체중·이름은 남는다: 러너가 실제로 결정에 쓰는 정보다. */}
                         {!inbox[0].directed && inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
                       </Text>
+                      {/* [0122 · Sean Q6 2026-08-25, verbatim: 「…also include the 동.」] 출발 동이
+                          조용한 줄의 맨 앞에 선다 — 이 줄에서 유일하게 **어디로 가야 하는가**를
+                          말하는 값이고, 나머지(정산 어휘·단골·코스명)는 전부 그 다음 질문이다.
+                          값이 없으면 토큰이 통째로 빠진다: 자리표시자 없음 (api.ts pickupDong).
+                          거리(「출발지까지 N km」)는 아직 없다 — 러너 좌표가 필요한 절반은 Sean의
+                          A/B/C와 counsel 답변을 기다린다 (requests.tsx 머리의 Q6 블록). */}
                       <Text style={styles.objQuiet}>
+                        {inbox[0].pickupDong ? `${inbox[0].pickupDong} 출발 · ` : ''}
                         실거리로 확정
                         {inbox[0].repeatPrior != null && inbox[0].repeatPrior > 0 ? ` · ⟳ ${inbox[0].repeatPrior + 1}번째 함께` : ''}
                         {inbox[0].routeName ? ` · ${inbox[0].routeName}` : ''}

@@ -41,9 +41,12 @@ import { layout, lilac, paper } from '../../src/theme';
 //      시간 from fetchMyAvailability). A row that has not loaded renders nothing; a row that
 //      failed says so quietly with a retry — never a default dressed up as an answer.
 // NOT built from the lab: the "자세히 →" door (no open-request detail screen exists — a door to
-// nowhere), the "홈 베이스에서 1.2km" line (OpenRequest has no pickup/distance field), and the
-// "근처 요청 · 온라인일 때만" kicker — measured false: the open pool's gate is is_active_runner()
-// (tier <> 'applicant', 0004:4-10), which never reads runners.online.
+// nowhere) and the "근처 요청 · 온라인일 때만" kicker — measured false: the open pool's gate is
+// is_active_runner() (tier <> 'applicant', 0004:4-10), which never reads runners.online.
+//   ⚠ CORRECTED 2026-08-25 — this list used to also carry the lab's "홈 베이스에서 1.2km" line as
+//   unbuildable, on the grounds that `OpenRequest` has no pickup field. HALF of that is now
+//   built and half is still true, and the halves are different questions (see the Q6 block
+//   below): the 동 ships (0122); the DISTANCE does not, and its blocker was never the mapper.
 //
 // [MARGIN SECRECY + THE FOUR NUMBERS · Sean 2026-08-24, verbatim] "For runner money, don't show
 // them the 수수료. I don't think we should be showing them the calcuations ever; only show the
@@ -62,12 +65,35 @@ import { layout, lilac, paper } from '../../src/theme';
 //     lateness.ts — km×8+25min, THE one shared duration formula (owner/request's slotAllowed and
 //     the server's own accept validation use it). A second formula here would reproduce the
 //     "the slot it offered me gets rejected" drift in a third place.
-//   · NOT BUILT — "how far away the starting point is". `OpenRequest` carries no coordinate and
-//     no address, and that is a gate, not an omission: `booking_pickup_address` (0060, widened
-//     0065) hands out lat/lng ONLY to a booking's ASSIGNED runner, and only in-flight or inside
-//     24 h of a confirmed start. A pre-accept card is on the far side of that gate by design.
-//     The line above already recorded the same finding for the lab's 「홈 베이스에서 1.2km」.
-//     Building it needs a server decision about pre-accept location disclosure, not a mapper field.
+//   · "how far away the starting point is" — ⚠ THIS BULLET IS SUPERSEDED IN HALF, 2026-08-25.
+//     It used to read: not built, `OpenRequest` carries no coordinate and no address, and that is
+//     a gate not an omission (`booking_pickup_address`, 0060 widened 0065, hands out lat/lng ONLY
+//     to a booking's ASSIGNED runner, in-flight or inside 24 h of a confirmed start — a pre-accept
+//     card is on the far side of that gate by design), so building it needs a server decision
+//     about pre-accept location disclosure, not a mapper field. **The server decision was taken.**
+//     See the Q6 block immediately below. The sealed address window is still sealed and still
+//     untouched — the 동 arrives through its own two-column definer, not through that gate.
+//
+// [Q6 RULED · Sean 2026-08-25, verbatim] "q6: if the runner is searching for a run, then a how far
+// away they are from the starting point is a metric they need to see and doesnt show the actual
+// address anyways; also include the 동." [end of his words]
+// (docs/decisions/awaiting-sean.md §0-undetricies, answering the 2026-08-24 pick sheet's Q6,
+//  whose options were 「동 라벨로 / 빼자 / 좌표 열어」.)
+//   · BUILT, this slice — **the 동 half only.** `OpenRequest.pickupDong` comes from
+//     `open_request_pickup_dong()` (migration 0122 §3), a SECURITY DEFINER window returning two
+//     flat columns (booking_id, pickup_dong) and nothing else — no lat/lng, no address text, no
+//     address id. Its row set INHERITS `marketplace_open_requests` (so the five open-pool gates
+//     cannot drift) plus the caller's own directed rows. A 법정동 label of a fixed address is
+//     개인정보 at 동 granularity, not 위치정보, which is why it is disclosable at all.
+//     The token renders ONLY when non-null — absence, never a placeholder (0122's own rule:
+//     an invented 동 on a stranger's card is worse than no 동).
+//   · 🔴 NOT BUILT, and NOT because it is hard — **the DISTANCE half is still awaiting Sean's
+//     A/B/C.** Distance needs the RUNNER's own coordinate, taken while no run is in progress,
+//     and `docs/legal/privacy-policy.md` publishes the opposite sentence today (「러닝 중이
+//     아닐 때는 위치를 수집하지 않습니다」). That went to counsel on 2026-08-25
+//     (`docs/biz/location-law-counsel-brief.md` §추가 질의 — four questions; its question 4
+//     carves the 동 half out as proceeding independently, which is this slice). Until counsel
+//     answers and Sean picks, this screen shows the 동 and no distance. Do not "just add km".
 //   · "but also show them what's next" — the flow after 수락 is stated where the decision is made
 //     (the confirm dialog) and once at the foot of the screen. Both name the real stages the
 //     booking actually walks: confirmed → runner_enroute → 인계(picked_up) → active → completed,
@@ -436,10 +462,15 @@ export default function Requests() {
                   이 화면의 규칙은 러너가 **하나의 수**로 결정한다는 것이다 (마진은 우리 몫의 비밀).
                   '예상'은 장식이 아니라 계약이라 남는다: 이 값은 견적이고 서버가 실거리로 확정한다.
                   「총 N분」 = expectedDurationMs(km) — 앱 전체가 공유하는 단 하나의 소요 식.
-                  ⚠ 「출발지까지 N km」는 여기 없다. OpenRequest에 좌표가 없고, 없는 이유가 있다 —
-                  픽업 주소는 배정된 러너에게만 열리는 게이트다 (0060/0065). 파일 머리 참조. */}
+                  [0122 · Sean Q6 2026-08-25] 「반포동 출발」 — 수락 전 러너가 보는 유일한 위치
+                  정보이고, 동 단위라 주소가 아니다. 값이 없으면 **토큰째로 빠진다**: 「동 미정」
+                  같은 자리표시자는 없는 사실을 있는 것처럼 만든다. km 바로 뒤인 이유는 이게
+                  거리·시간과 같은 결정 데이텀이기 때문이고, 돈은 줄 끝을 지킨다.
+                  ⚠ 「출발지까지 N km」는 아직 여기 없다 — 그 절반은 러너 좌표가 필요하고
+                  Sean의 A/B/C(그리고 counsel 답변)를 기다린다. 파일 머리의 Q6 블록 참조. */}
               <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
                 <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text>
+                {req.pickupDong ? ` · ${req.pickupDong} 출발` : ''}
                 {preAccept ? '' : ` · ${req.paceLabel}`}
                 {totalTime ? ` · 총 ${totalTime}` : ''} · 예상{' '}
                 <Text style={[{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19, fontVariant: ['tabular-nums'] as const }, nf]}>

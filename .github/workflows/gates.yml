@@ -1,0 +1,67 @@
+# The commit gates, made structural — same lesson as deleting `main`: a rule the tool enforces
+# beats a rule sessions must remember. Every push/PR to trunk runs the FULL local discipline:
+# the SQL harness (throwaway PG16, all migrations 0001→ in order, ~840 pins), the deno edge
+# tests, and the five client gates. Local runs stay the fast loop; this is the backstop that
+# catches a session that skipped them. No secrets needed — nothing here touches production.
+name: gates
+on:
+  push:
+    branches: [redesign-v4]
+  pull_request:
+    branches: [redesign-v4]
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  sql-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 16
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-16
+      - name: Run harness
+        run: |
+          cd supabase/tests
+          LC_ALL=C bash harness.sh
+  deno-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Edge function tests
+        run: deno test -A supabase/functions/_test/
+  client-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        run: cd app && npm ci
+      - name: tsc
+        run: cd app && ./node_modules/.bin/tsc --noEmit
+      - name: rpc contracts
+        run: cd app && node scripts/check-rpc-contracts.mjs
+      - name: route native imports
+        run: cd app && node scripts/check-route-native-imports.mjs
+      - name: embed fk
+        run: cd app && node scripts/check-embed-fk.mjs
+      - name: lint error budget (exactly 6)
+        run: |
+          cd app
+          out=$(npm run lint --silent 2>&1 || true)
+          errs=$(echo "$out" | grep -oE '[0-9]+ errors' | grep -oE '[0-9]+' | head -1)
+          echo "lint errors: ${errs:-unparsed}"
+          test "${errs:-999}" -le 6 || { echo "::error::lint errors exceeded the 6-error baseline"; exit 1; }
+      - name: unit suites
+        run: cd app && npm test

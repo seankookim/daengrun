@@ -870,6 +870,15 @@ export interface OpenRequest {
   vaccines: string[];
   routeId: string | null;   // 코스 미리보기 링크 — 수락 전 코스를 알고 결정
   routeName: string | null;
+  /** 픽업 주소의 법정동 (「반포동」) — 수락 전에 보이는 유일한 위치 정보.
+   *  Sean's Q6 ruling 2026-08-25: 「…doesnt show the actual address anyways; also include the 동.」
+   *  Source: `open_request_pickup_dong()` (0122 §3), a definer window whose row set is exactly the
+   *  requests this runner can already see. NEVER a coordinate and never the address text — the
+   *  pickup address itself stays assigned-runner-only (0060/0065), untouched.
+   *  null = 아직 모름 (주소 미지정 · 핀 미지정 · 역지오코딩 실패). The render must OMIT the token,
+   *  never draw a placeholder: an invented 동 on a stranger's card is worse than no 동.
+   *  ⚠ The DISTANCE half of the same ruling is NOT here — see requests.tsx's header. */
+  pickupDong: string | null;
 }
 
 // The payout estimate printed on a runner's card. ⚠ Computed from the RUNNER settlement base
@@ -905,6 +914,10 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
     vaccines: ((r.dogs?.vaccinations as any[]) ?? []).map((v) => v.type),
     routeId: r.route_id ?? null,
     routeName: r.routes?.name ?? null,
+    // [0122] Neither mapper can carry the 동: it is not on `bookings` and not on the view — it
+    // comes from its own RPC leg and is keyed on afterwards (fetchRunnerInbox). A row nobody
+    // keys stays null, which is the honest state, not a defect.
+    pickupDong: null,
   };
 }
 
@@ -941,6 +954,7 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
     vaccines: ((r.vaccinations as any[]) ?? []).map((v) => v.type),
     routeId: r.route_id ?? null,
     routeName: r.route_name ?? null,
+    pickupDong: null,   // [0122] keyed on by fetchRunnerInbox's third leg — see the directed mapper
   };
 }
 
@@ -972,16 +986,26 @@ async function myCommissionRate(): Promise<number> {
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
-  const [openRes, directedRes] = await Promise.all([
+  const [openRes, directedRes, dongRes] = await Promise.all([
     // 오픈 풀 = 0042 초크포인트 뷰 (definer·컬럼 화이트리스트·클럽 부킹 구조 배제) — bookings 직읽기는 RLS 0행
     supabase.from('marketplace_open_requests').select('*').order('scheduled_at').limit(10),
     user.user
       ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
       : Promise.resolve({ data: [], error: null } as any),
+    // [0122] 픽업 동 — 세 번째 다리. 이 RPC는 인자가 없다: 행 집합을 호출자가 고르는 게 아니라
+    // 서버가 「이 러너가 이미 볼 수 있는 요청」으로 정한다 (marketplace_open_requests 상속 + 내 지명
+    // 행). 그래서 부킹 id 목록조차 보내지 않는다 — 보낼 게 없는 게 계약이다.
+    // ⚠ 인자 없는 rpc는 `{}` 축약을 쓰지 않는다 (check-rpc-contracts가 빈 객체를 키 0개로 읽어
+    // 계약 대조를 건너뛴다) — 인자 자체를 생략한다.
+    supabase.rpc('open_request_pickup_dong'),
   ]);
   // [내성] 한쪽 다리가 죽어도 다른 쪽은 산다 — 오픈 풀 에러가 지명 요청까지 지우던 것 방지
   if (openRes.error) console.warn('[inbox] open pool:', openRes.error.message ?? openRes.error);
   if (directedRes?.error) console.warn('[inbox] directed:', directedRes.error.message ?? directedRes.error);
+  // [0122] 동 다리는 **장식이 아니라 부가 정보**다 — 죽으면 동만 사라지고 요청함은 그대로 산다.
+  // 배포 순서 상 이 RPC가 아직 없는 서버(0122 미적용)에 붙은 빌드도 여기로 떨어진다: 경고 한 줄,
+  // 나머지 전부 정상. 반대 방향(서버만 먼저)은 구버전 클라가 이 다리를 부르지 않을 뿐이다.
+  if (dongRes?.error) console.warn('[inbox] pickup dong:', dongRes.error.message ?? dongRes.error);
   // ⚠ Drop requests whose start time has already passed, on BOTH legs.
   // `marketplace_open_requests` (0056) has no time predicate — its WHERE is status/runner/club/
   // decline only — and both queries order by `scheduled_at` ASCENDING, so a stale row sorts to
@@ -1005,6 +1029,16 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const directed = rawDirected.map((r: any) => mapOpenRequest(r, true, rate));
   const open = rawOpen.map((r: any) => mapOpenRequestView(r, rate));
   const all = [...directed, ...open];
+
+  // [0122] 동을 bookingId로 붙인다. 없으면 null 그대로 — 없는 값을 지어내지 않는다.
+  // 서버가 NULL을 돌려주는 경우(주소 미지정·핀 미지정·역지오코딩 실패)와 다리가 죽은 경우가
+  // 화면에서 같은 모습(토큰 없음)인 것은 의도다: 둘 다 「모른다」이고, 카드는 모르는 것을 그리지 않는다.
+  const dongRows: any[] = Array.isArray(dongRes?.data) ? dongRes.data : [];
+  if (dongRows.length > 0) {
+    const byBooking = new Map<string, string | null>();
+    for (const d of dongRows) byBooking.set(String(d.booking_id), (d?.pickup_dong as string | null) ?? null);
+    all.forEach((r) => { const d = byBooking.get(r.bookingId); if (d) r.pickupDong = d; });
+  }
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
   if (user.user && dogIds.length > 0) {
@@ -3223,6 +3257,25 @@ export async function setAddressPin(id: string, lat: number, lng: number): Promi
   const { error } = await supabase.from('addresses')
     .update({ lat, lng }).eq('id', id);
   if (error) throw error;
+  // [0122] 핀이 바뀌면 동도 바뀐다 — 그래서 갱신은 **핀 저장 자체에** 붙는다. 화면(address-pin.tsx)이
+  // 아니라 여기인 이유: 두 번째 호출자가 생기는 순간 화면에 붙인 갱신은 잊히고, 그러면 좌표와 동이
+  // 조용히 어긋난다 (러너 카드에 옛 동이 남는다). 좌표 저장의 사후조건으로 두면 잊을 수가 없다.
+  // 🔴 fire-and-forget: 동 갱신 실패가 핀 저장을 실패로 만들면 안 된다. 저장은 이미 성공했고,
+  // 동은 있으면 좋은 부가 정보다 (없으면 카드가 토큰을 그리지 않을 뿐 — 자리표시자 없음).
+  void refreshAddressDong(id);
+}
+
+// [0122] 역지오코딩 트리거. 좌표도, 동 문자열도 클라가 보내지 않는다 — address_id 하나만 보내고
+// 서버(service_role)가 그 행의 자기 좌표를 읽어 NCP에 물어보고 자기가 쓴다. 그래서 이 함수는
+// 반환값을 쓰지 않는다: 화면에 그릴 값이 아니라 **서버 상태를 갱신해 달라는 요청**이다.
+// 실패는 전부 경고 한 줄로 끝난다 (조용한 삼킴이 아니라 '실패했지만 이 화면의 약속은 아니다').
+export async function refreshAddressDong(addressId: string): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke('geocode-address', { body: { address_id: addressId } });
+    if (error) console.warn('[addr-dong] refresh failed:', error.message ?? error);
+  } catch (e) {
+    console.warn('[addr-dong] refresh threw:', (e as Error)?.message ?? e);
+  }
 }
 
 // Owner-side pickup coords for the meetup plate — two owner-RLS selects
