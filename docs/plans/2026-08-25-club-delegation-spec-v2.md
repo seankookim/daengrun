@@ -42,10 +42,10 @@ findings; dispositions in §15); ready for Sean. Nothing here is built.
 | C11 | (upgrade of C2) | Same as C2; the run screen's per-dog SOS branching (0-dog / 1-dog / multi-dog) is preserved as-is |
 
 Two peer-supplied facts also honored: club fees never route through `quote_cancel_fee` (it
-raises `club_out_of_scope` by design — a fact from the 0117 slice, which lives on
-`claude/cancel-fee-mirror`, NOT yet on trunk; §5.4's quote surface is therefore specified
-against the club ladder directly), and every handoff stamp today is pairing-scoped and erased
-by six reassignment paths (0118:1197-1201) — so this machine is **keyed per-pairing**, and the
+raises `club_out_of_scope` in every entry point — 0117:415/856/1002; 0117 LANDED on trunk and
+DEPLOYED mid-drafting, 2026-08-25, so this is now a trunk fact; §5.4's club quote surface is
+specified against the club ladder directly), and every handoff stamp today is pairing-scoped
+and erased by six reassignment paths (0118:1207-1216) — so this machine is **keyed per-pairing**, and the
 one place a per-person durable fact is wanted is named and left to Sean's open Custody decision
 (§7.4).
 
@@ -252,8 +252,8 @@ only one.
 
 ### 5.4 Two club money surfaces this spec ORDERS (new server asks, own slices)
 
-1. **Club cancel quote.** The marketplace `quote_cancel_fee` refuses club rows by design (a
-   0117-slice fact; that function lives on `claude/cancel-fee-mirror`, not yet trunk), and the
+1. **Club cancel quote.** The marketplace `quote_cancel_fee` refuses club rows by design
+   (`club_out_of_scope`, 0117:415 — landed on trunk and deployed 2026-08-25), and the
    honesty law forbids quoting the ladder from client constants. Before any owner-cancel
    confirm in club: a read-only definer `quote_club_cancel_fee(p_session_dog)` returning the
    §5.2 ladder's answer (rung, pct, won amount, ruling-B halving) computed from the same
@@ -937,7 +937,8 @@ door + gaming note · F12 → §6.6 marked 🔵+🔴 14.10; kill fallback moved 
 fabricated G4/0119-row attribution removed; corrected in §11 · F14 → dissolved by F3's design
 (named in C28) · F15 → §7.3 evidence gap stated. Citation audit: all 16 flagged cites
 corrected in place (line-number fixes; the runner-money contract and 0117 facts now cited as
-on-branch, not trunk).
+on-branch, not trunk; 0117 then LANDED and DEPLOYED mid-drafting and its cites were refreshed
+to trunk facts — the runner-money contract remains on its branch).
 
 **Round 2 — blind codex voice (gpt-5.6-sol, read-only sandbox), 2026-08-25.** Reviewed
 draft 1 concurrently with round 1; verdict REQUEST CHANGES, 9 findings + 27 citation checks
