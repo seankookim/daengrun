@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules/
+# no trailing-slash twin: `node_modules/` matches only DIRECTORIES, and the worktree
+# convention makes app/node_modules a SYMLINK — which is how a8d683b tracked it (measured).
+node_modules
 
 # Expo
 .expo/

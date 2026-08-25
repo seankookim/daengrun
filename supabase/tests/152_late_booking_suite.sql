@@ -407,7 +407,18 @@ begin
           9900, 15000, 0, 24900, 9900, v_s)
   returning id into b_club;
 
-  perform late_booking_sweep();
+  -- ⚠ DRAIN, not a single tick (2026-08-25, the 0123 landing merge). 0126 ① bounded every
+  -- sweep arm at LIMIT 5 per call — correct for the 5s production cron, which converges — but
+  -- this suite runs against a database FIFTY EARLIER SUITES have populated, so the ceiling
+  -- arm's eligible set here is a cross-suite backlog ordered by random uuid. One call takes an
+  -- arbitrary 5 of it: whether b_4h lands in that draw is a COIN FLIP, and L9 measured exactly
+  -- that — green on one tree, red twice on another, zero code difference in the sweep's path
+  -- (the first red was mis-blamed on 0123; the pure-trunk rerun that came up green was the same
+  -- coin). A pin must not be a probability. Loop until the sweep reports an empty tick — that
+  -- is 0126's own drain semantics, compressed into one call site.
+  loop
+    exit when late_booking_sweep() = 0;
+  end loop;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [L1] arming — past grace opens, inside grace / club / post-custody never do
