@@ -131,8 +131,10 @@ begin
   -- quietly resurrects the rung announces itself).
   select prosrc into v_txt from pg_proc where proname = 'session_cancel_delegation';
   v_bad := '';
-  if v_txt not like '%unconnected_free%' then v_bad := ' no-unconnected-arm'; end if;
-  if v_txt like '%late_cancel%' then v_bad := v_bad || ' late-rung-back'; end if;
+  if v_txt not like '%''unconnected_free''%' then v_bad := ' no-unconnected-arm'; end if;
+  -- match the ASSIGNMENT, not the word: prosrc includes comments, and 0124's own header
+  -- names the retired rung (measured red on the comment, first run — the M2 class inverted).
+  if v_txt ~ 'v_rule\s*:=\s*''late_cancel''' then v_bad := v_bad || ' late-rung-back'; end if;
   if v_bad <> '' then call _fail('lad','L4 사다리 구조', v_bad);
                  else call _pass('lad','L4 사다리 구조 — unconnected_free 있음·late_cancel 소비자 없음'); end if;
 
