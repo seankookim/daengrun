@@ -219,3 +219,81 @@ lab Sean reads to decide — the exact mistake made with the settlement amounts 
 **Codex scope verdict: R1 as written is over-built for 11 users; R3/R4/R5 are pre-PMF polish.**
 
 *(Voice B — independent Claude CEO subagent — pending; consensus table follows.)*
+
+## Voice B — independent Claude CEO subagent
+
+**Verdict: R1 as scoped should not be built. Its founding bug report is false.**
+
+Its four critical findings, **each re-verified by me at source before recording** (this plan's own
+premise is what they overturn, so relaying them unchecked would be the exact failure this repo
+keeps naming):
+
+- **F1 — 「즉시 해제」 is not a defect; it is Sean's own ruling, and it applies only to a dog he is
+  holding himself.** ✅ VERIFIED: the lab frame at `club-v2-run-lab.html:266` is titled
+  **참가자 러닝 뷰** — the SELF-RUN participant view, and the 즉시 해제 line lives only there. And
+  Sean, 2026-08-24 verbatim (`docs/decisions/2026-08-24-sean-ui-club-commentary.md:59-60`):
+  *"the runner goes back to each owner's home, **or if it's the owner, then there's an immediate
+  release of all responsiblites**."* So he ruled BOTH arms a day earlier: delegated → the runner
+  goes to each owner's home; self-run → immediate release. There is no custody to end and no party
+  to return to. **This plan read a self-run frame as the club's whole return model.**
+- **F1b — delegated club dogs already HAVE a full return model.** ✅ VERIFIED in the very file this
+  plan cited and did not open: `0045_custody_returns.sql` ships `custody_phase='return_pending'`,
+  `session_confirm_return` (both-stamp), `session_force_return_override`, and `club_finish_session`
+  raising `dogs_not_returned`. The plan wrote "the club path has no return at all" one paragraph
+  after naming the file that implements it.
+- **F2 — the club return-point choice was ALREADY RULED, hours before Sean's message.** ✅ VERIFIED:
+  spec v2 §7.2 (`:502-505`) specs it per pairing — 집 픽업 (default) / 현장 인계, *"Return mirrors
+  pickup … One column on the pairing (`pickup_mode`)"* — and §14.2 (`:898`) records his answer:
+  **"Pickup mode: BOTH ✅"**. This plan proposed `bookings.return_kind` as though the surface were
+  open. It is not, and it belongs to the spec session.
+- **F3 — scope invention.** Every clause of Sean's paragraph is club-framed, read while looking at
+  club labs. This plan put the blast radius in `create-booking-hold` — the MARKETPLACE-only entry
+  point, which club bookings never touch (`address_id` null by construction, 0043:341-347).
+
+Plus, ranked lower but real: F5 (making settlement location-dependent drags a cosmetic choice
+through the money canon, for a product with 0 payments and charging OFF) · F6 (the "not too far"
+radius is **unenforceable**: `addresses.lat/lng` are NULL until the owner pins, 0065:29-33, so the
+gate silently wouldn't apply half the time — the honesty law's forbidden shape) · F7 (R1's privacy
+blast radius is LARGER than R5's: a second address per booking is a second disclosure and a second
+grant surface, in the repo whose 0060/0065/0122/0123 exist to minimise exactly that) · F8 (it taxes
+the scarce side: a job becomes bespoke, with no decline-on-destination and no price — and it cuts
+against **yesterday's** 0123, which just asked runners to commit to a catchment for 7 days) ·
+F9 (nothing ties any item to the M1 rebooking gate, and **Sean is the source but Sean is not a
+user** — at 11 users you can ask all of them before lunch) · F11 (**Sean's own sentence contradicts
+itself**: "meets the owner at the *starting* point" vs "the club session run *end* point" — this
+plan silently harmonized to `session_end`) · F12 (R2's carry-over is already shipped:
+`session_transfer_accept`, 0045:199-327) · F13 (a white text-shadow makes DESIGN.md's ≥7:1 floor
+unverifiable; the repo's measurable idiom is the ink plate) · F14 (R5 gated too broadly — the
+privacy risk is the MAP TRACE and other people's dogs, not the card; a trace-free card has neither)
+· F16 (five new questions added to a queue that is already the scarcest resource).
+
+## CEO consensus
+
+| Dimension | Codex | Claude | Consensus |
+|---|---|---|---|
+| 1. Premise valid (즉시 해제 = defect)? | NO | NO — factually false, it's his own ruling | **CONFIRMED: premise dead** |
+| 2. Right problem? | NO — reframe to fulfillment promise | NO — it's a copy bug | **CONFIRMED** |
+| 3. Return point belongs on a booking column? | NO — "an address cannot receive custody" | NO — already a pairing flag, already ruled | **CONFIRMED** |
+| 4. `other` address earns a slot now? | NO — separate service, handle manually | NO — no demand evidence, unenforceable radius | **CONFIRMED** |
+| 5. Scope calibration across the six? | R1 over-built; polish is pre-PMF | R4 + R5-v1 + R1-copy only | **CONFIRMED** |
+| 6. Supply-side risk addressed? | NO — margins or supply collapse | NO — bespoke jobs, cuts against 0123's cooldown | **CONFIRMED** |
+
+**6/6 CONFIRMED. Zero disagreements.** Two independent voices, one reading the repo and one
+reading the market, reached the same verdict by different routes — and the repo's own files
+settle it: this plan proposed building something Sean had already ruled, to fix something that
+was never broken.
+
+## USER CHALLENGE (not auto-decided — goes to Sean)
+
+**What Sean said:** the owner should choose the return point, including "some other address that's
+not too far", and 즉시 해제 is wrong.
+**What both models recommend:** don't build the model. 즉시 해제 is his own 08-24 ruling and only
+needs a label that says *whose* dog it was. The 집/현장 choice he's asking for he already ruled
+today (spec v2 §14.2 "BOTH"). The only genuinely new thing is the THIRD option, and no owner has
+asked for it.
+**What we might be missing:** he may know from talking to owners that home-return is the thing
+that makes people rebook; he may intend the third address for a real case (a walker, a vet, a
+partner's flat). Neither model can see his conversations.
+**If we're wrong, the cost is:** we shipped a label fix and asked one question, instead of a
+migration — recoverable in days. If we build and they're right, we carry a permanent unenforceable
+distance rule, a second address disclosure per booking, and an unpriced runner leg, pre-PMF.
