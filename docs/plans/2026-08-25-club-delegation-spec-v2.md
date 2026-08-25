@@ -182,9 +182,10 @@ calling `session_rsvp(p_session, null)` gets `session_people(role='runner_attend
 headcount (0048:170-171), hold no delegated slot, touch no bookings, appear in no money path.
 One consequence to carry honestly: a companion who is ALSO someone's paired runner counts their
 own 동반견 toward load (0047:61-63) — a companion cannot bring their own dog AND be at full cap.
-🔵 Companions are runner-tier only (`tier <> 'applicant'`, the existing role predicate). A
-non-runner friend is a guest RSVP — allowed today, visible as a person, never listed as crew.
-🔴 §14.6 if Sean wants non-runner companions labeled as crew on the board.
+RULED (14.6, 2026-08-25): **guests can be crew too** — any dogless RSVP, runner-tier or
+guest, may be listed as crew on the board. Standing needs no new machinery: every RSVP holds
+a `session_people` row → shell `full` → incident standing (0049:14, 0067:68). The board's
+crew row shows the person's name and role only.
 
 ---
 
@@ -221,7 +222,12 @@ Sean's recorded ruling that ≥24h cancels are free (0118:210, `cancel_free_hour
 | 20% post-accept | inside 24h AND `confirmed` AND `runner_id not null` |
 | 10% late | inside 24h, unpaired |
 
-Ruling B (runnerless → platform half only, 0118:816-826) is untouched. Slot comp reading: a
+**SUPERSEDED for the runnerless arm, ruled 14.13 (2026-08-25):** when no runner ever
+accepted, cancellation is FREE at any time — "should be no fee if the owner was not
+connected; it's our job to connect them." The 10% runnerless arm and ruling B's halving of
+it retire together in their own migration (153's ladder pins re-target in that slice); the
+marketplace's unaccepted tier gets checked against the same principle in its own slice.
+Post-acceptance fees are untouched by this ruling. Slot comp reading: a
 runner whose pairing is cancelled ≥24h out held a re-fillable slot (the pick surface is open;
 capacity frees instantly) — no supply half, consistent with slot-based comp's own logic. Inside
 24h the slot is likely unfillable and the 20%/supply-half arm compensates exactly as ruled.
@@ -761,8 +767,10 @@ GAINS: ● the run-end confirmation (§7.5) — one button, enabled when no pair
 (picked_up/active), with the blocker rendering server-classified (§9 kills the duplicated
 predicate); its evidence view shows the §7.4 arrival/no-show flags per pairing so the host
 sees exactly what money will move BEFORE tapping · a pairs timeline (watch, not choose).
-Backup host: same console minus the arms the server refuses them — which arms those are is
-🔴 14.5, now including the host-fee routing consequence (§7.5.2).
+Backup host: may confirm run-end (RULED 14.5); host fee routes to the real host regardless
+(§7.5.2). Ruled bar for this whole subsection (his 14.10 comment): the host UI must include
+"all steps of the flow — each possible step and scenario" — the S5 client slice delivers the
+host console as a complete per-state enumeration, not a summary screen.
 
 ### 10.3 Runner — `club/session/[sid].tsx` (runner cards) + `club/run/[sid].tsx` respec (Sean's "R" question)
 
@@ -823,7 +831,7 @@ the same slice with a WHY comment naming the successor pin.
 | S2 | §9 member board projection (+ 🔴 14.9 readership word) + operational-board state columns + the console-predicate de-duplication | spec review + Sean's read |
 | S3 | Pick layer (§6.1-6.4): `session_pick_runner`, self-pick refusals, gate moves + the two widenings, TTL, deprecations §11, §5.2 rung reorder (🔴 14.11) + 153 ladder re-pins, viability re-read (§13) | S2 (board renders picks); 🔴 14.1, 14.10, 14.11 |
 | S4 | Door custody (§7.1-7.4): the four stamps + club edge action, address slice (§8), no-show re-anchor + 153 P4/P9/P10/P12 re-pins, copy-drift rows (§13), client legs | S3; riders (honest transit copy); 🔴 14.2 |
-| S5 | Two-phase finish (§7.5): `finished_pending_host` + the three §7.6 escapes, `club_confirm_run_end`, closer split, console respec | S4; **hard-gated on 🔴 14.3** (ceiling yes-with-N or explicitly no); 🔴 14.5 |
+| S5 | Two-phase finish (§7.5): `finished_pending_host` + the three §7.6 escapes, `club_confirm_run_end` (6h auto-confirm ceiling — RULED 14.3), closer split, console respec | S4 — **gate OPEN** (14.3 and 14.5 both ruled) |
 | S6 | Mode C (§6.5): columns + CHECK bounds, ranking definer, `session_auto_pick`, onboarding surface, pinned-address door | S3; **counsel brief answered** (rider); 🔴 14.4 |
 
 Every S2-S6 migration: adversarial cycle (0059 doctrine), numbers two-sided from the remote tip
@@ -831,10 +839,8 @@ at write time, REGISTRY row in the same push, suites updated in-slice. Client ha
 atomically with any grant move (0088 law); no binary reaches a device before its `db push`
 (the 0119 deploy-order law, now standing).
 
-Kill criterion (review #2's shape; Sean accepted the shape, the numbers and the fallback are
-his): if no club session with ≥2 delegated dogs runs within N weeks of S3 landing, S4-S6
-shelve — and what matching remains (owner-picks with scene handoff, or restored host matching)
-is 🔴 14.7's second half, not this spec's default.
+Kill criterion: NONE — ruled 14.7 (2026-08-25, "why call it off? no need i think"). The
+redesign is unconditional; the review's proposed shelving mechanism is retired unbuilt.
 
 ---
 
@@ -883,46 +889,56 @@ Classes: **U** unchanged · **RA** re-anchored (same logic, new event/caller) ·
 
 ---
 
-## 14. 🔴 Open with Sean (everything in one place, one word each where possible)
+## 14. Sean's answers — RULED 2026-08-25 afternoon (console; verbatim record in docs/decisions/2026-08-25-console-rulings.md)
 
-1. **Pick TTL** — 2h with lapse-back proposed (§6.3). · 「2시간」 / your number
-2. **Per-pairing pickup mode** {집 픽업 default, 현장 인계 option} (§7.2) — solves the
-   attending-owner case; reshapes "the runner should pick them up" into default-plus-option.
-   · 「좋아」 / 「집 픽업만」
-3. **Host-never-confirms ceiling** (§7.6) — the machine ships escapable either way; this is
-   the POLICY: after N hours the system confirms and money moves toward paying completed
-   work, or no timer ever and the alarm nags forever. **S5 waits on this word.**
-   · 「N시간으로」 / 「타이머 없이」
-4. **Owner distance preference in Mode C** — skip in pilot (vacuous: run distance is
-   route-fixed; only the pickup leg remains) or store a field now (§6.5). · 「스킵」 / 「필드로」
-5. **Backup host and run-end confirmation** — NOTE this is money routing, not just
-   permissions: the host fee routes to `host_profile_id` regardless of who taps (§7.5.2), and
-   today's asymmetry is wider than one function (backup may force-resolve, 0070:195-196, but
-   not finish, and custody-override is host-only, 0070:254). · 「백업도 확인 가능」 / 「호스트만」
-6. **Non-runner companions** — runner-tier only proposed (§4.4); guests remain plain RSVPs.
-   · 「러너만」 / 「게스트도 크루로」
-7. **Kill criterion** — N weeks without a ≥2-delegated-dog session after S3 → S4-S6 shelve;
-   AND the fallback state (owner-picks-with-scene-handoff vs restored host matching) is yours
-   (§12). · N = ? · fallback = ?
-8. **C27 quirk** — a `confirmed` booking rejected at materiality re-review is not refunded by
-   that arm (0048:278 filters `matching`). Pre-existing; fix in S4 or leave documented.
-   · 「고쳐」 / 「그대로」
-9. **Board readership** (§9) — `club_join` is one unconditional tap, so the member board is
-   effectively public-to-any-signed-in-user. Accept for the pilot (recommended — the club IS
-   the neighborhood at Banpo scale) or gate membership first (new mechanism, delays S2).
-   · 「공개 수용」 / 「가입 승인제부터」
-10. **The host recovery window** (§6.6) — your "replace" vs a T−2h recovery pen for lapsed
-    picks. · 「회수 창 좋아」 / 「호스트 펜 완전 제거」
-11. **The ladder rung reorder** (§5.2) — free-≥24h checked first, pairing-blind; keeps your
-    free-24h ruling true once pairing moves early. The alternative (state-anchored 20%
-    whenever paired) reprices early cancels and contradicts 0118:210. · 「재정렬 좋아」 /
-    「페어링되면 20%」
-12. Standing, unchanged by this spec: the club 9,900-vs-7,900 base gap (memo ④) · 맹견
-    refused-vs-conditions · breed-alias scope · the Custody A/B durable-attendance decision
-    (§7.4 interlocks with it) · counsel briefs (S6's gate) · 0060's address-log judgment
-    (§8.3).
+1. **Pick TTL: 2 hours** ✅ ("2 hours is good")
+2. **Pickup mode: BOTH** ✅ — 집 픽업 default + 현장 인계 option. PLUS a new order in his
+   comment: the owner-participates side (Mode A) gets a FULL per-side/per-state delineation —
+   "all the screens and maps and etc for this side as well, full flushed" — see §16. His
+   "just pay the club fee" raises the Mode A participation-fee question (today: free) —
+   follow-up card pending; no Mode A fee builds until answered.
+3. **Finish ceiling: 6-hour auto-confirm** ✅ — S5's hard gate is OPEN. System confirms 6h
+   after the last runner-finish with host notification; the §7.6 escapes ship regardless.
+4. **Owner distance pref in Mode C: skip** ✅
+5. **Backup host may confirm** ✅ — host fee still routes to `host_profile_id` (§7.5.2).
+6. **Guests CAN be crew** ✅ — overrides §4.4's runner-only proposal; §4.4 updated: any
+   dogless RSVP may be listed as crew (standing already exists via `session_people`).
+7. **NO kill criterion** ✅ ("why call it off? no need i think") — §12's kill paragraph
+   removed; the redesign is unconditional.
+8. **Refund quirk: FIX** ✅ — rides S4.
+9. **Board public: accepted** ✅ ("it's like a public dashboard") — future idea parked: live
+   ranked dashboard in community.
+10. **Host recovery backstop: approved** ✅ — and his comment raises §10.2's bar: the host
+    console must enumerate EVERY step and scenario.
+11. **Rung reorder: free-24h always wins** ✅ — §5.2 is ruled as written.
+12. **R17 User Challenge: WAIT** ✅ — deferral accepted; the flip-activation package is the
+    standing pre-flip slice.
+13. **Runnerless cancel fee: ZERO** ✅ ("should be no fee if the owner was not connected;
+    it's our job to connect them") — supersedes 10%-vs-5%; the runnerless 10% arm retires in
+    its own migration; §5.2's table gains the ruled zero (see the note there).
+14. **Durable owner-attended record: BUILD** ✅ — the Custody decision closes as B; lands
+    with S4.
+15. **맹견 gate: removal ordered — HELD for one explicit confirm** ⚠ — his comment orders
+    all breeds accepted and the gate forgotten; held only because the prompting card omitted
+    the gate's legal-review origin (readiness-review-nonlocation-2026-08-19.md). A
+    context-complete confirm card is on the console. **Until confirmed: 0119 is frozen as
+    deployed; no session touches it.** If confirmed, removal executes with counsel flagged.
+16. **동네 피드: rename** ✅ — policy stays, name changes (ui6 copy job).
 
----
+Still open, unchanged by this round: the schedule-list window card · the looks bundle ·
+counsel briefs (S6's gate) · the Mode A participation-fee follow-up · the 맹견 confirm.
+
+## 15-bis. ORDERED ADDENDUM — Mode A (owner-participates), full delineation
+
+Ruled with 14.2 (his comment, verbatim in the rulings doc): *"the owner can participate
+themselves and just pay the club fee and not pay for a runner. we need to figure out all the
+screens and maps and etc for this side as well, full flushed."* Spec v2's §4.3 (Mode A =
+copy-plus-board) is therefore INSUFFICIENT by his word. A spec addendum (same review rigor)
+must delineate the self-run owner side per-state: sign-up fork · pass/ticket · check-in ·
+the live run surface a self-running owner sees (map, route, crew) · their dog on the board ·
+finish/release · receipt. Open money question riding it: his "just pay the club fee" — today
+a 동반 owner pays NOTHING (RSVP mints no booking, 0048:158); whether a participation fee
+exists, and its shape, is a follow-up console card — no Mode A fee builds before his answer.
 
 ## 15. Review log
 
