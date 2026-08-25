@@ -56,9 +56,15 @@ product-wide.** The 2026-08-10 grammar below said tinted canvases retire but "th
 survive as accents/washes inside components"; for lilac, that carve-out is now CLOSED — the
 pale tints go entirely. **#6C5CE7 itself survives as an ACCENT** (active states, selection,
 links-class emphasis), never as a ground or wash. Coral remains the action color. The
-replacement ground for surfaces that rode lilac is the warm consent-doc paper grammar
-(club/delegate's doc world) — exact values are ratified by whichever club-v2 lab variant Sean
-picks, then swept through `theme.ts` in one slice (owner home/fitness included; fitness's
+replacement ground is **RATIFIED same day, round 4 — Sean: "white backgrounds."** Pure white
+`paper.canvas` #FFFFFF everywhere (the warm consent-doc tint retires as a GROUND too; the doc
+grammar's ink rules/dashed cells survive on white). Same round also rules: **every clickable
+choice must LOOK clickable** ("if there are choices that have to be made through clicking, it
+should be more obvious that it is a clickable button or row" — chevron/border/fill affordance,
+no bare tappable text), and the **working Korean detail floor rises to 15** (Sean on owner
+home: "very small font text sizes; not acceptable and are illegible" — those sites were at or
+near the old 14 floor; 14 remains the absolute minimum only for the exempt classes). The
+`theme.ts` sweep runs in one slice (owner home/fitness included; fitness's
 freeze covers its hero ARCHITECTURE, and a ground-color token change is styling — verify the
 non-native-driver rule is untouched when sweeping). Update CLAUDE.md's design extract
 ("tailored lilac (bg #F4F2FB…)") in the same sweep — on any conflict this file wins.

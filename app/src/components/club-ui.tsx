@@ -3,7 +3,7 @@ import { Animated, PanResponder, Pressable, StyleProp as RNStyleProp, StyleSheet
 import Svg, { Circle, Defs, LinearGradient as SvgLinear, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useNumFont } from '../lib/fonts';
 import { FlapState } from '../lib/api';
-import { lilac, lilacRadius, lilacShadow, paper } from '../theme';
+import { colors, lilac, lilacRadius, lilacShadow, paper } from '../theme';
 
 // ═══ 클럽 위탁 UI 킷 — 테일러드 라일락 (정본: docs/design/delegation-premium-refresh2 + master-lab) ═══
 // 법: 크리스프 코너 + 소프트 섀도 · 헤어라인 전면 트림 · 히어로 = 이중 프레임 · 태그 = 사각 모노
@@ -91,10 +91,22 @@ const TAG_TONES = {
   volt: { bg: L.voltFill, fg: L.voltDeep },
   amber: { bg: L.amberSoft, fg: L.amber },
   coral: { bg: L.coralSoft, fg: '#C24A2E' },
-  lilac: { bg: L.hair2, fg: L.accent },
+  lilac: { bg: L.hair2, fg: colors.clubInk },
   gold: { bg: L.goldSoft, fg: '#8a6f2a' },
-  dim: { bg: L.inset, fg: L.dim },
+  dim: { bg: L.inset, fg: paper.dim },
 } as const;
+// [2026-08-25 pale-ground retirement — contrast follow-through, MEASURED (WCAG 2.x rel. luminance)]
+// Two of these fills are lilac tokens whose VALUE moved to a neutral in the same sweep
+// (hair2 #EDEAF8 → #F2F2F2 · inset #EFECF9 → #F2F2F2), so both rows had to be re-measured. The
+// chip is 16/800 — under WCAG's 18.66px bold "large" line — so the floor is 4.5, not 3.
+//   · lilac: L.accent #6C5CE7 was 4.10 on #EDEAF8 and is 4.34 on #F2F2F2 — the ground change
+//     improved it but did not clear the floor. Ink darkens to colors.clubInk #4A3DA8 = 7.43, the
+//     club world's own READ violet (theme.ts:35, "라벨·텍스트" — its stated job). Zero new hex,
+//     and the accent/read-violet two-step is the grammar coralText already follows for coral.
+//   · dim: L.dim #7C76A0 was 3.64 on #EFECF9 and is 3.78 on #F2F2F2 — same story. Ink darkens to
+//     paper.dim #666666 = 5.13, the white world's sanctioned detail grey.
+// Neither failure was created here (both shipped under 4.5 on the old tinted fills); the sweep
+// touched their grounds, so it clears them. Re-measure if any of the four values moves.
 // [§3b-C sweep 2026-08-11] ClubTag IS the club world's status chip, so §3b's status-chip clause
 // governs it: 16/800, radius 0, tinted fill + no border. It shipped 9.5pt with tracking 1.1 —
 // i.e. Korean status words (확정 · 완료 · 진행 중 · 수락 대기 · 마감 임박 · 재검토) rendered at
@@ -374,9 +386,13 @@ const s = StyleSheet.create({
   },
   flapTile: {
     minWidth: 13, paddingVertical: 2, paddingHorizontal: 3, alignItems: 'center',
-    backgroundColor: '#EDEAF8', borderRadius: 2,
+    // [2026-08-25 pale retirement] 구 bg #EDEAF8 (= lilac.hair2's old value, hardcoded) → the token,
+    // now neutral #F2F2F2. The 2px depth lip went with it: #CFC8EC was the same pale-lilac family
+    // and would have left a violet edge under a neutral tile — → #DDDDDD, the neutral border value
+    // this repo already uses (compose.tsx:323, onboard/owner.tsx:303). No new hex.
+    backgroundColor: L.hair2, borderRadius: 2,
     borderTopWidth: 1, borderTopColor: '#FFFFFF',
-    borderBottomWidth: 2, borderBottomColor: '#CFC8EC',
+    borderBottomWidth: 2, borderBottomColor: '#DDDDDD',
   },
   flapSlit: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, backgroundColor: 'rgba(34,30,61,0.13)' },
   cta: {

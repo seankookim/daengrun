@@ -31,8 +31,12 @@ import { colors, layout, lilac, paper } from '../../src/theme';
 // 2026-08-03 정밀 픽스 라운드 (FIX3): BUG A — 모든 대형 Oswald 숫자에 lineHeight ≥1.2×fontSize,
 // includeFontPadding:false 제거 (0의 상단 잘림 "UU"/"₩U" 픽스). 히어로/빅넘버 크기는 동결.
 // 2026-08-10 type/density wave: FIX3's private "11.5pt floor" is RETIRED — the governing law is the
-// 14pt detail-text floor (DESIGN.md §3). Only latin letterspaced caps kickers, serial/MRZ strings and
+// detail-text floor (DESIGN.md §3). Only latin letterspaced caps kickers, serial/MRZ strings and
 // barcode/glyph-only marks stay below it; Korean data never rides a kicker style.
+// 2026-08-25 (Sean, on the owner home: "very small font text sizes; not acceptable and are illegible"):
+// the WORKING Korean floor is **15**, not 14 (DESIGN.md §2 amendment). 14 survives only as the absolute
+// minimum for the exempt classes above. Every Korean site on this screen that sat at 14 moved to 15 with
+// lineHeight 20 (1.33×); the two glyph-only marks (12pt ▣ · qlinkChev ›) stayed where they are.
 // 2026-08-11 Ⓑ① MONEY FIRST (declutter-lab, Sean pick "b1 + keep the rewards layout"):
 // 장부(₩ 히어로)가 화면의 리드 모듈, 레이스 빕은 한 줄 스트랩(이름·티어·온라인 토글)으로 접혔다.
 // 중복 인쇄 0: tierLabel 1회(스트랩), 주간 러닝/거리/평균 1회(장부), 온라인 1회(스트랩) — 푸터·마스트헤드
@@ -1095,13 +1099,13 @@ export default function RunnerHome() {
             // measures them against a rung two steps away and implies the first one is already theirs.
             // Loading and a failed load are stated as themselves — neither is a tier.
             if (!rsLoaded) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>등급을 불러오는 중이에요…</Text>;
+              return <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim }}>등급을 불러오는 중이에요…</Text>;
             }
             if (rsErr) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>등급을 불러오지 못했어요</Text>;
+              return <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim }}>등급을 불러오지 못했어요</Text>;
             }
             if (preCert) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>인증 러너가 되면 등급이 시작돼요</Text>;
+              return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>인증 러너가 되면 등급이 시작돼요</Text>;
             }
             // v1 승급 기준: 베테랑 30회, 마스터 100회 — 심사 도입 전 잠정.
             // 수수료는 일괄 33%(0059) — 티어 연동 요율 없음. 요율 인하 약속 금지(정산은 33%를 뗀다).
@@ -1111,15 +1115,15 @@ export default function RunnerHome() {
                 ? null
                 : { next: '베테랑', at: 30 };
             if (!t) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>★ 마스터 러너</Text>;
+              return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>★ 마스터 러너</Text>;
             }
             const left = Math.max(t.at - rs.totalRuns, 0);
             const pct = Math.min(rs.totalRuns / t.at, 1);
             return (
               <>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
-                    {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{left}</Text>회
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>
+                    {t.next}까지 러닝 <Text style={[{ fontSize: 15, color: lilac.head }, nf]}>{left}</Text>회
                   </Text>
                   {/* [2026-08-24 Sean] "don't show them the 수수료… keep the margin a secret."
                       The word itself goes, not just the rate: 「수수료 제외」 names the deduction and
@@ -1142,7 +1146,7 @@ export default function RunnerHome() {
                 </Row>
                 {/* [2026-08-10 filler cull] '승급 혜택은 준비 중이에요' clause dropped — announcing an
                     unbuilt benefit is filler; the honest disclaimer stays */}
-                <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 8 }}>
+                <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 8 }}>
                   승급 기준은 파일럿 중 조정될 수 있어요
                 </Text>
               </>
@@ -1159,7 +1163,7 @@ export default function RunnerHome() {
 
           {/* 보급 드랍 트레일 — 지그재그 체크포인트 (i<cycle5 지남=accent, i===cycle5 다음=accent 링, 끝=보급 상자) */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
+            <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>
               <Text style={{ color: lilac.gold }}>▣ </Text>보급 드랍 트레일
             </Text>
             <Text style={styles.trailCnt}>누적 {rs.totalRuns}회 ›</Text>
@@ -1194,7 +1198,7 @@ export default function RunnerHome() {
               </View>
             </View>
           </Row>
-          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head, marginTop: 4 }}>
+          <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head, marginTop: 4 }}>
             {rs.totalRuns === 0
               ? '첫 러닝을 완료하면 트레일이 시작돼요'
               : cycle5 === 0
@@ -1221,8 +1225,9 @@ export default function RunnerHome() {
             한 화면에 두 번이다.
             🔴 랩에서 이 안에 걸어둔 유일한 반대가 타입 플로어였는데(12pt 요일 글자, 한글은 라틴
             키커 예외를 못 탄다 — §3), 실측해보니 걸 필요가 없었다: 320dp에서 카드 콘텐츠 폭은
-            320 − 30 거터 − 26 카드 패딩 = 264, 갭 3×6 = 18을 빼면 칸당 ≈ 35px. 14pt 한글 한 글자는
-            ≈ 14px이라 여유가 두 배다. 그래서 **14pt로 짓는다** — 플로어를 지키고 칸도 안 키운다. */}
+            320 − 30 거터 − 26 카드 패딩 = 264, 갭 3×6 = 18을 빼면 칸당 ≈ 35px. 15pt 한글 한 글자는
+            ≈ 15px이라 여유가 두 배다. 그래서 **15pt로 짓는다** — 플로어를 지키고 칸도 안 키운다.
+            (2026-08-25: 작업 플로어가 15로 올라가며 14 → 15. 칸당 여유 35 − 15 = 20px로 그대로다.) */}
         <View style={styles.card}>
           {/* [honesty 2026-08-20 · T3] 로딩과 실패가 같은 문장이었다 (둘 다 '불러오는 중...').
               실패는 자기 문장 + 실제로 다시 부르는 문을 갖는다 — 이 카드의 토글은 저장 버튼 없이
@@ -1234,7 +1239,7 @@ export default function RunnerHome() {
               여전히 진실이고, 그 위에서의 토글도 실데이터 위의 쓰기다. */}
           {!avail && availErr ? (
             <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 9 }}>
-              <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical }}>
+              <Text style={{ flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>
                 러닝 가능 시간을 불러오지 못했어요
               </Text>
               <Pressable onPress={loadAvail} hitSlop={8} style={styles.togRetry} accessibilityRole="button" accessibilityLabel="러닝 가능 시간 다시 불러오기">
@@ -1242,7 +1247,7 @@ export default function RunnerHome() {
               </Pressable>
             </Row>
           ) : !avail ? (
-            <Text style={{ fontSize: 14, color: lilac.dim }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: lilac.dim }}>불러오는 중...</Text>
           ) : (
             <>
               <Pressable
@@ -1253,7 +1258,7 @@ export default function RunnerHome() {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }}
               >
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>
                     주 {availDays}일 가능
                   </Text>
                   {/* 접힘 상태의 정보량이 이 안의 값 — 며칠인지가 아니라 **어느 요일**인지 보인다.
@@ -1292,7 +1297,7 @@ export default function RunnerHome() {
                     })}
                   </Row>
                   {/* [2026-08-10 filler cull] tap-narration clause dropped — the chips demonstrate the tap */}
-                  <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 9 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 9 }}>
                     기본 06–22시 · 보호자 예약 화면에 즉시 반영
                   </Text>
                 </View>
@@ -1399,7 +1404,7 @@ export default function RunnerHome() {
             다크 면 '밖'에 붙여 크리티컬 잉크의 대비를 지킨다 (my.tsx recFail 선례 그대로). */}
         {rsErr && (
           <Row style={styles.recFail}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>러닝 기록을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>러닝 기록을 불러오지 못했어요</Text>
             <Pressable onPress={reloadStatus} hitSlop={8} accessibilityRole="button" accessibilityLabel="러닝 기록 다시 불러오기">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -1499,17 +1504,17 @@ const styles = StyleSheet.create({
   },
   strapName: { fontSize: 17, lineHeight: 22, color: '#FFFFFF' }, // 디스플레이 서체(df) 지참 — 화면당 1회 예산
   // 잉크 위 실측: #999 = 6.57:1 (AA 통과). lilac.dim(#7C76A0)은 잉크 위에서 3.4:1로 미달한다.
-  strapNameEm: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '600' },
-  strapTier: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '700' },
+  strapNameEm: { fontSize: 15, lineHeight: 20, color: paper.faint, fontWeight: '600' },
+  strapTier: { fontSize: 15, lineHeight: 20, color: paper.faint, fontWeight: '700' },
 
-  // ② 온라인 토글 행 — [v4] 캔버스 위 자기 행. 44pt 타깃 법: 56×32 스위치 + 14/18 서브줄로 행 높이 ≈ 62.
+  // ② 온라인 토글 행 — [v4] 캔버스 위 자기 행. 44pt 타깃 법: 56×32 스위치 + 15/20 서브줄로 행 높이 ≈ 64.
   tog: {
     flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60,
     paddingTop: 14, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
   togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤/크리티컬)
-  togSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 2 },
+  togSub: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   // 상태 로드 실패의 재시도 — 아래 recFail과 같은 문법 (크리티컬 잉크 + 밑줄, ≥44pt 타깃)
   togRetry: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   togRetryTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
@@ -1528,8 +1533,8 @@ const styles = StyleSheet.create({
   // 숫자만 Oswald, lineHeight 19 = 1.27× (BUG A 법). 320dp에서 값이 두 줄로 접히면 접힌다 —
   // flex:1 + textAlign right라 오른쪽 정렬을 유지한 채로 흐른다.
   week: { alignItems: 'baseline', gap: 8, paddingTop: 11, paddingBottom: 11, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
-  weekK: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '600', flexShrink: 0 },
-  weekV: { flex: 1, textAlign: 'right', fontSize: 14, lineHeight: 20, color: lilac.head, fontWeight: '600' },
+  weekK: { fontSize: 15, lineHeight: 20, color: lilac.dim, fontWeight: '600', flexShrink: 0 },
+  weekV: { flex: 1, textAlign: 'right', fontSize: 15, lineHeight: 20, color: lilac.head, fontWeight: '600' },
   weekNum: { fontSize: 15, lineHeight: 19, color: lilac.head },
 
   // [§3b status chip] 16/800 · 보더 없는 틴트 필 · 샤프 (앰버 = 시맨틱 지명 신호)
@@ -1555,30 +1560,31 @@ const styles = StyleSheet.create({
   tStub: { backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1.5, borderTopWidth: 0, borderColor: lilac.head, paddingHorizontal: 13, paddingTop: 11, paddingBottom: 12 },
 
   // 오브젝트 본문 — 두 티켓이 공유하는 줄들
-  objStage: { fontSize: 14, lineHeight: 18, fontWeight: '800', flexShrink: 0 }, // 색 = STAGE[rawStatus].color (인라인)
+  objStage: { fontSize: 15, lineHeight: 20, fontWeight: '800', flexShrink: 0 }, // 색 = STAGE[rawStatus].color (인라인)
   objMain: { marginTop: 8, fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
-  // A — the demoted clock. 14pt keeps the detail floor; it is a supporting fact, not a datum.
-  objClock: { marginTop: 3, fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim },
+  // A — the demoted clock. 15pt keeps the detail floor (raised from 14 on 2026-08-25); it is a
+  // supporting fact, not a datum.
+  objClock: { marginTop: 3, fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.dim },
   // D — road name quiet, 동·호수 loud. The bold half is the half that finds the door.
-  objAddr: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  objAddr: { marginTop: 3, fontSize: 15, lineHeight: 20, color: lilac.dim },
   objDetail: { marginTop: 1, fontSize: 15, lineHeight: 19, fontWeight: '800', color: lilac.head },
   // C — confirmation, not a call to action. Green reads as money without spending the coral budget.
   objPay: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: '#2F7D4F' },
-  objStubTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim },
+  objStubTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.dim },
   // ① the coral action. 4px depth edge = the same drawn-button grammar the owner home uses, so a
   // dual-role user meets one language. Solid coral: title white is 4.84:1 on paper.action (the
   // ground's ceiling), sub is paper.wash at 4.55:1 — both measured, both above the 4.5 floor.
   jobCta: { marginTop: 10, backgroundColor: paper.action, paddingHorizontal: 14, paddingVertical: 13,
     borderBottomWidth: 4, borderBottomColor: '#A63A20' },
   jobCtaT: { fontSize: 18, lineHeight: 23, fontWeight: '800', color: '#FFFFFF' },
-  jobCtaS: { marginTop: 2, fontSize: 14, lineHeight: 18, color: paper.wash },
+  jobCtaS: { marginTop: 2, fontSize: 15, lineHeight: 20, color: paper.wash },
   // chat — ink outline, deliberately not a second coral (see the JSX note).
   jobChat: { marginTop: 8, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head,
     paddingHorizontal: 14, paddingVertical: 11 },
   jobChatT: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: lilac.head },
-  jobChatS: { marginTop: 1, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  jobChatS: { marginTop: 1, fontSize: 15, lineHeight: 20, color: lilac.dim },
   objNum: { fontSize: 15, lineHeight: 20, color: lilac.head }, // Oswald 숫자 — lineHeight 1.33× (BUG A)
-  objQuiet: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  objQuiet: { marginTop: 3, fontSize: 15, lineHeight: 20, color: lilac.dim },
   // 스텁의 액션 줄 — 코랄 면(nowBar) 은퇴 후의 자리. 카드 전체가 탭 타깃이라 이 줄은 라벨이지 버튼이 아니다.
   objActTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head, textAlign: 'right' },
 
@@ -1589,74 +1595,75 @@ const styles = StyleSheet.create({
   doorGhost: { backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head },
   doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
   doorName: { fontSize: 16, lineHeight: 22, fontWeight: '800' }, // 수락 문은 인라인 17로 승격 (프라이머리급) · 거절/자세히 16/800
-  doorSub: { marginTop: 4, fontSize: 14, lineHeight: 18 },
-  doorSubNum: { fontSize: 14, lineHeight: 18 },
+  doorSub: { marginTop: 4, fontSize: 15, lineHeight: 20 },
+  doorSubNum: { fontSize: 15, lineHeight: 20 },
 
   // 스텁 행 — 목업 .s-act width 92 → 96 (FIX3: 11.5pt 캡션 한 줄 여유 확보, 구조는 동일)
   stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
-  stubNm: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
-  stubKm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  stubKmUnit: { fontSize: 14, color: lilac.dim, fontWeight: '600' }, // [v4] 코랄 단위 은퇴 — 단위는 강조가 아니다
-  stubWhen: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500' },
-  // [A② 2026-08-25] 스텁의 마감 — 같은 줄, 같은 크기(14pt 바닥), 잉크로 한 단 올린다.
+  stubNm: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head },
+  stubKm: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
+  stubKmUnit: { fontSize: 15, color: lilac.dim, fontWeight: '600' }, // [v4] 코랄 단위 은퇴 — 단위는 강조가 아니다
+  stubWhen: { fontSize: 15, lineHeight: 20, color: lilac.dim, fontWeight: '500' },
+  // [A② 2026-08-25] 스텁의 마감 — 같은 줄, 같은 크기(15pt 바닥), 잉크로 한 단 올린다.
   // 시각은 참고값이고 남은 시간이 행동을 바꾸는 값이라 이쪽이 무게를 갖는다. 앰버·크리티컬은
   // 쓰지 않는다: 서버에 임박 문턱이 아예 없어서(오직 scheduled_at < now()) 색으로 급함을
   // 주장하면 그건 측정이 아니라 지어낸 긴급함이다.
-  stubRel: { fontSize: 14, lineHeight: 18, color: lilac.head, fontWeight: '800' },
-  // [Ⓑ① re-derive] 112 케이지 유지. 캡션이 'KRW 실수령' → '실수령'(한글 3자 ≈ 3×14 + ls = 45px)으로 줄어
+  stubRel: { fontSize: 15, lineHeight: 20, color: lilac.head, fontWeight: '800' },
+  // [Ⓑ① re-derive] 112 케이지 유지. 캡션이 'KRW 실수령' → '실수령'(한글 3자 ≈ 3×15 + ls = 47px)으로 줄어
   // 최장 소자는 이제 요금 숫자('999,999' 7글리프 × ~8.5 ≈ 60px)와 '보기 ›' 라벨(2×16 + 12 ≈ 44px) —
   // 60 + 패딩 16 = 76 < 112 (기기 폰트 스케일 여유 36px).
   stubAct: { width: 112, borderLeftWidth: 1.4, borderStyle: 'dashed', borderLeftColor: '#DCD7F0', paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', gap: 7 },
   stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', zIndex: 3 },
   // BUG A: 스텁 요금 17pt → lineHeight 22 (1.29×), includeFontPadding 제거
   stubFare: { fontSize: 17, lineHeight: 22, color: lilac.head },
-  stubFareCap: { fontSize: 14, lineHeight: 18, letterSpacing: 0.5, color: lilac.dim, fontWeight: '500', marginTop: 2 }, // [§3b] 한글 캡션 — 라틴 자간 1 → 0.5
+  stubFareCap: { fontSize: 15, lineHeight: 20, letterSpacing: 0.5, color: lilac.dim, fontWeight: '500', marginTop: 2 }, // [§3b] 한글 캡션 — 라틴 자간 1 → 0.5
   // [§3b] 세컨더리 킨드 — 캔버스 필 + 코랄 라인 보더 + 잉크 16/800 (구 코랄 필 '수락'은 요청함으로 가는
   // 문이었다 — 라벨과 킨드를 정직하게)
   stubView: { width: '100%', borderRadius: 0, paddingVertical: 15, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: paper.line },
   stubViewTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
-  emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
-  emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk, textAlign: 'center', marginTop: 5 },
+  emptyInboxTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim, textAlign: 'center' },
+  emptyInboxLink: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk, textAlign: 'center', marginTop: 5 },
   // [A① 2026-08-24] 조용한 날의 두 줄 요약. 랩의 .sumrow 문법 그대로: 라벨 고정 열 · 값 우측 정렬 ·
   // 문은 행 끝. 이 상태의 코랄 수는 **0개**이고 그건 합법이다 (requests.tsx R2c 선례) — 누를 것이
   // 없는 화면에 클라이맥스를 만들면 그 코랄이 가리키는 행동이 없다.
   emptyInboxHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head, textAlign: 'center' },
   emptySum: { marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
-  // min-height 52 + 14/18 두 소자 = 랩 치수. 문(시간 조정)은 자기 44pt 타깃을 따로 진다.
+  // min-height 52 + 15/20 두 소자 = 랩 치수(2026-08-25 플로어 상향분 반영). 문(시간 조정)은
+  // 자기 44pt 타깃을 따로 진다.
   sumRow: { alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 12 },
   sumRowDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
-  sumLbl: { width: 96, flexShrink: 0, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  sumLbl: { width: 96, flexShrink: 0, fontSize: 15, lineHeight: 20, color: lilac.dim },
   sumVal: { flex: 1, minWidth: 0, textAlign: 'right', fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
   sumAct: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
-  sumActTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.head },
+  sumActTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
   // 닫는 문장은 좌측 정렬 — 두 줄로 접히는 문장을 가운데 정렬하면 읽는 눈이 매 줄 시작점을 다시 찾는다.
-  emptyInboxNote: { marginTop: 11, fontSize: 14, lineHeight: 19, color: lilac.dim },
+  emptyInboxNote: { marginTop: 11, fontSize: 15, lineHeight: 21, color: lilac.dim },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },
   stopPt: { width: 14, height: 14, borderRadius: 7, marginTop: 2, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: '#DCD6F8', alignItems: 'center', justifyContent: 'center' },
   stopPtOn: { borderColor: lilac.head }, // [v4] 링도 잉크 — 안쪽 점과 같은 이유 (코랄은 수락 문 하나)
   stopTm: { fontSize: 16, lineHeight: 20, fontWeight: '600', color: lilac.head }, // [2026-08-10] 14 → 16 Oswald · lineHeight 20 = 1.25× (BUG A); time col widened 52 → 60 in JSX
-  stopTmSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500', marginTop: 2 },
-  stopInfoB: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  stopInfoS: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 2 },
+  stopTmSub: { fontSize: 15, lineHeight: 20, color: lilac.dim, fontWeight: '500', marginTop: 2 },
+  stopInfoB: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
+  stopInfoS: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   // [2026-08-10] 14 → 16 Oswald · lineHeight 20 = 1.25× (BUG A). Row check at 320dp: card content
   // 320 − 30 gutter − 26 card pad − 2 border = 262 → minus pt 14, gaps 3×11, time 60, pay '+99,000'
   // ≈ 60 leaves ≈ 95px for the info column (flex, minWidth 0 — long dog names ellipsize, no overlap).
   stopPay: { fontSize: 16, lineHeight: 20, fontWeight: '600', color: lilac.head, marginTop: 1 },
 
   // ③ 리워드
-  fee: { fontSize: 14, lineHeight: 18, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },
+  fee: { fontSize: 15, lineHeight: 20, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },
   rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' },
   rungL: { borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
   rungR: { borderTopRightRadius: 99, borderBottomRightRadius: 99 },
   rungFill: { height: '100%', backgroundColor: lilac.accent },
-  trailCnt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.accent, fontWeight: '500' },
-  flagLb: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
+  trailCnt: { fontSize: 15, lineHeight: 20, letterSpacing: 1, color: lilac.accent, fontWeight: '500' },
+  flagLb: { fontSize: 15, lineHeight: 20, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
   flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: '#EEEEEE' },
   flagFill: { height: '100%', borderRadius: 99, backgroundColor: lilac.accent },
-  flagCnt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
+  flagCnt: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
 
   // ④ 가능 시간 — 목업 .day padding 8 0 7 · [페이퍼 크롬] 샤프·뉴트럴 (dayOn 바이올렛 틴트는 액센트 생존)
   // [E7 2026-08-12] 기록면 — my.tsx에서 그대로 옮겨온 아티팩트 (§1 "다크는 아티팩트"). 값은
@@ -1667,14 +1674,14 @@ const styles = StyleSheet.create({
     shadowColor: '#120E2C', shadowOpacity: 0.34, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
   recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: 0, padding: 13 },
-  recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
+  recordKick: { fontSize: 15, lineHeight: 20, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
   coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
   // 큰 숫자 — 세 칸이 한 칸이 되면서 23 → 34로 승격 (BUG A: lineHeight 43 = 1.26×)
   recN: { fontSize: 34, lineHeight: 43, fontWeight: '800', color: '#fff' },
   recU: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 14, lineHeight: 18, color: 'rgba(255,255,255,0.62)', marginTop: 2 },
+  recL: { fontSize: 15, lineHeight: 20, color: 'rgba(255,255,255,0.62)', marginTop: 2 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  recGo: { fontSize: 15, fontWeight: '700', color: '#fff' },
   recFail: {
     alignItems: 'center', justifyContent: 'space-between', gap: 9,
     marginHorizontal: -layout.gutter, marginTop: 8, paddingVertical: 11, paddingHorizontal: layout.gutter,
@@ -1682,32 +1689,36 @@ const styles = StyleSheet.create({
   },
 
   // [Ⓑ②] 접힘 상태의 7칸 스트립. 320dp 실측: 콘텐츠 264 − 갭 3×6 = 246 / 7 ≈ 35px/칸.
-  // 14pt 한글 한 글자 ≈ 14px이라 여유가 두 배 — 랩이 걸어둔 타입 플로어 반대는 실측으로 해소됐다.
+  // 15pt 한글 한 글자 ≈ 15px이라 여유가 두 배 — 랩이 걸어둔 타입 플로어 반대는 실측으로 해소됐다.
   // 높이 26은 요약 표식의 크기다 (탭 타깃은 이 스트립이 아니라 감싸는 44pt 행이 진다).
+  // [2026-08-25] 15/20 으로 올라가도 20 < 26 이라 칸 높이는 그대로다.
   sq: {
     flex: 1, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#E6E2F4',
+    // [2026-08-25 pale retirement] hardcoded #E6E2F4 (lilac.hair's OLD value) → the token, which
+    // now carries the neutral #EEEEEE. The literal was a copy of the token and drifted out of the
+    // sweep's reach; binding it back is what keeps the next ruling from missing this cell.
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
   },
   sqOn: { backgroundColor: lilac.accent, borderColor: lilac.accent },
-  sqTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  sqTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
 
   day: { flex: 1, borderRadius: 0, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE' },
   dayOn: { backgroundColor: '#F4F1FE', borderColor: '#DCD6F8' },
-  dayD: { fontSize: 14, fontWeight: '700', lineHeight: 18 },
-  dayH: { fontSize: 14, lineHeight: 18, letterSpacing: 0.4, fontWeight: '500', marginTop: 4 },
+  dayD: { fontSize: 15, fontWeight: '700', lineHeight: 20 },
+  dayH: { fontSize: 15, lineHeight: 20, letterSpacing: 0.4, fontWeight: '500', marginTop: 4 },
 
   // ⑤ 최근 완료 — 목업 .drow padding 10 11, patch 34
   drow: { alignItems: 'center', gap: 10, paddingHorizontal: 11, paddingVertical: 10 },
   patchFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1C1837', alignItems: 'center', justifyContent: 'center' },
-  patchFallbackTxt: { fontSize: 14, lineHeight: 18, color: '#CFC4FF', fontWeight: '600' },
-  drowB: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  drowS: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 3 },
-  drowPay: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text },
+  patchFallbackTxt: { fontSize: 15, lineHeight: 20, color: '#CFC4FF', fontWeight: '600' },
+  drowB: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
+  drowS: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 3 },
+  drowPay: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.text },
   shot: { borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 6 }, // [페이퍼 크롬]
-  shotTxt: { fontSize: 14, fontWeight: '600', color: lilac.head },
+  shotTxt: { fontSize: 15, fontWeight: '600', color: lilac.head },
 
   // 퀵 링크 — 목업 .qlink padding 10 11 (푸터 스타일은 Ⓑ① 재인쇄 은퇴와 함께 삭제)
   qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderStyle: 'dashed', borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 11 }, // [페이퍼 크롬] 글래스 은퇴
-  qlinkB: { fontSize: 14, fontWeight: '600', color: lilac.head },
+  qlinkB: { fontSize: 15, fontWeight: '600', color: lilac.head },
   qlinkChev: { fontSize: 12, color: lilac.dim }, // 글리프 전용(›) 셰브런 — 플로어 면제
 });

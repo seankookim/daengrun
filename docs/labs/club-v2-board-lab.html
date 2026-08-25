@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Board Lab (r3)</title>
+<title>Club v2 — Board Lab (r4)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
@@ -44,44 +44,90 @@
    (docChip #FBF9F3 · docInk #26231b · docLine/docEdge hairlines). ONE surface
    level per screen — the pinned sheet is no longer a card floating on a
    canvas; the SCREEN is the sheet, and rows separate by ink and hairlines.
+
+   ── ROUND 4 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "white backgrounds. if there are choices that have to be make through
+   clicking, it should be more obvious that it is a clickable button or row. i
+   like the pin board 1, but what does the different states mean? aren't they
+   all supposed to be in near sync? same start time, maybe different arrival
+   states as some can be doing pick up or arrival, but also same end or maybe
+   some are returning or finished completely. also, clicking on each names
+   should go to their profiles with their posts (like instagram). for the host
+   console, why is the host accepting or rejecting an owner? they shuold be
+   able to sign up and runners too without the host's permission. pair
+   reallocation functionality for the host? is that really necessary, i dont
+   think so. the club will be running in a pack so end times would probably be
+   all the same or similar. i like the simple live map screen. i dont like the
+   stamp style though. refurbish and renew the mock."
+
+   ① IS PICKED — 핀 보드 ships. ② 장부 (the ruled ledger) is DELETED from this
+   lab; its markup and its .lgRow/.lgHdr/.lgNo/.lgDog/.lgOwn/.lgRun/.lgSt/.lgTm
+   rules are gone with it. History above stays.
+
+   WHAT ROUND 4 CHANGED HERE
+   1. WHITE. The canvas inside every frame is #FFFFFF. The warm grounds
+      (#FBF9F3 canvas, #F6F3EA clause) are retired AS GROUNDS; the doc grammar
+      they carried — ink rules, hairlines, dotted leaders, letterspaced Latin
+      kickers, serials, square corners — survives on white. A recessed region,
+      if one is ever needed, uses the neutral --recess #F7F7F5: never warm,
+      never lilac. Lab chrome went white with it.
+   2. AFFORDANCE. Every one of the twelve rows is TAPPABLE (row tap → that
+      dog + owner's profile, or that crew member's), so every row carries the
+      tap marks: white fill, 1px border, ≥56px height, a chevron ›. Nothing
+      that is NOT tappable carries any of them — the pack header, the counts
+      line and the footer serials are print. The contrast is the information.
+      이름 → 프로필(게시물): the Instagram-like profile with the member's posts
+      is a COMING SURFACE, mocked separately, not in this lab.
+   3. THE STATE MODEL IS NOW THE PACK. One shared run — 「같이 달려요」,
+      09:00 출발 · 5km · 잠수교 — and rows differ ONLY by edge phase:
+         출발 전   픽업 중 · 도착 · 합류
+         러닝 중   ONE pack state, shown once at pack level, never repeated
+                   per row (they run together; twelve identical row words are
+                   twelve lies about variety)
+         종료 후   복귀 중 · 인계 완료
+      동반 (owner runs along) is a ROW ATTRIBUTE, not a state — it rides the
+      trailing note column beside the phase time.
+      This frame is ONE moment: 08:41, gathering, 19분 전. Seven 합류, three
+      도착, two 픽업 중 — the variety Sean questioned now means "the pack is
+      assembling", not "everyone is doing something different".
    ═════════════════════════════════════════════════════════════════════════ */
 
 /* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
-  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
-  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
-  --docDash:#C9C2AE; --docWhite:#FFFFFF;
-  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
   --accent:#6C5CE7;
-  /* ACTION + state inks — theme.ts paper / lilac */
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
   --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
   --action:#C6472C; --actionInk:#A83315;
-  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
   /* collar palette — theme.ts collarColors */
   --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
   --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
   --dogFill:#C9B89A; --dogInk:#5d5138;
-  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
   --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
   --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
-  /* Round 3-bis (2026-08-25): four Korean sizes (22/17/15/14) clustered too close — a 14-vs-15
-     distinction carries no information and reads as the exact schema inconsistency Sean called
-     out. Three steps, real jumps (≥1.25): display 24 · title 19 · one body tier 15 (the floor
-     rises to 15 with it — hierarchy comes from these jumps + weight + kickers, never from
-     near-identical gradations). --t4 kept as an alias so no selector goes dangling. */
   --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
   --t2:19px; --l2:26px;      /* title */
   --t3:15px; --l3:21px;      /* body — the one text tier */
-  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor now 15) */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
   --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
   --ts:10px;                 /* Latin serial */
-  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.24×) */
-  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.27×) */
-  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.29×) */
-  /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
@@ -127,152 +173,189 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .thinrule{height:1.5px;background:var(--docInk)}
 .hairrule{height:1px;background:var(--docLine)}
 .mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
-.mast .bk{font-size:24px;line-height:24px;color:var(--docDim)}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
 .mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
 .dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
   font-size:var(--t4);font-weight:800;color:var(--dogInk)}
 
-/* ── FILE-LOCAL — the board ───────────────────────────────────────────────── */
-.title{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px}
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+/* ── FILE-LOCAL — ① 핀 보드 (the picked grammar) ──────────────────────────── */
+.title{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px}
 .title .left{display:flex;align-items:center;gap:10px}
 .livedot{width:9px;height:9px;border-radius:5px;background:var(--coral)}
 .clock{font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+.packline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:8px}
+.packline .num{color:var(--docInk)}
+.packphase{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);margin-top:6px}
 
-.counts{display:flex;gap:18px;padding:14px 0}
-.counts span{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
-.counts b{font-family:var(--fNum);font-weight:600;font-size:var(--t3);color:var(--docInk)}
+.counts{display:flex;flex-wrap:wrap;gap:16px;padding:16px 0 14px}
+.counts span{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.counts b{font-family:var(--fNum);font-weight:600;font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
 
-/* ① pinned sheet — collar dots + dotted leaders, no row numbers */
-.brow{display:flex;align-items:center;gap:8px;padding:12px 0;border-top:1px solid var(--docLine)}
+/* the twelve rows — EVERY one is tappable (row → profile) */
+.rows{margin-top:2px}
+.brow{display:flex;align-items:center;gap:7px;min-height:56px;padding:12px 13px;
+  background:var(--docWhite);border:1px solid var(--docDash)}
+.brow + .brow{margin-top:-1px}
 .dd{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
   font-size:var(--t4);font-weight:800;color:var(--dogInk)}
 .dd.sky{border-color:var(--collarSky)}.dd.rose{border-color:var(--collarRose)}.dd.teal{border-color:var(--collarTeal)}
 .dd.moss{border-color:var(--collarMoss)}.dd.goldc{border-color:var(--collarGold)}.dd.berry{border-color:var(--collarBerry)}
 .dd.violet{border-color:var(--collarViolet)}
+.mk{width:28px;height:28px;flex:0 0 28px;border:1.5px solid var(--docDash);display:flex;
+  align-items:center;justify-content:center;font-size:var(--tk);letter-spacing:.8px;
+  font-weight:800;color:var(--docDim)}
 .dog{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);white-space:nowrap}
-.own{font-size:var(--t4);line-height:var(--l4);color:var(--docDim);white-space:nowrap}
-.lead{flex:1;min-width:8px;border-bottom:1.5px dotted var(--docDash);transform:translateY(-3px)}
-.runN{width:52px;text-align:right;font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docInk);white-space:nowrap}
-.st{width:62px;text-align:right;font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--docInk);white-space:nowrap}
-.st.live{color:var(--coralText)}
-.st.pend{color:var(--amber)}
-.st.dimS{color:var(--docDim)}
-.tm{width:44px;text-align:right;font-size:var(--t4);line-height:var(--l4);color:var(--docDim)}
-.tm.on{color:var(--docInk)}
-.grpRule{border-bottom:1.5px solid var(--docInk)}
-.brow.doneR .dog,.brow.doneR .runN{color:var(--docDim)}
-.crewline{display:flex;align-items:baseline;gap:8px;padding:14px 0 0;border-top:1.5px solid var(--docInk);margin-top:2px}
-.crewline .lbl{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
-.crewline .nm{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docInk)}
+.own{font-size:var(--t3);line-height:var(--l3);color:var(--docDim);white-space:nowrap}
+.lead{flex:1;min-width:10px;border-bottom:1.5px dotted var(--docDash);transform:translateY(-3px)}
+.runN{width:46px;text-align:right;font-size:var(--t3);line-height:var(--l3);font-weight:700;
+  color:var(--docText);white-space:nowrap}
+.st{width:58px;text-align:right;font-size:var(--t3);line-height:var(--l3);font-weight:800;white-space:nowrap}
+.st.join{color:var(--readyDeep)}
+.st.arr{color:var(--docInk)}
+.st.pick{color:var(--amber)}
+.rnote{width:44px;text-align:right;font-size:var(--t3);line-height:var(--l3);color:var(--docDim);white-space:nowrap}
+.chevR{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
 
-/* ② ruled ledger — numbered rows, column heads, no collar dots */
-.lgRow{display:flex;align-items:baseline;border-top:1px solid var(--docLine);padding:11px 0}
-.lgRow>*{white-space:nowrap}
-.lgHdr{border-top:0;padding:0 0 8px}
-.lgNo{width:30px;font-size:var(--t4);line-height:var(--l4);color:var(--docDim)}
-.lgDog{width:62px;font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--docInk)}
-.lgOwn{flex:1;font-size:var(--t4);line-height:var(--l4);color:var(--docDim);overflow:hidden;text-overflow:ellipsis}
-.lgRun{width:56px;font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docInk)}
-.lgSt{width:66px;text-align:right;font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--docInk)}
-.lgTm{width:46px;text-align:right;font-size:var(--t4);line-height:var(--l4);color:var(--docDim)}
-.lgRow.doneR .lgDog,.lgRow.doneR .lgRun{color:var(--docDim)}
-.lgRow.grpRule{border-bottom:1.5px solid var(--docInk)}
-
-.bars{display:flex;gap:2px;height:18px;align-items:flex-end;margin-top:24px;opacity:.65}
+.bars{display:flex;gap:2px;height:18px;align-items:flex-end;margin-top:26px;opacity:.55}
 .bars i{background:var(--docDim);display:block}
 .sfoot{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
+
+/* lab margin — the state model lives OUT here, never as an in-frame legend */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 84px;font-weight:800;color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="top">
-  <h1>클럽 보드 — two questions, one glance</h1>
-  <p class="law">Round 3 · paper ground · sparse accent · one surface level · spec v2 §9</p>
+  <h1>클럽 보드 — one pack, one timeline</h1>
+  <p class="law">Round 4 · white ground · every row taps to a profile · one shared run · spec v2 §9</p>
 </header>
 
 <section class="toc">
-  <h2>Two boards, same twelve rows — pick the grammar that should ship</h2>
+  <h2>① 핀 보드 is picked — this is the rebuilt one</h2>
   <ol>
-    <li><span class="n">①</span><span><b>핀 보드</b> — collar dots and dotted leaders; out on top, waiting below.</span></li>
-    <li><span class="n">②</span><span><b>장부</b> — the same rows numbered under column heads; no collar dots.</span></li>
+    <li><span class="n">①</span><span><b>핀 보드</b> — collar dots and dotted leaders. <b>PICKED.</b> Rebuilt on white, twelve tappable rows, one pack state model.</span></li>
+    <li><span class="n">②</span><span><b>장부</b> — the ruled ledger. <b>DELETED</b> in round 4; its markup and rules are gone from this file.</span></li>
   </ol>
-  <p class="say">Say <b>①</b> or <b>②</b> — and one word if something inside it should change.</p>
+  <p class="say">Say what should still change inside <b>①</b> — or <b>OK</b> and it goes to the client.</p>
 </section>
 
 <div class="rail">
 
-  <!-- ══════════════════════════ ① pinned start/finish sheet -->
+  <!-- ══════════════════════════ ① pinned pack sheet -->
   <div class="col">
-    <div class="cap"><span class="n">①</span><span class="d">핀 보드 — <b>collar dots + dotted leaders</b>, no row numbers.</span></div>
+    <div class="cap"><span class="n">①</span><span class="d">핀 보드 — <b>08:41, the pack is gathering</b>; every row taps to a profile.</span></div>
     <div class="phone">
-      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="stbar"><span>8:41</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><span class="kick acc">Banpo High Club</span></div>
         <div class="inkrule"></div>
 
+        <!-- the shared run — one header strip, print, not tappable -->
         <div class="title">
-          <div class="left"><span class="disp">반포 하이클럽</span><span class="livedot"></span></div>
-          <span class="clock num">09:41</span>
+          <div class="left"><span class="disp">같이 달려요</span><span class="livedot"></span></div>
+          <span class="clock num">08:41</span>
         </div>
+        <div class="packline"><span class="num">09:00</span> 출발 · <span class="num">5</span>km · 잠수교</div>
+        <div class="packphase">출발 <span class="num">19</span>분 전 — 모이는 중</div>
 
         <div class="counts">
-          <span>러닝 <b>2</b></span>
-          <span>대기 <b>3</b></span>
+          <span>합류 <b>7</b></span>
+          <span>도착 <b>3</b></span>
+          <span>픽업 중 <b>2</b></span>
           <span>동반 <b>2</b></span>
-          <span>크루 <b>2</b></span>
         </div>
 
-        <!-- out — dog · owner ······ runner · state · time -->
-        <div class="brow">
-          <span class="dd">몽</span><span class="dog">몽이</span><span class="own">· 서지우</span>
-          <i class="lead"></i><span class="runN">김태리</span><b class="st live">러닝</b><span class="tm on num">09:12</span>
-        </div>
-        <div class="brow">
-          <span class="dd sky">초</span><span class="dog">초코</span><span class="own">· 박하늘</span>
-          <i class="lead"></i><span class="runN">김태리</span><b class="st live">러닝</b><span class="tm on num">09:14</span>
-        </div>
-        <div class="brow">
-          <span class="dd teal">해</span><span class="dog">해피</span><span class="own">· 강하은</span>
-          <i class="lead"></i><span class="runN">한소민</span><b class="st">귀가</b><span class="tm num">09:36</span>
-        </div>
-        <div class="brow">
-          <span class="dd moss">보</span><span class="dog">보리</span><span class="own">· 이도윤</span>
-          <i class="lead"></i><span class="runN">이준호</span><b class="st">이동</b><span class="tm num">09:28</span>
-        </div>
-        <div class="brow doneR grpRule">
-          <span class="dd rose">라</span><span class="dog">라떼</span><span class="own">· 윤채원</span>
-          <i class="lead"></i><span class="runN">정우진</span><b class="st dimS">완료</b><span class="tm num">09:38</span>
-        </div>
-
-        <!-- waiting — runner column empty by omission -->
-        <div class="brow">
-          <span class="dd goldc">두</span><span class="dog">두부</span><span class="own">· 최서연</span>
-          <i class="lead"></i><span class="runN"></span><b class="st pend">수락대기</b><span class="tm"></span>
-        </div>
-        <div class="brow">
-          <span class="dd berry">콩</span><span class="dog">콩이</span><span class="own">· 정민재</span>
-          <i class="lead"></i><span class="runN"></span><b class="st pend">선택</b><span class="tm"></span>
-        </div>
-        <div class="brow grpRule">
-          <span class="dd violet">솜</span><span class="dog">솜이</span><span class="own">· 임지호</span>
-          <i class="lead"></i><span class="runN"></span><b class="st pend">대기</b><span class="tm"></span>
-        </div>
-
-        <!-- 동반 -->
-        <div class="brow">
-          <span class="dd">별</span><span class="dog">별이</span><span class="own">· 김민준</span>
-          <i class="lead"></i><span class="runN"></span><b class="st">동반</b><span class="tm"></span>
-        </div>
-        <div class="brow">
-          <span class="dd sky">뭉</span><span class="dog">뭉치</span><span class="own">· 조은서</span>
-          <i class="lead"></i><span class="runN"></span><b class="st">동반</b><span class="tm"></span>
-        </div>
-
-        <div class="crewline">
-          <span class="lbl">크루</span><span class="nm">오세훈 · 김하람</span>
+        <!-- twelve rows · edge phase only · row tap → 프로필(게시물) -->
+        <div class="rows">
+          <div class="brow">
+            <span class="dd">몽</span><span class="dog">몽이</span><span class="own">서지우</span>
+            <i class="lead"></i><span class="runN">김태리</span><b class="st join">합류</b>
+            <span class="rnote num">08:34</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd sky">초</span><span class="dog">초코</span><span class="own">박하늘</span>
+            <i class="lead"></i><span class="runN">김태리</span><b class="st join">합류</b>
+            <span class="rnote num">08:36</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd teal">해</span><span class="dog">해피</span><span class="own">강하은</span>
+            <i class="lead"></i><span class="runN">한소민</span><b class="st join">합류</b>
+            <span class="rnote num">08:37</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd moss">보</span><span class="dog">보리</span><span class="own">이도윤</span>
+            <i class="lead"></i><span class="runN">한소민</span><b class="st join">합류</b>
+            <span class="rnote num">08:39</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd rose">라</span><span class="dog">라떼</span><span class="own">윤채원</span>
+            <i class="lead"></i><span class="runN">이준호</span><b class="st join">합류</b>
+            <span class="rnote num">08:40</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="mk">CR</span><span class="dog">오세훈</span><span class="own">크루</span>
+            <i class="lead"></i><span class="runN"></span><b class="st join">합류</b>
+            <span class="rnote num">08:33</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="mk">CR</span><span class="dog">김하람</span><span class="own">크루</span>
+            <i class="lead"></i><span class="runN"></span><b class="st join">합류</b>
+            <span class="rnote num">08:35</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd goldc">두</span><span class="dog">두부</span><span class="own">최서연</span>
+            <i class="lead"></i><span class="runN">이준호</span><b class="st arr">도착</b>
+            <span class="rnote num">08:38</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd berry">콩</span><span class="dog">콩이</span><span class="own">정민재</span>
+            <i class="lead"></i><span class="runN">정우진</span><b class="st arr">도착</b>
+            <span class="rnote num">08:40</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd violet">솜</span><span class="dog">솜이</span><span class="own">임지호</span>
+            <i class="lead"></i><span class="runN">정우진</span><b class="st arr">도착</b>
+            <span class="rnote num">08:41</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd">별</span><span class="dog">별이</span><span class="own">김민준</span>
+            <i class="lead"></i><span class="runN">박지훈</span><b class="st pick">픽업 중</b>
+            <span class="rnote">동반</span><span class="chevR">›</span>
+          </div>
+          <div class="brow">
+            <span class="dd sky">뭉</span><span class="dog">뭉치</span><span class="own">조은서</span>
+            <i class="lead"></i><span class="runN">박지훈</span><b class="st pick">픽업 중</b>
+            <span class="rnote">동반</span><span class="chevR">›</span>
+          </div>
         </div>
 
         <div class="bars">
@@ -283,96 +366,29 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
           <i style="width:2px;height:100%"></i><i style="width:1px;height:100%"></i>
         </div>
         <div class="sfoot">
-          <span class="serial">SAT 09:00 · LIVE BOARD</span>
+          <span class="serial">SAT 09:00 · ONE PACK</span>
           <span class="serial">DOGS HIGH · 0826</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════ ② ruled ledger -->
-  <div class="col">
-    <div class="cap"><span class="n">②</span><span class="d">장부 — <b>numbered rows under column heads</b>, twelve at a glance.</span></div>
-    <div class="phone">
-      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span class="bk">‹</span><span class="kick acc">Banpo High Club · Ledger</span></div>
-        <div class="inkrule"></div>
+  <!-- ══════════════════════════ lab margin — the state model + the name law -->
+  <div class="col margin">
+    <h3>The state model, in the margin</h3>
+    <p>One shared run. Everyone starts at <b>09:00</b>, runs <b>5km</b>, finishes together. Rows can only differ at the <b>edges</b> — and the board never repeats a state the whole pack shares.</p>
 
-        <div class="title">
-          <div class="left"><span class="disp">반포 하이클럽</span><span class="livedot"></span></div>
-          <span class="clock num">09:41</span>
-        </div>
+    <h4>Phases</h4>
+    <div class="ph"><span class="k">출발 전</span><span>픽업 중 · 도착 · 합류 — the only place rows legitimately differ, and this frame's moment.</span></div>
+    <div class="ph"><span class="k">러닝 중</span><span>one pack state, printed ONCE at pack level. Twelve identical row words would be twelve lies about variety.</span></div>
+    <div class="ph"><span class="k">종료 후</span><span>복귀 중 · 인계 완료 — the second and last edge.</span></div>
+    <div class="ph"><span class="k">동반</span><span>a row ATTRIBUTE (the owner runs along), never a state. It rides the trailing note column beside the phase time.</span></div>
 
-        <div style="height:14px"></div>
+    <h4>Names</h4>
+    <p><b>이름 → 프로필(게시물).</b> Every row is a tap target: the dog + owner rows open that pair's profile, the <b>CR</b> rows open that crew member's. The Instagram-like profile with the member's posts is a <b>coming surface, mocked separately</b> — not in this lab.</p>
 
-        <div class="lgRow lgHdr">
-          <span class="lgNo kick">No</span><span class="lgDog kick">Dog</span><span class="lgOwn kick">Owner</span>
-          <span class="lgRun kick">Runner</span><span class="lgSt kick">State</span><span class="lgTm kick">Time</span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">01</span><span class="lgDog">몽이</span><span class="lgOwn">서지우</span>
-          <span class="lgRun">김태리</span><b class="lgSt" style="color:var(--coralText)">러닝</b><span class="lgTm num">09:12</span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">02</span><span class="lgDog">초코</span><span class="lgOwn">박하늘</span>
-          <span class="lgRun">김태리</span><b class="lgSt" style="color:var(--coralText)">러닝</b><span class="lgTm num">09:14</span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">03</span><span class="lgDog">해피</span><span class="lgOwn">강하은</span>
-          <span class="lgRun">한소민</span><b class="lgSt">귀가</b><span class="lgTm num">09:36</span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">04</span><span class="lgDog">보리</span><span class="lgOwn">이도윤</span>
-          <span class="lgRun">이준호</span><b class="lgSt">이동</b><span class="lgTm num">09:28</span>
-        </div>
-        <div class="lgRow doneR grpRule">
-          <span class="lgNo num">05</span><span class="lgDog">라떼</span><span class="lgOwn">윤채원</span>
-          <span class="lgRun">정우진</span><b class="lgSt" style="color:var(--docDim)">완료</b><span class="lgTm num">09:38</span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">06</span><span class="lgDog">두부</span><span class="lgOwn">최서연</span>
-          <span class="lgRun"></span><b class="lgSt" style="color:var(--amber)">수락대기</b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">07</span><span class="lgDog">콩이</span><span class="lgOwn">정민재</span>
-          <span class="lgRun"></span><b class="lgSt" style="color:var(--amber)">선택</b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow grpRule">
-          <span class="lgNo num">08</span><span class="lgDog">솜이</span><span class="lgOwn">임지호</span>
-          <span class="lgRun"></span><b class="lgSt" style="color:var(--amber)">대기</b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">09</span><span class="lgDog">별이</span><span class="lgOwn">김민준</span>
-          <span class="lgRun"></span><b class="lgSt">동반</b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow grpRule">
-          <span class="lgNo num">10</span><span class="lgDog">뭉치</span><span class="lgOwn">조은서</span>
-          <span class="lgRun"></span><b class="lgSt">동반</b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">11</span><span class="lgDog" style="color:var(--docDim)">크루</span>
-          <span class="lgOwn" style="color:var(--docInk);font-weight:700">오세훈</span>
-          <span class="lgRun"></span><b class="lgSt"></b><span class="lgTm"></span>
-        </div>
-        <div class="lgRow">
-          <span class="lgNo num">12</span><span class="lgDog" style="color:var(--docDim)">크루</span>
-          <span class="lgOwn" style="color:var(--docInk);font-weight:700">김하람</span>
-          <span class="lgRun"></span><b class="lgSt"></b><span class="lgTm"></span>
-        </div>
-
-        <div class="counts" style="justify-content:flex-end;border-top:1.5px solid var(--docInk);margin-top:2px">
-          <span>러닝 <b>2</b></span>
-          <span>대기 <b>3</b></span>
-          <span>동반 <b>2</b></span>
-          <span>크루 <b>2</b></span>
-        </div>
-        <div class="sfoot" style="margin-top:0">
-          <span class="serial">SAT 09:00 · LIVE BOARD</span>
-          <span class="serial">DOGS HIGH · 0826</span>
-        </div>
-      </div>
-    </div>
+    <h4>Affordance</h4>
+    <p>Tappable in this frame: <b>12 rows + the back arrow = 13</b>. Each carries a white fill, a 1px border, ≥56px height and a chevron ›. The pack header, the counts line and the footer serials carry none of them, because they are print. <b>The contrast is the information.</b></p>
   </div>
 
 </div>

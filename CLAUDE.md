@@ -24,6 +24,18 @@ convert opportunistically when you are already editing a file for another reason
   local file.
 - Verify after, don't assume: `supabase migration list` after a push, the anon-definer check after
   a security migration, and read back what actually landed.
+- **The same law covers `git push`, and it was learned the hard way (2026-08-25).** A push
+  SUCCEEDING is a claim; `git show origin/<branch>:<path>` is the fact. A session scripted
+  `git push … | grep -q "redesign-v4 -> redesign-v4"` as its success test — and a REJECTED push
+  prints `! [rejected]  redesign-v4 -> redesign-v4 (non-fast-forward)`, which **contains that exact
+  string**. The detector matched its own failure message and reported PUSHED on a push that never
+  landed; a peer found it by reading the file on origin. Two rules fall out: **(a)** confirm a
+  landing by reading the ARTIFACT back from origin, never by parsing the tool's report — the same
+  substitution as reading a pin's green as proof of the property it was meant to prove; **(b)** a
+  detector whose success pattern is a SUBSTRING of its failure output is not a weak check, it is
+  anti-correlated with the thing it tests in precisely the case that matters. (An audit of all six
+  of that session's claimed pushes found five genuinely landed and one not — audit the whole set
+  when a detector is found broken, never just the instance someone caught.)
 - Announce what you ran and what it changed. Say plainly if something failed.
 - **Still Sean-only, and not because of policy:** anything requiring a credential's *value* — the
   APNs `.p8`, App Store Connect, a PG contract, 사업자등록. Claude may use credentials already
@@ -44,7 +56,27 @@ HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Se
 ## Commit gate
 
 Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
-and `node scripts/check-route-native-imports.mjs` — all three must pass.
+`node scripts/check-route-native-imports.mjs`, and `node scripts/check-definer-acl.mjs` — all must pass.
+(`check-embed-fk.mjs` and `check-auth-surface.mjs` run in the same family.)
+
+**`check-definer-acl.mjs` (added 2026-08-25)** refuses a SECURITY DEFINER `create or replace` whose
+function was FIRST defined in a different file, in a file that does not itself set the ACL — the
+"relying on grant preservation" class. On an apply where the function is absent, that statement is a
+CREATE and the definer is born PUBLIC-executable (0116:636). ⚠ **The narrowness IS the feature and a
+future session must not "simplify" it back:** the crude form — every definer recreation needs a
+same-file revoke — flags **147 of 239** occurrences, because a function whose ACL is set by the file
+that first defined it is entirely correct. A gate that cries 147 times is `--no-verify`'d within a
+day and then protects nothing while everyone believes it is on. The **81 real pre-existing
+occurrences** are frozen in `check-definer-acl-baseline.txt`; the gate's job is the 82nd. A stale
+baseline line ALSO fails (delete it) so the ledger shrinks honestly and cannot silently absorb a
+regression on a function someone just fixed. ⚠ This gate reads SOURCE because the harness cannot see
+this class at all — migrations there apply in numeric order from scratch, so preservation always
+holds and a runtime ACL sweep is green no matter how many files rely on it. The runtime sweep beside
+98 H1 and this gate prove different things; **neither is evidence for the other.**
+⚠ **To test a hypothetical, never edit a live migration** — even transiently, even restoring from a
+copy taken seconds earlier: that is a read-modify-write with a multi-second window, and a subagent
+editing the same file loses its work silently inside it (measured 2026-08-25, while testing this very
+gate). Point the gate at a copy instead: `MIGRATIONS_DIR=/tmp/whatever node scripts/check-definer-acl.mjs`.
 
 The third one (added 2026-08-13) refuses a module-scope import of a native-only package from
 anything a route can reach. Expo Router evaluates **every** route module at launch, so such an
@@ -135,7 +167,7 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 **정본은 `DESIGN.md`** (2026-08-10 consolidated — token worlds, migration map, laws, budgets,
 decision provenance). The bullets below are the load-bearing extract; on any conflict DESIGN.md wins.
 
-- Tokens in `src/theme.ts` — tailored lilac (bg #F4F2FB, head #221E3D, accent #6C5CE7, coral #F0765A, coralDeep #E45F41, night #1C1837). No swamp/forest greens (retired palette).
+- Tokens in `src/theme.ts` — **white grounds everywhere** (Sean 2026-08-25: "white backgrounds"; the pale lilac ground #F4F2FB and its tinted wells/hairlines retired product-wide, DESIGN.md §2 amendment). Surviving: head #221E3D, accent #6C5CE7 (accent ONLY — never a ground or wash), coral #F0765A, coralDeep #E45F41, night #1C1837 (ceremony world, deliberate keep). No swamp/forest greens (retired palette).
 - Detail-text floor: **14pt**. Exempt only: letterspaced uppercase kickers, serial/MRZ strings, glyphs.
 - Display fonts: Black Han Sans once per screen (useDisplayFont). Oswald numerals (useNumFont) require explicit lineHeight ≥1.2× ("BUG A" — ascenders clip without it).
 - Holo foil budget: monogram + one ticket edge per surface, no more.

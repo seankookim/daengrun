@@ -196,7 +196,12 @@ function ClubSearchBar() {
               </View>
               <View style={[s.dropTag, h.status !== 'active' && { backgroundColor: lilac.inset }]}>
                 {/* [§3b 상태칩] 16/800 */}
-                <Text style={{ fontSize: 16, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
+                {/* [2026-08-25 pale retirement · contrast] The 모집 중 chip's fill is lilac.inset,
+                    which moved #EFECF9 → #F2F2F2 in this sweep, so the pair was re-measured:
+                    lilac.dim #7C76A0 was 3.64 and is 3.78 — under the 4.5 floor a 16/800 chip
+                    must hold. Ink darkens to paper.dim #666666 = 5.13, the same fix ClubTag's
+                    `dim` tone took in club-ui.tsx. The active chip keeps READ_VIOLET (8.32). */}
+                <Text style={{ fontSize: 16, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : paper.dim }}>
                   {h.status === 'active' ? 'OPEN' : '모집 중'}
                 </Text>
               </View>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Host Console Lab (r3)</title>
+<title>Club v2 — Host Console Lab (r4)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
@@ -27,6 +27,10 @@
    Fixture unchanged from spec v2 §10.2: fare 12,900/pairing · 두부 no-show
    fee 2,580 (20%) + 10,320 refund · 콩이 unpaired full 12,900 refund ·
    auto-confirm 16:19 (last finish 10:19 + 6h).
+   ⚠ ROUND 4-bis (2026-08-25): ALL SETTLEMENT AMOUNTS PULLED. Retiring 재배정 left WHAT REPLACES
+   IT unruled (absorb / back-to-owner / keep), and each future settles differently — drawing any
+   pair answers a question Sean has not been asked yet, in the one artifact he uses to decide.
+   Frame + auto-confirm clock + the no-show fact stay; amounts return when he taps.
 
    ── ROUND 3 (2026-08-25, Sean, verbatim) ───────────────────────────────────
    "the lab isnt good enough; still too cramped, remove the purple and the old
@@ -53,44 +57,96 @@
    a paper card inside a screen; it is the TOP REGION of the paper, closed by
    an ink rule. The pale-lilac holo monogram is gone; the masthead mark is
    an ink serial square.
+
+   ── ROUND 4 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "white backgrounds. if there are choices that have to be make through
+   clicking, it should be more obvious that it is a clickable button or row. i
+   like the pin board 1, but what does the different states mean? aren't they
+   all supposed to be in near sync? same start time, maybe different arrival
+   states as some can be doing pick up or arrival, but also same end or maybe
+   some are returning or finished completely. also, clicking on each names
+   should go to their profiles with their posts (like instagram). for the host
+   console, why is the host accepting or rejecting an owner? they shuold be
+   able to sign up and runners too without the host's permission. pair
+   reallocation functionality for the host? is that really necessary, i dont
+   think so. the club will be running in a pack so end times would probably be
+   all the same or similar. i like the simple live map screen. i dont like the
+   stamp style though. refurbish and renew the mock."
+
+   ARMS DELETED IN ROUND 4 — this is the load-bearing change:
+
+   1. 승인 / 거절 (owner approval) — GONE, with its 승인 and 거절 buttons, the
+      applicant attention block, the 심사 roster state and the 거절 row that
+      trailed it through ② and ③. SIGNUP IS PERMISSIONLESS for owners AND
+      runners: a host does not gatekeep who joins their club. Moment ① is now
+      a ROSTER / READINESS view — who signed up, who has been picked up,
+      gear and headcount — and it contains no approve control at all. The rule
+      is stated once, in the screen, as a fact: 「신청은 승인 없이 확정됩니다」.
+   2. 재배정 (pair reallocation) — GONE, with the 「박준호 재배정」 button and
+      the 재배정 ~15:00 fact line. Moment ② now shows the EVENT honestly
+      (러너 이탈 07:58) plus 비상 도구, plus ONE line of what the system does
+      without the host: 「재배정 없음 — 콩이는 팩과 함께 달립니다.」 No new
+      mechanic is invented; the pack absorbs, which is what a pack is.
+   3. STAGGERED FINISH TIMES — gone. The club runs as a PACK, so moment ③
+      carries ONE shared finish line (팩 종료 10:12–10:19) and the per-dog rows
+      keep only what genuinely differs: km (routes split at the edges) and the
+      인계 time. 초코's old 09:47 solo finish is deleted.
+
+   ⚠⚠ MONEY FIXTURE — WITHDRAWN SAME DAY (round 4-bis). This block ARGUED a
+      recomputed pair (청구 2,580 · 환불 10,320) on the premise that the pack
+      absorbs the dropped dog. ⚠ THAT PREMISE IS NOT RULED. Sean retired 재배정
+      and said nothing about what replaces it; absorb / back-to-owner / keep are
+      three live futures and each settles differently — so the "arithmetic
+      follows from his own ruling" claim above was FALSE: the arithmetic followed
+      from a choice this lab made on his behalf, in the artifact he uses to
+      decide. Kept here rather than deleted because the reasoning error is the
+      lesson (a fixture recomputation can smuggle in a policy decision).
+      The panel now draws the frame with no amounts. Spec §10.2's 23,220 is the
+      back-to-owner future's number and is equally unsettled. Amounts return
+      when Sean taps the card the spec session put on his console.
+
+   4. WHITE + AFFORDANCE (world rules): the canvas is #FFFFFF, the warm grounds
+      retire as grounds and the doc grammar survives on white; every tappable
+      thing carries a fill or a 1px border, ≥52px height and a chevron, and the
+      printed roster — which the host is meant to ignore — carries none of them.
    ═════════════════════════════════════════════════════════════════════════ */
 
 /* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
-  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
-  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
-  --docDash:#C9C2AE; --docWhite:#FFFFFF;
-  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
   --accent:#6C5CE7;
-  /* ACTION + state inks — theme.ts paper / lilac */
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
   --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
   --action:#C6472C; --actionInk:#A83315;
-  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
   /* collar palette — theme.ts collarColors */
   --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
   --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
   --dogFill:#C9B89A; --dogInk:#5d5138;
-  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
   --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
   --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
-  /* Round 3-bis (2026-08-25): four Korean sizes (22/17/15/14) clustered too close — a 14-vs-15
-     distinction carries no information and reads as the exact schema inconsistency Sean called
-     out. Three steps, real jumps (≥1.25): display 24 · title 19 · one body tier 15 (the floor
-     rises to 15 with it — hierarchy comes from these jumps + weight + kickers, never from
-     near-identical gradations). --t4 kept as an alias so no selector goes dangling. */
   --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
   --t2:19px; --l2:26px;      /* title */
   --t3:15px; --l3:21px;      /* body — the one text tier */
-  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor now 15) */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
   --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
   --ts:10px;                 /* Latin serial */
-  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.24×) */
-  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.27×) */
-  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.29×) */
-  /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
@@ -136,11 +192,28 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .thinrule{height:1.5px;background:var(--docInk)}
 .hairrule{height:1px;background:var(--docLine)}
 .mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
-.mast .bk{font-size:24px;line-height:24px;color:var(--docDim)}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
 .mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
 .dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
   font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
 
 /* ── FILE-LOCAL — host console ────────────────────────────────────────────── */
 .mark{width:28px;height:28px;flex:0 0 28px;border:1.5px solid var(--docInk);display:flex;
@@ -152,20 +225,29 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
 /* attention region — the ONE thing that needs the host. No box: a region. */
 .att{padding:22px 0 24px}
+.head1{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk);margin-top:16px}
 .who{display:flex;align-items:center;gap:12px;margin-top:16px}
 .who .nm{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
 .who .fact{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:3px}
-.acts{display:flex;gap:10px;margin-top:20px}
-.btnP{flex:1;text-align:center;padding:16px 12px;background:var(--action);color:#fff;
-  font-size:var(--t2);line-height:var(--l2);font-weight:800}
-.btnG{flex:0 0 auto;text-align:center;padding:16px 20px;background:transparent;
-  border:1.3px solid var(--docDash);color:var(--docDim);font-size:var(--t2);line-height:var(--l2);font-weight:800}
-.money{font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--actionInk);
-  text-align:center;margin-top:18px}
-.auto{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);text-align:center;margin-top:10px}
+.sys{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);margin-top:16px;
+  border-left:2.5px solid var(--docInk);padding-left:12px}
+.rulefact{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:16px}
 
-/* printed roster — one line per pairing, host can ignore */
-.rrow{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--docLine)}
+/* readiness cells — rules only, no box inside a box */
+.facts{display:flex;border-top:1px solid var(--docLine);border-bottom:1px solid var(--docLine);margin-top:18px}
+.facts > div{flex:1;padding:14px 4px 13px;text-align:center;border-right:1px solid var(--docLine)}
+.facts > div:last-child{border-right:0}
+.facts .fv{font-family:var(--fNum);font-weight:600;font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.facts .fl{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:2px}
+.gear{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:16px}
+
+.money{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--actionInk);
+  text-align:center;margin-top:18px}
+.auto{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);text-align:center;margin-top:10px}
+
+/* printed roster — one line per pairing, host can ignore. NO tap marks. */
+.rosterk{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;padding-bottom:6px}
+.rrow{display:flex;align-items:center;gap:11px;padding:14px 0;border-top:1px solid var(--docLine)}
 .dot{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
   font-size:var(--t4);font-weight:800;color:var(--dogInk)}
@@ -175,15 +257,20 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .rnm{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rnm .rn{color:var(--docDim);font-weight:700}
-.st{flex:0 0 auto;font-size:var(--t4);line-height:var(--l4);font-weight:800}
+.st{flex:0 0 auto;font-size:var(--t3);line-height:var(--l3);font-weight:800}
 .st.ok{color:var(--readyDeep)}.st.live{color:var(--coralText)}.st.warn{color:var(--amber)}
 .st.crit{color:var(--critical)}.st.dim{color:var(--docDim)}
 
-/* doors — case · emergency, one recessive row each */
-.door{display:flex;align-items:center;gap:10px;padding:15px 0;border-top:1px solid var(--docLine)}
-.door.first{border-top:1.5px solid var(--docInk);margin-top:24px}
-.door .dnm{flex:1;font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
-.door .go{font-size:var(--t4);font-weight:800;color:var(--docDim)}
+/* lab margin — what was deleted, and why */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 96px;font-weight:800;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -191,26 +278,26 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
 <header class="top">
   <h1>호스트 콘솔 — 운영 일지</h1>
-  <p class="law">Round 3 · paper ground · one card needs you · the rest is print · spec v2 §10.2</p>
+  <p class="law">Round 4 · white ground · no approvals · no reallocation · one pack finish · spec v2 §10.2</p>
 </header>
 
 <section class="toc">
-  <h2>One design at three moments — pick the moment that is wrong</h2>
+  <h2>One design at three moments — say which moment is still wrong</h2>
   <ol>
-    <li><span class="n">①</span><span><b>07:55 사전</b> — the applicant is the one thing; five confirmed pairings are print.</span></li>
-    <li><span class="n">②</span><span><b>09:58 진행</b> — attention moves to the uncovered dog; runs and the case are print.</span></li>
-    <li><span class="n">③</span><span><b>10:24 종료</b> — the confirm tap carries its one money line; auto-confirm is a numeral.</span></li>
+    <li><span class="n">①</span><span><b>08:36 아침 준비</b> — a roster, not a gate: who signed up, who is picked up, gear and headcount. <b>No approve buttons anywhere.</b></span></li>
+    <li><span class="n">②</span><span><b>08:44 이탈</b> — the event, the emergency door, and one line saying the pack absorbs it. <b>No reallocation.</b></span></li>
+    <li><span class="n">③</span><span><b>10:24 정산</b> — one shared pack finish; rows keep only km and 인계. The confirm tap carries its money line.</span></li>
   </ol>
   <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b> — and one word if something inside it should change.</p>
 </section>
 
 <div class="rail">
 
-  <!-- ══ ① pre-session ══ -->
+  <!-- ══ ① morning roster / readiness — permissionless signup ══ -->
   <div class="col">
-    <div class="cap"><span class="n">①</span><span class="d">07:55 — <b>the applicant is the one thing</b>.</span></div>
+    <div class="cap"><span class="n">①</span><span class="d">08:36 — <b>roster and readiness</b>; the host gates nobody.</span></div>
     <div class="phone">
-      <div class="stbar"><span>7:55</span><span>▮▮▮</span></div>
+      <div class="stbar"><span>8:36</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="mark">DH</div>
           <div><div class="mT">반포 하이클럽</div>
@@ -223,31 +310,37 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
 
         <div class="att">
-          <span class="kick acc">Now</span>
-          <div class="who"><div class="dot lg goldc">플</div>
-            <div><div class="nm">플로 · 윤태오</div>
-              <div class="fact">신청 <span class="num">07:50</span></div></div></div>
-          <div class="acts"><span class="btnP">승인</span><span class="btnG">거절</span></div>
+          <span class="kick acc">Readiness</span>
+          <div class="head1">출발 <span class="num">09:00</span> · <span class="num">24</span>분 전</div>
+          <div class="facts">
+            <div><div class="fv">6</div><div class="fl">강아지</div></div>
+            <div><div class="fv">4</div><div class="fl">러너</div></div>
+            <div><div class="fv">4</div><div class="fl">픽업 완료</div></div>
+          </div>
+          <div class="gear">장비 — 리드줄 <span class="num">6</span> · 물 <span class="num">6</span>L · 구급킷 <span class="num">1</span></div>
+          <div class="rulefact">신청은 승인 없이 확정됩니다 — 오너도, 러너도.</div>
         </div>
         <div class="thinrule"></div>
 
-        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st dim">확정</span></div>
-        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
-        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
-        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st dim">확정</span></div>
-        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 이서연</span></div><span class="st dim">확정</span></div>
+        <div class="rosterk"><span class="kick">Roster</span><span class="serial">PRINT · NOT A CONTROL</span></div>
+        <div class="rrow"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st ok">픽업 <span class="num">08:22</span></span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">픽업 <span class="num">08:28</span></span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st ok">픽업 <span class="num">08:31</span></span></div>
+        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 윤태오</span></div><span class="st ok">픽업 <span class="num">08:34</span></span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st warn">픽업 중</span></div>
+        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 팩 동행</span></div><span class="st warn">러너 이탈</span></div>
 
-        <div class="door first"><span class="dnm">케이스 <span class="num">0</span></span><span class="go">→</span></div>
-        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="tap quietTap" style="margin-top:24px"><span class="tt">케이스 <span class="num">0</span></span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">비상 도구</span><span class="chev">›</span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══ ② mid-session ══ -->
+  <!-- ══ ② the incident — event + emergency door, nothing to reallocate ══ -->
   <div class="col">
-    <div class="cap"><span class="n">②</span><span class="d">09:58 — <b>attention moves to the uncovered dog</b>.</span></div>
+    <div class="cap"><span class="n">②</span><span class="d">08:44 — <b>러너 이탈</b>; the pack absorbs it, the host does nothing.</span></div>
     <div class="phone">
-      <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
+      <div class="stbar"><span>8:44</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="mark">DH</div>
           <div><div class="mT">반포 하이클럽</div>
@@ -260,29 +353,31 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
 
         <div class="att">
-          <span class="kick acc">Now</span>
+          <span class="kick acc">Incident</span>
           <div class="who"><div class="dot lg teal">콩</div>
-            <div><div class="nm">콩이 · 정다은</div>
-              <div class="fact">러너 이탈 <span class="num">07:58</span> · 재배정 ~<span class="num">15:00</span></div></div></div>
-          <div class="acts"><span class="btnP">박준호 재배정</span></div>
+            <div><div class="nm">콩이 · 정민재</div>
+              <div class="fact">러너 이탈 <span class="num">07:58</span> · 이서연 취소</div></div></div>
+          <div class="sys">재배정 없음 — 콩이는 팩과 함께 달립니다.</div>
+          <div class="tap"><span class="tt">비상 도구</span><span class="tsub">전화 · 위치 공유</span><span class="chev">›</span></div>
         </div>
         <div class="thinrule"></div>
 
-        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st live">러닝 중</span></div>
-        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">완료 <span class="num">09:47</span></span></div>
-        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st warn">인계됨</span></div>
-        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 후보</span></div>
-        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
+        <div class="rosterk"><span class="kick">Roster</span><span class="serial">PRINT · NOT A CONTROL</span></div>
+        <div class="rrow"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st ok">픽업 <span class="num">08:22</span></span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">픽업 <span class="num">08:28</span></span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st ok">픽업 <span class="num">08:31</span></span></div>
+        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 윤태오</span></div><span class="st ok">픽업 <span class="num">08:34</span></span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st ok">픽업 <span class="num">08:43</span></span></div>
+        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 팩 동행</span></div><span class="st warn">러너 이탈</span></div>
 
-        <div class="door first"><span class="dnm">케이스 <span class="num">1</span> — 몽이 S2</span><span class="go">→</span></div>
-        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="tap quietTap" style="margin-top:24px"><span class="tt">케이스 <span class="num">1</span></span><span class="tsub">콩이 러너 이탈</span><span class="chev">›</span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══ ③ finish-armed ══ -->
+  <!-- ══ ③ settlement — one pack finish line ══ -->
   <div class="col">
-    <div class="cap"><span class="n">③</span><span class="d">10:24 — <b>the confirm tap with its one money line</b>.</span></div>
+    <div class="cap"><span class="n">③</span><span class="d">10:24 — <b>one pack finish</b>; rows keep only km and 인계.</span></div>
     <div class="phone">
       <div class="stbar"><span>10:24</span><span>▮▮▮</span></div>
       <div class="scr">
@@ -297,24 +392,44 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
 
         <div class="att">
-          <span class="kick acc">Now</span>
-          <div class="acts"><span class="btnP">러닝 종료 확인</span></div>
-          <div class="money">청구 <span class="num">2,580</span>원 · 환불 <span class="num">23,220</span>원</div>
+          <span class="kick acc">Finish</span>
+          <div class="head1">팩 종료 <span class="num">10:12</span>–<span class="num">10:19</span></div>
+          <div class="btnP" style="margin-top:20px">러닝 종료 확인</div>
+          <div class="money">청구·환불 금액 — 미정</div>
+          <div class="auto">이탈한 예약의 처리 방식이 정해지면 확정돼요</div>
           <div class="auto">미확인 시 <span class="num">16:19</span> 자동 확인</div>
         </div>
         <div class="thinrule"></div>
 
-        <div class="rrow" style="border-top:0"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진 · <span class="num">4.0</span>km</span></div><span class="st ok">완료 <span class="num">10:12</span></span></div>
-        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준 · <span class="num">3.1</span>km</span></div><span class="st ok">완료 <span class="num">09:47</span></span></div>
-        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준 · <span class="num">3.4</span>km</span></div><span class="st ok">완료 <span class="num">10:19</span></span></div>
-        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 −<span class="num">2,580</span>원</span></div>
-        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 미배정</span></div><span class="st warn">환불 <span class="num">12,900</span>원</span></div>
-        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
+        <div class="rosterk"><span class="kick">Roster</span><span class="serial">PRINT · NOT A CONTROL</span></div>
+        <div class="rrow"><div class="dot">몽</div><div class="rnm">몽이 <span class="rn">— 최유진 · <span class="num">4.0</span>km</span></div><span class="st ok">인계 <span class="num">10:14</span></span></div>
+        <div class="rrow"><div class="dot sky">초</div><div class="rnm">초코 <span class="rn">— 김민준 · <span class="num">3.9</span>km</span></div><span class="st ok">인계 <span class="num">10:16</span></span></div>
+        <div class="rrow"><div class="dot moss">보</div><div class="rnm">보리 <span class="rn">— 김민준 · <span class="num">4.1</span>km</span></div><span class="st ok">인계 <span class="num">10:15</span></span></div>
+        <div class="rrow"><div class="dot goldc">플</div><div class="rnm">플로 <span class="rn">— 윤태오 · <span class="num">3.8</span>km</span></div><span class="st ok">인계 <span class="num">10:17</span></span></div>
+        <div class="rrow"><div class="dot teal">콩</div><div class="rnm">콩이 <span class="rn">— 러너 이탈 07:58</span></div><span class="st crit">처리 방식 미정</span></div>
+        <div class="rrow"><div class="dot rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼</span></div>
 
-        <div class="door first"><span class="dnm">케이스 <span class="num">1</span> — 몽이 S2</span><span class="go">→</span></div>
-        <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        <div class="tap quietTap" style="margin-top:24px"><span class="tt">케이스 <span class="num">1</span></span><span class="tsub">콩이 러너 이탈</span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">비상 도구</span><span class="chev">›</span></div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin — the deleted arms -->
+  <div class="col margin">
+    <h3>What round 4 deleted, and what replaced it</h3>
+    <p>Three arms came out. None of them was replaced by a new mechanic — each one was replaced by <b>a fact the screen states honestly</b>.</p>
+
+    <h4>Deleted</h4>
+    <div class="ph"><span class="k">승인 / 거절</span><span>Owner approval, with its two buttons, the applicant block, the 심사 state and the 거절 row. <b>Signup is permissionless</b> — owners and runners alike. ① says so once, as a fact.</span></div>
+    <div class="ph"><span class="k">재배정</span><span>Pair reallocation, with the 「박준호 재배정」 button and its ~15:00 estimate. ② states the event and one line: 재배정 없음 — 콩이는 팩과 함께 달립니다.</span></div>
+    <div class="ph"><span class="k">엇갈린 종료</span><span>Staggered finish times (초코's 09:47 solo finish). The pack finishes together: <b>10:12–10:19</b>, one line, and rows keep only km and 인계.</span></div>
+
+    <h4>⚠ Money, recomputed</h4>
+    <p><b>정산 금액은 이 랩에서 그리지 않는다.</b> Sean retired 재배정 but did not say what replaces it, and three live futures give three different settlements: the pack ABSORBS the dog (it runs, owner pays, and the second-dog runner pay is itself unanswered) · it goes BACK to the owner to re-pick or auto-match (an hour out there may be nobody, so it does not run and a full refund is right) · or the reassignment STAYS. An earlier draft of this lab drew 청구 2,580 · 환불 10,320, which silently picked the first one — a lab Sean reads to decide must not answer the question he is being asked. The frame, the auto-confirm clock (last finish + 6h) and the no-show FACT are ruled and stay; every amount waits for his tap. spec v2 §10.2's 23,220 is the second future's number and is equally unsettled.</p>
+
+    <h4>Affordance</h4>
+    <p>Tappable per frame: ① back + 2 doors = <b>3</b> · ② back + 비상 도구 + 1 door = <b>3</b> · ③ back + 종료 확인 + 2 doors = <b>4</b>. The roster rows are print — no fill, no border, no chevron — because the host is meant to ignore them.</p>
   </div>
 
 </div>
