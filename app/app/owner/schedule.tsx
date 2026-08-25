@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal } from '../../src/lib/kst';
@@ -12,7 +13,7 @@ import { LateNotice } from '../../src/components/late-notice';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelFeeRateFor, cancelPolicy, draft, runners } from '../../src/store';
+import { Booking, BookingStatus, cancelPolicy, draft, runners } from '../../src/store';
 import { CollarKey, collarColors, colors, paper } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
@@ -143,6 +144,35 @@ export default function Schedule() {
   const [filterIdx, setFilterIdx] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
+  // [0117 §9b mirror — Sean 2026-08-25 "ship the cancel fee mirror thing"] The fee is READ,
+  // not computed: the client's four-arm ladder could not see the §9 waiver's fault half
+  // (booking_faults is sealed), so the same booking could show 50% here and charge 0 there.
+  // One quote per selected booking; both render sites (the detail link and the confirm sheet)
+  // read this one answer. 'loading' is not 0 — no number renders until the server answers, and
+  // a failed quote BLOCKS the cancel commit: a price we could not show is a price we may not
+  // promise ("the price shown IS the price charged", 0117 §9c's own law, applied client-side).
+  const [cancelQuote, setCancelQuote] = useState<
+    { s: 'idle' | 'loading' | 'err' } | ({ s: 'ok' } & CancelQuote)
+  >({ s: 'idle' });
+  const [quoteTry, setQuoteTry] = useState(0);
+  // primitives, so the effect's deps are exactly what it reads (exhaustive-deps, honestly —
+  // depending on the `selected` OBJECT would re-quote on every identity churn of the row)
+  const selectedId = selected?.id ?? null;
+  const selectedClubId = selected?.clubSessionId ?? null;
+  useEffect(() => {
+    // club rows never quote: the marketplace ladder is not theirs (club_out_of_scope) and the
+    // sheet routes them to the club screen instead of drawing a cancel door at all.
+    if (!selectedId || selectedClubId) { setCancelQuote({ s: 'idle' }); return; }
+    let alive = true;
+    setCancelQuote({ s: 'loading' });
+    quoteCancelFee(selectedId)
+      .then((q) => { if (alive) setCancelQuote({ s: 'ok', ...q }); })
+      .catch((e) => {
+        console.warn('[schedule] cancel quote:', (e as Error)?.message ?? e);
+        if (alive) setCancelQuote({ s: 'err' });
+      });
+    return () => { alive = false; };
+  }, [selectedId, selectedClubId, quoteTry]);
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   // [honesty 2026-08-11] warn-only catch + [] seed rendered "예정된 러닝이 없어요"
@@ -234,14 +264,15 @@ export default function Schedule() {
       }
     : undefined;
   const runMin = selected ? selected.km * paceMin(selected.paceLabel) : 0;
-  // [0066] En-route cancel is now legal at a 50% fee (runner compensation) — the preview
-  // rate follows the server ladder's tier for this booking's rawStatus. The server still
-  // computes the real fee; the success alert shows the returned numbers.
-  // [2026-08-13] The tier now comes from cancelFeeRateFor (store.ts), the full four-arm mirror
-  // of 0066: the old two-arm version quoted 10% on bookings the server cancels for free.
-  const enrouteCancel = selected?.rawStatus === 'runner_enroute';
-  const feeRate = selected ? cancelFeeRateFor(selected) : 0;
-  const fee = selected ? Math.round(selected.price * feeRate) : 0;
+  // [2026-08-25] cancelFeeRateFor is RETIRED — the number now comes from quote_cancel_fee
+  // (see cancelQuote above). The tier sentence keys on the QUOTED status when the quote is in
+  // (the server's answer includes the fault-waiver arm the client cannot see) and falls back
+  // to rawStatus only for display continuity while loading — never for the number itself.
+  const enrouteCancel = (cancelQuote.s === 'ok' ? cancelQuote.status : selected?.rawStatus) === 'runner_enroute';
+  const quotedFee = cancelQuote.s === 'ok' ? cancelQuote.fee : null;
+  // [2026-08-25] 아래 철회 기록의 전제가 이 파일과 함께 닫힌다: 이 브랜치는 0117 과 함께
+  // 배포되므로 '면제 정책은 배포되지 않았다'가 더는 참이 아니고, 면제를 볼 수 있는 유일한 눈
+  // (quote_cancel_fee)이 이제 이 화면의 숫자다. 기록 자체는 판단의 근거였으므로 지우지 않는다.
   // ⚠ [철회 2026-08-21] 여기 '면제될 수 있다' 문구를 넣었다가 되돌린다. **오늘은 거짓이기 때문이다.**
   // 0117 §9 의 면제는 아직 배포되지 않았고, 현재 서버는 0066:80 대로 runner_enroute 취소에
   // 조건 없이 50%를 청구한다. 즉 그 시점의 정확한 답은 **50% 그 자체**였고, 내가 넣은 불확실성은
@@ -572,7 +603,7 @@ export default function Schedule() {
                   {/* [T4] 지각 알림 — 히어로의 「일정에서 정리하기」가 도착하는 자리다. 상태 필은
                       '확정됨'이라고만 말하는데, 그 확정이 16일 전이면 사실의 절반이다.
                       ⚠ actions 를 넘기지 않는다: 이 시트는 이미 자기 출구(취소·러너 변경·다시 예약)를
-                      아래에 갖고 있고, 그 취소가 0066 사다리를 정확히 견적한다(cancelFeeRateFor,
+                      아래에 갖고 있고, 그 취소가 서버 견적(quote_cancel_fee)을 그대로 보여준다(2026-08-25 미러 은퇴,
                       네 갈래 미러). 여기서 버튼을 또 그리면 두 번째 코랄이거나, 값을 모르는 중복
                       출구가 된다 — 알림은 사실만 말하고 문은 아래 것을 쓴다. */}
                   <LateNotice
@@ -852,7 +883,8 @@ export default function Schedule() {
                           <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
                             {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
                                 달던 자리(이동 중만 표기하던 이분법)의 교정 */}
-                            {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
+                            {/* 견적이 오기 전에는 숫자를 예고하지 않는다 — 0 도 % 도 아닌 '없음' */}
+                            {quotedFee != null && quotedFee > 0 ? `일정 취소하기 (수수료 ${quotedFee.toLocaleString()}원)` : '일정 취소하기'}
                           </Text>
                         </Pressable>
                       )}
@@ -878,9 +910,26 @@ export default function Schedule() {
                       금액이라는 개념 자체가 없다 — 취소가 만드는 유일한 돈은 수수료 청구다. */}
                   <View style={s.feeCard}>
                     <FeeLine label="예약 금액" value={`${selected.price.toLocaleString()}원`} />
-                    <FeeLine label={`취소 수수료 (${Math.round(feeRate * 100)}%)`} value={`${fee.toLocaleString()}원`} coral />
+                    {/* 서버의 절대액 그대로 — % 는 클라이언트 산수라 은퇴했다. 확인 중엔 숫자 대신
+                        상태를 말하고(로딩은 0이 아니다), 실패는 아래 스트립이 크게 말한다. */}
+                    <FeeLine
+                      label="취소 수수료"
+                      value={cancelQuote.s === 'ok' ? `${cancelQuote.fee.toLocaleString()}원` : cancelQuote.s === 'err' ? '확인 실패' : '확인 중…'}
+                      coral
+                    />
                     <View style={{ height: 1, backgroundColor: '#EEE', marginVertical: 10 }} />
-                    <FeeLine label="청구 금액" value={`${fee.toLocaleString()}원`} bold />
+                    <FeeLine
+                      label="청구 금액"
+                      value={cancelQuote.s === 'ok' ? `${cancelQuote.fee.toLocaleString()}원` : '—'}
+                      bold
+                    />
+                    {cancelQuote.s === 'err' && (
+                      <Pressable onPress={() => setQuoteTry((t) => t + 1)} style={{ marginTop: 10 }} accessibilityRole="button">
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: paper.critical }}>
+                          수수료를 확인하지 못했어요 — 다시 시도 ›
+                        </Text>
+                      </Pressable>
+                    )}
                     {/* [0066] 이동 중 티어는 배분 문장이 다르다 — 50% 전액이 이미 출발한 러너의 보상.
                         일반 티어 카피(10%·50/50 배분·24h 무료)는 그대로 생존. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 17 }}>
@@ -898,15 +947,25 @@ export default function Schedule() {
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 17 }}>
-                      {fee > 0
-                        ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
-                        : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
+                      {quotedFee == null
+                        ? '지금까지 결제된 금액이 없어서 환불은 없어요.'
+                        : quotedFee > 0
+                          ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
+                          : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
                     </Text>
                   </View>
 
                   <Pressable
-                    style={({ pressed }) => [s.cancelConfirm, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                    style={({ pressed }) => [
+                      s.cancelConfirm,
+                      cancelQuote.s !== 'ok' && { backgroundColor: paper.disabledFill },
+                      { transform: [{ scale: pressed && cancelQuote.s === 'ok' ? 0.96 : 1 }] },
+                    ]}
+                    disabled={cancelQuote.s !== 'ok'}
+                    accessibilityState={{ disabled: cancelQuote.s !== 'ok' }}
                     onPress={async () => {
+                      // 보여주지 못한 가격은 약속하지 못한다 — 견적 없이는 커밋 없음 (§9c의 법)
+                      if (cancelQuote.s !== 'ok') return;
                       // 실취소 — 서버 cancel_owner가 수수료 계산 + 상태 전이 (목업 알럿 은퇴, fake-inventory)
                       const bid = selected.id;
                       close();
@@ -926,8 +985,10 @@ export default function Schedule() {
                       }
                     }}
                   >
-                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>
-                      {fee > 0 ? `수수료 ${fee.toLocaleString()}원 내고 취소하기` : '수수료 없이 취소하기'}
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: cancelQuote.s === 'ok' ? '#fff' : paper.dim }}>
+                      {cancelQuote.s === 'ok'
+                        ? (cancelQuote.fee > 0 ? `수수료 ${cancelQuote.fee.toLocaleString()}원 내고 취소하기` : '수수료 없이 취소하기')
+                        : cancelQuote.s === 'err' ? '수수료를 확인한 뒤 취소할 수 있어요' : '수수료 확인 중…'}
                     </Text>
                   </Pressable>
                   <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')}>

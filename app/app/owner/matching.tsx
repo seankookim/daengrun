@@ -27,7 +27,7 @@ import { paper } from '../../src/theme';
 //   M④ 0명일 때 문이 있는 화면 — the empty arm used to be one centred sentence with NO action.
 //     Same sentence, plus the two doors that already exist: retry, and 내 일정 (whose cancel
 //     sheet quotes this booking's own fee tier). ⚠ The empty state must never quote a fee — the
-//     ladder is computed per booking by cancelFeeRateFor, and a second copy is how ladders drift.
+//     ladder is quoted per booking by quote_cancel_fee (server, 0117 §9b), and a second copy is how ladders drift.
 // Coral horizontals are capped at TWO full-bleed rules (header + sheet top) — Sean 2026-08-24:
 // "the screen shows too many horizontal red lines". Row separators are the neutral #EEEEEE rule
 // (theme.ts:206 · request.tsx:1465 — a coral full-bleed rule means SECTION, not list row).

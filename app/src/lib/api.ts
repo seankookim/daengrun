@@ -395,6 +395,29 @@ export async function uploadDogPhoto(dogId: string, base64: string): Promise<str
   return stored;
 }
 
+// ── cancel-fee quote (0117 §9b) ──────────────────────────────────────────────────────────
+// Sean 2026-08-21, recorded IN the migration: 0066:89's "NOT a client quote API" posture was
+// knowingly reversed — the client's four-arm mirror could not see the fault half of the §9
+// waiver (booking_faults is sealed), so clients now READ the number instead of mirroring the
+// ladder. Sean 2026-08-25: "ship the cancel fee mirror thing."
+// ⚠ THIS FILE SHIPS WITH 0117'S DEPLOY, NOT BEFORE — the RPC exists only there; a client
+// calling an absent RPC is the DOG_SELECT-400 class one function over (atomicity, 0088 rule).
+export interface CancelQuote {
+  /** 원 단위 절대액 — 서버의 숫자 그대로. 요율은 더 이상 클라이언트 산수가 아니다. */
+  fee: number;
+  /** 견적 시점의 bookings.status 원문 — 티어 문장 분기는 이것으로 한다. */
+  status: string;
+}
+export async function quoteCancelFee(bookingId: string): Promise<CancelQuote> {
+  const { data, error } = await supabase.rpc('quote_cancel_fee', { p_booking: bookingId });
+  if (error) throw error;
+  const fee = (data as any)?.fee;
+  const status = (data as any)?.status;
+  // ⚠ 관대한 파싱 금지: fee ?? 0 은 깨진 응답을 '무료 취소'로 둔갑시킨다. 모양이 다르면 실패다.
+  if (typeof fee !== 'number' || typeof status !== 'string') throw new Error('cancel_quote_malformed');
+  return { fee, status };
+}
+
 // ---------- bookings (edge functions) ----------
 // [O-5 §C.1 · create-booking-hold v10] The server answers two different questions and the client
 // must guess neither: `paid_path` = which path this owner is on, `booking_status` = what the row
