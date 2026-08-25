@@ -587,3 +587,85 @@ a success return from `session_rsvp` without a `session_dogs` row appearing, (c)
 `participant_activities` row. Reaching any of those ONLY as the host through
 `club_finish_session`/host-cancel paths, or through the S4 wide-stamp defect, confirms a named
 out-of-scope item (§7), not a defeat.
+
+---
+
+## 10. DELTA — 2026-08-25 evening re-scope (Sean's sixth round)
+
+**This section does not rewrite the contract.** It marks what the re-scope moves. Source:
+`docs/decisions/2026-08-25-console-rulings.md:156-196` (his verbatim) and
+`docs/plans/2026-08-25-club-mode-a-addendum.md` §8 + `docs/plans/2026-08-25-club-delegation-spec-v2.md`
+§16 (the amendments).
+
+**Headline: this slice's four arms survive intact.** Nothing in §3 §A/§B/§C/§D changes shape,
+no token changes, no gate order changes, and the DONE test at `:582-589` stands word for word.
+The re-scope reaches this contract in exactly two places — a **pin-justification** and a
+**sequencing collision** — plus one status update its own §6 predicted.
+
+**Status of the four rulings:** PACK MODEL (§16.1), NO HOST APPROVAL (§16.2) and PROFILES LANE
+(§16.4) are instructions and settled. **NO HOST PAIR-REALLOCATION (§16.3) is PROVISIONAL** —
+it reverses Sean's own explicit approval on console card 10 (04:26:44Z) and awaits one tap. It
+touches nothing here either way (see 10c).
+
+### 10a. CHANGED — one pin's justification, and one sequencing fact
+
+| Contract arm | file:line here | Change |
+|---|---|---|
+| **§7's "A0-x, the in-place mode switch — S3's"** | `:490-491` | **Its destination moved.** Spec §12 inserts **S2.5** (the admission retirement) before S3, and after §16.2 an owner converting 동반 → 위탁 lands on `approval='approved'` — i.e. **directly on the pay card, with no host wait**. The arm's shape is unchanged; its honest copy is not. This contract's own sentence at `:210-212` ("until it lands the honest path is still cancel-then-rsvp") stays true. Addendum §8.2 ① carries the copy consequence |
+| **§5's blast-radius conclusion** | `:415-422` | The conclusion — "ZERO shipped pins change behaviour, therefore zero shipped pins are re-pinned **in this slice**" — is still **TRUE and still measured**, and the §3 re-pins (`A3`, `A4`, `D3`, `D4`, `D8`) exist for the reason stated. ⚠ **But four of the six suites in that table are on S2.5's fixture-sweep list** — `95_audit_gates_suite.sql` (`:49` `session_approve_dog(sdp,false)`), `153_club_cancel_fee_suite.sql` (`:317`, `:1472`), `108_incident_accountability_suite.sql` (`:64`, `:164`, `:226`), `66_r4_suite.sql` (`:55`, `:117`, `:131`, `:195`). Their **fixtures** change under S2.5 even though their **pins** are untouched by this slice. Nothing here becomes wrong; the table simply stops being a complete account of why those files are stable, and a reader who runs them post-S2.5 must know why they moved. See 10d |
+| **§C's pin `C6`** (「a declared 맹견, owner_handled, via this arm → SUCCEEDS」) and §6's 0127 note | `:281`, `:451-461` | **Status update — §6 predicted this exactly.** `supabase/migrations/0127_remove_dangerous_breed_gate.sql` is no longer untracked: it is **committed on this branch at `15722f5`**, whose own message marks it **UNMEASURED**. §6's conditional therefore fires: if 0127 lands first, `C6`'s proposition changes from "the 0119 remedy survives" to "there is no gate to survive," and the pin is **restated, not deleted** — exactly as `:459-461` instructs. Nothing else in §6 changes; the number is still re-resolved at write time, and `0127` is now taken |
+
+### 10b. Which of this contract's own OPEN questions the re-scope touches
+
+**§9's three review questions are unaffected** (`:571-576`) — §C's membership-vs-hostship gate,
+§D's ordering, and §C's two-token split are all about the 동반 door, which no ruling touches.
+
+⚠ One NEW question the re-scope creates for **§C specifically**, worth putting to the same blind
+voice: §C gates on **membership in the session** (`not_joined`, `:230-231`), and its 🔵
+justification at `:216-224` is that "gating on hostship would build the door for one person and
+leave the same wall standing for everyone else." **§16.2 makes that argument stronger, not
+weaker** — the host is no longer a privileged party to the delegated flow either, so a
+host-gated door would now be an outlier in two directions rather than one. Recorded as
+reinforcement; no change to the predicate or to `C1`/`C2`.
+
+### 10c. UNAFFECTED — checked, not assumed
+
+- **All four arms in full**: §A (`companion_closed`, its placement at gate 6, the positive-match
+  discipline), §B (`already_delegated`, both belts, the gate-order divergence), §C
+  (`session_add_my_dog` end to end), §D (`already_checked_in`, both orderings, the
+  `checked_in_at`-not-`attendance` predicate).
+- **Every pin** `A1`-`A5`, `B1`-`B5`, `C1`-`C10`, `D1`-`D8`, and **every mutation** M1-M20.
+- **§0's invariant and its named residual** (no format-mutating RPC; `club_sessions` has one
+  select-only RLS policy at `0030:133`).
+- **§2's object ownership** and the two `create or replace` targets.
+- **§4's four mixed-mode interaction points.** ⚠ Point 3 (the wide check-in stamp, S4's) gains
+  company but not change: spec §14 **OPEN-B** may re-key the shell grade from `approval` to
+  `booking_id`, which is a *different* meeting point on the delegated side. Neither reaches
+  `session_checkin`, and this slice still does not touch it.
+- **§8's fixture shape** — one club, one host, two owners, one dogless crew member, three
+  sessions (`owner_only` / `mixed` / `delegated_only`) — and the ⚠ fixture archaeology at
+  `:519-522`. None of it constructs a `pending` delegation, so **none of it breaks under §16.2**.
+  Stated explicitly because that is the first thing a reader will worry about.
+- **§16.3 (no host pair-reallocation)** touches nothing here in either direction: a 동반 dog has
+  no pairing, no proposal row and no runner. Addendum §8.3 records the same non-effect.
+- **§16.1 (pack model)** touches nothing here: the participant ladder's edges are A2 check-in and
+  A4 finish, and the ruling changes neither.
+
+### 10d. Sequencing against S2.5 — one recommendation, with its reason
+
+This slice and S2.5 are **object-disjoint**: this one owns `session_rsvp`, `session_cancel_rsvp`
+and the new `session_add_my_dog`; S2.5 owns `session_delegate_dog`, `session_approve_dog`,
+`session_reconsider_dog`, `session_runner_withdraw` and `_club_delegation_board_impl`'s approval
+counts. **No object is claimed by both**, so there is no `create or replace` collision.
+
+They DO collide on **suite files** (four of §5's six) and on **one client file**:
+`app/app/club/session/[sid].tsx`, where §7 names `:229`, `:270-274` and `:1214-1222` as this
+slice's landing sites while S2.5 rewrites `:46`, `:702`, `:753` and `:774-785` in the same file.
+Different blocks, same file — **claim the path in REGISTRY's in-flight table before either
+client half is edited.**
+
+🔵 **Recommendation: land this slice FIRST.** It is independent by §0's own design, its fixtures
+construct no `pending` delegation, and its blast-radius measurement at `:404-427` was taken
+against today's corpus and stays valid. S2.5 is gated on two of Sean's answers (spec §14 OPEN-A
+and OPEN-B) and carries a 74-site fixture sweep; waiting for it would strand four small, measured,
+already-argued server arms behind a slice that cannot start.
