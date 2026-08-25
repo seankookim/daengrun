@@ -92,3 +92,26 @@ ALL 18 CARDS ANSWERED (final read at version 1787632291-b0dd, updated 04:31:30Z)
     to #A63A20 · the running-report variant as recommended · the three route-name lengths
     corrected · the "why did you stop" lab and the profile-nudge lab (① recommended) both
     proceed as picked. Each item's own record governs details.
+
+## Follow-up round — answered 2026-08-25 13:39-13:41 KST (read at version 1787632885-ad0c)
+
+| # | Question | His answer (verbatim label) | His comment (verbatim) | Time (UTC) |
+|---|---|---|---|---|
+| F1 | Confirm: remove the dangerous-breed rule completely? (card carried the legal-review context in plain words: statutory duties on five breeds, the review's "one genuine build gap", custody-to-a-stranger) | "Remove it completely" | — | 04:39:43 |
+| F2 | When an owner runs their own dog: do they pay anything? | "Stays free" | "state 무료로 크루 참가" | 04:41:25 |
+
+Dispositions (recording session — NOT his words):
+
+F1. **맹견 gate removal: CONFIRMED, informed.** The hold lifts. Execution is a real slice —
+the deployed 0119 objects (enum columns, gate function, four triggers, breed screen, cron
+belt), suite 154, the fixture edits it spread across suites, and the client wiring (dog.tsx
+declaration, delegate/session refusal states) come out together under the full adversarial
+cycle, with the same care in REMOVAL that the gate got going in (a half-removed gate is worse
+than either state). The removal is flagged in the pending counsel email as the card promised
+— the brief gains one line before Sean sends it. Claimed by the spec-v2 session; client half
+coordinates with ui6. Until the slice lands, the DEPLOYED gate keeps working — removal is a
+deliberate landing+deploy, not a drift.
+
+F2. **Mode A participation: FREE, ruled — and the copy is his**: surfaces state 「무료로 크루
+참가」. The addendum's §4 closes (no fee machinery, ever, unless he reopens it); A6's cancel
+copy stays fee-less.
