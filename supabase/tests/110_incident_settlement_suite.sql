@@ -114,13 +114,20 @@ begin
           -- 이 팔이 재는 성질은 오직 산술('인계 없음 ⇒ 기본요금 없음')이므로, 인계 스탬프·km·요금
           -- 구성은 하나도 건드리지 않고 호출자만 그 부킹의 보호자로 바꾼 뒤 hh로 되돌린다.
           -- 게이트 자체는 151 B5가 양방향으로 소유한다.
-          perform set_config('request.jwt.claim.sub', oo::text, false);
+          -- [0121 §H] caller changed oo → SERVER (jwt cleared). The owner is a party but not a
+          -- settlement AUTHORITY, so gross/fee now return NULL to them — and this b_nc has no
+          -- club session and no case, so NO human authority exists for it; the arithmetic this
+          -- arm measures ('no custody ⇒ no base fare') is observable only to the server caller,
+          -- which is also who reads it in the real settle path. The authority split itself is
+          -- 156 P12/P13's property, not this arm's. (This arm's earlier red printed as a BLANK
+          -- row: the NULL gross rode a || chain into a NULL _fail detail — coalesce added.)
+          perform set_config('request.jwt.claim.sub', '', false);
           select * into q from club_incident_settle_quote(b_nc, 'settle_measured');
           perform set_config('request.jwt.claim.sub', hh::text, false);
           if q.took_custody = false and q.measured_km = 0 and q.runner_gross = 0 and q.refund = 24900
             then call _pass('stl','S1 견적 산술 — 인계O 2/5km → 15900/9000 · 전액환불 0/24900 · 전액지급 24900/0(수수료 8217) · **인계X → 기본요금 없음** 0/24900');
-          else call _fail('stl','S1 인계 없음','custody=' || q.took_custody || ' km=' || q.measured_km
-            || ' gross=' || q.runner_gross || ' refund=' || q.refund); end if;
+          else call _fail('stl','S1 인계 없음','custody=' || coalesce(q.took_custody::text,'∅') || ' km=' || coalesce(q.measured_km::text,'∅')
+            || ' gross=' || coalesce(q.runner_gross::text,'∅') || ' refund=' || coalesce(q.refund::text,'∅')); end if;
         end if;
       end if;
     end if;
