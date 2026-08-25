@@ -262,13 +262,17 @@ only one.
    to club).
 2. **Runner-facing money.** Club runner surfaces (pick cards, session pay lines, finish
    screens) are net-only BY CONSTRUCTION per the runner-money contract §5
-   (`docs/contracts/runner-money-strip-contract.md` — on `claude/runner-money-strip` @
-   f6ed2cf, under review; cited as a contract-in-flight, and S2+ re-verify it landed before
-   binding to it): `expected_net` computed server-side, never a component set, gross, fee, or
-   rate. One line that contract asks this spec to carry: club pricing today inherits the
-   public km-linear `club_fare` (0043:14), so its §0 named residual (rate regressable from
-   net-vs-km) applies to club too; if club pricing ever decouples runner net from the public
-   per-km line, that is the door to closing it — a pricing decision, Sean's, not assumed here.
+   (`docs/contracts/runner-money-strip-contract.md` — on `claude/runner-money-strip`, at v2
+   @ 481890b after its own two blind reviews; cited as a contract-in-flight, and S2+
+   re-verify it landed before binding to it): `expected_net` computed server-side, never a
+   component set, gross, fee, or rate — and per contract v2 the mechanism is an inline
+   scalar subquery inside a definer-owned view, NEVER a callable helper (its reviewers
+   killed the `rate()` helper: view bodies don't shield function EXECUTE, so any helper a
+   view can call, a client can call). One line that contract asks this spec to carry: club
+   pricing today inherits the public km-linear `club_fare` (0043:14), so its §0 residuals
+   (v2 names two, the public-linear-pricing class first) apply to club too; if club pricing
+   ever decouples runner net from the public per-km line, that is the door to closing the
+   first — a pricing decision, Sean's, not assumed here.
 
 ### 5.5 The objection arbitrage (round-2 F4) — a shipped hole the long pairing window would blow open
 
