@@ -399,3 +399,16 @@ how the two copies drift.
 🔴 **This is a PRECONDITION of the sign-up slice, not a follow-up.** The moment sign-up writes an
 address, a home-return pairing has a runner who cannot see where to bring the dog, and the failure
 surfaces at the worst possible moment: dog in hand, end of the run. Ship the arm first.
+
+
+### Citation correction — the live `session_assignment_revoke` is `0057`, not `0047`
+
+Everything above that cites `0047:230` / `0047:221` for the host revoke is pointing at a
+SUPERSEDED definition. Measured: the function is defined twice — `0047_assignment_loop.sql` and
+then `0057_security_hardening.sql:158`, and the later `create or replace` is what runs. The
+behaviour I described is unchanged (`0057:171-173` raises `already_handed_off`; `0057:177-179`
+writes `runner_id = null, status = 'matching'` and nulls both handoff stamps), so **no conclusion
+moves** — but the line numbers were wrong in this file and in what I relayed to the UI session,
+and a reader following them lands on dead text. Found by the agent executing the §6.6 reversion,
+which read the file instead of inheriting my citation. **A correct claim with a stale citation is
+still a defect**: the next person verifies the pointer, not the sentence.
