@@ -90,9 +90,22 @@
       the sixth round downgraded the retirement to PROVISIONAL and asked instead of
       executing — the cost was a lab redraw, not a rebuilt machine. His seventh-round
       「someone else should carry it over」 is now MECHANISM, not gap: the carrying-over
-      IS the reassignment. The control is back as 「다른 러너에게 넘기기」; the reset
-      line states what 0045's transfer actually does (runner_confirmed_return_at
-      nulls, so the new runner's confirmation starts clean).
+      IS the reassignment.
+      ⚠ LABEL CORRECTED at once (spec session's catch, re-verified by me at source):
+      the first draw said 「다른 러너에게 넘기기」, which promises a HAND-PICK the
+      server does not do. `session_assignment_revoke` (0047:221-247) sets
+      `runner_id = null, status = 'matching'` — the host UN-ASSIGNS and the pool
+      re-fills; the owner is notified 「담당 재배정 중 … 자리는 유지돼요」. It also
+      nulls the two HANDOFF stamps (not the RETURN stamp — that is 0045:242's
+      runner→runner transfer, a different function I had mis-cited), and it
+      REFUSES once either handoff stamp is set (`already_handed_off`), so the
+      control cannot exist mid-run. All three drawn now: release wording, the
+      restart line, and the post-handoff refusal stated on the frame.
+      ⚠ OPEN, and deliberately NOT drawn: Sean's wording implies the host CHOOSES
+      the next runner (「if no one can, the host can take care」 only parses if the
+      host is watching candidates), and the last-resort arm — the host running the
+      dog themselves — has NO mechanism today and an unpriced money question. Model
+      questions, spec session's, not a lab's to answer by drawing.
       The round-4 text, superseded: pair reallocation GONE, moment ② shows the event honestly
       (러너 이탈 07:58) plus 비상 도구, plus ONE line of what the system does
       without the host: 「재배정 없음 — 콩이는 팩과 함께 달립니다.」 No new
@@ -367,8 +380,9 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
           <div class="who"><div class="dot lg teal">콩</div>
             <div><div class="nm">콩이 · 정민재</div>
               <div class="fact">러너 이탈 <span class="num">07:58</span> · 이서연 취소</div></div></div>
-          <div class="btnP" style="margin-top:18px">다른 러너에게 넘기기</div>
-          <div class="sys">넘기면 새 러너의 확인부터 다시 시작해요 — 인계 도장은 초기화됩니다.</div>
+          <div class="btnP" style="margin-top:18px">이 페어 러너 해제</div>
+          <div class="sys">해제하면 다시 배정돼요 — 자리는 유지되고, 인계 확인은 처음부터 다시 시작해요.</div>
+          <div class="sys">인계가 끝난 뒤에는 해제할 수 없어요.</div>
           <div class="tap"><span class="tt">비상 도구</span><span class="tsub">전화 · 위치 공유</span><span class="chev">›</span></div>
         </div>
         <div class="thinrule"></div>
@@ -433,7 +447,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
     <h4>Deleted</h4>
     <div class="ph"><span class="k">승인 / 거절</span><span>Owner approval, with its two buttons, the applicant block, the 심사 state and the 거절 row. <b>Signup is permissionless</b> — owners and runners alike. ① says so once, as a fact.</span></div>
-    <div class="ph"><span class="k">재배정 <b>복원</b></span><span>Deleted in round 4 on his 「i dont think so」, <b>RESTORED 09:03Z</b> on 「keep host reassignment functionality when such cases happen for that pair」 — his third and final position. Drawn as 「다른 러너에게 넘기기」 with the honest consequence line (the transfer resets the return stamps, 0045).</span></div>
+    <div class="ph"><span class="k">재배정 <b>복원</b></span><span>Deleted in round 4 on his 「i dont think so」, <b>RESTORED 09:03Z</b> on 「keep host reassignment functionality when such cases happen for that pair. if no one can, the host can take care」 — his third and final position. Drawn as what the server actually does (0047 <code>session_assignment_revoke</code>): the host RELEASES the pair, the booking returns to <code>matching</code>, the pool re-fills, handoff stamps reset, and it refuses after handoff. <b>Not drawn:</b> a host hand-pick (his wording implies one; the function does not do it) and the host-as-runner last resort (no mechanism, unpriced). Those are model questions.</span></div>
     <div class="ph"><span class="k">엇갈린 종료</span><span>Staggered finish times (초코's 09:47 solo finish). The pack finishes together: <b>10:12–10:19</b>, one line, and rows keep only km and 인계.</span></div>
 
     <h4>⚠ Money, recomputed</h4>
