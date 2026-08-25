@@ -308,7 +308,7 @@ Deno.test("the billing call carries a per-attempt Idempotency-Key, our order_id,
     assertEquals(call.body.orderId, ORDER);
     assertEquals(call.body.amount, 11111);
     assertEquals(call.body.customerKey, "cust_owner_1");
-    assertEquals(call.body.orderName, "댕런 산책 이용료");
+    assertEquals(call.body.orderName, "도그스하이 러닝 이용료"); // Sean 2026-08-25: 댕런/산책 out
   } finally {
     cap.restore();
     net.restore();
