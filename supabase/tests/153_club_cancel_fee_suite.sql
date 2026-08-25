@@ -1221,11 +1221,13 @@ begin
       then v_bad:=v_bad||' ARM5 수락 후 20%(post_accept 사이트+split 사이트) 청구가 안 된다'; end if;
     perform set_config('request.jwt.claim.sub', o_cfg2::text, false);
     perform session_cancel_delegation(sd_cfg2);
-    select round(total_price*club_cfg('cancel_late_pct')/100.0)::int into v_fee
+    -- (ruling B) unaccepted delegation cancel = platform half of the late rung, ONE fee item.
+    select round(round(total_price*club_cfg('cancel_late_pct')/100.0)
+                 *club_cfg('fee_platform_split_pct')/100.0)::int into v_fee
     from bookings where id=b_cfg2;
     if (select cancel_fee from bookings where id=b_cfg2) <> v_fee
-       or (select count(*) from club_fee_items where booking_id=b_cfg2) <> 2
-      then v_bad:=v_bad||' ARM5 late 10%(free_hours 사이트가 고른 rung) 청구가 안 된다'; end if;
+       or (select count(*) from club_fee_items where booking_id=b_cfg2) <> 1
+      then v_bad:=v_bad||' ARM5 late 10% 반액(free_hours 사이트가 고른 rung) 청구가 안 된다'; end if;
     -- The split site once more, directly, so its own read is exercised and not inferred.
     b_cfgsplit := t_av_booking(o_cfg,d_cfg,rt,r,now()+interval '10 days',5.0,'refund_pending');
     update bookings set club_session_id=s_cfg where id=b_cfgsplit;
@@ -1607,7 +1609,9 @@ begin
     perform set_config('test.fail_club_queue','',false);
 
     -- 전제: 채무는 기록됐고, 인텐트도 큐 행도 없다 (주입기가 물지 않았으면 이 핀은 공허하다)
-    if (select cancel_fee from bookings where id=b_uq) <> 4980
+    -- (ruling B, 2026-08-25) the fixture's p_runner is NULL by design — under B a runnerless fee
+    -- is the platform half only: round(round(24900*20%)*50%) = 2490, not 4980.
+    if (select cancel_fee from bookings where id=b_uq) <> 2490
        or not _club_fee_event_collectable(b_uq)
       then v_bad:=v_bad||' 🔴 전제 실패: 채무가 기록되지 않았거나 collectable이 아니다'; end if;
     if exists (select 1 from payments where booking_id=b_uq)
@@ -1638,14 +1642,14 @@ begin
     where pr7.kind='club_fee_unminted' and pr7.booking_id=b_uq;
     if not exists (select 1 from payments_reconciliation()
                    where kind='club_fee_unminted' and booking_id=b_uq
-                     and amount=4980 and payment_id is null and payment_status is null)
+                     and amount=2490 and payment_id is null and payment_status is null)
        or v_age is null or v_age <= interval '1 hour'
       then v_bad:=v_bad||' 보이긴 하는데 금액/결제행 부재/경과시간이 사실과 다르다(age='||coalesce(v_age::text,'∅')||')'; end if;
 
     -- ④ 돈은 잃지 않았다 — 스윕은 같은 기록에서 고정액을 복구한다
     perform sweep_club_cancel_fee_intents();
     if (select count(*) from payments where booking_id=b_uq) <> 1
-       or not exists (select 1 from payments where booking_id=b_uq and amount=4980)
+       or not exists (select 1 from payments where booking_id=b_uq and amount=2490)
       then v_bad:=v_bad||' 회복 스윕이 큐 행 없이 기록된 채무를 복구하지 못했다'; end if;
 
     -- ⑤ 발행되면 보드에서 내려간다 (arm이 _cancel_fee_existing_payment를 실제로 읽는다는 증거)
