@@ -367,3 +367,35 @@ the function actually does:
 So the string is **agent-neutral and accurate under either reading** of Sean's ruling, and needs
 no change whichever way the hand-pick question lands. Recording the check rather than the worry,
 because "this copy might be lying" is exactly the claim that should not sit unverified in a note.
+
+## Address-window defect — VERIFIED at source, and it is a PRECONDITION of the sign-up slice
+
+Raised by the UI session; **read rather than agreed with**, per the endorsement law. All three
+claims hold:
+
+1. **Marketplace is fine, club is not — and they cannot be reasoned about together.**
+   `confirm_return_tx` refuses club bookings outright (`0083:383`, `club_out_of_scope`) and claims
+   `completed` only FROM `active` (`0083:719-720`, 「active에서만 completed로」). So a marketplace
+   booking stays `active` through its whole return window and `booking_pickup_address`'s
+   `active` arm (`0065:50-53`) covers it.
+2. **The club inverts that order DELIBERATELY.** `0045:55-60`: reaching `completed` sets
+   `custody_phase='return_pending'` and **keeps custody with the runner** — the comment is
+   「[R2 핵심] 정산 ≠ 반환: 국면만 반환 대기, 커스터디는 러너 유지」. Both club return RPCs then
+   REQUIRE that phase (`0045:79`, `0045:137`, `not_return_pending`). **So the club's entire return
+   window lies after `completed`, and therefore entirely outside the address gate — by
+   construction, not by oversight.** The separation that makes club custody honest (money settles
+   while the dog is still out) is precisely what puts the return past the window.
+3. **The tempting one-liner is a privacy regression.** Adding `completed` to `0065`'s status list
+   re-opens the pickup address for **every finished booking, forever**.
+
+**DECIDED (this session, mine to call): the custody-aware arm, not a separate RPC and not a
+status-list nudge.** `booking_pickup_address` gains one arm admitting the assigned runner while
+THAT pairing's `session_dogs.custody_phase = 'return_pending'`. Reasons: the gate becomes a live
+custody fact rather than a terminal status; it is exactly as wide as the window where the dog is
+in hand and needs a destination; and **it self-closes** when the return seals (phase → `resolved`).
+A separate club-return RPC would duplicate the party gates — a second copy of an admission rule is
+how the two copies drift.
+
+🔴 **This is a PRECONDITION of the sign-up slice, not a follow-up.** The moment sign-up writes an
+address, a home-return pairing has a runner who cannot see where to bring the dog, and the failure
+surfaces at the worst possible moment: dog in hand, end of the run. Ship the arm first.
