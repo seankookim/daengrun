@@ -171,19 +171,24 @@ begin
     then call _fail('rms','P8 §E 계수','cnt='||v_cnt||' en='||q.expected_net||' nb='||q.net_base||' npk='||q.net_per_km);
     else call _pass('rms','P8 §E 계수'); end if;
 
-  -- ── P8b: the 0.33 fallback with NO runners row — coalesce sits OUTSIDE the scalar subquery,
-  -- so a rate-less runner gets 0.33 math, never a NULL-collapsed estimate. (r2's runners row
-  -- is sacrificed; r2 has no pins after this point.)
-  delete from runners where profile_id = r2;
-  perform set_config('request.jwt.claim.sub', r2::text, false);
-  discard plans;
-  set local role authenticated;
-  select * into q from my_run_net_coeffs(array[b2]);
-  set local role postgres;
-  if q.net_per_km is distinct from round(3000 * (1 - 0.33))::int
-    then call _fail('rms','P8b §E 0.33 폴백','npk='||coalesce(q.net_per_km::text,'∅ (NULL-collapse!)'));
-    else call _pass('rms','P8b §E 0.33 폴백'); end if;
-  perform set_config('request.jwt.claim.sub', r1::text, false);
+  -- ── P8b: the 0.33 fallback's NULL-collapse guard — STRUCTURAL, because the no-runners-row
+  -- state is SCHEMA-UNREACHABLE for every consumer: bookings_runner_id_fkey references runners
+  -- (measured — the first draft of this pin tried `delete from runners` and the FK refused),
+  -- 0115 keeps runners rows on account deletion (KEEP+ANON), and the open view's
+  -- is_active_runner() returns 0 rows for a rate-less caller anyway. The fallback is a BELT
+  -- for a future schema where runner rows can vanish; what must not regress NOW is coalesce
+  -- sitting OUTSIDE the scalar subquery — inside, an empty subquery would NULL every estimate
+  -- (1 − NULL). Pin the structure in all three shipped copies (§D twice + §E once).
+  v_bad := '';
+  if (select pg_get_viewdef('runner_open_requests'::regclass) !~ 'COALESCE\(\(SELECT')
+    then v_bad := v_bad || ' open-view'; end if;
+  if (select pg_get_viewdef('my_directed_requests'::regclass) !~ 'COALESCE\(\(SELECT')
+    then v_bad := v_bad || ' directed-view'; end if;
+  if (select prosrc from pg_proc where proname = 'my_run_net_coeffs') !~ 'coalesce\(\(select'
+    then v_bad := v_bad || ' coeffs-fn'; end if;
+  if v_bad <> ''
+    then call _fail('rms','P8b §E/§D coalesce-밖 구조','collapse-prone:'||v_bad);
+    else call _pass('rms','P8b §E/§D coalesce-밖 구조'); end if;
 
   -- ── P9: §F definer conversion + null-uid rejection across the family.
   v_bad := '';
