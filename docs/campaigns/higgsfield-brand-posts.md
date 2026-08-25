@@ -515,6 +515,22 @@ stripped them as designed. Two law catches post-edit: G6R's dog tank removed, W-
 APEX., 반씩, TRAIN SPOTTING., VELCRO DOG., MIST OPPORTUNITY.). **Set: 129 finished posters** after
 the blown-flash cut. ~74 credits remain.
 
+## 8-decies. Round 12 (2026-08-25) — five reel storyboards
+
+Sean's brief: fast-paced 10s reel ad scripts on app + culture from the generated set, storyboarded
+so approved reels go to Higgsfield with script + reference images; every reel ends Nike-style on
+the logo + wordmark centered in the last ~1s; one ends on the blue selfie girl. Delivered as
+`docs/campaigns/reel-storyboards-higgsfield.md` (doc of record, paste-ready per-shot i2v prompts)
+plus a filmstrip artifact. Five reels: **R1 EVERY DAMN DAWN.** (ritual arc, harness-click as the
+beat) · **R2 CHASE THAT HIGH.** (six velocity shots, all left-to-right) · **R3 SAME ENERGY.** (joy
+escalation ending on the blue-girl train selfie, per ruling) · **R4 인계. THE HANDOFF.** (the app
+story with zero UI screens — balcony hesitation → click → mid-run leash handoff → carried home) ·
+**R5 NO OFF SEASON.** (weather montage to the empty dawn expressway). Shared end card composited
+from the real logo: `higgsfield-out/reels/endcard-9x16.png`. All shots are image-to-video from
+existing approved plates (house video law); slogan cards are edit overlays. **The batch13 clone
+set is repurposed as the blue-girl character-consistency pack** — the reference-anchor failure
+turned asset. No credits spent this round.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
