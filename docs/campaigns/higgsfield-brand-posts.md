@@ -495,6 +495,26 @@ counter-running dog caught by the direction law and fixed with the last affordab
 **Set: 109 finished posters.** Credits exhausted to 3.7 — the next round needs a top-up;
 per-frame costs are stable (0.12 gen / 2 edit).
 
+## 8-nonies. Round 11 (2026-08-25) — the golden drop, and the reference-anchor law
+
+Sean cut the blown-flash ten ("looks like a scene out of a horror movie") and attached three of
+the reference edits as core inspiration, then steered live: Korean cast · varied faces and
+genders (not just women in the selfies) · varied clothes in a similar style · the garment logo ·
+varied dog breeds.
+
+**Measured law: Soul's `image_references` is an identity anchor, not a style anchor.** The first
+reference-anchored batch cloned each reference wholesale — same woman ×10 at the same platform,
+same man ×10 on the same hillside, the fence couple's non-Korean casting leaked, one golden
+retriever everywhere, foreign signage — while scene prompts were largely ignored. Rebuilt
+text-only with **per-frame assignments** (ten named Korean casts across genders, ten outfit
+palettes, ten breeds, distinct scenes): variety held perfectly. Race bibs returned en masse
+(one printed "JINDO" from the breed token — prompt words leak into bib text); the FW logo wave
+stripped them as designed. Two law catches post-edit: G6R's dog tank removed, W-set clean.
+
+30 finished (W warm-fence · G golden-pan · E selfie; slogan ledger on the sheet — FLOW STATE.,
+APEX., 반씩, TRAIN SPOTTING., VELCRO DOG., MIST OPPORTUNITY.). **Set: 129 finished posters** after
+the blown-flash cut. ~74 credits remain.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
