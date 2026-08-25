@@ -87,8 +87,12 @@
 --
 -- ⚠ `search_path` is carried EXACTLY as 0111 had it — `set search_path = public, pg_temp` in the
 -- function's own body (98 H1's law: an ALTER-applied config is wiped by `create or replace`).
--- Grants are untouched: `0026:152` revoked EXECUTE from public/anon/authenticated and
--- `create or replace` preserves ACLs, which is what suite 20's A4 measures.
+--
+-- ⚠ **CORRECTED after a second blind review (codex, 2026-08-25).** This paragraph used to read
+-- *"Grants are untouched: 0026:152 revoked EXECUTE from public/anon/authenticated and `create or
+-- replace` preserves ACLs."* That is true on ONE apply path and silently false on another, and the
+-- one where it is false is the dangerous one. See §D-bis, which is the fix, and VERIFY ③-bis,
+-- which is what makes this file fail closed instead of trusting the sentence.
 --
 -- ═══ ORDER IS DISCIPLINE; THE VERIFY BLOCK IS THE NET ════════════════════════════════════════
 -- plpgsql bodies carry no dependency records — dropping a function that another body calls succeeds
@@ -103,9 +107,17 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- §A  THE SIX TRIGGERS — one explicit statement per trigger, named with its own table
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- `create or replace` cannot drop a trigger, and a trigger left behind is not inert: its function
--- would be gone, so it does not "just stop refusing" — every write to its table would fail. The
--- highest-severity case is ⓔ below.
+-- `create or replace` cannot drop a trigger, so each one needs its own statement. A trigger left
+-- behind is not inert — it keeps refusing, and the highest-severity case is ⓔ below.
+--
+-- ⚠ PRECISION (codex blind review, 2026-08-25). This paragraph used to say a surviving trigger
+-- whose FUNCTION was dropped would fail every write to its table. That specific pairing cannot
+-- actually happen from this file: postgres records a dependency from a trigger to its trigger
+-- function, so without CASCADE §B's `drop function` would ERROR and the whole transaction would
+-- roll back. The real silent half-removal is one level down — a surviving plpgsql BODY calling a
+-- dropped function, which carries no dependency record at all and fails only at the next
+-- execution. That is what VERIFY ④ hunts. The severity of a surviving trigger is unchanged; only
+-- the mechanism named here was wrong, and a mechanism stated wrongly is acted on wrongly.
 --
 -- ⓐ/ⓑ the two custody triggers on `bookings` (0119 §D — INSERT and the outward UPDATE arm)
 drop trigger if exists bookings_dangerous_dog on bookings;
@@ -290,6 +302,85 @@ raise warning 후 continue — 절대 raise 아님 (한 행이 전체 스윕을 
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- §D-bis  THE ACL, RE-ASSERTED — `create or replace` is a CREATE when nothing is there
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- 🔴 The header's original claim ("grants are untouched, `create or replace` preserves ACLs") holds
+-- only on the apply path where the function is ALREADY PRESENT. On a database where
+-- `generate_recurring_bookings()` is ABSENT — a partial prior apply, a dump restored to a mid-chain
+-- point, a branch DB built to an earlier migration, any hand-repair that dropped it — `create or
+-- replace` is a CREATE. It cannot preserve an owner or an ACL that is not there, and a freshly
+-- created function inherits the default privileges, which in this stack hand out **PUBLIC EXECUTE**;
+-- `0116:636` records that exact mechanism in its own words, about a definer of its own ("in a world
+-- whose default privileges hand PUBLIC EXECUTE … this line makes the file true in every world").
+-- The result would be a `security definer` cron function — one that inserts bookings and
+-- notifications with its owner's rights — born executable by every role that can reach the database.
+--
+-- So the revoke is REPEATED rather than assumed. It is byte-identical to `0026:152`, it is a no-op
+-- on the normal chain (0026 already revoked; the replacement preserved that), and it is the entire
+-- fix on the absent-function path. Cheap, idempotent, true in every world.
+--
+-- ⚠ There is deliberately NO `alter function … owner to` statement. When the function is present,
+-- `create or replace` preserves its owner and there is nothing to restore; when it is absent there
+-- is no prior owner to restore TO, and the new owner is whichever role applied this file. A
+-- statement naming a hardcoded role would be a guess dressed as a repair. VERIFY ③-bis closes that
+-- door instead, by FAILING CLOSED: the restored function must be `security definer`, plpgsql,
+-- volatile, `returns int`, owned by the same role as an untouched definer peer this file never
+-- otherwise mentions, and executable by none of public/anon/authenticated. An apply by the wrong
+-- role aborts and rolls back — which is the correct outcome and the one this file could not
+-- previously produce.
+--
+-- ⚠ SCOPE, stated because the rest of this landing is about not overclaiming: this fixes THIS
+-- function on THIS file's apply. It is not a schema-wide guarantee. The standing schema-wide
+-- invariant lives in `98_hardening_suite.sql` H9 — and H9's own text says what it cannot see.
+revoke execute on function generate_recurring_bookings() from public, anon, authenticated;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- §E  THE THREE COLUMN COMMENTS — the part of 0119 that survives the removal AS TEXT
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- The columns deliberately stay (see §A's header and VERIFY ⑦), so 0119's comments on them stay
+-- too — and every one of them is now FALSE. `dangerous_status`'s said an undeclared dog is refused
+-- delegation (§C `dog_dangerous_undeclared`); `dangerous_declared_at`'s said the server stamps it
+-- and always discards what the client sent. Both described triggers this file drops. A schema
+-- comment is what an operator or the next author reads when they introspect the table, and a false
+-- one is acted on — the same class as the generator's comment, which §D already fixes for exactly
+-- this reason. `dangerous_basis`'s comment is not false in the same way, but it still describes a
+-- live gate and a pending "조건부 허용" ruling that F1 settled; leaving it would re-open a closed
+-- decision in the next reader's head.
+--
+-- Written in English per CLAUDE.md §Language (new prose is English; 맹견 stays Korean as a product
+-- term). Suite 161 P6 pins all three by exact digest plus directional substring arms, so a later
+-- edit here has to be a deliberate one.
+comment on column dogs.dangerous_status is
+  '0119 §A — RETIRED AS BEHAVIOR by 0127 Slice A (Sean, F1 2026-08-25: "Remove it completely").
+The server no longer reads or writes this column: the 맹견 declaration gate, its breed screen and
+all six of its triggers are dropped, and nothing anywhere is refused on the strength of this value.
+An `undeclared` dog books, is delegated to a stranger and recurs exactly like any other dog. The
+column survives Slice A for ONE reason — so an already-installed client bundle that still selects
+or writes it keeps working, which is what makes the landing safe in any order. Slice B drops it,
+`dangerous_basis`, `dangerous_declared_at` and the `dog_dangerous_status` enum together, once ZERO
+installed bundles reference them (measured across the EAS channels and the OTA fleet, never
+scheduled by calendar). Existing values are a stale record of a question the product stopped
+asking; they are not authoritative about any dog.';
+comment on column dogs.dangerous_basis is
+  '0119 §A — RETIRED AS BEHAVIOR by 0127 Slice A. Held which door made a dog a 맹견:
+`listed_breed` (동물보호법 시행규칙의 법정 견종 및 그 잡종) or `designated` (기질평가를 거친
+시·도지사 지정). Nothing reads it now. Its old comment ended by saying the two doors would carry
+different conditions "if a 조건부 허용 ruling comes down" — that ruling came down as REMOVAL, so
+there are no conditions and no rule to differentiate. The only live constraint on this column is
+`dogs_dangerous_basis_pairs_with_status`, which Slice A keeps ON PURPOSE so the two surviving
+columns cannot drift into an inconsistent pair while they wait for Slice B to drop them both.';
+comment on column dogs.dangerous_declared_at is
+  '0119 §A/§F — RETIRED AS BEHAVIOR by 0127 Slice A. ⚠ Its previous comment said "the server is the
+only thing that stamps this; a client-supplied value is always discarded". That is NO LONGER TRUE
+and has not been since 0127: `dogs_dangerous_declaration` is dropped, so whatever a writer puts in
+this column is what stays in it. Nothing validates it, nothing overwrites it, and no server
+behavior depends on it. Do not read a value here as a server-attested timestamp — it is an
+uninterpreted column waiting for Slice B to drop it. (The handoff/귀가 stamps in 0083 §2 ARE still
+server-stamped; that law is untouched and lives on `bookings`, not here.)';
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- VERIFY, DO NOT ASSUME — a NAMED inventory, in both directions
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- Both directions, because the two failure modes are opposite and only one of them is loud:
@@ -307,6 +398,12 @@ declare
   v_def   text;
   v_cmt   text;
   v_n     int;
+  v_secdef boolean;
+  v_lang  text;
+  v_vol   "char";
+  v_ret   text;
+  v_owner text;
+  v_peer  text;
 begin
   -- ── ① the SIX triggers, by exact name, each paired with the table it sat on ────────────────
   select string_agg(x.tbl || '.' || x.trg, ', ' order by x.tbl, x.trg) into v_left
@@ -325,7 +422,7 @@ begin
                     and t.tgname  = x.trg);
   if v_left is not null then
     raise exception '0127: 0119 trigger(s) survived the removal: %', v_left
-      using hint = 'a surviving trigger whose function is gone does not stop refusing — it fails every write on its table';
+      using hint = 'a surviving 0119 trigger keeps refusing; dogs_dangerous_declaration fires on EVERY dogs write, so it takes out every profile save in the product';
   end if;
 
   -- ── ② the SIX functions, by exact name (every overload, not just the known signature) ───────
@@ -368,18 +465,109 @@ begin
     raise exception '0127: generate_recurring_bookings lost its in-body search_path';
   end if;
 
-  -- ── ④ schema-wide: NOBODY calls the dropped rule, anywhere ─────────────────────────────────
-  -- The dangling-caller check. plpgsql bodies carry no dependency records, so a caller left behind
-  -- is invisible to the catalog and fails at the next execution — a cron at 07 past the hour, or a
-  -- club application, long after this migration is green. `prosrc` is the only place it shows.
-  select string_agg(p.proname, ', ' order by p.proname) into v_left
+  -- ── ③-bis the restored function's SHAPE, OWNER and ACL — the half a body check cannot see ───
+  -- §D-bis is the fix; this is the net under it. On the absent-function apply path `create or
+  -- replace` is a CREATE, so owner and ACL are CREATED rather than preserved and the file must not
+  -- take them on trust. Three separate propositions, each raised by name:
+  --   · shape — a `security definer` plpgsql `returns int`. A stub, a `language sql` rewrite, or a
+  --     definer silently demoted to invoker all die here.
+  --   · owner — compared against `owner_has_unsettled_charge(uuid)`, an untouched definer peer this
+  --     file never otherwise mentions. A RELATIVE assertion on purpose: it holds in the harness, in
+  --     a branch DB and in production without this file hardcoding a role name it cannot know.
+  --   · ACL — none of public/anon/authenticated may execute it. This is the actual hole; the other
+  --     two are the shape it would arrive in.
+  select p.prosecdef, l.lanname, p.provolatile, p.prorettype::regtype::text,
+         pg_get_userbyid(p.proowner)
+    into v_secdef, v_lang, v_vol, v_ret, v_owner
+    from pg_proc p join pg_language l on l.oid = p.prolang
+   where p.oid = 'generate_recurring_bookings()'::regprocedure;
+  if not v_secdef or v_lang <> 'plpgsql' or v_vol <> 'v' or v_ret <> 'integer' then
+    raise exception '0127: the restored generator has the wrong shape (secdef=%, lang=%, volatile=%, returns=%)',
+      v_secdef, v_lang, v_vol, v_ret
+      using hint = '0111 restored it as: language plpgsql security definer, volatile, returns int';
+  end if;
+  select pg_get_userbyid(p.proowner) into v_peer
+    from pg_proc p where p.oid = 'owner_has_unsettled_charge(uuid)'::regprocedure;
+  if v_owner is distinct from v_peer then
+    raise exception '0127: the restored generator is owned by % but its untouched definer peer owner_has_unsettled_charge is owned by %',
+      coalesce(v_owner, '<none>'), coalesce(v_peer, '<none>')
+      using hint = 'create or replace preserves an owner it finds and CREATES one it does not — an owner split from the peer means this file was applied onto a database where the function was absent, by a role that does not own the rest of the schema';
+  end if;
+  if has_function_privilege('public',        'generate_recurring_bookings()', 'execute')
+     or has_function_privilege('anon',          'generate_recurring_bookings()', 'execute')
+     or has_function_privilege('authenticated', 'generate_recurring_bookings()', 'execute') then
+    raise exception '0127: generate_recurring_bookings() is EXECUTABLE by public/anon/authenticated — acl=%',
+      coalesce((select array_to_string(p.proacl, ' ') from pg_proc p
+                 where p.oid = 'generate_recurring_bookings()'::regprocedure), '<null = PUBLIC by default>')
+      using hint = '§D-bis repeats 0026:152 exactly for this case; if that line was removed, put it back rather than relaxing this check';
+  end if;
+
+  -- ── ④ dangling callers — WIDENED, and its real scope stated rather than overclaimed ─────────
+  -- plpgsql bodies carry no dependency records, so a caller left behind is invisible to the catalog
+  -- and fails at the next execution — a cron at 07 past the hour, or a club application, long after
+  -- this migration went green. `prosrc` is the only place it shows.
+  --
+  -- ⚠ This block used to call itself "schema-wide" while restricting `pg_proc` to `public` and
+  -- reading only `prosrc`. Both halves of that were narrower than the sentence (codex blind review,
+  -- 2026-08-25, finding 3). Widened here to EVERY non-system routine namespace and to the one other
+  -- code-bearing catalog in this stack, `cron.job.command`, which holds SQL as text and is likewise
+  -- invisible to the dependency graph. The token scan is separate: a caller of the dropped
+  -- functions is one failure, an independent emitter of the refusal tokens is another, and a
+  -- name-only scan cannot see the second.
+  --
+  -- ⚠ WHAT THIS CANNOT SEE, said out loud: dynamic SQL. A body that assembles
+  -- `execute format('select %I(...)', 'dog_custody' || '_gate')` matches no literal here and no
+  -- static analysis can settle it. The assertion is therefore "no STATIC textual reference survives
+  -- in any routine body or stored cron command", not "nothing can ever call it". Codex searched the
+  -- chain independently and found no surviving caller at all, so this is a verification hole being
+  -- closed, not a live bug being repaired.
+  select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname || '.' || p.proname)
+    into v_left
     from pg_proc p
-   where p.pronamespace = 'public'::regnamespace
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname <> 'information_schema'
+     and n.nspname not like 'pg\_%'
      and (p.prosrc like '%dog_custody_gate%'
        or p.prosrc like '%dog_custody_refusal_detail%'
        or p.prosrc like '%_breed_reads_as_dangerous%');
   if v_left is not null then
-    raise exception '0127: function(s) still call a dropped 맹견 object: %', v_left;
+    raise exception '0127: routine(s) still call a dropped 맹견 object: %', v_left;
+  end if;
+
+  -- the five refusal tokens 0119 could emit. `dog_dangerous_status` is the surviving COLUMN and is
+  -- deliberately not matched — that is why these are full token names and not a `dog_dangerous_%`
+  -- prefix, which would fire on every legitimate reference to the column Slice A keeps.
+  select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname || '.' || p.proname)
+    into v_left
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname <> 'information_schema'
+     and n.nspname not like 'pg\_%'
+     and (p.prosrc like '%dog_dangerous_undeclared%'
+       or p.prosrc like '%dog_dangerous_custody_refused%'
+       or p.prosrc like '%dog_dangerous_breed_conflict%'
+       or p.prosrc like '%dog_dangerous_declaration_final%'
+       or p.prosrc like '%dog_dangerous_declaration_delete_final%');
+  if v_left is not null then
+    raise exception '0127: routine(s) still EMIT a 맹견 refusal token the client can no longer receive: %', v_left
+      using hint = 'the client mapping for these tokens is deleted in the same landing — an emitter left behind produces a raw P0001 the app renders as an unknown error';
+  end if;
+
+  -- stored cron commands: SQL held as text, invisible to the dependency graph, and the exact place
+  -- a dropped function keeps being called on a schedule. Guarded because pg_cron is not installed
+  -- in the harness container (0026's own `create extension` sits inside an exception handler for
+  -- the same reason) — an absent `cron.job` is not a pass, it is an inapplicable check.
+  if to_regclass('cron.job') is not null then
+    execute $q$
+      select string_agg(jobname || ' :: ' || command, ', ' order by jobname)
+        from cron.job
+       where command like '%dog_custody_gate%'
+          or command like '%dog_custody_refusal_detail%'
+          or command like '%_breed_reads_as_dangerous%'
+    $q$ into v_left;
+    if v_left is not null then
+      raise exception '0127: a scheduled cron command still calls a dropped 맹견 object: %', v_left;
+    end if;
   end if;
 
   -- ── ⑤ trigger-count inventory — MEASURED, not asserted ─────────────────────────────────────
@@ -442,5 +630,28 @@ begin
     raise exception '0127 OVER-REACH: the dog_dangerous_status enum was dropped — that is Slice B';
   end if;
 
-  raise notice '0127: 6 triggers + 6 functions absent by name; no caller anywhere in public; generator restored to 0111 with its belts intact; trigger counts 14/2/1; columns, pair CHECK and enum held for Slice B';
+  -- ── ⑧ the three surviving column comments no longer claim behavior this file removed ────────
+  -- The columns survive, so their DOCUMENTATION survives with them, and 0119's text described the
+  -- refusal and the server stamp — both gone. §E replaces all three. Checked in both directions,
+  -- the same shape as ⑥ does for the generator's comment: the retired claims must be ABSENT and
+  -- the replacement's marker must be PRESENT, so neither a missed rewrite nor a wholesale wipe
+  -- passes. (Exactness is pinned in suite 161 P6 by digest; this block is the apply-time net.)
+  for v_left in select unnest(array['dangerous_status', 'dangerous_basis', 'dangerous_declared_at'])
+  loop
+    select col_description('dogs'::regclass,
+             (select a.attnum from pg_attribute a
+               where a.attrelid = 'dogs'::regclass and a.attname = v_left))
+      into v_cmt;
+    if v_cmt is null then
+      raise exception '0127: dogs.% lost its column comment — §E must replace it, not clear it', v_left;
+    end if;
+    if v_cmt not like '%0127%' then
+      raise exception '0127: the comment on dogs.% was not rewritten by this file (no 0127 marker) — it still describes a gate that no longer exists', v_left;
+    end if;
+    if v_cmt like '%거절된다%' or v_cmt like '%서버만 찍는다%' then
+      raise exception '0127: the comment on dogs.% still claims 0119 behavior (refusal / server-stamping) that this file removed', v_left;
+    end if;
+  end loop;
+
+  raise notice '0127: 6 triggers + 6 functions absent by name; no static caller or token emitter in any non-system namespace, and none in cron.job where present; generator restored to 0111 with its belts intact, secdef/owner/ACL asserted; trigger counts 14/2/1; three column comments rewritten; columns, pair CHECK and enum held for Slice B';
 end $$;
