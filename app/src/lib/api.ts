@@ -1394,8 +1394,16 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
-    .order('scheduled_at', { ascending: false })
-    .limit(20);
+    .order('scheduled_at', { ascending: false });
+    // [Q5 → Sean 2026-08-25, verbatim "keep everything" + console #17 "Fix the list"] the
+    // `.limit(20)` that stood here is GONE. It kept the FURTHEST 20 rows, so a heavy owner's
+    // nearest bookings fell out of 내 일정 while October's stayed — and the relevance sort could
+    // only rank what arrived. All bookings now come back; at pilot volume this is tens of rows.
+    // ⚠ SCALE NOTE, not a today problem: with no explicit limit PostgREST's server default cap
+    // (typically 1000) becomes the silent ceiling one day — when an owner can plausibly exceed
+    // that, pagination is the fix, never a re-introduced window. fetchInFlightOwnerBookings (B9)
+    // SURVIVES below: born to rescue in-flight rows from this window, it is now a belt against
+    // that same server default cap, and its own cap-correction note still holds.
   if (error) throw error;
 
   // 완료 건은 견적이 아니라 원장 실 net (감사 ⑤ 수익 표시 잔여 해소).
@@ -3362,7 +3370,7 @@ export async function setMyHandle(handle: string): Promise<string> {
   return data as string;
 }
 
-// ---------- 동네 피드 (옵트인 러닝 자랑) ----------
+// ---------- 하이 피드 (옵트인 러닝 자랑) ----------
 export interface FeedPost {
   id: string;
   authorName: string;

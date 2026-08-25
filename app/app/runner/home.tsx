@@ -486,8 +486,13 @@ export default function RunnerHome() {
   const nextTodayMer = nextToday ? (nextToday.wd.split(' ').pop() ?? '') : '';
 
   // 오늘의 루트 — 진행 중 + 다음 예약을 정차역 타임라인으로 (모든 job 데이터·openJob 보존)
+  // ⚠ [sim walk 2026-08-25] the header says 오늘의 루트, and the fixture put an Aug-4 enroute row
+  // under it three weeks later — `current` is "the runner's live job" with no day predicate, so a
+  // rotted in-flight booking leaked into a section whose name is a date claim. Gate it on the
+  // section's own word (isTodayKst — the same helper every other 오늘 fact here uses). A stale
+  // live job LOSES NOTHING: the 진행 중 ticket above still owns it unconditionally.
   const routeStops: { job: RunnerJob; kind: 'on' | 'next' }[] = [
-    ...(current ? [{ job: current, kind: 'on' as const }] : []),
+    ...(current && isTodayKst(current.scheduledAt) ? [{ job: current, kind: 'on' as const }] : []),
     ...upcoming.map((j) => ({ job: j, kind: 'next' as const })),
   ];
 
@@ -1316,9 +1321,9 @@ export default function RunnerHome() {
               onPress={() => router.push('/compose')}
               style={({ pressed }) => [styles.feedShare, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
               accessibilityRole="button"
-              accessibilityLabel="동네 피드에 자랑하기"
+              accessibilityLabel="하이 피드에 자랑하기"
             >
-              <Text style={styles.feedShareTxt}>완주 기록을 동네 피드에 자랑하기 ›</Text>
+              <Text style={styles.feedShareTxt}>완주 기록을 하이 피드에 자랑하기 ›</Text>
             </Pressable>
           </>
         )}
