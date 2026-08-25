@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Session Setup Lab (r5)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   SETUP LAB — the CLUB SESSION SIGN-UP SETUP SCREEN. Fifth club-v2 lab.
+
+   WHAT THIS LAB IS
+   The one surface no spec covers. Everything else in round 5 either was already
+   ruled, already shipped, or died in review; what survived is this screen — the
+   flow an owner walks when they sign up for a club session. Four steps, in
+   Sean's own order, plus one small label fix carried in the same file.
+
+   ── HIS RULING (2026-08-25, verbatim) ──────────────────────────────────────
+   "then just do either on site or home address."
+
+   Which collapses the option set he had described minutes earlier to TWO per
+   leg, and cuts the third:
+
+     PICKUP  ·  home address   — the runner comes to the owner's door
+             ·  on site        — the session start; the runner does NO pickup
+                                 leg, just brings themselves + their equipment
+     RETURN  ·  home address   — the runner brings the dog home
+             ·  on site        — the owner collects where the run finished;
+                                 no go-back-to-owner-home service
+
+   And the flow order, his:
+     ① 직접 달리기 or 러너 요청  →  (직접: start point + what a self-runner needs)
+     ② 러너면: 픽업 장소
+     ③ 세션 상세 (시간, 그룹, 코스 …)
+     ④ 반환 장소
+   ③ sits BETWEEN the two choices because he put it there. Kept as stated.
+
+   Both transfers keep the shipped two-sided ritual (인계 확인). Nothing in
+   these frames may read as a one-sided handover — the 인계 line is on both
+   choice steps for that reason.
+
+   ── DELIBERATELY NOT DRAWN ─────────────────────────────────────────────────
+   · 「제3의 주소」 (another address). CUT by his own sentence, not inferred.
+   · The 「너무 멀지 않은」 distance rule. It existed only to bound the custom
+     address; the option it bounded is gone, so the constraint retires with its
+     subject. Drawing either would put a rule in front of him that he removed.
+   · Any price or 요금 line. What a runner earns when the pickup leg disappears
+     is OPEN and is his — a lab that prints an amount answers it for him.
+
+   ── LAWS INHERITED (settled elsewhere, not revisited here) ─────────────────
+   · Ground inside frames is PURE #FFFFFF. The doc grammar — ink rules, dashed
+     cells, letterspaced Latin kickers, serials — survives on white. No warm
+     tint, no pale lilac, anywhere.
+   · #6C5CE7 is a SPARSE accent. In this lab it appears exactly ONCE, in ⓑ, on
+     the selected label — selection is the accent's best use on this screen.
+     Coral (--action) is the action fill and nothing else.
+   · Type lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only.
+     Black Han Sans ≤1 per frame. Flat surfaces — no card inside a card.
+   · Korean UI strings, English comments.
+
+   ── THE R4 ITEM, FOLDED IN HERE ────────────────────────────────────────────
+   Sean, round 5: the round-4 affordance treatment "looks just like an excel
+   block, nothing more." The law it satisfied stands — a choice must LOOK
+   choosable and a non-choice must not — so this is a RE-DRAW of the vocabulary,
+   not a retreat from the law. It is judged here rather than abstractly because
+   this screen is nothing BUT choices. Three vocabularies, ⓐⓑⓒ, drawn on the
+   same step (② 픽업 장소) so only the row differs:
+
+     ⓐ 눌린 키   — a raised block with a hard ink offset; picking it presses the
+                   block into its own shadow and inverts it to solid ink.
+     ⓑ 도장 칸   — no box at all: ink-ruled rows with an empty stamp square that
+                   asks to be filled; the pick stamps it and underlines the label.
+     ⓒ 두 장 플레이트 — the binary drawn as two half-width plates; the pick turns
+                   one solid ink.
+   In every one of them selected-vs-unselected survives with colour removed:
+   fill inversion, a stamped mark, position, weight. None of them is a 1px
+   rectangle around text abutting another 1px rectangle around text.
+
+   ① and ④ are carried in ⓐ purely so the flow reads end to end. Whichever of
+   ⓐⓑⓒ he picks applies to every choice step.
+
+   ── ALSO IN THIS FILE ──────────────────────────────────────────────────────
+   The 즉시 해제 label fix (L1 / L2). The label lives on the SELF-RUN
+   participant record (참가자 러닝 뷰 ②, run lab) and currently says only
+   「즉시 해제」, which reads as a system action on someone else's dog. Sean,
+   2026-08-24: "if it's the owner, then there's an immediate release of all
+   responsiblites" — it is YOUR OWN dog, you were holding it, there was never a
+   handover. Two candidate labels that say WHOSE dog it was. Same fixture (수리)
+   as the frame they replace, so the swap is legible.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+/* ── FILE-LOCAL — the setup flow ──────────────────────────────────────────── */
+.phone{min-height:720px}
+.headline{display:flex;justify-content:space-between;align-items:baseline;margin-top:26px}
+.qline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:10px}
+
+/* ⓐ 눌린 키 — a raised block that presses into its own shadow when chosen */
+.keys{margin-top:20px}
+.key{display:flex;align-items:center;gap:13px;min-height:76px;padding:16px;
+  background:var(--docWhite);border:1.5px solid var(--docInk);box-shadow:4px 4px 0 var(--docInk)}
+.key + .key{margin-top:20px}
+.key .kbody{flex:1;min-width:0}
+.key .kl{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.key .ks{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:3px}
+.key .kmark{width:26px;height:26px;flex:0 0 26px;border:1.5px solid var(--docDash);
+  background:var(--docWhite);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t2);line-height:var(--l2);font-weight:800;color:transparent}
+.key.on{background:var(--docInk);border-color:var(--docInk);box-shadow:none;transform:translate(4px,4px)}
+.key.on .kl{color:var(--docWhite)}
+.key.on .ks{color:var(--docEdge)}
+.key.on .kmark{background:var(--docWhite);border-color:var(--docWhite);color:var(--docInk)}
+.rec{display:inline-flex;align-items:center;min-height:26px;padding:2px 9px;margin-left:9px;
+  border:1.5px solid var(--docInk);font-size:var(--t3);line-height:var(--l3);
+  font-weight:800;color:var(--docInk);white-space:nowrap}
+.key.on .rec{border-color:var(--docWhite);color:var(--docWhite)}
+
+/* ⓑ 도장 칸 — no box; ink rules and a square that asks to be stamped */
+.stamps{margin-top:22px}
+.scell{display:flex;align-items:flex-start;gap:15px;padding:20px 0;border-top:1px solid var(--docLine)}
+.scell.last{border-bottom:1px solid var(--docLine)}
+.sbox{width:30px;height:30px;flex:0 0 30px;border:1.5px dashed var(--docDash);background:var(--docWhite);
+  display:flex;align-items:center;justify-content:center;font-size:var(--t2);line-height:var(--l2);
+  font-weight:800;color:transparent}
+.scell.on .sbox{border:1.5px solid var(--docInk);background:var(--docInk);color:var(--docWhite)}
+.scell .sbody{flex:1;min-width:0}
+.scell .sl{display:inline-block;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docText)}
+.scell.on .sl{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:3px}
+.scell .ss{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:7px}
+
+/* ⓒ 두 장 플레이트 — the binary as two plates; the pick turns solid ink */
+.plates{display:flex;gap:14px;margin-top:22px}
+.plate{flex:1;min-height:186px;padding:16px 14px;display:flex;flex-direction:column;
+  background:var(--docWhite);border:1.5px dashed var(--docDash)}
+.plate .ptick{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:transparent}
+.plate .pl{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docText);margin-top:8px}
+.plate .ps{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:9px}
+.plate .pfoot{margin-top:auto;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docDim)}
+.plate.on{border:1.5px solid var(--docInk);background:var(--docInk)}
+.plate.on .ptick{color:var(--docWhite)}
+.plate.on .pl{color:var(--docWhite)}
+.plate.on .ps{color:var(--docEdge)}
+.plate.on .pfoot{color:var(--docWhite)}
+
+/* print — rule-divided readouts, no tap marks anywhere on them */
+.dl{margin-top:20px}
+.dl .r{display:flex;align-items:baseline;gap:14px;padding:14px 0;border-top:1px solid var(--docLine)}
+.dl .r.last{border-bottom:1px solid var(--docLine)}
+.dl .k{flex:0 0 76px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.dl .v{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.dl .v .num{color:var(--docInk)}
+.gear{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.gear span{display:inline-flex;align-items:center;min-height:34px;padding:5px 11px;
+  border:1px solid var(--docDash);font-size:var(--t3);line-height:var(--l3);
+  font-weight:700;color:var(--docText)}
+
+/* the two-sided ritual — an ink record line, never a one-sided promise */
+.ritual{border-top:1.5px solid var(--docInk);margin-top:26px;padding-top:13px}
+.ritual .rr{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:8px}
+.ritual .rr b{color:var(--docInk);font-weight:800}
+.btnP{margin-top:auto}
+.foot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+
+/* the 즉시 해제 fragment frames — a slice of 참가자 러닝 뷰 ②, not a screen */
+.cap .n.lab{background:transparent;border:2px solid var(--ink);color:var(--ink);
+  font-size:var(--t2);font-weight:800}
+.frag{width:390px;background:var(--docWhite);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);padding:22px 20px 24px}
+.frag .fh{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2.5px solid var(--docInk);padding-bottom:8px}
+.frag .fh .t{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.relline{border-top:1.5px solid var(--docInk);margin-top:22px;padding-top:14px}
+.relbody{display:flex;align-items:center;gap:11px;margin-top:9px}
+.relbody .t{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.relbody .rt{margin-left:auto;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--docInk)}
+.relsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:8px}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 96px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>클럽 세션 신청 — 셋업 화면</h1>
+  <p class="law">Round 5 · his order · pickup 집/현장 · return 집/현장 · the choice row re-drawn · white ground</p>
+</header>
+
+<section class="toc">
+  <h2>Two picks wanted — the choice row, and the 즉시 해제 label</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>진행 방식</b> — 직접 달리기 or 러너 요청. The fork the whole flow hangs on.</span></li>
+    <li><span class="n">①ᴬ</span><span><b>직접 달리기</b> — the self-run branch: 집결 장소, 시각, 준비물. No 인계, because there is none.</span></li>
+    <li><span class="n">ⓐⓑⓒ</span><span><b>픽업 장소</b>, drawn three times — <b>the same step, three choice-row vocabularies</b>. This is the R4 "excel block" re-draw, judged in context.</span></li>
+    <li><span class="n">③</span><span><b>세션 상세</b> — 시간, 그룹, 코스, 호스트. Print, not choices.</span></li>
+    <li><span class="n">④</span><span><b>반환 장소</b> — 집 반환 or 현장 반환, carried in ⓐ.</span></li>
+    <li><span class="n">L</span><span><b>즉시 해제 라벨</b> — two candidates that say whose dog it was. <b>L1</b> or <b>L2</b>.</span></li>
+  </ol>
+  <p class="say">Two words settle it: a letter for the row — <b>ⓐ</b>, <b>ⓑ</b> or <b>ⓒ</b> — and <b>L1</b> or <b>L2</b> for the label.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ═══════════════════════════════════════ ① 진행 방식 -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">진행 방식 — <b>the fork</b>; drawn in ⓐ as the carrier.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">진행 방식</div>
+          <div class="serial">SETUP · 1 OF 4</div>
+        </div>
+        <div class="qline">몽이는 이번 세션을 어떻게 달리나요?</div>
+
+        <div class="keys">
+          <div class="key">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">직접 달리기</div>
+              <div class="ks">보호자가 몽이와 함께 달립니다</div>
+            </div>
+          </div>
+          <div class="key on">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">러너 요청</div>
+              <div class="ks">러너가 몽이를 맡아 팩과 함께 달립니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr">러너 요청은 <b>픽업과 반환 모두 두 사람이 함께 확인</b>해야 완료됩니다.</div>
+        </div>
+
+        <div class="btnP">다음</div>
+        <div class="foot"><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ①ᴬ 직접 달리기 -->
+  <div class="col">
+    <div class="cap"><span class="n">①ᴬ</span><span class="d">직접 달리기 — <b>출발지와 준비물</b>; 인계 절차 자체가 없다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:42</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">직접 달리기</div>
+          <div class="serial">SELF-RUN · 1 OF 2</div>
+        </div>
+        <div class="qline">보호자가 몽이를 데리고 출발지로 오면 됩니다.</div>
+
+        <div class="dl">
+          <div class="r"><span class="k">출발지</span><span class="v">잠수교 남단 집결지</span></div>
+          <div class="r"><span class="k">집결</span><span class="v"><span class="num">08:45</span> · 출발 <span class="num">09:00</span></span></div>
+          <div class="r last"><span class="k">코스</span><span class="v">잠수교 <span class="num">5</span>km · 반포한강공원</span></div>
+        </div>
+
+        <div class="qline" style="margin-top:24px">준비물</div>
+        <div class="gear"><span>목줄 · 하네스</span><span>배변봉투</span><span>물</span><span>인식표</span></div>
+
+        <div class="ritual">
+          <span class="kick">No handover</span>
+          <div class="rr">몽이는 <b>보호자가 계속 데리고 있습니다</b> — 인계도, 반환도 없습니다.</div>
+        </div>
+
+        <div class="btnP">이대로 신청</div>
+        <div class="foot"><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ⓐ 픽업 · 눌린 키 -->
+  <div class="col">
+    <div class="cap"><span class="n">ⓐ</span><span class="d">픽업 장소 — <b>눌린 키</b>: 고르면 블록이 제 그림자 속으로 눌리고 잉크로 반전된다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:43</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">픽업 장소</div>
+          <div class="serial">SETUP · 2 OF 4</div>
+        </div>
+        <div class="qline">러너가 몽이를 어디서 만나나요?</div>
+
+        <div class="keys">
+          <div class="key on">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">현장 인계<span class="rec">추천</span></div>
+              <div class="ks">보호자가 출발지로 데려다 줍니다 · 러너는 장비만 챙겨 옵니다 · 주소를 공유하지 않습니다</div>
+            </div>
+          </div>
+          <div class="key">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">집 픽업</div>
+              <div class="ks">러너가 등록된 자택으로 몽이를 데리러 옵니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr">어느 쪽이든 <b>두 사람이 함께 인계를 확인</b>해야 픽업이 완료됩니다.</div>
+        </div>
+
+        <div class="btnP">다음</div>
+        <div class="foot"><span class="serial">PICKUP · ON SITE</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ⓑ 픽업 · 도장 칸 -->
+  <div class="col">
+    <div class="cap"><span class="n">ⓑ</span><span class="d">픽업 장소 — <b>도장 칸</b>: 상자가 없다; 빈 네모가 채워달라고 말한다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:43</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">픽업 장소</div>
+          <div class="serial">SETUP · 2 OF 4</div>
+        </div>
+        <div class="qline">러너가 몽이를 어디서 만나나요?</div>
+
+        <div class="stamps">
+          <div class="scell on">
+            <span class="sbox">✓</span>
+            <div class="sbody">
+              <div><span class="sl">현장 인계 · 추천</span></div>
+              <div class="ss">보호자가 출발지로 데려다 줍니다 · 러너는 장비만 챙겨 옵니다 · 주소를 공유하지 않습니다</div>
+            </div>
+          </div>
+          <div class="scell last">
+            <span class="sbox">✓</span>
+            <div class="sbody">
+              <div><span class="sl">집 픽업</span></div>
+              <div class="ss">러너가 등록된 자택으로 몽이를 데리러 옵니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr">어느 쪽이든 <b>두 사람이 함께 인계를 확인</b>해야 픽업이 완료됩니다.</div>
+        </div>
+
+        <div class="btnP">다음</div>
+        <div class="foot"><span class="serial">PICKUP · ON SITE</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ⓒ 픽업 · 두 장 플레이트 -->
+  <div class="col">
+    <div class="cap"><span class="n">ⓒ</span><span class="d">픽업 장소 — <b>두 장 플레이트</b>: 둘 중 하나라는 사실이 배치로 보인다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:43</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">픽업 장소</div>
+          <div class="serial">SETUP · 2 OF 4</div>
+        </div>
+        <div class="qline">러너가 몽이를 어디서 만나나요?</div>
+
+        <div class="plates">
+          <div class="plate on">
+            <span class="ptick">✓</span>
+            <div class="pl">현장 인계</div>
+            <div class="ps">보호자가 출발지로 데려다 줍니다. 러너는 장비만 챙겨 옵니다.</div>
+            <div class="pfoot">주소 공유 없음</div>
+          </div>
+          <div class="plate">
+            <span class="ptick">✓</span>
+            <div class="pl">집 픽업</div>
+            <div class="ps">러너가 등록된 자택으로 몽이를 데리러 옵니다.</div>
+            <div class="pfoot">자택 주소 공유</div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr">어느 쪽이든 <b>두 사람이 함께 인계를 확인</b>해야 픽업이 완료됩니다.</div>
+        </div>
+
+        <div class="btnP">다음</div>
+        <div class="foot"><span class="serial">PICKUP · ON SITE</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ③ 세션 상세 -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">세션 상세 — <b>print</b>: 고를 것이 없으므로 아무 탭 표식도 달지 않는다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:44</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">세션 상세</div>
+          <div class="serial">SETUP · 3 OF 4</div>
+        </div>
+        <div class="qline">신청 전에 확인하세요.</div>
+
+        <div class="dl">
+          <div class="r"><span class="k">클럽</span><span class="v">반포 하이클럽</span></div>
+          <div class="r"><span class="k">일시</span><span class="v">토 <span class="num">09:00</span> 출발 · 집결 <span class="num">08:45</span></span></div>
+          <div class="r"><span class="k">코스</span><span class="v">잠수교 <span class="num">5</span>km · 반포한강공원</span></div>
+          <div class="r"><span class="k">그룹</span><span class="v"><span class="num">B</span>조 · <span class="num">6'40"</span>/km</span></div>
+          <div class="r"><span class="k">인원</span><span class="v">강아지 <span class="num">10</span> · 크루 <span class="num">2</span></span></div>
+          <div class="r"><span class="k">호스트</span><span class="v">오세훈</span></div>
+          <div class="r last"><span class="k">러너</span><span class="v">박지훈 · <span class="num">6'30"</span>/km</span></div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Pack</span>
+          <div class="rr">팩은 <b>함께 출발해 함께 끝냅니다</b> — 몽이도 같은 시간에 달립니다.</div>
+        </div>
+
+        <div class="btnP">다음</div>
+        <div class="foot"><span class="serial">SAT 09:00 · ONE PACK</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ④ 반환 장소 -->
+  <div class="col">
+    <div class="cap"><span class="n">④</span><span class="d">반환 장소 — <b>다른 다리, 다른 선택</b>; 픽업과 독립이라는 것이 상태로 보인다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:45</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">반환 장소</div>
+          <div class="serial">SETUP · 4 OF 4</div>
+        </div>
+        <div class="qline">달리기가 끝나면 몽이를 어디서 받나요?</div>
+
+        <div class="keys">
+          <div class="key on">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">집 반환</div>
+              <div class="ks">러너가 몽이를 자택까지 데려다 줍니다 · 보호자는 집에서 받습니다</div>
+            </div>
+          </div>
+          <div class="key">
+            <span class="kmark">✓</span>
+            <div class="kbody">
+              <div class="kl">현장 반환</div>
+              <div class="ks">달리기가 끝난 자리에서 보호자가 직접 받습니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr">어느 쪽이든 <b>두 사람이 함께 확인</b>해야 반환이 완료되고, 그때 러너의 책임이 끝납니다.</div>
+        </div>
+
+        <div class="btnP">신청 완료</div>
+        <div class="foot"><span class="serial">PICKUP ON SITE · RETURN HOME</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ L1 / L2 — the 즉시 해제 label -->
+  <div class="col">
+    <div class="cap"><span class="n lab">L1</span><span class="d">「내가 데리고 있었어요 · 인계 없음」 — <b>1인칭, 가장 평이하게</b>.</span></div>
+    <div class="frag">
+      <div class="fh">
+        <span class="t">내 기록</span>
+        <span class="serial">DOGS HIGH · 08.25</span>
+      </div>
+      <div class="relline">
+        <span class="kick">Self-run</span>
+        <div class="relbody">
+          <div class="dogdot">수</div>
+          <span class="t">수리 · 내가 데리고 있었어요</span>
+          <span class="rt">06:53</span>
+        </div>
+        <div class="relsub">인계 없음 — 처음부터 끝까지 보호자와 함께 달렸습니다.</div>
+      </div>
+    </div>
+
+    <div class="cap" style="margin-top:36px"><span class="n lab">L2</span><span class="d">「보호자 동반 · 인계 없이 종료」 — <b>제품에 이미 있는 말</b>로.</span></div>
+    <div class="frag">
+      <div class="fh">
+        <span class="t">내 기록</span>
+        <span class="serial">DOGS HIGH · 08.25</span>
+      </div>
+      <div class="relline">
+        <span class="kick">With owner</span>
+        <div class="relbody">
+          <div class="dogdot">수</div>
+          <span class="t">수리 · 보호자 동반</span>
+          <span class="rt">06:53</span>
+        </div>
+        <div class="relsub">인계 없이 종료 — 맡긴 적이 없으니 돌려받을 것도 없습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>Margin</h3>
+    <p>Five labs, one product. The fixtures here are the other four's: <b>반포 하이클럽</b>, 몽이 · 초코 · 보리 · 수리, 잠수교 <b>5km</b>, 토 <b>09:00</b>, 러너 박지훈, serial <b>DOGS HIGH · 0826</b>.</p>
+
+    <h4>His order, kept</h4>
+    <p>① 방식 → (직접이면 출발지 + 준비물) → ② 픽업 → ③ 세션 상세 → ④ 반환. <b>세션 상세 sits between the two choices because he put it there</b>, not because a flow wanted it there.</p>
+
+    <h4>The recommended default — a COPY call, not a model claim</h4>
+    <p><b>현장 인계 is drawn as the recommended default</b>: the runner does no pickup leg, brings only themselves and their equipment, and <b>learns zero addresses</b>. 집 픽업 is neither disabled nor hidden — one tap away, fully drawn.</p>
+    <p>⚠ Two things this is NOT. It is not a model change: <b>spec v2 §7.2 makes 집 픽업 the flag's default</b>, and if he keeps the recommendation the copy leads with 현장 while the stored default stays whatever the spec session sets. And it prints <b>no price</b> — 현장 픽업 is very likely the cheaper option, but <b>what a runner earns when the pickup leg disappears is open and his</b>, so an amount or a 「더 저렴」 line would answer his own question back at him inside the artifact he uses to decide.</p>
+
+    <h4>The choice row, re-drawn (R4)</h4>
+    <div class="ph"><span class="k">ⓐ 눌린 키</span><span>raised block + hard ink offset; the pick <b>presses into its own shadow</b> and inverts. Loudest, most tactile.</span></div>
+    <div class="ph"><span class="k">ⓑ 도장 칸</span><span>no box at all — ink rules and an <b>empty square that asks to be stamped</b>. Quietest, most paper-native.</span></div>
+    <div class="ph"><span class="k">ⓒ 플레이트</span><span>the binary as two half-width plates; <b>the shape says "one of two"</b> before a word is read.</span></div>
+    <p>All three survive colour removal: fill inversion, a stamped mark, position and weight carry the state. None is a bordered rectangle abutting another bordered rectangle — that shape is what read as a spreadsheet.</p>
+
+    <h4>Not tappable, so unmarked</h4>
+    <p>③'s seven detail rows, the 준비물 chips, the 인계 lines and the serials carry <b>no fill, no chevron, no border box</b>. They are print. The contrast is the information.</p>
+
+    <h4>인계 확인 — on both legs, on purpose</h4>
+    <p>Every choice frame closes on the two-sided line. The shipped return is <b>person-to-person, both-stamped</b> — a screen that said "러너가 데려다 줍니다" and stopped would imply a one-sided handover the product does not do. ④'s line also names <b>when the runner's responsibility ends</b>, which is the doctrine the whole round-5 detour was about.</p>
+
+    <h4>Not drawn</h4>
+    <div class="ph"><span class="k">제3의 주소</span><span><b>CUT by his own sentence</b> — "then just do either on site or home address." Never drawn, not even greyed.</span></div>
+    <div class="ph"><span class="k">거리 제한</span><span>the 「너무 멀지 않은」 rule <b>bounded the custom address only</b>; the option is gone, so the rule retires with its subject. Drawing it would hand him back a constraint he removed.</span></div>
+    <div class="ph"><span class="k">금액</span><span>no fare, no 「저렴」. Runner pay for a pickup-free job is <b>his open question</b>.</span></div>
+
+    <h4>⚠ 그룹 has no column today</h4>
+    <p>He named 「group number」, so ③ prints <b>B조 · 6'40"/km</b>. There is <b>no group/조 concept in the club model</b> — not in spec v2, not in the migrations. It is drawn because he asked for it and flagged here because it does not exist yet: shipping ③ means either adding the field or dropping the row. It must not arrive as a fixture nobody costed.</p>
+
+    <h4>즉시 해제 — L1 or L2</h4>
+    <p>The label sits on the <b>self-run</b> participant record (참가자 러닝 뷰 ②). 「즉시 해제」 alone reads as a system action on someone else's dog; his 08-24 ruling is the opposite — it is <b>your own dog, you were holding it, there was never a handover</b>. L1 says it in the first person; L2 reuses <b>보호자 동반</b>, a word the product already carries. Both replace the Latin kicker too (Release → Self-run / With owner), because 해제 was the wrong noun, not just the wrong sentence.</p>
+  </div>
+
+</div>
+
+</div>
+</body>
+</html>
