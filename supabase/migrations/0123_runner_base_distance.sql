@@ -216,42 +216,25 @@ comment on column runners.base_change_count is
 「몇 번 시도했나」가 아니라 「몇 개의 서로 다른 중심을 만들었나」를 뜻하고, 다변측량 관측 수의
 상한이 된다 (158 P15). 사후 가시성 전용: 어디로 옮겼는지는 저장하지 않는다.';
 
--- ═══ §2 the read grant — the column exists, and no client role may SELECT it ═══════════════
--- Order matters and is 0088 §D's, verbatim in shape: revoke first (which clears the table-wide
--- privilege AND any column privileges under it, so a re-run cannot accumulate a stale column),
--- then re-grant the whitelist.
--- ⚠ THE WHITELIST IS TODAY'S COLUMN LIST MINUS THE TWO NEW ONES. This is deliberately NOT an
--- opportunity to narrow `runners`: anon reading (profile_id, tier, bio) is 0093's recorded,
--- deliberate surface and 129 A5 pins the storefront that depends on it. Behaviour after this
--- file is byte-identical to behaviour before it, for every column that existed before it.
--- Measured before writing this: no client query and no edge function selects `*` from
--- `runners` — every read names its columns (api.ts × 8, transition-booking × 2,
--- settle-run × 1), so nothing loses a column it was reading. Writes are unaffected: supabase-js
--- sends `Prefer: return=minimal` unless `.select()` is chained, so the UPDATE paths
--- (online/photos/bio) need no SELECT — which is exactly the trap 0091 §E had to fix for
--- `profiles` after 0088, and the reason it is checked here rather than assumed.
--- ⚠ Anyone adding a column to `runners` after this must decide whether it is client-readable,
--- and the suite will make them: 158 N7ⓒ asserts **SET EQUALITY** — the columns actually granted
--- to `authenticated` must equal today's pg_attribute column list MINUS
--- {base_lat, base_lng, base_set_at, base_change_count}. A new column defaults to NOT granted, so
--- adding one turns N7ⓒ red until somebody names it here or names it as server-only.
--- ⚠ The promise this REPLACES was weaker than it sounded and the blind review measured it: N7ⓒ
--- used to spot-check three columns (tier/bio/commission_rate), so a one-column OVER-revoke —
--- dropping `photos` from the whitelist below — shipped green while quietly breaking a storefront
--- read. Set equality catches both directions with one assertion, which is the only shape that
--- can watch a whitelist.
-revoke select on runners from public, anon, authenticated;
-
--- = every column of `runners` as of this migration, minus the four server-only ones. Kept as a
--- literal list rather than generated, because a generated grant would silently re-widen the day
--- somebody adds a fifth server-only column; N7ⓒ is what keeps this list and reality equal.
-grant select (
-  profile_id, tier, funnel_step, bio, specialties, avg_pace_sec_per_km, service_radius_km,
-  max_dog_weight_kg, identity_verified, insurance_active, trainer_certified,
-  education_modules_done, total_runs, total_km, completion_rate, compliance_pct,
-  respond_rate_pct, commission_rate, online, photos, created_at, updated_at
-) on runners to anon, authenticated;
-
+-- ═══ §2 the read grant — the four new columns are sealed BY CONSTRUCTION ═══════════════════
+-- ⚠ REWRITTEN AT THE MERGE (2026-08-25). This section used to revoke-and-regrant the whole
+-- `runners` read whitelist — 22 columns, derived from the PRE-0121 grant state, because this
+-- branch was cut before the runner-money strip landed. Applied after 0121 it silently re-granted
+-- `commission_rate` (and ten other columns 0121 deliberately dropped), which is the 0086 §B
+-- silent-revert class this REGISTRY exists to prevent — and 156 P6 caught it on the first merged
+-- harness run (890/2, 「(e)rate-readable」). The whole lesson in one line: a whitelist written as
+-- a literal in two files is one migration-ordering accident away from being two whitelists.
+--
+-- So this file now re-creates NOTHING here. 0121 §O owns the `runners` read grant (11 columns:
+-- profile_id, tier, bio, specialties, photos, avg_pace_sec_per_km, total_runs, total_km,
+-- respond_rate_pct, trainer_certified, online — granted to authenticated only; anon gets
+-- nothing, 0121's measured call). Column-specific grants do NOT extend to columns added later,
+-- so base_lat / base_lng / base_set_at / base_change_count are unreadable to every client role
+-- the moment §1 creates them, with no statement required — the seal is structural.
+-- 158 N7ⓗ pins the LIVE grant against 0121's literal list (both directions: an extra grant and
+-- an over-revoke each redden — and the re-grant this section used to BE reddens ⓗ with the full
+-- eleven-column excess, measured), and N7ⓒ additionally runs real queries as `authenticated`,
+-- which catches an RLS-level break the catalog comparison cannot see.
 -- Explicit, not redundant — 0088 §D's own note applies unchanged: settle-run reads
 -- commission_rate and transition-booking reads tier through the admin client, so stating this
 -- here means a future blanket `revoke … from public` that catches service_role turns 158 N7 red

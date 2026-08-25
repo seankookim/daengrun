@@ -106,10 +106,10 @@
 --   M12 §3 trigger never attached                                    → RED=[N7ⓓ, N7ⓔ, N7ⓕ]
 --   M13 §3 guard's row-level `is distinct from` → `<>` on each column → RED=[N7ⓕ] alone
 --       (`<>` is NULL-blind: a client could ERASE a base it cannot write)
---   M14 §2's `revoke select on runners` line deleted                 → RED=[N7ⓐ, N7ⓑ]
---   M15 §2's whitelist widened to include base_lat/base_lng          → RED=[N7ⓐ, N7ⓑ]
---   M16 §2's whitelist loses `tier`                                  → RED=[N7ⓒ] (the
---       over-revoke direction — a column grant that protects by breaking the storefront)
+--   M14/M15/M16 — SUPERSEDED at the landing merge (2026-08-25): §2 no longer carries a revoke
+--       or a whitelist (0121 §O owns the grant; the four new columns are sealed by
+--       construction). Their properties moved to M39-M42 below, re-measured against the
+--       rewritten §2 + the literal-11 ⓗ.
 --   M17 §4 trigger never attached                                    → RED=[150 acd P2 (the
 --       end-to-end arm this slice adds there), 158 P10ⓐ, 158 P10ⓑ]
 --   M18 §4's WHEN clause loosened to fire on every profiles UPDATE   → PREDICTED GREEN — a
@@ -160,10 +160,26 @@
 --   M34 §8's distance source hardcoded to (37.51,127.00) — **the reviewer's X1, which the
 --       pre-fix suite passed 863/0** → 862/2 RED=[P4, P12ⓐ]. P4 co-fires only because rB now
 --       sits on its own vertex; before the fixture change BOTH of those pins were green.
---   M35 §2's whitelist loses `photos` — **the reviewer's X2, previously green** → 862/1
---       RED=[N7ⓗ], reported as 「누락={photos}」. The old 3-column spot-check saw nothing.
+--   M35 — SUPERSEDED with M14-M16 (above); the photos over-revoke is now M39.
 --   X3  150's `t_acd_rich` base_lat fixture line deleted — **the reviewer's X3, previously
 --       green** → 862/1 RED=[acd P2] 「픽스처 전제 붕괴」. The vacuous-green door is shut.
+--   M39 `revoke select (photos) on runners from authenticated` (post-rewrite analog of the
+--       reviewer's X2) → 890/2 RED=[156 P6(f) whitelist-lost, N7ⓗ 「누락={photos}」]
+--   M40 `grant select (commission_rate, funnel_step) … to authenticated` (the silent-revert
+--       direction, two columns) → 890/2 RED=[156 P6(e) rate-readable, N7ⓗ 「초과=
+--       {commission_rate,funnel_step}」] — two independent alarms, one per owner.
+--   M41 `revoke select (tier) … from authenticated` → 881/11 — ⓒ+ⓗ(누락={tier}) plus a
+--       measured storefront cascade: [pcg G1,G3,G4 · pwg W1,W2,W4,W5,W6 · acd N5 ·
+--       156 P6(f)] all die on `permission denied for table runners`. An over-revoke is the
+--       LOUD direction; the quiet direction is M40's, which is why ⓗ exists.
+--   M42 `grant select (base_lat, base_lng) … to anon, authenticated` (the modern M15) →
+--       891/1 RED=[N7 one line: ⓐ anon read a base · ⓑ authenticated read a foreign base ·
+--       ⓗ 초과={base_lat,base_lng}] — the core privacy pins keep their own measured red.
+--   M-escape: the DELETED §2 itself (22-column regrant, this branch's original state) was
+--       measured against the rewritten pins during the landing merge: ⓗ 「초과=」 the full
+--       eleven-column set + 156 P6(e) — i.e. the literal-11 pin catches the exact escape that
+--       reached the first merged run, from both watchers. (The computed all-minus-4 form of ⓗ
+--       had CERTIFIED that state as correct — the reason the expectation is now a literal.)
 --   M36 §3's guard tuple narrowed back to (base_lat, base_lng) → 862/1 RED=[N7ⓘ, N7ⓙ] — the
 --       load-bearing one. Observed detail: base_set_at was rewritten to 2023-11-30, i.e. the
 --       client had just granted itself an unlimited supply of annulus centres.
@@ -1052,7 +1068,8 @@ begin
   -- ⓘ base_set_at 클라 쓰기 거절 (쿨다운 자체를 지우는 경로) · ⓙ base_change_count 클라 쓰기 거절.
   --
   -- ⓗ가 ⓒ를 대체하지 않고 **더한다**, 그리고 그 이유가 이 픽스 라운드의 MAJOR-2다: ⓒ는
-  -- tier/bio/commission_rate 세 컬럼만 찍어보는 스팟 체크였고, 리뷰어가 화이트리스트에서
+  -- 세 컬럼만 찍어보는 스팟 체크였고 (지금은 tier/bio — commission_rate는 0121이 봉인, 156 P6
+  -- 소관), 리뷰어가 화이트리스트에서
   -- `photos`를 빼자 스위트 전체가 초록으로 남았다 — 스토어프런트 읽기 하나가 조용히 죽은 채로.
   -- 화이트리스트를 감시할 수 있는 단언은 집합 동등성 하나뿐이다(양방향을 한 번에 본다). ⓒ는
   -- 카탈로그가 아니라 **실제 쿼리**라서 남긴다: 그랜트가 맞는데 RLS가 막는 경우를 ⓗ는 못 본다.
@@ -1078,10 +1095,14 @@ begin
         v_bad := v_bad || ' 🔴 ⓑ authenticated가 base_lng를 직접 읽었다 (그랜트는 내 행과 남의 행을 구분하지 못한다)';
       exception when insufficient_privilege then null;
         when others then v_bad := v_bad || ' ⓑ 예외가 권한 거부가 아니다: ' || sqlerrm; end;
-      begin  -- ⓒ 과잉 회수 방향 — 스토어프런트 컬럼은 계속 읽혀야 한다
-        execute 'select count(tier) + count(bio) + count(commission_rate) from runners' into v_n;
+      begin  -- ⓒ 과잉 회수 방향 — 스토어프런트 컬럼은 계속 읽혀야 한다.
+        -- ⚠ commission_rate는 이 목록에서 **제거됐다** (머지, 2026-08-25): 0121이 러너 몫의
+        -- 비밀 판정(Sean 「keep the margin a secret」)으로 클라 SELECT를 봉인했고, 그 봉인은
+        -- 156 P6의 핀이다. 원형 ⓒ는 읽힘을 기대해서, 0121 위에서는 ⓒ 자신이 붉었다 — 견적은
+        -- 이제 서버의 expected_net으로 온다 (0121 §D). 읽혀야 하는 대조군은 tier/bio.
+        execute 'select count(tier) + count(bio) from runners' into v_n;
       exception when others then
-        v_bad := v_bad || ' 🔴 ⓒ 화이트리스트 컬럼(tier/bio/commission_rate)이 막혔다 — 스토어프런트·견적이 죽는다: ' || sqlerrm; end;
+        v_bad := v_bad || ' 🔴 ⓒ 화이트리스트 컬럼(tier/bio)이 막혔다 — 스토어프런트가 죽는다: ' || sqlerrm; end;
       begin  -- ⓓ INSERT 주입
         execute 'insert into runners (profile_id, base_lat, base_lng) values ($1, 37.51, 127.00)'
           using gen_random_uuid();
@@ -1124,14 +1145,17 @@ begin
       reset role;
     exception when others then reset role; v_bad := v_bad || ' authenticated 경로 예외:' || sqlerrm;
     end;
-    -- ⓗ 🔴 집합 동등성: authenticated에게 SELECT가 열린 컬럼 == 오늘의 컬럼 − 서버 전용 4개.
-    -- 두 방향을 한 단언이 본다. 컬럼이 하나 새로 생기면(그랜트 없음) 붉어지고 — 그게 「새 컬럼은
-    -- 클라가 읽어도 되는가」를 강제로 결정하게 만든다 — 화이트리스트에서 하나가 빠져도 붉어진다.
-    -- 스팟 체크는 후자를 못 본다: 리뷰어가 `photos`를 빼고 스위트 전체를 초록으로 통과시켰다.
-    select array_agg(a.attname order by a.attname) into v_cols
-      from pg_attribute a
-     where a.attrelid = 'runners'::regclass and a.attnum > 0 and not a.attisdropped
-       and a.attname not in ('base_lat', 'base_lng', 'base_set_at', 'base_change_count');
+    -- ⓗ 🔴 집합 동등성: authenticated에게 SELECT가 열린 컬럼 == **0121 §O의 리터럴 11개**.
+    -- ⚠ 머지에서 고쳐 쓴 핀이다 (2026-08-25). 원형은 「오늘의 컬럼 − 서버 전용 4」를 카탈로그에서
+    -- **계산**했고, 그래서 0123 §2(구판)가 0121의 화이트리스트를 22컬럼으로 되돌렸을 때 이 핀은
+    -- 그 되돌림을 **정답으로 인증**했다 — 붉어진 건 156 P6(commission_rate 봉인)이었다. 계산식
+    -- 기대값은 「지금 그랜트된 것」과 「그랜트되어야 하는 것」을 구분하지 못한다; 기대값은 소유자
+    -- (0121)의 리터럴이어야 하고, 새 컬럼이 생기면 이 목록과 어긋나 붉어지는 것으로 「클라가
+    -- 읽어도 되는가」의 강제 결정은 그대로 산다. 스팟 체크가 못 보던 누락 방향(리뷰어의 X2:
+    -- photos 빼기)도 그대로 본다.
+    v_cols := array['avg_pace_sec_per_km', 'bio', 'online', 'photos', 'profile_id',
+                    'respond_rate_pct', 'specialties', 'tier', 'total_km', 'total_runs',
+                    'trainer_certified'];  -- = 0121 §O의 grant, 알파벳순 (원문은 0121:218-220)
     select array_agg(a.attname order by a.attname) into v_cols2
       from pg_attribute a
      where a.attrelid = 'runners'::regclass and a.attnum > 0 and not a.attisdropped
@@ -1139,7 +1163,7 @@ begin
     if coalesce(array_length(v_cols, 1), 0) = 0 then
       v_bad := v_bad || ' ⓗ 전제 붕괴: runners에 컬럼이 없다';
     elsif not (v_cols @> coalesce(v_cols2, '{}'::text[]) and coalesce(v_cols2, '{}'::text[]) @> v_cols) then
-      v_bad := v_bad || ' 🔴 ⓗ 그랜트 집합이 「오늘의 컬럼 − 서버 전용 4」와 다르다: 초과='
+      v_bad := v_bad || ' 🔴 ⓗ 그랜트 집합이 0121의 리터럴 11개와 다르다: 초과='
                || coalesce((select array_agg(c) from unnest(coalesce(v_cols2,'{}'::text[])) c where not (v_cols @> array[c]))::text, '{}')
                || ' 누락='
                || coalesce((select array_agg(c) from unnest(v_cols) c where not (coalesce(v_cols2,'{}'::text[]) @> array[c]))::text, '{}');
@@ -1156,7 +1180,7 @@ begin
       v_bad := v_bad || ' 🔴 클라 경로 뒤 쿨다운 상태가 움직였다 set_at=' || coalesce(v_ts::text,'∅') || '→' || coalesce(v_ts2::text,'∅')
                || ' count=' || coalesce(v_cnt::text,'∅') || '→' || coalesce(v_cnt2::text,'∅'); end if;
     if v_bad = ''
-      then call _pass('rbd','N7 좌표+쿨다운 봉인 — anon·authenticated 모두 서버 전용 4컬럼 SELECT 불가(본인 행 포함) · 그랜트 집합 = 오늘의 컬럼 − 서버 전용 4 (집합 동등성, 스팟 체크 아님) ⟷ 화이트리스트 컬럼 실동작 생존 · 클라 INSERT/UPDATE/삭제 + base_set_at/base_change_count 5종 거절 ⟷ 기존 스토어프런트 쓰기 생존 · service_role 전 컬럼');
+      then call _pass('rbd','N7 좌표+쿨다운 봉인 — anon·authenticated 모두 서버 전용 4컬럼 SELECT 불가(본인 행 포함) · 그랜트 집합 = 0121 §O의 리터럴 11 (집합 동등성 — 계산식 기대값은 되돌림을 인증한다, 머지에서 측정) ⟷ 화이트리스트 컬럼 실동작 생존 · 클라 INSERT/UPDATE/삭제 + base_set_at/base_change_count 5종 거절 ⟷ 기존 스토어프런트 쓰기 생존 · service_role 전 컬럼');
     else call _fail('rbd','N7 좌표+쿨다운 봉인', v_bad); end if;
   exception when others then reset role; call _fail('rbd','N7 좌표+쿨다운 봉인', coalesce(v_bad, '') || ' ' || sqlerrm);
   end;
