@@ -1,164 +1,231 @@
-# Runner-money strip — contract
+# Runner-money strip — contract v2
 
 **Ruling (Sean, 2026-08-24, verbatim):** "For runner money, don't show them the 수수료. I don't
 think we should be showing them the calcuations ever; only show the final profit per run; keep
 the margin a secret. You can show the expected profit at first per run next to how far away the
 starting point is and how long the run is and how long it will take total."
 
-**Status of this document:** contract, pre-implementation. The display half was already shipped
-by ui6 (earnings.tsx breakdown removed, 「수수료 제외」 wording retired, rate never printed).
-This slice is the DATA half: today the wire and the bundle still carry everything needed to
-reconstruct the margin. Display-side hiding is not secrecy.
+**v2, 2026-08-25:** v1 (`f6ed2cf`) went through two blind adversarial reviews (independent Opus
++ fresh codex voice, neither shown authoring reasoning). Both returned **FIX-FIRST**: v1's
+diagnosis held, but its mechanism handed the rate back in three of its own §2 objects, its seal
+statement was a measured no-op in this schema, and one *shipped* RPC already answers the rate in
+a single call. Every finding below is folded with its evidence re-verified at source by the
+author. Reviewer tags: [O#] = Opus finding, [X#] = codex finding.
 
-## 0. The invariant (what "secret" means, precisely)
+## 0. The invariant, stated honestly
 
-> **No runner-facing response, table read, or client-bundle constant may contain the commission
-> rate, the fee amount, any gross-side amount, or any component set from which fee or rate is
-> recoverable by arithmetic.** Runner-facing money is NET-denominated only.
+> **No runner-facing surface — response, table read, view row, RPC return, stored payload, push
+> body, bundle constant, or rendered pixel — names or carries the platform commission rate, the
+> commission fee amount, or the runner-settlement gross (as a total or as a component set).**
+> Runner-facing settlement money is NET-denominated only.
 
-"Recoverable by arithmetic" is the load-bearing clause — ui6's earnings note derived it first:
-components beside a net hand back the fee by subtraction (fee = Σcomponents − net), and fee
-beside a gross hands back the rate (fee ÷ gross). So the strip removes **whole component sets**,
-not just the fee field.
+**Named residual CLASS (not closable at the read layer):** owner-side pricing is public and
+km-linear (`club_fare(km) = 9900 + round(km×3000)`, owner fare columns on the runner's own
+bookings, marketing copy), and runner pay is a fixed share of that line — so ANY honest net
+value beside ANY public gross point yields the rate by one or two divisions [O-F3/F4/F5,
+X-№4/№5]. This slice removes every surface that *names* the margin and every *gratuitous* gross
+disclosure it can reach, and it narrows the residual (club_fare's direct oracle is revoked,
+§2G′), but the class closes only by decoupling runner net from the public linear price — a
+PRICING decision, queued for Sean, explicitly not assumed here.
 
-**NAMED RESIDUAL (found attacking this contract before review, 2026-08-25):** the per-km
-constant is SHARED between owner pricing and the runner gross basis (`theme.ts pricing.perKm
-3000` = `0101 PER_KM 3000`), and owner pricing is public. Runner pay is a fixed share of a
-publicly km-linear price, so ANY correct net-vs-km surface — a quote oracle, two expected_net
-values at different km, the live ticker's slope — yields `net_per_km`, and
-`rate = 1 − net_per_km/3000` is one division for a runner who has ever seen an owner screen.
-**No read-layer strip can close this.** The achievable invariant is therefore stated exactly:
-the rate, fee, gross, and components appear NOWHERE — not in responses, not in the bundle, not
-on screen — which fulfills the ruling's operative words ("don't show them… only show the final
-profit"). Making the rate *unrecoverable by regression* would require decoupling runner net
-from the public linear price (a PRICING change — Sean's, queued as a product question, not a
-blocker). Owner-side money is otherwise untouched (base fares already decoupled: 7,900 vs
-9,900, Sean's D2).
+**Second named residual [O-F4, X-№5]:** `bookings party read` (0002:92) gives the assigned
+runner table-wide SELECT on their own bookings — `base_fare`, `distance_fare`, `addon_fare`,
+`min_fare`, priced `addons` jsonb — and `bookings` is in the realtime publication (0008:14).
+Closing this is a table-wide revoke + whitelist on the busiest table in the product, touching
+the OWNER client's reads too. That is its own slice with its own deploy-order story; doing it
+as a §G side-effect would be exactly the unreviewed blast radius this repo's laws exist to
+prevent. **Queued as the follow-up slice; until it lands, the §0 invariant holds for named
+margin/fee/gross fields and for every surface this slice touches, not for the booking row.**
 
-## 1. The four measured leak channels (scout 2026-08-25, all verified at line)
+**Carve-outs (deliberate, not omissions) [X-№14]:**
+- The statutory **3.3% withholding** stays visible (earnings.tsx:129 keeps it deliberately —
+  tax law, not margin).
+- **Cancellation-compensation disclosures to the runner** stay: money the runner RECEIVES,
+  with its stated basis (`transition-booking/cancel_owner.ts:123-130`'s 「취소 수수료의 절반인
+  X원」). A runner must know why they were paid; the cancel-fee split is Sean-ruled product
+  copy (0066/0117 territory), not the commission margin.
+- **`payouts`** (0001:285: gross/tax/net, runner self-read at 0002:126) has NO writer today
+  (0115:282 confirms). Dormant §0-shaped surface, named here so its first writer inherits the
+  question instead of the default [O-F7]. Out of scope until then.
 
-| # | Channel | Today | Recoverable |
+## 1. Leak channels (all verified at line; v1's four + three the reviews added)
+
+| # | Channel | Evidence | What leaks |
 |---|---|---|---|
-| C1 | `runners.commission_rate` via PostgREST | `api.ts:939` (`myCommissionRate` session cache, feeds every request-card estimate) · `api.ts:1867` (`MyRunnerCert.commissionRate` — fetched, **zero render consumers**, dead field) | the rate itself |
-| C2 | `ledger_items` component columns via PostgREST | 4 sites: `api.ts:~1350` (netByBooking), `fetchRunnerWeekStats` (~2588), `fetchLedgerMonth` (~2621), `fetchLedger` (~2661) — each selects `base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee` and subtracts client-side | fee directly; rate via fee÷(Σ−…) |
-| C3 | `settle-run` edge response | `SettleResult { net, gross, fee, guarantee, … }` (`api.ts:1289`) | rate = fee ÷ gross, exact |
-| C4 | Client bundle constants + math | `theme.ts:229` `pricing.commission: 0.33` · `pricing.runnerCompBase/perKm` gross math in `estimatedPayout` (`api.ts:861`) and `store.ts:28` `runnerPayout`/`payoutFor` (live run ticker) | rate literal + full gross formula |
+| C1 | `runners.commission_rate` PostgREST reads | api.ts:939 (estimate cache) · api.ts:1867 (`MyRunnerCert.commissionRate`, zero render consumers) | the rate |
+| C2 | `ledger_items` component columns | api.ts:1351, 2588, 2661 (+ dead 2622) select all six components and subtract client-side | fee; rate by ÷ |
+| C3 | `settle-run` response | `SettleResult { net, gross, fee, guarantee … }` api.ts:1288 | rate = fee÷gross exact |
+| C4 | Bundle constants + math | theme.ts:229 `commission: 0.33` · gross formula in `estimatedPayout` (api.ts:861) and `payoutFor` (store.ts:28) · dead mock `ledger`/`payoutInfo` exports with hardcoded fees (store.ts:247-259) | rate literal + formula |
+| C5 | **`club_incident_settle_quote`** [O-F1, X-№2] | 0116:414 returns `(refund, runner_gross, runner_fee, runner_net, …)`; party gate 0116:437 admits `b.runner_id = auth.uid()`; `grant … to authenticated` 0116:481; **no state gate**; client exposes all three at api.ts:3820-3829 | exact rate, one RPC, TODAY |
+| C6 | **Incident evidence persistence** [X-№3] | 0080:1034-1045 writes `runnerGross`/`runnerNet` into `club_incident_evidence` payload and returns both (0080:1079); 0052:375-398 evidence read policy admits the runner as party | fee = gross−net, incl. HISTORICAL rows after any strip |
+| C7 | **`club_fare()` direct oracle** [X-№4, O-F5] | 0043:14 formula; 0081:284 `grant execute … to authenticated`; zero client-side callers (verified — fares reach clients via `club_delegation_board`) | PER_KM and full gross base by RPC |
 
-## 2. Server objects (one migration, number two-sided from remote tip at write time)
+## 2. Server objects (one migration; number + suite two-sided from remote tip at write time)
 
-All functions: SECURITY DEFINER · `set search_path = public, pg_temp` **in the body** (98 H1) ·
-party gate (`auth.uid()`) before any state logic · flat whitelisted returns · revoke PUBLIC/anon,
-grant authenticated only where the caller is the runner themselves.
+Discipline for every function here [X-№13]: SECURITY DEFINER · `set search_path = public,
+pg_temp` **in the body** (98 H1 — and note 0027's current bodies carry bare `public`, no
+`pg_temp` [O-F11]) · **explicit `auth.uid() is null` rejection before anything else** · party
+gates written `coalesce(…, false)` / `is distinct from` (the 0116:425 NOT(NULL) fail-open is
+the measured trap) · party gate before state gate · flat whitelisted returns · `revoke … from
+public, anon` + `grant execute … to authenticated` explicitly (never default PUBLIC EXECUTE) ·
+the suite proves the party selector is `auth.uid()`, never `current_user` (0111:27 — postgres
+inside a definer).
 
-- **§A `my_ledger_rows()`** → `table(id, booking_id, net int, created_at, km, dog_name)`.
-  Replaces `fetchLedger`'s direct read. `net = base + distance_pay + addon_pay + tip +
-  coalesce(remaining_guarantee,0) − platform_fee`, computed server-side; components never leave.
-- **§B `my_net_summary()`** → one flat row `(week_net, week_runs, week_km, month_net,
-  total_net)`. Replaces `fetchRunnerWeekStats` + `fetchLedgerMonth` (and collapses two of the
-  react-doctor "sequential independent awaits" into one round trip). Week/month boundaries: KST,
-  same arithmetic the two client functions use today — captured as literals in the suite, not
-  re-derived.
-- **§C `my_net_by_booking(p_bookings uuid[])`** → `table(booking_id, net)`. Replaces the
-  netByBooking read at api.ts:~1350.
-- **§D expected net on the two request surfaces.**
-  `marketplace_open_requests` (0042 choke-point view) gains `expected_net int`:
-  `round((RUNNER_COMP_BASE + round(km*PER_KM) + coalesce(addon_fare,0)) * (1 −
-  rate(auth.uid())))` where `rate()` is a small STABLE definer helper reading the caller's
-  `runners.commission_rate` with the 0059 fallback 0.33 — the helper's EXECUTE is granted to
-  authenticated but it returns nothing; it exists so the VIEW can price per-caller without the
-  rate appearing in any output column. View changes via `create or replace` ONLY (grant
-  preservation law). A new sibling view **`my_directed_requests`** flattens the directed leg
-  (today a raw `bookings` read with `REQ_SELECT` + dog embeds) with the same `expected_net`,
-  filtered `runner_id = auth.uid() and status = 'runner_pending'` — this also retires the
-  client-side PGRST201 two-FK trap for that leg.
-- **§E net-denominated live estimate.** The accepted-jobs surface additionally carries
-  `net_base int` and `net_per_km int` (each = the gross constant pre-multiplied by
-  `(1 − rate)`, rounded). run.tsx's live ticker becomes `net_base + km * net_per_km` — the
-  client keeps doing live math but only ever holds net-side numbers. Accepted drift vs the
-  settle-time number: rounding only (≤ ₩2 per component); every surface already labels this
-  「예상」, and settle remains the only real number.
-- **§F `my_ledger_total` (0027) converts invoker → DEFINER** in-slice, same body semantics,
-  `auth.uid()` gate, in-body search_path. Reason: it is invoker-rights and sums the component
-  columns, so §G's revoke would break it for exactly its legitimate caller. `create or replace`
-  (grant preservation). Its existing consumers (delete-account flow, earnings) see no shape
-  change.
-- **§G the seal — LAST section of the migration, after every reader above it exists.**
-  Column-level `revoke select (commission_rate) on runners from authenticated, anon` ·
-  `revoke select (base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee) on
-  ledger_items from authenticated, anon` (id/booking_id/created_at stay readable — harmless and
-  keeps existence probes like delete-account's alive). VERIFY block in the migration asserts the
-  post-state with `has_column_privilege` negatives and REFUSES to apply otherwise (0111 M7
-  pattern: a re-grant becomes a failed deploy, not a red harness).
+- **§A `my_ledger_rows()`** → `table(id, booking_id, net int, cancel_comp boolean, km numeric
+  NULL, dog_name text, created_at)`. Replaces `fetchLedger` (api.ts:2661). `net` = the six-term
+  sum, server-side. **`cancel_comp` is server-computed (no `runs` row ⇔ true) and `km` is NULL
+  on those rows** — the earnings screen's cancellation label (earnings.tsx:173) survives, and
+  the 「5km printed for a run that never happened」 honesty fix is preserved, not reverted
+  [O-F15, X-№9]. Reproduces `order by created_at desc limit 30`.
+- **§B `my_week_stats()`** → one row `(week_net bigint, week_runs int NULL, week_km numeric
+  NULL)`. Replaces `fetchRunnerWeekStats` (api.ts:2588) ONLY — **`fetchLedgerMonth` has zero
+  callers (home.tsx:45's own comment) and is DELETED, not ported** [X-№15]. Semantics pinned
+  exactly as the client computes them today [O-F16, X-№11]: `week_net` includes
+  compensation-only rows; `week_runs` counts only rows WITH a `runs` row; `week_km` = sum of
+  `runs.actual_km`, 1-decimal rounded; runs/km go NULL together on lookup failure (net does
+  not). Week boundary: **KST Monday 00:00**, SQL per the 0022:15 precedent —
+  `date_trunc('week', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul'` — with pins
+  on rows straddling the boundary [X-№12]. `total_net` is NOT here: `my_ledger_total` (§F)
+  stays the single canonical source.
+- **§C `my_booking_nets(p_bookings uuid[])`** → `table(booking_id, net int)` — settled actuals
+  from the ledger. Replaces the netByBooking read (api.ts:1351).
+- **§D two NEW runner request views** — `runner_open_requests` and `my_directed_requests`
+  [O-F3, X-№6]. NEW objects, because `create or replace` can only append columns and the old
+  view carries `base_fare/distance_fare/addon_fare`, which beside `expected_net` yield the rate
+  from one response body (r = 1 − Δnet/Δdistance_fare). Both views: **no owner-fare columns**,
+  flat dog/route/schedule columns as the mappers need, plus `expected_net int` computed via an
+  **inline scalar subquery** on `runners.commission_rate` with the 0.33 no-row fallback —
+  NEVER a callable helper function [O-F2, X-№1: view bodies do not shield function EXECUTE
+  (`is_active_runner`'s ungranted-but-works state at 0004:4/0056:68 proves the mechanics), so
+  any helper the view could call, a client could call]. Table access inside the definer-owned
+  view is checked as the view OWNER, so the subquery survives §G. `expected_net` =
+  `round((9900 + round(km*3000) + coalesce(addon_fare,0)) * (1 − rate))`. ACLs on BOTH views,
+  explicitly [O-F17, X-№8]: `revoke select from public, anon` (0107:98 — default privileges
+  hand anon SELECT on new views) · `revoke insert, update, delete from public, anon,
+  authenticated` (0112's measured definer-view DML trap) · `grant select to authenticated`.
+  The OLD `marketplace_open_requests` view keeps existing for any non-runner consumer but
+  loses its purpose; its grants are left untouched this slice (owner surfaces may read it;
+  auditing that is the bookings-slice's job — §0 residual 2).
+- **§E `my_run_net_coeffs(p_bookings uuid[])`** → `table(booking_id, expected_net int,
+  net_base int, net_per_km int)`, party-gated to the caller being `runner_id` on each row
+  (rows the caller isn't party to are OMITTED, not errored). Named object — v1 said "the
+  accepted-jobs surface" and named nothing [O-F13, X-№10]. Serves: the two jobs mappers
+  (api.ts:1369, 1410), and run.tsx's live ticker on BOTH entry paths — fresh start AND
+  reload/deep-link (store.ts:8 persists only `bookingId`; `fetchMeetupInfo` has no
+  coefficients — the reload path calls this RPC too). **Failure behavior (honesty law): if the
+  coeffs fetch fails mid-run, the ticker renders the placeholder '—' with a retry, never 0 and
+  never a fabricated rate** [X-№10]. Drift disclosure [O-F14]: the ticker's
+  `net_base + km*net_per_km` omits addons (up to ≈₩10k net on max-addon bookings) and the
+  guarantee arm — it is the SAME omission the shipped ticker makes today (store.ts:27 takes no
+  addon), every surface labels it 「예상」, and settle remains the only real number. No ≤₩2
+  claim: the ROUNDING term is <₩1, the estimate-vs-settle gap is unbounded by design and
+  already shipped.
+- **§F `my_ledger_total` (0027) → DEFINER**, same summing semantics, `auth.uid()` null-reject +
+  gate, **`set search_path = public, pg_temp` written into the body** (0027 currently has bare
+  `public`; create-or-replace resets ALTER-applied config — the exact 98 H1 trap) [O-F11].
+  Consumer correction from v1: earnings.tsx's 누적 total is the caller; delete-account-sheet
+  calls `fetchLedger()`, not this [X-№15]. `create or replace` (grant preservation).
+- **§G the seal — the 0088/0107 two-step, NOT bare column revokes** [O-F8, X-№7: a column
+  revoke is a measured no-op while table-wide SELECT stands (0107:75's own text, 0098 M4), and
+  neither `runners` nor `ledger_items` has ever been table-revoked]. So:
+  1. `revoke select on runners from public, anon, authenticated;` then
+     `grant select (profile_id, tier, bio, specialties, photos, avg_pace_sec_per_km,
+     total_runs, total_km, respond_rate_pct, trainer_certified, online) on runners to
+     authenticated;` — the eleven-column storefront whitelist enumerated from the measured
+     client read set (api.ts:809, 1037, 1840, 2079, 2099, 2265) [O-F9]. `commission_rate` is
+     exactly the column that does not return. anon gets nothing (measured: no anon runner
+     read).
+  2. `revoke select on ledger_items from public, anon, authenticated;` — NO re-grant: after
+     §A/§B/§C/§F every legitimate client read is an RPC. (v1's "keeps existence probes alive"
+     rationale was false — delete-account's probe is `fetchLedger()` → §A, and the server-side
+     reads are service_role/definer [O-F12].)
+  3. VERIFY block: `has_column_privilege` **negatives** (commission_rate, all six ledger
+     components) AND **positives** (each whitelisted column) — refuse to apply otherwise
+     (0111 M7: a re-grant becomes a failed deploy).
+  4. The six `runners(profiles(name))`-style embeds (api.ts:1231, 2037, 2910, 2925, 4213,
+     4307) are MEASURED against the whitelist in the suite, not assumed [O-F10].
+- **§G′ oracle revoke [X-№4]:** `revoke execute on function club_fare(numeric) from
+  authenticated;` (keep service_role/definer callers — `club_delegation_board` runs as owner
+  and is unaffected; verified zero client-side `rpc('club_fare')` callers). Closes the
+  one-call PER_KM oracle; the linear-price residual class remains as named in §0.
+- **§H incident money [O-F1, X-№2, X-№3]:**
+  1. `club_incident_settle_quote`: keep the signature; **when the caller's ONLY qualifying
+     party role is the booking's runner, `runner_gross` and `runner_fee` return NULL**
+     (runner_net stays). Host/backup-host/case-owner/opener keep the full readout — they are
+     the settling side. Pinned both ways.
+  2. `club_incident_settle` (0080): stop writing `runnerGross` into the evidence payload
+     going forward, and **UPDATE existing `club_incident_evidence` rows to strip the
+     `runnerGross` key** (`runnerNet` stays; pre-launch row count is small and the settling
+     side's canonical record is the fee ledger, not the evidence jsonb). Its RETURN drops
+     `runnerGross` too (the caller is the settling side, but the value is derivable from the
+     fee ledger they already read — returning it buys nothing and keeps a gross on a wire).
+  3. Client: api.ts:3820-3829 stops surfacing gross/fee.
 
 ## 3. Edge function (deno half)
 
 `settle-run` response shrinks to `{ net, total_runs, drop }` — `gross`, `fee`, `guarantee`
-leave the wire. (`guarantee` is a component; net beside components is subtraction — §0.)
-Server-side reads of `commission_rate` as service_role (handler.ts:107) are untouched: the
-server may know the margin; the runner's client may not. Deno pins assert the response body has
-NO `fee`/`gross`/`guarantee` keys (absence pins, the 0088-reverse direction).
+leave. Server-side reads of `commission_rate` (handler.ts:107, service_role) untouched. Deno
+absence pins on the response keys.
 
 ## 4. Client swap (atomic with §G — the 0088 law)
 
-- `myCommissionRate`, `_commissionRate` cache, `estimatedPayout` — **deleted**. Mappers read
-  `expected_net` from the views. `MyRunnerCert` drops `commissionRate` (dead field, C1).
-- The four C2 sites → §A/§B/§C RPCs. `SettleResult` → `{ net, total_runs, drop }`.
-- `theme.ts pricing.commission` and `store.ts runnerPayout`'s `(1 − commission)` math —
-  **deleted**; `payoutFor` reads `net_base`/`net_per_km` (§E). `runnerCompBase`/`perKm` leave
-  the bundle if no owner-side consumer remains (owner pricing uses its own constants; verify at
-  impl).
-- store.ts's dead mock exports (`ledger`, `ledgerNet`, `payoutInfo` — zero consumers, hardcoded
-  fee rows) are deleted in-slice: they encode the margin in the bundle and violate the
-  no-fake-data law besides.
+- Delete: `myCommissionRate` + `_commissionRate`, `estimatedPayout`, `fetchLedgerMonth` (dead),
+  store.ts mock `ledger`/`ledgerNet`/`payoutInfo` exports (dead + fee-bearing),
+  `theme.ts pricing.commission`, `MyRunnerCert.commissionRate`, `payoutFor`'s
+  `(1 − commission)` math. **`pricing.perKm` STAYS — four owner-side consumers
+  (owner/request.tsx:326, 1247, 1390; store.ts:319); `runnerCompBase` goes to zero consumers
+  and leaves** [O-F20].
+- Swap: the two request mappers → §D views · api.ts:1351 → §C · fetchRunnerWeekStats → §B ·
+  fetchLedger → §A (keeping `cancelComp`) · jobs mappers + run.tsx ticker (both entry paths) →
+  §E with the '—' failure state · `SettleResult` → `{net, total_runs, drop}` · incident quote
+  consumer → nulls tolerated.
+- Deploy order (0088 class): migration + client land on trunk in ONE branch; deploy = `db push`
+  + binary together; §G never deploys before the swapped client ships. 0 phone builds today;
+  law recorded for when that changes.
 
-**Deploy order (0088 class, stated as law):** the migration and the client swap land on trunk in
-ONE branch. Deploy = `db push` + new binary together; a binary older than §G that still names
-`commission_rate`/`platform_fee` in a select gets a whole-request 403 the moment §G applies —
-with 0 phone builds today the exposure is nil, but the law is recorded for the day it isn't.
-**§G must never deploy before the swapped client ships** — same class as 0119's deploy-order
-law, same checklist.
+## 5. Club shape (for spec v2 — unchanged from v1 except the helper is gone)
 
-## 5. Club shape (for spec v2 — contract only, no build here)
+Club runner money surfaces are net-only by construction from birth: server-computed
+`expected_net`/`net` via the §D inline-subquery mechanism (NOT a callable helper — [O-F2]
+applies to club too), never a component set, gross, fee, or percentage. The 0118 fee ladder is
+owner money, out of secrecy scope. Spec v2 cites this section.
 
-Club runner money surfaces (crew-runner cards, session pay lines) are **net-only by
-construction from birth**: whatever RPC serves them returns `expected_net` / `net` computed
-server-side by the same §D/§E mechanism (the `rate()` helper is reusable), and NEVER a
-component set, gross, fee, or percentage. Spec v2 §money should cite this section rather than
-invent a parallel shape. The 0118 fee ladder (owner-side cancel fees) is owner money and out of
-scope of the secrecy invariant.
+## 6. Not in this slice (each named deliberately — 0073/0075)
 
-## 6. What this slice does NOT do (unstated scope reads as a seal — 0073/0075)
+- The `bookings`/`runs` gross-input surface (§0 residual 2) — its own follow-up slice.
+- The pricing decoupling that would close the residual class — Sean's product decision.
+- `payouts` (dormant, no writer), 3.3% withholding, cancellation-comp disclosures — carve-outs.
+- No settlement amount, ledger row, or money movement changes. No owner-facing money changes.
+- Server-side margin knowledge (settle-run, 0101, 0072-as-definer) — untouched by design.
+- No claim of binary obfuscation.
 
-- No change to any settlement AMOUNT, ledger row, or money movement — read-shapes and ACLs only.
-- No change to owner-facing money anywhere.
-- Does not remove `commission_rate` from the schema or from server-side readers
-  (settle-run/0101/0072 read on as service_role/definers).
-- Does not touch 0117/0118/0119 surfaces, the mirror branch, or club money paths.
-- Does not claim the bundle is reverse-engineering-proof — the invariant is that the margin is
-  not present, not that the binary is obfuscated.
-- Does not close the §0 named residual (rate recovery via the shared public per-km constant) —
-  that is a pricing decision, queued for Sean, and no read-layer change can substitute for it.
+## 7. Suite + mutation plan
 
-## 7. Suite + mutation plan (numbers resolved at write time, two-sided)
-
-New suite pins, each mutation-verified: party gates both ways on §A/§B/§C (mine vs another
-runner's rows) · flat-shape pins asserting NO fee/gross/component key in any return · net
-arithmetic pinned against postgres-computed ledger truth · `expected_net` formula pinned for a
-known rate AND for the no-row fallback (0.33) · §F is definer with in-body search_path (98 H1
-watches schema-wide; the definer conversion gets its own pin) · §G ACL pins via
-`has_column_privilege` negatives · the two views remain non-insertable (D-22 sibling) · the
-VERIFY block refuses a re-grant (0111 M7 pattern, executed as a mutation). Mutations: drop a
-party gate → its pin alone; re-grant a sealed column → ACL pin + VERIFY refusal; drift a §D
-constant → formula pin; revert §F to invoker → definer pin; add `fee` back to the settle
-response → deno absence pin. Every pin states its proposition in words in a comment (the v5
-unstated-scope lesson), and pin/mutation pairs name the same observable.
+All pins state their proposition in words; pin and mutation name the same observable (v5
+lesson). Party gates both ways incl. **null-UID rejection** and an `auth.uid()`-vs-
+`current_user` proof arm [X-№13] · flat-shape + absence pins (no fee/gross/component keys) ·
+net arithmetic vs postgres-computed truth · `cancel_comp`/null-km pin [O-F15] · §B semantics
+pins: comp-row inclusion in net, exclusion from runs-count, actual-km sum, the KST Monday
+boundary rows [X-№11/12] · `expected_net` formula for a known rate AND the 0.33 no-row
+fallback · §D view ACL pins (anon no-SELECT, no DML — independent of `is_insertable_into`)
+[X-№8] · §G positive AND negative `has_column_privilege` pins + the six embed-survival probes
+[O-F10] · §G′ club_fare EXECUTE negative · §H both-arms pins (runner sees NULL gross/fee;
+host sees values; evidence payload has no `runnerGross` key — historical rows included) ·
+98 H1 covers §F's search_path schema-wide · **a schema-wide sweep pin** [O-F19]: every
+function with authenticated EXECUTE whose OUT columns match `fee|gross|commission|rate` is
+enumerated against a comment-justified allowlist (post-§H that allowlist is
+`club_incident_settle_quote` alone, justified by its host arm). Mutations: drop a party gate →
+its pin alone · re-grant `commission_rate` / a ledger component → VERIFY refusal (executed as
+a mutation) + ACL pin · drift a §D constant → formula pin · revert §F to invoker → definer
+pin · restore `runnerGross` to quote's runner arm / evidence → §H pins · re-grant club_fare →
+§G′ pin · add `fee` back to settle response → deno absence pin.
 
 ## 8. Review path
 
-Money-path change → the standing adversarial cycle: this contract → blind review (fresh codex
-voice + independent Opus reviewer, neither shown authoring reasoning) where reviewers EXECUTE
-attacks (recover the rate from any post-strip surface) → implement → measure (harness + deno +
-three app gates) → mutation battery → land. The strip is DONE when a reviewer with a
-post-slice client and a runner JWT cannot name the rate **through any channel other than the §0
-named residual** — a reviewer who reaches the rate ONLY via the shared-perKm regression has
-confirmed the residual, not defeated the slice.
+This v2 goes back to one fresh blind voice (findings-fold verification, cheaper than round 1)
+before implementation. Then: implement → measure (harness + deno + three app gates) → mutation
+battery → land. DONE test: a reviewer with a post-slice client and a runner JWT cannot name
+the rate through any channel other than the two §0 named residuals — reaching it ONLY via
+public-linear-price arithmetic or the bookings-row gross inputs confirms a residual, not a
+defeat. §E's `net_per_km` is the sharpest edge of residual 1 and is accepted as such
+explicitly [O-F14].
