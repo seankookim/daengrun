@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Live Board Lab</title>
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   CLUB V2 LIVE BOARD LAB — the club public home board, spec v2 §9
+   Format law inherited from enh-club-lab.html: 390px frames where 1px = 1pt,
+   ZERO NEW HEXES (every in-frame colour is theme.ts paper/lilac/collar or a
+   club-ui.tsx sanctioned value), lab chrome (--page/--panel/--hair) never
+   enters a frame, Korean detail floor 14px, Black Han Sans once per frame,
+   Oswald numerals always with explicit line-height ≥ 1.2×.
+   Sub-14 inside a frame: LATIN letterspaced kickers, serials, flap glyph
+   plates only.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  /* paper world — theme.ts `paper` */
+  --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+  --line:#E8552F; --wash:#FFF6F4;
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --action:#C6472C; --actionInk:#A83315;
+  /* lilac world — theme.ts `lilac` (the club kit) */
+  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4; --lhair2:#EDEAF8;
+  --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
+  --accent:#6C5CE7; --accentDeep:#7867EC;
+  --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
+  --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+  --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
+  --tang:#E8552F;
+  --gold:#B99A4F; --goldSoft:#F4EBD3; --goldSheen:#D8C185; --sealInk:#8a6f2a;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  /* club-ui.tsx component values (existing, not new) */
+  --nl:#EEEEEE; --stub:#FBFAFE; --flapBot:#CFC8EC; --perfDash:#D8D2EE;
+  /* lab chrome only — never inside a frame */
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
+}
+.wrap{max-width:1360px;margin:0 auto}
+
+/* ── page header (lab chrome) ── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
+h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
+.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1040px}
+.lede b{color:var(--ink);font-weight:700}
+.note{background:var(--panel);border:1px solid var(--hair);padding:14px 17px;margin:18px 0 0;font-size:13.5px;line-height:1.68}
+.note h4{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.note b{color:var(--ink)}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
+
+/* ── variant rail (lab chrome) ── */
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:baseline;gap:11px;font-size:16.5px;font-weight:800;margin-bottom:6px;line-height:1.3}
+.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
+  background:var(--action);color:#fff;font-size:19px;font-weight:800;padding:0 9px}
+.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:96px}
+.why b{color:var(--ink)}
+.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.62;color:var(--dim);
+  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:12px}
+footer{margin-top:52px;border-top:2.5px solid var(--ink);padding-top:14px;font-size:14px;line-height:1.75;color:var(--text);max-width:1040px}
+footer b{color:var(--ink)}
+
+/* ── phone frame ── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone.h820{height:820px}.phone.h880{height:880px}
+.phone.lilacbg{background:var(--lbg)}
+.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
+  font-size:11px;color:var(--faint);font-weight:600}
+.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.pad{padding-left:15px;padding-right:15px}
+.pad12{padding-left:12px;padding-right:12px}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}
+.mt4{margin-top:4px}.mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.lrule{height:1px;background:var(--lhair)}
+
+/* app type — floor is literal */
+.t14{font-size:14px;line-height:19px}
+.t15{font-size:15px;line-height:20px}
+.t16{font-size:16px;line-height:21px}
+.t17{font-size:17px;line-height:23px}
+.b6{font-weight:600}.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
+.ldim{color:var(--ldim)}.ltext{color:var(--ltext)}.lhead{color:var(--lhead)}
+.acc{color:var(--accent)}.amberink{color:var(--amber)}.voltink{color:var(--voltDeep)}
+.kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--ldim);text-transform:uppercase}
+.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+
+/* club kit — mirrored from club-ui.tsx / enh-club-lab */
+.holo{height:3px;background:linear-gradient(90deg,#CFC4FF,#FFD9CB 35%,#CDEBDD 65%,#CFE0FF)}
+.ticket{border:1px solid var(--nl);margin-top:10px;position:relative;background:var(--canvas)}
+.tkTop{padding:13px 13px 11px}
+.perf{position:relative;height:0;margin:0 10px;border-top:1.5px dashed var(--perfDash)}
+.notch{position:absolute;top:-7px;width:14px;height:14px;border-radius:7px;border:1px solid var(--lhair);background:var(--canvas)}
+.tkStub{padding:11px 13px 13px;background:var(--stub)}
+.tag{display:inline-flex;align-items:center;padding:4px 8px;font-size:14px;line-height:18px;font-weight:800;letter-spacing:.3px}
+.tag.volt{background:var(--voltFill);color:var(--voltDeep)}
+.tag.amber{background:var(--amberSoft);color:var(--amber)}
+.tag.coral{background:var(--lcoralSoft);color:#C24A2E}
+.tag.lilac{background:var(--lhair2);color:var(--accent)}
+.tag.dimt{background:var(--linset);color:var(--ldim)}
+.dogdot{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#5d5138}
+.dogdot.s30{width:30px;height:30px;flex:0 0 30px;font-size:13px}
+.dogdot.sky{border-color:var(--collarSky)}.dogdot.rose{border-color:var(--collarRose)}
+.dogdot.teal{border-color:var(--collarTeal)}.dogdot.moss{border-color:var(--collarMoss)}
+.dogdot.goldc{border-color:var(--collarGold)}.dogdot.berry{border-color:var(--collarBerry)}
+.dogdot.violet{border-color:var(--collarViolet)}
+.crewdot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:var(--linset);border:1.3px solid var(--lhair);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--ltext)}
+.door{flex:1;padding:12px;border-radius:8px}
+.door.quiet{background:var(--linset);border:1px solid var(--lhair)}
+.lcard{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:12px;margin-top:8px;
+  box-shadow:0 6px 14px rgba(28,24,55,.09)}
+.drow{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:11px;margin-top:8px}
+.sechead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)}
+.bars{display:flex;gap:2px;height:13px;align-items:stretch}
+.bars i{background:var(--lhead);opacity:.8;display:block}
+.livedot{width:8px;height:8px;border-radius:4px;background:var(--lcoral);flex:0 0 8px}
+/* split-flap — latin serial flaps (glyph exemption) and Korean 14px state plates */
+.flap{display:inline-flex;gap:1.5px}
+.flap i{min-width:13px;padding:2px 3px;background:var(--lhair2);border-radius:2px;border-top:1px solid #fff;
+  border-bottom:2px solid var(--flapBot);font-style:normal;font-size:9px;line-height:12px;font-weight:600;
+  letter-spacing:.5px;text-align:center;font-family:'Oswald',sans-serif}
+.flapK{display:inline-flex;gap:1.5px}
+.flapK i{min-width:21px;padding:2px 3px;background:var(--lhair2);border-radius:2px;border-top:1px solid #fff;
+  border-bottom:2px solid var(--flapBot);font-style:normal;font-size:14px;line-height:19px;font-weight:800;
+  color:var(--ltext);text-align:center}
+.flapK.live i{background:var(--lcoralSoft);color:#C24A2E}
+.flapK.wait i{background:var(--amberSoft);color:var(--amber)}
+.flapK.dimf i{background:var(--linset);color:var(--ldim)}
+.flapK.done i{background:var(--voltFill);color:var(--voltDeep)}
+/* timeline — club-ui .tl/.ev idiom */
+.tl{border-left:2px solid var(--lhair);padding-left:14px;margin:10px 0 0 5px}
+.ev{position:relative;padding:7px 0;font-size:14px;line-height:19px;color:var(--ltext)}
+.ev:before{content:"";position:absolute;left:-18.5px;top:12px;width:7px;height:7px;border-radius:4px;background:var(--flapBot)}
+.ev.live:before{background:var(--lcoral)}
+.ev.done:before{background:var(--voltDeep)}
+.ev.wait:before{background:var(--amber)}
+.numRow{display:flex;background:var(--linset);border:1px solid var(--lhair);border-radius:6px;margin-top:12px;overflow:hidden}
+.numRow > div{flex:1;padding:9px 0;text-align:center;border-right:1px solid var(--lhair)}
+.numRow > div:last-child{border-right:0}
+.chip{display:inline-flex;align-items:center;padding:8px 13px;border-radius:99px;border:1.3px solid var(--lhair);
+  background:var(--lcard);font-size:14px;line-height:19px;font-weight:800;color:var(--ltext)}
+.chip.joinc{background:var(--lhair2);border-color:var(--lhair2);color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>클럽 라이브 보드 — Club Public Home Live Board</h1>
+  <p class="law">SPEC V2 §9 · CLUB_SESSION_BOARD · 3 VARIANTS · SEAN PICKS BY NUMBER</p>
+  <p class="lede">The club public home board Sean ruled — <b>"it's like a public dashboard"</b>: which dog is out
+  with which runner, which dogs are still waiting, who came along as crew — readable by any signed-in member
+  (readership honesty is 🔴 14.9). Three genuinely different dashboard personalities below, all binding the same NEW
+  sanitized projection <code>club_session_board</code> and all visibly obeying the privacy rows: <b>no addresses
+  ever, no money ever</b>, a pick in progress reads 수락 대기 with <b>no runner name</b> to third parties (pairs are
+  public, courtships are not), dog first-name + photo and owner display name are the allowed identity set.
+  Every frame is 390px so 1px = 1pt; zero hexes outside <code>theme.ts</code> / <code>club-ui.tsx</code>.</p>
+  <div class="note">
+    <h4>Privacy laws every frame must visibly respect (§9, verified precedents)</h4>
+    ① no address, no area band, on any board surface (§8.4) · ② no fare, no fee, no payout — money speaks only on
+    the 승낙서 (ruling ④) · ③ 수락 대기 renders WITHOUT the courted runner's name; the pairing becomes public only
+    at P4 (0053:315-323 sub-gate inverted) · ④ a 맹견-refused or lapsed pick is indistinguishable from a declined
+    one · ⑤ crew rows carry name + role only; roster/phone data never joins the board (0049).
+  </div>
+</header>
+
+<div class="rail">
+
+  <!-- ══════════════════════════════════════ ① departures board -->
+  <div class="col">
+    <div class="cap"><span class="badge">①</span>출발 안내판 — split-flap departures</div>
+    <p class="why">One ticket as an airport departures board: every pairing is a flap row on the ladder, pairs above
+    the perforation, 동반·크루 on the stub. The 두부 row shows the privacy law working — 수락 대기 flaps with
+    <b>no runner name</b>, while public pairs name their runner.</p>
+    <div class="phone h880">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">HIGH CLUB · LIVE</div>
+          <div style="width:30px"></div>
+        </div>
+        <div class="pad12">
+          <div class="row gap8" style="align-items:baseline;margin-top:4px">
+            <div class="dispf lhead" style="font-size:27px;line-height:33px">라이브 보드</div>
+            <div class="livedot"></div>
+            <div class="grow"></div>
+            <div class="numf lhead" style="font-size:19px;line-height:24px">09:41</div>
+          </div>
+          <div class="t14 ldim mt4">반포 하이클럽 · 토 09:00 세션 · 지금 이 순간의 상태</div>
+          <div class="ticket mt10">
+            <div class="holo"></div>
+            <div class="tkTop">
+              <div class="row between">
+                <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--lhead)">DEPARTURES · WHO RUNS WITH WHO</div>
+                <div class="flap"><i>L</i><i>I</i><i>V</i><i>E</i></div>
+              </div>
+              <!-- running -->
+              <div class="row gap8 mt10">
+                <div class="dogdot s30">몽</div>
+                <div class="grow"><div class="t15 b8 lhead">몽이 <span class="t14 ldim b6">· 서지우 님</span></div>
+                  <div class="t14 acc b7">김태리 러너와</div></div>
+                <div class="flapK live"><i>러</i><i>닝</i><i>중</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 sky">초</div>
+                <div class="grow"><div class="t15 b8 lhead">초코 <span class="t14 ldim b6">· 박하늘 님</span></div>
+                  <div class="t14 acc b7">김태리 러너와</div></div>
+                <div class="flapK live"><i>러</i><i>닝</i><i>중</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 teal">해</div>
+                <div class="grow"><div class="t15 b8 lhead">해피 <span class="t14 ldim b6">· 강하은 님</span></div>
+                  <div class="t14 acc b7">한소민 러너와</div></div>
+                <div class="flapK"><i>귀</i><i>가</i><i>중</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 moss">보</div>
+                <div class="grow"><div class="t15 b8 lhead">보리 <span class="t14 ldim b6">· 이도윤 님</span></div>
+                  <div class="t14 acc b7">이준호 러너와</div></div>
+                <div class="flapK"><i>픽</i><i>업</i><i>이</i><i>동</i><i>중</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 rose">라</div>
+                <div class="grow"><div class="t15 b8 lhead">라떼 <span class="t14 ldim b6">· 윤채원 님</span></div>
+                  <div class="t14 voltink b7">오늘 러닝을 마쳤어요</div></div>
+                <div class="flapK done"><i>귀</i><i>가</i><i>완</i><i>료</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <!-- waiting — no runner names below this line -->
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 goldc">두</div>
+                <div class="grow"><div class="t15 b8 lhead">두부 <span class="t14 ldim b6">· 최서연 님</span></div></div>
+                <div class="flapK wait"><i>수</i><i>락</i><i>대</i><i>기</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 berry">콩</div>
+                <div class="grow"><div class="t15 b8 lhead">콩이 <span class="t14 ldim b6">· 정민재 님</span></div></div>
+                <div class="flapK dimf"><i>러</i><i>너</i><i>선</i><i>택</i><i>중</i></div>
+              </div>
+              <div class="lrule mt8"></div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 violet">솜</div>
+                <div class="grow"><div class="t15 b8 lhead">솜이 <span class="t14 ldim b6">· 임지호 님</span></div></div>
+                <div class="flapK dimf"><i>대</i><i>기</i><i>중</i></div>
+              </div>
+            </div>
+            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
+            <div class="tkStub">
+              <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)">WITH THEIR GUARDIANS · CREW</div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30">별</div>
+                <div class="grow t15 b7 lhead">별이 <span class="t14 ldim b6">· 김민준 님이 직접 달려요</span></div>
+                <span class="tag dimt">보호자 동반</span>
+              </div>
+              <div class="row gap8 mt8">
+                <div class="dogdot s30 sky">뭉</div>
+                <div class="grow t15 b7 lhead">뭉치 <span class="t14 ldim b6">· 조은서 님이 직접 달려요</span></div>
+                <span class="tag dimt">보호자 동반</span>
+              </div>
+              <div class="row gap8 mt10" style="align-items:stretch">
+                <div class="door quiet">
+                  <div class="t15 b8 lhead">크루 <span class="numf acc t16">2</span>명 · 오세훈 · 김하람</div>
+                  <div class="t14 ldim mt4">강아지 없이도 함께 달려요 — <b class="acc">무료로 크루 참가</b></div>
+                </div>
+              </div>
+              <div class="row between mt12">
+                <div class="bars">
+                  <i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:1px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:1px"></i>
+                </div>
+                <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)">LIVE BOARD · 826</div>
+              </div>
+            </div>
+          </div>
+          <div class="t14 ldim mt8" style="text-align:center">주소와 요금은 보드에 올라오지 않아요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">club_session_board (NEW, §9) → pairings[]: dogName · dogPhoto · ownerDisplayName ·
+      stateLabel (P-ladder) · runnerName (P4+ ONLY — null while 수락 대기)<br>
+      + companions[]: name · role (runner|guest) · counts · session header from club_session_detail</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ ② warm roster -->
+  <div class="col">
+    <div class="cap"><span class="badge">②</span>따뜻한 명부 — roster grouped by state</div>
+    <p class="why">A neighborhood roster on the lilac canvas: big collar-ringed avatars, one card per pairing,
+    grouped by where each dog is right now, with waiting dogs as a quiet queue. Closest to reading
+    <b>"who's dog is running with who"</b> at a glance without any board vocabulary.</p>
+    <div class="phone h880 lilacbg">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;background:var(--lcard);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">HIGH CLUB · LIVE</div>
+          <div style="width:30px"></div>
+        </div>
+        <div class="pad">
+          <div class="dispf lhead" style="font-size:27px;line-height:33px">오늘의 러닝</div>
+          <div class="t14 ldim mt4">토 09:00 · 잠수교 세션 · 지금 이 순간</div>
+          <div class="sechead" style="margin-top:12px"><div class="livedot"></div><div class="t15 b8 lhead grow">지금 달리는 중</div></div>
+          <div class="lcard">
+            <div class="row gap10">
+              <div class="dogdot">몽</div>
+              <div class="grow"><div class="t16 b8 lhead">몽이</div>
+                <div class="t14 ldim">서지우 님 · <b class="acc">김태리 러너와 페어링</b></div></div>
+              <span class="tag coral">러닝 중</span>
+            </div>
+          </div>
+          <div class="lcard">
+            <div class="row gap10">
+              <div class="dogdot sky">초</div>
+              <div class="grow"><div class="t16 b8 lhead">초코</div>
+                <div class="t14 ldim">박하늘 님 · <b class="acc">김태리 러너와 페어링</b></div></div>
+              <span class="tag coral">러닝 중</span>
+            </div>
+          </div>
+          <div class="sechead" style="margin-top:12px"><div class="t15 b8 lhead grow">오가는 중</div></div>
+          <div class="drow">
+            <div class="row gap10">
+              <div class="dogdot s30 moss">보</div>
+              <div class="grow"><div class="t15 b8 lhead">보리 <span class="t14 ldim b6">· 이도윤 님</span></div>
+                <div class="t14 ldim">이준호 러너가 데리러 가는 중</div></div>
+              <span class="tag amber">픽업 이동 중</span>
+            </div>
+          </div>
+          <div class="drow">
+            <div class="row gap10">
+              <div class="dogdot s30 teal">해</div>
+              <div class="grow"><div class="t15 b8 lhead">해피 <span class="t14 ldim b6">· 강하은 님</span></div>
+                <div class="t14 ldim">한소민 러너와 집으로 가는 중</div></div>
+              <span class="tag lilac">귀가 중</span>
+            </div>
+          </div>
+          <div class="sechead" style="margin-top:12px"><div class="t15 b8 lhead grow">기다리는 강아지들</div></div>
+          <div class="drow">
+            <div class="row gap10">
+              <div class="dogdot s30 goldc">두</div>
+              <div class="grow"><div class="t15 b8 lhead">두부 <span class="t14 ldim b6">· 최서연 님</span></div>
+                <div class="t14 ldim">러너의 수락을 기다리고 있어요</div></div>
+              <span class="tag amber">수락 대기</span>
+            </div>
+          </div>
+          <div class="drow">
+            <div class="row gap10">
+              <div class="dogdot s30 berry">콩</div>
+              <div class="grow t15 b8 lhead">콩이 <span class="t14 ldim b6">· 정민재 님</span></div>
+              <span class="tag lilac">러너 선택 중</span>
+            </div>
+          </div>
+          <div class="sechead" style="margin-top:12px"><div class="t15 b8 lhead grow">보호자와 함께 · 크루</div></div>
+          <div class="drow">
+            <div class="row gap8">
+              <div class="dogdot s30">별</div><div class="dogdot s30 sky" style="margin-left:-10px">뭉</div>
+              <div class="grow t14 ltext b7" style="margin-left:2px">별이·뭉치는 보호자와 직접 달려요</div>
+              <span class="tag volt">동반 2</span>
+            </div>
+            <div class="row gap8 mt8" style="border-top:1px solid var(--lhair2);padding-top:8px">
+              <div class="crewdot">오</div><div class="crewdot" style="margin-left:-10px">김</div>
+              <div class="grow t14 ltext b7" style="margin-left:2px">오세훈·김하람 님이 크루로 함께해요</div>
+              <span class="chip joinc">무료로 크루 참가</span>
+            </div>
+          </div>
+          <div class="t14 ldim mt10" style="text-align:center">주소와 요금은 보드에 올라오지 않아요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">same projection as ① — grouping is client-side over stateLabel, no new server aggregate<br>
+      (this frame omits the plain 대기 중 rung for depth — ① and ③ carry the full spread)</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ ③ live feed -->
+  <div class="col">
+    <div class="cap"><span class="badge">③</span>라이브 피드 — the ranked-dashboard flavor</div>
+    <p class="why">Closest to Sean's <b>"live ranked dashboard in community"</b> musing: an 오늘의 크루 strip up top,
+    live counts, then a newest-first feed of state changes with the ladder words as event verbs. The 08:58 event
+    shows the courtship law — 수락 대기 enters the feed with no runner name.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="row between" style="padding:10px 12px 9px">
+          <div style="width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--lhead)">‹</div>
+          <div class="kick" style="font-size:9px">HIGH CLUB · LIVE FEED</div>
+          <div style="width:30px"></div>
+        </div>
+        <div class="pad12">
+          <div class="row gap8" style="align-items:baseline">
+            <div class="dispf lhead" style="font-size:27px;line-height:33px">라이브</div>
+            <div class="livedot"></div>
+            <div class="grow"></div>
+            <div class="t14 ldim b7">토 09:00 세션</div>
+          </div>
+          <div style="font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim);margin-top:8px">TODAY'S CREW</div>
+          <div class="row gap6 mt6" style="flex-wrap:wrap">
+            <span class="chip">김태리 <span class="t14 ldim b6" style="margin-left:4px">러너</span></span>
+            <span class="chip">이준호 <span class="t14 ldim b6" style="margin-left:4px">러너</span></span>
+            <span class="chip">한소민 <span class="t14 ldim b6" style="margin-left:4px">러너</span></span>
+            <span class="chip">오세훈 <span class="t14 ldim b6" style="margin-left:4px">크루</span></span>
+            <span class="chip">김하람 <span class="t14 ldim b6" style="margin-left:4px">크루</span></span>
+            <span class="chip joinc">+ 무료로 크루 참가</span>
+          </div>
+          <div class="numRow">
+            <div><div class="numf lhead" style="font-size:21px;line-height:27px">2</div><div class="t14 b7 ldim">러닝 중</div></div>
+            <div><div class="numf lhead" style="font-size:21px;line-height:27px">3</div><div class="t14 b7 ldim">대기</div></div>
+            <div><div class="numf lhead" style="font-size:21px;line-height:27px">2</div><div class="t14 b7 ldim">동반</div></div>
+            <div><div class="numf lhead" style="font-size:21px;line-height:27px">5</div><div class="t14 b7 ldim">크루</div></div>
+          </div>
+          <div class="sechead" style="border-bottom-color:var(--nl)"><div class="t15 b8 lhead grow">방금 일어난 일</div>
+            <div class="t14 ldim">새 순서</div></div>
+          <div class="tl">
+            <div class="ev live"><span class="numf lhead t14" style="margin-right:7px">09:41</span>
+              <b class="lhead">몽이·초코</b>가 <b class="acc">김태리 러너</b>와 <b style="color:#C24A2E">러닝 중</b>이에요</div>
+            <div class="ev"><span class="numf lhead t14" style="margin-right:7px">09:36</span>
+              <b class="lhead">해피</b>는 <b class="acc">한소민 러너</b>와 <b class="lhead">귀가 중</b> — 집으로 가요</div>
+            <div class="ev wait"><span class="numf lhead t14" style="margin-right:7px">09:12</span>
+              <b class="lhead">보리</b>의 러너가 <b class="lhead">픽업 이동 중</b> — <b class="acc">이준호 러너와 페어링</b></div>
+            <div class="ev wait"><span class="numf lhead t14" style="margin-right:7px">08:58</span>
+              <b class="lhead">두부</b>는 <b class="amberink">수락 대기</b> — 러너의 응답을 기다려요</div>
+            <div class="ev done"><span class="numf lhead t14" style="margin-right:7px">08:40</span>
+              <b class="lhead">라떼</b>가 <b class="voltink">귀가 완료</b> — 오늘 러닝을 마쳤어요</div>
+            <div class="ev"><span class="numf lhead t14" style="margin-right:7px">08:21</span>
+              <b class="lhead">별이</b>는 <b class="lhead">보호자 동반</b> — 김민준 님과 직접 달려요</div>
+            <div class="ev"><span class="numf lhead t14" style="margin-right:7px">07:55</span>
+              <b class="lhead">콩이</b>는 <b class="lhead">러너 선택 중</b>이에요</div>
+          </div>
+          <div class="drow" style="background:var(--stub)">
+            <div class="row gap8">
+              <div class="dogdot s30 goldc">두</div><div class="dogdot s30 berry" style="margin-left:-10px">콩</div>
+              <div class="dogdot s30 violet" style="margin-left:-10px">솜</div>
+              <div class="grow t14 ltext b7" style="margin-left:2px">아직 기다리는 강아지 <span class="numf acc t15">3</span>마리</div>
+            </div>
+          </div>
+          <div class="t14 ldim mt8" style="text-align:center">주소와 요금은 보드에 올라오지 않아요</div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">same projection — feed rows are the pairings[] ordered by latest state-change timestamp
+      (the §7.1 stamps the projection already carries); no per-event history table is asked for</div>
+  </div>
+
+</div>
+
+<footer>
+  <b>Open on Sean's queue, not this lab's:</b> 🔴 14.9 — the board's reader class is effectively any signed-in user
+  (club join is one self-serve tap), so picking a variant also accepts that readership for the Banpo pilot, or asks
+  for a real membership gate first. All three frames render the same <code>club_session_board</code> projection;
+  the choice here is personality only.
+</footer>
+
+</div>
+</body>
+</html>

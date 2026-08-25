@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Participant Run View — Club v2 Lab</title>
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   CLUB v2 LAB — the PARTICIPANT run view (addendum A3, §2/§3)
+   One new screen: the live view for a club participant who is NOT a paid
+   runner — a 동반 owner running their own dog, or a dogless crew member.
+
+   ZERO NEW HEXES. Every colour inside a phone frame is copied out of
+   app/src/theme.ts (lilac · collarColors · tang) or out of the values the
+   enh-club-lab already sanctioned from club-ui.tsx (#EEEEEE line, #E9E5F8
+   map surface, #7a5a2a strip ink). Lab chrome (--page/--panel/--hair) is
+   page furniture and never appears inside a frame.
+
+   TYPE FLOOR IS LITERAL: frames are 390px wide, so 1px = 1pt. Korean detail
+   text is never below 14px inside a frame. Sub-14 inside a frame is only a
+   LATIN letterspaced kicker, a serial, or a single map glyph (S/F).
+   Oswald numerals always carry an explicit line-height ≥1.2× (BUG A).
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  /* lilac world — theme.ts `lilac` (the club surface kit) */
+  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4; --lhair2:#EDEAF8;
+  --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
+  --accent:#6C5CE7; --accentDeep:#7867EC;
+  --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
+  --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+  --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
+  --tang:#E8552F;
+  /* action system — theme.ts `paper` (ClubCta retired white-on-#F0765A at 2.83:1; its face is paper.action) */
+  --action:#C6472C;
+  --glass:rgba(255,255,255,.62); --glassEdge:rgba(255,255,255,.85);
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarTeal:#3EC6A8; --collarRose:#E58BA9;
+  /* values the enh-club-lab already sanctions from shipped components */
+  --nl:#EEEEEE; --mapbg:#E9E5F8; --stripInk:#7a5a2a;
+  /* lab chrome only — never inside a frame */
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  --ink:#111111; --dim:#666666; --faint:#999999; --line:#E8552F; --critical:#B3261E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
+}
+.wrap{max-width:1760px;margin:0 auto}
+
+/* ── page header ── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
+h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
+.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1060px}
+.lede b{color:var(--ink);font-weight:700}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
+
+/* ── variant rail ── */
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:baseline;gap:11px;font-size:16.5px;font-weight:800;margin-bottom:6px;line-height:1.3}
+.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
+  background:var(--accent);color:#fff;font-size:19px;font-weight:800;padding:0 9px}
+.badge.crew{background:var(--lhead)}
+.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:96px}
+.why b{color:var(--ink)}
+.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.62;color:var(--dim);
+  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:10px}
+.cost{font-size:12.5px;line-height:1.62;color:#333;background:var(--panel);
+  border:1px solid var(--hair);padding:10px 12px;margin-top:8px}
+.cost b.h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px}
+
+/* ── phone frame ── */
+.phone{width:390px;background:var(--lbg);color:var(--lhead);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone.h800{height:800px}.phone.h820{height:820px}
+.stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
+  font-size:11px;color:var(--faint);font-weight:600}
+.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}
+.mt4{margin-top:4px}.mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}
+
+/* app type — floor is literal */
+.t14{font-size:14px;line-height:19px}
+.t145{font-size:14.5px;line-height:20px}
+.t15{font-size:15px;line-height:20px}
+.t165{font-size:16.5px;line-height:22px}
+.t17{font-size:17px;line-height:23px}
+.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
+.ldim{color:var(--ldim)}.ltext{color:var(--ltext)}.lhead{color:var(--lhead)}.acc{color:var(--accent)}
+.kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--ldim);text-transform:uppercase}
+.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+
+/* club components — mirrored from src/components/club-ui.tsx */
+.mast{display:flex;align-items:center;gap:9px;padding:12px 12px;background:var(--lbg)}
+.mono{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--lhead);
+  background:linear-gradient(135deg,#CFC4FF 0%,#FFD9CB 30%,#CDEBDD 55%,#CFE0FF 80%,#E8D5FF 100%)}
+.livedot{width:26px;height:26px;border-radius:13px;background:rgba(240,118,90,.22);display:flex;align-items:center;justify-content:center}
+.livedot i{width:12px;height:12px;border-radius:6px;background:var(--lcoral);display:block}
+.strip{background:var(--amberSoft);border:1px solid var(--amberEdge);padding:8px 12px;margin-top:8px;
+  border-radius:6px;font-size:14px;line-height:19px;color:var(--stripInk)}
+.lcard{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:12px;
+  box-shadow:0 6px 14px rgba(28,24,55,.09)}
+.tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:14px;line-height:19px;font-weight:800;letter-spacing:.2px}
+.tag.run{background:var(--lcoralSoft);color:#C24A2E}
+.tag.done{background:var(--voltFill);color:var(--voltDeep)}
+.tag.home{background:var(--linset);color:var(--ldim)}
+.dogdot{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#5d5138}
+.dogdot.s30{width:30px;height:30px;flex:0 0 30px;font-size:13px}
+.dogdot.sky{border-color:var(--collarSky)}
+.dogdot.teal{border-color:var(--collarTeal)}
+.persondot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:var(--linset);
+  border:1.5px solid var(--lhair);display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:var(--ltext)}
+.sos{width:58px;height:58px;flex:0 0 58px;border-radius:29px;background:var(--tang);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;
+  box-shadow:0 8px 14px rgba(232,85,47,.45)}
+/* ClubCta face = paper.action (club-ui.tsx:383 — white on L.coral measured 2.83:1 and was retired) */
+.cta{display:block;text-align:center;padding:16px 12px;background:var(--action);border-radius:8px;
+  color:#fff;font-size:17px;font-weight:800;letter-spacing:.3px;box-shadow:0 6px 14px rgba(198,71,44,.30)}
+.cta.quiet{background:var(--lcard);border:1px solid var(--lhair);color:var(--ldim);box-shadow:none;font-size:16px}
+.bignum{display:flex;border:1px solid var(--nl);background:var(--lcard);border-radius:8px;overflow:hidden}
+.bignum > div{flex:1;padding:9px 8px;border-right:1px solid var(--lhair)}
+.bignum > div:last-child{border-right:0}
+.bignum .v{font-size:21px;line-height:27px}
+.bignum .u{font-size:14px;color:var(--lcoral)}
+.bignum .l{font-size:14px;line-height:18px;font-weight:700;letter-spacing:.3px;color:var(--ldim);
+  margin-top:4px;padding-top:3px;border-top:1px solid var(--lhair)}
+/* glass chrome — theme.ts lilac.glass / glassEdge, the shipped mast idiom */
+.glass{background:var(--glass);border:1px solid var(--glassEdge);border-radius:10px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 6px 14px rgba(28,24,55,.09)}
+/* map surface */
+.mapfull{position:absolute;inset:0;background:var(--mapbg)}
+.mapcard{position:relative;background:var(--mapbg);border:1px solid var(--lhair);border-radius:8px;overflow:hidden}
+.legend{display:inline-flex;align-items:center;gap:6px;font-size:14px;line-height:19px;font-weight:700;color:var(--ltext)}
+.legend i{width:16px;height:4px;border-radius:2px;display:block}
+
+/* footer */
+footer{margin-top:56px;border-top:2.5px solid var(--ink);padding-top:16px}
+footer h3{font-size:17px;font-weight:800;margin-bottom:10px}
+ol.q{margin-left:20px;font-size:14px;line-height:1.75}
+ol.q li{margin-bottom:11px}
+ol.q b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>참가자 러닝 뷰 — Participant Run View Lab</h1>
+  <p class="law">CLUB MODE A · ADDENDUM A3 · NEW SCREEN · 4 FRAMES · SEAN PICKS BY NUMBER</p>
+  <p class="lede">The live screen for a club participant who is <b>not a paid runner</b> — an owner running their own
+  dog (동반, joined free under 「무료로 크루 참가」) or a dogless crew member — per
+  <code>docs/plans/2026-08-25-club-mode-a-addendum.md</code> §2/§3. Every frame obeys the same four laws: the
+  <b>course polyline is always visible</b> (the runner "needs to see where to go at all times"), the crew appears as
+  <b>board states only</b> (러닝 중 · 도착 · 귀가 중 — never live GPS of others), <b>my finish closes only my record</b>
+  (즉시 해제 — no host dependency), and the <b>SOS/case entry sits bottom-left</b> at the thumb, throughout. Variants
+  ①–③ are three personalities for the same bound data; frame ④ is the dogless-crew rendering of the picked layout.</p>
+</header>
+
+<div class="rail">
+
+  <!-- ═══════════════════════════════════════════════ ① map-dominant -->
+  <div class="col">
+    <div class="cap"><span class="badge">①</span>지도가 화면이다</div>
+    <p class="why">The map <b>is</b> the screen — full-bleed course polyline with everything else floating on glass
+    chrome, the strongest reading of Sean's map law. Stats ride one glass slab, the crew collapses to a state
+    summary chip, and the dog card is a floating strip above the SOS/finish row.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>6:12</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mapfull">
+          <svg width="390" height="796" viewBox="0 0 390 796" xmlns="http://www.w3.org/2000/svg">
+            <!-- street bones — white on the shipped map surface -->
+            <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+            <path d="M0 420 L390 380" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+            <path d="M120 0 L160 796" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+            <path d="M300 0 L270 796" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+            <!-- river band — accent wash -->
+            <path d="M0 620 C120 590 260 640 390 600 L390 700 C260 740 120 690 0 720 Z" fill="rgba(108,92,231,.10)"/>
+            <!-- COURSE polyline (routes_public.trace) — white casing then accent -->
+            <path d="M60 640 C130 560 90 460 170 400 C250 340 330 380 330 280 C330 190 240 160 170 210 C110 255 90 330 130 390"
+              stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+            <path d="M60 640 C130 560 90 460 170 400 C250 340 330 380 330 280 C330 190 240 160 170 210 C110 255 90 330 130 390"
+              stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <!-- MY traveled portion — coral over the course -->
+            <path d="M60 640 C130 560 90 460 170 400 C222 361 268 366 296 340"
+              stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <!-- start / finish markers — single latin glyphs (floor-exempt) -->
+            <circle cx="60" cy="640" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="60" y="645" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
+            <circle cx="130" cy="390" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="130" y="395" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
+            <!-- OWN position dot — mine is the only live dot on the map -->
+            <circle cx="296" cy="340" r="13" fill="rgba(240,118,90,.25)"/>
+            <circle cx="296" cy="340" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <!-- floating masthead -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;top:8px;padding:10px 12px">
+          <div class="row gap8">
+            <span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+            <div class="grow">
+              <div class="t165 b8 lhead">내 러닝 <span class="dispf" style="font-size:16.5px">반포 새벽 코스</span></div>
+              <div class="t14 b7 ldim">4.2km · 반포 하이클럽 — 무료로 크루 참가</div>
+            </div>
+            <div class="livedot"><i></i></div>
+          </div>
+        </div>
+        <!-- floating stats slab -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;top:86px;padding:11px 14px">
+          <div class="row between" style="align-items:flex-end">
+            <div><div class="numf lhead" style="font-size:40px;line-height:50px">2.7<span style="font-size:19px;color:var(--lcoral)">km</span></div>
+              <div class="t14 b7 ldim">거리 (실측) — 수리의 기록이 돼요</div></div>
+            <div style="text-align:right">
+              <div class="numf lhead" style="font-size:21px;line-height:27px">6'05"</div><div class="t14 ldim">페이스</div>
+              <div class="numf lhead" style="font-size:21px;line-height:27px;margin-top:4px">16:24</div><div class="t14 ldim">경과</div>
+            </div>
+          </div>
+        </div>
+        <!-- crew state summary chip — states only, tap opens the board -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;bottom:170px;padding:10px 12px">
+          <div class="row between">
+            <div class="row gap8">
+              <div class="persondot">서</div><div class="persondot" style="margin-left:-12px">민</div><div class="persondot" style="margin-left:-12px">하</div>
+              <div class="t14 b7 ltext">크루 5 — <span style="color:#C24A2E">러닝 중 3</span> · <span style="color:var(--voltDeep)">도착 1</span> · 귀가 중 1</div>
+            </div>
+            <div class="t14 b8 acc">보드 ›</div>
+          </div>
+          <div class="t14 ldim mt4">크루의 위치는 공유되지 않아요 — 상태만 보여요</div>
+        </div>
+        <!-- my dog strip -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;bottom:96px;padding:10px 12px">
+          <div class="row gap10">
+            <div class="dogdot s30">수</div>
+            <div class="grow"><div class="t14 b8 lhead">수리 — 내 아이 · 내가 데리고 뛰어요</div>
+              <div class="t14 ldim">종료하면 바로 끝나요 — 호스트를 기다리지 않아요</div></div>
+          </div>
+        </div>
+        <!-- thumb row: SOS bottom-left (house idiom) + my finish -->
+        <div style="position:absolute;left:12px;right:12px;bottom:20px" class="row gap12">
+          <div class="sos">SOS</div>
+          <div class="grow"><div class="cta">내 러닝 종료</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">course = routes_public.trace (NEW client read — F10: today's screen draws only own breadcrumb)<br>
+      own dot/trace = geo.startTracking snapshot, 8m/s-gated (reused shell) · others: NO coords, states only<br>
+      crew chip counts = S2 board states · finish → NEW party-gated RPC upserting participant_activities<br>
+      SOS → club_incident_open (shell 'full' — standing already held, 0049:14 · 0067:68)</div>
+    <div class="cost"><b class="h">what this costs</b>Course polyline + floating chrome are new client work (the
+      addendum's honest estimate: only the map shell and GPS watcher are reuse). Glass slabs must keep the map
+      readable beneath — the crew chip and dog strip together cover ~130pt of route, the real price of this
+      personality.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ ② split instrument panel -->
+  <div class="col">
+    <div class="cap"><span class="badge">②</span>계기판 러닝 — 종료의 순간</div>
+    <p class="why">Map upper, numerals lower — the closest sibling of the shipped delegated-runner console, so the
+    two run screens stay one grammar. Drawn at the <b>finish moment</b> to show A4's ruled framing in place: my
+    finish sheet closes only my record, 즉시 해제, with the recap pointer — the same sheet all four frames share.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>6:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:0 12px">
+        <div class="mast" style="padding-left:0;padding-right:0">
+          <span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">내 러닝</div>
+            <div class="t14 b7 ldim">수리와 함께 — 반포 하이클럽</div></div>
+          <div class="livedot"><i></i></div>
+        </div>
+        <div class="strip">앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</div>
+        <div class="mapcard" style="height:250px;margin-top:8px">
+          <svg width="366" height="250" viewBox="0 0 366 250" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 70 L366 50" stroke="#FFFFFF" stroke-width="9" fill="none"/>
+            <path d="M0 180 L366 160" stroke="#FFFFFF" stroke-width="12" fill="none"/>
+            <path d="M110 0 L140 250" stroke="#FFFFFF" stroke-width="7" fill="none"/>
+            <path d="M40 215 C120 190 250 230 366 200 L366 250 L0 250 Z" fill="rgba(108,92,231,.10)"/>
+            <path d="M40 200 C110 160 80 90 160 70 C240 50 320 80 320 140 C320 185 250 205 190 185"
+              stroke="#FFFFFF" stroke-width="10" fill="none" stroke-linecap="round"/>
+            <path d="M40 200 C110 160 80 90 160 70 C240 50 320 80 320 140 C320 185 250 205 190 185"
+              stroke="#6C5CE7" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M40 200 C110 160 80 90 160 70 C240 50 320 80 320 140 C320 178 262 200 205 188"
+              stroke="#F0765A" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <circle cx="40" cy="200" r="11" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="40" y="205" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
+            <circle cx="190" cy="185" r="11" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="190" y="190" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
+            <circle cx="205" cy="188" r="12" fill="rgba(240,118,90,.25)"/>
+            <circle cx="205" cy="188" r="6.5" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          </svg>
+          <div class="legend" style="position:absolute;left:10px;top:10px;background:var(--glass);border:1px solid var(--glassEdge);border-radius:6px;padding:5px 9px">
+            <i style="background:var(--accent)"></i>코스&nbsp;&nbsp;<i style="background:var(--lcoral)"></i>내 발자국
+          </div>
+        </div>
+        <div class="bignum" style="margin-top:8px">
+          <div><div class="numf v lhead">4.1<span class="u">km</span></div><div class="l">거리 (실측)</div></div>
+          <div><div class="numf v lhead">6'02"</div><div class="l">페이스</div></div>
+          <div><div class="numf v lhead">41:20</div><div class="l">경과</div></div>
+        </div>
+        <div class="lcard" style="margin-top:8px">
+          <div class="row gap10">
+            <div class="dogdot s30">수</div>
+            <div class="grow"><div class="t14 b8 lhead">수리 — 내 아이</div>
+              <div class="t14 ldim">이 기록은 수리의 체력 카드에 반영돼요</div></div>
+            <span class="tag run">러닝 중</span>
+          </div>
+        </div>
+        <div class="grow"></div>
+        <!-- shared finish sheet — risen over the live screen -->
+        <div style="position:absolute;left:0;right:0;bottom:0;top:436px;background:rgba(28,24,55,.45);display:flex;flex-direction:column;justify-content:flex-end">
+          <div style="background:var(--lbg);border-top-left-radius:14px;border-top-right-radius:14px;padding:16px 16px 18px">
+            <div style="width:40px;height:4px;border-radius:2px;background:var(--lhair);margin:0 auto 12px"></div>
+            <div class="t17 b8 lhead">내 러닝을 마칠까요</div>
+            <div class="row between mt8" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:6px;padding:12px 13px">
+              <div class="row gap10"><div class="dogdot s30">수</div><div class="t15 b8 lhead">수리</div></div>
+              <div class="t14 ltext"><span class="numf">4.1</span>km · <span class="numf">6'02"</span> · <span class="numf">41:20</span></div>
+            </div>
+            <div class="t14 ltext mt8" style="background:var(--voltFill);border-radius:6px;padding:9px 11px;color:var(--voltDeep);font-weight:700">
+              종료하면 수리는 즉시 해제돼요 — 호스트 확인을 기다리지 않아요</div>
+            <div class="cta" style="margin-top:10px">러닝 종료</div>
+            <div class="cta quiet" style="margin-top:8px">아직 더 뛸래요</div>
+            <div class="t14 ldim mt8" style="text-align:center">기록은 수리의 체력 카드와 세션 리캡에 남아요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">layout = club/run/[sid] shell (mapCard :395-422 · BigNumRow · strip) + course overlay (NEW)<br>
+      finish sheet → participant_activities upsert 'checkin_only'→'gps_verified' (0030:101-113, addendum §3.1)<br>
+      no runs row · no booking · no money reader touched · trace goes to the owner-only store (§3.2, NOT p_a)<br>
+      「즉시 해제」 = A4: owner_handled rows outside _club_dogs_unresolved (0045:328-336)</div>
+    <div class="cost"><b class="h">what this costs</b>Cheapest build — the addendum's own 🔵 (a <code>participant</code>
+      mode of <code>club/run/[sid]</code>). New code is still real: course polyline, the bookingless finish RPC, and
+      the mode fork. The SOS row sits under the sheet here; in the live (un-sheeted) state it is the same bottom-left
+      row as ① and ③.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ ③ crew-forward -->
+  <div class="col">
+    <div class="cap"><span class="badge">③</span>크루가 보이는 러닝</div>
+    <p class="why">The social read: this is a <b>group run</b>, so the crew board rides above the fold with one row
+    per participant — board states only, my row pinned first. The map keeps the course visible at all times but
+    yields half its height to the people I came to run with.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>6:12</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding:0 12px">
+        <div class="mast" style="padding-left:0;padding-right:0">
+          <span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+          <div class="grow"><div class="t165 b8 lhead">크루 러닝</div>
+            <div class="t14 b7 ldim">반포 새벽 코스 4.2km — 반포 하이클럽</div></div>
+          <div class="livedot"><i></i></div>
+        </div>
+        <div class="mapcard" style="height:196px;margin-top:4px">
+          <svg width="366" height="196" viewBox="0 0 366 196" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 60 L366 44" stroke="#FFFFFF" stroke-width="9" fill="none"/>
+            <path d="M0 150 L366 132" stroke="#FFFFFF" stroke-width="11" fill="none"/>
+            <path d="M120 0 L145 196" stroke="#FFFFFF" stroke-width="7" fill="none"/>
+            <path d="M30 170 C120 150 250 185 366 160 L366 196 L0 196 Z" fill="rgba(108,92,231,.10)"/>
+            <path d="M36 160 C100 125 80 60 155 48 C230 36 300 60 305 110 C309 150 245 168 185 152"
+              stroke="#FFFFFF" stroke-width="9" fill="none" stroke-linecap="round"/>
+            <path d="M36 160 C100 125 80 60 155 48 C230 36 300 60 305 110 C309 150 245 168 185 152"
+              stroke="#6C5CE7" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M36 160 C100 125 80 60 155 48 C205 40 252 48 280 68"
+              stroke="#F0765A" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <circle cx="36" cy="160" r="10" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="36" y="164" text-anchor="middle" font-size="11" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
+            <circle cx="185" cy="152" r="10" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="185" y="156" text-anchor="middle" font-size="11" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
+            <circle cx="280" cy="68" r="11" fill="rgba(240,118,90,.25)"/>
+            <circle cx="280" cy="68" r="6" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <div class="row between" style="margin-top:8px;align-items:flex-end">
+          <div class="numf lhead" style="font-size:33px;line-height:41px">2.7<span style="font-size:17px;color:var(--lcoral)">km</span></div>
+          <div class="t14 ldim b7">페이스 <span class="numf lhead" style="font-size:17px;line-height:23px">6'05"</span>&nbsp;&nbsp;경과 <span class="numf lhead" style="font-size:17px;line-height:23px">16:24</span></div>
+        </div>
+        <!-- crew board — states only -->
+        <div class="row between" style="margin-top:10px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)">
+          <div class="t14 b8 lhead">오늘의 크루 · 5</div>
+          <div class="t14 ldim">위치는 공유되지 않아요 — 상태만</div>
+        </div>
+        <div class="lcard" style="margin-top:8px;background:var(--lcoralSoft)">
+          <div class="row gap10">
+            <div class="dogdot s30">수</div>
+            <div class="grow"><div class="t14 b8 lhead">나 · 수리 <span class="ldim" style="font-weight:700">동반</span></div>
+              <div class="t14 ldim">수리의 체력 카드에 실측으로 기록 중</div></div>
+            <span class="tag run">러닝 중</span>
+          </div>
+        </div>
+        <div class="lcard" style="margin-top:8px">
+          <div class="row gap10"><div class="dogdot s30 sky">몽</div>
+            <div class="grow t14 b8 lhead">김서연 · 몽이 <span class="ldim" style="font-weight:700">동반</span></div>
+            <span class="tag run">러닝 중</span></div>
+        </div>
+        <div class="lcard" style="margin-top:8px">
+          <div class="row gap10"><div class="persondot">민</div>
+            <div class="grow t14 b8 lhead">최민재 <span class="ldim" style="font-weight:700">러너 · 위탁 2마리</span></div>
+            <span class="tag run">러닝 중</span></div>
+        </div>
+        <div class="lcard" style="margin-top:8px">
+          <div class="row gap10"><div class="persondot">지</div>
+            <div class="grow t14 b8 lhead">박지훈 <span class="ldim" style="font-weight:700">크루</span></div>
+            <span class="tag done">도착</span></div>
+        </div>
+        <div class="lcard" style="margin-top:8px">
+          <div class="row gap10"><div class="dogdot s30 teal">콩</div>
+            <div class="grow t14 b8 lhead">이하늘 · 콩이 <span class="ldim" style="font-weight:700">동반</span></div>
+            <span class="tag home">귀가 중</span></div>
+        </div>
+        <div class="grow"></div>
+        <div class="row gap12" style="margin-bottom:12px">
+          <div class="sos">SOS</div>
+          <div class="grow"><div class="cta">내 러닝 종료</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">crew rows = S2 board states (러닝 중 · 도착 · 귀가 중) — server truth, no coords ever fetched<br>
+      최민재's delegated dogs stay countable, never mapped — his live map belongs to HIS runner console<br>
+      my row = the same participant_activities record the finish will close · SOS → club_incident_open</div>
+    <div class="cost"><b class="h">what this costs</b>Needs S2's board-state feed before it can ship (addendum §6
+      sequencing) — this variant is the most honest about being second in line. Map drops to 196pt: still the full
+      course, but orientation-at-a-glance is weaker than ① and ② on turns.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ ④ dogless crew, of ① -->
+  <div class="col">
+    <div class="cap"><span class="badge crew">④</span>크루 멤버 (강아지 없이) — ①의 자매 화면</div>
+    <p class="why">The dogless-crew rendering of ① (the map-dominant layout best serves the standing map law), drawn
+    at the <b>start moment</b>: same screen, minus the dog card — F13 says this is a participant view, not an owner
+    view. Their km/pace record their own crew activity; SOS standing is already theirs.</p>
+    <div class="phone h820">
+      <div class="stbar"><span>5:58</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mapfull">
+          <svg width="390" height="796" viewBox="0 0 390 796" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+            <path d="M0 420 L390 380" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+            <path d="M120 0 L160 796" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+            <path d="M300 0 L270 796" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+            <path d="M0 620 C120 590 260 640 390 600 L390 700 C260 740 120 690 0 720 Z" fill="rgba(108,92,231,.10)"/>
+            <path d="M60 640 C130 560 90 460 170 400 C250 340 330 380 330 280 C330 190 240 160 170 210 C110 255 90 330 130 390"
+              stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+            <path d="M60 640 C130 560 90 460 170 400 C250 340 330 380 330 280 C330 190 240 160 170 210 C110 255 90 330 130 390"
+              stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <circle cx="60" cy="640" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="60" y="645" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">S</text>
+            <circle cx="130" cy="390" r="12" fill="#FFFFFF" stroke="#6C5CE7" stroke-width="2"/>
+            <text x="130" y="395" text-anchor="middle" font-size="12" font-weight="800" fill="#6C5CE7" font-family="Oswald,sans-serif">F</text>
+            <!-- pre-start: own dot waits at S -->
+            <circle cx="60" cy="640" r="18" fill="rgba(240,118,90,.22)"/>
+            <circle cx="60" cy="640" r="7" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <div class="glass" style="position:absolute;left:12px;right:12px;top:8px;padding:10px 12px">
+          <div class="row gap8">
+            <span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
+            <div class="grow">
+              <div class="t165 b8 lhead">크루 러닝 준비</div>
+              <div class="t14 b7 ldim">반포 새벽 코스 4.2km — 무료로 크루 참가</div>
+            </div>
+            <div class="livedot"><i></i></div>
+          </div>
+        </div>
+        <!-- pre-start slab: course facts, not zeros (loading is not 0) -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;top:86px;padding:11px 14px">
+          <div class="row between" style="align-items:flex-end">
+            <div><div class="numf lhead" style="font-size:40px;line-height:50px">4.2<span style="font-size:19px;color:var(--lcoral)">km</span></div>
+              <div class="t14 b7 ldim">코스 전체 — 시작하면 실측으로 바뀌어요</div></div>
+            <div style="text-align:right"><div class="t14 ldim">기록은 내 크루 활동으로 남아요</div>
+              <div class="t14 ldim mt4">시작 전 — GPS 준비됨</div></div>
+          </div>
+        </div>
+        <div class="glass" style="position:absolute;left:12px;right:12px;bottom:170px;padding:10px 12px">
+          <div class="row between">
+            <div class="row gap8">
+              <div class="persondot">서</div><div class="persondot" style="margin-left:-12px">민</div><div class="persondot" style="margin-left:-12px">하</div>
+              <div class="t14 b7 ltext">크루 5 — <span style="color:#C24A2E">러닝 중 3</span> · <span style="color:var(--voltDeep)">도착 1</span> · 귀가 중 1</div>
+            </div>
+            <div class="t14 b8 acc">보드 ›</div>
+          </div>
+          <div class="t14 ldim mt4">크루의 위치는 공유되지 않아요 — 상태만 보여요</div>
+        </div>
+        <!-- NO dog card — the only structural difference from ① -->
+        <div class="glass" style="position:absolute;left:12px;right:12px;bottom:96px;padding:10px 12px">
+          <div class="t14 b7 ltext">함께 뛰는 크루 멤버예요 — 종료도 내 손으로, 누구를 기다리지 않아요</div>
+        </div>
+        <div style="position:absolute;left:12px;right:12px;bottom:20px" class="row gap12">
+          <div class="sos">SOS</div>
+          <div class="grow"><div class="cta">러닝 시작</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="binds">same screen, one conditional: session_dogs row absent → dog card not rendered (F13)<br>
+      pre-start numeral = routes_public.km (course fact) — never a fake 0.0 before tracking starts<br>
+      start → geo.startTracking (reused) · finish → same participant_activities upsert, p_dog null<br>
+      SOS standing unchanged: session_people row alone grants shell 'full' → club_incident_open</div>
+    <div class="cost"><b class="h">what this costs</b>Nearly free once ① exists — one render conditional and a
+      nullable dog argument on the record RPC. The pre-start slab must show course facts, not zeros: the honesty
+      law's "loading is not 0" applies to un-started runs too.</div>
+  </div>
+
+</div>
+
+<footer>
+  <h3>Questions this lab cannot decide</h3>
+  <ol class="q">
+    <li><b>①, how much map may the chrome cover?</b> The map-dominant frame floats ~130pt of glass over the route.
+      If the crew chip collapses to a dot-count only (no state breakdown), the course wins back a band — but the
+      states are the whole crew story. Which loses?</li>
+    <li><b>②, does the run view fork inside <code>club/run/[sid]</code> or stand alone?</b> The addendum's 🔵 is a
+      <code>participant</code> mode of the existing screen (map shell + GPS watcher reuse); ① and ③ pull harder
+      toward a separate screen. The mode fork is new code either way — this is an architecture pick, not a design
+      pick.</li>
+    <li><b>③, is 최민재's 위탁 2마리 line acceptable on the crew board?</b> It is board-state data, not GPS — but it
+      tells every participant which runner holds whose dogs. The alternative is 러너 with no count.</li>
+    <li><b>All frames, the finish sheet's fitness line.</b> 「수리의 체력 카드에 반영돼요」 asserts addendum §3.3's
+      🔵 (self-runs move the 체력 card via <code>fetchFitness</code> union). If Sean rules self-runs out of 체력,
+      this sentence — drawn in ② and ③ — must come out with it.</li>
+  </ol>
+</footer>
+
+</div></body></html>
