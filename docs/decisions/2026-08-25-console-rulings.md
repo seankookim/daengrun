@@ -195,3 +195,42 @@ Dispositions (recording session — NOT his words):
    Parked as its own future spec with this verbatim as the seed.
 Visual-side rulings (ui6's lane, recorded in DESIGN.md): pure white grounds · clickable-row
 affordance mandatory · working Korean floor 15 · stamp style retires.
+
+## Seventh round — the bailed-runner question, answered while reading the lab (via ui6-a5)
+
+> "what do you mean runner left? how can that happen? left before the start of the session?
+> then someone else should carry it over yes."
+
+**RULED, conditionally:** a runner leaving BEFORE the session starts → **someone else carries
+the dog over.** That is future #1 of the three on the console. Note his verb: *carry it over* —
+a TRANSFER to a named runner, not the pack informally absorbing a dogless dog. Who carries it
+decides what that runner earns, so the verb is load-bearing and the money is not yet derivable.
+
+**His challenge deserves the factual answer, and it vindicates him** (measured at source, not
+reasoned):
+- `session_runner_withdraw` (0043:163ff) **already refuses** if that runner holds any booking in
+  `confirmed`/`picked_up`/`active` — `raise exception 'reassign_dogs_first'`. So a runner
+  **cannot** silently abandon a confirmed dog today. His instinct that the scenario is ill-formed
+  is correct for the case that matters.
+- A withdrawal is therefore only possible when the dogs have ALREADY been moved off that runner —
+  and the sole mechanism for moving them is `session_assignment_revoke` (0047:230), which is
+  **HOST-ONLY** (`if s.host_profile_id <> auth.uid() then raise 'not_host'`).
+- When a withdrawal does succeed, capacity re-derives and EXCESS delegated dogs are pushed back
+  to `approval = 'pending'` with full refunds (0043:441-450, 「러너 이탈로 위탁 정원이 줄었어요」).
+
+⚠ **THE TRAP THIS EXPOSES, and it is the strongest argument yet against retiring 재배정 naively:**
+if the host's revoke retires, `reassign_dogs_first` becomes **unsatisfiable** — no actor can move
+a confirmed dog off a runner, so a runner who holds one can NEVER withdraw. Retiring the host
+button without building the "someone else carries it over" transfer does not simplify the flow;
+it traps runners in commitments they cannot exit. His ruling and the retirement are therefore ONE
+piece of work, not two: the transfer mechanism must exist before, or in the same slice as, the
+host button's removal.
+⚠ And the excess-dogs path pushes rows to `approval='pending'` — a queue that ruling #3 abolishes.
+Same collision as §16's finding #5 (stranded zombies), reached from a different direction.
+
+**Still OPEN, not inferred** — both routed back to him rather than guessed:
+- **Mid-run departure**: his question implies he may consider it impossible or out of scope. The
+  server does treat it as possible (`picked_up`/`active` are in the refusal list precisely because
+  such rows exist). Needs his word.
+- **What the carrying runner earns** for a second dog. No money can be drawn from §10.2 until
+  this is answered; the lab's withdrawn 청구/환불 pair stays withdrawn.
