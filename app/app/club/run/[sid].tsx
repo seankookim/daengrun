@@ -555,7 +555,10 @@ export default function ClubRun() {
 const s = StyleSheet.create({
   mapCard: {
     height: 240, borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 10,
-    backgroundColor: '#E9E5F8', borderWidth: 1, borderColor: L.hair,
+    // [2026-08-25 pale retirement] 구 #E9E5F8 — a hardcoded pale-lilac GROUND (the fill behind the
+    // map while it loads). Same family as the four theme members Sean retired, so it goes the same
+    // way: L.inset, the neutral well. It carries no state and no semantics — it is a placeholder.
+    backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair,
   },
   dogRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
