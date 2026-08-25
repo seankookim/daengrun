@@ -553,6 +553,32 @@ load-bearing shots on kling3_0 → **~55–75 cr per finished reel**.
 
 ⚠ `E2-gateselfie` (R3's closer) carries non-Korean platform signage — needs a 2 cr scrub before use.
 
+## 8-duodecies. Round 14 (2026-08-25) — R3 built end-to-end + the console deploy pack
+
+**R3 SAME ENERGY shipped as a finished 10s 1080×1920 MP4** (`higgsfield-out/reels/R3/`): six clips
+generated, cut to timecode, slogan card at 5.5s, and the ruled ending — mark stamps in over the
+live blue-girl frame at 8.2s (103%→100%, 0.22s), picture fades to black beneath it 9.2–9.8s, mark
+holds full white alone. Closer's foreign platform signage scrubbed first (2 cr).
+
+⚠ **MEASURED: the "unlimited" Seedance tiers do not apply through the CLI.** Balance moved
+134.64 → 117.14 on one `seedance_2_0` call (17.5) and 115.14 → 102.64 on one `seedance_2_0_mini`
+call (12.5) — both exactly the quoted price. Sean confirmed the UNLIMITED badge exists only in the
+web console. **Therefore all future reel shots are generated in the console for free and assembled
+locally; the CLI is for stills and edits only.**
+
+⚠ **9:16 letterbox law.** `veo3_1_lite` fed a 3:4 start image with `--aspect-ratio 9:16` returns a
+padded frame with black bars (measured: content box 720×960 inside 720×1280). Fix is to crop start
+frames to 9:16 BEFORE upload — the whole deploy pack is pre-cropped. Recovery for existing clips is
+`cropdetect` then crop-and-rescale.
+
+**Console deploy pack** (`higgsfield-out/reels/deploy/`, also zipped to Sean): 31 pre-cropped
+1080×1920 start frames + 31 paste-ready prompt files (scene + full negative) + logo lockup and five
+slogan overlays + README with console settings (Seedance 2.0 Mini, 4s, Auto aspect, audio Off,
+try 720p and check the badge) and the exact ffmpeg assembly recipe for the end treatment.
+Local toolchain: `imageio-ffmpeg` static binary (no system ffmpeg on this Mac).
+
+Spend this round: 32 cr (17.5 + 12.5 test calls + 2 scrub) + 22 cr on the four remaining R3 shots.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
