@@ -77,9 +77,17 @@ begin
   v_start := date_trunc('week', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul';
   update ledger_items set created_at = v_start where booking_id = b1;                          -- in
   update ledger_items set created_at = v_start - interval '1 second' where booking_id = b_comp; -- out
+  -- ⚠ SESSION TIMEZONE FORCED TO UTC for this call — measured 2026-08-25: the mutation
+  -- `date_trunc('week', now())` (KST wrapping dropped) scored 843/0 GREEN on this harness,
+  -- because date_trunc(text, timestamptz) truncates in the SESSION timezone and the harness
+  -- machine runs KST — a semantic no-op locally that would corrupt the week window on
+  -- production's UTC servers. Forcing UTC here makes the pin see what production would see:
+  -- the correct expression is timezone-independent, the mutated one is not.
+  set local timezone = 'UTC';
   set local role authenticated;
   select * into q from my_week_stats();
   set local role postgres;
+  set local timezone = 'Asia/Seoul';
   if q.week_net <> (9900+15000+2000+1000-9200) or q.week_runs <> 1 or q.week_km <> 5.0
     then call _fail('rms','P3 §B 주간·KST 경계','net='||q.week_net||' runs='||q.week_runs||' km='||q.week_km);
     else call _pass('rms','P3 §B 주간·KST 경계'); end if;
