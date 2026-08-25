@@ -226,12 +226,11 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   );
 
   const result = tx as { total_runs: number; drop: string | null };
-  // Exactly the pre-slice shape. Adding a field here would hand the runner the owner's card state.
+  // [0121] NET ONLY. gross/fee/guarantee left the wire — fee ÷ gross was the exact commission
+  // rate, handed to the runner on every settle (contract: runner-money-strip §3). The server
+  // still knows all four; the runner's client gets the one number that is theirs.
   return {
     net: gross - fee,
-    gross,
-    fee,
-    guarantee,
     total_runs: result.total_runs,
     drop: result.drop ?? null,
   };
