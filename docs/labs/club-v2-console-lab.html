@@ -75,10 +75,15 @@
   --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
   --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
-  --t1:22px; --l1:29px;      /* display — Black Han Sans, once per screen */
-  --t2:17px; --l2:23px;      /* title */
-  --t3:15px; --l3:21px;      /* body */
-  --t4:14px; --l4:19px;      /* detail — Korean floor */
+  /* Round 3-bis (2026-08-25): four Korean sizes (22/17/15/14) clustered too close — a 14-vs-15
+     distinction carries no information and reads as the exact schema inconsistency Sean called
+     out. Three steps, real jumps (≥1.25): display 24 · title 19 · one body tier 15 (the floor
+     rises to 15 with it — hierarchy comes from these jumps + weight + kickers, never from
+     near-identical gradations). --t4 kept as an alias so no selector goes dangling. */
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor now 15) */
   --tk:11px;                 /* letterspaced LATIN kicker (never Korean) */
   --ts:10px;                 /* Latin serial */
   --n1:34px; --nl1:42px;     /* numeral hero   (lh 1.24×) */
