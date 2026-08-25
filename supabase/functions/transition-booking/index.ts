@@ -345,7 +345,14 @@ Deno.serve(handle(async (req) => {
     // the module unimportable, and the cancel fee's charge + the runner's compensation ledger row
     // are money paths that must be pinned by tests. The party gate is that function's first line.
     case "cancel_owner":
-      return await cancelOwner(db, { bookingId: booking_id, uid, bk, notify });
+      // [blind r5 RC-2] `meta.expected_fee` is THE PRICE THE HUMAN SAW. It travels with the
+      // request so SQL can validate the number on the screen rather than a number the edge
+      // re-derived a moment later (0117 §9c). Optional today: clients that do not send it are
+      // priced by the edge's own quote, exactly as before, and say so in the log.
+      return await cancelOwner(db, {
+        bookingId: booking_id, uid, bk, notify,
+        expectedFee: typeof meta?.expected_fee === "number" ? meta.expected_fee : null,
+      });
 
     // ── 일정 변경 = 제안 (0016) — 확정 예약은 계약: 러너가 수락해야만 시간이 바뀐다 ──
     case "request_reschedule": {

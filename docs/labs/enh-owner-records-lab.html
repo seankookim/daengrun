@@ -1089,6 +1089,12 @@ badge grammar that makes 「12번째 러닝」 look exactly as rare as 「★ �
         <div><div style="font-size:16px;font-weight:600;color:#666666">결제</div>
           <div style="font-size:14px;line-height:19px;color:#666666;margin-top:2px">실제 청구된 금액과 영수증은 결제 내역에 있어요</div></div>
         <div style="font-size:14px;font-weight:800;color:#A83315;white-space:nowrap">내역 ›</div></div>
+            <!-- [Q1 2026-08-25] shipped code keeps these in the STOPPED state too (between 결제 and
+           기록, exactly here) — this frame had dropped them; see the note in frame 1. -->
+      <div class="sec" style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip">응가 ×1</div><div class="chip">물 ×2</div>
+        <div style="font-size:14px;color:#586055;width:100%;margin-top:4px">러너가 러닝 중 실시간으로 기록한 순간들이에요</div>
+      </div>
       <div class="sec">
         <div class="secT">기록</div>
         <div style="font-size:14px;line-height:20px;color:#666666">예정 6km 중 <span class="num" style="font-size:16px;line-height:20px;color:#111111">4.1</span>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.</div>
@@ -1174,6 +1180,14 @@ badge grammar that makes 「12번째 러닝」 look exactly as rare as 「★ �
       </div>
 
       <!-- one green -->
+      <!-- [Q1 2026-08-25, Sean verbatim: "it shuold also include the water and poo etc stats as in
+           the current version"] These chips were in the SHIPPED code all along (report.tsx events
+           block, every state) — frames 1/2 of THIS LAB dropped them, which is what prompted the
+           question. Re-inserted so the lab stops contradicting the code it mocks. -->
+      <div class="sec" style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip">응가 ×1</div><div class="chip">물 ×2</div>
+        <div style="font-size:14px;color:#586055;width:100%;margin-top:4px">러너가 러닝 중 실시간으로 기록한 순간들이에요</div>
+      </div>
       <div class="sec">
         <div class="secT">목표 달성</div>
         <div style="margin-top:10px">

@@ -150,3 +150,217 @@ if [ "$LROWS" = "1" ] && [ "$LSUM" = "12450" ]; then
 else
   psql -qc "call _fail('race','RE 동시 인루트 보상','rows=$LROWS sum=$LSUM (1/12450 기대 — 두 번째 행 = 이중 지급)')"
 fi
+
+# ---------- [0117] RS/RF 월드 빌더 ----------
+# RD/RE와 같은 이유로 여기 둔다: 이 두 레이스는 지연 프로토콜 슬라이스(0117)와 그 커스터디
+# 이웃(0083/0096 confirm_return_tx — TODOS.md:253이 "named, not simulated"라 적은 그 레이스,
+# 스위트 119:108-110이 갭으로 명명한 것)의 것이고, 픽스처가 검사와 같은 파일에 있어야
+# 락/CAS를 지운 사람이 무엇이 왜 빨개졌는지 한 번에 읽는다.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RS/RF 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_s() returns text
+language plpgsql as $$
+declare os uuid; rs uuid; ds uuid; rt uuid; bs uuid;
+begin
+  os := t_user('race_s_owner', 'owner'); rs := t_user('race_s_runner', 'runner');
+  ds := t_dog(os, '레이스S'); rt := t_route('레이스S 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (os, ds, rs, rt, 'confirmed', now() - interval '40 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bs;
+  perform open_checkin(bs);
+  -- 마감을 과거로 노화 (가드 트리거가 허용하는 형태: 미종결 + version 한 단계) — 마감 경로가
+  -- 지금 당장 해소하고 싶어지는 상태를 만든다.
+  update booking_checkins set deadline_at = now() - interval '1 second', version = version + 1
+   where booking_id = bs;
+  return bs::text || '|' || os::text;
+end $$;
+
+create or replace function race_setup_f() returns text
+language plpgsql as $$
+declare ofu uuid; rfu uuid; dfu uuid; rtf uuid; bf uuid;
+begin
+  ofu := t_user('race_f_owner', 'owner'); rfu := t_user('race_f_runner', 'runner');
+  dfu := t_dog(ofu, '레이스F'); rtf := t_route('레이스F 코스');
+  -- 반환 씰 직전의 정확한 상태: active + 동결된 러닝 + 러너 도장 하나. 두 번째 도장이
+  -- 정산을 연다 — 그 "두 번째 도장"이 동시에 두 번 오는 것이 이 레이스다.
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare,
+                        run_ended_at, runner_confirmed_return_at)
+  values (ofu, dfu, rfu, rtf, 'active', now() - interval '2 hours', 5.0,
+          9900, 15000, 0, 24900, 9900,
+          now() - interval '5 minutes', now() - interval '3 minutes')
+  returning id into bf;
+  insert into runs (booking_id, started_at, ended_at, actual_km, duration_sec, end_reason)
+  values (bf, now() - interval '65 minutes', now() - interval '5 minutes', 5.0, 2100, 'completed');
+  return bf::text;
+end $$;
+SQL
+
+# ---------- RS: 응답 vs 마감 해소 — 해소는 정확히 1회, 인간 진술이 침묵 void를 이긴다 ----------
+# FM6/FM8의 레이스 본체. 보호자의 cannot_proceed 트랜잭션이 부킹 락을 2초 쥐고 있는 동안,
+# 마감이 지난 체크인을 본 마감 경로(_resolve_checkin 'deadline' — 스위프 팔 ⓐ가 행마다 타는
+# 바로 그 코드)가 같은 행을 해소하려 든다. 후행은 락 대기 → 커밋 후 재독 → resolved_at을 보고
+# 물러서야 한다. 굳이 late_booking_sweep() 전체가 아니라 행 단위 경로를 부르는 이유: 스위프의
+# 전역 스캔은 이 파일 앞 스위트들(10~80)이 남긴 무관한 과거 예약까지 종결시켜 뒤 스위트(95+)의
+# 세계를 오염시킨다 — 전역 동작 자체는 152가 통제된 세계에서 고정한다.
+# ⚠ 벨트가 네 겹이라는 걸 정직하게 적는다 (RB처럼 이 핀은 "속성" 핀이다): ① 부킹 FOR UPDATE
+#   ② 체크인 FOR UPDATE ③ CAS 술어(resolved_at is null and version =) ④ 가드 트리거
+#   (재종결 raise). READ COMMITTED에서 UPDATE의 where 재평가 자체가 저장소 수준 CAS라서,
+#   어느 한 겹만 지워서는 이 검사가 빨개지지 않는다 — 셋을 다 지워도 ④가 raise로 잡는다.
+#   단일 커넥션 면(조기 후퇴 + CAS 동시 삭제 → 트리거 raise)은 152 L13이 M8로 계측한다.
+IDS=$(psql -qt -c "select race_setup_s()" | xargs)
+BS=${IDS%%|*}; OS=${IDS#*|}
+psql -q > .pgtest/race_s1.out 2>&1 <<SQL &
+begin;
+select set_config('request.jwt.claim.sub', '$OS', false);
+select answer_checkin('$BS', 'owner', 'cannot_proceed');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select _resolve_checkin('$BS', 'deadline');" > .pgtest/race_s2.out 2>&1
+wait
+# ⚠ [blind review MAJOR-12] THE PARTICIPANTS MUST BE PROVEN TO HAVE RUN. This file has no
+# `set -e` and never checked the psql exit codes, so a losing call replaced with `select 1/0`
+# still produced a green PASS — the race would have been "verified" by two commands that never
+# executed. Both sides are now required to have succeeded before the state assertion counts.
+S1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_s1.out || true)
+S2_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_s2.out || true)
+RES=$(psql -qt -c "select resolution || '/' || version::text from booking_checkins where booking_id = '$BS'" | xargs)
+NF=$(psql -qt -c "select count(*) from booking_faults where booking_id = '$BS'" | xargs)
+NN=$(psql -qt -c "select count(*) from notifications where ref_id = '$BS' and title = '지연 예약이 정리됐어요'" | xargs)
+ST=$(psql -qt -c "select status from bookings where id = '$BS'" | xargs)
+if [ "$RES" = "cannot_proceed/3" ] && [ "$NF" = "1" ] && [ "$ST" = "no_show" ] && [ "$NN" = "2" ] \
+   && [ "$S1_ERR" = "0" ] && [ "$S2_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RS 응답 vs 마감 해소 — cannot_proceed가 이기고 해소 1회 (resolution/version=cannot_proceed/3·과실 1행·알림 2건·no_show; CAS+행 락이 침묵 void의 덮어쓰기를 봉쇄)')"
+else
+  psql -qc "call _fail('race','RS 응답 vs 마감 해소','res=$RES faults=$NF status=$ST noti=$NN err1=$S1_ERR err2=$S2_ERR (cannot_proceed/3·1·no_show·2·0·0 기대)')"
+fi
+
+# ---------- RF: confirm_return_tx 이중 탭 — 두 번째 도장에 동시 착지, 원장 행은 정확히 1개 ----------
+# TODOS.md:253 / 스위트 119:108-110이 명명만 하고 시뮬레이션하지 못한 레이스, 여기서 닫는다.
+# 보호자 확인 두 개가 (러너 도장이 이미 있는 부킹에) 동시에 착지하면: 선행이 도장→씰→정산까지
+# 가고, 후행은 물러나 멱등 답("unchanged")을 내야 한다. ledger_items에는 booking_id 유니크가
+# 없으므로(0001:264) 두 번째 정산 = 러너 이중 지급이다 (RE와 같은 병, 다른 문).
+# ⚠ 어느 벨트가 실제로 드는지, 계측으로 적는다 (2026-08-21, 각 뮤테이션 단독 적용·전체 하네스):
+#   · 머리의 bookings FOR UPDATE만 지우면 → 752/0 GREEN — 후행은 도장 UPDATE의 행 쓰기락에서
+#     어차피 직렬화되고, READ COMMITTED의 문장 단위 재독 + confirm 자신의 completed 조기 답 +
+#     _settle_sealed_run의 자체 락·멱등팔이 그대로 든다. 즉 이 핀은 RB처럼 "속성" 핀이다 —
+#     단일 벨트 삭제로는 안 빨개지고, 그래서 초판 통과 문구가 머리 락 하나에 공을 돌린 것은
+#     계측이 반증했다.
+#   · _settle_sealed_run의 completed 멱등팔을 지우면 → 751/1 RED=[119 R9] — 그 팔의 주인은
+#     순차 멱등(두 번째 확인)이지 이 레이스가 아니다. RF 자체는 confirm의 completed 답이 지킨다.
+IDS=$(psql -qt -c "select race_setup_f()" | xargs)
+BF=$IDS
+QUOTE='{"base":9900,"distance_pay":15000,"addon_pay":0,"guarantee":0,"fee":4980}'
+psql -q > .pgtest/race_f1.out 2>&1 <<SQL &
+begin;
+select confirm_return_tx('$BF', 'owner', '$QUOTE'::jsonb);
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select confirm_return_tx('$BF', 'owner', '$QUOTE'::jsonb);" > .pgtest/race_f2.out 2>&1
+wait
+F1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_f1.out || true)
+LR=$(psql -qt -c "select count(*) from ledger_items where booking_id = '$BF'" | xargs)
+SA=$(psql -qt -c "select (settled_at is not null)::text from runs where booking_id = '$BF'" | xargs)
+BST=$(psql -qt -c "select status || '/' || (settlement_ready_at is not null)::text from bookings where id = '$BF'" | xargs)
+UN=$(grep -c '"unchanged" *: *true' .pgtest/race_f2.out || true)
+if [ "$LR" = "1" ] && [ "$SA" = "true" ] && [ "$BST" = "completed/true" ] && [ "$UN" = "1" ] \
+   && [ "$F1_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RF confirm_return_tx 이중 탭 — 정산 1회·원장 1행·후행은 unchanged (도장 행 쓰기락 직렬화 + completed 멱등 답 + _settle 자체 락의 겹벨트; 119:108의 명명된 갭 닫힘)')"
+else
+  psql -qc "call _fail('race','RF confirm_return_tx 이중 탭','ledger=$LR settled=$SA booking=$BST unchanged=$UN err1=$F1_ERR (1·true·completed/true·1·0 기대)')"
+fi
+
+# ---------- [0117 r5] RH/RK 월드 빌더 ----------
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RH/RK 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_h() returns text
+language plpgsql as $$
+declare oh uuid; rh uuid; dh uuid; rt uuid; bh uuid;
+begin
+  update ops_flags set late_protocol_live_since = now() - interval '1 day', updated_at = now();
+  oh := t_user('race_h_owner', 'owner'); rh := t_user('race_h_runner', 'runner');
+  dh := t_dog(oh, '레이스H'); rt := t_route('레이스H 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (oh, dh, rh, rt, 'runner_enroute', now() - interval '3 hours 10 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bh;
+  return bh::text;
+end $$;
+
+create or replace function race_setup_k() returns text
+language plpgsql as $$
+declare ok1 uuid; dk uuid; rt uuid; bk1 uuid; bk2 uuid; lot uuid;
+begin
+  ok1 := t_user('race_k_owner', 'owner'); dk := t_dog(ok1, '레이스K'); rt := t_route('레이스K 코스');
+  lot := km_grant(ok1, 20, 'recovery', 1);
+  insert into bookings (owner_id, dog_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (ok1, dk, rt, 'confirmed', now() - interval '3 hours 10 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bk1;
+  insert into bookings (owner_id, dog_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (ok1, dk, rt, 'confirmed', now() - interval '3 hours 12 minutes', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bk2;
+  perform km_reserve(bk1); perform km_reserve(bk2);
+  update km_lots set expires_at = now() - interval '1 day' where id = lot;
+  return bk1::text || '|' || bk2::text;
+end $$;
+SQL
+
+# ---------- RH: 인계 중간에 시계가 끼어든다 — 두 도장 찍힌 no_show 는 없어야 한다 ----------
+# [blind r5 F6] 인계는 한 순간이 아니다: 도장 → 재독 → picked_up 승격이 각각 다른 요청이다.
+# A 가 첫 도장을 찍고 2초 쥐고 있는 동안 B(스위프)가 같은 예약을 본다. 라운드 4의 stamps-first
+# 규칙은 "한 시점의 상태"를 읽으므로 이 인터리빙을 볼 수 없었다 — 단일 커넥션 핀(L42)도 마찬가지.
+# 시계는 도장이 하나라도 있으면 물러서야 한다.
+BH=$(psql -qt -c "select race_setup_h()" | xargs)
+psql -q > .pgtest/race_h1.out 2>&1 <<SQL &
+begin;
+update bookings set owner_confirmed_handoff_at = now() where id = '$BH';
+select pg_sleep(2);
+update bookings set runner_confirmed_handoff_at = now() where id = '$BH';
+update bookings set status = 'picked_up' where id = '$BH';
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select late_booking_sweep();" > .pgtest/race_h2.out 2>&1
+wait
+HST=$(psql -qt -c "select status from bookings where id = '$BH'" | xargs)
+HSTAMPS=$(psql -qt -c "select (owner_confirmed_handoff_at is not null)::int + (runner_confirmed_handoff_at is not null)::int from bookings where id = '$BH'" | xargs)
+H1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_h1.out || true)
+if [ "$HSTAMPS" = "2" ] && [ "$HST" != "no_show" ] && [ "$H1_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RH 인계 인터리빙 — 도장 하나가 보이면 시계는 물러선다 (양쪽 도장 + no_show 아님; 인계는 한 순간이 아니다)')"
+else
+  psql -qc "call _fail('race','RH 인계 인터리빙','status=$HST stamps=$HSTAMPS err=$H1_ERR (2·no_show아님·0 기대 — 두 도장 찍힌 no_show 는 개가 넘어간 뒤의 불발이다)')"
+fi
+
+# ---------- RK: 같은 로트를 쥔 두 종결이 동시에 — 데드락 없이 둘 다 끝난다 ----------
+# [blind r5 F8] L46 은 "범위+락+오름차순"을 소스로 고정하지만, 그 규약이 실제로 직렬화하는지는
+# 두 커넥션이 있어야 보인다. 같은 만료 로트를 공유하는 두 예약을 동시에 실링 해소한다.
+IDS=$(psql -qt -c "select race_setup_k()" | xargs)
+BK1=${IDS%%|*}; BK2=${IDS#*|}
+psql -q > .pgtest/race_k1.out 2>&1 <<SQL &
+begin;
+select _resolve_checkin('$BK1', 'ceiling');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select _resolve_checkin('$BK2', 'ceiling');" > .pgtest/race_k2.out 2>&1
+wait
+K_DEAD=$(cat .pgtest/race_k1.out .pgtest/race_k2.out | grep -ci "deadlock" || true)
+K_ERR=$(cat .pgtest/race_k1.out .pgtest/race_k2.out | grep -ciE "^ERROR|FATAL" || true)
+K_ST=$(psql -qt -c "select count(*) from bookings where id in ('$BK1','$BK2') and status = 'no_show'" | xargs)
+K_EXP=$(psql -qt -c "select count(*) from km_lots l join km_ledger kl on kl.lot_id = l.id where kl.booking_id in ('$BK1','$BK2') and l.expires_at > now()" | xargs)
+if [ "$K_DEAD" = "0" ] && [ "$K_ERR" = "0" ] && [ "$K_ST" = "2" ] && [ "$K_EXP" = "0" ]; then
+  psql -qc "call _pass('race','RK 같은 로트 동시 종결 — 데드락 없음·둘 다 no_show·시계가 수명을 늘리지 않음 (오름차순 락 규약이 실제로 직렬화한다)')"
+else
+  psql -qc "call _fail('race','RK 같은 로트 동시 종결','deadlock=$K_DEAD err=$K_ERR no_show=$K_ST 연장된로트=$K_EXP (0·0·2·0 기대)')"
+fi
+psql -qc "update ops_flags set late_protocol_live_since = null, updated_at = now()"

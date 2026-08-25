@@ -1284,6 +1284,25 @@ took silently to reach it. But this is taste on a surface you chose, so it is yo
 
 ## §0-undetricies · The pick-sheet fleet's seven residual questions — 2026-08-24 night
 
+> **✅ ANSWERED 2026-08-25, Sean verbatim:** "q1: yeah running report (b) 1, but it shuold also
+> include the water and poo etc stats as in the current version. q2: let the runner review, dont
+> trap them from anything, but make sure a huge nudge for photo. q3: accept a photo less one, but
+> make sure there are screens before the run and during the live run screen that remind the runner
+> for photos. q4: 12 sure. q5: what do you mean furthest 20? is this the runner side's reservation
+> thing? q6: if the runner is searching for a run, then a how far away they are from the starting
+> point is a metric they need to see and doesnt show the actual address anyways; also include the
+> 동. are runner side booking mangement and incoming query management screens built? q7: sure
+> include that statement but make it small and show once only." [end of his words]
+>
+> Dispositions: Q1 = B① confirmed + care stats (급수/배변 등) must survive in every state — build
+> item. Q2 = gates OFF, huge nudge — build item (reverses the as-built gate). Q3 = no server
+> enforcement; reminders pre-run AND during live — build item. Q4 = 12pt stays — CLOSED, no change.
+> Q5 = clarification returned to Sean (it is the OWNER's booking list; runner calendar shares the
+> window shape). Q6 = RULED: distance-to-start + 동 on runner request cards — needs a server slice
+> (coords are assigned-runner-only by 0060/0065; the shape is a definer surface returning
+> distance/동, never raw coords). Q7 = keep, small, once — build item.
+
+
 Your 2026-08-24 commentary (docs/decisions/2026-08-24-sean-ui-club-commentary.md) is fully
 executed: trunk e031a31..1bb7891, ten commits, every pick built or listed here. These seven are
 what the fleet could not decide for you. Each is one word or one sentence; none blocks anything

@@ -226,17 +226,15 @@ export const cancelPolicy = {
   runnerShare: 0.5,    // 10% 티어의 러너 배분 (이동 중 티어는 100% 러너)
 };
 
-// Display mirror of 0066's four arms, evaluated in the SERVER'S ORDER (unmatched → en route →
-// ≥24h → else). Display only: transition-booking re-quotes server-side and the post-cancel
-// alert prints ITS number. A booking with no scheduled_at (mock rows) can't answer the 24h
-// question, so it falls to the charged arm rather than promising a free cancel we can't back.
-export function cancelFeeRateFor(b: { rawStatus?: string; matched?: boolean; scheduledAt?: string }): number {
-  if (b.matched === false || b.rawStatus === 'matching' || b.rawStatus === 'runner_pending') return cancelPolicy.unmatchedFeeRate;
-  if (b.rawStatus === 'runner_enroute') return cancelPolicy.enrouteFeeRate;
-  const t = b.scheduledAt ? new Date(b.scheduledAt).getTime() : NaN;
-  if (!isNaN(t) && t - Date.now() >= 24 * 3_600_000) return cancelPolicy.earlyFeeRate;
-  return cancelPolicy.feeRate;
-}
+// [2026-08-25] cancelFeeRateFor — the four-arm display mirror of 0066 — is RETIRED, per Sean:
+// "ship the cancel fee mirror thing." Per-booking numbers now come from quote_cancel_fee
+// (api.ts quoteCancelFee), the party-gated window 0117 §9b opens onto the server ladder.
+// The mirror died of a structural blindness, not a bug: 0117 §9's fault-waiver reads
+// booking_faults, which is SEALED from every client role, so no client-side mirror — however
+// faithful — could ever see the arm that quotes 0 to a wronged owner. Sean chose reading over
+// mirroring on 2026-08-21 (recorded in the migration itself, §9b's comment). cancelPolicy
+// above SURVIVES as policy WORDS for pre-booking surfaces (request.tsx's ladder copy, the
+// share-split sentence) — words state policy; numbers are read.
 
 // ---------- Runner earnings ledger (schema seed: payouts/ledger tables) ----------
 export interface LedgerItem {

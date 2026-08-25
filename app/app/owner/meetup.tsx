@@ -5,13 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
-import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, subscribeBooking } from '../../src/lib/api';
+import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, quoteCancelFee, subscribeBooking } from '../../src/lib/api';
 import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
-import { cancelPolicy, draft } from '../../src/store';
+import { draft } from '../../src/store';
 import { layout, paper } from '../../src/theme';
 
 // 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
@@ -264,16 +264,32 @@ export default function OwnerMeetup() {
   // price, so no client number is guessed. The success alert then shows the server's returned
   // cancel_fee/refund (schedule.tsx cancel vocabulary, verbatim). At stage 'arrived' the
   // server status is runner_enroute — the confirm copy must say 50% plainly, and why.
-  const cancel = () => {
+  const cancel = async () => {
     if (!bookingId || cancelling) return;
-    const enroute = stage === 'arrived'; // server runner_enroute — 50% tier (0066)
+    // [0117 §9b mirror, 2026-08-25] the % came from the client's cancelPolicy constants, which
+    // cannot see the §9 fault-waiver — this alert could say 50% about a cancel the server
+    // charges 0. The number is now READ before it is promised, and a quote we could not get
+    // BLOCKS the flow loudly: a price we cannot show is a price we may not commit ("the price
+    // shown IS the price charged" — §9c's law, applied at the alert). Frozen-surface note:
+    // this touches the cancel confirm only — stage machine, polling, confirmHandoff untouched.
+    let q: { fee: number; status: string };
+    try {
+      q = await quoteCancelFee(bookingId);
+    } catch (e) {
+      console.warn('[o-meetup] cancel quote:', (e as Error)?.message ?? e);
+      Alert.alert('수수료를 확인하지 못했어요', '네트워크를 확인하고 다시 시도해주세요 — 수수료를 보여드린 뒤에만 취소를 진행할 수 있어요');
+      return;
+    }
+    const enroute = q.status === 'runner_enroute'; // 견적의 status — stage 추정 은퇴
     Alert.alert(
       '일정을 취소할까요?',
       // [post-pay 2026-08-13] '차감'은 잡아둔 돈이 있을 때만 참인 말이다 — 러닝 전에는
       // 결제된 금액이 없으므로 수수료는 차감이 아니라 **청구**다 (§0-bis).
-      `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n${enroute
-        ? `러너가 이미 픽업으로 출발했어요.\n지금 취소하면 예약 금액의 ${cancelPolicy.enrouteFeeRate * 100}%가 취소 수수료로 청구되고, 시간을 내어 출발한 러너의 보상으로 쓰여요.`
-        : `시작 24시간 전까지는 수수료가 없어요.\n이후에는 예약 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 청구돼요.`}`,
+      `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n${q.fee > 0
+        ? (enroute
+          ? `러너가 이미 픽업으로 출발했어요.\n지금 취소하면 취소 수수료 ${q.fee.toLocaleString()}원이 청구되고, 시간을 내어 출발한 러너의 보상으로 쓰여요.`
+          : `지금 취소하면 취소 수수료 ${q.fee.toLocaleString()}원이 청구돼요.`)
+        : '지금 취소하면 청구되는 수수료가 없어요.'}`,
       [
         { text: '돌아가기', style: 'cancel' },
         {

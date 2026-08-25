@@ -974,11 +974,18 @@ export default function ActiveRun() {
   // 정산 실패 알림이 이미 그 문장을 들고 있다 (:767 "'이미 정산됐다'고 하면 정산은 끝난 거예요").
   const incidentBid = bookingWatch?.status === 'incident_review' ? bookingWatch.bid : null;
 
-  // ---------- 사진 요건 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
+  // ---------- 사진 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
   // Verbatim: "For the runner done screen (C), make sure there's a mandatory nudge for pictures
   // (make that a requirement and nudge them during the runner live screen so they don't forget."
-  // 요건 자체는 done 화면이 잠근다(사진 0장이면 앞으로 가는 문이 disabledFill로 잠긴다). 이 화면이
-  // 하는 일은 **잊지 않게 말해 주는 것**뿐이다 — 추적·정산·천장·LA에는 손대지 않는다.
+  //
+  // ⚠ [2026-08-25 · Sean, §0-undetricies Q2·Q3] done 화면의 **잠금은 은퇴했다** — 위 문단이 적어 둔
+  // "요건 자체는 done 화면이 잠근다"는 더 이상 참이 아니다(근거로 남겨 둔 문장이다, 지우지 않는다).
+  //   "q2: … dont trap them from anything, but make sure a huge nudge for photo."
+  //   "q3: accept a photo less one, but make sure there are screens before the run and during the
+  //    live run screen that remind the runner for photos."
+  // 그래서 이 알림은 **더 중요해졌다**: 이제 사진을 남기게 만드는 것은 잠금이 아니라 세 화면의
+  // 리마인더뿐이다 (meetup 러닝 전 · 이 화면 라이브 · done 완료). 이 화면이 하는 일은 처음과 같이
+  // **잊지 않게 말해 주는 것**뿐이다 — 추적·정산·천장·LA에는 손대지 않는다.
   //
   // ⚠ 로컬 evCounts.photo로는 이 문장을 말할 수 없다: 리마운트하면 0으로 돌아가서, 이미 네 장을 찍은
   // 러너에게 '사진이 없어요'라고 거짓말을 하게 된다. 서버 진실(runs.photos)을 한 번 읽는다 —
@@ -1427,16 +1434,31 @@ export default function ActiveRun() {
           </Text>
         </Row>
 
-        {/* 사진 요건 알림 (Sean 2026-08-24) — 완료 화면이 사진 1장을 요구하므로, 잊기 전에 여기서
-            말한다. 서버 진실을 아는 상태(ready)에서 0장일 때만 뜬다: 로딩 중이거나 못 읽었을 때
-            띄우면 이미 찍은 러너에게 거짓말이 된다. 문장 바로 아래가 스냅 칩이라 지시가 죽지 않는다.
-            천장 프레임에서는 칩이 잠기므로 남은 경로(완료 화면)를 그대로 가리킨다. */}
+        {/* 사진 알림 (Sean 2026-08-24 → 2026-08-25 유지·강화) — 서버 진실을 아는 상태(ready)에서
+            0장일 때만 뜬다: 로딩 중이거나 못 읽었을 때 띄우면 이미 찍은 러너에게 거짓말이 된다.
+            문장 바로 아래가 스냅 칩이라 지시가 죽지 않는다. 천장 프레임에서는 칩이 잠기므로 남은
+            경로(완료 화면)를 그대로 가리킨다.
+            [2026-08-25 · Sean Q3 verbatim] "make sure there are screens before the run and during
+            the live run screen that remind the runner for photos" — 그래서 이 줄은 **남고**, 한 줄
+            텍스트에서 잉크 플레이트로 올라간다(§3 플레이트 법: 다크 패널 위 작은 흰 활자는 자기 판을
+            들고 다닌다). 코랄 **면**은 늘지 않는다 — 이 화면의 코랄(colors.runLive)은 진행 필과
+            천장 CTA의 것이고, 여기 쓰인 코랄은 패널 상단 심과 같은 헤어라인 하나(paper.line)다.
+            ⚠ 레인 산수 불변: 패널은 자기 콘텐츠 높이를 그대로 받고 laneMax가 **측정된** panelH에서
+            계산되므로(:1085), 이 판이 커진 만큼 스트립 레인이 줄 뿐 MAP_MIN_H는 건드리지 않는다.
+            [2026-08-25] 카피에서 '필요해요'(요건)가 빠졌다 — done의 잠금이 은퇴했으므로 요건이라
+            부르면 그게 거짓이다. 부탁의 무게는 활자와 판이 진다. */}
         {running && photoState === 'ready' && photoCount === 0 && (
-          <Text style={s.photoNudge}>
-            {ceilingHit
-              ? '사진 1장이 필요해요 — 종료 후 완료 화면에서 남길 수 있어요'
-              : '사진 1장이 필요해요 — 아래 스냅으로 남겨주세요 · 보호자 리포트에 실려요'}
-          </Text>
+          <View style={s.photoNudge}>
+            <Row style={{ gap: 8, alignItems: 'center' }}>
+              <Icon name="Camera" glyph="◉" size={17} color="#FFFFFF" />
+              <Text style={s.photoNudgeTitle}>사진, 아직 한 장도 없어요</Text>
+            </Row>
+            <Text style={s.photoNudgeBody}>
+              {ceilingHit
+                ? '종료 후 완료 화면에서 남길 수 있어요 · 보호자 리포트에 실려요'
+                : '아래 스냅으로 한 장만 — 보호자가 가장 기다리는 기록이에요'}
+            </Text>
+          </View>
         )}
 
         {/* 러닝 이벤트 스트립 — 원탭이 보호자 알림으로 (응가 도장 포함).
@@ -1735,8 +1757,16 @@ const s = StyleSheet.create({
   paceChipInkSlow: { color: paper.paceSlowInk },
   paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
   paceCare: { marginTop: 7, fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
-  // 사진 요건 알림 — 바로 아래 스냅 칩을 가리키는 한 줄. 흰 잉크(다크 패널 위 12.6:1)
-  photoNudge: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: '#FFFFFF', marginBottom: 10 },
+  // 사진 알림 — 바로 아래 스냅 칩을 가리킨다. [2026-08-25] 한 줄 텍스트 → 잉크 플레이트:
+  // #222222는 이 화면이 이미 쓰는 값(chatPin·moreBtn)이라 신규 헥스 0개이고, 왼쪽 코랄 3px는
+  // 패널 상단 심과 **같은 토큰**(paper.line)의 굵은 형태다 — 새 코랄 면이 아니다.
+  // 측정 대비: #FFFFFF/#222222 = 15.9:1 · #BBBBBB/#222222 = 8.3:1 (둘 다 AA 통과).
+  photoNudge: {
+    backgroundColor: '#222222', borderLeftWidth: 3, borderLeftColor: paper.line,
+    paddingVertical: 11, paddingHorizontal: 12, marginBottom: 12,
+  },
+  photoNudgeTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: '#FFFFFF' },
+  photoNudgeBody: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 4 },
   // 천장 종료의 정산 예고 — 판정이 아니라 사실이라 중립 잉크
   ceilingNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', textAlign: 'center', marginTop: 10 },
   moreBtn: { width: 44, height: 52, borderRadius: 0, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },

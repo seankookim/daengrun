@@ -608,6 +608,20 @@ export default function Meetup() {
             <CheckRow icon="Cable" label="러닝 리드줄로 교체했어요" on={check.leash} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, leash: !c.leash })); }} />
             <CheckRow icon="Droplet" label={`${dogName} 급수 준비 완료`} on={check.water} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, water: !c.water })); }} />
             <CheckRow icon="Bone" label="간식 파우치 챙겼어요" on={check.treats} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, treats: !c.treats })); }} />
+            {/* 사진 리마인더 — 러닝 **전** 화면 (Sean 2026-08-25, §0-undetricies Q3 verbatim:
+                "accept a photo less one, but make sure there are screens before the run and during
+                the live run screen that remind the runner for photos"). done 화면의 사진 잠금이
+                은퇴하면서, 사진을 남기게 만드는 것은 세 화면의 리마인더뿐이다 — 이 줄이 그 첫 번째다.
+                ⚠ 이 화면은 동결이다(스테이지 머신·폴링·confirmHandoff): 그래서 이건 **정적 한 줄**이다 —
+                새 상태도, 이펙트도, 플로우 엣지도, 네 번째 체크 항목도 아니다. 체크 카운터(3)와
+                allChecked 게이트는 손대지 않았고, 이 줄은 아무것도 잠그지 않는다.
+                자리: 세 체크 행 아래 — 프리플라이트의 마지막 말이 곧 러닝의 첫 부탁이 된다.
+                문법은 자문 스트립(wash 면 + 왼쪽 코랄 룰 + 읽는 잉크) — 코랄 **면** 0개, 새 헥스 0개.
+                체크 행과 같은 옷을 입히지 않는 이유는 s.photoRemind 주석에 있다. */}
+            <View style={s.photoRemind}>
+              <Icon name="Camera" glyph="◉" size={17} color={paper.actionInk} />
+              <Text style={s.photoRemindTxt}>러닝 중 사진을 꼭 남겨주세요 — 보호자가 가장 기다리는 기록이에요</Text>
+            </View>
           </View>
         )}
 
@@ -980,6 +994,17 @@ const s = StyleSheet.create({
   },
   checkBoxOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   checkTick: { fontSize: 12, lineHeight: 15, fontWeight: '900', color: '#fff' },
+  // 사진 리마인더 (2026-08-25) — 체크 행과 **다른 얼굴**이어야 한다: 저건 탭하는 프리플라이트고
+  // 이건 읽는 부탁이다. checkRowOn이 이미 wash 면 + 코랄 1px 전체 보더라서, 같은 옷을 입히면
+  // 체크된 네 번째 항목으로 읽힌다. 그래서 전체 보더 대신 **왼쪽 코랄 3px**(같은 paper.line
+  // 토큰의 굵은 형태) — run.tsx의 라이브 넛지와 같은 형태라, 러닝 전/러닝 중 리마인더가 두 화면에서
+  // 한 얼굴로 읽힌다. 잉크는 actionInk(워시 위 5.99:1), 체크박스 없음.
+  photoRemind: {
+    flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12,
+    backgroundColor: paper.wash, borderLeftWidth: 3, borderLeftColor: paper.line,
+    paddingVertical: 12, paddingHorizontal: 12,
+  },
+  photoRemindTxt: { flex: 1, fontSize: 14, lineHeight: 19.5, fontWeight: '700', color: paper.actionInk },
 
   // ── 행동 존 (버튼 매트릭스는 PaperBtn이 진다 — 여기는 자리와 힌트만) ──
   actions: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },

@@ -95,7 +95,7 @@ words) · 맹견 refused-vs-conditions (moves ui6's copy only) · breed-alias sc
    every known contradiction to resolve — start from its fact corrections, not from spec v1's
    claims.
 5. **[build]** The runner-money strip slice (small, ruled, contract in §1) · R17's remainder
-   (sweep → per-row commits; announcer-claimed) · counsel briefs still unsent (Sean).
+   (sweep → per-row commits; RELEASED 2026-08-25 to the spec-v2 session — never started, zero code exists) · counsel briefs still unsent (Sean).
 
 ## 6. The F5 anomaly — RESOLVED, and worth keeping as a lesson
 

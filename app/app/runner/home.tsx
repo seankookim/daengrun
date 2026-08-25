@@ -67,10 +67,13 @@ import { colors, layout, lilac, paper } from '../../src/theme';
 //  · A③ 오늘 — one row above 이번 주, from jobs already in memory + the isTodayKst() below.
 //  · A② the front request gets its face (OpenRequest.photoUrl was fetched and never drawn) and the
 //    expiry sentence 0080 actually enforces.
-//    ⚠ HELD, not dropped: the lab's countdown (「5시간 뒤」) on the request ticket needs
-//    OpenRequest.scheduledAt, which the mapper drops after formatting `when` (api.ts:787-805).
-//    Re-parsing the typeset `when` string to fake it is exactly what RunnerJob.scheduledAt exists
-//    to prevent, so the ticket keeps the full clock until that one mapper field lands.
+//    ✔ [2026-08-25] The held half landed. `OpenRequest.scheduledAt` (raw ISO) reached both mappers
+//    on 2026-08-24, so the request ticket now promotes the countdown and demotes the clock exactly
+//    like the 진행 중 ticket above it, and the stub rows carry the same relative time. The countdown
+//    is derived from the RAW field and never from the typeset `when` — that re-parse is the thing
+//    RunnerJob.scheduledAt exists to prevent, and it would have given this screen two clocks.
+//    The deadline is not a policy number: expire_unmatched_bookings (0080 ⓐ) deletes a matching /
+//    runner_pending booking when `scheduled_at < now()`, so the run's own start time IS the deadline.
 //  · A① the quiet day explains itself — 온라인 · 러닝 가능 시간 as two summary rows (the second a
 //    real door to the editor) + the sentence that kills the wrong inference.
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
@@ -445,6 +448,17 @@ export default function RunnerHome() {
   // now owns it, because a dog already committed outranks a request nobody has accepted.
   const liveOwnsCoral = current != null;
 
+  // [A② 2026-08-25] 맨 앞 요청의 카운트다운. 진행 중 티켓과 **같은 함수**를 쓴다 (relWhen) —
+  // 화면 하나에 상대시각 포맷터가 둘이면 두 티켓이 같은 사실을 다르게 말한다.
+  // ⚠ 한 번만 계산해서 두 줄(큰 슬롯 · 강등된 시계)이 나눠 쓴다. 두 번 부르면 Date.now()를 두 번
+  //   읽어 같은 렌더 안에서 분이 어긋날 수 있다.
+  // ⚠ `late`면 카운트다운을 그리지 않는다 (아래 티켓은 시계를 그대로 유지한다). 시작 시각이 지난
+  //   요청은 '늦은' 것이 아니라 **만료 대상**이고(0080 ⓐ), relWhen의 지각 어휘(「N분 늦음」·
+  //   「지난 예약」)는 러너를 탓하는 말이다 — 아무도 늦지 않았다. 크론이 아직 안 돌았을 뿐이라
+  //   부재로 둔다: 없는 사실을 지어내는 것보다 안 말하는 쪽이 이 파일의 법이다.
+  const frontRel = inbox.length > 0 ? relWhen(inbox[0].scheduledAt) : null;
+  const frontAhead = frontRel && !frontRel.late ? frontRel : null;
+
   // when 문자열 파싱 — 마지막 토큰 = 시간, 앞 = 요일/날짜 (소스 다음예약 파싱과 동일)
   const parseWhen = (w: string) => {
     const i = w.lastIndexOf(' ');
@@ -779,7 +793,14 @@ export default function RunnerHome() {
               <View style={styles.tMain}>
                 <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
                   <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <Text style={[styles.tMid, nf]} numberOfLines={1}>{inbox[0].when}</Text>
+                    {/* [A② 2026-08-25] 행동을 바꾸는 값이 큰 슬롯을 갖는다. 진행 중 티켓의 질문이
+                        「나 늦었나」라 relWhen이 시계를 밀어낸 것과 같은 이유로, 요청의 질문은
+                        「얼마나 남았나」다 — 그리고 서버가 그 질문에 정확히 답한다 (0080 ⓐ).
+                        남은 시간을 모를 때(시각 없음·하루 넘게 남음·이미 지남)는 **시계가 자리를
+                        지킨다**: 추측하지 않고, 있던 사실을 지우지도 않는다. */}
+                    <Text style={[styles.tMid, nf]} numberOfLines={1}>
+                      {frontAhead ? frontAhead.text : inbox[0].when}
+                    </Text>
                     {/* [§3b status chip] 16/800 · 보더 없는 틴트 필 · 데이텀(시각)과 같은 행 */}
                     {inbox[0].directed && (
                       <View style={styles.monoTagStar}><Text style={styles.monoTagStarTxt}>★ 나를 지명</Text></View>
@@ -789,8 +810,13 @@ export default function RunnerHome() {
                       시각 그 자체**다: expire_unmatched_bookings(0080 ⓐ, 0017/0037/0060 계승)가
                       `status in ('matching','runner_pending') and scheduled_at < now()`인 예약을
                       expired로 넘긴다. 요청함 화면의 푸터가 이미 약속하던 문장이고, 여기서는
-                      새 컬럼도 새 쿼리도 없이 참이다. */}
-                  <Text style={styles.objClock}>시작 시각이 지나면 자동 만료돼요</Text>
+                      새 컬럼도 새 쿼리도 없이 참이다.
+                      [2026-08-25] 카운트다운이 위로 올라가면 시계는 여기로 내려온다 — 사라지지는
+                      않는다. 러너는 보호자에게 시각을 **말로** 해야 하고, 「5시간 뒤」로는 못 한다
+                      (진행 중 티켓이 같은 이유로 시계를 남기는 것과 같은 결정). */}
+                  <Text style={styles.objClock}>
+                    {frontAhead ? `${inbox[0].when} · ` : ''}시작 시각이 지나면 자동 만료돼요
+                  </Text>
                   {/* [A② 2026-08-24] 얼굴. `photoUrl`은 요청마다 이미 실려 오고(api.ts OpenRequest)
                       요청함 화면은 그리는데, 홈 티켓만 개 이름을 부르면서 보여주지 않았다.
                       Avatar는 photo_url이 null이면 모노그램으로 떨어지므로 빈 액자가 되지 않는다.
@@ -856,7 +882,13 @@ export default function RunnerHome() {
                 요청함으로 가는 문이었다 (라벨이 행동을 위장하던 것을 정직하게). '모두 보기' 행 삭제 —
                 섹션 헤더의 '요청함 · N건 ›'이 같은 문이다 (중복 문 0). */}
             <View style={{ gap: 9, marginTop: 9 }}>
-              {inbox.slice(1).map((rq, i) => (
+              {inbox.slice(1).map((rq, i) => {
+                // [A② 2026-08-25] 스텁도 같은 마감을 안다 — 앞 티켓만 남은 시간을 알고 나머지가
+                // 시각만 말하면, 러너는 어느 요청이 먼저 사라지는지 보려고 요청함까지 가야 한다.
+                // 앞 티켓과 **같은 함수·같은 클램프**이고, 지각 어휘는 여기서도 그리지 않는다.
+                const rel = relWhen(rq.scheduledAt);
+                const ahead = rel && !rel.late ? rel : null;
+                return (
                 <View key={i} style={styles.stub}>
                   <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 11, paddingTop: 12, paddingBottom: 10 }}>
                     <Row style={{ alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -864,8 +896,9 @@ export default function RunnerHome() {
                       <Text style={[styles.stubKm, nf]}>{rq.km}<Text style={styles.stubKmUnit}>KM</Text></Text>
                       {rq.directed && <View style={styles.monoTagStar}><Text style={styles.monoTagStarTxt}>★ 나를 지명</Text></View>}
                     </Row>
-                    <Row style={{ alignItems: 'center', gap: 5, marginTop: 5 }}>
+                    <Row style={{ alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                       <Text style={styles.stubWhen}>{rq.when}</Text>
+                      {ahead && <Text style={styles.stubRel}>· {ahead.text}</Text>}
                     </Row>
                   </View>
                   <View style={styles.stubAct}>
@@ -882,7 +915,8 @@ export default function RunnerHome() {
                     </Pressable>
                   </View>
                 </View>
-              ))}
+                );
+              })}
             </View>
           </>
         ) : (
@@ -1532,6 +1566,11 @@ const styles = StyleSheet.create({
   stubKm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   stubKmUnit: { fontSize: 14, color: lilac.dim, fontWeight: '600' }, // [v4] 코랄 단위 은퇴 — 단위는 강조가 아니다
   stubWhen: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500' },
+  // [A② 2026-08-25] 스텁의 마감 — 같은 줄, 같은 크기(14pt 바닥), 잉크로 한 단 올린다.
+  // 시각은 참고값이고 남은 시간이 행동을 바꾸는 값이라 이쪽이 무게를 갖는다. 앰버·크리티컬은
+  // 쓰지 않는다: 서버에 임박 문턱이 아예 없어서(오직 scheduled_at < now()) 색으로 급함을
+  // 주장하면 그건 측정이 아니라 지어낸 긴급함이다.
+  stubRel: { fontSize: 14, lineHeight: 18, color: lilac.head, fontWeight: '800' },
   // [Ⓑ① re-derive] 112 케이지 유지. 캡션이 'KRW 실수령' → '실수령'(한글 3자 ≈ 3×14 + ls = 45px)으로 줄어
   // 최장 소자는 이제 요금 숫자('999,999' 7글리프 × ~8.5 ≈ 60px)와 '보기 ›' 라벨(2×16 + 12 ≈ 44px) —
   // 60 + 패딩 16 = 76 < 112 (기기 폰트 스케일 여유 36px).
