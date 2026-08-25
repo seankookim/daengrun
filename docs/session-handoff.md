@@ -1,4 +1,4 @@
-# Session handoff — spec-v2 session, 2026-08-25 evening (v7)
+# Session handoff — spec-v2 session, 2026-08-25 evening (v8)
 
 > ⚠ **§1's table below was rewritten at 17:0x KST from live measurements.** Everything in v6's
 > table about production being at 0119, the clock being OFF, and spec v2's §14 gating all six
@@ -31,16 +31,54 @@ said so, unconfirmed by me · **[from-history]** earlier in conversation.
 
 | System | State | Provenance |
 |---|---|---|
-| Production | **0126 head.** 0117-0126 all applied. **The late-booking clock is LIVE** — `ops_flags.late_protocol_live_since = 2026-08-25T05:34:06.854Z`, i.e. it has been running ~2h20m as of this write. **Charging is still OFF** (`ops_flags.payments_live_since` null). ⚠ Note the column lives on `ops_flags`, NOT on `club_config` — v6 and several messages said `club_config` and the query errors there. | [verified-now] `db query --linked` against `supabase_migrations.schema_migrations` and `ops_flags`, this hour |
-| Edge functions | create-booking-hold **v11** · transition-booking **v35** · settle-run **v16** · collect-charges v3 · confirm-payment v2 · geocode-address v2 · delete-account v1 · open-drop v8. settle-run moved to v16 after the morning parity sweep — somebody redeployed it since; not mine. | [verified-now] `functions list` |
+| Production | **0127 head — 맹견 gate REMOVED and LIVE.** 0117-0126 all applied. **The late-booking clock is LIVE** — `ops_flags.late_protocol_live_since = 2026-08-25T05:34:06.854Z`, i.e. it has been running ~2h20m as of this write. **Charging is still OFF** (`ops_flags.payments_live_since` null). ⚠ Note the column lives on `ops_flags`, NOT on `club_config` — v6 and several messages said `club_config` and the query errors there. | [verified-now] `db query --linked` against `supabase_migrations.schema_migrations` and `ops_flags`, this hour |
+| Edge functions | create-booking-hold **v12** (redeployed with 0127; deployed source downloaded and grepped — no 맹견 token survives) · transition-booking **v35** · settle-run **v16** · collect-charges v3 · confirm-payment v2 · geocode-address v2 · delete-account v1 · open-drop v8. settle-run moved to v16 after the morning parity sweep — somebody redeployed it since; not mine. | [verified-now] `functions list` |
 | Trunk `redesign-v4` | ≥ `6b4be67`. Moves several times an hour today — fetch, never quote a SHA from a doc. | [verified-now] |
 | **Club spec v2** | Landed, **and now being RE-SCOPED against Sean's sixth-round rulings** (below). Two of its positions are REVERSED, not refined: §4.2's host-admission survival, and §6.6's recovery pen. **Do not build S2-S5 client halves against the landed text** — the admission surfaces are exactly what moves. | [verified-now] |
 | **Sixth-round rulings** | On trunk at `6b4be67`, `docs/decisions/2026-08-25-console-rulings.md`. Five machine rulings Sean issued inside a design-lab critique: pack model · **no host approval of signups** · **no host pair-reallocation** (supersedes his own 14:26 tap for the 2-hour backstop — later word governs) · board ① · Instagram-style profiles as a NEW lane. | [verified-now] |
-| **맹견 removal (0127 + suite 161)** | Server half written, **885/0**, mutation battery measured (12 runs, **zero misses** — folded into 161's header at `613b4de`). Blind money-path review returned **LAND, held on sequencing only**: the client half must be in the same commit, which is being implemented now. Slice A keeps the three `dogs` columns, their CHECK and the enum on purpose — that is what makes the deploy-order constraint ZERO. **NOT landed, NOT deployed.** | [verified-now] harness run this hour |
+| **맹견 removal (0127 + suite 161)** | **DONE — landed `4632e3d`, deployed, verified live.** Query readback: 0 dangerous triggers · 0 gate functions · 3 `dogs` columns KEPT (Slice A boundary held) · `generate_recurring_bookings` acl = `postgres=X service_role=X` (**no PUBLIC** — the review's Critical closed in the live grant, not just pinned). Harness **886/0** re-measured on the merged tree. Two blind reviews; codex found the Critical (a `create or replace` relying on grant preservation → PUBLIC-executable definer on a partial apply). **Slice B — dropping the three columns — is NOT scheduled by calendar but by a MEASURED bundle-distribution check** (contract §0). | [verified-now] live query + `functions list` |
 | **Runner-money strip** | 0121 landed and deployed. | [verified-now] via schema_migrations |
 | **R17 remainder** | Closed: 0126, the flip-activation package, is deployed and the clock it was built for is live. | [verified-now] |
 | 0120 location law | Parked at `b06f878`, unchanged. | [from-history] |
 | Console | <https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> — holds all 24 answered rulings. ⚠ **Re-fetch its STATE before republishing**; seeding from a remembered copy would wipe his answers, which nearly happened twice today. | [verified-now] |
+
+## 1-bis. THE THREE QUESTIONS WAITING ON SEAN (console, all open)
+
+All three are consequences of his OWN rulings, not re-litigation. Nothing in S2-S5 should be
+built against the affected surfaces until he taps.
+
+1. **A runner drops out — what happens to that dog?** He answered PARTLY, in the UI session's
+   chat: 「what do you mean runner left? how can that happen? left before the start of the
+   session? then someone else should carry it over yes」. So: before the start → **someone else
+   carries it over**. His verb is a TRANSFER, not the pack informally absorbing a dog. Still
+   open: mid-run departure, and **what the carrying runner earns for a second dog** — no §10.2
+   money can be derived until that one is answered, and the lab's 청구/환불 pair stays withdrawn.
+   ⚠ **His challenge was right and it exposed a trap**: `session_runner_withdraw` (0043) already
+   REFUSES while the runner holds a `confirmed`/`picked_up`/`active` booking
+   (`raise 'reassign_dogs_first'`), and the ONLY thing that can move that dog is the HOST-ONLY
+   `session_assignment_revoke` (0047:230). **Retire the host button without building his
+   "carry it over" transfer and `reassign_dogs_first` becomes unsatisfiable — a runner holding a
+   dog can never leave.** The retirement and his ruling are ONE slice, not two.
+2. **Can a host remove anyone from a session at all?** Retiring host approval also removed the
+   club's ONLY exclusion mechanism — there is no ban, no blocklist, no `status` on `club_members`,
+   no member-removal RPC, and `club_join` is unconditional. Nobody decided that; it rode along.
+3. **Last slot, one owner paid and one not — hold or race?** The approval step was silently
+   holding the slot during the 20-minute pay window. Without it nothing does, so two owners can
+   both be told to pay for one slot.
+
+## 1-ter. Laws added today — all on trunk, all measured
+
+- **`git commit -- <paths>`, never `git add` + `git commit`, while any agent can write your tree.**
+  Two agents share ONE index. For a NEW file: `git add` first, then STILL put the pathspec on the
+  commit. The pathspec form takes WORKING-TREE content, so it must not land a `git add -p` partial.
+- **The same hazard is in the working tree**: never write to a file an agent owns, even
+  transiently. A copy-modify-restore is a read-modify-write with a multi-second window.
+- **A `create or replace` relying on grant preservation is a latent PUBLIC-EXECUTE hole.**
+  Write the revoke explicitly. Guard is schema-wide (`98 H9` runtime + `check-definer-acl.mjs`
+  source gate, now a commit-gate member); **neither is evidence for the other.**
+- **A push succeeding is a claim; `git show origin/<branch>:<path>` is the fact.**
+- **A green light is evidence for exactly one sentence** — and the three-proposition mutation
+  rule (the hole is real / the pin notices / the fix closes it). This shape hit FIVE times today.
 
 ## 2. Sean's words today — where they are
 
