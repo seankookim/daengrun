@@ -637,6 +637,25 @@ carries the exact console settings (Seedance 2.0 Mini UNLIMITED · 4s · Auto ·
 the letterbox warning, the @Elements consistency method with the selfie-reference caveat, the ffmpeg
 film-look chain, the ending law and the sound route (`sonilo_music`, 0.75 cr/12s).
 
+## 8-quindecies. Round 17 (2026-08-25) — P2 built on the best models
+
+Sean: "just make reels yourself using the best model", credits refilled (554). Built **P2 오늘 밤,
+우리 / TONIGHT, US** end to end from the console-package story frames:
+`higgsfield-out/reels/P2/P2-TONIGHT-US-10s.mp4` (1080×1920, 10.00s, with sound).
+
+Model split: **Kling 3.0 Pro** (12.5 cr / 5s) for six shots, **Seedance 2.5 at 1080p** (45 cr / 5s)
+for the two hero shots — the Han bridge crossing and her closer. Music: `sonilo_music` 12s (0.75).
+Round spend ≈ 143 cr; 411 remain.
+
+⚠ **Seedance 2.5 API constraint:** `start_image` is rejected unless `--mode omni_reference` is set
+("start_image and end_image are only allowed for mode 'omni_reference'"). Both hero shots failed
+first pass on the default `t2v` mode. Same is likely true of seedance_2_0 — set the mode whenever
+animating from a plate.
+
+Pacing corrected after Sean's "too quick" note: cuts run 0.9–1.7s with a 2.5s hold on the closer —
+readable story beats, not the 13-beat strobe of the v2 experiment. Film look and the ending law
+unchanged; slogan card 오늘 밤, 우리. lands over the effort shot and clears before the mark.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
