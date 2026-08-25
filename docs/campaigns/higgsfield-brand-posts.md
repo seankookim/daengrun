@@ -608,6 +608,35 @@ drags selfie framing and her smile into the shot; s02/s05/s07 came back as smili
 of tracking/effort shots and were re-rolled with her described in words. **Use the reference only
 where she faces camera.**
 
+## 8-quaterdecies. Round 16 (2026-08-25) — the console package Sean actually asked for
+
+Sean rejected the v2 cut too: "too quick, no story line, no running action or tracking, just a
+waste of credits." The correction that matters: **he does not want me generating video — he wants
+the complete package so he can generate unlimited himself in the console.** Round 16 is that
+package and nothing else; **zero credits spent.**
+
+`docs/campaigns/reel-plots-console.md` + `higgsfield-out/console-package/` — **five value-driven
+plots, 8 shots each, 40 shots total**, every one with a pre-cropped 1080×1920 start frame, a written
+prompt file, and named `@ Elements` to attach:
+
+- **P1 인계 · THE HANDOFF** — trust; the product mechanic as story, no app screen anywhere: the owner
+  who can't run → a stranger's hands closing the harness → the mid-stride leash relay → the dog at
+  full drive → carried home → the owner's hand on its ribs.
+- **P2 오늘 밤, 우리 · TONIGHT, US** — belonging; **the blue-tank girl is the protagonist**: dusk
+  gathering → she arrives late → roll-out → Han bridge tracking → cadence detail → neon streets →
+  the grind with no smile → her last at the subway mouth.
+- **P3 새벽 다섯 시 · FIVE A.M.** — discipline; window wipe → wrecked shoe rack → the click → subway
+  burst → empty six-lane boulevard → the two shadows → breath profiles → riverbank sunrise.
+- **P4 비 오면? 뛰죠 · RAIN MEANS RUN** — no off season; shelter decision → door burst → crosswalk
+  tracking → puddle sheet → flags horizontal → steam vent → the soaked hug → hood grin.
+- **P5 다 쓴 개 · A GOOD KIND OF TIRED** — the honest promise; the 11pm wired dog → the click → full
+  sprint → stair climb → dirt kick → mist → carried home → asleep with a hand on its ribs.
+
+Every shot is running action or a tracking camera — the montage/selfie register is gone. README
+carries the exact console settings (Seedance 2.0 Mini UNLIMITED · 4s · Auto · audio Off · try 720p),
+the letterbox warning, the @Elements consistency method with the selfie-reference caveat, the ffmpeg
+film-look chain, the ending law and the sound route (`sonilo_music`, 0.75 cr/12s).
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
