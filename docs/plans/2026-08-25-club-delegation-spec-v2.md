@@ -829,7 +829,7 @@ the same slice with a WHY comment naming the successor pin.
 |---|---|---|
 | S1 | Runner-money strip (independent, claimed by announcer v5, contract @ f6ed2cf on its branch) | — (in flight) |
 | S2 | §9 member board projection (+ 🔴 14.9 readership word) + operational-board state columns + the console-predicate de-duplication | spec review + Sean's read |
-| S3 | Pick layer (§6.1-6.4): `session_pick_runner`, self-pick refusals, gate moves + the two widenings, TTL, deprecations §11, §5.2 rung reorder (🔴 14.11) + 153 ladder re-pins, viability re-read (§13) | S2 (board renders picks); 🔴 14.1, 14.10, 14.11 |
+| S3 | Pick layer (§6.1-6.4): `session_pick_runner`, self-pick refusals, gate moves + the two widenings, TTL (2h — RULED 14.1), deprecations §11, viability re-read (§13). ⚠ §5.2's LADDER implementation (rung reorder + runnerless-zero, both ruled) moved OUT of S3 into announcer v5's single ladder-amendment slice — one function, one slice, per the silent-collision law | S2 (board renders picks) — gate OPEN (14.1/14.10/14.11 all ruled) |
 | S4 | Door custody (§7.1-7.4): the four stamps + club edge action, address slice (§8), no-show re-anchor + 153 P4/P9/P10/P12 re-pins, copy-drift rows (§13), client legs | S3; riders (honest transit copy); 🔴 14.2 |
 | S5 | Two-phase finish (§7.5): `finished_pending_host` + the three §7.6 escapes, `club_confirm_run_end` (6h auto-confirm ceiling — RULED 14.3), closer split, console respec | S4 — **gate OPEN** (14.3 and 14.5 both ruled) |
 | S6 | Mode C (§6.5): columns + CHECK bounds, ranking definer, `session_auto_pick`, onboarding surface, pinned-address door | S3; **counsel brief answered** (rider); 🔴 14.4 |
