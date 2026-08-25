@@ -1,0 +1,1498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account &amp; System — Enhancement Lab (2026-08-24)</title>
+<style>
+/* ══ NEW HEXES: 0. Every colour below already exists in theme.ts or ships in one of the nine screen files. ══
+   paper   #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text · #666666 dim · #999999 faint
+           #E8552F line · #FFF6F4 wash · #FBE7E1 (PaperBtn secondary pressed) · #B3261E critical
+           #FBEAE7 criticalWash · #F2F2F2 disabledFill · #C77414 pending · #C6472C action · #A83315 actionInk
+           #119B58 ready · #0E7F49 readyDeep
+   colors  #171A17 ink · #C6F542 volt · #7FA818 voltDeep · #FF5C3D tang · #d84a2f coralText · #EFF1EC clay
+           #D8DAD2 line · #5a7a3c green · #586055 dim · #8fa093 dimDark · #7B6CDF club · #4A3DA8 clubInk
+           #EFECFF clubTint · #2A2350 nightEdge · #D9A93C gold · #B8860B goldDeep · #FBF3DD goldTint
+           #C96F4A terra · #A85536 terraDeep · #6B3A24 terraInk · #FBEEE7 terraTint
+   lilac   #F4F2FB bg · #EFECF9 inset · #E6E2F4 hair · #EDEAF8 hair2 · #221E3D head · #4B4668 text
+           #7C76A0 dim · #6C5CE7 accent · #F0765A coral · #1C1837 night
+   shipping screen-locals reproduced as evidence in the 현재 frames only:
+           #DCD6C4 (the RETIRED beige hairline, still hardcoded in settings.tsx + safety.tsx)
+           #5d6b5d (login legal line, measured 3.23:1 — see warn note) · #f0eee3 · #f4f2ea · #f2d4ca
+   other shipping values: #EEEEEE · #FEE500/#191919 (Kakao brand mark) · #3d5a2b · #A87A62 · #eaf7c8
+           #c9dd8f · #EDF5D8 · #FCE7E1 · #E3EEF8 · #4A6E93 · #6E67A0 (MRZ) · holo #CFC5F6 #FFDCD1 #F3E9C6 #EAF6C8 #CDEAF3
+   TYPE FLOOR: every Korean/product string inside a phone frame is >= 14px. Sub-14 marks are ONLY:
+           the simulated OS status bar, tab-bar glyphs, latin letterspaced caps kickers (OWNER ·
+           RUNNER · PASSPORT · TYPE · NO. · STAMPS · HIGH POINT · DOGS HIGH GEAR), serial/code
+           strings (MRZ · DH-4C81A20F · P · OWNER), and the § glyph — exactly the exemptions
+           DESIGN.md §3 names. ONE exception is declared rather than assumed: the 12pt wordmark
+           「도그스하이 · DOGS HIGH」 on 역할 선택 carries Korean, and rides §3's 2026-08-12 logo-artwork
+           exemption — see band A's bindings, where its unmet clause is named. Lab chrome (English
+           rationale, tables) is not product type and is not bound by the floor. */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#FBFAF7;color:#111111;padding:38px 22px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1420px;margin:0 auto}
+h1{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:400;font-size:34px;line-height:1.2;letter-spacing:-.01em}
+.law{font-size:12px;letter-spacing:2.4px;color:#999999;text-transform:uppercase;margin:11px 0 15px;font-weight:700}
+.lede{font-size:15px;color:#666666;line-height:1.75;max-width:960px}
+.lede b{color:#111111;font-weight:700}
+.note{background:#FFFFFF;border:1px solid #E6E2F4;padding:15px 17px;margin:20px 0 0;font-size:13.5px;line-height:1.68;max-width:1120px}
+.note h4{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin:0 0 8px}
+.note b{color:#111111}
+.note.warn{border:1.5px solid #C6472C}
+.note.warn h4{color:#C6472C}
+.note ol,.note ul{margin:8px 0 0 18px;line-height:1.75}
+.note li{margin-bottom:6px}
+code{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;background:#FBFAF7;padding:1px 4px;color:#333333}
+h2.band{margin:58px 0 4px;padding-top:22px;border-top:1px solid #E8552F;font-size:23px;font-weight:800;letter-spacing:-.01em}
+h2.band span{font-weight:600;color:#7C76A0;font-size:14px;margin-left:9px;font-family:'SF Mono',ui-monospace,Menlo,monospace}
+.bandsub{font-size:14px;color:#666666;line-height:1.72;max-width:1060px;margin-top:7px}
+.bandsub b{color:#111111}
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col{width:390px}
+.cap{font-size:16.5px;font-weight:800;line-height:1.35;margin-bottom:6px;letter-spacing:-.01em}
+.cap b{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;color:#C6472C;font-size:21px;line-height:26px;margin-right:8px;font-weight:700}
+.cap.now b{color:#7C76A0}
+.why{font-size:13.5px;color:#666666;line-height:1.7;margin-bottom:9px}
+.why b{color:#111111}
+.cost{font-size:12.5px;line-height:1.62;border-left:2.5px solid #6C5CE7;background:#FFFFFF;padding:9px 11px;margin-bottom:13px;color:#4B4668}
+.cost b.h{color:#221E3D;letter-spacing:.04em;text-transform:uppercase;font-size:11px;display:block;margin-bottom:3px}
+.cost.free{border-left-color:#119B58}
+.cost.pay{border-left-color:#C77414}
+.cost.frozen{border-left-color:#B3261E}
+.bind{font-size:12px;line-height:1.62;color:#7C76A0;margin-top:10px;padding-left:11px;border-left:1px solid #E6E2F4}
+.bind b{color:#221E3D}
+table{border-collapse:collapse;margin-top:18px;font-size:13px;width:100%;max-width:1120px}
+th,td{border-bottom:1px solid #E6E2F4;padding:9px 12px;text-align:left;vertical-align:top}
+th{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#666666;font-weight:800}
+.foot{margin-top:70px;padding-top:22px;border-top:1px solid #E8552F;max-width:1120px}
+.foot h3{font-size:19px;font-weight:800;margin-bottom:12px}
+.foot ol{margin-left:19px;font-size:13.5px;line-height:1.78;color:#666666}
+.foot li{margin-bottom:9px}
+.foot b{color:#111111}
+
+/* ───────── phone shell ───────── */
+.phone{width:390px;background:#FFFFFF;border:1px solid #E6E2F4;border-radius:30px;overflow:hidden;
+  box-shadow:0 18px 44px rgba(28,24,55,.10)}
+.osbar{display:flex;justify-content:space-between;padding:9px 22px 2px;font-size:11px;color:#999999;font-weight:600}
+.osbar.dk{color:#8fa093}
+.scr{padding:14px 15px 20px}
+.tabs{display:flex;justify-content:space-around;align-items:center;height:50px;border-top:1px solid #EEEEEE;font-size:15px;color:#666666}
+.tabs .on{color:#111111}
+.cont{font-size:14px;line-height:1.6;color:#999999;margin-top:14px;padding-top:10px;border-top:1px dashed #EEEEEE}
+
+/* ───────── app grammar ───────── */
+.disp{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:400}
+.num{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-weight:600}
+.kick{font-size:12px;letter-spacing:2.6px;text-transform:uppercase;color:#999999;font-weight:700}
+.rule{border-top:1px solid #E8552F;margin:16px -15px 0}
+.sech{display:flex;align-items:baseline;gap:8px;padding-top:12px}
+.sech h4{font-size:20px;line-height:25px;font-weight:800;color:#111111}
+.sech a{margin-left:auto;font-size:16px;line-height:20px;font-weight:800;color:#A83315;text-decoration:none}
+.quiet{font-size:14px;line-height:20px;color:#666666}
+.back{width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;font-size:20px;color:#111111}
+.h1s{font-size:30px;line-height:37px;font-weight:900;color:#111111}
+.ctaC{background:#C6472C;padding:15px 16px;text-align:center;font-size:17px;line-height:22px;font-weight:800;color:#FFFFFF}
+.ctaS{background:#FFF6F4;border:1px solid #E8552F;padding:14px 16px;text-align:center;font-size:16px;line-height:21px;font-weight:800;color:#A83315}
+.ctaD{background:#FFFFFF;border:1px solid #B3261E;padding:14px 16px;text-align:center;font-size:16px;line-height:21px;font-weight:800;color:#B3261E}
+.fail{background:#FBEAE7;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;padding:12px 13px}
+.fail .t{font-size:14px;line-height:19px;font-weight:800;color:#B3261E}
+.fail .d{font-size:14px;line-height:19px;color:#B3261E;margin-top:4px}
+.fail .a{font-size:16px;line-height:21px;font-weight:800;color:#B3261E;text-decoration:underline;margin-top:7px;display:inline-block}
+.pend{background:#F2F2F2;padding:12px 13px}
+.pend .t{font-size:15px;line-height:20px;font-weight:800;color:#666666}
+.pend .d{font-size:14px;line-height:19px;color:#666666;margin-top:3px}
+.plate{background:#FFF6F4;padding:13px 14px;margin-top:18px}
+.plate .h{font-size:14px;line-height:20px;font-weight:800;color:#111111}
+.plate .s{font-size:14px;line-height:20px;color:#666666;margin-top:3px}
+.plate .a{font-size:14px;line-height:20px;font-weight:800;color:#111111;margin-top:6px;display:block}
+.plate .ok{font-size:14px;line-height:20px;font-weight:700;color:#0E7F49;margin-top:8px;display:block}
+.krow{display:flex;align-items:baseline;gap:10px;padding:12px 0;border-bottom:1px solid #EEEEEE}
+.kk{font-size:14px;line-height:19px;color:#666666;flex:0 0 auto}
+.kv{flex:1;text-align:right;font-size:14px;line-height:19px;color:#111111;font-weight:700}
+.arow{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #EEEEEE;min-height:48px}
+.arow .l{font-size:16px;line-height:21px;font-weight:700;color:#111111}
+.arow .g{font-size:16px;color:#666666}
+.fieldk{margin-top:14px;font-size:14px;line-height:18px;letter-spacing:1px;font-weight:700;color:#666666}
+.field{margin-top:2px;padding:10px 0 8px;border-bottom:1.5px solid #111111;font-size:16px;line-height:21px;font-weight:700;color:#111111;min-height:44px}
+.field.big{font-size:20px;line-height:26px;margin-top:20px}
+.field.lock{border-bottom-color:#DDDDDD;color:#333333}
+.ctabar{border-top:1px solid #E8552F;margin:20px -15px -20px;padding:12px 15px 22px;background:#FFFFFF}
+</style></head>
+<body><div class="wrap">
+
+<h1>계정과 시스템 — 아홉 화면, 열여덟 개의 안</h1>
+<div class="law">enhancement lab · 2026-08-24 · account + system cluster · new hexes 0 · 2 variants per screen</div>
+<p class="lede">This cluster is the app's <b>plumbing</b>: the door (<code>index</code>, <code>login</code>), the two onboarding funnels, the identity hub (<code>my</code>),
+the two settings-adjacent screens (<code>settings</code>, <code>payments</code>), the safety centre, and the shop. None of them is where the product's peak lives —
+which is exactly why they accumulate stale sentences and retired tokens without anybody noticing. Every variant below came out of reading the file,
+not out of wanting the screen to look different: <b>eleven of the eighteen fix something the code and the copy already disagree about.</b>
+Nothing here invents a field, a route, or a colour.</p>
+
+<div class="note">
+  <h4>What is real in these frames, and what is a placeholder</h4>
+  <b>Real, and cited in every <span style="color:#221E3D">Bindings</span> line:</b> every field name, every server predicate, every status vocabulary, every measured contrast number, and the four point amounts
+  (+50 완주 · +30 응가 · +200 골드 패치 · +500 코스 마스터 — the values <code>settle_run_tx</code> actually writes) and the stamp wall's fixed print order.<br>
+  <b>Placeholders, and nothing turns on them:</b> person and dog names (선국 · 민준 · 초코 · 엄마), the profile id stem <code>DH-4C81A20F</code>, the handle <code>@choco.runner</code>, phone numbers, the point balance 1,280,
+  the receipt amounts (22,900 / 16,900 / 0), the gear claim's item and milestone, and the addresses. Each of those sits in a slot whose <b>binding</b> is named — the number is a stand-in for a row, never a claim about one.<br>
+  <b>Lab annotation, never product copy:</b> the pale grey <code>#EEE</code>-bordered blocks inside some frames, which describe a state that would occupy the same slot rather than a second element on the screen. Each is labelled where it appears.
+</div>
+
+<div class="note warn">
+  <h4>⚠ Six things these nine screens ship today that the code contradicts</h4>
+  Measured while reading, not proposed. Each maps to a numbered variant, and every one of them is cheap.
+  <ol>
+    <li><code>login.tsx:111</code> — <b>「로그인하면 이용약관과 개인정보 처리방침에 동의하게 돼요」</b>, with no link and no inline text.
+      Both documents exist only as <b>unpublished drafts</b> (<code>docs/legal/terms-of-service.md:2</code>, <code>docs/legal/privacy-policy.md:2</code> — each headed «DRAFT — requires 변호사 review before publication»,
+      each with a numbered DECIDE-BEFORE-PUBLICATION list). This repo already decided what to do about that: <code>runner/apply.tsx:644</code> reasons it out in a comment —
+      «there is no published 개인정보처리방침 to link to, and a consent checkbox pointing at a document that does not exist is a dead link» — and inlines the notice instead.
+      One screen took the honest path; the other screen, the one <i>every</i> user passes through, still claims consent to nothing. → <b>login ①</b></li>
+    <li><code>login.tsx:135</code> — the legal line is <code>#5d6b5d</code> on <code>colors.ink</code> <code>#171A17</code>. Measured <b>3.23:1</b> at 14pt, under the 4.5 floor.
+      The tagline directly above it uses <code>#8fa093</code> on the same ground = <b>6.46:1</b>. The token that passes is already on this screen. → <b>login ①</b></li>
+    <li><code>safety.tsx:207</code> — the 준비 중 card is painted <code>opacity: 0.55</code>. That is the exact alpha trick <code>theme.ts:205-207</code> bans, and
+      <code>settings.tsx</code> retired its own copy of it on 2026-08-20 <i>with the measurement in the comment</i> (label 2.99:1, value 4.06:1 over white; explicit
+      <code>disabledFill</code> + dim ink measured 5.13:1). Safety still pays for its 준비 중 signal in legibility — on the safety screen. → <b>safety ①</b></li>
+    <li><code>settings.tsx:130</code> — <b>「알림 설정 — 푸시 도입 후」</b>. Push <b>shipped</b>: <code>0024_push.sql</code> bridges every <code>notifications</code> INSERT to Expo Push via <code>pg_net</code>,
+      <code>src/lib/push.ts:125</code> registers the token, and <code>owner/home.tsx:21</code> + <code>runner/home.tsx:18</code> both call it on mount. What is actually pending is
+      <b>per-kind preferences</b> — and there is no preferences table anywhere in <code>supabase/migrations</code> (grep: zero matches). The label understates by naming the wrong missing thing. → <b>settings ①</b></li>
+    <li><code>settings.tsx:271,273</code> and <code>safety.tsx:250,261</code> — hairlines hardcoded <code>#DCD6C4</code>. That is the <b>pre-V4 beige</b> value <code>theme.ts:15</code>'s own comment
+      records as retired («[V4] 쿨 헤어라인 (구 베이지 #DCD6C4)»). Both files also still carry <code>borderRadius: 16/18/20</code> and settings uses <code>paddingHorizontal: 11</code> — the never-enforced old gutter,
+      superseded by <code>layout.gutter = 15</code>. → <b>settings ②</b>, <b>safety ②</b></li>
+    <li><code>store.ts:337-344</code> + <code>shop.tsx:166</code> — six product cards naming <b>third-party brands as partners</b>: 「도그스하이 × 바잇미」, 「도그스하이 × 페스룸」, 「댕러민 Dog-a-mins」, 「도그스하이 × 페티즌」.
+      The 예정 tag covers the <i>price</i>. Nothing covers the <i>partnership claim about another company</i>, and no code path anywhere references a real SKU.
+      This is the single largest invented-data surface in the cluster and it names outsiders. → <b>shop ①</b></li>
+  </ol>
+</div>
+
+<div class="note">
+  <h4>Cluster rules I am holding myself to</h4>
+  <b>safety.tsx's 준비 중 is real and stays 준비 중.</b> 사고 신고 is not mockable as finished: incidents exist server-side but only inside a club session —
+  <code>club_incident_open(p_session uuid, …)</code> (0070:393) opens with <code>_club_require_v2()</code> and a party gate against <code>club_sessions</code>. There is <b>no</b> 1:1-booking incident RPC.
+  The 안심 센터's one real reach today is <code>sendSOS</code> → a <code>notifications</code> row for the counterparty (which does become a push, via the 0024 trigger). Every safety variant below keeps that boundary exactly.<br>
+  <b>Frozen surfaces (§9): not touched.</b> This cluster never enters owner/fitness's collapsing hero or the meetup stage machine / polling / <code>confirmHandoff</code>. The only frozen-adjacent thing here is
+  <code>my.tsx</code>'s MENU array, whose routing is explicitly logic-frozen — variant <b>my ①</b> changes the ID face above it and <b>my ②</b> changes the section headers around it; neither adds, removes or reorders a MENU row.<br>
+  <b>Not proposed, on purpose:</b> a monthly total on <code>payments</code>. That screen's own header forbids it — «any client-side arithmetic … every 원 on this screen is a payments row's own <code>amount</code>».
+  A sum is arithmetic. It stays out until a server aggregate exists.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">A · 역할 선택 <span>app/app/index.tsx</span></h2>
+<p class="bandsub">The first screen of the app, and the one nobody exercises end to end. A tap here fires <b>four sequential network calls</b> — profile read, UPDATE-or-INSERT, <code>ensureRunner</code> (runner only),
+and a first-run derivation (<code>dogs</code> count for owners, <code>profiles.district</code> for runners) — and every one of them can fail. Today all four report as one word, and every failure is an <code>Alert.alert</code> that
+disappears when dismissed. Structure (two full-bleed halves, coral divider) is <b>not</b> touched by either variant.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Reproduced including the cold-start window: while <code>useAuth()</code> is still resolving, <code>notReady</code> swaps <b>both</b> descriptions to 「시작하는 중...」 —
+    so the first sentence a first-run user ever reads about the product is replaced, on both halves at once, by a status word. The screen has no Black Han Sans use at all (both names are 40/800 body).</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:50px 0 14px;text-align:center"><span style="font-size:12px;letter-spacing:3px;color:#999999">도그스하이 · DOGS HIGH</span></div>
+      <div style="padding:44px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">OWNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#111111">보호자예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">시작하는 중...</div>
+      </div>
+      <div style="height:1px;background:#E8552F"></div>
+      <div style="padding:44px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">RUNNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#111111">러너예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">시작하는 중...</div>
+      </div>
+      <div style="height:40px"></div>
+    </div>
+    <div class="bind"><b>Type-floor note, declared not assumed</b> — the 12pt 「도그스하이 · DOGS HIGH」 line is Korean in a kicker slot, which §3 normally forbids. It is legal only under §3's
+      2026-08-12 logo-artwork exemption, and that exemption has three clauses: it is the wordmark (✓), it carries no data (✓), and it is <b>marked as decoration for assistive tech</b> —
+      which <code>index.tsx</code>'s <code>s.brand</code> does <b>not</b> do today. Both variants assume the one-line fix (<code>accessibilityElementsHidden</code> +
+      <code>importantForAccessibility="no-hide-descendants"</code>), the same pair <code>my.tsx</code> already puts on its MRZ strip.<br><br>
+      <b>Bindings</b> — role write <code>profiles.role</code> (UPDATE if the row exists, INSERT otherwise — never <code>upsert</code>, see index.tsx's own measured comment) ·
+      owner first-run <code>select count(id) from dogs where owner_id = uid</code> · runner first-run <code>profiles.district</code> · runner minting <code>ensureRunner()</code> (0057 K-3, mints tier <code>applicant</code>).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>A failure on the only door stays on the door</div>
+    <p class="why">This screen already knows the shape of the right answer, because <b>login.tsx wrote it out</b>: «문이 하나면 실패의 무게가 달라진다 … 실패는 Alert로 한 번 스치고 사라지지 않고 화면에 남는다».
+    Role-select is the same kind of door — there is no alternate route into the product — and its failures are <i>more</i> varied (four distinct call sites, four distinct Korean titles already written in the file).
+    The <code>Alert</code> becomes the loud-fail strip the paper world already has, carrying the server's own message and the two doors login gives: <b>다시 시도</b> (re-runs the same <code>start(role)</code>) and <b>문의하기</b>
+    (the mailto settings and login already share). The two halves below stay live — a profile-read failure for one role does not block the other.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data. No new route. The retry closure (<code>fail()</code>'s 다시 시도) and the support mailto both exist in this file / in login.tsx today.
+      Coral count: unchanged (the divider is the brand hairline, not a CTA). Critical ink is budget-exempt (DESIGN.md §2).</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:50px 0 12px;text-align:center"><span style="font-size:12px;letter-spacing:3px;color:#999999">도그스하이 · DOGS HIGH</span></div>
+      <div class="fail" style="margin:0">
+        <div class="t">프로필을 불러오지 못했어요</div>
+        <div class="d">TypeError: Network request failed</div>
+        <div style="display:flex;gap:18px"><span class="a">다시 시도</span><span class="a">문의하기</span></div>
+      </div>
+      <div style="padding:36px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">OWNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#111111">보호자예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">믿을 수 있는 러너에게 맡겨요</div>
+      </div>
+      <div style="height:1px;background:#E8552F"></div>
+      <div style="padding:36px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">RUNNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#111111">러너예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">달리면서 수익도 얻어요</div>
+      </div>
+      <div style="height:26px"></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — the strip's title is whichever of the file's four existing titles fired (프로필을 불러오지 못했어요 · 프로필 저장 실패 · 시작하지 못했어요); the body is the
+      Supabase/PostgREST <code>error.message</code> verbatim, which is the only clue a 문의 can carry. Nothing is paraphrased and nothing is invented — a failure with no message renders the title alone.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>One busy truth, in one place, with the real step name</div>
+    <p class="why">Two problems, one cause: the screen has <b>two</b> busy meanings (<code>notReady</code> = auth still resolving; <code>busy === role</code> = this tap is saving) and it spends the
+    <i>value proposition line</i> on both. Here the auth window gets one quiet line of its own under the wordmark, the propositions never leave, and the halves go non-interactive by <b>explicit ink</b>
+    (<code>paper.dim</code> on the names — not opacity; §F2.1). When a half is actually tapped, its own line names the step the code is really on, because the file already has four distinguishable awaits
+    and a first-run user staring at four round trips deserves better than one word. The untapped half simply keeps its sentence.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data, no new route. Three string constants and one extra piece of local state (which step <code>start()</code> reached) —
+      all of it inside this one file. <b>Trade named:</b> naming the step means the strings must stay true if the call order changes; the file's own comments already pin that order for other reasons.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:50px 0 6px;text-align:center"><span style="font-size:12px;letter-spacing:3px;color:#999999">도그스하이 · DOGS HIGH</span></div>
+      <div style="padding:0 26px 12px;text-align:center"><span style="font-size:14px;line-height:20px;color:#666666">앱을 준비하는 중이에요</span></div>
+      <div style="padding:34px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">OWNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#666666">보호자예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">믿을 수 있는 러너에게 맡겨요</div>
+      </div>
+      <div style="height:1px;background:#E8552F"></div>
+      <div style="padding:34px 26px">
+        <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">RUNNER</div>
+        <div style="font-size:40px;line-height:48px;font-weight:800;color:#666666">러너예요</div>
+        <div style="font-size:15.5px;line-height:22px;font-weight:600;color:#666666;margin-top:8px">달리면서 수익도 얻어요</div>
+      </div>
+      <div style="padding:0 26px 14px">
+        <div style="border-top:1px solid #EEEEEE;padding-top:12px;font-size:14px;line-height:20px;color:#999999">러너로 시작하면 · 러너 등록 중… / 보호자로 시작하면 · 프로필 확인 중…</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 앱을 준비하는 중이에요 ← <code>useAuth().loading || !auth</code>. Step strings ← the four awaits in <code>start()</code>: 프로필 확인 중… (<code>profiles</code> select) ·
+      저장 중... (UPDATE/INSERT) · 러너 등록 중… (<code>ensureRunner</code>) · 시작하는 중... (the <code>dogs</code> count / district read). The bottom line in this frame is <b>lab annotation</b>, not product copy — in the app each half carries its own step.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">B · 로그인 <span>app/app/login.tsx</span></h2>
+<p class="bandsub">Kakao is the <b>only</b> door (Sean 2026-08-15, «b», cdb7b06) — the email OTP gate was deleted and SMS never existed. The file already reasons correctly about what single-door failure means and keeps
+its error on screen instead of in an Alert. What it has not caught up with is the <b>consent sentence at the bottom</b> and two paint details. This is a <code>colors</code>-world dark screen and both variants keep it dark —
+repainting it into the paper world would be a new aesthetic, and the style freeze is real.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Drawn in the failure state, since that is the state the file was written for. Note the bottom line: it claims the user has agreed to two documents that are unpublished drafts, links neither,
+    and prints at <b>3.23:1</b>. Note also the Kakao button's <code>opacity: 0.6</code> busy / <code>0.9</code> pressed — the alpha trick <code>theme.ts:205-207</code> bans, made redundant by the label swap it already does.</p>
+    <div class="phone" style="background:#171A17;border-color:#2A2350">
+      <div class="osbar dk"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:70px 28px 40px">
+        <div class="disp" style="font-size:60px;line-height:70px;color:#FFFFFF;text-align:center">도그스<span style="color:#C6F542">하이</span></div>
+        <div style="font-size:16px;line-height:22px;color:#8fa093;text-align:center;margin-top:6px;margin-bottom:40px">러너스 하이를, 우리 아이에게</div>
+        <div style="background:#FEE500;border-radius:16px;padding:17px;text-align:center;opacity:.6">
+          <span style="font-size:17px;line-height:22px;font-weight:800;color:#191919">카카오로 연결 중…</span>
+        </div>
+        <div style="margin-top:20px;border:1px solid #d84a2f;border-radius:14px;padding:15px">
+          <div style="font-size:15px;line-height:20px;font-weight:800;color:#d84a2f">카카오 로그인에 실패했어요</div>
+          <div style="font-size:14px;line-height:20px;color:#FFFFFF;margin-top:6px">AuthApiError: invalid request: both auth code and code verifier should be non-empty</div>
+          <div style="display:flex;gap:10px;margin-top:13px">
+            <div style="flex:1;border:1.5px solid #FFFFFF;border-radius:12px;padding:11px;text-align:center;font-size:14px;font-weight:800;color:#FFFFFF">다시 시도</div>
+            <div style="flex:1;border:1.5px solid #FFFFFF;border-radius:12px;padding:11px;text-align:center;font-size:14px;font-weight:800;color:#FFFFFF">문의하기</div>
+          </div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#5d6b5d;text-align:center;margin-top:24px">로그인하면 이용약관과 개인정보 처리방침에 동의하게 돼요</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — the error body is the caught <code>Error.message</code> verbatim (GoTrue / this file's own 「카카오가 인증 코드를 돌려주지 않았어요」). 문의하기 → the same mailto settings uses.
+      <b>Measured</b>: <code>#5d6b5d</code> on <code>#171A17</code> = 3.23:1 · <code>#8fa093</code> on the same ground = 6.46:1 · <code>#d84a2f</code> title = 4.29:1 (marginal miss at 15/800, which is not WCAG "large").</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The consent sentence says what actually happens</div>
+    <p class="why">The house already has an answer for «consent to a document that does not exist»: <code>runner/apply.tsx</code> inlines a 수집·이용 notice — items, purpose, retention — precisely
+    <i>because</i> a checkbox pointing at nothing is a dead link. Login gets the same grammar, sized down to what Kakao sign-in actually touches, drawn straight from the audited draft policy §1
+    and from this file's own OAuth call. The last line is the honest part: it says the documents are <b>not published yet</b> and that a link will live here when they are — instead of asserting an agreement to them.
+    The 3.23:1 ink moves to the token already on this screen.</p>
+    <div class="cost pay"><b class="h">What this costs</b>No server data, no route. <b>It does carry a real-world dependency and I am naming it rather than drawing around it:</b> publishing 이용약관 / 개인정보처리방침
+      needs 변호사 review, and the privacy draft's own header lists three unfinished obligations (위치정보 보유기간 with no destruction cron, the missing 위치정보 이용·제공 대장, and the KCC 위치기반서비스사업 filing).
+      That is Sean-only work. This variant is what the screen should say <i>until</i> then — and the day the URLs exist, this block collapses into two links.</div>
+    <div class="phone" style="background:#171A17;border-color:#2A2350">
+      <div class="osbar dk"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:64px 28px 34px">
+        <div class="disp" style="font-size:60px;line-height:70px;color:#FFFFFF;text-align:center">도그스<span style="color:#C6F542">하이</span></div>
+        <div style="font-size:16px;line-height:22px;color:#8fa093;text-align:center;margin-top:6px;margin-bottom:36px">러너스 하이를, 우리 아이에게</div>
+        <div style="background:#FEE500;border-radius:16px;padding:17px;text-align:center">
+          <span style="font-size:17px;line-height:22px;font-weight:800;color:#191919">카카오로 3초 만에 시작하기</span>
+        </div>
+        <div style="margin-top:22px;border:1px solid #2A2350;padding:14px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#FFFFFF">로그인하면 이렇게 처리돼요</div>
+          <div style="font-size:14px;line-height:21px;color:#8fa093;margin-top:7px">
+            수집 항목 · 카카오 계정 식별자 · 이름 · 이메일(카카오가 줄 때만)<br>
+            이용 목적 · 로그인 · 예약 상대방에게 이름 표시<br>
+            보관 기간 · 계정을 삭제하면 함께 지워져요
+          </div>
+          <div style="font-size:14px;line-height:21px;color:#8fa093;margin-top:9px;padding-top:9px;border-top:1px solid #2A2350">
+            이용약관과 개인정보처리방침은 아직 공개 전이에요 — 공개되면 여기에서 바로 볼 수 있어요
+          </div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#8fa093;text-align:center;margin-top:18px">계정 삭제는 언제든 설정에서 직접 할 수 있어요</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 수집 항목 ← <code>privacy-policy.md §1 회원가입·계정</code>, audited against the code paths, minus everything Kakao login does not touch (no 전화번호: this app never asks for one,
+      and <code>profiles.phone</code> is all-NULL) · 이름 ← <code>index.tsx</code>'s INSERT (<code>email.split('@')[0] || '사용자'</code>) · 이메일(카카오가 줄 때만) ← the same file's measured note that the email scope needs business
+      verification and GoTrue can return an empty string · 계정 삭제 ← <code>delete-account</code> + <code>settings.tsx</code>'s real row (App Store 5.1.1(v)). Ink <code>#5d6b5d</code> → <code>colors.dimDark #8fa093</code>, 6.46:1.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>A total lockout is told it is total</div>
+    <p class="why">The file's comment gets the diagnosis exactly right — «지금은 <b>완전한 잠김</b>» — and then the failure box stops one sentence short of saying so. A user staring at a GoTrue string will go
+    looking for another way in; there isn't one, and that hunt is the worst minute in the product. This variant adds the one missing sentence, labels the raw string as <b>the thing to paste into 문의</b>
+    (which is exactly what the file says it is for), and moves the coral off small text and onto a tick — the rule <code>my.tsx</code> states outright («코랄은 텍스트로 쓰지 않는다 — 라인·엣지·틱으로만»), which also
+    repairs the 4.29:1 title. And it retires both opacity values: press becomes the approved compositor <code>scale(0.96)</code>, busy stays a label swap.</p>
+    <div class="cost free"><b class="h">What this costs</b>No server data, no route, no new colour. Two copy lines, one tick, and the deletion of two <code>opacity</code> values.
+      <code>scale(0.96)</code> on press is DESIGN.md §6's sanctioned tactility and is already used on <code>my.tsx</code>'s rows.</div>
+    <div class="phone" style="background:#171A17;border-color:#2A2350">
+      <div class="osbar dk"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:56px 28px 30px">
+        <div class="disp" style="font-size:60px;line-height:70px;color:#FFFFFF;text-align:center">도그스<span style="color:#C6F542">하이</span></div>
+        <div style="font-size:16px;line-height:22px;color:#8fa093;text-align:center;margin-top:6px;margin-bottom:32px">러너스 하이를, 우리 아이에게</div>
+        <div style="background:#FEE500;border-radius:16px;padding:17px;text-align:center">
+          <span style="font-size:17px;line-height:22px;font-weight:800;color:#191919">카카오로 3초 만에 시작하기</span>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:12px;border:1px solid #2A2350;padding:15px">
+          <div style="width:3px;background:#FF5C3D;flex:0 0 3px"></div>
+          <div style="flex:1">
+            <div style="font-size:16px;line-height:21px;font-weight:800;color:#FFFFFF">카카오 로그인에 실패했어요</div>
+            <div style="font-size:14px;line-height:20px;color:#8fa093;margin-top:5px">도그스하이는 카카오로만 로그인해요 — 다른 로그인 방법은 없어요</div>
+            <div style="font-size:14px;line-height:19px;color:#8fa093;margin-top:11px;padding-top:9px;border-top:1px solid #2A2350">오류 내용 · 문의할 때 그대로 알려주세요</div>
+            <div style="font-size:14px;line-height:19px;color:#FFFFFF;margin-top:4px">AuthApiError: invalid request: both auth code and code verifier should be non-empty</div>
+            <div style="display:flex;gap:10px;margin-top:13px">
+              <div style="flex:1;border:1.5px solid #FFFFFF;border-radius:12px;padding:11px;text-align:center;font-size:14px;font-weight:800;color:#FFFFFF">다시 시도</div>
+              <div style="flex:1;border:1.5px solid #FFFFFF;border-radius:12px;padding:11px;text-align:center;font-size:14px;font-weight:800;color:#FFFFFF">문의하기</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#8fa093;text-align:center;margin-top:20px">브라우저를 직접 닫은 건 실패가 아니에요 — 그때는 이 화면으로 조용히 돌아와요</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 다른 로그인 방법은 없어요 is a measured statement about this build, not a policy claim: <code>signInWithOAuth({ provider: 'kakao' })</code> is the only auth call in the file and the
+      email-OTP door was deleted in cdb7b06. The last line describes the existing <code>res.type !== 'success'</code> early return. Tick <code>colors.tang</code>, title white (15.7:1), body <code>colors.dimDark</code> (6.46:1).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">C · 마이 (여권) <span>app/app/my.tsx</span></h2>
+<p class="bandsub">The passport: 신분면 (the one emphasis card — 1px coral, holo edge, MRZ) · 기록면 (owner only; the runner's moved to runner home, E7) · 도장면 · 서류행 (MENU, <b>logic-frozen</b>) · 역할 전환 · 로그아웃 · 콜로폰.
+Both variants leave the MENU array and its routing untouched, leave every artifact face (record, stamps, MRZ, holo) untouched, and keep Black Han Sans at exactly one use (마이).</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today (owner)</div>
+    <p class="why">The ID face carries NAME and DISTRICT. It does <b>not</b> carry <code>profiles.handle</code> — the @아이디 that this very screen's edit sheet writes, that the server validates
+    (<code>set_my_handle</code>, 0074), and that the community feed prints under every post (<code>authorHandle</code>). A passport that omits the name other people call you by.
+    Section heads use the latin-kicker grammar (<code>§ STAMPS 도장</code>) that §3b retired app-wide.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="kick num">DOGS HIGH · MEMBER</span><span style="flex:1;height:1px;background:#EEEEEE"></span><span class="kick num">KOR</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span class="disp" style="font-size:30px;line-height:37px;color:#111111">마이</span>
+          <span style="border:1px solid #111111;padding:5px 8px;font-size:11.5px;letter-spacing:1.8px;color:#111111;font-weight:600;margin-top:6px" class="num">PASSPORT</span>
+        </div>
+        <div style="border:1px solid #E8552F;margin-top:14px;position:relative">
+          <div style="height:3px;background:linear-gradient(90deg,#CFC5F6,#FFDCD1,#F3E9C6,#EAF6C8,#CDEAF3,#CFC5F6)"></div>
+          <div style="margin:9px;border:1px solid #EEEEEE;padding:12px 12px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+              <span class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666">IDENTITY / 신분면</span>
+              <span class="num" style="border:1px solid #EEEEEE;padding:4px 9px;font-size:14px;line-height:18px;letter-spacing:1px;color:#111111;font-weight:600">보호자</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="width:62px;height:74px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 62px">
+                <div style="width:56px;height:56px;border-radius:28px;background:#6C5CE7;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">선</div>
+                <div style="position:absolute;right:-6px;bottom:2px;width:22px;height:22px;border-radius:11px;background:#C6472C;border:1.5px solid #FFFFFF;color:#FFFFFF;font-size:14px;display:flex;align-items:center;justify-content:center">✎</div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="margin-bottom:8px">
+                  <div class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666;margin-bottom:4px">NAME / 이름</div>
+                  <div style="font-size:17px;line-height:22px;font-weight:800;color:#111111">선국 <span style="font-size:14px;font-weight:600;color:#333333">보호자님</span></div>
+                </div>
+                <div style="margin-bottom:8px">
+                  <div class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666;margin-bottom:4px">DISTRICT / 활동 동네</div>
+                  <div style="font-size:14px;line-height:18px;font-weight:600;color:#333333">반포동 · 초코</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #EEEEEE;padding:10px 11px">
+                  <span style="font-size:14px;font-weight:700;color:#111111">프로필 설정</span>
+                  <span class="num" style="font-size:14px;line-height:18px;letter-spacing:1.4px;color:#111111">EDIT ›</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;margin:10px -12px 0;border-top:1px solid #EEEEEE">
+              <div style="flex:1;padding:9px 12px 10px"><div class="num" style="font-size:11.5px;letter-spacing:1.2px;color:#666666">TYPE</div><div class="num" style="font-size:13px;color:#111111;font-weight:600">P · OWNER</div></div>
+              <div style="flex:1;padding:9px 12px 10px;border-left:1px solid #EEEEEE"><div class="num" style="font-size:11.5px;letter-spacing:1.2px;color:#666666">NO.</div><div class="num" style="font-size:13px;color:#111111;font-weight:600">DH-4C81A20F</div></div>
+            </div>
+          </div>
+          <div style="background:#EFECF9;border-top:1px solid #EDEAF8;padding:7px 10px">
+            <div class="num" style="font-size:9px;letter-spacing:.8px;color:#6E67A0">P&lt;KOR&lt;DOGSHIGH&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+            <div class="num" style="font-size:9px;letter-spacing:.8px;color:#6E67A0">OWNER&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin:18px -15px 9px;padding:12px 17px 0;border-top:1px solid #E8552F">
+          <span class="num" style="font-size:12px;color:#E8552F;font-weight:600">§</span>
+          <span class="num" style="font-size:12px;letter-spacing:2px;color:#999999">STAMPS</span>
+          <span style="font-size:14px;font-weight:700;color:#333333">도장</span>
+          <span style="flex:1;height:1px;background:#EEEEEE"></span>
+        </div>
+        <div class="cont">이하 그대로 · 기록면(다크) · 도장면 · § DOCUMENTS 서류 · 역할 전환 · 로그아웃 · 콜로폰</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 선국 <code>profiles.name</code> · 반포동 <code>profiles.district</code> · 초코 <code>fetchFitness().dogName</code> · avatar <code>profiles.avatar_url</code> · P · OWNER <code>session.role</code> ·
+      DH-4C81A20F <code>profiles.id</code> first 8 hex, uppercased. MRZ is decoration and is already <code>accessibilityElementsHidden</code> — the one place a sub-14 Latin serial is legal.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The identity face is complete, and its blanks carry their fix</div>
+    <p class="why">Two changes, one idea: <b>a passport should name you the way the app names you</b>, and <b>an empty field on an identity document should say how to fill it</b>.
+    <code>handle</code> gets its own row (<code>@</code> + value), and <code>null</code> renders as the sentence <code>api.ts:1718</code> already insists on — «아직 아이디를 안 만들었다» — with the door that makes one.
+    Same treatment for a missing 활동 동네, which today renders as a bare <code>—</code>: that dash is load-bearing for the runner (district is what sorts their course strip, per onboard/runner's own copy)
+    and it has a fix one tap away. Nothing else on the card moves; the holo edge, the MRZ and the 1px coral emphasis border are untouched.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data — <code>handle</code> is already in <code>MyProfile</code> and already fetched on every focus. No new route: 프로필 설정 opens the sheet that
+      already edits it (owner) / pushes <code>/runner-profile/[id]</code> (runner). Coral count unchanged. <b>Trade named:</b> the ID face gains a third field, so the card grows ≈30pt.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="kick num">DOGS HIGH · MEMBER</span><span style="flex:1;height:1px;background:#EEEEEE"></span><span class="kick num">KOR</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span class="disp" style="font-size:30px;line-height:37px;color:#111111">마이</span>
+          <span style="border:1px solid #111111;padding:5px 8px;font-size:11.5px;letter-spacing:1.8px;color:#111111;font-weight:600;margin-top:6px" class="num">PASSPORT</span>
+        </div>
+        <div style="border:1px solid #E8552F;margin-top:14px">
+          <div style="height:3px;background:linear-gradient(90deg,#CFC5F6,#FFDCD1,#F3E9C6,#EAF6C8,#CDEAF3,#CFC5F6)"></div>
+          <div style="margin:9px;border:1px solid #EEEEEE;padding:12px 12px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+              <span class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666">IDENTITY / 신분면</span>
+              <span class="num" style="border:1px solid #EEEEEE;padding:4px 9px;font-size:14px;line-height:18px;letter-spacing:1px;color:#111111;font-weight:600">보호자</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="width:62px;height:74px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 62px">
+                <div style="width:56px;height:56px;border-radius:28px;background:#6C5CE7;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">선</div>
+                <div style="position:absolute;right:-6px;bottom:2px;width:22px;height:22px;border-radius:11px;background:#C6472C;border:1.5px solid #FFFFFF;color:#FFFFFF;font-size:14px;display:flex;align-items:center;justify-content:center">✎</div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="margin-bottom:8px">
+                  <div class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666;margin-bottom:4px">NAME / 이름</div>
+                  <div style="font-size:17px;line-height:22px;font-weight:800;color:#111111">선국 <span style="font-size:14px;font-weight:600;color:#333333">보호자님</span></div>
+                </div>
+                <div style="margin-bottom:8px">
+                  <div class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666;margin-bottom:4px">HANDLE / 아이디</div>
+                  <div style="font-size:15px;line-height:20px;font-weight:700;color:#111111">@choco.runner</div>
+                </div>
+                <div style="margin-bottom:8px">
+                  <div class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666;margin-bottom:4px">DISTRICT / 활동 동네</div>
+                  <div style="font-size:14px;line-height:18px;font-weight:600;color:#333333">반포동 · 초코</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #EEEEEE;padding:10px 11px">
+                  <span style="font-size:14px;font-weight:700;color:#111111">프로필 설정</span>
+                  <span class="num" style="font-size:14px;line-height:18px;letter-spacing:1.4px;color:#111111">EDIT ›</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;margin:10px -12px 0;border-top:1px solid #EEEEEE">
+              <div style="flex:1;padding:9px 12px 10px"><div class="num" style="font-size:11.5px;letter-spacing:1.2px;color:#666666">TYPE</div><div class="num" style="font-size:13px;color:#111111;font-weight:600">P · OWNER</div></div>
+              <div style="flex:1;padding:9px 12px 10px;border-left:1px solid #EEEEEE"><div class="num" style="font-size:11.5px;letter-spacing:1.2px;color:#666666">NO.</div><div class="num" style="font-size:13px;color:#111111;font-weight:600">DH-4C81A20F</div></div>
+            </div>
+          </div>
+          <div style="background:#EFECF9;border-top:1px solid #EDEAF8;padding:7px 10px">
+            <div class="num" style="font-size:9px;letter-spacing:.8px;color:#6E67A0">P&lt;KOR&lt;DOGSHIGH&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+            <div class="num" style="font-size:9px;letter-spacing:.8px;color:#6E67A0">OWNER&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;border:1px solid #EEEEEE;padding:11px 12px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">아이디가 없을 때는 이렇게</div>
+          <div style="font-size:14px;line-height:19px;color:#666666;margin-top:5px">HANDLE / 아이디 · <span style="color:#111111;font-weight:700">아직 없어요 — 만들기 ›</span> · 피드에 이 이름으로 보여요</div>
+        </div>
+        <div class="cont">이하 그대로 · 기록면 · 도장면 · 서류행 · 역할 전환 · 로그아웃 · 콜로폰</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — @choco.runner <code>profiles.handle</code> (validated only by <code>set_my_handle</code>; the client still must not mimic the rules — 0073's lesson) ·
+      the null arm is <code>handle === null</code>, which <code>fetchMyProfile</code> deliberately does <b>not</b> backfill from <code>name</code>. The grey block at the bottom of this frame is <b>lab annotation</b> showing the empty
+      arm, not a second card in the app. 피드에 이 이름으로 보여요 ← <code>feed_posts → profiles.handle</code> (api.ts:3919).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The section heads join the rest of the app</div>
+    <p class="why">§3b made section headers one grammar and retired latin kickers app-wide, by name — «ROSTER», «VERIFIED COURSES», «HIGH CLUB» — «They were decoration that competed with the title and made
+    every section look different.» 마이 still ships two of them: <code>§ STAMPS 도장</code> and <code>§ DOCUMENTS 서류</code>, each a three-typeface stack (Oswald §, Oswald latin caps 12, body Korean 14) sitting under the
+    same coral rule that everywhere else carries a single 20/800 title. This variant collapses them: coral rule + <b>도장</b> / <b>서류</b> at 20/800, with the stamp count moving to the right-hand link slot the spec provides.</p>
+    <div class="cost free"><b class="h">What this costs</b>Zero. Style only, no logic, no data, no route. <b>Trade named, and it is a real one:</b> the § glyph and the latin kickers are part of the passport conceit —
+      the strongest bit of flavour on this screen. §3b's argument is that flavour cost the app one consistent section grammar. If Sean wants the passport voice kept, the honest place for it is
+      the artifact faces (신분면 / 도장면 straps, MRZ), which this variant leaves entirely alone.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="kick num">DOGS HIGH · MEMBER</span><span style="flex:1;height:1px;background:#EEEEEE"></span><span class="kick num">KOR</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span class="disp" style="font-size:30px;line-height:37px;color:#111111">마이</span>
+          <span style="border:1px solid #111111;padding:5px 8px;font-size:11.5px;letter-spacing:1.8px;color:#111111;font-weight:600;margin-top:6px" class="num">PASSPORT</span>
+        </div>
+        <div class="cont" style="margin-top:12px">신분면 · 기록면 그대로</div>
+        <div class="rule"></div>
+        <div class="sech"><h4>도장</h4><a href="#" class="num" style="font-size:16px;line-height:20px">1 / 12 · 전체 보기 ›</a></div>
+        <div style="border:1px solid #EEEEEE;margin-top:9px">
+          <div style="margin:9px;border:1px solid #EEEEEE;padding:11px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+              <span class="num" style="font-size:14px;line-height:18px;letter-spacing:1px;color:#666666">STAMPS / 도장면</span>
+              <span class="num" style="border:1px solid #EEEEEE;padding:3px 9px;font-size:16px;line-height:21px;letter-spacing:.8px;color:#6B3A24;font-weight:600">1 / 12</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:9px">
+              <div style="width:52px;height:52px;border:1.5px solid #C6472C;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#C6472C"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">1</span><span style="font-size:14px;line-height:16px;font-weight:800">완주</span></div>
+              <div style="width:52px;height:52px;border:1px dashed #EEEEEE;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999999"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">5</span><span style="font-size:14px;line-height:16px;font-weight:800">완주</span></div>
+              <div style="width:52px;height:52px;border:1px dashed #EEEEEE;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999999"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">10</span><span style="font-size:14px;line-height:16px;font-weight:800">완주</span></div>
+              <div style="width:52px;height:52px;border:1px dashed #EEEEEE;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999999"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">25</span><span style="font-size:14px;line-height:16px;font-weight:800">완주</span></div>
+              <div style="width:52px;height:52px;border:1px dashed #EEEEEE;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999999"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">2</span><span style="font-size:14px;line-height:16px;font-weight:800">코스</span></div>
+              <div style="width:52px;height:52px;border:1px dashed #EEEEEE;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999999"><span class="num" style="font-size:16px;line-height:19px;font-weight:800">3</span><span style="font-size:14px;line-height:16px;font-weight:800">코스</span></div>
+            </div>
+            <div style="font-size:14px;line-height:20px;color:#666666;margin-top:9px">인쇄 순서는 고정 — 하나 받았다고 칸이 재배열되지 않아요</div>
+          </div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>서류</h4></div>
+        <div style="border:1px solid #EEEEEE;margin-top:9px">
+          <div style="display:flex;align-items:center;padding:13px 12px 13px 0;position:relative">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:#FF5C3D"></span>
+            <span style="width:27px;height:27px;background:#FCE7E1;color:#FF5C3D;display:flex;align-items:center;justify-content:center;margin:0 10px 0 11px;font-size:14px">✚</span>
+            <span style="flex:1"><span style="font-size:14px;font-weight:700;color:#111111;display:block">안심 센터</span><span style="font-size:14px;line-height:18px;color:#666666">SOS · 긴급 연락처 · 보험</span></span>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:13px 12px 13px 0;border-top:1px solid #EEEEEE;position:relative">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:#7FA818"></span>
+            <span style="width:27px;height:27px;background:#EDF5D8;color:#7FA818;display:flex;align-items:center;justify-content:center;margin:0 10px 0 11px;font-size:14px">⌂</span>
+            <span style="flex:1"><span style="font-size:14px;font-weight:700;color:#111111;display:block">주소 관리</span><span style="font-size:14px;line-height:18px;color:#666666">픽업 장소 · 공동현관 정보</span></span>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:13px 12px 13px 0;border-top:1px solid #EEEEEE;position:relative">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:#4A3DA8"></span>
+            <span style="width:27px;height:27px;background:#EFECFF;color:#4A3DA8;display:flex;align-items:center;justify-content:center;margin:0 10px 0 11px;font-size:14px">◔</span>
+            <span style="flex:1"><span style="font-size:14px;font-weight:700;color:#111111;display:block">알림</span></span>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+        </div>
+        <div class="cont">MENU 순서·라우팅 동결 — 이 안은 위의 섹션 머리만 바꿔요</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — the six cells are the first six of <code>deriveStamps</code>'s <b>fixed</b> print order (run1 · run5 · run10 · run25 · course2 · course3) with their real num/word pairs —
+      no invented stamp exists in this frame. 1 / 12 ← <code>stamps.filter(earned).length</code> / <code>stamps.length</code>; the section renders <b>only</b> when the derivation has arrived (loading is not 0 — the existing law), and a failed
+      derivation still shows the loud-fail strip rather than a silent 0/12. Document rows are the frozen MENU array verbatim, including the 알림 row's deliberately absent subtitle (D14).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">D · 설정 <span>app/app/settings.tsx</span></h2>
+<p class="bandsub">Small, and the most out-of-date screen in the cluster: it still paints the retired beige hairline, the retired 11pt gutter and the retired 16pt radius, its 준비 중 label names a
+feature that already shipped, and its two session-ending rows — one reversible, one <b>permanent and with no grace period</b> — render in the identical coral ink.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Rounded beige cards (<code>#DCD6C4</code>, radius 16), gutter 11, title 23/900 (the §3c screen-title spec is 30/900 · lineHeight 37 · Black Han Sans — this screen uses no display font at all).
+    이메일 shows <code>—</code> for the Kakao accounts that have no email, which is most of them. 이름 comes from a <code>.catch(() =&gt; {})</code>, so a failed read is indistinguishable from a blank name.
+    로그아웃 and 계정 삭제 are the same <code>#d84a2f</code>, same weight, adjacent rows.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:14px 11px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="width:40px;height:40px;border-radius:20px;border:1px solid #DCD6C4;display:flex;align-items:center;justify-content:center;font-size:20px">‹</span>
+          <span style="font-size:23px;font-weight:900;color:#111111">설정</span><span style="width:40px"></span>
+        </div>
+        <div style="font-size:17px;font-weight:900;color:#111111;margin:20px 0 8px">계정</div>
+        <div style="border:1px solid #DCD6C4;border-radius:16px;padding:0 15px">
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#333333">이메일</span><span style="font-size:15.5px;font-weight:700;color:#111111">—</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#333333">이름</span><span style="font-size:15.5px;font-weight:700;color:#111111">—</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#333333">현재 모드</span><span style="font-size:15.5px;font-weight:700;color:#111111">보호자</span></div>
+        </div>
+        <div style="border:1px solid #DCD6C4;border-radius:16px;padding:0 15px;margin-top:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><span style="font-size:16px;font-weight:700;color:#111111">역할 전환 (보호자 ↔ 러너)</span><span style="font-size:16px;color:#586055">›</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><span style="font-size:16px;font-weight:700;color:#111111">결제 관리</span><span style="font-size:16px;color:#586055">›</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><span style="font-size:16px;font-weight:700;color:#111111">문의하기</span><span style="font-size:16px;color:#586055">›</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><span style="font-size:16px;font-weight:700;color:#d84a2f">로그아웃</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><span style="font-size:16px;font-weight:700;color:#d84a2f">계정 삭제</span><span style="font-size:16px;color:#586055">›</span></div>
+        </div>
+        <div style="font-size:17px;font-weight:900;color:#111111;margin:20px 0 8px">준비 중</div>
+        <div style="background:#F2F2F2;border:1px solid #DCD6C4;border-radius:16px;padding:0 15px">
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#666666">알림 설정</span><span style="font-size:15.5px;font-weight:700;color:#666666">푸시 도입 후</span></div>
+        </div>
+        <div style="font-size:14px;color:#586055;text-align:center;margin-top:18px">도그스하이 0.9 (파일럿) · 반려견 피트니스</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 이메일 <code>auth.user.email</code> · 이름 <code>fetchMyProfile().name</code> · 현재 모드 <code>session.role</code> · 결제 관리 → <code>/payments</code> (real since the charge slice) ·
+      계정 삭제 → <code>DeleteAccountSheet</code> → <code>delete-account</code> edge function (real; App Store 5.1.1(v), O-6 2026-08-20).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The account block stops guessing</div>
+    <p class="why">Three sentences, each replaced by the true one. <b>이메일 → 로그인:</b> this app is Kakao-only, the email scope needs business verification, and <code>index.tsx</code> has already measured
+    that GoTrue can hand back an empty string — so 「이메일 —」 is a dash for a value that is never coming. What is always true is <i>how</i> you sign in. <b>이름:</b> the silent catch becomes the three-state
+    treatment safety.tsx wrote a paragraph defending (loading ≠ failed ≠ empty), with a retry. <b>준비 중:</b> push is live — 0024 bridges every notification to Expo Push and both home screens register the
+    token — so the honest label names the thing that is actually missing, which is per-kind control, and says what the current behaviour is meanwhile.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data, no new route. The failed-read arm needs one boolean of local state. <b>One thing it does NOT do:</b> draw a toggle.
+      There is no preferences table anywhere in <code>supabase/migrations</code> (measured), so a switch here would be a dead control — the row stays a statement.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:14px 11px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="width:40px;height:40px;border-radius:20px;border:1px solid #DCD6C4;display:flex;align-items:center;justify-content:center;font-size:20px">‹</span>
+          <span style="font-size:23px;font-weight:900;color:#111111">설정</span><span style="width:40px"></span>
+        </div>
+        <div style="font-size:17px;font-weight:900;color:#111111;margin:20px 0 8px">계정</div>
+        <div style="border:1px solid #DCD6C4;border-radius:16px;padding:0 15px">
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#333333">로그인</span><span style="font-size:15.5px;font-weight:700;color:#111111">카카오</span></div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+            <span style="font-size:15.5px;color:#333333">이름</span>
+            <span style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:14px;line-height:19px;font-weight:800;color:#B3261E">불러오지 못했어요</span>
+              <span style="font-size:14px;line-height:19px;font-weight:800;color:#B3261E;text-decoration:underline">다시 시도</span>
+            </span>
+          </div>
+          <div style="height:1px;background:#f0eee3"></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="font-size:15.5px;color:#333333">현재 모드</span><span style="font-size:15.5px;font-weight:700;color:#111111">보호자</span></div>
+        </div>
+        <div class="cont" style="margin-top:10px">실동작 카드 그대로 · 역할 전환 · 결제 관리 · 문의하기 · 로그아웃 · 계정 삭제</div>
+        <div style="font-size:17px;font-weight:900;color:#111111;margin:20px 0 8px">준비 중</div>
+        <div style="background:#F2F2F2;border:1px solid #DCD6C4;border-radius:16px;padding:13px 15px">
+          <div style="font-size:15px;line-height:20px;font-weight:800;color:#666666">알림 종류별 설정</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:4px">지금은 예약·러닝·정산 알림을 모두 받아요 · 종류별로 끄고 켜는 설정은 준비 중이에요</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:6px">알림을 아예 끄려면 휴대폰 설정 › 도그스하이에서 꺼주세요</div>
+        </div>
+        <div style="font-size:14px;color:#586055;text-align:center;margin-top:18px">도그스하이 0.9 (파일럿) · 반려견 피트니스</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 카카오 is the provider constant, not a stored field (there is one auth path). 이름 three states ← <code>fetchMyProfile()</code> resolved / rejected / pending.
+      The 준비 중 sentences are measured: 「모두 받아요」 ← <code>0024 notify_push()</code> fires on every <code>notifications</code> INSERT with no per-kind filter; 「휴대폰 설정에서」 ← the OS permission is the only
+      switch that exists today. If the email <i>does</i> exist on the account, a 이메일 row renders under 로그인 — it is drawn only when there is a value.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>Paper chrome, and the two red rows stop being twins</div>
+    <p class="why">Two things at once because they are the same neglect. <b>Chrome:</b> beige <code>#DCD6C4</code> → coral hairline sections + <code>#EEE</code> inner rules, radius 16 → 0, gutter 11 → 15,
+    title → §3c (30/900, Black Han Sans, once on this screen). <b>Weight:</b> 로그아웃 is reversible — <code>my.tsx</code> says so explicitly where it paints the signout tick coral and not critical
+    («로그아웃은 실패가 아니다»). 계정 삭제 is immediate, has <b>no grace period</b> by contract decision, and forfeits 하이 포인트 and unopened drops with the sentence as the only gate.
+    Today they are the same colour in the same card, one row apart. Here 로그아웃 becomes an ordinary ink row and 계정 삭제 gets the matrix's destructive treatment, alone, below the fold of the ordinary actions.</p>
+    <div class="cost free"><b class="h">What this costs</b>Zero — style and grouping only, no logic, no data, no route. The delete sheet, its refusal map and its 202/401 arms are untouched.
+      Coral count: zero CTA faces (hairlines and the destructive border are not CTA surfaces). <b>Trade named:</b> this is a restyle of a screen that already ships and works; it buys consistency and one safety
+      distinction, nothing functional.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="back">‹</span><span style="width:40px"></span>
+        </div>
+        <div class="disp" style="font-size:30px;line-height:37px;color:#111111;margin-top:10px">설정</div>
+        <div class="rule"></div>
+        <div class="sech"><h4>계정</h4></div>
+        <div style="margin-top:6px">
+          <div class="krow"><span class="kk">로그인</span><span class="kv">카카오</span></div>
+          <div class="krow"><span class="kk">이름</span><span class="kv">선국</span></div>
+          <div class="krow"><span class="kk">현재 모드</span><span class="kv">보호자</span></div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>관리</h4></div>
+        <div style="margin-top:6px">
+          <div class="arow"><span class="l">역할 전환 (보호자 ↔ 러너)</span><span class="g">›</span></div>
+          <div class="arow"><span class="l">결제 관리</span><span class="g">›</span></div>
+          <div class="arow"><span class="l">문의하기</span><span class="g">›</span></div>
+          <div class="arow" style="border-bottom:0"><span class="l">로그아웃</span><span class="g">›</span></div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>계정 삭제</h4></div>
+        <div style="margin-top:8px">
+          <div class="quiet">삭제하면 되돌릴 수 없어요 · 유예 기간이 없어요</div>
+          <div class="ctaD" style="margin-top:10px">계정 삭제 ›</div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>준비 중</h4></div>
+        <div class="pend" style="margin-top:8px">
+          <div class="t">알림 종류별 설정</div>
+          <div class="d">지금은 예약·러닝·정산 알림을 모두 받아요</div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;text-align:center;margin-top:18px">도그스하이 0.9 (파일럿) · 반려견 피트니스</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — unchanged from 현재; only the paint and the grouping move. 「되돌릴 수 없어요 · 유예 기간이 없어요」 is the contract's own 🔵 decision, quoted rather than softened
+      («NO GRACE PERIOD … Nothing in this copy may imply a delay or a recoverable window»). Destructive face = <code>PaperBtn variant="destructive"</code> (canvas + 1px <code>critical</code>, <code>criticalWash</code> pressed).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">E · 안심 센터 <span>app/app/safety.tsx</span></h2>
+<p class="bandsub"><b>Boundary, restated: this screen can do exactly three things today</b> — notify the counterparty of an in-flight booking (<code>sendSOS</code> → a <code>notifications</code> row, which the 0024 trigger turns into a push),
+dial 112/119, and CRUD emergency contacts. 사고 신고 is genuinely 준비 중 (there is no 1:1 incident RPC — only the club-session one) and both variants keep it 준비 중, word for word.
+What both variants attack is that the screen's <i>one real reach</i> is presented as a button that might do nothing, and that the 준비 중 signal is currently paid for in contrast.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">SOS is always live. Whether it can reach anyone is discovered <b>after</b> the confirm dialog — and if there is no run in flight the answer arrives as an Alert reading
+    「진행 중인 러닝이 없어요」, two taps into an emergency. Below, the 준비 중 card is <code>opacity: 0.55</code> (the banned alpha trick), and 전화 / 삭제 are identical pills 6px apart on the emergency roster.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:16px 16px 20px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="width:40px;height:40px;border-radius:20px;border:1px solid #DCD6C4;display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 40px">‹</span>
+          <div style="flex:1">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="disp" style="font-size:30px;line-height:37px;color:#111111">안심 센터</span>
+              <span style="width:24px;height:24px;border-radius:12px;background:#C6F542;display:flex;align-items:center;justify-content:center;font-size:14px;color:#111111">✚</span>
+            </div>
+            <div style="font-size:14px;color:#586055;margin-top:4px">안전하고 즐거운 러닝을 위한 실비상 체계</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;background:#C6472C;border-radius:20px;padding:18px;margin-top:18px">
+          <span style="font-size:28px;color:#FFFFFF">✚</span>
+          <div style="flex:1;margin-left:14px">
+            <div style="font-size:18.5px;font-weight:900;color:#FFFFFF">SOS 긴급 알림</div>
+            <div style="font-size:14px;line-height:18.5px;color:#FFFFFF;margin-top:3px">진행 중인 러닝의 상대방에게 즉시 알림<br>위급 시엔 112·119가 항상 우선이에요</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="flex:1;border:1.3px solid #f2d4ca;border-radius:14px;padding:12px;text-align:center;font-size:15.5px;font-weight:900;color:#d84a2f">● 112</div>
+          <div style="flex:1;border:1.3px solid #f2d4ca;border-radius:14px;padding:12px;text-align:center;font-size:15.5px;font-weight:900;color:#d84a2f">● 119</div>
+        </div>
+        <div style="font-size:17px;font-weight:900;color:#111111;margin:20px 0 8px">긴급 연락처</div>
+        <div style="border:1px solid #DCD6C4;border-radius:18px;padding:14px">
+          <div style="display:flex;align-items:center;padding:10px 0">
+            <div style="flex:1"><div style="font-size:16px;font-weight:800;color:#111111">엄마</div><div style="font-size:14px;color:#586055;margin-top:2px">010-1234-5678</div></div>
+            <span style="background:#f4f2ea;border-radius:99px;padding:7px 12px;font-size:14px;font-weight:800;color:#3d5a2b">전화</span>
+            <span style="background:#f4f2ea;border-radius:99px;padding:7px 12px;font-size:14px;font-weight:800;color:#d84a2f;margin-left:6px">삭제</span>
+          </div>
+          <div style="margin-top:6px;border:1.3px dashed #cfd8c2;border-radius:12px;text-align:center;padding:11px;font-size:14.5px;font-weight:800;color:#5a7a3c">＋ 연락처 추가</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <div style="flex:1;border:1px solid #DCD6C4;border-radius:18px;padding:14px;opacity:.55">
+            <div style="font-size:15px;font-weight:800;color:#111111">사고 신고</div>
+            <div style="font-size:14px;color:#586055;margin-top:3px">인시던트 플로우 준비 중</div>
+          </div>
+          <div style="flex:1;border:1px solid #DCD6C4;border-radius:18px;padding:14px">
+            <div style="font-size:15px;font-weight:800;color:#111111">의료·성향 메모</div>
+            <div style="font-size:14px;color:#586055;margin-top:3px">반려견 프로필에서 관리 ›</div>
+          </div>
+        </div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — contacts <code>emergency_contacts</code> (self-RLS) · SOS <code>sendSOS(role)</code> → looks up BOTH sides (<code>fetchCurrentOwnerBookingId</code> / <code>fetchCurrentRunnerJobId</code>),
+      derives the counterparty from the booking row by uid, inserts a <code>notifications</code> row. The 안전 체계 rows below the fold (펫보험 협의 중 · 실시간 위치 · 러너 신원) are repaired honest copy and are
+      reproduced verbatim in both variants — the 러너 신원 paragraph especially, which replaced the app's strongest false claim.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>SOS says who it will reach — before the tap</div>
+    <p class="why">This is not a new feature; it is <b>moving a read the screen already causes</b>. <code>sendSOS</code> resolves the in-flight booking on both sides before it does anything else. Run those two
+    exported helpers on focus instead, and the card can state its reach: with a run in flight it names the counterparty and the dog, so the user knows the alarm has a destination; with nothing in flight it
+    says so plainly and <b>112·119 takes the top of the screen</b>, because in that state they are the only real help. The 준비 중 card keeps its exact words and swaps <code>opacity: 0.55</code> for the explicit
+    disabled paint settings.tsx already measured at 5.13:1.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data, no new route, no new RPC. Two existing exported functions (<code>fetchCurrentOwnerBookingId</code> at api.ts:1141,
+      <code>fetchCurrentRunnerJobId</code> at :1150) called from <code>useFocusEffect</code>, plus the counterparty name — which needs one extra select on the booking's other side. <b>Honest failure:</b> if that read
+      fails, the card must fall back to today's unqualified wording, never to 「보낼 상대가 없어요」 — an unknown is not an absence, and on this screen that substitution is the worst one available.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="back" style="flex:0 0 40px">‹</span>
+          <div style="flex:1"><span class="disp" style="font-size:30px;line-height:37px;color:#111111">안심 센터</span>
+            <div style="font-size:14px;line-height:20px;color:#666666;margin-top:2px">안전하고 즐거운 러닝을 위한 실비상 체계</div></div>
+        </div>
+        <div style="display:flex;align-items:center;background:#C6472C;padding:18px;margin-top:18px">
+          <span style="font-size:28px;color:#FFFFFF">✚</span>
+          <div style="flex:1;margin-left:14px">
+            <div style="font-size:18.5px;line-height:24px;font-weight:900;color:#FFFFFF">SOS 긴급 알림</div>
+            <div style="font-size:14px;line-height:19px;color:#FFFFFF;margin-top:4px">지금 초코와 함께 있는 <b>민준 러너</b>에게 즉시 알림이 가요</div>
+            <div style="font-size:14px;line-height:19px;color:#FFFFFF;margin-top:3px">위급 시엔 112·119가 항상 우선이에요</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="flex:1;border:1px solid #E8552F;background:#FFF6F4;padding:13px;text-align:center;font-size:16px;line-height:21px;font-weight:900;color:#A83315">112 전화</div>
+          <div style="flex:1;border:1px solid #E8552F;background:#FFF6F4;padding:13px;text-align:center;font-size:16px;line-height:21px;font-weight:900;color:#A83315">119 전화</div>
+        </div>
+        <div style="margin-top:14px;border:1px solid #EEEEEE;padding:12px 13px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">진행 중인 러닝이 없을 때는 이렇게</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:5px">SOS 카드 자리에 · 「지금은 진행 중인 러닝이 없어요 — SOS로 알릴 상대가 없어요. 위급하면 112·119로 바로 전화해주세요」 · 112·119 버튼이 맨 위로 올라와요</div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>긴급 연락처</h4></div>
+        <div class="cont" style="margin-top:6px">연락처 목록 그대로 · 안전 체계 3행 그대로</div>
+        <div class="rule"></div>
+        <div class="sech"><h4>준비 중</h4></div>
+        <div class="pend" style="margin-top:8px">
+          <div class="t">사고 신고</div>
+          <div class="d">인시던트 플로우 준비 중</div>
+        </div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 민준 ← the counterparty's <code>profiles.name</code> on the in-flight booking · 초코 ← <code>bookings.dogs.name</code> · presence of a run ← the same two helpers <code>sendSOS</code> calls.
+      The grey block is <b>lab annotation</b> showing the no-run arm, not a second card. 준비 중 face = <code>paper.disabledFill</code> + <code>paper.dim</code> ink (5.13:1, measured in settings.tsx's own comment) — the copy is unchanged,
+      because the feature genuinely does not exist.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The roster is built for the minute it is needed</div>
+    <p class="why">The contacts list is where the user goes when SOS cannot help — and it is currently a 14pt <b>전화</b> pill sitting 6px from an identical 14pt <b>삭제</b> pill, in a screen full of adrenaline.
+    Here the whole row is the call target (one big tap, well over 44pt), 삭제 moves behind an explicit 편집 mode so a mis-tap cannot reach it, and the two stop looking like siblings. Two paint corrections ride along:
+    the 저장 button drops <code>colors.volt</code> — volt is the personal/reward signal colour, and §5 forbids reusing signal colours as decoration — for the matrix's secondary (this screen has already spent its one
+    coral face on SOS), and the beige <code>#DCD6C4</code> hairlines become the paper grammar.</p>
+    <div class="cost free"><b class="h">What this costs</b>Zero — no data, no route, no RPC. One local <code>editing</code> boolean. The delete confirm and its honest failure Alert (added 2026-08-11 after a
+      silent delete of an emergency contact) are untouched. <b>Trade named:</b> deleting a contact becomes two taps instead of one. On this surface that is the point.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="back" style="flex:0 0 40px">‹</span>
+          <div style="flex:1"><span class="disp" style="font-size:30px;line-height:37px;color:#111111">안심 센터</span></div>
+        </div>
+        <div class="cont" style="margin-top:10px">SOS 카드 · 112·119 그대로</div>
+        <div class="rule"></div>
+        <div class="sech"><h4>긴급 연락처</h4><a href="#">편집</a></div>
+        <div style="margin-top:8px;border:1px solid #EEEEEE">
+          <div style="display:flex;align-items:center;padding:14px 13px;min-height:60px">
+            <div style="flex:1"><div style="font-size:16px;line-height:21px;font-weight:800;color:#111111">엄마</div>
+              <div class="num" style="font-size:15px;line-height:20px;color:#666666;margin-top:2px">010-1234-5678</div></div>
+            <span style="border:1px solid #E8552F;background:#FFF6F4;padding:9px 14px;font-size:16px;line-height:21px;font-weight:800;color:#A83315">전화</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:14px 13px;min-height:60px;border-top:1px solid #EEEEEE">
+            <div style="flex:1"><div style="font-size:16px;line-height:21px;font-weight:800;color:#111111">동생</div>
+              <div class="num" style="font-size:15px;line-height:20px;color:#666666;margin-top:2px">010-9876-5432</div></div>
+            <span style="border:1px solid #E8552F;background:#FFF6F4;padding:9px 14px;font-size:16px;line-height:21px;font-weight:800;color:#A83315">전화</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;border:1px dashed #E8552F;text-align:center;padding:13px;font-size:16px;line-height:21px;font-weight:800;color:#A83315">＋ 연락처 추가</div>
+        <div style="margin-top:12px;border:1px solid #EEEEEE;padding:12px 13px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">편집을 켜면</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:5px">각 행 오른쪽에 <span style="color:#B3261E;font-weight:800">삭제</span>가 나타나요 (캔버스 면 + 1px 크리티컬) · 전화 버튼은 그대로 남아요</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:7px">추가 폼의 저장 = 세컨더리 (워시 면 + 코랄 보더) · 이 화면의 코랄 면은 SOS 하나뿐</div>
+        </div>
+        <div class="cont">안전 체계 3행 · 준비 중 카드 그대로</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span>◈</span><span class="on">☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — rows <code>emergency_contacts.name / .phone</code>, ordered by name (server). The three read states stay exactly as they are (failed read ≠ empty roster — this file's own
+      hard-won rule). Phone numerals in Oswald with explicit lineHeight 20 (BUG A). The grey block is <b>lab annotation</b> describing the 편집 arm.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">F · 결제 관리 <span>app/app/payments.tsx</span></h2>
+<p class="bandsub">The most disciplined file in the cluster: three loud-fail arms with retries, a whitelisted return address, a stated truncation, and a header that lists what it deliberately does <b>not</b> have.
+So both variants stay inside its own rules — <b>no 카드 등록 CTA</b> (the register sheet is a separate slice, blocked on Sean's Ⓐ lab pick), <b>no client arithmetic</b> (no monthly total, ever), and no
+전자상거래법 footer (those numbers do not exist). What is left is genuinely missing: a receipt that goes nowhere, and a card-less state that raises a question it already knows the answer to.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Correct and complete as far as it goes. Each receipt row prints dog · date · amount · status (and the decline reason when the server gave one), and stops there — even though the row is holding
+    <code>bookingId</code>, and this very file whitelists <code>/owner/report</code> as a place it is willing to send people. Title is 23/900, off the §3c spec, with no display-font use anywhere on the screen.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:14px 0 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px">
+          <span class="back">‹</span><span style="font-size:23px;font-weight:900;color:#111111">결제 관리</span><span style="width:40px"></span>
+        </div>
+        <div style="border-top:1px solid #E8552F;margin-top:22px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">결제 수단</div>
+        <div style="padding:8px 16px 0">
+          <div style="font-size:16px;font-weight:800;color:#111111">등록된 카드가 없어요</div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:3px">카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요</div>
+        </div>
+        <div style="border-top:1px solid #E8552F;margin-top:22px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">결제 내역</div>
+        <div style="padding:8px 16px 0">
+          <div style="display:flex;padding:13px 0;border-top:1px solid #E8552F">
+            <div style="flex:1;padding-right:12px">
+              <div style="font-size:15px;font-weight:800;color:#111111">초코 · 8월 22일</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">청구 8월 22일</div>
+            </div>
+            <div style="text-align:right">
+              <div class="num" style="font-size:19px;line-height:24px;font-weight:900;color:#111111">22,900<span style="font-size:14px;font-weight:700;color:#666666"> 원</span></div>
+              <div style="font-size:14px;font-weight:800;color:#666666;margin-top:2px">결제 완료</div>
+            </div>
+          </div>
+          <div style="display:flex;padding:13px 0;border-top:1px solid #E8552F">
+            <div style="flex:1;padding-right:12px">
+              <div style="font-size:15px;font-weight:800;color:#111111">초코 · 8월 19일</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">청구 8월 19일</div>
+              <div style="font-size:14px;line-height:18px;font-weight:700;color:#B3261E;margin-top:3px">카드 한도 초과</div>
+            </div>
+            <div style="text-align:right">
+              <div class="num" style="font-size:19px;line-height:24px;font-weight:900;color:#111111">16,900<span style="font-size:14px;font-weight:700;color:#666666"> 원</span></div>
+              <div style="font-size:14px;font-weight:800;color:#B3261E;margin-top:2px">결제 실패</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — every 원 is a <code>payments</code> row's own <code>amount</code> (never computed) · 초코 <code>bookings.dogs.name</code> · 8월 22일 <code>bookings.scheduled_at</code> ·
+      청구 <code>payments.created_at</code> · 결제 실패 <code>payments.status</code> · 카드 한도 초과 <code>raw.last_error</code> (rendered only when the server supplied one) · card block <code>my_billing_card()</code>.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>Every receipt is a door back to the run it paid for</div>
+    <p class="why">A charge on this list is an abstraction until you can see the run behind it — and the run screen exists, takes exactly the id this row is already holding, and is a destination this file
+    <i>already vouches for</i> (<code>allowedReturn</code> whitelists <code>/owner/report</code> as the one non-club return address). This is the shortest honest path from «what was this 22,900원?» to the answer.
+    A failed row keeps its decline sentence and its retry route through the banner — nothing about the exception path moves.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data (<code>PaymentRecord.bookingId</code> is already mapped), no new route. One <code>router.push({pathname:'/owner/report', params:{bid}})</code> per row,
+      and one chevron. <b>Two things to get right:</b> a <code>waived</code> or <code>pending</code> row still has a booking and still opens; a row whose report read fails lands on report's own loud-fail arm, which
+      already distinguishes «failed» from «not found» — so nothing here can produce an empty happy screen.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:14px 0 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px">
+          <span class="back">‹</span><span style="width:40px"></span>
+        </div>
+        <div class="disp" style="font-size:30px;line-height:37px;color:#111111;padding:10px 16px 0">결제 관리</div>
+        <div style="border-top:1px solid #E8552F;margin-top:20px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">결제 내역</div>
+        <div style="padding:8px 16px 0">
+          <div style="display:flex;align-items:center;padding:14px 0;border-top:1px solid #E8552F;min-height:64px">
+            <div style="flex:1;padding-right:10px">
+              <div style="font-size:15px;line-height:20px;font-weight:800;color:#111111">초코 · 8월 22일</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">청구 8월 22일</div>
+            </div>
+            <div style="text-align:right;margin-right:8px">
+              <div class="num" style="font-size:19px;line-height:24px;font-weight:900;color:#111111">22,900<span style="font-size:14px;font-weight:700;color:#666666"> 원</span></div>
+              <div style="font-size:14px;font-weight:800;color:#666666;margin-top:2px">결제 완료</div>
+            </div>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:14px 0;border-top:1px solid #E8552F;min-height:64px">
+            <div style="flex:1;padding-right:10px">
+              <div style="font-size:15px;line-height:20px;font-weight:800;color:#111111">초코 · 8월 19일</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">청구 8월 19일</div>
+              <div style="font-size:14px;line-height:18px;font-weight:700;color:#B3261E;margin-top:3px">카드 한도 초과</div>
+            </div>
+            <div style="text-align:right;margin-right:8px">
+              <div class="num" style="font-size:19px;line-height:24px;font-weight:900;color:#111111">16,900<span style="font-size:14px;font-weight:700;color:#666666"> 원</span></div>
+              <div style="font-size:14px;font-weight:800;color:#B3261E;margin-top:2px">결제 실패</div>
+            </div>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:14px 0;border-top:1px solid #E8552F;min-height:64px">
+            <div style="flex:1;padding-right:10px">
+              <div style="font-size:15px;line-height:20px;font-weight:800;color:#111111">초코 · 8월 15일</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">청구 8월 15일</div>
+            </div>
+            <div style="text-align:right;margin-right:8px">
+              <div class="num" style="font-size:19px;line-height:24px;font-weight:900;color:#111111">0<span style="font-size:14px;font-weight:700;color:#666666"> 원</span></div>
+              <div style="font-size:14px;font-weight:800;color:#666666;margin-top:2px">확인 중 — 지금은 청구된 금액이 없어요</div>
+            </div>
+            <span style="font-size:16px;color:#666666">›</span>
+          </div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:12px">최근 30건까지 보여드려요</div>
+        </div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — chevron → <code>/owner/report?bid={PaymentRecord.bookingId}</code> · the third row is the <code>underReview</code> arm (<code>raw.review === 'incident_pending'</code> with no
+      <code>review_resolved_at</code>), whose distinct sentence already exists in <code>paymentStatusLabel</code> — an open case must not read as a settled 0원. 최근 30건 renders only when the list actually hit
+      <code>RECEIPT_LIMIT</code>. <b>Not drawn, deliberately:</b> any total.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The card-less state answers the question it raises</div>
+    <p class="why">「등록된 카드가 없어요 · 준비 중」 is honest and it is also the whole message — so it leaves the owner with the obvious next question («then how am I being charged, and can I still book?») unanswered,
+    while this screen is holding both answers. <b>Answer one:</b> today a card-less owner books normally — <code>create-booking-hold</code> reads <code>ops_flags.payments_live_since</code>, and while it is NULL both the card
+    and the widget path land in <code>matching</code>. <b>Answer two:</b> what <i>does</i> block a new booking is an unsettled charge, and this screen already reads exactly that (<code>my_unsettled_charge</code>).
+    Still no CTA: the register sheet does not exist, so nothing here pretends to open one.</p>
+    <div class="cost pay"><b class="h">What this costs</b>No new column and no new route — but <b>this is the one variant in the lab that genuinely needs a server surface, and I nearly mis-costed it.</b>
+      「카드가 없어도 예약은 돼요」 is true only while <code>ops_flags.payments_live_since</code> is NULL, and the day Sean flips it <code>create-booking-hold</code> starts refusing the widget path with
+      <code>card_required</code> — so the sentence must be gated on that flag or it becomes a lie on a timer. <b>The client cannot read that flag.</b> <code>ops_flags</code> is RLS-enabled with <b>zero policies</b>
+      (0080:187, and the handler's comment says so explicitly while warning against calling it «sealed»); <code>service_role</code> holds the SELECT that the edge function uses. So this needs a small
+      security-definer read (a <code>payments_live()</code> boolean, or the flag folded into an existing settings RPC) — a migration, therefore <code>/autoplan</code> + the harness, not a client change.
+      <b>The 잠김 half is free</b> (<code>my_unsettled_charge</code> already ships and this screen already calls it), so ② splits cleanly into a free half and a migration half if Sean wants only the first.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div style="padding:14px 0 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px">
+          <span class="back">‹</span><span style="width:40px"></span>
+        </div>
+        <div class="disp" style="font-size:30px;line-height:37px;color:#111111;padding:10px 16px 0">결제 관리</div>
+        <div style="border-top:1px solid #E8552F;margin-top:20px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">결제 수단</div>
+        <div style="padding:8px 16px 0">
+          <div style="font-size:16px;line-height:21px;font-weight:800;color:#111111">등록된 카드가 없어요</div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:5px">지금은 카드 없이도 예약할 수 있어요 · 청구는 러닝이 끝난 뒤에 생겨요</div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:5px">카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요</div>
+        </div>
+        <div style="border-top:1px solid #E8552F;margin-top:22px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">새 예약</div>
+        <div style="padding:8px 16px 0">
+          <div style="font-size:16px;line-height:21px;font-weight:800;color:#0E7F49">지금은 예약할 수 있어요</div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:4px">처리되지 않은 청구가 생기면 정산이 끝날 때까지 새 예약이 잠겨요</div>
+        </div>
+        <div style="border-top:1px solid #E8552F;margin-top:22px"></div>
+        <div style="font-size:20px;font-weight:800;color:#111111;padding:14px 16px 0">결제 내역</div>
+        <div style="padding:8px 16px 0">
+          <div style="font-size:16px;line-height:21px;font-weight:800;color:#111111">아직 결제 내역이 없어요</div>
+          <div style="font-size:14.5px;line-height:20px;color:#666666;margin-top:3px">러닝이 끝난 뒤 청구가 생기면 여기에 쌓여요</div>
+        </div>
+        <div style="margin:14px 16px 0;border:1px solid #EEEEEE;padding:12px 13px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">잠겼을 때는 이 자리에</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:5px">기존 debt 배너가 그대로 떠요 (크리티컬 워시 · 다시 시도) — 이 안은 그 배너를 대체하지 않고, 배너가 없을 때 침묵하던 자리를 채워요</div>
+        </div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 지금은 예약할 수 있어요 ← <code>fetchUnsettledCharge() === false</code>. <code>null</code> (the read failed) must render as <b>neither</b> arm — the file's own comment is explicit that
+      a failed derived read may not claim «not locked», because the real fence is the server's. 카드 없이도 예약할 수 있어요 ← <code>ops_flags.payments_live_since IS NULL</code> (needs the new read named in the cost line).
+      청구는 러닝이 끝난 뒤 ← the post-pay doctrine the charge slice implements (the mint keys on run end, 0084:265-266). The grey block is <b>lab annotation</b>.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">G · 샵 <span>app/app/shop.tsx</span> <span>+ src/store.ts:337</span></h2>
+<p class="bandsub">Header comment calls this screen a 「하이 포인트 사용처 허브」. Measured, it is two screens stacked: a <b>real</b> points surface (server balance via 0027, real ledger lines, real gear claims,
+real runner drops and boost) and a <b>fabricated</b> boutique — six SKUs that exist nowhere in the codebase, priced 예정, and attributed to four named third-party brands. Four of the screen's controls
+(cart, search, product card, +) exist only to open an Alert reading 준비 중.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">The honest half and the invented half share one scroll. 「도그스하이 × 바잇미」, 「도그스하이 × 페스룸」, 「댕러민 Dog-a-mins」, 「도그스하이 × 페티즌」 are <b>partnership claims about other companies</b>;
+    the 예정 tag qualifies the price only. Note also that the balance's <code>—</code> covers both «not loaded» and «failed» (<code>.catch(() =&gt; {})</code>).</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span class="disp" style="font-size:30px;line-height:37px;color:#111111">도그스하이 샵</span>
+          <span class="back">◱</span>
+        </div>
+        <div style="border:1px solid #EEEEEE;padding:12px 14px;margin-bottom:12px;font-size:15px;color:#666666">⌕  제품 검색</div>
+        <div style="background:#111111;padding:18px">
+          <div style="font-size:12.5px;font-weight:800;letter-spacing:2px;color:#C6F542">HIGH POINT</div>
+          <div class="num" style="font-size:34px;line-height:42px;font-weight:900;color:#FFFFFF;margin-top:5px">1,280<span style="font-size:14px;color:#8fa093;font-family:'IBM Plex Sans KR',sans-serif"> 포인트</span></div>
+          <div style="margin-top:10px;border-top:1px solid #2A2350;padding-top:9px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:14.5px;color:#8fa093">러닝 완주 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+50</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:14.5px;color:#8fa093">응가 도장 보너스 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+30</span></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;margin:20px -15px 2px;padding:12px 15px 0;border-top:1px solid #E8552F">
+          <span style="background:#C96F4A;padding:3px 9px;font-size:9.5px;font-weight:900;letter-spacing:1.5px;color:#FFFFFF">DOGS HIGH GEAR</span>
+          <span style="font-size:17px;font-weight:900;color:#6B3A24">부티크 미리보기</span>
+          <span style="font-size:14.5px;color:#A87A62;font-weight:700">· 오픈 준비 중</span>
+        </div>
+        <div style="display:flex;gap:8px;margin:12px 0">
+          <span style="background:#A85536;border:1px solid #A85536;color:#FFFFFF;padding:10px 18px;font-size:15px;font-weight:700">전체</span>
+          <span style="border:1px solid #EEEEEE;padding:10px 18px;font-size:15px;font-weight:700;color:#333333">간식</span>
+          <span style="border:1px solid #EEEEEE;padding:10px 18px;font-size:15px;font-weight:700;color:#333333">용품</span>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div style="width:47.5%;border:1px solid #EEEEEE;padding:14px;min-height:190px;display:flex;flex-direction:column">
+            <div style="font-size:14px;font-weight:900;color:#8f2b0e">리드줄</div>
+            <div style="font-size:16.5px;line-height:23px;font-weight:900;color:#4A2A18;margin-top:6px">야간 반사 러닝 전용 리드줄</div>
+            <div style="font-size:14px;color:#A87A62;margin-top:3px">도그스하이 × 바잇미</div>
+            <div style="flex:1"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+              <span style="font-size:18.5px;font-weight:900;color:#6B3A24">24,000원<span style="font-size:14px;color:#A87A62;font-weight:700"> 예정</span></span>
+              <span style="width:30px;height:30px;background:#C96F4A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">+</span>
+            </div>
+          </div>
+          <div style="width:47.5%;border:1px solid #EEEEEE;padding:14px;min-height:190px;display:flex;flex-direction:column">
+            <div style="font-size:14px;font-weight:900;color:#7a651f">간식</div>
+            <div style="font-size:16.5px;line-height:23px;font-weight:900;color:#4A2A18;margin-top:6px">동결건조 북어 트릿 80g</div>
+            <div style="font-size:14px;color:#A87A62;margin-top:3px">도그스하이 × 페스룸</div>
+            <div style="flex:1"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+              <span style="font-size:18.5px;font-weight:900;color:#6B3A24">12,900원<span style="font-size:14px;color:#A87A62;font-weight:700"> 예정</span></span>
+              <span style="width:30px;height:30px;background:#C96F4A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">+</span>
+            </div>
+          </div>
+        </div>
+        <div class="cont">…네 개 더 · 각 카드·＋·장바구니·검색 모두 「준비 중」 얼럿</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span class="on">◈</span><span>☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 1,280 <code>my_miles_balance()</code> (0027 server aggregate) · ledger lines <code>miles_ledger.delta/reason/created_at</code>, reason mapped by <code>MILE_REASON</code> ·
+      gear claims <code>gear_claims</code> · drops/boost <code>fetchDrops</code> / <code>fetchActiveBoostLabel</code>. <b>Unbound:</b> every product name, price, tag and collab — hardcoded in <code>store.ts:337-344</code>,
+      referenced by no query, no table and no server contract.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The boutique stops naming partners it does not have</div>
+    <p class="why">Minimal surgery, maximum honesty: the six cards and the four 준비 중 alerts go, the section and its terracotta voice stay. What remains is what is true — that a shop is coming, what kinds of
+    things it will carry (the category chips are already just labels), and one real door: <b>알림 받기</b> is <i>not</i> drawn, because there is no waitlist table, so the section closes with a statement instead of a button.
+    A store with nothing in it does not need a cart or a search field either — deleting them removes three dead controls at once.</p>
+    <div class="cost free"><b class="h">What this costs</b>No server data. It <b>deletes</b>: <code>products</code> from <code>store.ts</code> (last consumer is this screen — same shape as the retired mock feed and
+      mock run requests), the cart button, the search field, and the four <code>Alert.alert('준비 중')</code> handlers. <b>Trade named:</b> the screen loses most of its boutique warmth and becomes mostly a points
+      screen — which is what it measurably is. If the preview is doing marketing work Sean wants kept, the honest version of that is <b>real</b> SKUs with a real supplier, not six invented ones.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div class="disp" style="font-size:30px;line-height:37px;color:#111111;margin-bottom:14px">도그스하이 샵</div>
+        <div style="background:#111111;padding:18px">
+          <div style="font-size:12.5px;font-weight:800;letter-spacing:2px;color:#C6F542">HIGH POINT</div>
+          <div class="num" style="font-size:34px;line-height:42px;font-weight:900;color:#FFFFFF;margin-top:5px">1,280<span style="font-size:14px;color:#8fa093;font-family:'IBM Plex Sans KR',sans-serif"> 포인트</span></div>
+          <div style="margin-top:10px;border-top:1px solid #2A2350;padding-top:9px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:14.5px;color:#8fa093">러닝 완주 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+50</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:14.5px;color:#8fa093">응가 도장 보너스 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+30</span></div>
+          </div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>내 기어 교환권</h4></div>
+        <div style="margin-top:9px;border:1px solid #EEEEEE;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="flex:1;padding-right:8px"><div style="font-size:15.5px;line-height:20px;font-weight:800;color:#111111">러닝 리드줄</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">10회 달성 보상</div></div>
+            <span style="background:#eaf7c8;padding:5px 10px;font-size:14px;line-height:18px;font-weight:800;color:#3d5a2b">수령 가능 · 배송 연동 준비 중</span>
+          </div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>부티크</h4></div>
+        <div style="margin-top:9px;border:1px solid #EEEEEE;padding:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="background:#C96F4A;padding:3px 9px;font-size:9.5px;font-weight:900;letter-spacing:1.5px;color:#FFFFFF">DOGS HIGH GEAR</span>
+            <span style="font-size:14px;line-height:19px;font-weight:800;color:#6B3A24">오픈 준비 중</span>
+          </div>
+          <div style="font-size:15px;line-height:22px;color:#333333">간식 · 용품 · 의류 · 영양제를 하이 포인트로 살 수 있는 스토어를 준비하고 있어요</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:6px">상품과 가격은 아직 정해지지 않았어요 — 정해지면 여기에 올라와요</div>
+        </div>
+        <div class="cont">러너에게는 도착한 드랍 · 매칭 부스트 스트립이 실데이터일 때만 위에 떠요</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span class="on">◈</span><span>☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — everything drawn is server truth: balance (0027), the two most recent <code>miles_ledger</code> rows, <code>gear_claims.item/milestone/status</code> with its real
+      「배송 연동 준비 중」 wording. The 부티크 block binds nothing and says so — that is the point. Categories are reproduced from the existing <code>CATS</code> constant as prose, not as tappable filters,
+      because there is nothing to filter.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The screen becomes what it actually is: 하이 포인트</div>
+    <p class="why">Same deletions as ①, plus the honest re-framing. The dark hero is already the screen's one artifact and the only thing on it anybody can act on — so it leads, the <b>earning rules stay visible
+    even when there are recent lines</b> (today they are an either/or, and «how do I get more» is the question a balance always raises), and the one thing a points balance must not hide gets said out loud:
+    <b>there is nowhere to spend them yet</b>. Balance also stops conflating «loading» with «failed» — three states, with a retry, exactly like every other screen in this cluster.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data — earn amounts (+50 완주, +30 응가) are the settle reasons <code>settle_run_tx</code> actually writes, and they are already
+      the screen's own fallback copy. One boolean for the failed-read arm. <b>Trade named:</b> the screen stops calling itself 샵. If the tab keeps the 샵 label while the screen says 하이 포인트, that mismatch is
+      worse than either name alone — picking ② means the tab label moves too (<code>bottomnav.tsx OWNER_TABS</code>/<code>RUNNER_TABS</code>, a one-word change in one array).</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div class="disp" style="font-size:30px;line-height:37px;color:#111111;margin-bottom:14px">하이 포인트</div>
+        <div style="background:#111111;padding:18px">
+          <div style="font-size:12.5px;font-weight:800;letter-spacing:2px;color:#C6F542">HIGH POINT</div>
+          <div class="num" style="font-size:34px;line-height:42px;font-weight:900;color:#FFFFFF;margin-top:5px">1,280<span style="font-size:14px;color:#8fa093;font-family:'IBM Plex Sans KR',sans-serif"> 포인트</span></div>
+          <div style="font-size:14px;line-height:20px;color:#8fa093;margin-top:6px">아직 포인트를 쓸 수 있는 곳은 없어요 · 스토어가 열리면 여기서 써요</div>
+          <div style="margin-top:10px;border-top:1px solid #2A2350;padding-top:9px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:14.5px;color:#8fa093">러닝 완주 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+50</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:14.5px;color:#8fa093">응가 도장 보너스 · 8월 22일</span><span class="num" style="font-size:14px;line-height:18px;font-weight:900;color:#C6F542">+30</span></div>
+          </div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>포인트 모으는 법</h4></div>
+        <div style="margin-top:6px">
+          <div class="krow"><span class="kk">러닝 완주</span><span class="kv num" style="font-size:15px;line-height:20px">+50</span></div>
+          <div class="krow"><span class="kk">응가 도장</span><span class="kv num" style="font-size:15px;line-height:20px">+30</span></div>
+          <div class="krow"><span class="kk">골드 패치 승급</span><span class="kv num" style="font-size:15px;line-height:20px">+200</span></div>
+          <div class="krow"><span class="kk">코스 마스터 달성</span><span class="kv num" style="font-size:15px;line-height:20px">+500</span></div>
+        </div>
+        <div class="rule"></div>
+        <div class="sech"><h4>잔액을 못 불러왔을 때</h4></div>
+        <div class="fail" style="margin:9px -15px 0">
+          <div class="t">포인트 잔액을 불러오지 못했어요</div>
+          <div class="d">지금 보이는 숫자가 없는 건 잔액이 0이라는 뜻이 아니에요</div>
+          <span class="a">다시 시도</span>
+        </div>
+        <div class="cont">기어 교환권 · 부티크 준비 중 한 줄은 ①과 동일 · 러너 드랍·부스트는 실데이터일 때만</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▦</span><span>◎</span><span class="on">◈</span><span>☰</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — +50 <code>run_complete</code> · +30 <code>poop_bonus</code> · +200 <code>patch_gold</code> · +500 <code>patch_master</code>, all four the amounts <code>settle_run_tx</code> (0028) writes,
+      recorded in <code>api.ts</code>'s <code>SETTLE_REASONS</code> block. 아직 쓸 수 있는 곳은 없어요 ← measured: no RPC or route spends <code>miles_ledger</code>, and <code>gear_claims</code>'s own terminal status is
+      「배송 연동 준비 중」. The fail strip replaces today's silent <code>—</code>.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">H · 보호자 온보딩 <span>app/app/onboard/owner.tsx</span></h2>
+<p class="bandsub">Two steps: 이름 + 주소 → 지도에 픽업 핀. The state machine is careful (four CTA phases, a re-entrant <code>ensureSaved</code>, a pin state where «read failed» is its own answer, a retry strip that
+repeats <i>whichever</i> exit failed) and neither variant touches it. What both attack is what the screen does not say.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today (step 2, pinned)</div>
+    <p class="why">Step 2 looks almost exactly like step 1: same title, same two fields, one of them locked, and the step's actual subject — the pin — is a quiet 14pt line under the address.
+    The counter is the only thing that says a step happened.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div style="font-size:14px;line-height:18px;letter-spacing:2px;font-weight:700;color:#666666">2 / 2</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:12px">우리 아이 이름과<br>보통 출발하는 곳</div>
+        <div class="field big">초코</div>
+        <div class="fieldk">시작 주소</div>
+        <div class="field lock">반포동 래미안퍼스티지</div>
+        <div class="quiet" style="margin-top:8px">주소를 저장했어요 · 나중에 마이 › 주소 관리에서 바꿀 수 있어요</div>
+        <div class="quiet" style="margin-top:8px">픽업 위치를 지도에 찍었어요 ✓ · <span style="color:#111111;font-weight:800">다시 찍기 ›</span></div>
+        <div style="height:120px"></div>
+        <div class="ctabar"><div class="ctaC">홈으로 ›</div></div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 초코 <code>dogs.name</code> (created once by <code>addDog</code>, re-edited by <code>updateMyDog</code>) · 주소 <code>addresses.addr</code> (write-once; only
+      <code>owner_update_address_detail</code> can change it later, which is why the field locks) · 찍었어요 ✓ ← <code>addresses.lat/lng</code> both non-null, re-read from the server on every focus.
+      Geocoding never writes a coordinate (0065) — the hint under the field is a hint, and silence means «we could not check», not «it is fine».</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The notification ask gets a reason — here, not on the home screen</div>
+    <p class="why">The runner's onboarding states its reason before the OS location sheet, deliberately, «because the sheet is one-shot and a refusal is only recoverable through Settings». <b>The owner never gets
+    that courtesy for push</b> — <code>registerPushToken()</code> fires on <code>owner/home</code> mount and calls <code>requestPermissionsAsync()</code> cold, on a screen the user has just landed on, with no sentence in front of it.
+    And the owner's product <i>is</i> notifications: 수락됐어요 · 출발했어요 · 도착했어요 · 리포트가 나왔어요. This variant borrows the runner's own plate — same component grammar, same four states
+    (undetermined / granted / denied → 설정에서 켜기 / unavailable) — and moves the ask to the one place the user is already answering questions.</p>
+    <div class="cost pay"><b class="h">What this costs</b>No new server data, no new route. It needs one small client helper: a <code>getPushPermission()</code> beside <code>getTrackPermission()</code>
+      (<code>Notifications.getPermissionsAsync()</code>, with the same <code>unavailable</code> arm for old builds that lack the module) — because a plate that cannot read the current state would lie after a refusal.
+      <b>And it must move the caller</b>: <code>owner/home</code> keeps calling <code>registerPushToken()</code> (it still has to upsert the token on every launch), but the <i>permission request</i> belongs here.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div style="font-size:14px;line-height:18px;letter-spacing:2px;font-weight:700;color:#666666">2 / 2</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:12px">우리 아이 이름과<br>보통 출발하는 곳</div>
+        <div class="field big">초코</div>
+        <div class="fieldk">시작 주소</div>
+        <div class="field lock">반포동 래미안퍼스티지</div>
+        <div class="quiet" style="margin-top:8px">픽업 위치를 지도에 찍었어요 ✓ · <span style="color:#111111;font-weight:800">다시 찍기 ›</span></div>
+        <div class="plate">
+          <div class="h">러닝이 어떻게 되고 있는지 알려드려요</div>
+          <div class="s">러너가 수락하면 · 출발하면 · 도착하면 · 리포트가 나오면</div>
+          <span class="a">알림 받기 ›</span>
+        </div>
+        <div style="margin-top:12px;border:1px solid #EEEEEE;padding:12px 13px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">허용한 뒤에는</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:5px">「알림 허용됨 ✓」 (초록) · 거절했다면 「알림이 꺼져 있어요 · 설정에서 켜기 ›」 · 구 빌드면 「이 빌드에는 알림 기능이 없어요」</div>
+        </div>
+        <div style="height:60px"></div>
+        <div class="ctabar"><div class="ctaC">홈으로 ›</div></div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — the four sentences are the four notification kinds this app actually sends: <code>transition-booking</code> writes the accept/start/arrive notifications and
+      <code>settle_run_tx</code> writes the report one; each becomes a push through <code>0024 notify_push()</code>. Plate states ← <code>Notifications.getPermissionsAsync()</code>, re-read on every foreground
+      (the runner plate already does this with an <code>AppState</code> listener, because there is no event for «the user changed a system permission»). The grey block is <b>lab annotation</b>.
+      <b>Skippable by construction</b>: this plate is never a gate — the CTA does not depend on it, exactly like the runner's.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>Step 2 looks like a different step</div>
+    <p class="why">The counter promises two steps; the screen delivers one screen twice. Here step 2 <b>changes its title to its actual subject</b>, collapses the two now-settled fields into a single confirmation
+    row (they are locked and saved — they do not need input geometry any more), and gives the pin the room it deserves, including the unpinned arm's real consequence, which today is a one-line aside:
+    an address with no coordinate silently degrades course recommendation, and the file's own comment says «가장 가까운» may only be claimed when that coordinate exists.</p>
+    <div class="cost free"><b class="h">What this costs</b>Zero — no data, no route, no logic. Every state drawn already exists as a branch (<code>step2</code>, <code>pin</code> ∈ unknown/pinned/unpinned/error,
+      <code>skippable</code>); this is a layout and copy rearrangement of those same branches. Black Han Sans stays at one use (the title, which swaps rather than duplicating).</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div style="font-size:14px;line-height:18px;letter-spacing:2px;font-weight:700;color:#666666">2 / 2</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:12px">초코가 출발하는 곳을<br>지도에 찍어요</div>
+        <div style="margin-top:20px;border-top:1px solid #EEEEEE">
+          <div class="krow"><span class="kk">이름</span><span class="kv">초코</span></div>
+          <div class="krow"><span class="kk">시작 주소</span><span class="kv">반포동 래미안퍼스티지</span></div>
+        </div>
+        <div class="quiet" style="margin-top:8px">저장했어요 · 나중에 마이 › 주소 관리에서 바꿀 수 있어요</div>
+        <div class="plate">
+          <div class="h">아직 지도에 찍지 않았어요</div>
+          <div class="s">러너가 정확히 어디로 갈지 여기서 정해져요 · 가까운 코스를 추천하려면 필요해요</div>
+        </div>
+        <div style="height:70px"></div>
+        <div class="ctabar">
+          <div class="ctaC">지도에서 찍기 ›</div>
+          <div style="text-align:center;font-size:14px;line-height:20px;font-weight:700;color:#666666;margin-top:10px;min-height:44px;display:flex;align-items:center;justify-content:center">나중에 · 홈으로</div>
+        </div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 초코 <code>dogs.name</code> (the title uses the saved name, falling back to 우리 아이 exactly as the CTA label already does via <code>withParticle</code>) ·
+      the two summary rows are the values already written to <code>dogs</code> and <code>addresses</code> · plate arm ← <code>pin === 'unpinned'</code>. The other three pin arms keep their existing sentences in the same
+      slot: 확인 중… (unknown), 찍었어요 ✓ + 다시 찍기 (pinned), 확인하지 못했어요 + 다시 확인 (error). 나중에 · 홈으로 renders only when <code>skippable</code>, as today.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">I · 러너 온보딩 <span>app/app/onboard/runner.tsx</span></h2>
+<p class="bandsub">One step: 이름 + 홈 베이스 + 위치 권한. The file is scrupulous about what 홈 베이스 is <i>not</i> («⚠ 홈 베이스는 좌표가 아니다» — there is no home-base column; <code>profiles.district</code> is free text
+that sorts the course strip) and about reading back the write. The gap is at the end: <b>시작하기</b> lands the runner on a home screen where no request can ever reach them.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Counter reads <b>1 / 1</b> — a progress indicator with no progress to indicate. The location plate's consequence sentence («러닝 중 위치가 없으면 보호자가 볼 수 없어요») appears <b>only in the
+    denied arm</b>, i.e. after the decision; in the undetermined arm — the moment the runner is actually deciding — the plate says what the feature does but never what refusing costs.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div style="font-size:14px;line-height:18px;letter-spacing:2px;font-weight:700;color:#666666">1 / 1</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:12px">이름과<br>홈 베이스</div>
+        <div class="field big">민준</div>
+        <div class="fieldk">홈 베이스</div>
+        <div class="field">반포동</div>
+        <div class="quiet" style="margin-top:8px">주로 뛰는 동네 · 동네 코스를 먼저 보여드려요</div>
+        <div class="plate">
+          <div class="h">러닝 중 위치를 보호자에게 보여줘요</div>
+          <div class="s">러닝하는 동안만 · 예약한 보호자에게만</div>
+          <span class="a">위치 권한 허용 ›</span>
+        </div>
+        <div style="height:90px"></div>
+        <div class="ctabar"><div class="ctaC">시작하기 ›</div></div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 민준 · 반포동 → <code>profiles.name</code> / <code>profiles.district</code>, written by <code>updateMyProfile</code> and then <b>read back</b> (a bare UPDATE matching zero rows returns
+      no error, which would render as success) · plate ← <code>getTrackPermission()</code>, re-read on every foreground · the permission ask is grant-only — <code>startTracking()</code> is deliberately not called,
+      since its foreground-service notification has no business running before a run exists.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>The last screen names the gate that is actually next</div>
+    <p class="why">This is the honesty gap in the cluster with the largest consequence. <code>ensureRunner()</code> mints the runner at tier <b><code>applicant</code></b>, and <code>is_active_runner()</code> is literally
+    <code>tier &lt;&gt; 'applicant'</code> (0004:4-10) — the predicate on the open-request RLS policy. So a runner who finishes this screen <b>cannot receive a single request</b>, of any kind, until they apply and an
+    operator approves them on a video call. The screen says 시작하기 and then hands them a home screen that will look, for as long as they wait, exactly like a quiet market. The remedy exists and is one push away:
+    <code>/runner/apply</code> is a real funnel with real states. The CTA stays primary and stays coral; 인증 신청 is the secondary door beside it.</p>
+    <div class="cost free"><b class="h">What this costs</b>No new server data. No new route (<code>/runner/apply</code> ships). Coral count: still one (the primary CTA); the second door is
+      <code>PaperBtn variant="secondary"</code>. <b>Open product question, not a design one:</b> whether 인증 신청 should be the <i>primary</i> here and 홈으로 the secondary — see open question 6.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div style="font-size:14px;line-height:18px;letter-spacing:2px;font-weight:700;color:#666666">마지막 단계</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:12px">이름과<br>홈 베이스</div>
+        <div class="field big">민준</div>
+        <div class="fieldk">홈 베이스</div>
+        <div class="field">반포동</div>
+        <div class="quiet" style="margin-top:8px">주로 뛰는 동네 · 동네 코스를 먼저 보여드려요</div>
+        <div class="plate">
+          <div class="h">러닝 중 위치를 보호자에게 보여줘요</div>
+          <div class="s">러닝하는 동안만 · 예약한 보호자에게만</div>
+          <span class="ok">위치 권한 허용됨 ✓</span>
+        </div>
+        <div style="margin-top:14px;border:1px solid #EEEEEE;padding:13px 14px">
+          <div style="font-size:15px;line-height:20px;font-weight:800;color:#111111">요청을 받으려면 인증이 필요해요</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:4px">파일럿 기간에는 운영자가 화상 통화로 직접 만나 신분증을 확인하고 한 명씩 승인해요 · 승인 전에는 요청이 오지 않아요</div>
+        </div>
+        <div style="height:30px"></div>
+        <div class="ctabar">
+          <div class="ctaC">시작하기 ›</div>
+          <div class="ctaS" style="margin-top:8px">러너 인증 신청하기 ›</div>
+        </div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 승인 전에는 요청이 오지 않아요 is measured, not softened: <code>is_active_runner()</code> = <code>exists(select 1 from runners where profile_id = auth.uid() and tier &lt;&gt; 'applicant')</code>,
+      and it gates «runners see open requests» (0004:12). The 화상 통화 sentence is <code>safety.tsx</code>'s repaired 러너 신원 copy, reused verbatim so two screens do not drift on one fact.
+      인증 신청 → <code>/runner/apply</code>, the same destination 마이's 러너 인증 센터 row uses (whose subtitle already reports application state).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The cost of refusing is stated where the decision is made</div>
+    <p class="why">Smaller and independent of ①. Two corrections: <b>「1 / 1」 retires</b> — a counter that can never advance is decoration in a slot the file's own comment insists is data — and the location plate
+    tells the runner, <i>before</i> the one-shot OS sheet, what a refusal actually costs. The sentence already exists in this file; it is simply in the wrong arm. Everything else — the grant-only ask, the
+    AppState re-read, the 설정에서 켜기 recovery, the <code>unavailable</code> arm's weaker-and-true wording — stays exactly as written.</p>
+    <div class="cost free"><b class="h">What this costs</b>Zero. One deleted line, one moved sentence. <b>Trade named:</b> the plate grows by one line at the exact moment we are asking for something,
+      which is a real risk of scaring the ask — but the alternative is a runner discovering the consequence only from the arm that appears after they have already said no, and that arm is recoverable only through
+      the system Settings app.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:30px">
+        <div style="font-size:14px;line-height:19px;font-weight:700;color:#666666;min-height:44px;display:flex;align-items:center">‹ 역할 다시 고르기</div>
+        <div class="disp" style="font-size:24px;line-height:30px;color:#111111;margin-top:6px">이름과<br>홈 베이스</div>
+        <div class="field big">민준</div>
+        <div class="fieldk">홈 베이스</div>
+        <div class="field">반포동</div>
+        <div class="quiet" style="margin-top:8px">주로 뛰는 동네 · 동네 코스를 먼저 보여드려요</div>
+        <div class="plate">
+          <div class="h">러닝 중 위치를 보호자에게 보여줘요</div>
+          <div class="s">러닝하는 동안만 · 예약한 보호자에게만</div>
+          <div class="s" style="margin-top:6px">위치가 없으면 보호자가 러닝을 볼 수 없고, 거리도 기록되지 않아요</div>
+          <span class="a">위치 권한 허용 ›</span>
+        </div>
+        <div style="margin-top:12px;border:1px solid #EEEEEE;padding:12px 13px">
+          <div style="font-size:14px;line-height:19px;font-weight:800;color:#666666">나머지 세 상태는 그대로</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:5px">허용됨 ✓ (초록) · 거절 → 「설정에서 켜기 ›」 · 모듈 없음 → 「이 빌드에는 위치 기능이 없어요」</div>
+        </div>
+        <div style="height:20px"></div>
+        <div class="ctabar"><div class="ctaC">시작하기 ›</div></div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 거리도 기록되지 않아요 is the second half of the same truth and is measured: the run's distance comes from the tracked trace (<code>runs.trace</code>), which is why the
+      settlement threshold reads it. Nothing in this variant gates the CTA on the permission — a runner may still finish without it, exactly as today, because refusing is a legitimate choice and the
+      consequence is now stated rather than enforced.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">J · What each variant costs, at a glance</h2>
+<table>
+  <tr><th>Screen</th><th>①</th><th>Cost</th><th>②</th><th>Cost</th></tr>
+  <tr><td><b>index</b> 역할 선택</td><td>Failure stays on the door</td><td>free</td><td>One busy truth + real step names</td><td>free</td></tr>
+  <tr><td><b>login</b></td><td>Consent sentence tells the truth</td><td>free in app · <b>blocked on counsel</b> for the eventual links</td><td>Lockout named + opacity trick retired</td><td>free</td></tr>
+  <tr><td><b>my</b> 여권</td><td>@handle on the ID face + blanks carry their fix</td><td>free</td><td>§3b section headers</td><td>free · trades passport flavour</td></tr>
+  <tr><td><b>settings</b></td><td>Account block stops guessing (로그인 · 3-state 이름 · true 준비 중)</td><td>free</td><td>Paper chrome + 로그아웃 ≠ 계정 삭제</td><td>free · restyle</td></tr>
+  <tr><td><b>safety</b> 안심 센터</td><td>SOS names its reach · 준비 중 alpha retired</td><td>free + 1 counterparty-name read</td><td>Roster built for the emergency minute</td><td>free</td></tr>
+  <tr><td><b>payments</b></td><td>Receipt → the run it paid for</td><td>free</td><td>Card-less state answers itself</td><td>잠김 half <b>free</b> · 카드 half needs a <b>migration</b> (<code>ops_flags</code> is client-unreadable)</td></tr>
+  <tr><td><b>shop</b></td><td>Fabricated SKUs + 4 dead alerts deleted</td><td>free · deletes <code>store.ts products</code></td><td>Screen becomes 하이 포인트</td><td>free · <b>tab label moves</b></td></tr>
+  <tr><td><b>onboard/owner</b></td><td>Push ask gets a reason, here</td><td><b>1 client helper</b> (<code>getPushPermission</code>) + moves the caller</td><td>Step 2 looks like step 2</td><td>free</td></tr>
+  <tr><td><b>onboard/runner</b></td><td>The applicant gate is named + its door</td><td>free</td><td>Refusal cost stated where it is decided</td><td>free</td></tr>
+</table>
+<p class="bandsub" style="margin-top:12px"><b>Fifteen of the eighteen are free</b> — no server field, no new route, no RPC, no migration. One needs a small client helper (<code>getPushPermission</code>),
+one deletes a mock array, one moves a tab label. <b>Exactly one needs a migration</b>: payments ②'s card-half, because <code>ops_flags</code> is not readable from the client — and that half can be dropped
+without losing the other. And one (login ①) is complete in the app but waits on Sean and counsel for the part that lives outside it.</p>
+
+<div class="foot">
+  <h3>OPEN QUESTIONS — things the code could not settle</h3>
+  <ol>
+    <li><b>Who publishes 이용약관 / 개인정보처리방침, and when?</b> login ① is honest <i>because</i> they are unpublished — but the privacy draft's own header lists three obligations that copy cannot fix:
+      no destruction path for <code>runs.trace</code> (measured 2026-08-19: none of the 17 operational crons touches location), no 위치정보 이용·제공 확인자료 ledger table, and the KCC 위치기반서비스사업 filing.
+      Those are Sean-only and legally load-bearing. <b>Does login ① ship now as the interim, or does the whole thing wait for the published URLs?</b> My instinct is ship now — the current sentence is worse than either end state.</li>
+    <li><b>Does the shop keep a boutique voice at all?</b> shop ① deletes six invented SKUs and four 준비 중 alerts. What it cannot decide is whether the preview was doing real marketing work. If it was,
+      the honest replacement is one or two <b>real</b> products with a real supplier — which is a business task, not a design one. If it was not, ② is the cleaner end state and the tab should say 포인트.</li>
+    <li><b>Should 로그아웃 and 역할 전환 live in two places?</b> Both appear in 마이 <i>and</i> in 설정, with different paint in each (마이's signout carries a coral tick and an email sub-line; settings' is a coral-ink row).
+      Neither variant resolves it because it is a product call about what 설정 is for. Related: if 설정 ② lands, the two screens' 로그아웃 rows will finally disagree on colour <i>on purpose</i> — worth a deliberate ruling.</li>
+    <li><b>Is 「알림 종류별 설정」 the right pending promise?</b> settings ① names per-kind preferences as the missing feature. There is no preferences table, so nothing constrains the shape — it could equally be
+      «중요 알림만», or a quiet-hours window, or nothing at all (the OS switch may be enough for a pilot). Naming a specific unbuilt feature in a 준비 중 label is a promise; is that one we want to make?</li>
+    <li><b>safety ①'s counterparty name costs one read — is it worth it?</b> The cheaper version says only 「지금 진행 중인 러닝이 있어요 — 상대방에게 바로 알려요」 with no name, using only the two booking-id helpers.
+      Naming 민준 makes the alarm concrete; it also puts a person's name on the most alarming card in the app. I drew the named version; the unnamed one is defensible.</li>
+    <li><b>onboard/runner ①: which door is primary?</b> I kept 시작하기 as the coral CTA and made 인증 신청 secondary — but the measured truth is that a runner who goes home cannot receive anything. If the funnel's
+      real goal is applications, 인증 신청 should be the coral one. That is a conversion decision, not a layout one.</li>
+    <li><b>Does the owner's push ask belong in onboarding at all?</b> onboard/owner ① moves it there by analogy with the runner's location ask. The counter-argument is real: the owner has not yet booked anything,
+      so «러너가 수락하면 알려드려요» describes a future they have not chosen — and the card-registration decision (<code>docs/decisions/card-registration-placement.md</code>) reasons exactly the opposite way about a
+      different ask, placing it inline at first booking rather than in onboarding. Same question, and the two answers should be consistent.</li>
+    <li><b>The card-register slice is blocked on Sean's Ⓐ lab pick</b> and the agreed placement is «inline at first booking, plus one skippable soft prompt at the end of onboarding». That soft prompt <b>does not exist</b>
+      in either onboarding screen today. It is out of this lab's scope (no register sheet to prompt toward), but the decision doc thinks it is coming — it should not be forgotten.</li>
+    <li><b>my ②'s trade is genuinely two-sided.</b> §3b retired latin section kickers app-wide, and 마이 is the screen where that grammar carries the most meaning (it is a passport). I drew the conforming version
+      because the law is a law — but if the passport keeps its § heads by exception, that exception should be written into DESIGN.md rather than surviving as drift.</li>
+    <li><b>Unmeasured, flagged rather than asserted.</b> settings ② collapses the account card into hairline rows at gutter 15. On a 390pt device the 현재 모드 row's label + value fit easily, but I have no simulator here
+      and 로그인 / 카카오 at 15.5pt with a long Kakao-supplied name could crowd. It is a five-minute check, not a finding — the lab frames use a fallback font and cannot settle it.</li>
+    <li><b>Two screens ask for the same 이름 and neither knows the other did.</b> onboard/runner writes <code>profiles.name</code>; 마이's sheet writes it again; <code>index.tsx</code> writes it a third time on first
+      INSERT (from the email stem, or 사용자 for a Kakao account with no email). The measured bug that produced the current UPDATE-or-INSERT shape came from exactly this overlap. Nothing in this lab touches it,
+      but the owner onboarding never asks for a name at all — so an owner is called 사용자 to their runner until they find 프로필 설정. <b>Should 보호자 온보딩 ask for the owner's name?</b> That is a third step, and I did not want to add one quietly.</li>
+  </ol>
+</div>
+
+</div></body></html>

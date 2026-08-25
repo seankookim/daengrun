@@ -15,6 +15,7 @@ import { goBackOrHome } from '../../src/lib/nav';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
 import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
+import { expectedDurationMs } from '../../src/lib/lateness';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
 // slot-hold countdown on submit. See docs/calendar.md.
@@ -316,7 +317,7 @@ export default function Request() {
     const wd = DATES[di].cal.wd;
     const min = slotH * 60 + slotM;
     // 실소요 = km×8 + 25분 버퍼 (서버 hold와 동일 — 60분 고정은 7km+에서 러너 가용시간을 넘겼다)
-    const durMin = km * 8 + 25; // draft.km은 pay() 전까지 lag — 화면 상태값 사용
+    const durMin = expectedDurationMs(km) / 60_000; // 한 벌: src/lib/lateness.ts. draft.km은 pay() 전까지 lag
     return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + durMin);
   };
 

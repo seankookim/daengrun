@@ -25,6 +25,7 @@ import { fetchAddresses, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
+import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
@@ -105,6 +106,9 @@ function regionOf(traces: GeoRoutePoint[][]): MapRegion | null {
 
 export default function CourseMap() {
   const maps = getNaverMap();
+  // 숫자 서체 — 랩의 `.numf`가 km 숫자에 걸려 있는데 출하 코드에는 없었다 (Sean 2026-08-24:
+  // "make sure the actual ui is what I see in the mock"). 폴백이면 조용히 시스템 서체다.
+  const nf = useNumFont();
   // Anchor size follows the camera (see anchorSizeForZoom). The initial zoom is whatever the
   // region fit resolves to; until the first onCameraIdle we assume a city-level fit (18 pt).
   const [camZoom, setCamZoom] = useState<number>(FALLBACK_CAM.zoom);
@@ -434,7 +438,7 @@ export default function CourseMap() {
                 핀이 없거나 진입점을 잴 수 없으면 아예 나오지 않는다: 못 재는 추정치를 0으로 그리지 않는다. */}
             {totalLine && <Text style={s.total} numberOfLines={1}>{totalLine}</Text>}
           </View>
-          {sel && <Text style={s.km}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
+          {sel && <Text style={[s.km, nf]}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
         </Pressable>
 
         {detent === 'peek' && (
@@ -479,7 +483,13 @@ export default function CourseMap() {
                         .filter(Boolean).join(' · ')}
                     </Text>
                   </View>
-                  <Text style={s.liKm}>{r.km}</Text>
+                  {/* [Sean 2026-08-24] "course map's listed maps should have km unit on the right
+                      side not just a number." 벌거벗은 숫자는 무엇의 5인지 말하지 않는다 —
+                      단위가 숫자 오른쪽에 붙어 한 덩어리로 읽힌다 (live.tsx의 km 스탯과 같은 문법).
+                      ⚠ 여기 오는 값은 **코스 길이 하나**다. 이동 포함 총거리(totalKmFor)는
+                      머리(peek)에만 '이동 포함 약 …'이라는 라벨을 달고 남는다: 라벨 없는 두 개의
+                      km이 한 화면에서 나란해지는 순간 어느 쪽이 코스 길이인지 알 수 없어진다. */}
+                  <Text style={[s.liKm, nf]}>{r.km}<Text style={s.liKmUnit}> km</Text></Text>
                 </Pressable>
               );
             })}
@@ -564,7 +574,8 @@ const s = StyleSheet.create({
   kick: { fontSize: 14, color: paper.dim, fontWeight: '700' },
   name: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 3 },
   total: { fontSize: 14, color: paper.faint, fontWeight: '700', marginTop: 2 },
-  km: { fontSize: 26, fontWeight: '800', color: paper.ink, marginLeft: 10 },
+  // Oswald는 lineHeight를 명시하지 않으면 어센더가 잘린다 (BUG A) — 26 × 1.23 = 32.
+  km: { fontSize: 26, lineHeight: 32, fontWeight: '800', color: paper.ink, marginLeft: 10 },
   kmUnit: { fontSize: 12, color: paper.faint, fontWeight: '700' },
 
   cta: { backgroundColor: paper.action, paddingVertical: 15, alignItems: 'center', marginTop: 12, minHeight: 44, justifyContent: 'center' },
@@ -574,7 +585,9 @@ const s = StyleSheet.create({
   liOn: { backgroundColor: paper.wash, borderLeftWidth: 3, borderLeftColor: paper.line, marginHorizontal: -14, paddingHorizontal: 14 },
   liName: { fontSize: 14.5, fontWeight: '800', color: paper.ink, flexShrink: 1 },
   liSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
-  liKm: { fontSize: 16, fontWeight: '800', color: paper.text, marginLeft: 10 },
+  liKm: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.text, marginLeft: 10 },
+  // 단위도 데이터의 일부다 — 14pt 플로어를 받는다 (글리프 예외가 아니다). dim = 5.7:1.
+  liKmUnit: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
   candTag: { fontSize: 14, color: paper.pending, fontWeight: '800', marginLeft: 6 },
 
   emptyTxt: { fontSize: 14, color: paper.text, fontWeight: '700' },

@@ -154,8 +154,23 @@ export default function Meetup() {
     try {
       const s2 = await fetchBookingSync(jobId);
       // 종말 상태 — 취소/만료된 예약의 미트업에 좌초 금지 (감사 ③)
-      if (s2.status === 'completed' || s2.status.startsWith('cancelled') || s2.status === 'expired' || s2.status === 'matching') {
-        Alert.alert('예약 상태가 바뀌었어요', s2.status === 'completed' ? '이미 완료된 러닝이에요' : '이 예약은 더 진행할 수 없어요');
+      // ⚠ [F4 2026-08-24] 이건 **거부 목록**이었고, 0117 이 처음 쓰는 두 종점(no_show ·
+      // incident_review)이 둘 다 목록에 없었다. 그래서 지각 프로토콜의 **엣지가 아니라 정상 경로**
+      // — 러너는 '진행하겠다'고 답했고 보호자는 침묵, 마감이 지나 no_show — 에서 러너가 죽은 예약
+      // 위에 선다: 스테이지 머신이 s2.arrivedAt 으로 떨어져 'arrived' 에 주차하고, :587 의
+      // 인계 CTA 가 살아 있고, confirmHandoff 는 매번 409 라 보호자 앞에서 무한 재시도가 된다.
+      // 허용 목록으로 뒤집는다 — 이 트리가 이미 두 번 쓰는 모양이고(api.ts IN_FLIGHT,
+      // lateness.ts CAN_BE_LATE), 새 종점이 또 생겨도 기본값이 '바운스'라 조용히 새지 않는다.
+      if (!['confirmed', 'runner_enroute', 'picked_up', 'active'].includes(s2.status)) {
+        // incident_review 는 '끝났다'가 아니라 '사람이 봐야 한다'는 뜻이다. 개를 데리고 있을 수도
+        // 있는 러너에게 「더 진행할 수 없어요」라고 말하면 안 된다 (D3). 0117:644 가 같은 순간에
+        // 보내는 푸시와 **같은 낱말**을 쓴다 — 한 사건에 두 어휘가 생기지 않게.
+        Alert.alert(
+          '예약 상태가 바뀌었어요',
+          s2.status === 'completed' ? '이미 완료된 러닝이에요'
+            : s2.status === 'incident_review' ? '확인이 필요해요'
+            : '이 예약은 더 진행할 수 없어요',
+        );
         router.back();
         return;
       }
@@ -179,6 +194,16 @@ export default function Meetup() {
   }, [jobId]);
 
   // 서버에 '이동 중' 보고 + 실시간 구독 (8초 폴링은 폴백)
+  // ⚠ [F3b 열린 문 · 2026-08-24] 아래 runnerEnroute 는 **천장 게이트 밖에 있다.** 이 effect 는
+  // 마운트 즉시 돌고 info 는 아직 없으므로 pastCeiling 은 그 시점에 항상 false 다 — 즉 17일 된
+  // confirmed 예약도 화면을 여는 것만으로 runner_enroute 로 뒤집히고 보호자에게 「러너 이동 중」
+  // 푸시가 나간다 (FM4 의 첫 걸음). 여기서 고치지 않는 이유는 두 가지다:
+  //   (1) info 를 기다리려면 deps 에 info 를 넣어야 하고, 그러면 구독과 8초 폴링이 info 변화마다
+  //       재설치된다 — meetup 의 스테이지 머신·폴링·confirmHandoff 는 DO-NOT-REFACTOR 동결 대상이다.
+  //   (2) 진짜 자물쇠는 서버에 있어야 한다: transition-booking:243 은 **미래** 예약만 막고
+  //       confirm_handoff·start_run 은 시계를 보지 않는다. 클라이언트 게이트로는 이 문을 못 닫는다.
+  // 그래서 이 슬라이스가 닫은 것은 '탭으로 진행하는 문'이고, '열기만 해도 뒤집히는 문'은 열려 있다.
+  // Sean 의 Q4(천장은 규칙인가 권고인가)가 답해지면 서버 거부 한 줄로 같이 닫힌다.
   useEffect(() => {
     if (!jobId) return;
     runnerEnroute(jobId).catch(() => { /* 이미 지난 상태면 무시 */ });
@@ -293,8 +318,26 @@ export default function Meetup() {
   // 됐는가'와 '지금 누구를 기다리는가' 뿐이다. 랩의 러너 ⑤가 이 자리다.
   const meetLate = info
     ? lateness({ scheduledAt: info.scheduledAt, rawStatus: info.rawStatus,
-                 arrivedAt: info.arrivedAt, km: info.km, startedAt: info.startedAt })
+                 arrivedAt: info.arrivedAt, km: info.km, startedAt: info.startedAt,
+                 // [F7] 커스터디는 status 만으로 판정할 수 없다 (lateness.ts 참조)
+                 ownerHandoffAt: info.ownerHandoffAt, runnerHandoffAt: info.runnerHandoffAt })
     : null;
+
+  // [F3b 2026-08-24] 천장(LATENESS_CEILING_MS = 3시간, Sean 2026-08-21)을 실제로 **집행하는**
+  // 유일한 자리. 그전까지 resumable 은 자기 자신과 문장 한 갈래 말고는 소비자가 없었다 — 아무도
+  // 읽지 않는 필드는 아무도 지키지 않는 규칙이고, 그래서 FM4(탭 두 번으로 16일 된 예약이 되살아남)
+  // 가 '처리됨'으로 적힌 채 열려 있었다. 서버는 아직 거부하지 않는다(transition-booking:243 은
+  // **미래** 예약만 막고, confirm_handoff·start_run 은 시계를 아예 안 본다), 그러니 이건
+  // 클라이언트 판정이다 — 그 사실은 late-copy 의 문장이 '불가능'이라고 말하지 않는 이유이기도 하다.
+  //
+  // 왜 하필 meetup 인가: 러너의 네 입구(홈 :391 · 캘린더 :63 · 요청 :148 · 푸시 :43)가 전부 이
+  // 화면으로 모인다. runner/home 의 티켓 하나에 게이트를 달면 나머지 셋이 샌다.
+  // 왜 `=== false` 인가: info 가 아직 안 왔으면 meetLate 는 null 이다. `=== true` 로 쓰면 느린
+  // fetch 하나가 **정시에 온 러너**의 문을 닫는다. 모르면 닫지 않는다.
+  // ⚠ 인계 후(picked_up·active)는 여기 걸리지 않는다 — 스테이지 머신이 :165 에서 'confirmed' 로
+  // 보내므로 아래 세 블록은 구조적으로 인계 전이다. 개를 이미 데려간 러너를 아무 문도 없는 곳에
+  // 가두지 않는다는 D3 과 충돌하지 않는 이유다.
+  const pastCeiling = meetLate?.resumable === false;
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -537,7 +580,9 @@ export default function Meetup() {
         </View>
 
         {/* 인계 전 장비 체크 — 도착 후에만 노출, 전부 체크해야 인계 가능 */}
-        {stage === 'arrived' && (
+        {/* 천장을 넘기면 이 블록도 같이 닫는다: 아래 CTA 만 감추면 「세 가지를 확인해야 인계를 받을
+            수 있어요」가 아무 데도 닿지 않는 문장으로 남는다 (죽은 버튼 금지법의 같은 얼굴). */}
+        {!pastCeiling && stage === 'arrived' && (
           <View style={s.section}>
             <Row style={{ gap: 8 }}>
               <View style={{ flex: 1 }}>
@@ -556,7 +601,7 @@ export default function Meetup() {
         )}
 
         {/* action */}
-        {stage === 'enroute' && (
+        {!pastCeiling && stage === 'enroute' && (
           <View style={s.actions}>
             {/* [v4 R3a] 세컨더리 → 프라이머리. 옛 근거는 "러너 자기보고라 한 단계 아래"였는데,
                 이건 서버 계약 행동이다 — 탭이 arrived_at을 찍고 보호자에게 알림이 정확히 1회 나간다.
@@ -570,7 +615,7 @@ export default function Meetup() {
               : <Text style={s.ctaHint}>도착을 확인하면 보호자에게 알림이 가요</Text>}
           </View>
         )}
-        {stage === 'arrived' && (
+        {!pastCeiling && stage === 'arrived' && (
           <View style={s.actions}>
             {/* 게이트된 CTA — disabled는 명시 fill(disabledFill)로, 불투명도 트릭 금지 */}
             {/* [v4 R3b] 코스 한 줄 — 인계 직전에 '무엇을 뛰기로 했는지'가 CTA 바로 위에 선다.

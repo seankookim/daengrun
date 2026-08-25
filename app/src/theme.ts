@@ -10,6 +10,18 @@ export const colors = {
   voltBright: '#d4ff66',
   tang: '#FF5C3D',       // 코랄 펀치 업 (구 #FF6347) — 도파민 숫자·라이브 전용
   coralText: '#d84a2f',  // 읽는 코랄 — 경고·조기종료 텍스트 (tang의 텍스트 버전, 의도적 2단)
+  // ── live-run surface role token (runner/run.tsx only) ──
+  // Sean 2026-08-24, verbatim: "Runner run's b screen I can't see the map; not much space for
+  // it, but this is important as the runner needs to see where to go at all times. I like 6 and
+  // it's #ff5c3e as well."
+  // ROLE, not hue: the live run's own accent — the progress fill the runner watches while the
+  // record is running, and the single remaining door in the ceiling frame (lab ⑥). Named for the
+  // surface it belongs to so a future pass cannot re-use it as a general coral.
+  // ⚠ It sits 1/255 from `tang` (#FF5C3D) and is NOT a duplicate by accident — Sean named this
+  //   exact value for this surface. Do not "dedupe" it into tang without his word.
+  // Measured white label on this fill: 3.06:1 → large bold labels only (19.5/800, the end CTA).
+  //   Small white text still needs an ink plate (§3 plate law).
+  runLive: '#FF5C3E',
   card: '#ffffff',
   clay: '#EFF1EC',       // [V4] 쿨 그레이 웰 (구 베이지 #EDE8DA)
   line: '#D8DAD2',       // [V4] 쿨 헤어라인 (구 베이지 #DCD6C4) — 굵은 구조는 ink 2.5px 룰

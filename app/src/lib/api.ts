@@ -792,6 +792,10 @@ export interface OpenRequest {
   weightKg: number;
   memo: string | null;
   when: string;
+  /** 예정 시각 원본 (bookings.scheduled_at, ISO). 만료 기한은 정책 숫자가 아니라 이 시각 그 자체다 —
+   *  expire_unmatched_bookings(0080 ⓐ)가 여기 지나면 지운다. 카운트다운·정렬·겹침 검사는 전부 이
+   *  원본에서 파생해야 한다: 조판된 `when`을 재파싱하는 순간 시계가 두 개가 된다. */
+  scheduledAt: string;
   km: number;
   paceLabel: string;
   payout: number; // 수수료 33% 제외 추정 (0059)
@@ -820,6 +824,7 @@ function estimatedPayout(r: { km: number | string; addon_fare?: number | null },
 function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
+    scheduledAt: r.scheduled_at,
     bookingId: r.id,
     dogId: r.dogs?.id ?? null,
     dogName: r.dogs?.name ?? '반려견',
@@ -855,6 +860,7 @@ const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, 
 function mapOpenRequestView(r: any, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
+    scheduledAt: r.scheduled_at,
     bookingId: r.id,
     dogId: r.dog_id ?? null,
     dogName: r.dog_name ?? '반려견',
@@ -975,8 +981,11 @@ export interface LiveRunner {
   district: string;
   tier: string;
   totalRuns: number;
-  paceLabel: string;
-  paceSec: number;
+  /** 평균 페이스. NULL = 기록 없음(신규 러너) — 화면은 그 조각을 **생략**한다. 예전엔 ?? 420 으로
+   *  7'00"를 지어냈는데, 그 값이 지명 결정에 보이는 화면(radar R①)까지 올라가면 장식이 아니라
+   *  조작이다. 모르는 값은 모른다고 둔다 (정직 법 — mapDog 의 fallback 방향과 같은 결정). */
+  paceLabel: string | null;
+  paceSec: number | null;
   respondRate: number | null;
   avatarUrl: string | null;
   bio: string | null;
@@ -991,14 +1000,14 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
     .limit(10);
   if (error) throw error;
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.profiles?.name ?? '러너',
       district: r.profiles?.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.profiles?.avatar_url ?? null,
@@ -1021,14 +1030,14 @@ export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveR
       : raw);
   }
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.avatar_url ?? null,
@@ -1043,14 +1052,14 @@ export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
   const { data, error } = await supabase.from('available_runners').select('*').limit(10);
   if (error) throw error;
   return (data ?? []).map((r: any) => {
-    const pace = r.avg_pace_sec_per_km ?? 420;
+    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
-      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.avatar_url ?? null,
@@ -1266,6 +1275,9 @@ export interface RunnerJob {
   arrivedAt?: string | null;
   /** runs.started_at — 러닝 초과는 예약 시각이 아니라 실제 출발부터 잰다 (R1). */
   startedAt?: string | null;
+  /** 양측 인계 소인 — 커스터디(D3 선) 판정 입력. [F7] 보호자 쪽 Booking 과 같은 두 컬럼이다. */
+  ownerHandoffAt?: string | null;
+  runnerHandoffAt?: string | null;
   /** The dog's face for the in-flight ticket. A runner may be collecting an animal they have never
    *  met, and until now the ticket named it without showing it. Null is a real answer (no photo on
    *  file) and renders as a monogram — never an empty frame. */
@@ -1281,7 +1293,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     // arrived_at · runs(started_at): 보호자 쪽 fetchMyBookings 와 **같은 사실**을 읽어야 한다.
     // 한쪽만 실어오면 같은 예약을 두고 두 화면이 서로 다른 지각 판정을 낸다 — 이 코드베이스가
     // 가장 싫어하는 종류의 버그다. runs 임베드가 안전한 이유는 R1 과 동일 (unique 단일 FK).
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
     .order('scheduled_at', { ascending: false })
@@ -1320,7 +1332,50 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       dogPhotoUrl: r.dogs?.photo_url ?? null,
       arrivedAt: r.arrived_at ?? null,
       startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
+      ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
+      runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
     };
+  });
+}
+
+// [B9, 러너 쪽] fetchRunnerJobs 도 scheduled_at DESC + limit 20 이다 — 보호자 홈에서 고친 것과
+// **같은 결함이 러너 홈에 그대로 남아 있었다** (codex 2026-08-21). 진행 중인 일은 지금(=그 20건보다
+// 과거)이라 미래 일정이 20건을 넘으면 창 밖으로 밀려나고, 러너 홈의 '진행 중'이 사라진다.
+// 랭킹하지 않는다: runner/home 의 current 선택이 유일한 결정자로 남고, 이 함수는 그 행이 목록에
+// 있게만 한다. 24시간 전부터, 가까운 순, 10건 — fetchInFlightOwnerBookings 와 같은 경계.
+export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
+  const rate = await myCommissionRate();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .eq('runner_id', user.user.id)
+    .in('status', IN_FLIGHT)
+    .gte('scheduled_at', since)
+    .order('scheduled_at', { ascending: true })
+    .limit(10);
+  // 정직 배치: 실패가 '진행 중 없음'으로 위장하면 러너 홈이 개를 데리고 있는데 비었다고 말한다.
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+    return {
+      bookingId: r.id,
+      when: `${dateLabel} ${timeLabel}`,
+      scheduledAt: r.scheduled_at ?? null,
+      dogName: r.dogs?.name ?? '반려견',
+      km: Number(r.km),
+      payout: estimatedPayout(r, rate), // 진행 중은 정의상 completed 가 아니므로 원장 조회 불필요
+      status: r.status === 'confirmed' ? 'confirmed' : 'in_progress',
+      rawStatus: r.status,
+      routeId: r.route_id ?? null,
+      dogPhotoUrl: r.dogs?.photo_url ?? null,
+      arrivedAt: r.arrived_at ?? null,
+      startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
+      ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
+      runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
+    } as RunnerJob;
   });
 }
 
@@ -1928,6 +1983,9 @@ export interface MeetupInfo {
   rawStatus: string;
   arrivedAt: string | null;
   startedAt: string | null;
+  /** 양측 인계 소인 — 커스터디(D3 선) 판정 입력. [F7] 보호자 쪽과 같은 두 컬럼이다. */
+  ownerHandoffAt: string | null;
+  runnerHandoffAt: string | null;
 }
 
 export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
@@ -1935,7 +1993,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, status, arrived_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences, vaccinations), runners(profiles(name)), runs(started_at)')
+    .select('scheduled_at, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences, vaccinations), runners(profiles(name)), runs(started_at)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1946,6 +2004,8 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     rawStatus: d.status,
     arrivedAt: d.arrived_at ?? null,
     startedAt: (Array.isArray(d.runs) ? d.runs[0]?.started_at : d.runs?.started_at) ?? null,
+    ownerHandoffAt: d.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
+    runnerHandoffAt: d.runner_confirmed_handoff_at ?? null,
     runnerName: d.runners?.profiles?.name ?? null,
     dogName: d.dogs?.name ?? '반려견',
     dogBreed: d.dogs?.breed ?? null,
@@ -2145,8 +2205,11 @@ export interface RunnerPublicProfile {
   specialties: string[];
   totalRuns: number;
   totalKm: number;
-  paceLabel: string;
-  paceSec: number; // 실측 s/km (없으면 420 폴백) — 라벨 역파싱은 최대 59초 손실이라 원값을 준다
+  /** 평균 페이스. NULL = 기록 없음(신규 러너) — 화면은 그 조각을 **생략**한다. 예전엔 ?? 420 으로
+   *  7'00"를 지어냈는데, 그 값이 지명 결정에 보이는 화면(radar R①)까지 올라가면 장식이 아니라
+   *  조작이다. 모르는 값은 모른다고 둔다 (정직 법 — mapDog 의 fallback 방향과 같은 결정). */
+  paceLabel: string | null;
+  paceSec: number | null; // 실측 s/km (없으면 420 폴백) — 라벨 역파싱은 최대 59초 손실이라 원값을 준다
   respondRate: number | null;
   trainerCertified: boolean;
   online: boolean;
@@ -2173,7 +2236,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     supabase.from('runner_availability_rules').select('weekday, start_min, end_min').eq('runner_id', profileId).then((x) => x, () => ({ data: null } as any)),
     supabase.from('reviews').select('rating, note, tags, created_at').eq('target_id', profileId).eq('target_kind', 'runner').eq('visibility', 'public').order('created_at', { ascending: false }).limit(5).then((x) => x, () => ({ data: null } as any)),
   ]);
-  const pace = rr.avg_pace_sec_per_km ?? 420;
+  const pace: number | null = rr.avg_pace_sec_per_km ?? null;   // null = no record; not invented
   const reviews = (revRes.data ?? []).map((v: any) => {
     const { dateLabel } = kstParts(v.created_at);
     return { rating: v.rating, note: v.note, tags: v.tags ?? [], when: dateLabel };
@@ -2189,7 +2252,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     specialties: rr.specialties ?? [],
     totalRuns: rr.total_runs ?? 0,
     totalKm: Number(rr.total_km ?? 0),
-    paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+    paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
     paceSec: pace,
     respondRate: rr.respond_rate_pct,
     trainerCertified: !!rr.trainer_certified,
@@ -4200,7 +4263,7 @@ const MY_BOOKING_SELECT =
   // runs(started_at): 러닝이 **실제로** 시작된 시각. 예약 시각으로 초과를 재면 20분 늦게 출발한
   // 러닝을 20분 일찍 '초과'라고 부른다. runs.booking_id 는 unique 단일 FK(0001_init.sql:236)라
   // 임베드가 모호하지 않다 — E1(PGRST201)이 여기서는 발생할 수 없다.
-  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
+  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
 
 function mapMyBooking(r: any): Booking {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
@@ -4222,6 +4285,11 @@ function mapMyBooking(r: any): Booking {
     status: STATUS_MAP[r.status] ?? 'pending',
     rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
     arrivedAt: r.arrived_at ?? null, // 러너 도착 = 서버 진실. 아직 읽는 게이트 없음 (store.ts 주석 참조)
+    // [F7] 커스터디 판정의 두 입력. 이 예약을 읽는 네 리더(여기 · fetchRunnerJobs ·
+    // fetchInFlightRunnerJobs · fetchMeetupInfo)가 **같은 사실**을 실어야 한다 — 한쪽만 실으면
+    // 한 예약을 두고 두 화면이 D3 선을 다른 자리에 긋는다.
+    ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,
+    runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
     // runs 는 예약당 0~1행(unique). 배열로 오면 첫 행, 객체로 오면 그대로 — PostgREST 가 관계
     // 카디널리티를 어떻게 접든 같은 값을 읽게 한다. 없으면 null = '아직 시작 안 함'.
     startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,

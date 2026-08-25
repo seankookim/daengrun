@@ -488,6 +488,8 @@ client session: `app/app/runner/apply.tsx:655` has a runner consenting to safety
 consent naming a company that no longer goes by that name.
 
 ## 0-quinvicies. 🟡 ONE-WORD DOMAIN QUESTION — may the client session touch `supabase/` for ONE slice? (2026-08-20)
+**✅ RULED 2026-08-21 night (Sean, structured choice: "Nobody pays, nobody is paid") — THE SILENT-STALEMATE RULE.** A booking 3h+ past start with no arrival evidence, no handoff stamps and no human statement from either side produces **no money in either direction**: the owner is not charged (they may have waited on a runner who never came) and the runner is not compensated (no run happened, and nothing but a clock says so). This is D5 applied symmetrically — silence never charges, and silence never pays either. **It is a STALEMATE RULE, not a waiver**, and 0117 must say so: the blind reviewer correctly showed that framing it as "waiving the owner's fee" describes the same act as taking ₩12,450 from the runner on a timer, which 0068 forbids. Nothing about this is a fault finding; no `booking_faults` row is written; a later human statement (either side) is what can still move money. Implementation consequence: keep the zero-fee/zero-comp outcome, rename and re-document it as the stalemate rule, and fix suite 152's L9b, which currently pins the disputed behaviour as if the timer itself were the authority.
+**✅ RULED 2026-08-21 night (Sean, structured choice: "Join the pool — accrue it"):** the club cancel-fee slice WRITES the runner's supply-compensation share to `ledger_items` like every other earning, accruing into `my_ledger_total` (정산 예정) even though `payouts` still has no writer. Basis measured live at decision time and put in front of him: this is not a new promise class — EIGHT existing writers (0020/0025/0028/0072/0080×2/0083/0085) already accrue runner earnings the same way, and production holds 8 ledger rows / ₩111,657 owed / 0 payouts (test runners today, mechanism live). Consequence recorded deliberately: the payout loop stays ONE problem (back-map item: payouts zero writers, no paid marker, "unpaid" uncomputable) rather than becoming two with divergent rules. The club-fee slice is unblocked to build item 1 as spec'd.
 **✅ RULED 2026-08-21 eve ×2 (Sean, structured choices):** (1) **run-watcher**: a run that starts and never ends gets its OWN future watcher slice (extending run-end recovery) — the lateness protocol deliberately stays pre-custody; ui5's plan corrects its §4.1 over-claim and the shipped ③/⑥ screens change NOW to an SOS/contact shape that implies no nonexistent process. (2) **fee quote**: the server exposes a party-gated read-only `quote_cancel_fee` (one source of truth — the price shown IS the price charged; 0066's not-a-client-quote posture knowingly reversed); until it lands, the sheet's en-route arm shows policy WORDS, not a number (client stopgap, independent landing). The client fee mirror's en-route arm is retired rather than taught the fault rule.
 **✅ RULED 2026-08-21 eve (Sean, verbatim: "ask why they stopped.") [end of his words]** — a `cannot_proceed` statement carries a REASON: the check-in surface always ASKS why, and the stated reason is stored with the fault row (immutable once written, like the statement itself). Basis: a post-custody stop is often an emergency (injured dog/runner, weather), and without the reason a future fee policy would price an emergency abort like a no-show. Faithful minimal shape: server accepts and stores the reason with the statement; asking is mandatory on the surface, the mandate to answer is not invented. Routed to the 0117 implementer (pre-landing amendment) and to ui5's stage-2 check-in UI.
 **✅ RULED 2026-08-21 pm (Sean, structured choice at the announcer's gate): a SERVER SESSION builds the server half** — the client/supabase wall stands; no client exception. Scope of the ruling: late-booking stage 2 (lateness cron · check-in resolver · fault persistence · money-follows-fault) PLUS the 0066 stale-enroute 50% carve-out, both implemented TO the client-written contract (`docs/plans/2026-08-21-late-booking-protocol.md` §12) under D1–D5. **In the same gate he set the two product numbers, verbatim: "grace 30, ceiling 3 hours"** [end of his words] — grace period 30 minutes, self-resolution ceiling 3 hours (resolution never charges, per D5). Implementer spawned by announcer v4 the same hour.
@@ -1279,3 +1281,46 @@ neither session took it at 2am, and especially not as a side effect of an access
 
 **Recommendation: A.** 4.55 is compliance without margin, and the flattened hierarchy is a cost we
 took silently to reach it. But this is taste on a surface you chose, so it is yours.
+
+## §0-undetricies · The pick-sheet fleet's seven residual questions — 2026-08-24 night
+
+Your 2026-08-24 commentary (docs/decisions/2026-08-24-sean-ui-club-commentary.md) is fully
+executed: trunk e031a31..1bb7891, ten commits, every pick built or listed here. These seven are
+what the fleet could not decide for you. Each is one word or one sentence; none blocks anything
+else. Asked here rather than only in chat so both sessions cite the same lines when you answer.
+
+**Q1 — "For owner records report, I like 1": WHICH report?** Read as the running report's ①
+(the stars variant your next clause names) and built as such. If you meant the 체력 리포트's ①,
+that pick is unspent — fitness.tsx is frozen and nothing was guessed. · 「러닝 리포트가 맞아」 /
+「체력 리포트였어」
+
+**Q2 — photo gate width.** Both forward doors on the done screen gate on ≥1 photo (리뷰 남기기
+included — its submit exits to home, so leaving it open is a one-tap bypass). Cost: a photo-less
+runner cannot review in that moment, and review volume feeds the rebooking gate. · A 두 문 다
+(as built) / B 다음 요청 보기만
+
+**Q3 — should the photo requirement be REAL?** Tonight's gate is client-only; an old build walks
+past it. Real = settle-run refuses end_reason 'completed' with zero photos (small server slice,
+exact shape recorded in 33c4849's report). · 서버로 / 클라이언트로 충분
+
+**Q4 — course-map peek's 12pt km unit.** It is exactly what the 현재 frame draws, and it is
+under the 14pt floor with no exemption. Fidelity or floor — one wins. · 12 유지 / 14로
+
+**Q5 — the 20-row booking window.** fetchMyBookings keeps the FURTHEST 20 (DESC limit 20), so
+B①'s relevance sort ranks only what arrives, honestly caveated. Truly fixing it flips the query
+ascending with a 30-day floor — which drops older completed rows from 지난 일정. Product call,
+blast radius recorded in e031a31. · 고쳐 (own slice) / 지금은 그대로
+
+**Q6 — "how far away the starting point is": not built, and it is a GATE.** Pickup coordinates
+are assigned-runner-only by design (0060/0065); a pre-accept card is pre-assignment. A coarse
+zone label (「반포동에서 출발」) is buildable without widening the address surface. · 동 라벨로 /
+빼자 / 좌표 열어 (this one is a real privacy decision)
+
+**Q7 — the 원천징수 line.** Kept in words only (「지급할 때 사업소득 3.3%가 원천징수돼요」,
+arithmetic stripped): statutory tax is not our margin, and a runner never told is short at
+payout. One-line delete if you read it as calculation-adjacent. · 유지 / 삭제
+
+Adjacent, already queued elsewhere, listed so this section is complete: the draw-button §8
+question (is a DrawButton title a display-font use? — blocks A③'s coda tier and font demotion,
+enh-owner-home-lab open question 4) · 맹견 refused-vs-conditions · the club spec packet · 0119's
+land word.

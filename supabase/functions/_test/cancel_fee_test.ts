@@ -294,7 +294,7 @@ Deno.test("post-pay, fee > 0 → mint + one immediate dispatch, and the row land
     const billing = net.calls.find((c) => isBilling(c.url))!;
     assertEquals(billing.body.amount, FEE_10);
     assertEquals(billing.body.orderId, ORDER);
-    assertEquals(billing.body.orderName, "댕런 예약 취소 수수료"); // not "산책 이용료" — no run happened
+    assertEquals(billing.body.orderName, "도그스하이 예약 취소 수수료"); // Sean 2026-08-25: 도그스하이; not the run fee — no run happened
     assertEquals(pay(db)!.status, "confirmed");
     assertEquals(pay(db)!.payment_key, "tviva_fee_1");
     assertStringIncludes(cap.lines.join("|"), "cancel fee booking=");

@@ -108,6 +108,30 @@ Two taps must not resurrect a 17-day-old booking. Nothing currently enforces `sc
 start. A hard ceiling is required past which the check-in stops offering "proceed" and offers only
 terminals.
 
+**C5 — CORRECTED 2026-08-24.** The paragraph above names a mechanism and no refusal, and was
+satisfied by a client constant with zero consumers. Replacement wording:
+
+> §4.3 The ceiling is a **CLIENT VERDICT until a server rule refuses it.** Today nothing refuses
+> `runner_enroute`, `confirm_handoff` or `start_run` past `scheduled_at + ceiling`
+> (`transition-booking/index.ts:243` gates only the *future*; `start_run.ts` takes no clock;
+> `0017` sweeps only `matching`/`runner_pending`). Until such a refusal ships:
+> **(i)** copy may state elapsed time and a recommendation and **MUST NOT assert impossibility**;
+> **(ii)** the client MUST gate the proceed affordances on `resumable` at `runner/meetup`, which
+> is the chokepoint for all four runner entrances (home · calendar · requests · push).
+> When the server refusal ships, this clause must name the three arms it refuses and the error
+> each raises.
+
+Shipped 2026-08-24 (client half only): (i) `src/lib/late-copy.ts` — the four impossibility
+sentences are gone, pinned by the `IMPOSSIBILITY` ban in `app/test/late-copy.test.cjs`;
+(ii) `app/runner/meetup.tsx` — `pastCeiling` gates the preflight block and both action blocks.
+
+⚠ **Still open, and it is the door that needs no taps at all:** `runner/meetup.tsx`'s mount effect
+fires `runnerEnroute(jobId)` before `info` has loaded, so `pastCeiling` is necessarily false at
+that moment. Merely opening the screen still flips a 17-day-old `confirmed` booking to
+`runner_enroute` and pushes the owner 「러너 이동 중」. It cannot be fixed from the client without
+restructuring the meetup polling/stage machine, which is under DO-NOT-REFACTOR — it closes with
+Sean's Q4 and one server refusal.
+
 ## 5. Failure modes registry
 
 | # | Failure | Sev | Handled by |
@@ -115,7 +139,7 @@ terminals.
 | FM1 | Runner at the door, phone dead, owner silent → marked no_show | **Critical** | D5: silence never charges or blames |
 | FM2 | Check-in prompt never delivered; countdown runs invisibly | **Critical** | State-derived prompts on home/schedule/meetup, refresh on resume; push demoted to alert |
 | FM3 | Both confirm, then both vanish — unbounded again, just later | High | §4.2 bounded renewed deadline + second watchdog |
-| FM4 | Two taps revive a 17-day-old booking | High | §4.3 maximum lateness ceiling |
+| FM4 | Two taps revive a 17-day-old booking | High | **PARTIALLY handled (2026-08-24).** The tap doors are closed client-side: `runner/meetup.tsx` `pastCeiling` gates the preflight and both action blocks, and `late-copy.ts` no longer claims impossibility. **The no-tap door is still open** — `runner/meetup.tsx`'s mount effect calls `runnerEnroute()` before `info` loads, so opening the screen revives the booking with zero taps. No server rule enforces the ceiling at all (`transition-booking:243` gates only the future; `confirm_handoff`/`start_run` take no clock). Closes with Sean's Q4. |
 | FM5 | `picked_up → no_show` attempted | High | D3 split; guard would raise `invalid booking transition` |
 | FM6 | Simultaneous answers / timeout racing a response | High | One transactional resolver: per-side immutable responses, server timestamps, `resolved_at` CAS, booking status re-read under the same lock |
 | FM7 | Owner charged the 50% en-route arm for a runner's failure | High | D4/D5: that arm prices OWNER cancels; no-show fault is separate |
@@ -150,6 +174,43 @@ money), `runner_work_gate` (0092, does not cover stale confirmed/enroute/picked_
 Runner reliability tiering · owner punctuality scoring · automatic re-matching on a dark runner ·
 M1 instrumentation for late bookings. All raised and deliberately deferred under HOLD SCOPE (D2);
 designing a reputation system before observing one real late booking is premature.
+
+## 8-bis. The stop-reason ask — DECIDED (Sean, 2026-08-21)
+
+Ruling: *"ask why they stopped."* Asking is mandatory; answering is not. Reason rides `p_reason`,
+stored immutable with the statement.
+
+**Shape: ③ + ③-A, with one reason borrowed from ③-C.** `docs/labs/stop-reason-lab.html`.
+
+- **Step 1 — triage, no gateway between the user and help.** 「지금 도움이 필요한가요?」 Emergency is
+  ONE tap and acts immediately: it does not terminate or classify the booking.
+  ⚠ Two copy constraints, both learned the hard way today: **119 is honest only as a `tel:` link**
+  (it opens the dialler; the app reports nothing to anyone), and 「상대방에게 긴급 알림」 is the whole
+  of what `sendSOS` does — one `notifications` row to the counterparty (`api.ts:2935`). There is no
+  ops team. I wrote 「운영팀이 바로 확인해요」 into an approved lab this morning and it was false.
+- **Step 2 — reuse the reason flow this app already has, twice.** `club/run/[sid].tsx:47` and
+  `runner/run.tsx:901` both run `endStep: 'reason' | 'note'` off `END_REASONS`, and the tap count is
+  decided **per reason** by `needsNote`, which is itself bought by the server requiring evidence
+  (`settle-run:74`). Not a design preference — a server contract. Reuse it verbatim.
+- **One reason is added** (③-C's real find): 「상대방과 연락이 안 돼요」. It exists in no run-end
+  vocabulary because a run-end has no counterparty to lose — and it may be the single most common
+  cause in a lateness protocol.
+- **One reason is reworded**: 「보호자 요청」 reads wrong when the owner going silent is *why* you
+  are stopping.
+
+**Deferred, its own commit (Sean agreed):** ③-B, extracting a shared `ReasonPicker` so the three
+call sites stop duplicating the two-step logic. Right by the duplicated-rule lesson, but
+`runner/run.tsx` carries in-file DO-NOT-REFACTOR freezes and `club/run` is a settlement path — a
+refactor does not ride along with a feature.
+
+⚠ **Not buildable yet.** `answer_checkin(…, p_reason)` lives on `claude/late-booking-server-stage2`
+and is not deployed. Building the surface against an undeployed RPC is how a client ships against a
+contract that then moves.
+
+**The policy invariant that has to be written somewhere that is not code:**
+*a missing reason must never by itself create an adverse inference or a different fee.* Without it,
+"answering is optional" decays into compelled disclosure the moment a fee policy reads fault rows —
+because `cannot_proceed` writes a fault row whether or not a reason is given.
 
 ## 9. Next steps
 
@@ -211,6 +272,51 @@ answer := 'proceeding' | 'cannot_proceed' | 'other_side_absent'
 per-side IMMUTABLE, first write wins, idempotent on replay. `fetch_checkin(booking)` — what the
 surface renders.
 
+### ⚠ AMENDMENT 2026-08-21 — what the party gate must REFUSE
+
+This clause originally said only that the reads are "party-gated". **That was satisfiable while
+wrong, and it was satisfied while wrong.** A gate that never fires is still a gate, so an
+implementation shipped one, my conformance read passed it, and a blind reviewer caught it. The
+contract, not the implementation, is what failed first — so the contract is what gets fixed.
+
+**Every party-gated call in this protocol (`fetch_checkin`, `quote_cancel_fee`, `answer_checkin`)
+MUST refuse a caller whose `auth.uid()` is NULL.** Not "should have a gate" — must refuse, and the
+refusal must be reachable.
+
+⚠ **`current_user` cannot identify a caller inside `SECURITY DEFINER`.** It is the function OWNER,
+not the invoker. So a service-role exemption written as
+
+```sql
+elsif current_user not in ('service_role', 'postgres') then raise exception 'not_signed_in';
+```
+
+is **not an exemption — it is an open door**: the predicate is always false, the exception never
+fires, and every null-uid caller passes. This exact line shipped in `fetch_checkin` and
+`quote_cancel_fee`.
+
+**The correct pattern is already in the same file**, in `answer_checkin`:
+
+```sql
+if v_uid is null then raise exception 'not_signed_in'; end if;
+```
+
+Unconditional, invoker-derived, no `current_user` anywhere. If a genuine service-role path is
+needed, it must be expressed some way other than `current_user` — a separate function, an explicit
+argument the definer validates, or a role check that survives the definer boundary.
+
+### The rule this amendment generalises
+
+**Specify what a mechanism must REFUSE, not that the mechanism exists.** Every clause in this
+contract naming a guard, a lock, a constraint or a gate should say what it must PREVENT, in terms
+an implementer can test and a reviewer can falsify. A clause that names only the mechanism can be
+satisfied by a mechanism that does nothing, and neither conformance review nor the author will
+catch it — because both are asking whether the named thing is present, and it is.
+
+Corollary, learned the same day: **conformance review and security review are different questions,
+and passing one says nothing about the other.** "Does this match §12" and "does this actually
+refuse anyone" have different answers, and only the second one keeps a stranger out of both
+parties' check-in answers.
+
 **Resolution, one transaction, CAS on `(resolved_at, version)`, re-reading `bookings.status` under
 the same lock** (FM6; `90_race_check.sh` already has a two-connection harness for exactly this):
 
@@ -227,15 +333,43 @@ Silence never appears in a fault column. `no_show` never appears post-custody (D
 
 ```ts
 // src/lib/lateness.ts  (D4 — pure, testable, .cjs suite alongside route-pick/pace/geo)
-lateness(b: {scheduledAt, status, arrivedAt}, now): {
+lateness(b: {scheduledAt, status, arrivedAt, ownerHandoffAt, runnerHandoffAt}, now): {
   late: boolean
   sinceMs: number
-  custody: 'pre' | 'post'        // status ∈ picked_up|active → 'post'
+  custody: 'pre' | 'post'
   waitingOn: 'runner' | 'owner' | 'both' | null
 }
 ```
 
-Derivable entirely from fields `fetchMyBookings` already selects. No new round trip.
+**C2 — the custody rule (CORRECTED 2026-08-24).** This clause previously read
+`// status ∈ picked_up|active → 'post'`. That was not underspecified, it was **wrong**: the server
+implemented something stricter, so client and server drew the D3 line in different places while
+both "conformed."
+
+> `custody: 'pre' | 'post'` — `'post'` iff (`owner_confirmed_handoff_at` AND
+> `runner_confirmed_handoff_at`, on a live status) OR `status ∈ picked_up|active`.
+> Client and server MUST compute this from the same two-clause predicate; there is one copy of the
+> rule and two implementations of it. **REFUSALS:** a single stamp is the normal interval and MUST
+> NOT promote custody — the counterparty's confirmation is an expected, possibly long-lived gap
+> (`transition-booking/index.ts:314` writes exactly one stamp per request and `:329` notifies the
+> other side). A reader that cannot load both stamps MUST NOT render custody-dependent copy — add
+> the two columns to the select or omit the sentence.
+
+Server side: `_checkin_custody`, `0117:159-170`.
+Client side: `custodyOf()`, `src/lib/lateness.ts`; pinned in `app/test/lateness.test.cjs`
+("custody mirrors the SERVER predicate (F7)"), both directions mutation-verified 2026-08-24.
+
+The divergence was reachable, not theoretical: `transition-booking/index.ts:315-322` writes the
+stamp and the promotion as two separate PostgREST calls, so both stamps can land while `status`
+stays `runner_enroute`. Collapsing those two writes into one would delete the divergent state
+outright — worth doing on the server side, and it also fixes the permanently-stuck handoff behind
+it (`owner/meetup.tsx:219` hides the only control that would retry the promotion).
+
+~~Derivable entirely from fields `fetchMyBookings` already selects. No new round trip.~~
+**Corrected 2026-08-24:** it was not. `MY_BOOKING_SELECT`, `fetchRunnerJobs`,
+`fetchInFlightRunnerJobs` and `fetchMeetupInfo` carried `arrived_at` and `runs(started_at)` but
+neither handoff stamp; only `fetchBookingSync` loaded them, and only `owner/meetup` used it. All
+four selects now carry both columns. Still no new round trip — two more columns on existing rows.
 
 ## 14. Architecture constraints found in review
 

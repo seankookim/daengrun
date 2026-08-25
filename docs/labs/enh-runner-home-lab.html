@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runner Home &amp; Jobs — Enhancement Lab (2026-08-24)</title>
+<style>
+/* ══ NEW HEXES: 0. Every colour below already exists in theme.ts or in the four screen files. ══
+   paper   #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text · #666666 dim
+           #999999 faint · #E8552F line · #FFF6F4 wash · #B3261E critical · #FBEAE7 criticalWash
+           #F2F2F2 disabledFill · #C77414 pending · #C6472C action · #A83315 actionPressed
+           #119B58 ready · #0E7F49 readyDeep · #FBEED9 paceSlowWash · #9D580A paceSlowInk
+   lilac   #221E3D head · #4B4668 text · #7C76A0 dim · #6C5CE7 accent · #EFECF9 inset
+           #E6E2F4 hair · #C77414 amber · #FBEED9 amberSoft · #F2DFC2 amberEdge · #5E7F0E voltDeep
+           #1C1837 night · #F0765A coral
+   screen-local values already shipping: #EEEEEE · #DCD7F0 · #DCD6F8 · #F5F5F5 · #FDE8D0 · #F7F7F7
+           #FAFAFA · #E3EFF9 / #2D6DA8 (vaccine chip) · #E8F3D2 / #3D6B1F · #E3EEF8 / #4A6E93
+           #6E9BC5 (FINISHER) · #2F7D4F (objPay) · #A63A20 (jobCta edge) · #BBBBBB · #C6F542 (volt flap)
+   TYPE FLOOR: every string inside a phone frame is >= 14px. The only sub-14 marks are the
+   simulated OS status bar, the tab-bar glyphs, and the FINISHER stamp (latin stamp glyph class,
+   exactly as calendar.tsx ships it). Lab chrome (English rationale) is not product type. */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#FBFAF7;color:#111111;padding:38px 22px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1420px;margin:0 auto}
+h1{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:400;font-size:34px;line-height:1.2;letter-spacing:-.01em}
+.law{font-size:12px;letter-spacing:2.4px;color:#999999;text-transform:uppercase;margin:11px 0 15px;font-weight:700}
+.lede{font-size:15px;color:#666666;line-height:1.75;max-width:940px}
+.lede b{color:#111111;font-weight:700}
+.note{background:#FFFFFF;border:1px solid #E6E2F4;padding:15px 17px;margin:20px 0 0;font-size:13.5px;line-height:1.68;max-width:1080px}
+.note h4{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin:0 0 8px}
+.note b{color:#111111}
+.note.warn{border:1.5px solid #C6472C}
+.note.warn h4{color:#C6472C}
+code{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;background:#FBFAF7;padding:1px 4px;color:#333333}
+h2.band{margin:58px 0 4px;padding-top:22px;border-top:1px solid #E8552F;font-size:23px;font-weight:800;letter-spacing:-.01em}
+h2.band span{font-weight:600;color:#7C76A0;font-size:14px;margin-left:9px;font-family:'SF Mono',ui-monospace,Menlo,monospace}
+.bandsub{font-size:14px;color:#666666;line-height:1.72;max-width:1000px;margin-top:7px}
+.bandsub b{color:#111111}
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col{width:390px}
+.cap{font-size:16.5px;font-weight:800;line-height:1.35;margin-bottom:6px;letter-spacing:-.01em}
+.cap b{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;color:#C6472C;font-size:20px;margin-right:8px;font-weight:700}
+.cap.now b{color:#7C76A0}
+.why{font-size:13.5px;color:#666666;line-height:1.7;margin-bottom:9px}
+.why b{color:#111111}
+.cost{font-size:12.5px;line-height:1.62;border-left:2.5px solid #6C5CE7;background:#FFFFFF;padding:9px 11px;margin-bottom:13px;color:#4B4668}
+.cost b{color:#221E3D;letter-spacing:.04em;text-transform:uppercase;font-size:11px;display:block;margin-bottom:3px}
+.cost.free{border-left-color:#119B58}
+.cost.pay{border-left-color:#C77414}
+.bind{font-size:12px;line-height:1.6;color:#7C76A0;margin-top:10px;padding-left:11px;border-left:1px solid #E6E2F4}
+.bind b{color:#221E3D}
+
+/* ───────── phone ───────── */
+.phone{width:390px;background:#FFFFFF;border:1px solid #E6E2F4;border-radius:30px;overflow:hidden;
+  box-shadow:0 18px 44px rgba(28,24,55,.10)}
+.osbar{display:flex;justify-content:space-between;padding:9px 22px 2px;font-size:11px;color:#999999;font-weight:600}
+.chrome{display:flex;align-items:center;padding:8px 15px 9px;border-bottom:1px solid #E8552F}
+.mark{width:22px;height:18px;background:#111111;clip-path:polygon(0 55%,26% 22%,52% 46%,78% 8%,100% 30%,100% 100%,0 100%)}
+.wordmark{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-size:17px;line-height:22px;letter-spacing:.2px;color:#111111}
+.logolock{flex:1;display:flex;align-items:center;justify-content:center;gap:7px}
+.spacer40{width:40px;flex:0 0 40px}
+.bell{width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;position:relative;font-size:20px;color:#111111}
+.belldot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:3px;background:#F0765A}
+.scr{padding:12px 15px 20px}
+.tabs{display:flex;justify-content:space-around;align-items:center;height:50px;border-top:1px solid #EEEEEE;font-size:15px;color:#BBBBBB}
+.tabs .on{color:#111111}
+.cont{font-size:14px;line-height:1.6;color:#999999;margin-top:16px;padding-top:11px;border-top:1px dashed #EEEEEE}
+
+/* app grammar */
+.strap{background:#111111;padding:12px;margin-top:0}
+.strapname{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-size:17px;line-height:22px;color:#FFFFFF}
+.strapdim{font-size:14px;line-height:18px;color:#999999;font-weight:700}
+.tog{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid #EEEEEE}
+.toglbl{font-size:17px;line-height:22px;font-weight:800}
+.togsub{font-size:14px;line-height:18px;color:#7C76A0;margin-top:2px}
+.sw{width:56px;height:32px;border-radius:16px;padding:3px;display:flex;align-items:center;border:1px solid;flex:0 0 56px}
+.swon{background:#221E3D;border-color:#221E3D;justify-content:flex-end}
+.swoff{background:#EFECF9;border-color:#E6E2F4;justify-content:flex-start}
+.knob{width:24px;height:24px;border-radius:12px;background:#FFFFFF;border:1px solid #E6E2F4;box-shadow:0 1px 2px rgba(28,24,55,.22)}
+.krow{display:flex;align-items:baseline;gap:8px;padding:11px 0;border-bottom:1px solid #EEEEEE}
+.kk{font-size:14px;line-height:18px;color:#7C76A0;font-weight:600;flex:0 0 auto}
+.kv{flex:1;text-align:right;font-size:14px;line-height:20px;color:#221E3D;font-weight:600}
+.num{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-weight:600;font-size:15px;line-height:19px}
+.sec{margin:14px -15px 0;padding:10px 15px 0;border-top:1px solid #E8552F;display:flex;align-items:baseline;gap:8px}
+.sec h4{font-size:20px;line-height:25px;font-weight:800;color:#221E3D}
+.sec a{margin-left:auto;font-size:16px;line-height:20px;font-weight:800;color:#221E3D;text-decoration:none}
+.tk{margin-top:9px}
+.tkm{border:1.5px solid #221E3D;border-bottom:0;padding:12px 13px}
+.perf{position:relative;height:10px;border-left:1.5px solid #221E3D;border-right:1.5px solid #221E3D}
+.perf i{position:absolute;left:0;right:0;top:4px;border-top:1.5px dashed #DCD7F0;display:block}
+.perf u{position:absolute;top:-3px;width:16px;height:16px;border-radius:8px;background:#FFFFFF;border:1.5px solid #221E3D}
+.perf u.l{left:-9px;border-left-color:transparent}
+.perf u.r{right:-9px;border-right-color:transparent}
+.tks{border:1.5px solid #221E3D;border-top:0;padding:11px 13px 12px}
+.tbig{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-size:31px;line-height:39px;color:#221E3D;font-weight:600}
+.tmid{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-size:24px;line-height:30px;color:#221E3D;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage{font-size:14px;line-height:18px;font-weight:800}
+.objmain{margin-top:8px;font-size:15px;line-height:20px;font-weight:600;color:#221E3D}
+.objquiet{margin-top:3px;font-size:14px;line-height:18px;color:#7C76A0}
+.objclock{margin-top:3px;font-size:14px;line-height:18px;font-weight:700;color:#7C76A0}
+.objaddr{margin-top:3px;font-size:14px;line-height:18px;color:#7C76A0}
+.objdetail{margin-top:1px;font-size:15px;line-height:19px;font-weight:800;color:#221E3D}
+.objpay{font-size:16px;line-height:20px;font-weight:800;color:#2F7D4F;font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace}
+.av{border-radius:50%;background:#221E3D;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+.cta{margin-top:10px;background:#C6472C;border-bottom:4px solid #A63A20;padding:13px 14px}
+.cta .t{font-size:18px;line-height:23px;font-weight:800;color:#FFFFFF}
+.cta .s{margin-top:2px;font-size:14px;line-height:18px;color:#FFF6F4}
+.inkbtn{margin-top:8px;border:1.5px solid #221E3D;padding:11px 14px}
+.inkbtn .t{font-size:17px;line-height:22px;font-weight:800;color:#221E3D}
+.inkbtn .s{margin-top:1px;font-size:14px;line-height:18px;color:#7C76A0}
+.doors{display:flex;gap:8px}
+.door{flex:1;padding:15px 11px}
+.doorC{background:#C6472C;border:1px solid #A83315}
+.doorG{background:#FFFFFF;border:1.5px solid #221E3D}
+.doorQ{background:#EFECF9;border:1px solid #EEEEEE}
+.doorname{font-size:17px;line-height:22px;font-weight:800}
+.doorsub{margin-top:4px;font-size:14px;line-height:18px}
+.chipA{background:#FBEED9;padding:2px 7px;display:inline-block}
+.chipA span{font-size:16px;line-height:20px;letter-spacing:.5px;color:#C77414;font-weight:800}
+.chipG{background:#F5F5F5;padding:4px 9px;display:inline-block}
+.chipG span{font-size:16px;line-height:20px;font-weight:800;color:#6C5CE7}
+.chipV{background:#E3EFF9;padding:3px 8px;display:inline-block;font-size:14px;font-weight:700;color:#2D6DA8}
+.empty{margin-top:9px;background:#EFECF9;border:1px solid #EEEEEE;padding:16px}
+.emptyt{font-size:14px;line-height:18px;color:#7C76A0;text-align:center}
+.emptyl{font-size:14px;line-height:18px;font-weight:800;color:#A83315;text-align:center;margin-top:5px}
+.sumrow{display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #EEEEEE;min-height:52px}
+.sumlbl{font-size:14px;color:#666666;flex:0 0 108px}
+.sumval{flex:1;text-align:right;font-size:15px;font-weight:800;color:#111111}
+.sumact{font-size:14px;font-weight:800;color:#111111}
+.sumstate{flex:1;text-align:right;font-size:14px;color:#666666}
+.fail{background:#FBEAE7;padding:13px}
+.failt{font-size:14px;font-weight:700;color:#B3261E}
+.faila{font-size:16px;font-weight:800;color:#B3261E;text-decoration:underline;margin-top:10px;display:inline-block}
+.warnstrip{margin-top:9px;background:#FBEED9;border:1px solid #F2DFC2;padding:9px 10px}
+.warnstrip .t{font-size:14px;line-height:19px;font-weight:800;color:#9D580A}
+.warnstrip .s{font-size:14px;line-height:19px;color:#9D580A;margin-top:2px}
+.title30{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-size:30px;line-height:37px;color:#111111}
+.reqcard{border:1.5px solid #111111;margin-top:14px}
+.reqbody{padding:14px 14px 12px}
+.reqdoors{display:flex;gap:8px;padding:0 12px 12px}
+.rdoor{flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;padding:14px;font-size:17px;font-weight:800}
+.rdoorC{background:#C6472C;border:1.5px solid #C6472C;color:#FFFFFF}
+.rdoorG{background:#FFFFFF;border:1.5px solid #111111;color:#111111}
+.rdoorOff{background:#F2F2F2;border:1.5px solid #EEEEEE;color:#999999}
+.timebox{flex:1;background:#F7F7F7;padding:7px 10px}
+.board{background:#111111;padding:16px;margin-top:14px}
+.flaprow{display:flex;gap:4px;align-items:flex-end;margin-top:12px}
+.flap{background:#000000;padding:6px 5px;font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-size:30px;line-height:38px;font-weight:700;color:#C6F542}
+.flapthin{background:transparent;padding:6px 3px}
+.cticket{display:flex;border:1px solid #EEEEEE;margin-bottom:10px;position:relative;overflow:hidden}
+.cbody{flex:1;padding:13px 10px 13px 13px}
+.cstub{width:96px;border-left:2px dashed #EEEEEE;background:#FAFAFA;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.cstub u{position:absolute;left:-9px;width:16px;height:16px;border-radius:8px;background:#FFFFFF;border:1px solid #EEEEEE}
+.chipS{padding:3px 9px;font-size:16px;line-height:20px;font-weight:800}
+.daygroup{margin:16px -15px 0;padding:10px 15px 0;border-top:1px solid #E8552F;display:flex;align-items:baseline;gap:8px}
+.daygroup h5{font-size:20px;line-height:25px;font-weight:800;color:#111111}
+.daygroup span{margin-left:auto;font-size:14px;font-weight:700;color:#666666}
+.availcard{border:1px solid #EEEEEE;padding:6px 14px}
+.arow{display:flex;align-items:center;gap:10px;padding:11px 0}
+.arow+.arow{border-top:1px solid #EEEEEE}
+.adow{width:24px;font-size:17px;font-weight:900}
+.tchip{padding:8px 15px;font-size:14.5px;font-weight:800}
+.tchipOn{background:#111111;color:#FFFFFF}
+.tchipOff{background:#FFFFFF;border:1px solid #EEEEEE;color:#666666}
+.stepper{display:flex;border:1px solid #EEEEEE;align-items:center}
+.stepbtn{width:44px;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#111111}
+.stepval{padding:0 9px;letter-spacing:-.3px;font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;font-size:19.5px;line-height:25px;font-weight:700;color:#111111}
+.savebar{border-top:1px solid #E8552F;padding:10px 15px 20px;background:#FFFFFF}
+.pbtn{background:#C6472C;padding:15px;text-align:center;font-size:17px;font-weight:800;color:#FFFFFF}
+.pbtnOff{background:#F2F2F2;color:#999999}
+.foot{margin-top:70px;padding-top:22px;border-top:1px solid #E8552F;max-width:1080px}
+.foot h3{font-size:19px;font-weight:800;margin-bottom:12px}
+.foot ol{margin-left:19px;font-size:14px;line-height:1.85;color:#333333}
+.foot ol b{color:#111111}
+.foot li{margin-bottom:9px}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>러너 홈 &amp; 잡 — Enhancement Lab</h1>
+<div class="law">cluster: runner/home · runner/requests · runner/calendar · runner/availability · 2026-08-24 · 0 new hexes · 0 migrations</div>
+<p class="lede">Thirteen numbered enhancements across the four runner screens, drawn <b>inside the shapes that are already settled</b>.
+Runner home stays shape ①: no module is added, removed or reordered — the changes live inside modules that already exist.
+Availability keeps its <b>three deliberately distinct predicates</b> (§9); one variant names which surface each of them governs,
+which is the opposite of unifying them. Every value in every frame is annotated with the column or derivation that would bind it,
+and where a screen currently says something the server does not support, the frame says so instead of dressing it up.</p>
+
+<div class="note">
+  <h4>What is real here — the field inventory these mocks are allowed to draw from</h4>
+  <b>OpenRequest</b> (api.ts:787) dogName · breed · weightKg · memo · when · km · paceLabel · payout · directed · repeatPrior · photoUrl · prefTags · vaccines · routeId · routeName.
+  <b>No <code>scheduledAt</code></b> — but <code>bookings.scheduled_at</code> <i>is already inside both SELECTs</i> (<code>REQ_SELECT</code>, and the
+  <code>marketplace_open_requests</code> view column list), and both mappers drop it after formatting <code>when</code>. Three variants below need it; none needs a migration.<br>
+  <b>RunnerJob</b> (api.ts:1253) bookingId · when · <b>scheduledAt</b> · dogName · km · payout · status · rawStatus · routeId · <b>dogPhotoUrl</b> · arrivedAt · startedAt · ownerHandoffAt · runnerHandoffAt.<br>
+  <b>RunnerWeekStats</b> net · runs|null · km|null &nbsp;·&nbsp; <b>MyRunnerStatus</b> totalRuns · totalKm · online · <b>tier</b> &nbsp;·&nbsp; <b>AvailRule</b> weekday · startMin · endMin &nbsp;·&nbsp;
+  <b>RescheduleRequest</b> bookingId · dogName · km · curDate/curTime · newDate/newTime &nbsp;·&nbsp; <b>PickupAddress</b> label · addr · detail · lat · lng (0060 definer RPC).<br>
+  <b>Payout arithmetic</b>: <code>runnerCompBase 9,900 + 3,000×km</code>, minus the flat 33% (0059). 5.0 km → <b>16,683원</b>. Every payout printed below uses that formula, so the frames agree with <code>estimatedPayout</code> (api.ts:815).
+</div>
+
+<div class="note warn">
+  <h4>⚠ Three sentences these screens ship today that the server does not support</h4>
+  These are not variant ideas, they are measured contradictions found while reading the four files. Each one is fixed by a numbered variant below, and each is cheap.
+  <ol style="margin:8px 0 0 18px;line-height:1.75">
+    <li><code>runner/home.tsx:~820</code> — the online toggle's offline sub-line, <b>「새 요청이 멈춰 있어요」</b>. The open pool
+      (<code>marketplace_open_requests</code>, 0042/0056) has <b>no <code>online</code> predicate</b>; its gate is <code>is_active_runner()</code>. Offline removes the runner from the
+      owner's nomination lists (<code>fetchCertifiedRunners</code>, <code>runners_available_for</code> 0054 <code>r.online = true</code>) and from the find-now surfaces
+      (<code>available_runners</code> 0015, <code>count_available_runners</code> 0003) — it does <b>not</b> stop open requests. → <b>home ④</b></li>
+    <li><code>runner/requests.tsx:432</code> — an <b>applicant</b> is told 「지금은 열린 요청이 없어요」. For a pre-certification runner a request can never arrive
+      (<code>is_active_runner()</code> = <code>tier &lt;&gt; 'applicant'</code>, 0004:4-10). Home already fixed exactly this lie for its own inbox; requests still tells it,
+      and it already fetches <code>fetchMyRunnerStatus()</code> — it reads <code>st.online</code> and <b>throws the tier away</b>. → <b>requests ①</b></li>
+    <li><code>runner/calendar.tsx:174,191</code> — a completed ticket prints 「정산 완료」 and 「정산됨」. Home's week line deliberately says <b>「정산 예정」</b> because there is
+      no code path that pays a runner yet; the ledger row means the run was <i>priced</i>, not paid. Two screens, one fact, two vocabularies. → <b>calendar ③</b></li>
+  </ol>
+</div>
+
+<div class="note">
+  <h4>Frozen / settled surfaces this cluster touches</h4>
+  <b>Runner home shape ① is settled</b> — nothing below adds, removes or reorders a module. Every change is inside 온라인 토글 / 이번 주 / 요청 대기열 / the empty state.<br>
+  <b>Availability's three predicates are frozen (§9)</b>: <code>0015 available_runners</code> (find-now, no time argument) · <code>0003 is_slot_available</code> (the slot-booking rule engine, the only one that reads
+  <code>runner_availability_rules</code>) · <code>0054 runners_available_for</code> (the nomination screen, a mirror of the accept gate). Availability ① <b>names</b> them per surface; it does not merge them.
+  <b>Not touched at all</b>: owner/fitness's collapsing hero and the meetup stage machine / polling / confirmHandoff (this cluster never enters them; <code>openJob</code> keeps its exact routing).
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">A · Runner home <span>app/app/runner/home.tsx</span></h2>
+<p class="bandsub">Shape ① — bib strap · online switch · 이번 주 one line · 진행 중 ticket + coral door + chat · 요청 대기열 · 오늘의 루트 · 하이클럽 · 리워드 · 러닝 가능 시간 · 최근 완료 · 내 기록 · 동네 코스 · quick links.
+All four variants stay inside that order. The screen's one coral stays where <code>liveOwnsCoral</code> puts it: an in-flight job owns it, and the 수락 door drops to the ink ghost.</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">An in-flight job exists, so the coral belongs to <b>픽업 이동 시작</b> and the 수락 door renders as the ink ghost. Reproduced for comparison, including the request ticket's full <code>when</code> string at 24pt Oswald.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="chrome"><div class="spacer40"></div><div class="logolock"><div class="mark"></div><div class="wordmark">도그스하이</div></div><div class="bell"><div class="belldot"></div>◔</div></div>
+      <div class="scr">
+        <div class="strap"><span class="strapname">민준</span><span class="strapdim"> 러너</span><span class="strapdim">&nbsp;&nbsp;베테랑</span></div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#221E3D">온라인</div><div class="togsub">요청을 받는 중</div></div><div class="sw swon"><div class="knob"></div></div></div>
+        <div class="krow"><div class="kk">이번 주</div><div class="kv"><span class="num">3</span>회 · <span class="num">14.2</span>km · 정산 예정 <span class="num">43,200</span>원</div></div>
+
+        <div class="sec"><h4>진행 중</h4></div>
+        <div class="tk">
+          <div class="tkm">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <div class="tbig">22분 뒤</div><div class="stage" style="color:#C77414">픽업 대기</div>
+            </div>
+            <div style="display:flex;gap:11px;margin-top:6px">
+              <div class="av" style="width:42px;height:42px;font-size:17px">초</div>
+              <div style="flex:1;min-width:0">
+                <div class="objmain"><b>초코</b> · <span class="num">5.0</span>km</div>
+                <div class="objclock">오후 7:30</div>
+                <div class="objaddr">반포대로 12길 34</div>
+                <div class="objdetail">101동 1502호</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:9px">
+              <div class="objpay">+16,683원</div><div class="objquiet" style="margin:0">완주 기준</div>
+            </div>
+          </div>
+          <div class="perf"><i></i><u class="l"></u><u class="r"></u></div>
+          <div class="tks"><div class="objquiet" style="margin:0;font-weight:700">초코와 함께</div></div>
+        </div>
+        <div class="cta"><div class="t">픽업 이동 시작 ›</div><div class="s">초코에게 출발할 시간이에요</div></div>
+        <div class="inkbtn"><div class="t">채팅</div><div class="s">늦으면 미리 알려주세요</div></div>
+
+        <div class="sec"><h4>요청 대기열</h4><a href="#">요청함 · 2건 ›</a></div>
+        <div class="tk">
+          <div class="tkm">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div class="tmid" style="flex-shrink:1;overflow:hidden;white-space:nowrap">8월 24일 (일) 오후 7:30</div>
+              <div class="chipA"><span>★ 나를 지명</span></div>
+            </div>
+            <div class="objmain"><b>콩이</b> · 말티즈 4kg · <span class="num">4.0</span>km</div>
+            <div class="objquiet">실거리로 확정 · ⟳ 3번째 함께 · 반포한강 5K</div>
+          </div>
+          <div class="perf"><i></i><u class="l"></u><u class="r"></u></div>
+          <div class="tks">
+            <div class="doors">
+              <div class="door doorG"><div class="doorname" style="color:#221E3D">수락 ›</div><div class="doorsub" style="color:#7C76A0"><span class="num" style="font-size:14px">13,668</span>원</div></div>
+              <div class="door doorQ"><div class="doorname" style="font-size:16px;color:#221E3D">거절</div><div class="doorsub" style="color:#7C76A0">다른 러너에게 넘겨요</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="cont">이하 그대로 · 오늘의 루트 · 하이클럽 · 리워드 · 러닝 가능 시간 · 최근 완료 · 내 기록 · 동네 코스 · 퀵 링크</div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 민준 <code>profiles.name</code> · 베테랑 <code>runners.tier</code> · toggle <code>runners.online</code> · week row <code>fetchRunnerWeekStats</code> (ledger_items sum, KST Monday window) ·
+      22분 뒤 <code>relWhen(scheduled_at)</code> · 픽업 대기 <code>STAGE[rawStatus]</code> · address <code>fetchBookingAddress</code> (0060) · +16,683 <code>RunnerJob.payout</code> · 13,668 = 4 km through the same formula.</div>
+  </div>
+
+  <!-- ① -->
+  <div class="col">
+    <div class="cap"><b>①</b>The quiet day explains itself</div>
+    <p class="why">An empty inbox today is one grey sentence. This screen has already fetched both facts that answer <b>why</b> it is quiet — <code>rs.online</code> and <code>avail</code> —
+    and requests.tsx already proved the two-row grammar (R2c). The rows are not decoration: the second one is a door to the editor, and the closing line kills the most common
+    wrong inference (「오프라인이라 아무것도 안 오는구나」), which is measurably false for the open pool.
+    <b>Every existing state survives</b>: 상태 확인 중 / 상태 실패 / 인증 전 / 인박스 실패 + 다시 시도 / 확인 중 all render exactly as they do now — a row that has not loaded is not drawn.</p>
+    <div class="cost free"><b>What this costs</b>No new server data. No new route (<code>/runner/availability</code> exists). Both values are already in this component's state — <code>rs</code> and <code>avail</code> are fetched on every focus.
+      Coral count in this state: <b>zero</b>, which is legal (requests.tsx R2c precedent).</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="chrome"><div class="spacer40"></div><div class="logolock"><div class="mark"></div><div class="wordmark">도그스하이</div></div><div class="bell">◔</div></div>
+      <div class="scr">
+        <div class="strap"><span class="strapname">민준</span><span class="strapdim"> 러너</span><span class="strapdim">&nbsp;&nbsp;베테랑</span></div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#7C76A0">오프라인</div><div class="togsub">새 요청이 멈춰 있어요 · 확정된 러닝은 그대로</div></div><div class="sw swoff"><div class="knob"></div></div></div>
+        <div class="krow"><div class="kk">이번 주</div><div class="kv"><span class="num">3</span>회 · <span class="num">14.2</span>km · 정산 예정 <span class="num">43,200</span>원</div></div>
+        <div class="sec"><h4>요청 대기열</h4><a href="#">요청함 · 0건 ›</a></div>
+        <div class="empty">
+          <div class="emptyt" style="font-size:15px;font-weight:800;color:#221E3D">지금은 새 요청이 없어요</div>
+          <div style="margin-top:11px;border-top:1px solid #EEEEEE">
+            <div class="sumrow"><div class="sumlbl">온라인</div><div class="sumval">꺼짐</div></div>
+            <div class="sumrow"><div class="sumlbl">러닝 가능 시간</div><div class="sumval">주 5일 · 06:00–22:00</div><div class="sumact">시간 조정 ›</div></div>
+          </div>
+          <div class="emptyt" style="text-align:left;margin-top:11px">열린 요청은 온라인과 무관하게 도착해요 — 지명은 온라인일 때만 새로 들어와요</div>
+        </div>
+        <div class="cont">이하 그대로 · 오늘의 루트(없으면 미렌더) · 하이클럽 · 리워드 · 러닝 가능 시간 · 최근 완료 · 내 기록 · 동네 코스</div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 꺼짐 <code>runners.online</code> · 주 5일 · 06:00–22:00 <code>runner_availability_rules</code> via the <code>availSummary()</code> already written in requests.tsx:65
+      (it says 「요일마다 다름」 rather than inventing one time, and 「설정된 요일이 없어요」 rather than 「아직 설정 안 했어요」).<br>
+      <b>The closing line is measured, not asserted</b>: open pool = <code>marketplace_open_requests</code> (no online predicate); nomination lists = <code>runners_available_for</code>/<code>fetchCertifiedRunners</code> (<code>r.online = true</code>).</div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <div class="cap"><b>②</b>The front request becomes an object</div>
+    <p class="why">Two things the 진행 중 ticket does and the request ticket — its twin, same 1.5px ink grammar — does not.
+    <b>The face:</b> <code>OpenRequest.photoUrl</code> is fetched on every request and rendered on requests.tsx, but the home ticket names the dog without showing it.
+    <b>The actionable datum:</b> the 진행 중 ticket promotes <code>relWhen()</code> and demotes the clock, because "am I late" is the question. The request's equivalent question is
+    "how long do I have", and the server answers it exactly: <code>expire_unmatched_bookings</code> (0080) expires <code>matching</code>/<code>runner_pending</code> when
+    <code>scheduled_at &lt; now()</code> — the run's own start time <i>is</i> the deadline. The current 24pt full <code>when</code> string is also the one line on this screen that runs out of width.</p>
+    <div class="cost pay"><b>What this costs</b><b style="text-transform:none;font-size:12.5px;letter-spacing:0;display:inline">One mapper field:</b> <code>OpenRequest.scheduledAt</code>.
+      <code>scheduled_at</code> is already selected by both legs — no migration, no new query, no RPC contract change. Reuses <code>relWhen()</code> + its two clamps (<code>LATE_CAP_MIN</code>, <code>AHEAD_CAP_MIN</code>) already in this file, so nothing new can shout.
+      Shared prerequisite with <b>requests ②/③</b>.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:6px">
+        <div class="cont" style="margin-top:0;border-top:0;padding-top:0">…빕 스트랩 · 온라인 · 이번 주 · 진행 중 그대로</div>
+        <div class="sec"><h4>요청 대기열</h4><a href="#">요청함 · 3건 ›</a></div>
+        <div class="tk">
+          <div class="tkm">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div class="tmid">5시간 뒤</div>
+              <div class="chipA"><span>★ 나를 지명</span></div>
+            </div>
+            <div class="objclock">오늘 오후 7:30 시작 · 시작 시각이 지나면 자동 만료</div>
+            <div style="display:flex;gap:11px;margin-top:9px">
+              <div class="av" style="width:40px;height:40px;font-size:16px">콩</div>
+              <div style="flex:1;min-width:0">
+                <div class="objmain" style="margin-top:0"><b>콩이</b> · 말티즈 4kg · <span class="num">4.0</span>km</div>
+                <div class="objquiet">실거리로 확정 · ⟳ 3번째 함께 · 반포한강 5K</div>
+              </div>
+            </div>
+          </div>
+          <div class="perf"><i></i><u class="l"></u><u class="r"></u></div>
+          <div class="tks">
+            <div class="doors">
+              <div class="door doorC"><div class="doorname" style="color:#FFFFFF">수락 ›</div><div class="doorsub" style="color:#FFFFFF"><span class="num" style="font-size:14px;color:#FFFFFF">13,668</span>원</div></div>
+              <div class="door doorQ"><div class="doorname" style="font-size:16px;color:#221E3D">거절</div><div class="doorsub" style="color:#7C76A0">다른 러너에게 넘겨요</div></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;border:1px solid #EEEEEE;margin-top:9px">
+          <div style="flex:1;min-width:0;padding:12px 11px 10px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:14px;line-height:18px;font-weight:700;color:#221E3D">보리</span>
+              <span class="num" style="font-size:14px;color:#221E3D">3.0<span style="font-size:14px;color:#7C76A0;font-weight:600">KM</span></span>
+            </div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:5px">내일 오전 7:30 · <b style="color:#221E3D">14시간 뒤</b></div>
+          </div>
+          <div style="width:112px;border-left:1.4px dashed #DCD7F0;padding:11px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px">
+            <div class="num" style="font-size:17px;line-height:22px;color:#221E3D">10,653</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">예상</div>
+            <div style="width:100%;border:1px solid #E8552F;padding:15px 0;text-align:center;font-size:16px;font-weight:800;color:#221E3D">보기 ›</div>
+          </div>
+        </div>
+        <div class="cont">이하 그대로 · 오늘의 루트 · 하이클럽 · 리워드 …</div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 5시간 뒤 / 14시간 뒤 <code>relWhen(OpenRequest.scheduledAt)</code> · 오늘 오후 7:30 the existing <code>when</code> label, demoted · 콩 monogram = <code>Avatar</code> fallback when <code>photoUrl</code> is null (never an empty frame) ·
+      13,668 / 10,653 <code>OpenRequest.payout</code> (4.0 km and 3.0 km through the runner formula).<br>
+      <b>Coral note</b>: this frame is drawn with no in-flight job, so <code>liveOwnsCoral</code> is false and the 수락 door is the screen's one coral — unchanged rule, unchanged code.</div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <div class="cap"><b>③</b>오늘 — one line above 이번 주</div>
+    <p class="why">이번 주 answers "how did the week go". A runner opening the app at 6am is asking a different question: <b>how much is left today</b>.
+    Both numbers are already in memory — <code>jobs</code> plus the <code>isTodayKst()</code> helper this file already defines (home.tsx:~90, used by 오늘의 루트).
+    Same row grammar, same Oswald numerals, one row taller. In loading or failure the row is simply not drawn — there is no 0건 in flight.</p>
+    <div class="cost pay"><b>What this costs</b>No server, no route. <b>It does duplicate a fact</b>: 오늘의 루트 already renders one row per today-stop, so "오늘 2건" is the same truth counted.
+      If picked, either the route section keeps the detail and this line keeps the count (one is a summary of the other — defensible), or 오늘 머리줄 replaces the route section's implicit count.
+      Sean's call; this is the only variant in the lab that spends a fact twice, and it is named rather than hidden.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="chrome"><div class="spacer40"></div><div class="logolock"><div class="mark"></div><div class="wordmark">도그스하이</div></div><div class="bell"><div class="belldot"></div>◔</div></div>
+      <div class="scr">
+        <div class="strap"><span class="strapname">민준</span><span class="strapdim"> 러너</span><span class="strapdim">&nbsp;&nbsp;베테랑</span></div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#221E3D">온라인</div><div class="togsub">요청을 받는 중</div></div><div class="sw swon"><div class="knob"></div></div></div>
+        <div class="krow"><div class="kk">오늘</div><div class="kv"><span class="num" style="font-size:17px;line-height:22px">2</span>건 · 다음 <span class="num" style="font-size:17px;line-height:22px">오후 7:30</span></div></div>
+        <div class="krow"><div class="kk">이번 주</div><div class="kv"><span class="num">3</span>회 · <span class="num">14.2</span>km · 정산 예정 <span class="num">43,200</span>원</div></div>
+        <div class="sec"><h4>진행 중</h4></div>
+        <div class="tk">
+          <div class="tkm">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="tbig">22분 뒤</div><div class="stage" style="color:#C77414">픽업 대기</div></div>
+            <div style="display:flex;gap:11px;margin-top:6px">
+              <div class="av" style="width:42px;height:42px;font-size:17px">초</div>
+              <div style="flex:1;min-width:0">
+                <div class="objmain"><b>초코</b> · <span class="num">5.0</span>km</div>
+                <div class="objclock">오후 7:30</div>
+                <div class="objaddr">반포대로 12길 34</div>
+                <div class="objdetail">101동 1502호</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:9px"><div class="objpay">+16,683원</div><div class="objquiet" style="margin:0">완주 기준</div></div>
+          </div>
+          <div class="perf"><i></i><u class="l"></u><u class="r"></u></div>
+          <div class="tks"><div class="objquiet" style="margin:0;font-weight:700">초코와 함께</div></div>
+        </div>
+        <div class="cta"><div class="t">픽업 이동 시작 ›</div><div class="s">초코에게 출발할 시간이에요</div></div>
+        <div class="cont">이하 그대로 · 채팅 · 요청 대기열 · 오늘의 루트 · 하이클럽 · 리워드 …</div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 2건 = <code>jobs.filter(j =&gt; j.status !== 'completed' &amp;&amp; isTodayKst(j.scheduledAt)).length</code> · 오후 7:30 = the earliest of those, its <code>when</code> time token.
+      Same KST fixed-offset arithmetic the file already uses (Asia/Seoul, not device locale — the simulator runs UTC).</div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <div class="cap"><b>④</b>The switch says what it actually does</div>
+    <p class="why">The offline sub-line promises something the server does not do. <code>online</code> is read by three places and none of them is the open pool:
+    the owner's nomination list (<code>fetchCertifiedRunners</code>), the nomination availability RPC (0054, <code>r.online = true</code>), and the find-now surfaces
+    (<code>available_runners</code> 0015 · <code>count_available_runners</code> 0003). The open pool's gate is <code>is_active_runner()</code> — a certified runner who goes offline
+    <b>still receives every open request</b>. This file's own header already records the neighbouring measurement ("지명 요청도 오프라인이면 오지 않아요 — measured false"); the toggle just never got the same correction.
+    Both states drawn so the pair reads as one sentence flipped.</p>
+    <div class="cost free"><b>What this costs</b>Two strings. No data, no layout, no new state — the switch, its handler, the optimistic revert and the loading/failure third state all stay byte-identical.
+      This is the cheapest honesty fix in the cluster and it is currently the screen's biggest false claim.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:6px">
+        <div class="cont" style="margin-top:0;border-top:0;padding-top:0;color:#666666">상태 A — 켜짐</div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#221E3D">온라인</div><div class="togsub">보호자의 러너 목록과 추천에 보여요</div></div><div class="sw swon"><div class="knob"></div></div></div>
+        <div class="cont" style="border-top:0;padding-top:0;color:#666666">상태 B — 꺼짐</div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#7C76A0">오프라인</div><div class="togsub">보호자의 러너 목록·추천에서 빠져요 · 열린 요청과 확정된 러닝은 그대로</div></div><div class="sw swoff"><div class="knob"></div></div></div>
+        <div class="cont" style="border-top:0;padding-top:0;color:#666666">상태 C — 아직 모름 / 실패 (현행 그대로)</div>
+        <div class="tog"><div style="flex:1"><div class="toglbl" style="color:#7C76A0;font-size:14px;line-height:18px">상태 확인 중</div></div></div>
+        <div class="tog" style="border-bottom:0"><div style="flex:1"><div class="toglbl" style="color:#B3261E;font-size:14px;line-height:18px">상태를 불러오지 못했어요</div></div>
+          <div style="font-size:16px;line-height:20px;font-weight:800;color:#B3261E;text-decoration:underline">다시 시도</div></div>
+        <div class="cont">스위치는 C에서 아예 그려지지 않는다 — 비활성 스위치도 '지금 OFF'라고 주장하기 때문 (현행 법 유지)</div>
+      </div>
+      <div class="tabs"><span class="on">⌂</span><span>▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 켜짐/꺼짐 <code>runners.online</code> via <code>setRunnerOnline</code>, unchanged. The new sentences assert only what the three predicates measurably do.
+      Same wording is available to requests.tsx's 온라인 summary row and to the availability screen (see D ①) — one sentence, three surfaces.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">B · Request inbox <span>app/app/runner/requests.tsx</span></h2>
+<p class="bandsub">The accept surface. Coral budget is already ruled: <b>변경 요청 &gt; 지명 &gt; nothing</b>, and a 근처(오픈) accept is never coral (R2b/R2c).
+Everything below preserves that ladder — variant ③ only changes <i>which</i> directed door is at the top of it.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">One reschedule (owns the coral) plus one directed request (ghost door). The directed card deliberately hides memo / pref tags / pace — 0114 §C.6 closes the last unvalidated owner-text path to a runner who has not accepted yet.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="title30">요청</div><div style="font-size:14px;color:#666666;margin-top:3px">새 요청 2건 · 변경 요청 1건</div></div>
+          <div style="border:1px solid #E8552F;padding:9px 13px;font-size:14px;font-weight:800">↻ 새로고침</div>
+        </div>
+        <div class="cont" style="margin-top:12px;border-top:0;padding-top:0">하이클럽 호스트 수요 스트립 — 대기 팀이 있을 때만 (DemandStrip)</div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div class="chipA" style="padding:4px 9px"><span>일정 변경 요청</span></div>
+            <div style="font-size:17px;font-weight:800;margin-top:10px">초코 · 5km</div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+              <div class="timebox"><div style="font-size:14px;font-weight:700;color:#666666">기존</div>
+                <div style="font-size:14px;font-weight:700;color:#666666;text-decoration:line-through;margin-top:1px">8월 24일 (일)</div>
+                <div style="font-size:17px;font-weight:800;color:#666666;text-decoration:line-through">오후 7:30</div></div>
+              <div style="font-size:17px;font-weight:900;color:#9D580A">→</div>
+              <div class="timebox" style="background:#FDE8D0"><div style="font-size:14px;font-weight:700;color:#9D580A">제안</div>
+                <div style="font-size:14px;font-weight:800;color:#9D580A;margin-top:1px">8월 25일 (월)</div>
+                <div style="font-size:17px;font-weight:900;color:#9D580A">오전 7:30</div></div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorG">거절 (기존 유지)</div><div class="rdoor rdoorC">새 시간 수락 ›</div></div>
+        </div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="chipA" style="padding:4px 9px"><span>★ 지명 요청</span></div>
+              <div style="background:#FDE8D0;padding:3px 8px;font-size:14px;font-weight:800;color:#9D580A">⟳ 3번째 함께</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+              <div style="font-size:14.5px;font-weight:800;color:#333333">8월 24일 (일) 오후</div>
+              <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div class="av" style="width:48px;height:48px;background:#111111;font-size:19px">콩</div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:800">콩이 · 말티즈 4kg</div>
+                <div style="font-size:14px;color:#666666;margin-top:3px;line-height:19px"><b style="color:#111111">4.0km</b> · 예상 <span class="num" style="font-size:15px;color:#111111">13,668</span>원 · 수수료 제외</div>
+              </div>
+            </div>
+            <div style="margin-top:9px"><span class="chipV">백신 2종</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #EEEEEE;margin-top:12px;padding-top:12px;min-height:44px">
+              <div style="font-size:14px;font-weight:800">반포한강 5K</div><div style="font-size:14px;font-weight:800">코스 미리보기 ›</div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorG">수락하기 ›</div></div>
+        </div>
+        <div style="margin-top:18px;padding:10px;font-size:14px;line-height:20px;color:#666666;text-align:center">수락하면 캘린더에 확정 일정으로 추가돼요<br>응답 기한이 지나면 요청은 자동 만료됩니다</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 새 요청 2건 printed only after a successful load · reschedule times <code>RescheduleRequest.curDate/curTime/newDate/newTime</code> ·
+      백신 2종 <code>dogs.vaccinations[]</code> · 코스 미리보기 <code>routes.name</code> + <code>/course/[routeId]</code>. The footer's 「응답 기한」 is the sentence variant ② makes specific.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>An applicant is told the truth</div>
+    <p class="why">This screen already calls <code>fetchMyRunnerStatus()</code> and keeps only <code>st.online</code>. The <code>tier</code> in the same response is the difference between
+    "quiet day" and "you are structurally unreachable": the open pool view ends in <code>is_active_runner()</code>, and the directed leg needs an owner to have picked you from a list you are not in.
+    Home fixed this exact lie for its own inbox in the 2026-08-08 honesty repair (「인증 전에는 요청이 오지 않아요」 + a real door to <code>/runner/apply</code>); requests still ships the pre-repair sentence.
+    The 온라인 row is <b>dropped</b> in this state on purpose — for an applicant, toggling it changes nothing, and offering it as an explanation would be a second false lead.</p>
+    <div class="cost free"><b>What this costs</b>No new fetch (the call is already there — stop discarding <code>tier</code>), no new route (<code>/runner/apply</code> exists and home links it).
+      The 러닝 가능 시간 row stays because it is genuinely useful pre-certification and the editor is reachable now.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="title30">요청</div><div style="font-size:14px;color:#666666;margin-top:3px">새 요청 0건</div></div>
+          <div style="border:1px solid #E8552F;padding:9px 13px;font-size:14px;font-weight:800">↻ 새로고침</div>
+        </div>
+        <div style="margin-top:40px;text-align:center;padding:0 10px">
+          <div style="font-size:16px;font-weight:800;color:#111111">인증 전에는 요청이 오지 않아요</div>
+          <div style="font-size:14.5px;color:#666666;margin-top:4px;line-height:20px">인증된 러너에게만 요청이 열려요 —<br>지원은 몇 분이면 끝나요</div>
+        </div>
+        <div style="margin-top:16px;border:1.5px solid #111111;padding:14px;text-align:center;font-size:17px;font-weight:800">인증 센터에서 지원하기 ›</div>
+        <div style="margin-top:40px;border-top:1px solid #EEEEEE">
+          <div class="sumrow"><div class="sumlbl">러닝 가능 시간</div><div class="sumval">주 5일 · 06:00–22:00</div><div class="sumact">시간 조정 ›</div></div>
+        </div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:12px">지금 설정해두면 인증되는 즉시 보호자 예약 화면에 반영돼요</div>
+        <div class="cont">인증된 러너의 조용한 날은 종전 두 줄(온라인 · 러닝 가능 시간) 그대로 — 이 화면은 tier로만 갈린다</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — the whole state is gated on <code>MyRunnerStatus.tier === null || 'applicant'</code>, the same <code>preCert</code> predicate home.tsx already computes,
+      and only after a successful load (loading and failure keep their own sentences — an unknown tier must never render this).
+      「새 요청 0건」 is honest here because the inbox load succeeded; it is the tier, not the market, that is empty.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The deadline the footer already promises</div>
+    <p class="why">The footer says requests auto-expire and no card says when. The server's rule is not a policy number — it is
+    <code>scheduled_at &lt; now()</code> (<code>expire_unmatched_bookings</code>, 0080 ⓐ, inherited from 0017/0037/0060), so <b>the run's own start time is the deadline</b>.
+    A card can therefore print a true countdown with no new column and no invented urgency, and the list can sort by it inside each leg.
+    The footer sentence stops being vague at the same time.</p>
+    <div class="cost pay"><b>What this costs</b>Same one mapper field as home ② (<code>OpenRequest.scheduledAt</code>) — no migration.
+      Sorting is client-side and <b>must stay inside each leg</b>: directed first, then open (the coral rule reads <code>directed[0]</code>, so the sort moves the coral with it — intended, but it is a real behavioural consequence and needs Sean's nod).
+      Clamps reused from home's <code>relWhen</code>; past-start requests are already gone server-side, so no "지난" case can render here.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="title30">요청</div><div style="font-size:14px;color:#666666;margin-top:3px">새 요청 3건</div></div>
+          <div style="border:1px solid #E8552F;padding:9px 13px;font-size:14px;font-weight:800">↻ 새로고침</div>
+        </div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="chipA" style="padding:4px 9px"><span>★ 지명 요청</span></div>
+              <div style="background:#FDE8D0;padding:3px 8px;font-size:14px;font-weight:800;color:#9D580A">1시간 뒤 시작</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+              <div style="font-size:14.5px;font-weight:800;color:#333333">오늘 오후</div>
+              <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">3:30</div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div class="av" style="width:48px;height:48px;background:#111111;font-size:19px">콩</div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:800">콩이 · 말티즈 4kg</div>
+                <div style="font-size:14px;color:#666666;margin-top:3px;line-height:19px"><b style="color:#111111">4.0km</b> · 예상 <span class="num" style="font-size:15px;color:#111111">13,668</span>원 · 수수료 제외</div>
+              </div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorC">수락하기 ›</div></div>
+        </div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="chipG"><span>● 요청 · 매칭 대기</span></div>
+              <div style="padding:3px 8px;font-size:14px;font-weight:800;color:#666666">내일 · 14시간 뒤</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+              <div style="font-size:14.5px;font-weight:800;color:#333333">8월 25일 (월) 오전</div>
+              <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div class="av" style="width:48px;height:48px;background:#111111;font-size:19px">보</div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:800">보리 · 시바 9kg</div>
+                <div style="font-size:14px;color:#666666;margin-top:3px;line-height:19px"><b style="color:#111111">3.0km</b> · 보통 7' · 예상 <span class="num" style="font-size:15px;color:#111111">10,653</span>원 · 수수료 제외</div>
+              </div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorG">수락하기 ›</div></div>
+        </div>
+        <div style="margin-top:18px;padding:10px;font-size:14px;line-height:20px;color:#666666;text-align:center">수락하면 캘린더에 확정 일정으로 추가돼요<br>시작 시각까지 아무도 수락하지 않으면 요청은 자동 만료돼요</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 1시간 뒤 시작 / 14시간 뒤 <code>relWhen(scheduledAt)</code>. The amber chip is <code>paper.pending</code>'s tint world, already this file's 지명 chip palette; it appears
+      <b>only</b> under a threshold worth flagging (open question 2) — otherwise the line is the quiet dim version shown on the second card.
+      Nothing here is a countdown timer: it re-renders on focus/refresh like every other value on the screen.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>③</b>겹침 — the accept gate, mirrored before the tap</div>
+    <p class="why">Accepting is a real-world promise, and the server can refuse it: <code>runner_accept</code> rejects a request that overlaps a live booking
+    (window <code>[scheduled_at, scheduled_at + km×8+25min)</code>, LIVE exactly four statuses — 0054 documents the formula verbatim as the display-side mirror).
+    Today the runner learns this only from a failed accept. The card can say it first, in the same arithmetic, and it is the single most expensive mistake this screen allows.
+    <b>The door stays live</b> — the server remains the authority, and a client-side warning must never disable a door the server might still honour; the confirm dialog carries the sentence too.
+    Coral moves to the topmost directed door <i>without</i> a conflict, so the climax is on the request the runner can actually take.</p>
+    <div class="cost pay"><b>What this costs</b><code>OpenRequest.scheduledAt</code> (shared with ②) + one call to <code>fetchRunnerJobs()</code> on this screen — an existing function, no new query shape, no migration.
+      <b>Honesty gate</b>: the warning renders only when BOTH loads succeeded. A failed job load renders <i>nothing</i> — never "겹침 없음", which would be a fabricated all-clear.
+      Uses the server's own formula; if that formula ever changes, this line becomes wrong, so it belongs beside the <code>0054</code> mirror comment.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="title30">요청</div><div style="font-size:14px;color:#666666;margin-top:3px">새 요청 2건</div></div>
+          <div style="border:1px solid #E8552F;padding:9px 13px;font-size:14px;font-weight:800">↻ 새로고침</div>
+        </div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="chipA" style="padding:4px 9px"><span>★ 지명 요청</span></div>
+              <div style="padding:3px 8px;font-size:14px;font-weight:800;color:#666666">5시간 뒤</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+              <div style="font-size:14.5px;font-weight:800;color:#333333">오늘 오후</div>
+              <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div class="av" style="width:48px;height:48px;background:#111111;font-size:19px">콩</div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:800">콩이 · 말티즈 4kg</div>
+                <div style="font-size:14px;color:#666666;margin-top:3px;line-height:19px"><b style="color:#111111">4.0km</b> · 예상 <span class="num" style="font-size:15px;color:#111111">13,668</span>원 · 수수료 제외</div>
+              </div>
+            </div>
+            <div class="warnstrip">
+              <div class="t">확정된 러닝과 겹쳐요</div>
+              <div class="s">초코 5km · 오후 7:30–8:35 · 수락이 거절될 수 있어요</div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorG">수락하기 ›</div></div>
+        </div>
+        <div class="reqcard">
+          <div class="reqbody">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="chipA" style="padding:4px 9px"><span>★ 지명 요청</span></div>
+              <div style="padding:3px 8px;font-size:14px;font-weight:800;color:#666666">내일 · 14시간 뒤</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+              <div style="font-size:14.5px;font-weight:800;color:#333333">8월 25일 (월) 오전</div>
+              <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div class="av" style="width:48px;height:48px;background:#111111;font-size:19px">보</div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:800">보리 · 시바 9kg</div>
+                <div style="font-size:14px;color:#666666;margin-top:3px;line-height:19px"><b style="color:#111111">3.0km</b> · 예상 <span class="num" style="font-size:15px;color:#111111">10,653</span>원 · 수수료 제외</div>
+              </div>
+            </div>
+          </div>
+          <div class="reqdoors"><div class="rdoor rdoorC">수락하기 ›</div></div>
+        </div>
+        <div class="cont">확정 일정을 못 불러왔으면 경고 줄 자체가 없다 — '겹침 없음'은 절대 그리지 않는다</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span class="on">▤</span><span>◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 초코 5km · 오후 7:30–8:35 = the conflicting <code>RunnerJob</code>'s <code>dogName</code>, <code>km</code>, and its window <code>scheduled_at</code> → <code>+ km×8+25min</code> (5 km → 65 min).
+      LIVE set = <code>confirmed · runner_enroute · picked_up · active</code>, exactly the four the accept gate uses. 「수락이 거절될 수 있어요」 is deliberately conditional — the client is mirroring, not deciding.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">C · Calendar <span>app/app/runner/calendar.tsx</span></h2>
+<p class="bandsub">The departure board is a dark ceremony artifact and stays one (§1 "dark is the artifact"). The ticket stack below it is where the work is:
+today it is one flat list ordered <code>scheduled_at DESC</code>, so <b>the farthest-future booking sits at the top and today's run is somewhere in the middle</b>.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">Board + flat DESC stack. Note the ordering: 8/27 → 8/24 (today) → 8/21 완료. Nothing marks today, nothing separates past from future, and the completed ticket's tap opens an alert that <i>names</i> a destination instead of going there.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="title30">캘린더</div>
+          <div style="border:1px solid #E8552F;padding:10px 14px;font-size:14px;font-weight:800">가용시간 설정</div>
+        </div>
+        <div class="board">
+          <div style="font-size:17px;font-weight:800;color:#FFFFFF">나의 출발</div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:3px">확정 2건 · 다음 러닝까지 준비 완료</div>
+          <div class="flaprow">
+            <div class="flap flapthin">+</div><div class="flap">2</div><div class="flap">7</div><div class="flap flapthin">,</div><div class="flap">3</div><div class="flap">3</div><div class="flap">6</div>
+            <div style="font-size:17px;font-weight:800;color:#FFFFFF;padding-bottom:5px;margin-left:4px">원</div>
+          </div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:6px">확정 건 예상 정산 합계</div>
+        </div>
+        <div style="margin-top:16px">
+          <div class="cticket">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 27일 (수) 오전</div>
+                <div class="chipS" style="background:#E8F3D2;color:#3D6B1F">확정</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">보리 · 3km 러닝</div>
+              <div style="font-size:14px;color:#666666;margin-top:2px">탭하여 픽업 진행 ›</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#3D6B1F;font-weight:700">+10,653</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">실수령</div></div>
+          </div>
+          <div class="cticket">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 24일 (일) 오후</div>
+                <div class="chipS" style="background:#E8F3D2;color:#3D6B1F">확정</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">초코 · 5km 러닝</div>
+              <div style="font-size:14px;color:#666666;margin-top:2px">탭하여 픽업 진행 ›</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#3D6B1F;font-weight:700">+16,683</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">실수령</div></div>
+          </div>
+          <div class="cticket">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">8:00</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 21일 (목) 오전</div>
+                <div class="chipS" style="background:#E3EEF8;color:#4A6E93">완료</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">초코 · 5km 러닝</div>
+              <div style="font-size:14px;color:#666666;margin-top:2px">정산 완료</div>
+              <div style="position:absolute;right:104px;bottom:9px;border:2.5px solid #6E9BC5;padding:3px 8px;transform:rotate(-9deg);font-size:10px;font-weight:900;letter-spacing:2px;color:#6E9BC5">FINISHER</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#4A6E93;font-weight:700">+16,683</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">정산됨</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▤</span><span class="on">◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — flap total = <code>upcoming.reduce((s,j) =&gt; s + j.payout, 0)</code>: the two confirmed tickets in this frame are 3.0 km (10,653) and 5.0 km (16,683), so the board reads <b>+27,336</b>.
+      완료 payout = the ledger <code>net</code>, not an estimate (<code>netByBooking</code>). 「정산 완료」/「정산됨」 = derived from <code>status</code>, which is display vocabulary — see the warn box above.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>Today first, then the rest</div>
+    <p class="why">Ordering is the whole defect. <code>fetchRunnerJobs</code> returns <code>scheduled_at DESC</code>, so the calendar opens on the run furthest away and buries today's.
+    Grouping by KST day (<code>kstDay()</code> already exists in home.tsx) fixes it without touching the query: <b>오늘 → 예정 → 지난</b>, upcoming ascending, past descending,
+    with the same §3b section-header grammar the rest of the app uses. Status chips stay exactly where they are, on the datum's own row.</p>
+    <div class="cost free"><b>What this costs</b>Client-side sort + group headers. No server, no new field (<code>scheduledAt</code> is already on <code>RunnerJob</code>), no route change, <code>openJob</code> untouched.
+      <b>What it does NOT fix</b>: the query is still <code>DESC limit 20</code> — the twenty jobs with the latest <code>scheduled_at</code>, so a busy future can crowd out the past.
+      Home worked around the same window with <code>fetchInFlightRunnerJobs</code> (B9); calendar has no equivalent and grouping cannot invent rows it never received. Say so or fix the query — not both silently.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="title30">캘린더</div>
+          <div style="border:1px solid #E8552F;padding:10px 14px;font-size:14px;font-weight:800">가용시간 설정</div>
+        </div>
+        <div class="board">
+          <div style="font-size:17px;font-weight:800;color:#FFFFFF">나의 출발</div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:3px">확정 2건</div>
+          <div class="flaprow">
+            <div class="flap flapthin">+</div><div class="flap">2</div><div class="flap">7</div><div class="flap flapthin">,</div><div class="flap">3</div><div class="flap">3</div><div class="flap">6</div>
+            <div style="font-size:17px;font-weight:800;color:#FFFFFF;padding-bottom:5px;margin-left:4px">원</div>
+          </div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:6px">확정 건 예상 정산 합계</div>
+        </div>
+        <div class="daygroup"><h5>오늘</h5><span>8월 24일 (일)</span></div>
+        <div style="margin-top:10px">
+          <div class="cticket" style="border-color:#111111;border-width:1.5px">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">오후</div>
+                <div class="chipS" style="background:#E8F3D2;color:#3D6B1F">확정</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">초코 · 5km 러닝</div>
+              <div style="font-size:14px;color:#666666;margin-top:2px">탭하여 픽업 진행 ›</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#3D6B1F;font-weight:700">+16,683</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">실수령</div></div>
+          </div>
+        </div>
+        <div class="daygroup"><h5>예정</h5><span>1건</span></div>
+        <div style="margin-top:10px">
+          <div class="cticket">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:30</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 27일 (수) 오전</div>
+                <div class="chipS" style="background:#E8F3D2;color:#3D6B1F">확정</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">보리 · 3km 러닝</div>
+              <div style="font-size:14px;color:#666666;margin-top:2px">탭하여 픽업 진행 ›</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#3D6B1F;font-weight:700">+10,653</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">실수령</div></div>
+          </div>
+        </div>
+        <div class="daygroup"><h5>지난 러닝</h5><span>최근 20건 안에서</span></div>
+        <div style="margin-top:10px">
+          <div class="cticket">
+            <div class="cbody">
+              <div style="display:flex;gap:7px;align-items:baseline">
+                <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">8:00</div>
+                <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 21일 (목) 오전</div>
+                <div class="chipS" style="background:#E3EEF8;color:#4A6E93">완료</div>
+              </div>
+              <div style="font-size:16.5px;font-weight:800;margin-top:4px">초코 · 5km 러닝</div>
+              <div style="position:absolute;right:104px;bottom:9px;border:2.5px solid #6E9BC5;padding:3px 8px;transform:rotate(-9deg);font-size:10px;font-weight:900;letter-spacing:2px;color:#6E9BC5">FINISHER</div>
+            </div>
+            <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+              <div class="num" style="font-size:15.5px;line-height:20px;color:#4A6E93;font-weight:700">+16,683</div>
+              <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">정산 예정</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▤</span><span class="on">◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — group keys = <code>kstDay(Date.parse(scheduledAt))</code> vs <code>kstDay(Date.now())</code>, Asia/Seoul fixed offset (no DST) — the same arithmetic home and the server's <code>kstParts</code> use.
+      「최근 20건 안에서」 is the honest caption for a windowed list; it is the sentence that stops the group header from claiming to be the runner's whole history.
+      Today's ticket takes the 1.5px ink border — the object grammar this cluster already uses for "the thing you are carrying".</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The board says the next run, not "준비 완료"</div>
+    <p class="why">「다음 러닝까지 준비 완료」 asserts a readiness nobody measured — the board has no idea whether the runner is ready.
+    One line lower is a fact it <i>can</i> prove and the runner actually wants: <b>when the next one is</b>. Same dark artifact, same split-flap money, one honest sentence swapped for one empty one.
+    The empty variant keeps its real exit (「요청 탭에서 수락해보세요」) since that door exists.</p>
+    <div class="cost free"><b>What this costs</b>Nothing but the sentence: the value is <code>min(scheduledAt)</code> over the jobs already loaded, and <code>relWhen()</code> already exists one screen over.
+      Board layout, flap width budget (the 320dp calculation in the file's comment) and the 30pt digits are untouched.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="title30">캘린더</div>
+          <div style="border:1px solid #E8552F;padding:10px 14px;font-size:14px;font-weight:800">가용시간 설정</div>
+        </div>
+        <div class="board">
+          <div style="font-size:17px;font-weight:800;color:#FFFFFF">나의 출발</div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:3px">확정 2건 · 다음 러닝 오늘 오후 7:30 · 5시간 뒤</div>
+          <div class="flaprow">
+            <div class="flap flapthin">+</div><div class="flap">2</div><div class="flap">7</div><div class="flap flapthin">,</div><div class="flap">3</div><div class="flap">3</div><div class="flap">6</div>
+            <div style="font-size:17px;font-weight:800;color:#FFFFFF;padding-bottom:5px;margin-left:4px">원</div>
+          </div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:6px">확정 건 예상 정산 합계</div>
+        </div>
+        <div class="cont" style="color:#666666">상태 B — 확정 0건 (현행 유지, 플랩 미렌더)</div>
+        <div class="board" style="margin-top:9px">
+          <div style="font-size:17px;font-weight:800;color:#FFFFFF">나의 출발</div>
+          <div style="font-size:14px;line-height:18px;color:#BBBBBB;margin-top:3px">확정 0건 — 요청 탭에서 수락해보세요</div>
+        </div>
+        <div class="cont" style="color:#666666">상태 C — 일정을 못 불러옴 (라우드 페일, 현행 유지)</div>
+        <div class="fail" style="margin-top:9px">
+          <div class="failt">확정 일정을 불러오지 못했어요</div>
+          <div class="faila">다시 시도</div>
+        </div>
+        <div class="cont">보드는 실패 상태에서 숫자를 그리지 않는다 — 0원은 '0원을 번 주'와 구별되지 않는다</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▤</span><span class="on">◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 다음 러닝 = the earliest <code>scheduledAt</code> among <code>jobs.filter(status !== 'completed')</code>; 5시간 뒤 = <code>relWhen()</code> on it, clamped past 24h to the plain date.
+      +27,336 = <code>upcoming.reduce((s,j) =&gt; s + j.payout, 0)</code>, unchanged.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>③</b>The completed ticket gets real doors — and the right word</div>
+    <p class="why">Two defects in one ticket. <b>(a)</b> Tapping a completed run opens an <code>Alert</code> that says "수익 탭에서 정산 내역을 확인하세요" — a dialog whose only content is the name of a place it refuses to take you to.
+    Home already ships both real doors for the same rows: <code>/shot/[bookingId]</code> and <code>/runner/earnings</code>. <b>(b)</b> The stub says 정산됨 and the body says 정산 완료, while home's week line says 정산 예정 —
+    because there is no code path that pays a runner yet. A ledger row means the run was <i>priced</i>. Same fact, two screens, two vocabularies; the true one is home's.</p>
+    <div class="cost free"><b>What this costs</b>No new routes (<code>/shot/[bid]</code> and <code>/runner/earnings</code> both exist and are already used by home), no new fields, one deleted <code>Alert</code>.
+      <b>Note</b>: this makes the completed ticket a two-target row, so the whole-ticket press must give way to two explicit doors (≥44pt) rather than a press that means two things.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div class="daygroup" style="margin-top:0"><h5>지난 러닝</h5><span>최근 20건 안에서</span></div>
+        <div style="margin-top:10px">
+          <div class="cticket" style="display:block">
+            <div style="display:flex">
+              <div class="cbody">
+                <div style="display:flex;gap:7px;align-items:baseline">
+                  <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">8:00</div>
+                  <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 21일 (목) 오전</div>
+                  <div class="chipS" style="background:#E3EEF8;color:#4A6E93">완료</div>
+                </div>
+                <div style="font-size:16.5px;font-weight:800;margin-top:4px">초코 · 5km 러닝</div>
+                <div style="font-size:14px;color:#666666;margin-top:2px">지급 일정은 아직 정해지지 않았어요</div>
+              </div>
+              <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+                <div class="num" style="font-size:15.5px;line-height:20px;color:#4A6E93;font-weight:700">+16,683</div>
+                <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">정산 예정</div></div>
+            </div>
+            <div style="display:flex;gap:8px;padding:0 10px 10px">
+              <div style="flex:1;border:1px solid #EEEEEE;padding:14px;text-align:center;font-size:16px;font-weight:800;color:#111111">인증샷 ›</div>
+              <div style="flex:1;border:1px solid #EEEEEE;padding:14px;text-align:center;font-size:16px;font-weight:800;color:#111111">수익 상세 ›</div>
+            </div>
+          </div>
+          <div class="cticket" style="display:block">
+            <div style="display:flex">
+              <div class="cbody">
+                <div style="display:flex;gap:7px;align-items:baseline">
+                  <div class="num" style="font-size:21px;line-height:27px;color:#111111;font-weight:700">7:00</div>
+                  <div style="font-size:14px;font-weight:800;color:#666666;flex:1">8월 18일 (월) 오후</div>
+                  <div class="chipS" style="background:#E3EEF8;color:#4A6E93">완료</div>
+                </div>
+                <div style="font-size:16.5px;font-weight:800;margin-top:4px">보리 · 3km 러닝</div>
+                <div style="font-size:14px;color:#666666;margin-top:2px">지급 일정은 아직 정해지지 않았어요</div>
+                <div style="position:absolute;right:104px;bottom:66px;border:2.5px solid #6E9BC5;padding:3px 8px;transform:rotate(-9deg);font-size:10px;font-weight:900;letter-spacing:2px;color:#6E9BC5">FINISHER</div>
+              </div>
+              <div class="cstub"><u style="top:-9px"></u><u style="bottom:-9px"></u>
+                <div class="num" style="font-size:15.5px;line-height:20px;color:#4A6E93;font-weight:700">+10,653</div>
+                <div style="font-size:14px;line-height:18px;color:#666666;margin-top:2px">정산 예정</div></div>
+            </div>
+            <div style="display:flex;gap:8px;padding:0 10px 10px">
+              <div style="flex:1;border:1px solid #EEEEEE;padding:14px;text-align:center;font-size:16px;font-weight:800;color:#111111">인증샷 ›</div>
+              <div style="flex:1;border:1px solid #EEEEEE;padding:14px;text-align:center;font-size:16px;font-weight:800;color:#111111">수익 상세 ›</div>
+            </div>
+          </div>
+        </div>
+        <div class="cont">「지급 일정은 아직 정해지지 않았어요」는 수익 화면이 이미 쓰는 문장 — 세 화면이 같은 사실을 같은 말로</div>
+      </div>
+      <div class="tabs"><span>⌂</span><span>▤</span><span class="on">◎</span><span>▧</span><span>◍</span></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — +16,683 for a completed run is the <b>real ledger net</b> (<code>ledger_items</code> base + distance + addon + tip + remaining_guarantee − platform_fee), not an estimate.
+      인증샷 → <code>/shot/[bookingId]</code> · 수익 상세 → <code>/runner/earnings</code>. FINISHER keeps its latin stamp glyph class (the one sub-14 mark the type law exempts) and its measured <code>bottom</code> offset so it never bites the chip.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band">D · Availability editor <span>app/app/runner/availability.tsx</span></h2>
+<p class="bandsub">The three predicates stay three. What the rules in <i>this</i> table actually feed is exactly one of them —
+<code>0003 is_slot_available</code>, the slot-booking engine — plus the runner's own public profile grid. <code>0015 available_runners</code> (find-now) and
+<code>0054 runners_available_for</code> (nomination) never read this table; they read <code>online</code> and live bookings. Naming that is the opposite of merging it.</p>
+
+<div class="rail">
+
+  <div class="col">
+    <div class="cap now"><b>현재</b>As it ships today</div>
+    <p class="why">A correct editor with one overstated sentence at the top: 「설정한 시간에만 요청을 받아요」. The load/failure gate below it is exemplary and is not touched by any variant —
+    a failed load refuses to draw the grid at all, because <code>saveMyAvailability</code> is delete-all-then-insert.</p>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;font-size:20.5px">‹</div>
+          <div style="font-size:22px;font-weight:900">가용시간 설정</div>
+          <div style="width:40px"></div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;text-align:center;margin:6px 0 16px">설정한 시간에만 요청을 받아요 · 주 5일 러닝</div>
+        <div class="availcard">
+          <div class="arow"><div class="adow" style="color:#111111">월</div><div class="tchip tchipOn">가능</div></div>
+          <div style="display:flex;gap:8px;justify-content:center;padding-bottom:11px">
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">06:00</div><div class="stepbtn">＋</div></div>
+            <div style="align-self:center;font-size:16px;color:#666666">—</div>
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">22:00</div><div class="stepbtn">＋</div></div>
+          </div>
+          <div class="arow" style="border-top:1px solid #EEEEEE"><div class="adow" style="color:#111111">화</div><div class="tchip tchipOn">가능</div></div>
+          <div class="arow"><div class="adow" style="color:#BBBBBB">수</div><div class="tchip tchipOff">쉬는 날</div></div>
+          <div class="arow"><div class="adow" style="color:#111111">목</div><div class="tchip tchipOn">가능</div></div>
+          <div class="arow"><div class="adow" style="color:#BBBBBB">금</div><div class="tchip tchipOff">쉬는 날</div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:12px;margin-top:10px;align-items:center">
+          <div style="flex-shrink:1;font-size:14px;line-height:19px;color:#666666">월요일 06:00–22:00을 나머지 가능한 요일에</div>
+          <div style="font-size:14.5px;line-height:19px;font-weight:800;color:#111111">전체 적용 ›</div>
+        </div>
+        <div style="font-size:14px;color:#666666;text-align:center;margin-top:14px;line-height:19px">30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중)<br>변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요</div>
+      </div>
+      <div class="savebar"><div class="pbtn pbtnOff">저장됨 ✓</div></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — every row <code>runner_availability_rules</code> (weekday · start_min · end_min) · 주 5일 러닝 printed only after a successful load ·
+      저장됨 ✓ / 저장하기 / 저장 중... is the PaperBtn matrix (label swap, explicit disabled fill, no opacity).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>①</b>What these rules actually govern</div>
+    <p class="why">「설정한 시간에만 요청을 받아요」 is true of the owner's <b>slot picker</b> and false of the open pool: <code>marketplace_open_requests</code> filters on
+    <code>status='matching' · runner_id is null · club_session_id is null · is_active_runner()</code> and reads neither this table nor <code>online</code>.
+    A runner who sets 주 2일 and then receives open requests every day currently has no way to reconcile the screen with reality — and the wrong inference ("설정이 안 먹네") is exactly the one that makes them stop maintaining it.
+    Three rows name the surfaces. <b>This does not unify the predicates — it publishes their jurisdiction</b>, which is what §9 says they have.</p>
+    <div class="cost free"><b>What this costs</b>Copy only. No fetch, no state, no behaviour: the load gate, the grid, 전체 적용 and the save bar are untouched.
+      Same sentence family as home ④ — if both land, the app says one thing about <code>online</code> and one thing about rules, everywhere.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;font-size:20.5px">‹</div>
+          <div style="font-size:22px;font-weight:900">가용시간 설정</div>
+          <div style="width:40px"></div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;text-align:center;margin:6px 0 14px">보호자가 예약할 수 있는 시간이에요 · 주 5일</div>
+        <div style="border:1px solid #EEEEEE;padding:2px 13px">
+          <div class="sumrow"><div class="sumlbl" style="flex:1">보호자 예약 화면의 내 슬롯</div><div class="sumact">이 설정이 정해요</div></div>
+          <div class="sumrow"><div class="sumlbl" style="flex:1">내 공개 프로필 시간표</div><div class="sumact">이 설정이 정해요</div></div>
+          <div class="sumrow" style="border-bottom:0"><div class="sumlbl" style="flex:1">열린 요청(오픈 풀)</div><div class="sumstate" style="flex:0 0 auto">시간과 무관하게 도착해요</div></div>
+        </div>
+        <div class="availcard" style="margin-top:12px">
+          <div class="arow"><div class="adow" style="color:#111111">월</div><div class="tchip tchipOn">가능</div></div>
+          <div style="display:flex;gap:8px;justify-content:center;padding-bottom:11px">
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">06:00</div><div class="stepbtn">＋</div></div>
+            <div style="align-self:center;font-size:16px;color:#666666">—</div>
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">22:00</div><div class="stepbtn">＋</div></div>
+          </div>
+          <div class="arow" style="border-top:1px solid #EEEEEE"><div class="adow" style="color:#111111">화</div><div class="tchip tchipOn">가능</div></div>
+          <div class="arow"><div class="adow" style="color:#BBBBBB">수</div><div class="tchip tchipOff">쉬는 날</div></div>
+        </div>
+        <div class="cont">이하 그대로 · 전체 적용 · 안내 두 줄 · 저장 바</div>
+      </div>
+      <div class="savebar"><div class="pbtn pbtnOff">저장됨 ✓</div></div>
+    </div>
+    <div class="bind"><b>Bindings</b> — row 1 = <code>0003 is_slot_available</code> §1 (weekly rule containment) and <code>count_available_runners</code>, which the owner's request screen prints as 「러너 N명 가능」.
+      Row 2 = <code>fetchRunnerAvailability(runnerId)</code>, the public profile grid. Row 3 = <code>marketplace_open_requests</code>, measured: no rules predicate, no online predicate.
+      <b>Not drawn</b>: nomination (0054). It reads live bookings + <code>online</code>, so it belongs on the toggle's sentence (home ④), not here — one fact, one home.</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>②</b>The save bar says what it will overwrite</div>
+    <p class="why"><code>saveMyAvailability</code> is <b>delete-all-then-insert</b> (api.ts:1757) — one 저장하기 replaces the runner's entire week.
+    The screen already protects the dangerous half (it refuses to mount the save bar from an unseeded grid); what it still does not do is tell the runner what they are about to write.
+    A diff line against the snapshot returned by the last successful load turns a blind commit into a readable one, and it costs one piece of state.
+    「저장됨 ✓」 stays exactly as it is when nothing differs.</p>
+    <div class="cost free"><b>What this costs</b>One client state (the loaded rules snapshot) + a formatter. No server, no schema, no change to <code>save()</code>, <code>mutate()</code>, <code>bump()</code>, <code>applyToAll()</code> or the 30-minute clamps.
+      <b>Edge case that must be drawn honestly</b>: turning every day off is a legitimate save (요일 0개), and the diff must say 「모든 요일 해제」 rather than staying silent — that is the single most destructive save this screen can make.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="width:40px;height:40px;border:1px solid #E8552F;display:flex;align-items:center;justify-content:center;font-size:20.5px">‹</div>
+          <div style="font-size:22px;font-weight:900">가용시간 설정</div>
+          <div style="width:40px"></div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;text-align:center;margin:6px 0 14px">보호자가 예약할 수 있는 시간이에요 · 주 6일</div>
+        <div class="availcard">
+          <div class="arow"><div class="adow" style="color:#111111">월</div><div class="tchip tchipOn">가능</div></div>
+          <div style="display:flex;gap:8px;justify-content:center;padding-bottom:11px">
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">08:00</div><div class="stepbtn">＋</div></div>
+            <div style="align-self:center;font-size:16px;color:#666666">—</div>
+            <div class="stepper"><div class="stepbtn">−</div><div class="stepval">22:00</div><div class="stepbtn">＋</div></div>
+          </div>
+          <div class="arow" style="border-top:1px solid #EEEEEE"><div class="adow" style="color:#111111">화</div><div class="tchip tchipOn">가능</div></div>
+          <div class="arow"><div class="adow" style="color:#111111">수</div><div class="tchip tchipOn">가능</div></div>
+          <div class="arow"><div class="adow" style="color:#BBBBBB">토</div><div class="tchip tchipOff">쉬는 날</div></div>
+        </div>
+        <div class="cont">이하 그대로 · 전체 적용 · 안내 두 줄</div>
+      </div>
+      <div class="savebar">
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-bottom:9px">바뀌는 것 · <b style="color:#111111">월 06:00 → 08:00</b> · <b style="color:#111111">수 추가</b> · <b style="color:#111111">토 해제</b></div>
+        <div class="pbtn">저장하기</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — every clause is a comparison between the <code>AvailRule[]</code> from the last successful <code>fetchMyAvailability</code> and the current grid: added weekday, removed weekday, or a changed <code>start_min</code>/<code>end_min</code>.
+      Nothing is derived from defaults — a runner whose server rules were never loaded never sees this bar at all (existing gate).</div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><b>③</b>The two gates that already run, made visible</div>
+    <p class="why"><code>is_slot_available</code> enforces two numbers this runner cannot see: <b>휴식 버퍼</b> (<code>rest_after_min</code>, default 30) padded on both sides of every booking, and
+    <b>하루 최대 세션</b> (<code>max_sessions_per_day</code>, default 4). The row exists — it is created at apply time (api.ts:784) with those defaults — and RLS is already
+    self-all (0002:79). So the runner is being gated by settings they own and have never been shown, which is the reason a slot they expected to be bookable silently is not.
+    <b>This is not a revert of R8.</b> R8 deleted a 준비 중 plate of three hardcoded numbers <i>because nothing returned them</i>; this binds the two that are actually enforced and draws neither of the two that are not.</p>
+    <div class="cost pay"><b>What this costs</b><b style="text-transform:none;font-size:12.5px;letter-spacing:0;display:inline">New client API, no migration:</b> a read + write pair over <code>runner_booking_rules</code>
+      (table 0001:108, RLS 0002:79 <code>runner_id = auth.uid()</code>). Needs its own three states (loading / failure / loaded) and must not print a default as if it were a saved value —
+      a runner with no row must see the load fail or the defaults labelled as defaults, exactly as <code>is_slot_available</code>'s <code>coalesce(…,30)</code> / <code>coalesce(…,4)</code> behaves.<br>
+      <b>Deliberately NOT drawn</b>: <code>min_notice_min</code> (120) and <code>group_capacity</code> (2). Both columns exist and <b>nothing in the schema or the edge functions reads either</b> — a control for them would be a dead button with a saved value.</div>
+    <div class="phone">
+      <div class="osbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr" style="padding-top:16px">
+        <div class="cont" style="margin-top:0;border-top:0;padding-top:0">…요일 그리드 · 전체 적용 그대로, 그 아래</div>
+        <div style="margin:14px -15px 0;padding:10px 15px 0;border-top:1px solid #E8552F">
+          <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111">예약 규칙</div>
+        </div>
+        <div style="border:1px solid #EEEEEE;margin-top:10px;padding:2px 13px">
+          <div style="padding:13px 0;border-bottom:1px solid #EEEEEE">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1;font-size:15px;font-weight:800;color:#111111">하루 최대 러닝</div>
+              <div class="stepper"><div class="stepbtn">−</div><div class="stepval">4</div><div class="stepbtn">＋</div></div>
+            </div>
+            <div style="font-size:14px;line-height:19px;color:#666666;margin-top:7px">이 수를 넘기면 그날 슬롯이 보호자에게 안 보여요</div>
+          </div>
+          <div style="padding:13px 0">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1;font-size:15px;font-weight:800;color:#111111">러닝 사이 휴식</div>
+              <div class="stepper"><div class="stepbtn">−</div><div class="stepval">30분</div><div class="stepbtn">＋</div></div>
+            </div>
+            <div style="font-size:14px;line-height:19px;color:#666666;margin-top:7px">확정된 러닝 앞뒤로 이만큼은 비워둬요</div>
+          </div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:11px">지금도 이 두 규칙이 보호자 예약 화면에서 내 슬롯을 막고 있어요 — 값만 안 보이던 거예요</div>
+        <div class="cont">불러오기 실패 시 두 행은 그려지지 않는다 (기본값을 저장된 값으로 위장하지 않는다)</div>
+      </div>
+      <div class="savebar">
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-bottom:9px">바뀌는 것 · <b style="color:#111111">하루 최대 4 → 3건</b></div>
+        <div class="pbtn">저장하기</div>
+      </div>
+    </div>
+    <div class="bind"><b>Bindings</b> — 4 <code>runner_booking_rules.max_sessions_per_day</code> (enforced at <code>is_slot_available</code> §5) · 30분 <code>rest_after_min</code> (enforced at §3, padded on both sides of the
+      <code>km×8+25</code> window). Both sentences describe what the function measurably does, in the runner's own terms. Steppers reuse this screen's existing <code>Stepper</code> component and its ≥46pt targets.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="foot">
+  <h3>OPEN QUESTIONS — things the code could not settle</h3>
+  <ol>
+    <li><b>One mapper field, three variants.</b> home ②, requests ② and requests ③ all need <code>OpenRequest.scheduledAt</code>. The column is already inside <code>REQ_SELECT</code>
+      and inside the <code>marketplace_open_requests</code> column list, so this is a client-only change — but <code>scripts/check-rpc-contracts.mjs</code> may consider the view's shape a contract.
+      Ship it as its own tiny slice first, or fold it into whichever variant is picked?</li>
+    <li><b>What deadline is worth an amber chip?</b> requests ② draws the amber 임박 chip on a 1-hour-out request and a quiet dim line on a 14-hour-out one. The cut point is a design decision I could not derive:
+      the server has no urgency threshold at all — only <code>scheduled_at &lt; now()</code>. Candidates: &lt;2h (matches <code>available_runners</code>'s own 2-hour horizon), &lt;3h, or "today".</li>
+    <li><b>Does the deadline sort move the coral?</b> The coral rule reads <code>directed[0]</code>. If requests ② sorts each leg by deadline, the coral follows the soonest directed request rather than the server's return order.
+      That is probably right (the soonest one is the one that expires first) — but it is a behaviour change riding on a display change, and it should be picked deliberately.</li>
+    <li><b>Conflict warning vs. the coral ladder.</b> requests ③ moves the coral to the topmost directed door <i>without</i> a conflict. If every directed request conflicts, does the coral go to a 근처 door
+      (contradicting "근처 accepts are never coral"), or does the screen render zero coral (legal per R2c)? I drew zero-coral; confirm.</li>
+    <li><b>Calendar's 20-row window.</b> Grouping (calendar ①) makes the window visible rather than fixing it: <code>fetchRunnerJobs</code> is <code>scheduled_at DESC limit 20</code>, so a runner with many future bookings loses their past runs
+      and vice versa. Home worked around it with a second query (<code>fetchInFlightRunnerJobs</code>, B9). Does calendar want the same treatment (a bounded past query), or is 「최근 20건 안에서」 an acceptable caption for the pilot?</li>
+    <li><b>Is settlement ever knowable to the runner?</b> calendar ③ changes 정산됨 → 정산 예정 because this screen cannot tell priced from paid. <code>done.tsx</code> reads <code>runResult.settled</code>, which proves the distinction exists somewhere.
+      Should calendar fetch it, or is 정산 예정 the honest terminal word until a payout path exists at all?</li>
+    <li><b>Should 하루 최대 러닝 have a floor?</b> availability ③ lets a runner set it. Setting it to 1 silently removes them from most slots — legitimate, but it is supply we lose without a word.
+      Warn at 1? Refuse below 1 only? Or leave it entirely to the runner (my instinct, since the whole point is that they already own this number)?</li>
+    <li><b>오늘 머리줄 (home ③) spends a fact twice.</b> 오늘의 루트 already renders today's stops. Keep both (summary + detail) or drop the line? This is the only variant in the lab that trades against the 한 사실 한 번 rule,
+      and I did not want to resolve it quietly.</li>
+    <li><b>Request-ticket face size.</b> home ② gives the front request a 40px avatar; the 진행 중 ticket's is 42px. Same size (they are twins) or deliberately one step down (the in-flight dog outranks a request nobody accepted)?</li>
+    <li><b>The offline sentence's third clause.</b> home ④ keeps 「확정된 러닝은 그대로」. Once the sentence names nomination lists explicitly, is that clause still earning its width at 14pt on a 390pt screen, or is it now obvious?</li>
+    <li><b>Unmeasured, flagged rather than asserted: the availability stepper row may not fit.</b> While rebuilding that row at 1:1 I got an arithmetic near-miss on a 390pt device —
+      card content ≈ <code>390 − 30 gutter − 28 card padding − 2 border = 330</code>, versus two steppers (<code>46 + 46 + value + 24</code> each) plus the 8px gaps and the — separator ≈ <b>344</b>.
+      RN's <code>flexShrink</code> defaults to 0, so an overflow would clip rather than reflow. My Oswald advance-width estimate carries real error bars and I have no simulator here,
+      so this is <b>not</b> a finding — it is a five-minute measurement someone should take before touching that screen. The lab frames tighten the stepper slightly so the mock reads correctly with a fallback font.</li>
+  </ol>
+</div>
+
+
+<div class="note warn" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “For runner home I like all new updates you are showing me.”
+  <ul style="margin:8px 0 0 18px;line-height:1.75">
+    <li><b>A① 조용한 날 — IMPLEMENTED</b> (<code>app/app/runner/home.tsx</code>, 요청 대기열 빈 상태).
+      두 요약 행(온라인 · 러닝 가능 시간) + 시간 조정 문(<code>/runner/availability</code>) + 닫는 문장.
+      <code>rs</code>와 <code>avail</code>은 이미 포커스마다 읽히는 값이라 새 페치 0개. <b>avail이 null이면
+      (로딩·실패) 그 행은 그려지지 않는다</b> — 모르는 값을 '설정 없음'으로 위장하지 않는다. 종전 다섯 상태
+      (상태 확인 중 / 상태 실패 / 인증 전 / 인박스 실패+다시 시도 / 확인 중)는 전부 그대로. 이 상태의 코랄 0개.</li>
+    <li><b>A② 앞 요청 오브젝트 — PARTIALLY IMPLEMENTED.</b> 얼굴(<code>OpenRequest.photoUrl</code> → Avatar 40pt,
+      null이면 모노그램)과 만료 문장(「시작 시각이 지나면 자동 만료돼요」 — <code>expire_unmatched_bookings</code>
+      0080 ⓐ가 <code>status in ('matching','runner_pending') and scheduled_at &lt; now()</code>로 실제로 하는 일)은
+      들어갔다. <b>HELD: 카운트다운(「5시간 뒤」)과 시각 강등.</b> 둘 다 <code>OpenRequest.scheduledAt</code>이
+      필요한데 매퍼가 <code>when</code>을 조판한 뒤 버린다 — 조판된 문자열을 되파싱해 흉내내는 것은
+      <code>RunnerJob.scheduledAt</code>이 존재하는 이유 그 자체라, 그 한 필드가 도착할 때까지 티켓은 시각을 유지한다
+      (열린 질문 1은 여전히 열린 채, api 패치로 넘김).</li>
+    <li><b>A③ 오늘 머리줄 — IMPLEMENTED</b>, 열린 질문 8은 <b>둘 다 유지</b>로 닫혔다 (요약 = 개수·다음 시각,
+      상세 = 오늘의 루트). 한 군데 랩 바인딩을 의도적으로 벗어났다: 「다음」은 <b>아직 오지 않은</b> 가장 이른
+      오늘 건이다 — 오늘 오전 건이 남아 있는 저녁에 「다음 오전 7:30」은 거짓이 되므로, 지나간 건뿐이면
+      건수만 인쇄한다. 로딩·실패에는 행 자체가 없다 (0건 없음).</li>
+    <li><b>A④ 토글 문장 — IMPLEMENTED.</b> 두 문장 교체, 데이터·핸들러·낙관 되돌림·세 번째 상태 전부 바이트 동일.
+      「새 요청이 멈춰 있어요」는 이 화면의 가장 큰 거짓 주장이었다 (0056 오픈 풀 뷰에 online 술어 없음;
+      0054 <code>r.online = true</code>는 지명 목록의 술어다). 열린 질문 10은 픽으로 답 — 「확정된 러닝은 그대로」
+      절은 남는다.</li>
+    <li><b>C① 오늘/예정/지난 — IMPLEMENTED</b> (<code>app/app/runner/calendar.tsx</code>). KST 일자 그룹핑,
+      예정 오름차순 · 지난 내림차순, 오늘 티켓만 잉크 1.5px. 열린 질문 5는 <b>캡션 유지</b>로 닫혔다:
+      쿼리는 그대로 <code>DESC limit 20</code>이고 「최근 20건 안에서」가 그 창을 말한다 (그룹핑이 받지 못한
+      행을 지어낼 수 없다). <code>scheduledAt</code>이 없는 행은 오늘이라 주장하지 않고 status가 말하는 곳으로 간다.</li>
+    <li><b>C② 보드의 다음 러닝 — IMPLEMENTED.</b> 「다음 러닝까지 준비 완료」(아무도 재지 않은 준비 상태) →
+      <code>min(scheduledAt)</code> + relWhen. 확정 0건·로드 실패 상태는 현행 그대로.</li>
+    <li><b>C③ 완료 티켓의 진짜 문 — IMPLEMENTED.</b> <code>Alert</code> 삭제, <code>/shot/[bid]</code>와
+      <code>/runner/earnings</code> 두 문(각 ≥44pt), 통짜 탭 타깃 해제. 정산 완료/정산됨 → <b>정산 예정</b> +
+      「지급 일정은 아직 정해지지 않았어요」 — 열린 질문 6은 <b>정산 예정이 정직한 종착 어휘</b>로 닫혔다
+      (러너에게 돈을 보내는 코드 경로가 아직 없다; 홈 주간 줄과 같은 말).</li>
+    <li><b>D① 관할 세 줄 — IMPLEMENTED</b> (<code>app/app/runner/availability.tsx</code>). 머리 문장
+      「설정한 시간에만 요청을 받아요」 → 「보호자가 예약할 수 있는 시간이에요」 + 세 행(보호자 슬롯 · 공개 프로필 ·
+      오픈 풀). <b>세 술어는 여전히 셋이다</b> (DESIGN.md §9) — 합치지 않고 관할을 인쇄했을 뿐이고, 지명(0054)은
+      여기 없다(홈 토글이 그 집이다).</li>
+    <li><b>D② 저장 바 diff — IMPLEMENTED.</b> 마지막 <b>성공한</b> 로드의 스냅샷과만 비교한다(기본값과 비교하지
+      않는다). 요일 추가/해제/시간 변경 절, 세 개까지 인쇄하고 나머지는 「외 N개」. 모든 요일 해제는 침묵하지 않고
+      「모든 요일 해제 · 보호자 예약 화면에서 내 슬롯이 사라져요」 — 0003 <code>is_slot_available</code> §1이
+      해당 요일 규칙 행이 없으면 무조건 false다. 저장 성공 시 기준선이 갱신된다 (안 하면 두 번째 편집이
+      이미 저장된 변경까지 다시 열거한다). <code>save()·mutate()·bump()·applyToAll()</code>과 30분 클램프는 무변경.</li>
+    <li><b>D③ 예약 규칙 — NOT BUILT (막힌 곳이 명확하다).</b> 두 숫자는 실제로 강제된다
+      (<code>max_sessions_per_day</code> §5 · <code>rest_after_min</code> §3, <code>coalesce(…,4)</code>/<code>(…,30)</code>)
+      고 RLS도 self-all이지만, 클라이언트에 <code>runner_booking_rules</code>의 <b>읽기/쓰기 쌍이 없다</b> —
+      api.ts는 지원 시점의 insert 한 줄뿐이다(:784). 기본값을 저장된 값처럼 그리는 것은 R8이 준비 중 플레이트를
+      지운 바로 그 실패라, api 패치가 먼저다. 열린 질문 7(하루 최대 하한)도 그때까지 함께 보류.</li>
+    <li><b>B①②③ (요청함) — NOT THIS CLUSTER.</b> <code>app/app/runner/requests.tsx</code>는 러너-머니 클러스터의
+      파일이라(수수료 비공개 재정이 같은 화면을 지배한다) 여기서 건드리지 않았다. 세 변형 요약은 그 클러스터로 전달.</li>
+    <li><b>열린 질문 11 (가용시간 스테퍼 폭) — 미측정 그대로.</b> 이번 슬라이스는 스테퍼 행을 건드리지 않았으므로
+      그 5분짜리 실측은 여전히 누군가의 몫이다.</li>
+  </ul>
+</div>
+
+</div></body></html>

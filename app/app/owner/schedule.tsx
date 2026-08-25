@@ -1,10 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
-import { lateness } from '../../src/lib/lateness';
+import { kstCal } from '../../src/lib/kst';
+import { lateness, sinceLabel } from '../../src/lib/lateness';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
 import { LateNotice } from '../../src/components/late-notice';
@@ -61,6 +62,80 @@ const stFor = (b: Booking) =>
 
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
+// ══════════ 다가오는 순서 (B① · Sean 2026-08-24: "I like 1 and 2, with the relevance sort") ══════════
+//
+// 이 화면은 **가장 먼 미래**로 열렸다. fetchMyBookings 가 scheduled_at DESC 로 오고, 여기서는 도착
+// 순서대로 그룹을 쌓았기 때문이다. 홈은 자기 랭킹에서 같은 결함을 이미 고쳤다
+// (home.tsx 「[FIX] 동순위 타이브레이크」) — 일정 목록만 그 수리를 못 받았다.
+//
+// ⚠ 이 정렬은 **도착한 20행 안에서만** 참이다. fetchMyBookings 는 DESC + limit(20) 이라, 미래 예약이
+// 20건을 넘는 보호자에게는 가장 가까운 건이 애초에 오지 않는다 — 클라이언트 정렬로 되찾을 수 없는
+// 행이다. 진짜 수리는 읽기를 바꾸는 것(now−30d 부터 오름차순)이고, 홈이 같은 리더로 히어로를
+// 랭크하며 fetchInFlightOwnerBookings 가 정확히 이 창 때문에 존재하므로 자기 리뷰가 필요한 슬라이스다.
+// 여기 섞지 않는다. (랩 B① 비용란 · 열린 질문 7)
+//
+// ⚠ kstDayDiff 는 home.tsx 에도 같은 것이 있다. 한 벌이 살 자리는 src/lib/kst.ts 이고 (lateness()·
+// route-pick 과 같은 이유 — 화면 안에 있으면 .cjs 스위트가 닿지 못한다), 그 파일은 이 슬라이스의
+// 클레임 밖이라 아직 옮기지 못했다. 두 벌이 사는 동안 규칙은 하나다: 한쪽을 고치면 둘 다 고친다.
+// 복제된 것은 '날짜 칸 빼기'뿐이고, 산술 자체는 앱 공용 kstCal 을 그대로 쓴다.
+function kstDayDiff(iso: string, now = Date.now()): number | null {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const box = (ms: number) => { const c = kstCal(ms); return Date.UTC(c.y, c.m, c.d); };
+  return Math.floor((box(t) - box(now)) / 86400_000);
+}
+
+/** 경과 라벨 — home-hero.tsx 의 elapsedLabel 과 같은 규칙(1분 미만·미래 소인·미상 = null → 절 생략).
+ *  ⚠ 한 벌이 살 자리는 src/lib/lateness.ts 다 (sinceLabel 바로 옆). 위 kstDayDiff 와 같은 이유로
+ *  아직 두 벌이며, 같은 규칙이 적용된다: 한쪽을 고치면 둘 다 고친다. */
+function elapsedLabel(iso: string | null | undefined, now: number = Date.now()): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const ms = now - t;
+  return ms < 60_000 ? null : sinceLabel(ms);
+}
+
+// '지난 일정'의 경계 = 6시간 유예. 홈의 랭킹 타이브레이크와 **같은 값**이다 (home.tsx: past()).
+// 왜 '지금'이 아니라 6시간인가: 예정 시각을 막 지난 확정 건은 지난 일정이 아니라 **늦은 일정**이고,
+// 히어로의 「일정에서 정리하기」가 도착하는 자리가 바로 그 행이다. 그 행을 아래로 내리면 codex 가
+// 고친 막다른 골목이 다른 문으로 되돌아온다.
+const PAST_GRACE_MS = 6 * 3_600_000;
+
+type Anchor = { head: string | null; date: string; d: string | null };
+type Grp = { key: string; anchor: Anchor; items: Booking[] };
+
+// 그룹 라벨의 상대 앵커. 지난 건에는 D-라벨을 주지 않는다 — 음수 카운트다운은 아무도 요구하지 않은
+// 사실이고, '지난 일정' 구분선이 이미 그 말을 한다.
+function anchorOf(b: Booking, now: number): Anchor {
+  const n = b.scheduledAt ? kstDayDiff(b.scheduledAt, now) : null;
+  if (n === null || n < 0) return { head: null, date: b.dateLabel, d: null };
+  return { head: n === 0 ? '오늘' : n === 1 ? '내일' : null, date: b.dateLabel, d: n >= 1 ? `D-${n}` : null };
+}
+
+// 미래는 가까운 순, 지난 것은 최근 순. 숨기지 않는다 — 지난 카드는 소인도 공유 행도 그대로 유지된다
+// (§7b: 정리는 숨김이 아니다).
+// 시계를 함수 안에 두는 이유는 lateness() 와 같다 — 렌더 중 Date.now() 는 react-hooks/purity 가 잡는다.
+function agenda(rows: Booking[], now: number = Date.now()): { future: Grp[]; past: Grp[] } {
+  const at = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) : Number.MAX_SAFE_INTEGER);
+  const done = (b: Booking) => b.status === 'completed' || b.status === 'cancelled';
+  const isPast = (b: Booking) => done(b) || (!!b.scheduledAt && at(b) < now - PAST_GRACE_MS);
+  const group = (list: Booking[]): Grp[] => {
+    const out: Grp[] = [];
+    const seen = new Map<string, Grp>();
+    for (const b of list) {
+      let g = seen.get(b.dateLabel);
+      if (!g) { g = { key: b.dateLabel, anchor: anchorOf(b, now), items: [] }; seen.set(b.dateLabel, g); out.push(g); }
+      g.items.push(b);
+    }
+    return out;
+  };
+  return {
+    future: group(rows.filter((b) => !isPast(b)).sort((a, b) => at(a) - at(b))),
+    past: group(rows.filter(isPast).sort((a, b) => at(b) - at(a))),
+  };
+}
+
 export default function Schedule() {
   const df = useDisplayFont();
   const nf = useNumFont(); // [V4] 시간 = Oswald // 표준 탭 헤더 — 좌측 BHS 30
@@ -77,7 +152,16 @@ export default function Schedule() {
 
   const load = () => {
     setLoadErr(false);
-    return fetchMyBookings()
+    // [B9] 홈에서만 고쳤던 합집합을 여기에도. 히어로의 「일정에서 정리하기」가 **도착하는 화면**이
+    // 20행 창만 읽으면, 늦었다고 알려준 그 예약이 여기서는 없는 일이 된다 (codex 2026-08-21).
+    return Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
+      .then(([bs, inFlight]) => {
+        const seen = new Set(bs.map((b) => b.id));
+        const liveById = new Map(inFlight.map((b) => [b.id, b]));
+        return inFlight.length
+          ? [...bs.map((b) => liveById.get(b.id) ?? b), ...inFlight.filter((b) => !seen.has(b.id))]
+          : bs;
+      })
       .then((b) => { setLiveBookings(b); setLoaded(true); })
       .catch((e) => { console.warn('[schedule] bookings:', e?.message ?? e); setLoadErr(true); });
   };
@@ -85,11 +169,20 @@ export default function Schedule() {
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
-  const visible = all.filter(FILTERS[filterIdx].match);
-  const groups = visible.reduce<Record<string, Booking[]>>((acc, b) => {
-    (acc[b.dateLabel] = acc[b.dateLabel] ?? []).push(b);
-    return acc;
-  }, {});
+  // [B② 2026-08-24 Sean] 진행 중인 예약은 목록의 한 항목이 아니다. 러너가 **지금 아이를 데리고
+  // 밖에 있는** 건이 DESC 목록에서 미래 예약 세 개 밑에 앉아 있었다. 게이트는 이 파일이 이미
+  // 정의해 둔 rawStatus 집합(LIVE_RAW) 그대로 — 새 상태도, 새 어휘도 없다.
+  // 목록에서 빼는 것이 숨기는 것이 아니다: 밴드는 **필터 칩과 무관하게 항상** 그려지고, 밴드 행을
+  // 탭하면 같은 관리 시트가 열린다 (이동 중 취소 = 0066 의 50% 티어가 그 시트에 있다).
+  const liveNow = all.filter((b) => LIVE_RAW.includes(b.rawStatus ?? ''));
+  const liveIds = new Set(liveNow.map((b) => b.id));
+  const notLive = all.filter((b) => !liveIds.has(b.id));
+  const visible = notLive.filter(FILTERS[filterIdx].match);
+  const { future, past } = agenda(visible);
+  // 헤더 카운트는 **칩과 무관하게** 계정을 말한다 — 필터를 걸면 줄어드는 숫자는 '전체'가 아니다.
+  // ⚠ 두 숫자 모두 20행 창 안의 수다 (위 B① 주석). 화면은 이미 같은 창의 수를 「예약 N건」으로
+  // 말하고 있었으므로 새 주장이 늘지는 않는다 — 늘어난 건 '다가오는' 이라는 구분 하나다.
+  const upcomingCount = agenda(notLive).future.reduce((n, g) => n + g.items.length, 0);
 
   const open = (b: Booking) => {
     // ⚠ The sheet OPENS for a still-matching booking (2026-08-20). It used to short-circuit into a
@@ -149,15 +242,13 @@ export default function Schedule() {
   const enrouteCancel = selected?.rawStatus === 'runner_enroute';
   const feeRate = selected ? cancelFeeRateFor(selected) : 0;
   const fee = selected ? Math.round(selected.price * feeRate) : 0;
-  // [#1 stopgap · Sean 2026-08-21] 이동 중 취소의 50%는 곧 서버에서 **면제될 수 있다** (0117 §9:
-  // 러너 과실 기록이 있거나 3시간 천장을 지났으면 0). 그 술어의 절반(booking_faults)은 클라이언트가
-  // 볼 수 없으므로 이 미러는 면제를 **알 수 없다** — 그런데도 숫자를 말하면 서버가 청구하지 않을
-  // 금액을 결제 직전에 약속하는 게 된다 (F2 계열).
-  // 그래서 이 팔만 숫자를 접고 정책을 말한다. 0066:89 가 원래 적어둔 자세이기도 하다:
-  // "client copy states the policy in words and the success alert shows server numbers."
-  // ⚠ 임시다. quote_cancel_fee(파티 게이트 읽기)가 배포되면 이 자리는 미러가 아니라 **읽기**가 되고,
-  // 그때 '아직 모름'은 0이 아니라 문장으로 렌더된다 (loading ≠ 0).
-  const enrouteQuoteUnknown = selected?.rawStatus === 'runner_enroute';
+  // ⚠ [철회 2026-08-21] 여기 '면제될 수 있다' 문구를 넣었다가 되돌린다. **오늘은 거짓이기 때문이다.**
+  // 0117 §9 의 면제는 아직 배포되지 않았고, 현재 서버는 0066:80 대로 runner_enroute 취소에
+  // 조건 없이 50%를 청구한다. 즉 그 시점의 정확한 답은 **50% 그 자체**였고, 내가 넣은 불확실성은
+  // 없는 정책을 미리 말한 것이다 — 거짓 주장을 고치는 커밋에서 새 거짓 주장을 하나 만들었다.
+  // 게다가 시트는 여전히 정확한 50%와 금액과 '전액 러너 보상' 문장을 함께 보여주고 있었으므로,
+  // 한 수수료에 대해 세 가지 다른 말을 하는 화면이 됐다 (codex 지적).
+  // 이 변경은 **0117 배포와 같은 창에서** 다시 온다. 그때는 미러가 아니라 quote_cancel_fee 읽기다.
 
   // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 정산 전에는 행이 없는 것이
   // 정직한 상태(가격 비가시성)라, 없는 동안에는 섹션 자체가 렌더되지 않는다.
@@ -179,6 +270,124 @@ export default function Schedule() {
   const settled = selected?.status === 'completed';
   const showPayments = payRows.length > 0 || settled;
 
+  // 그룹 하나 = 날짜 라벨 + 그 날의 카드들. 미래 그룹은 상대 앵커(오늘 · 내일 · D-n)를 달고,
+  // 지난 그룹은 날짜만 단다. 키에 접두사를 붙이는 이유: 유예 안의 늦은 건은 라벨이 날짜뿐이라
+  // 지난 그룹과 같은 문자열이 될 수 있다.
+  const renderGroup = (g: Grp, side: 'f' | 'p') => (
+    <View key={`${side}-${g.key}`} style={{ marginTop: 18 }}>
+      {/* 날짜 그룹 라벨 — dim 14 (900은 숫자·타이틀 전용 법). 앵커만 잉크, D-라벨만 Oswald. */}
+      <Text style={s.grp}>
+        {g.anchor.head ? <Text style={s.grpHead}>{g.anchor.head} · </Text> : null}
+        {g.anchor.date}
+        {g.anchor.d ? <Text style={[s.grpD, nf]}> {g.anchor.d}</Text> : null}
+      </Text>
+      {g.items.map((b) => {
+        const st = stFor(b);
+        return (
+          <View key={b.id}>
+          <Pressable style={s.bookingCard} onPress={() => open(b)}>
+            <View style={[s.rail, { backgroundColor: st.rail }]} />
+            {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
+                레일 경계에 펀치 노치 + 퍼포레이션 도트 (overflow hidden이 노치를 반원으로 클립) */}
+            {b.status === 'confirmed' && (
+              <View pointerEvents="none" style={s.perfWrap}>
+                <View style={[s.perfNotch, { marginTop: -5 }]} />
+                <View style={{ flex: 1, justifyContent: 'space-evenly', alignItems: 'center' }}>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <View key={i} style={s.perfDot} />
+                  ))}
+                </View>
+                <View style={[s.perfNotch, { marginBottom: -5 }]} />
+              </View>
+            )}
+            <View style={{ flex: 1, padding: 14 }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Row style={{ gap: 6 }}>
+                  {/* 18 -> 20, lineHeight 25 >= 1.2x (BUG A) */}
+                  <Text style={[{ fontSize: 20, fontWeight: '900', color: paper.ink, lineHeight: 25 }, nf]}>{b.timeLabel}</Text>
+                  {b.recurring && (
+                    <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
+                  )}
+                  {LIVE_RAW.includes(b.rawStatus ?? '') && (
+                    <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
+                  )}
+                </Row>
+                <View style={[s.statusPill, { backgroundColor: st.bg }]}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                </View>
+              </Row>
+              <Row style={{ gap: 12, marginTop: 10 }}>
+                {/* 목업 트레이스 썸네일 퇴역 (item 6) — 예약 행에는 코스 좌표가 없다.
+                    지어낸 모양 대신 아무것도 그리지 않는다 (실좌표는 코스 상세가 담당) */}
+                <View style={{ flex: 1 }}>
+                  <Row style={{ gap: 4 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
+                    {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
+                        drawn unconditionally, so a booking with no route rendered
+                        「코스 미지정 ✓」: a verification mark on the absence of a course.
+                        The management sheet in this same file retired the same badge for
+                        exactly this reason ("근거 없는 검증 마크 금지"). If this row ever
+                        needs the mark back, it needs the column first. */}
+                  </Row>
+                  {/* 칼라 컬러 도트 (P1, 0033) — 다견 가구가 한 눈에 '누구 러닝인지' */}
+                  <Row style={{ gap: 6, marginTop: 3, alignItems: 'center' }}>
+                    {b.dogCollar && collarColors[b.dogCollar as CollarKey] && (
+                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: collarColors[b.dogCollar as CollarKey], borderWidth: 1.5, borderColor: '#fff' }} />
+                    )}
+                    <Text style={{ fontSize: 15, color: paper.text, flexShrink: 1 }} numberOfLines={1}>
+                      {b.dogName} · {b.runnerName} 러너 · {b.km}km
+                    </Text>
+                  </Row>
+                  {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
+                  <Text style={[{ fontSize: 14.5, color: paper.dim, marginTop: 2, lineHeight: 19 }, nf]}>
+                    {b.price.toLocaleString()}원 · {b.paceLabel}
+                  </Text>
+                </View>
+                {/* 완료 = T3 원형 소인 (Sean 확정 — 완주 날짜 내장, 인플로우 우측 컬럼이라 겹침 원천 차단) ·
+                    그 외 = 셰브런. 공유 버튼들은 카드 아래 행 (Sean 2026-07-29) */}
+                {b.status === 'completed' ? (
+                  <FinisherSeal dateLabel={b.dateLabel} />
+                ) : (
+                  <Text style={{ fontSize: 16, color: paper.dim, alignSelf: 'center' }}>›</Text>
+                )}
+              </Row>
+              {b.status === 'active' && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
+                  style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                </Pressable>
+              )}
+            </View>
+          </Pressable>
+          {/* 공유 진입을 일정 카드에 직결 (Sean 2026-07-29) — 카드 아래 부착 행이라 도장을 가리지 않는다 */}
+          {b.status === 'completed' && (
+            <View style={s.shareRow}>
+              <Pressable
+                onPress={() => router.push(`/shot/${b.id}`)}
+                style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              >
+                <Text style={s.shareTxt}>공유 카드</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  shareRunToFeed(b.id)
+                    .then(() => Alert.alert('피드에 올렸어요', '동네 피드에서 확인해보세요'))
+                    .catch((err) => Alert.alert('피드 공유', (err as Error).message));
+                }}
+                style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              >
+                <Text style={s.shareTxt}>피드 자랑</Text>
+              </Pressable>
+            </View>
+          )}
+          </View>
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <TabSwipe>
@@ -193,19 +402,82 @@ export default function Schedule() {
           <View>
             {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
             <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>내 일정</Text>
-            {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약 */}
-            <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 4 }}>예약 {liveBookings.length}건</Text>
+            {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약
+                [B① 2026-08-24] 「예약 N건」 하나였던 자리 — 목록이 다가오는 순으로 열리는 화면에서
+                가장 쓸모 있는 수는 '앞으로 몇 건인가'다. Oswald 숫자는 명시 lineHeight (BUG A). */}
+            <Text style={[{ fontSize: 14.5, lineHeight: 19, color: paper.dim, marginTop: 4 }, nf]}>
+              다가오는 {upcomingCount}건 · 전체 {liveBookings.length}건
+            </Text>
           </View>
           {/* ＋ = 백버튼 문법의 스퀘어 (40×40 · 캔버스 면 · 1px 코랄 · 잉크 글리프) */}
           <Pressable onPress={() => router.push('/owner/request')} style={s.circleBtn}>
             <Text style={{ fontSize: 19.5, color: paper.ink }}>＋</Text>
           </Pressable>
         </Row>
+        </View>
 
+        {/* ══════════════════ 지금 (B② · Sean 2026-08-24) ══════════════════
+            게이트가 참일 때만 존재한다: 빈 밴드도, 플레이스홀더도 없다. 두 아이가 나가 있으면
+            같은 밴드 안에 두 행이 쌓인다 (밴드가 두 개가 되지 않는다).
+            ⚠ 문장은 rawStatus 마다 하나씩이고 **추측하지 않는다**. 특히 runner_enroute 는 arrived_at
+            유무로 갈린다 — 「도착했어요」와 「이동 중이에요」는 보호자에게 완전히 다른 사실이다.
+            ⚠ 여기에 인계 CTA 는 없다. 도착에서 무엇이 켜지는가(A/B)는 Sean 의 재정 대기이고
+            (docs/decisions/handoff-cta-gating.md), 밴드는 그 재정을 앞질러 결정하지 않는다 — 사실만
+            말하고, 행 전체가 관리 시트로 가는 문이다.
+            색은 이 파일의 기존 라이브 어휘 그대로(#ffe9e2 면 · #ffc9b8 선 · #d84a2f 잉크 = "라이브는
+            상태색이지 버튼 스타일이 아니다") + 볼트 레일. 목록에는 여전히 코랄 표면이 0개다. */}
+        {liveNow.length > 0 && (
+          <View style={s.nowBand}>
+            <Row style={{ gap: 6 }}>
+              <Text style={s.nowKick}>지금</Text>
+              <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
+            </Row>
+            {liveNow.map((b, i) => {
+              // 경과·대기는 실소인에서만 온다. 없으면(또는 1분 미만이면) 절이 통째로 빠진다.
+              const el = b.rawStatus === 'active' ? elapsedLabel(b.startedAt) : null;
+              const wait = b.rawStatus === 'runner_enroute' && b.arrivedAt ? elapsedLabel(b.arrivedAt) : null;
+              const line = b.rawStatus === 'active'
+                ? `${b.dogName}가 ${b.runnerName} 러너와 ${el ? `${el}째 ` : ''}달리는 중이에요`
+                : b.rawStatus === 'picked_up'
+                  ? `${b.runnerName} 러너가 ${b.dogName}를 데리고 있어요`
+                  : b.arrivedAt
+                    ? `${b.runnerName} 러너가 도착했어요${wait ? ` · ${wait}째 문 앞이에요` : ''}`
+                    : `${b.runnerName} 러너가 픽업으로 이동 중이에요`;
+              const sub = b.rawStatus === 'picked_up'
+                ? '출발하면 실시간으로 볼 수 있어요'
+                : `${b.routeName} · ${b.km}km`;
+              return (
+                <Pressable
+                  key={b.id}
+                  onPress={() => open(b)}
+                  style={({ pressed }) => [i > 0 && s.nowRowDiv, pressed && { backgroundColor: paper.wash }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={line}
+                >
+                  <Text style={s.nowT}>{line}</Text>
+                  <Text style={s.nowS}>{sub}</Text>
+                  {/* 실시간 지도는 러닝이 실제로 시작된 뒤에만 존재한다 — picked_up 은 아직 출발 전이라
+                      버튼이 없고, 그 사실을 위 서브라인이 말한다 (없는 화면으로 보내는 버튼 금지). */}
+                  {b.rawStatus === 'active' && (
+                    <Pressable
+                      onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
+                      style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      accessibilityRole="button" accessibilityLabel="실시간 보기"
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                    </Pressable>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={{ paddingHorizontal: 16 }}>
         {/* 주간/월간 데드 토글 은퇴 (ui-audit P1) — 기능이 생길 때 복귀 */}
 
         {/* filters (functional) */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
           {FILTERS.map((f, i) => (
             <Pressable
               key={f.label}
@@ -240,120 +512,27 @@ export default function Schedule() {
               {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다 — 죽은 안내 문구 교정.
                   [2026-08-19] 'GO 버튼'도 같은 운명 — 랩 ⑧ v2가 GO 디스크를 은퇴시키고 홈 히어로를
                   두 문(지금 찾기 / 예약하기)으로 바꿨다. 화면에 없는 버튼으로 안내하지 않는다. */}
-              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 지금 찾기 / 예약하기로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
+              {/* [B② 2026-08-24] 세 번째 갈래가 필요해졌다: 진행 중인 러닝 하나만 있는 계정은 그
+                  행이 위 밴드로 올라가 목록이 비는데, 그때 「이 조건의 일정이 없어요」는 '전체' 칩을
+                  스스로 반박한다 (화면에 러닝이 보이는데 없다고 말한다). */}
+              {liveBookings.length === 0
+                ? '예정된 러닝이 없어요\n홈의 지금 찾기 / 예약하기로 러너를 찾아보세요'
+                : filterIdx === 0 && liveNow.length > 0
+                  ? '지금 진행 중인 러닝 외에는 일정이 없어요'
+                  : '이 조건의 일정이 없어요'}
             </Text>
           </View>
         )}
-        {Object.entries(groups).map(([dateLabel, items]) => (
-          <View key={dateLabel} style={{ marginTop: 18 }}>
-            {/* 날짜 그룹 라벨 — dim 14 (900은 숫자·타이틀 전용 법) */}
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
-            {items.map((b) => {
-              const st = stFor(b);
-              return (
-                <View key={b.id}>
-                <Pressable style={s.bookingCard} onPress={() => open(b)}>
-                  <View style={[s.rail, { backgroundColor: st.rail }]} />
-                  {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
-                      레일 경계에 펀치 노치 + 퍼포레이션 도트 (overflow hidden이 노치를 반원으로 클립) */}
-                  {b.status === 'confirmed' && (
-                    <View pointerEvents="none" style={s.perfWrap}>
-                      <View style={[s.perfNotch, { marginTop: -5 }]} />
-                      <View style={{ flex: 1, justifyContent: 'space-evenly', alignItems: 'center' }}>
-                        {Array.from({ length: 8 }).map((_, i) => (
-                          <View key={i} style={s.perfDot} />
-                        ))}
-                      </View>
-                      <View style={[s.perfNotch, { marginBottom: -5 }]} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1, padding: 14 }}>
-                    <Row style={{ justifyContent: 'space-between' }}>
-                      <Row style={{ gap: 6 }}>
-                        {/* 18 -> 20, lineHeight 25 >= 1.2x (BUG A) */}
-                        <Text style={[{ fontSize: 20, fontWeight: '900', color: paper.ink, lineHeight: 25 }, nf]}>{b.timeLabel}</Text>
-                        {b.recurring && (
-                          <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
-                        )}
-                        {LIVE_RAW.includes(b.rawStatus ?? '') && (
-                          <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
-                        )}
-                      </Row>
-                      <View style={[s.statusPill, { backgroundColor: st.bg }]}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: st.fg }}>{st.label}</Text>
-                      </View>
-                    </Row>
-                    <Row style={{ gap: 12, marginTop: 10 }}>
-                      {/* 목업 트레이스 썸네일 퇴역 (item 6) — 예약 행에는 코스 좌표가 없다.
-                          지어낸 모양 대신 아무것도 그리지 않는다 (실좌표는 코스 상세가 담당) */}
-                      <View style={{ flex: 1 }}>
-                        <Row style={{ gap: 4 }}>
-                          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
-                          {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
-                              drawn unconditionally, so a booking with no route rendered
-                              「코스 미지정 ✓」: a verification mark on the absence of a course.
-                              The management sheet in this same file retired the same badge for
-                              exactly this reason ("근거 없는 검증 마크 금지"). If this row ever
-                              needs the mark back, it needs the column first. */}
-                        </Row>
-                        {/* 칼라 컬러 도트 (P1, 0033) — 다견 가구가 한 눈에 '누구 러닝인지' */}
-                        <Row style={{ gap: 6, marginTop: 3, alignItems: 'center' }}>
-                          {b.dogCollar && collarColors[b.dogCollar as CollarKey] && (
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: collarColors[b.dogCollar as CollarKey], borderWidth: 1.5, borderColor: '#fff' }} />
-                          )}
-                          <Text style={{ fontSize: 15, color: paper.text, flexShrink: 1 }} numberOfLines={1}>
-                            {b.dogName} · {b.runnerName} 러너 · {b.km}km
-                          </Text>
-                        </Row>
-                        {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
-                        <Text style={[{ fontSize: 14.5, color: paper.dim, marginTop: 2, lineHeight: 19 }, nf]}>
-                          {b.price.toLocaleString()}원 · {b.paceLabel}
-                        </Text>
-                      </View>
-                      {/* 완료 = T3 원형 소인 (Sean 확정 — 완주 날짜 내장, 인플로우 우측 컬럼이라 겹침 원천 차단) ·
-                          그 외 = 셰브런. 공유 버튼들은 카드 아래 행 (Sean 2026-07-29) */}
-                      {b.status === 'completed' ? (
-                        <FinisherSeal dateLabel={b.dateLabel} />
-                      ) : (
-                        <Text style={{ fontSize: 16, color: paper.dim, alignSelf: 'center' }}>›</Text>
-                      )}
-                    </Row>
-                    {b.status === 'active' && (
-                      <Pressable
-                        onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
-                        style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                      >
-                        <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </Pressable>
-                {/* 공유 진입을 일정 카드에 직결 (Sean 2026-07-29) — 카드 아래 부착 행이라 도장을 가리지 않는다 */}
-                {b.status === 'completed' && (
-                  <View style={s.shareRow}>
-                    <Pressable
-                      onPress={() => router.push(`/shot/${b.id}`)}
-                      style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                    >
-                      <Text style={s.shareTxt}>공유 카드</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        shareRunToFeed(b.id)
-                          .then(() => Alert.alert('피드에 올렸어요', '동네 피드에서 확인해보세요'))
-                          .catch((err) => Alert.alert('피드 공유', (err as Error).message));
-                      }}
-                      style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                    >
-                      <Text style={s.shareTxt}>피드 자랑</Text>
-                    </Pressable>
-                  </View>
-                )}
-                </View>
-              );
-            })}
+        {/* [B①] 다가오는 순서 → 지난 일정 구분선 → 지난 것들. 카드 본체는 한 벌이다
+            (renderGroup) — 두 벌로 갈라 두면 한쪽에만 수리가 붙는 날 조용히 어긋난다. */}
+        {future.map((g) => renderGroup(g, 'f'))}
+        {past.length > 0 && (
+          <View style={s.divPast}>
+            <Text style={s.divPastTx}>지난 일정</Text>
+            <View style={s.divPastLine} />
           </View>
-        ))}
+        )}
+        {past.map((g) => renderGroup(g, 'p'))}
 
         <Pressable style={s.emptyCta} onPress={() => router.push('/owner/request')}>
           <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 새 러닝 예약하기</Text>
@@ -399,7 +578,10 @@ export default function Schedule() {
                   <LateNotice
                     late={lateness({ scheduledAt: selected.scheduledAt ?? null, rawStatus: selected.rawStatus,
                                      arrivedAt: selected.arrivedAt ?? null, km: selected.km,
-                                     startedAt: selected.startedAt ?? null })}
+                                     startedAt: selected.startedAt ?? null,
+                                     // [F7] 커스터디는 status 만으로 판정할 수 없다 (lateness.ts 참조)
+                                     ownerHandoffAt: selected.ownerHandoffAt ?? null,
+                                     runnerHandoffAt: selected.runnerHandoffAt ?? null })}
                     side="owner"
                     dogName={selected.dogName}
                     runnerName={selected.runnerName}
@@ -670,8 +852,7 @@ export default function Schedule() {
                           <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
                             {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
                                 달던 자리(이동 중만 표기하던 이분법)의 교정 */}
-                            {/* 이동 중이면 퍼센트를 붙이지 않는다 — 면제될 수 있는 값을 라벨에 박제하지 않는다. */}
-                            {enrouteQuoteUnknown || fee <= 0 ? '일정 취소하기' : `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)`}
+                            {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
                           </Text>
                         </Pressable>
                       )}
@@ -717,11 +898,9 @@ export default function Schedule() {
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 17 }}>
-                      {enrouteQuoteUnknown
-                        ? '러너가 출발한 뒤의 취소예요. 취소 수수료가 있을 수 있고, 러너가 오지 않은 경우처럼 면제되기도 해요 — 확정 금액은 취소할 때 바로 알려드려요.'
-                        : fee > 0
-                          ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
-                          : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
+                      {fee > 0
+                        ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
+                        : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
                     </Text>
                   </View>
 
@@ -816,6 +995,28 @@ const s = StyleSheet.create({
   // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
+  // ── 날짜 그룹 라벨 (B① · 2026-08-24) ──────────────────────────────────────
+  // 구조는 그대로(dim 14/800, 거터 12), 앞에 상대 앵커, 뒤에 D-라벨이 붙는다.
+  // ⚠ 중첩 Text 의 lineHeight 는 부모에 값이 없으면 iOS 에서 무시된다 — 부모에 먼저 둔다 (BUG A).
+  grp: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim, paddingHorizontal: 12, marginBottom: 8 },
+  grpHead: { color: paper.ink },
+  grpD: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
+  // 지난 일정 경계 — 선 하나와 라벨 하나. 아래 것을 접지도 지우지도 않는다 (§7b).
+  divPast: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 26, marginBottom: 4, paddingHorizontal: 12 },
+  divPastTx: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim, letterSpacing: 0.5 },
+  divPastLine: { flex: 1, height: 1, backgroundColor: '#EEE' },
+  // ── 지금 밴드 (B② · 2026-08-24) ──────────────────────────────────────────
+  // 카드가 아니라 띠다: 흰 면 + 뉴트럴 1px + 왼쪽 볼트 레일 3px. 레일이 8px 이었을 때는 카드의
+  // 상태 레일과 같은 무게라 '목록의 한 항목'처럼 읽혔다 (사이드탭 실측, 2026-08-24).
+  nowBand: {
+    marginTop: 14, marginHorizontal: 12, backgroundColor: '#fff',
+    borderWidth: 1, borderColor: '#EEE', borderLeftWidth: 3, borderLeftColor: colors.volt,
+    paddingVertical: 13, paddingHorizontal: 14,
+  },
+  nowKick: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.6, color: '#4a6d1f' },
+  nowT: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 4 },
+  nowS: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  nowRowDiv: { marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: '#EEE' },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8) — 시맨틱, 페이퍼 이관에서 생존
   // 확정 카드 절취선 — 레일 경계 x=8 중심 (노치 지름 10, 도트 2.5)

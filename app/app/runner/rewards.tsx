@@ -18,6 +18,23 @@ import { colors, layout, paper } from '../../src/theme';
 // §3b: sections = coral rule + 20/800 (count folds into the title line), history cards
 // lose the 0.75 opacity (explicit dim ink instead), Korean captions lose latin tracking.
 // Ladder/cycle logic untouched. Behavior frozen: load fan-out, openDrop(pick), routes.
+//
+// [enh lab B① + B③ · Sean 2026-08-24, verbatim: "I like b1 but also show them what's next."]
+//   B① 포인트 내역 — `fetchMiles()` already returns `recent[]` (10 real `miles_ledger` rows) on
+//     every focus and this screen threw them away, while shop.tsx drew 2 of them and
+//     leaderboard.tsx 3. The rewards centre, whose subject IS points, now draws its own ledger.
+//     The earning-rules blurb is not deleted: it becomes the fallback when there is no history,
+//     so a runner on day one still learns how points are earned. Sign comes from `delta`, never
+//     from a '+' literal — `shop_spend` rows are negative (the leaderboard.tsx:76 point).
+//   B③ what's next — the empty state did arithmetic and got the NOUN wrong: `5 - totalRuns % 5`
+//     counts to the next multiple of five, but `settle_run_tx` (0083 §6:812-816) mints a 픽 drop
+//     when the new total is a multiple of TEN and a mini only otherwise. At 17 완주 the screen
+//     said 보급 and the server would mint 픽. Same arithmetic, one more test. Both the count and
+//     the noun still render ONLY when `rs !== null` — a failed status fetch prints neither.
+//     `runners.total_runs` increments on 완주 only (0083:796, `v_is_full`), which is the same gate
+//     that mints the drop, so the two cannot drift.
+// Neither variant adds a fetch, a column, a route, or a colour. No money is displayed on this
+// screen at all — points are not currency and the 2026-08-24 margin rule does not reach here.
 
 export default function Rewards() {
   const df = useDisplayFont(); // display font — screen title (1/screen budget)
@@ -69,6 +86,14 @@ export default function Rewards() {
   const unopened = drops.filter((d) => !d.openedAt);
   const opened = drops.filter((d) => d.openedAt);
   const cycle5 = (rs?.totalRuns ?? 0) % 5;
+  // [B③] 다음 드랍까지 남은 완주 수와 **그 드랍의 이름**. 서버(0083 §6:812-816)는 픽을 먼저 본다:
+  // 새 누적이 10의 배수면 픽, 아니면(5의 배수면) 보급. 같은 순서로 판정한다 — 이름을 지어내지 않고
+  // 서버가 실제로 만들 상자를 말한다. rs가 null이면 이 두 값은 화면에 나가지 않는다 (아래 게이트).
+  const nextInRuns = 5 - cycle5;
+  const nextIsPick = ((rs?.totalRuns ?? 0) + nextInRuns) % 10 === 0;
+  // [B①] 포인트 내역 — fetchMiles가 이미 실어온 miles_ledger 10행. 비었으면(또는 못 불러왔으면)
+  // 적립 규칙 한 줄이 그 자리를 지킨다: 0행짜리 내역을 그리는 것보다 규칙을 말하는 편이 정직하다.
+  const recent = miles?.recent ?? [];
 
   return (
     <ScrollView
@@ -91,10 +116,35 @@ export default function Rewards() {
         <Text style={[{ fontSize: 39, lineHeight: 49, fontWeight: '900', color: colors.volt, marginTop: 4, fontVariant: ['tabular-nums'] as const }, nf]}>
           {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#BBBBBB' }}> 포인트</Text>
         </Text>
-        <Text style={{ fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>
-          완주 +50 · 응가 도장 +30 · 드랍 보상 · 주간 TOP3 보너스
-        </Text>
+        {/* [B①] 잔액 아래는 그 잔액이 어떻게 만들어졌는지 — miles_ledger 실행들.
+            부호는 delta가 진다: shop_spend는 음수이고, '+'를 붙여 그리면 쓴 돈이 번 돈이 된다. */}
+        {recent.length > 0 ? (
+          <View style={s.milesLedger}>
+            {recent.map((m, i) => (
+              <Row key={`${m.when}-${m.reason}-${i}`} style={s.mileRow}>
+                <Text style={{ fontSize: 14.5, lineHeight: 20, color: '#BBBBBB', flex: 1 }} numberOfLines={1}>
+                  {m.reason} · {m.when}
+                </Text>
+                {/* Oswald delta — lineHeight 20 = 1.33× (BUG A).
+                    ⚠ 마이너스는 coralText(#d84a2f)가 아니라 tang(#FF5C3D)이다. coralText는 **흰
+                    면 위의** 읽는 코랄이고, 이 카드는 잉크 면이다 — 역할이 뒤집힌다. 실측: #d84a2f
+                    on #111111 = 4.48:1 (15pt 볼드는 큰 활자가 아니라 4.5 미달), tang = 6.24:1.
+                    같은 이유로 플러스는 volt다 (14.99:1) — 이 화면의 개인 보상 색. 신규 색 0개. */}
+                <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '800', marginLeft: 10, color: m.delta < 0 ? colors.tang : colors.volt, fontVariant: ['tabular-nums'] as const }, nf]}>
+                  {m.delta < 0 ? '−' : '+'}{Math.abs(m.delta).toLocaleString()}
+                </Text>
+              </Row>
+            ))}
+          </View>
+        ) : (
+          <Text style={{ fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>
+            완주 +50 · 응가 도장 +30 · 드랍 보상 · 주간 TOP3 보너스
+          </Text>
+        )}
       </View>
+      {recent.length > 0 && (
+        <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>최근 10건까지 보여요</Text>
+      )}
 
       {/* 미오픈 드랍 — §3b section header */}
       <Row style={s.secWrap}>
@@ -118,9 +168,21 @@ export default function Rewards() {
         <View style={s.emptyBox}>
           <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
             대기 중인 드랍이 없어요
-            {/* run count claim only when the runner status actually arrived — no fabricated "5번 더" */}
-            {rs != null ? `\n${5 - cycle5}번 더 완주하면 보급 드랍이 도착해요` : ''}
+            {/* run count claim only when the runner status actually arrived — no fabricated "5번 더".
+                [B③] 상자의 이름도 같은 게이트 안에 있다: 10의 배수면 픽, 아니면 보급 (0083 §6). */}
+            {rs != null ? `\n${nextInRuns}번 더 완주하면 ` : ''}
+            {rs != null && (
+              <Text style={{ fontWeight: '800', color: paper.ink }}>{nextIsPick ? '픽 드랍' : '보급 드랍'}</Text>
+            )}
+            {rs != null ? '이 도착해요' : ''}
           </Text>
+          {/* 픽 드랍일 때만 한 줄 더 — 고를 수 있다는 사실이 픽의 전부다.
+              세 선택지는 drops.contents.options 그대로 (0083 §6:814 minted ["boost","miles","gear"]). */}
+          {rs != null && nextIsPick && (
+            <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>
+              픽 드랍은 부스트 · 5,000 포인트 · 기어 중 하나를 직접 골라요
+            </Text>
+          )}
         </View>
       )}
       {unopened.map((d) => (
@@ -227,6 +289,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line,
   },
   milesCard: { backgroundColor: paper.ink, padding: 18, marginTop: 16 },
+  // [B①] 잔액과 그 내역을 가르는 선 — 다크 면 위의 헤어라인. paper.text(#333333)를 면 색으로 쓴다:
+  // 이 카드에서 유일하게 '잉크보다 한 단 밝은' 값이고, 새 헥스를 만들지 않는다.
+  milesLedger: { marginTop: 10, borderTopWidth: 1, borderTopColor: paper.text, paddingTop: 6 },
+  mileRow: { justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 5 },
   // §3b section header — full-bleed coral rule via negative gutter margins + 20/800 ink
   secWrap: {
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,

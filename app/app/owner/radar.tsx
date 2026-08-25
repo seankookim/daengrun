@@ -8,6 +8,7 @@ import {
   cancelBooking, fetchAvailableRunnersFor, fetchBookingBrief, fetchBookingCard,
   LiveRunner, requestRunner, subscribeBooking,
 } from '../../src/lib/api';
+import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
@@ -39,6 +40,8 @@ import { layout, lilac, paper } from '../../src/theme';
 // 코랄 물결 — 잔잔한 리플이 퍼져나간다 (소나가 아니라 산책로 물웅덩이 느낌).
 // [2026-08-19] 모션은 그대로 (3200ms · out(cubic) · 1→2.5 · .4→.14→0 · 네이티브 드라이버).
 // 색만 은퇴한 colors.tang → paper.action. Sean: "지금 코드의 링을 그대로 쓴다".
+// [2026-08-24] 모션 곡선은 여전히 그대로다 — 무대 크기와 시작 반지름만 바뀌었다 (RADAR_H 참조).
+
 // Statuses that end the search but are neither a match nor `cancelled*`/`expired` (which have
 // their own arms in the poll below). Each states what happened and what continues — never a
 // delay this screen is not actually polling for. Landing screen for all of them is 내 일정,
@@ -49,6 +52,21 @@ const TERMINAL_ON_RADAR: Record<string, { title: string; body: string }> = {
   incident_review: { title: '확인이 진행 중이에요', body: '이 예약은 확인 절차로 넘어갔어요 — 처리되면 알림으로 알려드릴게요' },
   completed: { title: '이미 끝난 러닝이에요', body: '기록은 내 일정에서 볼 수 있어요' },
 };
+
+// ── 레이더 무대 — R① (Sean 2026-08-24: "make sure the radar doesn't intrude into the surrounding
+//    text; I like r1") ────────────────────────────────────────────────────────────────────────
+// 종전 주석은 "컨테이너는 잘라내지 않는다"였고, 그게 정확히 증상이었다: 링은 130 → 325까지
+// 자라는데 무대는 200이라, 링이 위의 알림 줄과 아래의 안내 문장·지명 목록 **위로** 번졌다.
+// 이제 침범은 두 겹으로 막힌다 — 둘 다 있어야 한다:
+//   ① 산술: RIPPLE_BASE(52) × RIPPLE_MAX(2.5) = 130 ≤ RADAR_H(132). 눈으로 본 한 프레임이
+//      아니라 **곡선의 최대치**로 잡은 값이라 어떤 위상에서도 무대를 넘지 않는다.
+//   ② 하드 게이트: s.radar의 overflow:'hidden'. ①의 숫자가 나중에 흔들려도 텍스트 침범은
+//      구조적으로 불가능해진다. 오늘은 ①이 성립하므로 이 게이트는 한 픽셀도 자르지 않는다.
+// [2026-08-19 모션 보존] 3200ms · out(cubic) · 1→2.5 · .4→.14→0 · 네이티브 드라이버 — 전부 그대로.
+// 바뀐 것은 **시작 반지름 하나**뿐이다: 링은 코어 원판(54) 밑에서 태어나 무대 가장자리에서 죽는다.
+const RADAR_H = 132;
+const RIPPLE_BASE = 52;
+const RIPPLE_MAX = 2.5;
 
 function Ripple({ delay }: { delay: number }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -63,10 +81,11 @@ function Ripple({ delay }: { delay: number }) {
     <Animated.View
       pointerEvents="none"
       style={{
-        position: 'absolute', width: 130, height: 130, borderRadius: 65,
+        position: 'absolute',
+        width: RIPPLE_BASE, height: RIPPLE_BASE, borderRadius: RIPPLE_BASE / 2,
         borderWidth: 2, borderColor: paper.action,
         opacity: v.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.4, 0.14, 0] }),
-        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.5] }) }],
+        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, RIPPLE_MAX] }) }],
       }}
     />
   );
@@ -80,6 +99,7 @@ export default function Radar() {
   const { bid: bidParam } = useLocalSearchParams<{ bid?: string }>();
   const bookingId = (typeof bidParam === 'string' && bidParam) || draft.bookingId;
   const insets = useSafeAreaInsets();
+  const nf = useNumFont();   // 페이스 숫자만 Oswald — 폴백 시 조용히 시스템 서체 (BUG A: lineHeight 명시)
 
   const [card, setCard] = useState<Card | null>(null);
   const [cardErr, setCardErr] = useState(false);
@@ -387,7 +407,15 @@ export default function Radar() {
         {/* ── 지명 목록 — 상시 CTA (10분 앰버 넛지를 대체한다) ── */}
         {!matchedName && (
           <View style={{ marginTop: 20 }}>
-            <Text style={s.kick}>바로 지명할 수도 있어요</Text>
+            {/* R① — 키커 오른쪽의 숫자는 **지금 이 화면에 있는 행의 수**다 (avail.length).
+                '몇 명에게 요청이 갔는지'가 아니다: 그건 이 화면이 모르는 사실이고, 목록과
+                어긋나는 순간 거짓이 된다. 목록이 비어 있거나 아직 안 왔으면 숫자도 없다. */}
+            <View style={s.kickRow}>
+              <Text style={s.kick}>바로 지명할 수도 있어요</Text>
+              {avail != null && avail.length > 0 && (
+                <Text style={s.kickCount}>지금 {avail.length}명</Text>
+              )}
+            </View>
 
             {/* 실패는 **서버가 준 문장 그대로**. '30초 내 재시도'라는 약속은 없앴다: 세션 만료
                 (not_owner)에서는 자동 재시도가 절대 성공할 수 없어 지어낸 위로가 된다.
@@ -418,12 +446,31 @@ export default function Radar() {
                     onPress={() => router.push(`/runner-profile/${r.profileId}`)}
                     style={({ pressed }) => [s.rowBody, pressed && { backgroundColor: paper.wash }]}
                     accessibilityRole="button"
-                    accessibilityLabel={`${r.name} 러너 프로필`}
+                    // R①이 행에 얹은 사실은 **읽히기도** 해야 한다: 라벨은 자식 텍스트를 덮으므로,
+                    // 새 줄을 그리기만 하면 보이스오버 사용자에게는 지명 결정의 근거가 없는 것과 같다.
+                    accessibilityLabel={[
+                      `${r.name} 러너`,
+                      [r.tier, r.district].filter(Boolean).join(' '),
+                      `러닝 ${r.totalRuns}회`,
+                      r.paceLabel != null ? `평균 페이스 ${r.paceLabel}` : '',   // null → 조각 생략 (respondRate 와 동일)
+                      r.respondRate != null ? `응답률 ${r.respondRate}%` : '',
+                      '프로필 열기',
+                    ].filter(Boolean).join(', ')}
                   >
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={paper.ink} size={38} />
                     <View style={{ flex: 1, marginLeft: 11 }}>
                       <Text style={s.rowName}>{r.name}</Text>
                       <Text style={s.rowSub}>{[r.tier, r.district].filter(Boolean).join(' · ')}</Text>
+                      {/* R① — 지명은 동전 던지기가 아니라 결정이다. 세 사실은 전부 이미
+                          fetchAvailableRunnersFor의 payload에 실려 오고, 이 화면은 그동안
+                          바닥에 흘리고 있었다 (두 줄만 그렸다).
+                          respondRate는 nullable — null이면 그 **조각만** 빠진다. '–%'도,
+                          '정보 없음'도 쓰지 않는다: 모르는 값에 이름을 붙이면 그게 곧 값이 된다. */}
+                      <Text style={s.rowStat} numberOfLines={1}>
+                        러닝 {r.totalRuns}회
+                        {r.paceLabel != null ? <Text> · 평균 <Text style={[s.rowStatNum, nf]}>{r.paceLabel}</Text></Text> : null}
+                        {r.respondRate != null ? ` · 응답률 ${r.respondRate}%` : ''}
+                      </Text>
                     </View>
                   </Pressable>
                   {isNominated ? (
@@ -469,25 +516,35 @@ const s = StyleSheet.create({
   alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
   alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
   alertAct: { fontSize: 14, fontWeight: '800' },
-  // ── 레이더 — 링이 스케일 2.5까지 자란다 (130 → 325). 컨테이너는 잘라내지 않는다 ──
-  radar: { alignItems: 'center', justifyContent: 'center', marginTop: 10, height: 200 },
+  // ── 레이더 무대 — R①: 200 → 132pt, 그리고 **잘라낸다** ──
+  // overflow:'hidden'이 침범 금지의 하드 게이트다 (위 RADAR_H 주석의 ②). 산술상 링의 최대
+  // 지름은 130이라 오늘 이 게이트는 아무것도 자르지 않지만, 게이트가 있어야 다음 사람이
+  // 숫자를 건드려도 텍스트가 다시 먹히지 않는다.
+  radar: { alignItems: 'center', justifyContent: 'center', marginTop: 10, height: RADAR_H, overflow: 'hidden' },
   core: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: paper.action,
+    width: 54, height: 54, borderRadius: 27, backgroundColor: paper.action,
     alignItems: 'center', justifyContent: 'center',
   },
-  coreChar: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', lineHeight: 26 },
-  quiet: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 20 },
+  coreChar: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', lineHeight: 24 },
+  quiet: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 20 },
   // 키커 — 랩은 라틴 캡스지만 한글엔 레터스페이스 캡스가 없다. 14pt 플로어를 지킨다.
+  kickRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   kick: { fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 },
+  kickCount: { fontSize: 14, fontWeight: '800', color: paper.faint, marginBottom: 4 },
   state: { fontSize: 14, color: paper.dim, paddingVertical: 12, lineHeight: 20 },
+  // R①: 두 줄 → 세 줄이라 행이 58 → 76으로 자란다 (첫 화면에 약 5명 → 약 3명).
+  // 그 대가로 각 행이 결정을 내리기에 충분한 사실을 진다 — 랩이 값을 매긴 교환이다.
   row: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 58,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 76,
   },
   // 본문(프로필로 가는 문)과 지명 버튼은 형제다 — 중첩하면 iOS가 하나로 합친다 (a11y 수정).
   rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 4, minHeight: 44 },
   rowName: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
   rowSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
+  rowStat: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
+  // 중첩 Text는 부모에서 크기·색을 물려받지만 lineHeight는 명시한다 (Oswald의 어센더가 잘린다 — BUG A).
+  rowStatNum: { fontSize: 14, lineHeight: 19 },
   rowAct: { fontSize: 14, fontWeight: '800' },
   rowActBtn: { minHeight: 44, justifyContent: 'center', paddingLeft: 12 },
   // 지명 목록 로드 실패 — 홈의 fitFail과 같은 라우드 페일 문법 (14/700 critical · 텍스트 재시도)

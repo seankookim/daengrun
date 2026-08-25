@@ -1,0 +1,1554 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>러너 러닝 플로우 — 강화 랩 (2026-08-24)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   ZERO NEW HEX. Every colour below is copied out of app/src/theme.ts or out of
+   the screen-local consts the four target files already declare.
+
+   theme.ts paper : #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text
+                    #666666 dim · #999999 faint · #E8552F line · #FFF6F4 wash
+                    #B3261E critical · #FBEAE7 criticalWash · #F2F2F2 disabledFill
+                    #C77414 pending · #C6472C action · #A83315 actionPressed/actionInk
+                    #119B58 ready · #0E7F49 readyDeep
+                    #E7F5EE paceGoodWash · #0E7F49 paceGoodInk
+                    #FBEED9 paceSlowWash · #9D580A paceSlowInk
+   theme.ts colors: #C6F542 volt · #7FA818 voltDeep · #FF5C3D tang · #171A17 ink
+   theme.ts lilac : #6C5CE7 accent
+   meetup.tsx     : #1C1837 NIGHT · #C6BEEB NIGHT_DIM · #8a6f2a SEAL_INK
+                    #B99A4F GOLD · #F4EBD3 GOLD_SOFT · #D8C185 GOLD_SHEEN
+   run.tsx        : #BBBBBB · #EEEEEE · #222222 · #3A3A3A · #141414
+                    #FFCDB6 #F2DA96 #C3D9AE #DDF0A6 (event stamp pastels)
+   late-notice.tsx: #F2DFC2 · #7A4A0C · #F0CFC6 · #8C3722
+
+   #F3F2EF / #DEDCD6 / #E4E2DD are LAB CHROME only (the paper this lab is
+   printed on, same as late-booking-lab.html). They never enter the frames.
+
+   Fonts: no CDN in this file, so Black Han Sans and Oswald are *represented*
+   by weight/letterspacing surrogates. Where a frame says .disp or .num, the
+   shipped screen uses useDisplayFont / useNumFont. Oswald rules still apply
+   in the build: explicit lineHeight >= 1.2x (BUG A).
+   ═══════════════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#F3F2EF;color:#111111;
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  -webkit-font-smoothing:antialiased;padding:34px 20px 90px}
+.wrap{max-width:1720px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid #111111;padding-bottom:14px}
+h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.law{font-size:12px;letter-spacing:2.4px;color:#666666;text-transform:uppercase;margin:9px 0 12px;font-weight:700}
+.lede{font-size:15px;color:#333333;line-height:1.8;max-width:1000px}
+.lede b{color:#111111;font-weight:700}
+
+.note{background:#FFFFFF;border:1px solid #DEDCD6;padding:15px 18px;margin:20px 0 0;font-size:14px;line-height:1.72;max-width:1080px}
+.note.hot{border:2px solid #C6472C}
+.note h4{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#666666}
+.note.hot h4{color:#C6472C}
+.note + .note{margin-top:14px}
+.hair{height:1px;background:#E4E2DD;margin:11px 0}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:#F3F2EF;padding:1px 5px;color:#333333}
+
+h2.sec{margin:62px 0 6px;font-size:22px;font-weight:800;letter-spacing:-.01em;border-top:1.5px solid #E8552F;padding-top:22px}
+h2.sec .n{color:#E8552F;font-weight:800;margin-right:11px;letter-spacing:.04em}
+h2.sec .path{font-weight:600;color:#666666;font-size:14px;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.secsub{font-size:14.5px;color:#333333;line-height:1.8;max-width:1080px;margin-top:8px}
+.secsub b{color:#111111}
+.frozen{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  background:#FBEAE7;color:#B3261E;padding:3px 9px;margin-top:10px}
+
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col{width:390px}
+.cap{font-size:16.5px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px;line-height:1.35}
+.cap b{color:#E8552F;font-size:22px;margin-right:8px;vertical-align:-1px}
+.cap.now b{color:#666666}
+.why{font-size:13.5px;color:#333333;line-height:1.7;margin:0 0 10px;min-height:112px}
+.why b{color:#111111;font-weight:700}
+.cost{font-size:12.5px;line-height:1.65;background:#FFFFFF;border-left:3px solid #C6472C;padding:9px 11px;margin:0 0 12px}
+.cost .k{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:#666666;display:block;margin-bottom:3px}
+.cost.free{border-left-color:#0E7F49}
+.cost.pay{border-left-color:#C77414}
+
+/* ── phone frame ── */
+.phone{width:390px;background:#FFFFFF;border:1px solid #111111;overflow:hidden}
+.notch{height:26px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+  font-size:11px;color:#999999;font-weight:700;background:#FFFFFF}
+.notch.dk{background:#1C1837;color:#C6BEEB}
+.notch.blk{background:#111111;color:#BBBBBB}
+.scr{position:relative;overflow:hidden;background:#FFFFFF}
+.scr.h780{height:780px}
+.scr.h700{height:700px}
+.scr.h620{height:620px}
+.below{font-size:12.5px;color:#666666;line-height:1.6;background:#FFFFFF;border:1px dashed #DEDCD6;border-top:none;padding:8px 11px}
+.below b{color:#B3261E}
+.fields{font-size:12px;line-height:1.62;color:#333333;background:#FFFFFF;border:1px solid #DEDCD6;border-top:none;padding:10px 12px}
+.fields h5{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#666666;margin-bottom:5px}
+.fields code{font-size:11.5px;padding:0 3px;background:#F3F2EF}
+.fields .miss{color:#B3261E;font-weight:700}
+
+/* ── in-frame app vocabulary (paper world) ── */
+.a-pad{padding:0 26px}
+.a-sec{padding:18px 26px;border-bottom:1px solid #E8552F}
+.a-kick{font-size:12px;font-weight:700;letter-spacing:3px;color:#999999}
+.a-ttl{font-size:20px;font-weight:900;color:#111111;margin-top:3px}
+.a-card-ttl{font-size:17px;font-weight:800;color:#111111}
+.a-body{font-size:14px;line-height:20px;color:#333333;margin-top:6px}
+.a-dim{font-size:14px;line-height:19px;color:#666666}
+.a-link{font-size:14px;line-height:19px;font-weight:800;color:#A83315}
+.a-crit{font-size:14px;line-height:19px;font-weight:700;color:#B3261E}
+.a-critstrip{background:#FBEAE7;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;
+  padding:11px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.a-critstrip u{font-weight:800;color:#B3261E;font-size:14px}
+.a-cta{background:#C6472C;color:#FFFFFF;font-size:17px;font-weight:800;text-align:center;padding:16px}
+.a-cta.off{background:#F2F2F2;color:#999999}
+.a-cta2{background:#FFF6F4;border:1px solid #E8552F;color:#A83315;font-size:16px;font-weight:800;text-align:center;padding:15px}
+.a-cta3{background:#FFFFFF;color:#333333;font-size:16px;font-weight:800;text-align:center;padding:15px}
+.a-hint{font-size:14px;line-height:19px;font-weight:600;color:#666666;text-align:center;margin-top:10px}
+.a-chip{display:inline-block;border:1px solid #E8552F;background:#FFFFFF;padding:9px 11px;font-size:14px;font-weight:800;color:#111111}
+.a-pill{border:1px solid #E8552F;background:#FFFFFF;padding:4px 9px;font-size:14px;font-weight:800;color:#333333}
+.a-pill.on{background:#111111;border-color:#111111;color:#FFFFFF}
+.a-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.a-avatar{width:44px;height:44px;background:#111111;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800}
+
+/* map plate */
+.a-map{height:300px;position:relative;background:#FFFFFF;border-bottom:1px solid #E8552F;overflow:hidden}
+.a-map.short{height:132px}
+.a-roadA{position:absolute;top:150px;left:-20px;right:-20px;height:16px;background:#F2F2F2;transform:rotate(-14deg)}
+.a-roadB{position:absolute;top:0;bottom:0;left:130px;width:13px;background:#F2F2F2;transform:rotate(18deg)}
+.a-pend{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.a-pendbox{background:#FFFFFF;border:1px solid #E8552F;max-width:300px;padding:10px 14px;text-align:center;
+  font-size:14px;line-height:18px;font-weight:700;color:#666666}
+.a-topbar{position:absolute;top:16px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.a-back{width:40px;height:40px;border:1px solid #E8552F;background:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:20.5px;color:#111111}
+.a-eta{flex:1;background:#111111;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px}
+.a-eta .dot{width:7px;height:7px;border-radius:4px;background:#C77414}
+.a-eta .dot.ready{background:#119B58}
+.a-eta span{font-size:14px;line-height:18px;font-weight:800;color:#FFFFFF}
+
+/* seal band (night artifact) */
+.a-band{background:#1C1837;border-top:1px solid #E8552F;border-bottom:1px solid #E8552F;
+  display:flex;padding:18px 8px;margin-top:16px;position:relative}
+.a-slot{flex:1;text-align:center}
+.a-sealbox{width:72px;height:72px;border-radius:36px;margin:0 auto;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;border:1.5px dashed rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+.a-sealbox.on{border:2px solid #B99A4F;background:#F4EBD3;border-style:solid}
+.a-sealmark{font-size:21px;line-height:25px;font-weight:900;color:#8a6f2a}
+.a-sealcaps{font-size:8.5px;font-weight:800;letter-spacing:1.6px;color:#C6BEEB}
+.a-sealcaps.on{color:#8a6f2a}
+.a-slotname{font-size:14px;line-height:18px;font-weight:800;color:#FFFFFF;margin-top:10px}
+.a-slotstate{font-size:14px;line-height:18px;font-weight:600;color:#C6BEEB;margin-top:2px}
+.a-slotstate.on{color:#D8C185;font-weight:800}
+.a-perf{position:absolute;left:50%;top:0;bottom:0;width:0;border-left:1.5px dashed rgba(255,255,255,.25)}
+.a-ticketstrip{background:#1C1837;border-top:1px solid #E8552F;border-bottom:1px solid #E8552F;
+  margin-top:16px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.a-ticketstrip .l{font-size:14px;line-height:18px;font-weight:800;color:#FFFFFF}
+.a-ticketstrip .r{font-size:14px;line-height:18px;font-weight:600;color:#C6BEEB}
+
+/* step rail */
+.a-steps{margin-top:14px}
+.a-step{display:flex;gap:10px;align-items:flex-start;margin-top:11px}
+.a-dot{width:20px;height:20px;border-radius:10px;border:1px solid #999999;background:#FFFFFF;flex:0 0 20px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#FFFFFF}
+.a-dot.done{background:#111111;border-color:#111111}
+.a-dot.act{border:2px solid #E8552F}
+.a-dot.act i{width:7px;height:7px;border-radius:4px;background:#E8552F;display:block}
+.a-steplbl{flex:1;font-size:14.5px;line-height:20px;font-weight:500;color:#666666}
+.a-steplbl.done{color:#111111;font-weight:700}
+.a-steplbl.act{color:#333333;font-weight:700}
+
+/* preflight */
+.a-check{display:flex;align-items:center;gap:10px;border:1px solid #E8552F;background:#FFFFFF;padding:12px;margin-top:8px}
+.a-check.on{background:#FFF6F4}
+.a-check .lbl{flex:1;font-size:14.5px;line-height:19px;font-weight:600;color:#333333}
+.a-check.on .lbl{font-weight:800;color:#111111}
+.a-box{width:22px;height:22px;border:1.5px solid #999999;background:#FFFFFF;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;color:#FFFFFF}
+.a-box.on{background:#111111;border-color:#111111}
+
+/* late notice */
+.a-late{padding:14px 26px}
+.a-late .k{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.6px;margin-bottom:5px}
+.a-late .k i{width:7px;height:7px;border-radius:4px;display:block}
+.a-late h3{font-size:25px;line-height:30px;font-weight:900;letter-spacing:-.5px;color:#111111}
+.a-late .strip{border:1px solid #F2DFC2;background:#FBEED9;color:#7A4A0C;padding:10px;margin-top:11px;font-size:12.5px;line-height:18px;font-weight:600}
+.a-late .strip.bad{border-color:#F0CFC6;background:#FBEAE7;color:#8C3722}
+
+/* run screen (dark panel world) */
+.r-map{position:relative;background:#FFFFFF;padding-top:14px}
+.r-badge{background:#111111;padding:8px 14px;font-size:14px;font-weight:700;color:#C6F542}
+.r-badge .s{font-size:14px;color:#BBBBBB;margin-top:2px;font-weight:400}
+.r-cam{display:flex;align-items:center;gap:6px;background:#FFFFFF;border:1px solid #EEEEEE;padding:8px 12px;
+  font-size:14px;font-weight:700;color:#111111}
+.r-cam i{width:8px;height:8px;border-radius:4px;background:#FF5C3D;display:block}
+.r-cam i.off{background:#BBBBBB}
+.r-tog{width:32px;height:32px;background:#111111;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:15px;align-self:center}
+.r-track{height:10px;background:#EEEEEE;position:relative}
+.r-track i{display:block;height:10px;background:#FF5C3D}
+.r-track b{position:absolute;top:-4px;width:18px;height:18px;border-radius:9px;background:#FF5C3D;border:3px solid #FFFFFF}
+.r-panel{background:#111111;border-top:1px solid #E8552F;padding:20px 20px 26px}
+.r-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0 -20px 12px;padding:12px 20px;border-top:1px solid #d84a2f;border-bottom:1px solid #d84a2f}
+.r-strip .t{flex:1;font-size:14px;line-height:20px;font-weight:700;color:#FF5C3D}
+.r-strip .a{font-size:14px;font-weight:800;color:#FF5C3D;text-decoration:underline}
+.r-strip.mute{border-color:#3A3A3A}
+.r-strip.mute .t{color:#BBBBBB}
+.r-strip.mute .a{color:#FFFFFF}
+.r-pstrip{margin:0 0 12px;padding:11px 12px;background:#FBEAE7;border:1px solid #B3261E;
+  display:flex;justify-content:space-between;gap:10px;align-items:center}
+.r-pstrip .t{flex:1;font-size:14px;line-height:19px;font-weight:700;color:#B3261E}
+.r-pstrip .a{font-size:14px;font-weight:800;color:#B3261E;text-decoration:underline}
+.r-pstrip.note{background:#FFF6F4;border-color:#E8552F}
+.r-pstrip.note .t{color:#333333}
+.r-pstrip.note .a{color:#A83315}
+.r-chat{display:flex;align-items:center;gap:10px;background:#222222;padding:12px}
+.r-chat .av{width:36px;height:36px;background:#3A3A3A;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-weight:800;font-size:15px}
+.r-stats{display:flex;justify-content:space-around;margin:22px 0}
+.r-stat{text-align:center}
+.r-stat .v{font-size:28px;line-height:35px;font-weight:900;color:#FFFFFF;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.r-stat.big .v{font-size:44px;line-height:55px;color:#C6F542}
+.r-stat .l{font-size:14.5px;color:#BBBBBB;margin-top:2px}
+.r-pace{padding:6px 10px;font-size:16px;line-height:20px;font-weight:800;display:inline-block}
+.r-pace.good{background:#E7F5EE;color:#0E7F49}
+.r-pace.slow{background:#FBEED9;color:#9D580A}
+.r-evt{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:12px;
+  font-size:14px;font-weight:800;color:#111111}
+.r-btn{flex:1;background:#C6F542;color:#171A17;font-size:19.5px;font-weight:800;text-align:center;padding:16px}
+.r-btn.stop{background:#FF5C3D;color:#FFFFFF}
+.r-more{width:44px;height:52px;background:#222222;color:#BBBBBB;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900}
+
+/* done / review */
+.d-trace{background:#111111;height:96px;position:relative;display:flex;align-items:center;padding:0 12px}
+.d-tracenote{font-size:14px;line-height:19px;color:#BBBBBB}
+.d-tracecap{position:absolute;right:10px;bottom:8px;font-size:14px;line-height:18px;color:#999999}
+.d-headline{font-size:27.5px;font-weight:900;color:#111111;letter-spacing:-.5px}
+.d-rule{height:1px;background:#E8552F;margin:18px -18px 14px}
+.d-stat .v{font-size:27px;line-height:33px;font-weight:900;color:#111111;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+.d-stat .u{font-size:15px;font-weight:800;color:#666666}
+.d-stat .l{font-size:14px;line-height:19px;color:#666666;margin-top:1px}
+.d-money{font-size:16px;line-height:21px;font-weight:700;color:#333333}
+.d-num{font-size:19px;line-height:24px;font-weight:900;color:#111111;font-variant-numeric:tabular-nums}
+.d-fail{background:#FBEAE7;padding:13px;margin-top:12px;font-size:14px;line-height:19.5px;font-weight:700;color:#B3261E}
+.d-sect{font-size:20px;line-height:25px;font-weight:800;color:#111111}
+.d-stamp{position:absolute;right:14px;top:12px;border:2px solid #C6F542;color:#C6F542;
+  padding:6px 10px;text-align:center;transform:rotate(-7deg)}
+.d-stamp .a{font-size:16px;font-weight:900;line-height:19px;font-variant-numeric:tabular-nums}
+.d-stamp .b{font-size:9px;font-weight:800;letter-spacing:1.6px}
+.v-star{font-size:40px;line-height:48px;color:#999999}
+.v-star.on{color:#E8552F}
+.v-tag{border:1px solid #E8552F;background:#FFFFFF;padding:9px 14px;font-size:14.5px;line-height:19px;font-weight:700;color:#333333;display:inline-block}
+.v-tag.on{background:#111111;border-color:#111111;color:#FFFFFF}
+.v-flag{display:flex;gap:11px;align-items:center;padding:18px}
+.v-flagbox{width:22px;height:22px;border:1.5px solid #999999;display:flex;align-items:center;justify-content:center}
+.v-flagbox.on{background:#B3261E;border-color:#B3261E;color:#FFFFFF;font-size:14px;font-weight:800}
+.v-note{border:1px solid #E8552F;background:#FFFFFF;min-height:84px;padding:13px;font-size:15.5px;line-height:21px;color:#999999}
+.v-sticky{border-top:1px solid #E8552F;background:#FFFFFF;padding:14px 18px}
+
+table.mx{border-collapse:collapse;width:100%;font-size:13px;margin-top:16px;background:#FFFFFF}
+table.mx th,table.mx td{border:1px solid #DEDCD6;padding:8px 10px;text-align:left;vertical-align:top}
+table.mx th{background:#F3F2EF;font-weight:800;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:#666666}
+table.mx td b{color:#111111}
+.ok{color:#0E7F49;font-weight:800}
+.warn{color:#C77414;font-weight:800}
+.bad{color:#B3261E;font-weight:800}
+footer{margin-top:66px;border-top:2.5px solid #111111;padding-top:18px;font-size:14px;line-height:1.85;max-width:1080px}
+footer h3{font-size:17px;font-weight:800;margin-bottom:8px}
+footer ol{margin:10px 0 0 20px}
+footer li{margin-bottom:11px}
+footer b{color:#111111}
+</style>
+</head>
+<body><div class="wrap">
+
+<header class="top">
+  <h1>러너 러닝 플로우 — 강화 랩</h1>
+  <div class="law">2026-08-24 · 새 색 0개 · 새 서체 0개 · meetup 동결 준수 · 번호로 고르세요</div>
+  <p class="lede">러너가 예약을 수락한 뒤 지나가는 네 화면입니다:
+    <b>인계(meetup) → 러닝(run) → 완료(done) → 리뷰(review)</b>.
+    네 화면 모두 오늘 실제로 도는 코드이고, 이 랩은 <b>새 화면을 제안하지 않습니다</b> — 이미 있는 요소의
+    <b>순서·밀도·상태 처리</b>만 바꿉니다. 각 화면마다 「현재」 프레임이 먼저 오고, 그 다음이 번호 붙은 안입니다.
+    각 안 아래의 <b>비용 줄</b>이 그 안을 지으려면 무엇이 필요한지를 말합니다(새 서버 필드 / 새 라우트 / 동결 표면).</p>
+</header>
+
+<div class="note hot">
+  <h4>⚠ 이 랩이 지키는 네 가지 (어기면 그 안은 못 짓습니다)</h4>
+  <b>① meetup은 동결입니다.</b> 스테이지 머신·8초 폴링·<code>confirmHandoff</code>·<code>startRunServer</code>·
+  훅 배치 순서는 손대지 않습니다. 여기 있는 meetup 안은 전부 <b>스타일 + 순수 JSX 슬롯 순서</b>뿐입니다
+  (DESIGN.md §9가 허용하는 정확히 그 범위).<br>
+  <b>② 천장(pastCeiling) 상태를 반드시 그립니다.</b> <code>lateness.ts</code>의
+  <code>LATENESS_CEILING_MS = 3시간</code>을 넘긴 예약에서 meetup은 장비 체크·도착 확인·인계 CTA를
+  <b>전부 감춥니다</b>. 그 프레임이 오늘 어떻게 생겼는지(<b>현재 A2</b>)와, 그 프레임에 무엇을 줄 수 있는지(<b>②</b>)를
+  둘 다 그렸습니다.<br>
+  <b>③ 값은 전부 실필드에 묶습니다.</b> 프레임 아래 <b>FIELDS</b> 블록이 화면의 모든 숫자·문장이 어느
+  컬럼에서 오는지 적습니다. 필드가 없는 것은 <span class="bad">빨간 글씨</span>로 표시하고, 그 안은 비용 줄에서
+  「새 서버 데이터 필요」로 못 박습니다.<br>
+  <b>④ 죽은 버튼 금지.</b> 프레임 안의 모든 문은 오늘 존재하는 라우트/효과입니다
+  (<code>/chat?bid=</code> · <code>/safety</code> · <code>/runner/requests</code> · <code>/runner/rewards</code> ·
+  <code>/runner/review</code> · <code>goBackOrHome</code> · <code>addrTry</code> 재시도 · <code>settleRun</code> 재시도).
+</div>
+
+<div class="note">
+  <h4>서체에 대한 고지</h4>
+  이 파일은 CDN을 쓰지 않으므로 <b>Black Han Sans와 Oswald가 실제로 렌더되지 않습니다</b> — 무게와
+  자간으로 흉내만 냈습니다. 구현할 때의 법은 그대로입니다: <b>디스플레이 서체는 화면당 1회</b>
+  (meetup은 「인계 확인」, run은 시작/종료 CTA, done은 헤드라인, review는 ①을 고르시면 화면 제목),
+  <b>Oswald 숫자는 명시 lineHeight ≥ 1.2×</b>(BUG A) — done의 <code>statValue 27/33</code>이 그 예입니다.
+  <div class="hair"></div>
+  <b>디테일 텍스트 14pt 하한</b>도 프레임 안에서 지켰습니다. 14 미만은 세 곳뿐이고 전부 면제 대상입니다:
+  라틴 레터스페이스 캡스 키커(<code>HANDOFF</code>·<code>PREFLIGHT</code>·<code>WAITING</code>·<code>REVIEW</code>,
+  12pt/letterSpacing 3), 봉인 소인의 역할 각인(<code>RUNNER</code>/<code>OWNER</code> 8.5pt), 그리고
+  <code>LateNotice</code>의 키커·스트립(12/12.5pt — <b>이건 오늘 코드에 있는 그대로이고, 아래 열린 질문 4번입니다</b>).
+</div>
+
+<div class="note hot" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “Runner run's b screen I can't see the map; not much space for it, but this is important as the
+  runner needs to see where to go at all times. I like 6 and it's #ff5c3e as well. For the runner
+  done screen (C), make sure there's a mandatory nudge for pictures (make that a requirement and
+  nudge them during the runner live screen so they don't forget. For D, I like 11.”
+  <ul style="margin:9px 0 0 18px">
+    <li style="margin-bottom:6px"><b>B · 지도는 항상 보인다 — IMPLEMENTED</b>
+      (<code>app/app/runner/run.tsx</code>). 원인은 랩이 적어둔 그대로였습니다: 스트립이 <b>다크 패널
+      안</b>에 있고 패널은 줄지 않으므로, 뜨는 스트립마다 그만큼이 지도 판에서 빠져나갔습니다(넷이면
+      작은 화면에서 지도 ~70pt). 두 가지가 들어갔습니다 — 스트립 스택이 <b>지도 위 종이 레인</b>으로
+      나가 패널 높이가 스트립 수와 무관해졌고, 지도 판에 <b>바닥</b>(<code>MAP_MIN_H</code> = 화면
+      높이의 26%)이 생겼습니다. 레인은 「패널과 바닥이 쓰고 남은 방」만 쓰고 그 이상은 <b>레인 안에서
+      스크롤</b>합니다 — 아무것도 감추지 않습니다(심각도 체인이 이미 맨 위를 가장 급한 것으로 정합니다).</li>
+    <li style="margin-bottom:6px"><b>⑥ — IMPLEMENTED.</b> <code>ceilingHit</code> 프레임이 종료 전용이
+      됐습니다: 배지 「기록이 멈췄어요 / 지금까지의 거리는 그대로 남아 있어요」, 위치 공유 「중지」(참입니다 —
+      <code>publishPos</code>는 <code>onTrack</code>에서만 불립니다), 진행 줄 「기록 정지 · N.NNkm」와
+      위치 점 회수, km은 흰 잉크 + 「km · 정지」, 페이스 「—」, 페이스 칩 줄은 없음(살아 있는 주장이라
+      거둡니다), 수익 줄에서 「완주 시」 제거, 이벤트 칩 넷은 <b>남기되 명시 fill로 비활성</b>
+      (<code>paper.disabledFill</code> + faint, 불투명도 트릭 없음), <code>❙❙</code>를 내려 <b>문은 하나</b>.
+      천장 로직·<code>openEndSheet()</code>는 손대지 않았습니다.</li>
+    <li style="margin-bottom:6px"><b>#ff5c3e — IMPLEMENTED as a role token.</b> 이 값은 출하 팔레트에
+      없었습니다(측정: <code>app/</code> 전체 0건). <code>colors.runLive = '#FF5C3E'</code> 하나를
+      <code>theme.ts</code>에 추가했고 — 이름은 <b>역할</b>(라이브 러닝 표면)이지 색이 아닙니다 —
+      진행 필·위치 점·천장 종료 CTA가 전부 그 토큰을 씁니다(리터럴 사용처 0). 주석에 그의 문장이
+      그대로 들어가 있습니다. ⚠ <code>colors.tang</code>(#FF5C3D)과 1/255 차이라 「중복 헥스」로 보이지만
+      <b>그가 이 화면을 보고 이 값을 지목했습니다</b> — 그의 말 없이 합치지 마세요. 흰 라벨 대비 실측
+      3.06:1 → 큰 볼드(19.5/800)에만, 작은 흰 글씨는 여전히 잉크 판이 필요합니다.</li>
+    <li style="margin-bottom:6px"><b>C · 사진 요건 — IMPLEMENTED (클라이언트 게이트).</b>
+      <code>done.tsx</code>에서 <b>앞으로 가는 두 문</b>(리뷰 남기기 · 다음 요청 보기)이 실사진 0장이면
+      잠깁니다 — <code>PaperBtn disabled</code> = <code>disabledFill</code> + faint, 아래 한 줄이 이유를
+      말합니다. 판정은 <code>runs.photos</code> 실배열 길이 하나뿐이고 세 상태를 가릅니다: 아는 0(잠금) ·
+      로딩(잠그되 「사진을 확인하고 있어요」) · <b>읽기 실패(잠그지 않음 — 0이라고 주장할 수 없습니다)</b>.
+      예약이 없으면 업로드 경로도 없으므로 요건도 없습니다. 「홈으로」는 <b>열어 둡니다</b>: 이 시점
+      러너의 손에 아직 개가 있고(화면이 인계를 부탁하는 중입니다), 카메라·업로드가 죽은 러너를 화면에
+      가두면 요건이 아니라 덫이 됩니다. ⚠ <b>서버는 여전히 사진 없이 정산합니다</b> — 진짜 강제는
+      run-end 서버 슬라이스입니다.</li>
+    <li style="margin-bottom:6px"><b>C · 러닝 화면 알림 — IMPLEMENTED.</b> 스냅 칩 <b>바로 위</b>에
+      「사진 1장이 필요해요 — 아래 스냅으로 남겨주세요」. 근거는 <b>서버 진실</b>입니다
+      (<code>fetchRunPhotos</code> 1회 + 업로드 응답) — 로컬 <code>evCounts.photo</code>는 리마운트하면
+      0으로 돌아가 이미 찍은 러너에게 거짓말을 합니다. 로딩·읽기 실패에는 뜨지 않습니다(로딩 ≠ 0).
+      천장 프레임에서는 칩이 잠기므로 남은 경로(「종료 후 완료 화면에서 남길 수 있어요」)를 가리킵니다.</li>
+    <li style="margin-bottom:6px"><b>D ⑪ — IMPLEMENTED</b> (<code>review.tsx</code>). 라틴 키커
+      <code>REVIEW</code> 은퇴(두 분기 모두), 제목 §3b 규격 <b>30/900 · lineHeight 37 · Black Han Sans</b>
+      — 이 화면의 디스플레이 서체 예산은 비어 있었고 이제 제목이 씁니다(화면당 1회 유지). 별점 낱말은
+      랩 제안 그대로 <b>1 많이 힘들었어요 · 2 아쉬웠어요 · 3 무난했어요 · 4 좋았어요 · 5 아주 좋았어요</b>,
+      라벨과 같은 베이스라인 오른쪽. <b>표시 전용</b>입니다 — 서버로 가는 값은 여전히
+      <code>reviews.rating</code> 하나(열린 질문 7은 문구만 남았고, 바꾸려면 한 줄입니다).</li>
+    <li style="margin-bottom:6px"><b>⑤ — 절반만, 그리고 그 이유.</b> 그는 ⑤를 고르지 않았지만 ⑥의 프레임이
+      <b>⑤의 지면 위에</b> 그려져 있고(랩 자신이 「⑤+⑥은 같은 슬라이스」라고 적었습니다), 무엇보다
+      「지도가 안 보인다」의 원인이 정확히 그 지면 문제였습니다. 그래서 <b>스트립의 이사와 팔레트 전환만</b>
+      가져왔습니다(문장·순서·재시도 액션·<code>coralOwner</code> 체인 전부 그대로, 신규 헥스 0). ⑤가
+      경고했던 트레이드(「스트립이 넷이면 지도가 좁아진다」)는 <b>지도 바닥 + 레인 상한</b>으로 막았습니다.</li>
+    <li style="margin-bottom:6px"><b>NOT BUILT — ①②③④(meetup, 이 클러스터 밖·동결) · ⑦ · ⑧ · ⑨ · ⑩ · ⑫.</b>
+      고르지 않으신 것은 짓지 않았습니다. 그래서 열린 질문 5(「신호 대기」 문구) · 6(완료 화면의 코랄이
+      리뷰인가 다음 요청인가 — 코랄은 오늘 그대로 「다음 요청 보기」에 있고, 이제 사진 요건이 걸려 있을 뿐입니다) ·
+      9는 그대로 열려 있습니다. 열린 질문 10(⧉ panel/island)은 <b>한 겹 가벼워졌습니다</b>: 스트립이 패널
+      밖으로 나가면서 두 레이아웃이 같은 레인을 공유합니다.</li>
+    <li><b>미검증:</b> 시뮬레이터에서 확인하지 않았습니다(중앙 게이트에서 tsc·lint 일괄). 레이아웃 스모크
+      항목: 스트립 0/1/3/4개 각각에서 지도 판이 살아 있는지 · 작은 화면(SE급)에서 종료 CTA가 잘리지 않는지 ·
+      <code>ceilingHit</code> 프레임의 문이 하나뿐인지 · 사진 0장에서 두 문이 잠기고 1장 올리면 즉시 열리는지.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     A · runner/meetup
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 class="sec"><span class="n">A</span>인계 화면 <span class="path">app/app/runner/meetup.tsx</span></h2>
+<p class="secsub">러너가 개를 넘겨받는 순간. 화면의 한 가지 일은 <b>「지금 무엇을 눌러야 하는가」</b>인데,
+  오늘 그 문은 스크롤 두 번 아래에 있습니다: 300pt 지도 판 + 픽업 섹션 + 강아지 섹션 + 인계 의식(키커·제목·2/2 카운터·
+  나이트 봉인 밴드·4단 스텝 레일)이 전부 CTA <b>위에</b> 있습니다. 그리고 프로덕션 <code>addresses.lat/lng</code>가
+  전부 NULL이라 그 300pt는 오늘 <b>거의 항상 빈 판</b>입니다.</p>
+<div class="frozen">frozen surface · styling + pure-JSX slot order only</div>
+
+<div class="rail">
+
+  <!-- 현재 A1 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>정시 도착 · stage = arrived</div>
+    <p class="why">오늘 그대로. 러너는 도착했고, 개를 받기 직전입니다. 첫 화면에 보이는 것은 <b>빈 지도 판과
+      주소 한 줄</b>이고, 실제로 눌러야 하는 「인계 받았어요」는 <b>스크롤 아래</b>에 있습니다.
+      의식(봉인 밴드)이 행동보다 먼저 옵니다.</p>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div class="a-map">
+          <div class="a-roadA"></div><div class="a-roadB"></div>
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소 도착</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-card-ttl">반포자이 정문</div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+          <div style="min-height:44px;display:flex;align-items:center"><span class="a-link">주소·메모 다시 확인 ›</span></div>
+          <div class="a-body">보호자 메모: 사람 많으면 살짝 짖어요. 리드 짧게 잡아주세요</div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row">
+            <div class="a-avatar">초</div>
+            <div style="flex:1">
+              <div style="font-size:16.5px;line-height:22px;font-weight:800;color:#111111">초코 · 웰시코기 11kg</div>
+              <div class="a-dim" style="margin-top:3px">8월 24일 오후 7:30 · 5km · 보통 7&#39;</div>
+            </div>
+            <div class="a-chip">보호자 채팅</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+            <span style="background:#FFF6F4;border:1px solid #E8552F;padding:3px 8px;font-size:14px;line-height:18px;font-weight:700">사람 좋아함</span>
+            <span class="a-dim">백신 · 종합 · 광견병</span>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="align-items:flex-start">
+            <div style="flex:1"><div class="a-kick">HANDOFF</div><div class="a-ttl">인계 확인</div></div>
+            <div class="a-pill">확인 0/2</div>
+          </div>
+          <div class="a-band">
+            <div class="a-perf"></div>
+            <div class="a-slot"><div class="a-sealbox"><span class="a-sealcaps">RUNNER</span></div>
+              <div class="a-slotname">나</div><div class="a-slotstate">확인 전</div></div>
+            <div class="a-slot"><div class="a-sealbox"><span class="a-sealcaps">OWNER</span></div>
+              <div class="a-slotname">보호자</div><div class="a-slotstate">확인 대기</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="below">↓ 이 아래는 스크롤해야 보입니다: 4단 스텝 레일 · PREFLIGHT 장비 체크 3종 ·
+      <b>「초코 인계 받았어요 ›」 CTA</b> · 안심 센터 푸터.</div>
+    <div class="fields">
+      <h5>fields</h5>
+      「반포자이 정문」 <code>booking_pickup_address.label</code> · 주소 <code>.addr</code> / <code>.detail</code> (0060 definer RPC) ·
+      메모 <code>dogs.memo</code> · 이름/견종/체중 <code>dogs.name / breed / weight_kg</code> ·
+      태그 <code>dogs.preferences.tags</code> · 백신 <code>dogs.vaccinations[].type</code> ·
+      「8월 24일 오후 7:30 · 5km · 보통 7&#39;」 <code>bookings.scheduled_at / km / pace_label</code> ·
+      봉인 두 자리 <code>bookings.runner_confirmed_handoff_at / owner_confirmed_handoff_at</code> ·
+      상태 도트/문구 <code>bookings.status</code> 파생 stage.<br>
+      지도 판은 <span class="miss">좌표 없음</span>이 정상값입니다 — 프로덕션 <code>addresses.lat/lng</code>가 전부 NULL이라
+      <code>hasCoords=false</code> 경로가 오늘의 기본 경로입니다.
+    </div>
+  </div>
+
+  <!-- 현재 A2 -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>천장 초과 · pastCeiling = true</div>
+    <p class="why">예약 시각에서 <b>3시간</b>을 넘긴 예약(<code>meetLate.resumable === false</code>).
+      오늘 이 프레임은 장비 체크·도착 확인·인계 CTA를 <b>전부 감춥니다</b> — 옳은 판단입니다.
+      문제는 그 다음입니다: <b>남는 문이 하나도 없습니다.</b> 러너는 「너무 오래 지났어요」를 읽고,
+      스크롤 끝까지 내려가 봐야 봉인 자리 두 개와 안심 센터 링크뿐입니다.
+      화면이 <b>다음에 무엇을 하라고 말하지 않습니다</b>.</p>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div class="a-late">
+          <div class="k" style="color:#C77414"><i style="background:#C77414"></i>3시간 12분 지남</div>
+          <h3>예약 시각에서<br>너무 오래 지났어요</h3>
+          <div class="strip">지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해 주세요.</div>
+        </div>
+        <div class="a-map">
+          <div class="a-roadA"></div><div class="a-roadB"></div>
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소로 이동 중</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-card-ttl">반포자이 정문</div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+          <div style="min-height:44px;display:flex;align-items:center"><span class="a-link">주소·메모 다시 확인 ›</span></div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="align-items:flex-start">
+            <div style="flex:1"><div class="a-kick">HANDOFF</div><div class="a-ttl">인계 확인</div></div>
+            <div class="a-pill">확인 0/2</div>
+          </div>
+          <div class="a-band">
+            <div class="a-perf"></div>
+            <div class="a-slot"><div class="a-sealbox"><span class="a-sealcaps">RUNNER</span></div>
+              <div class="a-slotname">나</div><div class="a-slotstate">확인 전</div></div>
+            <div class="a-slot"><div class="a-sealbox"><span class="a-sealcaps">OWNER</span></div>
+              <div class="a-slotname">보호자</div><div class="a-slotstate">확인 대기</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="below">↓ 스크롤 아래: 스텝 레일 · 안심 센터 푸터. <b>CTA는 없습니다 — 프리플라이트도, 도착 확인도, 인계도.</b></div>
+    <div class="fields">
+      <h5>fields</h5>
+      「3시간 12분 지남」 = <code>sinceLabel(lateness().sinceMs)</code>, 원점은 <code>bookings.scheduled_at</code> ·
+      문장 두 줄은 <code>late-copy.ts</code>의 <code>!late.resumable</code> 갈래 <b>원문 그대로</b> ·
+      게이트는 <code>meetLate.resumable === false</code> (클라이언트 판정).<br>
+      <span class="miss">서버는 천장을 모릅니다</span> — <code>confirm_handoff</code>와 <code>start_run</code>은 시계를 보지 않습니다.
+      그래서 문장이 「불가능」이라고 말하지 않는 것이 맞습니다.
+    </div>
+  </div>
+
+  <!-- ① -->
+  <div class="col">
+    <div class="cap"><b>①</b>문 먼저 — 행동 존을 의식 위로</div>
+    <p class="why">슬롯 <b>순서만</b> 바꿉니다: 도착/인계 CTA + 프리플라이트가 픽업·강아지 섹션 바로 다음,
+      <b>인계 의식(봉인 밴드 + 스텝 레일)은 그 아래</b>로 내려갑니다. 의식을 축소하지 않습니다 —
+      §7b Peak-End 보호 대상이라 그대로 두고, <b>자리만</b> 바꿉니다. 러너는 이제 스크롤 없이
+      「무엇을 눌러야 하는가」를 봅니다. 봉인은 누르고 나서 <b>보러 가는</b> 것이고, 실제로 그 순간
+      화면은 도장이 찍히는 곳으로 스크롤됩니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>meetup — 순수 JSX 슬롯 순서만</b>
+      (스테이지 머신·폴링·<code>confirmHandoff</code>·훅 순서 불변). 한 가지 값은 있습니다:
+      <b>도장이 찍히는 순간이 화면 밖에 있을 수 있습니다</b> — 봉인이 아래로 갔으므로.
+      1회-법(<code>useStamp</code> 하이드레이션 게이트)은 그대로라 재진입에 재생되지는 않습니다.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div class="a-map">
+          <div class="a-roadA"></div><div class="a-roadB"></div>
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소 도착</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec" style="padding-top:14px;padding-bottom:14px">
+          <div class="a-row"><div class="a-card-ttl">반포자이 정문</div><span class="a-chip">보호자 채팅</span></div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+          <div class="a-body">보호자 메모: 사람 많으면 살짝 짖어요. 리드 짧게 잡아주세요</div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="align-items:flex-start">
+            <div style="flex:1"><div class="a-kick">PREFLIGHT</div>
+              <div style="font-size:16.5px;line-height:22px;font-weight:800;color:#111111;margin-top:3px">인계 전 장비 체크</div></div>
+            <div class="a-pill on">2/3</div>
+          </div>
+          <div class="a-check on"><span class="lbl">러닝 리드줄로 교체했어요</span><span class="a-box on">✓</span></div>
+          <div class="a-check on"><span class="lbl">초코 급수 준비 완료</span><span class="a-box on">✓</span></div>
+          <div class="a-check"><span class="lbl">간식 파우치 챙겼어요</span><span class="a-box"></span></div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="margin-bottom:12px"><span class="a-dim">코스</span>
+            <span style="font-size:14.5px;line-height:19px;font-weight:800;color:#111111">반포한강공원 5km</span></div>
+          <div class="a-cta off">초코 인계 받았어요 ›</div>
+          <div class="a-hint">장비 체크를 완료하면 인계할 수 있어요</div>
+        </div>
+      </div>
+    </div>
+    <div class="below">↓ 스크롤 아래: <b>인계 의식(HANDOFF · 봉인 밴드 · 확인 0/2 · 스텝 레일 4단)</b> · 안심 센터 푸터.</div>
+    <div class="fields">
+      <h5>fields</h5>
+      현재 A1과 동일한 바인딩. 「반포한강공원 5km」는 <code>routes.name</code> <b>원문</b> +
+      <code>bookings.km</code>(<code>routeDisplayName</code>은 만들었다 지운 물건이라 쓰지 않습니다) ·
+      2/3 카운터는 <code>check{leash,water,treats}</code> <b>로컬</b> 프리플라이트(서버 계약 아님, 오늘 그대로) ·
+      disabled fill은 <code>paper.disabledFill</code> 명시 색(불투명도 트릭 금지).
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <div class="cap"><b>②</b>천장 프레임에 회복 문을 준다</div>
+    <p class="why"><b>①과 짝이 되는 안이고, 단독으로도 성립합니다.</b> 천장을 넘긴 프레임에서
+      <b>진행 문은 여전히 없습니다</b> — 그건 옳습니다. 대신 그 자리에 <b>오늘 존재하는 회복 문 두 개</b>를
+      놓습니다: 보호자 채팅(<code>/chat?bid=</code>)과 홈으로(<code>goBackOrHome</code>).
+      그리고 아래의 <b>죽은 의식(봉인 밴드·스텝 레일)</b>은 접습니다 — 진행할 수 없는 예약의 인계 의식은
+      정보가 아니라 잔해입니다. 문장은 <code>late-copy</code> 원문 그대로 두어 <b>화면이 「불가능」을 주장하지 않게</b> 합니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b>(두 문 다 오늘 이 화면 안에 이미 있습니다) ·
+      동결 표면 <b>meetup — 행동 존 JSX만</b>. <b>주의 한 줄:</b> 이 안은 <code>pastCeiling</code> 게이트를
+      <b>넓히지 않습니다</b>. 천장이 못 닫는 문(마운트 즉시 쏘는 <code>runnerEnroute</code>)은 여전히 열려 있고,
+      그건 서버 거부 한 줄이 있어야 닫힙니다 — 아래 열린 질문 1번.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div class="a-late">
+          <div class="k" style="color:#C77414"><i style="background:#C77414"></i>3시간 12분 지남</div>
+          <h3>예약 시각에서<br>너무 오래 지났어요</h3>
+          <div class="strip">지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해 주세요.</div>
+        </div>
+        <div class="a-map short">
+          <div class="a-roadA" style="top:56px"></div>
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar" style="top:10px">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소로 이동 중</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-card-ttl">반포자이 정문</div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row">
+            <div class="a-avatar">초</div>
+            <div style="flex:1">
+              <div style="font-size:16.5px;line-height:22px;font-weight:800;color:#111111">초코 · 웰시코기 11kg</div>
+              <div class="a-dim" style="margin-top:3px">8월 24일 오후 7:30 · 5km · 보통 7&#39;</div>
+            </div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-cta">보호자와 확인하기 ›</div>
+          <div style="height:8px"></div>
+          <div class="a-cta3">홈으로</div>
+          <div class="a-hint">인계는 보호자와 이야기한 뒤에 진행해주세요</div>
+        </div>
+        <div class="a-sec" style="border-bottom:none">
+          <div class="a-row"><span class="a-dim">인계 확인</span><span class="a-dim">확인 0/2 ›</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="below">봉인 밴드와 스텝 레일은 <b>접힌 한 줄</b>로 남습니다 — 탭하면 펼쳐집니다. 지우지 않습니다(정직한 상태는 콘텐츠입니다).</div>
+    <div class="fields">
+      <h5>fields</h5>
+      「보호자와 확인하기」 → <code>router.push('/chat', {bid: jobId})</code>(이 화면의 보호자 채팅 칩과 <b>같은 라우트</b>) ·
+      「홈으로」 → <code>goBackOrHome</code>(뒤로 버튼과 같은 함수) ·
+      게이트 <code>meetLate.resumable === false</code> · 문장 <code>late-copy.ts</code> 원문.<br>
+      코랄 예산: 이 프레임의 코랄 면은 <b>「보호자와 확인하기」 하나</b>입니다.
+    </div>
+  </div>
+
+</div>
+
+<div class="rail">
+
+  <!-- ③ -->
+  <div class="col">
+    <div class="cap"><b>③</b>빈 지도 판은 300pt를 못 받는다</div>
+    <p class="why"><code>hasCoords === false</code>일 때(= 오늘 프로덕션의 <b>기본 경로</b>) 지도 판이
+      300pt에서 <b>132pt로 접힙니다</b>. 도로 무늬·경로 점·핀 세 장식이 사라지고, 상단 바(뒤로 + 상태 필)와
+      정직 문구 한 덩어리만 남습니다. 좌표가 실제로 도착하면 <b>판은 300pt로 복귀</b>하고
+      길찾기 칩까지 그대로 뜹니다 — 즉 이 안은 <b>지도를 줄이는 게 아니라, 지도가 아닌 것을 줄입니다</b>.
+      벌어들인 168pt는 그대로 CTA를 첫 화면으로 올립니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>meetup — 스타일만</b>(높이 상수 하나).
+      <b>깨는 것:</b> <code>mapPlate</code>의 300pt 고정은 DS-7에서 「정확히 유지」로 적혀 있습니다 —
+      그 결정은 <b>지도가 있는 판</b>에 대한 것이었는지 확인이 필요합니다(열린 질문 2번).</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h700">
+        <div class="a-map short">
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar" style="top:10px">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소 도착</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row"><div class="a-card-ttl">반포자이 정문</div><span class="a-chip">보호자 채팅</span></div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+          <div style="min-height:44px;display:flex;align-items:center"><span class="a-link">주소·메모 다시 확인 ›</span></div>
+          <div class="a-body">보호자 메모: 사람 많으면 살짝 짖어요. 리드 짧게 잡아주세요</div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="align-items:flex-start">
+            <div style="flex:1"><div class="a-kick">PREFLIGHT</div>
+              <div style="font-size:16.5px;line-height:22px;font-weight:800;color:#111111;margin-top:3px">인계 전 장비 체크</div></div>
+            <div class="a-pill on">3/3</div>
+          </div>
+          <div class="a-check on"><span class="lbl">러닝 리드줄로 교체했어요</span><span class="a-box on">✓</span></div>
+          <div class="a-check on"><span class="lbl">초코 급수 준비 완료</span><span class="a-box on">✓</span></div>
+          <div class="a-check on"><span class="lbl">간식 파우치 챙겼어요</span><span class="a-box on">✓</span></div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row" style="margin-bottom:12px"><span class="a-dim">코스</span>
+            <span style="font-size:14.5px;line-height:19px;font-weight:800;color:#111111">반포한강공원 5km</span></div>
+          <div class="a-cta">초코 인계 받았어요 ›</div>
+          <div class="a-hint">보호자에게 도착 알림이 갔어요 · 보호자도 확인하면 러닝을 시작할 수 있어요</div>
+        </div>
+      </div>
+    </div>
+    <div class="below">③은 ①과 겹쳐 그렸습니다(순서 + 높이). ③만 고르시면 순서는 오늘 그대로 두고 높이만 접힙니다.</div>
+    <div class="fields">
+      <h5>fields</h5>
+      게이트 <code>pickup.s === 'ok' &amp;&amp; a.lat != null &amp;&amp; a.lng != null</code> —
+      <b>이미 화면 안에 있는 술어</b>(<code>hasCoords</code>)입니다. 새로 만들지 않습니다.
+      좌표가 오면 300pt + <code>PickupMap</code> + 길찾기 칩(<code>nmap://</code> · 네이버 웹 폴백) 경로 그대로.
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <div class="cap"><b>④</b>봉인은 「순간」에만 커진다</div>
+    <p class="why">봉인 밴드(나이트 지면 · 72pt 도장 두 자리 · 천공선)는 <b>인계가 실제로 일어나는 순간의 의식</b>입니다.
+      그런데 오늘은 <code>enroute</code>부터, 즉 <b>아직 아무 일도 없을 때부터</b> 같은 크기로 서 있습니다.
+      이 안은 밴드를 두 모습으로 나눕니다: 인계 전에는 <b>한 줄짜리 티켓 스트립</b>(같은 나이트 지면 · 같은 코랄 심),
+      <code>arrived</code>부터는 <b>오늘의 밴드 그대로</b>. 도장이 찍히는 프레임에서는 아무것도 줄지 않습니다 —
+      Peak는 보호되고, Peak가 아닌 시간에만 조용해집니다.</p>
+    <div class="cost pay"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>meetup — 스타일 + 순수 JSX 슬롯</b>.
+      <b>진짜 비용:</b> 밴드가 <b>커지는 전이</b>가 생깁니다. §6은 레이아웃 애니메이션을 금지하므로
+      (height/margin 금지, 네이티브 드라이버 transform·opacity만) 이 전이는 <b>애니메이션 없이 즉시 교체</b>여야 합니다
+      — 모프 법 그대로. 그리고 도장 1회-법(<code>useStamp</code>)이 교체 프레임에 걸리지 않는지 확인해야 합니다.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h700">
+        <div class="a-map short">
+          <div class="a-pend"><div class="a-pendbox">픽업 위치가 아직 지정되지 않았어요<br>보호자와 채팅으로 확인해주세요</div></div>
+          <div class="a-topbar" style="top:10px">
+            <div class="a-back">‹</div>
+            <div class="a-eta"><i class="dot"></i><span>픽업 장소로 이동 중</span></div>
+            <div style="width:40px"></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-row"><div class="a-card-ttl">반포자이 정문</div><span class="a-chip">보호자 채팅</span></div>
+          <div class="a-body">서울 서초구 신반포로 270 · 정문 앞 벤치</div>
+        </div>
+        <div class="a-sec" style="padding-top:14px">
+          <div class="a-row" style="align-items:flex-start">
+            <div style="flex:1"><div class="a-kick">HANDOFF</div><div class="a-ttl">인계 확인</div></div>
+            <div class="a-pill">확인 0/2</div>
+          </div>
+          <div class="a-ticketstrip">
+            <span class="l">봉인 0/2</span>
+            <span class="r">도착 확인 후 인계가 열려요</span>
+          </div>
+          <div class="a-steps">
+            <div class="a-step"><span class="a-dot done">✓</span><span class="a-steplbl done">예약 수락 완료 — 보호자에게 알림 전송됨</span></div>
+            <div class="a-step"><span class="a-dot act"><i></i></span><span class="a-steplbl act">픽업 장소 도착</span></div>
+            <div class="a-step"><span class="a-dot"></span><span class="a-steplbl">내 인계 확인 (양측 모두 확인해야 시작돼요)</span></div>
+            <div class="a-step"><span class="a-dot"></span><span class="a-steplbl">보호자 인계 확인 대기</span></div>
+          </div>
+        </div>
+        <div class="a-sec">
+          <div class="a-cta">픽업 장소 도착 확인 ›</div>
+          <div class="a-hint">도착을 확인하면 보호자에게 알림이 가요</div>
+        </div>
+      </div>
+    </div>
+    <div class="below">→ <code>arrived</code>가 되는 순간, 이 자리는 <b>현재 A1의 72pt 봉인 밴드 그대로</b>로 교체됩니다(축소 없음).</div>
+    <div class="fields">
+      <h5>fields</h5>
+      「봉인 0/2」 = <code>sealCount</code>(<code>runner_confirmed_handoff_at</code> +
+      <code>owner_confirmed_handoff_at</code> 파생, 오늘의 <code>확인 n/2</code>와 <b>같은 식</b>) ·
+      전이 게이트 = 오늘 이미 있는 <code>stage</code>(<code>enroute</code> vs 그 외) ·
+      스텝 레일 라벨 4줄은 <b>코드 원문 그대로</b>입니다.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     B · runner/run
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 class="sec"><span class="n">B</span>러닝 화면 <span class="path">app/app/runner/run.tsx</span></h2>
+<p class="secsub">개를 데리고 뛰는 20~40분. 화면의 한 가지 일은 <b>거리가 기록되고 있다는 사실</b>이고,
+  그 다음이 케어 기록과 종료입니다. 오늘 다크 패널은 <b>최대 네 개의 스트립이 동시에</b> 뜰 수 있고
+  (추적 상태 · 인시던트 · 저장 지연 · 입구 안내 · 코스 고지), 그 위에 채팅 핀 · 숫자 셋 · 페이스 칩 ·
+  수익 줄 · 이벤트 칩 넷 · CTA가 쌓입니다. <b>색 예산은 이미 풀렸지만(coralOwner 체인) 세로 예산은 아직입니다</b> —
+  스트립이 늘수록 러너의 숫자가 아래로 밀립니다.</p>
+
+<div class="rail">
+
+  <!-- 현재 B -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>러닝 중 · 스트립 3개 동시</div>
+    <p class="why">오늘 그대로. 저장 지연 + 입구 안내 + 코스 고지가 동시에 뜬 프레임입니다.
+      맨 위 하나만 코랄, 나머지는 중립 잉크(이미 구현됨). 그런데 세 스트립이
+      <b>패널 높이의 절반가량</b>을 먹고, 44pt 하이라이트인 <b>km 숫자가 아래로 밀립니다</b>.
+      스트립이 넷이면 이벤트 칩 줄이 화면 밖으로 나갑니다.</p>
+    <div class="phone">
+      <div class="notch blk"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780" style="background:#FFFFFF;display:flex;flex-direction:column">
+        <div class="r-map" style="flex:1">
+          <div style="display:flex;justify-content:space-between;padding:0 16px;align-items:flex-start">
+            <div class="r-badge">● 초코와 러닝 중 · GPS<div class="s">화면이 꺼져도 거리가 기록돼요</div></div>
+            <div style="display:flex;gap:8px">
+              <div class="r-cam"><i></i>보호자에게 위치 공유 중</div>
+              <div class="r-tog">⧉</div>
+            </div>
+          </div>
+          <div style="position:absolute;left:20px;right:20px;bottom:24px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:14px;color:#666666">반포한강공원 코스 · 5km</span>
+              <span style="font-size:14px;font-weight:800;color:#111111">남은 거리 2.4km</span>
+            </div>
+            <div class="r-track"><i style="width:52%"></i><b style="left:50%"></b></div>
+          </div>
+        </div>
+        <div class="r-panel">
+          <div class="r-strip"><span class="t">기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</span></div>
+          <div class="r-strip mute"><div style="flex:1"><div style="font-size:14.5px;line-height:20px;font-weight:700;color:#FFFFFF">입구까지 직선 240m</div>
+            <div style="font-size:14px;line-height:19px;color:#BBBBBB;margin-top:4px">직선 거리예요 · 길 안내는 실도로 검증 전 · 시작점이 정해진 코스예요</div></div></div>
+          <div class="r-strip mute"><span class="t">이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요</span></div>
+          <div class="r-chat"><div class="av">초</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#FFFFFF">초코 보호자님</div>
+              <div style="font-size:14.5px;color:#BBBBBB">사람 많으면 살짝 짖어요</div></div>
+            <span style="font-size:14px;color:#C6F542">채팅 ›</span></div>
+          <div class="r-stats">
+            <div class="r-stat big"><div class="v">2.61</div><div class="l">km</div></div>
+            <div class="r-stat"><div class="v">18:42</div><div class="l">시간</div></div>
+            <div class="r-stat"><div class="v">7&#39;10&quot;</div><div class="l">페이스</div></div>
+          </div>
+          <div style="margin-bottom:14px;display:flex;align-items:center">
+            <span class="r-pace good">페이스 양호</span>
+            <span style="margin-left:auto;font-size:14px;line-height:18px;color:#BBBBBB">권장 7&#39;00&quot;</span>
+          </div>
+          <div style="text-align:center;margin-bottom:14px;font-size:14px;color:#BBBBBB">
+            현재 예상 수익 <b style="color:#C6F542">12,880원</b> · 완주 시 16,700원 · 실측으로 확정</div>
+          <div style="display:flex;gap:7px;margin-bottom:14px">
+            <div class="r-evt" style="background:#FFCDB6">응가 1</div>
+            <div class="r-evt" style="background:#F2DA96">간식</div>
+            <div class="r-evt" style="background:#C3D9AE">물 2</div>
+            <div class="r-evt" style="background:#DDF0A6">◉ 스냅 3</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="r-more">❙❙</div><div class="r-btn">러닝 종료</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      km <code>getTraceSnapshot()</code> 누적(= <code>mergeFixes</code>, 정산과 <b>같은</b> 과금 규칙) ·
+      시간 <code>runs.started_at</code> 벽시계 · 페이스 = 두 값의 나눗셈, <b>90초 무픽스면 「—」</b> ·
+      권장 <code>runs.pace_suggest_sec</code>(없으면 <code>dogs.preferences.paceSuggestSec</code>) ·
+      남은 거리 <code>bookings.km − km</code> · 코스 <code>routes.name</code> ·
+      수익 <code>payoutFor(km)</code> = <b>클라이언트 추정</b>(그래서 「실측으로 확정」이 같은 줄에 있습니다) ·
+      이벤트 카운트 <code>evCounts</code> <span class="miss">로컬 상태 — 리마운트하면 0으로 돌아갑니다</span>.
+    </div>
+  </div>
+
+  <!-- ⑤ -->
+  <div class="col">
+    <div class="cap"><b>⑤</b>스트립은 종이 쪽에, 패널은 숫자만</div>
+    <p class="why">스트립 스택을 <b>다크 패널에서 지도 쪽(종이 지면)으로</b> 올립니다. 패널은 그러면
+      <b>높이가 고정</b>됩니다 — 채팅 핀 · 숫자 셋 · 페이스 · 수익 · 이벤트 · CTA가 항상 같은 자리에 있고,
+      스트립이 하나든 넷이든 러너의 km는 움직이지 않습니다. 지우지 않습니다: 전부 그대로 뜨고,
+      <b>순백 세계의 라우드-페일 문법</b>(criticalWash 면 + critical 잉크 + 밑줄 재시도)으로 바뀔 뿐입니다 —
+      meetup·done·review가 이미 쓰는 그 문법입니다. 심각도 1위만 critical, 나머지는 wash 면 + 중립 잉크(오늘의 체인 그대로).</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>0</b>
+      (run.tsx의 동결 목록은 추적 싱글턴 · 정산 재시도 · 오버런 천장 · Live Activity — 스트립 스택은 그 안에 없습니다).
+      <b>주의:</b> §7b — <b>덜어내기는 숨기기가 되면 안 됩니다.</b> 이 안은 아무것도 접지 않습니다.
+      대신 지도 면적을 그만큼 먹으므로, 스트립이 넷이면 지도가 좁아집니다(그 트레이드는 의도입니다).</div>
+    <div class="phone">
+      <div class="notch blk"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780" style="background:#FFFFFF;display:flex;flex-direction:column">
+        <div style="padding:10px 16px 0">
+          <div class="r-pstrip"><span class="t">기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</span></div>
+          <div class="r-pstrip note"><div style="flex:1"><div style="font-size:14.5px;line-height:20px;font-weight:800;color:#111111">입구까지 직선 240m</div>
+            <div style="font-size:14px;line-height:19px;color:#666666;margin-top:3px">직선 거리예요 · 길 안내는 실도로 검증 전</div></div></div>
+          <div class="r-pstrip note"><span class="t">이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요</span></div>
+        </div>
+        <div class="r-map" style="flex:1;padding-top:6px">
+          <div style="display:flex;justify-content:space-between;padding:0 16px;align-items:flex-start">
+            <div class="r-badge">● 초코와 러닝 중 · GPS<div class="s">화면이 꺼져도 거리가 기록돼요</div></div>
+            <div style="display:flex;gap:8px"><div class="r-cam"><i></i>위치 공유 중</div><div class="r-tog">⧉</div></div>
+          </div>
+          <div style="position:absolute;left:20px;right:20px;bottom:18px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:14px;color:#666666">반포한강공원 코스 · 5km</span>
+              <span style="font-size:14px;font-weight:800;color:#111111">남은 거리 2.4km</span></div>
+            <div class="r-track"><i style="width:52%"></i><b style="left:50%"></b></div>
+          </div>
+        </div>
+        <div class="r-panel">
+          <div class="r-chat"><div class="av">초</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#FFFFFF">초코 보호자님</div>
+              <div style="font-size:14.5px;color:#BBBBBB">사람 많으면 살짝 짖어요</div></div>
+            <span style="font-size:14px;color:#C6F542">채팅 ›</span></div>
+          <div class="r-stats">
+            <div class="r-stat big"><div class="v">2.61</div><div class="l">km</div></div>
+            <div class="r-stat"><div class="v">18:42</div><div class="l">시간</div></div>
+            <div class="r-stat"><div class="v">7&#39;10&quot;</div><div class="l">페이스</div></div>
+          </div>
+          <div style="margin-bottom:14px;display:flex;align-items:center">
+            <span class="r-pace good">페이스 양호</span>
+            <span style="margin-left:auto;font-size:14px;line-height:18px;color:#BBBBBB">권장 7&#39;00&quot;</span></div>
+          <div style="text-align:center;margin-bottom:14px;font-size:14px;color:#BBBBBB">
+            현재 예상 수익 <b style="color:#C6F542">12,880원</b> · 완주 시 16,700원 · 실측으로 확정</div>
+          <div style="display:flex;gap:7px;margin-bottom:14px">
+            <div class="r-evt" style="background:#FFCDB6">응가 1</div>
+            <div class="r-evt" style="background:#F2DA96">간식</div>
+            <div class="r-evt" style="background:#C3D9AE">물 2</div>
+            <div class="r-evt" style="background:#DDF0A6">◉ 스냅 3</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="r-more">❙❙</div><div class="r-btn">러닝 종료</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      스트립 내용·순서·재시도 액션은 <b>전부 오늘 코드 그대로</b>입니다(<code>blockStrip()</code> ·
+      <code>incidentBid</code> · <code>saveLag</code> · <code>guide</code> · <code>routeNote</code>,
+      심각도 체인 <code>coralOwner</code>). 바뀌는 것은 <b>지면과 팔레트</b>뿐 — 다크 팔레트
+      (<code>colors.tang</code>/<code>coralText</code>) → 종이 팔레트(<code>paper.critical</code>/<code>criticalWash</code>/
+      <code>wash</code>). 새 헥스 0개.
+    </div>
+  </div>
+
+  <!-- ⑥ -->
+  <div class="col">
+    <div class="cap"><b>⑥</b>천장에 닿으면 문이 하나만 남는다</div>
+    <p class="why"><code>ceilingHit</code>은 실제로 <b>추적을 멈춘 상태</b>입니다
+      (<code>handle.stop()</code> — 정산 밴드 상한에 근접해 더 기록하면 정산이 400으로 거부됩니다).
+      그런데 오늘 화면은 스트립 한 줄만 바뀌고 <b>나머지는 러닝 중과 똑같습니다</b>: 볼트 CTA는 「러닝 종료」,
+      이벤트 칩 넷은 여전히 눌립니다(눌리면 서버에 이벤트가 들어갑니다 — 기록은 멈췄는데).
+      이 안은 그 프레임을 <b>종료 전용</b>으로 만듭니다: km 숫자는 <b>멈춘 값으로 남고</b>,
+      「기록이 멈췄어요」가 배지에 서고, CTA는 코랄로 바뀌어 <b>화면의 유일한 문</b>이 됩니다.</p>
+    <div class="cost pay"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>천장 로직은 손대지 않습니다</b>
+      (<code>ceilingHit</code>을 세우는 effect가 그대로 이 프레임의 유일한 입력).
+      <b>결정이 필요한 것 하나:</b> 이벤트 칩을 <b>감출지 / 비활성으로 남길지</b>.
+      감추면 「응가를 기록하고 싶은 러너」가 문을 잃습니다 — 랩은 <b>남기되 명시 fill로 비활성</b>(<code>disabledFill</code>)을 그렸습니다.
+      그리고 볼트 → 코랄 전환은 §5 색 법(코랄 = 당신 차례)과 맞습니다.</div>
+    <div class="phone">
+      <div class="notch blk"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780" style="background:#FFFFFF;display:flex;flex-direction:column">
+        <div style="padding:10px 16px 0">
+          <div class="r-pstrip"><span class="t">정산 가능한 최대 거리에 근접했어요 — 지금 종료해주세요</span></div>
+        </div>
+        <div class="r-map" style="flex:1;padding-top:6px">
+          <div style="display:flex;justify-content:space-between;padding:0 16px;align-items:flex-start">
+            <div class="r-badge" style="color:#FFFFFF">기록이 멈췄어요<div class="s">지금까지의 거리는 그대로 남아 있어요</div></div>
+            <div style="display:flex;gap:8px"><div class="r-cam"><i class="off"></i>위치 공유 중지</div></div>
+          </div>
+          <div style="position:absolute;left:20px;right:20px;bottom:18px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:14px;color:#666666">반포한강공원 코스 · 5km</span>
+              <span style="font-size:14px;font-weight:800;color:#111111">기록 정지 · 11.4km</span></div>
+            <div class="r-track"><i style="width:100%"></i></div>
+          </div>
+        </div>
+        <div class="r-panel">
+          <div class="r-chat"><div class="av">초</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#FFFFFF">초코 보호자님</div>
+              <div style="font-size:14.5px;color:#BBBBBB">사람 많으면 살짝 짖어요</div></div>
+            <span style="font-size:14px;color:#C6F542">채팅 ›</span></div>
+          <div class="r-stats">
+            <div class="r-stat big"><div class="v" style="color:#FFFFFF">11.42</div><div class="l">km · 정지</div></div>
+            <div class="r-stat"><div class="v">1:04:18</div><div class="l">시간</div></div>
+            <div class="r-stat"><div class="v">—</div><div class="l">페이스</div></div>
+          </div>
+          <div style="text-align:center;margin-bottom:14px;font-size:14px;color:#BBBBBB">
+            현재 예상 수익 <b style="color:#C6F542">33,300원</b> · 실측으로 확정</div>
+          <div style="display:flex;gap:7px;margin-bottom:14px">
+            <div class="r-evt" style="background:#F2F2F2;color:#999999">응가 1</div>
+            <div class="r-evt" style="background:#F2F2F2;color:#999999">간식</div>
+            <div class="r-evt" style="background:#F2F2F2;color:#999999">물 2</div>
+            <div class="r-evt" style="background:#F2F2F2;color:#999999">◉ 스냅 3</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="r-btn stop">지금 러닝 종료하기</div></div>
+          <div style="text-align:center;margin-top:10px;font-size:14px;line-height:19px;color:#BBBBBB">
+            종료하면 지금까지 기록된 11.42km로 정산돼요</div>
+        </div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      게이트 <code>ceilingHit</code>(오늘 존재) · 「기록이 멈췄어요」는 <b>참인 문장</b>입니다 —
+      같은 effect가 <code>handle.current.stop()</code>을 부릅니다 ·
+      「11.42km」는 마지막 채택 픽스까지의 <code>km</code>(정지값) ·
+      수익 <code>payoutFor(km)</code> 추정 · 페이스 「—」는 오늘의 <code>paceStale</code> 규칙 그대로.<br>
+      「지금 러닝 종료하기」 → 오늘의 <code>openEndSheet()</code> 시트(사유 3종 → 정산). <b>새 문 아님.</b>
+    </div>
+  </div>
+
+  <!-- ⑦ -->
+  <div class="col">
+    <div class="cap"><b>⑦</b>「—」가 이유를 말한다 · 도장이 살아남는다</div>
+    <p class="why">두 개의 작은 정직 수리를 한 프레임에 묶었습니다.<br>
+      <b>(a) 페이스 「—」:</b> 90초 무픽스면 숫자를 비우는 건 옳지만, 화면은 <b>왜</b>인지 말하지 않습니다 —
+      러너는 자기가 느린 줄 압니다. 라벨을 <code>페이스 · 신호 대기</code>로 바꿔 <b>같은 자리에서</b> 이유를 말합니다.<br>
+      <b>(b) 케어 도장:</b> <code>evCounts</code>는 로컬이라 앱을 껐다 켜면 <b>0으로 돌아갑니다</b> —
+      응가 두 번을 기록한 러너가 「응가」를 다시 빈 칩으로 봅니다. 마운트 시 <code>runs.events</code>를 읽어
+      칩의 수를 <b>서버 진실로</b> 채우고, 아래에 한 줄로 「오늘 기록 6」을 세웁니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> — <code>runs.events</code>는 이미 존재하고(<code>append_run_event</code>가 쓰고,
+      <code>fetchRunReport</code>가 <b>같은 예약</b>에서 이미 읽습니다: <code>runs(… events …)</code>).
+      새 라우트 <b>0</b> · 동결 표면 <b>0</b>.
+      <b>비용은 호출 하나입니다:</b> 마운트 시 <code>fetchRunReportOrNull(bookingId)</code> 한 번
+      (러너 리뷰 화면이 쓰는 그 리더). 실패는 실패로 — 읽지 못하면 칩은 <b>수 없이</b> 그리고
+      「기록 수를 불러오지 못했어요」 한 줄을 답니다. 0으로 위장하지 않습니다(로딩 ≠ 0).</div>
+    <div class="phone">
+      <div class="notch blk"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h620" style="background:#111111">
+        <div class="r-panel" style="border-top:none;padding-top:16px">
+          <div class="r-chat"><div class="av">초</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#FFFFFF">초코 보호자님</div>
+              <div style="font-size:14.5px;color:#BBBBBB">사람 많으면 살짝 짖어요</div></div>
+            <span style="font-size:14px;color:#C6F542">채팅 ›</span></div>
+          <div class="r-stats">
+            <div class="r-stat big"><div class="v">2.61</div><div class="l">km</div></div>
+            <div class="r-stat"><div class="v">18:42</div><div class="l">시간</div></div>
+            <div class="r-stat"><div class="v">—</div><div class="l">페이스 · 신호 대기</div></div>
+          </div>
+          <div style="margin-bottom:14px;display:flex;align-items:center">
+            <span class="r-pace slow">권장보다 느려요</span>
+            <span style="margin-left:auto;font-size:14px;line-height:18px;color:#BBBBBB">권장 7&#39;00&quot;</span></div>
+          <div style="margin-bottom:14px;font-size:14px;line-height:18px;color:#BBBBBB">물·응가 스톱도 평균에 들어가요 — 괜찮아요</div>
+          <div style="text-align:center;margin-bottom:14px;font-size:14px;color:#BBBBBB">
+            현재 예상 수익 <b style="color:#C6F542">12,880원</b> · 완주 시 16,700원 · 실측으로 확정</div>
+          <div style="display:flex;gap:7px;margin-bottom:8px">
+            <div class="r-evt" style="background:#FFCDB6">응가 2</div>
+            <div class="r-evt" style="background:#F2DA96">간식 1</div>
+            <div class="r-evt" style="background:#C3D9AE">물 2</div>
+            <div class="r-evt" style="background:#DDF0A6">◉ 스냅 3</div>
+          </div>
+          <div style="margin-bottom:14px;font-size:14px;line-height:19px;color:#BBBBBB">
+            오늘 기록 <b style="color:#FFFFFF">8</b>개 · 보호자에게 그때마다 알림이 갔어요</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="r-more">❙❙</div><div class="r-btn">러닝 종료</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="below">패널만 확대한 프레임입니다(지도·스트립은 ⑤ 또는 오늘 그대로).</div>
+    <div class="fields">
+      <h5>fields</h5>
+      칩 숫자 = <code>runs.events</code>의 <code>kind</code>별 개수(마운트 1회 시드 + 로컬 증분) ·
+      「오늘 기록 8개」 = 같은 배열의 길이 · 「보호자에게 그때마다 알림이 갔어요」는 참입니다
+      (<code>addRunEvent</code>가 <code>notifications</code> 행을 넣습니다) ·
+      「페이스 · 신호 대기」 게이트 = <code>paceStale</code>(마지막 <b>채택된</b> 픽스로부터 ≥90초).<br>
+      <span class="miss">주의:</span> 「신호 대기」는 GPS 신호를 <b>주장</b>합니다. 실제 술어는
+      「90초간 채택된 픽스 없음」이고 원인은 신호일 수도, 게이트 거부일 수도 있습니다 — 열린 질문 5번.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     C · runner/done
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 class="sec"><span class="n">C</span>완료 화면 <span class="path">app/app/runner/done.tsx</span></h2>
+<p class="secsub">§7b Peak-End에서 <b>End</b>에 해당하는 화면 — 최소화 면제 대상이고, 다듬어야 하는 쪽입니다.
+  2026-08-19에 이미 큰 수리를 받았습니다(50.5pt 볼트 수익 영수증 은퇴 → km가 커지고 돈은 한 줄).
+  남은 문제는 <b>순서와 증거</b>입니다: 정산 실패가 <b>돈 줄 아래</b>에 오고, 러너가 20분간 남긴
+  케어 기록(응가·물·스냅)이 <b>이 화면에 하나도 없습니다</b>.</p>
+
+<div class="rail">
+
+  <!-- 현재 C -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>정산 실패로 끝난 러닝</div>
+    <p class="why">오늘 그대로. 트레이스 판 → 헤드라인 → 숫자 셋 → 돈 한 줄 → 그리고 <b>그 아래</b>에
+      「정산이 아직 서버에 반영되지 않았어요」. 즉 러너는 <b>금액을 먼저 읽고</b> 그것이 추정치였다는 걸
+      나중에 압니다. 라벨(「예상 수익 (정산 미완료)」)이 정직하게 말하고 있지만,
+      <b>순서가 그 정직함을 뒤에 세웁니다</b>.</p>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h700" style="padding:26px 18px 0">
+        <div class="d-trace"><div class="d-tracenote">— 실측 경로 —</div><div class="d-tracecap">내 실측 경로</div></div>
+        <div style="margin-top:12px"></div>
+        <div class="d-headline">초코, 5.12km 완주</div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">초코를 보호자에게 안전하게 인계해 주세요</div>
+        <div style="display:flex;gap:22px;margin-top:14px">
+          <div class="d-stat"><div class="v">5.12<span class="u">km</span></div><div class="l">거리</div></div>
+          <div class="d-stat"><div class="v">36:11</div><div class="l">러닝 시간</div></div>
+          <div class="d-stat"><div class="v">7&#39;04&quot;</div><div class="l">평균 페이스 /km</div></div>
+        </div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-money">예상 수익 (정산 미완료)</span>
+          <span><span class="d-num">16,930</span><span style="font-size:15px;font-weight:800">원</span></span>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">정산이 확정되면 수익 화면에 반영돼요</div>
+        <div class="d-fail">정산이 아직 서버에 반영되지 않았어요 — 이 숫자는 앱이 계산한 추정치예요.<br>
+          예약은 진행 중으로 남아 있어요. 러닝 화면에서 다시 정산하면 실제 금액으로 확정돼요.</div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-sect">오늘의 순간</span><span style="font-size:14px;font-weight:800;color:#A83315">사진 추가 ›</span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666">보호자 리포트에 실려요</div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      트레이스 <code>runs.trace</code>(<code>fetchRunTrace</code>, 3상태: 로딩 / 실패 / 그림) ·
+      헤드라인 <code>runResult.km</code> + <code>runResult.dogName</code>, 「완주」는
+      <code>runResult.completed</code>가 참일 때만 ·
+      숫자 셋 <code>runResult.km / .sec</code> ·
+      금액 <code>runResult.payout</code>, 라벨은 <code>runResult.settled</code> 분기 ·
+      사진 <code>runs.photos</code>(<code>fetchRunPhotos</code>, 상한 6).<br>
+      <span class="miss">이 화면에 없는 것:</span> 이벤트 카운트 — 파일 주석이 「<code>runResult</code>가 싣지 않아 지어내지 않고 생략」이라고 적어둔 그 자리입니다.
+    </div>
+  </div>
+
+  <!-- ⑧ -->
+  <div class="col">
+    <div class="cap"><b>⑧</b>실패가 먼저 · 완주 소인</div>
+    <p class="why">두 가지를 바꿉니다.<br>
+      <b>(a) 순서:</b> <code>settled === false</code>면 라우드-페일 스트립이 <b>헤드라인 위로</b> 올라갑니다.
+      정산 실패는 이 화면이 <b>무엇인지를 바꾸는 사실</b>이라(예약이 아직 진행 중입니다) 돈 줄 아래에서 발견될 것이 아닙니다.
+      정상 정산이면 이 블록은 없고 화면은 오늘 그대로입니다.<br>
+      <b>(b) 소인:</b> 트레이스 판 위에 <b>완주 소인</b> — km + 「COMPLETED」. 다크 판은 이미 아티팩트 지면이고,
+      소인은 그 문법의 원주민입니다. <b>골드가 아니라 볼트</b>입니다(골드는 마일스톤 전용 예산).
+      <code>completed === true</code>일 때만, 그리고 <b>예약당 1회</b>만 찍힙니다.</p>
+    <div class="cost pay"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>0</b>.
+      <b>필수 조건:</b> 소인은 세리머니이므로 <b>1회-법</b>을 따라야 합니다 —
+      모듈 레벨 Set 관용구(<code>sealStampFresh</code>/<code>_patchPopSeen</code>), 재진입 하이드레이션에서 재생 금지.
+      모션은 transform+opacity만(§6). <b>소인이 트레이스를 가리면 안 됩니다</b> — 96pt 판에서
+      오른쪽 위 코너만 씁니다. 실패 스트립을 위로 올리면 <b>디스플레이 헤드라인이 첫 요소가 아니게 됩니다</b>
+      — 그건 의도입니다.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h700" style="padding:26px 18px 0">
+        <div class="d-fail" style="margin-top:0">정산이 아직 서버에 반영되지 않았어요 — 아래 금액은 앱이 계산한 추정치예요.<br>
+          예약은 진행 중으로 남아 있어요. 러닝 화면에서 다시 정산하면 실제 금액으로 확정돼요.</div>
+        <div style="margin-top:14px"></div>
+        <div class="d-trace"><div class="d-tracenote">— 실측 경로 —</div>
+          <div class="d-stamp"><div class="a">5.12km</div><div class="b">COMPLETED</div></div>
+          <div class="d-tracecap">내 실측 경로</div></div>
+        <div style="margin-top:12px"></div>
+        <div class="d-headline">초코, 5.12km 완주</div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">초코를 보호자에게 안전하게 인계해 주세요</div>
+        <div style="display:flex;gap:22px;margin-top:14px">
+          <div class="d-stat"><div class="v">5.12<span class="u">km</span></div><div class="l">거리</div></div>
+          <div class="d-stat"><div class="v">36:11</div><div class="l">러닝 시간</div></div>
+          <div class="d-stat"><div class="v">7&#39;04&quot;</div><div class="l">평균 페이스 /km</div></div>
+        </div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-money">예상 수익 (정산 미완료)</span>
+          <span><span class="d-num">16,930</span><span style="font-size:15px;font-weight:800">원</span></span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">정산이 확정되면 수익 화면에 반영돼요</div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-sect">오늘의 순간</span><span style="font-size:14px;font-weight:800;color:#A83315">사진 추가 ›</span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666">보호자 리포트에 실려요</div>
+      </div>
+    </div>
+    <div class="below">스트립 첫 줄의 「이 숫자는」이 「아래 금액은」으로 바뀝니다 — 스트립이 금액 <b>위</b>로 왔으므로.</div>
+    <div class="fields">
+      <h5>fields</h5>
+      스트립 게이트 <code>runResult.settled === false</code> · 소인 게이트
+      <code>runResult.completed === true</code> + <code>runResult.km</code> ·
+      1회-법 키는 <code>runResult.bookingId</code>. 나머지는 현재 C와 동일.
+    </div>
+  </div>
+
+  <!-- ⑨ -->
+  <div class="col">
+    <div class="cap"><b>⑨</b>케어 기록이 완료 화면에 남는다</div>
+    <p class="why">러너가 20분 동안 실제로 한 일 — 응가 두 번, 물 두 번, 스냅 세 장 —
+      이 <b>완료 화면에 하나도 없습니다</b>. 그 러너는 지금 「거리·시간·페이스」로만 평가됩니다.
+      <b>케어가 이 서비스의 상품인데 기록에는 거리만 남습니다.</b>
+      숫자 셋 아래에 한 줄을 세웁니다: 케어 기록 셋 + 사진 수. 사진은 이미 이 화면 아래에 있으니
+      숫자만 요약하고 섹션으로 스크롤 연결합니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      <b>새 서버 데이터 필요 없음</b> — <code>runs.events</code>가 이미 존재하고 이미 읽힙니다
+      (<code>fetchRunReport</code>의 select에 <code>events</code>가 들어 있고, 러너 리뷰 화면이
+      <b>같은 예약</b>에서 그 리더를 씁니다). 비용은 <b>이 화면의 새 호출 하나</b>:
+      <code>fetchRunReportOrNull(runResult.bookingId)</code>.<br>
+      <b>정직 처리 필수:</b> 3상태 — 로딩 「기록 불러오는 중…」 · 실패 「기록을 불러오지 못했어요 · 다시 시도」 ·
+      <code>run: null</code>(정산 실패로 runs 행이 없을 수 있음)이면 <b>줄 자체를 그리지 않습니다</b>.
+      0을 그리면 「아무것도 안 한 러너」로 보입니다 — 로딩 ≠ 0 ≠ 없음.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h700" style="padding:26px 18px 0">
+        <div class="d-trace"><div class="d-tracenote">— 실측 경로 —</div>
+          <div class="d-stamp"><div class="a">5.12km</div><div class="b">COMPLETED</div></div>
+          <div class="d-tracecap">내 실측 경로</div></div>
+        <div style="margin-top:12px"></div>
+        <div class="d-headline">초코, 5.12km 완주</div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">초코를 보호자에게 안전하게 인계해 주세요</div>
+        <div style="display:flex;gap:22px;margin-top:14px">
+          <div class="d-stat"><div class="v">5.12<span class="u">km</span></div><div class="l">거리</div></div>
+          <div class="d-stat"><div class="v">36:11</div><div class="l">러닝 시간</div></div>
+          <div class="d-stat"><div class="v">7&#39;04&quot;</div><div class="l">평균 페이스 /km</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+          <span style="background:#FFCDB6;padding:7px 11px;font-size:14px;line-height:18px;font-weight:800;color:#111111">응가 2</span>
+          <span style="background:#C3D9AE;padding:7px 11px;font-size:14px;line-height:18px;font-weight:800;color:#111111">물 2</span>
+          <span style="background:#F2DA96;padding:7px 11px;font-size:14px;line-height:18px;font-weight:800;color:#111111">간식 1</span>
+          <span style="background:#DDF0A6;padding:7px 11px;font-size:14px;line-height:18px;font-weight:800;color:#111111">스냅 3</span>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:8px">러닝 중 보호자에게 그때마다 알림이 갔어요</div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-money">적립 예정</span>
+          <span><span class="d-num">16,930</span><span style="font-size:15px;font-weight:800">원</span></span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:6px">
+          정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요 · 지급 일정은 결제 연동 후 안내드려요</div>
+        <div class="d-rule"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-sect">오늘의 순간</span><span style="font-size:14px;font-weight:800;color:#A83315">사진 추가 ›</span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666">보호자 리포트에 실려요</div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+        </div>
+      </div>
+    </div>
+    <div class="below">정산 성공 프레임입니다 — 라벨이 <b>적립 예정</b>(서버가 확정한 금액에만 쓰는 낱말)입니다.</div>
+    <div class="fields">
+      <h5>fields</h5>
+      「응가 2 · 물 2 · 간식 1 · 스냅 3」 = <code>runs.events[].kind</code> 집계 +
+      <code>runs.photos.length</code>(스냅) · 파스텔 4색은 run.tsx의 이벤트 칩과 <b>같은 값</b>
+      (<code>#FFCDB6 #C3D9AE #F2DA96 #DDF0A6</code>) — 두 화면에서 같은 것이 같은 색입니다 ·
+      「알림이 갔어요」는 참(<code>addRunEvent</code>가 <code>notifications</code> 행을 넣습니다).
+    </div>
+  </div>
+
+  <!-- ⑩ -->
+  <div class="col">
+    <div class="cap"><b>⑩</b>출구 셋을 둘로</div>
+    <p class="why">지금 화면 맨 아래에 문이 <b>셋</b> 있습니다: 「초코 리뷰 남기기」(세컨더리) ·
+      「다음 요청 보기」(<b>코랄 프라이머리</b>) · 「홈으로」(quiet). 코랄이 <b>다음 일감</b>에 붙어 있어서,
+      화면이 러너에게 권하는 것은 <b>리뷰가 아니라 다음 예약</b>입니다. 리뷰는 양방향 신뢰의 반쪽이고
+      다음 러너를 지키는 유일한 입력인데, 시각적으로 두 번째입니다.<br>
+      이 안은 <b>코랄을 리뷰로 옮기고</b>, 「다음 요청 보기」를 세컨더리로 내리고, 홈은 그대로 quiet.
+      예약이 없으면(<code>bookingId == null</code>) 리뷰 문 자체가 없으므로 오늘처럼 코랄은 「다음 요청」이 가져갑니다.</p>
+    <div class="cost pay"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b>(세 문 전부 존재) · 동결 표면 <b>0</b>.
+      <b>이건 코드 비용이 아니라 제품 결정입니다:</b> 러너의 다음 행동으로 무엇을 권하는가.
+      리뷰 완료율이 오르는 대신 「다음 요청」으로 가는 마찰이 한 단 올라갑니다.
+      <b>Sean 결정 사항</b> — 열린 질문 6번.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h620" style="padding:20px 18px 0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="d-sect">오늘의 순간</span><span style="font-size:14px;font-weight:800;color:#A83315">사진 추가 ›</span></div>
+        <div style="font-size:14px;line-height:19px;color:#666666">보호자 리포트에 실려요</div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+          <div style="width:64px;height:64px;background:#EEEEEE"></div>
+        </div>
+        <div style="margin-top:18px;padding:18px;background:#111111;border:1.5px solid #C6F542;text-align:center">
+          <div style="font-size:24px;color:#C6F542">●</div>
+          <div style="font-size:16px;font-weight:800;color:#C6F542;margin-top:5px">215회 달성 — 보급 상자 도착!</div>
+          <div style="font-size:14px;color:#BBBBBB;margin-top:3px">리워드 센터에서 열기 ›</div>
+        </div>
+        <div style="margin-top:22px"></div>
+        <div class="a-cta">초코 리뷰 남기기 ›</div>
+        <div style="height:8px"></div>
+        <div class="a-cta2">다음 요청 보기 ›</div>
+        <div style="height:8px"></div>
+        <div class="a-cta3">홈으로</div>
+        <div style="height:14px"></div>
+        <div style="font-size:14px;line-height:19px;color:#666666;text-align:center">리뷰는 다음 러너를 지켜요</div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      리뷰 문 게이트 <code>runResult.bookingId != null</code>(오늘 그대로 — 없으면 리뷰 화면이 제출할 수 없으니 문을 안 그립니다) ·
+      드랍 배너 <code>drops</code> 행 중 <code>openedAt == null</code>(<code>fetchDrops</code>), 열기는
+      <code>/runner/rewards</code> ·
+      세 라우트: <code>/runner/review</code> · <code>/runner/requests</code> · <code>/runner/home</code>.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     D · runner/review
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 class="sec"><span class="n">D</span>리뷰 화면 <span class="path">app/app/runner/review.tsx</span></h2>
+<p class="secsub">러너 → 보호자·반려견 리뷰. 다음 러너를 지키는 유일한 입력이고,
+  「고지되지 않은 문제가 있었어요」 비공개 신고가 여기 있습니다. 화면 자체는 정직합니다
+  (실패는 화면에 남고, 예약이 없으면 폼을 안 그리고, 로딩은 <code>—</code>).
+  세 가지가 아쉽습니다: <b>제목이 §3b 규격 밖</b>이고, <b>별점이 숫자만 말하고</b>,
+  <b>메모를 쓰는 순간 CTA가 키보드 뒤로 사라집니다</b>.</p>
+
+<div class="rail">
+
+  <!-- 현재 D -->
+  <div class="col">
+    <div class="cap now"><b>현재</b>리뷰 폼</div>
+    <p class="why">오늘 그대로. 제목은 <b>24/800 본문 서체</b>인데 §3b 화면 제목 규격은
+      <b>30/900 · lineHeight 37 · Black Han Sans</b>입니다 — 이 화면은 디스플레이 서체를 <b>한 번도 쓰지 않습니다</b>
+      (예산이 통째로 남아 있습니다). 라틴 키커 <code>REVIEW</code>는 §3b가 은퇴시킨 그 장식이고,
+      별 다섯 개는 <b>탭 뒤에도 낱말이 없습니다</b>. 그리고 메모 칸에는
+      <code>KeyboardAvoidingView</code>가 없어서 키보드가 CTA를 덮습니다(run.tsx의 종료 시트는 있습니다).</p>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div style="padding:34px 18px 20px">
+          <div style="font-size:12px;letter-spacing:3px;color:#999999;margin-bottom:10px">REVIEW</div>
+          <div style="font-size:24px;line-height:31px;font-weight:800;color:#111111">오늘 러닝 어땠나요?</div>
+          <div style="font-size:15px;line-height:21px;font-weight:600;color:#666666;margin-top:7px">러너의 리뷰가 다음 러너를 지켜요</div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="display:flex;padding:18px;align-items:center">
+          <div style="width:52px;height:52px;background:#111111;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">초</div>
+          <div style="flex:1;margin-left:12px">
+            <div style="font-size:18.5px;line-height:24px;font-weight:800;color:#111111">초코</div>
+            <div style="font-size:15px;line-height:20px;font-weight:600;color:#666666;margin-top:3px">5.12km 완주</div>
+          </div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="padding:18px">
+          <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333;margin-bottom:12px">별점</div>
+          <div style="display:flex;gap:10px">
+            <span class="v-star on">★</span><span class="v-star on">★</span><span class="v-star on">★</span>
+            <span class="v-star on">★</span><span class="v-star">★</span></div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="padding:18px">
+          <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333;margin-bottom:12px">초코는 어땠나요?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <span class="v-tag on">리드 매너 좋아요</span><span class="v-tag">회수 반응 좋아요</span>
+            <span class="v-tag">에너지 넘쳐요</span><span class="v-tag">다른 개 반응 있어요</span>
+            <span class="v-tag">자전거 반응 있어요</span><span class="v-tag">수줍음이 많아요</span></div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div class="v-flag">
+          <div class="v-flagbox"></div>
+          <div style="flex:1">
+            <div style="font-size:15.5px;line-height:21px;font-weight:800;color:#111111">고지되지 않은 문제가 있었어요</div>
+            <div style="font-size:14.5px;line-height:20px;font-weight:600;color:#666666;margin-top:3px">보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="below">↓ 스크롤 아래: 메모 칸 · 「리뷰 남기기」 코랄 CTA · 「다음에 할게요」.
+      <b>메모를 탭하면 키보드가 CTA를 덮습니다.</b></div>
+    <div class="fields">
+      <h5>fields</h5>
+      강아지 이름/거리 <code>fetchRunReport(bookingId)</code> → <code>dogs.name</code> ·
+      <code>runs.actual_km</code>(로딩 중엔 <code>—</code>, 실패는 빨간 한 줄) ·
+      별점 → <code>reviews.rating</code> · 태그 → <code>reviews.tags</code>(정본 배열은 클라이언트 상수
+      <code>dogReviewTags</code> 6종) · 비공개 → <code>reviews.visibility = 'platform_only'</code> ·
+      메모 → <code>reviews.note</code> · 대상 <code>target_kind='dog'</code>, <code>target_id = bookings.dog_id</code>.
+    </div>
+  </div>
+
+  <!-- ⑪ -->
+  <div class="col">
+    <div class="cap"><b>⑪</b>제목을 규격으로 · 별점이 말을 한다</div>
+    <p class="why"><b>(a)</b> 라틴 키커 <code>REVIEW</code>를 은퇴시키고 제목을 §3b 규격
+      <b>30/900 · lineHeight 37 · Black Han Sans</b>로 올립니다. 화면당 1회 예산은 이 화면에서
+      아무도 안 쓰고 있으므로 <b>제목이 가져갑니다</b>.<br>
+      <b>(b)</b> 별점이 낱말을 답니다: 4개면 「좋았어요」. 숫자만으로는 러너가 자기 판정의 무게를 모릅니다 —
+      이 별점은 <b>다음 매칭에 실리는 값</b>입니다. 낱말이 붙으면 「별점을 선택하면 리뷰를 남길 수 있어요」
+      힌트가 <b>필요 없어집니다</b>(상태가 스스로 말합니다). 힌트는 별점 0일 때만 남습니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>0</b>.
+      <b>결정이 필요한 것:</b> 다섯 낱말의 <b>정확한 문구</b>. 1~5가 다음 러너 매칭에 실리는 값이므로
+      낱말은 숫자와 <b>1:1로만</b> 대응해야 하고, 애매한 말(「그냥 그랬어요」)은 두 숫자에 걸칩니다.
+      랩의 제안: <b>1 많이 힘들었어요 · 2 아쉬웠어요 · 3 무난했어요 · 4 좋았어요 · 5 아주 좋았어요</b> — 열린 질문 7번.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h780">
+        <div style="padding:34px 18px 20px">
+          <div style="font-size:30px;line-height:37px;font-weight:900;color:#111111;letter-spacing:-.6px">오늘 러닝<br>어땠나요?</div>
+          <div style="font-size:15px;line-height:21px;font-weight:600;color:#666666;margin-top:9px">러너의 리뷰가 다음 러너를 지켜요</div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="display:flex;padding:18px;align-items:center">
+          <div style="width:52px;height:52px;background:#111111;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">초</div>
+          <div style="flex:1;margin-left:12px">
+            <div style="font-size:18.5px;line-height:24px;font-weight:800;color:#111111">초코</div>
+            <div style="font-size:15px;line-height:20px;font-weight:600;color:#666666;margin-top:3px">5.12km 완주</div>
+          </div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+            <span style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333">별점</span>
+            <span style="font-size:15.5px;line-height:21px;font-weight:800;color:#111111">좋았어요</span></div>
+          <div style="display:flex;gap:10px">
+            <span class="v-star on">★</span><span class="v-star on">★</span><span class="v-star on">★</span>
+            <span class="v-star on">★</span><span class="v-star">★</span></div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div style="padding:18px">
+          <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333;margin-bottom:12px">초코는 어땠나요?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <span class="v-tag on">리드 매너 좋아요</span><span class="v-tag">회수 반응 좋아요</span>
+            <span class="v-tag">에너지 넘쳐요</span><span class="v-tag">다른 개 반응 있어요</span>
+            <span class="v-tag">자전거 반응 있어요</span><span class="v-tag">수줍음이 많아요</span></div>
+        </div>
+        <div style="height:1px;background:#E8552F"></div>
+        <div class="v-flag">
+          <div class="v-flagbox"></div>
+          <div style="flex:1">
+            <div style="font-size:15.5px;line-height:21px;font-weight:800;color:#111111">고지되지 않은 문제가 있었어요</div>
+            <div style="font-size:14.5px;line-height:20px;font-weight:600;color:#666666;margin-top:3px">보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fields">
+      <h5>fields</h5>
+      「좋았어요」 = <code>stars</code> 로컬 상태의 <b>표시</b>일 뿐, 서버로 가는 값은 여전히
+      <code>reviews.rating = 4</code>입니다(낱말은 저장하지 않습니다 — 두 번째 진실을 만들지 않습니다).
+      나머지 바인딩은 현재 D와 동일.
+    </div>
+  </div>
+
+  <!-- ⑫ -->
+  <div class="col">
+    <div class="cap"><b>⑫</b>메모를 쓰는 동안에도 문이 보인다</div>
+    <p class="why">메모 칸은 폼의 <b>마지막 밴드</b>이고 CTA는 그 아래입니다. 키보드가 올라오면
+      러너는 <b>자기가 쓰는 문장과 저장 버튼을 동시에 볼 수 없습니다</b>. run.tsx의 종료 시트는 이 문제를
+      이미 <code>KeyboardAvoidingView</code>로 풀었는데, 이 화면은 그대로입니다.<br>
+      CTA를 <b>바닥에 고정</b>합니다(코랄 하나 · 위에 코랄 헤어라인 1px). 스크롤과 무관하게 항상 보이고,
+      키보드가 올라오면 그 위로 밀립니다. 별점 0이면 오늘처럼 <code>disabledFill</code> 명시 색 +
+      힌트 한 줄. 「다음에 할게요」는 고정 바 <b>안이 아니라</b> 스크롤 끝에 남습니다 —
+      떠나는 문이 항상 손에 닿을 필요는 없습니다.</p>
+    <div class="cost free"><span class="k">what this costs</span>
+      새 서버 필드 <b>0</b> · 새 라우트 <b>0</b> · 동결 표면 <b>0</b>.
+      <b>비용:</b> 화면 아래 ~76pt가 상시 점유됩니다(스크롤 콘텐츠에 <code>paddingBottom</code> 예약 필요).
+      그리고 <b>실패 스트립이 고정 바 위에 붙어야</b> 합니다 — 저장 실패를 스크롤 위쪽에 두면
+      「눌렀는데 아무 일도 없다」가 됩니다. 랩은 스트립을 고정 바 바로 위에 그렸습니다.</div>
+    <div class="phone">
+      <div class="notch"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr h620" style="display:flex;flex-direction:column">
+        <div style="flex:1;overflow:hidden">
+          <div style="padding:18px">
+            <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333;margin-bottom:12px">초코는 어땠나요?</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <span class="v-tag on">리드 매너 좋아요</span><span class="v-tag">회수 반응 좋아요</span>
+              <span class="v-tag">에너지 넘쳐요</span><span class="v-tag on">다른 개 반응 있어요</span></div>
+          </div>
+          <div style="height:1px;background:#E8552F"></div>
+          <div class="v-flag" style="background:#FBEAE7">
+            <div class="v-flagbox on">✓</div>
+            <div style="flex:1">
+              <div style="font-size:15.5px;line-height:21px;font-weight:800;color:#111111">고지되지 않은 문제가 있었어요</div>
+              <div style="font-size:14.5px;line-height:20px;font-weight:600;color:#666666;margin-top:3px">보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영</div>
+            </div>
+          </div>
+          <div style="height:1px;background:#E8552F"></div>
+          <div style="padding:18px">
+            <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#333333;margin-bottom:12px">보호자에게 남길 메모 (선택)</div>
+            <div class="v-note" style="color:#111111">자전거 지나갈 때 두 번 크게 반응했어요. 다음엔 강변 안쪽 길로 갈게요</div>
+          </div>
+        </div>
+        <div style="background:#FBEAE7;border-bottom:1px solid #B3261E;padding:14px 18px;
+                    font-size:14.5px;line-height:20px;font-weight:700;color:#B3261E">
+          리뷰가 저장되지 않았어요 — 다시 시도해주세요</div>
+        <div class="v-sticky">
+          <div class="a-cta">리뷰 남기기</div>
+        </div>
+      </div>
+      <div style="height:34px;background:#FFFFFF"></div>
+    </div>
+    <div class="below">키보드가 올라오면 고정 바가 그 위로 붙습니다. <b>「다음에 할게요」는 스크롤 끝에 그대로 남습니다.</b></div>
+    <div class="fields">
+      <h5>fields</h5>
+      실패 스트립 게이트 <code>failed</code>(오늘 존재 — 알럿을 닫아도 화면에 남습니다) ·
+      CTA 상태 세 갈래: <code>guardOff</code>(별점 0) → <code>disabledFill</code> 명시 색 ·
+      <code>busy</code> → 라벨 스왑 「저장 중...」(불투명도 트릭 금지) · 그 외 <code>paper.action</code>.
+      전부 오늘의 버튼 매트릭스 그대로입니다.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     COST TABLE
+     ══════════════════════════════════════════════════════════════════════ -->
+<h2 class="sec"><span class="n">E</span>열두 안의 비용 한눈에</h2>
+<table class="mx">
+  <tr><th>번호</th><th>화면</th><th>무엇이 바뀌는가</th><th>새 서버 필드</th><th>새 라우트</th><th>동결 표면</th><th>진짜 위험</th></tr>
+  <tr><td><b>①</b></td><td>meetup</td><td>행동 존을 의식 위로 (슬롯 순서)</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="warn">meetup — 순수 JSX 슬롯</td><td>도장 찍히는 순간이 화면 밖일 수 있음</td></tr>
+  <tr><td><b>②</b></td><td>meetup</td><td>천장 프레임에 채팅·홈 두 문 + 죽은 의식 접기</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="warn">meetup — 행동 존 JSX</td><td>천장이 못 닫는 문(마운트 <code>runnerEnroute</code>)은 여전히 열림</td></tr>
+  <tr><td><b>③</b></td><td>meetup</td><td>좌표 없으면 지도 판 300 → 132pt</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="warn">meetup — 스타일</td><td>DS-7의 「300pt 정확히 유지」와 충돌 가능</td></tr>
+  <tr><td><b>④</b></td><td>meetup</td><td>봉인 밴드: 인계 전 티켓 스트립 → arrived부터 밴드</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="warn">meetup — 스타일 + 슬롯</td><td>레이아웃 애니메이션 금지 → 즉시 교체여야 함</td></tr>
+  <tr><td><b>⑤</b></td><td>run</td><td>스트립 스택을 종이 지면으로, 패널 높이 고정</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음</td><td>스트립 넷이면 지도가 좁아짐(의도된 트레이드)</td></tr>
+  <tr><td><b>⑥</b></td><td>run</td><td><code>ceilingHit</code> 프레임을 종료 전용으로</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음 (천장 로직 불변)</td><td>이벤트 칩을 감출지 비활성할지 = 결정 필요</td></tr>
+  <tr><td><b>⑦</b></td><td>run</td><td>「—」가 이유를 말함 · 케어 도장을 서버에서 시드</td><td class="ok">0 <span style="color:#666666">(<code>runs.events</code> 기존)</span></td><td class="ok">0</td>
+    <td class="ok">없음</td><td>「신호 대기」가 원인을 단정 — 문구 확인 필요</td></tr>
+  <tr><td><b>⑧</b></td><td>done</td><td>정산 실패를 헤드라인 위로 · 완주 소인</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음</td><td>소인은 1회-법 필수 (재진입 재생 금지)</td></tr>
+  <tr><td><b>⑨</b></td><td>done</td><td>케어 기록 줄 (응가·물·간식·스냅)</td><td class="ok">0 <span style="color:#666666">(호출 1개 추가)</span></td><td class="ok">0</td>
+    <td class="ok">없음</td><td><code>run: null</code>일 때 0을 그리면 거짓 — 줄 자체를 생략해야</td></tr>
+  <tr><td><b>⑩</b></td><td>done</td><td>코랄을 「다음 요청」 → 「리뷰 남기기」로</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음</td><td class="bad">제품 결정 (Sean)</td></tr>
+  <tr><td><b>⑪</b></td><td>review</td><td>제목 §3b 규격 + 라틴 키커 은퇴 · 별점 낱말</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음</td><td>다섯 낱말의 문구 확정 필요</td></tr>
+  <tr><td><b>⑫</b></td><td>review</td><td>CTA 바닥 고정 + 키보드 회피 · 실패 스트립을 바 위로</td><td class="ok">0</td><td class="ok">0</td>
+    <td class="ok">없음</td><td>바닥 ~76pt 상시 점유</td></tr>
+</table>
+
+<div class="note" style="margin-top:22px">
+  <h4>자연스러운 조합</h4>
+  <b>①+③</b> — meetup의 첫 화면을 실제로 바꾸는 최소 쌍(순서 + 빈 판 접기). ④는 그 위에 얹힙니다.<br>
+  <b>②는 단독</b> — 다른 셋과 무관하게 오늘 바로 지을 수 있고, 지금 <b>문이 하나도 없는 상태</b>를 없앱니다.<br>
+  <b>⑤+⑥</b> — 둘 다 패널의 세로 예산 문제라 같은 슬라이스에서 나옵니다.<br>
+  <b>⑦+⑨</b> — 같은 데이터(<code>runs.events</code>)를 러닝 중과 완료 후 두 번 씁니다. 하나만 고르면 ⑨가
+  더 값집니다(러너가 자기 케어를 기록으로 봅니다).<br>
+  <b>⑪+⑫</b> — 리뷰 화면의 두 수리는 같은 파일 한 번의 편집입니다.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     OPEN QUESTIONS
+     ══════════════════════════════════════════════════════════════════════ -->
+<footer>
+  <h3>OPEN QUESTIONS — 코드만 읽어서는 정할 수 없었던 것들</h3>
+  <ol>
+    <li><b>천장은 규칙인가 권고인가?</b> <code>meetup.tsx:335</code>의 주석이 이미 이 질문을
+      「Sean의 Q4」로 적어두고 있습니다. 오늘 <code>pastCeiling</code>은 <b>러너의 탭 문만</b> 닫고,
+      화면을 여는 것만으로 <code>runnerEnroute</code>가 게이트 밖에서 발사되며(마운트 effect가 <code>info</code>보다 먼저 돕니다),
+      <b>서버는 천장을 아예 모릅니다</b>. ②는 그 구멍을 <b>메우지 않습니다</b> — 회복 문만 줍니다.
+      규칙이라면 <code>confirm_handoff</code>·<code>start_run</code>에 서버 거부 한 줄이 필요하고,
+      그건 마이그레이션 슬라이스입니다.</li>
+
+    <li><b>meetup 지도 판 300pt의 「정확히 유지」(DS-7)는 지도에 대한 결정이었나, 판에 대한 결정이었나?</b>
+      ③은 <b>좌표가 없을 때만</b> 접습니다. 프로덕션 <code>addresses.lat/lng</code>가 전부 NULL이라
+      그 경로가 오늘의 기본값인데, 그렇다면 원 결정이 실제로 보호하려던 화면과 지금 보이는 화면이 다릅니다.</li>
+
+    <li><b>인계 의식을 CTA 아래로 내리면 「봉인이 찍히는 순간」을 러너가 놓치는가?</b>
+      ①의 유일한 실질 위험입니다. 대안 둘 중 어느 쪽인지 정해야 합니다:
+      (a) 인계 탭 직후 봉인 자리로 <b>자동 스크롤</b>(모션 예산 안, 새 상태 없음) ·
+      (b) ④를 함께 채택해 인계 <b>전에는</b> 티켓 스트립만 두고 <code>arrived</code>부터 밴드를 CTA <b>위로</b> 되돌리기.</li>
+
+    <li><b><code>LateNotice</code>의 12pt 키커와 12.5pt 스트립은 14pt 하한의 면제 대상인가?</b>
+      키커는 「지금 기다리는 중」·「3시간 12분 지남」 — <b>한글이고 데이터입니다</b>. §3의 면제는
+      <b>라틴</b> 레터스페이스 캡스에만 열려 있고, 「Korean text never rides the kicker exemption」이
+      명시되어 있습니다. 스트립 본문 12.5pt도 마찬가지입니다. 이 랩은 <b>코드에 있는 그대로</b> 그렸습니다 —
+      고치는 것은 이 클러스터 밖(공유 컴포넌트, 보호자 화면 넷도 같이 움직임)이라 여기서 결정하지 않았습니다.</li>
+
+    <li><b>「페이스 · 신호 대기」가 맞는 말인가?</b> 실제 술어는 <b>「90초간 <u>채택된</u> 픽스 없음」</b>이고,
+      원인은 신호 두절일 수도, 정확도 게이트가 픽스를 거부한 것일 수도 있습니다(둘은 다른 사실입니다).
+      「신호 대기」는 앱이 모르는 것을 단정합니다. 대안: <b>「페이스 · 측정 대기」</b> —
+      정확하지만 덜 읽힙니다. 문구 결정이 필요합니다.</li>
+
+    <li><b>완료 화면의 코랄은 「다음 요청」인가 「리뷰」인가?</b> ⑩은 제품 결정입니다.
+      리뷰는 다음 러너를 지키는 유일한 입력이고, 「다음 요청」은 러너 공급을 지킵니다.
+      PMF 게이트가 M1 재예약 60%라면 <b>리뷰 쪽이 그 지표에 더 가깝다</b>는 것이 이 랩의 추정이지만,
+      추정이지 근거가 아닙니다.</li>
+
+    <li><b>별점 다섯 낱말의 정확한 문구.</b> 랩 제안:
+      1 많이 힘들었어요 · 2 아쉬웠어요 · 3 무난했어요 · 4 좋았어요 · 5 아주 좋았어요.
+      이 값은 다음 러너 매칭에 실리므로 낱말이 <b>숫자와 1:1로만</b> 대응해야 합니다.
+      (그리고 이 리뷰의 대상은 <b>강아지</b>입니다 — <code>target_kind='dog'</code>. 「많이 힘들었어요」가
+      강아지에 대한 평가로 읽히는지, 러닝 전체에 대한 평가로 읽히는지도 같이 봐야 합니다.)</li>
+
+    <li><b>리뷰 태그 6종을 두 무리(좋았어요 / 알아두세요)로 나눌 것인가?</b> 이 랩은 <b>그리지 않았습니다</b> —
+      「다른 개 반응 있어요」를 부정 무리에 넣는 순간 그건 <b>디자인이 아니라 분류 결정</b>이고,
+      그 분류가 다음 러너에게 어떻게 보이는지는 보호자 쪽 화면까지 걸립니다.
+      DB 컬럼(<code>reviews.tags</code> 평면 배열)은 무엇을 고르든 그대로입니다.</li>
+
+    <li><b>천장 초과 프레임에서 봉인 밴드를 접는 것이 「덜어내기가 숨기기가 된」 사례인가?</b>
+      §7b는 정직한 상태를 콘텐츠로 보호합니다. ②는 밴드를 <b>지우지 않고 한 줄로 접었고</b>
+      탭하면 펼쳐지지만, 그 한 줄(「확인 0/2 ›」)이 원래 밴드가 하던 말을 다 하는지는 판단이 필요합니다.</li>
+
+    <li><b>run 화면의 <code>⧉</code> panel/island 토글은 계속 사용자 설정으로 둘 것인가?</b>
+      이 랩의 안(⑤·⑥·⑦)은 전부 <b>panel</b> 기준으로 그렸습니다. island를 쓰는 러너에게는
+      같은 안이 다르게 보이고(스트립·페이스·수익이 카드 안으로 들어옵니다), 결국 <b>두 벌을 유지해야 합니다</b>.
+      토글을 남길 값어치가 있는지는 사용 데이터가 있어야 답할 수 있고, 지금 그 데이터가 없습니다.</li>
+  </ol>
+</footer>
+
+</div></body></html>

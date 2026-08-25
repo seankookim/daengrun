@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
-import { Addr, fetchAddresses, setAddressPin } from '../../src/lib/api';
+import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
@@ -15,6 +15,17 @@ import { paper } from '../../src/theme';
 // Pickup pin picker (0065 coordinates slice, DS-4) — pin is truth: coordinates are
 // written only from a user-confirmed pin; geocoding is a pre-center hint, never
 // silently saved.
+//
+// [2026-08-24 · Sean: "Maybe the map picker should have a comment addition box." — 🔵 BUILT]
+// His "maybe" was a judgment call with one hard condition: bind or omit. It binds. The column
+// already exists (`addresses.detail`, 0001:122), it already has exactly one narrow writer
+// (`owner_update_address_detail`, 0073 — trims, empty→NULL, caps at 60), and the sentence
+// already has a reader: the assigned runner sees it on the handoff screen
+// (`booking_pickup_address` → runner/meetup.tsx). So this box is not a new field, it is the
+// same field asked for at the moment the owner is already answering "where exactly".
+// A pin says WHERE; the memo says the part a coordinate cannot carry ("공동현관 #1204").
+// The 60-char maxLength here is the server's number, mirrored to warn early — the server
+// remains the single owner of the rule (0073 §normalise).
 // Center priority chain (AD-7): existing pin (edit mode) → geocode-address edge fn
 // → one-shot GPS (never prompts) → BANPO fallback. The map mounts IMMEDIATELY at
 // the best-available-so-far center; at most ONE animated recenter if a better
@@ -64,6 +75,10 @@ export default function AddressPin() {
   const [selSpot, setSelSpot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<null | 'bounds' | 'save'>(null);
+  // 픽업 메모 — addresses.tsx의 메모 스트립과 같은 문법·같은 쓰기 경로 (updateAddressDetail)
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteVal, setNoteVal] = useState('');
+  const [noteBusy, setNoteBusy] = useState(false);
 
   // Camera truth lives in refs — reading it on confirm must not re-render the map.
   const mapRef = useRef<any>(null);
@@ -132,6 +147,27 @@ export default function AddressPin() {
     centerRef.current = { lat: s.lat, lng: s.lng };
     setErr(null);
     mapRef.current?.animateCameraTo({ latitude: s.lat, longitude: s.lng, zoom: 16, duration: 500 });
+  };
+
+  const openNote = () => { setNoteVal(row?.detail ?? ''); setNoteOpen(true); };
+  // 저장 뒤에는 **서버가 가진 값**을 다시 읽어 그린다 — 트림·빈문자열→NULL은 0073이 단일
+  // 소유자이고, 클라가 그 규칙을 흉내 내 그리면 두 개의 규칙이 생긴다. 재조회가 실패했을
+  // 때만 문서화된 정규화를 그대로 반영한 낙관값을 쓴다 (저장 자체는 이미 성공한 상태).
+  const saveNote = async () => {
+    if (!id || noteBusy) return;
+    setNoteBusy(true);
+    try {
+      await updateAddressDetail(id, noteVal);
+      const rows = await fetchAddresses().catch(() => null);
+      const fresh = rows?.find((a) => a.id === id) ?? null;
+      if (fresh) setRow(fresh);
+      else setRow((prev) => (prev ? { ...prev, detail: noteVal.trim() || null } : prev));
+      setNoteOpen(false);
+      haptic('success');
+    } catch (e) {
+      // 조용한 실패 금지 — 보호자는 러너가 읽을 문장을 바꿨다고 믿는다 (addresses.tsx와 같은 문장)
+      Alert.alert('메모 저장 실패', (e as Error).message);
+    } finally { setNoteBusy(false); }
   };
 
   const confirm = async () => {
@@ -249,18 +285,58 @@ export default function AddressPin() {
               <Text style={s.failTxt}>저장하지 못했어요 · 다시 시도</Text>
             </Pressable>
           )}
-
-          {/* confirm bar — coral, full width; busy = label swap, never disabled paint */}
-          <View style={[s.confirmBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
-            <PaperBtn
-              label="이 위치로 지정"
-              busyLabel="저장 중..."
-              busy={busy}
-              onPress={confirm}
-              style={{ backgroundColor: paper.line }}
-            />
-          </View>
         </>
+      )}
+
+      {/* 픽업 메모 — 지도가 없어도 쓸 수 있다(핀과 독립된 사실이다). 구분선은 뉴트럴:
+          이 화면의 코랄 가로선은 배너 아래와 칩 스트립 위 둘로 유지한다 */}
+      {row && (noteOpen ? (
+        <View style={s.noteEdit}>
+          <TextInput
+            value={noteVal}
+            onChangeText={setNoteVal}
+            placeholder="예: 공동현관 #1204 · 경비실에 맡겨주세요"
+            placeholderTextColor={paper.faint}
+            style={s.noteInput}
+            maxLength={60}
+            autoFocus
+            multiline={false}
+            returnKeyType="done"
+            onSubmitEditing={saveNote}
+          />
+          <Text style={s.noteCount}>{noteVal.length}/60 · 러너가 이 문장을 봐요</Text>
+          <Row style={{ gap: 8, marginTop: 10 }}>
+            {/* 이 화면의 코랄 프라이머리는 '이 위치로 지정' 하나다 — 메모 저장은 세컨더리 */}
+            <PaperBtn label="메모 저장" busyLabel="저장 중..." busy={noteBusy} variant="secondary" onPress={saveNote} style={{ flex: 1.4 }} />
+            <PaperBtn label="취소" variant="quiet" onPress={() => setNoteOpen(false)} style={{ flex: 1 }} />
+          </Row>
+        </View>
+      ) : (
+        <Pressable
+          onPress={openNote}
+          style={s.noteStrip}
+          accessibilityRole="button"
+          accessibilityLabel={row.detail ? '픽업 메모 수정' : '픽업 메모 추가'}
+        >
+          {row.detail
+            ? <Text style={s.noteSetTxt} numberOfLines={1}>메모 · {row.detail} ›</Text>
+            : <Text style={s.noteNeedTxt}>픽업 메모 추가 › <Text style={s.noteHint}>동·호수, 만날 지점 — 러너가 읽어요</Text></Text>}
+        </Pressable>
+      ))}
+
+      {maps && (
+        /* confirm bar — coral, full width; busy = label swap, never disabled paint.
+           [2026-08-24] `style={{backgroundColor: paper.line}}` 삭제 — paper-btn.tsx:70-73이
+           호출자 style을 매트릭스 **앞**으로 옮긴 뒤로 이 프롭은 아무것도 하지 않는 죽은 값이었다
+           (버튼은 이미 paper.action으로 그려지고 있었다). 그 리뷰 노트가 이름을 댄 화면이 여기다. */
+        <View style={[s.confirmBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
+          <PaperBtn
+            label="이 위치로 지정"
+            busyLabel="저장 중..."
+            busy={busy}
+            onPress={confirm}
+          />
+        </View>
       )}
     </View>
   );
@@ -315,4 +391,23 @@ const s = StyleSheet.create({
   failTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
 
   confirmBar: { paddingHorizontal: PAD, paddingTop: 10, backgroundColor: paper.canvas },
+
+  // 픽업 메모 — addresses.tsx 카드 스트립과 같은 문법(≥44pt, 뉴트럴 구분선, 두 상태 모두 동작)
+  noteStrip: {
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
+    paddingHorizontal: PAD, minHeight: 48, justifyContent: 'center',
+  },
+  noteSetTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  // 읽는 코랄(6.67:1) — paper.line은 3.64:1이라 14pt 라벨에 쓰지 않는다 (A① 실측)
+  noteNeedTxt: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  noteHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim },
+  noteEdit: {
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
+    paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 4,
+  },
+  noteInput: {
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 11, paddingHorizontal: 12, fontSize: 15.5, color: paper.ink,
+  },
+  noteCount: { fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 6 },
 });

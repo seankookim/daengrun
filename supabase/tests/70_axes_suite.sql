@@ -1,10 +1,19 @@
 -- ═══ 축(0040 R0A) 스위트 — 백필·동기화·드리프트·프로젝션 ═══
 -- 50/60 스위트가 만든 v1 세계를 그대로 검증 대상으로 사용 (별도 시드 최소화).
+-- ⚠ [2026-08-21] 이 스위트의 아홉 개 `limit 1`은 모두 **무순**이었다. 백필 단언 핀(X2·X3·X4·
+-- X6·X9)에서 그것은 "임의의 한 행"을 보는 것이었고, 술어에 맞는 행들의 프로파일이 갈리면
+-- 통과·실패가 플래너 마음이었다 — 0117 뮤테이션 배터리 중 실제로 유령 red가 나왔다. 이제
+-- 그 핀들은 **모든** 대상 행을 본다. 두 가지가 함께 필요하다:
+--   ① 비공허성: 대상이 0행이면 "이탈 0행"은 공허한 초록이다. 먼저 대상 수를 단언한다.
+--   ② NULL 안전: `not (A and B)`는 한 필드가 NULL이면 NULL이고, WHERE는 NULL을 세지 않아
+--      **이탈 행이 조용히 빠진다**(이 저장소가 0058 F1·110 S2·0116 §D에서 세 번 겪은 fail-open).
+--      그래서 `not coalesce(<프로파일>, false)`로 센다.
+-- 행을 **고르기만** 하는 핀(X5·X8·X10)은 어떤 행이든 무방하므로 순서만 고정했다(재현성).
 set client_min_messages = warning;
 
 do $$
 declare
-  v_cnt int; v_sd record; v_js jsonb;
+  v_cnt int; v_bad int; v_txt2 text; v_sd record; v_js jsonb;
 begin
   -- [X1] 드리프트 제로 — 모든 기존 행의 저장 축 = 재계산 축
   begin
@@ -21,44 +30,78 @@ begin
   exception when others then call _fail('axes','X1 드리프트', sqlerrm);
   end;
 
-  -- [X2] 스팟체크: 완료+반환 해소(resolved) 위탁견 → paid/released/accepted/owner
+  -- [X2] 완료+반환 해소(resolved) 위탁견의 축 프로파일 — **전 행**
+  -- ⚠ [2026-08-21, 무순 limit 1을 걷어내자마자 드러난 사실] payout_state는 두 값 모두가 참이다:
+  --   'released' — v1 축 동기화(0040:233)가 completed+원장행 있음에 대해 직접 쓰는 값
+  --   'payable'  — v2 커스터디 반환 경로(0045:109·0046:58·0069:70·0070:374·0072:189)가
+  --                earned→payable로 올린 뒤, **지급이 일어나야** released가 되는데 이 저장소에는
+  --                payouts에 writer가 하나도 없다. 즉 payable은 부패가 아니라 **미구축 지급
+  --                루프의 상시 표식**이다 (X1 드리프트 제로가 이 행들의 내부 정합성을 이미 보증).
+  -- 7행 중 2행이 payable이었고, 옛 무순 `limit 1`은 그 두 행을 뽑으면 red, 나머지 다섯을 뽑으면
+  -- green이었다 — 유령 red의 정체가 바로 이것이다. 지급 루프가 생기는 날 이 핀은 세 번째 값이
+  -- 나타나거나 payable이 남아 있으면 red가 된다.
   -- [R2] 정산≠반환이므로 resolved 행만 이 프로파일 — 미반환 완료 행은 X11에서 별도 단언
   begin
-    select sd.* into v_sd from session_dogs sd join bookings b on b.id = sd.booking_id
-    where sd.custody = 'runner_delegated' and b.status = 'completed'
-      and sd.custody_phase = 'resolved' limit 1;
-    if v_sd.id is not null
-       and v_sd.service_state = 'ended' and v_sd.completion_outcome = 'completed'
-       and v_sd.charge_state = 'paid' and v_sd.payout_state = 'released'
-       and v_sd.assignment_state = 'accepted' and v_sd.custodian_type = 'owner'
-      then call _pass('axes','X2 완료·해소 위탁 (ended/completed·paid·released·accepted·owner)');
-    else call _fail('axes','X2 완료 백필', coalesce(v_sd.service_state,'row?') || '/' ||
-      coalesce(v_sd.payout_state,'?')); end if;
+    select count(*), count(*) filter (where not coalesce(
+             sd.service_state = 'ended' and sd.completion_outcome = 'completed'
+             and sd.charge_state = 'paid' and sd.payout_state in ('released','payable')
+             and sd.assignment_state = 'accepted' and sd.custodian_type = 'owner', false))
+      into v_cnt, v_bad
+      from session_dogs sd join bookings b on b.id = sd.booking_id
+     where sd.custody = 'runner_delegated' and b.status = 'completed'
+       and sd.custody_phase = 'resolved';
+    if v_cnt = 0 then call _fail('axes','X2 완료 백필','대상 0행 — 픽스처 소실 (공허한 초록 차단)');
+    elsif v_bad = 0
+      then call _pass('axes','X2 완료·해소 위탁 전 행 (ended/completed·paid·released|payable·accepted·owner)');
+    else
+      -- red가 defect를 **호명**한다: 어느 축이 어떤 값으로 이탈했는지 (숫자만 있는 red는 다음
+      -- 사람에게 조사를 통째로 넘긴다)
+      select string_agg(d, ', ') into v_txt2 from (
+        select distinct case
+                 when not coalesce(sd.service_state = 'ended', false) then 'service_state=' || coalesce(sd.service_state,'∅')
+                 when not coalesce(sd.completion_outcome = 'completed', false) then 'completion_outcome=' || coalesce(sd.completion_outcome,'∅')
+                 when not coalesce(sd.charge_state = 'paid', false) then 'charge_state=' || coalesce(sd.charge_state,'∅')
+                 when not coalesce(sd.payout_state in ('released','payable'), false) then 'payout_state=' || coalesce(sd.payout_state,'∅')
+                 when not coalesce(sd.assignment_state = 'accepted', false) then 'assignment_state=' || coalesce(sd.assignment_state,'∅')
+                 else 'custodian_type=' || coalesce(sd.custodian_type,'∅') end as d
+          from session_dogs sd join bookings b on b.id = sd.booking_id
+         where sd.custody = 'runner_delegated' and b.status = 'completed'
+           and sd.custody_phase = 'resolved'
+           and not coalesce(sd.service_state = 'ended' and sd.completion_outcome = 'completed'
+                 and sd.charge_state = 'paid' and sd.payout_state in ('released','payable')
+                 and sd.assignment_state = 'accepted' and sd.custodian_type = 'owner', false)) t;
+      call _fail('axes','X2 완료 백필', v_bad || '/' || v_cnt || '행 이탈 — ' || coalesce(v_txt2,'?'));
+    end if;
   exception when others then call _fail('axes','X2 완료 백필', sqlerrm);
   end;
 
   -- [X3] 거절 위탁견 → ended/no_service/cancelled/host_rejected (ended 불변 표현)
   begin
-    select sd.* into v_sd from session_dogs sd
-    where sd.custody = 'runner_delegated' and sd.approval = 'rejected' limit 1;
-    if v_sd.id is not null
-       and v_sd.service_state = 'ended' and v_sd.completion_outcome = 'no_service'
-       and v_sd.termination_type = 'cancelled' and v_sd.service_reason = 'host_rejected'
-       and v_sd.cancelled_by = 'host' and v_sd.charge_state = 'none'
-      then call _pass('axes','X3 거절 백필 (ended/no_service/host_rejected·무결제)');
-    else call _fail('axes','X3 거절 백필', coalesce(v_sd.service_state,'row?')); end if;
+    select count(*), count(*) filter (where not coalesce(
+             sd.service_state = 'ended' and sd.completion_outcome = 'no_service'
+             and sd.termination_type = 'cancelled' and sd.service_reason = 'host_rejected'
+             and sd.cancelled_by = 'host' and sd.charge_state = 'none', false))
+      into v_cnt, v_bad
+      from session_dogs sd
+     where sd.custody = 'runner_delegated' and sd.approval = 'rejected';
+    if v_cnt = 0 then call _fail('axes','X3 거절 백필','대상 0행 — 픽스처 소실 (공허한 초록 차단)');
+    elsif v_bad = 0 then call _pass('axes','X3 거절 백필 전 행 (ended/no_service/host_rejected·무결제)');
+    else call _fail('axes','X3 거절 백필', v_bad || '/' || v_cnt || '행이 프로파일 이탈'); end if;
   exception when others then call _fail('axes','X3 거절 백필', sqlerrm);
   end;
 
   -- [X4] 환불 경로 → refund_state=pending + 서비스 종료 (돈 진실과 서비스 진실 분리)
   begin
-    select sd.* into v_sd from session_dogs sd join bookings b on b.id = sd.booking_id
-    where sd.custody = 'runner_delegated' and b.status = 'refund_pending' limit 1;
-    if v_sd.id is not null
-       and v_sd.charge_state = 'paid' and v_sd.refund_state = 'pending'
-       and v_sd.service_state = 'ended' and v_sd.completion_outcome = 'no_service'
-      then call _pass('axes','X4 환불 백필 — charge=paid 유지 + refund=pending (진실 분리)');
-    else call _fail('axes','X4 환불 백필', coalesce(v_sd.refund_state,'row?')); end if;
+    select count(*), count(*) filter (where not coalesce(
+             sd.charge_state = 'paid' and sd.refund_state = 'pending'
+             and sd.service_state = 'ended' and sd.completion_outcome = 'no_service', false))
+      into v_cnt, v_bad
+      from session_dogs sd join bookings b on b.id = sd.booking_id
+     where sd.custody = 'runner_delegated' and b.status = 'refund_pending';
+    if v_cnt = 0 then call _fail('axes','X4 환불 백필','대상 0행 — 픽스처 소실 (공허한 초록 차단)');
+    elsif v_bad = 0
+      then call _pass('axes','X4 환불 백필 전 행 — charge=paid 유지 + refund=pending (진실 분리)');
+    else call _fail('axes','X4 환불 백필', v_bad || '/' || v_cnt || '행이 프로파일 이탈'); end if;
   exception when others then call _fail('axes','X4 환불 백필', sqlerrm);
   end;
 
@@ -76,7 +119,7 @@ begin
     else
       select sd.* into v_sd from session_dogs sd
       where sd.custody = 'runner_delegated' and sd.responsible_profile_id = sd.owner_profile_id
-        and sd.booking_id is not null limit 1;
+        and sd.booking_id is not null order by sd.id limit 1;   -- 고르기만 하는 핀: 순서 고정
       select count(*) into v_cnt from dog_custody_events where session_dog_id = v_sd.id;
       update session_dogs set responsible_profile_id =
         (select runner_id from bookings where id = v_sd.booking_id) where id = v_sd.id
@@ -91,17 +134,21 @@ begin
 
   -- [X6] 구조화 프로젝션 + 플래그 기본 OFF
   begin
-    select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated'
-      and sd.service_state = 'ended' and sd.completion_outcome = 'completed'
-      and sd.custody_phase = 'resolved' limit 1;   -- [R2] '완료' 표기는 resolved 한정
-    v_js := club_dog_ui_state(v_sd.id);
-    if v_js->>'primaryStage' = '완료'
-       and jsonb_typeof(v_js->'secondaryBadges') = 'array'
-       and jsonb_typeof(v_js->'requiredActors') = 'array'
-       and v_js ? 'severity'
-       and exists (select 1 from club_flags where name = 'club_delegation_v2')
-      then call _pass('axes','X6 구조화 프로젝션 (stage/badges/actors/severity) + 플래그 존재');
-    else call _fail('axes','X6 프로젝션', coalesce(v_js::text,'null')); end if;
+    -- [R2] '완료' 표기는 resolved 한정. 전 행을 투영해 검사한다 — 한 행만 보면 프로젝션이
+    -- 어느 행에서 깨졌는지는 뽑기 운이었다.
+    select count(*), count(*) filter (where not coalesce(
+             club_dog_ui_state(sd.id)->>'primaryStage' = '완료'
+             and jsonb_typeof(club_dog_ui_state(sd.id)->'secondaryBadges') = 'array'
+             and jsonb_typeof(club_dog_ui_state(sd.id)->'requiredActors') = 'array'
+             and club_dog_ui_state(sd.id) ? 'severity', false))
+      into v_cnt, v_bad
+      from session_dogs sd
+     where sd.custody = 'runner_delegated' and sd.service_state = 'ended'
+       and sd.completion_outcome = 'completed' and sd.custody_phase = 'resolved';
+    if v_cnt = 0 then call _fail('axes','X6 프로젝션','대상 0행 — 픽스처 소실 (공허한 초록 차단)');
+    elsif v_bad = 0 and exists (select 1 from club_flags where name = 'club_delegation_v2')
+      then call _pass('axes','X6 구조화 프로젝션 전 행 (stage/badges/actors/severity) + 플래그 존재');
+    else call _fail('axes','X6 프로젝션', v_bad || '/' || v_cnt || '행 이탈 또는 플래그 부재'); end if;
   exception when others then call _fail('axes','X6 프로젝션', sqlerrm);
   end;
 
@@ -116,11 +163,12 @@ end $$;
 -- ═══ R0A 하드닝(0041) 검증 — 독립 오라클·부패 감지·권한 봉인·리터럴 매핑 ═══
 do $$
 declare
-  v_cnt int; v_sd record; v_txt text; v_err boolean := false;
+  v_cnt int; v_bad int; v_sd record; v_txt text; v_err boolean := false;
 begin
   -- [X8] 부패 감지 — 동기화 트리거를 끄고 축을 오염시키면 드리프트가 잡는다 (자기검증 우회 증명)
   begin
-    select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated' limit 1;
+    select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated'
+      order by sd.id limit 1;   -- 고르기만 하는 핀: 순서 고정
     alter table session_dogs disable trigger club_v1_axes_sync;
     update session_dogs set charge_state = 'hold', assignment_state = 'replacement_needed' where id = v_sd.id;
     alter table session_dogs enable trigger club_v1_axes_sync;
@@ -137,29 +185,31 @@ begin
 
   -- [X9] 동반견 리터럴 — 커스터디만 받고 돈·배정 축은 중립값
   begin
-    select sd.* into v_sd from session_dogs sd where sd.custody = 'owner_handled' limit 1;
-    if v_sd.id is not null
-       and v_sd.service_state is null and v_sd.charge_state = 'none'
-       and v_sd.refund_state = 'none' and v_sd.payout_state = 'none'
-       and v_sd.assignment_state = 'unassigned'
-       and v_sd.custodian_type = 'owner' and v_sd.custodian_profile_id = v_sd.owner_profile_id
-       and v_sd.custody_phase = 'with_custodian'
-      then call _pass('axes','X9 동반견 리터럴 (커스터디 ○ · 돈/배정 중립)');
-    else call _fail('axes','X9 동반견', coalesce(v_sd.custodian_type,'row?')); end if;
+    select count(*), count(*) filter (where not coalesce(
+             sd.service_state is null and sd.charge_state = 'none'
+             and sd.refund_state = 'none' and sd.payout_state = 'none'
+             and sd.assignment_state = 'unassigned'
+             and sd.custodian_type = 'owner' and sd.custodian_profile_id = sd.owner_profile_id
+             and sd.custody_phase = 'with_custodian', false))
+      into v_cnt, v_bad
+      from session_dogs sd where sd.custody = 'owner_handled';
+    if v_cnt = 0 then call _fail('axes','X9 동반견','대상 0행 — 픽스처 소실 (공허한 초록 차단)');
+    elsif v_bad = 0 then call _pass('axes','X9 동반견 리터럴 전 행 (커스터디 ○ · 돈/배정 중립)');
+    else call _fail('axes','X9 동반견', v_bad || '/' || v_cnt || '행이 프로파일 이탈'); end if;
   exception when others then call _fail('axes','X9 동반견', sqlerrm);
   end;
 
   -- [X10] RLS 봉인 (실서비스 권한 모사 하) — grant는 있으나 정책 0 = 행 비가시 + 쓰기 거부
   begin
     insert into club_incidents (session_id, severity, summary)
-    select id, 'S3', '봉인 테스트' from club_sessions limit 1;
+    select id, 'S3', '봉인 테스트' from club_sessions order by id limit 1;
     begin
       set local role authenticated;
       perform set_config('request.jwt.claim.sub', gen_random_uuid()::text, true);
       execute 'select count(*) from club_incidents' into v_cnt;
       begin
         insert into club_incidents (session_id, severity, summary)
-        select id, 'S3', '침입 시도' from club_sessions limit 1;
+        select id, 'S3', '침입 시도' from club_sessions order by id limit 1;
         v_err := false;
       exception when others then v_err := true;
       end;

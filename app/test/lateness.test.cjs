@@ -34,8 +34,13 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('inside grace is not late', r.late === false, JSON.stringify(r));
 }
 {
+  // ⚠ sinceMs is measured from the APPOINTMENT, not from the grace deadline (codex 2026-08-21):
+  // runner/home's ticket counts from scheduled_at via relWhen(), and two origins on one screen
+  // produced 「60분 늦음」 beside 「30분 늦음」 for one booking. Grace decides WHETHER it is late.
   const r = lateness(B('confirmed', T0 - LATENESS_GRACE_MS - MIN), T0);
-  t('one minute past grace is late', r.late === true && r.sinceMs === MIN, JSON.stringify(r));
+  t('one minute past grace is late', r.late === true, JSON.stringify(r));
+  t('…and sinceMs counts from the appointment, not the deadline',
+     r.sinceMs === LATENESS_GRACE_MS + MIN, String(r.sinceMs / MIN));
 }
 {
   const r = lateness(B('confirmed', T0 - 60 * MIN), T0, 0);
@@ -53,6 +58,46 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('active is POST-custody', lateness(B('active', late, { km: 5 }), T0).custody === 'post');
   t('custody is reported even when not late',
      lateness(B('picked_up', T0 + 60 * MIN), T0).custody === 'post');
+}
+
+// ───────────────────────────────────────────── custody mirrors the SERVER predicate (F7)
+// [2026-08-24] The client drew the D3 line with `status in (picked_up, active)`. The server
+// (`_checkin_custody`, 0117:159-170) draws it with TWO clauses and looks at the stamps FIRST:
+//     status in (confirmed, runner_enroute, picked_up, active) AND both stamps  -> 'post'
+//     status in (confirmed, runner_enroute)                                     -> 'pre'
+//     status in (picked_up, active)                                             -> 'post'
+// The gap is reachable, not theoretical: transition-booking/index.ts:315-322 writes the stamp
+// and the promotion as two separate calls, so both stamps can land while status stays
+// runner_enroute. Under the old predicate the server called that booking post-custody (and
+// refused no_show) while the client called it pre-custody and told the owner 「러너님이 문 앞에서
+// 기다려요」 — about a dog already in the runner's hands. One rule, two implementations; these
+// pins are what keep them one rule.
+{
+  const late = T0 - 60 * MIN;
+  const stamp = iso(T0 - 30 * MIN);
+
+  // the divergence itself
+  t('runner_enroute + BOTH stamps is POST-custody (server parity)',
+     lateness(B('runner_enroute', late, { ownerHandoffAt: stamp, runnerHandoffAt: stamp }), T0)
+       .custody === 'post');
+  t('confirmed + BOTH stamps is POST-custody (server parity)',
+     lateness(B('confirmed', late, { ownerHandoffAt: stamp, runnerHandoffAt: stamp }), T0)
+       .custody === 'post');
+
+  // one stamp is the NORMAL interval, not custody — F1's whole point. It must NOT promote.
+  t('runner_enroute + owner stamp only stays pre-custody',
+     lateness(B('runner_enroute', late, { ownerHandoffAt: stamp }), T0).custody === 'pre');
+  t('runner_enroute + runner stamp only stays pre-custody',
+     lateness(B('runner_enroute', late, { runnerHandoffAt: stamp }), T0).custody === 'pre');
+
+  // the status clause still stands on its own — a promotion whose stamps were lost is still custody
+  t('picked_up with NO stamps is still POST-custody',
+     lateness(B('picked_up', late), T0).custody === 'post');
+
+  // a reader that loads neither column gets the status-only answer, unchanged from before
+  t('absent stamp fields fall back to the status clause',
+     lateness(B('runner_enroute', late), T0).custody === 'pre'
+       && lateness(B('active', late, { km: 5 }), T0).custody === 'post');
 }
 
 // ───────────────────────────────────────────── who are we waiting on
@@ -119,11 +164,13 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
   t('grace default is 30 min', LATENESS_GRACE_MS === 30 * MIN, String(LATENESS_GRACE_MS / MIN));
   t('ceiling default is 3 hours', LATENESS_CEILING_MS === 180 * MIN, String(LATENESS_CEILING_MS / MIN));
 
-  const at = (lateBy) => lateness(B('confirmed', T0 - LATENESS_GRACE_MS - lateBy), T0);
+  // scheduled `sinceBy` ago — sinceMs now equals that directly, same origin as the ceiling
+  const at = (sinceBy) => lateness(B('confirmed', T0 - sinceBy), T0);
   t('not late → resumable', lateness(B('confirmed', T0 + 60 * MIN), T0).resumable === true);
   t('late but inside the ceiling → resumable', at(60 * MIN).resumable === true);
   t('exactly at the ceiling → still resumable', at(LATENESS_CEILING_MS).resumable === true);
   t('one minute past the ceiling → NOT resumable', at(LATENESS_CEILING_MS + MIN).resumable === false);
+  t('sinceMs and the ceiling share an origin', at(90 * MIN).sinceMs === 90 * MIN, String(at(90*MIN).sinceMs/MIN));
 
   // The live row: 16 days past. Nothing about it is resumable.
   const aug4 = Date.parse('2026-08-04T06:30:00Z');
