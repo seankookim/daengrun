@@ -180,9 +180,11 @@ begin
   -- sitting OUTSIDE the scalar subquery — inside, an empty subquery would NULL every estimate
   -- (1 − NULL). Pin the structure in all three shipped copies (§D twice + §E once).
   v_bad := '';
-  if (select pg_get_viewdef('runner_open_requests'::regclass) !~ 'COALESCE\(\(SELECT')
+  -- pg_get_viewdef pretty-prints ("COALESCE(( SELECT" with whitespace/newlines) — measured on
+  -- the first run of this pin; match case-insensitively across whitespace.
+  if (select pg_get_viewdef('runner_open_requests'::regclass) !~* 'coalesce\(\(\s*select')
     then v_bad := v_bad || ' open-view'; end if;
-  if (select pg_get_viewdef('my_directed_requests'::regclass) !~ 'COALESCE\(\(SELECT')
+  if (select pg_get_viewdef('my_directed_requests'::regclass) !~* 'coalesce\(\(\s*select')
     then v_bad := v_bad || ' directed-view'; end if;
   if (select prosrc from pg_proc where proname = 'my_run_net_coeffs') !~ 'coalesce\(\(select'
     then v_bad := v_bad || ' coeffs-fn'; end if;
@@ -302,7 +304,10 @@ begin
     where has_function_privilege('authenticated', p.oid, 'EXECUTE')
       and p.proargnames is not null
   loop
-    if rec.argname ~ '(^|_)(fee|gross|commission|rate)(_|$)'
+    -- 'rate' matched respond_rate_pct (a storefront RESPONSE-rate stat, whitelisted §G column,
+    -- no money in it) on the first run — the margin vocabulary is fee/gross/commission, plus
+    -- 'rate' only as the whole word.
+    if (rec.argname ~ '(^|_)(fee|gross|commission)(_|$)' or rec.argname = 'rate')
        and rec.proname not in ('club_incident_settle_quote') then
       v_names := v_names || ' ' || rec.proname || '.' || rec.argname;
     end if;
