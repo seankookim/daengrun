@@ -6,7 +6,7 @@ import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal } from '../../src/lib/kst';
-import { lateness, sinceLabel } from '../../src/lib/lateness';
+import { lateness, sinceLabel, LATENESS_CEILING_MS } from '../../src/lib/lateness';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
 import { LateNotice } from '../../src/components/late-notice';
@@ -204,7 +204,20 @@ export default function Schedule() {
   // 정의해 둔 rawStatus 집합(LIVE_RAW) 그대로 — 새 상태도, 새 어휘도 없다.
   // 목록에서 빼는 것이 숨기는 것이 아니다: 밴드는 **필터 칩과 무관하게 항상** 그려지고, 밴드 행을
   // 탭하면 같은 관리 시트가 열린다 (이동 중 취소 = 0066 의 50% 티어가 그 시트에 있다).
-  const liveNow = all.filter((b) => LIVE_RAW.includes(b.rawStatus ?? ''));
+  // ⚠ [sim walk 2026-08-25] THE BAND'S CLAIM IS "지금", AND rawStatus ALONE CANNOT CARRY IT.
+  // Measured on the fixture: a runner_enroute row 20 days old rendered under 「지금 ● LIVE」 as
+  // 「14일째 문 앞이에요」 — true per the columns, absurd as liveness. Past the 3-hour ceiling the
+  // late-protocol's own vocabulary says a booking is 끝난 일, not 지금 (lateness.ts:55-59), so the
+  // band inherits that line instead of inventing one: enroute/picked_up rows past
+  // scheduled_at + ceiling fall back to the plain list (still reachable, still cancellable —
+  // dropping from the BAND is not hiding). `active` stays unconditionally: the server says a run
+  // is in progress, and a run that started late is genuinely live past any schedule arithmetic.
+  const bandCeiling = (b: Booking) => {
+    if (b.rawStatus === 'active') return true;
+    const t = b.scheduledAt ? Date.parse(b.scheduledAt) : NaN;
+    return !Number.isNaN(t) && Date.now() < t + LATENESS_CEILING_MS;
+  };
+  const liveNow = all.filter((b) => LIVE_RAW.includes(b.rawStatus ?? '') && bandCeiling(b));
   const liveIds = new Set(liveNow.map((b) => b.id));
   const notLive = all.filter((b) => !liveIds.has(b.id));
   const visible = notLive.filter(FILTERS[filterIdx].match);
@@ -404,7 +417,7 @@ export default function Schedule() {
               <Pressable
                 onPress={() => {
                   shareRunToFeed(b.id)
-                    .then(() => Alert.alert('피드에 올렸어요', '동네 피드에서 확인해보세요'))
+                    .then(() => Alert.alert('피드에 올렸어요', '하이 피드에서 확인해보세요'))
                     .catch((err) => Alert.alert('피드 공유', (err as Error).message));
                 }}
                 style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}

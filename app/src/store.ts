@@ -18,15 +18,16 @@ export type EndReason = 'dog' | 'owner' | 'runner' | null;
 // runner may choose '나중에 (추정치 표시)' — and the done screen used to print that estimate under
 // '오늘의 수익'. The app knew it was an estimate and called it earnings anyway. It now carries
 // the distinction instead of losing it.
-export const runResult = { km: 0, sec: 0, payout: 0, settled: false, completed: false, reason: null as EndReason, bookingId: null as string | null, dogName: null as string | null };
+// [0121] payout is NULLABLE: pre-settle it is a server-coefficient estimate that may not have
+// loaded; null renders as '—', never 0 (loading is not 0) and never a bundle-computed number.
+export const runResult = { km: 0, sec: 0, payout: null as number | null, settled: false, completed: false, reason: null as EndReason, bookingId: null as string | null, dogName: null as string | null };
 
 // Demo flag: shows the home widget in "imminent" (곧 시작) state
 export const demoImminent = true;
 
-// Prorated payout: actual distance, minus platform commission. (러너 측 → runnerCompBase)
-export function payoutFor(km: number): number {
-  return Math.round((pricing.runnerCompBase + km * pricing.perKm) * (1 - pricing.commission));
-}
+// [0121] payoutFor is GONE: it multiplied a bundle-resident gross formula by a bundle-resident
+// commission constant — the margin, shipped in every binary. run.tsx now estimates from
+// server-issued net coefficients (my_run_net_coeffs) and shows '—' when it has none.
 
 export type AddonKey = keyof typeof pricing.addons;
 
@@ -236,24 +237,9 @@ export const cancelPolicy = {
 // above SURVIVES as policy WORDS for pre-booking surfaces (request.tsx's ladder copy, the
 // share-split sentence) — words state policy; numbers are read.
 
-// ---------- Runner earnings ledger (schema seed: payouts/ledger tables) ----------
-export interface LedgerItem {
-  id: string; date: string; dogName: string; km: number;
-  base: number; distancePay: number; addonPay: number; tip: number; fee: number; // fee = platform commission
-}
-export const ledgerNet = (l: LedgerItem) => l.base + l.distancePay + l.addonPay + l.tip - l.fee;
+// [0121] the mock earnings ledger (LedgerItem/ledger/ledgerNet/payoutInfo) is deleted: zero
+// consumers, hardcoded fee rows — the margin encoded in the bundle, and fake data besides.
 
-export const ledger: LedgerItem[] = [
-  { id: 'l1', date: '7.22 (수)', dogName: '초코', km: 5.02, base: 9900, distancePay: 15060, addonPay: 4000, tip: 2000, fee: 5792 },
-  { id: 'l2', date: '7.21 (화)', dogName: '몽이', km: 3.0, base: 9900, distancePay: 9000, addonPay: 0, tip: 0, fee: 3780 },
-  { id: 'l3', date: '7.20 (월)', dogName: '두부', km: 5.0, base: 9900, distancePay: 15000, addonPay: 2000, tip: 1000, fee: 5380 },
-  { id: 'l4', date: '7.19 (일)', dogName: '초코', km: 7.01, base: 9900, distancePay: 21030, addonPay: 3000, tip: 0, fee: 6786 },
-];
-
-export const payoutInfo = {
-  bank: '카카오뱅크', last4: '4821', holder: '김민준',
-  nextDate: '7월 24일 (수)', pendingSum: 83700, taxRate: 0.033,
-};
 
 // ---------- Saved addresses (schema seed: addresses table, encrypted gate codes) ----------
 export interface SavedAddress {

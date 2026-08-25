@@ -487,8 +487,13 @@ begin
       then v_bad := v_bad || ' anon 실행 가능'; end if;
     if has_function_privilege('public', 'club_fare(numeric)', 'execute')
       then v_bad := v_bad || ' public 실행 가능'; end if;
-    if not has_function_privilege('authenticated', 'club_fare(numeric)', 'execute')
-      then v_bad := v_bad || ' authenticated 실행 불가 (0057 §1 복원 규칙 위반)'; end if;
+    -- [0121 §G′] REVERSED, deliberately: club_fare(2)−club_fare(1) = PER_KM made the pricing
+    -- formula a one-call oracle for the runner-margin regression (contract C7, reviews
+    -- O-F5/X-№4), and it has ZERO client-side rpc callers (fares reach clients via
+    -- club_delegation_board, a definer, unaffected). 0057 §1's capture-and-restore rule is not
+    -- silently broken — it is loudly superseded here, and 156 P11 owns the sealed state.
+    if has_function_privilege('authenticated', 'club_fare(numeric)', 'execute')
+      then v_bad := v_bad || ' authenticated 실행 가능 (0121 §G′ 봉인이 풀렸다)'; end if;
     if club_fare(5.0) <> 24900 then v_bad := v_bad || ' 값이 바뀌었다=' || club_fare(5.0); end if;
 
     if v_bad = ''

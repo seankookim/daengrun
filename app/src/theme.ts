@@ -224,9 +224,10 @@ export const paper = {
 //   하나를 다른 하나에 맞추는 수정은 사고다.
 export const pricing = {
   ownerBaseFare: 7900,
-  runnerCompBase: 9900,
+  // [0121] runnerCompBase and commission are GONE from the bundle: together they were the
+  // runner-side gross formula and the margin. perKm stays — it prices the OWNER's distance
+  // fare on four owner screens; the server's runner-side twin lives in 0101 only.
   perKm: 3000,
-  commission: 0.33,  // 0059 — 일괄 33% (2026-08-05 Sean 결정). 서버 정본은 runners.commission_rate
   addons: {
     river: { label: '리버뷰 코스', desc: '한강을 따라 더 시원하게', price: 3000 },
     homecare: { label: '홈길 온리', desc: '집까지 안전하게 케어', price: 2000 },

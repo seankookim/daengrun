@@ -170,8 +170,9 @@ function collectionLine(lines: string[]): string {
   return l;
 }
 
-// The runner-facing response, byte-for-byte the pre-charge-slice shape.
-const SETTLE_KEYS = ["drop", "fee", "gross", "guarantee", "net", "total_runs"];
+// [0121] The runner-facing response is NET-ONLY: gross/fee/guarantee left the wire (fee÷gross
+// was the exact commission rate). Exact-key assertion IS the absence pin the contract asks for.
+const SETTLE_KEYS = ["drop", "net", "total_runs"];
 function assertRunnerShape(out: Row) {
   assertEquals(Object.keys(out).sort(), SETTLE_KEYS);
 }
@@ -201,7 +202,7 @@ Deno.test("charge fires AFTER settle_run_tx and the row lands confirmed with the
   try {
     const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
     // The settlement half is untouched by any of this.
-    assertEquals(out.gross, 15900); // 9,900 runner base + 3,000×2 — the RUNNER side, not the owner's
+    assertEquals(out.net, 15900 - Math.round(15900 * 0.33)); // runner side of 9,900+3,000×2, net of the 33% (0121: gross left the wire)
     assertEquals(out.total_runs, 5);
     // Ordering law: the ledger transaction is committed before the charge is even minted.
     const tx = db.log.indexOf("rpc:settle_run_tx");
@@ -249,7 +250,7 @@ Deno.test("charging not live yet (mint returns ZERO ROWS) — nothing minted, no
   try {
     const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
     // The settlement is exactly as it was before this slice existed — the card-less pilot's run.
-    assertEquals(out.gross, 15900);
+    assertEquals(out.net, 15900 - Math.round(15900 * 0.33)); // [0121] net-only response
     assertRunnerShape(out);
     assertEquals(seen.length, 1); // SQL was asked; SQL is the one that said "not live"
     assertEquals(net.calls.length, 0);
@@ -325,8 +326,7 @@ Deno.test("a declined card NEVER unwinds the settlement — 200 with the runner'
   const cap = captureLogs();
   try {
     const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
-    assertEquals(out.gross, 15900);
-    assertEquals(out.net, 15900 - Math.round(15900 * 0.33));
+    assertEquals(out.net, 15900 - Math.round(15900 * 0.33)); // [0121] net carries the relay pin alone
     assertEquals(out.total_runs, 5);
     assertRunnerShape(out); // the decline is invisible to the runner, by design
     assertStringIncludes(collectionLine(cap.lines), "collection=failed");
@@ -356,7 +356,7 @@ Deno.test("the mint RPC exploding does not fail the settlement either", async ()
   const cap = captureLogs();
   try {
     const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
-    assertEquals(out.gross, 15900);
+    assertEquals(out.net, 15900 - Math.round(15900 * 0.33)); // [0121] net-only response
     assertRunnerShape(out);
     assertEquals(net.calls.length, 0); // nothing was charged against a row that does not exist
     assert(
@@ -474,11 +474,10 @@ Deno.test("runner_personal is paid the PASS-THROUGH — the owner's charge less 
     assertEquals(payout[0].p_actual_km, 1.2);
     assertEquals(payout[0].p_commission, 0.33);
     // gross is the owner's charge — NOT 9,900 + 3,000×1.2 (= 13,500, the pre-⑨a number)
-    assertEquals(out.gross, STOP_CHARGE);
-    assertEquals(out.fee, 1188); // round(3,600 × 0.33)
-    assertEquals(out.net, 2412); // gross − fee, a SUBTRACTION: the two shares sum to the charge
-    assertEquals(out.guarantee, 0);
-    assert(Number(out.gross) < 9900, "the min_fare floor came back — that floor IS the flat base");
+    // [0121] the response is net-only; the relayed pass-through is pinned through net and
+    // through what settle_run_tx received (payout args below). 2412 = 3,600 − round(3,600×0.33).
+    assertEquals(out.net, 2412);
+    assert(Number(out.net) < 9900 - Math.round(9900 * 0.33), "the min_fare floor came back — that floor IS the flat base");
   } finally {
     cap.restore();
     net.restore();
@@ -562,8 +561,7 @@ Deno.test("the other three reasons never ask for a pass-through — only the sto
         !db.log.includes("rpc:compute_runner_personal_payout"),
         `${c.end_reason} was paid the pass-through`,
       );
-      assertEquals(out.gross, gross);
-      assertEquals(out.fee, fee);
+      assertEquals(out.net, gross - fee); // [0121] the per-reason relay, observed through net
     } finally {
       cap.restore();
       net.restore();
@@ -882,13 +880,18 @@ Deno.test("frozen: an inflated body is IGNORED — tx and mint both get the froz
 
 Deno.test("frozen: no guarantee is paid for a body-claimed owner_request the freeze never recorded", async () => {
   const db = frozenScene();
+  // [0121] guarantee left the response, so the pin moves to the MECHANISM the old field
+  // observed: the pricing RPC must be asked with the FROZEN reason (completed), not the body's
+  // owner_request — and the response must not carry a guarantee key at all.
+  const seen = installPayout(db);
   installMint(db);
   const net = tossOk();
   try {
     const out = await settleRun(
       req(body({ actual_km: 9.9, end_reason: "owner_request" }), "runner_jwt"), db as never,
-    ) as { guarantee: number };
-    assertEquals(out.guarantee, 0, "the body bought itself the owner_request guarantee");
+    ) as Row;
+    assertEquals(seen[0]?.p_end_reason, "completed", "the body bought itself the owner_request guarantee");
+    assert(!("guarantee" in out), "guarantee is back on the wire");
   } finally {
     net.restore();
   }
