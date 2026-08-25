@@ -5,6 +5,12 @@ think we should be showing them the calcuations ever; only show the final profit
 the margin a secret. You can show the expected profit at first per run next to how far away the
 starting point is and how long the run is and how long it will take total."
 
+**v2.1, 2026-08-25:** the v2.0 fold was verified by a fourth fresh voice: 7/8 load-bearing
+folds HELD (incl. the definer-view subquery mechanics, the 11-column whitelist completeness,
+zero remaining ledger_items client reads, ISO-Monday `date_trunc`, both §E entry paths, and
+no omission-oracle in §E); two corrections applied in place — §H's authority set (opener is
+not a settler) and the old open-requests view's grant (revoked, it was runner-only all along).
+
 **v2, 2026-08-25:** v1 (`f6ed2cf`) went through two blind adversarial reviews (independent Opus
 + fresh codex voice, neither shown authoring reasoning). Both returned **FIX-FIRST**: v1's
 diagnosis held, but its mechanism handed the rate back in three of its own §2 objects, its seal
@@ -103,9 +109,12 @@ inside a definer).
   explicitly [O-F17, X-№8]: `revoke select from public, anon` (0107:98 — default privileges
   hand anon SELECT on new views) · `revoke insert, update, delete from public, anon,
   authenticated` (0112's measured definer-view DML trap) · `grant select to authenticated`.
-  The OLD `marketplace_open_requests` view keeps existing for any non-runner consumer but
-  loses its purpose; its grants are left untouched this slice (owner surfaces may read it;
-  auditing that is the bookings-slice's job — §0 residual 2).
+  The OLD `marketplace_open_requests` view: **client SELECT is REVOKED in §G, same deploy**
+  [fold-verify BLOCKER]. v2.0's "non-runner consumer" hedge was incoherent — the view's own
+  WHERE includes `is_active_runner()` (0056:68), so it is runner-only by construction, and
+  leaving it granted lets a runner join old-view fares to new-view nets by booking id and
+  recover the rate in one query. The view OBJECT stays (no-DROP law); `revoke select on
+  marketplace_open_requests from anon, authenticated` — service_role/definers unaffected.
 - **§E `my_run_net_coeffs(p_bookings uuid[])`** → `table(booking_id, expected_net int,
   net_base int, net_per_km int)`, party-gated to the caller being `runner_id` on each row
   (rows the caller isn't party to are OMITTED, not errored). Named object — v1 said "the
@@ -149,10 +158,14 @@ inside a definer).
   and is unaffected; verified zero client-side `rpc('club_fare')` callers). Closes the
   one-call PER_KM oracle; the linear-price residual class remains as named in §0.
 - **§H incident money [O-F1, X-№2, X-№3]:**
-  1. `club_incident_settle_quote`: keep the signature; **when the caller's ONLY qualifying
-     party role is the booking's runner, `runner_gross` and `runner_fee` return NULL**
-     (runner_net stays). Host/backup-host/case-owner/opener keep the full readout — they are
-     the settling side. Pinned both ways.
+  1. `club_incident_settle_quote`: keep the signature; **`runner_gross` and `runner_fee`
+     return NULL unless the caller is a SETTLEMENT AUTHORITY — host, backup host, or
+     case_owner** (runner_net always stays). `opened_by` is NOT an authority [fold-verify #5:
+     0116:434-444 and 0080:995-998 admit the opener as a party but never as a settler, and a
+     runner opening an incident about their own run is the COMMON case — v2.0's arm split
+     would have handed that runner the full readout]. A runner who IS also case_owner sees
+     values, by the authority role, not the runner role. Pinned three ways: runner-only null ·
+     runner+opener null · runner+case_owner full.
   2. `club_incident_settle` (0080): stop writing `runnerGross` into the evidence payload
      going forward, and **UPDATE existing `club_incident_evidence` rows to strip the
      `runnerGross` key** (`runnerNet` stays; pre-launch row count is small and the settling
@@ -209,8 +222,9 @@ pins: comp-row inclusion in net, exclusion from runs-count, actual-km sum, the K
 boundary rows [X-№11/12] · `expected_net` formula for a known rate AND the 0.33 no-row
 fallback · §D view ACL pins (anon no-SELECT, no DML — independent of `is_insertable_into`)
 [X-№8] · §G positive AND negative `has_column_privilege` pins + the six embed-survival probes
-[O-F10] · §G′ club_fare EXECUTE negative · §H both-arms pins (runner sees NULL gross/fee;
-host sees values; evidence payload has no `runnerGross` key — historical rows included) ·
+[O-F10] · §G′ club_fare EXECUTE negative · §H three-way pins (runner-only NULL · runner+opener NULL · runner+case_owner values;
+evidence payload has no `runnerGross` key — historical rows included) · old-view revoke pin
+(authenticated SELECT on marketplace_open_requests is gone; the new views answer) ·
 98 H1 covers §F's search_path schema-wide · **a schema-wide sweep pin** [O-F19]: every
 function with authenticated EXECUTE whose OUT columns match `fee|gross|commission|rate` is
 enumerated against a comment-justified allowlist (post-§H that allowlist is
