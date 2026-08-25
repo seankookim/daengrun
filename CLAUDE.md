@@ -121,6 +121,24 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 ## Migrations & security (server)
 
 - Any migration or security-relevant change requires the adversarial cycle: scout → contract → implement → adversarial review where reviewers EXECUTE attacks → test pins → revise → verify. Harness: `supabase/tests/harness.sh` (container: PG16 at tests/.pgtest; pg_ctl must start in the same shell invocation). All pins must pass; new behavior gets mutation-verified pins.
+- 🔴 **A GREEN LIGHT IS EVIDENCE FOR EXACTLY ONE SENTENCE — write that sentence down, then check
+  it is the one you needed** (2026-08-25; this shape appeared FIVE times in one afternoon across
+  two lanes, and the people finding it were the same people committing it). Instances, all
+  measured: a harness green on a partial-apply ACL hole it *structurally cannot reach*, because
+  migrations always apply in numeric order from scratch · a pin sweeping ARGNAMES for
+  fee/gross/commission, read as a money-surface guard, green on a PUBLIC definer · a "schema-wide"
+  caller scan restricted to the `public` namespace while calling itself schema-wide · a control
+  whose two arms read the SAME files through a symlink, so it could not have failed · a push
+  detector whose success pattern was a substring of its own rejection message.
+- **The mutation discipline that fixes it — THREE propositions, not one.** For any guard worth
+  having, "the hole is real", "the pin notices something", and "the fix closes it" are three
+  different claims, and a single mutation proves only the middle one — the weakest, and the one
+  most often mistaken for the other two. So plant the failure **without** the fix (does the hole
+  actually reproduce?) and **with** it (is it actually closed?). Worked example, 0127's Critical:
+  M10 planted the absent-function path unfixed and the migration aborted on `acl==X/postgres` —
+  the hole itself, not a pin's opinion of it; M11 ran the same path fixed and passed with
+  `pub=false`. **A control that cannot fail is not a control**, and a battery that only ever
+  reddens pins has measured your test suite, not your system.
 - New security-definer functions MUST have `set search_path = public, pg_temp` in the function body — ALTER-applied config is reset by `create or replace` (measured). Test 98 H1 watches the whole schema and fails the harness on any omission.
 - **A `create or replace` that RELIES on grant preservation is a latent PUBLIC-EXECUTE hole. Write the `revoke` explicitly, every time** (2026-08-25, found by a blind reviewer, then confirmed as a CLASS in shipped code). `create or replace` preserves owner and ACL **only if the function already exists**; where it does not — a partial prior apply, a branch that never ran the creating migration, a rebuilt environment — it is a plain CREATE, and 0116:636 already records that new functions inherit **PUBLIC EXECUTE by default**. A `SECURITY DEFINER` born PUBLIC-executable is the worst shape this repo can produce. Found in 0127 (the restored recurring cron), then the same check against shipped code found `0121:240`'s `club_incident_settle_quote` — a money-returning definer with no revoke while **all six of its siblings in the same file have one** (0121:50, 75, 94, 185, 205, 434). Production measured correct there, because the creating migration ran first and preservation held; it is latent, not breached, and the obligation rides the next money-path slice touching it rather than a churn migration.
   ⚠ **Two green harnesses were green on this.** Neither 885/0 nor 844/0 checked owner, ACL or `prosecdef` on a recreated function, and 156's P15 sweep — which reads as a money-surface guard — sweeps ARGNAMES for fee/gross/commission and is green on a PUBLIC definer. That is a pin proving exactly what it says; the error was reading its green as broader than its sentence. **The durable guard is schema-wide, never per-function** — a per-function ACL pin only catches the function you already suspected, which by definition is not the one that bites you. The sweep lives beside 98 H1 (same standing-invariant shape, same file): every `public` SECURITY DEFINER asserted against an explicit ACL allowlist, and **every allowlist entry carries its reason** — widening the list to get green is how this guard dies.
