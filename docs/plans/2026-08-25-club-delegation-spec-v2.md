@@ -184,8 +184,11 @@ One consequence to carry honestly: a companion who is ALSO someone's paired runn
 own 동반견 toward load (0047:61-63) — a companion cannot bring their own dog AND be at full cap.
 RULED (14.6, 2026-08-25): **guests can be crew too** — any dogless RSVP, runner-tier or
 guest, may be listed as crew on the board. Standing needs no new machinery: every RSVP holds
-a `session_people` row → shell `full` → incident standing (0049:14, 0067:68). The board's
-crew row shows the person's name and role only.
+a `session_people` row → shell `full` → incident standing (0049:14, 0067:68). ⚠ ERRATUM
+(S2 contract verification): the crew predicate is "dogless `session_people` row", NEVER the
+`runner_attending` role — 0048:178-180 assigns `runner_attending` only to non-applicant
+runners; a dogless GUEST gets `owner_attending`, so a role-keyed crew query would drop every
+guest, the exact thing this ruling forbids. The board's crew row shows name and role only.
 
 ---
 
@@ -864,7 +867,7 @@ Classes: **U** unchanged · **RA** re-anchored (same logic, new event/caller) ·
 | C13 | `session_host_force_resolve` 0070:171 | `picked_up|active` | **admits `finished_pending_host`** (§7.6.1) | RA (S5) |
 | C14 | `session_custody_override` 0070:243 | `return_pending` | untouched | U |
 | C15 | console client predicate `console/[sid].tsx:202-206` | client copy of C1 | RETIRED — server classification via board (§9) | RW (S2/S5) |
-| C16 | `club_dog_ui_state` 0116:552 | axes → stage | new stages (P5/P7/P9/P10 labels); party gate byte-identical | RW (S2) |
+| C16 | `club_dog_ui_state` 0116:552 | axes → stage | new stages (P5/P7/P9/P10 labels — their PRODUCERS are S4/S5 columns, so this rewrite rides S4/S5, NOT S2; S2 touches it not at all — erratum from the S2 contract) | RW (S4/S5) |
 | C17 | board impl 0053:227 | projection | + state columns/load; member projection is NEW beside it | RW+N (S2) |
 | C18 | `_club_compute_axes` 0048:687 | booking status, custody events, cancel_reason | derives the new states; the `club_not_picked_up→no_show_owner` unconditional label (0048:748 — wrong for the refunded runnerless arm) is corrected while the function is open | RW (S4) |
 | C19 | chat lifetime `_club_chat_writable` 0049:29 | done + unresolved custody | untouched — verified the predicate survives returns-after-done (0049:40) | U |
