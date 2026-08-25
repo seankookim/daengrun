@@ -120,12 +120,11 @@ begin
     perform session_cancel_delegation(v_sd2);                     -- 세션 +90m = <24h → 10%
     select coalesce(sum(amount_krw), 0) into v_fee from club_fee_items
     where session_dog_id = v_sd2 and kind = 'cancel_fee';
-    -- (ruling B, 2026-08-25) this cancel is UNACCEPTED (no runner ever said yes) — the fee is the
-    -- platform half of the 10% rung; the supply half is not charged because no slot was held.
+    -- (console ruling #13, 2026-08-25: 「no fee if the owner was not connected; it's our job to connect them」 — a never-accepted cancel is FREE at any time; supersedes ruling B's halving for this arm)
+    -- The 10% rung's remaining owner is the POST-ACCEPT arm below; this unaccepted arm is 0.
     if (select status from bookings where id = v_b2) <> 'refund_pending'
-       or v_fee <> round(round((select total_price from bookings where id = v_b2) * 0.10)
-                         * club_cfg('fee_platform_split_pct') / 100.0)::int
-      then call _fail('r4','F5 10%','fee=' || v_fee); else
+       or v_fee <> 0
+      then call _fail('r4','F5 미연결 무료','fee=' || v_fee); else
       -- 수락 후 취소 = 20% + 러너 보상 몫
       v_sd2 := session_delegate_dog(v_s, dg2, t_consent());
       perform set_config('request.jwt.claim.sub', ho::text, false);

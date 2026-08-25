@@ -440,17 +440,13 @@ begin
     select my_ledger_total() into v_total;
     if v_total <> v_share then v_bad := v_bad || ' 정산 예정 합계=' || v_total || ', 기대=' || v_share; end if;
 
-    -- (ruling B, 2026-08-25) unaccepted cancel charges the PLATFORM HALF only — same nested
-    -- rounding as _club_record_fee: round(fee) then round(fee * split%).
-    select round(round(total_price * club_cfg('cancel_late_pct') / 100.0)
-                 * club_cfg('fee_platform_split_pct') / 100.0)::int into v_fee
-    from bookings where id=b_late;
-    if (select cancel_fee from bookings where id=b_late) <> v_fee
-       or (select count(*) from payments where booking_id=b_late and amount=v_fee) <> 1
-       or (select count(*) from club_fee_items where booking_id=b_late) <> 1
-       or (select coalesce(sum(amount_krw),0) from club_fee_items where booking_id=b_late) <> v_fee
+    -- (console ruling #13, 2026-08-25: 「no fee if the owner was not connected; it's our job to connect them」 — a never-accepted cancel is FREE at any time; supersedes ruling B's halving for this arm)
+    -- Nothing is charged, minted, or ledgered for the unconnected owner — the whole trail is empty.
+    if coalesce((select cancel_fee from bookings where id=b_late),0) <> 0
+       or exists (select 1 from payments where booking_id=b_late)
+       or exists (select 1 from club_fee_items where booking_id=b_late)
        or exists (select 1 from ledger_items where booking_id=b_late)
-      then v_bad := v_bad || ' 미수락 반액(플랫폼 몫만)/무러너 목적지 불일치'; end if;
+      then v_bad := v_bad || ' 미연결 무료가 아니다(#13 위반)'; end if;
     if coalesce((select cancel_fee from bookings where id=b_free),0) <> 0
        or (select club_fee_event_at from bookings where id=b_free) is not null
        or exists (select 1 from payments where booking_id=b_free)
@@ -1180,13 +1176,15 @@ begin
     -- `coalesce(club_cfg(k), <ruled number>)` inside an explanatory COMMENT, which prosrc keeps.
     -- A loose `%coalesce(club_cfg(%` would match that comment and redden for prose.
     select prosrc into v_src from pg_proc where oid='session_cancel_delegation(uuid)'::regprocedure;
+    -- [0124] TWO sites now, not three: the late_cancel rung retired under console ruling #13
+    -- (its config row and the coalesce-negatives stay — a resurrected site must come back
+    -- through the wrapper or redden here).
     if v_src not like '%club_cfg_required(''cancel_post_accept_pct'')%'
        or v_src not like '%club_cfg_required(''cancel_free_hours'')%'
-       or v_src not like '%club_cfg_required(''cancel_late_pct'')%'
        or v_src like '%coalesce(club_cfg(''cancel_post_accept_pct'')%'
        or v_src like '%coalesce(club_cfg(''cancel_free_hours'')%'
        or v_src like '%coalesce(club_cfg(''cancel_late_pct'')%'
-      then v_bad:=v_bad||' ARM4 취소 사다리 세 사이트가 wrapper를 안 읽거나 fallback 상수가 남았다'; end if;
+      then v_bad:=v_bad||' ARM4 취소 사다리 두 사이트가 wrapper를 안 읽거나 fallback 상수가 남았다'; end if;
     select prosrc into v_src from pg_proc
     where oid='_club_record_fee(uuid,uuid,uuid,text,integer,numeric,uuid,text)'::regprocedure;
     if v_src not like '%club_cfg_required(''fee_platform_split_pct'')%'
@@ -1221,13 +1219,11 @@ begin
       then v_bad:=v_bad||' ARM5 수락 후 20%(post_accept 사이트+split 사이트) 청구가 안 된다'; end if;
     perform set_config('request.jwt.claim.sub', o_cfg2::text, false);
     perform session_cancel_delegation(sd_cfg2);
-    -- (ruling B) unaccepted delegation cancel = platform half of the late rung, ONE fee item.
-    select round(round(total_price*club_cfg('cancel_late_pct')/100.0)
-                 *club_cfg('fee_platform_split_pct')/100.0)::int into v_fee
-    from bookings where id=b_cfg2;
-    if (select cancel_fee from bookings where id=b_cfg2) <> v_fee
-       or (select count(*) from club_fee_items where booking_id=b_cfg2) <> 1
-      then v_bad:=v_bad||' ARM5 late 10% 반액(free_hours 사이트가 고른 rung) 청구가 안 된다'; end if;
+    -- (console ruling #13, 2026-08-25: 「no fee if the owner was not connected; it's our job to connect them」 — a never-accepted cancel is FREE at any time; supersedes ruling B's halving for this arm)
+    -- The free_hours site still gates the window; what it selects for the unconnected is 0.
+    if coalesce((select cancel_fee from bookings where id=b_cfg2),0) <> 0
+       or exists (select 1 from club_fee_items where booking_id=b_cfg2)
+      then v_bad:=v_bad||' ARM5 미연결 무료가 아니다(#13 위반)'; end if;
     -- The split site once more, directly, so its own read is exercised and not inferred.
     b_cfgsplit := t_av_booking(o_cfg,d_cfg,rt,r,now()+interval '10 days',5.0,'refund_pending');
     update bookings set club_session_id=s_cfg where id=b_cfgsplit;
@@ -1690,17 +1686,12 @@ begin
   -- missing row, NULL basis, an arbitrary replacement label, a revert, or an over-broad rename.
   begin
     v_bad := '';
-    -- ① No runner (ruling B, 2026-08-25): there is NO second row AT ALL — the supply half is
-    --    not charged when no slot was held. The one row is the platform's own, labeled as such.
-    --    ('unassigned_supply_retained' lived one day, 08-24→08-25, retired by the ruling.)
-    if (select count(*) from club_fee_items where booking_id=b_late) <> 1
-       or (select count(*) from club_fee_items
-           where booking_id=b_late and recipient_type='platform'
-             and recipient_profile_id is null and basis->>'share'='platform') <> 1
-       or exists (select 1 from club_fee_items
-                  where booking_id=b_late
-                    and basis->>'share' in ('supply_compensation','unassigned_supply_retained'))
-      then v_bad:=v_bad||' 러너 없는 취소에 공급 몫 행이 존재한다 (B 룰링 위반)'; end if;
+    -- ① No runner (console ruling #13, 2026-08-25: 「no fee if the owner was not connected; it's our job to connect them」 — a never-accepted cancel is FREE at any time; supersedes ruling B's halving for this arm):
+    --    ZERO rows — under #13 nothing is charged at all, so neither half exists. (Ruling B's
+    --    platform-half row lived 08-24→08-25 and retired with the arm; the supply-label
+    --    property lives on in arm ② where a slot WAS held.)
+    if exists (select 1 from club_fee_items where booking_id=b_late)
+      then v_bad:=v_bad||' 러너 없는 취소에 수수료 행이 존재한다 (#13 위반)'; end if;
 
     -- ② Committed runner: the held-slot half remains supply compensation.
     if (select count(*) from club_fee_items
