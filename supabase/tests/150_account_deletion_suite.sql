@@ -166,8 +166,12 @@ begin
   d := t_dog(o, '나비');
   v_rt := t_route('acd 코스 ' || p_tag);
 
-  insert into addresses (owner_id, label, addr, detail, gate_code_enc, lat, lng, is_default)
-  values (o, '집', '서울 서초구 반포동 1', '101호', 'GATE-ENC-XYZ', 37.5045, 127.0114, true)
+  -- [0122, blind review BLOCKER-1] the fixture now carries a dong: the redaction pin below was
+  -- a named-column allowlist whose fixture never SET the new column, so 0122's dong survived
+  -- account deletion (measured: dong='반포동' after delete) and the harness stayed green through
+  -- it. A fixture that does not exercise a column cannot defend it.
+  insert into addresses (owner_id, label, addr, detail, gate_code_enc, lat, lng, is_default, dong)
+  values (o, '집', '서울 서초구 반포동 1', '101호', 'GATE-ENC-XYZ', 37.5045, 127.0114, true, '반포동')
   returning id into v_addr;
   -- the audit log row whose destruction F1 measured (1 row → 0) when `addresses` was DELETEd
   insert into gate_code_access_log (address_id, runner_id) values (v_addr, r);
@@ -1111,11 +1115,17 @@ begin
 
   -- addresses (F1/F2) — assert the PAIR, not one side: addresses_latlng_shape would have
   -- rejected a half-redaction outright
+  -- [0122] `dong is null` joins the allowlist. WHY this pin moves: 0122 added a derived 법정동
+  -- to this row and the blind review measured it SURVIVING delete_my_account_tx — against
+  -- 0115:443's own invariant ("LOCATES NOTHING AND IDENTIFIES NOBODY") on a row kept forever as
+  -- an FK anchor. The mechanism is 0122 §2's derivation arm (coords→NULL clears the label), so
+  -- 0115 itself is byte-untouched; THIS arm owns the end-to-end property, 157 P8 owns the
+  -- mechanism.
   select count(*) into v_n from addresses
    where id = v_addr and gate_code_enc is null and detail is null
-     and lat is null and lng is null and is_default = false
+     and lat is null and lng is null and is_default = false and dong is null
      and addr = '삭제된 주소' and label = '삭제된 주소';
-  if v_n <> 1 then v_bad := v_bad || ' addresses 레닥션 불완전 (lat/lng는 쌍으로)'; end if;
+  if v_n <> 1 then v_bad := v_bad || ' addresses 레닥션 불완전 (lat/lng는 쌍으로 · dong 포함)'; end if;
   if exists (select 1 from addresses where id = v_addr and addr like '%반포동%') then
     v_bad := v_bad || ' 🔴 원래 주소 문자열이 남았다'; end if;
 
