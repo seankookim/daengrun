@@ -24,13 +24,15 @@ begin
   perform club_claim_host(v_club);
   s_far  := club_create_session(v_club, now() + interval '48 hours', '사다리 집결지', rt, 8, 'mixed');
   s_near := club_create_session(v_club, now() + interval '90 minutes', '사다리 집결지', rt, 8, 'mixed');
-  -- (no session_checkin: it has a start-window gate — checkin_window raised for the 48h
-  --  session on the first run — and assignment needs COMMIT, not attendance)
+  -- Check-in is start-windowed (checkin_window raised for the 48h session, measured) AND
+  -- assignment requires it (runner_not_checked_in raised without it, also measured) — so the
+  -- near session checks in and the far one cannot, which is the same fact L1's manufactured
+  -- state documents: assignment ≥24h out is unreachable in today's flows.
   perform session_runner_commit(s_far);
-  perform session_runner_commit(s_near);
+  perform session_runner_commit(s_near); perform session_checkin(s_near);
   perform set_config('request.jwt.claim.sub', rr::text, false);
   perform session_runner_commit(s_far);
-  perform session_runner_commit(s_near);
+  perform session_runner_commit(s_near); perform session_checkin(s_near);
 
   -- A: far session, runner ACCEPTED (the #11 case)
   perform set_config('request.jwt.claim.sub', oA::text, false);
