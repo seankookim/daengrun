@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Share Card Lab (r5)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   SHARE CARD LAB — the SHAREABLE RUN RECORD CARD. Sixth club-v2 lab.
+
+   WHAT THIS LAB IS
+   The artifact an owner sends out after a run, drawn at real export ratios, plus
+   the moment it is OFFERED. Three card variants and one nudge frame. Sean has
+   asked for this twice and it has never been drawn in this world.
+
+   ── HIS TWO ASKS, VERBATIM ─────────────────────────────────────────────────
+   2026-08-24 (docs/decisions/2026-08-24-sean-ui-club-commentary.md:61-62):
+     "The t screen (finished receipt) should have the shareable card thing nudge
+      and social media share nudge."
+   2026-08-25, round 5 (docs/plans/2026-08-25-return-point-and-round5.md:146):
+     "pace map record should give the shareable card thing"
+
+   So he asked for BOTH halves and this lab draws both: ①②③ are the artifact,
+   ④ is the offer. A card nobody is offered is not a share loop, and a nudge
+   with no card behind it is a dead button — they are one item.
+
+   ── WHAT IS ALREADY SHIPPED (scouted, not assumed) ─────────────────────────
+   `app/app/shot/[bid].tsx` is a 731-line 인증샷 스튜디오 with five skins, and
+   `app/app/club/receipt/[bid].tsx` + `app/app/owner/report.tsx` already carry
+   doors into it. So the ROUTE is not new. Two things are:
+     · the studio's skins live in the RETIRED palette (volt/cream) and predate
+       every round-3/4/5 world rule — they are not this product's face any more;
+     · `src/components/run-share-card.tsx:84-96` DRAWS THE GPS TRACE onto the
+       shared image (`pathFrom(data.trace …)`), which is precisely the thing the
+       privacy scope below forbids. The most public surface in the product is
+       currently the one that exports a course line.
+   This lab is therefore a re-draw with a scope, not a greenfield surface.
+
+   ── 🔴 PRIVACY SCOPE — A RULING, NOT A PREFERENCE ──────────────────────────
+   From the round-5 CEO review, voice B's F14 (plan file :268): the privacy risk
+   in a share card lives ENTIRELY in (a) the map trace and (b) other people's
+   dogs. A course trace is location data about where a dog LIVES — the reason
+   0060 / 0065 / 0122 / 0123 all exist. A trace-free, crew-free card has neither
+   risk, which is why v1 is narrow on purpose:
+
+     · v1 DRAWS NO MAP AND NO TRACE. Not blurred, not stylised, not a silhouette.
+       None. A "stylised" trace is still the shape of the walk home.
+     · v1 SHOWS NO OTHER PERSON'S DOG, NAME OR FACE — not even a club crew line.
+       One dog, one owner, one run. A club run is named by its CLUB, not by who
+       else was in it.
+     · v1 MAY carry, all first-party and all already on the finish screen:
+       dog name + the owner's own run photo, distance, pace, duration, date,
+       club name when it was a club run, and the app's own mark.
+
+   ── DELIBERATELY NOT DRAWN (v2, NOT IN THIS LAB) ───────────────────────────
+   Scoped out, not forgotten. Each would need its own consent surface first:
+     · the map / GPS trace / any route silhouette  — location data about a home
+     · a crew line, other dogs' names or photos    — other people's data, and
+       `photo_consent` already refuses feed sharing for a non-consenting dog
+       (club/receipt/[bid].tsx:205-214) — the export path has no such gate yet
+     · any location string (잠수교, 집결지, an address) — a place is a location
+       datum even as five characters of Korean; 반포 하이클럽 is a club, not a place
+     · the runner's name — a real person who did not choose to be published
+     · money: 하이 포인트, 정산, any amount. A card is a record, not a receipt.
+   ⚠ Note what that costs the fixture set: 초코 and 잠수교 are in the other five
+   labs' vocabulary and are ABSENT here on purpose — one is another owner's dog,
+   the other is a place. 몽이 · 반포 하이클럽 · 8월 26일 (토) carry the whole card.
+
+   ── FIELDS BOUND (real, and nothing else) ──────────────────────────────────
+   Every value on these cards exists at the finish moment. Named at source so
+   the build has nothing to invent:
+     몽이            RunReport.dogName            (api.ts:4263)
+     5.1km           run.actualKm                 (api.ts:4283)
+     6'04"           run.paceSecPerKm → fmtPace   (report.tsx:58)
+     31:02           run.durationSec  → fmtDur    (report.tsx:57)
+     8월 26일 (토)   RunReport.when / scheduledAtIso
+     반포 하이클럽    club/receipt/[bid].tsx's `clubName` param
+     사진            run.photos[]                  (runner/done.tsx uploads, cap 6)
+     12번째 러닝      RunStandings.nth              (fetchRunStandings)
+   Photo slots are drawn as LABELLED BINDS, never as stock imagery: 0 photos is
+   a real and common state and ② is the card that state gets.
+
+   ── LAWS INHERITED (settled elsewhere, not revisited here) ─────────────────
+   · Ground inside APP frames is pure #FFFFFF. The CARD is an export, not an app
+     screen, so it may carry its own ground — each one is justified in the margin.
+   · Type lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only.
+   · Black Han Sans ≤1 per frame. #6C5CE7 is a SPARSE accent — in this lab it
+     appears exactly ONCE, on ④'s kicker underline. Coral is the action fill.
+   · Small white text never sits on coral — ③'s plate is ink (#26231b, ~14:1).
+   · Flat: no card inside a card. Tappable things look tappable; readouts don't.
+   · Korean UI strings, English comments.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+/* ── FILE-LOCAL — the export card + the moment it is offered ──────────────── */
+
+/* ── THE STAGE ── the card is an IMAGE, so it needs somewhere to sit. The
+   backdrop is the existing neutral --recess, NOT an invented dark scrim: the
+   ground law says white paper and one neutral recess, and a share-sheet scrim
+   would be a sixth grey nobody ruled. On device the OS supplies its own. ── */
+.stage{background:var(--recess);border-bottom:1px solid var(--docLine);
+  padding:22px 20px 16px;display:flex;flex-direction:column;align-items:center}
+.stagecap{display:flex;align-items:baseline;gap:10px;margin-top:14px;align-self:stretch}
+.stagecap .sc{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.stagecap .serial{margin-left:auto}
+
+/* ── THE CARD ── an export at a real ratio. Two sizes, both exact:
+   .feed  1080 × 1350 (4:5)  → 350 × 437 drawn
+   .story 1080 × 1920 (9:16) → 320 × 569 drawn
+   Drawn at preview size with NO transform scale — a scaled copy would push the
+   Korean under the floor while pretending to obey it. ── */
+.card{position:relative;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 12px 28px rgba(28,24,55,.20)}
+.card.feed{width:350px;height:437px}
+.card.story{width:320px;height:569px}
+
+/* the photo bind — a labelled slot, never stock imagery. 0 photos is a real
+   state and it gets ② instead, so nothing here has to pretend. */
+.pslot{flex:0 0 auto;background:var(--docClause);display:flex;align-items:flex-end;padding:12px 14px}
+.pslot .pl{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docFaint)}
+.pslot.tall{height:360px}
+.card.feed .pslot{height:232px}
+
+/* ① 인화 — photo over a white apron */
+.apron{flex:1;background:var(--docWhite);border-top:1px solid var(--docLine);
+  padding:15px 16px 16px;display:flex;flex-direction:column}
+.cdisp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.cdisp .u{color:var(--coralText)}
+.cpair{display:flex;margin-top:14px;border-top:1px solid var(--docLine)}
+.cpair > div{flex:1;padding:12px 0 0}
+.cpair > div + div{border-left:1px solid var(--docLine);padding-left:16px}
+.cpair .v{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.cpair .l{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.cfoot{margin-top:auto;padding-top:11px;border-top:1.5px solid var(--docInk);
+  display:flex;align-items:baseline;gap:10px}
+.cfoot .club{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.cfoot .mark{margin-left:auto;font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+
+/* ② 기록 — the whole card is the paper */
+.cpaper{flex:1;background:var(--docWhite);padding:22px 20px 18px;display:flex;flex-direction:column}
+.chead{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2.5px solid var(--docInk);padding-bottom:8px}
+.chero{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n1);line-height:var(--nl1);color:var(--docInk);margin-top:16px}
+.chero .u{font-family:var(--fBody);font-size:var(--t2);font-weight:700;color:var(--coralText)}
+.clbl{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.cmark{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);margin-top:16px}
+
+/* ③ 스토리 — photo to the edges, one INK plate. White type never touches the
+   photo and never touches coral: #FFFFFF on #26231b measures ~14:1. */
+.plate{flex:1;background:var(--docInk);padding:18px 18px 16px;display:flex;flex-direction:column}
+.plate .pdisp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docWhite);letter-spacing:-.01em}
+.plate .pdisp .u{color:var(--coralSoft)}
+.ptrio{display:flex;margin-top:14px;border-top:1px solid rgba(255,255,255,.28)}
+.ptrio > div{flex:1;padding:12px 8px 0}
+.ptrio > div + div{border-left:1px solid rgba(255,255,255,.28);padding-left:12px}
+.ptrio .v{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docWhite)}
+.ptrio .l{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docEdge)}
+.pfoot{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;gap:10px}
+.pfoot .club{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docWhite)}
+.pfoot .mark{margin-left:auto;font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docEdge)}
+
+/* ── THE SHEET ── our own doors, drawn as doors. The OS sheet is behind
+   「공유하기」; the other two are the studio's real, separate paths. ── */
+.sheet{background:var(--docWhite);padding:18px 20px 24px;display:flex;flex-direction:column}
+.sheet .sh{display:flex;justify-content:space-between;align-items:baseline}
+.sheet .sh .t{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.btnP{margin-top:16px}
+.privline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:16px}
+.absent{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);
+  border-top:1px solid var(--docLine);margin-top:14px;padding-top:12px}
+
+/* ── ④ the nudge — an app screen, so the ground is pure white ── */
+.phone.nudge{min-height:812px}
+.headline{display:flex;justify-content:space-between;align-items:baseline;margin-top:24px}
+.rhero{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n1);line-height:var(--nl1);color:var(--docInk);margin-top:14px}
+.rhero .u{font-family:var(--fBody);font-size:var(--t2);font-weight:700;color:var(--coralText)}
+.rpair{display:flex;margin-top:16px;border-top:1px solid var(--docLine)}
+.rpair > div{flex:1;padding:13px 0 0}
+.rpair > div + div{border-left:1px solid var(--docLine);padding-left:16px}
+.rpair .v{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.rline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:14px}
+.offer{border-top:1.5px solid var(--docInk);margin-top:26px;padding-top:14px}
+.offer .ot{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk);margin-top:10px}
+.offer .ob{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:8px}
+.tap.mid{justify-content:center}
+.foot{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 104px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>공유 카드 — 기록 하나가 밖으로 나가는 모양</h1>
+  <p class="law">Round 5 · export ratios 4:5 · 9:16 · no map, no trace, no other dog · the offer is drawn too</p>
+</header>
+
+<section class="toc">
+  <h2>One pick for the card — ④ is the offer, not a choice</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>인화</b> — 4:5. The owner's own photo over a white apron. The shipped receipt's 「영수증 = 사진 인화」 idiom, made shareable.</span></li>
+    <li><span class="n">②</span><span><b>기록</b> — 4:5. <b>No photo at all.</b> The paper itself: one ink rule, one big numeral, the club. This is also the card a run with 0 photos gets.</span></li>
+    <li><span class="n">③</span><span><b>스토리</b> — 9:16. Photo to the edges, one ink plate carrying the numbers. Built for the story frame, not cropped into it.</span></li>
+    <li><span class="n">④</span><span><b>넛지</b> — where the card is offered on the finish screen. Dismissible, one real door, nothing auto-posts.</span></li>
+  </ol>
+  <p class="say">One number settles it — <b>①</b>, <b>②</b> or <b>③</b> — plus one word if ④'s offer sits wrong.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ═══════════════════════════════════════ ① 인화 · 4:5 -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">인화 — <b>사진 + 흰 종이 앞치마</b>, 4:5 피드.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
+
+      <div class="stage">
+        <div class="card feed">
+          <div class="pslot"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
+          <div class="apron">
+            <div class="cdisp">몽이, 오늘 <span class="u">5.1km</span></div>
+            <div class="cpair">
+              <div><div class="v">6'04"</div><div class="l">페이스</div></div>
+              <div><div class="v">31:02</div><div class="l">시간</div></div>
+            </div>
+            <div class="cfoot">
+              <span class="club">반포 하이클럽</span>
+              <span class="mark">DOGS HIGH · 08.26</span>
+            </div>
+          </div>
+        </div>
+        <div class="stagecap">
+          <span class="sc">미리보기</span>
+          <span class="serial">1080 × 1350 · 4:5</span>
+        </div>
+      </div>
+
+      <div class="sheet">
+        <div class="sh"><span class="t">공유</span><span class="serial">CARD READY</span></div>
+        <div class="btnP">공유하기 ›</div>
+        <div class="tap quietTap"><span class="tt">인스타 스토리로</span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">이미지 저장</span><span class="chev">›</span></div>
+        <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ② 기록 · 4:5 · 사진 없음 -->
+  <div class="col">
+    <div class="cap"><span class="n">②</span><span class="d">기록 — <b>사진 없이 종이만</b>. 사진 0장인 러닝이 받는 카드이기도 하다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
+
+      <div class="stage">
+        <div class="card feed">
+          <div class="cpaper">
+            <div class="chead">
+              <span class="disp">몽이</span>
+              <span class="serial">RUN RECORD · 08.26</span>
+            </div>
+            <div class="chero">5.1<span class="u">km</span></div>
+            <div class="clbl">실측 거리</div>
+            <div class="cpair">
+              <div><div class="v">6'04"</div><div class="l">페이스</div></div>
+              <div><div class="v">31:02</div><div class="l">시간</div></div>
+            </div>
+            <div class="cmark">12번째 러닝</div>
+            <div class="cfoot">
+              <span class="club">반포 하이클럽</span>
+              <span class="mark">DOGS HIGH</span>
+            </div>
+          </div>
+        </div>
+        <div class="stagecap">
+          <span class="sc">미리보기</span>
+          <span class="serial">1080 × 1350 · 4:5</span>
+        </div>
+      </div>
+
+      <div class="sheet">
+        <div class="sh"><span class="t">공유</span><span class="serial">CARD READY</span></div>
+        <div class="btnP">공유하기 ›</div>
+        <div class="tap quietTap"><span class="tt">이미지 저장</span><span class="chev">›</span></div>
+        <div class="absent">인스타그램이 없는 기기에서는 그 줄이 아예 없어요 — 눌러도 아무 일 없는 문은 만들지 않아요.</div>
+        <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ③ 스토리 · 9:16 -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">스토리 — <b>사진 풀블리드 + 잉크 판</b>, 9:16 그대로.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
+
+      <div class="stage">
+        <div class="card story">
+          <div class="pslot tall"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
+          <div class="plate">
+            <div class="pdisp">몽이, 오늘 <span class="u">5.1km</span></div>
+            <div class="ptrio">
+              <div><div class="v">5.1</div><div class="l">거리 km</div></div>
+              <div><div class="v">6'04"</div><div class="l">페이스</div></div>
+              <div><div class="v">31:02</div><div class="l">시간</div></div>
+            </div>
+            <div class="pfoot">
+              <span class="club">반포 하이클럽</span>
+              <span class="mark">DOGS HIGH · 08.26</span>
+            </div>
+          </div>
+        </div>
+        <div class="stagecap">
+          <span class="sc">미리보기</span>
+          <span class="serial">1080 × 1920 · 9:16</span>
+        </div>
+      </div>
+
+      <div class="sheet">
+        <div class="sh"><span class="t">공유</span><span class="serial">CARD READY</span></div>
+        <div class="btnP">인스타 스토리로 ›</div>
+        <div class="tap quietTap"><span class="tt">공유하기</span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">이미지 저장</span><span class="chev">›</span></div>
+        <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ ④ 넛지 — 완료 화면의 제안 -->
+  <div class="col">
+    <div class="cap"><span class="n">④</span><span class="d">넛지 — <b>완료 화면에서 카드를 권하는 자리</b>. 거절할 수 있고, 문은 하나다.</span></div>
+    <div class="phone nudge">
+      <div class="stbar"><span>10:40</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 반포 하이클럽 · <span class="num">8</span>월 <span class="num">26</span>일 (토)</div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">완료</div>
+          <div class="serial">RECEIPT · 08.26</div>
+        </div>
+
+        <div class="rhero">5.1<span class="u">km</span></div>
+        <div class="clbl">실측 거리</div>
+        <div class="rpair">
+          <div><div class="v">6'04"</div><div class="clbl">페이스</div></div>
+          <div><div class="v">31:02</div><div class="clbl">시간</div></div>
+        </div>
+        <div class="rline">오늘 찍은 사진 <span class="num">4</span>장</div>
+
+        <div class="offer">
+          <span class="kick acc">Share card</span>
+          <div class="ot">오늘의 카드가 나왔어요</div>
+          <div class="ob">몽이의 기록만 담은 한 장이에요. <b>경로와 함께 달린 다른 아이는 담기지 않아요.</b></div>
+          <div class="btnP">카드 만들기 ›</div>
+          <div class="tap quietTap mid"><span class="tt" style="flex:0 0 auto">나중에</span></div>
+          <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+        </div>
+
+        <div class="foot"><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>왜 이 세 장인가</h3>
+
+    <h4>Grounds, one justification each</h4>
+    <p><b>App frames are pure #FFFFFF</b> — ④ and every sheet obey that without exception. The <b>card is an export</b>, not an app screen: it lands on somebody else's feed, so it is allowed its own ground, and each one is a decision:</p>
+    <p><b>① photo + white apron.</b> The photo is content (the shipped 사진법: no stock, no wallpaper), the apron is the same white paper as the app, so the card and the screen it came from are visibly one product.</p>
+    <p><b>② pure white, no photo.</b> A shared white card reads as a certificate and survives any feed background behind it. It is also the <b>honest state</b>: 0 photos is common (the runner is nudged, never forced — runner/done.tsx), and this card needs none.</p>
+    <p><b>③ photo full-bleed + one ink plate (#26231b).</b> Story format is edge-to-edge by convention. White type cannot be measured against an unknown photo, so the numbers sit on an <b>ink plate</b> — the repo's own idiom — at about <b>14:1</b>. No white on coral anywhere.</p>
+
+    <h4>The stage is not a scrim</h4>
+    <p>The card sits on <b>--recess</b>, the existing neutral. A share-sheet scrim would be a new dark value nobody ruled, and on device the OS draws its own anyway. What the lab owes him is the card and the doors, at true size.</p>
+
+    <h4>Bound, and only bound</h4>
+    <div class="ph"><span class="k">몽이</span><span>RunReport.dogName</span></div>
+    <div class="ph"><span class="k">5.1km</span><span>run.actualKm</span></div>
+    <div class="ph"><span class="k">6'04"</span><span>run.paceSecPerKm → fmtPace</span></div>
+    <div class="ph"><span class="k">31:02</span><span>run.durationSec → fmtDur</span></div>
+    <div class="ph"><span class="k">08.26 (토)</span><span>RunReport.when / scheduledAtIso</span></div>
+    <div class="ph"><span class="k">반포 하이클럽</span><span>receipt's clubName param</span></div>
+    <div class="ph"><span class="k">사진 4장</span><span>run.photos.length</span></div>
+    <div class="ph"><span class="k">12번째 러닝</span><span>RunStandings.nth</span></div>
+    <p>Photo areas are <b>labelled binds</b>, not stock images. If the array is empty the card is ②, so no slot ever has to be filled with something that is not the dog.</p>
+
+    <h4>🔴 v2 — NOT IN THIS LAB</h4>
+    <p>Scoped out, not forgotten, and each needs its own consent surface before it can be drawn:</p>
+    <p><b>지도 · 실측 경로 · 코스 실루엣.</b> A trace is location data about where a dog lives — that is the whole reason 0060 / 0065 / 0122 / 0123 exist. A blurred or "stylised" trace is still the shape of the walk home, so v1 draws none at all.</p>
+    <p><b>크루 · 다른 아이 이름 · 다른 아이 사진.</b> Other people's data. The feed path already refuses a run containing a non-consenting dog (<code>photo_consent</code>, club/receipt/[bid].tsx) — <b>the export path has no equivalent gate</b>, so v1 simply carries one dog.</p>
+    <p><b>장소 문자열</b> (잠수교, 집결지, 주소). A place is a location datum even as five Korean characters. 반포 하이클럽 is a club, not a place.</p>
+    <p><b>러너 이름</b> — a real person who never chose to be published. <b>돈</b> — 하이 포인트, 정산, any amount: a card is a record, not a receipt.</p>
+    <p>⚠ Cost of the scope, stated plainly: <b>초코 and 잠수교 5km are in the other five labs' fixture set and are missing here on purpose.</b> That is the scope working, not the fixtures drifting.</p>
+
+    <h4>What already ships, and what changes</h4>
+    <p>The route is <b>not new</b>: <code>/shot/[bid]</code> is a five-skin 인증샷 스튜디오 and both <code>owner/report.tsx</code> and <code>club/receipt/[bid].tsx</code> already open it. Two things are new. Its skins are in the <b>retired volt/cream palette</b>, predating every round-3/4/5 rule; and <code>run-share-card.tsx</code> <b>draws the GPS trace onto the exported image</b>. The most public surface in the product currently exports a course line — that is the line this lab removes.</p>
+
+    <h4>The nudge is an offer, not a trap</h4>
+    <p>One coral door (<b>카드 만들기</b> → <code>/shot/[bid]</code>, a route that exists), one quiet <b>나중에</b>, and a sentence saying what the card leaves out before he taps rather than after. <b>Nothing auto-posts</b>: 공유하기 hands the PNG to the OS sheet, 인스타 스토리로 opens Instagram's own composer, and the app never publishes anything by itself.</p>
+    <p>No dead buttons in any state: the Instagram row is <b>absent</b> — not greyed — when <code>instagramAvailable()</code> is false (drawn in ②), and a run with no photos still has a card, because that card is ②.</p>
+
+    <h4>Affordance count</h4>
+    <p>Tappable per frame: ① back-free sheet = <b>3</b> · ② = <b>2</b> · ③ = <b>3</b> · ④ back + 카드 만들기 + 나중에 = <b>3</b>. The card itself is an image and carries <b>zero</b> tap marks — the numerals, the club line and the mark are print.</p>
+  </div>
+
+</div>
+
+</div></body></html>
