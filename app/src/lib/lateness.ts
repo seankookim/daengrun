@@ -22,6 +22,14 @@ export type LateInput = {
   km?: number | null;
   /** runs.started_at. active 의 기준점 — 없으면 scheduled_at 으로 떨어진다. */
   startedAt?: string | null;
+  /** 양측 인계 소인 (bookings.owner_confirmed_handoff_at · runner_confirmed_handoff_at).
+   *  ⚠ [F7 2026-08-24] 커스터디 판정의 **필수 입력**이다. 두 값을 싣지 못하는 리더는 커스터디에
+   *  기대는 문장을 그리면 안 된다 (§13 C2) — 그래서 fetchMyBookings · fetchRunnerJobs ·
+   *  fetchMeetupInfo 세 셀렉트가 전부 이 두 컬럼을 싣도록 같은 슬라이스에서 바꿨다.
+   *  undefined 는 '아직 안 실었다'가 아니라 '없다'로 취급된다 — 새 리더가 생기면 셀렉트에
+   *  두 컬럼을 더하는 것이 계약이다. */
+  ownerHandoffAt?: string | null;
+  runnerHandoffAt?: string | null;
 };
 
 export type Custody = 'pre' | 'post';
@@ -55,8 +63,17 @@ export const LATENESS_GRACE_MS = 30 * 60_000;
 // 천장 — 약속 시각으로부터 이 시간을 넘기면 '늦은 예약'이 아니라 '끝난 일'이다.
 //   (sinceMs 와 같은 원점을 쓴다 — 문턱과 원점이 다르면 두 숫자가 생긴다.)
 // 왜 필요한가: 천장이 없으면 두 번의 탭으로 16일 된 예약이 되살아난다 (codex 지적, 플랜 §4.3).
-// 넘긴 뒤에는 화면이 '진행' 계열 동작을 제안하지 않는다 — 종점만 남는다.
 // 인계 후에도 같다: 3시간을 넘긴 러닝은 정상 러닝이 아니라 확인이 필요한 사건이다.
+//
+// ⚠ [정정 2026-08-24] 이 자리에 「넘긴 뒤에는 화면이 '진행' 계열 동작을 제안하지 않는다 — 종점만
+// 남는다」라고 적혀 있었다. **그 시점엔 참이 아니었다.** resumable 의 소비자가 이 파일 자신과
+// late-copy 의 문장 한 갈래뿐이었고, 마운트해서 이 값을 읽는 화면이 하나도 없었다. 그래서 러너 홈은
+// 「이 예약은 진행할 수 없어요」 82줄 아래에 코랄 「픽업 이동 시작」을 나란히 그리고 있었다.
+// 지금은 절반만 참이다: runner/meetup 의 pastCeiling 이 러너의 **탭 문**(장비 체크 · 도착 확인 ·
+// 인계 받기)을 실제로 닫는다. 아직 참이 아닌 쪽 — 보호자 화면엔 닫을 문이 없고(권고만 준다),
+// runner/meetup 의 마운트 effect 는 info 보다 먼저 돌아 runnerEnroute 를 게이트 밖에서 쏜다.
+// **서버는 천장을 아예 모른다.** 그래서 late-copy 의 문장은 '불가능'이라고 말하지 않는다 —
+// 시스템이 해낼 수 있는 일을 화면이 못 한다고 말하면 그게 이 파일이 막으려는 그 거짓말이다.
 export const LATENESS_CEILING_MS = 3 * 3_600_000;
 
 /** 지각 시간을 사람 말로. 분 아래를 '곧'으로 뭉개지 않는다 — 반올림이 거짓이 되지 않게. */
@@ -69,8 +86,34 @@ export const sinceLabel = (ms: number): string => {
   return `${Math.floor(h / 24)}일`;
 };
 
-/** 인계선 — 0066:50 이 그은 그 선. picked_up 부터는 개가 러너에게 있다. */
-const POST_CUSTODY = new Set(['picked_up', 'active']);
+/** 인계선 — 0066:50 이 그은 그 선. picked_up 부터는 개가 러너에게 있다.
+ *
+ * ⚠ [F7 2026-08-24] 이건 **상태만 보는 한 갈래짜리 술어**였고, 서버(0117:159-170 `_checkin_custody`)는
+ * 두 갈래로 긋는다. 같은 예약을 두고 클라이언트와 서버가 D3 선을 서로 다른 자리에 그었다는 뜻이다.
+ *
+ * 갈라지는 실제 경우: transition-booking/index.ts:315-322 는 소인을 찍고, 다시 읽지 않은 채,
+ * 두 번째 호출로 status='picked_up' 을 쓴다. 두 소인은 남고 승격만 실패하는 찢어진 쓰기가 가능하다.
+ * 그러면 status 는 runner_enroute, 소인은 둘 다 있다 →
+ *   서버: 'post'  (개는 러너 손에 있다고 본다. no_show 를 거부하고 「확인이 필요해요」를 보낸다)
+ *   옛 클라: 'pre' (그래서 보호자는 「러너님이 문 앞에서 기다려요」를, 러너는 「보호자가 아직
+ *                  나오지 않았어요」를 읽는다 — 개는 이미 러너에게 있는데.)
+ * 게다가 owner/meetup:219 가 승격을 재시도할 유일한 컨트롤을 숨겨서 그 상태가 영구히 남는다.
+ *
+ * 그래서 서버 술어를 **그대로** 옮긴다. 규칙은 하나, 구현은 둘이다 (§13 C2).
+ * (서버의 네 번째 갈래 'out' 은 옮기지 않는다 — 그 상태들은 아래 CAN_BE_LATE 에서 이미 걸러져
+ *  none 으로 나가므로 화면에 커스터디 문장이 뜨지 않는다. 값을 하나 더 만들면 새 표면이 된다.) */
+const POST_CUSTODY_STATUS = new Set(['picked_up', 'active']);
+const CUSTODY_LIVE = new Set(['confirmed', 'runner_enroute', 'picked_up', 'active']);
+
+/** 0117:163-169 의 case 식과 같은 답을 낸다. */
+export const custodyOf = (
+  status: string,
+  ownerHandoffAt?: string | null,
+  runnerHandoffAt?: string | null,
+): Custody =>
+  (CUSTODY_LIVE.has(status) && !!ownerHandoffAt && !!runnerHandoffAt) || POST_CUSTODY_STATUS.has(status)
+    ? 'post'
+    : 'pre';
 
 /** 이 상태들만 '늦을 수' 있다. matching·runner_pending 은 expire-unmatched 크론의 몫이고,
  *  종료 상태(completed·cancelled_*·expired·no_show·incident_review·refund_pending)는 이미 끝났다. */
@@ -88,7 +131,7 @@ export function lateness(
   graceMs = LATENESS_GRACE_MS, ceilingMs = LATENESS_CEILING_MS,
 ): Lateness {
   const status = b.rawStatus ?? '';
-  const custody: Custody = POST_CUSTODY.has(status) ? 'post' : 'pre';
+  const custody: Custody = custodyOf(status, b.ownerHandoffAt, b.runnerHandoffAt);
   const started = status === 'active';
   const none: Lateness = { late: false, sinceMs: 0, custody, waitingOn: null, resumable: true, started, waitMs: 0 };
 

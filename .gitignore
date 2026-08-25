@@ -48,3 +48,6 @@ docs/routes/geo/_rawf/
 
 # Local Naver map key for the route bench — never commit a client ID.
 docs/routes/strava/bench/config.js
+
+# Higgsfield generated frames — picked keepers move to a curated dir; raw batches stay local
+docs/campaigns/higgsfield-out/

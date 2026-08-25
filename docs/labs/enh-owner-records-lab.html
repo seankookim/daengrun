@@ -1,0 +1,1953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner Records + Dog — Enhancement Lab (2026-08-24)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════════
+   ZERO NEW HEXES. Every colour below is copied out of app/src/theme.ts or is a
+   file-local constant that already ships in the screen being drawn.
+
+   paper   #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text
+           #666666 dim · #999999 faint · #E8552F line · #FFF6F4 wash
+           #B3261E critical · #FBEAE7 criticalWash · #F2F2F2 disabledFill
+           #C77414 pending · #C6472C action · #A83315 actionPressed/actionInk
+           #119B58 ready · #0E7F49 readyDeep · #EEEEEE neutral card border (§2)
+   lilac   #F4F2FB bg · #EFECF9 inset · #E6E2F4 hair · #221E3D head · #4B4668 text
+           #7C76A0 dim · #6C5CE7 accent · #F0765A coral · #E45F41 coralDeep
+           #FFDCD1 coralSoft · #B99A4F gold · #F4EBD3 goldSoft
+   colors  #C6F542 volt · #7FA818 voltDeep · #D9A93C gold · #5a7a3c green
+   local   #C9C2E8 FILM_INK · #F2EFFA FILM_TITLE · #FFD9CD FILM_NUM · #9787DC BAR_PAST
+           #171332 thumb bed (fitness.tsx) · #4A3DA8 READ_VIOLET · #d84a2f/#fde8e3 REASON chip ·
+           #5a7a3c Monogram bg (report.tsx) · collarColors ×8 (theme.ts)
+   ⚠ The 현재 frame for owner/review.tsx additionally reproduces the NINE off-token hexes that
+     screen ships today — #DCD6C4 #dcd9cc #eaf7c8 #a9c47e #3d5a2b #f2c14e #b0ada0 #49524a and
+     colors.volt as a CTA surface. They appear ONLY in that one frame, on purpose: it is a
+     reproduction of shipped code, and retiring them is what variant C① is.
+
+   NO CDN, NO EXTERNAL ASSETS. Black Han Sans and Oswald are not loadable offline,
+   so `.disp` and `.num` below are STAND-INS (heavy weight + tight tracking; a
+   macOS condensed face for numerals). Read them as "display slot" / "numeral
+   slot", never as the real face. Every numeral slot in these mocks carries an
+   explicit line-height, which is the actual law being illustrated (BUG A).
+   ══════════════════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#FBFAF7;color:#111111;padding:38px 22px 96px;-webkit-font-smoothing:antialiased;
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+.wrap{max-width:1760px;margin:0 auto}
+
+h1{font-size:34px;line-height:1.15;font-weight:800;letter-spacing:-.025em}
+.law{font-size:11.5px;letter-spacing:2.4px;color:#999999;text-transform:uppercase;margin:11px 0 16px;font-weight:700}
+.lede{font-size:15px;color:#666666;line-height:1.8;max-width:1000px}
+.lede b{color:#111111;font-weight:700}
+
+h2.band{margin:66px 0 6px;padding-top:22px;border-top:1px solid #E8552F;font-size:23px;font-weight:800;letter-spacing:-.02em}
+h2.band .n{color:#E8552F;margin-right:12px;font-weight:800}
+h2.band .file{font-weight:500;color:#999999;font-size:14px;letter-spacing:0;margin-left:10px}
+.intro{font-size:14.5px;color:#666666;line-height:1.8;max-width:1000px;margin-top:8px}
+.intro b{color:#111111}
+
+.note{background:#FFFFFF;border:1px solid #EEEEEE;padding:15px 18px;margin:20px 0 0;font-size:14px;line-height:1.72;max-width:1100px}
+.note.warn{border:1px solid #E8552F}
+.note.bad{background:#FBEAE7;border:1px solid #B3261E}
+.note h4{margin:0 0 8px;font-size:11.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#666666}
+.note.bad h4{color:#B3261E}
+.note b{color:#111111}
+code{font:12.5px/1.5 "SF Mono",ui-monospace,Menlo,monospace;background:#F2F2F2;padding:1px 5px}
+
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col{width:390px}
+.cap{font-size:17px;font-weight:800;letter-spacing:-.01em;margin:0 0 5px;line-height:1.3}
+.cap .mark{color:#E8552F;margin-right:8px;font-weight:800}
+.cap .mark.now{color:#999999}
+.why{font-size:13.5px;color:#666666;line-height:1.72;margin:0 0 10px;min-height:132px}
+.why b{color:#111111}
+.st8{font:11px/1.5 "SF Mono",ui-monospace,Menlo,monospace;color:#666666;background:#F2F2F2;padding:6px 10px;margin-bottom:0}
+.meta{border:1px solid #EEEEEE;border-top:0;padding:11px 12px 12px;font-size:12.5px;line-height:1.68;color:#666666;background:#FFFFFF}
+.meta h5{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#111111;margin:0 0 4px}
+.meta h5.c2{margin-top:9px;color:#A83315}
+.meta b{color:#111111}
+.meta .free{color:#0E7F49;font-weight:700}
+.meta .pay{color:#C77414;font-weight:700}
+.meta .froz{color:#B3261E;font-weight:700}
+
+/* ── phone frame ───────────────────────────────────────────────────────── */
+.ph{width:390px;background:#FFFFFF;border:1px solid #EEEEEE;overflow:hidden;
+    box-shadow:0 16px 38px rgba(17,17,17,.09)}
+.scr{height:686px;overflow-y:auto;overflow-x:hidden;position:relative;background:#FFFFFF}
+.scr::-webkit-scrollbar{width:5px}
+.scr::-webkit-scrollbar-thumb{background:#EEEEEE}
+.sb{height:26px;display:flex;justify-content:space-between;align-items:center;padding:0 15px;
+    font:11px/1 -apple-system,sans-serif;color:#999999;font-weight:600;flex:0 0 26px}
+
+/* stand-in faces */
+.disp{font-weight:800;letter-spacing:-.03em}
+.num{font-family:"Avenir Next Condensed","HelveticaNeue-CondensedBold","Arial Narrow",sans-serif;
+     font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+/* app-side helpers */
+.k{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#999999} /* latin kicker — floor-exempt */
+/* LAB NOTE — an annotation drawn INSIDE a frame. English on purpose: it must be impossible to
+   mistake for product copy. Nothing in a .labnote ships. */
+.labnote{margin:14px 12px 18px;border-top:1.5px dashed #999999;padding-top:9px}
+.labnote .kk{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:#999999}
+.labnote p{font-size:12.5px;line-height:1.6;color:#666666;margin-top:4px}
+.labnote b{color:#111111}
+.rule{height:1px;background:#E8552F}
+.hair{height:1px;background:#EEEEEE}
+.pad{padding:0 12px}
+.pad15{padding:0 15px}
+.sec{background:#FFFFFF;padding:16px 12px;border-bottom:1px solid #E8552F}
+.secT{font-size:20px;font-weight:800;color:#111111;margin-bottom:6px}
+.row{display:flex;align-items:center;justify-content:space-between}
+.coralCta{background:#C6472C;display:flex;align-items:center;gap:10px;padding:14px 15px}
+.coralCta .t{font-size:19px;line-height:25px;font-weight:900;color:#FFFFFF}
+.coralCta .s{font-size:14px;line-height:19px;font-weight:600;color:#FFF6F4;margin-top:3px}
+.coralCta .c{font-size:20px;line-height:25px;color:#FFF6F4;margin-left:auto}
+.linkRow{background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;
+         padding:16px 12px;border-bottom:1px solid #E8552F}
+.chip{border-radius:0;padding:7px 13px;background:#FFF6F4;font-size:14px;font-weight:900;color:#A83315}
+.backSq{width:40px;height:40px;border:1px solid #E8552F;background:#FFFFFF;display:flex;
+        align-items:center;justify-content:center;font-size:20.5px;color:#111111}
+.backCirc{width:38px;height:38px;border-radius:19px;border:1px solid #E6E2F4;background:#FFFFFF;
+        display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;color:#221E3D}
+.fail{background:#FFFFFF;border-top:1px solid #B3261E;border-bottom:1px solid #B3261E;
+      display:flex;justify-content:space-between;align-items:center;padding:11px 12px}
+.fail .t{font-size:14px;line-height:18px;font-weight:700;color:#B3261E}
+.fail .r{font-size:14px;line-height:18px;font-weight:800;color:#B3261E;text-decoration:underline}
+/* photo grid — the app's TILE = (W − 4) / 3; flex reproduces it at any frame width */
+.tiles{display:flex;gap:2px;background:#FFFFFF}
+.tiles .tile{flex:1 1 0;aspect-ratio:1;background:#EEEEEE}
+.map{display:block;width:100%;height:190px}
+
+/* lilac world (fitness) */
+.lilac{background:#F4F2FB}
+.lcard{background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:16px;margin-top:12px}
+.film{background:#221E3D}
+.sprock{height:11px;display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+.sprock i{display:block;width:8px;height:5px;border-radius:2.5px;background:#F4F2FB}
+.edge{font-size:12px;line-height:15px;color:#C9C2E8;letter-spacing:.8px;padding:0 16px 10px}
+.punch{width:19px;height:19px;border-radius:10px;border:1.6px solid #E6E2F4;background:#FFFFFF}
+.punch.on{background:#221E3D;border-color:#E45F41;position:relative}
+.punch.on::after{content:"";position:absolute;inset:0;border-radius:8px;border:2.5px solid #FFDCD1}
+.barcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar{width:62%;border-radius:4px 4px 0 0;background:#9787DC}
+.bar.now{background:#E45F41}
+.bars{display:flex;align-items:flex-end;gap:2px;height:91px;margin-top:16px;padding-bottom:2px;
+      border-bottom:1px solid #E6E2F4;position:relative}
+.barX{flex:1;text-align:center;font-size:14px;line-height:18px;color:#7C76A0}
+.barX.on{color:#E45F41;font-weight:700}
+
+/* form bits (review / dog) */
+.inp{border:1px solid #EEEEEE;background:#FFFFFF;padding:12px 13px;font-size:16px;color:#111111}
+.inp.ph2{color:#999999}
+.tagOff{border:1px solid #EEEEEE;background:#FFFFFF;padding:10px 13px;font-size:14px;font-weight:800;color:#333333}
+.tagOn{border:1px solid #E8552F;background:#FFF6F4;padding:10px 13px;font-size:14px;font-weight:800;color:#A83315}
+.lbl{font-size:14px;font-weight:800;color:#111111;margin:18px 0 7px}
+.saveBar{background:#FFFFFF;border-top:1px solid #E8552F;padding:10px 15px 22px}
+.saveBtn{background:#C6472C;color:#FFFFFF;font-size:17px;font-weight:800;text-align:center;padding:16px}
+.saveBtn.off{background:#F2F2F2;color:#999999}
+
+table{border-collapse:collapse;margin-top:18px;font-size:13.5px;width:100%;max-width:1300px}
+th,td{border-bottom:1px solid #EEEEEE;padding:10px 12px;text-align:left;vertical-align:top}
+th{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:#666666;font-weight:800;
+   border-bottom:1px solid #111111}
+td b{color:#111111}
+.foot{margin-top:72px;padding-top:22px;border-top:1px solid #E8552F;font-size:14px;color:#666666;
+      line-height:1.85;max-width:1100px}
+.foot b{color:#111111}
+ol.q{margin:14px 0 0 20px;max-width:1100px}
+ol.q li{font-size:14.5px;line-height:1.8;color:#666666;margin-bottom:13px}
+ol.q li b{color:#111111}
+</style></head>
+<body><div class="wrap">
+
+<h1>Owner records + dog — enhancement lab</h1>
+<div class="law">2026-08-24 · four screens · eleven numbered variants · zero new hexes · zero new server columns</div>
+<p class="lede">
+Four screens the owner opens <b>after</b> the run, plus the profile that feeds every run before it:
+<code>owner/fitness.tsx</code> · <code>owner/report.tsx</code> · <code>owner/review.tsx</code> · <code>owner/dog.tsx</code>.
+Each screen gets a <b>현재</b> frame first — drawn from the shipped source, not from memory — then numbered
+variants. <b>Sean picks by number</b>; a variant is a whole answer, but ①②③ within one screen are usually
+combinable and the cost block says when they are not.
+</p>
+
+<div class="note warn">
+  <h4>How to read the frames</h4>
+  <b>Every Korean string in a frame is product copy</b> — that is the only Korean in this file, per §Language.
+  All rationale, headings and annotations are English.
+  <b>Every number is a SAMPLE</b>; the <span style="color:#A83315;font-weight:700">BINDS TO</span> block under each
+  frame names the real field it would read. Where I wanted to show something with no field behind it, I did not draw
+  it — I wrote it into the open questions instead. Frames scroll inside their own bezel (686px tall), so nothing
+  is hidden below the fold.
+  <div class="hair" style="margin:11px 0"></div>
+  <b>Fonts:</b> no CDN is allowed in this file, so the display face (Black Han Sans) and the numeral face (Oswald)
+  are stand-ins. Read <code>.disp</code> / <code>.num</code> as slots. The law those slots illustrate — <b>display once
+  per screen</b>, and <b>every numeral carries an explicit line-height ≥1.2×</b> — is real and is respected in every frame.
+</div>
+
+<div class="note bad">
+  <h4>Four defects I found in the source while drawing this — they are not variants, they are wrong today</h4>
+  <b>① <code>owner/fitness.tsx:221</code> names an element that was retired.</b> The 주간 목표 stepper's hint reads
+  「홈 화면 <b>링</b>에 바로 반영돼요」. <code>owner/home.tsx:42</code> retired the GO disc and <b>all of its ring
+  debris</b> on 2026-08-19 (Sean's home lab ⑧ v2). The goal <i>does</i> still surface on home — as the text row
+  「이번 주 12.4km / 15km · 연속 3일」 at <code>home.tsx:614–624</code> — so the fact survives and only the noun is
+  false. One string. Fixed inside variant A①.
+  <div class="hair" style="margin:11px 0"></div>
+  <b>② <code>owner/report.tsx</code> paints one fact in two different greens.</b> In <code>GoalBar</code> the percentage
+  text flips to <code>paper.readyDeep</code> <code>#0E7F49</code> at ≥100 while the bar fill flips to a hardcoded
+  <code>#7FA818</code> (<code>colors.voltDeep</code>), over a base fill of <code>colors.volt</code> <code>#C6F542</code> —
+  a retired V4 signal colour sitting on a paper-world screen. Fixed inside variant B③.
+  <div class="hair" style="margin:11px 0"></div>
+  <b>③ The home profile-gaps row routes a gap to a screen that cannot fill it.</b>
+  <code>fetchProfileGaps()</code> returns <code>photo | vaccines | doorDetail</code>, and
+  <code>home.tsx:495</code> sends <b>all three</b> to <code>/owner/dog</code>. But <code>doorDetail</code> is
+  <code>addresses.detail</code> — there is no 현관 상세 field anywhere on the dog screen. An owner who taps a nudge
+  naming 현관 상세 lands on a screen with nothing to type into. Addressed in variant D③.
+  <div class="hair" style="margin:11px 0"></div>
+  <b>④ The film edge code carries Korean below the 14pt floor.</b>
+  <code>fitness.tsx:518</code> sets <code>edgeCode</code> at 12pt and its comment claims the exemption as
+  「필름 보이스」. But §3's exemption list is <b>latin</b> letterspaced caps, serial/MRZ strings and glyphs, and it closes
+  with the clause that settles this: <i>Korean text never rides the kicker exemption — data in a kicker slot renders
+  ≥14</i>. The shipped string is 「5.1 KM · 8월 19일」 — a date, in Korean, at 12pt. Either the date leaves the edge
+  (a latin serial genuinely is exempt, which is what A③ draws: <code>CHOCO · WK34 · 3 RUNS</code>) or it goes to 14pt
+  and <code>EDGE_H</code>/<code>HERO_BIG</code> move with it. <b>Not fixable by taste alone</b> — see open question 10.
+</div>
+
+<div class="note warn" style="margin-top:22px">
+  <h4>✅ Sean 2026-08-24 (verbatim)</h4>
+  “For owner records report, I like 1. For running report, I like the addition of the stars and the
+  conditional stopped state screen. The runner review (C) I like 1. I also like the new dog profile 1.”
+  <ul style="margin:12px 0 0 20px">
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>B① 별점이 진실을 안다 — IMPLEMENTED</b>
+      (<code>app/app/owner/report.tsx</code>). The star row now renders only after the read answers, and it draws
+      <b>three</b> states, never two: <i>unanswered/failed</i> → nothing at all · <i>row absent</i> → today's
+      affordance, byte-for-byte · <i>row present</i> → the real rating, the real tags, the real 등록 date, and no edit
+      button because <code>unique (booking_id, author_id, target_kind)</code> refuses a second one. Bound to
+      <code>reviews</code> under the policy the lab named (<code>reviews author read</code>,
+      <code>0002_rls.sql:118</code>); <code>rating</code> is nullable in the table, so a row without one says
+      「별점 없이 남긴 후기예요」 rather than drawing zero stars. One honesty amendment the frame could not know:
+      「프로필에 반영됐어요」 is only true for <code>visibility = 'public'</code>, so a <code>platform_only</code>
+      review gets its own sentence. The 결제 row absorbed its note, as ① asks.</li>
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>B② 멈춘 러닝은 이유가 먼저 — IMPLEMENTED</b>,
+      and his pick is the “Needs Sean's yes” of open question 4: on <code>endReason !== 'completed'</code> the reason
+      block rises to directly under the numbers, the 목표 달성 percentage is withdrawn in favour of a 기록 line that
+      still prints 예정 and 실제, and the frame's one saturated element moves from 재예약 to 안심 센터
+      (<code>/safety</code>). 재예약 stays as a quiet row — no exit was removed — and <code>nextWeek</code> is forced
+      null in that state so the row and the prefill cannot disagree. Gated on the server's own
+      <code>end_reason</code>, and <code>null</code> is <b>not</b> a stop (a run that has not ended must not be
+      audited). Non-<code>dog_condition</code> stops hoist 러너 노트 instead, and the 안심 센터 subline is
+      reason-aware — the frame's 「아이 상태가…」 line is only true for a welfare stop.</li>
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>C① 종이로 이관 — IMPLEMENTED</b>
+      (<code>app/app/owner/review.tsx</code>). All nine off-token hexes and the <code>colors.volt</code> CTA surface
+      are gone; <code>opacity:0.5</code> busy retired for the label swap the file was already doing. §2 chrome (square
+      back, full-bleed coral hairline), §3b chips and CTA, sharp textarea, <code>colors.gold</code> stars on
+      <code>#EEE</code> with real 44pt targets. Zero behaviour change — same params in, same insert out. One line
+      added under the CTA that binds to <code>privateFlag</code>: the button's two outcomes are two different
+      sentences, and the screen never had one.</li>
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>D① 네 개의 섹션 — IMPLEMENTED</b>
+      (<code>app/app/owner/dog.tsx</code>). 기본 정보 · 러닝 설정 · 건강 · 러너에게 전달되는 것, using the
+      <code>secRule</code>/<code>secH</code> grammar 권장 최소 페이스 had already proved. Photo and switcher share one
+      row, 칼라 moved into 기본 정보, three field labels absorbed by the section titles that now say the same thing.
+      <b>Pure layout — the save payload is identical.</b> Two things came free: the photo <code>Pressable</code>
+      moved inside the <code>dog</code> gate (its <code>pickPhoto</code> returns immediately with no dog, so it was a
+      control with no effect while loading), and the 칼라 helper now names the destination in <i>both</i> states.</li>
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>A①–A③ — NOT BUILT.</b>
+      <code>owner/fitness.tsx</code> is a frozen surface and outside this slice's claim. If “owner records report”
+      meant §A rather than §B, that pick is unspent and needs re-asking — nothing was guessed.</li>
+    <li style="font-size:14px;line-height:1.75;margin-bottom:11px"><b>B③, B④, C②, C③, D②, D③ — NOT BUILT.</b>
+      Not picked. B③'s two greens and the <code>width</code>/<code>useNativeDriver:false</code> bar animation
+      therefore still ship, and open questions 1–3 and 5–10 stay open and unspent.</li>
+    <li style="font-size:14px;line-height:1.75"><b>HELD, needs a word:</b> B①'s filled stars ship in
+      <code>colors.gold</code> because that is what his picked frame draws — open question 2 (is a review star a
+      milestone use of gold?) is answered <i>by the pick</i> unless he says otherwise. B①'s read is a
+      <b>module-local</b> query in <code>report.tsx</code> rather than <code>api.ts</code>'s
+      <code>fetchMyReview()</code>: <code>api.ts</code> was owned by another slice this session, and a screen that
+      imports a function nobody added does not compile. Hoisting it is a three-line change and is the first thing
+      C③ should do.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     A. FITNESS
+     ═════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band"><span class="n">A</span>체력 리포트<span class="file">app/app/owner/fitness.tsx · 604 lines · lilac world</span></h2>
+<p class="intro">
+<b>FROZEN SURFACE.</b> The collapsing hero is a pinned absolute overlay whose height is a compile-time constant
+(<code>HERO_BIG = 56+49+14+289+15+86+16+54+30+10 = 619</code>), with the ScrollView reserving exactly that much
+padding and sliding at exactly the same rate. Restyle is allowed; restructure is not. Two of the three variants below
+<b>do not touch the hero at all</b> — they work on the scroll content, which is not frozen. The third one enters the
+hero and pays for it, and its cost block says exactly what the payment is.
+<br>The screen's real problem is not the hero. It is that <b>the hero already said everything</b>, and then the cards
+below say it again in a smaller voice: 체력 나이 is printed twice (band + card), the goal km is printed twice
+(band caption + stepper), and each 최근 러닝 row prints its distance twice.
+</p>
+
+<div class="rail">
+
+  <!-- ── 현재 ── -->
+  <div class="col">
+    <p class="cap"><span class="mark now">현재</span>Shipped today</p>
+    <p class="why">The hero carries 이번 주 km and 체력 나이 side by side, then the first two cards print both numbers
+    again. Section titles run at <b>three different sizes</b> (15.5/700 ×3, 16/800 ×1) — §3b says every section title in
+    the app is one size. The goal hint names the retired home ring (defect ①).</p>
+    <div class="st8">fit loaded · moments 5 · fitnessGate null · savingGoal false</div>
+    <div class="ph"><div class="sb lilac"><span>9:41</span><span>▮▮▮</span></div><div class="scr lilac">
+
+      <!-- hero -->
+      <div style="padding:14px 16px 0">
+        <div class="row" style="height:49px">
+          <div class="backCirc">‹</div>
+          <div style="text-align:center">
+            <div class="disp" style="font-size:23px;line-height:30px;color:#221E3D">체력 리포트</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">초코 · 이번 주</div>
+          </div>
+          <div style="width:38px"></div>
+        </div>
+      </div>
+      <div class="film" style="margin-top:14px">
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="height:200px;background:#171332;position:relative">
+          <div style="position:absolute;right:12px;top:10px;background:rgba(16,12,36,.68);border-radius:5px;padding:4px 9px">
+            <span class="num" style="font-size:13px;line-height:17px;color:#F2EFFA;letter-spacing:1.2px">3 / 5</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:rgba(16,12,36,.42)"></div>
+          <div style="position:absolute;left:16px;bottom:10px">
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:32px;line-height:40px;color:#fff">5.1</span>
+              <span class="num" style="font-size:14px;line-height:19px;color:rgba(255,255,255,.85)">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:rgba(255,255,255,.88)">8월 19일 (화) 오후 7:30</div>
+          </div>
+        </div>
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="display:flex;gap:5px;padding:7px 14px 4px">
+          <div style="width:42px;height:31px;background:#171332;border:2px solid #F0765A"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+        </div>
+        <div class="edge"><span class="num">5.1 KM · 8월 19일</span></div>
+      </div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">이번 주</div>
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:40px;line-height:50px;color:#221E3D">12.4</span>
+              <span class="num" style="font-size:16px;line-height:21px;color:#7C76A0">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">/ 15km 목표 · 83%</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">체력 나이</div>
+            <div class="num" style="font-size:40px;line-height:50px;color:#E45F41">3.4살</div>
+          </div>
+        </div>
+        <div style="height:5px;border-radius:3px;background:#EFECF9;margin-top:11px;overflow:hidden">
+          <div style="height:100%;width:83%;background:#E45F41;border-radius:3px"></div></div>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">월</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">화</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">수</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">목</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">금</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">토</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">일</div></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:12px">3회 러닝 · 평균 7'42" · 연속 3일</div>
+      </div>
+
+      <!-- scroll content -->
+      <div style="padding:12px 16px 44px">
+        <div class="lcard">
+          <div class="row" style="align-items:flex-start;gap:10px">
+            <div style="flex:1">
+              <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#221E3D">체력 나이</div>
+              <div style="font-size:14px;line-height:20px;color:#7C76A0;margin-top:3px">꾸준한 러닝이 체력 나이를 젊게 유지해요</div>
+            </div>
+            <div class="num" style="font-size:34px;line-height:43px;color:#E45F41">3.4살</div>
+          </div>
+          <div style="font-size:14px;line-height:21px;color:#7C76A0;margin-top:9px">베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정 (수의 검증 산식으로 교체 예정)</div>
+        </div>
+        <div class="lcard">
+          <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#221E3D">주간 목표</div>
+          <div class="row" style="margin-top:12px">
+            <div style="width:64px;padding:17px 0;text-align:center;background:#EFECF9;border:1px solid #E6E2F4;border-radius:8px;font-size:22px;line-height:27px;font-weight:700;color:#6C5CE7">−</div>
+            <div style="text-align:center">
+              <div class="num" style="font-size:29px;line-height:36px;color:#221E3D">15km</div>
+              <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:3px">홈 화면 링에 바로 반영돼요</div>
+            </div>
+            <div style="width:64px;padding:17px 0;text-align:center;background:#EFECF9;border:1px solid #E6E2F4;border-radius:8px;font-size:22px;line-height:27px;font-weight:700;color:#6C5CE7">＋</div>
+          </div>
+        </div>
+        <div class="lcard">
+          <div style="font-size:15.5px;line-height:21px;font-weight:700;color:#221E3D">최근 8주</div>
+          <div class="bars">
+            <div class="barcol"><div class="bar" style="height:22px"></div></div>
+            <div class="barcol"><div class="bar" style="height:31px"></div></div>
+            <div class="barcol"><div class="bar" style="height:14px"></div></div>
+            <div class="barcol"><div class="bar" style="height:40px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">18.2</span><div class="bar" style="height:52px"></div></div>
+            <div class="barcol"><div class="bar" style="height:36px"></div></div>
+            <div class="barcol"><div class="bar" style="height:27px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">12.4</span><div class="bar now" style="height:38px"></div></div>
+          </div>
+          <div style="display:flex;gap:2px;margin-top:6px">
+            <div class="barX">7주</div><div class="barX"></div><div class="barX">5주</div><div class="barX"></div>
+            <div class="barX">3주</div><div class="barX"></div><div class="barX"></div><div class="barX on">이번</div>
+          </div>
+        </div>
+        <div style="font-size:16px;line-height:22px;font-weight:800;color:#221E3D;margin:22px 0 8px">최근 러닝</div>
+        <div style="background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;line-height:21px;font-weight:700;color:#221E3D">8월 19일 오후 7:30</div>
+            <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:2px">5.1km · 32분 · 리포트 보기 ›</div>
+          </div>
+          <div class="num" style="font-size:18px;line-height:23px;color:#E45F41">5.1km</div>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;line-height:21px;font-weight:700;color:#221E3D">8월 17일 오전 7:30</div>
+            <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:2px">4.0km · 26분 · 리포트 보기 ›</div>
+          </div>
+          <div class="num" style="font-size:18px;line-height:23px;color:#E45F41">4.0km</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>fetchFitness()</code> → <code>weekKm · goalKm · fitnessAge · runDays[7] · weeks[8] · recent[]</code>;
+      photos from <code>fetchRecentMoments(12)</code>.
+      <h5 class="c2">Known wrong</h5>
+      「홈 화면 링」 (defect ①) · three section-title sizes · 나이/목표/거리 each printed twice.
+    </div>
+  </div>
+
+  <!-- ── ① ── -->
+  <div class="col">
+    <p class="cap"><span class="mark">①</span>한 번만 인쇄한다</p>
+    <p class="why"><b>One fact, one printing.</b> The hero is the headline; the cards stop repeating it and become the
+    <i>explanation</i> the hero cannot carry. 체력 나이 card loses its duplicate 34pt number and gains the real gate
+    progress — <code>fitnessGate.left</code> is measured against a threshold of <b>2 runs in 28 days</b>
+    (<code>api.ts:2454</code>), so <b>완주 1 / 2</b> is derivable with no new field. Goal card keeps the stepper but tells
+    the truth about where the number lands. Section titles collapse to the one §3b grammar (20/800). Each 최근 러닝 row
+    prints its distance once. <b>The hero is not touched.</b></p>
+    <div class="st8">fitnessGate = {reason:'runs', left:1} · same fit payload</div>
+    <div class="ph"><div class="sb lilac"><span>9:41</span><span>▮▮▮</span></div><div class="scr lilac">
+      <div style="padding:14px 16px 0">
+        <div class="row" style="height:49px">
+          <div class="backCirc">‹</div>
+          <div style="text-align:center">
+            <div class="disp" style="font-size:23px;line-height:30px;color:#221E3D">체력 리포트</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">초코 · 이번 주</div>
+          </div>
+          <div style="width:38px"></div>
+        </div>
+      </div>
+      <div class="film" style="margin-top:14px">
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="height:200px;background:#171332;position:relative">
+          <div style="position:absolute;right:12px;top:10px;background:rgba(16,12,36,.68);border-radius:5px;padding:4px 9px">
+            <span class="num" style="font-size:13px;line-height:17px;color:#F2EFFA;letter-spacing:1.2px">3 / 5</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:rgba(16,12,36,.42)"></div>
+          <div style="position:absolute;left:16px;bottom:10px">
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:32px;line-height:40px;color:#fff">5.1</span>
+              <span class="num" style="font-size:14px;line-height:19px;color:rgba(255,255,255,.85)">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:rgba(255,255,255,.88)">8월 19일 (화) 오후 7:30</div>
+          </div>
+        </div>
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="display:flex;gap:5px;padding:7px 14px 4px">
+          <div style="width:42px;height:31px;background:#171332;border:2px solid #F0765A"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+        </div>
+        <div class="edge"><span class="num">5.1 KM · 8월 19일</span></div>
+      </div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">이번 주</div>
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:40px;line-height:50px;color:#221E3D">12.4</span>
+              <span class="num" style="font-size:16px;line-height:21px;color:#7C76A0">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">/ 15km 목표 · 83%</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">체력 나이</div>
+            <div style="font-size:18px;line-height:50px;font-weight:700;color:#7C76A0">측정 전</div>
+          </div>
+        </div>
+        <div style="height:5px;border-radius:3px;background:#EFECF9;margin-top:11px;overflow:hidden">
+          <div style="height:100%;width:83%;background:#E45F41;border-radius:3px"></div></div>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">월</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">화</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">수</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">목</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">금</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">토</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">일</div></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:12px">3회 러닝 · 평균 7'42" · 연속 3일</div>
+      </div>
+
+      <div style="padding:12px 16px 44px">
+        <!-- 체력 나이 = explanation only -->
+        <div class="lcard">
+          <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D">체력 나이</div>
+          <div style="font-size:14px;line-height:20px;color:#4B4668;margin-top:6px">최근 4주에 <b>한 번 더</b> 완주하면 측정이 시작돼요</div>
+          <div style="display:flex;align-items:center;gap:9px;margin-top:12px">
+            <div style="flex:1;height:5px;border-radius:3px;background:#EFECF9;overflow:hidden">
+              <div style="height:100%;width:50%;background:#6C5CE7;border-radius:3px"></div></div>
+            <span class="num" style="font-size:16px;line-height:21px;color:#221E3D">1 / 2</span>
+          </div>
+          <div style="font-size:14px;line-height:21px;color:#7C76A0;margin-top:11px">활동 데이터가 있어야 나이가 아니라 ‘체력’을 잴 수 있어요. 산식은 실제 나이에서 최근 4주 활동량과 연속 기록을 빼는 베타예요.</div>
+        </div>
+        <!-- 주간 목표 — honest destination -->
+        <div class="lcard">
+          <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D">주간 목표</div>
+          <div class="row" style="margin-top:12px">
+            <div style="width:64px;padding:17px 0;text-align:center;background:#EFECF9;border:1px solid #E6E2F4;border-radius:8px;font-size:22px;line-height:27px;font-weight:700;color:#6C5CE7">−</div>
+            <div style="text-align:center">
+              <div class="num" style="font-size:29px;line-height:36px;color:#221E3D">15km</div>
+              <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:3px">홈 ‘이번 주’ 줄에 바로 반영돼요</div>
+            </div>
+            <div style="width:64px;padding:17px 0;text-align:center;background:#EFECF9;border:1px solid #E6E2F4;border-radius:8px;font-size:22px;line-height:27px;font-weight:700;color:#6C5CE7">＋</div>
+          </div>
+        </div>
+        <div class="lcard">
+          <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D">최근 8주</div>
+          <div class="bars">
+            <div class="barcol"><div class="bar" style="height:22px"></div></div>
+            <div class="barcol"><div class="bar" style="height:31px"></div></div>
+            <div class="barcol"><div class="bar" style="height:14px"></div></div>
+            <div class="barcol"><div class="bar" style="height:40px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">18.2</span><div class="bar" style="height:52px"></div></div>
+            <div class="barcol"><div class="bar" style="height:36px"></div></div>
+            <div class="barcol"><div class="bar" style="height:27px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">12.4</span><div class="bar now" style="height:38px"></div></div>
+          </div>
+          <div style="display:flex;gap:2px;margin-top:6px">
+            <div class="barX">7주</div><div class="barX"></div><div class="barX">5주</div><div class="barX"></div>
+            <div class="barX">3주</div><div class="barX"></div><div class="barX"></div><div class="barX on">이번</div>
+          </div>
+        </div>
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D;margin:22px 0 8px">최근 러닝</div>
+        <div style="background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;line-height:21px;font-weight:700;color:#221E3D">8월 19일 오후 7:30</div>
+            <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:2px">32분 · 리포트 ›</div>
+          </div>
+          <div class="num" style="font-size:18px;line-height:23px;color:#E45F41">5.1km</div>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;line-height:21px;font-weight:700;color:#221E3D">8월 17일 오전 7:30</div>
+            <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:2px">26분 · 리포트 ›</div>
+          </div>
+          <div class="num" style="font-size:18px;line-height:23px;color:#E45F41">4.0km</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Gate progress = <code>2 − fitnessGate.left</code> over the constant 2 (<code>api.ts:2454</code>
+      <code>recent28.length &lt; 2</code>). Everything else is the payload already fetched.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">No new server fields. No new routes. Frozen hero untouched.</span> One copy string changes because
+      the element it names was retired (defect ①). If the threshold 2 ever moves, the denominator must move with it —
+      annotate it at the call site rather than hardcoding “2” twice.
+    </div>
+  </div>
+
+  <!-- ── ② ── -->
+  <div class="col">
+    <p class="cap"><span class="mark">②</span>목표선</p>
+    <p class="why"><b>The chart gets a reference and the stepper gets a state.</b> Today the 8-week bars are
+    unanchored — 12.4 is taller than 9.8, and that is all a reader learns. A dashed rule at <code>goalKm</code> turns the
+    same eight bars into eight verdicts, with no new data: the goal is already on screen one card above.
+    Second half: <code>savingGoal</code> exists in state (<code>fitness.tsx:79</code>) and is <b>never rendered</b> — the
+    optimistic write is silent, and a failure arrives as an Alert out of nowhere. Busy becomes a label swap (F2.1), and
+    the ± buttons become §3b secondary buttons at a 44pt target instead of lilac wells.</p>
+    <div class="st8">savingGoal true · goalKm 15 · weeks[8] loaded</div>
+    <div class="ph"><div class="sb lilac"><span>9:41</span><span>▮▮▮</span></div><div class="scr lilac">
+      <div style="padding:14px 16px 0">
+        <div class="row" style="height:49px">
+          <div class="backCirc">‹</div>
+          <div style="text-align:center">
+            <div class="disp" style="font-size:23px;line-height:30px;color:#221E3D">체력 리포트</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">초코 · 이번 주</div>
+          </div>
+          <div style="width:38px"></div>
+        </div>
+      </div>
+      <div class="film" style="margin-top:14px">
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="height:200px;background:#171332;position:relative">
+          <div style="position:absolute;right:12px;top:10px;background:rgba(16,12,36,.68);border-radius:5px;padding:4px 9px">
+            <span class="num" style="font-size:13px;line-height:17px;color:#F2EFFA;letter-spacing:1.2px">3 / 5</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:rgba(16,12,36,.42)"></div>
+          <div style="position:absolute;left:16px;bottom:10px">
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:32px;line-height:40px;color:#fff">5.1</span>
+              <span class="num" style="font-size:14px;line-height:19px;color:rgba(255,255,255,.85)">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:rgba(255,255,255,.88)">8월 19일 (화) 오후 7:30</div>
+          </div>
+        </div>
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="display:flex;gap:5px;padding:7px 14px 4px">
+          <div style="width:42px;height:31px;background:#171332;border:2px solid #F0765A"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+        </div>
+        <div class="edge"><span class="num">5.1 KM · 8월 19일</span></div>
+      </div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">이번 주</div>
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:40px;line-height:50px;color:#221E3D">12.4</span>
+              <span class="num" style="font-size:16px;line-height:21px;color:#7C76A0">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">/ 15km 목표 · 83%</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">체력 나이</div>
+            <div class="num" style="font-size:40px;line-height:50px;color:#E45F41">3.4살</div>
+          </div>
+        </div>
+        <div style="height:5px;border-radius:3px;background:#EFECF9;margin-top:11px;overflow:hidden">
+          <div style="height:100%;width:83%;background:#E45F41;border-radius:3px"></div></div>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">월</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">화</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">수</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">목</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">금</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">토</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">일</div></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:12px">3회 러닝 · 평균 7'42" · 연속 3일</div>
+      </div>
+
+      <div style="padding:12px 16px 44px">
+        <!-- goal card with real busy state -->
+        <div class="lcard">
+          <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D">주간 목표</div>
+          <div class="row" style="margin-top:12px">
+            <div style="width:64px;min-height:44px;padding:12px 0;text-align:center;background:#FFFFFF;border:1px solid #E8552F;font-size:22px;line-height:27px;font-weight:700;color:#A83315">−</div>
+            <div style="text-align:center">
+              <div class="num" style="font-size:29px;line-height:36px;color:#221E3D">15km</div>
+              <div style="font-size:14px;line-height:18px;color:#A83315;font-weight:700;margin-top:3px">저장 중...</div>
+            </div>
+            <div style="width:64px;min-height:44px;padding:12px 0;text-align:center;background:#FFFFFF;border:1px solid #E8552F;font-size:22px;line-height:27px;font-weight:700;color:#A83315">＋</div>
+          </div>
+        </div>
+        <!-- 8 weeks with goal rule -->
+        <div class="lcard">
+          <div class="row" style="align-items:baseline">
+            <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D">최근 8주</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">목표 <span class="num" style="font-size:15px;line-height:19px;color:#221E3D">15</span>km</div>
+          </div>
+          <div class="bars" style="height:100px">
+            <div style="position:absolute;left:0;right:0;bottom:44px;border-top:1.5px dashed #7C76A0"></div>
+            <div class="barcol"><div class="bar" style="height:22px"></div></div>
+            <div class="barcol"><div class="bar" style="height:31px"></div></div>
+            <div class="barcol"><div class="bar" style="height:14px"></div></div>
+            <div class="barcol"><div class="bar" style="height:40px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">18.2</span><div class="bar" style="height:52px"></div></div>
+            <div class="barcol"><div class="bar" style="height:36px"></div></div>
+            <div class="barcol"><div class="bar" style="height:27px"></div></div>
+            <div class="barcol"><span class="num" style="font-size:14px;line-height:18px;color:#221E3D;margin-bottom:3px">12.4</span><div class="bar now" style="height:38px"></div></div>
+          </div>
+          <div style="display:flex;gap:2px;margin-top:6px">
+            <div class="barX">7주</div><div class="barX"></div><div class="barX">5주</div><div class="barX"></div>
+            <div class="barX">3주</div><div class="barX"></div><div class="barX"></div><div class="barX on">이번</div>
+          </div>
+          <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:10px">점선 위로 올라간 주가 목표를 채운 주예요 — 8주 중 <span class="num" style="font-size:15px;line-height:19px;color:#221E3D">1</span>주</div>
+        </div>
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#221E3D;margin:22px 0 8px">최근 러닝</div>
+        <div style="background:#FFFFFF;border:1px solid #E6E2F4;border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;line-height:21px;font-weight:700;color:#221E3D">8월 19일 오후 7:30</div>
+            <div style="font-size:14px;line-height:19px;color:#7C76A0;margin-top:2px">32분 · 리포트 ›</div>
+          </div>
+          <div class="num" style="font-size:18px;line-height:23px;color:#E45F41">5.1km</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Rule position = <code>goalKm / maxWeek</code>, both already computed at <code>fitness.tsx:132–135</code>.
+      The count line = <code>weeks.filter(w =&gt; w.km &gt;= goalKm).length</code> — derived, not stored.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">No new server fields, no new routes, frozen hero untouched.</span>
+      <code>maxWeek</code> already floors at <code>goalKm * 0.6</code>, so the rule can sit above the tallest bar — that
+      is honest (nobody hit it) and must not be clamped into the chart. Combines cleanly with ①.
+    </div>
+  </div>
+
+  <!-- ── ③ ── -->
+  <div class="col">
+    <p class="cap"><span class="mark">③</span>나이를 더 세게 (hero restyle)</p>
+    <p class="why"><b>Enters the frozen surface — paint and type only.</b> Sean's own direction on this hero was
+    「나이를 더 세게」; the band still gives the left, larger column to km. This flips the band's hierarchy: 체력 나이
+    becomes the 44pt number, 이번 주 km drops to a caption beside the progress rail, and the film edge code carries the
+    dog and the week instead of repeating the selected shot's km (already printed 190px above it).
+    <b>No structural change:</b> same boxes, same order, same pointerEvents tree, same transform/opacity morph.</p>
+    <div class="st8">hero layer only · COLLAPSE 542 · ribbon at PIN_ON</div>
+    <div class="ph"><div class="sb lilac"><span>9:41</span><span>▮▮▮</span></div><div class="scr lilac">
+      <div style="padding:14px 16px 0">
+        <div class="row" style="height:49px">
+          <div class="backCirc">‹</div>
+          <div style="text-align:center">
+            <div class="disp" style="font-size:23px;line-height:30px;color:#221E3D">체력 리포트</div>
+            <div style="font-size:14px;line-height:18px;color:#7C76A0">초코 · 8월 3주</div>
+          </div>
+          <div style="width:38px"></div>
+        </div>
+      </div>
+      <div class="film" style="margin-top:14px">
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="height:200px;background:#171332;position:relative">
+          <div style="position:absolute;right:12px;top:10px;background:rgba(16,12,36,.68);border-radius:5px;padding:4px 9px">
+            <span class="num" style="font-size:13px;line-height:17px;color:#F2EFFA;letter-spacing:1.2px">3 / 5</span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:rgba(16,12,36,.42)"></div>
+          <div style="position:absolute;left:16px;bottom:10px">
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:32px;line-height:40px;color:#fff">5.1</span>
+              <span class="num" style="font-size:14px;line-height:19px;color:rgba(255,255,255,.85)">&nbsp;km</span></div>
+            <div style="font-size:14px;line-height:18px;color:rgba(255,255,255,.88)">8월 19일 (화) 오후 7:30</div>
+          </div>
+        </div>
+        <div class="sprock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div style="display:flex;gap:5px;padding:7px 14px 4px">
+          <div style="width:42px;height:31px;background:#171332;border:2px solid #F0765A"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+          <div style="width:42px;height:31px;background:#171332;border:2px solid transparent;opacity:.55"></div>
+        </div>
+        <div class="edge"><span class="num">CHOCO · WK34 · 3 RUNS · 12.4KM</span></div>
+      </div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div style="flex:1">
+            <div style="font-size:14px;line-height:18px;font-weight:600;color:#7C76A0">체력 나이</div>
+            <div style="display:flex;align-items:baseline">
+              <span class="num" style="font-size:44px;line-height:54px;color:#E45F41">3.4</span>
+              <span class="num" style="font-size:17px;line-height:22px;color:#4B4668">&nbsp;살</span>
+              <span style="font-size:14px;line-height:19px;color:#7C76A0;margin-left:8px">실나이 4.2살</span>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <div style="font-size:14px;line-height:18px;color:#4B4668">이번 주 <span class="num" style="font-size:17px;line-height:21px;color:#221E3D">12.4</span>km / 15km</div>
+          <div class="num" style="font-size:15px;line-height:19px;color:#E45F41">83%</div>
+        </div>
+        <div style="height:5px;border-radius:3px;background:#EFECF9;margin-top:8px;overflow:hidden">
+          <div style="height:100%;width:83%;background:#E45F41;border-radius:3px"></div></div>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">월</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">화</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">수</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">목</div></div>
+          <div style="text-align:center"><div class="punch on"></div><div style="font-size:14px;line-height:18px;color:#221E3D;font-weight:700;margin-top:4px">금</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">토</div></div>
+          <div style="text-align:center"><div class="punch"></div><div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:4px">일</div></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#7C76A0;margin-top:12px">3회 러닝 · 평균 7'42" · 연속 3일</div>
+      </div>
+      <!-- collapsed ribbon, drawn to show what the morph arrives at -->
+      <div style="margin:16px 16px 0;background:#221E3D;border-radius:0 0 10px 10px;padding:12px 16px">
+        <div class="row" style="gap:10px">
+          <div class="disp" style="font-size:15px;line-height:21px;color:#F2EFFA">체력 리포트</div>
+          <div style="flex:1;display:flex;justify-content:space-between;padding:0 10px">
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+            <i style="display:block;width:5px;height:3px;border-radius:2px;background:rgba(244,242,251,.8)"></i>
+          </div>
+          <div class="num" style="font-size:15px;line-height:19px;color:#FFD9CD;letter-spacing:.4px">3.4살 · 12.4 KM</div>
+        </div>
+      </div>
+      <div class="labnote"><div class="kk">Lab note — not product copy</div>
+        <p>The block above is the <b>collapsed ribbon</b>, drawn here out of sequence so you can see what the morph
+        arrives at. Only the order changed (age, then distance); geometry, opacity curve and hit area are untouched.</p>
+        <p>Counting display faces in this frame gives <b>two</b> (masthead + ribbon) — same as shipped code, where both
+        carry <code>df</code>. They are two layers of one morph and are never both opaque, so the once-per-screen budget
+        holds. This frame simply shows both ends at once.</p></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>fitnessAge</code> and <code>ageYears</code> — <b>both already exist</b> on the <code>Fitness</code> type
+      (<code>api.ts:2368–2369</code>); <code>ageYears</code> is currently fetched and never rendered on this screen.
+      When <code>fitnessAge</code> is null the slot shows 측정 전 in body type, never a fabricated number
+      (the shipped <code>bandAgeGate</code> rule survives verbatim).
+      <h5 class="c2">What this costs</h5>
+      <span class="froz">Touches the frozen hero.</span> Restyle only — but two of these type changes alter the band's
+      intrinsic height, and <code>HERO_BIG</code> is a hand-summed constant. The 44/54 age line replaces a 40/50 line
+      (<b>+4</b>) and the km caption row is new inside <code>BAND_H</code> (<b>+19</b>): <code>BAND_H 86 → 109</code>,
+      <code>HERO_BIG 619 → 642</code>. That arithmetic must be done in the same edit, exactly as the FLOOR14 pass did
+      (<code>fitness.tsx:39–56</code>), or the collapse distance desyncs and the scroll jumps. No new View may enter the
+      animated subtree; no layout animation; native driver only. <b>Pick this only if the age emphasis is worth
+      re-deriving the constant.</b>
+      <br>Bonus, and free: the edge code becomes a latin serial (<code>CHOCO · WK34 · 3 RUNS · 12.4KM</code>), which
+      clears defect ④ <i>without</i> moving <code>EDGE_H</code> — a 12pt latin serial is genuinely exempt, a 12pt Korean
+      date is not. The same swap can be taken on its own, with none of the rest of ③.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     B. REPORT
+     ═════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band"><span class="n">B</span>러닝 리포트<span class="file">app/app/owner/report.tsx · 988 lines · paper world</span></h2>
+<p class="intro">
+This screen was rebuilt on 2026-08-19 under RULINGS #11–13 (lab 14a/14b): map first, one display title, three
+Oswald numbers, then a nudge stack whose single saturated element is the coral 재예약 panel. <b>None of the variants
+below re-opens that ruling</b> — the order stays map → title → numbers → photos → nudges — except ② which changes the
+order <i>for one state only</i> and says so.
+<br>What is left to fix is smaller and more concrete: a star row that cannot know whether it has already been used,
+a goal bar painted in two greens and a retired signal colour, a layout animation that §6 forbids, and a milestone
+badge grammar that makes 「12번째 러닝」 look exactly as rare as 「★ 역대 최장 거리」.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <p class="cap"><span class="mark now">현재</span>Shipped today</p>
+    <p class="why">The star row is drawn deliberately unfilled because the screen has no read that could fill it — its
+    own comment says so. The 결제 row and the note under it are two elements carrying one fact. The 목표 달성 bars use
+    <code>colors.volt</code> and a hardcoded <code>#7FA818</code>, and animate <b>width</b> with
+    <code>useNativeDriver:false</code>.</p>
+    <div class="st8">status completed · endReason completed · photos 3 · standings ok · earning ok</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 12px 10px">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러닝 리포트</div>
+        <div class="backSq">↗</div>
+      </div>
+      <div style="height:190px;background:#FFFFFF;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;position:relative">
+        <svg class="map" viewBox="0 0 390 190">
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#7FA818" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:12px;bottom:8px;font-size:14px;color:#666666">실제 GPS 경로</div>
+      </div>
+      <div style="background:#FFFFFF;padding:14px 12px 16px;border-bottom:1px solid #E8552F">
+        <div style="font-size:14px;color:#666666">8월 19일 (화) 오후 7:30 · 반포 한강 코스</div>
+        <div class="disp" style="font-size:27.5px;color:#111111;margin-top:6px">초코, 5.1km 완주</div>
+        <div style="display:flex;gap:22px;margin-top:12px">
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">5.1<span style="font-size:15px;font-weight:800;color:#666666">km</span></div>
+            <div style="font-size:14px;line-height:19px;color:#666666">거리</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">32:10</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">러닝 시간</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7'42"</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">평균 페이스 /km</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+          <div class="chip">12번째 러닝</div><div class="chip">★ 역대 최장 거리</div>
+        </div>
+      </div>
+      <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+      <div class="row" style="background:#FFFFFF;padding:8px 12px;border-bottom:1px solid #E8552F">
+        <div style="font-size:32px;line-height:38px;color:#666666;letter-spacing:2px">☆☆☆☆☆</div>
+        <div style="font-size:15px;font-weight:800;color:#111111">별점 남기기 ›</div>
+      </div>
+      <div class="coralCta">
+        <div style="flex:1;min-width:0">
+          <div class="t">다음 주 같은 시간 예약</div>
+          <div class="s">지호 러너 · 5km · 화 19:30</div>
+        </div><div class="c">›</div>
+      </div>
+      <div class="linkRow"><div style="font-size:16px;font-weight:800;color:#111111">이 러닝 카드 공유하기</div>
+        <div style="font-size:18px;color:#A83315">›</div></div>
+      <div class="linkRow"><div style="font-size:16px;font-weight:600;color:#666666">결제</div>
+        <div style="font-size:14px;font-weight:800;color:#A83315">결제 내역 보기 ›</div></div>
+      <div style="font-size:14px;line-height:19px;color:#666666;padding:8px 12px 0">실제 청구된 금액과 영수증은 결제 내역에 있어요</div>
+      <div style="background:#F4F2FB;padding:16px 12px;border-bottom:1px solid #E6E2F4;margin-top:12px">
+        <div style="font-size:14px;line-height:18px;font-weight:800;letter-spacing:1.2px;color:#4A3DA8">하이 포인트 적립</div>
+        <div style="display:flex;align-items:baseline;margin-top:4px">
+          <span class="num" style="font-size:34px;line-height:41px;color:#221E3D">+1,250</span>
+          <span style="font-size:15px;line-height:20px;font-weight:800;color:#4B4668">&nbsp;포인트</span></div>
+        <div class="row" style="margin-top:10px"><span style="font-size:14px;color:#4B4668">러닝 완주</span><span style="font-size:14px;font-weight:800;color:#221E3D">+1,000</span></div>
+        <div class="row" style="margin-top:5px"><span style="font-size:14px;color:#4B4668">연속 3일</span><span style="font-size:14px;font-weight:800;color:#221E3D">+250</span></div>
+      </div>
+      <div class="sec" style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip">응가 ×1</div><div class="chip">물 ×2</div>
+        <div style="font-size:14px;color:#586055;width:100%;margin-top:4px">러너가 러닝 중 실시간으로 기록한 순간들이에요</div>
+      </div>
+      <div class="sec">
+        <div class="secT">목표 달성</div>
+        <div style="margin-top:10px">
+          <div class="row"><span style="font-size:14px;font-weight:700;color:#333333">거리</span><span style="font-size:15px;font-weight:900;color:#111111">85%</span></div>
+          <div style="height:8px;border-radius:99px;background:#EEEEEE;margin-top:6px;overflow:hidden">
+            <div style="height:8px;width:85%;background:#C6F542;border-radius:99px"></div></div>
+          <div style="font-size:14px;color:#586055;margin-top:4px">5.1 / 6km</div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="row"><span style="font-size:14px;font-weight:700;color:#333333">페이스</span><span style="font-size:15px;font-weight:900;color:#0E7F49">100%</span></div>
+          <div style="height:8px;border-radius:99px;background:#EEEEEE;margin-top:6px;overflow:hidden">
+            <div style="height:8px;width:100%;background:#7FA818;border-radius:99px"></div></div>
+          <div style="font-size:14px;color:#586055;margin-top:4px">목표 8'00" · 실제 7'42"</div>
+        </div>
+      </div>
+      <div class="sec">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:44px;height:44px;background:#5a7a3c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900">지</div>
+          <div style="flex:1"><div style="font-size:16.5px;font-weight:900;color:#111111">지호 러너</div>
+            <div style="font-size:15px;color:#586055;margin-top:2px">반포 한강 코스 · 반포동</div></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>fetchRunReportOrNull(bid)</code> · <code>fetchRunStandings(bid)</code> · <code>fetchRunEarning(bid)</code>.
+      Trace colour <code>colors.voltDeep</code> is <b>correct</b> — §5 assigns volt to personal run data — and stays.
+      <h5 class="c2">Known wrong</h5>
+      Two greens for one fact (defect ②) · <code>GoalBar</code> animates <code>width</code>, <code>useNativeDriver:false</code>
+      (§6 forbids layout animation) · 결제 row + note = one fact twice · <code>Monogram bg="#5a7a3c"</code> is a retired-palette green.
+    </div>
+  </div>
+
+  <!-- ① -->
+  <div class="col">
+    <p class="cap"><span class="mark">①</span>별점이 진실을 안다</p>
+    <p class="why"><b>The star row learns whether it has already been used.</b> The screen's comment is right that
+    <i>today</i> nothing tells it — but the read is permitted and simply was never written:
+    <code>0002_rls.sql:118</code> grants <code>reviews author read</code>, and the table has
+    <code>unique (booking_id, author_id, target_kind)</code>. So one narrow client read gives three honest states:
+    <b>unknown</b> (row absent — draw the label, no stars, never a hollow row that reads as “you haven't”),
+    <b>none</b> (today's affordance, unchanged), <b>written</b> (the real rating, the real tags, the real date, and the
+    reason there is no edit button — the unique index refuses a second one). Second move: the 결제 row absorbs its note.</p>
+    <div class="st8">myReview = {rating:5, tags:[...], created_at} · read succeeded</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 12px 10px">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러닝 리포트</div>
+        <div class="backSq">↗</div>
+      </div>
+      <div style="height:190px;background:#FFFFFF;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;position:relative">
+        <svg class="map" viewBox="0 0 390 190">
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#7FA818" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:12px;bottom:8px;font-size:14px;color:#666666">실제 GPS 경로</div>
+      </div>
+      <div style="background:#FFFFFF;padding:14px 12px 16px;border-bottom:1px solid #E8552F">
+        <div style="font-size:14px;color:#666666">8월 19일 (화) 오후 7:30 · 반포 한강 코스</div>
+        <div class="disp" style="font-size:27.5px;color:#111111;margin-top:6px">초코, 5.1km 완주</div>
+        <div style="display:flex;gap:22px;margin-top:12px">
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">5.1<span style="font-size:15px;font-weight:800;color:#666666">km</span></div>
+            <div style="font-size:14px;line-height:19px;color:#666666">거리</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">32:10</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">러닝 시간</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7'42"</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">평균 페이스 /km</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+          <div class="chip">12번째 러닝</div><div class="chip">★ 역대 최장 거리</div>
+        </div>
+      </div>
+      <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+
+      <!-- written state -->
+      <div style="background:#FFFFFF;padding:12px;border-bottom:1px solid #E8552F">
+        <div class="row">
+          <div style="font-size:32px;line-height:38px;color:#D9A93C;letter-spacing:2px">★★★★★</div>
+          <div style="font-size:14px;color:#666666">8월 19일 등록</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">
+          <div class="tagOn">시간 약속 철저</div><div class="tagOn">또 부르고 싶어요</div>
+        </div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:9px">후기는 러닝당 한 번만 남길 수 있어요 — 지호 러너 프로필에 반영됐어요</div>
+      </div>
+
+      <div class="coralCta">
+        <div style="flex:1;min-width:0">
+          <div class="t">다음 주 같은 시간 예약</div>
+          <div class="s">지호 러너 · 5km · 화 19:30</div>
+        </div><div class="c">›</div>
+      </div>
+      <div class="linkRow"><div style="font-size:16px;font-weight:800;color:#111111">이 러닝 카드 공유하기</div>
+        <div style="font-size:18px;color:#A83315">›</div></div>
+      <div class="linkRow">
+        <div><div style="font-size:16px;font-weight:600;color:#666666">결제</div>
+          <div style="font-size:14px;line-height:19px;color:#666666;margin-top:2px">실제 청구된 금액과 영수증은 결제 내역에 있어요</div></div>
+        <div style="font-size:14px;font-weight:800;color:#A83315;white-space:nowrap">내역 ›</div></div>
+      <div style="background:#F4F2FB;padding:16px 12px;border-bottom:1px solid #E6E2F4">
+        <div style="font-size:14px;line-height:18px;font-weight:800;letter-spacing:1.2px;color:#4A3DA8">하이 포인트 적립</div>
+        <div style="display:flex;align-items:baseline;margin-top:4px">
+          <span class="num" style="font-size:34px;line-height:41px;color:#221E3D">+1,250</span>
+          <span style="font-size:15px;line-height:20px;font-weight:800;color:#4B4668">&nbsp;포인트</span></div>
+        <div class="row" style="margin-top:10px"><span style="font-size:14px;color:#4B4668">러닝 완주</span><span style="font-size:14px;font-weight:800;color:#221E3D">+1,000</span></div>
+        <div class="row" style="margin-top:5px"><span style="font-size:14px;color:#4B4668">연속 3일</span><span style="font-size:14px;font-weight:800;color:#221E3D">+250</span></div>
+      </div>
+      <div class="sec"><div class="secT">목표 달성</div>
+        <div style="margin-top:10px">
+          <div class="row"><span style="font-size:14px;font-weight:700;color:#333333">거리</span><span style="font-size:15px;font-weight:900;color:#111111">85%</span></div>
+          <div style="height:8px;border-radius:99px;background:#EEEEEE;margin-top:6px;overflow:hidden">
+            <div style="height:8px;width:85%;background:#C6F542;border-radius:99px"></div></div>
+          <div style="font-size:14px;color:#586055;margin-top:4px">5.1 / 6km</div>
+        </div>
+      </div>
+      <div class="labnote"><div class="kk">Lab note — not product copy</div>
+        <p>If the read fails, this slot draws <b>nothing at all</b> — not the empty affordance. “I have not reviewed”
+        and “I could not check” are different facts, and only one of them may be shown as a hollow star row.</p></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <b>New client read, existing table:</b> <code>reviews</code> where <code>booking_id = bid</code> and
+      <code>author_id = auth.uid()</code> and <code>target_kind = 'runner'</code> → <code>rating · tags · created_at</code>.
+      Policy exists (<code>0002_rls.sql:118</code>). Filled stars use <code>colors.gold #D9A93C</code>, which §8 reserves
+      for milestone events — see the open questions if that reservation should bind here.
+      <h5 class="c2">What this costs</h5>
+      <span class="pay">One new function in <code>api.ts</code> (<code>fetchMyReview(bookingId)</code>).</span>
+      <span class="free">Zero new server fields, zero migrations, zero new routes.</span>
+      Failure of that read must render as <b>nothing</b>, not as the empty affordance — drawn above. Shares its read with C③.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <p class="cap"><span class="mark">②</span>멈춘 러닝은 이유가 먼저</p>
+    <p class="why"><b>One state only: <code>endReason !== 'completed'</code>.</b> Today 왜 멈췄는지 — the runner's own
+    words, the km at which it ended, the recourse path — is the <b>last</b> block on a very long screen, while the
+    loudest element remains a coral “book the same thing again”. Under G1 a welfare stop is a real bill, which makes
+    the owner the auditor of the abort; the audit material should not be below the fold. So for this state the reason
+    block rises under the numbers, the 목표 달성 percentage is withdrawn (a 68% on a stopped run reads as a grade for
+    the dog), and the frame's saturated element moves from 재예약 to 안심 센터 — a route that exists
+    (<code>/safety</code>, reached the same way from <code>owner/pay.tsx:300</code>). 재예약 stays, quietly.</p>
+    <div class="st8">endReason dog_condition · conditionNote present · plannedKm 6</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 12px 10px">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러닝 리포트</div>
+        <div class="backSq">↗</div>
+      </div>
+      <div style="height:190px;background:#FFFFFF;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;position:relative">
+        <svg class="map" viewBox="0 0 390 190">
+          <polyline points="52,148 88,124 108,132 152,102 196,110 232,84"
+            fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="52,148 88,124 108,132 152,102 196,110 232,84"
+            fill="none" stroke="#7FA818" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="232" cy="84" r="6" fill="#B3261E"/>
+        </svg>
+        <div style="position:absolute;left:12px;bottom:8px;font-size:14px;color:#666666">실제 GPS 경로 · 종료 지점</div>
+      </div>
+      <div style="background:#FFFFFF;padding:14px 12px 16px;border-bottom:1px solid #E8552F">
+        <div class="row" style="align-items:flex-start;gap:8px">
+          <div style="font-size:14px;color:#666666;flex:1;min-width:0">8월 19일 (화) 오후 7:30 · 반포 한강 코스</div>
+          <div style="background:#fde8e3;padding:4px 9px;flex-shrink:0"><span style="font-size:14px;font-weight:900;color:#d84a2f">반려견 컨디션으로 조기 종료</span></div>
+        </div>
+        <div class="disp" style="font-size:27.5px;color:#111111;margin-top:6px">초코, 4.1km</div>
+        <div style="display:flex;gap:22px;margin-top:12px">
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">4.1<span style="font-size:15px;font-weight:800;color:#666666">km</span></div>
+            <div style="font-size:14px;line-height:19px;color:#666666">거리</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">26:40</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">러닝 시간</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7'55"</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">평균 페이스 /km</div></div>
+        </div>
+      </div>
+
+      <!-- reason hoisted -->
+      <div class="sec">
+        <div class="secT">왜 멈췄는지</div>
+        <div style="font-size:15px;font-weight:800;color:#111111;line-height:21px">아이가 힘들어 보이면 멈추는 게 맞아요.</div>
+        <div style="font-size:14.5px;color:#666666;margin-top:5px;line-height:20.5px">러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.</div>
+        <div style="margin-top:13px;border-left:2px solid #E8552F;padding-left:11px">
+          <div style="font-size:14px;font-weight:800;color:#666666;margin-bottom:4px">러너가 본 것</div>
+          <div style="font-size:15px;color:#333333;line-height:21.5px">3km 지나서부터 자꾸 멈춰 서고 헥헥거림이 심해졌어요. 그늘에서 물 먹이고 5분 쉬었는데도 비슷해서 그만 뛰기로 했어요.</div>
+        </div>
+        <div style="font-size:14px;color:#666666;margin-top:13px;line-height:20px">4.1km 지점 · 26:40 지나 종료했어요 (예정 6km)</div>
+      </div>
+      <div class="coralCta">
+        <div style="flex:1;min-width:0">
+          <div class="t">안심 센터 열기</div>
+          <div class="s">아이 상태가 이상하면 여기서 바로 도와드려요</div>
+        </div><div class="c">›</div>
+      </div>
+      <div class="linkRow">
+        <div><div style="font-size:16px;font-weight:800;color:#111111">이대로 다시 예약</div>
+          <div style="font-size:14px;line-height:19px;color:#666666;margin-top:2px">같은 코스·거리 · 지호 러너 지명</div></div>
+        <div style="font-size:18px;color:#A83315">›</div></div>
+      <div class="linkRow">
+        <div><div style="font-size:16px;font-weight:600;color:#666666">결제</div>
+          <div style="font-size:14px;line-height:19px;color:#666666;margin-top:2px">실제 청구된 금액과 영수증은 결제 내역에 있어요</div></div>
+        <div style="font-size:14px;font-weight:800;color:#A83315;white-space:nowrap">내역 ›</div></div>
+      <div class="sec">
+        <div class="secT">기록</div>
+        <div style="font-size:14px;line-height:20px;color:#666666">예정 6km 중 <span class="num" style="font-size:16px;line-height:20px;color:#111111">4.1</span>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.</div>
+      </div>
+      <div class="sec">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:44px;height:44px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900">지</div>
+          <div style="flex:1"><div style="font-size:16.5px;font-weight:900;color:#111111">지호 러너</div>
+            <div style="font-size:15px;color:#666666;margin-top:2px">반포 한강 코스 · 반포동</div></div>
+        </div>
+      </div>
+      <div style="height:24px"></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>run.endReason · run.conditionNote · run.actualKm · run.durationSec · report.plannedKm</code> — all present.
+      The 안심 센터 destination is <code>/safety</code> (<code>app/safety.tsx</code>), already linked from pay and meetup.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">No new fields, no new routes.</span>
+      <span class="pay">Needs Sean's yes:</span> it demotes the coral 재예약 panel — a RULING #11 element — in one state,
+      and it withdraws a percentage the screen currently shows. Also drops the 하이 포인트 section for this state, which
+      is already true in code (<code>earning</code> is null for a non-completed run) but is now a deliberate silence
+      rather than an accident. The Monogram's retired green is repainted <code>paper.ink</code> here.
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <p class="cap"><span class="mark">③</span>하나의 초록, 하나의 세계</p>
+    <p class="why"><b>Fixes defect ② and the §6 motion violation, and asks one question about worlds.</b>
+    The bar and the number stop disagreeing: fill is <code>paper.ink</code> (a measurement is not a state), and
+    <b>only</b> at ≥100 does it flip to <code>paper.ready #119B58</code> — the same family as the number's
+    <code>readyDeep</code>. Retires <code>colors.volt</code> and the hardcoded <code>#7FA818</code>. The fill animation
+    becomes <code>scaleX</code> with a left transform-origin on the native driver, which is what §6 actually permits.
+    Then the question: the 하이 포인트 strip is the screen's one lilac island. §2 says never mix worlds within one
+    surface; the file's own comment calls it a deliberate quiet receipt. <b>Drawn here as paper</b> with the same
+    <code>READ_VIOLET</code> ink, so the two can be compared side by side.</p>
+    <div class="st8">kmPct 100 · pacePct 96 · earning present</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 12px 10px">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러닝 리포트</div>
+        <div class="backSq">↗</div>
+      </div>
+      <div style="height:190px;background:#FFFFFF;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;position:relative">
+        <svg class="map" viewBox="0 0 390 190">
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#7FA818" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:12px;bottom:8px;font-size:14px;color:#666666">실제 GPS 경로</div>
+      </div>
+      <div style="background:#FFFFFF;padding:14px 12px 16px;border-bottom:1px solid #E8552F">
+        <div style="font-size:14px;color:#666666">8월 19일 (화) 오후 7:30 · 반포 한강 코스</div>
+        <div class="disp" style="font-size:27.5px;color:#111111;margin-top:6px">초코, 6.0km 완주</div>
+        <div style="display:flex;gap:22px;margin-top:12px">
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">6.0<span style="font-size:15px;font-weight:800;color:#666666">km</span></div>
+            <div style="font-size:14px;line-height:19px;color:#666666">거리</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">46:12</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">러닝 시간</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7'42"</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">평균 페이스 /km</div></div>
+        </div>
+      </div>
+      <div class="coralCta">
+        <div style="flex:1;min-width:0">
+          <div class="t">다음 주 같은 시간 예약</div>
+          <div class="s">지호 러너 · 6km · 화 19:30</div>
+        </div><div class="c">›</div>
+      </div>
+      <div class="linkRow"><div style="font-size:16px;font-weight:800;color:#111111">이 러닝 카드 공유하기</div>
+        <div style="font-size:18px;color:#A83315">›</div></div>
+
+      <!-- paper earning strip -->
+      <div class="sec">
+        <div style="font-size:14px;line-height:18px;font-weight:800;letter-spacing:1.2px;color:#4A3DA8">하이 포인트 적립</div>
+        <div style="display:flex;align-items:baseline;margin-top:4px">
+          <span class="num" style="font-size:34px;line-height:41px;color:#111111">+1,250</span>
+          <span style="font-size:15px;line-height:20px;font-weight:800;color:#333333">&nbsp;포인트</span></div>
+        <div class="row" style="margin-top:10px"><span style="font-size:14px;color:#333333">러닝 완주</span><span style="font-size:14px;font-weight:800;color:#111111">+1,000</span></div>
+        <div class="row" style="margin-top:5px"><span style="font-size:14px;color:#333333">연속 3일</span><span style="font-size:14px;font-weight:800;color:#111111">+250</span></div>
+      </div>
+
+      <!-- one green -->
+      <div class="sec">
+        <div class="secT">목표 달성</div>
+        <div style="margin-top:10px">
+          <div class="row"><span style="font-size:14px;font-weight:700;color:#333333">거리</span><span style="font-size:15px;font-weight:900;color:#0E7F49">100%</span></div>
+          <div style="height:8px;background:#EEEEEE;margin-top:6px;overflow:hidden">
+            <div style="height:8px;width:100%;background:#119B58"></div></div>
+          <div style="font-size:14px;color:#666666;margin-top:4px">6.0 / 6km</div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="row"><span style="font-size:14px;font-weight:700;color:#333333">페이스</span><span style="font-size:15px;font-weight:900;color:#111111">96%</span></div>
+          <div style="height:8px;background:#EEEEEE;margin-top:6px;overflow:hidden">
+            <div style="height:8px;width:96%;background:#111111"></div></div>
+          <div style="font-size:14px;color:#666666;margin-top:4px">목표 8'00" · 실제 7'42"</div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:12px">100%를 채운 항목만 초록이에요</div>
+      </div>
+      <div class="sec">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:44px;height:44px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900">지</div>
+          <div style="flex:1"><div style="font-size:16.5px;font-weight:900;color:#111111">지호 러너</div>
+            <div style="font-size:15px;color:#666666;margin-top:2px">반포 한강 코스 · 반포동</div></div>
+        </div>
+      </div>
+      <div style="height:24px"></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>kmPct</code> / <code>pacePct</code> as computed today (<code>report.tsx:236–239</code>). Nothing new is read;
+      only the paint and the animation change.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero new fields, zero routes.</span> The animation swap is a real implementation change:
+      a full-width fill scaled on X (native driver) instead of an animated <code>width</code> — measurable, and required
+      by §6 regardless of which variant is picked. <b>The lilac→paper conversion of the 적립 strip is separable</b>;
+      pick ③ with or without it. <code>lilac.dim</code> may not be reused on white (it is a lilac-bg value); the paper
+      version uses <code>paper.text</code>.
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <p class="cap"><span class="mark">④</span>기록은 한 번, 크게</p>
+    <p class="why"><b>Peak-End protection for the one badge that is actually rare.</b> <code>badges()</code> returns
+    「N번째 러닝」 <i>always</i>, and 「★ 역대 최장 거리」 only when <code>kmRank === 1</code> over the owner's whole
+    history — and both render as the same wash chip. §7b says the peak moments get polished, not flattened, and §8
+    reserves gold for milestones. So a lifetime record prints <b>once, above the title, in gold ink</b>, and the ordinary
+    ordinal stays a chip. When there is no ★, the line does not exist and the head is exactly today's head — no empty
+    slot, no “아직 기록 없음”.</p>
+    <div class="st8">standings.kmRank 1 · total 12 · paceRank 4</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 12px 10px">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러닝 리포트</div>
+        <div class="backSq">↗</div>
+      </div>
+      <div style="height:190px;background:#FFFFFF;border-top:1px solid #EEEEEE;border-bottom:1px solid #EEEEEE;position:relative">
+        <svg class="map" viewBox="0 0 390 190">
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="42,150 78,120 96,136 140,96 186,104 214,66 268,78 300,44 342,58"
+            fill="none" stroke="#7FA818" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:12px;bottom:8px;font-size:14px;color:#666666">실제 GPS 경로</div>
+      </div>
+      <div style="background:#FFFFFF;padding:14px 12px 16px;border-bottom:1px solid #E8552F">
+        <div style="font-size:14px;color:#666666">8월 19일 (화) 오후 7:30 · 반포 한강 코스</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <div style="width:26px;height:26px;border:1.5px solid #B99A4F;display:flex;align-items:center;justify-content:center;color:#B99A4F;font-size:14px">★</div>
+          <div style="font-size:16px;font-weight:900;color:#B99A4F;letter-spacing:-.01em">역대 최장 거리</div>
+          <div style="font-size:14px;color:#666666">12번의 러닝 중 처음</div>
+        </div>
+        <div class="disp" style="font-size:27.5px;color:#111111;margin-top:8px">초코, 7.2km 완주</div>
+        <div style="display:flex;gap:22px;margin-top:12px">
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7.2<span style="font-size:15px;font-weight:800;color:#666666">km</span></div>
+            <div style="font-size:14px;line-height:19px;color:#666666">거리</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">55:24</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">러닝 시간</div></div>
+          <div><div class="num" style="font-size:27px;line-height:33px;color:#111111">7'42"</div>
+            <div style="font-size:14px;line-height:19px;color:#666666">평균 페이스 /km</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+          <div class="chip">12번째 러닝</div><div class="chip">페이스 TOP 4</div>
+        </div>
+      </div>
+      <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+      <div class="row" style="background:#FFFFFF;padding:8px 12px;border-bottom:1px solid #E8552F">
+        <div style="font-size:32px;line-height:38px;color:#666666;letter-spacing:2px">☆☆☆☆☆</div>
+        <div style="font-size:15px;font-weight:800;color:#111111">별점 남기기 ›</div>
+      </div>
+      <div class="coralCta">
+        <div style="flex:1;min-width:0">
+          <div class="t">다음 주 같은 시간 예약</div>
+          <div class="s">지호 러너 · 7km · 화 19:30</div>
+        </div><div class="c">›</div>
+      </div>
+      <div class="linkRow"><div style="font-size:16px;font-weight:800;color:#111111">이 러닝 카드 공유하기</div>
+        <div style="font-size:18px;color:#A83315">›</div></div>
+      <div class="labnote"><div class="kk">Lab note — not product copy</div>
+        <p>On a run with no ★, <b>the gold line does not exist</b> — no reserved slot, no “아직 기록 없음”. The head is
+        then byte-for-byte today's head.</p></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>fetchRunStandings(bid)</code> → <code>nth · total · kmRank · paceRank</code> (already read at
+      <code>report.tsx:161</code>). 「12번의 러닝 중 처음」 = <code>standings.total</code>, not a new count.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero new fields, zero routes.</span>
+      <span class="pay">Spends the screen's gold budget</span> (§8: gold = milestone events only) — which is the argument
+      <i>for</i> it, since a lifetime PR is the one milestone this screen can prove. Note this puts a second emphasis
+      near the coral panel; §7b allows exactly one isolated emphasis, so ④ is safest combined with ② (which vacates the
+      coral panel) or accepted as “the record outranks the nudge on a PR run”.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     C. REVIEW
+     ═════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band"><span class="n">C</span>러너 후기<span class="file">app/app/owner/review.tsx · 139 lines · unmigrated</span></h2>
+<p class="intro">
+The least-migrated screen in the cluster and the shortest — 139 lines, and <b>nine raw hexes that appear nowhere in
+theme.ts</b>: <code>#DCD6C4</code> ×3 (retired beige hairline), <code>#eaf7c8 / #a9c47e / #3d5a2b</code> (retired swamp
+chip), <code>#dcd9cc</code>, <code>#f2c14e</code> (star gold), <code>#b0ada0</code> (placeholder), plus
+<code>colors.volt</code> as the CTA surface. It also carries a banned <code>opacity: 0.5</code> busy state while
+<i>already</i> doing the label swap that F2.1 asks for.
+<br>This is the one screen in the cluster where the enhancement is mostly just <b>obeying the law book</b> — and where
+that alone changes the screen completely.
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <p class="cap"><span class="mark now">현재</span>Shipped today</p>
+    <p class="why">Round back button, pill tags, 16px-radius textarea, radius-18 volt CTA, gold stars at 43.5px with no
+    padding (the Pressable is the glyph). Submitting with 0 stars is possible and produces an Alert. Submitting a second
+    review produces a <code>23505</code>, an Alert, and a <code>router.back()</code>.</p>
+    <div class="st8">stars 0 · tags [] · busy false · no read performed</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr" style="padding:14px 16px 30px">
+      <div class="row">
+        <div style="width:40px;height:40px;border-radius:20px;border:1px solid #DCD6C4;background:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:20.5px">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러너 후기</div>
+        <div style="width:40px"></div>
+      </div>
+      <div style="font-size:17px;font-weight:800;color:#111111;text-align:center;margin-top:22px">지호님과의 러닝, 어땠나요?</div>
+      <div style="text-align:center;margin-top:16px;font-size:43.5px;color:#dcd9cc;letter-spacing:8px">★★★★★</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;justify-content:center">
+        <div style="border:1.3px solid #DCD6C4;border-radius:99px;background:#FFFFFF;padding:9px 14px;font-size:14.5px;font-weight:700;color:#49524a">시간 약속 철저</div>
+        <div style="border:1.3px solid #DCD6C4;border-radius:99px;background:#FFFFFF;padding:9px 14px;font-size:14.5px;font-weight:700;color:#49524a">사진 잘 찍어줘요</div>
+        <div style="border:1.3px solid #a9c47e;border-radius:99px;background:#eaf7c8;padding:9px 14px;font-size:14.5px;font-weight:700;color:#3d5a2b">✓ 소통이 빨라요</div>
+        <div style="border:1.3px solid #DCD6C4;border-radius:99px;background:#FFFFFF;padding:9px 14px;font-size:14.5px;font-weight:700;color:#49524a">아이를 잘 다뤄요</div>
+        <div style="border:1.3px solid #DCD6C4;border-radius:99px;background:#FFFFFF;padding:9px 14px;font-size:14.5px;font-weight:700;color:#49524a">페이스 조절 굿</div>
+        <div style="border:1.3px solid #DCD6C4;border-radius:99px;background:#FFFFFF;padding:9px 14px;font-size:14.5px;font-weight:700;color:#49524a">또 부르고 싶어요</div>
+      </div>
+      <div style="border:1px solid #DCD6C4;border-radius:16px;background:#FFFFFF;padding:14px;margin-top:20px;height:100px;font-size:15.5px;color:#b0ada0">다른 보호자들에게 도움이 될 이야기를 남겨주세요 (선택)</div>
+      <div style="display:flex;align-items:center;gap:9px;margin-top:14px">
+        <div style="width:20px;height:20px;border-radius:6px;border:1.5px solid #dcd9cc;background:#FFFFFF;flex-shrink:0"></div>
+        <div style="flex:1;font-size:14px;color:#49524a;line-height:19.5px">도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)</div>
+      </div>
+      <div style="background:#C6F542;border-radius:18px;text-align:center;padding:15px;margin-top:22px;font-size:16.5px;font-weight:900;color:#111111">후기 등록</div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Params <code>bid · rid · rname · stars</code> from the report's star row; writes
+      <code>reviews.insert({rating, tags, note, visibility})</code>.
+      <h5 class="c2">Known wrong</h5>
+      Nine off-token hexes · <code>colors.volt</code> action surface · <code>opacity:0.5</code> busy (F2.1 bans it) ·
+      round corners in the paper world · CTA is live in a state that can only produce an Alert.
+    </div>
+  </div>
+
+  <!-- ① -->
+  <div class="col">
+    <p class="cap"><span class="mark">①</span>종이로 이관</p>
+    <p class="why"><b>The minimum, and possibly the whole answer.</b> §2 chrome (40×40 square back, full-bleed coral
+    hairline), §3b chips (radius 0, <code>#EEE</code> border, selected = <code>paper.wash</code> + coral border +
+    <code>actionInk</code> — the exact grammar <code>owner/dog.tsx</code> already ships), sharp textarea,
+    <code>paper.action</code> CTA with white 17/800, busy = label swap and <b>nothing else</b>. Stars get real 44pt
+    targets and a token gold. Nothing moves, nothing is added; the screen simply stops being from a retired palette.</p>
+    <div class="st8">stars 4 · tags ['소통이 빨라요'] · busy false</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러너 후기</div>
+        <div style="width:40px"></div>
+      </div>
+      <div style="padding:0 15px 30px">
+        <div style="font-size:17px;font-weight:800;color:#111111;text-align:center;margin-top:22px">지호님과의 러닝, 어땠나요?</div>
+        <div style="text-align:center;margin-top:16px;font-size:43.5px;line-height:52px;letter-spacing:8px">
+          <span style="color:#D9A93C">★★★★</span><span style="color:#EEEEEE">★</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;justify-content:center">
+          <div class="tagOff">시간 약속 철저</div>
+          <div class="tagOff">사진 잘 찍어줘요</div>
+          <div class="tagOn">✓ 소통이 빨라요</div>
+          <div class="tagOff">아이를 잘 다뤄요</div>
+          <div class="tagOff">페이스 조절 굿</div>
+          <div class="tagOff">또 부르고 싶어요</div>
+        </div>
+        <div class="inp ph2" style="margin-top:20px;height:100px">다른 보호자들에게 도움이 될 이야기를 남겨주세요 (선택)</div>
+        <div style="display:flex;align-items:center;gap:9px;margin-top:14px">
+          <div style="width:20px;height:20px;border:1.5px solid #EEEEEE;background:#FFFFFF;flex-shrink:0"></div>
+          <div style="flex:1;font-size:14px;color:#333333;line-height:19.5px">도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)</div>
+        </div>
+        <div style="background:#C6472C;text-align:center;padding:16px;margin-top:22px;font-size:17px;font-weight:800;color:#FFFFFF">후기 등록</div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:10px;text-align:center">등록하면 지호 러너의 프로필에 바로 보여요</div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Unchanged — same params, same insert.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero fields, zero routes, zero behaviour change.</span> Retires nine off-token hexes and one
+      banned opacity trick. The star glyph needs <code>paddingHorizontal 4 / paddingVertical 7</code> to reach 44pt,
+      the same fix <code>report.tsx</code>'s <code>s.star</code> already applies.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <p class="cap"><span class="mark">②</span>질문 하나씩</p>
+    <p class="why"><b>The form stops offering controls it will refuse.</b> <code>submit()</code> hard-refuses at
+    <code>stars === 0</code>, so today's CTA is a live button whose only possible effect in that state is an Alert —
+    the honesty law's “render an action only when its effect exists in this state”. Here the star row stands alone
+    until it is answered; the CTA is painted in the explicit disabled pair (<code>disabledFill</code> +
+    <code>faint</code>, never opacity), and the rest of the form arrives once a star lands. The button also names
+    what it will actually do, because the checkbox controls <code>visibility</code>: 공개 후기 vs 팀에게만.</p>
+    <div class="st8">stars 0 → gate closed · privateFlag false</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러너 후기</div>
+        <div style="width:40px"></div>
+      </div>
+      <div style="padding:0 15px 30px">
+        <div style="font-size:14px;color:#666666;text-align:center;margin-top:26px">8월 19일 · 반포 한강 코스 · 5.1km</div>
+        <div class="disp" style="font-size:24px;line-height:31px;color:#111111;text-align:center;margin-top:8px">지호님과의 러닝,<br>어땠나요?</div>
+        <div style="text-align:center;margin-top:22px;font-size:47px;line-height:57px;letter-spacing:10px;color:#EEEEEE">★★★★★</div>
+        <div style="font-size:14px;color:#666666;text-align:center;margin-top:6px">별을 하나 눌러주세요</div>
+        <div style="background:#F2F2F2;text-align:center;padding:16px;margin-top:26px;font-size:17px;font-weight:800;color:#999999">후기 등록</div>
+        <div class="hair" style="margin:26px 0 0"></div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:14px">별점을 고르면 태그·메모·공개 범위를 이어서 정할 수 있어요.</div>
+      </div>
+      <div class="labnote" style="margin-bottom:0"><div class="kk">Lab note — the same screen, after one star</div>
+        <p>Below is the <b>second state of this same frame</b>, stacked so both can be seen at once. It is not a second
+        screen and not a scroll position.</p></div>
+      <div style="padding:8px 15px 30px">
+        <div style="text-align:center;margin-top:14px;font-size:47px;line-height:57px;letter-spacing:10px">
+          <span style="color:#D9A93C">★★★★</span><span style="color:#EEEEEE">★</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;justify-content:center">
+          <div class="tagOn">✓ 시간 약속 철저</div><div class="tagOff">사진 잘 찍어줘요</div>
+          <div class="tagOff">소통이 빨라요</div><div class="tagOff">아이를 잘 다뤄요</div>
+        </div>
+        <div class="inp ph2" style="margin-top:16px;height:80px">다른 보호자들에게 도움이 될 이야기를 남겨주세요 (선택)</div>
+        <div style="display:flex;align-items:center;gap:9px;margin-top:14px">
+          <div style="width:20px;height:20px;border:1.5px solid #EEEEEE;background:#FFFFFF;flex-shrink:0"></div>
+          <div style="flex:1;font-size:14px;color:#333333;line-height:19.5px">도그스하이 팀에게만 전달 (프로필에 공개되지 않아요)</div>
+        </div>
+        <div style="background:#C6472C;text-align:center;padding:16px;margin-top:20px;font-size:17px;font-weight:800;color:#FFFFFF">공개 후기로 등록</div>
+      </div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      The run line at the top (8월 19일 · 코스 · km) is <b>not free</b> — this screen receives only
+      <code>bid · rid · rname · stars</code>. It would need either an extra param from the report or a
+      <code>fetchRunReportOrNull(bid)</code> call here. Drawn because it answers “which run am I reviewing?”, which the
+      screen cannot answer today; <b>drop the line if the extra read is not wanted</b> — nothing else depends on it.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero new server fields.</span>
+      <span class="pay">One extra read (or two extra params) for the run line only.</span> One behaviour change: the
+      「별점을 선택해주세요」 Alert becomes unreachable and should be deleted with it. Note the CTA label swap on
+      <code>privateFlag</code> means two labels plus the busy label — three strings for one button.
+      <br>Also: the question line is drawn in the <b>display face</b>, which this screen does not use today. That is
+      within budget (one per screen, and it would be the only one), but it is a new use — take C① instead if the screen
+      should stay display-free.
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <p class="cap"><span class="mark">③</span>이미 남긴 후기</p>
+    <p class="why"><b>The 23505 path stops being the way owners find out.</b> Today a second visit renders a complete,
+    inviting form; the owner fills it in, presses 후기 등록, and only then learns it was never possible —
+    Alert, <code>router.back()</code>, work discarded. With the same read C① adds to the report, this screen opens on
+    what was actually written. <b>Failure of that read leaves the form</b>, because “I could not check” is not
+    “you already reviewed” — the same unknown-is-not-yes rule the report's slot check already follows.</p>
+    <div class="st8">myReview present · rating 5 · created_at 8월 19일</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div class="row" style="padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div>
+        <div style="font-size:23px;font-weight:900;color:#111111">러너 후기</div>
+        <div style="width:40px"></div>
+      </div>
+      <div style="padding:0 15px 30px">
+        <div style="font-size:14px;color:#666666;text-align:center;margin-top:26px">8월 19일에 남긴 후기예요</div>
+        <div style="text-align:center;margin-top:14px;font-size:43.5px;line-height:52px;letter-spacing:8px;color:#D9A93C">★★★★★</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;justify-content:center">
+          <div class="tagOn">시간 약속 철저</div><div class="tagOn">또 부르고 싶어요</div>
+        </div>
+        <div style="border:1px solid #EEEEEE;padding:14px;margin-top:18px;font-size:15px;line-height:22px;color:#333333">
+          비 오는 날이었는데도 시간 딱 맞춰 오셨고, 초코가 물웅덩이에서 놀다 늦어진 것도 다 기다려주셨어요.</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:14px">후기는 러닝당 한 번만 남길 수 있어요. 수정이 필요하면 안심 센터로 알려주세요.</div>
+        <div class="hair" style="margin:22px 0"></div>
+        <div style="border:1px solid #E8552F;text-align:center;padding:15px;font-size:16px;font-weight:800;color:#A83315">지호 러너 프로필 보기</div>
+        <div style="margin-top:10px;text-align:center;font-size:16px;font-weight:800;color:#111111;padding:15px;border:1px solid #EEEEEE">러닝 리포트로 돌아가기</div>
+      </div>
+      <div class="labnote"><div class="kk">Lab note — not product copy</div>
+        <p>If the read fails, this screen is <b>not</b> what opens — the ordinary write form does. “Could not check” and
+        “already written” are different facts; unknown is never a yes.</p></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Same read as B① — <code>reviews</code> by <code>(booking_id, author_id, target_kind)</code>, the exact tuple the
+      unique index uses. 러너 프로필 route already exists (<code>/runner-profile/[id]</code>, the target of
+      <code>rid</code>).
+      <h5 class="c2">What this costs</h5>
+      <span class="pay">Shares B①'s new <code>fetchMyReview()</code>.</span>
+      <span class="free">Zero new server fields, zero migrations.</span> The <code>23505</code> branch in
+      <code>submit()</code> <b>must stay</b> — it is the race backstop when two devices submit at once — but it stops
+      being the primary discovery path.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     D. DOG
+     ═════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band"><span class="n">D</span>반려견 프로필<span class="file">app/app/owner/dog.tsx · 400 lines · paper world</span></h2>
+<p class="intro">
+Already migrated and already honest (loud-fail strip, no auto-create, explicit disabled paint on the save button).
+Its problem is <b>shape</b>: ten controls in one undifferentiated column, of which exactly one — 권장 최소 페이스 —
+has the §3b section grammar. Miller's rule in §7b caps a group at 5–9; this is a single group of ten.
+<br>It is also the destination of the home profile-gaps row (<code>home.tsx:495</code>), and
+<code>profile-gaps.tsx</code> states the contract explicitly: <i>the row is a summary, and the explanation belongs to
+the screen that actually fills it</i>. That obligation is currently unmet here — and one of the three gaps
+(현관 상세) <b>cannot be filled on this screen at all</b> (defect ③).
+</p>
+
+<div class="rail">
+
+  <!-- 현재 -->
+  <div class="col">
+    <p class="cap"><span class="mark now">현재</span>Shipped today</p>
+    <p class="why">Ten label+field groups in one column, one section rule, one save button that is always live —
+    pressing it with nothing changed writes an identical row and shows a success Alert. Switching dogs mid-edit
+    silently discards every unsaved field (<code>selectDog()</code> overwrites all state).</p>
+    <div class="st8">dogs 2 · dog 초코 · loaded · dirty false</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div><div style="font-size:20px;font-weight:800;color:#111111">반려견 프로필</div>
+      </div>
+      <div style="padding:16px 15px 0">
+        <div style="position:relative;width:88px">
+          <div style="width:88px;height:88px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900">초</div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:24px;height:24px;background:#111111;border:2px solid #FFFFFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">✎</div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#666666;margin-top:8px">사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</div>
+      </div>
+      <div style="padding:18px 15px 0">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:#111111;border:1px solid #111111;padding:10px 15px;font-size:14px;font-weight:800;color:#FFFFFF">초코</div>
+          <div style="background:#FFFFFF;border:1px solid #EEEEEE;padding:10px 15px;font-size:14px;font-weight:800;color:#111111">두부</div>
+          <div style="background:#FFFFFF;border:1px dashed #EEEEEE;padding:10px 15px;font-size:14px;font-weight:800;color:#111111">＋ 추가</div>
+        </div>
+        <div class="lbl">칼라 컬러 — 내 아이의 색</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <div style="width:38px;height:38px;background:#FF8A5C;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#5BB8D4;border:2.5px solid #111111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900">✓</div>
+          <div style="width:38px;height:38px;background:#E58BA9;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#9B8CE8;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#E0B457;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#3EC6A8;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#8AA84E;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#C25E7F;border:1px solid #EEEEEE"></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#666666;margin-top:8px">스카이 — 초코의 시그니처 컬러예요</div>
+        <div class="lbl">이름</div><div class="inp">초코</div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><div class="lbl">견종</div><div class="inp">웰시코기</div></div>
+          <div style="flex:1"><div class="lbl">몸무게 (kg)</div><div class="inp">11</div></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><div class="lbl">생일 (YYYY-MM-DD)</div><div class="inp ph2">2021-03-15</div></div>
+          <div style="flex:1"><div class="lbl">중성화</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:#111111;border:1px solid #111111;text-align:center;padding:13px;font-size:14px;font-weight:800;color:#FFFFFF">했어요</div>
+              <div style="flex:1;background:#FFFFFF;border:1px solid #EEEEEE;text-align:center;padding:13px;font-size:14px;font-weight:800;color:#111111">안 했어요</div>
+            </div></div>
+        </div>
+      </div>
+      <div style="height:1px;background:#E8552F;margin-top:26px"></div>
+      <div style="padding:0 15px 0">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 11px">권장 최소 페이스</div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">7'00"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">7'30"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #111111;background:#111111;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#FFFFFF">8'00"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">8'30"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">9'00"</div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:10px">이 값보다 느려지면 러너에게 안내해요</div>
+        <div class="lbl">러너에게 전달되는 성향 메모</div>
+        <div class="inp ph2" style="height:88px">예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요</div>
+        <div class="lbl">예방접종 (완료한 항목 선택)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="tagOn">✓ 종합백신</div><div class="tagOff">광견병</div>
+          <div class="tagOff">코로나 장염</div><div class="tagOff">켄넬코프</div>
+        </div>
+        <div class="lbl">선호 러닝 조건 · 성향 태그</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="tagOff">흙길 선호</div><div class="tagOn">✓ 이른 아침</div>
+          <div class="tagOff">저녁 선호</div><div class="tagOn">✓ 자전거 주의</div>
+          <div class="tagOff">사람 좋아함</div><div class="tagOff">강아지 좋아함</div>
+        </div>
+        <div style="font-size:14px;color:#666666;margin-top:12px;line-height:19px">태그와 메모는 러너의 요청 카드에 그대로 표시돼요<br>주간 목표 거리는 체력 리포트에서 조정해요</div>
+      </div>
+      <div style="height:24px"></div>
+      <div class="saveBar"><div class="saveBtn">저장하기</div></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      <code>fetchMyDogs()</code> → <code>DogProfile</code>; writes <code>updateMyDog()</code>
+      (<code>name·breed·birth_date·weight_kg·neutered·memo·prefTags·vaccines·collar·paceSuggestSec</code>).
+      <h5 class="c2">Known wrong</h5>
+      Ten controls, one group · save button live when nothing is dirty · dog switch discards unsaved edits silently ·
+      <code>Alert.prompt</code> add-dog is iOS-only (Android gets 「iOS에서 지원돼요」).
+    </div>
+  </div>
+
+  <!-- ① -->
+  <div class="col">
+    <p class="cap"><span class="mark">①</span>네 개의 섹션</p>
+    <p class="why"><b>Chunking, using the grammar this screen already proved.</b> The 권장 최소 페이스 block shows the
+    §3b section header works here — a full-bleed coral rule pulled out of the gutter with a negative margin
+    (<code>s.secRule</code>), then a 20/800 ink title. Apply it four times: <b>기본 정보 · 러닝 설정 · 건강 ·
+    러너에게 전달되는 것</b>. Ten controls become four groups of two or three; the scroll gains landmarks; the field
+    labels stay at 14/800 and stop competing with section names.</p>
+    <div class="st8">same payload · pure layout</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div><div style="font-size:20px;font-weight:800;color:#111111">반려견 프로필</div>
+      </div>
+      <div style="padding:16px 15px 0;display:flex;gap:14px;align-items:center">
+        <div style="position:relative;width:88px;flex-shrink:0">
+          <div style="width:88px;height:88px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900">초</div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:24px;height:24px;background:#111111;border:2px solid #FFFFFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">✎</div>
+        </div>
+        <div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="background:#111111;border:1px solid #111111;padding:8px 13px;font-size:14px;font-weight:800;color:#FFFFFF">초코</div>
+            <div style="background:#FFFFFF;border:1px solid #EEEEEE;padding:8px 13px;font-size:14px;font-weight:800;color:#111111">두부</div>
+            <div style="background:#FFFFFF;border:1px dashed #EEEEEE;padding:8px 13px;font-size:14px;font-weight:800;color:#111111">＋</div>
+          </div>
+          <div style="font-size:14px;line-height:19px;color:#666666;margin-top:8px">사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</div>
+        </div>
+      </div>
+      <div class="rule" style="margin-top:22px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 4px">기본 정보</div>
+        <div class="lbl" style="margin-top:8px">이름</div><div class="inp">초코</div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><div class="lbl">견종</div><div class="inp">웰시코기</div></div>
+          <div style="flex:1"><div class="lbl">몸무게 (kg)</div><div class="inp">11</div></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><div class="lbl">생일</div><div class="inp ph2">2021-03-15</div></div>
+          <div style="flex:1"><div class="lbl">중성화</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:#111111;border:1px solid #111111;text-align:center;padding:13px;font-size:14px;font-weight:800;color:#FFFFFF">했어요</div>
+              <div style="flex:1;background:#FFFFFF;border:1px solid #EEEEEE;text-align:center;padding:13px;font-size:14px;font-weight:800;color:#111111">안 했어요</div>
+            </div></div>
+        </div>
+        <div class="lbl">칼라 컬러</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <div style="width:38px;height:38px;background:#FF8A5C;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#5BB8D4;border:2.5px solid #111111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900">✓</div>
+          <div style="width:38px;height:38px;background:#E58BA9;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#9B8CE8;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#E0B457;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#3EC6A8;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#8AA84E;border:1px solid #EEEEEE"></div>
+          <div style="width:38px;height:38px;background:#C25E7F;border:1px solid #EEEEEE"></div>
+        </div>
+        <div style="font-size:14px;line-height:18px;color:#666666;margin-top:8px">스카이 — 일정·카드에서 이 색으로 보여요</div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 11px">러닝 설정</div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">7'00"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">7'30"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #111111;background:#111111;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#FFFFFF">8'00"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">8'30"</div>
+          <div style="flex:1;min-height:44px;border:1px solid #EEEEEE;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#111111">9'00"</div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666;margin-top:10px">권장 최소 페이스 — 이 값보다 느려지면 러너에게 안내해요</div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 11px">건강</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="tagOn">✓ 종합백신</div><div class="tagOff">광견병</div>
+          <div class="tagOff">코로나 장염</div><div class="tagOff">켄넬코프</div>
+        </div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 11px">러너에게 전달되는 것</div>
+        <div class="inp ph2" style="height:88px">예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <div class="tagOff">흙길 선호</div><div class="tagOn">✓ 이른 아침</div>
+          <div class="tagOff">저녁 선호</div><div class="tagOn">✓ 자전거 주의</div>
+        </div>
+        <div style="font-size:14px;color:#666666;margin-top:12px;line-height:19px">주간 목표 거리는 체력 리포트에서 조정해요</div>
+      </div>
+      <div style="height:24px"></div>
+      <div class="saveBar"><div class="saveBtn">저장하기</div></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Identical payload. 칼라 moves into 기본 정보 and the photo/switcher share one row — no field is added or removed.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero fields, zero routes, zero behaviour.</span> Pure layout. One judgement call is embedded:
+      중성화 and 예방접종 end up in different sections (기본 정보 vs 건강); if that reads wrong, 중성화 moves to 건강
+      and 기본 정보 drops to three fields.
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <p class="cap"><span class="mark">②</span>저장의 진실</p>
+    <p class="why"><b>Three lies of omission around one button.</b> ⓐ The save button is live when nothing has changed;
+    pressing it writes an identical row and congratulates you. F2.1 has an explicit disabled paint
+    (<code>disabledFill</code> + <code>faint</code>) for exactly this. ⓑ Switching dogs mid-edit calls
+    <code>selectDog()</code>, which overwrites every field — <b>silent data loss</b>, and the only screen where two
+    entities share one form. ⓒ Success is an OS Alert on a form the owner may still be editing; an inline strip says
+    the same thing without stealing the screen. The dirty flag is one comparison against the loaded
+    <code>DogProfile</code>.</p>
+    <div class="st8">dirty true (memo·tags) · saving false · switch attempted</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div><div style="font-size:20px;font-weight:800;color:#111111">반려견 프로필</div>
+      </div>
+      <!-- switch guard -->
+      <div style="background:#FBEED9;padding:13px 15px">
+        <div style="font-size:14px;line-height:20px;font-weight:800;color:#9D580A">두부로 바꾸면 저장하지 않은 초코의 변경 사항이 사라져요</div>
+        <div style="display:flex;gap:8px;margin-top:11px">
+          <div style="flex:1;background:#C6472C;text-align:center;padding:13px;font-size:16px;font-weight:800;color:#FFFFFF">저장하고 바꾸기</div>
+          <div style="flex:1;background:#FFFFFF;border:1px solid #E8552F;text-align:center;padding:13px;font-size:16px;font-weight:800;color:#A83315">그냥 바꾸기</div>
+        </div>
+      </div>
+      <div style="padding:16px 15px 0;display:flex;gap:14px;align-items:center">
+        <div style="position:relative;width:88px;flex-shrink:0">
+          <div style="width:88px;height:88px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900">초</div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:24px;height:24px;background:#111111;border:2px solid #FFFFFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">✎</div>
+        </div>
+        <div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="background:#111111;border:1px solid #111111;padding:8px 13px;font-size:14px;font-weight:800;color:#FFFFFF">초코 ·</div>
+            <div style="background:#FFFFFF;border:1px solid #EEEEEE;padding:8px 13px;font-size:14px;font-weight:800;color:#111111">두부</div>
+            <div style="background:#FFFFFF;border:1px dashed #EEEEEE;padding:8px 13px;font-size:14px;font-weight:800;color:#111111">＋</div>
+          </div>
+          <div style="font-size:14px;line-height:19px;color:#A83315;font-weight:700;margin-top:8px">저장하지 않은 변경 2개</div>
+        </div>
+      </div>
+      <div class="rule" style="margin-top:22px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 4px">러너에게 전달되는 것</div>
+        <div class="inp" style="height:88px;border-color:#E8552F;line-height:22px">자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <div class="tagOff">흙길 선호</div><div class="tagOn">✓ 이른 아침</div>
+          <div class="tagOff">저녁 선호</div><div class="tagOn">✓ 자전거 주의</div>
+        </div>
+      </div>
+      <div class="labnote"><div class="kk">Lab note — the other two states of the save bar</div>
+        <p><b>Nothing changed yet</b> — explicit disabled paint (<code>disabledFill</code> + <code>faint</code>), never
+        opacity:</p>
+        <div style="background:#F2F2F2;text-align:center;padding:16px;margin-top:9px;font-size:17px;font-weight:800;color:#999999">저장하기</div>
+        <p style="margin-top:12px"><b>Just saved</b> — an inline strip instead of an Alert on a form the owner may still
+        be editing:</p>
+        <div style="background:#E7F5EE;padding:13px;margin-top:9px;font-size:14px;line-height:20px;font-weight:700;color:#0E7F49">저장됐어요 — 러너 요청 카드에 바로 반영돼요</div>
+      </div>
+      <div class="saveBar"><div class="saveBtn">저장하기</div></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Dirty = the ten edited values vs the loaded <code>DogProfile</code>. The success strip uses
+      <code>paper.paceGoodWash / paceGoodInk</code> — role tokens that already exist (<code>theme.ts:201</code>),
+      measured 4.50:1, <b>zero new hues</b>.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero server fields, zero routes, zero migrations.</span> Local dirty state plus one guard.
+      <span class="pay">One product call:</span> 그냥 바꾸기 discards edits deliberately — that is the honest option and
+      it must stay reachable, but Sean may prefer 저장하고 바꾸기 to be the only path. The save-failure Alert stays as
+      an Alert (a write that failed is exceptional, and Alert is sanctioned OS chrome).
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <p class="cap"><span class="mark">③</span>이 칸이 무엇을 여는가</p>
+    <p class="why"><b>Pays the debt <code>profile-gaps.tsx</code> booked three days ago</b> — “the row is a summary and
+    the explanation belongs to the screen that fills it”. Every field here has a real downstream reader, and only three
+    say so: 생일 gates 체력 나이 (<code>fitnessGate.reason==='birth'</code>), 몸무게 prints on the runner's request card
+    (<code>runner/requests.tsx:211</code>), 접종 becomes 「백신 N종」 there too (<code>:230</code>), 사진 is what the runner
+    matches at pickup. And it fixes defect ③: the 현관 상세 gap, which is <code>addresses.detail</code> and cannot be
+    typed on this screen, gets an honest row that points at <code>/owner/addresses</code>.</p>
+    <div class="st8">arrived from home gaps row · gaps ['vaccines','doorDetail']</div>
+    <div class="ph"><div class="sb"><span>9:41</span><span>▮▮▮</span></div><div class="scr">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 15px 12px;border-bottom:1px solid #E8552F">
+        <div class="backSq">‹</div><div style="font-size:20px;font-weight:800;color:#111111">반려견 프로필</div>
+      </div>
+      <div style="padding:14px 15px 0">
+        <div style="border:1.5px solid #111111;padding:12px 13px">
+          <div style="font-size:15px;font-weight:800;color:#111111">러너가 아직 못 보는 것 2가지</div>
+          <div style="font-size:14px;line-height:20px;color:#666666;margin-top:4px">백신 정보 · 현관 상세 — 아래에서 채우면 바로 사라져요</div>
+        </div>
+      </div>
+      <div style="padding:16px 15px 0;display:flex;gap:14px;align-items:center">
+        <div style="position:relative;width:72px;flex-shrink:0">
+          <div style="width:72px;height:72px;background:#111111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900">초</div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:24px;height:24px;background:#111111;border:2px solid #FFFFFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">✎</div>
+        </div>
+        <div style="font-size:14px;line-height:19px;color:#666666">사진을 탭해서 변경 — <b style="color:#111111">러너가 픽업 때 이 얼굴로 초코를 찾아요</b></div>
+      </div>
+      <div class="rule" style="margin-top:22px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 4px">기본 정보</div>
+        <div class="lbl" style="margin-top:8px">생일</div>
+        <div class="inp ph2">2021-03-15</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:7px">생일을 등록하면 <b style="color:#111111">체력 나이 측정이 시작돼요</b> — 지금은 ‘측정 전’으로 보여요</div>
+        <div class="lbl">몸무게 (kg)</div>
+        <div class="inp">11</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-top:7px">러너의 요청 카드에 견종과 함께 표시돼요</div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 6px">건강</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-bottom:11px">러너가 인계 화면에서 「백신 N종」으로 확인해요</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="tagOff">종합백신</div><div class="tagOff">광견병</div>
+          <div class="tagOff">코로나 장염</div><div class="tagOff">켄넬코프</div>
+        </div>
+        <div style="background:#FBEED9;padding:11px 12px;margin-top:12px;font-size:14px;line-height:20px;font-weight:700;color:#9D580A">아직 하나도 선택하지 않았어요</div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 6px">픽업 주소</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-bottom:11px">현관 상세는 아이 프로필이 아니라 주소에 저장돼요</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #EEEEEE;padding:14px 13px">
+          <div><div style="font-size:15px;font-weight:800;color:#111111">현관 상세 비어 있음</div>
+            <div style="font-size:14px;line-height:19px;color:#666666;margin-top:2px">공동현관 번호 · 동/호수 — 러너 티켓에 그대로 실려요</div></div>
+          <div style="font-size:18px;color:#A83315">›</div>
+        </div>
+      </div>
+      <div class="rule" style="margin-top:26px"></div>
+      <div style="padding:0 15px">
+        <div style="font-size:20px;line-height:25px;font-weight:800;color:#111111;margin:14px 0 6px">러너에게 전달되는 것</div>
+        <div style="font-size:14px;line-height:20px;color:#666666;margin-bottom:11px">메모와 태그는 러너의 요청 카드에 그대로 표시돼요</div>
+        <div class="inp ph2" style="height:80px">예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요</div>
+      </div>
+      <div style="height:24px"></div>
+      <div class="saveBar"><div class="saveBtn">저장하기</div></div>
+    </div></div>
+    <div class="meta">
+      <h5>Binds to</h5>
+      Consumers verified in source: 몸무게 → <code>runner/requests.tsx:211</code>, <code>runner/home.tsx:709</code>,
+      <code>owner/request.tsx:211</code> · 백신 → <code>runner/requests.tsx:230</code> · 메모·태그 → the runner request
+      card · 생일 → <code>api.ts:2447</code> <code>fitnessGate {reason:'birth'}</code> · 사진 → runner ticket.
+      The top strip reuses <code>fetchProfileGaps()</code>, already called by home.
+      <h5 class="c2">What this costs</h5>
+      <span class="free">Zero new server fields.</span>
+      <span class="pay">One route param</span> if the screen should scroll to the named gap
+      (<code>/owner/dog?focus=vaccines</code>), and <span class="pay">one honesty fix in <code>home.tsx</code></span>:
+      the 현관 상세 gap should route to <code>/owner/addresses</code> instead of here, or this row is its landing pad.
+      The gaps strip needs the same failure discipline home uses — if <code>fetchProfileGaps()</code> throws, draw
+      nothing rather than 「다 채웠어요」.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2 class="band"><span class="n">E</span>Cross-screen — what each variant actually spends</h2>
+<table>
+  <tr><th>#</th><th>Screen</th><th>What it claims</th><th>New server data</th><th>New route / read</th><th>Frozen surface</th></tr>
+  <tr><td><b>A①</b></td><td>fitness</td><td>“The hero already said it; the cards explain it”</td><td>none</td><td>none</td><td>not touched</td></tr>
+  <tr><td><b>A②</b></td><td>fitness</td><td>“Eight bars should be eight verdicts”</td><td>none</td><td>none</td><td>not touched</td></tr>
+  <tr><td><b>A③</b></td><td>fitness</td><td>“체력 나이 is the headline, not the sidebar”</td><td>none</td><td>none</td><td><b>yes</b> — restyle + <code>HERO_BIG</code> 619→642</td></tr>
+  <tr><td><b>B①</b></td><td>report</td><td>“The star row can know, and should”</td><td>none</td><td><code>fetchMyReview()</code></td><td>—</td></tr>
+  <tr><td><b>B②</b></td><td>report</td><td>“A stopped run leads with why”</td><td>none</td><td>none (uses <code>/safety</code>)</td><td>—</td></tr>
+  <tr><td><b>B③</b></td><td>report</td><td>“One green, one world, no layout animation”</td><td>none</td><td>none</td><td>—</td></tr>
+  <tr><td><b>B④</b></td><td>report</td><td>“A lifetime record outranks an ordinal”</td><td>none</td><td>none</td><td>—</td></tr>
+  <tr><td><b>C①</b></td><td>review</td><td>“Obey the law book” (9 hexes, 1 opacity trick)</td><td>none</td><td>none</td><td>—</td></tr>
+  <tr><td><b>C②</b></td><td>review</td><td>“Don't offer a control the form will refuse”</td><td>none</td><td>optional run-line read</td><td>—</td></tr>
+  <tr><td><b>C③</b></td><td>review</td><td>“Find out before you type, not after”</td><td>none</td><td>shares B①</td><td>—</td></tr>
+  <tr><td><b>D①</b></td><td>dog</td><td>“Ten controls is not one group”</td><td>none</td><td>none</td><td>—</td></tr>
+  <tr><td><b>D②</b></td><td>dog</td><td>“The button, the switch and the toast all lie a little”</td><td>none</td><td>none</td><td>—</td></tr>
+  <tr><td><b>D③</b></td><td>dog</td><td>“Every field names what it unlocks”</td><td>none</td><td>1 param + 1 home fix</td><td>—</td></tr>
+</table>
+
+<div class="note" style="margin-top:26px">
+  <h4>Combinations that are natural</h4>
+  <b>A①+A②</b> — the same card stack, de-duplicated and then anchored; they touch different cards.<br>
+  <b>B①+C③</b> — one new read, two screens; picking one without the other leaves the read half-used.<br>
+  <b>B③ alone is mandatory-ish</b> — defect ② and the §6 layout animation are wrong regardless of which look wins.<br>
+  <b>B②+B④</b> — ② vacates the coral panel on stopped runs, which is exactly where ④'s gold line would otherwise
+  create a second emphasis.<br>
+  <b>D①+D②+D③</b> — these are three passes over one screen and are cheapest done together; D③ assumes D①'s sections exist.
+</div>
+
+<h2 class="band"><span class="n">F</span>Open questions — I could not decide these from the code</h2>
+<ol class="q">
+  <li><b>Detail-screen title grammar is unspecified.</b> §3b fixes the <i>screen</i> title at 30/900 Black Han Sans, but
+  that was written for text-titled tab screens. Across this cluster the four pushed screens run
+  <b>23/900 display</b> (fitness masthead), <b>23/900 plain ink</b> (report, review — deliberately, per report.tsx's
+  comment) and <b>20/800</b> (dog). Three grammars, no rule. Should DESIGN.md gain a detail-screen title spec, and is it
+  the 23/900 plain-ink one that report/request/review already share?</li>
+
+  <li><b>Does the gold reservation bind to a review's stars?</b> §8 says gold = milestone events only.
+  B④ spends gold on a lifetime PR (clearly a milestone). But C①/C③ paint <i>filled review stars</i> in
+  <code>colors.gold #D9A93C</code> — stars are conventionally gold everywhere on earth, and the current code already uses
+  an off-token <code>#f2c14e</code>. Is a filled star a milestone use, an exempt convention, or should it be
+  <code>paper.pending</code>/ink instead?</li>
+
+  <li><b>Is the 하이 포인트 strip a deliberate lilac island or a world leak?</b> §2 says never mix worlds within one
+  surface; <code>report.tsx</code>'s own comment calls it a quiet lilac receipt on purpose. B③ draws the paper version
+  so both can be seen. This is a taste call I should not make alone.</li>
+
+  <li><b>On a stopped run, may the coral 재예약 panel be demoted?</b> RULING #11 put it there and made it the frame's one
+  saturated element. B② argues G1 changed the meaning of that state (the owner now pays, so the owner audits). This
+  needs your yes, and it is the only variant in the file that touches a standing ruling.</li>
+
+  <li><b>Where does 주간 목표 belong?</b> <code>weeklyGoalKm</code> is on <code>DogProfile</code> and editable only on
+  fitness, with dog.tsx pointing there in copy. That is coherent, but the goal is a property of the dog, and the fitness
+  stepper is the only editable control on an otherwise read-only report. Leave it, or move it into D①'s 러닝 설정 section
+  beside 권장 최소 페이스?</li>
+
+  <li><b>Android has no 반려견 추가.</b> <code>Alert.prompt</code> is iOS-only; Android owners get
+  「iOS에서 지원돼요」, which is a dead end, not a feature gate. Fixing it needs a real inline field or sheet — small, but
+  it is a new control and I did not draw it without a decision. Is Android in the Banpo pilot at all?</li>
+
+  <li><b>생일 has no picker and no dependency to build one.</b> Nothing like
+  <code>@react-native-community/datetimepicker</code> is installed, so D③ keeps the typed
+  <code>YYYY-MM-DD</code> field and only moves its validation inline. Given that this one field gates the brand's
+  signature number (체력 나이), is adding the dependency worth it?</li>
+
+  <li><b>Is 체력 나이's threshold of 2 runs / 28 days a product constant or a placeholder?</b> A① renders it as
+  <b>1 / 2</b> progress, which makes the threshold visible to owners for the first time. If it is going to move when the
+  vet-verified formula lands, the copy should say 「몇 번 더」 without a denominator — cheap either way, but only if
+  decided before it ships.</li>
+
+  <li><b>Photo count in the fitness rail is device-width-dependent.</b> <code>railN</code> fits the rail to the screen and
+  the counter says 「3 / 5」 over that <i>subset</i>, so two owners with different phones see different totals for the same
+  library. The file's comment already flags a pager as follow-up. Should the counter say the true total and the rail admit
+  it shows a window, or does the pager land first?</li>
+
+  <li><b>What is the film edge code allowed to say?</b> (Defect ④.) It is 12pt and carries a Korean date, which §3's
+  Korean clause does not exempt. Three exits, and they cost different things: <b>(a)</b> make it a genuine latin serial
+  — <code>CHOCO · WK34 · 3 RUNS</code>, what A③ draws, zero constants move; <b>(b)</b> raise it to 14pt, which moves
+  <code>EDGE_H 25 → 28</code> and <code>HERO_BIG</code> with it; <b>(c)</b> rule that the film edge is a declared
+  artwork exemption the way the 도그스하이 wordmark is (§3's 2026-08-12 clause), which would need writing down in
+  DESIGN.md rather than living in a code comment. I lean (a) — but (c) is legitimate and only you can grant it.</li>
+</ol>
+
+<div class="foot">
+<b>Method.</b> Every frame was drawn from the shipped source, read in full: <code>fitness.tsx</code> (604),
+<code>report.tsx</code> (988), <code>review.tsx</code> (139), <code>dog.tsx</code> (400), plus
+<code>api.ts</code> for the types, <code>0001_init.sql</code>/<code>0002_rls.sql</code> for the reviews table and its
+policies, <code>home.tsx</code> and <code>profile-gaps.tsx</code> for the two cross-screen claims.
+<b>Zero new hexes</b> — every colour in this file appears in <code>theme.ts</code> or is a file-local constant that
+already ships in the screen being drawn. <b>Detail text ≥14pt everywhere</b>; the only sub-14 strings are the film edge
+code (12pt), the shot counter (13pt serial), latin letterspaced kickers, and the simulated OS status bar. Of those, the
+edge code is the one I do <b>not</b> claim as exempt: in the 현재 frame it reproduces the shipped Korean date and is
+therefore drawn <i>in violation</i> on purpose (defect ④); in A③ it is a latin serial and the exemption holds.
+<b>Display face once per screen.</b> Every numeral slot carries an explicit line-height ≥1.2×.
+<br><b>Pick by number.</b> Where a variant needs your ruling rather than your taste, the cost block says
+「Needs Sean's yes」 and the reason is in §F.
+</div>
+
+</div></body></html>

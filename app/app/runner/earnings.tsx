@@ -8,7 +8,7 @@ import { Row } from '../../src/components/ui';
 import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
-import { colors, layout, paper } from '../../src/theme';
+import { layout, paper } from '../../src/theme';
 
 // 수익 — 실원장(ledger_items)만 표시. 정산·계좌는 백엔드 후속.
 //
@@ -22,7 +22,8 @@ import { colors, layout, paper } from '../../src/theme';
 // no real store for a waitlist/notify intent (no such table, and we don't invent schema), so an
 // honest waitlist conversion is impossible today — removed until the feature exists. The missing
 // account is stated as a non-pressable info sentence (the sanctioned settings.tsx 준비-중 pattern).
-// Behavior frozen: fetchLedger/fetchLedgerTotal, pendingSum fallback, tax calc.
+// Behavior frozen: fetchLedger/fetchLedgerTotal, pendingSum fallback. (The tax calc that used to
+// be listed here is gone — see the 2026-08-24 margin-secrecy note below.)
 //
 // [journey v4 · R7b/R7c 2026-08-19] The dark settlement ticket (43.5pt volt sum, 절취선, notches)
 // and the per-run ticket stubs (vertical perforation + two notches each) are RETIRED for plain
@@ -36,8 +37,22 @@ import { colors, layout, paper } from '../../src/theme';
 // colour coding, which is information: coral = the fee coming off, green = money added on.
 // 수수료율(33%) is a real column (runners.commission_rate) — the lab's choice not to print the RATE
 // is a design decision, not a correction; the per-run 수수료 AMOUNT is a real ledger column and stays.
-
-const MONEY_GREEN = '#3D6B1F'; // reading green for the additive breakdown items (팁·잔여 보장)
+//
+// [MARGIN SECRECY 2026-08-24 · Sean, verbatim] "For runner money, don't show them the 수수료.
+// I don't think we should be showing them the calcuations ever; only show the final profit per
+// run; keep the margin a secret."
+// The whole per-row breakdown is gone — 기본 · 거리 · 옵션 · 잔여 보장 · 팁 · 수수료 — and that
+// OVERRULES the two lines directly above: the per-run fee amount no longer stays. Removing only
+// the 수수료 token would have kept no secret at all: any component printed beside the net hands
+// back the fee by subtraction (fee = Σcomponents − net) and with it the rate (fee ÷ gross). So a
+// row now carries exactly one figure. The word 실수령 stays — it names what the number IS (what
+// lands, after everything) without printing a step of how it got there.
+// ⚠ NOT stripped: 원천징수 3.3%. That is a statutory income-tax withholding, not our margin — it
+// reveals nothing about commission_rate, and a runner never told about it is short at payout. It
+// is now stated as a fact in words rather than as an arithmetic result glued to the balance,
+// which honours "no calculations" without dropping a disclosure we owe.
+// After this edit the screen reads exactly TWO money values: LiveLedgerItem.net and
+// my_ledger_total. base · distancePay · addonPay · tip · guarantee · fee are no longer read here.
 
 // [2026-08-11] nextWednesday() 삭제 — 오늘 아침 '다음 정산일 <수요일>'을 지웠을 때(존재하지 않는
 // 지급 운영의 날짜였다) 계산 함수만 남아 호출부 0으로 떠 있었다. 죽은 코드이자, 되살리기 쉬운
@@ -80,7 +95,6 @@ export default function Earnings() {
   // [honesty 2026-08-11] sumKnown 전에는 '—' — 로딩/실패를 0원으로 위장하지 않는다.
   const sumKnown = loaded || total != null;
   const pendingSum = total ?? ledger.reduce((sum, l) => sum + l.net, 0);
-  const tax = Math.round(pendingSum * 0.033);
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -108,9 +122,12 @@ export default function Earnings() {
           )}
         </Row>
         {/* [2026-08-11] '다음 정산일 <수요일>'은 존재하지 않는 지급 운영의 날짜를 못박았다.
-            실결제도 러너 지급 코드도 아직 없다 — 원천징수 추정치는 계산이라 남기고, 날짜는 지운다. */}
+            실결제도 러너 지급 코드도 아직 없다 — 날짜는 지운다.
+            [margin secrecy 2026-08-24] 그 자리에 있던 '약 −1,524원 예정'(= pendingSum × 0.033)도
+            지운다. 세율은 제도라 숨길 것이 없지만, 잔액 옆에 놓인 **계산 결과**는 이 화면이 더는
+            그리지 않는 것이다. 사실은 낱말로 남긴다 — 지워버리면 러너가 지급일에 덜 받는다. */}
         <Text style={s.sumNote}>
-          지급 일정 미정 · 원천징수 3.3% 약 −{sumKnown ? tax.toLocaleString() : '—'}원 예정
+          지급 일정 미정 · 지급할 때 사업소득 3.3%가 원천징수돼요
         </Text>
 
         {/* bank account — honest info row, not a door: registration ships with open banking */}
@@ -144,8 +161,9 @@ export default function Earnings() {
             </Text>
           </View>
         )}
-        {/* 러닝 하나 = 한 줄. 왼쪽은 러닝과 그 내역, 오른쪽은 실수령.
-            '실수령' 낱말은 지킨다 — 랩의 '적립'과 달리 이 숫자가 무엇인지(수수료 뺀 뒤) 말한다. */}
+        {/* 러닝 하나 = 한 줄. 왼쪽은 어떤 러닝이었는지, 오른쪽은 실수령 하나.
+            '실수령' 낱말은 지킨다 — 랩의 '적립'과 달리 이 숫자가 **무엇인지** 말한다. 산수는 말하지
+            않는다 (2026-08-24 마진 비밀 규칙: 최종 금액 하나만). */}
         {ledger.map((l) => (
           <Row key={l.id} style={s.row}>
             <View style={{ flex: 1, paddingRight: 12 }}>
@@ -163,14 +181,6 @@ export default function Earnings() {
                 </Text>
                 <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>{l.when}</Text>
               </Row>
-              <Row style={{ gap: 9, marginTop: 5, flexWrap: 'wrap' }}>
-                <Bd label="기본" v={l.base} />
-                <Bd label="거리" v={l.distancePay} />
-                {l.addonPay > 0 && <Bd label="옵션" v={l.addonPay} />}
-                {l.guarantee > 0 && <Bd label="잔여 보장" v={l.guarantee} accent />}
-                {l.tip > 0 && <Bd label="팁" v={l.tip} accent />}
-                <Bd label="수수료" v={-l.fee} coral />
-              </Row>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Row style={{ alignItems: 'baseline' }}>
@@ -184,8 +194,9 @@ export default function Earnings() {
         ))}
 
         <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
-          {/* 같은 이유: 주기·지급을 약속하지 않는다. 세율은 제도이고, 일정은 아직 우리가 못 지킨다. */}
-          기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요 (사업소득 3.3% 원천징수 예정)
+          {/* 같은 이유: 주기·지급을 약속하지 않는다. 일정은 아직 우리가 못 지킨다.
+              원천징수 문장은 합계 줄이 이제 낱말로 지고 있으므로 여기서는 겹쳐 말하지 않는다. */}
+          기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요
         </Text>
       </ScrollView>
       {/* 시스템 바 스트립 — 정산 티켓과 주간 표가 시계 뒤로 지나가던 것 */}
@@ -196,13 +207,10 @@ export default function Earnings() {
   );
 }
 
-function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boolean; accent?: boolean }) {
-  return (
-    <Text style={{ fontSize: 14.5, color: coral ? colors.coralText : accent ? MONEY_GREEN : paper.dim }}>
-      {label} {v >= 0 ? '' : '−'}{Math.abs(v).toLocaleString()}
-    </Text>
-  );
-}
+// [margin secrecy 2026-08-24] Bd() — the per-run breakdown token — is DELETED, not left unused.
+// It rendered one ledger column per token (기본 · 거리 · 옵션 · 잔여 보장 · 팁 · 수수료) with the
+// coral/green colour coding described in the header. Keeping the helper around would leave the
+// rule one JSX line from being undone by a future pass that reads it as dead code to revive.
 
 const s = StyleSheet.create({
   // 섹션 분할 = 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법).

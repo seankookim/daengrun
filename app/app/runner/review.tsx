@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import { fetchRunReport, RunReport } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { supabase } from '../../src/lib/supabase';
 import { dogReviewTags, runResult } from '../../src/store';
 import { paper } from '../../src/theme';
@@ -14,8 +15,28 @@ import { paper } from '../../src/theme';
 // 저장 성공은 서버 진실(!error)일 때만 선언한다 — 실패하면 화면에 남아 인라인 라우드-페일 + 재시도.
 // 강아지 카드는 목업 초코(runRequests[0]) + 하드코딩 거리 → fetchRunReport 실데이터(runs.actual_km).
 // 표면은 순백/코랄: 결정 화면이라 밀도는 내리고, 섹션은 풀블리드 코랄 헤어라인으로만 나눈다.
+//
+// [⑪ 2026-08-24 · Sean "For D, I like 11."] 두 가지가 바뀐다.
+//  (a) 라틴 키커 REVIEW를 은퇴시키고(§3b가 앱 전체에서 은퇴시킨 그 장식) 제목을 §3b 화면 제목
+//      규격 30/900 · lineHeight 37 · Black Han Sans로 올린다. 디스플레이 서체 예산(화면당 1회)은
+//      이 화면에서 아무도 쓰지 않고 있었다 — 제목이 가져간다. 두 분기(폼/예약 없음)는 서로
+//      배타적이라 화면당 1회는 그대로다.
+//  (b) 별점이 낱말을 단다 (STAR_WORD).
+
+// ⑪(b) 별점의 낱말 — 1~5와 **1:1로만** 대응한다. 애매한 말('그냥 그랬어요')은 두 숫자에 걸쳐서
+// 러너가 고른 값을 흐린다. 이 별점은 다음 매칭에 실리는 값이라 그 무게를 낱말이 말한다.
+// ⚠ 표시 전용이다: 서버로 가는 값은 여전히 reviews.rating(1-5) 하나뿐이고 낱말은 저장하지
+// 않는다 — 두 번째 진실을 만들지 않는다.
+const STAR_WORD: Record<number, string> = {
+  1: '많이 힘들었어요',
+  2: '아쉬웠어요',
+  3: '무난했어요',
+  4: '좋았어요',
+  5: '아주 좋았어요',
+};
 
 export default function RunnerReview() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 이 화면의 유일한 사용처는 제목이다 (§3b)
   // 마운트 시점의 예약 id를 고정 — 제출 실패 시에도 이 값은 살아 있어야 재시도가 된다
   const [bookingId] = useState<string | null>(runResult.bookingId);
   const [report, setReport] = useState<RunReport | null>(null);
@@ -80,8 +101,7 @@ export default function RunnerReview() {
     return (
       <View style={s.root}>
         <View style={s.head}>
-          <Text style={s.kicker}>REVIEW</Text>
-          <Text style={s.title}>리뷰를 남길 예약을 찾지 못했어요</Text>
+          <Text style={[s.title, df]}>리뷰를 남길 예약을 찾지 못했어요</Text>
           <Text style={s.helper}>러닝을 마치면 이 화면이 다시 열려요</Text>
         </View>
         <View style={s.rule} />
@@ -105,8 +125,7 @@ export default function RunnerReview() {
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={s.head}>
-        <Text style={s.kicker}>REVIEW</Text>
-        <Text style={s.title}>오늘 러닝 어땠나요?</Text>
+        <Text style={[s.title, df]}>오늘 러닝 어땠나요?</Text>
         <Text style={s.helper}>러너의 리뷰가 다음 러너를 지켜요</Text>
       </View>
       <View style={s.rule} />
@@ -129,9 +148,14 @@ export default function RunnerReview() {
       </Row>
       <View style={s.rule} />
 
-      {/* rating — 이 화면의 강조는 결정 입력 그 자체 (코랄) */}
+      {/* rating — 이 화면의 강조는 결정 입력 그 자체 (코랄).
+          ⑪(b): 고른 순간 낱말이 같은 줄 오른쪽에 선다. 0이면 낱말이 없고, 아래 CTA의
+          '별점을 선택하면...' 힌트가 그 자리를 지킨다 (상태가 스스로 말한다). */}
       <View style={s.band}>
-        <Text style={s.label}>별점</Text>
+        <Row style={s.labelRow}>
+          <Text style={[s.label, s.labelFlush]}>별점</Text>
+          {stars > 0 && <Text style={s.starWord}>{STAR_WORD[stars]}</Text>}
+        </Row>
         <Row style={{ gap: 10 }}>
           {[1, 2, 3, 4, 5].map((n) => (
             <Pressable key={n} onPress={() => setStars(n)} hitSlop={4}>
@@ -210,10 +234,16 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   rule: { height: 1, backgroundColor: paper.line, alignSelf: 'stretch' },
   head: { paddingHorizontal: 18, paddingTop: 60, paddingBottom: 20 },
-  kicker: { fontSize: 12, letterSpacing: 3, color: paper.faint, marginBottom: 10 }, // 장식 클래스 (14pt 플로어 면제)
-  title: { fontSize: 24, lineHeight: 31, fontWeight: '800', color: paper.ink },
-  helper: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 7 },
+  // ⑪(a) §3b 화면 제목 규격: 30/900 · lineHeight 37 (1.23×) · Black Han Sans.
+  // 라틴 키커 REVIEW는 은퇴 — §3b가 앱 전체에서 내린 장식이다. [BUG A]는 Black Han Sans에도
+  // 적용되므로 lineHeight는 명시값이다.
+  title: { fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink },
+  helper: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 9 },
   band: { paddingHorizontal: 18, paddingVertical: 18 },
+  // ⑪(b) 라벨과 낱말이 같은 베이스라인 위에 (§3b 상태 칩과 같은 규율: 판정은 자기 데이터 옆에 산다)
+  labelRow: { justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
+  labelFlush: { marginBottom: 0 },
+  starWord: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: paper.ink },
 
   // ── 강아지 (실데이터) ──
   mono: { width: 52, height: 52, backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center' },

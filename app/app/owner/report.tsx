@@ -14,6 +14,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
 import { goBackOrHome } from '../../src/lib/nav';
+import { supabase } from '../../src/lib/supabase';
 import { draft, TracePoint } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
 
@@ -127,6 +128,47 @@ function badges(st: RunStandings | null): string[] {
   return out;
 }
 
+// ═══════ 내가 남긴 후기 — 세 상태(모름 / 없음 / 있음)를 절대 둘로 접지 않는다 ═══════
+// Deliberately a LOCAL read rather than an api.ts export: api.ts is owned by another slice this
+// session and a client that imports a function nobody added does not compile. The shape below is
+// the one api.ts should eventually carry as `fetchMyReview(bookingId)` — hoist it there when
+// review.tsx's 「이미 남긴 후기」 screen (lab C③, not picked) needs the same row, and delete this.
+// Same direct-supabase grammar owner/review.tsx (the writer of this very row) already uses.
+type MyReview = { rating: number | null; tags: string[]; createdAt: string; visibility: string };
+
+// Returns `undefined` for "could not check" — distinct from `null`, which means "checked, none".
+// Every failure path (no session, RLS, transport) returns undefined: unknown is never a yes.
+async function readMyReview(bookingId: string): Promise<MyReview | null | undefined> {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return undefined;
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('rating, tags, note, created_at, visibility')
+      .eq('booking_id', bookingId)
+      .eq('author_id', u.user.id)
+      .eq('target_kind', 'runner')
+      .maybeSingle();   // 0행 = null · 2행 이상/전송 실패 = throw (fetchRunReportOrNull과 같은 규율)
+    if (error) return undefined;
+    if (!data) return null;
+    return {
+      rating: data.rating ?? null,
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      createdAt: data.created_at,
+      visibility: data.visibility,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+// created_at → 「8월 19일」. Intl/toLocaleDateString is unreliable on Hermes without ICU, and the
+// only thing this line needs is month/day, so it is computed rather than formatted.
+const fmtMonthDay = (iso: string): string | null => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : `${d.getMonth() + 1}월 ${d.getDate()}일`;
+};
+
 export default function Report() {
   // 디스플레이 서체 — 화면에 **한 번**. [2026-08-19] 그 한 번은 이제 헤더 크롬이 아니라 러닝
   // 타이틀이다 (헤더는 request/review와 같은 평 900 잉크로 내렸다). 종전 주석의 '숫자 금지'는
@@ -155,6 +197,18 @@ export default function Report() {
   // (조기 종료·정산 전)이라는 사실이고, 미도착은 '아직 모름'이다. 둘 다 0을 그리지 않는다.
   const [earning, setEarning] = useState<RunEarning | null>(null);
   const [earningLoaded, setEarningLoaded] = useState(false);
+  // ★ THE STAR ROW LEARNS WHETHER IT HAS ALREADY BEEN USED (lab B①, Sean 2026-08-24).
+  // The old comment here was right that nothing TOLD this screen — and wrong that nothing could.
+  // `reviews` has `unique (booking_id, author_id, target_kind)` (0001_init.sql:260) and
+  // `reviews author read` (0002_rls.sql:118) grants exactly this row to its author, so one narrow
+  // read gives three states that must never be collapsed into two:
+  //   known=false            → not answered yet, or the read FAILED → draw NOTHING. A hollow star
+  //                            row asserts "you have not reviewed", which is a fact we do not have.
+  //   known=true, row null   → no review exists → today's affordance, unchanged.
+  //   known=true, row present→ the real rating, the real tags, the real date — and no edit button,
+  //                            because the unique index refuses a second one.
+  const [myReview, setMyReview] = useState<MyReview | null>(null);
+  const [myReviewKnown, setMyReviewKnown] = useState(false);
   // Extracted into a callback so the failure state's 다시 시도 has something real to call —
   // a retry button wired to nothing is a dead button.
   const load = useCallback(() => {
@@ -171,6 +225,10 @@ export default function Report() {
     setEarning(null);
     setEarningLoaded(false);
     fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
+    // 내가 이 러닝에 남긴 후기 — 없으면 null(=사실), 못 읽으면 known을 세우지 않는다(=모름).
+    setMyReview(null);
+    setMyReviewKnown(false);
+    readMyReview(bid).then((r) => { if (r !== undefined) { setMyReview(r); setMyReviewKnown(true); } }).catch(() => {});
   }, [bid]);
   useEffect(() => { load(); }, [load]);
   // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
@@ -201,6 +259,15 @@ export default function Report() {
 
   const run = report?.run ?? null;
   const reason = run?.endReason ? REASON[run.endReason] : null;
+  // ═══════ 멈춘 러닝 — 이 화면의 두 번째 모양 (lab B②, Sean 2026-08-24) ═══════
+  // Gated on the SERVER's own end reason, never on display vocabulary. `null` is not a stop:
+  // a run row with no end_reason has not ended, and treating unknown as "stopped" would hoist an
+  // empty audit block and rename the frame's one saturated element on a live run.
+  const stopped = !!run?.endReason && run.endReason !== 'completed';
+  // `rating` is nullable in the table (0001_init.sql:255) even though owner/review.tsx never
+  // writes a null. Pulled out as its own const so the 1..5 clamp below is a plain number check.
+  const myRating = myReview && myReview.rating != null && myReview.rating >= 1 && myReview.rating <= 5
+    ? myReview.rating : null;
   const kmPct = run && report ? Math.min(100, Math.round((run.actualKm / report.plannedKm) * 100)) : 0;
   const pacePct = run?.paceSecPerKm && report
     ? Math.min(100, Math.round((targetPaceSec(report.paceLabel) / run.paceSecPerKm) * 100))
@@ -242,7 +309,9 @@ export default function Report() {
   }, [candIso, runnerId, plannedKm]);
 
   // What the panel is allowed to say. No runner → the display rules are the whole contract.
-  const nextWeek = nextWeekCand && (runnerId == null || slotOk === true) ? nextWeekCand : null;
+  // A stopped run never names a time: B② demotes 재예약 to a quiet row whose copy is the timeless
+  // one, and rebook() reads this same value — so the row and the prefill cannot disagree.
+  const nextWeek = !stopped && nextWeekCand && (runnerId == null || slotOk === true) ? nextWeekCand : null;
 
   // 재예약 — same prefill as before, plus the resolved time when (and only when) we have one.
   const rebook = () => {
@@ -437,6 +506,16 @@ export default function Report() {
               )}
             </View>
 
+            {/* ══════ ③b 멈춘 이유는 숫자 바로 아래 (lab B②) ══════
+                Under G1 the owner pays for a welfare stop, which makes the owner the auditor of
+                the abort — so the audit material is not allowed to be the last block on a very
+                long screen. Same block, same fields, moved. */}
+            {stopped && (
+              run.endReason === 'dog_condition'
+                ? <StopReasonSection run={run} reason={reason} plannedKm={report.plannedKm} />
+                : <RunnerNoteSection run={run} reason={reason} />
+            )}
+
             {/* ══════ ④ 사진 (14b) — 엣지-투-엣지 ══════ */}
             {run.photos.length > 0 ? (
               <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
@@ -458,33 +537,70 @@ export default function Report() {
               </View>
             )}
 
-            {/* ══════ ④b 별점 (14b) — an AFFORDANCE, never a claim ══════
-                Drawn UNFILLED on purpose. This screen has no read that says whether a review
-                already exists for this booking (fetchRecentReviews is a community feed;
-                fetchRunnerProfile reads the runner's public page), so a filled row would be a
-                state we cannot know. Tapping star n opens /owner/review with n pre-selected —
-                the write still happens there, behind 후기 등록, and the unique index on
-                (booking_id) is what refuses a second one. Same gate the old button had. */}
-            {report.status === 'completed' && report.runnerProfileId && (
-              <View style={s.starsRow}>
-                <Row>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <Pressable
-                      key={n}
-                      onPress={() => { haptic('light'); openReview(n); }}
-                      hitSlop={4}
-                      style={s.star}
-                      accessibilityRole="button"
-                      accessibilityLabel={`별점 ${n}점으로 후기 남기기`}
-                    >
-                      <Text style={s.starGlyph}>☆</Text>
-                    </Pressable>
-                  ))}
-                </Row>
-                <Pressable onPress={() => openReview(0)} hitSlop={8} accessibilityRole="button" accessibilityLabel="별점 남기기">
-                  <Text style={s.starLabel}>별점 남기기 ›</Text>
-                </Pressable>
-              </View>
+            {/* ══════ ④b 별점 — 세 상태, 절대 둘이 아니다 (lab B①) ══════
+                The row is rendered ONLY once the read has answered. While it is in flight, or if
+                it failed, this slot draws NOTHING: a hollow star row says "you have not reviewed
+                yet", and "I could not check" is a different fact. Row present → what was actually
+                written, with no edit affordance, because `unique (booking_id, author_id,
+                target_kind)` refuses a second one. Row absent → today's affordance, unchanged:
+                tapping star n opens /owner/review with n pre-selected and the write still happens
+                there behind 후기 등록. */}
+            {report.status === 'completed' && report.runnerProfileId && myReviewKnown && (
+              myReview ? (
+                <View style={s.writtenReview}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    {myRating != null ? (
+                      <Text style={s.writtenStars} accessibilityLabel={`내가 남긴 별점 ${myRating}점`}>
+                        {'★'.repeat(myRating)}
+                        <Text style={s.writtenStarsOff}>{'★'.repeat(5 - myRating)}</Text>
+                      </Text>
+                    ) : (
+                      /* rating is nullable in the table; a row without one is a review with no
+                         score, not a zero-star review. Say what is there and draw no stars. */
+                      <Text style={s.writtenNoRating}>별점 없이 남긴 후기예요</Text>
+                    )}
+                    {fmtMonthDay(myReview.createdAt) && (
+                      <Text style={{ fontSize: 14, color: paper.dim }}>{fmtMonthDay(myReview.createdAt)} 등록</Text>
+                    )}
+                  </Row>
+                  {myReview.tags.length > 0 && (
+                    <Row style={{ gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+                      {myReview.tags.map((t) => (
+                        <View key={t} style={s.reviewTag}>
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.actionInk }}>{t}</Text>
+                        </View>
+                      ))}
+                    </Row>
+                  )}
+                  {/* 「프로필에 반영됐어요」 is only true for a public review — a platform_only one
+                      is deliberately invisible on the runner's page, so it gets its own sentence. */}
+                  <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 9 }}>
+                    후기는 러닝당 한 번만 남길 수 있어요 — {myReview.visibility === 'public'
+                      ? `${report.runnerName ?? '러너'} 러너 프로필에 반영됐어요`
+                      : '도그스하이 팀에게만 전달됐어요'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={s.starsRow}>
+                  <Row>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Pressable
+                        key={n}
+                        onPress={() => { haptic('light'); openReview(n); }}
+                        hitSlop={4}
+                        style={s.star}
+                        accessibilityRole="button"
+                        accessibilityLabel={`별점 ${n}점으로 후기 남기기`}
+                      >
+                        <Text style={s.starGlyph}>☆</Text>
+                      </Pressable>
+                    ))}
+                  </Row>
+                  <Pressable onPress={() => openReview(0)} hitSlop={8} accessibilityRole="button" accessibilityLabel="별점 남기기">
+                    <Text style={s.starLabel}>별점 남기기 ›</Text>
+                  </Pressable>
+                </View>
+              )
             )}
 
             {/* ══════ ⑤ 재예약 넛지 (RULING #11) — the frame's ONE saturated element ══════
@@ -494,22 +610,65 @@ export default function Report() {
                 the timeless thing and hands off with 시간을 선택해주세요. It never promises a time
                 it did not resolve. White on paper.action is measured 4.84:1 at all sizes (theme.ts),
                 so the label sits directly on the fill; paper.wash is the tinted subline. */}
-            <Pressable
-              onPress={rebook}
-              style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
-              accessibilityRole="button"
-              accessibilityLabel={nextWeek ? `다음 주 같은 시간 예약 ${nextWeek.whenLabel}` : '이대로 다시 예약'}
-            >
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.rebookTitle}>{nextWeek ? '다음 주 같은 시간 예약' : '이대로 다시 예약'}</Text>
-                <Text style={s.rebookSub} numberOfLines={2}>
-                  {nextWeek
-                    ? `${report.runnerName ? `${report.runnerName} 러너 · ` : ''}${report.plannedKm}km · ${nextWeek.whenLabel}`
-                    : `같은 코스·거리${report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요`}
-                </Text>
-              </View>
-              <Text style={s.rebookChev}>›</Text>
-            </Pressable>
+            {/* [2026-08-24 · lab B②, Sean's yes] On a STOPPED run the saturated element moves.
+                RULING #11 made 재예약 the frame's one climax on the assumption that the run
+                happened; G1 changed what this state means — the owner now pays for a welfare stop
+                and is therefore its auditor, and the loudest thing on that screen should not be
+                "book the same thing again". 안심 센터 (/safety) is a real route, reached the same
+                way from owner/pay.tsx:300 and owner/meetup.tsx. 재예약 stays, quietly, one row
+                down — no exit is removed, and `nextWeek` is already forced null above so the
+                quiet row and the prefill say the same thing. */}
+            {stopped ? (
+              <>
+                <Pressable
+                  onPress={() => router.push('/safety')}
+                  style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="안심 센터 열기"
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.rebookTitle}>안심 센터 열기</Text>
+                    <Text style={s.rebookSub} numberOfLines={2}>
+                      {run.endReason === 'dog_condition'
+                        ? '아이 상태가 이상하면 여기서 바로 도와드려요'
+                        : '이 러닝에 대해 도움이 필요하면 여기서 문의할 수 있어요'}
+                    </Text>
+                  </View>
+                  <Text style={s.rebookChev}>›</Text>
+                </Pressable>
+                <Pressable
+                  onPress={rebook}
+                  style={({ pressed }) => [s.linkRow, pressed && { backgroundColor: paper.wash }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="이대로 다시 예약"
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.linkRowLabel}>이대로 다시 예약</Text>
+                    <Text style={s.linkRowSub} numberOfLines={2}>
+                      같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''}
+                    </Text>
+                  </View>
+                  <Text style={s.linkRowChev}>›</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={rebook}
+                style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
+                accessibilityRole="button"
+                accessibilityLabel={nextWeek ? `다음 주 같은 시간 예약 ${nextWeek.whenLabel}` : '이대로 다시 예약'}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.rebookTitle}>{nextWeek ? '다음 주 같은 시간 예약' : '이대로 다시 예약'}</Text>
+                  <Text style={s.rebookSub} numberOfLines={2}>
+                    {nextWeek
+                      ? `${report.runnerName ? `${report.runnerName} 러너 · ` : ''}${report.plannedKm}km · ${nextWeek.whenLabel}`
+                      : `같은 코스·거리${report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요`}
+                  </Text>
+                </View>
+                <Text style={s.rebookChev}>›</Text>
+              </Pressable>
+            )}
 
             {/* ══════ ⑥ 공유 넛지 (RULING #12) — 샷 스튜디오가 넛지의 얼굴 ══════
                 /shot/[bid] is the studio that renders the real card (4 skins) and hands it to the
@@ -553,11 +712,15 @@ export default function Report() {
               style={({ pressed }) => [s.linkRow, pressed && { backgroundColor: paper.wash }]}
               accessibilityRole="button"
             >
-              <Text style={s.linkRowQuiet}>결제</Text>
-              <Text style={s.linkRowAction}>결제 내역 보기 ›</Text>
+              {/* [2026-08-24 · lab B①] The row absorbs its own note. It used to be a row plus a
+                  loose sentence under it — two elements carrying one fact, and the sentence read
+                  as a stray caption. Same words, same route, one block. */}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.linkRowQuiet}>결제</Text>
+                <Text style={s.linkRowSub}>실제 청구된 금액과 영수증은 결제 내역에 있어요</Text>
+              </View>
+              <Text style={[s.linkRowAction, { flexShrink: 0, marginLeft: 10 }]}>내역 ›</Text>
             </Pressable>
-            {/* Says WHY this screen carries no amount — without it the silence reads as a gap. */}
-            <Text style={s.payNote}>실제 청구된 금액과 영수증은 결제 내역에 있어요</Text>
 
             {/* ---------- 하이 포인트 적립 (리워드 ①) — 이 러닝이 벌어들인 것 ----------
                 영수증이지 팡파레가 아니다: 애니메이션 없음 (축하는 패치 팝 하나뿐).
@@ -602,19 +765,35 @@ export default function Report() {
               </View>
             )}
 
-            {/* ---------- 목표 달성 ---------- */}
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>목표 달성</Text>
-              <GoalBar label="거리" pct={kmPct} detail={`${run.actualKm} / ${report.plannedKm}km`} />
-              {pacePct != null && (
-                <GoalBar label="페이스" pct={pacePct} detail={`목표 ${fmtPace(targetPaceSec(report.paceLabel))} · 실제 ${fmtPace(run.paceSecPerKm)}`} />
-              )}
-            </View>
+            {/* ---------- 목표 달성 / 기록 ----------
+                [lab B②] A 68% on a stopped run reads as a grade for the dog, so the percentage is
+                withdrawn for that state and replaced by the same two facts stated plainly. Nothing
+                is hidden — 예정 and 실제 are both printed; only the ratio is refused. */}
+            {stopped ? (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>기록</Text>
+                <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim }}>
+                  {/* [BUG A] Oswald 숫자는 lineHeight 명시 없이 어센더가 잘린다 — 16 × 1.25 = 20 */}
+                  예정 {report.plannedKm}km 중 <Text style={[s.recordNum, nf]}>{run.actualKm}</Text>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.
+                </Text>
+              </View>
+            ) : (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>목표 달성</Text>
+                <GoalBar label="거리" pct={kmPct} detail={`${run.actualKm} / ${report.plannedKm}km`} />
+                {pacePct != null && (
+                  <GoalBar label="페이스" pct={pacePct} detail={`목표 ${fmtPace(targetPaceSec(report.paceLabel))} · 실제 ${fmtPace(run.paceSecPerKm)}`} />
+                )}
+              </View>
+            )}
 
             {/* ---------- 러너 & 코스 ---------- */}
             <View style={s.section}>
               <Row style={{ gap: 12 }}>
-                <Monogram char={(report.runnerName ?? '러')[0]} bg="#5a7a3c" size={44} />
+                {/* [2026-08-24 · lab B②] bg was colors.green #5a7a3c — the last local copy of the
+                    retired swamp/forest palette on this screen, the same class the file header
+                    retired FOREST for. paper.ink, which is what the lab frames draw. */}
+                <Monogram char={(report.runnerName ?? '러')[0]} bg={paper.ink} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>
                     {report.runnerName ?? '러너'} 러너
@@ -634,69 +813,10 @@ export default function Report() {
               </Row>
             </View>
 
-            {/* ---------- 왜 멈췄는지 (컨디션 종료 전용) ----------
-                G1 (docs/decisions/g1-abort-charge-basis.md) makes a welfare stop a REAL BILL, and
-                both adversarial rounds flagged the same consequence: an owner who feels charged for
-                a stopped run leans on the next runner to keep going. The agreed mitigation is copy,
-                and this is it. Two jobs, and the second one is newer than the first:
-
-                ① Say plainly that stopping was right. Note the claim is about the DECISION, not
-                   about the dog — we do not know the dog was unwell, and asserting a diagnosis we
-                   cannot see would be the same fabrication this section exists to retire.
-                ② Carry enough for the owner to JUDGE the stop. Under G1 the owner pays, so the
-                   owner is now the auditor of an abort — the fraud posture inverted the day the
-                   waive ended. That means the runner's own words (real since 611f014; before it,
-                   every owner read one hardcoded sentence) plus where it happened.  */}
-            {run.endReason === 'dog_condition' && (
-              <View style={s.section}>
-                <Text style={s.sectionTitle}>왜 멈췄는지</Text>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 }}>
-                  아이가 힘들어 보이면 멈추는 게 맞아요.
-                </Text>
-                <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
-                  러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.
-                </Text>
-
-                {run.conditionNote ? (
-                  <View style={{ marginTop: 13, borderLeftWidth: 2, borderLeftColor: paper.line, paddingLeft: 11 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
-                      러너가 본 것
-                    </Text>
-                    <Text style={{ fontSize: 15, color: '#49524a', lineHeight: 21.5 }}>{run.conditionNote}</Text>
-                  </View>
-                ) : (
-                  /* Loading ≠ empty ≠ absent (§7): the note is required at the stop, so a missing
-                     one is a real gap in the record — say so rather than rendering nothing. */
-                  <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
-                    러너 메모가 기록되지 않았어요 — 안심 센터로 문의해주세요.
-                  </Text>
-                )}
-
-                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
-                  {run.actualKm}km 지점 · {fmtDur(run.durationSec)} 지나 종료했어요
-                </Text>
-                {reason?.note && (
-                  <Text style={{ fontSize: 14, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
-                    {reason.note}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {/* ---------- 러너 노트 (그 외 사유) ---------- */}
-            {run.endReason !== 'dog_condition' && (run.conditionNote || reason?.note) && (
-              <View style={s.section}>
-                <Text style={s.sectionTitle}>러너 노트</Text>
-                {run.conditionNote && (
-                  <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 20.5 }}>{run.conditionNote}</Text>
-                )}
-                {reason?.note && (
-                  <Text style={{ fontSize: 14, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
-                    {reason.note}
-                  </Text>
-                )}
-              </View>
-            )}
+            {/* ---------- 러너 노트 (완주한 러닝의 메모) ----------
+                On a STOPPED run this block — and 왜 멈췄는지 with it — is hoisted to directly under
+                the numbers (lab B②); here it only serves a completed run that still carries a note. */}
+            {!stopped && <RunnerNoteSection run={run} reason={reason} />}
 
             {/* [2026-08-19 §E] The screen used to END here, with a 결제 block and three stacked
                 CTAs. All four moved UP into the nudge stack (⑤⑥⑦): 이대로 다시 예약 became the
@@ -874,6 +994,81 @@ function ReportStat({ nf, value, unit, label }: { nf: TextStyle | null; value: s
   );
 }
 
+type RunFacts = NonNullable<RunReport['run']>;
+type ReasonPaint = { label: string; color: string; bg: string; note?: string };
+
+// ---------- 왜 멈췄는지 (컨디션 종료 전용) ----------
+// G1 (docs/decisions/g1-abort-charge-basis.md) makes a welfare stop a REAL BILL, and both
+// adversarial rounds flagged the same consequence: an owner who feels charged for a stopped run
+// leans on the next runner to keep going. The agreed mitigation is copy, and this is it. Two jobs,
+// and the second one is newer than the first:
+//
+//  ① Say plainly that stopping was right. Note the claim is about the DECISION, not about the
+//     dog — we do not know the dog was unwell, and asserting a diagnosis we cannot see would be
+//     the same fabrication this section exists to retire.
+//  ② Carry enough for the owner to JUDGE the stop. Under G1 the owner pays, so the owner is now
+//     the auditor of an abort — the fraud posture inverted the day the waive ended. That means the
+//     runner's own words (real since 611f014) plus where it happened.
+//
+// [2026-08-24 · lab B②] Extracted from the screen body so the SAME block can be rendered in two
+// places: hoisted directly under the numbers on a stopped run (audit material is not allowed
+// below the fold), and left where it was on every other run. One block, two positions, zero copies.
+function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: ReasonPaint | null; plannedKm: number }) {
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>왜 멈췄는지</Text>
+      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 }}>
+        아이가 힘들어 보이면 멈추는 게 맞아요.
+      </Text>
+      <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
+        러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.
+      </Text>
+
+      {run.conditionNote ? (
+        <View style={{ marginTop: 13, borderLeftWidth: 2, borderLeftColor: paper.line, paddingLeft: 11 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
+            러너가 본 것
+          </Text>
+          <Text style={{ fontSize: 15, color: paper.text, lineHeight: 21.5 }}>{run.conditionNote}</Text>
+        </View>
+      ) : (
+        /* Loading ≠ empty ≠ absent (§7): the note is required at the stop, so a missing one is a
+           real gap in the record — say so rather than rendering nothing. */
+        <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+          러너 메모가 기록되지 않았어요 — 안심 센터로 문의해주세요.
+        </Text>
+      )}
+
+      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+        {run.actualKm}km 지점 · {fmtDur(run.durationSec)} 지나 종료했어요 (예정 {plannedKm}km)
+      </Text>
+      {reason?.note && (
+        <Text style={{ fontSize: 14, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
+          {reason.note}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ---------- 러너 노트 (그 외 사유) ----------
+function RunnerNoteSection({ run, reason }: { run: RunFacts; reason: ReasonPaint | null }) {
+  if (!run.conditionNote && !reason?.note) return null;
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>러너 노트</Text>
+      {run.conditionNote && (
+        <Text style={{ fontSize: 14.5, color: paper.text, lineHeight: 20.5 }}>{run.conditionNote}</Text>
+      )}
+      {reason?.note && (
+        <Text style={{ fontSize: 14, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
+          {reason.note}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: string }) {
   // 채워지는 모션 — 진행이 '벌어들인 것'처럼 (motion = meaning)
   const w = useRef(new Animated.Value(0)).current;
@@ -920,6 +1115,17 @@ const s = StyleSheet.create({
   star: { paddingHorizontal: 4, paddingVertical: 7 }, // 32pt 글리프 + 패딩 ≈ 44pt 타깃
   starGlyph: { fontSize: 32, lineHeight: 38, color: paper.dim },
   starLabel: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  // ---------- ④b-written 이미 남긴 후기 — 어포던스가 아니라 기록이다 (누를 것이 없다) ----------
+  writtenReview: {
+    backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: paper.line,
+  },
+  // 채워진 별은 §8의 기록 골드. 빈 별은 뉴트럴 보더 색과 같은 값 — dim(#666)은 '꺼짐'이 아니라
+  // '읽는 회색'이라 절반이 눌린 것처럼 보인다.
+  writtenStars: { fontSize: 32, lineHeight: 38, letterSpacing: 2, color: colors.gold },
+  writtenStarsOff: { color: '#EEEEEE' },
+  writtenNoRating: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  reviewTag: { backgroundColor: paper.wash, borderRadius: 0, borderWidth: 1, borderColor: paper.line, paddingVertical: 7, paddingHorizontal: 13 },
   // ---------- ⑤ 재예약 넛지 — 이 프레임의 유일한 채도 (흰 라벨 4.84:1, 잉크 플레이트 불필요) ----------
   rebook: { backgroundColor: paper.action, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingVertical: 14 },
   rebookTitle: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: '#fff' },
@@ -931,14 +1137,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   linkRowLabel: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  linkRowSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 },
   linkRowChev: { fontSize: 18, color: paper.actionInk },
   linkRowQuiet: { fontSize: 16, fontWeight: '600', color: paper.dim },
   linkRowAction: { fontSize: 14, fontWeight: '800', color: paper.actionInk },
-  payNote: { fontSize: 14, lineHeight: 19, color: paper.dim, paddingHorizontal: 12, paddingTop: 8 },
   // 섹션 분할은 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
   section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
   sectionTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, marginBottom: 6 },
+  // 기록 줄 안의 실주행 km — Oswald. [BUG A] 16 × 1.25 = 20
+  recordNum: { fontSize: 16, lineHeight: 20, fontWeight: '900', color: paper.ink },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#EEEEEE', marginTop: 6, overflow: 'hidden' }, // 은퇴 팔레트 크림(#f0eee3) → 뉴트럴
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
   // 은퇴 팔레트(연두 워시)의 마지막 잔재 + 알약 코너. 코랄 워시 위 샤프 칩으로.

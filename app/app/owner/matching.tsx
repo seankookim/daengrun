@@ -1,28 +1,40 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
 import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { goBackOrHome } from '../../src/lib/nav';
 import { draft } from '../../src/store';
-import { lilac } from '../../src/theme';
+import { paper } from '../../src/theme';
 
 // 러너 선택 — "비교 시트" (2026-08-04 리스타일).
 // 위는 한 줄 = 한 명인 출전자 명단(로스터), 아래는 화면을 떠나지 않는 결정 시트 하나.
-// 행을 누르면 바이올렛 링이 옮겨붙고 시트 내용만 갈아끼워진다 — 결정 표면은 끝까지 한 개다.
+// 행을 누르면 선택이 옮겨붙고 시트 내용만 갈아끼워진다 — 결정 표면은 끝까지 한 개다.
 // [은퇴] 스택 덱 캐러셀·스냅 물리·오버레이 이중 렌더·포레스트/볼트 서피스 전면 제거.
 // 스크롤은 평범하고 정직한 세로 ScrollView, 시트는 Modal이 아니라 형제 View.
+//
+// [2026-08-24 · Sean picks M② + M④, enh-owner-booking-lab] Two changes, both drawn on the
+// paper world the lab's frames use (the booking flow is paper end to end and this screen was
+// the last lilac island — DESIGN.md §2 puts service/transaction screens in paper):
+//   M② 원값이 크고, 매치는 순위가 된다 — the composite 매치 % leaves the roster and the sheet.
+//     It is COMPUTED, not measured, and it renormalises silently for runners with no respond
+//     rate (matchFor below). It still ORDERS the list — a rank is a claim we can defend — and
+//     the two raw fields the owner is really choosing between (응답률 · 누적 러닝) take the
+//     display weight. The three axis bars stay: they are the disclosure of how the rank formed.
+//   M④ 0명일 때 문이 있는 화면 — the empty arm used to be one centred sentence with NO action.
+//     Same sentence, plus the two doors that already exist: retry, and 내 일정 (whose cancel
+//     sheet quotes this booking's own fee tier). ⚠ The empty state must never quote a fee — the
+//     ladder is computed per booking by cancelFeeRateFor, and a second copy is how ladders drift.
+// Coral horizontals are capped at TWO full-bleed rules (header + sheet top) — Sean 2026-08-24:
+// "the screen shows too many horizontal red lines". Row separators are the neutral #EEEEEE rule
+// (theme.ts:206 · request.tsx:1465 — a coral full-bleed rule means SECTION, not list row).
 
-// 코랄 종단 스톱 — 흰 라벨은 여기(≥#C6472C)에서만 (코랄 텍스트 법: 코랄은 면·엣지·도트)
-const CORAL_DEEP = '#C6472C';
-const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 3px 엣지 근사 (시트 상단 트림)
 // 로스터 격자 — 레일 헤더와 행이 정확히 같은 트랙을 쓴다
-const COL = { rk: 16, av: 40, m: 46, pace: 46, resp: 40, gap: 8 } as const;
+const COL = { rk: 16, av: 40, resp: 56, runs: 52, pace: 46, gap: 8 } as const;
 
-// 티어 잉크 — 골드는 마스터에만 (희소 예산)
-const tierColor = (tier: string) => (tier === '마스터' ? lilac.gold : tier === '베테랑' ? lilac.accent : lilac.dim);
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
 // 매칭 목표 페이스 — 예약의 실제 페이스에 묶는다 (구: 420 하드코딩된 가상 목표).
@@ -31,6 +43,8 @@ const paceSecOf = (label?: string | null) => { const m = /(\d+)/.exec(label ?? '
 
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
+// [M② 2026-08-24] The score is no longer PRINTED anywhere; it is the ordering key and the three
+// axes are still disclosed one by one. Nothing about the computation changed.
 // pct: null = no data (a new runner's respond rate) — the bar says 신규 instead of inventing a value.
 interface Match { total: number; partial: boolean; reasons: { label: string; pct: number | null }[] }
 // gearVerified: 인증 장비 부스트 — 슬롯당 +1, 최대 +2 (가드레일: 핵심 점수 불변, 장비는 승부축이 아니다)
@@ -42,10 +56,14 @@ interface Match { total: number; partial: boolean; reasons: { label: string; pct
 function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   const respond = r.respondRate; // number | null — null flows through untouched
   const exp = Math.min(97, 62 + r.totalRuns * 5);
-  const paceFit = Math.max(58, 100 - Math.round(Math.abs(r.paceSec - targetPaceSec) / 4));
-  const weighted = respond != null
-    ? respond * 0.35 + exp * 0.3 + paceFit * 0.35
-    : (exp * 0.3 + paceFit * 0.35) / 0.65;
+  // paceSec null = 기록 없는 신규 러너 (api.ts 가 더는 7'00" 를 지어내지 않는다). respondRate 가
+  // 이미 밟은 길을 그대로: 없는 축은 0 으로 깔지 않고 **빼고**, 남은 축을 재정규화한다.
+  const paceFit = r.paceSec != null
+    ? Math.max(58, 100 - Math.round(Math.abs(r.paceSec - targetPaceSec) / 4))
+    : null;
+  const axes: Array<[number | null, number]> = [[respond, 0.35], [exp, 0.3], [paceFit, 0.35]];
+  const wsum = axes.reduce((t, [v, w]) => (v != null ? t + w : t), 0);
+  const weighted = axes.reduce((t, [v, w]) => (v != null ? t + v * w : t), 0) / (wsum || 1);
   return {
     total: Math.min(99, Math.round(weighted) + Math.min(2, gearVerified)),
     partial: respond == null,
@@ -57,54 +75,52 @@ function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   };
 }
 
-// ── 로스터 행 — 한 명 = 한 줄. 탭 = 선택(바이올렛 링), 이동 없음 ──
-// Sean 정제 1: 행은 60-64pt로 숨을 쉰다(48 압축 금지). 정제 2: 아바타 40pt · 라운드 11.
-function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
-  r: LiveRunner; m: Match; rank: number; selected: boolean; isTop: boolean;
+// ── 로스터 행 — 한 명 = 한 줄. 탭 = 선택, 이동 없음 ──
+// Sean 정제 1: 행은 60-64pt로 숨을 쉰다(48 압축 금지). 정제 2: 아바타 40pt.
+// [M②] 오른쪽 세 칸은 이제 전부 **원값**이다 — 응답률·누적 러닝·페이스. 순위는 이름 아래 한 줄.
+function RosterRow({ r, rank, selected, isCurrent, onPress, nf }: {
+  r: LiveRunner; rank: number; selected: boolean;
   isCurrent: boolean; onPress: () => void; nf: any;
 }) {
-  const weak = m.total < 80;
+  const sub = `${rank}순위 · ${r.tier}${isCurrent ? ' · 현재 지명' : ''}`;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${r.name} 러너 · ${r.tier} · 적합도 ${m.total}%`}
+      accessibilityLabel={`${r.name} 러너 · ${sub}${r.respondRate != null ? ` · 응답률 ${r.respondRate}%` : ' · 응답률 신규'}`}
       style={[s.row, selected && s.rowSel]}
     >
-      {/* 순위 → 선택되면 바이올렛 체크로 바뀐다 */}
+      {/* 순위 → 선택되면 잉크 체크로 바뀐다 (선택은 링이 아니라 면 + 표식이다) */}
       <View style={{ width: COL.rk, alignItems: 'center' }}>
         {selected ? (
-          <View style={s.rkCheck}><Text style={{ fontSize: 12, fontWeight: '900', color: '#fff', lineHeight: 14 }}>✓</Text></View>
+          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: paper.ink }}>✓</Text>
         ) : (
-          <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: isTop ? lilac.accent : lilac.dim }, nf]}>
+          <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim }, nf]}>
             {rank < 10 ? `0${rank}` : `${rank}`}
           </Text>
         )}
       </View>
 
-      {/* 따뜻한 아바타 — 사진이 없으면 소프트 바이올렛 위 이니셜 */}
-      <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={COL.av} />
+      {/* 아바타 — 사진이 없으면 모노그램. Monogram의 잉크는 흰색 고정이라 면은 항상 어둡게 */}
+      <Avatar url={r.avatarUrl} char={r.name[0]} bg={selected ? paper.ink : paper.dim} size={COL.av} />
 
-      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 }}>{r.name}</Text>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 14, fontWeight: '700', color: tierColor(r.tier) }}>{r.tier}</Text>
-        {/* 러너 변경 모드에서 '지금 지명된 러너'를 표시 — 누구를 바꾸는 중인지 모르면 선택이 도박이 된다 */}
-        {isCurrent && (
-          <View style={s.curTag}><Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>현재 지명</Text></View>
-        )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{r.name}</Text>
+        <Text numberOfLines={1} style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim }}>{sub}</Text>
       </View>
 
-      {/* 매치 — 표의 셀이 아니라 따뜻한 숫자 하나 */}
-      <Text style={[{ width: COL.m, textAlign: 'right', fontSize: 18.5, fontWeight: '700', color: selected ? lilac.accent : weak ? lilac.dim : lilac.head }, nf]}>
-        {m.total}<Text style={{ fontSize: 12 }}>%</Text>
-      </Text>
-      <Text style={[{ width: COL.pace, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text }, nf]}>{r.paceLabel}</Text>
+      {/* 응답률 — 이 화면에서 가장 큰 숫자. 데이터가 없으면 숫자 대신 '신규' (0을 지어내지 않는다) */}
       {r.respondRate != null ? (
-        <Text style={[{ width: COL.resp, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text }, nf]}>{r.respondRate}%</Text>
+        <Text style={[{ width: COL.resp, textAlign: 'right', fontSize: 18.5, lineHeight: 23, fontWeight: '700', color: paper.ink }, nf]}>
+          {r.respondRate}<Text style={{ fontSize: 12 }}>%</Text>
+        </Text>
       ) : (
-        <Text style={{ width: COL.resp, textAlign: 'right', fontSize: 14, fontWeight: '600', color: lilac.dim }}>신규</Text>
+        <Text style={{ width: COL.resp, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim }}>신규</Text>
       )}
+      <Text style={[{ width: COL.runs, textAlign: 'right', fontSize: 16, lineHeight: 20, fontWeight: '600', color: paper.text }, nf]}>{r.totalRuns}회</Text>
+      {/* null = 기록 전 신규 러너. 컬럼은 자리가 고정이라 빈 칸이 '빠름'처럼 읽힌다 — 사실을 적는다 */}
+      <Text style={[{ width: COL.pace, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: r.paceLabel != null ? paper.text : paper.faint }, nf]}>{r.paceLabel ?? '기록 전'}</Text>
     </Pressable>
   );
 }
@@ -115,9 +131,9 @@ function Bar({ label, pct, nf }: { label: string; pct: number | null; nf: any })
   if (pct == null) {
     return (
       <Row style={{ gap: 10 }}>
-        <Text style={{ width: 84, fontSize: 14, color: lilac.text }}>{label}</Text>
+        <Text style={{ width: 84, fontSize: 14, lineHeight: 18, color: paper.text }}>{label}</Text>
         <View style={s.track} />
-        <Text style={{ textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim }}>신규 · 데이터 없음</Text>
+        <Text style={{ textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.dim }}>신규 · 데이터 없음</Text>
       </Row>
     );
   }
@@ -126,18 +142,18 @@ function Bar({ label, pct, nf }: { label: string; pct: number | null; nf: any })
   return (
     <Row style={{ gap: 10 }}>
       {/* [FLOOR14] 76 → 84: 최장 라벨 '응답 신뢰도'(한글 5 + 공백)가 14pt 에서 ≈74px — 76은 여유 2px 뿐이라 랩됐다 */}
-      <Text style={{ width: 84, fontSize: 14, color: lilac.text }}>{label}</Text>
+      <Text style={{ width: 84, fontSize: 14, lineHeight: 18, color: paper.text }}>{label}</Text>
       <View style={s.track}>
-        <View style={{ height: '100%', borderRadius: 5, backgroundColor: weak ? lilac.amber : lilac.accent, width: `${w}%` }} />
+        <View style={{ height: '100%', backgroundColor: weak ? paper.pending : paper.ink, width: `${w}%` }} />
       </View>
-      <Text style={[{ width: 34, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '700', color: weak ? lilac.amber : lilac.head }, nf]}>{pct}</Text>
+      <Text style={[{ width: 34, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '700', color: weak ? paper.pending : paper.ink }, nf]}>{pct}</Text>
     </Row>
   );
 }
 
 export default function Matching() {
   const df = useDisplayFont(); // Black Han Sans — 화면에서 딱 한 번(시트의 러너 이름)
-  const nf = useNumFont();     // Oswald — 매치·페이스·응답률 등 모든 숫자
+  const nf = useNumFont();     // Oswald — 응답률·러닝·페이스 등 모든 숫자
   // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
   const live = !!draft.bookingId;
   // 러너 변경 모드 — 일정 화면의 '러너 변경'이 이 예약 id를 들고 넘어온다.
@@ -242,12 +258,17 @@ export default function Matching() {
   const top = scored[0];
   const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
   // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 AI 1순위로 폴백
-  const sel = scored.find((x) => x.r.profileId === selectedId) ?? top;
-  // 러너 변경 모드의 기준점 — 현재 지명 러너 (목록에 있으면 델타 계산 가능)
-  const curEntry = currentRunnerId ? scored.find((x) => x.r.profileId === currentRunnerId) : undefined;
+  const selIdx = scored.findIndex((x) => x.r.profileId === selectedId);
+  const sel = selIdx >= 0 ? scored[selIdx] : top;
+  const selRank = (selIdx >= 0 ? selIdx : 0) + 1;
+  // 러너 변경 모드의 기준점 — 현재 지명 러너 (목록에 있으면 순위·응답률 델타 계산 가능)
+  const curIdx = currentRunnerId ? scored.findIndex((x) => x.r.profileId === currentRunnerId) : -1;
+  const curEntry = curIdx >= 0 ? scored[curIdx] : undefined;
   const selIsCurrent = !!sel && !!currentRunnerId && sel.r.profileId === currentRunnerId;
   const lockCta = rebook && selIsCurrent; // 현재 지명자를 다시 지명하는 건 액션이 성립하지 않는다
   const selGear = sel ? (gearMap[sel.r.profileId] ?? []).filter((g) => g.verified) : [];
+  // M④: 세 개의 비-정상 상태는 서로 다른 사실이다 — 실패·로딩·빈 명단을 한 문장으로 뭉치지 않는다
+  const rosterEmpty = live && !rosterError && !rosterLoading && liveRunners.length === 0;
 
   const nominate = async (r: LiveRunner) => {
     if (!draft.bookingId) return;
@@ -271,92 +292,81 @@ export default function Matching() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* ── ① 헤더 — 로스터/시트와 분리된 고정 크롬 ── */}
       <View style={s.head}>
-        <Row style={{ gap: 9 }}>
+        <Row style={{ gap: 10 }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 19, fontWeight: '700', color: lilac.head, marginTop: -2 }}>‹</Text>
+            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
-          <Text style={{ fontSize: 17.5, fontWeight: '900', color: lilac.head, letterSpacing: -0.3 }}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>
             {rebook ? '러너 변경' : '러너 선택'}
           </Text>
           {rebook && (
-            <View style={s.headTag}><Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>재요청</Text></View>
+            <View style={s.headTag}><Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>재요청</Text></View>
           )}
         </Row>
-        <Text style={{ fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 9 }}>
+        <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 8 }}>
           {rebook
             ? '이 예약 그대로 다른 러너에게 다시 요청해요\n새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
             : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
         </Text>
-        {/* '지금 누구를 바꾸는 중인지'는 별도 밴드 대신 로스터 행의 [현재 지명] 태그와
+        {/* '지금 누구를 바꾸는 중인지'는 별도 밴드 대신 로스터 행의 [현재 지명] 줄과
             시트의 델타 밴드가 답한다 — 같은 사실을 세 번 말하면 명단 볼 자리가 없다. */}
       </View>
+      {/* 코랄 풀블리드 룰 ① — 섹션 구분(헤더/본문). 이 화면의 코랄 가로선은 여기와 시트 상단 둘뿐 */}
+      <View style={s.rule} />
 
       {/* ── ② 로스터 — 평범하고 정직한 세로 스크롤 (덱·스냅 없음) ── */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingHorizontal: 15, paddingTop: 4, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
         {live && top && (
           <>
             {/* 컬럼 레일 = 범례 + 명단 규모. 행과 같은 트랙을 쓴다 */}
             <Row style={s.rail}>
-              <Text style={[s.kick, { flex: 1 }]}>러너 {scored.length}명 · AI 추천 순</Text>
-              <Text style={[s.kick, { width: COL.m, textAlign: 'right' }]}>매치</Text>
-              <Text style={[s.kick, { width: COL.pace, textAlign: 'right' }]}>페이스</Text>
-              <Text style={[s.kick, { width: COL.resp, textAlign: 'right' }]}>응답</Text>
+              <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim }}>러너 {scored.length}명 · AI 추천 순</Text>
+              <Text style={[s.railCol, { width: COL.resp }]}>응답률</Text>
+              <Text style={[s.railCol, { width: COL.runs }]}>러닝</Text>
+              <Text style={[s.railCol, { width: COL.pace }]}>페이스</Text>
             </Row>
 
-            {scored.map(({ r, m }, i) => (
-              <View key={r.profileId}>
-                {i > 0 && <View style={s.sep} />}
-                <RosterRow
-                  r={r} m={m} rank={i + 1} nf={nf}
-                  selected={!!sel && sel.r.profileId === r.profileId}
-                  isTop={i === 0}
-                  isCurrent={r.profileId === currentRunnerId}
-                  onPress={() => select(r.profileId)}
-                />
-              </View>
+            {scored.map(({ r }, i) => (
+              <RosterRow
+                key={r.profileId}
+                r={r} rank={i + 1} nf={nf}
+                selected={!!sel && sel.r.profileId === r.profileId}
+                isCurrent={r.profileId === currentRunnerId}
+                onPress={() => select(r.profileId)}
+              />
             ))}
 
-            {/* 이 순서의 근거 — 새 데이터 없이 시트와 같은 세 축으로만 설명 */}
+            {/* 이 순서의 근거 — 새 데이터 없이 시트와 같은 세 축으로만 설명.
+                [M②] 매치 %는 화면에서 사라졌지만 근거는 남는다 — 순위가 어떻게 나왔는지는 여전히 말해야 한다 */}
             <View style={s.why}>
-              <Row style={{ gap: 8, marginBottom: 9 }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>이 순서는 어떻게 나왔나요</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: lilac.hair }} />
-              </Row>
-              <View style={{ gap: 7 }}>
-                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
-                  <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
-                    <Text style={{ fontWeight: '700', color: lilac.head }}>응답률</Text> — 지명 요청을 받고 실제로 수락한 비율이에요.
-                  </Text>
-                </Row>
-                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
-                  <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
-                    <Text style={{ fontWeight: '700', color: lilac.head }}>경험</Text> — 지금까지 완료한 러닝 횟수를 봐요.
-                  </Text>
-                </Row>
-                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
-                  <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
-                    <Text style={{ fontWeight: '700', color: lilac.head }}>페이스 적합</Text> — 이 예약의 페이스
-                    {targetPaceLabel ? <Text style={[{ fontWeight: '700', color: lilac.head }, nf]}>{` ${targetPaceLabel} `}</Text> : ' '}
-                    기준으로 러너 페이스가 얼마나 맞는지예요.
-                  </Text>
-                </Row>
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink }}>이 순서는 어떻게 나왔나요</Text>
+              <View style={{ gap: 7, marginTop: 9 }}>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text }}>
+                  <Text style={{ fontWeight: '800', color: paper.ink }}>응답률</Text> — 지명 요청을 받고 실제로 수락한 비율이에요.
+                </Text>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text }}>
+                  <Text style={{ fontWeight: '800', color: paper.ink }}>러닝</Text> — 지금까지 완료한 러닝 횟수를 봐요.
+                </Text>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text }}>
+                  <Text style={{ fontWeight: '800', color: paper.ink }}>페이스 적합</Text> — 이 예약의 페이스
+                  {/* Oswald는 명시 lineHeight ≥1.2× 없이는 어센더가 잘린다 (BUG A) — 중첩 Text도 예외 아님 */}
+                  {targetPaceLabel ? <Text style={[{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink }, nf]}>{` ${targetPaceLabel} `}</Text> : ' '}
+                  기준으로 러너 페이스가 얼마나 맞는지예요.
+                </Text>
               </View>
-              <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, fontSize: 14, lineHeight: 18, color: lilac.dim }}>
-                세 축을 합쳐 매치 점수가 되고, 그 순서가 AI 추천 1순위예요. 응답률 데이터가 없는 신규 러너는 나머지 두 축으로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
+              <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEEEEE', fontSize: 14, lineHeight: 19, color: paper.dim }}>
+                세 축을 합쳐 순위를 정해요 — 1순위가 AI 추천이에요. 응답률 데이터가 없는 신규 러너는 나머지 두 축으로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
               </Text>
             </View>
 
-            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 14, lineHeight: 18, color: lilac.dim }}>
+            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 14, lineHeight: 19, color: paper.dim }}>
               지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
             </Text>
           </>
@@ -367,45 +377,62 @@ export default function Matching() {
         {!live && (
           // [§E.5] 요청 화면에 결제 단계는 없다 — 홀드가 잡히면 그 자리에서 matching으로 넘어가고
           // 바로 러너 찾기로 간다. "결제하면 러너 선택이 열려요"는 없는 단계를 가리키고 있었다.
-          <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              진행 중인 예약이 없어요{'\n'}예약하면 러너 선택이 열려요
+          <View style={{ paddingTop: 22 }}>
+            <Text style={{ fontSize: 19, lineHeight: 26, fontWeight: '800', color: paper.ink }}>
+              진행 중인 예약이 없어요
+            </Text>
+            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text, marginTop: 8 }}>
+              예약하면 러너 선택이 열려요
             </Text>
           </View>
         )}
 
+        {/* [M④ · LOAD FAILED] 실패는 실패로 — 라우드-페일 스트립 + 재시도 (라벨 스왑, 불투명도 트릭 금지) */}
         {live && rosterError && (
-          <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              러너 목록을 불러오지 못했어요{'\n'}{rosterError}
-            </Text>
-            {/* opacity is presentation, not state (theme.ts:205-207) — the dim, `disabled` and
-                what a screen reader is told all hang off one predicate (chat.tsx [dead button]) */}
+          <View style={s.failStrip}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical }}>러너 목록을 불러오지 못했어요</Text>
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.critical }}>{rosterError}</Text>
+            </View>
             <Pressable
               onPress={loadRoster}
               disabled={rosterLoading}
               accessibilityRole="button"
               accessibilityLabel="다시 시도"
               accessibilityState={{ disabled: rosterLoading }}
-              style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 10, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'center', opacity: rosterLoading ? 0.5 : 1 }}
+              style={{ minHeight: 44, justifyContent: 'center' }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>다시 시도</Text>
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+                {rosterLoading ? '확인 중…' : '다시 시도'}
+              </Text>
             </Pressable>
           </View>
         )}
 
+        {/* [M④ · LOADING] 로딩은 빈 명단이 아니다 */}
         {live && !rosterError && rosterLoading && liveRunners.length === 0 && (
-          <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              이 시간에 갈 수 있는 러너를 찾는 중…
-            </Text>
-          </View>
+          <Text style={{ paddingTop: 22, fontSize: 14, lineHeight: 19, color: paper.text }}>
+            이 시간에 갈 수 있는 러너를 찾는 중…
+          </Text>
         )}
 
-        {live && !rosterError && !rosterLoading && liveRunners.length === 0 && (
-          <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              이 시간에 갈 수 있는 러너가 지금 없어요{'\n'}오픈 매칭으로 등록돼 있어요 — 일정이 빈 러너가 응답할 수 있어요
+        {/* [M④ · NO AVAILABLE RUNNERS] 같은 문장, 이제 문이 있다.
+            ⚠ 여기서 취소 수수료를 인용하지 않는다 — 일정 화면이 예약별로 계산해 말한다 */}
+        {rosterEmpty && (
+          <View style={{ paddingTop: 22 }}>
+            <Text style={{ fontSize: 19, lineHeight: 26, fontWeight: '800', color: paper.ink }}>
+              이 시간에 갈 수 있는{'\n'}러너가 지금 없어요
+            </Text>
+            <Text style={{ fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 9 }}>
+              오픈 매칭으로 등록돼 있어요 — 일정이 빈 러너가 응답할 수 있어요.{'\n'}기다리는 동안 이 예약은 그대로 살아 있어요.
+            </Text>
+            <View style={{ marginTop: 18, gap: 10 }}>
+              {/* 이 버튼을 누르면 즉시 로딩 상태로 넘어가므로(위 arm) busy 라벨 스왑은 여기서 필요 없다 */}
+              <PaperBtn label="러너 다시 찾기" variant="secondary" onPress={loadRoster} />
+              <PaperBtn label="내 일정에서 이 예약 보기 ›" variant="secondary" onPress={() => router.push('/owner/schedule')} />
+            </View>
+            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 12 }}>
+              일정 화면에서 시간 변경·취소를 할 수 있어요 — 취소 조건은 그 화면이 예약별로 알려드려요
             </Text>
           </View>
         )}
@@ -414,87 +441,85 @@ export default function Matching() {
       {/* ── ③ 결정 시트 — 화면에 단 하나. Modal이 아니라 형제 View, 절대 비지 않는다 ── */}
       {live && sel && (
         <View style={s.sheet}>
-          <View pointerEvents="none" style={s.holo}>
-            {HOLO.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
-          </View>
-
           <Row style={{ gap: 9, marginBottom: 12 }}>
             <Text style={s.kick}>선택한 러너</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: lilac.hair }} />
+            <View style={{ flex: 1, height: 1, backgroundColor: '#EEEEEE' }} />
             <Pressable
               onPress={() => router.push(`/runner-profile/${sel.r.profileId}`)}
               style={s.profBtn}
               accessibilityRole="button"
               accessibilityLabel={`${sel.r.name} 러너 프로필 보기`}
             >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>프로필 ›</Text>
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink }}>프로필 ›</Text>
             </Pressable>
           </Row>
 
-          {/* 신원 — 큰 따뜻한 아바타 · Black Han Sans 이름(화면에서 한 번) · 사람 문장 · 매치 숫자 */}
+          {/* 신원 — 아바타 · Black Han Sans 이름(화면에서 한 번) · 사람 문장 · [M②] 원값 응답률 */}
           <Row style={{ gap: 12, alignItems: 'flex-start' }}>
-            <Avatar url={sel.r.avatarUrl} char={sel.r.name[0]} bg={lilac.accent} size={52} />
+            <Avatar url={sel.r.avatarUrl} char={sel.r.name[0]} bg={paper.ink} size={52} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Row style={{ gap: 7 }}>
-                <Text numberOfLines={1} style={[{ fontSize: 20, color: lilac.head, letterSpacing: 0.2 }, df]}>{sel.r.name}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: tierColor(sel.r.tier) }}>{sel.r.tier}</Text>
+                <Text numberOfLines={1} style={[{ fontSize: 20, color: paper.ink }, df]}>{sel.r.name}</Text>
                 {top && sel.r.profileId === top.r.profileId && (
                   <View style={s.aiTag}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>
+                    <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>
                       {topIsPreferred ? '내가 고른 러너' : 'AI 1순위'}
                     </Text>
                   </View>
                 )}
               </Row>
-              {/* 사람 문장 — 실필드(동네·누적 러닝)만으로 */}
-              <Text style={{ fontSize: 14, lineHeight: 19, color: lilac.text, marginTop: 5 }}>
+              {/* 사람 문장 — 실필드(동네·누적 러닝·순위)만으로 */}
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text, marginTop: 5 }}>
                 {sel.r.totalRuns > 0 ? (
                   <>
-                    {sel.r.district || '이 동네'}에서 <Text style={[{ fontSize: 14, fontWeight: '700', color: lilac.head }, nf]}>{sel.r.totalRuns}</Text>번 달렸어요
+                    {sel.r.district || '이 동네'}에서 <Text style={[{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink }, nf]}>{sel.r.totalRuns}</Text>번 달렸어요
                   </>
                 ) : (
                   `${sel.r.district || '이 동네'}에서 첫 러닝을 기다리고 있어요`
                 )}
               </Text>
-              {/* 평균 페이스·응답률은 아래 CTA 플레이트가 원값으로 들고 있다 — 시트에서 두 번 말하지 않는다 */}
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 }}>{selRank}순위 · {sel.r.tier}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[{ fontSize: 27, fontWeight: '700', color: lilac.head, lineHeight: 29 }, nf]}>
-                {sel.m.total}<Text style={{ fontSize: 14, color: lilac.text }}>%</Text>
-              </Text>
-              <Text style={[s.kick, { marginTop: 1 }]}>매치</Text>
+              {sel.r.respondRate != null ? (
+                <Text style={[{ fontSize: 27, lineHeight: 33, fontWeight: '700', color: paper.ink }, nf]}>
+                  {sel.r.respondRate}<Text style={{ fontSize: 14, color: paper.dim }}>%</Text>
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 19, lineHeight: 25, fontWeight: '800', color: paper.dim }}>신규</Text>
+              )}
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim }}>응답률</Text>
             </View>
           </Row>
 
           {/* Match axes — an unknown respond rate renders as 신규 and the score discloses it's partial */}
-          <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair2, gap: 7 }}>
+          <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE', gap: 7 }}>
             {sel.m.reasons.map((reason) => (
               <Bar key={reason.label} label={reason.label} pct={reason.pct} nf={nf} />
             ))}
             {sel.m.partial && (
-              <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>
-                아직 응답률 데이터가 없어 경험·페이스 두 축으로만 계산한 점수예요
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>
+                아직 응답률 데이터가 없어 경험·페이스 두 축으로만 계산한 순위예요
               </Text>
             )}
           </View>
 
-          {/* 러너 변경 델타 — 현재 지명 러너 대비 (실필드로 계산 가능한 축만) */}
+          {/* 러너 변경 델타 — 현재 지명 러너 대비. [M②] 합성 점수가 아니라 순위와 원값으로 말한다 */}
           {rebook && curEntry && (
             <View style={s.delta}>
               {selIsCurrent ? (
-                <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text }}>지금 이 예약에 지명돼 있는 러너예요.</Text>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text }}>지금 이 예약에 지명돼 있는 러너예요.</Text>
               ) : (() => {
-                const dm = sel.m.total - curEntry.m.total;
                 const dr = (sel.r.respondRate == null || curEntry.r.respondRate == null) ? null : sel.r.respondRate - curEntry.r.respondRate;
                 return (
                   <Row style={{ gap: 9, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: 14, color: lilac.text }}>
-                      현재 <Text style={{ fontWeight: '700', color: lilac.head }}>{curEntry.r.name}</Text> 대비
+                    <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text }}>
+                      현재 <Text style={{ fontWeight: '800', color: paper.ink }}>{curEntry.r.name}</Text> 대비
                     </Text>
-                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: dm >= 0 ? lilac.accent : lilac.amber }, nf]}>매치 {signed(dm)}</Text>
+                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.ink }, nf]}>{curIdx + 1}순위 → {selRank}순위</Text>
                     {dr == null
-                      ? <Text style={{ fontSize: 14, color: lilac.dim }}>응답률 비교 불가 · 신규</Text>
-                      : <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: dr >= 0 ? lilac.accent : lilac.amber }, nf]}>응답 {signed(dr)}</Text>}
+                      ? <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim }}>응답률 비교 불가 · 신규</Text>
+                      : <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: dr >= 0 ? paper.ink : paper.pending }, nf]}>응답 {signed(dr)}</Text>}
                   </Row>
                 );
               })()}
@@ -506,7 +531,7 @@ export default function Matching() {
               바디캠이 없는 러너에게까지 부정문을 들이밀지 않도록 게이트 (없는 기능을 먼저 광고 금지) */}
           {selGear.length > 0 && (
             <>
-              <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 11 }}>
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 11 }}>
                 {selGear.some((g) => g.kind === 'bodycam')
                   ? '러너가 보유한 장비예요 — 영상 제공은 아직 지원하지 않아요'
                   : '러너가 보유한 장비예요'}
@@ -514,8 +539,8 @@ export default function Matching() {
               <Row style={{ gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
                 {selGear.map((g) => (
                   <View key={g.id} style={s.gearChip}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: lilac.text }}>
-                      {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
+                    <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.text }}>
+                      {GEAR_META[g.kind].name} <Text style={{ color: paper.actionInk, fontWeight: '800' }}>✓</Text>
                     </Text>
                   </View>
                 ))}
@@ -523,11 +548,11 @@ export default function Matching() {
             </>
           )}
 
-          {/* 유일한 큰 버튼 — 시트 안에 산다 */}
+          {/* 유일한 큰 버튼 — 시트 안에 산다. 화면의 유일한 코랄 면이기도 하다 */}
           {lockCta ? (
-            <View style={[s.cta, s.ctaLock]}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>이미 지명된 러너예요</Text>
-              <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 3 }}>다른 러너를 선택하면 재요청할 수 있어요</Text>
+            <View style={s.ctaLock}>
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink }}>이미 지명된 러너예요</Text>
+              <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 3 }}>다른 러너를 선택하면 재요청할 수 있어요</Text>
             </View>
           ) : (
             <Pressable
@@ -536,27 +561,38 @@ export default function Matching() {
               accessibilityRole="button"
               accessibilityLabel={`${sel.r.name} 러너 지명 요청`}
               /* The lock was visible (opacity) and enforced (disabled) but never announced —
-                 VoiceOver read a live 지명 요청 button mid-send. Same predicate, three outputs. */
+                 VoiceOver read a live 지명 요청 button mid-send. Same predicate, three outputs.
+                 [2026-08-24] 불투명도 트릭 은퇴 — 잠금은 라벨 스왑 + pressed 면으로만 말한다 (F2.1). */
               accessibilityState={{ disabled: nominating !== null }}
-              style={[s.cta, { backgroundColor: CORAL_DEEP }, nominating !== null && { opacity: 0.55 }]}
+              style={({ pressed }) => [s.cta, { backgroundColor: pressed && nominating === null ? paper.actionPressed : paper.action }]}
             >
               <Row style={{ gap: 10 }}>
-                <Text style={{ fontSize: 17.5, fontWeight: '800', color: '#fff', letterSpacing: -0.2 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
                   {nominating === sel.r.profileId ? '전송 중...' : '지명 요청'}
                 </Text>
                 <View style={{ flex: 1 }} />
-                {/* 플레이트 = 원값 두 개(점수 아님) — 매치는 바로 위 큰 숫자가 이미 말한다 */}
+                {/* 플레이트 = 원값 두 개(점수 아님). 작은 흰 글씨는 코랄 위에 직접 앉지 않는다 —
+                    actionPressed(#A83315) 잉크 플레이트 위에서 6.67:1 (알파 금지, 명시 색) */}
                 <View style={s.ctaPlate}>
-                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#fff' }, nf]}>{sel.r.paceLabel}</Text>
-                  <View style={{ width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.42)' }} />
-                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#fff' }, nf]}>
+                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#FFFFFF' }, nf]}>{sel.r.paceLabel ?? '기록 전'}</Text>
+                  <View style={{ width: 1, height: 11, backgroundColor: '#FFFFFF' }} />
+                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#FFFFFF' }, nf]}>
                     {sel.r.respondRate != null ? `응답 ${sel.r.respondRate}%` : '신규'}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>›</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#FFFFFF' }}>›</Text>
               </Row>
             </Pressable>
           )}
+        </View>
+      )}
+
+      {/* 시트가 열리지 않는 상태에도 아래는 비지 않는다 — 왜 비었는지 한 줄로 말한다 (M④) */}
+      {live && !sel && (
+        <View style={s.sheetQuiet}>
+          <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center' }}>
+            선택한 러너가 없어 지명 시트는 열리지 않아요
+          </Text>
         </View>
       )}
     </View>
@@ -564,82 +600,63 @@ export default function Matching() {
 }
 
 const s = StyleSheet.create({
-  // ── 헤더 크롬 ──
-  head: {
-    paddingTop: 58, paddingHorizontal: 14, paddingBottom: 12,
-    backgroundColor: lilac.card, borderBottomWidth: 1, borderBottomColor: lilac.hair, zIndex: 10,
-  },
+  // ── 헤더 크롬 (페이퍼 리페인트) ──
+  head: { paddingTop: 56, paddingHorizontal: 15, paddingBottom: 11, backgroundColor: paper.canvas },
+  // 40×40 스퀘어 백 버튼 — request.tsx circleBtn 문법
   backBtn: {
-    width: 34, height: 34, borderRadius: 10, backgroundColor: lilac.card,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
+    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: paper.line,
   },
-  headTag: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
-    borderRadius: 7, paddingVertical: 3, paddingHorizontal: 8,
-  },
+  headTag: { backgroundColor: paper.wash, paddingVertical: 4, paddingHorizontal: 9 },
+  // 코랄 풀블리드 헤어라인 — 사이드 마진 금지 (§순백/코랄 법)
+  rule: { height: 1, backgroundColor: paper.line },
   // ── 로스터 ──
-  kick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.4, color: lilac.dim },
-  rail: { gap: COL.gap, paddingHorizontal: 9.5, paddingTop: 4, paddingBottom: 7 },
-  // Sean 정제 1: 60-64pt 행 — 압축 금지. 정제 2: 라운드 11, 넉넉한 좌우 여백
+  rail: { gap: COL.gap, paddingTop: 9, paddingBottom: 7 },
+  railCol: { textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.dim },
+  // Sean 정제 1: 60-64pt 행 — 압축 금지. 행 구분선은 뉴트럴(#EEE): 코랄 풀블리드는 섹션의 문법이다
   row: {
     flexDirection: 'row', alignItems: 'center', gap: COL.gap, minHeight: 62,
-    paddingVertical: 11, paddingHorizontal: 8, borderRadius: 11,
-    borderWidth: 1.5, borderColor: 'transparent',
+    paddingVertical: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE',
   },
-  rowSel: {
-    backgroundColor: lilac.card, borderColor: lilac.accent,
-    shadowColor: lilac.accent, shadowOpacity: 0.18, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  // 선택 = 면(코랄 95% 워시) + 체크. 링·그림자 은퇴. 풀블리드로 빼서 행 전체가 선택으로 읽히게
+  rowSel: { backgroundColor: paper.wash, marginHorizontal: -15, paddingHorizontal: 15 },
+  // ── 순서 근거 ──
+  why: { marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  // ── 라우드-페일 스트립 (F1.2) — criticalWash 면 + critical 잉크 + 밑줄 재시도 ──
+  failStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    marginHorizontal: -15, paddingHorizontal: 15, paddingVertical: 11, marginTop: 18,
   },
-  sep: { height: 1, backgroundColor: lilac.hair2, marginHorizontal: 10 },
-  rkCheck: { width: 17, height: 17, borderRadius: 6, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
-  curTag: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
-    borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6,
-  },
-  // ── 순서 근거 카드 ──
-  why: {
-    marginTop: 16, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2,
-    borderRadius: 12, padding: 14,
-    shadowColor: '#1C1837', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2,
-  },
-  whyDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: lilac.accent, marginTop: 7 },
-  emptyBox: {
-    marginTop: 16, backgroundColor: lilac.card, borderRadius: 12, padding: 18,
-    alignItems: 'center', borderWidth: 1, borderColor: lilac.hair,
-  },
-  // ── 결정 시트 ── (Sean 정제 1: 패딩 ≥18)
+  // ── 결정 시트 ── 코랄 풀블리드 룰 ② (이 화면의 마지막 코랄 가로선)
   sheet: {
-    backgroundColor: lilac.card, borderTopWidth: 1, borderTopColor: lilac.hair,
-    paddingTop: 18, paddingHorizontal: 18, paddingBottom: 22,
-    shadowColor: '#1C1837', shadowOpacity: 0.16, shadowRadius: 20, shadowOffset: { width: 0, height: -8 }, elevation: 24,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderTopColor: paper.line,
+    paddingTop: 14, paddingHorizontal: 15, paddingBottom: 22,
   },
-  holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 2 },
+  sheetQuiet: {
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderTopColor: paper.line,
+    paddingHorizontal: 15, paddingVertical: 14,
+  },
+  kick: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
   profBtn: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
-    borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
+    borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas,
+    paddingVertical: 7, paddingHorizontal: 10, minHeight: 34, justifyContent: 'center',
   },
-  aiTag: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
-    borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7,
-  },
+  aiTag: { backgroundColor: paper.wash, paddingVertical: 2, paddingHorizontal: 7 },
   track: {
-    flex: 1, height: 9, borderRadius: 5, backgroundColor: lilac.inset,
-    borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden',
+    flex: 1, height: 9, backgroundColor: paper.disabledFill,
+    borderWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden',
   },
-  delta: {
-    marginTop: 11, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: 9, paddingVertical: 8, paddingHorizontal: 11,
+  delta: { marginTop: 11, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 8, paddingHorizontal: 11 },
+  gearChip: { borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas, paddingVertical: 5, paddingHorizontal: 9 },
+  // 코랄 종단 스톱(paper.action #C6472C) 위 흰 라벨 — 이 화면에서 흰 글씨가 코랄에 올라가는 유일한 자리
+  cta: { marginTop: 14, paddingVertical: 15, paddingHorizontal: 15 },
+  ctaLock: {
+    marginTop: 14, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 13, paddingHorizontal: 15, alignItems: 'flex-start',
   },
-  gearChip: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
-    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 9,
-  },
-  // 코랄 종단 스톱(#C6472C) 위 흰 라벨 — 이 화면에서 흰 글씨가 코랄에 올라가는 유일한 자리
-  cta: { marginTop: 14, borderRadius: 12, paddingVertical: 15, paddingHorizontal: 15 },
-  ctaLock: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignItems: 'flex-start' },
   ctaPlate: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(28,24,55,0.55)', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 9,
+    backgroundColor: paper.actionPressed, paddingVertical: 5, paddingHorizontal: 9,
   },
 });

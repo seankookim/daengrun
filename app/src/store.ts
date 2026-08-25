@@ -195,6 +195,11 @@ export interface Booking {
   /** runs.started_at — 러닝이 실제로 시작된 시각. null = 아직 시작 전.
    *  ⚠ scheduled_at 과 다르다: 20분 늦게 출발한 러닝의 '초과'는 출발 시각부터 재야 한다. */
   startedAt?: string | null;
+  /** 양측 인계 소인. [F7 2026-08-24] 커스터디(D3 선)는 status 만으로 판정할 수 없다 — 서버
+   *  `_checkin_custody`(0117:159-170)는 '두 소인이 다 있으면 post' 갈래를 먼저 본다. 이 두
+   *  필드를 싣지 않는 리더는 커스터디에 기대는 문장을 그리면 안 된다 (§13 C2). */
+  ownerHandoffAt?: string | null;
+  runnerHandoffAt?: string | null;
   clubSessionId?: string | null; // 클럽 위탁 예약 (0037 bookings.club_session_id). 마켓플레이스
   // 취소 사다리가 적용되지 않는 예약 — 취소는 클럽 세션 화면의 전용 출구로 가야 한다
   // (서버도 cancel_owner에서 거부한다; 이 필드는 화면이 죽은 버튼을 그리지 않기 위한 것)

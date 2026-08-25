@@ -25,6 +25,7 @@
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDisplayFont } from '../lib/displayFont';
+import { useNumFont } from '../lib/fonts';
 import { haptic } from '../lib/haptics';
 import { draft } from '../store';
 import { paper } from '../theme';
@@ -40,6 +41,30 @@ export interface HomeHeroNext {
   dateLabel?: string;     // "오늘" · "내일" · "8월 20일"
   /** 이 예약의 아이 (bookings.dogs.name). 아래 `dogName` prop(첫 등록 아이)보다 항상 우선한다. */
   dogName?: string | null;
+  /** 서버 원상태 (bookings.status enum 원문). 표시 어휘(6종)가 뭉갠 구분을 문장이 쓴다 —
+   *  runner_enroute 와 confirmed 는 STATUS_MAP 에서 둘 다 'confirmed' 다 (api.ts:739). */
+  rawStatus?: string | null;
+  /** bookings.arrived_at — 러너가 문 앞에 선 시각. null = 아직 도착 보고 없음. */
+  arrivedAt?: string | null;
+}
+
+/** 경과 라벨 — '이 시각으로부터 지금까지'를 사람 말로. 값이 없거나, 파싱이 안 되거나, 1분 미만이면
+ *  **null** 이고 호출부는 그때 절을 통째로 뺀다. 「0분째」는 측정이 아니라 반올림이 만든 문장이고,
+ *  미래 소인(음수 경과)은 시계가 어긋났다는 뜻이지 사실이 아니다.
+ *
+ *  ⚠ 시계를 함수 안에 둔 이유는 lateness() 와 같다 — 화면이 렌더 중에 Date.now() 를 부르면
+ *  react-hooks/purity 가 잡고, 피하려고 상태로 올리면 컴파일러가 다른 데서 체한다
+ *  (lateness.ts:126, 실측 2026-08-21). 테스트는 계속 명시적으로 주입한다.
+ *
+ *  ⚠ 초 단위 루프는 없다. §6 이 유휴 모션을 금지하고, 이 값은 1분에 한 번만 바뀐다 — 홈이 이미
+ *  도는 세 경로(포커스 · 앱 복귀 · `bk-<id>` 실시간)가 재계산 시점이다. */
+export function elapsedLabel(iso: string | null | undefined, now: number = Date.now()): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const ms = now - t;
+  if (ms < 60_000) return null;
+  return sinceLabel(ms);
 }
 
 interface Props {
@@ -52,7 +77,11 @@ interface Props {
   dialKm: number;
   loadState: 'loading' | 'ready' | 'error';
   onRetry: () => void;
-  ddayLabel?: string | null;
+  /** [A① 2026-08-24 Sean] 히어로 1행이 쓰는 **상대 라벨** — 오늘 / 내일 / D-2. home.tsx 가
+   *  scheduled_at 에서 계산한다. 구 `ddayLabel` prop(서브라인 꼬리표)의 자리를 대신한다:
+   *  1행은 도달 불가능한 ≤4자 분기 탓에 실서버 행에서 **언제나 「곧」**이었고(:238 의 shortDate),
+   *  6일 뒤 예약도 「곧」이라고 말했다. 값이 없으면 null — 그때만 shortDate 로 떨어진다. */
+  relLabel?: string | null;
   /** 이 예약의 예정 시각이 이미 지났는가 (KST 날짜 칸 기준, home.tsx가 계산).
    *  ddayLabel = null 은 "카운트다운을 그리지 않는다"는 뜻일 뿐 "아직 안 왔다"는 뜻이 아니다 —
    *  그 둘을 한 채널에 뭉쳤던 것이 8월 4일 예약에 "시간에 맞춰 알려드려요"를 인쇄한 원인이다. */
@@ -79,7 +108,11 @@ const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 // 그래서 이름·장소처럼 길이를 모르는 값은 항상 2행이나 서브라인으로 간다.
 const MARK_W = 104;
 
-function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
+function Phrase({ top, bottom, df, topNum }: { top: string; bottom: string; df: any; topNum?: boolean }) {
+  // [A① 2026-08-24] 1행이 D-라벨일 때만 Oswald. 한글 라벨(오늘 · 내일)은 그대로 디스플레이 서체다 —
+  // Oswald 에는 한글 글리프가 없어 섞으면 한 줄 안에서 폴백이 갈린다.
+  // ⚠ 그때 lineHeight 는 43×1.2 = 51.6 위여야 한다 (BUG A: 어센더 잘림은 활자가 클수록 크게 보인다).
+  const nf = useNumFont();
   return (
     <View style={s.phw}>
       <View style={{ position: 'absolute', right: -2, top: -4, zIndex: 1 }} pointerEvents="none">
@@ -91,13 +124,16 @@ function Phrase({ top, bottom, df }: { top: string; bottom: string; df: any }) {
           accessibilityLabel="도그스하이"
         />
       </View>
-      <Text style={[s.phr, df, { paddingRight: MARK_W }]} numberOfLines={1}>{top}</Text>
+      <Text
+        style={[s.phr, topNum ? [nf, s.phrNum] : df, { paddingRight: MARK_W }]}
+        numberOfLines={1}
+      >{top}</Text>
       <Text style={[s.phr, df]} numberOfLines={1}>{bottom}</Text>
     </View>
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, late, liveWidget, onlineRunners = null }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -112,6 +148,13 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // 지금 찾기 = 요청 화면의 pickEarliest 경로. 새 화면 없음 — 홈이 그걸 묻어 두던 걸 그만둘 뿐.
   const findNow = () => { haptic('light'); clearNomination(); draft.autoEarliest = true; router.push('/owner/request'); };
   const schedule = () => { haptic('light'); clearNomination(); draft.autoEarliest = false; router.push('/owner/request'); };
+  // ⚠ [codex 2026-08-21] nextIsPast 는 **KST 캘린더 하루** 차이다 (ddayN < 0). 그래서 09:00 예약이
+  // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
+  // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
+  const isLate = late?.late ?? nextIsPast;
+  // ⚠ [워크플로 감사 2026-08-21] 이 선언은 openNext **위**에 있어야 한다. 아래에 두면 handoff
+  // 분기(:186)가 그 전에 return 하므로, 그 분기의 코랄 버튼이 openNext 를 부르는 순간 isLate 가
+  // TDZ 에 걸려 ReferenceError 로 죽는다 — 내가 isLate 를 도입하면서 만든 실제 크래시였다.
   const openNext = () => {
     if (!next) return;
     draft.bookingId = next.id;
@@ -174,6 +217,18 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   const when = next ? [next.dateLabel, next.timeLabel].filter(Boolean).join(' ') : '';
   const runner = next?.runnerName ? `${next.runnerName} 러너` : '러너';
 
+  // [A④ 2026-08-24 Sean, "how long runner has been…"] 화면이 이미 아는데 한 번도 말하지 않던 사실:
+  // **러너가 문 앞에 얼마나 서 있었는가**. 근거는 bookings.arrived_at 하나뿐이고, 없으면 절이 통째로
+  // 빠진다 — 「0분째」도, 추측한 도착 시각도 없다.
+  // ⚠ 이건 사실 한 줄이지 인계 CTA 게이팅이 아니다. 코랄이 arrived_at 에서 켜지는가(A) 아니면 홈이
+  // 도착에도 조용한가(B)는 여전히 Sean 의 재정 대기다 (docs/decisions/handoff-cta-gating.md) —
+  // 칩·버튼·상태 판정은 이 슬라이스에서 한 줄도 건드리지 않았다. 랩 ④ 의 두 프레임이 **공통으로**
+  // 더한 요소가 이 한 절이라서 A/B 어느 쪽으로 결정돼도 살아남는다.
+  const doorWait = next?.rawStatus === 'runner_enroute' && next.arrivedAt
+    ? elapsedLabel(next.arrivedAt)
+    : null;
+  const arrivedWaiting = next?.rawStatus === 'runner_enroute' && !!next.arrivedAt;
+
   const openChat = () => {
     haptic('light');
     if (next) router.push(`/chat?bid=${next.id}`);
@@ -211,10 +266,6 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
   // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
   // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
-  // ⚠ [codex 2026-08-21] nextIsPast 는 **KST 캘린더 하루** 차이다 (ddayN < 0). 그래서 09:00 예약이
-  // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
-  // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
-  const isLate = late?.late ?? nextIsPast;
   const chip =
     state === 'confirmed' ? (isLate
       // [T6] '지난 예약'만으로는 어제인지 16일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
@@ -232,13 +283,23 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
   // 시뮬레이터에서 봤다 — 내가 세운 드롭 법을 내가 어긴 것이다. dateLabel은 '오늘'(2자)일 수도
   // '8월 4일 (화)'(10자)일 수도 있으므로 1행에 올 수 없다. 짧을 때만 쓰고 아니면 '곧'으로
   // 접는다: 정확한 날짜는 어차피 바로 아래 17pt 서브라인이 말한다.
+  //
+  // ⚠⚠⚠ [A① 2026-08-24 Sean] 위 문단이 정확히 진단해 놓고도 고치지 못한 결함이 여기 있었다:
+  // dateLabel 은 서버 행에서 **항상** kstParts 산출물(「8월 26일 (화)」, 10자)이라 ≤4 분기가
+  // 실행되는 경우가 없다. 즉 확정 히어로의 1행은 언제나 「곧」이었고, 엿새 뒤 예약도 「곧」이라고
+  // 말했다. 화면이 필요로 한 짧고 참인 값은 이미 한 층 위에 있었다 — kstDayDiff 로 계산되어
+  // 서브라인 꼬리표로만 쓰이던 상대 라벨이다. 그 값을 1행으로 올린다 (relLabel).
+  // shortDate 는 폴백으로만 남는다: relLabel 이 null 인 경우 = scheduled_at 자체가 없는 행.
   const shortDate = next?.dateLabel && next.dateLabel.length <= 4 ? next.dateLabel : '곧';
+  const topLine = relLabel ?? shortDate;
+  // D-n 만 숫자다 (오늘 · 내일 · 곧 은 한글). 서체 전환의 근거는 라벨의 **모양**이지 상태가 아니다.
+  const topIsNum = state === 'confirmed' && !isLate && /^D-\d+$/.test(topLine);
   const phrase =
     state === 'confirmed'
       // ⚠ [codex 2026-08-21] 헤드라인만 nextIsPast 로 남아 있었다 — 칩·서브라인·버튼은 isLate 로
       // 옮겼는데 여기를 빠뜨렸다. 그 결과 10:00 예약을 10:31 에 보면 칩은 「지난 예약」, 서브라인은
       // 「러너가 도착하지 않았어요」, 헤드라인은 「오늘 초코가 달려요」였다. 한 화면이 자기를 반박했다.
-      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: shortDate, bottom: `${name}가 달려요` })
+      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${name}가 달려요` })
       : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
         : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
           : { top: '오늘은 아직', bottom: '비어 있어요' };
@@ -251,11 +312,18 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
         // ⚠ 여기서 수수료를 말하지 않는다. 취소는 사다리가 있고(0066), 그 숫자는 조건이 적힌
         // 일정 시트가 말한다 — 히어로가 값을 주장하면 그게 거짓말이 된다 (:256 의 기존 규칙).
         late?.late && late.waitingOn === 'owner'
-          ? `${when} · 러너가 도착했지만 인계되지 않았어요`
+          // [A④] 「도착했지만 인계되지 않았어요」는 참이지만 **얼마나**를 말하지 않았다. 그 값도
+          // 이미 있다 (lateness().waitMs 와 같은 근거인 arrived_at). 1분 미만이면 절이 빠진다.
+          ? `${when} · 러너가 도착했지만 인계되지 않았어요${doorWait ? ` · ${doorWait}째 문 앞이에요` : ''}`
           : late?.late
             ? `${when} · 러너가 도착하지 않았어요`
             : `${when}에 시작하지 못했어요`)
-        : `${when ? when + ' · ' : ''}${runner} 확정${ddayLabel ? ' · ' + ddayLabel : ''}`)
+        // [A④] 아직 늦지 않았어도 러너가 도착해 있으면 그게 이 순간의 사실이다 — 「확정」은
+        // 그때 이미 지난 이야기다. arrived_at 이 없으면(= 오는 중) 문장은 그대로 확정 줄이다.
+        : arrivedWaiting
+          ? `${runner}가 도착했어요${doorWait ? ` · ${doorWait}째 문 앞이에요` : ''}`
+          // [A①] D-라벨 꼬리표가 빠졌다 — 이제 1행이 그 값을 말한다. 한 화면에 두 번 쓰지 않는다.
+          : `${when ? when + ' · ' : ''}${runner} 확정`)
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
           : `${name}와 달릴 시간을 잡아보세요`;
@@ -277,7 +345,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
         <View style={[s.chipDot, { backgroundColor: chip.c }]} />
         <Text style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
       </View>
-      <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
+      <Phrase top={phrase.top} bottom={phrase.bottom} df={df} topNum={topIsNum} />
       <Text style={s.sub}>{subline}</Text>
 
       <View style={s.opts}>
@@ -335,7 +403,9 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, borderWidth: 1, borderColor: '#F0CFC6',
     paddingVertical: 9, paddingHorizontal: 11, marginTop: 8,
   },
-  lateStripTx: { flex: 1, fontSize: 13, fontWeight: '700', color: paper.critical, lineHeight: 18 },
+  // [타입 플로어 2026-08-24] 13 → 14. 한글은 레터스페이스 라틴 킥커 면제를 타지 못한다 (DESIGN.md §3,
+  // 2026-08-10 감사 법) — 그리고 이건 크리티컬 문장이라 가장 작으면 안 되는 줄이다.
+  lateStripTx: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.critical, lineHeight: 19 },
   alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
   alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
   alertAct: { fontSize: 14, fontWeight: '800' },
@@ -343,11 +413,16 @@ const s = StyleSheet.create({
   // 상태 칩 · 마크가 내려앉는 문구 · 서브라인 · 그림 버튼들.
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
   chipDot: { width: 9, height: 9, borderRadius: 5 },
-  chipTx: { fontSize: 13, fontWeight: '800', letterSpacing: 1.4 },
+  // [타입 플로어 2026-08-24] 13 → 14, 트래킹 1.4 → 0.6. 칩 문구는 전부 한글(확정됨 · 내 차례 ·
+  // 찾는 중 · 응답 대기)이고 한글은 킥커 면제 밖이다. 랩의 모든 변형 프레임이 이 값으로 그려졌다.
+  chipTx: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.6 },
   phw: { marginTop: 6, minHeight: 108 },
   // 38pt 디스플레이 — 이 화면의 Black Han Sans 사용 1회. 마스트헤드 워드마크는
   // home.tsx에서 본문 900으로 내려가 §3의 '화면당 1회' 예산을 지킨다.
   phr: { fontSize: 43, lineHeight: 50, color: paper.ink, fontWeight: '400' },
+  // D-라벨 전용 — Oswald 는 어센더가 높아 43×1.16(=50)에서 잘린다 (BUG A). 1.21× 로 올린다.
+  // 두 줄 합계 102 < phw.minHeight 108 이라 레이아웃은 그대로다.
+  phrNum: { lineHeight: 52 },
   sub: { fontSize: 17, color: paper.dim, marginTop: 10, lineHeight: 24 },
   opts: { marginTop: 14, gap: 10 },
 });

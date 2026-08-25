@@ -60,6 +60,46 @@ for (const s of ['matching', 'runner_pending', 'draft', 'quoted', 'payment_hold'
      lateness(B('picked_up', T0 + 60 * MIN), T0).custody === 'post');
 }
 
+// ───────────────────────────────────────────── custody mirrors the SERVER predicate (F7)
+// [2026-08-24] The client drew the D3 line with `status in (picked_up, active)`. The server
+// (`_checkin_custody`, 0117:159-170) draws it with TWO clauses and looks at the stamps FIRST:
+//     status in (confirmed, runner_enroute, picked_up, active) AND both stamps  -> 'post'
+//     status in (confirmed, runner_enroute)                                     -> 'pre'
+//     status in (picked_up, active)                                             -> 'post'
+// The gap is reachable, not theoretical: transition-booking/index.ts:315-322 writes the stamp
+// and the promotion as two separate calls, so both stamps can land while status stays
+// runner_enroute. Under the old predicate the server called that booking post-custody (and
+// refused no_show) while the client called it pre-custody and told the owner 「러너님이 문 앞에서
+// 기다려요」 — about a dog already in the runner's hands. One rule, two implementations; these
+// pins are what keep them one rule.
+{
+  const late = T0 - 60 * MIN;
+  const stamp = iso(T0 - 30 * MIN);
+
+  // the divergence itself
+  t('runner_enroute + BOTH stamps is POST-custody (server parity)',
+     lateness(B('runner_enroute', late, { ownerHandoffAt: stamp, runnerHandoffAt: stamp }), T0)
+       .custody === 'post');
+  t('confirmed + BOTH stamps is POST-custody (server parity)',
+     lateness(B('confirmed', late, { ownerHandoffAt: stamp, runnerHandoffAt: stamp }), T0)
+       .custody === 'post');
+
+  // one stamp is the NORMAL interval, not custody — F1's whole point. It must NOT promote.
+  t('runner_enroute + owner stamp only stays pre-custody',
+     lateness(B('runner_enroute', late, { ownerHandoffAt: stamp }), T0).custody === 'pre');
+  t('runner_enroute + runner stamp only stays pre-custody',
+     lateness(B('runner_enroute', late, { runnerHandoffAt: stamp }), T0).custody === 'pre');
+
+  // the status clause still stands on its own — a promotion whose stamps were lost is still custody
+  t('picked_up with NO stamps is still POST-custody',
+     lateness(B('picked_up', late), T0).custody === 'post');
+
+  // a reader that loads neither column gets the status-only answer, unchanged from before
+  t('absent stamp fields fall back to the status clause',
+     lateness(B('runner_enroute', late), T0).custody === 'pre'
+       && lateness(B('active', late, { km: 5 }), T0).custody === 'post');
+}
+
 // ───────────────────────────────────────────── who are we waiting on
 // The asymmetric case D4 exists for: the runner travelled and is at the door, and the owner is
 // not answering. arrived_at is the ONLY signal that separates it from "runner never came".

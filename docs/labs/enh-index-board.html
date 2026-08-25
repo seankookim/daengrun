@@ -1,0 +1,1712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enhancement Labs — Index Board (2026-08-24)</title>
+<style>
+/* ══ NEW HEXES: 0. Every colour below is a theme.ts token. ══════════════════════════
+   paper   #FFFFFF canvas · #FBFAF7 canvasSoft · #111111 ink · #333333 text · #666666 dim
+           #999999 faint · #E8552F line · #FFF6F4 wash · #B3261E critical · #FBEAE7 criticalWash
+           #F2F2F2 disabledFill · #C77414 pending · #C6472C action · #A83315 actionPressed/actionInk
+           #119B58 ready · #0E7F49 readyDeep
+   lilac   #221E3D head · #4B4668 text · #7C76A0 dim · #6C5CE7 accent · #EFECF9 inset
+           #E6E2F4 hair · #1C1837 night · #F0765A coral · #FBEED9 amberSoft · #F2DFC2 amberEdge
+           #4A3DA8 clubInk (the 'frozen surface' chip)
+   house-lab neutrals already used by every enh-* lab: #EEEEEE · #DEDCD6
+   Hex values appearing inside <code> in the prose (#D9A93C, #f2c14e, #5a7a3c) are QUOTED — they are
+   values under discussion, not colours applied to this page.
+   LANGUAGE: all commentary English. Korean appears only where it is a real product string —
+   screen titles and variant names as they render in the app.
+   TYPE: this board has no phone frames, so it carries no product type. Lab chrome is still
+   kept >= 14px except (a) LATIN letterspaced uppercase kickers and (b) monospace file paths,
+   which are the serial-string class. DISPLAY FONT: Black Han Sans used ONCE (the h1). */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#FBFAF7;color:#111111;padding:38px 22px 110px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1420px;margin:0 auto}
+
+h1{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:400;font-size:38px;line-height:1.2;letter-spacing:-.01em}
+.law{font-size:11.5px;letter-spacing:2.4px;color:#999999;text-transform:uppercase;margin:12px 0 16px;font-weight:700}
+.lede{font-size:15px;color:#666666;line-height:1.78;max-width:1000px}
+.lede b{color:#111111;font-weight:700}
+
+.warnbox{border:1.5px solid #C6472C;background:#FFFFFF;padding:16px 18px;margin:22px 0 0;max-width:1080px}
+.warnbox h4{font-size:11.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#C6472C;margin:0 0 9px}
+.warnbox p{font-size:14.5px;line-height:1.72;color:#333333}
+.warnbox p+p{margin-top:9px}
+.warnbox b{color:#111111}
+
+.note{background:#FFFFFF;border:1px solid #E6E2F4;padding:15px 17px;margin:18px 0 0;font-size:14px;line-height:1.7;max-width:1080px;color:#4B4668}
+.note h4{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin:0 0 8px}
+.note b{color:#111111}
+
+code{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12.5px;background:#FBFAF7;padding:1px 4px;color:#333333;
+  overflow-wrap:break-word}
+/* Tables carry long field names; never let one push the page sideways. */
+.sheet,.cost{table-layout:auto}
+.sheetwrap,.costwrap{overflow-x:auto}
+
+h2.band{margin:60px 0 5px;padding-top:22px;border-top:1px solid #E8552F;font-size:24px;font-weight:800;letter-spacing:-.01em}
+h2.band span.n{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;
+  color:#E8552F;font-weight:700;font-size:24px;line-height:30px;margin-right:11px}
+h2.band span.tag{font-weight:600;color:#7C76A0;font-size:14px;margin-left:10px;
+  font-family:'SF Mono',ui-monospace,Menlo,monospace}
+.bandsub{font-size:14.5px;color:#666666;line-height:1.74;max-width:1040px;margin-top:8px}
+.bandsub b{color:#111111}
+
+/* ───────── nav ───────── */
+.nav{display:flex;flex-wrap:wrap;gap:0;margin-top:26px;border-top:1px solid #E8552F;border-bottom:1px solid #E8552F}
+.nav a{flex:1;min-width:150px;padding:13px 12px;font-size:14px;font-weight:800;color:#111111;text-decoration:none;
+  border-right:1px solid #EEEEEE;line-height:1.4}
+.nav a:last-child{border-right:0}
+.nav a span{display:block;font-size:11.5px;letter-spacing:1.6px;text-transform:uppercase;color:#999999;font-weight:700;margin-bottom:3px}
+
+/* ───────── pick sheet ───────── */
+.sheet{width:100%;border-collapse:collapse;margin-top:8px}
+.sheet thead th{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:#666666;font-weight:800;
+  text-align:left;padding:9px 10px;border-bottom:1.5px solid #111111;vertical-align:bottom}
+.sheet tbody td{border-bottom:1px solid #EEEEEE;padding:12px 10px;vertical-align:top}
+.sheet tbody tr.labhead td{background:#FFF6F4;border-top:1px solid #E8552F;border-bottom:1px solid #E8552F;padding:9px 10px}
+.sheet tbody tr.labhead td b{font-size:15px;font-weight:800;color:#111111}
+.sheet tbody tr.labhead td a{font-size:14px;font-weight:800;color:#A83315;text-decoration:none;margin-left:12px}
+.sheet tbody tr.labhead td a:hover{text-decoration:underline}
+.sheet tbody tr.labhead td em{font-style:normal;font-size:14px;color:#666666;font-weight:600;margin-left:12px}
+.scrn{width:230px}
+.scrn .kr{font-size:15.5px;font-weight:800;line-height:1.35;color:#111111}
+.scrn .pth{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12.5px;color:#7C76A0;margin-top:3px;line-height:1.5}
+.scrn .frz{display:inline-block;margin-top:5px;background:#EFECF9;color:#4A3DA8;font-size:14px;font-weight:800;padding:1px 7px}
+.vars{display:flex;flex-wrap:wrap;gap:7px}
+.v{display:flex;align-items:baseline;gap:7px;border:1px solid #EEEEEE;background:#FFFFFF;padding:7px 10px 8px;flex:1 1 210px;min-width:200px}
+.v .no{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;
+  font-size:22px;line-height:28px;font-weight:700;color:#C6472C;flex:0 0 auto}
+.v .tt{font-size:14px;line-height:1.5;color:#333333;font-weight:600}
+.v.sv{background:#FBFAF7}
+.v.sv .no{color:#7C76A0;font-size:18px;line-height:23px}
+.pick{width:170px}
+.pick .box{border:1px solid #DEDCD6;background:#FFFFFF;height:58px;position:relative}
+.pick .box::after{content:'';position:absolute;left:12px;right:12px;bottom:14px;border-bottom:1px dotted #DEDCD6}
+
+/* ───────── lab cards ───────── */
+.cards{display:flex;flex-wrap:wrap;gap:18px;margin-top:24px}
+.card{width:334px;border:1px solid #EEEEEE;background:#FFFFFF;display:flex;flex-direction:column}
+.card .top{border-bottom:1px solid #E8552F;padding:14px 15px 12px}
+.card .kick{font-size:11.5px;letter-spacing:2px;text-transform:uppercase;color:#999999;font-weight:700}
+.card h3{font-size:18px;font-weight:800;line-height:1.34;margin-top:6px;letter-spacing:-.01em}
+.card .mid{padding:13px 15px 14px;flex:1}
+.card .stats{display:flex;gap:22px;margin-bottom:11px}
+.card .stat .k{font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:#999999;font-weight:700}
+.card .stat .n{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;
+  font-size:26px;line-height:33px;font-weight:700;color:#111111}
+.card .scrns{font-size:14px;line-height:1.68;color:#666666}
+.card .scrns b{color:#111111;font-weight:700}
+.card .bot{border-top:1px solid #EEEEEE;padding:0}
+.card .bot a{display:block;padding:13px 15px;font-size:15px;font-weight:800;color:#FFFFFF;background:#C6472C;text-decoration:none}
+.card .bot a:hover{background:#A83315}
+.card .flag{font-size:14px;line-height:1.6;padding:9px 15px;border-top:1px solid #EEEEEE}
+.card .flag.pay{background:#FBEED9;color:#9D580A;font-weight:700}
+.card .flag.free{background:#FFFFFF;color:#0E7F49;font-weight:700}
+
+/* ───────── cost table ───────── */
+.cost{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
+.cost thead th{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:#666666;font-weight:800;
+  text-align:left;padding:9px 10px;border-bottom:1.5px solid #111111;vertical-align:bottom}
+.cost tbody td{border-bottom:1px solid #EEEEEE;padding:11px 10px;vertical-align:top;line-height:1.62}
+.cost tbody tr.tierhead td{background:#FBFAF7;border-top:1px solid #E8552F;padding:10px}
+.cost tbody tr.tierhead td b{font-size:15px;font-weight:800}
+.cost tbody tr.tierhead td em{font-style:normal;color:#666666;font-weight:600;margin-left:10px;font-size:14px}
+.cost .what{width:270px;font-weight:700;color:#111111}
+.cost .who{width:132px;color:#7C76A0;font-weight:700;font-size:14px}
+.cost .drawn{width:96px;font-weight:800}
+.cost .yes{color:#0E7F49}
+.cost .no{color:#B3261E}
+.cost .cond{color:#9D580A}
+
+/* ───────── open questions ───────── */
+.qgrp{margin-top:28px}
+.qgrp h3{font-size:17px;font-weight:800;padding-bottom:7px;border-bottom:1.5px solid #111111}
+.q{display:flex;gap:14px;padding:13px 2px;border-bottom:1px solid #EEEEEE;align-items:flex-start}
+.q .qn{font-family:Oswald,'Roboto Condensed','Arial Narrow','SF Mono',ui-monospace,monospace;
+  font-size:19px;line-height:25px;font-weight:700;color:#C6472C;flex:0 0 38px}
+.q .qb{flex:1;font-size:14.5px;line-height:1.7;color:#333333}
+.q .qb b{color:#111111}
+.q .qb .src{display:inline-block;font-size:14px;font-weight:700;color:#7C76A0;margin-left:7px}
+.q .qb .opts{display:block;margin-top:5px;font-size:14px;color:#666666}
+.q .qb .opts b{color:#A83315}
+
+.foot{margin-top:70px;padding-top:22px;border-top:1px solid #E8552F;font-size:14px;color:#666666;line-height:1.85;max-width:1040px}
+.foot b{color:#111111}
+
+@media print{
+  body{background:#FFFFFF;padding:0}
+  .nav,.cards,.card{display:none}
+  .sheet{page-break-inside:auto}
+  .sheet tbody tr{page-break-inside:avoid}
+}
+</style></head>
+<body><div class="wrap">
+
+<h1>Ten enhancement labs, fifty-three screens, one pick sheet</h1>
+<div class="law">index board · 2026-08-24 · 10 labs · 53 screens · 142 variants · 0 new hexes</div>
+
+<p class="lede">Ten enhancement labs were drawn against the shipped screen source, one cluster each.
+This board exists so a pick can be made in one pass: <b>the pick sheet below lists every screen once,
+with its numbers</b>, so the answer can be written straight down the page — “owner/home ②, runner/home ①”.
+Everything else here (the lab cards, the cost sheet, the open questions) is reference for when a number
+is not obvious.</p>
+
+<div class="warnbox">
+  <h4>Read this before picking</h4>
+  <p><b>These are mocks. Nothing in any lab is bound to real data.</b> Every number, name, time and
+  photo inside a phone frame is a fixture shaped like its real field — <code>bookings.scheduled_at</code>,
+  <code>runs.actual_km</code>, <code>ledger_items.amount</code> — and the labs annotate which field would
+  bind it. This is the sanctioned mockup arena (CLAUDE.md §Honesty: “HTML labs in <code>docs/labs/</code>
+  are the sanctioned mockup arena”). <b>Implementation binds real fields only.</b> A picked variant that
+  cannot reach a real field either loses the element or moves onto the cost sheet below — it never ships
+  with the fixture.</p>
+  <p><b>Nothing here was rendered on a simulator.</b> Contrast figures quoted inside the labs are WCAG
+  relative-luminance computations from <code>theme.ts</code> hex values, not device readings. Layout fit
+  on a 390pt device is flagged as unmeasured wherever a lab was unsure — those are five-minute
+  simulator checks, not findings.</p>
+  <p><b>Zero new colours across all ten labs.</b> The style freeze (no new aesthetics until 50 paying
+  dogs) held: every hex in every frame is already in <code>theme.ts</code> or already shipping in the
+  screen file being redrawn.</p>
+</div>
+
+<div class="nav">
+  <a href="#pick"><span>The artifact</span>① PICK SHEET</a>
+  <a href="#labs"><span>Where they live</span>② THE TEN LABS</a>
+  <a href="#cost"><span>Cannot ship as client-only</span>③ NEEDS NEW SERVER DATA</a>
+  <a href="#q"><span>Undecidable from code</span>④ OPEN QUESTIONS</a>
+  <a href="#how"><span>Legend</span>⑤ HOW TO READ A ROW</a>
+</div>
+
+
+<!-- ═══════════════════════════════ 1. PICK SHEET ═══════════════════════════════ -->
+<h2 class="band" id="pick"><span class="n">①</span>PICK SHEET<span class="tag">53 screens · 142 variants · write down the right-hand column</span></h2>
+<p class="bandsub">Every screen appears exactly once. <b>「없음」 is a valid answer on any row</b> — the
+현재 frame in each lab is the do-nothing option and several screens are already correct. Sub-arms
+(③b, ④A/④B, ④a/④b) are drawn as separate frames inside their lab and can be picked independently of
+the parent number where the lab says so — which is why the two owner-home rows print eleven chips for
+eight variants. Every other row prints one chip per variant.</p>
+
+<div class="sheetwrap"><table class="sheet">
+<thead><tr>
+  <th class="scrn">Screen</th>
+  <th>Variants — number · what it argues</th>
+  <th class="pick">Pick</th>
+</tr></thead>
+<tbody>
+
+<!-- LAB 1 -->
+<tr class="labhead"><td colspan="3"><b>OWNER HOME + SCHEDULE</b>
+  <a href="enh-owner-home-lab.html">enh-owner-home-lab.html ›</a>
+  <em>2 screens · 8 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">보호자 홈</div><div class="pth">app/owner/home.tsx<br>src/components/home-hero.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">다음 일정 rail — hero says one, the rest get a quiet rail; kills the unreachable 「곧」</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">이번 주 — the weekday stamps the server already sends; absorbs the 주간 목표 nudge</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">코다 3단 — restore hierarchy among the drawing buttons</span></div>
+    <div class="v sv"><span class="no">③b</span><span class="tt">font-budget arm only (no tier change, ticker move included)</span></div>
+    <div class="v"><span class="no">④A</span><span class="tt">인계의 순간 — coral fires at runner_enroute (decision doc answer A)</span></div>
+    <div class="v"><span class="no">④B</span><span class="tt">인계의 순간 — arrival is quiet, only the completion wording is corrected (answer B)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">내 일정</div><div class="pth">app/owner/schedule.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">다가오는 순서 — soonest first, past drops below</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">지금 — an in-flight booking is not a list item</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">문 하나 — entry points tidied, the empty screen made honest</span></div>
+    <div class="v"><span class="no">④a</span><span class="tt">완료 = 영수증, silent arm — no money claim, costs nothing</span></div>
+    <div class="v"><span class="no">④b</span><span class="tt">완료 = 영수증, real charged amount — +1 list-level read on payments</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 2 -->
+<tr class="labhead"><td colspan="3"><b>OWNER BOOKING FLOW</b>
+  <a href="enh-owner-booking-lab.html">enh-owner-booking-lab.html ›</a>
+  <em>6 screens · 20 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">러닝 요청</div><div class="pth">app/owner/request.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">R①</span><span class="tt">the dock carries the money and the cancel-fee ladder</span></div>
+    <div class="v"><span class="no">R②</span><span class="tt">the dock says <i>why</i> it is not 러너 찾기</span></div>
+    <div class="v"><span class="no">R③</span><span class="tt">명세 leaves the fold — the fee card comes out from behind 페이스 · 옵션</span></div>
+    <div class="v"><span class="no">R④</span><span class="tt">시간을 한 탭으로 — the sheet stops being the only door</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 선택 / 러너 변경</div><div class="pth">app/owner/matching.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">M①</span><span class="tt">paper repaint — chrome only, every predicate intact</span></div>
+    <div class="v"><span class="no">M②</span><span class="tt">원값이 크고, 매치 %는 순위가 된다 (demote a computed claim)</span></div>
+    <div class="v"><span class="no">M③</span><span class="tt">시트를 접는다 — the roster gets the screen back</span></div>
+    <div class="v"><span class="no">M④</span><span class="tt">0명일 때 문이 있는 화면</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">결제 · 청구</div><div class="pth">app/owner/pay.tsx</div><div class="frz">no door today</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">P①</span><span class="tt">문을 하나 낸다 — 결제 내역 reachable from 내 일정</span></div>
+    <div class="v"><span class="no">P②</span><span class="tt">영수증답게 — what the charge is <i>for</i>, first</span></div>
+    <div class="v"><span class="no">P③</span><span class="tt">실패와 환불이 사실을 말한다 (copy half free; refund arm needs a read)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">일정 변경</div><div class="pth">app/owner/reschedule.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">S①</span><span class="tt">paper repaint — three off-tokens become the tokens they already equal</span></div>
+    <div class="v"><span class="no">S②</span><span class="tt">요일에 표시를 — stop tapping seven days blind</span></div>
+    <div class="v"><span class="no">S③</span><span class="tt">확인 중 · 확인 실패를 한 줄로</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">픽업 위치 핀</div><div class="pth">app/owner/address-pin.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">N①</span><span class="tt">확정 버튼을 액션 토큰으로 — a role fix, measured</span></div>
+    <div class="v"><span class="no">N②</span><span class="tt">지오코딩이 이미 준 것을 버리지 않는다 (drift line + roadAddress)</span></div>
+    <div class="v"><span class="no">N③</span><span class="tt">지도가 없을 때도 끝낼 수 있게 (map-less spot list)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">주소 관리</div><div class="pth">app/owner/addresses.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">A①</span><span class="tt">코랄 텍스트를 읽는 코랄로</span></div>
+    <div class="v"><span class="no">A②</span><span class="tt">주소를 저장 전에 확인한다 (single-match confirm; N-match chooser = server slice)</span></div>
+    <div class="v"><span class="no">A③</span><span class="tt">보이지 않는 제스처를 보이는 행으로</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 3 -->
+<tr class="labhead"><td colspan="3"><b>OWNER LIVE + MEETUP</b>
+  <a href="enh-owner-live-lab.html">enh-owner-live-lab.html ›</a>
+  <em>4 screens · 12 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 찾는 중</div><div class="pth">app/owner/radar.tsx</div><div class="frz">Sean-picked frame</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">R①</span><span class="tt">목록이 화면이다 — runner facts already fetched and discarded</span></div>
+    <div class="v"><span class="no">R②</span><span class="tt">기다림의 그림이 상태를 따른다 (changes the ripple’s behaviour)</span></div>
+    <div class="v"><span class="no">R③</span><span class="tt">한 컬럼 — the ceremony folds to a notice line (retires the ring)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">인계</div><div class="pth">app/owner/meetup.tsx</div><div class="frz">FROZEN — restyle only</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">M①</span><span class="tt">아이도 이 화면에 있다 — the dog’s identity block</span></div>
+    <div class="v"><span class="no">M②</span><span class="tt">소인에 시각이 남는다 (needs a hook-bundle append — Sean’s call)</span></div>
+    <div class="v"><span class="no">M③</span><span class="tt">도착 모드 — at the door the chrome folds</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">라이브 런</div><div class="pth">app/owner/live.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">L①</span><span class="tt">지도를 돌려준다 — a two-detent island</span></div>
+    <div class="v"><span class="no">L②</span><span class="tt">지금 페이스 / 평균 페이스 (may amend pace-state-ui-plan §1)</span></div>
+    <div class="v"><span class="no">L③</span><span class="tt">누구의 러닝인지 — a custody header</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">코스 지도</div><div class="pth">app/owner/course-map.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">C①</span><span class="tt">순서에 이유를 붙인다 (distance per row, hedged)</span></div>
+    <div class="v"><span class="no">C②</span><span class="tt">선이 무엇인지 선으로 말한다 — BLOCKED on an SDK capability check</span></div>
+    <div class="v"><span class="no">C③</span><span class="tt">칩은 시트로, 지도는 지도로</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 4 -->
+<tr class="labhead"><td colspan="3"><b>OWNER RECORDS + DOG</b>
+  <a href="enh-owner-records-lab.html">enh-owner-records-lab.html ›</a>
+  <em>4 screens · 13 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">체력 리포트</div><div class="pth">app/owner/fitness.tsx</div><div class="frz">FROZEN hero — restyle only</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">한 번만 인쇄한다 — each count printed once</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">목표선 — the weekly goal as a line, not a sentence</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">나이를 더 세게 — hero restyle; converts the film edge to a latin serial</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러닝 리포트</div><div class="pth">app/owner/report.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">별점이 진실을 안다 — the star row knows whether a review exists</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">멈춘 러닝은 이유가 먼저 — TOUCHES RULING #11, needs an explicit yes</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">하나의 초록, 하나의 세계 — the lilac 하이 포인트 strip goes paper</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">기록은 한 번, 크게 — a lifetime PR spends gold</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 후기</div><div class="pth">app/owner/review.tsx</div><div class="frz">unmigrated</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">종이로 이관 — paper chrome</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">질문 하나씩 — a progressive form (run identity line is severable)</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">이미 남긴 후기 — the already-written state (shares ①’s new read)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">반려견 프로필</div><div class="pth">app/owner/dog.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">네 개의 섹션</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">저장의 진실 — inline validation replaces an after-save Alert</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">이 칸이 무엇을 여는가 — fields name what they unlock (+1 route param)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 5 -->
+<tr class="labhead"><td colspan="3"><b>RUNNER HOME + JOBS</b>
+  <a href="enh-runner-home-lab.html">enh-runner-home-lab.html ›</a>
+  <em>4 screens · 13 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 홈</div><div class="pth">app/runner/home.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the quiet day explains itself</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the front request becomes an object (needs OpenRequest.scheduledAt)</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">오늘 — one line above 이번 주 (spends a fact twice, deliberately)</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">the online switch says what it actually does</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">요청함</div><div class="pth">app/runner/requests.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">an applicant is told the truth (tier &lt;&gt; applicant = zero requests)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the deadline the footer already promises</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">겹침 — the accept gate mirrored before the tap</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">캘린더</div><div class="pth">app/runner/calendar.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">today first, then the rest</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the board says the next run, not 「준비 완료」</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">the completed ticket gets real doors — and 정산 예정, not 정산됨</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">가능 시간</div><div class="pth">app/runner/availability.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">what these rules actually govern</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the save bar says what it will overwrite</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">the two gates that already run, made visible (needs a client API pair)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 6 -->
+<tr class="labhead"><td colspan="3"><b>RUNNER RUN FLOW</b>
+  <a href="enh-runner-run-lab.html">enh-runner-run-lab.html ›</a>
+  <em>4 screens · 12 variants · numbered ①–⑫ across the whole flow</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">인계 화면</div><div class="pth">app/runner/meetup.tsx</div><div class="frz">FROZEN — restyle only</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">문 먼저 — the action zone above the ceremony</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">천장 프레임에 회복 문을 준다 (3h ceiling recovery doors)</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">빈 지도 판은 300pt를 못 받는다 (only when hasCoords is false)</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">봉인은 「순간」에만 커진다</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러닝 화면</div><div class="pth">app/runner/run.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">⑤</span><span class="tt">스트립은 종이 쪽에, 패널은 숫자만</span></div>
+    <div class="v"><span class="no">⑥</span><span class="tt">천장에 닿으면 문이 하나만 남는다</span></div>
+    <div class="v"><span class="no">⑦</span><span class="tt">「—」가 이유를 말한다 · 도장이 살아남는다</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">완료 화면</div><div class="pth">app/runner/done.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">⑧</span><span class="tt">실패가 먼저 · 완주 소인은 남는다</span></div>
+    <div class="v"><span class="no">⑨</span><span class="tt">케어 기록이 완료 화면에 남는다</span></div>
+    <div class="v"><span class="no">⑩</span><span class="tt">출구 셋을 둘로 — and coral moves to 리뷰 남기기</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">리뷰 화면</div><div class="pth">app/runner/review.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">⑪</span><span class="tt">제목을 규격으로 · 별점이 말을 한다 (five star labels)</span></div>
+    <div class="v"><span class="no">⑫</span><span class="tt">메모를 쓰는 동안에도 문이 보인다</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 7 -->
+<tr class="labhead"><td colspan="3"><b>RUNNER MONEY + PROGRESS</b>
+  <a href="enh-runner-money-lab.html">enh-runner-money-lab.html ›</a>
+  <em>3 screens · 12 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">수익</div><div class="pth">app/runner/earnings.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">기간을 되찾다 — 이번 주 · 이번 달 · 누적</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">한 러닝의 산수 — the token row becomes an arithmetic</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">거리는 실제 뛴 거리, 보상은 보상이라고 쓴다</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">지급 — three scattered sentences into one block</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">리워드 센터</div><div class="pth">app/runner/rewards.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">포인트 내역 — ten rows already fetched, finally drawn</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">픽 드랍은 두 번 눌러야 하고, 셋이 뭔지 말해야 한다 (부스트 honesty)</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">다음에 오는 드랍이 뭔지 정확히 말한다</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">지금 내가 가진 것 · 적립 규칙은 진짜 금액으로</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">인증 센터</div><div class="pth">app/runner/apply.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">§PROCESS가 내 상태를 안다 — the two knowable steps only</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">기다림에 숫자를 준다 — 접수 N일째</span></div>
+    <div class="v"><span class="no">③</span><span class="tt">폼 오류가 그 칸 옆에서 난다</span></div>
+    <div class="v"><span class="no">④</span><span class="tt">열 칸의 벽을 두 장으로</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 8 -->
+<tr class="labhead"><td colspan="3"><b>CLUB SURFACES</b>
+  <a href="enh-club-lab.html">enh-club-lab.html ›</a>
+  <em>8 screens · 16 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">하이클럽 홈</div><div class="pth">app/club/[id].tsx</div><div class="frz">mid-migration</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">C①</span><span class="tt">활자 예산과 14pt 바닥 — retires display type from the doors</span></div>
+    <div class="v"><span class="no">C②</span><span class="tt">티켓이 내 시계를 먼저 말한다 (a third identity on the coral door)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">세션 셸</div><div class="pth">app/club/session/[sid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">S①</span><span class="tt">시계가 있는 블록이 맨 위로 (a coral-priority rule)</span></div>
+    <div class="v"><span class="no">S②</span><span class="tt">취소 규정 — the arm I am standing in right now (money ruling first)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">위탁 승낙서</div><div class="pth">app/club/delegate/[sid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">D①</span><span class="tt">조항이 종이 안에서 끝난다</span></div>
+    <div class="v"><span class="no">D②</span><span class="tt">무엇에 서명하는지 종이가 말한다 (watch the fold on 375dp)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">입장권</div><div class="pth">app/club/pass/[sid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">P①</span><span class="tt">티켓이 서버의 숫자를 쓴다</span></div>
+    <div class="v"><span class="no">P②</span><span class="tt">도장은 한 번 찍힌다 · 엄지가 닿는 곳에 (is check-in a 4th ceremony?)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">호스트 콘솔</div><div class="pth">app/club/console/[sid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">K①</span><span class="tt">지금 할 일 — a triage head (a second counter of the same arrays)</span></div>
+    <div class="v"><span class="no">K②</span><span class="tt">배정판 — the reason stops hiding behind the name</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">클럽 러닝</div><div class="pth">app/club/run/[sid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">R①</span><span class="tt">종료는 아이를 고르고 시작한다</span></div>
+    <div class="v"><span class="no">R②</span><span class="tt">팔 길이에서 읽히는 러닝 (moves the emergency number out of the dog row)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">케이스</div><div class="pth">app/club/case/[cid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">A①</span><span class="tt">무엇이 멈춰 있는지 머리에서 말한다 — needs subject labels on the RPC</span></div>
+    <div class="v"><span class="no">A②</span><span class="tt">결정 카드 — 근거가 버튼 위에 있다</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">완료 영수증</div><div class="pth">app/club/receipt/[bid].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">T①</span><span class="tt">인화는 한 장이 아니다 (photos inside the capture = new gate work)</span></div>
+    <div class="v"><span class="no">T②</span><span class="tt">공유 문이 미리 대답한다</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 9 -->
+<tr class="labhead"><td colspan="3"><b>SOCIAL + SHARED SURFACES</b>
+  <a href="enh-social-lab.html">enh-social-lab.html ›</a>
+  <em>9 screens · 18 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">동네 피드</div><div class="pth">app/community.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">masthead says what the query says (deletes the 우리 동네 claim)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the photo is a photo; the record is a line</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">피드 자랑하기</div><div class="pth">app/compose.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the attach door always exists, and names its state</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the picker stops claiming 완주 and a distance it does not have</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">동네 랭킹</div><div class="pth">app/leaderboard.tsx</div><div class="frz">never migrated</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">paper chrome, and the reward stops being a rumour</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the podium survives as an artifact (last week’s board = new server data)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">채팅</div><div class="pth">app/chat.tsx</div><div class="frz">V4 legacy chrome</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">paper thread — my bubble coral, the day gets a line, retention is true</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">every blocked state carries its door — and the failed one carries a retry</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">알림</div><div class="pth">app/alerts.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">kind first, title second — and a safety lane that goes somewhere</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the board keeps the promise its column header makes (states the 20-row ceiling)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">컬렉션</div><div class="pth">app/cards.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">loading is a state; each count is printed once</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">다음 도장 — the wall points at what is closest</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">인증샷 스튜디오</div><div class="pth">app/shot/[bid].tsx</div><div class="frz">dark ceremony world</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">one destination, and states that are colours (coral to 인스타 스토리로)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the studio has a door back into our own feed (+1 optional route param)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 프로필</div><div class="pth">app/runner-profile/[id].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">say what you know: the rating’s scope, the dot’s word, the slot’s state</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">paper storefront — the hero stays a dark artifact, everything else is paper</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">코스 미리보기</div><div class="pth">app/course/[id].tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">one display face, one trace vocabulary</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">조명 없음 gets a sentence, exactly like 언덕 많음 already does</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+<!-- LAB 10 -->
+<tr class="labhead"><td colspan="3"><b>ACCOUNT + SYSTEM</b>
+  <a href="enh-account-lab.html">enh-account-lab.html ›</a>
+  <em>9 screens · 18 variants</em></td></tr>
+<tr>
+  <td class="scrn"><div class="kr">역할 선택</div><div class="pth">app/index.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">a failure on the only door stays on the door</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">one busy truth, in one place, with the real step name</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">로그인</div><div class="pth">app/login.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the consent sentence says what actually happens (interim — Sean-only publish)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">a total lockout is told it is total</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">마이 (여권)</div><div class="pth">app/my.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the identity face is complete, and its blanks carry their fix</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the section heads join the rest of the app (retires latin § kickers here)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">설정</div><div class="pth">app/settings.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the account block stops guessing (replaces the stale 「푸시 도입 후」)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">paper chrome, and the two red rows stop being twins</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">안심 센터</div><div class="pth">app/safety.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">SOS says who it will reach — before the tap (named vs unnamed arm)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the roster is built for the minute it is needed</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">결제 관리</div><div class="pth">app/payments.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">every receipt is a door back to the run it paid for</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the card-less state answers the question it raises (free half + gated half)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">샵</div><div class="pth">app/shop.tsx · src/store.ts:337</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the boutique stops naming partners it does not have (DELETES 6 invented SKUs)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the screen becomes what it actually is: 하이 포인트 (moves a tab label)</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">보호자 온보딩</div><div class="pth">app/onboard/owner.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the notification ask gets a reason — here, not on the home screen</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">step 2 looks like a different step</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+<tr>
+  <td class="scrn"><div class="kr">러너 온보딩</div><div class="pth">app/onboard/runner.tsx</div></td>
+  <td><div class="vars">
+    <div class="v"><span class="no">①</span><span class="tt">the last screen names the gate that is actually next (which door is coral?)</span></div>
+    <div class="v"><span class="no">②</span><span class="tt">the cost of refusing is stated where the decision is made</span></div>
+  </div></td>
+  <td class="pick"><div class="box"></div></td>
+</tr>
+
+</tbody>
+</table></div>
+
+
+<!-- ═══════════════════════════════ 2. THE TEN LABS ═══════════════════════════════ -->
+<h2 class="band" id="labs"><span class="n">②</span>THE TEN LABS<span class="tag">open a card to see the frames behind a number</span></h2>
+<p class="bandsub">Each lab opens with a <b>현재</b> frame per screen — what ships today — so an enhancement
+is legible <i>as a change</i>. Every lab annotates, per variant, what it costs: new server fields, new
+routes, frozen surfaces touched.</p>
+
+<div class="cards">
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 01 · Owner</div><h3>Owner Home + Schedule</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">2</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">8</div></div>
+      </div>
+      <div class="scrns"><b>보호자 홈</b> <code>owner/home.tsx</code> + <code>home-hero.tsx</code><br>
+      <b>내 일정</b> <code>owner/schedule.tsx</code></div>
+    </div>
+    <div class="flag pay">Costs: 1 new list-level read (④b only) · a 20-row-window slice flagged separately</div>
+    <div class="bot"><a href="enh-owner-home-lab.html">Open enh-owner-home-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 02 · Owner</div><h3>Owner Booking Flow</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">6</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">20</div></div>
+      </div>
+      <div class="scrns"><b>러닝 요청</b> · <b>러너 선택/변경</b> · <b>결제 · 청구</b> ·
+      <b>일정 변경</b> · <b>픽업 위치 핀</b> · <b>주소 관리</b><br>
+      <code>request · matching · pay · reschedule · address-pin · addresses</code></div>
+    </div>
+    <div class="flag pay">Costs: P③’s refund arm needs a payments read · A② only needs a server change if an address <i>chooser</i> is wanted</div>
+    <div class="bot"><a href="enh-owner-booking-lab.html">Open enh-owner-booking-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 03 · Owner</div><h3>Owner Live + Meetup</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">4</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">12</div></div>
+      </div>
+      <div class="scrns"><b>러너 찾는 중</b> · <b>인계</b> · <b>라이브 런</b> · <b>코스 지도</b><br>
+      <code>radar · meetup · live · course-map</code></div>
+    </div>
+    <div class="flag free">Costs: 10 of 12 need zero new fields — they draw values already fetched and discarded. M② = 2 lines in api.ts + a hook-bundle append on a FROZEN screen.</div>
+    <div class="bot"><a href="enh-owner-live-lab.html">Open enh-owner-live-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 04 · Owner</div><h3>Owner Records + Dog</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">4</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">13</div></div>
+      </div>
+      <div class="scrns"><b>체력 리포트</b> · <b>러닝 리포트</b> · <b>러너 후기</b> · <b>반려견 프로필</b><br>
+      <code>fitness · report · review · dog</code></div>
+    </div>
+    <div class="flag free">Costs: no migration anywhere. One new client read (<code>fetchMyReview</code>) is shared by two variants; one new route param.</div>
+    <div class="bot"><a href="enh-owner-records-lab.html">Open enh-owner-records-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 05 · Runner</div><h3>Runner Home + Jobs</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">4</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">13</div></div>
+      </div>
+      <div class="scrns"><b>러너 홈</b> · <b>요청함</b> · <b>캘린더</b> · <b>가능 시간</b><br>
+      <code>runner/home · requests · calendar · availability</code></div>
+    </div>
+    <div class="flag free">Costs: no migration. One mapper field (<code>OpenRequest.scheduledAt</code>) unlocks three variants; availability ③ needs a client API pair over a table that already exists.</div>
+    <div class="bot"><a href="enh-runner-home-lab.html">Open enh-runner-home-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 06 · Runner</div><h3>Runner Run Flow</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">4</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">12</div></div>
+      </div>
+      <div class="scrns"><b>인계</b> · <b>러닝</b> · <b>완료</b> · <b>리뷰</b><br>
+      <code>runner/meetup · run · done · review</code></div>
+    </div>
+    <div class="flag free">Costs: ZERO new server data across all twelve. Two product decisions (which door is coral on 완료; the five star labels) are inside the picks.</div>
+    <div class="bot"><a href="enh-runner-run-lab.html">Open enh-runner-run-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 07 · Runner</div><h3>Runner Money + Progress</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">3</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">12</div></div>
+      </div>
+      <div class="scrns"><b>수익</b> · <b>리워드 센터</b> · <b>인증 센터</b><br>
+      <code>runner/earnings · rewards · apply</code></div>
+    </div>
+    <div class="flag pay">Costs: the heaviest cost sheet — a 부스트 reader is a matching-fairness change, and two proposed columns (<code>call_completed_at</code>, a ledger <code>kind</code>) are migrations.</div>
+    <div class="bot"><a href="enh-runner-money-lab.html">Open enh-runner-money-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 08 · Club</div><h3>Club Surfaces</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">8</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">16</div></div>
+      </div>
+      <div class="scrns"><b>하이클럽 홈</b> · <b>세션 셸</b> · <b>위탁 승낙서</b> · <b>입장권</b> ·
+      <b>호스트 콘솔</b> · <b>클럽 러닝</b> · <b>케이스</b> · <b>완료 영수증</b><br>
+      <code>club/[id] · session · delegate · pass · console · run · case · receipt</code></div>
+    </div>
+    <div class="flag pay">Costs: two additive RPC projections (cancel rule, case subject labels). S② is a <b>money ruling</b> before it is a design pick.</div>
+    <div class="bot"><a href="enh-club-lab.html">Open enh-club-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 09 · Shared</div><h3>Social + Shared Surfaces</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">9</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">18</div></div>
+      </div>
+      <div class="scrns"><b>동네 피드</b> · <b>자랑하기</b> · <b>동네 랭킹</b> · <b>채팅</b> · <b>알림</b> ·
+      <b>컬렉션</b> · <b>인증샷 스튜디오</b> · <b>러너 프로필</b> · <b>코스 미리보기</b><br>
+      <code>community · compose · leaderboard · chat · alerts · cards · shot · runner-profile · course</code></div>
+    </div>
+    <div class="flag pay">Costs: only C② among the drawn variants needs new server data. Six further ideas were deliberately NOT drawn because the field does not exist — they are on the cost sheet as “not drawn”.</div>
+    <div class="bot"><a href="enh-social-lab.html">Open enh-social-lab.html ›</a></div>
+  </div>
+
+  <div class="card">
+    <div class="top"><div class="kick">Lab 10 · Shared</div><h3>Account + System</h3></div>
+    <div class="mid">
+      <div class="stats">
+        <div class="stat"><div class="k">Screens</div><div class="n">9</div></div>
+        <div class="stat"><div class="k">Variants</div><div class="n">18</div></div>
+      </div>
+      <div class="scrns"><b>역할 선택</b> · <b>로그인</b> · <b>마이 (여권)</b> · <b>설정</b> · <b>안심 센터</b> ·
+      <b>결제 관리</b> · <b>샵</b> · <b>보호자 온보딩</b> · <b>러너 온보딩</b><br>
+      <code>index · login · my · settings · safety · payments · shop · onboard/owner · onboard/runner</code></div>
+    </div>
+    <div class="flag pay">Costs: 15 of 18 are free. One needs a definer read of <code>ops_flags</code>; one is blocked on <b>Sean-only legal publishing</b> (약관 · 개인정보처리방침).</div>
+    <div class="bot"><a href="enh-account-lab.html">Open enh-account-lab.html ›</a></div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════ 3. COST SHEET ═══════════════════════════════ -->
+<h2 class="band" id="cost"><span class="n">③</span>NEEDS NEW SERVER DATA<span class="tag">merged and deduplicated across all ten labs</span></h2>
+<p class="bandsub">Anything on this table <b>cannot ship as a pure client change</b>. It is sorted by
+what it actually costs — the four tiers are very different slices, and several labs asked for the same
+thing under different names, so those rows are merged. <b>Everything not on this table is a client-only
+change</b> against fields already fetched.</p>
+
+<div class="costwrap"><table class="cost">
+<thead><tr>
+  <th class="what">What is missing</th>
+  <th>Exact object · what already exists</th>
+  <th class="who">Raised by</th>
+  <th class="drawn">Drawn?</th>
+</tr></thead>
+<tbody>
+
+<tr class="tierhead"><td colspan="4"><b>TIER 1 — MIGRATION</b>
+  <em>schema, RPC, view or edge-function change · goes through /autoplan + the SQL harness · never a design-pick-only slice</em></td></tr>
+
+<tr>
+  <td class="what">A client-readable “payments are live” flag</td>
+  <td><code>ops_flags</code> is RLS-enabled with ZERO policies (0080:187); only service_role holds SELECT
+  (<code>create-booking-hold/handler.ts:211</code>). Needs a small security-definer read —
+  a <code>payments_live()</code> boolean, or the flag folded into an existing settings RPC.
+  <b>The other half of that variant is free</b>: <code>my_unsettled_charge</code> already ships.</td>
+  <td class="who">account F②</td>
+  <td class="drawn cond">half</td>
+</tr>
+<tr>
+  <td class="what">Which cancel arm applies right now, on a club board</td>
+  <td>Additive field <code>club_delegation_board.dogs[].cancelRule = {rule, pct, freeUntil}</code>,
+  computed by the same SQL branch that charges (0048 <code>session_cancel_delegation</code> / club_cfg).
+  A client mirror of <code>club_config</code> is buildable today <b>and lies the moment a club is tuned</b> —
+  the exact failure the marketplace <code>cancelPolicy</code> mirror already hit twice.</td>
+  <td class="who">club S②</td>
+  <td class="drawn yes">yes</td>
+</tr>
+<tr>
+  <td class="what">Case subjects that can name themselves</td>
+  <td><code>club_incident_detail.subjects[]</code> returns <code>{type,id}</code> with no label, so the case
+  screen cannot name the dog or booking it stopped. Params-from-caller is free but <b>goes blank on a push
+  deep-link</b> — the main entry. The 정산 보류 chip is impossible without this (payoutHold lives on
+  DelegationDog and this screen never loads a board).</td>
+  <td class="who">club A①</td>
+  <td class="drawn cond">frame only</td>
+</tr>
+<tr>
+  <td class="what">Proof the 화상 확인 call actually happened</td>
+  <td>New column on <code>runner_applications</code>, e.g. <code>call_completed_at</code>.
+  <code>reviewed_at</code> only means the operator opened the row, so step 02 currently renders
+  「앱이 추적하지 않는 단계예요」 rather than a checkmark.</td>
+  <td class="who">money C①</td>
+  <td class="drawn yes">as a non-answer</td>
+</tr>
+<tr>
+  <td class="what">A READER for <code>boosts</code></td>
+  <td><code>open-drop</code> inserts a boosts row (+24h) and <b>nothing consults it</b>: the only consumers
+  are <code>fetchActiveBoostLabel</code> (a display string) and 0115’s deletion sweep.
+  <code>available_runners</code> (0015), <code>runners_available_for</code> (0054) and
+  <code>marketplace_open_requests</code> (0042/0056) never mention it — while shop.tsx prints
+  「매칭 부스트 활성」. <b>Building the reader is a matching-fairness change, not a cosmetic one.</b></td>
+  <td class="who">money B②</td>
+  <td class="drawn yes">as an admission</td>
+</tr>
+<tr>
+  <td class="what">Telling two cancellation compensations apart</td>
+  <td><code>ledger_items</code> has no <code>kind</code>/<code>reason</code> column, so 0080
+  <code>record_enroute_cancel_comp</code> (whole <code>bookings.fee</code>) and 0085
+  <code>record_late_cancel_share</code> (round(fee × 0.5)) write structurally identical rows.
+  Both are therefore labelled with one word, 취소 보상, deliberately.</td>
+  <td class="who">money A③</td>
+  <td class="drawn yes">merged label</td>
+</tr>
+<tr>
+  <td class="what">Last week’s leaderboard</td>
+  <td>No shipped RPC returns it — <code>grant_weekly_rewards()</code> computes it internally and writes
+  only ledger rows. Needs a week-offset argument on <code>leaderboard_dogs_weekly</code> /
+  <code>leaderboard_runners_weekly</code> (0012), or a snapshot table. Without it, C② = empty-state
+  plus current-week podium only.</td>
+  <td class="who">social C②</td>
+  <td class="drawn cond">with fallback</td>
+</tr>
+<tr>
+  <td class="what">The viewer’s own rank on the leaderboard</td>
+  <td><code>BoardRow</code> is <code>{name, photoUrl, km, runs}</code> with no profile id, so the client
+  cannot identify the viewer. Needs the definer RPC to compare <code>auth.uid()</code> internally and
+  return a 나 flag. Also a product question, not only a technical one.</td>
+  <td class="who">social · Q</td>
+  <td class="drawn no">NOT drawn</td>
+</tr>
+<tr>
+  <td class="what">A runner’s true lifetime rating</td>
+  <td><code>fetchRunnerProfile</code> averages <code>reviews</code> with <code>limit(5)</code>. A real
+  lifetime average is a new aggregate or view. H① scopes the label instead (「최근 5개 평균」), which is free.</td>
+  <td class="who">social H①</td>
+  <td class="drawn cond">label scoped</td>
+</tr>
+<tr>
+  <td class="what">A course’s meeting point in text</td>
+  <td><code>routes.anchor_name</code> / <code>anchor_detail</code> exist (0078), but <code>routes_public</code>
+  (0110) names its columns explicitly and <b>excludes every anchor column</b> — that select list is the
+  stated control surface. Publishing a physical meeting point is a privacy call plus a definer-view
+  migration.</td>
+  <td class="who">social I</td>
+  <td class="drawn no">NOT drawn</td>
+</tr>
+<tr>
+  <td class="what">Chat 읽음 receipts</td>
+  <td><code>chat_messages</code> has no read column. D① adds day separators from <code>created_at</code>
+  (already selected) instead — free. Should be decided from a real handoff incident, not a mock.</td>
+  <td class="who">social D①</td>
+  <td class="drawn cond">substitute drawn</td>
+</tr>
+<tr>
+  <td class="what"><code>runners.online</code> freshness</td>
+  <td>Self-toggled boolean with no <code>last_seen_at</code>, so 「지금 활동 중」 can be stale.
+  Three exits: keep the word, add a column, or delete the colour-only dot.</td>
+  <td class="who">social H①</td>
+  <td class="drawn no">NOT drawn</td>
+</tr>
+<tr>
+  <td class="what">Alerts pagination</td>
+  <td>No cursor argument, so a 더 보기 door cannot exist. E② states the <code>.limit(20)</code> ceiling in
+  copy instead — free and honest, but it is a ceiling, not a fix.</td>
+  <td class="who">social E②</td>
+  <td class="drawn cond">stated, not fixed</td>
+</tr>
+<tr>
+  <td class="what">Address chooser over several candidates</td>
+  <td><b>CONDITIONAL — no drawn variant needs this.</b> A② uses the existing <code>geocode-address</code>
+  edge function, which returns only the FIRST match. A chooser over N candidates means changing that
+  edge function.</td>
+  <td class="who">booking A②</td>
+  <td class="drawn cond">single-match drawn</td>
+</tr>
+<tr>
+  <td class="what">Server enforcement of the 3h ceiling</td>
+  <td><code>pastCeiling</code> closes only the runner’s TAP doors; opening meetup still fires
+  <code>runnerEnroute</code> outside the gate, and <code>confirm_handoff</code> / <code>start_run</code>
+  never look at the clock. Variant ② adds recovery doors; it does <b>not</b> close the hole.
+  Already logged as Sean’s Q4 at <code>meetup.tsx:335</code>.</td>
+  <td class="who">runner-run ②</td>
+  <td class="drawn no">hole named</td>
+</tr>
+<tr>
+  <td class="what">An add-on line on the owner meetup screen</td>
+  <td><code>MeetupInfo</code> carries no field for it at all (e.g. 「리버뷰 코스」).
+  <b>Marked NOT shippable rather than invented</b> — drop the line unless someone adds the field.</td>
+  <td class="who">live L③</td>
+  <td class="drawn no">line dropped</td>
+</tr>
+
+<tr class="tierhead"><td colspan="4"><b>TIER 2 — NEW CLIENT READ</b>
+  <em>existing table, existing RLS, existing columns · one new function in api.ts · no migration</em></td></tr>
+
+<tr>
+  <td class="what">A read of a booking’s <code>payments</code> rows</td>
+  <td><b>Two labs asked for the same thing.</b> (a) 내 일정 ④b wants ONE list-level read over the visible
+  completed booking ids to print the real charged amount; (b) owner/pay P③ needs it to split
+  「환불이 진행 중이에요」 on whether money was actually <i>captured</i> —
+  <code>club_incident_settle</code> sets refund_pending regardless, and 0080 §J-ⓑ already made the matching
+  NOTIFICATION conditional. <code>fetchBookingPayments</code> exists but is per-booking.
+  <code>pay.tsx:265</code> carries the same TODO.</td>
+  <td class="who">owner-home B④b<br>booking P③</td>
+  <td class="drawn yes">both arms</td>
+</tr>
+<tr>
+  <td class="what"><code>fetchMyReview(bookingId)</code></td>
+  <td><code>reviews</code> where <code>(booking_id, author_id, target_kind='runner')</code>. The policy
+  already permits it (<code>0002_rls.sql:118</code> “reviews author read”) and the table already has
+  <code>unique (booking_id, author_id, target_kind)</code>. <b>Two variants share this one function</b> —
+  picking one without the other half-uses the read.</td>
+  <td class="who">records B① + C③</td>
+  <td class="drawn yes">both</td>
+</tr>
+<tr>
+  <td class="what">A client API pair for <code>runner_booking_rules</code></td>
+  <td>The TABLE and its RLS already exist (0001:108 <code>min_notice_min</code> /
+  <code>max_sessions_per_day</code> / <code>rest_after_min</code> / <code>group_capacity</code>;
+  0002:79 policy <code>runner_id = auth.uid()</code>) and a row is inserted for every applicant at
+  <code>api.ts:784</code>. Missing: fetch + save. <b>Only two fields may be drawn</b> —
+  <code>rest_after_min</code> and <code>max_sessions_per_day</code> are enforced by
+  <code>is_slot_available</code>; the other two are read by nothing, so a control for either would be a
+  dead button with a saved value.</td>
+  <td class="who">runner-home D③</td>
+  <td class="drawn yes">2 of 4 fields</td>
+</tr>
+<tr>
+  <td class="what">A booking query that keeps the NEAREST rows</td>
+  <td><code>fetchMyBookings</code> is <code>.order('scheduled_at', desc).limit(20)</code>, so an owner with
+  &gt;20 rows keeps the FURTHEST 20 and loses the nearest. <b>A client sort cannot recover a row the query
+  dropped.</b> Fix shape is a new READ (ascending from now−30d), not a new column; blast radius includes
+  home’s ranking and <code>fetchInFlightOwnerBookings</code>.</td>
+  <td class="who">owner-home B①</td>
+  <td class="drawn no">own slice</td>
+</tr>
+<tr>
+  <td class="what">A bounded past query for the runner calendar</td>
+  <td>Same class of defect: <code>fetchRunnerJobs</code> is <code>scheduled_at DESC limit 20</code>, so a
+  busy future crowds out the past. Grouping (calendar ①) makes it <i>visible</i>, not fixed. Runner home
+  already worked around the same window with a second query (<code>fetchInFlightRunnerJobs</code>).</td>
+  <td class="who">runner-home C①</td>
+  <td class="drawn cond">caption drawn</td>
+</tr>
+<tr>
+  <td class="what">Whether a runner’s job was actually settled</td>
+  <td>The calendar cannot tell priced from paid, so ③ changes 정산됨 to 정산 예정 —
+  but <code>done.tsx</code> reads <code>runResult.settled</code>, so the distinction exists somewhere.
+  Fetch it here, or accept 정산 예정 as the honest terminal word until a payout path exists at all.</td>
+  <td class="who">runner-home C③</td>
+  <td class="drawn yes">honest word</td>
+</tr>
+<tr>
+  <td class="what">The SOS counterparty’s display name</td>
+  <td>No new column. The two booking-id helpers are already exported and already called by
+  <code>sendSOS</code> (<code>api.ts:1141</code>, <code>:1150</code>); the NAME needs one extra read on the
+  booking’s other side — check first whether the meetup counterparty read or the public runner profile
+  policy already reaches it. <b>The unnamed wording costs nothing at all.</b></td>
+  <td class="who">account E①</td>
+  <td class="drawn yes">named arm</td>
+</tr>
+<tr>
+  <td class="what"><code>getPushPermission()</code> client helper</td>
+  <td>Not server data. Beside the existing <code>getTrackPermission()</code>, using
+  <code>Notifications.getPermissionsAsync</code> with the same “unavailable” arm for old builds. It moves the
+  permission REQUEST off owner/home while leaving <code>registerPushToken()</code>’s token upsert there.</td>
+  <td class="who">account H①</td>
+  <td class="drawn yes">yes</td>
+</tr>
+
+<tr class="tierhead"><td colspan="4"><b>TIER 3 — ONE MORE COLUMN ON AN EXISTING SELECT</b>
+  <em>the query already runs · a mapper stops discarding what it already receives · no migration, no new query</em></td></tr>
+
+<tr>
+  <td class="what"><code>OpenRequest.scheduledAt</code></td>
+  <td><code>bookings.scheduled_at</code> is ALREADY inside both SELECTs (<code>REQ_SELECT api.ts:851</code>
+  and the <code>marketplace_open_requests</code> column list, 0042/0056); both mappers format
+  <code>when</code> and drop the raw value. <b>One mapper field unlocks three variants.</b>
+  Verify <code>check-rpc-contracts.mjs</code> does not treat the view shape as a contract.</td>
+  <td class="who">runner-home A②, B②, B③</td>
+  <td class="drawn yes">all three</td>
+</tr>
+<tr>
+  <td class="what">Raw handoff timestamps on <code>BookingSync</code></td>
+  <td><code>fetchBookingSync</code> ALREADY SELECTs <code>owner_confirmed_handoff_at</code> and
+  <code>runner_confirmed_handoff_at</code> and reduces them to booleans
+  (<code>!!data.owner_confirmed_handoff_at</code>). Two lines in api.ts. <b>The real cost is the frozen hook
+  bundle</b> — <code>refresh()</code> would set one more state, allowed by DESIGN.md §9 only if the
+  <code>useState</code> is appended at the very END of the bundle, behind the hydration gate.</td>
+  <td class="who">live M②</td>
+  <td class="drawn yes">yes</td>
+</tr>
+<tr>
+  <td class="what"><code>runs(actual_km, end_reason)</code> on the booking embed</td>
+  <td>The embed <code>MY_BOOKING_SELECT</code> already performs (<code>api.ts:4250</code>) currently selects
+  <code>runs(started_at)</code>. Booking/Cand gain two optional fields. Same class as the ledger’s
+  <code>runs.actual_km</code>. Note: this is also why the owner’s completed schedule row cannot show
+  actual km today — the lab named that as the reason it was left out rather than invented.</td>
+  <td class="who">social B② · money A③<br>owner-home (noted)</td>
+  <td class="drawn yes">with fallback</td>
+</tr>
+<tr>
+  <td class="what"><code>bookings.addons</code> on the ledger join</td>
+  <td>OPTIONAL, earnings ② only. Naming an add-on in a ledger row (「옵션 · 리버뷰 코스」) means one more
+  selected column on a query that already runs.</td>
+  <td class="who">money A②</td>
+  <td class="drawn cond">optional arm</td>
+</tr>
+<tr>
+  <td class="what"><code>runners(profiles(avatar_url))</code> on <code>fetchMeetupInfo</code></td>
+  <td>OPTIONAL arm only. Existing column — <code>fetchCertifiedRunners</code> already selects it.
+  The variant ships without it; today’s <code>Avatar url={null}</code> is honest.</td>
+  <td class="who">live L③</td>
+  <td class="drawn cond">optional arm</td>
+</tr>
+<tr>
+  <td class="what">Run identity on the owner review screen</td>
+  <td>The screen receives only <code>bid/rid/rname/stars</code>, so it cannot print date · route · km.
+  Either two extra params from <code>report.tsx</code> or a <code>fetchRunReportOrNull(bid)</code> call.
+  <b>Severable</b> — drop the line and the variant is otherwise unchanged.</td>
+  <td class="who">records C②</td>
+  <td class="drawn cond">severable</td>
+</tr>
+
+<tr class="tierhead"><td colspan="4"><b>TIER 4 — ROUTE, PARAM OR PURE CLIENT</b>
+  <em>no data at all · listed so it is not mistaken for free</em></td></tr>
+
+<tr>
+  <td class="what"><code>/owner/dog?focus=vaccines</code> + a routing fix</td>
+  <td>One route param, plus a real bug: <code>fetchProfileGaps()</code> returns <code>doorDetail</code>
+  (which is <code>addresses.detail</code>) and <code>home.tsx:495</code> routes it to
+  <code>/owner/dog</code>, <b>where no such field exists</b>. Either that gap routes to
+  <code>/owner/addresses</code>, or D③’s 픽업 주소 row becomes its landing pad.</td>
+  <td class="who">records D③</td>
+  <td class="drawn yes">yes</td>
+</tr>
+<tr>
+  <td class="what"><code>/compose?bid=</code> optional param</td>
+  <td><code>compose.tsx</code> reads no params today, so the share-studio feed door needs one optional param
+  plus a preselect (pairs with B①). <b>Zero-cost alternative drawn</b>: route to <code>/compose</code> plain,
+  one extra tap.</td>
+  <td class="who">social G②</td>
+  <td class="drawn yes">both arms</td>
+</tr>
+<tr>
+  <td class="what">A door to owner/pay</td>
+  <td>Every number <code>pay.tsx</code> renders is live and correct and it is the app’s only receipt
+  surface — <b>and nothing routes to it.</b> Reviving costs one row in <code>owner/schedule.tsx</code>
+  (outside that lab’s six files).</td>
+  <td class="who">booking P①</td>
+  <td class="drawn yes">yes</td>
+</tr>
+<tr>
+  <td class="what">An entry point for owner/matching’s 러너 선택 arm</td>
+  <td>Nothing routes to it — fresh holds go to <code>/owner/radar</code> and the only push is
+  <code>schedule.tsx:649</code> with <code>mode:'rebook'</code>. Either it gets a real entry point, or the
+  file should be named 러너 변경 in code as well as on screen.</td>
+  <td class="who">booking M</td>
+  <td class="drawn no">question only</td>
+</tr>
+<tr>
+  <td class="what">Deleting the fabricated shop catalogue</td>
+  <td>shop ① <b>DELETES</b> the invented <code>products</code> array from <code>src/store.ts</code> —
+  six SKUs naming four real third-party brands as partners. This screen is its last consumer.
+  shop ② additionally moves one tab label in <code>bottomnav.tsx</code>.</td>
+  <td class="who">account G①/②</td>
+  <td class="drawn yes">yes</td>
+</tr>
+<tr>
+  <td class="what">Publishing 이용약관 / 개인정보처리방침</td>
+  <td>Not code. Both are unpublished drafts; the privacy draft’s own header lists three obligations copy
+  cannot fix (no destruction path for <code>runs.trace</code> — none of the 17 operational crons touches
+  location; no 위치정보 이용·제공 확인자료 ledger table; the KCC 위치기반서비스사업 filing).
+  <b>Sean-only and legally load-bearing.</b></td>
+  <td class="who">account B①</td>
+  <td class="drawn cond">interim drawn</td>
+</tr>
+
+</tbody>
+</table></div>
+
+
+<!-- ═══════════════════════════════ 4. OPEN QUESTIONS ═══════════════════════════════ -->
+<h2 class="band" id="q"><span class="n">④</span>OPEN QUESTIONS<span class="tag">deduplicated · tagged with the lab that raised it</span></h2>
+<p class="bandsub">Split three ways. <b>SHARED</b> questions were raised independently by two or more labs
+and one answer settles all of them — those are law-level and worth answering before any pick.
+<b>BLOCKING</b> questions gate a specific variant. <b>NOTED</b> are things found while reading that no
+variant fixes.</p>
+
+<div class="qgrp">
+  <h3>SHARED — one answer settles several labs</h3>
+
+  <div class="q"><div class="qn">S1</div><div class="qb">
+    <b>Detail-screen title grammar is unspecified in DESIGN.md.</b> §3b fixes the SCREEN title at
+    30/900 Black Han Sans, but that was written for text-titled tab screens. Shipping today across two
+    clusters: 23/900 display (fitness masthead, course, leaderboard), 23/900 plain ink (report, review,
+    compose, runner-profile — deliberately, per report.tsx’s own comment), 20/800 (dog), 19/900 display
+    (shot), 30/900 display (community, alerts, cards). <b>Seven grammars, no rule.</b>
+    <span class="src">records F · social K</span>
+    <span class="opts">Candidates: <b>(a)</b> standardise on the 23/900 plain ink that report/review/compose
+    already share · <b>(b)</b> subject gets the display face, page label goes plain (social I①’s guess) ·
+    <b>(c)</b> extend §3b’s 30/900 to pushed screens too.</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S2</div><div class="qb">
+    <b>Is a filled review star a gold-budget use?</b> §8 reserves gold for milestone events.
+    A lifetime PR (records B④) is clearly a milestone; a review’s filled stars are conventionally gold,
+    and the shipped code already uses off-token values (<code>#f2c14e</code> on one screen,
+    <code>#5a7a3c</code> on another).
+    <span class="src">records F · social K</span>
+    <span class="opts">Candidates: <b>(a)</b> exempt convention → <code>colors.gold #D9A93C</code> ·
+    <b>(b)</b> budget spend, so no · <b>(c)</b> <code>paper.pending</code> or plain ink.</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S3</div><div class="qb">
+    <b>What counts as a “display font use” under §3/§8’s once-per-screen budget?</b>
+    <code>draw-button.tsx:210</code> puts <code>useDisplayFont</code> on every 28pt title, so owner home
+    renders Black Han Sans <b>8×</b> (wordmark + 2 hero lines + up to 5 buttons) against a budget of 1 —
+    and the code carries a comment admitting it. The club ticket raises the mirror question: retiring
+    display type from the club doors leaves the masthead as the only use (§8-correct), but the
+    boarding-pass identity was picked <i>as big type</i>. <b>One of the two must give.</b>
+    <span class="src">owner-home A③b · club C①</span>
+    <span class="opts">Candidates: <b>(a)</b> the budget means what it says (pick A③b, C①) ·
+    <b>(b)</b> the drawing-button family and the ticket lockup are their own class, and §3/§8 must say so.</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S4</div><div class="qb">
+    <b>Type-floor breaches already shipping — fix in this pass, or as their own sweep?</b>
+    Five labs found the same class of defect: <code>home-hero.tsx</code> chipTx 13pt and lateStripTx 13pt
+    (Korean) and <code>profile-gaps.tsx</code> sub 12.5pt · <code>matching.tsx:428</code> <code>s.kick</code>
+    12pt carrying Korean (선택한 러너 · 매치 · AI 추천 순) · <code>LateNotice</code>’s 12pt kicker and 12.5pt
+    strip, where the kicker is Korean AND data (「3시간 12분 지남」) · <code>fitness.tsx:518</code> edgeCode
+    12pt claiming a 「필름 보이스」 exemption for a Korean date · <code>index.tsx</code>’s 12pt
+    「도그스하이」 wordmark, legal only under the 2026-08-12 logo exemption whose third clause it does not
+    satisfy today. <b>All one-line changes; none sits inside a ruling.</b> LateNotice is shared, so fixing it
+    moves four owner surfaces at once.
+    <span class="src">owner-home · booking · runner-run · records · account</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S5</div><div class="qb">
+    <b>The <code>.limit(20)</code> window is one defect on three screens.</b> Owner schedule keeps the
+    FURTHEST 20 and loses the nearest; the runner calendar lets a busy future crowd out the past; alerts
+    silently truncates. Two labs drew captions that <i>state</i> the ceiling and one flagged the real fix as
+    its own slice. <b>Is that slice one to open now, or does pilot volume make it theoretical?</b>
+    <span class="src">owner-home B① · runner-home C① · social E②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S6</div><div class="qb">
+    <b>How many coral surfaces may one screen have, and who wins?</b> The club run screen renders
+    LIVE dot + tang SOS + action-coral CTA. The club session shell can legitimately render <i>three</i>
+    action-coral CTAs in one scroll (자리 확정 · 함께 뛰기 · 러너 확약), each correct in isolation.
+    Runner requests has a coral ladder that a deadline sort would move. Owner live has a custody screen
+    with a stop button.
+    <span class="src">club R · club S① · runner-home B③ · live L①</span>
+    <span class="opts">Candidates: <b>(a)</b> S① is the rule (“only the block with a clock keeps coral”) ·
+    <b>(b)</b> SOS is budget-exempt as critical and the end CTA drops to secondary while a run is live ·
+    <b>(c)</b> a separate app-wide priority rule written into DESIGN.md.</span>
+  </div></div>
+
+  <div class="q"><div class="qn">S7</div><div class="qb">
+    <b>Which duplications are redundancy-by-design and which are clutter?</b> Four labs deliberately spend
+    one fact twice and each asks for confirmation: the arrival moment on home <i>and</i> 내 일정
+    (time-critical, two screens one tap apart) · 이번 주 on runner home <i>and</i> 수익 (same
+    <code>fetchRunnerWeekStats</code>) · 오늘 머리줄 <i>and</i> 오늘의 루트 on runner home ·
+    지금 페이스 <i>and</i> 평균 페이스 on owner live, which would make three numbers on one row and may
+    require amending <code>pace-state-ui-plan §1</code>.
+    <span class="src">owner-home A④+B② · money A① · runner-home A③ · live L②</span>
+  </div></div>
+</div>
+
+<div class="qgrp">
+  <h3>BLOCKING — these gate a specific pick</h3>
+
+  <div class="q"><div class="qn">B1</div><div class="qb">
+    <b>A pending ruling is drawn, not pre-empted.</b> <code>docs/decisions/handoff-cta-gating.md</code>
+    (A vs B) has been AWAITING SEAN since 2026-08-20. Owner-home ④ draws <b>both answers as frames</b>
+    (④A / ④B). <b>The plumbing that doc said was missing has since landed</b> — <code>arrived_at</code> IS in
+    <code>MY_BOOKING_SELECT</code> today, so both answers are now client-only.
+    <span class="src">owner-home A④</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B2</div><div class="qb">
+    <b>May a club cancel fee be spoken in won?</b> The marketplace prints the exact fee before commit;
+    club prints no money outside the 승낙서. Percent-only is what was drawn.
+    <b>This is a money ruling, not a design pick</b>, and it decides whether S② can ship at all.
+    <span class="src">club S②</span>
+    <span class="opts">Candidates: percent-only (drawn) · percent + won (needs the server figure, not a client
+    percentage of a fare this screen does not hold) · a link to 결제 관리.</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B3</div><div class="qb">
+    <b>On a stopped run, may the coral 재예약 panel be demoted?</b> RULING #11 put it there and made it the
+    frame’s one saturated element. B② argues G1 changed that state’s meaning — the owner now pays, so the
+    owner audits the abort — and moves the emphasis to 안심 센터 (<code>/safety</code>, a real route).
+    <b>The only variant in that file that touches a standing ruling; needs an explicit yes.</b>
+    <span class="src">records B②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B4</div><div class="qb">
+    <b>Is radar’s ripple open for edit at all?</b> It is a Sean-picked frame (journey-v3 §C frame 4,
+    RULING 7 — 「지금 코드의 링을 그대로 쓴다」). R② changes what it does in <code>runner_pending</code>;
+    R③ retires it. <b>If the ring is fixed, both die and R① is the only live option on that screen.</b>
+    <span class="src">live R②/R③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B5</div><div class="qb">
+    <b>Approve the hook-bundle append on the frozen meetup screen?</b> One new <code>useState</code> at the
+    END of the bundle, behind the hydration gate, so <code>refresh()</code> can carry the raw handoff
+    timestamps. Allowed by DESIGN.md §9 <i>only</i> in that position. M② does not exist without it.
+    <span class="src">live M②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B6</div><div class="qb">
+    <b>C② is blocked on a capability check.</b> Does the installed Naver SDK expose
+    <code>patternImage</code> / <code>patternInterval</code> on <code>NaverMapPathOverlay</code>?
+    <b>Finding:</b> <code>app/assets/route-dash.png</code> and <code>route-dash-purple.png</code> are in the
+    repo and referenced by NOTHING; <code>runner/run.tsx</code>’s header comment writes out the exact
+    patternImage recipe but its PathOverlay draws solid. <b>The app’s own stated vocabulary — 점선 = 예정
+    경로, 실선 = 실측 — is unimplemented on every map.</b> Needs one simulator pass, and someone should say
+    whether those assets were left behind deliberately.
+    <span class="src">live C②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B7</div><div class="qb">
+    <b>부스트: tell, hide, or build?</b> <b>(a)</b> the card says on its face that it does nothing yet ·
+    <b>(b)</b> stop offering it in the pick — legal, but the runner loses a choice the drop was minted with ·
+    <b>(c)</b> give it a reader in the matching path. <code>shop.tsx</code>’s 「매칭 부스트 활성」 has to
+    change under (a) and (b) either way.
+    <span class="src">money B②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B8</div><div class="qb">
+    <b>Which door is coral on runner onboarding’s last screen?</b> 시작하기 is primary today and in the
+    drawn variant — but the measured truth is that an applicant <b>cannot receive any request</b>
+    (<code>is_active_runner()</code> = tier &lt;&gt; 'applicant', 0004:4-10). If the funnel’s real goal is
+    applications, 러너 인증 신청 should be primary. <b>Conversion decision, not layout.</b>
+    <span class="src">account I①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B9</div><div class="qb">
+    <b>On 완료, should coral be 다음 요청 보기 (today) or 리뷰 남기기 (variant ⑩)?</b>
+    Review protects the next runner; next-request protects runner supply. <b>Product decision.</b>
+    <span class="src">runner-run ⑩</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B10</div><div class="qb">
+    <b>Exact wording for the five star labels.</b> Proposed: 1 많이 힘들었어요 / 2 아쉬웠어요 /
+    3 무난했어요 / 4 좋았어요 / 5 아주 좋았어요. Must map 1:1 to the number, and note that the review
+    target is the <b>DOG</b> (<code>target_kind='dog'</code>) — so the low words must not read as a verdict
+    on the run. Related and NOT drawn: should the six review tags split into 좋았어요 / 알아두세요?
+    Putting 「다른 개 반응 있어요」 in a negative group is a classification decision that reaches the owner
+    surfaces.
+    <span class="src">runner-run ⑪</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B11</div><div class="qb">
+    <b>Where does the cancel-fee ladder belong on the order screen?</b> R① pins it above the dock;
+    R③ pulls the whole fee card out of the fold. <b>It cannot stay where it is</b>: with a 2-hour notice
+    floor an owner can book tonight having never opened 「페이스 · 옵션 · 매주 반복 · 코스 목록」.
+    Both were drawn because this is a legal-copy placement call. Related: does 매주 반복 — a recurring-charge
+    consent — need to leave a fold named after pace chips? No variant moves it, because that changes what
+    the screen <i>asks for</i>, not how it looks.
+    <span class="src">booking R①/R③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B12</div><div class="qb">
+    <b>R① vs §3b’s Money button.</b> §3b specifies a Money button (coral, white 31 display, full-bleed,
+    no price sub-plate), but the shipped one lives on owner home, and this dock is a label-swap button whose
+    label is sometimes 시간부터. R① draws a compromise (label left, amount right at 20).
+    <b>If Money grammar applies here, the label swap and the display-size amount must be reconciled first.</b>
+    <span class="src">booking R①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B13</div><div class="qb">
+    <b>Is 매치 % a claim worth keeping?</b> It is computed by <code>matchFor()</code>, not measured, and it
+    silently renormalises for runners with no respond-rate data. Demoting it to a rank (M②) is more honest
+    and less scannable.
+    <span class="src">booking M②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B14</div><div class="qb">
+    <b>Is the map-less spot list honest, and does the address-pin drift line need a threshold?</b>
+    N③ writes real coordinates for real named places, but the owner confirms a pickup point they never saw
+    on a map — 0065’s “pin is truth” doctrine was written for a world where the map loads; the alternative is
+    the current dead end. Separately, N② draws a drift line with <b>no distance threshold invented</b>: an
+    apartment entrance is legitimately ~200m from its registered address. Needs one real pilot value, or
+    no threshold at all.
+    <span class="src">booking N③ · N②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B15</div><div class="qb">
+    <b>Does the availability weekday dot over-promise?</b> A dot means the runner has a rule on that weekday —
+    <i>not</i> that a slot is bookable (conflicts, the 2h floor and km×8+25 duration are decided per slot by
+    <code>is_slot_available</code> afterwards). <b>If that distinction is too fine, the dot should be dropped
+    rather than softened.</b>
+    <span class="src">booking S②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B16</div><div class="qb">
+    <b>Does the deadline sort move the coral, and what deserves the urgency chip?</b> The coral rule reads
+    <code>directed[0]</code>; sorting each leg by deadline makes coral follow the soonest directed request
+    rather than the server’s return order. <b>The server has no urgency threshold at all</b> — only
+    <code>scheduled_at &lt; now()</code> (<code>expire_unmatched_bookings</code>, 0080). Candidates: under 2h
+    (matching <code>available_runners</code>’ own horizon), under 3h, or “today”. And if EVERY directed
+    request conflicts, does coral fall to a 근처 door, or does the screen render zero coral?
+    (Zero-coral was drawn, per the R2c precedent.)
+    <span class="src">runner-home B②/B③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B17</div><div class="qb">
+    <b>Ship <code>OpenRequest.scheduledAt</code> as its own tiny slice first, or fold it into whichever
+    variant is picked?</b> One mapper field unlocks three variants across two screens.
+    <span class="src">runner-home A②/B②/B③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B18</div><div class="qb">
+    <b>Does the 다음 일정 rail belong on home at all, or is it the 일정 tab’s job?</b> Home’s 2026-08-19
+    direction was 「덜 하게」 and a rail is more. It is drawn capped at 2 rows and gated on a second future
+    booking existing — <b>the cap (2 / 3 / today+tomorrow only) is a guess.</b> Same screen: does the
+    동네 리그 ticker stay in the header, move into the 동네 chunk (A③), or render only when a booking exists?
+    It is a looping animation above the screen’s primary decision — and it is also what makes a cold home
+    feel inhabited.
+    <span class="src">owner-home A① · A③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B19</div><div class="qb">
+    <b>Silence or the real charged amount on a completed schedule row?</b> ④a is free and honest by
+    omission; ④b is honest by statement and costs a round trip on a tab-root screen.
+    <b>Weak preference recorded in the lab: ④a now, ④b when the widget payment slice lands</b> — that slice
+    must touch this projection anyway (there is already a TODO to that effect in schedule.tsx’s cancel sheet).
+    <span class="src">owner-home B④</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B20</div><div class="qb">
+    <b>Does 이번 주 belong on two screens, and should the commission RATE be printed?</b>
+    earnings ① prints a week row runner home already prints; dropping it leaves 이번 달 · 누적.
+    Separately, earnings ② shows 수수료 −8,217 and not 33% — the rate is real
+    (<code>runners.commission_rate</code>, already drawn on apply.tsx), so printing it would reverse R7b’s
+    amount-only choice for the ledger. And: name the add-ons in a ledger row (「옵션 · 리버뷰 코스」) or
+    leave 옵션 3,000?
+    <span class="src">money A①/A②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B21</div><div class="qb">
+    <b>How long is a long wait, and should apply’s step 02 exist at all?</b> 문의하기 renders at day 13 —
+    <b>there is no SLA and one operator, so any threshold is invented</b> (7 / 10 / never, leaving the day
+    counter to carry the message alone). Step 02 is drawn with a <i>stated non-answer</i>; alternatives are
+    dropping its state line, collapsing §PROCESS to the two knowable steps (접수 → 승인), or adding the
+    column that would let it be checked.
+    <span class="src">money C①/C②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B22</div><div class="qb">
+    <b>Is the withholding estimate worth keeping?</b> 3.3% is applied per payment, not to a running balance,
+    so it will not match the first real payslip if that payout covers only part of the ledger. Keep as an
+    orientation figure, or drop until <code>payouts</code> has a writer? Related, same screen family:
+    <b>does 수익 need an empty-week state?</b> 0원 for a week with no rows is MEASURED (a real zero from a
+    successful query), so it is legal under loading ≠ 0 — and still the most demoralizing thing on the screen.
+    <span class="src">money A④ · A①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B23</div><div class="qb">
+    <b>Two structural collisions inside one cluster.</b> On owner live, M① adds ~96pt of identity block and
+    M③ removes ~120pt of chrome — compatible only if M③’s collapse wins at stage <code>arrived</code> and
+    M①’s block renders in full at <code>enroute</code>. On the club 승낙서, D①+D② together add ~130pt and
+    push a GESTURE below the fold on 375dp. <b>Take one, take both with a pinned disabled-reason line, or
+    move fee+terms above the fields?</b>
+    <span class="src">live M①/M③ · club D①/D②</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B24</div><div class="qb">
+    <b>Ceremony and hierarchy questions on the club surfaces.</b> Is check-in a sanctioned ceremony?
+    §7b names three peak moments (GO press, handoff seal, run completion) — if check-in is not a fourth,
+    P② is only its thumb-zone half. Does a triage head belong on a host screen at all (K①), or is pure
+    reordering — 배정 first when <code>checkinOpen</code> — the safer answer, since a second counter of the
+    same arrays can disagree with itself? May the emergency number leave the dog row to buy the big distance
+    number (R②)? And does the photo contact strip go inside the captured card (T①), which means three more
+    signed URLs must resolve before the capture is honest?
+    <span class="src">club P② · K① · R② · T①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B25</div><div class="qb">
+    <b>Feed, ranking and chat product calls.</b> Should the feed become 우리 동네 for real
+    (<code>routes.town</code> and <code>profiles.district</code> exist) — and then what happens to a pilot
+    user with an empty district? Where does a safety alert land for an <i>owner</i>? E① routes
+    <code>kind='safety'</code> to <code>/club/session/[sid]</code>, right for a host, but for the owner of a
+    delegated dog receiving 반환 지연 경보, is it that screen, <code>/safety</code>, or a case screen whose id
+    we do not have? May Instagram own the one coral surface in the share studio? Does the chat mine-bubble
+    move from <code>colors.volt</code> to paper.wash + coral — better contrast and consistent with the
+    coral-is-your-turn law, but volt-as-me is muscle memory for existing testers.
+    <span class="src">social A① · E① · G① · D①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B26</div><div class="qb">
+    <b>Account-cluster consistency calls.</b> Should 로그아웃 and 역할 전환 live in both 마이 and 설정?
+    They do today, painted differently in each. Is 「알림 종류별 설정」 the right pending promise, given no
+    preferences table exists to constrain its shape — <b>naming a specific unbuilt feature in a 준비 중 label
+    is itself a promise.</b> Does the owner’s push ask belong in onboarding at all?
+    <code>docs/decisions/card-registration-placement.md</code> reasons the OPPOSITE way about a different ask,
+    placing it inline at first booking because a request before delivered value is the reliable drop-off
+    point — <b>same question, two answers, and they should be made consistent.</b> And: 마이 ② retires the
+    latin § kickers, which is where that grammar carries the most meaning (it is a passport) — if the
+    passport keeps them by exception, that exception belongs in DESIGN.md rather than surviving as drift.
+    <span class="src">account C/D/H</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B27</div><div class="qb">
+    <b>Records-cluster placement calls.</b> Where does 주간 목표 belong? <code>weeklyGoalKm</code> is a
+    property of the dog but is editable only on fitness — coherent, yet the stepper is the only editable
+    control on an otherwise read-only report. Is 체력 나이’s threshold of 2 completed runs in 28 days
+    (<code>api.ts:2454</code>) a product constant or a placeholder? A① renders it as 1/2, <b>exposing the
+    threshold to owners for the first time</b>; if it will move when the vet-verified formula lands, the
+    copy should say 「몇 번 더」 with no denominator. And the fitness photo counter is device-width-dependent —
+    <code>railN</code> fits the rail to the screen, so two owners on different phones see different totals
+    for the same library.
+    <span class="src">records F</span>
+  </div></div>
+
+  <div class="q"><div class="qn">B28</div><div class="qb">
+    <b>Two questions about how much may be hidden or moved.</b> Does collapsing the seal band in the ceiling
+    frame cross §7b’s line from decluttering into hiding? It folds to a tappable one-liner rather than being
+    deleted, but whether 「확인 0/2 ›」 says everything the band said is a judgement call.
+    Separately: if the handoff ceremony moves below the CTA, does the runner miss the seal landing?
+    Two candidate fixes — auto-scroll to the seal slot after the handoff tap, or adopt ④ so the band only
+    exists from <code>arrived</code> and sits above the CTA then.
+    <span class="src">runner-run ② · ①/④</span>
+  </div></div>
+</div>
+
+<div class="qgrp">
+  <h3>NOTED — found while reading; no variant fixes these</h3>
+
+  <div class="q"><div class="qn">N1</div><div class="qb">
+    <b>Nothing in any lab was rendered on a simulator.</b> Every contrast figure quoted is a WCAG
+    relative-luminance computation from theme.ts hex values (white on #E8552F = 3.64:1 · white on
+    #C6472C = 4.84:1 · #A83315 on white = 6.67:1 · #0E7F49 on white = 5.06:1), not a device reading.
+    <span class="src">booking · all</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N2</div><div class="qb">
+    <b>Three layout fits are unmeasured and flagged rather than asserted.</b> The availability stepper row
+    may not fit 390pt (two steppers ≈344 against ≈330 of content width; RN <code>flexShrink</code> defaults
+    to 0, so it would clip rather than reflow) · settings ②’s hairline rows at gutter 15 with a long
+    Kakao-supplied name at 15.5pt · club D①+D② against the 375dp fold. <b>Five-minute simulator checks, not
+    findings.</b>
+    <span class="src">runner-home D③ · account D② · club D</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N3</div><div class="qb">
+    <b>Is <code>club/[id].tsx</code> still mid-migration on purpose?</b> It paints a paper canvas but keeps
+    lilac cards (lilacRadius + soft shadow) for 시리즈 리듬 and the collecting card while its own tiles and
+    host tool are paper (radius 0, #EEE). <b>Both grammars on one screen</b>; every club C frame preserves
+    it as-is rather than picking a side.
+    <span class="src">club C</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N4</div><div class="qb">
+    <b>Android has no 반려견 추가.</b> <code>Alert.prompt</code> is iOS-only, so Android owners get
+    「iOS에서 지원돼요」 — a dead end rather than a feature gate. Fixing it needs a real inline field or
+    sheet, i.e. a new control, so it was not drawn. <b>Is Android in the Banpo pilot at all?</b>
+    Related: 생일 has no picker and no dependency to build one (nothing like
+    <code>@react-native-community/datetimepicker</code> is installed), yet that one field gates the brand’s
+    signature number (체력 나이).
+    <span class="src">records F</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N5</div><div class="qb">
+    <b>Three writers, one 이름.</b> <code>onboard/runner</code> writes <code>profiles.name</code>, 마이’s
+    sheet writes it again, and <code>index.tsx</code> writes it on first INSERT from the email stem — or
+    「사용자」 for a Kakao account with no email, the common case. <b>보호자 온보딩 never asks for the owner’s
+    name at all</b>, so an owner is called 사용자 to their runner until they find 프로필 설정.
+    Should owner onboarding ask? That is a third step, and it was not added quietly.
+    <span class="src">account H</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N6</div><div class="qb">
+    <b>Is 「페이스 · 신호 대기」 true?</b> The real predicate is “90s with no ACCEPTED fix” — the cause could
+    be signal loss OR the accuracy gate rejecting fixes. 「페이스 · 측정 대기」 is accurate and reads worse.
+    <b>Copy decision.</b> Related: how do we hedge a straight-line distance inside a list row? The peek head
+    says 이동 포함 「약」 6.4km because there is no routing engine; 「픽업에서 0.7km」 carries the same
+    uncertainty with no room for the hedge — prefix every row with 약, or state it once in the 가까운 순 line?
+    <span class="src">runner-run ⑦ · live C①</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N7</div><div class="qb">
+    <b>Two unruled constants nothing here touches.</b> Anchor sizing
+    (<code>anchorSizeForZoom</code> 18/30/44) has been unruled since 2026-08-19
+    (RULINGS-2026-08-19-journey.md), and C②’s legend plus C①’s denser rows both assume current behaviour.
+    Should the 하루 최대 러닝 stepper have a floor? Setting it to 1 silently removes the runner from most
+    slots — legitimate, but it is supply lost without a word.
+    <span class="src">live C · runner-home D③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N8</div><div class="qb">
+    <b>Should run.tsx keep its panel/island toggle as a user setting?</b> All three run variants are drawn
+    for “panel”. Island runners would see a different screen and both would need maintaining.
+    <b>No usage data exists to answer this.</b> Likewise: does the auto-lit (조명 자동켜짐) notice have a home
+    once the chips move into the sheet? Its growth is the documented reason <code>chromeH</code> is measured
+    rather than constant.
+    <span class="src">runner-run · live C③</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N9</div><div class="qb">
+    <b>Where the earning-rules block belongs.</b> rewards and shop would list the same server literals and
+    will drift the first time one moves (0085’s own warning). <b>Single source in theme.ts, or pick one
+    screen?</b> Also left as one tap deliberately: opening a 보급 (mini) drop is irreversible but there is
+    nothing to choose (contents are sealed in the row), so a confirm there is ceremony, not safety.
+    <span class="src">money B</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N10</div><div class="qb">
+    <b>The card-register slice is blocked on Sean’s Ⓐ lab pick</b>, and its agreed placement includes
+    “one skippable soft prompt at the end of onboarding” — <b>which does not exist in either onboarding
+    screen today.</b> Out of scope for the account lab (there is no register sheet to prompt toward), but
+    the decision doc expects it.
+    <span class="src">account H</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N11</div><div class="qb">
+    <b>Nothing in any lab proposes a new empty-state illustration, colour, or motion.</b> The style freeze
+    (to 50 paying dogs) is why. <b>If the real answer to “make home feel better” is craft rather than
+    information, none of these 142 frames is that answer.</b>
+    <span class="src">owner-home</span>
+  </div></div>
+
+  <div class="q"><div class="qn">N12</div><div class="qb">
+    <b>One design-hook finding was classified as a false positive and left unchanged.</b> The
+    <code>.phone</code> card’s <code>box-shadow: 0 18px 44px rgba(28,24,55,.10)</code> was flagged as a
+    “glowing shadow accent”. It is the project’s own <code>lilacShadow</code> colour as an offset elevation
+    shadow on a light background — the exact value every house lab uses for its phone frames — not a
+    zero-offset chromatic halo. <b>This board uses the same value, deliberately.</b>
+    <span class="src">money</span>
+  </div></div>
+</div>
+
+
+<!-- ═══════════════════════════════ 5. LEGEND ═══════════════════════════════ -->
+<h2 class="band" id="how"><span class="n">⑤</span>HOW TO READ A ROW<span class="tag">and what happens after a number is written</span></h2>
+
+<div class="note">
+  <h4>Numbering</h4>
+  Numbering is per-lab, not global. Four labs prefix their numbers with a screen letter (R①, M②, C①, S②)
+  because the same screen letter recurs in that lab’s cost table; four use bare ①②③④ per screen; the runner
+  run flow numbers ①–⑫ straight through its four screens. <b>The pick sheet prints the number in the exact
+  form its lab uses</b>, so “club S②” or “runner-run ⑦” is unambiguous on its own.
+</div>
+
+<div class="note">
+  <h4>What a pick means</h4>
+  A number selects an <i>argument</i>, not a pixel spec. Implementation reads the lab’s frame, binds the real
+  field named in the annotation beside it, and drops anything it cannot bind. <b>A variant that reached the
+  cost sheet does not become a client change because it was picked</b> — it becomes a slice with a migration
+  or a new read in front of it, and the migration goes through <code>/autoplan</code> and the SQL harness
+  before the screen is touched.
+</div>
+
+<div class="note">
+  <h4>Frozen surfaces the picks touch</h4>
+  <b>owner/fitness’s collapsing hero</b> (records ①②③ — restyle only; no height/layout animation, no
+  backgroundColor animation, the 36-dot ring layers stay hardware-textured). <b>The meetup screens’ stage
+  machine, polling and confirmHandoff flow</b> (live M①M②M③ and runner-run ①②③④ — styling changes only;
+  seals fill on server truth only; live M② additionally needs the hook-bundle append in question B5).
+  <b>Owner home’s hero LEFT the freeze on 2026-08-19</b> (Sean: “A”) together with the GO disc, so
+  restructuring it is legal — the freeze stays for fitness only.
+</div>
+
+<div class="foot">
+  <b>Totals.</b> 10 labs · 53 screens · 142 variants · 0 new hex values · 0 new fonts · 0 new motifs.
+  Of the 142, the great majority are pure client changes against fields already fetched; the cost sheet above
+  is the complete list of what is not.<br><br>
+  <b>Provenance.</b> Every frame was drawn against the shipped screen source, with a 현재 frame first so the
+  change is legible as a change. Tokens come from <code>app/src/theme.ts</code>; laws from
+  <code>DESIGN.md</code> and <code>CLAUDE.md</code> §Honesty / §DO-NOT-REFACTOR / §Language. Where DESIGN.md
+  and theme.ts disagreed, theme.ts was followed — several labs record which value they used and why.<br><br>
+  <b>This board is a mock index, not a plan.</b> It does not sequence the work, does not estimate it, and
+  does not claim any of it is ready. It exists so a pick can be made in one sitting.
+</div>
+
+</div></body></html>
