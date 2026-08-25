@@ -115,3 +115,15 @@ deliberate landing+deploy, not a drift.
 F2. **Mode A participation: FREE, ruled — and the copy is his**: surfaces state 「무료로 크루
 참가」. The addendum's §4 closes (no fee machinery, ever, unless he reopens it); A6's cancel
 copy stays fee-less.
+
+## Third round — 2026-08-25 14:19 KST
+
+| # | Question | His answer | His comment (verbatim) | Time (UTC) |
+|---|---|---|---|---|
+| T1 | Runner base-move cooldown N | "7 days" | "wait, this is fine. no need to over worry about such abuse." | 05:19:37 |
+
+Disposition: **N = 7 days**, and the comment sets the POSTURE — the lightest protection, and
+an instruction not to over-engineer this abuse class. The 0123 fix round ships with the 7-day
+cooldown + the honest wording; the heavier counters stay only insofar as they are already
+built and cheap. Unblocks the 0123 deploy (ui6). Clock-flip, revoke-edge, and route-km cards
+remain open on the console; the two soft confirms default to as-built if never tapped.
