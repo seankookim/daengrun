@@ -489,3 +489,31 @@ they don't.
 Latent today only because club bookings mint with `address_id` NULL; **it arms the moment sign-up
 starts writing them.** This is the shape the repo keeps meeting: a gate whose window was drawn for
 one leg and is now asked to cover two.
+
+### ✅ SECOND PAIR OF EYES (ui6) — CONFIRMED, and narrower + more structural than reported
+
+Verified independently at source rather than agreed to (the echo rule, one message old). The exact
+window: `booking_pickup_address` admits `runner_enroute` · `picked_up` · `active` · or `confirmed`
+within 24h. **`completed` is not in it.**
+
+**It is CLUB-ONLY. The marketplace path is fine, and the reason is worth keeping:**
+`confirm_return_tx` requires `status = 'active'` and settles to `completed` only *after* the return
+seals (0083:720, "active에서만 completed로"). So on the marketplace the booking is still `active`
+throughout its return window — the address gate holds. It also refuses club bookings outright
+(`if b.club_session_id is not null then raise exception 'club_out_of_scope'`), which is why the two
+paths cannot be reasoned about together.
+
+**The club path inverts that order, and does it deliberately.** 0045:55-59: when the booking
+reaches `completed`, the trigger sets `custody_phase = 'return_pending'` and *keeps custody with
+the runner* — its own comment is 「정산 ≠ 반환」 (settlement ≠ return). `session_confirm_return`
+then requires `custody_phase = 'return_pending'`, i.e. it can only run once the booking is already
+`completed`. **So the club's entire return window lies outside the address gate by construction —
+not by oversight.** The very separation that makes club custody honest (money can settle while the
+dog is still out) is what puts the return past the window.
+
+**Consequence for the slice:** this cannot be fixed by nudging a status list. A home-return club
+pairing needs the address readable during `completed`+`return_pending`, which means either widening
+0065's gate with a custody-aware arm (readable while THIS pairing is return_pending, not merely
+while the booking is completed — otherwise every finished booking re-opens its address forever), or
+a separate club-return address RPC. The first is smaller; the second is safer to reason about.
+Spec session's call — recorded here because the narrowing is what makes it decidable.
