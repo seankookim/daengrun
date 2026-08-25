@@ -297,3 +297,75 @@ partner's flat). Neither model can see his conversations.
 **If we're wrong, the cost is:** we shipped a label fix and asked one question, instead of a
 migration — recoverable in days. If we build and they're right, we carry a permanent unenforceable
 distance rule, a second address disclosure per booking, and an unpriced runner leg, pre-PMF.
+
+---
+
+# RESOLUTION — Sean, 2026-08-25, answering the premise gate
+
+He did not pick from the options. He specified the flow, and it is **club session sign-up**, which
+settles the scope question the review raised. Verbatim, both answers:
+
+> "as the owner goes through the process of signing up for a session, the app should prompt them
+> with a set up screen asking all necessary things, including but not limited to whether they will
+> run themselves in which case the starting point address and other things need to be shown, or
+> whether they will request a runner, at which point the next required questions include but are
+> not limited to where they ask the runner to pick up the dog (here there can be two options; a
+> default home address or a second option giving a new address option), etc and also be shown all
+> session details like time, group number, etc etc, and also whether the owner will pick up the dog
+> at the club's ending point and meet the runner after the run is finished on site or whether they
+> ask the runner to bring the dog back home so the owner can stay home. in similar fashion, there
+> shuold be one more option of where the owner can ask for pick up in the beginning, this option
+> being the place where the session run begins so that the requested runner doesnt have to do any
+> pick up and just bring themselves and required equipment to the session start site."
+
+> "a requested runner can initially meet and pick up the dog from the owner at the owner's selected
+> point, which can be the owner's home or some other place, in which case pick up statuses have to
+> be monitored by the host, or they can meet the owner and the dog at the starting site of the
+> session run if the owner has decided so… once the club session run has finished, the runner with
+> the dog should meet the owner where the owner desires, which can either be the owner's custom
+> address (whether that's the owner's home or not and in either case the runner will have
+> responsilibty under the the dog transfer has been completed), or at the site where the run has
+> finished (where once again the owner and the runner has to complete the transfer and mutual
+> confirmation ritual) and the runner does not need to do a go-back-to-owner-home service"
+
+## What this settles, and what it changes about the review
+
+**Scope: CLUB SESSION SIGN-UP.** Confirms voice B's F3 — the marketplace booking flow is not
+involved. `create-booking-hold` comes out of the blast radius entirely.
+
+**The model, stated as he specified it:**
+
+| Choice | Options |
+|---|---|
+| Who runs the dog | **self-run** (starting point address + details shown) · **request a runner** |
+| PICKUP point (runner path only) | **home** (default) · **another address** · **the session start site** ← *new, and his own addition* |
+| RETURN point | **owner's custom address** (home or not) · **the run finish site** |
+| Both transfers | the existing two-sided confirmation ritual — unchanged |
+| Host | **monitors pickup statuses** |
+
+**The session-start pickup option is the part no review anticipated, and it inverts two of their
+objections.** F8 said this taxes the scarce side; the start-site option *removes the runner's
+pickup leg entirely* — the runner brings themselves and their equipment to the start. F7 said a
+second address is a second disclosure; the start-site option discloses **zero** owner addresses.
+So the option set he added is a supply-side and privacy-side improvement, not a cost.
+
+**What the review got right and still stands:** it is club-only (F3 ✅) · 즉시 해제 was never a
+defect and needs a label, not a model (F1 ✅) · the return is a person-to-person ritual and stays
+location-blind in the money path (F5 ✅ — he describes the ritual, not a settlement term) ·
+the existing `pickup_mode` flag is the right home, it just widens from two options to three (F2/F4 ✅
+— **spec session's surface, not this plan's**).
+
+**What is now moot:** the "not too far" radius (F6) — he specified an *option set*, not a distance
+rule; nothing to enforce. Four of the five open questions dissolve with it.
+
+**What is still genuinely open:** what a runner is paid when the pickup leg disappears (start-site
+pickup is less work than home pickup) — a money question, and money questions are Sean's.
+
+## Disposition
+
+1. **Spec session owns the model** — it widens their already-ruled `pickup_mode` (§7.2) from
+   {집, 현장} to a pickup triple and a return pair, both on the pairing. Relayed with his verbatim.
+2. **ui6 (this session) owns the SETUP SCREEN** — the sign-up flow he described: self-run vs runner,
+   then the pickup/return choices, then session details (time, group number). Lab first, his pick.
+3. **The 즉시 해제 label fix** ships regardless and is not blocked on any of it.
+4. **Runner pay for a pickup-free job** goes to his queue as one question, not five.
