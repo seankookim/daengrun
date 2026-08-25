@@ -38,8 +38,38 @@ export type BtnArt = 'dog' | 'calendar' | 'ticket' | 'radar' | 'leash' | 'elev' 
 // 95% white wash already in theme.ts:167) measures 4.55:1 — the tint survives, the floor holds,
 // and no new hex enters the palette. Arithmetic is WCAG 2.x relative luminance; the calculator
 // was calibrated against this repo's own recorded value (white on #C6472C = 4.84).
+//
+// [2026-08-25 · Sean, console ruling #18 — SUPERSEDES the paragraph above for the coral row only]
+// His words, verbatim: "approve on everything." (console artifact aad92054, 04:31:30Z; recorded in
+// docs/decisions/2026-08-25-console-rulings.md #18, whose bundle line reads "coral ground deepens
+// to #A63A20"). The record he approved is awaiting-sean.md §0-duodetricies, option A.
+//
+// What moved: the coral GROUND, from paper.action (#C6472C) to #A63A20 — the value this row
+// already held as its depth edge, so no new hex enters the palette. #C6472C's white label was the
+// row's ceiling at 4.84, which meant the only AA-passing sub (paper.wash, 4.55) sat within 0.3 of
+// the title and colour could no longer separate the two lines. On #A63A20 the ORIGINAL sub
+// #FFD9CE measures 4.95 and white measures 6.47 — both re-derived here (WCAG 2.x relative
+// luminance) and both matching §0-duodetricies' table exactly. Hierarchy comes back, the floor
+// holds with margin, and the button is visibly deeper — which is the cost he was shown and took.
+//
+// ⚠ SCOPE: this row only. `paper.action` itself is UNCHANGED, so every other primary face
+// (paper-btn, club-ui, the report's 재예약 panel, runner home's jobCta) keeps #C6472C and its
+// measured pairs. The record names 홈's primary button — the ⑧ v2 CTA grammar — and this row's
+// only consumers are home-hero.tsx's two coral DrawButtons.
+//
+// ⚠ THE EDGE, and what it costs. The ground took the edge's value, so the edge had to move down
+// one. No new hex is allowed, so it goes to the darker existing neighbour in the same row of the
+// system: paper.actionPressed (#A83315), the token literally named for the deeper coral face.
+// MEASURED, and say it plainly: #A83315 against the new #A63A20 ground is 1.03:1 — the resting
+// 4px depth lip is no longer visible AS COLOUR (it was 1.34:1 against #C6472C). The press
+// affordance itself survives untouched, because this button never expressed press with a
+// background swap: it is translateY(3) + the 4px border collapsing to 1px (:171), and both still
+// read. What is lost is the drawn lip at rest, not the feedback on touch. The only existing token
+// that would restore a visible lip is paper.ink (2.92:1), which puts a black edge under coral and
+// changes the drawing Sean picked by number — not a call to make as a side effect of a colour
+// ruling. Flagged for him rather than taken.
 const G: Record<BtnGround, { bg: string; border: string; edge: string; ink: string; sub: string }> = {
-  coral:  { bg: paper.action, border: paper.action, edge: '#A63A20', ink: '#FFFFFF', sub: paper.wash },  // 4.84 / 4.55
+  coral:  { bg: '#A63A20', border: '#A63A20', edge: paper.actionPressed, ink: '#FFFFFF', sub: '#FFD9CE' },  // 6.47 / 4.95
   paper:  { bg: '#FBF9F4', border: paper.ink,       edge: paper.ink, ink: paper.ink, sub: paper.dim },   // 17.9 / 5.5
   gold:   { bg: '#F4EBD3', border: '#E7DAB6',       edge: '#C9AE6A', ink: '#5F4E1C', sub: '#6B5720' },   // 6.8 / 5.9
   blue:   { bg: '#EDF2F8', border: '#D8E3EF',       edge: '#A9BDD2', ink: '#2E4F70', sub: '#456079' },   // 7.6 / 5.8

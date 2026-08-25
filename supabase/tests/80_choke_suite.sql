@@ -24,11 +24,15 @@ begin
   where b.runner_id is not null and b.club_session_id is null limit 1;
 
   -- [K1] 뷰: 러너에게 일반 오픈 요청 보임 + 클럽 부킹 구조적 배제
+  -- [0121] 오픈 풀의 클라이언트 창구가 marketplace_open_requests → runner_open_requests 로
+  -- 이동했다 (요금 컬럼 없는 net 전용 뷰 — 계약 §D). 이 핀의 명제(초크포인트 뷰가 오픈 요청을
+  -- 보이고 클럽 부킹을 구조적으로 배제한다)는 그대로이고, 그 명제가 사는 뷰가 바뀌었다.
+  -- 구 뷰의 봉인 상태는 156 P6(c)가 소유한다.
   begin
     set local role authenticated;
     perform set_config('request.jwt.claim.sub', v_runner::text, true);
-    execute 'select count(*) from marketplace_open_requests where id = $1' into v_cnt using v_open;
-    execute 'select count(*) from marketplace_open_requests where id = $1' into v_cnt2 using v_club_bid;
+    execute 'select count(*) from runner_open_requests where id = $1' into v_cnt using v_open;
+    execute 'select count(*) from runner_open_requests where id = $1' into v_cnt2 using v_club_bid;
     reset role;
     if v_cnt = 1 and v_cnt2 = 0 and v_club_bid is not null
       then call _pass('chk','K1 뷰 — 일반 오픈 노출·클럽 부킹 배제');
@@ -40,7 +44,8 @@ begin
   begin
     set local role authenticated;
     perform set_config('request.jwt.claim.sub', v_owner::text, true);
-    execute 'select count(*) from marketplace_open_requests' into v_cnt;
+    -- [0121] K1과 같은 이동 — is_active_runner 게이트는 새 뷰가 그대로 상속한다.
+    execute 'select count(*) from runner_open_requests' into v_cnt;
     reset role;
     if v_cnt = 0 then call _pass('chk','K2 뷰 — 비러너 0행 (is_active_runner 게이트)');
     else call _fail('chk','K2 비러너','rows=' || v_cnt); end if;

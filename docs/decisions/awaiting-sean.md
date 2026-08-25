@@ -1296,6 +1296,31 @@ already accepted that day. One word from Sean — **A** or **B** — unblocks it
 
 ## §0-duodetricies · The primary CTA's coral is boxed in at AA — deepen it, or accept flat hierarchy?
 
+> **✅ ANSWERED + BUILT 2026-08-25 — A.** Sean's console ruling #18 (artifact aad92054, 04:31:30Z),
+> verbatim: **"approve on everything."** — the bundle line it approves reads *"coral ground deepens
+> to #A63A20"* (`docs/decisions/2026-08-25-console-rulings.md` #18, whose own disposition says
+> "Each item's own record governs details" — this section is that record).
+>
+> Built the same day in `app/src/components/draw-button.tsx`: the `coral` row's ground moves
+> `#C6472C → #A63A20`, the sub-line returns to `#FFD9CE` (**4.95**), white title (**6.47**). Both
+> figures re-derived independently before the edit and both match the table below exactly. **No new
+> hex** — `#A63A20` was already this row's depth edge.
+>
+> **Scope, deliberately narrow:** `paper.action` is UNCHANGED. Only the DrawButton `coral` row
+> moved, whose only consumers are `home-hero.tsx`'s two coral CTAs (인계하기 · 지금 찾기) — the ⑧ v2
+> home CTA grammar this section names. Every other primary face (paper-btn · club-ui · the report's
+> 재예약 panel · runner home's `jobCta`) keeps `#C6472C` and its own measured pairs.
+>
+> **One cost this section did not price, measured and reported rather than absorbed:** the ground
+> took the edge's value, so the edge moved down to the darker existing neighbour, `paper.actionPressed`
+> (`#A83315`). `#A83315` on `#A63A20` is **1.03:1** — the resting 4px depth lip is no longer visible
+> as colour (it was 1.34:1 on `#C6472C`). The press affordance itself is untouched: this button never
+> swapped its background on press, it uses `translateY(3)` + the border collapsing 4px→1px. The only
+> existing token that restores a visible lip is `paper.ink` (2.92:1), which puts a black edge under
+> coral and redraws the button Sean picked by number — **left for him, not taken as a side effect.**
+> Also left alone for the same reason: home-hero's 「내 차례」 chip still inks at `#C6472C`; it is ink
+> on canvas, not a ground, and this section ruled on the ground.
+
 **One question, one word. Nothing is blocked tonight** — the accessibility failure itself is
 already fixed; this is only about whether to take the better fix, which is visible.
 
@@ -1404,3 +1429,36 @@ Adjacent, already queued elsewhere, listed so this section is complete: the draw
 question (is a DrawButton title a display-font use? — blocks A③'s coda tier and font demotion,
 enh-owner-home-lab open question 4) · 맹견 refused-vs-conditions · the club spec packet · 0119's
 land word.
+
+## §0-tertricies · 🔴 0123 DISTANCE (your ruling B) — the blind review BROKE the privacy claim; one knob is yours before deploy (2026-08-25)
+
+The reviewer executed the attack end-to-end through the two shipped RPCs, no shortcuts: **323
+probes (each = move base, read bands) localized a stranger's pickup address to 8.8 meters.** The
+migration's header claimed the grid makes anything under ~1.1 km impossible — wrong by ~125×.
+Four base moves already resolve finer than the 동 that 0122 discloses. Coarsening the band ladder
+buys nothing (measured across five designs): the leak is the number of distinct centres an
+attacker can stand on, i.e. **the ability to re-probe**, not any single reading.
+
+**The fix being built now** (mechanism is my call, one parameter is yours):
+- `set_runner_base` gets a **cooldown** — a runner can move their base at most once per N days
+  (first set always free). This bounds annuli-per-address to ~elapsed/N; the measured sub-동
+  threshold (3–4 annuli) then costs a single account **months**, and a runner who could accept
+  the booking learns the exact address legitimately anyway — the attack becomes irrational.
+- Timestamps + a change counter (never a coordinate history — that would be stored 개인위치정보
+  with its own retention problem) make probing patterns visible after the fact.
+- The header/comments are rewritten to claim only what is measured, including the honest residual:
+  K colluding certified accounts get K annuli at once. Irreducible while distance is shown at all —
+  usefulness and safety are one knob here; the standing defense is the certified-identity gate.
+
+**Your one knob — N, the base-change cooldown.** It is user-visible: 「기준 위치는 N일에 한 번
+바꿀 수 있어요」 in settings. ⓐ 7 days (friendlier, attack ≈ 1 month) · **ⓑ 30 days
+(recommended — matches real "I moved apartments" cadence, attack ≈ 3–4 months)** · ⓒ 90 days
+(hardest, punishes a genuine mid-season move). Reply a letter; ⓑ ships absent objection since it
+also constrains your "switch this address in settings" ruling the least while still killing the
+attack. **0123 does not deploy until this is set** — everything else (four MAJORs, seven MINORs
+from the same review) is mechanical and already in the fix round.
+
+Also riding this entry: the route-name correction (console #18) is being landed as **option A**
+(rename the token to the measured length: 서리풀–몽마르뜨 종주 4.8km · 한강 반포–잠원 6.7km ·
+그랜드 루프 km-only 5.0→4.8) — the record's own worked example and the natural reading of
+"corrected". Say the word if you meant B (drop the km from the names entirely).

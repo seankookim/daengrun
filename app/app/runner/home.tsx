@@ -18,6 +18,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
 import { lateness } from '../../src/lib/lateness';
+import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
 import { runnerJob } from '../../src/store';
 import { colors, layout, lilac, paper } from '../../src/theme';
@@ -486,8 +487,13 @@ export default function RunnerHome() {
   const nextTodayMer = nextToday ? (nextToday.wd.split(' ').pop() ?? '') : '';
 
   // 오늘의 루트 — 진행 중 + 다음 예약을 정차역 타임라인으로 (모든 job 데이터·openJob 보존)
+  // ⚠ [sim walk 2026-08-25] the header says 오늘의 루트, and the fixture put an Aug-4 enroute row
+  // under it three weeks later — `current` is "the runner's live job" with no day predicate, so a
+  // rotted in-flight booking leaked into a section whose name is a date claim. Gate it on the
+  // section's own word (isTodayKst — the same helper every other 오늘 fact here uses). A stale
+  // live job LOSES NOTHING: the 진행 중 ticket above still owns it unconditionally.
   const routeStops: { job: RunnerJob; kind: 'on' | 'next' }[] = [
-    ...(current ? [{ job: current, kind: 'on' as const }] : []),
+    ...(current && isTodayKst(current.scheduledAt) ? [{ job: current, kind: 'on' as const }] : []),
     ...upcoming.map((j) => ({ job: j, kind: 'next' as const })),
   ];
 
@@ -669,6 +675,19 @@ export default function RunnerHome() {
                                  runnerHandoffAt: current.runnerHandoffAt ?? null })}
                 side="runner"
                 dogName={current.dogName}
+              />
+              {/* [0117 stage 2] 체크인 답 표면 — 계획 §13/§15 T5 의 러너 쪽 자리. 지각 알림이 사실을
+                  말한 바로 아래에서 답을 받는다.
+                  · 러너의 네 입구는 meetup 으로 모이지만 meetup 은 동결 화면이라(스테이지 머신·폴링·
+                    confirmHandoff) 답 표면이 거기 붙지 못한다 — 홈이 러너 쪽 유일한 마운트다.
+                  · 코랄 0: 이 화면의 코랄은 수락 문(liveOwnsCoral)이 갖는다.
+                  · 서버가 체크인을 열지 않았으면 아무것도 그리지 않는다. */}
+              <CheckinAnswer
+                key={current.bookingId}
+                bookingId={current.bookingId}
+                side="runner"
+                rawStatus={current.rawStatus}
+                onAnswered={loadJobs}
               />
               <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}>
                 <View style={styles.tMain}>
@@ -1322,9 +1341,9 @@ export default function RunnerHome() {
               onPress={() => router.push('/compose')}
               style={({ pressed }) => [styles.feedShare, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
               accessibilityRole="button"
-              accessibilityLabel="동네 피드에 자랑하기"
+              accessibilityLabel="하이 피드에 자랑하기"
             >
-              <Text style={styles.feedShareTxt}>완주 기록을 동네 피드에 자랑하기 ›</Text>
+              <Text style={styles.feedShareTxt}>완주 기록을 하이 피드에 자랑하기 ›</Text>
             </Pressable>
           </>
         )}

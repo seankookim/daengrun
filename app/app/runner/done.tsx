@@ -221,7 +221,7 @@ export default function RunDone() {
         <Text style={s.moneyLabel}>{runResult.settled ? '적립 예정' : '예상 수익 (정산 미완료)'}</Text>
         <Row style={{ alignItems: 'baseline' }}>
           {/* Oswald — [BUG A] lineHeight 24 = 1.26× */}
-          <Text style={[s.moneyNum, nf]}>{runResult.payout.toLocaleString()}</Text>
+          <Text style={[s.moneyNum, nf]}>{runResult.payout == null ? '—' : runResult.payout.toLocaleString()}</Text>
           <Text style={s.moneyUnit}>원</Text>
         </Row>
       </Row>

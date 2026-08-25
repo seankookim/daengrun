@@ -113,9 +113,14 @@ export default function OwnerMeetup() {
   // safe-area insets the new in-flow header and the CTA dock need.
   const [gear, setGear] = useState({ leash: false, water: false, treats: false });
   const insets = useSafeAreaInsets();
-  // Mutes refresh()'s terminal-state handler while our own cancel exit runs — realtime can
-  // observe cancelled_owner before cancelBooking() resolves, and without this both paths
-  // would Alert + router.back() (double pop).
+  // "An exit is in flight — it owns the alert + navigation." Armed by the cancel flow (realtime
+  // can observe cancelled_owner before cancelBooking() resolves, and without this both paths
+  // would Alert + router.back() — double pop) and, since 2026-08-25, by refresh()'s own terminal
+  // arms: they had no once-latch, so on a single-entry (deep-linked) stack where a bare back()
+  // NO-OPs, the 8s poll re-fired the same alert every tick forever — measured live on the runner
+  // sibling, same shape here. The bare back()s in those arms became goBackOrHome for the same
+  // reason (94e46fb's "terminal exits want a pop" holds — goBackOrHome pops whenever a pop is
+  // possible; the home fallback engages only when it isn't, which is the loop case).
   const closingRef = useRef(false);
   // [2026-08-20 incident hold] `incident_review` is a hold the owner WAITS INSIDE, not an exit:
   // 0072_incident_settlement.sql:144-179 makes refund_pending its only commercial successor and the
@@ -138,7 +143,7 @@ export default function OwnerMeetup() {
         if (id) { draft.bookingId = id; setBookingId(id); }
         else {
           Alert.alert('진행 중인 예약이 없어요', '러너가 확정된 예약이 있을 때 이 화면이 열려요');
-          router.back();
+          goBackOrHome(); // deep-linked = single-entry stack; a bare back() strands the owner here
         }
       })
       .catch((e) => {
@@ -147,7 +152,7 @@ export default function OwnerMeetup() {
         console.warn('[o-meetup] resolve:', e?.message ?? e);
         Alert.alert('상태를 확인하지 못했어요', '네트워크를 확인하고 다시 시도해주세요', [
           { text: '다시 시도', onPress: () => { draft.bookingId = null; setBookingId(null); } },
-          { text: '돌아가기', style: 'cancel', onPress: () => router.back() },
+          { text: '돌아가기', style: 'cancel', onPress: () => goBackOrHome() },
         ]);
       });
   }, [bookingId]);
@@ -182,20 +187,23 @@ export default function OwnerMeetup() {
       const sync = await fetchBookingSync(bookingId);
       // 종말 상태 — 화면에 좌초하지 않고 정직하게 이탈 (감사 ③)
       if (sync.status === 'completed') {
+        closingRef.current = true; // latch — a queued sync between replace and unmount must not re-enter
         router.replace({ pathname: '/owner/report', params: { bid: bookingId } });
         return;
       }
       if (sync.status === 'matching' || sync.status.startsWith('cancelled') || sync.status === 'expired') {
+        closingRef.current = true; // latch BEFORE the alert — see the ref's declaration for the loop this ends
         Alert.alert('예약 상태가 바뀌었어요', sync.status === 'matching' ? '러너가 응답을 취소했어요 — 다른 러너를 찾고 있어요' : '이 예약은 종료됐어요');
-        router.back();
+        goBackOrHome();
         return;
       }
       // no_show / refund_pending — same shape as the terminal arm above (alert, then leave).
       // TERMINAL_EXIT's comment carries the why.
       if (TERMINAL_EXIT[sync.status]) {
         const t = TERMINAL_EXIT[sync.status];
+        closingRef.current = true;
         Alert.alert(t.title, t.body);
-        router.back();
+        goBackOrHome();
         return;
       }
       setPeerConfirmed(sync.runnerConfirmed);
@@ -314,7 +322,7 @@ export default function OwnerMeetup() {
                   ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요\n설정 › 결제 관리에서 결제 내역을 볼 수 있어요`
                   : '청구되는 금액은 없어요',
               );
-              router.back();
+              goBackOrHome(); // this screen is a push deep-link destination — a bare back() can no-op
             } catch (e) {
               // Loud fail — the booking is still live, the button stays for retry.
               Alert.alert('취소 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');

@@ -72,6 +72,38 @@
   <p class="sub">Ruling #3 · 어디에 놓을지만 고르시면 됩니다. 내용(어떤 빈칸을 묻는지)은 4안 공통.</p>
 </header>
 
+<h2 style="margin:26px 0 4px;font-size:17px;font-weight:800;border-bottom:1.5px solid var(--ink);padding-bottom:7px">
+  ✅ Sean, 2026-08-25 (콘솔 판정 #18): <span style="color:var(--coral)">①</span> — 지었습니다</h2>
+
+<div class="note" style="border:2px solid var(--ink)">
+  <h4>그의 말 그대로</h4>
+  <b>“approve on everything.”</b> — 콘솔 아티팩트 aad92054, 04:31:30Z.
+  기록: <code>docs/decisions/2026-08-25-console-rulings.md</code> #18, 번들 줄
+  “the profile-nudge lab (① recommended) … proceed as picked”, 처분 “Each item’s own record
+  governs details” — 그 record 가 이 랩입니다.
+  <div class="hair"></div>
+  <b>①이 ②를 뒤집습니다.</b> 2026-08-21 에 출하된 것은 ②(홈 상시 행)였습니다. 이제 넛지는
+  <b>첫 러닝 리포트의 맨 아래</b>로 갑니다: <code>app/app/owner/report.tsx</code>.
+  홈(<code>owner/home.tsx</code>)의 ② 행은 같은 슬라이스에서 제거됐고, 두 자리 모두에 도장을
+  남겼습니다 — <b>승계지 삭제가 아닙니다.</b> ②의 원래 판정문은
+  <code>src/components/profile-gaps.tsx</code> 머리에 통째로 살아 있습니다.
+  <div class="hair"></div>
+  <b>“첫 러닝”은 새 읽기를 만들지 않았습니다.</b> <code>fetchRunStandings</code> 가 이미 주는
+  <code>nth</code>(완주 러닝 중 이 러닝의 번호)가 그 사실입니다 — <code>nth === 1</code> 일 때만
+  빈칸 읽기가 나갑니다. standings 가 못 오면 아무것도 묻지 않습니다(첫 러닝인지 <i>모르는</i> 상태).
+  <div class="hair"></div>
+  ⚠ <b>「나중에 할게요」 — 두 판정이 부딪칩니다. 숨기지 않고 적습니다.</b> 2026-08-21 에 Sean 은
+  ②에서 일주일 스누즈를 <b>직접 뺐습니다</b>(“닫기 없음”). ①의 프레임은 그 줄을 <b>그립니다</b>.
+  그가 그려진 대로의 ①을 승인했으므로 랩이 이깁니다 — 다만 되살린 것은 스누즈가 <b>아닙니다</b>:
+  이 닫기는 <b>저장되지 않고</b> 이번 리포트 보기 동안만 접힙니다(①의 평결 상자가 이미
+  “리포트를 닫으면 그냥 사라집니다”라고 적은 그대로). 죽은 버튼도 아니고, ‘해결’과 ‘숨김’이
+  같은 모양이 되지도 않습니다.
+  <div class="hair"></div>
+  ⚠ 랩의 이모지(🐾 💉 🚪)는 <b>랩 속기</b>입니다 — 이 앱의 UI 는 이모지를 하나도 렌더하지 않아
+  (트리 전체에서 이모지는 주석의 🔴 표식뿐) 아이콘 칸만 빼고 ①의 구조를 그대로 지었습니다.
+  랩의 13px/11px 활자는 <b>14pt 플로어</b>로 올라갔습니다(한글 킥커는 플로어 면제가 아닙니다).
+</div>
+
 <div class="said">
   <b>Sean, 2026-08-19 (ruling #3):</b> “Post-first-run <b>‘finish your profile’ big nudge</b> — sometime
   AFTER the first run has taken off (not before, not blocking). <b>Design later; noted.</b>”

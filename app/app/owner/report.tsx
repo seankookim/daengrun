@@ -6,9 +6,10 @@ import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { ProfileGaps } from '../../src/components/profile-gaps';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { checkSlot, CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { checkSlot, CoursePatch, fetchPatchPop, fetchProfileGaps, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -209,6 +210,9 @@ export default function Report() {
   //                            because the unique index refuses a second one.
   const [myReview, setMyReview] = useState<MyReview | null>(null);
   const [myReviewKnown, setMyReviewKnown] = useState(false);
+  // 프로필 빈칸 넛지 (랩 ①) — `null` 은 **모름**이다: 아직 안 읽었거나 읽기가 실패했다.
+  // 배열만이 사실이고, 사실일 때만 블록이 그려진다. 실패를 '다 채워졌다'로 그리지 않는다.
+  const [profileGaps, setProfileGaps] = useState<ProfileGap[] | null>(null);
   // Extracted into a callback so the failure state's 다시 시도 has something real to call —
   // a retry button wired to nothing is a dead button.
   const load = useCallback(() => {
@@ -247,6 +251,18 @@ export default function Report() {
       haptic('success');
     }).catch(() => {});
   }, [bid, report]);
+
+  // ═══ 프로필 빈칸 넛지 — 첫 러닝 리포트에서만 읽는다 (랩 ①, Sean 콘솔 판정 #18) ═══
+  // ruling #3 의 조건은 "첫 러닝 **후**"이고, 랩 ①은 그걸 "첫 러닝 리포트의 맨 아래"로 그린다.
+  // `standings.nth` 가 그 사실을 이미 들고 있다 — 완주한 러닝을 시각 순으로 센 이 러닝의 번호
+  // (api.ts fetchRunStandings). 그래서 새 판정용 읽기를 만들지 않았고, nth 가 1일 때만
+  // 빈칸 읽기가 나간다 — 나머지 모든 리포트 진입에서는 요청 자체가 없다.
+  // standings 가 못 왔으면(=null) 아무것도 하지 않는다: 첫 러닝인지 **모르는** 상태에서 물을 수 없다.
+  useEffect(() => {
+    if (standings?.nth !== 1) return;
+    fetchProfileGaps().then(setProfileGaps)
+      .catch((e) => console.warn('[o-report] gaps:', e?.message ?? e)); // 실패 = null 유지 = 블록 없음
+  }, [standings]);
 
   // 인증샷은 전용 스튜디오(/shot/[bid])로 — 리포트 상단 인라인 카드 은퇴 (2026-07-28)
   const shotAuto = useRef(false);
@@ -830,6 +846,25 @@ export default function Report() {
                 On a STOPPED run this block — and 왜 멈췄는지 with it — is hoisted to directly under
                 the numbers (lab B②); here it only serves a completed run that still carries a note. */}
             {!stopped && <RunnerNoteSection run={run} reason={reason} />}
+
+            {/* ══════ 프로필 빈칸 넛지 — 랩 ①, 리포트의 맨 아래 (Sean 콘솔 판정 #18, 2026-08-25) ══════
+                그의 말 그대로: **"approve on everything."** (콘솔 아티팩트 aad92054, 04:31:30Z ·
+                docs/decisions/2026-08-25-console-rulings.md #18 — 번들 줄 "the profile-nudge lab
+                (① recommended) … proceed as picked"). 정본은 docs/labs/profile-nudge-lab.html ①.
+                이 자리는 ①이 그린 그 자리다 — 스크롤의 끝. ①의 약점("못 보고 나갈 수 있습니다")도
+                그가 읽은 채로 고른 것이고, 강점은 세 줄이 가리키는 화면을 방금 다 봤다는 것이다.
+                ⚠ 이 넛지는 **홈의 ② 행을 대체한다** — owner/home.tsx 의 그 자리에 같은 도장이 있다.
+                ⚠ 각 줄의 도착지는 실제 라우트다: 사진·백신 → /owner/dog(사진 픽커 + 백신 카탈로그가
+                   그 화면에 있다), 현관 상세 → /owner/addresses(기본 주소의 픽업 메모 편집기).
+                   죽은 버튼 없음.
+                ⚠ 코랄은 위의 재예약 패널이 갖는다 — 이 블록은 잉크다 (화면당 코랄 하나). */}
+            {profileGaps && (
+              <ProfileGaps
+                gaps={profileGaps}
+                dogName={report.dogName}
+                onOpen={(gap) => router.push(gap === 'doorDetail' ? '/owner/addresses' : '/owner/dog')}
+              />
+            )}
 
             {/* [2026-08-19 §E] The screen used to END here, with a 결제 block and three stacked
                 CTAs. All four moved UP into the nudge stack (⑤⑥⑦): 이대로 다시 예약 became the
