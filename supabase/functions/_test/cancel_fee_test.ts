@@ -37,7 +37,17 @@ Deno.env.set("OPS_PROFILE_ID", OPS);
 const isBilling = (u: string) => u.includes("api.tosspayments.com/v1/billing/");
 const isOrders = (u: string) => u.includes("/v1/payments/orders/");
 
-function scene(over: { status?: string; card?: boolean; prepaid?: boolean } = {}) {
+function scene(
+  over: {
+    status?: string;
+    card?: boolean;
+    prepaid?: boolean;
+    /** what the pre-write QUOTE returns (the handler's own read) */
+    quoteFee?: number;
+    /** what the trigger STORES (SQL's truth) — differs from the quote across a tier boundary */
+    storedFee?: number;
+  } = {},
+) {
   const db = new FakeDb();
   const status = over.status ?? "confirmed";
   db.seed("bookings", [{
@@ -55,9 +65,31 @@ function scene(over: { status?: string; card?: boolean; prepaid?: boolean } = {}
     : []);
   db.seed("notifications", []);
   db.seed("ledger_items", []);
+  // [0117 §9c] The SQL trigger, modeled: a marketplace transition into cancelled_owner that
+  // carries a fee re-derives BOTH the fee and the tier marker from the ladder, in that one
+  // statement. Every test in this file therefore sees production's shape — the handler no
+  // longer writes `cancel_reason` itself, and the number it wrote is not necessarily the
+  // number that ends up in the row. `over.storedFee` is how a test makes them differ.
+  db.triggers["bookings"] = (row, before) => {
+    if (row.status !== "cancelled_owner" || before.status === "cancelled_owner") return;
+    if (row.cancel_fee === null || row.cancel_fee === undefined) return;
+    // The real trigger DELEGATES to the ladder (one copy), so this model does too: it reads
+    // whatever `marketplace_cancel_fee` this scene holds — including a test's own override —
+    // instead of hardcoding a tier. `storedFee` is the separate knob for "the ladder's answer
+    // changed between the handler's quote and the write", i.e. a crossed tier boundary.
+    const q = db.rpcs["marketplace_cancel_fee"]?.({ p_booking: row.id });
+    const ladder = Array.isArray(q?.data) ? Number(q.data[0]?.fee ?? 0) : 0;
+    const truth = over.storedFee ?? ladder;
+    row.cancel_fee = truth;
+    row.cancel_reason = before.status === "runner_enroute"
+      ? "owner_cancel_enroute"
+      : truth > 0
+      ? "owner_cancel_late"
+      : null;
+  };
   // 0066's ladder, in SQL. `returns table(fee, status)` → an array through PostgREST.
   db.rpcs["marketplace_cancel_fee"] = () => ({
-    data: [{ fee: status === "runner_enroute" ? FEE_50 : FEE_10, status }],
+    data: [{ fee: over.quoteFee ?? (status === "runner_enroute" ? FEE_50 : FEE_10), status }],
   });
   return db;
 }
@@ -122,19 +154,21 @@ function installShare(db: FakeDb, over: { fail?: string; written?: boolean } = {
   return seen;
 }
 
-function installComp(db: FakeDb, over: { fail?: string; written?: boolean } = {}) {
+function installComp(db: FakeDb, over: { fail?: string; written?: boolean; comp?: number } = {}) {
   const seen: Row[] = [];
   db.rpcs["record_enroute_cancel_comp"] = (args: Row) => {
     seen.push(args);
     if (over.fail) return { error: { message: over.fail } };
     const written = over.written ?? true;
-    if (written) {
+    // 0080:1135's zero-fee answer is {comp: 0, written: false} — a call that wrote NOTHING.
+    const comp = over.comp ?? FEE_50;
+    if (written && comp > 0) {
       db.rows("ledger_items").push({
         runner_id: RUNNER, booking_id: args.p_booking, base: 0, distance_pay: 0,
         addon_pay: 0, tip: 0, remaining_guarantee: FEE_50, platform_fee: 0,
       });
     }
-    return { data: [{ comp: FEE_50, written }] };
+    return { data: [{ comp, written: written && comp > 0 }] };
   };
   return seen;
 }
@@ -644,6 +678,310 @@ Deno.test("[0085 ⑩] the <24h tier marks the tier, pays the runner half, and sa
   }
 });
 
+Deno.test("[codex r2 F3] the CROSSED BOUNDARY — every consequence follows the STORED fee", async () => {
+  // THE SPLIT BRAIN, as found: the handler quotes before it writes, so a cancel that crosses
+  // the 24h boundary between the two quoted 0 (≥24h, free) while SQL stored 10% (<24h). Round
+  // 1 fixed only the stored NUMBER; the handler still branched on its own dead quote — so it
+  // wrote no tier marker, skipped the runner's share, minted nothing, and told the owner
+  // "취소 수수료 0원" while the row said 1,390. The number and its consequences disagreed.
+  //
+  // Here the quote says 0 and the trigger stores FEE_10. Every downstream decision — marker,
+  // comp, mint, response — must follow the ROW.
+  const db = scene({ status: "confirmed", quoteFee: 0, storedFee: FEE_10 });
+  const share = installShare(db);
+  const comp = installComp(db);
+  const mint = installMint(db, { amount: FEE_10 });
+  const notes: Row[] = [];
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: (profileId: string, title: string, body: string) => {
+        notes.push({ profileId, title, body });
+        return Promise.resolve(null);
+      },
+    });
+  } finally {
+    net.restore();
+  }
+
+  const row = db.rows("bookings")[0];
+  assertEquals(row.cancel_fee, FEE_10, "the row must carry the ladder's at-write-time fee");
+  assertEquals(row.cancel_reason, "owner_cancel_late", "the marker must travel with the fee");
+  // the response the owner reads is the number the row holds — not the dead quote
+  assertEquals(out, { cancel_fee: FEE_10 });
+  // the runner's half is recorded, because the STORED marker says this tier pays
+  assertEquals(share.length, 1, "the stored late marker must reach record_late_cancel_share");
+  assertEquals(comp.length, 0, "the en-route comp belongs to the other tier");
+  // and the owner is actually billed the stored fee
+  assertEquals(mint.length, 1, "a stored fee > 0 must be minted");
+  assertEquals(db.rows("payments")[0].amount, FEE_10);
+  // the runner's copy names the recorded share; a "no charge" sentence here would be the lie
+  const toRunner = notes.find((n) => n.profileId === RUNNER);
+  assert(toRunner, "the runner was never told");
+  assertStringIncludes(String(toRunner.body), "보상");
+});
+
+Deno.test("[codex r2 F3] the reverse crossing — a quote of 10% that stores 0 charges nobody", async () => {
+  // The mirror case, and the one that matters for the ceiling waiver (§9): the handler quotes
+  // the 50% en-route fee, and by the time the write lands the ladder waives it to 0 (the
+  // lateness ceiling passed, or a runner fault was recorded). Nothing may be collected, and no
+  // comp row may claim money that was never charged — but the TIER marker still records what
+  // kind of cancel this was.
+  const db = scene({ status: "runner_enroute", quoteFee: FEE_50, storedFee: 0 });
+  const share = installShare(db);
+  const comp = installComp(db);
+  const mint = installMint(db);
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: () => Promise.resolve(null),
+    });
+  } finally {
+    net.restore();
+  }
+
+  const row = db.rows("bookings")[0];
+  assertEquals(row.cancel_fee, 0, "the waived fee is the stored fee");
+  assertEquals(row.cancel_reason, "owner_cancel_enroute", "the tier is still recorded at 0");
+  assertEquals(out, { cancel_fee: 0 }, "the owner must be told the waived number");
+  assertEquals(mint.length, 0, "a 0 fee mints nothing (§0-ter #13)");
+  assertEquals(db.rows("payments").length, 0, "nothing may be charged on a waived cancel");
+  assertEquals(share.length, 0, "the late-tier share never applies to an en-route cancel");
+  // the en-route comp writer IS called (the marker says so) and refuses on its own fee<=0 gate
+  // in SQL — the handler must not invent a second copy of that rule.
+  assertEquals(comp.length, 1, "the stored en-route marker must reach the comp writer");
+  assertEquals(db.rows("ledger_items").length, 1, "the stub wrote; SQL's own fee<=0 gate is 116/121's pin");
+});
+
+Deno.test("[blind BLOCKER-2] a cancellation that moves NO money tells the runner nothing was recorded", async () => {
+  // Sean's stalemate ruling: "Nobody pays, nobody is paid." The en-route TIER is still recorded
+  // (the marker says what kind of cancellation this was), so the comp writer IS called — and it
+  // answers {comp: 0, written: false} because there is no fee to share. The handler used to
+  // `return true` regardless, so the runner was told "취소 수수료(결제 금액의 50%)가 러너
+  // 보상으로 기록됐어요" about a ledger row that does not exist. A receipt for nothing.
+  const db = scene({ status: "runner_enroute", quoteFee: 0, storedFee: 0 });
+  const comp = installComp(db, { comp: 0, written: false });
+  const mint = installMint(db);
+  const notes: Row[] = [];
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: (profileId: string, title: string, body: string) => {
+        notes.push({ profileId, title, body });
+        return Promise.resolve(null);
+      },
+    });
+  } finally {
+    net.restore();
+  }
+
+  assertEquals(out, { cancel_fee: 0 });
+  assertEquals(db.rows("bookings")[0].cancel_reason, "owner_cancel_enroute", "the tier is still recorded");
+  assertEquals(comp.length, 1, "the tier marker still routes to the comp writer");
+  assertEquals(db.rows("ledger_items").length, 0, "nobody is paid");
+  assertEquals(mint.length, 0, "nobody pays");
+  const toRunner = notes.find((n) => n.profileId === RUNNER);
+  assert(toRunner, "the runner still hears about the cancellation");
+  const body = String(toRunner.body);
+  assert(!body.includes("기록됐어요"), `no receipt may be spoken: ${body}`);
+  assert(!body.includes("50%"), `no amount may be spoken: ${body}`);
+  assertEquals(toRunner.title, "예약 취소됨");
+  // The waived runner is told why both money directions are 0 — in the rule's EXACT terms
+  // (review r3 F1: the earlier draft overstated the waiver; one handoff stamp defeats it).
+  assertEquals(
+    body,
+    "보호자가 예약을 취소했어요. 체크인에서 러너가 진행 불가를 남겼거나, 예정 시간 후 3시간 동안 도착·인계 기록과 양측 진술이 모두 없으면 수수료를 받지 않고 보상도 적용하지 않아요 — 이번 예약에는 이 기준이 적용됐어요",
+  );
+});
+
+Deno.test("[r3 F4] a genuinely-free cancel does not borrow the waiver explanation", async () => {
+  // The >=24h free tier is fee 0 with NO en-route marker. The waiver copy names a specific
+  // rule about arrival evidence and statements; speaking it to a runner whose booking was
+  // simply cancelled a day early would be a false explanation. This is the negative control
+  // the exact-copy test above cannot provide: under the mutation
+  // `noMoneyWaiverApplied = storedFee === 0` (marker check dropped) THIS case goes red.
+  const db = scene({ status: "confirmed", quoteFee: 0, storedFee: 0 });
+  const net = tossOk();
+  const notes: Row[] = [];
+  try {
+    await cancelOwner(db as never, {
+      bookingId: BOOKING,
+      uid: OWNER,
+      bk: db.rows("bookings")[0],
+      notify: (profileId: string, title: string, body: string) => {
+        notes.push({ profileId, title, body });
+        return Promise.resolve(null);
+      },
+    });
+  } finally {
+    net.restore();
+  }
+  const toRunner = notes.find((n) => n.profileId === RUNNER);
+  assert(toRunner, "the runner hears about the cancellation");
+  assertEquals(String(toRunner.body), "보호자가 예약을 취소했어요", "generic body only — no borrowed rule");
+});
+
+Deno.test("[blind BLOCKER-3] a stale quote is REFUSED, and nothing downstream runs", async () => {
+  // "The price shown IS the price charged" cannot be made true by silently correcting the
+  // stored number — a correction commits a price the human never saw. §9c refuses the
+  // transition instead, and the owner is asked to re-confirm the new number.
+  const db = scene({ status: "confirmed" });
+  db.failures["bookings:update"] = 'new row violates … cancel_fee_requote';
+  const share = installShare(db);
+  const mint = installMint(db);
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a stale quote must not commit");
+    assertEquals((err as { status?: number }).status, 409);
+    assertStringIncludes(String((err as Error).message), "다시 진행");
+  } finally {
+    net.restore();
+  }
+  assertEquals(share.length, 0, "a refused cancel pays no share");
+  assertEquals(mint.length, 0, "a refused cancel mints nothing");
+  assertEquals(db.rows("bookings")[0].status, "confirmed", "the booking must be untouched");
+});
+
+Deno.test("[blind BLOCKER-6] a cancel refused after handoff routes to the incident path", async () => {
+  const db = scene({ status: "runner_enroute" });
+  db.failures["bookings:update"] = "cancel_after_handoff";
+  const comp = installComp(db);
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a post-handoff cancel must be refused");
+    assertEquals((err as { status?: number }).status, 409);
+    assertStringIncludes(String((err as Error).message), "인계");
+  } finally {
+    net.restore();
+  }
+  assertEquals(comp.length, 0, "a refused cancel compensates nobody");
+});
+
+Deno.test("[blind BLOCKER-5] the already-cancelled answer is re-read, never taken from the preload", async () => {
+  // Two requests can both preload the PRE-cancel row. The loser sees `cancelled_owner` from its
+  // own quote and used to answer with its stale copy's cancel_fee — telling the owner ₩0 about a
+  // cancellation that recorded ₩6,950.
+  const db = scene({ status: "runner_enroute" });
+  const row = db.rows("bookings")[0];
+  const stalePreload = { ...row, cancel_fee: null };      // what this request loaded earlier
+  row.status = "cancelled_owner";                          // what the winner already committed
+  row.cancel_fee = FEE_50;
+  row.cancel_reason = "owner_cancel_enroute";
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_50, status: "cancelled_owner" }] });
+  const mint = installMint(db);
+  const net = tossOk();
+  let out: { cancel_fee: number };
+  try {
+    out = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: stalePreload, notify: notifier(db),
+    });
+  } finally {
+    net.restore();
+  }
+  assertEquals(out, { cancel_fee: FEE_50 }, "the loser must answer with the row, not its preload");
+  assertEquals(mint.length, 0, "the double tap mints nothing a second time");
+  assertEquals(updatesToBookings(db).length, 0, "and writes nothing");
+});
+
+Deno.test("[blind r5 RC-2] the price the HUMAN saw is what the write claims", async () => {
+  // Round 4 validated the EDGE's quote against the ladder — which proves the edge agrees with
+  // itself and says nothing about the screen. The client sends only an id and an action, so a
+  // price shown at 09:59:59 and tapped at 10:00:01 was never part of what the write agreed to.
+  // `meta.expected_fee` carries the shown number, and THAT is what lands in the CAS for SQL to
+  // validate (0117 §9c refuses it if the ladder has moved).
+  const db = scene({ status: "confirmed" });
+  const claims: unknown[] = [];
+  db.triggers["bookings"] = (row, before) => {
+    if (row.status !== "cancelled_owner" || before.status === "cancelled_owner") return;
+    claims.push(row.cancel_fee); // what the handler WROTE, before SQL would validate it
+    row.cancel_reason = "owner_cancel_late";
+  };
+  installShare(db);
+  installMint(db);
+  const net = tossOk();
+  try {
+    await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+      expectedFee: 999, // the number on the screen — deliberately not the edge's quote
+    });
+  } finally {
+    net.restore();
+  }
+  assertEquals(claims, [999], "the CAS must claim the shown price, not the edge's re-quote");
+
+  // …and with no shown price the old behaviour stands, loudly: the edge's quote is the claim.
+  const db2 = scene({ status: "confirmed" });
+  const claims2: unknown[] = [];
+  db2.triggers["bookings"] = (row, before) => {
+    if (row.status !== "cancelled_owner" || before.status === "cancelled_owner") return;
+    claims2.push(row.cancel_fee);
+    row.cancel_reason = "owner_cancel_late";
+  };
+  installShare(db2);
+  installMint(db2);
+  const cap = captureLogs();
+  const net2 = tossOk();
+  try {
+    await cancelOwner(db2 as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db2.rows("bookings")[0], notify: notifier(db2),
+    });
+  } finally {
+    net2.restore();
+    cap.restore();
+  }
+  assertEquals(claims2, [FEE_10], "without a shown price the edge quote is the claim");
+  assert(
+    cap.lines.some((l) => l.includes("cancel without a shown price")),
+    "the residual must be said out loud in the log",
+  );
+});
+
+Deno.test("[blind r5 MAJOR-7] a failed re-read never answers 'no charge'", async () => {
+  // The double-tap branch used to discard the re-read's error and fall back to the very preload
+  // the re-read exists to distrust — so a transient failure told the owner ₩0 about a
+  // cancellation the winning request had just charged ₩6,950 for.
+  const db = scene({ status: "runner_enroute" });
+  const row = db.rows("bookings")[0];
+  const stalePreload = { ...row, cancel_fee: null };
+  row.status = "cancelled_owner";
+  row.cancel_fee = FEE_50;
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_50, status: "cancelled_owner" }] });
+  db.failures["bookings:select"] = "connection reset";
+  const cap = captureLogs();
+  const net = tossOk();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: stalePreload, notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "a failed re-read must not answer with a number");
+    assertEquals((err as { status?: number }).status, 409);
+    const msg = String((err as Error).message);
+    assert(!msg.includes("0원"), `it must not claim a price: ${msg}`);
+    assertStringIncludes(msg, "새로고침");
+  } finally {
+    net.restore();
+    cap.restore();
+  }
+});
+
 Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the migrations", async () => {
   // 121's header named this gap; this closes it. The marker string lived in THREE places —
   // cancel_owner.ts writes it, 0085 gates on it, and this file asserted the TS value — so a
@@ -665,11 +1003,21 @@ Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the mi
   // cleanup and would pass review, because hoisting a repeated string is normally correct.
   // Here it is backwards. The technique's precondition is that the owning side stays the only
   // copy; a cache on the reading side is synchronising copies with extra steps.
+  // ⚠ [0117 §9c / codex r2 F3] THE WRITER MOVED, so this pin follows it. `cancel_reason` is no
+  // longer written by cancel_owner.ts: the tier marker and the fee are derived together by
+  // 0117's BEFORE-UPDATE trigger from one ladder read, because a marker chosen from the
+  // handler's pre-write quote while the fee was corrected by SQL is the split brain (stored
+  // 10%, no marker, runner paid nothing). The contract still lives in exactly ONE place and is
+  // still read from its home at test time — the home is now the migration that writes it. TS
+  // is verified in a THIRD direction as well: it BRANCHES on these markers to decide which comp
+  // writer runs, so a marker TS switches on that no migration gates is a decision that pays
+  // nobody — ⑩'s original defect, one layer over.
   const read = (rel: string) => Deno.readTextFile(new URL(rel, import.meta.url));
-  const [ts, sql85, sql80] = await Promise.all([
+  const [ts, sql85, sql80, sql117] = await Promise.all([
     read("../transition-booking/cancel_owner.ts"),
     read("../../migrations/0085_cancel_share.sql"),
     read("../../migrations/0080_charge_machine.sql"),
+    read("../../migrations/0117_late_booking_protocol.sql"),
   ]);
 
   // Which markers do the migrations actually gate on? (the contract, read from its one home)
@@ -680,19 +1028,43 @@ Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the mi
   assert(gated.has("owner_cancel_late"), "0085 no longer gates on owner_cancel_late — the contract moved");
   assert(gated.has("owner_cancel_enroute"), "0080 no longer gates on owner_cancel_enroute");
 
-  // → forward: every gated marker must be written by the handler, or the gate is unreachable
-  //   and the comp it guards can never fire.
-  const written = new Set(
-    [...ts.matchAll(/cancel_reason: "([a-z_]+)"/g)].map((m) => m[1]),
+  // The writer's own text: 0117's `new.cancel_reason := case … end` block, read from the file.
+  const caseBlock = sql117.slice(
+    sql117.indexOf("new.cancel_reason := case"),
+    sql117.indexOf("end;", sql117.indexOf("new.cancel_reason := case")),
   );
+  assert(caseBlock.length > 0, "0117 no longer derives cancel_reason — the writer moved again");
+  // only the THEN values are markers; the WHEN side reads a booking STATUS ('runner_enroute'),
+  // which is a different vocabulary that no migration gates on and must not be asserted as one.
+  const written = new Set([...caseBlock.matchAll(/then '([a-z_]+)'/g)].map((m) => m[1]));
+  assert(written.size === 2, `expected two tier markers in 0117's case, got ${[...written]}`);
+
+  // → forward: every gated marker must be written by the trigger, or the gate is unreachable
+  //   and the comp it guards can never fire.
   for (const marker of gated) {
-    assert(written.has(marker), `0080/0085 gate on '${marker}' but cancel_owner.ts never writes it`);
+    assert(written.has(marker), `0080/0085 gate on '${marker}' but 0117's trigger never writes it`);
   }
-  // ← reverse: every marker the handler writes must be gated by a migration, or it is a
+  // ← reverse: every marker the trigger writes must be gated by a migration, or it is a
   //   tier that pays nobody — the shape of the original ⑩ defect.
   for (const marker of written) {
-    assert(gated.has(marker), `cancel_owner.ts writes '${marker}' but no migration gates on it`);
+    assert(gated.has(marker), `0117's trigger writes '${marker}' but no migration gates on it`);
   }
+  // ↓ third: every marker TypeScript BRANCHES on must be gated too. cancel_owner.ts no longer
+  //   writes markers, but it reads them back to choose a comp writer and its copy — a branch on
+  //   a marker nothing gates would silently route a real cancel to no payment at all.
+  const branched = new Set(
+    [...ts.matchAll(/storedReason === "([a-z_]+)"/g)].map((m) => m[1]),
+  );
+  assert(branched.size > 0, "cancel_owner.ts no longer branches on the stored marker (r2 F3)");
+  for (const marker of branched) {
+    assert(gated.has(marker), `cancel_owner.ts branches on '${marker}' but no migration gates on it`);
+  }
+  // …and the handler must not have quietly resumed writing the marker itself — two writers for
+  // one fact is the split brain reopening.
+  assert(
+    !/cancel_reason: "/.test(ts),
+    "cancel_owner.ts writes cancel_reason again — 0117 §9c owns it (r2 F3)",
+  );
 });
 
 Deno.test("[0085 ⑩] a late-tier comp failure routes as late_comp_failed, NOT the en-route class", async () => {

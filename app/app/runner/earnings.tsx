@@ -51,6 +51,9 @@ import { layout, paper } from '../../src/theme';
 // reveals nothing about commission_rate, and a runner never told about it is short at payout. It
 // is now stated as a fact in words rather than as an arithmetic result glued to the balance,
 // which honours "no calculations" without dropping a disclosure we owe.
+// The blue judgment was RULED on 2026-08-25 — Sean, Q7, verbatim: "sure include that statement
+// but make it small and show once only." Kept, shrunk to one dim 14pt caption line, stated in
+// exactly one place on the screen. See the caption's own comment for what small and once mean.
 // After this edit the screen reads exactly TWO money values: LiveLedgerItem.net and
 // my_ledger_total. base · distancePay · addonPay · tip · guarantee · fee are no longer read here.
 
@@ -125,9 +128,27 @@ export default function Earnings() {
             실결제도 러너 지급 코드도 아직 없다 — 날짜는 지운다.
             [margin secrecy 2026-08-24] 그 자리에 있던 '약 −1,524원 예정'(= pendingSum × 0.033)도
             지운다. 세율은 제도라 숨길 것이 없지만, 잔액 옆에 놓인 **계산 결과**는 이 화면이 더는
-            그리지 않는 것이다. 사실은 낱말로 남긴다 — 지워버리면 러너가 지급일에 덜 받는다. */}
+            그리지 않는 것이다. 사실은 낱말로 남긴다 — 지워버리면 러너가 지급일에 덜 받는다.
+
+            [Q7 · Sean 2026-08-25, verbatim] "sure include that statement but make it small and
+            show once only."
+            SMALL: type size was already the floor — 14pt is the detail floor and is law, so nothing
+            here may go below it; it stays paper.dim, no weight, no colour. Footprint was the only
+            lever left, so the sentence was tightened from 「지급할 때 사업소득 3.3%가 원천징수돼요」
+            to a fragment parallel with 지급 일정 미정. It now rides the same caption on ONE line
+            instead of wrapping into a two-line block (estimated, NOT simulator-verified: the old
+            string runs ~375pt of glyphs against a 363pt content width — 393pt device minus the
+            2×15 gutter — so it wrapped there and on every narrower phone). Nothing was
+            dropped: timing (지급 시), income class (사업소득), rate (3.3%), action (원천징수).
+            ONCE = once per screen. This caption is the single place the withholding is ever
+            stated: once for the whole ledger, never per row, and the tail note below stays
+            deliberately silent about it. It is not gated, so it is always present when the 합계
+            block renders — which is what a disclosure has to be. If he meant once-EVER (shown to
+            a runner one time, then never again), that is an AsyncStorage seen-flag around this
+            one Text — not built, deliberately: a tax fact a runner cannot find again is a fact
+            they do not have at payout. */}
         <Text style={s.sumNote}>
-          지급 일정 미정 · 지급할 때 사업소득 3.3%가 원천징수돼요
+          지급 일정 미정 · 지급 시 사업소득 3.3% 원천징수
         </Text>
 
         {/* bank account — honest info row, not a door: registration ships with open banking */}
@@ -195,7 +216,8 @@ export default function Earnings() {
 
         <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
           {/* 같은 이유: 주기·지급을 약속하지 않는다. 일정은 아직 우리가 못 지킨다.
-              원천징수 문장은 합계 줄이 이제 낱말로 지고 있으므로 여기서는 겹쳐 말하지 않는다. */}
+              원천징수 문장은 합계 줄이 이제 낱말로 지고 있으므로 여기서는 겹쳐 말하지 않는다.
+              (Q7 "show once only" — 이 침묵이 그 법을 지키는 자리다. 여기 한 줄 더하면 두 번이 된다.) */}
           기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요
         </Text>
       </ScrollView>

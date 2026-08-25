@@ -745,7 +745,20 @@ export default function Report() {
               </View>
             )}
 
-            {/* ---------- 러닝 순간 스탬프 (응가 도장 등) ---------- */}
+            {/* ---------- 러닝 순간 스탬프 (응가 도장 등) ----------
+                [2026-08-25 · Sean Q1, verbatim] "yeah running report (b) 1, but it shuold also include
+                the water and poo etc stats as in the current version."
+                NOTHING CHANGED HERE, and that is the finding. This block was never inside a state
+                gate: `run.events.length > 0` is a PRESENCE check, not a state check, so the care
+                counts already render on a STOPPED run (B②) exactly as on a completed one, and they
+                are byte-identical to the pre-redesign screen. What dropped them was the LAB, not the
+                code — enh-owner-records-lab.html draws 응가 ×1 · 물 ×2 in its 현재 frame (:888) and
+                abbreviates them away in BOTH the ① and ② columns. Sean was reading the mock.
+                So: do NOT "align" this block to those frames, and never gate it on `stopped`. The
+                counts are care evidence, and the run that ended early is the one where an owner most
+                needs to see whether the dog drank. Source is runs.events through
+                fetchRunReportOrNull (api.ts:4236) — one select for every end reason, so a stop
+                loses no rows; the four kinds here are the whole of RunEventKind (api.ts:2165). */}
             {run.events.length > 0 && (
               <View style={[s.section, { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }]}>
                 {(
