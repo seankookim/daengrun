@@ -389,3 +389,53 @@ pickup is less work than home pickup) — a money question, and money questions 
    then the pickup/return choices, then session details (time, group number). Lab first, his pick.
 3. **The 즉시 해제 label fix** ships regardless and is not blocked on any of it.
 4. **Runner pay for a pickup-free job** goes to his queue as one question, not five.
+
+---
+
+# RULING — Sean, 2026-08-25: "then just do either on site or home address."
+
+**The option set collapses to two, on both legs:**
+
+| Leg | Options |
+|---|---|
+| PICKUP | **home address** · **on site** (the session start — the runner does no pickup leg, just brings themselves and their equipment) |
+| RETURN | **home address** (the runner brings the dog home) · **on site** (the owner collects where the run finished; no go-back-home service) |
+
+**"another address" is CUT.** By his own words this time, not by my inference.
+
+## What this dissolves — for real, and check the difference
+
+- **The "not too far" radius: GONE.** It existed only to bound the custom-address option. No custom
+  address, no distance rule, nothing to enforce. ⚠ Note the difference from my earlier error: last
+  time I inferred the constraint away from silence and was corrected. This time he removed the
+  *feature the constraint applied to*, in his own sentence. The constraint dies because its subject
+  does, which is a retirement, not a reading.
+- **F6 dies with it** — no radius means no unenforceable gate, and no need to restrict the option to
+  pinned addresses.
+- **F7's extra disclosure dies too** — the runner learns the home address (which they already do
+  today for pickup) or nothing at all. Zero new location surface versus today.
+- **Q4 closes** (nothing to bound).
+
+## ⚠ The finding worth surfacing: this is already specced. No widening needed.
+
+Sean's collapsed set maps **exactly** onto what spec v2 §7.2 already carries:
+
+| Sean's words | Already in spec v2 §7.2 |
+|---|---|
+| pickup: home | **집 픽업** (default) |
+| pickup: on site | **현장 인계** — "owner brings the dog to the start and both-stamps there" |
+| return: home | **집 반환** — §7.2: "Return mirrors pickup … same flag" |
+| return: on site | **현장 반환** — same |
+
+And §14.2 records his own answer from this afternoon: **"Pickup mode: BOTH ✅"**.
+
+**So the model needs ZERO change.** The pairing flag already covers it; the return already mirrors.
+What was a `pickup_mode` *widening* (2→3) is now a no-op — the spec session's shipped design was
+right the first time, and the round-5 detour ends where it started, minus one option.
+
+**What is genuinely new and still owed:** the **SETUP SCREEN** — the sign-up flow he described
+(self-run vs request-a-runner → pickup choice → session details → return choice), which no spec
+covers, and which is a lab-first surface. That is this session's item and is being built now.
+
+**Still open (money, his):** two legs, two asymmetries, one card — what a runner earns when the
+pickup leg disappears (on-site pickup), and when the return leg disappears (on-site return).
