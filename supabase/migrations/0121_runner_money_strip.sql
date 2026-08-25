@@ -296,10 +296,17 @@ begin
            + round((coalesce(b.distance_fare, 0) + coalesce(b.addon_fare, 0)) * v_ratio)::int)
   end;
 
-  refund := b.total_price - v_gross;
+  -- [0121 fix round F1] ROLE-SPECIFIC projections. A blind reviewer composed the fee from two
+  -- quotes without touching bookings: refund_full.refund (= total) − pay_full.runner_net
+  -- (= total − fee) = fee. No single role may hold both operands: refund answers the OWNER
+  -- (and authorities), net answers the RUNNER (and authorities), gross/fee answer authorities
+  -- only. (total − net via the runner's own booking row remains §0 residual 2, named.)
+  refund := case when v_authority or coalesce(b.owner_id = auth.uid(), false)
+                 then b.total_price - v_gross end;
   runner_gross := case when v_authority then v_gross end;
   runner_fee   := case when v_authority then round(v_gross * v_rate)::int end;
-  runner_net := v_gross - round(v_gross * v_rate)::int;
+  runner_net := case when v_authority or coalesce(b.runner_id = auth.uid(), false)
+                     then v_gross - round(v_gross * v_rate)::int end;
   measured_km := v_km;
   took_custody := v_custody;
   basis := case p_outcome
@@ -323,13 +330,23 @@ end $$;
 --   ④ a fail-LOUD belt: settle's caller is an authority by its own gate, so the quote must
 --     return values — if redaction ever reaches here, raise rather than silently skip paying
 --     the runner (the `if q.runner_gross > 0` arm would swallow a NULL as false).
-create or replace function club_incident_settle(p_incident uuid, p_booking uuid,
-                                                p_outcome text, p_note text default null)
-returns jsonb
+create or replace function club_incident_settle(
+  p_incident uuid, p_booking uuid, p_outcome text, p_note text default null
+) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare i record; s record; b record; q record; sd record; v_sess uuid; v_prepaid boolean;
+declare
+  i record; s record; q record; sd record; b record; v_sess uuid;
+  v_prepaid boolean;   -- [0080] 이 부킹에 실제로 잡힌 돈이 있었나
 begin
-  select * into i from club_incidents where id = p_incident for update;
+  -- [0121 fix round F3] the head is byte-faithful to 0080:977-990 — the first recreation
+  -- DROPPED _club_require_v2(), the null-uid rejection and the outcome whitelist (and added a
+  -- for-update 0080 never had). A blind reviewer caught it: settlement was possible with the
+  -- club-v2 gate disabled. Restored verbatim; the four §H edits remain the ONLY changes.
+  perform _club_require_v2();
+  if auth.uid() is null then raise exception 'not_signed_in'; end if;
+  if p_outcome not in ('refund_full','settle_measured','pay_full') then raise exception 'bad_outcome'; end if;
+
+  select * into i from club_incidents where id = p_incident;
   if i.id is null then raise exception 'not_case_owner'; end if;
   select * into s from club_sessions where id = i.session_id for update;
   if not ((i.case_owner is not null and auth.uid() = i.case_owner)

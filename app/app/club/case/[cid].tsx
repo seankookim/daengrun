@@ -65,7 +65,9 @@ export default function CaseDetail() {
     const q = quotes?.[outcome];
     if (!q) return;
     Alert.alert('정산 확정',
-      `보호자 환불 ${q.refund.toLocaleString()}원 · 러너 정산 ${q.runnerNet.toLocaleString()}원(수수료 차감 후).\n한 번만 결정할 수 있고, 케이스에 근거가 남아요.`,
+      // [0121 §H] this alert is the SETTLING side's (authority) — both numbers are theirs; the
+      // '—' arms fire only if a projection ever mis-answers, and then honesty beats a fake 0.
+      `보호자 환불 ${q.refund == null ? '—' : q.refund.toLocaleString() + '원'} · 러너 정산 ${q.runnerNet == null ? '—' : q.runnerNet.toLocaleString() + '원'}(수수료 차감 후).\n한 번만 결정할 수 있고, 케이스에 근거가 남아요.`,
       [
         { text: '아직', style: 'cancel' },
         {
@@ -211,7 +213,7 @@ export default function CaseDetail() {
                         <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{label}</Text>
                         <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 1 }}>{why}</Text>
                         <Text style={{ fontSize: 14, lineHeight: 18, color: L.text, marginTop: 3 }}>
-                          환불 {quotes[k].refund.toLocaleString()}원 · 러너 {quotes[k].runnerNet.toLocaleString()}원
+                          환불 {quotes[k].refund == null ? '—' : `${quotes[k].refund!.toLocaleString()}원`} · 러너 {quotes[k].runnerNet == null ? '—' : `${quotes[k].runnerNet!.toLocaleString()}원`}
                         </Text>
                       </View>
                       <Pressable onPress={() => doSettle(k)} disabled={busy} style={s.settleBtn}>

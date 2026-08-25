@@ -5,6 +5,17 @@ think we should be showing them the calcuations ever; only show the final profit
 the margin a secret. You can show the expected profit at first per run next to how far away the
 starting point is and how long the run is and how long it will take total."
 
+**v2.2 (implementation fix round), 2026-08-25:** the blind implementation review (fifth voice)
+returned FIX-FIRST/3. F1 CONFIRMED — a two-outcome composition on the quote (refund_full.refund
+− pay_full.runner_net = fee) survivable by any runner party; fixed with role-specific
+projections (refund = owner's/authority's, net = runner's/authority's, gross/fee = authority
+only) and the attack is now executed by P12 verbatim. F3 CONFIRMED — the settle recreation had
+dropped _club_require_v2()/null-uid/outcome-whitelist from 0080's head; restored byte-faithful.
+F2 REFUTED-BY-DESIGN: "runs/km go NULL together on lookup failure" described the OLD client's
+two-query failure mode, which §B's single atomic read makes extinct — the RPC fails whole or
+answers whole, which is strictly stronger; the §B contract line below is historical semantics,
+not a server requirement.
+
 **v2.1, 2026-08-25:** the v2.0 fold was verified by a fourth fresh voice: 7/8 load-bearing
 folds HELD (incl. the definer-view subquery mechanics, the 11-column whitelist completeness,
 zero remaining ledger_items client reads, ISO-Monday `date_trunc`, both §E entry paths, and

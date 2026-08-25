@@ -3732,20 +3732,22 @@ export const incidentEvidenceAdd = (incidentId: string, kind: 'photo' | 'text' |
 // 클라가 금액을 만들지 않는다). 호출자는 세 결말 중 하나만 고른다.
 export type SettleOutcome = 'refund_full' | 'settle_measured' | 'pay_full';
 export interface SettleQuote {
-  refund: number;
-  /** [0121 §H] NULL unless the caller is a settlement authority (host/backup/case_owner) —
-   *  runners, owners and openers see the net only. */
-  runnerGross: number | null; runnerFee: number | null; runnerNet: number;
+  /** [0121 §H, fix round F1] ROLE projections: refund answers the owner (and authorities),
+   *  runnerNet answers the runner (and authorities), gross/fee answer authorities only —
+   *  no single non-authority role holds both refund and net, so the two-outcome fee
+   *  composition is dead. NULL = not your number; the screen omits that piece. */
+  refund: number | null;
+  runnerGross: number | null; runnerFee: number | null; runnerNet: number | null;
   measuredKm: number; tookCustody: boolean; basis: string;
 }
 export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutcome): Promise<SettleQuote> => {
   const raw = await clubRpc('club_incident_settle_quote', { p_booking: bookingId, p_outcome: outcome }) as any;
   const r = Array.isArray(raw) ? raw[0] : raw;
   return {
-    refund: Number(r?.refund ?? 0),
+    refund: r?.refund == null ? null : Number(r.refund),
     runnerGross: r?.runner_gross == null ? null : Number(r.runner_gross),
     runnerFee: r?.runner_fee == null ? null : Number(r.runner_fee),
-    runnerNet: Number(r?.runner_net ?? 0),
+    runnerNet: r?.runner_net == null ? null : Number(r.runner_net),
     measuredKm: Number(r?.measured_km ?? 0), tookCustody: !!r?.took_custody,
     basis: String(r?.basis ?? ''),
   };

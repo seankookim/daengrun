@@ -259,14 +259,34 @@ begin
   insert into club_incident_subjects (incident_id, subject_type, subject_id)
   values (inc, 'booking', b_club);
 
+  -- [fix round F1] the runner arm now ALSO asserts refund NULL, and executes the reviewer's
+  -- two-outcome composition attack (refund_full.refund − pay_full.runner_net = fee): with
+  -- role projections, no non-authority role ever holds both operands.
   perform set_config('request.jwt.claim.sub', r1::text, false);
   discard plans;
   set local role authenticated;
   select * into q from club_incident_settle_quote(b_club, 'settle_measured');
+  v_bad := '';
+  if q.runner_gross is not null or q.runner_fee is not null or q.refund is not null
+     or q.runner_net is null then v_bad := ' measured-arm'; end if;
+  select * into q from club_incident_settle_quote(b_club, 'refund_full');
+  if q.refund is not null then v_bad := v_bad || ' refund_full-refund-visible'; end if;
+  select * into q from club_incident_settle_quote(b_club, 'pay_full');
+  if q.runner_net is null then v_bad := v_bad || ' pay_full-net-missing'; end if;
   set local role postgres;
-  if q.runner_gross is not null or q.runner_fee is not null or q.runner_net is null
-    then call _fail('rms','P12 §H 러너+개설자=NULL','g='||coalesce(q.runner_gross::text,'∅')||' f='||coalesce(q.runner_fee::text,'∅')||' n='||coalesce(q.runner_net::text,'∅'));
-    else call _pass('rms','P12 §H 러너+개설자=NULL'); end if;
+  if v_bad <> ''
+    then call _fail('rms','P12 §H 러너 투영·합성 공격', v_bad);
+    else call _pass('rms','P12 §H 러너 투영·합성 공격'); end if;
+
+  -- [fix round F1] the OWNER arm: refund visible (their money), net/gross/fee all NULL —
+  -- and the owner's own two-outcome composition yields total − 0, never the fee.
+  perform set_config('request.jwt.claim.sub', o1::text, false);
+  set local role authenticated;
+  select * into q from club_incident_settle_quote(b_club, 'settle_measured');
+  set local role postgres;
+  if q.refund is null or q.runner_net is not null or q.runner_gross is not null
+    then call _fail('rms','P12b §H 보호자 투영','refund='||coalesce(q.refund::text,'∅')||' n='||coalesce(q.runner_net::text,'∅'));
+    else call _pass('rms','P12b §H 보호자 투영'); end if;
 
   perform set_config('request.jwt.claim.sub', cowner::text, false);
   set local role authenticated;
