@@ -27,7 +27,29 @@
 -- positive control that the thing which must REMAIN is still there (0111's belts in P4, the
 -- columns' writability and the pair CHECK's refusal in P6).
 --
--- ── PREDICTED MUTATION MAP (contract §4's battery; PREDICTED, not yet measured) ──────────────
+-- ── MUTATION MAP — PREDICTED, THEN MEASURED 2026-08-25 ───────────────────────────────────────
+-- Each mutation is applied ALONE against the post-0127 schema, by appending its DDL to the END of
+-- 0127 (after the VERIFY block, so the VERIFY still passes and the suite sees the mutated schema).
+-- 12 runs, baseline 885/0. **ZERO MISSES: no predicted pin stayed green under any mutation.**
+-- Seven of nine reddened a strict SUPERSET of the prediction; M7 and M8 landed exactly; M9c was
+-- refused by postgres itself. The prediction lines below are left as written — the measurement
+-- follows each — because a map edited to match its own results stops being evidence.
+-- Three properties the battery established that the predictions did NOT say, all benign but all
+-- worth knowing before anyone reads a red run:
+--   ⓐ **P6 is the broadest UNDER-removal detector in this file, not the slice-boundary pin its
+--      header calls it.** Its trigger-count arm (14/2/1) reds on EVERY trigger re-add — M1 through
+--      M6 — because a re-added trigger changes a count, not just a behaviour. Strictly extra
+--      sensitivity, but a red P6 does not by itself mean "Slice B ran early".
+--   ⓑ **P5 is not isolated from the INSERT trigger.** Under M1 (an INSERT-path mutation) P5 reds,
+--      because P5 ⓐ builds its own `t_av_booking` fixture through that same trigger. Its detail
+--      then reads as a `_move` failure when the cause is the INSERT gate. So a red P5 ALONE does
+--      not name which trigger came back — **P3 is the pin that names it.** Read P3 first.
+--   ⓒ **Two detail strings degrade to a raw error under mutation.** P1's and P5's
+--      `exception when others` handlers replace the accumulated `v_bad` with bare `sqlerrm`, so
+--      under M1/M3 they report the token `dog_dangerous_undeclared` instead of the authored arm
+--      message; under M9 the same happens to P6. The pins red correctly — they just name the
+--      symptom rather than the diagnosis. Do not "fix" this by removing the handlers: an
+--      uncaught raise would abort the whole suite instead of failing one pin.
 -- Each mutation is applied ALONE against the post-0127 schema:
 --   M1  PREDICTED  re-add `bookings_dangerous_dog` (+ its function + `dog_custody_gate`)
 --                  → RED = [P1 ⓐ booking, P3 (trigger name + function names + prosrc)]
@@ -51,6 +73,37 @@
 --                  "the gate is back" apart from "the sweep is dead".
 --   M9  PREDICTED  drop one of the three columns / the pair CHECK / the enum (i.e. run Slice B
 --                  early) → RED = [P6], and 0127's own VERIFY would already have refused it.
+--
+-- ── MEASURED (2026-08-25; 12 runs, ~27-33s each, no `[axes] X8` flake in any of them) ─────────
+--   M1  MEASURED  RED = [P1, P3, P5, P6]  (881/4)  superset — P5 via ⓑ above; P6 via ⓐ
+--   M2  MEASURED  RED = [P5, P3, P6]      (882/3)  superset — P5 ⓐ named it exactly
+--   M3  MEASURED  RED = [P1, P3, P6]      (882/3)  superset; P5 stayed GREEN, correctly — the RSVP
+--                 insert is `owner_handled`-exempt and this mutation is an UPDATE trigger
+--   M4  MEASURED  RED = [P5 (ⓑ only), P3, P6] (882/3) — **the predicted asymmetry held exactly**:
+--                 the detail names only 동반→위탁, with no 대조군 line. This is the arm that tells
+--                 the gate apart from a club rule, and it behaved as designed.
+--   M5  MEASURED  RED = [P2 (ⓒ+ⓓ only), P3, P6] (882/3) — the ⚠ above CONFIRMED: ⓐ/ⓑ green with
+--                 the function present. P3's prosrc arm correctly did NOT fire (the declaration
+--                 guard calls nothing that 0127 dropped).
+--   M6  MEASURED  RED = [P2 (ⓔ only), P3, P6] (882/3) — ⓔ named both halves (the P0001 token AND
+--                 the surviving-row count)
+--   M7  MEASURED  RED = [P3 only]         (884/1)  **EXACT** — both arms fired: the name inventory
+--                 and the schema-wide prosrc scan. The mutation nothing else can see was caught by
+--                 the arm authored for it, and by nothing else. This is the pin that earns its keep.
+--   M8  MEASURED  RED = [P1, P4, P3]      (882/3)  **EXACT** — P1 named ONLY the 핏불테리어 series
+--                 (=0) while the unrelated owner's series still generated, so the pairing in ④
+--                 works: it separates "the gate is back" from "the sweep is dead".
+--   M9  MEASURED  drop `dogs.dangerous_declared_at` → RED = [P6, P2] (883/2); details are the raw
+--                 `column … does not exist`, per ⓒ above
+--   M9b MEASURED  drop the pair CHECK → RED = [P6 only] (884/1), with the authored detail
+--                 "CHECK이 사라졌다 — Slice B가 앞당겨졌다". Cleanest red in the battery.
+--   M9c MEASURED  drop the enum → **GUARD-REFUSED before any pin ran.** Postgres's own dependency
+--                 graph refused it at apply time: `cannot drop type dog_dangerous_status because
+--                 other objects depend on it / column dangerous_status of table dogs`. The column
+--                 that Slice A deliberately keeps IS the guard on the enum — a structural
+--                 protection nobody authored, and one Slice B must dismantle in the right order.
+--   BLAST RADIUS: across all 11 runs that reached the suites, EVERY ❌ was `[mgn-off]`. No mutation
+--   reddened any of the other 884 pins in either direction.
 --
 -- ── FIXTURE NOTES ───────────────────────────────────────────────────────────────────────────
 -- ① Shared state is built at TOP LEVEL, outside every pin: a plpgsql `begin … exception` block is
