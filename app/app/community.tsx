@@ -17,7 +17,13 @@ import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
 import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
-// 동네 피드 — IG 카드 해부학 개편 (Sean 2026-08-11: "인스타 UI에서 영감 — 쉽게 올리고 스크롤하고
+// [#16 rename, Sean console 2026-08-25: "Rename the feed" — name choice delegated] 동네 피드 →
+// **하이 피드**, my judgment 🔵: feed_posts' read policy is using(true) (0013) — every signed-in
+// user reads every post, no neighbourhood scoping — so the old name promised a boundary the
+// policy never drew. 하이 is the brand's own word (도그스하이 · 하이클럽 · 하이 포인트), claims
+// nothing geographic, and needed zero policy change. If Sean wants a different name it is a
+// string sweep — every site renamed in one commit, grep-able as 하이 피드.
+// 하이 피드 — IG 카드 해부학 개편 (Sean 2026-08-11: "인스타 UI에서 영감 — 쉽게 올리고 스크롤하고
 // 반응하고 공유하게"). 인스타에서 가져온 건 비주얼이 아니라 카드의 스캔 리듬:
 //   ① 아이덴티티 헤더(아바타·이름·강아지 + 내 포스트면 ⋯ 오버플로) → ② 콘텐츠 블록 엣지-투-엣지
 //   (사진 풀블리드 / 기록 조판 / 클럽 리캡) → ③ 액션 행(좋아요·댓글, 44pt 타깃, 낙관적 갱신+롤백)
@@ -272,7 +278,7 @@ export default function Community() {
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Row style={{ gap: 8, alignItems: 'center' }}>
-                <Text style={[s.h1, df]}>동네 피드</Text>
+                <Text style={[s.h1, df]}>하이 피드</Text>
                 <View style={s.liveBadge}>
                   <View style={s.liveDot} />
                   <Text style={[s.liveTxt, nf]}>LIVE</Text>
