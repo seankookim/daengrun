@@ -3,755 +3,286 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Runner Pick Lab</title>
+<title>Club v2 — Runner Pick Lab (remake)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
 /* ═════════════════════════════════════════════════════════════════════════════
-   CLUB v2 PICK LAB — the owner's runner-pick experience, three states
-   Spec: docs/plans/2026-08-25-club-delegation-spec-v2.md §6 (pick layer) +
-   §10.1 (owner screen table). P2 러너 선택 ×3 anatomies, P3 수락 대기 ×1,
-   P4 페어링 확정 ×1. Sean picks by number.
+   PICK LAB — REMAKE after Sean's critique (2026-08-25): "too many words,
+   information density not followed, not true to the paper style … remember
+   Elon's quote on deleting."
 
-   ZERO NEW HEXES. Every colour inside a phone frame is copied out of
-   app/src/theme.ts (paper · lilac worlds) or src/components/club-ui.tsx's
-   sanctioned values (#EEEEEE neutral line, #FBFAFE stub, the holo stops,
-   the coral door gradient). Lab chrome (--page/--panel/--hair) is page
-   furniture and never appears inside a frame.
+   DELETED from v1: per-card buttons, pace-verdict prose, TTL explainer
+   paragraphs, quote cards, timelines, mode-switch lines, radio+CTA mechanics.
+   KEPT: the §6 facts only — committed runners (pace · load/cap, never money,
+   never distance), 자동 연결 as one quiet door, 2h wait, the paired facts,
+   a receding cancel.
 
-   TYPE FLOOR IS LITERAL: frames are 390px wide, so 1px = 1pt. Korean detail
-   text never goes below 14px inside a frame. The only sub-14 text in a frame
-   is a LATIN letterspaced kicker or a serial. Black Han Sans ≤1 per screen.
-   Oswald numerals always carry line-height ≥ 1.2×.
-
-   PRIVACY LAW (round-2 F7c, §6.5): the pick list renders pace fit, tier and
-   load/cap ONLY. Never money (재정 ④ — the fare speaks once, on the 승낙서),
-   never any distance-derived value per runner (the triangulation oracle).
-   No frame below breaks either — there is nothing to toggle.
+   PAPER GRAMMAR = club/delegate/[sid].tsx verbatim: warm white doc, ink
+   rules, dashed cells, letterspaced Latin kickers, serials, square corners.
+   ZERO NEW HEXES — theme.ts (paper·lilac) + the delegate screen's doc consts
+   + club-ui's sanctioned values, exactly the enh-club-lab palette.
+   390px frames, 1px = 1pt. Korean floor 14px (sub-14 = Latin kickers/serials/
+   glyphs only). Black Han Sans ≤1/screen. Oswald line-height ≥1.2×.
    ═════════════════════════════════════════════════════════════════════════ */
 :root{
-  /* paper world — theme.ts `paper` */
-  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
-  --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
-  --line:#E8552F; --wash:#FFF6F4;
-  --critical:#B3261E; --criticalWash:#FBEAE7;
-  --disabled:#F2F2F2; --pending:#C77414;
-  --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315;
-  --ready:#119B58; --readyDeep:#0E7F49;
-  /* lilac world — theme.ts `lilac` (the delegation surface kit) */
-  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4; --lhair2:#EDEAF8;
+  /* lilac world — theme.ts `lilac` (delegation surface canvas) */
+  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4;
   --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
-  --accent:#6C5CE7; --accentDeep:#7867EC;
-  --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
-  --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+  --accent:#6C5CE7; --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
+  --amber:#C77414; --amberSoft:#FBEED9;
   --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
-  --tang:#E8552F;
-  --gold:#B99A4F; --goldSoft:#F4EBD3; --goldSheen:#D8C185; --sealInk:#8a6f2a;
-  /* collar palette — theme.ts collarColors */
-  --collarTang:#FF8A5C; --collarSky:#5BB8D4;
-  /* club-ui.tsx component values (existing, not new) */
-  --nl:#EEEEEE; --stub:#FBFAFE;
+  /* consent-document world — club/delegate/[sid].tsx consts (sanctioned in enh-club-lab) */
+  --docInk:#26231b; --docLine:#E4DFD1; --docDim:#8a8272; --docChip:#FBF9F3; --docClause:#F6F3EA;
+  --docEdge:#E2DDD0; --docFrame:#d9d3c2; --docDash:#C9C2AE;
+  /* collar — theme.ts collarColors */
+  --collarTang:#FF8A5C;
   /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{
-  background:var(--page); color:var(--ink);
+body{background:var(--page);color:var(--ink);
   font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
-}
-.wrap{max-width:1760px;margin:0 auto}
+  -webkit-font-smoothing:antialiased;padding:34px 20px 90px}
+.wrap{max-width:1400px;margin:0 auto}
 
-/* ── page header ── */
-header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
-h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
-.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
-.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1040px}
-.lede b{color:var(--ink);font-weight:700}
-.note{background:var(--panel);border:1px solid var(--hair);padding:14px 17px;margin:18px 0 0;font-size:13.5px;line-height:1.68}
-.note h4{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
-.note b{color:var(--ink)}
-.note.warn{border:2px solid var(--line)}
-.note.warn h4{color:var(--line)}
-code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
-ul.tight{margin:7px 0 0 18px}
-ul.tight li{margin-bottom:5px}
+/* header — two lines, that's all */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
+h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
+.law{font-size:11.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:7px}
 
-/* ── screen section ── */
-h2.band{margin:60px 0 6px;padding-top:22px;border-top:1px solid var(--line);font-size:21px;font-weight:800;letter-spacing:-.01em}
-h2.band .sig{display:inline-block;background:var(--ink);color:#fff;font-size:14px;font-weight:800;
-  padding:2px 10px;margin-right:11px;vertical-align:2px;letter-spacing:.06em}
-h2.band span.f{font-weight:600;color:var(--dim);font-size:14px;font-family:"SF Mono",ui-monospace,Menlo,monospace}
-.sub{font-size:14.5px;color:var(--dim);line-height:1.78;max-width:1080px;margin-top:8px}
-.sub b{color:var(--ink)}
-
-/* ── variant rail ── */
-.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.rail{display:flex;gap:30px;flex-wrap:wrap;margin-top:30px;align-items:flex-start}
 .col{width:390px}
-.cap{display:flex;align-items:baseline;gap:11px;font-size:16.5px;font-weight:800;margin-bottom:6px;line-height:1.3}
-.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
-  background:var(--action);color:#fff;font-size:19px;font-weight:800;padding:0 9px}
-.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:130px}
-.why b{color:var(--ink)}
-.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.62;color:var(--dim);
-  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:8px}
-.cost{font-size:12.5px;line-height:1.62;color:var(--text);background:var(--panel);
-  border:1px solid var(--hair);padding:10px 12px;margin-top:8px}
-.cost b.h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px}
+.cap{display:flex;align-items:baseline;gap:10px;font-size:15px;font-weight:700;color:var(--dim);margin-bottom:10px}
+.cap .n{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;
+  background:var(--ink);color:#fff;font-size:17px;font-weight:800}
 
-/* ── phone frame ── */
-.phone{width:390px;background:var(--lbg);color:var(--ink);border:1px solid var(--hair);
-  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;display:flex;flex-direction:column}
-.phone.h700{height:700px}.phone.h760{height:760px}.phone.h820{height:820px}.phone.h860{height:860px}
+/* phone frame */
+.phone{width:390px;background:var(--lbg);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;display:flex;flex-direction:column}
+.h430{height:430px}.h445{height:445px}
 .stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
   font-size:11px;color:var(--faint);font-weight:600}
-.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
-.pad{padding-left:14px;padding-right:14px}
-.lrule{height:1px;background:var(--lhair)}
-.row{display:flex;align-items:center}
-.between{justify-content:space-between}
-.grow{flex:1;min-width:0}
-.gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}
-.mt4{margin-top:4px}.mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt16{margin-top:16px}
-
-/* app type — floor is literal */
-.t14{font-size:14px;line-height:19px}
-.t145{font-size:14.5px;line-height:20px}
-.t15{font-size:15px;line-height:20px}
-.t16{font-size:16px;line-height:21px}
-.t165{font-size:16.5px;line-height:22px}
-.t17{font-size:17px;line-height:23px}
-.t19{font-size:19px;line-height:25px}
-.b6{font-weight:600}.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
-.ldim{color:var(--ldim)}.ltext{color:var(--ltext)}.lhead{color:var(--lhead)}
-.acc{color:var(--accent)}.amberink{color:var(--amber)}.voltink{color:var(--voltDeep)}.tangink{color:var(--tang)}
-.kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--ldim);text-transform:uppercase}
-.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
-.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
-
-/* shared in-frame components — mirrored from club-ui / enh-club-lab grammar */
-.navrow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px 9px}
-.navbk{width:30px;height:30px;border:1px solid var(--lhair);border-radius:7px;display:flex;align-items:center;
-  justify-content:center;font-size:17px;color:var(--lhead);background:var(--lcard)}
-.tag{display:inline-flex;align-items:center;padding:4px 8px;font-size:14px;line-height:18px;font-weight:800;letter-spacing:.2px;border-radius:5px}
-.tag.volt{background:var(--voltFill);color:var(--voltDeep)}
-.tag.amber{background:var(--amberSoft);color:var(--amber)}
-.tag.coral{background:var(--lcoralSoft);color:#C24A2E}
-.tag.lilac{background:var(--lhair2);color:var(--accent)}
-.tag.gold{background:var(--goldSoft);color:var(--sealInk)}
-.tag.dimt{background:var(--linset);color:var(--ldim)}
-.lcard{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:13px;margin-top:10px;
-  box-shadow:0 6px 14px rgba(28,24,55,.09)}
-.drow{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:12px;margin-top:8px}
-.drow.full{background:var(--linset);box-shadow:none;border-style:dashed}
-.avat{width:40px;height:40px;flex:0 0 40px;border-radius:20px;background:var(--linset);border:1.5px solid var(--lhair);
-  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--ltext)}
-.avat.lg{width:56px;height:56px;flex:0 0 56px;border-radius:28px;font-size:19px}
+.scr{flex:1;overflow:hidden}
+.mast{display:flex;align-items:center;gap:9px;padding:11px 14px 10px}
+.bk{font-size:20px;color:var(--lhead)}
 .dogdot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
   display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#5d5138}
-.abtn{text-align:center;padding:10px 12px;border-radius:8px;background:var(--voltFill);
-  font-size:14px;line-height:19px;font-weight:800;color:var(--voltDeep)}
-.abtn.ghost{background:var(--linset);color:var(--ldim)}
-.abtn.chipr{background:var(--lhair2);color:var(--accent)}
-.abtn.off{background:var(--linset);color:var(--ldim)}
-.cta{display:block;width:100%;text-align:center;padding:15px 12px;margin-top:12px;background:var(--action);
-  color:#fff;font-size:17px;font-weight:800;letter-spacing:.3px;border-radius:8px;box-shadow:0 6px 14px rgba(198,71,44,.30)}
-.cta.sec{background:var(--wash);border:1px solid var(--line);color:var(--actionInk);font-size:16px;box-shadow:none}
-.cta.dest{background:var(--lcard);border:1px solid var(--critical);color:var(--critical);font-size:16px;box-shadow:none}
-.cta.off{background:var(--linset);color:var(--ldim);box-shadow:none}
-.link{display:block;text-align:center;margin-top:11px;font-size:14px;line-height:19px;font-weight:800;color:var(--accent)}
-.link.d{color:var(--ldim)}
-.door{padding:13px 12px;border-radius:8px;position:relative;overflow:hidden}
-.door.coral{background:linear-gradient(135deg,#F5825F,#F0765A 55%,#E5654A);box-shadow:0 5px 12px rgba(240,118,90,.34)}
-.door.quiet{background:var(--linset);border:1px solid var(--lhair)}
-.doorSub{font-size:14px;line-height:19px;margin-top:4px}
-.doorSub.onCoral{color:rgba(255,255,255,.88)}
-.sechead{display:flex;align-items:baseline;gap:8px;margin-top:16px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)}
-.strip{background:var(--amberSoft);border:1px solid var(--amberEdge);padding:9px 12px;margin-top:8px;border-radius:6px;
-  font-size:14px;line-height:19px;color:#7a5a2a}
-.deadline{display:flex;align-items:center;gap:12px;background:var(--amberSoft);padding:12px 13px;margin-top:10px;border-radius:8px}
-.dcopy{font-size:14px;line-height:20px;color:#7a5a2a;flex:1}
-.ring{position:relative;width:84px;height:84px;flex:0 0 84px;border-radius:50%;
-  background:repeating-conic-gradient(from -90deg,var(--lhair) 0 3.6deg,transparent 3.6deg 15deg)}
+.mline{font-size:14px;line-height:19px;font-weight:700;color:var(--ltext)}
+.numf{font-family:'Oswald','Roboto Condensed',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.dispf{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900;letter-spacing:-.01em}
+
+/* paper document — delegate/[sid].tsx grammar, byte-true */
+.doc{background:#fff;border:1px solid var(--docEdge);border-radius:2px;padding:13px;margin:4px 12px 0;position:relative;
+  box-shadow:0 8px 18px rgba(28,24,55,.14)}
+.doc .inner{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid var(--docFrame);border-radius:1px;pointer-events:none}
+.docHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
+.serial{font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700}
+.kick{font-size:8.5px;letter-spacing:2px;color:var(--docDim);font-weight:700}
+.docChipTag{display:inline-flex;border:1.3px solid var(--docDash);border-radius:4px;padding:2px 7px;background:var(--docChip);
+  font-size:14px;line-height:18px;font-weight:700;color:var(--docInk)}
+
+/* start-list rows — printed roster */
+.colhead{display:grid;grid-template-columns:1fr 66px 46px 14px;gap:8px;align-items:baseline;
+  padding:8px 0 4px;border-bottom:1px solid var(--docLine)}
+.srow{display:grid;grid-template-columns:1fr 66px 46px 14px;gap:8px;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--docLine)}
+.srow:last-of-type{border-bottom:0}
+.rname{font-size:16px;line-height:21px;font-weight:800;color:var(--docInk);display:flex;align-items:center;gap:7px;min-width:0}
+.rpace{font-size:17px;line-height:22px;color:var(--docInk);text-align:right}
+.rpace .u{font-size:12px;color:var(--docDim);font-family:'IBM Plex Sans KR',sans-serif;font-weight:500}
+.rload{font-size:17px;line-height:22px;color:var(--docInk);text-align:right}
+.chev{font-size:16px;color:var(--docDim);text-align:right}
+.srow.off .rname,.srow.off .rpace,.srow.off .rload{color:var(--docDim)}
+.srow.off{background:var(--docClause);margin:0 -13px;padding-left:13px;padding-right:13px}
+.full{font-size:14px;line-height:18px;font-weight:800;color:var(--docDim);text-align:right;grid-column:3 / 5;letter-spacing:.5px}
+
+/* quiet door */
+.autodoor{display:flex;align-items:center;gap:8px;border-top:1.5px solid var(--docInk);margin-top:2px;padding-top:11px;padding-bottom:2px}
+.autodoor .t{font-size:15px;line-height:20px;font-weight:800;color:var(--docDim);flex:1}
+
+/* wait ring */
+.ring{position:relative;width:96px;height:96px;border-radius:50%;margin:14px auto 0;
+  background:repeating-conic-gradient(from -90deg,var(--docLine) 0 3.6deg,transparent 3.6deg 15deg)}
 .ring .lit{position:absolute;inset:0;border-radius:50%;
   background:repeating-conic-gradient(from -90deg,var(--accent) 0 3.6deg,transparent 3.6deg 15deg);
   -webkit-mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%);
   mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%)}
-.ring .hole{position:absolute;inset:10px;border-radius:50%;background:var(--amberSoft);
+.ring .hole{position:absolute;inset:11px;border-radius:50%;background:#fff;
   display:flex;flex-direction:column;align-items:center;justify-content:center}
-.ticket{border:1px solid var(--nl);margin-top:8px;position:relative;background:var(--lcard);border-radius:8px;overflow:hidden}
-.perf{position:relative;height:0;margin:0 10px;border-top:1.5px dashed #D8D2EE}
-.notch{position:absolute;top:-7px;width:14px;height:14px;border-radius:7px;border:1px solid var(--lhair);background:var(--lbg)}
-.tkTop{padding:12px 13px 10px}
-.tkStub{padding:10px 13px 12px;background:var(--stub)}
-.holo{height:3px;background:linear-gradient(90deg,#CFC4FF,#FFD9CB 35%,#CDEBDD 65%,#CFE0FF)}
-.cellK{font-size:8.5px;letter-spacing:2px;font-weight:700;color:var(--ldim)}
-.cellgrid{display:flex;border:1px solid var(--lhair2);border-radius:6px;margin-top:9px;overflow:hidden}
-.cellgrid > div{flex:1;padding:8px 10px}
-.cellgrid > div + div{border-left:1px solid var(--lhair2)}
-.radio{width:22px;height:22px;flex:0 0 22px;border-radius:11px;border:1.5px solid var(--lhair);background:var(--lcard)}
-.radio.on{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 4px var(--lcard)}
-.photo{height:120px;background:var(--linset);border-radius:8px;display:flex;align-items:center;justify-content:center;
-  color:var(--ldim);font-size:14px}
-.chip{display:inline-flex;align-items:center;padding:8px 13px;border-radius:99px;border:1.3px solid var(--lhair);
-  background:var(--lcard);font-size:14px;line-height:19px;font-weight:800;color:var(--ltext)}
-.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.qcard{background:var(--linset);border:1px solid var(--lhair);border-radius:8px;
-  padding:11px 12px;margin-top:10px}
-.tl{border-left:2px solid var(--lhair);padding-left:12px;margin:10px 0 0 3px}
-.ev{position:relative;padding:4px 0;font-size:14px;line-height:19px;color:var(--ltext)}
-.ev:before{content:"";position:absolute;left:-16.5px;top:9px;width:7px;height:7px;border-radius:4px;background:#CFC8EC}
-.ev.on:before{background:var(--accent)}
-footer{margin-top:56px;border-top:2.5px solid var(--ink);padding-top:16px}
-footer h3{font-size:17px;font-weight:800;margin-bottom:10px}
-ol.q{margin-left:20px;font-size:14px;line-height:1.75}
-ol.q li{margin-bottom:11px}
-ol.q b{color:var(--ink)}
+
+/* paired stamp · perforation · stub · barcode */
+.stamp{position:absolute;right:16px;top:52px;border:2.5px solid var(--lcoralDeep);border-radius:4px;padding:5px 12px;
+  transform:rotate(-7deg);font-size:16px;font-weight:900;letter-spacing:3px;color:var(--lcoralDeep);background:rgba(255,220,209,.25)}
+.perf{position:relative;height:0;margin:12px -3px 0;border-top:1.5px dashed var(--docDash)}
+.notch{position:absolute;top:-7px;width:14px;height:14px;border-radius:7px;border:1px solid var(--docEdge);background:var(--lbg)}
+.cells{display:flex;border:1px solid var(--docLine);margin-top:12px}
+.cells > div{flex:1;padding:9px 11px}
+.cells > div + div{border-left:1px solid var(--docLine)}
+.bars{display:flex;gap:2px;align-items:flex-end;height:24px;margin-top:12px;opacity:.65}
+.bars i{display:block;background:var(--docDim)}
+
+.quiet{display:block;text-align:center;margin-top:12px;font-size:14px;line-height:19px;font-weight:700;color:var(--ldim)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="top">
-  <h1>클럽 v2 — 러너 픽 Lab</h1>
-  <p class="law">OWNER PICK SURFACE · P2 ×3 · P3 ×1 · P4 ×1 · SEAN PICKS BY NUMBER</p>
-  <p class="lede">The v2 spec (§6, §10.1) hands the runner choice to the <b>owner</b>: at P2 the owner picks from the
-  session's committed runners (or opens the 자동 연결 door), at P3 a 2-hour reply window runs while the runner
-  decides, and at P4 the pairing stands with a server-quoted cancel and a re-specified objection door. This lab
-  draws three anatomies of the P2 pick list (①②③) and one frame each for P3 (④) and P4 (⑤) — same data
-  contract everywhere, different card personalities. Every frame is 390px so 1px = 1pt, every hex is already in
-  <code>app/src/theme.ts</code> or <code>club-ui.tsx</code>, and the 14pt Korean floor is literal.</p>
-
-  <div class="note warn">
-    <h4>⚠ Two privacy laws are load-bearing, not styling</h4>
-    <ul class="tight">
-      <li><b>Never money.</b> 재정 ④: the club fare speaks once, on the 승낙서. No pick card, pending card or paired
-        card below carries a won amount — the single exception is the P4 <b>cancel quote</b>, which §5.4 ORDERS as a
-        server-fetched exact figure (<code>quote_club_cancel_fee</code>), shown only at the cancel door.</li>
-      <li><b>Never distance-to-runner.</b> Round-2 F7c: an owner who controls their own pin could triangulate a
-        runner's home from repeated distance bands. Proximity exists only inside <code>session_auto_pick</code>'s
-        definer ranking. Cards render <b>tier · pace fit · load/cap</b> — nothing else.</li>
-    </ul>
-    Also: 「러너 변경 요청」 is legal vocabulary again under v2 — §5.5 re-specifies the objection as
-    <b>un-pair, never refund</b> (runner cleared, seat kept), so frame ⑤'s door says exactly that.
-  </div>
-
-  <div class="note">
-    <h4>Fixture — one session, one dog, three committed runners</h4>
-    반포 하이클럽 · 토 09:00 (8.30 SAT) 잠수교 북단 5km · dog 몽이 (추천 페이스 <b>6'40"/km</b>) · P2 결제 완료.
-    Committed crew: 박지훈 <b>베테랑</b> 6'30"/km 담당 1/2 · 이서연 <b>마스터</b> 6'05"/km 담당 0/3 · 김도윤
-    <b>인증 러너</b> 6'45"/km 담당 2/2 (<b>만석</b> — a live pick consumes capacity, §6.4, so the refusal is named
-    before the tap, never after). Tier labels are the app's shipped ladder (<code>api.ts:1012</code>). The owner
-    already chose 러너에게 맡기기; every P2 frame carries the quiet mode-switch line with Sean's verbatim
-    「무료로 크루 참가」.
-  </div>
+  <h1>클럽 v2 — 러너 픽 Lab · remake</h1>
+  <p class="law">Paper grammar · row tap = pick · &lt;15 words/frame · theme.ts hexes only · 14px floor</p>
 </header>
 
-<!-- ══════════════════════════════════════════════════════════════════════════ P2 -->
-<h2 class="band"><span class="sig">P2</span>러너 선택 <span class="f">· NEW pick surface · club/session/[sid].tsx owner card</span></h2>
-<p class="sub">The committed-runner list the owner picks from, plus the Mode C door. All three variants bind the same
-§9 board projection (<code>runners[] → name · tier · pacePerKm · load · cap</code> — the board exposes the SAME
-load the server enforces, §6.4) and the same two RPCs. What differs is <b>card anatomy and commitment mechanics</b>:
-① per-card action, ② ticket cards with the pick as the stub, ③ compact rows with select-then-confirm. ② additionally
-draws the <b>gated</b> 자동 연결 state (no pinned address — §6.5's explicit gate, never a fabricated empty list).</p>
-
 <div class="rail">
 
-  <!-- ① -->
+  <!-- ① START LIST -->
   <div class="col">
-    <div class="cap"><span class="badge">①</span>로스터 — per-card action</div>
-    <p class="why"><b>Roster list, one 지목 button per card.</b> Fastest path: see a runner, tap their button, done —
-    no selection state. Pace fit leads each card as a volt/amber tag with the raw pace beside it (declared, so the
-    number is shown, not just the verdict). The full runner keeps their card but the button names the refusal
-    (§6.4's consumed capacity) — the console's dead-button grammar, extended. 자동 연결 sits BELOW the list as a
-    coral door: Mode B is the primary posture, C is the shortcut.</p>
-    <div class="phone h860">
+    <div class="cap"><span class="n">①</span>Start-list paper — the row itself is the pick.</div>
+    <div class="phone h430">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
-        <div class="navrow">
-          <div class="navbk">‹</div>
-          <div class="kick">RUNNER PICK</div>
-          <div style="width:30px"></div>
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead">
+            <div class="dispf" style="font-size:17px;color:var(--docInk)">러너 선택</div>
+            <div class="serial">START LIST · P2</div>
+          </div>
+
+          <div class="colhead">
+            <div class="kick">RUNNER</div>
+            <div class="kick" style="text-align:right">PACE</div>
+            <div class="kick" style="text-align:right">LOAD</div>
+            <div></div>
+          </div>
+
+          <div class="srow">
+            <div class="rname">박지훈 <span class="docChipTag">베테랑</span></div>
+            <div class="rpace numf">6'30"<span class="u">/km</span></div>
+            <div class="rload numf">1/2</div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="srow">
+            <div class="rname">이서연 <span class="docChipTag">마스터</span></div>
+            <div class="rpace numf">6'05"<span class="u">/km</span></div>
+            <div class="rload numf">0/3</div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="srow off">
+            <div class="rname">김도윤 <span class="docChipTag" style="color:var(--docDim)">인증</span></div>
+            <div class="rpace numf">6'45"<span class="u">/km</span></div>
+            <div class="full numf">2/2 <span style="font-family:'IBM Plex Sans KR',sans-serif">만석</span></div>
+          </div>
+
+          <div class="autodoor">
+            <div class="t">⚡ 자동 연결</div>
+            <div class="chev">›</div>
+          </div>
         </div>
-        <div class="pad">
-          <div class="dispf lhead" style="font-size:24px;line-height:30px">러너 선택</div>
-          <div class="row gap8 mt8">
-            <div class="dogdot">몽</div>
-            <div class="grow t14 ltext">몽이 · 토 <span class="numf">09:00</span> · 잠수교 북단 <span class="numf">5</span>km</div>
-            <span class="tag volt">결제 완료</span>
-          </div>
-          <div class="t14 ldim mt6">이번 세션에 확약한 크루 러너 중에서 직접 고르세요. 수락은 러너가 해요.</div>
 
-          <div class="sechead">
-            <div class="t15 b8 lhead grow">확약한 크루 러너</div>
-            <div class="t14 ldim"><span class="numf">3</span>명</div>
-          </div>
-
-          <!-- 박지훈 -->
-          <div class="drow">
-            <div class="row gap10">
-              <div class="avat">박</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t16 b8 lhead">박지훈</span><span class="tag lilac">베테랑</span></div>
-                <div class="t14 ldim mt4">오늘 담당 <span class="numf ltext">1/2</span></div>
-              </div>
-            </div>
-            <div class="row gap6 mt8">
-              <span class="tag volt">페이스 잘 맞음</span>
-              <span class="t14 ltext"><span class="numf">6'30"</span>/km · 몽이 <span class="numf">6'40"</span>/km</span>
-            </div>
-            <div class="abtn mt8" style="display:block;text-align:center">박지훈 님 지목하기</div>
-          </div>
-
-          <!-- 이서연 -->
-          <div class="drow">
-            <div class="row gap10">
-              <div class="avat">이</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t16 b8 lhead">이서연</span><span class="tag gold">마스터</span></div>
-                <div class="t14 ldim mt4">오늘 담당 <span class="numf ltext">0/3</span></div>
-              </div>
-            </div>
-            <div class="row gap6 mt8">
-              <span class="tag amber">페이스 빠른 편</span>
-              <span class="t14 ltext"><span class="numf">6'05"</span>/km · 몽이 <span class="numf">6'40"</span>/km</span>
-            </div>
-            <div class="abtn mt8" style="display:block;text-align:center">이서연 님 지목하기</div>
-          </div>
-
-          <!-- 김도윤 — full -->
-          <div class="drow full">
-            <div class="row gap10">
-              <div class="avat">김</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t16 b8 lhead">김도윤</span><span class="tag dimt">인증 러너</span></div>
-                <div class="t14 ldim mt4">오늘 담당 <span class="numf">2/2</span> · 가득 찼어요</div>
-              </div>
-            </div>
-            <div class="abtn off mt8" style="display:block;text-align:center">오늘 담당이 가득 찼어요</div>
-          </div>
-
-          <!-- Mode C door -->
-          <div class="door coral mt12">
-            <div class="t17 b8" style="color:#fff">자동 연결</div>
-            <div class="doorSub onCoral">조건이 맞는 러너에게 바로 지목해요 · 수락은 똑같이 러너가 해요</div>
-          </div>
-
-          <div class="t14 ldim mt12" style="text-align:center">러너에게 맡기기로 진행 중이에요 ·
-            <b class="acc">함께 뛰기로 바꾸기</b> — 무료로 크루 참가</div>
-        </div>
+        <div class="quiet">몽이 <span class="numf">6'40"</span>/km</div>
       </div>
     </div>
-    <div class="binds">board.runners[] → name · tier · pacePerKm · load · cap (§9 projection — same number the server enforces)<br>
-      dogs.preferences.paceSuggestSec (0079:38-42) → 몽이 6'40" · session_pick_runner(p_session_dog, p_runner)<br>
-      session_auto_pick(p_session_dog) — pinned address present in this frame, so the door is live</div>
-    <div class="cost"><b class="h">what this costs</b>New server: the §9 board projection (already ordered by the
-      spec) — nothing beyond it. One tap per pick, but no confirm step: the pick fires from the card button, so a
-      mis-tap costs a free withdraw (§6.2). Pace verdict bands (잘 맞음/빠른 편) are the §6.5 30-sec buckets, client-rendered.</div>
   </div>
 
-  <!-- ② -->
+  <!-- ② 2H WAIT -->
   <div class="col">
-    <div class="cap"><span class="badge">②</span>티켓 카드 — and the gated 자동 연결</div>
-    <p class="why"><b>Each runner is a mini boarding card</b> — the club's ticket grammar carried into the pick: facts
-    in a two-cell grid (PACE · LOAD), the pick action as the stub below the perforation, so choosing a runner reads
-    as issuing a ticket. This frame also draws the <b>Mode C gate</b>: the pickup address has no pin, so the door is
-    quiet, says <b>the one performable remedy</b> (§6.5 — never a fabricated 「러너가 없어요」), and links the pin
-    flow. Holo budget: the gate strip is plain; no foil spent anywhere on this frame.</p>
-    <div class="phone h860">
+    <div class="cap"><span class="n">②</span>Two-hour wait — a ring and one line.</div>
+    <div class="phone h430">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
-        <div class="navrow">
-          <div class="navbk">‹</div>
-          <div class="kick">RUNNER PICK</div>
-          <div style="width:30px"></div>
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead">
+            <div class="dispf" style="font-size:17px;color:var(--docInk)">수락 대기</div>
+            <div class="serial">PICK PENDING · 2H</div>
+          </div>
+
+          <div class="srow" style="border-bottom:1px solid var(--docLine)">
+            <div class="rname">박지훈 <span class="docChipTag">베테랑</span></div>
+            <div class="rpace numf">6'30"<span class="u">/km</span></div>
+            <div class="rload numf">1/2</div>
+            <div></div>
+          </div>
+
+          <div class="ring">
+            <div class="lit"></div>
+            <div class="hole">
+              <div class="numf" style="font-size:23px;line-height:29px;color:var(--docInk)">1:14</div>
+              <div class="serial">LEFT</div>
+            </div>
+          </div>
+
+          <div style="font-size:14px;line-height:19px;color:var(--docDim);text-align:center;margin:12px 0 4px">
+            박지훈 님이 수락을 정하는 중</div>
         </div>
-        <div class="pad">
-          <div class="dispf lhead" style="font-size:24px;line-height:30px">러너 선택</div>
-          <div class="row gap8 mt8">
-            <div class="dogdot">몽</div>
-            <div class="grow t14 ltext">몽이 · 토 <span class="numf">09:00</span> · 잠수교 북단 <span class="numf">5</span>km</div>
-            <span class="tag volt">결제 완료</span>
-          </div>
 
-          <!-- gated Mode C -->
-          <div class="door quiet mt10">
-            <div class="row gap8">
-              <div class="grow">
-                <div class="t16 b8 ldim">자동 연결</div>
-                <div class="doorSub ldim">자동 연결하려면 주소 핀을 먼저 찍어주세요</div>
-              </div>
-              <span class="tag dimt">핀 필요</span>
-            </div>
-            <div class="abtn chipr mt8" style="display:inline-flex">주소 핀 찍기 →</div>
-          </div>
-
-          <div class="sechead">
-            <div class="t15 b8 lhead grow">확약한 크루 러너</div>
-            <div class="t14 ldim"><span class="numf">3</span>명</div>
-          </div>
-
-          <!-- ticket 박지훈 -->
-          <div class="ticket">
-            <div class="tkTop">
-              <div class="row gap10">
-                <div class="avat">박</div>
-                <div class="grow">
-                  <div class="row gap6"><span class="t16 b8 lhead">박지훈</span><span class="tag lilac">베테랑</span></div>
-                </div>
-                <div class="kick" style="font-size:8px">CREW · 02</div>
-              </div>
-              <div class="cellgrid">
-                <div><div class="cellK">PACE</div>
-                  <div class="t15 b7 lhead mt4"><span class="numf">6'30"</span><span class="t14 ltext" style="font-weight:500">/km</span></div>
-                  <div class="t14 voltink b7">잘 맞음</div></div>
-                <div><div class="cellK">LOAD</div>
-                  <div class="t15 b7 lhead mt4"><span class="numf">1/2</span></div>
-                  <div class="t14 ldim">오늘 담당</div></div>
-              </div>
-            </div>
-            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
-            <div class="tkStub">
-              <div class="abtn" style="display:block;text-align:center">이 러너에게 지목 보내기</div>
-            </div>
-          </div>
-
-          <!-- ticket 이서연 -->
-          <div class="ticket">
-            <div class="tkTop">
-              <div class="row gap10">
-                <div class="avat">이</div>
-                <div class="grow">
-                  <div class="row gap6"><span class="t16 b8 lhead">이서연</span><span class="tag gold">마스터</span></div>
-                </div>
-                <div class="kick" style="font-size:8px">CREW · 05</div>
-              </div>
-              <div class="cellgrid">
-                <div><div class="cellK">PACE</div>
-                  <div class="t15 b7 lhead mt4"><span class="numf">6'05"</span><span class="t14 ltext" style="font-weight:500">/km</span></div>
-                  <div class="t14 amberink b7">빠른 편</div></div>
-                <div><div class="cellK">LOAD</div>
-                  <div class="t15 b7 lhead mt4"><span class="numf">0/3</span></div>
-                  <div class="t14 ldim">오늘 담당</div></div>
-              </div>
-            </div>
-            <div class="perf"><div class="notch" style="left:-8px"></div><div class="notch" style="right:-8px"></div></div>
-            <div class="tkStub">
-              <div class="abtn" style="display:block;text-align:center">이 러너에게 지목 보내기</div>
-            </div>
-          </div>
-
-          <!-- ticket 김도윤 full -->
-          <div class="ticket" style="border-style:dashed;background:var(--linset)">
-            <div class="tkTop">
-              <div class="row gap10">
-                <div class="avat">김</div>
-                <div class="grow">
-                  <div class="row gap6"><span class="t16 b8 lhead">김도윤</span><span class="tag dimt">인증 러너</span></div>
-                </div>
-                <span class="tag amber">만석</span>
-              </div>
-              <div class="t14 ldim mt8">오늘 담당 <span class="numf">2/2</span> — 다른 지목에 응답하면 자리가 다시 생겨요</div>
-            </div>
-          </div>
-
-          <div class="t14 ldim mt12" style="text-align:center">러너에게 맡기기로 진행 중이에요 ·
-            <b class="acc">함께 뛰기로 바꾸기</b> — 무료로 크루 참가</div>
-        </div>
+        <div class="quiet">지목 취소 — 무료</div>
       </div>
     </div>
-    <div class="binds">addresses.lat/lng NULL → auto-pick door gated (§6.5 explicit gate; remedy = owner/address-pin flow)<br>
-      full-card copy binds §6.4 verbatim: a live pick consumes capacity and frees on answer/TTL lapse<br>
-      CREW · NN = committed_at order (S6's new column) — a latin serial, floor-exempt</div>
-    <div class="cost"><b class="h">what this costs</b>Same projection as ①. The ticket chrome costs vertical space
-      (~3 runners per screen before scrolling) and the stub button repeats three times — but the pick moment gets
-      the club's ceremony grammar, and the gated door is drawn where the eye starts, so the pin remedy is read
-      before the list is. Foil budget spent: zero.</div>
   </div>
 
-  <!-- ③ -->
+  <!-- ③ PAIRED -->
   <div class="col">
-    <div class="cap"><span class="badge">③</span>컴팩트 로우 — select, then one CTA</div>
-    <p class="why"><b>Dense rows, radio select, one bottom CTA.</b> The list is a table: every runner in one glance,
-    tier and pace and load aligned in columns, selection is a state and the send is a single deliberate button that
-    names who it goes to and what happens next (2h reply window — the P3 contract, disclosed before the tap).
-    Scales best past ~5 committed runners. 자동 연결 rides the top as a compact chip row, not a door — C as an
-    alternative input to the same CTA, not a second surface.</p>
-    <div class="phone h860">
+    <div class="cap"><span class="n">③</span>Paired stub — runner, pickup, window; one dim cancel.</div>
+    <div class="phone h445">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
-        <div class="navrow">
-          <div class="navbk">‹</div>
-          <div class="kick">RUNNER PICK</div>
-          <div style="width:30px"></div>
-        </div>
-        <div class="pad" style="flex:1">
-          <div class="dispf lhead" style="font-size:24px;line-height:30px">러너 선택</div>
-          <div class="row gap8 mt8">
-            <div class="dogdot">몽</div>
-            <div class="grow t14 ltext">몽이 · 토 <span class="numf">09:00</span> · 잠수교 북단 <span class="numf">5</span>km</div>
-            <span class="tag volt">결제 완료</span>
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 토 <span class="numf">09:00</span> · 잠수교 <span class="numf">5</span>km</div></div>
+
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead">
+            <div class="serial" style="font-size:8.5px;letter-spacing:2.5px">PAIRED — TEAM OF 2</div>
+            <div class="serial">RUNNER · v1</div>
           </div>
 
-          <div class="row gap8 mt10" style="background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:10px 12px">
-            <div class="grow t14 ltext">직접 고르지 않아도 돼요</div>
-            <div class="abtn chipr" style="padding:8px 12px">⚡ 자동 연결</div>
+          <div style="padding:12px 0 2px">
+            <div class="dispf" style="font-size:25px;line-height:31px;color:var(--docInk)">박지훈</div>
+            <div style="font-size:14px;line-height:19px;color:var(--docDim);margin-top:3px">
+              베테랑 · <span class="numf" style="color:var(--docInk)">6'30"</span>/km</div>
           </div>
+          <div class="stamp">확정</div>
 
-          <div class="lcard" style="padding:0;overflow:hidden">
-            <div class="row" style="padding:9px 12px;border-bottom:1px solid var(--lhair2)">
-              <div class="t14 b8 ldim grow">크루 러너 <span class="numf">3</span></div>
-              <div class="kick" style="font-size:8px">PACE · LOAD</div>
+          <div class="perf"><span class="notch" style="left:-20px"></span><span class="notch" style="right:-20px"></span></div>
+
+          <div class="cells">
+            <div>
+              <div class="kick">PICKUP</div>
+              <div style="margin-top:5px"><span class="docChipTag" style="background:var(--docInk);border-color:var(--docInk);color:#fff">집 픽업</span></div>
             </div>
-
-            <!-- row: 박지훈 selected -->
-            <div class="row gap10" style="padding:12px;background:var(--linset)">
-              <div class="radio on"></div>
-              <div class="avat" style="width:34px;height:34px;flex-basis:34px;border-radius:17px;font-size:14px">박</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t15 b8 lhead">박지훈</span><span class="tag lilac">베테랑</span></div>
-                <div class="t14 voltink b7 mt4">페이스 잘 맞음</div>
-              </div>
-              <div style="text-align:right">
-                <div class="t15 b7 lhead"><span class="numf">6'30"</span><span class="t14 ldim" style="font-weight:500">/km</span></div>
-                <div class="t14 ldim">담당 <span class="numf ltext">1/2</span></div>
-              </div>
-            </div>
-            <div class="lrule"></div>
-
-            <!-- row: 이서연 -->
-            <div class="row gap10" style="padding:12px">
-              <div class="radio"></div>
-              <div class="avat" style="width:34px;height:34px;flex-basis:34px;border-radius:17px;font-size:14px">이</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t15 b8 lhead">이서연</span><span class="tag gold">마스터</span></div>
-                <div class="t14 amberink b7 mt4">페이스 빠른 편</div>
-              </div>
-              <div style="text-align:right">
-                <div class="t15 b7 lhead"><span class="numf">6'05"</span><span class="t14 ldim" style="font-weight:500">/km</span></div>
-                <div class="t14 ldim">담당 <span class="numf ltext">0/3</span></div>
-              </div>
-            </div>
-            <div class="lrule"></div>
-
-            <!-- row: 김도윤 full -->
-            <div class="row gap10" style="padding:12px;opacity:.75">
-              <div class="radio" style="border-style:dashed"></div>
-              <div class="avat" style="width:34px;height:34px;flex-basis:34px;border-radius:17px;font-size:14px">김</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t15 b8 ldim">김도윤</span><span class="tag dimt">인증 러너</span></div>
-                <div class="t14 ldim mt4">오늘 담당이 가득 찼어요</div>
-              </div>
-              <div style="text-align:right">
-                <div class="t15 b7 ldim"><span class="numf">6'45"</span><span class="t14 ldim" style="font-weight:500">/km</span></div>
-                <div class="tag amber">만석</div>
-              </div>
+            <div>
+              <div class="kick">WINDOW</div>
+              <div class="numf" style="font-size:19px;line-height:25px;color:var(--docInk);margin-top:3px">08:20–08:40</div>
             </div>
           </div>
 
-          <div class="t14 ldim mt10">지목을 보내면 러너가 <b class="ltext"><span class="numf">2</span>시간</b> 안에 수락 여부를 정해요 ·
-            그동안 지목 취소는 무료예요</div>
+          <div class="bars">
+            <i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
+            <i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i><i style="width:2px;height:100%"></i>
+            <i style="width:2px;height:100%"></i><i style="width:3px;height:58%"></i><i style="width:2px;height:100%"></i>
+            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:58%"></i>
+            <i style="width:2px;height:100%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:58%"></i>
+            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:100%"></i><i style="width:2px;height:100%"></i>
+            <i style="width:2px;height:58%"></i><i style="width:3px;height:100%"></i><i style="width:2px;height:100%"></i>
+            <i style="width:2px;height:100%"></i><i style="width:3.5px;height:58%"></i><i style="width:2px;height:100%"></i>
+          </div>
+          <div class="serial" style="margin-top:6px">DOGS HIGH · 8A3F21C4</div>
         </div>
-        <div class="pad" style="padding-bottom:14px">
-          <div class="cta">박지훈 님에게 지목 보내기</div>
-          <div class="link d">러너에게 맡기기로 진행 중 · <b class="acc">함께 뛰기로 바꾸기</b> — 무료로 크루 참가</div>
-        </div>
+
+        <div class="quiet">취소 ›</div>
       </div>
     </div>
-    <div class="binds">selection = client state · CTA → session_pick_runner(몽이, 박지훈)<br>
-      TTL sentence binds §6.3's 2h (RULED 14.1) — copy re-writes if the number moves<br>
-      ⚡ 자동 연결 → session_auto_pick (chip disabled + pin remedy when address unpinned)</div>
-    <div class="cost"><b class="h">what this costs</b>Same projection. Two taps instead of one (select + send), which
-      is exactly the point: the CTA restates the contract (who + the 2h window) before anything fires. Row height
-      ~58pt with two lines — the densest of the three, and the only one whose anatomy survives a 10-runner club
-      unchanged.</div>
   </div>
 
 </div>
-
-<!-- ══════════════════════════════════════════════════════════════════════════ P3 -->
-<h2 class="band"><span class="sig">P3</span>수락 대기 <span class="f">· pick-pending card + TTL ring · §6.3</span></h2>
-<p class="sub">The pick is out; the runner has <b>2 hours</b> (🔵 RULED 14.1 — a pick issued &lt;2h before the session
-clamps to <code>scheduled_at</code>). The DrainRing idiom carries the countdown — drawn only when the server gave
-<code>proposal_expires_at</code>, and an elapsed TTL says so instead of counting to 00:00 (the session shell's own
-rule). Withdrawing the pick is <b>free</b> (§6.2's widened <code>session_proposal_revoke</code> — without it this
-button is dead); cancelling the seat rides the quoted ladder and is deliberately a quiet second exit.</p>
-
-<div class="rail">
-
-  <!-- ④ -->
-  <div class="col">
-    <div class="cap"><span class="badge">④</span>대기 카드 — ring, honest expiry, free withdraw</div>
-    <p class="why"><b>One card, one clock, two exits of very different weight.</b> The ring is the app's DrainRing
-    (accent lit on amber well). Under it, the expiry contract is spelled before it happens: lapse returns the dog to
-    P2, seat kept, owner notified. A small timeline shows what the system already did (push at issue) and will do
-    (T−15min reminder) — bound facts, not decoration. 지목 취소 is a full-width secondary; 예약 취소 is a text link
-    that leads to the quoted flow, never a fee surprise.</p>
-    <div class="phone h760">
-      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="navrow">
-          <div class="navbk">‹</div>
-          <div class="kick">PICK PENDING</div>
-          <div style="width:30px"></div>
-        </div>
-        <div class="pad">
-          <div class="dispf lhead" style="font-size:24px;line-height:30px">수락 대기</div>
-          <div class="row gap8 mt8">
-            <div class="dogdot">몽</div>
-            <div class="grow t14 ltext">몽이 · 토 <span class="numf">09:00</span> · 잠수교 북단 <span class="numf">5</span>km</div>
-          </div>
-
-          <div class="lcard">
-            <div class="row gap10">
-              <div class="avat">박</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t16 b8 lhead">박지훈</span><span class="tag lilac">베테랑</span></div>
-                <div class="t14 ldim mt4">페이스 잘 맞음 · <span class="numf">6'30"</span>/km · 담당 <span class="numf">1/2</span></div>
-              </div>
-              <span class="tag amber">수락 대기</span>
-            </div>
-            <div class="deadline">
-              <div class="ring"><div class="lit"></div>
-                <div class="hole">
-                  <div class="numf lhead" style="font-size:19px;line-height:24px">1:14</div>
-                  <div style="font-size:8.5px;letter-spacing:1.5px;font-weight:700;color:#7a5a2a">LEFT</div>
-                </div>
-              </div>
-              <div class="dcopy"><b>박지훈 님이 수락을 결정하는 중이에요.</b><br>
-                <span class="numf">2</span>시간 안에 응답하지 않으면 지목이 풀려요.</div>
-            </div>
-            <div class="tl">
-              <div class="ev on">지목 보냄 · <span class="numf">10:27</span> — 러너에게 알림이 갔어요</div>
-              <div class="ev">마감 <span class="numf">15</span>분 전 — 한 번 더 알려드려요</div>
-            </div>
-          </div>
-
-          <div class="qcard">
-            <div class="t14 b8 lhead">응답이 없으면 어떻게 되나요</div>
-            <div class="t14 ltext mt4">지목이 자동으로 풀리고 알림을 보내드려요. <b>자리는 그대로예요</b> —
-              러너 선택 화면으로 돌아가 다른 러너를 고르거나, 자동 연결을 쓸 수 있어요.</div>
-          </div>
-
-          <div class="cta sec">지목 취소 — 무료</div>
-          <div class="link d">예약 자체를 취소할까요? <b class="acc">취소 수수료 먼저 확인하기</b></div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">proposal_expires_at (§6.3: issue+2h, clamp to scheduled_at) → ring — drawn ONLY when server sent it<br>
-      지목 취소 → session_proposal_revoke (§6.2 WIDENED to the pick's author-owner; free)<br>
-      lapse → recovery cron 0068:41-58 returns dog to P2 + owner push · 취소 링크 → §5.4 quote-first flow</div>
-    <div class="cost"><b class="h">what this costs</b>The widened revoke gate (S3 — already in the spec) and a
-      1-second interval while (and only while) a pick is pending. The timeline rows bind the §6.3 push schedule; if
-      the TTL number moves at ruling time, three strings re-write, no layout moves.</div>
-  </div>
-
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════════ P4 -->
-<h2 class="band"><span class="sig">P4</span>페어링 확정 <span class="f">· paired card · §5.2 quote + §5.5 objection</span></h2>
-<p class="sub">The runner accepted; the booking is <code>confirmed</code> with <code>runner_id</code> set. The card
-carries the pairing facts (runner, pickup mode chip, pickup window) and the two exits: <b>cancel</b>, quoted by the
-server before the confirm (<code>quote_club_cancel_fee</code> — a failed quote BLOCKS the button, §5.4), and
-<b>러너 변경 요청</b> — §5.5's re-specified objection, which un-pairs and keeps the seat, never refunds.</p>
-
-<div class="rail">
-
-  <!-- ⑤ -->
-  <div class="col">
-    <div class="cap"><span class="badge">⑤</span>확정 카드 — server-quoted exits</div>
-    <p class="why"><b>The pairing is a settled fact; the exits are priced out loud.</b> Photo placeholder + name +
-    tier, then the pickup contract as chips and a window line (Oswald numerals, ≥1.2 line-height). The cancel door
-    leads with the server's own quote — <b>an exact won amount, fetched now</b> (「취소 수수료 0원 · 24시간 이상
-    전」), the one place money legally appears on this surface — and the destructive button sits under its price.
-    러너 변경 요청 says in one line what §5.5 decided: runner un-paired, seat kept, not a refund.</p>
-    <div class="phone h860">
-      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="navrow">
-          <div class="navbk">‹</div>
-          <div class="kick">PAIRED</div>
-          <div style="width:30px"></div>
-        </div>
-        <div class="pad">
-          <div class="row between" style="align-items:baseline">
-            <div class="dispf lhead" style="font-size:24px;line-height:30px">페어링 확정</div>
-            <span class="tag volt">확정</span>
-          </div>
-          <div class="row gap8 mt8">
-            <div class="dogdot">몽</div>
-            <div class="grow t14 ltext">몽이 · 토 <span class="numf">09:00</span> · 잠수교 북단 <span class="numf">5</span>km</div>
-          </div>
-
-          <div class="lcard">
-            <div class="photo">러너 사진</div>
-            <div class="row gap10 mt10">
-              <div class="avat lg">박</div>
-              <div class="grow">
-                <div class="row gap6"><span class="t19 b8 lhead">박지훈</span><span class="tag lilac">베테랑</span></div>
-                <div class="t14 ldim mt4">페이스 잘 맞음 · <span class="numf">6'30"</span>/km · 이번 세션 담당 <span class="numf">2</span>마리</div>
-              </div>
-            </div>
-            <div class="row gap6 mt10">
-              <span class="chip on">집 픽업</span>
-              <span class="chip">현장 인계</span>
-            </div>
-            <div class="cellgrid">
-              <div><div class="cellK">PICKUP WINDOW</div>
-                <div class="t16 b7 lhead mt4"><span class="numf">08:20 – 08:40</span></div>
-                <div class="t14 ldim">현관 앞에서 인계 도장을 함께 찍어요</div></div>
-            </div>
-            <div class="t14 ldim mt8">픽업 주소 — 반포동 우리집 · 상세 주소는 러너에게 <b class="ltext">T−<span class="numf">24</span>h</b>에 열려요</div>
-          </div>
-
-          <!-- cancel: server quote pattern -->
-          <div class="qcard">
-            <div class="row between">
-              <div class="kick" style="font-size:8px">CANCEL QUOTE · SERVER</div>
-              <div class="t14 ldim">방금 확인</div>
-            </div>
-            <div class="t16 b8 lhead mt6">취소 수수료 <span class="numf">0</span>원 · <span class="numf">24</span>시간 이상 전</div>
-            <div class="t14 ldim mt4">지금 취소하면 전액 환불돼요. 세션 <span class="numf">24</span>시간 안에는
-              수수료가 생겨요 — 취소 직전에 다시 계산해서 보여드려요.</div>
-          </div>
-          <div class="cta dest">예약 취소하기</div>
-
-          <!-- objection -->
-          <div class="cta sec">러너 변경 요청</div>
-          <div class="t14 ldim mt6" style="text-align:center">러너만 다시 골라요 — <b class="ltext">자리는 그대로</b>예요 · 환불이 아니에요</div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">booking confirmed + runner_id (0057:132-134) · pickup mode per pairing (§7.2: 집 픽업 | 현장 인계)<br>
-      quote_club_cancel_fee(p_session_dog) → rung · pct · won (§5.4 — failed quote DISABLES 예약 취소하기 + names it)<br>
-      러너 변경 요청 → session_owner_objection (§5.5: un-pair to P2, stamps nulled, seat kept, never refund)<br>
-      address T−24h line = §8.2's disclosure schedule, owner-side mirror copy</div>
-    <div class="cost"><b class="h">what this costs</b>The §5.4 quote RPC (its own ordered slice) and the §5.5
-      objection re-spec — both already in the spec; this frame adds no ask of its own. The mode chips render
-      read-only here (the choice was made at pay time, §7.2); showing the unchosen chip keeps the vocabulary
-      visible without pretending it is still a decision.</div>
-  </div>
-
-</div>
-
-<footer>
-  <h3>OPEN QUESTIONS — what the spec could not decide for this lab</h3>
-  <ol class="q">
-    <li><b>①②③ — where does 자동 연결 live?</b> ① puts it below the list as a coral door (C is a strong shortcut),
-      ② above as a full door (C is read first, and its gate teaches the pin), ③ as a compact chip (C is an input,
-      not a surface). The coral budget allows exactly one of these per screen — the answer decides which element on
-      P2 gets the screen's single coral.</li>
-    <li><b>Pace verdict bands.</b> 잘 맞음 / 빠른 편 are the §6.5 30-sec buckets rendered as words, next to the raw
-      declared pace. Show both (drawn here), verdict only, or numbers only? The verdict is derived; the number is a
-      self-declaration (round-1 F11) — showing both is the honest middle but costs a line.</li>
-    <li><b>③'s CTA restates the 2h TTL before sending.</b> ① and ② fire on one tap with no restatement, leaning on
-      the free withdraw instead. Is the pick weighty enough to earn a confirm step, or is 무료 취소 the confirm?</li>
-    <li><b>⑤ — the unchosen pickup-mode chip.</b> Drawn read-only for vocabulary. If Sean wants mode switching
-      after pay, it becomes a control and needs the §5.3 fee copy on the spot; if not, the second chip could drop
-      entirely and the card gets one line back.</li>
-    <li><b>④'s 예약 취소 link routes to the quote-first flow rather than quoting inline.</b> Inline would put a won
-      amount on the P3 card — legal under §5.4 but a second money surface. Keep the detour?</li>
-  </ol>
-</footer>
 
 </div></body></html>
