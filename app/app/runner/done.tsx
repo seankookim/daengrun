@@ -34,8 +34,18 @@ import { colors, layout, paper } from '../../src/theme';
 // Behavior frozen: fetchDrops/addPhoto/uploadRunPhoto, photo cap 6, the dogName re-read, all routes.
 //
 // [2026-08-24 · Sean] 사진 1장이 **요건**이 됐다 — 앞으로 가는 두 문이 실사진 0장에서 잠긴다.
-// 판정 근거·세 상태·왜 '홈으로'는 잠그지 않는지는 아래 photoRequired 블록의 주석에 있다.
+// 판정 근거·세 상태·왜 '홈으로'는 잠그지 않는지는 아래 사진 넛지 블록(구 photoRequired)의 주석에 있다.
 // 사진 자체의 경로(addPhoto/uploadRunPhoto/6장 상한)는 그대로다 — 새 저장소도 새 필드도 없다.
+//
+// ⚠ [2026-08-25 · Sean] 위 문단의 **잠금은 은퇴했다** (근거는 기록으로 남긴다 — 지우지 않는다).
+// 그의 말 그대로 (docs/decisions/awaiting-sean.md §0-undetricies Q2·Q3):
+//   "q2: let the runner review, dont trap them from anything, but make sure a huge nudge for photo."
+//   "q3: accept a photo less one, but make sure there are screens before the run and during the
+//    live run screen that remind the runner for photos."
+// 앞으로 가는 두 문은 다시 **무조건** 열린다. 바뀐 것은 오직 **결과**다: 잠금 → 큰 넛지.
+// 판정 기계(서버 진실 runs.photos · loading/ready/err 3상태)는 한 글자도 바뀌지 않았다 —
+// 로딩은 여전히 0이 아니고, 못 읽은 상태는 여전히 0이라고 주장하지 않는다.
+// 사진 경로(addPhoto/uploadRunPhoto/6장 상한)는 처음부터 지금까지 그대로다.
 
 const W = Dimensions.get('window').width;
 const TRACE_W = W - layout.gutter * 2;
@@ -134,25 +144,30 @@ export default function RunDone() {
     }
   };
 
-  // ── 사진 요건 (Sean 2026-08-24, verbatim) ──
-  // "For the runner done screen (C), make sure there's a mandatory nudge for pictures (make that
-  //  a requirement and nudge them during the runner live screen so they don't forget."
+  // ── 사진 넛지 (Sean 2026-08-25 — 2026-08-24 요건의 후속) ──
   //
-  // 요건의 근거는 **실사진**이다: 서버가 돌려준 runs.photos 배열의 길이 하나만 본다 (업로드 응답과
-  // 마운트 읽기가 같은 배열이다). 세 상태를 구분한다 —
-  //   · ready & 0장  → 잠근다. 이유를 명시 fill(disabledFill)과 한 줄로 말한다 (불투명도 트릭 금지).
-  //   · loading      → 아직 0인지 모른다. 잠그되 이유는 '확인 중'이다 (로딩 ≠ 0).
-  //   · err          → 0이라고 **주장할 수 없다** → 잠그지 않는다. 섹션 헤더의 '다시 시도'가 진짜 경로다.
-  // 예약이 없으면 업로드 경로 자체가 없다 → 요건도 없다 (없는 문을 요구하지 않는다).
+  // [SUPERSEDED 2026-08-24, 근거로 보존] 이 자리는 **게이트**였다. 그때의 말 그대로:
+  //   "For the runner done screen (C), make sure there's a mandatory nudge for pictures (make that
+  //    a requirement and nudge them during the runner live screen so they don't forget."
+  //   → 앞으로 가는 두 문(리뷰·다음 요청)이 실사진 0장에서 disabledFill로 잠겼고, '홈으로'만 열려 있었다.
   //
-  // ⚠ 이건 **클라이언트 게이트**다. 서버는 사진 없이 끝난 러닝을 여전히 정산한다 — 진짜 강제는
-  // run-end 서버 슬라이스의 몫이고, 그때까지 이 화면이 할 수 있는 최대치가 여기까지다.
-  // '홈으로'(quiet)는 잠그지 않는다: 이 시점 러너의 손에는 아직 개가 있고(바로 위 문장이 인계를
-  // 부탁하고 있다), 카메라·업로드가 죽은 러너를 화면에 가두면 그건 요건이 아니라 덫이 된다.
-  const photoRequired = !!runResult.bookingId;
-  const photoMissing = photoRequired && photoState === 'ready' && photos.length === 0;
-  const photoUnknown = photoRequired && photoState === 'loading';
-  const forwardBlocked = photoMissing || photoUnknown;
+  // [2026-08-25, 지금 유효] 그가 직접 뒤집었다 (§0-undetricies Q2·Q3, verbatim):
+  //   "q2: let the runner review, dont trap them from anything, but make sure a huge nudge for photo."
+  //   "q3: accept a photo less one, but make sure there are screens before the run and during the
+  //    live run screen that remind the runner for photos."
+  // 그래서 **결과만** 바뀐다: 잠금 → 넛지. 판정 기계는 그대로 남는다. 근거는 여전히 **실사진**이고
+  // (서버가 돌려준 runs.photos 배열의 길이 하나 — 업로드 응답과 마운트 읽기가 같은 배열이다),
+  // 세 상태도 그대로다:
+  //   · ready & 0장  → 큰 넛지를 그린다. **부탁이지 잠금이 아니다** (두 문은 열려 있다).
+  //   · loading      → 아직 0인지 모른다 → 아무 말도 하지 않는다 (로딩 ≠ 0. 이미 네 장 찍고 온
+  //                    러너에게 '사진이 없어요'라고 말하는 순간 그건 거짓말이다).
+  //   · err          → 0이라고 **주장할 수 없다** → 넛지 없음. 섹션 헤더의 '다시 시도'가 진짜 경로다.
+  // 예약이 없으면 업로드 경로 자체가 없다 → 부탁할 것도 없다.
+  //
+  // 서버는 예나 지금이나 사진 없이 끝난 러닝을 정산한다 — Q3이 그걸 **의도**로 확정했다(서버 강제 없음).
+  // 잊지 않게 만드는 일은 이제 세 화면이 나눠 진다: meetup(러닝 전) · run(라이브) · 이 화면(완료).
+  const photoAskable = !!runResult.bookingId;
+  const photoMissing = photoAskable && photoState === 'ready' && photos.length === 0;
 
   const km = runResult.km;
   // '완주' is a claim — spoken only when the server-recorded end was a completed run, exactly as
@@ -271,10 +286,11 @@ export default function RunDone() {
               <Text style={s.secQuiet}>6장까지</Text>
             )}
           </Row>
-          {/* 요건은 개수를 **아는** 상태에서만 말한다 — 로딩·실패 중에 '필수'라고 하면 이미 찍은
-              러너에게도 같은 문장이 뜬다 */}
+          {/* 부탁은 개수를 **아는** 상태에서만 말한다 — 로딩·실패 중에 말하면 이미 찍은 러너에게도
+              같은 문장이 뜬다. [2026-08-25] '필수예요'는 더 이상 참이 아니다(잠그지 않으므로):
+              요건을 주장하지 않고, 무게만 남긴다 (700 잉크). */}
           <Text style={photoMissing ? s.secRequired : s.secQuiet}>
-            {photoMissing ? '사진 1장은 필수예요 · 보호자 리포트에 실려요' : '보호자 리포트에 실려요'}
+            {photoMissing ? '아직 한 장도 없어요 · 사진은 보호자 리포트에 실려요' : '보호자 리포트에 실려요'}
           </Text>
           {photos.length > 0 && (
             <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
@@ -304,32 +320,55 @@ export default function RunDone() {
         </Pressable>
       )}
 
-      {/* ══════ ⑦ 출구 — 코랄은 '다음 요청 보기' 하나 (프레임당 채도 1) ══════
+      {/* ══════ ⑦ 사진 넛지 — 문 **위**에 선다 (Sean 2026-08-25: "a huge nudge for photo") ══════
+          큰 것은 면적·활자·자리이고, 코랄 **면**은 아니다: 이 화면의 프라이머리는 아래 '다음 요청
+          보기' 하나뿐이라(프레임당 채도 1) 넛지는 세컨더리 문법을 쓴다 — wash 면 + 코랄 헤어라인 +
+          actionInk 잉크. 블록 전체가 진짜 경로다(탭 = addPhoto, 위 섹션의 '사진 추가'와 같은 함수):
+          말만 하고 러너를 위로 스크롤시키는 안내판은 죽은 버튼과 같은 얼굴이다.
+          ready & 0장에서만 뜬다 — 로딩·실패·이미 찍은 러너에게는 존재하지 않는다. */}
+      {photoMissing && (
+        <Pressable
+          onPress={addPhoto}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel="사진 추가 — 보호자 리포트에 실려요"
+          accessibilityState={{ disabled: uploading, busy: uploading }}
+          style={({ pressed }) => [s.nudge, pressed && !uploading && { backgroundColor: paper.canvas }]}
+        >
+          <Row style={{ gap: 9, alignItems: 'center' }}>
+            <Icon name="Camera" glyph="◉" size={21} color={paper.actionInk} />
+            <Text style={s.nudgeTitle}>사진 한 장만 남겨주세요</Text>
+          </Row>
+          <Text style={s.nudgeBody}>
+            {dogName
+              ? `보호자가 오늘 가장 기다리는 건 ${dogName}의 사진이에요 — 한 장이면 충분해요.`
+              : '보호자가 오늘 가장 기다리는 건 사진이에요 — 한 장이면 충분해요.'}
+          </Text>
+          <Text style={s.nudgeAction}>{uploading ? '올리는 중…' : '사진 추가하기 ›'}</Text>
+        </Pressable>
+      )}
+
+      {/* ══════ ⑧ 출구 — 코랄은 '다음 요청 보기' 하나 (프레임당 채도 1) ══════
           리뷰는 runResult.bookingId를 읽어 쓰므로, 예약이 없으면 그 화면은 제출할 수 없다 —
           문 자체를 그리지 않는다 (죽은 버튼 금지). 홈은 조용한 출구로 남는다.
-          [2026-08-24] 앞으로 가는 두 문(리뷰·다음 요청)이 사진 요건을 진다. 리뷰도 함께 잠그는
-          이유: 리뷰 제출은 dismissTo('/runner/home')로 이 러닝을 떠나므로, 열어 두면 요건이
-          한 탭짜리 우회로가 된다. 잠긴 상태는 명시 fill + 아래 한 줄이 이유를 말한다. */}
+          [2026-08-24 · SUPERSEDED] 두 문이 사진 요건(≥1장)을 졌고, 리뷰까지 잠근 이유는 리뷰 제출이
+          dismissTo('/runner/home')로 이 러닝을 떠나기 때문이었다(열어 두면 한 탭짜리 우회로).
+          [2026-08-25 · Sean, 지금 유효] "let the runner review, dont trap them from anything" —
+          두 문 다 **무조건** 열린다. 우회로 걱정은 그가 값을 치르기로 한 쪽이고(Q3: 사진 없는 러닝도
+          받는다), 리뷰는 재예약 지표에 가장 가까운 입력이라 마찰을 얹을 자리가 아니었다. */}
       {runResult.bookingId && (
         <PaperBtn
           label={dogName ? `${dogName} 리뷰 남기기 ›` : '반려견 리뷰 남기기 ›'}
           variant="secondary"
-          disabled={forwardBlocked}
-          style={{ marginTop: 22 }}
+          style={{ marginTop: photoMissing ? 14 : 22 }}
           onPress={() => router.push('/runner/review')}
         />
       )}
       <PaperBtn
         label="다음 요청 보기 ›"
-        disabled={forwardBlocked}
-        style={{ marginTop: runResult.bookingId ? 8 : 22 }}
+        style={{ marginTop: runResult.bookingId ? 8 : photoMissing ? 14 : 22 }}
         onPress={() => router.replace('/runner/requests')}
       />
-      {forwardBlocked && (
-        <Text style={s.gateHint}>
-          {photoUnknown ? '사진을 확인하고 있어요' : '「오늘의 순간」에 사진 1장을 추가하면 다음으로 넘어갈 수 있어요'}
-        </Text>
-      )}
       <PaperBtn label="홈으로" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>
   );
@@ -377,10 +416,19 @@ const s = StyleSheet.create({
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   secAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
   secQuiet: { fontSize: 14, lineHeight: 19, color: paper.dim },
-  // 사진 요건 — 실패가 아니라 **요건**이라 critical이 아니고, 그냥 사실보다는 무겁게 (텍스트 잉크 700)
+  // 사진 부탁 한 줄 — 실패가 아니라 **부탁**이라 critical이 아니고, 그냥 사실보다는 무겁게 (텍스트 잉크 700)
   secRequired: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.text },
-  // 잠긴 문의 이유 한 줄 — review.tsx의 ctaHint와 같은 문법
-  gateHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  // ---------- ⑦ 사진 넛지 (2026-08-25) ----------
+  // 세컨더리 문법 그대로(wash 면 + 코랄 1px + actionInk) — 새 헥스 0개, 코랄 **면** 0개.
+  // '거대함'은 색이 아니라 면적과 활자로 만든다: 문 바로 위 22pt 여백 + 18pt 패딩 + 21/900 제목.
+  // (gateHint는 은퇴 — 잠긴 문이 없어졌으므로 그 이유 줄도 없다.)
+  nudge: {
+    backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 18, paddingHorizontal: 16, marginTop: 22,
+  },
+  nudgeTitle: { fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink },
+  nudgeBody: { fontSize: 14.5, lineHeight: 20, color: paper.text, marginTop: 7 },
+  nudgeAction: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk, marginTop: 11 },
   // 섹션 헤더 자리의 실패 + 재시도 — 라우드-페일 잉크, 밑줄 (스트립을 세우기엔 한 줄짜리 사실)
   secFail: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ---------- ⑥ 드랍 ----------
