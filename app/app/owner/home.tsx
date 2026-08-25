@@ -12,13 +12,12 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchProfileGaps, ProfileGap, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal } from '../../src/lib/kst';
 import { lateness } from '../../src/lib/lateness';
-import { ProfileGaps } from '../../src/components/profile-gaps';
 import { registerPushToken } from '../../src/lib/push';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
@@ -160,9 +159,6 @@ export default function OwnerHome() {
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
   const [bookingsErr, setBookingsErr] = useState(false);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
-  // 프로필 빈칸 — 빈 배열 = '빈칸 없음', 읽기 실패 = 그대로 빈 배열이되 아래 스누즈와 무관하게
-  // 그냥 행이 안 뜬다. 실패를 '완료'로 **말하지는** 않는다: 아무 말도 하지 않는 쪽을 고른다.
-  const [profileGaps, setProfileGaps] = useState<ProfileGap[]>([]);
   // [realtime 2026-08-20] 이 로드는 **직렬화**된다 — 트리거가 하나(포커스)에서 셋으로 늘었기
   // 때문이다: 포커스 · bookings UPDATE 실시간 · 앱 복귀. 미트업에서 홈으로 돌아오는 순간 러너의
   // 전이가 도착하면 두 요청이 같은 틱에 뜨고, 응답이 순서를 바꿔 도착하면 **먼저 뜬 요청이 나중에
@@ -243,8 +239,6 @@ export default function OwnerHome() {
     fetchMemberMeta().then((m) => { setMemberSince(m.since); setMemberNo(m.no); })
       .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
-    // 실패하면 setProfileGaps 를 부르지 않아 행이 그려지지 않는다 — 모르는 걸 '다 채워졌다'로 그리지 않는다.
-    fetchProfileGaps().then(setProfileGaps).catch((e) => console.warn('[home] gaps:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
@@ -506,13 +500,18 @@ export default function OwnerHome() {
             ) : null}
           />
 
-          {/* [ruling #3 · Sean ②] 프로필 빈칸 행. 세 조건을 여기서 지킨다:
-              **첫 러닝 후에만** (lastDone 이 있어야 한다 — 아직 한 번도 안 달렸으면 물을 자격이 없다),
-              **차단하지 않음** (행 하나, 닫을 수 있음), **크게** (히어로 바로 아래, 폴드 안).
-              읽기 실패는 줄을 그리지 않는다 — 모르는 걸 '다 채워졌다'로 그리지 않기 위해서다. */}
-          {lastDone && (
-            <ProfileGaps gaps={profileGaps} onOpen={() => router.push('/owner/dog')} />
-          )}
+          {/* ══════════════════ 프로필 빈칸 넛지 — 여기서 **떠났다** ══════════════════
+              [2026-08-25 · Sean, 콘솔 판정 #18] 그의 말 그대로: **"approve on everything."**
+              (콘솔 아티팩트 aad92054, 04:31:30Z · docs/decisions/2026-08-25-console-rulings.md #18,
+              번들 줄 "the profile-nudge lab (① recommended) … proceed as picked").
+              → 랩 ①이 골라졌고, ①은 **첫 러닝 리포트의 맨 아래**다. 그래서 이 자리의 ② 행은
+              제거됐다 — 넛지는 owner/report.tsx 로 갔다 (같은 컴포넌트, ①의 모양으로 다시 그림).
+              ⚠ 승계지 삭제가 아니다: ②의 원래 도장(ruling #3, 2026-08-21 — 첫 러닝 후에만 ·
+              차단하지 않음 · 닫기 없음)은 src/components/profile-gaps.tsx 머리에 통째로 남아 있고,
+              「나중에 할게요」가 그 '닫기 없음'과 부딪치는 지점도 거기 적혀 있다.
+              같이 사라진 것: 이 화면의 profileGaps state 와 fetchProfileGaps 호출 — 읽던 화면이
+              없어졌으므로 읽기도 없앤다. lastDone 게이트는 리포트가 존재한다는 사실이 대신한다
+              (리포트는 완주한 러닝에만 있다). */}
 
         {/* ══════════════════ 다음 일정 (A① · Sean 2026-08-24) ══════════════════
             히어로는 한 건을 말한다. 나머지는 여기, 조용한 행 두 개로. 새 읽기 0개 — loadBookings 가

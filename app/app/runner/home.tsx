@@ -18,6 +18,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
 import { lateness } from '../../src/lib/lateness';
+import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
 import { runnerJob } from '../../src/store';
 import { colors, layout, lilac, paper } from '../../src/theme';
@@ -674,6 +675,19 @@ export default function RunnerHome() {
                                  runnerHandoffAt: current.runnerHandoffAt ?? null })}
                 side="runner"
                 dogName={current.dogName}
+              />
+              {/* [0117 stage 2] 체크인 답 표면 — 계획 §13/§15 T5 의 러너 쪽 자리. 지각 알림이 사실을
+                  말한 바로 아래에서 답을 받는다.
+                  · 러너의 네 입구는 meetup 으로 모이지만 meetup 은 동결 화면이라(스테이지 머신·폴링·
+                    confirmHandoff) 답 표면이 거기 붙지 못한다 — 홈이 러너 쪽 유일한 마운트다.
+                  · 코랄 0: 이 화면의 코랄은 수락 문(liveOwnsCoral)이 갖는다.
+                  · 서버가 체크인을 열지 않았으면 아무것도 그리지 않는다. */}
+              <CheckinAnswer
+                key={current.bookingId}
+                bookingId={current.bookingId}
+                side="runner"
+                rawStatus={current.rawStatus}
+                onAnswered={loadJobs}
               />
               <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}>
                 <View style={styles.tMain}>

@@ -5,6 +5,9 @@ import { AddonKey, Booking, BookingStatus, GeoRoutePoint, RouteInfo } from '../s
 // bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
 import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
+// 0117 지각 체크인 — 파싱은 순수 모듈에 산다 (.cjs 스위트가 번들할 수 있어야 하므로). 아래
+// fetchCheckin/answerCheckin 참조.
+import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
 import { supabase } from './supabase';
 // Runner settlement constants — different money from the owner fare (theme.ts:210)
 import { pricing } from '../theme';
@@ -457,6 +460,55 @@ export async function quoteCancelFee(bookingId: string): Promise<CancelQuote> {
   // ⚠ 관대한 파싱 금지: fee ?? 0 은 깨진 응답을 '무료 취소'로 둔갑시킨다. 모양이 다르면 실패다.
   if (typeof fee !== 'number' || typeof status !== 'string') throw new Error('cancel_quote_malformed');
   return { fee, status };
+}
+
+// ── late-booking check-in (0117 §6/§7 · plan §12) ─────────────────────────────────────────
+// The two calls the answer surface owns. Both are SECURITY DEFINER, party-gated, and revoked
+// from anon — `not_signed_in` and `not_party` are real refusals here, not decoration
+// (§12's 2026-08-21 amendment: a gate that never fires is still a gate, and one shipped).
+//
+// ⚠ SHIPS AGAINST A DEPLOYED RPC. 0117 reached production 2026-08-25; before that these were
+// the DOG_SELECT-400 class one function over. The CLOCK, however, is still gated on
+// `ops_flags.late_protocol_live_since` — until Sean sets it the sweep opens no check-ins, so
+// `fetchCheckin` returns `{open:false, row:null}` for every booking and the surface renders
+// nothing. That is the designed order (codex CRIT-1: a clock must not fire before the prompt
+// exists), not a broken feature.
+//
+// ⚠ NO PARSING MERCY. `parseCheckin` throws on any shape surprise instead of defaulting —
+// a `past_ceiling ?? false` would re-open FM4 (two taps reviving a 17-day-old booking) and a
+// `?? null` on a reason key would erase ruling 4B's absent-vs-null distinction. Same posture
+// as `cancel_quote_malformed` directly above.
+export type { CheckinAnswerValue, CheckinRow, CheckinSide, CheckinState } from './checkin';
+
+export async function fetchCheckin(bookingId: string): Promise<CheckinState> {
+  const { data, error } = await supabase.rpc('fetch_checkin', { p_booking: bookingId });
+  if (error) throw error;
+  return parseCheckin(data);
+}
+
+/**
+ * One side's answer. Per-side IMMUTABLE, first write wins, idempotent on an identical replay.
+ *
+ * ⚠ THE ERROR IS RETHROWN UNTOUCHED. §6's refusals — `checkin_not_open`, `checkin_resolved`,
+ * `answer_immutable`, `checkin_past_ceiling`, `not_late_eligible`, `reason_not_applicable`,
+ * `use_cancel_path` — each name a DIFFERENT true thing, and every one of them is a rendered
+ * state in `src/lib/checkin-copy.ts`. Wrapping them in a generic Error here would flatten seven
+ * honest sentences into one useless one.
+ *
+ * `reason` rides ONLY `cannot_proceed` (§6 raises `reason_not_applicable` otherwise, and §2 has
+ * a CHECK constraint under it). It is written in the SAME statement as the answer and is
+ * immutable with it, which is why the surface must collect it BEFORE sending rather than
+ * attaching it afterwards — a second call would be refused as `answer_immutable`.
+ */
+export async function answerCheckin(
+  bookingId: string, side: CheckinSide, answer: CheckinAnswerValue, reason?: string | null,
+): Promise<CheckinState> {
+  const { data, error } = await supabase.rpc('answer_checkin', {
+    p_booking: bookingId, p_side: side, p_answer: answer,
+    p_reason: answer === 'cannot_proceed' ? (reason ?? null) : null,
+  });
+  if (error) throw error;
+  return parseCheckin(data);
 }
 
 // ---------- bookings (edge functions) ----------
@@ -2969,12 +3021,20 @@ export async function deleteEmergencyContact(id: string): Promise<void> {
 // the worst failure this app has.
 // So: look up BOTH sides (hint first), then derive the counterparty from the booking row by
 // comparing uids. No safety path is ever built on a role the client merely claims.
-export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> {
-  const [ownerBid, runnerBid] = await Promise.all([
-    fetchCurrentOwnerBookingId().catch(() => null),
-    fetchCurrentRunnerJobId().catch(() => null),
-  ]);
-  const bookingId = role === 'runner' ? (runnerBid ?? ownerBid) : (ownerBid ?? runnerBid);
+// ⚠ [2026-08-25] `forBooking` added for the check-in answer surface. Without it this function
+// resolves "the current booking" on its own, which is right for /safety (a screen about NOW) and
+// WRONG for a surface that renders inside a specific booking's row — owner/schedule's sheet opens
+// on whichever booking was tapped, so the alert could have named a different one. The counterparty
+// derivation, the notification shape and the 0009 policy path stay in ONE place; only the "which
+// booking" question moves to the caller that actually knows the answer.
+export async function sendSOS(role: 'owner' | 'runner', forBooking?: string): Promise<string | null> {
+  const bookingId = forBooking ?? await (async () => {
+    const [ownerBid, runnerBid] = await Promise.all([
+      fetchCurrentOwnerBookingId().catch(() => null),
+      fetchCurrentRunnerJobId().catch(() => null),
+    ]);
+    return role === 'runner' ? (runnerBid ?? ownerBid) : (ownerBid ?? runnerBid);
+  })();
   if (!bookingId) return null;
   const { data: bk } = await supabase.from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
   if (!bk) return null;

@@ -101,6 +101,17 @@ export default function Meetup() {
   const [infoLoad, setInfoLoad] = useState<{ s: 'loading' | 'ready' | 'err'; try: number }>({ s: 'loading', try: 0 });
   const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  // [2026-08-25 defect] Once-latch for the terminal exit below — owner/meetup's closingRef idiom,
+  // brought over after a live loop: owner cancelled while this screen was mounted (deep-linked, so
+  // a SINGLE-ENTRY stack), the terminal arm alerted + called a bare router.back() that NO-OPed,
+  // the screen never unmounted, and the 8s poll re-fired the same alert every tick, forever.
+  // Two composing holes, both closed here: no once-guard (every sync re-entered the arm — even on
+  // a healthy stack, ticks landing while the alert is up QUEUE duplicate alerts), and the bare
+  // back() (94e46fb left terminal exits bare as "those want a pop" — goBackOrHome still pops when
+  // it can; the home fallback only engages when a pop is impossible, which is exactly this case).
+  // Freeze note: the meetup stage machine/polling stay untouched — this is one additive latch on
+  // the exit arm, the same premise as F4 (2026-08-24) which rewrote this arm's allow-list.
+  const closingRef = useRef(false);
 
   // id 복원 — 인메모리 유실 시 서버에서 현재 작업을 찾는다 (데모 전락 방지, 2026-07-23)
   useEffect(() => {
@@ -110,7 +121,8 @@ export default function Meetup() {
         if (id) { runnerJob.bookingId = id; setJobId(id); }
         else {
           Alert.alert('진행 중인 작업이 없어요', '요청 탭에서 수락하면 이 화면으로 이어져요');
-          router.back();
+          goBackOrHome(); // deep-linked = single-entry stack; a bare back() strands the runner here
+
         }
       })
       .catch((e) => console.warn('[r-meetup] resolve:', e?.message ?? e));
@@ -152,6 +164,7 @@ export default function Meetup() {
 
   const syncNow = useCallback(async () => {
     if (!jobId) return;
+    if (closingRef.current) return; // terminal exit already fired — it owns the alert + navigation
     try {
       const s2 = await fetchBookingSync(jobId);
       // 종말 상태 — 취소/만료된 예약의 미트업에 좌초 금지 (감사 ③)
@@ -166,13 +179,14 @@ export default function Meetup() {
         // incident_review 는 '끝났다'가 아니라 '사람이 봐야 한다'는 뜻이다. 개를 데리고 있을 수도
         // 있는 러너에게 「더 진행할 수 없어요」라고 말하면 안 된다 (D3). 0117:644 가 같은 순간에
         // 보내는 푸시와 **같은 낱말**을 쓴다 — 한 사건에 두 어휘가 생기지 않게.
+        closingRef.current = true; // latch BEFORE the alert — see declaration for the live loop this ends
         Alert.alert(
           '예약 상태가 바뀌었어요',
           s2.status === 'completed' ? '이미 완료된 러닝이에요'
             : s2.status === 'incident_review' ? '확인이 필요해요'
             : '이 예약은 더 진행할 수 없어요',
         );
-        router.back();
+        goBackOrHome();
         return;
       }
       setPeerConfirmed(s2.ownerConfirmed);
