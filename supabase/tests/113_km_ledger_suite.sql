@@ -97,7 +97,9 @@ begin
   -- ---------- seed ----------
   ow := t_user('km_ow', 'owner');
   oz := t_user('km_oz', 'owner');
-  insert into dogs (owner_id, name) values (ow, '김초코') returning id into dg;
+  -- [0119] 이 스위트는 t_dog를 안 쓰고 직접 심는다 — 0119 §D 이후 미신고 강아지는 위탁이
+  -- 거절되므로 신고값이 명시적으로 필요하다. 이 스위트가 핀하는 성질은 바뀌지 않는다.
+  insert into dogs (owner_id, name, dangerous_status) values (ow, '김초코', 'declared_none') returning id into dg;
   -- bookings: direct insert (transition trigger fires on UPDATE only — 10_settle idiom)
   insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare, addon_fare, total_price, min_fare)
   values (ow, dg, 'active', now(), 5.0, 9900, 15000, 0, 24900, 9900) returning id into b1;
@@ -424,7 +426,7 @@ declare
   v_num numeric; v_msg text; v_paid numeric;
 begin
   ow := t_user('km_ow2', 'owner');
-  insert into dogs (owner_id, name) values (ow, '박보리') returning id into dg;
+  insert into dogs (owner_id, name, dangerous_status) values (ow, '박보리', 'declared_none') returning id into dg;
   perform km_purchase(ow, 10, 50000);
   insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare, addon_fare, total_price, min_fare)
   values (ow, dg, 'confirmed', now(), 5.0, 9900, 15000, 0, 24900, 9900) returning id into bk;
@@ -453,7 +455,7 @@ declare
 begin
   ow3 := t_user('km_ow3', 'owner');
   oz3 := t_user('km_oz3', 'owner');
-  insert into dogs (owner_id, name) values (ow3, '이콩이') returning id into dg3;
+  insert into dogs (owner_id, name, dangerous_status) values (ow3, '이콩이', 'declared_none') returning id into dg3;
   perform km_purchase(ow3, 20, 100000);
   insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare, addon_fare, total_price, min_fare)
   values (ow3, dg3, 'active', now(), 5.0, 9900, 15000, 0, 24900, 9900) returning id into bk3;

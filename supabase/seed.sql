@@ -14,11 +14,13 @@ insert into profiles (id, role, name, district) values
   ('00000000-0000-0000-0000-000000000002', 'runner', '김민준', '성수동'),
   ('00000000-0000-0000-0000-000000000003', 'runner', '이서연', '성수동');
 
-insert into dogs (id, owner_id, name, breed, weight_kg, neutered, memo, weekly_goal_km, fitness_age, cumulative_km, streak_days)
+-- [0119] dangerous_status 없이는 로컬 시드 강아지가 미신고 상태로 태어나 위탁이 거절된다
+-- (0119 §D). 시드 보호자는 질문에 답한 보호자다.
+insert into dogs (id, owner_id, name, breed, weight_kg, neutered, memo, weekly_goal_km, fitness_age, cumulative_km, streak_days, dangerous_status)
 values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
   '초코', '웰시코기', 11, true,
   '겁이 없어서 큰 개한테도 달려듭니다. 자전거를 보면 짖어요. 물은 30분마다. 오른쪽 뒷다리 슬개골 주의.',
-  15, 1.8, 86.2, 12);
+  15, 1.8, 86.2, 12, 'declared_none');
 
 insert into runners (profile_id, tier, funnel_step, avg_pace_sec_per_km, identity_verified, insurance_active, trainer_certified, total_runs, total_km, compliance_pct, respond_rate_pct, commission_rate)
 values

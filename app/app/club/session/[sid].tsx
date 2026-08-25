@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { dangerousRefusalFrom } from '../../../src/lib/dangerous-copy';
 import { Avatar, Icon, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
@@ -338,7 +339,19 @@ export default function ClubSessionShell() {
       {
         text: '맡겼어요',
         onPress: () => confirmHandoff(d.bookingId!, 'owner').then(() => { haptic('success'); load(); })
-          .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message)),
+          .catch((e) => {
+            // [0119 re-verdict F4] the gate also fires HERE (breed changed after pay → the handoff
+            // is the last custody boundary) — a raw token with no door is the dead end F3 closed
+            // on the marketplace path, reappearing one surface over.
+            const r = dangerousRefusalFrom(e);
+            if (r) {
+              Alert.alert(r.title, r.body, r.action
+                ? [{ text: '닫기', style: 'cancel' }, { text: r.action.label, onPress: () => router.push(r.action!.route) }]
+                : [{ text: '확인' }]);
+              return;
+            }
+            Alert.alert('인계 확인 실패', (e as Error).message);
+          }),
       },
     ]);
   };
@@ -355,6 +368,10 @@ export default function ClubSessionShell() {
         text: '이 아이, 내가 맡을게요',
         onPress: () => respondProposal(d.sdId, true).then(() => { haptic('success'); load(); })
           .catch((e) => {
+            // [0119 F4] a dog declared/screened dangerous between proposal and accept refuses at
+            // the accept — runner-side copy: no action button, states who unblocks it.
+            const r = dangerousRefusalFrom(e, 'runner');
+            if (r) { Alert.alert(r.title, r.body); load(); return; }
             const m = (e as Error).message;
             // 서버가 재검증한다 — 낡은 수락은 정직한 한 문장으로
             Alert.alert('수락 실패',
@@ -381,7 +398,11 @@ export default function ClubSessionShell() {
   const doRunnerHandoff = (d: DelegationDog) => {
     if (!d.bookingId) return;
     confirmHandoff(d.bookingId, 'runner').then(() => { haptic('success'); load(); })
-      .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message));
+      .catch((e) => {
+        const r = dangerousRefusalFrom(e, 'runner');   // [0119 F4] same boundary, runner side
+        if (r) { Alert.alert(r.title, r.body); load(); return; }
+        Alert.alert('인계 확인 실패', (e as Error).message);
+      });
   };
   const doRunnerReturn = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
@@ -641,6 +662,18 @@ export default function ClubSessionShell() {
       Alert.alert('자리 확정', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
     } catch (e) {
       const m = (e as Error).message;
+      // [0119 F3] 맹견 게이트는 클럽 경로에서도 뜬다 (session_dogs 트리거 — 호스트가 결정을
+      // 쓰기 전에 막는다). 아래 매핑 사슬의 끝은 `m` 원문이므로, 매핑이 없으면 보호자가
+      // `dog_dangerous_undeclared` 라는 영문 토큰을 그대로 읽고, 답하러 갈 문도 없다.
+      // 마켓플레이스와 **같은 문장·같은 문**을 쓴다 — 같은 거절에 두 가지 말이 있으면
+      // 두 가지 정책처럼 읽힌다.
+      const refusal = dangerousRefusalFrom(e);
+      if (refusal) {
+        Alert.alert(refusal.title, refusal.body, refusal.action
+          ? [{ text: '닫기', style: 'cancel' }, { text: refusal.action.label, onPress: () => router.push(refusal.action!.route) }]
+          : [{ text: '확인' }]);
+        return;
+      }
       // [0081] 클럽도 마켓플레이스·반복 예약과 같은 두 게이트를 지난다. 두 문장 모두 돈 문제를
       // 숨기지 않는다 — 잠금은 조용하면 안 되고(§0-bis 예외 모드), 해결 경로를 이름으로 준다.
       // ⚠ 이 두 코드 문자열은 SQL과의 계약이다 (0081 §A의 raise exception). SQL 쪽 이름은
