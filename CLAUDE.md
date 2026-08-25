@@ -24,6 +24,18 @@ convert opportunistically when you are already editing a file for another reason
   local file.
 - Verify after, don't assume: `supabase migration list` after a push, the anon-definer check after
   a security migration, and read back what actually landed.
+- **The same law covers `git push`, and it was learned the hard way (2026-08-25).** A push
+  SUCCEEDING is a claim; `git show origin/<branch>:<path>` is the fact. A session scripted
+  `git push … | grep -q "redesign-v4 -> redesign-v4"` as its success test — and a REJECTED push
+  prints `! [rejected]  redesign-v4 -> redesign-v4 (non-fast-forward)`, which **contains that exact
+  string**. The detector matched its own failure message and reported PUSHED on a push that never
+  landed; a peer found it by reading the file on origin. Two rules fall out: **(a)** confirm a
+  landing by reading the ARTIFACT back from origin, never by parsing the tool's report — the same
+  substitution as reading a pin's green as proof of the property it was meant to prove; **(b)** a
+  detector whose success pattern is a SUBSTRING of its failure output is not a weak check, it is
+  anti-correlated with the thing it tests in precisely the case that matters. (An audit of all six
+  of that session's claimed pushes found five genuinely landed and one not — audit the whole set
+  when a detector is found broken, never just the instance someone caught.)
 - Announce what you ran and what it changed. Say plainly if something failed.
 - **Still Sean-only, and not because of policy:** anything requiring a credential's *value* — the
   APNs `.p8`, App Store Connect, a PG contract, 사업자등록. Claude may use credentials already
