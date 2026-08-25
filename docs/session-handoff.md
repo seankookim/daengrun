@@ -1,4 +1,11 @@
-# Session handoff — spec-v2 session, 2026-08-25 afternoon (v6)
+# Session handoff — spec-v2 session, 2026-08-25 evening (v7)
+
+> ⚠ **§1's table below was rewritten at 17:0x KST from live measurements.** Everything in v6's
+> table about production being at 0119, the clock being OFF, and spec v2's §14 gating all six
+> slices is now FALSE — the day moved past it. The v6 header already warned that a handoff's
+> status table goes stale faster than its body and that one reviewer had grounded on a stale
+> one; that warning applied to itself within hours. **Re-measure before you build on any row
+> here, including the rows I just wrote.**
 
 **Read with this:** `/announcer` (method) ·
 `docs/plans/2026-08-25-club-delegation-spec-v2.md` (**the club spec of record** — coupled
@@ -24,14 +31,16 @@ said so, unconfirmed by me · **[from-history]** earlier in conversation.
 
 | System | State | Provenance |
 |---|---|---|
-| Production | **0119 head.** 0117·0118·0119 + the client mirror deployed together this morning (combined harness 825/0; five edge functions redeployed for parity — see the REGISTRY 0117 row's deploy record). Charging OFF · late-booking clock OFF (`late_protocol_live_since` null) · 0 payments · 0 billing keys · 11 auth users. | [verified-now] live ledger table, twice independently (this session + announcer v5), plus payments/billing_keys re-queried post-deploy |
-| Trunk `redesign-v4` | ≥ `7fcc91a` — carries the deploy-morning landings, Sean's seven answers + their build-item commits (Q1/Q2+Q3/Q7), the counsel-brief 4th question, spec v2, the R17 contract+review, and ui6's 0122/157 claim row. **Trunk = production migrations: binaries are safe on devices.** | [verified-now] |
-| **Club spec v2** | **DONE, LANDED on trunk.** Grounded in three at-source scouts; hardened by two blind adversarial rounds (fresh Claude voice 15 findings, codex 9 — several design-breaking, every one answered in-design; dispositions in §15 of the spec). Six slices S1-S6 sequenced, each gated: **nothing builds until Sean answers §14** (twelve questions, most one word). S5 additionally hard-gated on the finish-ceiling ruling; S6 on the counsel brief. | [verified-now] |
-| **Runner-money strip** (announcer v5) | contract v2.1 (`b310442`, three blind rounds) · migration **0121 + suite 156 AUTHORED and pushed** @ `b6f3d13` on `claude/runner-money-strip` (server half complete: §A-§F net objects, §G two-step seal, §G′ club_fare revoke, §H incident redaction incl. historical sweep) · client swap + deno half IN PROGRESS · measurement next · **NOT landed, NOT deployed** · client-atomic with §G (0088 law). v5 is merging trunk into the branch and will claim its exact api.ts function surfaces in the in-flight table with the client-swap commit. | [reported — v5's own words, this afternoon] |
-| **R17 remainder** | **DEFERRED by dual-voice /autoplan review** — the lock-convoy premise fails load arithmetic at pilot scale (≈0.1-0.3 candidates/tick at 50 users; the sweep is deployed but dormant behind the null flag), and the per-row-commit contract as drafted had four design defects (recorded IN the contract). Re-scoped to a **flip-activation package** (preflight · per-arm LIMIT · statement_timeout fuse · 250ms lock wait · partial unresolved-deadline index · off-peak first flip with backlog drained manually) built when the clock flip is scheduled. **USER CHALLENGE queued to Sean** (his queue said build; both models say defer): console card A/B. No migration number is held by this work. | [verified-now] |
-| ui6 / Q-slices | Sean's seven answers executing (Q1 care stats · Q2/Q3 photo ASK not gate · Q7 원천징수 small-once landed this morning); the Q6 동 slice renumbered **0121→0122, suite 157** after collision 7 (below) — REGISTRY row claimed on trunk FIRST, files rename pending their live blind reviewer's return. Touches `addresses.dong`, a definer 동-surface, `runner/requests.tsx`, `runner/home.tsx` — no club files. | [reported + row verified on origin] |
-| 0120 location law | Parked at `b06f878`, unchanged, clock not running. | [from-history, unchanged] |
-| Console | Refreshed three times today; current: spec-v2 §14 card on top, R17 challenge, fee 10-vs-5, custody A/B, 맹견 conditions, feed_posts, Q5 answer-back, board readership, standing items. | [verified-now] |
+| Production | **0126 head.** 0117-0126 all applied. **The late-booking clock is LIVE** — `ops_flags.late_protocol_live_since = 2026-08-25T05:34:06.854Z`, i.e. it has been running ~2h20m as of this write. **Charging is still OFF** (`ops_flags.payments_live_since` null). ⚠ Note the column lives on `ops_flags`, NOT on `club_config` — v6 and several messages said `club_config` and the query errors there. | [verified-now] `db query --linked` against `supabase_migrations.schema_migrations` and `ops_flags`, this hour |
+| Edge functions | create-booking-hold **v11** · transition-booking **v35** · settle-run **v16** · collect-charges v3 · confirm-payment v2 · geocode-address v2 · delete-account v1 · open-drop v8. settle-run moved to v16 after the morning parity sweep — somebody redeployed it since; not mine. | [verified-now] `functions list` |
+| Trunk `redesign-v4` | ≥ `6b4be67`. Moves several times an hour today — fetch, never quote a SHA from a doc. | [verified-now] |
+| **Club spec v2** | Landed, **and now being RE-SCOPED against Sean's sixth-round rulings** (below). Two of its positions are REVERSED, not refined: §4.2's host-admission survival, and §6.6's recovery pen. **Do not build S2-S5 client halves against the landed text** — the admission surfaces are exactly what moves. | [verified-now] |
+| **Sixth-round rulings** | On trunk at `6b4be67`, `docs/decisions/2026-08-25-console-rulings.md`. Five machine rulings Sean issued inside a design-lab critique: pack model · **no host approval of signups** · **no host pair-reallocation** (supersedes his own 14:26 tap for the 2-hour backstop — later word governs) · board ① · Instagram-style profiles as a NEW lane. | [verified-now] |
+| **맹견 removal (0127 + suite 161)** | Server half written, **885/0**, mutation battery measured (12 runs, **zero misses** — folded into 161's header at `613b4de`). Blind money-path review returned **LAND, held on sequencing only**: the client half must be in the same commit, which is being implemented now. Slice A keeps the three `dogs` columns, their CHECK and the enum on purpose — that is what makes the deploy-order constraint ZERO. **NOT landed, NOT deployed.** | [verified-now] harness run this hour |
+| **Runner-money strip** | 0121 landed and deployed. | [verified-now] via schema_migrations |
+| **R17 remainder** | Closed: 0126, the flip-activation package, is deployed and the clock it was built for is live. | [verified-now] |
+| 0120 location law | Parked at `b06f878`, unchanged. | [from-history] |
+| Console | <https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> — holds all 24 answered rulings. ⚠ **Re-fetch its STATE before republishing**; seeding from a remembered copy would wipe his answers, which nearly happened twice today. | [verified-now] |
 
 ## 2. Sean's words today — where they are
 
