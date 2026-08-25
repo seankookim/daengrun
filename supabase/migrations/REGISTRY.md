@@ -228,6 +228,9 @@ class table below, one turn later: a claim only works when the identifier is the
 actually collides — and we first specified the human-readable name, which is exactly the
 identifier that doesn't.)
 
+| `supabase/migrations/0125_remove_dangerous_breed_gate.sql` (number PROVISIONAL — re-resolve two-sided at authoring) · `supabase/tests/154_dangerous_breed_suite.sql` · `supabase/tests/10_*` (t_dog seed) · `supabase/tests/{113,139,146,149}_*` ([0119] fixture lines) · `app/src/components/dangerous-copy*` · `app/app/club/delegate/[sid].tsx` + `app/app/club/session/[sid].tsx` (0119 refusal wiring) · `app/(owner)/dog` declaration surface | 맹견 gate REMOVAL (ruled F1, informed confirm 2026-08-25; spec-v2 session, worktree `club-delegation-spec-v2-a41fbc`) | `club-delegation-spec-v2` | exclusive on the 0119 objects; client files SHARED — tell ui6 before editing | 2026-08-25 pm | contract → /autoplan → adversarial cycle; client half lands in the SAME landing as the migration |
+| `docs/labs/club-v2-pick-lab.html` · `docs/labs/club-v2-board-lab.html` · `docs/labs/club-v2-console-lab.html` · `docs/labs/club-v2-run-lab.html` | Club redesign design labs (Sean: "go ahead with the labs") | `club-delegation-spec-v2` | exclusive | 2026-08-25 pm | numbered variants; Sean picks by number; zero app/ edits |
+
 **And say whether the claim is EXCLUSIVE or SHARED.** Some files — `api.ts` above all — are
 touched by nearly every slice; nobody can hold one for a day, and a blanket lock would teach
 everyone to skip claiming, which is worse than no table. **`shared` means "tell me before you
