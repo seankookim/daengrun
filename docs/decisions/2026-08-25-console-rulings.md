@@ -152,3 +152,34 @@ product wide and mock wide" — #6C5CE7 survives as accent only), and the v0 fon
 Sans KR) retires from mocks/product per his lab critique. ui6-a5 owns the lab remake and the
 follow-up product-wide theme sweep; the club-v2 lab files transferred to their claim. No
 session introduces new pale-lilac surfaces from this point.
+
+## Sixth round — via ui6-a5 (round-4 lab feedback channel), Sean verbatim
+
+> "i like the pin board 1, but what does the different states mean? aren't they all supposed
+> to be in near sync? same start time, maybe different arrival states as some can be doing
+> pick up or arrival, but also same end or maybe some are returning or finished completely.
+> also, clicking on each names should go to their profiles with their posts (like instagram).
+> for the host console, why is the host accepting or rejecting an owner? they shuold be able
+> to sign up and runners too without the host's permission. pair reallocation functionality
+> for the host? is that really necessary, i dont think so. the club will be running in a pack
+> so end times would probably be all the same or similar."
+
+Dispositions (recording session — NOT his words):
+1. **Board pick = ①** (pin board) — ui6 executes visually.
+2. **PACK MODEL RULED**: the session runs as ONE pack — shared start, shared (or similar)
+   end; per-dog variation exists only at the EDGES (pickup/arrival before the run;
+   return/finish after). The spec's per-pairing mid-run independence retires; the P-ladder's
+   custody edges survive per-pairing. Spec amendment ordered.
+3. **NO HOST APPROVAL — RULED, reverses spec §4.2**: owners sign up (and pay) and runners
+   commit WITHOUT the host's permission. `session_approve_dog`'s admission role, the P1
+   hold-to-pay step, and the console admission queue RETIRE (deprecate-by-refusal per house
+   doctrine). The spec had proposed admission survives; his question overrules it.
+4. **NO HOST PAIR-REALLOCATION — RULED, SUPERSEDES his own 14:26 tap** ("Give the host the
+   2-hour backstop", base-cooldown round). The later word governs: 재배정 retires; a bailed
+   runner returns the dog to the owner's re-pick / auto-connect; the incident path is
+   re-thought without a host matching pen. Both timestamps recorded; supersession explicit.
+5. **Instagram-like profiles with posts, reachable by tapping names** — the first words of
+   his deferred community/account commentary; a NEW spec lane, not a club-v2 bolt-on.
+   Parked as its own future spec with this verbatim as the seed.
+Visual-side rulings (ui6's lane, recorded in DESIGN.md): pure white grounds · clickable-row
+affordance mandatory · working Korean floor 15 · stamp style retires.
