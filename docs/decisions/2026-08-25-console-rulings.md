@@ -304,3 +304,32 @@ is unaffected — the hold is real, it just holds a slot rather than a payment.
 **The lesson is mine**: I wrote a decision card describing a shipped mechanism from memory instead
 of reading it, and the founder's confusion was the only thing that caught it. A card is a claim
 about the system; it needs the same verification as a status line.
+
+### Ninth round, addendum — the ruling and the shipped mechanism DISAGREE (measured)
+
+Chasing a lab's consequence line turned up a gap between what Sean ruled and what
+`session_assignment_revoke` (0047, the host's only reassignment tool) actually does. Both
+verified at source:
+
+1. **It REFUSES after handoff.** `if found then raise exception 'already_handed_off'` — the guard
+   fires when either `owner_confirmed_handoff_at` or `runner_confirmed_handoff_at` is set. So the
+   host can reassign only BEFORE custody transfers. This FITS the scenario he answered ("left
+   before the start of the session") and is a real limit on any mid-run story.
+2. 🔴 **It does not hand the dog to a runner the host CHOOSES — it returns the booking to
+   `matching`** (`update bookings set runner_id = null, status = 'matching'`, nulling both handoff
+   stamps). The host un-assigns; the pool re-fills. **His ruling implies the host picks** —
+   「keep host reassignment functionality… **if no one can, the host can take care**」 only makes
+   sense if the host is looking at candidates and can see that none exist.
+3. 🔴 **「if no one can, the host can take care」 has NO mechanism today.** Nothing expresses the
+   host becoming the runner for that pair. It also opens an unpriced money question — is the host
+   paid as a runner for that walk, on top of the host fee? — and a party-gate question, since host
+   and runner would be one person on the same booking.
+
+**Disposition: the model owes the ruling, not the other way round.** His words are the authority
+and 0047 predates them. Do NOT quietly reinterpret the ruling to match the shipped function —
+that is the failure of describing the world from the code. The slice that implements this owes:
+a host-chooses path (or an explicit decision that the pool re-fill IS the answer, put back to
+him), the last-resort host-as-runner arm, and its money question answered before either is built.
+
+⚠ Note for the lab: `0045:242` (runner→runner `pending_transfer`) nulls the RETURN stamp; `0047`
+nulls the HANDOFF stamps. Two different mechanisms, easy to cite for one another.
