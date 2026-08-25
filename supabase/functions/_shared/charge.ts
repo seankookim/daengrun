@@ -114,8 +114,10 @@ function msgOf(e: unknown): string {
 // The line the owner sees on their card statement / Toss receipt. Kind-driven so the cancel-fee
 // path (Unit C, same rails) does not have to say "산책 이용료" for a run that never happened.
 function orderNameFor(kind: unknown): string {
-  if (kind === "cancel_fee") return "댕런 예약 취소 수수료";
-  return "댕런 산책 이용료";
+  // (Sean, 2026-08-25: "dont use 댕런, go with the new 도그스하이") — the card-statement strings.
+  // This also retires the banned 산책 from the same line: the product sells 러닝.
+  if (kind === "cancel_fee") return "도그스하이 예약 취소 수수료";
+  return "도그스하이 러닝 이용료";
 }
 
 interface PaymentRow {
