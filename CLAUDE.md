@@ -61,6 +61,10 @@ regression on a function someone just fixed. ⚠ This gate reads SOURCE because 
 this class at all — migrations there apply in numeric order from scratch, so preservation always
 holds and a runtime ACL sweep is green no matter how many files rely on it. The runtime sweep beside
 98 H1 and this gate prove different things; **neither is evidence for the other.**
+⚠ **To test a hypothetical, never edit a live migration** — even transiently, even restoring from a
+copy taken seconds earlier: that is a read-modify-write with a multi-second window, and a subagent
+editing the same file loses its work silently inside it (measured 2026-08-25, while testing this very
+gate). Point the gate at a copy instead: `MIGRATIONS_DIR=/tmp/whatever node scripts/check-definer-acl.mjs`.
 
 The third one (added 2026-08-13) refuses a module-scope import of a native-only package from
 anything a route can reach. Expo Router evaluates **every** route module at launch, so such an

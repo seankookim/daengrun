@@ -65,7 +65,14 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'supabase', 'migrations');
+// The directory is overridable ON PURPOSE: `MIGRATIONS_DIR=/some/copy node scripts/check-definer-acl.mjs`.
+// Added 2026-08-25 after a session testing this gate appended a fake definer to a live migration and
+// restored it from a copy — while a subagent was editing that same file. A copy-modify-restore is a
+// read-modify-write with a multi-second window, and anything the agent wrote inside it would have
+// been overwritten by older text, silently. Nobody should have to write into a working tree to ask
+// this gate a hypothetical, so now nobody does: point it at a scratch copy instead.
+const MIGRATIONS = process.env.MIGRATIONS_DIR
+  || join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'supabase', 'migrations');
 
 // Re-creations that deliberately do not set an ACL, each with the reason it is safe. An entry here
 // is a claim someone made and can be checked; widening the RULE to get green is not available.
