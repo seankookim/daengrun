@@ -471,6 +471,19 @@ edit). Layout: S55 OURS. to bottom-left, S76 → CHAMPIONS OF 6AM., B01 pace num
 the light sky. HD delivery: full curated set re-zipped (5 parts, every fix included); all masters
 are 1536×2048 — 4K upscale available per pick.
 
+## 8-septies. Round 9 (2026-08-25) — reference-photo edits
+
+Sean attached four real campaign photos and ruled: edit them in place — "add a dog, delete logo
+if there is but dont change too much; add a dog in context in the same style of each image."
+Done via nano_banana_pro (source files recovered from the session transcript's embedded
+attachments — pasted images live base64-encoded in the .jsonl): REF1 golden-fence pair + seated
+retriever (first attempt failed silently, likely a source-photo filter — a reworded retry
+passed), REF2 pan-blur runner + motion-matched shepherd, REF3 the RUN selfie + photobombing
+golden (brand mark and screenshot UI removed), REF4 fisheye bridge crew + low-running dog.
+Outputs: `higgsfield-out/refs-edited/`. ⚠ Standing caveat, flagged to Sean: these derive from
+copyrighted photos of real, recognizable people — usable as comps/mood internally; publishing
+them as 도그스하이 posts needs rights clearance, which the synthetic set (79 posters) does not.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
