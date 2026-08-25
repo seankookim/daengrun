@@ -333,3 +333,22 @@ him), the last-resort host-as-runner arm, and its money question answered before
 
 ⚠ Note for the lab: `0045:242` (runner→runner `pending_transfer`) nulls the RETURN stamp; `0047`
 nulls the HANDOFF stamps. Two different mechanisms, easy to cite for one another.
+
+### Ninth round, final answer — `leg-pay` @ 09:05:51Z: **"Same pay either way"**
+
+**RULED: a runner earns the same whether or not a leg is skipped.** On-site pickup (owner brings
+the dog to the start) and on-site return (owner collects at the finish) pay exactly what the
+home-pickup and carry-home variants pay. No per-leg differential, no new money object, no
+migration. The simplest possible answer, and it removes a whole class of future edge cases —
+there is no "which legs did this booking actually have" arithmetic to get wrong later.
+
+**Every console question is now answered; the board is empty.** Also worth noting: the
+"what does a runner earn for a taken-over pair" question **dissolved rather than being answered**.
+It only existed under the pack-absorbs premise. With reassignment ruled, `session_assignment_revoke`
+returns the booking to `matching` and whoever accepts is simply that booking's runner, paid
+normally. The bailing runner gets nothing, having done nothing. No second-dog arithmetic exists.
+
+⚠ Still unpriced, and NOT covered by this ruling — do not read it as settled: his last-resort arm
+「if no one can, the host can take care」. That is the host acting AS the runner, not a runner
+skipping a leg. Whether the host is paid runner-pay on top of the host fee is untouched by
+"same pay either way", and the addendum above still stands.
