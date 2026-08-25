@@ -656,6 +656,41 @@ Pacing corrected after Sean's "too quick" note: cuts run 0.9–1.7s with a 2.5s 
 readable story beats, not the 13-beat strobe of the v2 experiment. Film look and the ending law
 unchanged; slogan card 오늘 밤, 우리. lands over the effort shot and clears before the mark.
 
+## 8-sexdecies. Round 18 (2026-08-25) — the candid-camera doctrine, and text as story
+
+Sean's craft critique of P2 v1, all of it correct: **the tracking was too perfect** (real operators
+never track flawlessly), movements too abrupt, "everything just is too perfect", shot 1 awkward
+because the crew ran head-on at an orthogonal angle, shots 3–6 all perfect tracks, selfie subjects
+stand unnaturally still with arms flailing, runners moving in impossible unison, everyone overly
+excited, and **no text carrying the story** — "just images and update will not give any story."
+He liked shot 2, the second-to-last (the grind profile), and the closer's potential.
+
+**CAMERA DOCTRINE (new house law, in `candid.py`, append to every video prompt):** a human operator
+holding a real camera, breathing and sometimes running; framing imperfect for the whole clip —
+subject off-centre and drifting, operator over-shoots and corrects late, horizon never level, focus
+hunts once, frame nudged by a footfall. **Never** a smooth mechanical track, gimbal-lock, centred
+subject, or orthogonal head-on angle. Plus: runners NOT in step (different cadence, arm carriage,
+one lagging), nobody grins at camera, movement begins and ends mid-action. Negative list extended
+to ban perfect tracking, level horizons, unison running and camera-directed performance.
+
+**Three camera grammars now replace "tracking shot" everywhere:** (a) locked-off camera set on the
+ground while the pack runs INTO and OUT of frame, (b) a rough **180° pan** that starts late, whips,
+overshoots and settles, (c) lagging handheld that loses the subject and re-frames badly.
+
+**Selfie behaviour fixed:** she WALKS while filming (frame bobbing with her steps), arm visibly in
+shot at an awkward angle, looks away to a friend, laughs half-away from the lens, pushes hair back,
+and only then glances at the camera.
+
+**Text now carries the story** — documentary captions with a scrim bar, KR line + red EN sub, five
+beats per reel instead of one end slogan.
+
+Delivered: **P2 v2** `reels/P2v2/P2-TONIGHT-US-v2.mp4` (화요일 밤 9시 47분 → 여섯 명, 네 마리 → 한강
+다리 4km 지점 → 여기서부터 아무도 말을 안 한다 → 12km. 다 왔다. → 오늘 밤, 우리.) and **P5**
+`reels/P5/P5-GOOD-KIND-OF-TIRED.mp4` (밤 11시 → 얘는 아직 하루를 안 썼다 → 8.2km · 언덕 두 개 → 그리고
+지금 → 다 쓰고 왔습니다.), each 10.00s 1080×1920 with its own scored bed — driving 150 BPM for the
+club session, 90 BPM piano-and-cello for the tired dog. 16 clips on Kling 3.0 Pro + Seedance 2.5
+omni_reference; ~286 cr this round, 125 remain.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
