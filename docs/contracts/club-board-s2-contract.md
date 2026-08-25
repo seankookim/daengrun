@@ -582,3 +582,67 @@ minute ago, calling `club_session_board` against a live session, **cannot name**
 any money value, any phone or emergency contact, any incident, any breed or health attribute,
 or the identity of any runner who has not yet accepted — and gets the **same** answer for a
 session id that does not exist as for one they cannot see.
+
+---
+
+## 13. DELTA — 2026-08-25 evening re-scope (Sean's sixth round)
+
+**This section does not rewrite the contract.** It marks which arms and pins the re-scope moves,
+precisely enough that an implementer knows what changed before writing the migration. Source:
+`docs/decisions/2026-08-25-console-rulings.md:156-196` (his verbatim) and
+`docs/plans/2026-08-25-club-delegation-spec-v2.md` §16 (the spec amendments).
+
+**Status of the four rulings, because one is not settled:** the PACK MODEL (§16.1), NO HOST
+APPROVAL (§16.2) and the PROFILES LANE (§16.4) are instructions and are settled. **NO HOST
+PAIR-REALLOCATION (§16.3) is PROVISIONAL** — it reverses Sean's own explicit approval on console
+card 10 (04:26:44Z) and awaits one confirming tap. Deltas below are tagged accordingly; a
+⚠️PROVISIONAL delta must not be implemented until he confirms.
+
+### 13a. INVALIDATED — these do not survive as written
+
+| Contract arm | file:line here | What the re-scope does |
+|---|---|---|
+| **§3a's P0 inclusion bullet** ("P0 `signed_up` (approval `pending`) is INCLUDED") | `:177-180` | **§16.2 removes the producer.** `session_delegate_dog` writes `approval='approved'` at insert (spec §4.2b, replacing `0048:136`'s `'pending'`), so no new row is ever `pending`. The bullet's named disclosure ("this member has applied to delegate") still happens — it just is not distinguishable from "has signed up and not yet paid." Rewrite the bullet around the new resting state; the one-line escape hatch it offers (`and sd.approval <> 'pending'`) becomes a no-op |
+| **Pin P6**, both halves | `:409` | Splits. (a) "a P0 `approval='pending'` row IS returned" — no such row can be constructed for a new fixture; restate as "a signed-up, unpaid row IS returned." (b) "a `rejected` … row is NOT [returned], including to their own owner" — **`rejected` loses its only producer** (the reject arm at `0084:624-630` retires; there is no `session_reject_dog`). The `withdrawn` half SURVIVES intact — `session_cancel_delegation` still writes it (`0124:74`). Keep the `rejected` arm as a legacy-row pin with a comment, or retire it naming the successor |
+| **Mutation "Add `and sd.approval <> 'pending'` → P6"** | `:439` | Becomes a **predicted-green mutation** — nothing is pending, so the added predicate matches nothing. Record it with M2's honest label (`club-rsvp-hardening-contract.md:548`, the 0126 M2 precedent): a mutation whose predicted red set is empty is recorded, never quietly dropped |
+| **Pin P3's fixture** ("Shell `limited` (pending applicant, no membership)") | `:406` | The *grade* survives; its *producer* does not. `_club_shell_access` grades `limited` on a delegating owner whose `approval <> 'approved'` (`0049:19-22`), which after §16.2 is nobody. 🔴 **Spec §14 OPEN-B may re-key the grade entirely** (proposed: `full` ⇐ `booking_id is not null`, `limited` ⇐ the row exists). **Do not write P3's fixture until OPEN-B is answered** — under the proposal the fixture becomes "signed up, unpaid"; under the alternative reading `limited` has no members at all and P3 retires |
+| ⚠️PROVISIONAL — **§6's client swap, second half** ("move the runner chip's `full` from `r.assigned` to `r.load` (`:446`)") and **§5a's stated justification** | `:361-363`, `:320-326` | **§16.3 deletes the chip grid entirely** (`console/[sid].tsx:445-460`, with `:161-186` and `:465-490`). There is then no chip to fix and no dead button to close — §5a's whole rationale ("the known dead-chip bug") evaporates. **`load` itself still ships**, because spec §10.1's P2 owner pick surface consumes it (`name, tier, pace fit, load/cap`) — but its *consumer* moves from the host console to the owner's pick list, and **pin P13's client half is void** while P13's server half (`load` counts a live proposal; `assigned` does not) stands unchanged. If Sean declines the reversal, this row reverts wholesale |
+
+### 13b. CHANGED — survives, with a moved boundary
+
+| Contract arm | file:line here | Change |
+|---|---|---|
+| **§3d state vocabulary** | `:229-249` | **§16.1 (settled).** The ladder is no longer N independent per-dog states through the run. Once the pack is running the board renders **one** 러닝 중 band and divergence renders as a named **exception** (미출발 · 지각 · 조기 종료), never as a peer state. The `state` column and its type do not change; what changes is which values are legal simultaneously and how the client groups them. The exception shape already exists server-side as a badge, not a stage (`0116:616-618`, 조기 반환) — copy that pattern rather than adding stages. §3d's ⚠ note that P5/P7/P9/P10 land in S4/S5 is unaffected |
+| **§3a's `assignment_state` bullet** | `:182-186` | Reinforced, not changed. It already says a 맹견-refused, lapsed and declined pick are indistinguishable to non-owners. §16.2 adds one more thing that becomes indistinguishable — there is no host rejection left to distinguish. The bullet's forward-looking clause about ruling F1 stands |
+| **§7's "No membership mechanism"** | `:388-389` | Still true and now stronger. §16.2 goes further than declining host-approved joins: it retires the club's **only** exclusion mechanism anywhere (spec §4.2c ② — there is no blocklist, no ban, no `status` on `club_members` (`0030:30-36`), no host member-removal RPC). **S2 must not become the place someone adds one**; spec §14 **OPEN-D** owns the question |
+| **§4 R3 + pins P16/P17** | `:270-278`, `:419-420` | Substance holds; one arm gains a question. R3 admits the **host or backup host** to a pick-pending runner identity. ⚠️PROVISIONAL: after §16.3 the host is not a chooser at all, so their standing to see an unaccepted pick rests only on being the session's operator. **Not invalidated** — the operational board shows them more than this anyway — but flagged so the blind reviewer attacks it deliberately rather than inheriting it. P16's backup-host fail-open arm (§10 T2) is unaffected and stays exactly as specified |
+
+### 13c. UNAFFECTED — checked, not assumed
+
+Each was re-read against the amendments and does not move: **§0**'s two residuals (the
+`club_join` gate and `0053:236`'s ungated fare) · **§1**'s single-definer shape and its
+`_club_require_v2` refusal · **§2**'s gate structure, null-uid exemption and anon refusal ·
+**§3b** `owner_handled` rows (no pairing, no host decision, unaffected by all four rulings) ·
+**§3c** crew rows and CORRECTION 1's role-blind predicate · **§4** R1/R2/R4/R5/R6/R7/R8 in full ·
+**§5b** `finish_blocker` and the `_club_dogs_unresolved` re-write (its phase list is S5's, not
+S2's, and no ruling touches custody phases) · **§8** pins P1-P2, P4-P5, P7-P12, P14-P15, P18-P22 ·
+**§9** performance (no consumer count changes) · **§10** T1-T7 · **§11** CORRECTIONS 1-3 · **§12**.
+
+### 13d. Sequencing — S2 now has a sibling
+
+Spec §12 inserts **S2.5** (the admission retirement) between S2 and S3. S2 and S2.5 are
+**disjoint by construction and may land in either order**: S2 adds a read projection and touches
+no write path (§7's own refusal); S2.5 rewrites `session_delegate_dog`, `session_approve_dog`,
+`session_reconsider_dog` and `session_runner_withdraw` and touches no projection except
+`_club_delegation_board_impl`'s approval counts (spec §13 C42) — **which IS a collision with §5's
+`create or replace` of that same function.** Whichever lands second rebuilds from the newest body
+on origin, per §10 T4, and names it in its header. Claim `_club_delegation_board_impl` in
+REGISTRY's in-flight table before either slice edits it.
+
+⚠ S2.5 carries a measured fixture sweep across **18 shipped suites + `upgrade_seed_v1.sql`, 74
+call sites** (spec §16.2's table), several of which are behaviour pins that MIGRATE rather than
+fixture-edit. None of them is a pin in this contract's new suite, but four are files this
+contract's own §8 corpus overlaps through `_club_dogs_unresolved` (P11 asserts the count is
+byte-identical "for every fixture in 116/153's corpus" — and `153_club_cancel_fee_suite.sql` is
+on S2.5's list). **Run P11 against the post-S2.5 corpus if S2.5 lands first**, or the byte-identical
+claim is measured against a corpus that is about to change.

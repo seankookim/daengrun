@@ -111,6 +111,9 @@ mint, no refund arm, no ladder interaction. A6's copy stays fee-less.
 
 ## 7. Review log
 
+**Round 2 — re-scope, 2026-08-25 evening.** Not a review: Sean's sixth-round rulings landed after
+v2 and touch this document in four places. See §8.
+
 Draft 1 → one blind adversarial pass (2026-08-25): LAND-AFTER-FIXES, 16 findings. All folded:
 F1 (fitness accruals live in `fetchFitness`, not the dead columns — §3 redone) · F2
 (`participant_activities` is the shipped record — the invented table dropped) · F3 (A2's wide
@@ -125,3 +128,89 @@ dog burns a slot — named with its surface) · F15 (privacy leaned on projectio
 as new requirements) · F16 ("FULFILLED" softened: §15-bis is fulfilled when this document's
 slices land, not by the document). Verdict after fold: implementation brief for the three
 slices in §6.
+
+---
+
+## 8. AMENDMENT — Sean's sixth round, 2026-08-25 evening
+
+**Provenance.** Verbatim paragraph and dispositions at
+`docs/decisions/2026-08-25-console-rulings.md:156-196`; the delegated side's amendments are
+`docs/plans/2026-08-25-club-delegation-spec-v2.md` §16. **Everything below the quotes is this
+document's analysis, not his.** Four touch points; two are one-line confirmations, two are real.
+
+### 8.1 PACK MODEL (ruled, settled) — A3's crew list is the surface it lands on
+
+> "aren't they all supposed to be in near sync? same start time … the club will be running in a
+> pack so end times would probably be all the same or similar."
+
+A3's participant run view (§2, §3) renders "crew/dog list with board STATES". Under the pack model
+that list shows **one shared run band with named exceptions** (미출발 · 지각 · 조기 종료), not N
+independent per-dog states — spec §1.1's rule, and the participant view is the surface where a
+self-running owner would most easily read a lie into a screen full of divergent badges. Nothing
+new to build: the states come from the S2 board and the exception vocabulary already exists
+server-side (`club_dog_ui_state`'s 조기 반환 badge, `0116:616-618`).
+
+⚠ **A self-run owner is IN the pack.** They start when the pack starts and finish when the pack
+finishes; A4's "their finish tap closes THEIR record" is a record-keeping act, not an independent
+schedule. Spec §14 **OPEN-C** ("does the pack leave at the scheduled time regardless?") therefore
+applies to this side too, and its answer governs the copy on the participant run view's start
+state.
+
+### 8.2 NO HOST APPROVAL (ruled, settled) — the A-vs-B asymmetry this document was built on DISSOLVES
+
+> "why is the host accepting or rejecting an owner? they shuold be able to sign up and runners too
+> without the host's permission."
+
+A0's underlying-facts cell says 동반 sign-up has "no booking, no money, **no host decision**
+(0048:158-191)" — verified true and unchanged. What changes is the *other* side: the delegated
+path had a host decision and now does not (spec §4.2 as amended, `session_delegate_dog` writing
+`approval='approved'` at `0048:136` instead of `'pending'`). Consequences here:
+
+1. **A0-x, the mode switch, gets materially better and the row's copy must say so.** Today an
+   owner converting 동반 → 위탁 lands at `approval='pending'` and waits for a host. Under the
+   amendment they land directly on the pay card. The 「러너에게 맡기기」 door's honest sentence
+   changes from "you will wait for the host" to "you pay and then pick a runner." The A0-x arm
+   itself (the in-place conversion, S3's) is unaffected in shape.
+2. **A0's honest capacity line is now the ONLY thing standing between a full session and a
+   disappointed owner on either side.** A0 already shows "남은 자리 N — 위탁과 공용" against the
+   shared pool (`_club_total_dogs`, `0048:78-82`). ⚠ Note precisely, because it is easy to get
+   wrong: that shared **total-dog** cap is enforced at both doors today and is untouched by the
+   amendment. The cap that loses its reserving enforcer is the **delegated** cap
+   (`delegated_dog_capacity` via `_club_delegated_reserved`, `0043:70-79`) — a different cap that
+   never governed 동반 rows at all. **This document's capacity story is unchanged**; spec §14
+   OPEN-A is not this side's question.
+3. **The mixed-mode participant gains group-chat/roster/incident standing earlier — or does not.**
+   §1's A2 row already names the ladders' meeting point at the wide check-in stamp. A second
+   meeting point now exists: `_club_shell_access` promotes a delegating owner on
+   `approval='approved'` (`0049:19-20`), which the amendment makes instant. A 동반 participant
+   already holds `session_people` → `full` (`0049:14`) regardless, so **this side is unaffected
+   either way** — but a mixed-mode person's grade now arrives from two producers instead of one.
+   Named so nobody re-derives it. Spec §14 **OPEN-B** owns the decision.
+
+### 8.3 NO HOST PAIR-REALLOCATION (⚠️ PROVISIONAL — pending Sean's confirm) — no effect on this side
+
+> "pair reallocation functionality for the host? is that really necessary, i dont think so."
+
+⚠️ This one reverses his own explicit approval (console card 10, 04:26:44Z) and is awaiting one
+confirming tap; spec §6.6 carries it as provisional with its original text at §6.6-orig.
+
+**Either way it does not reach this document.** A 동반 dog has no pairing, no proposal row, and no
+runner to reallocate — `session_rsvp` writes `custody='owner_handled'` and no booking
+(`0048:188-190`), and the axes trigger short-circuits every assignment axis (`0048:698-707 (the `owner_handled` early return)`).
+Recorded as a checked non-effect rather than a silence, because "the pairing machinery changed"
+is exactly the kind of note a later reader would assume must touch the participant ladder.
+
+### 8.4 INSTAGRAM-STYLE PROFILES — parked, not here
+
+> "clicking on each names should go to their profiles with their posts (like instagram)."
+
+Its own future lane, seeded at `docs/plans/2026-08-25-profiles-lane-seed.md`. **A3's crew list and
+the board's 보호자 동반 / crew rows stay untappable in this scope.** Named because a crew list of
+names is the most obvious place someone would bolt it on.
+
+### 8.5 What this amendment did NOT do
+
+- No blind voice has read it; §6's three slices need one before implementation, as before.
+- No server, suite, or client file was touched.
+- The rsvp-family hardening contract (`docs/contracts/club-rsvp-hardening-contract.md`) carries its
+  own dated delta section (§10) for the arms this re-scope moves.
