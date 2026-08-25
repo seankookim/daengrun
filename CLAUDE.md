@@ -186,7 +186,13 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   option was already in the spec and he had already ruled it that morning; the genuinely new arm
   was the one that *created* the objection, not the one that answered it. One `grep` would have
   caught it, and I had every means to run it. **The tell is that endorsing feels like
-  collaboration rather than like making a claim** — so it skips the check that a bare assertion
+  collaboration rather than like making a claim** — and the peer's own framing of it is sharper than
+  mine, so it is recorded in their words: *two independent sessions can manufacture false confidence
+  FASTER than one, because the second voice reads as corroboration when it is really an echo.* One
+  session made the claim and it felt like insight; the other agreed and it felt like collaboration;
+  neither ran the one-command grep. **Agreement between sessions is not evidence — it is the same
+  claim counted twice.** Treat a peer's interpretation exactly as you would treat your own draft:
+  the thing to check, not the thing that relieves you of checking — so it skips the check that a bare assertion
   would have triggered. When you find yourself agreeing with a peer's *interpretation* and about
   to pass it upward, that is the moment to verify it, not the moment you have been relieved of
   verifying. An error you amplify to the human is worse than the one you merely received. A ruling
