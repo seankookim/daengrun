@@ -44,7 +44,23 @@ HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Se
 ## Commit gate
 
 Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
-and `node scripts/check-route-native-imports.mjs` — all three must pass.
+`node scripts/check-route-native-imports.mjs`, and `node scripts/check-definer-acl.mjs` — all must pass.
+(`check-embed-fk.mjs` and `check-auth-surface.mjs` run in the same family.)
+
+**`check-definer-acl.mjs` (added 2026-08-25)** refuses a SECURITY DEFINER `create or replace` whose
+function was FIRST defined in a different file, in a file that does not itself set the ACL — the
+"relying on grant preservation" class. On an apply where the function is absent, that statement is a
+CREATE and the definer is born PUBLIC-executable (0116:636). ⚠ **The narrowness IS the feature and a
+future session must not "simplify" it back:** the crude form — every definer recreation needs a
+same-file revoke — flags **147 of 239** occurrences, because a function whose ACL is set by the file
+that first defined it is entirely correct. A gate that cries 147 times is `--no-verify`'d within a
+day and then protects nothing while everyone believes it is on. The **81 real pre-existing
+occurrences** are frozen in `check-definer-acl-baseline.txt`; the gate's job is the 82nd. A stale
+baseline line ALSO fails (delete it) so the ledger shrinks honestly and cannot silently absorb a
+regression on a function someone just fixed. ⚠ This gate reads SOURCE because the harness cannot see
+this class at all — migrations there apply in numeric order from scratch, so preservation always
+holds and a runtime ACL sweep is green no matter how many files rely on it. The runtime sweep beside
+98 H1 and this gate prove different things; **neither is evidence for the other.**
 
 The third one (added 2026-08-13) refuses a module-scope import of a native-only package from
 anything a route can reach. Expo Router evaluates **every** route module at launch, so such an
