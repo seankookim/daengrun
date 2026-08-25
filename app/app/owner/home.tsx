@@ -42,6 +42,16 @@ import { layout, lilac, paper } from '../../src/theme';
 //   · GO 디스크의 잔해 전부 (36닷 링·모프 진행선·워드 래더·상태 스킨/틴트) — 이미 렌더되지 않는
 //     죽은 코드였다. 히어로가 상태를 말하는 방식은 색 하나가 아니라 버튼의 개수와 문장이다.
 //
+// ═══ 타입 플로어 상향 (2026-08-25, Sean — 이 화면의 스크린샷) ═══
+// "some parts of the home screen has very small font text sizes; not acceptable and are illegible."
+// → 한글 **작업 플로어 = 15** (DESIGN.md §2 개정). 14는 이제 면제 클래스(레터스페이스 라틴 킥커 ·
+//   시리얼/MRZ · 글리프)의 절대 하한으로만 남는다. 이 화면에서 움직인 것:
+//     · 덩어리 킥커(오늘/동네/나) 14 → **19** — 플로어 위반이자 위계 역전이었다(자기 안의 modh 15보다 작았다)
+//     · 행의 첫 줄(rowT/rowNum) 14 → 17 · 부제·행동(rowSub/rowAct) 14 → 15
+//     · quiet · modhL · 다음 일정 레일(upT/upS/upD) · 랭킹 티커 · 로스터 카드 · 순간 필 · 체력 실패 줄 → 15
+//   면제로 남긴 둘: '● LIVE'(레터스페이스 라틴 11) · 'MEMBER SINCE …'(시리얼 11).
+//   상자 두 개가 글자를 따라 자랐다: rosterCard 146 → 164, momentCard 118 → 128 (JSX 첫 칸 150 → 162).
+//
 // ═══ 남은 접힘 ═══
 // 헤더(락업 · 랭킹 티커 · 그리팅)는 스크롤에 접힌다. 히어로는 그만큼 위로 올라와 상단에 핀된다.
 // transform/opacity 전용 · 네이티브 드라이버. 히어로 자체는 더 이상 축소되지 않는다(디스크와 함께 은퇴).
@@ -487,15 +497,16 @@ export default function OwnerHome() {
                 style={{ backgroundColor: lilac.head, padding: 18 }}
                 accessibilityRole="button" accessibilityLabel="실시간 보기"
               >
-                {/* 킥커는 레터스페이스 라틴만 — 14pt 플로어의 유일한 면제 대상이다. 러너 이름(한글)은
-                    면제가 아니므로 아래 14pt 줄로 내렸다 (구 코드는 '● LIVE · 민준 러너'를 통째로 11pt에 뒀다). */}
+                {/* 킥커는 레터스페이스 라틴만 — 플로어의 유일한 면제 대상이다(11pt 유지). 러너 이름(한글)은
+                    면제가 아니므로 아래 본문 줄로 내렸다 (구 코드는 '● LIVE · 민준 러너'를 통째로 11pt에 뒀다).
+                    [2026-08-25 Sean] 그 본문 줄은 14 → 15 (한글 작업 플로어 상향, DESIGN.md §2 개정). */}
                 <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '800', color: '#8F88B8' }}>● LIVE</Text>
                 {/* 아이 이름도 이 **예약의** 아이다 — dogName(첫 등록 아이)이 아니라 (review P1-6) */}
                 {/* [A④ 2026-08-24 Sean, "how long runner has been running"] 경과는 runs.started_at
                     에서만 온다 — 예약 시각으로 재면 20분 늦게 출발한 러닝이 20분 더 달린 것이 된다
                     (lateness.ts:147 이 같은 이유로 폴백을 금지한다). started_at 이 없거나 1분 미만이면
                     절이 통째로 빠진다: 문장은 여전히 참이고, 숫자만 없다. */}
-                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 {runElapsed ? `${runElapsed}째 ` : ''}달리는 중이에요 — 지도 보기 ›</Text>
+                <Text style={{ fontSize: 15, color: '#B9B3D9', marginTop: 8, lineHeight: 21 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 {runElapsed ? `${runElapsed}째 ` : ''}달리는 중이에요 — 지도 보기 ›</Text>
               </Pressable>
             ) : null}
           />
@@ -541,7 +552,10 @@ export default function OwnerHome() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                       {/* 러너 이름은 매칭된 예약에만 있다 — api 는 미매칭 행에 '매칭 중'을 넣지만,
                           그건 이름 칸에 들어갈 값이 아니라 상태다 (「매칭 중 러너」로 읽힌다). */}
-                      <Text style={s.upT} numberOfLines={1}>
+                      {/* [2026-08-25] 14 → 15 로 커지면서 세 값(시각·아이·러너)이 한 줄에 안 들어가는
+                          경우가 생긴다. 잘라내는 대신 두 줄까지 허용한다 — 행은 minHeight 44 일 뿐
+                          고정 높이가 아니라 자라도 된다. 줄이는 선택지는 없다(플로어가 이유였으므로). */}
+                      <Text style={s.upT} numberOfLines={2}>
                         {b.timeLabel} · {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'}
                       </Text>
                       <Text style={s.upS} numberOfLines={1}>{b.routeName} · {b.km}km</Text>
@@ -602,17 +616,17 @@ export default function OwnerHome() {
                   onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
                 >
                   {/* [§3b 2026-08-11] latin kicker 'THIS WEEK' retired app-wide — the lead is the Korean
-                      data-class label alone, 14pt / lineHeight 18. */}
+                      data-class label alone. [2026-08-25 Sean] 15 / lineHeight 20 (working Korean floor). */}
                   <Text style={s.tickerLead}>동네 리그</Text>
                   <View style={s.tickerSep} />
                   {ticker.map((d, i) => (
                     <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={s.tickerItem}>
-                        <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{i + 1}위 </Text>
-                        {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14, lineHeight: 18 }, nf]}>{d.km}km</Text>
-                        {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 14 }}> ▲{d.delta}</Text>}
-                        {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 14 }}> ▼{-d.delta}</Text>}
-                        {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 14 }}> NEW</Text>}
+                        <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 15, lineHeight: 20 }, nf]}>{i + 1}위 </Text>
+                        {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 15, lineHeight: 20 }, nf]}>{d.km}km</Text>
+                        {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 15 }}> ▲{d.delta}</Text>}
+                        {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 15 }}> ▼{-d.delta}</Text>}
+                        {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 15 }}> NEW</Text>}
                       </Text>
                       <View style={s.tickerSep} />
                     </View>
@@ -640,17 +654,19 @@ export default function OwnerHome() {
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={30} />
                     <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral, position: 'absolute', left: 22, top: 0, borderWidth: 1.5, borderColor: lilac.card }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.head }} numberOfLines={1}>{r.name}</Text>
-                      {/* tier는 배지를 탄 데이터다 — 14pt 플로어 적용 (지어낸 '인증' 문구는 없다) */}
-                      <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>
+                      <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }} numberOfLines={1}>{r.name}</Text>
+                      {/* tier는 배지를 탄 데이터다 — 한글 플로어 적용 (지어낸 '인증' 문구는 없다).
+                          [2026-08-25 Sean] 14 → 15; 카드 폭도 146 → 164 로 함께 넓혔다(아래 rosterCard) —
+                          글자만 키우고 상자를 그대로 두면 이 두 줄이 말줄임으로 잘린다. */}
+                      <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>
                         {r.tier} · {r.district || '근처'}
                       </Text>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8 }}>
-                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 14, color: lilac.dim }}> RUNS</Text></Text>
+                    <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 15, color: lilac.dim }}> RUNS</Text></Text>
                     {r.paceLabel != null && (
-                      <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
+                      <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
                     )}
                   </View>
                 </Pressable>
@@ -685,14 +701,14 @@ export default function OwnerHome() {
                 <Pressable
                   key={`${m.bookingId}-${mi}`}
                   onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
-                  style={[s.momentCard, mi === 0 && { width: 150 }]}
+                  style={[s.momentCard, mi === 0 && { width: 162 }]}
                 >
                   {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
                   <MediaImage source={m.url} style={{ width: '100%', height: '100%' }} />
                   <View style={s.momentPill}>
-                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' }, nf]}>
+                    <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: '#fff' }, nf]}>
                       {m.km}km
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
                     </Text>
                   </View>
                 </Pressable>
@@ -821,19 +837,23 @@ export default function OwnerHome() {
 const s = StyleSheet.create({
   // ── 세 덩어리 문법 (랩 ⑧ / ⑧ v2) — 선 0개, 상자 0개 ──────────────────────
   // 덩어리 킥커: 한글 라벨 하나 + 여백. 라틴 대문자 킥커는 앱 전역 은퇴(2026-08-11)라 쓰지 않는다.
+  // [2026-08-25 Sean, 「오늘」·「동네」 스크린샷 판정] 14 → 19. 두 가지가 같이 고쳐진다:
+  //   ① 한글 작업 플로어(15) 위반 — 이 라벨은 한글이라 라틴 킥커 면제를 타지 못한다.
+  //   ② 위계 역전 — 덩어리 킥커(14)가 자기 안의 모듈 헤더 modhT(15)보다 작았다.
+  // 19/25 는 §3b 섹션 타이틀(20/800)의 한 칸 아래 — 덩어리는 섹션의 조용한 형이지 그 위가 아니다.
   kick: {
-    fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.dim, letterSpacing: 1,
+    fontSize: 19, lineHeight: 25, fontWeight: '800', color: paper.dim, letterSpacing: 1,
     marginTop: 30, marginBottom: 6, paddingHorizontal: layout.gutter,
   },
-  // 덩어리 안의 조용한 한 줄 (예: "예정된 러닝이 없어요")
-  quiet: { fontSize: 14, lineHeight: 20, color: paper.dim, paddingHorizontal: layout.gutter },
+  // 덩어리 안의 조용한 한 줄 (예: "예정된 러닝이 없어요") — [2026-08-25] 14/20 → 15/21
+  quiet: { fontSize: 15, lineHeight: 21, color: paper.dim, paddingHorizontal: layout.gutter },
   // 모듈 헤더 — 15/800 잉크 타이틀 + 딤 트레일 링크, 한 베이스라인 행. 코랄 룰 없음.
   modh: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8,
     marginTop: 14, marginBottom: 8, paddingHorizontal: layout.gutter,
   },
   modhT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  modhL: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  modhL: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
   // 행 문법 — 히어로 알림 줄과 같은 부품(굵은 줄 · 얇은 줄 · 우측 행동 · 뉴트럴 헤어라인).
   // 상자도 코랄 스파인도 없다: 무게는 히어로가 독점한다.
   row: {
@@ -841,14 +861,18 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: layout.gutter,
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
-  rowT: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
-  rowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
-  rowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
-  // Oswald 숫자는 명시 lineHeight ≥1.2× (BUG A — 없으면 어센더가 잘린다)
-  rowNum: { fontSize: 14, lineHeight: 19, fontWeight: '900', color: paper.ink },
+  // [2026-08-25 Sean] 행의 **첫 줄**은 17 — 「지난번처럼 다시 예약」은 이 행이 무엇인지 말하는
+  // 유일한 줄이고, 플로어(15)에 겨우 걸치는 크기로 두면 부제와 구분이 안 된다. 부제·행동은 15.
+  // rowT 에 numberOfLines 는 없다 — 길면 접힌다(행은 minHeight 만 있고 고정 높이가 아니다).
+  rowT: { flex: 1, fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink },
+  rowSub: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 1 },
+  rowAct: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.dim },
+  // Oswald 숫자는 명시 lineHeight ≥1.2× (BUG A — 없으면 어센더가 잘린다).
+  // rowT 안에 인라인으로 섞이므로 **rowT 와 같은 17** 이어야 한 줄로 읽힌다 (17×1.35 = 23).
+  rowNum: { fontSize: 17, lineHeight: 23, fontWeight: '900', color: paper.ink },
 
   // ── 다음 일정 레일 (A① · 2026-08-24) ────────────────────────────────────
-  // row 문법의 사촌: 같은 헤어라인, 같은 14pt 본문, 앞에 상태 점 하나와 뒤에 D-라벨이 붙는다.
+  // row 문법의 사촌: 같은 헤어라인, 같은 15pt 본문, 앞에 상태 점 하나와 뒤에 D-라벨이 붙는다.
   // 상자도 카드도 없다 — 세 덩어리 문법(선 0개, 상자 0개)은 이 레일에도 적용된다.
   upRail: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   upRow: {
@@ -859,9 +883,9 @@ const s = StyleSheet.create({
   upDot: { width: 9, height: 9, borderRadius: 5 },
   // Oswald — 15/20 (1.33×, BUG A 여유)
   upTm: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  upT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
-  upS: { fontSize: 14, lineHeight: 19, color: paper.dim },
-  upD: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
+  upT: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  upS: { fontSize: 15, lineHeight: 21, color: paper.dim },
+  upD: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.dim },
 
   // ── 헤더 (흐름 자식 — 핀 오버레이 은퇴 2026-08-19) ────────────────────────
   // 그리팅 줄 — 헤더의 마지막 요소라 히어로와 항상 맞닿는다
@@ -870,13 +894,13 @@ const s = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_MAST, marginBottom: 6, paddingHorizontal: layout.gutter },
   // 시리얼 행 — 코랄 풀블리드 헤어라인 + Oswald 레터스페이스 시리얼. 11pt는 §3의 시리얼 예외
   // (여권 MRZ 부류). 잉크는 dim — 메타데이터지 본문이 아니다.
-  // 멤버십 메타는 '나'의 발치에. 11pt는 §3의 시리얼/MRZ 예외(14pt 하한 면제) 안에 있다.
+  // 멤버십 메타는 '나'의 발치에. 11pt는 §3의 시리얼/MRZ 예외(한글 플로어 면제) 안에 있다.
   memberFoot: { marginTop: 18, paddingTop: 14, paddingHorizontal: layout.gutter, paddingBottom: 4,
     borderTopWidth: 1, borderTopColor: '#EEEEEE', alignItems: 'flex-end' },
   serialTx: { fontSize: 11, letterSpacing: 1.6, color: paper.dim },
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  // 20pt = 14pt 하한 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
+  // 24pt = 플로어 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
   wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: 0.2, fontWeight: '400' },
   // [A③(c) 2026-08-24] 헤더에서 '동네' 덩어리로 내려왔다 — marginTop 8(헤더 간격)은 킥커의
   // marginBottom 이 이미 하는 일이라 빠지고, 아래 클럽 행과의 간격만 남는다.
@@ -884,8 +908,8 @@ const s = StyleSheet.create({
     overflow: 'hidden', marginBottom: 10, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 룰 = 뉴트럴
   },
-  tickerLead: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginRight: 2 },
-  tickerItem: { fontSize: 14, fontWeight: '600', color: lilac.text },
+  tickerLead: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.dim, marginRight: 2 },
+  tickerItem: { fontSize: 15, fontWeight: '600', color: lilac.text },
   tickerSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: lilac.hair, marginHorizontal: 8 },
   // 벨 — 테두리 없음 (Sean 2026-08-11). 40×40 히트 타깃은 남긴다.
   bellBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
@@ -905,24 +929,28 @@ const s = StyleSheet.create({
   },
   beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: layout.gutter },
   beaconDiv: { width: 1, marginVertical: 11 },
-  // 한글 정보 라벨 — 라틴 키커가 아니므로 14pt 플로어를 그대로 받는다 (트래킹만 0.5로 절제)
+  // 한글 정보 라벨 — 라틴 키커가 아니므로 플로어를 그대로 받는다 (16 ≥ 15, 트래킹만 0.5로 절제)
   beaconKick: { fontSize: 16, lineHeight: 21, fontWeight: '700', letterSpacing: 0.5 },
   beaconLine: { fontSize: 16, lineHeight: 38, fontWeight: '700', marginTop: 4 },
   beaconNum: { fontSize: 30, lineHeight: 38, fontWeight: '900' },  // BUG A: 1.27x
   beaconSub: { fontSize: 16, lineHeight: 21, fontWeight: '600', marginTop: 3 },
   beaconGo: { fontSize: 16, lineHeight: 21, fontWeight: '800', marginTop: 6 },
   // 체력 로드 실패 스트립 — 라우드 페일 문법: 풀블리드, 위아래 1px critical 헤어라인,
-  // 14pt/700 critical 잉크, 캔버스 바닥, 재시도는 텍스트 버튼.
+  // 15pt/700 critical 잉크, 캔버스 바닥, 재시도는 텍스트 버튼.
   fitFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: layout.gutter,
   },
-  fitFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  fitFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
-  // 로스터 미니 카드 — 전원 동일 (피처드 나이트 카드 은퇴 2026-08-19)
-  rosterCard: { width: 146, backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, padding: 10 },
-  momentCard: { width: 118, height: 146, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
+  fitFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical, flex: 1 },
+  fitFailRetry: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // 로스터 미니 카드 — 전원 동일 (피처드 나이트 카드 은퇴 2026-08-19).
+  // [2026-08-25] 폭 146 → 164: 안의 두 줄(이름 · 「등급 · 동네」)이 14 → 15 로 올라갔고 둘 다
+  // numberOfLines={1} 이라, 상자를 그대로 두면 커진 만큼 말줄임이 늘어난다.
+  rosterCard: { width: 164, backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, padding: 10 },
+  // [2026-08-25] 폭 118 → 128: 아래 필(km + 경과)이 15 로 올라갔고 필은 절대 배치(left 7)라
+  // 카드의 overflow:'hidden' 에 잘린다 — 상자가 글자를 따라 자란다.
+  momentCard: { width: 128, height: 146, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
   momentPill: {
     position: 'absolute', left: 7, bottom: 7,
     backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: 0, paddingVertical: 3, paddingHorizontal: 7,
