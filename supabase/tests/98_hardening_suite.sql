@@ -68,18 +68,21 @@ begin
   -- 아래서 부를 때. 뷰가 소유자 권한으로 기저 테이블을 읽으므로 booking_declines에 읽기 정책이
   -- 없어도 제외 술어는 동작해야 한다 — RLS가 제외를 무력화하면(0행 대신 1행) 여기서 터진다.
   begin
+    -- [0121] the decline-exclusion predicate now lives in runner_open_requests (the old view is
+    -- client-sealed; 156 P6(c) owns that fact). Proposition unchanged: a decline hides the
+    -- booking from the DECLINER only, on both the definer path and the authenticated path.
     insert into booking_declines (booking_id, runner_profile_id) values (b2, rA);
     perform set_config('request.jwt.claim.sub', rA::text, false);
-    select count(*) into v_n from marketplace_open_requests where id = b2;      -- 거절자 → 0
+    select count(*) into v_n from runner_open_requests where id = b2;      -- 거절자 → 0
     perform set_config('request.jwt.claim.sub', rB::text, false);
-    select count(*) into v_n2 from marketplace_open_requests where id = b2;     -- 대조군 → 1
+    select count(*) into v_n2 from runner_open_requests where id = b2;     -- 대조군 → 1
     v_bad := '';
     begin
       set local role authenticated;
       perform set_config('request.jwt.claim.sub', rA::text, true);
-      execute 'select count(*) from marketplace_open_requests where id = $1' into v_n3 using b2;
+      execute 'select count(*) from runner_open_requests where id = $1' into v_n3 using b2;
       perform set_config('request.jwt.claim.sub', rB::text, true);
-      execute 'select count(*) from marketplace_open_requests where id = $1' into v_n4 using b2;
+      execute 'select count(*) from runner_open_requests where id = $1' into v_n4 using b2;
       reset role;
     exception when others then reset role; v_bad := 'RLS경로 예외:' || sqlerrm;
     end;

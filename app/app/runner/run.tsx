@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
@@ -12,7 +12,7 @@ import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { useNumFont } from '../../src/lib/fonts';
-import { EndReason, payoutFor, RouteInfo, runnerJob, runResult } from '../../src/store';
+import { EndReason, RouteInfo, runnerJob, runResult } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
@@ -277,6 +277,10 @@ export default function ActiveRun() {
   }, []);
 
   // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게.
+  // [0121] server-issued net coefficients (netBase + km·netPerKm) — see estNet below.
+  const [coeffs, setCoeffs] = useState<{ netBase: number; netPerKm: number } | null>(null);
+  const coeffsRetryAt = useRef(0);
+
   // + 트레이스 시드 (2026-08-08): 재진입 시 km이 0부터 다시 시작해 서버 트레이스를 덮어쓰던 구멍.
   useEffect(() => {
     // 공용 버퍼는 앱 전역 싱글턴이다 — 이전 러닝(클럽 포함)의 점을 물려받지 않게 먼저 비운다
@@ -292,6 +296,7 @@ export default function ActiveRun() {
       if (!bid) return;
       loadInfo(bid);
       refreshStartedAt();
+      fetchRunNetCoeffs(bid).then((c) => { if (c) setCoeffs({ netBase: c.netBase, netPerKm: c.netPerKm }); });
       try {
         const saved = await fetchRunTrace(bid);
         if (saved.length > 1) {
@@ -721,15 +726,31 @@ export default function ActiveRun() {
       handle.current = null;
       notifyLocal('정산 가능한 최대 거리에 근접했어요', '지금 러닝을 종료해주세요');
     }
+    // [0121] coeffs retry: quote unavailable mid-run → '—' is showing; try again at most every
+    // 20s while the runner is actually looking at the screen. Never fabricate in between.
+    if (!coeffs && runnerJob.bookingId && Date.now() - coeffsRetryAt.current > 20_000) {
+      coeffsRetryAt.current = Date.now();
+      fetchRunNetCoeffs(runnerJob.bookingId).then((c) => { if (c) setCoeffs({ netBase: c.netBase, netPerKm: c.netPerKm }); });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [km, running, gps, appActive]);
 
+  // [0121] the ticker's money math runs on SERVER-issued net coefficients — the bundle no
+  // longer holds a rate or a gross formula. null = quote unavailable: render '—', retry on the
+  // next tick, never 0 (loading is not 0) and never a locally fabricated number.
+  const estNet = (atKm: number): number | null =>
+    coeffs ? coeffs.netBase + Math.round(atKm * coeffs.netPerKm) : null;
+
   // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
-  const payoutByReason = (reason: EndReason): number => {
-    const actual = payoutFor(km);
+  const payoutByReason = (reason: EndReason): number | null => {
+    const actual = estNet(km);
+    if (actual == null) return null;
     // The remaining-50% guarantee is only *estimated* when the real target is known —
     // the server computes the actual amount either way (settleRun res.net).
-    if (reason === 'owner' && targetKm != null) return actual + Math.round((payoutFor(targetKm) - actual) * 0.5);
+    if (reason === 'owner' && targetKm != null) {
+      const target = estNet(targetKm);
+      return target == null ? actual : actual + Math.round((target - actual) * 0.5);
+    }
     return actual; // dog / runner: actual km
   };
 
@@ -745,7 +766,7 @@ export default function ActiveRun() {
     // 종말 프레임은 판정을 들고 죽지 않는다 (plan §6 — no posthumous verdict; 러너 LA엔
     // phase가 없어 이 인자 하드셋이 보호자 쪽 SQL 하드셋의 미러다).
     endRunActivity({ ...laProps(), paceState: '' });
-    const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
+    const localPayout = completed ? estNet(km) : payoutByReason(reason);
     // dogName rides along from the real booking context (null when it never loaded —
     // the done screen then re-reads the booking or uses generic wording, never a fake name).
     // settled=false until the server says otherwise — the estimate never masquerades as income
@@ -1427,9 +1448,9 @@ export default function ActiveRun() {
             러너가 여기 숫자를 확정 금액으로 읽지 않게 그 사실을 같은 줄에서 말한다. */}
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
-            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text>
+            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{estNet(km) == null ? '—' : `${estNet(km)!.toLocaleString()}원`}</Text>
             {/* 천장에 닿으면 '완주 시'는 더 이상 갈 수 있는 길이 아니다 — 없는 미래를 말하지 않는다 */}
-            {targetKm != null && !ceilingHit ? ` · 완주 시 ${payoutFor(targetKm + 0.02).toLocaleString()}원` : ''}
+            {targetKm != null && !ceilingHit && estNet(targetKm + 0.02) != null ? ` · 완주 시 ${estNet(targetKm + 0.02)!.toLocaleString()}원` : ''}
             {' · 실측으로 확정'}
           </Text>
         </Row>
@@ -1571,21 +1592,23 @@ export default function ActiveRun() {
               title="강아지 컨디션"
               // 사진 약속은 내렸다 — 이 스텝이 받는 것은 메모다. 없는 것을 약속하지 않는다.
               desc="지친 기색·이상 징후 등. 종료 전에 메모를 남겨요"
-              pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
+              pay={payoutByReason('dog') == null ? '금액 확인 중 · 완주율 무영향' : `${payoutByReason('dog')!.toLocaleString()}원 · 완주율 무영향`}
               onPress={() => endWith('dog')}
             />
             <EndOption
               title="보호자 요청"
               desc="보호자가 조기 종료를 요청했어요"
-              pay={targetKm != null
-                ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
-                : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
+              pay={payoutByReason('owner') == null
+                ? '금액 확인 중 · 잔여 거리 50% 보장 · 정산 시 확정'
+                : targetKm != null
+                ? `${payoutByReason('owner')!.toLocaleString()}원 · 잔여 거리 50% 보장 포함`
+                : `${payoutByReason('owner')!.toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
               onPress={() => endWith('owner')}
             />
             <EndOption
               title="러너 개인 사유"
               desc="부상·일정 등 러너 사정으로 종료해요"
-              pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
+              pay={payoutByReason('runner') == null ? '금액 확인 중 · 완주율에 반영' : `${payoutByReason('runner')!.toLocaleString()}원 · 완주율에 반영`}
               onPress={() => endWith('runner')}
             />
 

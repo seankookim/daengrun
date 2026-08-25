@@ -870,71 +870,17 @@ export interface OpenRequest {
   vaccines: string[];
   routeId: string | null;   // 코스 미리보기 링크 — 수락 전 코스를 알고 결정
   routeName: string | null;
-  /** 픽업 주소의 법정동 (「반포동」) — 수락 전에 보이는 유일한 위치 정보.
-   *  Sean's Q6 ruling 2026-08-25: 「…doesnt show the actual address anyways; also include the 동.」
-   *  Source: `open_request_pickup_dong()` (0122 §3), a definer window whose row set is exactly the
-   *  requests this runner can already see. NEVER a coordinate and never the address text — the
-   *  pickup address itself stays assigned-runner-only (0060/0065), untouched.
-   *  null = 아직 모름 (주소 미지정 · 핀 미지정 · 역지오코딩 실패). The render must OMIT the token,
-   *  never draw a placeholder: an invented 동 on a stranger's card is worse than no 동.
-   *  ⚠ The DISTANCE half of the same ruling is NOT here — see requests.tsx's header. */
+  /** [0122] 픽업 동 라벨 (예: '반포동'). Source: open_request_pickup_dong() — a DEFINER window
+   *  that reads the (client-sealed) choke-point view as its owner, so 0121's revoke does not
+   *  touch it. NULL = 서버가 아직 동을 모른다 — 화면은 그 조각을 생략한다. */
   pickupDong: string | null;
 }
 
-// The payout estimate printed on a runner's card. ⚠ Computed from the RUNNER settlement base
-// (runnerCompBase 9,900 + perKm×km), never from what the owner pays (base_fare 7,900) —
-// theme.ts:210 ("the two base fares are different money") and server 0101 (RUNNER_COMP_BASE
-// 9900, PER_KM 3000) are the source of truth. Until 2026-08-20 all three mappers used the
-// owner fare and showed ₩15,343 for a 5 km run whose real settlement is ₩16,683 — quoting the
-// runner 8% low on the screen where they decide to accept. run.tsx already drew the correct
-// number via store.ts payoutFor, so the app contradicted itself.
-// addon_fare is added as-is: 0101 puts addon money on the runner's side.
-function estimatedPayout(r: { km: number | string; addon_fare?: number | null }, rate: number): number {
-  const gross = pricing.runnerCompBase + Math.round(Number(r.km) * pricing.perKm) + Number(r.addon_fare ?? 0);
-  return Math.round(gross * (1 - rate));
-}
-
-function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
-  const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
-  return {
-    scheduledAt: r.scheduled_at,
-    bookingId: r.id,
-    dogId: r.dogs?.id ?? null,
-    dogName: r.dogs?.name ?? '반려견',
-    breed: r.dogs?.breed ?? '',
-    weightKg: Number(r.dogs?.weight_kg ?? 0),
-    memo: r.dogs?.memo ?? null,
-    when: `${dateLabel} ${timeLabel}`,
-    km: Number(r.km),
-    paceLabel: r.pace_label ?? "보통 7'",
-    payout: estimatedPayout(r, rate), // runner settlement basis, flat 33% commission (0059)
-    directed,
-    photoUrl: r.dogs?.photo_url ?? null,
-    prefTags: (r.dogs?.preferences as any)?.tags ?? [],
-    vaccines: ((r.dogs?.vaccinations as any[]) ?? []).map((v) => v.type),
-    routeId: r.route_id ?? null,
-    routeName: r.routes?.name ?? null,
-    // [0122] Neither mapper can carry the 동: it is not on `bookings` and not on the view — it
-    // comes from its own RPC leg and is keyed on afterwards (fetchRunnerInbox). A row nobody
-    // keys stays null, which is the honest state, not a defect.
-    pickupDong: null,
-  };
-}
-
-// ⚠ `routes!bookings_route_id_fkey(name)` — NEVER bare `routes(name)`. `bookings` has TWO FKs to
-// `routes` (`route_id` 0001:169 and `recommended_route_id` 0082:143), so an unqualified embed is
-// PGRST201 and the whole SELECT dies. Measured 2026-08-20: this const was the ONE site the
-// 4141efc sweep missed, and because the directed leg's error is deliberately swallowed below
-// (so a dead open pool can't take nomination down with it), the failure was silent — every
-// nomination request returned zero rows, i.e. nomination had never worked in production.
-// `scripts/check-embed-fk.mjs` now fails the build on a bare `routes(` inside a bookings
-// select so this cannot recur.
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes!bookings_route_id_fkey(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
-
-// [0042 초크포인트 수리 — 실기기 발견 2026-08-03] 오픈 풀 읽기는 marketplace_open_requests 뷰가 유일한 창구.
-// 0042가 0004의 광폭 정책("runners see open requests")을 폐기했는데 클라이언트는 계속 bookings를 직접 읽어
-// RLS가 조용히 0행을 돌려줬다 — 러너에게 보호자의 오픈 요청이 영영 안 보이던 원인. 뷰는 플랫 컬럼이라 전용 매퍼.
-function mapOpenRequestView(r: any, rate: number): OpenRequest {
+// [0121] ONE mapper for BOTH request legs: runner_open_requests and my_directed_requests are
+// deliberately shape-identical flat views (fare columns absent by construction — contract §D;
+// the REQ_SELECT bookings-embed and its PGRST201 two-FK trap retired with the directed leg).
+// payout is the SERVER's expected_net; the client never holds a rate or a gross again.
+function mapRunnerRequest(r: any, directed: boolean): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
     scheduledAt: r.scheduled_at,
@@ -947,67 +893,33 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: estimatedPayout(r, rate), // runner settlement basis, flat 33% commission (0059)
-    directed: false,
+    payout: Number(r.expected_net),
+    directed,
     photoUrl: r.photo_url ?? null,
     prefTags: (r.preferences as any)?.tags ?? [],
     vaccines: ((r.vaccinations as any[]) ?? []).map((v) => v.type),
     routeId: r.route_id ?? null,
     routeName: r.route_name ?? null,
-    pickupDong: null,   // [0122] keyed on by fetchRunnerInbox's third leg — see the directed mapper
+    pickupDong: null,   // [0122] filled by fetchRunnerInbox's dong leg, keyed by booking id
   };
 }
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
-// 내 수수료율 — 견적용 (일괄 33%, 0059 — 티어 연동 없음). 세션 캐시.
-// ⚠ ONLY A READ ROW MAY BE CACHED. This discarded `error` and cached `?? 0.33`, so one transient
-// failure (or an RLS miss on a session that is not a runner yet) pinned the WHOLE session to 33%
-// until app restart — every payout estimate on every request card computed from a rate nobody
-// ever read. The pilot is a flat 33% (0059) so today's number happens to be right; caching an
-// unknown AS IF it were known is the defect, and it is the one that survives the day the first
-// negotiated rate exists. On failure: return the pilot default for THIS call and cache nothing,
-// so the next call retries.
-let _commissionRate: number | null = null;
-async function myCommissionRate(): Promise<number> {
-  if (_commissionRate != null) return _commissionRate;
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return 0.33;
-  const { data, error } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
-  const rate = Number(data?.commission_rate);
-  if (error || !Number.isFinite(rate)) {
-    console.warn('[commission] rate unread, estimating at the pilot 33%:', error?.message ?? 'no runners row');
-    return 0.33;
-  }
-  _commissionRate = rate;
-  return rate;
-}
-
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
-  const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
+  // [0121] both legs are net-only server views (contract §D). The old choke-point view lost
+  // client SELECT in the same migration — reading it here would 403 the whole request (0088).
   const [openRes, directedRes, dongRes] = await Promise.all([
-    // 오픈 풀 = 0042 초크포인트 뷰 (definer·컬럼 화이트리스트·클럽 부킹 구조 배제) — bookings 직읽기는 RLS 0행
-    supabase.from('marketplace_open_requests').select('*').order('scheduled_at').limit(10),
-    user.user
-      ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
-      : Promise.resolve({ data: [], error: null } as any),
-    // [0122] 픽업 동 — 세 번째 다리. 이 RPC는 인자가 없다: 행 집합을 호출자가 고르는 게 아니라
-    // 서버가 「이 러너가 이미 볼 수 있는 요청」으로 정한다 (marketplace_open_requests 상속 + 내 지명
-    // 행). 그래서 부킹 id 목록조차 보내지 않는다 — 보낼 게 없는 게 계약이다.
-    // ⚠ 인자 없는 rpc는 `{}` 축약을 쓰지 않는다 (check-rpc-contracts가 빈 객체를 키 0개로 읽어
-    // 계약 대조를 건너뛴다) — 인자 자체를 생략한다.
-    supabase.rpc('open_request_pickup_dong'),
+    supabase.from('runner_open_requests').select('*').order('scheduled_at').limit(10),
+    supabase.from('my_directed_requests').select('*').order('scheduled_at').limit(10),
+    supabase.rpc('open_request_pickup_dong'),   // [0122] 동 라벨 — definer window, 실패해도 카드가 죽지 않는다
   ]);
   // [내성] 한쪽 다리가 죽어도 다른 쪽은 산다 — 오픈 풀 에러가 지명 요청까지 지우던 것 방지
   if (openRes.error) console.warn('[inbox] open pool:', openRes.error.message ?? openRes.error);
   if (directedRes?.error) console.warn('[inbox] directed:', directedRes.error.message ?? directedRes.error);
-  // [0122] 동 다리는 **장식이 아니라 부가 정보**다 — 죽으면 동만 사라지고 요청함은 그대로 산다.
-  // 배포 순서 상 이 RPC가 아직 없는 서버(0122 미적용)에 붙은 빌드도 여기로 떨어진다: 경고 한 줄,
-  // 나머지 전부 정상. 반대 방향(서버만 먼저)은 구버전 클라가 이 다리를 부르지 않을 뿐이다.
-  if (dongRes?.error) console.warn('[inbox] pickup dong:', dongRes.error.message ?? dongRes.error);
   // ⚠ Drop requests whose start time has already passed, on BOTH legs.
-  // `marketplace_open_requests` (0056) has no time predicate — its WHERE is status/runner/club/
+  // `runner_open_requests` (0121, inheriting 0056's WHERE) has no time predicate — its WHERE is status/runner/club/
   // decline only — and both queries order by `scheduled_at` ASCENDING, so a stale row sorts to
   // index 0 and becomes the FEATURED boarding-pass ticket on runner home. The expiry cron closes
   // the window within 5 minutes (0017, `*/5 * * * *`), but inside it a runner can accept a run
@@ -1024,21 +936,16 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   // which is how the view's missing predicate would quietly stop being anyone's problem. Say it out
   // loud each time it fires so the queued server fix keeps its evidence.
   const dropped = (directedRes.data ?? []).length - rawDirected.length + (openRes.data ?? []).length - rawOpen.length;
-  if (dropped > 0) console.warn(`[inbox] dropped ${dropped} past-dated request(s) — marketplace_open_requests has no time predicate (queued server-side)`);
+  if (dropped > 0) console.warn(`[inbox] dropped ${dropped} past-dated request(s) — runner_open_requests has no time predicate (queued server-side)`);
 
-  const directed = rawDirected.map((r: any) => mapOpenRequest(r, true, rate));
-  const open = rawOpen.map((r: any) => mapOpenRequestView(r, rate));
+  const directed = rawDirected.map((r: any) => mapRunnerRequest(r, true));
+  const open = rawOpen.map((r: any) => mapRunnerRequest(r, false));
   const all = [...directed, ...open];
-
-  // [0122] 동을 bookingId로 붙인다. 없으면 null 그대로 — 없는 값을 지어내지 않는다.
-  // 서버가 NULL을 돌려주는 경우(주소 미지정·핀 미지정·역지오코딩 실패)와 다리가 죽은 경우가
-  // 화면에서 같은 모습(토큰 없음)인 것은 의도다: 둘 다 「모른다」이고, 카드는 모르는 것을 그리지 않는다.
-  const dongRows: any[] = Array.isArray(dongRes?.data) ? dongRes.data : [];
-  if (dongRows.length > 0) {
-    const byBooking = new Map<string, string | null>();
-    for (const d of dongRows) byBooking.set(String(d.booking_id), (d?.pickup_dong as string | null) ?? null);
-    all.forEach((r) => { const d = byBooking.get(r.bookingId); if (d) r.pickupDong = d; });
-  }
+  // [0122] 동은 부킹 id로 덧입힌다 — 다리가 죽으면 라벨 없이 그린다 (없는 값은 없는 대로).
+  if (dongRes?.error) console.warn('[inbox] dong:', dongRes.error.message ?? dongRes.error);
+  const dongBy = new Map<string, string | null>();
+  for (const d of (dongRes?.data ?? []) as any[]) dongBy.set(String(d.booking_id), (d?.pickup_dong as string | null) ?? null);
+  all.forEach((r) => { const d = dongBy.get(r.bookingId); if (d) r.pickupDong = d; });
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
   if (user.user && dogIds.length > 0) {
@@ -1053,15 +960,14 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
 }
 
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
-  const rate = await myCommissionRate();
-  // [0042] 오픈 풀 = 초크포인트 뷰 — bookings 직읽기 은퇴 (위 fetchRunnerInbox와 동일한 수리)
+  // [0042→0121] 오픈 풀 = net 전용 뷰 (요금 컬럼 부재는 뷰의 구조다 — 계약 §D)
   const { data, error } = await supabase
-    .from('marketplace_open_requests')
+    .from('runner_open_requests')
     .select('*')
     .order('scheduled_at')
     .limit(10);
   if (error) throw error;
-  return (data ?? []).map((r: any) => mapOpenRequestView(r, rate));
+  return (data ?? []).map((r: any) => mapRunnerRequest(r, false));
 }
 
 async function invokeTransition(bookingId: string, action: string, meta?: Record<string, unknown>): Promise<any> {
@@ -1342,7 +1248,8 @@ export async function fetchBookingStatus(id: string): Promise<string> {
   return data.status;
 }
 
-export interface SettleResult { net: number; gross: number; fee: number; guarantee: number; total_runs: number; drop: string | null }
+// [0121] net only — gross/fee/guarantee left the settle wire (fee÷gross was the exact rate).
+export interface SettleResult { net: number; total_runs: number; drop: string | null }
 
 export async function settleRun(p: {
   booking_id: string;
@@ -1382,8 +1289,25 @@ export interface RunnerJob {
   dogPhotoUrl: string | null;
 }
 
+// [0121 §E] the live ticker's coefficients — fetched at run start AND on reload/deep-link
+// (store persists only bookingId; MeetupInfo carries no money). null = not available: the
+// ticker shows '—' and retries; it never shows 0 and never computes from a bundle constant.
+export async function fetchRunNetCoeffs(bookingId: string): Promise<{ expectedNet: number; netBase: number; netPerKm: number } | null> {
+  const { data, error } = await supabase.rpc('my_run_net_coeffs', { p_bookings: [bookingId] });
+  if (error) { console.warn('[coeffs]', error.message); return null; }
+  const row = (data ?? [])[0];
+  if (!row) return null;
+  return { expectedNet: Number(row.expected_net), netBase: Number(row.net_base), netPerKm: Number(row.net_per_km) };
+}
+
+// [0121] every row in the two jobs queries has runner_id = me, so the party-scoped coeffs RPC
+// must answer for all of them — a hole is a server defect, and printing 0 for it would be the
+// fabricated-number class. Throw loudly instead.
+function jobsCoeffMissing(id: string): never {
+  throw new Error(`[jobs] expected_net missing for own booking ${id}`);
+}
+
 export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
-  const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];
   const { data, error } = await supabase
@@ -1398,20 +1322,21 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     .limit(20);
   if (error) throw error;
 
-  // 완료 건은 견적이 아니라 원장 실 net (감사 ⑤ 수익 표시 잔여 해소).
-  // 2-step 쿼리 — PostgREST 임베드 FK 모호성 회피 관례. 원장 행 없는 과거 건은 견적 폴백.
-  const doneIds = (data ?? []).filter((r: any) => r.status === 'completed').map((r: any) => r.id);
+  // [0121] 완료 건은 원장 실 net(서버 계산), 그 외는 서버 계수의 expected_net — 어느 쪽도
+  // 구성 요소가 wire에 오르지 않는다. 이 쿼리의 모든 행은 runner_id = 나이므로 coeffs RPC의
+  // 파티 생략이 여기서 빈칸을 만들 수 없다 — 만들면 그건 서버 결함이고 아래서 크게 던진다.
+  const ids = (data ?? []).map((r: any) => r.id);
   const netByBooking: Record<string, number> = {};
-  if (doneIds.length > 0) {
-    const { data: led, error: ledErr } = await supabase
-      .from('ledger_items')
-      .select('booking_id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
-      .in('booking_id', doneIds);
-    if (ledErr) console.warn('[jobs] ledger:', ledErr.message);
-    (led ?? []).forEach((l: any) => {
-      netByBooking[l.booking_id] =
-        l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee;
-    });
+  const expectedByBooking: Record<string, number> = {};
+  if (ids.length > 0) {
+    const [nets, coeffs] = await Promise.all([
+      supabase.rpc('my_booking_nets', { p_bookings: ids }),
+      supabase.rpc('my_run_net_coeffs', { p_bookings: ids }),
+    ]);
+    if (nets.error) console.warn('[jobs] nets:', nets.error.message);
+    (nets.data ?? []).forEach((l: any) => { netByBooking[l.booking_id] = l.net; });
+    if (coeffs.error) throw coeffs.error;
+    (coeffs.data ?? []).forEach((c: any) => { expectedByBooking[c.booking_id] = c.expected_net; });
   }
 
   return (data ?? []).map((r: any) => {
@@ -1422,8 +1347,8 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       scheduledAt: r.scheduled_at ?? null,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
-      // 완료 = 원장 실수령, 그 외 = 실수수료 견적 (일괄 33%, 0059)
-      payout: netByBooking[r.id] ?? estimatedPayout(r, rate),
+      // 완료 = 원장 실수령, 그 외 = 서버 expected_net (레이트는 서버만 안다 — 0121)
+      payout: netByBooking[r.id] ?? expectedByBooking[r.id] ?? jobsCoeffMissing(r.id),
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
       routeId: r.route_id ?? null,
@@ -1442,7 +1367,6 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 // 랭킹하지 않는다: runner/home 의 current 선택이 유일한 결정자로 남고, 이 함수는 그 행이 목록에
 // 있게만 한다. 24시간 전부터, 가까운 순, 10건 — fetchInFlightOwnerBookings 와 같은 경계.
 export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
-  const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
@@ -1456,6 +1380,13 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
     .limit(10);
   // 정직 배치: 실패가 '진행 중 없음'으로 위장하면 러너 홈이 개를 데리고 있는데 비었다고 말한다.
   if (error) throw error;
+  const ifIds = (data ?? []).map((r: any) => r.id);
+  const ifExpected: Record<string, number> = {};
+  if (ifIds.length > 0) {
+    const coeffs = await supabase.rpc('my_run_net_coeffs', { p_bookings: ifIds });
+    if (coeffs.error) throw coeffs.error;   // 정직 배치: 실패가 0원 견적으로 위장하지 않는다
+    (coeffs.data ?? []).forEach((c: any) => { ifExpected[c.booking_id] = c.expected_net; });
+  }
   return (data ?? []).map((r: any) => {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
@@ -1464,7 +1395,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
       scheduledAt: r.scheduled_at ?? null,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
-      payout: estimatedPayout(r, rate), // 진행 중은 정의상 completed 가 아니므로 원장 조회 불필요
+      payout: ifExpected[r.id] ?? jobsCoeffMissing(r.id), // 서버 expected_net (0121)
       status: r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
       routeId: r.route_id ?? null,
@@ -1911,24 +1842,25 @@ export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
 // Here "no row" is itself the answer, so the whole record is null — 'not registered' must never
 // be rendered as 'a certified runner with 0 runs'. (Both are honest now: the 'certified'
 // fallback in fetchMyRunnerStatus was removed with the 0062 funnel slice.)
-// 반환 필드는 전부 서버가 쓰는 실컬럼: tier(스토어프런트·오픈풀 게이트), total_runs/total_km(정산이 증가),
-// commission_rate(settle-run이 그대로 읽는 정산 수수료율).
+// 반환 필드는 전부 서버가 쓰는 실컬럼: tier(스토어프런트·오픈풀 게이트), total_runs/total_km(정산이 증가).
+// commission_rate는 0121에서 봉인 — 서버만 읽는다.
 // funnel_step·identity_verified·education_modules_done은 의도적으로 뺐다 — 지금 값의 출처가
 // ensureRunner()의 루프 테스트 부트스트랩(certified/true)이라, 그리면 없는 심사를 통과한 것처럼 보인다.
-export interface MyRunnerCert { tier: string; totalRuns: number; totalKm: number; commissionRate: number }
+export interface MyRunnerCert { tier: string; totalRuns: number; totalKm: number }
 
 export async function fetchMyRunnerCert(): Promise<MyRunnerCert | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
+  // [0121] commission_rate is column-sealed — naming it here would 403 the whole request (0088),
+  // and the field had zero render consumers anyway.
   const { data, error } = await supabase.from('runners')
-    .select('tier, total_runs, total_km, commission_rate').eq('profile_id', user.user.id).maybeSingle();
+    .select('tier, total_runs, total_km').eq('profile_id', user.user.id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return {
     tier: String(data.tier),
     totalRuns: data.total_runs ?? 0,
     totalKm: Number(data.total_km ?? 0),
-    commissionRate: Number(data.commission_rate ?? 0.33),
   };
 }
 
@@ -2639,48 +2571,14 @@ export async function fetchMyName(): Promise<string | null> {
 export interface RunnerWeekStats { net: number; runs: number | null; km: number | null }
 
 export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
-  const since = new Date(kstWeekStartMs()).toISOString(); // KST 월요일 시작 — 리더보드와 동일 창
-  const { data, error } = await supabase
-    .from('ledger_items')
-    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, booking_id')
-    .gte('created_at', since);
+  // [0121] one definer RPC (my_week_stats): KST-Monday window, comp rows in net but not in the
+  // run count, actual-km sum — the exact semantics the two-query client version computed, now
+  // pinned server-side (suite 156 P3). ledger_items is table-sealed; a direct read would 403.
+  const { data, error } = await supabase.rpc('my_week_stats');
   if (error) throw error;
-  const rows = data ?? [];
-  const net = rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
-  // runs = ledger rows that have an actual runs row. En-route cancel compensation (0080
-  // record_enroute_cancel_comp) writes a ledger row for a run that never happened — its money
-  // belongs in net, but counting it as a run would show "N runs" including a 0km phantom.
-  const ids = rows.map((l: any) => l.booking_id);
-  // No ledger rows at all is a MEASURED zero week, not an unknown — return real zeros.
-  if (ids.length === 0) return { net, runs: 0, km: 0 };
-
-  const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
-  // ⚠ The error is read, not discarded. Without this the catch-all below seeded km at 0 and left
-  // runCount unfiltered, so a failed lookup printed a real run count beside a fabricated 0km.
-  // Both values depend on this read, so both go unknown together; `net` is unaffected because it
-  // came from the ledger rows we already have.
-  if (runsErr || !runsD) {
-    console.warn('[weekStats] runs lookup:', runsErr?.message ?? 'no rows returned');
-    return { net, runs: null, km: null };
-  }
-  const km = runsD.reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
-  const ran = new Set(runsD.map((r: any) => r.booking_id));
-  const runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
-  return { net, runs: runCount, km: Math.round(km * 10) / 10 };
-}
-
-// 이번 달 실수령 — 주간(fetchRunnerWeekStats)과 동일한 net 식, 창만 KST 월 1일 00:00.
-// 월 단위라 행수 유계(파일럿 ≤수십) — 2000행 캡 리스크는 누적(=my_ledger_total RPC)에만 해당;
-// 월이 캡에 접근하면 invoker RPC로 승격 (핸드오프 §9 스케치).
-export async function fetchLedgerMonth(): Promise<number> {
-  const since = new Date(kstMonthStartMs()).toISOString();
-  const { data, error } = await supabase
-    .from('ledger_items')
-    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
-    .gte('created_at', since);
-  if (error) throw error;
-  const rows = data ?? [];
-  return rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('[weekStats] empty rpc result');
+  return { net: Number(row.week_net), runs: row.week_runs ?? null, km: row.week_km == null ? null : Number(row.week_km) };
 }
 
 // 정산 예정 누적 — 서버 집계 RPC (0027). 2000행 클라 합산 상한 은퇴 (초과 시 잔액이 조용히 줄던 거짓)
@@ -2703,56 +2601,26 @@ export interface LiveLedgerItem {
    *  ledger row with no run). A FAILED lookup leaves this false with km null — unknown is not
    *  "cancelled", and a mislabel would tell a runner their completed run was a cancellation. */
   cancelComp: boolean;
-  base: number;
-  distancePay: number;
-  addonPay: number;
-  tip: number;
-  guarantee: number;
-  fee: number;
+  /** [0121] the ONLY money field. The six components never leave the server — beside a net they
+   *  hand back the fee by subtraction (earnings.tsx's own margin-secrecy derivation). */
   net: number;
 }
 
 export async function fetchLedger(): Promise<LiveLedgerItem[]> {
-  const { data, error } = await supabase
-    .from('ledger_items')
-    .select('id, booking_id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
-    .order('created_at', { ascending: false })
-    .limit(30);
+  // [0121] my_ledger_rows: net + cancel_comp + km computed server-side. The runs-lookup 2-step
+  // and its unknown-state dance retired — the server's LEFT JOIN always answers, so
+  // cancel_comp true ⇔ no run exists, km NULL exactly then (the 「뛰지 않은 5km」 fix, kept).
+  const { data, error } = await supabase.rpc('my_ledger_rows');
   if (error) throw error;
-  const rows = (data ?? []) as any[];
-  // Same 2-step as fetchRunnerWeekStats above, for the same reason and one row lower: a ledger
-  // row does NOT imply a run. record_enroute_cancel_comp (0080) and record_late_cancel_share
-  // (0085) pay cancellation compensation and write NO `runs` row, but `bookings.km` still holds
-  // the PLANNED distance — so the line rendered 「초코 · 5km · 실수령 12,450원」, the runner's own
-  // ledger telling them they ran 5 km on a run that never started. The km belongs to the run,
-  // so it may only be printed when a run exists. (Production 2026-08-20: 0 such rows today —
-  // 8 ledger rows, all with a run. This is armed before it bleeds.)
-  const ids = rows.map((l) => l.booking_id); // ledger_items.booking_id is NOT NULL (0027)
-  let ran: Set<string> | null = null;
-  if (ids.length > 0) {
-    const { data: runsD, error: runsErr } = await supabase.from('runs').select('booking_id').in('booking_id', ids);
-    // A failed lookup is UNKNOWN, not "no run": leaving `ran` null omits the km token without
-    // claiming a cancellation. The money on the row is already loaded and stays visible.
-    if (runsErr) console.warn('[ledger] runs lookup:', runsErr.message ?? runsErr);
-    else ran = new Set((runsD ?? []).map((r: any) => r.booking_id));
-  }
-  return rows.map((l: any) => {
+  return ((data ?? []) as any[]).map((l) => {
     const { dateLabel } = kstParts(l.created_at);
-    const net = l.base + l.distance_pay + l.addon_pay + l.tip + l.remaining_guarantee - l.platform_fee;
-    const hasRun = ran ? ran.has(l.booking_id) : null;
     return {
       id: l.id,
       when: dateLabel,
-      dogName: l.bookings?.dogs?.name ?? '반려견',
-      km: hasRun === true ? Number(l.bookings?.km ?? 0) : null,
-      cancelComp: hasRun === false,
-      base: l.base,
-      distancePay: l.distance_pay,
-      addonPay: l.addon_pay,
-      tip: l.tip,
-      guarantee: l.remaining_guarantee,
-      fee: l.platform_fee,
-      net,
+      dogName: l.dog_name ?? '반려견',
+      km: l.km == null ? null : Number(l.km),
+      cancelComp: !!l.cancel_comp,
+      net: Number(l.net),
     };
   });
 }
@@ -3257,25 +3125,6 @@ export async function setAddressPin(id: string, lat: number, lng: number): Promi
   const { error } = await supabase.from('addresses')
     .update({ lat, lng }).eq('id', id);
   if (error) throw error;
-  // [0122] 핀이 바뀌면 동도 바뀐다 — 그래서 갱신은 **핀 저장 자체에** 붙는다. 화면(address-pin.tsx)이
-  // 아니라 여기인 이유: 두 번째 호출자가 생기는 순간 화면에 붙인 갱신은 잊히고, 그러면 좌표와 동이
-  // 조용히 어긋난다 (러너 카드에 옛 동이 남는다). 좌표 저장의 사후조건으로 두면 잊을 수가 없다.
-  // 🔴 fire-and-forget: 동 갱신 실패가 핀 저장을 실패로 만들면 안 된다. 저장은 이미 성공했고,
-  // 동은 있으면 좋은 부가 정보다 (없으면 카드가 토큰을 그리지 않을 뿐 — 자리표시자 없음).
-  void refreshAddressDong(id);
-}
-
-// [0122] 역지오코딩 트리거. 좌표도, 동 문자열도 클라가 보내지 않는다 — address_id 하나만 보내고
-// 서버(service_role)가 그 행의 자기 좌표를 읽어 NCP에 물어보고 자기가 쓴다. 그래서 이 함수는
-// 반환값을 쓰지 않는다: 화면에 그릴 값이 아니라 **서버 상태를 갱신해 달라는 요청**이다.
-// 실패는 전부 경고 한 줄로 끝난다 (조용한 삼킴이 아니라 '실패했지만 이 화면의 약속은 아니다').
-export async function refreshAddressDong(addressId: string): Promise<void> {
-  try {
-    const { error } = await supabase.functions.invoke('geocode-address', { body: { address_id: addressId } });
-    if (error) console.warn('[addr-dong] refresh failed:', error.message ?? error);
-  } catch (e) {
-    console.warn('[addr-dong] refresh threw:', (e as Error)?.message ?? e);
-  }
 }
 
 // Owner-side pickup coords for the meetup plate — two owner-RLS selects
@@ -3894,15 +3743,22 @@ export const incidentEvidenceAdd = (incidentId: string, kind: 'photo' | 'text' |
 // 클라가 금액을 만들지 않는다). 호출자는 세 결말 중 하나만 고른다.
 export type SettleOutcome = 'refund_full' | 'settle_measured' | 'pay_full';
 export interface SettleQuote {
-  refund: number; runnerGross: number; runnerFee: number; runnerNet: number;
+  /** [0121 §H, fix round F1] ROLE projections: refund answers the owner (and authorities),
+   *  runnerNet answers the runner (and authorities), gross/fee answer authorities only —
+   *  no single non-authority role holds both refund and net, so the two-outcome fee
+   *  composition is dead. NULL = not your number; the screen omits that piece. */
+  refund: number | null;
+  runnerGross: number | null; runnerFee: number | null; runnerNet: number | null;
   measuredKm: number; tookCustody: boolean; basis: string;
 }
 export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutcome): Promise<SettleQuote> => {
   const raw = await clubRpc('club_incident_settle_quote', { p_booking: bookingId, p_outcome: outcome }) as any;
   const r = Array.isArray(raw) ? raw[0] : raw;
   return {
-    refund: Number(r?.refund ?? 0), runnerGross: Number(r?.runner_gross ?? 0),
-    runnerFee: Number(r?.runner_fee ?? 0), runnerNet: Number(r?.runner_net ?? 0),
+    refund: r?.refund == null ? null : Number(r.refund),
+    runnerGross: r?.runner_gross == null ? null : Number(r.runner_gross),
+    runnerFee: r?.runner_fee == null ? null : Number(r.runner_fee),
+    runnerNet: r?.runner_net == null ? null : Number(r.runner_net),
     measuredKm: Number(r?.measured_km ?? 0), tookCustody: !!r?.took_custody,
     basis: String(r?.basis ?? ''),
   };
@@ -3910,7 +3766,7 @@ export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutc
 export const incidentSettle = (incidentId: string, bookingId: string, outcome: SettleOutcome, note: string | null = null) =>
   clubRpc('club_incident_settle', {
     p_incident: incidentId, p_booking: bookingId, p_outcome: outcome, p_note: note,
-  }) as Promise<{ refund: number; runnerGross: number; runnerNet: number; rule: string }>;
+  }) as Promise<{ refund: number; runnerNet: number; rule: string }>;  // [0121 §H ③] gross left the return
 
 // 클럽 러닝 종료용 — runs는 당사자 읽기 가능 (0002). 경과 시간은 실측으로 계산한다 (가짜 숫자 금지)
 export async function fetchRunStartedAt(bookingId: string): Promise<string | null> {
