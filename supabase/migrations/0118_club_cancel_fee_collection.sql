@@ -810,6 +810,16 @@ begin
   -- R2A: NULLing the split must not silently resurrect 50/50 out of this line.
   v_plat := round(v_fee * club_cfg_required('fee_platform_split_pct') / 100.0)::int;
   v_share := v_fee - v_plat;
+  -- (Sean's ruling B, 2026-08-25, one word: "B for the fee") When NO runner ever accepted, no
+  -- slot was held and the supply half compensates nobody — so it is NOT CHARGED. The owner pays
+  -- the platform half only, and the second fee item is never written. This retires the
+  -- 'unassigned_supply_retained' label after one day of life: the honest label for money that
+  -- compensates nothing turned out to be not collecting it.
+  if p_runner is null then
+    v_fee := v_plat;
+    v_share := 0;
+    if coalesce(v_fee, 0) <= 0 then return; end if;
+  end if;
 
   -- Capture timestamp + cutover while holding the ops_flags row lock, BEFORE a possibly long
   -- `comp:` wait. Core never rereads the flag: the event's own snapshot is the permanent answer.
@@ -852,14 +862,19 @@ begin
   values
     (p_session, p_sd, p_booking, p_kind, v_plat, 'platform', null,
      jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule,
-                        'share', 'platform', 'eventAt', v_event_at)),
-    (p_session, p_sd, p_booking, p_kind, v_share,
-     case when p_runner is not null then 'runner' else 'platform' end, p_runner,
-     jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule,
-                        'share', case
-                          when p_runner is not null then 'supply_compensation'
-                          else 'unassigned_supply_retained'
-                        end, 'eventAt', v_event_at));
+                        'share', 'platform', 'eventAt', v_event_at));
+  -- Product ruling, 2026-08-24: supply compensation is SLOT-BASED. A committed runner receives
+  -- this half even when both parties no-show (deliberate; closes that finding); the accepted
+  -- narrow exposure — farming the absence/no-show intersection — stays visible in data. With no
+  -- runner there is NO second row at all (ruling B above): nothing was held, nothing is charged.
+  if p_runner is not null and v_share > 0 then
+    insert into club_fee_items (session_id, session_dog_id, booking_id, kind, amount_krw,
+                                recipient_type, recipient_profile_id, basis)
+    values
+      (p_session, p_sd, p_booking, p_kind, v_share, 'runner', p_runner,
+       jsonb_build_object('pct', p_pct, 'base', p_base, 'rule', p_rule,
+                          'share', 'supply_compensation', 'eventAt', v_event_at));
+  end if;
 
   -- Sean 2026-08-21, §0-quinvicies, verbatim: "Join the pool — accrue it". The runner share
   -- enters the same ledger/my_ledger_total pool as the eight existing earning writers even while

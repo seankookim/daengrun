@@ -273,7 +273,8 @@
 -- all, which is exactly how a recipient and amount could be right while this label lied.
 -- PREDICTED pass count: **746 / 0** (745 + P15). PREDICTED red sets:
 --   `supabase/migrations/0118_club_cancel_fee_collection.sql:861`, change the no-runner ELSE
---       `unassigned_supply_retained` → `supply_compensation` ........ P15 arm ① alone
+--       (SUPERSEDED by ruling B 2026-08-25: the no-runner supply row no longer exists;
+--        the arm-① mutation is now 'restore full-fee charging for no-runner' → P1+P15)
 --   `supabase/migrations/0118_club_cancel_fee_collection.sql:860`, change the with-runner THEN
 --       `supply_compensation` → `unassigned_supply_retained` ........ P15 arm ② alone
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -439,14 +440,17 @@ begin
     select my_ledger_total() into v_total;
     if v_total <> v_share then v_bad := v_bad || ' 정산 예정 합계=' || v_total || ', 기대=' || v_share; end if;
 
-    select round(total_price * club_cfg('cancel_late_pct') / 100.0)::int into v_fee
+    -- (ruling B, 2026-08-25) unaccepted cancel charges the PLATFORM HALF only — same nested
+    -- rounding as _club_record_fee: round(fee) then round(fee * split%).
+    select round(round(total_price * club_cfg('cancel_late_pct') / 100.0)
+                 * club_cfg('fee_platform_split_pct') / 100.0)::int into v_fee
     from bookings where id=b_late;
     if (select cancel_fee from bookings where id=b_late) <> v_fee
        or (select count(*) from payments where booking_id=b_late and amount=v_fee) <> 1
-       or (select count(*) from club_fee_items where booking_id=b_late) <> 2
+       or (select count(*) from club_fee_items where booking_id=b_late) <> 1
        or (select coalesce(sum(amount_krw),0) from club_fee_items where booking_id=b_late) <> v_fee
        or exists (select 1 from ledger_items where booking_id=b_late)
-      then v_bad := v_bad || ' 미수락 10%/무러너 목적지 불일치'; end if;
+      then v_bad := v_bad || ' 미수락 반액(플랫폼 몫만)/무러너 목적지 불일치'; end if;
     if coalesce((select cancel_fee from bookings where id=b_free),0) <> 0
        or (select club_fee_event_at from bookings where id=b_free) is not null
        or exists (select 1 from payments where booking_id=b_free)
@@ -1682,14 +1686,17 @@ begin
   -- missing row, NULL basis, an arbitrary replacement label, a revert, or an over-broad rename.
   begin
     v_bad := '';
-    -- ① No runner: the retained half has the new exact label and never the held-slot label.
-    if (select count(*) from club_fee_items
-        where booking_id=b_late and recipient_type='platform'
-          and recipient_profile_id is null
-          and basis->>'share'='unassigned_supply_retained') <> 1
+    -- ① No runner (ruling B, 2026-08-25): there is NO second row AT ALL — the supply half is
+    --    not charged when no slot was held. The one row is the platform's own, labeled as such.
+    --    ('unassigned_supply_retained' lived one day, 08-24→08-25, retired by the ruling.)
+    if (select count(*) from club_fee_items where booking_id=b_late) <> 1
+       or (select count(*) from club_fee_items
+           where booking_id=b_late and recipient_type='platform'
+             and recipient_profile_id is null and basis->>'share'='platform') <> 1
        or exists (select 1 from club_fee_items
-                  where booking_id=b_late and basis->>'share'='supply_compensation')
-      then v_bad:=v_bad||' 러너 없는 몫의 basis.share가 미배정 공급 보유분을 정확히 말하지 않는다'; end if;
+                  where booking_id=b_late
+                    and basis->>'share' in ('supply_compensation','unassigned_supply_retained'))
+      then v_bad:=v_bad||' 러너 없는 취소에 공급 몫 행이 존재한다 (B 룰링 위반)'; end if;
 
     -- ② Committed runner: the held-slot half remains supply compensation.
     if (select count(*) from club_fee_items
@@ -1697,7 +1704,7 @@ begin
           and basis->>'share'='supply_compensation') <> 1
       then v_bad:=v_bad||' 슬롯을 맡은 러너 몫의 basis.share가 공급 보상을 유지하지 않는다'; end if;
 
-    if v_bad='' then call _pass('ccf','P15 슬롯 기준 공급 보상 표기 — basis.share는 러너 슬롯이 있으면 supply_compensation이고 슬롯이 없으면 unassigned_supply_retained이며, 미배정 몫을 공급 보상으로 거짓 표기하지 않는다');
+    if v_bad='' then call _pass('ccf','P15 슬롯 기준 공급 보상 표기 — 러너 슬롯이 있으면 supply_compensation 행이 있고, 러너가 없으면 공급 몫 행 자체가 없다(반액만 청구, ruling B 2026-08-25)');
     else v_msg:=v_bad; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg); end if;
   exception when others then
     v_msg:=sqlerrm; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg);
