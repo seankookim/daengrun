@@ -122,3 +122,48 @@ reading: the 맹견 gate (0119) is mechanism-independent (refusal is at custody,
 0118's fee ladder anchors on bookings+config, not on the matching mechanism. The run-end flow he
 describes is CLOSE to the existing custody chain but adds host-final-confirmation. The spec maps
 each built pin that the restructure would move — before anyone edits a migration.
+
+---
+
+## 2026-08-25 morning — Sean's follow-up, verbatim
+
+> for club 1, i wasnt talking about another stranger in the pickup process; rather i was
+> suggesting that the runner should pick them up and carry the responsibility from the getgo. ceo
+> what do you think? if okay, what screens and extra functionailites are necessary? for club 2,
+> let's first think about the scope of the algorithm. the first thought that crosses my mind is
+> that it should be a function of proximity between runner (runner home address) and owner
+> (home/starting point address), then runner's preference of distance, then owner's preference of
+> distance, then that of pacing, then the other handful of preferences, which i think isnt that
+> hard to build. i dont understand the fee thing, speak like to a kid. not sure what 4.2 is;
+> explain. for custody, with the new club structure in place, the customer or the app chooses the
+> to be paired runner for them instead of the host, so if the ceo and codex agrees on that new
+> structure, please update the host side screen and delineate all necessary features per side and
+> per state in the flow of a full club session. i dont get alloc, what's the question? i dont
+> understand the cancel fee mirror as well. for the standing items, dont use 댕런, go with the new
+> 도그스하이, and delete the rescue; cant we always just return back to a previous commit version?
+> also session handoff and update announcer skill if necessary
+
+[end of his words]
+
+### Rulings extracted (announcer, same morning)
+
+1. **Club #1 CLARIFIED**: home pickup was never "another stranger" — the PAIRED runner picks up
+   and carries responsibility from the getgo. Single custodian, door to door. Conditional
+   greenlight pending the CEO answer he asked for (given in-session: OK with riders).
+2. **Club #2 Mode C**: design the ALGORITHM — deterministic ranking he sketched (proximity →
+   runner distance pref → owner distance pref → pace → other prefs). Overrides the
+   manual-concierge recommendation; his call, recorded.
+3. **The restructure is conditionally GREENLIT** ("if the ceo and codex agrees on that new
+   structure") — CEO+codex had already converged on owner/app-picks; his clarification resolves
+   the home-pickup challenge as intentional. Follow-up ordered: host screen respec + full
+   per-side/per-state delineation of a complete club session.
+4. **orderName / brand**: 댕런 is OUT of user-facing charge copy — 도그스하이 in
+   (「도그스하이 러닝 이용료」 · 「도그스하이 예약 취소 수수료」). Also retires the banned 산책 in
+   the same strings.
+5. **The rescue backup: DELETE** — executed same turn (157MB, previously verified twice to
+   contain nothing not already on origin).
+6. **Session handoff ordered** + announcer skill updated if warranted.
+
+Still explicitly open after this message (he asked for explanations, not yet ruled): the
+5%-vs-10% unaccepted-cancel fee · §4.2's two statement-driven money arms · the alloc item
+(dissolved — announcer takes R17's remainder, no question remains).
