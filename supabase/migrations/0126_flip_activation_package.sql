@@ -142,6 +142,6 @@ do $$ begin
   perform cron.unschedule('late-booking-sweep');
   perform cron.schedule('late-booking-sweep', '3-53/10 * * * *',
                         'set statement_timeout = ''5s''; select late_booking_sweep();');
-exception when undefined_schema or undefined_function or undefined_table then
+exception when invalid_schema_name or undefined_function or undefined_table then
   raise notice 'pg_cron unavailable — 서비스 키 스케줄러가 같은 두 문장을 실행해야 합니다';
 end $$;
