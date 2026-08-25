@@ -3,667 +3,239 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Host Console Respec — Club v2 Lab</title>
+<title>Host Console Remake — Club v2 Lab</title>
 <style>
 /* ═════════════════════════════════════════════════════════════════════════════
-   CLUB v2 CONSOLE LAB — host console respec (spec v2 §10.2)
-   Subject file today: app/app/club/console/[sid].tsx (693 lines).
+   CLUB v2 CONSOLE — REMAKE (Sean's critique, verbatim: "too many words,
+   information density not followed, and also not true to the paper style …
+   remember elon's quote on deleting and rebuilding.")
 
-   Sean's ruled bar (verbatim, 14.10 comment): "make sure all the host ui and
-   screens include all steps of the flow, think of each possible step and
-   scenario." Every variant below therefore enumerates ALL of: admission queue ·
-   safety re-review · the pairs timeline (watch, not choose) · the 재배정
-   recovery strip (final-window only, labeled as recovery) · the run-end
-   confirmation with its EVIDENCE VIEW (money shown before the tap) and the
-   6-hour auto-confirm honesty line · cases · emergency tools · session cancel.
-   The host LOSES the runner-chip propose grid as the primary flow.
+   Deleted: evidence tables, phase tabs, gate checklists, money previews,
+   explainer lines, section intros, three variants. Rebuilt as ONE design at
+   three moments: a paper log the host holds. One attention card = the single
+   next action. Below it, a printed roster the host can ignore — every pairing
+   has its row (dog — runner · state word), so completeness lives in the print,
+   not in words. The only sentence-shaped survivor is the money line on the
+   armed finish button (money moved blind is dishonest).
 
-   FORMAT LAW (inherited from enh-club-lab.html):
-   ZERO NEW HEXES — every colour inside a phone frame is copied out of
-   app/src/theme.ts (paper · lilac · collarColors) or src/components/club-ui.tsx.
-   Lab chrome (--page/--panel/--hair) is page furniture, never inside a frame.
-   Frames are 390px wide so 1px = 1pt: the 14pt Korean detail floor is literal.
-   Sub-14 inside a frame: Latin letterspaced kickers and glyphs only.
-   In-frame copy is KOREAN; captions and lab prose are English.
+   FORMAT LAW: zero new hexes — every in-frame colour is theme.ts (paper ·
+   lilac · collarColors) or club/delegate's document consts. 390px frames so
+   1px = 1pt; 14pt Korean floor (sub-14 = Latin letterspaced kickers only);
+   Black Han Sans once per frame (운영 일지); Oswald numerals lh ≥1.2.
+   Fixture unchanged from spec v2 §10.2: fare 12,900/pairing · 두부 no-show
+   fee 2,580 (20%) + 10,320 refund · 콩이 unpaired full 12,900 refund ·
+   auto-confirm 16:19 (last finish 10:19 + 6h).
    ═════════════════════════════════════════════════════════════════════════ */
 :root{
   /* paper world — theme.ts `paper` */
-  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
-  --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
-  --line:#E8552F; --wash:#FFF6F4;
-  --critical:#B3261E; --criticalWash:#FBEAE7;
-  --disabled:#F2F2F2; --pending:#C77414;
-  --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315;
-  --ready:#119B58; --readyDeep:#0E7F49;
-  /* lilac world — theme.ts `lilac` (club component kit) */
-  --lbg:#F4F2FB; --lcard:#FFFFFF; --linset:#EFECF9; --lhair:#E6E2F4; --lhair2:#EDEAF8;
-  --lhead:#221E3D; --ltext:#4B4668; --ldim:#7C76A0;
-  --accent:#6C5CE7; --accentDeep:#7867EC;
-  --lcoral:#F0765A; --lcoralDeep:#E45F41; --lcoralSoft:#FFDCD1;
-  --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
-  --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
-  --tang:#E8552F;
-  --gold:#B99A4F; --goldSoft:#F4EBD3;
+  --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+  --action:#C6472C; --actionInk:#A83315; --wash:#FFF6F4; --line:#E8552F;
+  --critical:#B3261E; --criticalWash:#FBEAE7; --disabled:#F2F2F2;
+  /* lilac world — theme.ts `lilac` (state-word inks) */
+  --amber:#C77414; --amberSoft:#FBEED9; --voltDeep:#5E7F0E; --voltFill:#EAF6C8;
+  --coralDeep:#E45F41; --lhead:#221E3D; --ldim:#7C76A0;
+  /* consent-document world — club/delegate screen consts */
+  --docInk:#26231b; --docLine:#E4DFD1; --docDim:#8a8272; --docChip:#FBF9F3; --docEdge:#E2DDD0; --docFrame:#d9d3c2;
   /* collar palette — theme.ts collarColors */
-  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9;
-  --collarTeal:#3EC6A8; --collarMoss:#8AA84E; --collarGold:#E0B457;
-  /* club-ui.tsx component values (existing, not new) */
-  --nl:#EEEEEE;
+  --cTang:#FF8A5C; --cSky:#5BB8D4; --cRose:#E58BA9; --cTeal:#3EC6A8; --cMoss:#8AA84E; --cGold:#E0B457;
   /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6;
+  --page:#F3F2EF; --hair:#DEDCD6;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{
-  background:var(--page); color:var(--ink);
+body{background:var(--page);color:var(--ink);
   font:15px/1.6 'IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
-  -webkit-font-smoothing:antialiased; padding:34px 20px 90px;
-}
-.wrap{max-width:1760px;margin:0 auto}
+  -webkit-font-smoothing:antialiased;padding:34px 20px 90px}
+.wrap{max-width:1300px;margin:0 auto}
 
-/* ── page header ── */
-header.top{border-bottom:2.5px solid var(--ink);padding-bottom:15px}
-h1{font-size:29px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
-.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:9px 0 12px}
-.lede{font-size:15px;color:var(--dim);line-height:1.8;max-width:1040px}
-.lede b{color:var(--ink);font-weight:700}
-.note{background:var(--panel);border:1px solid var(--hair);padding:14px 17px;margin:18px 0 0;font-size:13.5px;line-height:1.68}
-.note h4{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
-.note b{color:var(--ink)}
-code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--page);padding:1px 5px}
-table.mx{border-collapse:collapse;width:100%;font-size:13px;margin-top:11px}
-table.mx th,table.mx td{border:1px solid var(--hair);padding:7px 9px;text-align:left;vertical-align:top}
-table.mx th{background:var(--page);font-weight:800;font-size:12px;letter-spacing:.03em}
-
-/* ── variant section ── */
-h2.band{margin:60px 0 6px;padding-top:22px;border-top:1px solid var(--line);font-size:21px;font-weight:800;letter-spacing:-.01em}
-h2.band .sig{display:inline-block;background:var(--ink);color:#fff;font-size:14px;font-weight:800;
-  padding:2px 10px;margin-right:11px;vertical-align:2px;letter-spacing:.06em}
-.sub{font-size:14.5px;color:var(--dim);line-height:1.78;max-width:1080px;margin-top:8px}
-.sub b{color:var(--ink)}
+/* ── 2-line header ── */
+h1{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.02em;border-bottom:2.5px solid var(--ink);padding-bottom:13px}
+.law{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:9px}
 
 /* ── frame rail ── */
-.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.rail{display:flex;gap:26px;flex-wrap:wrap;margin-top:30px;align-items:flex-start}
 .col{width:390px}
-.cap{display:flex;align-items:baseline;gap:11px;font-size:16px;font-weight:800;margin-bottom:6px;line-height:1.3}
-.badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:34px;
-  background:var(--action);color:#fff;font-size:17px;font-weight:800;padding:0 9px}
-.why{font-size:13.5px;color:var(--dim);line-height:1.72;margin:0 0 12px;min-height:96px}
-.why b{color:var(--ink)}
-.binds{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.62;color:var(--dim);
-  background:var(--panel);border:1px solid var(--hair);padding:8px 11px;margin-top:8px}
+.cap{display:flex;align-items:baseline;gap:10px;font-size:14.5px;font-weight:700;color:var(--dim);margin-bottom:10px;line-height:1.4}
+.cap .badge{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:30px;
+  background:var(--ink);color:#fff;font-size:16px;font-weight:800;padding:0 8px}
+.cap b{color:var(--ink)}
 
 /* ── phone frame ── */
-.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
-  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;position:relative;display:flex;flex-direction:column}
-.phone.h820{height:820px}.phone.h880{height:880px}
+.phone{width:390px;height:760px;background:var(--canvas);border:1px solid var(--hair);
+  box-shadow:0 16px 40px rgba(0,0,0,.10);overflow:hidden;display:flex;flex-direction:column}
 .stbar{flex:0 0 24px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
   font-size:11px;color:var(--faint);font-weight:600}
-.scr{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
-.pad12{padding-left:12px;padding-right:12px}
-.row{display:flex;align-items:center}
-.between{justify-content:space-between}
-.grow{flex:1;min-width:0}
-.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}
-.mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}
-
-/* app type — 14pt floor literal */
-.t14{font-size:14px;line-height:19px}
-.t15{font-size:15px;line-height:20px}
-.t16{font-size:16px;line-height:21px}
-.t165{font-size:16.5px;line-height:22px}
-.t17{font-size:17px;line-height:23px}
-.t20{font-size:20px;line-height:26px}
-.b7{font-weight:700}.b8{font-weight:800}.b9{font-weight:900}
-.dim{color:var(--dim)}
-.ldim{color:var(--ldim)}.ltext{color:var(--ltext)}.lhead{color:var(--lhead)}
-.acc{color:var(--accent)}.crit{color:var(--critical)}.amberink{color:var(--amber)}
-.voltink{color:var(--voltDeep)}.tangink{color:var(--tang)}
-.kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--ldim);text-transform:uppercase}
-.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
-
-/* club components — mirrored from src/components/club-ui.tsx */
-.mast{display:flex;align-items:center;gap:9px;padding:12px 15px;border-bottom:1px solid var(--line);background:var(--canvas)}
+.mast{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line)}
+.mast .bk{font-size:21px;color:var(--lhead)}
 .mono{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
   font-size:10px;font-weight:800;color:var(--lhead);
   background:linear-gradient(135deg,#CFC4FF 0%,#FFD9CB 30%,#CDEBDD 55%,#CFE0FF 80%,#E8D5FF 100%)}
-.bignum{display:flex;border:1px solid var(--nl);margin-top:11px;background:var(--canvas)}
-.bignum > div{flex:1;padding:9px 6px;border-right:1px solid var(--lhair)}
-.bignum > div:last-child{border-right:0}
-.bignum .v{font-size:21px;line-height:27px}
-.bignum .l{font-size:14px;line-height:18px;font-weight:700;letter-spacing:.5px;color:var(--ldim);
-  margin-top:4px;padding-top:3px;border-top:1px solid var(--lhair)}
-.sechead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;border-bottom:1px solid var(--lhair2)}
-.secN{background:var(--accent);color:#fff;border-radius:6px;padding:1px 8px;font-size:14px;font-weight:700}
-.drow{background:var(--lcard);border:1px solid var(--lhair);border-radius:8px;padding:11px;margin-top:8px}
-.tag{display:inline-flex;align-items:center;padding:4px 8px;font-size:14px;line-height:18px;font-weight:800;letter-spacing:.3px;border-radius:5px}
-.tag.volt{background:var(--voltFill);color:var(--voltDeep)}
-.tag.amber{background:var(--amberSoft);color:var(--amber)}
-.tag.coral{background:var(--lcoralSoft);color:#C24A2E}
-.tag.critw{background:var(--criticalWash);color:var(--critical)}
-.tag.dimt{background:var(--linset);color:var(--ldim)}
-.abtn{flex-grow:1;text-align:center;padding:9px 10px;border-radius:8px;background:var(--voltFill);
-  font-size:14px;line-height:19px;font-weight:800;color:var(--voltDeep)}
-.abtn.ghost{background:var(--linset);color:var(--ldim)}
-.abtn.warn{background:var(--amberSoft);color:var(--amber)}
-.abtn.off{background:var(--linset);color:var(--ldim);flex-grow:0}
-.cta{display:block;width:100%;text-align:center;padding:15px 12px;margin-top:12px;background:var(--action);
-  color:#fff;font-size:17px;font-weight:800;letter-spacing:.3px;box-shadow:0 6px 14px rgba(198,71,44,.30);border-radius:8px}
-.cta.off{background:var(--linset);color:var(--ldim);box-shadow:none}
-.cta.dest{background:var(--canvas);border:1px solid var(--critical);color:var(--critical);font-size:16px;box-shadow:none}
-.dogdot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:#C9B89A;border:2px solid var(--collarTang);
+.mT{font-size:16.5px;line-height:22px;font-weight:800;color:var(--lhead)}
+.mS{font-size:14px;line-height:19px;font-weight:700;color:var(--ldim)}
+
+/* ── the paper (document grammar: radius 2 · inner frame · ink rules) ── */
+.paperwrap{flex:1;padding:12px 12px 0;background:var(--canvas)}
+.doc{position:relative;background:#fff;border:1px solid var(--docEdge);border-radius:2px;padding:13px;
+  box-shadow:0 8px 18px rgba(28,24,55,.14)}
+.doc .inner{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border:1px solid var(--docFrame);border-radius:1px;pointer-events:none}
+.docHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--docInk);padding-bottom:6px}
+.dispf{font-family:'Black Han Sans','IBM Plex Sans KR',sans-serif;font-weight:400;font-size:18px;color:var(--docInk)}
+.docMono{font-size:7.5px;letter-spacing:1.5px;color:var(--docDim);font-weight:700}
+.numf{font-family:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;font-weight:600;
+  font-variant-numeric:tabular-nums;line-height:1.25}
+
+/* attention card — the ONE thing that needs the host */
+.att{border:2px solid var(--docInk);border-radius:2px;margin-top:11px;padding:11px;background:var(--docChip)}
+.att .kick{font-size:9px;letter-spacing:2.6px;font-weight:700;color:var(--action);text-transform:uppercase}
+.att .who{display:flex;align-items:center;gap:10px;margin-top:7px}
+.att .nm{font-size:17px;line-height:23px;font-weight:800;color:var(--docInk)}
+.att .fact{font-size:14px;line-height:19px;font-weight:700;color:var(--docDim);margin-top:2px}
+.att .acts{display:flex;gap:8px;margin-top:11px}
+.btnP{flex:1;text-align:center;padding:13px 10px;border-radius:2px;background:var(--action);color:#fff;
+  font-size:16px;line-height:21px;font-weight:800}
+.btnG{flex:0 0 auto;text-align:center;padding:13px 16px;border-radius:2px;background:#fff;
+  border:1.3px solid var(--docDim);color:var(--docDim);font-size:16px;line-height:21px;font-weight:800}
+.money{font-size:14px;line-height:19px;font-weight:800;color:var(--actionInk);background:var(--wash);
+  border:1px solid var(--line);border-radius:2px;padding:8px 10px;margin-top:11px;text-align:center}
+.auto{font-size:14px;line-height:19px;font-weight:700;color:var(--docDim);text-align:center;margin-top:8px}
+
+/* dog dots — collar palette */
+.dot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#C9B89A;border:2px solid var(--cTang);
   display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#5d5138}
-.dogdot.sky{border-color:var(--collarSky)}
-.dogdot.rose{border-color:var(--collarRose)}
-.dogdot.teal{border-color:var(--collarTeal)}
-.dogdot.moss{border-color:var(--collarMoss)}
-.dogdot.goldc{border-color:var(--collarGold)}
-.tabs{display:flex;border-bottom:1px solid var(--lhair2);margin-top:10px}
-.tabs > div{flex:1;text-align:center;padding:9px 0;font-size:14px;font-weight:800;color:var(--ldim);position:relative}
-.tabs > div.on{color:var(--lhead)}
-.tabs > div.on:after{content:"";position:absolute;left:24%;right:24%;bottom:-1px;height:2.5px;background:var(--accent);border-radius:2px}
-.plate{background:var(--amberSoft);border:1px solid var(--amberEdge);border-radius:6px;padding:11px;margin-top:10px;
-  font-size:14px;line-height:19px;font-weight:700;color:var(--ltext)}
+.dot.sm{width:22px;height:22px;flex-basis:22px;font-size:11px;border-width:1.6px}
+.dot.sky{border-color:var(--cSky)}.dot.rose{border-color:var(--cRose)}.dot.teal{border-color:var(--cTeal)}
+.dot.moss{border-color:var(--cMoss)}.dot.goldc{border-color:var(--cGold)}
 
-/* v2 console pieces (this lab) */
-.steps{display:flex;gap:3px;height:6px;margin-top:8px}
-.steps i{flex:1;background:var(--linset);border-radius:2px;display:block}
-.steps i.done{background:var(--accent)}
-.steps i.live{background:var(--lcoral)}
-.recov{background:var(--amberSoft);border:1px solid var(--amberEdge);
-  border-radius:6px;padding:11px;margin-top:10px}
-.noshow{background:var(--criticalWash);border:1px solid var(--critical);border-radius:6px;padding:11px;margin-top:10px}
-.evrow{display:flex;gap:9px;padding:9px 0;border-top:1px solid var(--lhair2);align-items:flex-start}
-.mk{width:20px;height:20px;flex:0 0 20px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:900;margin-top:1px}
-.mk.ok{background:var(--voltFill);color:var(--voltDeep)}
-.mk.run{background:var(--lcoralSoft);color:#C24A2E}
-.mk.warn{background:var(--criticalWash);color:var(--critical)}
-.mk.dimm{background:var(--linset);color:var(--ldim)}
-.moneyline{background:var(--wash);border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px;
-  font-size:14px;line-height:19px;font-weight:700;color:var(--actionInk)}
-.autoc{font-size:14px;line-height:19px;color:var(--ldim);text-align:center;margin-top:9px}
-.collapse{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--lhair2)}
-
-footer{margin-top:56px;border-top:2.5px solid var(--ink);padding-top:16px}
-footer h3{font-size:17px;font-weight:800;margin-bottom:10px}
-ol.q{margin-left:20px;font-size:14px;line-height:1.75}
-ol.q li{margin-bottom:11px}
-ol.q b{color:var(--ink)}
+/* printed roster — one line per pairing, host can ignore */
+.ros{margin-top:6px}
+.rrow{display:flex;align-items:center;gap:9px;padding:9px 1px;border-bottom:1px solid var(--docLine)}
+.rrow:last-child{border-bottom:0}
+.rnm{flex:1;min-width:0;font-size:15px;line-height:20px;font-weight:700;color:var(--docInk);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rnm .rn{color:var(--docDim);font-weight:700}
+.st{flex:0 0 auto;font-size:14px;line-height:19px;font-weight:800}
+.st.ok{color:var(--voltDeep)}.st.live{color:var(--coralDeep)}.st.warn{color:var(--amber)}
+.st.crit{color:var(--critical)}.st.dim{color:var(--docDim)}
+/* doors — case · emergency, one recessive row each */
+.door{display:flex;align-items:center;gap:9px;padding:10px 1px;border-top:1.5px solid var(--docInk)}
+.door + .door{border-top:1px solid var(--docLine)}
+.door .dnm{flex:1;font-size:14px;line-height:19px;font-weight:700;color:var(--docDim)}
+.door .go{font-size:14px;font-weight:800;color:var(--docDim)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<header class="top">
-  <h1>호스트 콘솔 리스펙 — Club v2 Lab</h1>
-  <p class="law">HOST CONSOLE · SPEC V2 §10.2 · 3 VARIANTS · SEAN PICKS BY NUMBER</p>
-  <p class="lede">Under v2 the host <b>loses runner-choosing as the primary flow</b> (owners and the app pick now)
-  and <b>gains the run-end confirmation</b> — one big action, enabled only when no dog is still out, preceded by an
-  evidence view that shows exactly what money moves before the tap, with the 6-hour auto-confirm rule stated
-  honestly beside it. Every variant keeps admission, safety re-review, cases, emergency tools and session cancel,
-  and adds a watch-only pairs timeline plus a 재배정 recovery strip that appears only inside the recovery window
-  when a dog has lost its runner. Three organizational personalities are drawn against one shared mid-session
-  fixture; frames are 390px so 1px = 1pt and no frame uses a hex not already in <code>app/src/theme.ts</code>.</p>
-
-  <div class="note">
-    <h4>Shared fixture — 반포 하이클럽, session 09:00, recovery window 07:00–15:00</h4>
-    <table class="mx">
-      <tr><th>Dog · owner</th><th>Mode · pickup</th><th>Runner</th><th>Where the story is</th></tr>
-      <tr><td>몽이 · 김서연</td><td>B 지정 · 집 픽업</td><td>최유진</td><td>인계 08:42 → 러닝 09:15~ (10:12 완료) · S2 case 09:31 (발바닥 찰과상)</td></tr>
-      <tr><td>초코 · 박지훈</td><td>C 자동 · 집 픽업</td><td>김민준</td><td>러닝 완료 09:47 · 3.1km · finished_pending_host</td></tr>
-      <tr><td>보리 · 이하늘</td><td>B 지정 · 현장 인계 (보호자 동행)</td><td>김민준</td><td>재검토 08:15 → 재승인 · 현장 인계 08:57 · 2차 러닝 (10:19 완료)</td></tr>
-      <tr><td>두부 · 최민아</td><td>C 자동 · 집 픽업</td><td>박준호</td><td><b>no-show candidate</b>: runner at the door 08:32 (proximity-verified) · no handoff · 20% fee arms on confirm</td></tr>
-      <tr><td>콩이 · 정다은</td><td>B 지정</td><td>(이서연 self-exited 07:58)</td><td><b>recovery-needed</b>: back at P2, seat kept — 재배정 strip owns it</td></tr>
-      <tr><td>플로 · 윤태오</td><td>신청 07:50 (P0)</td><td>—</td><td>admission queue — the kept 승인/거절 step</td></tr>
-    </table>
-    <p style="margin-top:9px">Fare 12,900원 per pairing. On confirm: 두부 노쇼 수수료 <b>2,580원 (20%)</b> charged +
-    <b>10,320원</b> refunded; 콩이 unpaired → <b>full 12,900원 refund, zero fee</b> (ruling 14.13). Auto-confirm fires
-    6h after the last runner-finish (10:19 → 16:19, ruling 14.3). Backup host may confirm (ruling 14.5); the host fee
-    still routes to <code>host_profile_id</code>.</p>
-  </div>
-</header>
-
-<!-- ══════════════════════════════════════════════════════════════════════ ① -->
-<h2 class="band"><span class="sig">①</span>Operations sheet — one scroll, ordered by urgency</h2>
-<p class="sub">A single scroll whose order is <b>what needs the host next</b>, not the lifecycle: no-show evidence and
-recovery first, then the case, then the watch-only timeline, then the finish gate with its evidence view, then the
-kept admin machinery collapsed to one line each (collapse compresses <i>emptiness</i>, never a warning). The propose
-grid is gone; its only residue is the recovery strip, explicitly labeled.</p>
+<h1>호스트 콘솔 — 종이 리메이크</h1>
+<p class="law">ONE CARD NEEDS YOU · THE REST IS PRINT · SPEC V2 §10.2 · ZERO NEW HEXES · 390PX = PT</p>
 
 <div class="rail">
 
-  <!-- ①-A -->
+  <!-- ══ ① pre-session ══ -->
   <div class="col">
-    <div class="cap"><span class="badge">①-A</span>Top of the scroll — the urgent stack, 09:58</div>
-    <p class="why">The three items that can still change money or custody sit above the fold: the flagged no-show
-    candidate (fact display only — nothing is charged until the confirm tap), the labeled 재배정 recovery strip with
-    its window stated, and the unowned case. The timeline begins right below.</p>
-    <div class="phone h880">
+    <p class="cap"><span class="badge">①</span>Pre-session 07:55 — <b>the applicant is the one thing</b>; five confirmed pairings are print.</p>
+    <div class="phone">
+      <div class="stbar"><span>7:55</span><span>▮▮▮</span></div>
+      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
+        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
+      <div class="paperwrap">
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
+
+          <div class="att">
+            <div class="kick">Now</div>
+            <div class="who"><div class="dot goldc">플</div>
+              <div><div class="nm">플로 · 윤태오</div>
+                <div class="fact">신청 <span class="numf">07:50</span></div></div></div>
+            <div class="acts"><span class="btnP">승인</span><span class="btnG">거절</span></div>
+          </div>
+
+          <div class="ros">
+            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st dim">확정</span></div>
+            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
+            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st dim">확정</span></div>
+            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st dim">확정</span></div>
+            <div class="rrow"><div class="dot sm teal">콩</div><div class="rnm">콩이 <span class="rn">— 이서연</span></div><span class="st dim">확정</span></div>
+          </div>
+
+          <div class="door"><span class="dnm">케이스 <span class="numf">0</span></span><span class="go">→</span></div>
+          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ② mid-session ══ -->
+  <div class="col">
+    <p class="cap"><span class="badge">②</span>Mid-session 09:58 — <b>attention moves to the uncovered dog</b>; runs and the case are print.</p>
+    <div class="phone">
       <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="bignum">
-            <div><div class="numf v lhead">5</div><div class="l">위탁</div></div>
-            <div><div class="numf v lhead">1</div><div class="l">러닝 중</div></div>
-            <div><div class="numf v lhead">1</div><div class="l">완료</div></div>
-            <div><div class="numf v" style="color:var(--tang)">3</div><div class="l">주의</div></div>
+      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
+        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
+      <div class="paperwrap">
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
+
+          <div class="att">
+            <div class="kick">Now</div>
+            <div class="who"><div class="dot teal">콩</div>
+              <div><div class="nm">콩이 · 정다은</div>
+                <div class="fact">러너 이탈 <span class="numf">07:58</span> · 재배정 ~<span class="numf">15:00</span></div></div></div>
+            <div class="acts"><span class="btnP">박준호 재배정</span></div>
           </div>
 
-          <div class="noshow">
-            <div class="row gap8"><span class="kick" style="color:var(--critical)">NO-SHOW CANDIDATE</span></div>
-            <div class="row gap10 mt6"><div class="dogdot rose">두</div>
-              <div class="grow"><div class="t15 b8 lhead">두부 · 최민아 보호자</div>
-                <div class="t14 ltext">러너 박준호 08:32 문 앞 도착 (위치 확인됨) · 인계 없음</div></div></div>
-            <div class="t14 b7 crit mt8">종료 확인 시: 노쇼 수수료 2,580원(20%) 청구 · 10,320원 환불</div>
-            <div class="t14 ldim mt6">확인을 누르기 전에는 아무것도 청구되지 않아요 · 이의는 케이스로 다뤄져요</div>
+          <div class="ros">
+            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진</span></div><span class="st live">러닝 중</span></div>
+            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준</span></div><span class="st ok">완료 <span class="numf">09:47</span></span></div>
+            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준</span></div><span class="st warn">인계됨</span></div>
+            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 후보</span></div>
+            <div class="rrow"><div class="dot sm goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
           </div>
 
-          <div class="recov">
-            <div class="row gap8"><span class="kick" style="color:var(--amber)">RECOVERY</span>
-              <span class="tag amber">재배정</span></div>
-            <div class="row gap10 mt6"><div class="dogdot teal">콩</div>
-              <div class="grow"><div class="t15 b8 lhead">콩이 · 정다은 보호자</div>
-                <div class="t14 ltext">러너 이서연 자진 이탈 (07:58) · 자리는 유지 · 보호자에게 알림됨</div></div></div>
-            <div class="row gap8 mt8" style="flex-wrap:wrap">
-              <span class="abtn">박준호 1/2 — 재배정 제안</span>
-              <span class="abtn off">최유진 2/2 만석</span></div>
-            <div class="t14 ltext mt6">복구 창 ~15:00 · 보호자도 다시 선택할 수 있어요 · 미배정으로 종료 확인 시 전액 환불 · 수수료 0원</div>
-          </div>
-
-          <div class="drow">
-            <div class="row gap8"><span class="tag critw">S2</span>
-              <div class="grow t14 b8 lhead">몽이 — 발바닥 찰과상 · 러너 신고 09:31</div>
-              <div class="t14 b8 acc">열기 →</div></div>
-            <div class="row gap8 mt8"><span class="abtn">내가 맡기</span></div>
-          </div>
-
-          <div class="sechead"><div class="secN">2</div><div class="t14 b8 lhead">페어 타임라인</div>
-            <div class="t14 ldim" style="margin-left:auto">지켜보는 섹션 — 선택은 끝났어요</div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot">몽</div>
-            <div class="grow"><div class="t14 b8 lhead">몽이 · 최유진</div>
-              <div class="t14 ltext">인계 08:42 · 집결 08:55 · 러닝 09:15 ~ (43분째)</div></div>
-            <span class="tag coral">러닝 중</span></div>
-            <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="live"></i><i></i><i></i></div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot sky">초</div>
-            <div class="grow"><div class="t14 b8 lhead">초코 · 김민준</div>
-              <div class="t14 ltext">러닝 완료 09:47 · 3.1km · 호스트 확인 대기</div></div>
-            <span class="tag volt">완료</span></div>
-            <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i></i></div></div>
+          <div class="door"><span class="dnm">케이스 <span class="numf">1</span> — 몽이 S2</span><span class="go">→</span></div>
+          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
         </div>
       </div>
     </div>
-    <div class="binds">board (op view, +v2 columns §9): pairing state ladder · pickup stamps (§7.1) · noshow evidence (§7.4)<br>
-      recovery strip: session_propose_dog narrowed to [T−2h,T+6h] recovery window (§6.6) · load/cap = server formula<br>
-      case row: club_session_incidents · incidentAssign — unchanged RPCs</div>
   </div>
 
-  <!-- ①-B -->
+  <!-- ══ ③ finish-armed ══ -->
   <div class="col">
-    <div class="cap"><span class="badge">①-B</span>Bottom of the scroll — evidence view + finish gate, 09:58</div>
-    <p class="why">The evidence view lists every pairing with its outcome-on-confirm; the two dogs still out are the
-    named blockers, so the big button is honestly disabled with the count in its label. The kept admin machinery
-    (admission, re-review, tools, cancel) collapses to single truthful lines — present, never hidden.</p>
-    <div class="phone h880">
-      <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="sechead"><div class="secN">3</div><div class="t14 b8 lhead">러닝 종료 확인</div>
-            <div class="t14 ldim" style="margin-left:auto">돈이 움직이는 탭</div></div>
-          <div class="drow" style="padding-top:4px">
-            <div class="evrow" style="border-top:0"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">초코 — 러닝 완료 09:47</div>
-                <div class="t14 ltext">확인하면 귀가 시작 (집 반환)</div></div></div>
-            <div class="evrow"><div class="mk run">●</div>
-              <div class="grow"><div class="t14 b8 lhead">몽이 — 러닝 중</div>
-                <div class="t14 ltext">종료 확인 차단 · 러너 연락 두절 시 강제 종결</div></div></div>
-            <div class="evrow"><div class="mk run">●</div>
-              <div class="grow"><div class="t14 b8 lhead">보리 — 현장 인계됨 · 2차 러닝 대기</div>
-                <div class="t14 ltext">종료 확인 차단 · 완료 후 현장 반환</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">두부 — 노쇼 후보</div>
-                <div class="t14 b7 crit">확인 시 수수료 2,580원(20%) 청구 · 10,320원 환불</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">콩이 — 러너 미배정</div>
-                <div class="t14 ltext">확인 시 전액 환불 12,900원 · 수수료 0원</div></div></div>
-          </div>
-          <div class="cta off">러닝 종료 확인 — 2건 아직 밖에 있어요</div>
-          <div class="autoc">확인을 누르지 않아도 마지막 러닝 완료 6시간 뒤 시스템이 자동으로 확인해요 —
-            그때도 위 내역 그대로 움직이고, 알림이 가요</div>
-
-          <div class="collapse mt10"><div class="t14 b8 ldim">심사 — 대기 없음</div>
-            <div class="t14 ldim">오늘 승인 5 · 거절 1</div></div>
-          <div class="collapse"><div class="t14 b8 ldim">재검토 — 없음</div>
-            <div class="t14 ldim">오늘 1건 재승인</div></div>
-          <div class="collapse"><div class="t14 b8 ldim">비상 도구</div>
-            <div class="t14 ldim">강제 종결 · 대리 반환 확인 · 커스터디 이전</div></div>
-          <div class="t14 ldim mt8" style="text-align:center">비상 도구는 해당 상태의 아이에게만 열려요 — 죽은 버튼을 그리지 않아요</div>
-          <div class="t14 ldim mt8" style="text-align:center">세션 취소는 인계 전에만 — 나간 아이가 있는 지금은 케이스로 다뤄요</div>
-          <div class="t14 ldim mt8" style="text-align:center">결제는 서버가 관리해요 — 호스트는 돈을 만지지 않아요</div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">club_confirm_run_end (§7.5): gates run_confirmed_at null · now≥scheduled_at · no picked_up/active<br>
-      blocker classification is SERVER-side (§9 kills console/[sid].tsx:202-206's client copy)<br>
-      noshow predicate: pickup_arrived_at (proximity) + no handoff + live at scheduled_at (§7.4)<br>
-      auto-confirm: 6h after last settle, ruled 14.3 · cancel wall: session_in_flight (0038:235)</div>
-  </div>
-
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════ ② -->
-<h2 class="band"><span class="sig">②</span>Phase tabs — 준비 · 러닝 · 종료</h2>
-<p class="sub">The console mirrors the session's three phases as tabs, so each moment of hosting gets a room of its
-own: <b>준비</b> holds the kept admission/re-review machinery and session cancel, <b>러닝</b> is the watch-only
-timeline with cases and recovery, <b>종료</b> is the evidence view and the one big confirmation. Tab badges carry
-live counts so nothing waits unseen in another tab. Three frames show the same session at three real moments.</p>
-
-<div class="rail">
-
-  <!-- ②-A -->
-  <div class="col">
-    <div class="cap"><span class="badge">②-A</span>준비 tab, 08:15 — admission, re-review, recovery, cancel</div>
-    <p class="why">Before the first door both-stamp: the kept 승인/거절 queue (a late P0 application), the safety
-    re-review, and — because 콩이's runner bailed inside the window — the recovery strip already labeled. Session
-    cancel is still legitimately available here and says its own wall.</p>
-    <div class="phone h880">
-      <div class="stbar"><span>8:15</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="tabs"><div class="on">준비 <span class="numf">3</span></div><div>러닝</div><div>종료</div></div>
-
-          <div class="sechead"><div class="secN">1</div><div class="t14 b8 lhead">심사</div>
-            <div class="t14 ldim" style="margin-left:auto">승인 = 결제 요청 (20분 홀드)</div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot goldc">플</div>
-            <div class="grow"><div class="t14 b8 lhead">플로</div><div class="t14 ltext">윤태오 보호자 · 07:50 신청</div></div></div>
-            <div class="row gap8 mt10"><span class="abtn">승인</span><span class="abtn ghost">거절</span></div></div>
-
-          <div class="sechead"><div class="secN">2</div><div class="t14 b8 lhead">재검토</div>
-            <div class="t14 ldim" style="margin-left:auto">프로필 변경 감지</div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot moss">보</div>
-            <div class="grow"><div class="t14 b8 lhead">보리</div><div class="t14 ltext">프로필 변경 — 재검토 필요 · 페어링은 유지돼요</div></div>
-            <span class="tag amber">재검토</span></div>
-            <div class="row gap8 mt10"><span class="abtn">변경 확인 — 재승인</span><span class="abtn warn">거절 (전액 환불)</span></div></div>
-
-          <div class="recov">
-            <div class="row gap8"><span class="kick" style="color:var(--amber)">RECOVERY</span><span class="tag amber">재배정</span></div>
-            <div class="row gap10 mt6"><div class="dogdot teal">콩</div>
-              <div class="grow"><div class="t15 b8 lhead">콩이 · 정다은 보호자</div>
-                <div class="t14 ltext">러너 이서연 자진 이탈 (07:58) · 자리는 유지</div></div></div>
-            <div class="row gap8 mt8" style="flex-wrap:wrap">
-              <span class="abtn">박준호 1/2 — 재배정 제안</span>
-              <span class="abtn off">최유진 2/2 만석</span></div>
-            <div class="t14 ltext mt6">복구 창 07:00~15:00 · 보호자도 다시 선택할 수 있어요</div>
-          </div>
-
-          <div class="plate">러너 선택은 보호자와 앱이 해요 — 호스트의 제안 펜은 복구 창 안, 러너를 잃은 아이에게만 열려요</div>
-          <div class="cta dest">세션 취소 — 전액 환불</div>
-          <div class="t14 ldim mt6" style="text-align:center">인계 전에만 취소할 수 있어요 · 이동 중인 러너에게는 알림이 가요</div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">kept RPCs byte-identical: session_approve_dog (0084:610) · session_review_dog (0048:259)<br>
-      recovery: session_propose_dog gate narrowed (§6.6) · cancel: cancelClubSession, wall = session_in_flight</div>
-  </div>
-
-  <!-- ②-B -->
-  <div class="col">
-    <div class="cap"><span class="badge">②-B</span>러닝 tab, 09:58 — the watch-only timeline</div>
-    <p class="why">Every pairing's live step on one screen, in ladder order — the host watches, and the only pens
-    offered are the ones that survive v2: the case rail and the recovery strip. The no-show candidate is flagged here
-    too, so the 종료 tab never surprises.</p>
-    <div class="phone h880">
-      <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="tabs"><div>준비</div><div class="on">러닝 <span class="numf">5</span></div><div>종료 <span class="numf" style="color:var(--tang)">2</span></div></div>
-
-          <div class="drow"><div class="row gap10"><div class="dogdot">몽</div>
-            <div class="grow"><div class="t14 b8 lhead">몽이 · 최유진</div>
-              <div class="t14 ltext">인계 08:42 · 집결 08:55 · 러닝 09:15 ~ (43분째)</div></div>
-            <span class="tag coral">러닝 중</span></div>
-            <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="live"></i><i></i><i></i></div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot sky">초</div>
-            <div class="grow"><div class="t14 b8 lhead">초코 · 김민준</div>
-              <div class="t14 ltext">러닝 완료 09:47 · 3.1km · 호스트 확인 대기</div></div>
-            <span class="tag volt">완료</span></div>
-            <div class="steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i></i></div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot moss">보</div>
-            <div class="grow"><div class="t14 b8 lhead">보리 · 김민준</div>
-              <div class="t14 ltext">현장 인계 08:57 (보호자 동행) · 2차 러닝 대기</div></div>
-            <span class="tag amber">인계됨</span></div>
-            <div class="steps"><i class="done"></i><i class="done"></i><i class="live"></i><i></i><i></i><i></i></div></div>
-          <div class="drow" style="border-color:var(--critical)"><div class="row gap10"><div class="dogdot rose">두</div>
-            <div class="grow"><div class="t14 b8 lhead">두부 · 박준호</div>
-              <div class="t14 ltext">문 앞 도착 08:32 (위치 확인) · 인계 없음</div></div>
-            <span class="tag critw">노쇼 후보</span></div>
-            <div class="steps"><i class="done"></i><i class="live"></i><i></i><i></i><i></i><i></i></div>
-            <div class="t14 b7 crit mt6">종료 확인 시 수수료 2,580원(20%) 청구 — 확인 전에는 청구 없음</div></div>
-          <div class="drow"><div class="row gap10"><div class="dogdot teal">콩</div>
-            <div class="grow"><div class="t14 b8 lhead">콩이 · 러너 미배정</div>
-              <div class="t14 ltext">재배정 진행 중 — 준비 탭의 복구 스트립에서</div></div>
-            <span class="tag amber">재배정</span></div>
-            <div class="steps"><i class="live"></i><i></i><i></i><i></i><i></i><i></i></div></div>
-
-          <div class="drow">
-            <div class="row gap8"><span class="tag critw">S2</span>
-              <div class="grow t14 b8 lhead">몽이 — 발바닥 찰과상 · 러너 신고 09:31</div>
-              <div class="t14 b8 acc">열기 →</div></div>
-            <div class="row gap8 mt8"><span class="abtn">내가 맡기</span></div>
-          </div>
-          <div class="t14 ldim mt8" style="text-align:center">지켜보는 탭이에요 — 러너 선택은 보호자와 앱이 이미 했어요</div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">timeline states = §9 board ladder labels (픽업 이동 중 → 인계 → 도착 → 러닝 중 → 완료 → 귀가)<br>
-      stamps: session_dogs pickup/return columns, server-stamped (§7.1) · SOS/case entry preserved (C2/C11)</div>
-  </div>
-
-  <!-- ②-C -->
-  <div class="col">
-    <div class="cap"><span class="badge">②-C</span>종료 tab, 10:24 — evidence, then the one big tap</div>
-    <p class="why">All dogs are back at the flow's edge, so the button is armed: the evidence view totals the money
-    before the tap, the auto-confirm deadline is a concrete clock, and what happens after (returns, case, close) is
-    previewed in one honest line. A backup host sees this same tab; the host fee still routes to the real host.</p>
-    <div class="phone h880">
+    <p class="cap"><span class="badge">③</span>Finish armed 10:24 — <b>the confirm tap with its one money line</b>; auto-confirm is a numeral.</p>
+    <div class="phone">
       <div class="stbar"><span>10:24</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="tabs"><div>준비</div><div>러닝</div><div class="on">종료 <span class="numf">●</span></div></div>
+      <div class="mast"><span class="bk">‹</span><div class="mono">DH</div>
+        <div><div class="mT">반포 하이클럽</div><div class="mS">8월 26일 <span class="numf">09:00</span> · 호스트</div></div></div>
+      <div class="paperwrap">
+        <div class="doc">
+          <div class="inner"></div>
+          <div class="docHead"><span class="dispf">운영 일지</span><span class="docMono">HOST LOG · v2</span></div>
 
-          <div class="t20 b8 lhead" style="margin-top:14px">러닝 종료 확인</div>
-          <div class="t14 ltext mt6">확인하면 아래 내역 그대로 돈이 움직이고, 귀가가 시작돼요</div>
-          <div class="drow" style="padding-top:4px">
-            <div class="evrow" style="border-top:0"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">몽이 — 러닝 완료 10:12 · 4.0km</div>
-                <div class="t14 ltext">귀가 시작 (집 반환)</div></div></div>
-            <div class="evrow"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">초코 — 러닝 완료 09:47 · 3.1km</div>
-                <div class="t14 ltext">귀가 시작 (집 반환)</div></div></div>
-            <div class="evrow"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">보리 — 러닝 완료 10:19 · 3.4km</div>
-                <div class="t14 ltext">현장 반환 (보호자 동행)</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">두부 — 노쇼</div>
-                <div class="t14 b7 crit">수수료 2,580원(20%) 청구 · 10,320원 환불</div>
-                <div class="t14 ltext">러너 08:32 문 앞 도착 (위치 확인) · 인계 없음 · 이의는 케이스로</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">콩이 — 러너 미배정</div>
-                <div class="t14 ltext">전액 환불 12,900원 · 수수료 0원 — 연결은 우리 일이에요</div></div></div>
+          <div class="att">
+            <div class="kick">Now</div>
+            <div class="acts" style="margin-top:8px"><span class="btnP" style="font-size:17px;padding:15px 10px">러닝 종료 확인</span></div>
+            <div class="money">청구 <span class="numf">2,580</span>원 · 환불 <span class="numf">23,220</span>원</div>
+            <div class="auto">미확인 시 <span class="numf">16:19</span> 자동 확인</div>
           </div>
-          <div class="moneyline">확인하면: 청구 2,580원 · 환불 23,220원 · 귀가 시작 2건 · 현장 반환 1건</div>
-          <div class="cta">러닝 종료 확인</div>
-          <div class="autoc">16:19까지 누르지 않으면 시스템이 자동으로 확인해요 (마지막 완료 10:19 + 6시간) — 알림이 가요</div>
-          <div class="t14 ldim mt8" style="text-align:center">확인 후: 귀가 → 반환 확인 → 케이스 해소 → 세션 마감 · 비상 도구(강제 종결 · 대리 확인 · 이전)는 각 단계에서 열려요</div>
+
+          <div class="ros">
+            <div class="rrow"><div class="dot sm">몽</div><div class="rnm">몽이 <span class="rn">— 최유진 · <span class="numf">4.0</span>km</span></div><span class="st ok">완료 <span class="numf">10:12</span></span></div>
+            <div class="rrow"><div class="dot sm sky">초</div><div class="rnm">초코 <span class="rn">— 김민준 · <span class="numf">3.1</span>km</span></div><span class="st ok">완료 <span class="numf">09:47</span></span></div>
+            <div class="rrow"><div class="dot sm moss">보</div><div class="rnm">보리 <span class="rn">— 김민준 · <span class="numf">3.4</span>km</span></div><span class="st ok">완료 <span class="numf">10:19</span></span></div>
+            <div class="rrow"><div class="dot sm rose">두</div><div class="rnm">두부 <span class="rn">— 박준호</span></div><span class="st crit">노쇼 −<span class="numf">2,580</span>원</span></div>
+            <div class="rrow"><div class="dot sm teal">콩</div><div class="rnm">콩이 <span class="rn">— 미배정</span></div><span class="st warn">환불 <span class="numf">12,900</span>원</span></div>
+            <div class="rrow"><div class="dot sm goldc">플</div><div class="rnm">플로 <span class="rn">— 심사</span></div><span class="st dim">거절</span></div>
+          </div>
+
+          <div class="door"><span class="dnm">케이스 <span class="numf">1</span> — 몽이 S2</span><span class="go">→</span></div>
+          <div class="door"><span class="dnm">비상 도구</span><span class="go">→</span></div>
         </div>
       </div>
     </div>
-    <div class="binds">club_confirm_run_end: idempotent via run_confirmed_at · flips finished_pending_host → return_pending<br>
-      money block moved whole from club_finish_session (0118:1149-1264) · host fee → host_profile_id (§7.5.2)<br>
-      auto-confirm 6h (ruled 14.3) · backup host may confirm (ruled 14.5)</div>
   </div>
 
 </div>
-
-<!-- ══════════════════════════════════════════════════════════════════════ ③ -->
-<h2 class="band"><span class="sig">③</span>Gate checklist — "what blocks the finish" as the spine</h2>
-<p class="sub">The console is organized around the two-phase finish itself: <b>Gate 1</b> is the run-end confirmation
-(every pairing is a checklist item; blockers carry their escape tool inline; money flags are marked but do not
-block), <b>Gate 2</b> is the session close (returns, cases). Everything else — admission, re-review, cancel — is a
-managed footer. The host always knows the one thing standing between now and done.</p>
-
-<div class="rail">
-
-  <!-- ③-A -->
-  <div class="col">
-    <div class="cap"><span class="badge">③-A</span>09:58 — two items still block Gate 1</div>
-    <p class="why">Each pairing is a gate item: done, blocking, or money-flagged. Blocking rows name their honest
-    escape (wait, or force-resolve if the runner goes dark); money rows show the exact figure that fires on confirm.
-    Gate 2 is previewed below so the case never ambushes the close.</p>
-    <div class="phone h880">
-      <div class="stbar"><span>9:58</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="row between" style="margin-top:12px">
-            <div class="t20 b8 lhead">종료까지</div>
-            <div class="t14 b7 ldim">게이트 1 / 2</div></div>
-
-          <div class="drow" style="padding-top:4px">
-            <div class="t14 b8 acc" style="padding:8px 0 4px">게이트 1 — 러닝 종료 확인</div>
-            <div class="evrow"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">초코 — 러닝 완료 09:47</div></div></div>
-            <div class="evrow"><div class="mk run">●</div>
-              <div class="grow"><div class="t14 b8 lhead">몽이 — 러닝 중 09:15~</div>
-                <div class="t14 ltext">기다리기 · 러너 연락 두절 시 강제 종결 → 케이스</div></div></div>
-            <div class="evrow"><div class="mk run">●</div>
-              <div class="grow"><div class="t14 b8 lhead">보리 — 현장 인계됨 · 러닝 전</div>
-                <div class="t14 ltext">기다리기 · 시작 안 되면 강제 종결 → 케이스</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">두부 — 노쇼 후보 (차단 아님)</div>
-                <div class="t14 b7 crit">확인 시 수수료 2,580원 청구 · 10,320원 환불</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">콩이 — 미배정 (차단 아님)</div>
-                <div class="t14 ltext">재배정 진행 중 ↓ · 확인 시 전액 환불 · 수수료 0원</div></div></div>
-          </div>
-          <div class="cta off">러닝 종료 확인 — 2건 남음</div>
-          <div class="autoc">마지막 러닝 완료 6시간 뒤에는 시스템이 자동으로 확인해요 — 알림이 가요</div>
-
-          <div class="recov">
-            <div class="row gap8"><span class="kick" style="color:var(--amber)">RECOVERY</span><span class="tag amber">재배정</span></div>
-            <div class="t14 b8 lhead mt6">콩이 — 러너 이서연 이탈 (07:58) · 자리 유지</div>
-            <div class="row gap8 mt8"><span class="abtn">박준호 1/2 — 재배정 제안</span><span class="abtn off">최유진 2/2 만석</span></div>
-          </div>
-
-          <div class="drow" style="padding-top:4px">
-            <div class="t14 b8 ldim" style="padding:8px 0 4px">게이트 2 — 세션 마감 (확인 후)</div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">케이스 오너 미지정 1건 — 마감 차단</div>
-                <div class="t14 ltext">S2 몽이 발바닥 찰과상 09:31</div></div>
-              <span class="abtn" style="flex-grow:0">내가 맡기</span></div>
-            <div class="evrow"><div class="mk dimm">…</div>
-              <div class="grow"><div class="t14 ltext">귀가·반환 확인 — 게이트 1 확인 후 시작돼요</div></div></div>
-          </div>
-
-          <div class="collapse mt8"><div class="t14 b8 ldim">세션 관리</div>
-            <div class="t14 ldim">심사 0 · 재검토 0 · 취소 불가 (나간 아이 있음)</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">gate 1 = club_confirm_run_end gates (no picked_up/active) — blocker list SERVER-classified (§9)<br>
-      gate 2 = club_finish_session closer: run_confirmed_at + _club_dogs_unresolved=0 + incident ownership (§7.5.3)<br>
-      force-resolve admits finished_pending_host too (§7.6.1) — no state is un-escapable</div>
-  </div>
-
-  <!-- ③-B -->
-  <div class="col">
-    <div class="cap"><span class="badge">③-B</span>10:24 — Gate 1 armed; Gate 2 becomes the spine</div>
-    <p class="why">With every dog back, Gate 1 shows its full money consequence and arms. The same spine then carries
-    the session to done: returns counted as they resolve, the case as the named closer-blocker — the two-phase finish
-    drawn as two gates instead of one mysterious disabled button.</p>
-    <div class="phone h880">
-      <div class="stbar"><span>10:24</span><span>▮▮▮</span></div>
-      <div class="scr">
-        <div class="mast"><span style="font-size:21px;color:var(--lhead)">‹</span><div class="mono">DH</div>
-          <div class="grow"><div class="t165 b8 lhead">호스트 콘솔</div>
-            <div class="t14 b7 ldim">8월 26일 오전 9:00 · 반포 하이클럽</div></div></div>
-        <div class="pad12">
-          <div class="row between" style="margin-top:12px">
-            <div class="t20 b8 lhead">종료까지</div>
-            <div class="t14 b7 ldim">게이트 1 / 2</div></div>
-
-          <div class="drow" style="padding-top:4px">
-            <div class="t14 b8 acc" style="padding:8px 0 4px">게이트 1 — 러닝 종료 확인 · 준비됨</div>
-            <div class="evrow"><div class="mk ok">✓</div>
-              <div class="grow"><div class="t14 b8 lhead">몽이 10:12 · 초코 09:47 · 보리 10:19 — 러닝 완료</div>
-                <div class="t14 ltext">귀가 2건 시작 · 현장 반환 1건</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">두부 — 노쇼</div>
-                <div class="t14 b7 crit">수수료 2,580원(20%) 청구 · 10,320원 환불</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">콩이 — 미배정</div>
-                <div class="t14 ltext">전액 환불 12,900원 · 수수료 0원</div></div></div>
-          </div>
-          <div class="moneyline">확인하면: 청구 2,580원 · 환불 23,220원 — 이 화면이 곧 증거예요</div>
-          <div class="cta">러닝 종료 확인</div>
-          <div class="autoc">16:19까지 누르지 않으면 시스템이 자동으로 확인해요 (마지막 완료 10:19 + 6시간)</div>
-
-          <div class="drow" style="padding-top:4px">
-            <div class="t14 b8 ldim" style="padding:8px 0 4px">게이트 2 — 세션 마감</div>
-            <div class="evrow"><div class="mk dimm">○</div>
-              <div class="grow"><div class="t14 b8 lhead">귀가·반환 확인 — 대기 3건</div>
-                <div class="t14 ltext">확인 후 시작 · 양측 미확인 시 대리 반환 확인(증인)이 여기 열려요</div></div></div>
-            <div class="evrow"><div class="mk warn">⚠</div>
-              <div class="grow"><div class="t14 b8 lhead">케이스 오너 미지정 1건 — 마감 차단</div>
-                <div class="t14 ltext">S2 몽이 발바닥 찰과상</div></div>
-              <span class="abtn" style="flex-grow:0">내가 맡기</span></div>
-          </div>
-          <div class="cta off" style="font-size:16px">세션 마감 — 반환·케이스 해소 후</div>
-          <div class="t14 ldim mt8" style="text-align:center">마지막 반환이 끝나고 케이스가 해소되면 자동으로 마감돼요 — 직접 누를 수도 있어요</div>
-
-          <div class="collapse mt8"><div class="t14 b8 ldim">세션 관리</div>
-            <div class="t14 ldim">심사 0 · 재검토 0 · 오늘 승인 5</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="binds">returns: session_confirm_return both-stamp (unchanged, 0069) · override: session_custody_override (witness)<br>
-      release still per-pairing: resolved + no open incident (0072:221) — the closer only flips status='done'<br>
-      auto-close when last pairing resolves + gates pass (§7.5.3 🔵)</div>
-  </div>
-
-</div>
-
-<footer>
-  <h3>Pick by number — and three questions the pick answers</h3>
-  <ol class="q">
-    <li><b>Where does the evidence view live?</b> ① and ③ keep it inline on the one scroll (always visible, always
-    long); ② gives it a room of its own behind the 종료 tab (clean, but one tap away from the timeline it
-    summarizes).</li>
-    <li><b>How loud is recovery?</b> ① puts the 재배정 strip in the urgent stack at the top; ② files it under the
-    phase where it belongs; ③ attaches it beneath the gate item it exists to unblock. All three label it 재배정 and
-    window-bound it — the question is prominence, not existence.</li>
-    <li><b>One gate or two?</b> Only ③ draws the two-phase finish (confirm → close) as two visible gates. If ① or ②
-    wins, Gate 2's blockers (returns, case ownership) still need a home after the confirm tap — likely the done-state
-    screen the console already has.</li>
-  </ol>
-</footer>
-
 </div>
 </body>
 </html>
