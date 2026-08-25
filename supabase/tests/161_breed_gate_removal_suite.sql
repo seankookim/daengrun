@@ -198,8 +198,43 @@
 --   M16 PREDICTED  create a `security definer` function in `public` with the default ACL.
 --                  → RED = [98 H9], naming it. Nothing else in the harness watches this.
 --
--- ── MEASURED (2026-08-25, second battery) ────────────────────────────────────────────────────
--- (filled in by the run; see the lines below)
+-- ── MEASURED (2026-08-25, second battery; 7 runs, baseline 886/0) ───────────────────────────
+--   M10 MEASURED  **EXACT, and it reproduced the hole rather than only the pin.** The harness
+--                 ABORTED at 0127 with `ERROR: 0127: generate_recurring_bookings() is EXECUTABLE by
+--                 public/anon/authenticated — acl==X/postgres postgres=X/postgres
+--                 service_role=X/postgres`. The leading `=X/postgres` IS the PUBLIC grant: on the
+--                 absent-function path the definer really is born PUBLIC-executable, exactly as the
+--                 review said, and it is not a theoretical reading of the docs. No suite ran, which
+--                 is correct — the migration failed closed and rolled back.
+--   M11 MEASURED  **EXACT.** Same absent-function path with §D-bis's revoke left in: `✅ 0127`,
+--                 **886/0**, and the resulting catalog read back as
+--                 `acl=postgres=X/postgres service_role=X/postgres owner=postgres pub=false` —
+--                 byte-identical to the normal chain. This is the arm that matters: M10 proves the
+--                 VERIFY notices, M11 proves the FIX WORKS. A battery with only M10 would have
+--                 shipped a migration that fails closed forever on a path it could have handled.
+--   M12 MEASURED  **EXACT.** RED = [P4 ⓐ only] (885/1), naming `md5 기대=050c0b3e… 실제=8594599e…
+--                 길이 기대=5335 실제=5336`. One byte, inside a comment in the body. Every other arm
+--                 of P4 stayed green, 0127's VERIFY stayed green, and the OLD P4 would have passed
+--                 this without a murmur — which is the finding, demonstrated.
+--   M13 MEASURED  RED = [P6 ⓔ, r4 F3, r4 F4, r4 F8] (882/4)  superset. P6 named the swap exactly:
+--                 `실제: t_dogs_touch, zz_unrelated · 기대: club_dog_materiality, t_dogs_touch`.
+--                 **The count stayed 2 throughout**, so the old count-only arm was structurally
+--                 blind to this. The three r4 pins are true reds — they depend on the trigger the
+--                 mutation dropped — and they are the blast radius, not a miss.
+--   M14 MEASURED  **EXACT.** RED = [P3 only] (885/1): `삭제된 객체를 아직 호출하는 루틴이 있다
+--                 [auth._zz_caller]`. The old public-only scan could not see a non-public caller at
+--                 all; the widened one named it and nothing else moved.
+--   M15 MEASURED  **EXACT.** RED = [P6 ⓕ only] (885/1), naming the column and the wrong digest.
+--   M16 MEASURED  RED = [98 H9, 99 S1] (884/2)  superset — **and the superset is the result.**
+--                 H9 named the offender and its ACL (`_zz_open_definer() [=X/postgres …]`); `99 S1`
+--                 reddened too, reporting only a count. S1 has swept `public` definers for
+--                 anon-execute since 0057 §1, and `anon` inherits PUBLIC, so the class H9 was
+--                 commissioned for was **already guarded**. H9 is kept for the naming, the
+--                 allowlist and the stated scope — and its own header now says this out loud
+--                 instead of claiming an unwatched class. See 98 H9's OVERLAP note.
+--   BLAST RADIUS: across the 6 runs that reached the suites, every ❌ was accounted for — the
+--   `[mgn-off]` pin under test, plus M13's three `[r4]` pins which depend on the dropped trigger,
+--   plus M16's `[sec] S1`. No mutation moved a pin in the green direction.
 --
 -- ── SCOPE, STATED HONESTLY ──────────────────────────────────────────────────────────────────
 -- These pins prove the SCHEMA half only. The edge function's removed token mapping is proven by

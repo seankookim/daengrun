@@ -87,9 +87,23 @@ begin
   --   migration text, which is a different lane's slice.
   --   It also cannot say anything about a function that does not exist yet.
   --
-  -- WHAT IT DOES CATCH, and it is worth having on its own: anyone who ships a definer with a bad
-  -- ACL outright — a missing revoke on a brand-new function, a `grant execute … to public` written
-  -- by hand, an ALTER that widens one later. That is a real class and it has no other standing pin.
+  -- ⚠ OVERLAP WITH `99_security_suite.sql` S1 — MEASURED, AND SAID HERE RATHER THAN DISCOVERED
+  --   LATER. This pin was commissioned as "a class with no standing guard". It is not: **S1 has
+  --   swept `public` definers for `has_function_privilege('anon', …)` since 0057 §1**, and `anon`
+  --   is a member of PUBLIC, so every PUBLIC-executable definer is also anon-executable and S1
+  --   already reds on it. Measured 2026-08-25: a deliberately PUBLIC-ACL definer planted in the
+  --   schema reddened BOTH pins in the same run. Claiming H9 closes an unwatched class would have
+  --   been false, and it would have been false in exactly the way the rest of this landing is about.
+  --   What H9 actually adds over S1, and the reason it is kept:
+  --     · **names**. S1 reports a COUNT ("anon 실행 가능 definer 함수 1개"). H9 reports each
+  --       offender's signature AND its ACL string, which is the difference between "something
+  --       regressed" and "this function, this grant". That is H1's shape and why H9 sits beside it.
+  --     · an explicit **allowlist mechanism** with a written-reason rule, so a future justified
+  --       exception is a visible line rather than a deleted pin.
+  --     · the **PUBLIC arm stated separately** from the anon arm, so the pin's subject is the
+  --       privilege that is actually granted rather than one role that happens to inherit it.
+  --   A red H9 and a red S1 are the same finding seen twice. Read S1 for "did it regress", H9 for
+  --   "which one". Neither is redundant enough to delete; both being green is one fact, not two.
   --
   -- THE ALLOWLIST IS EMPTY, AND THAT IS A MEASUREMENT. All 219 `public` definers in the built
   -- schema on 2026-08-25 were executable by neither PUBLIC nor `anon`; the array below is the
