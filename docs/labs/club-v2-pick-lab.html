@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Runner Pick Lab (r3)</title>
+<title>Club v2 — Runner Pick Lab (r4)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
@@ -48,44 +48,87 @@
    level per screen — sections separate by whitespace and ink rules, never by
    a rounded box inside another box. The card that used to hold the document
    IS the screen now.
+
+   ── ROUND 4 (2026-08-25, Sean, verbatim) ───────────────────────────────────
+   "white backgrounds. if there are choices that have to be make through
+   clicking, it should be more obvious that it is a clickable button or row. i
+   like the pin board 1, but what does the different states mean? aren't they
+   all supposed to be in near sync? same start time, maybe different arrival
+   states as some can be doing pick up or arrival, but also same end or maybe
+   some are returning or finished completely. also, clicking on each names
+   should go to their profiles with their posts (like instagram). for the host
+   console, why is the host accepting or rejecting an owner? they shuold be
+   able to sign up and runners too without the host's permission. pair
+   reallocation functionality for the host? is that really necessary, i dont
+   think so. the club will be running in a pack so end times would probably be
+   all the same or similar. i like the simple live map screen. i dont like the
+   stamp style though. refurbish and renew the mock."
+
+   This lab is where "if there are choices … it should be more obvious that it
+   is a clickable button or row" bites hardest: EVERY row here IS a choice.
+
+   WHAT ROUND 4 CHANGED HERE
+   1. WHITE. Canvas #FFFFFF. The warm grounds retire AS GROUNDS; the doc
+      grammar — ink rules, dashed perforation, Latin kickers, serials, the
+      barcode — survives on white. The one recessed region in this lab (the
+      full runner, 만석) uses the NEUTRAL --recess #F7F7F5, never a warm tint.
+   2. THE ROW IS A BUTTON, AND LOOKS LIKE ONE. ①'s three runner rows were
+      hairline-separated text whose only tap mark was a chevron. They now carry
+      the full tap grammar: white fill, 1px ink border, 60px height, chevron.
+      자동 연결 became the same kind of row instead of a bare underlined door.
+   3. AND THE NEGATIVE HALF. The 만석 runner is NOT choosable, so it loses all
+      of it — dashed border, neutral recess fill, no chevron. In ② the already-
+      chosen runner is a PRINT row (no border, no fill, no chevron): the pick
+      is made, the row is a receipt. The contrast is the information.
+   4. NAMES ARE TAPPABLE. Every runner name sits in a bordered name chip —
+      이름 → 프로필(게시물). The Instagram-like profile with the runner's posts
+      is a COMING SURFACE, mocked separately, not in this lab.
+   5. BARE TAPPABLE TEXT IS GONE. 「지목 취소 — 무료」 and 「취소 ›」 were
+      floating dim sentences that happened to be buttons. Both are now proper
+      bordered rows with chevrons, still visually receding.
+   6. NO STAMP. ③'s rotated 확정 rubber stamp (border, rotation, coral wash) is
+      deleted, following Sean's "i dont like the stamp style though" — stated
+      about the run lab's record, applied here for one grammar across the four
+      labs. 확정 is now a plain ink record line: kicker, ink rule, the fact,
+      the minute.
    ═════════════════════════════════════════════════════════════════════════ */
 
 /* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
 :root{
-  /* GROUND — club/delegate/[sid].tsx consent-document consts, promoted to canvas */
-  --docInk:#26231b; --docText:#4a463c; --docDim:#8a8272; --docFaint:#a4917f;
-  --docChip:#FBF9F3; --docClause:#F6F3EA; --docLine:#E4DFD1; --docEdge:#E2DDD0;
-  --docDash:#C9C2AE; --docWhite:#FFFFFF;
-  /* ACCENT — sparse: active state · one kicker underline · one selected chip */
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
   --accent:#6C5CE7;
-  /* ACTION + state inks — theme.ts paper / lilac */
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
   --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
   --action:#C6472C; --actionInk:#A83315;
-  --amber:#C77414; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#d84a2f;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
   /* collar palette — theme.ts collarColors */
   --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
   --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
   --dogFill:#C9B89A; --dogInk:#5d5138;
-  /* ONE TYPE SCHEMA — same names, same values, all four labs */
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
   --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
   --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
-  /* Round 3-bis (2026-08-25): four Korean sizes (22/17/15/14) clustered too close — a 14-vs-15
-     distinction carries no information and reads as the exact schema inconsistency Sean called
-     out. Three steps, real jumps (≥1.25): display 24 · title 19 · one body tier 15 (the floor
-     rises to 15 with it — hierarchy comes from these jumps + weight + kickers, never from
-     near-identical gradations). --t4 kept as an alias so no selector goes dangling. */
   --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
   --t2:19px; --l2:26px;      /* title */
   --t3:15px; --l3:21px;      /* body — the one text tier */
-  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor now 15) */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
   --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
   --ts:10px;                 /* Latin serial */
-  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.24×) */
-  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.27×) */
-  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.29×) */
-  /* lab chrome only — never inside a frame */
-  --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
@@ -131,36 +174,66 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .thinrule{height:1.5px;background:var(--docInk)}
 .hairrule{height:1px;background:var(--docLine)}
 .mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
-.mast .bk{font-size:24px;line-height:24px;color:var(--docDim)}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
 .mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
 .dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
   font-size:var(--t4);font-weight:800;color:var(--dogInk)}
 
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
 /* ── FILE-LOCAL — runner pick ─────────────────────────────────────────────── */
 /* these three screens are short — hold a phone's height so the air reads as air */
 .phone{min-height:620px}
 .headline{display:flex;justify-content:space-between;align-items:baseline;margin-top:26px}
-.cols{display:grid;grid-template-columns:1fr 74px 46px 34px;gap:10px;align-items:baseline;
-  margin-top:22px;padding-bottom:8px}
-.srow{display:grid;grid-template-columns:1fr 74px 46px 34px;gap:10px;align-items:center;
-  padding:16px 0;border-top:1px solid var(--docLine)}
-.rname{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk);
-  display:flex;align-items:center;gap:9px;min-width:0}
-.tag{display:inline-flex;border:1.3px solid var(--docDash);border-radius:4px;padding:2px 8px;
-  font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim)}
+.cols{display:flex;align-items:baseline;gap:8px;margin-top:22px;padding:0 14px 8px}
+.cols .cName{flex:1}
+.cols .cPace{width:70px;text-align:right}
+.cols .cLoad{width:34px;text-align:right}
+.cols .cEnd{width:10px}
+
+/* a runner row IS a choice — so it wears a button's clothes */
+.srow{display:flex;align-items:center;gap:8px;min-height:60px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk)}
+.srow + .srow{margin-top:-1px}
+/* …and a row that CANNOT be chosen wears none of them */
+.srow.off{background:var(--recess);border:1px dashed var(--docDash)}
+.srow.off .namechip{border-color:var(--docDash);background:transparent}
+.srow.off .namechip .nmA,.srow.off .rpace,.srow.off .rload{color:var(--docDim)}
+/* …and a row whose choice is already made is a receipt, not a control */
+.srow.done{background:transparent;border:0;border-top:1px solid var(--docLine);
+  border-bottom:1px solid var(--docLine);padding-left:0;padding-right:0}
+
+.namechip{display:inline-flex;align-items:center;min-height:34px;padding:4px 10px;
+  border:1px solid var(--docDash);background:var(--docWhite);white-space:nowrap}
+.namechip .nmA{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tag{display:inline-flex;align-items:center;min-height:26px;padding:2px 8px;
+  border:1.3px solid var(--docDash);font-size:var(--t3);line-height:var(--l3);
+  font-weight:700;color:var(--docDim);white-space:nowrap}
 .tag.sel{border-color:var(--accent);color:var(--accent)}
-.rpace{font-size:var(--n3);line-height:var(--nl3);color:var(--docInk);text-align:right}
+.spacer{flex:1;min-width:6px}
+.rpace{width:70px;text-align:right;font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
 .rpace .u{font-family:var(--fBody);font-size:10px;font-weight:600;color:var(--docDim)}
-.rload{font-size:var(--n3);line-height:var(--nl3);color:var(--docInk);text-align:right}
-.tail{font-size:var(--t4);line-height:var(--l4);color:var(--docDim);text-align:right;font-weight:700}
-.chev{font-size:19px;color:var(--docDim);text-align:right}
-.srow.off .rname,.srow.off .rpace,.srow.off .rload{color:var(--docDim)}
+.rload{width:34px;text-align:right;font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+.tail{width:auto;font-size:var(--t3);line-height:var(--l3);color:var(--docDim);text-align:right;font-weight:800}
+.chevR{flex:0 0 auto;width:10px;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
 
-.door{display:flex;align-items:center;gap:10px;margin-top:22px;padding-top:18px;border-top:1.5px solid var(--docInk)}
-.door .t{flex:1;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
-
-.quiet{margin-top:26px;text-align:center;font-size:var(--t4);line-height:var(--l4);
+.quiet{margin-top:22px;text-align:center;font-size:var(--t3);line-height:var(--l3);
   font-weight:700;color:var(--docDim)}
 
 /* wait ring — the one animated-looking accent on this screen */
@@ -170,26 +243,40 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
   background:repeating-conic-gradient(from -90deg,var(--accent) 0 3.6deg,transparent 3.6deg 15deg);
   -webkit-mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%);
   mask-image:conic-gradient(from -90deg,#000 0 62%,transparent 62% 100%)}
-.ring .hole{position:absolute;inset:13px;border-radius:50%;background:var(--docChip);
+.ring .hole{position:absolute;inset:13px;border-radius:50%;background:var(--docWhite);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 
-/* paired stub — stamp · perforation · rule-divided cells · barcode */
+/* paired stub — ink record line · perforation · rule-divided cells · barcode */
 .paired{margin-top:28px}
 .pname{font-family:var(--fDisp);font-weight:400;font-size:30px;line-height:39px;color:var(--docInk);letter-spacing:-.01em}
-.pfact{font-size:var(--t4);line-height:var(--l4);color:var(--docDim);margin-top:6px}
-.stamp{position:absolute;right:24px;top:104px;border:2.5px solid var(--coralDeep);border-radius:4px;
-  padding:7px 14px;transform:rotate(-7deg);font-size:var(--t2);line-height:var(--l2);font-weight:800;
-  letter-spacing:3px;color:var(--coralDeep);background:rgba(255,220,209,.25)}
-.perf{position:relative;height:0;margin:26px -20px 0;border-top:1.5px dashed var(--docDash)}
+.pfact{font-size:var(--t3);line-height:var(--l3);color:var(--docDim);margin-top:6px}
+/* round 4: the rotated 확정 stamp is deleted — the fact is an ink record line */
+.confline{border-top:1.5px solid var(--docInk);margin-top:20px;padding-top:13px;
+  display:flex;align-items:baseline;gap:10px}
+.confline .cv{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.confline .ct{margin-left:auto;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--docInk)}
+.perf{position:relative;height:0;margin:24px -20px 0;border-top:1.5px dashed var(--docDash)}
 .cells{display:flex;margin-top:22px}
 .cells > div{flex:1}
 .cells > div + div{border-left:1px solid var(--docLine);padding-left:16px}
 .cellv{margin-top:8px;font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
-.cellk{display:inline-flex;margin-top:8px;background:var(--docInk);color:var(--docChip);
-  padding:4px 10px;font-size:var(--t4);line-height:var(--l4);font-weight:700}
-.bars{display:flex;gap:2px;align-items:flex-end;height:28px;margin-top:30px;opacity:.6}
+.cellk{display:inline-flex;margin-top:8px;background:var(--docInk);color:var(--docWhite);
+  padding:4px 10px;font-size:var(--t3);line-height:var(--l3);font-weight:700}
+.bars{display:flex;gap:2px;align-items:flex-end;height:28px;margin-top:28px;opacity:.55}
 .bars i{display:block;background:var(--docDim)}
 .stubfoot{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 108px;font-weight:800;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -197,15 +284,15 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
 <header class="top">
   <h1>클럽 v2 — 러너 픽 Lab</h1>
-  <p class="law">Round 3 · paper ground · sparse accent · one surface level · row tap = pick</p>
+  <p class="law">Round 4 · white ground · a choice looks like a button · names tap to profiles · no stamp</p>
 </header>
 
 <section class="toc">
   <h2>Three moments of one flow — pick the one that should ship</h2>
   <ol>
-    <li><span class="n">①</span><span><b>스타트 리스트</b> — nothing chosen yet; the row itself is the pick.</span></li>
-    <li><span class="n">②</span><span><b>수락 대기</b> — the list is gone; one runner and one clock remain.</span></li>
-    <li><span class="n">③</span><span><b>확정 스텁</b> — the pick is done; only a receding cancel remains.</span></li>
+    <li><span class="n">①</span><span><b>스타트 리스트</b> — the row is the pick, and now it <b>looks</b> like one; 만석 looks like nothing.</span></li>
+    <li><span class="n">②</span><span><b>수락 대기</b> — the chosen runner is a printed receipt; only 지목 취소 is still a control.</span></li>
+    <li><span class="n">③</span><span><b>확정 스텁</b> — the pick is done; 확정 is an ink line, not a stamp.</span></li>
   </ol>
   <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b> — and one word if something inside it should change.</p>
 </section>
@@ -214,7 +301,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
   <!-- ① START LIST -->
   <div class="col">
-    <div class="cap"><span class="n">①</span><span class="d">스타트 리스트 — <b>the row is the pick</b>, no buttons.</span></div>
+    <div class="cap"><span class="n">①</span><span class="d">스타트 리스트 — <b>the row is the pick</b>, and wears a button's clothes.</span></div>
     <div class="phone">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
@@ -228,37 +315,40 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
 
         <div class="cols">
-          <div class="kick acc">Runner</div>
-          <div class="kick" style="text-align:right">Pace</div>
-          <div class="kick" style="text-align:right">Load</div>
-          <div></div>
+          <div class="kick acc cName">Runner</div>
+          <div class="kick cPace">Pace</div>
+          <div class="kick cLoad">Load</div>
+          <div class="cEnd"></div>
         </div>
 
         <div class="srow">
-          <div class="rname">박지훈 <span class="tag">베테랑</span></div>
-          <div class="rpace num">6'30"<span class="u">/km</span></div>
-          <div class="rload num">1/2</div>
-          <div class="chev">›</div>
+          <span class="namechip"><span class="nmA">박지훈</span></span>
+          <span class="tag">베테랑</span>
+          <i class="spacer"></i>
+          <span class="rpace num">6'30"<span class="u">/km</span></span>
+          <span class="rload num">1/2</span>
+          <span class="chevR">›</span>
         </div>
 
         <div class="srow">
-          <div class="rname">이서연 <span class="tag">마스터</span></div>
-          <div class="rpace num">6'05"<span class="u">/km</span></div>
-          <div class="rload num">0/3</div>
-          <div class="chev">›</div>
+          <span class="namechip"><span class="nmA">이서연</span></span>
+          <span class="tag">마스터</span>
+          <i class="spacer"></i>
+          <span class="rpace num">6'05"<span class="u">/km</span></span>
+          <span class="rload num">0/3</span>
+          <span class="chevR">›</span>
         </div>
 
         <div class="srow off">
-          <div class="rname">김도윤 <span class="tag">인증</span></div>
-          <div class="rpace num">6'45"<span class="u">/km</span></div>
-          <div class="rload num">2/2</div>
-          <div class="tail">만석</div>
+          <span class="namechip"><span class="nmA">김도윤</span></span>
+          <span class="tag">인증</span>
+          <i class="spacer"></i>
+          <span class="rpace num">6'45"<span class="u">/km</span></span>
+          <span class="rload num">2/2</span>
+          <span class="tail">만석</span>
         </div>
 
-        <div class="door">
-          <div class="t">⚡ 자동 연결</div>
-          <div class="chev">›</div>
-        </div>
+        <div class="tap"><span class="tt">⚡ 자동 연결</span><span class="chev">›</span></div>
 
         <div class="quiet">몽이 <span class="num">6'40"</span>/km</div>
       </div>
@@ -267,7 +357,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
   <!-- ② 2H WAIT -->
   <div class="col">
-    <div class="cap"><span class="n">②</span><span class="d">수락 대기 — <b>one runner, one clock</b>; the list is gone.</span></div>
+    <div class="cap"><span class="n">②</span><span class="d">수락 대기 — <b>the chosen row is a receipt</b>, not a control.</span></div>
     <div class="phone">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
@@ -281,17 +371,19 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
 
         <div class="cols">
-          <div class="kick acc">Runner</div>
-          <div class="kick" style="text-align:right">Pace</div>
-          <div class="kick" style="text-align:right">Load</div>
-          <div></div>
+          <div class="kick acc cName">Runner</div>
+          <div class="kick cPace">Pace</div>
+          <div class="kick cLoad">Load</div>
+          <div class="cEnd"></div>
         </div>
 
-        <div class="srow">
-          <div class="rname">박지훈 <span class="tag sel">베테랑</span></div>
-          <div class="rpace num">6'30"<span class="u">/km</span></div>
-          <div class="rload num">1/2</div>
-          <div></div>
+        <div class="srow done">
+          <span class="namechip"><span class="nmA">박지훈</span></span>
+          <span class="tag sel">베테랑</span>
+          <i class="spacer"></i>
+          <span class="rpace num">6'30"<span class="u">/km</span></span>
+          <span class="rload num">1/2</span>
+          <span class="chevR"></span>
         </div>
 
         <div class="ring">
@@ -302,18 +394,18 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
           </div>
         </div>
 
-        <div style="margin-top:24px;text-align:center;font-size:var(--t4);line-height:var(--l4);color:var(--docDim)">
+        <div style="margin-top:24px;text-align:center;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)">
           박지훈 님이 수락을 정하는 중</div>
 
-        <div class="quiet">지목 취소 — 무료</div>
+        <div class="tap quietTap" style="margin-top:22px"><span class="tt">지목 취소</span><span class="tsub">무료</span><span class="chev">›</span></div>
       </div>
     </div>
   </div>
 
   <!-- ③ PAIRED -->
   <div class="col">
-    <div class="cap"><span class="n">③</span><span class="d">확정 스텁 — <b>runner, pickup, window</b>; one dim cancel.</span></div>
-    <div class="phone" style="position:relative">
+    <div class="cap"><span class="n">③</span><span class="d">확정 스텁 — <b>runner, pickup, window</b>; 확정 is an ink line.</span></div>
+    <div class="phone">
       <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
       <div class="scr">
         <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
@@ -329,7 +421,12 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
           <div class="pname">박지훈</div>
           <div class="pfact">베테랑 · <span class="num" style="color:var(--docInk)">6'30"</span>/km</div>
         </div>
-        <div class="stamp">확정</div>
+
+        <div class="confline">
+          <span class="kick">Confirmed</span>
+          <span class="cv">확정</span>
+          <span class="ct">09:38</span>
+        </div>
 
         <div class="perf"></div>
 
@@ -358,9 +455,32 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
           <span class="serial">DOGS HIGH · 8A3F21C4</span>
         </div>
 
-        <div class="quiet">취소 ›</div>
+        <div class="tap quietTap" style="margin-top:22px"><span class="tt">지목 취소</span><span class="chev">›</span></div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>Where the affordance law bites</h3>
+    <p>Every row in ① <b>is a choice</b>, so this is the lab Sean's second sentence was about. The law has two halves and both are demonstrated here.</p>
+
+    <h4>Tappable — wears all of it</h4>
+    <div class="ph"><span class="k">러너 행</span><span>white fill · 1px ink border · 60px · chevron ›. Two of them in ①.</span></div>
+    <div class="ph"><span class="k">자동 연결</span><span>the same row grammar, not a bare underlined door.</span></div>
+    <div class="ph"><span class="k">지목 취소</span><span>was a floating dim sentence that happened to be a button; now a bordered row that still recedes.</span></div>
+    <div class="ph"><span class="k">이름 칩</span><span>every runner name sits in a bordered chip — 이름 → 프로필(게시물).</span></div>
+
+    <h4>Not tappable — wears none of it</h4>
+    <div class="ph"><span class="k">만석 (김도윤)</span><span>cannot be chosen: dashed border, neutral recess fill, dim ink, <b>no chevron</b>.</span></div>
+    <div class="ph"><span class="k">②의 확정 행</span><span>the pick is made — the row loses its fill, border and chevron and becomes a printed receipt between two hairlines.</span></div>
+    <div class="ph"><span class="k">읽기용 숫자</span><span>몽이 6'40"/km, the ring, the stub cells and the barcode are readouts.</span></div>
+
+    <h4>Profiles</h4>
+    <p><b>이름 → 프로필(게시물).</b> The Instagram-like profile carrying the member's posts is a <b>coming surface, mocked separately</b> — this lab only marks which text is a door to it.</p>
+
+    <h4>No stamp</h4>
+    <p>③'s rotated 확정 rubber stamp is deleted along with the run lab's RELEASED plate, so the four labs keep one grammar. 확정 is now a plain ink record line: kicker, ink rule, the fact, the minute.</p>
   </div>
 
 </div>
