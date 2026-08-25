@@ -355,8 +355,28 @@ location-blind in the money path (F5 ✅ — he describes the ritual, not a sett
 the existing `pickup_mode` flag is the right home, it just widens from two options to three (F2/F4 ✅
 — **spec session's surface, not this plan's**).
 
-**What is now moot:** the "not too far" radius (F6) — he specified an *option set*, not a distance
-rule; nothing to enforce. Four of the five open questions dissolve with it.
+**⚠ CORRECTED — the radius is NOT moot; I inferred a retraction that was never made.** I wrote
+that it dissolved because his resolution specifies an option set and no distance rule. But his
+FIRST message states it in his own words — 「or some other address **that's not too far**」 — and
+his resolution simply does not mention it again. **Not repeating a constraint is not retracting
+it.** Two readings are live and I cannot pick between them: he dropped the limit once he saw the
+option set, or he still assumes it and would be surprised that a 40km pickup is accepted. Caught
+by the spec session, who read the source instead of my summary — this is the relayed-decision law
+pointed at an INFERENCE rather than at a relay, and it is the same failure shape as the settlement
+amounts earlier today: a reading standing in for his words in a place where guessing either way
+ships a constraint he never chose, or drops one he assumed.
+
+**Re-opened on that basis:**
+- **Q1 (the radius itself)** — back to Sean as one question, phrased so either answer is one tap.
+- **Q4 (is "another address" bounded?)** — depends entirely on Q1.
+- **F6 comes back with it.** If a limit exists, it is *unenforceable as posed*: `addresses.lat/lng`
+  are NULL until the owner pins (0065:29-33), so the gate would silently not apply for unpinned
+  addresses — the honesty law's forbidden shape. Consequence to state in the same card: a bounded
+  "another address" must be restricted to already-pinned addresses, which is a real constraint on
+  his option, not a footnote.
+
+What genuinely IS resolved by his answer: Q3 (owner-absent at return — the two-sided ritual he
+describes is the answer), Q5 (finish-site return exists independently of 동반).
 
 **What is still genuinely open:** what a runner is paid when the pickup leg disappears (start-site
 pickup is less work than home pickup) — a money question, and money questions are Sean's.
