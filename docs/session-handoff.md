@@ -42,29 +42,35 @@ said so, unconfirmed by me · **[from-history]** earlier in conversation.
 | 0120 location law | Parked at `b06f878`, unchanged. | [from-history] |
 | Console | <https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> — holds all 24 answered rulings. ⚠ **Re-fetch its STATE before republishing**; seeding from a remembered copy would wipe his answers, which nearly happened twice today. | [verified-now] |
 
-## 1-bis. THE THREE QUESTIONS WAITING ON SEAN (console, all open)
+## 1-bis. SEAN'S QUEUE IS EMPTY — every console question answered (09:03-09:05Z)
 
-All three are consequences of his OWN rulings, not re-litigation. Nothing in S2-S5 should be
-built against the affected surfaces until he taps.
+Full verbatim + dispositions in `docs/decisions/2026-08-25-console-rulings.md` rounds 8-9.
+Read them there; the summary below is a pointer, not a source.
 
-1. **A runner drops out — what happens to that dog?** He answered PARTLY, in the UI session's
-   chat: 「what do you mean runner left? how can that happen? left before the start of the
-   session? then someone else should carry it over yes」. So: before the start → **someone else
-   carries it over**. His verb is a TRANSFER, not the pack informally absorbing a dog. Still
-   open: mid-run departure, and **what the carrying runner earns for a second dog** — no §10.2
-   money can be derived until that one is answered, and the lab's 청구/환불 pair stays withdrawn.
-   ⚠ **His challenge was right and it exposed a trap**: `session_runner_withdraw` (0043) already
-   REFUSES while the runner holds a `confirmed`/`picked_up`/`active` booking
-   (`raise 'reassign_dogs_first'`), and the ONLY thing that can move that dog is the HOST-ONLY
-   `session_assignment_revoke` (0047:230). **Retire the host button without building his
-   "carry it over" transfer and `reassign_dogs_first` becomes unsatisfiable — a runner holding a
-   dog can never leave.** The retirement and his ruling are ONE slice, not two.
-2. **Can a host remove anyone from a session at all?** Retiring host approval also removed the
-   club's ONLY exclusion mechanism — there is no ban, no blocklist, no `status` on `club_members`,
-   no member-removal RPC, and `club_join` is unconditional. Nobody decided that; it rode along.
-3. **Last slot, one owner paid and one not — hold or race?** The approval step was silently
-   holding the slot during the 20-minute pay window. Without it nothing does, so two owners can
-   both be told to pay for one slot.
+| Question | His answer | Consequence |
+|---|---|---|
+| Runner drops out | **"keep host reassignment… if no one can, the host can take care"** | §6.6 STANDS — its provisional retirement REVERTS. Third position in one day (approve → doubt → keep). |
+| Host removal power | **"Host can remove someone from one walk"** | Session-scoped removal only. No club ban, no blocklist. |
+| Last slot, unpaid | **"Hold the spot for 20 minutes"** + "make the payment for after the run finished no?" | Hold stands. ⚠ His question was RIGHT and MY CARD WAS WRONG — see below. |
+| Custom-address radius | (moot) | He cut the custom-address option entirely: pickup ∈ {home, on site}, return ∈ {home, on site}. |
+| Skipped-leg pay | **"Same pay either way"** | No per-leg differential, no new money object, no migration. |
+
+⚠ **MY ERROR, recorded because the class matters:** the slot card told him 「signing up and paying
+are two steps with a 20-minute window between them」. **False.** `0080:11-14`: booking is free →
+the run happens → `settle_run_tx` commits → *then* the card is charged. `0081:41` requires a
+REGISTERED CARD at confirm, never a charge. The 20-min hold reserves CAPACITY. **His confusion was
+the only thing that caught it.** A decision card is a claim about the system and needs the same
+verification as a status line; I wrote that one from memory.
+
+🔴 **STILL UNPRICED — do not read the rulings as covering these:**
+1. **Host-as-runner** 「if no one can, the host can take care」 has NO mechanism today, and
+   "same pay either way" does NOT cover it (that ruling is about skipped legs, not about who
+   walks). Is the host paid runner-pay on top of the host fee? Party gate with one person as
+   both?
+2. **His ruling and `session_assignment_revoke` (0047) DISAGREE**: it returns the booking to
+   `matching` rather than to a runner the host picks, and refuses entirely after handoff
+   (`already_handed_off`). His "if no one can" implies he is watching candidates. **The model
+   owes the ruling, not the reverse** — do not reinterpret his words to fit the shipped function.
 
 ## 1-ter. Laws added today — all on trunk, all measured
 
