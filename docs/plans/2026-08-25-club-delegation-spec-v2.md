@@ -20,9 +20,10 @@ several design-breaking; every one is answered in-text below and logged in §15.
 Decisions Sean has not made are 🔴 (§14). Proposals this spec makes on its own authority are 🔵
 — reversible in one word.
 
-Status: DRAFT **v2.3** — both blind rounds folded in (Claude voice: 15 findings; codex voice: 9
+Status: DRAFT **v2.4** — both blind rounds folded in (Claude voice: 15 findings; codex voice: 9
 findings; dispositions in §15), then **re-scoped 2026-08-25 evening by Sean's sixth-round
-rulings** (§16). Nothing here is built.
+rulings** (§16) and amended the same evening by his **seventh round** — the club sign-up setup
+screen (§16.7). Nothing here is built.
 
 ⚠ **READ §16 FIRST.** Four of his rulings change this machine. One REVERSES a position this
 document argued for at length (§4.2, host admission) and is settled. **One — §16.3, the host
@@ -31,6 +32,14 @@ and arrived as a question carrying an opinion, so it awaits one confirming tap a
 against it.** §6.6's superseded text is preserved verbatim at §6.6-orig. Every section touched
 carries an inline `[AMENDED 2026-08-25 · §16.n]` marker. Where a ruling collides with money or
 custody correctness the collision is stated in §16 as a collision, not smoothed away.
+
+⚠ **THEN READ §16.7** — his seventh round, the sign-up setup screen. It REVERSES one sentence of
+§7.2 (*"return mirrors pickup, same flag"*): the return point becomes the owner's own choice,
+independent of pickup. Net schema surface: **one column**, `session_dogs.return_mode`. It also
+adds the host pickup monitor (§10.2a), records **OPEN-F** (runner pay when a leg disappears —
+money, unanswered, no number proposed), and surfaces a shipped disclosure-gate hole that §8.1
+arms (§8.6). §16.7b states a collision with the relay that carried his words; §16.7f states what
+retired and why the *reason* matters.
 
 ---
 
@@ -180,6 +189,13 @@ Flagged as conflicts rather than resolved, per the brief. Each is a ⟨pair·mon
   picked up cannot be `active`, and `club_start_delegated_runs` refuses `nothing_to_start`
   (`0050:177`) rather than inventing one. The pack does not drag an absent dog along.
 
+- **[AMENDED · §16.7] `pickup_mode`/`return_mode` are per-pairing and sit exactly on the edges
+  the ruling protects.** They compose cleanly — see §16.7e for the check. The on-site arms
+  *shrink* the edges rather than widening them: the dog arrives where the pack forms, so there is
+  no per-dog scatter before the run and none after it. Do not read that as "the pack has one
+  pickup": a 집 픽업 pairing beside a 현장 인계 pairing is Sean's own named before-edge variation
+  (*"some can be doing pick up or arrival"*), not a divergence to be flattened.
+
 **One gate this spec proposes actually moves (🔵), and only one:** the run-end confirmation's
 blocking population (§7.5.2) already reads "no pairing still at `picked_up` or `active`", which is
 a pack-scoped predicate over per-pairing rows — correct as written, and it is named here so a
@@ -219,6 +235,14 @@ confirming tap: no host pair-reallocation** (§16.3), because it reverses his ow
 approval on console card 10 at 04:26:44Z and arrived as a question carrying an opinion rather
 than an instruction. §6.6 is re-scoped as retired and marked provisional; its original text is
 preserved at §6.6-orig.
+
+RULED 2026-08-25 evening (seventh round — §16.7, verbatim there): **the club sign-up flow is a
+setup screen** (self-run vs request-a-runner → pickup point → session details → return point) ·
+**the return point is the owner's own choice, independent of pickup** — which REVERSES §7.2's
+"return mirrors pickup, same flag" · **pickup and return are each {집, 현장} and nothing more**
+(*"then just do either on site or home address"* — this RETIRES the custom-address arm he had
+floated hours earlier, and with it the 「not too far」 distance question, §16.7f) · **the host
+monitors pickup statuses** (§10.2a).
 
 PROPOSED by this spec (🔵, each reversible): per-pairing pickup mode {door, start-point} (§7.2)
 · pick TTL 2h with lapse-back (§6.3) · the three unconditional escape hatches for
@@ -845,16 +869,65 @@ refused). Consequences, each deliberate:
   the dog card, and the honest-transit sentence (rider: until insurance signs, the copy states
   plainly that the transit leg is runner-responsibility, insured status shown as it is).
 
-### 7.2 Per-pairing pickup mode (🔵) — the attending-owner scenario, solved where it lives
+### 7.2 Per-pairing pickup mode (🔵) — the attending-owner scenario, solved where it lives [AMENDED 2026-08-25 · §16.7]
 
 C7's missing scenario (a Mode B owner who attends — in a Banpo pilot the most likely case)
 is not an edge: it's a per-pairing choice. At P2 the owner picks **집 픽업** (default; the flow
 above) or **현장 인계** (owner brings the dog to the start and both-stamps there — today's
-shipped chain, byte-identical). Return mirrors pickup (집 반환 / 현장 반환, same flag). One
+shipped chain, byte-identical). ~~Return mirrors pickup (집 반환 / 현장 반환, same flag).~~ One
 column on the pairing (`pickup_mode`), zero new custody mechanics for the 현장 arm, and the
 "pointless return trip to an empty home" the review flagged becomes unconstructable. 맹견 gate,
 ladder, and finish logic are pickup-mode-blind. 🔴 §14.2 for Sean's nod since it reshapes his
-"the runner should pick them up" default into a default-plus-option.
+"the runner should pick them up" default into a default-plus-option — **given, 14.2 "BOTH"**.
+
+#### 7.2a [AMENDED · §16.7] RETURN stops sharing the flag — one change, and it is a reversal
+
+🔴 **RULED** (Sean, 2026-08-25 evening; verbatim and provenance in §16.7). The option set above
+is **unchanged** — he collapsed his own richer draft back to it: *"then just do either on site or
+home address."* No third pickup arm, no custom-address arm on either leg. What his ruling DOES
+change is the sentence struck above:
+
+**"Return mirrors pickup, same flag" is STRUCK.** He specifies the return point as a choice the
+owner makes *for itself*: the runner meets the owner *"where the owner desires"*, either at the
+owner's address or at the site where the run finished. Pickup-at-home with collection-on-site is
+a combination an owner can want, and one two-valued flag expresses two of the four combinations,
+not four. This is a **reversal of this spec's own design**, not a widening of the option set, and
+it is recorded as one.
+
+**The fields, settled here so client and server bind the same names** (🔵 for the *names*; the
+*model* is his):
+
+| Field | Home | Values | Notes |
+|---|---|---|---|
+| `pickup_mode` | `session_dogs` | `owner_home` (default) · `session_start` | NOT NULL, defaulted. Unchanged in meaning; UI 집 픽업 · 현장 인계 |
+| `return_mode` | `session_dogs` | `owner_home` (default) · `session_finish` | **NEW — the whole of this amendment's schema surface.** UI 집 반환 · 현장 반환 |
+| the address VALUE | `bookings.address_id` (**shipped**, `0001:170`) | an `addresses` row, or NULL | Serves whichever legs are address legs. NULL only when BOTH modes are on-site — which is today's shipped club mint unchanged (`0081:184-186` omits `address_id` from the column list) |
+
+**No `return_address_id` column, and that is a finding, not an omission.** With the custom-address
+arm gone, the only address either leg can name is the owner's own — so one address per pairing is
+sufficient for all four combinations, and `bookings.address_id` already is that column:
+
+| `pickup_mode` | `return_mode` | `bookings.address_id` | Who reads it |
+|---|---|---|---|
+| `owner_home` | `owner_home` | set | both legs |
+| `owner_home` | `session_finish` | set | pickup leg only |
+| `session_start` | `owner_home` | **set** | return leg only |
+| `session_start` | `session_finish` | NULL | nobody — today's shipped mint |
+
+Row 3 is the one worth reading twice: an address must be captured at sign-up even when no pickup
+leg exists, and §8's item 1 as written (*"현장 인계 pairings pass null and never enter the address
+surface"*) makes exactly that row unbuildable. §8.6 restates the rule on `return_mode`.
+
+**Why `pickup_mode` stays an explicit NOT NULL column rather than being derived from
+`address_id IS NULL`:** NULL is already overloaded. `booking_pickup_address` returns 0 rows for
+「주소 미지정」 *and* for a poisoned row, and says so (`0065:58-59`, `0060:68`) — so a NULL address
+cannot distinguish "the owner chose on-site" from "the owner has not answered yet". A screen
+rendering 「현장 인계」 off an absent address would be asserting a choice nobody made, which is the
+fabricated-data law. The mode is the source; the address is its consequence, and the two must
+agree.
+
+**Unchanged by all of this:** the two-sided transfer ritual on both legs — see §16.7d. The
+destination is a field; the transfer is still two named humans stamping.
 
 ### 7.3 Transit is inside the run's custody — stated, with its evidence gap named
 
@@ -1035,6 +1108,29 @@ NULL (0081:184-197 column list), and the only booking→address read in the sche
    runner-facing pick/pairing surfaces only.
 5. Adversarial cycle mandatory (0116 §D party-gate law; 0088 whole-request-403 hazard on any
    grant move). This is S4's server half and does not land without its pins.
+6. **[AMENDED · §16.7] The capture rule is keyed on BOTH modes, and the disclosure gate has a
+   hole the club path walks into.** Two corrections this slice must carry:
+   - **Capture:** item 1's rule (*"현장 인계 pairings pass null"*) is now wrong for one of the
+     four §7.2a combinations — `pickup_mode='session_start'` with `return_mode='owner_home'`
+     needs the address for the RETURN leg. Restated: `p_address_id` is required unless **both**
+     modes are on-site, and refused when both are.
+   - 🔴 **The shipped disclosure RPC cannot serve a home return, and this slice is what arms
+     it.** `booking_pickup_address`'s gate admits the runner at
+     `runner_enroute`/`picked_up`/`active`, or at `confirmed` inside T−24h (`0065:50-53`) —
+     **`completed` is not in the set.** The club's return leg happens *after* `completed`: the
+     custody trigger's `completed` arm is what opens the return phase (`0045:55-59`), and §7.5.1
+     changes only which `custody_phase` value it writes, not the booking status that triggers it.
+     So a runner on a 집 반환 leg is refused `not_runner` for the address they are standing
+     outside. The marketplace does not have this bug — 0083 keeps its booking at `active` through
+     the homeward leg and `completed` comes after (`0083:176-179`) — so this is a club/marketplace
+     divergence, **latent only because club bookings mint with `address_id` NULL today**
+     (`0081:184-186`). The moment item 1 starts writing addresses, it is live.
+     §10.3's P10 row (*"return leg per dog: address"*) is the screen requirement with no producer.
+     Fix shape (🔵, for the adversarial cycle to rule on): widen the gate to admit the assigned
+     runner while that pairing's `custody_phase` is unresolved, rather than adding `completed` to
+     a status list shared with the marketplace — the custody phase is the fact that actually
+     means "this runner still holds this dog", and `index.ts:238-241`'s history is exactly what a
+     careless status widening costs.
 
 ---
 
@@ -1139,6 +1235,40 @@ Backup host: may confirm run-end (RULED 14.5); host fee routes to the real host 
 (§7.5.2). Ruled bar for this whole subsection (his 14.10 comment): the host UI must include
 "all steps of the flow — each possible step and scenario" — the S5 client slice delivers the
 host console as a complete per-state enumeration, not a summary screen.
+
+#### 10.2a [AMENDED · §16.7] GAINS — the pickup monitor 🔴 RULED
+
+Sean's words: *"pick up statuses have to be monitored by the host."* A per-pairing pickup strip
+on the console, before the pack forms. What it must display, and where each column comes from —
+**measured, and three of the seven do not exist yet**:
+
+| Column | Producer | Shipped? |
+|---|---|---|
+| which mode this pairing chose | `session_dogs.pickup_mode` (§7.2a) | ❌ unbuilt |
+| 동 band — **never the address** (§8.4) | `addresses.dong` (`0122:57`, nullable, renders absent not placeholder `0122:55-56`) | column yes; host-side projection ❌ |
+| runner departed · arrived at the door | `session_dogs.pickup_departed_at` / `pickup_arrived_at` (§7.1, `:831-833`) | ❌ unbuilt |
+| both-stamp handoff done | `bookings.owner_confirmed_handoff_at` / `runner_confirmed_handoff_at` (`0001:182-183`), already projected as `ownerConfirmed`/`runnerConfirmed` (`0053:295-296`) | ✅ |
+| who holds the dog now | `session_dogs.custody_phase` / `custodian_type` → `custodyPhase`/`custodianType` (`0053:300-301`) | ✅ |
+| stage label + exception badge | `club_dog_ui_state` (`0116:552`) | ✅, but its vocabulary has **no pickup-leg stage** — it jumps 「담당 확정 — 인계 대기」 (`0116:595`) → 「러너가 보호 중」 (`0116:596-597`) |
+| overdue | derived: `club_sessions.scheduled_at` (`0030:55`) vs the stamps above | derivable once the stamps exist |
+
+Readership and delivery: the host grade already sees every delegated dog
+(`_club_delegation_board_impl`, `p_access in ('host','full')`, `0053:335`), so this is a
+projection widening on the OPERATIONAL board — `create or replace`, grant-preserving, the view
+law observed (§9 already schedules exactly this widening).
+
+**The honest consequence, stated rather than designed around: the shipped board cannot satisfy
+this ruling.** Its only pickup signal is two booleans (`0053:295-296`), which distinguish
+"handed off" from "not handed off" and nothing else — a host reading it cannot tell a runner who
+has not left from one standing at the door. So **the pickup monitor hard-depends on §7.1's four
+stamps landing**; until they do, the console shows a two-state strip and must say so rather than
+implying a leg it cannot see.
+
+**And `session_start` pairings must render as their own class, not as stalled pickups.** They
+produce no pickup leg and therefore no `pickup_departed_at`/`pickup_arrived_at` — ever. Sorted
+into the same list as 집 픽업 rows they are permanently "not departed", i.e. the monitor invents
+N alarms per session. 「현장 인계 예정」 is a distinct row state, and it resolves at the start
+site the moment the both-stamp lands.
 
 ### 10.3 Runner — `club/session/[sid].tsx` (runner cards) + `club/run/[sid].tsx` respec (Sean's "R" question)
 
@@ -1323,7 +1453,8 @@ counsel briefs (S6's gate) · the Mode A participation-fee follow-up · the 맹�
 
 ### 14-OPEN. New questions created by the sixth-round rulings [2026-08-25 · §16]
 
-🔴 **Five, each answerable in one sentence, each blocking only its own slice.** None is a
+🔴 **Six** (five from the sixth round, **OPEN-F added by the seventh, §16.7**)**, each answerable
+in one sentence, each blocking only its own slice.** None is a
 disagreement with a ruling; each is a thing a ruling left undetermined and that this spec refuses
 to guess. They are ordered by which slice they block.
 
@@ -1378,6 +1509,33 @@ is charged, which bounds the damage — but nobody has said out loud that losing
 acceptable, and the answer determines whether any mitigation is worth building. ⚠️ **This question
 is downstream of §6.6's own confirm**: if he declines the reversal and keeps the pen, OPEN-E
 largely dissolves, because the pen IS the mitigation. Put §14.10's confirm to him first.
+
+**OPEN-F — what a runner earns when a leg disappears (blocks the §16.7 slice's money half only).
+[NEW · §16.7]** 🔴 **MONEY — Sean's, and no number is proposed here.** One card, two arms,
+because they are the same question mirrored:
+
+> When the owner brings the dog to the start themselves, the runner does no pickup leg. When the
+> owner collects at the finish, the runner does no carry-home leg. Both are strictly less work
+> than the 집 arms. Does the runner earn the same, or less — and if less, by how much on each
+> leg?
+
+*Why it exists (analysis, and the shipped facts that bound it):*
+- **There is no leg term to adjust.** The club price is `club_fare(km) = 9900 + round(km*3000)`
+  (`0043:14`, comment `0081:286-287`) and the mint decomposes it as base 9900 + distance + 0
+  addon (`0081:188-198`). Pickup and return travel are priced nowhere — not in the owner's fare,
+  not in the runner's basis, which is that dog's own GPS-measured km through `settle_run_tx`
+  (`run/[sid].tsx:255-270` → `0083:628`). So "the same" is not a decision to keep the status quo
+  by inertia; it is already what every shipped line computes.
+- **Which makes the DEFAULT arm the safe one, and any cut a deliberate act.** 「러너 지급을
+  조용히 깎지 않는다」 is a MONEY CANON law (§1.1a). A differential that appeared because someone
+  reasoned "less work, less pay" without his word would be exactly the silent cut it forbids.
+- **It cannot be answered by looking at the owner's side either.** Whether the owner pays less
+  for an on-site pairing is a second question with the same shape, and the two are not forced to
+  move together — the commission split is where they meet, and 0121 stripped the runner-facing
+  money surface precisely so that split is stated once.
+- ⚠ This question was **not** created by the seventh round. §7.2's 현장 인계 arm has carried it
+  since 14.2 ruled "BOTH"; the seventh round only doubled it by decoupling return. Naming it now
+  rather than at implementation is the whole point.
 
 ## 15-bis. ORDERED ADDENDUM — Mode A (owner-participates), full delineation
 
@@ -1611,6 +1769,214 @@ Named, per the honesty law:
   `15722f5`, its own message marks it **UNMEASURED**) and drops those triggers per ruling F1. Every
   0119 citation in this spec is therefore provisional on 0127's landing. Out of scope for these
   four amendments; flagged so the S2.5/S3 authors re-read before binding to a 0119 line number.
+
+---
+
+## 16.7 AMENDMENT — Sean's SEVENTH round, 2026-08-25 evening: the sign-up setup screen
+
+**Provenance.** He was asked to pick from a five-option review; he declined the options and
+specified the flow instead. Recorded at
+`docs/plans/2026-08-25-return-point-and-round5.md` under `# RESOLUTION`. Everything outside the
+quote blocks in this section is **this spec's analysis** and carries none of a ruling's
+authority.
+
+**Verbatim ①** (the flow):
+
+> "as the owner goes through the process of signing up for a session, the app should prompt them
+> with a set up screen asking all necessary things, including but not limited to whether they will
+> run themselves in which case the starting point address and other things need to be shown, or
+> whether they will request a runner, at which point the next required questions include but are
+> not limited to where they ask the runner to pick up the dog … and also be shown all
+> session details like time, group number, etc etc, and also whether the owner will pick up the dog
+> at the club's ending point and meet the runner after the run is finished on site or whether they
+> ask the runner to bring the dog back home so the owner can stay home."
+
+**Verbatim ②** (the two legs, and the host):
+
+> "a requested runner can initially meet and pick up the dog from the owner at the owner's selected
+> point … in which case pick up statuses have to be monitored by the host, or they can meet the
+> owner and the dog at the starting site of the session run if the owner has decided so… once the
+> club session run has finished, the runner with the dog should meet the owner where the owner
+> desires, which can either be the owner's custom address … or at the site where the run has
+> finished (where once again the owner and the runner has to complete the transfer and mutual
+> confirmation ritual) and the runner does not need to do a go-back-to-owner-home service"
+
+**Verbatim ③** (within the hour, collapsing his own option set — relayed to this session by the
+coordinating session; ⚠ **not verified against origin by this session**, and it is the load-bearing
+sentence of §16.7f, so a reader acting on §16.7f should confirm it):
+
+> "then just do either on site or home address."
+
+### 16.7a The model, as ruled
+
+| Choice | Options | Where it lands |
+|---|---|---|
+| Who runs the dog | self-run · request a runner | already the Mode A/B fork (§4.1); the setup screen is its front door |
+| PICKUP point | 집 (default) · 현장 (session start) | `session_dogs.pickup_mode` — §7.2, unchanged |
+| RETURN point | 집 (default) · 현장 (run finish) | `session_dogs.return_mode` — **NEW**, §7.2a |
+| Session details shown | time, group number, … | already public via `club_session_detail`; a screen job, no model |
+| Both transfers | the shipped two-sided ritual — **untouched** | §16.7d |
+| Host | monitors pickup statuses | §10.2a — **new console surface** |
+
+**Net schema surface of this entire amendment: one column.** That is the honest size of it, and
+§16.7b explains why the first reading of his words made it look larger.
+
+### 16.7b COLLISION — the "new third pickup option" was already this spec's second one
+
+The relay that carried his resolution reported that `pickup_mode` *"widens from two options to
+three"* and that the session-start arm was *"the part no review anticipated"*, inverting two CEO
+objections (`2026-08-25-return-point-and-round5.md`, RESOLUTION §"What this settles"). Measured
+against this spec, both halves are wrong, and in opposite directions:
+
+1. **Session-start pickup is §7.2's 현장 인계, verbatim** — *"owner brings the dog to the start
+   and both-stamps there — today's shipped chain, byte-identical"* (§7.2, unedited above). Sean did not add
+   it; he **ruled it already** at §14.2 (*"Pickup mode: BOTH"*). A review cannot fail to
+   anticipate a thing the spec it was reviewing had already proposed and had already had approved.
+2. **The genuinely new arm was the custom address** — and far from inverting F7 (a second address
+   disclosure per booking), it *was* F7. The relay attributed the privacy win to the wrong arm.
+3. **And that arm is now retired anyway** (verbatim ③), which is why §7.2's option set survives
+   this round completely unedited.
+
+**A second correction, still live regardless of the collapse: `pickup_mode` is not shipped.**
+`grep -rn pickup_mode supabase/ app/` returns **zero hits**. §7.2 marks it 🔵 and §3 files
+it under PROPOSED. What is RULED is the option SET (14.2); the column is unbuilt. So this is not a
+CHECK widening on a live enum with rows to back-fill — it is the first write of two columns, and
+the implementing slice should stop looking for a migration that changes an existing constraint.
+
+### 16.7c Where the return field lives, and why not on `bookings`
+
+A prior plan proposed `bookings.return_kind`; a review killed it as belonging on the pairing row.
+Re-derived here from the schema rather than inherited:
+
+**The pairing row is `session_dogs`, and the return ritual already lives there.**
+`_club_finalize_return` — the club's shared return terminal, called from both writers
+(`0069:49`, re-created `0070:343`) — reads
+`session_dogs.owner_confirmed_return_at` / `runner_confirmed_return_at` (`0070:349`, columns added
+`0045:13-14`). The return *destination* must sit beside the return *stamps* it describes.
+
+**`bookings` has identically-named columns that belong to a different flow.**
+`bookings.owner_confirmed_return_at` / `runner_confirmed_return_at` were added by 0083
+(`0083:165-166`) for the **marketplace** run-end flow. Two tables, four columns, one pair of names —
+a `return_kind` on `bookings` would sit next to the marketplace's stamps and read as theirs.
+That alone is enough.
+
+Three more, each independent:
+- `session_dogs` is the only row present in every mode: `booking_id` is **nullable** (`0030:86`,
+  「위탁견만」), so a self-run dog — the setup screen's first fork — has no booking at all.
+- `bookings` is the marketplace's own table (`0001:164`); a club-only enum there is a dead column
+  on every marketplace row and a new thing for four other flows to read past.
+- A re-attempt creates a **new** `session_dogs` row rather than reusing one — the active-attempt
+  partial unique index (`0043:28-31`) admits a second row once the first is `service_state='ended'`
+  — so per-pairing keying is already the schema's own unit for a choice that a dissolution resets.
+
+**But the address VALUE deliberately stays on `bookings.address_id`** (`0001:170`), and that is
+not an inconsistency: it is the key to a **shipped** security-definer disclosure gate
+(`booking_pickup_address`, `0060:54` → `0065:41-44`, whose return type 0065 already had to
+drop-and-recreate once). Moving it would rewrite a shipped disclosure RPC for no gain; §7.2a's
+four-combination table shows one address serves every case. The asymmetry is: **the mode is club
+state, the address is a disclosure key.**
+
+### 16.7d The transfer ritual is NOT rebuilt — verified, not assumed
+
+Sean's own words keep it (*"once again the owner and the runner has to complete the transfer and
+mutual confirmation ritual"*), and this amendment adds nothing to it. Verified against shipped
+code so no implementer reads a destination field as a custody model:
+
+- Custody resolves **only** when both human stamps are present: `_club_finalize_return` returns
+  false unless `owner_confirmed_return_at` and `runner_confirmed_return_at` are both non-null
+  (`0070:349`), then writes the `dog_custody_events` row and flips `custody_phase='resolved'` /
+  `payout_state='payable'` (`0069:59-71`).
+- The force valve records the **weaker** side's evidence, deliberately, so an override cannot
+  launder itself into a clean two-sided return (`0070:343-356`, `session_dogs.return_override`
+  `0045:14`).
+- Sean has ruled on this object before, and the ruling is in the schema's own comment:
+  *"THIS interaction is the evidence, and the runner is paid once the dog is returned"*
+  (`0083:182-186`, his D-r1 ruling, on `bookings.owner_confirmed_return_at`).
+
+**So: `return_mode` says WHERE the two humans meet. It never says WHO takes custody, and an
+address must never be allowed to receive a dog.** A 집 반환 pairing whose owner is absent is not
+a completed return — it is the force valve's population, unchanged.
+
+### 16.7e The on-site arms against the PACK MODEL (§1.1) — they compose
+
+Checked rather than assumed, because §1.1 is a ruling and this is analysis:
+
+- §1.1's rule is that the run is session-wide and per-dog variation is legitimate **at the edges**
+  — before (*"some can be doing pick up or arrival"*) and after (*"some are returning or finished
+  completely"*). Pickup and return points are exactly those two edges and nothing
+  else; nothing in either mode reaches the mid-run band the ruling protects.
+- The on-site arms **shrink** the edges rather than widening them: the dog arrives where the pack
+  forms, so `session_start` produces no per-dog scatter before the run and `session_finish` none
+  after it. They are the most pack-conformant arms available.
+- **No collision.** The one thing worth naming is operational, not structural: at T−0 a
+  `session_start` pairing compresses three per-pairing rituals into one moment and one place —
+  the pack forming, the owner→runner custody transfer, and the runner's `session_checkin` that
+  stamps `checked_in_at` for every dog they hold (`0030:259`, §7.4). §7.4 already keeps
+  the 현장 arm's evidence semantics byte-identical, so there are no new mechanics —
+  but the *load* is real and it is the host's, and it grows with every owner who picks 현장.
+- **The finish site is the start site, by the catalog's own model** — not by assumption.
+  0078 records the course model in its header: 「카탈로그 행은 루프 자체만 담는다 (앵커에서 출발,
+  앵커로 복귀)」 (`0078:7`), and every route carries exactly one anchor
+  (`anchor_name`/`anchor_detail`, `0078:21-22`). So 「출발 지점」 and 「종료 지점」 name the same
+  place, and copy implying two places would be false. ⚠ Two consequences for the screen session:
+  `club_sessions.route_id` is **nullable** (`0030:56`) so the only always-present place string is
+  `meetup_point` (`0030:57`, NOT NULL, already projected as `meetupPoint`, `0053:231`); and
+  `anchor_lat/lng` are explicitly **forbidden from app consumption** until a founder walk confirms
+  them (`0078:16`), so no on-site arm can carry a proximity check the way §7.4's 집 arm does.
+
+### 16.7f RETIRED, and the distinction matters: the 「not too far」 question
+
+His first message (`2026-08-25-return-point-and-round5.md:6-15`) said the owner may choose *"some
+other address that's not too far"* — and note it attached that phrase to the **return** point,
+not to pickup. His resolution then added a custom-address arm to **pickup** as well, and repeated
+no distance language on either.
+
+Earlier today a session recorded the constraint as *moot* because the resolution did not repeat
+it, and then corrected itself: **not repeating a constraint is not retracting it**
+(commit `9f80a53`). That correction was right, and this section must not be read as undoing it.
+
+**What retires it is different in kind, and that is the point of writing it down:** verbatim ③
+removes the **custom-address arm itself**. With no address other than the owner's own on either
+leg, there is no subject for a distance rule to bound — you cannot tell an owner their own home
+is too far. **The constraint dies because its feature died, not because he went quiet about it.**
+An inference from silence and a retirement of the subject look identical in a summary and are
+opposites in a spec; the first is what we got wrong this morning.
+
+**Therefore: no OPEN card, and F6 does not return.** The consequence F6 carried — that a bounded
+option is unenforceable because `addresses.lat/lng` are NULL until the owner pins (`0001:124-125`
+nullable; `0065:29-33`'s CHECK passes on NULL by construction) — is now unreachable rather than
+unanswered. ⚠ If verbatim ③ turns out to have been mis-relayed, **all of this reverts together**:
+the custom-address arm, the distance question, and F6's enforceability consequence are one
+package, and §16.7's provenance block flags ③ as the unverified line precisely so that check is
+cheap.
+
+### 16.7g The money is OPEN and untouched — **OPEN-F** (§14-OPEN)
+
+Both on-site arms delete a runner leg. No number is proposed here, in either direction. The
+shipped facts that bound the question — that no leg term exists in `club_fare` (`0043:14`) or in
+the mint's decomposition (`0081:188-198`), so "unchanged" is what every shipped line already
+computes and a cut would be a deliberate act against 「러너 지급을 조용히 깎지 않는다」 — are set
+out at OPEN-F. Note there that the 현장 인계 half of this question has been open since 14.2; the
+seventh round doubled it by decoupling return, it did not create it.
+
+### 16.7h What this amendment did NOT do
+
+- **No migration, no suite, no client file.** Documentation only; everything above is unbuilt.
+- **No screen was designed.** The setup screen (self-run vs runner → pickup → session details →
+  return) is another session's; this section owns only what the MODEL must support for it.
+- **The return ritual was not touched** (§16.7d) and no arrival-receives-custody shape was
+  introduced anywhere.
+- **§8.6's disclosure-gate finding is NOT fixed here** — it is stated with a 🔵 fix shape and
+  belongs to S4's adversarial cycle. It is latent today and armed by §8.1.
+- **§10.2a's monitor is specified, not sequenced** — it hard-depends on §7.1's four stamps, which
+  are themselves unbuilt.
+- **Not addressed here, flagged for the next pass:** the coordinating session relays that Sean
+  ruled at 09:03Z that host pair reassignment **stays**, which would revert §16.3 from PROVISIONAL
+  and restore §6.6-orig as §6.6. ⚠ **This session did not verify that against origin and has
+  changed nothing in §3, §6.6, §14.10 or §16.3** — a relayed decision is evidence, not authority,
+  and the sections still read PROVISIONAL. Whoever executes that reversion owns the verification.
+
+---
 
 *The spec decides nothing Sean didn't say; every 🔵 is reversible in one word; every 🔴 blocks
 only its own slice.*
