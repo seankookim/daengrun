@@ -167,7 +167,7 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 **정본은 `DESIGN.md`** (2026-08-10 consolidated — token worlds, migration map, laws, budgets,
 decision provenance). The bullets below are the load-bearing extract; on any conflict DESIGN.md wins.
 
-- Tokens in `src/theme.ts` — tailored lilac (bg #F4F2FB, head #221E3D, accent #6C5CE7, coral #F0765A, coralDeep #E45F41, night #1C1837). No swamp/forest greens (retired palette).
+- Tokens in `src/theme.ts` — **white grounds everywhere** (Sean 2026-08-25: "white backgrounds"; the pale lilac ground #F4F2FB and its tinted wells/hairlines retired product-wide, DESIGN.md §2 amendment). Surviving: head #221E3D, accent #6C5CE7 (accent ONLY — never a ground or wash), coral #F0765A, coralDeep #E45F41, night #1C1837 (ceremony world, deliberate keep). No swamp/forest greens (retired palette).
 - Detail-text floor: **14pt**. Exempt only: letterspaced uppercase kickers, serial/MRZ strings, glyphs.
 - Display fonts: Black Han Sans once per screen (useDisplayFont). Oswald numerals (useNumFont) require explicit lineHeight ≥1.2× ("BUG A" — ascenders clip without it).
 - Holo foil budget: monogram + one ticket edge per surface, no more.
