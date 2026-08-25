@@ -459,6 +459,18 @@ field, He ran his half. Flagged: S86 surreal miss + a shoe swoosh survived; S82 
 survived — per-pick local blur or a 2cr touch-up at publish time. Set now totals **83 finished
 posters**; ~76 credits remain after the round.
 
+## 8-sexies. Round 8 (2026-08-25) — curation and the anatomy laws
+
+Cuts (Sean): S44R, S66, S69, S78 ("looks like a cult") — moved to `higgsfield-out/cut/`, set now
+**79 posters**. **New standing law: the dog always faces and moves the same direction as its
+runner** — S84/S85 corrected by edit; direction is now a per-frame QC check alongside limbs/eyes/
+logos. Also fixed by edit: S48 two-tone coat, S50's leash-around-the-neck (⚠ Soul occasionally
+routes a leash to a human neck — check every leash endpoint), S54's collar-to-collar link, S56's
+breath (Soul's gas/vapor rendering is consistently weak — keep vapor requests subtle or add in
+edit). Layout: S55 OURS. to bottom-left, S76 → CHAMPIONS OF 6AM., B01 pace numerals darkened for
+the light sky. HD delivery: full curated set re-zipped (5 parts, every fix included); all masters
+are 1536×2048 — 4K upscale available per pick.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
