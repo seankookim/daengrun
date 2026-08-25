@@ -269,3 +269,38 @@ Consequences, all reversions of provisional work — none of it was built, which
 
 ⚠ STILL OPEN, untouched by this: mid-run departure (his "how can that happen?" implies out of
 scope but he has not said so), and what a runner earns for a second dog / a skipped leg.
+
+## Ninth round — console, 2026-08-25T09:03-09:05Z. Four answers, one of them exposing MY error.
+
+| Card | His answer (verbatim) | Time |
+|---|---|---|
+| `host-realloc-confirm` | "keep host reassignment functionality when such cases happen for that pair. **if no one can, the host can take care.**" | 09:03:48 |
+| `host-remove-anyone` | **"Host can remove someone from one walk"** | 09:04:13 |
+| `unpaid-slot` | **"Hold the spot for 20 minutes"** + "make the payment for after the run finished no?" | 09:05:05 |
+| `pickup-radius` | "answered in chat" (he cut the custom-address option entirely) | 09:05:19 |
+
+**1. Host reassignment STAYS, and gains a LAST RESORT that is new: 「if no one can, the host can
+take care.」** The host personally takes the dog when no runner can be found. That is a new arm —
+the host becomes the fallback runner, not merely the matcher. It has consequences nobody has
+priced: is the host paid as a runner for that walk? Does host+runner in one person break any
+party gate? Do not build it until those are answered.
+
+**2. Host may remove someone from ONE walk, not from the club.** The narrowest of the three
+options. So: `session`-scoped removal, no club-level ban, no blocklist. This restores an
+exclusion mechanism without giving a host power over someone's membership.
+
+**3. ⚠ MY CARD WAS WRONG, and his question is what exposed it.** The `unpaid-slot` card said
+「signing up and paying are two steps, with a 20-minute window between them」. **Payment is not in
+that window at all.** Measured at source afterwards:
+- `0080:11-14`, verbatim: 「booking is free → matching is free → the run happens → `settle_run_tx`
+  commits FIRST (the runner is paid) → and only then does the owner's card get charged」.
+- The confirm step requires a **registered card**, never a charge — `0081:41`'s own comment:
+  「컷오버 이후엔 카드 없이 확정할 수 없다 — 러닝 뒤에 청구할 수단이 없는 자리를 잡는 것이므로」.
+- The 20-minute hold is a **CAPACITY reservation**, not a payment window (`0081:148-201`).
+
+So **his 「make the payment for after the run finished no?」 is already exactly how it works**, and
+he was reasoning correctly from a false premise I gave him. His "hold the spot" answer stands and
+is unaffected — the hold is real, it just holds a slot rather than a payment.
+**The lesson is mine**: I wrote a decision card describing a shipped mechanism from memory instead
+of reading it, and the founder's confusion was the only thing that caught it. A card is a claim
+about the system; it needs the same verification as a status line.
