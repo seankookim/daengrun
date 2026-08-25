@@ -436,6 +436,29 @@ layouts are already written in posters30.py).
 ⚠ Nano edit residue: an invented-Hangul store sign survived one de-brand pass (S38) — a local
 Gaussian blur band in the compositor is the recorded fallback when re-editing isn't worth a credit.
 
+## 8-quinquies. Round 7 (2026-08-25) — inspiration five, the new thirty, 83 finished
+
+Sean's round-7 rulings applied: S34 line centered mid-frame (serif_rule now carries a drop
+shadow); DRIVE. → STEADY.; S38's cup replaced with a proper collapsible bowl by edit (the edit
+regressed a race bib back in — a second 2cr pass removed it; **nano edits can regress adjacent
+regions, re-sweep after every edit**); ALONE BY CHOICE. → WE STAY FIT.; 비 오면? 뛰죠 (question
+mark); Same b[a]ttle. with the red 'a' pun; HOME GYM concept replaced (→ HOME COURSE., S77); B11
+trace+card moved up-right as a unit, pace under trace.
+
+**Inspiration recreations (I1–I5):** Sean attached five real campaign photos (Nike/Hoka-style).
+They are real people + copyrighted photography, so they were rebuilt as STYLE recreations — Soul
+prompts describing each photo's light/composition/grade with our Korean cast, dogs added inside
+each photo's logic, marks on garments. Four of five landed; **I5's harsh top-down came out
+eye-level — Soul resists strict overhead framing in crowded prompts** (same failure family as the
+long-exposure miss). S44 reshoot: **Seedream won decisively** (blue-hour balcony) — second
+Seedream win on quiet cinematic frames; the pattern holds.
+
+30 more (S61–S90) generated, garment-marked, finished — slogan ledger in the contact sheet;
+notables: THE HANDOFF. (인계 as a poster), FREE CARWASH., WE WON NOTHING., AIRBORNE. on the red
+field, He ran his half. Flagged: S86 surreal miss + a shoe swoosh survived; S82 shorts swoosh
+survived — per-pick local blur or a 2cr touch-up at publish time. Set now totals **83 finished
+posters**; ~76 credits remain after the round.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
