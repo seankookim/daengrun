@@ -143,3 +143,12 @@ then verified by readback. The R17 flip-activation package's preflight arm is no
 own verdict, the bounded-batching migration builds only if the preflight finds a real batch
 (≥~10 candidates). Q2 = the 0124 present-tense reading stands (L5 pin is the law). Q3 = route
 names closed as option A.
+
+## Fifth round — relayed via ui6-a5 (lab critique channel), recorded here as pointer only
+
+Sean's palette + type ruling (verbatim words recorded in DESIGN.md by ui6-a5, the 정본):
+the pale lilac ground retires PRODUCT-WIDE ("i like the accent color, not the pale color;
+product wide and mock wide" — #6C5CE7 survives as accent only), and the v0 font (IBM Plex
+Sans KR) retires from mocks/product per his lab critique. ui6-a5 owns the lab remake and the
+follow-up product-wide theme sweep; the club-v2 lab files transferred to their claim. No
+session introduces new pale-lilac surfaces from this point.
