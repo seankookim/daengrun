@@ -247,6 +247,18 @@ produced a 3-file commit; `git commit -- mine` produced a 1-file commit **and le
 agent's staged work still staged**, untouched, for them to commit themselves. Prefer it always —
 it costs nothing when you are alone in the tree.
 
+⚠ **NEW FILES: `git add` it first, then still put the pathspec on the COMMIT.** The pathspec form
+**fails on an untracked file** — `error: pathspec 'new.md' did not match any file(s) known to
+git`. Measured in a scratch repo, all four cases: the failure is **loud and harmless** (it aborts,
+changes nothing, leaves the index exactly as it was), `git commit -a -- <path>` is refused outright
+(`fatal: paths … with -a does not make sense`), and `git add <path>` **then**
+`git commit -m … -- <path>` commits ONLY that path while another agent's staged stray **stays
+staged** for its owner. **The pathspec on the COMMIT is what excludes their work — the `add` is
+only registration.** This matters more than it looks: a session that hits the error and "falls
+back" to plain `git add` + `git commit` lands straight in the bug this rule exists to prevent,
+now with a false sense of safety. Found within an hour of the rule being written, by a peer whose
+fallback re-pushed a stale cherry-pick — benign by luck, not by design.
+
 ⚠ **Know exactly what the pathspec form does, because its trap is in the same family as the bug
 it fixes:** it commits each named path's **WORKING-TREE** state and ignores the rest of the
 index. That is precisely why it is safe here — and precisely why it **must never be used to land
