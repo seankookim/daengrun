@@ -579,6 +579,35 @@ Local toolchain: `imageio-ffmpeg` static binary (no system ffmpeg on this Mac).
 
 Spend this round: 32 cr (17.5 + 12.5 test calls + 2 scrub) + 22 cr on the four remaining R3 shots.
 
+## 8-terdecies. Round 15 (2026-08-25) — Sean rejects the montage; the story reel
+
+Sean's critique, verbatim in substance: **zero transition effects, no camera flicker, no blurs or
+film bleeds or glow — "very boring"; clips too slow; no audio; and no consistent storyline.** "We
+are not an Asian MNet." He also corrected my read on the posters: he asked for them as REFERENCE
+IMAGES for consistency, not as a shot bank. Three fixes, all landed:
+
+**1. The house film look now exists** (proven in `reels/R3/R3-SAME-ENERGY-10s-v2.mp4`): halation
+glow (gblur σ26 screened at 34%), temporal 35mm grain, chromatic bleed (rgbashift), gate weave
+(crop window drifting on sin/cos of frame number), vignette, contrast/sat lift, 2-frame white
+FLASH transitions on hard beats, whip blur on pans, speed ramps 1.15–1.3× on connective shots. Cut
+count went 6 → 13 beats and the whole cut was compressed ×0.83 to run quicker.
+
+**2. Sound exists.** `sonilo_music` is **0.75 cr per 12s** — effectively free. Generated a 150 BPM
+instrumental bed that peaks and hard-stops on the logo stamp.
+
+**3. The story.** New spec `docs/campaigns/reel-story-club-session.md` — **오늘 밤, 우리 / TONIGHT,
+US**: one crew, one continuous evening, dusk under a bridge → Han bridge crossing → neon streets →
+the hard middle → stair climb → overlook release → **subway station finish**, told through one
+protagonist (the blue-tank woman with the golden retriever) who is last at the station mouth when
+the mark rises. Twelve 9:16 story plates generated (`higgsfield-out/story/`) with a locked
+continuity contract for time, place, crew, dogs, light and camera.
+
+⚠ **Reference-image law, refined:** attaching her reference locks her identity across shots — the
+poster-round "cloning failure" is exactly the tool a narrative needs. BUT a selfie reference also
+drags selfie framing and her smile into the shot; s02/s05/s07 came back as smiling selfies instead
+of tracking/effort shots and were re-rolled with her described in words. **Use the reference only
+where she faces camera.**
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
