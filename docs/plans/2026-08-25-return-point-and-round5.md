@@ -343,11 +343,27 @@ involved. `create-booking-hold` comes out of the blast radius entirely.
 | Both transfers | the existing two-sided confirmation ritual — unchanged |
 | Host | **monitors pickup statuses** |
 
-**The session-start pickup option is the part no review anticipated, and it inverts two of their
-objections.** F8 said this taxes the scarce side; the start-site option *removes the runner's
-pickup leg entirely* — the runner brings themselves and their equipment to the start. F7 said a
-second address is a second disclosure; the start-site option discloses **zero** owner addresses.
-So the option set he added is a supply-side and privacy-side improvement, not a cost.
+**⚠ CORRECTED — the session-start pickup was NOT his addition, and I credited the privacy win to
+the wrong arm.** I wrote that it was "the part no review anticipated" and that it inverted two
+review objections. ✅ VERIFIED FALSE at source: **현장 인계 was already in spec v2 §7.2**, marked
+🔵, as one of the two per-pairing pickup modes — and he had already ruled it at §14.2
+("Pickup mode: BOTH ✅") at **04:22Z this morning**, hours before the message I called new.
+
+The genuinely new arm in round 5 was the **custom address** — and far from inverting the privacy
+objection, it *WAS* that objection: a second address disclosure per booking, which is exactly what
+F7 named. He then cut it himself. So the round-5 framing credited the privacy win to an arm that
+was already ruled, and the arm that was actually new was the one carrying the cost.
+
+Caught by the spec session, who also carried it further than I did: I put the claim in front of
+Sean in my own words, so the error reached him and had to be corrected to him, not just in a file.
+**The lesson worth keeping is theirs, and it generalises past this instance:** they endorsed my
+framing enthusiastically before checking it, and enthusiasm felt like collaboration rather than a
+claim. An agreement is not a verification. Both of us had `grep §7.2` available and neither ran it
+before repeating the sentence.
+
+What survives the correction, because it is still true: on-site pickup DOES delete the runner's
+pickup leg and DOES disclose zero addresses. Those are real properties. They are just properties
+of an option that already existed and was already ruled — not of anything round 5 added.
 
 **What the review got right and still stands:** it is club-only (F3 ✅) · 즉시 해제 was never a
 defect and needs a label, not a model (F1 ✅) · the return is a person-to-person ritual and stays
@@ -439,3 +455,37 @@ covers, and which is a lab-first surface. That is this session's item and is bei
 
 **Still open (money, his):** two legs, two asymmetries, one card — what a runner earns when the
 pickup leg disappears (on-site pickup), and when the return leg disappears (on-site return).
+
+---
+
+# MODEL HANDOVER — field names + two defects the flow surfaced (spec session, verified)
+
+**⚠ `pickup_mode` is NOT SHIPPED.** Zero hits across `supabase/` and `app/` — measured. It is a
+spec-only 🔵 concept, so this slice writes NEW columns rather than widening a live CHECK. Any lab
+or plan sentence reading as "the existing pickup flag" describes a plan, not a system. (Checked:
+`club-v2-setup-lab.html` makes no such claim — it draws choices, not a stored flag.)
+
+**Field names, both on `session_dogs` (the pairing row):**
+
+| Field | Values | Note |
+|---|---|---|
+| `pickup_mode` | `owner_home` (default) · `session_start` | new column |
+| `return_mode` | `owner_home` (default) · `session_finish` | **the only genuinely new schema surface** |
+| address value | stays `bookings.address_id` (shipped, 0001:170) | **no `return_address_id`** — with the custom-address arm cut, one address per pairing covers all four combinations |
+
+## Defect 1 — my flow produces a combination the model forbids
+
+**on-site pickup + home return** needs the address captured at sign-up *even though no pickup leg
+exists*. §8's current rule ("현장 인계 pairings pass null") makes that row unbuildable. Theirs to
+fix; recorded here because **the flow is what surfaced it** — the four-combination grid only became
+visible once the two choices were drawn as independent questions rather than one mirrored flag.
+Spec v2's "return mirrors pickup, same flag" quietly assumed they move together; Sean's flow says
+they don't.
+
+## Defect 2 — latent, and it arms the moment sign-up ships
+
+`booking_pickup_address` (0065:50-53) admits the runner only through status `active`. The club's
+**return** leg happens after `completed` — so a home return cannot fetch the address it needs.
+Latent today only because club bookings mint with `address_id` NULL; **it arms the moment sign-up
+starts writing them.** This is the shape the repo keeps meeting: a gate whose window was drawn for
+one leg and is now asked to cover two.
