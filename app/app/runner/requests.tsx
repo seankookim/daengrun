@@ -5,7 +5,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
-import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerJob } from '../../src/lib/api';
+import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerJob } from '../../src/lib/api';
 import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -77,7 +77,7 @@ import { layout, lilac, paper } from '../../src/theme';
 // [Q6 RULED · Sean 2026-08-25, verbatim] "q6: if the runner is searching for a run, then a how far
 // away they are from the starting point is a metric they need to see and doesnt show the actual
 // address anyways; also include the 동." [end of his words]
-// (docs/decisions/awaiting-sean.md §0-undetricies, answering the 2026-08-24 pick sheet's Q6,
+// (docs/decisions/awaiting-sean.md §0-untricies, answering the 2026-08-24 pick sheet's Q6,
 //  whose options were 「동 라벨로 / 빼자 / 좌표 열어」.)
 //   · BUILT, this slice — **the 동 half only.** `OpenRequest.pickupDong` comes from
 //     `open_request_pickup_dong()` (migration 0122 §3), a SECURITY DEFINER window returning two
@@ -87,13 +87,32 @@ import { layout, lilac, paper } from '../../src/theme';
 //     개인정보 at 동 granularity, not 위치정보, which is why it is disclosable at all.
 //     The token renders ONLY when non-null — absence, never a placeholder (0122's own rule:
 //     an invented 동 on a stranger's card is worse than no 동).
-//   · 🔴 NOT BUILT, and NOT because it is hard — **the DISTANCE half is still awaiting Sean's
-//     A/B/C.** Distance needs the RUNNER's own coordinate, taken while no run is in progress,
-//     and `docs/legal/privacy-policy.md` publishes the opposite sentence today (「러닝 중이
-//     아닐 때는 위치를 수집하지 않습니다」). That went to counsel on 2026-08-25
-//     (`docs/biz/location-law-counsel-brief.md` §추가 질의 — four questions; its question 4
-//     carves the 동 half out as proceeding independently, which is this slice). Until counsel
-//     answers and Sean picks, this screen shows the 동 and no distance. Do not "just add km".
+//   · ✅ **THE DISTANCE HALF IS NOW BUILT TOO — Sean ruled B, 2026-08-25.** This bullet used to
+//     read "NOT BUILT, awaiting Sean's A/B/C", and the reason it could not be built was real:
+//     distance needed the RUNNER's own coordinate, and taking one while no run is in progress
+//     contradicts what `docs/legal/privacy-policy.md` publishes (「러닝 중이 아닐 때는 위치를
+//     수집하지 않습니다」). **Ruling B does not read a device.** Sean, verbatim: 「go with B for
+//     distance, and the runner should be able to switch this address in settings.」 The runner
+//     TYPES a place once in settings (/runner/base-pin), the server snaps it to a ~1.1km grid
+//     and stores it, and `open_request_distance()` (migration 0123 §8) returns a BAND — never
+//     metres, never a coordinate. `OpenRequest.distanceBand` carries it; the token renders only
+//     when non-null, absence never a placeholder, same law as the 동.
+//     ⚠ WHAT KEEPS THIS SAFE IS THE COOLDOWN, NOT THE GRID — and that correction is measured,
+//     not stylistic. A band is an annulus and annuli intersect; the blind review of 2026-08-25
+//     drove 323 probes through these two RPCs and localized a stranger's pickup to 8.8 m, ~125×
+//     finer than the ~1.1 km grid the first version of this comment leaned on, with 4 base moves
+//     already beating the 동. What bounds it is how RARELY one account can produce a new annulus
+//     CENTRE: `set_runner_base` refuses a change inside `_base_change_cooldown()` (0123 §4b —
+//     **7 days, Sean's ruling 2026-08-25, T1**, his words: 「no need to over worry about such
+//     abuse」). So: the RPC takes NO parameters (a parameter is an unlimited supply of centres),
+//     the client cannot write the column (0123 §3, which now covers the cooldown stamp too), and
+//     the grid stays as a belt on a single observation. Do not "improve away" any of the three,
+//     and do not restate the old lattice claim — it is refuted in 0123's header with numbers.
+//     ⚠ STILL OPEN and not this screen's to answer: retention (counsel Q3 — there is no sweep),
+//     and the privacy-policy §1 line, which is Sean's wording (`docs/decisions/awaiting-sean.md`
+//     §0-untricies). Option A (live device position) remains unbuilt and unruled — and
+//     `runner/base-pin.tsx` no longer reads the device at all, which is the code catching up to
+//     the sentence at :97-99 rather than the sentence being edited to fit the code.
 //   · "but also show them what's next" — the flow after 수락 is stated where the decision is made
 //     (the confirm dialog) and once at the foot of the screen. Both name the real stages the
 //     booking actually walks: confirmed → runner_enroute → 인계(picked_up) → active → completed,
@@ -290,6 +309,13 @@ export default function Requests() {
   // 그 값을 읽는 곳이 없는 죽은 상태가 되거나(계산만 남은 상태 금지), 「확인 못 했어요」 같은 줄로
   // 새어나가 결국 없는 정보를 화면에 만든다. 여기서 실패는 **부재**로 렌더된다 (lab §B③ 절대 규칙).
   const [myJobs, setMyJobs] = useState<RunnerJob[] | null>(null);
+  // [0123] 기준 위치가 **없어서** 거리가 안 보이는가? 카드의 null에서 추론하지 않고 서버에 묻는다.
+  // null = 모름 (아직 안 읽었거나 읽기 실패) → 아무 줄도 그리지 않는다. `false` = 러너가 아니거나
+  // 이미 지정함 → 역시 안 그린다. `true`일 때만 문이 뜬다.
+  // 왜 추론하면 안 되는가: 밴드가 전부 null인 상태는 세 가지 원인을 갖고(미설정 · 주소 핀 없음 ·
+  // 다리 사망), 그중 하나에만 문이 있다. 「거리가 안 보이네 → 설정하라고 하자」는 다리가 죽었을 때
+  // 러너를 이미 설정한 화면으로 보내는 거짓 안내가 된다.
+  const [baseUnset, setBaseUnset] = useState<boolean | null>(null);
 
   // 요약 두 줄도 매 로드마다 다시 읽는다 — '시간 조정 ›'으로 나갔다 돌아온 러너에게 옛 요약을 보여주지
   // 않으려면 포커스 리로드가 이 둘도 함께 끌어와야 한다 (빈 상태에서만 그려지지만, 빈 상태야말로 그
@@ -313,6 +339,10 @@ export default function Requests() {
     fetchRunnerJobs()
       .then(setMyJobs)
       .catch((e) => { console.warn('[requests] jobs:', e?.message ?? e); setMyJobs(null); });
+    // [0123] 인박스와 독립적으로 산다 — 실패하면 안내 문이 사라질 뿐, 요청 목록은 그대로.
+    fetchMyRunnerBase()
+      .then((b) => setBaseUnset(b != null && b.lat == null))
+      .catch((e) => { console.warn('[requests] runner base:', e?.message ?? e); setBaseUnset(null); });
     return Promise.all([
       fetchRunnerInbox().then(setLive),
       fetchRescheduleRequests().then(setResched),
@@ -466,10 +496,18 @@ export default function Requests() {
                   정보이고, 동 단위라 주소가 아니다. 값이 없으면 **토큰째로 빠진다**: 「동 미정」
                   같은 자리표시자는 없는 사실을 있는 것처럼 만든다. km 바로 뒤인 이유는 이게
                   거리·시간과 같은 결정 데이텀이기 때문이고, 돈은 줄 끝을 지킨다.
-                  ⚠ 「출발지까지 N km」는 아직 여기 없다 — 그 절반은 러너 좌표가 필요하고
-                  Sean의 A/B/C(그리고 counsel 답변)를 기다린다. 파일 머리의 Q6 블록 참조. */}
+                  [0123 · Sean Q6 ruling B 2026-08-25] 「기준 위치에서 ~1km」 — Q6의 나머지 절반이
+                  여기 붙는다. 라벨이 「기준 위치에서」인 이유는 두 가지이고 둘 다 정직 문제다:
+                  ① 바로 앞의 {km}km는 **러닝 거리**라 아무 수식 없이 밴드를 붙이면 한 줄에 뜻이
+                     다른 km가 둘이 된다; ② 「내 위치에서」라고 쓰면 지금 기기 위치를 읽은 것처럼
+                     들리는데 우리는 러닝 중이 아닐 때 위치를 수집하지 않는다 — 이건 러너가 설정
+                     화면에서 **직접 저장한** 기준점이고, 그나마 ~1km 격자로 반올림돼 있다.
+                  값이 없으면 토큰째로 빠진다 (자리표시자 없음). 세 원인 — 기준 위치 미설정 ·
+                  주소에 핀 없음 · 이 다리가 죽음 — 이 카드 위에서 같은 모습인 건 의도다. 셋을
+                  구분하는 곳은 아래 안내 문 하나뿐이고, 거기서도 추론하지 않고 서버에 묻는다. */}
               <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
                 <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text>
+                {req.distanceBand ? ` · 기준 위치에서 ${req.distanceBand}` : ''}
                 {req.pickupDong ? ` · ${req.pickupDong} 출발` : ''}
                 {preAccept ? '' : ` · ${req.paceLabel}`}
                 {totalTime ? ` · 총 ${totalTime}` : ''} · 예상{' '}
@@ -573,6 +611,27 @@ export default function Requests() {
         <View style={{ marginTop: 12 }}>
           <DemandStrip />
         </View>
+
+        {/* [0123 · Sean Q6 ruling B] 진짜 문 하나 — 「기준 위치를 설정하면 거리도 보여요 ›」.
+            네 조건이 전부 참일 때만 뜬다:
+              · loaded && !loadErr — 목록이 실제로 지금 사실이다
+              · baseUnset === true — 서버가 「러너인데 기준 위치 없음」이라고 **말했다** (카드의
+                null에서 추론한 게 아니다: 다리가 죽어도 카드는 똑같이 비어 보인다)
+              · live.length > 0   — 볼 요청이 있다. 빈 화면에서 이 줄은 안내가 아니라 잡음이다
+            이 줄이 없던 자리에 「거리 정보 없음」 같은 회색 라벨을 두지 않는 이유는 그게 문이
+            아니기 때문이다 — 보이는 모든 행위에는 진짜 경로가 있어야 한다. */}
+        {loaded && !loadErr && baseUnset === true && live.length > 0 && (
+          <Pressable
+            onPress={() => router.push('/runner/base-pin')}
+            style={s.baseDoor}
+            accessibilityRole="button"
+            accessibilityLabel="활동 기준 위치 설정하기"
+          >
+            <Text style={s.baseDoorTxt}>
+              기준 위치를 설정하면 거리도 보여요 › <Text style={s.baseDoorHint}>약 1km 단위로만 저장돼요</Text>
+            </Text>
+          </Pressable>
+        )}
 
         {/* ---------- 일정 변경 요청 (0016) — 기존→새 시간, 수락/거절 ---------- */}
         {resched.map((rq) => {
@@ -886,4 +945,12 @@ const s = StyleSheet.create({
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   note: { marginTop: 18, padding: 10 },
+  // [0123] 기준 위치 안내 문 — address-pin의 메모 스트립과 같은 문법(≥44pt, 뉴트럴 상단선).
+  // 코랄 잉크(actionInk 5.99:1)로 그리는 이유: 이건 상태 라벨이 아니라 **누를 수 있는 문**이다.
+  baseDoor: {
+    marginTop: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE',
+    minHeight: 48, justifyContent: 'center', paddingHorizontal: 2,
+  },
+  baseDoorTxt: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  baseDoorHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim },
 });

@@ -6,7 +6,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
-import { getNaverMap, getOneShotPosition } from '../../src/lib/geo';
+import { BANPO, getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
@@ -32,7 +32,10 @@ import { paper } from '../../src/theme';
 // center arrives before the user pans; after the first pan the user's camera wins.
 
 // 반포한강공원 fallback — the pilot neighborhood's center of gravity.
-export const BANPO = { lat: 37.5096, lng: 126.9954 } as const;
+// ⚠ MOVED to `src/lib/geo.ts` (2026-08-25) and imported at the top of this file. It used to be
+// DECLARED here and `runner/base-pin.tsx` imported it from this screen, which meant opening a
+// runner picker evaluated an owner screen module. Nothing else imported it, so this is an import
+// line changing address — no behaviour in this file moves.
 
 // E9 curated Banpo spot chips — each chip only MOVES the camera; the user still
 // confirms the pin, so slight offsets self-correct (plan §E9, AD-14).

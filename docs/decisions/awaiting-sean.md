@@ -100,6 +100,60 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
+## 0-untricies. 🔴 ONE LINE OF THE PRIVACY POLICY IS NOW OWED — 0123 stores a runner coordinate (server, 2026-08-25)
+
+**The policy file was NOT edited.** `docs/legal/privacy-policy.md` is yours to word (the MAJOR-3
+discipline from 0122's review: a slice may create the obligation, it may not write your disclosure).
+This is the flag, with a draft you can rewrite or discard.
+
+**What changed.** Your ruling — verbatim, 2026-08-25: *"go with B for distance, and the runner
+should be able to switch this address in settings."* **[end of your words]** Built as migration
+0123: the runner sets an activity base in settings, we snap it to a ~1.1 km grid, store it on their
+`runners` row, and the request cards show a **band** (「~1km」…「5km+」) from that base to each pickup.
+Never metres, never a coordinate, never an address.
+
+**Why it needs a policy line and 0122's 동 half did not.** A 법정동 label of a fixed address is
+개인정보 at 동 granularity. **A stored coordinate is 개인위치정보 at rest**, and §1 today lists
+위치정보 only under 「러닝 중 수집」 — which is exactly the sentence that made the OTHER distance
+option (A, reading the device) unbuildable. B does not read a device, but it does store a point, and
+§1 has no row for it.
+
+**Draft — yours to reword.** Under §1, as its own group after 「서비스 이용 과정」:
+
+> **러너 활동 설정**
+> - 활동 기준 위치 (러너가 설정 화면에서 직접 지정) — 요청 카드에 출발지까지의 **대략 거리 구간**을
+>   표시하기 위해 사용합니다. 약 1km 단위로 반올림해 저장하며, 정확한 주소나 좌표는 저장하지
+>   않습니다. 러너가 언제든 삭제할 수 있고, 변경은 7일에 한 번 가능합니다. 계정 삭제 시 함께
+>   삭제됩니다.
+
+⚠ **The draft's third sentence changed on 2026-08-25 and the change is not cosmetic.** It used to
+read 「러너가 언제든 변경하거나 삭제할 수 있고」. That is now FALSE for the 변경 half: your T1 ruling
+put a 7-day cooldown on base CHANGES (deletion stays unrestricted, deliberately — refusing to let
+someone withdraw stored 위치정보 would be a retention policy wearing a rate limit's clothes). Since
+this is the sentence a user reads, the draft had to move with the code.
+
+**Two things you should know before wording it, because both are true in the code:**
+1. 「계정 삭제 시 함께 삭제됩니다」 is real and pinned (suite 150 P2 + 158 P10) — it is not a promise
+   we are writing ahead of the build. That was 0122's blind-review finding and it is not repeated.
+2. **Retention still has no sweep.** The 1-year cap is the product answer riding with your ruling,
+   but a base has no natural clock — it is current until the runner changes it. **Do not publish a
+   retention period for this item until counsel's Q3 (`docs/biz/location-law-counsel-brief.md`) is
+   answered** — publishing 「1년」 with no sweep is the class of sentence 0122 refused to write.
+   One thing shrank on 2026-08-25: this used to say the remedy needs a `base_set_at` column and a
+   sweep. The column now exists — added for the cooldown, not for retention — so if counsel says
+   the cap binds, the remedy is a WHERE clause over an existing column plus 0120's ledger shape.
+   Still a slice. **Still not written.**
+3. **The 8.8-metre finding, in case anyone ever asks how the cooldown got there.** 0123's first
+   draft claimed in its own header that quantizing the base to a ~1.1 km grid made a stranger's
+   pickup unresolvable below that grid. A blind review MEASURED that false: 323 probes through the
+   two real RPCs localized a pickup to 8.8 m, and four base changes already beat the 동 we disclose.
+   Coarsening the bands buys nothing; only the number of distinct base positions matters. That is
+   the question you answered with 「7 days」 and 「no need to over worry about such abuse」
+   (`2026-08-25-console-rulings.md` T1). The honest bound at 7 days is in 0123's header in weeks and
+   months — it stops the casual case and not a patient one, and nothing in the product claims more.
+
+---
+
 ## 0-tredecies. 🟡 CAMPAIGNS ARE BUILT AND LANDED — four small calls, and one of them is permanent (marketing, 2026-08-20 night)
 
 Three campaigns (App Store 사전주문 · TikTok 슬라이드쇼 · Instagram), 49 rendered post files, a

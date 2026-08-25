@@ -208,6 +208,13 @@ begin
   insert into miles_ledger (profile_id, delta, reason) values (o, 700, 'welcome');
   insert into drops (runner_id, kind, run_count_at, contents)
   values (r, 'mini', 1, '{"miles": 100}'::jsonb);
+  -- [0123] the runner carries an ACTIVITY BASE — a stored coordinate, 개인위치정보 at rest.
+  -- Same reasoning as the `dong` line above and it is the same lesson applied one slice early:
+  -- 0115's redaction is a named-column allowlist, so a column added later is invisible to it,
+  -- and `runners` is a KEEP+ANON row (the storefront tombstone) that lives forever. A fixture
+  -- that does not SET the column cannot defend it. On-grid by construction (runners_base_grid,
+  -- 0123 §1) — an off-grid literal here would fail the CHECK, not the pin.
+  update runners set base_lat = 37.51, base_lng = 127.00 where profile_id = r;
   -- storage objects: the RPC must not touch a single one (the sweep is the edge function's job)
   insert into storage.objects (bucket_id, name) values ('avatars', o::text || '/avatar.jpg');
   insert into storage.objects (bucket_id, name) values ('media', o::text || '/dogs/' || d::text || '.jpg');
@@ -1158,14 +1165,39 @@ begin
   select count(*) into v_n from ledger_items where runner_id = r;
   if v_n < 1 then
     v_bad := v_bad || ' 픽스처 전제 붕괴: 러너에게 ledger_items가 없다 — 이 팔은 아무것도 증명하지 못한다'; end if;
+  -- [0123] 활동 기준 좌표의 전제도 **여기서** 단언한다 (삭제 호출 전). 위의 bank_accounts 팔과
+  -- 같은 idiom이고, 같은 이유로 필요하다: t_acd_rich의 `update runners set base_lat…` 한 줄이
+  -- 언젠가 지워지면 아래 사후 단언(base_lat is null)은 **저절로 참**이 되어 초록으로 남는다 —
+  -- 그게 정확히 0122의 동이 탈출한 방식이고, 리뷰의 X3 변이가 실측한 구멍이다. 주석으로
+  -- 「암묵적으로 단언된다」고 적혀 있던 자리를 실행되는 한 줄로 바꾼다.
+  select count(*) into v_n from runners
+   where profile_id = r and base_lat is not null and base_lng is not null;
+  if v_n <> 1 then
+    v_bad := v_bad || ' 픽스처 전제 붕괴: 삭제 전에 러너에게 활동 기준 좌표가 없다 — 아래 소거 단언이 공허해진다 (t_acd_rich의 base_lat UPDATE를 확인할 것)'; end if;
   perform delete_my_account_tx(r);
   select count(*) into v_n from bank_accounts
    where runner_id = r and bank = '카카오뱅크' and account_enc = 'ENC-XYZ' and holder = '홍길동';
   if v_n <> 1 then
     v_bad := v_bad || ' 🔴 정산 의무가 남았는데 bank_accounts가 사라졌거나 값이 바뀌었다 — 지울 수 없는 이유(미정산)와 가릴 수 없는 이유(입금 불가)가 같은 이유다'; end if;
 
+  -- [0123] runners.base_lat/base_lng — 저장된 러너 좌표는 계정과 함께 죽는다. WHY this arm exists
+  -- at all: 0122's blind review MEASURED a derived 동 surviving `delete_my_account_tx` because
+  -- this pin was a named-column allowlist whose fixture never set the new column. A stored
+  -- coordinate is a worse thing to leave on a row that is kept forever as an FK anchor, so
+  -- 0123 wired the cascade at build time instead of at review time. The mechanism is 0123 §4
+  -- (the tombstone stamp on `profiles.deleted_at` clears the base), so 0115 is byte-untouched;
+  -- THIS arm owns the end-to-end property, 158 P10 owns the mechanism.
+  -- ⚠ The fixture precondition is asserted EXPLICITLY above, before delete_my_account_tx runs.
+  -- It used to say "asserted implicitly by t_acd_rich's UPDATE", and the 2026-08-25 blind review
+  -- measured what that was worth: deleting the fixture line left this pin GREEN (mutation X3).
+  -- An allowlist pin whose fixture never sets the column is a pin that passes by absence.
+  select count(*) into v_n from runners
+   where profile_id = r and base_lat is null and base_lng is null;
+  if v_n <> 1 then
+    v_bad := v_bad || ' 🔴 탈퇴 뒤에도 러너 활동 기준 좌표가 남았다 (0115:443 "LOCATES NOTHING AND IDENTIFIES NOBODY"가 거짓이 된다)'; end if;
+
   if v_bad = '' then
-    call _pass('acd','P2 네 테이블 모두 진짜 툼스톤 — profiles(이름 대체·나머지 null·toss_customer_key 보존) · addresses(gate_code_enc/detail null·lat·lng 쌍으로 null·상수 플레이스홀더) · dogs(사진/메모만, 이름은 그대로) · runner_applications(연락·서술만 가리고 동의 3종과 시각은 그대로, bio=null은 실제로 raise한다) · 정산 의무가 남은 러너의 bank_accounts는 그대로 보관된다 (🔵 A-intact-when-owed)');
+    call _pass('acd','P2 네 테이블 모두 진짜 툼스톤 — profiles(이름 대체·나머지 null·toss_customer_key 보존) · addresses(gate_code_enc/detail null·lat·lng 쌍으로 null·dong 포함·상수 플레이스홀더) · dogs(사진/메모만, 이름은 그대로) · runner_applications(연락·서술만 가리고 동의 3종과 시각은 그대로, bio=null은 실제로 raise한다) · runners.base_lat/lng(저장된 좌표, 0123) 소거 · 정산 의무가 남은 러너의 bank_accounts는 그대로 보관된다 (🔵 A-intact-when-owed)');
   else call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 보관', left(v_bad, 400)); end if;
 exception when others then call _fail('acd','P2 네 테이블 툼스톤 + bank_accounts 보관', sqlerrm);
 end;

@@ -5,6 +5,13 @@ import { supabase } from './supabase';
 
 export interface GeoPoint { lat: number; lng: number; t: number; acc?: number }
 
+// 반포한강공원 — the pilot neighbourhood's centre of gravity, and the map fallback every picker
+// falls back TO. It was declared in `app/owner/address-pin.tsx` and `app/runner/base-pin.tsx`
+// imported it from there — a shared constant reached through a SCREEN module, so opening the
+// runner picker evaluated an owner screen. It is geography, so it lives with the geography.
+// ⚠ It is a FALLBACK, never a claim: no screen may present it as a place the user gave us.
+export const BANPO = { lat: 37.5096, lng: 126.9954 } as const;
+
 // 하버사인 (m)
 export function distM(a: GeoPoint, b: GeoPoint): number {
   const R = 6371000;

@@ -879,6 +879,19 @@ export interface OpenRequest {
    *  never draw a placeholder: an invented 동 on a stranger's card is worse than no 동.
    *  ⚠ The DISTANCE half of the same ruling is NOT here — see requests.tsx's header. */
   pickupDong: string | null;
+  /** 출발지까지의 거리 **밴드** (「~1km」「1-2km」「2-3km」「3-5km」「5km+」) — 미터도, 좌표도 아니다.
+   *  Sean's Q6 ruling B 2026-08-25: 「go with B for distance, and the runner should be able to
+   *  switch this address in settings.」 The runner stores a home base in settings; the server
+   *  measures from THAT to the pickup and returns a band.
+   *  Source: `open_request_distance()` (0123 §8), a definer window with NO parameters — the
+   *  ruling made structural: a stored base leaves nothing for the caller to supply and nothing
+   *  to probe from. The base itself is snapped to a ~1.1km grid before storage so a runner
+   *  moving it cannot triangulate a stranger's pickup (0123's anti-multilateration header).
+   *  null = 모름, and it has THREE causes that must all render identically (absence, never a
+   *  placeholder): 러너가 기준 위치를 안 정함 · 주소에 핀이 없음 · 이 다리가 죽음. The one place
+   *  they are distinguished is the requests screen's door, which asks `fetchMyRunnerBase()`
+   *  directly rather than inferring from a null here — see requests.tsx. */
+  distanceBand: string | null;
 }
 
 // The payout estimate printed on a runner's card. ⚠ Computed from the RUNNER settlement base
@@ -918,6 +931,7 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
     // comes from its own RPC leg and is keyed on afterwards (fetchRunnerInbox). A row nobody
     // keys stays null, which is the honest state, not a defect.
     pickupDong: null,
+    distanceBand: null, // [0123] same shape, its own leg — see pickupDong above
   };
 }
 
@@ -955,6 +969,7 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
     routeId: r.route_id ?? null,
     routeName: r.route_name ?? null,
     pickupDong: null,   // [0122] keyed on by fetchRunnerInbox's third leg — see the directed mapper
+    distanceBand: null, // [0123] keyed on by the fourth leg
   };
 }
 
@@ -986,7 +1001,7 @@ async function myCommissionRate(): Promise<number> {
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
-  const [openRes, directedRes, dongRes] = await Promise.all([
+  const [openRes, directedRes, dongRes, distRes] = await Promise.all([
     // 오픈 풀 = 0042 초크포인트 뷰 (definer·컬럼 화이트리스트·클럽 부킹 구조 배제) — bookings 직읽기는 RLS 0행
     supabase.from('marketplace_open_requests').select('*').order('scheduled_at').limit(10),
     user.user
@@ -998,6 +1013,13 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
     // ⚠ 인자 없는 rpc는 `{}` 축약을 쓰지 않는다 (check-rpc-contracts가 빈 객체를 키 0개로 읽어
     // 계약 대조를 건너뛴다) — 인자 자체를 생략한다.
     supabase.rpc('open_request_pickup_dong'),
+    // [0123] 출발지까지의 거리 밴드 — 네 번째 다리. 동 다리와 **같은 이유로** 인자가 없다:
+    // 행 집합도 기준점도 서버가 갖고 있다 (기준점은 러너가 설정 화면에서 저장한 값이고, 저장
+    // 시점에 ~1.1km 격자로 반올림돼 있다). 호출자가 위치를 보낼 수 있었다면 그 위치를 옮겨가며
+    // 남의 픽업 지점을 삼각측량할 수 있고, 그게 0123이 인자를 안 받는 이유다.
+    // ⚠ 인자 없는 rpc는 `{}` 축약을 쓰지 않는다 (check-rpc-contracts가 빈 객체를 키 0개로 읽어
+    // 계약 대조를 건너뛴다) — 인자 자체를 생략한다.
+    supabase.rpc('open_request_distance'),
   ]);
   // [내성] 한쪽 다리가 죽어도 다른 쪽은 산다 — 오픈 풀 에러가 지명 요청까지 지우던 것 방지
   if (openRes.error) console.warn('[inbox] open pool:', openRes.error.message ?? openRes.error);
@@ -1006,6 +1028,9 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   // 배포 순서 상 이 RPC가 아직 없는 서버(0122 미적용)에 붙은 빌드도 여기로 떨어진다: 경고 한 줄,
   // 나머지 전부 정상. 반대 방향(서버만 먼저)은 구버전 클라가 이 다리를 부르지 않을 뿐이다.
   if (dongRes?.error) console.warn('[inbox] pickup dong:', dongRes.error.message ?? dongRes.error);
+  // [0123] 거리 다리도 부가 정보다 — 죽으면 밴드만 사라지고 요청함은 그대로 산다. 0122가 적어 둔
+  // 배포 순서 논증이 그대로 적용된다 (0123 미적용 서버에 붙은 빌드는 경고 한 줄로 끝난다).
+  if (distRes?.error) console.warn('[inbox] distance band:', distRes.error.message ?? distRes.error);
   // ⚠ Drop requests whose start time has already passed, on BOTH legs.
   // `marketplace_open_requests` (0056) has no time predicate — its WHERE is status/runner/club/
   // decline only — and both queries order by `scheduled_at` ASCENDING, so a stale row sorts to
@@ -1038,6 +1063,17 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
     const byBooking = new Map<string, string | null>();
     for (const d of dongRows) byBooking.set(String(d.booking_id), (d?.pickup_dong as string | null) ?? null);
     all.forEach((r) => { const d = byBooking.get(r.bookingId); if (d) r.pickupDong = d; });
+  }
+
+  // [0123] 거리 밴드를 bookingId로 붙인다 — 동과 완전히 같은 문법. 서버가 NULL을 돌려주는 경우
+  // (주소 없음·핀 없음·오염된 행)와 기준 위치가 없어 0행인 경우와 다리가 죽은 경우가 카드 위에서
+  // 같은 모습(토큰 없음)인 것은 의도다. 셋을 **구분해야 하는 단 한 곳**은 요청함 화면의 안내 문이고,
+  // 거기서는 null을 추론하지 않고 fetchMyRunnerBase()에 직접 묻는다 (requests.tsx).
+  const distRows: any[] = Array.isArray(distRes?.data) ? distRes.data : [];
+  if (distRows.length > 0) {
+    const bandByBooking = new Map<string, string | null>();
+    for (const d of distRows) bandByBooking.set(String(d.booking_id), (d?.distance_band as string | null) ?? null);
+    all.forEach((r) => { const b = bandByBooking.get(r.bookingId); if (b) r.distanceBand = b; });
   }
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
@@ -3276,6 +3312,65 @@ export async function refreshAddressDong(addressId: string): Promise<void> {
   } catch (e) {
     console.warn('[addr-dong] refresh threw:', (e as Error)?.message ?? e);
   }
+}
+
+// ─── 러너 활동 기준 위치 (0123 · Sean's Q6 ruling B) ─────────────────────────────────────────
+/** 러너 본인의 활동 기준 위치. `lat`/`lng`가 둘 다 null이면 **러너인데 아직 안 정함**.
+ *  이 객체 자체가 null이면 **러너가 아님** — 두 상태는 화면에서 다르게 그려져야 한다
+ *  (설정의 섹션 자체가 안 뜨는가, 「설정 안 됨」으로 뜨는가). */
+export interface RunnerBase {
+  lat: number | null;
+  lng: number | null;
+  /** 다시 바꿀 수 있는 시각 (ISO). null = 잠금 없음 (한 번도 안 정했거나 이미 풀렸다).
+   *  서버가 **결과만** 준다 — 쿨다운 길이는 `_base_change_cooldown()` (0123 §4b, 7일: Sean의
+   *  2026-08-25 T1 룰링) 하나에만 있고 클라는 그 숫자를 모른다. 알면 규칙이 두 개가 되고, Sean이
+   *  숫자를 옮기는 날 앱이 거짓말을 한다 — address-pin의 반올림과 정확히 같은 교리.
+   *  용도는 하나: 눌러도 반드시 실패하는 「이 위치로 지정」 버튼을 **누르기 전에** 잠근다
+   *  (죽은 버튼 금지법). 미래 시각이면 잠김, 아니면 열림 — 클라의 계산은 그 비교 하나뿐이다. */
+  canChangeAt: string | null;
+}
+
+/** 저장된 기준 위치 읽기 — `runners` 직읽기가 **아니다**. 0123 §2가 base_lat/base_lng를 컬럼
+ *  그랜트에서 제외했기 때문에 authenticated는 본인 행이라도 이 두 컬럼을 SELECT할 수 없다
+ *  (그랜트는 내 행과 남의 행을 구분하지 못한다 — 0088의 기록된 지시). 문은 이 definer 하나다.
+ *  0행 = 러너 아님 → null. 실패는 던진다: 「못 읽었다」를 「설정 안 됨」으로 그리면 러너가
+ *  이미 저장한 위치를 지운 것처럼 보인다. */
+export async function fetchMyRunnerBase(): Promise<RunnerBase | null> {
+  const { data, error } = await supabase.rpc('my_runner_base');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  const lat = row.base_lat == null ? null : Number(row.base_lat);
+  const lng = row.base_lng == null ? null : Number(row.base_lng);
+  return {
+    lat: lat != null && Number.isFinite(lat) ? lat : null,
+    lng: lng != null && Number.isFinite(lng) ? lng : null,
+    canChangeAt: row.can_change_at ?? null,
+  };
+}
+
+/** 기준 위치 저장 / 해제. `(null, null)` = 해제 (러너는 뺄 수 있어야 한다 — Sean: "switch this
+ *  address in settings").
+ *  ⚠ 좌표를 **그대로 저장하지 않는다**: 서버가 0.01°(~1.1km) 격자로 반올림해 저장한다. 그래서 이
+ *  함수는 저장값을 돌려주지 않는다 — 반올림 규칙의 주인은 서버 하나여야 하고, 클라가 그 규칙을
+ *  흉내 내 그리면 규칙이 두 개가 된다 (address-pin.tsx의 메모 저장과 같은 교리). 호출자는 저장
+ *  뒤 fetchMyRunnerBase()로 **서버가 가진 값**을 다시 읽는다.
+ *  ⚠ `runners`를 직접 UPDATE하지 않는다: 0123 §3의 트리거가 클라 쓰기를 거절한다. 그게 결함이
+ *  아니라 계약이다 — 직접 쓰기가 열려 있으면 6dp 좌표가 저장되고, `base_set_at`까지 열려 있으면
+ *  쿨다운 자체가 사라진다 (그쪽이 실제 방어선이다 — 0123 헤더의 실측).
+ *  ⚠ 던지는 실패 중 **하나는 재시도로 낫지 않는다**: 쿨다운 거절. isBaseCooldownError로 가른다. */
+export async function setRunnerBase(lat: number | null, lng: number | null): Promise<void> {
+  const { error } = await supabase.rpc('set_runner_base', { p_lat: lat, p_lng: lng });
+  if (error) throw error;
+}
+
+/** 이 실패가 **쿨다운**인가 — 즉 다시 눌러도 절대 성공하지 않는 실패인가.
+ *  0123 §5의 `raise exception 'base_change_cooldown'`이 PostgREST를 지나 message로 온다.
+ *  가르는 이유는 화면 문법이 다르기 때문이다: 보통 실패는 「다시 시도」를 주고, 이건 주면 안 된다
+ *  (죽은 버튼 금지법 — 절대 성공 못 하는 재시도는 없는 경로를 있는 것처럼 만든다). */
+export function isBaseCooldownError(e: unknown): boolean {
+  const m = (e as any)?.message ?? (e as any)?.details ?? '';
+  return typeof m === 'string' && m.includes('base_change_cooldown');
 }
 
 // Owner-side pickup coords for the meetup plate — two owner-RLS selects

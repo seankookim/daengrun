@@ -841,10 +841,16 @@ export default function RunnerHome() {
                           조용한 줄의 맨 앞에 선다 — 이 줄에서 유일하게 **어디로 가야 하는가**를
                           말하는 값이고, 나머지(정산 어휘·단골·코스명)는 전부 그 다음 질문이다.
                           값이 없으면 토큰이 통째로 빠진다: 자리표시자 없음 (api.ts pickupDong).
-                          거리(「출발지까지 N km」)는 아직 없다 — 러너 좌표가 필요한 절반은 Sean의
-                          A/B/C와 counsel 답변을 기다린다 (requests.tsx 머리의 Q6 블록). */}
+                          [0123 · Sean Q6 ruling B 2026-08-25] 거리 밴드가 동 바로 뒤에 붙는다 —
+                          requests.tsx의 카드와 **같은 라벨**을 쓴다(「기준 위치에서」): 위 줄의
+                          {km}은 러닝 거리이고 이건 출발지까지의 거리라, 라벨 없이는 한 줄에 뜻이
+                          다른 km가 둘이 된다. 「내 위치」가 아닌 이유는 이게 기기에서 읽은 값이
+                          아니라 러너가 설정에서 저장한 ~1km 격자 기준점이기 때문이다.
+                          여기엔 「설정하러 가기」 문을 두지 않는다 — 홈의 티켓은 한 장짜리 요약이고
+                          그 문은 요청함 화면에 한 번만 있다 (문이 두 개면 둘 다 약해진다). */}
                       <Text style={styles.objQuiet}>
                         {inbox[0].pickupDong ? `${inbox[0].pickupDong} 출발 · ` : ''}
+                        {inbox[0].distanceBand ? `기준 위치에서 ${inbox[0].distanceBand} · ` : ''}
                         실거리로 확정
                         {inbox[0].repeatPrior != null && inbox[0].repeatPrior > 0 ? ` · ⟳ ${inbox[0].repeatPrior + 1}번째 함께` : ''}
                         {inbox[0].routeName ? ` · ${inbox[0].routeName}` : ''}
