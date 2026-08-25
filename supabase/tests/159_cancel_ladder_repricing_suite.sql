@@ -39,10 +39,13 @@ begin
   perform session_approve_dog(sdA, true);
   perform set_config('request.jwt.claim.sub', oA::text, false);
   bA := session_pay_delegation(sdA, 'idem-lad-a', true);
-  perform set_config('request.jwt.claim.sub', hh::text, false);
-  perform session_assign_dog(sdA, rr);
-  perform set_config('request.jwt.claim.sub', rr::text, false);
-  perform session_proposal_respond(sdA, true);
+  -- ⚠ SCOPE, stated (v5 unstated-scope law): "accepted ≥24h out" is UNREACHABLE via today's
+  -- flows — session_assign_dog raised assign_window on this very fixture (measured, first
+  -- run). #11 prices a state that spec-v2's early-pick layer will create; until then the
+  -- hoist is dormant. This pin therefore MANUFACTURES the state as postgres and owns the
+  -- LADDER ARM's behavior ("IF confirmed+runner exists ≥24h out, cancel is free"), not the
+  -- flow's reachability — when the pick layer opens, its own suite owns the real path.
+  update bookings set status = 'confirmed', runner_id = rr where id = bA;
 
   -- B: near session, NEVER accepted (the #13 case)
   perform set_config('request.jwt.claim.sub', oB::text, false);
