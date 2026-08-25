@@ -114,3 +114,17 @@ This worktree: clean, branch `claude/club-delegation-spec-v2-a41fbc` = trunk + t
 commit, everything pushed. No migration numbers held. No harness run this session (none
 needed — docs only). Scratchpad artifacts (scout reports, review logs) die with the session;
 everything that matters is in the docs above, on origin. [verified-now at write time]
+
+---
+
+## ADDENDUM — ui6 close-of-day, 2026-08-25 evening (supersedes the status table's stale rows; verify against live before building)
+
+**Production head is `0123`** [verified-now: `db push` output + ledger re-query + five live probes]. Deployed today after the morning's 0117-0119: **0122** (pickup 동) · **0124** (cancel-ladder repricing, v5) · **0125** (route-km corrections — Sean's 4th-round Q3 confirmed as-built) · **0126** (flip-activation; **the late-booking clock is ON** — Sean's 4th-round Q1, ceremony run by v5) · **0123** (runner base + distance bands, ruling B, **7-day base-change cooldown** — Sean's 3rd-round T1 verbatim; landing record in the REGISTRY row). Charging remains OFF.
+
+**Runner-money strip: LANDED + DEPLOYED** (v5, midday) — the v6 table's "NOT landed" row is stale. Its consequence is structural now: `runners`' read grant is 0121 §O's **literal 11 columns** and 158 N7ⓗ pins that literal (a computed all-minus-N expectation was measured to CERTIFY a revert rather than catch it — my pre-strip §2 nearly re-exposed commission_rate; 156 P6 caught it).
+
+**Client, trunk `c67eedb`** [verified-now]: the ③+③-A check-in surface (owner/schedule + runner/home, 246 pins) — live now that the clock is on · meetup terminal-alert loop fixed (once-latch + goBackOrHome; Sean's live repro) · console #18 visual half (coral #A63A20, profile nudge ①, 하이 피드 rename, schedule band ceiling, no booking-list window) · 0123's settings/base-pin (sim-verified render-only; the 7-day lock means a casual confirm-tap costs a fixture account a week — smoke on hardware instead: set base → bands on request cards → retry → dated lock line).
+
+**Suite-truth notes for whoever builds next:** 152's first armed sweep now DRAINS (L9 was a coin flip under 0126's LIMIT-5 vs the cross-suite backlog — a green landing run is not proof against this class; pin sweep effects with drain-to-zero). `app/node_modules` was briefly TRACKED on trunk (absolute-path symlink, a8d683b) — untracked at 851ff77, gitignore hardened at 41b676b; re-pull if your tree predates it. A scripted mutation battery must run against STAGED fixes (memory: daengrun-mutation-battery-staging).
+
+**Console: CLEAR** except Sean's lab picks [verified-now: 4th round on origin — Q1 flip ordered+done · Q2 revoke-edge free-as-built · Q3 route-km as-built]. 맹견 removal: spec session owns the slice (contract on trunk, ≥0127); ui6's client surfaces ride that landing.
