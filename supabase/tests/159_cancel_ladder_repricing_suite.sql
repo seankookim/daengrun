@@ -173,7 +173,11 @@ begin
 
   -- ── L6 (review №2): the schema-permitted-but-flow-impossible shapes fail LOUD, never a
   -- guessed price. Both directions manufactured as postgres.
-  declare oE uuid; dE uuid; sdE uuid; bE uuid; v_err boolean;
+  -- TWO bookings, one per direction — the first form reused one and ABORTED under its own
+  -- mutation (MD's successful arm-1 cancel made refund_pending, and the second manufacture
+  -- hit enforce_booking_transition; measured). A pin's fixture may not depend on the
+  -- mutation-side outcome of its own earlier arm.
+  declare oE uuid; dE uuid; sdE uuid; bE uuid; oF uuid; dF uuid; sdF uuid; bF uuid;
   begin
     oE := t_user('lad_oE', 'owner'); dE := t_dog(oE, '사다리E');
     perform set_config('request.jwt.claim.sub', oE::text, false);
@@ -182,20 +186,29 @@ begin
     perform session_approve_dog(sdE, true);
     perform set_config('request.jwt.claim.sub', oE::text, false);
     bE := session_pay_delegation(sdE, 'idem-lad-e', true);
+    oF := t_user('lad_oF', 'owner'); dF := t_dog(oF, '사다리F');
+    perform set_config('request.jwt.claim.sub', oF::text, false);
+    sdF := session_delegate_dog(s_near, dF, t_consent());
+    perform set_config('request.jwt.claim.sub', hh::text, false);
+    perform session_approve_dog(sdF, true);
+    perform set_config('request.jwt.claim.sub', oF::text, false);
+    bF := session_pay_delegation(sdF, 'idem-lad-f', true);
     v_bad := '';
-    update bookings set runner_id = rr where id = bE;           -- matching + runner
+    update bookings set runner_id = rr where id = bE;                          -- matching + runner
+    perform set_config('request.jwt.claim.sub', oE::text, false);
     begin
       perform session_cancel_delegation(sdE); v_bad := ' matching+runner-priced';
     exception when others then
       if sqlerrm not like '%inconsistent_booking_shape%' then v_bad := ' wrong-err:'||sqlerrm; end if;
     end;
-    update bookings set runner_id = null, status = 'confirmed' where id = bE;  -- confirmed + NULL
+    update bookings set status = 'confirmed' where id = bF;                    -- confirmed + NULL
+    perform set_config('request.jwt.claim.sub', oF::text, false);
     begin
-      perform session_cancel_delegation(sdE); v_bad := v_bad || ' confirmed+null-priced';
+      perform session_cancel_delegation(sdF); v_bad := v_bad || ' confirmed+null-priced';
     exception when others then
       if sqlerrm not like '%inconsistent_booking_shape%' then v_bad := v_bad || ' wrong-err2:'||sqlerrm; end if;
     end;
-    update bookings set status = 'matching' where id = bE;      -- restore a lawful shape
+    update bookings set runner_id = null where id = bE;                        -- restore lawful
     if v_bad <> '' then call _fail('lad','L6 모순 형상 fail-loud', v_bad);
                    else call _pass('lad','L6 모순 형상 fail-loud — 돈에 대한 추측은 없다'); end if;
   end;
