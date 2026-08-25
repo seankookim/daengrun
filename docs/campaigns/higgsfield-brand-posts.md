@@ -531,6 +531,28 @@ existing approved plates (house video law); slogan cards are edit overlays. **Th
 set is repurposed as the blue-girl character-consistency pack** — the reference-anchor failure
 turned asset. No credits spent this round.
 
+## 8-undecies. Round 13 (2026-08-25) — extensive reel prompts + measured video pricing
+
+Sean: "be extensive in higgsfield prompting" and a new ending — **the logo overlays the LAST SCENE
+from roughly its midpoint, then the picture falls to black beneath the mark, leaving the logo
+alone.** The separate end card is retired: every reel's final shot now does double duty, so reels
+are 6 shots not 7, and the last one is composed with centre space reserved. Preview frames per
+reel (clean → mark over live scene → black) at `higgsfield-out/reels/endtreatment/R#-a|b|c.jpg`;
+the mark is always an edit overlay, never generated.
+
+Prompts rewritten at ~100 words per shot (31 shots): camera body/movement, beat-by-beat action,
+physics and light behaviour, what must hold identical, plus a per-shot negative on top of the
+global motion negative. Doc of record: `docs/campaigns/reel-storyboards-higgsfield.md`.
+
+**Video pricing, measured via `generate cost` (9:16) — there is no flat per-10s rate, a reel costs
+the sum of its clips:** veo3_1_lite 1.0 cr/s (4s=4) · grok_video 7.5 flat · kling3_0 std 5s=10
+(2.0/s) · kling3_0 pro 5s=12.5 · veo3_1 fast 4s=11, 8s=22 (2.75/s) · seedance_2_5 720p 5s=32.5
+(6.5/s), 1080p 5s=45 (9.0/s). All five as specced = **397 cr**; all-lite budget build = **124 cr**
+(25/reel); retries run 1.5–2×. Recommended build: lite draft of a whole reel then re-shoot the 2–3
+load-bearing shots on kling3_0 → **~55–75 cr per finished reel**.
+
+⚠ `E2-gateselfie` (R3's closer) carries non-Korean platform signage — needs a 2 cr scrub before use.
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
