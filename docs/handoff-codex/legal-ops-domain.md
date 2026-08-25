@@ -40,6 +40,7 @@ two review documents in `docs/legal/` contains a conclusion that today's measure
 | Realtime location exposure (the P0) | **CLOSED** at the realtime boundary; `private_only = true` still on today. | [measured] |
 | In-app account deletion (App Store 5.1.1(v)) | **BUILT AND DEPLOYED** 2026-08-20 — 0115 applied, `delete-account` edge fn ACTIVE, settings row live. | [measured] |
 | 맹견 exclusion | **DOES NOT EXIST** anywhere in client, schema or migrations. | [measured] |
+| ⚠ 맹견 exclusion — 2026-08-25 | The line above is TRUE AGAIN, **by ruling, not by drift.** A gate was built (0119, 2026-08-25 am) and removed the same day (0127, Slice A) after Sean ruled twice — the second time with this very review in front of him — 「Remove it completely」. So a future reader must not treat its absence as an oversight this document already flagged: it is a decision this document caused to be made, and then lost. See `docs/decisions/2026-08-25-console-rulings.md` (F1) and `docs/contracts/maenggyeon-gate-removal-contract.md`. The three `dogs` columns 0119 added still exist, unread and unwritten, until Slice B drops them. | [ruled] |
 | Location retention / purge | **DOES NOT EXIST.** 17 crons; none touches `runs.trace`. | [measured] |
 | 위치정보 이용·제공 확인자료 ledger (제16조) | **DOES NOT EXIST.** | [measured] |
 | Feed moderation / 임시조치 | **DOES NOT EXIST**, and there is no admin role to build it on. | [measured] |
@@ -354,7 +355,17 @@ justification for background location (the file already drafts an honest one at 
 **Blocked on:** nothing. This can be corrected today and should be, because §4.6's TestFlight
 errand is the moment it stops being free.
 
-### 2.5 🟡 맹견 — absent everywhere
+### 2.5 🟡 맹견 — absent everywhere · **CLOSED BY RULING 2026-08-25, read this first**
+
+> **This section is history, not an open gap.** Its recommendation was built (`0119`) and then
+> removed (`0127` Slice A) on the same day, because Sean ruled 「Remove it completely」 — twice,
+> the second time with this section in front of him. The 「Size: small — a dog-profile field plus
+> a booking-time refusal」 line below is exactly what got built; it was not wrong about the work,
+> only about whether the work was wanted. **Do not re-open this as an unaddressed finding.** The
+> product's exposure here is now carried by the transit-insurance brief's counsel line, which
+> states the check was removed by decision on 2026-08-25 — worded as a removed feature, never as
+> 「data destroyed」, since a dropped column is logical forgetting and counsel must not be
+> overclaimed to. Everything after this box is preserved as it was written.
 
 **Statute:** 동물보호법 맹견 provisions (statutorily-defined breeds and individually-designated
 dangerous dogs); the source review asks for both to be excluded from the MVP outright.
