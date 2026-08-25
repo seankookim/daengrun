@@ -5,12 +5,12 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
-import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, MyRunnerStatus, OpenRequest, RescheduleRequest } from '../../src/lib/api';
+import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerJob } from '../../src/lib/api';
 import { dangerousRefusalFrom } from '../../src/lib/dangerous-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
-import { expectedDurationMs } from '../../src/lib/lateness';
+import { expectedDurationMs, sinceLabel } from '../../src/lib/lateness';
 import { runnerJob } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
 
@@ -72,6 +72,31 @@ import { layout, lilac, paper } from '../../src/theme';
 //     (the confirm dialog) and once at the foot of the screen. Both name the real stages the
 //     booking actually walks: confirmed → runner_enroute → 인계(picked_up) → active → completed,
 //     and completion is what writes `ledger_items`, i.e. what the 수익 screen then shows.
+//
+// [runner-home lab B②/B③ · 2026-08-25] Both were blocked on ONE mapper field and nothing else;
+// `OpenRequest.scheduledAt` (raw ISO) landed on 2026-08-24 and unblocked them together.
+//   · B② THE DEADLINE. The footer already promised auto-expiry and no card said when. The rule is
+//     not a policy number: `expire_unmatched_bookings` (0080 ⓐ, inherited from 0017/0037/0060)
+//     expires a `matching`/`runner_pending` booking when `scheduled_at < now()`, so the run's own
+//     start time IS the deadline. Each card prints the time left, and each leg sorts by it.
+//     ⚠ The sort stays INSIDE each leg — 지명 먼저 is a ladder, and a deadline must not climb it.
+//     ⚠ Behavioural consequence, named rather than hidden: the coral rule reads `directed[0]`, so
+//       the coral now follows the SOONEST directed request instead of the server's return order.
+//       That is lab open question 3 and Sean has not answered it; it is recorded in the handoff.
+//   · B③ 겹침, THE ACCEPT GATE MIRRORED BEFORE THE TAP. `runner_accept` refuses a request that
+//     overlaps a live booking of mine (transition-booking/index.ts:94-127). Today the runner learns
+//     that only from a failed accept — the single most expensive mistake this screen allows.
+//     The mirror is exact on purpose: same window [scheduled_at, scheduled_at + km×8+25min), same
+//     four LIVE statuses, same `cs < aEnd && ce > aStart` test, same `!==` self-exclusion.
+//     ⚠ THE DOOR STAYS LIVE. The server is the authority and a client-side guess must never close a
+//       door the server might still honour — hence 「수락이 거절될 수 있어요」, conditional on purpose.
+//     ⚠ HONESTY GATE (absolute, lab §B③): the warning renders ONLY when BOTH loads succeeded. A
+//       failed `fetchRunnerJobs` renders NO overlap information at all — never 「겹침 없음」, which
+//       would be a fabricated all-clear on the one screen where an all-clear costs a real promise.
+//     ⚠ NOT BUILT — the lab also moved the coral to the topmost directed door WITHOUT a conflict
+//       (open question 4, drawn as "confirm"). Left alone deliberately: that would make the screen's
+//       one climax move according to whether a SECOND load succeeded, i.e. the coral would report a
+//       fact the screen may not know. The ladder (변경 요청 > 지명 > nothing) is byte-identical.
 
 const CORAL_INK = '#C6472C';      // accept-door fill (white label holds ≥4.5:1)
 const CORAL_INK_DEEP = '#B23E25';
@@ -101,6 +126,89 @@ const totalTimeLabel = (km: number): string | null => {
   const rem = min % 60;
   if (h === 0) return `${min}분`;
   return rem ? `${h}시간 ${rem}분` : `${h}시간`;
+};
+
+// ── [lab B② 2026-08-25] 마감까지 남은 시간 ────────────────────────────────────────────────
+// 마감은 **정책 숫자가 아니다**: expire_unmatched_bookings(0080 ⓐ)가 `status in ('matching',
+// 'runner_pending') and scheduled_at < now()`인 예약을 지운다 — 이 러닝의 시작 시각 그 자체가 기한이다.
+// ⚠ 반드시 **원본 ISO**(OpenRequest.scheduledAt)에서만 판다. 조판된 `when`을 되파싱하는 순간 이 화면에
+//   시계가 두 개 생기고, 그게 RunnerJob.scheduledAt이 애초에 존재하는 이유다.
+// 어휘는 lateness.ts의 sinceLabel 하나를 그대로 쓴다 — runner/home의 relWhen과 **같은 말**을 하고
+// (「5시간 30분」), 여기서 두 번째 포맷터를 세우지 않는다.
+const AHEAD_CAP_MS = 24 * 3_600_000;  // home.tsx AHEAD_CAP_MIN과 같은 값·같은 이유
+const deadlineLabel = (iso: string): string | null => {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;   // 시각을 모르면 남은 시간을 말하지 않는다
+  const left = t - Date.now();
+  // 시작 시각이 이미 지난 요청은 **아무 말도 하지 않는다**. 그건 카운트다운이 아니라 만료 대상이고
+  // (0080이 지운다 — 다만 크론은 즉시가 아니라서 목록에 남아 있을 수 있다), 「N분 늦음」류의 지각
+  // 어휘는 러너를 탓하는 말이다: 아무도 늦지 않았다.
+  if (left <= 0) return null;
+  // 하루 넘게 남은 카운트다운은 아무의 행동도 바꾸지 않는다 — 카드의 날짜가 이미 그 일을 한다.
+  if (left > AHEAD_CAP_MS) return null;
+  if (left < 60_000) return '1분 이내';   // 「0분 뒤」는 고장난 문장이지 사실이 아니다
+  return `${sinceLabel(left)} 뒤`;
+};
+
+// 마감 오름차순 — **레그 안에서만** 쓴다 (지명 먼저라는 사다리는 정렬보다 위다).
+// 시각을 못 읽는 행은 순서를 지어내지 않고 뒤로 보낸다.
+const byDeadline = (a: OpenRequest, b: OpenRequest): number => {
+  const ta = Date.parse(a.scheduledAt);
+  const tb = Date.parse(b.scheduledAt);
+  if (Number.isNaN(ta)) return Number.isNaN(tb) ? 0 : 1;
+  if (Number.isNaN(tb)) return -1;
+  return ta - tb;
+};
+
+// ── [lab B③ 2026-08-25] 겹침 — 서버 수락 게이트의 표시측 거울 ────────────────────────────────
+// 정본은 transition-booking/index.ts:94-127 (runner_accept). 여기 있는 네 가지가 거기와 같아야 한다:
+//   ① 창 = [scheduled_at, scheduled_at + km×8+25분)  ② LIVE = 아래 네 상태 정확히
+//   ③ 겹침 판정 = cs < aEnd && ce > aStart          ④ 자기 자신 제외
+// ⚠ 식이 서버에서 바뀌면 이 줄이 곧 거짓말이 된다 — 그래서 소요 식은 여기서 만들지 않고
+//   lateness.ts의 expectedDurationMs 하나만 부른다 (owner/request의 slotAllowed와 같은 그 식).
+// ⚠ 서버는 `km*8+25`를 반올림 없이 쓰고 expectedDurationMs는 분 단위로 반올림한다 — 분수 km에서
+//   최대 30초 어긋난다. 경계에 정확히 걸친 예약 하나가 서버에선 겹치고 화면엔 안 뜰 수 있다는 뜻이고,
+//   그래서 문을 닫지 않는다(경고만 한다). 식을 두 벌로 갈라 맞추는 것이 더 비싼 실수다.
+const OVERLAP_LIVE = new Set(['confirmed', 'runner_enroute', 'picked_up', 'active']);
+
+// 표시용 KST 시계 (UTC+9 고정 — 한국은 DST가 없다). api.ts의 kstParts와 같은 문법이지만 그 함수는
+// export되지 않고 이 슬라이스는 api.ts를 건드리지 않는다. **시작 라벨은 이미 조판된 job.when을 쓰고**
+// 이 함수는 파생된 종료 시각 하나에만 쓴다 (라벨을 되파싱하는 게 아니라 원본에서 계산한다).
+const KST_MS = 9 * 3_600_000;
+const kstClock = (ms: number): string => {
+  const d = new Date(ms + KST_MS);
+  const h = d.getUTCHours();
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+};
+
+type Conflict = { dogName: string; km: number; when: string; endLabel: string };
+
+/** 이 요청이 내 확정 일정과 겹치는가. 겹치는 첫 예약(시각순)만 지목한다 — 서버도 그렇게 한다
+ *  (무순서면 재시도마다 다른 예약을 지목해 러너가 뭘 정리할지 모른다).
+ *  null = **모른다 또는 안 겹친다**를 구분하지 않는다: 호출부가 '둘 다 로드 성공'을 이미 갈랐고,
+ *  이 함수는 겹침을 찾았을 때만 말한다. 「겹침 없음」은 어디서도 그리지 않는다. */
+const findConflict = (req: OpenRequest, jobs: RunnerJob[]): Conflict | null => {
+  const aStart = Date.parse(req.scheduledAt);
+  if (Number.isNaN(aStart) || !Number.isFinite(req.km) || req.km <= 0) return null; // 창을 못 그리면 판정하지 않는다
+  const aEnd = aStart + expectedDurationMs(req.km);
+  const hit = jobs
+    .filter((j) => OVERLAP_LIVE.has(j.rawStatus) && j.bookingId !== req.bookingId)
+    .flatMap((j): { j: RunnerJob; cs: number; ce: number }[] => {
+      const cs = j.scheduledAt ? Date.parse(j.scheduledAt) : NaN;
+      if (Number.isNaN(cs) || !Number.isFinite(j.km) || j.km <= 0) return [];
+      const ce = cs + expectedDurationMs(j.km);
+      return cs < aEnd && ce > aStart ? [{ j, cs, ce }] : [];
+    })
+    .sort((x, y) => x.cs - y.cs)[0];
+  if (!hit) return null;
+  // 종료는 분 단위로 **올림**한다 — 서버가 자기 409 메시지에서 그렇게 한다. 절삭하면 화면이 말한
+  // 구간과 러너가 실제로 받는 거절 메시지의 구간이 1분 어긋난다.
+  return {
+    dogName: hit.j.dogName,
+    km: hit.j.km,
+    when: hit.j.when,
+    endLabel: kstClock(Math.ceil(hit.ce / 60_000) * 60_000),
+  };
 };
 
 // 수락 뒤에 오는 순서 — 예약이 실제로 밟는 서버 상태를 사람 말로 옮긴 것이다
@@ -150,6 +258,12 @@ export default function Requests() {
   const [rsErr, setRsErr] = useState(false);
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [availErr, setAvailErr] = useState(false);
+  // [lab B③] 내 확정 일정 — 수락 게이트를 탭 **전에** 비추기 위한 유일한 입력.
+  // null은 '아직 안 들어옴'과 '실패'를 하나로 묶는다. **의도된 설계다**: 두 경우에 화면이 해야 할
+  // 일이 정확히 같기 때문이다 — 겹침에 대해 아무 말도 하지 않는다. 실패를 따로 상태로 들고 있으면
+  // 그 값을 읽는 곳이 없는 죽은 상태가 되거나(계산만 남은 상태 금지), 「확인 못 했어요」 같은 줄로
+  // 새어나가 결국 없는 정보를 화면에 만든다. 여기서 실패는 **부재**로 렌더된다 (lab §B③ 절대 규칙).
+  const [myJobs, setMyJobs] = useState<RunnerJob[] | null>(null);
 
   // 요약 두 줄도 매 로드마다 다시 읽는다 — '시간 조정 ›'으로 나갔다 돌아온 러너에게 옛 요약을 보여주지
   // 않으려면 포커스 리로드가 이 둘도 함께 끌어와야 한다 (빈 상태에서만 그려지지만, 빈 상태야말로 그
@@ -168,6 +282,11 @@ export default function Requests() {
     fetchMyAvailability()
       .then(setAvail)
       .catch((e) => { console.warn('[requests] availability:', e?.message ?? e); setAvail(null); setAvailErr(true); });
+    // [lab B③] 인박스와 **독립적으로** 산다. 확정 일정 로드가 실패해도 요청 목록은 그대로 서고,
+    // 반대로 이 실패가 요청을 지우지도 않는다 — 겹침 경고만 조용히 사라진다.
+    fetchRunnerJobs()
+      .then(setMyJobs)
+      .catch((e) => { console.warn('[requests] jobs:', e?.message ?? e); setMyJobs(null); });
     return Promise.all([
       fetchRunnerInbox().then(setLive),
       fetchRescheduleRequests().then(setResched),
@@ -179,6 +298,14 @@ export default function Requests() {
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
+  // [lab B③] 겹침을 말해도 되는가 — **두 로드가 모두 성공했을 때만**. 요청 목록이 옛 성공분이고
+  // 지금 로드가 실패한 상태(loadErr)에서도 침묵한다: 그 요청이 아직 살아 있는지조차 지금은 모른다.
+  // 실패한 확정 일정 로드는 「겹침 없음」이 아니라 **아무 줄도 아니다** (조작된 안심 금지).
+  // 카드와 확인창이 **같은 게이트**를 쓴다 (아래 accept·renderRequest 둘 다 이 함수만 부른다).
+  const overlapKnown = loaded && !loadErr && myJobs !== null;
+  const conflictOf = (req: OpenRequest): Conflict | null =>
+    (overlapKnown && myJobs !== null ? findConflict(req, myJobs) : null);
+
   // [2026-08-11] 여기는 한 번의 탭이 곧 커밋이었다. 수락은 **현실 세계의 약속**이다 — 그 시간에
   // 남의 개를 데리러 가겠다는 것이고, 동시에 다른 일에 쓸 수 있는 자리를 없앤다. 잘못 눌린 수락은
   // 보호자를 길에 세우거나 노쇼가 된다. 러너 홈의 티켓(home.tsx:182)은 이미 개·시각·실수령을
@@ -187,12 +314,17 @@ export default function Requests() {
     if (accepting || asking) return;
     setAsking(true);
     const dur = totalTimeLabel(req.km);
+    // [lab B③] 겹침은 **결정하는 자리에서도** 말한다. 카드의 경고를 스쳐 지나간 러너에게 마지막 기회이고,
+    // 문을 막지 않겠다는 결정(서버가 판단자다)의 대가는 사실을 한 번 더 말하는 것이다.
+    // 모를 때는 여기서도 아무 줄도 붙지 않는다 — 확인창은 카드와 같은 게이트를 쓴다.
+    const clash = conflictOf(req);
     Alert.alert('요청 수락',
       // '실수령'은 확정 금액을 뜻한다 — 이 값은 api.ts의 **추정치**다 (서버가 실거리로 확정).
       // [2026-08-24] 결정하는 자리라서 네 가지가 다 여기 있다: 거리 · 총 소요 · 예상 금액 · 그다음.
       // 소요 시간 줄은 km을 못 믿으면 통째로 빠진다 (없는 시간을 인쇄하지 않는다).
       `${req.dogName} · ${req.when}\n`
       + (dur ? `${req.km}km · 총 ${dur} (픽업·인계 포함)\n` : `${req.km}km\n`)
+      + (clash ? `⚠ ${clash.dogName} · ${clash.km}km (${clash.when} ~ ${clash.endLabel}) 러닝과 겹쳐요 — 수락이 거절될 수 있어요\n` : '')
       + `예상 ${req.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?\n`
       + '수락하면 이 시간에 갈 사람은 나예요.\n'
       + `다음 순서: ${NEXT_STEPS}`,
@@ -224,8 +356,10 @@ export default function Requests() {
 
   // 지명 먼저 — fetchRunnerInbox가 이미 directed를 앞에 붙여 오지만, 코랄 예산을 계산하려면
   // 두 레그를 이름으로 갈라놔야 한다 (섞인 배열의 '첫 항목'은 예산의 근거가 못 된다).
-  const directed = live.filter((r) => r.directed);
-  const nearby = live.filter((r) => !r.directed);
+  // [lab B② 2026-08-25] 각 레그 **안에서** 마감 오름차순 = 먼저 사라질 것이 위로. filter가 새 배열을
+  // 주므로 여기 sort는 live를 건드리지 않는다 (서버가 준 순서는 그대로 남는다).
+  const directed = live.filter((r) => r.directed).sort(byDeadline);
+  const nearby = live.filter((r) => !r.directed).sort(byDeadline);
   // 화면당 코랄 하나 (DESIGN §5) — **지금 눌러야 할 문 하나**가 가진다.
   // 변경 요청 > 지명 요청 > 없음. 변경 요청이 이기는 이유: 그건 새 일이 아니라 **이미 확정된 약속의
   // 시간**이 흔들리는 중이라 답을 미룰수록 비싸다 (lab R2b). 근처(오픈) 요청의 수락은 절대 코랄이
@@ -253,6 +387,8 @@ export default function Requests() {
     // 케어 지시(메모)는 수락한 러너의 잡 화면에서 볼 것이다. 오픈 풀(matching) 카드는 그대로.
     const preAccept = !!req.directed;
     const totalTime = totalTimeLabel(req.km);
+    const deadline = deadlineLabel(req.scheduledAt);
+    const clash = conflictOf(req);
     return (
       <View key={req.bookingId} style={s.reqCard}>
         <View style={s.cardBody}>
@@ -275,8 +411,19 @@ export default function Requests() {
               [v4] 회색 바 은퇴 — 잉크 상자 안에서 회색 면은 소음이다. 활자가 위계를 진다. */}
           <Row style={s.whenRow}>
             <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.text }}>{wd}</Text>
-            {/* Oswald request time — lineHeight 27 = 1.29× (BUG A) */}
-            <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{wt}</Text>
+            {/* [lab B② 2026-08-25] 마감은 **자기가 파생된 시각 옆에** 붙는다 — 한 사실이 한 자리에.
+                (칩 행으로 올리지 않은 이유: 그 행의 오른쪽은 이미 「⟳ N번째 함께」의 자리이고, 390pt에서
+                 둘을 나란히 두면 RN의 flexShrink 기본 0 때문에 리플로가 아니라 잘림이 된다.)
+                ⚠ 색은 조용하다. 앰버 임박 칩은 **일부러 짓지 않았다**: 서버에는 임박 문턱이 아예 없고
+                  (오직 scheduled_at < now()), 그 컷을 정하는 것은 열린 질문 2 — 아직 답이 없다.
+                  없는 문턱을 색으로 주장하면 그건 측정이 아니라 지어낸 긴급함이다. */}
+            <Row style={{ alignItems: 'baseline', gap: 7 }}>
+              {/* Oswald request time — lineHeight 27 = 1.29× (BUG A) */}
+              <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{wt}</Text>
+              {deadline && (
+                <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim }}>{deadline}</Text>
+              )}
+            </Row>
           </Row>
           <Row style={{ gap: 12, marginTop: 10 }}>
             <Avatar url={req.photoUrl} char={req.dogName[0]} bg={paper.ink} size={48} />
@@ -331,6 +478,18 @@ export default function Requests() {
               <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, flex: 1 }} numberOfLines={1}>{req.routeName}</Text>
               <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginLeft: 10 }}>코스 미리보기 ›</Text>
             </Pressable>
+          )}
+          {/* [lab B③ 2026-08-25] 겹침 — 문 바로 위, 탭 직전에 읽히는 자리.
+              세 줄이 각각 다른 일을 한다: 무슨 일인지 · 무엇과 겹치는지(이름·거리·구간) · 그래서 뭐가
+              될 수 있는지. 세 번째 줄이 **조건문**인 것이 핵심이다 — 판단자는 서버이고, 이 화면은
+              같은 산술을 먼저 보여줄 뿐이다. 그래서 문은 그대로 살아 있다.
+              앰버(대기·주의)이지 크리티컬이 아니다: 실패가 아니라 아직 일어나지 않은 충돌이다. */}
+          {clash && (
+            <View style={s.clashStrip}>
+              <Text style={s.clashTitle}>확정된 러닝과 겹쳐요</Text>
+              <Text style={s.clashBody}>{clash.dogName} · {clash.km}km · {clash.when} ~ {clash.endLabel}</Text>
+              <Text style={s.clashBody}>수락이 거절될 수 있어요</Text>
+            </View>
           )}
         </View>
         <View style={s.doorRow}>
@@ -614,7 +773,10 @@ export default function Requests() {
           <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, textAlign: 'center' }}>
             수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}
             그다음은 {NEXT_STEPS}{'\n'}
-            응답 기한이 지나면 요청은 자동 만료됩니다
+            {/* [lab B② 2026-08-25] 「응답 기한」은 이 앱에 존재하지 않는 개념이었다 — 별도의 기한
+                컬럼도, 정책 숫자도 없다. 0080 ⓐ가 실제로 하는 일을 그대로 말한다: 시작 시각까지
+                아무도 수락하지 않으면 만료. 이제 카드 하나하나가 그 기한을 숫자로 인쇄한다. */}
+            시작 시각까지 아무도 수락하지 않으면 요청은 자동 만료돼요
           </Text>
         </View>
       </ScrollView>
@@ -636,6 +798,14 @@ const s = StyleSheet.create({
   // 메모 — 회색 면 대신 왼쪽 규칙선 (보호자의 목소리를 인용문처럼)
   memo: { borderLeftWidth: 2, borderLeftColor: '#EEEEEE', paddingLeft: 9, marginTop: 9 },
   whenRow: { justifyContent: 'space-between', alignItems: 'baseline', marginTop: 10 },
+  // [lab B③] 겹침 스트립 — 랩의 warnstrip 그대로, 새 헥스 0개: 면 lilac.amberSoft(#FBEED9),
+  // 테두리 lilac.amberEdge(#F2DFC2), 잉크는 이 파일이 이미 쓰는 AMBER_INK(#9D580A, 그 면 위 4.78:1).
+  clashStrip: {
+    backgroundColor: lilac.amberSoft, borderWidth: 1, borderColor: lilac.amberEdge,
+    paddingVertical: 9, paddingHorizontal: 10, marginTop: 9,
+  },
+  clashTitle: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: AMBER_INK },
+  clashBody: { fontSize: 14, lineHeight: 19, color: AMBER_INK, marginTop: 2 },
   courseRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderTopWidth: 1, borderTopColor: '#EEEEEE',
