@@ -109,7 +109,7 @@ begin
   exception when others then call _fail('r4','F4', sqlerrm);
   end;
 
-  -- [F5] 취소 사다리: <24h 결제 취소 = 10% 기록·분배 / 수락 후 = 20%·러너 보상 / 결제 전 = 무료
+  -- [F5] 취소 사다리(0124 개정): 미연결 = 무료(#13) / 수락 후 = 20%·러너 보상 / 결제 전 = 무료
   begin
     perform set_config('request.jwt.claim.sub', ow2::text, false);
     v_sd2 := session_delegate_dog(v_s, dg2, t_consent());

@@ -1693,11 +1693,17 @@ begin
     if exists (select 1 from club_fee_items where booking_id=b_late)
       then v_bad:=v_bad||' 러너 없는 취소에 수수료 행이 존재한다 (#13 위반)'; end if;
 
-    -- ② Committed runner: the held-slot half remains supply compensation.
+    -- ② Committed runner: the held-slot half remains supply compensation — and the platform's
+    --    own half keeps its label here (review №4: arm ① lost the only platform-label assert
+    --    when it became zero-rows; the property lives on THIS fixture, where rows exist).
     if (select count(*) from club_fee_items
         where booking_id=b_acc and recipient_type='runner' and recipient_profile_id=r
           and basis->>'share'='supply_compensation') <> 1
       then v_bad:=v_bad||' 슬롯을 맡은 러너 몫의 basis.share가 공급 보상을 유지하지 않는다'; end if;
+    if (select count(*) from club_fee_items
+        where booking_id=b_acc and recipient_type='platform'
+          and recipient_profile_id is null and basis->>'share'='platform') <> 1
+      then v_bad:=v_bad||' 플랫폼 몫 라벨이 사라졌다'; end if;
 
     if v_bad='' then call _pass('ccf','P15 슬롯 기준 공급 보상 표기 — 러너 슬롯이 있으면 supply_compensation 행이 있고, 러너가 없으면 공급 몫 행 자체가 없다(반액만 청구, ruling B 2026-08-25)');
     else v_msg:=v_bad; call _fail('ccf','P15 슬롯 기준 공급 보상 표기',v_msg); end if;

@@ -1,6 +1,8 @@
 -- ═══ 159: cancel ladder repricing (0124) — console rulings #11 + #13 ═══
 -- L1 free-24h beats acceptance · L2 unconnected is free anytime · L3 the post-accept rung is
--- UNTOUCHED (the guard pin) · L4 late_cancel has no consumer (structural). Every pin names its
+-- UNTOUCHED (the guard pin) · L4 late_cancel has no consumer (structural, rule-string AND
+-- executable read) · L5 accept→host-revoke→cancel is free (deliberate, review №1) · L6 the
+-- impossible shapes fail loud (review №2). Every pin names its
 -- proposition; mutations in the 0124 REGISTRY row name the same observables.
 set client_min_messages = warning;
 
@@ -135,8 +137,68 @@ begin
   -- match the ASSIGNMENT, not the word: prosrc includes comments, and 0124's own header
   -- names the retired rung (measured red on the comment, first run — the M2 class inverted).
   if v_txt ~ 'v_rule\s*:=\s*''late_cancel''' then v_bad := v_bad || ' late-rung-back'; end if;
+  -- (review №5) the EXECUTABLE read too — a resurrected consumer that renames its rule string
+  -- still has to read the config, and the header's prose never spells this call.
+  if v_txt like '%club_cfg_required(''cancel_late_pct'')%' then v_bad := v_bad || ' late-read-back'; end if;
   if v_bad <> '' then call _fail('lad','L4 사다리 구조', v_bad);
                  else call _pass('lad','L4 사다리 구조 — unconnected_free 있음·late_cancel 소비자 없음'); end if;
+
+  -- ── L5 (review №1, ruled deliberate): accept → HOST revoke → near cancel is FREE. At
+  -- cancel time the owner is unconnected by the host's own act; 20% here would compensate a
+  -- runner already revoked. Present-tense reading of #13, pinned so the choice is loud; the
+  -- console carries a note in case Sean meant history-based pricing.
+  declare oD uuid; dD uuid; sdD uuid; bD uuid;
+  begin
+    oD := t_user('lad_oD', 'owner'); dD := t_dog(oD, '사다리D');
+    perform set_config('request.jwt.claim.sub', oD::text, false);
+    sdD := session_delegate_dog(s_near, dD, t_consent());
+    perform set_config('request.jwt.claim.sub', hh::text, false);
+    perform session_approve_dog(sdD, true);
+    perform set_config('request.jwt.claim.sub', oD::text, false);
+    bD := session_pay_delegation(sdD, 'idem-lad-d', true);
+    perform set_config('request.jwt.claim.sub', hh::text, false);
+    perform session_assign_dog(sdD, rr);
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform session_proposal_respond(sdD, true);
+    perform set_config('request.jwt.claim.sub', hh::text, false);
+    perform session_assignment_revoke(sdD, 'l5-host-revoke');   -- accepted, then HOST unconnects
+    perform set_config('request.jwt.claim.sub', oD::text, false);
+    perform session_cancel_delegation(sdD);                     -- near cancel, now unconnected
+    if coalesce((select cancel_fee from bookings where id = bD), 0) <> 0
+       or exists (select 1 from club_fee_items where booking_id = bD)
+      then call _fail('lad','L5 수락→호스트철회→취소=무료',
+                      'fee='||coalesce((select cancel_fee from bookings where id=bD)::text,'∅'));
+      else call _pass('lad','L5 수락→호스트철회→취소=무료 — 현재형 #13, 의도된 선택'); end if;
+  end;
+
+  -- ── L6 (review №2): the schema-permitted-but-flow-impossible shapes fail LOUD, never a
+  -- guessed price. Both directions manufactured as postgres.
+  declare oE uuid; dE uuid; sdE uuid; bE uuid; v_err boolean;
+  begin
+    oE := t_user('lad_oE', 'owner'); dE := t_dog(oE, '사다리E');
+    perform set_config('request.jwt.claim.sub', oE::text, false);
+    sdE := session_delegate_dog(s_near, dE, t_consent());
+    perform set_config('request.jwt.claim.sub', hh::text, false);
+    perform session_approve_dog(sdE, true);
+    perform set_config('request.jwt.claim.sub', oE::text, false);
+    bE := session_pay_delegation(sdE, 'idem-lad-e', true);
+    v_bad := '';
+    update bookings set runner_id = rr where id = bE;           -- matching + runner
+    begin
+      perform session_cancel_delegation(sdE); v_bad := ' matching+runner-priced';
+    exception when others then
+      if sqlerrm not like '%inconsistent_booking_shape%' then v_bad := ' wrong-err:'||sqlerrm; end if;
+    end;
+    update bookings set runner_id = null, status = 'confirmed' where id = bE;  -- confirmed + NULL
+    begin
+      perform session_cancel_delegation(sdE); v_bad := v_bad || ' confirmed+null-priced';
+    exception when others then
+      if sqlerrm not like '%inconsistent_booking_shape%' then v_bad := v_bad || ' wrong-err2:'||sqlerrm; end if;
+    end;
+    update bookings set status = 'matching' where id = bE;      -- restore a lawful shape
+    if v_bad <> '' then call _fail('lad','L6 모순 형상 fail-loud', v_bad);
+                   else call _pass('lad','L6 모순 형상 fail-loud — 돈에 대한 추측은 없다'); end if;
+  end;
 
   perform set_config('request.jwt.claim.sub', '', false);
 end $$;

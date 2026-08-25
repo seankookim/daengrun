@@ -20,10 +20,18 @@
 -- CHECKED per #13's disposition and already embodies the principle — 0117:1419 charges 0 when
 -- `runner_id is null or status in ('matching','runner_pending')`. No 0117 change needed.
 --
+-- ⚠ REVIEW-NAMED EDGE (blind review №1, ruled DELIBERATE): accept → host-revoke
+-- (session_assignment_revoke, 0057:133) → near cancel prices FREE, not 20%. Sean's words are
+-- present-tense — 「no fee if the owner was not connected」 — and at cancel time this owner is
+-- not; the 20%'s supply half would compensate a runner already revoked by the HOST's own act
+-- (whose record lives in assignment_events for the strike policy). Pinned by 159 L5; queued as
+-- a one-line console note in case the intent was history-based. Not a silent choice.
+--
 -- Shared-object discipline (0057 §2): `session_cancel_delegation` is reproduced byte-faithful
--- from 0118:989-1091 with THREE named edits — ① the ladder above; ② the runner's release
+-- from 0118:989-1092 with FOUR named edits — ① the ladder above; ② the runner's release
 -- notification branches on v_pct (「보상 기록이 남았어요」 was about to become a shipped lie:
--- under #11 a ≥24h cancel records NO compensation); ③ this header. Everything else — party
+-- under #11 a ≥24h cancel records NO compensation); ③ this header; ④ the catalog COMMENT ON
+-- at the foot (review №7: an undeclared change is a change). Everything else — party
 -- gate order, the incident gate, the pre-booking withdrawal arm, first-writer fee recording,
 -- collectable copy — is unchanged and stays pinned by 153.
 
@@ -76,6 +84,11 @@ begin
   select status::text, runner_id, total_price into v_bst, v_runner, v_total
   from bookings where id = sd.booking_id for update;
   if v_bst not in ('matching', 'confirmed') then raise exception 'already_handed_off'; end if;
+  -- [0124, review №2] the schema permits shapes no club flow writes (matching+runner,
+  -- confirmed+NULL); pricing either would be a guess, and a guess about money fails LOUD.
+  if (v_bst = 'confirmed') <> (v_runner is not null) then
+    raise exception 'inconsistent_booking_shape';
+  end if;
 
   -- [0124 edit ①] THE REPRICED LADDER. Free-window FIRST (#11: 「Free 24h+ always wins」 —
   -- an accepted runner does not defeat an early cancellation), then post-acceptance, and the
