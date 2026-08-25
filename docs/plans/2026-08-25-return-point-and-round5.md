@@ -170,3 +170,52 @@ Folded into R1 — it is the same question. Listed separately because Sean liste
 **Nothing in R1 gets built until the open questions are answered.** The failure mode this plan
 exists to prevent: drawing a return-point picker that implies a distance rule nobody has set, in a
 lab Sean reads to decide — the exact mistake made with the settlement amounts earlier today.
+
+---
+
+# REVIEW — Phase 1 (CEO)
+
+## Voice A — Codex (strategy challenge), verdict summary
+
+**Headline: the plan's central premise is contested, hard.**
+
+1. **"Endpoint handoff is not inherently a defect."** It is a legitimate model if the promise is
+   explicit: *the owner books a delegated pack run and agrees to collect the dog at the published
+   finish point.* It becomes a defect only if the product PROMISED home return, concealed the
+   endpoint requirement, or ends custody without transfer to an authorized person. The plan asserts
+   the defect without establishing any of those three conditions. **This directly contests R1's
+   framing** (and therefore my reading of Sean's 「what do you mean 즉시 해제」).
+2. **"An address cannot receive custody."** The real question is not *which address* but *which
+   authorized person physically received the dog*. `return_address_id` creates false precision while
+   leaving recipient identity, authorization, lateness, refusal and failed handoff unresolved.
+   ⚠ **VERIFIED AT SOURCE and it is stronger than Codex knew**: `0083:183-185` records Sean's own
+   D-r1 ruling — *"THIS interaction is the evidence, and the runner is paid once the dog is
+   returned"*. The shipped return is TWO-SIDED PERSON-TO-PERSON (`runner_confirmed_return_at` +
+   `owner_confirmed_return_at`, or a recorded force) and contains **no address at all, by design**.
+   So the return point is an EXPECTATION both parties coordinate on, not a custody field — and
+   modelling it as a column would put location where Sean deliberately put an interaction.
+3. **Per-dog return choice destroys pack economics** — a runner cannot scatter six dogs to six
+   destinations; deadhead time after the advertised run; `other` may need a vehicle, parking,
+   building access, incompatible dogs sharing transit. An absent owner traps the runner in unpaid
+   custody. A destination change materially alters a job the runner already accepted. More
+   addresses = more owner location data exposed to runners. "If runners price the uncertainty,
+   margins collapse; if they are not paid for it, supply collapses."
+4. **`other` is a separate service, not a picker option.** The plan's own five open questions are
+   evidence of that, not evidence that five answers unlock a picker.
+5. **Six-month regret list**, condensed: generic return columns on `bookings` when marketplace and
+   club already run separate custody machines · treating saved-address ownership as proof of an
+   authorized recipient · distance rules before knowing whether runners accept distributed returns
+   at any price · **letting a mockup wording dispute dictate database architecture** · spending
+   cycles on button variants, club photography and shareable cards before knowing why users do or
+   don't rebook · treating runner replacement as a side-spec when spare-runner liquidity is not a
+   fact in a thin marketplace.
+6. **The 10× reframe:** *"What is the single, clearest fulfillment promise daengrun can deliver
+   reliably enough that first-time owners book again?"* Proposed pilot shape: marketplace stays
+   door-to-door · **one** delegated-club return model for the whole pilot (endpoint collection is
+   the lower-risk candidate) · exceptional destinations handled manually, not promised as a feature
+   · rename `즉시 해제` on the SELF-RUN record to non-custody language (e.g. 「내 러닝 종료」) ·
+   instrument whether return logistics actually affect rebooking before building for it.
+
+**Codex scope verdict: R1 as written is over-built for 11 users; R3/R4/R5 are pre-PMF polish.**
+
+*(Voice B — independent Claude CEO subagent — pending; consensus table follows.)*
