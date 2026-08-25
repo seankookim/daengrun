@@ -237,6 +237,18 @@ else is discipline, and by this file's own law discipline fails eventually.
 OWN worktree (`isolation: "worktree"`), so the index they share is not the index you commit
 from. Then the timing question stops existing instead of having to be remembered.
 
+🔴 **AND THE SAME HAZARD IS IN THE WORKING TREE, NOT ONLY THE INDEX — never write to a file an
+agent currently owns, not even transiently.** Added within the hour by the author of the rule
+above, who then did exactly this: to test a gate, appended a line to a migration a subagent was
+actively editing, ran the check, and restored the file from a copy taken seconds earlier. **A
+copy-modify-restore is a read-modify-write with a multi-second window**, and any edit the agent
+lands inside it is overwritten with older text — silently, no conflict, no error, and the file
+still looks plausible afterwards. "It looks present" is not "nothing was lost"; only the agent
+knows what it had written, so TELL IT and let it verify rather than inspecting the file yourself
+and concluding you got away with it. The correct move costs nothing: **run the check against a
+copy outside the worktree.** A scratch dir with the script and a symlink to `supabase/` resolves
+the same relative paths and touches nothing anyone owns.
+
 - Product ideas/brainstorming → /office-hours
 - Strategy/scope → /plan-ceo-review
 - Architecture → /plan-eng-review
