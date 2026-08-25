@@ -234,3 +234,38 @@ Same collision as §16's finding #5 (stranded zombies), reached from a different
   such rows exist). Needs his word.
 - **What the carrying runner earns** for a second dog. No money can be drawn from §10.2 until
   this is answered; the lab's withdrawn 청구/환불 pair stays withdrawn.
+
+## Eighth round — the bailed-runner question, SETTLED on the console 2026-08-25T09:03:00Z
+
+Card `host-realloc-confirm`, answered by comment rather than button. Verbatim:
+
+> "keep host reassignment functionality when such cases happen for that pair."
+
+**RULED: the host's pair reassignment STAYS.** His "for that pair" is the same object he
+questioned in the sixth round ("pair reallocation functionality for the host? is that really
+necessary, i dont think so"), so this is his third and final position on it, and the latest.
+
+**Sequence, recorded because the shape is the lesson** — 04:26:44Z approve ("Give the host the
+2-hour backstop") → afternoon doubt ("i dont think so") → 09:03:00Z **keep**. Two reversals on
+one feature in one day. The sixth-round record downgraded the retirement to PROVISIONAL rather
+than executing it, and put the question back to him with the costs; that hold is what made this
+answer cheap instead of a rebuild. **A ruling that reverses the human's own explicit approval is
+the exact case where you stop and ask.**
+
+Consequences, all reversions of provisional work — none of it was built, which was the point:
+1. **Spec v2 §6.6 STANDS.** Its `[AMENDED · §16.n]` retirement marker reverts; §6.6-orig becomes
+   §6.6 again, and §14.10's CONTESTED mark clears back to SETTLED.
+2. **The trap dissolves.** `session_runner_withdraw`'s `reassign_dogs_first` guard (0043) stays
+   satisfiable, because `session_assignment_revoke` (0047:230, host-only) survives as the actor
+   that moves a confirmed dog. A runner can still exit a commitment.
+3. **159's L5 pin stays reachable** — the accept→host-revoke→near-cancel FREE scenario he
+   confirmed at 05:21:30Z keeps a live flow behind it. No pin rescoping, no fixture migration.
+4. **The seventh-round "someone else should carry it over" is now MECHANISM, not gap**: the
+   carrying-over IS the host's reassignment. His two answers agree — the earlier one said what
+   should happen to the dog, this one says who makes it happen.
+5. **The settlement fixture's UNPAIRED arm is live again.** The lab's withdrawn 청구/환불 pair was
+   withdrawn on a "pack absorbs it" premise nobody ruled; the ruled path is reassignment. Amounts
+   still require the open leg-pay answer before anything is drawn.
+
+⚠ STILL OPEN, untouched by this: mid-run departure (his "how can that happen?" implies out of
+scope but he has not said so), and what a runner earns for a second dog / a skipped leg.
