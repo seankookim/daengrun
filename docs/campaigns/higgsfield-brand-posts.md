@@ -484,6 +484,17 @@ Outputs: `higgsfield-out/refs-edited/`. ⚠ Standing caveat, flagged to Sean: th
 copyrighted photos of real, recognizable people — usable as comps/mood internally; publishing
 them as 도그스하이 posts needs rights clearance, which the synthetic set (79 posters) does not.
 
+## 8-octies. Round 10 (2026-08-25) — the style drop
+
+30 more on Sean's order, in the three loved styles: **sunny-crew** (A1–A10 — group jump with
+airborne dogs, popsicle stare-down, lamppost race, 반반 banana split), **blown-flash** (B1–B10 —
+spark rain, paw-topped hand stack ALL IN., CROSS TRAINING. on blown zebra stripes, 고생했어 finish
+hug), **selfie** (C1–C10 — the nose-cam CLOSE ENOUGH., 우중런, FULL SQUAD groufie, matching-towel
+deadpan, FINISH LINE. paw-on-post). Full pipeline (gen → full-width garment mark → slogans); B6's
+counter-running dog caught by the direction law and fixed with the last affordable edit.
+**Set: 109 finished posters.** Credits exhausted to 3.7 — the next round needs a top-up;
+per-frame costs are stable (0.12 gen / 2 edit).
+
 **Model verdict (measured, not vibes):** For this campaign's flash/editorial sport look, **Soul
 2.0 is the right primary** — its grain, flash falloff and body dynamics carry the whole aesthetic
 at 0.12 credits/frame. **Seedream 5 Pro** (2 credits) is the strong second: cleaner and calmer,
