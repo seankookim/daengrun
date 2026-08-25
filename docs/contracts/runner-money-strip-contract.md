@@ -19,10 +19,21 @@ reconstruct the margin. Display-side hiding is not secrecy.
 "Recoverable by arithmetic" is the load-bearing clause — ui6's earnings note derived it first:
 components beside a net hand back the fee by subtraction (fee = Σcomponents − net), and fee
 beside a gross hands back the rate (fee ÷ gross). So the strip removes **whole component sets**,
-not just the fee field. Owner-side money is untouched: owners see owner pricing (base_fare 7,900
-world), which is different money from the runner settlement basis (9,900 + 3,000/km world), and
-the rate is not recoverable across the two without the internal gross formula — which this
-slice also removes from the bundle.
+not just the fee field.
+
+**NAMED RESIDUAL (found attacking this contract before review, 2026-08-25):** the per-km
+constant is SHARED between owner pricing and the runner gross basis (`theme.ts pricing.perKm
+3000` = `0101 PER_KM 3000`), and owner pricing is public. Runner pay is a fixed share of a
+publicly km-linear price, so ANY correct net-vs-km surface — a quote oracle, two expected_net
+values at different km, the live ticker's slope — yields `net_per_km`, and
+`rate = 1 − net_per_km/3000` is one division for a runner who has ever seen an owner screen.
+**No read-layer strip can close this.** The achievable invariant is therefore stated exactly:
+the rate, fee, gross, and components appear NOWHERE — not in responses, not in the bundle, not
+on screen — which fulfills the ruling's operative words ("don't show them… only show the final
+profit"). Making the rate *unrecoverable by regression* would require decoupling runner net
+from the public linear price (a PRICING change — Sean's, queued as a product question, not a
+blocker). Owner-side money is otherwise untouched (base fares already decoupled: 7,900 vs
+9,900, Sean's D2).
 
 ## 1. The four measured leak channels (scout 2026-08-25, all verified at line)
 
@@ -125,6 +136,8 @@ scope of the secrecy invariant.
 - Does not touch 0117/0118/0119 surfaces, the mirror branch, or club money paths.
 - Does not claim the bundle is reverse-engineering-proof — the invariant is that the margin is
   not present, not that the binary is obfuscated.
+- Does not close the §0 named residual (rate recovery via the shared public per-km constant) —
+  that is a pricing decision, queued for Sean, and no read-layer change can substitute for it.
 
 ## 7. Suite + mutation plan (numbers resolved at write time, two-sided)
 
@@ -146,4 +159,6 @@ Money-path change → the standing adversarial cycle: this contract → blind re
 voice + independent Opus reviewer, neither shown authoring reasoning) where reviewers EXECUTE
 attacks (recover the rate from any post-strip surface) → implement → measure (harness + deno +
 three app gates) → mutation battery → land. The strip is DONE when a reviewer with a
-post-slice client and a runner JWT cannot name the rate.
+post-slice client and a runner JWT cannot name the rate **through any channel other than the §0
+named residual** — a reviewer who reaches the rate ONLY via the shared-perKm regression has
+confirmed the residual, not defeated the slice.
