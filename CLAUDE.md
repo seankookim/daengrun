@@ -179,6 +179,21 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   contradictory records of the same money decision, both in good faith, and it resolved only
   by putting both candidate answers back to Sean in one question. Unpushed work reserves
   nothing — decisions included.
+- 🔴 **AND A RELAYED *ANALYSIS* CARRIES THE SAME DUTY — agreeing is not checking** (2026-08-25).
+  The law above trained everyone to verify relayed *facts* and left relayed *framing* wide open.
+  Measured: a peer described one of Sean's options as a new idea that inverted two review
+  objections; I agreed enthusiastically and **repeated it to Sean as praise**. It was false — the
+  option was already in the spec and he had already ruled it that morning; the genuinely new arm
+  was the one that *created* the objection, not the one that answered it. One `grep` would have
+  caught it, and I had every means to run it. **The tell is that endorsing feels like
+  collaboration rather than like making a claim** — so it skips the check that a bare assertion
+  would have triggered. When you find yourself agreeing with a peer's *interpretation* and about
+  to pass it upward, that is the moment to verify it, not the moment you have been relieved of
+  verifying. An error you amplify to the human is worse than the one you merely received. A ruling
+  is settled when the human's own words are on origin. On 2026-08-13 two sessions held
+  contradictory records of the same money decision, both in good faith, and it resolved only
+  by putting both candidate answers back to Sean in one question. Unpushed work reserves
+  nothing — decisions included.
 
 ## Design system (client)
 
