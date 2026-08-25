@@ -75,11 +75,11 @@
   --t2:19px; --l2:26px;      /* title */
   --t3:15px; --l3:21px;      /* body — the one text tier */
   --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor now 15) */
-  --tk:11px;                 /* letterspaced LATIN kicker (never Korean) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
   --ts:10px;                 /* Latin serial */
-  --n1:34px; --nl1:42px;     /* numeral hero   (lh 1.24×) */
-  --n2:22px; --nl2:28px;     /* numeral large  (lh 1.27×) */
-  --n3:17px; --nl3:22px;     /* numeral inline (lh 1.29×) */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.24×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.27×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.29×) */
   /* lab chrome only — never inside a frame */
   --page:#F3F2EF; --panel:#FFFFFF; --hair:#DEDCD6; --ink:#111111; --dim:#666666; --faint:#999999;
 }
@@ -96,10 +96,10 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
 .toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
 .toc ol{list-style:none;margin-top:14px}
-.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:16px;line-height:1.5;color:var(--dim)}
-.toc .n{flex:0 0 auto;min-width:32px;font-size:21px;font-weight:800;color:var(--ink)}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
 .toc b{color:var(--ink);font-weight:800}
-.say{margin-top:18px;font-size:16px;line-height:1.5;color:var(--dim)}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
 .say b{color:var(--ink);font-weight:800}
 
 /* variant bands — one column per band, two at most */
@@ -108,7 +108,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
 .cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
   background:var(--ink);color:#fff;font-size:24px;font-weight:800}
-.cap .d{font-size:16px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
 .cap .d b{color:var(--ink)}
 
 /* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
@@ -127,7 +127,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .thinrule{height:1.5px;background:var(--docInk)}
 .hairrule{height:1px;background:var(--docLine)}
 .mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
-.mast .bk{font-size:22px;line-height:22px;color:var(--docDim)}
+.mast .bk{font-size:24px;line-height:24px;color:var(--docDim)}
 .mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
 .dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
   border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
