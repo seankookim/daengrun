@@ -661,24 +661,51 @@ invert its meaning.
 
 ---
 
-## 11. OPEN — SEAN
+## 11. ANSWERED — SEAN, 2026-08-26 05:02–05:03Z. This section is CLOSED 4/4.
 
-1. **OPEN — SEAN: when the host ends the pack, should the server also finish each runner's record
-   from that runner's own uploaded GPS trace, or wait for each runner's phone to submit its own
-   numbers?** (Recommended: wait — the fan-out ends the run and unlocks the transfer immediately,
-   and each runner's record/card lands when their device settles, which for a phone in hand is
-   seconds. Deriving it server-side would mean one host tap writes N ledger rows and, post-cutover,
-   charges N owners' cards.)
-2. **OPEN — SEAN: may the backup host press 러닝 종료?** (Recommended: yes — §5. Note this is
-   deliberately *wider* than 세션 종료, which stays host-only.)
-3. **OPEN — SEAN: for a club run, should the recorded run duration be measured to the host's 러닝
-   종료 or to the runner's own settle?** (Recommended: the host's — that is the moment the pack
-   actually stopped. Today clubs record the settle time, `0083:743`. Answering "the host's" adds one
-   display change, not a money change.)
-4. **OPEN — SEAN: if a pair's run cannot end because that dog has an open case, should the host see
-   it as a to-do on the run-end screen or only on the session-end board?** (Recommended: on the
-   run-end screen, named, with a tap through to the case — the host is standing at the finish line
-   and it is the only moment they can act on it.)
+⚠ **The four 「Recommended:」 notes that stood here are SUPERSEDED and have been removed rather
+than left beside the rulings.** One of them was overruled, and a recommendation sitting next to
+the ruling that beat it is how a later session builds the wrong thing while believing it read the
+contract. Verbatim record: `docs/decisions/2026-08-25-console-rulings.md`.
+
+| # | question | **RULED** | vs. recommendation |
+|---|---|---|---|
+| 1 | derive each runner's numbers server-side, or wait for their phone? | **`Compute it server-side`** | ⚠ **overruled** (had recommended: wait) |
+| 2 | may the backup host press 러닝 종료? | **`Yes`** | as recommended |
+| 3 | duration measured to the host's 러닝 종료 or the runner's own settle? | **`The host's tap`** | as recommended |
+| 4 | a pair blocked by an open case — run-end screen or session-end board? | **`On the run-end screen`** | as recommended |
+
+### 11.1 🔴 Why #1 is not merely an override — the recommendation was incoherent with #3
+
+Read #1 and #3 together, which the card group failed to do at authoring time. **If the recorded
+duration is defined by the host's tap (#3), then waiting for each runner's phone (#1 as
+recommended) produces distance and time keyed to a DIFFERENT INSTANT than the one being
+recorded** — each runner's own settle moment, which is precisely the drift #3 exists to remove.
+Server-side derivation at the tap makes duration and distance describe the same instant. **The
+ruling is the coherent pair; the recommendation was not.** Recorded because a contract that says
+only 「overruled」 teaches the next reader the wrong lesson.
+
+### 11.2 The objection that SURVIVES, and it was never about derivation
+
+The stated hazard was 「one host tap writes N ledger rows and, post-cutover, charges N owners'
+cards」. **That is an objection to COUPLING derivation to charging, not to deriving.** The two are
+separable and this contract now requires them separated:
+
+- 러닝 종료 ends the pack, and derives each runner's distance/time **from that runner's own
+  uploaded trace**, stamped to the host's tap.
+- **The charge remains its own gated step**, exactly as today. No single button press bills a
+  group of people, at any point, before or after the charging cutover.
+
+⚠ If a later slice collapses these two steps 「for simplicity」, this subsection is the record that
+the collapse was never what was decided — and `packend-numbers` will be cited as authorising it,
+because it looks like it does.
+
+### 11.3 The backup-host asymmetry is DELIBERATE — do not normalise it
+
+`packend-backup = Yes` (backup may end the walk) sits beside `backup-powers = Host only`
+(backup may NOT remove a member), ruled thirty-five seconds apart. **This is not an
+inconsistency to tidy.** Ending the walk is a practical act by whoever is standing at the finish
+line; removing a person and closing the session are authority. 세션 종료 stays host-only.
 
 ---
 
