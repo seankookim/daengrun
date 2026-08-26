@@ -1,21 +1,35 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchRunReportOrNull, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
 import { homePath } from '../../src/components/bottomnav';
 import { traceToBox } from '../../src/lib/trace';
+import { kstCal } from '../../src/lib/kst';
 import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { colors, paper } from '../../src/theme';
-import { pathFrom, RunShareCard } from '../../src/components/run-share-card';
+import { pathFrom, RunShareCard, StoryShareCard } from '../../src/components/run-share-card';
 import Constants from 'expo-constants';
 import { instagramAvailable, shareToInstagramStories } from '../../modules/instagram-share';
 import { Icon } from '../../src/components/ui';
 
 // 인증샷 스튜디오 (2026-07-28 확정 스펙) — 공유가 곧 마케팅.
-// 스킨 5: A 트랜스페어런트(기본) · B 투명 대형 · B 포토 · G 폴라로이드 · I 볼트 블록.
+// 스킨 5: S 스토리(채택·기본) · A 트랜스페어런트 · B 포토 · G 폴라로이드 · I 볼트 블록.
+//
+// [2026-08-26 · round 6] Two changes, and the second one is a privacy fix that
+// was live in production-shaped code:
+//   1. S 스토리 — the card Sean picked (「share card i like 3 … pace info
+//      background is transparent so it's just text overlaid on photo」). It is
+//      first in the rail. Its typography and its measured scrim live in
+//      `StoryShareCard`; this file only supplies the photo layer and the data.
+//   2. 🔴 THE ROUTE IS NO LONGER EXPORTED BY DEFAULT. Every skin in this studio
+//      used to draw the GPS trace unconditionally, so every image this screen
+//      has ever produced carried the shape of where a dog lives, with nobody
+//      having chosen it. There is now one switch (default OFF) and one gate
+//      (`exportPts`), and every skin reads the gate.
 // 러너 사진이 있으면 B 포토가 2번 슬롯으로 승격. 완성 = 즉시 캡처 + iOS 공유 시트 (재탭 금지).
 // 브랜드 디바이스: 아이콘 칩 · 브랜드 테이프 · 워드마크 락업 — 어느 스킨이 돌아다녀도 도그스하이가 남는다.
 
@@ -25,10 +39,20 @@ import { Icon } from '../../src/components/ui';
 // 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const W = Dimensions.get('window').width;
 const CARD_W = W - 96;
-const STORY_H = Math.round(CARD_W * (16 / 9) * 0.92); // 9:16 근사 — 화면 안에 액션 바까지
+// ⚠ 0.92 → 0.80 (2026-08-26, review N1). The old factor predates the vertical scroller and its
+// comment (「화면 안에 액션 바까지」) was already stale. At 0.92 the card block exceeded the
+// scroller's viewport on a 375×667, which put the 경로 switch ~100pt below the fold — and the card
+// could not be dragged past: PhotoLayer's PanResponder takes the responder on touch-down and
+// blocks the native scroll (RCTScrollView's own comment documents this), so the ONLY draggable
+// surface was the 48pt side gutters. The control Sean asked for was effectively unreachable on a
+// small phone. 0.80 keeps a 9:16-ish story shape while leaving the switch row peeking on every
+// size, so the affordance is visible without a drag at all.
+const STORY_H = Math.round(CARD_W * (16 / 9) * 0.80);
 const FEED_H = Math.round(CARD_W * 1.25);
 const GAP = 14;
 const SNAP = CARD_W + GAP;
+
+const KST_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
@@ -159,17 +183,33 @@ function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number
 // ── 스킨 정의 — A·B·G·I 4종. A·B는 사진 온/오프 이중 모드:
 // 사진 없으면 투명 스티커(체커보드 프리뷰), 사진 올리면 그 위에 오버레이 (Sean 2026-07-28 정정).
 // B의 사진 없는 모드 = '투명 배경 + 대형 트레이스' (B 변형 아이디어가 B의 상태로 복원).
-type SkinKey = 'A' | 'Bp' | 'G' | 'I';
+//
+// [2026-08-26 · round 6] S 스토리 added and placed FIRST — it is the card Sean
+// picked (「share card i like 3」). It requires a photo, like G, so it carries
+// G's 사진 고르기 door rather than inventing a photoless fallback: ③ has no
+// answer for a run with 0 photos, and I 볼트 블록 (the photoless canon) is still
+// in the rail for exactly that run.
+type SkinKey = 'S' | 'A' | 'Bp' | 'G' | 'I';
 const SKIN_META: Record<SkinKey, { name: string; h: number }> = {
+  S: { name: '스토리', h: STORY_H },
   A: { name: '투명 스티커', h: STORY_H },
   Bp: { name: '포토', h: STORY_H },
   G: { name: '폴라로이드', h: FEED_H },
   I: { name: '볼트 블록', h: FEED_H },
 };
 
+// ── 캡처 배리어 ────────────────────────────────────────────────────────────
+// Two animation frames. React committing a tree is not the same event as the
+// platform having drawn it, and `captureRef` reads what is DRAWN. Everything
+// that reaches captureRef in this file goes through `captureCard`, which waits
+// here first — see the long note there for why a privacy control makes this
+// mandatory rather than a nicety.
+const nextFrame = () => new Promise<void>((res) => requestAnimationFrame(() => res()));
+
 export default function ShotStudio() {
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const df = useDisplayFont();
+  const nf = useNumFont();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   // Two states, two sentences (2026-08-20). err = the read failed (retryable) · notFound = there
@@ -180,14 +220,34 @@ export default function ShotStudio() {
   const [notFound, setNotFound] = useState(false);
   // 스킨별 독립 사진 (2026-07-29) — B에서 사진을 바꿔도 A의 사진·크롭이 유지된다.
   // transform은 PhotoLayer 인스턴스별이고 resetKey가 스킨별 uri이므로, 자기 사진이 바뀔 때만 리셋.
-  const [photos, setPhotos] = useState<Record<'A' | 'Bp' | 'G', string | null>>({ A: null, Bp: null, G: null });
+  const [photos, setPhotos] = useState<Record<'S' | 'A' | 'Bp' | 'G', string | null>>({ S: null, A: null, Bp: null, G: null });
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetFor = useRef<SkinKey>('Bp'); // 어느 스킨이 사진을 요청했나 (확정 시 그 스킨의 사진 모드 on)
   const [photoOn, setPhotoOn] = useState<{ A: boolean; Bp: boolean }>({ A: false, Bp: true });
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
   const activeRef = useRef(0); // onScroll compares against this, not the closure's possibly-stale `active`; state stays for render
-  const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bp: null, G: null, I: null });
+  const cardRefs = useRef<Record<SkinKey, View | null>>({ S: null, A: null, Bp: null, G: null, I: null });
+
+  // ── 경로 모양 스위치 ── Sean, round 6: 「route trace should be optionally
+  // overlaid on the image to export (add a slide button for that)」.
+  //
+  // 🔴 DEFAULT OFF, AND THAT IS THE LIVE FIX. Before this commit every skin in
+  // this studio drew the GPS trace unconditionally, so every image this screen
+  // has ever exported carried the route — the shape of where a dog lives — with
+  // nobody having chosen it. A toggle that defaulted ON would be the same
+  // disclosure wearing a consent label. Off is the state a person has to reach for.
+  //
+  // What publishes when it is ON is the output of `traceToBox`: real lat/lng
+  // projected into a 0..1 aspect-preserved box. Absolute coordinates do not
+  // survive that call, so the card carries a silhouette and not a location.
+  const [showTrace, setShowTrace] = useState(false);
+  // Echo of the last COMMITTED value of showTrace — i.e. what the tree the person
+  // is looking at actually contains. `captureCard` takes its intent from HERE and
+  // not from a handler closure, because two of the share entry points fire from a
+  // 450ms setTimeout whose closure is stale by then.
+  const committedTrace = useRef(false);
+  useEffect(() => { committedTrace.current = showTrace; }, [showTrace]);
 
   // What the failure state's 다시 시도 calls — a retry button wired to nothing is a dead button.
   const load = useCallback(() => {
@@ -202,7 +262,21 @@ export default function ShotStudio() {
   useEffect(() => { load(); }, [load]);
 
   const run = report?.run ?? null;
-  const pts = useMemo(() => (run && run.trace.length > 1 ? traceToBox(run.trace) : null), [run]);
+  // `[]` is NOT a shape. traceToBox drops non-finite points and returns [] when
+  // fewer than two survive, so a run whose trace rows are present but unusable
+  // used to arrive here as an empty-but-TRUTHY array — and the inline skins below
+  // branch on truthiness and then read `pts[0].x`. Collapsing it to null closes
+  // that latent crash and keeps the switch honest: no usable shape, no control.
+  const pts = useMemo(() => {
+    if (!run || run.trace.length < 2) return null;
+    const box = traceToBox(run.trace);
+    return box.length > 1 ? box : null;
+  }, [run]);
+  // 🔴 THE ONE GATE. `pts` = does this run HAVE a shape (drives whether the switch
+  // is offered at all). `exportPts` = does this CARD carry it. Every skin below
+  // reads exportPts and nothing reads `pts` for drawing, so there is exactly one
+  // place where the route can enter the exported image, and it is this line.
+  const exportPts = showTrace ? pts : null;
   // [0064] runs.photos는 프라이빗 media 경로일 수 있다 — PhotoLayer/캡처가 실 URI를 요구하므로
   // 여기서 한 번 서명 URL로 풀어 상태에 담는다. 실패 장수는 시트에 정직하게 고지 (침묵 강등 금지).
   const [runPhotos, setRunPhotos] = useState<string[]>([]);
@@ -224,19 +298,48 @@ export default function ShotStudio() {
   // 러너 사진이 있으면 자동 기본 사진 (스킨별, 이미 고른 스킨은 유지)
   useEffect(() => {
     if (runPhotos.length > 0) {
-      setPhotos((p) => ({ A: p.A ?? runPhotos[0], Bp: p.Bp ?? runPhotos[0], G: p.G ?? runPhotos[0] }));
+      setPhotos((p) => ({ S: p.S ?? runPhotos[0], A: p.A ?? runPhotos[0], Bp: p.Bp ?? runPhotos[0], G: p.G ?? runPhotos[0] }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runPhotos.length]);
 
-  const order: SkinKey[] = ['A', 'Bp', 'G', 'I']; // A 투명 기본 · B 포토 2번 고정
+  const order: SkinKey[] = ['S', 'A', 'Bp', 'G', 'I']; // S 스토리 first — it is the picked card
   const activeKey = order[Math.min(active, order.length - 1)];
+  // The same key, read LIVE. `activeKey` above is a render value and is correct for
+  // rendering; it is wrong for anything that runs later. `pickFromGallery` and
+  // `confirmPhoto` both fire `setTimeout(shareNow, 450)`, and in those 450ms the rail
+  // can be swiped — so a capture that trusted the closure would hand the share sheet
+  // a different card from the one on screen. Same failure the trace barrier exists to
+  // prevent, so it gets the same answer: read the ref, not the closure.
+  const liveKey = (): SkinKey => order[Math.min(activeRef.current, order.length - 1)];
 
-  // 스킨별 사진 상태 — G는 사진 필수, A/B는 선택(없으면 투명 스티커)
-  const photoKey = (k: SkinKey): 'A' | 'Bp' | 'G' => (k === 'I' ? 'Bp' : k); // I는 사진 없음 — 방어용 매핑
+  // Per-skin photo state — S and G require a photo, A/B are optional (transparent sticker without one)
+  const photoKey = (k: SkinKey): 'S' | 'A' | 'Bp' | 'G' => (k === 'I' ? 'Bp' : k); // I takes no photo — defensive mapping
   const hasPhoto = (k: SkinKey) =>
-    (k === 'G' && !!photos.G) || (k === 'A' && photoOn.A && !!photos.A) || (k === 'Bp' && photoOn.Bp && !!photos.Bp);
+    (k === 'S' && !!photos.S) || (k === 'G' && !!photos.G)
+    || (k === 'A' && photoOn.A && !!photos.A) || (k === 'Bp' && photoOn.Bp && !!photos.Bp);
   const isTransparent = (k: SkinKey) => (k === 'A' || k === 'Bp') && !hasPhoto(k);
+
+  // 🔴 THE CARD CARRIES A DATE, NOT A TIME OF DAY.
+  // `report.when` is `${dateLabel} ${timeLabel}` (api.ts) — e.g. 「8월 26일 (토) 오후 7:30」.
+  // Printing the whole thing publishes the household's habitual walk hour, and it
+  // would sit next to an opt-in route silhouette: together they say where and when.
+  // The lab's ③/⑤/⑥ show a date only (「DOGS HIGH · 08.26」), so this recomputes the
+  // date half from the real instant instead of trusting a display string.
+  const cardDate = useMemo(() => {
+    if (!report) return '';
+    const ms = report.scheduledAtIso ? Date.parse(report.scheduledAtIso) : NaN;
+    if (Number.isFinite(ms)) {
+      const c = kstCal(ms);
+      return `${c.m + 1}월 ${c.d}일 (${KST_WEEKDAY[c.wd]})`;
+    }
+    // No instant to compute from. Take the date half of the label rather than
+    // invent one — `when` runs 「…일 (요일) 오전/오후 …」, so the weekday bracket
+    // is the boundary. If even that does not match, print the label unchanged
+    // rather than guess at a substring.
+    const m = report.when.match(/^(.*?\))/);
+    return m ? m[1] : report.when;
+  }, [report]);
 
   const recordLine = useMemo(() => {
     if (!standings) return null;
@@ -249,14 +352,77 @@ export default function ShotStudio() {
   }, [standings]);
 
   // ── 캡처 → 공유/저장 — 완성 = 곧 공유 시트 (재탭 금지) ──
+  //
+  // 🔴 EVERY captureRef IN THIS FILE GOES THROUGH HERE. It used to be two call
+  // sites (the share/save path and the Instagram path), each with its own
+  // options and its own error handling. With a privacy switch in the screen that
+  // is no longer just duplication: a second capture entry point is a second
+  // chance for the exported bytes to disagree with the preview. One door.
+  //
+  // The barrier before the shot:
+  //   1. read the intent from `committedTrace.current` — the last COMMITTED value
+  //      — never from the handler's closure. Two of the entry points here are
+  //      `setTimeout(shareNow, 450)` after a photo is picked, and their closure is
+  //      450ms stale by the time it runs. The committed ref is what the rendered
+  //      tree (and therefore the preview the person is looking at) actually says,
+  //      so matching the export to IT is the parity property we want.
+  //   2. two animation frames — React having committed is not the platform having
+  //      drawn, and captureRef reads what is DRAWN.
+  //   3. re-check afterwards. If the switch moved while we waited, the bytes we
+  //      are about to read might be from either tree, so we THROW instead of
+  //      guessing. A wrong export on a privacy control is worse than a failed one,
+  //      and a silent fallback here would publish a route someone just switched off.
+  const captureCard = async (opts?: { base64?: boolean }): Promise<string> => {
+    const traceAtShot = committedTrace.current;
+    await nextFrame();
+    await nextFrame();
+    if (committedTrace.current !== traceAtShot) {
+      throw new Error('경로 설정이 바뀌었어요 — 카드를 확인하고 다시 공유해 주세요');
+    }
+
+    // Loaded lazily and separately from the shot, so a missing native module
+    // stays distinguishable from a capture that failed for any other reason.
+    let VS: any;
+    try {
+      VS = require('react-native-view-shot');
+    } catch {
+      throw new Error('__no-view-shot__');
+    }
+    const ref = cardRefs.current[liveKey()];
+    if (!ref) throw new Error('카드를 캡처하지 못했어요');
+    // ⚠ [review N4] `useRenderInContext` is REQUIRED now that the card can be scrolled.
+    // view-shot's default path is `drawViewHierarchyInRect:afterScreenUpdates:YES`, which renders
+    // the hierarchy AS CURRENTLY VISIBLE ON SCREEN — this repo already records that semantic at
+    // club/receipt/[bid].tsx:137 (「captureRef는 '지금 화면에 그려진 것'을 찍는다」). Before the
+    // vertical scroller the card was always wholly in the window so it never mattered. Now the
+    // action bar is PINNED, so a user can scroll the card half out of view and still tap 공유하기 —
+    // and a partial render fails SILENTLY (a total one rejects loudly), i.e. a clipped card in
+    // someone's story with no error. renderInContext draws the layer tree instead of the screen.
+    const uri = await VS.captureRef(ref, {
+      format: 'png', quality: 1, useRenderInContext: true,
+      ...(opts?.base64 ? { result: 'base64' } : {}),
+    });
+    if (!uri) throw new Error('카드를 캡처하지 못했어요');
+    return uri;
+  };
+
+  // Failures render as failures, and as the RIGHT failure. Every capture error used to
+  // collapse into '개발 빌드 업데이트 필요', so a card that simply was not ready read as a
+  // missing native module. Two causes, two sentences.
+  const reportCaptureFailure = (e: unknown, title: string) => {
+    const msg = (e as Error)?.message ?? String(e);
+    if (msg === '__no-view-shot__') {
+      Alert.alert('개발 빌드 업데이트 필요', '카드 캡처(view-shot)는 새 빌드에 포함돼요');
+      return;
+    }
+    Alert.alert(title, msg);
+  };
+
   const capture = async (): Promise<string | null> => {
     try {
-      const VS = require('react-native-view-shot');
-      const ref = cardRefs.current[activeKey];
-      if (!ref) return null;
-      return await VS.captureRef(ref, { format: 'png', quality: 1 });
-    } catch {
-      Alert.alert('개발 빌드 업데이트 필요', '카드 캡처(view-shot)는 새 빌드에 포함돼요');
+      return await captureCard();
+    } catch (e) {
+      reportCaptureFailure(e, '카드를 만들지 못했어요');
       return null;
     }
   };
@@ -271,16 +437,13 @@ export default function ShotStudio() {
     if (busy) return;
     setBusy(true);
     try {
-      const VS = require('react-native-view-shot');
-      const ref = cardRefs.current[activeKey];
-      if (!ref) throw new Error('카드를 캡처하지 못했어요');
-      const b64 = await VS.captureRef(ref, { format: 'png', quality: 1, result: 'base64' });
+      const b64 = await captureCard({ base64: true });
       const appId = (Constants.expoConfig?.extra as any)?.instagramAppId ?? '';
       await shareToInstagramStories(b64, appId);
       haptic('success');
     } catch (e) {
       // 실패를 삼키지 않는다 — 사용자는 공유가 됐다고 믿고 앱을 나간다.
-      Alert.alert('인스타 공유 실패', (e as Error).message);
+      reportCaptureFailure(e, '인스타 공유 실패');
     } finally {
       setBusy(false);
     }
@@ -306,7 +469,7 @@ export default function ShotStudio() {
         if (!perm.granted) throw new Error('no-perm');
         await ML.saveToLibraryAsync(uri);
         haptic('success');
-        Alert.alert('저장 완료', isTransparent(activeKey)
+        Alert.alert('저장 완료', isTransparent(liveKey())
           ? '투명 PNG가 사진첩에 저장됐어요 — 인스타 스토리에서 스티커처럼 올려보세요'
           : '이미지가 사진첩에 저장됐어요');
       } catch {
@@ -364,6 +527,53 @@ export default function ShotStudio() {
       </View>
     );
 
+    // ── S 스토리 — the picked card (round 6). Photo full-bleed, no plate.
+    // Typography, scrim and every contrast number live in StoryShareCard, so the
+    // measured floor has exactly one home. What this file supplies is the photo
+    // layer a person manipulates, and one answer: does the route go in.
+    if (key === 'S') {
+      const photo = hasPhoto('S');
+      return (
+        <StoryShareCard
+          width={CARD_W}
+          height={h}
+          df={df}
+          nf={nf}
+          photo={photo
+            ? <PhotoLayer uri={photos.S!} w={CARD_W} h={h} resetKey={photos.S!} />
+            : (
+              // 0 photos is a real and common state, so it gets an empty WELL — a glyph,
+              // no sentence. The sentence that tells you what to do about it lives
+              // OUTSIDE the capture ref (see the rail below), because this subtree is
+              // exactly what savePng writes to the photo library: a directive printed
+              // here would ship inside someone's story. Same rule as the two 트레이스
+              // notices above, and the same reason the checkerboard is drawn outside.
+              <View style={s.storyEmpty}>
+                <Icon name="Image" glyph="○" size={30} color="#6d6d69" />
+              </View>
+            )}
+          data={{
+            dogName: dog,
+            km,
+            durationSec: run.durationSec ?? null,
+            paceSecPerKm: run.paceSecPerKm ?? null,
+            when: cardDate,
+            // Not on THIS card. The lab's privacy ledger puts place strings in the
+            // NOT-DRAWN list (a course name is a location datum even as a few characters
+            // of Korean), and ③ was drawn without one. Passed explicitly as null rather
+            // than omitted so the decision is visible at the call site.
+            // ⚠ Scope, stated so this does not read as a rule the file then breaks:
+            // skin I below still prints `report.routeName`, unchanged and with no
+            // switch. That is a shipped card's content, which is Sean's call and not a
+            // mechanical follow-through from this slice — it is flagged for his ruling,
+            // not silently changed here.
+            routeName: null,
+            trace: exportPts,
+          }}
+        />
+      );
+    }
+
     if (key === 'A') {
       const photo = hasPhoto('A');
       return (
@@ -375,15 +585,20 @@ export default function ShotStudio() {
           <View pointerEvents="none" style={{ position: 'absolute', top: 18, left: -14, right: -14 }}>
             <BrandTape width={CARD_W + 28} rotate="-2deg" df={df} />
           </View>
-          {pts ? (
+          {exportPts ? (
             <Svg pointerEvents="none" width={CARD_W} height={h * 0.62} viewBox={`0 0 ${CARD_W} ${h * 0.62}`} style={{ position: 'absolute', top: h * 0.12 }}>
-              <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke="rgba(198,245,66,.35)" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <Circle cx={40 + pts[0].x * (CARD_W - 80)} cy={40 + pts[0].y * (h * 0.62 - 80)} r={7} fill="#fff" />
-              <Circle cx={40 + pts[pts.length - 1].x * (CARD_W - 80)} cy={40 + pts[pts.length - 1].y * (h * 0.62 - 80)} r={7} fill={colors.tang} />
+              <Path d={pathFrom(exportPts, CARD_W, h * 0.62, 40)} stroke="rgba(198,245,66,.35)" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Path d={pathFrom(exportPts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Circle cx={40 + exportPts[0].x * (CARD_W - 80)} cy={40 + exportPts[0].y * (h * 0.62 - 80)} r={7} fill="#fff" />
+              <Circle cx={40 + exportPts[exportPts.length - 1].x * (CARD_W - 80)} cy={40 + exportPts[exportPts.length - 1].y * (h * 0.62 - 80)} r={7} fill={colors.tang} />
             </Svg>
           ) : (
-            <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
+            /* This line is INSIDE the capture ref, so it ships in the PNG. It may therefore
+               state a fact about the run (this one has no GPS) and must never state an
+               instruction about the UI. "경로가 있는데 꺼져 있다" is a fact about the CONTROL,
+               so it lives outside the card, on the switch row — printing it here would put a
+               UI directive into someone's Instagram story. */
+            pts ? null : <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
           )}
           <View pointerEvents="none" style={{ position: 'absolute', bottom: 22, left: 18, right: 18 }}>
             <View style={{ alignItems: 'center', marginBottom: 14 }}><Lockup df={df} /></View>
@@ -401,14 +616,19 @@ export default function ShotStudio() {
         return (
           <View style={{ width: CARD_W, height: h }}>
             <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
-            {pts ? (
+            {exportPts ? (
               <Svg pointerEvents="none" width={CARD_W} height={h * 0.7} viewBox={`0 0 ${CARD_W} ${h * 0.7}`} style={{ position: 'absolute', top: h * 0.08 }}>
-                <Path d={pathFrom(pts, CARD_W, h * 0.7, 16)} stroke="#fff" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <Circle cx={16 + pts[0].x * (CARD_W - 32)} cy={16 + pts[0].y * (h * 0.7 - 32)} r={7} fill={colors.volt} />
-                <Circle cx={16 + pts[pts.length - 1].x * (CARD_W - 32)} cy={16 + pts[pts.length - 1].y * (h * 0.7 - 32)} r={7} fill={colors.tang} />
+                <Path d={pathFrom(exportPts, CARD_W, h * 0.7, 16)} stroke="#fff" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <Circle cx={16 + exportPts[0].x * (CARD_W - 32)} cy={16 + exportPts[0].y * (h * 0.7 - 32)} r={7} fill={colors.volt} />
+                <Circle cx={16 + exportPts[exportPts.length - 1].x * (CARD_W - 32)} cy={16 + exportPts[exportPts.length - 1].y * (h * 0.7 - 32)} r={7} fill={colors.tang} />
               </Svg>
             ) : (
-              <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
+              /* This line is INSIDE the capture ref, so it ships in the PNG. It may therefore
+               state a fact about the run (this one has no GPS) and must never state an
+               instruction about the UI. "경로가 있는데 꺼져 있다" is a fact about the CONTROL,
+               so it lives outside the card, on the switch row — printing it here would put a
+               UI directive into someone's Instagram story. */
+            pts ? null : <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
             )}
             <View pointerEvents="none" style={{ position: 'absolute', bottom: 22, left: 18, right: 18 }}>
               <Text style={[s.dogTitle, df]}>{dog}의 러닝</Text>
@@ -423,11 +643,11 @@ export default function ShotStudio() {
           <PhotoLayer uri={photos.Bp!} w={CARD_W} h={h} resetKey={photos.Bp!} />
           <View pointerEvents="none" style={s.scrimBottom} />
           <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
-          {pts && (
+          {exportPts && (
             <Svg pointerEvents="none" width={110} height={120} viewBox="0 0 110 120" style={{ position: 'absolute', top: 66, right: 16 }}>
-              <Path d={pathFrom(pts, 110, 120, 8)} stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.95} />
-              <Circle cx={8 + pts[0].x * 94} cy={8 + pts[0].y * 104} r={4.5} fill={colors.volt} />
-              <Circle cx={8 + pts[pts.length - 1].x * 94} cy={8 + pts[pts.length - 1].y * 104} r={4.5} fill={colors.tang} />
+              <Path d={pathFrom(exportPts, 110, 120, 8)} stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.95} />
+              <Circle cx={8 + exportPts[0].x * 94} cy={8 + exportPts[0].y * 104} r={4.5} fill={colors.volt} />
+              <Circle cx={8 + exportPts[exportPts.length - 1].x * 94} cy={8 + exportPts[exportPts.length - 1].y * 104} r={4.5} fill={colors.tang} />
             </Svg>
           )}
           <View pointerEvents="none" style={{ position: 'absolute', bottom: 20, left: 18, right: 18 }}>
@@ -450,7 +670,7 @@ export default function ShotStudio() {
                 : <View style={[s.photoEmpty, { backgroundColor: '#3b4d35' }]}><Icon name="Image" glyph="○" size={24} color="#8fa093" /></View>}
               {/* 트레이스 = 폴라로이드의 주인공 (Sean 2026-07-29: 크게·중앙·선명한 네온).
                   다크 헤일로 언더스트로크가 어떤 사진 위에서도 볼트를 세운다 */}
-              {pts && (() => {
+              {exportPts && (() => {
                 const PW = CARD_W - 84;
                 const PHH = PH - 62;
                 const TW = Math.round(PW * 0.74);
@@ -463,10 +683,10 @@ export default function ShotStudio() {
                     viewBox={`0 0 ${TW} ${TH}`}
                     style={{ position: 'absolute', left: (PW - TW) / 2, top: (PHH - TH) / 2 }}
                   >
-                    <Path d={pathFrom(pts, TW, TH, 14)} stroke="rgba(15,29,19,.45)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <Path d={pathFrom(pts, TW, TH, 14)} stroke={colors.volt} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <Circle cx={14 + pts[0].x * (TW - 28)} cy={14 + pts[0].y * (TH - 28)} r={5.5} fill="#fff" />
-                    <Circle cx={14 + pts[pts.length - 1].x * (TW - 28)} cy={14 + pts[pts.length - 1].y * (TH - 28)} r={5.5} fill={colors.tang} />
+                    <Path d={pathFrom(exportPts, TW, TH, 14)} stroke="rgba(15,29,19,.45)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Path d={pathFrom(exportPts, TW, TH, 14)} stroke={colors.volt} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Circle cx={14 + exportPts[0].x * (TW - 28)} cy={14 + exportPts[0].y * (TH - 28)} r={5.5} fill="#fff" />
+                    <Circle cx={14 + exportPts[exportPts.length - 1].x * (TW - 28)} cy={14 + exportPts[exportPts.length - 1].y * (TH - 28)} r={5.5} fill={colors.tang} />
                   </Svg>
                 );
               })()}
@@ -503,7 +723,7 @@ export default function ShotStudio() {
           paceSecPerKm: run.paceSecPerKm ?? null,
           when: report.when,
           routeName: report.routeName ?? null,
-          trace: pts,
+          trace: exportPts,
           recordLine,
         }}
       />
@@ -521,17 +741,21 @@ export default function ShotStudio() {
 
   const t = isTransparent(activeKey);
   const sheetKey = photoKey(sheetFor.current); // 시트가 어느 스킨의 사진을 고르는 중인가
-  const needsPhotoNow = activeKey === 'G' && !photos.G;
+  // S and G both require a photo, so both send the main button to the picker
+  // rather than exporting a card with a labelled hole in it.
+  const needsPhotoNow = (activeKey === 'G' && !photos.G) || (activeKey === 'S' && !photos.S);
   const mainLabel = busy ? '만드는 중...' : needsPhotoNow ? '사진 고르기 ›' : t ? '투명 PNG 저장' : '공유하기 ›';
-  const onMain = needsPhotoNow ? () => openSheet('G') : t ? savePng : shareNow;
+  const onMain = needsPhotoNow ? () => openSheet(activeKey) : t ? savePng : shareNow;
   const [ghostLabel, onGhost] =
     activeKey === 'A'
       ? hasPhoto('A') ? ['사진', () => photoMenu('A')] as const : ['사진 위에 올리기', () => openSheet('A')] as const
       : activeKey === 'Bp'
         ? hasPhoto('Bp') ? ['사진', () => photoMenu('Bp')] as const : ['사진 넣기', () => openSheet('Bp')] as const
-        : activeKey === 'G' && photos.G
-          ? ['사진 변경', () => openSheet('G')] as const
-          : ['이미지 저장', savePng] as const;
+        : activeKey === 'S' && photos.S
+          ? ['사진 변경', () => openSheet('S')] as const
+          : activeKey === 'G' && photos.G
+            ? ['사진 변경', () => openSheet('G')] as const
+            : ['이미지 저장', savePng] as const;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0C130E' }}>
@@ -575,6 +799,23 @@ export default function ShotStudio() {
 
       {report && run && (
         <>
+          {/* ⚠ VERTICAL SCROLLER, added 2026-08-26 with the 경로 switch.
+              This column is taller than a phone. `STORY_H`'s 0.92 factor was tuned so
+              the card plus the action bar just fit, and that budget had no room left
+              for a control: adding the switch row pushed 인스타 스토리로 off a 844pt
+              screen and the PRIMARY action bar off a 667pt one — and with no scroller
+              there was nothing to scroll, so the buttons were simply unreachable.
+              (`marginTop:'auto'` on the action row cannot rescue it: once the column
+              overflows there is no free space for an auto margin to take.)
+              The fix keeps the actions OUTSIDE the scroller so they are always on
+              screen, and lets the card + switch scroll under them. `flexShrink` on the
+              scroller is what lets it give up height instead of pushing. */}
+          <ScrollView
+            style={{ flex: 1, flexShrink: 1 }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+            // review N2: the indicator is the ONLY hint that the switch exists below the card.
+            showsVerticalScrollIndicator
+          >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -603,6 +844,13 @@ export default function ShotStudio() {
                   >
                     {renderSkin(key)}
                   </View>
+                  {/* Preview-only, and deliberately OUTSIDE the ref above: it tells the
+                      person what the empty well needs, and it must never reach the PNG. */}
+                  {key === 'S' && !photos.S && (
+                    <View pointerEvents="none" style={s.storyHint}>
+                      <Text style={s.storyHintTxt}>사진을 고르면 카드가 완성돼요</Text>
+                    </View>
+                  )}
                 </View>
               );
             })}
@@ -619,7 +867,53 @@ export default function ShotStudio() {
             {hasPhoto(activeKey) ? ' · 핀치로 크기 · 드래그로 위치 · 더블탭 원위치' : t ? ' · 저장 후 인스타 스토리 스티커로' : ''}
           </Text>
 
-          {/* 액션 바 */}
+          {/* ── 경로 모양 스위치 (round 6, ⑤/⑥) ──
+              Drawn ONLY when this run actually has a shape to offer. A switch on a
+              run with no GPS would be a control that changes nothing — a dead
+              button with a knob on it.
+              It sits under the card and above the actions because that is where
+              the decision is real: the card is on screen, and flipping this
+              changes what the person is looking at. The finish screen cannot host
+              it — nobody has seen the card yet at that moment. */}
+          {pts && (
+            <View style={s.swRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.swTitle}>경로 모양 넣기</Text>
+                {/* The state sentence is the row's OWN body rather than a second line
+                    below it (as the lab drew ⑤). One box says the same thing in a
+                    column that is already taller than a phone — see the scroller above. */}
+                <Text style={s.swBody}>
+                  {/* review N3: OFF is where everyone starts and where the choice is made, so it
+                      must carry the privacy fact (좌표는 빠지고 모양만), not only the state. The
+                      merged one-liner had dropped it from exactly that moment. */}
+                  {showTrace
+                    ? '켜짐 — 좌표는 빠지고 모양만 들어가요.'
+                    : '꺼짐 — 지금은 경로가 안 들어가요 · 켜도 좌표는 빠지고 모양만 들어가요.'}
+                </Text>
+              </View>
+              <Switch
+                value={showTrace}
+                // Locked while a capture is in flight. Flipping mid-shot is caught by
+                // captureCard's re-check and fails closed, but a control that answers
+                // an intentional tap with an error is worse than one that waits.
+                disabled={busy}
+                onValueChange={(v) => { setShowTrace(v); haptic('light'); }}
+                accessibilityLabel="카드에 경로 모양 넣기"
+                trackColor={{ false: '#2c4034', true: paper.action }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="#2c4034"
+              />
+            </View>
+          )}
+
+          {/* Lab ③/⑤/⑥ carry this line and it was missing. It is a claim, so it has to
+              be true, and it is: 공유하기 hands the PNG to the OS sheet, 인스타 스토리로
+              opens Instagram's own composer, 이미지 저장 writes to this phone. Nothing
+              in this screen posts anything anywhere by itself. */}
+          <Text style={s.privLine}>내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</Text>
+          </ScrollView>
+
+          {/* 액션 바 — outside the scroller, so it is reachable on every screen size. */}
           <View style={s.actRow}>
             <Pressable onPress={onGhost} disabled={busy} style={[s.actGhost, busy && { opacity: 0.5 }]}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
@@ -717,7 +1011,33 @@ const s = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
   dotOn: { backgroundColor: colors.volt, width: 16 },
   skinName: { fontSize: 14, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
-  actRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 18, marginTop: 'auto', marginBottom: 34 },
+  // S 스토리's 0-photo state. A labelled bind, on this file's canonical dark
+  // (paper.ink) so the scrim and its measured contrast still hold above it.
+  storyEmpty: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: paper.ink,
+  },
+  // The hint that belongs to the empty well but must not be captured with it.
+  // ⚠ [device-verified 2026-08-26] `top:'58%'` COLLIDED with the display line — on the simulator
+  // 「사진을 고르면 카드가 완성돼요」 sat directly on top of 「초코, 오늘 0km」, both unreadable.
+  // A code read called it 「slightly crowded, not a defect」; the screen disagreed, which is why the
+  // sim pass exists. The hint now hangs off the GLYPH (which is centred in the empty well) with a
+  // fixed offset, instead of a percentage of the whole card that drifts into the bottom-pinned type
+  // block as the card grows. `bottom` is measured from the type block's top edge, so it can never
+  // reach it regardless of card height or dog-name wrap.
+  storyHint: { position: 'absolute', left: 0, right: 0, top: '50%', marginTop: 30, alignItems: 'center' },
+  storyHintTxt: { fontSize: 15, lineHeight: 21, color: '#b8b8b4', fontWeight: '700' },
+  // 경로 스위치 — a control, so it carries a control's marks: ≥56pt row, its own
+  // edge, a state word that is never ambiguous. Korean at the 15pt floor.
+  swRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56,
+    marginHorizontal: 18, marginTop: 14, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14,
+  },
+  swTitle: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: '#e6efe0' },
+  swBody: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: '#8fa093', marginTop: 3 },
+  privLine: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: '#8fa093', marginHorizontal: 18, marginTop: 14 },
+  actRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 18, marginTop: 12, marginBottom: 34 },
   actGhost: { flex: 1, borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   actMain: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 30 },

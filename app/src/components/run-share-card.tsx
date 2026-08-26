@@ -1,5 +1,6 @@
+import { ReactNode, useId } from 'react';
 import { Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { colors, paper } from '../theme';
 
 // RunShareCard — 공유용 러닝 포스터 한 장. **단일 정본**.
@@ -123,6 +124,276 @@ export function RunShareCard({
               <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{v}</Text>
             </View>
           ))}
+      </View>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ③ 스토리 — the SHARE CARD SEAN PICKED (round 6, 2026-08-25).
+//   「share card i like 3 but make it so that the pace info background is
+//    transparent so it's just text overlaid on photo」
+// Spec: docs/labs/share-card-lab.html — ROUND 6 header block, frames ③ ⑤ ⑥.
+//
+// 9:16, the photo runs to all four edges, and the stat block sits DIRECTLY on
+// the photo: no plate, no box, no visible edge. The r5 build had an ink plate
+// (#26231b, ~14:1) and he amended it away.
+//
+// WHY THE PLATE EXISTED IS STILL ANSWERED, NOT DROPPED. White type cannot be
+// contrast-checked against an unknown photo, and DESIGN.md's floors are *vs the
+// canvas*. So what replaces the plate is a DETERMINISTIC SCRIM burned into the
+// captured PNG — a fixed-height `ScrimRamp` above the type and a FLAT floor fill
+// behind it (`SCRIM_FLOOR_FILL`), so the alpha under every glyph is a literal
+// constant and the worst case is arithmetic instead of a guess.
+//
+// ⚠ ONE LAB DETAIL DID NOT SURVIVE THE MEASUREMENT and is corrected here.
+// The lab's `.overlay .odisp .u` still carried --coralSoft (#FFDCD1) on the km
+// number — a leftover from the plate build, where it sat on #26231b and was
+// fine. On the scrim's worst-case ground it measures **4.45:1 and FAILS**
+// (re-derived from these constants, unrounded: L(#FFDCD1)=0.77037, L(worst-case
+// composite rgb(103.7,102.5,100.6))=0.13458 → 4.45. The same run reproduces the
+// lab's whole table — #D8D6D0 3.91, floor 0.60 → label 4.40, floor 0.55 → white
+// 4.43 — so the disagreement is real, not a different method.) The display line
+// is therefore #FFFFFF end to end (5.69:1). This is the exact class of thing the
+// lab itself flagged when #D8D6D0 had to become #EDEAE3 — a "just delete the
+// box" change silently breaks inks that the box used to carry. No new colour
+// was invented to keep the accent; the accent was dropped.
+//
+// NOT ON THIS CARD, on purpose (lab's privacy ledger): no course/place name, no
+// other dog, no runner name, no money, and no TIME OF DAY. `data.routeName` is
+// deliberately unread here — a course name is a location datum even as a few
+// characters of Korean. `data.when` is expected to be a DATE: the studio strips
+// the clock time out of `RunReport.when` before handing it over, because an
+// habitual walk hour beside an opt-in route silhouette says where AND when.
+
+/** #0B0906 — the scrim base. Not a theme colour: it is the black the floor
+ *  arithmetic below was measured against, and changing it invalidates the table. */
+const SCRIM_BASE = '#0B0906';
+/** The floor alpha. 0.62 is the LIGHTEST value that clears both inks against a
+ *  pure-white photo. Re-derived from these exact constants: 0.60 → label ink
+ *  4.40:1 (fail) · 0.55 → white type 4.43:1 (fail) · 0.45 → white type 3.18:1
+ *  (fail) · 0.62 → white 5.69:1, label 4.74:1 (both pass). Do not soften it. */
+const SCRIM_FLOOR = 0.62;
+/** The floor as a paint value. This is a FLAT FILL, not a gradient stop — see
+ *  `StoryShareCard`: the type band's background IS this colour, so the alpha
+ *  under every glyph is a literal constant rather than a sampled point on a ramp. */
+const SCRIM_FLOOR_FILL = `rgba(11,9,6,${SCRIM_FLOOR})`;
+/** Label ink. #D8D6D0 (the r5 value) measures 3.91:1 on this floor and FAILS. */
+const SCRIM_LABEL_INK = '#EDEAE3';
+
+/** An exported card must not reflow with the reader's OS text size — it is an
+ *  artifact, not UI, and the card box is fixed and clips. Applied to every Text
+ *  on the card so the PNG is the same picture on every phone. */
+const FIXED_TYPE = { allowFontScaling: false } as const;
+
+/**
+ * The scrim's RAMP — the fade from transparent down to the floor alpha.
+ *
+ * ⚠ It draws ONLY the ramp, and the ramp only ever sits ABOVE the type. The flat
+ * floor under the text is not drawn here at all: it is the text block's own
+ * background (`SCRIM_FLOOR_FILL`).
+ *
+ * That split is deliberate and it is the whole correctness argument. An earlier
+ * cut drew one gradient sized to an onLayout-MEASURED band height, and that has a
+ * failure mode: on the first frame — before layout reports — the fallback height
+ * has to be guessed, and any guess that comes out short puts real glyphs over the
+ * ramp instead of the floor. (Measured: the guessed 32%-of-card fallback was 154pt
+ * against a real band of 172pt with the route off, 296pt with it on. It was short
+ * both times.) Splitting the two removes the guess and the measurement together —
+ * the floor is coextensive with the type BY CONSTRUCTION, at every frame, for any
+ * dog-name length, any wrap, any accessibility text size, route on or off.
+ *
+ * Worst case is therefore a fixed arithmetic value, not a hope: a pure-white photo
+ * composites to rgb(104,102,101) under the floor, where #FFFFFF = 5.69:1 and
+ * #EDEAE3 = 4.74:1. Both clear 4.5. (The lab measured 5.65 / 4.70 by compositing
+ * the real CSS gradient on a canvas and reading the pixel back; the difference is
+ * its rounding of the composite to integers.)
+ *
+ * The ramp's interior stops mirror the lab's CSS exactly, as fractions of the ramp
+ * measured from its top: 0 → 0, .25 → .16, .5625 → .40, 1 → .62.
+ */
+function ScrimRamp({ width, height }: { width: number; height: number }) {
+  // react-native-svg resolves gradient ids in a document-wide namespace and this
+  // studio mounts five cards at once, so a shared id would paint from whichever
+  // mounted last. useId is unique per instance; the strip is required because
+  // React's ids carry punctuation (`:r0:` / `«r0»`) that `url(#…)` cannot hold.
+  const id = `dhScrim${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const h = Math.max(1, height);
+
+  return (
+    <Svg pointerEvents="none" width={width} height={h}>
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset={0} stopColor={SCRIM_BASE} stopOpacity={0} />
+          <Stop offset={0.25} stopColor={SCRIM_BASE} stopOpacity={0.16} />
+          <Stop offset={0.5625} stopColor={SCRIM_BASE} stopOpacity={0.4} />
+          <Stop offset={1} stopColor={SCRIM_BASE} stopOpacity={SCRIM_FLOOR} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width={width} height={h} fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
+/**
+ * The route SILHOUETTE, drawn only when the composer's switch is ON.
+ *
+ * What publishes: the output of `traceToBox` (src/lib/trace.ts) — real lat/lng
+ * projected into a 0..1 aspect-preserved box. **Absolute coordinates do not
+ * survive that call.** No basemap, no scale bar, no north arrow, no place name.
+ * The line carries its own dark halo underneath for the same reason the type
+ * gets a scrim: a white line on a white photo is as invisible as white text.
+ */
+function TraceSilhouette({ pts, size }: { pts: { x: number; y: number }[]; size: number }) {
+  const PAD = 10;
+  const d = pathFrom(pts, size, size, PAD);
+  const at = (p: { x: number; y: number }) => ({
+    cx: PAD + p.x * (size - PAD * 2),
+    cy: PAD + p.y * (size - PAD * 2),
+  });
+  const a = at(pts[0]);
+  const b = at(pts[pts.length - 1]);
+  return (
+    <Svg pointerEvents="none" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Path d={d} stroke="rgba(11,9,6,0.55)" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path d={d} stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* 출발 = filled · 도착 = ring. Same two marks the lab drew. */}
+      <Circle cx={a.cx} cy={a.cy} r={5.5} fill="rgba(11,9,6,0.55)" />
+      <Circle cx={a.cx} cy={a.cy} r={3.6} fill="#FFFFFF" />
+      <Circle cx={b.cx} cy={b.cy} r={5.8} fill="none" stroke="rgba(11,9,6,0.55)" strokeWidth={4} />
+      <Circle cx={b.cx} cy={b.cy} r={5.8} fill="none" stroke="#FFFFFF" strokeWidth={2} />
+    </Svg>
+  );
+}
+
+/**
+ * ③ 스토리 — 9:16 poster, photo full-bleed, type straight on the photo.
+ *
+ * `photo` is a SLOT rather than a uri: the studio owns the pinch/pan photo layer
+ * (PhotoLayer) and its gesture state, and dragging that in here would make this
+ * component interactive. Everything that decides what the exported PNG SAYS
+ * lives here; the thing the person manipulates stays in the studio.
+ *
+ * `data.trace` is the export gate itself: the studio passes `null` whenever the
+ * composer's 경로 switch is off. There is no second path to a drawn route — if
+ * this prop is null, no route pixel exists in the tree, so none can be captured.
+ */
+export function StoryShareCard({
+  data, width, height, df, nf, photo,
+}: {
+  data: RunCardData;
+  width: number;
+  height: number;
+  /** useDisplayFont() — loading stays the caller's job (this component takes no async). */
+  df: any;
+  /** useNumFont() — Oswald. Every numeral below carries an explicit lineHeight ≥1.2× (BUG A). */
+  nf: any;
+  /** Full-bleed photo layer, or a labelled empty state. Never stock imagery. */
+  photo: ReactNode;
+}) {
+  // No state, no measurement. See `ScrimRamp` for why: the flat floor is the type
+  // block's own background, so it is coextensive with the type by construction —
+  // there is nothing to measure and no first-frame guess to get wrong.
+  const ramp = Math.round(height * 0.152); // lab: 105.6px of a 693px card
+
+  const time = fmtDur(data.durationSec);
+  const pace = fmtPace(data.paceSecPerKm);
+  // Value + label pairs. A null value drops its whole column — the card never
+  // prints a dash, a zero or an em-dash in place of a number nobody measured.
+  const trio: [string, string][] = [
+    [`${data.km}`, '거리 km'],
+    ...(pace ? ([[pace, '페이스']] as [string, string][]) : []),
+    ...(time ? ([[time, '시간']] as [string, string][]) : []),
+  ];
+
+  return (
+    <View style={{ width, height, overflow: 'hidden', backgroundColor: paper.ink }}>
+      {photo}
+
+      {/* One column pinned to the bottom edge, three boxes, top to bottom:
+            [ 경로 모양 — over bare photo, carrying its own halo   ]
+            [ ramp     — fixed height, the fade down to the floor  ]
+            [ floor fill — the type block's background, every glyph ]
+          Because the last box IS the text block, the constant floor cannot be
+          shorter than the text it carries. Nothing here measures anything.
+
+          ⚠ The trace deliberately sits ABOVE the floor rather than on it. Two
+          reasons, and the second is the load-bearing one:
+            · it does not need the floor — the silhouette carries a dark halo
+              under its white stroke, which is the lab's own stated mechanism for
+              making it legible on a light photo and a dark one alike;
+            · folding it into the floor would push the darkened band from about
+              HALF the card to about THREE QUARTERS (computed from these exact
+              paddings and line heights: 249 of a 500pt card with the route off,
+              271 with it on, against 375 if the artwork were folded in). The
+              whole point of his amendment was 「just text overlaid on photo」 —
+              less box, not more. A floor that grew to swallow the artwork would
+              answer the contrast question by undoing the request. The lab's own
+              ⑥ puts the silhouette over the ramp for the same reason (its scrim
+              is 330 of a 693px card = 48%). */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+      >
+        {/* 경로 모양 — present only when the composer's switch put it there. */}
+        {data.trace && data.trace.length > 1 && (
+          <View style={{ alignSelf: 'flex-end', paddingHorizontal: 18, marginBottom: 8 }}>
+            <TraceSilhouette pts={data.trace} size={96} />
+          </View>
+        )}
+
+        <ScrimRamp width={width} height={ramp} />
+        <View style={{ backgroundColor: SCRIM_FLOOR_FILL, paddingHorizontal: 18, paddingBottom: 18 }}>
+          {/* The silhouette's caption. It lives DOWN HERE, inside the floor, and not
+              under the artwork where it was drawn — the artwork is legible on its own
+              halo, but a 10pt line is not, and over bare photo its contrast would be
+              a text-shadow guess rather than a number. On the floor it is 4.74:1.
+              (Latin serial — the letterspaced-kicker exemption to the 15pt floor.) */}
+          {data.trace && data.trace.length > 1 && (
+            <Text {...FIXED_TYPE} style={{ fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK, textAlign: 'right', paddingTop: 10 }}>
+              START · END
+            </Text>
+          )}
+
+          {/* Display line — the card's ONE Black Han Sans line (≤1 per surface).
+              #FFFFFF end to end: see the coralSoft note in this file's header. */}
+          <Text {...FIXED_TYPE} style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.2 }, df]}>
+            {data.dogName}, 오늘 {data.km}km
+          </Text>
+
+          <View style={{ flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.34)' }}>
+            {trio.map(([v, l], i) => (
+              <View
+                key={l}
+                style={{
+                  flex: 1, paddingTop: 12, paddingHorizontal: i === 0 ? 0 : 12,
+                  ...(i === 0 ? {} : { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.34)' }),
+                }}
+              >
+                <Text {...FIXED_TYPE} style={[{ fontSize: 24, lineHeight: 30, color: '#FFFFFF', fontWeight: '900' }, nf]}>{v}</Text>
+                {/* Korean, so it sits at the 15pt floor — and at #EDEAE3, not #D8D6D0. */}
+                <Text {...FIXED_TYPE} style={{ fontSize: 15, lineHeight: 21, fontWeight: '700', color: SCRIM_LABEL_INK }}>{l}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14, paddingTop: 12 }}>
+            {/* The date the run happened — Korean data, 15pt floor. */}
+            <Text {...FIXED_TYPE} style={{ flexShrink: 1, fontSize: 15, lineHeight: 21, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={1}>
+              {data.when}
+            </Text>
+            {/* Wordmark — logo artwork (DESIGN.md §3): a mark, no data, Latin serial.
+                flexShrink 0: a long date truncates, the brand mark never does. */}
+            <Text
+              {...FIXED_TYPE}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{ flexShrink: 0, marginLeft: 'auto', paddingLeft: 10, fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK }}
+            >
+              DOGS HIGH
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
