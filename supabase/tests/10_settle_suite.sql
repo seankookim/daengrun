@@ -18,11 +18,15 @@ begin
 end $$;
 
 create or replace function t_dog(p_owner uuid, p_name text) returns uuid
--- [0119] 모든 스위트의 표준 강아지는 **맹견 여부에 답한** 보호자의 강아지다. 0119 §D 이후
--- 미신고(undeclared) 강아지는 위탁이 거절되므로, 이 한 줄이 없으면 53개 스위트의 부킹이 전부
--- 붉어진다. 거절/미신고/견종충돌 픽스처는 154 스위트가 자기 안에서 명시적으로 만든다.
-language sql as $$ insert into dogs (owner_id, name, dangerous_status)
-                   values (p_owner, p_name, 'declared_none') returning id $$;
+-- [0130] The `dangerous_status = 'declared_none'` argument that lived here from 0119 to 0129 is
+-- GONE, together with the column. 0119 needed it because its gate refused an undeclared dog's
+-- custody outright, so the standard fixture dog had to model an owner who had answered; 0127
+-- removed the gate and 0130 removes the columns, so the ordinary two-column insert is once again
+-- the whole truth about a fixture dog. This is a `language sql` body — it is validated at
+-- CREATE time, so a stale column name here is a parse-time death that kills the entire harness run
+-- at this file, not a failing pin. That is why it moves in the same commit as the migration.
+language sql as $$ insert into dogs (owner_id, name)
+                   values (p_owner, p_name) returning id $$;
 
 create or replace function t_route(p_name text) returns uuid
 language sql as $$ insert into routes (name, area, km) values (p_name, '성수동', 5.0) returning id $$;

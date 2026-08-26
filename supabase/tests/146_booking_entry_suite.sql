@@ -173,9 +173,9 @@ begin
   insert into runners(profile_id) values (v_victim);
   -- [0119] 이 스위트는 t_dog를 안 쓰고 직접 심는다 — 0119 §D 이후 미신고 강아지는 위탁이
   -- 거절되므로 신고값이 명시적으로 필요하다. 이 스위트가 핀하는 성질은 바뀌지 않는다.
-  insert into dogs (owner_id,name,dangerous_status) values (v_att,'mine','declared_none')   returning id into v_mydog;
-  insert into dogs (owner_id,name,dangerous_status) values (v_att,'mine2','declared_none')  returning id into v_mydog2;
-  insert into dogs (owner_id,name,dangerous_status) values (v_other,'theirs','declared_none') returning id into v_theirdog;
+  insert into dogs (owner_id,name) values (v_att,'mine')   returning id into v_mydog;
+  insert into dogs (owner_id,name) values (v_att,'mine2')  returning id into v_mydog2;
+  insert into dogs (owner_id,name) values (v_other,'theirs') returning id into v_theirdog;
   insert into addresses(owner_id,label,addr) values (v_att,'home','A')   returning id into v_myaddr;
   insert into addresses(owner_id,label,addr) values (v_other,'home','B') returning id into v_theiraddr;
 

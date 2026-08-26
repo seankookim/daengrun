@@ -1,5 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- 161 — 0127 맹견 gate REMOVAL (Slice A). Replaces suite 154, which is retired in the same commit.
+-- 161 — 맹견 gate REMOVAL: 0127 (Slice A, the behaviour) **and 0130 (Slice B, the columns)**.
+-- Replaces suite 154, retired by 0127's commit. ⚠ P6's proposition INVERTED with 0130 — see §SLICE B.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- Sean ruled removal twice, the second time with the legal-review context in front of him
 -- (`docs/decisions/2026-08-25-console-rulings.md` F1, 2026-08-25 04:39:43Z: "Remove it
@@ -13,9 +14,11 @@
 --     refuses": `dogs_dangerous_declaration` fires on EVERY dogs write, so left behind with its
 --     function gone it bricks every dog profile save in the product. P2 is the one-line pin that
 --     reds on exactly that, and it is the highest-value pin in this file.
---   · OVER-removal — Slice B smuggled into Slice A. The three columns, the pair CHECK and the
---     enum MUST survive here; that is what lets an old installed bundle keep working while the
---     new one distributes. P6 owns that boundary.
+--   · OVER-removal — ⚠ **REDEFINED BY 0130, see §SLICE B below.** Until Slice B this meant "the
+--     three columns, the pair CHECK and the enum MUST survive", so an old installed bundle kept
+--     working while the new one distributed. 0130 dropped them on a measured, empty distribution
+--     check, so over-removal now means taking something BEYOND them — a surviving `dogs` column, a
+--     surviving trigger, the table itself. P6 still owns that boundary; the direction moved.
 -- The behavioural pins (P1/P2/P5) come first and the catalog pins (P3/P4/P6) re-run 0127's own
 -- VERIFY assertions — because a VERIFY runs once, at apply time, and these outlive it: they fail
 -- the day someone re-creates one of these objects in a later migration.
@@ -110,10 +113,12 @@
 --    a SUBTRANSACTION, so a catching pin rolls back everything it wrote and later pins then report
 --    `not_found` about a fixture that existed a moment ago (151's header, 154's ①).
 -- ② EVERY dog in this file that must exercise the removed gate is created as the SHAPE 0119
---    refused hardest: `breed = '핏불테리어'` (0119 §B's screen matched the 핏불 stem) AND
---    `dangerous_status` left at its DEFAULT `undeclared` (0119 §C refused undeclared outright,
---    before the screen was even consulted). One dog, both doors — so no arm here can be green
---    because it happened to pick the one shape the old gate let through.
+--    refused hardest: `breed = '핏불테리어'` (0119 §B's screen matched the 핏불 stem). ⚠ It used to
+--    be BOTH doors — the breed AND `dangerous_status` left at its default `undeclared`, which 0119
+--    §C refused before the screen was even consulted. **0130 removed the declaration door**, so one
+--    of the two is now unconstructible and every fixture here exercises the breed door only. That
+--    is not a weakened fixture, it is the only door that still exists; the other is closed
+--    structurally rather than by a value (P6 ⓓ).
 -- ③ Each arm gets its OWN dog. Sharing one dog across the booking, delegation and recurring arms
 --    couples them through the live-overlap guard in `generate_recurring_bookings` and through
 --    `session_dogs`'s unique(session_id, dog_id) — a coupled fixture is how one failure paints
@@ -236,6 +241,68 @@
 --   `[mgn-off]` pin under test, plus M13's three `[r4]` pins which depend on the dropped trigger,
 --   plus M16's `[sec] S1`. No mutation moved a pin in the green direction.
 --
+-- ═══ §SLICE B — 0130 DROPPED THE COLUMNS, AND THIS FILE MOVED WITH IT ════════════════════════
+-- `0130_maenggyeon_slice_b.sql` drops `dogs.dangerous_status` / `dangerous_basis` /
+-- `dangerous_declared_at`, the `dogs_dangerous_basis_pairs_with_status` CHECK and the
+-- `dog_dangerous_status` enum, in that order (CHECK → columns → enum; M9c below measured that the
+-- reverse is refused by postgres's own dependency graph). Its gate was 「a MEASURED bundle
+-- distribution check」 and the measurement came back EMPTY: **0 EAS builds ever produced · 1 of the
+-- 4 declared channels existing · 0 OTA updates ever**, taken twice by two sessions and recorded
+-- verbatim in 0130's header. One residual surface is not covered by that measurement and is Sean's
+-- (locally-built `expo run:ios` binaries leave no EAS trace); it gates 0130's PUSH, not its apply.
+--
+-- ── WHAT CHANGED IN THIS FILE, and why each thing moved rather than being deleted ────────────
+--   · **P6 INVERTED.** It pinned the columns' SURVIVAL and failed with 「Slice B가 앞당겨졌다」; it
+--     now pins their ABSENCE, plus a no-dangling-reference sweep (ⓓ) that outlives 0130's
+--     apply-time VERIFY, plus the positive half (ⓔⓕ) that keeps "the columns are gone" distinct
+--     from "the table is gone". Rewritten in the SAME commit as the migration, per CLAUDE.md's law
+--     on a suite whose pinned behaviour legitimately changes.
+--   · **P2 ⓒ/ⓓ RETIRED, ⓔ REWRITTEN AND STRONGER.** ⓒ (the one-way latch released) and ⓓ (the
+--     timestamp no longer server-stamped) were propositions about the CONTENT of dropped columns —
+--     not weaker pins, not pins at all. P3 owns the triggers' absence by name; P6 ⓐ owns the
+--     columns'. ⓔ's victim is now an ordinary dog, and the arm got broader in the swap: the dropped
+--     delete guard reads `old.dangerous_status`, so re-added against this schema it fails EVERY
+--     delete on `dogs`, not only declared ones.
+--   · **P1's three-way discriminator collapsed to two-way, said out loud** at the fixture block:
+--     `t_dog` no longer writes `declared_none`, so both controls are ordinary dogs and the
+--     declaration-shaped asymmetry is gone. What remains is the breed door and two independent
+--     owners generating in one sweep.
+--   · **P3, P4, P5 UNTOUCHED.** Their propositions are about objects 0127 removed and 0111
+--     restored; nothing in Slice B moves them, and editing them would be churn dressed as care.
+--   · **The M1-M16 map above is left EXACTLY as measured** and is NOT re-run. Those numbers were
+--     true of the schema they were taken against. ⚠ Two entries are now INAPPLICABLE rather than
+--     wrong: M5/M6 re-add triggers whose functions read dropped columns, so against this schema
+--     they fail at the trigger's next fire instead of reproducing 0119's behaviour; M9/M9b/M9c
+--     dropped objects that no longer exist. A map edited to match later work stops being evidence.
+--
+-- ── SLICE B MUTATION BATTERY — PREDICTED (written BEFORE any run), MEASURED BELOW ────────────
+-- Same method as M1-M16: each mutation applied ALONE by appending its DDL to the END of `0130`
+-- (after the VERIFY block, so the VERIFY still passes and the suite sees the mutated schema),
+-- except M22/M23 which are placed INSIDE the migration on purpose, because what they test is the
+-- migration's own fail-closed nets and not a pin.
+--   M17 PREDICTED  re-create the enum ALONE
+--                  → RED = [P6 ⓑ] only, naming `public.dog_dangerous_status`.
+--   M18 PREDICTED  re-add `dangerous_basis text` ALONE (the one of the three that needs no enum)
+--                  → RED = [P6 ⓐ] only, naming `dangerous_basis` and nothing else.
+--   M19 PREDICTED  run Slice B backwards in full: enum + both paired columns + the pair CHECK
+--                  → RED = [P6 ⓐ (two names), ⓑ, ⓒ (both arms)] — one pin, four authored details.
+--   M20 PREDICTED  🔴 the mutation nothing else in the harness can see: a `public` plpgsql function
+--                  whose body reads `dangerous_status` (a plpgsql body is not validated at CREATE,
+--                  so this is exactly the landmine class 0127 measured — it succeeds silently and
+--                  fails at the next call) → RED = [P6 ⓓ] only, naming `public._zz_dangling`.
+--   M21 PREDICTED  the POSITIVE half: drop a surviving `dogs` column the product uses (`memo`)
+--                  → RED = [P6 ⓕ] naming `memo`. Superset possible — any suite writing `memo`
+--                  reds too, and that is blast radius, not a miss.
+--   M22 PREDICTED  plant M20's dangling function INSIDE 0130, between §D and §E
+--                  → **the MIGRATION ABORTS at VERIFY ④ⓐ**; no suite runs. This measures the
+--                  apply-time net, which is a different proposition from "a pin notices".
+--   M23 PREDICTED  plant the same function at the TOP of 0130, before §A
+--                  → **the migration ABORTS at §A, BEFORE any drop happens** — the columns are
+--                  still there when it fails. That is the pair to M22: M22 proves the net catches
+--                  it after the fact, M23 proves the pre-check refuses to create the hole at all.
+--                  Two nets, two propositions; a battery that ran only one would have measured the
+--                  weaker of them and reported the stronger.
+--
 -- ── SCOPE, STATED HONESTLY ──────────────────────────────────────────────────────────────────
 -- These pins prove the SCHEMA half only. The edge function's removed token mapping is proven by
 -- the deploy readback and by the deletion of `_test/booking_danger_token_test.ts`; the client half
@@ -250,17 +317,14 @@ declare
   o_ser3 uuid; o_dogs uuid;
   hh uuid; rr uuid; rt uuid;
   d_book uuid; d_del uuid; d_move uuid; d_rsvp uuid; d_ser uuid; d_ser2 uuid; d_ser3 uuid; d_ctrl uuid;
-  d_tmp uuid; d_stamp uuid; d_kill uuid;
+  d_tmp uuid; d_kill uuid;
   v_club uuid; v_s uuid; sd_del uuid; sd_rsvp uuid; sd_ctrl uuid;
   b_book uuid; b_move uuid;
-  ser_pit uuid; ser_legacy uuid; ser_undecl uuid;
+  ser_pit uuid; ser_std uuid; ser_poodle uuid;
   v_bad text; v_msg text; v_err text; v_def text; v_cmt text; v_left text; v_con text;
   v_n int; v_n2 int; v_n3 int; v_dow int; v_rule jsonb;
-  v_stamp constant timestamptz := '2020-01-02 03:04:05+00';
-  -- P6 ⓕ writes this fixed value rather than now(), so the arm can assert the EXACT timestamp that
-  -- was written instead of merely "not null" — the difference between observing a write and
-  -- observing that no exception was raised (codex finding 6's last clause).
-  v_stamp6 constant timestamptz := '2021-06-07 08:09:10+00';
+  -- ⚠ 0130 (Slice B) retired `v_stamp` / `v_stamp6` with the arms that used them (P2 ⓓ, P6 ⓒ):
+  -- both wrote and read back `dangerous_declared_at`, a column that no longer exists.
   -- ── P4's frozen expectations ───────────────────────────────────────────────────────────────
   -- 🔴 MEASURED, not typed from the file: read out of the harness-built catalog on 2026-08-25
   --    after 0127 applied (`select md5(prosrc), length(prosrc) from pg_proc where oid =
@@ -274,10 +338,12 @@ declare
   c_gen_src_len constant int  := 5335;
   c_gen_cmt_md5 constant text := '12dda5539af7bbcc8b68b1641493df36';
   c_gen_cmt_len constant int  := 333;
-  -- ── P6's frozen expectations (same provenance, same rule) ──────────────────────────────────
-  c_cmt_status constant text := '0ad231504865cc879744aa64aa4ca1f5';
-  c_cmt_basis  constant text := 'fed7b16a86dab7247e7600e787cbae0f';
-  c_cmt_stamp  constant text := 'bd5db3c290cf8fcee3833822ba55c505';
+  -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
+  -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
+  -- comments. A dropped column has no `pg_description` row, so those digests could only ever have
+  -- compared null to null — a pin that cannot fail. Deleted rather than kept as dead declarations,
+  -- and the property they guarded is subsumed by P6 ⓐ: if the column is gone so is its comment,
+  -- and if the column comes back ⓐ reds first.
   -- exact trigger NAME sets, not counts. Measured two ways at 0127's authoring (the whole migration
   -- chain including `create constraint trigger`, and the linked project's live pg_trigger) and read
   -- back out of the harness catalog here. A count cannot tell "the right 14" from "any 14".
@@ -343,36 +409,32 @@ begin
     select count(*) into v_n from dogs where id = d_tmp and name = '이름바꿈';
     if v_n <> 1 then v_bad := v_bad || ' 🔴 평범한 강아지 UPDATE가 반영되지 않았다'; end if;
 
-    -- ⓒ the one-way latch is GONE. 0119 §F raised `dog_dangerous_declaration_final` on exactly
-    --   this write; the columns survive Slice A, so the write itself is still legal SQL and its
-    --   only former obstacle was the trigger.
-    update dogs set dangerous_status = 'declared_dangerous', dangerous_basis = 'listed_breed'
-     where id = d_tmp;
-    v_err := null;
-    begin
-      update dogs set dangerous_status = 'declared_none', dangerous_basis = null where id = d_tmp;
-    exception when others then v_err := sqlerrm;
-    end;
-    if v_err is not null then
-      v_bad := v_bad || ' 🔴 declared_dangerous → declared_none이 여전히 거절된다 [' || v_err || '] — 래치가 살아 있다'; end if;
-    select count(*) into v_n from dogs
-     where id = d_tmp and dangerous_status = 'declared_none' and dangerous_basis is null;
-    if v_n <> 1 then v_bad := v_bad || ' 되돌리기가 반영되지 않았다'; end if;
-
-    -- ⓓ the timestamp is no longer server-stamped. 0119 §F ⓑ overwrote whatever the client sent
-    --   (null for `undeclared`); with the trigger gone the supplied value survives verbatim. This
-    --   arm is what tells "the trigger is gone" apart from "the trigger is present but quiet".
-    insert into dogs (owner_id, name, dangerous_declared_at)
-      values (o_dogs, '도장강아지', v_stamp) returning id into d_stamp;
-    select count(*) into v_n from dogs where id = d_stamp and dangerous_declared_at = v_stamp;
-    if v_n <> 1 then
-      v_bad := v_bad || ' 🔴 클라이언트가 보낸 dangerous_declared_at이 여전히 서버 값으로 덮인다 — 신고 트리거가 살아 있다'; end if;
+    -- ⓒ/ⓓ 🔴 RETIRED BY 0130 (Slice B) — and retired, not deleted quietly, because the reason
+    --   matters more than the two arms did. They pinned that the one-way latch was released
+    --   (`declared_dangerous → declared_none` succeeds) and that `dangerous_declared_at` was no
+    --   longer server-stamped. **Both propositions were about the CONTENT of columns that 0130
+    --   drops.** A property of a column that does not exist is not a weaker pin, it is not a
+    --   proposition at all — and rewriting them to assert something adjacent would be inventing
+    --   coverage. WHO OWNS WHAT NOW: the columns' absence is P6 ⓐ; the trigger pair that imposed
+    --   both behaviours (`dogs_dangerous_declaration`, `dogs_dangerous_delete`) and its three
+    --   functions are pinned absent BY EXACT NAME by P3, which is where they were always pinned —
+    --   ⓒ/ⓓ were the BEHAVIOURAL confirmation of an absence P3 asserts structurally, and after the
+    --   drop the structural half is the only half that can exist. ⚠ The header's measured mutation
+    --   map still says M5 reds `[P2 ⓒ, P2 ⓓ, P3]`; that measurement was true of the schema it was
+    --   taken against and is left unedited (a map rewritten to match later work stops being
+    --   evidence). Under 0130's schema M5 is not even applicable — see the Slice B prediction block
+    --   in the header, where re-adding that trigger now dies on a missing column instead.
 
     -- ⓔ the DELETE latch is gone, executed AS the owner (`authenticated`), which is the only role
     --   0119 §F's delete guard refused. As postgres it would have passed even with the guard live,
     --   so this arm must run under the app role or it measures nothing.
-    insert into dogs (owner_id, name, dangerous_status, dangerous_basis)
-      values (o_dogs, '삭제대상', 'declared_dangerous', 'designated') returning id into d_kill;
+    --   ⚠ CHANGED BY 0130: the victim used to be a `declared_dangerous` dog, the one shape
+    --   `_guard_dangerous_dog_delete` refused. That shape is unconstructible now, so the arm
+    --   deletes an ORDINARY dog — and it got STRONGER rather than weaker in the process: the
+    --   dropped guard reads `old.dangerous_status`, so re-added against this schema it fails EVERY
+    --   delete on `dogs` instead of only the declared ones. The arm that used to catch one shape
+    --   now catches all of them.
+    insert into dogs (owner_id, name) values (o_dogs, '삭제대상') returning id into d_kill;
     perform set_config('request.jwt.claim.sub', o_dogs::text, false);
     v_err := null;
     begin
@@ -383,12 +445,12 @@ begin
     reset role;
     perform set_config('request.jwt.claim.sub', '', false);
     if v_err is not null then
-      v_bad := v_bad || ' 🔴 보호자가 맹견 신고된 강아지를 지울 수 없다 [' || v_err || '] — DELETE 래치가 살아 있다'; end if;
+      v_bad := v_bad || ' 🔴 보호자가 자기 강아지를 지울 수 없다 [' || v_err || '] — DELETE 래치가 살아 있다'; end if;
     select count(*) into v_n from dogs where id = d_kill;
     if v_n <> 0 then v_bad := v_bad || ' 🔴 DELETE가 예외 없이 아무 행도 지우지 않았다(남은 행=' || v_n || ')'; end if;
 
     if v_bad = ''
-      then call _pass('mgn-off','P2 강아지 쓰기가 평범해졌다 — INSERT·이름 변경이 통과하고(신고 트리거가 남아 있으면 제품의 모든 강아지 저장이 죽는다), 편도 래치가 풀려 declared_dangerous → declared_none이 성공하며, dangerous_declared_at은 더 이상 서버가 덮어쓰지 않고, 보호자(authenticated)가 신고된 강아지를 직접 삭제할 수 있다');
+      then call _pass('mgn-off','P2 강아지 쓰기가 평범해졌다 — INSERT·이름 변경이 통과하고(신고 트리거가 남아 있으면 제품의 모든 강아지 저장이 죽는다), 보호자(authenticated)가 자기 강아지를 직접 삭제할 수 있다. ⚠ 0130(Slice B) 이후 ⓒ 편도 래치·ⓓ 서버 도장 팔은 은퇴했다 — 두 명제 모두 이제 없는 컬럼의 내용에 관한 것이고, 없는 컬럼의 성질은 약한 핀이 아니라 명제가 아니다. 그 트리거들의 부재는 P3가 이름으로, 컬럼의 부재는 P6가 소유한다');
     else v_msg := v_bad; call _fail('mgn-off','P2 강아지 쓰기 정상화', v_msg); end if;
   exception when others then
     reset role;
@@ -402,22 +464,26 @@ begin
   insert into dogs (owner_id, name, breed) values (o_move, '이동핏불', '핏불테리어') returning id into d_move;
   insert into dogs (owner_id, name, breed) values (o_rsvp, '동반핏불', '핏불테리어') returning id into d_rsvp;
   insert into dogs (owner_id, name, breed) values (o_ser,  '반복핏불', '핏불테리어') returning id into d_ser;
-  -- ── P1 ⓒ's TWO controls, and they are deliberately different shapes ──────────────────────
-  -- ① the LEGACY control: `t_dog` writes `dangerous_status = 'declared_none'` (10_settle_suite:24).
-  --    Named honestly now: that state is one the CURRENT client can no longer produce — nothing in
-  --    the app writes it any more, and Slice B removes the fixture line together with the column.
-  --    It is kept ON PURPOSE and it is the only shape that can do this job: `declared_none` is the
-  --    one value 0119's gate let through, so if the gate came back this series would still
-  --    generate. That asymmetry is the discriminator. A current-flow dog cannot be the control,
-  --    because under a re-added gate it would fail too and prove nothing.
-  d_ser2 := t_dog(o_ser2, '반복평범이(구형 declared_none)');
-  -- ② the CURRENT-FLOW control: an ordinary breed at the DEFAULT `undeclared`, i.e. exactly what
-  --    the shipping client produces today. Added because two operands only answer two questions.
-  --    With three, the reds separate cleanly:
-  --      pit=0 · undeclared=0 · legacy=1  → the gate is back (it refuses undeclared, passes 신고완료)
-  --      pit=0 · undeclared=0 · legacy=0  → the sweep is dead, and no other arm here means anything
-  --      pit=0 · undeclared=1 · legacy=1  → something breed-shaped, not declaration-shaped
-  insert into dogs (owner_id, name, breed) values (o_ser3, '반복평범이(현행 미신고)', '푸들')
+  -- ── P1 ⓒ's TWO controls — 🔴 AND 0130 COLLAPSED THEM INTO ONE SHAPE. Said, not hidden. ──────
+  -- Until 0130 these were deliberately DIFFERENT: ① a legacy dog carrying `declared_none` (the one
+  -- value 0119's gate let through, written by `t_dog`) and ② a current-flow dog at the default
+  -- `undeclared`. Three operands separated three outcomes — gate back / sweep dead / breed-shaped.
+  -- **Slice B removed the column, so `t_dog` no longer writes any declaration state and ① and ②
+  -- are now the same shape: two ordinary dogs of different breeds.** The declaration-shaped
+  -- discriminator is GONE, and it is gone for a reason worth having: the state it discriminated on
+  -- is now unconstructible, and the gate function that read it (`dog_custody_gate` → `select
+  -- dangerous_status … from dogs`) can no longer be re-added SILENTLY — it fails on a missing
+  -- column at its next call rather than quietly refusing dogs. P6 ⓓ is the pin that names that
+  -- class. What survives here is the BREED discriminator, which is the half that still has a
+  -- reachable failure mode (`_breed_reads_as_dangerous` screened the 핏불 stem over free text):
+  --      pit=0 · ordinary=1 → something breed-shaped came back
+  --      pit=0 · ordinary=0 → the sweep is dead, and no other arm here means anything
+  --      pit=1 · ordinary=1 → healthy
+  -- Both control dogs are KEPT rather than merged: two ordinary series in the same sweep is what
+  -- makes "the sweep generated for someone" a two-row observation instead of a one-row coincidence,
+  -- and merging them would edit P1's arms for a reason that has nothing to do with this slice.
+  d_ser2 := t_dog(o_ser2, '반복평범이(t_dog 표준 픽스처)');
+  insert into dogs (owner_id, name, breed) values (o_ser3, '반복평범이(푸들)', '푸들')
     returning id into d_ser3;
   -- P5 ⓒ's control dog: ordinary, its own owner (see above), and its custody flip was legal even
   -- under 0119 — which is exactly what makes it a control rather than a second subject
@@ -463,15 +529,20 @@ begin
     if v_n <> 1 then
       v_bad := v_bad || ' 🔴 핏불테리어 강아지의 클럽 위탁 신청이 접수되지 않았다(count=' || v_n || ')'; end if;
 
-    -- ⓒ cron: THREE series in ONE sweep — the subject and two differently-shaped controls.
+    -- ⓒ cron: THREE series in ONE sweep — the subject and two controls.
     --   154 G6's pairing, extended to a triple after the 2026-08-25 blind review (finding 5).
-    --     · ser_pit    핏불테리어 + undeclared   — the subject: the shape 0119 refused twice over
-    --     · ser_undecl 평범한 견종 + undeclared  — what the CURRENT client actually produces
-    --     · ser_legacy 평범한 견종 + declared_none — the legacy shape 0119's gate LET THROUGH
-    --   Why three and not two: two operands answer only "did anything generate". The legacy arm is
-    --   the only one that stays green under a re-added gate, so it is what separates "the gate is
-    --   back" from "the sweep is dead"; the current-flow arm is what stops this pin from claiming
-    --   the control is an ordinary dog of today, which it is not. See the fixture block above.
+    --     · ser_pit    핏불테리어 — the subject: the breed 0119's screen matched
+    --     · ser_std    `t_dog`'s standard fixture dog, no breed set
+    --     · ser_poodle 푸들 — an ordinary named breed
+    --   ⚠ 0130 CHANGED WHAT THE TRIPLE PROVES, and the honest version is narrower than the one that
+    --   stood here. Until Slice B the two controls carried DIFFERENT declaration states, and the
+    --   `declared_none` one was the arm that stayed green under a re-added gate — that asymmetry is
+    --   what separated "the gate is back" from "the sweep is dead". The column is gone, so both
+    --   controls are now ordinary dogs and that discriminator no longer exists. What the triple
+    --   still buys is real but smaller: two independent owners generating in the SAME sweep, so a
+    --   red subject arm cannot be a dead sweep misread as a live gate. The declaration-shaped door
+    --   is closed structurally instead — `dog_custody_gate` reads a column that no longer exists,
+    --   so it cannot come back quietly; P6 ⓓ is the pin that names that class.
     v_dow  := extract(dow from ((now() at time zone 'Asia/Seoul') + interval '1 day'))::int;
     v_rule := jsonb_build_object('weekdays', jsonb_build_array(v_dow), 'time', '10:00', 'tz', 'Asia/Seoul');
     insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
@@ -481,11 +552,11 @@ begin
     insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
                                   base_fare, distance_fare, addon_fare, total_price, min_fare)
       values (o_ser2, d_ser2, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
-      returning id into ser_legacy;
+      returning id into ser_std;
     insert into recurring_series (owner_id, dog_id, route_id, rule, km, addons,
                                   base_fare, distance_fare, addon_fare, total_price, min_fare)
       values (o_ser3, d_ser3, rt, v_rule, 5.0, '[]'::jsonb, 9900, 15000, 0, 24900, 9900)
-      returning id into ser_undecl;
+      returning id into ser_poodle;
 
     -- 🔴 ATOMICITY, STATED — the three counts below come from ONE function call, and 0127
     --   deliberately restores a generator with NO per-row exception isolation (0127's header 🔴
@@ -505,17 +576,17 @@ begin
                      || '] — 이 경우 아래 세 카운트는 전부 0이 되며 아무것도 진단하지 못한다(행별 격리 없음, 0127 의도)'; end if;
 
     select count(*) into v_n  from bookings where series_id = ser_pit;
-    select count(*) into v_n2 from bookings where series_id = ser_legacy;
-    select count(*) into v_n3 from bookings where series_id = ser_undecl;
+    select count(*) into v_n2 from bookings where series_id = ser_std;
+    select count(*) into v_n3 from bookings where series_id = ser_poodle;
     if v_n <> 1 then
       v_bad := v_bad || ' 🔴 핏불테리어 시리즈가 반복 예약을 만들지 않았다(=' || v_n || ') — 게이트나 벨트가 살아 있다'; end if;
     if v_n2 <> 1 then
-      v_bad := v_bad || ' 🔴 구형 declared_none 대조군 시리즈도 생성되지 않았다(=' || v_n2 || ') — 0119의 게이트조차 통과시키던 형상이므로, 원인은 맹견이 아니라 스윕 자체다'; end if;
+      v_bad := v_bad || ' 🔴 t_dog 표준 대조군 시리즈도 생성되지 않았다(=' || v_n2 || ') — 주제 팔과 함께 죽었다면 원인은 맹견이 아니라 스윕 자체다'; end if;
     if v_n3 <> 1 then
-      v_bad := v_bad || ' 🔴 현행 미신고 대조군 시리즈가 생성되지 않았다(=' || v_n3 || ') — 구형 대조군이 살아 있는데 이것만 죽었다면 신고 상태를 보는 무언가가 돌아왔다는 뜻이다'; end if;
+      v_bad := v_bad || ' 🔴 푸들 대조군 시리즈가 생성되지 않았다(=' || v_n3 || ') — 다른 대조군이 살아 있는데 이것만 죽었다면 원인은 이 소유자/시리즈에 고유한 것이다'; end if;
 
     if v_bad = ''
-      then call _pass('mgn-off','P1 모든 견종이 받아들여진다 — 핏불테리어 견종에 미신고 상태인 강아지가 마켓 부킹(1건)·클럽 위탁 신청(runner_delegated 행)·반복 예약 생성(1건)을 전부 통과하고, 같은 스윕에서 대조군 두 시리즈(구형 declared_none · 현행 미신고)도 각각 1건 생성된다 (Sean F1 2026-08-25 "Remove it completely"). ⚠ 범위: 세 카운트는 한 번의 함수 호출에서 나오고 복원된 스윕에는 행별 격리가 없다 — 스윕이 raise하면 셋 다 0이 되고, 그 경우는 카운트가 아니라 예외 팔이 진단한다');
+      then call _pass('mgn-off','P1 모든 견종이 받아들여진다 — 핏불테리어 강아지가 마켓 부킹(1건)·클럽 위탁 신청(runner_delegated 행)·반복 예약 생성(1건)을 전부 통과하고, 같은 스윕에서 다른 두 소유자의 대조군 시리즈도 각각 1건 생성된다 (Sean F1 2026-08-25 "Remove it completely"). ⚠ 0130 이후 대조군은 둘 다 평범한 강아지다 — 신고 상태로 「게이트 복귀」와 「스윕 사망」을 가르던 비대칭은 컬럼과 함께 사라졌고, 그 문은 이제 구조적으로 닫혀 있다(없는 컬럼을 읽는 게이트는 조용히 돌아올 수 없다 — P6 ⓓ). ⚠ 범위: 세 카운트는 한 번의 함수 호출에서 나오고 복원된 스윕에는 행별 격리가 없다 — 스윕이 raise하면 셋 다 0이 되고, 그 경우는 카운트가 아니라 예외 팔이 진단한다');
     else v_msg := v_bad; call _fail('mgn-off','P1 세 경로 전부 통과', v_msg); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
@@ -774,10 +845,11 @@ begin
         v_bad := v_bad || ' 🔴 커스터디가 실제로 이동하지 않았다(=' || v_n || ')'; end if;
     end if;
 
-    -- ⓒ CONTROL for ⓑ, and it is a diagnostic one. The same flip on an ORDINARY dog was already
-    --   legal under 0119 (declared_none passed the gate), so if ⓑ and ⓒ fail TOGETHER the cause is
-    --   structural — a club axis rule or a constraint — and not a surviving 맹견 trigger. Without
-    --   this arm a red ⓑ would be read as "the gate is back", which is the wrong repair.
+    -- ⓒ CONTROL for ⓑ, and it is a diagnostic one. The same flip on an ORDINARY dog (no 핏불
+    --   stem, and after 0130 no declaration state to carry either) exercises the identical club
+    --   machinery, so if ⓑ and ⓒ fail TOGETHER the cause is structural — a club axis rule or a
+    --   constraint — and not a surviving 맹견 trigger. Without this arm a red ⓑ would be read as
+    --   "the gate is back", which is the wrong repair.
     perform set_config('request.jwt.claim.sub', o_ctrl::text, false);
     perform session_rsvp(v_s, d_ctrl);
     perform set_config('request.jwt.claim.sub', '', false);
@@ -809,7 +881,7 @@ begin
     end if;
 
     if v_bad = ''
-      then call _pass('mgn-off','P5 이동 경로도 조용하다 — 핏불테리어 강아지의 예약이 러너 지명·수락·도착·인계 도장 양쪽·픽업(커스터디 이전 지점)까지 아무것도 raise하지 않고 실제로 picked_up에 도달하며, session_dogs의 동반 → 위탁 커스터디 UPDATE도 통과한다 (0119의 두 _move 트리거가 걸려 있던 바로 그 쓰기들). 평범한 강아지의 같은 이동이 대조군으로 함께 실행되고 대조군도 예외 부재가 아니라 **결과 상태**(custody + responsible_profile_id)로 검사되므로, 둘이 같이 붉어지면 원인은 맹견이 아니라 구조적인 것이다. ⚠ 범위: 이 핀은 대조군이 구형 t_dog(declared_none) 강아지라는 사실에 의존하지 않는다 — ⓒ가 가르는 것은 「맹견 트리거」와 「클럽/제약 구조」이지 신고 상태가 아니다');
+      then call _pass('mgn-off','P5 이동 경로도 조용하다 — 핏불테리어 강아지의 예약이 러너 지명·수락·도착·인계 도장 양쪽·픽업(커스터디 이전 지점)까지 아무것도 raise하지 않고 실제로 picked_up에 도달하며, session_dogs의 동반 → 위탁 커스터디 UPDATE도 통과한다 (0119의 두 _move 트리거가 걸려 있던 바로 그 쓰기들). 평범한 강아지의 같은 이동이 대조군으로 함께 실행되고 대조군도 예외 부재가 아니라 **결과 상태**(custody + responsible_profile_id)로 검사되므로, 둘이 같이 붉어지면 원인은 맹견이 아니라 구조적인 것이다. ⚠ 범위: ⓒ가 가르는 것은 「맹견 트리거」와 「클럽/제약 구조」이지 신고 상태가 아니다 — 0130 이후 신고 상태라는 것은 존재하지 않는다');
     else v_msg := v_bad; call _fail('mgn-off','P5 UPDATE 경로', v_msg); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
@@ -817,107 +889,117 @@ begin
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- [P6] 🔴 THE SLICE BOUNDARY — Slice A must NOT have taken the columns
+  -- [P6] 🔴 THE SLICE BOUNDARY — 0130 (Slice B) HAS taken the columns, and took ONLY them
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- This is the OVER-removal direction, and it is the one that costs a deploy-order constraint:
-  -- while the columns exist, an installed bundle that still selects or writes them keeps working
-  -- and this landing is safe in any order. Slice B drops them only once ZERO bundles reference
-  -- them, MEASURED. So here the columns must EXIST and ACCEPT WRITES, the pair CHECK must still
-  -- refuse a mismatched pair (a CHECK that exists but no longer constrains is not a CHECK), and
-  -- the enum must still be a type. The trigger counts close the same door from the other side:
-  -- 14/2/1, measured two ways at authoring (the whole migration chain incl. `create constraint
-  -- trigger`, and the linked project's live pg_trigger on 2026-08-25 — identical name lists).
-  -- ⚠ REWRITTEN 2026-08-25 after the blind review (finding 6). Every arm here used to prove an
-  -- ITEM-SPECIFIC property with a COLLECTION statistic, and one accepted any exception at all as
-  -- proof that a named CHECK had fired. Concretely, all of these passed the old version:
-  --   · replacing the three columns with `text`-shaped look-alikes (a 3-name count cannot see type)
-  --   · replacing the enum with any type of the same NAME (existence was the whole test)
-  --   · a completely unrelated error during the malformed-pair UPDATE, read as "the CHECK fired"
-  --   · swapping a required surviving trigger for an unrelated one (14/2/1 stays 14/2/1)
-  -- The counts are kept — the measured battery showed the trigger-count arm is this file's broadest
-  -- UNDER-removal detector (header note ⓐ) — but they are no longer the proof of anything specific.
+  -- 🔴 **THIS PIN'S PROPOSITION IS INVERTED, DELIBERATELY, IN THE SAME COMMIT AS `0130`.**
+  -- It used to assert the OVER-removal direction — the three columns, the pair CHECK and the enum
+  -- must SURVIVE — and it failed with 「Slice B가 앞당겨졌다」 if they went early. That was correct
+  -- for exactly as long as Slice A was the whole landing: while the columns existed, an installed
+  -- bundle that still selected or wrote them kept working, and that is what made 0127 free of any
+  -- deploy-order constraint. `0130` is Slice B. It ran on a MEASURED distribution check (0 EAS
+  -- builds ever · 1 of 4 declared channels existing · 0 OTA updates ever, taken twice and recorded
+  -- verbatim in 0130's header), so the population that tripwire protected is now empty and the
+  -- property it pinned is false BY DECISION, not by drift.
+  -- Per CLAUDE.md — *"a suite whose pinned behaviour legitimately changes MUST be updated in the
+  -- same slice … say WHY, and name which new pin owns the new property"* — the arm is rewritten
+  -- rather than deleted or left red, and the ownership map is written out here:
+  --   · the columns / CHECK / enum being ABSENT  → **this pin, ⓐⓑⓒ** (was: present)
+  --   · nothing anywhere still REFERENCING them  → **this pin, ⓓ** (new; 0130's VERIFY runs once
+  --     at apply time, this outlives it — the same reason P3 and P4 exist)
+  --   · the six triggers + six functions absent by name → **P3**, unchanged and untouched
+  --   · ordinary `dogs` writes still working      → **P2 ⓐ/ⓑ**, unchanged
+  --   · the three column COMMENTS (old ⓕ)         → **RETIRED WITH THE COLUMNS.** A dropped column
+  --     has no `pg_description` row, so the digests could only ever be null-vs-null. ⓐ subsumes it:
+  --     if the column is gone the comment is gone, and if the column came back ⓐ reds first.
+  -- ⚠ The trigger NAME-SET arms (old ⓔ) are KEPT verbatim as ⓔ here. The measured battery showed
+  -- they are this file's broadest UNDER-removal detector (header note ⓐ) and M13 showed a swap
+  -- keeps the count while changing everything — neither fact depends on which slice we are in.
+  -- ⚠ And the positive half is kept for the reason it was written: an absence sweep alone is green
+  -- on a wasteland. ⓔ/ⓕ are what make "the columns are gone" different from "the table is gone".
   begin
     v_bad := '';
 
-    -- ⓐ the three columns by NAME **and by shape**: exact type, nullability, default. A count of
-    --   three names says nothing about whether an old installed bundle can still write them.
-    select count(*) into v_n from pg_attribute a
-     where a.attrelid = 'dogs'::regclass and not a.attisdropped
-       and a.attname in ('dangerous_status', 'dangerous_basis', 'dangerous_declared_at');
-    if v_n <> 3 then v_bad := v_bad || ' 🔴 세 컬럼이 남아 있지 않다(=' || v_n || ') — Slice B가 앞당겨졌다'; end if;
-    select string_agg(a.attname || ':' || format_type(a.atttypid, a.atttypmod)
-                        || case when a.attnotnull then ' NOT NULL' else ' NULL' end
-                        || ':' || coalesce(pg_get_expr(d.adbin, d.adrelid), '<no default>'),
-                      ' | ' order by a.attnum)
-      into v_left
+    -- ⓐ the three columns ABSENT, each named individually. A count of zero would say "none of the
+    --   three"; naming them says WHICH survived, and a partial drop is the worst of the states —
+    --   the pair CHECK gone while a column stays is a `dogs` table nobody modelled.
+    select string_agg(a.attname, ', ' order by a.attname) into v_left
       from pg_attribute a
-      left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
      where a.attrelid = 'dogs'::regclass and not a.attisdropped
        and a.attname in ('dangerous_status', 'dangerous_basis', 'dangerous_declared_at');
-    if v_left is distinct from
-       'dangerous_status:dog_dangerous_status NOT NULL:''undeclared''::dog_dangerous_status'
-       || ' | dangerous_basis:text NULL:<no default>'
-       || ' | dangerous_declared_at:timestamp with time zone NULL:<no default>' then
-      v_bad := v_bad || ' 🔴 세 컬럼의 형상이 0119가 만든 것과 다르다 [' || coalesce(v_left, '∅')
-                     || '] — 이름만 같은 컬럼은 구버전 번들에게 같은 컬럼이 아니다'; end if;
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 신고 컬럼이 아직 남아 있다 [' || v_left || '] — 0130이 부분적으로만 적용됐다'; end if;
 
-    -- ⓑ the enum as a TYPE with its ORDERED labels, and the column actually BOUND to it. "A type
-    --   with this name exists" was the old test; a `create type dog_dangerous_status as enum ()`
-    --   or a domain over text would have passed it.
-    if not exists (select 1 from pg_type where typnamespace = 'public'::regnamespace
-                     and typname = 'dog_dangerous_status' and typtype = 'e') then
-      v_bad := v_bad || ' 🔴 dog_dangerous_status가 이넘 타입으로 존재하지 않는다 — Slice B가 앞당겨졌다';
-    else
-      select string_agg(e.enumlabel, ',' order by e.enumsortorder) into v_left
-        from pg_enum e join pg_type t on t.oid = e.enumtypid
-       where t.typnamespace = 'public'::regnamespace and t.typname = 'dog_dangerous_status';
-      if v_left is distinct from 'undeclared,declared_none,declared_dangerous' then
-        v_bad := v_bad || ' 🔴 이넘 라벨이 0119의 순서/집합과 다르다 [' || coalesce(v_left,'∅')
-                       || '] — 기대: undeclared,declared_none,declared_dangerous'; end if;
-    end if;
-    if not exists (select 1 from pg_attribute a
-                    where a.attrelid = 'dogs'::regclass and a.attname = 'dangerous_status'
-                      and a.atttypid = 'public.dog_dangerous_status'::regtype) then
-      v_bad := v_bad || ' 🔴 dogs.dangerous_status가 dog_dangerous_status 이넘에 묶여 있지 않다'; end if;
+    -- ⓑ the enum ABSENT — in EVERY non-system namespace, not just `public`. Scoping this to one
+    --   schema is the exact mistake 0127's blind review found in its own caller scan: a check that
+    --   describes itself as schema-wide while looking at one schema. Type NAME only: a type of any
+    --   `typtype` with this name is a resurrection, not a near-miss.
+    select string_agg(n.nspname || '.' || t.typname, ', ' order by n.nspname) into v_left
+      from pg_type t join pg_namespace n on n.oid = t.typnamespace
+     where t.typname = 'dog_dangerous_status'
+       and n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname not like 'pg_toast%';
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 dog_dangerous_status 타입이 아직 존재한다 [' || v_left || ']'; end if;
 
-    -- ⓒ the columns still take a write, both values of the pair — and the TIMESTAMP is observed
-    --   too, with a fixed value rather than now(), so this arm reads back what was written instead
-    --   of merely noting that nothing raised. (0127 dropped the trigger that used to overwrite it;
-    --   P2 ⓓ pins that from the other side, on a fresh insert.)
-    update dogs set dangerous_status = 'declared_dangerous', dangerous_basis = 'designated',
-                    dangerous_declared_at = v_stamp6
-     where id = d_book;
-    select count(*) into v_n from dogs
-     where id = d_book and dangerous_status = 'declared_dangerous' and dangerous_basis = 'designated'
-       and dangerous_declared_at = v_stamp6;
-    if v_n <> 1 then v_bad := v_bad || ' 🔴 남아 있는 컬럼에 쓴 값(짝 + 고정 타임스탬프)이 그대로 읽히지 않는다'; end if;
+    -- ⓒ the pair CHECK ABSENT by exact name, AND no constraint on `dogs` mentioning the columns at
+    --   all — the second half is what catches a rebuild under a different name.
+    if exists (select 1 from pg_constraint
+                where conrelid = 'dogs'::regclass
+                  and conname = 'dogs_dangerous_basis_pairs_with_status') then
+      v_bad := v_bad || ' 🔴 dogs_dangerous_basis_pairs_with_status CHECK이 아직 있다'; end if;
+    select string_agg(conname, ', ' order by conname) into v_left
+      from pg_constraint
+     where conrelid = 'dogs'::regclass and pg_get_constraintdef(oid) like '%dangerous%';
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 dogs의 제약이 아직 신고 컬럼을 참조한다 [' || v_left || ']'; end if;
 
-    -- ⓓ the CHECK: present, and enforcing **as itself**. SQLSTATE 23514 plus the constraint's own
-    --   name, via `get stacked diagnostics` — an unrelated error is no longer proof.
-    if not exists (select 1 from pg_constraint
-                    where conrelid = 'dogs'::regclass
-                      and conname = 'dogs_dangerous_basis_pairs_with_status'
-                      and contype = 'c') then
-      v_bad := v_bad || ' 🔴 dogs_dangerous_basis_pairs_with_status CHECK이 사라졌다 — Slice B가 앞당겨졌다';
-    else
-      v_err := null; v_con := null;
-      begin
-        update dogs set dangerous_basis = null where id = d_book;   -- 맹견인데 문이 없다
-      exception when others then
-        v_err := sqlstate;
-        get stacked diagnostics v_con = constraint_name;
-      end;
-      if v_err is distinct from '23514' then
-        v_bad := v_bad || ' 🔴 어긋난 짝이 CHECK 위반(23514)으로 거절되지 않았다 [sqlstate='
-                       || coalesce(v_err, '예외 없음') || '] — 아무 예외나 CHECK의 증거로 받지 않는다'; end if;
-      if v_con is distinct from 'dogs_dangerous_basis_pairs_with_status' then
-        v_bad := v_bad || ' 🔴 거절한 제약의 이름이 다르다 [' || coalesce(v_con, '∅')
-                       || '] — 다른 제약이 먼저 걸린 것이라면 짝 CHECK은 검사되지 않은 것이다'; end if;
-    end if;
+    -- ⓓ 🔴 NO DANGLING REFERENCE — the arm that outlives 0130's VERIFY. Postgres tracks views,
+    --   indexes, defaults, policies and constraints and would have REFUSED the drop for any of
+    --   them; it tracks NOTHING for a plpgsql/sql body, which is the class 0127 measured directly
+    --   ("dropping a called function succeeds silently and fails at the next insert"). So a routine
+    --   naming one of these columns is a landmine that fires at its next call, and this is the only
+    --   pin in the harness that would ever see it.
+    --   ⚠ SCOPE, stated rather than implied: STATIC text only. SQL assembled at run time by
+    --   `execute format(...)` cannot be settled by any static check and this arm does not claim it.
+    select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname || '.' || p.proname)
+      into v_left
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname not like 'pg_toast%'
+       and (p.prosrc like '%dangerous_status%'
+         or p.prosrc like '%dangerous_basis%'
+         or p.prosrc like '%dangerous_declared_at%');
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 삭제된 컬럼을 아직 참조하는 루틴이 있다 [' || v_left || '] — 다음 호출에서 터진다'; end if;
+    select string_agg(schemaname || '.' || viewname, ', ' order by viewname) into v_left
+      from pg_views
+     where schemaname not in ('pg_catalog', 'information_schema')
+       and (definition like '%dangerous_status%' or definition like '%dangerous_basis%'
+         or definition like '%dangerous_declared_at%');
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 뷰 정의가 아직 삭제된 컬럼을 이름으로 부른다 [' || v_left || ']'; end if;
+    select string_agg(indexname, ', ' order by indexname) into v_left
+      from pg_indexes
+     where schemaname = 'public' and tablename = 'dogs' and indexdef like '%dangerous%';
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 dogs의 인덱스가 아직 삭제된 컬럼을 참조한다 [' || v_left || ']'; end if;
+    select string_agg(policyname, ', ' order by policyname) into v_left
+      from pg_policies
+     where schemaname = 'public' and tablename = 'dogs'
+       and (coalesce(qual, '') like '%dangerous%' or coalesce(with_check, '') like '%dangerous%');
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 dogs의 RLS 정책이 아직 삭제된 컬럼을 참조한다 [' || v_left || ']'; end if;
+    select string_agg(c.relname || '.' || t.tgname, ', ' order by t.tgname) into v_left
+      from pg_trigger t join pg_class c on c.oid = t.tgrelid
+     where not t.tgisinternal and c.relnamespace = 'public'::regnamespace
+       and t.tgname like '%dangerous%';
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 제거된 게이트 이름의 트리거가 살아 있다 [' || v_left || ']'; end if;
 
-    -- ⓔ the surviving triggers by EXACT NAME SET, then by count. The name set is the proof; the
-    --   count is kept because the measured battery showed it is the broadest under-removal
-    --   detector in this file (header note ⓐ) — it reds on every trigger re-add.
+    -- ⓔ the surviving triggers by EXACT NAME SET, then by count — KEPT VERBATIM from the Slice A
+    --   version. The name set is the proof; the count is kept because the measured battery showed
+    --   it is the broadest under-removal detector in this file (header note ⓐ), and M13 measured
+    --   that a swap holds the count at 2 while changing which triggers exist.
     select array_agg(t.tgname order by t.tgname) into v_trg
       from pg_trigger t join pg_class c on c.oid = t.tgrelid
      where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and c.relname = 'bookings';
@@ -940,37 +1022,28 @@ begin
       v_bad := v_bad || ' 🔴 session_dogs 트리거 집합이 기대와 다르다 [실제: '
                      || coalesce(array_to_string(v_trg, ', '), '∅') || ' · 기대: club_v1_axes_sync]'; end if;
 
-    -- ⓕ the three column COMMENTS, exactly. The columns survive Slice A, so 0119's documentation
-    --   survived with them — and all three of those texts were false the moment 0127 dropped the
-    --   triggers (「미신고면 위탁이 거절된다」, 「dangerous_declared_at은 서버만 찍는다」). 0127 §E
-    --   replaces all three; this arm freezes the replacement. Digests are MEASURED out of the
-    --   catalog, same rule as P4: if you change §E on purpose, re-read the values, do not relax
-    --   the arm. The directional substrings underneath turn a red digest into a sentence.
-    select md5(col_description('dogs'::regclass, a.attnum)) into v_left
-      from pg_attribute a where a.attrelid = 'dogs'::regclass and a.attname = 'dangerous_status';
-    if v_left is distinct from c_cmt_status then
-      v_bad := v_bad || ' 🔴 dogs.dangerous_status 주석이 0127 §E의 것과 다르다 [' || coalesce(v_left,'∅') || ']'; end if;
-    select md5(col_description('dogs'::regclass, a.attnum)) into v_left
-      from pg_attribute a where a.attrelid = 'dogs'::regclass and a.attname = 'dangerous_basis';
-    if v_left is distinct from c_cmt_basis then
-      v_bad := v_bad || ' 🔴 dogs.dangerous_basis 주석이 0127 §E의 것과 다르다 [' || coalesce(v_left,'∅') || ']'; end if;
-    select md5(col_description('dogs'::regclass, a.attnum)) into v_left
-      from pg_attribute a where a.attrelid = 'dogs'::regclass and a.attname = 'dangerous_declared_at';
-    if v_left is distinct from c_cmt_stamp then
-      v_bad := v_bad || ' 🔴 dogs.dangerous_declared_at 주석이 0127 §E의 것과 다르다 [' || coalesce(v_left,'∅') || ']'; end if;
-    for v_con in select unnest(array['dangerous_status','dangerous_basis','dangerous_declared_at']) loop
-      select col_description('dogs'::regclass, a.attnum) into v_cmt
-        from pg_attribute a where a.attrelid = 'dogs'::regclass and a.attname = v_con;
-      if v_cmt is null then
-        v_bad := v_bad || ' 🔴 dogs.' || v_con || ' 주석이 아예 없다 — §E는 지우는 게 아니라 바꿔 쓴다';
-      elsif v_cmt not like '%0127%' then
-        v_bad := v_bad || ' 🔴 dogs.' || v_con || ' 주석에 0127 표식이 없다 — 아직 없는 게이트를 설명하고 있다';
-      elsif v_cmt like '%거절된다%' or v_cmt like '%서버만 찍는다%' then
-        v_bad := v_bad || ' 🔴 dogs.' || v_con || ' 주석이 아직 0119의 동작(거절 / 서버 도장)을 주장한다'; end if;
-    end loop;
+    -- ⓕ 🔴 THE POSITIVE HALF — `dogs` survived the drop as a working table, not as a crater.
+    --   Every arm above is an absence, and every one of them is green on a dropped table. This is
+    --   the same discipline the Slice A version applied in the other direction (there: the columns
+    --   must exist AND take a write). Named columns, not a count: `count(*) > 0` passes on a table
+    --   with one column left. Then a real INSERT+UPDATE+read-back through the fixture dog, because
+    --   a catalog that looks right and a table that accepts a row are two different claims.
+    select string_agg(x.col, ', ' order by x.col) into v_left
+      from (values ('id'), ('owner_id'), ('name'), ('breed'), ('weight_kg'), ('neutered'),
+                   ('memo'), ('weekly_goal_km'), ('cumulative_km')) as x(col)
+     where not exists (select 1 from pg_attribute a
+                        where a.attrelid = 'dogs'::regclass and not a.attisdropped
+                          and a.attname = x.col);
+    if v_left is not null then
+      v_bad := v_bad || ' 🔴 0130이 자기 것이 아닌 컬럼까지 가져갔다 [없는 것: ' || v_left || ']'; end if;
+    update dogs set breed = '보더콜리', weight_kg = 17.5 where id = d_book;
+    select count(*) into v_n from dogs
+     where id = d_book and breed = '보더콜리' and weight_kg = 17.5;
+    if v_n <> 1 then
+      v_bad := v_bad || ' 🔴 컬럼 제거 후 dogs의 남은 컬럼에 쓴 값이 그대로 읽히지 않는다'; end if;
 
     if v_bad = ''
-      then call _pass('mgn-off','P6 슬라이스 경계 — 세 신고 컬럼이 **형상까지** 그대로고(타입·NOT NULL·기본값), 이넘은 라벨 순서까지 그대로이며 컬럼이 실제로 그 이넘에 묶여 있고, 컬럼은 고정 타임스탬프를 포함해 쓴 값을 그대로 돌려주며, 짝 CHECK은 **23514 + 자기 이름으로** 어긋난 짝을 거절하고, bookings/dogs/session_dogs의 잔존 트리거는 개수가 아니라 **정확한 이름 집합**(14/2/1)으로 일치하며, 세 컬럼 주석은 0127 §E가 다시 쓴 텍스트와 정확히 같다. 컬럼·CHECK·이넘 제거는 배포 실측 뒤 Slice B의 일이다. ⚠ 범위: 이 핀은 스키마 경계만 본다 — 어떤 설치 번들이 실제로 이 컬럼을 읽는지는 EAS/OTA 실측의 일이고 여기서 증명되지 않는다');
+      then call _pass('mgn-off','P6 슬라이스 경계 — 0130(Slice B)이 정확히 자기 것만 가져갔다: 세 신고 컬럼·짝 CHECK·이넘이 **정확한 이름으로** 부재하고(이넘은 시스템 외 모든 네임스페이스에서), 시스템 외 모든 루틴 본문·뷰 정의·dogs의 인덱스/RLS 정책/트리거 어디에도 삭제된 컬럼을 부르는 곳이 남아 있지 않으며(포스트그레스가 못 보는 계열 — 뷰·인덱스·기본값은 RESTRICT가 막지만 plpgsql 본문은 아무 의존성 기록도 남기지 않는다), 동시에 bookings/dogs/session_dogs의 잔존 트리거가 개수가 아니라 **정확한 이름 집합**(14/2/1)으로 그대로고 dogs 테이블은 제품이 쓰는 아홉 컬럼을 전부 유지한 채 INSERT/UPDATE를 그대로 받는다. ⚠ 이 핀은 **역전됐다** — Slice A에서는 같은 이름으로 세 컬럼의 생존을 고정했고, 0130이 실측된 배포 검사(EAS 빌드 0건·선언된 4개 채널 중 1개만 존재·OTA 업데이트 0건) 위에서 그 명제를 결정으로 뒤집었다. ⚠ 범위: 스키마만 본다 — 어떤 설치 번들이 실제로 이 컬럼을 읽는지는 EAS/OTA 실측과 Sean의 로컬 빌드 확인의 일이고 여기서 증명되지 않는다. 동적 SQL도 보지 않는다');
     else v_msg := v_bad; call _fail('mgn-off','P6 슬라이스 경계', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('mgn-off','P6 슬라이스 경계', v_msg);
   end;
