@@ -721,6 +721,16 @@ export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive
 // 돌려주고 (0076 §B — PG에 프로필 id를 넘기지 않기 위한 별도 키; create-payment-intent가 이미
 // 같은 공개를 한다), ② 토스 페이지가 돌려준 일회용 authKey를 issue가 서버에서 빌링키로 바꿔
 // 저장한다. 빌링키 자체는 클라이언트에 절대 오지 않는다 — 돌아오는 건 brand+last4뿐이다.
+/** [0138 §D] 서버가 카드 등록을 열었는가. 클라이언트 상수(TOSS_ENABLED)나 키 유무가 아니라
+ *  **서버 플래그**가 정답이다 — 화면은 이걸 보고 문을 그릴지 정한다. 열리지 않는 문을 그리는
+ *  것이 죽은 버튼이고, 서버가 503으로 거절하는 문이 정확히 그것이다. 실패는 false로 읽는다:
+ *  못 읽었을 때 문을 그리면 그 문이 죽어 있을 수 있다. */
+export async function cardRegistrationLive(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('card_registration_live');
+  if (error) return false;
+  return data === true;
+}
+
 export interface BillingAttempt { customerKey: string; nonce: string }
 
 export async function prepareBillingAuth(): Promise<BillingAttempt> {
@@ -3593,6 +3603,12 @@ export const createClubSession = (
   clubRpc('club_create_session', { p_club: clubId, p_scheduled_at: scheduledAtIso, p_meetup_point: meetupPoint, p_route: routeId, p_capacity: capacity, p_format: format }) as Promise<string>;
 export const rsvpClubSession = (sessionId: string, dogId: string | null) =>
   clubRpc('session_rsvp', { p_session: sessionId, p_dog: dogId, p_waiver: CLUB_WAIVER_VERSION }) as Promise<void>;
+// [0134 §C] 이미 참여 중인 사람이 나중에 자기 아이를 데려가는 문. session_rsvp로는 갈 수 없다 —
+// session_people 행이 이미 있어서 언제나 already_joined로 막힌다(0134 §C의 F5 구조적 벽). 호스트만의
+// 문제가 아니라, 개 없이 RSVP한 모든 사람에게 같은 벽이다. owner_handled 행 하나만 만든다: 부킹 없음,
+// 결제 없음, 알림 없음, 호스트 승인 없음.
+export const addMyDogToSession = (sessionId: string, dogId: string) =>
+  clubRpc('session_add_my_dog', { p_session: sessionId, p_dog: dogId }) as Promise<void>;
 export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsvp', { p_session: sessionId }) as Promise<void>;
 export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;

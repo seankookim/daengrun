@@ -6,7 +6,7 @@ import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
 import { PaperBtn } from '../src/components/paper-btn';
 import { Row } from '../src/components/ui';
 import {
-  BillingCard, PaymentRecord, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
+  BillingCard, PaymentRecord, cardRegistrationLive, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
 import { goBackOrHome } from '../src/lib/nav';
 import { TOSS_CLIENT_KEY } from '../src/lib/toss';
@@ -79,6 +79,8 @@ export default function Payments() {
   // null = 아직 모른다. 파생 읽기가 실패했다고 '잠기지 않았다'고 말하지 않는다 —
   // 진짜 잠금은 서버(create-booking-hold)가 쥐고 있고, 이 값은 그 이유를 미리 말해주는 역할일 뿐.
   const [locked, setLocked] = useState<boolean | null>(null);
+  // [0138 §D] 카드 문은 서버가 열었을 때만 그린다 — 열리지 않는 문은 죽은 버튼이다.
+  const [cardLive, setCardLive] = useState(false);
   const [busy, setBusy] = useState(false);
   // 재시도 뒤에도 상태가 그대로일 때 사용자에게 남기는 한 줄 (침묵도 거짓 성공도 아니다)
   const [retryNote, setRetryNote] = useState<string | null>(null);
@@ -92,10 +94,11 @@ export default function Payments() {
     const p = fetchMyPayments(RECEIPT_LIMIT)
       .then((v) => { setRows(v); setRowsState('ready'); })
       .catch((e) => { console.warn('[payments] rows:', e?.message ?? e); setRowsState('error'); });
+    const g = cardRegistrationLive().then(setCardLive).catch(() => setCardLive(false));
     const u = fetchUnsettledCharge()
       .then(setLocked)
       .catch((e) => { console.warn('[payments] unsettled:', e?.message ?? e); setLocked(null); });
-    return Promise.all([c, p, u]);
+    return Promise.all([c, p, u, g]);
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -152,9 +155,9 @@ export default function Payments() {
       {needsRelink && (
         <ChargeBanner
           kind="relink"
-          cta={TOSS_CLIENT_KEY != null ? '카드 다시 연결하기' : '문의하기'}
+          cta={TOSS_CLIENT_KEY != null && cardLive ? '카드 다시 연결하기' : '문의하기'}
           onPress={() => {
-            if (TOSS_CLIENT_KEY != null) { router.push('/owner/card-link'); return; }
+            if (TOSS_CLIENT_KEY != null && cardLive) { router.push('/owner/card-link'); return; }
             Linking.openURL(CONTACT_MAIL).catch(() => Alert.alert('메일 앱을 열 수 없어요', CONTACT_MAIL));
           }}
           style={{ marginTop: 18 }}
@@ -210,7 +213,7 @@ export default function Payments() {
                 in settings」. 첫 구현은 그 절반을 빠뜨렸고, 카드가 있는 보호자에게는 아무 동작도
                 없었다 (codex REJECT #5). 같은 화면(owner/card-link)이 교체를 처리한다 —
                 register-billing-key의 upsert가 프로필당 한 행을 유지하므로 연결과 교체는 같은 쓰기다. */}
-            {TOSS_CLIENT_KEY != null && (
+            {TOSS_CLIENT_KEY != null && cardLive && (
               <PaperBtn label="카드 바꾸기" variant="secondary" style={{ marginTop: 12 }}
                 onPress={() => router.push('/owner/card-link')} />
             )}
@@ -232,7 +235,7 @@ export default function Payments() {
                 sheet의 early return) CTA는 죽은 버튼이 된다. 키 부재 = 아직 결제사가 아니라는
                 사실이고, 그 동안은 그 사실을 말하는 문장이 남는다 — 「준비 중」이 아니라 언제
                 열리는지를 말한다. */}
-            {TOSS_CLIENT_KEY != null ? (
+            {TOSS_CLIENT_KEY != null && cardLive ? (
               <PaperBtn label="카드 연결하기" variant="secondary" style={{ marginTop: 12 }}
                 onPress={() => router.push('/owner/card-link')} />
             ) : (

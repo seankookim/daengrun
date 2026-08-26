@@ -65,6 +65,19 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
   const uid = await caller(req, db);
   const body = (await req.json().catch(() => ({}))) as Body;
 
+  // 🔴 THE SERVER-OWNED GATE (codex #7). The booking gate reads `TOSS_ENABLED`, a CLIENT
+  //    constant, and the settings door reads whether a client key is configured — neither binds
+  //    a modified client, and neither binds a build shipped with a test key. A protection that
+  //    exists only in the client is a convention, not a protection. `card_registration_live()`
+  //    (0138 §D) is the one that can refuse, and it is closed until Sean opens it: a NULL flag
+  //    reads false, because defaulting a money-adjacent capability to ON because nobody set it
+  //    is the 0116:425 fail-open with a different shape.
+  //    Checked AFTER authentication so an unauthenticated caller still learns nothing about our
+  //    rollout state, and BEFORE prepare/issue so neither a nonce nor a Toss call is spent.
+  const { data: live, error: fErr } = await db.rpc("card_registration_live");
+  if (fErr) throw new HttpError(500, `flag read failed: ${fErr.message}`);
+  if (live !== true) throw new HttpError(503, "card_registration_not_live");
+
   // Party gate before anything else, and the tombstone refusal with it (0123 §5 / 0133 posture:
   // a deleted account must not be able to re-attach a charging authority).
   const { data: prof, error: pErr } = await db.from("profiles")

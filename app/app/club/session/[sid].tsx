@@ -8,7 +8,7 @@ import {
 } from '../../../src/components/club-ui';
 import { DrainRing } from '../../../src/components/drainring';
 import {
-  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
+  addMyDogToSession, cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
   BoardRowLive, fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
   fetchSessionBoard, fetchSessionRoster,
@@ -263,6 +263,75 @@ export default function ClubSessionShell() {
             ]);
           } else {
             rsvpWith(dogs[0]?.id ?? null);
+          }
+        },
+      },
+    ]);
+  };
+  // ---------- 나중에 아이 데려가기 (0134 §C) ----------
+  // 개 없이 먼저 참여한 사람이 뒤늦게 동반을 결정하는 길. session_rsvp로는 갈 수 없다: session_people
+  // 행이 이미 있어서 언제나 already_joined로 막힌다 — 0134 §C가 「F5의 구조적 벽」이라 부르는 것이고,
+  // 서버는 이미 문을 냈는데 화면이 없어서 아무도 통과할 수 없었다.
+  // 승낙서를 다시 보여주는 이유: 약속이 같기 때문이다. 리드줄·행동 책임·사진 동의는 '언제 정했는가'가
+  // 아니라 '아이를 데려오는가'에 걸린다. 처음 참여할 때만 묻고 나중 추가는 조용히 통과시키면, 같은
+  // 책임을 한 번은 고지하고 한 번은 안 하는 화면이 된다.
+  const addDogWith = async (dogId: string) => {
+    if (busy) return;                       // [codex f] 확인 시트를 두 번 눌러 두 번 쏘던 것
+    setBusy(true);
+    try {
+      await addMyDogToSession(sess.id, dogId);
+      haptic('success');
+      load();
+      // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
+      // 부른다. 갱신하지 않으면 방금 넣은 아이가 목록에 없고 CTA도 남아, 다시 누르면 already_added가
+      // 뜬다. 성공한 자리에서 이 세션의 로스터만 다시 읽는다.
+      if (sid) fetchSessionRoster(sid).then(setRoster).catch(() => {});
+    } catch (e) {
+      // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
+      const m = (e as Error).message;
+      Alert.alert('데려가기 실패',
+        m.includes('not_signed_in') ? '로그인이 필요해요'
+        : m.includes('not_joined') ? '먼저 세션에 참여해 주세요'
+        : m.includes('session_closed') ? '이 세션은 마감됐어요'
+        : m.includes('companion_closed') ? '이 세션은 위탁만 받아요 — 동반은 받지 않아요'
+        : m.includes('already_delegated') ? '이 아이는 이미 위탁으로 등록돼 있어요'
+        : m.includes('already_added') ? '이 아이는 이미 이 세션에 있어요'
+        : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
+        : m.includes('not_your_dog') ? '내 아이만 데려갈 수 있어요'
+        : m.includes('not_found') ? '세션을 찾을 수 없어요' : m);
+    } finally { setBusy(false); }
+  };
+  const doAddDog = () => {
+    Alert.alert('데려가기 전 확인', WAIVER, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '동의하고 데려가기',
+        onPress: async () => {
+          // ⚠ [codex g] `.catch(() => [])`는 인증/네트워크 실패를 '아이가 없음'으로 둔갑시킨다 —
+          // api.ts:331이 fetchMyDogs에 대해 기록해 둔 바로 그 결함을, 호출부에서 되살리는 모양이다.
+          // ⚠ doRsvp(위)에도 같은 줄이 있다. 거기는 손대지 않았다: 실패 시 dogs[0]가 undefined가 되어
+          // '개 없이 참여'로 조용히 성공하므로 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
+          let dogs;
+          try {
+            dogs = await fetchMyDogs();
+          } catch {
+            Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
+            return;
+          }
+          // 다견이면 고른다 — doRsvp와 같은 문법 (엉뚱한 아이를 등록하지 않는다)
+          if (dogs.length > 1) {
+            Alert.alert('어느 아이를 데려가나요?', undefined, [
+              { text: '닫기', style: 'cancel' },
+              ...dogs.slice(0, 3).map((d) => ({ text: d.name, onPress: () => addDogWith(d.id) })),
+            ]);
+          } else if (dogs[0]) {
+            addDogWith(dogs[0].id);
+          } else {
+            // 등록된 아이가 없으면 서버는 not_your_dog로 막는다 — 죽은 버튼 대신 갈 곳을 준다
+            Alert.alert('아이가 없어요', '먼저 아이를 등록해 주세요', [
+              { text: '나중에', style: 'cancel' },
+              { text: '아이 등록', onPress: () => router.push('/owner/dog') },
+            ]);
           }
         },
       },
@@ -977,6 +1046,28 @@ export default function ClubSessionShell() {
               </View>
             ))}
           </>
+        )}
+        {/* ---------- 나중에 아이 데려가기 (0134 §C — 서버에 문이 있었고 화면이 없었다) ---------- */}
+        {/* ⚠ WHY THIS LIVES ON 참가자 AND NOT ON 개요, which is where a CTA would normally go:
+            the only payload that can answer 「do I already have a dog here」 is the ROSTER —
+            `myDogs` comes from the delegation board, which filters custody='runner_delegated'
+            (0052), so an owner_handled dog is invisible to it. And the roster is deliberately NOT
+            fetched on 개요: calling it makes the SERVER write a phone-access log row for everyone
+            whose number becomes visible (the effect's own comment at :138). Moving the fetch to
+            open 개요 would log phone access for people whose numbers were never shown — a privacy
+            side effect to place a button. So the door goes where the state is already known and
+            where the dog list lives. Everyone who can use it has access 'full' or 'host' by
+            construction: `_club_shell_access` returns 'full' for any session_people row, and this
+            CTA requires sess.joined.
+            ⚠ Hidden once ANY of my dogs is here, though the RPC would allow a second. That is
+            deliberate: `owner_handled_dog_limit` is 0048:20 and still marked 「[Sean 미확정]」 —
+            building a second-dog path would be choosing a limit he has not ruled. */}
+        {isOpenish && sess.joined && !isDone
+          && board?.session.format !== 'delegated_only'
+          && !roster.dogs.some((d) => d.isMine) && (
+          <View style={{ marginTop: 14 }}>
+            <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
+          </View>
         )}
         <Text style={s.phoneNotice}>번호가 보이면 열람이 기록돼요</Text>
       </>
