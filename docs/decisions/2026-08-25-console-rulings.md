@@ -1062,3 +1062,59 @@ card `counsel-emergency` is **unanswered**. It carries a red 「아직 대표 �
 him to delete it or tap the card. **A document Sean sends must not contain a decision he did not
 make** — writing it and letting it travel unmarked would be exactly the "an inference placed next
 to a ruling inherits the ruling's authority" failure (announcer §5).
+
+## 2026-08-26 04:56–04:59Z — seven more, console. The phone group is now CLOSED (4/4).
+
+Verbatim, in tap order.
+
+| id | choice / comment | at |
+|---|---|---|
+| `counsel-emergency` | *(no button)* comment: 「pick up contact can be the owner themselves intuitively」 | 04:56:35Z |
+| `phone-verified` | `Shape-check is fine for the pilot` | 04:57:01Z |
+| `phone-host-scope` | `Host sees everyone — as built` | 04:57:06Z |
+| `phone-retention` | `Until they delete the account` | 04:57:11Z |
+| `phone-editable` | `Editable, but never blank` | 04:57:18Z |
+| `dogs-read-wide` | `Fix it — scope the read properly` | 04:58:12Z |
+| `address-follow` | *(no button)* comment: 「make it necessary that the dog be marked returned.」 | 04:59:12Z |
+
+### What each one unblocks
+
+**Phone (4/4 answered) — the INTERNAL gate is now closed; the EXTERNAL one is not.** The four
+answers are written into `docs/legal/contract-status-counsel-brief.md` §7 as a 확정 사항 table, and
+one of them changes what counsel is being asked. `phone-host-scope = wide` means the ② divergence
+is **a policy choice, not an implementation error** — so counsel's task is to write text matching
+the shipped behaviour, not to flag a bug. The brief now says exactly that. `phone-retention =
+until withdrawal` fills the empty row in ③. ⚠ **The ship gate still stands**: nothing collects a
+phone number until counsel's text exists (contract §8). Sean's answers moved the product
+questions, not that gate.
+
+**`phone-verified = shape` carries an honesty obligation, not just a build instruction.** A
+self-typed, unverified number must never be presented to a user as verified — no 「인증됨」 badge,
+no copy implying we checked. Recorded in the brief so counsel describes it accurately too.
+
+### Two comments that are NOT the answers their cards asked for — do not read them as such
+
+⚠ Both `counsel-emergency` and `address-follow` came back as **comments with no button**. Each is
+a genuine instruction, and neither answers the question the card posed. Treating a comment as
+though it selected an option is precisely the substitution this file exists to catch, so both are
+recorded as what they are.
+
+1. **`counsel-emergency`** asked *should counsel be asked about the four third-party numbers?*
+   The comment answers a different, better question: **make the pickup contact default to the
+   owner themselves.** That would dissolve most of the third-party exposure — but only for the
+   **pickup** contact. **The 비상연락처 remains a third party by definition** (an emergency contact
+   who is the owner is useless), so the counsel question survives the design change and §7-1 keeps
+   its 「아직 대표 확인 전」 block. The design direction is real and belongs in the delegation-consent
+   slice.
+2. **`address-follow`** offered *time limit* / *auto-close* / *later*; the comment picks none:
+   「make it necessary that the dog be marked returned.」 Read plainly it is a **third option** —
+   make the return stamp a required step rather than bounding the grant with a clock, which is
+   consistent with 「정산 ≠ 반환」 and with this file's own preference for a conjunct keyed to a fact
+   that has already occurred over a clock that must strand someone.
+   🔴 **But it does not settle the case the card was about, and I must not pretend it does.** The
+   unbounded grant arises precisely when **nobody ever taps** — an owner stamps, the runner never
+   does. "Make it necessary" says the stamp is required; it does not say what happens **when a
+   required step is never taken**. That is the §Migrations law verbatim: *for any grant justified
+   as "it closes when X happens", ask what if X never happens.* So this is **one question short**,
+   and the honest move is to ask it rather than to build a reading of it. Queued as a console card,
+   not as a build.
