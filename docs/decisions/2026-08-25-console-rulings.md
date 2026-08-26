@@ -1199,3 +1199,58 @@ identical in a decisions log unless someone writes down which one it was. This w
 **The §5 safety note stands unchanged and is now the only caveat**: the charge remains its own
 gated step, so no single tap bills a group. That was never an objection to server-side derivation;
 it was an objection to coupling derivation to charging, and the two are separable.
+
+## 2026-08-26 — 강제 종결 threshold, and a PREMISE about what the host is doing
+
+**Sean, verbatim:** 「for one, the host should be running with the pack leading the way and making
+sure everyone is safe the entire way. sure 30 3.」
+
+### RULED: 30 minutes / 3 hours
+
+The host console's 「강제 종결 — 케이스 열기」 (`console/[sid].tsx:214-218`, rendered `:557`) is
+today offered on **every healthy in-progress pair from the instant of handoff** — its predicate has
+no elapsed-time component. Ruled thresholds, two clocks matching the two states the screen already
+distinguishes in its own copy:
+
+| state | meaning | anchor | offer 강제 종결 after |
+|---|---|---|---|
+| `picked_up` | handed over, **run never started** | `session_dogs.checked_out_at` | **30 minutes** |
+| `active` | running, no end record | `runs.started_at` | **3 hours** |
+
+Both numbers are his own, reused from the late-booking protocol (30-minute grace / 3-hour ceiling,
+`0117`). NOT reused blind — the analogy was stated to him and he accepted it.
+
+⚠ **The row keeps listing a live pair; only the ACTION is withheld.** The copy stays (it already
+distinguishes 「인계됨 — 러닝이 시작되지 않았어요」 from 「러닝 중 — 종료 기록이 없어요」) and the
+`blockers` feed that disables 세션 종료 stays. Neither was a defect.
+
+🔴 **A SERVER CHANGE COMES FIRST — the client cannot express elapsed time.** Measured:
+`_club_delegation_board_impl` projects `'checkedOut', d.checked_out_at is not null` (`0053:298`) —
+the timestamp is deliberately flattened to a boolean, and `DelegationDog` (`api.ts:3491+`) carries
+no pickup or run-start time at all. The data exists (production: `checked_out_at` on 4 of 8
+`session_dogs`, `runs.started_at` on 9 of 9). **Project the raw timestamps, not the judgment** —
+then the threshold is a client constant and changing it never needs a migration again. Same law as
+gating on `rawStatus` rather than display vocabulary.
+
+### 🔴 PREMISE — 「the host should be running with the pack leading the way」
+
+This is a product statement, not a detail, and it is **upstream of at least three slices**. Recorded
+because a premise absorbed silently is the thing nobody can find later.
+
+1. **It weakens the emergency this button exists for.** The section's own comment justifies itself
+   with 「폰 사망·연락 두절」 — a runner unreachable, session and settlement frozen forever. If the
+   host is *physically with the pack the entire way*, an unreachable runner is far less likely than
+   the code assumes. The exit should still exist; its framing as a routine console affordance is
+   the part that does not survive this premise.
+2. **It sharpens the 30-minute clock rather than softening it.** A host who is leading can SEE that
+   a runner never started. Half an hour is already generous; nothing here argues for longer.
+3. **The console during a walk is a phone-in-hand-while-moving surface, not a desk surface.** Every
+   design assumption about density, tap targets and glanceability on that screen inherits this.
+4. **It independently supports `packend-numbers = server`** (2026-08-26 05:02:21Z). A host standing
+   at the finish line with the whole pack is not going to wait for N phones to report in. His two
+   answers were coherent before this; this is a third leg under the same choice.
+
+⚠ **NOT YET CHECKED, and it must be before anything is built on it:** whether the product actually
+*supports* a host who is running — as a participant with their own dog, or leading without one —
+and whether any screen assumes the host is stationary. Stated as an open question rather than
+folded in as though it were verified.
