@@ -56,9 +56,17 @@ HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Se
 ## Code review — codex is a standing gate (Sean, 2026-08-25)
 
 **「always check in with codex for code.」** Every code slice gets a codex pass before it is
-called done — not only migrations and not only when someone remembers. `codex exec --sandbox
-read-only -m gpt-5.2-codex -c model_reasoning_effort=high "<prompt>"`, pointed at the actual diff
-with the house laws and the specific failure modes that slice could have.
+called done — not only migrations and not only when someone remembers.
+
+**The invocation, and the model is Sean's (2026-08-25): `gpt-5.6-sol` at `xhigh`, NOT
+`gpt-5.2-codex`.**
+
+```
+codex exec --sandbox read-only -m gpt-5.6-sol -c model_reasoning_effort=xhigh "<prompt>"
+```
+
+Pointed at the actual diff, with the house laws and the specific failure modes that slice could
+have. Verified working on this machine (codex-cli 0.147.0).
 
 Why it is a gate and not a nicety, from this week's measurements: a slice can be **896/0 on the
 harness with four green client gates and still be wrong** — those numbers answer "did I break a
@@ -136,6 +144,17 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 
 ## Migrations & security (server)
 
+- ⚠ **A reviewer must attack INACTION, not only transitions.** Measured 2026-08-25 on 0128: two
+  independent reviewers (codex + an executing agent) each enumerated every way a state could END —
+  cancel, incident, transfer, force-close — and both missed the defect, because it arrives when
+  **nobody does anything**. An owner stamps the return, the runner never taps, and a
+  live-reading address grant stays open forever; no transition list can reach a state nobody
+  transitions out of. Two consequences: (1) for any grant justified as "it closes when X happens",
+  ask **what if X never happens** — and prefer a conjunct keyed to a fact that has already occurred
+  (the counterparty's stamp) over a clock, which must choose between stranding a slow actor and
+  leaving a stale grant open; (2) prefer `<> 'terminal'` over a phase ALLOW-LIST — the same 0128
+  review found a runner stranded mid-custody because an allow-list did not name a phase a shipped
+  RPC could reach. A list enumerates what someone thought of.
 - Any migration or security-relevant change requires the adversarial cycle: scout → contract → implement → adversarial review where reviewers EXECUTE attacks → test pins → revise → verify. Harness: `supabase/tests/harness.sh` (container: PG16 at tests/.pgtest; pg_ctl must start in the same shell invocation). All pins must pass; new behavior gets mutation-verified pins.
 - 🔴 **WHAT THE DATABASE SHOWS IS NOT WHAT THE PRODUCT MEANS** (2026-08-26). `count(*) = 11`
   answers 「how many ROWS」 and was read as 「how many USERS」 — then shipped downstream as a design
