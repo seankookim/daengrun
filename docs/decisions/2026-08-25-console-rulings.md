@@ -477,3 +477,27 @@ collection point and the render.
 ⚠ **The field is empty for every EXISTING user even after collection ships** — so the return arm's
 empty state is not a transitional nicety, it is the permanent path for the current cohort. The
 live-map session's redirect onto `club_chat_messages` stays correct regardless.
+
+### Correction to rider ① — "bitten twice" was WRONG, and the truth teaches a different fix
+
+I wrote that the deletion-redaction class had bitten twice (`0122` and `0123`). **It bit ONCE and
+was HEADED OFF once.** `0123:297-303` verbatim: 「🔴 The 0122 BLOCKER-1 class, **headed off rather
+than repeated**… so this file does not wait to be told.」 `0123` wired `_runner_base_tombstone()`
+from day one because `0122`'s review had just measured the failure.
+
+The distinction is not bookkeeping. **"Bitten twice" argues the redaction allowlist is structurally
+broken and should be replaced. "Bitten once, then prevented by a file that read the previous
+review" says the practice WORKS when the lesson is carried forward** — a cheaper and more accurate
+conclusion, and it puts the burden where it belongs: on whoever adds a column reading the last
+slice that added one. Recorded so this file does not teach a pessimism the evidence refutes.
+
+🔵 **And `0123` supplies the MECHANISM the phone slice should copy — do not edit `0115`'s list.**
+Its stated reasoning (`0123:304-312`): `delete_my_account_tx` is 445 lines of money-and-consent
+decisions, and re-creating it to add column names is **exactly the silent-revert trap `0086 §B`
+records** — a faithful-looking copy that applies later and undoes the newer definition while the
+harness stays green. Instead the cascade rides the **tombstone**: `profiles.deleted_at` going
+non-null is `0115 §B`'s own definition of a deleted account, it is set inside that transaction, and
+it is client-unreachable. The phone slice adds a tombstone-keyed clear, not a line in an allowlist.
+
+Operationally nothing changes — deletion is still the first thing that slice's review checks — but
+the slice now has a proven shape instead of a warning.
