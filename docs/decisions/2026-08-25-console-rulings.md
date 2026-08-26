@@ -1331,3 +1331,54 @@ guaranteed to get no record of the walk they led.**
 `run_id` is nullable and `source` already admits **`self_reported`** and **`checkin_only`** —
 「they were there, no GPS」. The schema anticipated participants without bookings; nothing writes it
 for them. ⚠ `person_id` is a FK to `session_people(id)`, not `profiles` (the trap 0131 already hit).
+
+## 2026-08-26 — 동반 runs ARE the pack. GPS for them. Permission at first launch.
+
+**Sean, verbatim:** 「why those owner run dogs dont have gps? they should and app should ask for it
+on first download. also yes the self runs are still part of the pack. so yes.」
+
+### RULED
+
+1. **동반 (self-run) walks ARE part of the pack** and are recorded at the host's 러닝 종료 —
+   answering the question left open earlier today. The tap closes out **everyone who walked**, not
+   only the 위탁 pairs.
+2. **동반 dogs get GPS**, same as delegated ones.
+3. **Location permission is requested at first launch**, not deferred to the first run.
+
+### ⚠ MY FRAMING WAS WRONG AND HIS PUSHBACK WAS CORRECT
+
+I wrote that a 동반 dog's walk 「is never recorded」 in a way that implied GPS was unavailable to
+them. **It is not a GPS problem at all.** Measured:
+
+- `geo.ts:178` `requestTrackPermission` and the whole tracker are **generic** — no runner concept
+  anywhere in them. They would work for a 동반 owner unchanged.
+- `club/run/[sid].tsx:129` — `board.dogs.filter(d => d.runnerId === myRunnerId && d.bookingStatus
+  === 'active')`. A 동반 owner has **no booking and no runner assignment**, so the screen renders an
+  empty list for them.
+- The route is pushed only from `club/session/[sid].tsx:423` and `:1153`, both behind runner-state
+  gates.
+
+**So: the engine exists; the door does not.** The real gap is a participant run view, which the
+「owner-participates」 plan already has as a queued slice. Stating it as 「no GPS」 made a missing
+screen sound like a missing capability, and would have sent someone to build the wrong thing.
+
+### The recording path, and it needs no new table
+
+`participant_activities` (`session_id, person_id, dog_id, km, pace_sec_per_km, duration_sec,
+source, run_id`) — `run_id` nullable, `source` admits `gps_verified | self_reported |
+checkin_only`. A 동반 walk with GPS lands as `gps_verified`; one with a flat battery lands as
+`checkin_only` rather than never having happened. ⚠ `person_id` is a FK to **`session_people(id)`**,
+not `profiles` — the trap 0131 already hit once.
+
+### ⚠ ONE ENGINEERING CONCERN ON FIRST-LAUNCH PERMISSION, stated once and then built as ruled
+
+Today the ask fires at run start (`geo.ts:182`, `:223`) — in context, when the value is obvious.
+Moving it to first launch has a **one-way cost**: iOS asks **once**. A user who reflexively declines
+at launch, before knowing what the app is for, **cannot be asked again in-app** — recovery is a trip
+to Settings, and that permission is what the entire run product depends on.
+
+**Recommended shape that gets his outcome without the one-way risk:** a first-launch **primer
+screen** that explains why location is needed, and only fires the OS prompt after the user agrees.
+The ask still happens at first launch as ruled; the OS's single question is simply not spent on
+someone who has not yet been told why. If he wants the bare OS prompt instead, that is his call and
+this note is the record that the cost was named.
