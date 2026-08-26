@@ -206,6 +206,16 @@ const SKIN_META: Record<SkinKey, { name: string; h: number }> = {
 // mandatory rather than a nicety.
 const nextFrame = () => new Promise<void>((res) => requestAnimationFrame(() => res()));
 
+// 이/가 — chosen from the last syllable's final consonant (jongseong). Hangul syllables are
+// contiguous from U+AC00; (code - 0xAC00) % 28 === 0 means no final consonant, which takes 가.
+// A non-Hangul tail (a digit, a Latin letter) falls back to 가, which is the safer read aloud.
+const josaGa = (w: string): string => {
+  const ch = w.trim().slice(-1);
+  const c = ch.charCodeAt(0);
+  if (c < 0xac00 || c > 0xd7a3) return '가';
+  return (c - 0xac00) % 28 === 0 ? '가' : '이';
+};
+
 export default function ShotStudio() {
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const df = useDisplayFont();
@@ -242,12 +252,26 @@ export default function ShotStudio() {
   // projected into a 0..1 aspect-preserved box. Absolute coordinates do not
   // survive that call, so the card carries a silhouette and not a location.
   const [showTrace, setShowTrace] = useState(false);
+  // ── 코스 이름 스위치 (Sean, 2026-08-26: 「Make it a switch, like the route」) ──
+  // The 볼트 블록 skin printed `report.routeName` into the exported PNG unconditionally, while the
+  // new ③ 스토리 skin passed `routeName: null` — the two shipped cards disagreed about whether a
+  // place belongs in a published image. The lab's privacy ledger had ruled out 「any location
+  // string」 on the same reasoning that made the route opt-in (a place is a location datum even as
+  // five characters of Korean), but a NAMED PUBLIC COURSE is not a home, so it was a real question
+  // rather than an oversight. Sean's answer is the third door: the person publishing decides.
+  // DEFAULT OFF for the same reason the route is — a control that defaults ON publishes for
+  // everyone who never finds it, which is the same disclosure wearing a consent label.
+  const [showRoute, setShowRoute] = useState(false);
   // Echo of the last COMMITTED value of showTrace — i.e. what the tree the person
   // is looking at actually contains. `captureCard` takes its intent from HERE and
   // not from a handler closure, because two of the share entry points fire from a
   // 450ms setTimeout whose closure is stale by then.
   const committedTrace = useRef(false);
   useEffect(() => { committedTrace.current = showTrace; }, [showTrace]);
+  // Same echo for the course name, and for the same reason: the two auto-share paths fire from a
+  // 450ms setTimeout whose closure is stale, so intent must come from a post-commit ref.
+  const committedRoute = useRef(false);
+  useEffect(() => { committedRoute.current = showRoute; }, [showRoute]);
 
   // What the failure state's 다시 시도 calls — a retry button wired to nothing is a dead button.
   const load = useCallback(() => {
@@ -277,6 +301,10 @@ export default function ShotStudio() {
   // reads exportPts and nothing reads `pts` for drawing, so there is exactly one
   // place where the route can enter the exported image, and it is this line.
   const exportPts = showTrace ? pts : null;
+  // ONE gate for the course name, read by every skin — the same shape as exportPts. `report`'s own
+  // routeName is never read directly by a card again; if it were, a skin could quietly opt itself
+  // back in and the switch would be a lie on that card only.
+  const exportRouteName = showRoute ? (report?.routeName ?? null) : null;
   // [0064] runs.photos는 프라이빗 media 경로일 수 있다 — PhotoLayer/캡처가 실 URI를 요구하므로
   // 여기서 한 번 서명 URL로 풀어 상태에 담는다. 실패 장수는 시트에 정직하게 고지 (침묵 강등 금지).
   const [runPhotos, setRunPhotos] = useState<string[]>([]);
@@ -374,10 +402,11 @@ export default function ShotStudio() {
   //      and a silent fallback here would publish a route someone just switched off.
   const captureCard = async (opts?: { base64?: boolean }): Promise<string> => {
     const traceAtShot = committedTrace.current;
+    const routeAtShot = committedRoute.current;
     await nextFrame();
     await nextFrame();
-    if (committedTrace.current !== traceAtShot) {
-      throw new Error('경로 설정이 바뀌었어요 — 카드를 확인하고 다시 공유해 주세요');
+    if (committedTrace.current !== traceAtShot || committedRoute.current !== routeAtShot) {
+      throw new Error('공유 설정이 바뀌었어요 — 카드를 확인하고 다시 공유해 주세요');
     }
 
     // Loaded lazily and separately from the shot, so a missing native module
@@ -567,7 +596,7 @@ export default function ShotStudio() {
             // switch. That is a shipped card's content, which is Sean's call and not a
             // mechanical follow-through from this slice — it is flagged for his ruling,
             // not silently changed here.
-            routeName: null,
+            routeName: exportRouteName,   // was hardcoded null; now the same switch governs both cards
             trace: exportPts,
           }}
         />
@@ -722,7 +751,7 @@ export default function ShotStudio() {
           durationSec: run.durationSec ?? null,
           paceSecPerKm: run.paceSecPerKm ?? null,
           when: report.when,
-          routeName: report.routeName ?? null,
+          routeName: exportRouteName,   // gated — never report.routeName directly (see exportRouteName)
           trace: exportPts,
           recordLine,
         }}
@@ -899,6 +928,40 @@ export default function ShotStudio() {
                 disabled={busy}
                 onValueChange={(v) => { setShowTrace(v); haptic('light'); }}
                 accessibilityLabel="카드에 경로 모양 넣기"
+                trackColor={{ false: '#2c4034', true: paper.action }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="#2c4034"
+              />
+            </View>
+          )}
+
+          {/* ── 코스 이름 스위치 (Sean 2026-08-26: 「Make it a switch, like the route」) ──
+              Same rules as the route switch above, for the same reasons: drawn ONLY when this run
+              has a course name to offer (a switch that changes nothing is a dead button with a
+              knob on it), default OFF, locked during a capture, and its intent read from a
+              post-commit ref so a 450ms auto-share cannot publish a stale answer.
+              ⚠ This governs BOTH cards. Before it, 볼트 블록 printed the course name into every
+              export and ③ 스토리 hardcoded it to null — two shipped cards disagreeing about
+              whether a place belongs in a published image. */}
+          {!!report?.routeName && (
+            <View style={s.swRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.swTitle}>코스 이름 넣기</Text>
+                <Text style={s.swBody}>
+                  {showRoute
+                    // ⚠ Korean particle: 「이」 is for a consonant-final noun. Course names end
+                    // in anything, so the particle is chosen from the last syllable's jongseong —
+                    // 「코스」 takes 가, 「길」 takes 이. Hardcoding either is wrong half the time,
+                    // and it is the kind of wrong that reads as machine-written.
+                    ? `켜짐 — 카드에 「${report.routeName}」${josaGa(report.routeName)} 들어가요.`
+                    : '꺼짐 — 어디서 달렸는지는 안 들어가요 · 켜면 코스 이름이 보여요.'}
+                </Text>
+              </View>
+              <Switch
+                value={showRoute}
+                disabled={busy}
+                onValueChange={(v) => { setShowRoute(v); haptic('light'); }}
+                accessibilityLabel="카드에 코스 이름 넣기"
                 trackColor={{ false: '#2c4034', true: paper.action }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#2c4034"
