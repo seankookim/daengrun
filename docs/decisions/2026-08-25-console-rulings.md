@@ -1162,3 +1162,40 @@ uploaded trace**, and the **charge remains its own gated step**, exactly as it i
 delivers what he asked for and leaves no button whose single press bills a group of people.
 ⚠ If a later slice collapses those two steps, this note is the record that the collapse was never
 what was decided.
+
+## 2026-08-26 05:02–05:03Z — the last three. Pack run-end is CLOSED 4/4.
+
+| id | choice | at |
+|---|---|---|
+| `packend-backup` | `Yes — backup can end the walk` | 05:02:32Z |
+| `packend-duration` | `The host's tap` | 05:03:00Z |
+| `packend-blocked` | `On the run-end screen` | 05:03:10Z |
+
+All three match the contract's recommendation. `docs/contracts/club-pack-run-end-contract.md` §11
+is fully answered and the slice is unblocked.
+
+### He drew exactly the line the contract predicted, and it is worth naming
+
+`backup-powers = Host only` (removal) alongside `packend-backup = Yes` (러닝 종료) is **not a
+contradiction** — it is precisely the asymmetry §5 argued for: ending the walk is a practical,
+on-the-ground act the person actually standing there should be able to do; removing a member and
+closing the session are authority. Two cards, thirty-five seconds apart, and he split them the
+same way the contract did without being shown that reasoning.
+
+### 🔴 AND HIS TWO ANSWERS TOGETHER ARE MORE COHERENT THAN MY RECOMMENDATION WAS
+
+I recommended `wait for each runner's phone` on `packend-numbers`; he chose `server`. Read beside
+`packend-duration = the host's tap`, **his pair is internally consistent and my single answer was
+not.** If the recorded duration is defined by the host's tap, then waiting for each phone produces
+numbers keyed to a *different moment than the one being recorded* — each runner's own settle time,
+which is the very drift `packend-duration` exists to remove. Deriving server-side at the tap makes
+the duration and the distance describe the same instant.
+
+⚠ **I did not see that when I wrote the card, and I should have** — the two questions were on the
+same card group and the interaction was mine to spot. Recorded here rather than quietly dropped,
+because "the human overrode my recommendation" and "the human saw a coupling I missed" look
+identical in a decisions log unless someone writes down which one it was. This was the second.
+
+**The §5 safety note stands unchanged and is now the only caveat**: the charge remains its own
+gated step, so no single tap bills a group. That was never an objection to server-side derivation;
+it was an objection to coupling derivation to charging, and the two are separable.
