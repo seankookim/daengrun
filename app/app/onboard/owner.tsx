@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { LocationPrimer, shouldShowPrimer } from '../../src/components/location-primer';
 import { addAddress, addDog, fetchAddresses, updateMyDog } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { withParticle } from '../../src/lib/particle';
@@ -158,7 +159,26 @@ export default function OnboardOwner() {
   // Skipping is allowed but never silent, and it is not a dead end: 마이 › 주소 관리 pins any
   // saved address later — addresses.tsx:82 `openPicker` pushes the same picker, wired to every
   // row at addresses.tsx:146.
+  // [2026-08-26] 위치 프라이머 — 보호자는 위치 권한을 한 번도 요구받은 적이 없었다.
+  // 러너 온보딩에는 권한 플레이트가 있고(onboard/runner.tsx), 보호자 온보딩의 「위치」 9곳은 전부
+  // 픽업 핀 이야기였다 — requestTrackPermission 호출 0회. Sean이 동반(자가 러닝) 견도 GPS를 받고
+  // 호스트는 팩과 함께 달린다고 확정한 이상, 보호자에게도 필요하다.
+  // `undetermined`일 때만 뜬다: granted는 물을 것이 없고, denied는 앱 안에서 다시 물을 수 없어
+  // 화면이 막다른 길이 된다. 답이 무엇이든 통과시킨다 — 「나중에」가 없으므로 빠져나갈 두 번째
+  // 버튼도 없고, 여기 가두는 것은 게이트가 아니라 함정이다.
+  const [primer, setPrimer] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    shouldShowPrimer().then((v) => { if (alive) setPrimer(v); });
+    return () => { alive = false; };
+  }, []);
+
   const skippable = step2 && (pin === 'unpinned' || pin === 'error');
+
+  // 프라이머는 온보딩 본문보다 먼저, 시스템 팝업보다 먼저. `null`은 아직 모르는 상태이므로
+  // 온보딩을 그리지 않는다 — 한 프레임 그렸다가 프라이머로 덮으면 깜빡임이자 거짓말이다.
+  if (primer === null) return <View style={s.root} />;
+  if (primer) return <LocationPrimer role="owner" onDone={() => setPrimer(false)} />;
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
