@@ -103,3 +103,91 @@ For each guard: plant the failure **without** the fix (does the hole reproduce?)
 No `return_mode` column (spec-only today). No change to `session_confirm_return`. No change to
 the transfer ritual — Sean ruled 「THIS interaction is the evidence」 (`0083:182-186`) and a
 destination is not an interaction. No marketplace change of any kind.
+
+---
+
+# ⛔ BLIND REVIEW VERDICT (codex, 2026-08-26): DO NOT LAND. Re-scope required.
+
+**896/0 and four green gates were true and proved less than they looked.** Five findings; the
+Critical is a contract error of mine, and two of the others are the exact failures this session
+had predicted in the abstract and then committed anyway.
+
+## 🔴 CRITICAL — the arm exposes a home address on returns that never had a home leg. MY ERROR.
+
+The product model permits `pickup_mode = owner_home` **with** `return_mode = session_finish`, and
+in that combination `bookings.address_id` IS SET — for the pickup leg only. The spec's own table
+says the address is NULL 「only when BOTH modes are on-site」 (`spec §7.2a`). 0128 checks custody
+and custodian but **never `return_mode`** (`0128:121`), so:
+
+> owner picks home pickup + on-site return → sign-up writes the home into `address_id` → booking
+> completes → runner, already standing at the finish, calls the RPC → **gets the owner's home.**
+
+**§1 of this contract claimed the `owner_home` narrowing was 「optional… not required for
+correctness」. That is FALSE**, and my justification was the self-limiting-blast-radius argument —
+「a pairing with `address_id` NULL returns 0 rows regardless」. That reasoning covers only the
+both-on-site case. **The mixed case defeats it, and the mixed case is the ordinary one.** I wrote
+the reassuring sentence in the same paragraph where I should have enumerated the four combinations.
+
+P7 cannot catch it: it tests `address_id IS NULL` (`162:586`), which is both-legs-on-site, not
+home-pickup/on-site-return.
+
+**DISPOSITION: 0128 does not land alone.** The arm must carry `return_mode = 'owner_home'`, and
+that column does not exist yet. So this slice **sequences with or after the mode migration** — and
+critically, **no address writes may be enabled in between**, or the broad arm is live against real
+addresses. That inverts the ordering I asserted: the sign-up slice is not merely blocked BY this
+one; the two must land together or in the safe order.
+
+## 🔴 MAJOR — both mutation repairs use an UNREACHABLE fixture. Predicted, then done anyway.
+
+`b_early` (`162:268`) manufactures a runner who is already `responsible_profile_id` and custodian
+on a `confirmed` booking. The real lifecycle cannot produce that: delegation starts with the OWNER
+as responsible (`0048:135`), acceptance changes `runner_id` but not custody (`0047:175`), and the
+runner first becomes custodian at `picked_up` (`0045:44`). So the M1 repair (P4-e, `162:457`) and
+the M4b repair (P6, `162:565`) **detect their tailored mutations without establishing the property
+on any real path.** The blind spot MOVED — from sealed-but-not-custodian to
+pre-handoff-but-already-custodian.
+
+⚠ **This is precisely the law recorded hours earlier**: *a pin added mid-battery is shaped to the
+mutation rather than to the property*, and *a blind spot that moves looks tested*. Written down,
+then walked into. **Fix:** build the wrong-phase operand through real handoff + completion, then
+`session_transfer_initiate` — a reachable row where the caller is still custodian and only the
+phase differs.
+
+## 🔴 MAJOR — "self-closing" is false in BOTH directions.
+
+- **Closes too early, stranding the dog:** `session_transfer_initiate` (`0057:317,331`) moves the
+  phase to `transfer_pending` while the runner still physically holds the dog. 0128 admits only
+  `return_pending`, so **the runner loses the destination while holding the animal** — the exact
+  strand-an-animal failure this slice exists to prevent. A stalled transfer stays that way.
+- **Closes for unrelated reasons:** `completed → incident_review` is legal (`0066:55`); the status
+  trigger has no `incident_review` arm so the row stays `return_pending` (`0045:55`); a later
+  incident payout-hold touches `session_dogs` (`0072:305`); the normalizer then rewrites the phase
+  to `with_custodian`, **not** `resolved` (`0048:791`). An unrelated incident update closes address
+  access with no return event and no seal.
+
+**So the design's headline property — 「it self-closes at `resolved`」 — is not what the machine
+does.** Behaviour for `transfer_pending` and incident escalation must be DEFINED and pinned, not
+described.
+
+## 🟡 MODERATE — "club-only by construction" is a convention, not a constraint.
+
+`session_dogs.session_id` and `.booking_id` are independent FKs (`0030:81,86`); nothing requires
+the booking's `club_session_id` to equal the row's session. The normal mint is consistent
+(`0081:184`) but the schema permits otherwise, and P8 only asserts its own marketplace fixtures
+have no `session_dogs` row (`162:619`). **Fix:** bind the arm with `sd.session_id = b.club_session_id`.
+
+## 🟡 MODERATE — VERIFY and P9 prove less than their prose.
+
+Not decoration — the assertions can fail — but: `search_path` is checked for *some* value
+containing `pg_temp` without requiring `public` or its order, and without proving it came from the
+body rather than `ALTER` (`0128:198`); the five OUT columns are compared as a SET, not in contract
+order (`0128:203`); catalog lookups key on `proname` rather than the exact `(uuid)` signature, so
+an overload satisfies them (`0128:185`); and 「return machine untouched」 only checks that a named
+function and trigger EXIST — a disabled trigger or replaced body passes (`0128:265`).
+
+## What this costs, stated plainly
+
+The migration is written, measured at 896/0, and gated green — **and it must not ship.** Every
+number was honest; none of them was evidence for "this arm discloses only what it must". A second
+independent reviewer (peer-spawned, execution-based) is still running; its verdict will be compared
+rather than assumed to agree.
