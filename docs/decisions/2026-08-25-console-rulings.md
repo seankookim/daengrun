@@ -1008,3 +1008,24 @@ denominator without checking it:** `check-definer-acl.mjs`'s header cites **221*
 property holds on every one of them, so nothing is wrong today — but **four numbers claiming to
 count the same thing disagree**, and the first person to build a ratio or a coverage claim on one
 of them will be building on sand.
+
+## A flake observed on trunk, and the evidence I failed to capture
+
+Final verification against a pristine `git archive origin/redesign-v4`, run twice on the **same
+unchanged tree**: **911/1, then 912/0.** Non-deterministic, so the single failure was not caused by
+the push that preceded it.
+
+⚠ **What I can and cannot claim.** The repo records an `[axes] X8` flake at roughly 1-in-17, and
+this is consistent with it — **but I piped the first run through `tail -3` and never saw which pin
+failed.** So "it was the known flake" is an INFERENCE, not a measurement, and I am recording it as
+one. The evidence existed for exactly one run and I discarded it by filtering.
+
+**Process lesson, small and cheap:** when a verification run is the thing that decides whether
+something ships, capture the failure lines, not just the score. `| grep -E "^ ❌|pass /"` costs
+nothing and would have made this a fact instead of a plausible story. This is the same filtering
+habit that hid a push failure from me earlier today — `tail -1` on the push, `tail -3` on the
+harness. **A filter that keeps only the summary discards exactly the part you need when the summary
+is surprising.**
+
+**Standing consequence for anyone reading a green here:** a suite with a ~1/17 flake means a single
+green run is ~94% evidence, not proof. For a deploy decision, run it twice.
