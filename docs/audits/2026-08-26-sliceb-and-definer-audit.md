@@ -10,9 +10,15 @@ this session created is this report.
 - **[R]** — relayed: another session's recorded measurement, cited as theirs, not re-measured by me.
 - **[U]** — could not establish. Listed in full in §C.
 
-One finding in this report is a **correction of my own first answer** (§A-2, `_distance_band`): a
+One finding in this report is a **correction of my own first answer** (§B-5, `_distance_band`): a
 parser I wrote produced a hypothesis and reading the source refuted it. It is left visible rather
 than swapped out.
+
+**Amended after first commit.** The report was committed with production state listed as
+unverified, because `supabase db query --linked` returned nothing on its first attempt. It
+succeeded on retry, and §A-1, §B-3, §B-4b and §C now carry **my own** production measurements in
+place of relayed ones. The superseded `[U]` entries are struck through rather than deleted, so the
+sequence — committed honestly unverified, then verified — stays legible.
 
 ---
 
@@ -24,7 +30,8 @@ than swapped out.
 | 2 | **The contract's fixture-unwind list is incomplete and its failure mechanism is wrong.** Suite **161** must be unwound too and the contract does not name it; the 113/139/146/149 failures are **uncaught aborts**, not "caught pin failures". **[M]** | Slice B authoring | Engineering, no decision needed |
 | 3 | `seed.sql` is **not** a harness file — its reference breaks `supabase db reset`, a different surface than the contract implies. **[M]** | Slice B completeness | Engineering |
 | 4 | Definer-ACL gate is **green**, baseline is **exactly 81**, and an **independently written scanner reproduces the set exactly — 81/81, zero extras, zero misses**. **[M]** | Nothing | — |
-| 5 | `0121:240` `club_incident_settle_quote` — **confirmed still true, still latent, nothing since 0121 has touched it.** It is baselined at line 87. **[M]** | Nothing | Rides the next money-path slice (already recorded) |
+| 5 | `0121:240` `club_incident_settle_quote` — **confirmed still true, still latent, nothing since 0121 has touched it.** Baselined at line 87; **live ACL measured, PUBLIC absent**. **[M]** | Nothing | Rides the next money-path slice (already recorded) |
+| 4b | **Production sweep measured directly: 219 public definers, 0 PUBLIC-executable, 0 anon-executable, 0 NULL-ACL.** All 81 baselined occurrences are latent, not breached. **[M]** | Nothing | — |
 | 6 | **Three latent gate blind spots** (schema-qualified headers · plain `create function` · the 400-char window). All three measured **empty in the current corpus** — they are gaps, not misses. **[M]** | Nothing today | Decision: harden the gate or record the gap (§B-5) |
 | 7 | `check-definer-acl.mjs` comment says *"this gate's job is the 84th"*; the baseline is 81 and CLAUDE.md says *the 82nd*. **[M]** | Nothing | Trivial doc fix |
 
@@ -43,6 +50,28 @@ Source of truth is `0119` (creates) and `0127` (deliberately keeps). All line re
 | `dogs.dangerous_basis` | column, `text` nullable | `0119:134` | Yes — same |
 | `dogs.dangerous_declared_at` | column, `timestamptz` nullable | `0119:135` | Yes — same |
 | `dogs_dangerous_basis_pairs_with_status` | table CHECK constraint | `0119:141-143` | Yes — `0127:619` asserts it by name |
+
+**All five objects additionally VERIFIED LIVE IN PRODUCTION by me. [M]** `supabase db query
+--linked` failed on its first attempt (it was initialising a login role) and succeeded on retry;
+the audit originally carried this as unverified, and the measurement below replaced that:
+
+```
+column_name           | data_type                   | is_nullable
+----------------------+-----------------------------+------------
+dangerous_basis       | text                        | YES
+dangerous_declared_at | timestamp with time zone    | YES
+dangerous_status      | USER-DEFINED                | NO
+
+k             | v
+--------------+---------------------------------------
+check         | dogs_dangerous_basis_pairs_with_status
+enum          | dog_dangerous_status:e                  ← typtype 'e' = real enum
+```
+
+That matches `161`'s P6 signature assertion (`161:858-860`) exactly, including the `NOT NULL` on
+`dangerous_status` and the `USER-DEFINED` (enum) type. **The Slice A boundary is holding in
+production, measured directly rather than inferred from the migration text or relayed from a
+handoff.**
 
 **Riders that must come out with them** (these are the "any comment/constraint/index that rides
 them" the brief asked for) **[M]**:
@@ -383,6 +412,18 @@ recorded on the 0121 REGISTRY row, which I verified reads *"⚠ LATENT ACL HOLE�
 CLEAN, no action taken on the deployed migration"* **[M]**. **No fix attempted — it belongs to
 another lane.**
 
+**Latency CONFIRMED IN PRODUCTION by me, not relayed. [M]** Live ACL of the function itself:
+
+```
+club_incident_settle_quote:
+  postgres=X/postgres  authenticated=X/postgres  service_role=X/postgres   secdef=true
+```
+
+There is **no bare `=X/postgres` entry**, which is the PUBLIC grant — so PUBLIC cannot execute it,
+and `prosecdef` is still true. This is exactly the "latent, not breached" state CLAUDE.md records,
+now measured in this session rather than taken from the 0121 row. The hole remains reachable only
+on an apply path where `0072`/`0116` never ran; production is not such a path.
+
 **A sharpening worth adding to the record [M]:** this is not "nobody ever set this function's ACL".
 `0072` set it and `0116` — the *immediately preceding* recreation of the **same** function — also
 set it, correctly, at `:480-481`. `0121` is the third recreation and the first to drop the pair.
@@ -427,6 +468,44 @@ files safe in a full apply, and therefore the reason `98 H9` can be green.
 **The headline positive finding: since `0058`, zero SECURITY DEFINER functions have been introduced
 without an explicit revoke.** The discipline has held across 71 migrations. That corroborates H9's
 green from source, independently of running the harness.
+
+## B-4b. Production-side sweep — measured directly, and it is clean
+
+The source sweep above says what *every apply path* should yield. This says what the live database
+actually holds. **[M]**, run by me against the linked project:
+
+```sql
+select count(*)                                                           as total_public_definers,
+       count(*) filter (where has_function_privilege('public', p.oid,'execute')) as public_executable,
+       count(*) filter (where has_function_privilege('anon',   p.oid,'execute')) as anon_executable,
+       count(*) filter (where p.proacl is null)                           as null_acl_default_public
+from pg_proc p
+where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.prokind = 'f';
+```
+
+```
+total_public_definers | public_executable | anon_executable | null_acl_default_public
+----------------------+-------------------+-----------------+------------------------
+                  219 |                 0 |               0 |                       0
+```
+
+**219 SECURITY DEFINER functions in `public`; zero executable by PUBLIC; zero executable by `anon`;
+zero carrying a NULL (default-PUBLIC) ACL.** This uses H9's own predicate against production, so
+it is the strongest available statement about the deployed schema — and unlike H9 it did not
+require running the harness.
+
+**The one sentence this proves, and the one it does not.** It proves *the currently deployed
+database has no PUBLIC- or anon-executable definer*. It does **not** prove the 81 baselined
+recreations are safe, because their hole opens only on an apply path production is not — a partial
+prior apply, a rebuilt environment, a cherry-picked slice. Source (the gate) and runtime (this
+sweep) remain two different propositions, and this measurement is evidence for exactly one of them.
+
+**⚠ A number in the repo's own docs is off by two.** `check-definer-acl.mjs`'s header states
+production carries *"221 SECURITY DEFINER functions in `public`, 221 explicitly scoped"*;
+`98_hardening_suite.sql:108` says *"All 219 `public` definers in the built schema"*. **My live
+count is 219** — matching H9's figure, not the gate header's. The discrepancy is small and the
+*property* (zero public-executable) is confirmed either way, so this is a bookkeeping note, not a
+finding. It is recorded because the gate header's 221 is presented as a measurement.
 
 ## B-5. Three latent blind spots in the gate — measured empty today
 
@@ -482,22 +561,22 @@ for.
 
 Listed as unverified rather than asserted.
 
-1. **Production state of the three columns / CHECK / enum. [U]** `supabase db query --linked` did
-   not complete (no output within 120s; likely awaiting a credential prompt). My §A-1 "still
-   present" column is verified **in source** — `0119` creates them and `0127`'s VERIFY block aborts
-   if they are absent — not against the live database. The live claim is available only as **[R]**:
-   `docs/session-handoff.md:39` records, marked `[verified-now]` by another session,
-   *"3 `dogs` columns KEPT (Slice A boundary held)"* from a live query readback. That is their
-   measurement, not mine.
+1. ~~**Production state of the three columns / CHECK / enum.**~~ **RESOLVED — now [M].** The first
+   `supabase db query --linked` attempt returned nothing (it was initialising a login role); a
+   retry succeeded. All five objects are verified live in §A-1, and `club_incident_settle_quote`'s
+   live ACL in §B-3. This item is left visible rather than deleted because the audit was committed
+   while it was genuinely unverified, and the sequence matters more than a tidy list.
 
-2. **Whether `98 H9` is currently green. [U]** I did not run the harness — CLAUDE.md's fleet law
-   (parallel runs braid on one postmaster and produce phantom reds) makes an unannounced run
-   irresponsible while other sessions are active in this repo. H9's *content* I read and verified
-   **[M]** (`98_hardening_suite.sql:115-127`, predicate
-   `has_function_privilege('public'|'anon', oid, 'execute')`, allowlist array **empty**). Its claimed
-   green — *"All 219 `public` definers in the built schema on 2026-08-25"* — is a comment, i.e.
-   **[R]**. My §B-4 source sweep corroborates it independently, which is the substitute I could
-   honestly provide.
+2. **Whether `98 H9` is currently green *in the harness*. [U] — still open, and deliberately so.**
+   I did not run the harness: CLAUDE.md's fleet law (parallel runs braid on one postmaster and
+   produce phantom reds) makes an unannounced run irresponsible while other sessions are active in
+   this tree. H9's *content* I read and verified **[M]** (`98_hardening_suite.sql:115-127`,
+   predicate `has_function_privilege('public'|'anon', oid, 'execute')`, allowlist array **empty**).
+   ⚠ **My §B-4b production sweep is NOT a substitute for this, and must not be read as one** — H9
+   asserts the property of *the schema the harness builds from scratch*; §B-4b measured *the
+   deployed database*. Those are two different databases and two different sentences. The
+   production one is clean; the harness one remains **[R]** from `98:108`'s comment, corroborated
+   only indirectly by my §B-4 source sweep.
 
 3. **App Store Connect / TestFlight actual install base. [U]** Sean-only by credential. See §A-3.
 
@@ -510,12 +589,18 @@ Listed as unverified rather than asserted.
    `harness 886/0` on the merged tree. I confirmed **[M]** only that
    `0127_remove_dangerous_breed_gate.sql` is present on `origin/redesign-v4`.
 
-6. **Whether the 81 baselined occurrences are individually still latent-only in production. [U]**
-   The gate header and the 0121 row cite *"221 SECURITY DEFINER functions in `public`, 221
-   explicitly scoped, ZERO with a PUBLIC-default ACL"* measured against the linked project on
-   2026-08-25 — **[R]**. My independent count of **224** distinct definers in the migration corpus
-   **[M]** is close to but not identical with that 221/219; the difference is plausibly functions
-   dropped later in the chain, but I did not reconcile it and I am not claiming the numbers agree.
+6. ~~**Whether the 81 baselined occurrences are individually still latent-only in production.**~~
+   **RESOLVED at the aggregate level — now [M].** §B-4b measures production directly: **219 public
+   definers, 0 PUBLIC-executable, 0 anon-executable, 0 NULL-ACL.** So *no* baselined occurrence is
+   breached in production; all 81 are latent, which is what the gate header claimed and what I can
+   now assert from my own measurement rather than relaying.
+   **Still [U]:** I did not check the 81 *individually* — the aggregate zero makes a per-function
+   walk redundant for the safety question, but it means I cannot speak to any single one beyond
+   `club_incident_settle_quote`, which I did check (§B-3).
+   ⚠ My source-corpus count of **224** distinct definers **[M]** does not equal the live **219**
+   **[M]**. Plausibly functions dropped later in the chain, or created outside migrations — **I did
+   not reconcile it and I am not claiming the numbers agree.** Anyone using either figure as a
+   denominator should reconcile it first.
 
 ---
 
