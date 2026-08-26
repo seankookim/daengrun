@@ -1,4 +1,47 @@
-# Session handoff — spec-v2 session, 2026-08-26 morning (v9)
+# Session handoff — spec-v2 session, 2026-08-26 (v10)
+
+> ⚠ **v10 supersedes v9's §1 header. v9's warning about itself was correct: it went stale within
+> hours.** Re-measure before building on ANY row below, including these.
+>
+> **VERIFIED THIS HOUR** (`db query --linked`, `git ls-tree origin`):
+> production head **0130**, 128 applied · trunk tip `ae8be9f` (moves several times an hour — never
+> quote a SHA from a doc) · charging still **OFF** (`ops_flags.payments_live_since` null) ·
+> late-booking clock LIVE since 2026-08-25T05:34:06Z.
+>
+> **RESOLVED since v9** — v9's 🔴 is closed: `0128`, `0129` **and** `0130` are all DEPLOYED.
+> Sean released 0130's distribution gate verbatim (「no builds have reached any device other than
+> my phone」). The 맹견 columns, enum and pair-CHECK are gone from production and read back empty;
+> the return-address arm's ACL carries no PUBLIC entry; 0 public definers are PUBLIC-executable.
+>
+> **🔴 NEW, ON TRUNK, NOT DEPLOYED — `0131` + suite `164`** (open-read scoping; REGISTRY row
+> written in the same push). Harness **919/0**, four commit gates green, mutation battery in the
+> file header (M5 plants the hole UNFIXED and it REPRODUCES). **It has NO blind review and must
+> not be deployed until a verdict exists.**
+>
+> 🔴 **AND THE CHECK FOR "does a verdict exist" WAS ITSELF BROKEN — read CLAUDE.md §codex before
+> you trust any codex log today.** `codex exec` echoes the prompt into the log, so a prompt ending
+> 「…the literal line: "VERDICT: <APPROVE|…>"」 puts `VERDICT:` in the artifact whether or not codex
+> answered. Measured 2026-08-26: exit **0**, `grep -c 'VERDICT:'` → **1**, the hit being the
+> prompt's own instruction, real tail `ERROR: You've hit your usage limit … 3:56 PM`. Use
+> `grep -cE 'VERDICT: (APPROVE|APPROVE-WITH-FIXES|REJECT)\b'` — match the VALUE, not the word.
+> **codex is quota-walled until ~15:56 KST**; two sessions hit it within the hour.
+>
+> **SEAN'S QUEUE — what is genuinely open** (console
+> `https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b`, all answers recorded
+> verbatim in `docs/decisions/2026-08-25-console-rulings.md`):
+> 1. **Is the host-removal feature wanted at all?** He answered its three sub-questions
+>    (`mark-absent`=no-shows, `backup-powers`=host only) and then asked 「why would removal be
+>    necessary…?」. Nobody ever named a situation; it exists because removing host approval deleted
+>    the only keep-someone-out mechanism, and the card that surfaced it carried the 11-accounts
+>    error. **Recommended: park it.** Three contracts' worth of client work hangs on this.
+> 2. **`address-follow`:** he ruled 「make it necessary that the dog be marked returned」 — a third
+>    option, not one of the three offered, and **one question short**: it does not say what happens
+>    when a required step is never taken, which is exactly the unbounded case.
+> 3. **`counsel-emergency`** unanswered; §7-1 of the counsel brief carries a red 「아직 대표 확인
+>    전」 block and **must be deleted or approved before he sends that email**.
+> 4. Three `packend-*` cards. `packend-numbers` = **server-side**, against the recommendation —
+>    recorded as his call, with the charge step kept separable so no one tap bills a group.
+
 
 > ⚠ **§1 was rewritten at 2026-08-26 ~11:00 KST from live measurement.** A full day and night
 > of work sits between v7 and this. **Re-measure before building on any row, including the ones
