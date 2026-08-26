@@ -74,11 +74,31 @@ today's server.** This converts defect 2 from "precondition of the sign-up slice
 of the live-map slice too." Relayed to the spec session, who already decided the fix (a
 custody-aware arm on 0065 keyed to `return_pending`).
 
-⚠ Second dependency, smaller: the 현장 반환 arm **shows the owner's phone number**. Whether a
-runner may see an owner's phone, and in which window, is a privacy/product decision that is NOT
-ruled — `profiles.phone` is all-NULL with no reader today (recorded in the profile-nudge lab).
-Drawing a phone number the system cannot produce would be a fabricated field. Flagged for the spec
-session; the lab draws the affordance and marks the source as owed.
+### ⚠⚠ CORRECTED — the phone is NOT unruled. It is ruled, built, and a phone button was already REFUSED.
+
+I wrote that a runner seeing an owner's phone was an unruled question and briefed the lab to draw
+the affordance with its source "owed". Wrong on both halves, verified at source:
+
+- **The policy exists and is enforced.** `_club_phone_visible` (0049:167) implements the rule —
+  호스트↔전원 · 보호자↔(자기 개의) 수락 러너 양방향 · 그 외 호스트 경유 — with a lifetime gate
+  covering unresolved custody, i.e. the 현장 반환 moment is squarely inside it, and an audit table
+  (`club_phone_access_log`) written on every reveal. Entitlement is settled, not open.
+- **The absence of data is a DECISION, not a gap.** `api.ts:3167-3168`, verbatim: 「연락처는 묻지
+  않는다. profiles.phone 은 전원 NULL 이고 읽는 화면이 없다 — 받아두기만 하는 필드를 묻는 건
+  넛지가 아니라 수집이고, **§12 가 전화 버튼을 거부한 것과 같은 이유다**」.
+
+So a phone button has already been declined once, and the reason was not "who may see it" but
+**collecting a field nobody reads is collection, not a nudge.** Drawing the affordance with a
+source owed would re-propose a refused thing and render a permanently empty state.
+
+**Corrected build:** the 현장 반환 arm uses **club chat**, which is shipped and realtime
+(`club_chat_messages`, api.ts:3755/3791). No phone affordance anywhere.
+**The real question, and it goes to Sean as this:** not "may a runner see the number" but **"do we
+start collecting phone numbers at all?"** — a privacy decision with a prior NO. Spec session is
+putting it on his console.
+
+Caught by the spec session reading the source. My error was assuming that a NULL column plus no
+reader meant nobody had decided, when the file said in words that somebody had.
 
 ## S6 — The session card: his question, and his own answer
 
