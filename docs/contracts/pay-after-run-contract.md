@@ -1059,6 +1059,19 @@ Three, and they are genuinely his. **Nothing in §C waits on them except C.3's s
 change (C.1, C.2) is fully determined by ruling #1 and can proceed.
 
 **F.1 — post-flip, may an owner with no linked card create a booking?**
+
+> 🔴 **ANSWERED — Sean, 2026-08-26: option (a), 「Refuse at booking, link card inline」.**
+> So **C.3 EXISTS** and is built as specified: booking creation refuses without a linked card and
+> offers the card-link step inline at that moment. This matches `card-registration-placement.md:6`
+> (「inline at first booking」), so the two artifacts now agree rather than diverging.
+>
+> ⚠ **The reviewer's caveat below is NOT satisfied by this answer and must not be read as closed.**
+> (a) bounds **NEW ENTRIES ONLY** (F4). A refusal at booking-creation cannot reach bookings that
+> already exist on flip day, and the mint keys on **run end** (`0084:265-266`) — so every in-flight
+> card-less booking whose run finishes after the flip still becomes a failed charge and a locked
+> owner. That population is a FLIP-DAY question (§E), not a booking-gate question, and choosing (a)
+> does not answer it. It is recorded here so the next reader does not treat F.1 as fully retired.
+
 - **(a)** Refuse at booking with an inline card-link step (this contract's C.3; matches
   `card-registration-placement.md:6` — *"inline at first booking"*).
 - **(b)** Let them book; the run happens; the settle charge fails on "no billing key" and
