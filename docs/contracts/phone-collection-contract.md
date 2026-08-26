@@ -443,26 +443,32 @@ rides the pending legal email alongside the 맹견-removal item (`docs/legal/con
 
 ---
 
-## 10. OPEN — SEAN
+## 10. ANSWERED — SEAN, 2026-08-26 04:57Z. CLOSED 4/4.
 
-Each answerable in one sentence.
+⚠ **This section said 「OPEN — SEAN」 until 2026-08-26 and the four questions were already answered
+that morning.** Corrected here rather than left to be discovered by whoever builds from it — a
+contract whose OPEN list outlives its answers is how a slice gets built to the wrong shape while
+its author believes they read the spec. Verbatim record:
+`docs/decisions/2026-08-25-console-rulings.md`.
 
-1. **Verified or self-declared?** The number is typed by the user and only shape-checked — no SMS
-   or PASS verification. For a field whose stated purpose is safety, is a self-typed number enough
-   for the pilot, or should it be verified before launch?
-2. **Host sees everyone's number.** Rule B has shipped since `0049` but has never disclosed
-   anything, because no number existed. The moment collection lands, **the host can see every
-   session member's number, and every member can see the host's** — the widest arm of the rule.
-   Confirm that is what you want live on day one, or should the host arm be narrowed to members
-   with an active delegation?
-3. **Retention.** The number is kept for the life of the account and cleared only on account
-   deletion — no dormancy purge exists. Is "until withdrawal" the retention period counsel should
-   write, or should a dormant account's number expire (and after how long)?
-4. **Editable and clearable afterwards?** Required at signup, but 마이/설정 could let a user change
-   or blank it later — which would make the requirement a one-time formality. Should the number be
-   editable but **not** clearable once set?
+| # | question | **RULED** | consequence for the build |
+|---|---|---|---|
+| 1 | verified or self-declared? | **`Shape-check is fine for the pilot`** | Format validation only, no SMS/PASS vendor. 🔴 **Carries an honesty obligation, not just a saving: the number must NEVER be presented to a user as verified** — no 「인증됨」 badge, no copy implying we checked. |
+| 2 | host sees everyone, or only members with a dog in care? | **`Host sees everyone — as built`** | Rule B (`0049`) ships at full width. ⚠ **This changes what counsel is asked**: the divergence from `privacy-policy.md:45-47` is now a POLICY CHOICE, not an implementation error — counsel writes text matching shipped behaviour rather than flagging a bug. Already in `contract-status-counsel-brief.md` §7. |
+| 3 | retention | **`Until they delete the account`** | 「회원 탈퇴 시까지」. **No dormancy purge is built** — do not add one. Fills the empty row in the policy's §5 table. |
+| 4 | editable afterwards? | **`Editable, but never blank`** | 🔴 **A BUILD REQUIREMENT, not a preference.** 마이/설정 must allow changing the number and must REFUSE clearing it. If `set_my_phone` accepts an empty string, 「required」 becomes a ten-second formality and the safety case evaporates. The RPC must raise on empty/blank, not no-op. |
 
----
+### ⚠ THE SHIP GATE IN §8 IS UNCHANGED AND STILL UNMET
+
+Answering these four closed the **internal** questions. **They did not touch §8.** Nothing may
+collect a phone number until counsel's text exists — Sean routed the wording to counsel
+(`phone-policy = 「Add it to the lawyer email」`, 01:46:38Z) and **that email has not been sent**.
+As of this write, `contract-status-counsel-brief.md` §7 carries the three facts he approved
+(04:56:00Z) and **§7-1 still carries a red 「아직 대표 확인 전」 block** awaiting his decision.
+
+**So: the migration and the client may be AUTHORED and LANDED. The collection point must not go
+LIVE**, and per §codex nobody may describe this slice as shippable until Sean confirms counsel's
+text has landed. He clears that gate; not a session, not a green harness.
 
 ## 11. Discipline this slice inherits
 
