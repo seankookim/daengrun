@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Icon, Row } from '../../src/components/ui';
@@ -13,6 +13,7 @@ import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
+import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
 import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
 
 // 하이클럽 홈 — 변형 D (Sean 확정: 3 티켓-퍼스트 골격 × 2 에디토리얼 마스트헤드, home-repaint lab).
@@ -24,19 +25,33 @@ import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
 const L = lilac;
 
 // 세션 개설 프리셋 — 다음 발생 시각 계산 (S1: 프리셋 3종, 커스텀은 P-B)
-const nextSlot = (dow: number, hour: number): Date => {
-  const d = new Date();
-  d.setHours(hour, 0, 0, 0);
-  let add = (dow - d.getDay() + 7) % 7;
-  if (add === 0 && d.getTime() < Date.now() + 2 * 3600_000) add = 7;
-  d.setDate(d.getDate() + add);
-  return d;
-};
-const SLOT_PRESETS = [
-  { label: '토 09:00', get: () => nextSlot(6, 9) },
-  { label: '일 09:00', get: () => nextSlot(0, 9) },
-  { label: '내일 07:00', get: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(7, 0, 0, 0); return d; } },
-];
+// nextSlot은 은퇴했다 — 기기 로컬 산식이었고(위 [E6] 주석), 프리셋 3개와 함께 사라졌다.
+// ── 날짜·시각 (Sean 2026-08-26: 「more freedom in choice of date … integer times like at half an
+//    hour or the hour but no more limitations than that」) ──
+// 세 개의 프리셋(토 09:00 · 일 09:00 · 내일 07:00)이 전부였다. 서버는 그런 제약을 둔 적이 없다 —
+// club_create_session은 임의의 timestamptz를 받고 `now() + 1시간` 뒤이기만 하면 된다
+// (0037:372). 그래서 이건 순수한 클라이언트 발명이었고, 호스트가 화요일 저녁 세션을 열 방법이
+// 아예 없었다.
+//
+// ⚠ 그리고 옛 nextSlot은 **기기 로컬 시각**으로 지었다 (new Date().setHours/getDay). 이건
+// owner/request.tsx가 [E6]으로 이미 겪고 고친 바로 그 버그다: 서버의 가용·홀드 판정이 KST
+// 고정이라, UTC 시뮬레이터나 해외 기기에서 호스트가 「토 09:00」을 고르면 다른 시각이 저장된다.
+// 산식은 src/lib/kst.ts 한 곳에만 산다 (그 파일이 존재하는 이유이자, run-kst-tests.sh가 지키는 것).
+const CAP_MIN = 2, CAP_MAX = 30;   // 서버는 2~60 (0030:59); 30은 Sean의 상한
+const DATE_DAYS = 21;                       // 3주 — 「more freedom」. 서버 상한은 없다.
+const TIME_MIN_H = 5, TIME_MAX_H = 21;      // 05:00~21:00, 30분 간격 — 그의 「integer times」
+
+const buildClubDates = () => Array.from({ length: DATE_DAYS }, (_, i) => {
+  const cal = kstCal(Date.now() + i * 86400_000);
+  return { cal, key: kstKey(cal), d: String(cal.d), w: '일월화수목금토'[cal.wd],
+           label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined };
+});
+const CLUB_TIMES: { h: number; m: number; label: string }[] = [];
+for (let h = TIME_MIN_H; h <= TIME_MAX_H; h += 1) {
+  for (const m of [0, 30]) {
+    CLUB_TIMES.push({ h, m, label: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` });
+  }
+}
 
 // [감사 P2 선례] 티켓 시각 파트 — 기기 로컬이 아니라 Asia/Seoul 고정 (Intl 실패 시 로컬 폴백)
 const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
@@ -132,9 +147,13 @@ export default function ClubPage() {
 
   // 호스트: 세션 개설 시트
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [slotIdx, setSlotIdx] = useState(0);
+  // 날짜·시각은 이제 따로 고른다 (프리셋 3개 은퇴). 기본값 = 내일, 09:00 — 가장 흔한 선택이지
+  // 유일한 선택이 아니다.
+  const [dateIdx, setDateIdx] = useState(1);
+  const [timeIdx, setTimeIdx] = useState(CLUB_TIMES.findIndex((t) => t.h === 9 && t.m === 0));
+  const CLUB_DATES = useMemo(() => buildClubDates(), []);   // inline form — 린트 규칙이 참조 전달을 거부한다
   const [meetup, setMeetup] = useState('');
-  const [cap, setCap] = useState(9);
+  const [cap, setCap] = useState(12);   // 서버 기본값과 같은 값 (0037:365)
   const [busy, setBusy] = useState(false);
   const [weekly, setWeekly] = useState(false); // ⟳ 매주 반복 (0035)
   const [series, setSeries] = useState<ClubSeries[]>([]);
@@ -168,15 +187,20 @@ export default function ClubPage() {
     if (!route) { Alert.alert('코스를 선택해주세요', '위탁을 받으려면 코스(요금 기준)가 필요해요'); return; }
     setBusy(true);
     try {
-      const slot = SLOT_PRESETS[slotIdx].get();
+      // ⚠ KST 벽시계로 조립한다 — 기기 로컬이 아니다 (위 [E6] 주석; kstInstant가 유일한 산식).
+      const t = CLUB_TIMES[timeIdx];
+      const slot = kstInstant(CLUB_DATES[dateIdx].cal, t.h, t.m);
       // 클럽 불변식 = 혼합 이벤트 (모든 개에 명시적 책임자 1인) — 위탁 문이 열리려면 mixed + 코스 필수
       await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap, route.id, 'mixed');
       // [감사 P1] 시리즈에 코스·포맷 미전파 → 자동 생성 세션이 전부 owner_only·무코스가 되던 것 + 실패 삼킴
       let seriesOk = true;
       if (weekly) {
-        const hh = String(slot.getHours()).padStart(2, '0');
-        const mm = String(slot.getMinutes()).padStart(2, '0');
-        await startClubSeries(club.id, slot.getDay(), `${hh}:${mm}`, meetup.trim(), cap, route.id, 'mixed')
+        // ⚠ 요일·시각도 KST에서 읽는다. slot.getDay()/getHours()는 기기 로컬이라, UTC 기기에서
+        // 매주 반복이 하루 어긋난 요일로 등록되던 같은 [E6] 계열의 버그다.
+        const kc = kstCal(slot.getTime());
+        const hh = String(t.h).padStart(2, '0');
+        const mm = String(t.m).padStart(2, '0');
+        await startClubSeries(club.id, kc.wd, `${hh}:${mm}`, meetup.trim(), cap, route.id, 'mixed')
           .catch(() => { seriesOk = false; });
       }
       haptic('success');
@@ -612,14 +636,27 @@ export default function ClubPage() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator
           >
-          {/* [CLUB15 가드] 칩 라벨 15 → 320dp에서 3칩이 한 줄을 넘긴다 → 코스 행과 같은 랩 규칙 적용 */}
-          <Row style={{ gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            {SLOT_PRESETS.map((p, i) => (
-              <Pressable key={p.label} onPress={() => setSlotIdx(i)} style={[s.chip, slotIdx === i && s.chipOn]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: slotIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{p.label}</Text>
+          {/* 날짜 — 21일. 프리셋 3개로는 화요일 저녁 세션을 열 방법이 없었다. */}
+          <Text style={s.fieldLbl}>날짜</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+            {CLUB_DATES.map((d, i) => (
+              <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dcell, dateIdx === i && s.dcellOn]}
+                accessibilityRole="radio" accessibilityState={{ selected: dateIdx === i }}>
+                <Text style={[s.dcellW, dateIdx === i && s.dcellTxtOn]}>{d.label ?? d.w}</Text>
+                <Text style={[s.dcellD, dateIdx === i && s.dcellTxtOn]}>{d.d}</Text>
               </Pressable>
             ))}
-          </Row>
+          </ScrollView>
+          {/* 시각 — 05:00~21:00, 30분 간격. 그의 「integer times like at half an hour or the hour」. */}
+          <Text style={s.fieldLbl}>시각</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+            {CLUB_TIMES.map((t, i) => (
+              <Pressable key={t.label} onPress={() => setTimeIdx(i)} style={[s.chip, timeIdx === i && s.chipOn]}
+                accessibilityRole="radio" accessibilityState={{ selected: timeIdx === i }}>
+                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: timeIdx === i ? '#fff' : L.text }}>{t.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
           <TextInput
             value={meetup} onChangeText={setMeetup}
             placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor={L.dim} style={s.input}
@@ -661,13 +698,28 @@ export default function ClubPage() {
               );
             })}
           </View>
-          <Row style={{ gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head }}>{/* CLUB15 */}정원</Text>
-            {[6, 9, 12].map((c) => (
-              <Pressable key={c} onPress={() => setCap(c)} style={[s.chip, cap === c && s.chipOn]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: cap === c ? '#fff' : L.text }}>{/* CLUB15 */}{c}팀</Text>
-              </Pressable>
-            ))}
+          {/* 정원 (Sean 2026-08-26: 「not sure why there is a 6, 9, 12 selection limitation … should be
+              free to sign up and maybe a max of thirty or something」). 6·9·12 는 클라이언트가 발명한
+              제약이었다 — 서버는 처음부터 2~60을 허용한다 (0030:59 people_capacity CHECK). 그가 말한
+              30을 상한으로 두고 그 안에서는 자유롭게 고른다. 서버 상한이 아니라 그의 상한이므로,
+              늘리고 싶으면 이 상수 하나만 움직이면 된다. */}
+          <Text style={s.fieldLbl}>정원</Text>
+          <Row style={{ gap: 14, alignItems: 'center', marginTop: 2 }}>
+            <Pressable onPress={() => setCap((c) => Math.max(CAP_MIN, c - 1))} disabled={cap <= CAP_MIN}
+              style={[s.step, cap <= CAP_MIN && s.stepOff]} hitSlop={8}
+              accessibilityRole="button" accessibilityLabel="정원 한 팀 줄이기">
+              <Text style={s.stepTxt}>−</Text>
+            </Pressable>
+            <Row style={{ alignItems: 'baseline', gap: 3 }}>
+              <Text style={[s.capNum, nf]}>{cap}</Text>
+              <Text style={s.capUnit}>팀</Text>
+            </Row>
+            <Pressable onPress={() => setCap((c) => Math.min(CAP_MAX, c + 1))} disabled={cap >= CAP_MAX}
+              style={[s.step, cap >= CAP_MAX && s.stepOff]} hitSlop={8}
+              accessibilityRole="button" accessibilityLabel="정원 한 팀 늘리기">
+              <Text style={s.stepTxt}>+</Text>
+            </Pressable>
+            <Text style={s.capHint}>{cap >= CAP_MAX ? `최대 ${CAP_MAX}팀` : `최대 ${CAP_MAX}팀까지`}</Text>
           </Row>
           {/* ⟳ 매주 반복 (0035) — 다음 주부턴 크론이 같은 요일·시각으로 자동 개설 */}
           <Pressable onPress={() => setWeekly((w) => !w)} style={s.weeklyRow}>
@@ -809,6 +861,28 @@ const s = StyleSheet.create({
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
   colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },
   // 시트
+  // ── 날짜·시각·정원 컨트롤 (Sean 2026-08-26) ──
+  fieldLbl: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head, marginTop: 14, marginBottom: 6 },
+  // 날짜 칸 — 요일 위, 날짜 아래. owner/request.tsx의 날짜 스트립과 같은 읽기 순서.
+  dcell: {
+    minWidth: 52, paddingVertical: 9, paddingHorizontal: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: L.hair, backgroundColor: paper.canvas, borderRadius: 999,
+  },
+  dcellOn: { backgroundColor: L.accent, borderColor: L.accent },
+  dcellW: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: L.dim },
+  dcellD: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: L.text, marginTop: 1 },
+  dcellTxtOn: { color: '#FFFFFF' },
+  // 정원 스테퍼 — 6·9·12 칩 3개가 은퇴한 자리.
+  step: {
+    width: 38, height: 38, borderRadius: 999, borderWidth: 1, borderColor: L.hair,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: paper.canvas,
+  },
+  stepOff: { opacity: 0.35 },
+  stepTxt: { fontSize: 19, lineHeight: 23, fontWeight: '800', color: L.head },
+  // ⚠ Oswald는 lineHeight 명시 필수 (BUG A).
+  capNum: { fontSize: 24, lineHeight: 30, fontWeight: '800', color: L.head },
+  capUnit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text },
+  capHint: { fontSize: 15, lineHeight: 20, color: L.dim, flexShrink: 1 },
   // ── 코스 픽커 — ⓑ 도장 칸 (Sean round-6 pick). compose.tsx·owner/live.tsx 와 같은 값. ──
   stamps: { marginTop: 2 },
   scell: {
