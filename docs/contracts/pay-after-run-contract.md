@@ -1060,17 +1060,35 @@ change (C.1, C.2) is fully determined by ruling #1 and can proceed.
 
 **F.1 — post-flip, may an owner with no linked card create a booking?**
 
-> 🔴 **ANSWERED — Sean, 2026-08-26: option (a), 「Refuse at booking, link card inline」.**
-> So **C.3 EXISTS** and is built as specified: booking creation refuses without a linked card and
-> offers the card-link step inline at that moment. This matches `card-registration-placement.md:6`
-> (「inline at first booking」), so the two artifacts now agree rather than diverging.
+> 🔴 **ANSWERED — Sean, 2026-08-26: option (b), verbatim 「allow them to book but make sure they
+> pay afterwards」.**
 >
-> ⚠ **The reviewer's caveat below is NOT satisfied by this answer and must not be read as closed.**
-> (a) bounds **NEW ENTRIES ONLY** (F4). A refusal at booking-creation cannot reach bookings that
-> already exist on flip day, and the mint keys on **run end** (`0084:265-266`) — so every in-flight
-> card-less booking whose run finishes after the flip still becomes a failed charge and a locked
-> owner. That population is a FLIP-DAY question (§E), not a booking-gate question, and choosing (a)
-> does not answer it. It is recorded here so the next reader does not treat F.1 as fully retired.
+> ⚠ **CORRECTION, recorded rather than rewritten away.** An earlier commit on this branch recorded
+> option (a) 「refuse at booking」 and reached origin. That was WRONG — I put the question with (a)
+> listed first and read his answer into the wrong arm; he corrected it within the minute. The bad
+> note is superseded here rather than silently deleted, because a ruling that FLIPPED is exactly
+> what a later reader needs to see flip: `card-registration-placement.md:6` (「inline at first
+> booking」) now DIVERGES from this ruling, and that is a live disagreement between artifacts (§G),
+> not a settled question.
+>
+> **So C.3's refusal arm is NOT built.** Booking creation stays open to a card-less owner, and the
+> whole obligation moves to the after-the-run path — the harder half, and now the load-bearing one:
+> the run happens and settles · the owner charge fails on 「no billing key」 ·
+> `owner_has_unsettled_charge` (0080:507) locks the account · and the owner must have a REACHABLE
+> way to resolve it: link a card and pay what is owed.
+>
+> 🔴 **That last step decides whether this ruling is honest or a trap.** 「Make sure they pay
+> afterwards」 is a promise the product has to keep, and a lock with no door is precisely the dead
+> end the honesty laws refuse. Before this ships, the settle-failure path must be verified to
+> produce a screen that STATES the amount owed and OFFERS card linking plus payment — not a generic
+> error, and not a silent lock. If that screen does not exist, building it is part of this slice
+> rather than a follow-up.
+>
+> ⚠ **What his answer does NOT decide** (the reviewer's caveat below, unchanged in force): the
+> flip-day population. The mint keys on **run end** (`0084:265-266`), so in-flight bookings
+> finishing after the flip fail identically. Under (b) that stops being a SEPARATE problem and
+> becomes the SAME path — a genuine simplification of §E, and the strongest argument for the option
+> he picked.
 
 - **(a)** Refuse at booking with an inline card-link step (this contract's C.3; matches
   `card-registration-placement.md:6` — *"inline at first booking"*).
