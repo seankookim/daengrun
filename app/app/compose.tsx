@@ -8,7 +8,7 @@ import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
 import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
-import { CollarKey, collarColors, paper } from '../src/theme';
+import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
 // 피드 컴포저 — 커뮤니티 직행 포스트 진입점 (owner home · runner home · 피드 상단 컴포즈 바가 여기로 온다).
 //
@@ -235,28 +235,46 @@ export default function Compose() {
               </Text>
             </View>
           ) : (
-            <View style={{ gap: 8 }}>
-              {shareable.map((c) => {
+            /* [R4 · Sean round 5: "it looks just like an excel block, nothing more" → round 6
+                pick ⓑ 도장 칸, docs/labs/club-v2-setup-lab.html:444-475] The bordered box per row
+                is gone. What remains is the doc grammar: ink rules between rows, and an empty
+                dashed square that asks to be stamped — the pick fills it solid ink and underlines
+                its label in the accent. Two boxes abutting was the shape that read as a
+                spreadsheet; a rule is not a box.
+                The coral that used to signal "chosen" (border + wash) leaves with it — coral is
+                the screen's CTA colour and it was spending it on a list row. */
+            <View style={s.stamps}>
+              {shareable.map((c, i) => {
                 const on = sel === c.bookingId;
                 return (
                   <Pressable
                     key={c.bookingId}
                     onPress={() => setSel(c.bookingId)}
-                    style={({ pressed }) => [s.runCard, on && s.runCardOn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
+                    style={({ pressed }) => [
+                      s.scell,
+                      i === shareable.length - 1 && s.scellLast,
+                      pressed && s.scellPressed,
+                    ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on, checked: on }}
                   >
-                    <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioDot} />}</View>
+                    <View style={[s.sbox, on && s.sboxOn]}>
+                      {on && <Text style={s.sboxTick}>✓</Text>}
+                    </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Row style={{ gap: 6, alignItems: 'center' }}>
                         {c.collar && collarColors[c.collar as CollarKey] && (
                           <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: collarColors[c.collar as CollarKey] }} />
                         )}
-                        <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
-                          {c.dogName} · <Text style={nf}>{c.km}</Text>km 완주
-                        </Text>
+                        {/* the underline is the pick's second signal; it hugs the label, so the
+                            wrapper shrinks to content rather than ruling the whole row. */}
+                        <View style={[s.slWrap, on && s.slWrapOn]}>
+                          <Text style={[s.sl, on && s.slOn]} numberOfLines={1}>
+                            {c.dogName} · <Text style={nf}>{c.km}</Text>km 완주
+                          </Text>
+                        </View>
                       </Row>
-                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }} numberOfLines={1}>{c.when}</Text>
+                      <Text style={s.ss} numberOfLines={1}>{c.when}</Text>
                     </View>
                   </Pressable>
                 );
@@ -312,19 +330,33 @@ const s = StyleSheet.create({
   // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 (코랄 line과 절대 공유 금지)
   failStrip: { backgroundColor: paper.criticalWash, padding: 14, marginTop: 20 },
 
-  // 런 픽커 카드 — 뉴트럴 #EEE, 선택 = 코랄 1px (선택 신호에만 코랄)
-  runCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
-    paddingVertical: 13, paddingHorizontal: 13, minHeight: 56,
+  // ── 런 픽커 — ⓑ 도장 칸 (Sean round-6 pick; lab club-v2-setup-lab.html:224-236) ──
+  // 상자가 없다. 행 사이의 잉크 룰과, 채워달라고 말하는 빈 점선 네모가 상태를 진다.
+  // 새 헥스 0개: #EEEEEE(뉴트럴 카드 선)·paper.faint·paper.ink·lilac.accent — 전부 이미 출하 중인 값이다.
+  stamps: { marginTop: 2 },
+  scell: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 13,
+    paddingVertical: 14, paddingHorizontal: 2,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
   },
-  runCardOn: { borderColor: paper.line, backgroundColor: paper.wash },
-  radio: {
-    width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#DDDDDD',
-    alignItems: 'center', justifyContent: 'center',
+  scellLast: { borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  // 눌림은 명시 색으로 — 알파 트릭 금지. 워시는 코랄이므로 중립 회색을 쓴다.
+  scellPressed: { backgroundColor: '#FAFAFA' },
+  // ⚠ 점선 테두리는 paper.faint(#999999, 흰 바탕 2.85:1)다. 처음 쓴 #DDDDDD는 1.3:1로,
+  // '채워달라고 말하는 빈 네모'가 보이지 않으면 그 말을 못 한다 — 조용한 것과 안 보이는 것은 다르다.
+  sbox: {
+    width: 26, height: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: paper.faint,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  radioOn: { borderColor: paper.line },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: paper.line },
+  sboxOn: { borderStyle: 'solid', borderColor: paper.ink, backgroundColor: paper.ink },
+  sboxTick: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#FFFFFF' },
+  // 라벨 래퍼 = 밑줄의 폭. shrink로 내용에 붙는다 (룰이 행 전체를 긋지 않게).
+  slWrap: { flexShrink: 1, borderBottomWidth: 2, borderBottomColor: 'transparent', paddingBottom: 2 },
+  slWrapOn: { borderBottomColor: lilac.accent },
+  // ⚠ lineHeight는 명시다 — Oswald 숫자(nf)가 이 Text 안에 들어온다 (BUG A: 명시 없으면 어센더가 잘린다).
+  sl: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: paper.text },
+  slOn: { color: paper.ink },
+  ss: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 5 },
 
   captionInput: {
     marginTop: 12, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',

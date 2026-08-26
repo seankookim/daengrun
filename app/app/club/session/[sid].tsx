@@ -1179,6 +1179,22 @@ export default function ClubSessionShell() {
             {myDogs.map(renderDogCard)}
 
             {/* ---------- 함께 뛰기 (동반 참가) ---------- */}
+            {/* ---------- 무료로 크루 참가 (F2) ---------- */}
+            {/* [F2 · Sean 2026-08-25 04:41:25Z — he ruled "Stays free" and wrote the copy himself:
+                「무료로 크루 참가」] The FACT was already true and said nowhere: a 동반 RSVP creates a
+                session_people row and (with a dog) an owner_handled session_dogs row — no booking,
+                no charge, no host decision (0048:158). His words, verbatim, placed where the owner
+                decides — not a paraphrase — and welded to the 함께 뛰기 CTA so it can never be read
+                as covering 위탁 (자리 확정), which does cost money. Shown only while the join is
+                actionable: a free line over a full session is noise. Treatment borrows the ⓑ 도장 칸
+                grammar he picked the same round — no box, an ink rule above, a small solid accent
+                square. Accent as INK, never a ground; the coral below stays the screen's one coral. */}
+            {isOpenish && !sess.joined && sess.status !== 'full' && (
+              <Row style={s.freeLine}>
+                <View style={s.freeStamp} />
+                <Text style={s.freeTxt}>무료로 크루 참가</Text>
+              </Row>
+            )}
             {isOpenish && !sess.joined && (
               <ClubCta
                 label={sess.status === 'full' ? '정원이 찼어요' : '함께 뛰기 — 동의하고 참여'}
@@ -1457,6 +1473,12 @@ const s = StyleSheet.create({
   checkedCard: {
     backgroundColor: L.hair2, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13, marginTop: 12,
   },
+  freeLine: {
+    alignItems: 'center', gap: 9, marginTop: 14, paddingTop: 11, paddingBottom: 2,
+    borderTopWidth: 1, borderTopColor: L.hair,
+  },
+  freeStamp: { width: 13, height: 13, backgroundColor: L.accent },
+  freeTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.accent },
   // 양측 확인 (O8 인계 ↔ O10 반환 — 같은 부품, 역할만 거울)
   retcol: { flexDirection: 'row', gap: 9, marginTop: 11 },
   retside: { flex: 1, borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', backgroundColor: L.inset },
