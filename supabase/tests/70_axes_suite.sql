@@ -167,8 +167,26 @@ declare
 begin
   -- [X8] 부패 감지 — 동기화 트리거를 끄고 축을 오염시키면 드리프트가 잡는다 (자기검증 우회 증명)
   begin
-    select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated'
-      order by sd.id limit 1;   -- 고르기만 하는 핀: 순서 고정
+    -- [2026-08-26] ⚠ 이 선택은 예전에 `order by sd.id limit 1`에 「순서 고정」 주석이 달려 있었다.
+    -- `id`는 gen_random_uuid()라 그 주석은 **거짓**이었다 — 고정이 아니라 임의였다. 그리고 이 핀은
+    -- 두 필드를 오염시켜 drift ≥2를 기대하는데, 고른 행에서 두 쓰기 중 하나가 no-op이면 detected=1로
+    -- 떨어진다. drift는 「저장값 vs 재계산값」이고 `charge_state='hold'`의 재계산 조건은
+    -- `hold_status='active' AND hold_expires_at > now()` (0043:75) — **시간 의존**이다. 그래서
+    -- 실패가 간헐적이었고(CI에서 ~1/17), 같은 커밋이 재실행에서 통과했다.
+    -- 고침: 두 쓰기가 **반드시** 값을 바꾸는 행만 고른다. 그러면 detected=2가 구조적으로 보장된다.
+    -- ⚠ 조건에 맞는 행이 없으면 조용히 아무 행이나 잡지 말고 **크게 실패**한다 — 픽스처가 바뀌었다는
+    -- 사실 자체가 이 핀이 무엇을 재고 있는지에 대한 정보다.
+    select sd.* into v_sd from session_dogs sd
+      where sd.custody = 'runner_delegated'
+        and sd.charge_state is distinct from 'hold'
+        and sd.assignment_state is distinct from 'replacement_needed'
+      order by sd.id limit 1;
+    -- ⚠ `return`이 아니라 raise다. plpgsql의 bare `return`은 이 DO 블록 **전체**를 끝내므로
+    -- 뒤따르는 X9·X10이 조용히 건너뛰어진다 — 정직한 실패 하나를 실패 하나 + 침묵 둘로 바꾸는 짓이다.
+    -- 아래 `exception when others` 핸들러가 트리거를 되살리고 _fail을 부른 뒤 X9로 계속 간다.
+    if v_sd.id is null then
+      raise exception '오염 가능한 runner_delegated 행이 없다 — 픽스처가 바뀌었다';
+    end if;
     alter table session_dogs disable trigger club_v1_axes_sync;
     update session_dogs set charge_state = 'hold', assignment_state = 'replacement_needed' where id = v_sd.id;
     alter table session_dogs enable trigger club_v1_axes_sync;

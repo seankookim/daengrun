@@ -365,7 +365,12 @@ from pg_trigger where tgrelid = '<table>'::regclass and not tgisinternal;
   actually reproduce?) and **with** it (is it actually closed?). Worked example, 0127's Critical:
   M10 planted the absent-function path unfixed and the migration aborted on `acl==X/postgres` —
   the hole itself, not a pin's opinion of it; M11 ran the same path fixed and passed with
-  `pub=false`. **A control that cannot fail is not a control**, and a battery that only ever
+  `pub=false`. **A control that cannot fail is not a control**, and ⚠ **`sed` EXITS 0 WHEN IT MATCHES NOTHING — so `sed … || fallback` never runs the
+  fallback, and a mutation you believe you planted may never have been planted** (measured
+  2026-08-26, while mutation-testing a flaky pin: the run came back green and I nearly recorded it
+  as 「the guard held」 when in fact the file was untouched). **Assert the mutation LANDED before
+  running the battery** — `assert s.count(old)==1` in a python edit, or grep the mutated file — and
+  treat a green mutation run as suspect until the plant itself is verified, and a battery that only ever
   reddens pins has measured your test suite, not your system.
 - ⚠ **AND A PIN ADDED MID-BATTERY IS THE PIN MOST LIKELY TO BE SHAPED TO THE MUTATION RATHER THAN
   TO THE PROPERTY** (2026-08-26, handed over by a peer reviewing 0128). When a mutation reddens
