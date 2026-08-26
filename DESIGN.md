@@ -194,8 +194,26 @@ exact values. New code MUST use them; when you touch a screen, convert it.
 | Money | `MONEY_DEEP` coral | none | white **31 display** | full-bleed, no side margins, no price sub-plate |
 | Secondary | canvas (`wash` pressed) | 1px `paper.line` | ink **16/800** | |
 | Destructive | canvas (`criticalWash` pressed) | 1px `critical` | critical **16/800** | |
-All: radius 0, `paddingVertical` ≥15, `scale(0.96)` press, busy = label swap.
-No opacity tricks. Icon-only controls: 40×40 square, canvas, 1px coral.
+All: radius 0, `paddingVertical` ≥15, busy = label swap. No opacity tricks.
+Icon-only controls: 40×40 square, canvas, 1px coral.
+
+**PRESS BEHAVIOUR — two grammars, split by whether the button has a FILL** (Sean 2026-08-26:
+「all primary buttons should have a 3d kinda thing like you gave in the lab as well」):
+
+- **Filled (Primary · Money · club coral)** — a physical key. Rest: `borderBottomWidth: 4` in the
+  pressed-fill colour (`paper.actionPressed` #A83315 on #C6472C — 1.34:1, the measured lip).
+  Press: `translateY(3)` + `borderBottomWidth: 1`. The 3px the edge gives up is exactly the 3px
+  the transform takes, so **the bottom edge stays put and the key descends into it** — that
+  registration is the whole illusion; change one number and the button appears to slide.
+  **No `scale` on filled buttons.** Depth and scale together read as mush (measured on
+  `draw-button.tsx`, which has carried this grammar since 2026-08-20 and is the lab's source).
+- **Unfilled (Secondary · Destructive · Quiet)** — `scale(0.96)`, unchanged. Paper has no depth.
+- **Disabled stays flat.** A dead key has no travel, so the physicality says "inert" before the
+  colour does.
+- ⚠ **A drop shadow and a lip are two different depth languages and must not sit on one control.**
+  `ClubCta` carried both for a day; the shadow was retired, not the lip, because only the lip has
+  a press state. `elevation` goes with it — on Android it draws its own shadow and silently makes
+  the control a different object than on iOS.
 
 ### Screen title (2026-08-11 — the gap that let them diverge)
 
@@ -295,6 +313,48 @@ render an action only when its effect exists in this state (길찾기 renders on
 with coordinates) · gate logic/badges on `rawStatus`, never display vocabulary ·
 dark/empty states name their real cause and carry a fix path when the viewer
 can fix it (owner sees 위치 지정하기; runner is routed to chat).
+
+## 7a-bis. BABY WORK — the word budget (Sean 2026-08-26, binding)
+
+His words, on the card lab: **「way too much words and too dense. make it easy for the customer.
+intuitive. baby work. also too much dim text.」** He then picked ① — the variant that says one
+thing — so the ruling has a worked example, not just an adjective.
+
+**The budget, per screen state:**
+
+| Slot | Allowance |
+|---|---|
+| Display headline | 1, ≤ 6 words |
+| Supporting line | **1**, ≤ 12 words. Not a paragraph. |
+| Body paragraphs | **0** |
+| Dim text | the ONE line under the CTA, and nothing else |
+| Primary action | 1 |
+
+**Rules that fall out, each with the reason:**
+
+- **Ink is the default; dim is the exception.** Anything the customer must read to act is full
+  ink. Dim marks text they may skip — which in practice is the consent line and nothing else. A
+  screen where half the type is grey has told the reader that half of it does not matter, and
+  they believe it.
+- **No explanatory paragraph on an action screen.** If a screen needs a paragraph to be
+  understood, the screen is wrong, not under-explained. Move the complexity into structure (a
+  three-row sequence, a two-line receipt) or delete it.
+- **Delete before shrinking.** The instinct is to keep the sentence and drop it to 14pt. That
+  breaks the 15pt floor to preserve words nobody asked for. Cut the sentence.
+- **Chrome counts.** Brand chips ("신용·체크카드 · 토스페이먼츠"), hint lines under buttons, and
+  belt-and-braces reassurance are words. r3 of the card lab passed every other law in this file
+  and still failed this one.
+- **Consent is made by exclusivity, not by length.** The card screen is a legal consent moment
+  (`card-registration-placement.md` reason 3) and it is ALSO the leanest screen in the app. Those
+  do not conflict: consent is real because the screen says only that one thing, so it cannot be
+  skimmed past. Never argue for more words on consent grounds.
+
+⚠ **This applies to EVERY screen, not just new ones** — his instruction was 「make sure all other
+screens follow this baby intuitive make it easy rule」. Convert opportunistically when you are
+already in a file, the same way the 15pt floor and the Korean-comment rule are converted. A screen
+that is dense today is a defect with a known fix, not a style someone chose.
+
+---
 
 ## 7b. Decluttering doctrine (Sean 2026-08-11 — "no emojis, no cheap, declutter")
 

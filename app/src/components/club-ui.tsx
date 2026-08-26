@@ -194,7 +194,14 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
         pressed && !off && tone === 'coral' && { backgroundColor: paper.actionPressed },
         pressed && !off && tone === 'secondary' && { backgroundColor: '#FBE7E1' },
         pressed && !off && tone === 'destructive' && { backgroundColor: paper.criticalWash },
-        pressed && !off && { transform: [{ scale: 0.96 }] }, // §3b: 0.96, not 0.98
+        // [Sean 2026-08-26] 「all primary buttons should have a 3d kinda thing」 — 코랄 톤(=이
+        // 컴포넌트의 프라이머리)은 물리 키로 눌린다: 쉼 4px 아랫변, 눌림 translateY(3)+1px.
+        // 변이 놓아주는 3px을 이동이 정확히 가져가므로 아랫모서리는 제자리다.
+        // 면이 없는 톤(secondary/destructive/quiet)은 기존 scale 그대로 — 종이에는 깊이가 없다.
+        tone === 'coral' && !off && (pressed
+          ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
+          : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed }),
+        pressed && !off && tone !== 'coral' && { transform: [{ scale: 0.96 }] }, // §3b: 0.96, not 0.98
         style,
       ]}
     >
@@ -397,7 +404,10 @@ const s = StyleSheet.create({
   flapSlit: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, backgroundColor: 'rgba(34,30,61,0.13)' },
   cta: {
     backgroundColor: paper.action, borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12,
-    shadowColor: paper.action, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    // ⚠ 드롭섀도 은퇴 (2026-08-26). 4px 립과 14px 글로우는 **서로 다른 깊이 언어**이고, 한
+    // 컨트롤에 겹치면 키가 떠 있는지 놓여 있는지 알 수 없게 된다. 립이 물리 문법(누르면
+    // 내려앉는다)을 가지고 섀도는 못 가지므로 립이 남는다. elevation도 같이 내린다 —
+    // 안드로이드에서 elevation은 자체 그림자를 그려서 iOS와 다른 물건이 된다.
   },
   // §3b: all four button kinds paddingVertical ≥15 (was 14 / 11 — the quiet one was a 33pt target).
   // Outlined tones drop the glow — a shadow under a canvas-filled button reads as a floating card,
