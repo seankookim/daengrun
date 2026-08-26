@@ -109,6 +109,8 @@ export default function ClubSessionShell() {
   // ⚠ 라운드 3의 addedLocally는 이걸 로컬 플래그로 대신했는데, 그건 경합을 거짓말과 맞바꾼 것이었다:
   //   CTA는 사라지지만 견 목록은 그대로라, 방금 넣은 아이가 없는 화면을 사실처럼 보여줬다.
   const [rosterNonce, setRosterNonce] = useState(0);
+  // [codex r5 c] 세션 id로 스코프한다 — 화면이 유지된 채 sid가 바뀌면 다른 세션의 CTA를 숨기면 안 된다.
+  const [addedSid, setAddedSid] = useState<string | null>(null);
   // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
   // 명단(전화 열람 로그가 붙는다)이고, 이 보드는 클럽 멤버 누구나 보는 공개 게시판이다.
   // 그래서 limited·비참가 멤버도 여기서는 무언가를 본다 — 서버 게이트가 로스터보다 넓다.
@@ -312,9 +314,15 @@ export default function ClubSessionShell() {
       // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
       // 부른다. 갱신하지 않으면 방금 넣은 아이가 목록에 없고 CTA도 남아, 다시 누르면 already_added가
       // 뜬다. 성공한 자리에서 이 세션의 로스터만 다시 읽는다.
-      // [codex r4] nonce 하나만 올린다 — 위 선언부 주석 참조. 탭 effect가 갱신을 맡는다.
+      // [codex r4] nonce로 로스터 갱신을 맡긴다 — 위 선언부 주석 참조.
       setRosterNonce((n) => n + 1);
+      // [codex r5] 그리고 이 화면 인스턴스에서 성공했다는 사실을 기억한다. ⚠ 라운드 3의 로컬
+      // 플래그와 다른 점은 침묵하지 않는다는 것이다: 코덱스가 지적한 거짓말은 'CTA는 사라졌는데
+      // 목록은 그대로'라는 **말 없는 모순**이었다. 갱신이 실패해도 무슨 일이 일어났는지는 화면이
+      // 분명히 말하고, 목록은 탭을 다시 열면 서버 진실로 맞춰진다.
+      setAddedSid(sess.id);
       setAddSheet(null);
+      Alert.alert('데려왔어요', '참가자 목록에 반영돼요');
     } catch (e) {
       // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
       const m = (e as Error).message;
@@ -331,27 +339,31 @@ export default function ClubSessionShell() {
     } finally { setBusy(false); addMutex.current = false; }
   };
   const doAddDog = async () => {
-    if (addSheet || busy) return;
-    // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:331이 fetchMyDogs에 대해
-    // 기록해 둔 결함을 호출부에서 되살리는 모양이라, 실패는 실패로 말한다.
-    // ⚠ doRsvp(위)에는 아직 `.catch(() => [])`가 있다. 손대지 않았다: 거기서는 실패가 조용히
-    //   '개 없이 참여'로 성공해 버려 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
-    let dogs: Awaited<ReturnType<typeof fetchMyDogs>>;
+    // [codex r5 f] fetchMyDogs 동안에도 잠근다 — CTA 연타로 조회가 두 번 나가던 창
+    if (addSheet || busy || addMutex.current) return;
+    addMutex.current = true;
     try {
-      dogs = await fetchMyDogs();
-    } catch {
-      Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
-      return;
-    }
-    if (dogs.length === 0) {
-      // 등록된 아이가 없으면 서버는 not_your_dog로 막는다 — 죽은 버튼 대신 갈 곳을 준다
-      Alert.alert('아이가 없어요', '먼저 아이를 등록해 주세요', [
-        { text: '나중에', style: 'cancel' },
-        { text: '아이 등록', onPress: () => router.push('/owner/dog') },
-      ]);
-      return;
-    }
-    setAddSheet(dogs);
+      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:331이 fetchMyDogs에 대해
+      // 기록해 둔 결함을 호출부에서 되살리는 모양이라, 실패는 실패로 말한다.
+      // ⚠ doRsvp(위)에는 아직 `.catch(() => [])`가 있다. 손대지 않았다: 거기서는 실패가 조용히
+      //   '개 없이 참여'로 성공해 버려 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
+      let dogs: Awaited<ReturnType<typeof fetchMyDogs>>;
+      try {
+        dogs = await fetchMyDogs();
+      } catch {
+        Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
+        return;
+      }
+      if (dogs.length === 0) {
+        // 등록된 아이가 없으면 서버는 not_your_dog로 막는다 — 죽은 버튼 대신 갈 곳을 준다
+        Alert.alert('아이가 없어요', '먼저 아이를 등록해 주세요', [
+          { text: '나중에', style: 'cancel' },
+          { text: '아이 등록', onPress: () => router.push('/owner/dog') },
+        ]);
+        return;
+      }
+        setAddSheet(dogs);
+    } finally { addMutex.current = false; }
   };
   const doCancelRsvp = () => {
     // [감사 P1] session_cancel_rsvp는 이 세션의 내 session_dogs를 custody 구분 없이 지운다 —
@@ -1087,6 +1099,7 @@ export default function ClubSessionShell() {
             building a second-dog path would be choosing a limit he has not ruled. */}
         {isOpenish && sess.joined && !isDone
           && (board?.session.format === 'owner_only' || board?.session.format === 'mixed')
+          && addedSid !== sess.id
           && !roster.dogs.some((d) => d.isMine) && (
           <View style={{ marginTop: 14 }}>
             <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
