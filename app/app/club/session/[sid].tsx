@@ -1105,6 +1105,29 @@ export default function ClubSessionShell() {
             <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
           </View>
         )}
+        {/* ---------- 동반 러닝 화면 (announcer 세션이 만든 club/companion/[sid]) ---------- */}
+        {/* 동반 참가자에게는 러닝 화면이 아예 없었다: club/run은 `runnerId === myRunnerId &&
+            bookingStatus === 'active'`로 거르는데(run/[sid]:128) 동반 행은 부킹도 러너도 없다
+            (0134 §C — 「no booking, no money」). 체크인 뒤 카드는 CTA도 다음 화면도 없이 끝났다.
+            ⚠ WHY IT LIVES ON 참가자. 여기서 쓰는 술어는 로스터가 답하고, 로스터는 전화 열람
+            로그(:138) 때문에 참가자 탭에서만 부른다. 게이트 없이 개요에 걸면 대개 빈 방으로 가는
+            문이 된다 — 죽은 버튼 법의 부드러운 변장.
+            ⚠ 정정(codex): 「로스터만 답할 수 있다」고 적었는데 사실이 아니다. `BoardRowLive`는
+            `kind: 'owner_handled'`와 `isMine`을 싣는다(api.ts:687-693). 다만 목적지인
+            companion/[sid] 자체가 `fetchSessionRoster`를 부르므로(:57), 개요로 옮기려면 이 CTA만이
+            아니라 목적지의 조회까지 바꿔야 한다. 그건 그 화면 주인의 슬라이스다. */}
+        {/* [codex] 체크인 게이트 — isOpenish는 출석도 시각도 아니라서, 없으면 세션 며칠 전에도
+            러닝 화면이 열린다. `!isDone`은 isOpenish와 배타라 중복이므로 뺐다. */}
+        {isOpenish && sess.myAttendance === 'checked_in'
+          && roster.dogs.some((d) => d.isMine && d.custody === 'owner_handled') && (
+          <View style={{ marginTop: 10 }}>
+            <ClubCta
+              label="동반 러닝 화면 →"
+              tone="secondary"
+              onPress={() => router.push(`/club/companion/${sess.id}`)}
+            />
+          </View>
+        )}
         <Text style={s.phoneNotice}>번호가 보이면 열람이 기록돼요</Text>
       </>
     );
