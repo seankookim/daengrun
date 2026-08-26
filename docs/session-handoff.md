@@ -1,4 +1,4 @@
-# Session handoff — spec-v2 session, 2026-08-25 evening (v8)
+# Session handoff — spec-v2 session, 2026-08-26 morning (v9)
 
 > ⚠ **§1 was rewritten at 2026-08-26 ~11:00 KST from live measurement.** A full day and night
 > of work sits between v7 and this. **Re-measure before building on any row, including the ones
