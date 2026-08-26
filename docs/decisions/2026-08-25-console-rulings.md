@@ -437,3 +437,43 @@ him inside a screen.
 
 Until he moves it, the arm uses the shipped channel: `club_chat_messages` (`0008`, realtime
 publication added at `0049:150`). No empty state, no owed source, no fabricated field.
+
+## Tenth round — phone collection RULED (round-6 plan, his verbatim, trunk)
+
+> "i think we should have the owner and any new person insert phone number on onboarding for
+> safety and contact purposes"
+
+**RULED: collect a phone number at onboarding.** Verified at source (`round6:119`).
+
+**This is NOT a reversal of §12, and the spec must say so** — the relaying session's reading is
+right and I checked it: §12 refused a phone BUTTON because 「받아두기만 하는 필드를 묻는 건 넛지가
+아니라 수집이고」 — asking for a field **nobody reads** is collection, not a nudge. That refusal
+was **conditional on the absence of a reader**. He now names two purposes (safety, contact) and
+the 현장 반환 arm is a third. **The condition is satisfied, not overridden.** Written this way
+deliberately: a future reader must not find "founder overruled a privacy call" where the record
+should read "the field acquired the purpose it lacked".
+
+**The expensive half is already built.** `_club_phone_visible` (`0049:165-192`) already encodes
+who-may-see-whose (host↔everyone · owner↔their own dog's accepted runner, both directions ·
+otherwise via host), gated by session-live OR unresolved-custody, with reveals audited into
+`club_phone_access_log` (`0049:156`, written `0049:236` / `0053:435`). What is missing is only the
+collection point and the render.
+
+### What that slice OWES — three riders, two of them measured precedent
+
+1. 🔴 **`delete_my_account_tx` must learn the column, and this class has bitten TWICE already.**
+   `0115`'s redaction is a **named-column list**, so a new column survives account deletion
+   silently: `0122:113` records it for `dong` (「redacts lat/lng but never learned this column」)
+   and `0123:299` for the runner base (「SURVIVING `delete_my_account_tx` because 0115's redaction
+   list is a named-column…」). A phone number surviving a deletion request is worse than either.
+   **Third occurrence — the slice adds the line, and it is the first thing its review checks.**
+2. 🔴 **The 개인정보처리방침 text is SEAN-ONLY.** `docs/legal/privacy-policy.md` exists and must
+   state item / purpose / retention / recipient, and a runner seeing an owner's number is a
+   **third-party disclosure**. CLAUDE.md puts "changing what users are told" on his list.
+   **No session drafts this.** Routed to him as its own card, separate from the build.
+3. **Required-vs-optional at signup is a product call, not an implementation detail.** Required is
+   a funnel cost at 11 users; optional means the 현장 arm keeps an empty state either way. His.
+
+⚠ **The field is empty for every EXISTING user even after collection ships** — so the return arm's
+empty state is not a transitional nicety, it is the permanent path for the current cohort. The
+live-map session's redirect onto `club_chat_messages` stays correct regardless.
