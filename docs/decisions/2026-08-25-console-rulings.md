@@ -1430,3 +1430,49 @@ runner pay, so a runner who pockets their phone is paid **less than they earned*
 no error and no way for them to know. `club/run/[sid].tsx:388` already renders a
 `trackMode === 'foreground'` banner, i.e. the app **already tells the user it is degraded** and has
 simply never had the non-degraded mode.
+
+
+## 2026-08-26 — background location BUILT. And my diagnosis of it was wrong.
+
+**Sean:** 「go ahead and build background location. again, use codex review」
+
+### 🔴 I had the symptom right and the CAUSE wrong, and the wrong cause reached two documents
+
+I wrote — in this file, in the primer lab, and to Sean directly — that
+`app.json`'s `UIBackgroundModes` is **None**, therefore iOS cannot track in the background.
+**That is reading the wrong artifact.** Measured now:
+
+- `expo-location`'s config plugin **injects** `UIBackgroundModes: ['location']` at prebuild
+  whenever `isIosBackgroundLocationEnabled` is true — verified in the installed package,
+  `node_modules/expo-location/plugin/build/withLocation.js:28-32`.
+- **That flag has been `true` all along** (`app.json` `plugins[5]`), together with all three
+  permission strings, already written in good Korean.
+- So the static `ios.infoPlist` block says nothing about the built app. I read the config source
+  and described the binary — **the same class of error recorded four times today.**
+
+⚠ **The symptom was real and remains real**, which is why it was easy to miss the bad reasoning:
+`requestBackgroundPermissionsAsync` **is** never called (grepped three times, three different
+ways), and on iOS `startLocationUpdatesAsync` requires Always authorization — so it threw on every
+run and fell through to `watchPositionAsync`, which dies on screen lock. **A right conclusion
+resting on a wrong premise is the worst kind to ship**, because fixing the premise I named
+(`UIBackgroundModes`) would have changed nothing and the defect would have survived a "fix".
+
+### The actual fix
+
+| piece | state |
+|---|---|
+| iOS `UIBackgroundModes` | **already correct** via the plugin flag — untouched |
+| iOS permission strings | **already correct**, all three — untouched |
+| `requestBackgroundPermissionsAsync` | 🔴 **THE defect. Now called** in `geo.ts`, at run start |
+| Android `ACCESS_BACKGROUND_LOCATION` | was `isAndroidBackgroundLocationEnabled: false` → **now true** |
+
+**Asked at run start, never at first launch** — the primer's single first-launch ask stays
+When-In-Use, per his ruling. iOS presents Always as a second prompt anyway.
+
+⚠ **A background refusal is deliberately NOT fatal.** Foreground tracking still works and the run
+screen already renders its `trackMode === 'foreground'` banner. Downgrading a working run to
+`denied` over a permission a runner may reasonably withhold would be worse than the defect. The
+escalation is best-effort; the task attempt remains the real test.
+
+⚠ **Ships in a BUILD, not an OTA update** (native config), and **App Store review is Sean's** —
+background location is a gated capability and Apple rejects thin justifications.

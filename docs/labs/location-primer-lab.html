@@ -98,11 +98,7 @@ td b{color:var(--ink)}
 
 </div>
 
-<div class="note"><b>⚠ 프라이머가 약속할 수 있는 것의 상한 — 측정됨.</b>
-<code>requestBackgroundPermissions</code>는 어디서도 호출되지 않고 <code>app.json</code>의
-<code>UIBackgroundModes</code>는 <b>None</b>이다. 즉 <b>화면이 꺼지면 기록이 멈춘다.</b>
-이건 카피 문제가 아니라 <b>결함</b>이다 — 거리로 보수를 계산하므로, 폰을 주머니에 넣은 러너는
-<b>실제로 뛴 것보다 적게 받는다.</b> 프라이머 카피는 이 한계를 넘어 약속하지 않는다.</div>
+<div class="note"><b>⚠ 정정 (2026-08-26) — 진단이 틀렸고, 원인은 iOS 설정이 아니었다.</b> 이 자리에는 「<code>app.json</code>의 <code>UIBackgroundModes</code>가 None이라 백그라운드가 불가능하다」고 적혀 있었다. <b>틀렸다.</b> expo-location 플러그인은 <code>isIosBackgroundLocationEnabled</code>가 true일 때 <code>UIBackgroundModes:['location']</code>을 prebuild에서 <b>주입</b>하고, 그 플래그는 계속 true였다 (<code>plugins[5]</code>). 정적 <code>infoPlist</code> 블록을 읽고 <b>빌드된 앱</b>을 설명한 것 — 오늘 하루 종일 기록한 바로 그 실수다.<br><br><b>증상은 진짜였다.</b> <code>requestBackgroundPermissionsAsync</code>가 어디서도 호출되지 않았고, iOS에서 <code>startLocationUpdatesAsync</code>는 Always 인가를 요구한다 — 그래서 매 러닝마다 throw하고 <code>watchPositionAsync</code>로 조용히 폴백했다. 화면이 꺼지면 기록이 멈췄고, <b>거리가 보수를 정하므로 러너는 실제보다 적게 받았다.</b> 원인은 설정이 아니라 <b>요청되지 않은 권한</b>이었다.<br><br><b>고쳐짐:</b> <code>geo.ts</code>가 러닝 시작 시점에 백그라운드 권한으로 에스컬레이션한다 — 첫 실행이 아니라. 프라이머의 단일 질문은 When-In-Use 그대로다. 거부해도 치명적이지 않다: 포그라운드 추적은 계속 동작하고 기존 배너가 이미 열화 상태를 말한다.</div>
 
 <h2>빌드 사양</h2>
 <table>

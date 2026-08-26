@@ -230,8 +230,41 @@ export async function startTracking(
 
   liveSub = onUpdate;
 
+  // ---- escalate to BACKGROUND authorization, and only here ----
+  // [2026-08-26] THE defect this fixes: `startLocationUpdatesAsync` requires Always/background
+  // authorization on iOS. It was never requested anywhere in the app, so the call below threw on
+  // every run and silently fell through to `watchPositionAsync` — which dies on screen lock. A
+  // runner who pocketed their phone recorded a truncated trace, and since distance sets pay, was
+  // paid LESS THAN THEY EARNED with no error and no way to know. The iOS *config* was never the
+  // problem: expo-location's plugin injects `UIBackgroundModes: ['location']` whenever
+  // `isIosBackgroundLocationEnabled` is true, and it has been true (app.json plugins[5]).
+  //
+  // Asked HERE, at run start, and never at first launch — Sean's primer ruling (2026-08-26) keeps
+  // the single first-launch ask at When-In-Use. iOS presents Always as a SECOND prompt and may
+  // defer it; asking at the moment tracking begins is both the honest context and the only one
+  // where a refusal is meaningful.
+  //
+  // ⚠ A background refusal is NOT fatal and must never be. Foreground tracking still works, the
+  // run screen already renders its `trackMode === 'foreground'` banner, and downgrading a working
+  // run to `denied` over a permission the runner may reasonably withhold would be worse than the
+  // defect. Best-effort escalate, then let the task attempt decide.
+  let bgGranted = false;
+  try {
+    const bg = await Location.getBackgroundPermissionsAsync?.();
+    bgGranted = !!bg?.granted;
+    if (!bgGranted && bg?.canAskAgain !== false) {
+      const asked = await Location.requestBackgroundPermissionsAsync?.();
+      bgGranted = !!asked?.granted;
+    }
+  } catch {
+    // Older build without the background API, or the OS refused to present. Neither is a denial
+    // by the runner, so we claim nothing — the task attempt below is the real test either way.
+    bgGranted = false;
+  }
+
   // ---- preferred path: background location task ----
   try {
+    if (!bgGranted) throw new Error('no_background_authorization');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const TaskManager = require('expo-task-manager');
     if (TaskManager.isTaskDefined(BG_TASK)) {

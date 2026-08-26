@@ -74,7 +74,7 @@
           "locationAlwaysPermission": "러닝 중에는 화면이 꺼져 있어도 거리와 경로를 기록해요 — 보호자에게 보여줄 실제 거리이자 정산 기준이에요. 러닝을 종료하면 기록도 멈춰요.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true,
-          "isAndroidBackgroundLocationEnabled": false
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [
