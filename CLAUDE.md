@@ -120,6 +120,30 @@ invisible in the exit status, and two sessions hit it within one hour on 2026-08
 whole set** — ui6 reported one burned run and found three; the spec session audited its own and
 found one of three. Neither number was visible without looking.
 
+⚠ **THE LAW ABOVE IS NARROWER THAN THE TRUTH, and the general form was measured twice, on two
+different invocation shapes, by two sessions within the hour.** `codex exec` echoes the **entire
+prompt**, so it is not `VERDICT:` that is unsafe — **every token you put in the prompt is
+unsafe to grep for.**
+
+| run | shape | prompt | log | genuinely codex |
+|---|---|---|---|---|
+| 0131 review | prompt-as-**argv**, `-C`, review mode | 3,753 B | 4,667 B | **914 B** (banner, workdir, 2 error lines) — 47 of 63 log lines are the prompt |
+| roster consult | prompt-on-**stdin**, consult mode | 4,751 B | 5,612 B | **~861 B** — 3 prompt-unique strings each hit once |
+
+Different subcommand shape, different mode, same result: **~80–85% of a burned log is your own
+question read back to you.** So the rule is not "grep for a verdict value instead of the word" —
+that is only the instance with a gate attached. The rule is:
+
+> 🔴 **Never confirm that codex answered by grepping for anything you asked for. Match only
+> strings codex can produce and you did not write** — a verdict VALUE (`APPROVE` /
+> `APPROVE-WITH-FIXES` / `REJECT`, never the `<A|B|C>` placeholder), a `file:line` citation, a
+> finding count. If your prompt contains the pattern, the check passes by construction and is
+> anti-correlated with having asked rigorously.
+
+⚠ `< /dev/null` still matters and did its job: my run printed `Reading additional input from
+stdin...` and **returned** instead of wedging, which is the failure §announcer-10.9 describes.
+It prevents the hang; it does not prevent the echo.
+
 ⚠ Consequence for honesty, which is the part that costs something: **do not tell anyone a slice is
 "under codex review" until a verdict exists.** On 2026-08-26 a client fix was pushed with that claim
 attached and the review had already died; the correction had to be volunteered, because nothing
