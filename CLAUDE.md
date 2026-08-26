@@ -53,6 +53,22 @@ No mockups, fake numbers, or fabricated data in the app: bind real fields or omi
 
 HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Sean picks by number, implementation then binds real fields only.
 
+## Code review — codex is a standing gate (Sean, 2026-08-25)
+
+**「always check in with codex for code.」** Every code slice gets a codex pass before it is
+called done — not only migrations and not only when someone remembers. `codex exec --sandbox
+read-only -m gpt-5.2-codex -c model_reasoning_effort=high "<prompt>"`, pointed at the actual diff
+with the house laws and the specific failure modes that slice could have.
+
+Why it is a gate and not a nicety, from this week's measurements: a slice can be **896/0 on the
+harness with four green client gates and still be wrong** — those numbers answer "did I break a
+pin", never "does this disclose only what it must". Codex reads cold, with no author reasoning,
+which is the one thing an author cannot do for themselves. Pair it with an EXECUTING reviewer on
+anything security- or privacy-shaped: codex catches wrong reasoning and missing cases, an executing
+agent catches what actually happens — on 0128 the two disagreed, and the disagreement was the
+finding (codex found a leak that arms in the future; execution found three defects reachable today,
+one of them a permanent disclosure by inaction).
+
 ## Commit gate
 
 Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
