@@ -412,3 +412,28 @@ moves** — but the line numbers were wrong in this file and in what I relayed t
 and a reader following them lands on dead text. Found by the agent executing the §6.6 reversion,
 which read the file instead of inheriting my citation. **A correct claim with a stale citation is
 still a defect**: the next person verifies the pointer, not the sentence.
+
+## Phone in the 현장 반환 arm — NOT unruled. Ruled, built, and already refused once.
+
+Raised by a UI session as "NEW AND UNRULED — I'd fabricate a field if I drew it naively". Read at
+source; the framing inverts. Three measured facts:
+
+1. **The policy exists and is enforced.** `_club_phone_visible` (`0049:165-192`) is 전화 규칙 B:
+   호스트↔전원 · **보호자↔(자기 개의) 수락 러너, 양방향** · 그 외 호스트 경유(비공개). Its lifetime
+   gate is session `open`/`full` **OR unresolved custody** (`custody_phase <> 'resolved'` and
+   `service_state is distinct from 'ended'`) — so the 현장 반환 moment is inside the rule already.
+   Reveals are audited: `club_phone_access_log` (`0049:156`), written at `0049:236` / `0053:435`.
+2. **The data is deliberately absent.** `api.ts:3126-3127`: 「⚠ 연락처는 묻지 않는다.
+   profiles.phone 은 전원 NULL 이고 읽는 화면이 없다 — 받아두기만 하는 필드를 묻는 건 넛지가
+   아니라 수집이고, §12 가 전화 버튼을 거부한 것과 같은 이유다」.
+3. **§12 already refused a phone button**, and not on entitlement grounds — on the grounds that
+   collecting a field nobody reads is collection rather than a nudge.
+
+**Disposition: the affordance is NOT drawn, and the question put to Sean is the real one.** It is
+not 「is a runner entitled to the owner's number」 — the rule already says yes, for their own dog,
+during custody. It is **「do we start collecting phone numbers at all」**, which is a privacy
+decision carrying a prior NO. Framing it as a UI gap would have smuggled a reversal of §12 past
+him inside a screen.
+
+Until he moves it, the arm uses the shipped channel: `club_chat_messages` (`0008`, realtime
+publication added at `0049:150`). No empty state, no owed source, no fabricated field.
