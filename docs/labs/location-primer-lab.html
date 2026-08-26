@@ -1,0 +1,152 @@
+<title>위치 권한 프라이머</title>
+<style>
+:root{
+  --page:#F2F1EE; --card:#FFFFFF; --head:#221E3D; --body:#4A4759; --dim:#7C7889;
+  --line:#E2E0EA; --accent:#6C5CE7; --coral:#F0765A; --coralDeep:#E45F41;
+  --good:#3E7A55; --wash:#F6F5FB; --critical:#B3261E;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#131218; --card:#1D1B24; --head:#EDEBF3; --body:#B9B5C6; --dim:#8A8698;
+  --line:#312E3C; --accent:#9A8CFF; --coral:#F5876C; --coralDeep:#F0765A;
+  --good:#7CB894; --wash:#242130; --critical:#F2938B;
+}}
+:root[data-theme="dark"]{
+  --page:#131218; --card:#1D1B24; --head:#EDEBF3; --body:#B9B5C6; --dim:#8A8698;
+  --line:#312E3C; --accent:#9A8CFF; --coral:#F5876C; --coralDeep:#F0765A;
+  --good:#7CB894; --wash:#242130; --critical:#F2938B;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--head);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
+  padding:40px 20px 100px}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+.lede{color:var(--body);font-size:16px;max-width:70ch;margin:0 0 6px}
+.lede b{color:var(--head)}
+.warn{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--critical);
+  border-radius:10px;padding:14px 18px;margin:22px 0 34px;max-width:78ch;font-size:15px;color:var(--body)}
+.warn b{color:var(--critical)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:30px}
+.col{min-width:0}
+.tag{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+.num{font-size:26px;font-weight:800;color:var(--accent);line-height:1}
+.tname{font-size:17px;font-weight:800}
+.tnote{font-size:14.5px;color:var(--dim);margin:0 0 14px;min-height:42px}
+/* phone */
+.ph{background:var(--card);border:1px solid var(--line);border-radius:30px;padding:26px 22px 22px;
+  box-shadow:0 2px 0 rgba(0,0,0,.03);display:flex;flex-direction:column;min-height:498px}
+.notch{width:52px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 22px}
+.hd{font-size:23px;font-weight:800;line-height:1.32;letter-spacing:-.01em;margin:0 0 12px;text-wrap:balance}
+.bd{font-size:15px;color:var(--body);margin:0 0 14px}
+.bd b{color:var(--head);font-weight:700}
+.limit{font-size:15px;color:var(--dim);margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+.cta{margin-top:16px}
+.btn{display:block;width:100%;text-align:center;background:var(--coral);color:#fff;font-weight:800;
+  font-size:16px;padding:15px;border-radius:13px}
+.btn2{display:block;width:100%;text-align:center;color:var(--dim);font-weight:700;font-size:15px;
+  padding:13px;margin-top:4px}
+/* ② reasons */
+.rl{list-style:none;padding:0;margin:0 0 8px}
+.rl li{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.rl li:last-child{border-bottom:0}
+.rn{flex:0 0 22px;height:22px;border-radius:6px;background:var(--wash);color:var(--accent);
+  font-size:13px;font-weight:800;display:grid;place-items:center;margin-top:1px}
+.rt b{display:block;font-size:15.5px;font-weight:800;color:var(--head)}
+.rt span{color:var(--body)}
+/* ③ do / dont */
+.dd{display:grid;gap:9px;margin:2px 0 8px}
+.dd div{font-size:15px;display:flex;gap:9px;align-items:flex-start}
+.mk{font-weight:800;flex:0 0 auto}
+.yes .mk{color:var(--good)} .no .mk{color:var(--dim)}
+.no span{color:var(--dim)}
+.sub{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--dim);margin:12px 0 6px}
+/* ④ artifact */
+.art{background:var(--wash);border:1px solid var(--line);border-radius:15px;padding:16px;margin:0 0 16px}
+.stat{display:flex;gap:22px;align-items:baseline;margin-top:11px}
+.stat b{font-size:27px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.stat i{font-style:normal;font-size:14.5px;color:var(--dim);margin-left:3px}
+svg{display:block;width:100%;height:96px}
+.foot{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim);font-size:14px;max-width:80ch}
+</style>
+<div class="wrap">
+<h1>위치 권한 프라이머 — 4가지</h1>
+<p class="lede">첫 실행에서 <b>iOS 시스템 팝업이 뜨기 전에</b> 보여줄 화면. 시스템은 딱 한 번만 묻고, 여기서 거절당하면 앱 안에서는 다시 물을 수 없다 — 그래서 이 화면 하나가 러닝 제품 전체를 좌우한다. 번호로 골라 주세요.</p>
+
+<div class="warn"><b>⚠ 카피가 지킬 수 있는 약속의 한계 (측정됨):</b> <code>requestBackgroundPermissions</code>는 어디서도 호출되지 않고 <code>app.json</code>의 <code>UIBackgroundModes</code>는 <b>None</b>이다. 즉 <b>화면이 꺼지면 기록이 멈춘다.</b> 네 안 모두 「주머니에 넣어도 기록된다」를 약속하지 않는다 — 지금 빌드가 못 하는 일이기 때문. ③만 이 한계를 <b>대놓고 말한다</b>.</div>
+
+<div class="grid">
+
+  <div class="col">
+    <div class="tag"><span class="num">①</span><span class="tname">한 줄</span></div>
+    <p class="tnote">가장 짧다. 이유 하나, 한계 한 줄. 읽는 데 3초.</p>
+    <div class="ph">
+      <div class="notch"></div>
+      <p class="hd">러닝을 기록하려면<br>위치가 필요해요</p>
+      <p class="bd">달린 <b>거리</b>를 재고, 보호자에게 <b>실시간 지도</b>를 보여줘요.</p>
+      <p class="limit">러닝 중에만 사용하고, 끝나면 멈춰요.</p>
+      <div class="cta"><span class="btn">위치 사용 허용</span><span class="btn2">나중에</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tag"><span class="num">②</span><span class="tname">세 가지 이유</span></div>
+    <p class="tnote">쓰임새를 나눠 보여준다. 정보량 최대, 여전히 한 화면.</p>
+    <div class="ph">
+      <div class="notch"></div>
+      <p class="hd">위치는 이 세 가지에<br>쓰여요</p>
+      <ul class="rl">
+        <li><span class="rn">1</span><span class="rt"><b>거리 측정</b><span>달린 거리가 정산 기준이에요</span></span></li>
+        <li><span class="rn">2</span><span class="rt"><b>실시간 지도</b><span>보호자가 아이 위치를 봐요</span></span></li>
+        <li><span class="rn">3</span><span class="rt"><b>코스 기록</b><span>다녀온 길이 기록으로 남아요</span></span></li>
+      </ul>
+      <p class="limit">러닝 중에만 사용해요. 평소에는 추적하지 않아요.</p>
+      <div class="cta"><span class="btn">위치 사용 허용</span><span class="btn2">나중에</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tag"><span class="num">③</span><span class="tname">하는 것 / 안 하는 것</span></div>
+    <p class="tnote">신뢰 우선. 못 하는 일까지 먼저 말한다 — 정직하지만 약속이 가장 약해 보인다.</p>
+    <div class="ph">
+      <div class="notch"></div>
+      <p class="hd">위치로 하는 일,<br>하지 않는 일</p>
+      <p class="sub">하는 일</p>
+      <div class="dd">
+        <div class="yes"><span class="mk">✓</span><span>러닝 중 거리 측정</span></div>
+        <div class="yes"><span class="mk">✓</span><span>보호자에게 실시간 위치 공유</span></div>
+      </div>
+      <p class="sub">하지 않는 일</p>
+      <div class="dd">
+        <div class="no"><span class="mk">✕</span><span>러닝이 아닐 때 추적</span></div>
+        <div class="no"><span class="mk">✕</span><span>광고 목적 사용·제3자 판매</span></div>
+      </div>
+      <p class="limit">화면이 꺼지면 기록이 멈춰요 — 러닝 중에는 앱을 켠 채로 두세요.</p>
+      <div class="cta"><span class="btn">위치 사용 허용</span><span class="btn2">나중에</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tag"><span class="num">④</span><span class="tname">결과 먼저</span></div>
+    <p class="tnote">받게 될 것을 먼저 보여주고 묻는다. 설명이 가장 짧고 동기가 가장 세다.</p>
+    <div class="ph">
+      <div class="notch"></div>
+      <div class="art">
+        <svg viewBox="0 0 260 96" aria-label="러닝 경로 예시">
+          <path d="M12 78 C46 78 40 30 74 30 C108 30 100 66 136 62 C170 58 176 22 214 20 L246 18"
+                fill="none" stroke="var(--coral)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="12" cy="78" r="6" fill="var(--card)" stroke="var(--coral)" stroke-width="3.5"/>
+          <circle cx="246" cy="18" r="6" fill="var(--coral)"/>
+        </svg>
+        <div class="stat"><b>3.4<i>km</i></b><b>42<i>분</i></b></div>
+      </div>
+      <p class="hd">이 기록을 남기려면<br>위치가 필요해요</p>
+      <p class="limit">러닝 중에만 사용하고, 끝나면 멈춰요.</p>
+      <div class="cta"><span class="btn">위치 사용 허용</span><span class="btn2">나중에</span></div>
+    </div>
+  </div>
+
+</div>
+
+<p class="foot"><b>「나중에」에 대하여 —</b> 이 버튼은 <b>시스템 팝업을 띄우지 않는다.</b> 그게 이 화면의 핵심이다: 아직 이유를 모르는 사람이 반사적으로 거절해 iOS의 단 한 번뿐인 질문을 소모하는 일을 막는다. 「나중에」를 누르면 첫 러닝 시작 시점에 다시 물을 수 있다 — 시스템에는 아직 아무것도 묻지 않았으니까.<br><br>
+<b>측정 근거:</b> <code>app.json</code> <code>NSLocationWhenInUseUsageDescription</code> = 「러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요.」 — 네 안의 카피는 모두 이 문장과 같은 것을 약속하며, 그보다 넓게 약속하지 않는다.</p>
+</div>
