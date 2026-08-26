@@ -151,7 +151,14 @@ export default function HostConsole() {
   const review = dogs.filter((d) => d.approval === 'approved' && d.reviewNeeded === true);
   const doApprove = (d: DelegationDog, ok: boolean) => {
     Alert.alert(ok ? '승인' : '거절',
-      ok ? `${d.dogName}을(를) 승인할까요? 보호자에게 결제 요청이 발송돼요 (20분 홀드).`
+      // ⚠ [정직 2026-08-26] This said 「보호자에게 결제 요청이 발송돼요」 — an event that DOES NOT
+      // HAPPEN. Verified against the deployed RPC, not the migration file: `session_approve_dog`
+      // has `mints_intent = false, sets_hold = true` — it sets approval + a 20-minute hold and
+      // nothing else. The RPC even carries the ruling in its own body (0084 §F ④): 「요금 없음,
+      // '결제' 없음 … 이 단계에서 움직이는 돈은 없다」, because charging is after the run. So the
+      // host was told the app had asked the owner for money, and it had not. The line now states
+      // what the RPC actually does.
+      ok ? `${d.dogName}을(를) 승인할까요? 20분 동안 자리가 잡혀요.`
         : `${d.dogName}을(를) 거절할까요?`,
       [
         { text: '아직', style: 'cancel' },
@@ -168,11 +175,25 @@ export default function HostConsole() {
   // [감사 P0] 재검토 행은 approved라 session_approve_dog가 항상 not_pending으로 거절한다 — 정본은 session_review_dog
   const doReview = (d: DelegationDog, ok: boolean) => {
     Alert.alert(ok ? '변경 확인 — 재승인' : '재검토 거절',
-      ok ? `${d.dogName}의 변경 사항을 확인하고 재승인할까요?` : `${d.dogName}을(를) 거절할까요? 결제분은 전액 환불돼요.`,
+      // ⚠ [정직 2026-08-26] 「전액 환불」 was UNCONDITIONAL here, and it is the same false claim
+      // mirrored: on the ordinary path nothing has been charged, so it promised to return money
+      // that never moved. Payment happens after the run, so an approved dog is at charge_state
+      // 'hold' or 'none' for its whole pre-run life and only 'paid' has anything to refund.
+      // Now conditional on the server's own field. ⚠ Contrast session-cancel below (:284/:292):
+      // that 「전액 환불」 is CORRECT and is the model — it prints the real count the server
+      // returns (「N건이 환불 처리로 넘어갔어요」) instead of asserting an outcome. Do not
+      // "harmonise" the two; they differ because one of them knows.
+      ok ? `${d.dogName}의 변경 사항을 확인하고 재승인할까요?`
+        : d.chargeState === 'paid' && d.refundState === 'none'
+          ? `${d.dogName}을(를) 거절할까요? 결제분은 전액 환불돼요.`
+          : d.chargeState === 'hold'
+            ? `${d.dogName}을(를) 거절할까요? 잡아둔 자리가 풀려요.`
+            : `${d.dogName}을(를) 거절할까요?`,
       [
         { text: '아직', style: 'cancel' },
         {
-          text: ok ? '재승인' : '거절 (전액 환불)', style: ok ? 'default' : 'destructive',
+          text: ok ? '재승인' : d.chargeState === 'paid' && d.refundState === 'none' ? '거절 (전액 환불)' : '거절',
+          style: ok ? 'default' : 'destructive',
           onPress: () => run(() => reviewDelegation(d.sdId, ok), ok ? '재승인 실패' : '거절 실패', (m) =>
             m.includes('no_review') ? '재검토 대상이 아니에요 — 새로고침해 주세요' : null),
         },
@@ -371,7 +392,7 @@ export default function HostConsole() {
         ]} />
 
         {/* ---------- 1 심사 ---------- */}
-        <SecHead n="1" title="심사" sub="승인 = 결제 요청 발송" />
+        <SecHead n="1" title="심사" sub="승인 = 20분 자리 홀드" />
         {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
         {sess.delegatedCapacity === 0 && (
           <View style={s.capWarn}>
@@ -410,7 +431,7 @@ export default function HostConsole() {
             </Row>
             <Row style={{ gap: 8, marginTop: 10 }}>
               <Pressable onPress={() => doReview(d, true)} style={s.abtn}><Text style={s.abtnTxt}>변경 확인 — 재승인</Text></Pressable>
-              <Pressable onPress={() => doReview(d, false)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>거절 (전액 환불)</Text></Pressable>
+              <Pressable onPress={() => doReview(d, false)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>{d.chargeState === 'paid' && d.refundState === 'none' ? '거절 (전액 환불)' : '거절'}</Text></Pressable>
             </Row>
           </View>
         ))}
