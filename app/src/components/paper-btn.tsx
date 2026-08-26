@@ -73,9 +73,20 @@ export function PaperBtn({
         style,
         { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
           paddingVertical: climax ? 18 : 16, borderRadius: 0,
-          // [§7c] press-down에 즉시 반응. 정점 버튼은 조금 더 깊게 눌린다.
-          transform: [{ scale: pressed && !blocked ? (climax ? 0.955 : 0.96) : 1 }] },
+          // [§7c] press-down에 즉시 반응 — 단, 면이 있는 프라이머리는 아래의 '깊이 눌림'이
+          // 그 반응이므로 scale을 겹치지 않는다 (draw-button.tsx 선례: 둘을 겹치면 물렁해진다).
+          transform: [{ scale: pressed && !blocked && !filled ? 0.96 : 1 }] },
         { backgroundColor: fillFor(pressed) },
+        // [Sean 2026-08-26] 「all primary buttons should have a 3d kinda thing like you gave in
+        // the lab」 — 물리 키 문법, draw-button.tsx:226과 동일한 산식. 쉼: 4px 어두운 아랫변
+        // (paper.actionPressed #A83315 — #C6472C 면 위 1.34:1, draw-button의 실측 립).
+        // 눌림: translateY(3) + 변 1px — 변이 놓아주는 3px을 이동이 가져가서 아랫모서리가
+        // 제자리에 남는다. 키가 내려앉는 것이지 버튼이 움직이는 게 아니다.
+        // disabled는 평평하게 둔다: 죽은 키는 눌림 여행이 없다 — 회색만으로 말하던 비활성이
+        // 이제 물성으로도 읽힌다.
+        filled && !disabled && (pressed && !busy
+          ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
+          : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed }),
         (variant === 'secondary') && { borderWidth: 1, borderColor: disabled ? paper.faint : paper.line },
         (variant === 'destructive') && { borderWidth: 1, borderColor: disabled ? paper.faint : paper.critical },
         (variant === 'quiet') && { borderWidth: 1, borderColor: '#EEEEEE' },
