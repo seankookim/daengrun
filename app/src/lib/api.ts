@@ -721,17 +721,21 @@ export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive
 // 돌려주고 (0076 §B — PG에 프로필 id를 넘기지 않기 위한 별도 키; create-payment-intent가 이미
 // 같은 공개를 한다), ② 토스 페이지가 돌려준 일회용 authKey를 issue가 서버에서 빌링키로 바꿔
 // 저장한다. 빌링키 자체는 클라이언트에 절대 오지 않는다 — 돌아오는 건 brand+last4뿐이다.
-export async function prepareBillingAuth(): Promise<string> {
+export interface BillingAttempt { customerKey: string; nonce: string }
+
+export async function prepareBillingAuth(): Promise<BillingAttempt> {
   const { data, error } = await supabase.functions.invoke('register-billing-key', {
     body: { action: 'prepare' },
   });
   if (error || data?.error) throw await fnError(error, data);
-  return data.customer_key as string;
+  return { customerKey: data.customer_key as string, nonce: data.nonce as string };
 }
 
-export async function issueBillingKey(authKey: string): Promise<{ brand: string | null; last4: string | null }> {
+export async function issueBillingKey(
+  authKey: string, nonce: string, customerKeyEcho: string | null,
+): Promise<{ brand: string | null; last4: string | null }> {
   const { data, error } = await supabase.functions.invoke('register-billing-key', {
-    body: { action: 'issue', auth_key: authKey },
+    body: { action: 'issue', auth_key: authKey, nonce, customer_key: customerKeyEcho },
   });
   if (error || data?.error) throw await fnError(error, data);
   return { brand: data.brand ?? null, last4: data.last4 ?? null };
@@ -1090,6 +1094,11 @@ async function invokeTransition(bookingId: string, action: string, meta?: Record
 }
 
 // ---------- directed matching ----------
+import { runnerTierLabel } from './tier';
+// 재수출: 기존 호출부(runner/apply 등)가 api.ts에서 가져오던 경로를 그대로 유지한다.
+// ⚠ `export { x } from './y'`만 쓰면 이 파일 안에서는 x가 바인딩되지 않는다 — tsc가 잡았다.
+export { runnerTierLabel };
+
 export interface LiveRunner {
   profileId: string;
   name: string;
@@ -1128,7 +1137,7 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       profileId: r.profile_id,
       name: r.profiles?.name ?? '러너',
       district: r.profiles?.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -1158,7 +1167,7 @@ export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveR
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -1180,7 +1189,7 @@ export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -2404,7 +2413,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     name: rr.profiles?.name ?? '러너',
     district: rr.profiles?.district ?? '',
     avatarUrl: rr.profiles?.avatar_url ?? null,
-    tier: rr.tier === 'certified' ? '인증 러너' : rr.tier === 'veteran' ? '베테랑' : rr.tier === 'master' ? '마스터' : '지원자',
+    tier: runnerTierLabel(rr.tier),
     bio: rr.bio ?? null,
     specialties: rr.specialties ?? [],
     totalRuns: rr.total_runs ?? 0,

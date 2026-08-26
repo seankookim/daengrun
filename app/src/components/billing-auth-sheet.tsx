@@ -12,8 +12,11 @@ export interface BillingAuthProps {
   visible: boolean;
   /** register-billing-key `prepare`가 돌려준 값 — 위젯이 카드 입력 세션을 이 키에 묶는다. */
   customerKey: string | null;
+  /** 같은 `prepare`가 발급한 1회용 시도 토큰. 콜백 URL 양쪽에 실리고 `issue`가 되돌려받는다 —
+   *  WebView 안의 페이지가 콜백을 위조해도 이 값을 모르면 발급까지 가지 못한다 (codex #3). */
+  nonce: string | null;
   /** Toss가 authKey를 돌려줬다 — 아직 등록이 끝난 게 아니다. 서버 issue가 진실을 만든다. */
-  onAuthKey: (authKey: string) => void;
+  onAuthKey: (authKey: string, customerKeyEcho: string | null) => void;
   /** Toss가 실패를 말했다 (사용자 취소 포함). message는 Toss의 문장 그대로. */
   onFail: (message: string) => void;
   /** 사용자가 시트를 닫았다 (시도 없음). */
@@ -23,6 +26,6 @@ export interface BillingAuthProps {
 const Impl = lazy(async () => ({ default: (await import('./billing-auth-sheet-impl')).BillingAuthSheet }));
 
 export function BillingAuthSheet(props: BillingAuthProps) {
-  if (!props.visible || props.customerKey == null || TOSS_CLIENT_KEY == null) return null;
+  if (!props.visible || props.customerKey == null || props.nonce == null || TOSS_CLIENT_KEY == null) return null;
   return <Suspense fallback={null}><Impl {...props} /></Suspense>;
 }

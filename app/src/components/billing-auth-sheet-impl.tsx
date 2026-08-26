@@ -22,7 +22,26 @@ import type { BillingAuthProps } from './billing-auth-sheet';
 const SUCCESS_URL = 'https://daengrun.invalid/billing-ok';
 const FAIL_URL = 'https://daengrun.invalid/billing-fail';
 
-export function BillingAuthSheet({ visible, customerKey, onAuthKey, onFail, onDismiss }: BillingAuthProps) {
+// 🔴 정확 파싱 — `startsWith` 는 경계가 아니다 (codex #3). `https://daengrun.invalid/billing-ok`
+//    로 시작하는 URL 은 `…/billing-ok.evil.com/…` 도 포함하고, 무엇보다 WebView 의 기본 정책은
+//    모든 http(s) 이동을 허용하므로 **이 콜백 URL 자체가 출처 경계가 아니다**. 프로토콜·호스트·
+//    경로를 각각 비교하고, 그 위에 nonce 를 얹는다.
+const CB_HOST = 'daengrun.invalid';
+function callbackKind(raw: string): 'ok' | 'fail' | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:' || u.hostname !== CB_HOST) return null;
+    if (u.pathname === '/billing-ok') return 'ok';
+    if (u.pathname === '/billing-fail') return 'fail';
+    return null;
+  } catch { return null; }
+}
+
+// 토스 흐름이 실제로 도는 호스트만 허용한다. 나머지 이동은 막는다 — 카드 입력 페이지 안에서
+// 임의의 사이트로 나갈 이유가 없고, 나갈 수 있으면 그 페이지가 콜백을 위조할 무대가 된다.
+const ALLOWED_HOSTS = /(^|\.)tosspayments\.com$|(^|\.)toss\.im$/;
+
+export function BillingAuthSheet({ visible, customerKey, nonce, onAuthKey, onFail, onDismiss }: BillingAuthProps) {
   // 한 세션에 한 결과 — 토스 페이지가 리다이렉트를 두 번 밀어도 (뒤로가기/재시도 조합에서
   // 실제로 일어난다) authKey 콜백은 한 번만 나간다. 두 번 나가면 서버 issue가 두 번 뜨고,
   // 두 번째는 이미 쓰인 authKey로 402가 떠서 성공 직후에 에러 얼럿이 겹친다.
@@ -30,28 +49,42 @@ export function BillingAuthSheet({ visible, customerKey, onAuthKey, onFail, onDi
 
   const intercept = useCallback((nav: WebViewNavigation): boolean => {
     const url = nav.url ?? '';
-    if (url.startsWith(SUCCESS_URL)) {
+    const kind = callbackKind(url);
+    if (kind === 'ok') {
       if (!settled.current) {
         settled.current = true;
-        const authKey = new URL(url).searchParams.get('authKey');
-        if (authKey) onAuthKey(authKey);
+        const q = new URL(url).searchParams;
+        // nonce 는 서버가 이 시도를 위해 발급한 값이다. 없거나 다르면 이 콜백은 우리가 연 흐름의
+        // 것이 아니다 — 서버도 `issue` 에서 같은 값을 요구하므로 이건 두 번째 벨트다.
+        if (q.get('nonce') !== nonce) { onFail('카드 등록을 확인하지 못했어요'); return false; }
+        const authKey = q.get('authKey');
+        if (authKey) onAuthKey(authKey, q.get('customerKey'));
         else onFail('토스가 인증 키를 돌려주지 않았어요');
       }
       return false;
     }
-    if (url.startsWith(FAIL_URL)) {
+    if (kind === 'fail') {
       if (!settled.current) {
         settled.current = true;
-        // Toss가 실어 보낸 문장 그대로 — 카드는 토스 페이지에 입력됐으므로 그 카드에 대한
-        // 문장도 토스의 것이 정직하다. USER_CANCEL도 이 경로로 온다.
-        onFail(new URL(url).searchParams.get('message') ?? '카드 등록이 취소됐어요');
+        const q = new URL(url).searchParams;
+        // ⚠ 위조된 실패 URL 은 **공격자가 쓴 문장을 우리 네이티브 얼럿에** 띄울 수 있다
+        //    (codex #3). nonce 가 맞을 때만 토스의 문장을 그대로 쓰고, 아니면 우리 문장을 쓴다.
+        onFail(q.get('nonce') === nonce
+          ? (q.get('message') ?? '카드 등록이 취소됐어요')
+          : '카드 등록이 취소됐어요');
       }
       return false;
     }
-    return true;
-  }, [onAuthKey, onFail]);
+    // 콜백이 아닌 이동: 토스 도메인 안에서만 허용한다. about:blank 등 스킴 없는 초기 로드는
+    // URL 파싱에 실패하므로 통과시킨다 (첫 프레임이 여기로 온다).
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'https:' && u.protocol !== 'http:') return true;
+      return ALLOWED_HOSTS.test(u.hostname);
+    } catch { return true; }
+  }, [onAuthKey, onFail, nonce]);
 
-  if (!visible || customerKey == null || TOSS_CLIENT_KEY == null) return null;
+  if (!visible || customerKey == null || nonce == null || TOSS_CLIENT_KEY == null) return null;
 
   // V1 SDK — requestBillingAuth는 위젯 v2 RN SDK에 없다 (그 SDK는 결제위젯 전용). 페이지는
   // 로드 즉시 토스의 카드 입력 UI로 전환되므로 이 HTML 자체는 한 프레임도 보이지 않는다.
@@ -61,10 +94,10 @@ export function BillingAuthSheet({ visible, customerKey, onAuthKey, onFail, onDi
 <body><script>
   TossPayments(${JSON.stringify(TOSS_CLIENT_KEY)}).requestBillingAuth('카드', {
     customerKey: ${JSON.stringify(customerKey)},
-    successUrl: ${JSON.stringify(SUCCESS_URL)},
-    failUrl: ${JSON.stringify(FAIL_URL)},
+    successUrl: ${JSON.stringify(`${SUCCESS_URL}?nonce=${encodeURIComponent(nonce)}`)},
+    failUrl: ${JSON.stringify(`${FAIL_URL}?nonce=${encodeURIComponent(nonce)}`)},
   }).catch(function (e) {
-    location.href = ${JSON.stringify(FAIL_URL)} + '?message=' + encodeURIComponent(e.message || '카드 등록을 열지 못했어요');
+    location.href = ${JSON.stringify(`${FAIL_URL}?nonce=${encodeURIComponent(nonce)}`)} + '&message=' + encodeURIComponent(e.message || '카드 등록을 열지 못했어요');
   });
 </script></body></html>`;
 
