@@ -85,6 +85,17 @@ function HoloEdge({ id, top }: { id: string; top?: boolean }) {
   );
 }
 
+// ⚠ 코스 이름은 이미 km 토큰을 지닐 수 있다 (0100 `routes_name_km_agrees`: 이름이 「…5km」로
+// 끝나면 그 숫자가 routes.km과 일치하도록 강제된다). 이름 뒤에 km을 무조건 덧붙이면
+// 「송파 새내근린공원·온조마루근린공원 루프 1.52km 1.5km」처럼 같은 거리를 두 번 말한다
+// (Sean, 2026-08-26, 세션 열기 스크린샷: 「not sure what these double km measurements are」).
+// owner/request.tsx:695 가 같은 결함을 같은 이유로 이미 고쳤고 — 거기서는 이름을 RAW로 쓴다 —
+// 이 화면만 그 수리를 못 받았다. 다만 이름을 그냥 쓰기만 하면 토큰 없는 이름(「서래섬 유채 루프」)이
+// 거리를 아예 안 보여주므로, **토큰이 없을 때만** 덧붙인다.
+const KM_TOKEN = /\d+(?:\.\d+)?\s*km\s*$/i;
+const routeLabel = (r: { name: string; km: number }) =>
+  KM_TOKEN.test(r.name) ? r.name : `${r.name} ${r.km}km`;
+
 export default function ClubPage() {
   const df = useDisplayFont();
   const nf = useNumFont();
@@ -135,7 +146,15 @@ export default function ClubPage() {
   const [routesErr, setRoutesErr] = useState(false);
   const loadRoutes = () => {
     setRoutesErr(false);
-    fetchRoutes().then((rs) => setRoutes(rs.map((r) => ({ id: r.id, name: r.name, km: r.km })))).catch(() => setRoutesErr(true));
+    // ⚠ 동네로 좁힌다. 인자 없이 부르면 api.ts의 forTown(null)이 **도시 전체**를 돌려주고, 반포동
+    // 호스트가 송파·잠실·중랑·은평·강서·영등포·광진·성동·노원·강북·동대문 코스를 끝없이 스크롤하게
+    // 된다 (Sean, 2026-08-26: 「the host is stuck here because too long list」). 클럽 세션은 집결지에
+    // 모여 함께 뛰는 것이므로 다른 구의 코스는 애초에 고를 수 있는 대상이 아니다.
+    // 좁히다 목록이 비는 위험은 fetchRoutes가 스스로 처리한다 — 이 동네에 결과가 없으면 접미사
+    // 정규화와 동네 어휘 폴백을 차례로 밟는다 (api.ts:205-225).
+    fetchRoutes(club?.district ?? null)
+      .then((rs) => setRoutes(rs.map((r) => ({ id: r.id, name: r.name, km: r.km }))))
+      .catch(() => setRoutesErr(true));
   };
   const openSheet = () => {
     setSheetOpen(true);
@@ -604,7 +623,7 @@ export default function ClubPage() {
             )}
             {routes.map((r, i) => (
               <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.chip, routeIdx === i && s.chipOn]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{r.name} {r.km}km</Text>
+                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{routeLabel(r)}</Text>
               </Pressable>
             ))}
           </Row>
