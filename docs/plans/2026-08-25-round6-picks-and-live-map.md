@@ -110,3 +110,55 @@ owner's, if the owner is running — perspective, and **the host verifies, "perh
 So the card is a PASS, not a stage: something a participant can open at the gate, leave, and reopen;
 and the host's verification is a checklist action against the pair list rather than a scanner
 ceremony. Drawn that way in the lab, with the host side landing in the pair list (S3's other half).
+
+---
+
+# RULING — phone collection at onboarding (Sean, 2026-08-25)
+
+> "the owner inputs their phone number when they sign up no? … i think we should have the owner and
+> any new person insert phone number on onboarding for safety and contact purposes"
+
+## The factual half of his question, answered
+
+**No — onboarding does NOT collect a phone today.** Measured: `app/app/onboard/owner.tsx` and
+`app/app/onboard/runner.tsx` contain zero phone/전화/연락처 references. `profiles.phone` exists and
+is all-NULL. His recollection was of an intention, not a shipped field.
+
+## The ruling, and why it is NOT a contradiction of §12's refusal
+
+§12 refused a phone BUTTON, and `api.ts:3167` records the reason precisely: 「받아두기만 하는 필드를
+묻는 건 넛지가 아니라 수집이고」 — *asking for a field nobody reads is collection, not a nudge.*
+That refusal was conditional on there being **no reader**. Sean now names two: **safety** and
+**contact**, and the 현장 반환 arm is a concrete third. So this ruling satisfies the refusal's own
+condition rather than overriding it — the field acquires a purpose, which is exactly what it lacked.
+
+**Scope of his words:** 「the owner **and any new person**」 — owners AND runners, at onboarding.
+
+## What already exists, and what this actually costs
+
+**Already built, and it is the expensive half:** `_club_phone_visible` (0049:167) implements the
+disclosure policy (호스트↔전원 · 보호자↔자기 개의 수락 러너 양방향 · 그 외 호스트 경유), gated on
+session state OR unresolved custody, with `club_phone_access_log` writing an audit row on every
+reveal. **So the "who may see it" machinery is done.** What is missing is only the collection point
+and the render.
+
+**Owed:**
+1. The onboarding field itself (both roles), with validation and an honest optional/required stance.
+2. 🔴 **THE PRIVACY POLICY — SEAN-ONLY.** Collecting a phone is 개인정보 collection: the
+   개인정보처리방침 must state the item, the purpose, the retention period and the recipient
+   (a runner seeing an owner's number IS a third-party disclosure to that user). CLAUDE.md puts
+   "changing what users are told" on the Sean-only list, so **the policy text is his to write or
+   approve — no session drafts it into the app.** This is the gate, not the field.
+3. Retention: a phone outlives a session, so it needs a deletion path — `delete_my_account_tx`
+   already redacts columns and would need the new one (the 0122 dong lesson: a new column that
+   survives account deletion is the exact defect class that has bitten twice).
+4. Whether it is REQUIRED or optional at onboarding — a required field is a signup-funnel cost at
+   11 users; optional means the 현장 반환 arm still needs its empty state.
+
+## Also answered: the 봉인 paper lab was not deleted
+
+He asked whether yesterday's paper/봉인 lab was redesigned away. **It exists**:
+`docs/labs/enh-club-lab.html` (2026-08-24), and it still carries the consent-document 봉인 grammar.
+The club-v2 set is not its replacement — it is newer work for the delegation spec, drawn after the
+white-ground and type rulings. Both are alive; his preference for the current set is recorded, and
+it is consistent with the rulings that came between them.
