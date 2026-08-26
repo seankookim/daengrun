@@ -934,7 +934,25 @@ export default function ClubSessionShell() {
                         : `${d.ownerName ?? ''} 보호자`}
                     </Text>
                   </View>
-                  {d.chargeLabel && <ClubTag label={CHARGE_LABEL[d.chargeLabel] ?? d.chargeLabel} tone={d.chargeLabel === 'paid' ? 'volt' : 'dim'} />}
+                  {/* [honesty 2026-08-26] 동반 (owner_handled) and 위탁 (runner_delegated) are
+                      different arrangements — different money, different custody, different
+                      liability — and this row drew them identically. The server has always sent
+                      `custody` (0053:451; 0049 first defined club_session_roster and 0053 is the
+                      definition in force — both emit it, neither filters the roster on it), and
+                      the only consumer of roster.dogs in the app never read it. The client was
+                      throwing away the one field that carries the distinction.
+                      `chargeLabel` is host-only (0053:466) and carries charge_state, whose domain
+                      is exactly none|hold|paid (0040:26) — but CHARGE_LABEL maps only `paid`, so
+                      the old `?? d.chargeLabel` fallback printed the raw English tokens 'none' and
+                      'hold' as chips in a Korean UI. none/hold fold into 위탁 deliberately: this
+                      payload carries no approval or payment stage, so there is no honest word for
+                      them beyond naming the arrangement, and we do not invent one. Neither custody
+                      value → no chip at all (bind real fields or omit). */}
+                  {d.custody === 'owner_handled' ? (
+                    <ClubTag label="동반" tone="dim" />
+                  ) : d.custody === 'runner_delegated' ? (
+                    <ClubTag label={CHARGE_LABEL[d.chargeLabel ?? ''] ?? '위탁'} tone={d.chargeLabel === 'paid' ? 'volt' : 'dim'} />
+                  ) : null}
                 </Row>
               </View>
             ))}
