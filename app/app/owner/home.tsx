@@ -680,10 +680,17 @@ export default function OwnerHome() {
         <CourseStrip headerPad={layout.gutter} />
 
         {/* ══════════════════ 나 ══════════════════ */}
-        {/* 코스 둘러보기 — 스트립은 미리보기고, 전체 카탈로그로 가는 문은 따로 있어야 한다. */}
+        {/* 코스 둘러보기 — 스트립은 미리보기고, 전체 카탈로그로 가는 문은 따로 있어야 한다.
+            ⚠ sub 는 「반포 근처 코스를 볼 수 있어요」였다 — 모든 사용자에게 하드코딩된 동네
+              이름이라, 성수 계정이 바로 위 동네 코스 스트립과 합쳐 한 화면에서 세 동네를
+              주장했다 (Sean 2026-08-26 스크린샷). 이 화면에는 본인 district 가 없다(러너 각자의
+              district 만 있다). 그래서 한 낱말을 위해 요청을 하나 더 만드는 대신, **목적지가
+              실제로 하는 일**을 말한다: course-map 은 일부러 district 로 거르지 않고 전체
+              카탈로그를 픽업 지점 기준 가까운 순으로 보여준다(course-map.tsx:147-150, Sean 결정).
+              지어낼 필드가 없으면 참인 문장을 쓴다 — 없는 필드를 상수로 채우지 않는다. */}
         <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
           <DrawButton
-            title="코스 둘러보기" sub="반포 근처 코스를 볼 수 있어요"
+            title="코스 둘러보기" sub="전체 코스를 가까운 순으로 볼 수 있어요"
             ground="volt" art="elev" small
             onPress={() => router.push('/owner/course-map')}
           />

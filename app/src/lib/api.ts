@@ -179,6 +179,17 @@ function composeDesc(r: RouteRow): string {
 //  · fit(적합도) — 실 스코어러가 없다. 목업 96%를 실측처럼 보이지 않도록 필드째 뺀다.
 //    반환 타입의 Omit은 store.ts RouteInfo에서 fit이 사라지면 그대로 지우면 된다.
 //  · trace — 실좌표가 없으면 빈 배열. 목업 폴리라인을 코스 모양이라고 그리지 않는다.
+/** `profiles.district` → `routes.town`, the ONE normalisation that cannot be wrong: the same
+ *  token with the administrative suffix ('성수' → '성수동'). Measured 2026-08-26, unchanged from
+ *  2026-08-13: district ∈ {성수, 반포동, 뚝섬, 서울숲, null} while every one of the 37 town values
+ *  ends in 동 — so '반포동' matches exactly and '성수' matches only through here.
+ *  ⚠ It deliberately does NOT map 뚝섬/서울숲 → 성수동. That is a geographic judgement, not a
+ *    suffix, and code does not invent one; those fall through to fetchRoutes' loud unfiltered
+ *    fallback instead. Exported so the display side asks the same question the query asked —
+ *    a locality rule written twice is a rule that disagrees with itself on the day it matters. */
+export const townOf = (district: string | null | undefined): string | null =>
+  !district ? null : district.endsWith('동') ? district : `${district}동`;
+
 export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // 한 동네분을 읽는다: active 우선, 없으면 candidate (D-VIS 폴백, Sean 확정 A) —
   // 이 동네에 active가 0개면 candidate를 돌려준다. 파일럿이 예약을 만들 수 있어야 그 예약이
@@ -212,8 +223,9 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // judgement the comment below refuses (뚝섬 → 성수동); it is the one normalisation that cannot be wrong,
   // and it is what made Sean's own account (district '성수') fall through to the unfiltered list while a
   // 반포동 owner saw only 반포동 — two owners, two rules. (2026-08-20)
-  if (!town.endsWith('동')) {
-    const suffixed = await forTown(`${town}동`);
+  const normalised = townOf(town);
+  if (normalised !== town) {
+    const suffixed = await forTown(normalised);
     if (suffixed.length > 0) return suffixed.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
   }
 
