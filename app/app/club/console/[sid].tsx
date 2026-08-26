@@ -392,7 +392,7 @@ export default function HostConsole() {
         ]} />
 
         {/* ---------- 1 심사 ---------- */}
-        <SecHead n="1" title="심사" sub="승인 = 20분 자리 홀드" />
+        <SecHead n="1" title="심사" sub="승인하면 20분 동안 자리를 잡아둬요" />
         {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
         {sess.delegatedCapacity === 0 && (
           <View style={s.capWarn}>
@@ -450,11 +450,13 @@ export default function HostConsole() {
           // error the 2026-08-11 note refused for `paid`, pointed the other way.
           const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
           // [same guard as the proposal row] Never render an elapsed hold as '00:00 남음'.
-          // ⚠ [codex P1 2026-08-26] And once elapsed we do not fall back to a bare 「자리 잡는 중」
-          // either — that asserts a LIVE hold, and an elapsed one is exactly the case where the
-          // payload's claim has expired under us (the server recomputes charge_state to 'none' the
-          // moment `hold_expires_at` passes, 0048:763). So the chip DISAPPEARS at zero, landing on
-          // the same nothing that 'none' shows — which is where the next fetch puts it anyway.
+          // ⚠ [codex P1 2026-08-26] And once elapsed we do not keep saying 「자리 잡는 중」 either —
+          // that asserts a LIVE hold, and an elapsed one is exactly the case where the payload's
+          // claim expired under us (the server recomputes charge_state to 'none' the moment
+          // `hold_expires_at` passes, 0048:763). At zero the row falls to the SAME 「자리 미확정」
+          // that 'none' renders — which is what the next fetch will say anyway. It does not go
+          // blank: an earlier draft made it disappear, and codex found that a vanishing row leaves
+          // an approved dog visible in no section of this console at all.
           const ticking = holdLeft != null && holdLeft > 0;
           return (
             <View key={d.sdId} style={s.drow}>
@@ -468,9 +470,17 @@ export default function HostConsole() {
                   <ClubTag label="자리 확정" tone="volt" />
                 ) : d.chargeState === 'hold' && ticking ? (
                   <ClubTag label={`자리 잡는 중 · ${mmss(holdLeft!)}`} tone="amber" />
-                ) : null /* 'none', or a 'hold' whose window has already elapsed. The payload does
-                            not say WHY there is no live hold, so no word: a chip here would be
-                            invented state (honesty law). */}
+                ) : (
+                  /* 'none', or a 'hold' whose window has already elapsed — both mean no seat is
+                     secured right now. ⚠ The row MUST render something: gating it out instead made
+                     an ordinary approved dog visible in no section of this console at all (§1 is
+                     pending/review, §3 filters `paid`), and under pay-after-run 'none' is the
+                     RESTING state for almost all of a dog's pre-run life, so that is the common
+                     case, not an edge. The word is a POSITIVE statement on the same axis as the
+                     other two — 미확정 → 잡는 중 → 확정 — rather than a negation about a mechanism,
+                     which is what makes it readable on every row instead of noise. */
+                  <ClubTag label="자리 미확정" tone="dim" />
+                )}
               </Row>
             </View>
           );
