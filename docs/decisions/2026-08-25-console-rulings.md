@@ -1118,3 +1118,47 @@ recorded as what they are.
    as "it closes when X happens", ask what if X never happens.* So this is **one question short**,
    and the honest move is to ask it rather than to build a reading of it. Queued as a console card,
    not as a build.
+
+## 2026-08-26 05:00–05:02Z — five more. Two are questions BACK, and one contradicts my advice.
+
+| id | choice / comment | at |
+|---|---|---|
+| `remove-dog-or-person` | *(no button)* 「what do you mean send a dog mid walk?」 | 05:00:49Z |
+| `mark-absent` | `Let the host mark no-shows` | 05:00:57Z |
+| `removal-told` | *(no button)* 「why would removal be necessary and in what situation and what step in the flow of the club session?」 | 05:01:28Z |
+| `backup-powers` | `Host only` | 05:01:37Z |
+| `packend-numbers` | `Compute it server-side` | 05:02:21Z |
+
+### 🔴 The two questions are the finding, and they are aimed at the FEATURE, not the details
+
+`removal-told` does not answer 「is the removed person told」. It asks **why removal exists at all,
+and where in the session flow it happens.** That is a premise question about a feature whose other
+three sub-questions he had just been answering — and the honest answer is that **removal exists
+because of a chain that starts with his own earlier ruling**, not because anyone identified a need:
+
+1. He removed host approval for joining (owners and runners sign up freely).
+2. That approval button was the **only** mechanism that could keep anyone out of a session.
+3. I surfaced the resulting gap; he ruled `Host can remove someone from one walk` (2026-08-25
+   09:04:13Z).
+4. Three contracts' worth of questions then followed **from step 3**.
+
+⚠ **Nobody has ever named a situation that requires it.** The gap was found by reasoning about a
+mechanism, not by observing a need — and the card that surfaced it also carried the 「11 accounts」
+error (the real user count is zero). So the scale argument that made it feel worth building was
+itself wrong. **Whether the feature should exist is now an open question, and it is upstream of
+`mark-absent`, `backup-powers` and `removal-told` — all three are answers about a feature whose
+existence is being questioned.** Recorded as answered; NOT built until the premise is settled.
+
+### `packend-numbers = server` goes against the recommendation. Recorded as his call.
+
+The card recommended waiting for each runner's phone, on the ground that server-side derivation
+means **one host tap writes N ledger rows and, post-cutover, charges N owners' cards**. He chose
+server-side anyway. That is his to choose and the concern was stated once; it is not re-litigated.
+
+**But the hazard is separable from the choice, and the build must separate it.** The objection was
+never to computing from the trace — it was to *one tap having a charge as its direct consequence*.
+So: the host's 러닝 종료 ends the walk and derives each runner's numbers from **that runner's own
+uploaded trace**, and the **charge remains its own gated step**, exactly as it is today. That
+delivers what he asked for and leaves no button whose single press bills a group of people.
+⚠ If a later slice collapses those two steps, this note is the record that the collapse was never
+what was decided.
