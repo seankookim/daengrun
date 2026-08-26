@@ -519,6 +519,37 @@ anything reaches an environment · `/investigate` on a live defect · `/retro` a
 finding is a snapshot, so re-read before acting on it, and claim shared surfaces in REGISTRY's
 in-flight table (path-keyed, tree named) before a subagent edits one.
 
+🔴 **A REBASE CAN COMMIT CONFLICT MARKERS, SILENTLY — GREP THE FILE, NOT THE EXIT STATUS**
+(measured 2026-08-26 on `REGISTRY.md`, and verified by a peer who said they would have walked
+into it).
+
+`git add <file>` + `git rebase --continue` does **not** check that the file still contains
+`<<<<<<<`. A resolver script whose pattern does not match the marker shape leaves them in place,
+the `add` stages them, the rebase reports **success**, and the commit lands with three conflict
+markers inside a file every slice reads. Measured: the resolve was a regex, the regex missed, its
+own assertion fired — and the commit happened anyway, because the assertion was in the resolver
+and the commit was a separate command.
+
+**REGISTRY.md is where everyone will meet this**, because it is the one file every migration slice
+touches, so every parallel slice conflicts on it and every one of those conflicts is resolved in a
+hurry at the end of a long task.
+
+**The check, and it is three shapes not one** — a resolver that strips `<<<<<<<` and `>>>>>>>` but
+leaves the bare `=======` produces a file that greps clean on the obvious pattern:
+```
+grep -c '^<<<<<<<\|^>>>>>>>\|^=======' <file>     # must be 0, BEFORE the commit
+```
+Same family as every other law in this file: the tool's report is a claim, the artifact is the
+fact. And the same remedy — **read the file back from origin after the push** — is what catches it
+if the pre-commit grep is forgotten.
+
+⚠ **A number collision has the same shape and the same only-fix.** Two-sided at claim time is
+CORRECT and can still lose, because it answers 「is this number taken **now**」 while the question
+that bites is 「will it be taken **when I push**」. Measured 2026-08-26: `0135`/suite `168` were
+free at claim, another session landed them during the build, and the push 「succeeded」 — onto a
+trunk where `ls-tree` returned *their* filename in my slot. Nothing in the claim-time check could
+have seen it. **Read the artifact back from origin after every push; renumber from there.**
+
 🔴 **`git add … && git commit` IS UNSAFE WHILE ANY OTHER AGENT CAN WRITE YOUR TREE — use
 `git commit -- <explicit paths>`** (added 2026-08-25; failure measured, fix measured).
 
