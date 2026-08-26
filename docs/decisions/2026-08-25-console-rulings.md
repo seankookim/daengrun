@@ -970,3 +970,41 @@ today by coincidence of authorship. A pin belongs in a later slice.
 - **F-6/7.** A *widened* CHECK passes VERIFY silently (fail-closed in the leak direction), and
   VERIFY ⑤ counts `raise exception`/`not_runner` occurrences in `prosrc` **including comments** —
   a future comment breaks the apply.
+
+## Production definer sweep — the whole ACL class is LATENT, not breached. Measured twice.
+
+The audit's production verification came through after it had already committed, so it re-measured
+and amended rather than leaving `[U]` entries standing. **I then re-ran its central claim
+independently and got the identical numbers:**
+
+| | audit | my re-measure |
+|---|---|---|
+| public SECURITY DEFINER functions | 219 | **219** |
+| PUBLIC-executable | 0 | **0** |
+| anon-executable | 0 | **0** |
+| NULL ACL | 0 | **0** |
+
+**So every one of the 81 baselined preservation-reliant occurrences is latent in production, none
+breached** — including `0121:240`'s `club_incident_settle_quote`, measured live as
+`postgres=X authenticated=X service_role=X`, `secdef=true`, **with no bare `=X/postgres`**. That
+function has been carried all day as a known latent hole on a relayed row; it is now measured.
+
+**And Slice A's boundary is holding in production, measured rather than inferred:** all three
+`dogs` columns present, the pair-CHECK present, the enum present with `typtype='e'` — matching
+suite 161's P6 signature assertion exactly.
+
+⚠ **Two things the audit deliberately did NOT claim, and both are the green-light law applied
+correctly to its own result:**
+1. **This is not evidence that `98 H9` is green.** H9 asserts a property of the schema the
+   *harness* builds from scratch; this measured the *deployed* database. **Different databases,
+   different sentences.** It declined to run the harness because other sessions are live in this
+   tree — the fleet law over a convenient number.
+2. **The aggregate zero does not clear the 81 individually.** It makes a per-function walk
+   redundant *for safety*, not *for bookkeeping*.
+
+⚠ **One discrepancy recorded and deliberately not chased — flagged so nobody uses a number as a
+denominator without checking it:** `check-definer-acl.mjs`'s header cites **221** public definers,
+`98:108` cites **219**, the live count is **219**, and a source-corpus count is **224**. The
+property holds on every one of them, so nothing is wrong today — but **four numbers claiming to
+count the same thing disagree**, and the first person to build a ratio or a coverage claim on one
+of them will be building on sand.
