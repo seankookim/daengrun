@@ -144,6 +144,17 @@ that is only the instance with a gate attached. The rule is:
 stdin...` and **returned** instead of wedging, which is the failure §announcer-10.9 describes.
 It prevents the hang; it does not prevent the echo.
 
+⚠ **AND CONFLATING THE TWO COSTS A RUN AGAINST AN ALREADY-EXHAUSTED QUOTA.** Measured 2026-08-26
+by the peer, self-corrected: their first attempt already carried `< /dev/null`, printed
+`Reading additional input from stdin...`, emitted `thread.started` and **returned** — so it was
+never the wedge. They recognised a known-bad symptom, **named it as the wedge, and re-ran**,
+burning a second invocation against a quota that was already spent. **Both attempts were the
+usage wall the entire time, and the answer was sitting in the tail of the first log.**
+The rule that falls out is small and general: **when you meet a symptom you have a name for,
+read the tail before you act on the name.** A familiar symptom is a hypothesis, not a diagnosis —
+and `Reading additional input from stdin...` is printed on the ordinary path, so it carries no
+information about whether anything went wrong.
+
 ⚠ Consequence for honesty, which is the part that costs something: **do not tell anyone a slice is
 "under codex review" until a verdict exists.** On 2026-08-26 a client fix was pushed with that claim
 attached and the review had already died; the correction had to be volunteered, because nothing
