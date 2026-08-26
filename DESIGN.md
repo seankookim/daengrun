@@ -132,11 +132,26 @@ addresses):
   ("BUG A"). `tabular-nums` for data.
 - **Body: IBM Plex Sans KR** (`useBodyFont`/`useBodyBold`) — system fonts are
   retired ("시스템폰트 박멸", upheaval lab).
+  ⚠⚠ **THIS LINE IS CONTESTED AND THE CONFLICT IS UNRESOLVED — do not act on either side without
+  Sean.** On 2026-08-25 he named IBM Plex Sans KR as "the old v0 font" and had it removed from the
+  labs, which now run on the system Korean stack. Whether that ruling was LABS-ONLY or product-wide
+  was never asked: the labs dropped it, `theme.ts` still sets `BODY_FONT =
+  'IBMPlexSansKR_400Regular'`, and this line still mandates it. **So the app and the labs currently
+  disagree about the body face, and two 정본 documents disagree about the rule.** Recorded rather
+  than silently resolved in either direction — swapping a product-wide body face on an inference is
+  exactly the class of move this file exists to prevent. One word from him settles it.
 - Weight law: **900 only for numbers and screen titles.** Body/labels at 900
   flatten hierarchy (ui-audit).
-- **Detail-text floor: 14pt.** Exemptions: LATIN letterspaced caps kickers,
-  serial/MRZ strings, barcode/stamp glyphs. Korean text never rides the kicker
-  exemption — data in a kicker slot renders ≥14 (2026-08-10 audit law).
+- **Detail-text floor: 15pt** (raised from 14 on 2026-08-25 — Sean, with a screenshot of owner
+  home: *"some parts of the home screen has very small font text sizes; not acceptable and are
+  illegible"*; §2's amendment carries the ruling and this line is the one a new session greps, so
+  it must not lag it). Exemptions unchanged: LATIN letterspaced caps kickers, serial/MRZ strings,
+  barcode/stamp glyphs. **Korean text never rides the kicker exemption** — data in a kicker slot
+  renders ≥15. 14 survives ONLY inside those exempt classes.
+  ⚠ Measured consequence when this was applied (owner/home, runner/home, home-hero): the chunk
+  kickers were not merely under the floor, they were **smaller than the module headers nested
+  inside them** — raising them to the bare minimum would have preserved an inverted hierarchy, so
+  they went to 19. A floor fix is not a find-and-replace.
 - **Logo artwork is the one Korean exemption, and it must be declared (2026-08-12).**
   The wordmark — `도그스하이` set as a *mark* rather than a sentence (`shot/[bid].tsx`'s
   `IconChip` and its lockup) — is drawing, not text. It may sit below the floor, but only
