@@ -2889,7 +2889,7 @@ export async function fetchBookingBrief(id: string): Promise<{ status: string; r
 }
 
 // Radar's alert row — one booking, the five fields that row prints, nothing else.
-// Deliberately NOT fetchMyBookings(): that pulls 20 rows with five embeds and is capped at 20,
+// Deliberately NOT fetchMyBookings(): that pulls five embeds per row and is now UNCAPPED (#17),
 // so a real booking can legitimately fall out of it. The alert row must never guess, so it reads
 // its own row. Any field the server does not have comes back null and the screen omits it.
 export async function fetchBookingCard(id: string): Promise<{
@@ -4401,8 +4401,20 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
     .eq('owner_id', user.user?.id ?? '')
-    .order('scheduled_at', { ascending: false })
-    .limit(20);
+    // ⚠ NO `.limit()`. Sean, console #17 (2026-08-25): 「Fix the list」 + 「keep everything」.
+    // The cap that stood here was `.order('scheduled_at', DESC).limit(20)`, which kept the
+    // FURTHEST 20 bookings and silently dropped the NEAREST ones — the owner's 내 일정 hid the
+    // booking that was about to happen while showing one months out. It also silently capped the
+    // B① relevance sort he picked on 08-24 (schedule.tsx sorts what it is handed; it cannot sort
+    // what never arrived).
+    // ⚠ THIS FIX WAS ONCE APPLIED TO THE WRONG FUNCTION. Commit b85ce82's message claimed
+    // fetchMyBookings had been uncapped; the diff had removed the limit from `fetchRunnerJobs`
+    // (the RUNNER's list) and left this one intact for another day, with a comment on the other
+    // function asserting the owner's list was fixed. A commit message is not evidence.
+    // Scale note, so nobody re-adds a window: PostgREST's own default cap becomes the ceiling
+    // here. When that is reached the answer is PAGINATION (or a windowed query keyed to NOW),
+    // never a re-introduced `.limit()` that drops the near end.
+    .order('scheduled_at', { ascending: false });
   if (error) throw error;
 
   return (data ?? []).map(mapMyBooking);

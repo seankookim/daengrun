@@ -182,13 +182,14 @@ export default function OwnerHome() {
     if (bkFlight.current) { bkAgain.current = true; return; }
     bkFlight.current = true;
     setBookingsErr(false);
-    // [B9] 목록과 '진행 중'을 함께 읽는다. fetchMyBookings는 scheduled_at DESC + limit 20이라
+    // [B9] 목록과 '진행 중'을 함께 읽는다. ⚠ fetchMyBookings의 limit(20)은 2026-08-26에 제거됐지만(#17)
+    // 이 합집합은 그대로 둔다 — 진행 중 예약이 목록에 없을 수 있는 이유는 창이 아니라 상태 필터이고,
     // 미래 예약이 20건을 넘으면 지금 진행 중인 건(= 그 20건보다 과거)이 창 밖으로 밀려나고,
     // 개가 나가 있는 동안 히어로가 '비어 있어요'로 접혔다. 두 번째 리더는 IN_FLIGHT를 캡 없이
     // 읽어 그 행이 **목록에 있게만** 한다 — 고르는 일은 아래 정렬이 그대로 전담한다.
     Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
       .then(([bs, inFlight]) => {
-        // 합집합 — 20행 창에 이미 들어 있으면 중복시키지 않는다 (id 기준).
+        // 합집합 — 목록에 이미 들어 있으면 중복시키지 않는다 (id 기준).
         // ⚠ [정정 2026-08-21] 겹치는 행은 **진행 중 사본이 이긴다.** 두 읽기는 동시에 나가므로 그
         // 사이에 전이가 착륙하면 목록 사본이 한 단계 낡을 수 있고(confirmed vs active), 먼저 온
         // 쪽을 그냥 두면 히어로가 낡은 쪽을 그린다 — 실시간 이벤트를 한 번 놓치면 새로고침까지
@@ -221,7 +222,7 @@ export default function OwnerHome() {
         //   ③ confirmed·pending 만 — 진행 중(handoff·active)은 히어로/라이브 위젯이 이미 말하고 있고,
         //      레일 행에 코랄이나 라이브 어휘를 들이면 '내 차례'가 두 곳에서 켜진다.
         //   ④ no_show·incident_review 는 히어로와 같은 stale() 로 제외 — 다가오는 러닝이 아니다.
-        // 가까운 순으로 2건. 정렬은 도착한 행 안에서만 참이다 (fetchMyBookings 의 20행 창 — 아래 주석).
+        // 가까운 순으로 2건. (#17 이후 창이 없으므로 이 정렬은 무조건 참이다.)
         const nowMs = Date.now();
         setUpcoming(
           rows.filter((b) => b.id !== next?.id && !stale(b)
