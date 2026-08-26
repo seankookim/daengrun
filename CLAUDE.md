@@ -272,6 +272,26 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   `payout_state='none'` for `owner_handled`, under a live `BEFORE INSERT OR UPDATE` trigger
   (`club_v1_axes_sync`), so every write recomputes it and `'payable'` is unreachable. Blind by
   construction, not by filter ordering.
+  ⚠ **「by construction」 WAS DOING WORK NO OBSERVATION SUPPORTED. Corrected the same day, and the
+  correction is a template for any claim of that form** — a peer took my own list of unclosed paths
+  as a coordinate and read the deployed trigger body. The honest form is a LADDER, not a verdict,
+  because three of these four rungs are reads and only one is an observation:
+
+  | path by which `owner_handled` could reach `payout_state='payable'` | epistemic status |
+  |---|---|
+  | INSERT | **OBSERVED** — a hand-written row returned `payout_state = none` having never been given one |
+  | UPDATE | **READ from the deployed trigger** — `BEFORE INSERT OR UPDATE`, **no `WHEN` clause**, and the assignment is unconditional. Not observed |
+  | custody flip `runner_delegated → owner_handled` on a row already `payable` | **READ** — `_club_sync_axes_tg` calls `_club_compute_axes(**new**)`, so the flip's own UPDATE takes the `owner_handled` branch and forces `'none'` in the same statement. The value cannot ride across |
+  | trigger disabled · `session_replication_role` | **OPEN** |
+
+  Verified independently against production `prosrc` before adopting: `payout_state := j->>'payout_state'`
+  **unconditional** (`payout_guarded=false`) while `service_reason := coalesce(…, new.service_reason)`
+  in the SAME function is **guarded** — so the author knew how to preserve a caller's value and chose
+  not to here. ⚠ **That contrast is load-bearing: an unguarded assignment that reads like an oversight
+  is exactly what a later session "tidies".** It is deliberate. Leave it.
+  🔴 **The general rule: write the rung, not the verdict.** 「By construction」, 「provably」, 「cannot」
+  are verdicts, and a verdict lets three read-only rungs borrow the status of the one that was
+  measured. Say which rung each claim stands on, and an open rung stays visibly open.
   ⚠ The damage was not the wrong grep — it was that I turned it into a **recommendation to Sean**
   while flagging it as only 「probably」 safe. Hedging language does not make an unverified premise
   safe to act on; it just makes the error harder to challenge. **When a claim is load-bearing for
