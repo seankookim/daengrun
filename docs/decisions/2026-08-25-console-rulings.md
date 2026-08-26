@@ -543,3 +543,30 @@ rather than faking a feed — correct call, and the feature is not buildable unt
 The 도착 tap in the 집 반환 arm is currently a screen transition, not a record. If it must be a
 record — and the two-sided ritual arguably wants one — that is a column, and it belongs to the
 same slice as `return_mode` rather than being bolted on later.
+
+## Eleventh round — the two phone questions, answered 2026-08-26T01:46Z (console)
+
+| Card | His answer | Time (UTC) |
+|---|---|---|
+| `phone-policy` | **"Add it to the lawyer email"** | 01:46:38 |
+| `phone-required` | **"Required"** | 01:46:47 |
+
+**1. The 개인정보처리방침 text goes to COUNSEL, not to me and not to him.** Cleanest of the three
+options: the collection line rides the pending legal email alongside the 맹견-removal line, so a
+lawyer writes the wording for a lawyer's document. **Consequence for sequencing, stated plainly:
+the phone slice's SHIP gate is now an external dependency** — it waits on counsel's reply, not on
+our build queue. The build (collection point, render, tombstone-keyed deletion clear) can proceed;
+what cannot proceed is turning collection on for real users before the policy names it.
+
+**2. Phone is REQUIRED at signup.** So the onboarding form gains a required field, and the funnel
+cost is accepted deliberately at 11 accounts.
+
+⚠ **"Required" does NOT mean the empty state disappears — it means the opposite is permanent.**
+All 11 existing accounts have no number and nothing backfills them. A required field binds only
+NEW signups, so for the entire current cohort the 현장 반환 arm falls back to `club_chat_messages`
+indefinitely. The empty state is the path for every user who exists today, not a transitional
+nicety. Anyone drawing that screen must render it as a real state.
+
+⚠ **Do not let "required" leak into a retro-active gate.** Requiring the field at signup is not a
+licence to block an existing user from a session until they supply one — that would be a new
+refusal Sean did not rule, applied to people who joined under different terms.
