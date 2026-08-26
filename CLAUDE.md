@@ -257,7 +257,26 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   strongest possible false green: it reads as proof to every later grep.** **(b)** verifying the
   real fix, a grep inside the right function returned 1 — the hit was the new comment quoting the
   removed line — and for a moment read as 「the push did not land」. **So: verify against
-  EXECUTABLE lines, never raw text** (`grep -vE '^\s*(//|\*|/\*)'` before counting), and treat a
+  EXECUTABLE lines, never raw text**
+
+  🔴 **AND A COLUMN NAME IS A SUBSTRING OF EVERY LONGER COLUMN NAME CONTAINING IT — anchor the
+  word, or the grep answers a question you did not ask** (2026-08-26, fourth instance of this shape
+  in one day and the only one that changed a DECISION). I reported that `club_release_payouts`
+  「references `custody` and `payout_state`, so it is custody-aware」 and recommended against a
+  production write on that basis. Measured on the deployed function:
+  `prosrc ~ '[^_]custody[^_]'` → **false**. The only match was **`custody_phase`** — a different
+  column with a different domain (`with_custodian|outbound_pending|…`) from `custody`
+  (`owner_handled|runner_delegated`). A peer overturned it in one query.
+  The true answer, in the checkable form: **provably blind by `payout_state = 'payable'`
+  (`0072:227`)** — and doubly so, because `_club_compute_axes`'s FIRST branch forces
+  `payout_state='none'` for `owner_handled`, under a live `BEFORE INSERT OR UPDATE` trigger
+  (`club_v1_axes_sync`), so every write recomputes it and `'payable'` is unreachable. Blind by
+  construction, not by filter ordering.
+  ⚠ The damage was not the wrong grep — it was that I turned it into a **recommendation to Sean**
+  while flagging it as only 「probably」 safe. Hedging language does not make an unverified premise
+  safe to act on; it just makes the error harder to challenge. **When a claim is load-bearing for
+  advice, the one-query check is not optional** — and `~ '[^_]col[^_]'` or `\mcol\M` costs the
+  same as `~ 'col'`. (`grep -vE '^\s*(//|\*|/\*)'` before counting), and treat a
   symptom-naming comment as evidence of nothing. Same family as the substring-detector law in
   §Operations: a check whose pattern appears in both the fixed and unfixed states is not weak, it
   is uninformative.
