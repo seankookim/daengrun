@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
--- 0129 — the club return-address arm, CORRECTED. Mode columns + a five-conjunct custody arm.
+-- 0129 — the club return-address arm, CORRECTED. Mode columns + a six-conjunct custody arm.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- Contract: `docs/contracts/club-return-address-arm-contract.md` — read CONTRACT v2 and the two
 -- corrections after the horizontal rules, not just §0-§5 above them. Sean, 2026-08-25: 「go ahead
@@ -80,14 +80,27 @@
 --      database where it is absent the statement below is a plain CREATE and the function would
 --      be born PUBLIC-executable (0116:636). `check-definer-acl.mjs` refuses this file without
 --      the pair.
---      🔴 NEW IN 0129: **`service_role`'s EXECUTE grant is written explicitly.** Measured on the
---      harness schema, `booking_pickup_address`'s ACL is
---      `{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}` — service_role's
---      grant comes from Supabase's default privileges at first CREATE and has ridden
---      `create or replace` preservation ever since. On the absent-function apply path that VERIFY
---      ③ exists to guard, preservation never happens and the grant silently vanishes. Inert today
---      (the only caller is `authenticated`), and written anyway, because "inert today" is what
---      every one of this repo's latent ACL findings said about itself.
+--      🔴 NEW IN 0129: **`service_role`'s EXECUTE grant is written explicitly — and the CONTRACT'S
+--      REASON FOR IT IS FALSE.** Contract v2 §C says the grant 「is INHERITED through
+--      `create or replace` and would vanish on the absent-function CREATE path」. **Measured, it
+--      would not.** `pg_default_acl` in this schema carries `{service_role=X/postgres}` for object
+--      type `f`, so EVERY newly created function is born service_role-executable; dropping
+--      `booking_pickup_address` and applying this file with the grant line deleted still yields
+--      `{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}`. The repo already
+--      recorded this at `0057:59` — 「service_role은 EXECUTE를 **PUBLIC이 아니라** Supabase 함수
+--      default privileges로 받는다」 — and the contract (mine) restated it wrongly anyway. That is
+--      the ⚠ 「a green light is evidence for exactly one sentence」 law in its other direction: an
+--      assertion written for a threat that does not exist.
+--      **The line stays, for the reason that survives measurement:** a default ACL is a property
+--      of the ENVIRONMENT — a role's default privileges in that database — not of this file. Every
+--      other role's access to this function is decided here; leaving one role to an environment
+--      setting means a database provisioned without it (a self-hosted rebuild, a restore that does
+--      not carry `pg_default_acl`, a future platform change) silently differs from this file's
+--      intent, and nothing would say so. One line closes that, and VERIFY ③'s service_role arm
+--      then guards the direction that IS reachable: an over-revoke, which is exactly how the
+--      `authenticated` arm earns its place too. ⚠ Measured, and stated so nobody re-derives the
+--      false version: that arm CANNOT be made to fire by deleting the grant; it fires on an
+--      explicit `revoke ... from service_role`.
 --
 -- ── WHAT THIS FILE DELIBERATELY DOES NOT DO ─────────────────────────────────────────────────
 -- No change to `session_confirm_return`, `session_custody_override`,
@@ -196,7 +209,7 @@ begin
         select (b.runner_id = auth.uid()
                 and (b.status in ('runner_enroute', 'picked_up', 'active')
                      or (b.status = 'confirmed' and b.scheduled_at < now() + interval '24 hours')))
-            -- [0129] the club return window. Five conjuncts, each closing one measured defect —
+            -- [0129] the club return window. Six conjuncts; five of them close a measured defect —
             -- see this file's header for which review found which. Read as one sentence:
             -- 「this pairing belongs to this booking's club session, its dog was delegated, its
             --  return leg is a home leg, it has not been returned, its owner has not said the dog
@@ -226,8 +239,13 @@ begin
 end $$;
 
 -- ⚠ NOT optional and NOT inheritable — see invariant ⑤ in the header. The first two lines are
--- verbatim from 0065:69-70 / 0128:134-135. The third is new in 0129 and is the point: on the
--- absent-function apply path there is nothing to preserve, and an inherited grant is not a grant.
+-- verbatim from 0065:69-70 / 0128:134-135. The third is new in 0129, and its reason is NOT the one
+-- contract v2 §C gives: measured, service_role's EXECUTE comes from this database's function
+-- DEFAULT PRIVILEGES (`pg_default_acl` type `f` = `{service_role=X/postgres}`, and 0057:59 already
+-- said so), so it does not vanish on the absent-function path. It is written because a default ACL
+-- is a property of the environment and not of this file — every other role's access is decided
+-- here, and one role left to an environment setting is one role whose access this file cannot
+-- claim to have decided.
 revoke execute on function booking_pickup_address(uuid) from public, anon;
 grant  execute on function booking_pickup_address(uuid) to authenticated;
 grant  execute on function booking_pickup_address(uuid) to service_role;
@@ -281,6 +299,11 @@ gate_code_enc remains structurally absent — decryption is its own slice.';
 --     is a silent contract break that a set comparison cannot see.
 --   · `search_path` is asserted to be EXACTLY `{search_path=public, pg_temp}` — one element, exact
 --     string — rather than "some value containing pg_temp".
+-- 🔴 And ONE ASSERTION MISSED ITS PLANT, which is recorded here rather than quietly re-worded:
+-- the `service_role` arm could not be made to fail by DELETING the grant (see invariant ⑤ — the
+-- default ACL supplies it), only by an explicit revoke. Both facts are stated at the assertion
+-- itself, because an assertion whose stated purpose is not the purpose it can serve is the same
+-- error as a green read too broadly.
 --   · the return-machine check compares BODY DIGESTS, not the existence of a name. A disabled
 --     trigger or a replaced body passed 0128's version.
 do $$
@@ -341,7 +364,7 @@ begin
     raise exception '0129 OVER-REVOKE: authenticated cannot execute booking_pickup_address — every runner pickup screen is dead';
   end if;
   if not v_svc then
-    raise exception '0129: service_role cannot execute booking_pickup_address — the grant that used to ride create-or-replace preservation did not land';
+    raise exception '0129: service_role cannot execute booking_pickup_address — the explicit grant did not land, or something revoked it. (⚠ This arm guards an OVER-REVOKE, not the absent-function path: measured 2026-08-26, pg_default_acl type f = {service_role=X/postgres} in this schema, so a plain CREATE is born service_role-executable and deleting the grant line is invisible here. 0057:59 recorded the same fact; contract v2 §C''s claim that the grant would vanish is false.)';
   end if;
 
   -- ── ③-bis owner CONSISTENCY, not owner identity ─────────────────────────────────────────────
@@ -473,6 +496,6 @@ begin
     raise exception '0129 OVER-REACH: club_custody_transition_v2 is present but tgenabled=% (not ''O'') — a disabled trigger passes an existence check and sets nothing', v_tgen;
   end if;
 
-  raise notice '0129: booking_pickup_address recreated with the corrected five-conjunct club arm — secdef, in-body search_path exactly {search_path=public, pg_temp}, 5 OUT columns in order, ACL (public=%, anon=%, authenticated=%, service_role=%), owner consistent with its definer peer, one raise and one not_runner literal, mode columns NOT NULL/defaulted/CHECKed, 0045+0069 return machine byte-identical and its trigger enabled',
+  raise notice '0129: booking_pickup_address recreated with the corrected six-conjunct club arm — secdef, in-body search_path exactly {search_path=public, pg_temp}, 5 OUT columns in order, ACL (public=%, anon=%, authenticated=%, service_role=%), owner consistent with its definer peer, one raise and one not_runner literal, mode columns NOT NULL/defaulted/CHECKed, 0045+0069 return machine byte-identical and its trigger enabled',
     v_pub, v_anon, v_auth, v_svc;
 end $$;

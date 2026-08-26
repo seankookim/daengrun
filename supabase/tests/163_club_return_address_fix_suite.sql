@@ -78,11 +78,56 @@
 -- CLAUDE.md's rule quoted (*a suite whose pinned behaviour legitimately changes MUST be updated in
 -- the same slice*).
 --
--- ── MUTATION BATTERY — PREDICTED, THEN MEASURED. See the commit message for the table. ───────
--- Each mutation is applied ALONE, by appending a mutated `create or replace` to the END of a COPY
--- of 0129 in a scratch tree OUTSIDE the worktree — never by editing the live file, because another
--- agent may share this tree and a copy-modify-restore is a read-modify-write with a multi-second
--- window.
+-- ── MUTATION BATTERY — PREDICTED, THEN MEASURED. Eight runs, 2026-08-26. ────────────────────
+-- Each mutation is applied ALONE, by appending a mutated `create or replace` as a trailing
+-- migration to a COPY of `supabase/` in a scratch tree OUTSIDE the worktree — never by editing the
+-- live file, because another agent may share this tree and a copy-modify-restore is a
+-- read-modify-write with a multi-second window. Appending AFTER 0129 (rather than editing its
+-- body) is also what lets the arm mutations run at all: 0129's own VERIFY ⑤ aborts the apply on a
+-- missing conjunct, so an in-place edit measures the VERIFY block and never reaches a pin.
+-- Baseline on every copy: **910 pass / 2 fail** — identical to the worktree, the two fails being
+-- 162 P4 ⓔ and P6 (see the note above; they are stale under 0129, not regressions).
+--
+-- 🔴 ONE PREDICTION MISSED, AND THE MISS IS WHY P15 EXISTS. Everything else landed exactly.
+--
+--   M1 drop `sd.session_id = b.club_session_id`
+--      PREDICTED RED = [P8] · MEASURED 909/3, RED = [P8]. Exact.
+--   M2 drop `sd.custody = 'runner_delegated'`
+--      PREDICTED RED = [nothing in 163; 162 P5] · MEASURED 909/3, RED = [162 P5]. Exact, and it
+--      is the honest answer rather than a gap: 162 P5 ⓑ already owns this conjunct's property by
+--      suspending the axes normalizer, and it still holds against 0129's function. An
+--      `owner_handled` row with a runner custodian is UNREACHABLE (`_club_compute_axes`
+--      0048:698-706 returns early and the BEFORE trigger writes that back on every write), so
+--      this suite deliberately does not build one.
+--   M3 drop `sd.return_mode = 'owner_home'`   ← THE CRITICAL
+--      PREDICTED RED = [P1, and probably P7] · MEASURED 908/4, RED = [P1, P7]. Exact. P7 joins
+--      because the wrong-MODE probe starts returning `ok:rows=1` while the other four still
+--      refuse, so the five stop agreeing — two pins, one guarantee, two angles.
+--   M4 drop `sd.custody_phase <> 'resolved'`
+--      PREDICTED (first pass) RED = [P4] · MEASURED (first pass) **910/2 — RED = [] , A MISS.**
+--      🔴 The contract's reasoning was wrong in the same way 162's M1 was, one layer down: on a
+--      sealed row the OTHER two closing conjuncts are also false (the seal requires the owner's
+--      stamp, so F1 refuses; the finalizer moves `custodian_profile_id` to the owner, so the
+--      custodian conjunct refuses). The phase conjunct is a THIRD BELT on that state today and
+--      had no pin of its own. P15 was written for the PROPERTY — 「a sealed return discloses
+--      nothing on the strength of the seal itself」 — not for the mutation.
+--      MEASURED (final) 909/3, RED = [P15], via ⓑ. Exact.
+--   M5 drop `sd.owner_confirmed_return_at is null`   ← F1
+--      PREDICTED RED = [P5] · MEASURED 909/3, RED = [P5]. Exact.
+--   M6 drop `sd.custodian_profile_id = auth.uid()`
+--      PREDICTED RED = [P3, P6, P7, P12] · MEASURED 905/7, RED = [P3, P6, P7, P12] + 162 P3.
+--      Exact. The four name four different halves: P6 「another runner read it」, P12 「it opened
+--      at assignment instead of at handoff」, P3 「it stayed open after the dog went to the
+--      clinic」, P7 「and that made the outcomes distinguishable」.
+--   M7 THE TEMPTING ONE-LINER, ALONE — 0065 with `completed` added to the status list and no club
+--      arm at all. This is the fix 0128's header rejected, measured rather than argued.
+--      PREDICTED RED = [P1, P3, P4, P5, P7, P13] · MEASURED 899/13,
+--      RED = [P1, P3, P4, P5, P7, P8, P13, P15] + 100 W3, 162 P5, 162 P8. Superset; P8 and P15
+--      join because a status list admits regardless of any session_dogs fact at all.
+--   M8 THE SAME ONE-LINER ADDED ON TOP OF THE CORRECT ARM.
+--      MEASURED 899/13, RED = the identical set. **That is the most useful number in this table:
+--      a correct custody arm buys nothing once `completed` is in the status list beside it, so
+--      the widening is not 「belt and braces」, it is the leak with a belt drawn on top.**
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
@@ -251,6 +296,7 @@ declare
   f_home jsonb; f_site jsonb; f_xfer jsonb; f_ext jsonb; f_inc jsonb; f_f1 jsonb;
   f_seal jsonb; f_open jsonb; f_null jsonb; f_pre jsonb; f_cross jsonb; f_mkt jsonb;
   v_bad text; v_n int; v_n2 int; v_st text; v_cx uuid; v_j jsonb; v_dog2 uuid; f_md jsonb;
+  v_ts timestamptz;
   v_label text; v_addr text; v_detail text; v_lat numeric; v_lng numeric;
   v_a text; v_b text; v_c text; v_d text; v_e text;
   v_live boolean; v_pre boolean;
@@ -970,9 +1016,13 @@ begin
   -- The class 0127 closed, asserted here for THIS function rather than inferred from a sibling's
   -- green. 0129 recreates a definer first defined in 0060, so on any database where the function
   -- was absent the statement is a CREATE and the ACL is whatever the file wrote.
-  -- 🔴 `service_role` is new here and is the point: its grant came from Supabase's default
-  -- privileges at first CREATE and has ridden `create or replace` preservation ever since. 0129
-  -- writes it explicitly; this pin reads the catalog to confirm it landed.
+  -- 🔴 `service_role` is new here, and the reason contract v2 §C gives for it is FALSE — measured
+  -- 2026-08-26: `pg_default_acl` type `f` in this schema is `{service_role=X/postgres}`, so a plain
+  -- CREATE is born service_role-executable and the grant would NOT vanish on the absent-function
+  -- path (0057:59 recorded the same fact years of migrations ago). 0129 writes the grant anyway
+  -- because a default ACL is a property of the ENVIRONMENT, not of the file, and this pin reads
+  -- the catalog to confirm the file's intent actually holds — the same direction the
+  -- `authenticated` arm guards: an over-revoke.
   -- ⚠ SCOPE: this reads the ACL the HARNESS built, applying every migration in order from scratch,
   -- so it structurally CANNOT see the absent-function apply path (98 H9's own text says the same
   -- about itself). 0129's VERIFY ③ covers that path and `check-definer-acl.mjs` covers the source.
@@ -1004,11 +1054,83 @@ begin
       if sqlerrm not like '%permission denied%' then v_bad := v_bad || ' anon실호출:' || sqlerrm; end if;
     end;
     if v_bad = ''
-      then call _pass('crf','P14 the recreation''s seals — booking_pickup_address is SECURITY DEFINER, its proconfig is EXACTLY {search_path=public, pg_temp} (an ALTER-applied value is wiped by create-or-replace, so its presence right after 0129 is what proves it came from the body), PUBLIC and anon cannot execute, authenticated CAN, **service_role CAN — the grant 0129 writes explicitly instead of inheriting it through preservation** — and anon''s real call at the role boundary is denied. ⚠ SCOPE: this reads the ACL the harness built by applying every migration in order from scratch, so it structurally cannot see the absent-function apply path — 0129''s VERIFY ③ owns that and check-definer-acl.mjs owns the source. Three checks, three propositions, none evidence for another');
+      then call _pass('crf','P14 the recreation''s seals — booking_pickup_address is SECURITY DEFINER, its proconfig is EXACTLY {search_path=public, pg_temp} (an ALTER-applied value is wiped by create-or-replace, so its presence right after 0129 is what proves it came from the body), PUBLIC and anon cannot execute, authenticated CAN, **service_role CAN — the grant 0129 writes explicitly rather than leaving it to this database''s function DEFAULT PRIVILEGES** (measured: pg_default_acl type `f` = {service_role=X/postgres}, which is why contract v2 §C''s claim that the grant would vanish on the absent-function path is FALSE, and why this arm guards an OVER-REVOKE rather than an absent grant — 0057:59 already recorded the underlying fact) — and anon''s real call at the role boundary is denied. ⚠ SCOPE: this reads the ACL the harness built by applying every migration in order from scratch, so it structurally cannot see the absent-function apply path — 0129''s VERIFY ③ owns that and check-definer-acl.mjs owns the source. Three checks, three propositions, none evidence for another');
     else call _fail('crf','P14 the recreation''s seals', v_bad); end if;
   exception when others then
     reset role;
     call _fail('crf','P14 the recreation''s seals', sqlerrm);
+  end;
+
+  -- ═══ [P15] THE RETURN SEAL ALONE CLOSES THE GRANT — the phase conjunct's own job ══════════
+  -- 🔴 WRITTEN BECAUSE THE BATTERY MEASURED A GAP, not because a mutation needed a target. Dropping
+  -- `custody_phase <> 'resolved'` from the arm reddened NOTHING across the whole harness (909/2 —
+  -- the baseline), because on every reachable sealed row the other two closing conjuncts are ALSO
+  -- false: `session_confirm_return` seals only after the OWNER has stamped (so
+  -- `owner_confirmed_return_at` is not null and F1 refuses) and its finalizer moves
+  -- `custodian_profile_id` to the owner (so the custodian conjunct refuses). The phase conjunct is
+  -- therefore a THIRD BELT on that state today — the same shape 162 P5 found for the `custody`
+  -- conjunct, rediscovered by RUNNING the battery rather than by reading the code.
+  --
+  -- The property, stated WITHOUT reference to any mutation: **a pairing whose custody phase is
+  -- `resolved` discloses nothing, on the strength of the SEAL ITSELF** — not because the owner
+  -- happened to stamp, and not because the custodian pointer happened to move. That becomes
+  -- load-bearing the moment either of those stops being true: a slice that lets a host seal a
+  -- return without an owner stamp, or one that keeps the custodian pointer on the runner for the
+  -- payout trail, would leave this conjunct as the only thing standing. The arm must not depend on
+  -- two other columns continuing to move the way they move today.
+  --   ⓐ the reachable truth: on the pairing P4 really sealed, all three closing signals are false
+  --     AT ONCE — asserted as STATE, so the over-determination is measured, not assumed.
+  --   ⓑ the conjunct alone: with the axes normalizer suspended for two statements the other two
+  --     signals are removed (owner stamp cleared, custodian pointed back at the runner) while the
+  --     phase stays `resolved`, and the same runner is still refused. Suspending
+  --     `club_v1_axes_sync` is not a contrivance — it is what a dropped trigger, a
+  --     `disable trigger`, or a rewrite of `_club_compute_axes` looks like from the arm's point of
+  --     view. The row is restored immediately and the restoration is re-measured.
+  begin
+    v_bad := '';
+    select owner_confirmed_return_at into v_ts
+      from session_dogs where id = (f_seal->>'session_dog')::uuid;
+    if (select custody_phase from session_dogs where id = (f_seal->>'session_dog')::uuid) <> 'resolved'
+      then v_bad := v_bad || ' ⓐ전제실패(P4가 먼저 돌아야 한다):' || t163_state((f_seal->>'booking')::uuid); end if;
+    if v_ts is null then v_bad := v_bad || ' ⓐ봉인됐는데 보호자 스탬프가 없다'; end if;
+    if (select custodian_profile_id from session_dogs where id = (f_seal->>'session_dog')::uuid)
+       is distinct from (f_seal->>'owner')::uuid
+      then v_bad := v_bad || ' ⓐ봉인 뒤 custodian이 보호자가 아니다'; end if;
+    begin
+      alter table session_dogs disable trigger club_v1_axes_sync;
+      update session_dogs set owner_confirmed_return_at = null,
+             custodian_type = 'runner', custodian_profile_id = (f_seal->>'runner')::uuid
+       where id = (f_seal->>'session_dog')::uuid;
+      if t163_state((f_seal->>'booking')::uuid)
+         <> 'runner_delegated/resolved/' || (f_seal->>'runner') || '/owner_home/owner_confirmed=no'
+        then v_bad := v_bad || ' ⓑ심기 실패:' || t163_state((f_seal->>'booking')::uuid); end if;
+      perform set_config('request.jwt.claim.sub', f_seal->>'runner', false);
+      begin
+        perform 1 from booking_pickup_address((f_seal->>'booking')::uuid);
+        v_bad := v_bad || ' ⓑ봉인된 페어링이 주소를 열었다 — 국면 연언이 죽었고 다른 두 신호는 없었다';
+      exception when others then
+        if sqlerrm not like '%not_runner%' then v_bad := v_bad || ' ⓑ' || sqlerrm; end if;
+      end;
+    exception when others then v_bad := v_bad || ' ⓑ' || sqlerrm;
+    end;
+    -- restore, unconditionally: re-enable first, then one write so the normalizer rewrites the axes
+    begin
+      alter table session_dogs enable trigger club_v1_axes_sync;
+      update session_dogs set owner_confirmed_return_at = v_ts
+       where id = (f_seal->>'session_dog')::uuid;
+      if t163_state((f_seal->>'booking')::uuid)
+         <> 'runner_delegated/resolved/' || (f_seal->>'owner') || '/owner_home/owner_confirmed=yes'
+        then v_bad := v_bad || ' 복원 실패:' || t163_state((f_seal->>'booking')::uuid); end if;
+    exception when others then v_bad := v_bad || ' 복원:' || sqlerrm;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_bad = ''
+      then call _pass('crf','P15 the return seal alone closes the grant — the phase conjunct''s own job, in two arms. ⓐ the reachable truth: on the pairing P4 really sealed, ALL THREE closing signals are false at once (phase=resolved · owner stamped · custodian moved back to the owner), measured as state so the over-determination is a fact and not an assumption. ⓑ the conjunct alone: with the axes normalizer suspended for two statements and the other two signals removed (owner stamp cleared, custodian pointed back at the runner) while the phase stays `resolved`, the same runner is STILL refused. 🔴 This pin exists because the battery measured that dropping `custody_phase <> ''resolved''` reddened NOTHING in the whole harness — it is a THIRD BELT on that state today, and the property it owns (「a sealed return discloses nothing on the strength of the SEAL, not on the strength of two other columns happening to move」) becomes load-bearing the moment a slice seals without an owner stamp or keeps the custodian pointer on the runner for the payout trail. The row is restored immediately and the restoration re-measured, so nothing inherits a planted state');
+    else call _fail('crf','P15 the return seal alone closes it', v_bad); end if;
+  exception when others then
+    begin alter table session_dogs enable trigger club_v1_axes_sync; exception when others then null; end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('crf','P15 the return seal alone closes it', sqlerrm);
   end;
 
   perform set_config('request.jwt.claim.sub', '', false);
