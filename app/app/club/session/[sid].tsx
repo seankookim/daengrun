@@ -89,12 +89,19 @@ export default function ClubSessionShell() {
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
   const [roster, setRoster] = useState<SessionRoster | null>(null);
+  // 순서 보장 래퍼 — 모든 로스터 쓰기는 이걸 통과한다 (직접 setRoster 금지).
+  const applyRoster = useCallback((seq: number, r: SessionRoster) => {
+    if (seq === rosterSeq.current) setRoster(r);
+  }, []);
   // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
   // 명단(전화 열람 로그가 붙는다)이고, 이 보드는 클럽 멤버 누구나 보는 공개 게시판이다.
   // 그래서 limited·비참가 멤버도 여기서는 무언가를 본다 — 서버 게이트가 로스터보다 넓다.
   const [boardRows, setBoardRows] = useState<BoardRowLive[] | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
   const [tab, setTab] = useState<'개요' | '참가자' | '채팅'>('개요');
+  // [codex r2] 비동기 완료 시점의 탭을 읽기 위한 미러. tab 선언 뒤에 있어야 한다 — 위에 두면
+  // TDZ로 tsc가 잡는다(실제로 잡혔다).
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // O5 결제 시트
@@ -144,7 +151,8 @@ export default function ClubSessionShell() {
     const rosterAllowed = access !== 'none' && access !== 'limited';
     const needForRunner = board?.me.committed === true;
     if (rosterAllowed && (tab === '참가자' || needForRunner)) {
-      fetchSessionRoster(sid).then(setRoster).catch(() => {});
+      const rseq = ++rosterSeq.current;
+      fetchSessionRoster(sid).then((r) => applyRoster(rseq, r)).catch(() => {});
     }
     // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
     // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
@@ -156,11 +164,20 @@ export default function ClubSessionShell() {
         .then((rows) => { setBoardRows(rows); setBoardFailed(false); })
         .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
-  }, [tab, access, sid, board?.me.committed]);
+  }, [tab, access, sid, board?.me.committed, applyRoster]);
 
   // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독.
   // [감사 P2] INSERT마다 전체 재조회라 응답 역순 도착 시 옛 스냅샷이 최신을 덮던 것 — seq 가드로 최신만 반영.
   const chatSeq = useRef(0);
+  // [codex r2] 로스터 응답 순서 보장 — chatSeq와 같은 문법. 추가 성공 후의 재요청과 탭 effect의
+  // 요청이 경쟁하면, 늦게 도착한 '옛' 로스터가 새 것을 덮어써서 방금 넣은 아이가 다시 사라진다.
+  const rosterSeq = useRef(0);
+  // [codex r2] busy(state)는 상호배제가 아니다: Alert 콜백은 렌더 시점의 busy=false를 붙잡고 있고
+  // setBusy는 비동기다. fetchMyDogs 동안에도 busy는 꺼져 있어 피커를 두 번 열 수 있었다. 흐름
+  // 전체(시트→조회→피커→RPC)를 덮는 ref 락이라야 두 번째 아이가 몰래 들어가지 않는다.
+  const addLock = useRef(false);
+  // [codex r2] 비동기 완료 시점의 '지금 어느 탭인가'. 클로저의 tab은 누른 순간 값이라 답이 안 된다.
+  const tabRef = useRef<'개요' | '참가자' | '채팅'>('개요');
   const applyChat = useCallback((run: () => Promise<{ uid: string | null; msgs: ClubChatMsg[] }>) => {
     const my = ++chatSeq.current;
     run().then((c) => { if (my === chatSeq.current) setChat(c); }).catch(() => {});
@@ -276,7 +293,6 @@ export default function ClubSessionShell() {
   // 아니라 '아이를 데려오는가'에 걸린다. 처음 참여할 때만 묻고 나중 추가는 조용히 통과시키면, 같은
   // 책임을 한 번은 고지하고 한 번은 안 하는 화면이 된다.
   const addDogWith = async (dogId: string) => {
-    if (busy) return;                       // [codex f] 확인 시트를 두 번 눌러 두 번 쏘던 것
     setBusy(true);
     try {
       await addMyDogToSession(sess.id, dogId);
@@ -285,7 +301,13 @@ export default function ClubSessionShell() {
       // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
       // 부른다. 갱신하지 않으면 방금 넣은 아이가 목록에 없고 CTA도 남아, 다시 누르면 already_added가
       // 뜬다. 성공한 자리에서 이 세션의 로스터만 다시 읽는다.
-      if (sid) fetchSessionRoster(sid).then(setRoster).catch(() => {});
+      // ⚠ [codex r2] 탭을 벗어났으면 다시 부르지 않는다. 로스터 호출은 서버에 전화 열람 로그를
+      // 남기므로(:138), 그리지도 않을 응답을 위해 로그를 남기는 것은 이 CTA를 참가자 탭으로 옮긴
+      // 이유 자체를 어기는 것이다. 순서도 보장한다 — 늦게 온 옛 응답이 새 것을 덮지 못한다.
+      if (sid && tabRef.current === '참가자') {
+        const rseq = ++rosterSeq.current;
+        fetchSessionRoster(sid).then((r) => applyRoster(rseq, r)).catch(() => {});
+      }
     } catch (e) {
       // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
       const m = (e as Error).message;
@@ -299,13 +321,19 @@ export default function ClubSessionShell() {
         : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
         : m.includes('not_your_dog') ? '내 아이만 데려갈 수 있어요'
         : m.includes('not_found') ? '세션을 찾을 수 없어요' : m);
-    } finally { setBusy(false); }
+    } finally { setBusy(false); addLock.current = false; }
   };
   const doAddDog = () => {
+    if (addLock.current || busy) return;   // [codex r2] 시트가 열리기 전에 잠근다
+    addLock.current = true;
     Alert.alert('데려가기 전 확인', WAIVER, [
-      { text: '취소', style: 'cancel' },
+      { text: '취소', style: 'cancel', onPress: () => { addLock.current = false; } },
       {
-        text: '동의하고 데려가기',
+        // ⚠ [codex r2] 「동의하고」가 아니다. 이 RPC는 p_session/p_dog만 받아 승낙서 버전을 저장할
+        // 곳이 없다(0134 §C) — session_rsvp가 CLUB_WAIVER_VERSION을 박제하는 것과 다르다. 저장할 수
+        // 없는 동의를 '동의'라 부르면 증거 없는 동의를 화면이 주장하게 된다. 내용은 그대로 보여주되
+        // (약속은 같다) 낱말은 '확인'으로 — 버전을 남기는 문은 RPC가 인자를 받은 뒤에.
+        text: '확인하고 데려가기',
         onPress: async () => {
           // ⚠ [codex g] `.catch(() => [])`는 인증/네트워크 실패를 '아이가 없음'으로 둔갑시킨다 —
           // api.ts:331이 fetchMyDogs에 대해 기록해 둔 바로 그 결함을, 호출부에서 되살리는 모양이다.
@@ -1057,13 +1085,20 @@ export default function ClubSessionShell() {
             open 개요 would log phone access for people whose numbers were never shown — a privacy
             side effect to place a button. So the door goes where the state is already known and
             where the dog list lives. Everyone who can use it has access 'full' or 'host' by
-            construction: `_club_shell_access` returns 'full' for any session_people row, and this
-            CTA requires sess.joined.
+            construction: `_club_shell_access` returns 'full' for a session_people row whose
+            attendance is not 'no_show' (0049:15 — ⚠ an earlier draft of this comment said "any
+            session_people row", which is false; a no-show drops to the next branch), and this CTA
+            requires sess.joined.
+            ⚠ THE FORMAT TEST IS A POSITIVE MATCH, not `!== 'delegated_only'`. That form FAILS OPEN
+            twice: `board` is null while it loads or after it fails — the roster and the board load
+            independently, so the CTA can render on a delegated-only session — and any format added
+            later would pass too. Same doctrine as runnerTierLabel, which I wrote one commit before
+            breaking it here.
             ⚠ Hidden once ANY of my dogs is here, though the RPC would allow a second. That is
             deliberate: `owner_handled_dog_limit` is 0048:20 and still marked 「[Sean 미확정]」 —
             building a second-dog path would be choosing a limit he has not ruled. */}
         {isOpenish && sess.joined && !isDone
-          && board?.session.format !== 'delegated_only'
+          && (board?.session.format === 'owner_only' || board?.session.format === 'mixed')
           && !roster.dogs.some((d) => d.isMine) && (
           <View style={{ marginTop: 14 }}>
             <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
