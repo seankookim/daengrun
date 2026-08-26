@@ -597,9 +597,21 @@ export default function ClubPage() {
       {/* ---------- 세션 개설 시트 (호스트, S1 프리셋 — 라일락 재도장) ---------- */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.5)' }} onPress={() => setSheetOpen(false)} />
+        {/* ⚠ [2026-08-26 Sean] 이 시트는 스크롤이 없었고, 그래서 두 가지가 동시에 깨졌다:
+            내용이 길어지면 백드롭(flex:1)이 0으로 눌려 시트가 노치 밑까지 올라가 제목이 잘렸고
+            (「세션 열기」가 다이내믹 아일랜드에 겹쳐 렌더된 스크린샷), 화면을 넘긴 아래쪽 —
+            정원·매주 반복·CTA — 에는 **닿을 방법이 자체가 없었다** (「not scrollable to any
+            extent」). 높이를 화면의 88%로 묶어 백드롭이 항상 남게 하고, 본문만 스크롤시키고,
+            CTA는 스크롤 밖에 고정한다: 목록이 아무리 길어도 여는 버튼은 늘 같은 자리에 있다. */}
         <View style={s.sheet}>
           <Text style={[{ fontSize: 19, lineHeight: 24, color: L.head }, df]}>세션 열기</Text>
           <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim, marginTop: 3 }}>{/* CLUB15 */}시간·집결지·정원 — 열리면 바로 멤버에게 보여요</Text>
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 6 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+          >
           {/* [CLUB15 가드] 칩 라벨 15 → 320dp에서 3칩이 한 줄을 넘긴다 → 코스 행과 같은 랩 규칙 적용 */}
           <Row style={{ gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
             {SLOT_PRESETS.map((p, i) => (
@@ -612,8 +624,14 @@ export default function ClubPage() {
             value={meetup} onChangeText={setMeetup}
             placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor={L.dim} style={s.input}
           />
-          {/* 코스 — mixed 필수 (요금 기준) */}
-          <Row style={{ gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* 코스 — mixed 필수 (요금 기준).
+              ⚠ [2026-08-26 Sean 「still poor ui」] 여기는 원래 wrap 된 알약 칩 더미였다: 폭이
+              제각각이라 줄이 들쭉날쭉했고, 선택은 보라색 알약 하나로만 말했고, 13개가 쌓이면
+              그냥 색색의 벽이었다. 그가 라운드 6에서 고른 ⓑ 도장 칸으로 바꾼다 — 상자 없음,
+              행 사이 잉크 룰, 채워달라고 말하는 점선 네모, 고르면 잉크로 차고 라벨에 밑줄.
+              compose.tsx / owner/live.tsx 의 픽커와 **같은 문법**이다: 하나를 고르는 자리는
+              앱 전체에서 한 가지 모양이어야 한다. */}
+          <Row style={{ gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
             <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head }}>{/* CLUB15 */}코스</Text>
             {routes.length === 0 && !routesErr && <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim }}>{/* CLUB15 */}불러오는 중...</Text>}
             {routes.length === 0 && routesErr && (
@@ -621,12 +639,28 @@ export default function ClubPage() {
                 <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical }}>{/* CLUB15 */}코스를 불러오지 못했어요 — 다시 시도 ›</Text>
               </Pressable>
             )}
-            {routes.map((r, i) => (
-              <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.chip, routeIdx === i && s.chipOn]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{routeLabel(r)}</Text>
-              </Pressable>
-            ))}
           </Row>
+          <View style={s.stamps}>
+            {routes.map((r, i) => {
+              const on = routeIdx === i;
+              return (
+                <Pressable
+                  key={r.id}
+                  onPress={() => setRouteIdx(i)}
+                  style={({ pressed }) => [s.scell, i === routes.length - 1 && s.scellLast, pressed && s.scellPressed]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on, checked: on }}
+                >
+                  <View style={[s.sbox, on && s.sboxOn]}>
+                    {on && <Text style={s.sboxTick}>✓</Text>}
+                  </View>
+                  <View style={[s.slWrap, on && s.slWrapOn]}>
+                    <Text style={[s.sl, on && s.slOn]}>{routeLabel(r)}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
           <Row style={{ gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head }}>{/* CLUB15 */}정원</Text>
             {[6, 9, 12].map((c) => (
@@ -645,8 +679,10 @@ export default function ClubPage() {
               <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim, marginTop: 1 }}>{/* CLUB15 */}같은 요일·시각으로 매주 자동 개설 — 언제든 해지할 수 있어요</Text>
             </View>
           </Pressable>
-          {/* [Sean 규칙] 여백 화면 = 큰 버튼 */}
-          <ClubCta label={busy ? '여는 중...' : '세션 열기'} onPress={createSession} busy={busy} style={{ paddingVertical: 17 }} />
+          </ScrollView>
+          {/* [Sean 규칙] 여백 화면 = 큰 버튼 — 그리고 스크롤 **밖**에 있다. 목록이 길어도
+              여는 버튼이 화면 밖으로 밀려나지 않는다 (위 주석의 두 번째 고장). */}
+          <ClubCta label={busy ? '여는 중...' : '세션 열기'} onPress={createSession} busy={busy} style={{ paddingVertical: 17, marginTop: 12 }} />
         </View>
       </Modal>
     </View>
@@ -773,7 +809,34 @@ const s = StyleSheet.create({
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
   colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },
   // 시트
-  sheet: { backgroundColor: paper.canvas, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 18, paddingBottom: 34, borderTopWidth: 1, borderTopColor: paper.line },
+  // ── 코스 픽커 — ⓑ 도장 칸 (Sean round-6 pick). compose.tsx·owner/live.tsx 와 같은 값. ──
+  stamps: { marginTop: 2 },
+  scell: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 13,
+    paddingVertical: 14, paddingHorizontal: 2,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
+  },
+  scellLast: { borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  scellPressed: { backgroundColor: '#FAFAFA' },
+  // ⚠ 점선은 paper.faint(#999999, 2.85:1). #DDDDDD는 1.3:1로 사실상 안 보인다 — 이미 두 번 겪었다.
+  sbox: {
+    width: 26, height: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: paper.faint,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  sboxOn: { borderStyle: 'solid', borderColor: paper.ink, backgroundColor: paper.ink },
+  sboxTick: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#FFFFFF' },
+  slWrap: { flexShrink: 1, borderBottomWidth: 2, borderBottomColor: 'transparent', paddingBottom: 2 },
+  slWrapOn: { borderBottomColor: L.accent },
+  // ⚠ lineHeight 명시 (BUG A) — 코스 이름에 km 숫자가 들어온다.
+  sl: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: L.text },
+  slOn: { color: L.head },
+  // maxHeight 88% — 백드롭이 늘 남아 있어야 시트가 노치 밑으로 올라가지 못하고, 그래야 제목이
+  // 상태바에 겹치지 않는다. 본문은 안쪽 ScrollView가 맡고 CTA는 그 밖에 고정된다.
+  sheet: {
+    backgroundColor: paper.canvas, borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    padding: 18, paddingBottom: 34, borderTopWidth: 1, borderTopColor: paper.line,
+    maxHeight: '88%',
+  },
   chip: {
     borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
     backgroundColor: L.card, borderWidth: 1.3, borderColor: L.hair,
