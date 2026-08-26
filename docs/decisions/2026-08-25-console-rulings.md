@@ -501,3 +501,45 @@ it is client-unreachable. The phone slice adds a tombstone-keyed clear, not a li
 
 Operationally nothing changes — deletion is still the first thing that slice's review checks — but
 the slice now has a proven shape instead of a warning.
+
+## Two dependencies found by the live-map lab — verified at source, one of them reshapes a feature
+
+### D2 — the host-verify ask has NO SERVER WRITER. Mine to spec.
+
+Sean asked for host verification against the pair list (「perhaps the list?」). Measured:
+**`0030:254` is the ONLY statement in the entire schema that writes `session_people.attendance`**
+(`update session_people set attendance = 'checked_in', checked_in_at = now()`), and it is
+self-service — keyed on `profile_id = auth.uid()`. Every other hit in the tree is a READER
+(`0031:50,54,71,74,116,126`).
+
+**So check-in today is strictly first-person: the host cannot mark anyone present.** His verify
+affordance needs a new writer with a party gate that admits the host (and backup host) without
+admitting every member. Scoped to me; it rides the pair-list slice.
+
+### D3 — the host live map has NO FEED, and the "cheap" option is not cheap. **SEAN'S CALL.**
+
+Positions publish per BOOKING on `run2-<booking_id>` (`geo.ts:366-375`), private and policy-bound
+by `0104`. There is **no session-level topic and no position column anywhere in the schema**
+(both grepped). A host map renders blank.
+
+⚠ **Correction to the option list I was handed:** "the host subscribes to N per-booking channels"
+was offered as cheap-but-a-scaling-question. It is not cheap — **`0104:64-65` binds the topic to
+the BOOKING PARTY**: read is `p_uid = b.owner_id or p_uid = b.runner_id`, write is
+`p_uid = b.runner_id`. **The host is not in that policy and would be refused.** So all three
+options require a new server surface:
+1. widen `0104`'s policy to admit the session host — a change to a **security policy** that exists
+   specifically because `0103`'s authorization was walkable (`0104:1`), plus N subscriptions;
+2. introduce a session-level topic — a new policy surface with its own party gate;
+3. land positions in a column and let the host poll — **a location at rest**, with a retention
+   question, which is the entire argument `0123` had about the runner base.
+
+**Routed to Sean, not decided here.** Option 3 changes what the product stores about where people
+are; options 1 and 2 change who may watch a live position. Both are "what users are told / what we
+keep about them" decisions, which CLAUDE.md puts on his desk. The lab states the gap honestly
+rather than faking a feed — correct call, and the feature is not buildable until he answers.
+
+### Smaller: `return_arrived_at` does not exist (zero hits)
+
+The 도착 tap in the 집 반환 arm is currently a screen transition, not a record. If it must be a
+record — and the two-sided ritual arguably wants one — that is a column, and it belongs to the
+same slice as `return_mode` rather than being bolted on later.
