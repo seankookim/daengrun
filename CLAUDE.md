@@ -156,6 +156,19 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   review found a runner stranded mid-custody because an allow-list did not name a phase a shipped
   RPC could reach. A list enumerates what someone thought of.
 - Any migration or security-relevant change requires the adversarial cycle: scout → contract → implement → adversarial review where reviewers EXECUTE attacks → test pins → revise → verify. Harness: `supabase/tests/harness.sh` (container: PG16 at tests/.pgtest; pg_ctl must start in the same shell invocation). All pins must pass; new behavior gets mutation-verified pins.
+- 🔴 **A COMMENT THAT QUOTES THE CODE IT REPLACED MATCHES EVERY GREP THAT HUNTS FOR THAT CODE**
+  (2026-08-26, found by a peer verifying its own fix). Documenting-a-fix and failing-to-fix look
+  IDENTICAL to `grep -c`. Measured both directions in one afternoon on the same function:
+  **(a)** console #17's cap was removed from `fetchRunnerJobs` while the owner's `fetchMyBookings`
+  kept it — and the comment citing Sean's 「keep everything」 AND describing the owner's symptom
+  sat in the RUNNER function, 3,000 lines away. **A comment that names the symptom is the
+  strongest possible false green: it reads as proof to every later grep.** **(b)** verifying the
+  real fix, a grep inside the right function returned 1 — the hit was the new comment quoting the
+  removed line — and for a moment read as 「the push did not land」. **So: verify against
+  EXECUTABLE lines, never raw text** (`grep -vE '^\s*(//|\*|/\*)'` before counting), and treat a
+  symptom-naming comment as evidence of nothing. Same family as the substring-detector law in
+  §Operations: a check whose pattern appears in both the fixed and unfixed states is not weak, it
+  is uninformative.
 - 🔴 **WHAT THE DATABASE SHOWS IS NOT WHAT THE PRODUCT MEANS** (2026-08-26). `count(*) = 11`
   answers 「how many ROWS」 and was read as 「how many USERS」 — then shipped downstream as a design
   constraint (「the empty state is permanent for the current cohort」) and as a scale argument
