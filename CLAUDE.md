@@ -148,6 +148,16 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   the hole itself, not a pin's opinion of it; M11 ran the same path fixed and passed with
   `pub=false`. **A control that cannot fail is not a control**, and a battery that only ever
   reddens pins has measured your test suite, not your system.
+- ⚠ **AND A PIN ADDED MID-BATTERY IS THE PIN MOST LIKELY TO BE SHAPED TO THE MUTATION RATHER THAN
+  TO THE PROPERTY** (2026-08-26, handed over by a peer reviewing 0128). When a mutation reddens
+  nothing, the honest response is to add an arm — but the arm you write while staring at that
+  specific mutation tends to assert *the thing that mutation broke* instead of *the property the
+  conjunct is there to hold*. It then passes the re-run by construction. **A blind spot that MOVES
+  is worse than one that stays, because the second version looks tested.** So a repaired pin owes
+  a second, independent check: state the property WITHOUT reference to the mutation, then ask a
+  head that never saw the mutation whether the pin establishes it. Worked example: 0128's battery
+  missed twice of six and both repairs were re-attacked by a reviewer briefed on precisely this.
+
 - New security-definer functions MUST have `set search_path = public, pg_temp` in the function body — ALTER-applied config is reset by `create or replace` (measured). Test 98 H1 watches the whole schema and fails the harness on any omission.
 - **A `create or replace` that RELIES on grant preservation is a latent PUBLIC-EXECUTE hole. Write the `revoke` explicitly, every time** (2026-08-25, found by a blind reviewer, then confirmed as a CLASS in shipped code). `create or replace` preserves owner and ACL **only if the function already exists**; where it does not — a partial prior apply, a branch that never ran the creating migration, a rebuilt environment — it is a plain CREATE, and 0116:636 already records that new functions inherit **PUBLIC EXECUTE by default**. A `SECURITY DEFINER` born PUBLIC-executable is the worst shape this repo can produce. Found in 0127 (the restored recurring cron), then the same check against shipped code found `0121:240`'s `club_incident_settle_quote` — a money-returning definer with no revoke while **all six of its siblings in the same file have one** (0121:50, 75, 94, 185, 205, 434). Production measured correct there, because the creating migration ran first and preservation held; it is latent, not breached, and the obligation rides the next money-path slice touching it rather than a churn migration.
   ⚠ **Two green harnesses were green on this.** Neither 885/0 nor 844/0 checked owner, ACL or `prosecdef` on a recreated function, and 156's P15 sweep — which reads as a money-surface guard — sweeps ARGNAMES for fee/gross/commission and is green on a PUBLIC definer. That is a pin proving exactly what it says; the error was reading its green as broader than its sentence. **The durable guard is schema-wide, never per-function** — a per-function ACL pin only catches the function you already suspected, which by definition is not the one that bites you. The sweep lives beside 98 H1 (same standing-invariant shape, same file): every `public` SECURITY DEFINER asserted against an explicit ACL allowlist, and **every allowlist entry carries its reason** — widening the list to get green is how this guard dies.
