@@ -16,3 +16,12 @@
 # `scripts/deploy-migrations.sh` print `warning: HELD names 0105… but trunk has no such file
 # (stale line?)` on EVERY future deploy — a warning that fires every time is a warning nobody reads.
 # This file is now empty of entries, which is the state it is supposed to spend most of its life in.
+
+# 2026-08-26 — 0130_maenggyeon_slice_b.sql is HELD, and the gate is one unanswered question.
+# Slice B drops three `dogs` columns, their pair-CHECK and the enum. Contract §0 permits that
+# "only once ZERO installed bundles reference them, MEASURED". The measurement is DONE and EMPTY:
+# `eas build:list` = [] (zero builds ever), only `testflight` of four channels exists, zero OTA
+# updates. What EAS cannot see is a locally-built `expo run:ios` binary or App Store Connect.
+# So one yes/no from Sean remains: HAS ANY BUILD REACHED A DEVICE OTHER THAN HIS OWN DEV PHONE?
+# Remove this line in the same commit that answers it, and say so in the REGISTRY row.
+0130_maenggyeon_slice_b.sql
