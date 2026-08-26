@@ -17,7 +17,7 @@ import { Alert, Text, View } from 'react-native';
 import { BillingAuthSheet } from './billing-auth-sheet';
 import { PaperBtn } from './paper-btn';
 import { Pressable } from 'react-native';
-import { issueBillingKey, prepareBillingAuth } from '../lib/api';
+import { cardRegistrationLive, issueBillingKey, prepareBillingAuth } from '../lib/api';
 import { useDisplayFont } from '../lib/displayFont';
 import { useNumFont } from '../lib/fonts';
 import { TOSS_CLIENT_KEY } from '../lib/toss';
@@ -39,8 +39,12 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState<{ customerKey: string; nonce: string } | null>(null);
   const [sheet, setSheet] = useState(false);
+  // [0138 §D · codex #7] 문을 그릴지는 **서버**가 정한다. 클라이언트 상수는 수정된 클라이언트를
+  // 구속하지 못하고, 키 유무는 「등록해도 되는가」를 답하지 않는다. null = 아직 못 읽음.
+  const [live, setLive] = useState<boolean | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { cardRegistrationLive().then((v) => { if (alive.current) setLive(v); }); }, []);
 
   const arrears = context === 'arrears';
 
@@ -79,7 +83,9 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
 
   // 키가 없으면 버튼을 그리지 않는다 — 열리지 않는 웹뷰를 여는 버튼은 죽은 버튼이다 (정직 법).
   // 결제 오픈(PG 계약)과 함께 키가 들어오면 이 분기는 스스로 사라진다.
-  const ready = TOSS_CLIENT_KEY != null;
+  // 둘 다 필요하다: 서버가 열려 있어야 하고(등록해도 되는가), 클라이언트 키가 있어야 한다
+  // (시트가 실제로 열리는가). 어느 한쪽이라도 없으면 버튼은 죽은 버튼이 된다.
+  const ready = TOSS_CLIENT_KEY != null && live === true;
 
   return (
     <View style={{ flex: 1 }}>
@@ -125,7 +131,7 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
       ) : (
         // 키 부재 = 아직 결제사가 아니다. 그 사실을 말하고 멈춘다 — payments.tsx의 같은 문법.
         <Text style={{ fontSize: 15, lineHeight: 22, color: paper.dim, textAlign: 'center' }}>
-          카드 연결은 결제 오픈과 함께 열려요
+          {live === null ? '확인 중이에요' : '카드 연결은 결제 오픈과 함께 열려요'}
         </Text>
       )}
 

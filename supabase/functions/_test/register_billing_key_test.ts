@@ -31,6 +31,9 @@ function scene() {
   // tombstoned profile and reports the displaced key. The real function's lock is what makes it
   // atomic; a fake cannot model a lock, so the RACE itself is pinned by the SQL suite (170) and
   // this only pins that the handler HONOURS a refusal instead of reporting success.
+  // [0138 §D] the server-owned registration gate. OPEN in the default scene so the existing pins
+  // keep testing what they were written to test; the closed case gets its own pin below.
+  db.rpcs["card_registration_live"] = () => ({ data: true });
   db.rpcs["billing_key_swap"] = (args: Row) => {
     const prof = db.rows("profiles").find((r) => r.id === args.p_profile);
     if (!prof || prof.deleted_at != null) return { data: [{ swapped: false, displaced_key: null }] };
@@ -267,5 +270,26 @@ Deno.test("codex #4 — a replacement REPORTS the displaced key rather than losi
     const rows = db.rows("billing_keys").filter((r) => r.profile_id === OWNER);
     assertEquals(rows.length, 1);
     assertEquals(rows[0].billing_key, "bill_abc123");
+  } finally { fm.restore(); }
+});
+
+
+Deno.test("🔴 codex #7 — the SERVER gate refuses even a well-formed call, and before Toss", async () => {
+  const db = scene();
+  db.rpcs["card_registration_live"] = () => ({ data: false });   // Sean has not opened it
+  const fm = new FetchMock().on(isIssue, () => FetchMock.json(issued()));
+  fm.install();
+  try {
+    let prepStatus = 0, issueStatus = 0;
+    try { await registerBillingKey(req({ action: "prepare" }, "owner_jwt"), db as never); }
+    catch (e) { prepStatus = (e as HttpError).status; }
+    try { await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce: "n" }, "owner_jwt"), db as never); }
+    catch (e) { issueStatus = (e as HttpError).status; }
+    // BOTH actions refuse — a gate that only guarded `issue` would still let a client burn a
+    // prepare and open a Toss page that can never complete, which is the dead-end shape.
+    assertEquals(prepStatus, 503);
+    assertEquals(issueStatus, 503);
+    assertEquals(fm.calls.filter((c) => isIssue(c.url)).length, 0);
+    assertEquals(db.rows("billing_keys").length, 0);
   } finally { fm.restore(); }
 });

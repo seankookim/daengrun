@@ -721,6 +721,16 @@ export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive
 // 돌려주고 (0076 §B — PG에 프로필 id를 넘기지 않기 위한 별도 키; create-payment-intent가 이미
 // 같은 공개를 한다), ② 토스 페이지가 돌려준 일회용 authKey를 issue가 서버에서 빌링키로 바꿔
 // 저장한다. 빌링키 자체는 클라이언트에 절대 오지 않는다 — 돌아오는 건 brand+last4뿐이다.
+/** [0138 §D] 서버가 카드 등록을 열었는가. 클라이언트 상수(TOSS_ENABLED)나 키 유무가 아니라
+ *  **서버 플래그**가 정답이다 — 화면은 이걸 보고 문을 그릴지 정한다. 열리지 않는 문을 그리는
+ *  것이 죽은 버튼이고, 서버가 503으로 거절하는 문이 정확히 그것이다. 실패는 false로 읽는다:
+ *  못 읽었을 때 문을 그리면 그 문이 죽어 있을 수 있다. */
+export async function cardRegistrationLive(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('card_registration_live');
+  if (error) return false;
+  return data === true;
+}
+
 export interface BillingAttempt { customerKey: string; nonce: string }
 
 export async function prepareBillingAuth(): Promise<BillingAttempt> {

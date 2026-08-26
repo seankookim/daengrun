@@ -106,6 +106,20 @@ export function tossBillingCharge(
   }, BILLING_TIMEOUT_MS);
 }
 
+// 빌링키 폐기 — 교체·탈퇴로 주인을 잃은 키를 PG 쪽에서 없앤다 (0138 아웃박스가 부른다).
+// 토스는 미사용 빌링키의 삭제를 제공하고, 중복 발급 자체는 허용한다 — 그래서 「교체했으니
+// 옛 키는 알아서 죽는다」는 성립하지 않고, 지우지 않으면 살아 있는 채로 남는다.
+// 멱등 키는 빌링키에서 파생한다: 같은 키에 대한 재시도는 같은 요청이므로 같은 키를 쓰는 것이
+// 옳고, 빌링키 자체를 헤더에 복사하지는 않는다 (자격증명 사본을 한 곳 더 만들지 않는다).
+export function tossBillingRevoke(billingKey: string): Promise<TossResult> {
+  return call(
+    `${TOSS_BASE}/billing/${encodeURIComponent(billingKey)}/delete`,
+    `revoke_${billingKey.slice(-12)}`,
+    {},
+    BILLING_TIMEOUT_MS,
+  );
+}
+
 // The already-processed arm's evidence source (§0-ter #8). When Toss refuses a charge because the
 // order was already processed, "refused" is the wrong reading: the money may well have moved on an
 // earlier attempt. We ask Toss what the order actually is before writing anything down.
