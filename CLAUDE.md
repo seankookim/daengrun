@@ -282,13 +282,34 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   | INSERT | **OBSERVED** — a hand-written row returned `payout_state = none` having never been given one |
   | UPDATE | **READ from the deployed trigger** — `BEFORE INSERT OR UPDATE`, **no `WHEN` clause**, and the assignment is unconditional. Not observed |
   | custody flip `runner_delegated → owner_handled` on a row already `payable` | **READ** — `_club_sync_axes_tg` calls `_club_compute_axes(**new**)`, so the flip's own UPDATE takes the `owner_handled` branch and forces `'none'` in the same statement. The value cannot ride across |
-  | trigger disabled · `session_replication_role` | **OPEN** |
+  | trigger disabled · `session_replication_role` | **CLOSED** — two independent kinds of evidence, see below |
 
   Verified independently against production `prosrc` before adopting: `payout_state := j->>'payout_state'`
   **unconditional** (`payout_guarded=false`) while `service_reason := coalesce(…, new.service_reason)`
   in the SAME function is **guarded** — so the author knew how to preserve a caller's value and chose
   not to here. ⚠ **That contrast is load-bearing: an unguarded assignment that reads like an oversight
   is exactly what a later session "tidies".** It is deliberate. Leave it.
+  🔴 **`pg_get_triggerdef()` DOES NOT PROVE A TRIGGER IS ENABLED — it renders a DISABLED trigger
+  identically. Check `pg_trigger.tgenabled`.** (Found by codex, 2026-08-26, as a defect in a peer's
+  *evidence method* rather than in any code — the more useful kind of review finding.) A definition
+  read wearing the costume of a state check: it answers 「what shape is this trigger」 while being
+  quoted for 「is this trigger firing」. And it is not theoretical — **the suites in this repo do
+  disable this trigger**, so DISABLED is a state it genuinely enters. Values: `O` origin/enabled ·
+  `D` disabled · `R` replica-only · `A` always.
+  **The standing check, run at WRITE time against production and never off a migration file:**
+```
+select tgname, tgenabled, pg_get_triggerdef(oid)
+from pg_trigger where tgrelid = '<table>'::regclass and not tgisinternal;
+```
+  `tgenabled` is the **state**; the def is only the **shape**. Run it before any hand-written
+  production row, on any table.
+  ⚠ **How the fourth rung actually closed is the model:** codex enumerated six bypass paths in
+  **migration source** and found none; the live check returned **`tgenabled = 'O'`**. Those are
+  **different kinds of evidence** — source says 「nothing in the repo turns it off」, live says
+  「it is on right now」 — and neither implies the other. They agreed, which is worth more than
+  either alone, and is precisely why the run was worth the quota *after* the answer was already
+  believed.
+
   🔴 **The general rule: write the rung, not the verdict.** 「By construction」, 「provably」, 「cannot」
   are verdicts, and a verdict lets three read-only rungs borrow the status of the one that was
   measured. Say which rung each claim stands on, and an open rung stays visibly open.
