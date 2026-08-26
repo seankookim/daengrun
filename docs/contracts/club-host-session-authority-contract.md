@@ -1,3 +1,26 @@
+# ⛔ PARKED — DO NOT BUILD (Sean, 2026-08-26: 「suer park removal」)
+
+**The feature's PREMISE was withdrawn, not merely its priority.** He answered three of this
+contract's sub-questions (`mark-absent` = no-shows, `backup-powers` = host only) and then asked
+「why would removal be necessary and in what situation and what step in the flow of the club
+session?」 — and **nobody ever named one.**
+
+The honest chain, recorded so it is not re-derived: he removed host approval for joining → that
+approval button was the **only** mechanism that could keep anyone out of a session → the gap was
+surfaced → he ruled 「host can remove someone from one walk」 → this contract followed from that
+ruling. It exists because a mechanism was removed, **not because anyone hit a problem.** ⚠ And the
+card that surfaced the gap carried the **11-accounts error** (real user count: **zero**), so the
+「worth building now」 argument rested on a number that was wrong.
+
+**Cost avoided:** three screens, a notification policy, and an appeal path — the last two of which
+`mark-absent = no-shows` would have made mandatory, since a stored claim about a person that any
+fee gate reads is money.
+
+**His three answers are KEPT, not voided** — if a real incident ever makes this necessary, they are
+ready and the contract is complete. **Do not start it because it appears unclaimed.**
+
+---
+
 # Club host session authority — contract v1
 
 **Subject.** The two powers a club host does not have today, both ruled by Sean on the console

@@ -1382,3 +1382,51 @@ screen** that explains why location is needed, and only fires the OS prompt afte
 The ask still happens at first launch as ruled; the OS's single question is simply not spent on
 someone who has not yet been told why. If he wants the bare OS prompt instead, that is his call and
 this note is the record that the cost was named.
+
+## 2026-08-26 — three closed at once
+
+**Sean, verbatim:** 「suer park removal. approve phone numbers, and just background location of course」
+
+| decision | disposition |
+|---|---|
+| **Park host removal** | `club-host-session-authority-contract.md` now opens with a ⛔ PARKED — DO NOT BUILD header. His three sub-answers are KEPT, not voided. |
+| **Approve §7-1** | The four third-party 비상연락처 rows go to counsel. The red 「아직 대표 확인 전」 block is **removed** from `contract-status-counsel-brief.md` — verified 0 occurrences. **The brief is now complete and sendable.** |
+| **Fix background location** | Ruled. Scoped below. |
+
+### The park is a WITHDRAWN PREMISE, not a deprioritisation — and that distinction is the record
+
+A deprioritised feature gets picked up by the next session that sees an unclaimed contract. A
+withdrawn premise must not. The contract header now carries the whole chain: host approval removed
+→ that button was the only keep-someone-out mechanism → gap surfaced → he ruled removal → three
+contracts followed. **It existed because a mechanism was removed, not because anyone hit a
+problem**, and the card that surfaced it carried the 11-accounts error (real count: zero).
+
+⚠ **`mark-absent = no-shows` is what made the park worth taking**, and that is not obvious from the
+sentence 「park removal」. A stored no-show claim about a person, once any fee gate reads it, is
+money — and money needs an appeal path. Parking removes a screen; it also removes an obligation
+nobody had costed.
+
+### 🔴 Background location — what it actually is, so nobody underestimates it
+
+「just background location of course」 is one sentence and **four distinct pieces of work**, one of
+which he must do himself:
+
+1. **`app.json`** — `UIBackgroundModes` is currently **`None`**; needs `["location"]`. Native
+   config: **a rebuild, not an OTA update.**
+2. **A second purpose string** — `NSLocationAlwaysAndWhenInUseUsageDescription`. The shipped
+   `NSLocationWhenInUseUsageDescription` does not cover Always, and iOS shows the new one at the
+   escalation prompt.
+3. **`requestBackgroundPermissions`** — never called anywhere today. The escalation is a **second,
+   separate** OS prompt after When-In-Use, and iOS may defer it. It must therefore be requested at
+   the moment it is needed (run start), **never at first launch** — which does not contradict the
+   primer ruling, because the primer's single ask stays When-In-Use.
+4. **⚠ APP STORE REVIEW — Sean's, by credential.** Background location is a reviewed capability;
+   Apple requires the app to demonstrate why it needs it and rejects thin justifications. This
+   product's justification is genuinely strong (live dog-walk tracking, distance sets pay), but
+   the submission is his.
+
+⚠ **The defect this fixes is a MONEY defect, which is why it is not cosmetic:** distance sets
+runner pay, so a runner who pockets their phone is paid **less than they earned** — silently, with
+no error and no way for them to know. `club/run/[sid].tsx:388` already renders a
+`trackMode === 'foreground'` banner, i.e. the app **already tells the user it is degraded** and has
+simply never had the non-degraded mode.

@@ -134,11 +134,9 @@
 
 ### 7-1. 함께 여쭐 별건 — 제3자(비이용자)의 전화번호
 
-> 🔴 **아직 대표 확인 전입니다 — 보내기 전에 이 절을 남길지 결정해 주세요.**
-> §7의 세 지점은 2026-08-26 04:56Z에 「세 가지 모두 이메일에 포함」으로 확정되었으나,
-> 아래 7-1은 콘솔에서 아직 답이 오지 않은 항목입니다. 삭제하고 보내셔도 무방합니다.
-> *(NOT YET APPROVED — Sean has not answered this card. Delete this subsection before
-> sending, or tap the console card to keep it.)*
+*(대표 승인 완료, 2026-08-26 — 「approve phone numbers」. 이 절은 이메일에 포함해 보냅니다.)*
+
+
 >
 > 참고 — 대표가 같은 시각(04:56:35Z) 남긴 코멘트: 「pick up contact can be the owner
 > themselves intuitively」. 이는 **제품 설계 방향**(인수인계 연락처의 기본값을 보호자
