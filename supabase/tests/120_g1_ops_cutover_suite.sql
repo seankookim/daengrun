@@ -722,7 +722,7 @@ begin
     v_bad := '';
     declare
       hh uuid; r2 uuid; ow uuid; d_ok uuid; d_no uuid;
-      v_club uuid; v_sess uuid; sd_ok uuid; sd_no uuid; v_body text;
+      v_club uuid; v_sess uuid; sd_ok uuid; sd_no uuid; v_body text; v_title text;
     begin
       update club_flags set enabled = true where name = 'club_delegation_v2';
       hh := t_user('goc_hh', 'runner'); update runners set tier = 'veteran' where profile_id = hh;
@@ -746,10 +746,23 @@ begin
       perform session_approve_dog(sd_no, false);
       perform set_config('request.jwt.claim.sub', '', false);
 
-      select n.body into v_body from notifications n
-        where n.profile_id = ow and n.title = '위탁 승인 — 결제 대기' and n.ref_id = v_sess;
+      -- 🔴 [0135] 이 프로브는 **돈 주장 제목을 조회 키로** 썼다:
+      --     where n.title = '위탁 승인 — 결제 대기'
+      -- J10의 목적은 「승인 알림에서 요금·결제를 없앤다」인데, 찾는 열쇠가 바로 그 '결제'였고
+      -- 검사는 **본문만** 봤다. 그래서 제목에 남은 결제 주장을 이 핀은 **구조적으로 볼 수 없었다** —
+      -- 통과 문구조차 「본문에 …」로 스스로 범위를 밝히고 있다. 초록불은 딱 한 문장의 증거라는 법칙이
+      -- 그 법칙을 집행하려고 쓴 핀 안에서 실현된 사례다.
+      -- 고침 두 가지: (1) 조회를 제목이 아니라 **ref_id + kind**로 — 제목이 또 바뀌어도 프로브가
+      -- 깨지지 않는다; (2) 본문뿐 아니라 **제목도** 검사한다.
+      select n.title, n.body into v_title, v_body from notifications n
+        where n.profile_id = ow and n.ref_id = v_sess and n.kind = 'booking'
+        order by n.id desc limit 1;
       if v_body is null then v_bad := v_bad || ' 승인 알림이 없다 (프로브가 깨졌다)';
       else
+        -- 제목 검사 — J10이 한 번도 하지 않았던 절반
+        if v_title like '%결제%' or v_title like '%청구%' or v_title like '%환불%'
+          then v_bad := v_bad || ' 제목이 돈을 주장한다: ' || v_title; end if;
+        if v_title ~ '[0-9]{3,}' then v_bad := v_bad || ' 제목에 요금 자릿수가 있다: ' || v_title; end if;
         -- "no digits at all" would be the cleanest rule and it is the wrong one: the sentence
         -- legitimately says "20분". A fare is a 3+ digit run (`club_fare` returns 9,900 upward and
         -- the SQL concatenated it uncommaed as e.g. 24900), and the hold duration is two digits —
