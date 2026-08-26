@@ -853,3 +853,42 @@ shipping a corrected number.
 `db query --linked` hung on a credential, so it cites MY earlier verification as mine rather than
 adopting it); whether `98 H9` is currently green — **it deliberately did not run the harness
 because other sessions are live in this repo**, and substituted the independent source sweep.
+
+## 🔴 REPO-WIDE: the test harness UNDER-MODELS production's default function ACL
+
+Found by the 0129 builder, which **refused to merge my production reading into its harness reading**
+and flagged the divergence instead of smoothing it. Both measured, independently:
+
+- **Harness** (`supabase/tests/00_shim.sql:73`):
+  `alter default privileges in schema public grant execute on functions to service_role;`
+  — **service_role only.**
+- **Production** (`pg_default_acl` where `defaclobjtype='f'`, queried live):
+  `postgres=X anon=X authenticated=X service_role=X` — **anon and authenticated too.**
+
+**So a function created fresh in production is born executable by `anon` and `authenticated`, and
+no harness pin can show it.** Every ACL assertion in this repo — `98 H1`'s sweep, `98 H9`'s
+allowlist, each slice's own VERIFY — is validated against a default that is **kinder than reality**.
+
+⚠ **This is the 「a green light is evidence for exactly one sentence」 law pointed at the harness
+itself.** The sentence those greens prove is 「correct under a shim that grants only service_role」,
+not 「correct in production」. It also means the `revoke … from public, anon` line that this repo
+made a law about today is **load-bearing for two more roles than anyone was measuring**, and that
+the danger of a missing revoke is strictly worse in production than any red we could produce.
+
+**Not fixed here, deliberately.** Aligning the shim changes what EVERY definer suite in the repo is
+measuring and would likely redden pins that are currently green for the wrong reason — which is
+exactly the kind of change that must be its own slice with its own review, not a rider on a
+return-address fix. **Recorded as a claimed follow-up.**
+
+The builder's own independent evidence for the same conclusion, taken on its rig: deleting the
+`revoke` and applying to a database **without** the function yields a PUBLIC-executable definer and
+VERIFY ③ aborts — while **the identical deletion on the harness path applies clean and green.**
+That pair is the executable proof that the harness cannot see this class.
+
+### And a process note worth keeping about how it was found
+The builder had written 「Measured, not assumed: the M4b-shaped mutation reddens 163 P7」 into a
+comment **before running it**. It stopped, ran it, and the result changed what it could honestly
+write — `162 P6` stayed GREEN under that mutation, correctly, because its surviving probes cannot
+reach the distinguishing branch. **That green is the evidence the property genuinely MOVED to 163
+rather than being quietly re-homed inside 162** — which is the thing a retirement has to prove and
+usually does not.
