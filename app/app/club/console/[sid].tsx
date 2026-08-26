@@ -20,12 +20,16 @@ import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme'
 
 const L = lilac;
 
-const CHARGE_LABEL: Record<string, string> = {
-  // [정직 2026-08-11] '결제 완료'는 청구가 일어났다는 주장이다. 모의 결제 시대엔 거짓 —
-  // 리포에 PG 연동이 없고 서버도 '모의 시대: 청구 없음'이라 적는다 (0057:250).
-  paid: '자리 확정', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
-};
-
+// [정직 2026-08-26] CHARGE_LABEL was deleted here, not extended. It mapped
+// paid|pending_payment|refunded|refund_pending, but `session_dogs.charge_state`'s domain is
+// exactly **none|hold|paid** and CLOSED (`session_dogs_charge_state_check`, measured in
+// production) — so three of its four keys had never matched anything, and none/hold fell through
+// `?? d.chargeState` to render the raw English tokens 'none' and 'hold' as chips in a Korean UI.
+// ⚠ The dead keys were the actual hazard: four entries made the map LOOK complete, so a reader
+// checking coverage concluded it was covered. They also preserved a stale money model nobody had
+// re-examined — reading `pending_payment` as "what the author meant for hold" would have imported
+// it. The three charge words now live in the render below, one branch each. Do not re-add a map
+// from an old screenshot; the domain is closed and named above.
 const mmss = (ms: number): string => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -398,18 +402,35 @@ export default function HostConsole() {
         {dogs.filter((d) => d.approval === 'approved' && d.chargeState).length === 0 && (
           <Text style={s.emptyLine}>승인된 위탁이 아직 없어요</Text>
         )}
-        {dogs.filter((d) => d.approval === 'approved' && d.chargeState).map((d) => (
-          <View key={d.sdId} style={s.drow}>
-            <Row style={{ gap: 10, alignItems: 'center' }}>
-              <DogDot name={d.dogName} collar={d.collar} size={30} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.dogName}>{d.dogName}</Text>
-                <Text style={s.dogSub}>{d.ownerName}</Text>
-              </View>
-              <ClubTag label={CHARGE_LABEL[d.chargeState!] ?? d.chargeState!} tone={d.chargeState === 'paid' ? 'volt' : 'amber'} />
-            </Row>
-          </View>
-        ))}
+        {dogs.filter((d) => d.approval === 'approved' && d.chargeState).map((d) => {
+          // `hold` is a SEAT hold, not a payment hold: the server sets it exactly when
+          // `hold_status='active' and hold_expires_at > now()` (0048:763) — nothing about money.
+          // Payment happens AFTER the run (Sean), so during this window nothing is pending except
+          // the seat. That is why the word is 자리-shaped, matching 자리 확정, and why the dead map's
+          // 「결제 대기」 was not adopted: it would assert a payment that is not owed yet — the same
+          // error the 2026-08-11 note refused for `paid`, pointed the other way.
+          const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
+          // [same guard as the proposal row] Never render an elapsed hold as '00:00 남음'. A payload
+          // fetched before expiry can still say 'hold' after it; show the state without a false clock.
+          const ticking = holdLeft != null && holdLeft > 0;
+          return (
+            <View key={d.sdId} style={s.drow}>
+              <Row style={{ gap: 10, alignItems: 'center' }}>
+                <DogDot name={d.dogName} collar={d.collar} size={30} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.dogName}>{d.dogName}</Text>
+                  <Text style={s.dogSub}>{d.ownerName}</Text>
+                </View>
+                {d.chargeState === 'paid' ? (
+                  <ClubTag label="자리 확정" tone="volt" />
+                ) : d.chargeState === 'hold' ? (
+                  <ClubTag label={ticking ? `자리 잡는 중 · ${mmss(holdLeft!)}` : '자리 잡는 중'} tone="amber" />
+                ) : null /* 'none' — approved with no live hold. The payload does not say WHY,
+                            so no word: a chip here would be invented state (honesty law). */}
+              </Row>
+            </View>
+          );
+        })}
 
         {/* ---------- 3 배정 제안 ---------- */}
         <SecHead n="3" title="배정 제안" sub="러너 수락으로 확정" />
