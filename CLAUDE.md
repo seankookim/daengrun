@@ -121,6 +121,15 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 ## Migrations & security (server)
 
 - Any migration or security-relevant change requires the adversarial cycle: scout → contract → implement → adversarial review where reviewers EXECUTE attacks → test pins → revise → verify. Harness: `supabase/tests/harness.sh` (container: PG16 at tests/.pgtest; pg_ctl must start in the same shell invocation). All pins must pass; new behavior gets mutation-verified pins.
+- 🔴 **WHAT THE DATABASE SHOWS IS NOT WHAT THE PRODUCT MEANS** (2026-08-26). `count(*) = 11`
+  answers 「how many ROWS」 and was read as 「how many USERS」 — then shipped downstream as a design
+  constraint (「the empty state is permanent for the current cohort」) and as a scale argument
+  (「not urgent at 11 accounts」, 「the funnel cost is small」). Sean: 「the existing ones are fake so
+  it's fine」. **The real user count was zero**, so every 「small enough not to matter yet」 argument
+  built on 11 was rhetorical rather than load-bearing. ⚠ The damage was not the wrong number — it
+  was that a PEER had already accepted the inference and was building on it, which is the
+  amplification the endorsement law above describes. Ask the human what a row MEANS before making
+  it a premise: a fixture, a churned account and a live user are indistinguishable in a count.
 - 🔴 **A GREEN LIGHT IS EVIDENCE FOR EXACTLY ONE SENTENCE — write that sentence down, then check
   it is the one you needed** (2026-08-25; this shape appeared FIVE times in one afternoon across
   two lanes, and the people finding it were the same people committing it). Instances, all

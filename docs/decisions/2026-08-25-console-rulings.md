@@ -558,8 +558,13 @@ the phone slice's SHIP gate is now an external dependency** — it waits on coun
 our build queue. The build (collection point, render, tombstone-keyed deletion clear) can proceed;
 what cannot proceed is turning collection on for real users before the policy names it.
 
-**2. Phone is REQUIRED at signup.** So the onboarding form gains a required field, and the funnel
-cost is accepted deliberately at 11 accounts.
+**2. Phone is REQUIRED at signup.** The onboarding form gains a required field.
+⚠ **Its justification was corrected 01:47:25Z.** This originally read 「the funnel cost is accepted
+deliberately at 11 accounts」. That reason is VOID — the 11 are fixtures. Required-at-signup may
+still be right, but it is right for a different reason: **nobody is inconvenienced because nobody
+exists yet**, so the field can be made mandatory before there is a funnel to damage. The old
+sentence is struck rather than quietly reworded, because a decision carrying a dead justification
+is how a later session re-derives the wrong constraint.
 
 ⚠ **"Required" does NOT mean the empty state disappears — it means the opposite is permanent.**
 All 11 existing accounts have no number and nothing backfills them. A required field binds only
