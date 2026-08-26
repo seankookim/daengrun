@@ -1,37 +1,49 @@
 # ⑧ Card registration placement
 
-> 🔴 **REVERSED — Sean, 2026-08-26.** His words: *「this card thing should be an onboarding thing.
-> the entire reason behind why i want the card registration to come before the run is to mentally
-> separate money leaving from the actual run service.」*
+> 🔴 **SETTLED — Sean, 2026-08-26, third and final position this day.** His words:
+> *「card registration should come once and that first time should be at the place where after all
+> preferences have been filled in and runners have been selected and routes have been selected and
+> before the actual request to the runner is sent. after that first run, there should be no card
+> whatever, and the card should be changeable and manageable in settings.」*
 >
-> **The card step moves INTO onboarding.** The 2026-08-13 agreement below is superseded and kept
-> in full, because its three reasons are still the real costs of this move and a later reader
-> needs to see what was traded, not just what was chosen.
+> **Placement: the LAST gate of the first booking.** Not onboarding, and not the top of the
+> booking flow — the seam is `owner/request.tsx`'s `pay()`, after the dog gate and the slot gate
+> and immediately before `createBookingHold` (`:536`). Everything is already chosen at that point:
+> dog, route, runner, time, add-ons. The card screen is the final thing between the owner and the
+> request going out.
 >
-> **His axis is one the original argument never considered.** The three reasons below optimise for
-> CONVERSION (reason 1) and for CONSENT QUALITY (reasons 2-3). He is optimising for something else
-> entirely: the *perceived relationship* between paying and the service. Putting the card moment
-> next to the booking couples them — the owner feels they are paying for this run. Putting it at
-> signup makes it account setup, and the run afterwards feels free at the point of use. That is a
-> positioning decision and it is his to make; it does not refute reasons 1-3, it outranks them.
+> **Once, then never again.** First booking only. Afterwards there is no card step anywhere in the
+> flow; the card is changed and managed in 설정 › 결제 관리 (`payments.tsx`), which already exists.
 >
-> **What it costs, stated so it is not discovered later:**
-> - **Reason 1 stands and is now a bill we choose to pay.** A card ask before any delivered value
->   is a real drop-off point, and it lands on every signup including people who never book.
-> - **Reason 3 is the one with legal weight and it is NOT automatically satisfied.** Under price
->   invisibility this screen is the only place an owner consents to actuals-based charging, and
->   memo ②'s "no per-charge notice" defence leans on that consent having happened somewhere real.
->   Onboarding is exactly where reason 3 warned it would be *buried between 「add your dog」 and
->   「allow notifications」 where nobody reads*. **So the move is only safe if the card step is a
->   DELIBERATE FULL SCREEN carrying the consent sentence — never a row, a checkbox, or a squeezed
->   field.** That constraint is now load-bearing rather than stylistic.
-> - **It reaches NEW USERS ONLY.** `app/app/index.tsx:83-98` routes an owner with ≥1 dog straight
->   to home, so nobody already in the app ever sees onboarding again, and nothing backfills. For
->   every existing account the arrears path remains the only route — which is why it still gets
->   built (§F.1's 「allow them to book but make sure they pay afterwards」).
-> - **It does NOT become a hard gate.** A card can be declined, expire, or be skipped, and his
->   F.1 ruling says booking stays open regardless. Onboarding is where we ASK; the after-the-run
->   collection path is still what guarantees payment.
+> ⚠ **Two earlier positions were recorded on this branch today and BOTH are superseded by this
+> one** — an onboarding step (reversed), and before that the original 2026-08-13 「inline at first
+> booking」. They are kept below rather than deleted because the reasoning is what carries forward.
+>
+> **This position is stronger than either on the ORIGINAL document's own three criteria, which is
+> worth stating because it means nothing was traded away to get it:**
+> - **Reason 1 (drop-off) is best served here, not merely tolerated.** The ask lands at PEAK
+>   INTENT — after the owner has picked a dog, a route, a runner and a time. Onboarding asked
+>   before any of that investment existed; the top of the booking flow asked before most of it.
+> - **Reason 2 (post-pay is an easier ask, but only where the user already wants a run) is
+>   satisfied exactly.** They want this specific run, right now.
+> - **Reason 3 (consent must happen somewhere real) is satisfied structurally.** This is a
+>   deliberate blocking moment, not a row buried between two other onboarding fields — which is
+>   the failure mode reason 3 named and the reason the onboarding position was risky.
+>
+> **And it still serves the reason he gave for moving it in the first place** — 「mentally separate
+> money leaving from the actual run service」. The card moment happens BEFORE the run exists, and
+> then never again: no run is ever interrupted by a payment step, and after the first booking the
+> owner never sees a card screen in a flow at all.
+>
+> **Consequences for the build:**
+> - The gate is 「no billing key」, not 「first booking」 — those coincide for a new owner and diverge
+>   when a card is later removed or expires. Keying on the card is the honest predicate; keying on
+>   a booking count would let a card-less owner through on their second attempt.
+> - It is NOT a hard refusal. §F.1 stands: 「allow them to book but make sure they pay afterwards」.
+>   The screen carries a quiet way past it, and the after-the-run collection path remains what
+>   guarantees payment — for skippers, for expired cards, and for every account that predates this.
+> - `payments.tsx` keeps ownership of change/manage. This slice adds the first-time gate and the
+>   card-link screen itself; it does not build a second management surface.
 >
 > ---
 >

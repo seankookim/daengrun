@@ -95,59 +95,60 @@ ul.why b{color:var(--ink)}
 <div class="wrap">
 
 <header class="top">
-  <div class="kick">DOGS HIGH · LAB — r2</div>
-  <h1>카드 연결 — 온보딩 3 / 3</h1>
-  <p>Sean 2026-08-26, 그의 말 그대로: <b>「this card thing should be an onboarding thing. the entire
-     reason behind why i want the card registration to come before the run is to mentally separate
-     money leaving from the actual run service.」</b> 번호로 골라 주세요.</p>
+  <div class="kick">DOGS HIGH · LAB — r3</div>
+  <h1>카드 연결 — 첫 예약의 마지막 관문</h1>
+  <p>Sean 2026-08-26, 그의 말 그대로: <b>「card registration should come once and that first time
+     should be at the place where after all preferences have been filled in and runners have been
+     selected and routes have been selected and before the actual request to the runner is sent.
+     after that first run, there should be no card whatever, and the card should be changeable and
+     manageable in settings.」</b> 번호로 골라 주세요.</p>
 </header>
 
 <div class="note">
-  <b>r1에서 무엇이 바뀌었나.</b> r1은 <b>첫 예약 안</b>에서 열리는 시트였다 —
-  <code>card-registration-placement.md</code>가 2026-08-13에 그렇게 합의했기 때문이다.
-  이번 판정이 그 합의를 <b>뒤집는다</b>: 카드는 온보딩으로 들어간다.
+  <b>자리는 정확히 여기다.</b> <code>owner/request.tsx</code>의 <code>pay()</code> — 강아지 게이트와
+  슬롯 게이트를 지나고, <code>createBookingHold</code>(<code>:536</code>) <b>바로 앞</b>. 그 시점엔
+  이미 다 골라져 있다: 강아지 · 코스 · 러너 · 시간 · 부가. 카드 화면은 보호자와 「요청 보내기」
+  사이의 마지막 한 장이다.
   <br><br>
-  <b>그의 축은 원래 논거에 없던 축이다.</b> 옛 논거 셋은 <b>전환율</b>과 <b>동의의 질</b>을
-  최적화했다. 그는 다른 것을 최적화한다 — <b>돈과 서비스가 붙어 보이는가</b>. 예약 옆에 카드를
-  두면 「이 러닝 값을 낸다」로 읽히고, 가입에 두면 계정 설정이 되어 러닝 자체는 무료처럼 쓰인다.
-  이건 포지셔닝 결정이고 그의 몫이다 — 옛 논거를 반박하는 게 아니라 <b>순위에서 이긴다</b>.
+  <b>딱 한 번.</b> 첫 예약에만. 그 뒤로는 흐름 어디에도 카드 단계가 없고, 변경·관리는
+  <b>설정 › 결제 관리</b>(<code>payments.tsx</code>, 이미 있음)가 가진다.
 </div>
 
 <div class="note">
-  <span class="warn">옮기면서 같이 오는 비용 — 나중에 발견되지 않도록 여기 적는다.</span>
-  <br>
-  <b>① 이탈.</b> 전달된 가치가 없는 상태의 카드 요구는 소비자 온보딩에서 가장 확실한 이탈
-  지점이고, 예약을 한 번도 안 할 사람에게까지 걸린다. 그래서 이 랩은 카드를 <b>3 / 3, 마지막
-  단계</b>에 둔다 — 강아지 이름과 출발지를 이미 넣은 뒤라 되돌아가기 아까운 자리다.
+  <b>이 자리는 원래 문서의 세 기준 모두에서 앞선다</b> — 무언가를 내주고 얻은 자리가 아니라는
+  뜻이라 적어 둔다.
+  <b>① 이탈</b>은 여기서 가장 낫다. 요구가 <b>의사 최고점</b>에 떨어진다 — 강아지도 코스도 러너도
+  시간도 이미 고른 뒤다. 온보딩은 그 투자가 생기기 전에 물었고, 예약 흐름 초입은 대부분 생기기
+  전에 물었다.
+  <b>② 후불은 「이미 러닝을 원하는 자리」에서만 쉬운 부탁</b>이라는 조건이 정확히 충족된다 —
+  지금 이 러닝을 원하는 순간이다.
+  <b>③ 동의가 진짜 일어나는 자리</b>여야 한다는 조건은 구조적으로 충족된다. 여기는 의도적으로
+  멈추는 순간이지, 온보딩 필드 사이에 낀 줄이 아니다 — 그게 온보딩 안이 위험했던 이유였다.
   <br><br>
-  <b>② 동의.</b> 이게 법적으로 무거운 쪽이다. 가격 비공개 아래에서 이 화면은 보호자가
-  <b>실측 기반 청구에 동의하는 유일한 자리</b>이고, memo ②의 「건별 고지 없음」 방어가 그 동의에
-  기댄다. 그런데 온보딩은 옛 논거 ③이 <em>「'강아지 추가'와 '알림 허용' 사이에 파묻혀 아무도 안
-  읽는 자리」</em>라고 경고한 바로 그곳이다. <b>그래서 이 이동은 카드 단계가 동의 문장을 든
-  '한 장짜리 진짜 화면'일 때만 안전하다 — 줄 하나, 체크박스, 끼워넣은 입력칸이면 안 된다.</b>
-  세 안 모두 그 제약을 지킨다. 이건 이제 스타일이 아니라 하중이다.
-  <br><br>
-  <b>③ 신규 가입자만 닿는다.</b> <code>app/app/index.tsx:83-98</code>은 강아지가 하나라도 있는
-  보호자를 곧장 홈으로 보낸다 — 이미 앱에 있는 사람은 온보딩을 다시 보지 않고, 소급 적용도 없다.
-  그래서 <b>기존 계정에게는 미납 경로가 여전히 유일한 길</b>이고, 오른쪽 화면은 사라지지 않는다.
-  <br><br>
-  <b>④ 하드 게이트는 아니다.</b> 카드는 거절될 수도, 만료될 수도, 건너뛸 수도 있고,
-  「allow them to book but make sure they pay afterwards」 판정은 그대로다. 온보딩은 <b>묻는</b>
-  자리이고, 받아내는 것은 여전히 러닝 뒤 수금 경로다.
+  <b>그리고 그가 옮기려던 이유도 그대로 지킨다</b> — 「돈이 나가는 일과 러닝 서비스를 심리적으로
+  분리」. 카드 순간은 러닝이 존재하기 <b>전</b>에 끝나고, 그 뒤로 다시 오지 않는다. 어떤 러닝도
+  결제 단계에 끊기지 않고, 첫 예약 이후 보호자는 흐름 안에서 카드 화면을 영영 보지 않는다.
 </div>
 
 <div class="note">
-  <b>두 상태를 같이 본다.</b> 왼쪽은 <b>온보딩 3 / 3</b> — 예약도, 러닝도, 금액도 아직 없다.
-  오른쪽은 <b>미납</b> — 카드가 없거나 죽은 채로 러닝이 끝나 계정이 잠긴 상태이고, 기존 사용자와
-  카드 만료가 여기로 온다. 한 디자인이 둘 다 감당해야 한다.
+  <span class="warn">게이트는 「첫 예약」이 아니라 「빌링키 없음」이다.</span> 신규 보호자에겐 둘이
+  같지만, 카드를 지우거나 만료되면 갈라진다. 카드를 기준으로 잡아야 정직하다 — 예약 횟수로 잡으면
+  카드 없는 보호자가 두 번째 시도에서 그냥 통과한다.
+  <br><br>
+  <b>막지는 않는다.</b> §F.1 판정은 그대로다: 「allow them to book but make sure they pay
+  afterwards」. 화면에는 조용한 우회로가 있고, 러닝 뒤 수금 경로가 여전히 결제를 보증한다 —
+  건너뛴 사람, 만료된 카드, 그리고 <b>이 화면을 영영 보지 않을 기존 계정 전부</b>에게.
+</div>
+
+<div class="note">
+  <b>두 상태를 같이 본다.</b> 왼쪽은 <b>첫 예약의 마지막 관문</b> — 예약 내용이 전부 정해져 있고
+  금액만 아직 없다. 오른쪽은 <b>미납</b> — 러닝이 끝났는데 결제가 실패해 계정이 잠긴 상태이고,
+  기존 사용자와 카드 만료가 여기로 온다. 한 디자인이 둘 다 감당해야 한다.
   <br><br>
   <span class="warn">일부러 그리지 않은 것 둘.</span> <b>전자상거래법 푸터</b> — 사업자등록이 없어
   숫자가 존재하지 않는다. 지어내면 거짓말이자 법적 주장이다. <b>미리 정해진 금액</b> — 러닝이
-  끝나야 정해진다.
-  <br><br>
-  <b>답이 필요한 것 하나:</b> 3 / 3에 <b>건너뛰기</b>를 둘 것인가. 두면 이탈은 줄지만 동의 없는
-  계정이 생기고, 안 두면 온보딩이 카드에서 막힌다. 세 안 모두 조용한 건너뛰기를 그려 두었으니
-  빼라고 하시면 뺀다.
+  끝나야 정해진다. 왼쪽 화면이 예약 내용을 다 알면서도 <b>금액만 비워 두는</b> 이유가 그것이고,
+  ③은 그 빈칸을 숨기는 대신 화면의 주장으로 삼는다.
 </div>
 
 <!-- ═══════════════════════════ ① ═══════════════════════════ -->
@@ -157,21 +158,21 @@ ul.why b{color:var(--ink)}
    보여주지 않는다</b>: 언제 얼마가 빠지는지는 글로만 있다.</p>
 <div class="pair">
   <div class="col">
-    <p class="caplab">온보딩 3 / 3</p>
+    <p class="caplab">첫 예약 — 요청 보내기 직전</p>
     <div class="ph">
       <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
       <div class="body">
         <div class="markrow" style="margin-bottom:14px"><span class="mark"></span>
-          <span class="stepcount">3 / 3</span></div>
-        <div class="disp" style="font-size:var(--t2)">러닝할 때마다<br>결제하지<br>않아요</div>
-        <p class="t5 dim" style="margin:16px 0 0">카드는 지금 한 번만 연결해요. 러닝이 끝나면
-           실제로 뛴 거리로 자동 결제돼요 — 매번 결제창이 뜨지 않아요.</p>
+          <span class="t5 dim" style="font-weight:600">보내기 전에 한 번만</span></div>
+        <div class="disp" style="font-size:var(--t2)">지금은<br>결제되지<br>않아요</div>
+        <p class="t5 dim" style="margin:16px 0 0">카드는 처음 한 번만 연결해요. 이 러닝이 끝나면
+           실제로 뛴 거리로 자동 결제되고, 다음부터는 이 화면이 나오지 않아요.</p>
         <div class="rule"></div>
         <div class="brands"><span class="brand">신용·체크카드</span><span class="brand">토스페이먼츠</span></div>
         <div class="spacer"></div>
         <button class="cta">카드 연결하기</button>
         <p class="ctahint">연결하면 실제 러닝 기록으로 결제하는 데 동의하는 거예요</p>
-        <p class="ctahint" style="margin-top:12px"><u>나중에 하기</u></p>
+        <p class="ctahint" style="margin-top:12px"><u>카드 없이 보내기</u></p>
       </div>
     </div>
   </div>
@@ -202,22 +203,22 @@ ul.why b{color:var(--ink)}
    ③번 칸이 비어 있는 것이 「금액은 아직 없다」를 말하는 자리다.</p>
 <div class="pair">
   <div class="col">
-    <p class="caplab">온보딩 3 / 3</p>
+    <p class="caplab">첫 예약 — 요청 보내기 직전</p>
     <div class="ph">
       <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
       <div class="body">
         <div class="markrow" style="margin-bottom:12px"><span class="mark"></span>
-          <span class="stepcount">3 / 3</span></div>
+          <span class="t5 dim" style="font-weight:600">보내기 전에 한 번만</span></div>
         <div class="disp" style="font-size:var(--t3)">돈은 여기서<br>끝나요</div>
         <div style="margin-top:18px">
           <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:2px solid var(--ink)">
             <span class="stepn">지금</span>
             <div><div class="t5" style="font-weight:700">카드 연결</div>
-                 <div class="t5 dim">돈 이야기는 이 화면이 마지막이에요.</div></div></div>
+                 <div class="t5 dim">처음 한 번만. 다음 예약부터는 없어요.</div></div></div>
           <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair)">
-            <span class="stepn" style="color:var(--dim)">나중</span>
-            <div><div class="t5" style="font-weight:700">러닝</div>
-                 <div class="t5 dim">예약하고 달려요. 결제창은 뜨지 않아요.</div></div></div>
+            <span class="stepn" style="color:var(--dim)">바로</span>
+            <div><div class="t5" style="font-weight:700">러너에게 요청</div>
+                 <div class="t5 dim">지수 러너 · 서울숲 3km · 오늘 저녁 7시</div></div></div>
           <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair)">
             <span class="stepn" style="color:var(--dim)">끝난 뒤</span>
             <div><div class="t5" style="font-weight:700">자동 결제</div>
@@ -226,7 +227,7 @@ ul.why b{color:var(--ink)}
         <div class="spacer"></div>
         <button class="cta">카드 연결하기</button>
         <p class="ctahint">연결하면 마지막 줄에 동의하는 거예요</p>
-        <p class="ctahint" style="margin-top:12px"><u>나중에 하기</u></p>
+        <p class="ctahint" style="margin-top:12px"><u>카드 없이 보내기</u></p>
       </div>
     </div>
   </div>
@@ -266,25 +267,27 @@ ul.why b{color:var(--ink)}
    삼는 유일한 안이다. 앱이 이미 여권·티켓 문법을 쓰므로 재질도 낯설지 않다.</p>
 <div class="pair">
   <div class="col">
-    <p class="caplab">온보딩 3 / 3</p>
+    <p class="caplab">첫 예약 — 요청 보내기 직전</p>
     <div class="ph">
       <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
       <div class="body">
         <div class="markrow"><span class="mark"></span>
-          <span class="stepcount">3 / 3</span></div>
-        <div class="disp" style="font-size:var(--t3);margin:10px 0 2px">앞으로<br>이렇게 받아요</div>
+          <span class="t5 dim" style="font-weight:600">보내기 전에 한 번만</span></div>
+        <div class="disp" style="font-size:var(--t3);margin:10px 0 2px">이 러닝의<br>영수증</div>
         <div class="perf">
+          <div class="kv"><span class="k">강아지</span><span class="v">초코</span></div>
+          <div class="kv"><span class="k">러너</span><span class="v">지수</span></div>
+          <div class="kv"><span class="k">코스</span><span class="v">서울숲 숲길 3km</span></div>
           <div class="kv"><span class="k">결제 시점</span><span class="v">러닝이 끝난 뒤</span></div>
-          <div class="kv"><span class="k">기준</span><span class="v">실제로 뛴 거리</span></div>
-          <div class="kv"><span class="k">횟수</span><span class="v">러닝 1회당 1번</span></div>
           <div class="kv" style="border-bottom:2px solid var(--ink)">
             <span class="k">금액</span><span class="v pending">러닝이 끝나야 정해져요</span></div>
         </div>
-        <p class="t5 dim" style="margin:14px 0 0">지금 빠져나가는 돈은 없어요. 카드만 연결해둬요.</p>
+        <p class="t5 dim" style="margin:14px 0 0">지금 빠져나가는 돈은 없어요. 카드는 처음 한 번만
+           연결해요.</p>
         <div class="spacer"></div>
         <button class="cta">카드 연결하기</button>
         <p class="ctahint">연결하면 이 방식으로 결제하는 데 동의하는 거예요</p>
-        <p class="ctahint" style="margin-top:12px"><u>나중에 하기</u></p>
+        <p class="ctahint" style="margin-top:12px"><u>카드 없이 보내기</u></p>
       </div>
     </div>
   </div>
@@ -318,28 +321,30 @@ ul.why b{color:var(--ink)}
 
 <h2 class="sec">고르실 때</h2>
 <ul class="why">
-  <li><b>①</b>은 분리를 <b>한 문장으로</b> 말한다 — 「러닝할 때마다 결제하지 않아요」. 원하시는
-      심리 분리를 가장 크게 읽히게 하는 안이고, 가장 조용하다. 대신 <b>언제·무엇으로</b> 금액이
-      정해지는지는 본문 한 줄에만 있어서, 첫 청구를 보고 놀랄 여지가 제일 크다.</li>
-  <li><b>②</b>는 분리를 <b>구조로</b> 말한다: 지금 / 나중 / 끝난 뒤. 왼쪽 라벨이 시간축이라
-      「돈은 여기서 끝나고 러닝은 저기 있다」가 그림 자체로 읽힌다. 그리고 미납 상태에서
-      「어디서 멈췄는지」를 같은 그림으로 말할 수 있어, <b>두 상태가 한 디자인으로 가장 자연스럽게
-      이어진다</b>.</li>
-  <li><b>③</b>은 가격 비공개를 <b>정면으로</b> 다룬다. 빈 금액 칸이 화면의 주장이라 나중에 놀랄
-      일이 가장 적다. 다만 온보딩 마지막 단계치고 정보가 가장 많고, 표는 「설정 화면」처럼 읽힐
-      위험이 있다 — 그게 바로 이번 이동이 피하려는 인상이다.</li>
+  <li><b>①</b>은 가장 조용하고, 「지금은 결제되지 않아요」가 가장 크게 읽힌다. 마지막 관문에서
+      한 문장만 읽히는 건 장점이다 — 여기까지 온 사람은 이미 마음을 정했고, 화면이 길수록
+      다시 생각하게 된다. 대신 <b>무엇으로 얼마가</b> 정해지는지는 본문 한 줄에만 있다.</li>
+  <li><b>②</b>는 분리를 <b>구조로</b> 말한다: 지금 / 바로 / 끝난 뒤. 왼쪽 라벨이 시간축이라
+      「돈은 여기서 끝나고 러닝은 저 뒤에 있다」가 그림 자체로 읽히고, 가운데 줄에 <b>방금 고른
+      러너·코스·시간</b>이 들어가 「이 요청을 보내는 중」이라는 맥락을 잃지 않는다. 미납 상태도
+      같은 그림으로 「어디서 멈췄는지」를 말한다 — <b>두 상태가 한 디자인으로 가장 자연스럽게
+      이어지는 안</b>.</li>
+  <li><b>③</b>은 이제 <b>진짜 예약을 그린다</b>. 강아지·러너·코스가 다 정해진 자리라서 영수증이
+      추상이 아니고, 금액 한 칸만 비어 「러닝이 끝나야 정해져요」라고 말한다 — 가격 비공개를
+      숨기는 대신 화면의 주장으로 삼는 유일한 안. 첫 청구에 놀랄 일이 가장 적다. 다만 마지막
+      관문치고 읽을 것이 가장 많다.</li>
 </ul>
 <ul class="why" style="margin-top:16px">
   <li class="warn"><b>세 안 모두 서버가 아직 없다.</b> <code>billing_keys</code> 테이블과 읽기 RPC
       <code>my_billing_card</code>는 있지만 <b>빌링키를 발급받아 저장하는 경로가 없다</b> —
       <code>supabase/functions/</code>에 등록 함수가 없다. 화면을 고르시면 그 서버 조각이 이
-      슬라이스의 나머지 절반이고, 그게 없으면 어떤 안을 골라도 버튼이 아무것도 열지 못한다.</li>
-  <li><b>따로 답이 필요한 것:</b> 「나중에 하기」를 남길지. 남기면 이탈은 줄지만 동의 없이 예약할
-      수 있는 계정이 생기고 — 그건 F.1 판정이 이미 허용한 상태다 — 빼면 온보딩이 카드에서 막힌다.
-      세 안 모두 조용한 형태로 그려 두었다.</li>
-  <li><b>온보딩은 신규만 닿는다.</b> 기존 계정은 이 화면을 영영 보지 않으므로, 오른쪽 미납 화면은
-      「예외 처리」가 아니라 <b>지금 있는 모든 사용자의 유일한 경로</b>다. 고르실 때 오른쪽을 같이
-      보셔야 하는 이유다.</li>
+      슬라이스의 나머지 절반이고, 없으면 어떤 안을 골라도 버튼이 아무것도 열지 못한다.</li>
+  <li><b>따로 답이 필요한 것:</b> 「카드 없이 보내기」를 남길지. 남기면 이탈은 줄지만 카드 없이
+      요청이 나가고 — F.1 판정이 이미 허용한 상태다 — 빼면 첫 예약이 카드에서 막힌다. 세 안 모두
+      조용한 형태로 그려 두었다.</li>
+  <li><b>오른쪽은 예외가 아니다.</b> 이 화면은 <b>신규 첫 예약에만</b> 뜨므로, 지금 있는 계정
+      전부와 카드 만료·삭제는 오른쪽 미납 경로로만 온다. 고르실 때 오른쪽을 같이 보셔야 하는
+      이유다.</li>
 </ul>
 
 </div>
