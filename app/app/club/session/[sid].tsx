@@ -89,14 +89,26 @@ export default function ClubSessionShell() {
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
   const [roster, setRoster] = useState<SessionRoster | null>(null);
+  const applyRoster = useCallback((seq: number, r: SessionRoster) => {
+    if (seq < rosterApplied.current) return;   // 옛 응답
+    rosterApplied.current = seq;
+    setRoster(r);
+  }, []);
   // [codex r3] 시트 자체가 락이다. 라운드 2는 Alert 사슬(승낙서→조회→피커) 위에 ref 락을 얹었는데,
   // 코덱스가 릴리스되지 않는 경로를 넷 찾았다(조회 실패 · 다견 '닫기' · 무견 두 버튼 · 백그라운드).
   // 상태 하나가 열림/닫힘을 전부 표현하면 그 경로들이 존재하지 않는다.
   // ⚠ Alert 피커도 함께 은퇴한다: Android Alert는 버튼 3개까지라, '닫기'+개 3마리 = 4개에서 한
   //   마리가 조용히 사라졌다 — 다견 보호자에게는 막다른 길이다. 시트는 전부 보여준다.
   const [addSheet, setAddSheet] = useState<Awaited<ReturnType<typeof fetchMyDogs>> | null>(null);
-  // 성공 직후 CTA를 접는 로컬 표시 (로스터 재요청 없이) — 위 [codex r3] 주석 참조.
-  const [addedLocally, setAddedLocally] = useState(false);
+  // [codex r4] 추가 뮤텍스. busy는 렌더 상태라 setBusy 이전에 두 번째 탭이 들어올 수 있고, 서로
+  // 다른 아이 두 마리가 동시에 성공할 수 있었다. ref는 같은 틱에 즉시 보인다.
+  const addMutex = useRef(false);
+  // [codex r4] 성공 시 이 nonce만 올린다. 로스터 재요청을 직접 하지 않는 이유: 탭 effect가 이미
+  // '참가자 탭일 때만' 부르는 게이트를 갖고 있어(전화 열람 로그, :138), nonce를 그 effect의 deps에
+  // 넣으면 탭에 있으면 즉시 갱신되고 탭을 떠났으면 조용하다가 돌아올 때 자연히 갱신된다.
+  // ⚠ 라운드 3의 addedLocally는 이걸 로컬 플래그로 대신했는데, 그건 경합을 거짓말과 맞바꾼 것이었다:
+  //   CTA는 사라지지만 견 목록은 그대로라, 방금 넣은 아이가 없는 화면을 사실처럼 보여줬다.
+  const [rosterNonce, setRosterNonce] = useState(0);
   // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
   // 명단(전화 열람 로그가 붙는다)이고, 이 보드는 클럽 멤버 누구나 보는 공개 게시판이다.
   // 그래서 limited·비참가 멤버도 여기서는 무언가를 본다 — 서버 게이트가 로스터보다 넓다.
@@ -152,7 +164,8 @@ export default function ClubSessionShell() {
     const rosterAllowed = access !== 'none' && access !== 'limited';
     const needForRunner = board?.me.committed === true;
     if (rosterAllowed && (tab === '참가자' || needForRunner)) {
-      fetchSessionRoster(sid).then(setRoster).catch(() => {});
+      const rseq = ++rosterIssued.current;
+      fetchSessionRoster(sid).then((r) => applyRoster(rseq, r)).catch(() => {});
     }
     // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
     // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
@@ -164,11 +177,16 @@ export default function ClubSessionShell() {
         .then((rows) => { setBoardRows(rows); setBoardFailed(false); })
         .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
-  }, [tab, access, sid, board?.me.committed]);
+  }, [tab, access, sid, board?.me.committed, rosterNonce, applyRoster]);
 
   // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독.
   // [감사 P2] INSERT마다 전체 재조회라 응답 역순 도착 시 옛 스냅샷이 최신을 덮던 것 — seq 가드로 최신만 반영.
   const chatSeq = useRef(0);
+  // [codex r4] 로스터 순서 가드. ⚠ 라운드 2는 '마지막으로 발행한' 번호와 비교해서, 나중에 발행된
+  // 요청이 실패하면 먼저 성공한 응답까지 버려졌다 — catch가 조용하므로 로스터가 영영 null일 수
+  // 있었다. 비교 대상은 마지막으로 '반영한' 번호다: 늦게 온 옛 응답만 떨어지고, 성공은 버려지지 않는다.
+  const rosterIssued = useRef(0);
+  const rosterApplied = useRef(0);
   const applyChat = useCallback((run: () => Promise<{ uid: string | null; msgs: ClubChatMsg[] }>) => {
     const my = ++chatSeq.current;
     run().then((c) => { if (my === chatSeq.current) setChat(c); }).catch(() => {});
@@ -284,6 +302,8 @@ export default function ClubSessionShell() {
   // 아니라 '아이를 데려오는가'에 걸린다. 처음 참여할 때만 묻고 나중 추가는 조용히 통과시키면, 같은
   // 책임을 한 번은 고지하고 한 번은 안 하는 화면이 된다.
   const addDogWith = async (dogId: string) => {
+    if (addMutex.current) return;            // [codex r4] 같은 틱의 두 번째 탭
+    addMutex.current = true;
     setBusy(true);
     try {
       await addMyDogToSession(sess.id, dogId);
@@ -292,11 +312,8 @@ export default function ClubSessionShell() {
       // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
       // 부른다. 갱신하지 않으면 방금 넣은 아이가 목록에 없고 CTA도 남아, 다시 누르면 already_added가
       // 뜬다. 성공한 자리에서 이 세션의 로스터만 다시 읽는다.
-      // [codex r3] 성공 뒤 로스터를 다시 부르지 않는다. 재요청은 탭 effect의 요청과 경쟁해
-      // 늦게 온 옛 응답이 새 것을 덮을 수 있었고, 탭을 벗어난 뒤 도착하면 그리지도 않을 응답을 위해
-      // 서버에 전화 열람 로그(:138)를 남겼다 — 이 CTA를 참가자 탭에 둔 이유를 스스로 어기는 것.
-      // 대신 로컬로 표시만 접는다. 로스터는 다음 탭 진입에 자연히 갱신된다.
-      setAddedLocally(true);
+      // [codex r4] nonce 하나만 올린다 — 위 선언부 주석 참조. 탭 effect가 갱신을 맡는다.
+      setRosterNonce((n) => n + 1);
       setAddSheet(null);
     } catch (e) {
       // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
@@ -311,7 +328,7 @@ export default function ClubSessionShell() {
         : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
         : m.includes('not_your_dog') ? '내 아이만 데려갈 수 있어요'
         : m.includes('not_found') ? '세션을 찾을 수 없어요' : m);
-    } finally { setBusy(false); }
+    } finally { setBusy(false); addMutex.current = false; }
   };
   const doAddDog = async () => {
     if (addSheet || busy) return;
@@ -1070,7 +1087,6 @@ export default function ClubSessionShell() {
             building a second-dog path would be choosing a limit he has not ruled. */}
         {isOpenish && sess.joined && !isDone
           && (board?.session.format === 'owner_only' || board?.session.format === 'mixed')
-          && !addedLocally
           && !roster.dogs.some((d) => d.isMine) && (
           <View style={{ marginTop: 14 }}>
             <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
@@ -1542,13 +1558,16 @@ export default function ClubSessionShell() {
       {/* 승낙서를 시트 안에 그대로 둔다: 약속은 처음 참여할 때와 같다. 다만 이 RPC는 승낙서 버전을
           저장할 자리가 없어(p_session/p_dog만 받는다) 「동의」라 부르지 않는다 — 저장하지 못하는
           동의를 주장하지 않기 위해서다. 버전을 남기는 문은 RPC가 인자를 받은 뒤에. */}
-      <Modal visible={addSheet != null} transparent animationType="slide" onRequestClose={() => setAddSheet(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAddSheet(null)} />
+      <Modal visible={addSheet != null} transparent animationType="slide" onRequestClose={() => { if (!busy) setAddSheet(null); }}>
+        {/* [codex r4] RPC가 날아가는 중에는 스크림/뒤로가기로 닫히지 않는다 — 닫혀도 요청은 계속되므로
+            결과를 못 보여주는 화면만 남는다. */}
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { if (!busy) setAddSheet(null); }} />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
           <View style={s.grab} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이를 데려가나요?</Text>
           <Text style={{ fontSize: 15, lineHeight: 21, color: L.text, marginTop: 10 }}>{WAIVER}</Text>
-          <ScrollView style={{ marginTop: 14 }} keyboardShouldPersistTaps="handled">
+          {/* [codex r4] flexShrink 없이는 긴 목록이 시트 밖으로 닫기 버튼을 밀어낸다 */}
+          <ScrollView style={{ marginTop: 14, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
             {(addSheet ?? []).map((d) => (
               <Pressable
                 key={d.id}
