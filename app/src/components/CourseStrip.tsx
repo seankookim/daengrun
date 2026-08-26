@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { fetchMyDistrict, fetchRoutes } from '../lib/api';
+import { fetchMyDistrict, fetchRoutes, townOf } from '../lib/api';
 import { RouteInfo } from '../store';
 import { paper } from '../theme';
 import { useNumFont } from '../lib/fonts';
@@ -11,7 +11,8 @@ import { traceToBox } from '../lib/trace';
 
 // 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(동네 러너 아래)·러너 홈 공유.
 // 파스텔 로테이션 + 살짝 기운 스티커 + km 빕 + 점검 도장: 코스를 '수집하고 싶은 배지'처럼.
-// 로컬 우선: profiles.district = area 일치 코스 앞으로 (지오 거리 정렬은 실좌표 v2).
+// 동네 범위: profiles.district 로 **질의를 좁힌다** (fetchRoutes 가 town 정규화·폴백까지 처리).
+// 정렬만 하던 시절의 설명이 아니다 — 2026-08-26 이전에는 서울 전체를 받아 정렬만 했다.
 
 // [V4] 파스텔 은퇴 — 코스는 거리 월드 컬러(P2 배지 월드와 동일 소스)로: 코스 = 경험
 // [§3b] 구 FOREST 헤더 잉크(#0F1D13)는 헤더가 paper.ink로 통일되며 은퇴
@@ -26,34 +27,70 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
   // rendered). null = loading · failed = the fetch threw · [] = the server really returned none.
   const [routes, setRoutes] = useState<RouteInfo[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // [honesty 2026-08-26 · Sean] null until a load settles: whether the deck we are showing is
+  // actually this owner's neighbourhood. The header is a CLAIM and it needs a fact behind it.
+  const [local, setLocal] = useState(false);
   const nf = useNumFont();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
+  // 🔴 [honesty 2026-08-26 · Sean, on a screenshot] This module is headed 동네 코스 and it was
+  //    showing the whole city. `fetchRoutes()` was called with NO argument, so the deck was the
+  //    six SHORTEST courses in Seoul, and district was used only to sort them — meaning a 성수
+  //    owner read 「동네 코스」 over 송파동 and 잠실동 cards that print their own foreign town
+  //    right on them. Same defect Sean already found once in the booking flow; it survived here
+  //    because this file fetches its own routes.
+  //
+  //    ⚠ The sort was ALSO narrower than it looked, and not a no-op as it first appears:
+  //      `b.area === district` matches exactly when district is '반포동' (7 routes carry that
+  //      area) and never for '성수', because towns are uniformly suffixed. So of the five
+  //      district values in production, ONE worked. A rule that works for the pilot district and
+  //      silently does nothing for everyone else is the worst kind to leave in — it tests fine.
+  //
+  //    The fix is to pass the district, because `fetchRoutes` ALREADY does all of this properly
+  //    and no caller here ever asked it to: exact town, then the 성수→성수동 normalisation
+  //    (`townOf`), then a LOUD unfiltered fallback for the vocabularies that genuinely do not map
+  //    (뚝섬·서울숲). The behaviour was written for this exact problem in 2026-08-20 and this
+  //    strip simply never used it. District must be fetched FIRST now rather than in parallel —
+  //    one extra serial round-trip on a tiny query, which is the correct price.
   const load = useCallback(() => {
     setFailed(false);
-    Promise.all([
-      fetchRoutes(),
-      // district only orders the deck (local courses first) — losing it is not losing the deck
-      fetchMyDistrict().catch(() => null),
-    ]).then(([rs, district]) => {
-      if (!alive.current) return;
-      const sorted = district ? [...rs].sort((a, b) => Number(b.area === district) - Number(a.area === district)) : rs;
-      setRoutes(sorted.slice(0, 6));
-    }).catch((e) => {
-      if (!alive.current) return;
-      console.warn('[courses] load:', (e as Error)?.message ?? e);
-      setFailed(true);
-    });
+    fetchMyDistrict()
+      // district failing is not the deck failing: fall back to the unscoped catalogue, and say
+      // so in the header rather than calling someone else's neighbourhood theirs.
+      .catch(() => null)
+      .then((district) => fetchRoutes(district).then((rs) => ({ rs, district })))
+      .then(({ rs, district }) => {
+        if (!alive.current) return;
+        // ⚠ The same question the query asked, asked of the ANSWER — `fetchRoutes` can fall back
+        //   to the whole city without telling its caller, so a scoped REQUEST is not evidence of
+        //   a scoped RESULT. `townOf` is imported rather than re-spelled here so the two sides
+        //   cannot drift (both district spellings are accepted: '반포동' matches area directly).
+        const t = townOf(district);
+        const isLocal = (r: RouteInfo) => !!t && (r.area === t || r.area === district);
+        const sorted = district ? [...rs].sort((a, b) => Number(isLocal(b)) - Number(isLocal(a))) : rs;
+        setLocal(sorted.some(isLocal));
+        setRoutes(sorted.slice(0, 6));
+      }).catch((e) => {
+        if (!alive.current) return;
+        console.warn('[courses] load:', (e as Error)?.message ?? e);
+        setFailed(true);
+      });
   }, []);
   useEffect(() => { load(); }, [load]);
 
   // The failure row keeps the module's own header, so what failed is readable from the slot
   // it failed in. Loud-fail grammar copied from the neighbouring module on the same home
   // (clubcard.tsx s.cFail): canvas面 + critical hairlines + 14/700 ink + underlined 다시 시도.
+  // The header names what is actually in the deck. 동네 코스 only when at least one card really
+  // is in this owner's town; otherwise 추천 코스 — still a true sentence about the same list,
+  // and the cards keep printing their own area so nothing is hidden, just no longer misnamed.
+  // (The failure row below reuses this too, where the fallback title is the honest one: a load
+  // that never landed cannot have established locality.)
+  const heading = local ? title : '추천 코스';
   const header = (
     <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, marginBottom: 8 }}>
-      <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>{title}</Text>
+      <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>{heading}</Text>
     </View>
   );
 

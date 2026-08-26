@@ -15,7 +15,8 @@ import { layout, paper } from '../../src/theme';
 //
 // ⚠ 홈 베이스는 좌표가 아니다. The schema has no runner home-base column: `runners.service_radius_km`
 // has no centre, and the nearest honest field is `profiles.district` (free text). So the copy says
-// only what district actually does today — it sorts the course strip local-first (CourseStrip.tsx:29).
+// only what district actually does today — it SCOPES the course strip to that town (CourseStrip.tsx,
+// 2026-08-26; before that it only sorted a whole-city deck, which is the defect Sean caught).
 // The mock's "요청이 오는 반경의 중심" is NOT written here: it would be a promise no column keeps.
 // A real home-base coordinate is a server slice.
 //
