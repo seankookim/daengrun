@@ -1254,3 +1254,80 @@ because a premise absorbed silently is the thing nobody can find later.
 *supports* a host who is running — as a participant with their own dog, or leading without one —
 and whether any screen assumes the host is stationary. Stated as an open question rather than
 folded in as though it were verified.
+
+## 2026-08-26 — GUESTS: a new feature, ruled in direction. And a terminology failure of mine.
+
+### ⚠ First, my error, because it caused the exchange
+
+I used the phrase 「companion walker」 for **동반** — an owner walking their OWN dog
+(`custody = 'owner_handled'`), the case he ruled free on 2026-08-25 with his own copy
+「무료로 크루 참가」. He read it as *guests without dogs* and answered 「sure if that's the case」.
+**That 「sure」 answers a question I did not ask, and is NOT recorded as an answer to mine.** A
+bad translation in the question produced a ruling on a different subject; banking it would have
+been the same substitution this file exists to catch. The 동반 question is re-asked, still open.
+
+### Sean, verbatim (2026-08-26)
+
+> 「companion walker? what's that? the extra guests without dogs? sure if that's the case.
+> companion walk should download the app too; both the owner or runner can bring guests along
+> for free and that should be highlighted and make known when registering; the guest can download
+> the app and sign up as an extra guest and just follow along and enjoy the same gps share
+> service」
+
+### RULED, in direction
+
+1. **Owners AND runners may bring guests. Free.**
+2. **It must be highlighted at registration** — a stated benefit, not fine print.
+3. **A guest installs the app and signs up as a guest**, rather than being a name typed by their
+   inviter.
+4. **A guest gets the same GPS share service** — the live map, as a participant.
+
+### 🔴 MEASURED: none of this exists. Not server, not client.
+
+| surface | state |
+|---|---|
+| `session_people.role` | CHECK allow-list of exactly four: `host_runner`, `handling_runner`, `runner_attending`, `owner_attending`. **No guest role** — a new value needs a migration |
+| `guest`/`companion`/`plus_one` in migrations | **0 occurrences** |
+| 게스트/동반인/guest in `app/app/club`, `api.ts` | **0 occurrences** |
+| prior ruling | `companions` = 「Guests can be crew too」 (2026-08-25 04:23:36Z) — ruled in principle, **never built** |
+
+⚠ The role CHECK being an allow-list is the §Migrations law in miniature: it enumerates what
+someone thought of, and a guest is what they did not.
+
+### What his four sentences do NOT settle — these decide the shape
+
+1. **Do guests count against `people_capacity`?** A session capped at 12 with each owner bringing
+   one guest is 24 bodies on a Banpo path. Capacity is `club_sessions.people_capacity`; nothing
+   would currently stop it.
+2. **「the same gps share service」 — in which direction, and to whom?** A guest *seeing* the pack
+   and the pack *seeing a guest's location* are different disclosures, and a guest is a person with
+   an account who is not party to any booking. ⚠ This is a **privacy surface** and it interacts
+   with the phone-number rule he just widened (`phone-host-scope = wide`, host sees every member) —
+   **is a guest a "member" for that rule?** If yes, bringing a guest hands their number to the host.
+3. **Is a guest tied to their inviter, or free-standing once in?** Decides what happens when the
+   inviter cancels — does the guest's RSVP survive?
+4. **Attendance and no-shows.** He ruled `mark-absent = no-shows` for members; does that extend to
+   guests, whose attendance nobody is paying for?
+5. **Does a guest get a record of the walk** (도장, distance)? They walked it. Same question as
+   the 동반 one below, and probably the same answer.
+6. **Liability and waiver.** `session_people.waiver_version` exists. A guest on a walk with dogs
+   they do not own is exactly who a waiver is for, and this is counsel-shaped, not ours.
+
+### STILL OPEN — the 동반 question, correctly stated this time
+
+**When the host taps 러닝 종료, does a 동반 dog (owner walked it themselves) get a record of the
+walk — distance, duration, 도장 — or only the 위탁 dogs?**
+
+Measured chain, production `prosrc`: `session_rsvp` writes a `session_dogs` row and
+**`creates_booking: false`**; every `insert into runs` requires a `booking_id`
+(`0083:419`, `0083:729`, `0087:180`, `0087:212`); `club_start_delegated_runs` is
+`b.runner_id = auth.uid()`-scoped and never mentions `owner_handled`. **So a 동반 dog can never
+have a `runs` row, and today its walk is unrecorded.** Under the premise he stated this hour —
+「the host should be running with the pack leading the way」 — **the host is the one person
+guaranteed to get no record of the walk they led.**
+
+⚠ There IS a home for it and it needs no new table: `participant_activities`
+(`session_id, person_id, dog_id, km, pace_sec_per_km, duration_sec, source, run_id`), where
+`run_id` is nullable and `source` already admits **`self_reported`** and **`checkin_only`** —
+「they were there, no GPS」. The schema anticipated participants without bookings; nothing writes it
+for them. ⚠ `person_id` is a FK to `session_people(id)`, not `profiles` (the trap 0131 already hit).
