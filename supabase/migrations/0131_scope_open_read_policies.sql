@@ -69,15 +69,35 @@ begin;
 do $$
 declare v_open int; v_extra int;
 begin
+  -- ⚠ COUNT PER TABLE, and reject EXTRA select policies. The first draft counted four GLOBALLY
+  -- and ignored anything else, so a drifted database carrying e.g.
+  --   create policy x on session_runner_assignments for select to anon using (true);
+  -- passed this pre-check, survived the drops (which name only the four originals), passed VERIFY,
+  -- and passed every pin — while anon read every assignment. A guard that counts a total cannot
+  -- see a table with two policies and a table with none.
   select count(*) into v_open
+  from (select c.relname
+          from pg_policy p join pg_class c on c.oid = p.polrelid
+          join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public'
+           and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+           and p.polcmd = 'r'
+           and pg_get_expr(p.polqual, p.polrelid) = '(auth.uid() IS NOT NULL)'
+         group by c.relname) t;
+  if v_open <> 4 then
+    raise exception '0131 A: expected the open read policy on exactly 4 DISTINCT tables, found %. Re-scout before applying.', v_open;
+  end if;
+
+  -- and no table may carry a SELECT policy this file does not know about
+  select count(*) into v_extra
   from pg_policy p join pg_class c on c.oid = p.polrelid
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public'
     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
     and p.polcmd = 'r'
-    and pg_get_expr(p.polqual, p.polrelid) = '(auth.uid() IS NOT NULL)';
-  if v_open <> 4 then
-    raise exception '0131 A: expected exactly 4 open read policies, found %. Someone changed them; re-scout before applying.', v_open;
+    and pg_get_expr(p.polqual, p.polrelid) is distinct from '(auth.uid() IS NOT NULL)';
+  if v_extra <> 0 then
+    raise exception '0131 A: % UNEXPECTED select policies on these tables — this file would preserve them. Re-scout.', v_extra;
   end if;
 
   -- and no OTHER policy exists on these tables (writes are RLS-denied today; if that changed,
@@ -109,17 +129,36 @@ security definer
 set search_path = public, pg_temp
 as $$
   select p_session is not null and p_uid is not null and (
+    -- ⓐ the session's named authority. Host and backup host are recorded ON the session, so this
+    --   IS the authority rather than a proxy for it.
+    --   ⚠ RESIDUAL, NAMED NOT FIXED: `session_runner_withdraw` does not clear
+    --   `backup_host_profile_id`, so a withdrawn runner who also cancels their RSVP keeps this arm.
+    --   That is a defect in the WITHDRAW rpc (it leaves a stale pointer), not in this predicate —
+    --   a policy cannot honestly decide that the person the session names as backup host is not
+    --   the backup host. Fixing it here would encode 「the schema is lying」 into a security
+    --   predicate. It rides the slice that touches session_runner_withdraw.
     exists (select 1 from club_sessions s
             where s.id = p_session
               and (s.host_profile_id = p_uid or s.backup_host_profile_id = p_uid))
+    -- ⓑ an attending person. `no_show` is EXCLUDED: the host marking someone absent is a
+    --   statement that they were not there, and it must not also be a grant.
     or exists (select 1 from session_people sp
-               where sp.session_id = p_session and sp.profile_id = p_uid)
+               where sp.session_id = p_session and sp.profile_id = p_uid
+                 and coalesce(sp.attendance, 'rsvp') <> 'no_show')
+    -- ⓒ a runner still on the hook. `<> 'withdrawn'` and NOT `= 'committed'` — the house law
+    --   prefers a terminal denial to an allow-list, because a list enumerates what someone thought
+    --   of and today's CHECK admits exactly two values. A third state added later should default to
+    --   ADMITTED-and-visible rather than silently locked out mid-custody.
     or exists (select 1 from session_runner_assignments a
                where a.session_id = p_session and a.runner_profile_id = p_uid
-                 and a.status = 'committed')
+                 and a.status is distinct from 'withdrawn')
+    -- ⓓ someone bound to a LIVE dog in this session. The first draft admitted any historical
+    --   relationship, so an owner whose delegation was rejected, withdrawn or ended still read all
+    --   four tables — and a dog-local custodian was promoted to whole-session access.
     or exists (select 1 from session_dogs sd
                where sd.session_id = p_session
-                 and (sd.owner_profile_id = p_uid
+                 and sd.service_state is distinct from 'ended'
+                 and (sd.owner_profile_id = p_uid and sd.approval in ('approved', 'auto')
                    or sd.custodian_profile_id = p_uid
                    or sd.responsible_profile_id = p_uid
                    or sd.current_runner_profile_id = p_uid))
@@ -197,7 +236,7 @@ create policy "activities scoped read" on public.participant_activities for sele
 -- D. VERIFY — positive AND negative. An absence sweep alone is green on a wasteland.
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
-declare v_open int; v_new int; v_pub boolean; v_sp text;
+declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text;
 begin
   -- negative: the open predicate is gone from all four
   select count(*) into v_open
@@ -210,16 +249,35 @@ begin
     raise exception '0131 D: % open read policies survive.', v_open;
   end if;
 
-  -- positive: exactly four scoped policies exist, by name
-  select count(*) into v_new
-  from pg_policy p join pg_class c on c.oid = p.polrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and p.polname in ('dogs scoped read','people scoped read',
-                      'assignments scoped read','activities scoped read');
-  if v_new <> 4 then
-    raise exception '0131 D: expected 4 scoped policies, found %.', v_new;
-  end if;
+  -- positive: ⚠ the first draft counted policy NAMES anywhere in `public`, so four
+  -- `USING(false)` policies on the WRONG table satisfied it while three tables admitted nobody.
+  -- Verify each intended table carries EXACTLY ONE select policy, scoped `TO authenticated`, whose
+  -- predicate actually calls the membership helper.
+  for v_tbl, v_pol in
+    select * from (values ('session_dogs','dogs scoped read'),
+                          ('session_people','people scoped read'),
+                          ('session_runner_assignments','assignments scoped read'),
+                          ('participant_activities','activities scoped read')) t(a,b)
+  loop
+    select count(*) into v_new
+    from pg_policy p join pg_class c on c.oid = p.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = v_tbl;
+    if v_new <> 1 then
+      raise exception '0131 D: % carries % policies, expected exactly 1.', v_tbl, v_new;
+    end if;
+
+    select count(*) into v_new
+    from pg_policy p join pg_class c on c.oid = p.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
+      and p.polcmd = 'r'
+      and pg_get_expr(p.polqual, p.polrelid) like '%_club_session_member%'
+      and 'authenticated' = any (select rolname from pg_roles where oid = any (p.polroles));
+    if v_new <> 1 then
+      raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not call the helper.', v_tbl, v_pol;
+    end if;
+  end loop;
 
   -- the helper is NOT public-executable (the whole point of the explicit revoke)
   select has_function_privilege('public', 'public._club_session_member(uuid,uuid)', 'execute')
