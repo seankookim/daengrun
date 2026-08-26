@@ -191,3 +191,94 @@ The migration is written, measured at 896/0, and gated green — **and it must n
 number was honest; none of them was evidence for "this arm discloses only what it must". A second
 independent reviewer (peer-spawned, execution-based) is still running; its verdict will be compared
 rather than assumed to agree.
+
+---
+
+# CONTRACT v2 — post-verdict re-scope. Sean: 「fix it and re-review」.
+
+## 0. The scope changes: 0128 now carries the MODE COLUMNS, so there is no unsafe window.
+
+The Critical cannot be fixed without `return_mode`, and a window in which addresses are written
+while the arm is still broad is the leak itself. **So 0128 becomes one migration that adds the
+columns AND narrows the arm** — nothing to sequence, no window to police, and the client half can
+land whenever afterwards.
+
+Columns, exactly as spec §7.2a specifies them, on `session_dogs`:
+- `pickup_mode`  `owner_home` (default) · `session_start` — NOT NULL, defaulted, CHECK-constrained
+- `return_mode`  `owner_home` (default) · `session_finish` — NOT NULL, defaulted, CHECK-constrained
+
+⚠ **Defaulting `return_mode` to `owner_home` is the SAFE default and must be argued, not assumed**:
+every pairing that exists today has a home return in practice (there is no on-site-return concept
+shipped), so the default preserves current meaning. It also means the arm's new conjunct is
+**true by default** — which is why the OTHER conjuncts have to carry the weight.
+
+## 1. The arm, corrected. Keyed on custody NOT being resolved — not on one phase.
+
+```
+or exists (
+  select 1 from session_dogs sd
+  where sd.booking_id  = b.id
+    and sd.session_id  = b.club_session_id      -- ← Moderate-1: bind it structurally
+    and sd.custody     = 'runner_delegated'
+    and sd.return_mode = 'owner_home'           -- ← CRITICAL: the leg must exist
+    and sd.custody_phase <> 'resolved'          -- ← MAJOR: not one phase; "not yet returned"
+    and sd.custodian_profile_id = auth.uid()
+)
+```
+
+**Why `<> 'resolved'` and not a phase list — this is the design decision, made deliberately.**
+The property the arm must express is *「this caller is holding this dog and it has not been
+returned」*, not *「the row is in the phase I happened to think of」*. A phase list is how the
+`transfer_pending` hole was created: `session_transfer_initiate` (`0057:317,331`) moves the phase
+while **the runner still physically holds the dog**, and the phase-list arm refused them the
+destination mid-custody — the strand-an-animal failure this slice exists to prevent. The same
+applies to the incident path, where the normalizer rewrites to `with_custodian` (`0048:791`).
+`resolved` is set only by the return seal (`0045:106`) and **nothing transitions out of it**
+(verified). So the negative form is both narrower in intent and wider in coverage, and it closes
+exactly once, permanently.
+
+It does not widen the outbound leg: the pre-existing status arm already admits
+`picked_up`/`active`, so this adds nothing before the run ends.
+
+## 2. Suite 162 rebuilt. Every fixture REACHABLE by the lifecycle.
+
+🔴 **The governing rule for this rebuild, from the Major:** *a repair fixture must be REACHABLE BY
+THE LIFECYCLE, not merely constructible by an INSERT.* `b_early` manufactured a runner custodian on
+a `confirmed` booking; the real path makes the owner responsible at delegation (`0048:135`),
+changes `runner_id` without custody at acceptance (`0047:175`), and makes the runner custodian only
+at `picked_up` (`0045:44`). **Every fixture in the rebuilt suite must be driven through the real
+RPCs** — delegate → accept → handoff → complete — and any state that cannot be reached that way is
+either not a real state or the pin is testing a fiction.
+
+Pins required (each must state its own scope in-file):
+1. **The Critical, both ways:** home-pickup + **on-site return** with a written `address_id` →
+   `not_runner`. And home-pickup + home-return, same phase → the 5 fields. This is the pin whose
+   absence let the leak through; it is the first one written.
+2. **`transfer_pending` ADMITS** — reached via real `session_transfer_initiate`, caller still
+   custodian. The strand case, pinned as a positive.
+3. **Incident escalation** — reached via the real incident path; assert whatever the arm then does
+   and say WHY it is right. Do not describe; pin.
+4. **`resolved` REFUSES** — reached by a real return seal, not by an UPDATE.
+5. **Foreign runner, host, other owner, anon** → `not_runner`, all reached legitimately.
+6. **Oracle indistinguishability** — absent / foreign / wrong-mode / wrong-custodian compared to
+   EACH OTHER, on a row where the distinguishing branch is genuinely reachable.
+7. **Cross-session binding** — a `session_dogs` row whose `session_id` ≠ the booking's
+   `club_session_id` must not admit (Moderate-1).
+8. **Marketplace unchanged** — behaviour, not shape: the same call at every status returns what it
+   returned before 0128.
+
+## 3. VERIFY, strengthened per Moderate-2
+
+Exact `(uuid)` signature not `proname` · OUT columns compared **in order** · `search_path` asserted
+to be exactly `public, pg_temp` **and** proven to come from the body · the return-machine check must
+compare a body digest, not merely that a name exists (a disabled trigger or replaced body currently
+passes) · and **every VERIFY assertion planted-and-broken once**, because an assertion never seen to
+fail is a claim, not a check.
+
+## 4. Battery — and the repairs get re-attacked
+
+Re-run the six, plus: drop `return_mode` conjunct → the Critical pin must red; drop the
+`session_id` binding → the cross-session pin must red; drop `<> 'resolved'` → the resolved-refuses
+pin must red. **For every pin added or repaired, state its property WITHOUT reference to the
+mutation, then check the pin establishes THAT.** A pin that only names the mutation is the moved
+blind spot.
