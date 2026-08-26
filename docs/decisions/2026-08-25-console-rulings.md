@@ -637,3 +637,50 @@ users.** There is no stranded cohort. So:
 **The lesson is the one from this morning, pointed at myself again:** I inferred a user cohort from
 a row count. A number in a table is not a fact about people, and I passed the inference downstream
 as a design constraint before checking it with the one person who knows.
+
+## 🔴 The published privacy policy CONTRADICTS the shipped code — found while contracting the phone slice
+
+Verified at source. This belongs in the counsel email Sean already routed the phone-collection
+text to, and it is not the thing he expected to be in it.
+
+**`docs/legal/privacy-policy.md:45-47` says, verbatim:**
+> 전화번호 (**선택** — 인계 시 연락용). **사건이 접수되어 처리 중인 예약에 한해**, 해당 예약의
+> 보호자와 러너가 서로의 전화번호를 볼 수 있습니다. 사건이 종료되면 다시 보이지 않으며,
+> **예약 당사자가 아닌 이용자에게는 어떤 경우에도 제공되지 않습니다.**
+
+**Three of those clauses are falsified by shipped code or by his own ruling:**
+1. 「**선택**」 (optional) — he ruled **REQUIRED** at signup on 2026-08-26T01:47:25Z.
+2. 「**사건이 접수되어 처리 중인 예약에 한해**」 (only for bookings with an OPEN INCIDENT) — the
+   shipped `_club_phone_visible` (`0049:167-192`) opens on **any live session OR unresolved
+   custody**, which is the ordinary case, not the incident case.
+3. 🔴 「**예약 당사자가 아닌 이용자에게는 어떤 경우에도 제공되지 않습니다**」 (NEVER provided to
+   anyone who is not a party to the booking) — rule B's widest arm is **host ↔ every member**, and
+   **the host is not a party to the booking.** This is a direct contradiction, not a gap.
+
+**Why nothing has leaked yet, and why that is temporary:** `profiles.phone` is NULL for all 10
+profile rows and `club_phone_access_log` has **0 rows** — the audit path has never executed,
+because every reader is gated on `phone is not null`. **The contradiction arms the moment
+collection ships**, which he has just ordered.
+
+## 🔴 AND a live third-party disclosure that predates all of it — 4 rows in production TODAY
+
+`delegation_consents.emergency_contact` / `.pickup_contact` are **required** at delegation
+(`0048:102` raises when blank), shown to the handling runner (`0053:459` → `club/run/[sid].tsx:311`),
+and **kept forever unredacted** as consent evidence (`0115:78`, `:636` — deliberately, since consent
+evidence must survive). **Measured live: 4 consent rows, all 4 carrying an emergency contact.**
+
+These are **third-party numbers** — a person who never used the app, whose number an owner typed in
+— retained indefinitely and disclosed to a runner. **The privacy policy's retention table has no row
+for them.** It is the strongest existing counter-example to 「we don't hand contact details to
+counterparties yet」, and it is true right now rather than after the phone slice ships.
+
+**Disposition: both go to counsel in the same email, and NEITHER is drafted here** (his ruling:
+the policy text is counsel's). What this session supplies is the FACT SET — what the code does,
+to whom, for how long — so the lawyer writes from measurements rather than from our summary.
+
+⚠ **Two of my own brief's premises were REFUTED by the contracting agent, and the record must say
+so:** I told it deletion was missing — `delete_my_account_tx` **already nulls `profiles.phone`**
+(`0115:421`); and I told it the render was missing — the tel: chip, the 「호스트 경유」 fallback and
+the disclosure line **already ship** (`club/session/[sid].tsx:908-913`, `:943`). Only the 현장 arm
+(`club/run/[sid].tsx`) lacks it. I briefed from the spec's intent rather than from the code, which
+is the same substitution as describing the world from the migration.
