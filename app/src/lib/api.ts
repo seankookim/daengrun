@@ -680,6 +680,27 @@ export async function fetchMyBillingCard(): Promise<BillingCard | null> {
   };
 }
 
+// ---------- 빌링키 등록 (register-billing-key edge fn — 카드 등록 슬라이스) ----------
+// 두 단계가 한 함수의 두 액션인 이유는 handler.ts 헤더가 가진다: ① prepare가 내 customer key를
+// 돌려주고 (0076 §B — PG에 프로필 id를 넘기지 않기 위한 별도 키; create-payment-intent가 이미
+// 같은 공개를 한다), ② 토스 페이지가 돌려준 일회용 authKey를 issue가 서버에서 빌링키로 바꿔
+// 저장한다. 빌링키 자체는 클라이언트에 절대 오지 않는다 — 돌아오는 건 brand+last4뿐이다.
+export async function prepareBillingAuth(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('register-billing-key', {
+    body: { action: 'prepare' },
+  });
+  if (error || data?.error) throw await fnError(error, data);
+  return data.customer_key as string;
+}
+
+export async function issueBillingKey(authKey: string): Promise<{ brand: string | null; last4: string | null }> {
+  const { data, error } = await supabase.functions.invoke('register-billing-key', {
+    body: { action: 'issue', auth_key: authKey },
+  });
+  if (error || data?.error) throw await fnError(error, data);
+  return { brand: data.brand ?? null, last4: data.last4 ?? null };
+}
+
 // my_unsettled_charge() — DERIVED server-side (no cached collection_status column, repo law).
 // True = 새 예약 잠김. The server's create-booking-hold gate is the real fence; this read only
 // lets the screen say WHY before the user hits a 409.

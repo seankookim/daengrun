@@ -9,6 +9,7 @@ import {
   BillingCard, PaymentRecord, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
 import { goBackOrHome } from '../src/lib/nav';
+import { TOSS_CLIENT_KEY } from '../src/lib/toss';
 import { paper } from '../src/theme';
 
 // 설정 → 결제 관리 — the "on demand" half of the price-invisibility doctrine (§0-bis).
@@ -210,17 +211,17 @@ export default function Payments() {
         {cardState === 'ready' && !card && (
           <>
             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>등록된 카드가 없어요</Text>
-            {/* ⚠ TODO(card-register): 카드 등록 화면(Ⓐ 랩 선택 대기)이 꽂히는 자리는 정확히 여기다.
-                화면이 생기면 이 준비 중 문구를 '카드 연결하기' CTA로 바꾸고, 연결 성공 시
-                backHref가 있으면 router.replace(backHref) — 없으면 이 화면에 남는다.
-                그때까지는 없는 문을 그리지 않는다 (CLAUDE.md 정직 법). */}
-            <Text style={s.note}>
-              {/* Promise the return only for an address that passed the check — never name a
-                  destination this screen will not actually go to. */}
-              {backHref
-                ? '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결하고 하던 일로 바로 돌아가요'
-                : '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요'}
-            </Text>
+            {/* [2026-08-26] 그 TODO의 화면이 생겼다 — owner/card-link (랩 ① 픽). 문은 키가 있을
+                때만 그린다: TOSS_CLIENT_KEY가 없으면 연결 시트가 열리지 않으므로 (billing-auth-
+                sheet의 early return) CTA는 죽은 버튼이 된다. 키 부재 = 아직 결제사가 아니라는
+                사실이고, 그 동안은 그 사실을 말하는 문장이 남는다 — 「준비 중」이 아니라 언제
+                열리는지를 말한다. */}
+            {TOSS_CLIENT_KEY != null ? (
+              <PaperBtn label="카드 연결하기" variant="secondary" style={{ marginTop: 12 }}
+                onPress={() => router.push('/owner/card-link')} />
+            ) : (
+              <Text style={s.note}>카드 연결은 결제 오픈과 함께 열려요</Text>
+            )}
           </>
         )}
       </View>
