@@ -24,4 +24,10 @@
 # updates. What EAS cannot see is a locally-built `expo run:ios` binary or App Store Connect.
 # So one yes/no from Sean remains: HAS ANY BUILD REACHED A DEVICE OTHER THAN HIS OWN DEV PHONE?
 # Remove this line in the same commit that answers it, and say so in the REGISTRY row.
-0130_maenggyeon_slice_b.sql
+
+# 2026-08-26 — the 0130 line is GONE. Sean, asked whether any build had reached a device other
+# than his own phone: "no builds have reached any device other than my phone". That is the last
+# surface EAS could not see (locally-built binaries, App Store Connect); the measured half was
+# already empty (zero builds ever, one channel, zero OTA updates). Gate satisfied, hold released
+# in this commit, reason in the REGISTRY row. This file is empty of entries again, which is the
+# state it should spend most of its life in.
