@@ -68,6 +68,37 @@ codex exec --sandbox read-only -m gpt-5.6-sol -c model_reasoning_effort=xhigh "<
 Pointed at the actual diff, with the house laws and the specific failure modes that slice could
 have. Verified working on this machine (codex-cli 0.147.0).
 
+### 🔴 A codex run is DONE when a VERDICT is in the file — not on exit status, and never on log size
+
+Measured 2026-08-26 across two sessions' full sets, after codex hit an account usage limit:
+
+| run | log size | verdict | what it was |
+|---|---|---|---|
+| spec session, 0128 | 739 KB | ✅ present | **genuine** |
+| spec session, 0129 | 4 KB | ✗ none | burned — *obvious* |
+| ui6, client review | **1.4 MB** | ✗ none | burned |
+| ui6, server review | **1.25 MB** | ✗ none | burned |
+| ui6, #17 fix | 446 KB | ✗ none | burned |
+
+**Two failure disguises, and both defeat the obvious check.** One returns **exit code 0** with an
+empty verdict — a tool reporting success for a review that never happened. The other burns the
+entire READ, dies at the emit step, and leaves a **huge** log.
+
+**⚠ SIZE IS ANTI-CORRELATED WITH SUCCESS IN EXACTLY THE CASE THAT BITES.** The 4 KB failure is
+obvious at a glance; the 1.4 MB failures are indistinguishable from — and *larger than* — the
+739 KB genuine success, because the size measures precisely the reading that got burned. **A large
+log with no verdict is the CHARACTERISTIC failure, not a reassuring sign.** A heuristic that works
+on the trivial case and inverts on the expensive one is worse than none.
+
+So: grep the artifact for a verdict, every time. And when a set of runs is in question, **audit the
+whole set** — ui6 reported one burned run and found three; the spec session audited its own and
+found one of three. Neither number was visible without looking.
+
+⚠ Consequence for honesty, which is the part that costs something: **do not tell anyone a slice is
+"under codex review" until a verdict exists.** On 2026-08-26 a client fix was pushed with that claim
+attached and the review had already died; the correction had to be volunteered, because nothing
+else would have surfaced it.
+
 Why it is a gate and not a nicety, from this week's measurements: a slice can be **896/0 on the
 harness with four green client gates and still be wrong** — those numbers answer "did I break a
 pin", never "does this disclose only what it must". Codex reads cold, with no author reasoning,
