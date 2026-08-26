@@ -90,7 +90,33 @@ obvious at a glance; the 1.4 MB failures are indistinguishable from — and *lar
 log with no verdict is the CHARACTERISTIC failure, not a reassuring sign.** A heuristic that works
 on the trivial case and inverts on the expensive one is worse than none.
 
-So: grep the artifact for a verdict, every time. And when a set of runs is in question, **audit the
+So: grep the artifact for a verdict, every time.
+
+🔴 **AND THE VERDICT-GREP ITSELF HAS A THIRD DISGUISE — MEASURED 2026-08-26, ON THE RUN THAT
+WAS CHECKING FOR IT.** `codex exec` **echoes the prompt into the log**. A review prompt that ends
+「Begin the last section with the literal line: "VERDICT: <APPROVE|APPROVE-WITH-FIXES|REJECT>"」
+puts the string `VERDICT:` in the artifact **whether or not codex ever answered**. Measured: a
+4.6 KB log, exit code **0**, `grep -c 'VERDICT:'` → **1**, and the single hit was line 65 — the
+prompt's own instruction — with the real tail being
+`ERROR: You've hit your usage limit … try again at 3:56 PM`. **The check this section exists to
+mandate reported a verdict on a review that never ran.**
+
+Same family as the push-detector and the comment-quoting-removed-code laws, and it is the third
+time this shape has cost something: **a detector whose pattern appears in BOTH the answered and
+unanswered states is not weak, it is uninformative.** Here it is worse than uninformative — the
+pattern is guaranteed present by the very act of asking, so the check is *anti*-correlated with
+having asked properly: the more explicitly you demand a verdict, the more certainly your grep
+finds one.
+
+**The detector that works — match a verdict VALUE, never the word:**
+```
+grep -cE 'VERDICT: (APPROVE|APPROVE-WITH-FIXES|REJECT)\b' <log>     # 0 = no review happened
+```
+The angle-bracket placeholder `<APPROVE|…>` cannot match it, so the prompt echo is excluded by
+construction rather than by remembering to exclude it. **And still check for the usage-limit line
+positively** (`grep -i 'usage limit'`) — a quota wall is the single most common cause, it is
+invisible in the exit status, and two sessions hit it within one hour on 2026-08-26.
+ And when a set of runs is in question, **audit the
 whole set** — ui6 reported one burned run and found three; the spec session audited its own and
 found one of three. Neither number was visible without looking.
 
