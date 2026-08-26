@@ -163,6 +163,11 @@ function Art({ kind, color, big }: { kind: BtnArt; color: string; big: boolean }
 interface Props {
   title: string;
   sub?: string;
+  /** [Sean 2026-08-26] 제목 옆 한 조각 — 「7명 대기」처럼 **버튼이 여는 것에 대한 실측 사실**만.
+   *  서브라인을 걷어내면서 그 자리에 남길 값이 있는 버튼을 위한 슬롯이다. 값이 없으면
+   *  (모르면) 넘기지 않는다: 이 자리는 문장이 아니라 수치이므로, 빈 값을 「0」이나 「-」로
+   *  채우면 읽지 못한 것을 읽은 것처럼 말하게 된다. */
+  meta?: string | null;
   ground?: BtnGround;
   art?: BtnArt;
   /** 작은 행(78pt) — 나 청크의 코다용. 기본은 큰 결정 버튼(96pt). 제목 크기는 둘이 같다. */
@@ -175,7 +180,7 @@ interface Props {
   accessibilityLabel?: string;
 }
 
-export function DrawButton({ title, sub, ground = 'paper', art, small, dot, sheen, onPress, accessibilityLabel }: Props) {
+export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot, sheen, onPress, accessibilityLabel }: Props) {
   const df = useDisplayFont();
   const reduceMotion = useReducedMotion();
   const g = G[ground];
@@ -243,7 +248,14 @@ export function DrawButton({ title, sub, ground = 'paper', art, small, dot, shee
         </Animated.View>
       ) : null}
 
-      <View style={{ flex: 1, justifyContent: 'space-between' }}>
+      {/* [Sean 2026-08-26] 서브라인이 없으면 제목이 **상자를 채운다**. 홈의 두 결정 버튼에서
+          서브텍스트를 걷어내라는 지시의 결과다: 96pt 상자에 28pt 한 줄만 남으면 위쪽에 붙어
+          아래가 비고, 버튼이 눌러야 할 물건이 아니라 빈 판때기로 읽힌다. 서브가 있을 때는
+          기존 28pt 그대로 — 지금 이 파일의 호출부 10곳 중 나머지 8곳이 전부 서브를 넘기므로
+          그 화면들은 한 픽셀도 움직이지 않는다 (측정하고 바꿨다).
+          lineHeight 는 비율로 따라간다: 고정 33을 두면 36pt 에서 디스플레이 폰트의 위아래가
+          잘린다 — Oswald 숫자에서 이미 배운 그 버그(BUG A)와 같은 원인이다. */}
+      <View style={{ flex: 1, justifyContent: sub ? 'space-between' : 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {dot ? (
             <Animated.View
@@ -257,12 +269,33 @@ export function DrawButton({ title, sub, ground = 'paper', art, small, dot, shee
           ) : null}
           {/* 제목은 **크기가 하나다**. 높이는 티어별로 다르되(96/78) 활자는 28로 통일 —
               크기가 셋이면 위계가 아니라 잡음으로 읽힌다(Sean 2026-08-20 피드백). */}
-          <Text style={[st.t, df, { color: g.ink, fontSize: 28 }]} numberOfLines={1}>{title}</Text>
+          <Text
+            style={[st.t, df, {
+              color: g.ink,
+              fontSize: sub ? 28 : small ? 30 : 36,
+              lineHeight: Math.round((sub ? 28 : small ? 30 : 36) * 1.22),
+              flexShrink: 1,
+            }]}
+            numberOfLines={1}
+          >{title}</Text>
+          {/* 수치는 제목에 눌려 줄어들지 않는다 (flexShrink 0) — 줄어들 수 있는 쪽은 제목이다.
+              코랄 위에서 g.sub 는 #FFD9CE, 측정 4.95:1 로 본문 대비를 넘긴다. */}
+          {meta ? (
+            <Text style={[st.meta, { color: g.sub }]} numberOfLines={1}>{meta}</Text>
+          ) : null}
         </View>
         {/* 서브라인 15pt(구 13) · 한 줄 — 길면 버튼이 문단이 된다. 짧게 쓰는 건 호출부의 몫이다. */}
         {sub ? <Text style={[st.d, { color: g.sub }]} numberOfLines={1}>{sub}</Text> : null}
       </View>
-      <Text style={[st.arr, { color: g.sub, fontSize: small ? 18 : 21 }]}>›</Text>
+      {/* 서브가 있으면 화살표는 지금까지처럼 아래 모서리에 앉는다(서브라인 끝을 따라간다).
+          서브가 없으면 따라갈 기준선이 없으므로 세로 가운데 — 제목과 눈높이를 맞춘다. */}
+      {sub ? (
+        <Text style={[st.arr, { color: g.sub, fontSize: small ? 18 : 21 }]}>›</Text>
+      ) : (
+        <View style={st.arrMid} pointerEvents="none">
+          <Text style={{ color: g.sub, fontSize: small ? 18 : 21 }}>›</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -281,5 +314,7 @@ const st = StyleSheet.create({
   t: { fontWeight: '400', lineHeight: 33, zIndex: 3 },
   d: { marginTop: 5, fontSize: 15, lineHeight: 21, zIndex: 3 },
   arr: { position: 'absolute', right: 16, bottom: 13, zIndex: 3 },
+  arrMid: { position: 'absolute', right: 16, top: 0, bottom: 0, justifyContent: 'center', zIndex: 3 },
+  meta: { marginLeft: 10, fontSize: 17, lineHeight: 22, fontWeight: '800', flexShrink: 0, zIndex: 3 },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 9 },
 });

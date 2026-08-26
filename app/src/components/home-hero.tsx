@@ -28,7 +28,7 @@ import { useDisplayFont } from '../lib/displayFont';
 import { useNumFont } from '../lib/fonts';
 import { haptic } from '../lib/haptics';
 import { draft } from '../store';
-import { paper } from '../theme';
+import { layout, paper } from '../theme';
 import { sinceLabel, type Lateness } from '../lib/lateness';
 import { DrawButton } from './draw-button';
 
@@ -90,7 +90,7 @@ interface Props {
   late?: Lateness | null;
   /** active 상태에서 라이브 위젯을 렌더할 슬롯. home.tsx가 이미 가진 위젯을 그대로 넘긴다. */
   liveWidget?: React.ReactNode;
-  /** 지금 온라인인 동네 러너 수 (fetchCertifiedRunners는 이미 `.eq('online', true)`로 거른다).
+  /** 지금 온라인인 러너 수 — **동네가 아니다** (fetchCertifiedRunners에 district 필터가 없다).
    *  라이브 점은 **이 값이 0보다 클 때만** 켜진다 — 0명인데 맥박을 그리면 그 점은 거짓말이고,
    *  한 번 거짓이 되면 인계 화면의 점까지 못 믿게 된다. `.limit(10)` 때문에 10 이상은
    *  '10명 이상'으로 말한다 (모르는 수를 아는 척하지 않는다). */
@@ -332,11 +332,15 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   // 「지금은 대기 중인 러너가 없어요」 — that is an affirmative claim about the world printed on
   // the funnel's primary CTA, and it was reachable on every cold start and every flaky network.
   // Unknown falls back to the neutral invitation, which is true regardless of who is online.
-  const runnersLine = onlineRunners == null
-    ? `${name}와 달릴 시간을 잡아보세요`
-    : onlineRunners > 0
-      ? `지금 러너 ${onlineRunners >= 10 ? '10명 이상이' : onlineRunners + '명이'} 대기 중이에요`
-      : '지금은 대기 중인 러너가 없어요';
+  // [Sean 2026-08-26] 서브라인 문장이 **수치 한 조각**이 된다: 「지금 러너 7명이 대기 중이에요」
+  // → 제목 옆 「7명 대기」. 그의 지시는 두 큰 버튼의 서브텍스트를 지우고 지금 찾기 옆에 n명
+  // 대기를 붙이라는 것이었고, 사실은 그대로 남기되 문장이 차지하던 줄을 제목에 돌려준다.
+  // ⚠ null(못 읽음)은 여전히 아무 말도 하지 않는다 — 위 주석의 이유 그대로다. 0은 말한다:
+  //   「0명 대기」는 참이고, 이 값이 사라지면 「대기 중인 러너가 없다」는 사실을 말하던 유일한
+  //   자리가 화면에서 없어진다. 조용한 0은 여기서 오답이다.
+  const waitMeta = onlineRunners == null
+    ? null
+    : onlineRunners >= 10 ? '10명+ 대기' : `${onlineRunners}명 대기`;
 
   return (
     <View style={s.wrap}>
@@ -350,8 +354,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
 
       <View style={s.opts}>
         {state === 'none' && (
-          <DrawButton title="지금 찾기" sub={runnersLine} ground="coral" art="dog"
-            dot={(onlineRunners ?? 0) > 0} sheen onPress={findNow} accessibilityLabel="지금 찾기" />
+          <DrawButton title="지금 찾기" meta={waitMeta} ground="coral" art="dog"
+            dot={(onlineRunners ?? 0) > 0} sheen onPress={findNow}
+            accessibilityLabel={waitMeta ? `지금 찾기, ${waitMeta}` : '지금 찾기'} />
         )}
         {(state === 'searching' || state === 'directed') && (
           <DrawButton title={state === 'searching' ? '레이더 보기' : '요청 보기'}
@@ -380,7 +385,8 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           <DrawButton title="채팅" sub="러너에게 물어보세요"
             ground="lilac" art="chat" small onPress={openChat} />
         )}
-        <DrawButton title="미리 예약" sub="날짜와 시간을 골라요" ground="paper" art="calendar"
+        {/* 서브 「날짜와 시간을 골라요」 은퇴 (Sean 2026-08-26) — 제목이 이미 그 말이다. */}
+        <DrawButton title="미리 예약" ground="paper" art="calendar"
           small={inFlight} onPress={schedule} accessibilityLabel="미리 예약" />
       </View>
     </View>
@@ -389,14 +395,14 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
 
 
 const s = StyleSheet.create({
-  wrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
-  wrapTight: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
+  wrap: { paddingHorizontal: layout.gutter, paddingTop: 12, paddingBottom: 6 },
+  wrapTight: { paddingHorizontal: layout.gutter, paddingTop: 12, paddingBottom: 6 },
   title: { fontSize: 24, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 30 },
   // [2026-08-25 Sean] 14 → 15 — 한글 작업 플로어 상향(DESIGN.md §2 개정). 아래 알림/지각/칩도 같다.
   quiet: { fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 21 },
   // 알림 줄 부품 — 점 · 굵은 줄 · 얇은 줄 · 우측 행동. 카드 아님, 룰 하나(아래).
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 44 },
-  alertHot: { backgroundColor: paper.wash, marginHorizontal: -18, paddingHorizontal: 18, borderBottomWidth: 0 },
+  alertHot: { backgroundColor: paper.wash, marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter, borderBottomWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   // 지각 한 줄 — 헤드라인이 아니라 사실 띠. critical 워시는 F1.2 라우드-페일 토큰 그대로.
   lateStrip: {
