@@ -119,7 +119,13 @@ export function tossBillingCharge(
 // BILLING_TIMEOUT_MS applies — unlike confirm, the human is watching a spinner WE drew, not
 // Toss's page, so a hung socket must resolve into a visible failure rather than pin the isolate.
 export function tossBillingIssue(p: { authKey: string; customerKey: string }): Promise<TossResult> {
-  return call(`${TOSS_BASE}/billing/authorizations/issue`, p.authKey, {
+  // ⚠ The idempotency key is a DERIVED value, not the authKey itself (codex #3 tail). The authKey
+  // is a bearer credential for this one issuance; copying it into a second header multiplies the
+  // places it can be logged, mirrored by a proxy, or land in an error report — for no benefit,
+  // because issuance has no replay semantics to protect (a spent authKey is refused by Toss on
+  // its own). A per-attempt uuid gives the header a unique value without a second copy of the
+  // secret. It is still unique per call, which is all `call()` needs.
+  return call(`${TOSS_BASE}/billing/authorizations/issue`, crypto.randomUUID(), {
     authKey: p.authKey,
     customerKey: p.customerKey,
   }, BILLING_TIMEOUT_MS);

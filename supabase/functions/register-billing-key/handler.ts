@@ -24,6 +24,41 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 interface Body {
   action?: string;
   auth_key?: string;
+  nonce?: string;
+  customer_key?: string;
+}
+
+// 🔴 THE ATTEMPT NONCE — codex #3. The WebView intercept recognises Toss's callback by URL, and
+// React Native WebView's default policy admits any http(s) navigation, so the callback URL is not
+// an origin boundary: a page inside that WebView can navigate to our success/fail URL and forge
+// either outcome. A nonce minted HERE, embedded in both callback URLs, and required back on
+// `issue` means a forged navigation cannot produce an issuance — the attacker would have to
+// already know a value that only this server and this session's Toss page hold.
+//
+// In-memory and per-isolate ON PURPOSE. It is a defence against a page in the user's OWN WebView,
+// not against a network attacker, and its whole lifetime is one card-link attempt (a Toss page is
+// open, a human is typing). A table would add a write path, a cleanup job, and a second thing to
+// get wrong for a value that is worthless sixty seconds later. An isolate recycling mid-attempt
+// costs the user one retry and refuses nothing that should have succeeded.
+const NONCE_TTL_MS = 10 * 60 * 1000;
+const nonces = new Map<string, { uid: string; at: number }>();
+
+function mintNonce(uid: string): string {
+  const now = Date.now();
+  for (const [k, v] of nonces) if (now - v.at > NONCE_TTL_MS) nonces.delete(k);
+  const n = crypto.randomUUID();
+  nonces.set(n, { uid, at: now });
+  return n;
+}
+
+/** Single-use: a nonce is consumed by the first `issue` that presents it, so a replayed forgery
+ *  cannot ride a nonce the real flow already spent. */
+function consumeNonce(n: string | undefined, uid: string): boolean {
+  if (!n) return false;
+  const hit = nonces.get(n);
+  if (!hit) return false;
+  nonces.delete(n);
+  return hit.uid === uid && Date.now() - hit.at <= NONCE_TTL_MS;
 }
 
 export async function registerBillingKey(req: Request, db: SupabaseClient): Promise<unknown> {
@@ -39,12 +74,24 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
   const customerKey = prof.toss_customer_key as string;
 
   if (body.action === "prepare") {
-    return { customer_key: customerKey };
+    return { customer_key: customerKey, nonce: mintNonce(uid) };
   }
 
   if (body.action === "issue") {
     const authKey = (body.auth_key ?? "").trim();
     if (!authKey) throw new HttpError(400, "auth_key_required");
+
+    // The nonce proves this callback came from the flow WE started for THIS caller, not from a
+    // page that guessed our callback URL. Checked before the Toss call so a forgery costs nothing.
+    if (!consumeNonce(body.nonce, uid)) throw new HttpError(400, "stale_attempt");
+
+    // Toss echoes the customerKey back on the callback. It must be the one WE issued: a callback
+    // carrying someone else's customer key is either a forgery or a crossed session, and both are
+    // refusals. (Issuance would very likely fail at Toss anyway — it binds authKey to customerKey
+    // — but 「the vendor would probably reject it」 is not a gate we get to rely on.)
+    if (body.customer_key != null && body.customer_key !== customerKey) {
+      throw new HttpError(400, "customer_key_mismatch");
+    }
 
     const res = await tossBillingIssue({ authKey, customerKey });
     if (!res.ok) {
@@ -66,16 +113,42 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
     const last4 = masked.replace(/[^0-9*]/g, "").slice(-4);
     const brand = (res.body?.cardCompany as string) ?? (rawCard.issuerCode as string) ?? null;
 
-    // UPSERT on the profile_id PK — 「한 번만, 그 뒤엔 설정에서 교체」(Sean). Replacing a card is
-    // the same write as linking the first one; there is never a second row per owner, so the
-    // charge core's `.maybeSingle()` read stays structurally single.
-    const { error: wErr } = await db.from("billing_keys").upsert({
-      profile_id: uid,
-      billing_key: billingKey,
-      card: { brand, last4: last4 || null },
-      updated_at: new Date().toISOString(),
-    });
-    if (wErr) throw new HttpError(500, `billing_keys write failed: ${wErr.message}`);
+    // 🔴 THE WRITE GOES THROUGH `billing_key_swap` (0137), NOT A DIRECT UPSERT — codex Critical
+    //    #2. The eligibility check above happened BEFORE the Toss round trip; a direct upsert
+    //    here would re-apply a decision made hundreds of milliseconds ago, and
+    //    `delete_my_account_tx` can tombstone the profile inside that window. The definer locks
+    //    the profile row and makes the check and the write one statement, so deletion and
+    //    issuance can no longer interleave. A check-then-act across an external await cannot be
+    //    fixed by ordering the two statements more carefully; it has to stop being two.
+    const { data: swapRows, error: wErr } = await db
+      .rpc("billing_key_swap", {
+        p_profile: uid,
+        p_billing_key: billingKey,
+        p_card: { brand, last4: last4 || null },
+      });
+    if (wErr) throw new HttpError(500, `billing_key_swap failed: ${wErr.message}`);
+    const swap = Array.isArray(swapRows) ? swapRows[0] : swapRows;
+
+    if (!swap?.swapped) {
+      // Deletion won the race. We hold a live billing key at Toss that now belongs to nobody —
+      // say so rather than returning success, and record it so the revocation slice can find it.
+      // The owner sees a refusal, which is the truthful outcome: their account is gone.
+      console.error(
+        `[register-billing-key] ORPHANED KEY — deletion won the race for profile ${uid}; ` +
+          `a live Toss billing key exists with no owner and needs provider-side revocation`,
+      );
+      throw new HttpError(403, "no_profile");
+    }
+
+    if (swap.displaced_key) {
+      // codex #4: replacing a card leaves the PREVIOUS key live at Toss. Narrowed here from
+      // silent to VISIBLE; closing it needs a revocation outbox (its own slice — an outbound
+      // call belongs neither in this request's critical path nor inside the lock).
+      console.warn(
+        `[register-billing-key] displaced a previous billing key for profile ${uid} — ` +
+          `it remains live at the PG until the revocation slice lands`,
+      );
+    }
 
     return { brand, last4: last4 || null };
   }

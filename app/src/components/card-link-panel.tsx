@@ -37,7 +37,7 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
   const df = useDisplayFont();
   const nf = useNumFont();
   const [busy, setBusy] = useState(false);
-  const [customerKey, setCustomerKey] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<{ customerKey: string; nonce: string } | null>(null);
   const [sheet, setSheet] = useState(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -50,9 +50,9 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
     try {
       // prepare는 매번 새로 읽는다 — customer key는 불변이지만, 캐시했다가 계정 전환/삭제 뒤
       // 낡은 키로 토스 세션을 여는 것보다 요청 하나가 싸다.
-      const ck = await prepareBillingAuth();
+      const at = await prepareBillingAuth();
       if (!alive.current) return;
-      setCustomerKey(ck);
+      setAttempt(at);
       setSheet(true);
     } catch (e) {
       if (alive.current) Alert.alert('카드 연결 실패', (e as Error).message);
@@ -61,11 +61,12 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
     }
   }, [busy]);
 
-  const onAuthKey = useCallback(async (authKey: string) => {
+  const onAuthKey = useCallback(async (authKey: string, customerKeyEcho: string | null) => {
     setSheet(false);
     setBusy(true);
     try {
-      const card = await issueBillingKey(authKey);
+      if (!attempt) { Alert.alert('카드 연결 실패', '다시 시도해주세요'); return; }
+      const card = await issueBillingKey(authKey, attempt.nonce, customerKeyEcho);
       if (alive.current) onLinked(card);
     } catch (e) {
       // 토스/카드사의 문장 그대로 (서버 handler가 verbatim으로 넘긴다) — 우리가 지어낸 일반
@@ -74,7 +75,7 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
     } finally {
       if (alive.current) setBusy(false);
     }
-  }, [onLinked]);
+  }, [onLinked, attempt]);
 
   // 키가 없으면 버튼을 그리지 않는다 — 열리지 않는 웹뷰를 여는 버튼은 죽은 버튼이다 (정직 법).
   // 결제 오픈(PG 계약)과 함께 키가 들어오면 이 분기는 스스로 사라진다.
@@ -139,7 +140,8 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
 
       <BillingAuthSheet
         visible={sheet}
-        customerKey={customerKey}
+        customerKey={attempt?.customerKey ?? null}
+        nonce={attempt?.nonce ?? null}
         onAuthKey={onAuthKey}
         onFail={(m) => { setSheet(false); Alert.alert('카드 연결 실패', m); }}
         onDismiss={() => setSheet(false)}
