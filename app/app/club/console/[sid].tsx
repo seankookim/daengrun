@@ -78,7 +78,13 @@ export default function HostConsole() {
   const load = useCallback(() => {
     if (!sid) return;
     setBoardErr(false);
-    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoardErr(true));
+    // ⚠ [codex re-review P1] `now` is re-stamped as the board LANDS, not only by the 1s interval.
+    // Without it a board that gains a hold via refresh renders its first frame against a MOUNT-ERA
+    // `now`: on a screen open ten minutes with no proposal, a 20-minute window flashes as ~30:00
+    // until the first tick corrects it. An inflated clock for one second is still a fabricated
+    // number. Stamped HERE rather than inside the interval effect on purpose — a synchronous
+    // setState in an effect trips the cascading-render rule, and this is the same instant anyway.
+    fetchDelegationBoard(sid).then((b) => { setNow(Date.now()); setBoard(b); }).catch(() => setBoardErr(true));
     // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
     fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
   }, [sid]);
@@ -92,12 +98,18 @@ export default function HostConsole() {
   // with a hold and no proposal froze `now` at mount and displayed a countdown that never
   // decremented. A frozen clock is a fabricated live number (honesty law: loading is not 0, and a
   // number that isn't counting is worse than no number, because it reads as counting).
-  const hasHold = dogs.some((d) => d.chargeState === 'hold');
+  // ⚠ [codex re-review P2] This asks for a hold that is still LIVE, not merely a row whose
+  // chargeState reads 'hold'. Keyed on the token alone the interval never stops: the chip vanishes
+  // at zero but the timer keeps re-rendering the whole screen at 1 Hz until refresh or unmount.
+  // Deriving it from `now` is safe and does not thrash — the boolean changes value exactly once
+  // (true → false at expiry), so the effect re-runs on that edge and cleans up, not every tick.
+  const hasLiveHold = dogs.some((d) =>
+    d.chargeState === 'hold' && d.holdExpiresAt != null && new Date(d.holdExpiresAt).getTime() > now);
   useEffect(() => {
-    if (!hasProposal && !hasHold) return;
+    if (!hasProposal && !hasLiveHold) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [hasProposal, hasHold]);
+  }, [hasProposal, hasLiveHold]);
 
   if (!board) {
     return (
@@ -139,7 +151,14 @@ export default function HostConsole() {
   const review = dogs.filter((d) => d.approval === 'approved' && d.reviewNeeded === true);
   const doApprove = (d: DelegationDog, ok: boolean) => {
     Alert.alert(ok ? '승인' : '거절',
-      ok ? `${d.dogName}을(를) 승인할까요? 보호자에게 결제 요청이 발송돼요 (20분 홀드).`
+      // ⚠ [정직 2026-08-26] This said 「보호자에게 결제 요청이 발송돼요」 — an event that DOES NOT
+      // HAPPEN. Verified against the deployed RPC, not the migration file: `session_approve_dog`
+      // has `mints_intent = false, sets_hold = true` — it sets approval + a 20-minute hold and
+      // nothing else. The RPC even carries the ruling in its own body (0084 §F ④): 「요금 없음,
+      // '결제' 없음 … 이 단계에서 움직이는 돈은 없다」, because charging is after the run. So the
+      // host was told the app had asked the owner for money, and it had not. The line now states
+      // what the RPC actually does.
+      ok ? `${d.dogName}을(를) 승인할까요? 20분 동안 자리가 잡혀요.`
         : `${d.dogName}을(를) 거절할까요?`,
       [
         { text: '아직', style: 'cancel' },
@@ -156,11 +175,25 @@ export default function HostConsole() {
   // [감사 P0] 재검토 행은 approved라 session_approve_dog가 항상 not_pending으로 거절한다 — 정본은 session_review_dog
   const doReview = (d: DelegationDog, ok: boolean) => {
     Alert.alert(ok ? '변경 확인 — 재승인' : '재검토 거절',
-      ok ? `${d.dogName}의 변경 사항을 확인하고 재승인할까요?` : `${d.dogName}을(를) 거절할까요? 결제분은 전액 환불돼요.`,
+      // ⚠ [정직 2026-08-26] 「전액 환불」 was UNCONDITIONAL here, and it is the same false claim
+      // mirrored: on the ordinary path nothing has been charged, so it promised to return money
+      // that never moved. Payment happens after the run, so an approved dog is at charge_state
+      // 'hold' or 'none' for its whole pre-run life and only 'paid' has anything to refund.
+      // Now conditional on the server's own field. ⚠ Contrast session-cancel below (:284/:292):
+      // that 「전액 환불」 is CORRECT and is the model — it prints the real count the server
+      // returns (「N건이 환불 처리로 넘어갔어요」) instead of asserting an outcome. Do not
+      // "harmonise" the two; they differ because one of them knows.
+      ok ? `${d.dogName}의 변경 사항을 확인하고 재승인할까요?`
+        : d.chargeState === 'paid' && d.refundState === 'none'
+          ? `${d.dogName}을(를) 거절할까요? 결제분은 전액 환불돼요.`
+          : d.chargeState === 'hold'
+            ? `${d.dogName}을(를) 거절할까요? 잡아둔 자리가 풀려요.`
+            : `${d.dogName}을(를) 거절할까요?`,
       [
         { text: '아직', style: 'cancel' },
         {
-          text: ok ? '재승인' : '거절 (전액 환불)', style: ok ? 'default' : 'destructive',
+          text: ok ? '재승인' : d.chargeState === 'paid' && d.refundState === 'none' ? '거절 (전액 환불)' : '거절',
+          style: ok ? 'default' : 'destructive',
           onPress: () => run(() => reviewDelegation(d.sdId, ok), ok ? '재승인 실패' : '거절 실패', (m) =>
             m.includes('no_review') ? '재검토 대상이 아니에요 — 새로고침해 주세요' : null),
         },
@@ -359,7 +392,7 @@ export default function HostConsole() {
         ]} />
 
         {/* ---------- 1 심사 ---------- */}
-        <SecHead n="1" title="심사" sub="승인 = 결제 요청 발송" />
+        <SecHead n="1" title="심사" sub="승인하면 20분 동안 자리를 잡아둬요" />
         {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
         {sess.delegatedCapacity === 0 && (
           <View style={s.capWarn}>
@@ -398,7 +431,7 @@ export default function HostConsole() {
             </Row>
             <Row style={{ gap: 8, marginTop: 10 }}>
               <Pressable onPress={() => doReview(d, true)} style={s.abtn}><Text style={s.abtnTxt}>변경 확인 — 재승인</Text></Pressable>
-              <Pressable onPress={() => doReview(d, false)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>거절 (전액 환불)</Text></Pressable>
+              <Pressable onPress={() => doReview(d, false)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>{d.chargeState === 'paid' && d.refundState === 'none' ? '거절 (전액 환불)' : '거절'}</Text></Pressable>
             </Row>
           </View>
         ))}
@@ -417,11 +450,13 @@ export default function HostConsole() {
           // error the 2026-08-11 note refused for `paid`, pointed the other way.
           const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
           // [same guard as the proposal row] Never render an elapsed hold as '00:00 남음'.
-          // ⚠ [codex P1 2026-08-26] And once elapsed we do not fall back to a bare 「자리 잡는 중」
-          // either — that asserts a LIVE hold, and an elapsed one is exactly the case where the
-          // payload's claim has expired under us (the server recomputes charge_state to 'none' the
-          // moment `hold_expires_at` passes, 0048:763). So the chip DISAPPEARS at zero, landing on
-          // the same nothing that 'none' shows — which is where the next fetch puts it anyway.
+          // ⚠ [codex P1 2026-08-26] And once elapsed we do not keep saying 「자리 잡는 중」 either —
+          // that asserts a LIVE hold, and an elapsed one is exactly the case where the payload's
+          // claim expired under us (the server recomputes charge_state to 'none' the moment
+          // `hold_expires_at` passes, 0048:763). At zero the row falls to the SAME 「자리 미확정」
+          // that 'none' renders — which is what the next fetch will say anyway. It does not go
+          // blank: an earlier draft made it disappear, and codex found that a vanishing row leaves
+          // an approved dog visible in no section of this console at all.
           const ticking = holdLeft != null && holdLeft > 0;
           return (
             <View key={d.sdId} style={s.drow}>
@@ -435,9 +470,17 @@ export default function HostConsole() {
                   <ClubTag label="자리 확정" tone="volt" />
                 ) : d.chargeState === 'hold' && ticking ? (
                   <ClubTag label={`자리 잡는 중 · ${mmss(holdLeft!)}`} tone="amber" />
-                ) : null /* 'none', or a 'hold' whose window has already elapsed. The payload does
-                            not say WHY there is no live hold, so no word: a chip here would be
-                            invented state (honesty law). */}
+                ) : (
+                  /* 'none', or a 'hold' whose window has already elapsed — both mean no seat is
+                     secured right now. ⚠ The row MUST render something: gating it out instead made
+                     an ordinary approved dog visible in no section of this console at all (§1 is
+                     pending/review, §3 filters `paid`), and under pay-after-run 'none' is the
+                     RESTING state for almost all of a dog's pre-run life, so that is the common
+                     case, not an edge. The word is a POSITIVE statement on the same axis as the
+                     other two — 미확정 → 잡는 중 → 확정 — rather than a negation about a mechanism,
+                     which is what makes it readable on every row instead of noise. */
+                  <ClubTag label="자리 미확정" tone="dim" />
+                )}
               </Row>
             </View>
           );

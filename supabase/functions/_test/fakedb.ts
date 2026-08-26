@@ -156,6 +156,11 @@ export class FakeDb {
     return {
       select: (_cols?: string) => new Q(this, table, "select"),
       insert: (payload: Row | Row[]) => new Q(this, table, "insert", payload),
+      // PostgREST upsert, modelled as replace-by-conflict-key. The real client defaults
+      // onConflict to the table's PK; this fake cannot read a PK, so it matches on `profile_id`
+      // or `id` — whichever the payload carries — which covers every upsert in this repo
+      // (billing_keys' PK IS profile_id). A payload with neither behaves as a plain insert.
+      upsert: (payload: Row | Row[]) => new Q(this, table, "upsert", payload),
       update: (payload: Row) => new Q(this, table, "update", payload),
       delete: () => new Q(this, table, "delete"),
     };
@@ -197,7 +202,7 @@ class Q implements PromiseLike<any> {
   constructor(
     private db: FakeDb,
     private table: string,
-    private op: "select" | "insert" | "update" | "delete",
+    private op: "select" | "insert" | "update" | "delete" | "upsert",
     private payload?: Row | Row[],
   ) {}
 
@@ -324,6 +329,19 @@ class Q implements PromiseLike<any> {
         });
       }
       if (this.offset || this.cap !== null) out = out.slice(this.offset, this.cap === null ? undefined : this.offset + this.cap);
+    } else if (this.op === "upsert") {
+      const items = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
+      out = items.map((it) => {
+        const k = "profile_id" in it ? "profile_id" : "id" in it ? "id" : null;
+        const prev = k ? store.findIndex((r) => r[k] === it[k]) : -1;
+        if (prev >= 0) {
+          store[prev] = { ...store[prev], ...it };
+          return store[prev];
+        }
+        const row: Row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...it };
+        store.push(row);
+        return row;
+      });
     } else if (this.op === "insert") {
       const items = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
       out = items.map((it) => {

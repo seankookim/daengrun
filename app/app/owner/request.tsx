@@ -3,8 +3,10 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addDog, Addr, AvailRule, createBookingHold, createRecurringSeries, DogProfile, fetchAddresses, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, createRecurringSeries, DogProfile, fetchAddresses, fetchMyBillingCard, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
+import { CardLinkPanel } from '../../src/components/card-link-panel';
 import { ChargeBanner } from '../../src/components/charge-states';
+import { TOSS_ENABLED } from '../../src/lib/toss';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
@@ -494,6 +496,13 @@ export default function Request() {
   }, [routes, routeId, candidateAck, routesState]));
 
   const payBusy = useRef(false);
+  // [카드 게이트 · Sean 2026-08-26] 「모든 선호가 채워지고 러너·코스가 정해진 뒤, 요청이 나가기
+  // 전」— pay()의 마지막 관문. 기준은 「첫 예약」이 아니라 「빌링키 없음」이다 (카드를 지우거나
+  // 만료되면 둘이 갈라지고, 예약 횟수 기준은 두 번째 시도를 그냥 통과시킨다). 스킵은 F.1 판정
+  // (「allow them to book but make sure they pay afterwards」)의 조용한 우회로 — 세션 안에서만
+  // 기억한다: 영구 저장하면 「한 번 건너뛴 사람」이 「영원히 안 묻는 사람」이 된다.
+  const cardSkip = useRef(false);
+  const [cardGate, setCardGate] = useState(false);
 
   const pay = async () => {
     // 청구 잠금이 반려견 게이트보다 앞선다 — 서버가 어차피 409로 막을 요청을 만들지 않는다.
@@ -523,6 +532,24 @@ export default function Request() {
     if (!draft.scheduledAtIso) {
       setSlotSheet(true); // 시간 미선택 → 결제 대신 슬롯 시트
       return;
+    }
+    // ⚠ TOSS_ENABLED로 무장 — 과금이 꺼진 파일럿에선 물을 카드가 없다 (테스트 키로 연결한
+    // 샌드박스 빌링키가 production billing_keys에 들어가는 것이 이 게이트가 지금 잠들어 있는
+    // 이유다). 플래그가 켜지는 날 이 게이트가 같이 깨어난다 — 별도 작업 없음.
+    if (TOSS_ENABLED && !cardSkip.current) {
+      // 🔴 부재와 읽기 실패를 가른다. 첫 초안은 둘 다 null로 뭉개고 게이트를 세웠다 — 자기
+      //    주석이 「읽기 실패는 카드 없음이 아니다」라고 말하면서 코드는 정확히 그렇게 했다
+      //    (codex REJECT #6). 카드가 있는 보호자가 네트워크가 흔들렸다는 이유로 등록 화면을
+      //    만나고, 실패는 어디에서도 실패로 그려지지 않았다.
+      let card: Awaited<ReturnType<typeof fetchMyBillingCard>> | 'read_failed';
+      try { card = await fetchMyBillingCard(); }
+      catch { card = 'read_failed'; }
+      if (card === 'read_failed') {
+        haptic('error');                       // 무반응 버튼 금지 — 실패는 느껴져야 한다
+        Alert.alert('결제 수단을 확인하지 못했어요', '잠시 후 다시 시도해주세요');
+        return;
+      }
+      if (!card) { setCardGate(true); return; }
     }
     haptic('medium');
     Object.assign(draft, { km, pace, addons, routeId, timeLabel });
@@ -1301,6 +1328,19 @@ export default function Request() {
       </Modal>
 
       {/* ---------- slot-hold countdown ---------- */}
+      {/* ── 카드 게이트 (Sean 2026-08-26 배치 판정) — 요청이 나가기 직전의 마지막 한 장.
+          랩 ① 「약속 한 줄」. 연결이 끝나면 pay()를 다시 부른다 — 이번엔 카드가 있어서 게이트를
+          통과하고, 스킵이면 이 세션 동안 다시 묻지 않는다 (cardSkip ref). */}
+      <Modal visible={cardGate} animationType="slide" onRequestClose={() => setCardGate(false)}>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 64, paddingBottom: 34 }}>
+          <CardLinkPanel
+            context="booking"
+            onLinked={() => { setCardGate(false); payOnce(); }}
+            onSkip={() => { cardSkip.current = true; setCardGate(false); payOnce(); }}
+          />
+        </View>
+      </Modal>
+
       <Modal visible={holdVisible} transparent animationType="fade">
         <View style={s.holdBackdrop}>
           <View style={s.holdCard}>

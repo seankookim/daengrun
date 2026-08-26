@@ -112,6 +112,19 @@ export function tossBillingCharge(
 //
 // No Idempotency-Key: this is a read, and reusing the charge's key on a different endpoint is the
 // mistake `tossCancel`'s comment already names.
+// 빌링키 발급 — the authKey→billingKey exchange (register-billing-key's ③). The authKey is
+// ONE-SHOT and expires in minutes, so there is no replay window to manage and no Idempotency-Key
+// semantics to reason about — Toss refuses a spent key on its own. It still goes through call()
+// (which requires a key) with the authKey itself: unique per attempt by construction.
+// BILLING_TIMEOUT_MS applies — unlike confirm, the human is watching a spinner WE drew, not
+// Toss's page, so a hung socket must resolve into a visible failure rather than pin the isolate.
+export function tossBillingIssue(p: { authKey: string; customerKey: string }): Promise<TossResult> {
+  return call(`${TOSS_BASE}/billing/authorizations/issue`, p.authKey, {
+    authKey: p.authKey,
+    customerKey: p.customerKey,
+  }, BILLING_TIMEOUT_MS);
+}
+
 export async function tossGetByOrderId(orderId: string): Promise<TossResult> {
   const res = await fetch(`${TOSS_BASE}/payments/orders/${encodeURIComponent(orderId)}`, {
     method: "GET",

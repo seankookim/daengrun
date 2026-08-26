@@ -9,6 +9,7 @@ import {
   BillingCard, PaymentRecord, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
 import { goBackOrHome } from '../src/lib/nav';
+import { TOSS_CLIENT_KEY } from '../src/lib/toss';
 import { paper } from '../src/theme';
 
 // 설정 → 결제 관리 — the "on demand" half of the price-invisibility doctrine (§0-bis).
@@ -144,11 +145,18 @@ export default function Payments() {
       </Row>
 
       {/* ── 예외 배너 — 숨길 수 없는 상태 (§0-bis: 예외는 크게, 영수증은 조용히) ── */}
+      {/* [2026-08-26] 이 배너의 CTA는 mailto: 였다 — 카드 등록 화면이 없던 시절의 유일한 출구.
+          이제 문이 있으므로 문으로 보낸다 (codex REJECT #5: 새 화면을 만들고도 실제 앱 경로가
+          아무도 거기 닿지 않았다). 키가 없으면 옛 문의 경로가 그대로 남는다 — 열리지 않는
+          화면으로 보내는 것이 메일보다 나쁘다. */}
       {needsRelink && (
         <ChargeBanner
           kind="relink"
-          cta="문의하기"
-          onPress={() => { Linking.openURL(CONTACT_MAIL).catch(() => Alert.alert('메일 앱을 열 수 없어요', CONTACT_MAIL)); }}
+          cta={TOSS_CLIENT_KEY != null ? '카드 다시 연결하기' : '문의하기'}
+          onPress={() => {
+            if (TOSS_CLIENT_KEY != null) { router.push('/owner/card-link'); return; }
+            Linking.openURL(CONTACT_MAIL).catch(() => Alert.alert('메일 앱을 열 수 없어요', CONTACT_MAIL));
+          }}
           style={{ marginTop: 18 }}
         />
       )}
@@ -197,6 +205,15 @@ export default function Payments() {
             {card.linkedAt && <Text style={s.note}>{linkedLabel(card.linkedAt)} 연결됨</Text>}
             {/* 돌아갈 곳을 들고 온 방문 = 하려던 일이 있는 방문. 카드가 있는 지금은 그 일이 통한다.
                 replace = 결제 관리가 스택에 남지 않는다 (돌아간 화면에서 뒤로 = 원래 있던 곳). */}
+            {/* [2026-08-26] 카드 교체 — Sean의 배치 판정이 명시한 절반이다: 「after that first run,
+                there should be no card whatever, and the card should be changeable and manageable
+                in settings」. 첫 구현은 그 절반을 빠뜨렸고, 카드가 있는 보호자에게는 아무 동작도
+                없었다 (codex REJECT #5). 같은 화면(owner/card-link)이 교체를 처리한다 —
+                register-billing-key의 upsert가 프로필당 한 행을 유지하므로 연결과 교체는 같은 쓰기다. */}
+            {TOSS_CLIENT_KEY != null && (
+              <PaperBtn label="카드 바꾸기" variant="secondary" style={{ marginTop: 12 }}
+                onPress={() => router.push('/owner/card-link')} />
+            )}
             {returnTo && (
               <PaperBtn
                 label={backHref ? (returnLabel || '하던 일로 돌아가기 ›') : '홈으로 ›'}
@@ -210,17 +227,17 @@ export default function Payments() {
         {cardState === 'ready' && !card && (
           <>
             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>등록된 카드가 없어요</Text>
-            {/* ⚠ TODO(card-register): 카드 등록 화면(Ⓐ 랩 선택 대기)이 꽂히는 자리는 정확히 여기다.
-                화면이 생기면 이 준비 중 문구를 '카드 연결하기' CTA로 바꾸고, 연결 성공 시
-                backHref가 있으면 router.replace(backHref) — 없으면 이 화면에 남는다.
-                그때까지는 없는 문을 그리지 않는다 (CLAUDE.md 정직 법). */}
-            <Text style={s.note}>
-              {/* Promise the return only for an address that passed the check — never name a
-                  destination this screen will not actually go to. */}
-              {backHref
-                ? '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결하고 하던 일로 바로 돌아가요'
-                : '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요'}
-            </Text>
+            {/* [2026-08-26] 그 TODO의 화면이 생겼다 — owner/card-link (랩 ① 픽). 문은 키가 있을
+                때만 그린다: TOSS_CLIENT_KEY가 없으면 연결 시트가 열리지 않으므로 (billing-auth-
+                sheet의 early return) CTA는 죽은 버튼이 된다. 키 부재 = 아직 결제사가 아니라는
+                사실이고, 그 동안은 그 사실을 말하는 문장이 남는다 — 「준비 중」이 아니라 언제
+                열리는지를 말한다. */}
+            {TOSS_CLIENT_KEY != null ? (
+              <PaperBtn label="카드 연결하기" variant="secondary" style={{ marginTop: 12 }}
+                onPress={() => router.push('/owner/card-link')} />
+            ) : (
+              <Text style={s.note}>카드 연결은 결제 오픈과 함께 열려요</Text>
+            )}
           </>
         )}
       </View>
