@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Register Lab — 카드 연결</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fDisp:'Black Han Sans',sans-serif;
+  --fBody:'IBM Plex Sans KR',-apple-system,sans-serif;
+  --fNum:'Oswald',sans-serif;
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF;
+  --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+  --head:#221E3D;
+  --accent:#6C5CE7;
+  --coral:#F0765A; --coralDeep:#E45F41; --coralText:#C6472C;
+  --critical:#B3261E; --ready:#0E7F49;
+  /* type lattice — 10 is LATIN kicker only; Korean never rides that exemption */
+  --tk:10px; --t5:15px; --t4:19px; --t3:24px; --t2:30px; --t1:34px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+     font:15px/1.6 var(--fBody);-webkit-font-smoothing:antialiased;padding:34px 22px 90px}
+.wrap{max-width:1180px;margin:0 auto}
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:18px}
+header.top .kick{font-size:var(--tk);letter-spacing:2.6px;text-transform:uppercase;
+                 color:var(--dim);font-weight:700}
+header.top h1{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:1.18;
+              margin:8px 0 0;color:var(--head)}
+header.top p{margin:12px 0 0;font-size:var(--t5);line-height:1.65;color:var(--dim);max-width:74ch}
+.note{margin-top:26px;border-left:3px solid var(--accent);padding:2px 0 2px 16px;
+      font-size:var(--t5);line-height:1.68;color:var(--dim);max-width:80ch}
+.note b{color:var(--ink);font-weight:700}
+.note .warn{color:var(--critical);font-weight:700}
+h2.sec{font-size:var(--t3);margin:54px 0 6px;color:var(--head);font-weight:700}
+h2.sec .n{font-family:var(--fNum);font-weight:600;color:var(--accent);margin-right:10px}
+.sub{font-size:var(--t5);line-height:1.65;color:var(--dim);max-width:78ch;margin:0 0 22px}
+.pair{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.col{flex:0 0 auto}
+.caplab{font-size:var(--tk);letter-spacing:2.2px;text-transform:uppercase;
+        color:var(--faint);font-weight:700;margin:0 0 8px 4px}
+
+/* ── phone frame ── */
+.ph{width:330px;border:1px solid var(--hair);background:var(--panel);
+    display:flex;flex-direction:column;min-height:600px}
+.ph .bar{height:38px;border-bottom:1px solid var(--hair);display:flex;align-items:center;
+         justify-content:space-between;padding:0 14px;font-size:var(--t5);color:var(--faint)}
+/* ⚠ 15px, not 12: the middle slot is the SCREEN TITLE (「카드 연결」) — real Korean product copy,
+   and Korean never rides the letterspaced-latin kicker exemption (DESIGN.md §3). Same reason the
+   brand chips below are 15. A lab that draws sub-floor type teaches the floor away. */
+.ph .body{padding:22px 18px 18px;display:flex;flex-direction:column;flex:1}
+.disp{font-family:var(--fDisp);font-weight:400;color:var(--head);line-height:1.2}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}
+.t5{font-size:var(--t5);line-height:1.6}
+.dim{color:var(--dim)}
+.rule{height:1px;background:var(--hair);margin:18px 0}
+.spacer{flex:1;min-height:14px}
+
+/* primary CTA — coral, big, obviously pressable */
+.cta{display:block;width:100%;border:0;background:var(--coralDeep);color:#fff;
+     font-family:var(--fBody);font-weight:700;font-size:var(--t4);line-height:1.3;
+     padding:17px 16px;text-align:center;border-bottom:4px solid #A83315;cursor:pointer}
+.cta.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-bottom-width:4px}
+.ctahint{margin-top:10px;font-size:var(--t5);line-height:1.5;color:var(--dim);text-align:center}
+
+/* accent used as INK / rule only — never a ground */
+.markrow{display:flex;align-items:baseline;gap:10px}
+.mark{width:11px;height:11px;background:var(--accent);flex:0 0 auto;transform:translateY(1px)}
+.stepn{font-family:var(--fNum);font-size:var(--t4);color:var(--accent);font-weight:600;
+       flex:0 0 auto;min-width:22px}
+.brands{display:flex;gap:7px;flex-wrap:wrap}
+.brand{border:1px solid var(--hair);padding:6px 10px;font-size:var(--t5);color:var(--dim);letter-spacing:.2px}
+.owe{border-top:2px solid var(--ink);border-bottom:1px solid var(--hair);padding:14px 0;
+     display:flex;align-items:baseline;justify-content:space-between}
+.owe .amt{font-family:var(--fNum);font-size:var(--t2);font-weight:600;color:var(--critical)}
+.locknote{border-left:3px solid var(--critical);padding-left:12px;font-size:var(--t5);
+          line-height:1.55;color:var(--critical);font-weight:600}
+.perf{border-top:2px dashed var(--hair);margin:16px 0 0;padding-top:16px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;
+    font-size:var(--t5);border-bottom:1px solid var(--hair)}
+.kv .k{color:var(--dim)}
+.kv .v{font-weight:600}
+.kv .v.pending{color:var(--accent);font-weight:700}
+.verdict{margin-top:14px;font-size:var(--t5);line-height:1.6;color:var(--dim)}
+.verdict b{color:var(--ink)}
+ul.why{margin:10px 0 0;padding-left:20px;font-size:var(--t5);line-height:1.7;color:var(--dim);max-width:78ch}
+ul.why b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="kick">DOGS HIGH · LAB</div>
+  <h1>카드 연결 — 세 가지 안</h1>
+  <p>Sean 2026-08-26, 그의 말 그대로: <b>「allow them to book but make sure they pay afterwards」</b>.
+     예약은 막지 않는다. 그러면 <b>러닝이 끝난 뒤 받아내는 길</b>이 전부가 되고, 그 길의 문이 이
+     화면이다. 번호로 골라 주세요.</p>
+</header>
+
+<div class="note">
+  <b>왜 이 화면이 지금 필요한가.</b> 오늘 카드가 없는 보호자는 예약할 수 있고, 러닝이 끝나고,
+  청구가 「빌링키 없음」으로 실패하고, <code>owner_has_unsettled_charge</code>가 계정을 잠근다.
+  거기까지는 전부 만들어져 있다 — <code>payments.tsx</code>가 미납을 읽고, 실패한 청구를 보여주고,
+  재시도 버튼도 있다. <span class="warn">그런데 카드 등록 화면이 없다.</span>
+  <code>payments.tsx:213</code>이 「이 자리가 그 자리다」라는 TODO를 들고 있고, 빈 상태는 「카드 등록
+  화면은 준비 중이에요」라고 말한다. 그래서 지금 잠긴 보호자의 유일한 출구는
+  <b>메일 보내기</b>다. 잠금은 있는데 문이 없다 — 정직 법이 금지하는 바로 그 모양이고,
+  Sean의 이번 판정은 그 문을 만들어야만 성립한다.
+</div>
+
+<div class="note">
+  <b>이 화면은 설정 항목이 아니라 동의 순간이다.</b>
+  <code>card-registration-placement.md</code>: 가격 비공개 아래에서 카드 연결 화면은
+  <b>보호자가 실측 기반 청구에 동의하는 유일한 자리</b>다. 그래서 「카드 등록」이 아니라 약속을
+  말하는 화면이고, 온보딩 단계가 아니라 <b>첫 예약 · 클럽 거절 · 설정 › 결제 관리</b> 세 곳에서
+  열리는 한 장짜리 시트다.
+  <br><br>
+  <span class="warn">이 랩이 일부러 그리지 않은 것 둘.</span>
+  <b>전자상거래법 푸터</b>(상호·사업자등록번호·통신판매업신고) — 사업자등록이 아직 없어서 숫자가
+  존재하지 않는다. 지어내면 거짓말인 동시에 법적 주장이 된다. <b>금액이 정해진 척하는 화면</b> —
+  러닝이 끝나야 정해지므로, 미리 보여줄 금액은 없다. ②③은 그 빈칸을 숨기지 않고 <em>보여주는</em>
+  방식으로 서로 다르다.
+</div>
+
+<div class="note">
+  <b>두 상태를 같이 본다.</b> 같은 화면이 두 문맥에서 열린다 — 빚이 없는 <b>첫 예약</b>과,
+  이미 잠긴 <b>미납</b>. 한 디자인이 둘 다 감당해야 하므로 안마다 두 장을 나란히 놓았다.
+  왼쪽이 첫 예약, 오른쪽이 미납이다.
+</div>
+
+<!-- ═══════════════════════════ ① ═══════════════════════════ -->
+<h2 class="sec"><span class="n">①</span>약속 한 줄</h2>
+<p class="sub">문장이 주인공이다. 디스플레이 한 줄로 약속을 말하고, 나머지는 전부 조용하다.
+   화면에서 읽을 것이 하나뿐이라 동의가 무엇에 대한 동의인지 놓칠 수 없다 — 대신 <b>구조를
+   보여주지 않는다</b>: 언제 얼마가 빠지는지는 글로만 있다.</p>
+<div class="pair">
+  <div class="col">
+    <p class="caplab">첫 예약</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <div class="markrow" style="margin-bottom:14px"><span class="mark"></span>
+          <span class="t5 dim" style="font-weight:600">결제는 러닝 뒤에</span></div>
+        <div class="disp" style="font-size:var(--t2)">지금은<br>결제되지<br>않아요</div>
+        <p class="t5 dim" style="margin:16px 0 0">카드를 연결해두면 러닝이 끝난 뒤에 결제돼요.
+           금액은 실제로 뛴 거리로 정해져요.</p>
+        <div class="rule"></div>
+        <div class="brands"><span class="brand">신용·체크카드</span><span class="brand">토스페이먼츠</span></div>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하기</button>
+        <p class="ctahint">연결하면 실제 러닝 기록으로 결제하는 데 동의하는 거예요</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="caplab">미납 — 잠긴 상태</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <p class="locknote">결제가 되지 않아 새 예약이 잠겼어요</p>
+        <div class="disp" style="font-size:var(--t2);margin-top:14px">러닝은<br>끝났어요</div>
+        <div class="owe" style="margin-top:18px">
+          <span class="t5 dim">밀린 결제</span>
+          <span class="amt">24,900<span style="font-size:var(--t5);font-weight:500"> 원</span></span>
+        </div>
+        <p class="t5 dim" style="margin:14px 0 0">카드를 연결하면 바로 결제하고 다시 예약할 수 있어요.</p>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하고 결제하기</button>
+        <p class="ctahint">연결 즉시 밀린 금액이 결제돼요</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ ② ═══════════════════════════ -->
+<h2 class="sec"><span class="n">②</span>순서</h2>
+<p class="sub">세 박자를 번호로 보여준다 — 연결 → 러닝 → 결제. 후불이 받아들여지는 이유가
+   <b>순서 자체</b>이므로 구조가 곧 설득이다. 번호는 진짜 순서를 뜻하므로 장식이 아니고,
+   ③번 칸이 비어 있는 것이 「금액은 아직 없다」를 말하는 자리다.</p>
+<div class="pair">
+  <div class="col">
+    <p class="caplab">첫 예약</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <div class="disp" style="font-size:var(--t3)">이렇게 결제돼요</div>
+        <div style="margin-top:20px">
+          <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair)">
+            <span class="stepn">1</span>
+            <div><div class="t5" style="font-weight:700">카드 연결</div>
+                 <div class="t5 dim">지금. 결제되지 않아요.</div></div></div>
+          <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair)">
+            <span class="stepn">2</span>
+            <div><div class="t5" style="font-weight:700">러닝</div>
+                 <div class="t5 dim">러너가 강아지와 달려요.</div></div></div>
+          <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair)">
+            <span class="stepn">3</span>
+            <div><div class="t5" style="font-weight:700">러닝이 끝나면 결제</div>
+                 <div class="t5 dim">실제로 뛴 거리로 금액이 정해져요.</div></div></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하기</button>
+        <p class="ctahint">연결하면 3번에 동의하는 거예요</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="caplab">미납 — 잠긴 상태</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <p class="locknote">3번에서 멈춰 있어요</p>
+        <div class="disp" style="font-size:var(--t3);margin-top:12px">결제만 남았어요</div>
+        <div style="margin-top:18px">
+          <div style="display:flex;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--hair);opacity:.45">
+            <span class="stepn" style="color:var(--ready)">✓</span>
+            <div class="t5" style="font-weight:700">카드 연결 — 없음</div></div>
+          <div style="display:flex;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--hair);opacity:.45">
+            <span class="stepn" style="color:var(--ready)">✓</span>
+            <div class="t5" style="font-weight:700">러닝 — 8월 26일 완주</div></div>
+          <div style="display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:2px solid var(--ink)">
+            <span class="stepn" style="color:var(--critical)">3</span>
+            <div style="flex:1"><div class="t5" style="font-weight:700">결제</div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px">
+                <span class="t5 dim">밀린 금액</span>
+                <span class="num" style="font-size:var(--t4);color:var(--critical)">24,900원</span></div></div></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하고 결제하기</button>
+        <p class="ctahint">연결 즉시 3번이 끝나고 예약이 풀려요</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ ③ ═══════════════════════════ -->
+<h2 class="sec"><span class="n">③</span>영수증 미리보기</h2>
+<p class="sub">앞으로 받게 될 영수증을 미리 그려준다. 금액 칸은 <b>일부러 비어 있고</b>,
+   그 빈칸이 「러닝이 끝나야 정해져요」라고 말한다 — 가격 비공개를 숨기는 대신 화면의 주장으로
+   삼는 유일한 안이다. 앱이 이미 여권·티켓 문법을 쓰므로 재질도 낯설지 않다.</p>
+<div class="pair">
+  <div class="col">
+    <p class="caplab">첫 예약</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <div class="markrow"><span class="mark"></span>
+          <span class="t5 dim" style="font-weight:600">받게 될 영수증</span></div>
+        <div class="perf">
+          <div class="kv"><span class="k">강아지</span><span class="v">초코</span></div>
+          <div class="kv"><span class="k">결제 시점</span><span class="v">러닝이 끝난 뒤</span></div>
+          <div class="kv"><span class="k">기준</span><span class="v">실제로 뛴 거리</span></div>
+          <div class="kv" style="border-bottom:2px solid var(--ink)">
+            <span class="k">금액</span><span class="v pending">러닝이 끝나야 정해져요</span></div>
+        </div>
+        <p class="t5 dim" style="margin:14px 0 0">카드는 지금 연결해두기만 해요. 지금 빠져나가는
+           돈은 없어요.</p>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하기</button>
+        <p class="ctahint">연결하면 이 방식으로 결제하는 데 동의하는 거예요</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="caplab">미납 — 잠긴 상태</p>
+    <div class="ph">
+      <div class="bar"><span>9:41</span><span>카드 연결</span><span>✕</span></div>
+      <div class="body">
+        <p class="locknote">결제가 되지 않아 새 예약이 잠겼어요</p>
+        <div class="markrow" style="margin-top:14px"><span class="mark"></span>
+          <span class="t5 dim" style="font-weight:600">결제되지 않은 영수증</span></div>
+        <div class="perf">
+          <div class="kv"><span class="k">강아지</span><span class="v">초코 · 5.2km</span></div>
+          <div class="kv"><span class="k">러닝</span><span class="v">8월 26일 완주</span></div>
+          <div class="kv"><span class="k">실패 사유</span><span class="v" style="color:var(--critical)">연결된 카드 없음</span></div>
+          <div class="kv" style="border-bottom:2px solid var(--ink)">
+            <span class="k">금액</span>
+            <span class="num" style="font-size:var(--t4);color:var(--critical)">24,900원</span></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="cta">카드 연결하고 결제하기</button>
+        <p class="ctahint">연결 즉시 이 영수증이 결제되고 예약이 풀려요</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">고르실 때</h2>
+<ul class="why">
+  <li><b>①</b>은 가장 조용하고, 동의 문장이 가장 크게 읽힌다. 대신 <b>언제·무엇으로</b> 정해지는지는
+      본문 한 줄에만 있어서, 나중에 금액을 보고 놀랄 여지가 제일 크다.</li>
+  <li><b>②</b>는 후불의 <b>이유</b>를 구조로 보여주고, 미납 상태에서 「어디서 멈췄는지」를 같은
+      그림으로 말할 수 있다 — 두 상태가 한 디자인으로 가장 자연스럽게 이어지는 안.</li>
+  <li><b>③</b>은 가격 비공개를 <b>정면으로</b> 다룬다. 빈 금액 칸이 화면의 주장이라 나중에 놀랄 일이
+      가장 적지만, 첫 예약 화면치고는 정보가 가장 많다.</li>
+  <li class="warn"><b>세 안 모두 서버가 아직 없다.</b> <code>billing_keys</code> 테이블과 읽기
+      RPC <code>my_billing_card</code>는 있지만, <b>빌링키를 발급받아 저장하는 경로가 없다</b> —
+      <code>supabase/functions/</code>에 등록용 함수가 없다. 화면을 고르시면 그 서버 조각이 이
+      슬라이스의 나머지 절반이다.</li>
+</ul>
+
+</div>
+</body>
+</html>
