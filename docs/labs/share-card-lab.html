@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Club v2 — Share Card Lab (r5)</title>
+<title>Club v2 — Share Card Lab (r5 → r6 amended)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
@@ -58,6 +58,14 @@
    ── DELIBERATELY NOT DRAWN (v2, NOT IN THIS LAB) ───────────────────────────
    Scoped out, not forgotten. Each would need its own consent surface first:
      · the map / GPS trace / any route silhouette  — location data about a home
+       ⚠ SUPERSEDED 2026-08-25 by round 6 — see the ROUND 6 block below. The
+       trace moved from "never drawn" to "OPT-IN, DEFAULT OFF": Sean ruled
+       「route trace should be optionally overlaid on the image to export (add a
+       slide button for that)」. The r5 reasoning was not wrong and is not
+       deleted — a trace nobody chose IS location data about a home. What
+       changed is that the person now chooses, and what publishes is the
+       normalised SHAPE (traceToBox), not coordinates. The full map is still
+       never drawn.
      · a crew line, other dogs' names or photos    — other people's data, and
        `photo_consent` already refuses feed sharing for a non-consenting dog
        (club/receipt/[bid].tsx:205-214) — the export path has no such gate yet
@@ -93,6 +101,71 @@
    · Small white text never sits on coral — ③'s plate is ink (#26231b, ~14:1).
    · Flat: no card inside a card. Tappable things look tappable; readouts don't.
    · Korean UI strings, English comments.
+
+   ═══ ROUND 6 — HIS PICK, AND TWO AMENDMENTS (2026-08-25) ═══════════════════
+   Spec: docs/plans/2026-08-25-round6-picks-and-live-map.md. Verbatim:
+     「share card i like 3 but make it so that the pace info background is
+      transparent so it's just text overlaid on photo. … route trace should be
+      optionally overlaid on the image to export (add a slide button for that).」
+
+   ── ③ IS PICKED. ① AND ② STAY. ─────────────────────────────────────────────
+   House style is SUPERSEDE, NOT ERASE. ① 인화 and ② 기록 are not deleted; they
+   are the record of what was offered when he chose. ② additionally remains the
+   LIVE card for the 0-photo state — it was never only a rejected variant, and
+   ③ has no answer for a run with no photo. Both are marked 기록 보관, ③ 채택.
+
+   ── AMENDMENT 1 · the pace block goes transparent ──────────────────────────
+   The ink plate (#26231b, ~14:1) is GONE from ③. No box, no visible edge.
+   What replaces it is NOT nothing: a DETERMINISTIC BOTTOM-UP SCRIM burned into
+   the exported PNG under the text band. Why the plate existed still holds —
+   white type cannot be contrast-checked against an unknown photo and DESIGN.md's
+   floors are *vs canvas* — so the scrim is built to keep the number computable:
+     · base #0B0906, FLOOR ALPHA 0.62, HELD CONSTANT across the entire text band
+       (the ramp to 0 happens ABOVE the type, never under it). A held floor is
+       what makes the worst case a fixed arithmetic value instead of a guess.
+     · worst case is therefore a PURE WHITE photo: composite rgb(104,102,101).
+       #FFFFFF on it = 5.65:1 · #EDEAE3 (the label ink) = 4.70:1. Both ≥4.5.
+       Measured by compositing the real CSS gradient on a canvas and reading the
+       pixel back — not asserted from the design intent.
+     · the r5 label ink #D8D6D0 had to be LIGHTENED to #EDEAE3 — at floor 0.62
+       it measured 3.89:1 worst-case and would have FAILED. Recorded because it
+       is the kind of thing a "just delete the plate" change silently breaks.
+     · 0.62 is not a round number picked for feel — it is the LIGHTEST floor that
+       clears both inks against the pure-white bound. 0.60 gives the label ink
+       4.41:1 and fails; 0.55 gives white type 4.41:1 and fails.
+     · floor 0.45 was tried first and FAILS (light photo 3.58:1). 0.62 is the
+       value that carries all three margin test grounds; the strip in the margin
+       shows light / dark / busy with their measured ratios.
+   It reads as「text on the photo」because there is no edge. It is still gateable
+   because the floor is a constant, not a hope.
+
+   🔵 STANDING PREFERENCE, recorded so the next lab does not re-litigate it:
+   TEXT ON PHOTO, NO BOXES. This is his SECOND request of exactly this shape —
+   round 5's R3 asked for the club card to be a photo with 「black font and white
+   shadow effect to make things legible」. Two independent asks is a preference,
+   not a one-off. Future labs: start from scrim/shadow, not from a plate, and
+   bring the measured floor with you.
+
+   ── AMENDMENT 2 · the trace becomes OPT-IN (his 「slide button」) ────────────
+   His answer to the r5 privacy flag was not removal — it was USER-CONTROLLED
+   DISCLOSURE, and that is the stronger fix: a shape a person chose to publish
+   is not a leak. Drawn as frames ⑤ (off) and ⑥ (on) — a composer, because the
+   switch has to sit where a person actually decides, not on the finish screen
+   where they have not seen the card yet.
+     · 🔵 DEFAULT OFF — MY RECOMMENDATION, NOT HIS WORD, AWAITING HIS RULING.
+       A toggle that defaults ON publishes the route for everyone who never finds
+       the switch, which is the same disclosure wearing a consent label. Default
+       OFF makes the trace something a person reaches for. His to overturn.
+     · What publishes when it is ON, stated exactly: the shipped export path
+       already normalises through `traceToBox` (app/src/lib/trace.ts:30) — it
+       maps real lat/lng into a 0..1 box, aspect-preserved, and ABSOLUTE
+       COORDINATES DO NOT SURVIVE that call. So the card carries a SILHOUETTE
+       with start and end marked. Not a map, not coordinates, no scale bar, no
+       place name. Not overstated either: a silhouette plus a club name plus a
+       date is still more than nothing, which is exactly why it is opt-in rather
+       than always-on.
+     · The full map, a basemap, a place string and any scale reference remain in
+       the NOT-DRAWN ledger above. Only the normalised shape moved.
    ═════════════════════════════════════════════════════════════════════════ */
 
 /* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
@@ -255,8 +328,12 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .clbl{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
 .cmark{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);margin-top:16px}
 
-/* ③ 스토리 — photo to the edges, one INK plate. White type never touches the
-   photo and never touches coral: #FFFFFF on #26231b measures ~14:1. */
+/* ③ 스토리 (r5 BUILD — RETIRED by round 6, kept as the record of what the plate
+   was). Photo to the edges, one INK plate; white type never touched the photo
+   and never touched coral: #FFFFFF on #26231b measured ~14:1. Sean amended it:
+   「make it so that the pace info background is transparent」. The r6 build is
+   the .pshot / .scrim / .overlay set below. These rules are no longer applied
+   by any frame — they stay so the delta is readable, not so they run. */
 .plate{flex:1;background:var(--docInk);padding:18px 18px 16px;display:flex;flex-direction:column}
 .plate .pdisp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
   color:var(--docWhite);letter-spacing:-.01em}
@@ -270,6 +347,107 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 .pfoot{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;gap:10px}
 .pfoot .club{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docWhite)}
 .pfoot .mark{margin-left:auto;font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docEdge)}
+
+/* ═══ ③ r6 BUILD ═══ NO PLATE. Type sits on the photo, over a deterministic
+   scrim burned into the exported PNG. Three rules do the whole job:
+     .pshot   the photo bind, all four edges (still a LABELLED BIND, never stock)
+     .scrim   base #0B0906, FLOOR ALPHA 0.62 HELD CONSTANT under the type; the
+              ramp to fully transparent happens ABOVE the text band only, so
+              there is no edge to see and no unknown value under any glyph.
+              Worst case = a pure white photo → composite rgb(104,102,101).
+              #FFFFFF on it = 5.65:1 · #EDEAE3 = 4.70:1 (measured: the real CSS
+              gradient composited on a canvas, pixel read back). Floor 0.45 was
+              tried and failed (3.58:1 on a light photo); 0.60 fails on the label
+              ink (4.41:1) and 0.55 fails on white type itself (4.41:1), so 0.62
+              is the LIGHTEST floor that clears both against the worst bound.
+     .overlay the type. Values/display #FFFFFF; labels + mark #EDEAE3 — the r5
+              label ink #D8D6D0 measures 3.89:1 here and was LIGHTENED. ══════ */
+.card.story.r6{background:var(--docClause)}
+.pshot{position:absolute;inset:0;display:flex;align-items:flex-start;padding:14px}
+.pshot .pl{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docFaint)}
+.pshot.light{background:var(--docClause)}
+.scrim{position:absolute;left:0;right:0;bottom:0;height:330px;pointer-events:none;
+  background:linear-gradient(to top,
+    rgba(11,9,6,.62) 0%, rgba(11,9,6,.62) 68%,
+    rgba(11,9,6,.40) 82%, rgba(11,9,6,.16) 92%, rgba(11,9,6,0) 100%)}
+.overlay{position:absolute;left:0;right:0;bottom:0;padding:0 18px 18px;
+  display:flex;flex-direction:column}
+.overlay .odisp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docWhite);letter-spacing:-.01em}
+.overlay .odisp .u{color:var(--coralSoft)}
+.otrio{display:flex;margin-top:14px;border-top:1px solid rgba(255,255,255,.34)}
+.otrio > div{flex:1;padding:12px 8px 0}
+.otrio > div + div{border-left:1px solid rgba(255,255,255,.34);padding-left:12px}
+.otrio .v{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docWhite)}
+.otrio .l{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:#EDEAE3}
+.ofoot{margin-top:14px;padding-top:12px;display:flex;align-items:baseline;gap:10px}
+.ofoot .club{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docWhite)}
+.ofoot .mark{margin-left:auto;font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:#EDEAE3}
+
+/* ── THE TRACE, when it is switched ON ── the normalised SHAPE only. What the
+   shipped path already produces: traceToBox (app/src/lib/trace.ts:30) projects
+   real lat/lng into a 0..1 aspect-preserved box, so absolute coordinates do not
+   survive the call. No basemap, no scale, no place name. The line carries its
+   own dark halo underneath so it is visible on a light photo AND on a dark one
+   — the same problem the scrim solves for the type. ── */
+.traceblk{align-self:flex-end;width:96px;height:96px;margin-bottom:14px;position:relative}
+.traceblk svg{display:block;width:96px;height:96px}
+.tracecap{position:absolute;left:0;right:0;bottom:-2px;text-align:right;
+  font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:#EDEAE3}
+
+/* ── THE SLIDE SWITCH ── a control, so it carries a control's marks: ≥52px row,
+   1px ink border, a knob that moves, and a state word that is never ambiguous.
+   OFF is the drawn default (⑤); ON is ⑥. Coral = the thing that is doing
+   something. ── */
+.swrow{display:flex;align-items:center;gap:14px;min-height:56px;padding:12px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:16px}
+.swrow .swtxt{flex:1;min-width:0}
+.swrow .swt{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.swrow .swb{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:3px}
+.swrow .swb b{color:var(--docInk);font-weight:800}
+.sw{flex:0 0 auto;width:56px;height:32px;border-radius:16px;position:relative;
+  background:var(--docWhite);border:1.5px solid var(--docInk)}
+.sw .knob{position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;
+  background:var(--docInk)}
+.sw.on{background:var(--action);border-color:var(--action)}
+.sw.on .knob{left:auto;right:3px;background:var(--docWhite)}
+.swstate{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docDim);
+  margin-top:10px}
+.swstate.on{color:var(--actionInk)}
+.recnote{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);
+  border-top:1px solid var(--docLine);margin-top:14px;padding-top:12px}
+
+.cmast{padding:0 20px}
+
+/* ── PICK MARKS ── supersede, don't erase: ③ is stamped 채택, ①② are stamped
+   기록 보관 and stay exactly as they were drawn. ── */
+/* the stamp carries KOREAN, so it sits at the 15 floor — not at the 10pt kicker
+   size. Sub-15 in this world is Latin kickers, serials and glyphs only. */
+.cap .st{flex:0 0 auto;font-size:var(--t3);line-height:var(--l3);
+  font-weight:800;padding:4px 10px;border:1.5px solid var(--docDash);color:var(--dim);white-space:nowrap}
+.cap .st.picked{border-color:var(--action);color:var(--action)}
+.picked-note{font-size:15px;line-height:1.5;font-weight:800;color:var(--action);
+  margin-bottom:12px}
+
+/* ── MARGIN CONTRAST STRIP ── three synthetic test grounds, not photos: the
+   point is the arithmetic, so the grounds are exact known values. ── */
+.strip{display:flex;gap:12px;margin-top:14px}
+.strip .mini{width:122px}
+.strip .sw2{position:relative;width:122px;height:150px;overflow:hidden}
+.sw2.gLight{background:#F2EFE9}
+.sw2.gDark{background:#2E2A24}
+.sw2.gBusy{background:repeating-linear-gradient(38deg,
+  #DCD4C2 0 9px, #6E6455 9px 17px, #A79B85 17px 26px, #3D3830 26px 34px)}
+.sw2 .msc{position:absolute;left:0;right:0;bottom:0;height:104px;
+  background:linear-gradient(to top,
+    rgba(11,9,6,.62) 0%, rgba(11,9,6,.62) 66%, rgba(11,9,6,.28) 86%, rgba(11,9,6,0) 100%)}
+.sw2 .mtx{position:absolute;left:0;right:0;bottom:0;padding:0 10px 10px}
+.sw2 .mv{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:#FFFFFF}
+.sw2 .ml{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:#EDEAE3}
+.strip .mc{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim);margin-top:9px}
+.strip .mc b{display:block;color:var(--ink);font-weight:800}
 
 /* ── THE SHEET ── our own doors, drawn as doors. The OS sheet is behind
    「공유하기」; the other two are the studio's real, separate paths. ── */
@@ -316,25 +494,27 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
 <header class="top">
   <h1>공유 카드 — 기록 하나가 밖으로 나가는 모양</h1>
-  <p class="law">Round 5 · export ratios 4:5 · 9:16 · no map, no trace, no other dog · the offer is drawn too</p>
+  <p class="law">Round 6 amended · ③ picked · pace block transparent (scrim floor 0.62, worst case 5.65:1) · trace opt-in, default off · no map, no other dog</p>
 </header>
 
 <section class="toc">
-  <h2>One pick for the card — ④ is the offer, not a choice</h2>
+  <h2>③ is picked — ①② are the record of what was offered, ⑤⑥ are the new amendment</h2>
   <ol>
-    <li><span class="n">①</span><span><b>인화</b> — 4:5. The owner's own photo over a white apron. The shipped receipt's 「영수증 = 사진 인화」 idiom, made shareable.</span></li>
-    <li><span class="n">②</span><span><b>기록</b> — 4:5. <b>No photo at all.</b> The paper itself: one ink rule, one big numeral, the club. This is also the card a run with 0 photos gets.</span></li>
-    <li><span class="n">③</span><span><b>스토리</b> — 9:16. Photo to the edges, one ink plate carrying the numbers. Built for the story frame, not cropped into it.</span></li>
+    <li><span class="n">①</span><span><b>인화</b> — 4:5. The owner's own photo over a white apron. The shipped receipt's 「영수증 = 사진 인화」 idiom, made shareable. <b>기록 보관 — 채택되지 않음.</b></span></li>
+    <li><span class="n">②</span><span><b>기록</b> — 4:5. <b>No photo at all.</b> The paper itself: one ink rule, one big numeral, the club. <b>Still live</b> as the card a run with 0 photos gets — ③ has no answer for that state.</span></li>
+    <li><span class="n">③</span><span><b>스토리 — 채택 (round 6).</b> 9:16, photo to the edges. <b>The ink plate is gone:</b> the numbers now sit directly on the photo over a deterministic scrim (floor 0.62, worst case 5.65:1).</span></li>
     <li><span class="n">④</span><span><b>넛지</b> — where the card is offered on the finish screen. Dismissible, one real door, nothing auto-posts.</span></li>
+    <li><span class="n">⑤</span><span><b>컴포저 · 경로 꺼짐</b> — the composer with the slide switch he asked for, in its <b>default OFF</b> state. The card is ③ exactly as picked.</span></li>
+    <li><span class="n">⑥</span><span><b>컴포저 · 경로 켜짐</b> — the same screen with the switch ON: the card carries the route <b>shape</b> (traceToBox — no coordinates), start and end marked.</span></li>
   </ol>
-  <p class="say">One number settles it — <b>①</b>, <b>②</b> or <b>③</b> — plus one word if ④'s offer sits wrong.</p>
+  <p class="say">Two words settle the rest — <b>the scrim depth</b> (deeper / lighter / keep), and <b>the toggle's default</b>. Default OFF in ⑤ is <b>my recommendation, not your ruling</b>: say「기본 켜기」and it flips.</p>
 </section>
 
 <div class="rail">
 
   <!-- ═══════════════════════════════════════ ① 인화 · 4:5 -->
   <div class="col">
-    <div class="cap"><span class="n">①</span><span class="d">인화 — <b>사진 + 흰 종이 앞치마</b>, 4:5 피드.</span></div>
+    <div class="cap"><span class="n">①</span><span class="d">인화 — <b>사진 + 흰 종이 앞치마</b>, 4:5 피드.</span><span class="st">기록 보관</span></div>
     <div class="phone">
       <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
 
@@ -371,7 +551,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
   <!-- ═══════════════════════════════════════ ② 기록 · 4:5 · 사진 없음 -->
   <div class="col">
-    <div class="cap"><span class="n">②</span><span class="d">기록 — <b>사진 없이 종이만</b>. 사진 0장인 러닝이 받는 카드이기도 하다.</span></div>
+    <div class="cap"><span class="n">②</span><span class="d">기록 — <b>사진 없이 종이만</b>. 사진 0장인 러닝이 받는 카드이기도 하다.</span><span class="st">0장 전용</span></div>
     <div class="phone">
       <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
 
@@ -413,28 +593,36 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
 
   <!-- ═══════════════════════════════════════ ③ 스토리 · 9:16 -->
   <div class="col">
-    <div class="cap"><span class="n">③</span><span class="d">스토리 — <b>사진 풀블리드 + 잉크 판</b>, 9:16 그대로.</span></div>
+    <div class="cap"><span class="n">③</span><span class="d">스토리 — <b>사진 풀블리드, 판 없음</b>. 숫자가 사진 위에 바로 얹힌다.</span><span class="st picked">채택</span></div>
+    <p class="picked-note">③ 채택 · 라운드 6 — 페이스 블록 배경 투명 처리 완료.</p>
     <div class="phone">
       <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
 
       <div class="stage">
-        <div class="card story">
-          <div class="pslot tall"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
-          <div class="plate">
-            <div class="pdisp">몽이, 오늘 <span class="u">5.1km</span></div>
-            <div class="ptrio">
+        <!-- r6: the ink plate is REMOVED. The type sits on the photo over a
+             burned-in scrim whose floor alpha is held constant (0.62) beneath
+             every glyph — no edge to see, and a worst case that is arithmetic
+             rather than a guess. The photo bind is drawn in its LIGHTEST
+             plausible state on purpose: that is the hard case, not the pretty
+             one. -->
+        <div class="card story r6">
+          <div class="pshot light"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
+          <div class="scrim"></div>
+          <div class="overlay">
+            <div class="odisp">몽이, 오늘 <span class="u">5.1km</span></div>
+            <div class="otrio">
               <div><div class="v">5.1</div><div class="l">거리 km</div></div>
               <div><div class="v">6'04"</div><div class="l">페이스</div></div>
               <div><div class="v">31:02</div><div class="l">시간</div></div>
             </div>
-            <div class="pfoot">
+            <div class="ofoot">
               <span class="club">반포 하이클럽</span>
               <span class="mark">DOGS HIGH · 08.26</span>
             </div>
           </div>
         </div>
         <div class="stagecap">
-          <span class="sc">미리보기</span>
+          <span class="sc">미리보기 · 경로 꺼짐</span>
           <span class="serial">1080 × 1920 · 9:16</span>
         </div>
       </div>
@@ -475,7 +663,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         <div class="offer">
           <span class="kick acc">Share card</span>
           <div class="ot">오늘의 카드가 나왔어요</div>
-          <div class="ob">몽이의 기록만 담은 한 장이에요. <b>경로와 함께 달린 다른 아이는 담기지 않아요.</b></div>
+          <div class="ob">몽이의 기록만 담은 한 장이에요. <b>함께 달린 다른 아이는 담기지 않아요.</b> 경로는 다음 화면에서 직접 켤 때만 들어가요.</div>
           <div class="btnP">카드 만들기 ›</div>
           <div class="tap quietTap mid"><span class="tt" style="flex:0 0 auto">나중에</span></div>
           <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
@@ -486,15 +674,190 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
     </div>
   </div>
 
+  <!-- ═══════════════════════════ ⑤ 컴포저 · 경로 꺼짐 (기본값)
+       Round 6, amendment 2: 「route trace should be optionally overlaid on the
+       image to export (add a slide button for that)」.
+       The switch lives HERE and not on ④ because ④ is the finish screen — at
+       that moment nobody has seen the card yet, so the choice would be made
+       blind. A composer is where a person actually decides: the card is on
+       screen, the switch is under it, and flipping it changes what they are
+       looking at.
+       DEFAULT OFF is a RECOMMENDATION, not his ruling — stated on the frame. -->
+  <div class="col">
+    <div class="cap"><span class="n">⑤</span><span class="d">컴포저 — <b>경로 스위치 꺼짐</b>. 기본값(제안). 카드는 ③ 그대로.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
+      <div class="cmast">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">카드 만들기 · 몽이</div></div>
+      </div>
+      <div class="inkrule"></div>
+
+      <div class="stage">
+        <div class="card story r6">
+          <div class="pshot light"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
+          <div class="scrim"></div>
+          <div class="overlay">
+            <div class="odisp">몽이, 오늘 <span class="u">5.1km</span></div>
+            <div class="otrio">
+              <div><div class="v">5.1</div><div class="l">거리 km</div></div>
+              <div><div class="v">6'04"</div><div class="l">페이스</div></div>
+              <div><div class="v">31:02</div><div class="l">시간</div></div>
+            </div>
+            <div class="ofoot">
+              <span class="club">반포 하이클럽</span>
+              <span class="mark">DOGS HIGH · 08.26</span>
+            </div>
+          </div>
+        </div>
+        <div class="stagecap">
+          <span class="sc">미리보기 · 경로 없음</span>
+          <span class="serial">1080 × 1920 · 9:16</span>
+        </div>
+      </div>
+
+      <div class="sheet">
+        <div class="sh"><span class="t">카드에 넣을 것</span><span class="serial">COMPOSER</span></div>
+        <div class="swrow">
+          <div class="swtxt">
+            <div class="swt">경로 모양 넣기</div>
+            <div class="swb">좌표는 빠지고 <b>모양만</b> 들어가요.</div>
+          </div>
+          <div class="sw"><span class="knob"></span></div>
+        </div>
+        <div class="swstate">지금: 꺼짐 — 이 카드에 경로는 들어가지 않아요.</div>
+        <div class="btnP">인스타 스토리로 ›</div>
+        <div class="tap quietTap"><span class="tt">이미지 저장</span><span class="chev">›</span></div>
+        <div class="recnote">기본값은 <b>꺼짐</b>이에요. 켠 적이 없는 카드에는 경로가 절대 들어가지 않아요.</div>
+        <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ ⑥ 컴포저 · 경로 켜짐
+       What actually publishes when the switch is ON: the normalised SHAPE.
+       traceToBox (app/src/lib/trace.ts:30) projects lat/lng into a 0..1
+       aspect-preserved box — absolute coordinates do not survive the call.
+       So: a silhouette with 출발 and 도착 marked. No basemap, no scale bar, no
+       place name, no north arrow. The line carries its own dark halo so it is
+       legible on a light photo and on a dark one alike. -->
+  <div class="col">
+    <div class="cap"><span class="n">⑥</span><span class="d">컴포저 — <b>경로 스위치 켜짐</b>. 카드가 경로 <b>모양</b>을 함께 들고 나간다.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:41</span><span>▮▮▮</span></div>
+      <div class="cmast">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">몽</div>
+          <div class="mline">카드 만들기 · 몽이</div></div>
+      </div>
+      <div class="inkrule"></div>
+
+      <div class="stage">
+        <div class="card story r6">
+          <div class="pshot light"><span class="pl">run.photos[0] · 러너가 올린 사진</span></div>
+          <div class="scrim"></div>
+          <div class="overlay">
+            <div class="traceblk">
+              <svg viewBox="0 0 96 96" aria-hidden="true">
+                <!-- halo first, then the line: visible on a light photo AND a dark one -->
+                <polyline points="14,80 18,58 12,42 26,28 44,20 62,22 76,32 80,50 70,64 54,68 38,64 30,74"
+                  fill="none" stroke="rgba(11,9,6,.55)" stroke-width="7"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14,80 18,58 12,42 26,28 44,20 62,22 76,32 80,50 70,64 54,68 38,64 30,74"
+                  fill="none" stroke="#FFFFFF" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="14" cy="80" r="5.5" fill="rgba(11,9,6,.55)"/>
+                <circle cx="14" cy="80" r="3.6" fill="#FFFFFF"/>
+                <circle cx="30" cy="74" r="5.8" fill="none" stroke="rgba(11,9,6,.55)" stroke-width="4"/>
+                <circle cx="30" cy="74" r="5.8" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+              </svg>
+              <span class="tracecap">START · END</span>
+            </div>
+            <div class="odisp">몽이, 오늘 <span class="u">5.1km</span></div>
+            <div class="otrio">
+              <div><div class="v">5.1</div><div class="l">거리 km</div></div>
+              <div><div class="v">6'04"</div><div class="l">페이스</div></div>
+              <div><div class="v">31:02</div><div class="l">시간</div></div>
+            </div>
+            <div class="ofoot">
+              <span class="club">반포 하이클럽</span>
+              <span class="mark">DOGS HIGH · 08.26</span>
+            </div>
+          </div>
+        </div>
+        <div class="stagecap">
+          <span class="sc">미리보기 · 경로 모양 포함</span>
+          <span class="serial">run.trace → traceToBox()</span>
+        </div>
+      </div>
+
+      <div class="sheet">
+        <div class="sh"><span class="t">카드에 넣을 것</span><span class="serial">COMPOSER</span></div>
+        <div class="swrow">
+          <div class="swtxt">
+            <div class="swt">경로 모양 넣기</div>
+            <div class="swb">좌표는 빠지고 <b>모양만</b> 들어가요.</div>
+          </div>
+          <div class="sw on"><span class="knob"></span></div>
+        </div>
+        <div class="swstate on">지금: 켜짐 — 출발·도착 점이 찍힌 <b>모양</b>이 함께 나가요.</div>
+        <div class="btnP">인스타 스토리로 ›</div>
+        <div class="tap quietTap"><span class="tt">이미지 저장</span><span class="chev">›</span></div>
+        <div class="recnote">지도도, 축척도, 장소 이름도 들어가지 않아요 — <b>모양 하나</b>예요. 다시 끄면 이 카드에서 바로 빠져요.</div>
+        <div class="privline">내 기기에서만 저장·전송돼요 — 앱이 대신 올리지 않아요.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════════════════════ lab margin -->
   <div class="col margin">
-    <h3>왜 이 세 장인가</h3>
+    <h3>③ 채택 — 그리고 두 개의 수정</h3>
+    <p><b>Round 6, 2026-08-25.</b> ③ 스토리 is picked. ① and ② are kept as the record of what was offered (② is still the live 0-photo card). Two amendments landed on ③: the pace block's background went <b>transparent</b>, and the route trace became an <b>opt-in switch</b>. Everything below the next two headings is new; everything after is the r5 record, amended in place where he overturned it.</p>
 
     <h4>Grounds, one justification each</h4>
     <p><b>App frames are pure #FFFFFF</b> — ④ and every sheet obey that without exception. The <b>card is an export</b>, not an app screen: it lands on somebody else's feed, so it is allowed its own ground, and each one is a decision:</p>
     <p><b>① photo + white apron.</b> The photo is content (the shipped 사진법: no stock, no wallpaper), the apron is the same white paper as the app, so the card and the screen it came from are visibly one product.</p>
     <p><b>② pure white, no photo.</b> A shared white card reads as a certificate and survives any feed background behind it. It is also the <b>honest state</b>: 0 photos is common (the runner is nudged, never forced — runner/done.tsx), and this card needs none.</p>
-    <p><b>③ photo full-bleed + one ink plate (#26231b).</b> Story format is edge-to-edge by convention. White type cannot be measured against an unknown photo, so the numbers sit on an <b>ink plate</b> — the repo's own idiom — at about <b>14:1</b>. No white on coral anywhere.</p>
+    <p><b>③ photo full-bleed, NO PLATE (round 6).</b> <s>The r5 build sat the numbers on an ink plate (#26231b, ~14:1)</s> — struck, not deleted: he amended it. 「<b>make it so that the pace info background is transparent so it's just text overlaid on photo</b>」. The plate is gone; the numbers sit on the photo over a <b>scrim</b>, and the whole reason the plate existed is answered below rather than dropped. No white on coral anywhere, still.</p>
+
+    <h4>🔵 Amendment 1 — the transparent pace block, and the number that survives it</h4>
+    <p>The plate was not decoration. <b>White type cannot be contrast-checked against an unknown photo</b>, and DESIGN.md's floors are measured <i>vs canvas</i>. Delete the plate naively and the card stops having a contrast number at all — it just has a hope.</p>
+    <p>So what is under the type is a <b>deterministic bottom-up scrim burned into the exported PNG</b>: base <b>#0B0906</b>, <b>floor alpha 0.62</b>, and — this is the load-bearing part — <b>the floor is held constant across the whole text band</b>. The ramp to transparent happens <i>above</i> the type, never under it. There is no edge, so it reads exactly as text on the photo; and because the floor is a constant, the worst case is arithmetic.</p>
+    <p><b>Worst case is a pure white photo</b> → composite rgb(104,103,101). <b>#FFFFFF on it = 5.65:1</b>; the label ink <b>#EDEAE3 = 4.70:1</b>. Both clear 4.5. Every number on this page was <b>measured</b> — the real CSS gradient composited on a canvas and the pixel read back — not asserted from intent.</p>
+    <p>⚠ One thing the amendment silently broke and had to be fixed: the r5 label ink <b>#D8D6D0</b> measures <b>3.89:1</b> on that same floor — it <b>failed</b>. It was lightened to #EDEAE3. On the plate it was fine; on a scrim it was not. That is the class of thing a "just remove the box" change loses if nobody re-measures.</p>
+    <p><b>Floor 0.45 was tried first and is recorded as failing</b> — 3.58:1 on the light ground. And 0.62 is not a number picked for feel: it is the <b>lightest floor that clears both inks against the pure-white bound</b>. 0.60 drops the label ink to 4.41:1 and fails; 0.55 drops white type itself to 4.41:1 and fails. <b>There is no lighter scrim available at this floor law</b> — if he wants one, the thing that has to give is the ink, not the arithmetic.</p>
+
+    <h4>The three grounds, measured — not the flattering one</h4>
+    <p>Same type, same scrim, over a <b>light</b>, a <b>dark</b> and a <b>busy</b> ground. These are exact synthetic values rather than photos on purpose: the point is the arithmetic, and a photo has no single number. The busy ground's <b>brightest patch</b> (#DCD4C2) is the one measured — a mean would flatter it.</p>
+    <div class="strip">
+      <div class="mini">
+        <div class="sw2 gLight"><div class="msc"></div>
+          <div class="mtx"><div class="mv">6'04"</div><div class="ml">페이스</div></div></div>
+        <div class="mc"><b>밝은 사진 #F2EFE9</b>흰 글자 6.25:1<br>#EDEAE3 5.20:1</div>
+      </div>
+      <div class="mini">
+        <div class="sw2 gDark"><div class="msc"></div>
+          <div class="mtx"><div class="mv">6'04"</div><div class="ml">페이스</div></div></div>
+        <div class="mc"><b>어두운 사진 #2E2A24</b>흰 글자 18.19:1<br>#EDEAE3 15.14:1</div>
+      </div>
+      <div class="mini">
+        <div class="sw2 gBusy"><div class="msc"></div>
+          <div class="mtx"><div class="mv">6'04"</div><div class="ml">페이스</div></div></div>
+        <div class="mc"><b>복잡한 사진 · 가장 밝은 부분 #DCD4C2</b>흰 글자 7.28:1<br>#EDEAE3 6.06:1</div>
+      </div>
+    </div>
+    <p>Lowest number anywhere on this card, including the pure-white bound that no real photo reaches: <b>4.70:1</b>. Nothing is under the floor.</p>
+
+    <h4>🔵 Standing preference — do not re-litigate this next round</h4>
+    <p><b>Text on photo, no boxes.</b> This is his <b>second</b> request of exactly this shape: round 5's R3 asked for the club card to be a photo with 「black font and white shadow effect to make things legible」. Two independent asks is a preference, not a one-off. The next lab should <b>start</b> from scrim-or-shadow and bring a measured floor with it, rather than drawing a plate and being asked again.</p>
+    <p>The rejected alternative is recorded so the trade stays visible: a plain <b>text-shadow</b> would also have no box, but its effective contrast depends on the pixels underneath, so it is <b>unmeasurable</b> — it can be judged, never gated. The scrim keeps his look and keeps a number.</p>
+
+    <h4>🔵 Amendment 2 — the trace becomes opt-in (⑤ / ⑥)</h4>
+    <p>His words: 「<b>route trace should be optionally overlaid on the image to export (add a slide button for that)</b>」. That is not a rollback of the r5 privacy scope — it is the stronger fix. <b>A shape a person chose to publish is not a leak.</b></p>
+    <p><b>Where the switch lives, and why not on ④.</b> ④ is the finish screen; at that moment the card has not been seen, so the choice would be made blind. The switch sits in a <b>composer</b> where the card is on screen above it and flipping it changes what the person is looking at. A consent control that is not next to its consequence is a form field, not a decision.</p>
+    <p><b>Default OFF — and this is my recommendation, not his ruling.</b> It is drawn OFF, and the frame says so in Korean. Reason: a toggle that defaults ON publishes the route for everyone who never finds the switch, which is the same disclosure wearing a consent label. Default OFF makes the trace something a person reaches for. <b>His to overturn with one word</b> —「기본 켜기」flips it and nothing else about the two frames changes.</p>
+    <p><b>What actually publishes when it is ON, stated exactly.</b> The shipped export path already normalises through <code>traceToBox</code> (<code>app/src/lib/trace.ts:30</code>): it projects real lat/lng into a 0..1 aspect-preserved box, so <b>absolute coordinates do not survive that call</b>. The card therefore carries a <b>silhouette</b> with 출발 and 도착 marked — no basemap, no scale bar, no north arrow, no place name. Not undersold either: <b>a silhouette plus a club name plus a date is still more than nothing</b>, and someone who knows 반포 could recognise a shape. That is precisely why it is opt-in rather than always-on, and why the full map stays out of the ledger.</p>
+    <p>The trace line carries its own dark halo under the white stroke — the same problem the scrim solves for the type, solved the same way, because a white line on a white photo is as invisible as white text on one.</p>
+    <p>No 도장 칸 appears in this lab. His round-6 choice-row pick is ⓑ 도장 칸 and it stands — but this amendment is a <b>switch</b> (one thing on or off), not a choice between two things, so drawing a stamp box here would be borrowing the vocabulary for the wrong grammar.</p>
 
     <h4>The stage is not a scrim</h4>
     <p>The card sits on <b>--recess</b>, the existing neutral. A share-sheet scrim would be a new dark value nobody ruled, and on device the OS draws its own anyway. What the lab owes him is the card and the doors, at true size.</p>
@@ -508,25 +871,28 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
     <div class="ph"><span class="k">반포 하이클럽</span><span>receipt's clubName param</span></div>
     <div class="ph"><span class="k">사진 4장</span><span>run.photos.length</span></div>
     <div class="ph"><span class="k">12번째 러닝</span><span>RunStandings.nth</span></div>
+    <div class="ph"><span class="k">경로 모양 (⑥)</span><span>run.trace → traceToBox() — shape only, no lat/lng</span></div>
     <p>Photo areas are <b>labelled binds</b>, not stock images. If the array is empty the card is ②, so no slot ever has to be filled with something that is not the dog.</p>
 
     <h4>🔴 v2 — NOT IN THIS LAB</h4>
     <p>Scoped out, not forgotten, and each needs its own consent surface before it can be drawn:</p>
-    <p><b>지도 · 실측 경로 · 코스 실루엣.</b> A trace is location data about where a dog lives — that is the whole reason 0060 / 0065 / 0122 / 0123 exist. A blurred or "stylised" trace is still the shape of the walk home, so v1 draws none at all.</p>
+    <p><b>지도 · 베이스맵 · 축척 · 장소 이름.</b> Still out, unchanged. A trace is location data about where a dog lives — that is the whole reason 0060 / 0065 / 0122 / 0123 exist.</p>
+    <p><b>코스 실루엣 — <s>never drawn</s> → OPT-IN, DEFAULT OFF (round 6).</b> Superseded by his 「slide button」 ruling, drawn in ⑤ / ⑥. The r5 reasoning was not wrong and is kept above: a trace nobody chose <i>is</i> location data. What changed is that <b>the person now chooses</b>, and what publishes is the normalised shape (<code>traceToBox</code>), not coordinates. The map itself never arrives.</p>
     <p><b>크루 · 다른 아이 이름 · 다른 아이 사진.</b> Other people's data. The feed path already refuses a run containing a non-consenting dog (<code>photo_consent</code>, club/receipt/[bid].tsx) — <b>the export path has no equivalent gate</b>, so v1 simply carries one dog.</p>
     <p><b>장소 문자열</b> (잠수교, 집결지, 주소). A place is a location datum even as five Korean characters. 반포 하이클럽 is a club, not a place.</p>
     <p><b>러너 이름</b> — a real person who never chose to be published. <b>돈</b> — 하이 포인트, 정산, any amount: a card is a record, not a receipt.</p>
     <p>⚠ Cost of the scope, stated plainly: <b>초코 and 잠수교 5km are in the other five labs' fixture set and are missing here on purpose.</b> That is the scope working, not the fixtures drifting.</p>
 
     <h4>What already ships, and what changes</h4>
-    <p>The route is <b>not new</b>: <code>/shot/[bid]</code> is a five-skin 인증샷 스튜디오 and both <code>owner/report.tsx</code> and <code>club/receipt/[bid].tsx</code> already open it. Two things are new. Its skins are in the <b>retired volt/cream palette</b>, predating every round-3/4/5 rule; and <code>run-share-card.tsx</code> <b>draws the GPS trace onto the exported image</b>. The most public surface in the product currently exports a course line — that is the line this lab removes.</p>
+    <p>The route is <b>not new</b>: <code>/shot/[bid]</code> is a five-skin 인증샷 스튜디오 and both <code>owner/report.tsx</code> and <code>club/receipt/[bid].tsx</code> already open it. Two things are new. Its skins are in the <b>retired volt/cream palette</b>, predating every round-3/4/5 rule; and <code>run-share-card.tsx</code> <b>draws the GPS trace onto the exported image with nobody having asked for it</b>. The most public surface in the product currently exports a course line by default. <b>Round 6 does not delete that line — it puts a switch in front of it, and the switch starts off.</b> The defect was never the shape; it was the absence of a choice.</p>
 
     <h4>The nudge is an offer, not a trap</h4>
-    <p>One coral door (<b>카드 만들기</b> → <code>/shot/[bid]</code>, a route that exists), one quiet <b>나중에</b>, and a sentence saying what the card leaves out before he taps rather than after. <b>Nothing auto-posts</b>: 공유하기 hands the PNG to the OS sheet, 인스타 스토리로 opens Instagram's own composer, and the app never publishes anything by itself.</p>
+    <p>One coral door (<b>카드 만들기</b> → the composer, ⑤ — <code>/shot/[bid]</code>, a route that exists), one quiet <b>나중에</b>, and a sentence saying what the card leaves out before he taps rather than after. ⚠ <b>Amended in round 6:</b> that sentence used to promise 「경로와 함께 달린 다른 아이는 담기지 않아요」. The trace half of that promise stopped being true the moment the switch existed, so ④ now says the route goes in <b>only if you turn it on in the next screen</b>. A privacy line that quietly goes stale is worse than none. <b>Nothing auto-posts</b>: 공유하기 hands the PNG to the OS sheet, 인스타 스토리로 opens Instagram's own composer, and the app never publishes anything by itself.</p>
     <p>No dead buttons in any state: the Instagram row is <b>absent</b> — not greyed — when <code>instagramAvailable()</code> is false (drawn in ②), and a run with no photos still has a card, because that card is ②.</p>
 
     <h4>Affordance count</h4>
-    <p>Tappable per frame: ① back-free sheet = <b>3</b> · ② = <b>2</b> · ③ = <b>3</b> · ④ back + 카드 만들기 + 나중에 = <b>3</b>. The card itself is an image and carries <b>zero</b> tap marks — the numerals, the club line and the mark are print.</p>
+    <p>Tappable per frame: ① back-free sheet = <b>3</b> · ② = <b>2</b> · ③ = <b>3</b> · ④ back + 카드 만들기 + 나중에 = <b>3</b> · ⑤ back + 스위치 + 인스타 스토리로 + 이미지 저장 = <b>4</b> · ⑥ = <b>4</b>. The card itself is an image and carries <b>zero</b> tap marks — the numerals, the club line, the mark and the trace silhouette are all print.</p>
+    <p>The switch obeys the tap grammar like any other control: a 56px row, 1px ink border, a knob that moves, coral only when it is doing something — and a <b>state sentence underneath that never leaves the position ambiguous</b> (지금: 꺼짐 / 지금: 켜짐). A toggle whose state you have to infer from a knob position is how people publish things they did not mean to.</p>
   </div>
 
 </div>
