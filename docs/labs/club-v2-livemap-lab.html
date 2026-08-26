@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Live Map · Return Branch · Pass Lab (r6)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   ROUND 6 — THREE SURFACES IN ONE LAB, because Sean specified them in one breath
+   and they interlock: the HOST LIVE MAP, the RUNNER'S POST-RUN BRANCH, and the
+   SESSION CARD AS A PASS. Seventh lab in the club-v2 world; the SHARED WORLD
+   block below is byte-identical to the other six (diffed, md5 784eb7c2…).
+
+   ── HIS WORDS (2026-08-25, verbatim, the parts this lab builds) ─────────────
+   "the host should also have a live map screen but also be able to leave that
+    screen to check all other host screen functionalities like the list of
+    pairs, case registration, etc and have the end session button in the live
+    map. for the live map screen, once the run is over, it should be
+    conditional for a runner between leave at home or meet owner at site, as
+    the former would have to navigate the runner to the owner set address which
+    once the runner has arrived he or she can click arrived after which the
+    transfer ritual screen between the owner and the runner can pop up, and the
+    latter would have to just to tell the runner to find the owner and give the
+    owner's phone number and the transfer ritual on site. … also where does the
+    show this to the host club session card screen come into play? should be a
+    leaveable and re-comeback-able screen from the runner or the owner's
+    perspective if the owner is running, and the host should have a way to
+    verify (perhaps the list?)."
+
+   ── THE THREE SURFACES, AND THE FRAMES THAT CARRY THEM ─────────────────────
+   A · HOST LIVE MAP    ① the map with its exits + 세션 종료 · ② 종료 refused,
+                          with the reason and the escape · ③ 페어 목록 with the
+                          verify stamp (his "perhaps the list?")
+   B · RETURN BRANCH    ④ 집 반환 · 길찾기 → 도착 · ⑤ 집 반환 · 주소 실패 (the
+                          honest failure) · ⑥ 현장 반환 · 보호자 찾기 ·
+                          ⑦ 두 사람 확인 — BOTH arms end here (F2 = waiting)
+   C · SESSION CARD     ⑧ 입장권 · 러너 (체크인 전) · ⑨ 입장권 · 오너 Mode A
+                          (체크인 후) · F1 = the re-entry row on the session
+                          screen, which is what makes it leaveable
+
+   ═════ 🔴 DEPENDENCIES — drawn, and what happens if the arm ships unfixed ════
+
+   🔴 D1 · THE OWNER'S ADDRESS CANNOT BE FETCHED IN THIS WINDOW (frame ④).
+      `booking_pickup_address` (0060, widened 0065:43-57) admits the assigned
+      runner only at `runner_enroute | picked_up | active`, or `confirmed`
+      inside T−24h. The club return happens at booking `completed` with
+      `custody_phase = 'return_pending'` (0045:55-59) — OUTSIDE the gate by
+      construction. Every other status raises `not_runner`, deliberately
+      indistinguishable from absent/foreign (0054:73 oracle rule).
+      IF ④ SHIPS UNFIXED: every 집 반환 runner sees frame ⑤ — permanently. The
+      screen is not wrong, it is just always in its failure state, and 「다시
+      시도」 can never succeed. That is why ⑤ is drawn at full size and not as a
+      footnote. The fix is decided and unbuilt: a custody-aware arm on 0065
+      keyed to `return_pending`. ④ SHIPS ONLY AFTER IT LANDS.
+
+   🔴 D2 · THE HOST HAS NO WRITER FOR "VERIFIED" (frame ③).
+      `session_checkin` (0030:245-266) is SELF-service: it updates
+      `session_people` WHERE `profile_id = auth.uid()`. It is the ONLY statement
+      in the whole schema that writes `attendance = 'checked_in'` (grepped: one
+      hit, 0030:254). A host cannot mark anyone present today.
+      IF ③ SHIPS UNFIXED: the 확인 stamp is a dead button — the exact law this
+      house forbids. So ③ draws the two row states honestly and the stamp
+      control is marked owed: the print rows (참가자가 스스로 찍은 체크인) are
+      REAL today; the 확인 control needs a new host-side RPC with its own party
+      gate (host_profile_id | backup_host_profile_id) and its own pin.
+
+   🔴 D3 · THE HOST'S MAP HAS NO POSITION FEED (frames ① ②).
+      `createPosPublisher` (geo.ts:467-488) opens ONE realtime channel per
+      BOOKING — `run2-{bookingId}` (geo.ts:375) — and the file says so in its
+      own comment: 「클럽 러닝은 러너 하나가 보호자 채널 N개로 방송한다」. The
+      subscriber is the OWNER (owner/live.tsx). There is no session topic, no
+      host subscription, and no position column anywhere in the schema (grepped
+      for last_lat/last_lng/live_pos/runner_positions: zero hits).
+      IF ① SHIPS UNFIXED: a map with an empty course and no dots — a live screen
+      that is never live. The fix is a shape decision, not a bug: either the
+      runner also publishes to a session topic, or the host subscribes to the
+      booking topics they are already party to. Named, not drawn as solved.
+
+   ═════ ⚠ THE PHONE — TWO REAL STATES, AND CHAT IS NOT THE TEMPORARY ONE ════
+   His words ask the 현장 반환 arm to "give the owner's phone number." The answer
+   is not one screen, it is two, and BOTH are permanent:
+
+     · The ENTITLEMENT has been built for a while. `_club_phone_visible`
+       (0049:167-192) implements rule B — 호스트↔전원 · 보호자↔(자기 개의) 수락
+       러너 양방향 · 그 외 호스트 경유 — with a lifetime gate that covers
+       unresolved custody, so the 현장 반환 moment is squarely INSIDE the window,
+       and every reveal writes `club_phone_access_log` (0049:156-163). Who may
+       see a number was never the open question.
+     · Collection WAS refused once, on a stated reason. api.ts:3167-3168,
+       verbatim: 「⚠ 연락처는 묻지 않는다. profiles.phone 은 전원 NULL 이고 읽는
+       화면이 없다 — 받아두기만 하는 필드를 묻는 건 넛지가 아니라 수집이고, §12 가
+       전화 버튼을 거부한 것과 같은 이유다」.
+     · Sean has now RULED THE OTHER WAY: numbers are collected at onboarding,
+       owner and runner, for safety and contact.
+
+   The consequence that shapes this lab: **`profiles.phone` is NULL for every
+   account that already exists, and stays NULL after collection ships** — new
+   signups fill it, the current cohort never does unless separately prompted.
+   So the chat path is NOT a stopgap and carries no 「곧 제공돼요」 anywhere: it
+   is the permanent 현장 반환 route for everyone who already has an account.
+   ⑥ draws that state with chat as a first-class route — the shipped booking
+   chat (`/chat?bid=`, chat_threads 0001/0008, party-RLS — 0049:2 records that
+   club bookings already work on it) plus 호스트 창구 (club_chat_messages,
+   api.ts:3755/3791). F3 draws the OTHER real state — a pairing where the number
+   exists — with the call route alongside chat, not replacing it. Neither frame
+   is the degraded twin of the other; they are two populations.
+   ⚠ No number STRING is printed in either. The value is a real user field, not
+   a lab fixture, and an invented 010- would be exactly the fabrication this
+   house forbids.
+
+   ── DELIBERATELY NOT DRAWN ─────────────────────────────────────────────────
+   · A phone NUMBER STRING, anywhere. F3 draws the call ROUTE for the cohort
+     that has one; the digits themselves are a user's field, never a fixture.
+   · Any coming-soon framing on the chat arm. Chat is permanent for the
+     existing cohort — an apology there would be a lie about the roadmap.
+   · A street address string. ④ prints only `addresses.label` + `addresses.dong`
+     (0122's real column) — the two fields that survive the privacy scope the
+     share-card lab set. An invented 도로명 would be a fabricated field in the
+     one artifact used to decide.
+   · A 도착 RECORD. `return_arrived_at` does not exist (grepped: zero hits in
+     migrations; spec v2 §7.1 PROPOSES it with three siblings). So 도착 here is
+     a screen transition — it opens ⑦ — and nothing more. The record of a return
+     is the two-sided stamp, which is shipped (`session_confirm_return`,
+     0045:66-100 / 0069:84).
+   · A one-sided handover, anywhere. Both arms end in ⑦.
+   · The host's per-dog return tools in detail. ② names the door
+     (`session_custody_override` 0069:137 / 0070:243 — return_pending only) and
+     stops; the console lab owns that screen.
+   · 재배정, 정산 금액, 케이스 내용 — the console lab's, unchanged and unrestated.
+   · The share-card round-6 amendment (transparent pace block, route-trace
+     slide button) — that is the share-card lab's file, not this one.
+
+   ── LAWS INHERITED (settled elsewhere, not revisited here) ─────────────────
+   · Pure #FFFFFF grounds inside frames. The map is the one neutral: #F2F2F0
+     land, white roads, an ink-alpha park band.
+   · Type lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15 — sub-15 is Latin kickers and serials only.
+   · Black Han Sans exactly once per frame. #6C5CE7 sparse: the course/route
+     line, and one stamped label underline. Never a ground, never a wash.
+   · Coral is ACTION and at most ONE per frame. Frames where nothing is the
+     user's turn carry none — ② ③ ⑨ — and that absence is the message.
+   · Affordance law: a tappable thing carries fill or a 1px border, ≥52pt, and
+     a chevron for a row / a filled block for an action. Print carries none of
+     it. Counted per frame in the margin.
+   · No dead buttons in any state — the reason a refusal is PRINT in ② and an
+     action is not.
+   · Round-6 pick ⓑ 도장 칸 is the stamp vocabulary now: the dashed square that
+     asks to be filled. It carries the host's verify (③), the two sides of the
+     ritual (⑦) and the pass's 체크인 state (⑧ ⑨). No single-select choice
+     arises across these three surfaces, so ⓑ appears in its literal stamp role
+     rather than as a choice row — the moment one does arise, it takes ⓑ.
+
+   ── FIXTURES (the other six labs', so all seven read as one product) ────────
+   반포 하이클럽 · 8월 26일 토 09:00 · 잠수교 5km · 호스트 오세훈 · 러너 박지훈 ·
+   몽이(서지우) 초코(조은서) 보리(김하람) 솜이(임지호) 두부(최서연) 콩이(정민재) ·
+   러너 김민준 · 정우진 · serial DOGS HIGH · 0826.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+/* ── FILE-LOCAL — the live map, the return branch, the pass ───────────────── */
+.cap .n.lab{background:transparent;border:2px solid var(--ink);color:var(--ink);
+  font-size:var(--t2);font-weight:800}
+.phone{min-height:760px}
+.phone.map{height:820px;position:relative;display:block;background:var(--recess);min-height:0}
+.phone.map .stbar{position:absolute;left:0;right:0;top:0;height:28px;z-index:3}
+.mapfull{position:absolute;inset:0}
+
+/* the ONE paper level over the map — no inner frame, no nested box (run lab ①) */
+.paper{position:absolute;background:var(--docWhite);border:1px solid var(--docEdge);
+  box-shadow:0 10px 24px rgba(28,24,55,.16);z-index:3}
+.mastchip{left:16px;top:44px;padding:10px 14px;display:flex;align-items:center;gap:11px}
+.mastchip .back{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.livedot{width:10px;height:10px;border-radius:5px;background:var(--coral)}
+
+.strip{left:16px;right:16px;padding:4px 0 0}
+.nums{display:flex;align-items:stretch}
+.nums > div{flex:1;padding:16px 8px 14px;text-align:center;border-right:1px solid var(--docLine)}
+.nums > div:last-child{border-right:0}
+.nums .v{font-size:var(--n1);line-height:var(--nl1);color:var(--docInk)}
+.nums .v .u{font-family:var(--fBody);font-size:var(--t3);font-weight:700;color:var(--coralText)}
+.nums .l{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-top:4px}
+.crew{display:flex;align-items:center;gap:11px;border-top:1.5px solid var(--docInk);
+  margin:0 14px;padding:14px 0 15px}
+.crew .t{font-size:var(--t4);line-height:var(--l4);font-weight:800;color:var(--docInk)}
+.crew .others{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docDim);margin-left:auto}
+
+.thumb{position:absolute;left:16px;right:16px;bottom:24px;display:flex;gap:14px;align-items:center;z-index:3}
+.cta{flex:1;height:62px;display:flex;align-items:center;justify-content:center;background:var(--action);
+  color:#fff;font-size:19px;font-weight:800;letter-spacing:.4px;box-shadow:0 8px 16px rgba(198,71,44,.30)}
+
+/* ── THE EXIT RAIL — the navigation grammar that makes "leave and come back"
+   obvious. THREE separate paper controls, not cells inside one strip: each
+   carries its own fill + 1px ink border + 68pt + a chevron, so none of them can
+   be mistaken for the print above it. This is the half of Sean's ask that is
+   pure navigation — the map is a screen, not the host's only screen. ── */
+.exits{position:absolute;left:16px;right:16px;display:flex;gap:10px;z-index:3}
+.exits .ex{flex:1;min-height:68px;padding:11px 6px;background:var(--docWhite);
+  border:1px solid var(--docInk);box-shadow:0 10px 24px rgba(28,24,55,.16);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ex .el{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.ex .em{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.ex .em .chevR{font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+
+/* ② the refusal — the REASON is print, the ESCAPE is the action. A blocked
+   finish must never be a filled button that does nothing. */
+.block{left:16px;right:16px;padding:20px 18px 20px}
+.bhead{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2.5px solid var(--docInk);padding-bottom:8px}
+.bhead .t{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.bwhy{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);margin-top:16px;
+  border-left:2.5px solid var(--docInk);padding-left:12px}
+.brow{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--docLine)}
+.brow .bn{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .bn .rn{color:var(--docDim)}
+.brow .bs{flex:0 0 auto;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--amber)}
+.gateline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);
+  text-align:center;margin-top:16px}
+
+/* ── ③ the pair list as a STAMP SHEET (round-6 pick ⓑ 도장 칸, in its literal
+   role). A row the participant already self-checked is PRINT — a filled ink
+   square and the minute. A row still unverified carries a real control: a
+   bordered 56pt block with the dashed square inside it, asking to be stamped.
+   Print and control cannot be confused, which is the whole affordance law. ── */
+.bkw{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:9px 13px 9px 9px;
+  border:1px solid var(--docInk);background:var(--docWhite);
+  font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.bkw .a{font-size:var(--t2);line-height:var(--l2);font-weight:700}
+.headline{display:flex;justify-content:space-between;align-items:baseline;margin-top:26px}
+.qline{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:10px}
+.listk{display:flex;justify-content:space-between;align-items:baseline;margin-top:24px;padding-bottom:6px}
+.prow{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid var(--docLine);min-height:70px}
+.prow.last{border-bottom:1px solid var(--docLine)}
+.dot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t3);font-weight:800;color:var(--dogInk)}
+.dot.sky{border-color:var(--collarSky)}.dot.rose{border-color:var(--collarRose)}
+.dot.teal{border-color:var(--collarTeal)}.dot.moss{border-color:var(--collarMoss)}
+.dot.goldc{border-color:var(--collarGold)}.dot.violet{border-color:var(--collarViolet)}
+.pnm{flex:1;min-width:0}
+.pnm .n1{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pnm .n2{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* PRINT — a stamped square and a minute; no border, no fill, no chevron */
+.done{flex:0 0 auto;display:flex;align-items:center;gap:9px}
+.sq{width:30px;height:30px;flex:0 0 30px;border:1.5px dashed var(--docDash);background:var(--docWhite);
+  display:flex;align-items:center;justify-content:center;font-size:var(--t2);line-height:var(--l2);
+  font-weight:800;color:transparent}
+.sq.on{border:1.5px solid var(--docInk);background:var(--docInk);color:var(--docWhite)}
+.done .tm{font-family:var(--fNum);font-weight:600;font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+/* CONTROL — the verify stamp, a real 56pt block */
+.vbtn{flex:0 0 auto;display:flex;align-items:center;gap:9px;min-height:56px;padding:11px 14px;
+  background:var(--docWhite);border:1.5px solid var(--docInk)}
+.vbtn .vl{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.owed{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:16px;
+  border-left:2.5px solid var(--docDash);padding-left:12px}
+
+/* ── ④⑤⑥ the return strip — one paper level over the map, same as ① ── */
+.rstrip{left:16px;right:16px;padding:18px 18px 20px}
+.rhead{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk);margin-top:14px}
+.addr{border-top:1px solid var(--docLine);border-bottom:1px solid var(--docLine);
+  margin-top:16px;padding:13px 0;display:flex;align-items:baseline;gap:14px}
+.addr .k{flex:0 0 74px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.addr .v{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.fail{border-top:1.5px solid var(--critical);margin-top:16px;padding-top:13px}
+.fail .ft{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--critical)}
+.note{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:14px}
+.note b{color:var(--docInk);font-weight:800}
+
+/* ── ⑦ the ritual — the two sides as two stamp cells (ⓑ, literal role) ── */
+.scell{display:flex;align-items:center;gap:15px;padding:20px 0;border-top:1px solid var(--docLine)}
+.scell.last{border-bottom:1px solid var(--docLine)}
+.scell .sbody{flex:1;min-width:0}
+.scell .sl{display:inline-block;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docText)}
+.scell.on .sl{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:3px}
+.scell .ss{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:7px}
+.scell .st{margin-left:auto;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--docInk)}
+.ritual{border-top:1.5px solid var(--docInk);margin-top:24px;padding-top:13px}
+.ritual .rr{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText);margin-top:8px}
+.ritual .rr b{color:var(--docInk);font-weight:800}
+.btnP{margin-top:auto}
+.foot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+
+/* ── ⑧⑨ the pass — the night ticket re-drawn in this world's white paper ── */
+.grid2{display:flex;border-top:1px solid var(--docLine);border-bottom:1px solid var(--docLine);margin-top:20px}
+.grid2 > div{flex:1;padding:14px 4px 13px;border-right:1px solid var(--docLine)}
+.grid2 > div:last-child{border-right:0;padding-left:16px}
+.grid2 .gk{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.grid2 .gv{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk);margin-top:4px}
+.holder{margin-top:20px}
+.holder .hn{font-size:24px;line-height:30px;font-weight:800;color:var(--docInk);letter-spacing:-.01em}
+.holder .hs{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:5px}
+.state{display:flex;align-items:center;gap:14px;border-top:1.5px solid var(--docInk);
+  margin-top:22px;padding-top:16px}
+.state .sv{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.state .sq2{width:38px;height:38px;flex:0 0 38px;border:1.5px dashed var(--docDash);background:var(--docWhite);
+  display:flex;align-items:center;justify-content:center;font-size:var(--t1);line-height:var(--l1);
+  font-weight:800;color:transparent}
+.state .sq2.on{border:1.5px solid var(--docInk);background:var(--docInk);color:var(--docWhite)}
+.state .stm{margin-left:auto;font-family:var(--fNum);font-weight:600;font-size:var(--n2);
+  line-height:var(--nl2);color:var(--docInk)}
+.reentry{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim);margin-top:18px}
+.reentry b{color:var(--docInk);font-weight:800}
+
+/* fragments — a slice of a shipped screen, not a screen (setup lab's idiom) */
+.frag{width:390px;background:var(--docWhite);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);padding:22px 20px 24px}
+.frag .fh{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2.5px solid var(--docInk);padding-bottom:8px}
+.frag .fh .t{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 96px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>라이브 지도 · 반환 분기 · 입장권</h1>
+  <p class="law">Round 6 · three surfaces, one lab · white ground · pick ⓑ stamp square · two phone states</p>
+</header>
+
+<section class="toc">
+  <h2>Nine frames, three surfaces — say a number, and one word for what is wrong inside it</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>호스트 라이브 지도</b> — the map is a screen, not the only screen: three exits, and <b>세션 종료 in the thumb</b>.</span></li>
+    <li><span class="n">②</span><span><b>종료 거절</b> — the refusal is <b>print</b>, the escape is the action. A blocked finish is never a filled button.</span></li>
+    <li><span class="n">③</span><span><b>페어 목록</b> — his "perhaps the list?": a stamp sheet. Self-checked rows are print; unverified rows carry the 확인 stamp.</span></li>
+    <li><span class="n">④</span><span><b>집 반환</b> — 길찾기 to the owner's address, then 도착. 🔴 ships only after the custody-aware address gate.</span></li>
+    <li><span class="n">⑤</span><span><b>집 반환 · 주소 실패</b> — what ④ looks like on today's server. Full size, because today it is the only state.</span></li>
+    <li><span class="n">⑥</span><span><b>현장 반환</b> — find the owner at the meetup point. <b>Chat, first-class</b>: the permanent route for every existing account.</span></li>
+    <li><span class="n">⑦</span><span><b>두 사람 확인</b> — where BOTH arms end. Two stamp cells; neither side alone finishes it.</span></li>
+    <li><span class="n">⑧</span><span><b>입장권 · 러너</b> — a pass you open at the gate, leave, and reopen. 체크인 전.</span></li>
+    <li><span class="n">⑨</span><span><b>입장권 · 오너 (Mode A)</b> — the owner who runs their own dog. 체크인 후.</span></li>
+    <li><span class="n">F1</span><span><b>재진입</b> — the row that makes ⑧⑨ leaveable. <b>F2</b> — ⑦ waiting on the other side. <b>F3</b> — ⑥'s other real state, where a number exists.</span></li>
+  </ol>
+  <p class="say">Say a number — and <b>①–③</b> are the host, <b>④–⑦</b> the runner, <b>⑧⑨</b> the pass.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ══════════════════════════════════ ① 호스트 라이브 지도 ══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">호스트 라이브 지도 — <b>map + three exits + 세션 종료</b>. Leaveable by construction.</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="세션 라이브 지도">
+          <rect x="0" y="0" width="390" height="820" fill="#F2F2F0"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(17,17,17,.06)"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <circle cx="60" cy="560" r="14" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="60" y="566" text-anchor="middle" font-size="15" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">S</text>
+          <circle cx="130" cy="310" r="14" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="130" y="316" text-anchor="middle" font-size="15" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">F</text>
+          <!-- the pack — the host sees every pair, not one -->
+          <circle cx="296" cy="262" r="15" fill="rgba(240,118,90,.22)"/>
+          <circle cx="296" cy="262" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="322" cy="228" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="314" cy="296" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="268" cy="246" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="286" cy="300" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">반포 하이클럽</span>
+        <span class="livedot"></span>
+      </div>
+
+      <div class="paper strip" style="bottom:190px">
+        <div class="nums">
+          <div><div class="num v">41:20</div><div class="l">경과</div></div>
+          <div><div class="num v">5</div><div class="l">러닝 중</div></div>
+          <div><div class="num v">1</div><div class="l">케이스</div></div>
+        </div>
+        <div class="crew">
+          <span class="t">팩 5팀</span>
+          <span class="others">잠수교 <span class="num">5</span>km · 출발 <span class="num">09:00</span></span>
+        </div>
+      </div>
+
+      <div class="exits" style="bottom:104px">
+        <div class="ex"><span class="el">페어 목록</span><span class="em"><span class="num">6</span> <span class="chevR">›</span></span></div>
+        <div class="ex"><span class="el">케이스 등록</span><span class="em"><span class="num">1</span> <span class="chevR">›</span></span></div>
+        <div class="ex"><span class="el">비상 도구</span><span class="em"><span class="chevR">›</span></span></div>
+      </div>
+
+      <div class="thumb">
+        <div class="cta">세션 종료</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ② 종료 거절 ═══════════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">②</span><span class="d">세션 종료 — <b>거절과 그 이유</b>. The reason is print; the escape is the one action.</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>10:24</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="세션 라이브 지도 — 팩 종료">
+          <rect x="0" y="0" width="390" height="820" fill="#F2F2F0"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(17,17,17,.06)"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <path d="M60 560 C130 480 90 380 170 320 C250 260 330 300 330 200 C330 110 240 80 170 130 C110 175 90 250 130 310"
+            stroke="#F0765A" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <circle cx="60" cy="560" r="14" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="60" y="566" text-anchor="middle" font-size="15" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">S</text>
+          <circle cx="130" cy="310" r="14" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="130" y="316" text-anchor="middle" font-size="15" font-weight="600" fill="#26231b" font-family="Oswald,sans-serif">F</text>
+          <circle cx="130" cy="310" r="22" fill="rgba(240,118,90,.22)"/>
+          <circle cx="130" cy="310" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="158" cy="292" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">반포 하이클럽</span>
+      </div>
+
+      <div class="paper block" style="bottom:120px">
+        <div class="bhead">
+          <span class="t">아직 종료할 수 없어요</span>
+          <span class="serial">FINISH · BLOCKED</span>
+        </div>
+        <div class="bwhy">반환이 끝나지 않은 아이가 <span class="num">2</span>마리 있어요 — 보호자와 러너 <b>양쪽 확인</b>이 끝나야 세션이 닫혀요.</div>
+        <div class="brow"><div class="dot">몽</div><div class="bn">몽이 <span class="rn">— 서지우 · 박지훈</span></div><span class="bs">반환 대기</span></div>
+        <div class="brow"><div class="dot teal">콩</div><div class="bn">콩이 <span class="rn">— 정민재 · 정우진</span></div><span class="bs">러너만 확인</span></div>
+        <div class="gateline">종료 버튼은 <span class="num">0</span>건이 되면 다시 열려요</div>
+      </div>
+
+      <div class="thumb">
+        <div class="cta">반환 대기 <span class="num">2</span>건 처리</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ③ 페어 목록 · 확인 ════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">페어 목록 — <b>a stamp sheet</b>. Print rows are real today; the 확인 stamp is 🔴 owed.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>8:56</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bkw"><span class="a">‹</span>라이브 지도</span></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">페어 목록</div>
+          <div class="serial">HOST · PAIRS 6</div>
+        </div>
+        <div class="qline">참가자가 입장권을 보여주면 여기서 확인해요.</div>
+
+        <div class="listk"><span class="kick acc">Verify</span><span class="serial">STAMPED · 4 OF 6</span></div>
+
+        <div class="prow">
+          <div class="dot">몽</div>
+          <div class="pnm"><div class="n1">몽이 · 서지우</div><div class="n2">러너 박지훈 · 집 픽업</div></div>
+          <div class="done"><span class="sq on">✓</span><span class="tm">08:52</span></div>
+        </div>
+        <div class="prow">
+          <div class="dot sky">초</div>
+          <div class="pnm"><div class="n1">초코 · 조은서</div><div class="n2">러너 박지훈 · 현장 인계</div></div>
+          <div class="done"><span class="sq on">✓</span><span class="tm">08:52</span></div>
+        </div>
+        <div class="prow">
+          <div class="dot moss">보</div>
+          <div class="pnm"><div class="n1">보리 · 김하람</div><div class="n2">러너 김민준 · 현장 인계</div></div>
+          <div class="done"><span class="sq on">✓</span><span class="tm">08:55</span></div>
+        </div>
+        <div class="prow">
+          <div class="dot violet">솜</div>
+          <div class="pnm"><div class="n1">솜이 · 임지호</div><div class="n2">직접 달리기 · 위탁 없음</div></div>
+          <div class="done"><span class="sq on">✓</span><span class="tm">08:51</span></div>
+        </div>
+        <div class="prow">
+          <div class="dot goldc">두</div>
+          <div class="pnm"><div class="n1">두부 · 최서연</div><div class="n2">러너 정우진 · 현장 인계</div></div>
+          <div class="vbtn"><span class="sq"></span><span class="vl">확인</span></div>
+        </div>
+        <div class="prow last">
+          <div class="dot rose">콩</div>
+          <div class="pnm"><div class="n1">콩이 · 정민재</div><div class="n2">러너 정우진 · 집 픽업</div></div>
+          <div class="vbtn"><span class="sq"></span><span class="vl">확인</span></div>
+        </div>
+
+        <div class="owed">지금 기록되는 건 참가자가 직접 찍은 체크인이에요 — 호스트 확인은 그 위에 얹혀요.</div>
+        <div class="foot"><span class="serial">HOST · VERIFY</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ④ 집 반환 · 길찾기 ════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">④</span><span class="d">집 반환 — <b>길찾기 → 도착</b>. 🔴 D1: ships only after the custody-aware address gate.</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>10:31</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="보호자 자택까지의 경로">
+          <rect x="0" y="0" width="390" height="820" fill="#F2F2F0"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(17,17,17,.06)"/>
+          <path d="M130 310 C160 258 214 244 244 206 C272 170 268 132 296 108"
+            stroke="#FFFFFF" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <path d="M130 310 C160 258 214 244 244 206 C272 170 268 132 296 108"
+            stroke="#6C5CE7" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <rect x="282" y="94" width="30" height="30" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="297" y="115" text-anchor="middle" font-size="15" font-weight="700" fill="#26231b" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif">집</text>
+          <circle cx="130" cy="310" r="15" fill="rgba(240,118,90,.22)"/>
+          <circle cx="130" cy="310" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">몽이 반환</span>
+      </div>
+
+      <div class="paper rstrip" style="bottom:104px">
+        <span class="kick acc">Return · Home</span>
+        <div class="rhead">서지우 님 집으로 데려다 주세요</div>
+        <div class="addr">
+          <span class="k">등록 주소</span>
+          <span class="v">집 · 반포동</span>
+        </div>
+        <div class="tap"><span class="tt">길찾기 — 네이버 지도</span><span class="chev">›</span></div>
+        <div class="note">도착을 누르면 <b>서지우 님과 함께 반환을 확인</b>해요.</div>
+      </div>
+
+      <div class="thumb">
+        <div class="cta">도착</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ⑤ 집 반환 · 주소 실패 ═════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">⑤</span><span class="d">집 반환 — <b>주소를 못 받았을 때</b>. On today's server this is not an edge case; it is the only state.</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>10:31</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="주소를 받지 못해 경로가 없는 지도">
+          <rect x="0" y="0" width="390" height="820" fill="#F2F2F0"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(17,17,17,.06)"/>
+          <circle cx="130" cy="310" r="15" fill="rgba(240,118,90,.22)"/>
+          <circle cx="130" cy="310" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">몽이 반환</span>
+      </div>
+
+      <div class="paper rstrip" style="bottom:104px">
+        <span class="kick">Return · Home</span>
+        <div class="fail">
+          <div class="ft">주소를 불러오지 못했어요</div>
+        </div>
+        <div class="tap"><span class="tt">다시 시도</span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">서지우 님과 채팅</span><span class="chev">›</span></div>
+        <div class="note">호스트 창구로도 물어볼 수 있어요. 만나서 <b>두 사람이 함께 확인</b>하면 반환은 그대로 끝나요.</div>
+      </div>
+
+      <div class="thumb">
+        <div class="cta">도착</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ⑥ 현장 반환 ══════════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">⑥</span><span class="d">현장 반환 — <b>보호자를 찾아요</b>. Chat as a first-class route — the permanent one for every existing account (F3 = the other state).</span></div>
+    <div class="phone map">
+      <div class="stbar"><span>10:28</span><span>▮▮▮</span></div>
+      <div class="mapfull">
+        <svg width="390" height="820" viewBox="0 0 390 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="집결지 지도">
+          <rect x="0" y="0" width="390" height="820" fill="#F2F2F0"/>
+          <path d="M0 190 L390 150" stroke="#FFFFFF" stroke-width="10" fill="none"/>
+          <path d="M0 430 L390 390" stroke="#FFFFFF" stroke-width="14" fill="none"/>
+          <path d="M120 0 L160 820" stroke="#FFFFFF" stroke-width="8" fill="none"/>
+          <path d="M300 0 L270 820" stroke="#FFFFFF" stroke-width="6" fill="none"/>
+          <path d="M0 640 C120 610 260 660 390 620 L390 720 C260 760 120 710 0 740 Z" fill="rgba(17,17,17,.06)"/>
+          <rect x="108" y="296" width="46" height="30" fill="#FFFFFF" stroke="#26231b" stroke-width="2"/>
+          <text x="131" y="317" text-anchor="middle" font-size="15" font-weight="700" fill="#26231b" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif">집결</text>
+          <circle cx="168" cy="286" r="15" fill="rgba(240,118,90,.22)"/>
+          <circle cx="168" cy="286" r="8" fill="#F0765A" stroke="#FFFFFF" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="paper mastchip">
+        <span class="back">‹</span>
+        <span class="disp">몽이 반환</span>
+      </div>
+
+      <div class="paper rstrip" style="bottom:104px">
+        <span class="kick acc">Return · On site</span>
+        <div class="rhead">집결지에서 서지우 님을 찾아주세요</div>
+        <div class="addr">
+          <span class="k">만나는 곳</span>
+          <span class="v">잠수교 남단 집결지</span>
+        </div>
+        <div class="tap"><span class="tt">서지우 님과 채팅</span><span class="chev">›</span></div>
+        <div class="tap quietTap"><span class="tt">호스트 창구</span><span class="chev">›</span></div>
+        <div class="note">만나면 도착을 누르고 <b>두 사람이 함께 확인</b>해요.</div>
+      </div>
+
+      <div class="thumb">
+        <div class="cta">도착</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ⑦ 두 사람 확인 ═══════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">⑦</span><span class="d">두 사람 확인 — <b>where ④⑤ and ⑥ both end</b>. Neither side alone finishes it.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>10:44</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bkw"><span class="a">‹</span>반환 화면</span></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">반환 확인</div>
+          <div class="serial">RETURN · BOTH SIDES</div>
+        </div>
+        <div class="qline">몽이를 서지우 님께 돌려드리는 순간이에요.</div>
+
+        <div class="mast" style="padding:18px 0 0"><div class="dogdot">몽</div>
+          <div class="mline">몽이 · 서지우 ↔ 박지훈</div></div>
+
+        <div class="scell" style="margin-top:14px">
+          <span class="sq"></span>
+          <div class="sbody">
+            <div><span class="sl">러너 확인</span></div>
+            <div class="ss">박지훈 — 몽이를 인계했습니다</div>
+          </div>
+        </div>
+        <div class="scell last">
+          <span class="sq"></span>
+          <div class="sbody">
+            <div><span class="sl">보호자 확인</span></div>
+            <div class="ss">서지우 — 몽이를 받았습니다</div>
+          </div>
+        </div>
+
+        <div class="ritual">
+          <span class="kick">Handover</span>
+          <div class="rr"><b>두 칸이 모두 찍혀야</b> 반환이 끝나요. 그때까지 몽이는 러너 책임이에요.</div>
+        </div>
+
+        <div class="btnP">반환 확인</div>
+        <div class="foot"><span class="serial">RETURN · HOME &amp; ON SITE</span><span class="serial">DOGS HIGH · 0826</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ⑧ 입장권 · 러너 ══════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">⑧</span><span class="d">입장권 · 러너 — <b>a pass, not a stage</b>: open it, leave it, reopen it. 체크인 전.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>8:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bkw"><span class="a">‹</span>세션</span></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">입장권</div>
+          <div class="serial">DOGS HIGH · 0826</div>
+        </div>
+        <div class="qline">집결지에서 호스트에게 이 화면을 보여주세요.</div>
+
+        <div class="grid2">
+          <div><div class="gk">Club</div><div class="gv">반포 하이클럽</div></div>
+          <div><div class="gk">Host</div><div class="gv">오세훈</div></div>
+        </div>
+        <div class="grid2" style="border-top:0">
+          <div><div class="gk">Date</div><div class="gv">토 <span class="num">09:00</span></div></div>
+          <div><div class="gk">Meet</div><div class="gv">잠수교 남단</div></div>
+        </div>
+
+        <div class="holder">
+          <span class="kick acc">Team</span>
+          <div class="hn">박지훈 + 몽이</div>
+          <div class="hs">러너 · 잠수교 <span class="num">5</span>km</div>
+        </div>
+
+        <div class="state">
+          <span class="sq2"></span>
+          <span class="sv">체크인 대기</span>
+        </div>
+
+        <div class="btnP">집결지 도착 체크인</div>
+        <div class="reentry">닫아도 괜찮아요 — <b>세션 › 내 입장권</b>에서 다시 열려요.</div>
+        <div class="foot"><span class="serial">PASS · RUNNER</span><span class="serial">TEAM OF 2</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ ⑨ 입장권 · 오너 Mode A ═══════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">⑨</span><span class="d">입장권 · 오너 (Mode A) — <b>the owner who runs their own dog</b>. 체크인 후.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>8:53</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bkw"><span class="a">‹</span>세션</span></div>
+        <div class="inkrule"></div>
+
+        <div class="headline">
+          <div class="disp">입장권</div>
+          <div class="serial">DOGS HIGH · 0826</div>
+        </div>
+        <div class="qline">집결지에서 호스트에게 이 화면을 보여주세요.</div>
+
+        <div class="grid2">
+          <div><div class="gk">Club</div><div class="gv">반포 하이클럽</div></div>
+          <div><div class="gk">Host</div><div class="gv">오세훈</div></div>
+        </div>
+        <div class="grid2" style="border-top:0">
+          <div><div class="gk">Date</div><div class="gv">토 <span class="num">09:00</span></div></div>
+          <div><div class="gk">Meet</div><div class="gv">잠수교 남단</div></div>
+        </div>
+
+        <div class="holder">
+          <span class="kick acc">Team</span>
+          <div class="hn">임지호 + 솜이</div>
+          <div class="hs">직접 달리기 · 위탁 없음</div>
+        </div>
+
+        <div class="state">
+          <span class="sq2 on">✓</span>
+          <span class="sv">체크인 완료</span>
+          <span class="num stm">08:51</span>
+        </div>
+
+        <div class="note">호스트 페어 목록에도 체크인으로 표시돼요.</div>
+        <div class="reentry">닫아도 괜찮아요 — <b>세션 › 내 입장권</b>에서 다시 열려요.</div>
+        <div class="btnP" style="background:transparent;color:var(--docInk);border:1px solid var(--docInk);min-height:56px">세션으로 돌아가기</div>
+        <div class="foot"><span class="serial">PASS · OWNER · MODE A</span><span class="serial">TEAM OF 2</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ F1 · F2 fragments ════════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n lab">F1</span><span class="d">재진입 — the shipped session-screen row that makes ⑧⑨ <b>re-openable</b>.</span></div>
+    <div class="frag">
+      <div class="fh">
+        <span class="t">세션 화면</span>
+        <span class="serial">CLUB SESSION</span>
+      </div>
+      <div class="tap"><span class="tt">내 입장권</span><span class="tsub">집결지에서 보여주세요</span><span class="chev">›</span></div>
+      <div class="note">이 줄이 입장권을 <b>화면이 아니라 문</b>으로 만들어요 — 나갔다가 다시 들어오는 경로.</div>
+    </div>
+
+    <div class="cap" style="margin-top:44px"><span class="n lab">F2</span><span class="d">⑦ 대기 — <b>내가 찍고 상대를 기다릴 때</b>. No trap: the chat door stays open.</span></div>
+    <div class="frag">
+      <div class="fh">
+        <span class="t">반환 확인</span>
+        <span class="serial">WAITING · 1 OF 2</span>
+      </div>
+      <div class="scell">
+        <span class="sq on">✓</span>
+        <div class="sbody">
+          <div><span class="sl">러너 확인</span></div>
+          <div class="ss">박지훈 — 몽이를 인계했습니다</div>
+        </div>
+        <span class="num st">10:44</span>
+      </div>
+      <div class="scell last">
+        <span class="sq"></span>
+        <div class="sbody">
+          <div><span class="sl">보호자 확인</span></div>
+          <div class="ss">서지우 님의 확인을 기다리는 중</div>
+        </div>
+      </div>
+      <div class="tap"><span class="tt">서지우 님과 채팅</span><span class="chev">›</span></div>
+      <div class="note">기다리는 동안에도 <b>문은 열려 있어요</b> — 대기는 갇힘이 아니에요.</div>
+    </div>
+
+    <div class="cap" style="margin-top:44px"><span class="n lab">F3</span><span class="d">⑥의 다른 진짜 상태 — <b>번호가 있는 페어</b>. Both routes, neither one a fallback.</span></div>
+    <div class="frag">
+      <div class="fh">
+        <span class="t">현장 반환</span>
+        <span class="serial">ON SITE · CONTACT</span>
+      </div>
+      <div class="note" style="margin-top:16px">집결지에서 <b>서지우 님</b>을 찾아주세요.</div>
+      <div class="tap"><span class="tt">서지우 님과 채팅</span><span class="chev">›</span></div>
+      <div class="tap"><span class="tt">서지우 님에게 전화</span><span class="chev">›</span></div>
+      <div class="note">번호는 <b>세션이 끝나고 반환이 확인될 때까지만</b> 열려요 — 열람 기록이 남아요.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ lab margin ═══════════════════════════ -->
+  <div class="col margin">
+    <h3>Three surfaces, one lab — and three things the server still owes</h3>
+    <p>Sean named these in one breath and they interlock: the host's map is where 세션 종료 lives, the pair list is where his 「perhaps the list?」 verification lands, and the pass is the thing being verified. Splitting them would have hidden the loop.</p>
+
+    <h4>🔴 What ships when</h4>
+    <div class="ph"><span class="k">④ 집 반환</span><span><b>Blocked.</b> <code>booking_pickup_address</code> (0060, widened 0065:43-57) admits the runner at <code>runner_enroute | picked_up | active</code>, or <code>confirmed</code> inside T−24h. The club return is booking <code>completed</code> + <code>return_pending</code> (0045:55-59) — outside by construction. <b>Ship ④ only after the custody-aware arm lands.</b> Until then every 집 반환 runner lives in ⑤.</span></div>
+    <div class="ph"><span class="k">③ 확인</span><span><b>Owed.</b> <code>session_checkin</code> (0030:245-266) writes <code>attendance</code> WHERE <code>profile_id = auth.uid()</code> — and it is the schema's <b>only</b> such statement (0030:254, one hit). The host cannot mark anyone present. The print rows in ③ are real; the 확인 stamp needs a host-side RPC with a host/backup-host party gate. Ship the list first, the stamp with its server.</span></div>
+    <div class="ph"><span class="k">①② dots</span><span><b>Owed.</b> <code>createPosPublisher</code> (geo.ts:467-488) opens one channel per <b>booking</b> — <code>run2-{id}</code> (geo.ts:375) — and the owner is the subscriber. No session topic, no host subscription, no position column anywhere. A host map without this is a live screen that is never live.</span></div>
+
+    <h4>⚠ The phone — two populations, two permanent screens</h4>
+    <p><b>Entitlement was never the question.</b> <code>_club_phone_visible</code> (0049:167-192) already implements 호스트↔전원 · 보호자↔자기 개의 수락 러너 양방향 · 그 외 호스트 경유, its lifetime gate covers unresolved custody — so 현장 반환 sits inside the window — and every reveal writes <code>club_phone_access_log</code>. <b>Collection was.</b> api.ts:3167-3168 refused it once, in words: 「연락처는 묻지 않는다 … 받아두기만 하는 필드를 묻는 건 넛지가 아니라 수집이고, §12 가 전화 버튼을 거부한 것과 같은 이유다」. Sean has now ruled the other way — numbers are collected at onboarding, owner and runner.</p>
+    <p><b>The half that shapes the screen:</b> <code>profiles.phone</code> is NULL for every account that already exists and <b>stays NULL after collection ships</b> — new signups fill it, the current cohort never does unless separately prompted. So ⑥ is not a waiting room. It is the permanent 현장 반환 screen for everyone who already has an account, chat is a first-class route there, and there is no 「곧 제공돼요」 anywhere on it — an apology would be a lie about the roadmap. <b>F3 is the other real state</b>, not the real one: a pairing whose number exists gets the call route <i>alongside</i> chat, with its lifetime and its access log said out loud. Two populations, two screens, neither degraded. No number string is printed in either — the digits are a user's field, not a lab fixture.</p>
+
+    <h4>The refusal is print, the escape is the action</h4>
+    <p>② is the frame that carries the house law. <code>club_finish_session</code> raises <code>dogs_not_returned</code> while any pairing is unresolved (0048:396). So the 종료 button does not sit there filled and inert: the <b>reason</b> is print — the two pairs, by name, with their phase — and the <b>one coral action</b> is the way out (<code>session_custody_override</code>, 0069:137 / 0070:243, return_pending only). A filled button that refuses is a dead button wearing a coat.</p>
+
+    <h4>도착 is a transition, not a record</h4>
+    <p>Sean's 「click arrived」 opens ⑦ and does nothing else. <code>return_arrived_at</code> does not exist (zero hits in migrations; spec v2 §7.1 <i>proposes</i> it with three siblings). The record of a return is the two-sided stamp — <code>session_confirm_return</code> (0045:66-100, 0069:84) — which is shipped and which neither side can complete alone. Drawing 도착 as a stamp would have invented a column in the artifact used to decide.</p>
+
+    <h4>ⓑ 도장 칸, in its literal role</h4>
+    <p>His round-6 pick is the stamp vocabulary now, and it carries three different jobs here: the host's verify (③), the two sides of the ritual (⑦, F2) and the pass's 체크인 state (⑧⑨). No single-select choice arises across these three surfaces — the return branch is decided by <code>pickup_mode</code> at setup, not by the runner — so ⓑ appears as its square rather than as a choice row. The first real choice these screens grow takes ⓑ.</p>
+
+    <h4>Address, drawn at the width the privacy scope allows</h4>
+    <p>④ prints <code>addresses.label</code> and <code>addresses.dong</code> — 「집 · 반포동」 — and nothing else. <code>dong</code> is a real column (0122), classified there as 개인정보 at 동 granularity, not 위치정보. A 도로명 string would have been fabricated. The full address is what 길찾기 consumes, not what the screen prints.</p>
+
+    <h4>Affordance count</h4>
+    <p>① back + 3 exits + 종료 = <b>5</b> · ② back + 처리 = <b>2</b> · ③ back + 2 확인 = <b>3</b> · ④ back + 길찾기 + 도착 = <b>3</b> · ⑤ back + 다시 시도 + 채팅 + 도착 = <b>4</b> · ⑥ back + 채팅 + 호스트 창구 + 도착 = <b>4</b> · ⑦ back + 반환 확인 = <b>2</b> · ⑧ back + 체크인 = <b>2</b> · ⑨ back + 세션으로 = <b>2</b>. Everything else — numerals, roster print, stamped rows, address lines, the two-sided sentences — carries no fill, no border, no chevron. <b>Coral is one per frame at most</b>, and ② ③ ⑨ carry none: nothing there is the user's turn.</p>
+
+    <h4>One addition to the shared tap grammar</h4>
+    <p>Measured on the rendered page: every tappable is ≥44pt except the map's <code>.mastchip .back</code> at 34pt — which is the world's own back control, byte-identical to the run lab's, inherited not introduced. Raising it is a shared-grammar change and belongs to whoever owns that decision, not to this file.</p>
+    <p>The labelled back control (<code>.bkw</code> — 「‹ 라이브 지도」, 「‹ 세션」) is new. A bare 34pt arrow says <i>back</i>; it does not say <i>back to the map you were watching</i>, and "leaveable and re-comeback-able" is the entire point of both ③ and ⑧⑨. Same border, same paper, 44pt, one word of destination.</p>
+  </div>
+
+</div>
+</div>
+</body>
+</html>
