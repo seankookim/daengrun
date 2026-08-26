@@ -661,6 +661,99 @@ invert its meaning.
 
 ---
 
+## 0-bis. 🔴 READ THIS BEFORE §1–§10 — THE RULING BROKE THIRTEEN THINGS IN THEM
+
+Added 2026-08-26 after §11 closed. **§1–§10 were written under an assumption Sean's ruling
+overturned** (§2 ARM 3, server-side derivation, was REJECTED at §2; §11.1 overrules that
+rejection). They have NOT been rewritten section by section — rewriting thirteen interlocking
+arguments in place is how a contract acquires a subtle contradiction — so this block is the
+correction of record and **anything in §1–§10 that it names is void.**
+
+### The two findings that change the DESIGN, both verified against production/source, not read
+
+**🔴 R-1 — `custody_phase` is DERIVED. The contract's central deliverable cannot stick.**
+§1-ⓑ has the fan-out write `custody_phase = 'return_pending'` while the booking stays `active`.
+It cannot. `session_dogs` carries `club_v1_axes_sync`, **`BEFORE INSERT OR UPDATE … FOR EACH ROW`,
+`tgenabled='O'`, and NO `WHEN` clause** (verified live via `pg_trigger`), which recomputes the
+axes from `_club_compute_axes` on **every** write; that function derives
+`custody_phase` from `bookings.status` (`v_bst = 'completed' then 'return_pending'`, verified live
+in `prosrc`; source `0048:794-797`, `0048:806-807`). `payout_state` passes through and
+`custody_phase` does not, so the fan-out's write silently normalises back to `with_custodian`,
+leaving `earned` + `with_custodian` — which `session_confirm_return` refuses (`0069:96`) and whose
+only escape is opening an incident. **No exception, no red gate, nothing dirty — it just does not
+stick**, and two shipped suites already record this as MEASURED
+(`150_account_deletion_suite.sql:494-499`, `108_incident_accountability_suite.sql:217`).
+⚠ **§3's precondition list names three re-keyings and misses this one, which is upstream of all
+three.** Any pin that reaches `return_pending` by a route other than the real machine will not see
+this.
+
+**🔴 R-2 — write `runs.actual_km` without `bookings.run_ended_at` and the DEVICE silently
+overwrites it, and prices the ledger. This is the most likely way to build the ruled feature and
+have it be a no-op.** Verified at source, both halves:
+- `0083:744` — `actual_km = case when v_run_ended is null then excluded.actual_km else
+  runs.actual_km end`, where `v_run_ended` is `bookings.run_ended_at`. The line above it says so in
+  the file's own words: 「정지 스탬프가 없는 행(레거시·클럽 경로)은 … excluded가 이긴다」.
+- `settle-run/handler.ts:77` — `const frozen = bk.run_ended_at ? await readFrozenRun(…) : null;`
+  and `:115` — `const km = frozen ? frozen.km : Number(p.actual_km);` → for a club booking
+  `frozen` is ALWAYS null, so the phone's number is used and `compute_runner_payout` prices from it.
+**Every gate stays green**: `settle_run_tx` returns success, the harness sees a settled run, and the
+only witness is a diff between two numbers nobody compares. **The mutation battery MUST plant the
+unfixed hole** — derive server-side, settle from a different device number, assert the ledger
+disagrees with the derivation — not merely the fixed case.
+⚠ **And §4.3's argument for NOT writing `bookings.run_ended_at` inverts under the ruling.** It
+argued the freeze would deadlock (`frozen_measurement_mismatch` forever) — but that deadlock
+existed *only because §1-ⓔ forbade writing `actual_km`*. With the tap writing both, the freeze
+becomes **consistent**, and `handler.ts:77/115` make the runner's settle price from the server's
+numbers, which is exactly what the ruling asks for. **Re-derive §4.3 from scratch, both directions,
+before reusing either conclusion.**
+
+**⚠ R-3 — `runs.ended_at` is the CHARGING CUTOVER, and the ruled duration wants to move it.**
+`mint_settle_charge_intent` compares `coalesce(r.ended_at, now())` against
+`ops_flags.payments_live_since` (`0084:265-266`); REGISTRY's "Settlement anchors" calls
+`runs.ended_at` *cutover eligibility*; `0083:913-916` calls it load-bearing for the charge side.
+Today the flag is NULL, so **every pin, harness run and green gate is structurally incapable of
+seeing this** — the "green light is evidence for exactly one sentence" shape, the sentence being
+*「charging is off, so nothing here is measured」*. Whatever is decided must be a NAMED consequence
+in the migration header and pinned by a suite arm that **sets `payments_live_since`** (suite 116 is
+the precedent).
+
+### Void or stale in §1–§10 — the full list
+
+| § | what is now wrong |
+|---|---|
+| §1-ⓔ | *「and NOT the money … no `end_reason`, no `actual_km`」* — **VOID.** The ruling requires both at the tap. ⓐ-ⓔ is now a five-item list. |
+| §2 ARM 3 | its rejection paragraph is overruled by §11.1. ⚠ **Rewrite it, do not delete it** — its factual sentence (`actual_km` is the client's in-memory number, never the trace) is TRUE about the code and only overturned as POLICY. Deleted, the next reader re-derives the rejection. |
+| §3 | precondition list is **incomplete** — see R-1. |
+| §4.3 | its `session_dogs`-over-`bookings` argument **inverts** — see R-2. Its *「`runs.ended_at` is NOT written by the fan-out」* collides with the duration ruling — see R-3. Its RLS citations `0030:133/136` are stale: live policy is `"dogs scoped read"`, `0131:155-156` (the SELECT-only claim survives; the citation does not). |
+| §6.4 | *「`run_ended_at is null` … IS 'still running'」* is contradicted by shipped client code: the host console computes `runStuck` from `bookingStatus in ('picked_up','active')` (`console/[sid].tsx:214-218`) and labels it 「러닝 미종료」 with a live 강제 종결 button whose server gate (`0070:208`) would still accept it. **Under ARM 2 every successfully-ended pairing shows a wrong label plus a destructive button.** |
+| §7.1 | *「The host declares WHEN; the runner declares WHAT」* — second clause **VOID**. Replacement: *the host declares WHEN, the server derives WHAT, and the CHARGE stays its own gated step.* |
+| §7.2 | `club_release_payouts` cited at `0070:149-151`; live body is `0072:221` and `0072:235-238` **widened** the predicate (`resolved` OR an `incident_settlement` fee row). |
+| §10 | *「`return_mode` does not exist on trunk」* — **stale**; 0129 is on origin and the column is `0129:187`. |
+| §0 | header numbers stale (says 0128/162). Origin carries 0131 + suite 164; **next free is 0132/165, re-resolve two-sided at build time.** |
+| §12.2 P12 | *「has no `service_role` grant」* is **uninformative** — service_role holds EXECUTE via Supabase DEFAULT PRIVILEGES, which `revoke … from public, anon, authenticated` does not touch (`0057:59-62`). A pin asserting it would be green while service_role can execute. Shipped remedy: revoke from `service_role` explicitly (`0118:937-938`). |
+| §8 | the race table's *「host tap ⟷ runner's own settle … either order」* likely stops holding once the tap writes the freeze inputs the settle reads. Re-derive. |
+
+### The shape this points at — INFERENCE, labelled, not yet decided
+
+A club-scoped sibling of **`end_run_tx`** (not of `settle_run_tx`), writing `bookings.run_ended_at`
++ `runs.{ended_at, actual_km, duration_sec, end_reason}`, with `_club_compute_axes` re-keyed so
+`return_pending` is reachable while the booking is `active`. That makes derivation and charging
+separate **by the mechanism the marketplace already uses**, satisfying Sean's hard constraint
+without inventing anything. ⚠ Not verified by execution; `end_run_tx` itself refuses clubs at
+`0083:383` and `0083:903`, so it is a sibling, never a reuse.
+
+⚠ **Server-derived km will NOT equal the client's number**, for four independent reasons read at
+source: the stored trace is second-collapsed while the client accumulates at fix granularity; the
+client applies accuracy≤25 m and 10 m/s gates the stored trace does not; the stored trace is the
+runner's **whole-session** trace shared across every active booking they hold (`0053:145-146`) and
+must be truncated per dog by `runs.started_at`; and trace `t` is the **device** clock while
+`started_at` is the **server's**. Expect systematic disagreement plus a clock-skew mode yielding
+0 km or the whole session. **There is no server-side distance derivation anywhere in the repo
+today** — `club_save_run_trace` computes a distance only to reject `impossible_speed` and discards
+it (`0053:137-139`).
+
+---
+
 ## 11. ANSWERED — SEAN, 2026-08-26 05:02–05:03Z. This section is CLOSED 4/4.
 
 ⚠ **The four 「Recommended:」 notes that stood here are SUPERSEDED and have been removed rather
