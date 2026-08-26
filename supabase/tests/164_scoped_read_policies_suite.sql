@@ -16,6 +16,7 @@
 do $$
 declare
   v_host uuid; v_member uuid; v_owner uuid; v_runner uuid; v_runner2 uuid; v_stranger uuid;
+  v_noshow uuid; v_exowner uuid; v_exdog uuid;
   v_club uuid; v_ses uuid; v_ses2 uuid; v_rt2 uuid; v_dog uuid; v_sp_id uuid;
   v_n int; v_pre int; v_bad text; v_msg text; v_finish_err text;
 begin
@@ -46,6 +47,20 @@ begin
   v_dog := t_dog(v_owner, 'SR-dog');
   insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id, custody, approval)
     values (v_ses, v_dog, v_owner, v_runner, 'runner_delegated', 'approved');
+  -- 🔴 [battery M-b] NEAR-RELATION fixtures. Restoring the WIDE predicate reddened NOTHING
+  -- (977/0) — the narrowing codex demanded was entirely UNPINNED. S1 only ever tested a clean
+  -- stranger, which says nothing about the people who are almost members. These two are exactly
+  -- the classes codex named: a host-marked no-show, and an owner whose delegation is over.
+  v_noshow := t_user('sr_noshow', 'owner');
+  insert into session_people (session_id, profile_id, role, attendance)
+    values (v_ses, v_noshow, 'owner_attending', 'no_show');
+  v_exowner := t_user('sr_exowner', 'owner'); v_exdog := t_dog(v_exowner, 'SR-전견');
+  -- responsible_profile_id is NOT NULL; the host holds it on a rejected row. ⚠ Note what the
+  -- axes trigger does here unprompted: it stamps service_state='ended' on the rejected row, which
+  -- is precisely the conjunct arm ⓓ tests. The fixture is therefore not asserting a hand-set flag
+  -- — it is asserting the state the product itself produces on rejection.
+  insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id, custody, approval)
+    values (v_ses, v_exdog, v_exowner, v_host, 'runner_delegated', 'rejected');
   insert into participant_activities (session_id, person_id, source, km)
     values (v_ses, v_sp_id, 'self_reported', 3.2);
 
@@ -99,9 +114,9 @@ begin
   perform set_config('request.jwt.claim.sub', v_member::text, true);
   set local role authenticated;
   select count(*) into v_n from session_dogs               where session_id = v_ses;
-  if v_n <> 1 then v_bad := v_bad || ' session_dogs=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' session_dogs=' || v_n; end if;
   select count(*) into v_n from session_people             where session_id = v_ses;
-  if v_n <> 1 then v_bad := v_bad || ' session_people=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' session_people=' || v_n; end if;
   select count(*) into v_n from session_runner_assignments where session_id = v_ses;
   if v_n <> 2 then v_bad := v_bad || ' session_runner_assignments=' || v_n; end if;
   select count(*) into v_n from participant_activities     where session_id = v_ses;
@@ -125,7 +140,7 @@ begin
   perform set_config('request.jwt.claim.sub', v_host::text, true);
   set local role authenticated;
   select count(*) into v_n from session_people where session_id = v_ses;
-  if v_n <> 1 then v_bad := v_bad || ' ⓐ호스트(session_people)=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' ⓐ호스트(session_people)=' || v_n; end if;
   reset role;
   -- ⓒ assignment-ONLY runner reading session_people. ⚠ v_runner is deliberately NOT used here:
   --   he is also the dog's responsible_profile_id, so arm ⓓ admits him and deleting ⓒ reddens
@@ -133,14 +148,14 @@ begin
   perform set_config('request.jwt.claim.sub', v_runner2::text, true);
   set local role authenticated;
   select count(*) into v_n from session_people where session_id = v_ses;
-  if v_n <> 1 then v_bad := v_bad || ' ⓒ배정전용러너(session_people)=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' ⓒ배정전용러너(session_people)=' || v_n; end if;
   reset role;
   -- ⓓ delegating owner reading session_people: likewise no row of his own there, so only the
   --   helper's live-dog branch can admit him
   perform set_config('request.jwt.claim.sub', v_owner::text, true);
   set local role authenticated;
   select count(*) into v_n from session_people where session_id = v_ses;
-  if v_n <> 1 then v_bad := v_bad || ' ⓓ위탁보호자(session_people)=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' ⓓ위탁보호자(session_people)=' || v_n; end if;
   reset role;
   -- ⓑ the attending member reading session_runner_assignments: no direct arm there either
   perform set_config('request.jwt.claim.sub', v_member::text, true);
@@ -150,6 +165,29 @@ begin
   reset role;
   if v_bad = '' then call _pass('srp','S3 헬퍼 네 갈래를 각각 고립 검증 — 직접 arm이 없는 테이블에서 읽어 헬퍼만이 통과시킬 수 있게 했다 (ⓐ호스트 ⓑ참가자 ⓒ배정러너 ⓓ위탁보호자)');
   else v_msg := '헬퍼 갈래가 막혔다:' || v_bad; call _fail('srp','S3 헬퍼 갈래 고립', v_msg); end if;
+
+  -- ---------- [S5] the NEAR relations — the class S1 never tested ----------
+  -- ⚠ This is the pin the codex REJECT was actually about. S1 proves a person with NO relationship
+  -- is denied; it says nothing about someone the session almost admits. Without S5 the entire
+  -- narrowing (no_show excluded, dead delegations excluded) is unpinned — measured: restoring the
+  -- wide predicate left the suite at 977/0.
+  v_bad := '';
+  perform set_config('request.jwt.claim.sub', v_noshow::text, true);
+  set local role authenticated;
+  select count(*) into v_n from session_dogs where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' no_show가 session_dogs를 읽는다=' || v_n; end if;
+  select count(*) into v_n from session_runner_assignments where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' no_show가 assignments를 읽는다=' || v_n; end if;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_exowner::text, true);
+  set local role authenticated;
+  select count(*) into v_n from session_people where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' 거절된 위탁 보호자가 session_people을 읽는다=' || v_n; end if;
+  select count(*) into v_n from session_runner_assignments where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' 거절된 위탁 보호자가 assignments를 읽는다=' || v_n; end if;
+  reset role;
+  if v_bad = '' then call _pass('srp','S5 가까운 관계는 멤버가 아니다 — 호스트가 결석 처리한 사람과 위탁이 거절된 보호자 모두 0행');
+  else v_msg := v_bad; call _fail('srp','S5 근접 관계 차단', v_msg); end if;
 
   -- ---------- [S4] anon reads nothing ----------
   -- anon holds table-level SELECT grants on all four (Supabase default); RLS is the only thing
