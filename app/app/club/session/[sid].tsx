@@ -89,6 +89,28 @@ export default function ClubSessionShell() {
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
   const [roster, setRoster] = useState<SessionRoster | null>(null);
+  const applyRoster = useCallback((seq: number, r: SessionRoster) => {
+    if (seq < rosterApplied.current) return;   // 옛 응답
+    rosterApplied.current = seq;
+    setRoster(r);
+  }, []);
+  // [codex r3] 시트 자체가 락이다. 라운드 2는 Alert 사슬(승낙서→조회→피커) 위에 ref 락을 얹었는데,
+  // 코덱스가 릴리스되지 않는 경로를 넷 찾았다(조회 실패 · 다견 '닫기' · 무견 두 버튼 · 백그라운드).
+  // 상태 하나가 열림/닫힘을 전부 표현하면 그 경로들이 존재하지 않는다.
+  // ⚠ Alert 피커도 함께 은퇴한다: Android Alert는 버튼 3개까지라, '닫기'+개 3마리 = 4개에서 한
+  //   마리가 조용히 사라졌다 — 다견 보호자에게는 막다른 길이다. 시트는 전부 보여준다.
+  const [addSheet, setAddSheet] = useState<Awaited<ReturnType<typeof fetchMyDogs>> | null>(null);
+  // [codex r4] 추가 뮤텍스. busy는 렌더 상태라 setBusy 이전에 두 번째 탭이 들어올 수 있고, 서로
+  // 다른 아이 두 마리가 동시에 성공할 수 있었다. ref는 같은 틱에 즉시 보인다.
+  const addMutex = useRef(false);
+  // [codex r4] 성공 시 이 nonce만 올린다. 로스터 재요청을 직접 하지 않는 이유: 탭 effect가 이미
+  // '참가자 탭일 때만' 부르는 게이트를 갖고 있어(전화 열람 로그, :138), nonce를 그 effect의 deps에
+  // 넣으면 탭에 있으면 즉시 갱신되고 탭을 떠났으면 조용하다가 돌아올 때 자연히 갱신된다.
+  // ⚠ 라운드 3의 addedLocally는 이걸 로컬 플래그로 대신했는데, 그건 경합을 거짓말과 맞바꾼 것이었다:
+  //   CTA는 사라지지만 견 목록은 그대로라, 방금 넣은 아이가 없는 화면을 사실처럼 보여줬다.
+  const [rosterNonce, setRosterNonce] = useState(0);
+  // [codex r5 c] 세션 id로 스코프한다 — 화면이 유지된 채 sid가 바뀌면 다른 세션의 CTA를 숨기면 안 된다.
+  const [addedSid, setAddedSid] = useState<string | null>(null);
   // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
   // 명단(전화 열람 로그가 붙는다)이고, 이 보드는 클럽 멤버 누구나 보는 공개 게시판이다.
   // 그래서 limited·비참가 멤버도 여기서는 무언가를 본다 — 서버 게이트가 로스터보다 넓다.
@@ -144,7 +166,8 @@ export default function ClubSessionShell() {
     const rosterAllowed = access !== 'none' && access !== 'limited';
     const needForRunner = board?.me.committed === true;
     if (rosterAllowed && (tab === '참가자' || needForRunner)) {
-      fetchSessionRoster(sid).then(setRoster).catch(() => {});
+      const rseq = ++rosterIssued.current;
+      fetchSessionRoster(sid).then((r) => applyRoster(rseq, r)).catch(() => {});
     }
     // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
     // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
@@ -156,11 +179,16 @@ export default function ClubSessionShell() {
         .then((rows) => { setBoardRows(rows); setBoardFailed(false); })
         .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
-  }, [tab, access, sid, board?.me.committed]);
+  }, [tab, access, sid, board?.me.committed, rosterNonce, applyRoster]);
 
   // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독.
   // [감사 P2] INSERT마다 전체 재조회라 응답 역순 도착 시 옛 스냅샷이 최신을 덮던 것 — seq 가드로 최신만 반영.
   const chatSeq = useRef(0);
+  // [codex r4] 로스터 순서 가드. ⚠ 라운드 2는 '마지막으로 발행한' 번호와 비교해서, 나중에 발행된
+  // 요청이 실패하면 먼저 성공한 응답까지 버려졌다 — catch가 조용하므로 로스터가 영영 null일 수
+  // 있었다. 비교 대상은 마지막으로 '반영한' 번호다: 늦게 온 옛 응답만 떨어지고, 성공은 버려지지 않는다.
+  const rosterIssued = useRef(0);
+  const rosterApplied = useRef(0);
   const applyChat = useCallback((run: () => Promise<{ uid: string | null; msgs: ClubChatMsg[] }>) => {
     const my = ++chatSeq.current;
     run().then((c) => { if (my === chatSeq.current) setChat(c); }).catch(() => {});
@@ -276,7 +304,8 @@ export default function ClubSessionShell() {
   // 아니라 '아이를 데려오는가'에 걸린다. 처음 참여할 때만 묻고 나중 추가는 조용히 통과시키면, 같은
   // 책임을 한 번은 고지하고 한 번은 안 하는 화면이 된다.
   const addDogWith = async (dogId: string) => {
-    if (busy) return;                       // [codex f] 확인 시트를 두 번 눌러 두 번 쏘던 것
+    if (addMutex.current) return;            // [codex r4] 같은 틱의 두 번째 탭
+    addMutex.current = true;
     setBusy(true);
     try {
       await addMyDogToSession(sess.id, dogId);
@@ -285,7 +314,15 @@ export default function ClubSessionShell() {
       // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
       // 부른다. 갱신하지 않으면 방금 넣은 아이가 목록에 없고 CTA도 남아, 다시 누르면 already_added가
       // 뜬다. 성공한 자리에서 이 세션의 로스터만 다시 읽는다.
-      if (sid) fetchSessionRoster(sid).then(setRoster).catch(() => {});
+      // [codex r4] nonce로 로스터 갱신을 맡긴다 — 위 선언부 주석 참조.
+      setRosterNonce((n) => n + 1);
+      // [codex r5] 그리고 이 화면 인스턴스에서 성공했다는 사실을 기억한다. ⚠ 라운드 3의 로컬
+      // 플래그와 다른 점은 침묵하지 않는다는 것이다: 코덱스가 지적한 거짓말은 'CTA는 사라졌는데
+      // 목록은 그대로'라는 **말 없는 모순**이었다. 갱신이 실패해도 무슨 일이 일어났는지는 화면이
+      // 분명히 말하고, 목록은 탭을 다시 열면 서버 진실로 맞춰진다.
+      setAddedSid(sess.id);
+      setAddSheet(null);
+      Alert.alert('데려왔어요', '참가자 목록에 반영돼요');
     } catch (e) {
       // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
       const m = (e as Error).message;
@@ -299,43 +336,34 @@ export default function ClubSessionShell() {
         : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
         : m.includes('not_your_dog') ? '내 아이만 데려갈 수 있어요'
         : m.includes('not_found') ? '세션을 찾을 수 없어요' : m);
-    } finally { setBusy(false); }
+    } finally { setBusy(false); addMutex.current = false; }
   };
-  const doAddDog = () => {
-    Alert.alert('데려가기 전 확인', WAIVER, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '동의하고 데려가기',
-        onPress: async () => {
-          // ⚠ [codex g] `.catch(() => [])`는 인증/네트워크 실패를 '아이가 없음'으로 둔갑시킨다 —
-          // api.ts:331이 fetchMyDogs에 대해 기록해 둔 바로 그 결함을, 호출부에서 되살리는 모양이다.
-          // ⚠ doRsvp(위)에도 같은 줄이 있다. 거기는 손대지 않았다: 실패 시 dogs[0]가 undefined가 되어
-          // '개 없이 참여'로 조용히 성공하므로 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
-          let dogs;
-          try {
-            dogs = await fetchMyDogs();
-          } catch {
-            Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
-            return;
-          }
-          // 다견이면 고른다 — doRsvp와 같은 문법 (엉뚱한 아이를 등록하지 않는다)
-          if (dogs.length > 1) {
-            Alert.alert('어느 아이를 데려가나요?', undefined, [
-              { text: '닫기', style: 'cancel' },
-              ...dogs.slice(0, 3).map((d) => ({ text: d.name, onPress: () => addDogWith(d.id) })),
-            ]);
-          } else if (dogs[0]) {
-            addDogWith(dogs[0].id);
-          } else {
-            // 등록된 아이가 없으면 서버는 not_your_dog로 막는다 — 죽은 버튼 대신 갈 곳을 준다
-            Alert.alert('아이가 없어요', '먼저 아이를 등록해 주세요', [
-              { text: '나중에', style: 'cancel' },
-              { text: '아이 등록', onPress: () => router.push('/owner/dog') },
-            ]);
-          }
-        },
-      },
-    ]);
+  const doAddDog = async () => {
+    // [codex r5 f] fetchMyDogs 동안에도 잠근다 — CTA 연타로 조회가 두 번 나가던 창
+    if (addSheet || busy || addMutex.current) return;
+    addMutex.current = true;
+    try {
+      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:331이 fetchMyDogs에 대해
+      // 기록해 둔 결함을 호출부에서 되살리는 모양이라, 실패는 실패로 말한다.
+      // ⚠ doRsvp(위)에는 아직 `.catch(() => [])`가 있다. 손대지 않았다: 거기서는 실패가 조용히
+      //   '개 없이 참여'로 성공해 버려 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
+      let dogs: Awaited<ReturnType<typeof fetchMyDogs>>;
+      try {
+        dogs = await fetchMyDogs();
+      } catch {
+        Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
+        return;
+      }
+      if (dogs.length === 0) {
+        // 등록된 아이가 없으면 서버는 not_your_dog로 막는다 — 죽은 버튼 대신 갈 곳을 준다
+        Alert.alert('아이가 없어요', '먼저 아이를 등록해 주세요', [
+          { text: '나중에', style: 'cancel' },
+          { text: '아이 등록', onPress: () => router.push('/owner/dog') },
+        ]);
+        return;
+      }
+        setAddSheet(dogs);
+    } finally { addMutex.current = false; }
   };
   const doCancelRsvp = () => {
     // [감사 P1] session_cancel_rsvp는 이 세션의 내 session_dogs를 custody 구분 없이 지운다 —
@@ -1057,13 +1085,21 @@ export default function ClubSessionShell() {
             open 개요 would log phone access for people whose numbers were never shown — a privacy
             side effect to place a button. So the door goes where the state is already known and
             where the dog list lives. Everyone who can use it has access 'full' or 'host' by
-            construction: `_club_shell_access` returns 'full' for any session_people row, and this
-            CTA requires sess.joined.
+            construction: `_club_shell_access` returns 'full' for a session_people row whose
+            attendance is not 'no_show' (0049:15 — ⚠ an earlier draft of this comment said "any
+            session_people row", which is false; a no-show drops to the next branch), and this CTA
+            requires sess.joined.
+            ⚠ THE FORMAT TEST IS A POSITIVE MATCH, not `!== 'delegated_only'`. That form FAILS OPEN
+            twice: `board` is null while it loads or after it fails — the roster and the board load
+            independently, so the CTA can render on a delegated-only session — and any format added
+            later would pass too. Same doctrine as runnerTierLabel, which I wrote one commit before
+            breaking it here.
             ⚠ Hidden once ANY of my dogs is here, though the RPC would allow a second. That is
             deliberate: `owner_handled_dog_limit` is 0048:20 and still marked 「[Sean 미확정]」 —
             building a second-dog path would be choosing a limit he has not ruled. */}
         {isOpenish && sess.joined && !isDone
-          && board?.session.format !== 'delegated_only'
+          && (board?.session.format === 'owner_only' || board?.session.format === 'mixed')
+          && addedSid !== sess.id
           && !roster.dogs.some((d) => d.isMine) && (
           <View style={{ marginTop: 14 }}>
             <ClubCta label="내 아이도 데려가기" onPress={doAddDog} disabled={busy} tone="secondary" />
@@ -1531,6 +1567,36 @@ export default function ClubSessionShell() {
       </Modal>
 
       {/* ---------- ④ 호스트 창구 1:1 시트 (드로어가 길어지면 시트로 확장) ---------- */}
+      {/* ---------- 아이 데려가기 시트 (0134 §C) ---------- */}
+      {/* 승낙서를 시트 안에 그대로 둔다: 약속은 처음 참여할 때와 같다. 다만 이 RPC는 승낙서 버전을
+          저장할 자리가 없어(p_session/p_dog만 받는다) 「동의」라 부르지 않는다 — 저장하지 못하는
+          동의를 주장하지 않기 위해서다. 버전을 남기는 문은 RPC가 인자를 받은 뒤에. */}
+      <Modal visible={addSheet != null} transparent animationType="slide" onRequestClose={() => { if (!busy) setAddSheet(null); }}>
+        {/* [codex r4] RPC가 날아가는 중에는 스크림/뒤로가기로 닫히지 않는다 — 닫혀도 요청은 계속되므로
+            결과를 못 보여주는 화면만 남는다. */}
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { if (!busy) setAddSheet(null); }} />
+        <View style={[s.sheet, { maxHeight: '75%' }]}>
+          <View style={s.grab} />
+          <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이를 데려가나요?</Text>
+          <Text style={{ fontSize: 15, lineHeight: 21, color: L.text, marginTop: 10 }}>{WAIVER}</Text>
+          {/* [codex r4] flexShrink 없이는 긴 목록이 시트 밖으로 닫기 버튼을 밀어낸다 */}
+          <ScrollView style={{ marginTop: 14, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
+            {(addSheet ?? []).map((d) => (
+              <Pressable
+                key={d.id}
+                disabled={busy}
+                onPress={() => addDogWith(d.id)}
+                style={({ pressed }) => [s.addDogRow, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.name}</Text>
+                <Text style={{ fontSize: 14, color: L.dim }}>확인하고 데려가기</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <ClubCta label="닫기" tone="quiet" onPress={() => setAddSheet(null)} disabled={busy} />
+        </View>
+      </Modal>
+
       <Modal visible={hostThread != null} transparent animationType="slide" onRequestClose={() => setHostThread(null)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)} />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
@@ -1615,6 +1681,11 @@ const s = StyleSheet.create({
   },
   checkedCard: {
     backgroundColor: L.hair2, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13, marginTop: 12,
+  },
+  addDogRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 13, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: L.hair,
   },
   freeLine: {
     alignItems: 'center', gap: 9, marginTop: 14, paddingTop: 11, paddingBottom: 2,

@@ -646,7 +646,16 @@ export default function RunnerHome() {
                 it succeeded and only the runs lookup failed (runs/km null while net is real). The
                 second used to render a fabricated 0km beside a real count — see RunnerWeekStats. */}
             <Text style={[styles.weekNum, nf]}>{stats?.runs == null ? '—' : String(stats.runs)}</Text>회 ·{' '}
-            <Text style={[styles.weekNum, nf]}>{stats?.km == null ? '—' : String(stats.km)}</Text>km · 정산 예정{' '}
+            <Text style={[styles.weekNum, nf]}>{stats?.km == null ? '—' : String(stats.km)}</Text>km ·{' '}
+            {/* 🔴 [정직 2026-08-27] 「0회 · 0km · 정산 예정 12,450원」이 한 줄에 같이 떴다.
+                모순처럼 읽히지만 둘 다 참이다 — `my_week_stats` 는 취소 보상 행을 net 에는
+                넣고 run 카운트에는 넣지 않는다 (0121 §B, 156 P3 가 그 의미를 핀으로 잡고 있다).
+                러너 입장에서는 「아무것도 안 뛰었는데 돈이 잡혀 있다」로 읽히고, 그게 무슨 돈인지
+                이 화면은 말하지 않았다. 수익 화면은 같은 돈을 「취소 보상」이라고 부른다.
+                그래서 낱말을 빌려온다: 뛴 러닝이 0인데 금액이 있으면 그건 보상이다.
+                ⚠ runs == null (못 읽음) 은 여기 해당하지 않는다 — 0 과 모름은 다른 사실이고,
+                  모르는 상태에서 「보상」이라고 이름 붙이면 그게 새 거짓말이다. */}
+            {stats != null && stats.runs === 0 && stats.net > 0 ? '보상 ' : ''}정산 예정{' '}
             <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>원
           </Text>
         </Row>

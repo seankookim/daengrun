@@ -1019,8 +1019,14 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   // [0121] both legs are net-only server views (contract §D). The old choke-point view lost
   // client SELECT in the same migration — reading it here would 403 the whole request (0088).
   const [openRes, directedRes, dongRes, distRes] = await Promise.all([
-    supabase.from('runner_open_requests').select('*').order('scheduled_at').limit(10),
-    supabase.from('my_directed_requests').select('*').order('scheduled_at').limit(10),
+    // 🔴 [2026-08-27] `.limit(10)` 이 양쪽 다리에 걸려 있었고, 화면은 그 합을 「요청함 · N건」과
+    //    「새 요청 N건」이라는 **총계**로 그렸다. 밀린 요청이 많은 러너는 10건이라는 말을 듣고
+    //    나머지를 영영 보지 못한다 — Sean 이 이미 한 번 찾아낸 예약 목록 캡(api.ts:1365)과 같은
+    //    결함이 다른 두 다리에 남아 있던 것이다. 그 자리의 판단을 그대로 가져온다: 창을
+    //    총계라고 부르지 않으려면, 창을 없애거나 창이라고 말해야 한다. 여기서는 없앤다 —
+    //    아래에서 지난 날짜를 클라이언트가 다시 거르므로 캡이 있으면 걸러진 뒤 더 줄어든다.
+    supabase.from('runner_open_requests').select('*').order('scheduled_at'),
+    supabase.from('my_directed_requests').select('*').order('scheduled_at'),
     supabase.rpc('open_request_pickup_dong'),   // [0122] 동 라벨 — definer window, 실패해도 카드가 죽지 않는다
     // [0123] 거리 밴드 — 동 다리와 같은 이유로 인자가 없다: 행 집합도 기준점도 서버가 갖는다
     // (기준점은 설정에서 저장한 값이고 저장 시점에 ~1.1km 격자로 반올림된다). 호출자가 위치를

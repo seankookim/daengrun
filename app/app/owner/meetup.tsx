@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { routeNameOnly } from '../../src/lib/route-label';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
@@ -546,7 +547,7 @@ export default function OwnerMeetup() {
               {/* [320dp] 긴 이름은 잘리지 않고 두 줄로 접힌다 (신뢰 화면에서 말줄임 금지) */}
               <Text style={s.peerName} numberOfLines={2}>{runnerName} 러너</Text>
               <Text style={s.peerMeta} numberOfLines={2}>
-                {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
+                {info ? `${info.when} · ${routeNameOnly(info.routeName)} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
           </Row>

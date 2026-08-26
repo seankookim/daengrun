@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { routeNameOnly } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
@@ -804,7 +805,7 @@ export default function Live() {
           <View style={{ flex: 1 }}>
             <Text style={s.runnerName}>{runnerName} 러너</Text>
             <Text style={s.runnerMeta}>
-              {info?.routeName ?? '코스'}{targetKm != null ? ` · ${targetKm}km` : ''}
+              {routeNameOnly(info?.routeName) || '코스'}{targetKm != null ? ` · ${targetKm}km` : ''}
             </Text>
           </View>
           {/* 신호 상태는 두 상태가 명시적으로 달라야 한다 (양육권 법) — 면색·잉크·도트 전부 구분.

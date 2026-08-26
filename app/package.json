@@ -52,7 +52,7 @@
     "web": "expo start --web",
     "doctor": "npx react-doctor@latest",
     "lint": "eslint .",
-    "test": "bash test/run-lateness-tests.sh && bash test/run-late-copy-tests.sh && bash test/run-checkin-tests.sh && bash test/run-kst-tests.sh && bash test/run-pace-tests.sh && bash test/run-geo-tests.sh && bash test/run-route-geom-tests.sh && bash test/run-route-pick-tests.sh && bash test/run-tier-label-tests.sh"
+    "test": "bash test/run-lateness-tests.sh && bash test/run-late-copy-tests.sh && bash test/run-checkin-tests.sh && bash test/run-kst-tests.sh && bash test/run-pace-tests.sh && bash test/run-geo-tests.sh && bash test/run-route-geom-tests.sh && bash test/run-route-pick-tests.sh && bash test/run-tier-label-tests.sh && bash test/run-route-label-tests.sh"
   },
   "private": true
 }
