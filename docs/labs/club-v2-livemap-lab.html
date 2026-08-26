@@ -174,6 +174,25 @@
      (`session_custody_override` 0069:137 / 0070:243 — return_pending only) and
      stops; the console lab owns that screen.
    · 재배정, 정산 금액, 케이스 내용 — the console lab's, unchanged and unrestated.
+
+   🔴 THE BUTTON MUST NOT SETTLE, and the reason is measured (2026-08-26, spec session, verified
+   here at source). The club's run-end TODAY **is `settle_run_tx`** — `0083:681`'s `if v_club is
+   null` wraps only the return-seal branch, not the function, so club bookings run straight through
+   it, and `club/run/[sid].tsx` calls it per dog. **Ending a club run and paying for a club run are
+   the same server call.** So a 러닝 종료 wired to the existing path would settle N runs and charge
+   N owners' cards from ONE host tap.
+   The frame therefore says 「정산은 각자」 out loud rather than merely omitting money: an earlier
+   draft was safe only because it happened not to mention 정산, and a builder reading a lab that is
+   silent about payment could reasonably reach for `settleRun`, which is already imported on that
+   screen. **In one line: the host declares WHEN, the runner declares WHAT.**
+   Two shapes measured FATAL if anyone proposes them later: stamping `bookings.run_ended_at` arms a
+   freeze check while km is still NULL → every club settle fails forever; driving `status →
+   completed` breaks the settle's atomic claim → the runner is never paid.
+   ⚠ Also corrected: 「no club run-end primitive exists」 (round 7 header, D4) was WRONG — it was
+   inferred from `end_run_tx` refusing club bookings. A gate refusing one caller is not evidence
+   that no caller exists. And `0087:313` calling `club_start_delegated_runs` 「host-gated」 is stale
+   — its selector is `b.runner_id = auth.uid()` (`0050:176`), the runner's own fan-out. **No
+   host-initiated run action exists in the product today**, so 러닝 종료 is genuinely new.
    · The share-card round-6 amendment (transparent pace block, route-trace
      slide button) — that is the share-card lab's file, not this one.
 
@@ -797,6 +816,7 @@ h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
         </div>
         <div class="bwhy">지금 끝내면 <span class="num">5</span>팀의 러닝이 <b>한 번에</b> 끝나요. 각자 화면에 기록과 카드가 올라가고, 거기서 반환으로 넘어가요.</div>
         <div class="note">몽이 · 초코 · 보리 · 두부 · 콩이</div>
+        <div class="gateline"><b>정산은 각자</b> — 거리와 금액은 러너가 자기 화면에서 확정해요</div>
         <div class="gateline"><b>되돌릴 수 없어요</b> — 끝난 러닝은 다시 시작되지 않아요</div>
       </div>
 
