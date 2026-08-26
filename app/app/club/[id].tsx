@@ -215,16 +215,12 @@ export default function ClubPage() {
   // 블룸은 라일락 캔버스 위에서만 성립하고, 흰 종이 위에서는 얼룩으로 읽힌다.
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <Svg width="100%" height={0} style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <SvgLinear id="homeDawn" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#6C5CE7" stopOpacity="0.07" />
-            <Stop offset="1" stopColor="#6C5CE7" stopOpacity="0" />
-          </SvgLinear>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="240" fill="url(#homeDawn)" />
-      </Svg>
-
+      {/* [2026-08-26 R2] 상단 240px 새벽빛 워시(#6C5CE7 0.07 → 0) 삭제. DESIGN.md §2: 액센트는
+          액센트로만 쓰고 바탕이나 워시로는 쓰지 않는다 — Sean 「i like the accent color, not the
+          pale color」. 발견 사항: 이 워시는 이미 죽어 있었다 — 감싸던 <Svg>가 height={0}이라
+          240px Rect가 0높이 뷰포트에 잘려 아무것도 칠하지 않았다. 앞선 리밴프가 블룸을 끄면서
+          Svg/Defs/Rect 껍데기를 남긴 것이다. 그래서 이 삭제는 화면을 바꾸지 않고, 다음 사람이
+          height를 되돌리면 살아날 위반 하나를 치운다. */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 44 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
@@ -247,28 +243,29 @@ export default function ClubPage() {
           </View>
         )}
 
-        {/* ---------- ② 사진 = 홀로 엣지 배너 스트립 (변형 3) ---------- */}
-        <View style={s.strip}>
-          {club?.photoUrl
-            ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            : (
-              <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-                <Defs>
-                  <SvgLinear id="stripFall" x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0" stopColor="#8A7BF0" /><Stop offset="0.6" stopColor="#6C5CE7" /><Stop offset="1" stopColor="#5A4BC7" />
-                  </SvgLinear>
-                </Defs>
-                <Rect x="0" y="0" width="100%" height="100%" fill="url(#stripFall)" />
-              </Svg>
+        {/* ---------- ② 사진 = 홀로 엣지 배너 스트립 ---------- */}
+        {/* [2026-08-26 R2] 사진이 없을 때 그리던 바이올렛 그라디언트(#8A7BF0 → #6C5CE7 → #5A4BC7)는
+            법을 두 개 어겼다: 액센트를 **바탕**으로 썼고(DESIGN.md §2), 사진 자리에 색면을 세워
+            사진인 척했다(R3 '가짜 사진 금지'). 세 갈래로 정직하게 나눈다:
+              · 사진이 있으면        → 사진.
+              · 없고 내가 호스트면   → 중립 인셋 띠 + 실제로 동작하는 업로드 버튼 (버튼이 곧 이유).
+              · 없고 호스트가 아니면 → 띠를 아예 그리지 않는다. 채울 진실이 없고 내가 할 수 있는
+                                       일도 없는 자리는, 빈 회색 띠로 남기지 말고 생략한다. */}
+        {(club?.photoUrl || club?.isHost) && (
+          <View style={s.strip}>
+            {!!club?.photoUrl && (
+              <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             )}
-          <HoloEdge id="holoTop" top />
-          <HoloEdge id="holoBot" />
-          {club?.isHost && (
-            <Pressable onPress={changePhoto} style={s.photoBtn}>
-              <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#fff' }}>{/* CLUB15 */}{club.photoUrl ? '사진 변경' : '클럽 사진 올리기'}</Text>
-            </Pressable>
-          )}
-        </View>
+            <HoloEdge id="holoTop" top />
+            <HoloEdge id="holoBot" />
+            {club?.isHost && (
+              <Pressable onPress={changePhoto} style={s.photoBtn} hitSlop={10}
+                accessibilityRole="button" accessibilityLabel={club.photoUrl ? '클럽 사진 변경' : '클럽 사진 올리기'}>
+                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#fff' }}>{/* CLUB15 */}{club.photoUrl ? '사진 변경' : '클럽 사진 올리기'}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* ---------- ②-b 에디토리얼 마스트헤드 (변형 2) ---------- */}
         <View style={s.mast}>
@@ -650,9 +647,15 @@ const s = StyleSheet.create({
   failRetry: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: L.head, borderRadius: lilacRadius.btn, backgroundColor: '#fff' },
   // ② 사진 스트립
   strip: { height: 86, overflow: 'hidden', backgroundColor: L.inset },
+  // [2026-08-26 R2] 판을 rgba(24,18,44,.42) → rgba(17,17,17,0.72)로 어둡게. 이건 스타일이 아니라
+  // 실측 수정이다: 옛 판의 흰 라벨은 **바이올렛 플레이스홀더가 어두웠기 때문에** 통과하고 있었고
+  // (#5A4BC7 위 10.42:1), 실제 사진 위에서는 이미 미달이었다 — 밝은 사진 위 최악 2.72:1.
+  // 그라디언트를 걷어내면 그 빚이 드러나므로 같은 슬라이스에서 갚는다. 새 값은 사진과 무관하게
+  // 고정된 숫자다(스크림과 같은 원리 — 상수 알파 = 고정 대비):
+  //   흰 사진(최악) 7.62:1 · 중립 띠 #F2F2F2 위 ~8.0:1 · 검은 사진 19.9:1. 전부 ≥4.5.
   photoBtn: {
     position: 'absolute', right: 10, bottom: 9, zIndex: 4,
-    backgroundColor: 'rgba(24,18,44,.42)', borderWidth: 1, borderColor: 'rgba(255,255,255,.5)',
+    backgroundColor: 'rgba(17,17,17,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,.5)',
     borderRadius: 6, paddingVertical: 5, paddingHorizontal: 9,
   },
   // ②-b 마스트헤드
