@@ -87,11 +87,17 @@ export default function HostConsole() {
 
   const dogs = board?.dogs ?? [];
   const hasProposal = dogs.some((d) => d.assignmentState === 'proposed');
+  // [codex P1 2026-08-26] `hasHold` is load-bearing, not tidiness. §2's hold chip renders a live
+  // mm:ss off `now`, and this interval used to run ONLY while a proposal existed — so a session
+  // with a hold and no proposal froze `now` at mount and displayed a countdown that never
+  // decremented. A frozen clock is a fabricated live number (honesty law: loading is not 0, and a
+  // number that isn't counting is worse than no number, because it reads as counting).
+  const hasHold = dogs.some((d) => d.chargeState === 'hold');
   useEffect(() => {
-    if (!hasProposal) return;
+    if (!hasProposal && !hasHold) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [hasProposal]);
+  }, [hasProposal, hasHold]);
 
   if (!board) {
     return (
@@ -410,8 +416,12 @@ export default function HostConsole() {
           // 「결제 대기」 was not adopted: it would assert a payment that is not owed yet — the same
           // error the 2026-08-11 note refused for `paid`, pointed the other way.
           const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
-          // [same guard as the proposal row] Never render an elapsed hold as '00:00 남음'. A payload
-          // fetched before expiry can still say 'hold' after it; show the state without a false clock.
+          // [same guard as the proposal row] Never render an elapsed hold as '00:00 남음'.
+          // ⚠ [codex P1 2026-08-26] And once elapsed we do not fall back to a bare 「자리 잡는 중」
+          // either — that asserts a LIVE hold, and an elapsed one is exactly the case where the
+          // payload's claim has expired under us (the server recomputes charge_state to 'none' the
+          // moment `hold_expires_at` passes, 0048:763). So the chip DISAPPEARS at zero, landing on
+          // the same nothing that 'none' shows — which is where the next fetch puts it anyway.
           const ticking = holdLeft != null && holdLeft > 0;
           return (
             <View key={d.sdId} style={s.drow}>
@@ -423,10 +433,11 @@ export default function HostConsole() {
                 </View>
                 {d.chargeState === 'paid' ? (
                   <ClubTag label="자리 확정" tone="volt" />
-                ) : d.chargeState === 'hold' ? (
-                  <ClubTag label={ticking ? `자리 잡는 중 · ${mmss(holdLeft!)}` : '자리 잡는 중'} tone="amber" />
-                ) : null /* 'none' — approved with no live hold. The payload does not say WHY,
-                            so no word: a chip here would be invented state (honesty law). */}
+                ) : d.chargeState === 'hold' && ticking ? (
+                  <ClubTag label={`자리 잡는 중 · ${mmss(holdLeft!)}`} tone="amber" />
+                ) : null /* 'none', or a 'hold' whose window has already elapsed. The payload does
+                            not say WHY there is no live hold, so no word: a chip here would be
+                            invented state (honesty law). */}
               </Row>
             </View>
           );
