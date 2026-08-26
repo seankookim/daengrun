@@ -10,11 +10,13 @@ import { DrainRing } from '../../../src/components/drainring';
 import {
   cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
-  fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
+  BoardRowLive, fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
+  fetchSessionBoard, fetchSessionRoster,
   clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal,
   rsvpClubSession, sendClubChat, sendClubChatPhoto, SessionRoster, ShellAccess, startDelegatedRuns,
   subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession=콘솔 · settleRun/fetchRunStartedAt=클럽 런 화면
+import { ClubBoard } from '../../../src/components/club-board';
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
 import { getTrackPermission, resetTrace, startTracking } from '../../../src/lib/geo';
 import { MediaImage } from '../../../src/lib/media';
@@ -87,6 +89,11 @@ export default function ClubSessionShell() {
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
   const [roster, setRoster] = useState<SessionRoster | null>(null);
+  // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
+  // 명단(전화 열람 로그가 붙는다)이고, 이 보드는 클럽 멤버 누구나 보는 공개 게시판이다.
+  // 그래서 limited·비참가 멤버도 여기서는 무언가를 본다 — 서버 게이트가 로스터보다 넓다.
+  const [boardRows, setBoardRows] = useState<BoardRowLive[] | null>(null);
+  const [boardFailed, setBoardFailed] = useState(false);
   const [tab, setTab] = useState<'개요' | '참가자' | '채팅'>('개요');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,10 +138,23 @@ export default function ClubSessionShell() {
   // 로스터 — [감사 P2] 서버가 규칙 B 대상 전원의 '열람 로그'를 남기므로, 실제로 번호가 쓰이는
   // 시점에만 부른다: 참가자 탭 진입, 또는 러너(비상 연락처 필요). limited는 사람 명단을 그리지 않는다.
   useEffect(() => {
-    if (!sid || access === 'none' || access === 'limited') return;
+    if (!sid) return;
+    // ⚠ 로스터만 access 로 막는다. 아래 보드 호출은 그 게이트 밖에 있어야 한다 — 서버가 이미
+    //   더 넓은 판정을 하고, 여기서 한 번 더 좁히면 멤버가 볼 수 있는 보드를 클라이언트가 숨긴다.
+    const rosterAllowed = access !== 'none' && access !== 'limited';
     const needForRunner = board?.me.committed === true;
-    if (tab === '참가자' || needForRunner) {
+    if (rosterAllowed && (tab === '참가자' || needForRunner)) {
       fetchSessionRoster(sid).then(setRoster).catch(() => {});
+    }
+    // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
+    // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
+    if (tab === '참가자') {
+      // ⚠ 실패 플래그를 여기서 동기적으로 지우지 않는다 — effect 안의 동기 setState 는 추가
+      //   렌더를 강제하고 lint(react-hooks) 가 잡는다. 성공/실패 둘 다 비동기 도착 시점에만
+      //   쓴다: 로딩 중에는 직전 상태가 그대로 남고, 그게 정직하다 (아직 아무것도 안 밝혀졌다).
+      fetchSessionBoard(sid)
+        .then((rows) => { setBoardRows(rows); setBoardFailed(false); })
+        .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
   }, [tab, access, sid, board?.me.committed]);
 
@@ -1264,7 +1284,21 @@ export default function ClubSessionShell() {
           </>
         )}
 
-        {tab === '참가자' && renderRoster()}
+        {tab === '참가자' && (
+          <>
+            {/* [0135 S2 · 랩 ① 핀 보드] 팩 보드가 먼저. 그 아래 운영 명단(로스터)은 권한이 있는
+                사람에게만 남는다 — 두 개는 다른 게이트를 가진 다른 물건이다. */}
+            {boardFailed && (
+              <View style={{ paddingVertical: 14 }}>
+                <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '700', color: L.tang }}>
+                  보드를 불러오지 못했어요
+                </Text>
+              </View>
+            )}
+            {boardRows != null && boardRows.length > 0 && <ClubBoard rows={boardRows} />}
+            {renderRoster()}
+          </>
+        )}
 
         {/* ---------- ④ 채팅 — 그룹이 홈, 호스트 창구는 고정 드로어 ---------- */}
         {tab === '채팅' && access === 'none' && (

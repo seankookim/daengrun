@@ -680,6 +680,42 @@ export async function fetchMyBillingCard(): Promise<BillingCard | null> {
   };
 }
 
+// ---------- 클럽 멤버 보드 (0136 club_session_board — spec v2 S2) ----------
+// 이 화면이 무엇을 보여줄 수 있는지는 전적으로 서버가 정한다. 주소도, 금액도, 전화도, 사건도,
+// 아직 수락하지 않은 러너의 이름도 오지 않는다 — 클라이언트가 걸러서가 아니라 **애초에 오지
+// 않아서**다 (계약 §4의 R1~R8을 서명이 강제한다). 그래서 이 매퍼는 필드를 고르지 않고 전부 받는다.
+export interface BoardRowLive {
+  kind: 'delegated' | 'owner_handled' | 'crew';
+  seq: number | null;
+  dogName: string | null;
+  dogPhotoUrl: string | null;
+  ownerName: string | null;
+  isMine: boolean;
+  state: string;
+  /** 실제 커스터디 이벤트 시각. 커스터디 시작 전에는 null — 서버가 모르는 것을 지어내지 않는다. */
+  stateSince: string | null;
+  /** 수락 전에는 제3자에게 null (계약 R3: 보드는 페어를 보여주지 구애를 보여주지 않는다). */
+  runnerName: string | null;
+  runnerPhotoUrl: string | null;
+}
+
+export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive[]> {
+  const { data, error } = await supabase.rpc('club_session_board', { p_session: sessionId });
+  if (error) throw error;   // 실패는 '빈 보드'가 아니다 — 화면이 두 사실을 갈라 말한다
+  return ((data ?? []) as any[]).map((r) => ({
+    kind: r.row_kind,
+    seq: r.seq == null ? null : Number(r.seq),
+    dogName: r.dog_name ?? null,
+    dogPhotoUrl: r.dog_photo_url ?? null,
+    ownerName: r.owner_name ?? null,
+    isMine: !!r.is_mine,
+    state: r.state,
+    stateSince: r.state_since ?? null,
+    runnerName: r.runner_name ?? null,
+    runnerPhotoUrl: r.runner_photo_url ?? null,
+  }));
+}
+
 // ---------- 빌링키 등록 (register-billing-key edge fn — 카드 등록 슬라이스) ----------
 // 두 단계가 한 함수의 두 액션인 이유는 handler.ts 헤더가 가진다: ① prepare가 내 customer key를
 // 돌려주고 (0076 §B — PG에 프로필 id를 넘기지 않기 위한 별도 키; create-payment-intent가 이미
