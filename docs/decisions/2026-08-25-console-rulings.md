@@ -570,3 +570,42 @@ nicety. Anyone drawing that screen must render it as a real state.
 ⚠ **Do not let "required" leak into a retro-active gate.** Requiring the field at signup is not a
 licence to block an existing user from a session until they supply one — that would be a new
 refusal Sean did not rule, applied to people who joined under different terms.
+
+## Round 7's two server findings — verified, and R7-1 is worse than reported
+
+### R7-1 — the pack run-end is not a fan-out. There is NO club run-end primitive.
+
+Reported as: `end_run_tx` takes one booking, no fan-out exists. **True, and incomplete.**
+`end_run_tx` (`0083:352`) **explicitly refuses club bookings**:
+`if b.club_session_id is not null then raise exception 'club_out_of_scope'` (`0083:383`), and its
+own header calls it 「marketplace-only」 (`0083:26`). `club_finish_session` (`0031`) does exactly
+one thing — `update club_sessions set status = 'done'` — and never touches a run or a booking.
+
+**So 러닝 종료 for a pack cannot be built by looping `end_run_tx` N times.** The primitive it
+would loop over does not accept club bookings. The slice owes a club run-end, and only then the
+fan-out — two pieces of work, and the reported framing hides the first.
+
+🔴 **The partial fan-out is the design question, and the flagging session is right that it is the
+honest case rather than an edge.** One runner mid-incident means some runs end and one cannot.
+Atomic-or-nothing means one stuck pair blocks every other runner from proceeding to their
+transfer — unacceptable when the dogs are already back. Best-effort-with-a-remainder means the
+host's tap has a partial outcome the screen must state honestly. **My reading: best-effort with an
+explicit remainder**, because the alternative holds N runners hostage to one incident — but this
+is a design call attached to a screen Sean has seen, so it goes in the contract with both arms
+argued rather than being decided in a message.
+
+### R7-3 — the three-party room is a NEW scope. Confirmed exactly.
+
+`0108:25-27` enumerates the shipped scopes and there are precisely three: `chat-<thread_id>`
+(1:1 booking), `bk-<booking_id>`, `club-chat-<session_id>` (whole session). **Host + runner + ONE
+owner is none of them**: session chat is too wide (every member reads it), the booking thread too
+narrow (no host). So it needs a new scope, a new realtime policy, a new party gate — and a
+LIFETIME, which nobody has specified. Does the room close when the transfer completes, or persist?
+
+### ⚠ And the unruled implication the flagging session correctly refused to draw
+
+An owner who cannot reach the on-site end point is, in substance, **requesting a return-mode change
+after the fact**. Whether that converts the pairing to a home return — dragging the leg-pay
+question behind it — or stays an ad-hoc rescue outside the mode system, **is not ruled**. Not
+drawing a silent mode flip was the right call; a screen that quietly rewrites a pairing's terms
+mid-run is exactly the kind of thing nobody would find until the money disagreed.
