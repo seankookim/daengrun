@@ -282,3 +282,74 @@ Re-run the six, plus: drop `return_mode` conjunct → the Critical pin must red;
 pin must red. **For every pin added or repaired, state its property WITHOUT reference to the
 mutation, then check the pin establishes THAT.** A pin that only names the mutation is the moved
 blind spot.
+
+---
+
+# ⚠ TWO CORRECTIONS TO v2, one of them to a claim I made to Sean
+
+## A. **0128 IS ON TRUNK. I said it was not pushed. That was false.**
+
+Measured: `git ls-tree origin/redesign-v4` lists both `0128_club_return_address_arm.sql` and
+`162_club_return_address_suite.sql`. **Production is still `0127`** — verified — so it is not
+DEPLOYED, and that half of what I said was true. But I told Sean and a peer 「not pushed, not
+deployed」, and the first clause was wrong: my own trunk merges carried it while I was reporting
+otherwise.
+
+**How: I asserted a push state from memory of intent rather than reading origin** — the exact
+substitution this repo made a law about today (「a push succeeding is a claim; `git show
+origin/<branch>:<path>` is the fact」), committed by me in the same session that landed the law,
+while telling other sessions to verify by artifact. **Consequence that matters more than the
+embarrassment: a fix is now a FOLLOW-UP MIGRATION, not an edit in place.** 0128 is history; 0129
+carries the correction. Anyone editing 0128 in place would be rewriting a landed file.
+
+## B. 🔴 F1 — the arm never closes when the runner simply never confirms. v2's design does NOT fix it.
+
+Found by the peer-spawned executing reviewer, missed by codex and by me. Owner stamps 「I have my
+dog」; runner never taps. The phase stays `return_pending` **forever** — no sweep, no owner-side
+revocation, and `session_host_force_resolve` refuses at `completed` (`0069:207`, `0070:208`:
+`if v_bst not in ('picked_up','active') then raise 'not_stuck'`). It is a **LIVE read**: the owner
+moves house, edits the address row, and the runner who never confirmed sees the new address.
+
+**v2 §1's 「closes exactly once, permanently」 is therefore FALSE** — `<> 'resolved'` is unbounded
+whenever `resolved` is never reached, and inaction reaches it never. I wrote that sentence while
+arguing the negative form was safer, and it is safer in the transfer/incident directions and worse
+here.
+
+**CORRECTED ARM — one more conjunct, and it is precise rather than a timeout:**
+
+```
+    and sd.custody_phase <> 'resolved'
+    and sd.owner_confirmed_return_at is null     -- ← F1: the owner said the dog is home
+```
+
+Rationale, argued because a timeout was the tempting alternative: **the owner's own stamp is the
+honest signal that the dog is back.** A clock would have to choose between stranding a genuinely
+delayed runner and leaving a stale grant open; the owner's confirmation is neither guesswork nor
+a deadline — it is the counterparty asserting possession. F1's scenario is exactly 「owner stamped,
+runner did not」, so this closes it at the moment the fact becomes known.
+
+⚠ **What remains deliberately unbounded, stated rather than hidden:** if NEITHER side confirms, the
+runner keeps the destination indefinitely — because in that state the dog genuinely has not been
+returned and the runner may still need to deliver it. **That is the strand-prevention choice, made
+knowingly.** It is not a hole to be closed by a sweep; a sweep would take the address away from
+someone still holding a dog. A pin must assert this case and say so.
+
+## C. Also folded in from the same review
+
+- **F2 `transfer_pending`** — already fixed by v2's `<> 'resolved'`; the reviewer's cheaper
+  `in ('return_pending','transfer_pending')` is REJECTED in favour of the negative form, which also
+  covers the incident phase it did not enumerate.
+- **F3 incident** — inherited (`completed → incident_review` maps the phase to `with_custodian`,
+  which also locks `session_confirm_return`). 0128 rides it rather than causing it. Pin the
+  behaviour and name it as inherited; do not silently "fix" another slice's machine here.
+- **`service_role`'s EXECUTE grant is INHERITED** through `create or replace` and would vanish on
+  the absent-function CREATE path that VERIFY ③ guards — and ③ asserts nothing about it. Inert
+  today (the only caller is `authenticated`), but the grant must be written explicitly, like every
+  other ACL line in this repo, per today's own law.
+- **Two things VERIFY structurally cannot see** (name them in the header): a constant-NULL stub
+  carrying the magic words in comments, and a single `raise` whose message is a `case` expression —
+  one raise site, one literal, and a working oracle.
+- **Every fixture must mint a `dog_custody_events` row** where production would: 162's fixtures
+  exercise only the legacy `responsible_profile_id` branch and never the event branch that
+  `picked_up` produces. Behaviour is identical today; the gap is that no pin has ever run the path
+  production actually takes.
