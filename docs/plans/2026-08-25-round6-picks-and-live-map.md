@@ -162,3 +162,40 @@ He asked whether yesterday's paper/봉인 lab was redesigned away. **It exists**
 The club-v2 set is not its replacement — it is newer work for the delegation spec, drawn after the
 white-ground and type rulings. Both are alive; his preference for the current set is recorded, and
 it is consistent with the rulings that came between them.
+
+
+---
+
+# D3 — the host live map has no feed, and the option I called "cheapest" is not
+
+Recorded because I put a three-option menu in front of Sean with **one cost label wrong**, and he
+may act on it.
+
+**Verified:** runner positions publish per BOOKING on `run2-{bookingId}` (geo.ts:375). `0104:63-65`
+gates that topic on the BOOKING PARTY — read is `p_uid = b.owner_id or p_uid = b.runner_id`, write
+is `p_uid = b.runner_id`. **The host appears nowhere in it and would be refused at subscribe time.**
+
+So my framing to Sean — 「the host subscribes to every runner's channel at once (simplest, but every
+host holds N live connections)」 — was wrong in the part that matters. It is not a client-side
+scaling trade. It is **a change to the security policy whose entire purpose was closing a walkable
+authorization hole** (0104's own first line: 「so 0103's authorization cannot be walked around by an
+old binary」). Caught by the spec session.
+
+**The three options, correctly costed — all are new server surface, none is free:**
+
+| # | Option | What it actually costs |
+|---|---|---|
+| 1 | Widen `0104` to admit the session host | Editing the policy that exists to close a walkable auth hole. Cheapest in lines, most delicate in review. |
+| 2 | A session-level topic | A new policy surface with its own party gate — nothing to weaken, but nothing to reuse either. |
+| 3 | Positions in a column, host polls | **A location at rest**, with a retention question. This is the entire argument 0123 had about the runner's base coordinate. |
+
+**Sean's call, and the split is worth stating in his words:** 1 and 2 change **who may watch a live
+position**; 3 changes **what the product stores about where people are**. The second kind is the
+one his privacy policy has to describe, which puts it on his desk rather than ours.
+
+**Also confirmed:** `session_checkin` (0030:254) is the ONLY statement in the schema that writes
+`session_people.attendance` — every other reference reads it. So the host-verify affordance needs a
+new writer AND a party gate admitting host and backup host without admitting every member.
+`return_arrived_at` is absent (zero hits); the spec session's view, which I share, is that it should
+be a RECORD rather than a screen transition — the two-sided ritual's premise is that the interaction
+is the evidence — and that it therefore belongs in the same slice as `return_mode`, not bolted on.
