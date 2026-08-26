@@ -113,6 +113,55 @@
 --                  shipped function stops admitting it the moment the arm is removed (ⓑ). P3's
 --                  red is its POSITIVE control (r2 on its own pairing), not its refusal arm.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- ⚠ AMENDED 2026-08-26 BY THE 0129 SLICE — TWO ARMS RETIRED, AND WHY.
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- 0129 (`0129_club_return_address_arm_fix.sql`, suite 163) corrects 0128's arm after two blind
+-- reviews. Under it, **P4 ⓔ and P6's third probe both went red — and both were pinning behaviour
+-- on a fixture the product cannot build.** They are retired here rather than left red, per
+-- CLAUDE.md: 「a suite whose pinned behaviour legitimately changes MUST be updated in the same
+-- slice. Update the pin, say WHY in a comment, and name which new pin owns the new property.」
+--
+-- THE FIXTURE: `b_early` is INSERTed with `responsible_profile_id = rr`, which the axes normalizer
+-- turns into 「runner is custodian, phase `with_custodian`」 on a `confirmed` booking. **The real
+-- lifecycle cannot produce that row.** `session_delegate_dog` makes the OWNER responsible
+-- (0048:135); `session_proposal_respond` changes `bookings.runner_id` and touches no custody
+-- column (0047:175); the runner becomes custodian only at `picked_up` (0045:44). This was the
+-- blind review's MAJOR finding against this file — 「the blind spot MOVED」 — and it is why 163
+-- builds every fixture through the real RPC chain instead of by INSERT.
+--
+-- WHY 0129 CHANGES THE ANSWER: 0128 keyed the phase on `= 'return_pending'`, so `b_early`
+-- (`with_custodian`) was refused. 0129 keys it on `<> 'resolved'` — deliberately, because a phase
+-- LIST refused a runner mid-`transfer_pending` who was still holding the dog. On the real path
+-- that widening changes nothing before the handoff (the custodian is the OWNER there, so the arm
+-- is false anyway); on this manufactured row it flips the answer to ADMIT. **The row moved, not
+-- the guarantee.**
+--
+-- WHO OWNS THE PROPERTIES NOW — both on fixtures driven through the real RPCs:
+--   · 「the arm opens at HANDOFF, not at delegation」            → **163 P12**, which measures it in
+--     three beats (inside T−24h the marketplace arm discloses; flipping `return_mode` off proves
+--     that disclosure was not the club arm; outside the window the same runner is refused).
+--   · 「a sealed return discloses nothing on the strength of the SEAL ITSELF」  → **163 P15**, which
+--     is the pin the 0129 battery forced into existence: dropping `custody_phase <> 'resolved'`
+--     reddened NOTHING across the whole harness, because on every reachable sealed row the other
+--     two closing conjuncts are also false.
+--   · 「the refusals are indistinguishable from each other, including on the branch a caller can
+--     actually reach as custodian」                              → **163 P7**, five probes, whose
+--     third is a WRONG-MODE pairing — the state 0129 makes distinguishable-if-you-get-it-wrong,
+--     and the direct successor to this file's `b_early` probe. **MEASURED, not asserted** (full
+--     harness, 2026-08-26, mutation M4b' — a distinct string raised for 「your row exists, you are
+--     its custodian, only the mode is wrong」): 912/0 → **910/2, RED = [163 P1, 163 P7]**, and
+--     P7's detail prints the distinguishable pair 모드틀림=[P0001|wrong_return_mode] against
+--     [P0001|not_runner] on the other four probes. **This file's P6 stayed GREEN under that
+--     mutation** — correctly, because its three remaining probes cannot reach the distinguishing
+--     branch. That green is the evidence the property genuinely MOVED rather than being patched
+--     in place here, and it is why the arm was retired instead of re-aimed at another local row.
+--
+-- `b_early` itself is KEPT as a fixture and P0 still asserts its state, because that assertion is
+-- true and documents the manufactured shape for the next reader. What is removed is every use of
+-- it as a BEHAVIOURAL operand. Nothing else in this file is touched — the battery table above
+-- records what was measured against 0128 and stays as written history.
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
 -- ── the pre-0128 gate, transcribed from 0065:44-67 ──────────────────────────────────────────
@@ -454,24 +503,19 @@ begin
     --   moving. Without this arm a reader cannot tell the self-close from a state change.
     if (select status from bookings where id = b_seal) <> 'completed'
       then v_bad := v_bad || ' ⓓ부킹 상태가 completed가 아니다=' || (select status from bookings where id = b_seal); end if;
-    -- ⓔ THE OTHER HALF OF THE SAME CONJUNCT — the arm must open at RETURN time, not at DELEGATION
-    --   time. A dog delegated to rr but not yet handed over (booking `confirmed` at T+48h, phase
-    --   `with_custodian`) is refused, exactly as the marketplace refuses a booking outside its 24h
-    --   window. 🔴 This arm exists because the battery measured that WITHOUT it, dropping the
-    --   `custody_phase` conjunct (M1) reddened NOTHING: after the seal `session_confirm_return`
-    --   also moves `custodian_profile_id` to the owner, so ⓒ keeps refusing on the custodian
-    --   conjunct alone and the phase conjunct had no pin of its own. Found by running the
-    --   mutation, not by reading the code.
-    if t_cra_state(b_early) <> 'runner_delegated/with_custodian/' || rr::text
-      then v_bad := v_bad || ' ⓔ전제실패:' || t_cra_state(b_early); end if;
-    begin
-      perform 1 from booking_pickup_address(b_early);
-      v_bad := v_bad || ' ⓔ아직 인계도 안 된 위탁견의 주소가 열렸다 (팔이 반환 시점이 아니라 위탁 시점에 열린다)';
-    exception when others then
-      if sqlerrm not like '%not_runner%' then v_bad := v_bad || ' ⓔ' || sqlerrm; end if;
-    end;
+    -- ⓔ RETIRED 2026-08-26 BY THE 0129 SLICE — see the amendment block at the top of this file.
+    --   This arm asserted that `b_early` (delegated, `with_custodian`, custodian rr, booking
+    --   `confirmed`) is refused. **`b_early` is not a state the product can build** — the real
+    --   chain leaves the OWNER as custodian until `picked_up` (0048:135 → 0047:175 → 0045:44) —
+    --   and 0129's `custody_phase <> 'resolved'` (which exists so a runner mid-`transfer_pending`
+    --   is not stranded holding a dog) admits that manufactured row. The row moved; the guarantee
+    --   did not. The two properties this arm was carrying now belong to pins built on real
+    --   fixtures: **163 P12** owns 「the arm opens at HANDOFF, not at delegation」 and **163 P15**
+    --   owns 「a sealed return discloses nothing on the strength of the seal itself」 — P15 being
+    --   the pin the 0129 battery forced into existence when dropping the phase conjunct reddened
+    --   nothing at all. ⓐ-ⓓ below are untouched and still own the self-close.
     if v_bad = ''
-      then call _pass('cra','P4 팔은 반환 시점에만 열리고 스스로 닫힌다 — ⓐ 봉인 전 1행 ⟶ ⓑ 양측 `session_confirm_return` 실호출로 국면이 resolved ⟶ ⓒ 같은 러너·같은 부킹이 not_runner이고 ⓓ 부킹은 여전히 completed이므로 닫힌 것은 상태가 아니라 커스터디 국면이다 (스윕도, 만료 잡도, 지워야 할 플래그도 없다 — `completed`를 상태 목록에 더하는 수정은 ⓐ를 통과하고 ⓒ에서 영원히 실패한다). ⓔ 반대편: 아직 인계 전인 위탁 페어링(confirmed T+48h·with_custodian)은 거절된다 — 🔴 이 팔이 없었을 때 M1(custody_phase 연언 제거)은 아무것도 붉히지 못했다. 봉인이 custodian_profile_id도 보호자로 옮기기 때문에 ⓒ는 custodian 연언만으로 계속 거절했고, 국면 연언에는 자기 핀이 없었다. 코드를 읽어서가 아니라 뮤테이션을 돌려서 찾았다');
+      then call _pass('cra','P4 팔은 반환 시점에만 열리고 스스로 닫힌다 — ⓐ 봉인 전 1행 ⟶ ⓑ 양측 `session_confirm_return` 실호출로 국면이 resolved ⟶ ⓒ 같은 러너·같은 부킹이 not_runner이고 ⓓ 부킹은 여전히 completed이므로 닫힌 것은 상태가 아니라 커스터디 국면이다 (스윕도, 만료 잡도, 지워야 할 플래그도 없다 — `completed`를 상태 목록에 더하는 수정은 ⓐ를 통과하고 ⓒ에서 영원히 실패한다). ⚠ ⓔ는 2026-08-26 0129 슬라이스에서 은퇴했다 — `b_early`는 제품이 만들 수 없는 행(실제 경로는 picked_up까지 보호자가 custodian, 0048:135→0047:175→0045:44)이었고, 0129가 국면 연언을 `<> resolved`로 바꾸면서(이양 중 개를 안은 러너를 좌초시키지 않기 위해) 그 조작된 행은 허용된다. 행이 바뀐 것이지 보장이 바뀐 것이 아니다. 그 두 성질은 실제 RPC로 만든 픽스처 위의 새 핀이 가진다: **163 P12**(팔은 위탁 시점이 아니라 인계 시점에 열린다)와 **163 P15**(봉인된 반환은 봉인 그 자체의 힘으로 아무것도 공개하지 않는다 — 국면 연언을 떨어뜨렸을 때 하네스 전체가 아무것도 붉히지 않아 배터리가 강제로 낳은 핀)');
     else call _fail('cra','P4 팔은 스스로 닫힌다', v_bad); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', rr::text, false);
@@ -556,29 +600,33 @@ begin
   begin
     v_bad := '';
     perform set_config('request.jwt.claim.sub', rr::text, false);
-    if t_cra_state(b_early) <> 'runner_delegated/with_custodian/' || rr::text
-      then v_bad := v_bad || ' 전제실패(국면 프로브가 with_custodian/custodian=rr이 아니다):' || t_cra_state(b_early); end if;
     if t_cra_state(b_seal) not like '%/resolved/%'
       then v_bad := v_bad || ' 전제실패(봉인 프로브가 resolved가 아니다 — P4가 먼저 돌아야 한다):' || t_cra_state(b_seal); end if;
     v_a := t_cra_probe(gen_random_uuid());          -- absent
     v_b := t_cra_probe(b_other);                    -- foreign (r2's pairing, rr is not its runner)
-    -- 🔴 THE WRONG-PHASE PROBE IS `b_early`, NOT `b_seal`, AND THE DIFFERENCE IS THE WHOLE PIN.
-    -- The first draft probed the SEALED pairing and M4b — an implementation that raises a distinct
-    -- string for "your row exists, you are its custodian, the phase is wrong" — LEFT P6 GREEN.
-    -- Sealing moves `custodian_profile_id` to the owner, so after it rr is no longer the custodian
-    -- and never reaches the distinguishing branch at all. The state an oracle-breaking body can
-    -- actually tell apart is the one where the caller IS the custodian and only the PHASE is
-    -- wrong, which is `b_early` (delegated, `with_custodian`, booking `confirmed` at T+48h).
-    -- `b_seal` is kept as a fourth probe rather than dropped: post-seal is its own path.
-    v_c := t_cra_probe(b_early);                    -- exists, rr IS runner AND custodian, phase wrong
-    v_d := t_cra_probe(b_seal);                     -- exists, sealed, custody has moved to the owner
-    if v_a like 'ok:%' or v_b like 'ok:%' or v_c like 'ok:%' or v_d like 'ok:%'
-      then v_bad := v_bad || ' 넷 중 하나가 통과했다'; end if;
-    if not (v_a = v_b and v_b = v_c and v_c = v_d)
-      then v_bad := v_bad || ' 부재=[' || v_a || '] 타인=[' || v_b || '] 잘못된국면=[' || v_c
-                          || '] 봉인후=[' || v_d || ']'; end if;
+    -- 🔴 THE `b_early` PROBE IS RETIRED 2026-08-26 BY THE 0129 SLICE — amendment block at the top.
+    -- It was the M4b fix: 0128's oracle could be broken by a distinct string for 「your row exists,
+    -- you are its custodian, the state is wrong」, and only a caller who REACHES that branch can
+    -- see it (a sealed pairing cannot — sealing moves the custodian to the owner). `b_early` was
+    -- the state chosen for it, and `b_early` is not a state the product can build. Under 0129 it
+    -- is admitted, so as a REFUSAL probe it is simply false.
+    -- **The property has a real owner now: 163 P7**, five probes whose third is a WRONG-MODE
+    -- pairing — the caller IS the custodian, the phase IS right, and only `return_mode` differs,
+    -- which is the branch 0129 makes reachable-and-distinguishable-if-you-get-it-wrong.
+    -- MEASURED (2026-08-26, full harness): the M4b-shaped mutation takes 912/0 → 910/2 with
+    -- RED = [163 P1, 163 P7]; P7 prints 모드틀림=[P0001|wrong_return_mode] beside
+    -- [P0001|not_runner]. **P6 here stayed GREEN under it** — correctly: three probes that cannot
+    -- reach the branch cannot see the break. That is the proof the property moved rather than
+    -- being quietly re-homed in this file.
+    -- Three probes remain here, which is what this file pinned before the M4b fix; the stronger
+    -- property is no longer this file's to carry.
+    v_c := t_cra_probe(b_seal);                     -- exists, sealed, custody has moved to the owner
+    if v_a like 'ok:%' or v_b like 'ok:%' or v_c like 'ok:%'
+      then v_bad := v_bad || ' 셋 중 하나가 통과했다'; end if;
+    if not (v_a = v_b and v_b = v_c)
+      then v_bad := v_bad || ' 부재=[' || v_a || '] 타인=[' || v_b || '] 봉인후=[' || v_c || ']'; end if;
     if v_bad = ''
-      then call _pass('cra','P6 오라클 보존 — 부재 부킹·타인 부킹·「존재하고 내가 러너이자 custodian인데 국면만 틀린」 부킹·봉인 뒤 부킹, 네 경로의 SQLSTATE+메시지 쌍이 서로 바이트 동일하다. 리터럴과 비교하지 않는다: 네 경로가 같은 새 문자열로 함께 회귀해도 구별불가라는 성질은 유지되고, 성질은 철자가 아니라 구별불가성이다(M4가 그것을 측정했다 — 공유 문자열의 개명은 shipped 핀 넷을 붉히지만 P6는 옳게 초록으로 남는다). 🔴 세 번째 프로브가 봉인된 페어링이던 첫 초안에서 M4b는 P6를 초록으로 통과했다: 봉인이 custodian을 보호자로 옮기므로 호출자는 구별 분기에 도달조차 못 한다. 0128 팔은 같은 불리언 안의 or이지 두 번째 raise 지점이 아니다');
+      then call _pass('cra','P6 오라클 보존 — 부재 부킹·타인 부킹·봉인 뒤 부킹, 세 경로의 SQLSTATE+메시지 쌍이 서로 바이트 동일하다. 리터럴과 비교하지 않는다: 네 경로가 같은 새 문자열로 함께 회귀해도 구별불가라는 성질은 유지되고, 성질은 철자가 아니라 구별불가성이다(M4가 그것을 측정했다 — 공유 문자열의 개명은 shipped 핀 넷을 붉히지만 P6는 옳게 초록으로 남는다). ⚠ 2026-08-26 0129 슬라이스: 네 번째 프로브였던 `b_early`(제품이 만들 수 없는 행)는 은퇴했고, 「호출자가 custodian인데 상태만 틀린」 구별 분기를 실제 도달 가능한 픽스처로 검사하는 일은 **163 P7**(다섯 프로브, 세 번째가 return_mode만 다른 페어링)이 가진다 — M4b 형태의 오라클 파괴 뮤테이션이 163 P7을 붉힌다는 것을 측정해 두었다. 팔은 같은 불리언 안의 or이지 두 번째 raise 지점이 아니다');
     else call _fail('cra','P6 오라클 보존', v_bad); end if;
   exception when others then call _fail('cra','P6 오라클 보존', sqlerrm);
   end;

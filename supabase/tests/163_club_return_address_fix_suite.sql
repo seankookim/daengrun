@@ -128,6 +128,16 @@
 --      MEASURED 899/13, RED = the identical set. **That is the most useful number in this table:
 --      a correct custody arm buys nothing once `completed` is in the status list beside it, so
 --      the widening is not 「belt and braces」, it is the leak with a belt drawn on top.**
+--   M4b' THE ORACLE BREAK — a DISTINCT string raised for 「your row exists, you are its custodian,
+--      only the mode is wrong」. This is 162's M4b re-aimed at the branch 0129 makes reachable, and
+--      it was run to settle who owns that property after 162's `b_early` probe was retired.
+--      PREDICTED RED = [P7] · MEASURED 910/2, RED = [P1, P7]. P7 exact, with the detail printing
+--      the distinguishable pair 모드틀림=[P0001|wrong_return_mode] against [P0001|not_runner] on
+--      the other four; P1 rides along because its ⓑ arm asserts the refusal string too.
+--      🔴 **162 P6 stayed GREEN under this mutation, correctly** — its three surviving probes
+--      (absent · foreign · sealed) cannot reach the distinguishing branch at all. That is the
+--      measurement that justifies retiring the arm there rather than re-aiming it: the property
+--      needed a fixture the old file could not build, and this one can.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 

@@ -37,6 +37,16 @@
 --        property the arm must express is 「this caller is holding this dog and it has not been
 --        returned」, not 「the row is in one of the phases I happened to think of」. A list is how
 --        the `transfer_pending` hole was made; the next phase nobody thinks of makes it again.
+--
+--   ⚠ **AND THE ONE-LINER IS DOMINANT, NOT MERELY WRONG — measured, 2026-08-26.** The tempting fix
+--      0128's header rejected in prose is 「add `completed` to the marketplace status list」. The
+--      battery ran it two ways against the full harness: **alone** (0065 + `completed`, no club
+--      arm) it reddens 13 pins; **on top of this file's correct six-conjunct arm** it reddens the
+--      IDENTICAL 13. A status arm admits on `bookings.runner_id` regardless of every custody fact
+--      beside it, so the arm contributes nothing once the widening is present. It is not
+--      belt-and-braces — **it is the leak with a belt drawn on top**, and the belt is decorative.
+--      Anyone reaching for that one-liner in a future slice should read those two runs before
+--      arguing it is harmless when paired with a guard.
 --        `resolved` is written only by the return seal (0045:106) and nothing transitions out of
 --        it, so the negative form is narrower in intent and wider in coverage at once.
 --
@@ -101,6 +111,27 @@
 --      `authenticated` arm earns its place too. ⚠ Measured, and stated so nobody re-derives the
 --      false version: that arm CANNOT be made to fire by deleting the grant; it fires on an
 --      explicit `revoke ... from service_role`.
+--
+--      🔴 **THE DEFAULT ACL ITSELF, WRITTEN DOWN — it is a sharper statement of why the REVOKE is
+--      load-bearing than this repo's usual 「a new function inherits PUBLIC EXECUTE」 shorthand.**
+--      Two separate observations, kept separate on purpose because they were taken on two
+--      different databases and only one of them is mine:
+--        · **Measured here, in the harness** (`select defaclobjtype, defaclacl from pg_default_acl`
+--          on the schema this file's VERIFY actually runs against): object type `f` =
+--          `{service_role=X/postgres}`. That is what `00_shim.sql:73` models, and it is why the
+--          service_role arm cannot be made to fire by deleting a grant.
+--        · **Relayed from the coordinator, measured against PRODUCTION** (not re-run here — this
+--          slice is harness-only and I did not verify it): object type `f` =
+--          `postgres=X anon=X authenticated=X service_role=X`.
+--      If the production reading holds, a plain CREATE there is born executable by **anon and
+--      authenticated as well as PUBLIC** — so the `revoke … from public, anon` on the absent-
+--      function path is doing strictly more work than the shorthand suggests, and an over-broad
+--      `grant` would be strictly worse. My own evidence for the same conclusion, taken here rather
+--      than relayed: deleting that revoke and applying this file to a database WITHOUT the
+--      function really does produce a PUBLIC-executable definer and VERIFY ③ aborts the apply —
+--      while the identical deletion on the harness path (function present, ACL preserved) applies
+--      clean and green. **The mutation is invisible on the only path a suite can see.** That pair
+--      is the whole justification for this block existing.
 --
 -- ── WHAT THIS FILE DELIBERATELY DOES NOT DO ─────────────────────────────────────────────────
 -- No change to `session_confirm_return`, `session_custody_override`,
