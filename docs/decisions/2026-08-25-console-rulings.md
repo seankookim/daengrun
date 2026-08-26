@@ -784,3 +784,72 @@ settled, can reach `released` with **no ledger row**. A state-honesty defect tod
 `b.runner_id = auth.uid()` (`0050:176`) — it is the **runner's** fan-out over their own dogs.
 **No host-initiated run action exists anywhere in the product today**, which is why 러닝 종료 is a
 genuinely new capability rather than a re-gating of an existing one.
+
+## 맹견 Slice B is UNBLOCKED — the gate everyone was waiting on measures EMPTY
+
+Slice B (dropping the three `dogs` columns, their CHECK and the enum) was carried for a day as
+「blocked on a MEASURED bundle-distribution check」. **Nobody had taken the measurement.** It is
+taken, and I verified it independently:
+
+- `eas build:list` → **`[]`. Zero EAS builds have ever been produced.**
+- Of the four channels `eas.json` declares (`development`/`preview`/`testflight`/`production`),
+  **only `testflight` exists**, and it has zero OTA updates.
+
+**So the non-atomic-OTA hazard the contract was built around has no population to apply to.** The
+whole reason Slice A kept the columns — an installed older binary still reading them — describes
+nobody.
+
+⚠ **It did NOT need Sean, which is the part worth noticing.** The EAS CLI on this machine is
+already authenticated as him; the measurement was one command away for a day while the item sat as
+「blocked」. **A blocker nobody has tried to measure is not a blocker, it is an assumption.**
+
+**What remains is one yes/no from him**, covering the two surfaces EAS cannot see:
+> **Has any build of the app reached a device other than your own dev phone?**
+(locally-built `expo run:ios` binaries leave no EAS trace, and App Store Connect is his by
+credential). If no → Slice B can drop the columns with no compatibility window at all.
+
+### Two corrections to Slice B's unwind plan, both measured
+1. **The suite list is STALE, and the missing one was created by Slice A itself.** Suite **161**
+   pins the columns' SURVIVAL (`161:846-880`, failing with 「Slice B가 앞당겨졌다」) — it must be
+   rewritten in the same slice that drops them. `154` is already harness-unregistered and needs no
+   edit.
+2. 🔴 **The failure MECHANISM is wrong in the disruptive direction.** The contract calls
+   113/139/146/149 「caught pin failures」. They are not: all four inserts sit in the **outer** DO
+   block, textually before the first inner `begin…exception`. With `harness.sh:115-123` running
+   `ON_ERROR_STOP=1` + `exit 1`, **the run DIES at the first affected suite** —
+   `10_settle_suite.sql:24`, a `language sql` parse-time death — and you never see the other five.
+   **So the unwind must be authored COMPLETE up front, not iteratively red-by-red**, which is
+   exactly what the contract's framing invites.
+3. `seed.sql` is **not** a harness file: it breaks `db reset`, not the harness score — the edit
+   most likely to be forgotten because nothing goes red.
+
+## Definer-ACL health — green, and verified by an INDEPENDENT scanner rather than by re-reading
+
+Baseline exactly **81**, no stale lines, gate green. Rather than re-read the gate's own output the
+audit wrote a **separately-parsed** scanner (block comments, bare `create function`,
+schema-qualified names, no 400-char window) and got **exact set equality: 81/81, zero extras, zero
+misses** — two implementations agreeing, which is worth more than one passing. A looser variant
+fired as a **negative control** (accepting a `grant` as 「ACL set」 loses 28), and an isolated PG16
+measurement confirmed why: **a `grant` never displaces PUBLIC** — `proacl` keeps `=X/postgres`.
+
+- `0121:240` **still true, still latent, untouched since 0121**. Sharpened: `0072` *and* `0116`
+  both set that function's ACL correctly, so 0121 is **a regression against a local pattern**,
+  not a function that never had one.
+- The stricter adjacent class (definers never revoked in ANY migration) is **74, and all 74
+  predate 0058** — covered by `0057:68-85`'s dynamic bulk revoke, which the gate cannot see and
+  which is why `98 H9` can be green. **Zero since 0058: the discipline has held across 71
+  migrations.**
+- Three latent gate blind spots found (schema-qualified headers, plain `create function`, the
+  400-char window), **all measured empty today**; the gate's own 「WHAT THIS GATE CANNOT SEE」
+  section does not list them. Engineering's call, not Sean's.
+
+⚠ **The audit corrected itself in the open, and I am keeping that visible:** its own parser
+confidently flagged `_distance_band` as a live PUBLIC-executable definer — which would have been
+the most severe finding in the report. Reading the source refuted it (`0123:576-577`: `language sql
+immutable`, not a definer at all). It left the correction in the report rather than quietly
+shipping a corrected number.
+
+**Declared unestablished rather than asserted:** production column state and 0127's deployment (its
+`db query --linked` hung on a credential, so it cites MY earlier verification as mine rather than
+adopting it); whether `98 H9` is currently green — **it deliberately did not run the harness
+because other sessions are live in this repo**, and substituted the independent source sweep.
