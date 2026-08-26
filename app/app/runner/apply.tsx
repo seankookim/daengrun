@@ -6,7 +6,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
   fetchMyRunnerApplication, fetchMyRunnerCert, fetchMyRunnerStatus,
-  MyRunnerCert, RunnerApplication, submitRunnerApplication, withdrawRunnerApplication,
+  MyRunnerCert, RunnerApplication, runnerTierLabel, submitRunnerApplication, withdrawRunnerApplication,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -55,9 +55,6 @@ import { layout, paper } from '../../src/theme';
 // stays inside the ScrollView with a paddingTop reservation, which is what rewards/earnings/
 // availability do; adding a dock here would move the submit button out of the form it belongs to.
 
-const TIER_LABEL: Record<string, string> = {
-  applicant: '지원자', certified: '인증 러너', veteran: '베테랑', master: '마스터',
-};
 
 // The process, as performed during the pilot. Three steps, because there are three steps —
 // docs/runner-recruitment.md's fuller funnel (info session, pace test, insurance, bib) is Sean's
@@ -339,7 +336,7 @@ export default function Apply() {
               </Row>
 
               <Text style={s.recK}>현재 등급</Text>
-              <Text style={s.recTier}>{TIER_LABEL[cert.tier] ?? cert.tier}</Text>
+              <Text style={s.recTier}>{runnerTierLabel(cert.tier)}</Text>
               <Text style={s.recNote}>
                 {cert.tier === 'applicant'
                   ? '지원자 등급은 아직 요청을 받을 수 없어요 — 인증이 끝나야 매칭에 올라가요'
@@ -426,7 +423,7 @@ export default function Apply() {
             <StateStrap tone={paper.readyDeep} label="승인" />
             <Text style={s.stateT}>이미 인증된 러너예요</Text>
             <Text style={s.stateD}>
-              지금 등급은 {TIER_LABEL[cert.tier] ?? cert.tier}예요 — 지원서를 다시 낼 필요는 없어요.{'\n'}
+              지금 등급은 {runnerTierLabel(cert.tier)}예요 — 지원서를 다시 낼 필요는 없어요.{'\n'}
               등급이나 기록이 잘못돼 보이면 설정의 문의하기로 알려주세요.
             </Text>
           </View>
@@ -485,7 +482,7 @@ export default function Apply() {
             <Text style={s.stateT}>인증이 끝났어요</Text>
             <Text style={s.stateD}>운영자 확인을 마쳤어요 — 이제 요청을 받을 수 있어요</Text>
             {cert !== null && (
-              <Text style={s.stateMeta}>지금 등급은 {TIER_LABEL[cert.tier] ?? cert.tier}예요 — 위 러너 레코드와 같은 값이에요</Text>
+              <Text style={s.stateMeta}>지금 등급은 {runnerTierLabel(cert.tier)}예요 — 위 러너 레코드와 같은 값이에요</Text>
             )}
             {online !== null && (
               <View style={s.onlineLine}>

@@ -1090,6 +1090,11 @@ async function invokeTransition(bookingId: string, action: string, meta?: Record
 }
 
 // ---------- directed matching ----------
+import { runnerTierLabel } from './tier';
+// 재수출: 기존 호출부(runner/apply 등)가 api.ts에서 가져오던 경로를 그대로 유지한다.
+// ⚠ `export { x } from './y'`만 쓰면 이 파일 안에서는 x가 바인딩되지 않는다 — tsc가 잡았다.
+export { runnerTierLabel };
+
 export interface LiveRunner {
   profileId: string;
   name: string;
@@ -1128,7 +1133,7 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       profileId: r.profile_id,
       name: r.profiles?.name ?? '러너',
       district: r.profiles?.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -1158,7 +1163,7 @@ export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveR
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -1180,7 +1185,7 @@ export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
       profileId: r.profile_id,
       name: r.name ?? '러너',
       district: r.district ?? '',
-      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      tier: runnerTierLabel(r.tier),
       totalRuns: r.total_runs ?? 0,
       paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
       paceSec: pace,
@@ -2404,7 +2409,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     name: rr.profiles?.name ?? '러너',
     district: rr.profiles?.district ?? '',
     avatarUrl: rr.profiles?.avatar_url ?? null,
-    tier: rr.tier === 'certified' ? '인증 러너' : rr.tier === 'veteran' ? '베테랑' : rr.tier === 'master' ? '마스터' : '지원자',
+    tier: runnerTierLabel(rr.tier),
     bio: rr.bio ?? null,
     specialties: rr.specialties ?? [],
     totalRuns: rr.total_runs ?? 0,
