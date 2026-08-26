@@ -356,9 +356,19 @@ export function StoryShareCard({
           )}
 
           {/* Display line — the card's ONE Black Han Sans line (≤1 per surface).
-              #FFFFFF end to end: see the coralSoft note in this file's header. */}
+              #FFFFFF end to end: see the coralSoft note in this file's header.
+              ⚠ 「오늘」 WAS HARDCODED HERE and it was a lie on most cards — the studio opens on
+                any completed run, so a two-week-old run published a card reading 「초코, 오늘
+                0km」 directly above its own footer date 「8월 11일 (화)」. Caught on the simulator
+                (2026-08-26), not in review: the contradiction is only obvious when you see both
+                lines at once. This component is PURE by construction — props only, no clock, no
+                fetch (the view-shot capture requires it) — so it cannot ask what day it is, and
+                a component that cannot know must not assert. The date is already on the card,
+                so the temporal claim is dropped rather than plumbed: one fewer prop and no state
+                in which it can be wrong. This card LEAVES THE APP, which is what makes a small
+                inaccuracy a published one. */}
           <Text {...FIXED_TYPE} style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.2 }, df]}>
-            {data.dogName}, 오늘 {data.km}km
+            {data.dogName}, {data.km}km
           </Text>
 
           <View style={{ flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.34)' }}>
