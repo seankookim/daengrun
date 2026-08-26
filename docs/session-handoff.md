@@ -1,29 +1,18 @@
 # Session handoff — spec-v2 session, 2026-08-25 evening (v8)
 
-> ⚠ **§1's table below was rewritten at 17:0x KST from live measurements.** Everything in v6's
-> table about production being at 0119, the clock being OFF, and spec v2's §14 gating all six
-> slices is now FALSE — the day moved past it. The v6 header already warned that a handoff's
-> status table goes stale faster than its body and that one reviewer had grounded on a stale
-> one; that warning applied to itself within hours. **Re-measure before you build on any row
-> here, including the rows I just wrote.**
-
-**Read with this:** `/announcer` (method) ·
-`docs/plans/2026-08-25-club-delegation-spec-v2.md` (**the club spec of record** — coupled
-machine, per-side/per-state screens, host respec, Mode C algorithm, six gated slices, review
-log §15; Sean's twelve 🔴 in its §14) ·
-`docs/contracts/r17-sweep-per-row-commit-contract.md` (R17 remainder: shelf design + DEFER
-verdict + the flip-activation re-scope + Sean's User Challenge) ·
-`docs/decisions/awaiting-sean.md` §0-undetricies (his seven answers, VERBATIM, with
-dispositions) · the console artifact
-<https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> (Sean's single place
-to look — CURRENT as of this handoff). Prior handoff archived at
-`docs/session-handoff-archive-20260825-v5-morning.md` — ⚠ it asserts production 0116, 0117
-unlanded, §4.2 unruled, spec v2 unstarted: ALL FALSE since this morning's landings. One R17
-reviewer grounded on it and had to be corrected mid-review; verify any handoff's status table
-against the live system before building on it.
-
-Tags: **[verified-now]** checked this session against code/live/gate · **[reported]** a peer
-said so, unconfirmed by me · **[from-history]** earlier in conversation.
+> ⚠ **§1 was rewritten at 2026-08-26 ~11:00 KST from live measurement.** A full day and night
+> of work sits between v7 and this. **Re-measure before building on any row, including the ones
+> I just wrote** — v6 warned exactly this about itself and was stale within hours.
+>
+> **VERIFIED NOW:** production head **0127**, 125 migrations applied · trunk tip `b75362d` ·
+> the 맹견 gate is GONE and verified live · the late-booking clock is LIVE · charging OFF.
+>
+> **🔴 ON A BRANCH, NOT TRUNK, NOT DEPLOYED — and deliberately so:** `0129` + suite `163`
+> (`claude/club-delegation-spec-v2-a41fbc` @ `9893184`, harness **912/0**). It is the SECOND
+> attempt at the club return-address arm; the first (`0128`) IS on trunk, undeployed, and was
+> found unsafe by two blind reviews. **`0129` awaits its second reviewer and must not land on one
+> head.** The pre-push hook refuses branch pushes carrying it, which is correct — that same
+> mechanism is how `0128` reached trunk prematurely.
 
 ---
 
@@ -42,35 +31,42 @@ said so, unconfirmed by me · **[from-history]** earlier in conversation.
 | 0120 location law | Parked at `b06f878`, unchanged. | [from-history] |
 | Console | <https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b> — holds all 24 answered rulings. ⚠ **Re-fetch its STATE before republishing**; seeding from a remembered copy would wipe his answers, which nearly happened twice today. | [verified-now] |
 
-## 1-bis. SEAN'S QUEUE IS EMPTY — every console question answered (09:03-09:05Z)
+## 1-bis. WHAT IS OPEN, AND WHOSE IT IS (2026-08-26)
 
-Full verbatim + dispositions in `docs/decisions/2026-08-25-console-rulings.md` rounds 8-9.
-Read them there; the summary below is a pointer, not a source.
+**SEAN — one yes/no that unblocks a whole slice:**
+> **Has any build of the app reached a device other than your own dev phone?**
+Measured: `eas build:list` = `[]` (zero builds ever), only `testflight` of four channels exists,
+zero OTA updates. **If no → 맹견 Slice B drops the three `dogs` columns with no compatibility
+window at all.** The slice is being authored complete now and will sit committed-unpushed until
+he answers. EAS cannot see locally-built binaries or App Store Connect.
 
-| Question | His answer | Consequence |
-|---|---|---|
-| Runner drops out | **"keep host reassignment… if no one can, the host can take care"** | §6.6 STANDS — its provisional retirement REVERTS. Third position in one day (approve → doubt → keep). |
-| Host removal power | **"Host can remove someone from one walk"** | Session-scoped removal only. No club ban, no blocklist. |
-| Last slot, unpaid | **"Hold the spot for 20 minutes"** + "make the payment for after the run finished no?" | Hold stands. ⚠ His question was RIGHT and MY CARD WAS WRONG — see below. |
-| Custom-address radius | (moot) | He cut the custom-address option entirely: pickup ∈ {home, on site}, return ∈ {home, on site}. |
-| Skipped-leg pay | **"Same pay either way"** | No per-leg differential, no new money object, no migration. |
+**SEAN — 12 questions across three contracts now on trunk** (each phrased for a one-sentence
+answer; full text in the contracts):
+- `club-host-session-authority-contract.md` — can a host remove a DOG or only a PERSON · mark
+  ABSENT or only PRESENT · **is a removed person told, and in what words** (harassment surface) ·
+  do both powers extend to the backup host.
+- `club-pack-run-end-contract.md` — does the server finish each runner's record from their trace
+  or **wait for their phone** (recommended: wait — deriving server-side means one tap writes N
+  ledger rows and charges N cards) · may the backup host press 러닝 종료 · does a club run's
+  duration measure to the host's tap or the runner's settle · where a blocked pair appears.
+- `phone-collection-contract.md` — verified or self-declared number · **host sees EVERY member's
+  number, confirm or narrow** · retention · editable-but-not-clearable.
 
-⚠ **MY ERROR, recorded because the class matters:** the slot card told him 「signing up and paying
-are two steps with a 20-minute window between them」. **False.** `0080:11-14`: booking is free →
-the run happens → `settle_run_tx` commits → *then* the card is charged. `0081:41` requires a
-REGISTERED CARD at confirm, never a charge. The 20-min hold reserves CAPACITY. **His confusion was
-the only thing that caught it.** A decision card is a claim about the system and needs the same
-verification as a status line; I wrote that one from memory.
+**COUNSEL — two items for the email he already routed the privacy text to:**
+1. **The published policy contradicts the shipped code in three places** — it calls the phone
+   「선택」 (he ruled REQUIRED), scopes disclosure to open incidents only (the club rule opens on
+   any live session or unresolved custody), and says a number is **never** given to a non-party
+   (the rule's widest arm is host ↔ every member, and the host is not a party).
+2. **A live third-party disclosure that predates all of it:** `delegation_consents.emergency_contact`
+   is required at delegation, shown to the runner, kept forever unredacted as consent evidence,
+   and has **no retention row in the policy**. Measured: 4 rows in production, all 4 carrying one.
 
-🔴 **STILL UNPRICED — do not read the rulings as covering these:**
-1. **Host-as-runner** 「if no one can, the host can take care」 has NO mechanism today, and
-   "same pay either way" does NOT cover it (that ruling is about skipped legs, not about who
-   walks). Is the host paid runner-pay on top of the host fee? Party gate with one person as
-   both?
-2. **His ruling and `session_assignment_revoke` (0047) DISAGREE**: it returns the booking to
-   `matching` rather than to a runner the host picks, and refuses entirely after handoff
-   (`already_handed_off`). His "if no one can" implies he is watching candidates. **The model
-   owes the ruling, not the reverse** — do not reinterpret his words to fit the shipped function.
+**ENGINEERING — claimed follow-up, not yet sliced:**
+🔴 **The harness UNDER-MODELS production's default function ACL.** `00_shim.sql:73` grants default
+EXECUTE to `service_role` only; production's `pg_default_acl` is
+`postgres=X anon=X authenticated=X service_role=X`. **Every ACL green in this repo proves
+「correct under a kinder shim」, not 「correct in production」.** Aligning it changes what every
+definer suite measures → its own slice, its own review.
 
 ## 1-ter. Laws added today — all on trunk, all measured
 
