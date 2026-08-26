@@ -39,7 +39,7 @@ begin
   insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id, custody, approval)
     values (v_ses, v_dog, v_owner, v_runner, 'runner_delegated', 'approved');
   insert into participant_activities (session_id, person_id, source, km)
-    values (v_ses, v_sp_id, 'manual', 3.2);
+    values (v_ses, v_sp_id, 'self_reported', 3.2);
 
   -- ---------- [S1] the stranger: a logged-in account with no relationship reads NOTHING ----------
   -- This is the whole point of 0131. Before it, every count below was > 0.
@@ -100,6 +100,13 @@ begin
   -- ---------- [S4] anon reads nothing ----------
   -- anon holds table-level SELECT grants on all four (Supabase default); RLS is the only thing
   -- standing between it and these rows, which is exactly why this arm is written down.
+  -- ⚠ THIS ARM CHANGED 0131. At PUBLIC scope it did not return 0 — it RAISED
+  -- `permission denied for function _club_session_member` (42501), because the planner calls the
+  -- helper before the `auth.uid() is not null` conjunct and an OR chain gives no short-circuit
+  -- promise. The migration now scopes all four policies `to authenticated`, so anon matches no
+  -- permissive policy and RLS returns empty without calling anything. A `count(*)` assertion is
+  -- the right shape precisely because it distinguishes 0-rows from raises: the raise aborts the
+  -- suite loudly under ON_ERROR_STOP rather than reading as a pass.
   v_bad := '';
   perform set_config('request.jwt.claim.sub', '', true);
   set local role anon;

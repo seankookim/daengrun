@@ -111,8 +111,22 @@ comment on function public._club_session_member(uuid, uuid) is
 -- C. The four arms. Each replaces the single open policy.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- 🔴 `to authenticated` IS LOAD-BEARING AND WAS FOUND BY EXECUTION, NOT BY READING.
+-- The first draft left these policies at PUBLIC (the shape the old ones had). Running suite 164's
+-- anon arm produced `ERROR: permission denied for function _club_session_member` instead of an
+-- empty result: the planner evaluates the helper call BEFORE the `auth.uid() is not null` guard —
+-- AND does not short-circuit left-to-right, and a `stable` function in an OR chain gets no such
+-- promise. So an anonymous client read raised 42501 rather than returning 0 rows.
+-- The tempting fix, `grant execute … to anon`, is the WRONG one: the helper answers membership
+-- for an ARBITRARY (uid, session) pair, so granting anon turns it into an UNAUTHENTICATED
+-- membership probe — strictly worse than the leak this migration exists to close.
+-- Scoping the policies `to authenticated` means no permissive policy applies to anon at all, so
+-- RLS denies by default and returns an empty set with no function call on any path.
+-- ⚠ The `auth.uid() is not null` conjunct is KEPT as a belt (an authenticated role carrying no
+-- JWT sub), not because it gates anon — it demonstrably did not.
+
 drop policy if exists "dogs authed read" on public.session_dogs;
-create policy "dogs scoped read" on public.session_dogs for select using (
+create policy "dogs scoped read" on public.session_dogs for select to authenticated using (
   auth.uid() is not null and (
        owner_profile_id        = auth.uid()
     or custodian_profile_id    = auth.uid()
@@ -123,7 +137,7 @@ create policy "dogs scoped read" on public.session_dogs for select using (
 );
 
 drop policy if exists "people authed read" on public.session_people;
-create policy "people scoped read" on public.session_people for select using (
+create policy "people scoped read" on public.session_people for select to authenticated using (
   auth.uid() is not null and (
        profile_id = auth.uid()
     or public._club_session_member(session_id, auth.uid())
@@ -131,7 +145,7 @@ create policy "people scoped read" on public.session_people for select using (
 );
 
 drop policy if exists "assignments authed read" on public.session_runner_assignments;
-create policy "assignments scoped read" on public.session_runner_assignments for select using (
+create policy "assignments scoped read" on public.session_runner_assignments for select to authenticated using (
   auth.uid() is not null and (
        runner_profile_id = auth.uid()
     or public._club_session_member(session_id, auth.uid())
@@ -148,7 +162,7 @@ create policy "assignments scoped read" on public.session_runner_assignments for
 -- session_people row is EXACTLY what makes _club_session_member true. So the member arm already
 -- covers own-row completely, and adding a second arm could only be redundant or wrong.
 drop policy if exists "activities authed read" on public.participant_activities;
-create policy "activities scoped read" on public.participant_activities for select using (
+create policy "activities scoped read" on public.participant_activities for select to authenticated using (
   auth.uid() is not null and public._club_session_member(session_id, auth.uid())
 );
 
