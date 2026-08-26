@@ -289,6 +289,25 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   was that a PEER had already accepted the inference and was building on it, which is the
   amplification the endorsement law above describes. Ask the human what a row MEANS before making
   it a premise: a fixture, a churned account and a live user are indistinguishable in a count.
+- 🔴 **A HEDGE DOES NOT MAKE A LOAD-BEARING PREMISE SAFE — IT MAKES THE ERROR HARDER TO
+  CHALLENGE** (2026-08-26; the mechanism was a substring grep, but this is what let it survive
+  contact with a decision, and it generalises past that instance). I could not prove a money
+  cron ignored a row shape, said so explicitly — 「very likely」, 「I will not upgrade this to
+  safe」 — and then **recommended against a production write on that basis**. The hedge was
+  honest and it was worthless: **a claim labelled 「probably」 that a decision then rests on is
+  doing the full work of a certainty while wearing the costume of a doubt.** It also armours
+  itself, because it already looks appropriately uncertain, so the next reader has no reason to
+  attack it. A peer overturned it in **one query** — at the exact spot I had marked as my own
+  soft point.
+  **Two rules fall out, and the second is the useful one:**
+  **(a)** The moment an unproven claim becomes the reason for advice, it stops being a hedge and
+  becomes a premise — verify it *then*, not when someone challenges it. If it is too expensive to
+  verify, the advice must be 「I don't know」, not 「probably, so don't」.
+  **(b)** ⚠ **A peer naming their own uncertainty is the cheapest available pointer at what to
+  check first.** Read a self-flagged soft spot as a COORDINATE, not as a reason to be careful —
+  it is the one place in a report where someone has already done the work of locating the
+  weakness for you. (Their words, from the session that overturned mine.)
+
 - 🔴 **A GREEN LIGHT IS EVIDENCE FOR EXACTLY ONE SENTENCE — write that sentence down, then check
   it is the one you needed** (2026-08-25; this shape appeared FIVE times in one afternoon across
   two lanes, and the people finding it were the same people committing it). Instances, all
