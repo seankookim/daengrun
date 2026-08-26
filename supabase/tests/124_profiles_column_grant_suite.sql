@@ -126,7 +126,7 @@ declare
   v_rows int; v_rows2 int; v_rows3 int; v_rows4 int;
   v_owner_ph text; v_runner_ph text;
   v_tck constant uuid := '0088cafe-0000-4000-8000-000000000088';
-  v_phone constant text := '010-8800-0088';
+  v_phone constant text := '01088000088';   -- [0133] profiles_phone_shape CHECK: 정규화된 숫자만
   -- The whitelist, stated once. Every arm below derives from THIS array, so widening the grant
   -- without widening the deliberate list cannot pass.
   -- [0091, 2026-08-13] `role` added — a pin whose asserted property legitimately changed, updated
@@ -159,7 +159,7 @@ begin
      set phone = v_phone, toss_customer_key = v_tck,
          handle = 'pcg_runner', avatar_url = 'https://cdn.test/pcg.jpg', district = '컬럼동'
    where id = rr;
-  update profiles set phone = '010-8800-0089' where id = oo;   -- G1 arm 5: even MY OWN phone
+  update profiles set phone = '01088000089' where id = oo;   -- G1 arm 5: even MY OWN phone
 
   -- ---------- [G1] authenticated: the row is visible, the two secret columns are not ----------
   -- Five arms. Arms 1-2 are the attack; arm 3 is the discrimination test (rows still visible, so a
@@ -469,7 +469,7 @@ begin
           || ' · owner=' || coalesce(v_owner_ph, '<null>')
           || ' · runner=' || coalesce(v_runner_ph, '<null>');
     if v_rows = 0 and v_rows2 = 2 and v_rows3 = 2 and v_rows4 = 0 and v_n = 0
-       and v_owner_ph = '010-8800-0089' and v_runner_ph = v_phone
+       and v_owner_ph = '01088000089' and v_runner_ph = v_phone
       then call _pass('pcg','G7 incident_contact — 열린 인시던트 동안에만, 당사자 양쪽에게만 두 행. '
                             '인시던트 전·해소 후·무관자는 모두 0행이고 에러가 아니다 '
                             '(당사자 아님과 인시던트 없음이 구분되면 그 자체가 오라클이다)');

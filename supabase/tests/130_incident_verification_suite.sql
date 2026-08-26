@@ -97,8 +97,8 @@ begin
   rr := t_user('ivf_rr', 'runner'); rz := t_user('ivf_rz', 'runner');
   dg := t_dog(oo, '사고견'); rt := t_route('사고 코스');
   -- real numbers so V3 can prove the door hands over something, not just a row shape
-  update profiles set phone = '010-1111-2222' where id = oo;
-  update profiles set phone = '010-3333-4444' where id = rr;
+  update profiles set phone = '01011112222' where id = oo;   -- [0133] CHECK: 숫자만
+  update profiles set phone = '01033334444' where id = rr;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [V1] opening is one-sided BUT party-scoped — 0002:154's hole, closed
@@ -263,7 +263,7 @@ begin
     if (select i.verified_at from incidents i where i.id = inc2) is not null
       then v_bad := v_bad || ' 픽스처가 이미 확립됐다 (ⓑ가 무의미해진다)'; end if;
     select string_agg(c.phone, ',' order by c.role) into v_txt from incident_contact(b2) c;
-    if v_txt is distinct from '010-1111-2222,010-3333-4444'
+    if v_txt is distinct from '01011112222,01033334444'
       then v_bad := v_bad || ' 실제 번호가 아니라 형상만 돌아왔다=' || coalesce(v_txt,'∅'); end if;
 
     -- ⓒ a stranger still gets silence — the party gate is untouched by any of this

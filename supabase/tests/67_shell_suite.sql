@@ -15,7 +15,10 @@ begin
   oo := t_user('sh_oo', 'owner'); dgo := t_dog(oo, '셸견O');
   qq := t_user('sh_qq', 'owner'); dgq := t_dog(qq, '셸견Q');
   zz := t_user('sh_zz', 'owner');
-  update profiles set phone = '010-1111-' || substr(md5(id::text), 1, 4) where id in (hh, rr, oo, qq);
+  -- [0133] md5 는 16진수라 letters 를 낳는다 — profiles_phone_shape CHECK 가 거부한다.
+  -- md5 에서 숫자만 뽑고 모자라면 '0000' 으로 채워 4자리를 보장한다. 사용자별 구별성은 유지된다.
+  update profiles set phone = '0101111' || substr(regexp_replace(md5(id::text), '[^0-9]', '', 'g') || '0000', 1, 4)
+   where id in (hh, rr, oo, qq);
   rt := t_route('셸 코스'); select km into v_km from routes where id = rt;
   perform set_config('request.jwt.claim.sub', hh::text, false);
   v_club := club_request_district('셸동');

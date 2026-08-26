@@ -78,7 +78,10 @@ declare
   v_txt text; v_txt2 text; v_txt3 text; v_msg text; v_err text;
   v_uuid uuid; v_n int; v_ts timestamptz;
   v_tck constant uuid := '0091cafe-0000-4000-8000-000000000091';
-  v_phone constant text := '010-8900-0091';
+  -- [0133] 하이픈 제거 — profiles_phone_shape CHECK 는 정규화된 숫자만 받는다
+  -- (^01[0-9]{8,9}$). 이 픽스처는 **권한**에 대한 핀이지 형식에 대한 핀이 아니므로 값이 바뀌어도
+  -- 이 파일이 주장하는 명제는 그대로다. 계약서 §2 가 이 비용을 미리 적어 두었다.
+  v_phone constant text := '01089000091';
   -- The write whitelists, stated once. Every arm below derives from THESE, so widening a grant
   -- without widening the deliberate list cannot pass. (0091 §H is the only place they are set.)
   v_upd constant text[] := array['avatar_url','district','id','name','role'];
@@ -145,7 +148,10 @@ begin
     begin
       set local role authenticated;
       perform set_config('request.jwt.claim.sub', w::text, true);
-      begin execute 'update profiles set phone = ''010-0000-0000'' where id = $1' using w;
+      -- [0133] 같은 이유로 하이픈 제거. 이 UPDATE 는 insufficient_privilege 로 **거부되는 것**이
+      -- 핀이므로 값 자체는 도달하지 않지만, 권한이 아니라 CHECK 때문에 실패하기 시작하면 핀이
+      -- 다른 이유로 초록이 된다 — 그건 같은 초록이 아니다.
+      begin execute 'update profiles set phone = ''01000000000'' where id = $1' using w;
       exception when insufficient_privilege then v_e1 := true; end;
       execute 'update profiles set district = ''반포동'' where id = $1' using w;   -- fires the trigger
       reset role;
@@ -357,7 +363,7 @@ begin
     begin
       set local role service_role;
       execute 'update profiles set toss_customer_key = $1, phone = $2, handle = $3 where id = $4'
-        using '0091beef-0000-4000-8000-000000000091'::uuid, '010-9999-9999', 'pwg_svc', w;
+        using '0091beef-0000-4000-8000-000000000091'::uuid, '01099999999', 'pwg_svc', w;
       execute 'select toss_customer_key::text || ''|'' || phone || ''|'' || handle
                  from profiles where id = $1' into v_txt using w;
       execute 'delete from profiles where id = $1' using killme;                            -- ④
@@ -366,7 +372,7 @@ begin
     end;
     select count(*) into v_n from profiles where id = killme;
     v_msg := 'service_role 쓰기=' || coalesce(v_txt, '<null>') || ' · 삭제 후 남은 행=' || v_n;
-    if v_txt = '0091beef-0000-4000-8000-000000000091|010-9999-9999|pwg_svc' and v_n = 0
+    if v_txt = '0091beef-0000-4000-8000-000000000091|01099999999|pwg_svc' and v_n = 0
       then call _pass('pwg','W8 service_role은 전 컬럼 쓰기 + DELETE 유지 — 엣지 함수가 '
                             'toss_customer_key를 심고 PASS 번호를 확정하는 경로 (이게 빨개지면 결제가 멈춘다)');
     else call _fail('pwg','W8 service_role 쓰기 보존', v_msg); end if;
