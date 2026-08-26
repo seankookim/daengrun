@@ -3603,6 +3603,12 @@ export const createClubSession = (
   clubRpc('club_create_session', { p_club: clubId, p_scheduled_at: scheduledAtIso, p_meetup_point: meetupPoint, p_route: routeId, p_capacity: capacity, p_format: format }) as Promise<string>;
 export const rsvpClubSession = (sessionId: string, dogId: string | null) =>
   clubRpc('session_rsvp', { p_session: sessionId, p_dog: dogId, p_waiver: CLUB_WAIVER_VERSION }) as Promise<void>;
+// [0134 §C] 이미 참여 중인 사람이 나중에 자기 아이를 데려가는 문. session_rsvp로는 갈 수 없다 —
+// session_people 행이 이미 있어서 언제나 already_joined로 막힌다(0134 §C의 F5 구조적 벽). 호스트만의
+// 문제가 아니라, 개 없이 RSVP한 모든 사람에게 같은 벽이다. owner_handled 행 하나만 만든다: 부킹 없음,
+// 결제 없음, 알림 없음, 호스트 승인 없음.
+export const addMyDogToSession = (sessionId: string, dogId: string) =>
+  clubRpc('session_add_my_dog', { p_session: sessionId, p_dog: dogId }) as Promise<void>;
 export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsvp', { p_session: sessionId }) as Promise<void>;
 export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
