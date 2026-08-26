@@ -70,11 +70,11 @@ const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6'
 // 순서대로 그룹을 쌓았기 때문이다. 홈은 자기 랭킹에서 같은 결함을 이미 고쳤다
 // (home.tsx 「[FIX] 동순위 타이브레이크」) — 일정 목록만 그 수리를 못 받았다.
 //
-// ⚠ 이 정렬은 **도착한 20행 안에서만** 참이다. fetchMyBookings 는 DESC + limit(20) 이라, 미래 예약이
-// 20건을 넘는 보호자에게는 가장 가까운 건이 애초에 오지 않는다 — 클라이언트 정렬로 되찾을 수 없는
-// 행이다. 진짜 수리는 읽기를 바꾸는 것(now−30d 부터 오름차순)이고, 홈이 같은 리더로 히어로를
-// 랭크하며 fetchInFlightOwnerBookings 가 정확히 이 창 때문에 존재하므로 자기 리뷰가 필요한 슬라이스다.
-// 여기 섞지 않는다. (랩 B① 비용란 · 열린 질문 7)
+// ✅ [2026-08-26] 이 경고는 해소됐다. fetchMyBookings 의 `.limit(20)` 이 제거되면서 (Sean 콘솔 #17:
+// 「Fix the list」 + 「keep everything」) 이 정렬은 이제 **무조건** 참이다 — 도착한 20행이라는 단서가
+// 사라졌기 때문이다. 원문을 지우지 않고 남긴 이유: 이 결함은 한 번 「고쳤다」고 커밋된 뒤에도 살아
+// 있었다 (b85ce82 가 러너 목록에서 캡을 지우고 보호자 목록을 고쳤다고 적었다). 무엇이 잘못이었는지
+// 읽을 수 있어야 같은 오독이 반복되지 않는다.
 //
 // ⚠ kstDayDiff 는 home.tsx 에도 같은 것이 있다. 한 벌이 살 자리는 src/lib/kst.ts 이고 (lateness()·
 // route-pick 과 같은 이유 — 화면 안에 있으면 .cjs 스위트가 닿지 못한다), 그 파일은 이 슬라이스의
@@ -184,7 +184,7 @@ export default function Schedule() {
   const load = () => {
     setLoadErr(false);
     // [B9] 홈에서만 고쳤던 합집합을 여기에도. 히어로의 「일정에서 정리하기」가 **도착하는 화면**이
-    // 20행 창만 읽으면, 늦었다고 알려준 그 예약이 여기서는 없는 일이 된다 (codex 2026-08-21).
+    // (#17 이후 20행 창은 없다. 이 belt는 상태 필터 쪽 위험만 남아 그대로 둔다 — codex 2026-08-21.)
     return Promise.all([fetchMyBookings(), fetchInFlightOwnerBookings()])
       .then(([bs, inFlight]) => {
         const seen = new Set(bs.map((b) => b.id));
@@ -224,7 +224,7 @@ export default function Schedule() {
   const visible = notLive.filter(FILTERS[filterIdx].match);
   const { future, past } = agenda(visible);
   // 헤더 카운트는 **칩과 무관하게** 계정을 말한다 — 필터를 걸면 줄어드는 숫자는 '전체'가 아니다.
-  // ⚠ 두 숫자 모두 20행 창 안의 수다 (위 B① 주석). 화면은 이미 같은 창의 수를 「예약 N건」으로
+  // ✅ #17 이후 두 숫자는 전체 수다 (위 B① 주석). 화면은 같은 수를 「예약 N건」으로
   // 말하고 있었으므로 새 주장이 늘지는 않는다 — 늘어난 건 '다가오는' 이라는 구분 하나다.
   const upcomingCount = agenda(notLive).future.reduce((n, g) => n + g.items.length, 0);
 
