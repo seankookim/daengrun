@@ -87,8 +87,8 @@ function IconChip({ size, df }: { size: number; df: any }) {
           retired when owner-home dropped its wordmarks. It never lived in this file, so the comment
           pointed at a symbol that now resolves to nothing and read as a live dependency to anyone
           grepping. Naming the local `Lockup` makes it true for the first time. */}
-      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.24, color: colors.volt, fontWeight: '900', lineHeight: size * 0.28 }, df]}>도그스</Text>
-      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.32, color: colors.volt, fontWeight: '900', lineHeight: size * 0.36, letterSpacing: 1 }, df]}>하이</Text>
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.24, color: colors.neon, fontWeight: '900', lineHeight: size * 0.28 }, df]}>도그스</Text>
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.32, color: colors.neon, fontWeight: '900', lineHeight: size * 0.36, letterSpacing: 1 }, df]}>하이</Text>
     </View>
   );
 }
@@ -96,7 +96,7 @@ function IconChip({ size, df }: { size: number; df: any }) {
 function BrandTape({ width, rotate, df }: { width: number; rotate: string; df: any }) {
   return (
     <View style={{
-      width, height: 26, backgroundColor: colors.volt, transform: [{ rotate }],
+      width, height: 26, backgroundColor: colors.neon, transform: [{ rotate }],
       flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
       shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5, shadowOffset: { width: 0, height: 2 },
     }}>
@@ -119,7 +119,7 @@ function Lockup({ df, small, light = true }: { df: any; small?: boolean; light?:
         fontSize: small ? 12.5 : 15.5, color: light ? '#fff' : paper.ink, fontWeight: '900', letterSpacing: 2,
         ...(light ? { textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } } : {}),
       }, df]}>
-        도그스하이 <Text style={{ color: light ? colors.volt : colors.voltDeep }}>DOGS HIGH</Text>
+        도그스하이 <Text style={{ color: light ? colors.neon : colors.clubInk }}>DOGS HIGH</Text>
       </Text>
     </View>
   );
@@ -216,6 +216,16 @@ const josaGa = (w: string): string => {
   return (c - 0xac00) % 28 === 0 ? '가' : '이';
 };
 
+// ── 공유 화면의 초록 은퇴 (Sean 2026-08-26: 「remove this green from the shareable screen and make
+//    it blue or something」) ──
+// colors.volt(#C6F542) → colors.neon(#9F8FFF). 새 헥스 0개: neon 은 theme.ts 가 이미 「네온 엣지·빕
+// 넘버·글로우」로 들고 있는 값이라, 어두운 스튜디오 크롬 위에서 volt 가 하던 역할과 같은 자리다.
+// 밝은 바탕용 짝인 voltDeep(#7FA818) 은 clubInk(#4A3DA8) 로 간다 — 「읽는」 버전이라는 같은 문법이고,
+// 흰 바탕에서 2.79:1 → 8.32:1 로 오히려 크게 나아진다 (voltDeep 은 원래 본문 대비에 못 미쳤다).
+//
+// ⚠ 측정하고 바꿨다. 어두운 크롬 위 텍스트 14.42:1 → 6.84:1, 채움 위 잉크 14.87:1 → 7.06:1 —
+// 둘 다 여유롭게 통과한다. 하지만 **neon 채움 위 흰 글씨는 2.68:1 로 떨어진다**: volt 는 워낙 밝아
+// 아무 색이나 얹혀도 됐지만 neon 은 아니다. 채움 위 잉크는 반드시 어두운 색을 유지한다.
 export default function ShotStudio() {
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const df = useDisplayFont();
@@ -617,7 +627,7 @@ export default function ShotStudio() {
           {exportPts ? (
             <Svg pointerEvents="none" width={CARD_W} height={h * 0.62} viewBox={`0 0 ${CARD_W} ${h * 0.62}`} style={{ position: 'absolute', top: h * 0.12 }}>
               <Path d={pathFrom(exportPts, CARD_W, h * 0.62, 40)} stroke="rgba(198,245,66,.35)" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <Path d={pathFrom(exportPts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Path d={pathFrom(exportPts, CARD_W, h * 0.62, 40)} stroke={colors.neon} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               <Circle cx={40 + exportPts[0].x * (CARD_W - 80)} cy={40 + exportPts[0].y * (h * 0.62 - 80)} r={7} fill="#fff" />
               <Circle cx={40 + exportPts[exportPts.length - 1].x * (CARD_W - 80)} cy={40 + exportPts[exportPts.length - 1].y * (h * 0.62 - 80)} r={7} fill={colors.tang} />
             </Svg>
@@ -648,7 +658,7 @@ export default function ShotStudio() {
             {exportPts ? (
               <Svg pointerEvents="none" width={CARD_W} height={h * 0.7} viewBox={`0 0 ${CARD_W} ${h * 0.7}`} style={{ position: 'absolute', top: h * 0.08 }}>
                 <Path d={pathFrom(exportPts, CARD_W, h * 0.7, 16)} stroke="#fff" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <Circle cx={16 + exportPts[0].x * (CARD_W - 32)} cy={16 + exportPts[0].y * (h * 0.7 - 32)} r={7} fill={colors.volt} />
+                <Circle cx={16 + exportPts[0].x * (CARD_W - 32)} cy={16 + exportPts[0].y * (h * 0.7 - 32)} r={7} fill={colors.neon} />
                 <Circle cx={16 + exportPts[exportPts.length - 1].x * (CARD_W - 32)} cy={16 + exportPts[exportPts.length - 1].y * (h * 0.7 - 32)} r={7} fill={colors.tang} />
               </Svg>
             ) : (
@@ -675,7 +685,7 @@ export default function ShotStudio() {
           {exportPts && (
             <Svg pointerEvents="none" width={110} height={120} viewBox="0 0 110 120" style={{ position: 'absolute', top: 66, right: 16 }}>
               <Path d={pathFrom(exportPts, 110, 120, 8)} stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.95} />
-              <Circle cx={8 + exportPts[0].x * 94} cy={8 + exportPts[0].y * 104} r={4.5} fill={colors.volt} />
+              <Circle cx={8 + exportPts[0].x * 94} cy={8 + exportPts[0].y * 104} r={4.5} fill={colors.neon} />
               <Circle cx={8 + exportPts[exportPts.length - 1].x * 94} cy={8 + exportPts[exportPts.length - 1].y * 104} r={4.5} fill={colors.tang} />
             </Svg>
           )}
@@ -713,7 +723,7 @@ export default function ShotStudio() {
                     style={{ position: 'absolute', left: (PW - TW) / 2, top: (PHH - TH) / 2 }}
                   >
                     <Path d={pathFrom(exportPts, TW, TH, 14)} stroke="rgba(15,29,19,.45)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <Path d={pathFrom(exportPts, TW, TH, 14)} stroke={colors.volt} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Path d={pathFrom(exportPts, TW, TH, 14)} stroke={colors.neon} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
                     <Circle cx={14 + exportPts[0].x * (TW - 28)} cy={14 + exportPts[0].y * (TH - 28)} r={5.5} fill="#fff" />
                     <Circle cx={14 + exportPts[exportPts.length - 1].x * (TW - 28)} cy={14 + exportPts[exportPts.length - 1].y * (TH - 28)} r={5.5} fill={colors.tang} />
                   </Svg>
@@ -1034,7 +1044,7 @@ export default function ShotStudio() {
             <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>내 갤러리에서 선택</Text>
           </Pressable>
           <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: colors.volt }}>이 사진으로 만들기 ›</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: colors.neon }}>이 사진으로 만들기 ›</Text>
           </Pressable>
         </View>
       </Modal>
@@ -1063,7 +1073,7 @@ const s = StyleSheet.create({
   checker: { position: 'absolute', top: 0, left: 0, right: 0, borderRadius: 20, backgroundColor: '#3f443f', opacity: 0.6 },
   hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   hudV: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 3, textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
-  recordT: { fontSize: 14, fontWeight: '900', color: colors.volt, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  recordT: { fontSize: 14, fontWeight: '900', color: colors.neon, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 14, color: '#8fa093' },
   dogTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(10,16,10,.38)' },
@@ -1072,7 +1082,7 @@ const s = StyleSheet.create({
   // (인스타 내보내기 카드 상단). 로고 아트워크가 아니라 데이터다.
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
-  dotOn: { backgroundColor: colors.volt, width: 16 },
+  dotOn: { backgroundColor: colors.neon, width: 16 },
   skinName: { fontSize: 14, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
   // S 스토리's 0-photo state. A labelled bind, on this file's canonical dark
   // (paper.ink) so the scrim and its measured contrast still hold above it.
@@ -1102,13 +1112,13 @@ const s = StyleSheet.create({
   privLine: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: '#8fa093', marginHorizontal: 18, marginTop: 14 },
   actRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 18, marginTop: 12, marginBottom: 34 },
   actGhost: { flex: 1, borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
-  actMain: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
+  actMain: { flex: 1.4, backgroundColor: colors.neon, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 30 },
   grab: { width: 40, height: 4.5, borderRadius: 3, backgroundColor: '#DCD6C4', alignSelf: 'center', marginBottom: 12 },
   wallGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   wph: { width: (W - 32 - 12) / 3, aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DCD6C4' },
-  wphSel: { borderWidth: 3, borderColor: colors.volt },
-  wphTick: { position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: 10, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  wphSel: { borderWidth: 3, borderColor: colors.neon },
+  wphTick: { position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: 10, backgroundColor: colors.neon, alignItems: 'center', justifyContent: 'center' },
   galBtn: { marginTop: 10, borderWidth: 1.5, borderColor: '#b9b39f', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   sheetCta: { marginTop: 12, backgroundColor: paper.ink, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
 });
