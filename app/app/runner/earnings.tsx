@@ -189,19 +189,34 @@ export default function Earnings() {
           <Row key={l.id} style={s.row}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Row style={{ gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                {/* ⚠ Three cases, because a ledger row does not imply a run happened.
+                {/* ⚠ A ledger row does not imply a run happened.
                     `record_enroute_cancel_comp` (0080) and `record_late_cancel_share` (0085) write
                     `ledger_items` for a CANCELLATION — no `runs` row exists — and this line used to
                     read the km straight off the booking, so an en-route cancel rendered
                     「초코 · 5km · 실수령 12,450원」: the runner's own ledger claiming they ran 5km.
-                    `fetchLedger` now resolves km from `runs` and hands back null when there is none;
-                    `cancelComp` distinguishes "cancellation compensation" from "the lookup failed",
-                    and an unknown must not be labelled a cancellation. */}
+                    `fetchLedger` resolves km from `runs` and hands back null when there is none.
+                    [0132] The reason word MOVED to the line below, so this line is now one thing
+                    only — what was run and how far — and the line under it is when and why. The
+                    cancellation case therefore renders the dog alone here, not 「초코 · 취소 보상」:
+                    that phrase is a reason, and reasons now live in one place. */}
                 <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>
-                  {l.km != null ? `${l.dogName} · ${l.km}km` : l.cancelComp ? `${l.dogName} · 취소 보상` : l.dogName}
+                  {l.km != null ? `${l.dogName} · ${l.km}km` : l.dogName}
                 </Text>
-                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>{l.when}</Text>
               </Row>
+              {/* [0132] Sean 2026-08-26: 「a one phrase description per ledger row … b/c price
+                  fluctuates per run and runner may be like why is it different」. The price really
+                  does move with the reason (0101 §A: actual-km arms · the owner-caused 50%
+                  guarantee · runner_personal's distance-only delegation), so this sits directly
+                  under the dog and directly beside the net — the two things being compared.
+                  ⚠ It says the KIND of run and never the arithmetic. Margin secrecy (2026-08-24)
+                    is a rule about components, not about honesty, and this adds no component.
+                  ⚠ `reason` null → the date renders ALONE. No 「사유 없음」, no em-dash placeholder:
+                    an unknown reason is a thing we do not know, and the honest rendering of that
+                    is silence (same law as `cancelComp`'s "unknown is not cancelled").
+                  15pt, not the 14 this line used to be — Korean detail floor (DESIGN.md §3). */}
+              <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 2 }}>
+                {l.reason ? `${l.when} · ${l.reason}` : l.when}
+              </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Row style={{ alignItems: 'baseline' }}>

@@ -2654,7 +2654,35 @@ export interface LiveLedgerItem {
   /** [0121] the ONLY money field. The six components never leave the server — beside a net they
    *  hand back the fee by subtraction (earnings.tsx's own margin-secrecy derivation). */
   net: number;
+  /** [0132] The one-phrase reason this run ended, already in Korean, or null to say nothing.
+   *  Sean 2026-08-26: 「price fluctuates per run and runner may be like why is it different」 —
+   *  and it genuinely does (0101 §A prices the six end reasons differently). This names the KIND
+   *  of run, never the arithmetic; the margin-secrecy ruling is untouched.
+   *  null in three distinct situations, all of which mean "say nothing" rather than "guess":
+   *  no run row and no cancellation either (unknown), a run performed by a DIFFERENT runner
+   *  after the booking was reassigned (the server nulls it — see 0132 §A), or an enum member
+   *  nobody has written copy for yet. */
+  reason: string | null;
 }
+
+/** [0132] The `end_reason` enum's SIX members (0001:18), every one mapped.
+ *  ⚠ An unmapped value must resolve to null, NEVER to the raw token — `CHARGE_LABEL`'s
+ *    `?? d.chargeLabel` fallback printed the English words 'none' and 'hold' as chips in a
+ *    Korean UI, and that is the bug this comment exists to not repeat. If a seventh member is
+ *    ever added, this screen goes quiet instead of speaking English.
+ *  `owner_forced` and `owner_request` share one phrase deliberately: they are the same event to
+ *  a runner (owner-caused end) and 0101 §A prices them IDENTICALLY, guarantee included. The
+ *  distinction is who may declare it — server-only vs runner-declarable (0083's whitelist) —
+ *  which is an ops fact, not something a runner can act on. Inventing two words for one
+ *  outcome would imply a difference in the money that does not exist. */
+const END_REASON_LABEL: Record<string, string> = {
+  completed: '완주',
+  dog_condition: '강아지 상태로 중단',
+  owner_request: '보호자 요청으로 중단',
+  owner_forced: '보호자 요청으로 중단',
+  runner_personal: '러너 사정으로 중단',
+  incident: '사고로 중단',
+};
 
 export async function fetchLedger(): Promise<LiveLedgerItem[]> {
   // [0121] my_ledger_rows: net + cancel_comp + km computed server-side. The runs-lookup 2-step
@@ -2671,6 +2699,13 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
       km: l.km == null ? null : Number(l.km),
       cancelComp: !!l.cancel_comp,
       net: Number(l.net),
+      // [0132] reason before compensation: a row can only be one of the two (end_reason is
+      // non-null exactly when a runs row was attributed to this runner), and the ?? chain would
+      // read as a fallback rather than the exclusive choice it is. Unmapped → null, never the
+      // raw enum token.
+      reason: l.end_reason
+        ? (END_REASON_LABEL[l.end_reason as string] ?? null)
+        : (l.cancel_comp ? '취소 보상' : null),
     };
   });
 }
