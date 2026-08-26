@@ -171,6 +171,23 @@ one of them a permanent disclosure by inaction).
 
 ## Commit gate
 
+🔴 **NEVER READ A TEST RESULT THROUGH `tail`. `npm test` IS A CHAIN AND `tail -1` PRINTS ONE
+SUITE'S SUMMARY** (measured 2026-08-26, by two sessions independently, on their own runs). I quoted
+「30 pass / 0 fail」 all session; the real run is **568 PASS / 0 FAIL** across four suites — the 30
+is the LAST suite alone. A peer quoted the same 30 and measured 576 on theirs. **Nothing was hidden
+either time** (exit 0, zero FAIL), which is exactly why it survives: the number is wrong in the
+*safe* direction, so no failure ever contradicts it.
+**Read the exit code, and count across the whole output:**
+```
+npm test > /tmp/t.log 2>&1; echo $?      # 0 is the claim that matters
+grep -c '^PASS' /tmp/t.log ; grep -c '^FAIL' /tmp/t.log
+```
+⚠ Same family as filtering a harness run through `tail -3`, which discards **which pin** failed —
+done here the same day. **A filter that truncates output is a filter that can hide the answer; if
+you are about to report a number, do not let a pipe choose which one.**
+
+
+
 Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
 `node scripts/check-route-native-imports.mjs`, and `node scripts/check-definer-acl.mjs` — all must pass.
 (`check-embed-fk.mjs` and `check-auth-surface.mjs` run in the same family.)
