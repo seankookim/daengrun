@@ -967,14 +967,39 @@ export default function Live() {
           </Text>
 
           <Text style={s.sheetLabel}>종료 사유</Text>
-          {STOP_REASONS.map((r) => (
-            <Pressable key={r} onPress={() => setStopReason(r)} style={[s.reasonRow, stopReason === r && s.reasonRowSel]}>
-              <View style={[s.radio, stopReason === r && { borderColor: paper.ink }]}>
-                {stopReason === r && <View style={s.radioDot} />}
-              </View>
-              <Text style={[s.reasonTxt, stopReason === r && { fontWeight: '800', color: paper.ink }]}>{r}</Text>
-            </Pressable>
-          ))}
+          {/* ⓑ 도장 칸 — Sean's round-6 pick, answering his round-5 note on this exact shape:
+              「iterate on the button look; it looks just like an excel block, nothing more」.
+              Three coral-bordered rectangles were the most literal instance of that in the app.
+              No box now: ink rules between rows, and a dashed square that asks to be stamped.
+              Grammar copied from compose.tsx's run picker (the simulator-verified reference) so
+              one vocabulary does not fork into two. Zero new hexes.
+              ⚠ Dropping the coral border here is not only cosmetic — it returns the coral budget
+              to this sheet's real CTA, the destructive stop button below. */}
+          <View style={s.stamps}>
+            {STOP_REASONS.map((r, i) => {
+              const on = stopReason === r;
+              return (
+                <Pressable
+                  key={r}
+                  onPress={() => setStopReason(r)}
+                  style={({ pressed }) => [
+                    s.scell,
+                    i === STOP_REASONS.length - 1 && s.scellLast,
+                    pressed && s.scellPressed,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on, checked: on }}
+                >
+                  <View style={[s.sbox, on && s.sboxOn]}>
+                    {on && <Text style={s.sboxTick}>✓</Text>}
+                  </View>
+                  <View style={[s.slWrap, on && s.slWrapOn]}>
+                    <Text style={[s.sl, on && s.slOn]}>{r}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* [2026-08-13] This note said three things and all three were false for the case
               it appears in — the owner asking to stop. Found by the ⑩ class sweep.
@@ -1139,14 +1164,32 @@ const s = StyleSheet.create({
   sheetTitle: { fontSize: 20.5, fontWeight: '900', color: paper.ink },
   sheetBody: { fontSize: 14, color: paper.text, marginTop: 5, lineHeight: 20.5 },
   sheetLabel: { fontSize: 14.5, fontWeight: '800', color: paper.ink, marginTop: 16, marginBottom: 8 },
-  reasonRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,
-    borderWidth: 1, borderColor: paper.line, padding: 13, marginBottom: 8,
+  // ── 종료 사유 픽커 — ⓑ 도장 칸 (Sean round-6 pick; lab club-v2-setup-lab.html:224-236) ──
+  // reasonRow / reasonRowSel / radio / radioDot 은 여기서 은퇴했다: 코랄 테두리 상자 3개가
+  // 그가 「excel block」이라고 부른 바로 그 모양이었다.
+  stamps: { marginTop: 2 },
+  scell: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 13,
+    paddingVertical: 14, paddingHorizontal: 2,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
   },
-  reasonRowSel: { backgroundColor: paper.wash },
-  reasonTxt: { fontSize: 15.5, color: paper.text, fontWeight: '500' },
-  radio: { width: 18, height: 18, borderWidth: 2, borderColor: paper.faint, alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 8, height: 8, backgroundColor: paper.ink },
+  scellLast: { borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  // 눌림은 명시 색으로 — 알파 트릭 금지. 이 화면의 워시는 코랄이므로 중립 회색을 쓴다.
+  scellPressed: { backgroundColor: '#FAFAFA' },
+  // ⚠ 점선은 paper.faint(#999999, 흰 바탕 2.85:1)다. compose 포팅에서 처음 쓴 #DDDDDD는 1.3:1로
+  // 사실상 안 보였다 — '채워달라고 말하는 빈 네모'가 안 보이면 그 말을 못 한다.
+  sbox: {
+    width: 26, height: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: paper.faint,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  sboxOn: { borderStyle: 'solid', borderColor: paper.ink, backgroundColor: paper.ink },
+  sboxTick: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#FFFFFF' },
+  // 라벨 래퍼 = 밑줄의 폭. shrink로 내용에 붙는다 (룰이 행 전체를 긋지 않게).
+  slWrap: { flexShrink: 1, borderBottomWidth: 2, borderBottomColor: 'transparent', paddingBottom: 2 },
+  slWrapOn: { borderBottomColor: lilac.accent },
+  // ⚠ lineHeight 명시 (BUG A) — 사유 문자열에 숫자가 섞여 들어올 수 있다.
+  sl: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: paper.text },
+  slOn: { color: paper.ink },
   feeNote: { backgroundColor: paper.wash, padding: 12, marginTop: 10 },
   feeTxt: { fontSize: 15, color: paper.text, lineHeight: 19.5 },
   // 승인된 유일한 라우드 필 — pressed 면색은 매트릭스가 '채워진 destructive'에 대해 정의하지 않았다.
