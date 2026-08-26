@@ -10,7 +10,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
-import { fetchMyPayments, fetchUnsettledCharge, retryCollect } from '../../src/lib/api';
+import { fetchMyPayments, fetchUnsettledCharge, PaymentRecord, retryCollect } from '../../src/lib/api';
 import { paper } from '../../src/theme';
 
 export default function CardLink() {
@@ -24,9 +24,14 @@ export default function CardLink() {
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   useEffect(() => {
+    // ⚠ A read failure is NOT 「not locked」. The first draft caught both to null/[] and rendered
+    //   the clean settings face, so a flaky network hid an arrears lock behind a screen that
+    //   promises nothing is owed (codex REJECT #1). `locked` stays null on failure and the panel
+    //   keeps the promise face, which is true in every state; what must never happen is claiming
+    //   the DEBT face or the SETTLED result without having read them.
     Promise.all([
       fetchUnsettledCharge().catch(() => null),
-      fetchMyPayments(30).catch(() => []),
+      fetchMyPayments(30).catch(() => [] as PaymentRecord[]),
     ]).then(([lk, rows]) => {
       if (!alive.current) return;
       setLocked(lk === true);
@@ -53,11 +58,31 @@ export default function CardLink() {
     for (const bid of failedIds) {
       try { await retryCollect(bid); } catch (e) { failMsg = (e as Error).message; break; }
     }
-    const fresh = await fetchMyPayments(30).catch(() => null);
-    const stillFailed = (fresh ?? []).some((r) => r.status === 'failed');
+    // 🔴 A 200 FROM collect-charges IS NOT A COLLECTION, and this screen may not say it is.
+    //    `collect-charges` deliberately converts per-row exceptions and `unresolved` outcomes
+    //    into HTTP 200 (handler.ts:348) — a dispatched-but-unknown row comes back 200 with the
+    //    payments row still pending. So success is proven by RE-READING, never by the call
+    //    returning. (codex REJECT #1, 2026-08-26: the first draft checked only
+    //    `status === 'failed'`, so an `unresolved` row rendered 「결제까지 끝났어요」.)
+    //
+    // 🔴 AND A FAILED RE-READ IS NOT A CLEAN RESULT. The first draft did
+    //    `.catch(() => null)` and then `(fresh ?? [])`, which turned 「we could not check」 into
+    //    an empty array and then into the success alert — the honesty law's exact inversion, in
+    //    a money path. Unknown now renders as unknown.
+    const fresh = await fetchMyPayments(30).catch(() => 'read_failed' as const);
+    const stillLocked = await fetchUnsettledCharge().catch(() => 'read_failed' as const);
     if (!alive.current) return;
     if (failMsg) { Alert.alert('결제를 다시 시도하지 못했어요', failMsg); return; }
-    if (stillFailed) {
+    if (fresh === 'read_failed' || stillLocked === 'read_failed') {
+      Alert.alert('카드는 연결됐어요', '결제 결과를 확인하지 못했어요 — 결제 관리에서 확인해주세요',
+        [{ text: '확인', onPress: () => router.back() }]);
+      return;
+    }
+    // BOTH must be clean: no failed row left AND the server's own lock released. Either one alone
+    // can be true while the other is not — the lock is derived server-side and is the fact that
+    // actually governs whether a new booking is possible.
+    const settled = !fresh.some((r) => r.status === 'failed') && stillLocked !== true;
+    if (!settled) {
       Alert.alert('카드는 연결됐어요', '결제는 아직 처리되지 않았어요 — 결제 관리에서 다시 시도할 수 있어요',
         [{ text: '확인', onPress: () => router.back() }]);
     } else {

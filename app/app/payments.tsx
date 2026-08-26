@@ -145,11 +145,18 @@ export default function Payments() {
       </Row>
 
       {/* ── 예외 배너 — 숨길 수 없는 상태 (§0-bis: 예외는 크게, 영수증은 조용히) ── */}
+      {/* [2026-08-26] 이 배너의 CTA는 mailto: 였다 — 카드 등록 화면이 없던 시절의 유일한 출구.
+          이제 문이 있으므로 문으로 보낸다 (codex REJECT #5: 새 화면을 만들고도 실제 앱 경로가
+          아무도 거기 닿지 않았다). 키가 없으면 옛 문의 경로가 그대로 남는다 — 열리지 않는
+          화면으로 보내는 것이 메일보다 나쁘다. */}
       {needsRelink && (
         <ChargeBanner
           kind="relink"
-          cta="문의하기"
-          onPress={() => { Linking.openURL(CONTACT_MAIL).catch(() => Alert.alert('메일 앱을 열 수 없어요', CONTACT_MAIL)); }}
+          cta={TOSS_CLIENT_KEY != null ? '카드 다시 연결하기' : '문의하기'}
+          onPress={() => {
+            if (TOSS_CLIENT_KEY != null) { router.push('/owner/card-link'); return; }
+            Linking.openURL(CONTACT_MAIL).catch(() => Alert.alert('메일 앱을 열 수 없어요', CONTACT_MAIL));
+          }}
           style={{ marginTop: 18 }}
         />
       )}
@@ -198,6 +205,15 @@ export default function Payments() {
             {card.linkedAt && <Text style={s.note}>{linkedLabel(card.linkedAt)} 연결됨</Text>}
             {/* 돌아갈 곳을 들고 온 방문 = 하려던 일이 있는 방문. 카드가 있는 지금은 그 일이 통한다.
                 replace = 결제 관리가 스택에 남지 않는다 (돌아간 화면에서 뒤로 = 원래 있던 곳). */}
+            {/* [2026-08-26] 카드 교체 — Sean의 배치 판정이 명시한 절반이다: 「after that first run,
+                there should be no card whatever, and the card should be changeable and manageable
+                in settings」. 첫 구현은 그 절반을 빠뜨렸고, 카드가 있는 보호자에게는 아무 동작도
+                없었다 (codex REJECT #5). 같은 화면(owner/card-link)이 교체를 처리한다 —
+                register-billing-key의 upsert가 프로필당 한 행을 유지하므로 연결과 교체는 같은 쓰기다. */}
+            {TOSS_CLIENT_KEY != null && (
+              <PaperBtn label="카드 바꾸기" variant="secondary" style={{ marginTop: 12 }}
+                onPress={() => router.push('/owner/card-link')} />
+            )}
             {returnTo && (
               <PaperBtn
                 label={backHref ? (returnLabel || '하던 일로 돌아가기 ›') : '홈으로 ›'}

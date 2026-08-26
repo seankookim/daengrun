@@ -537,11 +537,18 @@ export default function Request() {
     // 샌드박스 빌링키가 production billing_keys에 들어가는 것이 이 게이트가 지금 잠들어 있는
     // 이유다). 플래그가 켜지는 날 이 게이트가 같이 깨어난다 — 별도 작업 없음.
     if (TOSS_ENABLED && !cardSkip.current) {
-      const card = await fetchMyBillingCard().catch(() => null);
-      // 읽기 실패는 '카드 없음'이 아니다 — 그때 게이트를 세우면 카드 있는 보호자를 막는다.
-      // catch가 null을 돌려주므로 실패와 부재가 같은 값이 되는 문제는: fetchMyBillingCard가
-      // 던지면 null, 0행이면 null — 여기선 둘 다 「묻는다」로 가는 게 안전한 쪽이다 (물어봐서
-      // 이미 있으면 연결 화면이 즉시 '이미 연결됨'을 만나는 게 아니라, 스킵 한 번이면 지나간다).
+      // 🔴 부재와 읽기 실패를 가른다. 첫 초안은 둘 다 null로 뭉개고 게이트를 세웠다 — 자기
+      //    주석이 「읽기 실패는 카드 없음이 아니다」라고 말하면서 코드는 정확히 그렇게 했다
+      //    (codex REJECT #6). 카드가 있는 보호자가 네트워크가 흔들렸다는 이유로 등록 화면을
+      //    만나고, 실패는 어디에서도 실패로 그려지지 않았다.
+      let card: Awaited<ReturnType<typeof fetchMyBillingCard>> | 'read_failed';
+      try { card = await fetchMyBillingCard(); }
+      catch { card = 'read_failed'; }
+      if (card === 'read_failed') {
+        haptic('error');                       // 무반응 버튼 금지 — 실패는 느껴져야 한다
+        Alert.alert('결제 수단을 확인하지 못했어요', '잠시 후 다시 시도해주세요');
+        return;
+      }
       if (!card) { setCardGate(true); return; }
     }
     haptic('medium');
