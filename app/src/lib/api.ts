@@ -1055,6 +1055,14 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
     .select('profile_id, tier, bio, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district, avatar_url)')
     .neq('tier', 'applicant')
     .eq('online', true)
+    // ⚠ [2026-08-26] `.limit(10)` with NO `.order()` is an ARBITRARY sample, not a top 10 — postgres
+    //   is free to return any ten and to return a different ten next time. The shelf that renders
+    //   this is read as a ranking (it sits beside 주간 랭킹), so an unordered cut is a silent claim
+    //   nobody makes on purpose. Ordering by experience is the honest reading of "who should I see
+    //   first" with the columns that exist; it is NOT proximity, which is why the header no longer
+    //   says 동네 (owner/home.tsx). Real nearest-first needs a runner home-base coordinate, which
+    //   the schema does not have.
+    .order('total_runs', { ascending: false })
     .limit(10);
   if (error) throw error;
   return (data ?? []).map((r: any) => {

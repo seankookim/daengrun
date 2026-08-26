@@ -320,7 +320,7 @@ export default function OwnerHome() {
                  runnerHandoffAt: liveNext.runnerHandoffAt ?? null })
     : null;
 
-  // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
+  // 대기 중인 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점). 동네로 걸러지지 않는다.
   // `null` = not loaded yet or the read failed. Distinct from `[]`, which is a measured zero.
   // The hero's primary CTA prints a sentence about runner availability, and "nobody is available"
   // is a claim we may only make from a successful read (see the onlineRunners prop below).
@@ -331,7 +331,7 @@ export default function OwnerHome() {
   // fetchMyProfile + 상태를 함께 되살려야 한다.
   // 최근 순간 — 러너가 담아온 실사진 (runs.photos, 0장이면 섹션 숨김)
   const [moments, setMoments] = useState<Moment[]>([]);
-  // 동네 랭킹 티커 — 주간 강아지 km TOP (실집계, 리더보드와 동일 소스). 빈 주엔 렌더 안 함
+  // 주간 랭킹 티커 — 주간 강아지 km TOP (실집계, 리더보드와 동일 소스). 빈 주엔 렌더 안 함
   const [ticker, setTicker] = useState<BoardRow[]>([]);
   const tickerX = useRef(new Animated.Value(0)).current;
   const [tickerW, setTickerW] = useState(0);
@@ -600,7 +600,7 @@ export default function OwnerHome() {
         {/* ══════════════════ 동네 ══════════════════ */}
         <ChunkKick label="동네" />
 
-        {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
+        {/* 주간 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
             ▲▼ 등락 화살표는 실델타가 있을 때만 — 없는 데이터는 그리지 않는다.
 
             [A③(c) · Sean 2026-08-24 "3의 focus scheme"] 이 줄은 마스트헤드 바로 아래, 화면의
@@ -643,11 +643,19 @@ export default function OwnerHome() {
             "제자리(club)로 갔다"고 적었다). 카드 자체는 러너 홈(RunnerClubCard)에 그대로 산다. */}
         <ClubHomeCard compact />
 
-        {/* 동네 러너 = 로스터. [2026-08-19] 피처드 나이트 카드 은퇴 — 화면의 두 번째 다크 섬이었다.
-            1번 러너를 포함해 전원이 같은 라이트 미니 카드로 간다 (위계는 순서가 이미 말한다). */}
+        {/* 러너 로스터. [2026-08-19] 피처드 나이트 카드 은퇴 — 화면의 두 번째 다크 섬이었다.
+            1번 러너를 포함해 전원이 같은 라이트 미니 카드로 간다 (위계는 순서가 이미 말한다).
+            ⚠ [Sean 2026-08-26 · "rename it for now"] 제목이 「동네 러너」였는데 `fetchCertifiedRunners`
+              에는 district 필터가 **없다** — 성수 계정에 반포동 러너가 「동네」로 걸렸다. 코스
+              스트립과 같은 거짓말이지만 **고치는 방법이 다르다**: 코스는 좁히면 되지만 러너를
+              동네로 좁히면 파일럿에서 목록이 0이 되고(성수 온라인 러너는 계정 본인 하나뿐),
+              진짜 해법은 스키마에 없는 러너 홈베이스 좌표다(runners.service_radius_km 은 중심이
+              없다 — onboard/runner.tsx 가 같은 사실을 적어 두고 있다). 그래서 지금은 **목록이
+              실제로 무엇인지**를 제목으로 말한다: `.eq('online', true)` 로 걸러진 = 지금 대기 중인
+              러너. 히어로 버튼의 「n명 대기」와 같은 어휘이고, 같은 수를 센다. */}
         {(localRunners?.length ?? 0) > 0 && (
           <View>
-            <ModH title="동네 러너" link="동네 랭킹 ›" onLink={() => router.push('/leaderboard')} />
+            <ModH title="대기 중인 러너" link="주간 랭킹 ›" onLink={() => router.push('/leaderboard')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
               {(localRunners ?? []).map((r) => (
                 <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>

@@ -276,7 +276,7 @@ export default function Rewards() {
       )}
 
       <Pressable onPress={() => router.push('/leaderboard')} style={s.rankLink}>
-        <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.coralText }}>동네 랭킹에서 주간 보너스 노려보기 ›</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.coralText }}>주간 랭킹에서 보너스 노려보기 ›</Text>
       </Pressable>
     </ScrollView>
   );

@@ -9,7 +9,7 @@ import { worldOf } from './patch';
 import { HeatTrace } from './runcard';
 import { traceToBox } from '../lib/trace';
 
-// 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(동네 러너 아래)·러너 홈 공유.
+// 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(러너 셸프 아래)·러너 홈 공유.
 // 파스텔 로테이션 + 살짝 기운 스티커 + km 빕 + 점검 도장: 코스를 '수집하고 싶은 배지'처럼.
 // 동네 범위: profiles.district 로 **질의를 좁힌다** (fetchRoutes 가 town 정규화·폴백까지 처리).
 // 정렬만 하던 시절의 설명이 아니다 — 2026-08-26 이전에는 서울 전체를 받아 정렬만 했다.

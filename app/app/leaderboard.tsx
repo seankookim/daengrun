@@ -7,7 +7,7 @@ import { BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/a
 import { goBackOrHome } from '../src/lib/nav';
 import { colors, paper } from '../src/theme';
 
-// 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
+// 주간 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
 
 // [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
@@ -51,7 +51,7 @@ export default function Leaderboard() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>동네 랭킹</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>주간 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>
         <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6 }}>

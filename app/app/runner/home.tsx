@@ -374,7 +374,7 @@ export default function RunnerHome() {
     reloadStatus();
   }, [loadAvail, loadInbox, loadJobs, reloadStatus]));
 
-  // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
+  // 온라인 토글 — 실저장 (오프라인이면 추천·대기 중인 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,
   // 되돌림이 console.warn 하나뿐이라 스위치가 **이유 없이 제자리로 튕겼다**. v4가 이 컨트롤을
   // 56×32 자기 행으로 승격하면서 그 침묵이 더 눈에 띈다 — 되돌림은 유지하고, 왜 되돌렸는지 말한다.
