@@ -1029,3 +1029,36 @@ is surprising.**
 
 **Standing consequence for anyone reading a green here:** a suite with a ~1/17 flake means a single
 green run is ~94% evidence, not proof. For a deploy decision, run it twice.
+
+---
+
+## 2026-08-26 04:56:00Z — 「Send all three with the email」 (console, `counsel-phone-facts`)
+
+**Verbatim choice:** `Send all three with the email`.
+
+**Question asked:** whether the three places where the phone-number decision makes the DRAFT
+개인정보처리방침 inaccurate should go to counsel with the email he is already sending.
+
+**Disposition — done in the same breath:** the three facts are written into
+`docs/legal/contract-status-counsel-brief.md` §7, in Korean (the file's language; a counsel brief
+is outward-facing to a Korean lawyer, so §Language's in-app exception applies by the same logic).
+All three re-verified at source before writing, 2026-08-26:
+
+| # | draft claim | measured reality |
+|---|---|---|
+| ① | `privacy-policy.md:45` 「전화번호 (선택 …)」 | required at signup per his 01:47:25Z ruling |
+| ② | `:45-47` incident-only, booking parties only | club rule `0049`: host ↔ every member, any live session |
+| ③ | `:106-117` retention table | **no 전화번호 row at all** (`:113` already flags the table as a placeholder) |
+
+⚠ **② is sharper than the console card said, and the brief says so where the card did not.** The
+draft does not merely scope the disclosure narrowly — `:47` states categorically 「예약 당사자가
+아닌 이용자에게는 어떤 경우에도 제공되지 않습니다」. A club host **need not be a party to the
+booking**, so that sentence does not become narrow-but-true once collection ships; it becomes
+**false as a category**. The card understated it; the brief carries the precise form.
+
+**Not approved, and marked as such in the file:** §7-1 (the third-party 비상연락처 question —
+4 live rows, `0048`/`0053`/`0115`) was drafted because it rides the same email, but the console
+card `counsel-emergency` is **unanswered**. It carries a red 「아직 대표 확인 전」 block telling
+him to delete it or tap the card. **A document Sean sends must not contain a decision he did not
+make** — writing it and letting it travel unmarked would be exactly the "an inference placed next
+to a ruling inherits the ruling's authority" failure (announcer §5).
