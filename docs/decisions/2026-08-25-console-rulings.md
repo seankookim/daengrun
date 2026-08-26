@@ -609,3 +609,26 @@ after the fact**. Whether that converts the pairing to a home return — draggin
 question behind it — or stays an ad-hoc rescue outside the mode system, **is not ruled**. Not
 drawing a silent mode flip was the right call; a screen that quietly rewrites a pairing's terms
 mid-run is exactly the kind of thing nobody would find until the money disagreed.
+
+### Correction to the eleventh round — his follow-up comment DISSOLVES my caveat
+
+`phone-required` gained a comment at **01:47:25Z**: 「**the existing ones are fake so it's fine.**」
+
+**I was wrong, and I had already relayed the wrong version.** I wrote that "required binds only new
+signups, so the empty state is permanent for all 11 existing accounts" and told the UI session to
+draw it as a real state rather than a transitional one. **The 11 accounts are test fixtures, not
+users.** There is no stranded cohort. So:
+
+- The chat fallback IS transitional after all — it covers fake accounts that will be replaced, not
+  real people who joined under different terms.
+- The "do not let required become a retro-active gate" warning stays true **in principle** (it
+  would still be a refusal he never ruled) but has **no live subject**, and must not be carried
+  forward as though it constrains something real.
+- 🔵 More broadly: **"11 accounts" has been used all day as a scale argument** (「not urgent at 11
+  accounts」, funnel cost at 11 users). If those are fixtures, the real user count is **zero**, and
+  every "small enough not to matter" argument built on 11 is weaker than it read — the cost of a
+  wrong decision is not 11 people's inconvenience, it is the first real cohort's first impression.
+
+**The lesson is the one from this morning, pointed at myself again:** I inferred a user cohort from
+a row count. A number in a table is not a fact about people, and I passed the inference downstream
+as a design constraint before checking it with the one person who knows.
