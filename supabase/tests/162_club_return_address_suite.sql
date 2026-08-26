@@ -48,22 +48,70 @@
 -- own header says why that is the honest way to test a second belt rather than a contrivance, and
 -- P5 ⓐ measures the reachable truth beside it.
 --
--- ── MUTATION BATTERY — PREDICTED, THEN MEASURED (results appended after each line) ───────────
+-- ── MUTATION BATTERY — PREDICTED, THEN MEASURED. Six runs, 2026-08-26. ──────────────────────
 -- Each mutation is applied ALONE, by appending the mutated `create or replace` to the END of a
--- COPY of 0128 (never by editing the live file — another agent may share this tree).
---   M1  PREDICTED  drop the `custody_phase = 'return_pending'` conjunct → RED = [P4]
---                  (the arm stops self-closing: a sealed pairing keeps reading the address)
---   M2  PREDICTED  drop `custodian_profile_id = auth.uid()`            → RED = [P3]
---                  (any runner in the session reads any owner's address)
---   M3  PREDICTED  drop `custody = 'runner_delegated'`                 → RED = [P5 ⓑ ONLY]
---                  ⚠ and P5 ⓐ stays GREEN by construction — see P5's header. The contract
---                  predicted a plain [P5]; that prediction was wrong for a reason that is a
---                  finding about the SCHEMA, not about the pin.
---   M4  PREDICTED  give the club arm its own distinct exception string → RED = [P6]
---   M5  PREDICTED  revert the body to 0065 (the UNFIXED function)      → RED = [P2, P4, P7]
---                  and P1 ⓐ stays GREEN while P1 ⓑ reds — the differential naming which half
---                  moved. This is the hole-is-real / fix-closes-it pair and the one that matters.
--- MEASURED 2026-08-26 — see the results block appended below this line before landing.
+-- COPY of 0128 in a scratch tree outside the worktree (a full copy of `supabase/`, so the harness
+-- resolves `../migrations` inside the copy and touches nothing anyone owns) — never by editing the live file, because
+-- another agent may share this tree and a copy-modify-restore is a read-modify-write with a
+-- multi-second window. Baseline on that copy: 896/0, identical to the worktree.
+--
+-- 🔴 TWO OF THE SIX FOUND A HOLE IN THIS SUITE RATHER THAN CONFIRMING A PIN, and both fixes are
+-- in the file above. That is the battery doing its job: a prediction that lands is worth less
+-- than one that misses, and neither miss was visible by reading the code.
+--
+--   M1  drop the `custody_phase = 'return_pending'` conjunct
+--       PREDICTED  RED = [P4]  (contract §4: "the arm no longer self-closes")
+--       MEASURED (first run)  RED = [P4], 895/1 — and the detail named **P4 ⓔ ALONE**, an arm
+--                  that did not exist when the battery started. 🔴 THE CONTRACT'S REASONING WAS
+--                  WRONG: sealing also moves `custodian_profile_id` to the owner, so a sealed
+--                  pairing keeps being refused on the CUSTODIAN conjunct even with the phase
+--                  conjunct gone — P4 ⓒ stays green. Without ⓔ this mutation would have reddened
+--                  NOTHING and the phase conjunct would have had no pin at all. ⓔ pins the
+--                  direction the contract did not think of: the arm must not open at DELEGATION
+--                  time.
+--       MEASURED (final)  RED = [P6, P4 ⓔ], 894/2 — P6 joins once its wrong-phase probe is
+--                  `b_early` (the M4b fix below): with the phase conjunct gone that probe returns
+--                  `ok:rows=1` while the other three still refuse, so the four stop agreeing.
+--                  Superset, and the two pins name different halves — P4 ⓔ "it opened early",
+--                  P6 "and that made the outcomes distinguishable".
+--   M2  drop `custodian_profile_id = auth.uid()`
+--       PREDICTED  RED = [P3]
+--       MEASURED   RED = [P3, P6], 894/2 — benign superset, confirmed on the final suite. P6 reds
+--                  because with the custodian conjunct gone the FOREIGN probe (r2's pairing,
+--                  itself `return_pending`) returns `ok:rows=1`, so the four probes stop agreeing.
+--                  Two pins, one guarantee, two angles. P3's detail is the attack executed:
+--                  「같은 세션의 다른 러너가 남의 집 주소를 읽었다」.
+--   M3  drop `custody = 'runner_delegated'`
+--       PREDICTED  RED = [P5 ⓑ ONLY] — see P5's header for why ⓐ cannot move
+--       MEASURED   RED = [P5], 895/1 — exact, via ⓑ.
+--   M4  rename the shared refusal string on the club path
+--       PREDICTED  RED = [P6]
+--       MEASURED   RED = [w3 W2, w3 W3, dong N4, rbd N4, cra P3, P4, P5], 889/7 — **and P6 GREEN,
+--                  CORRECTLY.** This mutation renames one string; it does not make two paths
+--                  distinguishable, and P6 measures indistinguishability rather than spelling.
+--                  Four shipped suites red on the literal, which is what owns the spelling. The
+--                  green P6 here is the single best piece of evidence that P6 says what it means,
+--                  so the mutation is KEPT rather than replaced.
+--   M4b the real oracle break — a distinct string for "your row exists, you are its custodian,
+--       the phase is wrong"
+--       PREDICTED  RED = [P6]
+--       MEASURED (first run, P6 probing the SEALED pairing)  RED = [P4 ⓔ], **P6 GREEN — A MISS.**
+--                  🔴 The sealed pairing is not a wrong-phase-as-custodian state: sealing moved
+--                  the custodian to the owner, so the caller never reaches the distinguishing
+--                  branch. P6's third probe is now `b_early` (delegated, `with_custodian`, caller
+--                  IS the custodian) with the sealed pairing kept as a fourth.
+--       MEASURED (after the fix)  RED = [P6, P4 ⓔ], 894/2 — exact on P6, whose detail prints the
+--                  distinguishable pair: 잘못된국면=[P0001|not_return_pending] against
+--                  [P0001|not_runner] on the other three. P4 ⓔ rides along because the same
+--                  branch answers it with the new string.
+--   M5  revert the body to 0065 — the UNFIXED function
+--       PREDICTED  RED = [P2, P4, P7]
+--       MEASURED   RED = [P1, P2, P3, P4, P7], 891/5 — superset, and the details are the point:
+--                  P1 failed on **ⓑ** (`ⓑ0128raise:not_runner`) while **ⓐ stayed green**. That is
+--                  the hole-is-real / fix-closes-it pair measured as two propositions instead of
+--                  one: the pre-0128 gate refuses this fixture (ⓐ, true in both runs) and the
+--                  shipped function stops admitting it the moment the arm is removed (ⓑ). P3's
+--                  red is its POSITIVE control (r2 on its own pairing), not its refusal arm.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 set client_min_messages = warning;
 
@@ -122,15 +170,15 @@ end $$;
 do $$
 declare
   oo uuid; zz uuid; rr uuid; r2 uuid;
-  dg uuid; dg2 uuid; dg3 uuid; dg4 uuid; dg5 uuid; rt uuid;
+  dg uuid; dg2 uuid; dg3 uuid; dg4 uuid; dg5 uuid; dg6 uuid; rt uuid;
   ad uuid; ad2 uuid;
   v_club uuid; v_sess uuid;
-  b_club uuid; b_other uuid; b_oh uuid; b_null uuid; b_seal uuid; b_mkt uuid;
-  sd_club uuid; sd_other uuid; sd_oh uuid; sd_null uuid; sd_seal uuid;
+  b_club uuid; b_other uuid; b_oh uuid; b_null uuid; b_seal uuid; b_early uuid; b_mkt uuid;
+  sd_club uuid; sd_other uuid; sd_oh uuid; sd_null uuid; sd_seal uuid; sd_early uuid;
   cx uuid;
   v_n int; v_n2 int; v_bad text; v_st text; v_msg text;
   v_label text; v_addr text; v_detail text; v_lat numeric; v_lng numeric;
-  v_a text; v_b text; v_c text;
+  v_a text; v_b text; v_c text; v_d text;
   v_live boolean; v_pre boolean;
   v_cfg text; v_secdef boolean; v_pub boolean; v_anon boolean; v_auth boolean;
   v_all text[] := array['draft','quoted','payment_hold','matching','runner_pending','confirmed',
@@ -146,6 +194,7 @@ begin
   rr := t_user('cra_rr', 'runner'); r2 := t_user('cra_r2', 'runner');
   dg  := t_dog(oo, '반환견');   dg2 := t_dog(zz, '남의 반환견');
   dg3 := t_dog(oo, '동반견');   dg4 := t_dog(oo, '주소없는견');  dg5 := t_dog(oo, '봉인견');
+  dg6 := t_dog(oo, '아직안돌아온견');
   rt  := t_route('반환 코스');
 
   -- gate_code_enc is filled ON PURPOSE — so a leak pin measures "structurally absent", never
@@ -216,7 +265,19 @@ begin
     booking_id, custody, custodian_type, custodian_profile_id)
   values (v_sess, dg5, oo, rr, b_seal, 'runner_delegated', 'runner', rr) returning id into sd_seal;
 
-  -- ⓕ A MARKETPLACE booking for rr — no club session, no session_dogs row. P1 ⓒ's control.
+  -- ⓕ DELEGATED BUT NOT YET RETURNING — `confirmed` at T+48h, phase `with_custodian`. The other
+  --    half of P4: the arm must open at RETURN time, not at DELEGATION time. Without this the
+  --    `custody_phase` conjunct has no pin at all (found by running the battery, not by reading).
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+    base_fare, distance_fare, addon_fare, total_price, min_fare, club_session_id, address_id)
+  values (oo, dg6, rr, rt, 'confirmed', now() + interval '48 hours', 5.0, 9900, 15000, 0, 24900,
+          9900, v_sess, ad)
+  returning id into b_early;
+  insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id,
+    booking_id, custody, custodian_type, custodian_profile_id)
+  values (v_sess, dg6, oo, rr, b_early, 'runner_delegated', 'runner', rr) returning id into sd_early;
+
+  -- ⓖ A MARKETPLACE booking for rr — no club session, no session_dogs row. P1 ⓒ's control.
   b_mkt := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'confirmed');
   update bookings set address_id = ad where id = b_mkt;
 
@@ -244,6 +305,10 @@ begin
       then v_bad := v_bad || ' 주소없음=' || t_cra_state(b_null); end if;
     if t_cra_state(b_seal) <> 'runner_delegated/return_pending/' || rr::text
       then v_bad := v_bad || ' 봉인대상=' || t_cra_state(b_seal); end if;
+    -- the one pairing that must NOT have moved: never went to `completed`, so it is still
+    -- `with_custodian` — P4 ⓔ's stage.
+    if t_cra_state(b_early) <> 'runner_delegated/with_custodian/' || rr::text
+      then v_bad := v_bad || ' 인계전=' || t_cra_state(b_early); end if;
     if (select status from bookings where id = b_club) <> 'completed'
       then v_bad := v_bad || ' 대상상태=' || (select status from bookings where id = b_club); end if;
     if v_bad = ''
@@ -389,8 +454,24 @@ begin
     --   moving. Without this arm a reader cannot tell the self-close from a state change.
     if (select status from bookings where id = b_seal) <> 'completed'
       then v_bad := v_bad || ' ⓓ부킹 상태가 completed가 아니다=' || (select status from bookings where id = b_seal); end if;
+    -- ⓔ THE OTHER HALF OF THE SAME CONJUNCT — the arm must open at RETURN time, not at DELEGATION
+    --   time. A dog delegated to rr but not yet handed over (booking `confirmed` at T+48h, phase
+    --   `with_custodian`) is refused, exactly as the marketplace refuses a booking outside its 24h
+    --   window. 🔴 This arm exists because the battery measured that WITHOUT it, dropping the
+    --   `custody_phase` conjunct (M1) reddened NOTHING: after the seal `session_confirm_return`
+    --   also moves `custodian_profile_id` to the owner, so ⓒ keeps refusing on the custodian
+    --   conjunct alone and the phase conjunct had no pin of its own. Found by running the
+    --   mutation, not by reading the code.
+    if t_cra_state(b_early) <> 'runner_delegated/with_custodian/' || rr::text
+      then v_bad := v_bad || ' ⓔ전제실패:' || t_cra_state(b_early); end if;
+    begin
+      perform 1 from booking_pickup_address(b_early);
+      v_bad := v_bad || ' ⓔ아직 인계도 안 된 위탁견의 주소가 열렸다 (팔이 반환 시점이 아니라 위탁 시점에 열린다)';
+    exception when others then
+      if sqlerrm not like '%not_runner%' then v_bad := v_bad || ' ⓔ' || sqlerrm; end if;
+    end;
     if v_bad = ''
-      then call _pass('cra','P4 팔은 스스로 닫힌다 — 봉인 전 1행 ⟶ 양측 `session_confirm_return` 실호출로 국면이 resolved ⟶ 같은 러너·같은 부킹이 not_runner. 부킹은 여전히 completed이므로 닫힌 것은 상태가 아니라 커스터디 국면이다. 스윕도, 만료 잡도, 지워야 할 플래그도 없다 — `completed`를 상태 목록에 더하는 수정은 ⓐ를 통과하고 ⓒ에서 영원히 실패한다');
+      then call _pass('cra','P4 팔은 반환 시점에만 열리고 스스로 닫힌다 — ⓐ 봉인 전 1행 ⟶ ⓑ 양측 `session_confirm_return` 실호출로 국면이 resolved ⟶ ⓒ 같은 러너·같은 부킹이 not_runner이고 ⓓ 부킹은 여전히 completed이므로 닫힌 것은 상태가 아니라 커스터디 국면이다 (스윕도, 만료 잡도, 지워야 할 플래그도 없다 — `completed`를 상태 목록에 더하는 수정은 ⓐ를 통과하고 ⓒ에서 영원히 실패한다). ⓔ 반대편: 아직 인계 전인 위탁 페어링(confirmed T+48h·with_custodian)은 거절된다 — 🔴 이 팔이 없었을 때 M1(custody_phase 연언 제거)은 아무것도 붉히지 못했다. 봉인이 custodian_profile_id도 보호자로 옮기기 때문에 ⓒ는 custodian 연언만으로 계속 거절했고, 국면 연언에는 자기 핀이 없었다. 코드를 읽어서가 아니라 뮤테이션을 돌려서 찾았다');
     else call _fail('cra','P4 팔은 스스로 닫힌다', v_bad); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', rr::text, false);
@@ -475,17 +556,29 @@ begin
   begin
     v_bad := '';
     perform set_config('request.jwt.claim.sub', rr::text, false);
+    if t_cra_state(b_early) <> 'runner_delegated/with_custodian/' || rr::text
+      then v_bad := v_bad || ' 전제실패(국면 프로브가 with_custodian/custodian=rr이 아니다):' || t_cra_state(b_early); end if;
     if t_cra_state(b_seal) not like '%/resolved/%'
-      then v_bad := v_bad || ' 전제실패(잘못된 국면 케이스가 resolved가 아니다 — P4가 먼저 돌아야 한다):' || t_cra_state(b_seal); end if;
+      then v_bad := v_bad || ' 전제실패(봉인 프로브가 resolved가 아니다 — P4가 먼저 돌아야 한다):' || t_cra_state(b_seal); end if;
     v_a := t_cra_probe(gen_random_uuid());          -- absent
     v_b := t_cra_probe(b_other);                    -- foreign (r2's pairing, rr is not its runner)
-    v_c := t_cra_probe(b_seal);                     -- exists, rr IS the runner, phase is wrong
-    if v_a like 'ok:%' or v_b like 'ok:%' or v_c like 'ok:%'
-      then v_bad := v_bad || ' 셋 중 하나가 통과했다'; end if;
-    if not (v_a = v_b and v_b = v_c)
-      then v_bad := v_bad || ' 부재=[' || v_a || '] 타인=[' || v_b || '] 잘못된국면=[' || v_c || ']'; end if;
+    -- 🔴 THE WRONG-PHASE PROBE IS `b_early`, NOT `b_seal`, AND THE DIFFERENCE IS THE WHOLE PIN.
+    -- The first draft probed the SEALED pairing and M4b — an implementation that raises a distinct
+    -- string for "your row exists, you are its custodian, the phase is wrong" — LEFT P6 GREEN.
+    -- Sealing moves `custodian_profile_id` to the owner, so after it rr is no longer the custodian
+    -- and never reaches the distinguishing branch at all. The state an oracle-breaking body can
+    -- actually tell apart is the one where the caller IS the custodian and only the PHASE is
+    -- wrong, which is `b_early` (delegated, `with_custodian`, booking `confirmed` at T+48h).
+    -- `b_seal` is kept as a fourth probe rather than dropped: post-seal is its own path.
+    v_c := t_cra_probe(b_early);                    -- exists, rr IS runner AND custodian, phase wrong
+    v_d := t_cra_probe(b_seal);                     -- exists, sealed, custody has moved to the owner
+    if v_a like 'ok:%' or v_b like 'ok:%' or v_c like 'ok:%' or v_d like 'ok:%'
+      then v_bad := v_bad || ' 넷 중 하나가 통과했다'; end if;
+    if not (v_a = v_b and v_b = v_c and v_c = v_d)
+      then v_bad := v_bad || ' 부재=[' || v_a || '] 타인=[' || v_b || '] 잘못된국면=[' || v_c
+                          || '] 봉인후=[' || v_d || ']'; end if;
     if v_bad = ''
-      then call _pass('cra','P6 오라클 보존 — 부재 부킹·타인 부킹·「존재하고 내가 러너지만 국면이 틀린」 부킹의 SQLSTATE+메시지 쌍이 셋 다 서로 바이트 동일하다. 리터럴과 비교하지 않는다: 세 경로가 같은 새 문자열로 함께 회귀해도 구별불가라는 성질은 유지되고, 성질은 철자가 아니라 구별불가성이다. 0128 팔은 같은 불리언 안의 or이지 두 번째 raise 지점이 아니다');
+      then call _pass('cra','P6 오라클 보존 — 부재 부킹·타인 부킹·「존재하고 내가 러너이자 custodian인데 국면만 틀린」 부킹·봉인 뒤 부킹, 네 경로의 SQLSTATE+메시지 쌍이 서로 바이트 동일하다. 리터럴과 비교하지 않는다: 네 경로가 같은 새 문자열로 함께 회귀해도 구별불가라는 성질은 유지되고, 성질은 철자가 아니라 구별불가성이다(M4가 그것을 측정했다 — 공유 문자열의 개명은 shipped 핀 넷을 붉히지만 P6는 옳게 초록으로 남는다). 🔴 세 번째 프로브가 봉인된 페어링이던 첫 초안에서 M4b는 P6를 초록으로 통과했다: 봉인이 custodian을 보호자로 옮기므로 호출자는 구별 분기에 도달조차 못 한다. 0128 팔은 같은 불리언 안의 or이지 두 번째 raise 지점이 아니다');
     else call _fail('cra','P6 오라클 보존', v_bad); end if;
   exception when others then call _fail('cra','P6 오라클 보존', sqlerrm);
   end;
