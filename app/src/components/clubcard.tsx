@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import { Alert, Image, Pressable, Share, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
@@ -458,6 +458,47 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
   );
 }
 
+// ── 사진 스크림 (Sean 2026-08-26, 5라운드 R3) ────────────────────────────────
+// 클럽 카드의 탠골드 바탕이 클럽 사진으로 바뀐다. 아래 세 상수는 그 사진 위에서 글자가
+// 읽히게 만드는 장치이고, 값은 전부 실측이다 — `ClubCompactRow`의 측정 블록 참조.
+/** The floor alpha. Same value `run-share-card.tsx`'s scrim landed on. */
+const SCRIM_FLOOR = 0.62;
+/** The floor as a paint value. This is a FLAT FILL, not a gradient stop: the type
+ *  block's background IS this colour, so the alpha under every glyph is constant and
+ *  the contrast is a literal number instead of a text-shadow guess. */
+const SCRIM_FLOOR_FILL = `rgba(255,255,255,${SCRIM_FLOOR})`;
+/** #FFFFFF — the scrim base. The share card's scrim is black-floor/light-ink; Sean asked
+ *  here for 「black font ... white shadow effect」, so this one runs at inverse polarity. */
+const SCRIM_BASE = '#FFFFFF';
+/** Ramp height, FIXED rather than onLayout-measured. run-share-card documents why: a
+ *  measured band paints at the wrong height on the first frame, and the floor must be
+ *  coextensive with the type by construction, at every frame. */
+const SCRIM_RAMP = 26;
+/** The bare, unscrimmed part of the photo — without it the floor swallows the picture
+ *  and the ruling ("make it an image") is answered by hiding the image. */
+const PHOTO_BAND = 64;
+
+/** The ramp: transparent down to the floor alpha, so the flat floor has no visible edge. */
+function ScrimRamp() {
+  // react-native-svg resolves gradient ids in a document-wide namespace, and owner home can
+  // mount this beside other gradient users, so the id is per-instance. The strip is required
+  // because React's ids carry punctuation (`:r0:`) that `url(#…)` cannot hold.
+  const id = `clubScrim${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  return (
+    <Svg pointerEvents="none" width="100%" height={SCRIM_RAMP} viewBox="0 0 100 100" preserveAspectRatio="none">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={SCRIM_BASE} stopOpacity="0" />
+          <Stop offset="0.25" stopColor={SCRIM_BASE} stopOpacity="0.16" />
+          <Stop offset="0.5625" stopColor={SCRIM_BASE} stopOpacity="0.4" />
+          <Stop offset="1" stopColor={SCRIM_BASE} stopOpacity={SCRIM_FLOOR} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100" height="100" fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
 // ---------- compact 행 (보호자 홈 전용, 2026-08-19 랩 ⑧) ----------
 // 나이트 스텁 카드는 홈의 두 번째 다크 아일랜드였다 (⑧ 법: 다크 섬은 화면에 하나, active 상태의
 // 라이브 위젯뿐). 홈에서는 같은 진실을 **라이트 modh 행 하나**로 말한다 — 새 데이터 0개:
@@ -479,33 +520,76 @@ function ClubCompactRow({ club }: { club: ClubOverview }) {
   } else if (club.status === 'collecting') {
     bits.push(`관심 ${club.interestCount}팀 · 호스트를 기다려요`);
   } else {
-    bits.push(`멤버 ${club.memberCount}명`);
+    // 멤버 수는 발치의 원장 줄이 가진다 — 사실 하나에 자리 하나 (아래 중복 제거 주석 참조).
     bits.push(club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중');
   }
-  // [2026-08-20 Sean] 각인 클럽 위젯 — 랩 `home-state-lab.html`의 ③(포일 엣지 + 모노그램 +
-  // 원장 발치)이 이겼다. 이긴 이유는 예쁨이 아니라 **비대칭**이다: 모노그램이 왼쪽, 화살표가
-  // 오른쪽이라 '들어가는 행'으로 읽히고, 가운데 정렬 명패(①)처럼 '보는 판'으로 읽히지 않는다.
-  // 나이트 판(④)은 더 강한 물건이지만 홈에 두 번째 다크 아일랜드를 다시 들여오므로 탈락했다.
-  // 발치의 원장 줄은 소속의 증거(설립·멤버 수)이고 전부 실필드다 — 지어낸 값 0개.
+  // [2026-08-20 Sean] 각인 위젯의 **구조**는 남는다 — 모노그램 왼쪽 · 화살표 오른쪽이라
+  // '들어가는 행'으로 읽히고, 가운데 정렬 명패처럼 '보는 판'으로 읽히지 않는다. 발치의 원장
+  // 줄도 소속의 증거로 남는다. 바뀐 것은 **바탕**뿐이다 (아래 R3 참조).
+  //
+  // [2026-08-26 Sean, 5라운드 R3] 「the tan gold should be image of club later with text in
+  // black font and white shadow effect to make things legible.」 탠골드 워시(#F4EBD3 + 골드
+  // 엣지 #E7DAB6 + 2px 골드 포일)는 은퇴하고, 클럽 자기 사진이 카드의 바탕이 된다.
+  //
+  // ⚠ A raw white text-shadow CANNOT be contrast-gated. DESIGN.md's floors are measured *vs a
+  // canvas*, and a photo has no canvas — the ratio would change with every pixel under it. So
+  // the legibility is carried by the mechanism proven in `run-share-card.tsx`: a FLAT floor
+  // fill behind the type (constant alpha under every glyph → the contrast is a fixed number)
+  // with a gradient ramp above it so the floor has no visible edge. Same structure, INVERSE
+  // polarity — Sean asked for black type lifted by white, so the floor is white and the ink is
+  // dark, where the share card's floor is black and its ink light.
+  //
+  // MEASURED (WCAG 2.x relative luminance). The worst case is a pure BLACK photo under the
+  // floor — the darkest ground the composite can reach, so it is the FLOOR of the range, not a
+  // typical value:
+  //   rgba(255,255,255,0.62) over #000000 → rgb(158,158,158)
+  //     · 타이틀  #111111 (paper.ink)  = 7.06:1  ✓
+  //     · 서브    #333333 (paper.text) = 4.72:1  ✓
+  //     · 원장    #333333 (paper.text) = 4.72:1  ✓
+  //   On a white photo that same floor is white: 18.88:1 / 12.63:1.
+  // ⚠ paper.dim #666666 measures 2.15:1 on that composite and MUST NOT be used over the photo.
+  //   The no-photo arm below does use it, because there the ground is really #FFFFFF (5.74:1).
+  //
+  // 🔴 사진이 없으면 가짜 사진은 없다. `clubs.photo_url` is nullable and most clubs have none:
+  // no stock image, no coloured rectangle standing in for a photo, and NOT the retired tan.
+  // The card falls back to the paper world's own chrome — white ground, neutral #EEEEEE
+  // hairline, ink typography carrying the identity. A photo that fails to load degrades to the
+  // same white card, because the card's own background is white under the Image.
   const mono = club.name.trim().charAt(0) || '클';
+  const photo = club.photoUrl; // 실필드: clubs.photo_url → club_overview RPC → ClubOverview.photoUrl
   return (
     <Pressable
       onPress={() => router.push(`/club/${club.id}`)}
-      style={({ pressed }) => [s.cEngrave, pressed && { opacity: 0.94 }]}
+      style={({ pressed }) => [s.cCard, pressed && { opacity: 0.94 }]}
       accessibilityRole="button" accessibilityLabel={`${title} 클럽 홈`}
     >
-      <View style={s.cFoil} />
-      <View style={s.cEngraveBody}>
-        <View style={s.cMono}><Text style={s.cMonoT}>{mono}</Text></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.cEngraveT} numberOfLines={1}>{title}</Text>
-          <Text style={s.cEngraveSub} numberOfLines={1}>{bits.join(' · ')}</Text>
+      {!!photo && (
+        <>
+          <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {/* 맨 사진 — 스크림이 닿지 않는 구간. 그 아래 램프가 바닥까지 내려간다. */}
+          <View style={{ height: PHOTO_BAND }} />
+          <ScrimRamp />
+        </>
+      )}
+      <View style={photo ? s.cFloor : undefined}>
+        <View style={s.cBody}>
+          <View style={[s.cMono, photo ? s.cMonoPhoto : s.cMonoPlain]}>
+            <Text style={s.cMonoT}>{mono}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.cTitle} numberOfLines={1}>{title}</Text>
+            <Text style={[s.cSub, photo ? s.cSubPhoto : s.cSubPlain]} numberOfLines={1}>{bits.join(' · ')}</Text>
+          </View>
+          <Text style={s.cAct}>›</Text>
         </View>
-        <Text style={s.cEngraveAct}>›</Text>
-      </View>
-      <View style={s.cLedger}>
-        <Text style={s.cLedgerT}>반포 · 하이클럽</Text>
-        <Text style={s.cLedgerT}>{`멤버 ${club.memberCount}`}</Text>
+        {/* 원장 줄 = 소속의 증거. 시뮬레이터에서 확인한 중복 제거: 옛 줄은 왼쪽에
+            '반포 · 하이클럽'(하드코딩 '반포' + 타이틀이 이미 말하는 클럽명)을, 오른쪽에
+            '멤버 N'(서브가 이미 말하는 값)을 찍어, 카드 한 장이 같은 사실을 두 번씩 말했다.
+            11pt 골드 각인일 때는 묻혔지만 15pt 플로어로 올리자 그대로 드러났다. 이제 이 줄은
+            서브에 없는 사실 하나(멤버 수)만 갖고, 서브는 그 값을 넘겼다 — 사실 하나에 자리 하나. */}
+        <View style={[s.cLedger, photo ? s.cLedgerPhoto : s.cLedgerPlain]}>
+          <Text style={[s.cLedgerT, photo ? s.cSubPhoto : s.cSubPlain]}>{`멤버 ${club.memberCount}명`}</Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -609,24 +693,31 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
-  // 각인 클럽 위젯 — 골드 워시 + 2px 포일 상단 엣지 + 모노그램 + 원장 발치.
-  cEngrave: { marginHorizontal: 15, marginTop: 4, marginBottom: 4,
-    backgroundColor: '#F4EBD3', borderWidth: 1, borderColor: '#E7DAB6' },
-  cFoil: { height: 2, backgroundColor: '#C9AE6A' },
-  cEngraveBody: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 15, paddingVertical: 14 },
-  cMono: { width: 42, height: 42, borderWidth: 1.5, borderColor: '#D8C185',
-    alignItems: 'center', justifyContent: 'center' },
-  cMonoT: { fontSize: 19, fontWeight: '900', color: '#5F4E1C' },
-  // 각인 문자 — 위 흰 하이라이트 + 아래 어두운 획으로 종이에 눌린 것처럼. 첫 랩에서 크림 위
-  // 크림으로 해 이름이 사라졌던 값(#EFE3C2)은 쓰지 않는다: 읽히지 않는 각인은 각인이 아니다.
-  cEngraveT: { fontSize: 20, lineHeight: 26, fontWeight: '900', color: '#5F4E1C',
-    textShadowColor: 'rgba(255,255,255,0.95)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0 },
-  // 3.8:1이던 값(#8A7434)을 재서 교체 — 골드 워시 위 서브라인은 눈으로 고르면 항상 미달한다.
-  cEngraveSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: '#6B5720', marginTop: 2 },
-  cEngraveAct: { fontSize: 21, color: '#5F4E1C' },
+  // 클럽 카드 — 사진이 바탕(R3). 카드 자체 배경은 흰색이다: 사진이 없거나 로드에 실패하면
+  // 그대로 흰 카드로 내려앉고, 깨진 이미지 자리에 색면이 남지 않는다.
+  cCard: { marginHorizontal: 15, marginTop: 4, marginBottom: 4, overflow: 'hidden',
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
+  /** 사진 위 타입 블록의 배경 = 평평한 바닥. 이 한 줄이 대비를 숫자로 만든다. */
+  cFloor: { backgroundColor: SCRIM_FLOOR_FILL },
+  cBody: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 15, paddingVertical: 14 },
+  cMono: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  // 사진 위에선 잉크 테두리(사진과 싸우지 않게 반투명), 사진이 없으면 중립 헤어라인.
+  cMonoPhoto: { borderColor: 'rgba(17,17,17,0.28)' },
+  cMonoPlain: { borderColor: '#EEEEEE' },
+  cMonoT: { fontSize: 19, fontWeight: '900', color: paper.ink },
+  // 타이틀 — 「black font」. 바닥 위 7.06:1(최악)·흰 사진 위 18.88:1.
+  cTitle: { fontSize: 20, lineHeight: 26, fontWeight: '900', color: paper.ink },
+  // 서브 — 한국어 디테일 플로어 15pt (구 14.5는 플로어 미달이었다).
+  cSub: { fontSize: 15, lineHeight: 20, fontWeight: '600', marginTop: 2 },
+  cSubPhoto: { color: paper.text }, // 4.72:1 최악 — paper.dim은 2.15:1로 여기서 금지
+  cSubPlain: { color: paper.dim },  // 흰 카드 위 5.74:1
+  cAct: { fontSize: 21, color: paper.ink },
   cLedger: { flexDirection: 'row', justifyContent: 'space-between',
-    borderTopWidth: 1, borderTopColor: '#E4D5AE', paddingHorizontal: 15, paddingVertical: 7 },
-  cLedgerT: { fontSize: 11, letterSpacing: 1.4, fontWeight: '700', color: '#7C682E' },
+    borderTopWidth: 1, paddingHorizontal: 15, paddingVertical: 8 },
+  cLedgerPhoto: { borderTopColor: 'rgba(17,17,17,0.18)' },
+  cLedgerPlain: { borderTopColor: '#EEEEEE' },
+  // 원장 줄도 한국어 15pt — 구 11pt/레터스페이스는 라틴 대문자 킥커 예외가 아니었다 (한글이다).
+  cLedgerT: { fontSize: 15, lineHeight: 20, fontWeight: '700' },
   cRowT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
   cRowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
   cRowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
