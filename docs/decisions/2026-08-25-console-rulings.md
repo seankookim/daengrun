@@ -684,3 +684,56 @@ so:** I told it deletion was missing — `delete_my_account_tx` **already nulls 
 the disclosure line **already ship** (`club/session/[sid].tsx:908-913`, `:943`). Only the 현장 arm
 (`club/run/[sid].tsx`) lacks it. I briefed from the spec's intent rather than from the code, which
 is the same substitution as describing the world from the migration.
+
+## Host session authority — contract landed, and `attendance` turns out to be a SAFETY GATE
+
+`docs/contracts/club-host-session-authority-contract.md`. Every brief claim verified, none refuted.
+Three findings the brief did not contain, all confirmed independently at source:
+
+1. 🔴 **`attendance` is a GATE column, not a stats column — so "let the host mark people present"
+   is a privilege question, not a convenience.** Two measured consequences:
+   - `0047:92-94` — placing a dog with a runner REQUIRES that runner be `checked_in`
+     (`runner_not_checked_in`). A host who could write attendance **could place a live dog with a
+     runner who never opened the app.**
+   - `0047:329-331` — `club_assume_host` refuses with `host_present` while the host is
+     `checked_in`. So a power to CLEAR the host's attendance is **a power to hand the session to
+     the backup host.** `cannot_remove_host` is therefore a privilege-escalation guard, not
+     politeness.
+2. **`no_show` has ZERO writers anywhere in the schema** (verified: no `attendance = 'no_show'`
+   write exists; only a fixture references it). This decides the removal design — reusing
+   `no_show` costs **zero reader edits** because all 20 readers already behave correctly (seat
+   freed, shell access dropped, stats excluded, re-RSVP blocked), whereas a new `'removed'` enum
+   value forces edits to five shipped functions, since every `<> 'no_show'` predicate would admit
+   it. The distinguishing fact lives in `removed_by/removed_at/removed_reason` instead.
+3. **Host stats read attendance** (`0116:673,676` the host's OWN trust card; `0031:50,54` another
+   person's streak) — a direct incentive conflict. Hence host-marked attendance is the same enum
+   value but a **distinguishable fact** via `checked_in_by`, not a new enum member.
+
+**MONEY — two boundaries, both held by REFUSAL rather than by accounting:**
+- **Removal of an owner with a live delegation REFUSES (`delegation_active`).** The only shipped
+  cancel path prices `post_acceptance` at 20% **charged to the owner**, writing
+  `cancel_reason = 'club_owner_cancel'` (`0124:118`) — so a host tap would bill an owner 20% under
+  a reason that names the owner as the canceller. Verified at source.
+- **Verify writes `session_people` and NOTHING else.** `session_checkin` also stamps
+  `session_dogs.checked_in_at` (`0030:258-259`), which is a term in the 0118 no-show fee gate
+  (`0118:1245-1249`) — mirroring it would hand a host unilateral power to suppress or leave
+  standing a 20% fee.
+
+**Free win, named but deliberately not spent:** `0118:1207-1224` records an OPEN RESIDUAL needing
+「a durable *this owner attended* fact that the reassignment paths do not reset」.
+`session_people.checked_in_at + checked_in_by` is exactly that — but wiring it into the fee gate
+is S4's, not this slice's.
+
+**Coordination flag:** `club-rsvp-hardening-contract.md` §D gates `session_cancel_rsvp` on
+`checked_in_at is not null`. Once a HOST can produce that state, the gate should read
+`checked_in_at is not null and checked_in_by is null`. **Whichever contract lands second owns that
+conjunct** — recorded so it is not discovered by a user who cannot cancel.
+
+### OPEN — SEAN (four, each a one-sentence answer)
+1. Can a host remove a **dog** being walked by a runner, or only a **person**? (Contract does
+   people-only; dogs need their own money answer.)
+2. Mark someone **absent**, or only **present**? (Contract is present-only.)
+3. **Is the removed person told, and in what words?** (Contract writes zero notifications
+   deliberately — silence / a neutral line / the host's reason verbatim; the third has a
+   harassment surface.)
+4. Both powers to the **backup host**, or host only? (Contract gives both to both.)
