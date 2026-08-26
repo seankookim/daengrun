@@ -378,9 +378,15 @@ export function StoryShareCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14, paddingTop: 12 }}>
-            {/* The date the run happened — Korean data, 15pt floor. */}
+            {/* The date the run happened, and — only when the composer's switch put it there —
+                the course name beside it. ⚠ [device-verified 2026-08-26] This card previously
+                did NOT render `routeName` at all, while the studio's new 코스 이름 switch told the
+                person 「카드에 「…」이 들어가요」. The switch was promising something this skin could
+                not keep, on the one screen whose whole subject is what does and does not get
+                published. Found by flipping the switch on the simulator; a code read had passed it.
+                Same gate as the trace: the studio hands `null` unless the switch is ON. */}
             <Text {...FIXED_TYPE} style={{ flexShrink: 1, fontSize: 15, lineHeight: 21, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={1}>
-              {data.when}
+              {data.when}{data.routeName ? ` · ${data.routeName}` : ''}
             </Text>
             {/* Wordmark — logo artwork (DESIGN.md §3): a mark, no data, Latin serial.
                 flexShrink 0: a long date truncates, the brand mark never does. */}
