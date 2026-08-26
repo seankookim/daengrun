@@ -73,6 +73,17 @@ export default function CompanionRun() {
   const myDog: RosterDog | null =
     roster?.dogs.find((d) => d.isMine && d.custody === 'owner_handled') ?? null;
 
+  // 🔴 CHECK-IN GATED HERE TOO, not only on the CTA that opens this screen. Codex raised it
+  // against the session screen's door and it is the destination's problem: a deep link
+  // (/club/companion/<sid>) reaches this route without passing any CTA, so a gate that lives only
+  // on the button is a gate on the polite path. Tracking a walk you have not checked into would
+  // record a run for someone who is not at the meetup — the same class as a fixture the lifecycle
+  // cannot produce, except here the product would produce it.
+  // ⚠ `undefined` is NOT 「not checked in」 — it is 「we have not been told」. Only a loaded roster
+  // can answer, so the gate reads false until `loaded`, and the copy below distinguishes them.
+  const me = roster?.people.find((p) => p.isMe) ?? null;
+  const checkedIn = me?.attendance === 'checked_in';
+
   const begin = async () => {
     if (handle.current) return;
     resetTrace();
@@ -109,7 +120,14 @@ export default function CompanionRun() {
       <Text style={s.head}>
         {!loaded ? '불러오는 중…'
           : rosterErr ? '세션을 불러오지 못했어요'
-          : myDog ? `${myDog.dogName}와 함께 뛰는 중` : '동반 신청한 아이가 없어요'}
+          : !myDog ? '동반 신청한 아이가 없어요'
+          // ⚠ 「뛰는 중」 is a claim about NOW. It was rendered whenever the dog existed — before
+          // check-in, before start, after finish — i.e. the screen asserted a run that had not
+          // begun. Same family as a countdown frozen at mount: a live-sounding string bound to
+          // nothing live. Each state now says what is actually true.
+          : running ? `${myDog.dogName}와 함께 뛰는 중`
+          : !checkedIn ? `${myDog.dogName} · 체크인 전`
+          : `${myDog.dogName}와 함께 뛸 준비가 됐어요`}
       </Text>
 
       {/* loading ≠ error ≠ genuinely empty — three named branches, never one blank */}
@@ -119,10 +137,23 @@ export default function CompanionRun() {
         </View>
       )}
       {loaded && !rosterErr && !myDog && (
-        <Text style={s.lede}>이 세션에 동반으로 등록한 아이가 없어요. 세션 화면에서 「내 아이도 함께」로 등록할 수 있어요.</Text>
+        <Text style={s.lede}>이 세션에 동반으로 등록한 아이가 없어요. 세션 화면 참가자 탭에서 「내 아이도 데려가기」로 등록할 수 있어요.</Text>
       )}
 
-      {myDog && (
+      {myDog && loaded && !checkedIn && (
+        <>
+          <View style={s.rule} />
+          <Text style={s.lede}>
+            체크인하면 러닝을 시작할 수 있어요. 세션 화면에서 입장권으로 체크인해 주세요.
+          </Text>
+          <Pressable onPress={() => router.back()} style={s.cta}
+            accessibilityRole="button" accessibilityLabel="세션 화면으로 돌아가기">
+            <Text style={s.ctaTxt}>세션 화면으로</Text>
+          </Pressable>
+        </>
+      )}
+
+      {myDog && checkedIn && (
         <>
           <View style={s.rule} />
           <View style={s.stats}>
