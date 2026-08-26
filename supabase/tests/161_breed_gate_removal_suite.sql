@@ -303,6 +303,77 @@
 --                  Two nets, two propositions; a battery that ran only one would have measured the
 --                  weaker of them and reported the stronger.
 --
+-- ── MEASURED (2026-08-26, Slice B battery; baseline 912/0) ───────────────────────────────────
+-- ⚠ METHOD NOTE, and it differs from the M1-M16 battery on purpose: every run below was executed
+-- against a COPY of `supabase/` outside the worktree (`/tmp/sliceb-mut`), never by editing a live
+-- migration in place. CLAUDE.md records why — a copy-modify-restore is a read-modify-write with a
+-- multi-second window, and another agent editing the same file loses its work silently inside it.
+--   M17 MEASURED  **EXACT.** RED = [P6 ⓑ] only (911/1), naming `public.dog_dangerous_status`.
+--   M18 MEASURED  **EXACT.** RED = [P6 ⓐ] only (911/1), naming `dangerous_basis` and nothing else —
+--                 the partial-drop state, which is the one nobody models.
+--   M19 MEASURED  **EXACT, and all four authored details fired at once** (911/1):
+--                 「신고 컬럼이 아직 남아 있다 [dangerous_basis, dangerous_status]」 ·
+--                 「dog_dangerous_status 타입이 아직 존재한다 [public.dog_dangerous_status]」 ·
+--                 「dogs_dangerous_basis_pairs_with_status CHECK이 아직 있다」 ·
+--                 「dogs의 제약이 아직 신고 컬럼을 참조한다」. One pin, four sentences, no other pin moved.
+--   M20 MEASURED  **EXACT.** RED = [P6 ⓓ] only (911/1): 「삭제된 컬럼을 아직 참조하는 루틴이 있다
+--                 [public._zz_dangling] — 다음 호출에서 터진다」. This is the M7-analogue — a plpgsql
+--                 body is not validated at CREATE, so nothing else in the harness can see it, and
+--                 the arm authored for it caught it and nothing else did.
+--   M21 MEASURED  🔴 **PREDICTION MISSED, and the miss is the finding.** I predicted P6 ⓕ would red
+--                 naming `memo`. It never got that far: postgres REFUSED the mutation at apply time
+--                 — `cannot drop column memo of table dogs because other objects depend on it`. A
+--                 view consumes `memo`, so it is dependency-protected exactly the way M9c measured
+--                 the enum to be protected by its column. The prediction was wrong about the
+--                 MECHANISM (a pin would catch it) while being right about the direction, and it
+--                 incidentally confirms the migration's no-`cascade` reasoning empirically: RESTRICT
+--                 really does abort rather than widen the blast radius.
+--   M21b MEASURED **EXACT** on a column no view holds. `alter table dogs drop column neutered`
+--                 → RED = [P6 ⓕ] only (911/1): 「0130이 자기 것이 아닌 컬럼까지 가져갔다 [없는 것:
+--                 neutered]」. Suite 153 writes `neutered` and did NOT red, so this is a clean single
+--                 red rather than a superset. The positive half is doing its job.
+--   M22 MEASURED  **EXACT — and it measures the MIGRATION, not a pin.** The dangling function
+--                 planted between §D and §E: the apply ABORTED at §E's block terminator with
+--                 `ERROR: 0130: a routine body still references a dropped column: public._zz_dangling`.
+--                 No suite ran, which is correct: the migration failed closed.
+--   ⚠ `supabase db reset` COULD NOT BE RUN and the `seed.sql` edit is therefore verified a
+--   DIFFERENT way, stated so nobody reads it as the same thing. Docker is down on this machine
+--   (`failed to connect to the docker API … no such file or directory`), so the local stack cannot
+--   start. What WAS measured, in the throwaway cluster: the full migration chain including 0130
+--   applied clean, then `seed.sql`'s own `insert into dogs (…)` — the edited statement, extracted
+--   verbatim from the file — applied and read back (초코 / 웰시코기 / 11.0kg / goal=15.0). With a
+--   CONTROL, because a test that cannot fail measures nothing: the PRE-0130 form of that same
+--   insert now raises `column "dangerous_status" of relation "dogs" does not exist`. ⚠ The
+--   whole-file run is NOT available as a check — the harness's `00_shim.sql` builds an `auth.users`
+--   with only (id, email), so `seed.sql` dies at its first statement on `raw_user_meta_data` in ANY
+--   version, edited or not. That failure is a shim artifact and says nothing about this slice.
+--   M23 MEASURED  **EXACT, and it is the PAIR that makes M22 mean something.** The same function
+--                 planted at the TOP of the file: the apply ABORTED at line 179 — §A's block
+--                 terminator, with the §A message — i.e. **before line 184, the first drop.** So the
+--                 two nets are provably distinct: §A refuses to CREATE the hole (nothing is dropped,
+--                 the columns are still there when it fails) and §E catches it AFTER the fact. A
+--                 battery that ran only M22 would have measured the weaker of the two and reported
+--                 the stronger — the same three-propositions discipline 0127's M10/M11 pair used.
+--   BLAST RADIUS: every ❌ across the six suite-reaching runs was `[mgn-off] P6`, and each was
+--   911/1 — no mutation moved any of the other 911 pins in either direction, and none moved a pin
+--   in the green direction.
+--   ⚠ **A FLAKE THAT WAS MY OWN DRIVER, and the first explanation I gave for it was WRONG.**
+--   Four runs died mid-chain at unrelated suites (141, 95, 158, and one before 0110), each
+--   non-reproducing on retry, each with `psql: error: connection to server on socket … failed: No
+--   such file or directory` — the postmaster vanishing mid-run. My first reading blamed the six
+--   other harness postmasters live on this machine plus CLAUDE.md's recorded `pkill -f` class.
+--   **That was a hypothesis and the evidence refuted it.** `pg.log` caught the real thing:
+--   `FATAL: lock file "postmaster.pid" already exists … PID 90254 running in data directory …`,
+--   with the socket file GONE from a directory whose postmaster was still alive. The cause is the
+--   mutation driver itself: it ran `rm -rf .pgtest` at the start of each mutation while the
+--   PREVIOUS run's postmaster was still up, deleting the live cluster's socket and datadir out from
+--   under it. Nobody else's process was involved. Recorded in the wrong-then-right order rather
+--   than swapped out, because the wrong version is the more instructive one: an unexplained failure
+--   next to a known shared-machine hazard reads as that hazard, and the pg.log line that settles it
+--   costs one command. **Stop the postmaster before removing its datadir.** No mutation result
+--   below is affected — every one reproduced its predicted red exactly on a clean retry, and the
+--   aborting suite was different every time and never 맹견-related.
+--
 -- ── SCOPE, STATED HONESTLY ──────────────────────────────────────────────────────────────────
 -- These pins prove the SCHEMA half only. The edge function's removed token mapping is proven by
 -- the deploy readback and by the deletion of `_test/booking_danger_token_test.ts`; the client half
