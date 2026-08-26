@@ -78,7 +78,13 @@ export default function HostConsole() {
   const load = useCallback(() => {
     if (!sid) return;
     setBoardErr(false);
-    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoardErr(true));
+    // ⚠ [codex re-review P1] `now` is re-stamped as the board LANDS, not only by the 1s interval.
+    // Without it a board that gains a hold via refresh renders its first frame against a MOUNT-ERA
+    // `now`: on a screen open ten minutes with no proposal, a 20-minute window flashes as ~30:00
+    // until the first tick corrects it. An inflated clock for one second is still a fabricated
+    // number. Stamped HERE rather than inside the interval effect on purpose — a synchronous
+    // setState in an effect trips the cascading-render rule, and this is the same instant anyway.
+    fetchDelegationBoard(sid).then((b) => { setNow(Date.now()); setBoard(b); }).catch(() => setBoardErr(true));
     // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
     fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
   }, [sid]);
@@ -92,12 +98,18 @@ export default function HostConsole() {
   // with a hold and no proposal froze `now` at mount and displayed a countdown that never
   // decremented. A frozen clock is a fabricated live number (honesty law: loading is not 0, and a
   // number that isn't counting is worse than no number, because it reads as counting).
-  const hasHold = dogs.some((d) => d.chargeState === 'hold');
+  // ⚠ [codex re-review P2] This asks for a hold that is still LIVE, not merely a row whose
+  // chargeState reads 'hold'. Keyed on the token alone the interval never stops: the chip vanishes
+  // at zero but the timer keeps re-rendering the whole screen at 1 Hz until refresh or unmount.
+  // Deriving it from `now` is safe and does not thrash — the boolean changes value exactly once
+  // (true → false at expiry), so the effect re-runs on that edge and cleans up, not every tick.
+  const hasLiveHold = dogs.some((d) =>
+    d.chargeState === 'hold' && d.holdExpiresAt != null && new Date(d.holdExpiresAt).getTime() > now);
   useEffect(() => {
-    if (!hasProposal && !hasHold) return;
+    if (!hasProposal && !hasLiveHold) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [hasProposal, hasHold]);
+  }, [hasProposal, hasLiveHold]);
 
   if (!board) {
     return (
