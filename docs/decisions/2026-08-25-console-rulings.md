@@ -1476,3 +1476,72 @@ escalation is best-effort; the task attempt remains the real test.
 
 ⚠ **Ships in a BUILD, not an OTA update** (native config), and **App Store review is Sean's** —
 background location is a gated capability and Apple rejects thin justifications.
+
+## 2026-08-26 — BOTH codex reviews returned **REJECT**. The background-location change is REVERTED.
+
+Value-matched detection (`VERDICT: (APPROVE|APPROVE-WITH-FIXES|REJECT)`), no usage wall, both
+genuine. Reported in full because a rejection I hide is worse than the defect.
+
+### 🔴 Background location — REVERTED from trunk. My change made things WORSE.
+
+**And my diagnosis was wrong TWICE on the same defect**, which is the part worth keeping:
+
+1. First I said `UIBackgroundModes` was absent → **false**, the expo plugin injects it and the
+   flag has been true since 2026-08-08. I read `app.json`'s static block and described the binary.
+2. Then I said Always authorization was missing so `startLocationUpdatesAsync` threw every run →
+   **also unestablished, and likely false.** Expo 57's iOS implementation checks **foreground
+   authorization + `UIBackgroundModes`**, not Always; Apple permits a foreground-started session
+   to continue in background when background modes are enabled.
+
+**So there may be no defect here at all** — and I "fixed" it twice on two different wrong premises.
+
+**The concrete harm my change caused, verified in the SDK's own source before reverting:**
+
+- 🔴 **Android REGRESSED.** `LocationModule.kt:315-325`, its own comment: *「2. As a user-initiated
+  foreground service with notification, this does NOT require the background location permission」*
+  — the guard is `if (!shouldUseForegroundService && isMissingBackgroundPermissions())`. The task
+  **always** supplies `foregroundService` (`geo.ts:253`), so background permission was **never
+  needed on Android**. My JS guard blocked a working path unless the user granted 「all the time」.
+- 🔴 **It could prompt DURING AN ACTIVE RUN.** `startTracking` is not a run-start gate: it is
+  called as a preflight probe (`club/session/[sid].tsx:403`) and on effect changes during a live
+  run (`club/run/[sid].tsx:164`). On Android 11+ that opens the system Settings page **mid-run**.
+- 🔴 **「refusal is non-fatal」 was FALSE** — I asserted it in the code comment. The 1:1 caller
+  stops the returned watcher and refuses to start (`runner/run.tsx:1040`); the club preflight does
+  the same. A background refusal therefore blocks the run.
+- The stale-task cleanup hazard I predicted **is real** — the short-circuit skips it, so an orphan
+  task from a killed run keeps writing.
+- Flipping the Android flag also adds a permission that triggers extra Google Play review.
+
+**REVERTED** (`geo.ts`, `app.json` restored). ⚠ **The open question is now 「is there a defect at
+all?」** and it is answerable only by a measurement nobody has taken: **a real lock-screen run on a
+device**, comparing the recorded trace against the distance actually walked. Every claim about
+underpaid runners rests on a chain of source reads, not one observed run.
+
+### 0131 (open-read scoping) — REJECT. Real defects, and three are in MY OWN evidence.
+
+- **The membership predicate is too broad.** Any `session_people` row counts, so a `no_show`, a
+  withdrawn runner holding a stale backup-host pointer, and an owner with a *pending/rejected/ended*
+  delegation all read **all four tables**. A dog-local custodian is promoted to all-table access.
+- **The pre-check does not do what it claims.** It counts four open policies **globally** and
+  ignores EXTRA policies, so a drifted DB carrying `to anon using (true)` on
+  `session_runner_assignments` survives pre-check, VERIFY and all seven pins.
+- 🔴 **S4 tests three tables, not four** — it omits `session_runner_assignments`. **I wrote that it
+  tested all four.**
+- 🔴 **S3's 「three separate membership paths」 is FALSE.** The owner reads via the direct
+  `owner_profile_id` arm and the runner via the direct dog arm, so only the host isolates a helper
+  branch. I claimed the opposite in the suite header and in the harness registration.
+- 🔴 **R1 does not execute the real caller's query** — the real one also requires
+  `attendance='checked_in'` and `club_sessions.status='done'`. A mutation admitting only `rsvp`
+  rows leaves R1 green while zeroing every stamp count.
+- **The fixture is lifecycle-impossible**: the session defaults to `owner_only`, which
+  `session_runner_commit` refuses, and no product writer creates the `self_reported` activity —
+  so it is exactly the 「constructible by INSERT, unreachable by the product」 shape this repo has a
+  law about, in a suite I wrote *citing that law*.
+- **VERIFY counts policy names anywhere in `public`** — not per-table, not `polcmd`, not
+  `TO authenticated`, not the predicate. Four `USING(false)` policies on the wrong table satisfy it.
+- **`status='committed'` is an allow-list**, violating the `<> terminal` law I quote constantly.
+- ⚠ **My 「three independent guards」 claim on M4 is wrong** — they are three catalog reads of the
+  **same** ACL fact, and repo test 98 says so itself.
+
+**0131 stays on trunk, undeployed, and its REGISTRY row's do-not-deploy hold now has a REJECT
+behind it rather than an absent verdict.**
