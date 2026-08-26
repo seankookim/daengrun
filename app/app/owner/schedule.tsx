@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { routeNameOnly } from '../../src/lib/route-label';
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -60,6 +61,15 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
 const stFor = (b: Booking) =>
   b.rawStatus === 'no_show' ? { label: '불발', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
   : b.rawStatus === 'incident_review' ? { label: '확인 중', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }
+  // 🔴 [정직 2026-08-27] `expired` 는 STATUS_MAP 에서 'cancelled' 로 뭉개져 「취소됨」 배지가 됐다.
+  //    아무도 취소하지 않았다 — 시작 시간까지 러너를 못 찾은 것이고, 그건 플랫폼의 실패다.
+  //    알림 화면은 같은 예약을 이미 「매칭 만료 — 시작 시간까지 러너를 찾지 못했어요」라고
+  //    부른다. 두 화면이 같은 사건에 다른 낱말을 쓰면 보호자는 자기가 취소했는지 아닌지를
+  //    화면마다 다르게 배운다. 알림의 낱말을 정본으로 삼는다.
+  //    ⚠ STATUS_MAP 의 뭉개기 자체는 그대로 둔다 — 그건 표시 어휘 6종을 유지하려는 의도된
+  //      납작화이고, 이 파일이 이미 no_show·incident_review 에 쓰는 rawStatus 우회로가
+  //      「뭉갠 것 중 실제로 다른 사실」을 되살리는 자리다. 같은 문법, 세 번째 값.
+  : b.rawStatus === 'expired' ? { label: '매칭 만료', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
   : STATUS_STYLE[b.status];
 
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
@@ -366,7 +376,7 @@ export default function Schedule() {
                     지어낸 모양 대신 아무것도 그리지 않는다 (실좌표는 코스 상세가 담당) */}
                 <View style={{ flex: 1 }}>
                   <Row style={{ gap: 4 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{routeNameOnly(b.routeName)}</Text>
                     {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
                         drawn unconditionally, so a booking with no route rendered
                         「코스 미지정 ✓」: a verification mark on the absence of a course.
@@ -380,7 +390,13 @@ export default function Schedule() {
                       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: collarColors[b.dogCollar as CollarKey], borderWidth: 1.5, borderColor: '#fff' }} />
                     )}
                     <Text style={{ fontSize: 15, color: paper.text, flexShrink: 1 }} numberOfLines={1}>
-                      {b.dogName} · {b.runnerName} 러너 · {b.km}km
+                      {/* 🔴 [정직 2026-08-27] `b.runnerName` 은 이름 슬롯이지만 아직 매칭 전이면
+                          api.ts:4506 이 거기에 **상태 토큰** '매칭 중' 을 넣는다 — 그래서 화면에
+                          「매칭 중 러너」가 떴고, 이건 '매칭 중'이라는 이름의 러너로 읽힌다.
+                          owner/home:561 은 이미 `b.matched ?` 로 막고 있었다; 이 파일만 안 막았다.
+                          같은 가드를 그대로 가져온다 — 새 문장을 쓰지 않는 이유는, 두 화면이 같은
+                          상태를 다른 낱말로 말하면 그게 다음 정직 결함이 되기 때문이다. */}
+                      {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'} · {b.km}km
                     </Text>
                   </Row>
                   {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
@@ -490,7 +506,7 @@ export default function Schedule() {
                     : `${b.runnerName} 러너가 픽업으로 이동 중이에요`;
               const sub = b.rawStatus === 'picked_up'
                 ? '출발하면 실시간으로 볼 수 있어요'
-                : `${b.routeName} · ${b.km}km`;
+                : `${routeNameOnly(b.routeName)} · ${b.km}km`;
               return (
                 <Pressable
                   key={b.id}

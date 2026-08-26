@@ -277,14 +277,17 @@ export default function Community() {
 
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Row style={{ gap: 8, alignItems: 'center' }}>
-                <Text style={[s.h1, df]}>하이 피드</Text>
-                <View style={s.liveBadge}>
-                  <View style={s.liveDot} />
-                  <Text style={[s.liveTxt, nf]}>LIVE</Text>
-                </View>
-              </Row>
-              <Text style={s.lede}>우리 동네 강아지들의 오늘 러닝. 완료된 러닝이 그대로 지면이 됩니다.</Text>
+              {/* 🔴 [정직 2026-08-27] 「우리 동네」와 「오늘」과 LIVE 배지, 셋 다 은퇴한다.
+                  이 파일은 바로 아래(스토리 레일 주석)에서 자기 손으로 그 이유를 적어 두었다:
+                  「FeedPost에 기계가 읽을 createdAt이 없고, fetchFeed는 전역 최신 30건이라
+                  '오늘'도 '우리 동네'도 주장할 수 없다」. 그 추론은 레일에만 적용됐고 12줄 위의
+                  헤드라인은 그대로 남았다 — 화면에서 가장 큰 글씨가 파일이 이미 거짓이라고
+                  판정한 두 낱말이었다. 측정: 계정은 성수, 레일은 반포동, 최신 글은 8월 11일.
+                  LIVE 배지도 같은 이유로 뺀다. 무조건 렌더되는 JSX였고 (게이트 없음), 15일 된
+                  글 위에서 깜빡이는 ● LIVE 는 '지금 일어나는 중'이라는 주장이다.
+                  남는 문장은 이 피드가 실제로 하는 일이고, 그건 전부 참이다. */}
+              <Text style={[s.h1, df]}>하이 피드</Text>
+              <Text style={s.lede}>완료된 러닝이 그대로 지면이 됩니다.</Text>
             </View>
             <Pressable onPress={() => router.push('/leaderboard')} style={s.rankBtn}>
               <Text style={[s.rankTxt, nf]}>랭킹</Text>

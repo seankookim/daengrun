@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { routeNameOnly } from '../../src/lib/route-label';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandMark } from '../../src/components/brandmark';
@@ -559,7 +560,7 @@ export default function OwnerHome() {
                       <Text style={s.upT} numberOfLines={2}>
                         {b.timeLabel} · {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'}
                       </Text>
-                      <Text style={s.upS} numberOfLines={1}>{b.routeName} · {b.km}km</Text>
+                      <Text style={s.upS} numberOfLines={1}>{routeNameOnly(b.routeName)} · {b.km}km</Text>
                     </View>
                     {d ? <Text style={[s.upD, nf]}>{d}</Text> : null}
                   </Pressable>
