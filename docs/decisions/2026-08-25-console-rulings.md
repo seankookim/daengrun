@@ -737,3 +737,50 @@ conjunct** — recorded so it is not discovered by a user who cannot cancel.
    deliberately — silence / a neutral line / the host's reason verbatim; the third has a
    harassment surface.)
 4. Both powers to the **backup host**, or host only? (Contract gives both to both.)
+
+## ⚠ CORRECTION — "there is no club run-end primitive" was WRONG, and the truth is more dangerous
+
+I recorded, and relayed to the UI session, that `end_run_tx` refuses club bookings so **the pack
+run-end has no primitive to fan out over and one must be built first.** The first clause is true
+(`0083:383`). **The conclusion is false.**
+
+**There IS a club run-end today: it is `settle_run_tx`, and it is simultaneously the MONEY event.**
+Verified at source:
+- `settle_run_tx` is the only live writer of `bookings.status = 'completed'` (`0083:720`).
+- It **is club-reachable** — `0083:681`'s `if v_club is null` wraps only the *return-seal* branch,
+  not the function. Club bookings flow straight through.
+- It writes `ledger_items` with no club guard (`0083:754-755`), and `settle-run` then charges the
+  owner via the generic `mint_settle_charge_intent` path.
+- The club runner's own screen calls it per dog (`app/app/club/run/[sid].tsx` imports `settleRun`).
+
+**So 「ending a club run」 and 「paying for a club run」 are the same server call.** That is not a
+missing primitive — it is a reason the obvious design must NOT be built: **a host tap that "ends
+everyone's run" through the existing path would settle N runs and charge N owners' cards from one
+button.** The correct shape is the opposite: the fan-out stamps `session_dogs`, flips custody to
+`return_pending` and payout to `earned`, and **leaves the booking `active` so each runner still
+settles from their own device on their own numbers. The host declares WHEN; the runner declares
+WHAT.**
+
+⚠ **My error's shape:** I verified a refusal (`end_run_tx` raises `club_out_of_scope`) and
+concluded an absence (no club run-end exists). **A gate refusing one caller is not evidence that
+no caller exists** — and I relayed the conclusion, not the measurement, which is the same
+substitution I have corrected in others twice today.
+
+### Two collisions the contract measured, both fatal to tempting shapes
+- Stamping `bookings.run_ended_at` instead would arm `settle_run_tx`'s freeze check
+  (`0083:709-717`) while `runs.actual_km` is still NULL → **every club settle raises
+  `frozen_measurement_mismatch` forever.**
+- Driving `status → 'completed'` breaks the settle's atomic claim `where status = 'active'` →
+  `not_active` → **the club runner is never paid**, and repairing it means re-creating the shared
+  marketplace money transaction, i.e. the `0086 §B` silent-revert trap.
+
+### One invariant this slice breaks, named rather than discovered later
+**`resolved ⇒ completed` stops holding.** A pairing resolved by host override, whose runner never
+settled, can reach `released` with **no ledger row**. A state-honesty defect today; a leak the day
+`payouts` gets a writer (it has none now).
+
+### Also: a stale doc corrected
+`0087:313` calls `club_start_delegated_runs` 「host-gated」. Its actual selector is
+`b.runner_id = auth.uid()` (`0050:176`) — it is the **runner's** fan-out over their own dogs.
+**No host-initiated run action exists anywhere in the product today**, which is why 러닝 종료 is a
+genuinely new capability rather than a re-gating of an existing one.
