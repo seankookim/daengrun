@@ -474,6 +474,63 @@ export default function ClubPage() {
                         </Text>
                       </Pressable>
                     </Row>
+                    {/* ---------- 게스트 고지 (Sean 2026-08-26) ----------
+                        「both the owner or runner can bring guests along for free and that should be
+                        highlighted and make known when registering; the guest can download the app
+                        and sign up as an extra guest and just follow along」. 서버는 처음부터 이걸
+                        받아들이고 있었는데(`session_rsvp(p_session, p_dog := null)` = 1급 사람만
+                        참여, 0134:121-124 + 130) **클럽 화면 어디에도 이 사실을 말하는 글자가 없었다** —
+                        데려올 수 있다는 걸 배울 방법이 없으면 없는 기능과 같다. 그래서 문 바로 아래,
+                        고르는 그 순간에 붙는다.
+
+                        ⚠ 여기 적힌 세 문장은 전부 서버에서 확인한 것만이다. 확인 결과와 근거:
+                        ① 무료 — p_dog이 null이면 `session_dogs` INSERT 자체가 `if p_dog is not null`
+                           안이라 실행되지 않고 (0134:121-124) 부킹도 `club_fee_items` 행도 생기지 않는다. 요금 기록
+                           호출부는 전부 session_dogs/booking 키다 (0118:1068·1156, 0124:123,
+                           0050:360, 0057:244) — `session_people`만 보고 돈을 만드는 경로는 없고,
+                           `club_sessions`에는 참가비 컬럼 자체가 없다 (0030:50-64).
+                        ② 한 사람 = 한 자리 — `session_rsvp`는 사람 수를 `people_capacity`와 견주어
+                           `session_full`을 던진다 (0134:60-61). 강아지 정원은 p_dog이 있을 때만
+                           본다 (0134:108). 그래서 게스트는 강아지 자리는 안 쓰지만 **사람 자리는
+                           쓴다**: 「무제한으로 데려오세요」는 서버가 지킬 수 없는 약속이라 쓰지 않는다.
+                           수는 위 자리 태그(left)가 정본이고 이 문장은 그 숫자의 의미만 말한다.
+
+                        ③ 게스트가 직접 등록한다 — 대신 등록해 주는 서버 기능은 없다. 「+1」 관계도,
+                           동반자 행도 없다. 게스트는 자기 계정으로 참여해야 하고, **새 계정은 등록된
+                           아이가 0마리라** session/[sid].tsx:406의 `dogs[0]?.id ?? null`이 정확히
+                           사람만 참여로 떨어진다. 즉 이 문장이 가리키는 길은 실재한다.
+
+                        어휘: 「동반」을 쓰지 않았다. 이 제품에서 동반은 owner_handled 개를 가리키는
+                        용어라(0048:20 owner_handled_dog_limit · 0048:75 「auto = 동반견」) 사람에게
+                        쓰면 두 뜻이 겹친다.
+
+                        🔴 GPS는 말하지 않는다 — 그의 문장에 있지만 오늘 제품에 없다. 라이브 공유
+                        채널은 부킹 단위이고(`geo.ts:375` RUN_TOPIC = run2-<bookingId>, 발행 467-476 ·
+                        구독 441-447), 사람만 참여자는 부킹이 없다. 자기 러닝 기록도 막힌다:
+                        `session_record_companion_run`이 살아 있는 owner_handled 개가 없으면
+                        `no_companion_dog`을 던지고(0146:162), 0146:104가 「the dogless crew」를
+                        그 대상으로 명시한다. 없는 걸 약속하는 화면은 침묵보다 나쁘다.
+
+                        조건: 서버가 실제로 한 사람을 더 받을 수 있을 때만 그린다 — `session_rsvp`는
+                        `status <> 'open'`이면 `session_closed`(0134:59), 정원이 찼으면 `session_full`이다
+                        (0134:60-61). 마감(임박) 상태에서는 위 태그가 이미 사실을 말하므로 침묵한다. */}
+                    {ns.status === 'open' && left > 0 && (
+                      <View style={s.guestNote}>
+                        <Row style={{ alignItems: 'center', gap: 5 }}>
+                          <Icon name="UserPlus" glyph="＋" size={13} color={L.accent} />
+                          <Text style={s.guestHead}>{/* CLUB15 */}
+                            게스트도 <Text style={{ color: L.accent }}>무료</Text>
+                          </Text>
+                        </Row>
+                        {/* ⚠ 남은 자리 수를 이 문장에 박지 않는다. 아직 참여 전인 사람에게 left는
+                            자기 몫을 포함하므로 「N명 더 데려올 수 있어요」는 한 자리 부풀린 약속이
+                            된다. 규칙만 말하고 수는 위 자리 태그가 답한다 — 같은 티켓 안이다. */}
+                        <Text style={s.guestBody}>{/* CLUB15 */}
+                          강아지가 없어도 사람만 참여할 수 있어요 — 같이 오고 싶은 사람은 앱을 받아
+                          자기 계정으로 참여하면 돼요. 한 사람이 한 자리씩 쓰니 남은 자리 안에서요.
+                        </Text>
+                      </View>
+                    )}
                     <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 11 }}>
                       <Row style={{ gap: 2, height: 13, alignItems: 'stretch' }}>
                         {Array.from({ length: 26 }).map((_, i) => (
@@ -810,6 +867,12 @@ const s = StyleSheet.create({
   doorQuiet: { backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair },
   doorSubCoral: { fontSize: 15, lineHeight: 19, color: 'rgba(255,255,255,.88)', marginTop: 4 }, // CLUB15
   doorSubQuiet: { fontSize: 15, lineHeight: 19, color: L.dim, marginTop: 4 }, // CLUB15
+  // 게스트 동반 고지 — 스텁 안, 두 문 바로 아래. 새 어휘를 만들지 않는다: 티켓 상단의 factsRow와
+  // 같은 문법(헤어라인 위, 그 아래 붙는 사실)이고, 색·간격은 그 행에서 그대로 가져왔다.
+  guestNote: { marginTop: 11, borderTopWidth: 1, borderTopColor: L.hair2, paddingTop: 10 },
+  guestHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head }, // CLUB15
+  // 본문은 dim이 아니라 text — 「알려지게 하라」가 이 슬라이스의 요구이고, dim은 장식 등급이다.
+  guestBody: { fontSize: 15, lineHeight: 20, color: L.text, marginTop: 4 }, // CLUB15
   codeTxt: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.dim },
   // ④ 리듬
   rhythm: {
