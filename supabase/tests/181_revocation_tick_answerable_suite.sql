@@ -1,4 +1,4 @@
--- ═══ 181: a rejected tick is not an empty queue (0150) — 0150-P1 ~ 0150-P8 ═══
+-- ═══ 181: a rejected tick is not an empty queue (0150) — 0150-P1 ~ 0150-P9 ═══
 --
 -- 🔴 THE PROPERTY THIS FILE OWNS, AND NEITHER VERSION OF THE DISPATCHER HAS EVER HAD IT: after a
 --    tick that the endpoint REFUSED, and after a tick where the queue was EMPTY, the system must
@@ -33,14 +33,25 @@
 --   that wants an answer supplies it. What is under test is the RECONCILE — 「given this answer,
 --   what verdict does the ledger carry」 — which is exactly the half that was missing.
 --
--- 🔴 **A NAMED GAP, NOT A SILENCE: THE `sent` OUTCOME IS NOT BEHAVIOURALLY REACHABLE HERE.**
---    The harness has no `vault` schema (116's own header records this), so
---    `dispatch_billing_key_revocations()` always takes the vault-unavailable branch and can never
---    reach `net.http_post`. So no pin below can watch the dispatcher capture a real request id;
---    `0150-P8` asserts that capture as SOURCE, comments stripped, with a NO-SOURCE arm — the same
---    limit 170's B6 and 180's W1/W6 record for their own locks. **Stubbing the vault would change
---    `dispatch_due_charges`'s behaviour for every suite in this harness** (116 pins numbers that
---    depend on it returning 0), so it is deliberately not done in this slice.
+-- 🔴 **THIS HEADER SAID THE `sent` PATH WAS UNREACHABLE HERE. IT WAS WRONG, AND THE MUTATION
+--    BATTERY IS WHAT CAUGHT IT** — so the correction is kept in place of the claim rather than
+--    quietly deleted. The claim came from 116's header (「the local harness … no vault schema」),
+--    which was TRUE when it was written and is no longer: **suite `151` B3 builds
+--    `vault.decrypted_secrets`** and, at its end, deletes only the SECRET ROW — the schema and the
+--    table survive for every suite that runs after it. M1's log gave it away, reporting
+--    `why=charge_dispatch secret absent` where an absent vault would have said
+--    `vault unavailable: relation … does not exist`.
+--    ⚠ **I inherited a peer's measurement as a premise instead of measuring it.** A record drifts
+--      from the artifact it described the moment somebody changes the artifact, and 116's header
+--      had no way to know 151 would arrive. Same family as reading a green as broader than its
+--      own sentence, one file over: 116's sentence was about 116's harness.
+--    **What it changes**: `0150-P9` now drives the WHOLE path end to end — a real
+--    `dispatch_billing_key_revocations()` call that reaches `net.http_post`, records the request
+--    id it returned, and is then refused — instead of `0150-P8` standing in for it as source.
+--    P8 is kept, because ORDER as source and BEHAVIOUR are two kinds of evidence for one property
+--    and neither implies the other, and because its comment-strip arm is load-bearing in its own
+--    right. P9 builds the secret the way 151 does and removes it again, so the harness is left
+--    exactly as it was found.
 --
 -- ⚠ **THIS SUITE PARKS AND RESTORES THE OUTBOX.** Earlier suites leave `pending` rows in
 --   `billing_key_revocations`, and the empty-queue pins need the dispatcher to genuinely see zero.
@@ -74,6 +85,7 @@ declare
   p6 constant text := '0150-P6 봉인 — 원장·뷰·두 함수';
   p7 constant text := '0150-P7 증거는 남고 정상 기록만 정리된다';
   p8 constant text := '0150-P8 디스패처는 request id 를 잡아 기록한다 (소스)';
+  p9 constant text := '0150-P9 디스패치→거절 전 구간, 그리고 아웃박스의 침묵';
 begin
   ------------------------------------------------------------------------------------------
   -- PRECONDITION, ASSERTED LOUDLY AND FATALLY. Half the pins below depend on the dispatcher
@@ -89,6 +101,7 @@ begin
     call _fail('rdt', p3, v_msg); call _fail('rdt', p4, v_msg);
     call _fail('rdt', p5, v_msg); call _fail('rdt', p6, v_msg);
     call _fail('rdt', p7, v_msg); call _fail('rdt', p8, v_msg);
+    call _fail('rdt', p9, v_msg);
     return;
   end if;
 
@@ -315,6 +328,72 @@ begin
   v_bad := '';
 
   ------------------------------------------------------------------------------------------
+  -- 0150-P9: 🔴 THE WHOLE PATH, END TO END, AND THE OUTBOX'S SILENCE IS AN ARM.
+  --
+  -- This pin exists because a claim in this file's header was false (see it — the correction is
+  -- kept there). `vault.decrypted_secrets` DOES exist once suite 151 has run, so the dispatcher
+  -- can genuinely reach `net.http_post`, and the request-id capture can be MEASURED rather than
+  -- read off the source.
+  --
+  -- The last arm is the finding restated as an assertion: after a refusal the outbox is
+  -- **byte-unchanged** — `attempts` still 0, still `pending` — because the endpoint refuses
+  -- before it claims (`handler.ts:26-27`). That is exactly what an empty queue leaves behind, and
+  -- it is why no observer could tell them apart. The pin asserts BOTH halves together: the outbox
+  -- says nothing happened, AND the ledger says why. Either alone is a different proposition.
+  create schema if not exists vault;
+  create table if not exists vault.decrypted_secrets (name text, decrypted_secret text);
+  delete from vault.decrypted_secrets where name = 'charge_dispatch';
+  insert into vault.decrypted_secrets values
+    ('charge_dispatch', '{"url":"http://t181.invalid","cron_key":"k181"}');
+
+  insert into billing_key_revocations (profile_id, billing_key, reason)
+  values (null, 'bill_t181e2e', 'replaced') returning id into v_rev;
+  select coalesce(array_agg(id), '{}'::uuid[]) into v_ids from billing_key_dispatch_ticks;
+  select dispatch_billing_key_revocations() into v_n;
+  select id into v_id from billing_key_dispatch_ticks where not (id = any(v_ids)) limit 1;
+  select outcome, request_id, due_count, resolved_at into v_out, v_req, v_n2, v_res
+    from billing_key_dispatch_ticks where id = v_id;
+  v_msg := 'returned=' || coalesce(v_n::text,'∅') || ' tick=' || coalesce(v_out,'∅')
+           || ' req=' || coalesce(v_req::text,'∅') || ' due_count=' || coalesce(v_n2::text,'∅');
+  if v_n is distinct from 1            then v_bad := v_bad || ' return(' || coalesce(v_n::text,'∅') || ')'; end if;
+  if v_out is distinct from 'sent'     then v_bad := v_bad || ' post-send-is(' || coalesce(v_out,'∅') || ')'; end if;
+  if v_req is null                     then v_bad := v_bad || ' REQUEST-ID-DISCARDED'; end if;
+  if v_n2 is distinct from 1           then v_bad := v_bad || ' lost-the-count'; end if;
+  -- `sent` is the one outcome that must stay provisional; a verdict here would be invented.
+  if v_res is not null                 then v_bad := v_bad || ' premature-verdict'; end if;
+  -- the recorded id is the one the post ACTUALLY returned, not a number of our own making —
+  -- the stub records every call, so the two can be compared instead of assumed.
+  if v_req is not null then
+    select count(*)::int into v_n2 from net._stub_calls
+     where id = v_req and url like '%/revoke-billing-keys';
+    if v_n2 <> 1 then v_bad := v_bad || ' id-does-not-name-the-call(' || v_n2 || ')'; end if;
+  end if;
+
+  -- …and now the endpoint refuses the caller, which is the entire finding.
+  if v_req is not null then
+    insert into net._http_response (id, status_code, content, timed_out, created)
+    values (v_req, 401, '{"error":"unauthorized"}', false, now());
+    perform reconcile_billing_key_dispatch_ticks();
+    select outcome, status_code into v_out, v_code from billing_key_dispatch_ticks where id = v_id;
+    select attempts, state into v_n2, v_txt from billing_key_revocations where id = v_rev;
+    v_msg := v_msg || ' | after=' || coalesce(v_out,'∅') || '/' || coalesce(v_code::text,'∅')
+             || ' outbox=' || coalesce(v_n2::text,'∅') || '/' || coalesce(v_txt,'∅');
+    if v_out is distinct from 'rejected' then v_bad := v_bad || ' refusal-is(' || coalesce(v_out,'∅') || ')'; end if;
+    if v_code is distinct from 401       then v_bad := v_bad || ' code-lost'; end if;
+    -- the defect's signature, asserted rather than described: the refusal left NO trace on the
+    -- outbox. If this arm ever reddens, the endpoint started claiming before authenticating and
+    -- this whole file needs re-reading — so it is a tripwire, not a restatement.
+    if v_n2 is distinct from 0           then v_bad := v_bad || ' outbox-attempts(' || coalesce(v_n2::text,'∅') || ')'; end if;
+    if v_txt is distinct from 'pending'  then v_bad := v_bad || ' outbox-state(' || coalesce(v_txt,'∅') || ')'; end if;
+  end if;
+  if v_bad <> '' then call _fail('rdt', p9, v_bad || ' | ' || v_msg);
+                 else call _pass('rdt', p9); end if;
+  v_bad := '';
+  -- leave the harness exactly as it was found: 151's table stays, its secret row does not.
+  delete from vault.decrypted_secrets where name = 'charge_dispatch';
+  update billing_key_revocations set state = 'done' where id = v_rev;
+
+  ------------------------------------------------------------------------------------------
   -- 0150-P6: THE SEALS. The ledger is an operational record of our payment plumbing; the two
   -- functions move it. Both directions on every arm — a negative-only ACL check is green on a
   -- function nobody can call, and a positive-only one is green on a function everybody can.
@@ -395,12 +474,15 @@ begin
   delete from billing_key_dispatch_ticks where sent_at < now() - interval '30 days';
 
   ------------------------------------------------------------------------------------------
-  -- 0150-P8: 🔴 THE DISPATCHER CAPTURES THE REQUEST ID — AS SOURCE, and the limit is stated.
-  -- The harness has no `vault` schema, so `dispatch_billing_key_revocations()` can never reach
-  -- `net.http_post()` here (see this file's header). The capture is therefore the one half of the
-  -- fix no behavioural pin in this harness can watch — the case 170's B6 and 180's W1/W6 record
-  -- for their own locks: assert it as source rather than let a green stand for an untested
-  -- property.
+  -- 0150-P8: 🔴 THE SAME PROPERTY AS SOURCE, WHICH IS A SECOND KIND OF EVIDENCE AND NOT A SECOND
+  -- COPY OF P9's. P9 measures that ONE call captured ONE id; this reads the body and asks whether
+  -- the discarding form is gone at all, and whether the reconcile still precedes the early
+  -- return. Source says 「nothing in the text does the wrong thing」; behaviour says 「this
+  -- execution did the right thing」, and neither implies the other (0148's own footer records the
+  -- day those two disagreed).
+  -- ⚠ This pin's header used to justify itself by 「the vault is absent here so nothing else can
+  --   test it」. That was false — see the file header — and the honest justification is the one
+  --   above, which does not depend on it.
   --
   -- ⚠ COMMENTS STRIPPED FIRST, AND HERE IT IS LOAD-BEARING RATHER THAN CEREMONIAL: 0150's own
   --   comment explaining the fix contains the literal string `perform net.http_post` — quoting
