@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchSessionRoster, type RosterDog, type SessionRoster } from '../../../src/lib/api';
+import { fetchClubSession, type ClubSessionDetail } from '../../../src/lib/api';
 import { useNumFont } from '../../../src/lib/fonts';
 import { getTraceSnapshot, resetTrace, startTracking, type TrackHandle, type TrackMode } from '../../../src/lib/geo';
 import { paper } from '../../../src/theme';
@@ -43,20 +43,32 @@ export default function CompanionRun() {
   const { sid } = useLocalSearchParams<{ sid: string }>();
   const num = useNumFont();
 
-  const [roster, setRoster] = useState<SessionRoster | null>(null);
+  // 🔴 [review-agent finding, verified] The first draft fetched the ROSTER here — and the roster
+  // RPC writes a phone-view audit row for every member whose number it returns (0053), on a screen
+  // that renders no numbers. A false audit trail: rows claiming this user saw phones they never
+  // saw. fetchClubSession carries myAttendance + my own dogName via people.isMe, returns no
+  // phones, and is DEPLOYED (no PGRST202 window while 0136+ waits behind 0131).
+  const [detail, setDetail] = useState<ClubSessionDetail | null>(null);
   const [rosterErr, setRosterErr] = useState(false);
   const [loaded, setLoaded] = useState(false);          // null-resolve is NOT loading (club/run:108 trap)
   const [mode, setMode] = useState<TrackMode | null>(null);
   const [km, setKm] = useState<number | null>(null);     // null = not measured yet. NEVER 0 as a placeholder.
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // [review-agent] finish() left startedAt set, so the interval kept ticking and the 시간 stat
+  // counted WALL time after 러닝 종료 — a stopped run whose clock runs is the frozen-countdown
+  // defect mirrored. finalElapsed freezes the display; clearing startedAt kills the interval.
+  const [finalElapsed, setFinalElapsed] = useState<number | null>(null);
   const handle = useRef<TrackHandle | null>(null);
+  const beginBusy = useRef(false);   // [review-agent] handle.current is set AFTER an await — two
+                                     // fast taps both passed that guard. A ref set synchronously
+                                     // BEFORE the await is the only race-free gate here.
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    fetchSessionRoster(String(sid))
-      .then((r) => { if (alive) { setRoster(r); setLoaded(true); } })
+    fetchClubSession(String(sid))
+      .then((r) => { if (alive) { setDetail(r); setLoaded(true); } })
       .catch(() => { if (alive) { setRosterErr(true); setLoaded(true); } });
     return () => { alive = false; };
   }, [sid]);
@@ -71,8 +83,8 @@ export default function CompanionRun() {
 
   useEffect(() => () => { handle.current?.stop().catch(() => {}); }, []);
 
-  const myDog: RosterDog | null =
-    roster?.dogs.find((d) => d.isMine && d.custody === 'owner_handled') ?? null;
+  const me = detail?.people.find((p) => p.isMe) ?? null;
+  const myDogName: string | null = me?.dogName ?? null;
 
   // 🔴 CHECK-IN GATED HERE TOO, not only on the CTA that opens this screen. Codex raised it
   // against the session screen's door and it is the destination's problem: a deep link
@@ -82,14 +94,15 @@ export default function CompanionRun() {
   // cannot produce, except here the product would produce it.
   // ⚠ `undefined` is NOT 「not checked in」 — it is 「we have not been told」. Only a loaded roster
   // can answer, so the gate reads false until `loaded`, and the copy below distinguishes them.
-  const me = roster?.people.find((p) => p.isMe) ?? null;
-  const checkedIn = me?.attendance === 'checked_in';
+  const checkedIn = detail?.myAttendance === 'checked_in';
 
   const begin = async () => {
-    if (handle.current) return;
+    if (handle.current || beginBusy.current) return;
+    beginBusy.current = true;
     resetTrace();
+    setFinalElapsed(null);
     setStartedAt(Date.now());
-    const h = await startTracking((snap) => setKm(snap.km), { dogName: myDog?.dogName });
+    const h = await startTracking((snap) => setKm(snap.km), { dogName: myDogName ?? undefined });
     handle.current = h;
     setMode(h.mode);
     setRunning(true);
@@ -100,12 +113,15 @@ export default function CompanionRun() {
       setRunning(false);
       setStartedAt(null);
     }
+    beginBusy.current = false;
   };
 
   const finish = async () => {
     await handle.current?.stop().catch(() => {});
     handle.current = null;
     setRunning(false);
+    if (startedAt != null) setFinalElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    setStartedAt(null);            // kills the interval — the clock of a stopped run must stop
     const snap = getTraceSnapshot();
     setKm(snap.km);
     setMode(null);
@@ -129,14 +145,14 @@ export default function CompanionRun() {
       <Text style={s.head}>
         {!loaded ? '불러오는 중…'
           : rosterErr ? '세션을 불러오지 못했어요'
-          : !myDog ? '동반 신청한 아이가 없어요'
+          : !myDogName ? '동반 신청한 아이가 없어요'
           // ⚠ 「뛰는 중」 is a claim about NOW. It was rendered whenever the dog existed — before
           // check-in, before start, after finish — i.e. the screen asserted a run that had not
           // begun. Same family as a countdown frozen at mount: a live-sounding string bound to
           // nothing live. Each state now says what is actually true.
-          : running ? `${myDog.dogName}와 함께 뛰는 중`
-          : !checkedIn ? `${myDog.dogName} · 체크인 전`
-          : `${myDog.dogName}와 함께 뛸 준비가 됐어요`}
+          : running ? `${myDogName}와 함께 뛰는 중`
+          : !checkedIn ? `${myDogName} · 체크인 전`
+          : `${myDogName}와 함께 뛸 준비가 됐어요`}
       </Text>
 
       {/* loading ≠ error ≠ genuinely empty — three named branches, never one blank */}
@@ -145,11 +161,11 @@ export default function CompanionRun() {
           <Text style={s.stripTxt}>세션 정보를 불러오지 못했어요 — 연결을 확인하고 다시 들어와 주세요</Text>
         </View>
       )}
-      {loaded && !rosterErr && !myDog && (
+      {loaded && !rosterErr && !myDogName && (
         <Text style={s.lede}>이 세션에 동반으로 등록한 아이가 없어요. 세션 화면 참가자 탭에서 「내 아이도 데려가기」로 등록할 수 있어요.</Text>
       )}
 
-      {myDog && loaded && !checkedIn && (
+      {myDogName && loaded && !checkedIn && (
         <>
           <View style={s.rule} />
           <Text style={s.lede}>
@@ -162,7 +178,7 @@ export default function CompanionRun() {
         </>
       )}
 
-      {myDog && checkedIn && (
+      {myDogName && checkedIn && (
         <>
           <View style={s.rule} />
           <View style={s.stats}>
@@ -172,7 +188,7 @@ export default function CompanionRun() {
             </View>
             <View style={s.stat}>
               <Text style={s.statLabel}>시간</Text>
-              <Text style={[s.statNum, num]}>{startedAt == null ? '—' : fmtClock(elapsed)}</Text>
+              <Text style={[s.statNum, num]}>{startedAt != null ? fmtClock(elapsed) : finalElapsed != null ? fmtClock(finalElapsed) : '—'}</Text>
             </View>
           </View>
           <View style={s.rule} />
