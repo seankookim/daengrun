@@ -216,6 +216,43 @@ error:"` matched codex's benign startup warning `ERROR codex_models_manager: fai
 models cache`, so a healthy run was declared REFUSED. **Match the specific refusal sentence, never
 a bare `error:`** — third detector-shaped miss of one day, all mine.
 
+🔴 **THE VERDICT DETECTOR, FINAL FORM: ASK FOR A DIGIT** (ui6, 2026-08-27 — strictly better than
+the placeholder rule it replaces). Have the reviewer end with TWO lines:
+```
+FINDINGS: <n>
+VERDICT: <one of APPROVE, APPROVE-WITH-FIXES, REJECT>
+```
+and detect with `grep -cE '^FINDINGS: [0-9]+'`. The prompt contains the literal `<n>`, which
+**cannot match a digit**, so the echo is excluded BY CONSTRUCTION rather than by remembering to
+exclude it — and the count is a thing only codex can produce. ⚠ **This also corrects my own law's
+scope, in ui6's words: the general form is 「never grep for anything you WROTE」, not 「never write
+it」.** Spelling the three verdict words in the prompt is fine and helps the reviewer use the right
+vocabulary; what must never happen is grepping for a string your own prompt guarantees. Pair it
+with the positive checks (`usage limit`, `trusted directory`) and the three-state watcher.
+⚠ And **re-freeze the export before each round**: an export that predates your own landings is
+reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
+
+🔴 **A GUARD WITH NO PIN IS INVISIBLE FROM BOTH DIRECTIONS, AND THE ONLY DETECTOR IS DELETING IT**
+(announcer's miss, sharpened by ui6 into the form worth keeping, 2026-08-27). Round 3 of 0131
+added `p_uid is not distinct from auth.uid()` to stop a helper being an arbitrary-pair membership
+oracle. **Deleting it left the entire suite green** — for a full round. The inversion is what
+makes this its own entry: most of this file catalogues pins that PASS FOR THE WRONG REASON, which
+at least leaves a wrong-looking artifact. Here the suite is green **because the guard works** and
+also green **because nothing checks it, and the two states are identical** until someone removes
+it. **The only available detector is the deletion — so this class can only ever be found by doing
+the thing that feels unnecessary.** Practical rule: when you ADD a conjunct to close a hole, the
+same commit owes a mutation that deletes exactly that conjunct. Not the battery later — the same
+commit.
+
+🔴 **A MEASUREMENT'S WRITE-UP OUTLIVES THE THING MEASURED** (both sessions, same day, two shapes).
+Mine: a battery block claiming 「this mutation reddens S5 alone」, still true when written, falsified
+by a pin I ADDED afterwards and never re-ran. ui6's: a suite baseline quoted as 33/33/34 from a
+truncated standalone run, corrected to 32/32/33 against the full log. Same substitution as a push
+report standing in for the file on origin, one level up — **the record drifting from the artifact.**
+**The fix is one sentence: re-run after the LAST edit, not after the last INTERESTING edit.** A
+record that is stale in the safe direction is the most durable kind of wrong, because nothing ever
+contradicts it.
+
 🔴 **BEFORE PAYING TO MEASURE AN UNKNOWN, CHECK WHETHER IT IS LOAD-BEARING — DELETING THE
 DEPENDENCY DELETES THE QUESTION** (ui6, 2026-08-27; a method, not a fix, and the best move anyone
 made this week). The open question was 「does this build's Hermes honour `Intl`'s `timeZone`, or
