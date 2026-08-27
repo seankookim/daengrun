@@ -115,6 +115,28 @@ touched it and name whose version you build on in your file header.
 
 ## Claimed
 
+🔴 **THE `State` COLUMN IS AN AUTHOR-TIME SNAPSHOT. IT IS NOT MAINTAINED, AND ON 2026-08-27 IT WAS
+WRONG ABOUT 29 ROWS AT ONCE.** Measured that day: production is at **0152 with nothing pending**,
+while 29 rows below still read `NOT DEPLOYED` and fourteen of them still name `Production 0130` —
+a frontier that moved twenty-two migrations ago. Every one of those sentences was true when it was
+written and none of them was ever revisited, because the row's job ends when the number is claimed.
+
+**So: read `State` as history, never as current deployment.** Nobody should edit 29 rows of prose
+to say otherwise — that destroys real authoring history and re-stales within a day. The deployment
+frontier has exactly one source and it is not this file:
+
+```
+supabase migration list --linked
+```
+
+⚠ This is the *record drifting from the artifact* class (CLAUDE.md), living in the one file every
+slice reads. It is worse here than elsewhere for a specific reason: a session that greps this table
+to answer 「is my dependency live?」 gets a confident **no** for something that shipped weeks ago —
+a false negative, which per the house law is strictly worse than no answer at all. The rows also
+say `NOT REVIEWED` in the same breath, and *that* half is still accurate for ~14 of them, so the
+sentence cannot simply be trusted or distrusted wholesale — check the deploy half against
+production and keep the review half.
+
 | # | Migration | Suite | Owner (branch) | State |
 |---|---|---|---|---|
 | 0078 | `0078_route_catalog.sql` | — | banpo-route-catalog | on origin/redesign-v4 |

@@ -69,19 +69,52 @@ hardening incl. the crash window where a destroyed key could be stored as a live
    look fine in a diff and wrap badly on hardware. `docs/design/device-smoke-ui6-2026-08-27.md`
    is 33 honestly-⬜ rows; its first section needs the phone's timezone **off Korea** before any
    row means anything.
-3. **Guest GPS — half a ruling of his is unbuilt.** Sean: 「the guest can … enjoy the same gps
-   share service」. Measured: the club live share is per-BOOKING (`geo.ts:375/441/467`) and a
-   person-only member has no booking; their own walk cannot be recorded either
-   (`0146:162` raises `no_companion_dog`, and `0146:104` names the dogless crew as exactly who
-   it refuses). **The board copy claims nothing about GPS, so it is honest** — but the promise is
-   half-kept. Closing it needs a session-scoped channel plus a server decision on who may watch.
-4. **Card revocation: who is told when it gives up.** After 8 failed attempts a row lands in
-   `abandoned` and **nothing reads it** — Toss could still hold a live authority to charge for
-   someone who asked to be gone. ⚠ **The local card row IS deleted** (`0115:535`), so this is
-   about the remote authority, not our copy. **Zero keys and zero rows exist today**; it arms the
-   day card registration is switched on. Alert Sean / message the person / a queue someone
-   reviews — a policy call.
-5. **`net` schema grant — needs Supabase, not us.** `anon` holds `USAGE` on `net` and `SELECT` on
+3. **Guest GPS → now a three-way question: `docs/decisions/guest-gps-options.md`** (landed
+   2026-08-27). Every citation above verified at source, but **the framing here was wrong three
+   ways and the third one is the decision.** (a) It is a **pack gap, not a guest gap** — there is
+   no map of the group anywhere in the product; a 동반 owner *with* a dog is equally invisible
+   (`club/companion/[sid].tsx:7,141` imports `startTracking` and publishes nothing), and the host
+   sees nobody. So 「the same gps share service」 **has no referent yet**. (b) 「half a ruling
+   unbuilt」 overstates it: `2026-08-25-console-rulings.md:1302-1306`, same document and same day
+   as the ruling, records that **direction-of-sharing and who-may-see-whom were explicitly left
+   open**. Nothing is owed; the question was never asked. (c) The constraint that decides it was
+   omitted — `privacy-policy.md:91` promises 「해당 예약의 보호자에게만 … 다른 이용자나 제3자에게
+   제공하지 않습니다」, and **every watch-the-pack option rewrites that sentence on a document
+   currently in front of counsel** (item 1).
+   ⚠ **New and not previously written down: session membership is self-serve.** `session_rsvp`
+   has no club-membership and no host-approval gate (`0134:53-61`), `club_sessions` is
+   `select using (true)` (`0030:133`). So 「a member of this session」 means 「anyone who found an
+   open session and tapped join」 — which in code looks exactly like a membership check.
+   Option ①（record, no map）needs one predicate and changes no privacy promise; ②/③ need counsel
+   first. **All READ, no production query.**
+4. **Card revocation → `docs/decisions/card-revocation-abandoned.md`** (landed 2026-08-27,
+   **measured against production, not read**). Handoff confirmed on deployed `prosrc`: the
+   8-attempt cap is real in both `claim_` and `report_`, and `enqueue_billing_key_revocation(…,
+   'account_deleted')` precedes the local row delete at `0115:535`. OBSERVED live: **0 keys,
+   0 revocation rows, 0 abandoned**, both money flags NULL, `revoke-billing-keys` ACTIVE v2 with
+   its cron live and **11 ticks all `idle`** — so the `X-Cron-Key` handshake **has never actually
+   run in production**, and the first real revocation is also its first live test.
+   🔴 **The handoff's most valuable error: 「nothing reads it」 is *nearly* true, and the near-miss
+   is worse than the claim.** There IS a reader — the view `billing_key_dispatch_health`, whose
+   `due_now` (`0150:413-415`) counts `pending` + expired-lease `processing` and **structurally
+   excludes `abandoned`** (verified: the deployed viewdef does not contain the string). So the one
+   dashboard-shaped object in this family **reports the queue clean precisely because rows were
+   given up on.** Also: 「someone who asked to be gone」 covers **2 of the 5 reasons**; `failed` is
+   dead vocabulary written by nothing; and **there is no card-removal affordance in the client at
+   all** — 「remove my card」 *is* 「delete my account」.
+5. 🔴 **NEW (announcer, 2026-08-27, verified against production myself) — the host sees every
+   member's phone number, and it arms the same instant phone collection does, with nothing in
+   between.** Deployed `_club_phone_visible` (read from `pg_proc`, not from a migration file) is
+   bidirectional host ↔ **everyone** for any session in `open`/`full`. A person-only guest is on
+   that roster. **Not breached today and not close:** OBSERVED `profiles where phone is not null`
+   = **0**, and `set_my_phone` has **0 client callers** (0133 landed the server deliberately
+   without a collection point). ⚠ **But `ops_flags` has no phone column** — card registration has
+   a switch and phone collection does not. So there is no way to turn phone collection on
+   *without* turning host-sees-everyone on in the same commit. That makes it a decision that has
+   to be made **before** the wiring, not after — and it lands in the same envelope as item 1,
+   which is what unblocks phone collection in the first place. Related and still open from
+   2026-08-26: whether a dogless guest counts as a 「member」 for this rule at all.
+6. **`net` schema grant — needs Supabase, not us.** `anon` holds `USAGE` on `net` and `SELECT` on
    `net._http_response` and `net.http_request_queue` (whose headers carry `X-Cron-Key` and an
    `Authorization` bearer). **Structurally out of reach:** `net` is owned by `supabase_admin`,
    migrations run as `postgres` (not superuser, not a member), and REVOKE only removes grants
