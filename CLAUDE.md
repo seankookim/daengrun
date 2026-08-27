@@ -232,6 +232,37 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **NULL COLLAPSES EVERY `IF`-BASED PIN INTO SILENCE — AND THE PINS THIS KILLS ARE EXACTLY THE
+PINS WHOSE JOB IS TO NOTICE SOMETHING MISSING** (codex found it in the announcer's S10; ui6 then
+applied it to their own work within the hour and found **four more**, measured rather than
+reasoned). plpgsql does not take an `IF` on a NULL predicate, so any pin shaped
+`if <expr> then v_bad := …` is **silent** whenever `<expr>` is NULL.
+Measured, ui6's set: pointing `180 W1/W6` at a function name that does not exist gave **1061/0,
+both green** — `prosrc` is NULL, `position(… in NULL)` is NULL, no arm fires, the failure string
+stays empty. Same collapse in `167 G0` (three arms, `v_txt !~ '…'`), `174 L6` (five arms), and
+`169 P19/P20/P21` (`not like`). And in the announcer's `S10`, whose two extra CONTROL arms —
+added specifically so a hard-wired helper could not pass — shared the blind spot they existed to
+catch: a helper returning NULL for everything passes all three.
+⚠ **ui6's sentence is the one to keep, because it explains why the class survives review: *every
+one of these is a pin whose entire job is to notice that something is MISSING, and every one was
+silent about the most complete version of missing.* The pin READS as paranoid, so nobody asks what
+it does when the paranoia is warranted.**
+**Fixes:** assert exact booleans (`is not true` / `is distinct from true`), never a bare `IF`; and
+for source pins, fail loudly on absence — ui6's `NO-SOURCE(<fn>)` arm. **Audit the whole set when
+you find one** (the standing law): one instance found four.
+
+🔴 **WHY THE COMMENT-MATCHING CLASS IS STRUCTURAL, NOT A LAPSE — `prosrc` IS SOURCE PLUS OUR OWN
+PROSE, SO THE INSTRUMENT INVERTS UNDER DILIGENCE** (ui6, 2026-08-27, after the same defect appeared
+in both sessions' files within one hour, each found by a cold reader rather than its author). Their
+formulation, kept verbatim in substance: **we both reached for the artifact closest to the truth —
+the deployed function body — and it is the one artifact that carries our own comments inside it.**
+Reading `prosrc` is right. Reading it un-stripped means **the more carefully you document a guard,
+the more certainly your check passes**: a check for CALLING a function is satisfied by a comment
+EXPLAINING it, and the better the explanation, the more surely. Neither party made a mistake of
+care; both did the diligent thing with an instrument that rewards documentation as if it were
+implementation. **So the fix cannot be 「be careful」 — it must be mechanical: strip comments from
+`prosrc` before every match, in every source-reading check, not only the one someone caught.**
+
 🔴 **A SOURCE PIN THAT MATCHES PROSE IS MEASURING THE DOCUMENTATION** (ui6, 2026-08-27 — third
 instance of the comment-matching law this week and **the first one INSIDE a pin written to enforce
 rigour**). Their `W6` asserted 「the lock precedes the gate」 by searching `prosrc` for the gate's
