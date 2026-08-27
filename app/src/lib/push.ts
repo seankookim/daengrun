@@ -53,15 +53,33 @@ const RUNNER_ROUTES: Record<string, string> = {
 // booking; otherwise they fall to the bid-scoped report.
 const OWNER_MEETUP_TITLES = [...LIVE_TITLES, '인계 확인 요청', '인계 완료'];
 
-// 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
-// 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
-export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
-  if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
-  if (kind === 'reward') { // 기록·마일스톤 (0034) — ref_id = booking → 리포트로
-    try { router.push(refId ? { pathname: '/owner/report', params: { bid: refId } } : '/cards'); } catch { /* */ }
-    return;
-  }
-  if (kind !== 'booking' || !refId) return;
+// ── Where a ref_id actually points ─────────────────────────────────────────────────────────────
+// `notifications` has exactly ONE pointer column and it is an UNTYPED uuid — the whole table is
+// (id, profile_id, kind, title, body, ref_id, read_at, created_at), measured against production
+// 2026-08-27. So `kind` classifies the MESSAGE, never the target, and production carries
+// counterexamples in BOTH directions:
+//   kind='booking' 「위탁 승인 — 결제 대기」 → club_sessions.id (0084:642 writes sd.session_id) · 7 rows
+//   kind='safety'  「확인이 필요해요」       → bookings.id      (0117:793 writes p_booking)     · 2 rows
+// Every other safety writer emits a session id (0045:294/0058:200 외부 커스터디 이양 ·
+// 0049:433/0068:107 반환 지연 경보 · 0049:457/0068:131 미확인 크리티컬 알림 · 0049:138 채팅 신고 접수 ·
+// 0050/0067/0070 인시던트 발생), which is exactly why a per-kind or per-title rule reads as correct
+// and is wrong on the minority — both defects this function used to have were that guess.
+// So we ask the ID itself. `club_sessions` is world-readable (RLS policy `sessions public read`,
+// `using (true)` — measured), so this is a primary-key lookup any signed-in role may make.
+// ⚠ COST, paid deliberately: one extra round trip BEFORE navigating, on the taps that need it
+// (every safety row, and the owner's non-meetup booking rows). Both candidate destinations fetch
+// on mount anyway, so the tap was never instant. The durable fix is a `ref_kind` column written
+// beside ref_id — that is server-side and outside this file; until it exists the client cannot
+// know statically, and guessing is what produced these two dead taps.
+async function refIsClubSession(refId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('club_sessions').select('id').eq('id', refId).maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+// The destination set for a ref_id that is a BOOKING. Split out so a safety row whose ref turns
+// out to be a booking (0117:793) reuses this exact logic rather than a parallel copy that drifts.
+function routeForBookingRef(refId: string, title: string): void {
   try {
     // [0090 ⑬] 역할과 무관하게 채팅으로 — 러너든 보호자든 온 메시지는 같은 스레드에 있다.
     if (title === CHAT_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
@@ -96,6 +114,53 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   } catch {
     // 내비게이션 미준비 등 — 딥링크는 부가 기능, 실패해도 앱은 살아있다
   }
+}
+
+// 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
+// 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
+export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
+  if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
+  if (kind === 'reward') { // 기록·마일스톤 (0034) — ref_id = booking → 리포트로
+    try { router.push(refId ? { pathname: '/owner/report', params: { bid: refId } } : '/cards'); } catch { /* */ }
+    return;
+  }
+  // `safety` joins `booking` here. It used to fall off the end of this function and route NOWHERE,
+  // so 「외부 커스터디 이양 … 즉시 확인하세요」 — the most urgent thing this product can say — was a
+  // tap that did nothing, in the inbox AND on the OS push. `shop` and `system` are still not
+  // listed: they are in the noti_kind enum (0001:23) and NOTHING writes them (zero writers across
+  // every migration, zero rows in production). hasNotificationRoute() below keeps them from being
+  // drawn as buttons, which is the honest handling of a kind with no destination to bind.
+  if ((kind !== 'booking' && kind !== 'safety') || !refId) return;
+
+  // Fast path — titles whose writer is KNOWN to emit a booking id skip the probe and stay instant.
+  // The runner's whole booking set qualifies: RUNNER_ROUTES and the calendar default take no id at
+  // all, and its two id-consuming titles (새 메시지 · 러닝 중단 요청) are both booking-scoped.
+  if (kind === 'booking' && (title === CHAT_TITLE || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title))) {
+    routeForBookingRef(refId, title);
+    return;
+  }
+  // Everything left is genuinely ambiguous — the owner's non-meetup booking rows (where 0084:642's
+  // session id lands) and every safety row. A failed probe folds to the booking route rather than
+  // stalling: both destinations fail LOUDLY on a wrong id (report → 「이 러닝을 찾을 수 없어요」,
+  // session → its own error state), so an error-path guess is visible and recoverable, never silent.
+  refIsClubSession(refId)
+    .then((isSession) => {
+      if (!isSession) { routeForBookingRef(refId, title); return; }
+      try { router.push(`/club/session/${refId}`); } catch { /* navigation not ready — best-effort */ }
+    })
+    .catch(() => routeForBookingRef(refId, title));
+}
+
+// alerts.tsx draws every row and must not draw a control that cannot act (house law: no dead
+// buttons). This is the SYNCHRONOUS twin of routeForNotification's early returns above, and the
+// two must be edited in the same breath — if they disagree the inbox either grows a dead tap or
+// hides a live destination. It answers only "is there a destination at all"; WHICH destination can
+// need the probe, and that answer is never needed to decide whether a row is a button.
+export function hasNotificationRoute(kind: string | null | undefined, refId: string | null | undefined): boolean {
+  if (kind === 'community') return true;              // /community — no ref needed
+  if (kind === 'reward') return true;                 // 리포트(ref 있음) 또는 /cards(없음)
+  if (kind === 'booking' || kind === 'safety') return !!refId;
+  return false;                                       // shop · system · 미지의 kind — 바인딩할 목적지 없음
 }
 
 function handleTap(Notifications: any, response: any): void {
