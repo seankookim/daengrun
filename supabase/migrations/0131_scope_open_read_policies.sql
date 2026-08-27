@@ -8,13 +8,27 @@
 --
 -- WHY THIS IS LOW RISK, MEASURED RATHER THAN ARGUED (2026-08-26, production + source):
 --   * executable client reads:  session_dogs 0 · participant_activities 0 ·
---     session_runner_assignments 0 · session_people 1 — and that one (app/src/lib/api.ts:1629,
---     fetchStampStats) is ALREADY `.eq('profile_id', uid)`, with its own comment saying the
+--     session_runner_assignments 0 · session_people 1 — and that one (`api.ts`
+--     **fetchStampStats**) is ALREADY `.eq('profile_id', uid)`, with its own comment saying the
 --     filter is a CORRECTNESS requirement precisely because this RLS is open. It keeps working.
+--     ⚠ Cited by FUNCTION, never by line — this header carried a line number into api.ts while its own closing
+--     line forbade exactly that (codex round 5, finding 6). Two line refs here went stale in a day.
 --   * edge-function reads: 0 across all four.
 --   * views reading these tables: 0 — so there is no caller-rights path around RLS.
---   * SECURITY DEFINER functions touching session_dogs: 58. Definers bypass RLS, so every real
---     read path in the product is untouched by this file.
+--   * SECURITY DEFINER functions touching session_dogs: 58 (production, 2026-08-26). The harness
+--     corpus measured 65 on 2026-08-27 — different corpora, and neither number is a proof of
+--     anything beyond scale.
+-- 🔴 [codex round 5, finding 4] THE INFERENCE THAT USED TO SIT ON THAT COUNT IS WITHDRAWN, not
+-- softened. It read 「Definers bypass RLS, so every real read path in the product is untouched by
+-- this file」. **SECURITY DEFINER IS NOT RLS BYPASS.** A definer runs as its OWNER, and the owner
+-- bypasses RLS only if it is a superuser, carries `rolbypassrls`, or owns the table while the table
+-- is not FORCE ROW LEVEL SECURITY. `prosecdef` implies none of the three. So counting `prosecdef`
+-- measured the wrong column for the claim it was carrying, and the claim about 58 other functions
+-- was never measured at all.
+-- What IS measured, for the one function this file owns: VERIFY D checks the owner against all
+-- three routes and names which held, and `0131-G4` pins the same fact standing. Harness,
+-- 2026-08-27: owner `postgres`, rolsuper=t, rolbypassrls=t, and it owns all four tables with
+-- `relforcerowsecurity=f` — all three routes hold there. Production is NOT measured here.
 -- The open predicate is dead permission, not a trade-off.
 --
 -- THE RECURSION TRAP, and why the helper is a DEFINER (contract §3):
@@ -84,6 +98,14 @@ begin;
 -- A. PRE-CHECK — fail closed BEFORE changing anything.
 -- If someone has already altered these policies, this file's assumptions are stale and it must
 -- abort rather than silently replace work it never read.
+-- ⚠ A does NOT check the membership helper, and codex round 5 (finding 4) is right that A permits
+-- a pre-existing `_club_session_member` whose owner `create or replace` will then PRESERVE. A
+-- cannot usefully check it: A runs before section B has created or replaced anything, so the owner
+-- it would read is not necessarily the owner the policies end up trusting. The obligation lands in
+-- VERIFY D, which reads the owner that actually survived — and the whole file is ONE transaction
+-- (`begin` … `commit`, and `db push`/the harness both apply it with --single-transaction), so an
+-- abort at D undoes everything A would have protected. Ordering is a readability question here,
+-- not a safety one. Named so a later reader does not add a duplicate, weaker check to A.
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
 declare v_tbl text; v_pol text; v_cnt int; v_rls int;
@@ -215,9 +237,19 @@ comment on function public._club_session_member(uuid, uuid) is
 -- empty result: the planner evaluates the helper call BEFORE the `auth.uid() is not null` guard —
 -- AND does not short-circuit left-to-right, and a `stable` function in an OR chain gets no such
 -- promise. So an anonymous client read raised 42501 rather than returning 0 rows.
--- The tempting fix, `grant execute … to anon`, is the WRONG one: the helper answers membership
--- for an ARBITRARY (uid, session) pair, so granting anon turns it into an UNAUTHENTICATED
--- membership probe — strictly worse than the leak this migration exists to close.
+-- The tempting fix, `grant execute … to anon`, is still the WRONG one — ⚠ but NOT for the reason
+-- this paragraph used to give (codex round 5, finding 6). It said granting anon would turn the
+-- helper into an UNAUTHENTICATED probe over ARBITRARY (uid, session) pairs. That stopped being true
+-- the moment round 3 added the caller bind: the helper's first conjunct is
+-- `p_uid is not null and p_uid is not distinct from auth.uid()`, so for a caller whose `auth.uid()`
+-- is NULL every pair answers false. (READ, not measured here: Supabase's anon key JWT carries
+-- `role: anon` and no `sub`, so `auth.uid()` is NULL. What IS measured is the same shape — 164's S4
+-- reads all four tables as `anon` with `request.jwt.claim.sub` unset and gets 0 rows.)
+-- The revoke is kept because it is a SECOND, INDEPENDENT control over the same property, and the
+-- two fail differently: the bind lives inside a function body that any `create or replace` can
+-- drop, an ACL does not, and a standing guard should not depend on which of the two a future
+-- breakage happens to remove. Granting anon would also serve nothing — the policies below are
+-- `to authenticated`, so no anon read path reaches the helper at all.
 -- Scoping the policies `to authenticated` means no permissive policy applies to anon at all, so
 -- RLS denies by default and returns an empty set with no function call on any path.
 -- ⚠ The `auth.uid() is not null` conjunct is KEPT as a belt (an authenticated role carrying no
@@ -269,6 +301,8 @@ create policy "activities scoped read" on public.participant_activities for sele
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
 declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text;
+        v_qual text; v_got text;                       -- exact-predicate check (round 5, finding 5)
+        v_owner oid; v_ownername text; v_super boolean; v_bypass boolean;  -- RLS-bypass check (round 5, finding 4)
 begin
   -- negative: the open predicate is gone from all four
   select count(*) into v_open
@@ -285,11 +319,18 @@ begin
   -- `USING(false)` policies on the WRONG table satisfied it while three tables admitted nobody.
   -- Verify each intended table carries EXACTLY ONE select policy, scoped `TO authenticated`, whose
   -- predicate actually calls the membership helper.
-  for v_tbl, v_pol in
-    select * from (values ('session_dogs','dogs scoped read'),
-                          ('session_people','people scoped read'),
-                          ('session_runner_assignments','assignments scoped read'),
-                          ('participant_activities','activities scoped read')) t(a,b)
+  -- The third column is the EXACT deparsed predicate each policy must carry, captured from
+  -- `pg_get_expr` on PG 16.14 immediately after this file's own section C created them.
+  for v_tbl, v_pol, v_qual in
+    select * from (values
+      ('session_dogs','dogs scoped read',
+       '((auth.uid() IS NOT NULL) AND ((owner_profile_id = auth.uid()) OR (custodian_profile_id = auth.uid()) OR (responsible_profile_id = auth.uid()) OR (current_runner_profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('session_people','people scoped read',
+       '((auth.uid() IS NOT NULL) AND ((profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('session_runner_assignments','assignments scoped read',
+       '((auth.uid() IS NOT NULL) AND ((runner_profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('participant_activities','activities scoped read',
+       '((auth.uid() IS NOT NULL) AND _club_session_member(session_id, auth.uid()))')) t(a,b,c)
   loop
     select count(*) into v_new
     from pg_policy p join pg_class c on c.oid = p.polrelid
@@ -299,18 +340,59 @@ begin
       raise exception '0131 D: % carries % policies, expected exactly 1.', v_tbl, v_new;
     end if;
 
+    -- 🔴 [codex round 5, finding 5] THIS READ `pg_get_expr(…) LIKE '%_club_session_member%'`, and
+    -- MEASURED on PG 16.14 (2026-08-27) all FOUR of these satisfy that test while the property it
+    -- claims — an operative call to the exact helper — is FALSE:
+    --   · `xclub_session_member(session_id, session_id)`  — `_` IS A LIKE WILDCARD, so any single
+    --     character in front of `club_session_member` passes. A DIFFERENT function satisfies it.
+    --   · `('_club_session_member'::text = ''::text)`     — a bare STRING LITERAL passes.
+    --   · `(true OR _club_session_member(…))`            — a DEAD arm passes.
+    --   · `_club_session_member(session_id, session_id)`  — the WRONG ARGUMENTS pass.
+    -- ⚠ ONE of codex's five stated mechanisms did NOT reproduce, and it is recorded rather than
+    -- quietly adopted: a COMMENT inside the USING clause cannot satisfy this check. `pg_get_expr`
+    -- deparses a PARSED expression and comments do not survive parsing — measured, a policy whose
+    -- USING carried `-- _club_session_member` deparsed to `(id = 1)` and the LIKE returned false.
+    -- The comment hazard is real where SOURCE is read; that is `prosrc`, and it is 164's S9 ⓒ,
+    -- which strips comments for exactly that reason. It is not real here, and pretending otherwise
+    -- would put a guard where nothing can walk.
+    -- The replacement is TWO checks of DIFFERENT KINDS, because they fail differently:
+    --   (i)  the deparsed predicate EQUALS the one section C wrote — catches all four above;
+    --   (ii) the policy carries a CATALOG DEPENDENCY on the exact `(uuid,uuid)` overload — a
+    --        pg_depend row, which no text can forge. ⚠ Measured: (ii) alone does NOT catch the
+    --        dead-arm or wrong-argument cases (the dependency is recorded either way), so it is a
+    --        second kind of evidence beside (i), never a replacement for it.
+    -- ⚠ IF THIS ABORTS ON AN APPLY WHERE THE POLICIES ARE CORRECT, the cause is a deparse
+    -- difference between server versions, NOT a security defect: the message prints got= and want=
+    -- — compare them and update the expected string. Do NOT weaken it back to a substring.
+    -- (Pre-check A already compares a deparsed predicate exactly, and THAT string was measured
+    -- against production, so this file already rests on that stability.)
     select count(*) into v_new
     from pg_policy p join pg_class c on c.oid = p.polrelid
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
       and p.polcmd = 'r'
-      and pg_get_expr(p.polqual, p.polrelid) like '%_club_session_member%'
+      and pg_get_expr(p.polqual, p.polrelid) = v_qual
       -- EXACTLY {authenticated} — round 1 checked 「contains authenticated」, which a policy
       -- additionally granted to anon would also satisfy (codex round 2)
       and (select array_agg(rolname order by rolname) from pg_roles where oid = any (p.polroles))
           = array['authenticated']::name[];
     if v_new <> 1 then
-      raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not call the helper.', v_tbl, v_pol;
+      select pg_get_expr(p.polqual, p.polrelid) into v_got
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
+      raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not carry the exact scoped predicate. got=[%] want=[%]',
+        v_tbl, v_pol, coalesce(v_got, '(no such policy)'), v_qual;
+    end if;
+
+    if not exists (select 1
+                     from pg_policy p join pg_class c on c.oid = p.polrelid
+                     join pg_namespace n on n.oid = c.relnamespace
+                     join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = p.oid
+                    where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
+                      and d.refclassid = 'pg_proc'::regclass
+                      and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
+      raise exception '0131 D: %.% records no catalog dependency on _club_session_member(uuid,uuid) — whatever its text says, the predicate does not reference THIS function.', v_tbl, v_pol;
     end if;
     -- permissive, explicitly — a sole RESTRICTIVE policy admits nobody and passed round 3's D
     -- [codex round 4, finding 4] `pg_namespace` was MISSING here: a same-named policy on
@@ -327,6 +409,33 @@ begin
   if not (select prosecdef from pg_proc
            where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
     raise exception '0131 D: helper is not SECURITY DEFINER.';
+  end if;
+
+  -- 🔴 [codex round 5, finding 4] `prosecdef` IS NOT RLS BYPASS — the two were conflated in this
+  -- file's header and in this block, and the header's version of the error is withdrawn above.
+  -- A SECURITY DEFINER function runs as its OWNER; the owner bypasses RLS on a table only if one of
+  -- three things is true, and `prosecdef` implies none of them. If none holds, this helper is
+  -- RLS-FILTERED on the very tables its answer gates: it reads `session_people` while
+  -- `session_people`'s policy calls it — the recursion §「THE RECURSION TRAP」 exists to prevent — so
+  -- the four policies error at query time or collapse to admitting nobody. Nothing in the old D
+  -- could see that, and it is exactly the PRECONDITION class `0131-G4` was created for.
+  -- The three routes are PostgreSQL's own (check_enable_rls / has_bypassrls_privilege):
+  --   ① the owner is a SUPERUSER · ② the owner carries `rolbypassrls` · ③ the owner OWNS the table
+  --   and the table is not FORCE ROW LEVEL SECURITY.
+  -- ③ is checked across ALL FOUR tables and not one: an owner who owns three of them is filtered on
+  -- the fourth, and one filtered table is enough to break every policy that consults the helper.
+  select p.proowner, pg_get_userbyid(p.proowner) into v_owner, v_ownername
+    from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+  select r.rolsuper, r.rolbypassrls into v_super, v_bypass
+    from pg_roles r where r.oid = v_owner;
+  select count(*) into v_new
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+     and c.relowner = v_owner and not c.relforcerowsecurity;
+  if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_new = 4) then
+    raise exception '0131 D: the helper is SECURITY DEFINER but its owner % CANNOT BYPASS RLS (① rolsuper=%, ② rolbypassrls=%, ③ owns-unforced %/4). It would be RLS-filtered on the tables it gates, so the four scoped policies recurse or admit nobody. SECURITY DEFINER is not RLS bypass.',
+      v_ownername, coalesce(v_super, false), coalesce(v_bypass, false), v_new;
   end if;
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute')
      or not has_function_privilege('service_role', 'public._club_session_member(uuid,uuid)', 'execute') then
@@ -352,12 +461,25 @@ begin
     and not c.relrowsecurity;
   if v_new <> 0 then raise exception '0131 D: % tables have row security disabled.', v_new; end if;
 
-  -- and its search_path is pinned IN THE BODY
-  select array_to_string(p.proconfig, ',') into v_sp
-  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname = '_club_session_member';
-  if v_sp is null or v_sp not like '%search_path=public, pg_temp%' then
-    raise exception '0131 D: _club_session_member search_path is %, expected public, pg_temp.', coalesce(v_sp,'NULL');
+  -- and its search_path is pinned IN THE BODY.
+  -- 🔴 [codex round 5, finding 4] TWO defects here, both the house's own recurring shapes.
+  --   (a) The lookup was by `proname`, so ANY overload could answer for the one this file wrote —
+  --       `SELECT … INTO` takes an unspecified row when several match. Measured 2026-08-27: exactly
+  --       ONE row matches today, so this was LATENT, not breached. Closed by construction with
+  --       `::regprocedure`, which cannot name more than one function. ⚠ Written as a rung and not a
+  --       verdict: there is no deterministic mutation for it, because the defect IS the
+  --       nondeterminism — a green under two overloads would only record which row psql happened to
+  --       pick that run. The fix is read from catalog semantics, not observed.
+  --   (b) `LIKE '%search_path=public, pg_temp%'` is a SUBSTRING test, so `search_path=public,
+  --       pg_temp, evil` passes a check whose entire job is to pin the path. Exact array membership
+  --       instead — the form `0131-G4` already uses, so the apply-time and standing halves now
+  --       assert the same sentence.
+  if not exists (select 1 from pg_proc
+                  where oid = 'public._club_session_member(uuid,uuid)'::regprocedure
+                    and 'search_path=public, pg_temp' = any (proconfig)) then
+    select coalesce(array_to_string(proconfig, ','), 'NULL') into v_sp
+      from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+    raise exception '0131 D: _club_session_member proconfig is [%], expected an exact entry "search_path=public, pg_temp".', v_sp;
   end if;
 end $$;
 

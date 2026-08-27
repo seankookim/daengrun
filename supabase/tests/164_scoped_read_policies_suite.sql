@@ -1,4 +1,7 @@
--- ═══ 164 scoped read policies — 0131 pins (S1-S5·S5b·S6-S9 · R1 · G1-G3) ═══
+-- ═══ 164 scoped read policies — 0131 pins (S1-S5 · S5b · S6-S10 · R1 · G1-G3 · 0131-G4) ═══
+-- ⚠ THE INVENTORY IS RE-DERIVED FROM THIS FILE, NEVER FROM MEMORY (codex round 5, finding 6): it
+--   read 「S1-S5·S5b·S6-S9 · R1 · G1-G3」 and silently omitted S10 and 0131-G4, both of which this
+--   file itself had added. `grep -oE "_pass\('srp','[^ ']*"` prints the true list — 16 pins.
 -- What this suite pins: that the four club session tables whose only read policy was
 -- `(auth.uid() IS NOT NULL)` now admit exactly the people who belong to that session, that they
 -- still admit those people (a policy admitting nobody is green on every denial arm while four
@@ -19,6 +22,8 @@ declare
   v_noshow uuid; v_exowner uuid; v_exdog uuid; v_pendowner uuid; v_penddog uuid;
   v_club uuid; v_ses uuid; v_ses2 uuid; v_rt uuid; v_rt2 uuid; v_dog uuid; v_sp_id uuid;
   v_n int; v_pre int; v_bad text; v_msg text;
+  v_probe boolean;                                          -- S10 exact-boolean probes (round 5, finding 1)
+  v_pendsd uuid; v_pendappr text; v_pendown2 uuid; v_pendresp uuid; v_pendstate text;  -- S5b (round 5, finding 3)
 begin
   -- ---------- fixtures: one session, four people who belong, one who does not ----------
   v_host     := t_user('sr_host', 'runner');
@@ -189,20 +194,41 @@ begin
   else v_msg := v_bad; call _fail('srp','S5 근접 관계 차단', v_msg); end if;
 
   -- ---------- [S5b] THE ROUND-3 CRITICAL, pinned via the real RPC ----------
-  -- `session_delegate_dog` makes the OWNER the pending row's responsible_profile_id, so before
-  -- the round-4 factoring, this exact person read all four tables through the pointer arms while
-  -- their delegation sat unapproved. Real lifecycle, no INSERT.
+  -- PROPOSITION, stated before the assertions: `session_delegate_dog` makes the OWNER the pending
+  -- row's `responsible_profile_id`, so before the round-4 factoring this exact person read all four
+  -- tables through the generic pointer arms while their delegation sat unapproved. Real lifecycle,
+  -- no INSERT.
+  -- 🔴 [codex round 5, finding 3] THE GREEN MESSAGE ASSERTED THE LIFECYCLE FACTS AND THE PIN NEVER
+  -- CHECKED THEM. It said 「pending」 and 「the responsible pointer is themselves」 while measuring
+  -- only two denials. If the RPC stopped setting that pointer, S5b would stay green, its stated
+  -- claim would be false, and its mutation sensitivity would be gone — silently, all three.
+  -- Those facts ARE the reason this pin is interesting, so they are asserted now, and asserted from
+  -- the ROW the RPC returned rather than from anyone's reading of 0048.
+  -- ⚠ Liveness is asserted too, and it is load-bearing for the ATTRIBUTION: the row is not `ended`,
+  -- so arm ⓓ's `service_state is distinct from 'ended'` conjunct is satisfied and cannot be what
+  -- refuses this person. The owner/non-owner factoring is the only thing left that can.
   v_pendowner := t_user('sr_pend', 'owner'); v_penddog := t_dog(v_pendowner, 'SR-대기견');
   perform set_config('request.jwt.claim.sub', v_pendowner::text, true);
-  perform session_delegate_dog(v_ses, v_penddog, t_consent());
-  set local role authenticated;
+  v_pendsd := session_delegate_dog(v_ses, v_penddog, t_consent());
   v_bad := '';
+  select approval, owner_profile_id, responsible_profile_id, service_state
+    into v_pendappr, v_pendown2, v_pendresp, v_pendstate
+    from session_dogs where id = v_pendsd;
+  if v_pendappr is distinct from 'pending' then
+    v_bad := v_bad || ' 전제: approval=' || coalesce(v_pendappr, 'NULL') || ' (대기 상태가 아니다)'; end if;
+  if v_pendown2 is distinct from v_pendowner then
+    v_bad := v_bad || ' 전제: owner_profile_id가 신청자가 아니다'; end if;
+  if v_pendresp is distinct from v_pendowner then
+    v_bad := v_bad || ' 전제: responsible_profile_id가 자기 자신이 아니다 — 이 핀이 흥미로운 이유 자체가 사라졌다'; end if;
+  if v_pendstate = 'ended' then
+    v_bad := v_bad || ' 전제: 대기 행이 이미 ended — 거절 요인이 소유자 분리가 아니라 생존성이 되어 귀속이 무너진다'; end if;
+  set local role authenticated;
   select count(*) into v_n from session_people where session_id = v_ses;
   if v_n <> 0 then v_bad := v_bad || ' 대기 위탁 보호자가 session_people을 읽는다=' || v_n; end if;
   select count(*) into v_n from session_runner_assignments where session_id = v_ses;
   if v_n <> 0 then v_bad := v_bad || ' 대기 위탁 보호자가 assignments를 읽는다=' || v_n; end if;
   reset role;
-  if v_bad = '' then call _pass('srp','S5b 대기(pending) 위탁 보호자는 아직 멤버가 아니다 — 실제 delegate RPC로 만든 행, responsible 포인터가 자기 자신인데도');
+  if v_bad = '' then call _pass('srp','S5b 대기(pending) 위탁 보호자는 아직 멤버가 아니다 — 실제 delegate RPC가 만든 행을 되읽어 approval=pending · owner_profile_id=신청자 · responsible_profile_id=신청자 본인 · service_state≠ended 를 모두 단언한 뒤, 그 사람이 session_people과 assignments에서 0행을 읽는다. 생존한 행에서 포인터가 자기 자신을 가리키는데도 거절된다는 것이 요점이고, 이제 그 전제들이 실제로 검사된다');
   else v_msg := v_bad; call _fail('srp','S5b 대기 위탁 보호자', v_msg); end if;
 
   -- ---------- [S10] THE CALLER-ONLY GUARANTEE — codex round 4, finding 1 ----------
@@ -219,33 +245,49 @@ begin
   -- Three arms, because one proves nothing: the ORACLE arm is the property, and the two SELF arms
   -- are controls that fail if the bind is over-tight (a helper that answered `false` to everything
   -- would pass the oracle arm alone).
+  -- 🔴 [codex round 5, finding 1] ALL THREE ARMS USED A PLAIN `IF`, AND PL/pgSQL TREATS NULL AS
+  -- FALSE. `IF NULL THEN` does not execute and neither does `IF NOT NULL THEN`, so a helper that
+  -- returned NULL to every question passed all three arms and S10 stayed green while the membership
+  -- oracle was wide open in the three-valued direction — the shape a broken predicate is MOST
+  -- likely to take, since one NULL conjunct nulls a whole AND-chain. The pin existed to establish
+  -- exact FALSE/TRUE and could not see the most probable break: a control that cannot fail.
+  -- Every arm is now an exact assertion (`is not false` / `is not true`), so NULL fails all three
+  -- BY CONSTRUCTION rather than by anyone remembering, and each message prints the value it got
+  -- instead of 「it was truthy」. ⚠ The RLS policies themselves treat NULL as deny, so a NULL-ing
+  -- helper fails closed at the four tables — which is exactly why no OTHER pin in this file can
+  -- ever see it, and why this one has to.
   perform set_config('request.jwt.claim.sub', v_stranger::text, true);
   set local role authenticated;
   v_bad := '';
   -- ⓐ ORACLE: a stranger asks about a REAL member. Must be false — not an error, false: an
   --   exception would still be an oracle (it distinguishes the pair by which failure it gives).
   begin
-    if _club_session_member(v_ses, v_member) then
-      v_bad := v_bad || ' 낯선 사람이 남의 멤버십을 조회했다';
+    v_probe := _club_session_member(v_ses, v_member);
+    if v_probe is not false then
+      v_bad := v_bad || ' 낯선 사람이 남의 멤버십을 조회했다 (값=' || coalesce(v_probe::text, 'NULL')
+                     || ', 정확히 false여야 한다 — NULL도 오라클이다)';
     end if;
   exception when others then
     v_bad := v_bad || ' 오라클 팔이 예외를 냈다(예외도 신호다): ' || sqlerrm;
   end;
   -- ⓑ SELF-NEGATIVE control: the stranger about themselves — false, for a real reason
-  if _club_session_member(v_ses, v_stranger) then
-    v_bad := v_bad || ' 낯선 사람이 자기 자신을 멤버로 읽었다';
+  v_probe := _club_session_member(v_ses, v_stranger);
+  if v_probe is not false then
+    v_bad := v_bad || ' 낯선 사람이 자기 자신을 멤버로 읽었다 (값=' || coalesce(v_probe::text, 'NULL') || ')';
   end if;
   reset role;
   -- ⓒ SELF-POSITIVE control: a real member about themselves — TRUE. Without this arm a helper
   --   hard-wired to `false` would satisfy ⓐ and ⓑ and the pin would certify a broken helper.
   perform set_config('request.jwt.claim.sub', v_member::text, true);
   set local role authenticated;
-  if not _club_session_member(v_ses, v_member) then
-    v_bad := v_bad || ' 진짜 멤버가 자기 자신을 못 읽는다 (바인드가 과하게 조였다)';
+  v_probe := _club_session_member(v_ses, v_member);
+  if v_probe is not true then
+    v_bad := v_bad || ' 진짜 멤버가 자기 자신을 못 읽는다 (값=' || coalesce(v_probe::text, 'NULL')
+                   || ' — 바인드가 과하게 조였거나 헬퍼가 NULL을 낸다)';
   end if;
   reset role;
   if v_bad = '' then
-    call _pass('srp','S10 헬퍼는 호출자 본인만 답한다 — 임의 쌍 오라클이 아니다 (오라클 팔 + 자기부정/자기긍정 대조)');
+    call _pass('srp','S10 헬퍼는 호출자 본인만 답한다 — 임의 쌍 오라클이 아니다. 세 팔 모두 정확한 불리언 단언(is not false / is not true)이라 NULL이 모든 팔에서 실패한다: plpgsql은 NULL을 거짓처럼 취급하므로 예전의 평범한 IF는 「전부 NULL을 내는 헬퍼」를 그대로 통과시켰다');
   else v_msg := v_bad; call _fail('srp','S10 호출자 전용 보장', v_msg); end if;
 
   -- ---------- [S4] anon reads nothing ----------
@@ -448,6 +490,7 @@ declare
   v_state text; v_state2 text; v_phase text; v_ext text; v_ctype text;
   v_cust uuid; v_resp uuid; v_curr uuid; v_cust2 uuid; v_resp2 uuid; v_curr2 uuid;
   v_n int; v_bad text; v_msg text; v_src boolean;
+  v_ext2 text;                                   -- S9 ⓓ read-back of the planted live row (round 5, finding 2)
 begin
   -- enabled HERE and not inherited from suite 50's side effect (117's precedent, 163's practice)
   update club_flags set enabled = true where name = 'club_delegation_v2';
@@ -470,9 +513,12 @@ begin
   -- not the backup host — is admitted to that session's tables by `_club_session_member`.
   -- The reader is measured on `session_people` and `session_runner_assignments`, where they hold
   -- no row and therefore no DIRECT policy arm can admit them: the helper is the only thing that
-  -- can. `session_dogs` is deliberately NOT the evidence table — its policy has its own
-  -- `current_runner_profile_id = auth.uid()` arm (0131:207) and would be admitted without the
+  -- can. `session_dogs` is deliberately NOT the evidence table — the policy 「dogs scoped read」 has
+  -- its own `current_runner_profile_id = auth.uid()` arm and would admit this person without the
   -- helper ever being consulted, which is the exact mistake codex rejected S3's first draft for.
+  -- ⚠ Cited by POLICY NAME, not by line. This read a line-number citation into 0131 (line 207), and by round 5 that line was blank —
+  -- the dog policy's direct arms had moved (codex round 5, finding 6). A policy name is stable
+  -- against every edit that does not change what is being cited.
   begin
     v_bad := '';
     select service_state, custodian_profile_id, responsible_profile_id, current_runner_profile_id
@@ -616,13 +662,14 @@ begin
     if v_n <> 0 then v_bad := v_bad || ' ⓑ종료된 개의 포인터로 assignments를 읽는다=' || v_n; end if;
     select count(*) into v_n from participant_activities where session_id = (f_end->>'session')::uuid;
     if v_n <> 0 then v_bad := v_bad || ' ⓑ종료된 개의 포인터로 participant_activities를 읽는다=' || v_n; end if;
-    -- ⓒ and the honest half: the dog ROW itself stays visible, through the POLICY's own direct
-    --   pointer arm (0131:204-207), which is not the helper and is not what S8 is about. Written
-    --   down so a later reader does not take S8's green as 「the ex-custodian sees nothing」.
+    -- ⓒ and the honest half: the dog ROW itself stays visible, through the policy 「dogs scoped
+    --   read」's own direct pointer arms, which are not the helper and are not what S8 is about.
+    --   Written down so a later reader does not take S8's green as 「the ex-custodian sees nothing」.
+    --   (Cited by policy name: the old line-number citation into 0131 had gone stale — round 5, finding 6.)
     select count(*) into v_n from session_dogs where id = (f_end->>'session_dog')::uuid;
     if v_n <> 1 then v_bad := v_bad || ' ⓒ자기 담당이었던 개 행마저 사라졌다=' || v_n; end if;
     reset role;
-    if v_bad = '' then call _pass('srp','S8 THE LIVENESS CONJUNCT, with attribution — the same emergency transferee, holding the same three pointers, reads the session while the dog is in service and reads NOTHING once a real settlement (t_settle completed) ends it. The pin asserts the three pointer values are byte-identical across the transition and that the subject is still not the owner, so `service_state is distinct from ended` is the only conjunct that can explain the change: deleting it alone must redden this pin, which is precisely what round 4 measured as impossible before. ⓒ the dog row itself is still visible to that person through the POLICY (0131:207), not through the helper — what closes is the SESSION-WIDE read');
+    if v_bad = '' then call _pass('srp','S8 THE LIVENESS CONJUNCT, with attribution — the same emergency transferee, holding the same three pointers, reads the session while the dog is in service and reads NOTHING once a real settlement (t_settle completed) ends it. The pin asserts the three pointer values are byte-identical across the transition and that the subject is still not the owner, so `service_state is distinct from ended` is the only conjunct that can explain the change: deleting it alone must redden this pin, which is precisely what round 4 measured as impossible before. ⓒ the dog row itself is still visible to that person through the policy 「dogs scoped read」s own current_runner_profile_id = auth.uid() arm, not through the helper — what closes is the SESSION-WIDE read');
     else v_msg := v_bad; call _fail('srp','S8 종료된 개의 포인터 차단', v_msg); end if;
   exception when others then
     reset role; perform set_config('request.jwt.claim.sub', '', true);
@@ -647,12 +694,23 @@ begin
   -- ⚠ HONEST ABOUT WHAT EACH ARM PROVES. ⓐ measures the state the product can actually reach and
   -- finds it ENDED — every route into the external branch leaves the booking `incident_review` or
   -- `completed`. So ⓑ's denial is OVER-DETERMINED: liveness alone would refuse the twin even if
-  -- the helper did consult the name. That is why ⓒ is here and why it is the arm that carries the
-  -- proposition: it asserts the shipped predicate's EXECUTABLE source never mentions the column,
-  -- so no state — reachable today or not — can turn that string into a member. Comment lines are
-  -- stripped before matching, because a comment quoting a removed line matches every grep that
-  -- hunts for it; and the match is word-anchored, because a bare `custodian` substring would also
-  -- hit `custodian_profile_id`, which the helper does and must consult.
+  -- the helper did consult the name.
+  -- ⓒ reads SOURCE, and 🔴 [codex round 5, finding 2] ITS CLAIM USED TO OUTRUN ITS MEASUREMENT.
+  -- It said the absence of one token from one function's text meant the string 「cannot admit anyone
+  -- in ANY state」. It cannot mean that: `_club_session_member` could call something else that reads
+  -- the column, and this scan would be green either way. What ⓒ licenses is exactly one sentence —
+  -- **the helper's OWN executable source does not name `custodian_external`** — and that is now all
+  -- it is written to claim. Comments are stripped with `regexp_replace(prosrc, '--[^newline]*', '')`
+  -- rather than by dropping whole comment LINES, because the line form leaves a TRAILING comment in
+  -- place and this house has already been bitten by a comment that quoted the code it replaced; the
+  -- match stays word-anchored, because a bare `custodian` substring also hits
+  -- `custodian_profile_id`, which the helper does and must consult.
+  -- ⓓ is the arm that actually carries the 「any state」 half, and it carries it as an OBSERVATION
+  -- rather than a source read: it CONSTRUCTS the state ⓐ has just shown the product cannot reach — a
+  -- LIVE dog holding a non-null `custodian_external` that is the exact name of a real profile — and
+  -- measures whether that profile is admitted. Whatever the predicate consults, directly or through
+  -- any callee, the answer is measured rather than inferred. It is also the arm that is NOT
+  -- over-determined: liveness holds, so a denial here can only come from the predicate.
   begin
     v_bad := '';
     select service_state, custodian_type, custodian_external, custodian_profile_id
@@ -688,13 +746,48 @@ begin
     select count(*) into v_n from participant_activities where session_id = (f_ext->>'session')::uuid;
     if v_n <> 0 then v_bad := v_bad || ' 외부 인수자가 participant_activities를 읽는다=' || v_n; end if;
     reset role;
-    -- ⓒ the arm that actually carries the proposition
-    select coalesce(bool_or(s.l ~ '\mcustodian_external\M'), false) into v_src
-    from (select unnest(string_to_array(p.prosrc, E'\n')) as l from pg_proc p
-           where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure) s
-    where btrim(s.l) not like '--%';
-    if v_src then v_bad := v_bad || ' 헬퍼 실행부가 custodian_external을 참조한다'; end if;
-    if v_bad = '' then call _pass('srp','S9 an external custodian is a STRING, not an identity — a real authorized_person transfer lands custodian_external as free text beside a profile-backed custodian_profile_id, and a profile whose NAME is exactly that string reads 0 from all four tables. ⓐ records the state the product can actually reach and it is ENDED (every route into the external branch leaves the booking incident_review or completed), so ⓑ is over-determined and says so; ⓒ is the arm that carries the claim — the shipped predicate has no reference to custodian_external on any EXECUTABLE line (comments stripped, word-anchored so custodian_profile_id is not miscounted), so the string cannot admit anyone in any state, including one no RPC can reach yet');
+    -- ⓒ the SOURCE arm — bounded to exactly what it measures (round 5, finding 2). Comments are
+    --   stripped with regexp_replace, which also removes TRAILING comments; the old form dropped
+    --   whole comment LINES and would have been satisfied by `... -- custodian_external` on a code
+    --   line. Verified both directions on this server before adopting: a bare comment mentioning the
+    --   token → false, an executable reference → true, a trailing comment → false.
+    select (regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~ '\mcustodian_external\M') into v_src
+    from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+    if v_src then v_bad := v_bad || ' 헬퍼 실행부(주석 제거 후)가 custodian_external을 참조한다'; end if;
+    -- ⓓ THE CONSTRUCTED LIVE STATE — an observation, not a source read.
+    --   ⚠ This row is HAND-WRITTEN, deliberately, and for the only reason a hand-written fixture is
+    --   ever right in this file: the proposition is about a state NO RPC CAN PRODUCE (ⓐ measures
+    --   that every reachable external-custody row is already `ended`), so a lifecycle-real fixture
+    --   cannot exist by definition. Everything about the row that IS checkable is checked — the
+    --   write landed, and the dog is still LIVE afterwards despite `club_v1_axes_sync`
+    --   (BEFORE INSERT OR UPDATE, `tgenabled='O'` measured 2026-08-27) recomputing the axes on this
+    --   very statement. `_club_compute_axes` was measured not to reference `custodian_external`, so
+    --   the column survives the trigger; the assertion below is what proves it did, on this run.
+    --   The subject is f_live's session — a different pairing from ⓐ/ⓑ/ⓒ, still in service — and
+    --   v_twin holds no relationship to it whatsoever, so admission could only come from the name.
+    update session_dogs set custodian_external = '반포구청 안전과'
+     where id = (f_live->>'session_dog')::uuid;
+    select custodian_external, service_state into v_ext2, v_state2
+      from session_dogs where id = (f_live->>'session_dog')::uuid;
+    if v_ext2 is distinct from '반포구청 안전과' then
+      v_bad := v_bad || ' ⓓ 심기 실패: custodian_external=' || coalesce(v_ext2, 'NULL')
+                     || ' — 이 팔은 아무것도 측정하지 못했다'; end if;
+    if v_state2 is distinct from 'in_service' then
+      v_bad := v_bad || ' ⓓ 심기 실패: 살아있어야 할 개가 service_state=' || coalesce(v_state2, 'NULL')
+                     || ' — 과결정이 되살아나 이 팔이 ⓑ와 같은 것을 재는 팔이 된다'; end if;
+    perform set_config('request.jwt.claim.sub', v_twin::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_dogs where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 살아있는 개의 외부 이름과 동명인 사람이 session_dogs를 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_people where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 동명이인이 session_people을 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 동명이인이 assignments를 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 동명이인이 participant_activities를 읽는다=' || v_n; end if;
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if v_bad = '' then call _pass('srp','S9 an external custodian is a STRING, not an identity — a real authorized_person transfer lands custodian_external as free text beside a profile-backed custodian_profile_id, and a profile whose NAME is exactly that string reads 0 from all four tables. Each arm licenses exactly one sentence and no more. ⓐ: the only state the product can REACH is already ENDED (every route into the external branch leaves the booking incident_review or completed). ⓑ: the name twin reads nothing there — over-determined by liveness, and it says so rather than taking credit. ⓒ: the shipped predicate has no reference to custodian_external on any EXECUTABLE line of ITS OWN source (comments stripped by regexp_replace including trailing ones, word-anchored so custodian_profile_id is not miscounted) — this does NOT exclude a callee reading the column, which is why it is not the arm that carries the claim. ⓓ: it does — a LIVE dog is given that exact external name by hand, a state no RPC can produce, and the profile of that name still reads 0 from all four tables with liveness asserted at the moment of the read, so the denial cannot be liveness and cannot be explained away by the source scan either');
     else v_msg := v_bad; call _fail('srp','S9 외부 커스터디언 문자열', v_msg); end if;
   exception when others then
     reset role; perform set_config('request.jwt.claim.sub', '', true);
@@ -707,6 +800,7 @@ end $$;
 -- ═══ standing guards — schema-wide, outside the fixture block ═══
 do $$
 declare v_n int; v_list text; v_msg text; v_pub boolean; v_bad text;  -- v_bad: 0131-G4
+        v_owner oid; v_ownername text; v_super boolean; v_bypass boolean; v_owns int;  -- 0131-G4 bypass (round 5, finding 4)
 begin
   -- ---------- [G1] no public table carries the open read predicate. ANYWHERE. ----------
   -- Allowlist is EMPTY and every future entry must carry its reason inline — widening this list
@@ -735,6 +829,14 @@ begin
   -- everyone rather than admit anyone. That makes it an availability defect, not a disclosure.
   -- It is pinned anyway: a standing guard should not depend on which direction the breakage
   -- happens to fall, and the next recreation may not be so lucky.
+  -- 🔴 [codex round 5, finding 4] AND `prosecdef` ALONE WAS THE WRONG PRECONDITION — the same
+  -- mistake one level down. SECURITY DEFINER is not RLS bypass: a definer runs as its OWNER, and a
+  -- non-bypassing owner is RLS-FILTERED on the very tables this helper gates. `create or replace`
+  -- PRESERVES the owner, so a helper first created by the wrong role keeps that owner through every
+  -- later apply, silently, with `prosecdef` true the whole time. The owner is now checked against
+  -- PostgreSQL's own three routes (check_enable_rls / has_bypassrls_privilege): ① superuser,
+  -- ② `rolbypassrls`, ③ owns the table and the table is not FORCE ROW LEVEL SECURITY — ③ across
+  -- ALL FOUR, because one filtered table breaks every policy that consults the helper.
   v_bad := '';
   if not (select prosecdef from pg_proc
            where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
@@ -751,8 +853,23 @@ begin
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute') then
     v_bad := v_bad || ' authenticated가 헬퍼를 실행할 수 없다 (정책이 통째로 죽는다)';
   end if;
+  select p.proowner, pg_get_userbyid(p.proowner) into v_owner, v_ownername
+    from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+  select r.rolsuper, r.rolbypassrls into v_super, v_bypass from pg_roles r where r.oid = v_owner;
+  select count(*) into v_owns
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+     and c.relowner = v_owner and not c.relforcerowsecurity;
+  if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_owns = 4) then
+    v_bad := v_bad || ' 헬퍼 소유자 ' || coalesce(v_ownername, 'NULL') || '가 RLS를 우회하지 못한다'
+                   || ' (①rolsuper=' || coalesce(v_super::text, 'NULL')
+                   || ' ②rolbypassrls=' || coalesce(v_bypass::text, 'NULL')
+                   || ' ③소유·비강제 ' || v_owns || '/4) — DEFINER는 RLS 우회가 아니다;'
+                   || ' 헬퍼가 자기가 지키는 테이블에서 필터링되어 정책이 재귀하거나 아무도 통과시키지 못한다';
+  end if;
   if v_bad = '' then
-    call _pass('srp','0131-G4 헬퍼 자체의 형상 — DEFINER · 본문 search_path · anon 불가 · authenticated 가능 (전제조건이지 술어가 아니다)');
+    call _pass('srp','0131-G4 헬퍼 자체의 형상 — DEFINER · 소유자가 실제로 RLS를 우회한다(superuser · rolbypassrls · 네 테이블 소유+비강제 중 하나) · 본문 search_path · anon 불가 · authenticated 가능. 전제조건이지 술어가 아니며, prosecdef 하나만으로는 우회를 증명하지 못한다는 것이 라운드5의 발견이다');
   else v_msg := v_bad; call _fail('srp','0131-G4 헬퍼 전제조건', v_msg); end if;
 
   -- ---------- [G3] row security is ON for all four — the disabled-RLS drift guard ----------
@@ -777,9 +894,18 @@ begin
   if v_n = 0 then call _pass('srp','G3 네 테이블 모두 row security ON — 꺼진 테이블에서 정책은 무력하다');
   else v_msg := v_n || '개 테이블이 RLS OFF: ' || v_list; call _fail('srp','G3 RLS 활성 스윕', v_msg); end if;
 
-  -- ---------- [G2] the membership helper is not a public oracle ----------
-  -- It answers "is this uid in this session" for ARBITRARY uid/session. PUBLIC execute on it
-  -- would be a membership probe for anyone holding two UUIDs — the 0049 _club_shell_access rule.
+  -- ---------- [G2] the membership helper is not PUBLIC-executable ----------
+  -- ⚠ [codex round 5, finding 6] THE RATIONALE THIS PIN CARRIED IS STALE and is corrected rather
+  -- than trimmed. It read 「it answers 'is this uid in this session' for ARBITRARY uid/session, so
+  -- PUBLIC execute would be a membership probe for anyone holding two UUIDs」. Round 3's caller bind
+  -- ended that: the helper's first conjunct is `p_uid is not distinct from auth.uid()`, so a caller
+  -- with a NULL `auth.uid()` — which is what PUBLIC/anon reaches this function as — gets false for
+  -- every pair. S10 is the pin that establishes the bind; this one does not.
+  -- What G2 licenses is one narrow ACL fact: **PUBLIC has no effective EXECUTE on the helper.** It
+  -- is kept because it is a SECOND, INDEPENDENT control over the same property as the bind, and the
+  -- two fail differently — the bind lives in a function body that `create or replace` can drop, an
+  -- ACL does not. Neither is evidence for the other, which is the entire reason to hold both.
+  -- (0049 `_club_shell_access` is the precedent for the ACL habit, not for the oracle claim.)
   select has_function_privilege('public', 'public._club_session_member(uuid,uuid)', 'execute')
     into v_pub;
   if v_pub is not true then call _pass('srp','G2 _club_session_member는 PUBLIC 실행 불가');
