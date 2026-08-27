@@ -65,7 +65,9 @@ t('prototype keys cannot pass the allowlist check', () => {
 
 t('⚠ the PENDING_DEPLOY list is pinned — it must SHRINK, and a change must be deliberate', () => {
   const keys = Object.keys(PENDING_DEPLOY).sort();
-  ok(JSON.stringify(keys) === JSON.stringify(['session_add_my_dog']),
+  // 2026-08-27: session_record_companion_run 추가 (0143 동반 러닝 기록 writer, 같은 커밋에서 작성 —
+  // 배포 전까지 PGRST202가 뜨는 창이 실재한다). 배포되면 두 곳을 함께 지운다.
+  ok(JSON.stringify(keys) === JSON.stringify(['session_add_my_dog', 'session_record_companion_run']),
     'list changed to ' + JSON.stringify(keys) + ' — if a migration deployed, DELETE the entry and '
     + 'update this pin; if you added one, say why in the entry and here');
   for (const [k, why] of Object.entries(PENDING_DEPLOY))
