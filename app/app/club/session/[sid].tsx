@@ -270,7 +270,10 @@ export default function ClubSessionShell() {
     } catch (e) {
       const m = (e as Error).message;
       Alert.alert('참여 실패',
-        m.includes('session_full') ? '정원이 찼어요'
+        // [0140] 같은 트리거가 이 문으로도 온다 — session_rsvp도 owner_handled 행을 넣는다.
+        // 한쪽만 옮기면 다른 쪽에서 영문 'dog_limit'이 그대로 뜬다.
+        m.includes('dog_limit') ? '한 세션에 데려갈 수 있는 아이 수를 넘었어요'
+        : m.includes('session_full') ? '정원이 찼어요'
         : m.includes('already_joined') ? '이미 참여 중이에요'
         : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
         : m.includes('already_registered') ? '이 아이는 이미 위탁으로 등록돼 있어요' : m);
@@ -327,7 +330,11 @@ export default function ClubSessionShell() {
       // 서버가 낼 수 있는 토큰을 전부 옮긴다 (0134 §C). 빠뜨린 토큰은 영문 원문이 그대로 뜬다.
       const m = (e as Error).message;
       Alert.alert('데려가기 실패',
-        m.includes('not_signed_in') ? '로그인이 필요해요'
+        // [0140] 보호자당 동반견 한도 — 트리거가 raise 'dog_limit'. 숫자를 문장에 박지 않는다:
+        // 한도는 `owner_handled_dog_limit` 설정값이고(현재 1, Sean 재정) 서버가 소유한다.
+        // 「한 마리」라고 쓰면 설정이 바뀌는 날 화면이 거짓말이 된다.
+        m.includes('dog_limit') ? '한 세션에 데려갈 수 있는 아이 수를 넘었어요'
+        : m.includes('not_signed_in') ? '로그인이 필요해요'
         : m.includes('not_joined') ? '먼저 세션에 참여해 주세요'
         : m.includes('session_closed') ? '이 세션은 마감됐어요'
         : m.includes('companion_closed') ? '이 세션은 위탁만 받아요 — 동반은 받지 않아요'
