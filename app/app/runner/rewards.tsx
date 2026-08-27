@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import { DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, GearClaim, MilesInfo, MyRunnerStatus, openDrop } from '../../src/lib/api';
+import { claimStatusLabel } from '../../src/lib/claim-status';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -241,7 +242,11 @@ export default function Rewards() {
                   </View>
                   <View style={[s.claimChip, g.status !== 'claimable' && { backgroundColor: '#F5F5F5' }]}>
                     <Text style={{ fontSize: 15, fontWeight: '800', color: g.status === 'claimable' ? '#3D6B1F' : paper.dim }}>
-                      {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status}
+                      {/* claim_status is a closed pg enum of four (0001_init.sql:21) and this line
+                          covered ONE of them — locked/claimed/shipped printed the raw English
+                          token on a Korean screen. Single source now: src/lib/claim-status.ts,
+                          shared with shop.tsx, which covered a different two. */}
+                      {claimStatusLabel(g.status)}
                     </Text>
                   </View>
                 </Row>

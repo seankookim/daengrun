@@ -7,6 +7,7 @@ import { BottomNav } from '../src/components/bottomnav';
 import { TabSwipe } from '../src/components/tabswipe';
 import { Row } from '../src/components/ui';
 import { DropRow, fetchActiveBoostLabel, fetchDrops, fetchGearClaims, fetchMiles, GearClaim, MilesInfo } from '../src/lib/api';
+import { claimStatusLabel } from '../src/lib/claim-status';
 import { products, session } from '../src/store';
 import { colors, paper } from '../src/theme';
 
@@ -135,7 +136,11 @@ export default function Shop() {
                     </View>
                     <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#EEF0EA' }]}>
                       <Text style={{ fontSize: 15, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
-                        {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status === 'locked' ? '잠김' : g.status}
+                        {/* claim_status is a closed pg enum of four (0001_init.sql:21) and this
+                            line covered TWO of them — claimed/shipped printed the raw English
+                            token on a Korean screen. Single source now: src/lib/claim-status.ts,
+                            shared with runner/rewards.tsx, which covered only one. */}
+                        {claimStatusLabel(g.status)}
                       </Text>
                     </View>
                   </Row>
