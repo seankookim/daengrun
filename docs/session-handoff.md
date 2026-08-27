@@ -33,8 +33,39 @@ hardening incl. the crash window where a destroyed key could be stored as a live
    three-line pre-send checklist, referral line deliberately blank. **This gates phone
    collection, publishing the privacy policy and terms, the KCC filing, and launch.** Oldest
    open item; nothing else on this list is close.
-2. **Device smoke pass.** Everything above is real on a device now and **none of it is
-   simulator- or device-verified.** ~950 type-size changes and five screens of colour/copy work
+2. 🔴 **THERE IS NO BUILD. NOTHING HAS EVER REACHED A PHONE — corrected 2026-08-27 (ui6).**
+   This line previously read 「everything above is real on a device now」. It is not, and the
+   correction matters more than anything else on this list: **`eas build:list` returns EMPTY.**
+   Not a stale build, not a failed one — **none has ever been made.** The database is deployed
+   through 0152; the client only travels in a binary, and no binary exists. So production is
+   running today's server against a client nobody has ever built, and several of today's client
+   fixes are the *other half* of server changes that already shipped.
+   **What was done toward it (ui6, 2026-08-27):**
+   · `EXPO_PUBLIC_SUPABASE_URL` + `_ANON_KEY` pushed to the EAS `preview` environment — there
+     were **zero** env vars configured, so no build could ever have reached Supabase. Uploaded
+     with `eas env:push --path .env`, which reads the file itself (no value handled by hand).
+   · a **`simulator`** profile added to `eas.json` — it needs **no Apple signing**, which is the
+     only iOS artifact obtainable without an interactive Apple credential setup.
+   · `.easignore` added: the archive was **289 MB against a 4.6 MB app** (`docs/` 171 MB +
+     `supabase/` 87 MB, neither compiled into a client). ⚠ It is a **superset of `.gitignore`**,
+     verified rule-by-rule, because EAS uses it *instead of* `.gitignore` — dropping one line
+     would ship `.env` to the build servers.
+   · the app **bundles clean**: `expo export` produces a 7.3 MB Hermes bundle, exit 0.
+   🔴 **STILL BLOCKED, three attempts, all identical:** every iOS build fails at the
+   **`Configure expo-updates` build phase** with `UNKNOWN_ERROR`. ⚠ Ruled out: missing env
+   (attempt 2 had it), archive size (attempt 3 was small), and local config — `expo config
+   --type introspect` resolves fine, exit 0. **Prime suspect: the `ExpoWidgetsTarget` app
+   extension**, which introspection shows carries `widgets: []` — an app extension with no
+   widgets, configured alongside expo-updates. **The phase log is on the build page and the CLI
+   cannot print it** (`api.expo.dev/.../logs` → 404 unauthenticated); someone with dashboard
+   access should read it first — do not spend a fourth build guessing.
+   ⚠ **And signed iOS builds are Sean-only regardless:** both `preview` and `testflight` fail at
+   credential setup demanding interactive mode (Apple Developer sign-in). Android is not an
+   escape — `android.package` is unset, so this app is iOS-only in practice.
+   **When a build finally exists, `docs/design/device-smoke-ui6-2026-08-27.md`** is 33 honestly-⬜
+   rows; its first section needs the phone's timezone **off Korea** before any row means anything.
+   **The old text follows, still true of the code itself:** none of it is
+   simulator- or device-verified. ~950 type-size changes and five screens of colour/copy work
    look fine in a diff and wrap badly on hardware. `docs/design/device-smoke-ui6-2026-08-27.md`
    is 33 honestly-⬜ rows; its first section needs the phone's timezone **off Korea** before any
    row means anything.
@@ -58,6 +89,49 @@ hardening incl. the crash window where a destroyed key could be stored as a live
    **Not reachable from outside:** PostgREST exposes only `public, graphql_public`; the anon key
    gets `406 PGRST106` on `net` and `200` on `public.clubs` (control run). **Defence in depth, no
    known reach.** A support request, not a blocker.
+
+## ui6 lane — state at handoff (2026-08-27)
+
+**Deployed and verified against production, not inferred:** 0131→0152, all 22. `migration list`
+pending **NONE**. Anon-executable definers **0**, definers missing in-body `search_path` **0**,
+`payments_live_since` and `card_registration_live_since` both **null** — no money moves. Edge:
+`register-billing-key` v2, `revoke-billing-keys` v1 (first ever deploy, `verify_jwt=false` from
+the committed `config.toml`).
+
+🔴 **The money defect is closed ON THE LIVE ROW, not a fixture.** Production booking
+`4f053152-…` — `actual_km` NULL, `incident_review` — now answers `basis=incident_unmeasured`,
+`measured_km` NULL, `runner_gross` NULL. **An hour earlier that same row quoted 「실측 0km」 and
+multiplied the runner's distance and addon fare by that zero.** Found by the announcer on the
+screen; escalated here after measuring `0121:296`, where the ratio is *spent*.
+
+**Dim-text wave 3 LANDED** (`69a926a`) — 48 sites read, **10 inked**, 707/0. Ratio ~21%, which
+matches owner/home's 2-of-8 and is the third independent confirmation that this is a judgment
+pass and not a sweep. ⚠ **`club/receipt` came back 0 of 10 and that is the finding**: its dim
+styles are `club-ui`'s shared `bignumLabel`/`LoadGate` recipes byte-for-byte, and `theme.ts:80-86`
+already records `L.dim` at **4.24:1 — under the body floor — as an open item reserved for Sean**.
+Inking them per-site would be the first half of a product-wide repaint, made by an implementer.
+**Left at the wall, deliberately.**
+
+**Still in flight, isolated worktree, NOT pushed** — the 사고 신고 (incident) client flow, claimed
+in REGISTRY's in-flight table. Its branch is `worktree-agent-*` and needs landing.
+
+### What a next session should not re-learn
+
+- ⚠ **`club_join` / `club_leave` are built and unreachable** — membership only happens as a side
+  effect of committing to a session. Seven more granted-to-`authenticated` RPCs have no caller:
+  `open_incident_tx` · `verify_incident_tx` · `incident_contact` · `session_set_backup` ·
+  `club_assume_host` · `session_reconsider_dog` · `km_claim_welcome` · `runner_work_gate` ·
+  `set_my_phone`. **That list is the honest map of missing UI**, derived from grants, not memory.
+- ⚠ **Dim-text: the counts in circulation were wrong twice and both were mine.** 412 counted a
+  colour token appearing anywhere — `placeholderTextColor` (which MUST be dim), dots, borders.
+  Honest upper bound ~203 *text* styles. **Measured violation ratio on owner/home: 2 of 8.** The
+  real count cannot be produced by grep, because the question is 「may the customer skip this?」.
+  **An agent handed the 412 would have turned 29 placeholders ink and made every form look
+  pre-filled.**
+- ⚠ **`0151` was EDITED IN PLACE after landing on trunk**, against the correct-forward law. The
+  exception was narrow and is stated in its header: its abort made every later migration
+  unreachable, and `migration list` proved no environment held the old version. **If you meet a
+  landed migration that cannot apply, that is the test to run — not the law to ignore.**
 
 ## Lanes
 
