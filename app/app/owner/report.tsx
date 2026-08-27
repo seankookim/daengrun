@@ -20,6 +20,13 @@ import { supabase } from '../../src/lib/supabase';
 import { draft, TracePoint } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
 
+// [DESIGN.md §7a-bis · Sean 2026-08-26] Ink is the default; the grey ramp marks only what a
+// customer may skip. On this screen that moved the stopped-run audit block, the honest gaps and
+// the review disclosure up to ink, and left the record card's metadata — the when·route eyebrow,
+// timestamps, units, stat labels, star glyphs and the deliberately quiet 결제 row (§0-bis) —
+// exactly where they were. The unknown-measurement cell keeps its own colour: it belongs to the
+// unknown-is-not-zero work, not to this pass.
+
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
 // 진입: 알림 · 내 일정 완료 카드 · 체력 리포트 최근 러닝. 공유가 곧 마케팅 (자랑 = 전파).
 
@@ -657,7 +664,7 @@ export default function Report() {
                   )}
                   {/* 「프로필에 반영됐어요」 is only true for a public review — a platform_only one
                       is deliberately invisible on the runner's page, so it gets its own sentence. */}
-                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 9 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.ink, marginTop: 9 }}>
                     후기는 러닝당 한 번만 남길 수 있어요 — {myReview.visibility === 'public'
                       ? `${report.runnerName ?? '러너'} 러너 프로필에 반영됐어요`
                       : '도그스하이 팀에게만 전달됐어요'}
@@ -855,7 +862,7 @@ export default function Report() {
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 15, color: colors.dim, width: '100%', marginTop: 4 }}>
+                <Text style={{ fontSize: 15, color: paper.ink, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
                 </Text>
               </View>
@@ -868,7 +875,7 @@ export default function Report() {
             {stopped ? (
               <View style={s.section}>
                 <Text style={s.sectionTitle}>기록</Text>
-                <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim }}>
+                <Text style={{ fontSize: 15, lineHeight: 20, color: paper.ink }}>
                   {/* [BUG A] Oswald 숫자는 lineHeight 명시 없이 어센더가 잘린다 — 16 × 1.25 = 20 */}
                   {/* 「예정 5km 중 0km에서 종료」 was what an unmeasured stop actually printed. 예정 is
                       a booked figure and is always real; 실제 is the one that can be missing, so it
@@ -889,7 +896,7 @@ export default function Report() {
                 {kmPct != null && run.actualKm != null ? (
                   <GoalBar label="거리" pct={kmPct} detail={`${run.actualKm} / ${report.plannedKm}km`} />
                 ) : (
-                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 10 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.ink, marginTop: 10 }}>
                     예정 {report.plannedKm}km — 실제 달린 거리가 {UNKNOWN}이라 달성률을 계산할 수 없어요.
                   </Text>
                 )}
@@ -1160,13 +1167,13 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
       <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 }}>
         아이가 힘들어 보이면 멈추는 게 맞아요.
       </Text>
-      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
+      <Text style={{ fontSize: 15, color: paper.ink, marginTop: 5, lineHeight: 20.5 }}>
         러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.
       </Text>
 
       {run.conditionNote ? (
         <View style={{ marginTop: 13, borderLeftWidth: 2, borderLeftColor: paper.line, paddingLeft: 11 }}>
-          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, marginBottom: 4 }}>
             러너가 본 것
           </Text>
           <Text style={{ fontSize: 15, color: paper.text, lineHeight: 21.5 }}>{run.conditionNote}</Text>
@@ -1174,7 +1181,7 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
       ) : (
         /* Loading ≠ empty ≠ absent (§7): the note is required at the stop, so a missing one is a
            real gap in the record — say so rather than rendering nothing. */
-        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+        <Text style={{ fontSize: 15, color: paper.ink, marginTop: 13, lineHeight: 20 }}>
           러너 메모가 기록되지 않았어요 — 안심 센터로 문의해주세요.
         </Text>
       )}
@@ -1182,7 +1189,7 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
       {/* WHERE and HOW LONG are independently unknown, so the line is assembled from the parts that
           exist rather than printing 「기록 없음」 into slots built for numbers. Both missing → the
           sentence is replaced outright; 예정 survives either way because it is a booked figure. */}
-      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+      <Text style={{ fontSize: 15, color: paper.ink, marginTop: 13, lineHeight: 20 }}>
         {run.actualKm != null || run.durationSec != null
           ? `${[
               run.actualKm != null ? `${run.actualKm}km 지점` : null,
