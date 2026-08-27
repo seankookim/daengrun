@@ -722,10 +722,14 @@ export default function OwnerHome() {
                 >
                   {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
                   <MediaImage source={m.url} style={{ width: '100%', height: '100%' }} />
+                  {/* ⚠ Moment.km은 NULL이 될 수 있다 (runs.actual_km IS NULL — 서버가 재지 않은
+                      러닝). `{m.km}km` 이면 숫자만 사라지고 알약에 「km」만 남는다: 값 없는 단위는
+                      측정 모양의 거짓말이다. 거리를 모르면 알약은 날짜만 말한다 — 사진과 날짜는
+                      그대로 참이고, 거리는 애초에 이 타일이 존재하는 이유가 아니다. */}
                   <View style={s.momentPill}>
                     <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: '#fff' }, nf]}>
-                      {m.km}km
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
+                      {m.km != null ? `${m.km}km` : ''}
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>{m.km != null ? '  ' : ''}{m.when}</Text>
                     </Text>
                   </View>
                 </Pressable>

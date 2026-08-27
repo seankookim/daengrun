@@ -118,7 +118,12 @@ export default function RunnerReview() {
   }
 
   const dogName = report?.dogName ?? null;
-  const actualKm = report?.run?.actualKm ?? 0;
+  // ⚠ [2026-08-27] `?? 0` 이었다. 화면에는 아무것도 안 나왔으므로 (아래 `actualKm > 0` 가드가
+  // 삼켰다) 무해해 보였지만, 그 식은 「모른다」와 「0km를 쟀다」를 같은 값으로 만든다 — 다음 사람이
+  // 가드를 한 줄 손대면 그대로 0km가 인쇄된다. 더 나쁜 건 그 가드가 서로 다른 두 상태를 한 침묵으로
+  // 덮었다는 것이다: 러닝 기록이 아예 없는 예약과, 서버가 거리를 재지 않은 러닝(actual_km IS NULL,
+  // incident 경로)이 똑같이 빈 자리로 보였다. 이제 세 상태가 각자 말한다.
+  const actualKm = report?.run?.actualKm ?? null;
   const guardOff = stars === 0;      // 별점 가드 — 명시 fill로 칠하는 유일한 disabled
   const blocked = guardOff || busy;  // 입력 차단. busy는 disabled로 칠하지 않는다 (버튼 매트릭스 법)
 
@@ -141,8 +146,12 @@ export default function RunnerReview() {
             <Text style={s.dogErr}>강아지 정보를 불러오지 못했어요</Text>
           ) : !report ? (
             <Text style={s.dogMeta}>러닝 기록 불러오는 중...</Text>
-          ) : actualKm > 0 ? (
+          ) : actualKm != null && actualKm > 0 ? (
             <Text style={s.dogMeta}>{actualKm.toFixed(2)}km 완주</Text>
+          ) : report.run && actualKm == null ? (
+            // 러닝은 있는데 거리를 모른다 — owner/report.tsx·club/receipt과 같은 낱말.
+            // 0km도 '—'도 아니다: 둘 다 잰 값처럼 읽힌다.
+            <Text style={s.dogMeta}>거리 기록 없음</Text>
           ) : null}
         </View>
       </Row>

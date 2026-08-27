@@ -2409,6 +2409,22 @@ export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
 }
 
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
+// 🔴 UNFIXED, AND DELIBERATELY SO — this is the one site of the 「unknown is not zero」 sweep that
+// could not be closed from inside this slice, so it is written down rather than left to be
+// rediscovered. `km` below is `Number(r.actual_km ?? 0)`, and `runs.actual_km` IS NULLABLE: the
+// custody/emergency path ends a run without ever measuring it (production booking 4f053152,
+// `end_reason='incident'`, has actual_km AND duration_sec NULL). That run therefore enters a
+// DISTANCE RANKING as 0km — a fabricated comparison that feeds 「★ 역대 최장 거리」 and
+// 「거리 TOP n」. ⚠ The `status='completed'` filter below is NOT protection: that row sits at
+// `incident_review` today and is admitted the moment the incident resolves.
+// THE FIX IS TWO FILES AND MUST LAND AS ONE UNIT. `kmRank` has to become `number | null` (the
+// rule `paceRank` in this same function has always used — exclude an unmeasured row from the
+// comparison instead of scoring it, and give MY row no rank when MY distance is unknown), plus a
+// count of what the ranking could not see so a screen can say the standing is partial.
+// It cannot ship alone: `owner/report.tsx:167` does `else if (st.kmRank <= 3)` with no null guard
+// — and `null <= 3` is TRUE in JS, so the badge would print the literal 「거리 TOP null」. The
+// guard it needs is already written two lines below it, for `paceRank`. owner/report.tsx is held
+// by another slice; changing this type without it turns a quiet wrong rank into a visible 'null'.
 export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
 
 export async function fetchRunStandings(bookingId: string): Promise<RunStandings | null> {
@@ -2422,6 +2438,8 @@ export async function fetchRunStandings(bookingId: string): Promise<RunStandings
   const rows = (data ?? [])
     .map((b: any) => {
       const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
+      // 🔴 `?? 0` — the unfixed site the type comment above describes. Left EXACTLY as it was:
+      // half-fixing it here (nullable row, non-nullable rank) would only move the fabrication.
       return r ? { id: b.id, km: Number(r.actual_km ?? 0), pace: r.avg_pace_sec_per_km as number | null } : null;
     })
     .filter(Boolean) as { id: string; km: number; pace: number | null }[];
@@ -2619,8 +2637,16 @@ export async function uploadAvatar(base64: string): Promise<string> {
 }
 
 // ---------- 체력 리포트 (fitness hub) ----------
-export interface FitnessWeek { label: string; km: number }
-export interface FitnessRecent { bookingId: string; when: string; km: number; durationSec: number }
+// ⚠ EVERY DISTANCE HERE IS A SUM OF A NULLABLE COLUMN, so every one of them carries a count of
+// what it could not see. `runs.actual_km` / `duration_sec` are NULL on a run the server never
+// measured (production `end_reason='incident'`, both columns NULL). This block used to coalesce
+// both columns to zero before summing, so an unmeasured run was ADDED AS ZERO to
+// the weekly total, to all eight bars and to the pace divisor — a fabricated measurement inside
+// an aggregate that then reads as complete. Unknown is not zero, and a total that silently
+// dropped it is not honest either; the aggregate says how many runs it left out and the screen
+// says so. `unmeasured` is a RUN COUNT, never a distance.
+export interface FitnessWeek { label: string; km: number; unmeasured: number }
+export interface FitnessRecent { bookingId: string; when: string; km: number | null; durationSec: number | null }
 export interface Fitness {
   dogId: string | null;
   dogName: string;
@@ -2628,7 +2654,8 @@ export interface Fitness {
   goalKm: number;
   fitnessAge: number | null;
   ageYears: number | null; // 생일 기준 실나이 (생일 없거나 비정상이면 null — 목업 나이 상수 금지)
-  weekKm: number;       // 최근 7일
+  weekKm: number;       // 최근 7일 — MEASURED runs only; see weekUnmeasured
+  weekUnmeasured: number; // 이번 주 러닝 중 거리 기록이 없는 횟수 (weekKm에 들어가지 않은 러닝)
   weekRuns: number;
   avgPaceSec: number | null;
   streakDays: number;   // 러닝 있는 연속 일수 (오늘 또는 어제부터 역산)
@@ -2663,25 +2690,39 @@ export async function fetchFitness(): Promise<Fitness> {
   const rows = (runRes.data ?? [])
     .map((b: any) => {
       const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
-      return r ? { bookingId: b.id, at: new Date(b.scheduled_at), km: Number(r.actual_km ?? 0), dur: r.duration_sec ?? 0 } : null;
+      // `Number(null)` is 0 — the null is tested BEFORE the cast, and it stays null all the way
+      // into the sums below. The ROW is kept: an unmeasured run still happened, so it still counts
+      // toward weekRuns, the streak and the weekday stamps. Only its DISTANCE is missing.
+      return r ? { bookingId: b.id, at: new Date(b.scheduled_at), km: r.actual_km == null ? null : Number(r.actual_km), dur: r.duration_sec ?? null } : null;
     })
-    .filter(Boolean) as { bookingId: string; at: Date; km: number; dur: number }[];
+    .filter(Boolean) as { bookingId: string; at: Date; km: number | null; dur: number | null }[];
+
+  // 측정된 거리만 더한다 — 모르는 값을 0으로 더하면 합계가 조용히 틀린다.
+  // ⚠ `?? 0` 로 쓰지 않는다 — 결과는 같지만 그 글자가 이 파일에서 고치고 있는 결함 그 자체이고,
+  // 다음 사람의 grep에 걸리는 것도 그 글자다. 안 잰 러닝은 더해지는 게 아니라 **빠진다**.
+  const sumKm = (rs: { km: number | null }[]) => rs.reduce((s, r) => (r.km == null ? s : s + r.km), 0);
+  const countUnmeasured = (rs: { km: number | null }[]) => rs.filter((r) => r.km == null).length;
 
   const now = Date.now();
   const weekStart = kstWeekStartMs(now); // KST 월요일 — 리더보드·러너 주간과 동일 창
   const thisWeek = rows.filter((r) => r.at.getTime() >= weekStart);
-  const weekKm = Math.round(thisWeek.reduce((s, r) => s + r.km, 0) * 10) / 10;
-  const totKm = thisWeek.reduce((s, r) => s + r.km, 0);
-  const totSec = thisWeek.reduce((s, r) => s + r.dur, 0);
-  const avgPaceSec = totKm > 0.05 ? Math.round(totSec / totKm) : null;
+  const totKm = sumKm(thisWeek);
+  const weekKm = Math.round(totKm * 10) / 10;
+  const weekUnmeasured = countUnmeasured(thisWeek);
+  // 페이스는 비율이다 — 거리와 시간이 **둘 다** 측정된 러닝만 분자·분모에 넣는다. 한쪽만 있는
+  // 러닝을 섞으면 (거리만 있는 러닝 + 시간만 있는 러닝) 아무도 달린 적 없는 페이스가 나온다.
+  const paced = thisWeek.filter((r) => r.km != null && r.dur != null);
+  const pacedKm = paced.reduce((s, r) => s + r.km!, 0);
+  const pacedSec = paced.reduce((s, r) => s + r.dur!, 0);
+  const avgPaceSec = pacedKm > 0.05 ? Math.round(pacedSec / pacedKm) : null;
 
   // 8주 버킷
   const weeks: FitnessWeek[] = [];
   for (let w = 7; w >= 0; w--) {
     const start = weekStart - w * 7 * 86400_000;
     const end = start + 7 * 86400_000;
-    const km = rows.filter((r) => r.at.getTime() >= start && r.at.getTime() < end).reduce((s, r) => s + r.km, 0);
-    weeks.push({ label: w === 0 ? '이번 주' : `${w}주 전`, km: Math.round(km * 10) / 10 });
+    const bucket = rows.filter((r) => r.at.getTime() >= start && r.at.getTime() < end);
+    weeks.push({ label: w === 0 ? '이번 주' : `${w}주 전`, km: Math.round(sumKm(bucket) * 10) / 10, unmeasured: countUnmeasured(bucket) });
   }
 
   // 스트릭: 러닝이 있는 날짜의 연속성 (오늘 비어도 어제부터 이어지면 유지)
@@ -2702,7 +2743,12 @@ export async function fetchFitness(): Promise<Fitness> {
   //   ② 최근 28일 완주 ≥2회 — 0회면 계산값 = 등록 나이 그대로라 '측정'이 아니다 (정직 게이트, 2026-07-28)
   let fitnessAge: number | null = null;
   let fitnessGate: Fitness['fitnessGate'] = null;
-  const recent28 = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000);
+  // ⚠ 거리가 **측정된** 러닝만 센다. 이 게이트가 존재하는 이유가 "계산에 실제 활동량이 들어가야
+  // 한다"는 것이고 (아래 ②), 거리를 모르는 러닝은 ratio에 0을 넣는다 — 활동이 없었던 것과 계산상
+  // 구별되지 않는다. 그런 러닝을 2회로 세면 '측정된 체력 나이'가 실은 등록 나이에서 거의 움직이지
+  // 않은 값이 되고, 그건 이 게이트가 막으려던 바로 그 상태다. 러닝 자체는 weekRuns·스트릭·요일
+  // 스탬프에 그대로 남는다 — 여기서만 빠진다.
+  const recent28 = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000 && r.km != null);
   // 실나이 — 생일이 있고 정상 범위(0~25살)일 때만. 없으면 null (홈 ▼칩은 이 값만 쓴다).
   const rawAgeYears = d?.birth_date ? (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000) : null;
   const ageYears = rawAgeYears != null && rawAgeYears > 0 && rawAgeYears <= 25 ? Math.round(rawAgeYears * 10) / 10 : null;
@@ -2711,7 +2757,7 @@ export async function fetchFitness(): Promise<Fitness> {
   } else if (recent28.length < 2) {
     fitnessGate = { reason: 'runs', left: 2 - recent28.length };
   } else if (rawAgeYears != null && rawAgeYears > 0 && rawAgeYears <= 25) { // 미래/비정상 생일은 측정 불가
-    const last28Km = recent28.reduce((s, r) => s + r.km, 0);
+    const last28Km = sumKm(recent28); // recent28 is measured-only by construction (see its filter)
     const goal = Number(d.weekly_goal_km ?? 15);
     const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
     const calc = Math.max(0.5, Math.round((rawAgeYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
@@ -2737,7 +2783,7 @@ export async function fetchFitness(): Promise<Fitness> {
     goalKm: Number(d?.weekly_goal_km ?? 15),
     fitnessAge,
     ageYears,
-    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays, fitnessGate,
+    weekKm, weekUnmeasured, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays, fitnessGate,
   };
 }
 
@@ -2748,7 +2794,12 @@ export async function updateDogGoal(dogId: string, km: number): Promise<void> {
 
 // ---------- 최근 순간 — 완료 러닝의 실사진만 (runs.photos, 러너가 담아온 순간) ----------
 // 홈 생기 패스의 데이터원. 사진이 없으면 빈 배열 — 섹션 자체를 숨긴다 (스톡/가짜 금지).
-export interface Moment { bookingId: string; url: string; when: string; km: number }
+// ⚠ `km` is NULLABLE. The photo is the fact this row exists for; the distance is a SECOND fact and
+// `runs.actual_km` can be NULL (an `incident` run ends without ever being measured). This used to
+// coalesce the column to zero before rounding, which labelled a real photo 「0.0km」 — a caption that reads as a
+// measurement of the run the owner is looking at. A photo with no distance keeps the photo and
+// drops the label; it never prints a number nobody recorded.
+export interface Moment { bookingId: string; url: string; when: string; km: number | null }
 
 export async function fetchRecentMoments(limit = 12): Promise<Moment[]> {
   const { data: user } = await supabase.auth.getUser();
@@ -2766,7 +2817,7 @@ export async function fetchRecentMoments(limit = 12): Promise<Moment[]> {
     if (photos.length === 0) continue;
     const { dateLabel } = kstParts(b.scheduled_at);
     for (const url of photos) {
-      out.push({ bookingId: b.id, url, when: dateLabel, km: Math.round(Number(r?.actual_km ?? 0) * 10) / 10 });
+      out.push({ bookingId: b.id, url, when: dateLabel, km: r?.actual_km == null ? null : Math.round(Number(r.actual_km) * 10) / 10 });
       if (out.length >= limit) return out;
     }
   }
@@ -3545,7 +3596,17 @@ export interface FeedPost {
   authorAvatar: string | null;
   body: string | null;
   photoUrl: string | null;
-  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[];
+  // ⚠ `km`/`durationSec` are `?: number | null` — THREE states, and they are not the same one.
+  // ABSENT = a free post or a pre-0028 post that never carried a run (the card claims nothing);
+  // NULL = a run whose distance the server never measured (`runs.actual_km` IS NULL on the
+  // `incident` path) — `shareRunToFeed` below copies `report.run.actualKm` straight in, and that
+  // field became `number | null` when the run report stopped redrawing unknown as zero, so a
+  // literal `null` reaches `feed_posts.meta` and comes back out of `fetchFeed` unchecked (`p.meta`
+  // is cast from `any`, so NOTHING at this boundary is verified by the compiler — the type has to
+  // be right because nobody else will catch it); NUMBER = measured. The card must not print a
+  // zero, a dash, or an em-dash where a null is: 「— km」 is measurement-shaped and reads as
+  // 「we measured it and it was nothing」. It says 기록 없음 or draws no distance at all.
+  meta: { dogName?: string; km?: number | null; durationSec?: number | null; badges?: string[]; trace?: { x: number; y: number }[];
     // runs.end_reason (0028 ②). '완주'라고 말할 수 있는 유일한 근거다 — status='completed'는
     // 조기 종료 정산도 포함한다. 옛 포스트에는 없다(undefined) → 피드는 완주를 주장하지 않는다.
     endReason?: string;
@@ -4243,6 +4304,10 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
     photo_url: report.run.photos[0] ?? null,
     // endReason 동봉 — 피드 카드가 '완주'를 말해도 되는지의 유일한 근거 (0028 ②). 없으면
     // 카드는 중립적인 '러닝 기록'으로 떨어진다: 0km 조기 종료가 '초코 완주'로 게시된 원인.
+    // ⚠ km/durationSec은 **null 그대로** 싣는다 (endReason처럼 `?? undefined`로 접지 않는다):
+    // 「러닝이 없다」와 「러닝은 있는데 재지 않았다」는 다른 사실이고, 피드 카드는 그 둘을 다르게
+    // 그린다 (FeedPost.meta 주석 참조). 여기서 0으로 접거나 키를 지우면 그 구별이 영영 사라진다.
+    // ⚠ 이 insert는 supabase 클라이언트를 지나며 any가 되므로 타입 검사기가 봐주지 않는다.
     meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, endReason: report.run.endReason ?? undefined, badges, trace, ...(collar ? { collar } : {}) },
   });
   if (error) {
