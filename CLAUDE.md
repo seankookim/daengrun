@@ -124,7 +124,18 @@ guarantees can never fail. **The prompt MUST use the X-placeholder form and neve
 values in a `VERDICT:`-prefixed line**: 「End with the literal line VERDICT: X where X is one of
 APPROVE, APPROVE-WITH-FIXES, REJECT」 — the echo then contains only `VERDICT: X`, which the
 value-match cannot hit. If you inherit a log whose prompt enumerated values, the count is
-uninformative; only the POSITION of the hits (past the prompt block) settles it. **And still check for the usage-limit line
+uninformative; only the POSITION of the hits (past the prompt block) settles it.
+
+⚠ **v3 REFINED (b6's audit of 17 runs, sharper than 「never enumerate」):** the mechanism is that
+**the placeholder must OCCUPY THE VALUE POSITION** — `VERDICT: <A|B|C>` cannot value-match because
+`<` sits where the value must be, while values enumerated in PROSE (「answer VERDICT: APPROVE or
+VERDICT: REJECT」) echo as real matches. A reviewer still needs to know the options; the
+angle-bracket or X-placeholder form tells them and stays undetectable.
+**And capture the streams SEPARATELY** (`> out.log 2> err.log`): b6 measured across 17 runs that
+the ECHO lands on stderr and the ANSWER on stdout — walled runs were value-match 0 on stdout AND
+bare-word 1 on stderr, so either alone catches it. ⚠ Attribution honest: measured by b6 on their
+runs; my own logs merge streams (`2>&1`) so I could not independently confirm — which is itself
+the reason to split: a merged log destroys the discriminator. **And still check for the usage-limit line
 positively** (`grep -i 'usage limit'`) — a quota wall is the single most common cause, it is
 invisible in the exit status, and two sessions hit it within one hour on 2026-08-26.
  And when a set of runs is in question, **audit the
