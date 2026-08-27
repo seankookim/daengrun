@@ -840,13 +840,16 @@ const s = StyleSheet.create({
   roadA: { position: 'absolute', top: 92, left: -20, right: -20, height: 16, backgroundColor: paper.disabledFill, transform: [{ rotate: '10deg' }] },
   roadB: { position: 'absolute', top: 0, bottom: 0, left: 200, width: 13, backgroundColor: paper.disabledFill, transform: [{ rotate: '-14deg' }] },
   pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
-  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄 + dim 14/700)
+  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄).
+  // [DIM 2026-08-27 · DESIGN.md §7a-bis] 잉크만 딤에서 갈라졌다: 이 상자의 유일한 텍스트이고,
+  // 세 분기 중 둘(불러오기 실패 · 픽업 위치 미지정)은 보호자가 손을 대야 끝나는 상태다.
+  // 회색은 '건너뛰어도 된다'는 뜻이고, 그건 이 두 상태에 대해 거짓이다.
   mapPendingWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   mapPending: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.ink, textAlign: 'center' },
   // fix-path line inside the pending box (DS-3) — coral, invitation not error
   mapPendingLink: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.line, textAlign: 'center', marginTop: 5 },
   // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
@@ -859,8 +862,10 @@ const s = StyleSheet.create({
   noteK: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
   placeTtl: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 4 },
   placeAddr: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 2 },
-  // 러너가 인계 화면에서 읽는 바로 그 줄(addresses.detail) — 조용하지만 dim(AA) 하한 위
-  placeNote: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 5 },
+  // 러너가 인계 화면에서 읽는 바로 그 줄(addresses.detail).
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크: 이 블록이 존재하는 이유가 '보호자가 이 줄을 직접
+  // 읽고 확인하게 하는 것'인데(위 블록 주석), 회색은 정확히 그 반대를 지시한다.
+  placeNote: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.text, marginTop: 5 },
   noteEmpty: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 5 },
   noteGo: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk, marginTop: 7, textAlign: 'right' },
   pickupPin: {
