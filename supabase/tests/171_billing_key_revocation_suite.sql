@@ -71,13 +71,21 @@ begin
   ------------------------------------------------------------------------------------------
   -- R5: claim/report — a claimed row is not claimable twice in the same state, and a reported
   -- success leaves it `done`. The sweep must not double-revoke or spin.
-  declare v_id uuid; v_key text; v_cnt int; begin
-    select id, billing_key into v_id, v_key from claim_billing_key_revocations(10) limit 1;
+  -- ⚠ AMENDED by 0141 (the law on pins whose behaviour legitimately changes). Reporting is now a
+  --   COMPARE-AND-SET on the claim token: a report without the token that claimed the row is
+  --   REFUSED, which is the whole point — it is what stops an expired worker overwriting a newer
+  --   result. So this pin passes the token, and `second_claim` is now ASSERTED rather than merely
+  --   computed (0138 wrote it into a variable named after the property and never compared it;
+  --   codex caught that, and suite 174 L2 owns the exclusivity proposition properly).
+  declare v_id uuid; v_key text; v_cnt int; v_tok uuid; begin
+    select id, billing_key, claim_token into v_id, v_key, v_tok
+      from claim_billing_key_revocations(10) limit 1;
     select count(*) into v_cnt from claim_billing_key_revocations(10);   -- second claim, same tick
-    perform report_billing_key_revocation(v_id, true, null);
+    if v_cnt <> 0 then v_bad := v_bad || ' double-claimed(' || v_cnt || ')'; end if;
+    perform report_billing_key_revocation(v_id, true, null, v_tok);
     select state into v_txt from billing_key_revocations where id = v_id;
-    v_msg := 'claimed=' || coalesce(v_key,'∅') || ' second_claim=' || v_cnt || ' state=' || coalesce(v_txt,'∅');
-    if v_id is null or v_txt is distinct from 'done'
+    v_msg := v_bad || ' claimed=' || coalesce(v_key,'∅') || ' second_claim=' || v_cnt || ' state=' || coalesce(v_txt,'∅');
+    if v_bad <> '' or v_id is null or v_txt is distinct from 'done'
       then call _fail('bkr','R5 클레임·보고', v_msg);
       else call _pass('bkr','R5 클레임·보고'); end if;
   end;
