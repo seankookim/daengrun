@@ -20,6 +20,21 @@
 --   tool, used it one migration earlier, and did not reach for it here** — which is why the rule
 --   is written down rather than left as a habit: any lock whose correctness argument is about
 --   CONCURRENCY needs a source pin, because the harness structurally cannot supply a behavioural one.
+-- ⚠ **W3 IS A REAL CONTROL, AND THAT WAS MEASURED RATHER THAN ASSUMED** (2026-08-27, prompted by
+--   a peer whose three-arm pin collapsed on NULL *including its two controls* — a control that
+--   fails in the same direction as the thing it controls is the same measurement taken twice).
+--   Hard-wiring the claimed-check: **accept-all ⇒ W2 red, W3 GREEN · refuse-all ⇒ W3 red.**
+--   Opposite directions, so they cannot both be satisfied by one hard-wired answer. (Under
+--   refuse-all W2 also reddens, but as a PRECONDITION failure — its fixture cannot be built when
+--   nothing can be stored — which is the guard reporting honestly, not a shared blind spot.)
+--
+-- 🔴 **AND GATE THE RUN ON THE PLANT, NOT MERELY ON AN ASSERTION.** CLAUDE.md already says to
+--   assert a mutation LANDED before trusting a battery, because `sed` exits 0 on no match. That is
+--   necessary and it is not sufficient: on the first attempt here the plant failed (quote
+--   escaping), the assertion fired and printed a traceback — **and the harness ran anyway and
+--   printed a perfectly plausible `1061 pass / 0 fail` row for a mutation that did not exist.**
+--   An unlanded plant reports as 「the guard held」. The fix is one character of shell: the run must
+--   be `&&`-chained to the plant, so no plant means no row at all rather than a green one.
 -- ⚠ `_fail` args pre-computed into v_msg, never a subquery (the 110 header law).
 
 do $$
