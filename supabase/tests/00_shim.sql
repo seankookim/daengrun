@@ -128,3 +128,17 @@ grant usage on schema realtime to anon, authenticated;   -- schema USAGE, measur
 grant select, insert, update on realtime.messages to anon, authenticated;
 create or replace function realtime.topic() returns text
 language sql stable as $$ select current_setting('realtime.topic', true) $$;
+
+-- 🔴 [0151] MIRROR pg_net's REAL DEFAULT, or 182's pins pass vacuously. Supabase ships pg_net with
+--    `usage` on schema `net` and `select` on its tables granted to `anon` and `authenticated`
+--    (measured on production 2026-08-27). This stub created the schema as postgres and granted
+--    nothing, so 0151 had NOTHING TO REVOKE and N1/N2 were green because the grant never existed
+--    — not because the migration removed it. **A fixture that omits the defect cannot test the
+--    fix**, and the pin reads identically in both worlds, which is the whole failure mode.
+--    Granting here puts the harness in production's starting state so 0151 is exercised each run.
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'grant usage on schema net to anon, authenticated';
+    execute 'grant select on all tables in schema net to anon, authenticated';
+  end if;
+end $$;
