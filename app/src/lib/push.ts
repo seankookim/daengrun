@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { session } from '../store';
-import { fetchCurrentOwnerBookingId } from './api';
+import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
 import { supabase } from './supabase';
 
 // APNs 푸시 등록 (Expo Push 경유, 0024) — 홈 진입 시 1회 호출 (양 역할).
@@ -83,6 +83,12 @@ function routeForBookingRef(refId: string, title: string): void {
   try {
     // [0090 ⑬] 역할과 무관하게 채팅으로 — 러너든 보호자든 온 메시지는 같은 스레드에 있다.
     if (title === CHAT_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
+    // [0094 ⑪] 사고 신고 — 채팅과 같은 이유로 역할 분기가 없다: 확인 도장은 양쪽이 각자 찍어야
+    // 하고(verified_at 은 둘 다여야 채워진다), 그 화면은 예약 id 하나로 열린다. 상수는 api.ts 에서
+    // import 한다 — RUN_STOP_TITLE 처럼 사본을 두면 한쪽만 바뀌어 조용히 어긋나는 부류다.
+    // 템플릿 리터럴 — `/club/session/${refId}` 와 같은 형태다 (이 리포에서 동적 세그먼트가
+    // 실제로 그렇게 푸시되고 있는 유일한 증명된 형태).
+    if (title === INCIDENT_NOTI_TITLE) { router.push(`/incident/${refId}`); return; }
     if (session.role === 'runner') {
       // [적대 리뷰 2026-08-11] 처음엔 /runner/run으로 보냈는데, 콜드 스타트에서 그 화면은 refId를
       // 버리고 running=false로 마운트한다 — 이미 진행 중인 러닝을 두고 '러닝 시작' 버튼을 내미는
@@ -135,7 +141,10 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   // Fast path — titles whose writer is KNOWN to emit a booking id skip the probe and stay instant.
   // The runner's whole booking set qualifies: RUNNER_ROUTES and the calendar default take no id at
   // all, and its two id-consuming titles (새 메시지 · 러닝 중단 요청) are both booking-scoped.
-  if (kind === 'booking' && (title === CHAT_TITLE || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title))) {
+  // [0094 ⑪] 사고 접수 알림도 이 빠른 경로에 든다 — 그 행의 유일한 writer 가 api.ts 의
+  // openBookingIncident 이고, `ref_id` 에 예약 id 를 넣는다. 아는 것을 프로브로 되묻지 않는다.
+  if (kind === 'booking' && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE
+      || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title))) {
     routeForBookingRef(refId, title);
     return;
   }

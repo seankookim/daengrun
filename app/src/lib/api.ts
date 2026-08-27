@@ -3305,6 +3305,245 @@ export async function sendSOS(role: 'owner' | 'runner', forBooking?: string): Pr
   return bookingId;
 }
 
+// ---------- 사고 신고 (마켓플레이스 인시던트 — 0094 ⑪ + 0114 §3) ----------
+//
+// THE SERVER CONTRACT, read off the migrations rather than guessed. Every constant below is a
+// transcription; nothing here is a client invention.
+//
+//   · `open_incident_tx(p_booking, p_kind, p_severity, p_note, p_media) → uuid`
+//     authenticated + service_role. Party gate BEFORE state gate.
+//     raises: not_signed_in · not_found · not_party · bad_kind · bad_severity ·
+//             booking_not_reportable (0114 §3 ⑥).
+//     ⚠ **한 예약에 열린 인시던트는 하나뿐이고, 두 번째 open 은 에러가 아니라 기존 id 를 돌려준다**
+//        (0114 §3 ⑤ — 응급 상황의 더블탭이 한 사건을 두 건으로 만들지 않게). 그 분기가 상태
+//        게이트보다 **위**에 있으므로, 이미 열린 건은 예약 상태가 어디로 가든 계속 열려 있다.
+//
+//   · `verify_incident_tx(p_incident, p_side) → jsonb`
+//     authenticated + service_role. 멱등 — 같은 쪽이 두 번 찍어도 성공이다.
+//     raises: bad_side · not_found · not_party · incident_resolved.
+//     🔴 `verified_at` 은 **양쪽 도장이 다 찍혔을 때만** 채워진다 (Sean 2026-08-13: "incident
+//        verified by both runner and owner"). 한쪽 도장은 확정이 아니며, 화면도 그렇게 말해야 한다.
+//     ⚠ `p_side` 는 주장이고 `auth.uid()` 가 사실이다 (0094 §10) — 그래서 이 파일은 side 를
+//        `session.role` 에서 읽지 않고 **예약 행의 owner_id/runner_id 와 uid 를 비교해서** 만든다.
+//        sendSOS 가 같은 이유로 같은 일을 한다 (위 §의 2026-08-20 노트).
+//
+//   · `force_verify_incident_tx` 는 `authenticated` 에서 **revoke** 돼 있다 (0094 §11) — 당사자가
+//     한쪽만으로 확정하는 문은 서버에 존재하지 않는다. 그래서 여기에도 없다.
+//
+//   · `incident_contact(booking)` 은 **부르지 않는다**, 두 가지 측정된 이유로:
+//     ⓐ 반환 컬럼이 `(role, name, phone)` 이다. 이 제품은 상대방 연락을 채팅으로만 라우팅한다
+//        (fetchProfileGaps 의 노트가 같은 규칙을 같은 말로 적고 있다).
+//     ⓑ `profiles.phone` 은 지금 **전원 NULL** 이다 — 0133 이 수집 경로를 **의도적으로 연결하지
+//        않은 채** 랜딩했고(0133 §SHIP GATE: 개인정보처리방침 문안이 자문에서 돌아오기 전까지
+//        아무것도 수집하지 않는다), 측정값은 10 프로필 중 0 이다. 그 함수를 부르면 빈 칸 두 줄이
+//        온다. 없는 값의 자리만 그리는 것이 이 리포가 금지하는 바로 그것이다.
+//     ⚠ 열려는 사람에게: 개인정보처리방침 고지는 **이미 있다** (docs/legal/privacy-policy.md:45).
+//        막고 있는 것은 고지가 아니라 0133 의 수집 게이트와 제품 결정이다.
+
+/** 0114 §3 ⑥ 의 REPORTABLE SET 을 그대로 옮긴 것. accepted 집합 + `cancelled_owner`(이동 중 취소 —
+ *  러너가 문 앞에 서 있을 수 있다) + `refund_pending`(첫 사고가 정산된 뒤의 두 번째 사실).
+ *  ⚠ 판정의 주인은 서버다. 이 목록이 낙관적으로 틀리면 RPC 가 `booking_not_reportable` 로 거절하고
+ *  화면은 그 실패를 실패로 그린다. 목록이 존재하는 이유는 반대 방향 하나뿐 — **눌러봐야 거절당할
+ *  버튼을 애초에 그리지 않기 위해서다.** 0114 §3 이 움직이면 이 줄도 같이 움직인다. */
+export const INCIDENT_REPORTABLE_STATUS: string[] = [
+  'confirmed', 'runner_enroute', 'picked_up', 'active',
+  'completed', 'no_show', 'incident_review', 'cancelled_runner',
+  'cancelled_owner', 'refund_pending',
+];
+
+/** 0114 §1 `is_booking_party_active` 의 집합 — 위 목록보다 **두 개 좁다**. 채팅 스레드 INSERT,
+ *  메시지 전송, `notifications` INSERT 가 전부 이 술어로 갈린다 (0114 §2).
+ *  🔴 그래서 `cancelled_owner`·`refund_pending` 에서는 **사고를 접수할 수는 있어도 상대에게
+ *  알릴 수는 없다.** 두 집합을 하나로 취급하면 그 두 상태에서 죽은 버튼이 태어난다. */
+const INCIDENT_CONTACTABLE_STATUS: string[] = [
+  'confirmed', 'runner_enroute', 'picked_up', 'active',
+  'completed', 'no_show', 'incident_review', 'cancelled_runner',
+];
+
+/** 사고 접수 알림의 제목이자 **라우팅 키**. RUN_STOP_TITLE·CHAT_TITLE 과 같은 종류의 문자열
+ *  계약이고 같은 위험을 가진다 — 그래서 push.ts 가 사본을 만들지 않고 이 상수를 import 한다
+ *  (두 벌이면 한 벌은 반드시 낡는다). 0024 의 트리거가 제목·본문을 잠금화면에 그대로 싣는다. */
+export const INCIDENT_NOTI_TITLE = '사고 신고 접수';
+
+export type IncidentKind = 'dog_injury' | 'lost_dog' | 'third_party' | 'equipment' | 'other';
+export type IncidentSeverity = 'normal' | 'urgent' | 'sos';
+/** 내가 이 예약의 어느 쪽인가. 서버가 `p_side` 로 받는 값과 같은 어휘다. */
+export type IncidentSide = 'owner' | 'runner';
+
+export interface IncidentRunContext {
+  bookingId: string;
+  mySide: IncidentSide;
+  /** 알림을 받을 상대. 러너 미배정 예약에서는 null 이고, 그때는 알릴 상대가 실제로 없다. */
+  counterpartId: string | null;
+  /** ⚠ 보호자 화면에서만 채워진다. 러너는 보호자의 `profiles` 행을 읽을 권한이 없다 — 0002:55-58
+   *  의 SELECT 정책 중 '내 예약의 보호자' 를 여는 것은 하나도 없고, 0145 의 네 번째 arm 은 클럽
+   *  보드 전용이다. 이름을 definer 로 꺼내오지 않고 **없는 채로 둔다** (그 definer 는 전화번호를
+   *  같이 내주는 함수다). 화면은 이 자리에서 역할어를 쓴다. */
+  counterpartName: string | null;
+  dogName: string | null;
+  dateLabel: string;
+  /** 지금 이 예약에 사고를 접수할 수 있는가 (0114 §3). */
+  reportable: boolean;
+  /** 지금 이 예약에서 상대에게 알림·채팅이 가능한가 (0114 §1). reportable 의 부분집합. */
+  contactable: boolean;
+}
+// ⚠ 두 boolean 은 `bookings.status` **원시값**에서만 나온다 — STATUS_MAP 의 표시 어휘로는 절대
+// 계산하지 않는다. `cancelled_owner` 와 `cancelled_runner` 는 배지가 'cancelled' 로 같고 권한은
+// 다르다 (전자는 알릴 수 없고 후자는 알릴 수 있다). 원시값을 밖으로 내보내지 않는 것은 그것을
+// 라벨로 그릴 자리가 없기 때문이고, 게이트는 여기서 끝난다.
+
+export async function fetchIncidentRunContext(bookingId: string): Promise<IncidentRunContext> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+  if (!uid) throw new Error('not signed in');
+  const { data, error } = await supabase.from('bookings')
+    .select('id, status, owner_id, runner_id, scheduled_at, dogs(name), runners(profiles(name))')
+    .eq('id', bookingId).maybeSingle();
+  if (error) throw error;
+  const d = data as any;
+  // `bookings party read`(0002:92) 가 남의 예약을 0행으로 만든다. '없는 예약' 과 '내 예약이
+  // 아님' 은 호출자에게 **구분되지 않아야** 하고 — incident_contact 가 정확히 같은 이유로 에러
+  // 대신 0행을 돌려준다 (0088 §E) — 화면은 재시도가 의미 없는 사실로 읽는다.
+  if (!d) throw new Error(NOT_FOUND);
+  const mySide: IncidentSide | null =
+    d.owner_id === uid ? 'owner' : d.runner_id === uid ? 'runner' : null;
+  if (!mySide) throw new Error(NOT_FOUND);
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  return {
+    bookingId: d.id,
+    mySide,
+    counterpartId: (mySide === 'owner' ? d.runner_id : d.owner_id) ?? null,
+    counterpartName: mySide === 'owner' ? (d.runners?.profiles?.name ?? null) : null,
+    dogName: d.dogs?.name ?? null,
+    dateLabel: `${dateLabel} ${timeLabel}`,
+    reportable: INCIDENT_REPORTABLE_STATUS.includes(d.status),
+    contactable: INCIDENT_CONTACTABLE_STATUS.includes(d.status),
+  };
+}
+
+export interface OpenIncident {
+  id: string;
+  /** 서버 원시값 (`dog_injury` …). 라벨 매핑은 화면이 한다 — 서버 어휘를 클라가 다시 쓰지 않는다. */
+  kind: string;
+  severity: string;
+  note: string | null;
+  reportedByMe: boolean;
+  ownerVerifiedAtIso: string | null;
+  runnerVerifiedAtIso: string | null;
+  /** 양측 확정 시각. 🔴 한쪽 도장만으로는 절대 채워지지 않는다 (0094 §10). */
+  verifiedAtIso: string | null;
+  /** 'ops' 또는 null. ops 판정은 `verified_at` 만 채우고 **양측 도장은 NULL 로 남긴다** —
+   *  0094 §11 이 그 구분을 의도적으로 만들었으므로 화면도 두 문장으로 말한다. */
+  forcedBy: string | null;
+}
+
+/** 이 예약의 **열린** 인시던트 하나. `resolved_at is null` 은 서버가 쓰는 그 술어다
+ *  (0088 §E ②, 0094 §9 ⑤). 해소된 건은 열린 건이 아니고, 해소 뒤에는 새로 접수할 수 있다 —
+ *  그게 서버의 모델이므로 화면도 그대로 따른다. */
+export async function fetchOpenIncident(bookingId: string): Promise<OpenIncident | null> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+  const { data, error } = await supabase.from('incidents')
+    .select('id, kind, severity, note, reporter_id, created_at, owner_verified_at, runner_verified_at, verified_at, verify_forced_by')
+    .eq('booking_id', bookingId)
+    .is('resolved_at', null)
+    .order('created_at')
+    .limit(1);
+  if (error) throw error;
+  const r = (data ?? [])[0] as any;
+  if (!r) return null;
+  return {
+    id: r.id,
+    kind: r.kind,
+    severity: r.severity,
+    note: r.note ?? null,
+    reportedByMe: !!uid && r.reporter_id === uid,
+    ownerVerifiedAtIso: r.owner_verified_at ?? null,
+    runnerVerifiedAtIso: r.runner_verified_at ?? null,
+    verifiedAtIso: r.verified_at ?? null,
+    forcedBy: r.verify_forced_by ?? null,
+  };
+}
+
+/** 접수 결과의 **알림** 쪽 사실. 접수 성공과 별개의 사실이라 별개의 값이다. */
+export type IncidentNotify = 'sent' | 'failed' | 'unavailable';
+
+/**
+ * 사고 접수. ⚠ 두 가지 일을 하고 **두 가지 결과를 따로 돌려준다**: 행을 남기는 것과 상대가 아는 것.
+ * 알림이 실패해도 접수는 이미 서버에 있다 — 여기서 throw 하면 화면이 "접수 실패" 라고 말하게 되고
+ * 그건 거짓이다. 그래서 알림 실패는 잡아서 이름 붙여 올려보내고, 화면이 두 문장으로 말한다.
+ * `notify: 'unavailable'` 은 실패가 아니라 **닫힌 문**이다 (0114 §1 — cancelled_owner /
+ * refund_pending 에서 정책이 INSERT 를 거절한다). 그 상태에서는 시도조차 하지 않는다.
+ * ⚠ `p_media` 는 서버 기본값(`'{}'`)에 맡긴다 — 이 슬라이스에 사진 업로드 경로가 없고, 없는 것을
+ * 빈 배열로라도 주장하지 않는다.
+ */
+export async function openBookingIncident(
+  ctx: IncidentRunContext, kind: IncidentKind, severity: IncidentSeverity, note: string | null,
+): Promise<{ incidentId: string; notify: IncidentNotify }> {
+  const { data, error } = await supabase.rpc('open_incident_tx', {
+    p_booking: ctx.bookingId, p_kind: kind, p_severity: severity, p_note: note,
+  });
+  if (error) throw error;
+  const incidentId = data as string;
+  if (!ctx.contactable || !ctx.counterpartId) return { incidentId, notify: 'unavailable' };
+  // 0009/0114 'noti party insert' — sendSOS 가 프로덕션에서 쓰는 그 경로. 본문은 **누가 열었든
+  // 참인 문장**이다: 위 ⑤ 때문에 이 호출이 이미 열려 있던 건의 id 를 돌려받았을 수 있고, 그때
+  // 「상대방이 접수했어요」 는 거짓이 된다.
+  const { error: nerr } = await supabase.from('notifications').insert({
+    profile_id: ctx.counterpartId, kind: 'booking',
+    title: INCIDENT_NOTI_TITLE, body: '이 러닝에 사고가 접수됐어요 — 확인이 필요해요',
+    ref_id: ctx.bookingId,
+  });
+  if (nerr) {
+    console.warn('[incident] notify:', nerr.message);
+    return { incidentId, notify: 'failed' };
+  }
+  return { incidentId, notify: 'sent' };
+}
+
+/**
+ * 내 쪽 확인 도장. 멱등이므로 두 번 눌러도 성공이다.
+ * ⚠ 서버는 `runner_verified` · `owner_verified` · `waiting_on` 도 함께 돌려주지만 여기서 들고
+ * 있지 않는다: 호출 직후 화면이 `incidents` 행을 다시 읽어 두 도장을 그리므로, 같은 사실의
+ * 사본이 둘이 되고 둘 중 하나는 반드시 낡는다. 재읽기가 닿지 않는 것은 「이 호출로 양측이
+ * 확정됐는가」 하나뿐이고 — 그 판정은 서버가 재읽기 값으로 내린다 (0094 §10) — 그것만 받는다.
+ */
+export async function verifyBookingIncident(incidentId: string, side: IncidentSide): Promise<{ verified: boolean }> {
+  const { data, error } = await supabase.rpc('verify_incident_tx', { p_incident: incidentId, p_side: side });
+  if (error) throw error;
+  return { verified: !!(data as any)?.verified };
+}
+
+export interface ReportableRun { bookingId: string; dogName: string | null; dateLabel: string }
+
+/** 안심 센터의 「사고 신고」 카드가 어디로 갈지 — 서버에 물어서 정한다.
+ *  ⚠ WHERE 절에 내 id 가 없는 것은 실수가 아니다: `bookings party read`(0002:92) 가 이미 내가
+ *  당사자인 행만 돌려주므로, uid 를 한 번 더 거는 것은 같은 규칙의 사본을 하나 더 만드는 일이다.
+ *  실패는 **'없음' 이 아니다** — 안전 화면에서 그 치환이 이 앱이 할 수 있는 가장 나쁜 거짓말이고,
+ *  fetchCurrentOwnerBookingId 가 같은 이유로 같은 자리에서 throw 한다. */
+export async function fetchReportableRun(): Promise<ReportableRun | null> {
+  // ⚠ 캡은 필요하다 (`completed` 는 영원히 쌓인다) 그리고 **캡이 무엇을 떨어뜨릴 수 있는지**를
+  // 적어둔다: 정렬이 최근 예정 시각 순이므로, 앞으로 잡힌 확정 예약이 50개를 넘는 사람만이
+  // 진행 중인 러닝을 창 밖으로 밀어낼 수 있다. 파일럿 규모에서 도달 불가이고, 도달하면 조용히
+  // 틀리는 대신 이 줄이 이유가 된다.
+  const { data, error } = await supabase.from('bookings')
+    .select('id, status, scheduled_at, dogs(name)')
+    .in('status', INCIDENT_REPORTABLE_STATUS)
+    .order('scheduled_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) return null;
+  // 진행 중인 러닝이 항상 이긴다 (FLIGHT_RANK — pickCurrent 와 같은 표), 그다음이 최근 예정 시각.
+  // 끝난 러닝도 접수 대상이라 (0114 §3) 목록이 IN_FLIGHT 보다 넓고, 그래서 랭크가 필요하다.
+  const best = rows.slice().sort((a, b) =>
+    (FLIGHT_RANK[a.status] ?? 9) - (FLIGHT_RANK[b.status] ?? 9)
+    || new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime(),
+  )[0];
+  const { dateLabel, timeLabel } = kstParts(best.scheduled_at);
+  return { bookingId: best.id, dogName: best.dogs?.name ?? null, dateLabel: `${dateLabel} ${timeLabel}` };
+}
+
 // 러닝 중단 요청 — 보호자 → 담당 러너. **채팅은 푸시를 만들지 않는다**: notifications INSERT만
 // 0024의 트리거(notifications → pg_net → Expo Push)를 탄다. 그래서 중단 요청은 채팅(기록·증거)과
 // 알림(도달)을 **둘 다** 쓴다. 새 마이그레이션 없음 — 0009 'noti party insert' 정책이 이미
