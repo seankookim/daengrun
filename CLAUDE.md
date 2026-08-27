@@ -216,6 +216,29 @@ error:"` matched codex's benign startup warning `ERROR codex_models_manager: fai
 models cache`, so a healthy run was declared REFUSED. **Match the specific refusal sentence, never
 a bare `error:`** — third detector-shaped miss of one day, all mine.
 
+🔴 **A GATE WITH A FALSE NEGATIVE IS STRICTLY WORSE THAN NO GATE — AND A NEW DETECTOR'S FIRST
+OBLIGATION IS TO DISAGREE WITH A CRUDE VERSION OF ITSELF** (ui6, measured 2026-08-27, caught in
+their own gate before it shipped). Their `check-device-clock` comment-stripper treated a template
+literal as one opaque string, so `` `${d.getHours()}` `` was blanked along with the prose around
+it — and this codebase formats nearly every date inside a template. **The gate reported 3 hits
+where a raw grep found 12, and printed a tidy, confident list of the 3.**
+**Why this is its own law and not another instance of the green-means-nothing family:** everything
+else catalogued here is a green that means LESS than it claims. This is a green that means the
+OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
+have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
+can still notice; a lying gate closes the gap in everyone's mind.
+**THE STANDING RULE:** before trusting a detector you just wrote, run the crudest possible version
+beside it and **explain every difference in BOTH directions** — the hits it adds and the hits it
+drops. ui6's now matches the raw grep at 12 and correctly excludes the 2 comment-only lines the
+crude version over-counts, and every one of those deltas is accounted for. Same discipline as
+reading the artifact instead of the tool's report, turned on the tool you are building.
+⚠ **Corollary, same slice, same day:** their first draft also swept `toLocaleString`, which flagged
+~30 correct MONEY renderings. They measured before deciding — **60 call sites, ZERO passing a date
+option** — so including it buys nothing and costs the gate its life to noise. That is the
+147-vs-82 `check-definer-acl` lesson applied BEFORE shipping instead of after. A gate that cries
+about correct code is `--no-verify`'d within a day and then protects nothing while everyone
+believes it is on.
+
 🔴 **A TIMEZONE BUG IS INVISIBLE TO A UTC-ONLY TEST ARM — THE ARM MUST BE A ZONE THAT DISAGREES**
 (ui6, measured 2026-08-27 on the club pass ticket). Planting the original device-clock read back
 reddens **17 pins under `America/New_York` and ZERO under `Asia/Seoul`** — and a UTC arm would
