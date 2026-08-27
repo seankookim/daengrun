@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PaperBtn } from '../../../src/components/paper-btn';
 import { fetchClubSession, recordCompanionRun, type ClubSessionDetail } from '../../../src/lib/api';
 import { useNumFont } from '../../../src/lib/fonts';
 import { getTraceSnapshot, resetTrace, startTracking, type TrackHandle, type TrackMode } from '../../../src/lib/geo';
@@ -227,10 +228,7 @@ export default function CompanionRun() {
           <Text style={s.lede}>
             체크인하면 러닝을 시작할 수 있어요. 세션 화면에서 입장권으로 체크인해 주세요.
           </Text>
-          <Pressable onPress={() => router.back()} style={s.cta}
-            accessibilityRole="button" accessibilityLabel="세션 화면으로 돌아가기">
-            <Text style={s.ctaTxt}>세션 화면으로</Text>
-          </Pressable>
+          <PaperBtn label="세션 화면으로" onPress={() => router.back()} style={s.cta} />
         </>
       )}
 
@@ -269,10 +267,7 @@ export default function CompanionRun() {
             </View>
           )}
 
-          <Pressable onPress={running ? finish : begin} style={s.cta}
-            accessibilityRole="button" accessibilityLabel={running ? '러닝 종료' : '러닝 시작'}>
-            <Text style={s.ctaTxt}>{running ? '러닝 종료' : '러닝 시작'}</Text>
-          </Pressable>
+          <PaperBtn label={running ? '러닝 종료' : '러닝 시작'} onPress={running ? finish : begin} style={s.cta} />
 
           {/* 저장 결과. 네 상태가 각자 다른 문장을 갖는다 — 저장 중은 저장됨이 아니고, 실패는
               아무 말도 안 하는 것이 아니다. */}
@@ -325,7 +320,8 @@ const s = StyleSheet.create({
   // second line inside a strip — stripTxt carries no top margin, so two stacked copies collide
   stripSub: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 6 },
   stripAction: { fontSize: 15, fontWeight: '800', color: paper.critical, marginTop: 8 },
-  cta: { backgroundColor: paper.action, paddingVertical: 16, marginTop: 22 },
-  ctaTxt: { textAlign: 'center', color: '#FFFFFF', fontSize: 16.5, fontWeight: '800' },
+  // Layout only — PaperBtn owns the action fill, the padding, the 17/800 label and the
+  // §3b press key (4px lip at rest, translateY(3) + 1px pressed).
+  cta: { marginTop: 22 },
   note: { fontSize: 15, lineHeight: 22, color: paper.dim, marginTop: 18 },
 });

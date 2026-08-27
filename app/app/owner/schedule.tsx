@@ -819,7 +819,7 @@ export default function Schedule() {
                   ) : selected.status === 'completed' ? (
                     <>
                       <Pressable
-                        style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.actionPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                        style={({ pressed }) => [s.primaryAction, pressed ? s.primaryDown : s.primaryLip]}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
                         <Text style={s.primaryActionTxt}>러닝 리포트 보기</Text>
@@ -879,7 +879,7 @@ export default function Schedule() {
                           runner_enroute를 '확정'으로 뭉개므로 그걸 믿으면 이동 중 죽은 버튼이 생긴다. */}
                       {selected.rawStatus === 'confirmed' && (
                         <Pressable
-                          style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.actionPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                          style={({ pressed }) => [s.primaryAction, pressed ? s.primaryDown : s.primaryLip]}
                           onPress={() => {
                             // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
                             const bid = selected.id;
@@ -1192,6 +1192,16 @@ const s = StyleSheet.create({
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.
   primaryAction: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 16 },
+  // [Sean 2026-08-26 press behaviour] the two ACTION-filled uses of primaryAction press as a
+  // physical key: 4px lip at rest, translateY(3) + 1px pressed, and the scale(0.96) they used to
+  // carry is gone (§3b — depth and scale together read as mush). The pair is NOT folded into
+  // primaryAction itself because '실시간 보기' reuses that base with a pale #ffe9e2 face, and a
+  // coral lip under a pale wash would be a different button.
+  primaryLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  primaryDown: {
+    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
+    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
+  },
   primaryActionTxt: { fontSize: 17, fontWeight: '800', color: '#fff' },
   ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE', alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },

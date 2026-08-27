@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -157,15 +158,10 @@ export default function OwnerReview() {
             </Text>
           </Pressable>
 
-          {/* §3b 프라이머리 — action 면 · 흰 17/800 · radius 0. busy = 라벨 스왑 (opacity 0.5 폐기, F2.1) */}
-          <Pressable
-            onPress={submit}
-            disabled={busy}
-            style={({ pressed }) => [s.cta, pressed && { backgroundColor: paper.actionPressed }]}
-            accessibilityRole="button"
-          >
-            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>{busy ? '등록 중...' : '후기 등록'}</Text>
-          </Pressable>
+          {/* §3b primary. [Sean 2026-08-26 press behaviour] the hand-rolled copy of this button
+              could not carry the 4px lip, so it is now the component that owns the grammar —
+              same action fill, same 17/800 white, same busy label swap, plus the key travel. */}
+          <PaperBtn label="후기 등록" busyLabel="등록 중..." onPress={submit} busy={busy} style={s.cta} />
           {/* 이 줄은 체크박스가 실제로 무엇을 바꾸는지 말한다 — visibility 는 두 값이므로 문장도 둘. */}
           <Text style={s.ctaNote}>
             {privateFlag
@@ -204,6 +200,8 @@ const s = StyleSheet.create({
     width: 20, height: 20, borderRadius: 0, borderWidth: 1.5, borderColor: '#EEEEEE',
     alignItems: 'center', justifyContent: 'center', backgroundColor: paper.canvas,
   },
-  cta: { backgroundColor: paper.action, borderRadius: 0, alignItems: 'center', paddingVertical: 16, marginTop: 22 },
+  // Layout only — PaperBtn owns fill, padding and label (its style prop lands BEFORE the
+  // variant block, so anything visual left here would be silently overridden anyway).
+  cta: { marginTop: 22 },
   ctaNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10, textAlign: 'center' },
 });

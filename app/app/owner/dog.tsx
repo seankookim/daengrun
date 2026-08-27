@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -431,10 +432,10 @@ export default function DogProfileScreen() {
 
       {dog && (
         <View style={s.saveBar}>
-          {/* §3b 프라이머리: 잉크 면 · 화이트 17/800 · radius 0. busy = 라벨 스왑 (opacity 0.5 트릭 폐기, F2.1). */}
-          <Pressable onPress={save} disabled={saving} style={({ pressed }) => [s.saveBtn, pressed && { backgroundColor: paper.actionPressed }]}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>{saving ? '저장 중...' : '저장하기'}</Text>
-          </Pressable>
+          {/* §3b primary. [Sean 2026-08-26 press behaviour] handed to PaperBtn so the 4px lip and
+              the translateY(3) travel come from the one place that defines them. Same action
+              fill, same 17/800 white, same busy label swap. */}
+          <PaperBtn label="저장하기" busyLabel="저장 중..." onPress={save} busy={saving} />
         </View>
       )}
     </View>
@@ -493,5 +494,4 @@ const s = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,
   },
-  saveBtn: { backgroundColor: paper.action, borderRadius: 0, alignItems: 'center', paddingVertical: 16 },
 });

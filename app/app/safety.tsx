@@ -96,7 +96,7 @@ export default function Safety() {
         </Row>
 
         {/* ---------- SOS (실동작) ---------- */}
-        <Pressable style={s.sosCard} onPress={sos}>
+        <Pressable style={({ pressed }) => [s.sosCard, pressed ? s.sosDown : s.sosLip]} onPress={sos}>
           <Icon name="Siren" glyph="✚" size={28} color="#fff" />
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>SOS 긴급 알림</Text>
@@ -255,6 +255,15 @@ const s = StyleSheet.create({
   sosCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: paper.action,
     borderRadius: 20, padding: 18, marginTop: 18,
+  },
+  // [Sean 2026-08-26 press behaviour] the screen's only filled primary, and the only control here
+  // that commits anything. 4px lip at rest, translateY(3) + 1px pressed — the edge gives up
+  // exactly what the transform takes, so the bottom of the card never moves. Hand-rolled rather
+  // than PaperBtn: this is an icon + two lines of copy, not a label.
+  sosLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  sosDown: {
+    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
+    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
   },
   callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
   section: { fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 20, marginBottom: 8 },

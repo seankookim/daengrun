@@ -107,7 +107,7 @@ export default function RunnerReview() {
         <View style={s.rule} />
         <View style={s.actions}>
           <Pressable
-            style={({ pressed }) => [s.cta, pressed && s.ctaPressed]}
+            style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]}
             onPress={() => router.dismissTo('/runner/home')}
           >
             <Text style={s.ctaText}>홈으로 돌아가기</Text>
@@ -214,7 +214,7 @@ export default function RunnerReview() {
 
       <View style={s.actions}>
         <Pressable
-          style={({ pressed }) => [s.cta, guardOff && s.ctaOff, pressed && !blocked && s.ctaPressed]}
+          style={({ pressed }) => [s.cta, guardOff && s.ctaOff, !guardOff && (pressed && !busy ? s.ctaPressed : s.ctaLip)]}
           disabled={blocked}
           onPress={submit}
         >
@@ -287,7 +287,18 @@ const s = StyleSheet.create({
   actions: { paddingHorizontal: 18, paddingTop: 20 },
   // [액션] 후기 전송 = 커밋 -> 프라이머리 코랄. mono/tagSel은 잉크(아티팩트/상태)로 남는다.
   cta: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 17 },
-  ctaPressed: { backgroundColor: paper.text }, // 매트릭스 pressed = #333 (paper.text와 동값)
+  // [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at rest,
+  // translateY(3) + 1px pressed, so the bottom edge stays put. Same predicate as PaperBtn:
+  // guard-off is DISABLED so it goes flat (a dead key has no travel), while busy keeps the
+  // rest lip and only loses the travel — the button is still a key, it is just mid-send.
+  ctaLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  // ⚠ pressed was paper.text (#333) — the ink-primary matrix this button left behind when its
+  // face became paper.action. A coral face that darkens to grey is the wrong key, and the lip's
+  // colour IS the pressed fill, so the two had to agree before the lip could be drawn at all.
+  ctaPressed: {
+    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
+    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
+  },
   ctaOff: { backgroundColor: paper.disabledFill },
   ctaText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: '#fff' },
   ctaTextOff: { color: paper.faint },

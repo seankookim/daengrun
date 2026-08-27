@@ -632,7 +632,9 @@ export default function RunnerProfileScreen() {
               {canBook ? (
                 <>
                   <Pressable
-                    style={s.cta}
+                    /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. This one
+                       had no press state at all — a coral plate that never acknowledged a tap. */
+                    style={({ pressed }) => [s.cta, pressed ? s.ctaDown : s.ctaLip]}
                     onPress={() => {
                       draft.preferredRunnerId = p.profileId;
                       draft.preferredRunnerName = p.name;
@@ -696,7 +698,7 @@ export default function RunnerProfileScreen() {
               {p.name} 러너 · 코스·옵션 선택으로 이어져요
             </Text>
           </View>
-          <Pressable onPress={() => confirmSlot(selected)} style={s.confirmBtn}>
+          <Pressable onPress={() => confirmSlot(selected)} style={({ pressed }) => [s.confirmBtn, pressed ? s.ctaDown : s.ctaLip]}>
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>이 시간으로 ›</Text>
           </Pressable>
         </Animated.View>
@@ -780,6 +782,14 @@ const s = StyleSheet.create({
   addTile: { backgroundColor: paper.wash, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   // 프라이머리 액션 = paper.action (흰 라벨 4.84:1). 볼트 라임 은퇴 — 이 화면은 페이퍼 월드다.
   cta: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
+  // [Sean 2026-08-26 press behaviour] shared by both action-filled buttons on this screen (the
+  // booking CTA and the confirm bar's 이 시간으로). Rest keeps a 4px lip in the pressed fill;
+  // press hands 3px of it back and takes the same 3px as translateY, so the bottom edge holds.
+  ctaLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  ctaDown: {
+    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
+    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
+  },
   // [2026-08-20 · T4] ghostCta 삭제 — 그 스타일을 쓰던 유일한 소자가 '채팅 문의' 고스트 버튼이었고,
   // 그 버튼은 은퇴했다 (위 CTA 블록의 주석). 주인 없는 스타일을 남겨두면 다음 사람은 화면 어딘가에
   // 세컨더리 버튼이 있다고 읽는다. editChip/editSheet 계열도 같은 이유로 삭제됐다 — 편집기는

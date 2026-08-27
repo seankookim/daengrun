@@ -592,9 +592,10 @@ export default function ClubPage() {
           {club?.isHost && (
             <View style={s.hostTool}>
               <Text style={{ fontSize: 15, color: paper.dim, lineHeight: 19 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
-              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { backgroundColor: paper.actionPressed }]}>
-                <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' }}>＋ 세션 열기</Text>
-              </Pressable>
+              {/* [Sean 2026-08-26 press behaviour] ClubCta owns the coral tone's physical key —
+                  4px lip at rest, translateY(3) + 1px pressed. The hand-rolled twin could not
+                  carry it, and the two would have pressed differently on the same screen. */}
+              <ClubCta label="＋ 세션 열기" onPress={openSheet} style={s.hostBtn} />
             </View>
           )}
 
@@ -849,9 +850,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
     paddingVertical: 13, paddingHorizontal: 13, backgroundColor: paper.canvas,
   },
-  hostBtn: {
-    backgroundColor: paper.action, borderRadius: 0, paddingVertical: 16, alignItems: 'center',
-  },
+  // Layout only — ClubCta owns fill/label/press. marginTop 0 because hostTool's gap already
+  // spaces this button off the line above it.
+  hostBtn: { marginTop: 0, paddingVertical: 16 },
   // 콜로폰
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
   colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },

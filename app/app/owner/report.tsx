@@ -705,7 +705,7 @@ export default function Report() {
               <>
                 <Pressable
                   onPress={() => router.push('/safety')}
-                  style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
+                  style={({ pressed }) => [s.rebook, pressed ? s.rebookDown : s.rebookLip]}
                   accessibilityRole="button"
                   accessibilityLabel="안심 센터 열기"
                 >
@@ -737,7 +737,7 @@ export default function Report() {
             ) : (
               <Pressable
                 onPress={rebook}
-                style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
+                style={({ pressed }) => [s.rebook, pressed ? s.rebookDown : s.rebookLip]}
                 accessibilityRole="button"
                 accessibilityLabel={nextWeek ? `다음 주 같은 시간 예약 ${nextWeek.whenLabel}` : '이대로 다시 예약'}
               >
@@ -1303,6 +1303,14 @@ const s = StyleSheet.create({
   reviewTag: { backgroundColor: paper.wash, borderRadius: 0, borderWidth: 1, borderColor: paper.line, paddingVertical: 7, paddingHorizontal: 13 },
   // ---------- ⑤ 재예약 넛지 — 이 프레임의 유일한 채도 (흰 라벨 4.84:1, 잉크 플레이트 불필요) ----------
   rebook: { backgroundColor: paper.action, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingVertical: 14 },
+  // [Sean 2026-08-26 press behaviour] filled primary = a physical key. The 3px the edge gives up
+  // on press is exactly the 3px translateY takes, so the bottom edge never moves — that
+  // registration is the illusion. Two rows share this button, so the pair lives in the sheet.
+  rebookLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  rebookDown: {
+    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
+    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
+  },
   rebookTitle: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: '#fff' },
   rebookSub: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.wash, marginTop: 3 },
   rebookChev: { fontSize: 20, lineHeight: 25, color: paper.wash },
