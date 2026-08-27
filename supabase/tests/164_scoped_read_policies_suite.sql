@@ -300,8 +300,9 @@ end $$;
 --  3. **There is no reachable state with a non-null `custodian_external` and a LIVE dog.** The
 --     only statement in the schema that writes it non-null is `session_transfer_accept`'s
 --     external branch (0058:193), and both routes into that branch leave the booking
---     `incident_review` (from picked_up/active, 0058:163-166) or `completed` — which
---     `_club_compute_axes` (0048:723-735, 0048:740-747) maps to `service_state = 'ended'`.
+--     `incident_review` (from picked_up/active, 0058:164) or `completed` — which
+--     `_club_compute_axes` maps to `service_state = 'ended'` on BOTH branches (0048:726-731
+--     completed, 0048:732-741 incident_review).
 --     Measured on the fixture, not read off the source: S9 ⓐ asserts the ended-ness it found.
 --     S9 therefore carries a source arm as well as a behavioural one, and says why.
 
@@ -383,7 +384,7 @@ begin
   -- The door handoff. There is no SQL RPC for it: the client calls the `transition-booking` edge
   -- function, which runs as service_role. `_guard_booking_cols` (0058:143) blocks
   -- authenticated/anon and lets every server role through, and `enforce_booking_transition`
-  -- (0066:40) still validates confirmed → picked_up — so this UPDATE from the harness's postgres
+  -- (0066:37) still validates confirmed → picked_up — so this UPDATE from the harness's postgres
   -- session IS that path rather than a way around it. Same write 163 and 107 use.
   update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
    where id = v_bk;
