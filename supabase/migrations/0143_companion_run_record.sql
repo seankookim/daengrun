@@ -44,6 +44,47 @@
 --   siblings `session_rsvp` / `session_checkin` / `session_add_my_dog` carry no such gate either.
 --   Putting one here would lock a free feature behind the paid feature's allowlist.
 
+-- ═══ MUTATION BATTERY — 13 runs, all measured, none inferred ═══
+--
+-- Every plant asserted it LANDED before the harness ran, and every assertion stripped COMMENT
+-- LINES first: this file names 'not_joined', 'invalid_measure' and the revoke in its own prose, so
+-- a raw grep would have reported 「the gate is still there」 on a file whose gate was gone. That is
+-- the comment-matches-every-grep law applied to the battery's own instrumentation.
+--
+--  M1  0143 deleted outright — THE HOLE, UNFIXED. 12 of 13 pins red, and C0 stayed green with
+--      exactly the hole's signature: the row exists as `checkin_only`, km null, forever. That is
+--      what a 동반 walk was before this file, reproduced rather than argued.
+--  M2  party gate deleted           ⇒ the MIGRATION ABORTED at its own VERIFY ③b
+--                                     (「expected not_joined, got not_checked_in」). Suite never ran.
+--  M2b party gate AND VERIFY ③b's check deleted ⇒ migration applies, and the SUITE still catches
+--      it (C8 red). So the suite is an INDEPENDENT guard, not one riding on the VERIFY.
+--      ⚠ Honest scope: with the party gate gone a stranger is STILL refused, by the check-in gate.
+--        C8 measures gate order and token honesty here, not a reachable disclosure.
+--  M3  check-in gate deleted        ⇒ C3 red — but on a TOKEN SWAP (`no_companion_dog`), because
+--      C3's subject had no dog and was refused for the wrong reason. **The pin was weaker than it
+--      read**, and the battery is the only thing that could have said so. Repaired: C3's subject
+--      now RSVPs WITH a dog, so every other precondition is satisfied and nothing but this gate
+--      can refuse them. The property is stated in the suite without reference to any mutation.
+--  M3' the SAME mutation against the repaired pin ⇒ C3 red with 「거부 없이 통과 · 거부가 1행을
+--      남겼다」 — accepted AND wrote a row. The DAMAGE now reproduces.
+--  M4  `custody = 'owner_handled'` deleted ⇒ C5 red 「위탁 보호자가 자기 손으로 기록을 썼다
+--      source=self_reported」. The double-count hole, exactly.
+--  M5  the on-conflict clause deleted ⇒ 6 red, C1 INCLUDED — the very first call collides with the
+--      row `session_checkin` already wrote, which is C0's precondition proving it is load-bearing.
+--  M6  the bands deleted            ⇒ C9 red on all four (km=101 · km=-1 · dur=-1 · dur=86401 all
+--      accepted) AND on the corruption arm: dur=86401 was written over a good record.
+--  M7  the revoke deleted           ⇒ MIGRATION ABORTED at VERIFY ② (「PUBLIC can execute」).
+--  M7b revoke AND VERIFY ②'s two arms deleted ⇒ the schema really ships PUBLIC-executable, and
+--      FIVE independent arms red: **98 H9** (names the function and its ACL) · **99 S1** (the
+--      0057 §1 anon sweep) · C8's anon-ROLE arm · G1 · G2. The two standing schema-wide guards
+--      catch this class without any help from this slice. (C9 also reddened, as a CASCADE — the
+--      anon call succeeded and overwrote the record C7 had left — not a sixth independent finding.)
+--  M8  G2's sweep regex broken      ⇒ G2 red with 「쓰는 함수를 0개 찾았다 — 스윕이 공허하게
+--      초록이다」. The anti-vacuity arm fires; a regex that matches nothing cannot pass this pin.
+--  M9  the `no_companion_dog` raise deleted ⇒ C4 red 「거부 없이 통과」 (a dogless crew member gets
+--      a 동반견 record with a null dog) AND C5 red. Two arms, two different subjects.
+--  M0  clean re-run after C3's repair ⇒ 1016 / 0.
+
 begin;
 
 -- ═══ the writer ═══
@@ -107,7 +148,7 @@ begin
   --   byte-identical liveness predicate used by 0134 §C, 0134 §D and 0140, and diverging from it
   --   here would be the kind of one-off that a future custody flip turns into a bug.
   --   `custody = 'owner_handled'` is the conjunct doing the real work — it is what makes a mixed
-  --   owner's record name their COMPANION dog and not the one they handed to a runner (C9).
+  --   owner's record name their COMPANION dog and not the one they handed to a runner (suite 175 C6).
   -- `owner_profile_id`, not `responsible_profile_id`: 0140's limit counts by owner, and every
   -- owner_handled writer sets both to the same uid (0048:187, 0134 §C).
   select sd.dog_id into v_dog

@@ -23,7 +23,7 @@ set client_min_messages = warning;
 do $$
 declare
   h uuid; o1 uuid; o2 uuid; o3 uuid; o4 uuid; o5 uuid; st uuid;
-  d1 uuid; d2 uuid; d4 uuid; d5c uuid; d5d uuid; dh uuid;
+  d1 uuid; d2 uuid; d4 uuid; d5c uuid; d5d uuid; dh uuid; dst uuid;
   rt uuid; v_club uuid; v_ses uuid;
   v_n int; v_msg text; v_err text; v_bad text;
   v_person uuid; v_row uuid; v_row2 uuid;
@@ -43,6 +43,7 @@ begin
   d5c := t_dog(o5, '혼합동반견');
   d5d := t_dog(o5, '혼합위탁견');
   dh  := t_dog(h,  '호스트견');
+  dst := t_dog(st, '미체크인견');
   rt  := t_route('동반 코스');
 
   -- ⚠ PRECONDITION, NOT A NEW STATE. `session_delegate_dog` sits behind `_club_require_v2`
@@ -171,13 +172,23 @@ begin
   end;
 
   -- ---------- [C3] NOT CHECKED IN — refused, and nothing is written ----------
-  -- A seated participant who never stamped in. Their own record would be a claim that they were
-  -- at a meetup they never reached.
+  -- THE PROPERTY, stated without reference to any mutation: attendance is a precondition for a
+  -- record, and it is the ONLY thing standing between a seated 동반 participant and one. A record
+  -- written by someone who never reached the meetup is a claim the product would be manufacturing.
+  --
+  -- 🔴 SO `st` RSVPs WITH A DOG, AND THAT DETAIL IS THE PIN. The first version of this fixture had
+  --    st join dogless, and the mutation battery showed why that is not good enough: with the
+  --    check-in gate DELETED, st was still refused — for lack of a dog — so C3 reddened on a token
+  --    swap (`no_companion_dog` instead of `not_checked_in`) and the actual damage never
+  --    reproduced. A refusal pin whose subject satisfies none of the OTHER preconditions cannot
+  --    tell 「this gate works」 from 「some gate works」. Every other precondition is now satisfied:
+  --    seat, ownership, a live owner_handled row, measures inside the bands.
+  --
   -- The fixture is built HERE and the assertion runs in its own block below: a plpgsql exception
   -- handler rolls back to the savepoint at the START of its block, so a fixture inside the same
   -- block as the refusal is undone by the very refusal the pin expects (0134's finding ③).
   perform set_config('request.jwt.claim.sub', st::text, false);
-  perform session_rsvp(v_ses, null);        -- st holds a seat and never stamps in
+  perform session_rsvp(v_ses, dst);         -- st holds a seat AND a 동반 dog, and never stamps in
 
   begin
     select count(*) into v_n from participant_activities where session_id = v_ses;
@@ -193,7 +204,7 @@ begin
     elsif v_err <> 'not_checked_in' then v_bad := '기대 not_checked_in, 실제 ' || v_err || ' '; end if;
     select count(*) - v_n into v_n from participant_activities where session_id = v_ses;
     if v_n <> 0 then v_bad := v_bad || '거부가 ' || v_n || '행을 남겼다 '; end if;
-    if v_bad = '' then call _pass('crr','C3 체크인 안 한 참가자는 not_checked_in — 그리고 아무것도 쓰지 않는다');
+    if v_bad = '' then call _pass('crr','C3 좌석도 동반견도 있지만 체크인 안 한 참가자는 not_checked_in — 다른 모든 전제를 만족시킨 상태라 이 게이트 말고는 막을 것이 없다 (그리고 아무것도 쓰지 않는다)');
     else call _fail('crr','C3 미체크인 거부', v_bad); end if;
   exception when others then call _fail('crr','C3 미체크인 거부', sqlerrm);
   end;

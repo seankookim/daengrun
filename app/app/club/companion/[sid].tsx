@@ -288,7 +288,7 @@ export default function CompanionRun() {
           {saveState === 'failed' && (
             <View style={s.strip}>
               <Text style={s.stripTxt}>{saveErr ?? '기록을 저장하지 못했어요'}</Text>
-              <Text style={s.stripTxt}>화면의 거리·시간은 그대로예요 — 다시 시도할 수 있어요.</Text>
+              <Text style={s.stripSub}>화면의 거리·시간은 그대로예요 — 다시 시도할 수 있어요.</Text>
               <Pressable
                 onPress={() => {
                   const m = lastMeasure;
@@ -322,6 +322,8 @@ const s = StyleSheet.create({
   statUnit: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: paper.dim },
   strip: { backgroundColor: paper.criticalWash, borderLeftWidth: 3, borderLeftColor: paper.critical, padding: 13, marginTop: 18 },
   stripTxt: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical },
+  // second line inside a strip — stripTxt carries no top margin, so two stacked copies collide
+  stripSub: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 6 },
   stripAction: { fontSize: 15, fontWeight: '800', color: paper.critical, marginTop: 8 },
   cta: { backgroundColor: paper.action, paddingVertical: 16, marginTop: 22 },
   ctaTxt: { textAlign: 'center', color: '#FFFFFF', fontSize: 16.5, fontWeight: '800' },
