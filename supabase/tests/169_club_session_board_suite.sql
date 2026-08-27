@@ -242,11 +242,24 @@ begin
   -- P14: 🔴 THE SHAPE PIN. The function's OUT-column list carries no name matching the forbidden
   -- vocabulary. R1/R2/R4/R5/R7/R8 as a property of the SIGNATURE — a column that does not exist
   -- cannot leak, no matter what a future body does.
+  -- ⚠ AMENDED 2026-08-27, and the amendment is the point rather than a nuisance. `profile_id` was
+  --   in this forbidden list because contract R8 refused ids outright. **Sean reversed R8**
+  --   (「for the tap for profile, yes make it like instagram」) so board rows can route to a
+  --   profile, and 0139 adds `owner_profile_id`/`runner_profile_id`. This pin therefore asserts a
+  --   proposition that is no longer true, and leaving it red would make the harness red for a
+  --   CORRECT change — so it is amended here, in the slice that moved it, per the law on pins
+  --   whose pinned behaviour legitimately changes.
+  --   ⚠ ONLY those two names are excused, and by NAME, not by dropping `profile_id` from the
+  --     pattern — a bare `booking_id`, a `session_dog_id`, or any other id must still fail. And
+  --     the property Sean did NOT reverse (an id must not be disclosed where the name is hidden)
+  --     is owned by **suite 172 I2**, which measures the two as a conjunction. This pin is about
+  --     SHAPE; that one is about the gate. Neither is evidence for the other.
   select coalesce(string_agg(a, ' '), '') into v_txt
     from (select unnest(p.proargnames) a from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
           where p.proname = 'club_session_board') q
-   where a ~* '(addr|fare|price|fee|gross|rate|phone|emergency|incident|breed|weight|memo|booking_id|profile_id)';
+   where a ~* '(addr|fare|price|fee|gross|rate|phone|emergency|incident|breed|weight|memo|booking_id|profile_id)'
+     and a not in ('owner_profile_id', 'runner_profile_id');
   if v_txt <> '' then call _fail('bds','P14 금지 컬럼 부재 (형태)', v_txt);
                  else call _pass('bds','P14 금지 컬럼 부재 (형태)'); end if;
 

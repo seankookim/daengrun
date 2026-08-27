@@ -686,6 +686,13 @@ export async function fetchMyBillingCard(): Promise<BillingCard | null> {
 // 않아서**다 (계약 §4의 R1~R8을 서명이 강제한다). 그래서 이 매퍼는 필드를 고르지 않고 전부 받는다.
 export interface BoardRowLive {
   kind: 'delegated' | 'owner_handled' | 'crew';
+  /** [0139] Sean 2026-08-27: 「for the tap for profile, yes make it like instagram」 — 행이 목적지가
+   *  되면서 R8이 뒤집혔다. 이름이 보이면 아이디도 온다. */
+  ownerProfileId: string | null;
+  /** ⚠ 이름과 **같은 게이트**를 탄다: 수락 전 제안은 제3자에게 이름도 아이디도 null이다.
+   *  이름을 가린 채 아이디만 주면 프로필 화면에서 그 이름을 읽으면 그만이므로, 같은 누설이
+   *  한 단계 늦게 도착할 뿐이다 (0139 · 172 I2). */
+  runnerProfileId: string | null;
   seq: number | null;
   dogName: string | null;
   dogPhotoUrl: string | null;
@@ -704,6 +711,8 @@ export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive
   if (error) throw error;   // 실패는 '빈 보드'가 아니다 — 화면이 두 사실을 갈라 말한다
   return ((data ?? []) as any[]).map((r) => ({
     kind: r.row_kind,
+    ownerProfileId: r.owner_profile_id ?? null,
+    runnerProfileId: r.runner_profile_id ?? null,
     seq: r.seq == null ? null : Number(r.seq),
     dogName: r.dog_name ?? null,
     dogPhotoUrl: r.dog_photo_url ?? null,
@@ -3595,6 +3604,21 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
     // [감사 1] feature_disabled는 전 클럽 액션 공통 게이트 (_club_require_v2) — 한 곳에서 번역
     if (error.message?.includes('feature_disabled')) {
       throw new Error('위탁 기능이 아직 열리지 않았어요 — 허용목록 계정인지 확인해주세요');
+    }
+    // 🔴 [배포 스큐 2026-08-27] 클라이언트가 서버보다 앞선 상태 — 이 함수가 아직 배포되지 않았다.
+    // 가설이 아니라 측정값이다: 오늘 프로덕션에 `session_add_my_dog`는 **없다**
+    // (`select count(*) from pg_proc where proname='session_add_my_dog'` → 0, 대조군으로
+    // session_rsvp/session_cancel_rsvp는 2). 마이그레이션 0131~은 배포 큐에 묶여 있고 앱 빌드는
+    // 그보다 먼저 나갈 수 있으므로, 그 창에서 이 경로를 누르면 지금까지는 PostgREST 원문이
+    // 그대로 떴다 — 「Could not find the function public.session_add_my_dog … in the schema
+    // cache」. 한국어 화면에 영문 원시 오류를 띄우는 것, 이 슬라이스가 두 화면에서 없앤 바로 그
+    // 결함을 새 코드가 되살리는 모양이다. 클럽 액션 전체가 같은 창을 지나므로 여기서 한 번 옮긴다.
+    // ⚠ 코드(PGRST202)와 메시지를 둘 다 본다: 코드는 PostgREST 버전에 따라 비어 올 수 있고,
+    // 메시지만 보면 다른 이유로 같은 문장이 올 때 오검이 된다 — 둘 중 하나라도 맞으면 이 창이다.
+    const missingFn = (error as { code?: string }).code === 'PGRST202'
+      || /Could not find the function/i.test(error.message ?? '');
+    if (missingFn) {
+      throw new Error('아직 준비되지 않은 기능이에요 — 곧 열려요');
     }
     throw error;
   }
