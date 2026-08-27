@@ -1486,6 +1486,23 @@ export default function ClubSessionShell() {
                             </View>
                           )
                         )}
+                        {/* ---------- 현장 반환 (0129: return_mode='session_finish') ---------- */}
+                        {/* ⚠ 이 줄은 모드를 이름 부르지 않는다. `return_mode`는 어떤 클라이언트
+                            payload에도 없어서, 주소가 안 온 이유가 현장 반환인지 · 창 밖인지 ·
+                            진짜 실패인지 여기서는 구분할 수 없다. 「현장 반환이에요」라고 쓰면 읽을 수
+                            없는 상태를 지어내는 것이다. 그래서 세 경우 모두에 대해 참인 것만 말한다:
+                            만날 곳은 채팅으로 정한다.
+                            ⚠ 전화 버튼은 여기에도 없다 — 「the phone is NOT unruled. It is ruled,
+                            built, and a phone button was already REFUSED」
+                            (docs/labs/round6-picks-and-live-map.md:77-79). */}
+                        {needReturn && d.bookingId && !retAddr[d.bookingId] && (d.bookingId in retAddr) && (
+                          <Pressable onPress={() => setTab('채팅')} style={{ marginTop: 9 }}>
+                            <View style={s.custodyNote}>
+                              <Text style={{ fontSize: 15, color: L.text }}>만날 곳은 채팅으로 정해요</Text>
+                              <Text style={{ fontSize: 15, color: L.accent, marginTop: 4 }}>세션 채팅 열기 →</Text>
+                            </View>
+                          </Pressable>
+                        )}
                         {needReturn && (
                           <ClubCta label={`${d.dogName} 반환했어요 →`} onPress={() => doRunnerReturn(d)} busy={busy}
                             style={{ marginTop: 9, paddingVertical: 11 }} />
