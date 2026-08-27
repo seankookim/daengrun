@@ -33,25 +33,42 @@
 -- these tables ever grow, the fix is an index-backed membership table, not a wider policy.
 
 --
--- ═══ MEASURED — battery of 2026-08-27, replacing the 08-26 block wholesale. Codex round 2
--- found the old block's claims STALE (M5's counts predated the near-relation fixtures; M2
--- described a suite shape that no longer existed; 「three independent guards」 were three reads of
--- one ACL fact). A corrected number with the stale text left standing invites the next reader to
--- trust the wrong half, so the old block is GONE, not annotated. Current battery, each plant
--- asserted-landed before its run was trusted:
+-- ═══ BATTERY — REWRITTEN 2026-08-27 after codex round 4's finding 3, which is the sharpest
+-- self-inflicted wound in this file's history and is left visible on purpose.
 --
---   P1  RLS DISABLED planted post-VERIFY (the round-2 headline hole):  982/5 —
---       [srp] G3 names the table · S1, S4, S5 red on the leak itself · AND [pcg] G1, a
---       pre-existing anon whitelist sweep neither round wrote, reds independently. Three
---       genuinely different guards, unlike the retracted M4 claim.
---   P2  explicit anon GRANT on the helper planted:  the APPLY ABORTS at 0131 D
---       (「_club_session_member is anon-executable」) — caught before any pin is needed.
---   P3  wide dog-arm restored (any binding, no approval/liveness filter):  986/1 —
---       S5's rejected-owner arm alone still pins the narrowing after the no_show flip.
+-- 🔴 **THE STALE BLOCK DESCRIBED A SUITE THAT NO LONGER EXISTED, AND IT WAS MY OWN DOCUMENTATION
+-- OF MY OWN FIX.** The previous block claimed 「P3: restoring the wide dog-arm produces S5 alone」.
+-- That was TRUE when measured — and round 3 then added **S5b** (the pending-delegation owner),
+-- which the same mutation must ALSO redden, because the pending owner is admitted by exactly the
+-- binding P3 restores. So the block asserted a red set that the current suite cannot produce.
+-- ⚠ Nothing failed. No gate fired. The numbers stayed green. A battery record goes stale the
+-- moment a pin is ADDED, not only when code changes — and a stale battery record is worse than
+-- none, because it is read as the measured shape of the guard. This file has spent four rounds
+-- writing laws about exactly this class and then shipped an instance of it in its own header.
+-- **Rule that falls out: re-run and re-write the battery block whenever a pin is added, or delete
+-- the block. Never edit its prose to match a memory.**
 --
---   Clean: 987/0. The suite's srp pins now number NINE (S1-S5, R1, G1-G3); the old
---   「919/0 = 912 + 7」 arithmetic is void. R1's caller citation: api.ts fetchStampStats — cite
---   the FUNCTION, not a line number; two of its line references went stale inside one day.
+-- CURRENT BATTERY, re-measured 2026-08-27 against the present suite. Every plant asserted landed
+-- (python `assert s.count(old)==1`) before its run was trusted — `sed` exits 0 on no-match, so a
+-- battery can otherwise measure a file it never edited:
+--
+--   P-A  the round-3 CRITICAL restored (owner identity folded back into the generic pointer
+--        arms, so a PENDING delegation owner is admitted):  995/1 — **S5b alone**, naming the
+--        leak (「대기 위탁 보호자가 session_people을 읽는다=2」). The real-RPC fixture is what
+--        makes this reachable; a hand-built row would have carried different pointers.
+--   P-B  the caller-bind deleted (`p_uid is not distinct from auth.uid()`, round 3's oracle
+--        fix):  **1049/1 — S6 alone**, naming it (「낯선 사람이 남의 멤버십을 조회했다」).
+--        ⚠ Before S6 existed this plant reddened **NOTHING** — codex round 4 finding 1. The
+--        conjunct I had just added to close an oracle was itself unpinned for a full round.
+--   P-C  RLS disabled post-VERIFY:  982/5 — G3 names the table, S1/S4/S5 red on the leak, and
+--        `[pcg] G1` (a pre-existing anon whitelist sweep neither round wrote) reds independently.
+--   P-D  an explicit `grant execute … to anon` on the helper:  the APPLY ABORTS at 0131 D.
+--
+--   Clean at the time of writing: **1050/0**. ⚠ That figure is a measurement of a moving corpus,
+--   not a property of this slice — three sessions land pins hourly. Re-measure; do not cite it.
+--
+-- R1's caller citation: `api.ts` **fetchStampStats** — cite the FUNCTION, never a line number.
+-- Two line references in this header went stale inside a single day.
 
 begin;
 
