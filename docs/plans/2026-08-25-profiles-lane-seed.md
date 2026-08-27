@@ -1,6 +1,6 @@
 # Profiles lane — SEED ONLY (not a spec, not designed)
 
-**Status: PARKED.** This file exists so a ruling is not lost, and so nobody bolts it onto
+**Status: ACTIVE — un-parked 2026-08-27 by Sean:** 「for the tap for profile, yes make it like instagram」, with his Instagram screenshots as the model (profile editor WITHOUT the avatar row). Exposing profile_id on the board is his explicit ruling, overruling contract R8. *(First un-park attempt silently no-opped on a stale pattern — the replace targeted 「Status: **PARKED**」 and the file says 「**Status: PARKED.**」. Asserted this time.)* This file exists so a ruling is not lost, and so nobody bolts it onto
 club-v2. It contains one verbatim quote and a short list of what a real spec would have to
 answer. **Nothing here is designed. Nothing here is proposed. Nothing here is scoped.**
 
