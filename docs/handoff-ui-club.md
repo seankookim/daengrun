@@ -15,7 +15,7 @@ sessions never write one handoff.
 
 | System | State | Provenance |
 |---|---|---|
-| Trunk | `0d5d8a7` on `origin/redesign-v4` | **[verified-now]** `git rev-parse` after fetch; gates below re-run ON this SHA |
+| Trunk | `4f81534` on `origin/redesign-v4` | **[verified-now]** `git rev-parse` after fetch; gates below re-run ON this SHA |
 | Working tree | clean; my worktree `.claude/worktrees/roster-custody` | **[verified-now]** |
 | tsc | clean, exit 0 | **[verified-now]** `./node_modules/.bin/tsc --noEmit` |
 | lint | **6 errors** / 273 warnings — 6 IS the baseline, not a failure | **[verified-now]** |
@@ -44,7 +44,8 @@ Workstreams:
 - **Return legs (집 반환 + 현장 반환)** — DONE, not device-verified.
 - **Run-screen freeze obligations** — DONE, not device-verified.
 - **Share-card / report "unknown ≠ 0"** — DONE, 2 P1s handed to the announcer.
-- **Guest (게스트) affordance counterpart** — **NOT STARTED, blocked-ish.** §9.
+- **Guest (게스트) affordance counterpart** — **NOT STARTED. Reframed by
+  `docs/decisions/guest-gps-options.md`; the cheap half is no longer blocked.** §9.
 
 ---
 
@@ -241,14 +242,36 @@ source — never a retyped copy.
 - Nothing else from this lane needs a credential or a console toggle.
 
 ### Decisions
-1. **Guest (게스트) copy — blocked on him or on a ruling.** Verified facts
-   [reported] by the announcer: a dogless join **is free**, it **does consume a
-   people slot**, `format` does NOT gate it, and 🔴 **a person-only member gets
-   NO GPS share and their walk cannot be recorded** (club live share is
-   per-booking; `0146` explicitly refuses the dogless crew). *Tradeoff:* copy
-   that mentions tracking would promise something the product cannot deliver;
-   copy that says nothing leaves the free-guest ruling still invisible in-app.
-   **Blocked:** the join-CTA wording and the guest's own post-join state.
+1. **Guest (게스트) — SUPERSEDED while this file was being written. Read
+   `docs/decisions/guest-gps-options.md` (landed `c2dcd49`, 2026-08-27), not the
+   version of this item I first wrote.** A read-only scout re-derived the facts
+   at source and corrected my framing on three counts:
+   - **The join CTA is already written and already honest.**
+     `app/app/club/[id].tsx:518-531` promises exactly free · own account · one
+     seat, and `:507-513` is a 🔴 comment explaining why GPS is deliberately not
+     claimed. I had this as "the free-guest ruling is still invisible in-app" —
+     **that was wrong**; nothing is owed here.
+   - **It is a pack gap, not a guest gap.** A 동반 owner with a dog is equally
+     invisible (`app/app/club/companion/[sid].tsx` has no publisher), and the
+     host sees nothing at all. A guest-only build would be the narrow version of
+     something missing for everyone.
+   - **The constraint that decides it is legal, not product.** The drafted
+     privacy policy says location is 「해당 예약의 보호자에게만」
+     (`docs/legal/privacy-policy.md:88-91`), and that document is with counsel
+     now. Every widening option requires rewriting that sentence.
+
+   ⚠ The scout also flagged that my four "Measured" guest facts most likely
+   re-read the source comment at `[id].tsx:507-513` rather than measuring
+   independently. They were correct, but **do not count the handoff and the
+   comment as two confirmations** — that is one read counted twice.
+
+   **What is actually on Sean:** pick A (guests watch the pack) / B (everyone on
+   the map) / C (record, not map), plus the who-may-watch rule. The memo's own
+   read, and mine after reading it, is **C now + checked-in as the rule if A ever
+   ships** — C needs no realtime work, no privacy-policy change, and closes the
+   uncontested half. **Separately queued:** a guest currently hands the host
+   their phone number under `phone-host-scope = wide` (`0053:412-444`), GPS
+   entirely aside. That one is not blocked on the GPS decision.
 2. **Should the share studio refuse to build a card at all when distance is
    unknown?** The report closes its share door; the receipt card still renders
    and states the absence in words. I made the card incapable of lying either
@@ -342,9 +365,12 @@ privacy side effect. That is a slice, not a patch.
 1. **[read-only]** Verify trunk and gates before anything:
    `git fetch && git rev-parse --short origin/redesign-v4`, then the §15 block.
    Confirm `PENDING_DEPLOY` is still empty on executable lines.
-2. **[needs-user]** Get Sean's call on the guest copy (§9 decision 1). Do not
-   write it first — half the facts decide the wording, and the GPS half is a
-   promise the product cannot keep.
+2. **[local-edit, NOT needs-user]** Option C from the guest memo is unblocked
+   and cheap: let a checked-in dogless member record a walk. One predicate in
+   `session_record_companion_run` (allow `v_dog is null`; `participant_activities
+   .dog_id` is **already nullable**, `0030:104`) plus its pins, and a CTA on
+   `app/app/club/session/[sid].tsx` reusing the companion screen. No realtime
+   work, no privacy-policy change. Do **not** wait on the A/B ruling for this.
 3. **[local-edit]** If the announcer has not taken them, the two `api.ts` P1s.
    Expect tsc to go red at the boundary of whatever file surface you allow; stop
    and widen deliberately rather than reaching in silently.
@@ -355,7 +381,7 @@ privacy side effect. That is a slice, not a patch.
 
 **Safe / read-only**
 ```bash
-cd /Users/sean/dev/daengrun && git fetch -q origin && git rev-parse --short origin/redesign-v4  # was 0d5d8a7
+cd /Users/sean/dev/daengrun && git fetch -q origin && git rev-parse --short origin/redesign-v4  # was 4f81534 when written
 cd app && ./node_modules/.bin/tsc --noEmit                 # expect: silent
 npm run lint 2>&1 | grep problems                          # expect: 6 errors
 npm test > /tmp/t.out 2>&1; echo $?; grep -c '^FAIL' /tmp/t.out   # expect: 0 and 0
