@@ -380,7 +380,7 @@ create policy "activities scoped read" on public.participant_activities for sele
 -- D. VERIFY — positive AND negative. An absence sweep alone is green on a wasteland.
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
-declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text;
+declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text; v_reads text[];   -- [ui6 cold read] the helper's READ set, derived and fenced
         v_qual text; v_got text;                       -- exact-predicate check (round 5, finding 5)
         v_owner oid; v_ownername text; v_super boolean; v_bypass boolean;  -- RLS-bypass check (round 5, finding 4)
 begin
@@ -517,20 +517,54 @@ begin
   -- The three routes are PostgreSQL's own (check_enable_rls / has_bypassrls_privilege):
   --   ① the owner is a SUPERUSER · ② the owner carries `rolbypassrls` · ③ the owner OWNS the table
   --   and the table is not FORCE ROW LEVEL SECURITY.
-  -- ③ is checked across ALL FOUR tables and not one: an owner who owns three of them is filtered on
-  -- the fourth, and one filtered table is enough to break every policy that consults the helper.
+  -- ③ is checked across every table the helper READS, and NOT the tables the policies are ON.
+  -- 🔴 [ui6 cold read, 2026-08-27 — the layer BELOW the one this check was added to fix]
+  --   The first version of this arm checked
+  --   ('session_dogs','session_people','session_runner_assignments','participant_activities')
+  --   — which is the POLICY set, copied from pre-check A. The helper's actual READ set is
+  --   ('club_sessions','session_people','session_runner_assignments','session_dogs').
+  --   **`club_sessions` was read and never checked; `participant_activities` was checked and never
+  --   read.** The helper's FIRST arm is `exists (select 1 from club_sessions …)` for host/backup,
+  --   so an owner unable to bypass RLS on `club_sessions` makes that arm silently false — a HOST
+  --   loses read access to their own session — while the check happily prints `owns-unforced 4/4`.
+  --   ⚠ It is harmless TODAY only because `club_sessions` is `using (true)` (0030:133), which is a
+  --   PRODUCT ruling (Sean: the board is public) recorded in this header and pinned NOWHERE as a
+  --   dependency of this check. The next slice that scopes `club_sessions` — the most natural
+  --   tightening left in the club world — breaks the helper while every guard here still says 4/4.
+  --   The precondition ladder in full: `prosecdef` needs `proowner`; `proowner`-can-bypass needs
+  --   THE RIGHT TABLE SET; and the right table set is 「what the function reads」, which nothing
+  --   derives. So it is asserted below AND fenced, so it cannot go stale silently.
   select p.proowner, pg_get_userbyid(p.proowner) into v_owner, v_ownername
     from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
   select r.rolsuper, r.rolbypassrls into v_super, v_bypass
     from pg_roles r where r.oid = v_owner;
+
+  -- ⓐ THE FENCE: the helper's own executable body must reference NO relation outside the read set.
+  --   This is what stops the list going stale — add a table to the helper and the apply fails
+  --   loudly instead of the bypass check silently verifying the wrong four. Comments stripped
+  --   first (the prosrc-is-source-plus-our-prose law); `sd.` and `auth.` are alias/schema noise.
+  select coalesce(array_agg(distinct m[2] order by m[2]), '{}') into v_reads
+    from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
+            from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
+         regexp_matches(src.b, '(from|join)\s+([a-z_]+)', 'g') m
+   where m[2] not in ('auth', 'sd');
+  if v_reads is null or cardinality(v_reads) = 0 then
+    raise exception '0131 D: could not derive the helper read set (NULL/empty) — the fence is inert, not passing.';
+  end if;
+  if not (v_reads <@ array['club_sessions','session_dogs','session_people','session_runner_assignments']
+          and v_reads @> array['club_sessions','session_dogs','session_people','session_runner_assignments']) then
+    raise exception '0131 D: the helper reads % — not the four tables this bypass check verifies. Update BOTH or the check verifies the wrong set.', v_reads;
+  end if;
+
+  -- ⓑ bypass, over the READ set
   select count(*) into v_new
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public'
-     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+     and c.relname = any (v_reads)
      and c.relowner = v_owner and not c.relforcerowsecurity;
-  if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_new = 4) then
-    raise exception '0131 D: the helper is SECURITY DEFINER but its owner % CANNOT BYPASS RLS (① rolsuper=%, ② rolbypassrls=%, ③ owns-unforced %/4). It would be RLS-filtered on the tables it gates, so the four scoped policies recurse or admit nobody. SECURITY DEFINER is not RLS bypass.',
-      v_ownername, coalesce(v_super, false), coalesce(v_bypass, false), v_new;
+  if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_new = cardinality(v_reads)) then
+    raise exception '0131 D: the helper is SECURITY DEFINER but its owner % CANNOT BYPASS RLS (① rolsuper=%, ② rolbypassrls=%, ③ owns-unforced %/% of the READ set %). It would be RLS-filtered on the tables it gates, so the four scoped policies recurse or admit nobody. SECURITY DEFINER is not RLS bypass.',
+      v_ownername, coalesce(v_super, false), coalesce(v_bypass, false), v_new, cardinality(v_reads), v_reads;
   end if;
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute')
      or not has_function_privilege('service_role', 'public._club_session_member(uuid,uuid)', 'execute') then
