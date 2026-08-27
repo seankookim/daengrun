@@ -96,6 +96,18 @@ begin
     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
     and p.polcmd = 'r'
     and pg_get_expr(p.polqual, p.polrelid) is distinct from '(auth.uid() IS NOT NULL)';
+  -- 🔴 RLS ENABLED, per table (codex round 2): a table with row security DISABLED passed both
+  -- this pre-check and VERIFY while every row sat open — policies are inert on such a table, so
+  -- counting policies proves nothing about it. The check the drift claim actually needs.
+  select count(*) into v_extra
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+    and not c.relrowsecurity;
+  if v_extra <> 0 then
+    raise exception '0131 A: % of the four tables have ROW SECURITY DISABLED — policies would be inert. Re-scout.', v_extra;
+  end if;
+
   if v_extra <> 0 then
     raise exception '0131 A: % UNEXPECTED select policies on these tables — this file would preserve them. Re-scout.', v_extra;
   end if;
@@ -140,11 +152,14 @@ as $$
     exists (select 1 from club_sessions s
             where s.id = p_session
               and (s.host_profile_id = p_uid or s.backup_host_profile_id = p_uid))
-    -- ⓑ an attending person. `no_show` is EXCLUDED: the host marking someone absent is a
-    --   statement that they were not there, and it must not also be a grant.
+    -- ⓑ a session person. ⚠ Round 1 of this file EXCLUDED `no_show` here; codex round 2 rejected
+    --   that and it was right: attendance is a CLAIM about what happened, not a membership
+    --   revocation, and hanging authorization on it hands a host a punishment lever. Sharper:
+    --   nothing in the product can even WRITE `no_show` today (the host-removal feature that would
+    --   have is ⛔ PARKED by Sean, 2026-08-27), so the exclusion was authorization semantics on an
+    --   unproducible value. Membership ends when an explicit membership state ends it — not before.
     or exists (select 1 from session_people sp
-               where sp.session_id = p_session and sp.profile_id = p_uid
-                 and coalesce(sp.attendance, 'rsvp') <> 'no_show')
+               where sp.session_id = p_session and sp.profile_id = p_uid)
     -- ⓒ a runner still on the hook. `<> 'withdrawn'` and NOT `= 'committed'` — the house law
     --   prefers a terminal denial to an allow-list, because a list enumerates what someone thought
     --   of and today's CHECK admits exactly two values. A third state added later should default to
@@ -165,7 +180,11 @@ as $$
   );
 $$;
 
-revoke all on function public._club_session_member(uuid, uuid) from public;
+-- ⚠ `from public, anon` — not only public. `create or replace` preserves role-specific ACL
+-- entries, so a pre-existing EXPLICIT anon grant would survive a PUBLIC-only revoke silently
+-- (codex round 2). authenticated keeps EXECUTE because RLS policies evaluate this helper AS the
+-- querying role.
+revoke all on function public._club_session_member(uuid, uuid) from public, anon;
 grant execute on function public._club_session_member(uuid, uuid) to authenticated, service_role;
 
 comment on function public._club_session_member(uuid, uuid) is
@@ -273,7 +292,10 @@ begin
     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
       and p.polcmd = 'r'
       and pg_get_expr(p.polqual, p.polrelid) like '%_club_session_member%'
-      and 'authenticated' = any (select rolname from pg_roles where oid = any (p.polroles));
+      -- EXACTLY {authenticated} — round 1 checked 「contains authenticated」, which a policy
+      -- additionally granted to anon would also satisfy (codex round 2)
+      and (select array_agg(rolname order by rolname) from pg_roles where oid = any (p.polroles))
+          = array['authenticated']::name[];
     if v_new <> 1 then
       raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not call the helper.', v_tbl, v_pol;
     end if;
@@ -285,6 +307,18 @@ begin
   if v_pub then
     raise exception '0131 D: _club_session_member is PUBLIC-executable.';
   end if;
+
+  -- anon must ALSO be denied explicitly — preservation could have kept an old direct grant
+  select has_function_privilege('anon', 'public._club_session_member(uuid,uuid)', 'execute') into v_pub;
+  if v_pub then raise exception '0131 D: _club_session_member is anon-executable.'; end if;
+
+  -- and RLS is ON for all four, the mirror of pre-check A
+  select count(*) into v_new
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+    and not c.relrowsecurity;
+  if v_new <> 0 then raise exception '0131 D: % tables have row security disabled.', v_new; end if;
 
   -- and its search_path is pinned IN THE BODY
   select array_to_string(p.proconfig, ',') into v_sp

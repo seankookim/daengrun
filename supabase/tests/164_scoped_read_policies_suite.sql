@@ -18,7 +18,7 @@ declare
   v_host uuid; v_member uuid; v_owner uuid; v_runner uuid; v_runner2 uuid; v_stranger uuid;
   v_noshow uuid; v_exowner uuid; v_exdog uuid;
   v_club uuid; v_ses uuid; v_ses2 uuid; v_rt2 uuid; v_dog uuid; v_sp_id uuid;
-  v_n int; v_pre int; v_bad text; v_msg text; v_finish_err text;
+  v_n int; v_pre int; v_bad text; v_msg text;
 begin
   -- ---------- fixtures: one session, four people who belong, one who does not ----------
   v_host     := t_user('sr_host', 'runner');
@@ -64,31 +64,20 @@ begin
   insert into participant_activities (session_id, person_id, source, km)
     values (v_ses, v_sp_id, 'self_reported', 3.2);
 
-  -- ---------- R1's population, built through the REAL lifecycle ----------
-  -- ⚠ R1 was VACUOUSLY GREEN at pre=0/post=0 until this existed: the caller's predicate needs
-  -- `attendance='checked_in'` AND `club_sessions.status='done'`, and the S1-S4 fixture produces
-  -- neither. A pin that compares 0 to 0 asserts nothing — 「empty is not a control」. This drives
-  -- club_create_session → session_runner_commit → session_checkin → club_finish_session so the
-  -- population is one the product can actually produce.
+  -- ---------- R1's population, built through the REAL lifecycle — NO FALLBACK ----------
+  -- Codex round 2: the round-1 fixture inserted attendance='checked_in' directly and fell back to
+  -- a raw status update when finish refused — 「lifecycle-real」 by assertion, not by construction.
+  -- Now every step is the real RPC and ANY refusal fails the pin loudly: a fixture the product
+  -- refuses to produce is information, not an inconvenience.
   perform set_config('request.jwt.claim.sub', v_host::text, false);
-  -- ⚠ 1시간 미만은 `too_soon` (0037:372). 첫 시도가 30분이었고 create에서 죽었다 — 예외 블록은
-  -- finish를 감싸고 있었으므로 이 실패는 잡히지 않았다.
   v_rt2 := t_route('SR 종료 코스');
-  v_ses2 := club_create_session(v_club, now() + interval '2 hours', 'SR 종료 집결지', v_rt2, 8, 'mixed');
+  v_ses2 := club_create_session(v_club, now() + interval '90 minutes', 'SR 종료 집결지', v_rt2, 8, 'mixed');
+  perform session_runner_commit(v_ses2); perform session_checkin(v_ses2);
   perform set_config('request.jwt.claim.sub', v_member::text, false);
-  insert into session_people (session_id, profile_id, role, attendance)
-    values (v_ses2, v_member, 'owner_attending', 'checked_in')
-    on conflict do nothing;
+  perform session_rsvp(v_ses2, null);          -- dogless RSVP, the 0134 path
+  perform session_checkin(v_ses2);             -- self-service check-in (0030:245)
   perform set_config('request.jwt.claim.sub', v_host::text, false);
-  begin
-    perform club_finish_session(v_ses2);
-  exception when others then
-    -- finishing can refuse for reasons unrelated to this pin (a future session, viability,
-    -- blockers). Fall back to the terminal status directly and RECORD that it happened — a silent
-    -- fallback would let R1's pass message claim a lifecycle-real fixture it did not build.
-    v_finish_err := sqlerrm;
-    update club_sessions set status = 'done' where id = v_ses2;
-  end;
+  perform club_finish_session(v_ses2);         -- refusal here = _fail, never a direct update
   perform set_config('request.jwt.claim.sub', '', false);
 
   -- ---------- [S1] the stranger: a logged-in account with no relationship reads NOTHING ----------
@@ -172,12 +161,18 @@ begin
   -- narrowing (no_show excluded, dead delegations excluded) is unpinned — measured: restoring the
   -- wide predicate left the suite at 977/0.
   v_bad := '';
+  -- ⚠ THIS ARM'S PROPOSITION FLIPPED with the codex round-2 fix, and the flip is documented per
+  -- the suite-update law. Round 1 excluded `no_show` from membership and this arm pinned the
+  -- DENIAL. Codex rejected the exclusion — attendance is a claim, not a revocation, nothing can
+  -- even write `no_show` (host-removal ⛔ PARKED), and a host punishment lever is the wrong shape.
+  -- So: a no_show person IS still a member and READS. Sean's 「let the host mark no-shows」 answer
+  -- belongs to the parked feature and re-opens membership semantics only if that un-parks.
   perform set_config('request.jwt.claim.sub', v_noshow::text, true);
   set local role authenticated;
   select count(*) into v_n from session_dogs where session_id = v_ses;
-  if v_n <> 0 then v_bad := v_bad || ' no_show가 session_dogs를 읽는다=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' no_show 멤버가 session_dogs를 못 읽는다=' || v_n; end if;
   select count(*) into v_n from session_runner_assignments where session_id = v_ses;
-  if v_n <> 0 then v_bad := v_bad || ' no_show가 assignments를 읽는다=' || v_n; end if;
+  if v_n <> 2 then v_bad := v_bad || ' no_show 멤버가 assignments를 못 읽는다=' || v_n; end if;
   reset role;
   perform set_config('request.jwt.claim.sub', v_exowner::text, true);
   set local role authenticated;
@@ -186,7 +181,7 @@ begin
   select count(*) into v_n from session_runner_assignments where session_id = v_ses;
   if v_n <> 0 then v_bad := v_bad || ' 거절된 위탁 보호자가 assignments를 읽는다=' || v_n; end if;
   reset role;
-  if v_bad = '' then call _pass('srp','S5 가까운 관계는 멤버가 아니다 — 호스트가 결석 처리한 사람과 위탁이 거절된 보호자 모두 0행');
+  if v_bad = '' then call _pass('srp','S5 경계 — no_show는 여전히 멤버로 읽고(출석은 주장이지 박탈이 아니다), 위탁이 거절된 보호자는 0행');
   else v_msg := v_bad; call _fail('srp','S5 근접 관계 차단', v_msg); end if;
 
   -- ---------- [S4] anon reads nothing ----------
@@ -239,7 +234,7 @@ begin
     call _fail('srp','R1 실제 호출자 보존', v_msg);
   elsif v_n = v_pre then
     v_msg := 'pre=' || v_pre || ' post=' || v_n
-             || coalesce(' · 종료 경로: 직접 update (' || v_finish_err || ')', ' · 종료 경로: club_finish_session');
+             || ' · 종료 경로: club_finish_session (폴백 없음)';
        call _pass('srp','R1 fetchStampStats의 실제 술어가 정책 전후로 같은 수를 센다 — ' || v_msg);
   else v_msg := 'pre=' || v_pre || ' post=' || v_n || ' — 정책이 도장 벽을 깎았다';
        call _fail('srp','R1 실제 호출자 보존', v_msg); end if;
@@ -263,6 +258,18 @@ begin
   if v_n = 0 then call _pass('srp','G1 스키마 전체 — (auth.uid() IS NOT NULL) 읽기 정책 0건');
   else v_msg := v_n || '건 남아 있다: ' || v_list;
        call _fail('srp','G1 열린 읽기 술어 스키마 전체 스윕', v_msg); end if;
+
+  -- ---------- [G3] row security is ON for all four — the disabled-RLS drift guard ----------
+  -- Codex round 2's sharpest finding: a table with RLS DISABLED passed the migration's own checks
+  -- while every row sat open, because counting policies proves nothing about a table where
+  -- policies are inert. This is the STANDING half; 0131's A/D blocks are the apply-time half.
+  select count(*), coalesce(string_agg(c.relname, ', ' order by c.relname), '') into v_n, v_list
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+    and not c.relrowsecurity;
+  if v_n = 0 then call _pass('srp','G3 네 테이블 모두 row security ON — 꺼진 테이블에서 정책은 무력하다');
+  else v_msg := v_n || '개 테이블이 RLS OFF: ' || v_list; call _fail('srp','G3 RLS 활성 스윕', v_msg); end if;
 
   -- ---------- [G2] the membership helper is not a public oracle ----------
   -- It answers "is this uid in this session" for ARBITRARY uid/session. PUBLIC execute on it
