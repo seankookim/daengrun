@@ -191,6 +191,40 @@ agent catches what actually happens — on 0128 the two disagreed, and the disag
 finding (codex found a leak that arms in the future; execution found three defects reachable today,
 one of them a permanent disclosure by inaction).
 
+## Three ways a green means nothing (ui6, measured 2026-08-27 — all three in one stretch)
+
+🔴 **① A SUITE NOT LISTED IN `harness.sh`'s MANIFEST SILENTLY DOES NOT RUN.** Five pins added,
+harness returned **998/0 — the identical number as before**, and it was nearly filed as proof the
+pins passed. The migration globbed and applied; only the suite was skipped. **A green whose PIN
+COUNT did not move is not a green** — the count is the only thing that distinguishes 「your pins
+passed」 from 「your pins were never executed」. Record the before/after totals of every slice that
+adds pins, and if the delta ≠ the number you added, find out why BEFORE reading anything else.
+
+🔴 **② A BATTERY THAT REDDENS NOTHING AND A BATTERY THAT NEVER RAN ARE INDISTINGUISHABLE IN A
+SUMMARY TABLE — and the second one reads as success.** Four mutation runs came back blank because
+a copied `.pgtest` left a broken data dir and every run died at the shim; a delta was nearly read
+off it. Same family as §sed-exits-0 (a plant that never planted) one level up: there, the mutation
+was absent; here, the whole RUN was. **Assert the run happened** — a nonzero pin total, a known-red
+control, anything that could not be produced by a dead harness — before reading any row of a
+battery table.
+
+🔴 **③ A DELTA MEANS NOTHING UNTIL THE CONTROL IS OBSERVED CLEAN.** A Deno mutation lab's control
+was already red before any mutation (three suites read files outside `functions/`), so every
+「mutation → red」 row was measuring the lab, not the code. Run the control FIRST and look at it.
+Same law as 「a control that cannot fail is not a control」, in the mirror: a control that cannot
+PASS is equally uninformative.
+
+🔴 **④ WIDENING A SQL RETURN'S *MEANING* BREAKS A CORRECT CALLER WITH NO EDIT TO THE CALLER**
+(ui6, 2026-08-27, found by themselves). `swapped=false` had exactly one cause, so the handler
+mapped it to `403 no_profile` and was right every time. A migration added two more causes — and
+that same mapping then tells an owner with a perfectly good account that they have no profile.
+**Nothing in the TypeScript looks wrong afterwards, no gate fails, and no grep finds it**, because
+nothing changed on the client side; the DEFECT IS THE UNCHANGED LINE. The fix shape is to return a
+`refusal` reason and map each one, with an absent reason failing CLOSED. ⚠ The general obligation:
+when a slice widens what a boolean or enum can mean, the callers of that value are part of the
+slice's blast radius even though the slice does not touch them — enumerate them by hand, because
+no tool will point at them.
+
 ## Commit gate
 
 🔴 **NEVER READ A TEST RESULT THROUGH `tail`. `npm test` IS A CHAIN AND `tail -1` PRINTS ONE
