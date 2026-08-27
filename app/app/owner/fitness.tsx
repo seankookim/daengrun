@@ -135,6 +135,7 @@ export default function FitnessHub() {
   const maxWeek = weeks.length > 0 ? Math.max(...weeks.map((w) => w.km), goalKm * 0.6, 1) : 1;
   // 값 라벨은 이번 주 + 최고 주에만 (dataviz: 라벨은 선택적, 모든 바에 붙이면 축이 죽는다)
   const peakIdx = weeks.reduce((best, w, i) => (w.km > weeks[best].km ? i : best), 0);
+  const chartUnmeasured = weeks.reduce((s2, w) => s2 + w.unmeasured, 0);
   const runDays = fit?.runDays ?? [];
   const ageLabel = fit?.fitnessAge != null ? `${fit.fitnessAge}살` : null;
 
@@ -250,6 +251,12 @@ export default function FitnessHub() {
               </Text>
             ))}
           </Row>
+          {/* ⚠ 막대는 **측정된** 거리의 합이다. runs.actual_km이 NULL인 러닝(서버가 재지 않은
+              러닝)은 0으로 더해지지 않고 아예 빠진다 — 0을 더하면 합계가 조용히 틀리고, 말없이
+              빼면 낮은 막대가 '덜 달린 주'로 읽힌다. 그래서 뺀 만큼을 여기서 밝힌다. */}
+          {chartUnmeasured > 0 && (
+            <Text style={s.barsNote}>거리 기록이 없는 러닝 {chartUnmeasured}회는 막대에 들어가지 않았어요</Text>
+          )}
         </View>
 
         {/* ---------- 최근 러닝 → 리포트 ---------- */}
@@ -269,11 +276,22 @@ export default function FitnessHub() {
           >
             <View style={{ flex: 1 }}>
               <Text style={s.runWhen}>{r.when}</Text>
+              {/* ⚠ km·durationSec은 NULL이 될 수 있다 (서버가 재지 않은 러닝). 이 줄은
+                  `{r.km}km · {…분}` 이었고, null이면 숫자만 사라져 「km · 분 · 리포트 보기」가
+                  남는다 — 단위는 남고 값만 증발하는, codex가 공유 카드에서 잡아낸 그 모양이다.
+                  잰 조각만 잇는다. */}
               <Text style={s.runMeta}>
-                {r.km}km · {Math.floor(r.durationSec / 60)}분 · 리포트 보기 ›
+                {[
+                  r.km != null ? `${r.km}km` : null,
+                  r.durationSec != null ? `${Math.floor(r.durationSec / 60)}분` : null,
+                  '리포트 보기 ›',
+                ].filter(Boolean).join(' · ')}
               </Text>
             </View>
-            <Text style={[s.runKm, nf]}>{r.km}km</Text>
+            {r.km != null
+              ? <Text style={[s.runKm, nf]}>{r.km}km</Text>
+              /* Oswald(nf)에 한글이 없으므로 낱말은 본문 서체로 — 0km도 '—'도 쓰지 않는다 */
+              : <Text style={s.runNoKm}>기록 없음</Text>}
           </Pressable>
         ))}
       </Animated.ScrollView>
@@ -350,10 +368,15 @@ export default function FitnessHub() {
                   <Text style={[s.counterText, nf]}>{idx + 1} / {shots.length}</Text>
                 </View>
                 <View style={s.panoOverlay}>
-                  <Row style={{ alignItems: 'baseline' }}>
-                    <Text style={[s.panoKm, nf]}>{sel.km}</Text>
-                    <Text style={[s.panoKmUnit, nf]}> km</Text>
-                  </Row>
+                  {/* ⚠ Moment.km은 NULL이 될 수 있다 — 사진은 실사진이고 거리는 별개의 사실이다.
+                      숫자와 단위가 서로 다른 Text라, null이면 숫자만 사라지고 「 km」만 사진 위에
+                      남았다. 거리를 모르면 이 줄 전체가 없다 — 사진과 날짜는 그대로 참이다. */}
+                  {sel.km != null && (
+                    <Row style={{ alignItems: 'baseline' }}>
+                      <Text style={[s.panoKm, nf]}>{sel.km}</Text>
+                      <Text style={[s.panoKmUnit, nf]}> km</Text>
+                    </Row>
+                  )}
                   <Text style={s.panoWhen}>{sel.when}</Text>
                 </View>
               </View>
@@ -366,7 +389,9 @@ export default function FitnessHub() {
                     onPress={() => setSelIdx(i)}
                     style={[s.thumb, i === idx ? { borderColor: lilac.coral } : { borderColor: 'transparent', opacity: 0.55 }]}
                     accessibilityRole="button"
-                    accessibilityLabel={`${m.when} ${m.km}km 사진 보기`}
+                    /* ⚠ 템플릿 문자열은 null을 문자 'null'로 찍는다 — 스크린 리더가 「nullkm」을
+                       읽는다. JSX와 달리 조용히 사라지지도 않으므로 여기서 명시로 끊는다. */
+                    accessibilityLabel={m.km != null ? `${m.when} ${m.km}km 사진 보기` : `${m.when} 사진 보기`}
                   >
                     <MediaImage source={m.url} style={{ flex: 1 }} resizeMode="cover" />
                   </Pressable>
@@ -374,7 +399,8 @@ export default function FitnessHub() {
               </View>
               {/* 엣지코드 — ① 시네 스트립의 필름 여백 각인 */}
               <View pointerEvents="none">
-                <Text style={[s.edgeCode, nf]}>{sel.km} KM · {sel.when}</Text>
+                {/* 필름 여백 각인 — 거리를 모르면 「 KM · 」 이 아니라 날짜만 각인한다 */}
+                <Text style={[s.edgeCode, nf]}>{sel.km != null ? `${sel.km} KM · ` : ''}{sel.when}</Text>
               </View>
             </View>
           )}
@@ -572,6 +598,7 @@ const s = StyleSheet.create({
   },
   barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
   barVal: { fontSize: 14, lineHeight: 18, color: lilac.head, marginBottom: 3 },
+  barsNote: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 8 },
   bar: { width: '62%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
   barX: { flex: 1, textAlign: 'center', fontSize: 14, lineHeight: 18, color: lilac.dim },
   barXNow: { color: lilac.coralDeep, fontWeight: '700' },
@@ -590,6 +617,8 @@ const s = StyleSheet.create({
   runWhen: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: lilac.head },
   runMeta: { fontSize: 14, lineHeight: 19, color: lilac.dim, marginTop: 2 },
   runKm: { fontSize: 18, lineHeight: 23, color: lilac.coralDeep },
+  // 거리 미측정 — 숫자 자리에 서지만 숫자가 아니다: 강조색(coralDeep)도, 숫자 조판도 쓰지 않는다
+  runNoKm: { fontSize: 15, lineHeight: 23, fontWeight: '600', color: lilac.dim },
 
   // ── 컴팩트 리본 ──
   ribbon: {

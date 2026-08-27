@@ -50,7 +50,11 @@ export default function My() {
   // [정직 수리 2026-08-05] Fitness에는 totalKm/totalRuns가 존재한 적 없다 — f:any가 가리던 채로
   // 주간 수치가 '총 거리/총 횟수'로 표기되던 P1. 보호자는 주간 수치를 주간 라벨로 말한다.
   // 실누적은 리워드 ② 구현에서 실카운트 쿼리와 함께 온다.
-  const [rec, setRec] = useState<{ km: number; runs: number; pace: string; dogName?: string | null } | null>(null);
+  // ⚠ kmUnmeasured — `km`은 이번 주 **측정된** 거리의 합이다. runs.actual_km이 NULL인 러닝은
+  // 합에 들어가지 않으므로, 이번 주 러닝이 전부 미측정이면 이 합은 0이 된다. 그 0을 옆 칸의
+  // 진짜 횟수와 나란히 찍으면 「0.0km · 1회」 — 실제 횟수 옆에 지어낸 거리다 (d022451이 조회
+  // 실패로 같은 모양을 만들었던 그 자리). 몇 회가 빠졌는지 들고 와서 화면이 구별한다.
+  const [rec, setRec] = useState<{ km: number; kmUnmeasured: number; runs: number; pace: string; dogName?: string | null } | null>(null);
   // [정직 배치 2026-08-06 · item 5] 로딩 ≠ 실패 ≠ 진짜 0. '—'만으론 영원한 로딩과 실패를 구별할 수
   // 없어 기록면 아래에 라우드 페일 스트립 + 재시도를 단다 (fetchFitness는 이제 실패 시 throw한다).
   const [recErr, setRecErr] = useState(false);
@@ -63,13 +67,16 @@ export default function My() {
     if (isRunner) return;
     fetchFitness()
       .then((f) => setRec({
-        km: f.weekKm ?? 0, runs: f.weekRuns ?? 0,
+        km: f.weekKm ?? 0, kmUnmeasured: f.weekUnmeasured, runs: f.weekRuns ?? 0,
         pace: f.avgPaceSec ? `${Math.floor(f.avgPaceSec / 60)}'${String(f.avgPaceSec % 60).padStart(2, '0')}"` : '—',
         dogName: f.dogName ?? null, // [리뷰 F4] 신분면·메뉴 라벨의 목업 초코 은퇴용 실이름
       }))
       .catch((e) => { console.warn('[my] fitness:', e?.message ?? e); setRecErr(true); }); // 직전 실값 유지
   }, [isRunner]);
   useEffect(() => { loadRec(); }, [loadRec]);
+  // 이번 주 러닝은 있는데 그중 거리가 측정된 것이 하나도 없는 상태 — 이때의 합계 0은 측정값이
+  // 아니라 빈자리다. runs === 0(진짜 안 달린 주)은 여기 해당하지 않는다: 그 0은 참이다.
+  const weekKmAllUnmeasured = !!rec && rec.runs > 0 && rec.kmUnmeasured >= rec.runs;
   // ③ 도장면 — 파생 실데이터. null = 아직 안 왔거나 실패 = 섹션 통째로 침묵 (로딩은 0이 아니다).
   const [stampStats, setStampStats] = useState<StampStats | null>(null);
   const [stampErr, setStampErr] = useState(false);
@@ -300,12 +307,18 @@ export default function My() {
             <Row>
               {[
                 // 로딩은 0이 아니다 — rec가 오기 전엔 세 칸 모두 '—' (단위도 함께 접어 대시에 매달리지 않게)
-                { v: rec ? rec.km.toFixed(1) : '—', u: rec ? ' km' : '', l: isRunner ? '총 거리' : '이번 주 거리', div: false },
-                { v: rec ? `${rec.runs}` : '—', u: rec ? ' 회' : '', l: isRunner ? '총 횟수' : '이번 주 횟수', div: true },
-                { v: rec?.pace ?? '—', u: '', l: isRunner ? '평균 페이스' : '주간 페이스', div: true },
+                // 그리고 모르는 것도 0이 아니다 — 이번 주 러닝이 **전부** 미측정이면 0.0이 아니라
+                // 말로 말한다. 일부만 미측정이면 합은 진짜 하한값이므로 그대로 찍는다.
+                { v: rec ? (weekKmAllUnmeasured ? '기록 없음' : rec.km.toFixed(1)) : '—',
+                  u: rec && !weekKmAllUnmeasured ? ' km' : '', w: !!rec && weekKmAllUnmeasured,
+                  l: isRunner ? '총 거리' : '이번 주 거리', div: false },
+                { v: rec ? `${rec.runs}` : '—', u: rec ? ' 회' : '', w: false, l: isRunner ? '총 횟수' : '이번 주 횟수', div: true },
+                { v: rec?.pace ?? '—', u: '', w: false, l: isRunner ? '평균 페이스' : '주간 페이스', div: true },
               ].map((c) => (
                 <View key={c.l} style={[{ flex: 1 }, c.div && s.recDiv]}>
-                  <Text style={[s.recN, nf]}>
+                  {/* w = 값이 숫자가 아니라 낱말인 칸. Oswald(nf)에 한글이 없고 23pt 숫자 조판은
+                      낱말의 것이 아니므로 15pt 디테일 바닥의 본문 서체로 내려온다. */}
+                  <Text style={c.w ? s.recWord : [s.recN, nf]}>
                     {c.v}<Text style={s.recU}>{c.u}</Text>
                   </Text>
                   <Text style={s.recL}>{c.l}</Text>
@@ -520,6 +533,8 @@ const s = StyleSheet.create({
   recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 14pt floor
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
   recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
+  // 측정값이 없어 낱말이 서는 칸 — 같은 lineHeight로 세 칸의 기준선을 유지한다
+  recWord: { fontSize: 15, lineHeight: 28, fontWeight: '700', color: 'rgba(255,255,255,0.80)' },
   recU: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
   recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },

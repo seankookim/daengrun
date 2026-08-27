@@ -51,14 +51,24 @@ const isMilestone = (b: string) => b.includes('최고') || b.includes('기록') 
 // 하나뿐이고 (0028 ②, owner/report.tsx:383과 같은 게이트), 거리가 0이면 그 말은 어느 쪽으로도
 // 참이 아니다. 근거가 없는 옛 포스트(endReason undefined)는 중립적인 '러닝 기록'으로 남는다 —
 // 모르는 것을 완주라고 부르는 것보다 낫다.
+// ⚠ [2026-08-27] 이 조건은 km을 0으로 강제 변환한 뒤 비교했다 — 모르는 거리를 측정된 0으로
+// 접은 것이다 (defect 문자열 자체는 인용하지 않는다: 고친 자리와 안 고친 자리가 grep에
+// 똑같이 걸리면 그 grep은 아무것도 답해주지 않는다). meta.km은 이제
+// undefined(러닝 없는 포스트) · null(서버가 재지 않은 러닝) · 숫자(실측), 세 상태다.
+// 그리고 '완주'의 판정 근거는 거리가 아니라 **끝난 방식**이다 (6456791: 「완주 is a claim about
+// the ENDING」 — 거리를 잰 dog_condition/owner_request 중단도 거리만 보면 완주로 게시된다).
+// 위 08-19 규칙 중 살아남는 것은 **실측 0km** 하나뿐이다: 0.0km로 재어진 러닝에 완주라는 말은
+// 어느 쪽으로도 참이 아니다. 거리를 모르는 러닝은 그 규칙의 대상이 아니었다 — 끝난 방식이
+// 'completed'면 완주다. 근거 없는 옛 포스트(endReason undefined)는 그대로 '러닝 기록'.
 const runWord = (m: FeedPost['meta']) =>
-  m.endReason === 'completed' && (m.km ?? 0) > 0 ? '완주'
+  m.endReason === 'completed' && (m.km == null || m.km > 0) ? '완주'
     : m.endReason && m.endReason !== 'completed' ? '조기 종료'
       : '러닝 기록';
 
-const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
-// [V4] 스트라바식 페이스 — km+시간에서 파생 (실데이터만)
-const fmtPace = (km?: number, sec?: number) => {
+const fmtDur = (sec?: number | null) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
+// [V4] 스트라바식 페이스 — km+시간에서 파생 (실데이터만). null(미측정)도 undefined와 같이
+// 아무것도 그리지 않는다 — 비율은 두 값이 **다** 있어야 존재한다.
+const fmtPace = (km?: number | null, sec?: number | null) => {
   if (!km || !sec || km <= 0) return null;
   const s = Math.round(sec / km);
   return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`;
@@ -563,9 +573,14 @@ export default function Community() {
                     한 사실은 한 번만. 사진이 없는 포스트에서는 아래 기록 조판이 계속 그 일을 한다. */}
                 {false && (p.meta.km != null || fmtDur(p.meta.durationSec)) && (
                   <Row style={s.statTable}>
-                    <View style={s.statCell}>
-                      <Text style={s.statK}>KM</Text><Text style={[s.statV, nf]}>{p.meta.km ?? '—'}</Text>
-                    </View>
+                    {/* ⚠ 은퇴한 블록이지만 `km ?? '—'`을 남겨두지 않는다 — 다시 켜는 사람이 그대로 켠다.
+                        셀 자체에 조건이 없었으므로 (바깥 조건은 km‖시간 중 하나) 여기서 붙인다:
+                        위 알약과 같은 규칙, 안 잰 거리는 셀이 없다. */}
+                    {p.meta.km != null && (
+                      <View style={s.statCell}>
+                        <Text style={s.statK}>KM</Text><Text style={[s.statV, nf]}>{p.meta.km}</Text>
+                      </View>
+                    )}
                     {fmtPace(p.meta.km, p.meta.durationSec) && (
                       <View style={[s.statCell, s.statDiv]}>
                         <Text style={s.statK}>PACE</Text><Text style={[s.statV, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)}</Text>
@@ -584,9 +599,18 @@ export default function Community() {
               <Pressable onPress={() => onPhotoTap(p)}>
                 <View style={s.record}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.recordKm, nf]}>
-                      {p.meta.km != null ? p.meta.km : '—'}<Text style={{ fontSize: 15, color: lilac.text, letterSpacing: 0 }}> km</Text>
-                    </Text>
+                    {/* ⚠ [2026-08-27] 거리를 모르면 대시를 찍고 그 옆에 단위를 붙였다. 대시는 측정값
+                        모양이다 — 「쟀고, 아무것도 아니었다」로
+                        읽힌다. 단위가 붙어 있으면 더 그렇다. 잰 적이 없으면 숫자도 단위도 그리지 않고
+                        말로 말한다: 기록 없음 (owner/report.tsx·club/receipt과 같은 낱말).
+                        Oswald(nf)에는 한글이 없으므로 이 줄만 본문 서체 + 15pt 디테일 바닥으로 내려온다. */}
+                    {p.meta.km != null ? (
+                      <Text style={[s.recordKm, nf]}>
+                        {p.meta.km}<Text style={{ fontSize: 15, color: lilac.text, letterSpacing: 0 }}> km</Text>
+                      </Text>
+                    ) : (
+                      <Text style={s.recordNoKm}>기록 없음</Text>
+                    )}
                     {fmtPace(p.meta.km, p.meta.durationSec) && (
                       <Text style={[s.recordPace, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)} / KM</Text>
                     )}
@@ -857,6 +881,10 @@ const s = StyleSheet.create({
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
   record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: GUTTER + 2, paddingVertical: 12 },
   recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
+  // 미측정 러닝의 거리 자리 — 숫자가 아니라 낱말이므로 38pt 숫자 조판을 쓰지 않는다 (15pt 디테일
+  // 바닥). lineHeight는 recordKm과 같은 46으로 남긴다: 아래 페이스·이름·시간 줄이 측정된 카드와
+  // 같은 자리에 서서, 이 상태가 '깨진 카드'가 아니라 의도된 상태로 읽힌다.
+  recordNoKm: { fontSize: 15, lineHeight: 46, fontWeight: '700', color: lilac.dim },
   recordPace: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
   traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
 
