@@ -49,6 +49,11 @@ export default function ProfileEdit() {
   // ⚠ 소개 읽기가 **끝났는지**를 따로 든다. 이게 없으면 폼이 먼저 뜨고 나중에 도착한 서버 소개가
   // 사용자가 그 사이 타이핑한 글자를 덮어쓴다 — 세 읽기가 서로 다른 속도로 오는 화면의 고전적인 사고다.
   const [bioReady, setBioReady] = useState(false);
+  // 서버에서 읽어온 소개 원본. 저장은 **바뀐 경우에만** 소개를 쓴다.
+  // ⚠ `fetchMyRunnerBio`는 실패해도 던지지 않는다 (error를 안 본다) — 못 읽었을 때도 null을 돌려주므로
+  //    빈 칸으로 시작한다. 그 상태에서 무조건 쓰면 러너의 기존 소개가 ''로 덮인다. 「안 건드렸으면
+  //    안 쓴다」는 그 경로를 **구조적으로** 막는다 (runner==='error' 가드는 우연히 같은 일을 할 뿐이다).
+  const [loadedBio, setLoadedBio] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
@@ -73,7 +78,7 @@ export default function ProfileEdit() {
       .then((r) => { if (alive) setRunner(r.tier ? 'yes' : 'no'); })
       .catch(() => { if (alive) setRunner('error'); });
     fetchMyRunnerBio()
-      .then((b) => { if (!alive) return; if (b != null) setBio(b); setBioReady(true); })
+      .then((b) => { if (!alive) return; setBio(b ?? ''); setLoadedBio(b ?? ''); setBioReady(true); })
       .catch(() => { if (alive) setBioReady(true); }); // 못 읽었으면 빈 칸으로 시작한다
     return () => { alive = false; };
   }, [gen]);
@@ -98,7 +103,8 @@ export default function ProfileEdit() {
       const h = handle.trim().toLowerCase();
       if (h && h !== (loaded?.handle ?? '').toLowerCase()) await setMyHandle(h);
       step = 'bio';
-      if (runner === 'yes') await updateRunnerBio(bio.trim());
+      // 안 바뀌었으면 안 쓴다 — 소개를 못 읽은 채 저장을 눌러도 기존 소개가 ''로 덮이지 않는다.
+      if (runner === 'yes' && bio.trim() !== loadedBio.trim()) await updateRunnerBio(bio.trim());
       // `router.back()`은 빈 스택에서 no-op이고 이 앱의 모든 라우트는 딥링크로 열린다 (nav.ts).
       goBackOrHome();
     } catch (e) {

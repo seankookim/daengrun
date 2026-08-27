@@ -1961,6 +1961,15 @@ export async function fetchProfileIdentity(profileId: string): Promise<ProfileId
 // 이 러너가 받은 공개 후기의 **전체 개수**. `fetchRunnerProfile`이 실어오는 `reviews`는
 // `.limit(5)`라 그 배열의 길이를 개수라고 부르면 31개를 5개라고 말하게 된다 — 카운트는 따로 센다.
 // head: true = 행은 안 받고 count만 받는다.
+//
+// ⚠ 이 숫자가 「이 러너의 후기 수」인지 「내가 볼 수 있는 후기 수」인지는 RLS가 정하고, 0002만
+//   읽으면 후자로 보인다: `reviews public read`는 `is_booking_party(booking_id)`를 요구한다
+//   (0002:115). 하지만 **0011이 두 번째 정책을 더했다** — `reviews storefront read`,
+//   `visibility = 'public' and target_kind = 'runner'`, 당사자 조건 없음 (0011:4-5, 이유가 헤더에
+//   적혀 있다: 「기존 정책은 예약 당사자만 읽을 수 있어 프로필 후기가 타인에게 항상 비어 보였음」).
+//   정책은 OR로 합쳐지므로 아래 세 필터는 그 스토어프런트 정책과 정확히 같은 집합을 고른다 —
+//   즉 뷰어와 무관한 **진짜 공개 후기 수**다. 라벨 '후기'는 참이다. (하나만 읽고 고쳤다면 맞는
+//   숫자를 지웠을 것이다.)
 export async function fetchRunnerReviewCount(profileId: string): Promise<number> {
   const { count, error } = await supabase
     .from('reviews')

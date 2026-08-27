@@ -112,11 +112,19 @@ export default function RunnerProfileScreen() {
     // Never render `e.message` — PostgREST's English reached this screen verbatim on a bad or
     // retired profile id. Not-found and failure get different sentences.
     setErr(null);
-    fetchProfileIdentity(id).then((w) => { setWho(w); setErr(null); }).catch((e) => setErr(e?.message === NOT_FOUND
-      // 0행 = 이 사람의 프로필이 나에게 공개돼 있지 않다 (RLS: 본인·승인 러너·툼스톤만).
-      // '없는 사람'이라고 말하지 않는다 — 우리가 아는 것은 '못 본다'까지다.
-      ? '이 프로필은 공개되어 있지 않아요'
-      : '프로필을 불러오지 못했어요'));
+    fetchProfileIdentity(id).then((w) => { setWho(w); setErr(null); }).catch((e) => {
+      if (e?.message === NOT_FOUND) {
+        // 0행 = 이 사람의 프로필이 나에게 공개돼 있지 않다 (RLS: 본인·승인 러너·툼스톤만).
+        // '없는 사람'이라고 말하지 않는다 — 우리가 아는 것은 '못 본다'까지다.
+        // ⚠ 이때는 **직전 값을 지운다**: 포커스마다 다시 읽으므로, 보이던 프로필이 안 보이게 된
+        // 순간(탈퇴·러너 강등) 낡은 이름·사진을 계속 그리면서 '공개되어 있지 않아요'라고 말하게 된다.
+        setWho(null); setP(null); setRunnerState('none');
+        setErr('이 프로필은 공개되어 있지 않아요');
+      } else {
+        // 일시적 실패는 직전 실값을 유지하고 실패를 **함께** 말한다 (my.tsx recErr 모델).
+        setErr('프로필을 불러오지 못했어요');
+      }
+    });
     fetchRunnerProfile(id)
       .then((r) => { setP(r); setRunnerState('ok'); })
       .catch((e) => { setP(null); setRunnerState(e?.message === NOT_FOUND ? 'none' : 'error'); });
