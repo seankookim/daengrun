@@ -33,7 +33,24 @@ function tsFilesUnder(dir) {
 
 // ---------- 시그니처 수집 (같은 이름 다른 인자 = 오버로드, 전부 유효) ----------
 const sigs = new Map(); // name -> [ [ {name, hasDefault} ] ]
-const RE_FN = /create or replace function\s+([a-z_][a-z0-9_]*)\s*\(/gi;
+// ⚠ `or replace` is OPTIONAL here, and the reason is not style. Postgres REFUSES a return-type
+// change on `create or replace`, so any function whose returns-table gains a column must be
+// dropped and re-created — a bare `create function`. This regex used to require `or replace`,
+// which made every such function INVISIBLE to the gate: its calls were then validated against
+// whatever older signature a previous migration had declared with `or replace`.
+//
+// Measured 2026-08-27, and the shape is this repo's recurring one — the check was green on three
+// of the four and red on the fourth, so the green said nothing about the property it was read for:
+//   my_ledger_rows (0132) · club_session_board (0139) · claim_billing_key_revocations (0141) ·
+//   report_billing_key_revocation (0141)
+// The red one was `p_token`, an argument the migration DOES declare (0141:136) — the gate was
+// matching it against 0138's 3-arg version, which 0141 had already dropped (0141:160).
+//
+// ⚠ Known remaining gap, deliberately NOT closed here: this harvester does not model
+// `drop function`, so a dropped overload stays in `sigs` forever and a call matching only the
+// dead signature still passes. That is the pre-existing behaviour the comment below describes,
+// and narrowing it is a separate slice with its own blast radius — not a silent ride-along.
+const RE_FN = /create\s+(?:or\s+replace\s+)?function\s+([a-z_][a-z0-9_]*)\s*\(/gi;
 for (const f of readdirSync(migDir).filter((x) => x.endsWith('.sql')).sort()) {
   const sql = readFileSync(join(migDir, f), 'utf8');
   let m;
