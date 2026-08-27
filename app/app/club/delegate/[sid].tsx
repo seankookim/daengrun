@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { routeNameOnly } from '../../../src/lib/route-label';
 import { ClubMast, ClubTag, DawnCanvas, SealSlide, clubText } from '../../../src/components/club-ui';
 import {
   DelegationBoard, DelegationConsent, DogProfile, delegateDog, fetchDelegationBoard, fetchMyDogs,
@@ -213,7 +212,7 @@ export default function DelegateConsentScreen() {
                   </Text>
                   {board?.session.routeKm != null && (
                     <Text style={{ fontSize: 14, lineHeight: 18, color: '#8a8272', marginTop: 1 }}>
-                      {board.session.routeKm}km{board.session.routeName ? ` · ${routeNameOnly(board.session.routeName)}` : ' 코스'}
+                      {board.session.routeKm}km{board.session.routeName ? ` · ${board.session.routeName}` : ' 코스'}
                     </Text>
                   )}
                 </View>

@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { routeNameOnly } from '../../src/lib/route-label';
+import { bookingKmLabel } from '../../src/lib/route-label';
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -376,7 +376,7 @@ export default function Schedule() {
                     지어낸 모양 대신 아무것도 그리지 않는다 (실좌표는 코스 상세가 담당) */}
                 <View style={{ flex: 1 }}>
                   <Row style={{ gap: 4 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{routeNameOnly(b.routeName)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{b.routeName}</Text>
                     {/* ⚠ NO ✓ HERE. This row has no `checked_at` behind it — the dot was
                         drawn unconditionally, so a booking with no route rendered
                         「코스 미지정 ✓」: a verification mark on the absence of a course.
@@ -506,7 +506,7 @@ export default function Schedule() {
                     : `${b.runnerName} 러너가 픽업으로 이동 중이에요`;
               const sub = b.rawStatus === 'picked_up'
                 ? '출발하면 실시간으로 볼 수 있어요'
-                : `${routeNameOnly(b.routeName)} · ${b.km}km`;
+                : `${b.routeName} · ${bookingKmLabel(b.km)}`;
               return (
                 <Pressable
                   key={b.id}

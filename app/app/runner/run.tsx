@@ -1,4 +1,4 @@
-import { routeNameOnly } from '../../src/lib/route-label';
+import { bookingKmLabel } from '../../src/lib/route-label';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1342,7 +1342,7 @@ export default function ActiveRun() {
           {targetKm != null && remaining != null ? (
             <>
               <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 14, color: paper.dim }}>{routeNameOnly(info?.routeName)} 코스 · {targetKm}km</Text>
+                <Text style={{ fontSize: 14, color: paper.dim }}>{info?.routeName} 코스 · {bookingKmLabel(targetKm)}</Text>
                 {/* ⑥ 천장에서 '남은 거리'는 0이고 아무 말도 하지 않는다 — 멈춘 값을 그대로 말한다 */}
                 <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
                   {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
@@ -1371,7 +1371,7 @@ export default function ActiveRun() {
           <View style={{ marginBottom: 12 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
               <Text style={{ fontSize: 15, color: '#BBBBBB' }} numberOfLines={1}>
-                {routeNameOnly(info?.routeName)} 코스 · {targetKm}km
+                {info?.routeName} 코스 · {bookingKmLabel(targetKm)}
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
                 {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
