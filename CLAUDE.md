@@ -435,6 +435,36 @@ else catalogued here is a green that means LESS than it claims. This is a green 
 OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
 have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
 can still notice; a lying gate closes the gap in everyone's mind.
+🔴 **THE NUMBER THAT FLATTERS YOUR FINDING IS THE ONE YOU DON'T AUDIT** (ui6, 2026-08-27,
+self-corrected within the hour — and the two halves happened in ONE message, which is what makes
+it worth its own entry). They reported 「412 dim text elements across 47 screens」 as a design-debt
+finding. On opening the worst file to start work, the real breakdown was: **11 of 20 were
+`placeholderTextColor` — which MUST be dim, and making them ink would be a DEFECT** — plus a
+status dot's `backgroundColor`, a component `tone` prop, and three exempt Latin kickers. About
+four were actual dim Korean prose.
+**What went wrong is one substitution: they measured `color: paper.dim` and reported it as 「dim
+text」.** Different propositions — the pattern matches placeholders, dots, borders and tone props,
+none of which are prose. This file's own most-repeated law (*state the sentence your measurement
+licenses, then check it is the one you needed*), committed by its author an hour after writing it
+into a REGISTRY row.
+⚠ **THE ASYMMETRY IS THE LESSON, and it was visible in the same message:** they flagged a
+**false ZERO** from an over-aggressive filter in one paragraph and shipped an **inflated 412** in
+the next. One number was too low because a filter dropped real hits; the other too high because no
+filter dropped irrelevant ones. **They audited the direction that produced a suspicious zero and
+not the direction that produced an impressive finding** — because a big number reads as a finding
+and a zero reads as a problem. **Audit findings that flatter you at least as hard as findings that
+embarrass you.**
+⚠ **And the honest end state is 「unknown」, not a corrected number.** Filtering to a dim colour in
+a style that also sets `fontSize` gives ~209 — still an upper bound, because decorative kickers and
+genuinely skippable metadata are *correctly* dim. **The violation count cannot be produced by grep
+at all**, since the question is 「may the customer skip this?」 and no pattern answers it. Replacing
+one confident number with another confident number would have been the same error at a smaller
+magnitude. ⚠ Announcer re-measured independently and got **386**, not 412 or 209 — three patterns,
+three numbers, none of them the answer, which is itself the argument.
+**Consequence, and it strengthens rather than weakens the decision it informed:** an agent handed
+the 412 list would have turned 29 placeholders ink and made every form look pre-filled. The
+per-screen human judgment is not caution; it is the only thing that produces a correct answer.
+
 ⚠ **THE NOISE FILTER IS THE MOST DANGEROUS PART OF A SWEEP, AND IT FAILS AS A CLEAN RESULT** (ui6,
 2026-08-27). Sweeping for buttons missing the 3D lip, their first pass excluded lines matching
 `bar|card|chip|badge` **to cut noise** — and returned **0 candidates**. The exclusion was matching
