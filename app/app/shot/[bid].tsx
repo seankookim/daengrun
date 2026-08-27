@@ -602,6 +602,7 @@ export default function ShotStudio() {
           data={{
             dogName: dog,
             km,
+            endReason: run.endReason ?? null,
             durationSec: run.durationSec ?? null,
             paceSecPerKm: run.paceSecPerKm ?? null,
             when: cardDate,
@@ -741,7 +742,9 @@ export default function ShotStudio() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9 }}>
               <IconChip size={28} df={df} />
               <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, fontWeight: '800', color: paper.ink, fontStyle: 'italic' }}>
-                {dog}, {km}km 완주!! <Text style={{ fontSize: 15, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
+                {/* ⚠ km이 null이면 「강아지, km 완주!!」가 그대로 PNG에 찍힌다 — 사라지는 것은 숫자뿐,
+                    단위와 주장은 남는다. 완주도 거리가 아니라 endReason으로 판정한다 (codex). */}
+                {dog}{km != null ? `, ${km}km` : ''}{run.endReason === 'completed' ? ' 완주!!' : ''} <Text style={{ fontSize: 15, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
               </Text>
             </View>
             <View style={{ position: 'absolute', top: -12, left: '50%', marginLeft: -62 }}>
@@ -766,6 +769,7 @@ export default function ShotStudio() {
         data={{
           dogName: dog,
           km,
+          endReason: run.endReason ?? null,
           durationSec: run.durationSec ?? null,
           paceSecPerKm: run.paceSecPerKm ?? null,
           when: report.when,

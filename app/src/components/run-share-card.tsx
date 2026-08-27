@@ -28,6 +28,11 @@ export interface RunCardData {
    *  예전 타입에서는 그게 `0`으로 내려와 **내보내는 PNG에** 「0km 완주」가 찍혔다. 이 카드는 앱을
    *  떠나므로(아래 :368 주석) 작은 부정확이 곧 발행된 부정확이다. */
   km: number | null;
+  /** ⚠ 「완주」는 거리가 아니라 종료 사유에 대한 주장이다. 처음엔 `km != null`로 완주를 판단했는데
+   *  codex가 잡았다: 거리가 측정된 조기 종료(dog_condition · owner_request · runner_personal)는
+   *  거리가 있으니 완주로 발행된다. 리포트 화면의 히어로 타이틀은 이미 endReason으로 판정하고
+   *  있었고(report.tsx), 내보내는 카드만 거리로 판정하고 있었다 — 둘 중 틀린 쪽이 앱을 떠난다. */
+  endReason: string | null;
   /** 실측 — 없으면 그 줄을 그리지 않는다 (0을 그리지 않는다) */
   durationSec: number | null;
   paceSecPerKm: number | null;
@@ -83,7 +88,7 @@ export function RunShareCard({
       )}
       {/* 거리를 재지 못했으면 「완주」도 주장하지 않는다 — 완주는 거리에 대한 주장이다. */}
       <Text style={[{ fontSize: width * 0.10, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>
-        {data.dogName}{data.km != null ? ' 완주' : ''}
+        {data.dogName}{data.endReason === 'completed' ? ' 완주' : ''}
       </Text>
 
       {/* GPS 트레이스 — 숫자 위를 의도적으로 가로지른다 (Sean 2026-07-29: 겹침을 전경화).
@@ -377,7 +382,7 @@ export function StoryShareCard({
                 in which it can be wrong. This card LEAVES THE APP, which is what makes a small
                 inaccuracy a published one. */}
           <Text {...FIXED_TYPE} style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.2 }, df]}>
-            {data.dogName}{data.km != null ? `, ${data.km}km` : ''}
+            {data.dogName}{data.km != null ? `, ${data.km}km` : ''}{data.endReason === 'completed' ? ' 완주' : ''}
           </Text>
 
           <View style={{ flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.34)' }}>
