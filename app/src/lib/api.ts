@@ -1930,6 +1930,67 @@ export async function updateMyProfile(p: { name?: string; district?: string }): 
   if (error) throw error;
 }
 
+// ---------- 공개 프로필 신원 (인스타식 프로필 화면의 머리) ----------
+// `fetchRunnerProfile`은 `runners` 행에서 출발하므로 **러너가 아닌 사람은 아예 못 읽는다**. 프로필
+// 화면은 이제 러너 스토어프런트보다 넓은 것을 그려야 해서(Sean 2026-08-27 「like instagram」),
+// 신원 한 줄은 `profiles`에서 따로 읽는다. 컬럼은 0088의 화이트리스트 그대로다 —
+// id · name · handle · district · avatar_url. 그 밖의 컬럼은 클라에 grant 자체가 없다.
+//
+// ⚠ 행 가시성은 이 함수가 정하지 않는다. 0002의 정책상 남의 `profiles` 행이 보이는 경우는
+//   ① 본인, ② 승인된 러너(tier <> 'applicant'), ③ 탈퇴 툼스톤(0115) — 셋뿐이다. 그래서
+//   **러너가 아닌 남의 프로필은 0행**이고 여기서 NOT_FOUND가 된다. 화면은 그걸 '비공개'라고
+//   말해야 하고, 지어낸 이름으로 채우면 안 된다. (이웃 프로필을 이름으로 여는 길을 열려면
+//   서버에 definer 읽기 문이 하나 더 필요하다 — 이 슬라이스에는 없다.)
+export interface ProfileIdentity {
+  profileId: string;
+  name: string;
+  /** 0074 인스타식 계정 아이디. null = 아직 안 만듦 — 이름으로 대신 채우지 않는다. */
+  handle: string | null;
+  district: string | null;
+  avatarUrl: string | null;
+}
+
+export async function fetchProfileIdentity(profileId: string): Promise<ProfileIdentity> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, handle, district, avatar_url')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error(NOT_FOUND); // 안 보이는 사람 ≠ 못 읽음 — 화면이 두 문장을 다르게 쓴다
+  const r = data as any;
+  return {
+    profileId: r.id,
+    name: r.name,
+    handle: r.handle ?? null,
+    district: r.district ?? null,
+    avatarUrl: r.avatar_url ?? null,
+  };
+}
+
+// 이 러너가 받은 공개 후기의 **전체 개수**. `fetchRunnerProfile`이 실어오는 `reviews`는
+// `.limit(5)`라 그 배열의 길이를 개수라고 부르면 31개를 5개라고 말하게 된다 — 카운트는 따로 센다.
+// head: true = 행은 안 받고 count만 받는다.
+//
+// ⚠ 이 숫자가 「이 러너의 후기 수」인지 「내가 볼 수 있는 후기 수」인지는 RLS가 정하고, 0002만
+//   읽으면 후자로 보인다: `reviews public read`는 `is_booking_party(booking_id)`를 요구한다
+//   (0002:115). 하지만 **0011이 두 번째 정책을 더했다** — `reviews storefront read`,
+//   `visibility = 'public' and target_kind = 'runner'`, 당사자 조건 없음 (0011:4-5, 이유가 헤더에
+//   적혀 있다: 「기존 정책은 예약 당사자만 읽을 수 있어 프로필 후기가 타인에게 항상 비어 보였음」).
+//   정책은 OR로 합쳐지므로 아래 세 필터는 그 스토어프런트 정책과 정확히 같은 집합을 고른다 —
+//   즉 뷰어와 무관한 **진짜 공개 후기 수**다. 라벨 '후기'는 참이다. (하나만 읽고 고쳤다면 맞는
+//   숫자를 지웠을 것이다.)
+export async function fetchRunnerReviewCount(profileId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('reviews')
+    .select('id', { count: 'exact', head: true })
+    .eq('target_id', profileId)
+    .eq('target_kind', 'runner')
+    .eq('visibility', 'public');
+  if (error) throw error;
+  return count ?? 0;
+}
+
 // ---------- 가용시간 (availability) ----------
 export interface AvailRule { weekday: number; startMin: number; endMin: number }
 
@@ -4233,6 +4294,53 @@ export async function fetchMySharedBookingIds(): Promise<string[]> {
     .not('booking_id', 'is', null);
   if (error) throw error;
   return (data ?? []).map((r: any) => r.booking_id as string);
+}
+
+// ---------- 한 사람의 게시물 (프로필 화면의 인스타식 그리드) ----------
+// Sean 2026-08-27: 「clicking on each names should go to their profiles with their posts (like
+// instagram)」. 이 앱에서 '포스트'로 존재하는 유일한 실물은 하이 피드다 (0013 `feed_posts`) —
+// 새 콘텐츠 시스템을 만들지 않고 이미 있는 것을 사람 기준으로 다시 자른다.
+// 정책: `feed read using (true)` (0013:16) — 남의 게시물도 읽힌다. 그래서 그리드는 러너가 아닌
+// 사람에게도 성립한다. 다만 그 사람의 **신원 행**은 별개 문제다 (fetchProfileIdentity의 ⚠ 참고).
+export interface ProfilePost {
+  id: string;
+  /** null = 글만 있는 게시물. 타일이 사진인 척하지 않는다. */
+  photoUrl: string | null;
+  body: string | null;
+  when: string;
+  /** 러닝을 주장하는 게시물의 실측 거리 (0074 §D의 meta.km). null = 주장 없음. */
+  km: number | null;
+}
+
+/**
+ * 한 페이지 + **전체 개수**. posts.length를 개수로 쓰면 캡(60)을 사실로 말하게 된다 —
+ * `fetchRunnerProfile`의 `reviews.limit(5)`가 이미 파놓은 함정과 같은 것이다.
+ * total이 null = 서버가 개수를 안 줬다 = 모른다. 화면은 그 자리에 0을 그리지 않는다.
+ */
+export interface ProfilePostPage { posts: ProfilePost[]; total: number | null }
+
+export async function fetchProfilePosts(profileId: string): Promise<ProfilePostPage> {
+  const { data, error, count } = await supabase
+    .from('feed_posts')
+    .select('id, body, photo_url, meta, created_at', { count: 'exact' })
+    .eq('author_id', profileId)
+    .order('created_at', { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  const posts = (data ?? []).map((p: any) => {
+    const { dateLabel } = kstParts(p.created_at);
+    const km = p.meta?.km;
+    return {
+      id: p.id,
+      photoUrl: p.photo_url ?? null,
+      body: p.body ?? null,
+      when: dateLabel,
+      km: typeof km === 'number' ? km : null,
+    };
+  });
+  // count는 PostgREST의 Content-Range에서 온다. 못 받았으면 **모르는 것**이다 — 페이지 길이로
+  // 대신 채우면 61번째 게시물이 있는 사람에게 '60'이라고 말하게 된다.
+  return { posts, total: count ?? null };
 }
 
 // ---------- 하이 포인트 + 리더보드 (통합 인센티브 경제) ----------

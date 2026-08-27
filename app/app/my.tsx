@@ -81,15 +81,9 @@ export default function My() {
   const stampsEarned = stamps ? stamps.filter((x) => x.earned).length : 0;
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('');
-  const [district, setDistrict] = useState('');
-  // [0074 · Sean 2026-08-12] 인스타식 계정 아이디. 서버가 유일한 검증자라 클라는 형식을 흉내내지 않는다.
-  const [handle, setHandle] = useState('');
-  const [bio, setBio] = useState('');
-  const [savedBio, setSavedBio] = useState<string | null>(null);
+  // [2026-08-27] 편집 폼 상태(이름·아이디·동네·소개·저장 중)는 전부 `/profile/edit`으로 옮겨갔다.
+  // 여기 남는 것은 신분면이 **읽어서 보여주는** 값과 아바타 업로드뿐이다.
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   // [plan §6.4] 러너 인증 센터 행의 부제는 이제 상태를 말한다 — /runner/apply가 실퍼널이 됐기 때문에
   // '인증 절차 안내'는 더 이상 그 화면이 하는 일의 전부가 아니다. loaded 플래그가 따로 있는 이유는
@@ -99,7 +93,6 @@ export default function My() {
 
   useFocusEffect(useCallback(() => {
     fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
-    if (isRunner) fetchMyRunnerBio().then(setSavedBio).catch(() => {});
     if (isRunner) {
       fetchMyRunnerApplication()
         .then((a) => { setRunnerApp(a); setRunnerAppLoaded(true); })
@@ -110,14 +103,6 @@ export default function My() {
     // (0/12를 그리지 않는다 — [honesty 2026-08-11] 조용한 섹션 증발도 그만: recErr 모델 복제).
     loadStamps();
   }, [isRunner]));
-
-  const openEdit = () => {
-    setName(profile?.name ?? '');
-    setDistrict(profile?.district ?? '');
-    setHandle(profile?.handle ?? '');
-    setBio(savedBio ?? '');
-    setEditing(true);
-  };
 
   const pickPhoto = async () => {
     // 지연 로드 — 네이티브 모듈이 없는 빌드(구 dev build/Expo Go)에서 앱 전체가 죽지 않게.
@@ -146,27 +131,9 @@ export default function My() {
     }
   };
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await updateMyProfile({ name: name.trim() || undefined, district: district.trim() || undefined });
-      // 아이디는 별도 RPC — profiles 직접 UPDATE로는 못 쓴다 (0074: 컬럼 화이트리스트가 없는 테이블).
-      // 바뀐 경우에만 부른다. 서버가 멱등이라 안 불러도 되지만, 실패 메시지를 아이디 탓으로만 돌리려면
-      // 호출 자체가 아이디를 바꿀 때만 일어나는 편이 명확하다.
-      const h = handle.trim();
-      if (h && h.toLowerCase() !== (profile?.handle ?? '')) await setMyHandle(h);
-      if (isRunner) {
-        await updateRunnerBio(bio.trim());
-        setSavedBio(bio.trim());
-      }
-      setProfile((p) => (p ? { ...p, name: name.trim() || p.name, district: district.trim() || p.district } : p));
-      setEditing(false);
-    } catch (e) {
-      Alert.alert('저장 실패', (e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // [2026-08-27] save() 은퇴 — 아이디 RPC(set_my_handle)·프로필 UPDATE·소개 저장은 전부
+  // `/profile/edit`의 save()로 갔다. 신분면은 이 화면이 포커스를 받을 때마다 다시 읽으므로
+  // (useFocusEffect), 편집기에서 돌아오면 새 이름·동네가 그대로 올라온다.
 
   // 인증 센터 행 부제 — 지원 상태에 따라. 미도착이면 아무 상태도 주장하지 않고 화면 이름만 말한다.
   const certDesc = !runnerAppLoaded ? '내 러너 레코드 · 인증 절차'
@@ -267,16 +234,15 @@ export default function My() {
                 </View>
                 <Pressable
                   style={s.idEdit}
-                  onPress={() => {
-                    // 프로필 편집 단일화 — 러너는 스토어프런트에서, 보호자는 여기 시트에서 (혼선 제거)
-                    if (isRunner) {
-                      if (profile) router.push(`/runner-profile/${profile.id}`);
-                    } else {
-                      openEdit();
-                    }
-                  }}
+                  disabled={!profile}
+                  onPress={() => { if (profile) router.push(`/runner-profile/${profile.id}`); }}
                 >
-                  <Text style={s.idEditTxt}>{isRunner ? '프로필 편집' : '프로필 설정'}</Text>
+                  {/* [2026-08-27] 역할 분기 은퇴 — **두 역할 모두 자기 프로필 화면으로 간다**.
+                      예전엔 러너만 스토어프런트로 가고 보호자는 이 화면의 시트를 열었는데, 그래서
+                      보호자에게는 프로필이라는 것이 아예 없었다 (인스타 모델에서는 누구나 프로필이
+                      있다). 편집은 그 화면의 '프로필 편집' → `/profile/edit`이고, 러너의 갤러리·장비
+                      편집도 거기 그대로 있다 — 이 경로로 잃는 기능은 없다. */}
+                  <Text style={s.idEditTxt}>내 프로필</Text>
                   <Text style={[s.idEditEm, nf]}>EDIT ›</Text>
                 </Pressable>
               </View>
@@ -471,15 +437,7 @@ export default function My() {
 
         {/* ————— ⑥ 콜로폰 (브랜드 워드마크 — 정적 브랜딩) ————— */}
         <View style={s.colophon}>
-          {/* [FLOOR15] Korean below the floor is legal HERE and only here: this is the wordmark,
-              which DESIGN.md §3 exempts as artwork — but only when all three clauses hold, and
-              clause (2) (declared decoration for assistive tech) was missing. Same idiom as
-              shot/[bid].tsx's lockup. It carries no data, so nothing is hidden from a reader. */}
-          <Text
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={[s.colophonTxt, nf]}
-          >도그스하이 · DOGS HIGH</Text>
+          <Text style={[s.colophonTxt, nf]}>도그스하이 · DOGS HIGH</Text>
         </View>
       </ScrollView>
       {/* 시스템 바 스트립 — 마스트헤드가 시계 뒤로 지나가던 것 */}
@@ -487,76 +445,9 @@ export default function My() {
       </TabSwipe>
       <BottomNav />
 
-      {/* ---------- 프로필 편집 시트 ---------- */}
-      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
-        <Pressable style={s.backdrop} onPress={() => setEditing(false)} />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>프로필 설정</Text>
-
-          {/* [0074 · Sean 2026-08-12] 아이디가 이름보다 위에 온다 — 인스타에서 사람을 부르는 단위는
-              표시 이름이 아니라 @아이디다. 서버 규칙(3~20자·소문자·[a-z0-9_.])을 라벨이 미리 말해주되
-              **검증은 하지 않는다**: 두 곳에서 자르면 두 규칙이 갈라진다 (0073의 교훈). */}
-          <Text style={s.fieldLabel}>아이디</Text>
-          <Row style={{ alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: paper.dim }}>@</Text>
-            <TextInput
-              value={handle}
-              onChangeText={(t) => setHandle(t.toLowerCase().replace(/\s/g, ''))}
-              placeholder="choco.runner"
-              placeholderTextColor={paper.faint}
-              style={[s.input, { flex: 1 }]}
-              maxLength={20}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </Row>
-          <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 5 }}>
-            영문 소문자·숫자·밑줄(_)·점(.) · 3~20자 · 피드에서 이 이름으로 보여요
-          </Text>
-
-          <Text style={s.fieldLabel}>이름</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="이름 또는 닉네임"
-            placeholderTextColor={paper.faint}
-            style={s.input}
-            maxLength={20}
-          />
-          <Text style={s.fieldLabel}>활동 동네</Text>
-          <TextInput
-            value={district}
-            onChangeText={setDistrict}
-            placeholder="예: 반포동"
-            placeholderTextColor={paper.faint}
-            style={s.input}
-            maxLength={20}
-          />
-          {isRunner && (
-            <>
-              <Text style={s.fieldLabel}>자기소개 (스토어프런트)</Text>
-              <TextInput
-                value={bio}
-                onChangeText={setBio}
-                placeholder="보호자에게 보여줄 소개를 적어보세요 — 러닝 경력, 반려견 경험, 나의 강점"
-                placeholderTextColor={paper.faint}
-                style={[s.input, { height: 96, textAlignVertical: 'top', paddingTop: 12 }]}
-                multiline
-                maxLength={300}
-              />
-            </>
-          )}
-          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
-            이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
-          </Text>
-
-          {/* busy = 라벨 스왑 (버튼 매트릭스 법 — 불투명도 트릭 금지) */}
-          <Pressable onPress={save} disabled={saving} style={s.saveBtn}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{saving ? '저장 중...' : '저장'}</Text>
-          </Pressable>
-        </View>
-      </Modal>
+      {/* [2026-08-27] 프로필 편집 시트는 `/profile/edit`로 접혔다 — Sean의 인스타 편집기 모델
+          (라벨 왼쪽/값 오른쪽 행 목록, 아바타 행 없음). 같은 필드를 두 화면에서 고칠 수 있으면
+          규칙도 두 벌이 되고, 한쪽은 반드시 낡는다. 위 신분면의 '내 프로필' 행이 그 문이다. */}
     </View>
   );
 }
@@ -583,11 +474,11 @@ const s = StyleSheet.create({
   },
   idInner: { margin: 9, borderWidth: 1, borderColor: '#EEE', padding: 12, paddingBottom: 0 },
   idStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
-  // Korean-data-in-kicker (신분면/도장면 halves) — 15pt floor applies; letterSpacing tightened
+  // Korean-data-in-kicker (신분면/도장면 halves) — 14pt floor applies; letterSpacing tightened
   // so the passport look survives the raise. Latin-only kickers elsewhere stay 12.
-  microK: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
+  microK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
   roleTag: { borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas, paddingVertical: 4, paddingHorizontal: 9 },
-  roleTagTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 15pt floor
+  roleTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 14pt floor
   photoWin: {
     width: 62, height: 74, borderWidth: 1, borderColor: '#EEE',
     backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
@@ -598,17 +489,17 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   fld: { marginBottom: 8 },
-  fldK: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 15pt floor
+  fldK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 14pt floor
   fldV: { fontSize: 17, fontWeight: '800', color: paper.ink }, // user name = the page's lead datum (15 -> 17)
-  fldVSmall: { fontSize: 15, fontWeight: '600', color: paper.text },
-  fldV2: { fontSize: 15, fontWeight: '600', color: paper.text, lineHeight: 18 },
+  fldVSmall: { fontSize: 14, fontWeight: '600', color: paper.text },
+  fldV2: { fontSize: 14, fontWeight: '600', color: paper.text, lineHeight: 18 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas,
     paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 15, fontWeight: '700', color: paper.ink },
-  idEditEm: { fontSize: 15, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 15pt floor
+  idEditTxt: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  idEditEm: { fontSize: 14, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 14pt floor
   idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: '#EEE' },
   idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
   idCellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEE' },
@@ -626,13 +517,13 @@ const s = StyleSheet.create({
   },
   recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: lilacRadius.inner, padding: 13 },
   coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  recordKick: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 15pt floor
+  recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 14pt floor
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
   recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
-  recU: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 15, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
+  recU: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
   // 기록 로드 실패 스트립 (item 5) — 라우드 페일 토큰 전용. 다크 기록면 '밖'에 붙여 대비를 지킨다.
   recFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
@@ -640,8 +531,8 @@ const s = StyleSheet.create({
     marginHorizontal: -layout.gutter, marginTop: 8, paddingVertical: 11, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
   },
-  recFailTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  recFailRetry: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  recFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  recFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // 섹션 라벨 — 섹션 헤드 위 코랄 1px 풀블리드 룰 (페이퍼 섹션 분리 법)
   sec: {
@@ -649,9 +540,9 @@ const s = StyleSheet.create({
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter + 2,
     borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
   },
-  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 15pt 플로어 면제
+  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 12pt 플로어 면제
   secT: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
-  secKo: { fontSize: 15, fontWeight: '700', color: paper.text },
+  secKo: { fontSize: 14, fontWeight: '700', color: paper.text },
 
   // ③ 도장면 — 도장 그리드·소인은 아티팩트 그대로, 카드 크롬만 페이퍼 (백지 샤프 + #EEE)
   visa: {
@@ -668,10 +559,10 @@ const s = StyleSheet.create({
   perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: '#EEE' }, // 절취선
   // visaFootL retired with its lead-in copy — the foot is now just the right-aligned link
   visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 10, paddingHorizontal: 11 },
-  visaFootG: { fontSize: 15, fontWeight: '800', color: STAMP_INK },
+  visaFootG: { fontSize: 14, fontWeight: '800', color: STAMP_INK },
   empt: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE', padding: 11, marginBottom: 11 },
-  emptT: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: paper.ink },
-  emptD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 3 },
+  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  emptD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 3 },
 
   // 도장 그리드 — 칸/디스크/링은 stamp.tsx가 전담, 여기는 배열만
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
@@ -682,8 +573,8 @@ const s = StyleSheet.create({
   drowDiv: { borderTopWidth: 1, borderTopColor: '#EEE' },
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   drowIcon: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
-  drowTitle: { fontSize: 16, fontWeight: '700', color: paper.ink },
-  drowDesc: { fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 18 },
+  drowTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  drowDesc: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 18 },
 
   // ⑤ 큰 버튼 — 역할 전환 = 잉크 면 프라이머리 (15/14 라벨 유지, 섀도 은퇴)
   btnRole: {
@@ -703,15 +594,15 @@ const s = StyleSheet.create({
   // 라틴 레터스페이스 캡스 = 산증 키커 클래스(§3 예외)라 12pt 유지 가능하나, 색은 읽는 값으로.
   btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: paper.dim, textTransform: 'uppercase', marginTop: 3 },
   btnRoleSw: { borderWidth: 1, borderColor: paper.line, paddingVertical: 6, paddingHorizontal: 10 },
-  btnRoleSwTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 15pt floor · wash 위 5.99:1
+  btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 14pt floor · wash 위 5.99:1
 
   signout: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: '#EEE', paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
   },
   signoutTick: { width: 3, height: 30, backgroundColor: paper.line }, // 코랄 틱 — critical 아님 (로그아웃은 실패가 아니다)
-  signoutTitle: { fontSize: 16, fontWeight: '700', color: paper.ink },
-  signoutSub: { fontSize: 15, color: paper.dim, marginTop: 2 },
+  signoutTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  signoutSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
   colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEE', alignItems: 'center' },
@@ -721,7 +612,7 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#EEE', marginBottom: 14 },
-  fieldLabel: { fontSize: 15, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
+  fieldLabel: { fontSize: 14, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: paper.ink,
