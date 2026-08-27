@@ -1,4 +1,4 @@
--- ═══ 175: the live-key belts (0143) — V1~V6 ═══
+-- ═══ 175: the live-key belts (0143) — V1~V7 ═══
 --
 -- 0141 §B was written to stop a revived key being revoked, and suite 174's L5 was written to
 -- prove it. Both were half-right in the same way: they named the state `pending` instead of the
@@ -13,10 +13,11 @@
 
 do $$
 declare
-  u1 uuid; v_n int; v_txt text; v_msg text; v_bad text := '';
+  u1 uuid; u2 uuid; v_n int; v_txt text; v_msg text; v_bad text := ''; v_ref text;
   v_key text; v_tok uuid; v_sw boolean; v_id uuid;
 begin
   u1 := t_user('rv_live', 'owner');
+  u2 := t_user('rv_dead', 'owner');
 
   -- ⚠ [0143] `billing_key_swap` now RE-CHECKS the rollout gate at the write, so this fixture must
   --   OPEN it. Before 0143 the gate lived only in the edge handler and these pins reached the
@@ -138,6 +139,45 @@ begin
   update ops_flags set card_registration_live_since = now() - interval '1 minute';   -- reopen
   if v_bad <> '' then call _fail('rvl','V6 게이트가 닫히면 쓰기 자체가 거절된다', v_bad);
                  else call _pass('rvl','V6 게이트가 닫히면 쓰기 자체가 거절된다'); end if;
+
+  ------------------------------------------------------------------------------------------
+  -- V7: 🔴 THE REFUSAL REASON IS PART OF THE CONTRACT, and this pin exists because widening the
+  -- CAUSES without widening the RETURN breaks a correct caller with no edit to the caller.
+  -- Before 0143 `swapped=false` meant exactly one thing, so the handler mapped it to
+  -- `403 no_profile` and was right every time. This file adds two more causes; that same mapping
+  -- would then tell an owner with a perfectly good account that they have no profile.
+  --
+  -- All four values asserted TOGETHER, because the domain is the property — a pin that checked
+  -- only `gate_closed` would stay green if `key_busy` and `deleted_account` collapsed into each
+  -- other, which is the exact shape of the break.
+  v_bad := '';
+
+  -- success: no refusal at all. NULL here is load-bearing — a non-null reason on a successful
+  -- swap would have the handler refuse a registration that actually stored a key.
+  select refusal into v_ref from billing_key_swap(u1, 'bill_W1', '{"brand":"국민"}'::jsonb);
+  if v_ref is not null then v_bad := v_bad || ' success-has-reason(' || v_ref || ')'; end if;
+
+  -- tombstoned account
+  update profiles set deleted_at = now() where id = u2;
+  select refusal into v_ref from billing_key_swap(u2, 'bill_W2', '{"brand":"국민"}'::jsonb);
+  if v_ref is distinct from 'deleted_account' then v_bad := v_bad || ' dead=' || coalesce(v_ref,'∅'); end if;
+  update profiles set deleted_at = null where id = u2;
+
+  -- gate closed mid-flight
+  update ops_flags set card_registration_live_since = null;
+  select refusal into v_ref from billing_key_swap(u1, 'bill_W3', '{"brand":"국민"}'::jsonb);
+  if v_ref is distinct from 'gate_closed' then v_bad := v_bad || ' gate=' || coalesce(v_ref,'∅'); end if;
+  update ops_flags set card_registration_live_since = now() - interval '1 minute';
+
+  -- key actively being revoked
+  perform billing_key_swap(u1, 'bill_W4', '{"brand":"국민"}'::jsonb);
+  perform billing_key_swap(u1, 'bill_W5', '{"brand":"국민"}'::jsonb);   -- queues W4
+  perform claim_billing_key_revocations(10);                            -- W4 → live lease
+  select refusal into v_ref from billing_key_swap(u1, 'bill_W4', '{"brand":"국민"}'::jsonb);
+  if v_ref is distinct from 'key_busy' then v_bad := v_bad || ' busy=' || coalesce(v_ref,'∅'); end if;
+
+  if v_bad <> '' then call _fail('rvl','V7 거절 사유는 계약의 일부다', v_bad);
+                 else call _pass('rvl','V7 거절 사유는 계약의 일부다'); end if;
 
   -- restore the SHIPPED state: the gate ships closed (171 R7 owns that proposition).
   update ops_flags set card_registration_live_since = null;

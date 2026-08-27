@@ -56,12 +56,24 @@
 --     is why the row exists — so it is already scheduled for destruction. This path must NOT
 --     enqueue it again (§A's orphan insert is for the tombstone race, where the key is untracked;
 --     here it is tracked, and a second row would just be a duplicate DELETE).
-create or replace function billing_key_swap(
+-- ⚠ DROP-then-CREATE: the return table gains `refusal`, and postgres refuses a return-type
+--   change on `create or replace`. Grants go with the drop and are restated below.
+--
+-- 🔴 THE THIRD COLUMN IS NOT A CONVENIENCE — WITHOUT IT THIS MIGRATION SHIPS A LIE. Before 0143
+--    there was exactly ONE way to be refused (the account was tombstoned), so the handler could
+--    map `swapped=false` to `403 no_profile` and be right every time. This file adds two more
+--    causes — the gate closed mid-flight, and the key is being revoked right now — and that same
+--    mapping then tells an owner with a perfectly good account that they have no profile.
+--    **A boolean was a sufficient answer only while the question had one answer.** Widening the
+--    causes without widening the return is how a correct handler becomes a wrong one with no
+--    edit to the handler at all, which is precisely the kind of break nobody greps for.
+drop function if exists billing_key_swap(uuid, text, jsonb);
+create function billing_key_swap(
   p_profile uuid,
   p_billing_key text,
   p_card jsonb
 )
-returns table (swapped boolean, displaced_key text)
+returns table (swapped boolean, displaced_key text, refusal text)
 language plpgsql volatile security definer set search_path = public, pg_temp as $$
 declare v_prev text; v_alive boolean; v_exists boolean; v_busy boolean;
 begin
@@ -73,7 +85,7 @@ begin
     insert into billing_key_revocations (profile_id, billing_key, reason)
     values (case when coalesce(v_exists, false) then p_profile else null end,
             p_billing_key, 'orphaned_by_deletion');
-    return query select false, null::text;
+    return query select false, null::text, 'deleted_account'::text;
     return;
   end if;
 
@@ -97,7 +109,7 @@ begin
   if not card_registration_live() then
     insert into billing_key_revocations (profile_id, billing_key, reason)
     values (p_profile, p_billing_key, 'gate_closed');
-    return query select false, null::text;
+    return query select false, null::text, 'gate_closed'::text;
     return;
   end if;
 
@@ -113,7 +125,10 @@ begin
   ) into v_busy;
 
   if v_busy then
-    return query select false, null::text;
+    -- NOT an orphan and NOT a permanent failure: the key is already queued for destruction and
+    -- a retry issues a fresh one. The caller needs to know it may retry, which `no_profile`
+    -- actively denies.
+    return query select false, null::text, 'key_busy'::text;
     return;
   end if;
 
@@ -144,7 +159,7 @@ begin
    where billing_key = p_billing_key
      and (state = 'pending' or (state = 'processing' and lease_until < now()));
 
-  return query select true, v_prev;
+  return query select true, v_prev, null::text;
 end $$;
 revoke execute on function billing_key_swap(uuid, text, jsonb) from public, anon, authenticated;
 grant  execute on function billing_key_swap(uuid, text, jsonb) to service_role;
