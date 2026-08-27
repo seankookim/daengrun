@@ -809,7 +809,7 @@ export default function ClubSessionShell() {
     const caseId = d.openIncidentId ?? null;
     const caseLink = caseId && (d.ui?.primaryIssue === '케이스 확인' || !d.ui?.primaryIssue) ? (
       <Pressable onPress={() => router.push(`/club/case/${caseId}`)}>
-        <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent, marginTop: 8 }}>케이스 확인 →</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent, marginTop: 8 }}>케이스 확인 →</Text>
       </Pressable>
     ) : null;
     return (
@@ -827,9 +827,9 @@ export default function ClubSessionShell() {
             </Row>
           )}
           {caseLink ?? (d.ui?.primaryIssue ? (
-            <Text style={{ fontSize: 14, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
+            <Text style={{ fontSize: 15, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
           ) : hint && !assigned ? (
-            <Text style={{ fontSize: 14, color: L.dim, marginTop: 8 }}>{hint}</Text>
+            <Text style={{ fontSize: 15, color: L.dim, marginTop: 8 }}>{hint}</Text>
           ) : null)}
         </LilacCard>
 
@@ -883,13 +883,13 @@ export default function ClubSessionShell() {
                 <Row style={{ gap: 11, alignItems: 'center' }}>
                   <Avatar url={null} char={d.runnerName![0]} bg="#8f88b8" size={44} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{d.runnerName}</Text>
-                    <Text style={{ fontSize: 14, color: L.dim, marginTop: 2 }}>담당 러너 — 수락으로 확정</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.runnerName}</Text>
+                    <Text style={{ fontSize: 15, color: L.dim, marginTop: 2 }}>담당 러너 — 수락으로 확정</Text>
                   </View>
                   <ClubTag label="확정" tone="volt" />
                 </Row>
                 <View style={s.custodyNote}>
-                  <Text style={{ fontSize: 14, color: L.text }}>인계 확인부터 반환 확인까지 {d.dogName}의 책임자예요</Text>
+                  <Text style={{ fontSize: 15, color: L.text }}>인계 확인부터 반환 확인까지 {d.dogName}의 책임자예요</Text>
                 </View>
               </LilacCard>
             )}
@@ -898,8 +898,8 @@ export default function ClubSessionShell() {
             {!assigned && (
               <View style={s.paidRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>자리 확정</Text>
-                  <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 1 }}>{sess.when}{board?.session.routeName ? ` · ${board.session.routeName}` : ''}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>자리 확정</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 1 }}>{sess.when}{board?.session.routeName ? ` · ${board.session.routeName}` : ''}</Text>
                 </View>
                 <ClubTag label="완료" tone="volt" />
               </View>
@@ -922,7 +922,7 @@ export default function ClubSessionShell() {
                 {!d.ownerConfirmed
                   ? <ClubCta label={`${d.runnerName}에게 맡겼어요 — 인계 확인 →`} onPress={() => doHandoff(d)} busy={busy} />
                   : !d.runnerConfirmed && (
-                    <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center', marginTop: 10 }}>
+                    <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 10 }}>
                       {d.runnerName}의 확인을 기다려요 — 양쪽이 확인하면 책임자가 바뀌어요
                     </Text>
                   )}
@@ -967,7 +967,7 @@ export default function ClubSessionShell() {
             {!d.ownerReturnConfirmed
               ? <ClubCta label="인계받았어요 — 반환 확인 →" onPress={() => doReturnConfirm(d)} busy={busy} />
               : !d.runnerReturnConfirmed && (
-                <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center', marginTop: 10 }}>
+                <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 10 }}>
                   양쪽이 확인하면 반환이 끝나고 정산 시계가 돌기 시작해요
                 </Text>
               )}
@@ -1005,8 +1005,8 @@ export default function ClubSessionShell() {
     if (access === 'none' || access === 'limited' || !roster) {
       return (
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <Text style={{ fontSize: 14, color: L.text }}>참가 {peopleCount}팀 · 정원 {sess.capacity}</Text>
-          <Text style={{ fontSize: 14, color: L.dim, marginTop: 6 }}>
+          <Text style={{ fontSize: 15, color: L.text }}>참가 {peopleCount}팀 · 정원 {sess.capacity}</Text>
+          <Text style={{ fontSize: 15, color: L.dim, marginTop: 6 }}>
             {access === 'limited' ? '자리를 확정하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
           </Text>
         </View>
@@ -1165,7 +1165,7 @@ export default function ClubSessionShell() {
             {(['개요', '참가자', '채팅'] as const).map((t) => (
               <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}>
                 <Text style={[s.shellTxt, tab === t && { color: L.head }]}>
-                  {t}{tabCounts[t] != null ? <Text style={{ fontSize: 14, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
+                  {t}{tabCounts[t] != null ? <Text style={{ fontSize: 15, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
                 </Text>
                 {tab === t && <View style={s.shellOn} />}
               </Pressable>
@@ -1178,7 +1178,7 @@ export default function ClubSessionShell() {
           <>
             <LilacCard style={{ alignItems: 'center', paddingVertical: 22 }}>
               <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>오늘의 하이클럽</Text>
-              <Text style={{ fontSize: 14, color: L.text, marginTop: 4 }}>
+              <Text style={{ fontSize: 15, color: L.text, marginTop: 4 }}>
                 {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
               </Text>
             </LilacCard>
@@ -1202,7 +1202,7 @@ export default function ClubSessionShell() {
                     </Row>
                   )}
                   {d.ui?.primaryIssue && (
-                    <Text style={{ fontSize: 14, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
+                    <Text style={{ fontSize: 15, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
                   )}
                 </LilacCard>
                 {d.flap === 'SETTLED' && d.bookingId && (
@@ -1216,8 +1216,8 @@ export default function ClubSessionShell() {
             {myCharges.length > 0 && (
               <View style={s.paidRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>오늘 {myCharges.length}마리와 달렸어요</Text>
-                  <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 2 }}>정산은 반환·케이스 해소 후 자동으로 풀려요</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>오늘 {myCharges.length}마리와 달렸어요</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 2 }}>정산은 반환·케이스 해소 후 자동으로 풀려요</Text>
                 </View>
                 <Flap word="DONE" />
               </View>
@@ -1256,8 +1256,8 @@ export default function ClubSessionShell() {
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={clubText.vkDim}>MEET</Text>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head, marginTop: 3 }}>{sess.meetupPoint}</Text>
-                  <Text style={{ fontSize: 14, color: L.dim, marginTop: 3 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 3 }}>{sess.meetupPoint}</Text>
+                  <Text style={{ fontSize: 15, color: L.dim, marginTop: 3 }}>
                     호스트 {sess.hostName ?? '—'} · {peopleCount}팀 / {sess.capacity}
                   </Text>
                 </View>
@@ -1287,11 +1287,11 @@ export default function ClubSessionShell() {
                       <DogDot name={d.dogName} collar={d.collar} size={46} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.dogName}</Text>
-                        <Text style={{ fontSize: 14, color: L.dim, marginTop: 2 }}>{d.ownerName} 보호자</Text>
+                        <Text style={{ fontSize: 15, color: L.dim, marginTop: 2 }}>{d.ownerName} 보호자</Text>
                       </View>
                     </Row>
                     <View style={s.custodyNote}>
-                      <Text style={{ fontSize: 14, color: L.text }}>수락하면 인계부터 반환까지 {d.dogName}의 책임자는 나</Text>
+                      <Text style={{ fontSize: 15, color: L.text }}>수락하면 인계부터 반환까지 {d.dogName}의 책임자는 나</Text>
                     </View>
                   </LilacCard>
                   <ClubCta label="이 아이, 내가 맡을게요 →" onPress={() => doAcceptProposal(d)} busy={busy} disabled={expired} />
@@ -1314,8 +1314,8 @@ export default function ClubSessionShell() {
                     <View key={d.sdId} style={s.paidRow}>
                       <DogDot name={d.dogName} collar={d.collar} size={30} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{d.dogName}</Text>
-                        <Text style={{ fontSize: 14, lineHeight: 18, color: L.text, marginTop: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{d.dogName}</Text>
+                        <Text style={{ fontSize: 15, lineHeight: 18, color: L.text, marginTop: 1 }}>
                           {[
                             det?.emergencyContact ? `비상 ${det.emergencyContact}` : null,
                             det?.vetLimitKrw ? `한도 ${Math.round(det.vetLimitKrw / 10000)}만` : null,
@@ -1344,9 +1344,9 @@ export default function ClubSessionShell() {
                 {board && (
                   <View style={s.paidRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>오늘 담당 {myCharges.length}/{board.me.runnerCap}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>오늘 담당 {myCharges.length}/{board.me.runnerCap}</Text>
                       {myCharges.length >= board.me.runnerCap && (
-                        <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 1 }}>가득 찼어요 — 새 제안이 오지 않아요</Text>
+                        <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 1 }}>가득 찼어요 — 새 제안이 오지 않아요</Text>
                       )}
                     </View>
                     <Flap word={`${myCharges.length}/${board.me.runnerCap}`} />
@@ -1406,7 +1406,7 @@ export default function ClubSessionShell() {
                     {/* ④ 체크인 창 드레인 — 창 자체는 8시간이라 숫자는 안 쓴다(mm:ss는 60분 미만 전용), 링만 */}
                     <Row style={{ alignItems: 'center', gap: 9, marginTop: 9, paddingHorizontal: 2 }}>
                       <DrainRing leftMs={checkinLeftMs} totalMs={CHECKIN_MS} size={26} dots={12} />
-                      <Text style={{ fontSize: 14, color: L.dim, lineHeight: 20, flex: 1 }}>체크인 창은 시작 6시간 뒤 닫혀요</Text>
+                      <Text style={{ fontSize: 15, color: L.dim, lineHeight: 20, flex: 1 }}>체크인 창은 시작 6시간 뒤 닫혀요</Text>
                     </Row>
                   </>
                 )
@@ -1414,7 +1414,7 @@ export default function ClubSessionShell() {
             )}
             {isOpenish && sess.myAttendance === 'checked_in' && (
               <View style={s.checkedCard}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>체크인 완료 — 좋은 러닝 되세요</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent }}>체크인 완료 — 좋은 러닝 되세요</Text>
               </View>
             )}
 
@@ -1460,7 +1460,7 @@ export default function ClubSessionShell() {
         {/* ---------- ④ 채팅 — 그룹이 홈, 호스트 창구는 고정 드로어 ---------- */}
         {tab === '채팅' && access === 'none' && (
           <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 14, color: L.dim }}>세션 참가자만 볼 수 있어요</Text>
+            <Text style={{ fontSize: 15, color: L.dim }}>세션 참가자만 볼 수 있어요</Text>
           </View>
         )}
         {tab === '채팅' && access === 'limited' && (
@@ -1468,7 +1468,7 @@ export default function ClubSessionShell() {
           <>
             <LilacCard frame>
               <Row style={{ alignItems: 'center', gap: 7 }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
                 <View style={s.liveDotSm} />
               </Row>
               <View style={{ marginTop: 6 }}>
@@ -1482,7 +1482,7 @@ export default function ClubSessionShell() {
                 <TextInput value={draft} onChangeText={setDraft} placeholder="호스트에게 문의..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft, { audience: 'host_channel' })} style={s.sendBtn}>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>전송</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>전송</Text>
                 </Pressable>
               </Row>
             ) : (
@@ -1498,14 +1498,14 @@ export default function ClubSessionShell() {
               inquiryIds.length > 0 && (
                 <LilacCard frame>
                   <Row style={{ alignItems: 'center', gap: 7 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구 — 문의 {inquiryIds.length}건</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구 — 문의 {inquiryIds.length}건</Text>
                     <View style={s.liveDotSm} />
                   </Row>
                   {inquiryIds.map((pid) => {
                     const last = [...hostMsgs].reverse().find((m) => m.counterpartId === pid);
                     return (
                       <Pressable key={pid} onPress={() => setHostThread(pid)} style={{ marginTop: 6 }}>
-                        <Text style={{ fontSize: 14, color: L.text }} numberOfLines={1}>
+                        <Text style={{ fontSize: 15, color: L.text }} numberOfLines={1}>
                           {nameOf(pid)}: “{last?.deleted ? '삭제된 메시지' : last?.kind === 'photo' ? '사진' : last?.body ?? ''}” <Text style={{ color: L.accent, fontWeight: '800' }}>→ 탭해서 1:1</Text>
                         </Text>
                       </Pressable>
@@ -1517,10 +1517,10 @@ export default function ClubSessionShell() {
               <Pressable onPress={() => setHostThread('me')}>
                 <LilacCard frame>
                   <Row style={{ alignItems: 'center', gap: 7 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
                     {hostMsgs.length > 0 && <View style={s.liveDotSm} />}
                   </Row>
-                  <Text style={{ fontSize: 14, color: L.text, marginTop: 5 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 15, color: L.text, marginTop: 5 }} numberOfLines={1}>
                     {hostMsgs.length > 0
                       ? `${hostMsgs[hostMsgs.length - 1].mine ? '나' : hostMsgs[hostMsgs.length - 1].senderName}: “${hostMsgs[hostMsgs.length - 1].deleted ? '삭제된 메시지' : hostMsgs[hostMsgs.length - 1].kind === 'photo' ? '사진' : hostMsgs[hostMsgs.length - 1].body}”`
                       : '호스트에게 1:1로 문의하기'} <Text style={{ color: L.accent, fontWeight: '800' }}>→</Text>
@@ -1542,7 +1542,7 @@ export default function ClubSessionShell() {
                 <TextInput value={draft} onChangeText={setDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft)} style={s.sendBtn}>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>전송</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>전송</Text>
                 </Pressable>
               </Row>
             ) : (
@@ -1560,7 +1560,7 @@ export default function ClubSessionShell() {
           {/* 시트 머리에 있던 요금 숫자는 승낙서로 갔다 (재정 ④). 남는 것은 '무엇을 확정하는가'다 —
               두 동의 문장과 파일럿 고지는 그대로: 법적으로 묶이는 순간의 문장은 줄이지 않는다. */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 자리 확정</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 자리 확정</Text>
           </Row>
           {/* 규칙 7이 카드에서 옮겨온 두 문장 — 법적으로 묶이는 순간에만 등장 */}
           <Pressable onPress={() => setMethodOk((v) => !v)} style={s.legal}>
@@ -1619,7 +1619,7 @@ export default function ClubSessionShell() {
                 style={({ pressed }) => [s.addDogRow, pressed && { opacity: 0.6 }]}
               >
                 <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.name}</Text>
-                <Text style={{ fontSize: 14, color: L.dim }}>확인하고 데려가기</Text>
+                <Text style={{ fontSize: 15, color: L.dim }}>확인하고 데려가기</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -1631,7 +1631,7 @@ export default function ClubSessionShell() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)} />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
           <View style={s.grab} />
-          <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>
             호스트 창구{isHostView && hostThread ? ` — ${nameOf(hostThread)}` : ''}
           </Text>
           <ScrollView style={{ marginTop: 8 }} keyboardShouldPersistTaps="handled">
@@ -1648,7 +1648,7 @@ export default function ClubSessionShell() {
               <Pressable
                 onPress={() => doSend(threadDraft, { audience: 'host_channel', recipient: isHostView && hostThread !== 'me' ? hostThread : undefined })}
                 style={s.sendBtn}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>전송</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>전송</Text>
               </Pressable>
             </Row>
           ) : (
@@ -1662,8 +1662,8 @@ export default function ClubSessionShell() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAskText(null)} />
         <View style={s.sheet}>
           <View style={s.grab} />
-          <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{askText?.title}</Text>
-          <Text style={{ fontSize: 14, color: L.text, marginTop: 5, lineHeight: 18 }}>{askText?.message}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{askText?.title}</Text>
+          <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 18 }}>{askText?.message}</Text>
           <TextInput
             value={askDraft} onChangeText={setAskDraft} multiline autoFocus
             placeholder="내용..." placeholderTextColor={L.dim}
@@ -1691,18 +1691,18 @@ export default function ClubSessionShell() {
 const s = StyleSheet.create({
   // 정직 고지 플레이트 — owner/pay.tsx의 plate 문법을 클럽 시트로 이식
   payPlate: { backgroundColor: L.inset, borderLeftWidth: 3, borderLeftColor: L.amber, padding: 11, marginTop: 10 },
-  payPlateTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: L.text },
+  payPlateTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: L.text },
   shell: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: L.hair2, marginTop: 8 },
   shellTab: { flex: 1, alignItems: 'center', paddingVertical: 9 },
-  shellTxt: { fontSize: 14, fontWeight: '800', color: L.dim },
+  shellTxt: { fontSize: 15, fontWeight: '800', color: L.dim },
   shellOn: { position: 'absolute', left: '28%', right: '28%', bottom: -1, height: 2.5, backgroundColor: L.accent, borderRadius: 2 },
   deadline: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: L.amberSoft, borderRadius: lilacRadius.inner, padding: 11, paddingHorizontal: 13, marginTop: 10,
   },
   // ④ 링 옆 경고 한 줄 — 앰버 잉크 유지, 14pt 바닥선 (숫자는 링이 말한다)
-  deadlineCopy: { fontSize: 14, color: '#7a5a2a', lineHeight: 20, flex: 1 },
-  detailLink: { textAlign: 'center', marginTop: 11, fontSize: 14, fontWeight: '800', color: L.accent },
+  deadlineCopy: { fontSize: 15, color: '#7a5a2a', lineHeight: 20, flex: 1 },
+  detailLink: { textAlign: 'center', marginTop: 11, fontSize: 15, fontWeight: '800', color: L.accent },
   custodyNote: { backgroundColor: L.inset, borderRadius: lilacRadius.inner, padding: 9, paddingHorizontal: 10, marginTop: 10 },
   paidRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1729,23 +1729,23 @@ const s = StyleSheet.create({
   retsideDone: { backgroundColor: L.voltFill },
   // 트래킹 라틴 마이크로는 라벨(RUNNER/OWNER)만 입는다 — 사람 이름은 읽는 크기의 형제로 분리 (7.5pt 한글 금지)
   retMono: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.5, color: L.dim },
-  retWho: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: L.text, marginTop: 2 },
-  retWord: { fontSize: 14, fontWeight: '800', color: L.head, marginTop: 4 },
+  retWho: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: L.text, marginTop: 2 },
+  retWord: { fontSize: 15, fontWeight: '800', color: L.head, marginTop: 4 },
   sechead: {
     flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingBottom: 6,
     borderBottomWidth: 1, borderBottomColor: L.hair2,
   },
-  secheadTitle: { fontSize: 14, fontWeight: '800', color: L.head },
+  secheadTitle: { fontSize: 15, fontWeight: '800', color: L.head },
   drow: {
     backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
     padding: 11, marginTop: 8,
   },
-  personName: { fontSize: 14, fontWeight: '800', color: L.head },
-  personSub: { fontSize: 14, lineHeight: 18, color: L.text, marginTop: 1 },
+  personName: { fontSize: 15, fontWeight: '800', color: L.head },
+  personSub: { fontSize: 15, lineHeight: 18, color: L.text, marginTop: 1 },
   phoneChip: { backgroundColor: L.voltFill, borderRadius: lilacRadius.tag, paddingVertical: 5, paddingHorizontal: 9 },
   // 전화 칩 = tel: 탭 타깃이다 — 번호가 읽히지 않으면 문이 아니다 (바닥선 14)
-  phoneChipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: L.voltDeep, fontVariant: ['tabular-nums'] },
-  phoneNotice: { fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 10, textAlign: 'center' },
+  phoneChipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: L.voltDeep, fontVariant: ['tabular-nums'] },
+  phoneNotice: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 10, textAlign: 'center' },
   sheet: {
     backgroundColor: L.bg, borderTopLeftRadius: lilacRadius.screen, borderTopRightRadius: lilacRadius.screen,
     padding: 16, paddingBottom: 34,
@@ -1760,11 +1760,11 @@ const s = StyleSheet.create({
     width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: L.hair,
     backgroundColor: L.inset, alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  legalTxt: { flex: 1, fontSize: 14, color: L.text, lineHeight: 18 },
+  legalTxt: { flex: 1, fontSize: 15, color: L.text, lineHeight: 18 },
   // ④ 채팅 — 말풍선 문법 (시스템 가운데 · 남 왼쪽 · 나 오른쪽 바이올렛)
-  sysMsg: { fontSize: 14, lineHeight: 18, color: L.dim, textAlign: 'center', marginTop: 10 },
+  sysMsg: { fontSize: 15, lineHeight: 18, color: L.dim, textAlign: 'center', marginTop: 10 },
   msgRow: { marginTop: 9, alignItems: 'flex-start' },
-  msgWho: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginBottom: 3, marginLeft: 2 },
+  msgWho: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginBottom: 3, marginLeft: 2 },
   bb: {
     maxWidth: '82%', backgroundColor: L.card, borderWidth: 1, borderColor: L.hair,
     borderRadius: 10, borderTopLeftRadius: 3, paddingVertical: 8, paddingHorizontal: 11,
@@ -1773,7 +1773,7 @@ const s = StyleSheet.create({
     backgroundColor: L.accent, borderColor: L.accent,
     borderTopLeftRadius: 10, borderTopRightRadius: 3,
   },
-  bbTxt: { fontSize: 14, lineHeight: 18, color: L.text },
+  bbTxt: { fontSize: 15, lineHeight: 18, color: L.text },
   inputbar: {
     gap: 8, marginTop: 12, alignItems: 'flex-end',
     backgroundColor: L.glass, borderWidth: 1, borderColor: L.glassEdge,
@@ -1781,7 +1781,7 @@ const s = StyleSheet.create({
   },
   inputField: {
     flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
-    paddingVertical: 8, paddingHorizontal: 12, fontSize: 14, color: L.head, maxHeight: 90,
+    paddingVertical: 8, paddingHorizontal: 12, fontSize: 15, color: L.head, maxHeight: 90,
   },
   sendBtn: {
     backgroundColor: L.accent, borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 13,
@@ -1791,7 +1791,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: L.hair, alignItems: 'center', justifyContent: 'center',
   },
   bbPhoto: { width: 190, height: 142, borderRadius: 10, backgroundColor: L.inset },
-  closedLine: { fontSize: 14, color: L.dim, textAlign: 'center', marginTop: 12, lineHeight: 18 },
+  closedLine: { fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 12, lineHeight: 18 },
   liveDotSm: {
     width: 8, height: 8, borderRadius: 4, backgroundColor: L.coral,
     shadowColor: L.coral, shadowOpacity: 0.4, shadowRadius: 4, elevation: 2,

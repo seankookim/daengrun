@@ -53,9 +53,9 @@ function DogDot({ name, collar, size = 34 }: { name: string; collar: string | nu
 function SecHead({ n, title, sub }: { n: string; title: string; sub?: string }) {
   return (
     <View style={s.sechead}>
-      <View style={s.secN}><Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{n}</Text></View>
-      <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{title}</Text>
-      {!!sub && <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginLeft: 'auto' }}>{sub}</Text>}
+      <View style={s.secN}><Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{n}</Text></View>
+      <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{title}</Text>
+      {!!sub && <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginLeft: 'auto' }}>{sub}</Text>}
     </View>
   );
 }
@@ -125,7 +125,7 @@ export default function HostConsole() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
+          <Text style={{ fontSize: 15, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -359,7 +359,7 @@ export default function HostConsole() {
                   <Row style={{ gap: 8, alignItems: 'center' }}>
                     <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : 'amber'} />
                     <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent }}>열기 →</Text>
                   </Row>
                 </Pressable>
               ))}
@@ -396,7 +396,7 @@ export default function HostConsole() {
         {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
         {sess.delegatedCapacity === 0 && (
           <View style={s.capWarn}>
-            <Text style={{ fontSize: 14, color: '#7a5a2a', lineHeight: 18 }}>
+            <Text style={{ fontSize: 15, color: '#7a5a2a', lineHeight: 18 }}>
               <Text style={{ fontWeight: '800', color: L.amber }}>위탁 정원 0</Text> — 정원은 러너 확약이 만들어요. 세션 화면에서 러너 확약부터 하면 승인이 열려요.
             </Text>
           </View>
@@ -491,7 +491,7 @@ export default function HostConsole() {
         {/* 배정 창 = 집결 2시간 전 ~ 6시간 후 (checkinOpen과 동일 창) — 닫혀 있으면 미리 말한다 */}
         {!sess.checkinOpen && paid.length > 0 && (
           <View style={s.capWarn}>
-            <Text style={{ fontSize: 14, color: '#7a5a2a', lineHeight: 18 }}>
+            <Text style={{ fontSize: 15, color: '#7a5a2a', lineHeight: 18 }}>
               <Text style={{ fontWeight: '800', color: L.amber }}>배정 창 닫힘</Text> — 집결 2시간 전에 열려요. 담당은 집결지에서 정해져요.
             </Text>
           </View>
@@ -593,7 +593,7 @@ export default function HostConsole() {
                   <Row style={{ gap: 8, alignItems: 'center' }}>
                     <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : i.severity.toLowerCase() === 's2' ? 'amber' : 'dim'} />
                     <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent }}>열기 →</Text>
                   </Row>
                 </Pressable>
                 <Row style={{ gap: 8, marginTop: 10 }}>
@@ -622,8 +622,8 @@ export default function HostConsole() {
         <SecHead n="5" title="세션 진행" />
         {blockers.length > 0 && (
           <LilacCard crit>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
-            <Text style={{ fontSize: 14, color: L.text, marginTop: 6, lineHeight: 18 }}>{blockers.join(' · ')}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
+            <Text style={{ fontSize: 15, color: L.text, marginTop: 6, lineHeight: 18 }}>{blockers.join(' · ')}</Text>
           </LilacCard>
         )}
         {/* [클럽 감사 C4] 러닝이 끝나지 않은 개 — 인계까지 갔는데 러너가 시작/종료를 누르지 않으면
@@ -695,8 +695,8 @@ export default function HostConsole() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setForceTarget(null)} />
         <View style={s.sheet}>
           <View style={s.grab} />
-          <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{forceTarget?.dogName} 강제 종결</Text>
-          <Text style={{ fontSize: 14, color: L.text, marginTop: 5, lineHeight: 19 }}>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{forceTarget?.dogName} 강제 종결</Text>
+          <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 19 }}>
             {/* [적대 리뷰 2026-08-11] 종전 카피는 '정산은 보류돼요'였다 — 보류는 '곧 풀린다'는 뜻인데,
                 incident_review는 전이 맵의 종단이라(0001:206) 케이스를 해소해도 정산이 스스로
                 풀리지 않는다. 앱이 못 지키는 약속을 지우고 실제로 참인 것만 말한다. */}
@@ -737,10 +737,10 @@ const s = StyleSheet.create({
     backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
     padding: 11, marginTop: 8,
   },
-  dogName: { fontSize: 14, fontWeight: '800', color: L.head },
+  dogName: { fontSize: 15, fontWeight: '800', color: L.head },
   // 제안 카운트다운(mmss)·확약 러너 부재 안내가 사는 줄 — 정보 텍스트 바닥선 14
-  dogSub: { fontSize: 14, lineHeight: 18, color: L.text, marginTop: 1 },
-  emptyLine: { fontSize: 14, color: L.dim, marginTop: 10, textAlign: 'center' },
+  dogSub: { fontSize: 15, lineHeight: 18, color: L.text, marginTop: 1 },
+  emptyLine: { fontSize: 15, color: L.dim, marginTop: 10, textAlign: 'center' },
   capWarn: {
     backgroundColor: L.amberSoft, borderWidth: 1, borderColor: L.amberEdge,
     borderRadius: lilacRadius.inner, padding: 10, paddingHorizontal: 12, marginTop: 8,
@@ -751,7 +751,7 @@ const s = StyleSheet.create({
   },
   abtnGhost: { backgroundColor: L.inset },
   abtnWarn: { backgroundColor: L.amberSoft },
-  abtnTxt: { fontSize: 14, fontWeight: '800', color: L.voltDeep },
+  abtnTxt: { fontSize: 15, fontWeight: '800', color: L.voltDeep },
   runnerChipOff: { backgroundColor: L.inset, borderColor: L.hair },
   runnerChip: { backgroundColor: L.hair2, flexGrow: 0 },
   // 강제 종결 시트 — session/[sid].tsx의 공용 시트 문법 이식 (같은 부품, 같은 느낌)
@@ -762,7 +762,7 @@ const s = StyleSheet.create({
   grab: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: L.hair, marginBottom: 12 },
   inputField: {
     backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
-    paddingVertical: 10, paddingHorizontal: 12, fontSize: 14, color: L.head,
+    paddingVertical: 10, paddingHorizontal: 12, fontSize: 15, color: L.head,
     marginTop: 12, minHeight: 72, textAlignVertical: 'top',
   },
 });
