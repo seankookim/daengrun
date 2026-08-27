@@ -33,13 +33,29 @@ hardening incl. the crash window where a destroyed key could be stored as a live
    three-line pre-send checklist, referral line deliberately blank. **This gates phone
    collection, publishing the privacy policy and terms, the KCC filing, and launch.** Oldest
    open item; nothing else on this list is close.
-2. 🔴 **THERE IS NO BUILD. NOTHING HAS EVER REACHED A PHONE — corrected 2026-08-27 (ui6).**
-   This line previously read 「everything above is real on a device now」. It is not, and the
-   correction matters more than anything else on this list: **`eas build:list` returns EMPTY.**
-   Not a stale build, not a failed one — **none has ever been made.** The database is deployed
-   through 0152; the client only travels in a binary, and no binary exists. So production is
-   running today's server against a client nobody has ever built, and several of today's client
-   fixes are the *other half* of server changes that already shipped.
+2. **Device build — and ⚠ RETRACTION of what this line said an hour ago (ui6, 2026-08-27).**
+   I wrote here that 「THERE IS NO BUILD, NOTHING HAS EVER REACHED A PHONE」. **That was wrong,
+   Sean caught it in one sentence — 「look at the ios sim」 — and the original line it replaced
+   was closer to right than my correction.**
+   **What I measured:** `eas build:list` empty (**true** — no CLOUD build exists) and no installed
+   app for `com.seankookim.dogshigh` (**true, and irrelevant**). **What I reported:** that no build
+   exists at all. 🔴 **The installed simulator app is `com.seankookim.daengrun` — the OLD bundle
+   id.** The config was renamed to `dogshigh`; the installed shell predates that. I searched for
+   the current identifier, got nothing, and promoted it to a claim about the world.
+   **The measured truth:**
+   · A **simulator build exists**, made **2026-08-13**, bundle id `com.seankookim.daengrun`.
+   · It is a **DEBUG** build → it carries **no embedded bundle** and loads JS from **Metro**.
+   · Metro is live on `:8081` from a worktree — so **the simulator runs TODAY's client**, and
+     today's UI work is visible on it right now (verified by screenshot: `시간만 고르기 ›` renders
+     ink — this afternoon's dim-text fix — while `예정된 러닝이 없어요` stays grey, the one
+     deliberately left alone).
+   🔴 **THE REAL GAP, which is narrower and more useful than what I claimed:** a Debug shell
+   carries only NATIVE code. **Any native change since 2026-08-13 is NOT in what anyone is
+   looking at** — JS flows through Metro, native does not. And there is still **no artifact
+   installable on a PHYSICAL device** and no EAS cloud build.
+   ⚠ **Whoever reads the simulator must also read WHICH Metro** — `lsof -nP -iTCP:8081` then the
+   pid's `cwd`. A Debug build binds to whatever Metro answers, so it can silently serve a peer
+   session's tree, and the screen then shows someone else's work.
    **What was done toward it (ui6, 2026-08-27):**
    · `EXPO_PUBLIC_SUPABASE_URL` + `_ANON_KEY` pushed to the EAS `preview` environment — there
      were **zero** env vars configured, so no build could ever have reached Supabase. Uploaded
