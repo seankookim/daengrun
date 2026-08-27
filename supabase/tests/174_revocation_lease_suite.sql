@@ -132,6 +132,10 @@ begin
   -- property it never tested.
   v_bad := '';
   select prosrc into v_txt from pg_proc where proname = 'dispatch_billing_key_revocations';
+  -- ⚠ A missing function makes `prosrc` NULL, and `v_txt !~ …` on NULL is NOT TAKEN — so
+  --   without this arm every check below passes when the function is GONE. Measured on
+  --   180 W1/W6 (2026-08-27): absent function ⇒ 1061/0, all green. Audit-the-whole-set.
+  if v_txt is null then v_bad := v_bad || ' NO-SOURCE(dispatch_billing_key_revocations)'; end if;
   if v_txt !~ 'cron_key'          then v_bad := v_bad || ' NO-cron_key'; end if;
   if v_txt !~ 'X-Cron-Key'        then v_bad := v_bad || ' NO-X-Cron-Key'; end if;
   if v_txt ~  'Authorization'     then v_bad := v_bad || ' STILL-Bearer'; end if;

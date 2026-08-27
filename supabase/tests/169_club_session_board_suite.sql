@@ -517,6 +517,9 @@ begin
     from pg_proc p where p.proname = 'club_session_board';
   if v_txt not like '%search_path=public, pg_temp%' then v_bad := v_bad || ' searchpath(' || v_txt || ')'; end if;
   select prosrc into v_txt from pg_proc where proname = 'club_session_board';
+  -- ⚠ `not like` on a NULL is NULL, so an ABSENT function passes every arm below. Measured on
+  --   180 W1/W6 (2026-08-27): pointed at a nonexistent proname, the pins went 1061/0 green.
+  if v_txt is null then v_bad := v_bad || ' NO-SOURCE(club_session_board)'; end if;
   if v_txt like '%current_user%' then v_bad := v_bad || ' USES-current_user'; end if;
   if v_txt not like '%auth.uid()%' then v_bad := v_bad || ' NO-auth.uid'; end if;
   if v_bad <> '' then call _fail('bds','P19·P20·P21 ACL·search_path·선택자', v_bad);

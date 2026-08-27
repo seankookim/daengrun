@@ -409,14 +409,26 @@ begin
   -- while a comment in the same migration claimed the family was serialized.
   v_bad := '';
   select prosrc into v_txt from pg_proc where proname = 'session_cancel_rsvp';
+  -- ⚠ A missing function makes `prosrc` NULL, and `v_txt !~ …` on NULL is NOT TAKEN — so
+  --   without this arm every check below passes when the function is GONE. Measured on
+  --   180 W1/W6 (2026-08-27): absent function ⇒ 1061/0, all green. Audit-the-whole-set.
+  if v_txt is null then v_bad := v_bad || ' NO-SOURCE(session_cancel_rsvp)'; end if;
   if v_txt !~ 'from club_sessions where id = p_session for update' then v_bad := v_bad || ' cancel-UNLOCKED'; end if;
   -- the lock must PRECEDE the membership read, or it orders nothing that matters
   if position('for update' in v_txt) > 0 and position('from session_people' in v_txt) > 0
      and position('for update' in v_txt) > position('from session_people' in v_txt)
     then v_bad := v_bad || ' lock-AFTER-read'; end if;
   select prosrc into v_txt from pg_proc where proname = 'session_rsvp';
+  -- ⚠ A missing function makes `prosrc` NULL, and `v_txt !~ …` on NULL is NOT TAKEN — so
+  --   without this arm every check below passes when the function is GONE. Measured on
+  --   180 W1/W6 (2026-08-27): absent function ⇒ 1061/0, all green. Audit-the-whole-set.
+  if v_txt is null then v_bad := v_bad || ' NO-SOURCE(session_rsvp)'; end if;
   if v_txt !~ 'for update' then v_bad := v_bad || ' rsvp-UNLOCKED'; end if;
   select prosrc into v_txt from pg_proc where proname = 'session_add_my_dog';
+  -- ⚠ A missing function makes `prosrc` NULL, and `v_txt !~ …` on NULL is NOT TAKEN — so
+  --   without this arm every check below passes when the function is GONE. Measured on
+  --   180 W1/W6 (2026-08-27): absent function ⇒ 1061/0, all green. Audit-the-whole-set.
+  if v_txt is null then v_bad := v_bad || ' NO-SOURCE(session_add_my_dog)'; end if;
   if v_txt !~ 'for update' then v_bad := v_bad || ' add-UNLOCKED'; end if;
   if v_bad <> '' then call _fail('rhd','G0 세 경로 모두 같은 세션 락', v_bad);
                  else call _pass('rhd','G0 세 경로 모두 같은 세션 락'); end if;
