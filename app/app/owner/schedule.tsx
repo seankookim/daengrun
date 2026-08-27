@@ -22,6 +22,12 @@ import { CollarKey, collarColors, colors, paper } from '../../src/theme';
 // (route card + predictions + runner + reschedule/cancel actions).
 // A confirmed booking is a contract — never re-routes to runner selection.
 
+// [DESIGN.md §7a-bis · Sean 2026-08-26] Ink is the default; the grey ramp marks only what a
+// customer may skip. State notes (why this booking can no longer be changed, where a club
+// cancellation lives), honest gaps and the two cancel-fee disclosures moved up to ink; counts,
+// units, timestamps, group labels, stat labels and glyphs stayed where they were. The judgment
+// is per site — this screen is not a find-and-replace target.
+
 // [paper chrome 2026-08-10] 포레스트/크림 레거시 크롬 은퇴 → 페이퍼 잉크 램프.
 // 상태 컬러(레일·배지·칩)는 시맨틱 시스템 — 그대로 생존 (DESIGN.md 이관 문법).
 // 필터 칩 = 카드 좌측 레일과 같은 상태 컬러 스키마 — 칩이 곧 범례가 된다.
@@ -557,7 +563,7 @@ export default function Schedule() {
         {/* agenda — 풀와이드 밴드 (모던 패스: 카드 수프 → 엣지-투-엣지) */}
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>일정 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center' }}>일정 불러오는 중...</Text>
           </View>
         )}
         {/* 라우드-페일 스트립 — 실패는 빈 일정으로 분장하지 않는다 */}
@@ -571,7 +577,7 @@ export default function Schedule() {
         )}
         {loaded && !loadErr && visible.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 23 }}>
+            <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', lineHeight: 23 }}>
               {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다 — 죽은 안내 문구 교정.
                   [2026-08-19] 'GO 버튼'도 같은 운명 — 랩 ⑧ v2가 GO 디스크를 은퇴시키고 홈 히어로를
                   두 문(지금 찾기 / 예약하기)으로 바꿨다. 화면에 없는 버튼으로 안내하지 않는다. */}
@@ -619,7 +625,7 @@ export default function Schedule() {
                   {/* header */}
                   <Row style={{ justifyContent: 'space-between' }}>
                     <View>
-                      <Text style={{ fontSize: 15, color: paper.dim }}>{selected.dateLabel}</Text>
+                      <Text style={{ fontSize: 15, color: paper.ink }}>{selected.dateLabel}</Text>
                       {/* Oswald numerals (900 = numbers+titles law) — lineHeight 32 >= 1.2x (BUG A) */}
                       <Text style={[{ fontSize: 25.5, fontWeight: '900', color: paper.ink, marginTop: 2, lineHeight: 32 }, nf]}>
                         {selected.timeLabel} · {selected.dogName}
@@ -762,7 +768,7 @@ export default function Schedule() {
                       )}
                     </Row>
                     {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') && (
-                      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 19 }}>
+                      <Text style={{ fontSize: 15, color: paper.ink, marginTop: 8, lineHeight: 19 }}>
                         러너가 수락하면 채팅을 열 수 있어요
                       </Text>
                     )}
@@ -787,7 +793,7 @@ export default function Schedule() {
                           </Pressable>
                         </View>
                       ) : payRows.length === 0 ? (
-                        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 6 }}>
+                        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.ink, marginTop: 6 }}>
                           아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요
                         </Text>
                       ) : (
@@ -808,12 +814,12 @@ export default function Schedule() {
                         <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
                         <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
                       </Pressable>
-                      <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
+                      <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
                   ) : selected.status === 'handoff' ? (
-                    <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
+                    <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
@@ -852,13 +858,13 @@ export default function Schedule() {
                   ) : selected.status === 'cancelled' ? (
                     // 취소된 일정 — 관리 액션 없음. 변경 요청은 서버가 확정 전용(409)이라 죽은 버튼이 되고,
                     // 취소하기는 재취소가 된다. 상태를 그대로 말하고 끝낸다.
-                    <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
                       취소된 일정이에요 — 더 진행할 작업이 없어요
                     </Text>
                   ) : (selected.rawStatus === 'no_show' || selected.rawStatus === 'incident_review') ? (
                     // 불발·확인 중 — 서버 전이상 취소도 변경도 불가(refund_pending만 합법) → 액션 없음이 정직.
                     // 이전엔 STATUS_MAP 폴백 'pending'으로 이 시트가 죽은 취소 버튼을 그렸다.
-                    <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
                       {selected.rawStatus === 'no_show'
                         ? '불발로 처리된 일정이에요 — 더 진행할 작업이 없어요'
                         : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
@@ -870,7 +876,7 @@ export default function Schedule() {
                           합법(50% 수수료 = 러너 보상) — 아래 취소 링크가 이 상태에서도 열리고, 확인
                           시트가 50% 티어를 커밋 전에 명시한다. 여기는 변경 마감 사실만 말한다. */}
                       {selected.rawStatus === 'runner_enroute' && (
-                        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                        <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
                           러너가 픽업으로 이동 중이에요 — 일정 변경은 마감됐어요
                         </Text>
                       )}
@@ -925,7 +931,7 @@ export default function Schedule() {
                           {/* '취소하기'라고 쓰지 않는다 — 인계 이후(runner_enroute~)의 위탁은
                               클럽 규정상 취소가 아니라 케이스로 다뤄지고, 서버도 그렇게 답한다.
                               여기서 '취소'를 약속하면 다음 화면이 거절할 때 그게 거짓말이 된다. */}
-                          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>
+                          <Text style={{ fontSize: 15, color: paper.ink, marginTop: 2 }}>
                             위탁 예약은 클럽 세션 화면에서 처리해요 — 취소 규정도 그곳에 있어요
                           </Text>
                         </Pressable>
@@ -944,7 +950,7 @@ export default function Schedule() {
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
                   {selected.seriesId && (
                     <Pressable style={s.cancelLink} onPress={pauseSeries}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim }}>⟳ 매주 반복 해지</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink }}>⟳ 매주 반복 해지</Text>
                     </Pressable>
                   )}
                 </>
@@ -983,7 +989,7 @@ export default function Schedule() {
                     )}
                     {/* [0066] 이동 중 티어는 배분 문장이 다르다 — 50% 전액이 이미 출발한 러너의 보상.
                         일반 티어 카피(10%·50/50 배분·24h 무료)는 그대로 생존. */}
-                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 20 }}>
+                    <Text style={{ fontSize: 15, color: paper.ink, marginTop: 10, lineHeight: 20 }}>
                       {enrouteCancel
                         ? '러너가 이미 픽업으로 출발했어요 — 이동 중 취소 수수료는 전액 시간을 내어 출발한 러너의 보상으로 배분돼요.'
                         : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
@@ -997,7 +1003,7 @@ export default function Schedule() {
                         slice ships. The server already branches on payments.status='confirmed'
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
-                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 20 }}>
+                    <Text style={{ fontSize: 15, color: paper.ink, marginTop: 6, lineHeight: 20 }}>
                       {quotedFee == null
                         ? '지금까지 결제된 금액이 없어서 환불은 없어요.'
                         : quotedFee > 0
