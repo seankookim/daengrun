@@ -387,6 +387,26 @@ the thing that feels unnecessary.** Practical rule: when you ADD a conjunct to c
 same commit owes a mutation that deletes exactly that conjunct. Not the battery later — the same
 commit.
 
+🔴 **A HANDOFF THAT SAYS 「THIS PIN SHOULD BE FAILING」 MANUFACTURES A FALSE GREEN IN
+DOCUMENTATION** (b6, 2026-08-27, catching the announcer's own handoff within minutes of it
+landing). The file said b6's `PENDING_DEPLOY` entries 「can come out」 and their run-screen work
+was 「still open」 — both had landed while the file was being written. **The damage is not the
+stale instruction; it is the second-order one:** a pin was described as failing-until-done, so
+the next session would run it, watch it **PASS**, and reasonably conclude **the pin is broken**.
+**A false green produced by a document, arriving through the one artifact nobody thinks to
+distrust.** Fix it in the FILE, not in the conversation — and re-measure a handoff's claims at
+write time even when they were true an hour earlier, because parallel sessions land between your
+measurement and your paragraph.
+
+⚠ **AND THE STRANDED-WORK SWEEP HAS AN EVIDENCE-STRENGTH TRAP** (same exchange). The announcer
+reported 「9 branches clean: 8 confirmed duplicated on trunk by `patch-id`, the 9th's target file
+on trunk is a superset of it」 — **that is two different strengths of evidence summed as one
+number.** `patch-id` proves the change LANDED; 「the file moved on」 proves only that the file
+moved on, which happens for reasons unrelated to that branch. **The sweep reported 9 and measured
+8.** The conclusion held once the 9th was settled properly — which is the trap, because a
+correct-by-luck answer is what stops anyone re-examining the method. **Give every item in a sweep
+the same evidence, or mark the weak ones UNVERIFIED and say the count is partial.**
+
 🔴 **A MEASUREMENT'S WRITE-UP OUTLIVES THE THING MEASURED** (both sessions, same day, two shapes).
 Mine: a battery block claiming 「this mutation reddens S5 alone」, still true when written, falsified
 by a pin I ADDED afterwards and never re-ran. ui6's: a suite baseline quoted as 33/33/34 from a
