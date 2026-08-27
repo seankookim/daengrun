@@ -232,6 +232,34 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **A SOURCE PIN THAT MATCHES PROSE IS MEASURING THE DOCUMENTATION** (ui6, 2026-08-27 — third
+instance of the comment-matching law this week and **the first one INSIDE a pin written to enforce
+rigour**). Their `W6` asserted 「the lock precedes the gate」 by searching `prosrc` for the gate's
+name, and failed on a correct function — because `card_registration_live()` appears in **0148's own
+comment explaining the fix**, ~300 characters ahead of the real call. The pin was reading the
+migration's prose as if it were its code.
+**Fix, and it belongs in every source-reading pin: strip comments from `prosrc` before matching** —
+`regexp_replace(prosrc, '--[^\n]*', '', 'g')` at minimum. Same family as the definer-ACL and
+push-detector laws: a pattern present in both the fixed and unfixed states is uninformative, and a
+comment that explains a fix guarantees the pattern is present.
+
+🔴 **A PIN WHOSE FIXTURE CANNOT DISTINGUISH TWO RULES IS TESTING THE FIXTURE, NOT THE RULE**
+(ui6, same battery, and the subtler of the two). Reverting a predicate from `attempts > 0` back to
+`state = 'processing'` reddened **only the source pin** — because the fixture row was literally
+`processing`, a state on which the OLD rule and the NEW rule AGREE. A behavioural pin can only see
+a predicate change when its fixture sits where the two predicates **diverge**. The repair was to
+add a `done`-row arm (claimed but not processing — and the worst real case, since `done` means the
+external DELETE definitely landed). **Practical form: when you change a predicate, write down the
+set of rows where old and new disagree, and make sure a fixture is IN that set.** An unchanged
+green after a predicate change usually means the fixture never left the agreement zone.
+
+⚠ **A PIN THAT REVERSED IS NOT A PIN THAT WAS WEAK** (ui6). Their `175 V3` asserted that an
+expired-lease row gets abandoned and its key becomes current — measured, mutation-verified, and
+**wrong**, because the behaviour it correctly described was itself the defect. Worth separating in
+any ledger: a pin can be rigorous, honest, and load-bearing while pinning a bug. Reversing it is
+not an admission that the testing was sloppy; it is the testing working. Do not let 「we had to
+flip a pin」 become evidence against the practice that produced it.
+
 🔴 **MUTATE THE GUARD'S PRECONDITION, NOT ONLY WHAT THE GUARD DOES** (ui6, 2026-08-27, found by
 a cold reader in code ui6 had written that day and described as closed — then reproduced by the
 announcer in 0131 within the hour by applying it). Their battery mutated a refusal BRANCH and
