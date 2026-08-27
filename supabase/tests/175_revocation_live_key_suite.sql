@@ -63,28 +63,38 @@ begin
               else call _pass('rvl','V2 거절은 폐기 주문을 복제하지 않는다'); end if;
 
   ------------------------------------------------------------------------------------------
-  -- V3: an EXPIRED-lease `processing` row is abandoned on revival, exactly like a pending one.
-  -- This is the half 0141 missed in the other direction: its worker is gone and 0141 §C already
-  -- treats the row as reclaimable, so leaving it alone means the next claim resurrects an order
-  -- to destroy a key that is now current. Widening to `pending` alone would still fail here.
+  -- V3: 🔴 **REVERSED BY 0148, AND THE REVERSAL IS THE POINT.** This pin used to assert that an
+  -- expired-lease `processing` row is ABANDONED on revival and the key becomes current. That was
+  -- measured, mutation-verified, and **wrong** — codex round-5 #1.
+  --
+  -- The error was a collapsed distinction, not a coding slip. 0143 reasoned 「lease expired ⟹ no
+  -- live worker」, which is true, and used it as 「⟹ no DELETE was sent」, which is false. A worker
+  -- that claimed the row, sent `DELETE` to Toss and crashed before reporting leaves exactly this
+  -- state — and 0143 then handed the owner a card that was already destroyed at the PG.
+  --
+  -- ⚠ **A pin that reversed is not a pin that was weak.** V3 correctly asserted the behaviour the
+  --   code had; the behaviour was wrong. Updating it here rather than deleting it is the house
+  --   rule, and the new property is owned by **180 W2** (claimed-is-forever) with **180 W3** as
+  --   its control — the never-claimed key that must STILL revive, so this is not「refuse
+  --   everything」wearing a fix's costume.
   perform billing_key_swap(u1, 'bill_E1', '{"brand":"국민"}'::jsonb);
-  perform billing_key_swap(u1, 'bill_E2', '{"brand":"국민"}'::jsonb);   -- queues bill_E1
+  perform billing_key_swap(u1, 'bill_E2', '{"brand":"국민"}'::jsonb);   -- queues E1
   select id into v_id from billing_key_revocations
    where billing_key = 'bill_E1' order by created_at desc limit 1;
-  perform claim_billing_key_revocations(10);                            -- E1 → processing
+  perform claim_billing_key_revocations(10);                            -- E1 → processing, attempts 1
   update billing_key_revocations set lease_until = now() - interval '1 minute' where id = v_id;
   select state into v_txt from billing_key_revocations where id = v_id;
   if v_txt is distinct from 'processing' then
-    call _fail('rvl','V3 리스 만료된 폐기 주문도 취소된다',
+    call _fail('rvl','V3 리스가 만료돼도 이미 나간 DELETE 는 되돌릴 수 없다',
                'PRECONDITION: state=' || coalesce(v_txt,'∅'));
   else
-    perform billing_key_swap(u1, 'bill_E1', '{"brand":"국민"}'::jsonb);  -- E1 current again
-    select state into v_txt from billing_key_revocations where id = v_id;
+    select swapped into v_sw from billing_key_swap(u1, 'bill_E1', '{"brand":"국민"}'::jsonb);
     select billing_key into v_key from billing_keys where profile_id = u1;
-    v_msg := 'state=' || coalesce(v_txt,'∅') || ' current=' || coalesce(v_key,'∅');
-    if v_txt is distinct from 'abandoned' or v_key is distinct from 'bill_E1'
-      then call _fail('rvl','V3 리스 만료된 폐기 주문도 취소된다', v_msg);
-      else call _pass('rvl','V3 리스 만료된 폐기 주문도 취소된다'); end if;
+    v_msg := 'swapped=' || coalesce(v_sw::text,'∅') || ' current=' || coalesce(v_key,'∅');
+    -- refused AND not stored: accepting it while reporting a refusal is the same dead card.
+    if v_sw is distinct from false or v_key = 'bill_E1'
+      then call _fail('rvl','V3 리스가 만료돼도 이미 나간 DELETE 는 되돌릴 수 없다', v_msg);
+      else call _pass('rvl','V3 리스가 만료돼도 이미 나간 DELETE 는 되돌릴 수 없다'); end if;
   end if;
 
   ------------------------------------------------------------------------------------------
