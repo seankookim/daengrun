@@ -229,7 +229,10 @@ export default function ClubRun() {
   // [감사 P1] Math.max(60, elapsed)는 시간을 지어냈다 — 실측 그대로 보낸다 (40초 러닝은 40초다).
   const doSettle = async (d: DelegationDog, endReason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal', note?: string) => {
     if (!d.bookingId || busy) return;
-    if (trackMode === 'denied') {
+    // [0147] 얼어붙은 쌍에서는 GPS 거절이 러너를 가둔다: settle-run:115-118은 frozen 경로에서
+    // km·사유·시간·노트를 서버 행에서 읽으므로 여기서 잴 것이 남아 있지 않은데, 거절만 남아 종료를
+    // 막는다. 얼지 않았을 때의 거절은 그대로 — 그때는 실측이 유일한 근거이고 이 화면이 마지막 방어선이다.
+    if (!d.runEnded && trackMode === 'denied') {
       Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
       return;
     }
@@ -505,6 +508,19 @@ export default function ClubRun() {
           </Text>
           <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
           {/* [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 9.5 → 14 → 15. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
+          {/* ⚠ [0147] 얼어붙은 쌍에서는 조기 사유를 아예 제안하지 않는다. 호스트가 「러닝 종료」를 누른
+              순간 서버가 사유까지 확정했고, settle-run:115-118은 frozen 경로에서 body를 버린다 — 러너가
+              고른 사유도, 아이 컨디션에 대해 적은 노트도 조용히 사라진다. 눌러도 버려지는 컨트롤을
+              보여주는 것은 죽은 버튼 법이고, 여기서 버려지는 것은 안전 기록이다.
+              ⚠ 조건 없이 지우면 안 된다: 얼지 않은 경로에서 서버는 유효한 end_reason을 요구하고
+              (handler:91), dog_condition에는 condition_note를 요구한다(:103). 무조건 지우면 평범한 클럽
+              정산이 전부 400 — 나중에 켜질 결함을 지금 터지는 결함과 맞바꾸는 것이다.
+              배포 전에는 runEnded가 payload에 없어 undefined → 아래 분기는 지금과 동일하게 동작한다. */}
+          {endTarget?.runEnded ? (
+            <Text style={{ fontSize: 15, lineHeight: 21, color: L.dim, marginTop: 14 }}>
+              호스트가 러닝을 종료해서 기록이 확정됐어요 — 사유와 거리는 서버 기록을 따라요
+            </Text>
+          ) : (<>
           <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 0.4 }}>조기 종료</Text>
           {endStep === 'reason'
             ? END_REASONS.map((r) => (
@@ -546,6 +562,7 @@ export default function ClubRun() {
                 </Pressable>
               </View>
             )}
+          </>)}
         </View>
       </Modal>
     </DawnCanvas>

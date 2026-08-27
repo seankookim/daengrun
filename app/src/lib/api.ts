@@ -3729,6 +3729,12 @@ export interface DelegationDog {
   ownerConfirmed: boolean | null; runnerConfirmed: boolean | null; custodyWithRunner: boolean; checkedOut: boolean;
   // [R2] 커스터디·정산 축
   custodyPhase: string | null; custodianType: string | null; custodianProfileId: string | null; custodianExternal: string | null;
+  // [0147] 호스트가 「러닝 종료」를 눌러 이 부킹의 수치가 서버에 얼어붙었는가.
+  // ⚠ OPTIONAL ON PURPOSE. 0147은 아직 배포되지 않았다(프로덕션 0130). 배포 전에는 이 키가 payload에
+  // 없어서 undefined → falsy → 화면은 지금과 똑같이 동작한다. 배포되는 순간 두 분기가 함께 켜진다.
+  // 서버는 boolean으로 투영한다(0147:145, `run_ended_at is not null`) — 타임스탬프가 아니다: 누가
+  // 언제 눌렀는지는 보드 독자 전원이 알 필요가 없고, 여기서 묻는 것은 「얼었는가」 하나뿐이다.
+  runEnded?: boolean;
   ownerReturnConfirmed: boolean; runnerReturnConfirmed: boolean;
   payoutState: string | null; payoutHold: string | null; payoutHoldReason: string | null;
   pendingTransfer: {
