@@ -36,6 +36,15 @@
 set -uo pipefail
 
 remote="${1:-origin}"
+# 🔴 ABSOLUTE PATH, deliberately. An interactive shell here wraps `grep` in a FUNCTION that
+# execs `ugrep`; a hook runs under sh and gets /usr/bin/grep. Two sessions each spent an hour
+# "verifying the hook's own pattern matches" through the WRAPPED grep — four checks that varied
+# the input path while holding the tool fixed, which is the axis that mattered. Neither the
+# wrapper nor BSD-vs-GNU turned out to be the bug, but the confound made both investigations
+# worthless. Calling it by path removes the whole class.
+GREP=/usr/bin/grep
+[ -x "$GREP" ] || GREP=grep
+
 MIGDIR="supabase/migrations"
 ZERO=0000000000000000000000000000000000000000
 
@@ -133,9 +142,9 @@ EOF
       awk -F'|' '/^\|/ && /DEPLOYED/ { n=$2; gsub(/[ `]/,"",n); if (n ~ /^[0-9][0-9][0-9][0-9]$/) print n }')
     while read -r dnum; do
       [ -z "${dnum:-}" ] && continue
-      printf '%s\n' "$prev_dep" | grep -qx "$dnum" && continue      # already DEPLOYED upstream
+      printf '%s\n' "$prev_dep" | GREP -qx "$dnum" && continue      # already DEPLOYED upstream
       if ! git ls-tree --name-only "$local_sha" "$MIGDIR/" 2>/dev/null |
-             grep -Eq "^$MIGDIR/${dnum}_.*\.sql$"; then
+             GREP -Eq "^$MIGDIR/${dnum}_.*\.sql$"; then
         note "❌ REGISTRY marks $dnum DEPLOYED, but no ${dnum}_*.sql is in this push."
         note "   A deployed migration whose file is not on this branch means the live"
         note "   schema has no source here: the harness would test a database that no"
@@ -175,8 +184,23 @@ EOF
     fi
 
     # ② the REGISTRY row must travel with the file, not an hour behind it
-    if [ -n "$registry" ] && ! printf '%s\n' "$registry" | grep -Eq "^\| *$num *\|"; then
+    if [ -n "$registry" ] && ! printf '%s\n' "$registry" | GREP -Eq "^\| *$num *\|"; then
       note "❌ migration $num has no REGISTRY.md row in this push."
+      # 🔴 EVIDENCE, not just a verdict. This branch fired twice on pushes whose row WAS
+      #   present, and because it printed only a conclusion, two sessions each burned an hour
+      #   re-deriving what it had already read — then both overrode it, which was the only
+      #   move left. A guard whose failure message asserts and shows nothing is unfalsifiable,
+      #   and an unfalsifiable guard trains the override it exists to prevent. Same end as the
+      #   gate that cries too often (check-definer-acl 147-vs-82), reached through the opposite
+      #   door. If this refusal is ever wrong again, the next reader gets the facts for free.
+      note "   ── evidence ──"
+      note "     sha read:        $local_sha"
+      note "     REGISTRY bytes:  ${#registry}"
+      note "     rows it can see: $(printf '%s\n' "$registry" | $GREP -cE '^\| *[0-9][0-9][0-9][0-9] *\|')"
+      note "     nearest rows:"
+      printf '%s\n' "$registry" | $GREP -nE '^\| *[0-9][0-9][0-9][0-9] *\|' \
+        | awk -F'|' -v n="$num" '{gsub(/[ \t]/,"",$2); d=$2-n; if(d<0)d=-d; if(d<=2) print "       " $0}' \
+        | cut -c1-100 >&2
       note "   Push the migration and its claim row in the same breath — a row"
       note "   trailing its file is exactly the window collision six walked through."
       fail=1
