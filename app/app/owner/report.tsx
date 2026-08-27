@@ -37,6 +37,19 @@ const READ_VIOLET = '#4A3DA8';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3;
 
+// `end_reason` is a CLOSED pg enum of SIX (0001_init.sql:18) and this map must carry all six, in
+// that order. An unmapped value does not degrade — it VANISHES: `reason` resolves to undefined,
+// the chip below is not drawn, and the chip is the only place this screen names why the run ended.
+// `incident` and `owner_forced` were missing until 2026-08-27, and production already had a run on
+// the wrong side of that gap (booking 4f053152, end_reason='incident') — a report with no reason
+// on it at all, next to a 러너 노트 the owner had no frame for.
+// The two additions are the SERVER-ONLY half of the enum: settle-run/handler.ts:44 refuses both
+// from a runner, `incident` is written by the custody/emergency path (0045:259 · 0058:165 ·
+// 0069:211) and `owner_forced` by ops. A runner never declares either.
+// Wording is api.ts's END_REASON_LABEL (:2851-2858) VERBATIM — the ledger prints those exact
+// strings for the same run, and one run may not carry two names. That is why the two new labels
+// end in 중단 while the four older ones end in 종료: the suffix is api.ts's, and no two of these
+// labels can ever appear together (one run, one chip).
 const REASON: Record<string, { label: string; color: string; bg: string; note?: string }> = {
   completed: { label: '완주 완료', color: '#3d5a2b', bg: '#e3f0c4' },
   dog_condition: {
@@ -48,6 +61,17 @@ const REASON: Record<string, { label: string; color: string; bg: string; note?: 
   },
   owner_request: { label: '보호자 요청으로 종료', color: '#a97c12', bg: '#fbf0d4' },
   runner_personal: { label: '러너 사정으로 종료', color: '#75806f', bg: '#e9ebe2' },
+  // Owner-caused like owner_request — api.ts gives the two one label on purpose (the owner does
+  // not need our word for who typed it), so the amber pair carries over too. No new color.
+  owner_forced: { label: '보호자 요청으로 중단', color: '#a97c12', bg: '#fbf0d4' },
+  // Reuses dog_condition's already-measured red pair rather than minting a shade for the gravest
+  // reason; the two can never be on screen together.
+  // No `note`, deliberately. An incident run does have a case attached server-side (club_incidents,
+  // opened by 0045/0069), but fetchRunReportOrNull reads nothing about it — not its state, not a
+  // refund, not a next step — so this screen has no field to bind and says nothing rather than a
+  // promise. The recourse it CAN back is already on it: the 안심 센터 row is drawn for every
+  // stopped run and goes to the real /safety route. One fact, one printing.
+  incident: { label: '사고로 중단', color: '#d84a2f', bg: '#fde8e3' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
