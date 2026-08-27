@@ -41,20 +41,36 @@ function stateInk(state: string): string {
  *   가렸다(0139 · R3), (b) 목적지가 아직 그 사람을 모른다. 둘 다 「눌리는 것처럼 보이는데 아무 데도
  *   못 가는 글자」가 되면 죽은 버튼이므로, 밑줄도 색도 주지 않는다.
  *
- * 🔴 목적지 한계, 지금 시점의 사실: `/runner-profile/[id]` 는 `runners` 테이블을 읽고
- *   러너가 아니면 NOT_FOUND 를 던진다 (api.ts fetchRunnerProfile). 그래서 **보호자·크루
- *   이름은 아직 문이 아니다** — 누르면 반드시 「없음」 화면에 닿는데, 그건 정직한 문구를 단
- *   막다른 골목일 뿐 여전히 막다른 골목이다. 사람 일반 프로필 화면이 landing 되는 즉시 이
- *   조건 하나만 풀면 된다 (announcer 세션의 에이전트가 만드는 중).
+ * 🔴 The paragraph that used to sit here said the destination throws NOT_FOUND for anyone who is
+ *   not a runner, so owner and crew names could not be doors. **It was wrong in both halves, and
+ *   it had become the reason nobody re-checked.** Measured on the screen itself before this
+ *   change: `/runner-profile/[id]` renders its header and grid from `fetchProfileIdentity`
+ *   (`runner-profile/[id].tsx:23` — 「누구에게나 있다」), and a missing `runners` row only sets
+ *   `runnerState = 'none'`, which hides the runner sections. The screen degrades; it does not
+ *   dead-end.
+ *
+ *   The real dead end was one layer down and invisible from here: `profiles` had three SELECT
+ *   arms (self · non-applicant runner · tombstone) and a live non-runner was in none of them, so
+ *   `fetchProfileIdentity` returned ZERO ROWS. **0145 adds the fourth arm** — a policy whose
+ *   predicate calls `club_session_board`, so a card can only open for someone the board already
+ *   showed you. R3's courtship refusal is inherited rather than re-implemented.
+ *
+ * ⚠ DEPLOY ORDER: this change assumes 0145 is applied. Migration first, then the app build —
+ *   the standing order in this repo. Shipped ahead of it, a tap still fails HONESTLY (the screen
+ *   reports it could not read the profile) rather than dead-ending, so this is an ordering
+ *   preference, not a safety gate.
  */
-function PersonName({ name, id, kind, bold }: {
-  name: string | null; id: string | null; kind: 'runner' | 'person'; bold?: boolean;
+function PersonName({ name, id, bold }: {
+  name: string | null; id: string | null; bold?: boolean;
 }) {
   const base = { fontSize: 15, lineHeight: 21, color: bold ? paper.ink : paper.dim,
                  fontWeight: (bold ? '800' : '400') as '800' | '400' };
   if (!name) return null;
-  // `kind`는 스타일이 아니라 **목적지가 있느냐**다. 러너만 프로필 화면이 있다 (위 주석).
-  const canOpen = id != null && kind === 'runner';
+  // `id != null` is now the WHOLE gate. The `kind` prop existed only to say 「러너에게만 목적지가
+  // 있다」, which 0145 made false — so it is gone rather than left to read as a live rule.
+  // A null id still means exactly what it meant: either the server gated the name (0139 R3, a
+  // proposal not yet accepted) or the row carries no person. Neither is pressable.
+  const canOpen = id != null;
   if (!canOpen) return <Text style={base} numberOfLines={1}>{name}</Text>;
   return (
     <Pressable onPress={() => router.push(`/runner-profile/${id}`)} hitSlop={6}
@@ -119,9 +135,9 @@ export function ClubBoard({ rows }: { rows: BoardRowLive[] }) {
 
             <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
               {r.dogName ?? (isCrew ? null : '참가자')}
-              {r.dogName == null && isCrew ? <PersonName name={r.ownerName} id={r.ownerProfileId} kind="person" bold /> : null}
+              {r.dogName == null && isCrew ? <PersonName name={r.ownerName} id={r.ownerProfileId} bold /> : null}
             </Text>
-            {!isCrew && r.ownerName && <PersonName name={r.ownerName} id={r.ownerProfileId} kind="person" />}
+            {!isCrew && r.ownerName && <PersonName name={r.ownerName} id={r.ownerProfileId} />}
             {r.isMine && (
               <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: '#6C5CE7' }}>내 아이</Text>
             )}
@@ -131,7 +147,7 @@ export function ClubBoard({ rows }: { rows: BoardRowLive[] }) {
                            borderColor: '#E4E3DF', transform: [{ translateY: -3 }] }} />
 
             {/* 러너 이름 — 수락 전에는 서버가 null을 준다. 없으면 그 자리는 비어 있다. */}
-            {r.runnerName && <PersonName name={r.runnerName} id={r.runnerProfileId} kind="runner" />}
+            {r.runnerName && <PersonName name={r.runnerName} id={r.runnerProfileId} />}
             <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: stateInk(r.state) }} numberOfLines={1}>
               {r.state}
             </Text>
