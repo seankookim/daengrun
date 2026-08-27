@@ -136,9 +136,14 @@
 --          on the catalog-dependency arm**, and on `session_dogs` rather than the tampered
 --          `session_people`. The reason is worth more than the plant: **`pg_get_expr` deparses
 --          against the SESSION's search_path**, so putting `shadow` in front makes the legitimate
---          `public._club_session_member` render QUALIFIED and the tampered one render bare. See
---          D's own comment — this is why the depend arm is documented as redundancy rather than as
---          an independently load-bearing check, and why an abort here prints got= and want=.
+--          `public._club_session_member` render QUALIFIED and the tampered one render bare.
+--        · 🔴 **THE CONCLUSION ROUND 5 DREW FROM THIS ROW IS WITHDRAWN** (codex round 6, finding 2).
+--          It read 「this is why the depend arm is documented as redundancy rather than as an
+--          independently load-bearing check」 — false, and the counter-example is deterministic:
+--          P-J tampered with **one** policy, so an untampered QUALIFIED call on an earlier table
+--          failed the text arm first. Change all four and the dependency arm fails ALONE (Q3,
+--          measured below). **A mutation that changes one instance of a rule copied four times
+--          measures the copies, not the rule.**
 --   P-K  [finding 1] the caller bind returns **NULL** instead of `false` for a pair that is not
 --        the caller (`nullif(p_uid is not distinct from auth.uid(), false)`). Policies are
 --        untouched — they always pass `p_uid = auth.uid()`, for which this is still `true`.
@@ -168,6 +173,106 @@
 --   so the pin count is unmoved BY DESIGN and an unmoved count is NOT evidence the new arms ran.
 --   The battery above is that evidence, and so is the presence of each rewritten pin's new message
 --   text in the clean log.
+--
+-- 🔴 PROVENANCE OF EVERY NUMBER ABOVE, WRITTEN DOWN INSTEAD OF LEFT TO BE DISCOVERED: the rows
+--   P-A…P-M are ROUND-5 measurements against a **1061-pin corpus**. Round 6 ADDED a pin
+--   (`0131-G5`) and CHANGED three (`S9` ⓒ/ⓓ, `0131-G4`, and D's own diagnostic), so by this file's
+--   own law those rows are STALE THE MOMENT THIS COMMIT LANDS: their absolute counts cannot
+--   reproduce, and any row whose plant moves a POLICY PREDICATE now also reddens `0131-G5`.
+--   They are kept, not deleted, because each one still records what a specific pin is sensitive
+--   to — but **cite the round-6 table below, never these numbers.**
+--   ⚠ Honest about why they were not simply re-run: round 5's plants exist only as this prose, and
+--   a reconstruction presented as a re-run is worse than an inherited row that says so. The two
+--   classes round 6 genuinely moves were re-cut and re-measured as **Q7** (P-F's class) and **Q3d**
+--   (P-H's class), and both moved exactly as expected — P-H's sub-row goes from six reds to seven.
+--
+-- ═══ ROUND 6's BATTERY — codex round 6's four findings, measured 2026-08-27. ═══
+-- Method unchanged and non-negotiable: every plant is a python edit that asserts
+-- `count(anchor) == 1` (or the stated N) AND reads the ARTIFACT BACK, applied to a COPY of
+-- `supabase/` OUTSIDE the worktree, with the plant `&&`-CHAINED to its run so a failed plant
+-- produces NO row. ⚠ The read-back refused this battery twice, both times usefully: once on an
+-- un-qualification where the replacement is a SUBSTRING of the anchor (the naive post-count is
+-- arithmetically wrong, not the plant), and once on a post-check that counted a TOKEN which this
+-- file's own header quotes in prose — the comment-matches-every-grep law, hit inside the very
+-- script written to avoid it.
+-- ⚠ CONTROLS OBSERVED FIRST, both of them: the untouched round-6 tree is **1063/0** (exit 0) and
+-- the untouched pre-round-6 tree is **1062/0**. The +1 is `0131-G5` and nothing else.
+-- Each finding is run TWICE — against the PRE-round-6 files, to show the hole is real and what it
+-- was invisible to, and against these, to show the guard names it.
+--
+--   Q1  [finding 1] the helper PRE-EXISTS owned by `service_role` — which the shim gives
+--       `bypassrls` and does NOT give `usage on schema auth`. `create or replace` preserves that
+--       owner. ONE property moves: who owns the function.
+--       · pre-round-6:  **APPLY SUCCEEDS** — every prosecdef/owner/bypass arm is satisfied — and
+--         then suite 164 dies on its FIRST client read: `ERROR: permission denied for schema auth`.
+--         ⚠ **The harness prints NO pin table at all** (measured: 0 `[srp]` lines, no summary), so
+--         the run reports 「SUITE PARSE/EXEC FAILED」 and nothing anywhere names the cause.
+--       · with round 6's D:  **APPLY ABORTS** — `the helper's owner service_role CAN bypass RLS but
+--         CANNOT EXECUTE ITS OWN BODY — missing: USAGE on schema auth;`.
+--       · with D's privilege arm removed (Q1c):  apply succeeds, suite dies identically, **0 pin
+--         lines again** — so in THIS harness the apply-time gate is the only thing that can name
+--         this class, and `0131-G4`'s privilege arm is for the environment with no suite to die.
+--         That is measured, not assumed, and it is written into G4's own comment.
+--   Q7  [finding 1, the control that keeps the two arms apart] an owner with EVERY ordinary
+--       privilege the body needs and no RLS bypass (`lab_nobypass`: auth+public USAGE, auth.uid
+--       EXECUTE, SELECT on all four read-set tables).
+--       · **APPLY ABORTS on the BYPASS arm** — `① rolsuper=f, ② rolbypassrls=f, ③ owns-unforced
+--         0/4 of the READ set {club_sessions,session_dogs,session_people,session_runner_assignments}`.
+--       So ⓑ fires where ⓒ is satisfied and ⓒ fires where ⓑ is satisfied: neither is evidence for
+--       the other, which is the whole reason both exist. (This is round 5's P-F re-cut; round 5's
+--       version granted a narrower set and could not make the distinction.)
+--   Q2  [finding 1, the table-set half] the helper gains a FIFTH source table (`profiles`),
+--       behaviourally inert (`false and …`), so only the READ SET moves.
+--       · with round 6's D:  **APPLY ABORTS** — `the helper reads {club_sessions,profiles,
+--         session_dogs,session_people,session_runner_assignments} — not the four tables this bypass
+--         check verifies.`
+--       · with D's fence removed, round-6 suite:  **1062/1, RED = [`0131-G4`] alone**, printing the
+--         derived set.
+--       · with D's fence removed, PRE-round-6 suite:  **1062/0, RED = [ ]** — the standing pin was
+--         checking the POLICY table set copied from pre-check A and could not see this at all.
+--         D was fixed for this on trunk and the pin was not; that gap is what Q2 measures.
+--   Q3  [finding 2] codex's coordinated mutation: `shadow` in FRONT of `public`, a same-named
+--       `shadow._club_session_member(uuid,uuid)`, and **all four** policy calls unqualified.
+--       · with round 6's D:  **APPLY ABORTS** — `session_dogs.dogs scoped read — exact-predicate arm
+--         PASS, catalog-dependency arm FAIL`, with got= and want= printing the SAME string.
+--         **The dependency arm fires alone. Round 5's 「it cannot」 is refuted.**
+--       · with round 5's D:  also aborts, on the dependency raise — so the arm was ALWAYS
+--         independently load-bearing and it was the CLAIM, not the code, that was wrong. Round 6
+--         changes what the file says and how it reports, not whether it catches this.
+--   Q3c [finding 2, the diagnostic half] an ordinary TEXT break on one policy (a dead `or true`
+--       arm on `session_people`), dependency row untouched.
+--       · **APPLY ABORTS** — `exact-predicate arm FAIL, catalog-dependency arm PASS`. Round 5
+--         raised at (i) and never evaluated (ii), so the 「second, independent signal」 its comment
+--         promised did not exist; both arms are now computed before either is reported.
+--   Q3d [the P-H class, re-cut] the same dead arm with D's predicate arms removed, so the run
+--       reaches the pins:  **1056/7, RED = [S1, S5, S5b, S7, S8, S9, `0131-G5`]** — six behavioural
+--       pins reporting `session_people=2` (the symptom) and `0131-G5` reporting the predicate (the
+--       cause). Round 5 measured six for this class; the seventh is round 6's.
+--   Q4  [finding 4] POST-APPLY DRIFT, exactly as codex wrote it — a later migration adds
+--       `or auth.uid() = '<uuid no fixture is>'::uuid` to `people scoped read`.
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — S1-S10 are fixture-bound and none of them is
+--         that user; G1 only sweeps the exact OLD predicate; D never runs again. **Reproduced
+--         exactly: a live widening, every pin green.**
+--       · round-6 suite:  **1062/1, RED = [`0131-G5`] alone**, printing got=[… OR (auth.uid() =
+--         '3f7a1c2e-…'::uuid) OR …] want=[…].
+--   Q5  [finding 3, the ⓒ half] the helper's EXECUTABLE source references `custodian_external`,
+--       with a legal string literal containing `--` earlier ON THE SAME LINE. Inert (`false and …`).
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — round 5's `regexp_replace(prosrc,'--[^\n]*')`
+--         erased the reference, so ⓒ was GREEN while the sentence it printed was false. **Codex's
+--         finding 3 reproduced.**
+--       · round-6 suite:  **1062/1, RED = [S9] alone, via ⓒ** — `헬퍼 원문(주석 포함)이
+--         custodian_external을 참조한다 (값=true)`. The raw scan cannot be shortened by a `--`.
+--   Q6  [finding 3, the ⓓ half] the 「name twin」 is renamed, so it is no longer the twin.
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — ⓓ read 0 rows and printed a sentence about a
+--         profile whose name matched, having never re-read that name: the arm licensed one planted
+--         pair, not the property.
+--       · round-6 suite:  **1062/1, RED = [S9] alone, via ⓓ's precondition** — `동명이인의
+--         profiles.name=전혀 다른 이름 이 심은 custodian_external=반포구청 안전과 과 다르다`.
+--
+--   Clean at the time of writing: **1063/0**, harness exit 0, counted across the whole run and
+--   never through `tail`. ⚠ A moving corpus, not a property of this slice — re-measure, do not cite.
+--   ⚠ Round 6 added exactly ONE `_pass` call (`0131-G5`); the S9, G4 and D changes are new ARMS and
+--   move no count, so the count is NOT evidence they ran. Q1-Q7 above are that evidence.
 --
 -- R1's caller citation: `api.ts` **fetchStampStats** — cite the FUNCTION, never a line number.
 -- Two line references in this header went stale inside a single day.
@@ -382,7 +487,9 @@ create policy "activities scoped read" on public.participant_activities for sele
 do $$
 declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text; v_reads text[];   -- [ui6 cold read] the helper's READ set, derived and fenced
         v_qual text; v_got text;                       -- exact-predicate check (round 5, finding 5)
+        v_textok boolean; v_depok boolean;              -- both computed before either is reported (round 6, finding 2)
         v_owner oid; v_ownername text; v_super boolean; v_bypass boolean;  -- RLS-bypass check (round 5, finding 4)
+        v_calls text[]; v_call text; v_tblname text; v_missing text;       -- ORDINARY privileges (round 6, finding 1)
 begin
   -- negative: the open predicate is gone from all four
   select count(*) into v_open
@@ -441,14 +548,23 @@ begin
     --        pg_depend row, which no text can forge. ⚠ Measured: (ii) alone does NOT catch the
     --        dead-arm or wrong-argument cases (the dependency is recorded either way), so it is a
     --        second kind of evidence beside (i), never a replacement for it.
-    -- ⚠ AND THE CONVERSE IS ALSO MEASURED, because an arm nobody can redden is exactly what this
-    -- file keeps being rejected for: **(i) caught every state P-F…P-J could construct, including a
-    -- SHADOW-SCHEMA capture designed specifically to defeat it, so (ii) never fired on its own.**
-    -- (ii) is therefore REDUNDANCY, not an independently load-bearing check, and is kept for two
-    -- named reasons rather than for appearances: it is immune to deparse drift between server
-    -- versions — the single scenario in which (i) could abort a CORRECT apply — and it answers a
-    -- different question, so an operator triaging a got=/want= mismatch has a second, independent
-    -- signal in hand. It is not evidence for (i) and (i) is not evidence for it.
+    -- 🔴 [codex round 6, finding 2] THIS BLOCK USED TO CLAIM (ii) COULD NOT FIRE ON ITS OWN — 「(i)
+    -- caught every state P-F…P-J could construct, so (ii) is REDUNDANCY, not independently
+    -- load-bearing」. **That claim was FALSE, and the counter-example is deterministic.** P-J changed
+    -- ONE policy, which is why (i) always spoke first: with `shadow` in front of `public`, the three
+    -- UNTAMPERED policies deparse QUALIFIED, so an earlier table failed (i) before the tampered one
+    -- was ever reached. Change ALL FOUR calls to the bare name and the whole apply deparses to
+    -- exactly the strings below — (i) passes on every table — while all four pg_depend rows point at
+    -- `shadow._club_session_member`. Measured 2026-08-27 as Q3: the ONLY failing arm is (ii).
+    -- **A mutation that changes one instance of a rule copied four times measures the copies, not
+    -- the rule** — the same shape as this file's own reason for existing.
+    -- So (ii) is independently load-bearing and is written down as such. It is ALSO the arm that is
+    -- immune to deparse drift between server versions — the single scenario in which (i) could abort
+    -- a CORRECT apply — and it answers a different question, so it is kept for both reasons now.
+    -- ⚠ AND THE SECOND SIGNAL WAS PROMISED BUT NOT DELIVERED (same finding): (i) used to `raise`
+    -- immediately, so on an ordinary mismatch (ii) was never evaluated and the operator got one arm's
+    -- answer while the comment advertised two. Both arms are computed FIRST and reported in ONE
+    -- diagnostic below. Neither is evidence for the other, which is the entire reason to hold both.
     -- ⚠ THE SHADOW PLANT ALSO TAUGHT SOMETHING ABOUT (i) THAT A FUTURE READER NEEDS:
     -- **`pg_get_expr` deparses against the SESSION's `search_path`.** A schema in front of `public`
     -- that contains a same-named function makes the LEGITIMATE call render QUALIFIED
@@ -471,23 +587,24 @@ begin
       -- additionally granted to anon would also satisfy (codex round 2)
       and (select array_agg(rolname order by rolname) from pg_roles where oid = any (p.polroles))
           = array['authenticated']::name[];
-    if v_new <> 1 then
-      select pg_get_expr(p.polqual, p.polrelid) into v_got
-      from pg_policy p join pg_class c on c.oid = p.polrelid
-      join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
-      raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not carry the exact scoped predicate. got=[%] want=[%]',
-        v_tbl, v_pol, coalesce(v_got, '(no such policy)'), v_qual;
-    end if;
-
-    if not exists (select 1
+    v_textok := (v_new = 1);
+    v_depok := exists (select 1
                      from pg_policy p join pg_class c on c.oid = p.polrelid
                      join pg_namespace n on n.oid = c.relnamespace
                      join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = p.oid
                     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
                       and d.refclassid = 'pg_proc'::regclass
-                      and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
-      raise exception '0131 D: %.% records no catalog dependency on _club_session_member(uuid,uuid) — whatever its text says, the predicate does not reference THIS function.', v_tbl, v_pol;
+                      and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure);
+    if not (v_textok and v_depok) then
+      select pg_get_expr(p.polqual, p.polrelid) into v_got
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
+      raise exception '0131 D: %.% — exact-predicate arm %, catalog-dependency arm %. (i) covers missing/not-SELECT/not-TO-authenticated/wrong-text; (ii) covers a same-TEXT call that resolves to a DIFFERENT function (a shadow schema in front of public). got=[%] want=[%]',
+        v_tbl, v_pol,
+        case when v_textok then 'PASS' else 'FAIL' end,
+        case when v_depok  then 'PASS' else 'FAIL' end,
+        coalesce(v_got, '(no such policy)'), v_qual;
     end if;
     -- permissive, explicitly — a sole RESTRICTIVE policy admits nobody and passed round 3's D
     -- [codex round 4, finding 4] `pg_namespace` was MISSING here: a same-named policy on
@@ -543,6 +660,13 @@ begin
   --   This is what stops the list going stale — add a table to the helper and the apply fails
   --   loudly instead of the bypass check silently verifying the wrong four. Comments stripped
   --   first (the prosrc-is-source-plus-our-prose law); `sd.` and `auth.` are alias/schema noise.
+  --   ⚠ [codex round 6, finding 3, applied here rather than only where it was raised] THAT
+  --   `regexp_replace` IS NOT A SQL COMMENT PARSER — a string literal containing `--` erases
+  --   executable source after it. It matters in OPPOSITE directions in the two places this house
+  --   uses it: an ABSENCE claim (164's S9 ⓒ) fails OPEN under it, so that arm no longer strips at
+  --   all; this fence asserts an EXACT SET, so under-derivation AND over-derivation both break the
+  --   equality and raise. Honest residual, not smoothed: a body CRAFTED to hide a read behind a
+  --   literal would defeat the fence too — but whoever can rewrite this body does not need to hide.
   select coalesce(array_agg(distinct m[2] order by m[2]), '{}') into v_reads
     from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
             from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
@@ -566,6 +690,49 @@ begin
     raise exception '0131 D: the helper is SECURITY DEFINER but its owner % CANNOT BYPASS RLS (① rolsuper=%, ② rolbypassrls=%, ③ owns-unforced %/% of the READ set %). It would be RLS-filtered on the tables it gates, so the four scoped policies recurse or admit nobody. SECURITY DEFINER is not RLS bypass.',
       v_ownername, coalesce(v_super, false), coalesce(v_bypass, false), v_new, cardinality(v_reads), v_reads;
   end if;
+
+  -- ⓒ 🔴 [codex round 6, finding 1] RLS BYPASS IS NOT EXECUTABILITY, and ⓑ checked only bypass.
+  --   An owner can hold `rolbypassrls` — ⓑ green — and still lack USAGE on `auth`, EXECUTE on
+  --   `auth.uid()`, USAGE on `public`, or SELECT on the tables the body reads. Every one of those
+  --   states raises **42501 on the first client read**, from inside a helper that ⓐ and ⓑ have just
+  --   certified. It is not hypothetical: the round-5 P-F account hit the missing-`auth`-USAGE class
+  --   and recorded it as a plant artefact instead of as a finding. The concrete state, measured
+  --   2026-08-27: a helper pre-created owned by `service_role` — which the shim gives `bypassrls`
+  --   and does NOT give `usage on schema auth` — passes ⓑ and dies at query time (Q1).
+  --   ⚠ ORDINARY privileges are needed for EVERY relation the body reads; RLS BYPASS is needed only
+  --   for the recursively-protected three. ⓑ demands bypass across the whole read set anyway, which
+  --   is conservative for `club_sessions` (`using (true)` today) and fails CLOSED — named so nobody
+  --   later reads ⓑ's 4/4 as a claim that club_sessions needs bypass.
+  --   The CALL set is derived and fenced the same way the read set is: hardcoding `auth.uid` is the
+  --   exact staleness this ladder keeps being rejected for.
+  select coalesce(array_agg(distinct m[1] || '.' || m[2] order by m[1] || '.' || m[2]), '{}') into v_calls
+    from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
+            from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
+         regexp_matches(src.b, '([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)\s*\(', 'g') m;
+  if v_calls is null or cardinality(v_calls) = 0 then
+    raise exception '0131 D: could not derive the helper''s qualified-call set (NULL/empty) — the privilege check would be inert, not passing.';
+  end if;
+  if not (v_calls <@ array['auth.uid'] and v_calls @> array['auth.uid']) then
+    raise exception '0131 D: the helper calls % — not the qualified call this privilege check verifies. Update BOTH or the check verifies the wrong set.', v_calls;
+  end if;
+  v_missing := '';
+  if not has_schema_privilege(v_owner, 'public', 'usage') then
+    v_missing := v_missing || ' USAGE on schema public;'; end if;   -- the body names its tables bare under the pinned search_path
+  foreach v_call in array v_calls loop
+    if not has_schema_privilege(v_owner, split_part(v_call, '.', 1), 'usage') then
+      v_missing := v_missing || ' USAGE on schema ' || split_part(v_call, '.', 1) || ';'; end if;
+    if not has_function_privilege(v_owner, v_call || '()', 'execute') then
+      v_missing := v_missing || ' EXECUTE on ' || v_call || '();'; end if;
+  end loop;
+  foreach v_tblname in array v_reads loop
+    if not has_table_privilege(v_owner, format('public.%I', v_tblname), 'select') then
+      v_missing := v_missing || ' SELECT on public.' || v_tblname || ';'; end if;
+  end loop;
+  if v_missing <> '' then
+    raise exception '0131 D: the helper''s owner % CAN bypass RLS but CANNOT EXECUTE ITS OWN BODY — missing:%. A SECURITY DEFINER runs with the owner''s ordinary privileges too, so this state passes every prosecdef/owner/bypass check and then raises 42501 on the FIRST client read. (schema USAGE is a separate privilege from EXECUTE: measured, service_role holds EXECUTE on auth.uid() and still cannot reach it without USAGE on auth.)',
+      v_ownername, v_missing;
+  end if;
+
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute')
      or not has_function_privilege('service_role', 'public._club_session_member(uuid,uuid)', 'execute') then
     raise exception '0131 D: helper missing an intended EXECUTE grant.';

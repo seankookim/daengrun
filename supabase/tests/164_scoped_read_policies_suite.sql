@@ -1,12 +1,26 @@
--- ═══ 164 scoped read policies — 0131 pins (S1-S5 · S5b · S6-S10 · R1 · G1-G3 · 0131-G4) ═══
+-- ═══ 164 scoped read policies — 0131 pins (S1-S5 · S5b · S6-S10 · R1 · G1-G3 · 0131-G4 · 0131-G5) ═══
 -- ⚠ THE INVENTORY IS RE-DERIVED FROM THIS FILE, NEVER FROM MEMORY (codex round 5, finding 6): it
 --   read 「S1-S5·S5b·S6-S9 · R1 · G1-G3」 and silently omitted S10 and 0131-G4, both of which this
---   file itself had added. `grep -oE "_pass\('srp','[^ ']*"` prints the true list — 16 pins.
+--   file itself had added. `grep -oE "_pass\('srp','[^ ']*"` prints the true list — 17 pins
+--   (0131-G5 added in round 6).
 -- What this suite pins: that the four club session tables whose only read policy was
 -- `(auth.uid() IS NOT NULL)` now admit exactly the people who belong to that session, that they
 -- still admit those people (a policy admitting nobody is green on every denial arm while four
--- features are dead), that the one real client caller keeps working, and — the durable one —
--- that NO public table anywhere carries that predicate again.
+-- features are dead), that the one real client caller keeps working, that the four scoped
+-- predicates are STILL the ones 0131 wrote, and — the durable one — that NO public table anywhere
+-- carries the old open predicate again.
+--
+-- 🔴 WHAT THE BEHAVIOURAL PINS DO NOT COVER, STATED IN TERMS OF WHAT THEY ACTUALLY DO (codex round
+--   6, finding 4). S1-S10 are FIXTURE-BOUND: each measures what a specific person reads. A policy
+--   that gains a new arm naming somebody no fixture is — `or auth.uid() = '<uuid>'::uuid` is the
+--   one-line version — leaks every row of all four tables to that person while every behavioural
+--   pin stays green, because none of them IS that person. That gap was open through round 5 and was
+--   described in this header as if the pins covered it. **It is closed by 0131-G5, which pins the
+--   deparsed predicates themselves rather than anyone's reading of them** — measured Q4: the drift
+--   is 0 reds without G5 and reddens G5 alone with it.
+--   Still open, and named rather than implied: a wider read policy on a table 0131 never touched.
+--   G1 sweeps schema-wide but only for the EXACT old string, so a differently-spelled open policy
+--   elsewhere is invisible here. That is a schema-wide question, not one of 0131's four.
 --
 -- ⚠ POSITIVE CONTROLS ARE NOT OPTIONAL HERE (140's law, and 0131's own risk). The failure mode
 --   of a scoping migration is not "too wide", it is "too narrow and nobody noticed until a screen
@@ -437,6 +451,32 @@ end $$;
 --       · against THIS suite:  **1060/1, S9 alone, entirely via ⓓ** — ⓒ never speaks. ⓓ is an
 --         OBSERVATION on a constructed live row, so it does not care what the predicate reads or
 --         how many functions deep it reads it.
+--
+-- 🔴 N0-N7 ARE ROUND-5 MEASUREMENTS AGAINST A 1061-PIN CORPUS AND ROUND 6 STALED THEIR NUMBERS.
+-- Round 6 added `0131-G5` and rewrote S9 ⓒ and ⓓ, so: every absolute count above is off by at
+-- least one, and any plant that moves a POLICY PREDICATE now reddens `0131-G5` as well. The rows
+-- are kept because each still records what a pin is SENSITIVE to; the numbers are not to be cited.
+-- ⚠ They were not re-run because round 5's plants exist only as this prose, and a reconstruction
+-- presented as a re-run is worse than an inherited row that says it is one. What round 6 measured
+-- itself, on its own plants, is below.
+--
+-- ── ROUND 6's OWN PLANTS for these two arms (full table in 0131's header) ────────────────────
+--   Q5  the helper's EXECUTABLE source references `custodian_external`, with a legal string
+--       literal containing `--` earlier ON THE SAME LINE; behaviourally inert (`false and …`).
+--       · pre-round-6 suite:  **1062/0, RED = [ ]** — round 5's `regexp_replace(prosrc,'--[^\n]*')`
+--         deleted the reference, so ⓒ stayed green with its sentence false. Codex round 6's
+--         finding 3, reproduced.
+--       · this suite:  **1062/1, RED = [S9] alone, via ⓒ** (값=true). A raw scan cannot be
+--         shortened by a `--` anywhere.
+--   Q6  the 「name twin」 renamed, so it is no longer a twin.
+--       · pre-round-6 suite:  **1062/0, RED = [ ]** — ⓓ read 0 rows and claimed a property about a
+--         profile whose name it had never re-read.
+--       · this suite:  **1062/1, RED = [S9] alone, via ⓓ's precondition**, printing both names.
+--   Q3d the P-H class re-cut (a dead `or true` arm on `session_people`, D's predicate arms
+--       removed):  **1056/7, RED = [S1, S5, S5b, S7, S8, S9, `0131-G5`]** — round 5 measured six
+--       for this class; `0131-G5` is the seventh and the only one that names the CAUSE.
+--   Q4  post-apply predicate drift (`or auth.uid() = '<uuid no fixture is>'`):  pre-round-6
+--       **1062/0, RED = [ ]** · this suite **1062/1, RED = [`0131-G5`] alone**.
 
 -- ── the fixture factory: one pairing, driven through the real RPC chain to a LIVE custody ────
 -- Each call builds its own club, session, host, runner, owner, dog and route, because
@@ -503,6 +543,7 @@ declare
   v_cust uuid; v_resp uuid; v_curr uuid; v_cust2 uuid; v_resp2 uuid; v_curr2 uuid;
   v_n int; v_bad text; v_msg text; v_src boolean;
   v_ext2 text;                                   -- S9 ⓓ read-back of the planted live row (round 5, finding 2)
+  v_twinname text;                               -- S9 ⓓ re-read of profiles.name at read time (round 6, finding 3)
 begin
   -- enabled HERE and not inherited from suite 50's side effect (117's precedent, 163's practice)
   update club_flags set enabled = true where name = 'club_delegation_v2';
@@ -710,19 +751,26 @@ begin
   -- ⓒ reads SOURCE, and 🔴 [codex round 5, finding 2] ITS CLAIM USED TO OUTRUN ITS MEASUREMENT.
   -- It said the absence of one token from one function's text meant the string 「cannot admit anyone
   -- in ANY state」. It cannot mean that: `_club_session_member` could call something else that reads
-  -- the column, and this scan would be green either way. What ⓒ licenses is exactly one sentence —
-  -- **the helper's OWN executable source does not name `custodian_external`** — and that is now all
-  -- it is written to claim. Comments are stripped with `regexp_replace(prosrc, '--[^newline]*', '')`
-  -- rather than by dropping whole comment LINES, because the line form leaves a TRAILING comment in
-  -- place and this house has already been bitten by a comment that quoted the code it replaced; the
-  -- match stays word-anchored, because a bare `custodian` substring also hits
-  -- `custodian_profile_id`, which the helper does and must consult.
+  -- the column, and this scan would be green either way. What ⓒ licenses is exactly one sentence,
+  -- and 🔴 [codex round 6, finding 3] ROUND 5's VERSION OF THAT SENTENCE WAS STILL WRONG. It read
+  -- 「the helper's own EXECUTABLE source does not name `custodian_external`」 and established that by
+  -- deleting `--`-to-end-of-line with a regex — which is not a SQL comment parser, and which a legal
+  -- string literal containing `--` turns into a deleter of REAL source. The sentence is now the one
+  -- the measurement actually supports: **the token appears nowhere in the helper's SOURCE TEXT,
+  -- comments included, nothing stripped.** Stronger, unforgeable by a `--`, and red (not green) if
+  -- someone ever writes the column name into a comment there.
   -- ⓓ is the arm that actually carries the 「any state」 half, and it carries it as an OBSERVATION
   -- rather than a source read: it CONSTRUCTS the state ⓐ has just shown the product cannot reach — a
   -- LIVE dog holding a non-null `custodian_external` that is the exact name of a real profile — and
   -- measures whether that profile is admitted. Whatever the predicate consults, directly or through
   -- any callee, the answer is measured rather than inferred. It is also the arm that is NOT
   -- over-determined: liveness holds, so a denial here can only come from the predicate.
+  -- ⚠ [codex round 6, finding 3] ⓓ's own SUBJECT is now re-established at read time — the twin's
+  -- `profiles.name` re-read and compared against the string actually planted, and its
+  -- non-relationship to that session asserted across all four helper arms. Without those, ⓓ
+  -- licensed 「one planted identity/session pair」 while its message claimed a property of the
+  -- predicate: a name changed 200 lines earlier, or a relationship acquired in between, would have
+  -- explained the result completely.
   begin
     v_bad := '';
     select service_state, custodian_type, custodian_external, custodian_profile_id
@@ -758,14 +806,26 @@ begin
     select count(*) into v_n from participant_activities where session_id = (f_ext->>'session')::uuid;
     if v_n <> 0 then v_bad := v_bad || ' 외부 인수자가 participant_activities를 읽는다=' || v_n; end if;
     reset role;
-    -- ⓒ the SOURCE arm — bounded to exactly what it measures (round 5, finding 2). Comments are
-    --   stripped with regexp_replace, which also removes TRAILING comments; the old form dropped
-    --   whole comment LINES and would have been satisfied by `... -- custodian_external` on a code
-    --   line. Verified both directions on this server before adopting: a bare comment mentioning the
-    --   token → false, an executable reference → true, a trailing comment → false.
-    select (regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~ '\mcustodian_external\M') into v_src
+    -- ⓒ the SOURCE arm. 🔴 [codex round 6, finding 3] IT STRIPPED COMMENTS WITH
+    --   `regexp_replace(prosrc, '--[^\n]*', '', 'g')` AND CALLED WHAT WAS LEFT 「executable source」.
+    --   That regex is not a SQL comment parser: a perfectly legal string literal containing `--`
+    --   makes it erase REAL source to the end of that line — so ⓒ could stay green while the
+    --   sentence it prints was false. On an ABSENCE claim that is the fatal direction, and the
+    --   repair is not a smarter regex: identifying executable SQL by regex is the thing that cannot
+    --   be done here. ⓒ now scans the RAW `prosrc`, COMMENTS INCLUDED, and claims exactly that —
+    --   **the token appears NOWHERE in the helper's source text.** Strictly stronger than the old
+    --   sentence, and no `--` anywhere can shorten what is scanned.
+    --   Its cost, stated so nobody later "fixes" it back: mentioning the column in a COMMENT in that
+    --   body turns this pin red. That is fail-closed, and the answer is to rewrite the pin, never to
+    --   reintroduce stripping. Word-anchored, because a bare `custodian` substring also hits
+    --   `custodian_profile_id`, which the helper does and must consult (control measured on this
+    --   server, both directions: raw `\mcustodian_profile_id\M` → true, `\mcustodian_external\M`
+    --   → false). `is not false` and not a bare IF — a scan that came back NULL measured nothing.
+    select (p.prosrc ~ '\mcustodian_external\M') into v_src
     from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
-    if v_src then v_bad := v_bad || ' 헬퍼 실행부(주석 제거 후)가 custodian_external을 참조한다'; end if;
+    if v_src is not false then
+      v_bad := v_bad || ' 헬퍼 원문(주석 포함)이 custodian_external을 참조한다 (값='
+                     || coalesce(v_src::text, 'NULL') || ')'; end if;
     -- ⓓ THE CONSTRUCTED LIVE STATE — an observation, not a source read.
     --   ⚠ This row is HAND-WRITTEN, deliberately, and for the only reason a hand-written fixture is
     --   ever right in this file: the proposition is about a state NO RPC CAN PRODUCE (ⓐ measures
@@ -787,6 +847,32 @@ begin
     if v_state2 is distinct from 'in_service' then
       v_bad := v_bad || ' ⓓ 심기 실패: 살아있어야 할 개가 service_state=' || coalesce(v_state2, 'NULL')
                      || ' — 과결정이 되살아나 이 팔이 ⓑ와 같은 것을 재는 팔이 된다'; end if;
+    -- 🔴 [codex round 6, finding 3] THE SUBJECT IS RE-ESTABLISHED IMMEDIATELY BEFORE THE READ.
+    --   ⓓ asserted the planted string and the liveness and then said 「a profile whose NAME is
+    --   exactly that string, holding no relationship to this session」 — while checking NEITHER of
+    --   those two facts at read time. A `t_user` call 200 lines earlier is not evidence about the
+    --   row now (`profiles.name` is writable), and an admission would be fully explained by any
+    --   relationship the twin had picked up in between. Both are read from the catalog here, and the
+    --   name is compared against the value ACTUALLY planted rather than against a repeated literal.
+    select name into v_twinname from profiles where id = v_twin;
+    if v_twinname is distinct from v_ext2 then
+      v_bad := v_bad || ' ⓓ 전제: 동명이인의 profiles.name=' || coalesce(v_twinname, 'NULL')
+                     || ' 이 심은 custodian_external=' || coalesce(v_ext2, 'NULL')
+                     || ' 과 다르다 — 동명이 아니면 이 팔은 아무것도 재지 않는다'; end if;
+    --   no relationship of ANY kind to f_live's session — the helper's four arms, enumerated
+    if exists (select 1 from club_sessions s where s.id = (f_live->>'session')::uuid
+                 and (s.host_profile_id = v_twin or s.backup_host_profile_id = v_twin)) then
+      v_bad := v_bad || ' ⓓ 전제: 동명이인이 호스트/백업 호스트다'; end if;
+    select count(*) into v_n from session_people
+      where session_id = (f_live->>'session')::uuid and profile_id = v_twin;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 전제: 동명이인에게 session_people 행이 있다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments
+      where session_id = (f_live->>'session')::uuid and runner_profile_id = v_twin;
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 전제: 동명이인에게 배정 행이 있다=' || v_n; end if;
+    select count(*) into v_n from session_dogs
+      where session_id = (f_live->>'session')::uuid
+        and v_twin in (owner_profile_id, custodian_profile_id, responsible_profile_id, current_runner_profile_id);
+    if v_n <> 0 then v_bad := v_bad || ' ⓓ 전제: 동명이인이 session_dogs 포인터를 쥐고 있다=' || v_n; end if;
     perform set_config('request.jwt.claim.sub', v_twin::text, true);
     set local role authenticated;
     select count(*) into v_n from session_dogs where session_id = (f_live->>'session')::uuid;
@@ -799,7 +885,7 @@ begin
     if v_n <> 0 then v_bad := v_bad || ' ⓓ 동명이인이 participant_activities를 읽는다=' || v_n; end if;
     reset role;
     perform set_config('request.jwt.claim.sub', '', true);
-    if v_bad = '' then call _pass('srp','S9 an external custodian is a STRING, not an identity — a real authorized_person transfer lands custodian_external as free text beside a profile-backed custodian_profile_id, and a profile whose NAME is exactly that string reads 0 from all four tables. Each arm licenses exactly one sentence and no more. ⓐ: the only state the product can REACH is already ENDED (every route into the external branch leaves the booking incident_review or completed). ⓑ: the name twin reads nothing there — over-determined by liveness, and it says so rather than taking credit. ⓒ: the shipped predicate has no reference to custodian_external on any EXECUTABLE line of ITS OWN source (comments stripped by regexp_replace including trailing ones, word-anchored so custodian_profile_id is not miscounted) — this does NOT exclude a callee reading the column, which is why it is not the arm that carries the claim. ⓓ: it does — a LIVE dog is given that exact external name by hand, a state no RPC can produce, and the profile of that name still reads 0 from all four tables with liveness asserted at the moment of the read, so the denial cannot be liveness and cannot be explained away by the source scan either');
+    if v_bad = '' then call _pass('srp','S9 an external custodian is a STRING, not an identity — a real authorized_person transfer lands custodian_external as free text beside a profile-backed custodian_profile_id, and a profile whose NAME is exactly that string reads 0 from all four tables. Each arm licenses exactly one sentence and no more. ⓐ: the only state the product can REACH is already ENDED (every route into the external branch leaves the booking incident_review or completed). ⓑ: the name twin reads nothing there — over-determined by liveness, and it says so rather than taking credit. ⓒ: the token custodian_external appears NOWHERE in the helper''s own source TEXT — comments included, nothing stripped, word-anchored so custodian_profile_id is not miscounted. That is deliberately a weaker and TRUER sentence than round 5''s 「no executable line names it」, which was established by a regex that a string literal containing -- can turn into a deleter of real source; it still does NOT exclude a callee reading the column, which is why it is not the arm that carries the claim. ⓓ: it does — a LIVE dog is given that exact external name by hand, a state no RPC can produce, and the profile of that name still reads 0 from all four tables with liveness, the twin''s profiles.name (compared to the string actually planted) and its total non-relationship to that session — host, backup host, session_people, assignment, all four dog pointers — asserted at the moment of the read, so the denial cannot be liveness, cannot be a stale fixture identity, and cannot be explained away by the source scan either');
     else v_msg := v_bad; call _fail('srp','S9 외부 커스터디언 문자열', v_msg); end if;
   exception when others then
     reset role; perform set_config('request.jwt.claim.sub', '', true);
@@ -813,6 +899,8 @@ end $$;
 do $$
 declare v_n int; v_list text; v_msg text; v_pub boolean; v_bad text;  -- v_bad: 0131-G4
         v_owner oid; v_ownername text; v_super boolean; v_bypass boolean; v_owns int;  -- 0131-G4 bypass (round 5, finding 4)
+        v_reads text[]; v_calls text[]; v_call text; v_tblname text; v_missing text;   -- 0131-G4 read set + ordinary privileges (round 6, finding 1)
+        v_tbl text; v_pol text; v_qual text; v_got text; v_textok boolean; v_depok boolean;  -- 0131-G5 (round 6, finding 4)
 begin
   -- ---------- [G1] no public table carries the open read predicate. ANYWHERE. ----------
   -- Allowlist is EMPTY and every future entry must carry its reason inline — widening this list
@@ -847,8 +935,8 @@ begin
   -- PRESERVES the owner, so a helper first created by the wrong role keeps that owner through every
   -- later apply, silently, with `prosecdef` true the whole time. The owner is now checked against
   -- PostgreSQL's own three routes (check_enable_rls / has_bypassrls_privilege): ① superuser,
-  -- ② `rolbypassrls`, ③ owns the table and the table is not FORCE ROW LEVEL SECURITY — ③ across
-  -- ALL FOUR, because one filtered table breaks every policy that consults the helper.
+  -- ② `rolbypassrls`, ③ owns the table and the table is not FORCE ROW LEVEL SECURITY — ③ across the
+  -- whole READ SET, because one filtered table breaks every policy that consults the helper.
   v_bad := '';
   if not (select prosecdef from pg_proc
            where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
@@ -865,24 +953,156 @@ begin
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute') then
     v_bad := v_bad || ' authenticated가 헬퍼를 실행할 수 없다 (정책이 통째로 죽는다)';
   end if;
-  select p.proowner, pg_get_userbyid(p.proowner) into v_owner, v_ownername
-    from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
-  select r.rolsuper, r.rolbypassrls into v_super, v_bypass from pg_roles r where r.oid = v_owner;
-  select count(*) into v_owns
-    from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public'
-     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
-     and c.relowner = v_owner and not c.relforcerowsecurity;
-  if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_owns = 4) then
-    v_bad := v_bad || ' 헬퍼 소유자 ' || coalesce(v_ownername, 'NULL') || '가 RLS를 우회하지 못한다'
-                   || ' (①rolsuper=' || coalesce(v_super::text, 'NULL')
-                   || ' ②rolbypassrls=' || coalesce(v_bypass::text, 'NULL')
-                   || ' ③소유·비강제 ' || v_owns || '/4) — DEFINER는 RLS 우회가 아니다;'
-                   || ' 헬퍼가 자기가 지키는 테이블에서 필터링되어 정책이 재귀하거나 아무도 통과시키지 못한다';
+  -- 🔴 [ui6 cold read + codex round 6, finding 1] THE TABLE SET WAS THE POLICY SET, COPIED FROM
+  -- pre-check A. The helper READS ('club_sessions','session_dogs','session_people',
+  -- 'session_runner_assignments'); `club_sessions` was read and never checked, `participant_
+  -- activities` checked and never read. 0131's VERIFY D was fixed on trunk and THIS PIN WAS NOT —
+  -- the standing half kept certifying the wrong four. So the set is DERIVED from the shipped body
+  -- and FENCED against the expected exact set, exactly as D does it; a derivation that comes back
+  -- NULL/empty is reported as inert rather than passed.
+  select coalesce(array_agg(distinct m[2] order by m[2]), '{}') into v_reads
+    from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
+            from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
+         regexp_matches(src.b, '(from|join)\s+([a-z_]+)', 'g') m
+   where m[2] not in ('auth', 'sd');
+  if v_reads is null or cardinality(v_reads) = 0 then
+    v_bad := v_bad || ' 헬퍼가 읽는 테이블 집합을 도출하지 못했다 (NULL/빈 배열) — 이 팔은 통과가 아니라 무력이다';
+  elsif not (v_reads <@ array['club_sessions','session_dogs','session_people','session_runner_assignments']
+             and v_reads @> array['club_sessions','session_dogs','session_people','session_runner_assignments']) then
+    v_bad := v_bad || ' 헬퍼가 읽는 테이블이 ' || array_to_string(v_reads, ',')
+                   || ' 이다 — 이 핀이 검사하는 네 테이블과 다르다 (둘 다 고치지 않으면 엉뚱한 집합을 검사한다)';
+  else
+    select p.proowner, pg_get_userbyid(p.proowner) into v_owner, v_ownername
+      from pg_proc p where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+    select r.rolsuper, r.rolbypassrls into v_super, v_bypass from pg_roles r where r.oid = v_owner;
+    select count(*) into v_owns
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relname = any (v_reads)
+       and c.relowner = v_owner and not c.relforcerowsecurity;
+    if not (coalesce(v_super, false) or coalesce(v_bypass, false) or v_owns = cardinality(v_reads)) then
+      v_bad := v_bad || ' 헬퍼 소유자 ' || coalesce(v_ownername, 'NULL') || '가 RLS를 우회하지 못한다'
+                     || ' (①rolsuper=' || coalesce(v_super::text, 'NULL')
+                     || ' ②rolbypassrls=' || coalesce(v_bypass::text, 'NULL')
+                     || ' ③소유·비강제 ' || v_owns || '/' || cardinality(v_reads)
+                     || ' — 읽기 집합 ' || array_to_string(v_reads, ',') || ') — DEFINER는 RLS 우회가 아니다;'
+                     || ' 헬퍼가 자기가 지키는 테이블에서 필터링되어 정책이 재귀하거나 아무도 통과시키지 못한다';
+    end if;
+    -- 🔴 [codex round 6, finding 1] AND BYPASS IS NOT EXECUTABILITY. A preserved owner can carry
+    -- `rolbypassrls` and still lack USAGE on `auth`, EXECUTE on `auth.uid()`, USAGE on `public` or
+    -- SELECT on what the body reads — every one of which raises 42501 on the first client read from
+    -- inside a helper the arm above has just certified. The qualified-call set is derived and fenced
+    -- for the same reason the read set is: hardcoding `auth.uid` is the staleness this ladder keeps
+    -- being rejected for. (Measured on this shim: `service_role` holds EXECUTE on `auth.uid()` and
+    -- still cannot reach it, because it has no USAGE on schema `auth` — two separate privileges.)
+    -- ⚠ HONEST SCOPE, MEASURED NOT ASSUMED (round 6 battery, Q1c): in THIS harness this arm can
+    -- never be the thing that reports. Any state that trips it makes all four policies raise 42501,
+    -- so the behavioural block above dies under ON_ERROR_STOP and the harness exits before the pin
+    -- table is ever printed. It is pinned for the environment that has no suite to die — a
+    -- production drift, where a standing sweep is the only thing that would name the cause.
+    select coalesce(array_agg(distinct m[1] || '.' || m[2] order by m[1] || '.' || m[2]), '{}') into v_calls
+      from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
+              from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
+           regexp_matches(src.b, '([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)\s*\(', 'g') m;
+    if v_calls is null or cardinality(v_calls) = 0 then
+      v_bad := v_bad || ' 헬퍼의 정규화 호출 집합을 도출하지 못했다 — 권한 팔이 무력이다';
+    elsif not (v_calls <@ array['auth.uid'] and v_calls @> array['auth.uid']) then
+      v_bad := v_bad || ' 헬퍼가 호출하는 함수가 ' || array_to_string(v_calls, ',')
+                     || ' 이다 — 이 권한 검사가 아는 집합과 다르다';
+    else
+      v_missing := '';
+      if not has_schema_privilege(v_owner, 'public', 'usage') then
+        v_missing := v_missing || ' public 스키마 USAGE;'; end if;
+      foreach v_call in array v_calls loop
+        if not has_schema_privilege(v_owner, split_part(v_call, '.', 1), 'usage') then
+          v_missing := v_missing || ' ' || split_part(v_call, '.', 1) || ' 스키마 USAGE;'; end if;
+        if not has_function_privilege(v_owner, v_call || '()', 'execute') then
+          v_missing := v_missing || ' ' || v_call || '() EXECUTE;'; end if;
+      end loop;
+      foreach v_tblname in array v_reads loop
+        if not has_table_privilege(v_owner, format('public.%I', v_tblname), 'select') then
+          v_missing := v_missing || ' public.' || v_tblname || ' SELECT;'; end if;
+      end loop;
+      if v_missing <> '' then
+        v_bad := v_bad || ' 헬퍼 소유자 ' || coalesce(v_ownername, 'NULL')
+                       || '가 RLS는 우회해도 본문을 실행할 권한이 없다 — 없는 권한:' || v_missing
+                       || ' (DEFINER는 소유자의 일반 권한으로도 실행된다; 첫 클라이언트 읽기에서 42501)';
+      end if;
+    end if;
   end if;
   if v_bad = '' then
-    call _pass('srp','0131-G4 헬퍼 자체의 형상 — DEFINER · 소유자가 실제로 RLS를 우회한다(superuser · rolbypassrls · 네 테이블 소유+비강제 중 하나) · 본문 search_path · anon 불가 · authenticated 가능. 전제조건이지 술어가 아니며, prosecdef 하나만으로는 우회를 증명하지 못한다는 것이 라운드5의 발견이다');
+    call _pass('srp','0131-G4 헬퍼 자체의 형상 — DEFINER · 본문 search_path · anon 불가 · authenticated 가능 · 소유자가 실제로 RLS를 우회한다(superuser · rolbypassrls · 읽기 집합 소유+비강제 중 하나) · 그리고 소유자가 본문을 실행할 일반 권한(스키마 USAGE · 호출 EXECUTE · 읽는 테이블 SELECT)까지 실제로 가진다. 검사 대상 테이블 집합은 배포된 본문에서 도출하고 예상 집합에 대해 울타리를 친다 — 정책 테이블 목록을 베껴 쓰면 club_sessions를 읽으면서 검사하지 않는 상태가 조용히 통과한다. 전제조건이지 술어가 아니다');
   else v_msg := v_bad; call _fail('srp','0131-G4 헬퍼 전제조건', v_msg); end if;
+
+  -- ---------- [0131-G5] THE FOUR PREDICATES THEMSELVES, STANDING ----------
+  -- 🔴 [codex round 6, finding 4] THE ADMITTED GAP WAS REAL AND THE HEADER BOUNDED IT DISHONESTLY.
+  -- Adding one arm to a shipped policy after apply — `or auth.uid() = '<any authenticated uuid this
+  -- suite does not use>'::uuid` — hands that user every row of all four tables, and NOTHING here saw
+  -- it: S1-S10 are behavioural and none of them IS that user; G1 only sweeps the exact OLD open
+  -- predicate; G2/G3/G4 are about the helper and RLS being on; 0131's VERIFY D ran once at apply and
+  -- never again. Measured as Q4a against the pre-round-6 suite: **the drift was 0 reds.**
+  -- So the four predicates are pinned STANDING, in exactly the two kinds D uses at apply time and
+  -- for the same reason they are two kinds — (i) the deparsed text is EQUAL to what section C wrote
+  -- (a new arm changes it; so does a removed one), (ii) the policy records a pg_depend row on
+  -- `public._club_session_member(uuid,uuid)` (text a shadow schema can forge; a catalog row it
+  -- cannot). Both arms are computed before either is reported, so a red names both answers.
+  -- ⚠ WHAT THIS STILL DOES NOT COVER, so the header can stop over-claiming: a WIDER predicate on a
+  -- table this file never named. G1 catches only the exact `(auth.uid() IS NOT NULL)` string, so a
+  -- differently-spelled open policy on a fifth table is invisible to this suite — that is a
+  -- schema-wide question and it belongs to a schema-wide sweep, not to 0131's four.
+  -- ⚠ `pg_get_expr` deparses against the SESSION's search_path (round 5's shadow plant taught this);
+  -- these strings are the ones an ordinary `"$user", public` session renders, which is what the
+  -- harness and psql both use. A drift here fails CLOSED and prints got= and want=.
+  v_bad := '';
+  for v_tbl, v_pol, v_qual in
+    select * from (values
+      ('session_dogs','dogs scoped read',
+       '((auth.uid() IS NOT NULL) AND ((owner_profile_id = auth.uid()) OR (custodian_profile_id = auth.uid()) OR (responsible_profile_id = auth.uid()) OR (current_runner_profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('session_people','people scoped read',
+       '((auth.uid() IS NOT NULL) AND ((profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('session_runner_assignments','assignments scoped read',
+       '((auth.uid() IS NOT NULL) AND ((runner_profile_id = auth.uid()) OR _club_session_member(session_id, auth.uid())))'),
+      ('participant_activities','activities scoped read',
+       '((auth.uid() IS NOT NULL) AND _club_session_member(session_id, auth.uid()))')) t(a,b,c)
+  loop
+    select count(*) into v_n
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = v_tbl;
+    if v_n <> 1 then
+      v_bad := v_bad || ' ' || v_tbl || '이 정책 ' || v_n || '개를 갖는다 (정확히 1개여야 한다 — 두 번째 정책은 OR로 더해진다)';
+      continue;
+    end if;
+    select count(*) into v_n
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
+       and p.polcmd = 'r' and p.polpermissive
+       and pg_get_expr(p.polqual, p.polrelid) = v_qual
+       and (select array_agg(rolname order by rolname) from pg_roles where oid = any (p.polroles))
+           = array['authenticated']::name[];
+    v_textok := (v_n = 1);
+    v_depok := exists (select 1
+                 from pg_policy p join pg_class c on c.oid = p.polrelid
+                 join pg_namespace n on n.oid = c.relnamespace
+                 join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = p.oid
+                where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
+                  and d.refclassid = 'pg_proc'::regclass
+                  and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure);
+    if not (v_textok and v_depok) then
+      select pg_get_expr(p.polqual, p.polrelid) into v_got
+        from pg_policy p join pg_class c on c.oid = p.polrelid
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
+      v_bad := v_bad || ' ' || v_tbl || '.' || v_pol
+                     || ' — 정확일치 ' || case when v_textok then 'PASS' else 'FAIL' end
+                     || ' · 카탈로그 의존 ' || case when v_depok then 'PASS' else 'FAIL' end
+                     || ' got=[' || coalesce(v_got, '(정책 없음)') || '] want=[' || v_qual || ']';
+    end if;
+  end loop;
+  if v_bad = '' then
+    call _pass('srp','0131-G5 네 정책의 술어 자체가 서 있다 — 적용 시점의 VERIFY D와 같은 문장을, 같은 두 종류의 증거로(배포된 문자열과의 정확일치 + pg_depend가 기록한 실제 함수 의존), 매 실행 상시로 검사한다. 적용 후에 팔 하나를 더한 표류(예: or auth.uid() = <어떤 uuid>)는 행동 핀 S1~S10에는 보이지 않는다 — 그 uuid를 쓰는 픽스처가 없기 때문이고, 그것이 이 핀이 존재하는 이유다');
+  else v_msg := v_bad; call _fail('srp','0131-G5 술어 상시 고정', v_msg); end if;
 
   -- ---------- [G3] row security is ON for all four — the disabled-RLS drift guard ----------
   -- Codex round 2's sharpest finding: a table with RLS DISABLED passed the migration's own checks
