@@ -51,6 +51,7 @@ export default function CompanionRun() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const handle = useRef<TrackHandle | null>(null);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -91,10 +92,12 @@ export default function CompanionRun() {
     const h = await startTracking((snap) => setKm(snap.km), { dogName: myDog?.dogName });
     handle.current = h;
     setMode(h.mode);
+    setRunning(true);
     if (h.mode === 'denied' || h.mode === 'unavailable') {
       // Do not pretend a run started. Stop the clock and let the plate below say why.
       await h.stop().catch(() => {});
       handle.current = null;
+      setRunning(false);
       setStartedAt(null);
     }
   };
@@ -102,12 +105,18 @@ export default function CompanionRun() {
   const finish = async () => {
     await handle.current?.stop().catch(() => {});
     handle.current = null;
+    setRunning(false);
     const snap = getTraceSnapshot();
     setKm(snap.km);
     setMode(null);
   };
 
-  const running = handle.current != null && startedAt != null;
+  // ⚠ `running` was derived from `handle.current` — a REF read during render. Refs do not trigger
+  // a re-render, so the CTA's label and action could disagree with reality: it happened to work
+  // only because begin()/finish() also touch state, which forced the render. That is a coincidence
+  // of neighbouring code, not a guarantee, and 12 lint warnings said so. It is the same shape as
+  // the console's frozen countdown — a control bound to something that cannot notify it.
+  // State drives the render; the ref stays for what refs are for (holding the handle to stop).
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.body}>
