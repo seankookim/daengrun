@@ -113,7 +113,18 @@ finds one.
 grep -cE 'VERDICT: (APPROVE|APPROVE-WITH-FIXES|REJECT)\b' <log>     # 0 = no review happened
 ```
 The angle-bracket placeholder `<APPROVE|…>` cannot match it, so the prompt echo is excluded by
-construction rather than by remembering to exclude it. **And still check for the usage-limit line
+construction rather than by remembering to exclude it.
+
+🔴 **v3 OF THIS LAW — THE VALUE-MATCH IS ALSO DEFEATED IF THE PROMPT ENUMERATES THE VALUES.**
+Measured 2026-08-27, twice in one hour by two independent agents: their prompts said 「end with
+VERDICT: APPROVE, APPROVE-WITH-FIXES or REJECT」 — spelling out the literal values — so the echo
+contained real `VERDICT:`-adjacent value strings and `grep -cE 'VERDICT: (APPROVE|…)\b'` returned
+**3 on runs that produced nothing** (one a 1MB burned log). A detector whose pattern the prompt
+guarantees can never fail. **The prompt MUST use the X-placeholder form and never spell the
+values in a `VERDICT:`-prefixed line**: 「End with the literal line VERDICT: X where X is one of
+APPROVE, APPROVE-WITH-FIXES, REJECT」 — the echo then contains only `VERDICT: X`, which the
+value-match cannot hit. If you inherit a log whose prompt enumerated values, the count is
+uninformative; only the POSITION of the hits (past the prompt block) settles it. **And still check for the usage-limit line
 positively** (`grep -i 'usage limit'`) — a quota wall is the single most common cause, it is
 invisible in the exit status, and two sessions hit it within one hour on 2026-08-26.
  And when a set of runs is in question, **audit the
