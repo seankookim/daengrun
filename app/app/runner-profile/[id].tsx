@@ -12,7 +12,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
-import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
+import { kstCal, kstDateLabel, kstInstant, kstKey } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
 
 // 공개 프로필 — **인스타 모양**(Sean 2026-08-27: 「for the tap for profile, yes make it like
@@ -207,8 +207,7 @@ export default function RunnerProfileScreen() {
     // ⚠ [codex 2026-08-21] instant 는 KST 로 옳게 지었는데 **라벨을 기기 로컬 getter 로** 다시
     // 조판했다. UTC 기기에서 07:30 KST 슬롯이 전날 날짜로 표시되고 owner/request 가 그 라벨을
     // 그대로 보여준다 — E6 가 이 화면에서만 절반 남아 있었다.
-    const c = kstCal(sl.start.getTime());
-    draft.timeLabel = `${c.m + 1}월 ${c.d}일 (${DAY[c.wd]}) ${sl.label}`;
+    draft.timeLabel = `${kstDateLabel(kstCal(sl.start.getTime()))} ${sl.label}`;
     router.push('/owner/request');
   };
 
@@ -686,8 +685,12 @@ export default function RunnerProfileScreen() {
       {selected && p && canBook && (
         <Animated.View style={[s.confirmBar, { transform: [{ translateY: barY }] }]}>
           <View style={{ flex: 1 }}>
+            {/* ⚠ [2026-08-27] KST 로 읽는다. start 는 위에서 kstInstant 로 **옳게** 지어졌는데 이 줄만
+                기기 로컬 getter 로 되읽고 있었다 — 예약은 맞고 확인 바의 라벨만 틀리는 모양이라,
+                서울이 아닌 기기에서 이 줄과 confirmSlot 이 draft 에 쓰는 라벨이 서로 달랐다.
+                두 줄이 이제 같은 kstDateLabel 하나를 쓴다. */}
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>
-              {selected.start.getMonth() + 1}월 {selected.start.getDate()}일 ({DAY[selected.start.getDay()]}) {selected.label}
+              {kstDateLabel(kstCal(selected.start.getTime()))} {selected.label}
             </Text>
             <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 2 }}>
               {p.name} 러너 · 코스·옵션 선택으로 이어져요

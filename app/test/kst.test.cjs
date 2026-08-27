@@ -5,7 +5,7 @@
 // when the owner tapped 07:30, and the server agreed with the wrong time because both sides were
 // handed the same shifted instant. The load-bearing property is the last section: on Seoul
 // hardware this arithmetic must be a no-op against plain local construction.
-const { kstCal, kstInstant, kstKey, kstDateLabel, kstClock, KST_MS } = require('./kst.build.cjs');
+const { kstCal, kstInstant, kstKey, kstDateLabel, kstMonthDay, kstClock, kstAmPm, KST_MS } = require('./kst.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -100,6 +100,83 @@ t('KST_MS is +9h', KST_MS === 9 * 3600_000);
 {
   const wide = kstCal(Date.parse('2026-12-28T10:00:00Z')); // 19:00 KST, Monday
   t('two-digit month/day is the widest label', kstDateLabel(wide) === '12월 28일 (월)', kstDateLabel(wide));
+}
+
+// ───────────────────────────────────────────── kstMonthDay — the bare 「8월 26일」 vocabulary
+// Its callers (설정·러너 베이스 핀의 can_change_at, 리포트의 후기 등록일, 커뮤니티 후기 날짜) all
+// print a SERVER timestamp with no weekday beside it, so a one-day slip has nothing on screen to
+// contradict it. Expected strings cross-checked against Intl timeZone:'Asia/Seoul'.
+{
+  const evening = kstCal(Date.parse('2026-08-26T10:00:00Z')); // 19:00 KST Wed the 26th
+  t('month/day is KST whatever the device zone', kstMonthDay(evening) === '8월 26일', kstMonthDay(evening));
+  // 22:00 UTC is already the NEXT day in Seoul and still the previous evening in New York — the
+  // single instant where a device-local read is off by a whole calendar day.
+  const rolled = kstCal(Date.parse('2026-08-25T22:00:00Z')); // 07:00 KST Wed the 26th
+  t('late-UTC evening is the next KST month/day', kstMonthDay(rolled) === '8월 26일', kstMonthDay(rolled));
+  // The two date vocabularies are one function apart and must stay that way: the weekday form is
+  // literally the bare form plus a suffix, so they cannot report different dates.
+  t('kstDateLabel is kstMonthDay plus a weekday',
+     kstDateLabel(rolled).startsWith(kstMonthDay(rolled) + ' ('), kstDateLabel(rolled));
+}
+
+// ───────────────────────────────────────────── kstAmPm — the 오전/오후 vocabulary (chat bubbles)
+// Every chat bubble's timestamp. The 12-hour edges are the whole test: 0시 and 12시 both print 12,
+// and 오전/오후 flips at exactly 12:00 KST — a device-local read moves the flip AND the number.
+{
+  const noon = kstCal(Date.parse('2026-08-26T03:00:00Z'));     // 12:00 KST
+  t('KST noon is 오후 12, not 오전 0', kstAmPm(noon) === '오후 12:00', kstAmPm(noon));
+  const oneBefore = kstCal(Date.parse('2026-08-26T02:59:00Z')); // 11:59 KST
+  t('the minute before noon is still 오전', kstAmPm(oneBefore) === '오전 11:59', kstAmPm(oneBefore));
+  const midnight = kstCal(Date.parse('2026-08-26T15:05:00Z')); // 00:05 KST the 27th
+  t('KST midnight is 오전 12, and the minute pads', kstAmPm(midnight) === '오전 12:05', kstAmPm(midnight));
+  const afternoon = kstCal(Date.parse('2026-08-26T04:30:00Z')); // 13:30 KST
+  t('afternoon hour is UNPADDED (api.ts kstParts parity)', kstAmPm(afternoon) === '오후 1:30', kstAmPm(afternoon));
+  const morning = kstCal(Date.parse('2026-08-25T22:00:00Z'));  // 07:00 KST the 26th
+  t('late-UTC evening is a KST MORNING bubble', kstAmPm(morning) === '오전 7:00', kstAmPm(morning));
+}
+
+// ───────────────────────────────────────────── 🔴 the slot round-trip (owner/report 다음 주 같은 시간)
+// The property, stated without reference to any bug: a booking written at one of request.tsx's
+// nine KST slots, read back +7d later, must still print THAT slot string and must land on a KST
+// calendar day the 8-day strip contains. owner/report tests `kstClock(...)` for membership in the
+// slot list and finds the strip row by `kstKey`; off-KST both fail SILENTLY — the panel simply
+// never renders, which is why no screen can contradict it.
+{
+  const SLOTS = ['06:30', '07:30', '09:00', '13:00', '15:30', '17:00', '18:30', '19:30', '21:00'];
+  const base = kstCal(Date.parse('2026-08-26T01:00:00Z')); // 10:00 KST Wed the 26th
+  let held = 0;
+  for (const sl of SLOTS) {
+    const [h, mi] = sl.split(':').map(Number);
+    const plus7 = kstCal(kstInstant(base, h, mi).getTime() + 7 * 86400_000);
+    if (kstClock(plus7) === sl) held++;
+  }
+  t(`every slot survives +7d as the same slot string (${held}/${SLOTS.length})`, held === SLOTS.length);
+  // …and the day it lands on is findable in a today..today+7 strip built the way request.tsx
+  // builds it. 21:00 is the slot that used to roll off the strip on a device behind KST.
+  const late = kstInstant(base, 21, 0).getTime();
+  const strip = Array.from({ length: 8 }, (_, i) => kstKey(kstCal(late - 7 * 86400_000 + i * 86400_000)));
+  t('run+7d lands on the LAST strip row and nowhere else',
+     strip.indexOf(kstKey(kstCal(late))) === 7, JSON.stringify(strip));
+}
+
+// ───────────────────────────────────────────── the dark-slot hour (route-chips 안전 카피)
+// route-chips' isDarkSlot reads the KST hour of draft.scheduledAtIso and turns the 조명 filter on
+// below 07:00 / from 21:00. A device-local hour makes a 19:00 KST booking read 06:00 in New York,
+// which switches a SAFETY filter on for a daylight run — and off for a real dawn one.
+{
+  const cases = [
+    ['2026-08-25T21:59:00Z', 6, true],   // 06:59 KST — dark
+    ['2026-08-25T22:00:00Z', 7, false],  // 07:00 KST — the open boundary
+    ['2026-08-26T11:59:00Z', 20, false], // 20:59 KST — still light
+    ['2026-08-26T12:00:00Z', 21, true],  // 21:00 KST — the close boundary
+    ['2026-08-26T10:00:00Z', 19, false], // 19:00 KST — the evening run a local read called dawn
+  ];
+  let ok = 0;
+  for (const [iso, hour, dark] of cases) {
+    const h = kstCal(Date.parse(iso)).h;
+    if (h === hour && (h < 7 || h >= 21) === dark) ok++;
+  }
+  t(`dark-slot boundaries are KST hours (${ok}/${cases.length})`, ok === cases.length);
 }
 
 // ───────────────────────────────────────────── ⚠ the regression that matters for the pilot

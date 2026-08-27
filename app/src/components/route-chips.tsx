@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { haptic } from '../lib/haptics';
+import { kstCal } from '../lib/kst';
 import { RouteInfo, draft } from '../store';
 import { paper } from '../theme';
 
@@ -73,10 +74,15 @@ export function chipCountIfOn(routes: RouteInfo[], c: RouteChips, key: ChipKey):
   return routes.filter((r) => matchesChips(r, { ...c, [key]: true })).length;
 }
 
-/** 예약 시각의 '어두운 슬롯' — 새벽(~07시) / 야간(21시~). */
+/** 예약 시각의 '어두운 슬롯' — 새벽(~07시) / 야간(21시~).
+ *  ⚠ 시각은 **KST 벽시계**에서 읽는다. iso 는 kstInstant 로 지어진 실제 instant 이고, 기기 로컬
+ *  getHours() 로 되읽으면 서울이 아닌 기기에서 19:00 KST 러닝이 뉴욕 06:00 으로 읽힌다 — 대낮
+ *  러닝에 조명 필터가 켜지고, 진짜 새벽 러닝에는 안 켜진다. 이건 스타일이 아니라 **안전 축**이다. */
 export function isDarkSlot(iso: string | null | undefined): boolean {
   if (!iso) return false;
-  const h = new Date(iso).getHours();
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return false;
+  const h = kstCal(t).h;
   return h < 7 || h >= 21;
 }
 

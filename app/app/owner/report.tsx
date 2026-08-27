@@ -11,6 +11,7 @@ import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { checkSlot, CoursePatch, fetchPatchPop, fetchProfileGaps, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
+import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
@@ -104,8 +105,12 @@ const targetPaceSec = (label: string) => (label.includes('8') ? 480 : label.incl
 //     rescheduled off-slot has no chip to land on.
 //
 // Any check failing → the panel falls back to today's timeless "이대로 다시 예약" copy.
-// Everything here is device-local time, exactly as request.tsx computes it (toDate/buildDates use
-// the local Date constructor), so the HH:MM we test is the HH:MM the slot sheet prints.
+// Everything here is KST wall clock, exactly as request.tsx computes it (buildDates/toDate go
+// through src/lib/kst.ts), so the HH:MM we test is the HH:MM the slot sheet prints.
+// ⚠ This paragraph said "device-local … exactly as request.tsx computes it" until 2026-08-27, and
+// both halves stopped being true when E6 moved request.tsx onto kstCal/kstInstant. The sentence
+// still READ as a justification, which is why the mismatch survived: nothing on screen can
+// contradict ③, so off-KST the slot match simply failed and the panel silently never rendered.
 //
 // The two constants are a deliberate LOCAL COPY, not an import: request.tsx keeps both module-
 // private and this screen only needs to ASK whether a time is offerable. If they ever drift, this
@@ -122,11 +127,12 @@ function resolveNextWeek(iso: string | null): { iso: string; timeLabel: string; 
   // +7d as 168h, the same arithmetic buildDates() uses to lay out the strip (KST has no DST)
   const target = new Date(src.getTime() + 7 * 86400_000);
   if (target.getTime() < Date.now() + NOTICE_MS) return null;                       // ①
-  const hhmm = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+  const cal = kstCal(target.getTime());
+  const hhmm = kstClock(cal);
   if (!REQUEST_SLOTS.includes(hhmm)) return null;                                   // ③
   let idx = -1;                                                                     // ②
   for (let i = 0; i < REQUEST_STRIP_DAYS; i++) {
-    if (new Date(Date.now() + i * 86400_000).toDateString() === target.toDateString()) { idx = i; break; }
+    if (kstKey(kstCal(Date.now() + i * 86400_000)) === kstKey(cal)) { idx = i; break; }
   }
   if (idx < 0) return null;
   // ④ RECENCY. ② only asks whether run+7d lands SOMEWHERE in the 8-day strip, which a run 1–7
@@ -136,11 +142,11 @@ function resolveNextWeek(iso: string | null): { iso: string; timeLabel: string; 
   if (idx !== REQUEST_STRIP_DAYS - 1) return null;
   // request.tsx pickSlot()'s label format, verbatim: '오늘 19:30' · '내일 19:30' · '8월 26일 19:30'.
   // Matching it is what makes the focus-sync land on the right row instead of showing a stale label.
-  const dayLabel = idx === 0 ? '오늘' : idx === 1 ? '내일' : `${target.getMonth() + 1}월 ${target.getDate()}일`;
+  const dayLabel = idx === 0 ? '오늘' : idx === 1 ? '내일' : kstMonthDay(cal);
   return {
     iso: target.toISOString(),
     timeLabel: `${dayLabel} ${hhmm}`,
-    whenLabel: `${WD[target.getDay()]} ${hhmm}`, // panel subcopy — the lab's '수 19:30'
+    whenLabel: `${WD[cal.wd]} ${hhmm}`, // panel subcopy — the lab's '수 19:30'
   };
 }
 
@@ -192,10 +198,11 @@ async function readMyReview(bookingId: string): Promise<MyReview | null | undefi
 }
 
 // created_at → 「8월 19일」. Intl/toLocaleDateString is unreliable on Hermes without ICU, and the
-// only thing this line needs is month/day, so it is computed rather than formatted.
+// only thing this line needs is month/day, so it is computed rather than formatted — in KST, which
+// is what the old local getters were missing: created_at is a SERVER instant.
 const fmtMonthDay = (iso: string): string | null => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : kstMonthDay(kstCal(t));
 };
 
 export default function Report() {

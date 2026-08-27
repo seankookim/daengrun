@@ -8,6 +8,7 @@ import { fetchMyRunnerBase, isBaseCooldownError, setRunnerBase } from '../../src
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BANPO, getNaverMap } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
+import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
 
@@ -32,8 +33,11 @@ const HINT_ROUND = '대략적인 위치만 저장돼요 — 약 1km 격자로 �
 // Sean이 숫자를 옮기는 날 이 화면이 거짓말을 한다. 서버가 주는 건 언제 열리는지(can_change_at)
 // 하나이고, 화면은 그 날짜만 말한다.
 const lockLine = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일부터 다시 지정할 수 있어요`;
+  // 날짜는 KST 로 읽는다 — settings.tsx 의 lockSuffix 와 같은 can_change_at, 같은 이유:
+  // 서버 instant 를 기기 로컬로 읽으면 KST 자정 근처에서 하루 어긋난다.
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  return `${kstMonthDay(kstCal(t))}부터 다시 지정할 수 있어요`;
 };
 
 // Korea-plausible bounds — 서버 CHECK(runners_base_shape / 0065의 같은 값)의 미러.

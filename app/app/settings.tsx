@@ -5,6 +5,7 @@ import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { Row } from '../src/components/ui';
 import { fetchMyProfile, fetchMyRunnerBase, MyProfile } from '../src/lib/api';
+import { kstCal, kstMonthDay } from '../src/lib/kst';
 import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { colors, paper } from '../src/theme';
@@ -22,9 +23,11 @@ const APP_VERSION = '0.9 (파일럿)';
 // 숫자가 두 벌이 된다. 서버가 주는 can_change_at만 쓰고, 잠기지 않았으면 아무 말도 안 한다.
 const lockSuffix = (iso: string | null): string => {
   if (!iso) return '';
-  const d = new Date(iso);
-  if (d.getTime() <= Date.now()) return '';
-  return ` · ${d.getMonth() + 1}월 ${d.getDate()}일부터 변경 가능`;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t) || t <= Date.now()) return '';
+  // 날짜는 KST 로 읽는다 — can_change_at 은 서버 instant 이고, 기기 로컬로 읽으면 KST 자정
+  // 근처의 만료가 하루 어긋나 「내일부터」를 「오늘부터」로 말한다. base-pin.tsx 와 같은 문자열.
+  return ` · ${kstMonthDay(kstCal(t))}부터 변경 가능`;
 };
 
 export default function Settings() {

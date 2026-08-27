@@ -787,8 +787,11 @@ export default function OwnerHome() {
         )}
 
         {/* 주간 목표 넛지 — 실 fit 값이 있을 때만. 없는 숫자로 재촉하지 않는다.
-            [2026-08-19] '지난번처럼'은 여기서 '오늘' 덩어리로 올라갔다 (화면에 한 번만 나온다). */}
-        {fit != null && fit.weekKm > 0 && fit.weekKm < fit.goalKm && new Date().getDay() >= 4 && (
+            [2026-08-19] '지난번처럼'은 여기서 '오늘' 덩어리로 올라갔다 (화면에 한 번만 나온다).
+            [2026-08-27] 요일은 KST 로 읽는다. 주 창(fit.weekKm)은 api.ts kstWeekStartMs 가 KST
+            월요일로 자르는데 이 게이트만 기기 로컬 getDay() 였다 — 한 화면 안에서 '이번 주'의
+            정의가 두 개였고, 서울 밖 기기에서는 목요일 판정이 하루 어긋난다. */}
+        {fit != null && fit.weekKm > 0 && fit.weekKm < fit.goalKm && kstCal(Date.now()).wd >= 4 && (
           <Pressable
             onPress={() => {
               // 히어로의 두 문과 같은 규칙 — 새 예약을 시작하는 문은 지난 지명을 지운다.

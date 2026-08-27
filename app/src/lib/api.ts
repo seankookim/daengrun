@@ -10,6 +10,9 @@ import { MEDIA_BUCKET } from './media';
 import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
 import { supabase } from './supabase';
 import { isPendingDeploy } from './rpc-skew';
+// ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
+// and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
+import { kstAmPm, kstCal, kstMonthDay } from './kst';
 // Runner settlement constants — different money from the owner fare (theme.ts:210)
 import { pricing } from '../theme';
 
@@ -158,8 +161,12 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
 
 function fmtChecked(dateStr: string | null): string {
   if (!dateStr) return '점검 예정';
-  const d = new Date(dateStr);
-  return `${d.getMonth() + 1}.${d.getDate()} 점검`;
+  const t = Date.parse(dateStr);
+  if (Number.isNaN(t)) return '점검 예정';
+  // checked_at 은 bare `date` (0001:148) 라 PostgREST 가 'YYYY-MM-DD' 를 주고 Date 는 그것을 UTC
+  // 자정으로 읽는다. 기기 로컬 getter 로 되읽으면 KST 뒤에 있는 기기에서 하루 앞 날짜가 찍힌다.
+  const c = kstCal(t);
+  return `${c.m + 1}.${c.d} 점검`;
 }
 
 // routes에 desc 컬럼은 없다 (0001:139-152) — 실컬럼(terrain·features)만으로 한 줄을 조립한다.
@@ -2887,14 +2894,15 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
 export interface ChatMsg { id: number; mine: boolean; body: string; mediaUrl: string | null; when: string }
 
 function mapMsg(m: any, uid?: string | null): ChatMsg {
-  const d = new Date(m.created_at);
-  const h = d.getHours();
+  // created_at 은 서버 instant 다 — 기기 로컬 getter 로 읽으면 서울이 아닌 기기에서 모든 말풍선의
+  // 오전/오후와 시각이 어긋난다. kstAmPm 의 출력은 위 kstParts 의 timeLabel 과 바이트 동일하다.
+  const t = Date.parse(m.created_at);
   return {
     id: m.id,
     mine: m.sender_id === uid,
     body: m.body ?? '',
     mediaUrl: m.media_path ?? null,
-    when: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`,
+    when: Number.isNaN(t) ? '' : kstAmPm(kstCal(t)),
   };
 }
 
@@ -3138,7 +3146,10 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
   return rows.map((r: any) => ({
     runnerName: names[r.target_id] ?? '러너',
     rating: r.rating, note: r.note, tags: r.tags ?? [],
-    when: new Date(r.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+    // toLocaleDateString('ko-KR') 에는 timeZone 이 없었다 — 기기 로컬이고, Hermes 의 ICU 유무에
+    // 따라 포맷 자체도 달라진다. 같은 「8월 26일」을 KST 로 계산해서 낸다 (ko-KR short/numeric 과
+    // 바이트 동일 — 실측). 못 읽으면 빈 칸: 'NaN월 NaN일' 을 새로 만들지 않는다.
+    when: Number.isNaN(Date.parse(r.created_at)) ? '' : kstMonthDay(kstCal(Date.parse(r.created_at))),
   }));
 }
 
@@ -4603,9 +4614,11 @@ export async function fetchMemberMeta(): Promise<{ since: string | null; no: num
   const { data } = await supabase.auth.getUser();
   const iso = data.user?.created_at ?? null;
   if (!iso) return { since: null, no: null };
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return { since: null, no: null };
-  return { since: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`, no: null };
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return { since: null, no: null };
+  // 가입 월은 KST 로 읽는다 — created_at 은 서버 instant 라 월말 가입이 기기 로컬로는 전 달이 된다.
+  const c = kstCal(t);
+  return { since: `${c.y}.${String(c.m + 1).padStart(2, '0')}`, no: null };
 }
 
 export async function fetchUnreadCount(): Promise<number> {

@@ -46,9 +46,21 @@ export const kstKey = (c: KstCal): string => `${c.y}-${c.m}-${c.d}`;
 // is its own slice. Anything NEW belongs here — this is the copy the .cjs suite can reach.
 const WD_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
-/** 「8월 26일 (화)」 — the product's standing KST date vocabulary. */
-export const kstDateLabel = (c: KstCal): string => `${c.m + 1}월 ${c.d}일 (${WD_KO[c.wd]})`;
+/** 「8월 26일」 — month/day with no weekday. Three screens print a bare date (설정·베이스 핀의
+ *  can_change_at, 리포트의 후기 등록일) and a weekday there is noise, not information. */
+export const kstMonthDay = (c: KstCal): string => `${c.m + 1}월 ${c.d}일`;
+
+/** 「8월 26일 (화)」 — the product's standing KST date vocabulary. Built ON kstMonthDay rather
+ *  than beside it: these two drifting apart is the same duplication kst.ts exists to end. */
+export const kstDateLabel = (c: KstCal): string => `${kstMonthDay(c)} (${WD_KO[c.wd]})`;
 
 /** 「19:00」 — 24h KST wall clock. Unambiguous at a glance, which a ticket needs more than 오전/오후. */
 export const kstClock = (c: KstCal): string =>
   `${String(c.h).padStart(2, '0')}:${String(c.min).padStart(2, '0')}`;
+
+/** 「오전 7:05」 · 「오후 12:30」 — 12h KST clock, the vocabulary chat bubbles and receipts use.
+ *  ⚠ Byte-identical to api.ts kstParts()'s timeLabel on purpose: hour UNPADDED, minute PADDED,
+ *  and 0시/12시 both print 12 (오전 12:05 · 오후 12:30). A padded hour here would make the same
+ *  instant read differently on two screens. */
+export const kstAmPm = (c: KstCal): string =>
+  `${c.h < 12 ? '오전' : '오후'} ${c.h % 12 === 0 ? 12 : c.h % 12}:${String(c.min).padStart(2, '0')}`;
