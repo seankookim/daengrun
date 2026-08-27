@@ -706,7 +706,7 @@ end $$;
 
 -- ═══ standing guards — schema-wide, outside the fixture block ═══
 do $$
-declare v_n int; v_list text; v_msg text; v_pub boolean;
+declare v_n int; v_list text; v_msg text; v_pub boolean; v_bad text;  -- v_bad: 0131-G4
 begin
   -- ---------- [G1] no public table carries the open read predicate. ANYWHERE. ----------
   -- Allowlist is EMPTY and every future entry must carry its reason inline — widening this list
@@ -722,6 +722,38 @@ begin
   if v_n = 0 then call _pass('srp','G1 스키마 전체 — (auth.uid() IS NOT NULL) 읽기 정책 0건');
   else v_msg := v_n || '건 남아 있다: ' || v_list;
        call _fail('srp','G1 열린 읽기 술어 스키마 전체 스윕', v_msg); end if;
+
+  -- ---------- [0131-G4] THE HELPER'S OWN SHAPE — the PRECONDITION, not the predicate ----------
+  -- 🔴 Added 2026-08-27 by applying ui6's finding to my own battery: 「I mutated what the guard
+  -- DOES and never mutated the guard's PRECONDITION.」 Every other pin in this file attacks the
+  -- helper's ARMS. Nothing standing attacked the facts that make those arms mean anything —
+  -- `prosecdef`, the in-body `search_path`, and the ACL were checked ONLY by the migration's
+  -- VERIFY block, which runs once at apply and never again. A property checked at apply and
+  -- never pinned is protected exactly until someone recreates the function.
+  -- ⚠ Honest scope, because this pin's green licenses one sentence: losing DEFINER here fails
+  -- CLOSED, not open — an INVOKER helper reads the very tables it gates, so RLS would deny
+  -- everyone rather than admit anyone. That makes it an availability defect, not a disclosure.
+  -- It is pinned anyway: a standing guard should not depend on which direction the breakage
+  -- happens to fall, and the next recreation may not be so lucky.
+  v_bad := '';
+  if not (select prosecdef from pg_proc
+           where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
+    v_bad := v_bad || ' 헬퍼가 SECURITY DEFINER가 아니다';
+  end if;
+  if not exists (select 1 from pg_proc
+                  where oid = 'public._club_session_member(uuid,uuid)'::regprocedure
+                    and 'search_path=public, pg_temp' = any (proconfig)) then
+    v_bad := v_bad || ' 헬퍼 본문에 search_path가 없다 (ALTER는 create or replace가 지운다)';
+  end if;
+  if has_function_privilege('anon', 'public._club_session_member(uuid,uuid)', 'execute') then
+    v_bad := v_bad || ' anon이 헬퍼를 실행할 수 있다';
+  end if;
+  if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute') then
+    v_bad := v_bad || ' authenticated가 헬퍼를 실행할 수 없다 (정책이 통째로 죽는다)';
+  end if;
+  if v_bad = '' then
+    call _pass('srp','0131-G4 헬퍼 자체의 형상 — DEFINER · 본문 search_path · anon 불가 · authenticated 가능 (전제조건이지 술어가 아니다)');
+  else v_msg := v_bad; call _fail('srp','0131-G4 헬퍼 전제조건', v_msg); end if;
 
   -- ---------- [G3] row security is ON for all four — the disabled-RLS drift guard ----------
   -- Codex round 2's sharpest finding: a table with RLS DISABLED passed the migration's own checks
