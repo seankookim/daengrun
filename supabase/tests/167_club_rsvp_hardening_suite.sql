@@ -171,18 +171,34 @@ begin
   -- C1: THE F5 CASE. The host adds their own dog to their own mixed session.
   perform set_config('request.jwt.claim.sub', hh::text, false);
   declare v_hd uuid; begin
+    -- 🔴 THIS PIN'S PEOPLE-COUNT HALF WAS INERT AND IS NOW REAL. As first written it printed
+    --    `people_moved=' || (v_n2 <> v_n2)` — a variable compared to ITSELF, always false — and
+    --    `v_n` (the before-count) was overwritten by the bookings count two lines above, so
+    --    nothing ever compared before to after. The message carried a word that read as evidence
+    --    while the condition never mentioned people at all, leaving §C's central claim ("writes
+    --    exactly one session_dogs row and NOTHING else") half unpinned.
+    --    ⚠ Distinct variables now, and every one appears in the IF. A value computed into the
+    --      failure MESSAGE but absent from the condition is decoration, not a pin.
+    declare v_before int; v_after int; v_sbefore text; v_safter text; v_bk int;
+    begin
     v_hd := t_dog(hh, '호스트견');
-    select count(*) into v_n from session_people where session_id = s_mix;
+    select count(*) into v_before from session_people where session_id = s_mix;
+    select status into v_sbefore from club_sessions where id = s_mix;
     perform session_add_my_dog(s_mix, v_hd);
-    select count(*) into v_n2 from session_people where session_id = s_mix;
+    select count(*) into v_after from session_people where session_id = s_mix;
+    select status into v_safter from club_sessions where id = s_mix;
     select custody, responsible_profile_id::text into v_state, v_txt
       from session_dogs where session_id = s_mix and dog_id = v_hd;
-    select count(*) into v_n from bookings where dog_id = v_hd;
+    select count(*) into v_bk from bookings where dog_id = v_hd;
     v_msg := 'custody=' || coalesce(v_state,'∅') || ' resp_is_host=' || (v_txt = hh::text)::text
-             || ' bookings=' || v_n || ' people_moved=' || (v_n2 <> v_n2)::text;
-    if v_state is distinct from 'owner_handled' or v_txt is distinct from hh::text or v_n <> 0
+             || ' bookings=' || v_bk || ' people ' || v_before || '->' || v_after
+             || ' status ' || coalesce(v_sbefore,'∅') || '->' || coalesce(v_safter,'∅');
+    if v_state is distinct from 'owner_handled' or v_txt is distinct from hh::text or v_bk <> 0
+       or v_after <> v_before
+       or v_safter is distinct from v_sbefore
       then call _fail('rhd','C1 F5 — 호스트가 자기 개를 넣는다', v_msg);
       else call _pass('rhd','C1 F5 — 호스트가 자기 개를 넣는다'); end if;
+    end;
   exception when others then call _fail('rhd','C1 F5 — 호스트가 자기 개를 넣는다', sqlerrm);
   end;
 
@@ -386,6 +402,26 @@ begin
                  else call _pass('rhd','D7 무JWT·비참가자 구분'); end if;
 
   ------------------------------------------------------------------------------ G
+  -- G0 [0142]: all three members of the RSVP family take the SAME session lock. Asserted as
+  -- SOURCE, not behaviour: a single-session suite cannot make two transactions contend, so a
+  -- behavioural pin here would be a green standing for a property it never tested. What CAN be
+  -- checked is participation — and the defect was exactly that one member did not participate
+  -- while a comment in the same migration claimed the family was serialized.
+  v_bad := '';
+  select prosrc into v_txt from pg_proc where proname = 'session_cancel_rsvp';
+  if v_txt !~ 'from club_sessions where id = p_session for update' then v_bad := v_bad || ' cancel-UNLOCKED'; end if;
+  -- the lock must PRECEDE the membership read, or it orders nothing that matters
+  if position('for update' in v_txt) > 0 and position('from session_people' in v_txt) > 0
+     and position('for update' in v_txt) > position('from session_people' in v_txt)
+    then v_bad := v_bad || ' lock-AFTER-read'; end if;
+  select prosrc into v_txt from pg_proc where proname = 'session_rsvp';
+  if v_txt !~ 'for update' then v_bad := v_bad || ' rsvp-UNLOCKED'; end if;
+  select prosrc into v_txt from pg_proc where proname = 'session_add_my_dog';
+  if v_txt !~ 'for update' then v_bad := v_bad || ' add-UNLOCKED'; end if;
+  if v_bad <> '' then call _fail('rhd','G0 세 경로 모두 같은 세션 락', v_bad);
+                 else call _pass('rhd','G0 세 경로 모두 같은 세션 락'); end if;
+  v_bad := '';
+
   -- G1: §0's NAMED RESIDUAL, made executable. §A is only an ENTRY gate; it is complete solely
   -- because format has no post-creation writer. Pinned rather than assumed: no function body
   -- writes club_sessions.format, and the table carries exactly one RLS policy, select-only.
