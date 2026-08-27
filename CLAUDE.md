@@ -232,6 +232,20 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **A CONTROL THAT READS THE SAME VARIABLE THROUGH THE SAME OPERATOR IS NOT A SECOND
+MEASUREMENT — IT IS THE FIRST ONE PRINTED TWICE** (announcer's S10, named by ui6). S10's oracle arm
+had two CONTROL arms added specifically so a helper hard-wired to one answer could not pass — and
+all three collapsed on NULL **together**, because all three were bare `IF helper(...)`. A control's
+entire purpose is to be INDEPENDENT of the thing it controls; sharing an operator destroys that
+while leaving both arms looking different on the page.
+⚠ **This is 「agreement between two sessions is the same claim counted twice」 one level down, inside
+a single pin — and harder to see there**, because both arms are yours, you wrote them minutes
+apart, and they read as deliberate diversity. **The test: name the failure mode each arm is blind
+to. If the lists are identical, you have one control.** ui6 then ran this question against their own
+`W2`/`W3` and measured a genuine pass — accept-all reddens W2 only, refuse-all reddens W3 only, so
+no single hard-wired answer satisfies both — which is what a real control pair looks like, and they
+noted they had been calling W3 a control on the strength of having *named* it one.
+
 🔴 **NULL COLLAPSES EVERY `IF`-BASED PIN INTO SILENCE — AND THE PINS THIS KILLS ARE EXACTLY THE
 PINS WHOSE JOB IS TO NOTICE SOMETHING MISSING** (codex found it in the announcer's S10; ui6 then
 applied it to their own work within the hour and found **four more**, measured rather than
@@ -745,6 +759,29 @@ from pg_trigger where tgrelid = '<table>'::regclass and not tgisinternal;
   a second, independent check: state the property WITHOUT reference to the mutation, then ask a
   head that never saw the mutation whether the pin establishes it. Worked example: 0128's battery
   missed twice of six and both repairs were re-attacked by a reviewer briefed on precisely this.
+
+  🔴 **AND THE ASSERTION MUST *GATE* THE RUN, NOT MERELY PRECEDE IT — measured by ui6, 2026-08-27,
+  and this is an amendment to the rule directly above rather than a repeat of it.** They followed
+  it exactly: their planter carried `assert s.count(old) == 1`. It was **necessary and not
+  sufficient.** A quote-escaping bug made the plant fail, the assertion fired, python printed a
+  traceback — **and the harness ran anyway and printed a perfectly plausible `1061 pass / 0 fail`
+  row for a mutation that did not exist.** Two rows of their battery table were fiction, sitting in
+  the column that reads as evidence, beside real rows. **An unlanded plant reports as 「the guard
+  held」**, and the traceback scrolls past above a tidy table that is what anyone would quote.
+  **The fix is one character of shell: `&&`-chain the run to the plant**, so a failed plant yields
+  **no row at all** rather than a green one:
+  ```
+  python3 plant.py && (cd supabase/tests && bash harness.sh > run.log 2>&1); echo "exit=$?"
+  ```
+  ui6's framing is the reason this is its own entry: **「assert the plant landed」 is a check that
+  REPORTS; 「make the run impossible unless it landed」 is a constraint that PREVENTS** — the same
+  distinction as deleting `main` instead of asking people to remember not to branch from it, one
+  layer down.
+  ⚠ **Announcer audited its own set on hearing this**: every plant this session printed its
+  confirmation line before its harness invocation, so no fiction rows are in the recorded
+  batteries — but the STRUCTURE was ungated in every one of them. A set that happens to be clean
+  under a vulnerable structure is luck, not method, and it is exactly the kind of luck that runs
+  out on the run you most need to trust.
 
 - New security-definer functions MUST have `set search_path = public, pg_temp` in the function body — ALTER-applied config is reset by `create or replace` (measured). Test 98 H1 watches the whole schema and fails the harness on any omission.
 - **A `create or replace` that RELIES on grant preservation is a latent PUBLIC-EXECUTE hole. Write the `revoke` explicitly, every time** (2026-08-25, found by a blind reviewer, then confirmed as a CLASS in shipped code). `create or replace` preserves owner and ACL **only if the function already exists**; where it does not — a partial prior apply, a branch that never ran the creating migration, a rebuilt environment — it is a plain CREATE, and 0116:636 already records that new functions inherit **PUBLIC EXECUTE by default**. A `SECURITY DEFINER` born PUBLIC-executable is the worst shape this repo can produce. Found in 0127 (the restored recurring cron), then the same check against shipped code found `0121:240`'s `club_incident_settle_quote` — a money-returning definer with no revoke while **all six of its siblings in the same file have one** (0121:50, 75, 94, 185, 205, 434). Production measured correct there, because the creating migration ran first and preservation held; it is latent, not breached, and the obligation rides the next money-path slice touching it rather than a churn migration.
