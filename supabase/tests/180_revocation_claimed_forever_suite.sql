@@ -221,7 +221,16 @@ begin
     call _fail('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)', 'SOURCE ABSENT — billing_key_swap has no prosrc');
   else
   i_flag := position('from ops_flags for update' in v_src);
-  i_gate := position('card_registration_live()' in v_src);
+  -- ⚠ MATCH AN EXECUTABLE-SHAPED PHRASE, NOT A BARE IDENTIFIER — belt 2 behind the comment strip,
+  --   and it is the belt that survives the strip failing. `card_registration_live()` alone is a
+  --   token PROSE CONTAINS (it is why this pin failed on its first run, matching 0148's own
+  --   comment). `if not card_registration_live() then` is a sentence only executable source has.
+  --   Measured 2026-08-27 after a peer found the strip's own blind spot: `regexp_replace(prosrc,
+  --   '--[^\n]*','','g')` is NOT a SQL comment parser — a string literal containing `--` makes it
+  --   erase EXECUTABLE source. Planted here, it changed nothing **only because the literal sat
+  --   after the tokens these pins read** — safe by placement, not by construction. Anchoring on a
+  --   phrase prose cannot contain removes the dependency on the strip being correct.
+  i_gate := position('if not card_registration_live() then' in v_src);
   if i_flag = 0                                  then v_bad := v_bad || ' NO-flag-lock'; end if;
   if i_gate = 0                                  then v_bad := v_bad || ' NO-gate-read'; end if;
   if i_flag > 0 and i_gate > 0 and i_flag > i_gate then v_bad := v_bad || ' lock-AFTER-gate'; end if;
