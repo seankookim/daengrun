@@ -1290,7 +1290,14 @@ export default function Request() {
       <View style={[s.ctaDock, { paddingBottom: ctaDockPadBottom }]}>
         <Pressable
           onPress={payOnce}
-          style={({ pressed }) => [s.ctaBar, pressed && { backgroundColor: paper.actionPressed }]}
+          /* [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at rest,
+             translateY(3) + 1px pressed, so the bottom edge stays put and the key descends. */
+          style={({ pressed }) => [
+            s.ctaBar,
+            pressed
+              ? { backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
+              : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+          ]}
           accessibilityRole="button"
           accessibilityLabel={ctaLabel}
         >

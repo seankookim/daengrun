@@ -1532,12 +1532,25 @@ export default function ActiveRun() {
           )}
           <Pressable
             // busy = label swap below ('위치 확인 중...') — the opacity paint retired (§2 button law)
-            style={({ pressed }) => [
-              s.btn,
-              ceilingHit
-                ? { backgroundColor: pressed ? paper.actionPressed : colors.runLive }
-                : { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt },
-            ]}
+            /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. The lip's colour
+               is always this arm's OWN pressed fill, so both faces (coral ceiling / volt) keep
+               their own depth: 4px at rest, translateY(3) + 1px pressed — the 3px the edge gives
+               up is the 3px the transform takes, so the bottom edge stays put. `starting` only
+               swaps the label and leaves the face alone, so it is BUSY not disabled: it keeps
+               the rest lip and loses the travel (PaperBtn's predicate). No scale (§3b). */
+            style={({ pressed }) => {
+              const edge = ceilingHit ? paper.actionPressed : colors.voltDeep;
+              const down = pressed && !starting;
+              return [
+                s.btn,
+                ceilingHit
+                  ? { backgroundColor: pressed ? paper.actionPressed : colors.runLive }
+                  : { backgroundColor: down ? colors.voltDeep : colors.volt },
+                down
+                  ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: edge }
+                  : { borderBottomWidth: 4, borderBottomColor: edge },
+              ];
+            }}
             disabled={starting}
             onPress={() => {
               if (running) { openEndSheet(); return; }

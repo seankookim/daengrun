@@ -1016,7 +1016,16 @@ export default function ShotStudio() {
             <Pressable
               onPress={shareToInstagram}
               disabled={busy}
-              style={[s.igBtn, busy && { opacity: 0.6 }]}
+              /* [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at
+                 rest, translateY(3) + 1px pressed. Busy keeps the lip and loses only the travel
+                 (PaperBtn's predicate) — the button is mid-send, not dead. */
+              style={({ pressed }) => [
+                s.igBtn,
+                busy && { opacity: 0.6 },
+                pressed && !busy
+                  ? { backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
+                  : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="인스타그램 스토리로 공유"
             >

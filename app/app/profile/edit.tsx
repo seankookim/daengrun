@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { fetchMyProfile, fetchMyRunnerBio, fetchMyRunnerStatus, MyProfile, setMyHandle, updateMyProfile, updateRunnerBio } from '../../src/lib/api';
@@ -176,15 +177,10 @@ export default function ProfileEdit() {
               </View>
             )}
 
-            {/* busy = 라벨 스왑 (버튼 매트릭스 법 — 불투명도 트릭 금지) */}
-            <Pressable
-              onPress={save}
-              disabled={saving}
-              style={({ pressed }) => [s.save, pressed && !saving && { backgroundColor: paper.actionPressed }]}
-              accessibilityRole="button"
-            >
-              <Text style={s.saveTxt}>{saving ? '저장 중...' : '저장'}</Text>
-            </Pressable>
+            {/* busy = label swap (button matrix — no opacity tricks).
+                [Sean 2026-08-26 press behaviour] PaperBtn now owns the fill and the 4px lip;
+                this file keeps only the layout margins. */}
+            <PaperBtn label="저장" busyLabel="저장 중..." onPress={save} busy={saving} style={s.save} />
           </>
         )}
       </ScrollView>
@@ -241,8 +237,8 @@ const s = StyleSheet.create({
   prefix: { fontSize: 16, lineHeight: 21, paddingTop: 4, color: paper.dim },
   input: { flex: 1, paddingVertical: 4, paddingHorizontal: 0, fontSize: 16, lineHeight: 21, color: paper.ink },
   note: { fontSize: 15, lineHeight: 20, color: paper.dim, paddingHorizontal: 15, marginTop: 10 },
-  save: { backgroundColor: paper.action, marginHorizontal: 15, marginTop: 22, paddingVertical: 15, alignItems: 'center' },
-  saveTxt: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  // Layout only — PaperBtn owns fill, padding and the 17/800 label.
+  save: { marginHorizontal: 15, marginTop: 22 },
   state: { paddingVertical: 40, alignItems: 'center' },
   stateTxt: { fontSize: 15, lineHeight: 21, color: paper.dim },
   failStrip: { marginHorizontal: 15, marginTop: 14, padding: 14, backgroundColor: paper.criticalWash, borderWidth: 1, borderColor: paper.critical },

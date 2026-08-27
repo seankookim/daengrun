@@ -9,7 +9,7 @@ import {
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
-import { lilac, lilacRadius, paper } from '../../../src/theme';
+import { lilac, lilacRadius } from '../../../src/theme';
 
 // 케이스 상세 — 정본: master-lab '케이스 #24' (코랄 좌괘 + OUTSIDE 플랩이 무게를 진다, 어둠 없이)
 // 열람은 서버 초크포인트(club_incident_detail — 케이스 당사자만). 타임라인 = 증거 seq.
@@ -216,9 +216,11 @@ export default function CaseDetail() {
                           환불 {quotes[k].refund == null ? '—' : `${quotes[k].refund!.toLocaleString()}원`} · 러너 {quotes[k].runnerNet == null ? '—' : `${quotes[k].runnerNet!.toLocaleString()}원`}
                         </Text>
                       </View>
-                      <Pressable onPress={() => doSettle(k)} disabled={busy} style={s.settleBtn}>
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>{busy ? '...' : '선택'}</Text>
-                      </Pressable>
+                      {/* [Sean 2026-08-26 press behaviour] the hand-rolled twin had no lip, no
+                          pressed fill and no accessibilityState for its own `disabled` — one
+                          component now supplies all three. Label rises 15 -> 17 (the ≥16 button
+                          floor) and busy says 처리 중... instead of a bare ellipsis. */}
+                      <ClubCta label="선택" onPress={() => doSettle(k)} busy={busy} style={s.settleBtn} />
                     </View>
                   ))}
                   <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 8 }}>
@@ -249,10 +251,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
     borderTopWidth: 1, borderTopColor: L.hair, paddingTop: 10,
   },
-  settleBtn: {
-    backgroundColor: paper.action, borderRadius: 0, paddingVertical: 11, paddingHorizontal: 14,
-    minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
+  // Layout only — ClubCta owns fill/label/press. Compact geometry for a row-embedded button;
+  // marginTop 0 because settleRow already carries the vertical rhythm.
+  settleBtn: { marginTop: 0, paddingVertical: 11, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   sechead: { marginTop: 14, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: L.hair2 },
   secheadTitle: { fontSize: 16, fontWeight: '800', color: L.head },
   tl: { borderLeftWidth: 2, borderLeftColor: L.hair, paddingLeft: 12, marginTop: 10, marginLeft: 3 },

@@ -571,7 +571,22 @@ export default function Matching() {
                  VoiceOver read a live 지명 요청 button mid-send. Same predicate, three outputs.
                  [2026-08-24] 불투명도 트릭 은퇴 — 잠금은 라벨 스왑 + pressed 면으로만 말한다 (F2.1). */
               accessibilityState={{ disabled: nominating !== null }}
-              style={({ pressed }) => [s.cta, { backgroundColor: pressed && nominating === null ? paper.actionPressed : paper.action }]}
+              /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. Rest carries a
+                 4px lip in the pressed fill; press gives 3px of that edge back and takes it as
+                 translateY(3), so the bottom edge stays put and the key descends into it. The
+                 send lock keeps the rest lip and loses only the travel — same predicate as
+                 PaperBtn's busy arm, because the face stays action here rather than going to
+                 disabledFill. No scale on a filled button (§3b). */
+              style={({ pressed }) => {
+                const live = pressed && nominating === null;
+                return [
+                  s.cta,
+                  { backgroundColor: live ? paper.actionPressed : paper.action },
+                  live
+                    ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
+                    : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+                ];
+              }}
             >
               <Row style={{ gap: 10 }}>
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>

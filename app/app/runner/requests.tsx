@@ -561,7 +561,14 @@ export default function Requests() {
               coral ? s.doorPrimary : s.doorGhost,
               inert && s.doorOff,
               !inert && pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
-              !inert && pressed && { transform: [{ scale: 0.97 }] },
+              // [Sean 2026-08-26 press behaviour] §3b splits the grammar on whether the door has
+              // a FILL: the coral door is a physical key (4px lip at rest, translateY(3) + 1px
+              // pressed, no scale), the ghost door keeps its scale — paper has no depth. An inert
+              // door stays flat in both, because a dead key has no travel.
+              !inert && coral && (pressed
+                ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: CORAL_INK_DEEP }
+                : { borderBottomWidth: 4, borderBottomColor: CORAL_INK_DEEP }),
+              !inert && !coral && pressed && { transform: [{ scale: 0.97 }] },
             ]}
             disabled={accepting !== null}
             accessibilityState={{ disabled: accepting !== null }}
@@ -693,7 +700,11 @@ export default function Requests() {
                     coral ? s.doorPrimary : s.doorGhost,
                     acceptOff && s.doorOff,
                     !acceptOff && pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
-                    !acceptOff && pressed && { transform: [{ scale: 0.97 }] },
+                    // Same split as the accept door above (§3b): filled coral = key, ghost = scale.
+                    !acceptOff && coral && (pressed
+                      ? { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: CORAL_INK_DEEP }
+                      : { borderBottomWidth: 4, borderBottomColor: CORAL_INK_DEEP }),
+                    !acceptOff && !coral && pressed && { transform: [{ scale: 0.97 }] },
                   ]}
                   disabled={reschedBusy !== null}
                   accessibilityState={{ disabled: reschedBusy !== null }}
