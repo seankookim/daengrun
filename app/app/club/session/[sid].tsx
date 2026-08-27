@@ -471,7 +471,7 @@ export default function ClubSessionShell() {
     if (addSheet || busy || addMutex.current) return;
     addMutex.current = true;
     try {
-      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:331이 fetchMyDogs에 대해
+      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:354이 fetchMyDogs에 대해
       // 기록해 둔 결함을 호출부에서 되살리는 모양이라, 실패는 실패로 말한다.
       // [review #6] The note that used to sit here — "doRsvp still has `.catch(() => [])`, left
       // alone, separate slice" — is retired: doRsvp now carries the same treatment.
