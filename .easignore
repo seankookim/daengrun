@@ -1,0 +1,80 @@
+# ═══ .easignore — what the EAS build archive does NOT need ═══
+#
+# ⚠ .easignore REPLACES .gitignore for EAS uploads, so this file is a SUPERSET: every
+#   .gitignore rule is reproduced below before anything new is added. Dropping one would
+#   ship a secret to the build servers, which is the failure mode that matters here.
+#
+# Measured 2026-08-27: the archive was 289 MB and the app itself is 4.6 MB. docs/ (171 MB)
+# and supabase/ (87 MB) are 258 MB of it, and a CLIENT build needs neither — no migration,
+# suite, or design doc is compiled into the app. Every build was uploading them.
+
+# ── reproduced from .gitignore (do not remove) ──
+.DS_Store
+node_modules/
+.env
+app/.env
+_to_delete/
+supabase/tests/.pgtest/
+
+# Strava OAuth — client secret과 access/refresh 토큰이 들어간다.
+# 파일이 생기기 **전에** 무시 규칙을 먼저 넣는다: 토큰이 한 번이라도 커밋되면 히스토리에서
+# 지우는 것은 rewrite이고, 그 시점엔 이미 유출이다.
+app/.strava-tokens.json
+.strava-tokens.json
+
+# 로컬 Supabase 컨테이너 산출물 — 실제 시크릿이 들어 있다 (git add -A 사고 방지)
+supabase/.temp/
+supabase/.branches/
+app/supabase/
+
+# 에이전트 툴링 산출물 (여러 세션이 각자 만든 것 — 저장소 내용이 아니다)
+.gstack/
+.claude/worktrees/
+.claude/settings.local.json
+.agents/
+.codex/
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json
+AGENTS.md
+
+# Per-machine agent tooling — installed by Claude Code / Codex, not project source.
+# Untracked-but-unignored is the dangerous middle: it shows up in every `git status`,
+# which is how a `git add -A` sweeps it in (and why memory says never to run one here).
+.agents/
+.claude/
+.codex/
+AGENTS.md
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json
+
+# Raw Overpass responses for the FEATURES harvest (34MB). The derived
+# features.json is committed; these are regenerable by harvest-features.mjs and
+# that harvest is complete, so nothing depends on them. The residential caches in
+# _raw/ ARE kept: that harvest is 13/25 done and they make it resumable at zero cost.
+docs/routes/geo/_rawf/
+
+# Local Naver map key for the route bench — never commit a client ID.
+docs/routes/strava/bench/config.js
+
+# Higgsfield generated frames — picked keepers move to a curated dir; raw batches stay local
+docs/campaigns/higgsfield-out/
+
+# ── not needed by a client build ──
+docs/
+supabase/
+prototype/
+precision-director-install/
+.claude/
+.githooks/
+.impeccable/
+scripts/
+TODOS.md
+CLAUDE.md
+DESIGN.md
+
+# ⚠ app/scripts and app/test are KEPT — package.json's `test` script references them and
+#   a build that cannot resolve its own package scripts is a new failure for no gain.
