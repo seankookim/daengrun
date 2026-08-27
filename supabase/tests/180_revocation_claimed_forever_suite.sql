@@ -46,6 +46,18 @@ begin
   --   which this repo has recorded twice and which still caught a pin written to enforce rigour.
   select regexp_replace(prosrc, '--[^\n]*', '', 'g') into v_src
     from pg_proc where proname = 'billing_key_swap';
+  -- 🔴 THE SOURCE MUST BE PROVEN TO EXIST BEFORE ANYTHING IS MEASURED IN IT. Found 2026-08-27 by
+  --   MEASUREMENT, not reasoning, after a peer hit the same class in their own file within the
+  --   hour: point these pins at a function name that does not exist and **they PASS** — 1061/0,
+  --   unchanged. `prosrc` is NULL, every `position(... in NULL)` is NULL, and plpgsql does not
+  --   take an `IF` on a NULL predicate, so no arm fires and `v_bad` stays empty.
+  -- ⚠ **A pin written to close a false green, carrying a false green of its own** — and the worst
+  --   possible one, because 「the function is gone」 is exactly the catastrophe a source pin is
+  --   supposed to be the last line against. Same family as a NULL collapsing a security predicate
+  --   (0116:425), arriving in a test instead of a policy.
+  if v_src is null or length(v_src) = 0 then
+    call _fail('rcf','W1 아웃박스 락 — 존재·모드·순서 (소스)', 'SOURCE ABSENT — billing_key_swap has no prosrc');
+  else
   i_lock  := position('from billing_key_revocations where billing_key = p_billing_key for update' in v_src);
   i_check := position('attempts > 0 or state = ''processing''' in v_src);
   if i_lock = 0                                then v_bad := v_bad || ' NO-outbox-lock'; end if;
@@ -56,7 +68,8 @@ begin
                                                then v_bad := v_bad || ' lock-AFTER-check'; end if;
   v_msg := 'lock@' || i_lock || ' check@' || i_check;
   if v_bad <> '' then call _fail('rcf','W1 아웃박스 락 — 존재·모드·순서 (소스)', v_bad || ' | ' || v_msg);
-                 else call _pass('rcf','W1 아웃박스 락 — 존재·모드·순서 (소스)'); end if;
+                   else call _pass('rcf','W1 아웃박스 락 — 존재·모드·순서 (소스)'); end if;
+  end if;
   v_bad := '';
 
   ------------------------------------------------------------------------------------------
@@ -180,6 +193,18 @@ begin
   -- pin here would need two sessions; the ORDER is what can be checked, and the order is the fix.
   select regexp_replace(prosrc, '--[^\n]*', '', 'g') into v_src
     from pg_proc where proname = 'billing_key_swap';
+  -- 🔴 THE SOURCE MUST BE PROVEN TO EXIST BEFORE ANYTHING IS MEASURED IN IT. Found 2026-08-27 by
+  --   MEASUREMENT, not reasoning, after a peer hit the same class in their own file within the
+  --   hour: point these pins at a function name that does not exist and **they PASS** — 1061/0,
+  --   unchanged. `prosrc` is NULL, every `position(... in NULL)` is NULL, and plpgsql does not
+  --   take an `IF` on a NULL predicate, so no arm fires and `v_bad` stays empty.
+  -- ⚠ **A pin written to close a false green, carrying a false green of its own** — and the worst
+  --   possible one, because 「the function is gone」 is exactly the catastrophe a source pin is
+  --   supposed to be the last line against. Same family as a NULL collapsing a security predicate
+  --   (0116:425), arriving in a test instead of a policy.
+  if v_src is null or length(v_src) = 0 then
+    call _fail('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)', 'SOURCE ABSENT — billing_key_swap has no prosrc');
+  else
   i_flag := position('from ops_flags for update' in v_src);
   i_gate := position('card_registration_live()' in v_src);
   if i_flag = 0                                  then v_bad := v_bad || ' NO-flag-lock'; end if;
@@ -187,7 +212,8 @@ begin
   if i_flag > 0 and i_gate > 0 and i_flag > i_gate then v_bad := v_bad || ' lock-AFTER-gate'; end if;
   v_msg := 'flaglock@' || i_flag || ' gate@' || i_gate;
   if v_bad <> '' then call _fail('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)', v_bad || ' | ' || v_msg);
-                 else call _pass('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)'); end if;
+                   else call _pass('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)'); end if;
+  end if;
 
   update ops_flags set card_registration_live_since = null;   -- shipped state is closed (171 R7)
 end $$;
