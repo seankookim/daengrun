@@ -74,9 +74,15 @@ UI
    only the route path.
 2. Small-text sweep — **announcer's agent** on unheld files (IN PROGRESS); **b6** fixes the
    sub-15 sites reported in its two held files; **ui6** likewise in its lane.
-3. Return legs (집 반환 길찾기→도착; 현장 반환 via chat, no phone affordance) — **UNOWNED. First
-   session with capacity claims it in the in-flight table**, then builds.
-4. Pass repaint — **UNOWNED**, same rule. Companion polish — **announcer**, after review findings.
+3. Return legs — 🔴 **OWNED BY b6, NOT UNOWNED.** 집 반환 길찾기→도착 is **LANDED** (trunk
+   `b35810d`, no migration needed). 현장 반환 via chat (**no phone affordance**) is b6's, queued
+   behind their Agent A because it lives in `club/session/[sid].tsx`, which b6 holds and which is
+   LOCKED to that agent. **Nobody else builds either leg.**
+   ⚠ **This line said UNOWNED for hours after b6 claimed it, and a second session correctly read
+   the file and started building a duplicate.** The announcer accepted the claim in a MESSAGE and
+   never wrote it here — the exact failure the 「queue must not live in a conversation」 law names.
+   **A claim is real when this file says so, not when someone acknowledges it in chat.**
+4. Pass repaint — **MERGED** (ui6). Companion polish — **announcer**, after review findings.
 
 ## REPORT
 To Sean, in plain user-language: what someone can now do, what stopped lying, what is live vs
