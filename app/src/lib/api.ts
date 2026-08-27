@@ -686,6 +686,13 @@ export async function fetchMyBillingCard(): Promise<BillingCard | null> {
 // 않아서**다 (계약 §4의 R1~R8을 서명이 강제한다). 그래서 이 매퍼는 필드를 고르지 않고 전부 받는다.
 export interface BoardRowLive {
   kind: 'delegated' | 'owner_handled' | 'crew';
+  /** [0139] Sean 2026-08-27: 「for the tap for profile, yes make it like instagram」 — 행이 목적지가
+   *  되면서 R8이 뒤집혔다. 이름이 보이면 아이디도 온다. */
+  ownerProfileId: string | null;
+  /** ⚠ 이름과 **같은 게이트**를 탄다: 수락 전 제안은 제3자에게 이름도 아이디도 null이다.
+   *  이름을 가린 채 아이디만 주면 프로필 화면에서 그 이름을 읽으면 그만이므로, 같은 누설이
+   *  한 단계 늦게 도착할 뿐이다 (0139 · 172 I2). */
+  runnerProfileId: string | null;
   seq: number | null;
   dogName: string | null;
   dogPhotoUrl: string | null;
@@ -704,6 +711,8 @@ export async function fetchSessionBoard(sessionId: string): Promise<BoardRowLive
   if (error) throw error;   // 실패는 '빈 보드'가 아니다 — 화면이 두 사실을 갈라 말한다
   return ((data ?? []) as any[]).map((r) => ({
     kind: r.row_kind,
+    ownerProfileId: r.owner_profile_id ?? null,
+    runnerProfileId: r.runner_profile_id ?? null,
     seq: r.seq == null ? null : Number(r.seq),
     dogName: r.dog_name ?? null,
     dogPhotoUrl: r.dog_photo_url ?? null,
