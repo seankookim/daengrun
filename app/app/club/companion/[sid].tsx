@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchClubSession, type ClubSessionDetail } from '../../../src/lib/api';
+import { fetchClubSession, recordCompanionRun, type ClubSessionDetail } from '../../../src/lib/api';
 import { useNumFont } from '../../../src/lib/fonts';
 import { getTraceSnapshot, resetTrace, startTracking, type TrackHandle, type TrackMode } from '../../../src/lib/geo';
 import { paper } from '../../../src/theme';
@@ -20,16 +20,36 @@ import { paper } from '../../../src/theme';
 // another session tonight. Building here means zero collision; the one-line entry point in the
 // session screen is handed to whoever owns that file rather than taken.
 //
-// 🔴 WHAT THIS SCREEN DOES NOT DO, AND SAYS SO. The walk is **not saved**. `participant_activities`
-// is the right home for it (run_id nullable, `source` admits 'self_reported'), but NOTHING writes
-// it for a 동반 dog — every `insert into runs` requires a booking_id, and a 동반 row has none. The
-// writer is a migration, and the migration queue is jammed behind 0131's review hold. So this
-// screen shows a live measurement and makes **no claim of a record**. Under the honesty laws that
-// is the whole difference between a useful screen and a lie: 「no fake numbers」 forbids showing a
-// saved-looking total that nothing saved.
+// 🔴 THE WALK IS NOW SAVED — 0143 (2026-08-27). This block used to say the opposite, and the note
+// at the bottom of the screen said so to the user, both under an instruction to delete them ONLY
+// in the change that lands the writer. That change is this one. `session_record_companion_run`
+// upserts the single `participant_activities` row for (session, me): `self_reported` when a
+// distance was measured, `checkin_only` when it was not — Sean's own ruling, 2026-08-26: a flat
+// battery 「lands as checkin_only rather than never having happened」.
+//
+// ⚠ SAVING CAN FAIL, AND FAILURE IS RENDERED AS FAILURE. No silent catch → happy UI. On a failed
+//   save the measured distance and time stay on screen exactly as they were, the copy says the
+//   record did not save, and 다시 시도 re-sends the SAME measurement (never a re-measure).
+// ⚠ AND IT WILL FAIL FOR A WHILE: 0143 is not deployed yet, so the RPC answers PGRST202 until the
+//   stack ships. `PENDING_DEPLOY` in src/lib/rpc-skew.ts carries the entry that turns that one
+//   window into an honest Korean sentence instead of a raw PostgREST string; the entry is DELETED
+//   at deploy, together with its pin in test/rpc-skew.test.cjs.
 //
 // PAPER WORLD (DESIGN.md §4): canvas #FFFFFF · solid coral hairline #E8552F · ink #111111 ·
 // square corners · detail floor 15pt · Oswald numerals carry an explicit lineHeight >= 1.2x.
+
+// 저장 실패 사유를 사용자가 읽을 수 있는 한 문장으로. 서버가 던지는 토큰은 영어이고, 화면에 영어
+// 토큰을 그대로 내보내는 것은 「실패를 실패로 보여준다」가 아니라 그냥 진단 유출이다.
+// clubRpc는 배포 스큐·feature_disabled를 이미 한국어로 번역해서 던지므로 그 문장은 그대로 쓴다.
+const saveErrorText = (e: unknown): string => {
+  const m = e instanceof Error ? e.message : '';
+  if (m.includes('not_checked_in')) return '체크인 기록이 없어 저장할 수 없어요 — 세션 화면에서 체크인해 주세요';
+  if (m.includes('no_companion_dog')) return '이 세션에 동반으로 등록한 아이가 없어요';
+  if (m.includes('not_joined')) return '이 세션의 참가자가 아니에요';
+  if (m.includes('invalid_measure')) return '측정값이 저장할 수 있는 범위를 벗어났어요';
+  if (/[가-힣]/.test(m)) return m;
+  return '기록을 저장하지 못했어요 — 잠시 후 다시 시도해 주세요';
+};
 
 const fmtClock = (sec: number): string => {
   const h = Math.floor(sec / 3600);
@@ -64,6 +84,17 @@ export default function CompanionRun() {
                                      // fast taps both passed that guard. A ref set synchronously
                                      // BEFORE the await is the only race-free gate here.
   const [running, setRunning] = useState(false);
+
+  // 저장 상태 — 'idle'은 「아직 종료하지 않았다」이지 「저장됐다」가 아니다. 네 갈래를 이름으로
+  // 구분하는 이유는 로딩·성공·실패를 한 칸에 뭉개면 실패가 조용히 사라지기 때문이다.
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  // 다시 시도는 「다시 측정」이 아니다 — 보낸 값 그대로를 다시 보낸다.
+  // ⚠ ref가 아니라 STATE다. 이 값은 렌더에서 읽힌다(저장 문구가 거리 유무로 갈린다). 이 파일이
+  //   이미 한 번 밟은 덫이 바로 그것 — 렌더에서 읽은 ref는 리렌더를 일으키지 못해 화면과 실제가
+  //   어긋난다(아래 running 주석). 렌더가 읽는 값은 state가 가진다.
+  const [lastMeasure, setLastMeasure] =
+    useState<{ km: number | null; durationSec: number | null } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +132,10 @@ export default function CompanionRun() {
     beginBusy.current = true;
     resetTrace();
     setFinalElapsed(null);
+    // 새 러닝은 아직 저장된 기록이 없다 — 이전 러닝의 「저장됐어요」를 물려받으면 그건 거짓말이다.
+    setSaveState('idle');
+    setSaveErr(null);
+    setLastMeasure(null);
     setStartedAt(Date.now());
     const h = await startTracking((snap) => setKm(snap.km), { dogName: myDogName ?? undefined });
     handle.current = h;
@@ -116,15 +151,36 @@ export default function CompanionRun() {
     beginBusy.current = false;
   };
 
+  // 한 번 만든 측정값을 그대로 다시 보낸다. finish()와 다시 시도가 공유한다.
+  const save = async (measuredKm: number | null, durationSec: number | null) => {
+    setLastMeasure({ km: measuredKm, durationSec });
+    setSaveState('saving');
+    setSaveErr(null);
+    try {
+      await recordCompanionRun(String(sid), measuredKm, durationSec);
+      setSaveState('saved');
+    } catch (e) {
+      // 실패를 삼키지 않는다 — 화면의 거리·시간은 그대로 두고 저장이 안 됐다고 말한다.
+      setSaveErr(saveErrorText(e));
+      setSaveState('failed');
+    }
+  };
+
   const finish = async () => {
     await handle.current?.stop().catch(() => {});
     handle.current = null;
     setRunning(false);
-    if (startedAt != null) setFinalElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    const secs = startedAt != null ? Math.floor((Date.now() - startedAt) / 1000) : null;
+    if (secs != null) setFinalElapsed(secs);
     setStartedAt(null);            // kills the interval — the clock of a stopped run must stop
     const snap = getTraceSnapshot();
-    setKm(snap.km);
+    // ⚠ 「재지 못했다」와 「0km를 걸었다」는 다른 문장이다. 고정점이 0개면 거리는 측정된 적이 없으므로
+    //    화면에도 숫자를 넣지 않고(—), 서버에도 null을 보낸다 — 0143은 그걸 checkin_only로 남긴다
+    //    (Sean: 방전된 산책도 「일어나지 않은 것」이 아니다). 0.00을 보내면 그게 가짜 숫자다.
+    const measuredKm = snap.trace.length === 0 ? null : snap.km;
+    setKm(measuredKm);
     setMode(null);
+    await save(measuredKm, secs);
   };
 
   // ⚠ `running` was derived from `handle.current` — a REF read during render. Refs do not trigger
@@ -218,12 +274,31 @@ export default function CompanionRun() {
             <Text style={s.ctaTxt}>{running ? '러닝 종료' : '러닝 시작'}</Text>
           </Pressable>
 
-          {/* 🔴 The honest line. Nothing writes a 동반 walk yet, so this screen must not let a
-              number look saved. Delete this ONLY in the same change that lands the
-              participant_activities writer — not before, and not because it reads awkwardly. */}
-          <Text style={s.note}>
-            지금은 러닝 중 거리만 보여드려요. 기록으로 저장하는 기능은 아직 준비 중이에요.
-          </Text>
+          {/* 저장 결과. 네 상태가 각자 다른 문장을 갖는다 — 저장 중은 저장됨이 아니고, 실패는
+              아무 말도 안 하는 것이 아니다. */}
+          {saveState === 'saving' && <Text style={s.note}>기록을 저장하고 있어요…</Text>}
+          {saveState === 'saved' && (
+            <Text style={s.note}>
+              {lastMeasure?.km == null
+                // 거리를 못 잰 산책도 기록이다 — 다만 「거리 기록」인 척하지 않는다.
+                ? '거리를 재지 못해 참가 기록으로 저장했어요.'
+                : '기록이 저장됐어요.'}
+            </Text>
+          )}
+          {saveState === 'failed' && (
+            <View style={s.strip}>
+              <Text style={s.stripTxt}>{saveErr ?? '기록을 저장하지 못했어요'}</Text>
+              <Text style={s.stripSub}>화면의 거리·시간은 그대로예요 — 다시 시도할 수 있어요.</Text>
+              <Pressable
+                onPress={() => {
+                  const m = lastMeasure;
+                  if (m) save(m.km, m.durationSec).catch(() => {});
+                }}
+                accessibilityRole="button" accessibilityLabel="기록 저장 다시 시도">
+                <Text style={s.stripAction}>다시 시도 ›</Text>
+              </Pressable>
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -247,6 +322,8 @@ const s = StyleSheet.create({
   statUnit: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: paper.dim },
   strip: { backgroundColor: paper.criticalWash, borderLeftWidth: 3, borderLeftColor: paper.critical, padding: 13, marginTop: 18 },
   stripTxt: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical },
+  // second line inside a strip — stripTxt carries no top margin, so two stacked copies collide
+  stripSub: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 6 },
   stripAction: { fontSize: 15, fontWeight: '800', color: paper.critical, marginTop: 8 },
   cta: { backgroundColor: paper.action, paddingVertical: 16, marginTop: 22 },
   ctaTxt: { textAlign: 'center', color: '#FFFFFF', fontSize: 16.5, fontWeight: '800' },

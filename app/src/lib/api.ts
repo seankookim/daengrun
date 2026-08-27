@@ -3698,6 +3698,16 @@ export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsv
 export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
 
+// [0143] 동반(자기 아이와 직접 걷는) 러닝의 기록 저장. Sean 2026-08-26: 「the self runs are still
+// part of the pack」. 위탁견은 정산 때 runs 행에서 서버가 기록하므로(0038:137) 이 문은 동반 전용이다 —
+// 위탁 보호자가 부르면 no_companion_dog로 거절된다(같은 산책을 두 번 세지 않는다).
+// ⚠ km은 「재지 못했다」와 「0km 걸었다」를 구분한다: 고정점이 하나도 없으면 null을 보내고, 서버는
+//    그걸 checkin_only로 남긴다(방전도 일어난 산책이다). 0을 보내면 그건 가짜 숫자다.
+export const recordCompanionRun = (sessionId: string, km: number | null, durationSec: number | null) =>
+  clubRpc('session_record_companion_run', {
+    p_session: sessionId, p_km: km, p_duration_sec: durationSec,
+  }) as Promise<void>;
+
 // ---------- 위탁 (P-C → R1~R6 백엔드 완결판, 0037~0050) ----------
 // 플랩 어휘 10종 (정본 = delegation-master-lab): PENDING/HOLDING/CLEARED/BOARDED/RUNNING/RETURNS/SETTLED/OUTSIDE/REFUND/REFUSED
 export type FlapState =
