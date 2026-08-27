@@ -4,14 +4,17 @@ import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Icon, Row } from '../src/components/ui';
-import { addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts, sendSOS } from '../src/lib/api';
+import {
+  addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts,
+  fetchReportableRun, ReportableRun, sendSOS,
+} from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
 import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { colors, paper } from '../src/theme';
 
-// 안심 센터 — 실동작: SOS(진행 중 예약 상대에게 즉시 알림), 긴급 연락처 CRUD, 전화 걸기.
-// 신고·의료노트는 각각 향후 세션(incidents 플로우 / 반려견 프로필 메모가 대체).
+// 안심 센터 — 실동작: SOS(진행 중 예약 상대에게 즉시 알림), 긴급 연락처 CRUD, 전화 걸기,
+// 사고 신고(/incident/[bid] — 0094 ⑪ 의 클라이언트 절반). 의료노트는 반려견 프로필이 대체한다.
 
 // [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
 // 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
@@ -37,7 +40,19 @@ export default function Safety() {
       .then(setContacts)
       .catch((e) => { console.warn('[safety]:', e?.message ?? e); setLoadErr(true); });
   };
-  useFocusEffect(useCallback(() => { load(); }, []));
+
+  // 사고 신고 카드가 어디로 갈지 — 서버가 정한다 (0114 §3 의 접수 가능 집합).
+  // ⚠ 네 상태를 넷으로 둔다. 「불러오는 중」이 「없어요」로 접히면, 접수할 수 있는 러닝을 가진
+  // 사람이 안 된다는 말을 듣는다 — 이 파일이 긴급 연락처에서 이미 한 번 배운 치환이다.
+  const [run, setRun] = useState<ReportableRun | null>(null);
+  const [runState, setRunState] = useState<'loading' | 'found' | 'none' | 'error'>('loading');
+  const loadRun = () => {
+    setRunState('loading');
+    return fetchReportableRun()
+      .then((r) => { setRun(r); setRunState(r ? 'found' : 'none'); })
+      .catch((e) => { console.warn('[safety] run:', e?.message ?? e); setRunState('error'); });
+  };
+  useFocusEffect(useCallback(() => { load(); loadRun(); }, []));
 
   const sos = () => {
     Alert.alert('SOS', '진행 중인 러닝의 상대방에게 긴급 알림을 보낼까요?', [
@@ -202,12 +217,36 @@ export default function Safety() {
           />
         </View>
 
-        {/* ---------- 준비 중 (정직 라벨) ---------- */}
+        {/* ---------- 사고 신고 (0094 ⑪ — 서버는 진작 있었고 화면이 없었다) ---------- */}
         <Row style={{ gap: 10, marginTop: 14 }}>
-          <View style={[s.card, { flex: 1, opacity: 0.55, marginTop: 0 }]}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
-            <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
-          </View>
+          {/* 접수할 러닝이 없거나 아직 모르는 동안에는 **버튼이 아니다** — 목적지가 없는 문을
+              그리지 않는다. 실패는 다시 눌러볼 값이 있으므로 그때만 눌린다. */}
+          {runState === 'found' && run ? (
+            <Pressable
+              style={[s.card, { flex: 1, marginTop: 0 }]}
+              onPress={() => router.push(`/incident/${run.bookingId}`)}
+              accessibilityRole="button"
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
+              <Text style={{ fontSize: 15, color: paper.text, marginTop: 3 }}>
+                {run.dogName ? `${run.dogName} · ` : ''}{run.dateLabel} ›
+              </Text>
+            </Pressable>
+          ) : runState === 'error' ? (
+            <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={loadRun} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
+              <Text style={{ fontSize: 15, color: paper.critical, fontWeight: '700', marginTop: 3 }}>
+                불러오지 못했어요 · 다시 시도
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={[s.card, { flex: 1, marginTop: 0 }]}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
+                {runState === 'loading' ? '불러오는 중...' : '접수할 수 있는 러닝이 없어요'}
+              </Text>
+            </View>
+          )}
           {/* ⚠ Owner-only destination. This screen is a quick link from BOTH homes, and
               `/owner/dog` has no role guard of its own — so a runner could land on the owner's dog
               screen and create a real `dogs` row from its empty state. The row is still rendered
