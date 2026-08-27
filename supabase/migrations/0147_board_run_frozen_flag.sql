@@ -25,6 +25,18 @@
 -- ⚠ `_club_delegation_board_impl` gates session closure and collides with S2.5 — claimed here
 -- rather than reached into from the client lane.
 
+-- ═══ BATTERY, measured 2026-08-27. Every plant asserted landed before its run was trusted ═══
+--   P1  drop a pre-existing key (`refundState`) from the recreation — THE SILENT HALF:
+--       **the APPLY ABORTS** at §D 「the recreation LOST a pre-existing key」. Caught before a
+--       pin is needed.
+--   P1b same plant WITH §D's arm removed — 1048/1, **[brf] F2 alone**, naming it: 「8개 중 7개」.
+--       P1 measured the VERIFY block; P1b asks the independence question separately, because
+--       counting P1 as suite coverage is exactly the 「a green is evidence for one sentence」
+--       error (the lesson 0144's battery paid for at M2/M7).
+--   P2  remove `runEnded` itself (the hole unfixed), §D's arm neutralized: 1048/1, **[brf] F1**
+--       naming it 「runEnded 키 자체가 없다」 — the hole reproduces, not merely the fix's absence.
+--   Clean: 1049/0.
+
 begin;
 
 -- §A pre-check — fail closed if the deployed body is not what this file was written against
