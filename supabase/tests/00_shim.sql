@@ -55,6 +55,27 @@ begin
   return v_id;
 end $$;
 
+-- [0150] pg_net's RESPONSE table. `net.http_post` is asynchronous — it returns a request id and
+-- the worker writes the answer here later — so anything that reads a response back needs this to
+-- exist. Shape copied from the linked production project (pg_net 0.20.4), column for column.
+-- ⚠ NO PRIMARY KEY AND NO INDEX ON `id`, deliberately: production has neither (its only index is
+--   `_http_response_created_idx` on `created`). A shim that added a PK would let a suite lean on a
+--   uniqueness the real table does not provide — the shim's job is to be as weak as production.
+-- ⚠ NOTHING WRITES THIS AUTOMATICALLY. The `net.http_post` stub above still only records the call
+--   in `net._stub_calls`; a suite that wants an answer plants the row itself, which is the honest
+--   model of an async worker we do not run here.
+create table if not exists net._http_response (
+  id           bigint,
+  status_code  int,
+  content_type text,
+  headers      jsonb,
+  content      text,
+  timed_out    boolean,
+  error_msg    text,
+  created      timestamptz default now()
+);
+create index if not exists _http_response_created_idx on net._http_response (created);
+
 -- supabase 기본 권한 모사: 실서비스는 default privileges로 신규 테이블에 authenticated 전권을
 -- 부여한다 — 따라서 '봉인'은 grant 부재가 아니라 RLS(정책 0 = 행 비가시·쓰기 거부)가 담당해야
 -- 하고, leak 테스트도 그 조건에서 돌아야 실환경과 같다.
