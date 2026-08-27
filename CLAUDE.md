@@ -216,6 +216,30 @@ error:"` matched codex's benign startup warning `ERROR codex_models_manager: fai
 models cache`, so a healthy run was declared REFUSED. **Match the specific refusal sentence, never
 a bare `error:`** — third detector-shaped miss of one day, all mine.
 
+🔴 **A TIMEZONE BUG IS INVISIBLE TO A UTC-ONLY TEST ARM — THE ARM MUST BE A ZONE THAT DISAGREES**
+(ui6, measured 2026-08-27 on the club pass ticket). Planting the original device-clock read back
+reddens **17 pins under `America/New_York` and ZERO under `Asia/Seoul`** — and a UTC arm would
+also have passed, because UTC and KST agree on the WEEKDAY for an evening session. So a suite can
+be green, thorough, and structurally incapable of seeing the entire class. The runner needs an arm
+in a zone that genuinely disagrees (New_York), not merely a non-Seoul one.
+⚠ **And the grep for this class both OVER- and UNDER-counts, so a blanket sweep is worse than
+none**: `\.get(Day|Hours|Minutes)\(` MISSES `toDateString()` and `toLocaleDateString`/
+`toLocaleString` called without a `timeZone` option (`api.ts:3079` was invisible to it), and
+FALSE-POSITIVES on the epoch-safe `getTime()` family. Triage each site by where its Date came
+from; never mass-replace.
+⚠ **The costly shape is not a wrong label — it is SILENT FEATURE LOSS.** `owner/report.tsx:101`
+builds `hhmm` device-locally and line ~102 is `if (!REQUEST_SLOTS.includes(hhmm)) return null;`
+(verified at source, independently of the report): off-KST the match simply fails and the
+「다음 주 같은 시간」 panel **never renders at all**. Nothing looks broken, so nobody reports it —
+the mis-rendered ticket is the visible half of a class whose expensive half is invisible.
+⚠ **Prefer converging on `kst.ts` (fixed +9, no Intl, Korea has no DST) over auditing the
+Intl-fallback family.** Several sites are correct in the `try` and device-local in the `catch`,
+and whether those catches ever run on Hermes-without-ICU is unresolved — with a THIRD possibility
+nobody has excluded: an Intl that ACCEPTS `timeZone` and silently IGNORES it, which would make the
+`try` branch wrong and the catch never fire. Converging **removes the question instead of
+answering it**; that is cheaper than the one measurement it would take to settle, and it stays
+settled.
+
 🔴 **THE MIGRATION-NUMBER CHECK IS THREE-SIDED, NOT TWO — AND THE THIRD SIDE GROWS AS WE USE MORE
 AGENTS** (ui6, measured 2026-08-27, caught before it cost a rename). REGISTRY row · remote
 branches · **LOCAL WORKTREE BRANCHES**. Measured: `0144`/`0145` and suites `176`/`177` read **FREE
