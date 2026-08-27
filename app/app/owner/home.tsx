@@ -873,7 +873,11 @@ const s = StyleSheet.create({
     marginTop: 14, marginBottom: 8, paddingHorizontal: layout.gutter,
   },
   modhT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  modhL: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  // [§7a-bis] INK, not dim. 「Anything the customer must read to act is full ink; dim marks text
+  // they may skip」 — this is the label inside a Pressable with accessibilityRole="button", so it
+  // is the thing you read in order to act. Matches `owner/meetup.tsx:883` headerLink, which is the
+  // same role already rendered in ink; owner home was the outlier, not the precedent.
+  modhL: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
   // 행 문법 — 히어로 알림 줄과 같은 부품(굵은 줄 · 얇은 줄 · 우측 행동 · 뉴트럴 헤어라인).
   // 상자도 코랄 스파인도 없다: 무게는 히어로가 독점한다.
   row: {
@@ -886,7 +890,10 @@ const s = StyleSheet.create({
   // rowT 에 numberOfLines 는 없다 — 길면 접힌다(행은 minHeight 만 있고 고정 높이가 아니다).
   rowT: { flex: 1, fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink },
   rowSub: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 1 },
-  rowAct: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.dim },
+  // [§7a-bis] INK, same reason — 시간만 고르기 › · 체력 › · 예약 › are the action labels inside
+  // their rows' Pressables. Matches `owner/request.tsx:1534` prefAction (15/800/ink), the same
+  // role in the same size and weight.
+  rowAct: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
   // Oswald 숫자는 명시 lineHeight ≥1.2× (BUG A — 없으면 어센더가 잘린다).
   // rowT 안에 인라인으로 섞이므로 **rowT 와 같은 17** 이어야 한 줄로 읽힌다 (17×1.35 = 23).
   rowNum: { fontSize: 17, lineHeight: 23, fontWeight: '900', color: paper.ink },
