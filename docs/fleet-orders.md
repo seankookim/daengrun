@@ -32,6 +32,13 @@ Not lines, not files.
   lose to slices landing during your build.
 - Spawn agents freely — always `isolation: worktree`, always told the excluded files. An agent's
   finding is a snapshot; re-verify before acting.
+- 🔴 **CUT EVERY NEW SLICE FROM `origin/redesign-v4`, NEVER FROM YOUR SESSION'S MAIN TREE** (ui6,
+  measured 2026-08-27: their main tree was **39 commits behind**, and an agent dispatched against
+  it began redoing a sweep that had landed hours earlier). **A stale tree does not announce
+  itself** — the agent reads the old value, believes it, does careful correct work, and returns a
+  conflicting change that looks like a genuine finding, mutation table and gate run attached.
+  Nothing in its report would say 「this was already done」. Same substitution as reading a push
+  report instead of the artifact. Cutting fresh makes freshness structural instead of remembered.
 
 ## CADENCE — the rules that paid for themselves this week
 1. Verify at source at send time. A push that succeeds is a claim; the file read back from origin
