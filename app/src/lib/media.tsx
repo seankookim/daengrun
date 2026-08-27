@@ -110,5 +110,5 @@ const ms = StyleSheet.create({
   loading: { backgroundColor: '#E3DFD2' },
   fail: { backgroundColor: '#2E2A26', alignItems: 'center', justifyContent: 'center', padding: 6 },
   failMark: { fontSize: 16, marginBottom: 2 },
-  failText: { fontSize: 10, fontWeight: '700', color: '#D8D2C4', textAlign: 'center', lineHeight: 13 },
+  failText: { fontSize: 15, fontWeight: '700', color: '#D8D2C4', textAlign: 'center', lineHeight: 19 },
 });

@@ -336,16 +336,18 @@ function FailBlock() {
   );
 }
 
-// 디테일 텍스트 바닥선 14pt. 예외는 레터스페이스 키커 하나뿐 (DESIGN.md).
+// Detail-text floor 15pt (DESIGN.md §3, raised from 14 on 2026-08-25). The kicker is NOT an
+// exception here: it carries Korean copy ('중단 사유', '러닝을 멈출 수 있어요'), and Korean never
+// rides the latin letterspaced-caps exemption — it was 12pt and is now 15.
 const s = StyleSheet.create({
   wrap: { paddingVertical: 14, gap: 8 },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 0.9, color: paper.dim },
+  kicker: { fontSize: 15, fontWeight: '800', letterSpacing: 0.9, color: paper.dim },
   head: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4, lineHeight: 29, color: paper.ink },
   stepHead: { fontSize: 20, fontWeight: '900', letterSpacing: -0.3, lineHeight: 27, color: paper.ink },
-  body: { fontSize: 14, lineHeight: 20, color: paper.text },
-  fine: { fontSize: 14, lineHeight: 20, color: paper.dim },
+  body: { fontSize: 15, lineHeight: 20, color: paper.text },
+  fine: { fontSize: 15, lineHeight: 20, color: paper.dim },
   strip: { borderWidth: 1, borderColor: '#E6E6E6', backgroundColor: '#FAFAFA', padding: 10 },
-  stripTxt: { fontSize: 14, lineHeight: 20, color: paper.text, fontWeight: '600' },
+  stripTxt: { fontSize: 15, lineHeight: 20, color: paper.text, fontWeight: '600' },
   // 답 버튼 — 잉크 아웃라인, 셋 다 같은 무게. 면(fill)은 쓰지 않는다 (코랄 예산은 호스트 화면 것).
   optBtn: { borderWidth: 1.5, borderColor: paper.ink, backgroundColor: paper.canvas, paddingVertical: 13, paddingHorizontal: 14 },
   optTxt: { fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' },
@@ -354,24 +356,24 @@ const s = StyleSheet.create({
   // 사유 행 — ③-A 프레임 그대로: 헤어라인으로만 갈린 행 목록.
   reasonRow: { borderTopWidth: 1, borderTopColor: '#EFEEEA', paddingVertical: 14, flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   reasonTxt: { fontSize: 16, fontWeight: '700', color: paper.ink },
-  reasonMark: { fontSize: 14, color: paper.dim },
+  reasonMark: { fontSize: 15, color: paper.dim },
   link: { paddingVertical: 12, alignItems: 'center' },
-  linkTxt: { fontSize: 14, fontWeight: '700', color: paper.dim, textDecorationLine: 'underline' },
+  linkTxt: { fontSize: 15, fontWeight: '700', color: paper.dim, textDecorationLine: 'underline' },
   // 긴급 — critical 은 강조 예산 면제 토큰이다 (theme.ts:181). 코랄과 절대 섞지 않는다.
   sosBox: { borderWidth: 2, borderColor: paper.critical, backgroundColor: paper.criticalWash, padding: 12, gap: 4 },
   sosBtn: { borderWidth: 1.5, borderColor: paper.critical, backgroundColor: paper.canvas, paddingVertical: 12 },
   sosBtnTxt: { fontSize: 16, fontWeight: '800', color: paper.critical, textAlign: 'center' },
-  sosSub: { fontSize: 14, lineHeight: 19, color: '#8C3722' },
+  sosSub: { fontSize: 15, lineHeight: 19, color: '#8C3722' },
   mineBox: { borderWidth: 1, borderColor: '#E6E6E6', padding: 11, gap: 4 },
   recHead: { fontSize: 18, fontWeight: '900', color: paper.ink },
   recLine: { fontSize: 16, fontWeight: '800', color: paper.ink, lineHeight: 22 },
-  recReason: { fontSize: 14, lineHeight: 20, color: paper.text },
-  noteLabel: { fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 4 },
+  recReason: { fontSize: 15, lineHeight: 20, color: paper.text },
+  noteLabel: { fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 4 },
   noteInput: {
     borderWidth: 1.5, borderColor: '#C9C7C0', backgroundColor: paper.canvas,
     minHeight: 96, padding: 11, fontSize: 15, lineHeight: 21, color: paper.ink,
   },
   refusal: { borderWidth: 1.5, borderColor: paper.critical, backgroundColor: paper.criticalWash, padding: 11, gap: 3 },
   refusalTitle: { fontSize: 15, fontWeight: '800', color: paper.critical },
-  refusalBody: { fontSize: 14, lineHeight: 20, color: '#8C3722' },
+  refusalBody: { fontSize: 15, lineHeight: 20, color: '#8C3722' },
 });

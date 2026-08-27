@@ -123,7 +123,14 @@ export default function RoleSelect() {
 
   return (
     <View style={s.root}>
-      <Text style={s.brand}>도그스하이 · DOGS HIGH</Text>
+      {/* [FLOOR15] The wordmark is artwork, not copy — DESIGN.md §3 lets it sit below the floor,
+          but only with all three clauses, and (2) 'declared decoration for assistive tech' was
+          missing. It carries no data (the two doors below say everything), so nothing is lost. */}
+      <Text
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={s.brand}
+      >도그스하이 · DOGS HIGH</Text>
 
       <Pressable
         style={({ pressed }) => [s.half, pressed && s.pressed]}
@@ -161,7 +168,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   brand: {
     paddingTop: 64, paddingBottom: 14, textAlign: 'center',
-    fontSize: 12, letterSpacing: 3, color: paper.faint, // 장식 클래스 (14pt 플로어 면제 유일 지점)
+    fontSize: 12, letterSpacing: 3, color: paper.faint, // 장식 클래스 (15pt 플로어 면제 유일 지점)
   },
   half: { flex: 1, justifyContent: 'center', paddingHorizontal: 26 },
   pressed: { backgroundColor: paper.wash },

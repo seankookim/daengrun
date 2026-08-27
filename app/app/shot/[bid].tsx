@@ -732,8 +732,8 @@ export default function ShotStudio() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9 }}>
               <IconChip size={28} df={df} />
-              <Text numberOfLines={2} style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: paper.ink, fontStyle: 'italic' }}>
-                {dog}, {km}km 완주!! <Text style={{ fontSize: 14, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
+              <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, fontWeight: '800', color: paper.ink, fontStyle: 'italic' }}>
+                {dog}, {km}km 완주!! <Text style={{ fontSize: 15, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
               </Text>
             </View>
             <View style={{ position: 'absolute', top: -12, left: '50%', marginLeft: -62 }}>
@@ -833,7 +833,7 @@ export default function ShotStudio() {
         </View>
       )}
       {!err && !notFound && report && !run && (
-        <View style={s.errBox}><Text style={{ fontSize: 14.5, color: '#8fa093', textAlign: 'center' }}>러닝이 끝나면 인증샷을 만들 수 있어요</Text></View>
+        <View style={s.errBox}><Text style={{ fontSize: 15, color: '#8fa093', textAlign: 'center' }}>러닝이 끝나면 인증샷을 만들 수 있어요</Text></View>
       )}
 
       {report && run && (
@@ -989,7 +989,7 @@ export default function ShotStudio() {
           {/* 액션 바 — outside the scroller, so it is reachable on every screen size. */}
           <View style={s.actRow}>
             <Pressable onPress={onGhost} disabled={busy} style={[s.actGhost, busy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
             </Pressable>
             <Pressable onPress={onMain} disabled={busy} style={[s.actMain, busy && { opacity: 0.6 }]}>
               <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{mainLabel}</Text>
@@ -1020,7 +1020,7 @@ export default function ShotStudio() {
         <View style={s.sheet}>
           <View style={s.grab} />
           <Text style={[{ fontSize: 19, fontWeight: '900', color: paper.ink }, df]}>사진 고르기</Text>
-          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
+          <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
             {runPhotos.length > 0 ? '이 러닝에서 러너가 담아온 순간들이에요' : '이 러닝엔 러너 사진이 없어요 — 갤러리에서 골라주세요'}
           </Text>
           {runPhotos.length > 0 && (
@@ -1035,13 +1035,13 @@ export default function ShotStudio() {
           )}
           {photoSignFails > 0 && (
             /* [0064] 서명 실패 = 명시적 실패 상태 — 조용히 장수를 줄이지 않는다 */
-            /* [D13 FLOOR14 2026-08-12] 13 → 14. 실패 메시지는 반드시 읽혀야 하는 한 종류다. */
-            <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
+            /* [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 13 → 14 → 15. 실패 메시지는 반드시 읽혀야 하는 한 종류다. */
+            <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
               사진 {photoSignFails}장을 못 불러왔어요 — 시트를 닫았다 다시 열면 재시도해요
             </Text>
           )}
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>내 갤러리에서 선택</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.dim }}>내 갤러리에서 선택</Text>
           </Pressable>
           <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: colors.neon }}>이 사진으로 만들기 ›</Text>
@@ -1063,7 +1063,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 58, paddingHorizontal: 16, paddingBottom: 6 },
   x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
   errBox: { margin: 20, backgroundColor: '#121b14', borderRadius: 16, padding: 24 },
-  errTxt: { fontSize: 14.5, color: '#8fa093', textAlign: 'center' },
+  errTxt: { fontSize: 15, color: '#8fa093', textAlign: 'center' },
   // Same border as this screen's own dark ghost button (actGhost) — 44pt touch target.
   errBtn: {
     marginTop: 14, minHeight: 44, justifyContent: 'center', alignItems: 'center',
@@ -1073,17 +1073,17 @@ const s = StyleSheet.create({
   checker: { position: 'absolute', top: 0, left: 0, right: 0, borderRadius: 20, backgroundColor: '#3f443f', opacity: 0.6 },
   hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   hudV: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 3, textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
-  recordT: { fontSize: 14, fontWeight: '900', color: colors.neon, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
-  noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 14, color: '#8fa093' },
+  recordT: { fontSize: 15, fontWeight: '900', color: colors.neon, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 15, color: '#8fa093' },
   dogTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(10,16,10,.38)' },
   photoEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1d3023' },
-  // [D13 FLOOR14 2026-08-12] 10 → 14. {report.when} · {report.routeName} — 한글 날짜와 한글 코스명이다
+  // [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 10 → 14 → 15. {report.when} · {report.routeName} — 한글 날짜와 한글 코스명이다
   // (인스타 내보내기 카드 상단). 로고 아트워크가 아니라 데이터다.
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
   dotOn: { backgroundColor: colors.neon, width: 16 },
-  skinName: { fontSize: 14, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
+  skinName: { fontSize: 15, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
   // S 스토리's 0-photo state. A labelled bind, on this file's canonical dark
   // (paper.ink) so the scrim and its measured contrast still hold above it.
   storyEmpty: {

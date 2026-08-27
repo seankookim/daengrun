@@ -66,8 +66,8 @@ export function RunShareCard({
 
   return (
     <View style={{ width, height, backgroundColor: colors.volt, padding: width * 0.06, overflow: 'hidden' }}>
-      {/* 날짜 · 코스 — 한글 데이터라 14pt 플로어를 지킨다 (§3, 로고 예외 아님) */}
-      <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.6, color: paper.ink }}>
+      {/* 날짜 · 코스 — 한글 데이터라 15pt 플로어를 지킨다 (§3, 로고 예외 아님) */}
+      <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '900', letterSpacing: 0.6, color: paper.ink }}>
         {data.when}{data.routeName ? ` · ${data.routeName}` : ''}
       </Text>
 
@@ -120,8 +120,8 @@ export function RunShareCard({
           .filter(([, v]) => v != null)
           .map(([l, v]) => (
             <View key={l} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.18)' }}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>{l}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{v}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{l}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{v}</Text>
             </View>
           ))}
       </View>

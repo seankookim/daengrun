@@ -94,7 +94,7 @@ export default function OnboardRunner() {
         )}
         {/* The counter is DATA in a kicker slot, so it takes the 14pt detail floor — the
             exemption covers letterspaced Latin kickers (labels), not the step number itself
-            (DESIGN.md §3, 14pt floor). */}
+            (DESIGN.md §3, 15pt floor). */}
         <Text style={s.step} accessibilityLabel="1단계, 총 1단계">1 / 1</Text>
         <Text style={[s.title, df]}>이름과{'\n'}홈 베이스</Text>
 
@@ -186,33 +186,33 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   body: { paddingHorizontal: layout.gutter, paddingTop: 78, paddingBottom: 140 },
   back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
-  backTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
-  step: { fontSize: 14, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
+  backTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  step: { fontSize: 15, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, marginTop: 12 },
   fieldName: {
     marginTop: 20, paddingTop: 10, paddingBottom: 8, minHeight: 44,
     borderBottomWidth: 1.5, borderBottomColor: paper.ink,
     fontSize: 20, fontWeight: '700', color: paper.ink,
   },
-  kicker: { marginTop: 14, fontSize: 14, lineHeight: 18, letterSpacing: 1, fontWeight: '700', color: paper.dim },
+  kicker: { marginTop: 14, fontSize: 15, lineHeight: 18, letterSpacing: 1, fontWeight: '700', color: paper.dim },
   fieldSub: {
     marginTop: 2, paddingTop: 10, paddingBottom: 8, minHeight: 44,
     borderBottomWidth: 1.5, borderBottomColor: paper.ink,
     fontSize: 16, fontWeight: '700', color: paper.ink,
   },
-  hint: { marginTop: 8, fontSize: 14, lineHeight: 20, color: paper.dim },
+  hint: { marginTop: 8, fontSize: 15, lineHeight: 20, color: paper.dim },
   plate: { marginTop: 20, paddingVertical: 13, paddingHorizontal: 14, backgroundColor: paper.wash },
-  plateHead: { fontSize: 14, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  plateSub: { marginTop: 3, fontSize: 14, lineHeight: 20, color: paper.dim },
+  plateHead: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  plateSub: { marginTop: 3, fontSize: 15, lineHeight: 20, color: paper.dim },
   plateBtn: { marginTop: 5, minHeight: 44, justifyContent: 'center' },
-  plateAction: { fontSize: 14, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  plateDone: { marginTop: 9, fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.readyDeep },
+  plateAction: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  plateDone: { marginTop: 9, fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.readyDeep },
   ctaBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30,
     borderTopWidth: 1, borderTopColor: paper.line,
   },
   failStrip: { backgroundColor: paper.criticalWash, padding: 12, marginBottom: 10 },
-  failTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.critical },
-  failAction: { marginTop: 4, fontSize: 14, lineHeight: 20, fontWeight: '800', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  failAction: { marginTop: 4, fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
 });

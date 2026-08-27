@@ -144,8 +144,8 @@ export const type = {
   title: { fontSize: 24, fontWeight: '900' } as const,   // 화면 제목
   heading: { fontSize: 16.5, fontWeight: '800' } as const, // 섹션/카드 제목
   body: { fontSize: 16, fontWeight: '600' } as const,
-  label: { fontSize: 14, fontWeight: '700' } as const,
-  caption: { fontSize: 14, fontWeight: '400' } as const,
+  label: { fontSize: 15, fontWeight: '700' } as const,
+  caption: { fontSize: 15, fontWeight: '400' } as const,
 } as const;
 
 // Surface palettes for themed screens (home, cards). Toggled by ThemeProvider.
@@ -187,7 +187,7 @@ export const paper = {
   canvasSoft: '#FBFAF7',  // 소프트 화이트 — 홈 계열 바디 캔버스 (Sean 2026-08-06 "soft white"; 순백과 한 끗)
   ink: '#111111',      // head
   text: '#333333',     // 본문 (12.6:1)
-  dim: '#666666',      // 디테일 (5.7:1 — 14pt 플로어와 함께 AA)
+  dim: '#666666',      // 디테일 (5.7:1 — 15pt 플로어와 함께 AA)
   faint: '#999999',    // 장식 클래스 전용 (sub-4.5 허용 유일 지점)
   line: '#E8552F',     // 솔리드 코랄 헤어라인 — 이 선이 곧 브랜드
   wash: '#FFF6F4',     // 코랄 95% 화이트 워시 (pressed 상태 등)

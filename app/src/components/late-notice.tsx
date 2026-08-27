@@ -52,8 +52,8 @@ const s = StyleSheet.create({
   wrap: { paddingVertical: 14 },
   kickRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
-  kick: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
+  kick: { fontSize: 15, fontWeight: '800', letterSpacing: 0.6 },
   head: { fontSize: 25, fontWeight: '900', letterSpacing: -0.5, lineHeight: 30, color: paper.ink },
   strip: { borderWidth: 1, padding: 10, marginTop: 11 },
-  stripText: { fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
+  stripText: { fontSize: 15, lineHeight: 18, fontWeight: '600' },
 });

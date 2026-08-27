@@ -154,7 +154,7 @@ export default function Earnings() {
         {/* bank account — honest info row, not a door: registration ships with open banking */}
         <View style={s.rule} />
         <Text style={s.secTitle}>정산 계좌</Text>
-        <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
+        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
           아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요
         </Text>
 
@@ -163,13 +163,13 @@ export default function Earnings() {
         <Text style={[s.secTitle, { marginBottom: 10 }]}>러닝별 내역</Text>
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>정산 내역을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>정산 내역을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -177,7 +177,7 @@ export default function Earnings() {
         )}
         {loaded && !loadErr && ledger.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               아직 정산 내역이 없어요{'\n'}러닝을 완료하면 여기에 기록돼요
             </Text>
           </View>
@@ -224,12 +224,12 @@ export default function Earnings() {
                 <Text style={[s.netNum, nf]}>{l.net.toLocaleString()}</Text>
                 <Text style={s.netUnit}>원</Text>
               </Row>
-              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>실수령</Text>
+              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim }}>실수령</Text>
             </View>
           </Row>
         ))}
 
-        <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
           {/* 같은 이유: 주기·지급을 약속하지 않는다. 일정은 아직 우리가 못 지킨다.
               원천징수 문장은 합계 줄이 이제 낱말로 지고 있으므로 여기서는 겹쳐 말하지 않는다.
               (Q7 "show once only" — 이 침묵이 그 법을 지키는 자리다. 여기 한 줄 더하면 두 번이 된다.) */}
@@ -261,7 +261,7 @@ const s = StyleSheet.create({
   sumNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
   sumUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
   sumUnknown: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink },
-  sumNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  sumNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   // ---------- 원장 행 ----------
   row: { alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
   netNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },

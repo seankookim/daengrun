@@ -855,15 +855,15 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, maxWidth: 300,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
   // 길찾기 overlay chip (DS-2) — circleBtn/chatChip chrome grammar, ≥44pt hit target,
   // anchored inside the plate so it never enters the stage machine's CTA stack
   naviChip: {
     position: 'absolute', right: 12, bottom: 12, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: paper.line, paddingVertical: 13, paddingHorizontal: 16,
   },
-  naviChipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
-  pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
+  naviChipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.ink },
+  pinText: { fontSize: 15, lineHeight: 18, fontWeight: '900', color: '#fff' },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: {
     width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
@@ -874,12 +874,12 @@ const s = StyleSheet.create({
     backgroundColor: paper.ink, paddingVertical: 10, paddingHorizontal: 14,
   },
   etaDot: { width: 7, height: 7, borderRadius: 4 },
-  etaText: { flexShrink: 1, fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff' },
+  etaText: { flexShrink: 1, fontSize: 15, lineHeight: 18, fontWeight: '800', color: '#fff' },
 
   // ── 섹션 (풀블리드 — 카드·라운드·섀도·이중 프레임 은퇴, 코랄 1px만이 면을 나눈다) ──
   section: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
   cardTitle: { flexShrink: 1, fontSize: 17, fontWeight: '800', color: paper.ink },
-  cardBody: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 6 },
+  cardBody: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 6 },
   // 주소 로드 실패 = 라우드 페일 (owner/request.tsx dogFailStrip과 같은 문법:
   // criticalWash 면 + 위아래 1px critical + 밑줄 재시도). 새 미학이 아니라 있는 문법의 이식.
   addrFailStrip: {
@@ -887,41 +887,41 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12, marginTop: 8,
   },
-  addrFailTxt: { flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
-  // [D15c] 새로고침 링크 — 실패가 아니므로 크리티컬 잉크가 아니라 액션 잉크. 14pt 플로어 준수.
-  addrRefresh: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk },
-  addrFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  addrFailTxt: { flex: 1, fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical },
+  // [D15c] 새로고침 링크 — 실패가 아니므로 크리티컬 잉크가 아니라 액션 잉크. 15pt 플로어 준수.
+  addrRefresh: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk },
+  addrFailRetry: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   peerName: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink },
-  peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  peerMeta: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 3 },
   // 예약 정보 로드 실패 — 인계 의식 한복판에 스트립을 놓을 자리가 없어 ctaFail과 같은 처방:
   // 자리는 그대로, 잉크만 critical (강조 예산 면제, line과 값 공유 금지). 문은 ≥44pt.
-  peerFail: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
+  peerFail: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
   peerFailRetry: { fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 11, alignSelf: 'center' },
-  chatChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
+  chatChipText: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.ink },
   // Handling facts. 14pt holds the detail floor; the wash keeps them quiet next to the memo, which
   // is the sentence that actually changes the next twenty minutes.
   dogTag: { backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, paddingHorizontal: 8, paddingVertical: 3 },
-  dogTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.ink },
-  dogVax: { fontSize: 14, lineHeight: 18, color: paper.dim, alignSelf: 'center' },
+  dogTagTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.ink },
+  dogVax: { fontSize: 15, lineHeight: 18, color: paper.dim, alignSelf: 'center' },
 
   // ── 이번 러닝 사실 행 (R3c) ──
   infoRow: { justifyContent: 'space-between', gap: 12, marginTop: 10 },
-  infoLabel: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  infoLabel: { fontSize: 15, lineHeight: 19, color: paper.dim },
   infoVal: { flexShrink: 1, flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  infoValue: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: paper.ink, textAlign: 'right' },
+  infoValue: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink, textAlign: 'right' },
   // Oswald 숫자 — lineHeight 21 = 1.31× (BUG A: 명시 lineHeight 없으면 어센더가 잘린다)
   infoNum: { fontSize: 16, lineHeight: 21, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
   // 행동 존 안의 사실 한 줄 (R3b 코스) — CTA와 붙지 않게 아래로만 띄운다
   ctaInfo: { marginBottom: 12 },
 
   // ── 의식 헤더 ──
-  kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (14pt 플로어 면제)
+  kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (15pt 플로어 면제)
   ttl: { fontSize: 20, fontWeight: '900', color: paper.ink, marginTop: 3 },
   countPill: { alignSelf: 'flex-start', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 4, paddingHorizontal: 9 },
   countPillOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   countPillGo: { backgroundColor: paper.ink, borderColor: paper.ink },
-  countText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.text },
+  countText: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.text },
   countTextOn: { color: '#fff' },
   countTextGo: { color: '#fff' },
 
@@ -950,11 +950,11 @@ const s = StyleSheet.create({
     shadowColor: GOLD, shadowOpacity: 0.38, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   slotMark: { fontSize: 21, lineHeight: 25, fontWeight: '900', color: SEAL_INK },
-  // [FLOOR14 예외] 트래킹 라틴 캡스 키커 — 역할 각인. 읽는 정보는 아래 한글 두 줄이 진다.
+  // [FLOOR15 예외] 트래킹 라틴 캡스 키커 — 역할 각인. 읽는 정보는 아래 한글 두 줄이 진다.
   slotCaps: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: SEAL_INK, marginTop: 1 },
   slotCapsOff: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: NIGHT_DIM },
-  slotName: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 10 },
-  slotState: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: NIGHT_DIM, marginTop: 2 },
+  slotName: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 10 },
+  slotState: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: NIGHT_DIM, marginTop: 2 },
   slotStateOn: { color: GOLD_SHEEN, fontWeight: '800' },
   // SEALED 룰 — 밴드와 한 몸인 의식의 콜로폰이라 골드가 남는다 (크롬에는 골드 금지)
   ribbon: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12, paddingHorizontal: 2 },
@@ -976,20 +976,20 @@ const s = StyleSheet.create({
   stepCore: { width: 7, height: 7, borderRadius: 4, backgroundColor: paper.line },
   stepTick: { fontSize: 11, lineHeight: 14, fontWeight: '900', color: '#fff' },
   // 미완 라벨도 읽히는 정보라 dim(AA) — faint는 캡스 키커 전용
-  stepLabel: { flex: 1, fontSize: 14.5, lineHeight: 20, fontWeight: '500', color: paper.dim },
+  stepLabel: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '500', color: paper.dim },
   stepLabelDone: { color: paper.ink, fontWeight: '700' },
   stepLabelActive: { color: paper.text, fontWeight: '700' },
 
   // ── 프리플라이트 장비 체크 (볼트 은퇴 — 체크 = 잉크 필 + 코랄 워시 행) ──
   gearTitle: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink, marginTop: 3 },
-  gearSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  gearSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   checkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 12, paddingHorizontal: 12,
   },
   checkRowOn: { backgroundColor: paper.wash, borderColor: paper.line },
-  checkLabel: { flex: 1, fontSize: 14.5, lineHeight: 19, fontWeight: '600', color: paper.text },
+  checkLabel: { flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.text },
   checkLabelOn: { fontWeight: '800', color: paper.ink },
   checkBox: {
     width: 22, height: 22, borderWidth: 1.5, borderColor: paper.faint,
@@ -1007,23 +1007,23 @@ const s = StyleSheet.create({
     backgroundColor: paper.wash, borderLeftWidth: 3, borderLeftColor: paper.line,
     paddingVertical: 12, paddingHorizontal: 12,
   },
-  photoRemindTxt: { flex: 1, fontSize: 14, lineHeight: 19.5, fontWeight: '700', color: paper.actionInk },
+  photoRemindTxt: { flex: 1, fontSize: 15, lineHeight: 19.5, fontWeight: '700', color: paper.actionInk },
 
   // ── 행동 존 (버튼 매트릭스는 PaperBtn이 진다 — 여기는 자리와 힌트만) ──
   actions: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
-  ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  ctaHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
   // 도착 전송 실패 — ctaHint와 같은 자리, 잉크만 critical (행동 존에는 스트립을 놓을 자리가 없다)
-  ctaFail: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, textAlign: 'center', marginTop: 10 },
+  ctaFail: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, textAlign: 'center', marginTop: 10 },
   status: {
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
     paddingVertical: 18, paddingHorizontal: PAD, alignItems: 'center',
   },
   statusKick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint },
   statusText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 7, textAlign: 'center' },
-  statusSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },
+  statusSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },
   // 헤일로가 1.9배(15.2px)로 퍼져도 무대(16) 안에 든다 — 안드로이드 클리핑 회피
   pulseStage: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   pulseHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
   pulseCore: { width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
-  foot: { fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
+  foot: { fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
 });

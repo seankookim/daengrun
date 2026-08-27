@@ -547,7 +547,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.09, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  searchTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.text },
+  searchTxt: { flex: 1, fontSize: 15, fontWeight: '700', color: paper.text },
 
   // ⚠ 고정 top 금지. 예전엔 `top: 170`이었는데, 칩 행이 두 줄로 감기면(조명 자동켜짐 문구가
   // 붙는 어두운 슬롯이 정확히 그 경우다) 위 크롬이 자라서 이 카드를 덮어썼다 — 시뮬레이터에서
@@ -558,10 +558,10 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6', padding: 13,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  infoTitle: { fontSize: 14, fontWeight: '800', color: paper.ink },
-  infoBody: { fontSize: 14, color: paper.dim, marginTop: 5, lineHeight: 20 },
+  infoTitle: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  infoBody: { fontSize: 15, color: paper.dim, marginTop: 5, lineHeight: 20 },
   retry: { marginTop: 10, borderWidth: 1.5, borderColor: paper.ink, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  retryTxt: { fontSize: 14, fontWeight: '800', color: paper.ink },
+  retryTxt: { fontSize: 15, fontWeight: '800', color: paper.ink },
 
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
@@ -571,28 +571,28 @@ const s = StyleSheet.create({
   grabZone: { paddingVertical: 9, alignItems: 'center' },
   grab: { width: 38, height: 4, borderRadius: 99, backgroundColor: '#E2E0DA' },
   head: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingBottom: 4, minHeight: 44 },
-  kick: { fontSize: 14, color: paper.dim, fontWeight: '700' },
+  kick: { fontSize: 15, color: paper.dim, fontWeight: '700' },
   name: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 3 },
-  total: { fontSize: 14, color: paper.faint, fontWeight: '700', marginTop: 2 },
+  total: { fontSize: 15, color: paper.faint, fontWeight: '700', marginTop: 2 },
   // Oswald는 lineHeight를 명시하지 않으면 어센더가 잘린다 (BUG A) — 26 × 1.23 = 32.
   km: { fontSize: 26, lineHeight: 32, fontWeight: '800', color: paper.ink, marginLeft: 10 },
-  kmUnit: { fontSize: 12, color: paper.faint, fontWeight: '700' },
+  kmUnit: { fontSize: 15, color: paper.faint, fontWeight: '700' },
 
   cta: { backgroundColor: paper.action, paddingVertical: 15, alignItems: 'center', marginTop: 12, minHeight: 44, justifyContent: 'center' },
   ctaTxt: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
 
   li: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F0EEE9', minHeight: 44 },
   liOn: { backgroundColor: paper.wash, borderLeftWidth: 3, borderLeftColor: paper.line, marginHorizontal: -14, paddingHorizontal: 14 },
-  liName: { fontSize: 14.5, fontWeight: '800', color: paper.ink, flexShrink: 1 },
-  liSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
+  liName: { fontSize: 16, fontWeight: '800', color: paper.ink, flexShrink: 1 },
+  liSub: { fontSize: 15, color: paper.dim, marginTop: 2 },
   liKm: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.text, marginLeft: 10 },
-  // 단위도 데이터의 일부다 — 14pt 플로어를 받는다 (글리프 예외가 아니다). dim = 5.7:1.
-  liKmUnit: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
-  candTag: { fontSize: 14, color: paper.pending, fontWeight: '800', marginLeft: 6 },
+  // 단위도 데이터의 일부다 — 15pt 플로어를 받는다 (글리프 예외가 아니다). dim = 5.7:1.
+  liKmUnit: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  candTag: { fontSize: 15, color: paper.pending, fontWeight: '800', marginLeft: 6 },
 
-  emptyTxt: { fontSize: 14, color: paper.text, fontWeight: '700' },
-  detailHint: { fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 20 },
+  emptyTxt: { fontSize: 15, color: paper.text, fontWeight: '700' },
+  detailHint: { fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 20 },
   clearBtn: { marginTop: 10, borderWidth: 1.5, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
-  clearTxt: { fontSize: 14, fontWeight: '800', color: paper.ink },
+  clearTxt: { fontSize: 15, fontWeight: '800', color: paper.ink },
 
 });

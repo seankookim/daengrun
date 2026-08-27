@@ -358,8 +358,8 @@ const s = StyleSheet.create({
     paddingHorizontal: PAD, paddingTop: 8, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  bannerAddr: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.ink },
-  bannerStatus: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 4 },
+  bannerAddr: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.ink },
+  bannerStatus: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 4 },
 
   // crosshair pin — the glyph column is 30pt tall; translate up by half so the
   // bar's bottom tip sits exactly on the camera center.
@@ -373,7 +373,7 @@ const s = StyleSheet.create({
     alignSelf: 'stretch', height: 92, alignItems: 'center', justifyContent: 'center',
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
   },
-  mapFallbackTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
+  mapFallbackTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
 
   chipStrip: { borderTopWidth: 1, borderTopColor: paper.line, backgroundColor: paper.canvas },
   chipRow: { paddingHorizontal: PAD, paddingVertical: 10, gap: 8 },
@@ -382,7 +382,7 @@ const s = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, justifyContent: 'center',
   },
   chipOn: { borderColor: paper.line },
-  chipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.text },
+  chipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.text },
   chipTxtOn: { color: paper.line, fontWeight: '800' },
 
   // save-failure / bounds strip — addrFailStrip grammar (runner/meetup.tsx)
@@ -391,7 +391,7 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12,
   },
-  failTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical },
 
   confirmBar: { paddingHorizontal: PAD, paddingTop: 10, backgroundColor: paper.canvas },
 
@@ -400,10 +400,10 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
     paddingHorizontal: PAD, minHeight: 48, justifyContent: 'center',
   },
-  noteSetTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  noteSetTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
   // 읽는 코랄(6.67:1) — paper.line은 3.64:1이라 14pt 라벨에 쓰지 않는다 (A① 실측)
-  noteNeedTxt: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
-  noteHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim },
+  noteNeedTxt: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  noteHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim },
   noteEdit: {
     borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
     paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 4,
@@ -412,5 +412,5 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 11, paddingHorizontal: 12, fontSize: 15.5, color: paper.ink,
   },
-  noteCount: { fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 6 },
+  noteCount: { fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 6 },
 });

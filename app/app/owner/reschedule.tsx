@@ -279,7 +279,7 @@ export default function Reschedule() {
           <>
             {/* 현재 계약 — 무엇을 바꾸려는지부터 명확히. 다크는 아티팩트다(§DESIGN) — 코너만 날카롭게 */}
             <View style={s.current}>
-              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: ON_INK_SOFT, letterSpacing: 1 }}>현재 확정 일정</Text>
+              <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: ON_INK_SOFT, letterSpacing: 1 }}>현재 확정 일정</Text>
               <Text style={{ fontSize: 21, lineHeight: 28, fontWeight: '900', color: '#FFFFFF', marginTop: 6 }}>
                 {info.dateLabel} {info.timeLabel}
               </Text>
@@ -292,24 +292,24 @@ export default function Reschedule() {
             {info.proposedIso && (
               <View style={s.pendingBanner}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '900', color: paper.paceSlowInk }}>
+                  <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '900', color: paper.paceSlowInk }}>
                     변경 요청 대기 중 → {fmtIso(info.proposedIso)}
                   </Text>
-                  <Text style={{ fontSize: 14, lineHeight: 19, color: paper.paceSlowInk, marginTop: 2 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 19, color: paper.paceSlowInk, marginTop: 2 }}>
                     러너 수락 전까지 기존 시간 유지 · 새로 고르면 요청이 교체돼요
                   </Text>
                 </View>
                 <Pressable onPress={withdraw} style={s.withdrawBtn} accessibilityRole="button" accessibilityLabel="변경 요청 철회">
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.paceSlowInk }}>철회</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.paceSlowInk }}>철회</Text>
                 </Pressable>
               </View>
             )}
 
             {/* [S②] 날짜 스트립 + 운영 요일 범례 */}
             <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginTop: 18 }}>
-              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink }}>언제로 옮길까요</Text>
+              <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.ink }}>언제로 옮길까요</Text>
               {dotsReady && (
-                <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim }}>● {info.runnerName ?? '러너'} 러너 운영 요일</Text>
+                <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim }}>● {info.runnerName ?? '러너'} 러너 운영 요일</Text>
               )}
             </Row>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8 }}>
@@ -324,7 +324,7 @@ export default function Reschedule() {
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={`${d.label ?? `${d.w}요일`} ${d.d}일${dotsReady ? (ruleWeekdays.has(d.cal.wd) ? ' · 러너 운영 요일' : '') : ''}`}
                   >
-                    <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: on ? ON_INK_SOFT : paper.dim }}>{d.label ?? d.w}</Text>
+                    <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '700', color: on ? ON_INK_SOFT : paper.dim }}>{d.label ?? d.w}</Text>
                     <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '900', color: on ? '#FFFFFF' : paper.ink, marginTop: 2 }}>{d.d}</Text>
                     {/* 점은 '규칙이 있는 요일'만 말한다. rules가 아직/영영 없으면 아무 점도 찍지 않는다 */}
                     <View style={{ height: 5, marginTop: 4, justifyContent: 'center' }}>
@@ -335,7 +335,7 @@ export default function Reschedule() {
               })}
             </ScrollView>
             {dotsReady && (
-              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
+              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
                 점이 없는 날은 이 러너가 뛰지 않는 요일이에요 — 칸이 열려도 실제 가능 여부는 칸마다 확인해요
               </Text>
             )}
@@ -345,7 +345,7 @@ export default function Reschedule() {
                 the owner: a failed load is not an empty calendar, nor is a load still in flight. */}
             {rules === 'error' ? (
               <View style={s.failStrip}>
-                <Text style={{ flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical }}>가능 시간을 불러오지 못했어요</Text>
+                <Text style={{ flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical }}>가능 시간을 불러오지 못했어요</Text>
                 <Pressable
                   onPress={() => (info.runnerId ? loadRules(info.runnerId) : load())}
                   style={{ minHeight: 44, justifyContent: 'center' }}
@@ -365,7 +365,7 @@ export default function Reschedule() {
                     모든 칸이 답을 받으면 이 줄은 통째로 사라진다 */}
                 {verify.failed > 0 ? (
                   <View style={s.failStrip}>
-                    <Text style={{ flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical }}>
+                    <Text style={{ flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical }}>
                       {verify.checking > 0
                         ? `${verify.checking}칸은 확인 중, ${verify.failed}칸은 확인하지 못했어요`
                         : `${verify.failed}칸을 확인하지 못했어요`}
@@ -380,7 +380,7 @@ export default function Reschedule() {
                     </Pressable>
                   </View>
                 ) : verify.checking > 0 ? (
-                  <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 16 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 16 }}>
                     {verify.checking}칸을 확인하는 중이에요 — 러너가 실제로 갈 수 있는지 서버에 물어보고 있어요
                   </Text>
                 ) : null}
@@ -404,13 +404,13 @@ export default function Reschedule() {
                         style={[s.slot, isPicked && s.slotPicked, ok === false && s.slotOff, ok === 'error' && s.slotErr, isCur && s.slotCur]}
                       >
                         <Text style={{
-                          fontSize: 14, lineHeight: 18, fontWeight: '800',
+                          fontSize: 15, lineHeight: 18, fontWeight: '800',
                           color: isPicked ? '#FFFFFF' : ok === false ? paper.faint : paper.ink,
                         }}>
                           {sl.label}
                         </Text>
                         <Text style={{
-                          fontSize: 14, lineHeight: 18, fontWeight: '700', marginTop: 2,
+                          fontSize: 15, lineHeight: 18, fontWeight: '700', marginTop: 2,
                           color: isPicked ? ON_INK_SOFT
                             : isCur ? paper.ink
                             : ok === false ? paper.faint
@@ -424,7 +424,7 @@ export default function Reschedule() {
                     );
                   })}
                 </View>
-                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 12 }}>
+                <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 12 }}>
                   확인되지 않은 칸은 고를 수 없어요
                 </Text>
               </>
@@ -436,13 +436,13 @@ export default function Reschedule() {
       {/* 확정 도크 — 계약 원칙을 카피로 명시. 코랄 풀블리드 룰 ② */}
       {dockOpen && picked && (
         <View style={[s.dock, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
-          <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
+          <Text style={{ fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
             {fmtIso(picked.start.toISOString())}로 변경 요청
           </Text>
           <View style={{ marginTop: 10 }}>
             <PaperBtn label="러너에게 변경 요청 ›" busyLabel="보내는 중..." busy={busy} onPress={send} />
           </View>
-          <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 8 }}>
             러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료
           </Text>
         </View>
@@ -485,14 +485,14 @@ const s = StyleSheet.create({
   slotErr: { borderColor: paper.critical },
   // '현재'는 상태다 — 잉크 테두리(액션 아님). 누를 수 없는 칸이라 면을 칠하지 않는다
   slotCur: { borderColor: paper.ink, borderWidth: 1.5 },
-  noticeText: { fontSize: 14.5, lineHeight: 21, color: paper.text },
+  noticeText: { fontSize: 15, lineHeight: 21, color: paper.text },
   // 라우드-페일 스트립 (F1.2) — criticalWash 면 + critical 잉크, 풀블리드
   failStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     marginHorizontal: -15, paddingHorizontal: 15, paddingVertical: 11, marginTop: 16,
   },
-  failAction: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  failAction: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // 도크는 화면 맨 아래까지 불투명하다 — 세이프에어리어는 도크 **안쪽** 패딩으로 존중 (request.tsx 문법)
   dock: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,

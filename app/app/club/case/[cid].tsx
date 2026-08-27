@@ -143,8 +143,8 @@ export default function CaseDetail() {
             <ClubTag label={sev} tone={sev === 'S1' ? 'coral' : sev === 'S2' ? 'amber' : 'dim'} />
             <ClubTag label={open ? '진행 중' : '해소'} tone={open ? 'amber' : 'volt'} />
           </Row>
-          <Text style={{ fontSize: 14.5, fontWeight: '800', color: open ? L.tang : L.head, marginTop: 9 }}>{inc.summary}</Text>
-          <Text style={{ fontSize: 14, color: L.text, marginTop: 7 }}>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: open ? L.tang : L.head, marginTop: 9 }}>{inc.summary}</Text>
+          <Text style={{ fontSize: 15, color: L.text, marginTop: 7 }}>
             개설 {inc.openedByName} · 케이스 오너 <Text style={{ fontWeight: '800', color: L.head }}>{inc.caseOwnerName ?? '미지정'}</Text>
           </Text>
           {!open && <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Flap word="RESOLVED" /></View>}
@@ -153,12 +153,12 @@ export default function CaseDetail() {
         {/* ---------- 타임라인 (증거 seq — 서버 순서만 신뢰) ---------- */}
         <View style={s.sechead}><Text style={s.secheadTitle}>기록</Text></View>
         <View style={s.tl}>
-          {inc.evidence.length === 0 && <Text style={{ fontSize: 14, color: L.dim, paddingVertical: 6 }}>아직 기록이 없어요</Text>}
+          {inc.evidence.length === 0 && <Text style={{ fontSize: 15, color: L.dim, paddingVertical: 6 }}>아직 기록이 없어요</Text>}
           {inc.evidence.map((e, i) => (
             <View key={i} style={s.ev}>
               <View style={[s.evDot, e.kind === 'location' && { backgroundColor: L.tang }]} />
-              <Text style={{ fontSize: 14, color: L.text, flex: 1, lineHeight: 18 }}>
-                <Text style={{ fontSize: 14, color: L.dim }}>{e.when} </Text>
+              <Text style={{ fontSize: 15, color: L.text, flex: 1, lineHeight: 18 }}>
+                <Text style={{ fontSize: 15, color: L.dim }}>{e.when} </Text>
                 <Text style={{ fontWeight: '800', color: L.head }}>{KIND_LABEL[e.kind] ?? e.kind}</Text>
                 {e.kind === 'text' && e.payload?.note ? ` — ${e.payload.note}` : ''}
                 {e.kind === 'location' ? ' — 좌표 기록됨' : ''}
@@ -174,7 +174,7 @@ export default function CaseDetail() {
             <TextInput value={note} onChangeText={setNote} placeholder="상황 기록 추가..." placeholderTextColor={L.dim}
               style={s.inputField} multiline />
             <Pressable onPress={addNote} style={s.sendBtn}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{busy ? '...' : '기록'}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{busy ? '...' : '기록'}</Text>
             </Pressable>
           </Row>
         )}
@@ -187,20 +187,20 @@ export default function CaseDetail() {
           ) : (
             <LilacCard style={{ marginTop: 14 }}>
               <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>예약 정산</Text>
-              <Text style={{ fontSize: 14, lineHeight: 19, color: L.text, marginTop: 5 }}>
+              <Text style={{ fontSize: 15, lineHeight: 19, color: L.text, marginTop: 5 }}>
                 이 예약은 사건으로 멈춰 있어요. 셋 중 하나를 고르면 환불과 러너 정산이 실제로 움직이고,
                 근거가 이 케이스에 남아요. 한 번만 결정할 수 있어요.
               </Text>
               {/* 로딩 ≠ 실패 ≠ 값 — 견적을 못 받으면 버튼을 그리지 않는다 (금액 없는 결정 금지) */}
               {quoteErr ? (
                 <>
-                  <Text style={{ fontSize: 14, lineHeight: 19, color: L.tang, marginTop: 10 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 19, color: L.tang, marginTop: 10 }}>
                     견적을 불러오지 못했어요 — 금액 없이 결정할 수는 없어요.
                   </Text>
                   <ClubCta label="다시 시도" tone="secondary" onPress={() => openSettle(settleBooking)} />
                 </>
               ) : !quotes ? (
-                <Text style={{ fontSize: 14, color: L.dim, marginTop: 10 }}>견적을 계산하는 중...</Text>
+                <Text style={{ fontSize: 15, color: L.dim, marginTop: 10 }}>견적을 계산하는 중...</Text>
               ) : (
                 <>
                   {([
@@ -210,18 +210,18 @@ export default function CaseDetail() {
                   ] as [SettleOutcome, string, string][]).map(([k, label, why]) => (
                     <View key={k} style={s.settleRow}>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{label}</Text>
-                        <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 1 }}>{why}</Text>
-                        <Text style={{ fontSize: 14, lineHeight: 18, color: L.text, marginTop: 3 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{label}</Text>
+                        <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 1 }}>{why}</Text>
+                        <Text style={{ fontSize: 15, lineHeight: 18, color: L.text, marginTop: 3 }}>
                           환불 {quotes[k].refund == null ? '—' : `${quotes[k].refund!.toLocaleString()}원`} · 러너 {quotes[k].runnerNet == null ? '—' : `${quotes[k].runnerNet!.toLocaleString()}원`}
                         </Text>
                       </View>
                       <Pressable onPress={() => doSettle(k)} disabled={busy} style={s.settleBtn}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{busy ? '...' : '선택'}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>{busy ? '...' : '선택'}</Text>
                       </Pressable>
                     </View>
                   ))}
-                  <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 8 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 8 }}>
                     실측 {quotes.settle_measured.measuredKm}km
                     {quotes.settle_measured.tookCustody ? ' · 인계 완료' : ' · 인계 전'}
                   </Text>
@@ -235,7 +235,7 @@ export default function CaseDetail() {
         {/* [0052 §7] 해소는 케이스 오너 또는 호스트/백업 호스트 — isHost는 서버 판정이라 클라가 추측하지 않는다.
             (db push 전 원격에선 undefined → 예전대로 케이스 오너에게만 보인다) */}
         {open && (iOwn || inc.isHost === true) && <ClubCta label="케이스 해소" onPress={doResolve} busy={busy} style={{ marginTop: 14 }} />}
-        <Text style={{ fontSize: 14, color: L.dim, marginTop: 12, textAlign: 'center' }}>
+        <Text style={{ fontSize: 15, color: L.dim, marginTop: 12, textAlign: 'center' }}>
           케이스는 세션이 끝나도 계속돼요 — 해소되면 알려드려요
         </Text>
       </ScrollView>
@@ -254,7 +254,7 @@ const s = StyleSheet.create({
     minHeight: 44, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   sechead: { marginTop: 14, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: L.hair2 },
-  secheadTitle: { fontSize: 14, fontWeight: '800', color: L.head },
+  secheadTitle: { fontSize: 16, fontWeight: '800', color: L.head },
   tl: { borderLeftWidth: 2, borderLeftColor: L.hair, paddingLeft: 12, marginTop: 10, marginLeft: 3 },
   ev: { flexDirection: 'row', gap: 0, paddingVertical: 5 },
   evDot: { position: 'absolute', left: -16.5, top: 10, width: 7, height: 7, borderRadius: 4, backgroundColor: '#CFC8EC' },
@@ -264,7 +264,7 @@ const s = StyleSheet.create({
   },
   inputField: {
     flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
-    paddingVertical: 8, paddingHorizontal: 12, fontSize: 14, color: L.head, maxHeight: 90,
+    paddingVertical: 8, paddingHorizontal: 12, fontSize: 15, color: L.head, maxHeight: 90,
   },
   sendBtn: { backgroundColor: L.accent, borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 13 },
 });

@@ -134,7 +134,7 @@ export default function Alerts() {
               <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: '#fff' }, df]}>알림</Text>
               {unreadCount > 0 && (
                 <Row style={{ alignItems: 'baseline', gap: 6 }}>
-                  <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
+                  <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
                   <Text style={[{ fontSize: 17, lineHeight: 21, color: '#fff' }, nf]}>{unreadCount}</Text>
                 </Row>
               )}
@@ -163,13 +163,13 @@ export default function Alerts() {
 
           {/* 로딩 — 빈 상태와 절대 겹치지 않는다 (loading ≠ 0 ≠ empty) */}
           {!loaded && !loadErr && (
-            <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 26 }}>알림 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 26 }}>알림 불러오는 중...</Text>
           )}
 
           {/* 라우드-페일 스트립 — criticalWash + critical 잉크 + 재시도 */}
           {loadErr && (
             <View style={s.failStrip}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>알림을 불러오지 못했어요</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>알림을 불러오지 못했어요</Text>
               <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
                 <Text style={{ fontSize: 16, fontWeight: '800', color: lilac.head }}>다시 시도</Text>
               </Pressable>
@@ -180,7 +180,7 @@ export default function Alerts() {
           {loaded && !loadErr && groups.length === 0 && (
             <View style={s.empty}>
               <View style={s.emptyTag}><Text style={[s.emptyTagTxt, nf]}>EMPTY STATE</Text></View>
-              <Text style={{ fontSize: 14.5, color: lilac.dim, textAlign: 'center', lineHeight: 23 }}>
+              <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', lineHeight: 23 }}>
                 아직 알림이 없어요{'\n'}예약 · 러닝 소식이 여기에 도착해요
               </Text>
             </View>
@@ -266,27 +266,27 @@ const s = StyleSheet.create({
     backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag,
     paddingVertical: 7, paddingHorizontal: 10,
   },
-  markAllTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.head },
+  markAllTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: lilac.head },
 
   board: {
     marginHorizontal: 12, borderRadius: lilacRadius.card, overflow: 'hidden',
     backgroundColor: '#1C1837', ...lilacShadow, shadowOpacity: 0.34,
   },
   boardEdge: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: lilac.coral, opacity: 0.85, zIndex: 2 },
-  boardKick: { fontSize: 12, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
+  boardKick: { fontSize: 15, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
   ticker: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11, paddingVertical: 10, paddingHorizontal: 10,
     borderRadius: lilacRadius.inner, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral },
-  tickTime: { fontSize: 14, lineHeight: 18, color: '#fff', letterSpacing: 0.5 },
-  tickTxt: { flex: 1, fontSize: 14, fontWeight: '600', color: '#fff' },
+  tickTime: { fontSize: 15, lineHeight: 18, color: '#fff', letterSpacing: 0.5 },
+  tickTxt: { flex: 1, fontSize: 15, fontWeight: '600', color: '#fff' },
 
   colhead: {
     alignItems: 'center', gap: 8, paddingVertical: 8,
     borderTopWidth: 1, borderTopColor: lilac.hair, borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
-  colTxt: { fontSize: 12, letterSpacing: 1.8, color: lilac.dim },
+  colTxt: { fontSize: 15, letterSpacing: 1.8, color: lilac.dim },
 
   empty: {
     marginTop: 14, borderWidth: 1, borderColor: lilac.hair, borderStyle: 'dashed',
@@ -302,14 +302,16 @@ const s = StyleSheet.create({
     width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: lilac.head, backgroundColor: lilac.card,
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.1, shadowRadius: 12,
   },
-  postmarkD: { fontSize: 14, lineHeight: 17, color: lilac.head },
+  // [BUG A] Oswald (nf) needs lineHeight ≥1.2×: 14/17 was 1.21×, and the 15pt floor took it to
+  // 1.13× — ceil(15×1.24)=19, the ratio this repo uses everywhere else.
+  postmarkD: { fontSize: 15, lineHeight: 19, color: lilac.head },
   // 소인 도장 안의 브랜드 각인 — 62px 원 안에 한 줄로 앉아야 하는 시리얼 보이스(장식)라 플로어 면제.
   // [layout 2026-08-19] 12pt에서 'DOGS HIGH'의 실폭이 ~62.5pt로 원(62, 안지름 ~58)을 넘겨 좌우로
   // 삐져나왔다 — 첫 그룹은 화면 좌측 거터(12pt)에 앉아 있어 잘려 보였다. 10pt면 ~52pt로 원 안에
   // 들어간다. 원을 키우지 않는 이유: 62는 좌측 거터와 레일 사이의 폭 예산이다.
   postmarkK: { fontSize: 10, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
   groupDash: { flex: 1, borderTopWidth: 1.5, borderTopColor: lilac.hair, borderStyle: 'dashed' },
-  groupLabel: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim },
+  groupLabel: { fontSize: 15, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim },
 
   rail: { position: 'relative', paddingLeft: 16 },
   railLine: { position: 'absolute', left: 4, top: 20, bottom: 14, width: 1, backgroundColor: lilac.hair },
@@ -326,13 +328,13 @@ const s = StyleSheet.create({
   },
   evtTick: { width: 3, alignSelf: 'stretch', backgroundColor: 'transparent' },
   evtCell: { flex: 1, paddingVertical: 12, paddingLeft: 9, paddingRight: 11 },
-  evtTime: { fontSize: 14, lineHeight: 18, color: lilac.head, letterSpacing: 0.5 },
+  evtTime: { fontSize: 15, lineHeight: 18, color: lilac.head, letterSpacing: 0.5 },
   typeTag: {
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)', borderRadius: lilacRadius.tag,
     paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
   },
-  // [D13 FLOOR14 2026-08-12] 12 → 14. tagFor()는 순수 한글을 돌려준다 (기록·클럽·취소·반복·변경·확정·완료).
-  typeTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.4, color: lilac.head },
+  // [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 12 → 14 → 15. tagFor()는 순수 한글을 돌려준다 (기록·클럽·취소·반복·변경·확정·완료).
+  typeTagTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 0.4, color: lilac.head },
   seal: {
     marginLeft: 'auto', backgroundColor: lilac.coralSoft, borderWidth: 1, borderColor: lilac.coral,
     borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
@@ -342,6 +344,6 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: lilacRadius.tag, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.05)',
   },
-  evtTitle: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 19 },
-  evtBody: { fontSize: 14, color: lilac.text, marginTop: 4, lineHeight: 18 },
+  evtTitle: { fontSize: 15, fontWeight: '700', color: lilac.head, lineHeight: 19 },
+  evtBody: { fontSize: 15, color: lilac.text, marginTop: 4, lineHeight: 18 },
 });

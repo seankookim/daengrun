@@ -344,17 +344,17 @@ const s = StyleSheet.create({
   // 풀블리드 순백 — 사이드 마진 없음. 섹션 구분은 코랄 헤어라인이 한다.
   headRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 18 },
   back: { fontSize: 26, lineHeight: 30, color: paper.ink, marginBottom: 6 },
-  // 모노 캡스 키커 — 장식 클래스(14pt 플로어 면제), 자간으로 모노 질감을 대신한다
+  // 모노 캡스 키커 — 장식 클래스(15pt 플로어 면제), 자간으로 모노 질감을 대신한다
   kicker: { fontSize: 11.5, fontWeight: '800', letterSpacing: 2.6, color: paper.faint },
-  // [D13 FLOOR14 2026-08-12] 11.5 → 14. CHIP은 순수 라틴이 아니다 — 'MOCK · 준비 중',
+  // [D13 FLOOR14 2026-08-12, re-raised to the 15pt floor 2026-08-27] 11.5 → 14 → 15. CHIP은 순수 라틴이 아니다 — 'MOCK · 준비 중',
   // 'REVIEW · 확인 중', 'REFUND · 환불 중'이 한글을 싣는다. 한글은 라틴 레터스페이스 캡스
   // 키커 예외를 타지 못한다(§3). 하필 **결제 화면의 상태 표시**다. 트래킹도 1.6 → 0.8로
   // 낮춘다 — 레터스페이싱은 라틴 캡스의 문법이고 한글에 걸면 자간이 벌어져 더 안 읽힌다.
-  chip: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.8, color: paper.dim, marginTop: 2 },
-  // [리뷰 #9] critical 잉크는 ≥14pt/700 플로어를 받는다 — 라우드일 땐 장식 클래스에서 승격
-  chipLoud: { color: paper.critical, fontSize: 14, letterSpacing: 0.8 },
+  chip: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 0.8, color: paper.dim, marginTop: 2 },
+  // [리뷰 #9] critical 잉크는 ≥15pt/700 플로어를 받는다 — 라우드일 땐 장식 클래스에서 승격
+  chipLoud: { color: paper.critical, fontSize: 15, letterSpacing: 0.8 },
   headline: { fontSize: 25.5, lineHeight: 32, fontWeight: '900', color: paper.ink, paddingHorizontal: 18, marginTop: 10 },
-  meta: { fontSize: 14.5, lineHeight: 19, color: paper.dim, paddingHorizontal: 18, marginTop: 6 },
+  meta: { fontSize: 15, lineHeight: 19, color: paper.dim, paddingHorizontal: 18, marginTop: 6 },
   body: { fontSize: 15, lineHeight: 21, color: paper.text, paddingHorizontal: 18, marginTop: 16 },
   // 청구 테이블 — 행 구분은 풀블리드 헤어라인, 카드도 그림자도 없다
   table: { marginTop: 22 },
@@ -362,25 +362,25 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 13,
     borderTopWidth: 1, borderColor: paper.line,
   },
-  rowLabel: { fontSize: 14.5, fontWeight: '600', color: paper.text },
-  rowSub: { fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 2 },
+  rowLabel: { fontSize: 16, fontWeight: '600', color: paper.text },
+  rowSub: { fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 2 },
   amtWrap: { flexDirection: 'row', alignItems: 'baseline' },
   rowAmt: { fontSize: 17, lineHeight: 21, fontWeight: '600', color: paper.text, fontVariant: ['tabular-nums'] },
-  rowUnit: { fontSize: 14, fontWeight: '600', color: paper.dim, marginLeft: 2 },
+  rowUnit: { fontSize: 15, fontWeight: '600', color: paper.dim, marginLeft: 2 },
   rule: { borderTopWidth: 1, borderColor: paper.line }, // 이중 룰의 한 줄
   totalRow: { flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 18, paddingVertical: 15 },
-  totalLabel: { flex: 1, fontSize: 14.5, fontWeight: '800', color: paper.ink },
+  totalLabel: { flex: 1, fontSize: 16, fontWeight: '800', color: paper.ink },
   // 큰 Oswald 숫자 — lineHeight ≥ 1.2× (상단 클리핑 방지, BUG A)
   totalAmt: { fontSize: 38, lineHeight: 46, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] },
   totalUnit: { fontSize: 15, fontWeight: '700', color: paper.dim, marginLeft: 3 },
   // 결제 수단 자리 — 가짜 계좌·카드 숫자 대신 정직한 고지 플레이트
   plate: { backgroundColor: paper.wash, marginTop: 18, paddingHorizontal: 18, paddingVertical: 14 },
-  plateTxt: { fontSize: 14.5, lineHeight: 20, fontWeight: '700', color: paper.text },
+  plateTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.text },
   failStrip: {
     marginTop: 18, backgroundColor: paper.criticalWash,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingHorizontal: 18, paddingVertical: 12,
   },
-  failTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical },
   footer: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 34, borderTopWidth: 1, borderColor: paper.line },
 });

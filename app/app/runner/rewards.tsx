@@ -111,7 +111,7 @@ export default function Rewards() {
 
       {/* 하이 포인트 — dark balance face (artifact), volt numeral = personal reward */}
       <View style={s.milesCard}>
-        <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>내 하이 포인트</Text>
+        <Text style={{ fontSize: 15, lineHeight: 18, color: '#BBBBBB' }}>내 하이 포인트</Text>
         {/* Oswald balance — lineHeight 49 = 1.26× (BUG A) */}
         <Text style={[{ fontSize: 39, lineHeight: 49, fontWeight: '900', color: colors.volt, marginTop: 4, fontVariant: ['tabular-nums'] as const }, nf]}>
           {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#BBBBBB' }}> 포인트</Text>
@@ -122,7 +122,7 @@ export default function Rewards() {
           <View style={s.milesLedger}>
             {recent.map((m, i) => (
               <Row key={`${m.when}-${m.reason}-${i}`} style={s.mileRow}>
-                <Text style={{ fontSize: 14.5, lineHeight: 20, color: '#BBBBBB', flex: 1 }} numberOfLines={1}>
+                <Text style={{ fontSize: 15, lineHeight: 20, color: '#BBBBBB', flex: 1 }} numberOfLines={1}>
                   {m.reason} · {m.when}
                 </Text>
                 {/* Oswald delta — lineHeight 20 = 1.33× (BUG A).
@@ -137,13 +137,13 @@ export default function Rewards() {
             ))}
           </View>
         ) : (
-          <Text style={{ fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>
+          <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>
             완주 +50 · 응가 도장 +30 · 드랍 보상 · 주간 TOP3 보너스
           </Text>
         )}
       </View>
       {recent.length > 0 && (
-        <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>최근 10건까지 보여요</Text>
+        <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 }}>최근 10건까지 보여요</Text>
       )}
 
       {/* 미오픈 드랍 — §3b section header */}
@@ -152,13 +152,13 @@ export default function Rewards() {
       </Row>
       {!dropsLoaded && !dropsErr && (
         <View style={s.emptyBox}>
-          <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
         </View>
       )}
       {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
       {dropsErr && (
         <View style={s.failStrip}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>드랍을 불러오지 못했어요</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>드랍을 불러오지 못했어요</Text>
           <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
           </Pressable>
@@ -166,7 +166,7 @@ export default function Rewards() {
       )}
       {dropsLoaded && !dropsErr && unopened.length === 0 && (
         <View style={s.emptyBox}>
-          <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+          <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
             대기 중인 드랍이 없어요
             {/* run count claim only when the runner status actually arrived — no fabricated "5번 더".
                 [B③] 상자의 이름도 같은 게이트 안에 있다: 10의 배수면 픽, 아니면 보급 (0083 §6). */}
@@ -179,7 +179,7 @@ export default function Rewards() {
           {/* 픽 드랍일 때만 한 줄 더 — 고를 수 있다는 사실이 픽의 전부다.
               세 선택지는 drops.contents.options 그대로 (0083 §6:814 minted ["boost","miles","gear"]). */}
           {rs != null && nextIsPick && (
-            <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>
               픽 드랍은 부스트 · 5,000 포인트 · 기어 중 하나를 직접 골라요
             </Text>
           )}
@@ -191,12 +191,12 @@ export default function Rewards() {
             <Text style={{ fontSize: 17, fontWeight: '800', color: colors.volt }}>
               {d.kind === 'pick' ? '픽 드랍' : '보급 드랍'} · {d.runCountAt}회 달성
             </Text>
-            <Text style={{ fontSize: 14, color: '#BBBBBB' }}>{d.when}</Text>
+            <Text style={{ fontSize: 15, color: '#BBBBBB' }}>{d.when}</Text>
           </Row>
           {d.kind === 'pick' ? (
             <>
               {/* busy = hint-line label swap (the tapped choice is the card's action) */}
-              <Text style={{ fontSize: 14.5, lineHeight: 19, color: '#BBBBBB', marginTop: 8 }}>
+              <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 8 }}>
                 {busy === d.id ? '적용 중...' : '셋 중 하나를 선택하세요 — 되돌릴 수 없어요'}
               </Text>
               <Row style={{ gap: 8, marginTop: 10 }}>
@@ -207,7 +207,7 @@ export default function Rewards() {
                     onPress={() => open(d, k)}
                     style={({ pressed }) => [s.pickBtn, pressed && { backgroundColor: colors.voltDeep, transform: [{ scale: 0.96 }] }]}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#111111' }}>{label}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#111111' }}>{label}</Text>
                   </Pressable>
                 ))}
               </Row>
@@ -237,10 +237,10 @@ export default function Rewards() {
                 <Row style={{ paddingVertical: 10, justifyContent: 'space-between' }}>
                   <View>
                     <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>{g.item}</Text>
-                    <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
+                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                   </View>
                   <View style={[s.claimChip, g.status !== 'claimable' && { backgroundColor: '#F5F5F5' }]}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: g.status === 'claimable' ? '#3D6B1F' : paper.dim }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: g.status === 'claimable' ? '#3D6B1F' : paper.dim }}>
                       {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status}
                     </Text>
                   </View>
@@ -260,7 +260,7 @@ export default function Rewards() {
           {opened.map((d) => (
             <View key={d.id} style={[s.card, { marginBottom: 8 }]}>
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.dim }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim }}>
                   {/* 포인트가 실제로 들어 있을 때만 괄호를 연다 — '+0포인트'는 없는 적립을 그리는 것 */}
                   {d.kind === 'pick'
                     ? `픽 드랍 — ${d.pickChoice === 'miles' ? '5,000포인트' : d.pickChoice === 'boost' ? '부스트' : '기어'} 선택`
@@ -268,7 +268,7 @@ export default function Rewards() {
                       ? `보급 드랍 (+${d.contents.miles.toLocaleString()}포인트)`
                       : '보급 드랍'}
                 </Text>
-                <Text style={{ fontSize: 14, color: paper.dim }}>{d.when}</Text>
+                <Text style={{ fontSize: 15, color: paper.dim }}>{d.when}</Text>
               </Row>
             </View>
           ))}
@@ -276,7 +276,7 @@ export default function Rewards() {
       )}
 
       <Pressable onPress={() => router.push('/leaderboard')} style={s.rankLink}>
-        <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.coralText }}>주간 랭킹에서 보너스 노려보기 ›</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: colors.coralText }}>주간 랭킹에서 보너스 노려보기 ›</Text>
       </Pressable>
     </ScrollView>
   );

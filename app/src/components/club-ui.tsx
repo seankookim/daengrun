@@ -235,7 +235,7 @@ export function LoadGate({ mode, errorLabel, deniedLabel, onRetry, onBack }: {
   return (
     <DawnCanvas>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center' }}>
+        <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center' }}>
           {mode === 'denied' ? (deniedLabel ?? '열람 권한이 없어요')
             : mode === 'error' ? (errorLabel ?? '불러오지 못했어요')
             : '불러오는 중...'}
@@ -258,7 +258,7 @@ export function BigNumRow({ items }: { items: { v: string; unit?: string; label:
         <View key={it.label} style={[s.bignumCell, i === items.length - 1 && { borderRightWidth: 0 }]}>
           {/* [BUG A] ceil(21×1.24)=27 — BigNumRow was a BUG A component by construction (review §4-5). */}
           <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-            {it.v}{it.unit ? <Text style={{ color: L.coral, fontSize: 14, lineHeight: 27 }}>{it.unit}</Text> : null}
+            {it.v}{it.unit ? <Text style={{ color: L.coral, fontSize: 15, lineHeight: 27 }}>{it.unit}</Text> : null}
           </Text>
           <Text style={s.bignumLabel}>{it.label}</Text>
         </View>
@@ -341,7 +341,7 @@ export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width:
       <Text style={[s.sealArrows, disabled && { color: L.hair }]}>›››</Text>
       <Animated.View {...pan.panHandlers} style={[s.sealPaw, disabled && s.sealPawOff, { transform: [{ translateX: x }] }]}>
         <Pressable onLongPress={complete} delayLongPress={700} style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: disabled ? L.dim : L.coral, textAlign: 'center' }}>위탁{'\n'}승낙</Text>
+          <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: disabled ? L.dim : L.coral, textAlign: 'center' }}>위탁{'\n'}승낙</Text>
         </Pressable>
       </Animated.View>
     </View>
@@ -364,11 +364,11 @@ export const clubText: Record<string, TextStyle> = {
   // 8.5pt·트래킹 2.5는 라틴 대문자의 문법이고, 한글은 그 크기에서 읽히지 않는다.
   vk: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: L.accent },
   vkDim: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.dim },
-  vkTitle: { fontSize: 14, fontWeight: '700', letterSpacing: 0.5, color: L.accent }, // 한글 카드 제목
+  vkTitle: { fontSize: 15, fontWeight: '700', letterSpacing: 0.5, color: L.accent }, // 한글 카드 제목
 
-  stateStrong: { fontSize: 14, fontWeight: '800', color: L.head },
-  body: { fontSize: 14, color: L.text, lineHeight: 18 },
-  dim: { fontSize: 14, color: L.dim },
+  stateStrong: { fontSize: 15, fontWeight: '800', color: L.head },
+  body: { fontSize: 15, color: L.text, lineHeight: 18 },
+  dim: { fontSize: 15, color: L.dim },
 };
 
 const s = StyleSheet.create({
@@ -379,9 +379,9 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderRadius: 0,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  // [FLOOR14] 마스트 서브는 날짜·클럽명(한글 정보)이다 — 트래킹 라틴 마이크로 옷을 벗긴다.
+  // [FLOOR15] 마스트 서브는 날짜·클럽명(한글 정보)이다 — 트래킹 라틴 마이크로 옷을 벗긴다.
   // numberOfLines={1} 이라 폭이 모자라면 줄바꿈이 아니라 말줄임 — 어느 기기에서도 레이아웃은 안 깨진다.
-  mastSub: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 1 },
+  mastSub: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 1 },
   // [리밴프] 샤프 코너 + 소프트 섀도 은퇴 (§2 페이퍼: 진짜 떠 있는 표면에만 그림자).
   card: {
     backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
@@ -430,10 +430,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#EEEEEE', marginTop: 11, overflow: 'hidden',
   },
   bignumCell: { flex: 1, paddingVertical: 9, paddingHorizontal: 6, borderRightWidth: 1, borderRightColor: L.hair },
-  // [FLOOR14] 셀 라벨은 '원 · 확약 러너 · 코스명' — 한글 정보다. 320dp 셀 가용폭 ~86px 에서
-  // '확약 러너'(≈62px)까지 한 줄, 긴 코스명은 두 줄로 접힌다 (셀이 늘어날 뿐 잘리지 않는다).
+  // [FLOOR15] 셀 라벨은 '원 · 확약 러너 · 코스명' — 한글 정보다. 320dp 셀 가용폭 ~86px 에서
+  // '확약 러너'(15pt ≈66px)까지 한 줄, 긴 코스명은 두 줄로 접힌다 (셀이 늘어날 뿐 잘리지 않는다).
+  // Re-measured for the 15pt floor (2026-08-27): the widest one-line label grew 62→66px in an
+  // 86px cell, so the single-line case still holds and nothing new starts wrapping.
   bignumLabel: {
-    fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim,
+    fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim,
     marginTop: 4, paddingTop: 3, borderTopWidth: 1, borderTopColor: L.hair,
   },
   ticket: {
@@ -449,9 +451,9 @@ const s = StyleSheet.create({
   },
   sealTrackOff: { backgroundColor: L.inset, borderColor: L.hair },
   sealFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: L.coralSoft },
-  // [FLOOR14] 봉인 슬라이더는 동의 서명 컨트롤이다 — 라벨('끌어서 봉인')·썸('위탁 승낙') 모두 한글 정보.
-  // 트랙 폭 262px(320dp)에 14pt 5음절 ≈76px, 썸 44px에 2줄×18 =36px — 둘 다 여유 있게 든다.
-  sealLabel: { textAlign: 'center', fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: '#a4917f' },
+  // [FLOOR15] 봉인 슬라이더는 동의 서명 컨트롤이다 — 라벨('끌어서 봉인')·썸('위탁 승낙') 모두 한글 정보.
+  // 트랙 폭 262px(320dp)에 15pt 5음절 ≈81px, 썸 44px에 2줄×18 =36px — 둘 다 여유 있게 든다.
+  sealLabel: { textAlign: 'center', fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: '#a4917f' },
   sealArrows: { position: 'absolute', right: 10, fontSize: 15, color: '#d9c9bc' },
   sealPaw: {
     position: 'absolute', left: 4, width: 44, height: 44, borderRadius: 22,

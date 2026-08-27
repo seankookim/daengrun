@@ -237,18 +237,18 @@ export default function DogProfileScreen() {
         {/* [2026-08-24 · lab D①] 사진 블록이 여기서 dog 게이트 안으로 내려갔다. 두 가지가 같이
             해결된다: 프레임이 요구하는 '사진 + 스위처 한 줄'이 되고, 아이가 없거나 로딩 중일 때
             아무 일도 하지 않는 Pressable(= pickPhoto 의 `if (!dog) return`)이 사라진다. */}
-        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 14, color: paper.dim }}>불러오는 중...</Text>}
+        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 15, color: paper.dim }}>불러오는 중...</Text>}
         {/* loud-fail strip — failure is never dressed as the empty state */}
         {!loaded && loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>반려견 정보를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>반려견 정보를 불러오지 못했어요</Text>
             <Pressable onPress={() => load()} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
           </View>
         )}
         {loaded && !dog && (
-          <Text style={{ padding: 16, fontSize: 14, lineHeight: 19, color: paper.dim }}>
+          <Text style={{ padding: 16, fontSize: 15, lineHeight: 19, color: paper.dim }}>
             {/* ⚠ Auto-creation was deliberately retired: request.tsx says "여기서 아이를 만드는
                 일은 영원히 없다" and bounces an owner with no dog straight back to this screen.
                 The old copy promised the opposite, so a new owner could read it, skip
@@ -279,14 +279,14 @@ export default function DogProfileScreen() {
                 <Row style={{ gap: 8, flexWrap: 'wrap' }}>
                   {dogs.map((d) => (
                     <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
                     </Pressable>
                   ))}
                   <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]} accessibilityRole="button" accessibilityLabel="반려견 추가">
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>＋</Text>
                   </Pressable>
                 </Row>
-                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
+                <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
               </View>
             </Row>
 
@@ -317,7 +317,7 @@ export default function DogProfileScreen() {
                 <Row style={{ gap: 8 }}>
                   {([[true, '했어요'], [false, '안 했어요']] as const).map(([v, label]) => (
                     <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: neutered === v ? '#fff' : paper.ink }}>{label}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: neutered === v ? '#fff' : paper.ink }}>{label}</Text>
                     </Pressable>
                   ))}
                 </Row>
@@ -341,7 +341,7 @@ export default function DogProfileScreen() {
               ))}
             </Row>
             {/* 선택했을 때도 '어디에 쓰이는지'를 말한다 — 이름만 되뇌는 문장은 정보가 0이다 */}
-            <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>
+            <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 8 }}>
               {collar ? `${collarLabels[collar]} — 일정·카드에서 이 색으로 보여요` : '고르면 일정·카드에서 이 색으로 보여요 (선택)'}
             </Text>
 
@@ -368,7 +368,7 @@ export default function DogProfileScreen() {
               })}
             </View>
             {/* 헬퍼는 색이 아니라 '행동'을 설명한다 — 화면의 색 규칙은 여기서 가르치지 않는다 */}
-            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
               권장 최소 페이스 — 이 값보다 느려지면 러너에게 안내해요
             </Text>
 
@@ -387,7 +387,7 @@ export default function DogProfileScreen() {
                     accessibilityState={{ checked: on }}
                     accessibilityLabel={`예방접종 ${v}`}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{v}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{v}</Text>
                   </Pressable>
                 );
               })}
@@ -417,12 +417,12 @@ export default function DogProfileScreen() {
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
                   </Pressable>
                 );
               })}
             </Row>
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 12, lineHeight: 19 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 12, lineHeight: 19 }}>
               주간 목표 거리는 체력 리포트에서 조정해요
             </Text>
           </View>
@@ -464,7 +464,7 @@ const s = StyleSheet.create({
     backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: paper.canvas,
   },
-  label: { fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 18, marginBottom: 7 },
+  label: { fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 18, marginBottom: 7 },
   // 입력 = 뉴트럴 카드 (radius 0 · 1px #EEE). 강조는 코랄 선과 CTA 하나에만 (§8 예산).
   input: {
     backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',

@@ -316,7 +316,7 @@ export default function RunDone() {
           <Text style={{ fontSize: 16, fontWeight: '800', color: colors.volt, marginTop: 5 }}>
             {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
           </Text>
-          <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
+          <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
         </Pressable>
       )}
 
@@ -391,33 +391,33 @@ function DoneStat({ nf, value, unit, label }: { nf: TextStyle | null; value: str
 const s = StyleSheet.create({
   // ---------- ① 트레이스 플레이트 ----------
   tracePlate: { backgroundColor: paper.ink, height: TRACE_H, marginBottom: 12, justifyContent: 'center' },
-  traceNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', paddingHorizontal: 12 },
-  traceCap: { position: 'absolute', right: 10, bottom: 8, fontSize: 14, lineHeight: 18, color: '#999999' },
+  traceNote: { fontSize: 15, lineHeight: 19, color: '#BBBBBB', paddingHorizontal: 12 },
+  traceCap: { position: 'absolute', right: 10, bottom: 8, fontSize: 15, lineHeight: 18, color: '#999999' },
   // ---------- ② 헤드라인 ----------
   headline: { fontSize: 27.5, fontWeight: '900', color: paper.ink },
-  sub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  sub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   // ---------- ③ 숫자 셋 — owner/report.tsx와 같은 문법 ----------
   statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
   statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
-  statLabel: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 1 },
+  statLabel: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 1 },
   // 섹션 분할 = 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
   rule: { marginHorizontal: -layout.gutter, height: 1, backgroundColor: paper.line, marginTop: 18, marginBottom: 14 },
   // ---------- ④ 돈 한 줄 ----------
   moneyLabel: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: paper.text },
   moneyNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, // [BUG A] 19 × 1.26
   moneyUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
-  moneyNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  moneyNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   // 라우드-페일 스트립 — earnings.tsx/community.tsx와 같은 문법 (criticalWash + critical ink)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 12 },
-  failText: { fontSize: 14, lineHeight: 19.5, fontWeight: '700', color: paper.critical },
-  reasonLine: { fontSize: 14.5, lineHeight: 20, color: paper.text, marginTop: 12 },
+  failText: { fontSize: 15, lineHeight: 19.5, fontWeight: '700', color: paper.critical },
+  reasonLine: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 12 },
   // ---------- ⑤ 섹션 헤더 ----------
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
-  secAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
-  secQuiet: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  secAction: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  secQuiet: { fontSize: 15, lineHeight: 19, color: paper.dim },
   // 사진 부탁 한 줄 — 실패가 아니라 **부탁**이라 critical이 아니고, 그냥 사실보다는 무겁게 (텍스트 잉크 700)
-  secRequired: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.text },
+  secRequired: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.text },
   // ---------- ⑦ 사진 넛지 (2026-08-25) ----------
   // 세컨더리 문법 그대로(wash 면 + 코랄 1px + actionInk) — 새 헥스 0개, 코랄 **면** 0개.
   // '거대함'은 색이 아니라 면적과 활자로 만든다: 문 바로 위 22pt 여백 + 18pt 패딩 + 21/900 제목.
@@ -427,10 +427,10 @@ const s = StyleSheet.create({
     paddingVertical: 18, paddingHorizontal: 16, marginTop: 22,
   },
   nudgeTitle: { fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink },
-  nudgeBody: { fontSize: 14.5, lineHeight: 20, color: paper.text, marginTop: 7 },
+  nudgeBody: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 7 },
   nudgeAction: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk, marginTop: 11 },
   // 섹션 헤더 자리의 실패 + 재시도 — 라우드-페일 잉크, 밑줄 (스트립을 세우기엔 한 줄짜리 사실)
-  secFail: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  secFail: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ---------- ⑥ 드랍 ----------
   dropBanner: {
     marginTop: 18, padding: 18, alignItems: 'center',

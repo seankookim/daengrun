@@ -186,10 +186,10 @@ const s = StyleSheet.create({
   },
   // 잉크 fill = **선택 상태**지 누르는 면이 아니다 (paper-btn의 법과 같은 이유로 코랄 금지)
   chipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
-  chipTxt: { fontSize: 14, fontWeight: '800', color: paper.text },
+  chipTxt: { fontSize: 15, fontWeight: '800', color: paper.text },
   autoPlate: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6',
     paddingHorizontal: 8, paddingVertical: 5, justifyContent: 'center',
   },
-  autoTxt: { fontSize: 14, color: paper.dim, fontWeight: '700' },
+  autoTxt: { fontSize: 15, color: paper.dim, fontWeight: '700' },
 });

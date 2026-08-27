@@ -1293,21 +1293,21 @@ export default function ActiveRun() {
         {/* 내 위치로 — 팬으로 팔로우가 풀렸을 때만. 44×44 (a11y 계약) */}
         {maps && initialCam.current && camMode === 'free' && (
           <Pressable onPress={recenter} style={s.recenterBtn} accessibilityRole="button" accessibilityLabel="내 위치로">
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>내 위치로</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>내 위치로</Text>
           </Pressable>
         )}
         {/* 지도가 코스를 먼저 띄우고 있어도, 내 점이 아직 없다는 사실은 따로 말한다 */}
         {maps && !lastPos && running && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
             {/* sits on the white map canvas, not the dark panel — dim ink for the ≥4.5:1 floor */}
-            <Text style={{ fontSize: 14.5, color: paper.dim }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
+            <Text style={{ fontSize: 15, color: paper.dim }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
           </View>
         )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             {/* ⑥ 천장 프레임 — 배지가 **참인 문장**을 말한다: 같은 effect가 handle.stop()을 불렀으므로
                 기록은 실제로 멈췄고, 지금까지의 트레이스는 그대로 남아 정산에 실린다. */}
-            <Text style={{ fontSize: 14, fontWeight: '700', color: ceilingHit ? '#FFFFFF' : colors.volt }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: ceilingHit ? '#FFFFFF' : colors.volt }}>
               {ceilingHit
                 ? '기록이 멈췄어요'
                 : running
@@ -1315,10 +1315,10 @@ export default function ActiveRun() {
                   : dogName ? `${dogName}와 러닝 준비` : '러닝 준비'}
             </Text>
             {running && gps && !ceilingHit && (
-              <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
+              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
             )}
             {ceilingHit && (
-              <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>지금까지의 거리는 그대로 남아 있어요</Text>
+              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 2 }}>지금까지의 거리는 그대로 남아 있어요</Text>
             )}
           </View>
           <Row style={{ gap: 8 }}>
@@ -1342,9 +1342,9 @@ export default function ActiveRun() {
           {targetKm != null && remaining != null ? (
             <>
               <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 14, color: paper.dim }}>{routeNameOnly(info?.routeName)} 코스 · {targetKm}km</Text>
+                <Text style={{ fontSize: 15, color: paper.dim }}>{routeNameOnly(info?.routeName)} 코스 · {targetKm}km</Text>
                 {/* ⑥ 천장에서 '남은 거리'는 0이고 아무 말도 하지 않는다 — 멈춘 값을 그대로 말한다 */}
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>
                   {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
                 </Text>
               </Row>
@@ -1355,7 +1355,7 @@ export default function ActiveRun() {
               </View>
             </>
           ) : infoStatus === 'loading' ? (
-            <Text style={{ fontSize: 14, color: paper.dim }}>코스 정보 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim }}>코스 정보 불러오는 중...</Text>
           ) : null}
         </View>
       </View>
@@ -1373,7 +1373,7 @@ export default function ActiveRun() {
               <Text style={{ fontSize: 15, color: '#BBBBBB' }} numberOfLines={1}>
                 {routeNameOnly(info?.routeName)} 코스 · {targetKm}km
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>
                 {ceilingHit ? `기록 정지 · ${km.toFixed(2)}km` : `남은 거리 ${remaining.toFixed(1)}km`}
               </Text>
             </Row>
@@ -1383,7 +1383,7 @@ export default function ActiveRun() {
           </View>
         )}
         {layout === 'island' && targetKm == null && infoStatus === 'loading' && (
-          <Text style={{ fontSize: 14, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중...</Text>
+          <Text style={{ fontSize: 15, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중...</Text>
         )}
         {/* 스트립 스택은 이 패널을 떠나 지도 위 종이 레인으로 갔다 (Sean 2026-08-24 — 지도는
             항상 보여야 한다). 지워진 것은 없다: 같은 문장·같은 순서·같은 재시도 액션이
@@ -1399,11 +1399,11 @@ export default function ActiveRun() {
           <Avatar url={info?.dogPhotoUrl} char={(dogName ?? '반려견')[0]} bg="#3A3A3A" size={36} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>{dogName ? `${dogName} 보호자님` : '보호자님'}</Text>
-            <Text style={{ fontSize: 14.5, color: '#BBBBBB' }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, color: '#BBBBBB' }} numberOfLines={1}>
               {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
           </View>
-          <Text style={{ fontSize: 14, color: colors.volt }}>채팅 ›</Text>
+          <Text style={{ fontSize: 15, color: colors.volt }}>채팅 ›</Text>
         </Pressable>
 
         {/* ⑥ 천장: km은 **멈춘 값**으로 남고 볼트(= 지금 뛰는 중)를 내려놓는다. 페이스도 비운다 —
@@ -1448,7 +1448,7 @@ export default function ActiveRun() {
             settle-run은 actual_km으로 밴드를 계산하고, 이 줄의 두 숫자는 payoutFor()의 추정이다 —
             러너가 여기 숫자를 확정 금액으로 읽지 않게 그 사실을 같은 줄에서 말한다. */}
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
-          <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
+          <Text style={{ fontSize: 15, color: '#BBBBBB' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{estNet(km) == null ? '—' : `${estNet(km)!.toLocaleString()}원`}</Text>
             {/* 천장에 닿으면 '완주 시'는 더 이상 갈 수 있는 길이 아니다 — 없는 미래를 말하지 않는다 */}
             {targetKm != null && !ceilingHit && estNet(targetKm + 0.02) != null ? ` · 완주 시 ${estNet(targetKm + 0.02)!.toLocaleString()}원` : ''}
@@ -1499,7 +1499,7 @@ export default function ActiveRun() {
                 accessibilityState={{ disabled: ceilingHit }}
                 style={[s.eventBtn, { backgroundColor: ceilingHit ? paper.disabledFill : bg }]}
               >
-                <Text style={{ fontSize: 14, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
@@ -1513,7 +1513,7 @@ export default function ActiveRun() {
               style={[s.eventBtn, { backgroundColor: ceilingHit ? paper.disabledFill : '#DDF0A6' }]}
             >
               <Icon name="Camera" glyph="◉" size={15} color={ceilingHit ? paper.faint : '#111111'} />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: ceilingHit ? paper.faint : '#111111' }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>
             </Pressable>
@@ -1678,9 +1678,9 @@ function EndOption({ title, desc, pay, onPress }: { title: string; desc: string;
     <Pressable onPress={onPress} style={s.endOption}>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#FFFFFF' }}>{title}</Text>
-        <Text style={{ fontSize: 14.5, lineHeight: 20, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 15, lineHeight: 20, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>
         {/* 정산 줄은 사유별로 **다른 숫자**지만 같은 잉크로 말한다 — 색이 곧 추천이 되지 않게 */}
-        <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF', marginTop: 5 }}>{pay}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginTop: 5 }}>{pay}</Text>
       </View>
       <Text style={{ fontSize: 17, color: '#BBBBBB' }}>›</Text>
     </Pressable>
@@ -1696,7 +1696,7 @@ function MiniStat({ value, label, big, stopped }: { value: string; label: string
       <Text style={[{ fontSize: big ? 44 : 28, lineHeight: big ? 55 : 35, fontWeight: '900', color: big && !stopped ? colors.volt : '#FFFFFF', fontVariant: ['tabular-nums'] as const }, nf]}>
         {value}
       </Text>
-      <Text style={{ fontSize: 14.5, color: '#BBBBBB', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -1720,18 +1720,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8,
   },
   pStripNote: { backgroundColor: paper.wash, borderColor: paper.line },
-  pTxt: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical },
+  pTxt: { flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical },
   pTxtNote: { color: paper.text },
-  pAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  pAction: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   pActionNote: { color: paper.actionInk },
-  // 픽업→입구 안내 — 두 줄(사실 / 그 사실의 한계). 디테일 플로어 14pt.
-  pGuideTxt: { fontSize: 14.5, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  pGuideNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  // 픽업→입구 안내 — 두 줄(사실 / 그 사실의 한계). 디테일 플로어 15pt.
+  pGuideTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  pGuideNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 3 },
   // small white/volt text sits on an ink plate (§3 plate law) — sharp
   statusBadge: { backgroundColor: paper.ink, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 14 },
   camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12 },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff3b30' },
-  camText: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  camText: { fontSize: 15, fontWeight: '700', color: paper.ink },
   trackWrap: { position: 'absolute', left: 20, right: 20, bottom: 24 },
   // coral fill = LIVE (watch) semantic; bar sharp, position dot keeps its circle (marker exception)
   // [Sean 2026-08-24] 이 화면의 코랄은 colors.runLive(#FF5C3E)다 — 그가 이 화면을 보고 그 값을
@@ -1779,8 +1779,8 @@ const s = StyleSheet.create({
   paceChipTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800' },
   paceChipInkGood: { color: paper.paceGoodInk },
   paceChipInkSlow: { color: paper.paceSlowInk },
-  paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
-  paceCare: { marginTop: 7, fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
+  paceTarget: { marginLeft: 'auto', fontSize: 15, lineHeight: 18, color: '#BBBBBB' },
+  paceCare: { marginTop: 7, fontSize: 15, lineHeight: 18, color: '#BBBBBB' },
   // 사진 알림 — 바로 아래 스냅 칩을 가리킨다. [2026-08-25] 한 줄 텍스트 → 잉크 플레이트:
   // #222222는 이 화면이 이미 쓰는 값(chatPin·moreBtn)이라 신규 헥스 0개이고, 왼쪽 코랄 3px는
   // 패널 상단 심과 **같은 토큰**(paper.line)의 굵은 형태다 — 새 코랄 면이 아니다.
@@ -1790,9 +1790,9 @@ const s = StyleSheet.create({
     paddingVertical: 11, paddingHorizontal: 12, marginBottom: 12,
   },
   photoNudgeTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: '#FFFFFF' },
-  photoNudgeBody: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 4 },
+  photoNudgeBody: { fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 4 },
   // 천장 종료의 정산 예고 — 판정이 아니라 사실이라 중립 잉크
-  ceilingNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', textAlign: 'center', marginTop: 10 },
+  ceilingNote: { fontSize: 15, lineHeight: 19, color: '#BBBBBB', textAlign: 'center', marginTop: 10 },
   moreBtn: { width: 44, height: 52, borderRadius: 0, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },
   // event stamp chips — pastel stamp fills survive (stamp-culture semantics), corners sharp
   eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
@@ -1816,6 +1816,6 @@ const s = StyleSheet.create({
     // 러너가 여러 줄을 쓰는 유일한 칸 — 행간 1.48×(랩과 같은 리딩)로 문장이 서로 붙지 않게
     fontSize: 15.5, lineHeight: 23, padding: 12,
   },
-  noteHint: { fontSize: 14, lineHeight: 20, color: '#BBBBBB', marginTop: 8 },
+  noteHint: { fontSize: 15, lineHeight: 20, color: '#BBBBBB', marginTop: 8 },
   sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });

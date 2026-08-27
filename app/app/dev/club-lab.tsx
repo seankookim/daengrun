@@ -213,7 +213,7 @@ function ClubLab() {
             />
           ))}
           {board.dogs.length === 0 && (
-            <Text style={s.mono}>위탁견 없음 — 위 '위탁 신청' 칩으로 시작</Text>
+            <Text style={s.body}>위탁견 없음 — 위 '위탁 신청' 칩으로 시작</Text>
           )}
         </>
       )}
@@ -326,7 +326,7 @@ function DogCard({ d, board, events, km, onAct, onEvents, extTarget, artifact, n
 
       {events && (
         <View style={s.events}>
-          {events.length === 0 && <Text style={s.mono}>이벤트 없음</Text>}
+          {events.length === 0 && <Text style={s.body}>이벤트 없음</Text>}
           {events.map((e) => (
             <Text key={e.seq} style={s.mono}>
               #{e.seq} {e.eventType} · {e.fromType ?? '∅'}→{e.toType}{e.toExternal ? `(${e.toExternal})` : ''} · {e.confirmationKind}
@@ -359,13 +359,13 @@ function LabBtn({ label, onPress, danger }: { label: string; onPress: () => void
 const s = StyleSheet.create({
   stage: { flex: 1, backgroundColor: C.nightBg },
   h1: { color: '#fff', fontSize: 24, fontWeight: '800' },
-  sub: { color: C.nightDim, fontSize: 12, marginTop: 2, marginBottom: 12 },
+  sub: { color: C.nightDim, fontSize: 15, marginTop: 2, marginBottom: 12 },
   row: { flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' },
   input: {
     flex: 1, borderWidth: 1, borderColor: C.nightEdge, color: '#fff', backgroundColor: C.nightCard,
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 4, fontSize: 13,
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 4, fontSize: 15,
   },
-  err: { color: C.tang, fontSize: 12, marginBottom: 8 },
+  err: { color: C.tang, fontSize: 15, marginBottom: 8 },
   card: {
     backgroundColor: C.nightCard, borderWidth: 1, borderColor: C.nightEdge,
     borderRadius: 6, padding: 12, marginBottom: 10,
@@ -377,20 +377,20 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.nightEdge, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3,
     overflow: 'hidden',
   },
-  stage2: { color: C.nightDim, fontSize: 12, marginLeft: 'auto' },
-  badges: { color: C.gold, fontSize: 11.5, marginVertical: 3 },
+  stage2: { color: C.nightDim, fontSize: 15, marginLeft: 'auto' },
+  badges: { color: C.gold, fontSize: 15, marginVertical: 3 },
   axisRow: { flexDirection: 'row', gap: 8, paddingVertical: 2.5, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.nightEdge },
-  axisKey: { color: C.neon, fontSize: 11, fontWeight: '700', width: 70, letterSpacing: 0.5 },
-  axisVal: { color: '#E8E5F5', fontSize: 12, flex: 1 },
+  axisKey: { color: C.neon, fontSize: 15, fontWeight: '700', width: 70, letterSpacing: 0.5 },
+  axisVal: { color: '#E8E5F5', fontSize: 15, flex: 1 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   btn: {
     borderWidth: 1, borderColor: C.neon, borderRadius: 4,
     paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'transparent',
   },
   btnDanger: { borderColor: C.tang },
-  btnText: { color: C.neon, fontSize: 12, fontWeight: '700' },
+  btnText: { color: C.neon, fontSize: 15, fontWeight: '700' },
   incident: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.nightEdge, paddingTop: 6, marginTop: 6 },
   events: { marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.nightEdge, paddingTop: 6, gap: 2 },
   mono: { color: C.nightDim, fontSize: 11 },
-  body: { color: '#E8E5F5', fontSize: 12.5, marginTop: 2 },
+  body: { color: '#E8E5F5', fontSize: 15, marginTop: 2 },
 });

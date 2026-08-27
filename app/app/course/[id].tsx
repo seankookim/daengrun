@@ -175,11 +175,11 @@ function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<Re
         )}
       </maps.NaverMapView>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
-        <Text style={{ fontSize: 14, color: paper.dim, flex: 1 }} numberOfLines={2}>
+        <Text style={{ fontSize: 15, color: paper.dim, flex: 1 }} numberOfLines={2}>
           {planned ? '선 = 예정 경로 · ◆ 만남 장소' : '◆ 만남 장소 · 실측 코스'}
         </Text>
         <Pressable onPress={fit} hitSlop={8} accessibilityRole="button" accessibilityLabel="코스 전체 보기" style={s.fitBtn}>
-          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>전체 보기</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>전체 보기</Text>
         </Pressable>
       </Row>
     </View>
@@ -220,7 +220,7 @@ export default function CourseScreen() {
           <View style={{ width: 40 }} />
         </Row>
 
-        {err && <View style={s.emptyBox}><Text style={{ fontSize: 14.5, color: paper.dim }}>{err}</Text></View>}
+        {err && <View style={s.emptyBox}><Text style={{ fontSize: 15, color: paper.dim }}>{err}</Text></View>}
 
         {route && (
           <View style={{ paddingHorizontal: 12 }}>
@@ -239,22 +239,22 @@ export default function CourseScreen() {
                   <LiveDot points={boxTrace} />
                 </View>
                 <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
-                  <Text style={{ fontSize: 14, color: '#B9BCB6' }}>● 출발 <Text style={{ color: colors.tang }}>● 도착</Text> — 스키마틱 코스도예요</Text>
+                  <Text style={{ fontSize: 15, color: '#B9BCB6' }}>● 출발 <Text style={{ color: colors.tang }}>● 도착</Text> — 스키마틱 코스도예요</Text>
                   <View style={s.kmPlate}>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
                   </View>
                 </Row>
               </View>
             ) : (
               /* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */
               <View style={[s.hero, { alignItems: 'center', justifyContent: 'center', minHeight: 120 }]}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#B9BCB6' }}>코스 지도 준비 중</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#B9BCB6' }}>코스 지도 준비 중</Text>
               </View>
             )}
 
             {/* ---------- 이름 + 지역 ---------- */}
             <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
-            <Text style={{ fontSize: 14, color: paper.dim, fontWeight: '700', marginTop: 4 }}>{route.area}</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, fontWeight: '700', marginTop: 4 }}>{route.area}</Text>
 
             {/* ---------- 본문 — 시트 DETAIL 단과 같은 컴포넌트 ---------- */}
             <CourseDetailBody route={route} style={{ marginTop: 6 }} />

@@ -183,7 +183,7 @@ export default function Chat() {
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{ctx?.peerName ?? '채팅'}</Text>
-          <Text style={{ fontSize: 14, color: linkLine?.bad ? paper.critical : colors.dim, fontWeight: linkLine?.bad ? '700' : '400', marginTop: 1 }}>
+          <Text style={{ fontSize: 15, color: linkLine?.bad ? paper.critical : colors.dim, fontWeight: linkLine?.bad ? '700' : '400', marginTop: 1 }}>
             {linkLine?.tx ?? ''}
           </Text>
         </View>
@@ -195,7 +195,7 @@ export default function Chat() {
       {/* booking context strip */}
       {ctx && (
         <View style={s.contextStrip}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
         </View>
       )}
 
@@ -203,7 +203,7 @@ export default function Chat() {
       {state === 'none' && (
         <View style={s.emptyWrap}>
           <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
-          <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
+          <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
             채팅은 예약이 생기면 상대방과 자동으로 연결돼요
           </Text>
         </View>
@@ -211,14 +211,14 @@ export default function Chat() {
       {state === 'preaccept' && (
         <View style={s.emptyWrap}>
           <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>러너가 수락하면 채팅을 열 수 있어요</Text>
-          <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
+          <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
             요청을 수락한 러너와 바로 연결돼요
           </Text>
         </View>
       )}
       {state === 'error' && (
         <View style={s.emptyWrap}>
-          <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
+          <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
         </View>
       )}
 
@@ -230,7 +230,7 @@ export default function Chat() {
           onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
         >
           {state === 'ready' && msgs.length === 0 && (
-            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
               첫 메시지를 보내보세요 — 픽업 장소나 아이 성향을 미리 나누면 좋아요
             </Text>
           )}
@@ -249,7 +249,7 @@ export default function Chat() {
             </View>
           ))}
           {msgs.length > 0 && (
-            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
               안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
             </Text>
           )}
@@ -261,7 +261,7 @@ export default function Chat() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
           {QUICK.map((q) => (
             <Pressable key={q} style={s.quick} onPress={() => send(q)}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -312,7 +312,7 @@ const s = StyleSheet.create({
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
-  time: { fontSize: 14, color: colors.dim, marginBottom: 3 },
+  time: { fontSize: 15, color: colors.dim, marginBottom: 3 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },

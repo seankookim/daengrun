@@ -85,10 +85,10 @@ const s = StyleSheet.create({
     ...lilacShadow, shadowOpacity: 0.06,
   },
   bannerCrit: { backgroundColor: L.coralSoft, borderColor: '#F5C4B4' },
-  title: { fontSize: 14, fontWeight: '800', color: L.head },
-  // [FLOOR14 2026-08-11] 9.5pt였다 — **크리티컬 안전 배너의 본문**에서. 한글은 레터스페이스 캡스
+  title: { fontSize: 16, fontWeight: '800', color: L.head },
+  // [FLOOR14 2026-08-11 · FLOOR15 2026-08-27] 9.5pt였다 — **크리티컬 안전 배너의 본문**에서. 한글은 레터스페이스 캡스
   // 키커 예외를 절대 타지 않는다 (§3). 이 배너가 말하는 것은 '배정 불발 전액 환불' 같은 사건이다.
-  body: { fontSize: 14, color: '#7a5a2a', marginTop: 3, lineHeight: 19 },
+  body: { fontSize: 15, color: '#7a5a2a', marginTop: 3, lineHeight: 19 },
   btn: {
     backgroundColor: '#fff', borderRadius: 0, paddingVertical: 11, paddingHorizontal: 14, minHeight: 44,
     ...lilacShadow, shadowOpacity: 0.12, shadowRadius: 4,

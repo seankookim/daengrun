@@ -174,8 +174,8 @@ function ClubSearchBar() {
             accessibilityRole="button"
             accessibilityLabel="다시 시도"
           >
-            <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: paper.critical }}>클럽을 불러오지 못했어요</Text>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: paper.critical }}>클럽을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
           </Pressable>
         </View>
       )}
@@ -190,7 +190,7 @@ function ClubSearchBar() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{h.name}</Text>
-                <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>
+                <Text style={{ fontSize: 15, color: lilac.dim, marginTop: 2 }}>
                   {h.status === 'active' ? `멤버 ${h.memberCount} · 활동 중` : `관심 ${h.interestCount}명 · 모집 중`}
                 </Text>
               </View>
@@ -212,12 +212,12 @@ function ClubSearchBar() {
               <View style={[s.dropThumb, { backgroundColor: VIOLET_TINT }]}><Text style={{ fontSize: 20, color: lilac.accent }}>＋</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>'{q.trim()}' 하이클럽 요청하기</Text>
-                <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
+                <Text style={{ fontSize: 15, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
               </View>
             </Pressable>
           )}
           {hits.length === 0 && q.trim().length < 2 && (
-            <View style={s.dropRow}><Text style={{ fontSize: 14, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
+            <View style={s.dropRow}><Text style={{ fontSize: 15, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
           )}
         </View>
       )}
@@ -357,7 +357,7 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
       </View>
       <View style={{ flex: 1, padding: 15 }}>
         <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
-        <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
+        <Text style={{ fontSize: 15, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
         <Pressable onPress={claim} style={({ pressed }) => [s.tktCta, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
           {/* [§3b] 버튼 라벨 플로어 16/800 · scale 0.96 프레스 */}
           <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>호스트 되기</Text>
@@ -379,8 +379,8 @@ export function DemandStrip() {
   if (!mine || mine.status !== 'collecting' || mine.isHost || mine.interestCount === 0) return null;
   return (
     <Pressable onPress={() => router.push(`/club/${mine.clubId}`)} style={s.strip}>
-      <View style={s.stripN}><Text style={{ fontSize: 14, fontWeight: '800', color: READ_VIOLET }}>{mine.interestCount}팀</Text></View>
-      <Text style={{ flex: 1, fontSize: 14, color: '#D8CFF7', lineHeight: 19 }}>
+      <View style={s.stripN}><Text style={{ fontSize: 15, fontWeight: '800', color: READ_VIOLET }}>{mine.interestCount}팀</Text></View>
+      <Text style={{ flex: 1, fontSize: 15, color: '#D8CFF7', lineHeight: 19 }}>
         <Text style={{ fontWeight: '800', color: '#fff' }}>{mine.district}</Text>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴
       </Text>
       <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>›</Text>
@@ -400,7 +400,7 @@ function ProgressRing({ n, cap }: { n: number; cap: number }) {
           strokeDasharray={[C * frac, C]} />
       </Svg>
       <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{n}/{cap}</Text>
-      <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
+      <Text style={{ fontSize: 15, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
     </View>
   );
 }
@@ -426,7 +426,7 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
           <ProgressRing n={mine.interestCount} cap={mine.threshold} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district} 하이클럽, 열리는 중</Text>
-            <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
+            <Text style={{ fontSize: 15, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
               {mine.threshold}팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.
             </Text>
             <Pressable onPress={invite} style={({ pressed }) => [s.inviteCta, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
@@ -438,16 +438,16 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
       )}
       {league.length > 0 && (
         <View style={[s.league, !collecting && { borderTopWidth: 1 }]}>
-          <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
           {league.map((l, i) => (
             <Pressable key={l.clubId} onPress={() => router.push(`/club/${l.clubId}`)} style={[s.lrow, l.mine && s.lrowMe]}>
-              <Text style={{ fontSize: 14, fontWeight: '900', width: 18, color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', width: 18, color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
                 {l.status === 'active' ? String(i + 1) : '—'}
               </Text>
-              <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {l.name}{l.mine ? ' (우리 동네)' : ''}
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
                 {l.status === 'active' ? `세션 ${l.sessionsMonth}회 · ${l.teamsMonth}팀` : `${l.interestCount}팀 대기 중`}
               </Text>
             </Pressable>
@@ -718,17 +718,17 @@ const s = StyleSheet.create({
   cLedgerPlain: { borderTopColor: '#EEEEEE' },
   // 원장 줄도 한국어 15pt — 구 11pt/레터스페이스는 라틴 대문자 킥커 예외가 아니었다 (한글이다).
   cLedgerT: { fontSize: 15, lineHeight: 20, fontWeight: '700' },
-  cRowT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
-  cRowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
-  cRowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
+  cRowT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  cRowSub: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
+  cRowAct: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.dim },
   // 라우드 페일 — owner/home.tsx의 s.fitFail과 같은 문법 (14/700 critical 잉크 · 텍스트 재시도)
   cFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 15,
   },
-  cFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  cFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  cFailTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  cFailRetry: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // [§3b] 카드·필드 코너 샤프 (radius 0 everywhere) — 클럽 예외는 마진뿐
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: lilac.hair, paddingHorizontal: 15, paddingVertical: 2, ...lilacShadow, shadowOpacity: 0.06 },
   searchInput: { flex: 1, fontSize: 16, color: lilac.head, paddingVertical: 13 },
@@ -767,12 +767,12 @@ const s = StyleSheet.create({
   clubIdRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   clubMono: { width: 32, height: 32, borderRadius: 0, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' }, // [§3b] 샤프
   clubMonoText: { fontSize: 17, lineHeight: 22, fontWeight: '900', color: lilac.head, includeFontPadding: false },
-  clubKk: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1.3, color: NIGHT_KK, textTransform: 'uppercase', marginBottom: 2 },
+  clubKk: { fontSize: 15, fontWeight: '700', letterSpacing: 0.8, color: NIGHT_KK, textTransform: 'uppercase', marginBottom: 2 },
   clubName: { fontSize: 18, lineHeight: 23, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
   clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 9 },
   clubWhenD: { fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: NIGHT_KK },
   clubWhenT: { fontSize: 21, lineHeight: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
-  clubSub: { fontSize: 14.5, lineHeight: 20, color: NIGHT_TXT, marginTop: 3 },
+  clubSub: { fontSize: 15, lineHeight: 20, color: NIGHT_TXT, marginTop: 3 },
   clubLine: { fontSize: 15, lineHeight: 21, color: NIGHT_TXT, marginTop: 9 },
   // 시트맵 — 핍은 랩되고(capacity 4~16+), 큰 정원은 한 단계 축소된다
   clubSeats: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
@@ -780,7 +780,7 @@ const s = StyleSheet.create({
   seatPip: { width: 11, height: 11, borderRadius: 3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' },
   seatPipSm: { width: 9, height: 9, borderRadius: 2.5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' },
   seatPipOn: { backgroundColor: SEAT_ON, borderColor: SEAT_ON },
-  seatLb: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: CORAL_READ, marginLeft: 7 },
+  seatLb: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: CORAL_READ, marginLeft: 7 },
   // 고스트 CTA — 나이트 위에선 바이올렛 솔리드가 카드와 싸운다 (lab .a2 .ghost)
   // [§3b] 샤프 · 라벨 16/800 (버튼 라벨 플로어)
   clubGhost: {
