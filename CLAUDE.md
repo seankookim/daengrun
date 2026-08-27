@@ -216,6 +216,34 @@ error:"` matched codex's benign startup warning `ERROR codex_models_manager: fai
 models cache`, so a healthy run was declared REFUSED. **Match the specific refusal sentence, never
 a bare `error:`** — third detector-shaped miss of one day, all mine.
 
+🔴 **BEFORE PAYING TO MEASURE AN UNKNOWN, CHECK WHETHER IT IS LOAD-BEARING — DELETING THE
+DEPENDENCY DELETES THE QUESTION** (ui6, 2026-08-27; a method, not a fix, and the best move anyone
+made this week). The open question was 「does this build's Hermes honour `Intl`'s `timeZone`, or
+accept it and silently ignore it?」 — unanswerable from source, and the obvious next step was to
+get a device and run a snippet. Instead they asked what the answer would CHANGE: it only matters
+while the code depends on Intl. Converging every live date path onto `kst.ts` (fixed +9 offset, no
+Intl, Korea has no DST) took the baseline **12 → 1**, and the one survivor is a screen nothing
+routes to. **The measurement is now unnecessary for all reachable code.** Verified independently
+here: exactly one non-comment `Intl.DateTimeFormat` remains in `app/` + `src/`, on that dead
+screen.
+**The generalisation:** an expensive unknown deserves 「what does the answer change?」 before it
+deserves a measurement plan. Sometimes the cheapest way to close a question is to make it
+irrelevant. ⚠ The equality proof is what made this safe rather than reckless — every converted
+expression compared against the old real-ICU branch over 284,070 comparisons across four zones,
+0 mismatches, with the harness itself control-tested twice (a `+1000 ms` plant produced 2
+mismatches; reverting to the old catch produced **62,262 mismatches under New_York and 0 under
+Seoul** — the class's signature in one line). A conversion claiming 「equivalent」 without a
+control-tested differential is a rewrite, not a proof.
+
+🔴 **A `try`/`catch` FALLBACK THAT RENDERS DIFFERENT WORDS IS TWO PRODUCTS, CHOSEN BY AN
+UNMEASURED RUNTIME FACT** (ui6, same slice). `payments.tsx`'s Intl `try` rendered
+`2026년 8월 26일` and its `catch` rendered `2026. 8. 26` — **one field, two different sentences,
+selected by whether an API happened to throw on that device.** Nobody chose that; it is the shape
+a fallback takes when it is written for the mechanism instead of the copy. Every other catch in
+that family differed only by clock. ⚠ Generalise past dates: **any `catch` that produces
+user-visible text is a second product surface** and owes the same copy review as the first — and
+the divergence is invisible in review precisely because both branches look correct in isolation.
+
 🔴 **A GATE WITH A FALSE NEGATIVE IS STRICTLY WORSE THAN NO GATE — AND A NEW DETECTOR'S FIRST
 OBLIGATION IS TO DISAGREE WITH A CRUDE VERSION OF ITSELF** (ui6, measured 2026-08-27, caught in
 their own gate before it shipped). Their `check-device-clock` comment-stripper treated a template
