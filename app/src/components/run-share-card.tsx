@@ -23,7 +23,11 @@ import { colors, paper } from '../theme';
 
 export interface RunCardData {
   dogName: string;
-  km: number;
+  /** ⚠ 실측 거리. `number`였다가 nullable이 됐다 — 바로 아래 두 필드가 이미 지키고 있던 법에서
+   *  이 필드 하나만 빠져 있었다. 서버가 재지 못한 러닝(incident 종료 등)은 `actual_km`이 NULL이고,
+   *  예전 타입에서는 그게 `0`으로 내려와 **내보내는 PNG에** 「0km 완주」가 찍혔다. 이 카드는 앱을
+   *  떠나므로(아래 :368 주석) 작은 부정확이 곧 발행된 부정확이다. */
+  km: number | null;
   /** 실측 — 없으면 그 줄을 그리지 않는다 (0을 그리지 않는다) */
   durationSec: number | null;
   paceSecPerKm: number | null;
@@ -72,11 +76,14 @@ export function RunShareCard({
       </Text>
 
       {/* 거리 = 화면의 유일한 대형 숫자. lineHeight는 1.05× (BUG A는 Oswald 법이지만 큰 숫자는 항상 명시) */}
-      <Text style={[{ fontSize: width * 0.30, lineHeight: width * 0.32, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>
-        {data.km}<Text style={{ fontSize: width * 0.10, letterSpacing: -1 }}>KM</Text>
-      </Text>
+      {data.km != null && (
+        <Text style={[{ fontSize: width * 0.30, lineHeight: width * 0.32, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>
+          {data.km}<Text style={{ fontSize: width * 0.10, letterSpacing: -1 }}>KM</Text>
+        </Text>
+      )}
+      {/* 거리를 재지 못했으면 「완주」도 주장하지 않는다 — 완주는 거리에 대한 주장이다. */}
       <Text style={[{ fontSize: width * 0.10, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>
-        {data.dogName} 완주
+        {data.dogName}{data.km != null ? ' 완주' : ''}
       </Text>
 
       {/* GPS 트레이스 — 숫자 위를 의도적으로 가로지른다 (Sean 2026-07-29: 겹침을 전경화).
@@ -301,7 +308,9 @@ export function StoryShareCard({
   // Value + label pairs. A null value drops its whole column — the card never
   // prints a dash, a zero or an em-dash in place of a number nobody measured.
   const trio: [string, string][] = [
-    [`${data.km}`, '거리 km'],
+    // km도 이제 이 규칙을 따른다 — 위 주석의 「A null value drops its whole column」이 원래
+    // 이 필드만 예외였다.
+    ...(data.km != null ? ([[`${data.km}`, '거리 km']] as [string, string][]) : []),
     ...(pace ? ([[pace, '페이스']] as [string, string][]) : []),
     ...(time ? ([[time, '시간']] as [string, string][]) : []),
   ];
@@ -368,7 +377,7 @@ export function StoryShareCard({
                 in which it can be wrong. This card LEAVES THE APP, which is what makes a small
                 inaccuracy a published one. */}
           <Text {...FIXED_TYPE} style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.2 }, df]}>
-            {data.dogName}, {data.km}km
+            {data.dogName}{data.km != null ? `, ${data.km}km` : ''}
           </Text>
 
           <View style={{ flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.34)' }}>

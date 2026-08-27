@@ -54,8 +54,11 @@ const SNAP = CARD_W + GAP;
 
 const KST_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
-const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
-const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
+// ⚠ null = 서버가 재지 못했다. 0으로 접지 않는다 — 이 화면이 만드는 것은 앱을 떠나는 PNG이고,
+// run-share-card.tsx의 법이 그대로 적용된다: 「아무도 재지 않은 숫자 자리에 대시도 0도 찍지 않는다」.
+const fmtDur = (sec: number | null) => (sec == null ? null : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+// ⚠ 대시가 아니라 null — 위 fmtDur와 같은 이유. 대시는 '쟀는데 0'처럼 읽힌다.
+const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : null);
 
 // 실 GPS → 박스 좌표: src/lib/trace.ts의 traceToBox 정본 (0082 K1).
 // 여기 있던 사본은 축별 min-max라 종횡비를 늘렸다 — 서울에서 경도 1도는 위도 1도의 0.79배
@@ -557,7 +560,12 @@ export default function ShotStudio() {
 
     const stats = (light = true) => (
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        {[['DISTANCE', `${km}km`], ['PACE', statLine.pace], ['TIME', statLine.time]].map(([l, v]) => (
+        {/* 재지 못한 항목은 칸째로 빠진다 — run-share-card.tsx:301의 규칙과 같은 규칙. */}
+        {([
+          ...(km != null ? [['DISTANCE', `${km}km`]] : []),
+          ...(statLine.pace ? [['PACE', statLine.pace]] : []),
+          ...(statLine.time ? [['TIME', statLine.time]] : []),
+        ] as [string, string][]).map(([l, v]) => (
           <View key={l}>
             <Text style={[s.hudL, !light && { color: '#3d453d', textShadowRadius: 0 }]}>{l}</Text>
             <Text style={[s.hudV, !light && { color: paper.ink, textShadowRadius: 0 }]}>{v}</Text>
