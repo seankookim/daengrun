@@ -425,7 +425,7 @@ declare
     'club_v2_axes_poke','km_release_on_terminal_gate','owner_la_booking','owner_la_run_end',
     't_bookings_touch'];
   c_trg_dogs constant text[] := array['club_dog_materiality','t_dogs_touch'];
-  c_trg_session_dogs constant text[] := array['club_v1_axes_sync'];
+  c_trg_session_dogs constant text[] := array['club_owner_dog_limit','club_v1_axes_sync'] /* [0140] Sean 「1 dog per person」 — the inventory grew by exactly the ruled guard; a set pin updates in the same slice or reds for a true-but-stale reason */;
   v_trg text[];
 begin
   -- ══════════════════════════════════════════════════════════════════════════════════════

@@ -245,10 +245,14 @@ begin
   end;
 
   -- [C16] 책임 불변식 — responsible null 삽입은 제약 위반
+  -- [0140] 픽스처 교체: 기존 보호자 o는 이미 동반견을 가져 0140의 dog_limit 트리거(BEFORE)가
+  -- NOT NULL 제약보다 먼저 발화한다 — 핀의 명제(제약)에 닿기도 전에. 새 보호자로 명제를 보존한다.
   begin
+    declare c16o uuid; c16d uuid;
     begin
+      c16o := t_user('club_c16o', 'owner'); c16d := t_dog(c16o, 'C16견');
       insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id)
-      values (v_sid, d, o, null);
+      values (v_sid, c16d, c16o, null);
       call _fail('club','C16 책임자 null 거부','통과됨');
     exception when not_null_violation then
       call _pass('club','C16 책임 불변식 (responsible NOT NULL)');
