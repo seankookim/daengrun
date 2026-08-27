@@ -435,6 +435,16 @@ else catalogued here is a green that means LESS than it claims. This is a green 
 OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
 have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
 can still notice; a lying gate closes the gap in everyone's mind.
+⚠ **THE NOISE FILTER IS THE MOST DANGEROUS PART OF A SWEEP, AND IT FAILS AS A CLEAN RESULT** (ui6,
+2026-08-27). Sweeping for buttons missing the 3D lip, their first pass excluded lines matching
+`bar|card|chip|badge` **to cut noise** — and returned **0 candidates**. The exclusion was matching
+style **NAMES** (`ctaBar`, `payCard`) while the intent was style **ROLES**: a `ctaBar` is a button.
+**The filter removed the answer and reported it as a clean sweep.** A zero from a filtered sweep is
+the single easiest false negative to produce and the hardest to doubt, because zero findings reads
+as good news. **Rule: every exclusion in a sweep must be justified against ROLE, verified on a
+sample of what it drops, and a zero result must be re-derived without the filter before it is
+believed.**
+
 **THE STANDING RULE:** before trusting a detector you just wrote, run the crudest possible version
 beside it and **explain every difference in BOTH directions** — the hits it adds and the hits it
 drops. ui6's now matches the raw grep at 12 and correctly excludes the 2 comment-only lines the
