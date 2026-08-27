@@ -897,7 +897,7 @@ end $$;
 
 -- ═══ standing guards — schema-wide, outside the fixture block ═══
 do $$
-declare v_n int; v_list text; v_msg text; v_pub boolean; v_bad text;  -- v_bad: 0131-G4
+declare v_n int; v_list text; v_msg text; v_pub boolean; v_bad text; v_bodyhash text;  -- v_bad: 0131-G4
         v_owner oid; v_ownername text; v_super boolean; v_bypass boolean; v_owns int;  -- 0131-G4 bypass (round 5, finding 4)
         v_reads text[]; v_calls text[]; v_call text; v_tblname text; v_missing text;   -- 0131-G4 read set + ordinary privileges (round 6, finding 1)
         v_tbl text; v_pol text; v_qual text; v_got text; v_textok boolean; v_depok boolean;  -- 0131-G5 (round 6, finding 4)
@@ -1103,6 +1103,35 @@ begin
   if v_bad = '' then
     call _pass('srp','0131-G5 네 정책의 술어 자체가 서 있다 — 적용 시점의 VERIFY D와 같은 문장을, 같은 두 종류의 증거로(배포된 문자열과의 정확일치 + pg_depend가 기록한 실제 함수 의존), 매 실행 상시로 검사한다. 적용 후에 팔 하나를 더한 표류(예: or auth.uid() = <어떤 uuid>)는 행동 핀 S1~S10에는 보이지 않는다 — 그 uuid를 쓰는 픽스처가 없기 때문이고, 그것이 이 핀이 존재하는 이유다');
   else v_msg := v_bad; call _fail('srp','0131-G5 술어 상시 고정', v_msg); end if;
+
+  -- ---------- [0131-G6] THE HELPER'S OWN BODY, STANDING — codex round 7, finding 1 ----------
+  -- 🔴 G5 pins the four POLICY predicates standing. Nothing pinned the HELPER's authorization
+  --   expression itself. So `_club_session_member` could be recreated post-apply with an extra
+  --   `or p_uid = '<some uuid>'` and EVERY guard stays green: D and G4 inspect structural
+  --   preconditions (owner, privileges, search_path, the derived name sets — all unchanged), G5
+  --   sees unchanged policies, and no fixture uses that UUID so no behavioural pin notices.
+  --   The mirror of the gap round 6 closed, pointed at the other half of the pair.
+  -- ⚠ Pinned by NORMALISED BODY HASH, not by an expected string: the body is 40+ lines of prose
+  --   and predicate, and a string comparison in this file would be a second copy that must move
+  --   with the first (the limit G5 already carries and states). A hash moves in one place, and
+  --   the failure message prints both so a legitimate change is one paste to re-pin.
+  -- ⚠ Comments STRIPPED before hashing — otherwise every prose edit in the helper reddens this,
+  --   which is how a guard earns a `--no-verify`. Whitespace collapsed for the same reason.
+  --   The cost is stated rather than hidden: a body CRAFTED to hide a read inside a string
+  --   literal defeats the strip, exactly as the fences in 0131 say of themselves. This pin is a
+  --   guard against DRIFT and recreation, not against a hostile author with DDL rights.
+  select md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g'))
+    into v_bodyhash
+    from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure;
+  if v_bodyhash is null then
+    call _fail('srp','0131-G6 헬퍼 본문 상시 고정', '헬퍼가 없어 해시를 낼 수 없다 — 이 핀은 통과가 아니라 무력하다');
+  elsif v_bodyhash <> 'fef0a8635882a3df9aa867444dd54f3c' then
+    v_msg := '헬퍼 본문이 바뀌었다. got=' || v_bodyhash
+          || ' want=fef0a8635882a3df9aa867444dd54f3c — 의도한 변경이면 이 핀의 기대값을 같은 슬라이스에서 갱신하라';
+    call _fail('srp','0131-G6 헬퍼 본문 상시 고정', v_msg);
+  else
+    call _pass('srp','0131-G6 헬퍼의 권한 판정식 자체가 서 있다 — 적용 후 몰래 넓혀도 여기서 걸린다');
+  end if;
 
   -- ---------- [G3] row security is ON for all four — the disabled-RLS drift guard ----------
   -- Codex round 2's sharpest finding: a table with RLS DISABLED passed the migration's own checks
