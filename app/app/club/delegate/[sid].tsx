@@ -8,6 +8,7 @@ import {
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
+import { routeLabel } from '../../../src/lib/route-label';
 import { lilac } from '../../../src/theme';
 
 // O2 — 위탁 승낙서 (정본: master-lab O2 · ② 코랄 봉인 확정)
@@ -210,10 +211,18 @@ export default function DelegateConsentScreen() {
                   <Text style={{ fontSize: 19, lineHeight: 24, fontWeight: '800', color: INK }}>
                     {fare.toLocaleString()}원
                   </Text>
-                  {/* merge: trunk's routeName handling + the sweep's 15; lineHeight 22 clears BUG A's 1.2x */}
+                  {/* The route name can already end in its own km token (0100 route_name_km_agrees),
+                      so printing routeKm beside it said the same distance twice — 「5.4km · 몽마르뜨
+                      언덕 루프 5.4km」. routeLabel appends the distance only to a name that does not
+                      carry one; the name itself is never rewritten (the km token is what tells the
+                      three 몽마르뜨 loops apart).
+                      Sizes are trunk's post-sweep 15/22, not this commit's original 14/18 — the
+                      floor raise landed here first and the duplicate-km fix rides on top of it. */}
                   {board?.session.routeKm != null && (
                     <Text style={{ fontSize: 15, lineHeight: 22, color: '#8a8272', marginTop: 1 }}>
-                      {board.session.routeKm}km{board.session.routeName ? ` · ${board.session.routeName}` : ' 코스'}
+                      {board.session.routeName
+                        ? routeLabel({ name: board.session.routeName, km: board.session.routeKm })
+                        : `${board.session.routeKm}km 코스`}
                     </Text>
                   )}
                 </View>

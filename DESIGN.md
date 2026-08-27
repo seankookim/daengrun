@@ -162,8 +162,17 @@ addresses):
   Anything that fails a clause is text. **Repetition and decorative placement do not turn Korean
   words into glyphs** — a repeating brand tape is still the wordmark, and is exempt for that
   reason, not because it repeats.
-  `type.label`/`type.caption` = 14 as of 2026-08-10; button labels ≥16
-  (primary/door class; chips and links may stay 14).
+  ⚠ `type.label`/`type.caption` shipped **14** until 2026-08-27 and now ship **15**
+  (`theme.ts`), i.e. they are on the floor rather than below it. Recorded because of HOW the
+  gap survived: the tokens had **zero importers**, so no screen rendered under the floor
+  *through them* and nothing anywhere went red — the 2026-08-25 sweep raised 863 live sites
+  and walked straight past the two values that tell new code what size to be. A dead export
+  is not a harmless one; it is an instruction waiting for its first reader, and the cost of
+  fixing it is a one-line edit before that reader exists rather than a sweep after. This
+  line used to add
+  「chips and links may stay 14」 — retired, it is precisely the clause that licensed the
+  14pt Korean chips and links the floor sweep had to undo in `owner/request.tsx`
+  (필터 해제, 날짜·시간 선택, 미리보기 ›, course tags). Button labels ≥16 (primary/door class).
 - Small white text never sits directly on coral/sage — use an ink plate (≥4.5:1).
 
 ## 3b. COMPONENT SPEC (binding — 2026-08-11)
