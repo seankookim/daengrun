@@ -205,6 +205,44 @@ begin
   if v_bad = '' then call _pass('srp','S5b 대기(pending) 위탁 보호자는 아직 멤버가 아니다 — 실제 delegate RPC로 만든 행, responsible 포인터가 자기 자신인데도');
   else v_msg := v_bad; call _fail('srp','S5b 대기 위탁 보호자', v_msg); end if;
 
+  -- ---------- [S6] THE CALLER-ONLY GUARANTEE — codex round 4, finding 1 ----------
+  -- Round 3 bound the helper to `p_uid is not distinct from auth.uid()` so it stops being an
+  -- arbitrary-pair membership oracle. That conjunct was then pinned by NOTHING: deleting it left
+  -- the whole suite green, because every other pin calls the helper only about itself. A conjunct
+  -- nothing can fail on is decoration that reads as coverage — the exact law this repo keeps
+  -- paying for, here in the fix I had just added.
+  -- Three arms, because one proves nothing: the ORACLE arm is the property, and the two SELF arms
+  -- are controls that fail if the bind is over-tight (a helper that answered `false` to everything
+  -- would pass the oracle arm alone).
+  perform set_config('request.jwt.claim.sub', v_stranger::text, true);
+  set local role authenticated;
+  v_bad := '';
+  -- ⓐ ORACLE: a stranger asks about a REAL member. Must be false — not an error, false: an
+  --   exception would still be an oracle (it distinguishes the pair by which failure it gives).
+  begin
+    if _club_session_member(v_ses, v_member) then
+      v_bad := v_bad || ' 낯선 사람이 남의 멤버십을 조회했다';
+    end if;
+  exception when others then
+    v_bad := v_bad || ' 오라클 팔이 예외를 냈다(예외도 신호다): ' || sqlerrm;
+  end;
+  -- ⓑ SELF-NEGATIVE control: the stranger about themselves — false, for a real reason
+  if _club_session_member(v_ses, v_stranger) then
+    v_bad := v_bad || ' 낯선 사람이 자기 자신을 멤버로 읽었다';
+  end if;
+  reset role;
+  -- ⓒ SELF-POSITIVE control: a real member about themselves — TRUE. Without this arm a helper
+  --   hard-wired to `false` would satisfy ⓐ and ⓑ and the pin would certify a broken helper.
+  perform set_config('request.jwt.claim.sub', v_member::text, true);
+  set local role authenticated;
+  if not _club_session_member(v_ses, v_member) then
+    v_bad := v_bad || ' 진짜 멤버가 자기 자신을 못 읽는다 (바인드가 과하게 조였다)';
+  end if;
+  reset role;
+  if v_bad = '' then
+    call _pass('srp','S6 헬퍼는 호출자 본인만 답한다 — 임의 쌍 오라클이 아니다 (오라클 팔 + 자기부정/자기긍정 대조)');
+  else v_msg := v_bad; call _fail('srp','S6 호출자 전용 보장', v_msg); end if;
+
   -- ---------- [S4] anon reads nothing ----------
   -- anon holds table-level SELECT grants on all four (Supabase default); RLS is the only thing
   -- standing between it and these rows, which is exactly why this arm is written down.

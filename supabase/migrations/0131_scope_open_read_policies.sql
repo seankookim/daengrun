@@ -288,10 +288,14 @@ begin
       raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not call the helper.', v_tbl, v_pol;
     end if;
     -- permissive, explicitly — a sole RESTRICTIVE policy admits nobody and passed round 3's D
+    -- [codex round 4, finding 4] `pg_namespace` was MISSING here: a same-named policy on
+    -- `other_schema.session_dogs` could satisfy this count while `public`'s own policy was
+    -- RESTRICTIVE. The join is not decoration — without it the check certifies a different table.
     select count(*) into v_new
       from pg_policy p join pg_class c on c.oid = p.polrelid
-     where c.relname = v_tbl and p.polname = v_pol and p.polpermissive;
-    if v_new <> 1 then raise exception '0131 D: %.% is not PERMISSIVE.', v_tbl, v_pol; end if;
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol and p.polpermissive;
+    if v_new <> 1 then raise exception '0131 D: %.% is not PERMISSIVE in public.', v_tbl, v_pol; end if;
   end loop;
 
   -- the helper itself: definer, exact overload, and the grants PRESENT (absence was unchecked)
