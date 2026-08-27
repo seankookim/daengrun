@@ -451,6 +451,32 @@ end $$;
 --       · against THIS suite:  **1060/1, S9 alone, entirely via ⓓ** — ⓒ never speaks. ⓓ is an
 --         OBSERVATION on a constructed live row, so it does not care what the predicate reads or
 --         how many functions deep it reads it.
+--
+-- 🔴 N0-N7 ARE ROUND-5 MEASUREMENTS AGAINST A 1061-PIN CORPUS AND ROUND 6 STALED THEIR NUMBERS.
+-- Round 6 added `0131-G5` and rewrote S9 ⓒ and ⓓ, so: every absolute count above is off by at
+-- least one, and any plant that moves a POLICY PREDICATE now reddens `0131-G5` as well. The rows
+-- are kept because each still records what a pin is SENSITIVE to; the numbers are not to be cited.
+-- ⚠ They were not re-run because round 5's plants exist only as this prose, and a reconstruction
+-- presented as a re-run is worse than an inherited row that says it is one. What round 6 measured
+-- itself, on its own plants, is below.
+--
+-- ── ROUND 6's OWN PLANTS for these two arms (full table in 0131's header) ────────────────────
+--   Q5  the helper's EXECUTABLE source references `custodian_external`, with a legal string
+--       literal containing `--` earlier ON THE SAME LINE; behaviourally inert (`false and …`).
+--       · pre-round-6 suite:  **1062/0, RED = [ ]** — round 5's `regexp_replace(prosrc,'--[^\n]*')`
+--         deleted the reference, so ⓒ stayed green with its sentence false. Codex round 6's
+--         finding 3, reproduced.
+--       · this suite:  **1062/1, RED = [S9] alone, via ⓒ** (값=true). A raw scan cannot be
+--         shortened by a `--` anywhere.
+--   Q6  the 「name twin」 renamed, so it is no longer a twin.
+--       · pre-round-6 suite:  **1062/0, RED = [ ]** — ⓓ read 0 rows and claimed a property about a
+--         profile whose name it had never re-read.
+--       · this suite:  **1062/1, RED = [S9] alone, via ⓓ's precondition**, printing both names.
+--   Q3d the P-H class re-cut (a dead `or true` arm on `session_people`, D's predicate arms
+--       removed):  **1056/7, RED = [S1, S5, S5b, S7, S8, S9, `0131-G5`]** — round 5 measured six
+--       for this class; `0131-G5` is the seventh and the only one that names the CAUSE.
+--   Q4  post-apply predicate drift (`or auth.uid() = '<uuid no fixture is>'`):  pre-round-6
+--       **1062/0, RED = [ ]** · this suite **1062/1, RED = [`0131-G5`] alone**.
 
 -- ── the fixture factory: one pairing, driven through the real RPC chain to a LIVE custody ────
 -- Each call builds its own club, session, host, runner, owner, dog and route, because

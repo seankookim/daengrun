@@ -136,9 +136,14 @@
 --          on the catalog-dependency arm**, and on `session_dogs` rather than the tampered
 --          `session_people`. The reason is worth more than the plant: **`pg_get_expr` deparses
 --          against the SESSION's search_path**, so putting `shadow` in front makes the legitimate
---          `public._club_session_member` render QUALIFIED and the tampered one render bare. See
---          D's own comment — this is why the depend arm is documented as redundancy rather than as
---          an independently load-bearing check, and why an abort here prints got= and want=.
+--          `public._club_session_member` render QUALIFIED and the tampered one render bare.
+--        · 🔴 **THE CONCLUSION ROUND 5 DREW FROM THIS ROW IS WITHDRAWN** (codex round 6, finding 2).
+--          It read 「this is why the depend arm is documented as redundancy rather than as an
+--          independently load-bearing check」 — false, and the counter-example is deterministic:
+--          P-J tampered with **one** policy, so an untampered QUALIFIED call on an earlier table
+--          failed the text arm first. Change all four and the dependency arm fails ALONE (Q3,
+--          measured below). **A mutation that changes one instance of a rule copied four times
+--          measures the copies, not the rule.**
 --   P-K  [finding 1] the caller bind returns **NULL** instead of `false` for a pair that is not
 --        the caller (`nullif(p_uid is not distinct from auth.uid(), false)`). Policies are
 --        untouched — they always pass `p_uid = auth.uid()`, for which this is still `true`.
@@ -168,6 +173,106 @@
 --   so the pin count is unmoved BY DESIGN and an unmoved count is NOT evidence the new arms ran.
 --   The battery above is that evidence, and so is the presence of each rewritten pin's new message
 --   text in the clean log.
+--
+-- 🔴 PROVENANCE OF EVERY NUMBER ABOVE, WRITTEN DOWN INSTEAD OF LEFT TO BE DISCOVERED: the rows
+--   P-A…P-M are ROUND-5 measurements against a **1061-pin corpus**. Round 6 ADDED a pin
+--   (`0131-G5`) and CHANGED three (`S9` ⓒ/ⓓ, `0131-G4`, and D's own diagnostic), so by this file's
+--   own law those rows are STALE THE MOMENT THIS COMMIT LANDS: their absolute counts cannot
+--   reproduce, and any row whose plant moves a POLICY PREDICATE now also reddens `0131-G5`.
+--   They are kept, not deleted, because each one still records what a specific pin is sensitive
+--   to — but **cite the round-6 table below, never these numbers.**
+--   ⚠ Honest about why they were not simply re-run: round 5's plants exist only as this prose, and
+--   a reconstruction presented as a re-run is worse than an inherited row that says so. The two
+--   classes round 6 genuinely moves were re-cut and re-measured as **Q7** (P-F's class) and **Q3d**
+--   (P-H's class), and both moved exactly as expected — P-H's sub-row goes from six reds to seven.
+--
+-- ═══ ROUND 6's BATTERY — codex round 6's four findings, measured 2026-08-27. ═══
+-- Method unchanged and non-negotiable: every plant is a python edit that asserts
+-- `count(anchor) == 1` (or the stated N) AND reads the ARTIFACT BACK, applied to a COPY of
+-- `supabase/` OUTSIDE the worktree, with the plant `&&`-CHAINED to its run so a failed plant
+-- produces NO row. ⚠ The read-back refused this battery twice, both times usefully: once on an
+-- un-qualification where the replacement is a SUBSTRING of the anchor (the naive post-count is
+-- arithmetically wrong, not the plant), and once on a post-check that counted a TOKEN which this
+-- file's own header quotes in prose — the comment-matches-every-grep law, hit inside the very
+-- script written to avoid it.
+-- ⚠ CONTROLS OBSERVED FIRST, both of them: the untouched round-6 tree is **1063/0** (exit 0) and
+-- the untouched pre-round-6 tree is **1062/0**. The +1 is `0131-G5` and nothing else.
+-- Each finding is run TWICE — against the PRE-round-6 files, to show the hole is real and what it
+-- was invisible to, and against these, to show the guard names it.
+--
+--   Q1  [finding 1] the helper PRE-EXISTS owned by `service_role` — which the shim gives
+--       `bypassrls` and does NOT give `usage on schema auth`. `create or replace` preserves that
+--       owner. ONE property moves: who owns the function.
+--       · pre-round-6:  **APPLY SUCCEEDS** — every prosecdef/owner/bypass arm is satisfied — and
+--         then suite 164 dies on its FIRST client read: `ERROR: permission denied for schema auth`.
+--         ⚠ **The harness prints NO pin table at all** (measured: 0 `[srp]` lines, no summary), so
+--         the run reports 「SUITE PARSE/EXEC FAILED」 and nothing anywhere names the cause.
+--       · with round 6's D:  **APPLY ABORTS** — `the helper's owner service_role CAN bypass RLS but
+--         CANNOT EXECUTE ITS OWN BODY — missing: USAGE on schema auth;`.
+--       · with D's privilege arm removed (Q1c):  apply succeeds, suite dies identically, **0 pin
+--         lines again** — so in THIS harness the apply-time gate is the only thing that can name
+--         this class, and `0131-G4`'s privilege arm is for the environment with no suite to die.
+--         That is measured, not assumed, and it is written into G4's own comment.
+--   Q7  [finding 1, the control that keeps the two arms apart] an owner with EVERY ordinary
+--       privilege the body needs and no RLS bypass (`lab_nobypass`: auth+public USAGE, auth.uid
+--       EXECUTE, SELECT on all four read-set tables).
+--       · **APPLY ABORTS on the BYPASS arm** — `① rolsuper=f, ② rolbypassrls=f, ③ owns-unforced
+--         0/4 of the READ set {club_sessions,session_dogs,session_people,session_runner_assignments}`.
+--       So ⓑ fires where ⓒ is satisfied and ⓒ fires where ⓑ is satisfied: neither is evidence for
+--       the other, which is the whole reason both exist. (This is round 5's P-F re-cut; round 5's
+--       version granted a narrower set and could not make the distinction.)
+--   Q2  [finding 1, the table-set half] the helper gains a FIFTH source table (`profiles`),
+--       behaviourally inert (`false and …`), so only the READ SET moves.
+--       · with round 6's D:  **APPLY ABORTS** — `the helper reads {club_sessions,profiles,
+--         session_dogs,session_people,session_runner_assignments} — not the four tables this bypass
+--         check verifies.`
+--       · with D's fence removed, round-6 suite:  **1062/1, RED = [`0131-G4`] alone**, printing the
+--         derived set.
+--       · with D's fence removed, PRE-round-6 suite:  **1062/0, RED = [ ]** — the standing pin was
+--         checking the POLICY table set copied from pre-check A and could not see this at all.
+--         D was fixed for this on trunk and the pin was not; that gap is what Q2 measures.
+--   Q3  [finding 2] codex's coordinated mutation: `shadow` in FRONT of `public`, a same-named
+--       `shadow._club_session_member(uuid,uuid)`, and **all four** policy calls unqualified.
+--       · with round 6's D:  **APPLY ABORTS** — `session_dogs.dogs scoped read — exact-predicate arm
+--         PASS, catalog-dependency arm FAIL`, with got= and want= printing the SAME string.
+--         **The dependency arm fires alone. Round 5's 「it cannot」 is refuted.**
+--       · with round 5's D:  also aborts, on the dependency raise — so the arm was ALWAYS
+--         independently load-bearing and it was the CLAIM, not the code, that was wrong. Round 6
+--         changes what the file says and how it reports, not whether it catches this.
+--   Q3c [finding 2, the diagnostic half] an ordinary TEXT break on one policy (a dead `or true`
+--       arm on `session_people`), dependency row untouched.
+--       · **APPLY ABORTS** — `exact-predicate arm FAIL, catalog-dependency arm PASS`. Round 5
+--         raised at (i) and never evaluated (ii), so the 「second, independent signal」 its comment
+--         promised did not exist; both arms are now computed before either is reported.
+--   Q3d [the P-H class, re-cut] the same dead arm with D's predicate arms removed, so the run
+--       reaches the pins:  **1056/7, RED = [S1, S5, S5b, S7, S8, S9, `0131-G5`]** — six behavioural
+--       pins reporting `session_people=2` (the symptom) and `0131-G5` reporting the predicate (the
+--       cause). Round 5 measured six for this class; the seventh is round 6's.
+--   Q4  [finding 4] POST-APPLY DRIFT, exactly as codex wrote it — a later migration adds
+--       `or auth.uid() = '<uuid no fixture is>'::uuid` to `people scoped read`.
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — S1-S10 are fixture-bound and none of them is
+--         that user; G1 only sweeps the exact OLD predicate; D never runs again. **Reproduced
+--         exactly: a live widening, every pin green.**
+--       · round-6 suite:  **1062/1, RED = [`0131-G5`] alone**, printing got=[… OR (auth.uid() =
+--         '3f7a1c2e-…'::uuid) OR …] want=[…].
+--   Q5  [finding 3, the ⓒ half] the helper's EXECUTABLE source references `custodian_external`,
+--       with a legal string literal containing `--` earlier ON THE SAME LINE. Inert (`false and …`).
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — round 5's `regexp_replace(prosrc,'--[^\n]*')`
+--         erased the reference, so ⓒ was GREEN while the sentence it printed was false. **Codex's
+--         finding 3 reproduced.**
+--       · round-6 suite:  **1062/1, RED = [S9] alone, via ⓒ** — `헬퍼 원문(주석 포함)이
+--         custodian_external을 참조한다 (값=true)`. The raw scan cannot be shortened by a `--`.
+--   Q6  [finding 3, the ⓓ half] the 「name twin」 is renamed, so it is no longer the twin.
+--       · PRE-round-6 suite:  **1062/0, RED = [ ]** — ⓓ read 0 rows and printed a sentence about a
+--         profile whose name matched, having never re-read that name: the arm licensed one planted
+--         pair, not the property.
+--       · round-6 suite:  **1062/1, RED = [S9] alone, via ⓓ's precondition** — `동명이인의
+--         profiles.name=전혀 다른 이름 이 심은 custodian_external=반포구청 안전과 과 다르다`.
+--
+--   Clean at the time of writing: **1063/0**, harness exit 0, counted across the whole run and
+--   never through `tail`. ⚠ A moving corpus, not a property of this slice — re-measure, do not cite.
+--   ⚠ Round 6 added exactly ONE `_pass` call (`0131-G5`); the S9, G4 and D changes are new ARMS and
+--   move no count, so the count is NOT evidence they ran. Q1-Q7 above are that evidence.
 --
 -- R1's caller citation: `api.ts` **fetchStampStats** — cite the FUNCTION, never a line number.
 -- Two line references in this header went stale inside a single day.
