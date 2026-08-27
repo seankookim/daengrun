@@ -8,7 +8,7 @@ import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/l
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { goBackOrHome } from '../src/lib/nav';
-import { routeForNotification } from '../src/lib/push';
+import { hasNotificationRoute, routeForNotification } from '../src/lib/push';
 import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
 
 // 알림 — "여권 × 안내판(Arrivals board)" 정본 (Sean 확정, 2026-08-01 delegation-premium-refresh2).
@@ -79,6 +79,11 @@ export default function Alerts() {
 
   // 알림 탭 도착지 — push.ts routeForNotification과 단일 소스 (푸시 탭 딥링크와 동일 규칙)
   const openNoti = (n: LiveNoti) => routeForNotification(n.kind, n.refId, n.title);
+  // 목적지가 없는 행은 Pressable로 그리지 않는다 (하우스 법칙: dead button 금지). 판정은 push.ts가
+  // 소유한다 — 라우터와 같은 파일에 있어야 둘이 어긋나지 않는다. 오늘 이 판정이 false를 돌려주는
+  // 실데이터는 없다(shop·system은 쓰는 마이그레이션이 아예 없다). 즉 이 가드는 지금 증상을 고치는
+  // 게 아니라, 목적지 없는 kind가 생기는 날 눌리는 척하는 카드가 되지 않게 구조로 막는 것이다.
+  const isRoutable = (n: LiveNoti) => hasNotificationRoute(n.kind, n.refId);
 
   const markAll = async () => {
     try {
@@ -139,15 +144,22 @@ export default function Alerts() {
                 </Row>
               )}
             </Row>
-            {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다 */}
-            {latestUnread && (
+            {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다.
+                셰브런(›)은 '누를 수 있다'는 신호라, 목적지가 없으면 티커도 셰브런도 버튼이 아니다 */}
+            {latestUnread && (isRoutable(latestUnread) ? (
               <Pressable onPress={() => openNoti(latestUnread)} style={s.ticker}>
                 <View style={s.liveDot} />
                 <Text style={[s.tickTime, nf]}>{latestUnread.timeLabel}</Text>
                 <Text numberOfLines={1} style={s.tickTxt}>{latestUnread.title}</Text>
                 <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)' }}>›</Text>
               </Pressable>
-            )}
+            ) : (
+              <View style={s.ticker}>
+                <View style={s.liveDot} />
+                <Text style={[s.tickTime, nf]}>{latestUnread.timeLabel}</Text>
+                <Text numberOfLines={1} style={s.tickTxt}>{latestUnread.title}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -203,8 +215,9 @@ export default function Alerts() {
                 <View style={s.railLine} />
                 {g.items.map((n) => {
                   const ink = inkFor(n.kind, n.title);
-                  return (
-                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, n.unread && s.evtNew]}>
+                  // 행 내용은 어느 쪽이든 같다 — 달라지는 건 '누를 수 있는가' 뿐이라, 껍데기만 고른다
+                  const cell = (
+                    <>
                       {/* 레일 도트 — 미읽음=코랄 채움/엣지, 읽음=잉크 링 */}
                       <View
                         style={[
@@ -235,7 +248,12 @@ export default function Alerts() {
                           </View>
                         </Row>
                       </View>
-                    </Pressable>
+                    </>
+                  );
+                  return isRoutable(n) ? (
+                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, n.unread && s.evtNew]}>{cell}</Pressable>
+                  ) : (
+                    <View key={n.id} style={[s.evt, n.unread && s.evtNew]}>{cell}</View>
                   );
                 })}
               </View>
