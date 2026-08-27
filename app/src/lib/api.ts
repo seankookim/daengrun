@@ -3596,6 +3596,21 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
     if (error.message?.includes('feature_disabled')) {
       throw new Error('위탁 기능이 아직 열리지 않았어요 — 허용목록 계정인지 확인해주세요');
     }
+    // 🔴 [배포 스큐 2026-08-27] 클라이언트가 서버보다 앞선 상태 — 이 함수가 아직 배포되지 않았다.
+    // 가설이 아니라 측정값이다: 오늘 프로덕션에 `session_add_my_dog`는 **없다**
+    // (`select count(*) from pg_proc where proname='session_add_my_dog'` → 0, 대조군으로
+    // session_rsvp/session_cancel_rsvp는 2). 마이그레이션 0131~은 배포 큐에 묶여 있고 앱 빌드는
+    // 그보다 먼저 나갈 수 있으므로, 그 창에서 이 경로를 누르면 지금까지는 PostgREST 원문이
+    // 그대로 떴다 — 「Could not find the function public.session_add_my_dog … in the schema
+    // cache」. 한국어 화면에 영문 원시 오류를 띄우는 것, 이 슬라이스가 두 화면에서 없앤 바로 그
+    // 결함을 새 코드가 되살리는 모양이다. 클럽 액션 전체가 같은 창을 지나므로 여기서 한 번 옮긴다.
+    // ⚠ 코드(PGRST202)와 메시지를 둘 다 본다: 코드는 PostgREST 버전에 따라 비어 올 수 있고,
+    // 메시지만 보면 다른 이유로 같은 문장이 올 때 오검이 된다 — 둘 중 하나라도 맞으면 이 창이다.
+    const missingFn = (error as { code?: string }).code === 'PGRST202'
+      || /Could not find the function/i.test(error.message ?? '');
+    if (missingFn) {
+      throw new Error('아직 준비되지 않은 기능이에요 — 곧 열려요');
+    }
     throw error;
   }
   return data;
