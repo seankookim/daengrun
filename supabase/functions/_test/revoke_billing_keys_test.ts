@@ -8,7 +8,7 @@
 //    100% clean while **not one billing key was ever deleted at the payment gateway**. Nothing
 //    pinned the URL or the method, so nothing could redden.
 //    The first two tests below are the ones that would have caught it.
-import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertMatch, assertStringIncludes } from "jsr:@std/assert@1";
 import { HttpError } from "../_shared/ctx.ts";
 import { revokeBillingKeys } from "../revoke-billing-keys/handler.ts";
 import { FakeDb, FetchMock, type Row } from "./fakedb.ts";
@@ -130,4 +130,19 @@ Deno.test("🔴 an UNSET cron secret authenticates nobody", async () => {
     // credential-destroying endpoint (collect-charges' own comment, same hazard).
     assertEquals(status, 503);
   } finally { Deno.env.set("CRON_COLLECT_KEY", saved); }
+});
+
+Deno.test("🔴 the deployment contract is COMMITTED, not typed — config.toml turns JWT verification off", async () => {
+  // The tests above prove the handler refuses without `X-Cron-Key`. They are only load-bearing if
+  // the request ever REACHES the handler: pg_net sends no JWT, and Supabase verifies JWTs by
+  // default, so without this config entry every cron tick is rejected at the platform — silently,
+  // because `dispatch_billing_key_revocations` fires and never reads the response.
+  //
+  // ⚠ The two halves are one decision. This pin exists so deleting the config entry reddens here
+  //   rather than turning the revocation cron into a no-op nobody notices; the 401/503 pins above
+  //   are the other half, and neither is safe without the other.
+  const toml = await Deno.readTextFile(new URL("../../config.toml", import.meta.url));
+  const section = toml.split(/^\[/m).find((s) => s.startsWith("functions.revoke-billing-keys]"));
+  assert(section, "supabase/config.toml has no [functions.revoke-billing-keys] table");
+  assertMatch(section, /^\s*verify_jwt\s*=\s*false\s*$/m);
 });

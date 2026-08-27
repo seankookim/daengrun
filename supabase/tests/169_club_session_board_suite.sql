@@ -10,9 +10,16 @@
 --
 -- ⚠ P14 AND P15 ARE DIFFERENT PROPOSITIONS AND BOTH ARE NEEDED. P14 reads the OUT-column list
 --   off pg_proc: a column that does not exist cannot leak (shape). P15 asserts no returned TEXT
---   contains a known fare/address/phone substring: a value smuggled through the `state` label
+--   contains a value the fixture planted for EACH forbidden class — address, money, phone,
+--   emergency contact, incident, dog attribute: a value smuggled through the `state` label
 --   would pass P14 and fail P15. The battery's 「interpolate the fare into the state label」
 --   mutation reddens P15 and NOT P14 — that is why both exist.
+-- ⚠ P15 WAS NARROWER THAN ITS NAME UNTIL 2026-08-27 (found by codex, confirmed by mutation): it
+--   seeded ONLY a phone and then checked for money-shaped digits, so 「값 밀반출 없음」 was a claim
+--   about two classes wearing the name of six. An address interpolated into the `state` label
+--   passed it. The fix is not a longer assertion list — it is a FIXTURE that actually contains
+--   one unmistakable value per class, plus a seed control so a seed that stops landing fails the
+--   pin instead of making it vacuously green.
 -- ⚠ P4 ≡ P5 is the anti-enumeration property. Compared to EACH OTHER, not to a literal.
 -- ⚠ `_fail` args pre-computed into v_msg, never a subquery (the 110 header law).
 
@@ -22,6 +29,9 @@ declare
   d1 uuid; d2 uuid; d3 uuid; d4 uuid; rt uuid; club uuid; ses uuid; sd1 uuid; sd3 uuid; sd4 uuid;
   v_n int; v_n2 int; v_txt text; v_txt2 text; v_msg text; v_bad text := ''; v_ts timestamptz;
   rec record;
+  -- P15's sentinel machinery (2026-08-27) and P16's expected-value pair.
+  v_addr uuid; v_who uuid; v_money text[]; v_forbidden text[]; v_hits text;
+  v_name_exp text; v_photo_exp text;
 begin
   hh    := t_user('bd_host',   'runner');
   bkp   := t_user('bd_backup', 'runner');
@@ -34,11 +44,34 @@ begin
   --   through `_club_runner_load` against the assignment). Committing `run` early would delete
   --   P8's fixture — the crew row it needs to observe disappearing.
   run2  := t_user('bd_runner2','runner'); update runners set tier = 'veteran' where profile_id = run2;
+  -- ⚠ P16 NEEDS AN AVATAR TO EXIST, or its three visible arms cannot tell 「the gate is shut」 from
+  --   「this runner never had a photo」 — a NULL-vs-NULL comparison that passes for the wrong reason.
+  --   `t_user` leaves avatar_url NULL, so the fixture states it. Digit-free on purpose: P15
+  --   concatenates every returned text column and greps it for money shapes.
+  update profiles set avatar_url = 'https://cdn.test.local/avatar-run-two.png' where id = run2;
   guest := t_user('bd_guest',  'owner');
   d1 := t_dog(own, '보드견1');
   d2 := t_dog(mem, '동반견2');
   d3 := t_dog(own, '페어링견3');
   d4 := t_dog(own, '철회견4');
+  -- ⚠ R7 SENTINELS ARE PLANTED **HERE**, BEFORE ANY DELEGATION EXISTS, AND THE PLACEMENT IS
+  --   LOAD-BEARING — not tidiness. `club_dog_materiality` is an AFTER `update of weight_kg`
+  --   trigger (0119 family) that, for an APPROVED live delegation, sets review_needed, writes an
+  --   `assignment_events` revocation and pushes the booking back to `matching` with runner_id
+  --   NULL. Planting the weight after 승인 would therefore DELETE P16/P17's fixture — the proposed
+  --   pairing they exist to read — while looking like an innocuous fixture line. At this point in
+  --   the file no session_dogs row references these dogs, so the trigger's loop is empty.
+  --   breed/memo/vaccinations are R7's 「name+photo 이상의 속성」 — 견종, 러너에게 전달되는 성향
+  --   메모, 접종 기록(건강 속성). weight is numeric, so its sentinel is a value (88.8), not a
+  --   string. P15 checks all four.
+  -- ⚠ `dogs.collar` CANNOT CARRY A SENTINEL AND IS NOT FAKED: 0033:7 constrains it to eight
+  --   palette keys ('tangerine'|'sky'|…), so any unnatural value is rejected by the CHECK
+  --   (measured — the first draft of this line died on `dogs_collar_check`). Planting a REAL
+  --   palette key instead would give an ambiguous hit, which is worse than an honest gap, so the
+  --   column is left to P14's shape arm and named here rather than silently omitted.
+  update dogs set breed = 'ZZBREEDSENTINEL', memo = 'ZZMEMOSENTINEL', weight_kg = 88.8,
+                  vaccinations = '[{"type": "ZZVACCINESENTINEL", "at": "2026-01-01"}]'::jsonb
+   where id in (d1, d2, d3, d4);
   -- ⚠ A PURE CLUB MEMBER — joined the club, never touched the session. P1 needs a caller whose
   --   ONLY route in is `club_members`; `mem` also holds a session_people row (shell 'full'), so a
   --   P1 written on `mem` passes through the shell arm and cannot see the membership arm being
@@ -265,22 +298,115 @@ begin
 
   ------------------------------------------------------------------------------------------
   -- P15: 🔴 THE VALUE PIN, and it is NOT the same proposition as P14. A fare/address/phone
-  -- smuggled through the `state` label would pass P14 and must fail here. Fixture carries a
-  -- known phone and a known fare-shaped number; no returned text may contain either.
+  -- smuggled through the `state` label would pass P14 and must fail here.
+  --
+  -- 🔴 THE PROPOSITION, in words: for each class the contract §4 REFUSES, this fixture contains a
+  -- value that cannot occur naturally, that value is REACHABLE from the board's own row (one join
+  -- away from `session_dogs`), and no text column club_session_board returns — read by three
+  -- different callers, including the most privileged ones — contains it.
+  --   R1 주소     → addresses.addr/detail/label ← bookings.address_id ← session_dogs.booking_id
+  --   R2 금액     → this session's REAL fares, read at runtime (never a literal — a literal would
+  --                 pin the pin to today's price list and go quietly false when 요금 changes)
+  --   R4 연락처   → profiles.phone (보호자) · delegation_consents.emergency_contact/pickup_contact
+  --   R5 인시던트 → incidents.note ← incidents.booking_id = session_dogs.booking_id
+  --   R7 개 속성  → dogs.breed/memo/vaccinations/weight_kg (planted at fixture creation — see
+  --                 there; `collar` is CHECK-constrained to a palette and takes no sentinel)
+  --
+  -- ⚠ WHAT THIS GREEN DOES **NOT** PROVE, stated because the old version of this pin was read as
+  --   proving all six while seeding one:
+  --   ⓐ It says nothing about classes with no reachable column in THIS fixture. Measured while
+  --     writing it: `addresses.gate_code_enc` is ciphertext and no join in the board's query
+  --     reaches it; 러너 정산/수수료 rows (ledger_items, payments) hang off the booking too but a
+  --     `state` label could only carry them by a join this pin does not force to exist. Those stay
+  --     P14's problem (a column that does not exist cannot leak) — SHAPE, not value.
+  --   ⓑ It is a statement about this projection for this caller set, never about whether the
+  --     values are protected anywhere else. Their own tables' RLS owns that.
+  --   ⓒ A leak that ENCODES rather than copies (a hash, a truncation, an id that resolves to the
+  --     address elsewhere) passes this pin by construction. Substring search is the floor.
   update profiles set phone = '01088887777' where id = own;
-  perform set_config('request.jwt.claim.sub', mem::text, false);
-  set local role authenticated;
-  select coalesce(string_agg(
-           coalesce(b.row_kind,'') || coalesce(b.dog_name,'') || coalesce(b.owner_name,'')
-           || coalesce(b.state,'') || coalesce(b.runner_name,'') || coalesce(b.dog_photo_url,'')
-           || coalesce(b.runner_photo_url,''), ' '), '')
-    into v_txt from club_session_board(ses) b;
-  set local role postgres;
+  -- R1 — the refused address is the PICKUP address, and the board's only path to one is the
+  -- booking, so it is planted exactly there rather than on a table the projection cannot see.
+  insert into addresses (owner_id, label, addr, detail)
+  values (own, 'ZZLABELSENTINEL', 'ZZADDRSENTINEL', 'ZZADDRDETAILSENTINEL')
+  returning id into v_addr;
+  update bookings set address_id = v_addr
+   where id = (select sd.booking_id from session_dogs sd where sd.id = sd3);
+  -- R4 — the emergency contact rides the consent record, one join off the session_dog.
+  update delegation_consents
+     set emergency_contact = 'ZZEMERGSENTINEL', pickup_contact = 'ZZPICKUPCONTACTSENTINEL'
+   where session_dog_id = sd3;
+  -- R5 — a real incident row on the same booking. `incidents` carries no trigger, and no function
+  -- in the club chain reads it (measured against pg_proc), so this plants a value without moving
+  -- any state P16/P17 depend on.
+  insert into incidents (booking_id, reporter_id, kind, severity, note)
+  select sd.booking_id, own, 'dog_injury', 'urgent', 'ZZINCIDENTSENTINEL'
+    from session_dogs sd where sd.id = sd3;
+
+  -- 🔴 THE SEED CONTROL. A pin that greps for a value nobody planted passes for free, and it
+  -- passes LOUDER the more classes you list. Each arm below asserts the sentinel is present AND
+  -- reachable from this session — so a schema change that quietly drops a column reddens the pin
+  -- instead of widening its green.
   v_bad := '';
-  if v_txt like '%01088887777%' then v_bad := v_bad || ' PHONE'; end if;
-  if v_txt ~ '[0-9]{4,}원' or v_txt ~ '\m[0-9]{5,}\M' then v_bad := v_bad || ' MONEYISH'; end if;
-  if v_bad <> '' then call _fail('bds','P15 값 밀반출 없음', v_bad || ' :: ' || left(v_txt, 120));
-                 else call _pass('bds','P15 값 밀반출 없음'); end if;
+  if not exists (select 1 from session_dogs sd join bookings bk on bk.id = sd.booking_id
+                   join addresses a on a.id = bk.address_id
+                  where sd.session_id = ses and a.addr = 'ZZADDRSENTINEL')
+    then v_bad := v_bad || ' SEED-addr'; end if;
+  if not exists (select 1 from session_dogs sd
+                   join delegation_consents dc on dc.session_dog_id = sd.id
+                  where sd.session_id = ses and dc.emergency_contact = 'ZZEMERGSENTINEL')
+    then v_bad := v_bad || ' SEED-emergency'; end if;
+  if not exists (select 1 from session_dogs sd join profiles p on p.id = sd.owner_profile_id
+                  where sd.session_id = ses and p.phone = '01088887777')
+    then v_bad := v_bad || ' SEED-phone'; end if;
+  if not exists (select 1 from session_dogs sd join dogs d on d.id = sd.dog_id
+                  where sd.session_id = ses and d.breed = 'ZZBREEDSENTINEL'
+                    and d.memo = 'ZZMEMOSENTINEL' and d.weight_kg = 88.8
+                    and d.vaccinations::text like '%ZZVACCINESENTINEL%')
+    then v_bad := v_bad || ' SEED-dogattr'; end if;
+  if not exists (select 1 from session_dogs sd join incidents i on i.booking_id = sd.booking_id
+                  where sd.session_id = ses and i.note = 'ZZINCIDENTSENTINEL')
+    then v_bad := v_bad || ' SEED-incident'; end if;
+  -- R2's sentinels are the fixture's ACTUAL fares, in both the raw and the 천 단위 콤마 form — a
+  -- value rendered as 「24,900원」 is the same leak as one rendered as 24900 and the old regex saw
+  -- neither reliably. Anything under 1,000 is excluded: a one- or two-digit literal matches
+  -- Korean state labels and dog names by accident, which would make this arm noise.
+  select coalesce(array_agg(distinct f), array[]::text[]) into v_money
+    from (select unnest(array[bk.total_price, bk.base_fare, bk.distance_fare, bk.min_fare]) amt
+            from session_dogs sd join bookings bk on bk.id = sd.booking_id
+           where sd.session_id = ses) q
+    cross join lateral (values (q.amt::text), (to_char(q.amt, 'FM999,999,999'))) t(f)
+   where q.amt >= 1000;
+  if coalesce(array_length(v_money, 1), 0) = 0 then v_bad := v_bad || ' SEED-money'; end if;
+
+  -- Read with THREE pairs of eyes, because the R3 gate opens for some of them: a third party
+  -- (mem), the delegated dog's own 보호자 (own), and the host (hh). A value that only leaks down
+  -- the privileged branch is still a leak, and a single third-party read cannot see that branch.
+  v_txt := '';
+  foreach v_who in array array[mem, own, hh] loop
+    perform set_config('request.jwt.claim.sub', v_who::text, false);
+    set local role authenticated;
+    select v_txt || ' ' || coalesce(string_agg(
+             coalesce(b.row_kind,'') || ' ' || coalesce(b.dog_name,'') || ' ' || coalesce(b.owner_name,'')
+             || ' ' || coalesce(b.state,'') || ' ' || coalesce(b.runner_name,'')
+             || ' ' || coalesce(b.dog_photo_url,'') || ' ' || coalesce(b.runner_photo_url,''), ' '), '')
+      into v_txt from club_session_board(ses) b;
+    set local role postgres;
+  end loop;
+
+  v_forbidden := array['ZZADDRSENTINEL','ZZADDRDETAILSENTINEL','ZZLABELSENTINEL',
+                       'ZZEMERGSENTINEL','ZZPICKUPCONTACTSENTINEL','01088887777',
+                       'ZZBREEDSENTINEL','ZZMEMOSENTINEL','ZZVACCINESENTINEL','88.8',
+                       'ZZINCIDENTSENTINEL'] || v_money;
+  -- Pre-computed into a variable, never a subquery inside `_fail` (the 110 header law).
+  select coalesce(string_agg(s, ' '), '') into v_hits
+    from unnest(v_forbidden) s where v_txt like '%' || s || '%';
+  -- The shape arm survives from the original pin: it catches a money value this fixture never
+  -- produced (a fee computed inside the projection, say), which no sentinel list can enumerate.
+  if v_txt ~ '[0-9]{4,}원' or v_txt ~ '\m[0-9]{5,}\M' then v_hits := v_hits || ' MONEYISH'; end if;
+  v_msg := v_bad || ' HIT:' || v_hits || ' :: ' || left(v_txt, 160);
+  if v_bad <> '' or v_hits <> '' then call _fail('bds','P15 값 밀반출 없음', v_msg);
+                                 else call _pass('bds','P15 값 밀반출 없음'); end if;
+  v_bad := '';
 
   ------------------------------------------------------------------------------------------
   -- P16 / P17: 🔴 R3 — pairs are public, courtships are not.
@@ -299,38 +425,61 @@ begin
   perform session_checkin(ses);
   perform set_config('request.jwt.claim.sub', hh::text, false);
   perform session_assign_dog(sd3, run2);
+  -- 🔴 NAME **AND** PHOTO, AS A CONJUNCTION — widened 2026-08-27 (codex). The pin used to assert
+  --    runner_name alone, so a body that hid the name and returned `pp.avatar_url` unconditionally
+  --    was GREEN: an avatar URL is a stable per-person handle, it renders as a face, and 0139's
+  --    own comment says the id 「rides the name's gate, exactly」 for precisely this reason. The
+  --    two columns are computed by the IDENTICAL predicate in the function, so asserting one and
+  --    not the other measures half of a single decision. Every arm below now states both.
+  -- ⚠ EXPECTED VALUES RESOLVED AS postgres, BEFORE any role switch. Read under `authenticated`,
+  --   `profiles` is subject to RLS and hands back NULL, and a NULL expectation would make every
+  --   visible arm compare NULL to NULL — a pin that passes hardest when it is measuring nothing.
+  select p.name, p.avatar_url into v_name_exp, v_photo_exp from profiles p where p.id = run2;
   select assignment_state into v_txt from session_dogs where id = sd3;
-  if v_txt is distinct from 'proposed' then
-    call _fail('bds','P16 R3 네 방향', 'PRECONDITION assignment_state=' || coalesce(v_txt,'∅'));
+  if v_txt is distinct from 'proposed' or v_name_exp is null or v_photo_exp is null then
+    call _fail('bds','P16 R3 네 방향 (이름·사진 동시)', 'PRECONDITION assignment_state=' || coalesce(v_txt,'∅')
+      || ' exp_name=' || coalesce(v_name_exp,'∅') || ' exp_photo=' || coalesce(v_photo_exp,'∅'));
   else
   v_bad := '';
-  -- ⓐ unrelated member → NULL
+  -- ⓐ unrelated member → NEITHER. This is the arm the whole R3 refusal is for.
   perform set_config('request.jwt.claim.sub', guest::text, false);
   set local role authenticated;
-  select b.runner_name into v_txt from club_session_board(ses) b where b.dog_name = '페어링견3';
+  select b.runner_name, b.runner_photo_url into v_txt, v_txt2
+    from club_session_board(ses) b where b.dog_name = '페어링견3';
   set local role postgres;
-  if v_txt is not null then v_bad := v_bad || ' third-party-SEES(' || v_txt || ')'; end if;
-  -- ⓑ the dog's owner → visible. `own` owns 페어링견3; `mem` owns the 동반견 and would be a
-  --   third party here — reading as the wrong person made this arm look like a product defect.
+  if v_txt  is not null then v_bad := v_bad || ' third-party-SEES-NAME(' || v_txt || ')'; end if;
+  if v_txt2 is not null then v_bad := v_bad || ' third-party-SEES-PHOTO(' || v_txt2 || ')'; end if;
+  -- ⓑ the dog's owner → both, and they must be THIS runner's, not merely non-NULL. `own` owns
+  --   페어링견3; `mem` owns the 동반견 and would be a third party here — reading as the wrong
+  --   person made this arm look like a product defect.
   perform set_config('request.jwt.claim.sub', own::text, false);
   set local role authenticated;
-  select b.runner_name into v_txt from club_session_board(ses) b where b.dog_name = '페어링견3';
+  select b.runner_name, b.runner_photo_url into v_txt, v_txt2
+    from club_session_board(ses) b where b.dog_name = '페어링견3';
   set local role postgres;
-  if v_txt is null then v_bad := v_bad || ' owner-BLIND'; end if;
-  -- ⓒ the proposed runner → visible
+  if v_txt  is distinct from v_name_exp  then v_bad := v_bad || ' owner-NAME(' || coalesce(v_txt,'∅') || ')'; end if;
+  if v_txt2 is distinct from v_photo_exp then v_bad := v_bad || ' owner-PHOTO(' || coalesce(v_txt2,'∅') || ')'; end if;
+  -- ⓒ the proposed runner → both
   perform set_config('request.jwt.claim.sub', run2::text, false);
   set local role authenticated;
-  select b.runner_name into v_txt from club_session_board(ses) b where b.dog_name = '페어링견3';
+  select b.runner_name, b.runner_photo_url into v_txt, v_txt2
+    from club_session_board(ses) b where b.dog_name = '페어링견3';
   set local role postgres;
-  if v_txt is null then v_bad := v_bad || ' proposed-runner-BLIND'; end if;
+  if v_txt  is distinct from v_name_exp  then v_bad := v_bad || ' proposed-runner-NAME(' || coalesce(v_txt,'∅') || ')'; end if;
+  if v_txt2 is distinct from v_photo_exp then v_bad := v_bad || ' proposed-runner-PHOTO(' || coalesce(v_txt2,'∅') || ')'; end if;
   -- ⓓ THE BACKUP HOST — the nullable-column fail-open arm (§10 T2 / 0116:425)
   perform set_config('request.jwt.claim.sub', bkp::text, false);
   set local role authenticated;
-  select b.runner_name into v_txt from club_session_board(ses) b where b.dog_name = '페어링견3';
+  select b.runner_name, b.runner_photo_url into v_txt, v_txt2
+    from club_session_board(ses) b where b.dog_name = '페어링견3';
   set local role postgres;
-  if v_txt is null then v_bad := v_bad || ' backup-host-BLIND'; end if;
-  if v_bad <> '' then call _fail('bds','P16 R3 네 방향', v_bad);
-                 else call _pass('bds','P16 R3 네 방향'); end if;
+  if v_txt  is distinct from v_name_exp  then v_bad := v_bad || ' backup-host-NAME(' || coalesce(v_txt,'∅') || ')'; end if;
+  if v_txt2 is distinct from v_photo_exp then v_bad := v_bad || ' backup-host-PHOTO(' || coalesce(v_txt2,'∅') || ')'; end if;
+  -- ⚠ GREEN DOES NOT PROVE: that runner_profile_id agrees with these two. It is gated by the same
+  --   predicate and is the same leak one hop later, but this pin never reads it — suite 172's I2
+  --   owns that conjunction. Neither pin is evidence for the other.
+  if v_bad <> '' then call _fail('bds','P16 R3 네 방향 (이름·사진 동시)', v_bad);
+                 else call _pass('bds','P16 R3 네 방향 (이름·사진 동시)'); end if;
   end if;
 
   -- P17: at accepted, the pairing is public to an unrelated member.

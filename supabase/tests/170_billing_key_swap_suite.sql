@@ -20,6 +20,13 @@ begin
   u_live := t_user('bks_live', 'owner');
   u_dead := t_user('bks_dead', 'owner');
 
+  -- ⚠ [0143] `billing_key_swap` now RE-CHECKS the rollout gate at the write, so this fixture must
+  --   OPEN it. Before 0143 the gate lived only in the edge handler and these pins reached the
+  --   write with it closed — exercising a path production can no longer take. Opening it here is
+  --   not a workaround; it is the fixture finally matching the shipped precondition.
+  insert into ops_flags (id, updated_at) values (true, now()) on conflict (id) do nothing;
+  update ops_flags set card_registration_live_since = now() - interval '1 minute';
+
   ------------------------------------------------------------------------------------------
   -- B1: a live profile → the swap happens, and the row carries exactly what was handed in.
   select swapped, displaced_key into v_sw, v_disp

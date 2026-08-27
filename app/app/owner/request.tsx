@@ -764,10 +764,10 @@ export default function Request() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
       {DATES.map((d, i) => (
         <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-          <Text style={{ fontSize: 14, color: dateIdx === i ? '#B8B8B8' : paper.dim }}>{d.w}</Text>
+          <Text style={{ fontSize: 15, color: dateIdx === i ? '#B8B8B8' : paper.dim }}>{d.w}</Text>
           <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
           {/* 오늘·내일 마커 — 볼트/그린 은퇴, 양 상태 모두 코랄 (잉크 면 위에서도 4.5:1 근처 확보) */}
-          {d.label && <Text style={{ fontSize: 14, fontWeight: '700', color: paper.line }}>{d.label}</Text>}
+          {d.label && <Text style={{ fontSize: 15, fontWeight: '700', color: paper.line }}>{d.label}</Text>}
         </Pressable>
       ))}
     </ScrollView>
@@ -776,7 +776,8 @@ export default function Request() {
   // slot groups — 지명 러너면 가용시간 밖 비활성, 과거/2시간 내 비활성
   const renderSlotGroups = () => SLOT_GROUPS.map((g) => (
     <View key={g.name} style={{ marginTop: 12 }}>
-      <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.text }}>{g.name}</Text>
+      {/* Group name leads its slot chips (16/800 times), so it clears them at 17 — at 14.5 it was inverted */}
+      <Text style={{ fontSize: 17, fontWeight: '800', color: paper.text }}>{g.name}</Text>
       <Row style={{ gap: 8, marginTop: 8 }}>
         {g.times.map((t) => {
           const ok = slotAllowed(dateIdx, t);
@@ -789,7 +790,7 @@ export default function Request() {
               style={[s.slot, !ok && { backgroundColor: paper.disabledFill }]}
             >
               <Text style={{ fontSize: 16, fontWeight: '800', color: ok ? paper.ink : paper.faint }}>{t}</Text>
-              <Text style={{ fontSize: 14, color: ok ? paper.text : paper.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 15, color: ok ? paper.text : paper.dim, marginTop: 2 }}>
                 {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
               </Text>
             </Pressable>
@@ -888,18 +889,19 @@ export default function Request() {
           )}
           <View style={{ flex: 1, paddingHorizontal: 13, paddingVertical: 12 }}>
             {/* 코스 이름은 RAW — km 토큰이 다섯 행에서는 코스를 구분하는 유일한 것이다 (routeDisplayName은 은퇴) */}
-            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 20 }} numberOfLines={2}>{nudgeTitle}</Text>
+            {/* 16, not 15 — the two lines under it land on the 15 floor (parent-to-16) */}
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, lineHeight: 21 }} numberOfLines={2}>{nudgeTitle}</Text>
             {/* 왕복 포함 총거리 — 조용한 줄. 코스 km을 대체하지 않고 **옆에** 선다 (요금의 진실은 코스 km) */}
             {nudgeTotalLine && (
-              <Text style={{ fontSize: 14, color: paper.faint, marginTop: 2, lineHeight: 19 }} numberOfLines={1}>{nudgeTotalLine}</Text>
+              <Text style={{ fontSize: 15, color: paper.faint, marginTop: 2, lineHeight: 20 }} numberOfLines={1}>{nudgeTotalLine}</Text>
             )}
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }} numberOfLines={2}>{courseNudgeSub}</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 20 }} numberOfLines={2}>{courseNudgeSub}</Text>
             {needsPin && (
               <Pressable onPress={pinTarget} hitSlop={10} style={{ marginTop: 7, alignSelf: 'flex-start' }} accessibilityRole="button" accessibilityLabel="픽업 위치 맞추기">
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 맞추기 ›</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.line }}>픽업 위치 맞추기 ›</Text>
               </Pressable>
             )}
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 7 }}>지도에서 고르기 ›</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 7 }}>지도에서 고르기 ›</Text>
           </View>
         </Pressable>
 
@@ -953,7 +955,7 @@ export default function Request() {
                   accessibilityRole="button"
                   accessibilityLabel="픽업 위치 지정"
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
                 </Pressable>
               )}
             </View>
@@ -980,7 +982,7 @@ export default function Request() {
               <Text style={s.prefLabel}>누가</Text>
               <View style={s.prefValueBox}>
                 <Text style={s.prefValue}>반려견을 등록해주세요</Text>
-                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>이름·품종·체중이 러너에게 전달돼요</Text>
+                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>이름·품종·체중이 러너에게 전달돼요</Text>
               </View>
               <Text style={s.prefAction}>등록 ›</Text>
             </Pressable>
@@ -1006,14 +1008,14 @@ export default function Request() {
                         <Text style={{ fontWeight: '900' }}>{myDog.name}</Text>
                         {dogMeta ? `  ·  ${dogMeta}` : ''}
                       </Text>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>프로필 ›</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim }}>프로필 ›</Text>
                     </Pressable>
                   )}
                   {/* 다견 선택 + 추가 */}
                   <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     {myDogs.length > 1 && myDogs.map((d, i) => (
                       <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: dogIdx === i ? '#fff' : paper.text }}>{d.name}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: dogIdx === i ? '#fff' : paper.text }}>{d.name}</Text>
                       </Pressable>
                     ))}
                     <Pressable
@@ -1032,7 +1034,7 @@ export default function Request() {
                         }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
                       }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.text }}>＋ 반려견 추가</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.text }}>＋ 반려견 추가</Text>
                     </Pressable>
                   </Row>
                 </View>
@@ -1054,8 +1056,9 @@ export default function Request() {
         <View style={s.rowGroup}>
           <Pressable onPress={() => setMoreOpen((v) => !v)} style={s.moreRow} accessibilityRole="button" accessibilityLabel={`페이스 옵션 매주 반복 코스 목록 ${moreOpen ? '접기' : '열기'}`}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }} numberOfLines={1}>페이스 · 옵션 · 매주 반복 · 코스 목록</Text>
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }} numberOfLines={1}>{moreSummary}</Text>
+              {/* 16, not 15 — its summary line below lands on the floor at 15 (parent-to-16) */}
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }} numberOfLines={1}>페이스 · 옵션 · 매주 반복 · 코스 목록</Text>
+              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3 }} numberOfLines={1}>{moreSummary}</Text>
             </View>
             <Text style={s.prefAction}>{moreOpen ? '접기 ▴' : '열기 ▾'}</Text>
           </Pressable>
@@ -1100,7 +1103,7 @@ export default function Request() {
                       </View>
                     </Row>
                     <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, marginTop: 10 }}>{a.label}</Text>
-                    <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }}>{a.desc}</Text>
+                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>{a.desc}</Text>
                     {/* price = Oswald — lineHeight 19 ≥ 1.26x (BUG A) */}
                     <Text style={[{ fontSize: 15, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 19 }, nf]}>+{a.price.toLocaleString()}원</Text>
                   </Pressable>
@@ -1115,7 +1118,7 @@ export default function Request() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>⟳ 매주 반복</Text>
-                <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 3, lineHeight: 18 }}>
+                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 20 }}>
                   매주 같은 요일·시간에 자동 예약 · 회당 {fmtWon(total)} · 같은 러너 우선 · 일정 탭에서 언제든 해지
                 </Text>
               </View>
@@ -1140,7 +1143,7 @@ export default function Request() {
                   onToggle={toggleChip} style={{ marginTop: 10 }}
                 />
                 {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
-                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
+                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
                   픽업 후 코스까지는 러너가 아이와 함께 이동해요
                   {/* 정렬 근거를 말한다 — 그리고 **직선거리**라고 말한다. 하버사인은 이동
                       거리가 아니라 두 점 사이 직선이라, 강·울타리·고가로 막힌 300m가
@@ -1158,7 +1161,7 @@ export default function Request() {
                       onPress={clearChips}
                       style={s.filterChip} accessibilityRole="button" accessibilityLabel="필터 모두 해제"
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>필터 해제</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>필터 해제</Text>
                     </Pressable>
                   </View>
                 )}
@@ -1199,25 +1202,27 @@ export default function Request() {
                         {/* candidate는 '안심 코스'라고 부르지 않는다 — 점검을 주장하지 않는 게
                             이 배지의 유일한 일. (0082 D-VIS: 예약은 되지만 의도적으로만) */}
                         <View style={[s.routeTab, r.status === 'candidate' && { backgroundColor: paper.pending }]}>
-                          <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>
+                          <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>
                             {r.status === 'candidate' ? '점검 예정' : '안심 코스'}
                           </Text>
                         </View>
 
-                        <Row style={{ gap: 5, marginTop: 22 }}>
+                        {/* 23, was 22: the absolute routeTab badge above grew ~1pt when its
+                            label went 14 → 15, so the clearance is preserved, not shaved. */}
+                        <Row style={{ gap: 5, marginTop: 23 }}>
                           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
                           {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
                           {r.status === 'active' && (
                             <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                           )}
                         </Row>
-                        <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>
+                        <Text style={{ fontSize: 15, color: paper.text, marginTop: 2 }}>
                           {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
                           {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}{totalSuffix(r, pickup)}
                         </Text>
                         {r.km !== km && (
                           <View style={s.kmMismatch}>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.pending }}>
                               선택 거리와 달라요 — 요금·기록은 {fmtKm(km)}km 기준
                             </Text>
                           </View>
@@ -1234,18 +1239,18 @@ export default function Request() {
                           )}
                           {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
                           <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
-                            <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>미리보기 ›</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>미리보기 ›</Text>
                           </Pressable>
                         </View>
 
                         <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                           {r.tags.map((tag) => (
                             <View key={tag} style={s.routeTag}>
-                              <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>{tag}</Text>
+                              <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>{tag}</Text>
                             </View>
                           ))}
                         </Row>
-                        <Text style={{ fontSize: 14, color: paper.text, marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
+                        <Text style={{ fontSize: 15, color: paper.text, marginTop: 8, lineHeight: 20 }} numberOfLines={2}>{r.desc}</Text>
                       </Pressable>
                     );
                   })}
@@ -1266,7 +1271,7 @@ export default function Request() {
                   tonight can read "no fee" and be charged 10% an hour later; that path is open
                   today. Replaced with the same fact, stated with its condition (matches the
                   ladder copy in schedule.tsx). */}
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
+              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
                 시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는{' '}
                 {Math.round(cancelPolicy.feeRate * 100)}%, 러너가 이동을 시작한 뒤에는{' '}
                 {Math.round(cancelPolicy.enrouteFeeRate * 100)}%가 붙어요.
@@ -1302,17 +1307,17 @@ export default function Request() {
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: paper.ink }}>언제 달릴까요?</Text>
           {preferred && (
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 4, fontWeight: '700' }}>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, fontWeight: '700' }}>
               ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
             </Text>
           )}
 
           <Row style={{ gap: 8, marginTop: 12 }}>
             <View style={[s.methodChip, { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
             </View>
             <Pressable style={s.methodChip} onPress={pickEarliest}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>가장 빠른 시간</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>가장 빠른 시간</Text>
             </Pressable>
             {/* [2026-08-10 density audit] dead "반복 예약 (준비 중)" chip cut — the working 매주 반복 toggle lives on this screen */}
           </Row>
@@ -1349,13 +1354,13 @@ export default function Request() {
             <Text style={[{ fontSize: 34.5, fontWeight: '900', color: paper.ink, marginTop: 10, lineHeight: 44 }, nf]}>
               {Math.floor(holdSec / 60)}:{String(holdSec % 60).padStart(2, '0')}
             </Text>
-            {/* 홀드 고지 — pay.tsx '이 슬롯은 …까지 홀드돼요' plate 문법 (wash 면 · 14pt) */}
+            {/* 홀드 고지 — pay.tsx '이 슬롯은 …까지 홀드돼요' plate 문법 (wash 면 · 15pt) */}
             <View style={s.holdPlate}>
-              <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.text, textAlign: 'center' }}>
+              <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.text, textAlign: 'center' }}>
                 {timeLabel} 슬롯이 5분간{'\n'}다른 보호자에게 보이지 않아요
               </Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '800', marginTop: 10, color: holdLive === true ? paper.ink : paper.dim }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', marginTop: 10, color: holdLive === true ? paper.ink : paper.dim }}>
               {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
             </Text>
           </View>
@@ -1459,7 +1464,7 @@ function KmDial({ km, onChange }: { km: number; onChange: (v: number) => void })
                 <View key={v} style={{ width: TICK_W, height: 48, alignItems: 'center', justifyContent: 'flex-end' }}>
                   <View style={{ width: major ? 2 : 1, height: major ? 28 : 14, backgroundColor: major ? paper.ink : '#DDDDDD' }} />
                   <View style={{ height: 20, justifyContent: 'center' }}>
-                    {major && <Text style={[{ fontSize: 14, lineHeight: 18, color: paper.dim }, nf]}>{v}</Text>}
+                    {major && <Text style={[{ fontSize: 15, lineHeight: 19, color: paper.dim }, nf]}>{v}</Text>}
                   </View>
                 </View>
               );
@@ -1510,27 +1515,32 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
     minHeight: 52,   // 44pt 터치 타깃 이상
   },
-  prefLabel: { fontSize: 14, color: paper.dim, width: 56, marginTop: 1 },
+  prefLabel: { fontSize: 15, color: paper.dim, width: 56, marginTop: 1 },
   prefValueBox: { flex: 1, alignItems: 'flex-end' },
-  prefValue: { fontSize: 15, fontWeight: '800', color: paper.ink, textAlign: 'right' },
+  // Value goes to 16, not 15: label/soft/state/action all land on the 15 floor, and a
+  // 15 value among 15 satellites is a flattened row (the sweep's parent-to-16 rule).
+  prefValue: { fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'right' },
   // 값 옆의 부연(‘· 가장 빠른’, 품종·체중) — 값과 같은 줄이되 사실의 무게가 다르다
-  prefValueSoft: { fontSize: 14, fontWeight: '600', color: paper.dim },
+  prefValueSoft: { fontSize: 15, fontWeight: '600', color: paper.dim },
   // 값이 아니라 **상태**를 말하는 자리 (주소 로딩·실패·미등록) — 굵은 잉크로 그리면 주소로 읽힌다
-  prefValueState: { fontSize: 14, color: paper.dim, textAlign: 'right' },
-  prefAction: { fontSize: 14, fontWeight: '800', color: paper.ink, marginLeft: 10, marginTop: 1 },
+  prefValueState: { fontSize: 15, color: paper.dim, textAlign: 'right' },
+  prefAction: { fontSize: 15, fontWeight: '800', color: paper.ink, marginLeft: 10, marginTop: 1 },
   moreRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
     minHeight: 52,
   },
-  foldHead: { fontSize: 14, fontWeight: '800', color: paper.text, marginTop: 18 },
-  // 조용한 고지 줄 — 14pt 디테일 플로어 (§3)
-  quietNote: { fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 },
-  // 예상 금액 — 이 화면의 유일한 금액. 숫자만 Oswald, lineHeight 19 ≥ 1.26x (BUG A)
-  estimate: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 19 },
-  estimateNum: { fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19 },
+  // Fold section headers (페이스 · 옵션 · 코스 목록) sit ABOVE 15.5/900 pace chips and
+  // 16/900 addon labels — at 14 they were inverted, and 15 would have preserved the
+  // inversion (DESIGN.md §3: a floor fix is not a find-and-replace). 17/800 leads them.
+  foldHead: { fontSize: 17, fontWeight: '800', color: paper.text, marginTop: 18 },
+  // 조용한 고지 줄 — 15pt 디테일 플로어 (§3)
+  quietNote: { fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 20 },
+  // 예상 금액 — 이 화면의 유일한 금액. 숫자만 Oswald, lineHeight 20 ≥ 1.25x (BUG A)
+  estimate: { fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  estimateNum: { fontSize: 16, fontWeight: '800', color: paper.ink, lineHeight: 20 },
   // 배정 결과 고지 (조명 없음 · km 불일치) — 앰버는 시맨틱이라 생존
-  warnNote: { fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 8, lineHeight: 19 },
+  warnNote: { fontSize: 15, fontWeight: '800', color: paper.pending, marginTop: 8, lineHeight: 20 },
   // ── 코스 큰 넛지 (RULING 5) — 잉크 1.5px 면, 왼쪽에 지도 칸 ──
   nudge: { flexDirection: 'row', alignItems: 'stretch', borderWidth: 1.5, borderColor: paper.ink, marginTop: 18 },
   nudgeMap: { width: 96, backgroundColor: '#0e150f', alignItems: 'center', justifyContent: 'center' },
@@ -1573,7 +1583,7 @@ const s = StyleSheet.create({
   routeMap: { marginTop: 10, backgroundColor: '#0e150f', padding: 0, overflow: 'hidden', paddingVertical: 4, paddingHorizontal: 2 },
   // 실좌표 없는 코스의 지도 슬롯 — 토큰으로 작성해 후속 리페인트에서도 살아남는다 (item 6)
   mapPending: { height: 92, alignItems: 'center', justifyContent: 'center', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line },
-  mapPendingTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
+  mapPendingTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
   // 코스 로드 실패 = 라우드 페일(F1.2) — 침묵도, 목업 폴백도 아니다
   routeFailStrip: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1586,9 +1596,9 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12,
   },
-  routeFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  routeFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
-  routeNote: { fontSize: 14, color: paper.dim, marginBottom: 10 },
+  routeFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical, flex: 1 },
+  routeFailRetry: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  routeNote: { fontSize: 15, color: paper.dim, marginBottom: 10 },
   routeTag: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 3, paddingHorizontal: 6 },
   addon: { width: '47.8%', backgroundColor: paper.canvas, padding: 13, borderWidth: 1, borderColor: '#EEEEEE' },
   recurRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: paper.canvas, padding: 14, borderWidth: 1, borderColor: '#EEEEEE', marginTop: 12 },

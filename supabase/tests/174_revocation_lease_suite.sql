@@ -16,6 +16,13 @@ begin
   u1 := t_user('rl_one', 'owner');
   u2 := t_user('rl_two', 'owner');
 
+  -- ⚠ [0143] `billing_key_swap` now RE-CHECKS the rollout gate at the write, so this fixture must
+  --   OPEN it. Before 0143 the gate lived only in the edge handler and these pins reached the
+  --   write with it closed — exercising a path production can no longer take. Opening it here is
+  --   not a workaround; it is the fixture finally matching the shipped precondition.
+  insert into ops_flags (id, updated_at) values (true, now()) on conflict (id) do nothing;
+  update ops_flags set card_registration_live_since = now() - interval '1 minute';
+
   ------------------------------------------------------------------------------------------
   -- L1: 🔴 codex #3 — the DELETION RACE no longer loses the key. Toss has issued a real
   -- credential and the account is gone; 0138 logged it and threw, leaving a live key nobody
@@ -82,14 +89,38 @@ begin
   ------------------------------------------------------------------------------------------
   -- L5: 🔴 codex #5 — a queued key that becomes CURRENT again is abandoned, not revoked. The
   -- worker never re-reads `billing_keys`, so without this the sweep destroys a live card.
-  perform billing_key_swap(u1, 'bill_A', '{"brand":"국민"}'::jsonb);   -- A is current again
+  --
+  -- ⚠ REWRITTEN 2026-08-27 (0143). THIS PIN WAS FALSE-GREEN AND WOULD HAVE PASSED WITH THE
+  --   ENTIRE §B ABANDON DELETED. It reused `bill_A`, which L2 had already claimed and L3 had
+  --   already reported `done`. So the abandon matched ZERO rows, the read returned `done`, and
+  --   the assertion — which only rejected `pending` — passed on a mechanism it never ran.
+  --   Two independent errors, and either alone is enough to make it worthless: a fixture whose
+  --   state a previous pin had consumed, and an assertion written as a NOT-EQUAL against one
+  --   state name instead of an EQUAL against the expected one. A pin that says 「not pending」 is
+  --   satisfied by every other state in the domain, including the ones that mean nothing happened.
+  --
+  --   Three things changed. Fresh keys, so no earlier pin can have moved them. A PRECONDITION
+  --   assert, so the row is proven `pending` at the instant of the swap — without it the pin
+  --   cannot distinguish 「abandoned by §A」 from 「there was nothing to abandon」. And equality
+  --   against `abandoned`, which is the state the code is supposed to produce.
+  perform billing_key_swap(u1, 'bill_R1', '{"brand":"국민"}'::jsonb);
+  perform billing_key_swap(u1, 'bill_R2', '{"brand":"국민"}'::jsonb);   -- queues bill_R1
   select state into v_txt from billing_key_revocations
-   where billing_key = 'bill_A' and reason = 'replaced' order by created_at desc limit 1;
-  select billing_key into v_key from billing_keys where profile_id = u1;
-  v_msg := 'queued_state=' || coalesce(v_txt,'∅') || ' current=' || coalesce(v_key,'∅');
-  if v_txt = 'pending' or v_key is distinct from 'bill_A'
-    then call _fail('rvl','L5 되살아난 키는 폐기되지 않는다', v_msg);
-    else call _pass('rvl','L5 되살아난 키는 폐기되지 않는다'); end if;
+   where billing_key = 'bill_R1' and reason = 'replaced' order by created_at desc limit 1;
+  if v_txt is distinct from 'pending' then
+    -- the fixture, not the system — say so rather than reporting a behaviour result
+    call _fail('rvl','L5 되살아난 키는 폐기되지 않는다',
+               'PRECONDITION: bill_R1 not queued (state=' || coalesce(v_txt,'∅') || ')');
+  else
+    perform billing_key_swap(u1, 'bill_R1', '{"brand":"국민"}'::jsonb);   -- R1 is current again
+    select state into v_txt from billing_key_revocations
+     where billing_key = 'bill_R1' and reason = 'replaced' order by created_at desc limit 1;
+    select billing_key into v_key from billing_keys where profile_id = u1;
+    v_msg := 'queued_state=' || coalesce(v_txt,'∅') || ' current=' || coalesce(v_key,'∅');
+    if v_txt is distinct from 'abandoned' or v_key is distinct from 'bill_R1'
+      then call _fail('rvl','L5 되살아난 키는 폐기되지 않는다', v_msg);
+      else call _pass('rvl','L5 되살아난 키는 폐기되지 않는다'); end if;
+  end if;
 
   ------------------------------------------------------------------------------------------
   -- L6: 🔴 codex #2 — the dispatcher reads the REAL vault contract. 0138 looked for `key` and

@@ -67,6 +67,30 @@ const PROPOSAL_MS = 5 * 60_000;    // 0047/0048 propose: proposal_expires_at = n
 const HOLD_MS = 20 * 60_000;       // 0043 approve: hold_expires_at = now() + 20 minutes
 const CHECKIN_MS = 8 * 3600_000;   // 0030 session_checkin 창 = 시작 −2h ~ +6h (총 8시간)
 
+// [review #5] Watchdog for a request that never settles. This screen cannot truly CANCEL one:
+// api.ts owns the fetch and its RPC wrappers take no AbortSignal, so an AbortController built here
+// would have nowhere to be handed to (that file belongs to another slice). So the clock is not a
+// cancel — it is a bound on WAITING, and its whole job is to guarantee the `finally` that releases
+// `addMutex` / `busy` actually runs. Without it a request that hangs leaves the mutex held (the CTA
+// goes silently dead — not even disabled, just unresponsive) and leaves the add sheet unclosable,
+// since its scrim, its 닫기 button and Android back are all gated on `busy`.
+// ⚠ A timeout is NOT a failure. The request may well have reached the server, so callers must
+//   claim neither success nor failure — they say the result is unknown and re-read server truth.
+const RPC_TIMEOUT_MS = 15_000;
+const TIMED_OUT = Symbol('rpc_timeout');
+async function withTimeout<T>(p: Promise<T>): Promise<T | typeof TIMED_OUT> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // A rejection from `p` still wins the race and propagates — existing catch branches keep working.
+    return await Promise.race([
+      p,
+      new Promise<typeof TIMED_OUT>((resolve) => { timer = setTimeout(() => resolve(TIMED_OUT), RPC_TIMEOUT_MS); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 const collarOf = (c: string | null): string =>
   (c && collarColors[c as CollarKey]) || L.coral;
 
@@ -89,18 +113,39 @@ export default function ClubSessionShell() {
   const [sess, setSess] = useState<ClubSessionDetail | null>(null);
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
-  const [roster, setRoster] = useState<SessionRoster | null>(null);
-  const applyRoster = useCallback((seq: number, r: SessionRoster) => {
-    if (seq < rosterApplied.current) return;   // 옛 응답
-    rosterApplied.current = seq;
-    setRoster(r);
-  }, []);
+  // [review #4] The roster now carries WHICH session it describes. A bare sequence orders
+  // responses but says nothing about their subject: this route can keep the same component
+  // instance while `sid` changes (setParams / replace / re-entering by deep link), so a response
+  // issued for session A could land on a screen showing session B. When it did, the
+  // "내 아이도 데려가기" CTA below was gated on ANOTHER session's dog list — offering to add a dog
+  // that is already in, or hiding the door for a dog that is not. Same prescription addedSid
+  // already got ([codex r5 c], further down).
+  const [rosterOf, setRosterOf] = useState<{ sid: string; data: SessionRoster } | null>(null);
+  // What the screen reads is the roster of the session it is CURRENTLY showing, or nothing.
+  // This also covers the window before the new session's response arrives — never a stranger's list.
+  const roster = rosterOf && rosterOf.sid === sid ? rosterOf.data : null;
+  const applyRoster = useCallback((forSid: string, seq: number, r: SessionRoster) => {
+    if (forSid !== sid) return;                // another session's response — comparing seq is meaningless
+    const last = rosterApplied.current;
+    if (last.sid === forSid && seq < last.seq) return;   // stale response
+    rosterApplied.current = { sid: forSid, seq };
+    setRosterOf({ sid: forSid, data: r });
+  }, [sid]);
   // [codex r3] 시트 자체가 락이다. 라운드 2는 Alert 사슬(승낙서→조회→피커) 위에 ref 락을 얹었는데,
   // 코덱스가 릴리스되지 않는 경로를 넷 찾았다(조회 실패 · 다견 '닫기' · 무견 두 버튼 · 백그라운드).
   // 상태 하나가 열림/닫힘을 전부 표현하면 그 경로들이 존재하지 않는다.
   // ⚠ Alert 피커도 함께 은퇴한다: Android Alert는 버튼 3개까지라, '닫기'+개 3마리 = 4개에서 한
   //   마리가 조용히 사라졌다 — 다견 보호자에게는 막다른 길이다. 시트는 전부 보여준다.
   const [addSheet, setAddSheet] = useState<Awaited<ReturnType<typeof fetchMyDogs>> | null>(null);
+  // [review #7] The 함께 뛰기 RSVP multi-dog picker, on the same sheet pattern as addSheet above.
+  // It was an Alert with `dogs.slice(0, 3)`: Android caps an Alert at three buttons, so 닫기 + 3 dogs
+  // already dropped one silently, and the slice removed a fourth dog on EVERY platform — a dead end
+  // for a multi-dog owner. The sheet shows all of them.
+  // ⚠ Deliberately NOT locked on `busy`: picking closes the sheet and hands off to rsvpWith, so
+  //   there is no window to pick twice, and progress/failure are already spoken by the CTA's busy
+  //   state and rsvpWith's own alert. Locking it would recreate here the unclosable-sheet trap that
+  //   forced a watchdog onto the add sheet.
+  const [rsvpSheet, setRsvpSheet] = useState<Awaited<ReturnType<typeof fetchMyDogs>> | null>(null);
   // [codex r4] 추가 뮤텍스. busy는 렌더 상태라 setBusy 이전에 두 번째 탭이 들어올 수 있고, 서로
   // 다른 아이 두 마리가 동시에 성공할 수 있었다. ref는 같은 틱에 즉시 보인다.
   const addMutex = useRef(false);
@@ -187,8 +232,10 @@ export default function ClubSessionShell() {
     const rosterAllowed = access !== 'none' && access !== 'limited';
     const needForRunner = board?.me.committed === true;
     if (rosterAllowed && (tab === '참가자' || needForRunner)) {
-      const rseq = ++rosterIssued.current;
-      fetchSessionRoster(sid).then((r) => applyRoster(rseq, r)).catch(() => {});
+      // [review #4] A new sid restarts the count — responses from different sessions are never ordered against each other.
+      if (rosterIssued.current.sid !== sid) rosterIssued.current = { sid, seq: 0 };
+      const rseq = ++rosterIssued.current.seq;
+      fetchSessionRoster(sid).then((r) => applyRoster(sid, rseq, r)).catch(() => {});
     }
     // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
     // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
@@ -229,8 +276,10 @@ export default function ClubSessionShell() {
   // [codex r4] 로스터 순서 가드. ⚠ 라운드 2는 '마지막으로 발행한' 번호와 비교해서, 나중에 발행된
   // 요청이 실패하면 먼저 성공한 응답까지 버려졌다 — catch가 조용하므로 로스터가 영영 null일 수
   // 있었다. 비교 대상은 마지막으로 '반영한' 번호다: 늦게 온 옛 응답만 떨어지고, 성공은 버려지지 않는다.
-  const rosterIssued = useRef(0);
-  const rosterApplied = useRef(0);
+  // ⚠ Do not reverse this — comparing against the ISSUED number resurrects that exact defect.
+  // [review #4] And ordering only means something WITHIN one session, so the number carries its sid.
+  const rosterIssued = useRef<{ sid: string; seq: number }>({ sid: '', seq: 0 });
+  const rosterApplied = useRef<{ sid: string; seq: number }>({ sid: '', seq: 0 });
   const applyChat = useCallback((run: () => Promise<{ uid: string | null; msgs: ClubChatMsg[] }>) => {
     const my = ++chatSeq.current;
     run().then((c) => { if (my === chatSeq.current) setChat(c); }).catch(() => {});
@@ -327,16 +376,34 @@ export default function ClubSessionShell() {
       {
         text: '동의하고 참여',
         onPress: async () => {
-          const dogs = await fetchMyDogs().catch(() => []);
-          // [감사 P2] 다견인데 무조건 dogs[0]으로 RSVP되던 것 — 2마리 이상이면 고른다
-          if (dogs.length > 1) {
-            Alert.alert('어느 아이와 뛰나요?', undefined, [
-              { text: '닫기', style: 'cancel' },
-              ...dogs.slice(0, 3).map((d) => ({ text: d.name, onPress: () => rsvpWith(d.id) })),
-            ]);
-          } else {
-            rsvpWith(dogs[0]?.id ?? null);
+          // [review #6] This was `fetchMyDogs().catch(() => [])`. A failed LOAD became "you own no
+          // dogs" and flowed straight into a dogId=null RSVP: the owner believes their dog came
+          // along, and the server records a person with no dog. That is exactly the silent
+          // catch-into-a-happy-path shape, and it is the same defect api.ts:354 already removed
+          // INSIDE fetchMyDogs. A failure is shown as a failure and the flow stops.
+          // (doAddDog below got this treatment first; its note deferring doRsvp to "a separate
+          // slice" is now spent — this is that slice.)
+          let dogs: Awaited<ReturnType<typeof fetchMyDogs>>;
+          try {
+            // [review #5] Without the watchdog a hung load means the alert closes and then nothing
+            // ever happens — a dead button by another name.
+            const got = await withTimeout(fetchMyDogs());
+            if (got === TIMED_OUT) {
+              Alert.alert('아이 목록을 불러오지 못했어요', '응답이 없어요 — 연결을 확인하고 다시 시도해 주세요');
+              return;
+            }
+            dogs = got;
+          } catch {
+            Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
+            return;
           }
+          // [감사 P2] 다견인데 무조건 dogs[0]으로 RSVP되던 것 — 2마리 이상이면 고른다
+          // [review #7] The picker moved from an Alert to the sheet — see the rsvpSheet declaration
+          // for why the Alert form could not show a fourth dog.
+          if (dogs.length > 1) { setRsvpSheet(dogs); return; }
+          // Zero dogs stays a legitimate person-only join (F2 무료로 크루 참가) — it is only the
+          // FAILURE that must not be mistaken for it.
+          rsvpWith(dogs[0]?.id ?? null);
         },
       },
     ]);
@@ -353,7 +420,19 @@ export default function ClubSessionShell() {
     addMutex.current = true;
     setBusy(true);
     try {
-      await addMyDogToSession(sess.id, dogId);
+      // [review #5] If this never settles, the finally below never runs: addMutex and busy both stay
+      // held, and the sheet has no exit because scrim / 닫기 / Android back are all gated on busy.
+      const got = await withTimeout(addMyDogToSession(sess.id, dogId));
+      if (got === TIMED_OUT) {
+        // ⚠ A timeout is not a failure — the request may have reached the server. So claim neither:
+        // no addedSid, no '데려왔어요'. Restore the UI, then re-read server truth so the participant
+        // list and the CTA settle onto whatever actually happened.
+        setAddSheet(null);
+        load();
+        setRosterNonce((n) => n + 1);
+        Alert.alert('결과를 확인하지 못했어요', '응답이 없어요 — 참가자 목록에서 아이가 들어갔는지 확인해 주세요');
+        return;
+      }
       haptic('success');
       load();
       // [codex f] load()는 로스터를 다시 부르지 않는다 — 로스터는 별도 effect가 참가자 탭에서만
@@ -392,13 +471,20 @@ export default function ClubSessionShell() {
     if (addSheet || busy || addMutex.current) return;
     addMutex.current = true;
     try {
-      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:331이 fetchMyDogs에 대해
+      // ⚠ [codex g] 실패를 '아이가 없음'으로 둔갑시키지 않는다 — api.ts:354이 fetchMyDogs에 대해
       // 기록해 둔 결함을 호출부에서 되살리는 모양이라, 실패는 실패로 말한다.
-      // ⚠ doRsvp(위)에는 아직 `.catch(() => [])`가 있다. 손대지 않았다: 거기서는 실패가 조용히
-      //   '개 없이 참여'로 성공해 버려 고치면 동작이 바뀐다 — 별도 슬라이스의 판단이다.
+      // [review #6] The note that used to sit here — "doRsvp still has `.catch(() => [])`, left
+      // alone, separate slice" — is retired: doRsvp now carries the same treatment.
       let dogs: Awaited<ReturnType<typeof fetchMyDogs>>;
       try {
-        dogs = await fetchMyDogs();
+        // [review #5] A hung load here would skip the finally below and leave addMutex held, which
+        // kills the CTA silently — it stays enabled and simply does nothing on tap.
+        const got = await withTimeout(fetchMyDogs());
+        if (got === TIMED_OUT) {
+          Alert.alert('아이 목록을 불러오지 못했어요', '응답이 없어요 — 연결을 확인하고 다시 시도해 주세요');
+          return;
+        }
+        dogs = got;
       } catch {
         Alert.alert('아이 목록을 불러오지 못했어요', '잠시 후 다시 시도해 주세요');
         return;
@@ -1694,6 +1780,31 @@ export default function ClubSessionShell() {
             ))}
           </ScrollView>
           <ClubCta label="닫기" tone="quiet" onPress={() => setAddSheet(null)} disabled={busy} />
+        </View>
+      </Modal>
+
+      {/* ---------- 함께 뛰기 다견 피커 ([review #7] retires the Alert picker) ---------- */}
+      {/* No waiver text here: the '참여 전 확인' alert immediately before this sheet already took it.
+          Repeating it would read as a second, different consent. */}
+      <Modal visible={rsvpSheet != null} transparent animationType="slide" onRequestClose={() => setRsvpSheet(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setRsvpSheet(null)} />
+        <View style={[s.sheet, { maxHeight: '75%' }]}>
+          <View style={s.grab} />
+          <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이와 뛰나요?</Text>
+          {/* flexShrink for the same reason as the add sheet: a long list must not push 닫기 off it */}
+          <ScrollView style={{ marginTop: 14, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
+            {(rsvpSheet ?? []).map((d) => (
+              <Pressable
+                key={d.id}
+                onPress={() => { setRsvpSheet(null); rsvpWith(d.id); }}
+                style={({ pressed }) => [s.addDogRow, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.name}</Text>
+                <Text style={{ fontSize: 15, color: L.dim }}>이 아이와 참여</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <ClubCta label="닫기" tone="quiet" onPress={() => setRsvpSheet(null)} />
         </View>
       </Modal>
 

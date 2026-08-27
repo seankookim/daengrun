@@ -396,7 +396,9 @@ export default function Schedule() {
                           owner/home:561 은 이미 `b.matched ?` 로 막고 있었다; 이 파일만 안 막았다.
                           같은 가드를 그대로 가져온다 — 새 문장을 쓰지 않는 이유는, 두 화면이 같은
                           상태를 다른 낱말로 말하면 그게 다음 정직 결함이 되기 때문이다. */}
-                      {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'} · {b.km}km
+                      {/* The booking distance carries a label: the route name above can end in its
+                          own km token (0100), and the two numbers are different facts. */}
+                      {b.dogName} · {b.matched ? `${b.runnerName} 러너` : '러너 찾는 중'} · {bookingKmLabel(b.km)}
                     </Text>
                   </Row>
                   {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
@@ -670,7 +672,10 @@ export default function Schedule() {
                     <Row style={{ gap: 5 }}>
                       <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{selected.routeName}</Text>
                       {/* [리뷰 F8] ✓ 인증 도장 은퇴 — 이 행엔 checked_at 실데이터가 없다. 근거 없는 검증 마크 금지 */}
-                      <Text style={{ fontSize: 15, color: paper.dim, alignSelf: 'center' }}>{selected.km}km</Text>
+                      {/* Labelled for the same reason as the list card: the name beside it can already
+                          end in the ROUTE's km (0100), while this number is the BOOKING's.
+                          15 is trunk's post-sweep size, not this commit's original 14. */}
+                      <Text style={{ fontSize: 15, color: paper.dim, alignSelf: 'center' }}>{bookingKmLabel(selected.km)}</Text>
                     </Row>
                     {/* 실좌표 없는 코스 지도 슬롯 — 토큰으로 작성 (후속 리페인트 생존) */}
                     <View style={s.sheetMapPending}>

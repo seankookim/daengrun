@@ -144,6 +144,13 @@ export const type = {
   title: { fontSize: 24, fontWeight: '900' } as const,   // 화면 제목
   heading: { fontSize: 16.5, fontWeight: '800' } as const, // 섹션/카드 제목
   body: { fontSize: 16, fontWeight: '600' } as const,
+  // ⚠ 15, not 14, and the two were 14 until 2026-08-27. The Korean detail floor was raised to
+  // 15 on 2026-08-25 (DESIGN.md:145) and these presets were missed by that sweep — they had ZERO
+  // importers, so no shipped screen was under the floor THROUGH them and nothing went red. That
+  // is exactly what made them worth fixing: theme.ts tells new code to reach for these presets,
+  // so the trap was not a screen that renders too small today, it was the first screen that
+  // obeys the instruction tomorrow. A dead export is the cheapest possible thing to correct and
+  // the most expensive thing to discover later.
   label: { fontSize: 15, fontWeight: '700' } as const,
   caption: { fontSize: 15, fontWeight: '400' } as const,
 } as const;
