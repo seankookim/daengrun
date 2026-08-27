@@ -9,6 +9,7 @@ import { MEDIA_BUCKET } from './media';
 // fetchCheckin/answerCheckin 참조.
 import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
 import { supabase } from './supabase';
+import { isPendingDeploy } from './rpc-skew';
 // Runner settlement constants — different money from the owner fare (theme.ts:210)
 import { pricing } from '../theme';
 
@@ -3605,32 +3606,13 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
     if (error.message?.includes('feature_disabled')) {
       throw new Error('위탁 기능이 아직 열리지 않았어요 — 허용목록 계정인지 확인해주세요');
     }
-    // 🔴 [배포 스큐 2026-08-27] 클라이언트가 서버보다 앞선 창 — 함수가 아직 배포되지 않았다.
-    // 측정값이다: 오늘 프로덕션에 `session_add_my_dog`는 **없다**
-    // (`select count(*) from pg_proc where proname='session_add_my_dog'` → 0; 대조군으로
-    // session_rsvp/session_cancel_rsvp는 2). 앱 빌드가 마이그레이션보다 먼저 나갈 수 있어서,
-    // 그 창에서 이 경로를 누르면 PostgREST 원문이 그대로 떴다 — 한국어 화면에 영문 원시 오류.
-    //
-    // ⚠ [codex] 이 번역은 **이름을 아는 함수에만** 건다. PGRST202는 '스키마 캐시에 맞는 시그니처가
-    // 없다'는 뜻이라 배포 스큐만이 아니라 **오타·인자 불일치·캐시 문제**까지 전부 포함한다. 넓게
-    // 잡으면 개발자의 버그가 사용자에게 「곧 열려요」로 둔갑해 조용히 사라진다 — 진짜 결함을 친절한
-    // 문장 뒤에 숨기는 것. 그래서 아래 목록에 있는 함수만 번역하고, 나머지는 원문 그대로 던져
-    // 개발자가 본다. **배포되면 그 줄을 지운다** (definer ACL 기준선과 같은 규율: 목록은 줄어야 한다).
-    const PENDING_DEPLOY: Record<string, string> = {
-      session_add_my_dog: '0134 §C — 프로덕션 0130, 미배포 (2026-08-27 측정)',
-    };
-    const notFound = (error as { code?: string }).code === 'PGRST202'
-      // 코드가 비어 오는 PostgREST 버전 대비 — 다만 그때는 **우리가 부른 그 이름**과 'schema cache'
-      // 문구를 둘 다 요구한다. 문장만 보면 다른 이유로 온 같은 문장에 오검된다.
-      || (/Could not find the function/i.test(error.message ?? '')
-          && /schema cache/i.test(error.message ?? '')
-          && (error.message ?? '').includes(fn));
-    if (notFound && PENDING_DEPLOY[fn]) {
-      // 원인은 남긴다 — 번역이 진단을 삼키면 dev lab에서 원인을 못 본다 (codex).
-      console.warn('[clubRpc] pending deploy:', fn, PENDING_DEPLOY[fn], error.message);
-      // ⚠ 「곧 열려요」가 아니다: 그건 예정된 출시를 약속하는 말이고, 실제 상태는 앱과 서버의
-      // 버전 불일치다. 지키지 못할 시점을 약속하지 않는다 (codex).
-      throw new Error('앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해 주세요');
+    // 배포 스큐 — 판정은 src/lib/rpc-skew.ts (순수 모듈, 테스트가 붙어 있다). 좁은 이유와
+    // 목록이 줄어야 하는 이유는 그 파일에.
+    if (isPendingDeploy(fn, error)) {
+      // 원인을 보존한다 — 번역이 진단을 삼키면 다음 사람이 원인을 못 본다. `cause`로 code/details/
+      // hint/stack이 함께 따라간다 (codex: console.warn만으로는 유실된다).
+      throw new Error('앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해 주세요',
+        { cause: error });
     }
     throw error;
   }

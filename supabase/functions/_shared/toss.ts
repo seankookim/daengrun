@@ -36,18 +36,29 @@ function authHeader(): string {
 // isolate and stalls the whole batch behind it.
 const BILLING_TIMEOUT_MS = 10_000;
 
-async function call(url: string, idempotencyKey: string, payload: unknown, timeoutMs?: number): Promise<TossResult> {
+async function call(
+  url: string,
+  idempotencyKey: string | null,
+  payload: unknown,
+  timeoutMs?: number,
+  // ⚠ METHOD IS A PARAMETER, and it defaults to POST so every existing caller is unchanged.
+  //   It exists because `DELETE /v1/billing/{key}` and `POST /v1/billing/{key}` are the SAME URL
+  //   with opposite meanings — delete the key, or charge the card. A helper that hardcodes the
+  //   verb turns a one-character URL fix into a request against a live money endpoint.
+  method: "POST" | "DELETE" = "POST",
+): Promise<TossResult> {
+  const headers: Record<string, string> = { "Authorization": authHeader() };
+  if (payload !== undefined) headers["Content-Type"] = "application/json";
+  // Toss dedupes on this header. Our order_id is server-minted and unique per intent
+  // (0071's order_id unique index), so a retried confirm can never become a second charge
+  // even if our own idempotency check somehow misses.
+  // ⚠ POST only — Toss documents the idempotency header as POST-only and guarantees other
+  //   methods are idempotent themselves. Sending it on DELETE is at best noise.
+  if (idempotencyKey !== null) headers["Idempotency-Key"] = idempotencyKey;
   const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": authHeader(),
-      "Content-Type": "application/json",
-      // Toss dedupes on this header. Our order_id is server-minted and unique per intent
-      // (0071's order_id unique index), so a retried confirm can never become a second charge
-      // even if our own idempotency check somehow misses.
-      "Idempotency-Key": idempotencyKey,
-    },
-    body: JSON.stringify(payload),
+    method,
+    headers,
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
     ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
   });
   let body: Record<string, unknown> = {};
@@ -56,6 +67,9 @@ async function call(url: string, idempotencyKey: string, payload: unknown, timeo
   } catch {
     // A non-JSON body from a money endpoint is itself the evidence — keep it rather than
     // pretending the response was empty.
+    // ⚠ For DELETE this is the DOCUMENTED SUCCESS shape: 「비어있는 body에 200 응답만
+    //   내려갑니다」. So `parse_error` here is not necessarily a fault — callers must judge on
+    //   `ok`/`httpStatus`, never on the body being parseable.
     body = { parse_error: true };
   }
   return { ok: res.ok, httpStatus: res.status, body };
@@ -112,11 +126,30 @@ export function tossBillingCharge(
 // 멱등 키는 빌링키에서 파생한다: 같은 키에 대한 재시도는 같은 요청이므로 같은 키를 쓰는 것이
 // 옳고, 빌링키 자체를 헤더에 복사하지는 않는다 (자격증명 사본을 한 곳 더 만들지 않는다).
 export function tossBillingRevoke(billingKey: string): Promise<TossResult> {
+  // 🔴 이 함수의 첫 버전은 **존재하지 않는 엔드포인트**를 불렀다: `POST /v1/billing/{key}/delete`.
+  //    토스 문서에 `/delete` 경로 조각은 없다 — 빌링 엔드포인트는 정확히 넷이고, 삭제는
+  //    `DELETE /v1/billing/{billingKey}` 다 (docs.tosspayments.com/reference, 원문 HTML 확인).
+  //
+  // 🔴 그리고 그 버그는 **스스로를 숨겼다.** 없는 라우트에 POST 하면 토스는 404
+  //    (`NOT_FOUND_HTTP_METHOD`) 를 준다. 워커는 404 를 「이미 지워짐 = 성공」으로 읽었으므로
+  //    아웃박스는 100% 깨끗하게 비워지고, 모든 행이 `done` 이 되고, **단 하나의 빌링키도 실제로
+  //    삭제되지 않는다.** 성공 탐지기가 실패 상태와 정확히 일치했다 — 푸시 탐지기·codex 판정문
+  //    법과 같은 모양이고, 이번엔 살아 있는 결제 자격증명에 걸렸다.
+  //
+  // ⚠ URL 만 고치면 더 나빠진다. 아래 `call()` 은 method 를 POST 로 **하드코딩**한다. `/delete`
+  //   만 떼면 요청은 `POST /v1/billing/{billingKey}` 가 되는데 그건 **결제(청구) 엔드포인트**다.
+  //   amount/orderId/customerKey 가 없어 실패하겠지만, 살아 있는 머니 경로에 의도치 않은 요청을
+  //   보내는 것 자체가 배포되어선 안 된다. 그래서 method 를 파라미터로 올린다.
+  //
+  // ⚠ 멱등키를 보내지 않는다. 토스 문서: 멱등키 헤더는 **POST 전용**이고 그 외 메서드는 자체적으로
+  //   멱등성을 보장한다. 게다가 이전 값 `revoke_${'${billingKey.slice(-12)}'}` 는 자격증명 12자를
+  //   헤더에 복사했다 — 바로 위 주석이 하지 않겠다고 적어 둔 그 일이다.
   return call(
-    `${TOSS_BASE}/billing/${encodeURIComponent(billingKey)}/delete`,
-    `revoke_${billingKey.slice(-12)}`,
-    {},
+    `${TOSS_BASE}/billing/${encodeURIComponent(billingKey)}`,
+    null,                 // no Idempotency-Key on DELETE
+    undefined,            // no body — the spec documents none
     BILLING_TIMEOUT_MS,
+    "DELETE",
   );
 }
 
