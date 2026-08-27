@@ -170,7 +170,7 @@ export default function ClubReceipt() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
+          <Text style={{ fontSize: 15, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -265,7 +265,7 @@ export default function ClubReceipt() {
               <Text style={[{ fontSize: 19, color: L.head, marginTop: 10 }, df]}>
                 {report.dogName}, 오늘 <Text style={{ color: L.coral }}>{run.actualKm.toFixed(1)}km</Text>
               </Text>
-              <Text style={{ fontSize: 14, color: L.dim, marginTop: 4 }}>
+              <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>
                 {report.runnerName ? `${report.runnerName}와 · ` : ''}{pace} · {durStr(run.durationSec)}
               </Text>
               <View style={{ marginTop: 10 }}>
@@ -274,7 +274,7 @@ export default function ClubReceipt() {
               {/* 수치 룰 행 */}
               <Row style={s.numRow}>
                 <View style={s.numCell}>
-                  <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 14, color: L.coral }}>km</Text></Text>
+                  <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text></Text>
                   <Text style={s.numL}>실측 거리</Text>
                 </View>
                 <View style={s.numCell}>
@@ -326,7 +326,7 @@ export default function ClubReceipt() {
                   </Text>
                 </View>
               )}
-              {/* 크레딧 라인 — 항상 (사진법 6조). [FLOOR14] 클럽·코스 이름(한글)은 트래킹 라틴 마이크로에서
+              {/* 크레딧 라인 — 항상 (사진법 6조). [FLOOR15] 클럽·코스 이름(한글)은 트래킹 라틴 마이크로에서
                   분리해 읽는 크기로 세우고, 'DOGS HIGH'만 각인 세리얼로 남는다 */}
               <Text style={s.creditName}>{clubName || report.routeName || 'HIGH CLUB'}</Text>
               <Text style={s.credit}>DOGS HIGH</Text>
@@ -423,37 +423,37 @@ const s = StyleSheet.create({
   },
   numCell: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRightWidth: 1, borderRightColor: L.hair },
   numV: { fontSize: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
-  // [FLOOR14] 수치 라벨은 한글 정보다 — 320dp 셀 가용폭 ~89px 에서 '실측 거리'(≈62px)까지 한 줄로 든다
-  numL: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 3 },
+  // [FLOOR15] 수치 라벨은 한글 정보다 — 320dp 셀 가용폭 ~89px 에서 '실측 거리'(≈62px)까지 한 줄로 든다
+  numL: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 3 },
   // 접촉 인화 스트립 (T①) — 랩과 같은 치수: 6 간격, 높이 56, 칸은 균등(flex:1).
   thumbs: { alignSelf: 'stretch', gap: 6, marginTop: 10 },
   thumb: { flex: 1, height: 56, backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair, overflow: 'hidden' },
   thumbImg: { width: '100%', height: '100%' },
   // 장수 줄은 한글 정보다 — 14pt 바닥 적용 (썸네일만 글리프로 면제된다)
-  thumbCount: { alignSelf: 'stretch', textAlign: 'left', fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 6 },
+  thumbCount: { alignSelf: 'stretch', textAlign: 'left', fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 6 },
   // [BUG A] Oswald 는 lineHeight 명시가 없으면 어센더가 잘린다 — 14 × 1.29
-  thumbCountNum: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
+  thumbCountNum: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
   // 공유 넛지 (Sean 2026-08-24) — 문이 아니라 문 앞의 한 마디라서 인셋 위 잉크다 (버튼 아님).
   nudge: { backgroundColor: L.inset, borderRadius: lilacRadius.inner, padding: 12, marginTop: 16 },
   nudgeHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head },
-  nudgeBody: { fontSize: 14, lineHeight: 20, color: L.text, marginTop: 4 },
-  nudgeSub: { fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 6 },
+  nudgeBody: { fontSize: 15, lineHeight: 20, color: L.text, marginTop: 4 },
+  nudgeSub: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 6 },
   // 피드 거절 (T②) — 경고가 아니라 사실이라 크리티컬 잉크를 안 쓴다. 종이 한 장, 헤어라인 트림.
   refuse: {
     backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
     padding: 13, marginTop: 16,
   },
   refuseHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head },
-  refuseBody: { fontSize: 14, lineHeight: 20, color: L.text, marginTop: 6 },
-  refuseSub: { fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 6 },
-  studioLink: { textAlign: 'center', marginTop: 12, fontSize: 14, fontWeight: '800', color: L.accent },
+  refuseBody: { fontSize: 15, lineHeight: 20, color: L.text, marginTop: 6 },
+  refuseSub: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 6 },
+  studioLink: { textAlign: 'center', marginTop: 12, fontSize: 15, fontWeight: '800', color: L.accent },
   // 하이 포인트 줄 — 수치 룰 행 바로 아래의 얇은 회계 줄. 골드는 SETTLED 전용이라 여기 안 쓴다.
   earnLine: { alignSelf: 'stretch', marginTop: 11, paddingTop: 9, borderTopWidth: 1, borderTopColor: L.hair },
-  earnLead: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim },
+  earnLead: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim },
   // [BUG A] Oswald 는 lineHeight 명시가 없으면 어센더가 잘린다 — 18 × 1.22
   earnV: { fontSize: 18, lineHeight: 22, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
-  earnSub: { fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 3 },
-  creditName: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 14 },
+  earnSub: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 3 },
+  creditName: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 14 },
   credit: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 2 },
-  detailLink: { textAlign: 'center', marginTop: 12, fontSize: 14, fontWeight: '800', color: L.accent },
+  detailLink: { textAlign: 'center', marginTop: 12, fontSize: 15, fontWeight: '800', color: L.accent },
 });

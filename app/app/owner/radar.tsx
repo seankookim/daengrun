@@ -513,9 +513,9 @@ const s = StyleSheet.create({
   // ── 알림 줄 — home-hero의 문법 그대로 (점 · 굵은 줄 · 얇은 줄 · 우측 행동) ──
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, minHeight: 44 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  alertMain: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
-  alertSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
-  alertAct: { fontSize: 14, fontWeight: '800' },
+  alertMain: { fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19 },
+  alertSub: { fontSize: 15, color: paper.dim, marginTop: 1, lineHeight: 19 },
+  alertAct: { fontSize: 15, fontWeight: '800' },
   // ── 레이더 무대 — R①: 200 → 132pt, 그리고 **잘라낸다** ──
   // overflow:'hidden'이 침범 금지의 하드 게이트다 (위 RADAR_H 주석의 ②). 산술상 링의 최대
   // 지름은 130이라 오늘 이 게이트는 아무것도 자르지 않지만, 게이트가 있어야 다음 사람이
@@ -526,12 +526,12 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   coreChar: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', lineHeight: 24 },
-  quiet: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 20 },
-  // 키커 — 랩은 라틴 캡스지만 한글엔 레터스페이스 캡스가 없다. 14pt 플로어를 지킨다.
+  quiet: { fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  // 키커 — 랩은 라틴 캡스지만 한글엔 레터스페이스 캡스가 없다. 15pt 플로어를 지킨다.
   kickRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  kick: { fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 },
-  kickCount: { fontSize: 14, fontWeight: '800', color: paper.faint, marginBottom: 4 },
-  state: { fontSize: 14, color: paper.dim, paddingVertical: 12, lineHeight: 20 },
+  kick: { fontSize: 15, fontWeight: '800', color: paper.dim, marginBottom: 4 },
+  kickCount: { fontSize: 15, fontWeight: '800', color: paper.faint, marginBottom: 4 },
+  state: { fontSize: 15, color: paper.dim, paddingVertical: 12, lineHeight: 20 },
   // R①: 두 줄 → 세 줄이라 행이 58 → 76으로 자란다 (첫 화면에 약 5명 → 약 3명).
   // 그 대가로 각 행이 결정을 내리기에 충분한 사실을 진다 — 랩이 값을 매긴 교환이다.
   row: {
@@ -540,12 +540,12 @@ const s = StyleSheet.create({
   },
   // 본문(프로필로 가는 문)과 지명 버튼은 형제다 — 중첩하면 iOS가 하나로 합친다 (a11y 수정).
   rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 4, minHeight: 44 },
-  rowName: { fontSize: 14, fontWeight: '800', color: paper.ink, lineHeight: 19 },
-  rowSub: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
-  rowStat: { fontSize: 14, color: paper.dim, marginTop: 1, lineHeight: 19 },
+  rowName: { fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19 },
+  rowSub: { fontSize: 15, color: paper.dim, marginTop: 1, lineHeight: 19 },
+  rowStat: { fontSize: 15, color: paper.dim, marginTop: 1, lineHeight: 19 },
   // 중첩 Text는 부모에서 크기·색을 물려받지만 lineHeight는 명시한다 (Oswald의 어센더가 잘린다 — BUG A).
-  rowStatNum: { fontSize: 14, lineHeight: 19 },
-  rowAct: { fontSize: 14, fontWeight: '800' },
+  rowStatNum: { fontSize: 15, lineHeight: 19 },
+  rowAct: { fontSize: 15, fontWeight: '800' },
   rowActBtn: { minHeight: 44, justifyContent: 'center', paddingLeft: 12 },
   // 지명 목록 로드 실패 — 홈의 fitFail과 같은 라우드 페일 문법 (14/700 critical · 텍스트 재시도)
   availFail: {
@@ -553,8 +553,8 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, marginTop: 4,
   },
-  availFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  availFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  availFailTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  availFailRetry: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ── 고정 CTA 도크 — bottom: 0까지 불투명한 캔버스 면 + 코랄 헤어라인 1px ──
   ctaDock: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

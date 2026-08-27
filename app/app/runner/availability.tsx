@@ -182,7 +182,7 @@ export default function Availability() {
             로드에서만 true가 된다(실패는 loadErr만 세운다). */}
         {/* [D①] 종전 문장은 「설정한 시간에만 요청을 받아요」였다 — 보호자 슬롯 시트에는 참이고
             오픈 풀에는 거짓이다. 이 줄은 이 표가 실제로 정하는 것만 말한다. */}
-        <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 14 }}>
+        <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 14 }}>
           보호자가 예약할 수 있는 시간이에요{loaded ? ` · 주 ${activeCount}일` : ''}
         </Text>
 
@@ -205,14 +205,14 @@ export default function Availability() {
         </View>
 
         {!loaded && !loadErr && (
-          <View style={s.card}><Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
         )}
 
         {/* loud-fail strip — criticalWash bg + critical ink (never shares paper.line) + retry */}
         {!loaded && loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>저장된 가용시간을 불러오지 못했어요</Text>
-            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.critical, marginTop: 3 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>저장된 가용시간을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.critical, marginTop: 3 }}>
               불러오기 전에는 편집과 저장을 열지 않아요 — 기존 설정을 지우지 않기 위해서예요
             </Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
@@ -243,7 +243,7 @@ export default function Availability() {
                         accessibilityRole="switch"
                         accessibilityState={{ checked: d.enabled }}
                       >
-                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: d.enabled ? '#FFFFFF' : paper.dim }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: d.enabled ? '#FFFFFF' : paper.dim }}>
                           {d.enabled ? '가능' : '쉬는 날'}
                         </Text>
                       </Pressable>
@@ -289,7 +289,7 @@ export default function Availability() {
           <Text style={s.applyOff}>월요일을 ‘가능’으로 켜면 그 시간을 나머지 요일에 한 번에 적용할 수 있어요</Text>
         ))}
 
-        <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14, lineHeight: 19 }}>
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 14, lineHeight: 19 }}>
           30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
@@ -357,14 +357,14 @@ const s = StyleSheet.create({
   // [D①] 관할 표 — 값이 아니라 범위를 인쇄하는 표라 카드 문법을 그대로 쓰되 값 열이 없다.
   juris: { borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 13, marginBottom: 12 },
   jurisRow: { alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 11 },
-  jurisLbl: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 19, color: paper.dim },
-  jurisOwn: { flexShrink: 0, fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
-  jurisState: { flexShrink: 0, fontSize: 14, lineHeight: 19, color: paper.dim },
+  jurisLbl: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 19, color: paper.dim },
+  jurisOwn: { flexShrink: 0, fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  jurisState: { flexShrink: 0, fontSize: 15, lineHeight: 19, color: paper.dim },
   jurisDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   // [D②] 저장 바의 diff 줄 — 라벨은 딤, 절은 잉크 (무엇이 바뀌는지가 읽히는 쪽이어야 한다)
   diff: { marginBottom: 9 },
-  diffK: { fontSize: 14, lineHeight: 19, color: paper.dim },
-  diffV: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  diffK: { fontSize: 15, lineHeight: 19, color: paper.dim },
+  diffV: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink },
   toggleChip: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 0 },
   toggleChipOn: { backgroundColor: paper.ink },
   toggleChipOff: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
@@ -373,10 +373,10 @@ const s = StyleSheet.create({
   stepBtnText: { fontSize: 22, fontWeight: '800', color: paper.ink },
   // 전체 적용 한 줄 — 잉크 링크 (코랄은 이 화면에서 저장하기 하나). 문은 ≥44pt.
   applyRow: { justifyContent: 'space-between', gap: 12, marginTop: 10 },
-  applyCaption: { flexShrink: 1, fontSize: 14, lineHeight: 19, color: paper.dim },
+  applyCaption: { flexShrink: 1, fontSize: 15, lineHeight: 19, color: paper.dim },
   applyBtn: { minHeight: 44, justifyContent: 'center' },
-  applyLink: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: paper.ink },
-  applyOff: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 },
+  applyLink: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  applyOff: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30,

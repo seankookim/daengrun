@@ -252,7 +252,7 @@ const s = StyleSheet.create({
   monoCharOff: { color: paper.faint },
   dogName: { fontSize: 18.5, lineHeight: 24, fontWeight: '800', color: paper.ink },
   dogMeta: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
-  dogErr: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
+  dogErr: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
 
   // ── 라벨·입력 ──
   label: { fontSize: 15.5, lineHeight: 21, fontWeight: '700', color: paper.text, marginBottom: 12 },
@@ -260,7 +260,7 @@ const s = StyleSheet.create({
   starOn: { color: paper.line },
   tag: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 14 },
   tagSel: { backgroundColor: paper.ink, borderColor: paper.ink },
-  tagText: { fontSize: 14.5, lineHeight: 19, fontWeight: '700', color: paper.text },
+  tagText: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.text },
   tagTextSel: { color: '#fff' },
   noteInput: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
@@ -272,16 +272,16 @@ const s = StyleSheet.create({
   flagBandOn: { backgroundColor: paper.criticalWash },
   flagCheck: { width: 22, height: 22, borderWidth: 1.5, borderColor: paper.faint, alignItems: 'center', justifyContent: 'center' },
   flagCheckOn: { backgroundColor: paper.critical, borderColor: paper.critical },
-  flagTick: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff' },
+  flagTick: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: '#fff' },
   flagTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: paper.ink },
-  flagSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
+  flagSub: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
 
   // ── 라우드-페일 스트립 (F1.2) ──
   failStrip: {
     backgroundColor: paper.criticalWash, borderBottomWidth: 1, borderBottomColor: paper.critical,
     paddingHorizontal: 18, paddingVertical: 14,
   },
-  failText: { fontSize: 14.5, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  failText: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
 
   // ── 버튼 매트릭스 (불투명도 트릭 금지 — disabled는 명시 fill) ──
   actions: { paddingHorizontal: 18, paddingTop: 20 },
@@ -291,7 +291,7 @@ const s = StyleSheet.create({
   ctaOff: { backgroundColor: paper.disabledFill },
   ctaText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: '#fff' },
   ctaTextOff: { color: paper.faint },
-  ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  ctaHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
   quiet: { alignItems: 'center', paddingVertical: 15, marginTop: 4 },
-  quietText: { fontSize: 14.5, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  quietText: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
 });

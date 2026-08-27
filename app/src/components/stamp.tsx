@@ -16,7 +16,7 @@ export const STAMP_INK_FILL = 'rgba(108,92,231,0.05)'; // accent 5% — 종이�
 // 도장 그리드 폭 예산 (두 화면이 같은 산술을 쓰므로 여기가 정본):
 //   스크롤 패딩 16*2 · 카드 보더 1*2 · 내부 마진 9*2 · 내부 보더 1*2 · 내부 패딩 11*2 = W-76
 //   320dp: 244 → 칸 74 · 디스크 68 (3*74+2*10 = 242 ≤ 244 ✓) · 360dp: 284/87/76 ✓ · 390dp: 314/97/76 (랩 실측) ✓
-//   디스크가 68까지 줄어도 내부 활자(27+1+17 = 45)는 14pt 플로어 아래로 내려가지 않는다.
+//   디스크가 68까지 줄어도 내부 활자(27+1+17 = 45)는 15pt 플로어 아래로 내려가지 않는다.
 export const STAMP_GAP = 10;
 export const STAMP_CELL_W = Math.floor((Dimensions.get('window').width - 76 - STAMP_GAP * 2 - 1) / 3);
 export const STAMP_DISC = Math.min(76, STAMP_CELL_W - 6);
@@ -61,8 +61,8 @@ const s = StyleSheet.create({
   ring3: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: (STAMP_DISC + 10) / 2, borderWidth: 1.5, borderColor: STAMP_INK, opacity: 0.55 },
   dot1: { position: 'absolute', top: -3.5, left: (STAMP_DISC - 7) / 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coralDeep },
   discN: { fontSize: 22, lineHeight: 27, fontWeight: '800', color: STAMP_INK }, // Oswald — lineHeight 1.23× (BUG A)
-  discW: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: STAMP_INK, marginTop: 1 },
+  discW: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: STAMP_INK, marginTop: 1 },
   discInkOff: { color: lilac.dim }, // 미획득 잉크 — 랩의 #A9A3C8(2.40:1) 대신 lilac.dim(4.24:1)
-  scellCond: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginTop: 6, textAlign: 'center' },
+  scellCond: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginTop: 6, textAlign: 'center' },
   scellCondOn: { fontWeight: '700', color: lilac.head },
 });

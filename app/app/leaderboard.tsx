@@ -62,13 +62,13 @@ export default function Leaderboard() {
         <View style={s.milesCard}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
+              <Text style={{ fontSize: 15, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
               <Text style={{ fontSize: 37, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
                 {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 14, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
+              <Text style={{ fontSize: 15, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
                 러닝 완주 +50{'\n'}응가 도장 +30
               </Text>
             </View>
@@ -77,7 +77,7 @@ export default function Leaderboard() {
           {miles && miles.recent.length > 0 && (
             <Row style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               {miles.recent.slice(0, 3).map((m, i) => (
-                <Text key={i} style={{ fontSize: 14, color: '#8fa093' }}>
+                <Text key={i} style={{ fontSize: 15, color: '#8fa093' }}>
                   {m.reason} {m.delta > 0 ? '+' : ''}{m.delta}
                 </Text>
               ))}
@@ -89,7 +89,7 @@ export default function Leaderboard() {
         <View style={s.tabWrap}>
           {([['dogs', '강아지 (거리)'], ['runners', '러너 (러닝 수)']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: paper.ink }]}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -102,7 +102,7 @@ export default function Leaderboard() {
         )}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>랭킹을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>랭킹을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
             </Pressable>
@@ -147,7 +147,7 @@ export default function Leaderboard() {
         )}
         {rows.slice(3).map((r, i) => (
           <View key={`${r.name}-${i + 3}`} style={s.row}>
-            <Text style={{ width: 34, fontSize: 14, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
+            <Text style={{ width: 34, fontSize: 15, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
               {i + 4}
             </Text>
             <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={40} />
@@ -160,7 +160,7 @@ export default function Leaderboard() {
           </View>
         ))}
 
-        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
+        <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 20 }}>
           주간 TOP 3 시즌 보상은 곧 공개돼요{'\n'}랭킹은 완주한 러닝만 집계해요
         </Text>
       </ScrollView>

@@ -72,12 +72,12 @@ export default function Shop() {
               <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 2, color: colors.volt }}>HIGH POINT</Text>
               <Text style={[{ fontSize: 34, fontWeight: '900', color: '#fff', marginTop: 5 }, nf]}>
                 {miles ? miles.balance.toLocaleString() : '—'}
-                <Text style={{ fontSize: 14, color: '#b8c4ae' }}> 포인트</Text>
+                <Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
               </Text>
             </View>
             {isRunner && (
               <Pressable onPress={() => router.push('/runner/rewards')} style={s.heroGo}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>리워드 센터 ›</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>리워드 센터 ›</Text>
               </Pressable>
             )}
           </Row>
@@ -85,15 +85,15 @@ export default function Shop() {
             <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#24382a', paddingTop: 9, gap: 4 }}>
               {miles.recent.slice(0, 2).map((r, i) => (
                 <Row key={i} style={{ justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 14.5, color: '#8fa093' }}>{r.reason} · {r.when}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: r.delta >= 0 ? colors.volt : colors.tang }}>
+                  <Text style={{ fontSize: 15, color: '#8fa093' }}>{r.reason} · {r.when}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: r.delta >= 0 ? colors.volt : colors.tang }}>
                     {r.delta >= 0 ? '+' : ''}{r.delta.toLocaleString()}
                   </Text>
                 </Row>
               ))}
             </View>
           ) : (
-            <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 8 }}>
+            <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8 }}>
               완주 +50 · 응가 도장 +30 · 패치 승급 보너스 · 주간 TOP3
             </Text>
           )}
@@ -102,7 +102,7 @@ export default function Shop() {
         {/* 활성 부스트 (픽 드랍 보상, 실데이터) — 활성일 때만 그린다 */}
         {isRunner && boostUntil && (
           <View style={s.boostStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#4a6d1f' }}>매칭 부스트 활성 · {boostUntil}까지</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#4a6d1f' }}>매칭 부스트 활성 · {boostUntil}까지</Text>
           </View>
         )}
 
@@ -121,7 +121,7 @@ export default function Shop() {
             <Row style={[s.secRow, { gap: 7, marginTop: 18, marginBottom: 8 }]}>
               <Text style={s.section}>내 기어 교환권</Text>
               {claimable.length > 0 && (
-                <View style={s.countPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>{claimable.length}</Text></View>
+                <View style={s.countPill}><Text style={{ fontSize: 15, fontWeight: '900', color: '#3d5a2b' }}>{claimable.length}</Text></View>
               )}
             </Row>
             <View style={s.card}>
@@ -131,10 +131,10 @@ export default function Shop() {
                   <Row style={{ paddingVertical: 10, justifyContent: 'space-between' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>{g.item}</Text>
-                      <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
+                      <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                     </View>
                     <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#EEF0EA' }]}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
                         {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status === 'locked' ? '잠김' : g.status}
                       </Text>
                     </View>
@@ -149,7 +149,7 @@ export default function Shop() {
         <Row style={[s.secRow, { gap: 7, marginTop: 20, marginBottom: 2, alignItems: 'center' }]}>
           <View style={s.gearTag}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#fff' }}>DOGS HIGH GEAR</Text></View>
           <Text style={[s.section, { color: colors.terraInk }]}>부티크 미리보기</Text>
-          <Text style={{ fontSize: 14.5, color: '#A87A62', fontWeight: '700' }}>· 오픈 준비 중</Text>
+          <Text style={{ fontSize: 15, color: '#A87A62', fontWeight: '700' }}>· 오픈 준비 중</Text>
         </Row>
 
         {/* categories */}
@@ -165,16 +165,16 @@ export default function Shop() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
             <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>{/* [페이퍼 크롬] 카드 = 샤프 1px #EEE (테라 틴트 보더 은퇴) */}
-              <Text style={{ fontSize: 14, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
-              <Text style={{ fontSize: 14, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
+              <Text style={{ fontSize: 15, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
               {/* product visual placeholder */}
               <View style={s.prodVisual}>
                 <Text style={{ fontSize: 34.5, fontWeight: '900', color: `${p.fg}33` }}>{p.tag}</Text>
               </View>
               <Row style={{ justifyContent: 'space-between', marginTop: 'auto' }}>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: colors.terraInk }}>
-                  {p.price.toLocaleString()}원<Text style={{ fontSize: 14, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
+                  {p.price.toLocaleString()}원<Text style={{ fontSize: 15, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
                 </Text>
                 <Pressable style={s.addBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 담을 수 있어요')}>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>+</Text>

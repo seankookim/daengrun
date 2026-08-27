@@ -893,13 +893,13 @@ const s = StyleSheet.create({
   rule: { flex: 1, height: 1, backgroundColor: paper.line },
   kick: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커(플로어 면제) · Oswald 1.33×
   h1: { fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink, marginTop: 10 }, // §3c 화면 타이틀 (1.23× — BUG A)
-  lede: { fontSize: 14, lineHeight: 21, color: paper.text, marginTop: 8 },
+  lede: { fontSize: 15, lineHeight: 21, color: paper.text, marginTop: 8 },
 
   // ── 섹션 룰 ── §3b: 풀블리드 코랄 1px + 20/800 잉크
   sec: { marginTop: 20, marginBottom: 10 },
   secRule: { marginHorizontal: -layout.gutter, height: 1, backgroundColor: paper.line, marginBottom: 10 },
   secRow: { alignItems: 'baseline', gap: 7 },
-  secNo: { fontSize: 12, lineHeight: 25, fontWeight: '800', color: paper.line }, // 글리프 전용(§) — 14pt 플로어 면제
+  secNo: { fontSize: 12, lineHeight: 25, fontWeight: '800', color: paper.line }, // 글리프 전용(§) — 15pt 플로어 면제
   secKo: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   secT: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커 · Oswald 1.33×
 
@@ -911,18 +911,18 @@ const s = StyleSheet.create({
   // 출처 태그 — 워시 면, 샤프 코너. 이 값들이 서버에서 그대로 온다는 표시
   srcTag: { backgroundColor: paper.wash, paddingVertical: 3, paddingHorizontal: 8 },
   srcTagTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1, color: paper.actionInk }, // Oswald 1.33×
-  recK: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  recK: { fontSize: 15, lineHeight: 19, color: paper.dim },
   recTier: { fontSize: 28, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 3 },
-  recNote: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 6 },
+  recNote: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 6 },
   grid: { alignItems: 'stretch', marginTop: 13, marginHorizontal: -14, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   cell: { flex: 1, paddingTop: 10, paddingBottom: 12, paddingLeft: 14 },
   cellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEEEEE' },
-  cellK: { fontSize: 14, lineHeight: 18, color: paper.dim, marginBottom: 2 }, // 한글 라벨 — 14pt 플로어 준수
+  cellK: { fontSize: 15, lineHeight: 18, color: paper.dim, marginBottom: 2 }, // 한글 라벨 — 15pt 플로어 준수
   cellVal: { alignItems: 'baseline', gap: 3 },
   cellV: { fontSize: 22, lineHeight: 28, fontWeight: '900', color: paper.ink }, // Oswald 1.27× (BUG A)
-  cellU: { fontSize: 14, lineHeight: 18, color: paper.dim },
+  cellU: { fontSize: 15, lineHeight: 18, color: paper.dim },
   recFoot: {
-    fontSize: 14, lineHeight: 20, color: paper.dim,
+    fontSize: 15, lineHeight: 20, color: paper.dim,
     borderTopWidth: 1, borderTopColor: '#EEEEEE',
     paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12,
   },
@@ -930,7 +930,7 @@ const s = StyleSheet.create({
   // ── 로딩 · 빈 상태 ── 로딩은 0이 아니다: 중립 박스 안의 문장
   plain: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 16 },
   plainT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink, marginBottom: 3 },
-  plainTxt: { fontSize: 14, lineHeight: 20, color: paper.text },
+  plainTxt: { fontSize: 15, lineHeight: 20, color: paper.text },
 
   // ── 실패는 실패로 ── 앱 공통 라우드-페일 문법 (criticalWash 면 + critical 잉크 + 밑줄 다시 시도)
   errBox: {
@@ -938,43 +938,43 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, padding: 13,
   },
   errTick: { width: 3, alignSelf: 'stretch', backgroundColor: paper.critical },
-  errT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.critical },
-  errD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 2 },
+  errT: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  errD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 2 },
   // 박스 없는 밑줄 텍스트 — 실패 스트립 안에서 잉크 테두리가 크리티컬과 싸우지 않도록 (rewards/earnings와 동일)
   retry: { alignSelf: 'flex-start', marginTop: 6, minHeight: 44, justifyContent: 'center' },
   retryTxt: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // ── ② 절차 ── 개인 체크마크가 아니다: 번호는 구조(잉크)일 뿐 진행률이 아니다
   stepCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, paddingBottom: 4 },
-  stepLede: { fontSize: 14, lineHeight: 20, color: paper.dim, paddingTop: 13, paddingBottom: 3 },
+  stepLede: { fontSize: 15, lineHeight: 20, color: paper.dim, paddingTop: 13, paddingBottom: 3 },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 12 },
   stepDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
-  stepNo: { fontSize: 14, lineHeight: 20, letterSpacing: 0.8, fontWeight: '800', color: paper.ink, width: 22 }, // Oswald 1.43×
+  stepNo: { fontSize: 15, lineHeight: 20, letterSpacing: 0.8, fontWeight: '800', color: paper.ink, width: 22 }, // Oswald 1.43×
   stepT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
-  stepD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 2 },
+  stepD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 2 },
   stepFoot: {
-    fontSize: 14, lineHeight: 20, color: paper.dim,
+    fontSize: 15, lineHeight: 20, color: paper.dim,
     borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 11, paddingBottom: 12,
   },
 
   // ── ③ 지원 현황 ──
   stateCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
   strapDot: { width: 7, height: 7 }, // 샤프 — 종이 세계에 둥근 코너는 없다
-  strapTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  strapTxt: { fontSize: 15, lineHeight: 18, fontWeight: '800' },
   stateT: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: paper.ink },
-  stateD: { fontSize: 14, lineHeight: 21, color: paper.text, marginTop: 7 },
-  stateMeta: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 6 },
+  stateD: { fontSize: 15, lineHeight: 21, color: paper.text, marginTop: 7 },
+  stateMeta: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 6 },
   onlineLine: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
     paddingVertical: 11, paddingHorizontal: 12,
   },
   onlineDot: { width: 7, height: 7 },
-  onlineTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: paper.text },
+  onlineTxt: { flex: 1, fontSize: 15, lineHeight: 20, color: paper.text },
   reasonBox: { marginTop: 11, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 12 },
-  reasonK: { fontSize: 14, lineHeight: 18, color: paper.dim, marginBottom: 3 },
-  reasonV: { fontSize: 14, lineHeight: 21, color: paper.ink },
-  confirmTxt: { fontSize: 14, lineHeight: 20, color: paper.text },
+  reasonK: { fontSize: 15, lineHeight: 18, color: paper.dim, marginBottom: 3 },
+  reasonV: { fontSize: 15, lineHeight: 21, color: paper.ink },
+  confirmTxt: { fontSize: 15, lineHeight: 20, color: paper.text },
   // PaperBtn이 색/패딩을 가진다 — 여기는 자리(폭)만
   confirmYes: { flex: 1.4 },
   confirmNo: { flex: 1 },
@@ -987,7 +987,7 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 12, minHeight: 44,
   },
   ctaT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.actionInk },
-  ctaD: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 1 },
+  ctaD: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 1 },
   ctaGo: { fontSize: 17, color: paper.actionInk },
   // PaperBtn 자리 — 색은 매트릭스가 가진다
   ctaBtn: { marginTop: 13 },
@@ -995,28 +995,28 @@ const s = StyleSheet.create({
   // ── 지원서 폼 ──
   formCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
   formT: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: paper.ink },
-  formD: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 5 },
+  formD: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 5 },
   fieldL: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
-  fieldH: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 },
-  fieldNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  fieldH: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 },
+  fieldNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
     paddingVertical: 11, paddingHorizontal: 12, minHeight: 44,
     fontSize: 16, lineHeight: 21, color: paper.ink,
   },
   inputMulti: { minHeight: 78, textAlignVertical: 'top' },
-  unit: { fontSize: 14, lineHeight: 20, color: paper.dim },
+  unit: { fontSize: 15, lineHeight: 20, color: paper.dim },
   // 칩 — 캔버스/코랄 1px, 선택은 워시 면 + actionInk (owner·runner meetup의 gearChip 문법)
   chip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 12 },
   chipOn: { backgroundColor: paper.wash },
   // 6개를 다 골랐을 때 남은 칩 — 명시 fill/잉크. 불투명도 트릭 금지(F2.1)
   chipFull: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
-  chipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.text },
+  chipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: paper.text },
   chipTxtOn: { fontWeight: '800', color: paper.actionInk },
   chipTxtFull: { fontWeight: '600', color: paper.faint },
   notice: { marginTop: 16, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 12 },
   noticeT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink, marginBottom: 4 },
-  noticeD: { fontSize: 14, lineHeight: 21, color: paper.text },
+  noticeD: { fontSize: 15, lineHeight: 21, color: paper.text },
   check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12, minHeight: 44 },
   checkBox: {
     width: 22, height: 22, borderWidth: 1.5, borderColor: paper.faint,
@@ -1025,16 +1025,16 @@ const s = StyleSheet.create({
   // 체크 = 잉크 필 (잉크는 상태로 남는다 — 액션이 아니다)
   checkBoxOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   checkMark: { fontSize: 12, lineHeight: 15, fontWeight: '900', color: '#FFFFFF' },
-  checkTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: paper.text },
+  checkTxt: { flex: 1, fontSize: 15, lineHeight: 20, color: paper.text },
   // [C4] step tabs — neuterChip 문법 (잉크 면 선택, 명시 fill, 14pt)
   stepRow: { gap: 8, marginTop: 14, marginBottom: 4 },
   stepChip: { flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 11, borderRadius: 0 },
   stepChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
-  stepTxt: { fontSize: 14, fontWeight: '800', color: paper.dim },
+  stepTxt: { fontSize: 15, fontWeight: '800', color: paper.dim },
   stepTxtOn: { color: '#FFFFFF' },
   submit: { marginTop: 16 },
   formCancel: { marginTop: 9, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  formCancelTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  formCancelTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
 
   // ── 콜로폰 ──
   colophon: {

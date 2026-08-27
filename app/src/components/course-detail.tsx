@@ -166,27 +166,27 @@ const s = StyleSheet.create({
   strip: {
     borderWidth: 1.5, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 11, marginBottom: 4,
   },
-  stripTxt: { fontSize: 14, fontWeight: '800', color: paper.text, lineHeight: 20 },
+  stripTxt: { fontSize: 15, fontWeight: '800', color: paper.text, lineHeight: 20 },
 
-  sect: { fontSize: 14, fontWeight: '800', color: paper.dim, marginTop: 16, marginBottom: 7 },
-  body: { fontSize: 14.5, color: paper.text, lineHeight: 22 },
+  sect: { fontSize: 16, fontWeight: '800', color: paper.dim, marginTop: 16, marginBottom: 7 },
+  body: { fontSize: 15, color: paper.text, lineHeight: 22 },
 
   metaBand: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F0EEE9' },
   metaCell: { flex: 1, paddingVertical: 9, alignItems: 'center' },
   metaDiv: { borderRightWidth: 1, borderRightColor: '#F0EEE9' },
-  metaK: { fontSize: 14, color: paper.faint, fontWeight: '700' },
-  metaV: { fontSize: 14.5, fontWeight: '800', color: paper.ink, marginTop: 3 },
+  metaK: { fontSize: 15, color: paper.faint, fontWeight: '700' },
+  metaV: { fontSize: 16, fontWeight: '800', color: paper.ink, marginTop: 3 },
   // 앰버 = 대기/주의의 기존 시맨틱 토큰(candidate 포스처와 같은 색). 새 색을 만들지 않는다.
-  hill: { fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 8 },
+  hill: { fontSize: 15, fontWeight: '800', color: paper.pending, marginTop: 8 },
 
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   feat: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6',
     paddingVertical: 9, paddingHorizontal: 12, alignItems: 'center', minWidth: 76,
   },
-  featTxt: { fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 3 },
+  featTxt: { fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 3 },
   tag: { backgroundColor: paper.wash, paddingVertical: 5, paddingHorizontal: 10 },
-  tagTxt: { fontSize: 14, fontWeight: '700', color: paper.actionInk },
+  tagTxt: { fontSize: 15, fontWeight: '700', color: paper.actionInk },
 
   photo: { width: 108, height: 108, backgroundColor: '#F0EEE9' },
 });

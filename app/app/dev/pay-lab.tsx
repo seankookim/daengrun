@@ -166,13 +166,13 @@ function ChargeLab({ busy, onBusy, stub }: { busy: boolean; onBusy: () => void; 
 
 const s = StyleSheet.create({
   bar: { paddingTop: 54, paddingBottom: 10, paddingLeft: 12, backgroundColor: paper.canvasSoft, borderBottomWidth: 1, borderColor: paper.line },
-  barTitle: { fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 8, letterSpacing: 0.6 },
+  barTitle: { fontSize: 15, fontWeight: '800', color: paper.dim, marginBottom: 8, letterSpacing: 0.6 },
   chip: { paddingVertical: 7, paddingHorizontal: 11, borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas },
   chipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
-  chipTxt: { fontSize: 14, fontWeight: '700', color: paper.text },
+  chipTxt: { fontSize: 15, fontWeight: '700', color: paper.text },
   chipTxtOn: { color: paper.canvas },
-  labNote: { fontSize: 14, fontWeight: '700', color: paper.dim, paddingHorizontal: 16, paddingTop: 14 },
+  labNote: { fontSize: 15, fontWeight: '700', color: paper.dim, paddingHorizontal: 16, paddingTop: 14 },
   labHead: { fontSize: 15, fontWeight: '800', color: paper.ink, paddingHorizontal: 16, marginTop: 22, marginBottom: 8 },
   labBtn: { alignSelf: 'flex-start', marginLeft: 16, marginTop: 8, minHeight: 44, justifyContent: 'center' },
-  labBtnTxt: { fontSize: 14, fontWeight: '800', color: paper.text, textDecorationLine: 'underline' },
+  labBtnTxt: { fontSize: 15, fontWeight: '800', color: paper.text, textDecorationLine: 'underline' },
 });

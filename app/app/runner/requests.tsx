@@ -453,14 +453,14 @@ export default function Requests() {
             </View>
             {req.repeatPrior != null && req.repeatPrior > 0 && (
               <View style={[s.metaChip, { backgroundColor: AMBER_BG }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: AMBER_INK }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: AMBER_INK }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
               </View>
             )}
           </Row>
           {/* 언제 뛰는가 — 요청의 1급 정보 (회색 각주 은퇴, 정보 위계 수정 2026-07-28).
               [v4] 회색 바 은퇴 — 잉크 상자 안에서 회색 면은 소음이다. 활자가 위계를 진다. */}
           <Row style={s.whenRow}>
-            <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.text }}>{wd}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.text }}>{wd}</Text>
             {/* [lab B② 2026-08-25] 마감은 **자기가 파생된 시각 옆에** 붙는다 — 한 사실이 한 자리에.
                 (칩 행으로 올리지 않은 이유: 그 행의 오른쪽은 이미 「⟳ N번째 함께」의 자리이고, 390pt에서
                  둘을 나란히 두면 RN의 flexShrink 기본 0 때문에 리플로가 아니라 잘림이 된다.)
@@ -471,7 +471,7 @@ export default function Requests() {
               {/* Oswald request time — lineHeight 27 = 1.29× (BUG A) */}
               <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{wt}</Text>
               {deadline && (
-                <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim }}>{deadline}</Text>
+                <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.dim }}>{deadline}</Text>
               )}
             </Row>
           </Row>
@@ -499,7 +499,7 @@ export default function Requests() {
                   값이 없으면 토큰째로 빠진다 (자리표시자 없음). 세 원인 — 기준 위치 미설정 ·
                   주소에 핀 없음 · 이 다리가 죽음 — 이 카드 위에서 같은 모습인 건 의도다. 셋을
                   구분하는 곳은 아래 안내 문 하나뿐이고, 거기서도 추론하지 않고 서버에 묻는다. */}
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
+              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
                 <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text>
                 {req.distanceBand ? ` · 기준 위치에서 ${req.distanceBand}` : ''}
                 {req.pickupDong ? ` · ${req.pickupDong} 출발` : ''}
@@ -516,19 +516,19 @@ export default function Requests() {
             <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
               {req.vaccines.length > 0 && (
                 <View style={[s.metaChip, { backgroundColor: '#E3EFF9' }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#2D6DA8' }}>백신 {req.vaccines.length}종</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#2D6DA8' }}>백신 {req.vaccines.length}종</Text>
                 </View>
               )}
               {!preAccept && req.prefTags.map((t) => (
                 <View key={t} style={[s.metaChip, { backgroundColor: GREY_CHIP }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>{t}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>{t}</Text>
                 </View>
               ))}
             </Row>
           )}
           {req.memo && !preAccept && (
             <View style={s.memo}>
-              <Text style={{ fontSize: 14.5, color: paper.text, lineHeight: 20 }} numberOfLines={2}>메모: {req.memo}</Text>
+              <Text style={{ fontSize: 15, color: paper.text, lineHeight: 20 }} numberOfLines={2}>메모: {req.memo}</Text>
             </View>
           )}
           {/* 코스 미리보기 — 수락 전에 코스를 알고 결정한다 (트레이스·지형·점검일).
@@ -538,8 +538,8 @@ export default function Requests() {
               onPress={() => router.push(`/course/${req.routeId}`)}
               style={({ pressed }) => [s.courseRow, pressed && { backgroundColor: paper.wash }]}
             >
-              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, flex: 1 }} numberOfLines={1}>{req.routeName}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginLeft: 10 }}>코스 미리보기 ›</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, flex: 1 }} numberOfLines={1}>{req.routeName}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, marginLeft: 10 }}>코스 미리보기 ›</Text>
             </Pressable>
           )}
           {/* [lab B③ 2026-08-25] 겹침 — 문 바로 위, 탭 직전에 읽히는 자리.
@@ -588,7 +588,7 @@ export default function Requests() {
           <View>
             {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
             <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>요청</Text>
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3 }}>
               {/* count only after a real load — never "0건" in flight or on failure */}
               {!loaded
                 ? loadErr ? '요청을 불러오지 못했어요' : '요청 확인 중...'
@@ -596,7 +596,7 @@ export default function Requests() {
             </Text>
           </View>
           <Pressable style={({ pressed }) => [s.refreshChip, pressed && { backgroundColor: paper.wash }]} onPress={load}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>↻ 새로고침</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>↻ 새로고침</Text>
           </Pressable>
         </Row>
 
@@ -648,8 +648,8 @@ export default function Requests() {
                 </Text>
                 <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
                   <View style={s.timeBox}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: paper.dim }}>기존</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: paper.dim, textDecorationLine: 'line-through', marginTop: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim }}>기존</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim, textDecorationLine: 'line-through', marginTop: 1 }}>
                       {rq.curDate}
                     </Text>
                     <Text style={{ fontSize: 17, fontWeight: '800', color: paper.dim, textDecorationLine: 'line-through' }}>
@@ -658,8 +658,8 @@ export default function Requests() {
                   </View>
                   <Text style={{ fontSize: 17, fontWeight: '900', color: AMBER_INK }}>→</Text>
                   <View style={[s.timeBox, { backgroundColor: AMBER_BG }]}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: AMBER_INK }}>제안</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: AMBER_INK, marginTop: 1 }}>{rq.newDate}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: AMBER_INK }}>제안</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: AMBER_INK, marginTop: 1 }}>{rq.newDate}</Text>
                     <Text style={{ fontSize: 17, fontWeight: '900', color: AMBER_INK }}>{rq.newTime}</Text>
                   </View>
                 </Row>
@@ -736,13 +736,13 @@ export default function Requests() {
 
         {!loaded && !loadErr && (
           <View style={s.stateBlock}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>요청 인박스를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>요청 인박스를 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -758,7 +758,7 @@ export default function Requests() {
           <>
             <View style={s.stateBlock}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>인증 전에는 요청이 오지 않아요</Text>
-              <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>
+              <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>
                 인증된 러너에게만 요청이 열려요{'\n'}지원은 몇 분이면 끝나요
               </Text>
             </View>
@@ -795,7 +795,7 @@ export default function Requests() {
               )}
             </View>
             {avail !== null && (
-              <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 12 }}>
+              <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 12 }}>
                 지금 설정해두면 인증되는 즉시 보호자 예약 화면에 반영돼요
               </Text>
             )}
@@ -806,7 +806,7 @@ export default function Requests() {
           <>
             <View style={s.stateBlock}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>지금은 열린 요청이 없어요</Text>
-              <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', marginTop: 4 }}>새 요청이 오면 여기에 표시돼요</Text>
+              <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 4 }}>새 요청이 오면 여기에 표시돼요</Text>
             </View>
             {/* ---------- 조용한 날의 두 줄 — 왜 조용한지 러너가 스스로 볼 수 있게.
                 둘 다 실필드다: runners.online · runner_availability_rules.
@@ -854,7 +854,7 @@ export default function Requests() {
             (Sean 2026-08-24: "but also show them what's next.") 상자를 두르지 않는다:
             이 파일의 법대로, 활자가 위계를 진다. */}
         <View style={s.note}>
-          <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, textAlign: 'center' }}>
+          <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center' }}>
             수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}
             그다음은 {NEXT_STEPS}{'\n'}
             {/* [lab B② 2026-08-25] 「응답 기한」은 이 앱에 존재하지 않는 개념이었다 — 별도의 기한
@@ -888,8 +888,8 @@ const s = StyleSheet.create({
     backgroundColor: lilac.amberSoft, borderWidth: 1, borderColor: lilac.amberEdge,
     paddingVertical: 9, paddingHorizontal: 10, marginTop: 9,
   },
-  clashTitle: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: AMBER_INK },
-  clashBody: { fontSize: 14, lineHeight: 19, color: AMBER_INK, marginTop: 2 },
+  clashTitle: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: AMBER_INK },
+  clashBody: { fontSize: 15, lineHeight: 19, color: AMBER_INK, marginTop: 2 },
   courseRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderTopWidth: 1, borderTopColor: '#EEEEEE',
@@ -926,11 +926,11 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
     minHeight: 52,   // 44pt 터치 타깃 이상
   },
-  sumLabel: { fontSize: 14, color: paper.dim, width: 110 },
+  sumLabel: { fontSize: 15, color: paper.dim, width: 110 },
   sumValue: { fontSize: 15, fontWeight: '800', color: paper.ink, flex: 1, textAlign: 'right' },
   // 값이 아니라 **상태**를 말하는 자리 — 굵은 잉크로 그리면 답으로 읽힌다
-  sumState: { fontSize: 14, color: paper.dim, flex: 1, textAlign: 'right' },
-  sumAction: { fontSize: 14, fontWeight: '800', color: paper.ink, marginLeft: 10 },
+  sumState: { fontSize: 15, color: paper.dim, flex: 1, textAlign: 'right' },
+  sumAction: { fontSize: 15, fontWeight: '800', color: paper.ink, marginLeft: 10 },
   sumRetry: { minHeight: 44, justifyContent: 'center' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { marginTop: 24, backgroundColor: paper.criticalWash, padding: 13 },
@@ -945,6 +945,6 @@ const s = StyleSheet.create({
     marginTop: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE',
     minHeight: 48, justifyContent: 'center', paddingHorizontal: 2,
   },
-  baseDoorTxt: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
-  baseDoorHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim },
+  baseDoorTxt: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  baseDoorHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim },
 });

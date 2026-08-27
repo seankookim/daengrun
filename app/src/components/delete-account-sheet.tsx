@@ -455,8 +455,8 @@ const s = StyleSheet.create({
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0', marginBottom: 12 },
   title: { fontSize: 23, fontWeight: '900', color: paper.ink, marginBottom: 8 },
   lead: { fontSize: 16, fontWeight: '700', color: paper.text, lineHeight: 23 },
-  h: { fontSize: 14, fontWeight: '900', color: paper.dim, marginTop: 16, marginBottom: 4 },
-  p: { fontSize: 14.5, color: paper.text, lineHeight: 21 },
+  h: { fontSize: 16, fontWeight: '900', color: paper.dim, marginTop: 16, marginBottom: 4 },
+  p: { fontSize: 15, color: paper.text, lineHeight: 21 },
   // (c) — the forfeiture disclosure. Given a plate of its own because it is doing a gate's job.
   forfeit: { marginTop: 16, backgroundColor: paper.criticalWash, paddingHorizontal: 12, paddingVertical: 11 },
   forfeitText: { fontSize: 15, fontWeight: '800', color: paper.critical, lineHeight: 22 },
@@ -466,7 +466,7 @@ const s = StyleSheet.create({
   holdLabel: { fontSize: 15, fontWeight: '800', color: paper.actionInk, textAlign: 'center' },
   track: { marginTop: 10, height: 6, backgroundColor: '#EFE3DF', overflow: 'hidden' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, backgroundColor: paper.critical },
-  hint: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  hint: { fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 8, lineHeight: 20 },
   tokenBox: { marginTop: 12, backgroundColor: paper.criticalWash, paddingHorizontal: 12, paddingVertical: 10 },
-  tokenText: { fontSize: 14.5, fontWeight: '800', color: paper.critical },
+  tokenText: { fontSize: 15, fontWeight: '800', color: paper.critical },
 });

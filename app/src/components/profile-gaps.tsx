@@ -108,7 +108,7 @@ export function ProfileGaps({ gaps, dogName, onOpen }: {
 const s = StyleSheet.create({
   wrap: { paddingHorizontal: 12, paddingVertical: 16 },
   // 킥커도 14pt — 한글은 레터스페이스 면제 대상이 아니다 (면제는 라틴 대문자 킥커뿐).
-  kicker: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: paper.dim, marginBottom: 8 },
+  kicker: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: paper.dim, marginBottom: 8 },
   // 잉크 아웃라인 — 코랄은 재예약 패널의 것이다 (위 주석).
   gap: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
@@ -116,8 +116,8 @@ const s = StyleSheet.create({
     paddingVertical: 11, paddingHorizontal: 13, marginTop: 7,
   },
   gapTitle: { fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: paper.ink, letterSpacing: -0.2 },
-  gapSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 },
+  gapSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 },
   gapChev: { fontSize: 18, lineHeight: 22, color: paper.actionInk },
   later: { alignItems: 'center', paddingVertical: 11, marginTop: 4 },
-  laterTx: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  laterTx: { fontSize: 15, lineHeight: 19, color: paper.dim },
 });

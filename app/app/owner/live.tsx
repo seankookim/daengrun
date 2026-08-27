@@ -1057,9 +1057,9 @@ const s = StyleSheet.create({
   },
   backGlyph: { fontSize: 20.5, color: paper.ink },
   livePill: { backgroundColor: paper.ink, paddingVertical: 11, paddingHorizontal: 16, alignSelf: 'center' },
-  livePillTxt: { fontSize: 14, fontWeight: '900', color: '#ffffff' },
+  livePillTxt: { fontSize: 15, fontWeight: '900', color: '#ffffff' },
   sosBtn: { width: 40, height: 40, backgroundColor: paper.critical, alignItems: 'center', justifyContent: 'center' },
-  sosTxt: { fontSize: 14, fontWeight: '900', color: '#ffffff' },
+  sosTxt: { fontSize: 15, fontWeight: '900', color: '#ffffff' },
   // ---------- 대기·실패면 ----------
   waitWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   waitTitle: { fontSize: 16, fontWeight: '900', color: paper.ink },
@@ -1070,8 +1070,8 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 12, paddingHorizontal: 16,
   },
-  failTxt: { fontSize: 14, fontWeight: '700', color: paper.critical, flex: 1 },
-  failRetry: { fontSize: 14, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  failTxt: { fontSize: 15, fontWeight: '700', color: paper.critical, flex: 1 },
+  failRetry: { fontSize: 15, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ---------- hold strip (확인 중 · 환불 중) ----------
   // Same critical vocabulary as failStrip, different ground: failStrip (canvas) is "it just failed,
   // retry", this is "it is being handled, wait". Ink is critical (#B3261E on #FBEAE7 = 8.9:1
@@ -1081,7 +1081,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 12, paddingHorizontal: 16, marginTop: 12,
   },
-  holdTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical },
+  holdTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical },
   // Never two buttons of the same colour: 안전 센터 is the emphasized door (ink plate + white
   // label), 채팅 is the critical-hairline plate. Both land at 42pt so neither outranks by size.
   holdBtn: {
@@ -1103,33 +1103,33 @@ const s = StyleSheet.create({
   signalPill: { paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center', borderWidth: 1 },
   signalOn: { backgroundColor: paper.wash, borderColor: paper.line },
   signalOff: { backgroundColor: paper.canvas, borderColor: paper.faint },
-  signalTxtOn: { fontSize: 14, fontWeight: '800', color: paper.ink },
-  signalTxtOff: { fontSize: 14, fontWeight: '800', color: paper.dim },
-  modeNote: { fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 },
+  signalTxtOn: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  signalTxtOff: { fontSize: 15, fontWeight: '800', color: paper.dim },
+  modeNote: { fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 19 },
   // 잉크 밑줄 — 코랄 강조 예산을 쓰지 않는 어포던스 (실패 스트립의 크리티컬 링크와 역할이 다르다)
-  geoRetry: { fontSize: 14, fontWeight: '800', color: paper.ink, textDecorationLine: 'underline' },
+  geoRetry: { fontSize: 15, fontWeight: '800', color: paper.ink, textDecorationLine: 'underline' },
   // ---------- 지도 위 오버레이 (샤프 코너 · 흰 플레이트) ----------
   // 상단 바(top 56, 높이 40)를 지나 앉는다. 지도를 가리지 않도록 좌우 여백은 상단 바와 같다.
   mapNote: {
     position: 'absolute', top: 106, left: 10, right: 10,
     backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 9, paddingHorizontal: 12,
   },
-  mapNoteTitle: { fontSize: 14.5, fontWeight: '900', color: paper.ink },
-  mapNoteBody: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 19 },
-  // 범례 — 디테일 텍스트 플로어 14pt (랩의 12.5pt는 이 프로젝트에서 통과하지 않는다)
+  mapNoteTitle: { fontSize: 16, fontWeight: '900', color: paper.ink },
+  mapNoteBody: { fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 19 },
+  // 범례 — 디테일 텍스트 플로어 15pt (랩의 12.5pt는 이 프로젝트에서 통과하지 않는다)
   legend: {
     position: 'absolute', left: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 5, paddingHorizontal: 8,
   },
   legendSwatch: { fontSize: 14, fontWeight: '800', lineHeight: 18 },
-  legendTxt: { fontSize: 14, color: paper.text, lineHeight: 18 },
+  legendTxt: { fontSize: 15, color: paper.text, lineHeight: 18 },
   // 라이브 캠 슬롯 — null이면 렌더되지 않는다 (자리만 예약)
   streamSlot: { marginTop: 12, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 12 },
-  streamTxt: { fontSize: 14, fontWeight: '700', color: paper.text },
+  streamTxt: { fontSize: 15, fontWeight: '700', color: paper.text },
   kmNum: { fontSize: 34.5, lineHeight: 42, fontWeight: '900', color: paper.ink },
   kmUnit: { fontSize: 15, fontWeight: '700', color: paper.dim },
   statNum: { fontSize: 23, lineHeight: 28, fontWeight: '900', color: paper.ink },
-  statLabel: { fontSize: 14, color: paper.dim, marginTop: 1 },
+  statLabel: { fontSize: 15, color: paper.dim, marginTop: 1 },
   progressTrack: { height: 5, backgroundColor: paper.disabledFill, marginTop: 12, overflow: 'hidden' },
   progressFill: { height: 5, backgroundColor: paper.line },
   // 페이스 상태 줄 — 칩(§3b: 16/800 · radius 0 · 틴트 면 · 보더 없음) 왼쪽, 권장 캡션 오른쪽.
@@ -1141,7 +1141,7 @@ const s = StyleSheet.create({
   paceChipTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800' },
   paceChipInkGood: { color: paper.paceGoodInk },
   paceChipInkSlow: { color: paper.paceSlowInk },
-  paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: paper.dim },
+  paceTarget: { marginLeft: 'auto', fontSize: 15, lineHeight: 18, color: paper.dim },
   // 버튼 매트릭스 — secondary(wash 면 + 코랄 헤어라인 + actionInk 라벨) + destructive(캔버스 면
   // + 크리티컬 잉크·보더). [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄
   // **필**이 0개인 게 맞다: 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 진다.
@@ -1163,8 +1163,8 @@ const s = StyleSheet.create({
   stopSheet: { backgroundColor: paper.canvas, borderTopWidth: 1, borderColor: paper.line, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 3, backgroundColor: paper.line, marginBottom: 14 },
   sheetTitle: { fontSize: 20.5, fontWeight: '900', color: paper.ink },
-  sheetBody: { fontSize: 14, color: paper.text, marginTop: 5, lineHeight: 20.5 },
-  sheetLabel: { fontSize: 14.5, fontWeight: '800', color: paper.ink, marginTop: 16, marginBottom: 8 },
+  sheetBody: { fontSize: 15, color: paper.text, marginTop: 5, lineHeight: 20.5 },
+  sheetLabel: { fontSize: 16, fontWeight: '800', color: paper.ink, marginTop: 16, marginBottom: 8 },
   // ── 종료 사유 픽커 — ⓑ 도장 칸 (Sean round-6 pick; lab club-v2-setup-lab.html:224-236) ──
   // reasonRow / reasonRowSel / radio / radioDot 은 여기서 은퇴했다: 코랄 테두리 상자 3개가
   // 그가 「excel block」이라고 부른 바로 그 모양이었다.

@@ -362,7 +362,7 @@ export default function ClubRun() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center' }}>진행 중인 러닝이 없어요{'\n'}세션 화면에서 러닝을 시작해주세요</Text>
+          <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center' }}>진행 중인 러닝이 없어요{'\n'}세션 화면에서 러닝을 시작해주세요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -382,12 +382,12 @@ export default function ClubRun() {
         />
         {saveLag && (
           <View style={s.lagBanner}>
-            <Text style={{ fontSize: 14, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+            <Text style={{ fontSize: 15, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
         )}
         {trackMode === 'foreground' && (
           <View style={s.lagBanner}>
-            <Text style={{ fontSize: 14, color: '#7a5a2a' }}>앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</Text>
+            <Text style={{ fontSize: 15, color: '#7a5a2a' }}>앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</Text>
           </View>
         )}
 
@@ -416,7 +416,7 @@ export default function ClubRun() {
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <LiveDot />
-              <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center', lineHeight: 18 }}>
+              <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', lineHeight: 18 }}>
                 {trackMode === 'denied' ? '위치 권한이 꺼져 있어요 — 트레이스·정산이 불가능해요'
                   : trackMode === 'unavailable' ? '위치 기능이 없는 빌드예요 — 새 빌드에서 기록돼요'
                   : !maps ? '지도 미탑재 빌드 — 위치는 기록되고 있어요'
@@ -442,24 +442,24 @@ export default function ClubRun() {
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#5d5138' }}>{d.dogName[0]}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{d.dogName} · {d.ownerName} 보호자</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{d.dogName} · {d.ownerName} 보호자</Text>
                 {em ? (
                   <Pressable onPress={() => Linking.openURL(`tel:${em.replace(/[^0-9+]/g, '')}`).catch(() => {})}>
-                    <Text style={{ fontSize: 14, color: L.accent, marginTop: 1, fontWeight: '700' }}>비상 {em} — 탭하면 전화</Text>
+                    <Text style={{ fontSize: 15, color: L.accent, marginTop: 1, fontWeight: '700' }}>비상 {em} — 탭하면 전화</Text>
                   </Pressable>
                 ) : rosterErr && roster == null ? (
                   // safety datum failed during a LIVE run — loud fail + retry, never eternal loading
                   <Pressable onPress={load} hitSlop={8} accessibilityRole="button">
-                    <Text style={{ fontSize: 14, color: L.tang, marginTop: 1, fontWeight: '800' }}>비상 연락처를 불러오지 못했어요 — 다시 시도 ›</Text>
+                    <Text style={{ fontSize: 15, color: L.tang, marginTop: 1, fontWeight: '800' }}>비상 연락처를 불러오지 못했어요 — 다시 시도 ›</Text>
                   </Pressable>
                 ) : roster == null ? (
-                  <Text style={{ fontSize: 14, color: L.dim, marginTop: 1 }}>비상 연락처 로딩 중</Text>
+                  <Text style={{ fontSize: 15, color: L.dim, marginTop: 1 }}>비상 연락처 로딩 중</Text>
                 ) : (
-                  <Text style={{ fontSize: 14, color: L.dim, marginTop: 1 }}>비상 연락처 미등록</Text>
+                  <Text style={{ fontSize: 15, color: L.dim, marginTop: 1 }}>비상 연락처 미등록</Text>
                 )}
               </View>
               <Pressable onPress={() => setEndTarget(d)} style={s.endBtn}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: L.text }}>종료</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: L.text }}>종료</Text>
               </Pressable>
             </View>
           );
@@ -470,7 +470,7 @@ export default function ClubRun() {
         {/* ---------- SOS(좌하단 엄지) · 카메라 · 종료 ---------- */}
         <Row style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
           <Pressable onPress={doSosPress} style={s.sos}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>SOS</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>SOS</Text>
           </Pressable>
           <Pressable onPress={doPhoto} style={s.camBtn}>
             <Icon name="Camera" glyph="◉" size={20} color={L.head} />
@@ -495,17 +495,17 @@ export default function ClubRun() {
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{endTarget?.dogName} 러닝 종료</Text>
             <Text style={[{ fontSize: 20, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-              {km.toFixed(1)}<Text style={{ fontSize: 14, color: L.coral }}>km</Text>
+              {km.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text>
             </Text>
           </Row>
-          <Text style={{ fontSize: 14, color: L.dim, marginTop: 4 }}>
+          <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>
             {active.length > 1
               ? `함께 달린 누적 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 정산은 이 아이의 시작 시점부터 실측으로 계산돼요`
               : `실측 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 이 기록으로 정산돼요`}
           </Text>
           <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
-          {/* [D13 FLOOR14 2026-08-12] 9.5 → 14. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
-          <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 0.4 }}>조기 종료</Text>
+          {/* [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 9.5 → 14 → 15. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
+          <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 0.4 }}>조기 종료</Text>
           {endStep === 'reason'
             ? END_REASONS.map((r) => (
               <Pressable key={r.key} disabled={busy}
@@ -517,12 +517,12 @@ export default function ClubRun() {
                   doSettle(endTarget, r.key);
                 }}
                 style={s.reasonRow}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: L.text }}>{r.label}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: L.text }}>{r.label}</Text>
               </Pressable>
             ))
             : (
               <View style={{ marginTop: 4 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: L.text, marginBottom: 6 }}>관찰한 내용</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: L.text, marginBottom: 6 }}>관찰한 내용</Text>
                 <TextInput
                   style={s.noteInput}
                   value={conditionNote}
@@ -532,7 +532,7 @@ export default function ClubRun() {
                   multiline
                   editable={!busy}
                 />
-                <Text style={{ fontSize: 13, lineHeight: 18, color: L.dim, marginTop: 6 }}>
+                <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 6 }}>
                   보호자가 리포트에서 그대로 읽어요 — 보신 것을 적어주세요
                 </Text>
                 <ClubCta
@@ -542,7 +542,7 @@ export default function ClubRun() {
                   disabled={!canSubmitNote || busy}
                 />
                 <Pressable disabled={busy} onPress={() => setEndStep('reason')} style={{ paddingVertical: 10 }}>
-                  <Text style={{ fontSize: 13, color: L.dim, textAlign: 'center' }}>← 사유 다시 고르기</Text>
+                  <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center' }}>← 사유 다시 고르기</Text>
                 </Pressable>
               </View>
             )}
@@ -600,6 +600,6 @@ const s = StyleSheet.create({
   noteInput: {
     backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.inner,
     paddingVertical: 11, paddingHorizontal: 13, minHeight: 88, textAlignVertical: 'top',
-    fontSize: 14, lineHeight: 20, color: L.text,
+    fontSize: 15, lineHeight: 20, color: L.text,
   },
 });

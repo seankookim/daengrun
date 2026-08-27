@@ -279,7 +279,7 @@ export default function ClubPage() {
         {/* 라우드-페일 스트립 — 실패는 빈 셸로 침묵하지 않는다 (재시도 동반) */}
         {clubErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>클럽 정보를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>클럽 정보를 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.failRetry} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
             </Pressable>
@@ -413,8 +413,8 @@ export default function ClubPage() {
                         {facts.map((f, i) => (
                           <View key={f.k} style={[s.factCell, i > 0 && s.factCellDiv]}>
                             <Text style={s.factK}>{f.k}</Text>
-                            <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: L.head }, f.num ? nf : undefined]}>
-                              {/* CLUB15 */}{f.v}{f.unit ? <Text style={{ fontSize: 12, fontWeight: '500', color: L.text }}> {f.unit}</Text> : null}{/* CLUB15 단위 접미사 예외 */}
+                            <Text style={[{ fontSize: 17, lineHeight: 22, fontWeight: '700', color: L.head }, f.num ? nf : undefined]}>
+                              {/* CLUB15 */}{f.v}{f.unit ? <Text style={{ fontSize: 15, fontWeight: '500', color: L.text }}> {f.unit}</Text> : null}{/* [FLOOR15] 단위 접미사 예외 철회 — 'km · 멤버'는 읽는 데이터이고 면제 클래스가 아니다 (12 → 15). 값은 15 → 17로 올려 단위와의 위계를 유지한다. */}
                             </Text>
                           </View>
                         ))}
@@ -551,7 +551,7 @@ export default function ClubPage() {
                   <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
                     <Text style={s.tileK}>내 출석</Text>
                     {myStats.streak >= 2 && (
-                      <View style={s.streakTag}><Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: L.amber }}>연속 {myStats.streak}</Text></View>
+                      <View style={s.streakTag}><Text style={{ fontSize: 15, fontWeight: '800', letterSpacing: 1, color: L.amber }}>연속 {myStats.streak}</Text></View>
                     )}
                   </Row>
                   <Text style={[{ fontSize: 23, lineHeight: 28, fontWeight: '600', color: L.head }, nf]}>
@@ -578,7 +578,7 @@ export default function ClubPage() {
                     {[[hostStats.sessions, '세션'], [hostStats.totalTeams, '총 참여 팀'], [hostStats.returning, '재방문']].map(([v, l], i) => (
                       <View key={l as string} style={[{ flex: 1, minWidth: 0 }, i > 0 && { borderLeftWidth: 1, borderLeftColor: L.hair2, paddingLeft: 8 }]}>
                         <Text style={[{ fontSize: 16, lineHeight: 20, fontWeight: '600', color: L.head }, nf]}>{v}</Text>
-                        <Text style={{ fontSize: 14, lineHeight: 19, color: L.dim, marginTop: 3 }}>{/* CLUB15 */}{l}</Text>
+                        <Text style={{ fontSize: 15, lineHeight: 19, color: L.dim, marginTop: 3 }}>{/* CLUB15 */}{l}</Text>
                       </View>
                     ))}
                   </Row>
@@ -587,7 +587,7 @@ export default function ClubPage() {
                       <View style={s.hostDot}><Text style={{ fontSize: 7, fontWeight: '700', color: '#fff' }}>{club.hostName.slice(0, 1)}</Text></View>
                       {/* numberOfLines 1 → 2: '· N세션째 같은 자리'가 말줄임으로 잘려 문장이 사라졌다.
                           호스트 신뢰의 유일한 서술문이라 줄여 없앨 대상이 아니다. */}
-                      <Text style={{ flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', color: L.text }} numberOfLines={2}>
+                      <Text style={{ flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '600', color: L.text }} numberOfLines={2}>
                         {club.hostName} <Text style={{ color: L.dim }}>· {hostStats.sessions}세션째 같은 자리</Text>
                       </Text>
                     </Row>
@@ -603,7 +603,7 @@ export default function ClubPage() {
               (§3b 프라이머리는 어차피 풀블리드에 가깝게 놓인다). */}
           {club?.isHost && (
             <View style={s.hostTool}>
-              <Text style={{ fontSize: 14, color: paper.dim, lineHeight: 19 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
+              <Text style={{ fontSize: 15, color: paper.dim, lineHeight: 19 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
               <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { backgroundColor: paper.actionPressed }]}>
                 <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' }}>＋ 세션 열기</Text>
               </Pressable>
@@ -612,7 +612,10 @@ export default function ClubPage() {
 
           {/* ---------- 콜로폰 ---------- */}
           <Row style={s.colophon}>
-            <Text style={s.colophonTxt}>{club?.district ?? ''}</Text>
+            {/* [FLOOR15] 구 이름은 콜로폰 옆에 앉은 **데이터**다 (§3 로고 예외 3항: 로고 옆의
+                지역·날짜·상태는 텍스트다) — 7.5pt 라틴 마이크로 옷을 벗고 15pt로. 오른쪽
+                'DOGS HIGH · HIGH CLUB'은 워드마크라 마이크로 그대로 남는다. */}
+            <Text style={s.colophonKo}>{club?.district ?? ''}</Text>
             <Text style={s.colophonTxt}>DOGS HIGH · HIGH CLUB</Text>
           </Row>
         </View>
@@ -748,7 +751,11 @@ const s = StyleSheet.create({
     width: 30, height: 30, borderRadius: 7, borderWidth: 1, borderColor: L.hair, backgroundColor: L.card,
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.06,
   },
-  crumb: { fontSize: 9, fontWeight: '700', letterSpacing: 3, color: L.dim },
+  // [FLOOR15 2026-08-27] 9 → 15. The crumb is not a pure latin kicker: it prints
+  // 'CLUB · {club.district}', so a Korean district name rode the letterspaced-caps exemption
+  // (§3 — Korean never does). Tracking 3 → 1 for the same reason pay.tsx's status chip dropped
+  // 1.6 → 0.8: letterspacing is latin-caps grammar and pulls Korean syllables apart.
+  crumb: { fontSize: 15, fontWeight: '700', letterSpacing: 1, color: L.dim },
   // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 + 재시도 (community.tsx 문법)
   failStrip: { marginTop: 10, backgroundColor: paper.criticalWash, borderRadius: lilacRadius.card, padding: 13 },
   failRetry: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: L.head, borderRadius: lilacRadius.btn, backgroundColor: '#fff' },
@@ -812,8 +819,8 @@ const s = StyleSheet.create({
     shadowColor: L.coral, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
   doorQuiet: { backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair },
-  doorSubCoral: { fontSize: 14, lineHeight: 19, color: 'rgba(255,255,255,.88)', marginTop: 4 }, // CLUB15
-  doorSubQuiet: { fontSize: 14, lineHeight: 19, color: L.dim, marginTop: 4 }, // CLUB15
+  doorSubCoral: { fontSize: 15, lineHeight: 19, color: 'rgba(255,255,255,.88)', marginTop: 4 }, // CLUB15
+  doorSubQuiet: { fontSize: 15, lineHeight: 19, color: L.dim, marginTop: 4 }, // CLUB15
   codeTxt: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.dim },
   // ④ 리듬
   rhythm: {
@@ -837,9 +844,9 @@ const s = StyleSheet.create({
     flex: 1, minWidth: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
     borderRadius: 0, padding: 12,
   },
-  // [FLOOR14] '내 출석' · '호스트 신뢰'는 한글 라벨인데 8pt + 트래킹 1.8로 렌더됐다 —
+  // [FLOOR15] '내 출석' · '호스트 신뢰'는 한글 라벨인데 8pt + 트래킹 1.8로 렌더됐다 —
   // 라틴 레터스페이스 키커 문법을 한글에 입힌 정확한 위반 (§3). 14로 올리고 트래킹을 걷는다.
-  tileK: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.2, color: paper.dim },
+  tileK: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 0.2, color: paper.dim },
   streakTag: { borderWidth: 1, borderColor: L.hair, borderRadius: 5, backgroundColor: L.card, paddingVertical: 2, paddingHorizontal: 5 },
   stampOn: { width: 11, height: 11, borderRadius: 2, backgroundColor: L.accent, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
   stampNext: { width: 11, height: 11, borderRadius: 2, borderWidth: 1.2, borderColor: L.hair },
@@ -860,6 +867,7 @@ const s = StyleSheet.create({
   // 콜로폰
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
   colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },
+  colophonKo: { fontSize: 15, lineHeight: 19, fontWeight: '700', letterSpacing: 0.4, color: L.dim },
   // 시트
   // ── 날짜·시각·정원 컨트롤 (Sean 2026-08-26) ──
   fieldLbl: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head, marginTop: 14, marginBottom: 6 },

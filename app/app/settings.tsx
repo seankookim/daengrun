@@ -186,7 +186,7 @@ export default function Settings() {
         <InfoRow label="알림 설정" value="푸시 도입 후" muted />
       </View>
 
-      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
+      <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
 
@@ -214,7 +214,7 @@ const s = StyleSheet.create({
   div: { height: 1, backgroundColor: '#f0eee3' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   actionText: { fontSize: 16, fontWeight: '700', color: paper.ink },
-  // 14pt 플로어 + paper.dim(5.7:1) — 디테일 텍스트 법 (theme.ts)
-  actionHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 3 },
+  // 15pt 플로어 + paper.dim(5.7:1) — 디테일 텍스트 법 (theme.ts)
+  actionHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 3 },
   baseValue: { fontSize: 15.5, fontWeight: '700', color: paper.ink },
 });

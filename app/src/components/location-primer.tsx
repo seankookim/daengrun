@@ -87,7 +87,7 @@ export async function shouldShowPrimer(): Promise<boolean> {
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: paper.canvas },
   body: { paddingHorizontal: 20, paddingTop: 28 },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 1.9, color: paper.faint },
+  kicker: { fontSize: 15, fontWeight: '800', letterSpacing: 1.9, color: paper.faint },
   head: { fontSize: 26, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 10 },
   lede: { fontSize: 16, lineHeight: 24, color: paper.text, marginTop: 12 },
   // solid coral hairline — 이 선이 곧 브랜드 (DESIGN.md §4)

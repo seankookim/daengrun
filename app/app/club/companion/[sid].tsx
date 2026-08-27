@@ -235,7 +235,7 @@ const s = StyleSheet.create({
   body: { padding: 20, paddingBottom: 60 },
   back: { width: 40, height: 40, borderWidth: 1, borderColor: paper.line, alignItems: 'center', justifyContent: 'center' },
   backTxt: { fontSize: 20.5, color: paper.ink, lineHeight: 25 },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 1.9, color: paper.faint, marginTop: 22 },
+  kicker: { fontSize: 15, fontWeight: '800', letterSpacing: 1.9, color: paper.faint, marginTop: 22 },
   head: { fontSize: 26, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 10 },
   lede: { fontSize: 16, lineHeight: 24, color: paper.text, marginTop: 14 },
   rule: { height: 1, backgroundColor: paper.line, marginTop: 22 },

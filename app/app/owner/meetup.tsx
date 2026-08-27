@@ -846,9 +846,9 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
   // fix-path line inside the pending box (DS-3) — coral, invitation not error
-  mapPendingLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.line, textAlign: 'center', marginTop: 5 },
+  mapPendingLink: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.line, textAlign: 'center', marginTop: 5 },
   // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
   runnerPin: {
     position: 'absolute', right: 34, top: 34, width: 26, height: 26, borderRadius: 13,
@@ -856,19 +856,19 @@ const s = StyleSheet.create({
   },
   // ── 만남 장소 (구 noteStrip을 흡수 — 이제 제목·주소·메모가 한 블록) ──
   place: { paddingHorizontal: PAD, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: paper.line },
-  noteK: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  noteK: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
   placeTtl: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 4 },
-  placeAddr: { fontSize: 14, lineHeight: 19, color: paper.text, marginTop: 2 },
+  placeAddr: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 2 },
   // 러너가 인계 화면에서 읽는 바로 그 줄(addresses.detail) — 조용하지만 dim(AA) 하한 위
-  placeNote: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 5 },
-  noteEmpty: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 5 },
-  noteGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk, marginTop: 7, textAlign: 'right' },
+  placeNote: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 5 },
+  noteEmpty: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 5 },
+  noteGo: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk, marginTop: 7, textAlign: 'right' },
   pickupPin: {
     position: 'absolute', left: 60, top: 128, width: 36, height: 26, borderRadius: 13,
     backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
     opacity: 0.4, // [정직 배치 2.5] 실좌표가 아니다 — 지면 무늬로 강등
   },
-  pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
+  pinText: { fontSize: 15, lineHeight: 18, fontWeight: '900', color: '#fff' },
 
   // ── 헤더 (인플로우 — 구 absolute topBar 은퇴, request.tsx의 §C .top 문법) ──
   header: {
@@ -880,7 +880,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line,
   },
   headerTtl: { flex: 1, fontSize: 20, lineHeight: 26, fontWeight: '800', color: paper.ink },
-  headerLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
+  headerLink: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.ink },
 
   // ── 상태 줄 (코랄 워시 스트립 — 랩 11b′의 .alert) ──
   alert: {
@@ -888,26 +888,26 @@ const s = StyleSheet.create({
     backgroundColor: paper.wash, paddingVertical: 12, paddingHorizontal: layout.gutter,
   },
   alertDot: { width: 8, height: 8, borderRadius: 4 },
-  alertText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  alertText: { flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink },
 
   // ── 섹션 (풀블리드 — 카드·라운드·섀도·이중 프레임 은퇴, 코랄 1px만이 면을 나눈다) ──
   section: { paddingHorizontal: PAD, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: paper.line },
   peerName: { flexShrink: 1, fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink },
-  peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  peerMeta: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 3 },
 
   // ── 챙겼나요 칩 (러너 프리플라이트의 checkRow 문법을 칩으로 — 캔버스/1px, on은 워시 면) ──
   gearChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 14 },
   gearChipOn: { backgroundColor: paper.wash },
-  gearChipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.text },
+  gearChipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: paper.text },
   gearChipTxtOn: { fontWeight: '800', color: paper.actionInk },
-  gearSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 },
+  gearSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 },
 
   // ── 의식 헤더 ──
-  kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (14pt 플로어 면제)
+  kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (15pt 플로어 면제)
   ttl: { fontSize: 20, fontWeight: '900', color: paper.ink, marginTop: 3 },
   countPill: { alignSelf: 'flex-start', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 4, paddingHorizontal: 9 },
   countPillOn: { backgroundColor: paper.ink, borderColor: paper.ink },
-  countText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.text },
+  countText: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.text },
   countTextOn: { color: '#fff' },
 
   // ── 아티팩트 = 봉인 스텁 (나이트 풀블리드 · 코랄 헤어라인 심 · 가운데 천공) ──
@@ -939,11 +939,11 @@ const s = StyleSheet.create({
     shadowColor: GOLD, shadowOpacity: 0.38, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   slotMark: { fontSize: 21, lineHeight: 25, fontWeight: '900', color: SEAL_INK },
-  // [FLOOR14 예외] 트래킹 라틴 캡스 키커 — 역할 각인. 읽는 정보는 아래 한글 두 줄이 진다.
+  // [FLOOR15 예외] 트래킹 라틴 캡스 키커 — 역할 각인. 읽는 정보는 아래 한글 두 줄이 진다.
   slotCaps: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: SEAL_INK, marginTop: 1 },
   slotCapsOff: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: NIGHT_DIM },
-  slotName: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 8 },
-  slotState: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: NIGHT_DIM, marginTop: 2 },
+  slotName: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 8 },
+  slotState: { fontSize: 15, lineHeight: 18, fontWeight: '600', color: NIGHT_DIM, marginTop: 2 },
   slotStateOn: { color: GOLD_SHEEN, fontWeight: '800' },
   // SEALED 룰 — 밴드와 한 몸인 의식의 콜로폰이라 골드가 남는다 (크롬에는 골드 금지)
   ribbon: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12, paddingHorizontal: 2 },
@@ -966,13 +966,13 @@ const s = StyleSheet.create({
   stepCore: { width: 7, height: 7, borderRadius: 4, backgroundColor: paper.line },
   stepTick: { fontSize: 11, lineHeight: 14, fontWeight: '900', color: '#fff' },
   // 미완 라벨도 읽히는 정보라 dim(AA) — faint는 캡스 키커 전용
-  stepLabel: { flex: 1, fontSize: 14.5, lineHeight: 20, fontWeight: '500', color: paper.dim },
+  stepLabel: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '500', color: paper.dim },
   stepLabelDone: { color: paper.ink, fontWeight: '700' },
   stepLabelActive: { color: paper.text, fontWeight: '700' },
 
   // ── 행동 존 (버튼 매트릭스는 PaperBtn이 진다 — 여기는 자리와 힌트만) ──
   actions: { paddingHorizontal: PAD, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: paper.line },
-  ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  ctaHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
   // ── 고정 CTA 도크 (request.tsx:1352 문법) — bottom:0까지 불투명 캔버스 + 코랄 헤어라인 1px.
   //    paddingBottom은 JSX가 세이프에어리어로 주입한다 (여기 고정값을 두면 그 값이 이긴다) ──
   ctaDock: {
@@ -980,14 +980,14 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderTopWidth: 1, borderTopColor: paper.line,
     paddingTop: 12, paddingHorizontal: layout.gutter,
   },
-  dockHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center' },
+  dockHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center' },
   status: {
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
     paddingVertical: 16, paddingHorizontal: PAD, alignItems: 'center',
   },
   statusKick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint },
   statusText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 7, textAlign: 'center' },
-  statusSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },
+  statusSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },
   // 헤일로가 1.9배(15.2px)로 퍼져도 무대(16) 안에 든다 — 안드로이드 클리핑 회피
   pulseStage: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   pulseHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
@@ -999,8 +999,8 @@ const s = StyleSheet.create({
   },
   nightKick: { fontSize: 10, fontWeight: '800', letterSpacing: 2.6, color: GOLD_SHEEN },
   nightText: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: '#fff', marginTop: 7, textAlign: 'center' },
-  nightSub: { fontSize: 14, lineHeight: 19, color: NIGHT_DIM, marginTop: 5, textAlign: 'center' },
-  foot: { fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
+  nightSub: { fontSize: 15, lineHeight: 19, color: NIGHT_DIM, marginTop: 5, textAlign: 'center' },
+  foot: { fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
 
   // ── incident hold strip — criticalWash ground + critical ink (measured 8.9:1 on #FBEAE7).
   // Full-bleed like every other section here, but its divider is the critical hairline, not the
@@ -1010,7 +1010,7 @@ const s = StyleSheet.create({
     paddingHorizontal: PAD, paddingVertical: 14,
   },
   holdTtl: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.critical },
-  holdBody: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: paper.critical, marginTop: 5 },
+  holdBody: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.critical, marginTop: 5 },
   // Two different affordances, never two of the same button: 안전 센터 is the emphasized door
   // (ink plate + white label — countPillOn's vocabulary; white on coral is forbidden, ink is not),
   // 채팅 is the critical-hairline plate on canvas. Same 46pt height so neither outranks by size.

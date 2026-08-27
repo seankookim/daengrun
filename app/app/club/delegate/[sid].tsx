@@ -123,20 +123,20 @@ export default function DelegateConsentScreen() {
           <View style={s.pdRow}>
             <Text style={s.pdKey}>위탁견</Text>
             <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {!dogsLoaded && !dogsErr && <Text style={{ fontSize: 14, color: '#8a8272' }}>강아지 목록 불러오는 중...</Text>}
+              {!dogsLoaded && !dogsErr && <Text style={{ fontSize: 15, color: '#8a8272' }}>강아지 목록 불러오는 중...</Text>}
               {dogsErr && (
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: L.tang }}>강아지 목록을 불러오지 못했어요</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: L.tang }}>강아지 목록을 불러오지 못했어요</Text>
                   <Pressable onPress={loadDogs} style={s.dogsRetry} accessibilityRole="button">
                     <Text style={{ fontSize: 16, fontWeight: '800', color: INK }}>다시 시도</Text>
                   </Pressable>
                 </View>
               )}
-              {dogsLoaded && dogs.length === 0 && <Text style={{ fontSize: 14, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
+              {dogsLoaded && dogs.length === 0 && <Text style={{ fontSize: 15, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
               {dogsLoaded && dogs.map((d, i) => (
                 <Pressable key={d.id} onPress={() => setDogIdx(i)}
                   style={[s.dogChip, i === dogIdx && { backgroundColor: INK, borderColor: INK }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
                     {d.name}{d.weightKg ? ` · ${d.weightKg}kg` : ''}
                   </Text>
                 </Pressable>
@@ -161,12 +161,12 @@ export default function DelegateConsentScreen() {
           <View style={s.pdRow}>
             <Text style={s.pdKey}>진료 한도</Text>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: INK }}>₩</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: INK }}>₩</Text>
               <TextInput
                 value={vetLimit} onChangeText={setVetLimit} keyboardType="number-pad"
                 style={[s.pdInput, { flex: 0, minWidth: 84 }]}
               />
-              <Text style={{ fontSize: 14, color: '#8a8272' }}>까지 사전 승인</Text>
+              <Text style={{ fontSize: 15, color: '#8a8272' }}>까지 사전 승인</Text>
             </View>
           </View>
           <Pressable onPress={() => setPhotoOk((v) => !v)} style={s.pdRow}>
@@ -174,12 +174,12 @@ export default function DelegateConsentScreen() {
             <View style={[s.checkBox, photoOk && { backgroundColor: INK, borderColor: INK }]}>
               {photoOk && <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>
-            <Text style={{ fontSize: 14, color: '#8a8272', flex: 1 }}>러닝 사진이 내 책과 클럽에 실릴 수 있어요</Text>
+            <Text style={{ fontSize: 15, color: '#8a8272', flex: 1 }}>러닝 사진이 내 책과 클럽에 실릴 수 있어요</Text>
           </Pressable>
 
           {/* 조항 — 규칙 7: 한 문단 */}
           <View style={s.clause}>
-            <Text style={{ fontSize: 14, lineHeight: 18, color: '#4a463c' }}>
+            <Text style={{ fontSize: 15, lineHeight: 18, color: '#4a463c' }}>
               인계부터 <Text style={{ fontWeight: '800', color: INK }}>양측 반환 확인까지</Text> 담당 러너가 {dog?.name ?? '아이'}의 보호 책임자예요.
               긴급 시 위 한도 안에서 바로 진료할 수 있어요.
             </Text>
@@ -189,10 +189,10 @@ export default function DelegateConsentScreen() {
           <View style={s.fee}>
             <View style={s.feeRow}>
               <Text style={s.pdKey}>위탁 요금</Text>
-              {boardState === 'loading' && <Text style={{ fontSize: 14, color: '#8a8272' }}>불러오는 중...</Text>}
+              {boardState === 'loading' && <Text style={{ fontSize: 15, color: '#8a8272' }}>불러오는 중...</Text>}
               {boardState === 'error' && (
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: L.tang }}>위탁 요금을 불러오지 못했어요</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: L.tang }}>위탁 요금을 불러오지 못했어요</Text>
                   <Pressable onPress={loadBoard} style={s.dogsRetry} accessibilityRole="button">
                     <Text style={{ fontSize: 16, fontWeight: '800', color: INK }}>다시 시도</Text>
                   </Pressable>
@@ -201,7 +201,7 @@ export default function DelegateConsentScreen() {
               {/* 코스가 없으면 서버가 route_required로 거절한다 (club_fare는 코스 km에서 나온다) —
                   문 앞에서 그 사실을 그대로 말한다. 없는 숫자를 지어내지 않는다. */}
               {boardState === 'ready' && fare == null && (
-                <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: '#8a8272' }}>
+                <Text style={{ flex: 1, fontSize: 15, lineHeight: 18, color: '#8a8272' }}>
                   이 세션엔 아직 코스가 없어요 — 코스가 정해지면 요금이 정해져요
                 </Text>
               )}
@@ -211,7 +211,8 @@ export default function DelegateConsentScreen() {
                     {fare.toLocaleString()}원
                   </Text>
                   {board?.session.routeKm != null && (
-                    <Text style={{ fontSize: 14, lineHeight: 18, color: '#8a8272', marginTop: 1 }}>
+                    {/* merge: trunk's routeName handling + the sweep's 15; lineHeight 22 so the raise clears BUG A's 1.2x */}
+                    <Text style={{ fontSize: 15, lineHeight: 22, color: '#8a8272', marginTop: 1 }}>
                       {board.session.routeKm}km{board.session.routeName ? ` · ${board.session.routeName}` : ' 코스'}
                     </Text>
                   )}
@@ -229,7 +230,7 @@ export default function DelegateConsentScreen() {
           {/* ② 봉인 스트립 — 코랄 소프트 필 */}
           <SealSlide width={width - 24 - 26 - 8} onSeal={submit} disabled={!ready || busy} />
           {!ready && (
-            <Text style={{ fontSize: 14, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
+            <Text style={{ fontSize: 15, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
               {!dogsLoaded
                 ? dogsErr ? '강아지 목록을 불러와야 봉인할 수 있어요' : '강아지 목록을 확인하는 중이에요'
                 : dogs.length === 0 ? '위탁견이 있어야 봉인할 수 있어요'
@@ -269,15 +270,15 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderBottomWidth: 1, borderBottomColor: '#E4DFD1', paddingVertical: 8,
   },
-  // [FLOOR14 sweep 2026-08-11] These are the field labels of a legal consent document
+  // [FLOOR14 sweep 2026-08-11 · FLOOR15 2026-08-27] These are the field labels of a legal consent document
   // (위탁견 · 비상 연락처 · 픽업 지정인 · 진료 한도 · 사진 동의) and they shipped at 8.5pt with
   // tracking 1 — the smallest Korean in the app, on the surface where comprehension matters most.
   // Korean never rides the letterspaced-caps kicker exemption (§3). Width 76 → 96 so the longest
   // label ('비상 연락처 *' ≈ 94px at 14pt) holds one line; the paper's inner width is 352 on a
   // 402pt screen, so the dashed input keeps ~248 — measured, not eyeballed.
-  pdKey: { width: 96, fontSize: 14, lineHeight: 18, letterSpacing: 0.2, color: '#8a8272', fontWeight: '700' },
+  pdKey: { width: 96, fontSize: 15, lineHeight: 18, letterSpacing: 0.2, color: '#8a8272', fontWeight: '700' },
   pdInput: {
-    flex: 1, fontSize: 14, fontWeight: '700', color: INK, padding: 0,
+    flex: 1, fontSize: 15, fontWeight: '700', color: INK, padding: 0,
     borderBottomWidth: 1.5, borderStyle: 'dashed', borderBottomColor: '#C9C2AE', paddingBottom: 2,
   },
   // retry chip inside the paper document — document grammar (ink border, sanctioned radius 4)
@@ -301,5 +302,5 @@ const s = StyleSheet.create({
   // request.tsx가 총액을 CTA 옆에 두는 것과 같다: 거는 손과 숫자가 같은 시야에 있어야 한다.
   fee: { borderTopWidth: 1.5, borderTopColor: INK, marginTop: 12, paddingTop: 9 },
   feeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  feeNote: { fontSize: 14, lineHeight: 18, color: '#8a8272', marginTop: 7 },
+  feeNote: { fontSize: 15, lineHeight: 18, color: '#8a8272', marginTop: 7 },
 });

@@ -195,7 +195,7 @@ export default function OnboardOwner() {
         )}
         {/* The counter is DATA in a kicker slot, so it takes the 14pt detail floor — the
             exemption covers letterspaced Latin kickers (labels), not the step number itself
-            (DESIGN.md §3, 14pt floor). */}
+            (DESIGN.md §3, 15pt floor). */}
         <Text style={s.step} accessibilityLabel={step2 ? '2단계, 총 2단계' : '1단계, 총 2단계'}>
           {step2 ? '2 / 2' : '1 / 2'}
         </Text>
@@ -305,8 +305,8 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   body: { paddingHorizontal: layout.gutter, paddingTop: 78, paddingBottom: 190 },
   back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
-  backTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
-  step: { fontSize: 14, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
+  backTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  step: { fontSize: 15, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, marginTop: 12 },
   // lab .field — bottom hairline in ink, 20/700 (address 16)
   fieldName: {
@@ -314,16 +314,16 @@ const s = StyleSheet.create({
     borderBottomWidth: 1.5, borderBottomColor: paper.ink,
     fontSize: 20, fontWeight: '700', color: paper.ink,
   },
-  kicker: { marginTop: 14, fontSize: 14, lineHeight: 18, letterSpacing: 1, fontWeight: '700', color: paper.dim },
+  kicker: { marginTop: 14, fontSize: 15, lineHeight: 18, letterSpacing: 1, fontWeight: '700', color: paper.dim },
   fieldAddr: {
     marginTop: 2, paddingTop: 10, paddingBottom: 8, minHeight: 44,
     borderBottomWidth: 1.5, borderBottomColor: paper.ink,
     fontSize: 16, fontWeight: '700', color: paper.ink,
   },
   fieldLocked: { color: paper.text, borderBottomColor: '#DDDDDD' },
-  hint: { marginTop: 8, fontSize: 14, lineHeight: 20, color: paper.dim },
+  hint: { marginTop: 8, fontSize: 15, lineHeight: 20, color: paper.dim },
   pinRow: { minHeight: 44, justifyContent: 'center' },
-  quiet: { marginTop: 8, fontSize: 14, lineHeight: 22, color: paper.dim },
+  quiet: { marginTop: 8, fontSize: 15, lineHeight: 22, color: paper.dim },
   quietLink: { color: paper.ink, fontWeight: '800' },
   ctaBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
@@ -331,8 +331,8 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: paper.line,
   },
   later: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  laterTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  laterTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
   failStrip: { backgroundColor: paper.criticalWash, padding: 12, marginBottom: 10 },
-  failTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.critical },
-  failAction: { marginTop: 4, fontSize: 14, lineHeight: 20, fontWeight: '800', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  failAction: { marginTop: 4, fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
 });

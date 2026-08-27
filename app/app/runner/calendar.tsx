@@ -163,7 +163,7 @@ export default function RunnerCalendar() {
           <Row style={{ gap: 7, alignItems: 'baseline' }}>
             {/* Oswald ticket time — lineHeight 27 = 1.29× (BUG A) */}
             <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{time}</Text>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, flex: 1 }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, flex: 1 }} numberOfLines={1}>
               {todayGroup ? dayTail(day) : day}
             </Text>
             {/* §3b status chip — 16/800, tinted fill, no border, on the time's row */}
@@ -177,13 +177,13 @@ export default function RunnerCalendar() {
           {/* [C③] 완료 행의 문장. 종전 '정산 완료'는 정산 사실이 아니라 표시 어휘(STATUS_MAP이
               뭉갠 'completed')에서 파생돼 있었다 — 이 화면에는 정산 여부를 아는 필드가 없다.
               수익 화면이 이미 쓰는 문장으로 맞춘다: 세 화면이 같은 사실을 같은 말로. */}
-          <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
+          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
             {j.status === 'confirmed' ? '탭하여 픽업 진행 ›'
               : j.status === 'in_progress' ? '탭하여 러닝 화면 ›'
                 : '지급 일정은 아직 정해지지 않았어요'}
           </Text>
         </View>
-        {/* FINISHER 도장 (완료) — latin stamp glyph class (14pt floor exempt) */}
+        {/* FINISHER 도장 (완료) — latin stamp glyph class (15pt floor exempt) */}
         {done && (
           <View style={s.finStamp}><Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#6E9BC5' }}>FINISHER</Text></View>
         )}
@@ -196,7 +196,7 @@ export default function RunnerCalendar() {
             +{j.payout.toLocaleString()}
           </Text>
           {/* 'PAYOUT' latin caption retired — Korean data renders ≥14 (§3 kicker law) */}
-          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 2 }}>
+          <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 2 }}>
             {done ? '정산 예정' : '실수령'}
           </Text>
         </View>
@@ -258,7 +258,7 @@ export default function RunnerCalendar() {
             onPress={() => router.push('/runner/availability')}
             style={({ pressed }) => [s.availBtn, pressed && { backgroundColor: paper.wash }]}
           >
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>가용시간 설정</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>가용시간 설정</Text>
           </Pressable>
         </Row>
 
@@ -269,7 +269,7 @@ export default function RunnerCalendar() {
           {/* [C②] 확정 0건은 종전 문장 그대로 (진짜 출구가 있는 문장이라 바꿀 이유가 없다).
               nextLabel은 확정 건이 있으면 항상 있고, nextRel은 하루 밖(또는 시각 없음)이면 null —
               그때는 날짜가 제 일을 하므로 카운트다운을 붙이지 않는다. */}
-          <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 3 }}>
+          <Text style={{ fontSize: 15, lineHeight: 18, color: '#BBBBBB', marginTop: 3 }}>
             확정 {upcoming.length}건
             {upcoming.length > 0 && nextLabel
               ? ` · 다음 러닝 ${nextLabel}${nextRel ? ` · ${nextRel}` : ''}`
@@ -296,7 +296,7 @@ export default function RunnerCalendar() {
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF', paddingBottom: 5, marginLeft: 4 }}>원</Text>
               </Row>
               {/* 추정치라는 사실은 여기서 한 번 — 확정 건들의 예상 정산 합계이지 확정 지급액이 아니다 */}
-              <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 6 }}>확정 건 예상 정산 합계</Text>
+              <Text style={{ fontSize: 15, lineHeight: 18, color: '#BBBBBB', marginTop: 6 }}>확정 건 예상 정산 합계</Text>
             </>
           )}
         </View>
@@ -304,13 +304,13 @@ export default function RunnerCalendar() {
         {/* ---------- 티켓 스택 (C2) ---------- */}
         {!loaded && !loadErr && (
           <View style={s.emptyJobs}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>확정 일정을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>확정 일정을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -318,7 +318,7 @@ export default function RunnerCalendar() {
         )}
         {loaded && !loadErr && jobs.length === 0 && (
           <View style={s.emptyJobs}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요
             </Text>
             <Pressable
@@ -400,7 +400,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: paper.line,
   },
   dayGroupH: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
-  dayGroupS: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  dayGroupS: { marginLeft: 'auto', fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
   statusChip: { borderRadius: 0, paddingVertical: 3, paddingHorizontal: 9 },
   stub: {
     width: 96, borderLeftWidth: 2, borderLeftColor: '#EEEEEE', borderStyle: 'dashed',

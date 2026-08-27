@@ -229,7 +229,7 @@ const s = StyleSheet.create({
   // 마스트헤드
   cbar: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 4, paddingRight: 10, marginBottom: 4 },
   cbarGlyph: { fontSize: 22, lineHeight: 26, color: lilac.head },
-  cbarLabel: { fontSize: 14, fontWeight: '700', color: lilac.head },
+  cbarLabel: { fontSize: 15, fontWeight: '700', color: lilac.head },
   kicker: { alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 8 },
   kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
@@ -241,7 +241,7 @@ const s = StyleSheet.create({
     paddingVertical: 5, paddingHorizontal: 8, backgroundColor: lilac.card,
   },
   officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: lilac.head, fontWeight: '600' },
-  subNote: { fontSize: 14, lineHeight: 21, color: lilac.text, marginTop: 9 },
+  subNote: { fontSize: 15, lineHeight: 21, color: lilac.text, marginTop: 9 },
 
   // 요약 스트립
   sum: {
@@ -252,22 +252,22 @@ const s = StyleSheet.create({
   sumDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2 },
   sumK: { fontSize: 12, letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase' },
   sumV: { fontSize: 22, lineHeight: 28, fontWeight: '800', color: lilac.head, marginTop: 3 }, // Oswald — 1.27× (BUG A)
-  sumVU: { fontSize: 14, fontWeight: '600', color: lilac.dim },
-  sumL: { fontSize: 14, color: lilac.text, marginTop: 2 },
+  sumVU: { fontSize: 15, fontWeight: '600', color: lilac.dim },
+  sumL: { fontSize: 15, color: lilac.text, marginTop: 2 },
 
   // 로드 실패 — 빈 화면 대신 실패를 말한다 (둘 다 실패 = 박스 · 한쪽만 실패 = 그 섹션 자리의 한 줄)
   errBox: { marginTop: 14, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, padding: 13 },
-  errT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
-  errD: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 2 },
+  errT: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: lilac.head },
+  errD: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   failNote: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 12 },
-  failTxt: { fontSize: 14, lineHeight: 20, color: lilac.text },
+  failTxt: { fontSize: 15, lineHeight: 20, color: lilac.text },
 
   // 섹션 라벨 (마이와 같은 문법 — § · LATIN · 한글 · 룰)
   sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
-  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 14pt 플로어 면제
+  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 15pt 플로어 면제
   secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  secKo: { fontSize: 14, fontWeight: '700', color: lilac.text },
-  microK: { fontSize: 12, letterSpacing: 1.6, color: lilac.dim, textTransform: 'uppercase' }, // 라틴 스트랩 — 신분면 microK 예외 상속
+  secKo: { fontSize: 15, fontWeight: '700', color: lilac.text },
+  microK: { fontSize: 15, letterSpacing: 1.6, color: lilac.dim, textTransform: 'uppercase' }, // [FLOOR15] 'MILESTONE / 마일스톤' — 라틴 스트랩이 아니라 한글을 싣는다. 12 → 15 (§3: 한글은 키커 예외를 타지 못한다).
 
   // § 도장 — 잉크 페이지 (포일 0)
   visa: {
@@ -280,10 +280,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 9,
   },
-  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' },
+  visaCntTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' },
   empt: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, padding: 11, marginBottom: 11 },
-  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
-  emptD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 3 },
+  emptT: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: lilac.head },
+  emptD: { fontSize: 15, lineHeight: 20, color: lilac.text, marginTop: 3 },
 
   // 도장 디스크 — my.tsx §③과 동일 기하, 행간만 한 단계 넉넉하게 (부속서는 수집함이다)
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 14 },
@@ -294,15 +294,15 @@ const s = StyleSheet.create({
     shadowColor: '#120E2C', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
   wellK: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
-  wellT: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  wellC: { fontSize: 14, lineHeight: 18, letterSpacing: 0.6, fontWeight: '600', color: NIGHT_INK }, // 볼트 은퇴 → 나이트 잉크
-  wellNote: { fontSize: 14, lineHeight: 19, color: NIGHT_DIM, marginBottom: 12 },
+  wellT: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  wellC: { fontSize: 15, lineHeight: 18, letterSpacing: 0.6, fontWeight: '600', color: NIGHT_INK }, // 볼트 은퇴 → 나이트 잉크
+  wellNote: { fontSize: 15, lineHeight: 19, color: NIGHT_DIM, marginBottom: 12 },
   pgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: PATCH_GAP, rowGap: 13 },
   pcell: { width: PATCH_CELL_W, minHeight: BADGE + 62, alignItems: 'center' },
-  pName: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: '#fff', marginTop: 7, textAlign: 'center', maxWidth: PATCH_CELL_W },
+  pName: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: '#fff', marginTop: 7, textAlign: 'center', maxWidth: PATCH_CELL_W },
   pNameOff: { color: 'rgba(255,255,255,0.72)' }, // 9.2:1
-  pSub: { fontSize: 14, lineHeight: 18, color: NIGHT_DIM, marginTop: 1, textAlign: 'center' },
-  pNext: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: NIGHT_INK, marginTop: 1, textAlign: 'center' },
+  pSub: { fontSize: 15, lineHeight: 18, color: NIGHT_DIM, marginTop: 1, textAlign: 'center' },
+  pNext: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: NIGHT_INK, marginTop: 1, textAlign: 'center' },
   pLock: {
     width: BADGE, height: BADGE, borderRadius: BADGE / 2, borderWidth: 2, borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center',

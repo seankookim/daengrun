@@ -367,13 +367,13 @@ export default function Community() {
         {/* ───────── 러너 후기 탭 — 실 공개 리뷰 ───────── */}
         {tab === 'reviews' && (
           <View style={{ paddingHorizontal: GUTTER, marginTop: 12, gap: 11 }}>
-            {reviews == null && reviewsErr == null && <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
+            {reviews == null && reviewsErr == null && <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
             {/* Loud fail — same criticalWash strip + underlined 다시 시도 the feed tab uses.
                 Margins zeroed: this column already carries the GUTTER the strip adds on the feed. */}
             {reviewsErr != null && (
               <View style={[s.failStrip, { marginHorizontal: 0, marginTop: 0 }]}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>후기를 불러오지 못했어요</Text>
-                <Text style={{ fontSize: 14, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{reviewsErr}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>후기를 불러오지 못했어요</Text>
+                <Text style={{ fontSize: 15, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{reviewsErr}</Text>
                 <Pressable onPress={loadReviews} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="다시 시도">
                   <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
                 </Pressable>
@@ -381,7 +381,7 @@ export default function Community() {
             )}
             {reviews != null && reviews.length === 0 && (
               <View style={s.revCard}>
-                <Text style={{ fontSize: 14.5, color: lilac.dim, textAlign: 'center', lineHeight: 22 }}>
+                <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', lineHeight: 22 }}>
                   아직 공개 후기가 없어요{'\n'}러닝이 끝나면 첫 후기를 남겨보세요
                 </Text>
               </View>
@@ -389,13 +389,13 @@ export default function Community() {
             {(reviews ?? []).map((rv, i) => (
               <View key={i} style={s.revCard}>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>{rv.runnerName} 러너</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head }}>{rv.runnerName} 러너</Text>
                   <Text style={[s.stamp, nf]}>{rv.when}</Text>
                 </Row>
                 {rv.rating != null && (
                   <Text style={{ fontSize: 14, color: lilac.amber, marginTop: 5, letterSpacing: 2 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
                 )}
-                {!!rv.note && <Text style={{ fontSize: 14, color: lilac.text, marginTop: 6, lineHeight: 21 }}>{rv.note}</Text>}
+                {!!rv.note && <Text style={{ fontSize: 15, color: lilac.text, marginTop: 6, lineHeight: 21 }}>{rv.note}</Text>}
                 {rv.tags.length > 0 && (
                   <Row style={{ gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
                     {rv.tags.map((t) => (
@@ -425,12 +425,12 @@ export default function Community() {
 
         {/* ───────── 피드 — 로딩 ≠ 에러 ≠ 빈 피드 (3상태 정직 분리) ───────── */}
         {tab === 'feed' && !loaded && (
-          <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>피드 불러오는 중...</Text>
+          <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>피드 불러오는 중...</Text>
         )}
         {tab === 'feed' && loaded && feedError != null && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>피드를 불러오지 못했어요</Text>
-            <Text style={{ fontSize: 14, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{feedError}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>피드를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{feedError}</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -439,7 +439,7 @@ export default function Community() {
         {tab === 'feed' && loaded && feedError == null && posts.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head, textAlign: 'center' }}>아직 포스트가 없어요</Text>
-            <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 6, lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 6, lineHeight: 22 }}>
               러닝을 완료하고 위의 '올리기'로 자랑해보세요{'\n'}첫 포스트의 주인공이 되어주세요
             </Text>
           </View>
@@ -455,7 +455,7 @@ export default function Community() {
                 {/* [0074 · Sean 2026-08-12] 인스타처럼 **아이디가 1급 신원**이다.
                     아이디가 있으면 @아이디를, 아직 안 만든 사람은 표시 이름으로 폴백한다 —
                     없는 아이디를 이름에서 지어내지 않는다 (핸들은 사람이 고르는 것이다). */}
-                <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                   {p.authorHandle ? `@${p.authorHandle}` : p.authorName}
                 </Text>
                 {p.meta.dogName && (
@@ -463,7 +463,7 @@ export default function Community() {
                     {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
                     )}
-                    <Text style={{ fontSize: 14, color: lilac.text }} numberOfLines={1}>{p.meta.dogName}와 함께</Text>
+                    <Text style={{ fontSize: 15, color: lilac.text }} numberOfLines={1}>{p.meta.dogName}와 함께</Text>
                   </Row>
                 )}
               </View>
@@ -492,7 +492,7 @@ export default function Community() {
                     {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
                     <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>✓</Text><Text style={s.recapK}>FINISHED</Text></View>
                   </Row>
-                  <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
+                  <Text style={{ fontSize: 15, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
                 </View>
               </Pressable>
@@ -585,16 +585,16 @@ export default function Community() {
                 <View style={s.record}>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.recordKm, nf]}>
-                      {p.meta.km != null ? p.meta.km : '—'}<Text style={{ fontSize: 14, color: lilac.text, letterSpacing: 0 }}> km</Text>
+                      {p.meta.km != null ? p.meta.km : '—'}<Text style={{ fontSize: 15, color: lilac.text, letterSpacing: 0 }}> km</Text>
                     </Text>
                     {fmtPace(p.meta.km, p.meta.durationSec) && (
                       <Text style={[s.recordPace, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)} / KM</Text>
                     )}
                     {p.meta.dogName && (
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} {runWord(p.meta)}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} {runWord(p.meta)}</Text>
                     )}
                     {fmtDur(p.meta.durationSec) && (
-                      <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 4 }}><Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
+                      <Text style={{ fontSize: 15, lineHeight: 18, color: lilac.text, marginTop: 4 }}><Text style={[{ fontSize: 15, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
                     )}
                     <Row style={{ gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
                       {(p.meta.badges ?? []).map((b) => (
@@ -650,14 +650,14 @@ export default function Community() {
             {/* ── ④ 캡션 (볼드 작성자 + 본문) → ⑤ 타임스탬프 */}
             <View style={{ paddingHorizontal: GUTTER + 2 }}>
               {p.body && (
-                <Text style={{ fontSize: 14, color: lilac.text, lineHeight: 21, marginTop: 1 }}>
+                <Text style={{ fontSize: 15, color: lilac.text, lineHeight: 21, marginTop: 1 }}>
                   <Text style={{ fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
                   <Text>  {p.body}</Text>
                 </Text>
               )}
               {p.commentCount > 0 && openComments !== p.id && (
                 <Pressable onPress={() => toggleComments(p)}>
-                  <Text style={{ fontSize: 14, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
+                  <Text style={{ fontSize: 15, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
                 </Pressable>
               )}
               <Text style={[s.when, nf]}>{p.when}</Text>
@@ -674,7 +674,7 @@ export default function Community() {
                   <Row key={c.id} style={{ gap: 8, marginBottom: 9, alignItems: 'flex-start' }}>
                     <Avatar url={c.authorAvatar} char={c.authorName[0]} bg={lilac.accentDeep} size={22} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, lineHeight: 20 }}>
+                      <Text style={{ fontSize: 15, lineHeight: 20 }}>
                         <Text style={{ fontWeight: '700', color: lilac.head }}>{c.authorName}</Text>
                         <Text style={{ color: lilac.text }}>  {c.body}</Text>
                       </Text>
@@ -682,15 +682,15 @@ export default function Community() {
                   </Row>
                 ))}
                 {!commentsLoaded && !commentsErr && (
-                  <Text style={{ fontSize: 14, color: lilac.dim, marginBottom: 9 }}>댓글 불러오는 중...</Text>
+                  <Text style={{ fontSize: 15, color: lilac.dim, marginBottom: 9 }}>댓글 불러오는 중...</Text>
                 )}
                 {commentsErr && (
                   <Pressable onPress={() => loadComments(p.id)} hitSlop={8} accessibilityRole="button" style={{ marginBottom: 9 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>댓글을 불러오지 못했어요 — 다시 시도 ›</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>댓글을 불러오지 못했어요 — 다시 시도 ›</Text>
                   </Pressable>
                 )}
                 {commentsLoaded && !commentsErr && comments.length === 0 && (
-                  <Text style={{ fontSize: 14, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
+                  <Text style={{ fontSize: 15, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8, alignItems: 'center' }}>
                   <TextInput
@@ -760,18 +760,18 @@ const s = StyleSheet.create({
   // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장 (모노그램 = 홀로 아티팩트, 라운드 유지)
   mono: { width: 22, height: 22, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 },
-  kickerLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
+  kickerLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴
   // [§3c 화면 타이틀 2026-08-11] 38 → 30. 탭 화면 타이틀이 30/38/40 세 값으로 갈라져 있었고
   // (Sean: "tab in screen titles font size difference"), 30이 7개 탭 중 5개가 이미 쓰던 값이다.
   // 크기·굵기·행간은 앱 공통, 색은 화면의 월드를 따른다 (§2). lineHeight 37 = 1.23× (BUG A).
   h1: { fontSize: 30, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 37 },
-  lede: { fontSize: 14, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
+  lede: { fontSize: 15, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' }, // [페이퍼 크롬] 샤프 (코랄 틴트 보더 = LIVE 신호 생존)
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
   liveTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.coralDeep },
   rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#EEEEEE', alignSelf: 'flex-start', marginTop: 4 }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
-  rankTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
+  rankTxt: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
 
   // 클럽 스트립 (홀로 엣지) — [FIX3] 높이 72 → 80 · [페이퍼 크롬] 코너만 샤프 (나이트 표면·홀로는 아티팩트)
   clubStrip: { height: 80, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
@@ -784,16 +784,16 @@ const s = StyleSheet.create({
   holoTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, zIndex: 3 },
   holoBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, zIndex: 3 },
 
-  tabCount: { fontSize: 12, fontWeight: '600', letterSpacing: 1 },
+  tabCount: { fontSize: 15, fontWeight: '600', letterSpacing: 1 },
 
   // 후기 카드 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   revCard: { backgroundColor: lilac.card, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
   monoTag: { borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8 },
-  // [D13 FLOOR14 2026-08-12] 12 → 14. 리뷰 태그는 사용자가 쓴 한글이다. textTransform:uppercase는
+  // [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 12 → 14 → 15. 리뷰 태그는 사용자가 쓴 한글이다. textTransform:uppercase는
   // 한글에 아무 효과가 없으면서 이 스타일이 '라틴 캡스'인 척하게 만들던 잔재라 함께 뗀다.
-  monoTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.text },
+  monoTagTxt: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.text },
   voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: 0, backgroundColor: lilac.voltFill, paddingVertical: 4, paddingHorizontal: 8 }, // 볼트 = 시맨틱 (마일스톤)
-  voltTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.voltDeep },
+  voltTagTxt: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.voltDeep },
 
   emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 26 },
 
@@ -815,18 +815,18 @@ const s = StyleSheet.create({
   stFace: { width: '100%', height: '100%', borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
   stFaceTxt: { fontSize: 19, fontWeight: '800', color: '#FFFFFF' },
   // 라벨 14pt — 한글 아이디도 표시 이름도 데이터다 (플로어 예외 아님, §3)
-  stName: { fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 5, maxWidth: 68, textAlign: 'center' },
+  stName: { fontSize: 15, lineHeight: 18, color: lilac.text, marginTop: 5, maxWidth: 68, textAlign: 'center' },
 
   // 피드 포스트 — [IG 개편] 카드-인-카드 은퇴: 풀블리드 + 포스트 사이 코랄 헤어라인 (스크롤 리듬)
   post: { backgroundColor: paper.canvas, marginTop: 12, borderTopWidth: 1, borderTopColor: paper.line, borderRadius: 0, overflow: 'hidden' },
   // ⋯ 오버플로 (내 포스트만) — 44pt 타깃 (36 + hitSlop 8)
   more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  // [D13 FLOOR14 2026-08-12] 12 → 14. {rv.when}은 '8월 3일 (일)' 같은 한글 날짜다.
-  stamp: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
+  // [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 12 → 14 → 15. {rv.when}은 '8월 3일 (일)' 같은 한글 날짜다.
+  stamp: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
 
   // 컴포즈 바 — 아바타 + 플레이스홀더 + 샤프 코랄 보더 버튼 (전체가 /compose 프레스 타깃)
   composeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: GUTTER + 2, paddingVertical: 11, minHeight: 56, backgroundColor: paper.canvas },
-  composePh: { flex: 1, fontSize: 14, color: lilac.dim },
+  composePh: { flex: 1, fontSize: 15, color: lilac.dim },
   composeGo: { borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas, borderRadius: 0, paddingVertical: 9, paddingHorizontal: 13 },
   composeGoTxt: { fontSize: 16, fontWeight: '800', color: paper.ink },
 
@@ -841,10 +841,10 @@ const s = StyleSheet.create({
   photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset },
   badgeCol: { position: 'absolute', top: 8, right: 8, gap: 4, alignItems: 'flex-end' },
   badge: { backgroundColor: lilac.glassEdge, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8 },
-  badgeTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
+  badgeTxt: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
   // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
   seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
-  sealB: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
+  sealB: { fontSize: 15, fontWeight: '700', color: lilac.head, lineHeight: 18 },
   sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
 
   // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시 · [페이퍼 크롬] 카드 내부 룰 = 뉴트럴
@@ -857,7 +857,7 @@ const s = StyleSheet.create({
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
   record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: GUTTER + 2, paddingVertical: 12 },
   recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
-  recordPace: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
+  recordPace: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
   traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
 
   // 클럽 리캡 = 밤의 창 (나이트 라일락) — [FIX3] 키커·키 12pt · [BUG A] 숫자 lineHeight 명시
@@ -871,24 +871,24 @@ const s = StyleSheet.create({
 
   // 액션 행 — [IG 개편] 칩 보더 은퇴, 좌측 정렬 조용한 타깃 (minHeight 44 · 누른 발자국 = 코랄)
   act: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8 },
-  actLabel: { fontSize: 14, fontWeight: '700', color: lilac.dim },
+  actLabel: { fontSize: 15, fontWeight: '700', color: lilac.dim },
   actLabelOn: { color: CORAL_INK },
   actNum: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
   actNumOn: { color: CORAL_INK },
-  when: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.dim, marginTop: 7, marginBottom: 11 },
+  when: { fontSize: 15, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.dim, marginTop: 7, marginBottom: 11 },
 
   // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
   letters: { borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: lilac.card, paddingHorizontal: GUTTER + 2, paddingTop: 10, paddingBottom: 11 },
-  lettersKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: lilac.dim, textTransform: 'uppercase' },
+  lettersKick: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   commentInput: {
     flex: 1, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬]
-    paddingVertical: 9, paddingHorizontal: 12, fontSize: 14, color: lilac.head,
+    paddingVertical: 9, paddingHorizontal: 12, fontSize: 15, color: lilac.head,
   },
   commentSend: { width: 36, height: 36, borderRadius: 0, backgroundColor: CORAL_INK, alignItems: 'center', justifyContent: 'center' }, // 코랄 = 보내기 단일 신호 생존
 
   // 콜로폰 — [FIX3] 본문 13 · 풋라인 12 · [페이퍼 크롬] 섹션 룰 = 풀블리드 코랄 (마진 → 내부 패딩)
   colophon: { marginHorizontal: 0, paddingHorizontal: GUTTER + 2, marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: paper.line },
-  coloBody: { fontSize: 14, color: lilac.dim, lineHeight: 19 },
-  coloFoot: { fontSize: 14, lineHeight: 18, color: lilac.dim, letterSpacing: 0.2 },
+  coloBody: { fontSize: 15, color: lilac.dim, lineHeight: 19 },
+  coloFoot: { fontSize: 15, lineHeight: 18, color: lilac.dim, letterSpacing: 0.2 },
   coloDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: lilac.hair },
 });

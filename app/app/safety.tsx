@@ -104,7 +104,7 @@ export default function Safety() {
                 4.5 floor — and the sentence carrying it is 「위급 시엔 112·119가 항상 우선이에요」,
                 the single most important line on the screen. White on the tokenized ground
                 (paper.action) measures 4.84:1, the value theme.ts:182 already records. */}
-            <Text style={{ fontSize: 14, color: '#fff', marginTop: 3, lineHeight: 18.5 }}>
+            <Text style={{ fontSize: 15, color: '#fff', marginTop: 3, lineHeight: 18.5 }}>
               진행 중인 러닝의 상대방에게 즉시 알림{'\n'}위급 시엔 112·119가 항상 우선이에요
             </Text>
           </View>
@@ -127,19 +127,19 @@ export default function Safety() {
               may claim the roster is empty. */}
           {loadErr && (
             <Row style={{ paddingVertical: 6, alignItems: 'center' }}>
-              <Text style={{ flex: 1, fontSize: 14.5, color: paper.critical, fontWeight: '700' }}>
+              <Text style={{ flex: 1, fontSize: 15, color: paper.critical, fontWeight: '700' }}>
                 연락처를 불러오지 못했어요
               </Text>
               <Pressable onPress={load} style={s.miniBtn} accessibilityRole="button">
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.actionInk }}>다시 시도</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.actionInk }}>다시 시도</Text>
               </Pressable>
             </Row>
           )}
           {!loadErr && contacts === null && (
-            <Text style={{ fontSize: 14.5, color: colors.dim, paddingVertical: 6 }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: colors.dim, paddingVertical: 6 }}>불러오는 중...</Text>
           )}
           {contacts?.length === 0 && !adding && (
-            <Text style={{ fontSize: 14.5, color: colors.dim, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, paddingVertical: 6 }}>
               아직 없어요 — 위급 시 연락할 가족·지인을 등록해두세요
             </Text>
           )}
@@ -149,13 +149,13 @@ export default function Safety() {
               <Row style={{ paddingVertical: 10, alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{c.name}</Text>
-                  <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{c.phone}</Text>
+                  <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{c.phone}</Text>
                 </View>
                 <Pressable onPress={() => Linking.openURL(`tel:${c.phone}`)} style={s.miniBtn}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d5a2b' }}>전화</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>전화</Text>
                 </Pressable>
                 <Pressable onPress={() => removeContact(c)} style={[s.miniBtn, { marginLeft: 6 }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#d84a2f' }}>삭제</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#d84a2f' }}>삭제</Text>
                 </Pressable>
               </Row>
             </View>
@@ -166,16 +166,16 @@ export default function Safety() {
               <TextInput value={cPhone} onChangeText={setCPhone} placeholder="전화번호" placeholderTextColor="#b0ada0" style={s.input} keyboardType="phone-pad" maxLength={15} />
               <Row style={{ gap: 8 }}>
                 <Pressable onPress={saveContact} style={[s.saveBtn, { flex: 1.4 }]}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '900', color: paper.ink }}>저장</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>저장</Text>
                 </Pressable>
                 <Pressable onPress={() => setAdding(false)} style={[s.miniBtn, { flex: 1, alignItems: 'center', paddingVertical: 11 }]}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#49524a' }}>취소</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#49524a' }}>취소</Text>
                 </Pressable>
               </Row>
             </View>
           ) : (
             <Pressable onPress={() => setAdding(true)} style={s.addRow}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 연락처 추가</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#5a7a3c' }}>＋ 연락처 추가</Text>
             </Pressable>
           )}
         </View>
@@ -205,8 +205,8 @@ export default function Safety() {
         {/* ---------- 준비 중 (정직 라벨) ---------- */}
         <Row style={{ gap: 10, marginTop: 14 }}>
           <View style={[s.card, { flex: 1, opacity: 0.55, marginTop: 0 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
-            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
+            <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
           </View>
           {/* ⚠ Owner-only destination. This screen is a quick link from BOTH homes, and
               `/owner/dog` has no role guard of its own — so a runner could land on the owner's dog
@@ -215,13 +215,13 @@ export default function Safety() {
               dog profile), it simply stops being a door into an owner-only write surface. */}
           {session.role === 'runner' ? (
             <View style={[s.card, { flex: 1, marginTop: 0 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
-              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>보호자가 등록한 내용을 러닝 화면에서 볼 수 있어요</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>보호자가 등록한 내용을 러닝 화면에서 볼 수 있어요</Text>
             </View>
           ) : (
             <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={() => router.push('/owner/dog')}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
-              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>의료·성향 메모</Text>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
             </Pressable>
           )}
         </Row>
@@ -246,7 +246,7 @@ function InfoRow({ icon, glyph, title, desc }: { icon?: string; glyph: string; t
 const s = StyleSheet.create({
   // [§3c 화면 타이틀 2026-08-11] lineHeight 37 = 1.23× 명시 (BUG A). 크기는 이미 규격값이었다.
   h1: { fontSize: 30, fontWeight: '900', color: paper.ink, lineHeight: 37 },
-  sub: { fontSize: 14, color: colors.dim, marginTop: 4 },
+  sub: { fontSize: 15, color: colors.dim, marginTop: 4 },
   bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // Ground is the TOKEN, not an ad-hoc coral. `#e8492a` was untokenized and too light: white

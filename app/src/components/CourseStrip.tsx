@@ -103,11 +103,11 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
           backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
         }}>
-          <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical }}>
+          <Text style={{ flex: 1, fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical }}>
             코스를 불러오지 못했어요
           </Text>
           <Pressable onPress={load} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
-            <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+            <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
               다시 시도
             </Text>
           </Pressable>
@@ -135,7 +135,7 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
             style={{ width: 224, backgroundColor: w.bg, padding: 13, overflow: 'hidden' }}
           >
             {/* 월드 킥커 + km 대활자 */}
-            {/* [14pt 플로어 2026-08-19] 이 줄은 'TRAIL · 포장 100%'를 통째로 8.5pt에 뒀다.
+            {/* [15pt 플로어 2026-08-19] 이 줄은 'TRAIL · 포장 100%'를 통째로 8.5pt에 뒀다.
                 레터스페이스 대문자 라틴 킥커만 플로어 면제인데, terrain은 실데이터이고 한글이
                 섞인다 (routes.terrain — '포장 100%'). 킥커와 데이터를 갈라 각자의 법을 지운다:
                 월드 라벨은 킥커 그대로, terrain은 14pt 데이터 줄로. '·'는 크기 차가 대신한다. */}
@@ -143,12 +143,12 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexShrink: 1 }}>
                 <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label}</Text>
                 {r.terrain ? (
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: w.dim, flexShrink: 1 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '700', color: w.dim, flexShrink: 1 }} numberOfLines={1}>
                     {r.terrain.toUpperCase?.() ?? r.terrain}
                   </Text>
                 ) : null}
               </View>
-              <Text style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
+              <Text style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 15 }}>K</Text></Text>
             </View>
 
             {/* 트레이스 — 월드 톤으로 발광. [리뷰 F2] 빈 트레이스는 지도인 척하는 그리드+블롭을 그리지
@@ -158,13 +158,13 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
                 <HeatTrace points={traceToBox(r.trace)} width={204} height={72} tint={w.tone} />
               ) : (
                 <View style={{ width: 204, height: 72, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: w.tone }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: w.dim }}>코스 지도 준비 중</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: w.dim }}>코스 지도 준비 중</Text>
                 </View>
               )}
             </View>
 
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{r.name}</Text>
-            <Text style={{ fontSize: 14, color: w.dim, marginTop: 2 }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, color: w.dim, marginTop: 2 }} numberOfLines={1}>
               {r.area}{r.features.length > 0 ? ` · ${r.features.slice(0, 3).map((f) => f.g).join(' ')}` : ''}
             </Text>
 
@@ -182,13 +182,13 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
                     not happened. request.tsx gates the same mark on `status === 'active'` and
                     says why ("checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장").
                     Same gate here; the stamp still renders, it just stops claiming. */}
-                <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>
+                <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>
                   {r.status === 'active' ? `✓ ${r.checkedAt}` : r.checkedAt}
                 </Text>
               </View>
               <View style={{ flex: 1 }} />
               <View style={{ borderWidth: 1.2, borderColor: w.tone, paddingVertical: 5, paddingHorizontal: 11 }}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: w.tone }}>미리보기 ›</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: w.tone }}>미리보기 ›</Text>
               </View>
             </View>
           </Pressable>

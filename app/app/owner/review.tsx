@@ -125,7 +125,7 @@ export default function OwnerReview() {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.actionInk : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: on ? paper.actionInk : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
                 </Pressable>
               );
             })}
@@ -152,7 +152,7 @@ export default function OwnerReview() {
             <View style={[s.check, privateFlag && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
               {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>
-            <Text style={{ flex: 1, fontSize: 14, color: paper.text, lineHeight: 19.5 }}>
+            <Text style={{ flex: 1, fontSize: 15, color: paper.text, lineHeight: 19.5 }}>
               도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)
             </Text>
           </Pressable>
@@ -205,5 +205,5 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', backgroundColor: paper.canvas,
   },
   cta: { backgroundColor: paper.action, borderRadius: 0, alignItems: 'center', paddingVertical: 16, marginTop: 22 },
-  ctaNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10, textAlign: 'center' },
+  ctaNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10, textAlign: 'center' },
 });

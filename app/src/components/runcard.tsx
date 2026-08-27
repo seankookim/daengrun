@@ -89,7 +89,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
         borderWidth: 2, borderColor: '#ffffffcc',
       }}
     >
-      {/* 'S'/'F' 한 글자 = 트레이스 위 아이콘 티어 마커. 20px 핀(테두리 2 → 내부 16px)에 갇힌 조형이라 14pt 플로어 면제 */}
+      {/* 'S'/'F' 한 글자 = 트레이스 위 아이콘 티어 마커. 20px 핀(테두리 2 → 내부 16px)에 갇힌 조형이라 15pt 플로어 면제 */}
       <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{label}</Text>
     </View>
   );

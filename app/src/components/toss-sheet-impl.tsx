@@ -187,6 +187,6 @@ const s = StyleSheet.create({
   close: { fontSize: 20, lineHeight: 24, color: paper.ink },
   headline: { fontSize: 18, lineHeight: 24, fontWeight: '800', color: paper.ink, paddingHorizontal: 18, marginTop: 10 },
   amount: { fontSize: 30, lineHeight: 38, fontWeight: '900', color: paper.ink, paddingHorizontal: 18, marginTop: 2, fontVariant: ['tabular-nums'] },
-  note: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: paper.criticalWash },
+  note: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: paper.criticalWash },
   footer: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderColor: paper.line },
 });

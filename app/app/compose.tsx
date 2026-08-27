@@ -145,7 +145,7 @@ export default function Compose() {
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>피드 자랑하기</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 14.5, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
+      <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
         사진이든 글이든 자유롭게 — 러닝 기록은 원하면 함께 붙여요
       </Text>
 
@@ -180,7 +180,7 @@ export default function Compose() {
       )}
       {sel && !attachOpen && (
         <Pressable onPress={() => setSel(null)} style={{ minHeight: 44, justifyContent: 'center' }} accessibilityRole="button">
-          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.actionInk }}>첨부 빼기</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.actionInk }}>첨부 빼기</Text>
         </Pressable>
       )}
 
@@ -195,13 +195,13 @@ export default function Compose() {
 
       {/* 3 honest states: loading ≠ error ≠ empty */}
       {!loaded && (
-        <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 36 }}>완료된 러닝 불러오는 중...</Text>
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 36 }}>완료된 러닝 불러오는 중...</Text>
       )}
 
       {loaded && error != null && (
         <View style={s.failStrip}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>러닝 기록을 불러오지 못했어요</Text>
-          <Text style={{ fontSize: 14, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{error}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>러닝 기록을 불러오지 못했어요</Text>
+          <Text style={{ fontSize: 15, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{error}</Text>
           <PaperBtn label="다시 시도" variant="secondary" onPress={load} style={{ marginTop: 10 }} />
         </View>
       )}
@@ -209,7 +209,7 @@ export default function Compose() {
       {loaded && error == null && cands.length === 0 && attachOpen && (
         <View style={s.emptyBox}>
           <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>아직 붙일 러닝 기록이 없어요</Text>
-          <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', marginTop: 6, lineHeight: 21 }}>
+          <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 6, lineHeight: 21 }}>
             글과 사진은 지금도 올릴 수 있어요{'\n'}러닝이 끝나면 기록도 함께 붙일 수 있어요
           </Text>
           <PaperBtn
@@ -230,7 +230,7 @@ export default function Compose() {
 
           {shareable.length === 0 ? (
             <View style={s.emptyBox}>
-              <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 21 }}>
+              <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 21 }}>
                 완료된 러닝을 모두 피드에 올렸어요{'\n'}다음 러닝이 끝나면 다시 자랑할 수 있어요
               </Text>
             </View>
@@ -283,7 +283,7 @@ export default function Compose() {
           )}
 
           {shareable.length > 0 && (
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 19 }}>
               러닝을 붙이면 인증샷과 거리·시간 기록이 함께 실려요
             </Text>
           )}
@@ -298,10 +298,10 @@ export default function Compose() {
               <View style={{ gap: 6 }}>
                 {done.map((c) => (
                   <View key={c.bookingId} style={s.doneRow}>
-                    <Text style={{ flex: 1, fontSize: 14, color: paper.dim }} numberOfLines={1}>
+                    <Text style={{ flex: 1, fontSize: 15, color: paper.dim }} numberOfLines={1}>
                       {c.dogName} · <Text style={nf}>{c.km}</Text>km · {c.when}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: paper.dim }}>공유 완료</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim }}>공유 완료</Text>
                   </View>
                 ))}
               </View>

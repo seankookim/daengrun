@@ -471,7 +471,15 @@ export default function My() {
 
         {/* ————— ⑥ 콜로폰 (브랜드 워드마크 — 정적 브랜딩) ————— */}
         <View style={s.colophon}>
-          <Text style={[s.colophonTxt, nf]}>도그스하이 · DOGS HIGH</Text>
+          {/* [FLOOR15] Korean below the floor is legal HERE and only here: this is the wordmark,
+              which DESIGN.md §3 exempts as artwork — but only when all three clauses hold, and
+              clause (2) (declared decoration for assistive tech) was missing. Same idiom as
+              shot/[bid].tsx's lockup. It carries no data, so nothing is hidden from a reader. */}
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[s.colophonTxt, nf]}
+          >도그스하이 · DOGS HIGH</Text>
         </View>
       </ScrollView>
       {/* 시스템 바 스트립 — 마스트헤드가 시계 뒤로 지나가던 것 */}
@@ -503,7 +511,7 @@ export default function My() {
               autoCorrect={false}
             />
           </Row>
-          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 5 }}>
+          <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 5 }}>
             영문 소문자·숫자·밑줄(_)·점(.) · 3~20자 · 피드에서 이 이름으로 보여요
           </Text>
 
@@ -539,7 +547,7 @@ export default function My() {
               />
             </>
           )}
-          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 17 }}>
+          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
             이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
           </Text>
 
@@ -575,11 +583,11 @@ const s = StyleSheet.create({
   },
   idInner: { margin: 9, borderWidth: 1, borderColor: '#EEE', padding: 12, paddingBottom: 0 },
   idStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
-  // Korean-data-in-kicker (신분면/도장면 halves) — 14pt floor applies; letterSpacing tightened
+  // Korean-data-in-kicker (신분면/도장면 halves) — 15pt floor applies; letterSpacing tightened
   // so the passport look survives the raise. Latin-only kickers elsewhere stay 12.
-  microK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
+  microK: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
   roleTag: { borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas, paddingVertical: 4, paddingHorizontal: 9 },
-  roleTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 14pt floor
+  roleTagTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 15pt floor
   photoWin: {
     width: 62, height: 74, borderWidth: 1, borderColor: '#EEE',
     backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
@@ -590,17 +598,17 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   fld: { marginBottom: 8 },
-  fldK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 14pt floor
+  fldK: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 15pt floor
   fldV: { fontSize: 17, fontWeight: '800', color: paper.ink }, // user name = the page's lead datum (15 -> 17)
-  fldVSmall: { fontSize: 14, fontWeight: '600', color: paper.text },
-  fldV2: { fontSize: 14, fontWeight: '600', color: paper.text, lineHeight: 18 },
+  fldVSmall: { fontSize: 15, fontWeight: '600', color: paper.text },
+  fldV2: { fontSize: 15, fontWeight: '600', color: paper.text, lineHeight: 18 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas,
     paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  idEditEm: { fontSize: 14, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 14pt floor
+  idEditTxt: { fontSize: 15, fontWeight: '700', color: paper.ink },
+  idEditEm: { fontSize: 15, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 15pt floor
   idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: '#EEE' },
   idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
   idCellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEE' },
@@ -618,13 +626,13 @@ const s = StyleSheet.create({
   },
   recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: lilacRadius.inner, padding: 13 },
   coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 14pt floor
+  recordKick: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 15pt floor
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
   recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
-  recU: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
+  recU: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 15, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  recGo: { fontSize: 15, fontWeight: '700', color: '#fff' },
   // 기록 로드 실패 스트립 (item 5) — 라우드 페일 토큰 전용. 다크 기록면 '밖'에 붙여 대비를 지킨다.
   recFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
@@ -632,8 +640,8 @@ const s = StyleSheet.create({
     marginHorizontal: -layout.gutter, marginTop: 8, paddingVertical: 11, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
   },
-  recFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  recFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  recFailTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  recFailRetry: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // 섹션 라벨 — 섹션 헤드 위 코랄 1px 풀블리드 룰 (페이퍼 섹션 분리 법)
   sec: {
@@ -641,9 +649,9 @@ const s = StyleSheet.create({
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter + 2,
     borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
   },
-  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 12pt 플로어 면제
+  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 15pt 플로어 면제
   secT: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
-  secKo: { fontSize: 14, fontWeight: '700', color: paper.text },
+  secKo: { fontSize: 15, fontWeight: '700', color: paper.text },
 
   // ③ 도장면 — 도장 그리드·소인은 아티팩트 그대로, 카드 크롬만 페이퍼 (백지 샤프 + #EEE)
   visa: {
@@ -660,10 +668,10 @@ const s = StyleSheet.create({
   perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: '#EEE' }, // 절취선
   // visaFootL retired with its lead-in copy — the foot is now just the right-aligned link
   visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 10, paddingHorizontal: 11 },
-  visaFootG: { fontSize: 14, fontWeight: '800', color: STAMP_INK },
+  visaFootG: { fontSize: 15, fontWeight: '800', color: STAMP_INK },
   empt: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE', padding: 11, marginBottom: 11 },
-  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.ink },
-  emptD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 3 },
+  emptT: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  emptD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 3 },
 
   // 도장 그리드 — 칸/디스크/링은 stamp.tsx가 전담, 여기는 배열만
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
@@ -674,8 +682,8 @@ const s = StyleSheet.create({
   drowDiv: { borderTopWidth: 1, borderTopColor: '#EEE' },
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   drowIcon: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
-  drowTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  drowDesc: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 18 },
+  drowTitle: { fontSize: 16, fontWeight: '700', color: paper.ink },
+  drowDesc: { fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 18 },
 
   // ⑤ 큰 버튼 — 역할 전환 = 잉크 면 프라이머리 (15/14 라벨 유지, 섀도 은퇴)
   btnRole: {
@@ -695,15 +703,15 @@ const s = StyleSheet.create({
   // 라틴 레터스페이스 캡스 = 산증 키커 클래스(§3 예외)라 12pt 유지 가능하나, 색은 읽는 값으로.
   btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: paper.dim, textTransform: 'uppercase', marginTop: 3 },
   btnRoleSw: { borderWidth: 1, borderColor: paper.line, paddingVertical: 6, paddingHorizontal: 10 },
-  btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 14pt floor · wash 위 5.99:1
+  btnRoleSwTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 15pt floor · wash 위 5.99:1
 
   signout: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: '#EEE', paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
   },
   signoutTick: { width: 3, height: 30, backgroundColor: paper.line }, // 코랄 틱 — critical 아님 (로그아웃은 실패가 아니다)
-  signoutTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  signoutSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
+  signoutTitle: { fontSize: 16, fontWeight: '700', color: paper.ink },
+  signoutSub: { fontSize: 15, color: paper.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
   colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEE', alignItems: 'center' },
@@ -713,7 +721,7 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#EEE', marginBottom: 14 },
-  fieldLabel: { fontSize: 14, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
+  fieldLabel: { fontSize: 15, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: paper.ink,

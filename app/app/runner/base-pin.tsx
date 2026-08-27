@@ -304,9 +304,9 @@ const s = StyleSheet.create({
     paddingHorizontal: PAD, paddingTop: 8, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  bannerLead: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.ink },
-  bannerHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 4 },
-  bannerFail: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 4 },
+  bannerLead: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.ink },
+  bannerHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 4 },
+  bannerFail: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 4 },
 
   pinWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   pinGlyph: { alignItems: 'center', transform: [{ translateY: -15 }] },
@@ -318,22 +318,22 @@ const s = StyleSheet.create({
     alignSelf: 'stretch', height: 92, alignItems: 'center', justifyContent: 'center',
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
   },
-  mapFallbackTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
+  mapFallbackTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
 
   failStrip: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12,
   },
-  failTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical },
 
   // 삭제 스트립 — address-pin의 메모 스트립과 같은 문법(≥44pt, 뉴트럴 구분선)
   clearStrip: {
     borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: paper.canvas,
     paddingHorizontal: PAD, minHeight: 48, justifyContent: 'center',
   },
-  clearTxt: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
-  clearHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim },
+  clearTxt: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
+  clearHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim },
 
   confirmBar: { paddingHorizontal: PAD, paddingTop: 10, backgroundColor: paper.canvas },
 
@@ -344,5 +344,5 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas,
   },
   lockLead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
-  lockHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 2 },
+  lockHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 2 },
 });

@@ -361,14 +361,14 @@ export default function Schedule() {
                   {/* 18 -> 20, lineHeight 25 >= 1.2x (BUG A) */}
                   <Text style={[{ fontSize: 20, fontWeight: '900', color: paper.ink, lineHeight: 25 }, nf]}>{b.timeLabel}</Text>
                   {b.recurring && (
-                    <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
+                    <View style={s.recurPill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                   )}
                   {LIVE_RAW.includes(b.rawStatus ?? '') && (
-                    <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
+                    <View style={s.livePillSm}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                   )}
                 </Row>
                 <View style={[s.statusPill, { backgroundColor: st.bg }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: st.fg }}>{st.label}</Text>
                 </View>
               </Row>
               <Row style={{ gap: 12, marginTop: 10 }}>
@@ -400,7 +400,7 @@ export default function Schedule() {
                     </Text>
                   </Row>
                   {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
-                  <Text style={[{ fontSize: 14.5, color: paper.dim, marginTop: 2, lineHeight: 19 }, nf]}>
+                  <Text style={[{ fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 19 }, nf]}>
                     {b.price.toLocaleString()}원 · {b.paceLabel}
                   </Text>
                 </View>
@@ -466,7 +466,7 @@ export default function Schedule() {
             {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약
                 [B① 2026-08-24] 「예약 N건」 하나였던 자리 — 목록이 다가오는 순으로 열리는 화면에서
                 가장 쓸모 있는 수는 '앞으로 몇 건인가'다. Oswald 숫자는 명시 lineHeight (BUG A). */}
-            <Text style={[{ fontSize: 14.5, lineHeight: 19, color: paper.dim, marginTop: 4 }, nf]}>
+            <Text style={[{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 4 }, nf]}>
               다가오는 {upcomingCount}건 · 전체 {liveBookings.length}건
             </Text>
           </View>
@@ -491,7 +491,7 @@ export default function Schedule() {
           <View style={s.nowBand}>
             <Row style={{ gap: 6 }}>
               <Text style={s.nowKick}>지금</Text>
-              <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
+              <View style={s.livePillSm}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
             </Row>
             {liveNow.map((b, i) => {
               // 경과·대기는 실소인에서만 온다. 없으면(또는 1분 미만이면) 절이 통째로 빠진다.
@@ -545,7 +545,7 @@ export default function Schedule() {
               onPress={() => setFilterIdx(i)}
               style={[s.filter, { backgroundColor: filterIdx === i ? f.sel : f.tint, borderColor: filterIdx === i ? f.sel : '#EEE' }]}
             >
-              <Text style={{ fontSize: 14, fontWeight: filterIdx === i ? '800' : '700', color: filterIdx === i ? f.selFg : f.tintFg }}>{f.label}</Text>
+              <Text style={{ fontSize: 15, fontWeight: filterIdx === i ? '800' : '700', color: filterIdx === i ? f.selFg : f.tintFg }}>{f.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -561,7 +561,7 @@ export default function Schedule() {
         {/* 라우드-페일 스트립 — 실패는 빈 일정으로 분장하지 않는다 */}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>일정을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>일정을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -617,14 +617,14 @@ export default function Schedule() {
                   {/* header */}
                   <Row style={{ justifyContent: 'space-between' }}>
                     <View>
-                      <Text style={{ fontSize: 14, color: paper.dim }}>{selected.dateLabel}</Text>
+                      <Text style={{ fontSize: 15, color: paper.dim }}>{selected.dateLabel}</Text>
                       {/* Oswald numerals (900 = numbers+titles law) — lineHeight 32 >= 1.2x (BUG A) */}
                       <Text style={[{ fontSize: 25.5, fontWeight: '900', color: paper.ink, marginTop: 2, lineHeight: 32 }, nf]}>
                         {selected.timeLabel} · {selected.dogName}
                       </Text>
                     </View>
                     <View style={[s.statusPill, { backgroundColor: stFor(selected).bg, alignSelf: 'flex-start' }]}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: stFor(selected).fg }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: stFor(selected).fg }}>
                         {stFor(selected).label}
                       </Text>
                     </View>
@@ -670,7 +670,7 @@ export default function Schedule() {
                     <Row style={{ gap: 5 }}>
                       <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{selected.routeName}</Text>
                       {/* [리뷰 F8] ✓ 인증 도장 은퇴 — 이 행엔 checked_at 실데이터가 없다. 근거 없는 검증 마크 금지 */}
-                      <Text style={{ fontSize: 14, color: paper.dim, alignSelf: 'center' }}>{selected.km}km</Text>
+                      <Text style={{ fontSize: 15, color: paper.dim, alignSelf: 'center' }}>{selected.km}km</Text>
                     </Row>
                     {/* 실좌표 없는 코스 지도 슬롯 — 토큰으로 작성 (후속 리페인트 생존) */}
                     <View style={s.sheetMapPending}>
@@ -710,7 +710,7 @@ export default function Schedule() {
                           : CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? '러너를 찾는 중'
                             : '러너가 정해지지 않았어요'}
                       </Text>
-                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
+                      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
                         {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '')
                           ? '러너가 수락하면 여기에 러너 정보와 채팅이 열려요'
                           : '이 예약은 러너가 정해지기 전에 끝났어요'}
@@ -724,7 +724,7 @@ export default function Schedule() {
                         <Row style={{ gap: 6 }}>
                           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{runner.name} 러너</Text>
                           {runner.badges.map((b) => (
-                            <View key={b} style={s.badgePill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
+                            <View key={b} style={s.badgePill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
                           ))}
                         </Row>
                         <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3 }}>
@@ -745,19 +745,19 @@ export default function Schedule() {
                           accessibilityLabel="채팅 — 러너가 수락하면 열려요"
                           accessibilityState={{ disabled: true }}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.faint }}>채팅</Text>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.faint }}>채팅</Text>
                         </View>
                       ) : (
                         <Pressable
                           style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                           onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>채팅</Text>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>채팅</Text>
                         </Pressable>
                       )}
                     </Row>
                     {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') && (
-                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 19 }}>
+                      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 19 }}>
                         러너가 수락하면 채팅을 열 수 있어요
                       </Text>
                     )}
@@ -776,13 +776,13 @@ export default function Schedule() {
                       {payErr ? (
                         // 실패는 실패로 — 다만 정산된 예약에서만 말한다 (그 전에는 섹션 자체가 없다)
                         <View style={{ marginTop: 8 }}>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>결제 내역을 불러오지 못했어요</Text>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>결제 내역을 불러오지 못했어요</Text>
                           <Pressable onPress={() => loadPayments(selected.id)} style={s.payRetry} accessibilityRole="button">
                             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
                           </Pressable>
                         </View>
                       ) : payRows.length === 0 ? (
-                        <Text style={{ fontSize: 14.5, lineHeight: 20, color: paper.dim, marginTop: 6 }}>
+                        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 6 }}>
                           아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요
                         </Text>
                       ) : (
@@ -800,10 +800,10 @@ export default function Schedule() {
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
                         {/* [정직 배치 2.5 · Sean D3=B] 앱 전체에서 바디캠을 '앞으로'라고 말하는 자리는 여기 한 곳뿐 */}
-                        <Text style={{ fontSize: 14, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
-                        <Text style={{ fontSize: 14, color: '#b06a56', marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
+                        <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
+                        <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
                       </Pressable>
-                      <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
+                      <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
@@ -841,19 +841,19 @@ export default function Schedule() {
                         }}
                       >
                         <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>⟳ 이대로 다시 예약</Text>
-                        <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
+                        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
                       </Pressable>
                     </>
                   ) : selected.status === 'cancelled' ? (
                     // 취소된 일정 — 관리 액션 없음. 변경 요청은 서버가 확정 전용(409)이라 죽은 버튼이 되고,
                     // 취소하기는 재취소가 된다. 상태를 그대로 말하고 끝낸다.
-                    <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
                       취소된 일정이에요 — 더 진행할 작업이 없어요
                     </Text>
                   ) : (selected.rawStatus === 'no_show' || selected.rawStatus === 'incident_review') ? (
                     // 불발·확인 중 — 서버 전이상 취소도 변경도 불가(refund_pending만 합법) → 액션 없음이 정직.
                     // 이전엔 STATUS_MAP 폴백 'pending'으로 이 시트가 죽은 취소 버튼을 그렸다.
-                    <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
                       {selected.rawStatus === 'no_show'
                         ? '불발로 처리된 일정이에요 — 더 진행할 작업이 없어요'
                         : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
@@ -865,7 +865,7 @@ export default function Schedule() {
                           합법(50% 수수료 = 러너 보상) — 아래 취소 링크가 이 상태에서도 열리고, 확인
                           시트가 50% 티어를 커밋 전에 명시한다. 여기는 변경 마감 사실만 말한다. */}
                       {selected.rawStatus === 'runner_enroute' && (
-                        <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
+                        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
                           러너가 픽업으로 이동 중이에요 — 일정 변경은 마감됐어요
                         </Text>
                       )}
@@ -883,7 +883,7 @@ export default function Schedule() {
                           }}
                         >
                           <Text style={s.primaryActionTxt}>일정 변경 요청</Text>
-                          <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
+                          <Text style={{ fontSize: 15, color: paper.text, marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                         </Pressable>
                       )}
                       {/* 러너 변경 = 재지명 (이 예약 그대로). 확정 전에만 — 확정은 계약이고,
@@ -899,7 +899,7 @@ export default function Schedule() {
                           }}
                         >
                           <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>러너 변경</Text>
-                          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
+                          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
                         </Pressable>
                       )}
                       {/* [0066] 이동 중 취소가 서버 전이로 열렸다(runner_enroute → cancelled_owner,
@@ -914,19 +914,19 @@ export default function Schedule() {
                           style={s.cancelLink}
                           onPress={() => { setSelected(null); router.push(`/club/session/${selected.clubSessionId}`); }}
                         >
-                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.ink }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: paper.ink }}>
                             클럽 세션 화면으로 ›
                           </Text>
                           {/* '취소하기'라고 쓰지 않는다 — 인계 이후(runner_enroute~)의 위탁은
                               클럽 규정상 취소가 아니라 케이스로 다뤄지고, 서버도 그렇게 답한다.
                               여기서 '취소'를 약속하면 다음 화면이 거절할 때 그게 거짓말이 된다. */}
-                          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>
+                          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>
                             위탁 예약은 클럽 세션 화면에서 처리해요 — 취소 규정도 그곳에 있어요
                           </Text>
                         </Pressable>
                       ) : (
                         <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: paper.critical }}>
                             {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
                                 달던 자리(이동 중만 표기하던 이분법)의 교정 */}
                             {/* 견적이 오기 전에는 숫자를 예고하지 않는다 — 0 도 % 도 아닌 '없음' */}
@@ -939,7 +939,7 @@ export default function Schedule() {
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
                   {selected.seriesId && (
                     <Pressable style={s.cancelLink} onPress={pauseSeries}>
-                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.dim }}>⟳ 매주 반복 해지</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: paper.dim }}>⟳ 매주 반복 해지</Text>
                     </Pressable>
                   )}
                 </>
@@ -947,7 +947,7 @@ export default function Schedule() {
                 <>
                   {/* cancel confirmation — 크리티컬 문법 (criticalWash/critical) 유지 */}
                   <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>일정을 취소할까요?</Text>
-                  <Text style={{ fontSize: 14.5, color: paper.text, marginTop: 6 }}>
+                  <Text style={{ fontSize: 15, color: paper.text, marginTop: 6 }}>
                     {selected.dateLabel} {selected.timeLabel} · {runner.name} 러너
                   </Text>
 
@@ -971,14 +971,14 @@ export default function Schedule() {
                     />
                     {cancelQuote.s === 'err' && (
                       <Pressable onPress={() => setQuoteTry((t) => t + 1)} style={{ marginTop: 10 }} accessibilityRole="button">
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: paper.critical }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.critical }}>
                           수수료를 확인하지 못했어요 — 다시 시도 ›
                         </Text>
                       </Pressable>
                     )}
                     {/* [0066] 이동 중 티어는 배분 문장이 다르다 — 50% 전액이 이미 출발한 러너의 보상.
                         일반 티어 카피(10%·50/50 배분·24h 무료)는 그대로 생존. */}
-                    <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 17 }}>
+                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 20 }}>
                       {enrouteCancel
                         ? '러너가 이미 픽업으로 출발했어요 — 이동 중 취소 수수료는 전액 시간을 내어 출발한 러너의 보상으로 배분돼요.'
                         : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
@@ -992,7 +992,7 @@ export default function Schedule() {
                         slice ships. The server already branches on payments.status='confirmed'
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}
-                    <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 17 }}>
+                    <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 20 }}>
                       {quotedFee == null
                         ? '지금까지 결제된 금액이 없어서 환불은 없어요.'
                         : quotedFee > 0
@@ -1038,7 +1038,7 @@ export default function Schedule() {
                     </Text>
                   </Pressable>
                   <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.text }}>돌아가기</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: paper.text }}>돌아가기</Text>
                   </Pressable>
                 </>
               )}
@@ -1053,9 +1053,9 @@ export default function Schedule() {
 function Pred({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 14, color: paper.dim }}>{label}</Text>
+      <Text style={{ fontSize: 15, color: paper.dim }}>{label}</Text>
       <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 3 }}>{value}</Text>
-      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>{sub}</Text>
+      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>{sub}</Text>
     </View>
   );
 }
@@ -1063,7 +1063,7 @@ function Pred({ label, value, sub }: { label: string; value: string; sub: string
 function FeeLine({ label, value, coral, bold }: { label: string; value: string; coral?: boolean; bold?: boolean }) {
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: 5 }}>
-      <Text style={{ fontSize: 14.5, color: bold ? paper.ink : paper.text, fontWeight: bold ? '800' : '400' }}>{label}</Text>
+      <Text style={{ fontSize: 15, color: bold ? paper.ink : paper.text, fontWeight: bold ? '800' : '400' }}>{label}</Text>
       <Text style={{ fontSize: bold ? 16 : 14, fontWeight: bold ? '900' : '600', color: coral ? paper.critical : paper.ink }}>{value}</Text>
     </Row>
   );
@@ -1079,7 +1079,7 @@ function FinisherSeal({ dateLabel }: { dateLabel: string }) {
     <View style={s.seal}>
       <View style={s.sealRing} />
       <Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#6E9BC5' }}>FINISHER</Text>
-      <Text style={{ fontSize: 14, fontWeight: '900', color: '#6E9BC5', marginTop: 1 }}>{date}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '900', color: '#6E9BC5', marginTop: 1 }}>{date}</Text>
       <Text style={{ fontSize: 6.5, fontWeight: '700', letterSpacing: 1, color: 'rgba(110,155,197,.85)', marginTop: 1 }}>DOGS HIGH</Text>
       {/* 워너웃 스펙클 — 보더 위를 무는 잉크 벗겨짐 */}
       <View style={[s.sealNick, { top: 6, left: 14, width: 4, height: 2.5 }]} />
@@ -1105,12 +1105,12 @@ const s = StyleSheet.create({
   // ── 날짜 그룹 라벨 (B① · 2026-08-24) ──────────────────────────────────────
   // 구조는 그대로(dim 14/800, 거터 12), 앞에 상대 앵커, 뒤에 D-라벨이 붙는다.
   // ⚠ 중첩 Text 의 lineHeight 는 부모에 값이 없으면 iOS 에서 무시된다 — 부모에 먼저 둔다 (BUG A).
-  grp: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim, paddingHorizontal: 12, marginBottom: 8 },
+  grp: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.dim, paddingHorizontal: 12, marginBottom: 8 },
   grpHead: { color: paper.ink },
-  grpD: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
+  grpD: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.dim },
   // 지난 일정 경계 — 선 하나와 라벨 하나. 아래 것을 접지도 지우지도 않는다 (§7b).
   divPast: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 26, marginBottom: 4, paddingHorizontal: 12 },
-  divPastTx: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim, letterSpacing: 0.5 },
+  divPastTx: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.dim, letterSpacing: 0.5 },
   divPastLine: { flex: 1, height: 1, backgroundColor: '#EEE' },
   // ── 지금 밴드 (B② · 2026-08-24) ──────────────────────────────────────────
   // 카드가 아니라 띠다: 흰 면 + 뉴트럴 1px + 왼쪽 볼트 레일 3px. 레일이 8px 이었을 때는 카드의
@@ -1120,9 +1120,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#EEE', borderLeftWidth: 3, borderLeftColor: colors.volt,
     paddingVertical: 13, paddingHorizontal: 14,
   },
-  nowKick: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.6, color: '#4a6d1f' },
+  nowKick: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 0.6, color: '#4a6d1f' },
   nowT: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 4 },
-  nowS: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  nowS: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 3 },
   nowRowDiv: { marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: '#EEE' },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8) — 시맨틱, 페이퍼 이관에서 생존
@@ -1175,7 +1175,7 @@ const s = StyleSheet.create({
     marginTop: 10, height: 110, alignItems: 'center', justifyContent: 'center',
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
   },
-  sheetMapPendingTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
+  sheetMapPendingTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
   vDiv: { width: 1, backgroundColor: '#EEE' },
   // 결제 내역 실패 스트립의 재시도 — schedule의 밑줄 텍스트 문법 (박스 없음, ≥44pt 타깃)
   payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },

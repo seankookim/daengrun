@@ -125,13 +125,13 @@ const s = StyleSheet.create({
 
   errBox: { marginTop: 20, borderWidth: 1, borderColor: colors.coralText, borderRadius: 14, padding: 15 },
   errTitle: { fontSize: 15, fontWeight: '800', color: colors.coralText },
-  errBody: { fontSize: 14, color: colors.cream, marginTop: 6, lineHeight: 20 },
+  errBody: { fontSize: 15, color: colors.cream, marginTop: 6, lineHeight: 20 },
   errRow: { flexDirection: 'row', gap: 10, marginTop: 13 },
   errBtn: {
     flex: 1, borderWidth: 1.5, borderColor: colors.cream, borderRadius: 12,
     paddingVertical: 11, alignItems: 'center', minHeight: 44, justifyContent: 'center',
   },
-  errBtnTxt: { fontSize: 14, fontWeight: '800', color: colors.cream },
+  errBtnTxt: { fontSize: 15, fontWeight: '800', color: colors.cream },
 
-  legal: { fontSize: 14, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 18 },
+  legal: { fontSize: 15, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 18 },
 });

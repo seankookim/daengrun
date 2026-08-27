@@ -83,5 +83,5 @@ const st = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  pendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  pendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
 });

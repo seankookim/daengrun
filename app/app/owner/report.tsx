@@ -480,7 +480,7 @@ export default function Report() {
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
                   <HeatTrace points={traceToBox(run.trace)} width={W - 60} height={140} />
-                  <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
+                  <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );
             })()}
@@ -491,12 +491,12 @@ export default function Report() {
                   올라타 '서울숲 숲길 3km'가 잘렸다. 메타 줄은 남는 폭만 갖고 한 줄로 접고(넘치면
                   ellipsize), 칩은 자기 크기를 지킨다 — 칩이 말하는 건 사유이고, 사유는 잘리면 안 된다. */}
               <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <Text style={{ fontSize: 14, color: paper.dim, flex: 1, minWidth: 0 }} numberOfLines={1}>
+                <Text style={{ fontSize: 15, color: paper.dim, flex: 1, minWidth: 0 }} numberOfLines={1}>
                   {report.when} · {report.routeName}
                 </Text>
                 {reason && run.endReason !== 'completed' && (
                   <View style={[s.reasonChip, { backgroundColor: reason.bg, flexShrink: 0 }]}>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
                   </View>
                 )}
               </Row>
@@ -519,7 +519,7 @@ export default function Report() {
                 <Row style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                   {bList.map((b) => (
                     <View key={b} style={s.stampChip}>
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.actionInk }}>{b}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '900', color: paper.actionInk }}>{b}</Text>
                     </View>
                   ))}
                 </Row>
@@ -551,7 +551,7 @@ export default function Report() {
                 <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>
                   이번 러닝은 사진이 없어요
                 </Text>
-                <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
+                <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
                   러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요
                 </Text>
               </View>
@@ -580,21 +580,21 @@ export default function Report() {
                       <Text style={s.writtenNoRating}>별점 없이 남긴 후기예요</Text>
                     )}
                     {fmtMonthDay(myReview.createdAt) && (
-                      <Text style={{ fontSize: 14, color: paper.dim }}>{fmtMonthDay(myReview.createdAt)} 등록</Text>
+                      <Text style={{ fontSize: 15, color: paper.dim }}>{fmtMonthDay(myReview.createdAt)} 등록</Text>
                     )}
                   </Row>
                   {myReview.tags.length > 0 && (
                     <Row style={{ gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
                       {myReview.tags.map((t) => (
                         <View key={t} style={s.reviewTag}>
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.actionInk }}>{t}</Text>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.actionInk }}>{t}</Text>
                         </View>
                       ))}
                     </Row>
                   )}
                   {/* 「프로필에 반영됐어요」 is only true for a public review — a platform_only one
                       is deliberately invisible on the runner's page, so it gets its own sentence. */}
-                  <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 9 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 9 }}>
                     후기는 러닝당 한 번만 남길 수 있어요 — {myReview.visibility === 'public'
                       ? `${report.runnerName ?? '러너'} 러너 프로필에 반영됐어요`
                       : '도그스하이 팀에게만 전달됐어요'}
@@ -788,11 +788,11 @@ export default function Report() {
                   if (n === 0) return null;
                   return (
                     <View key={kind} style={s.stampChip}>
-                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: paper.actionInk }}>{label} ×{n}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '900', color: paper.actionInk }}>{label} ×{n}</Text>
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 14, color: colors.dim, width: '100%', marginTop: 4 }}>
+                <Text style={{ fontSize: 15, color: colors.dim, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
                 </Text>
               </View>
@@ -805,7 +805,7 @@ export default function Report() {
             {stopped ? (
               <View style={s.section}>
                 <Text style={s.sectionTitle}>기록</Text>
-                <Text style={{ fontSize: 14, lineHeight: 20, color: paper.dim }}>
+                <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim }}>
                   {/* [BUG A] Oswald 숫자는 lineHeight 명시 없이 어센더가 잘린다 — 16 × 1.25 = 20 */}
                   예정 {report.plannedKm}km 중 <Text style={[s.recordNum, nf]}>{run.actualKm}</Text>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.
                 </Text>
@@ -1072,13 +1072,13 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
       <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 }}>
         아이가 힘들어 보이면 멈추는 게 맞아요.
       </Text>
-      <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
+      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
         러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.
       </Text>
 
       {run.conditionNote ? (
         <View style={{ marginTop: 13, borderLeftWidth: 2, borderLeftColor: paper.line, paddingLeft: 11 }}>
-          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
             러너가 본 것
           </Text>
           <Text style={{ fontSize: 15, color: paper.text, lineHeight: 21.5 }}>{run.conditionNote}</Text>
@@ -1086,16 +1086,16 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
       ) : (
         /* Loading ≠ empty ≠ absent (§7): the note is required at the stop, so a missing one is a
            real gap in the record — say so rather than rendering nothing. */
-        <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
           러너 메모가 기록되지 않았어요 — 안심 센터로 문의해주세요.
         </Text>
       )}
 
-      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
         {run.actualKm}km 지점 · {fmtDur(run.durationSec)} 지나 종료했어요 (예정 {plannedKm}km)
       </Text>
       {reason?.note && (
-        <Text style={{ fontSize: 14, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
+        <Text style={{ fontSize: 15, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
           {reason.note}
         </Text>
       )}
@@ -1110,10 +1110,10 @@ function RunnerNoteSection({ run, reason }: { run: RunFacts; reason: ReasonPaint
     <View style={s.section}>
       <Text style={s.sectionTitle}>러너 노트</Text>
       {run.conditionNote && (
-        <Text style={{ fontSize: 14.5, color: paper.text, lineHeight: 20.5 }}>{run.conditionNote}</Text>
+        <Text style={{ fontSize: 15, color: paper.text, lineHeight: 20.5 }}>{run.conditionNote}</Text>
       )}
       {reason?.note && (
-        <Text style={{ fontSize: 14, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
+        <Text style={{ fontSize: 15, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
           {reason.note}
         </Text>
       )}
@@ -1131,7 +1131,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
   return (
     <View style={{ marginTop: 10 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{label}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d453d' }}>{label}</Text>
         <Text style={{ fontSize: 15, fontWeight: '900', color: pct >= 100 ? paper.readyDeep : paper.ink }}>{pct}%</Text>
       </Row>
       <View style={s.barTrack}>
@@ -1143,7 +1143,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
           ]}
         />
       </View>
-      <Text style={{ fontSize: 14, color: colors.dim, marginTop: 4 }}>{detail}</Text>
+      <Text style={{ fontSize: 15, color: colors.dim, marginTop: 4 }}>{detail}</Text>
     </View>
   );
 }
@@ -1157,7 +1157,7 @@ const s = StyleSheet.create({
   headTitle: { fontSize: 27.5, fontWeight: '900', color: paper.ink, marginTop: 6 },
   statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
   statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
-  statLabel: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 1 },
+  statLabel: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 1 },
   reasonChip: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
   // ---------- ④b 별점 행 — 빈 별(☆) + 라벨. 채워진 상태는 이 화면이 알 수 없다 ----------
   starsRow: {
@@ -1181,7 +1181,7 @@ const s = StyleSheet.create({
   // ---------- ⑤ 재예약 넛지 — 이 프레임의 유일한 채도 (흰 라벨 4.84:1, 잉크 플레이트 불필요) ----------
   rebook: { backgroundColor: paper.action, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingVertical: 14 },
   rebookTitle: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: '#fff' },
-  rebookSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.wash, marginTop: 3 },
+  rebookSub: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.wash, marginTop: 3 },
   rebookChev: { fontSize: 20, lineHeight: 25, color: paper.wash },
   // ---------- ⑥⑦ 행 문법 — 풀블리드 캔버스 + 코랄 헤어라인 (s.section과 같은 리듬) ----------
   linkRow: {
@@ -1189,10 +1189,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   linkRowLabel: { fontSize: 16, fontWeight: '800', color: paper.ink },
-  linkRowSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 },
+  linkRowSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 },
   linkRowChev: { fontSize: 18, color: paper.actionInk },
   linkRowQuiet: { fontSize: 16, fontWeight: '600', color: paper.dim },
-  linkRowAction: { fontSize: 14, fontWeight: '800', color: paper.actionInk },
+  linkRowAction: { fontSize: 15, fontWeight: '800', color: paper.actionInk },
   // 섹션 분할은 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
   section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
@@ -1215,14 +1215,14 @@ const s = StyleSheet.create({
   // 한글 키커 — 라틴 대문자 예외가 아니므로 플로어 14를 그대로 지킨다.
   // 색은 accent(#6C5CE7)가 아니라 READ_VIOLET: lilac.bg 위에서 accent는 4.38:1로 AA를 못 넘는다
   // ([2026-08-25] 흰 그라운드에서 accent는 4.86으로 통과하지만 READ_VIOLET 8.32를 유지 — 위 상수 주석 참조)
-  earnKicker: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: READ_VIOLET },
+  earnKicker: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: READ_VIOLET },
   // [BUG A] Oswald 숫자는 lineHeight 명시 없이는 어센더가 잘린다 — 34 × 1.2 = 41
   earnTotal: { fontSize: 34, lineHeight: 41, fontWeight: '900', color: lilac.head },
   // 단위는 lilac.dim(#7C76A0)이 아니라 text — dim은 lilac.bg 위에서 3.82:1로 AA 미달
   // ([2026-08-25] 흰 그라운드에서도 dim은 4.24로 여전히 미달 — 이 회피는 계속 유효하다. theme.ts의 dim 주석 참조)
   earnUnit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.text },
-  earnLabel: { fontSize: 14, lineHeight: 19, color: lilac.text },
-  earnDelta: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: lilac.head },
+  earnLabel: { fontSize: 15, lineHeight: 19, color: lilac.text },
+  earnDelta: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: lilac.head },
   // ---------- Ⓒ② 오늘의 수확 오버레이 — 나이트 라일락 한 겹 (transform/opacity만 애니) ----------
   haulBack: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -1230,9 +1230,9 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(28,24,55,0.94)',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 30,
   },
-  // 라틴+한글 혼합 키커 — 라틴 대문자 예외가 아니므로 14pt 플로어를 그대로 지킨다
-  haulKicker: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 2.4, color: STAMP_INK, marginBottom: 14 },
-  haulPatchLine: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: '#fff', marginTop: 12, textAlign: 'center' },
+  // 라틴+한글 혼합 키커 — 라틴 대문자 예외가 아니므로 15pt 플로어를 그대로 지킨다
+  haulKicker: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 2.4, color: STAMP_INK, marginBottom: 14 },
+  haulPatchLine: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#fff', marginTop: 12, textAlign: 'center' },
   haulPerf: { alignSelf: 'stretch', marginHorizontal: 8, marginTop: 15, marginBottom: 14, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: 'rgba(255,255,255,0.3)' },
   // 줄바꿈은 HAUL_CAP이 이미 막았다 (376dp 미만은 2칸) — wrap은 폰트 확대 등 예외 상황의 안전망
   haulRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
@@ -1242,13 +1242,13 @@ const s = StyleSheet.create({
   },
   discRing: { position: 'absolute', borderWidth: 1.5 },
   discDot: { position: 'absolute', top: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: STAMP_FIRST },
-  haulCap: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 8, textAlign: 'center' },
-  haulMore: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: HAUL_DIM, marginTop: 10 },
-  haulSub: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: HAUL_DIM, marginTop: 14, textAlign: 'center' },
-  haulNote: { fontSize: 14, lineHeight: 19, color: HAUL_DIM, marginTop: 3, textAlign: 'center' },
+  haulCap: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 8, textAlign: 'center' },
+  haulMore: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: HAUL_DIM, marginTop: 10 },
+  haulSub: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: HAUL_DIM, marginTop: 14, textAlign: 'center' },
+  haulNote: { fontSize: 15, lineHeight: 19, color: HAUL_DIM, marginTop: 3, textAlign: 'center' },
   haulCta: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 11, paddingHorizontal: 22, marginTop: 16 },
   haulCtaText: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head },
-  haulHint: { fontSize: 14, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
+  haulHint: { fontSize: 15, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
   emptyBox: { margin: 20, backgroundColor: paper.wash, borderRadius: 0, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: paper.line },
   emptyText: { fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 },
 });

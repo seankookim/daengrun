@@ -139,20 +139,20 @@ export default function Addresses() {
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>주소 관리</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 14.5, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
+      <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
         기본 주소가 예약의 픽업 장소로 쓰여요
       </Text>
 
       <View style={{ marginTop: 16, gap: 10 }}>
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>주소를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>주소를 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
@@ -160,7 +160,7 @@ export default function Addresses() {
         )}
         {loaded && !loadErr && list.length === 0 && !adding && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               등록된 주소가 없어요{'\n'}첫 주소를 추가하면 자동으로 기본 픽업이 돼요
             </Text>
           </View>
@@ -174,7 +174,7 @@ export default function Addresses() {
                 <Text numberOfLines={1} style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>{a.label}</Text>
                 {a.isDefault && (
                   // 면·엣지는 paper.line 그대로, 글자만 읽는 코랄로 (A① 2단 문법)
-                  <View style={s.defaultTag}><Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>기본 픽업</Text></View>
+                  <View style={s.defaultTag}><Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>기본 픽업</Text></View>
                 )}
               </Row>
               {!a.isDefault && (
@@ -185,11 +185,11 @@ export default function Addresses() {
                   accessibilityRole="button"
                   accessibilityLabel={`${a.label}을 기본 픽업으로 지정`}
                 >
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>기본으로 지정</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>기본으로 지정</Text>
                 </Pressable>
               )}
             </Row>
-            <Text style={{ fontSize: 14.5, lineHeight: 20, color: paper.text, marginTop: 5 }}>{a.addr}</Text>
+            <Text style={{ fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 5 }}>{a.addr}</Text>
             {/* [DS-5] pin-state strip — own pressable, ≥44pt, works in BOTH states: missing =
                 coral invitation (not an error, no criticalWash), set = dim edit path
                 (pre-centers on the existing pin). */}
@@ -275,7 +275,7 @@ export default function Addresses() {
                 accessibilityLabel="주소 확인"
                 accessibilityState={{ disabled: !addr.trim() || verify === 'checking' }}
               >
-                <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: addr.trim() ? paper.actionInk : paper.faint }}>
+                <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: addr.trim() ? paper.actionInk : paper.faint }}>
                   {verify === 'checking' ? '확인 중...' : '확인'}
                 </Text>
               </Pressable>
@@ -285,8 +285,8 @@ export default function Addresses() {
             )}
             {verify && verify !== 'checking' && verify.kind === 'hit' && (
               <View style={s.verifyHit}>
-                <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.paceGoodInk }}>이 주소를 찾았어요</Text>
-                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.paceGoodInk, marginTop: 2 }}>
+                <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.paceGoodInk }}>이 주소를 찾았어요</Text>
+                <Text style={{ fontSize: 15, lineHeight: 19, color: paper.paceGoodInk, marginTop: 2 }}>
                   {/* roadAddress가 없으면 지어내지 않는다 — 찾았다는 사실만 말한다 */}
                   {verify.roadAddress ? `${verify.roadAddress} · ` : ''}저장하면 지도에서 핀을 맞출 수 있어요
                 </Text>
@@ -294,8 +294,8 @@ export default function Addresses() {
             )}
             {verify && verify !== 'checking' && verify.kind === 'miss' && (
               <View style={s.verifyMiss}>
-                <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk }}>이 주소는 지도에서 찾지 못했어요</Text>
-                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.text, marginTop: 2 }}>
+                <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk }}>이 주소는 지도에서 찾지 못했어요</Text>
+                <Text style={{ fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 2 }}>
                   그래도 저장할 수 있어요 — 저장 뒤 지도에서 픽업 위치를 직접 맞추면 돼요
                 </Text>
               </View>
@@ -320,7 +320,7 @@ export default function Addresses() {
           facts, not the backlog. The pin-fact line stays: it explains what the pin strip does.
           [A③ 2026-08-24] 「주소를 길게 누르면 삭제돼요」 삭제 — 그 제스처가 사라졌다. 없는 동작을
           안내하는 줄은 그 자체로 거짓말이다. */}
-      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 16 }}>
+      <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 16 }}>
         지도 핀으로 지정한 위치가 픽업 안내에 쓰여요
       </Text>
     </ScrollView>
@@ -355,12 +355,12 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#EEEEEE',
     paddingHorizontal: 14, justifyContent: 'center',
   },
-  stripSetTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  stripSetTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
   // [A①] 3.64:1 → 6.67:1. 같은 색조의 '읽는 버전'이 이미 토큰으로 있었다
-  stripNeedTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk },
-  stripDeleteTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical },
+  stripNeedTxt: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk },
+  stripDeleteTxt: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.critical },
   noteEdit: { marginTop: 10, marginHorizontal: -14, borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingHorizontal: 14, paddingTop: 12 },
-  noteCount: { fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 6 },
+  noteCount: { fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 6 },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 11, paddingHorizontal: 12, fontSize: 15.5, color: paper.ink,
@@ -369,7 +369,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line, paddingHorizontal: 14,
     alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
-  verifyQuiet: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 },
+  verifyQuiet: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 },
   // 찾음 = paceGoodWash/paceGoodInk (실측 4.50:1) · 못 찾음 = coral wash + actionInk (실패가
   // 아니라 안내다 — criticalWash는 쓰지 않는다)
   verifyHit: { backgroundColor: paper.paceGoodWash, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8 },
