@@ -16,6 +16,13 @@ begin
   u1 := t_user('bkr_one', 'owner');
   u2 := t_user('bkr_two', 'owner');
 
+  -- ⚠ [0143] `billing_key_swap` now RE-CHECKS the rollout gate at the write, so this fixture must
+  --   OPEN it. Before 0143 the gate lived only in the edge handler and these pins reached the
+  --   write with it closed — exercising a path production can no longer take. Opening it here is
+  --   not a workaround; it is the fixture finally matching the shipped precondition.
+  insert into ops_flags (id, updated_at) values (true, now()) on conflict (id) do nothing;
+  update ops_flags set card_registration_live_since = now() - interval '1 minute';
+
   ------------------------------------------------------------------------------------------
   -- R1: a FIRST link enqueues nothing. There is no displaced key, and a revocation row here
   -- would revoke the card the owner just linked.
