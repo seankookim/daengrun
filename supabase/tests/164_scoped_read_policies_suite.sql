@@ -205,7 +205,12 @@ begin
   if v_bad = '' then call _pass('srp','S5b 대기(pending) 위탁 보호자는 아직 멤버가 아니다 — 실제 delegate RPC로 만든 행, responsible 포인터가 자기 자신인데도');
   else v_msg := v_bad; call _fail('srp','S5b 대기 위탁 보호자', v_msg); end if;
 
-  -- ---------- [S6] THE CALLER-ONLY GUARANTEE — codex round 4, finding 1 ----------
+  -- ---------- [S10] THE CALLER-ONLY GUARANTEE — codex round 4, finding 1 ----------
+  -- ⚠ RENAMED S6→S10 at merge: an agent closing finding 2 in a parallel worktree added its own
+  -- S6-S9 (the pointer-arm family), and two pins answering to one label is a battery record that
+  -- cannot be read afterwards. Theirs is contiguous and cited by its own measured table, so mine
+  -- moved. A label collision between two correct slices is the file-level twin of the migration
+  -- number collision — neither party was careless, and only the merge could see it.
   -- Round 3 bound the helper to `p_uid is not distinct from auth.uid()` so it stops being an
   -- arbitrary-pair membership oracle. That conjunct was then pinned by NOTHING: deleting it left
   -- the whole suite green, because every other pin calls the helper only about itself. A conjunct
@@ -240,8 +245,8 @@ begin
   end if;
   reset role;
   if v_bad = '' then
-    call _pass('srp','S6 헬퍼는 호출자 본인만 답한다 — 임의 쌍 오라클이 아니다 (오라클 팔 + 자기부정/자기긍정 대조)');
-  else v_msg := v_bad; call _fail('srp','S6 호출자 전용 보장', v_msg); end if;
+    call _pass('srp','S10 헬퍼는 호출자 본인만 답한다 — 임의 쌍 오라클이 아니다 (오라클 팔 + 자기부정/자기긍정 대조)');
+  else v_msg := v_bad; call _fail('srp','S10 호출자 전용 보장', v_msg); end if;
 
   -- ---------- [S4] anon reads nothing ----------
   -- anon holds table-level SELECT grants on all four (Supabase default); RLS is the only thing

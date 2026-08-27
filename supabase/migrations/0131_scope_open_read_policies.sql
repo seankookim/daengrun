@@ -57,8 +57,8 @@
 --        leak (「대기 위탁 보호자가 session_people을 읽는다=2」). The real-RPC fixture is what
 --        makes this reachable; a hand-built row would have carried different pointers.
 --   P-B  the caller-bind deleted (`p_uid is not distinct from auth.uid()`, round 3's oracle
---        fix):  **1049/1 — S6 alone**, naming it (「낯선 사람이 남의 멤버십을 조회했다」).
---        ⚠ Before S6 existed this plant reddened **NOTHING** — codex round 4 finding 1. The
+--        fix):  **1049/1 — S10 alone**, naming it (「낯선 사람이 남의 멤버십을 조회했다」).
+--        ⚠ Before S10 existed this plant reddened **NOTHING** — codex round 4 finding 1. The
 --        conjunct I had just added to close an oracle was itself unpinned for a full round.
 --   P-C  RLS disabled post-VERIFY:  982/5 — G3 names the table, S1/S4/S5 red on the leak, and
 --        `[pcg] G1` (a pre-existing anon whitelist sweep neither round wrote) reds independently.
