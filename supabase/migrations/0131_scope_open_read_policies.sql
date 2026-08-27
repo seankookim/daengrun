@@ -61,61 +61,44 @@ begin;
 -- abort rather than silently replace work it never read.
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
-declare v_open int; v_extra int;
+declare v_tbl text; v_pol text; v_cnt int; v_rls int;
 begin
-  -- ⚠ COUNT PER TABLE, and reject EXTRA select policies. The first draft counted four GLOBALLY
-  -- and ignored anything else, so a drifted database carrying e.g.
-  --   create policy x on session_runner_assignments for select to anon using (true);
-  -- passed this pre-check, survived the drops (which name only the four originals), passed VERIFY,
-  -- and passed every pin — while anon read every assignment. A guard that counts a total cannot
-  -- see a table with two policies and a table with none.
-  select count(*) into v_open
-  from (select c.relname
-          from pg_policy p join pg_class c on c.oid = p.polrelid
-          join pg_namespace n on n.oid = c.relnamespace
-         where n.nspname = 'public'
-           and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
-           and p.polcmd = 'r'
-           and pg_get_expr(p.polqual, p.polrelid) = '(auth.uid() IS NOT NULL)'
-         group by c.relname) t;
-  if v_open <> 4 then
-    raise exception '0131 A: expected the open read policy on exactly 4 DISTINCT tables, found %. Re-scout before applying.', v_open;
-  end if;
+  -- [codex round 3] Per-POLICY exactness, one variable per claim, no reuse: the old form counted
+  -- distinct TABLES and overwrote its own evidence, so a renamed twin policy, an extra same-
+  -- predicate policy, a RESTRICTIVE flip or a role change all slid through 「abort before
+  -- changing anything」. Each table must carry EXACTLY its one known policy in its known shape.
+  for v_tbl, v_pol in
+    select * from (values ('session_dogs','dogs authed read'),
+                          ('session_people','people authed read'),
+                          ('session_runner_assignments','assignments authed read'),
+                          ('participant_activities','activities authed read')) t(a,b)
+  loop
+    select count(*) into v_cnt
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = v_tbl;
+    if v_cnt <> 1 then
+      raise exception '0131 A: % carries % policies, expected exactly its one open policy. Re-scout.', v_tbl, v_cnt;
+    end if;
+    select count(*) into v_cnt
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = v_tbl
+       and p.polname = v_pol and p.polcmd = 'r' and p.polpermissive
+       and p.polroles = '{0}'::oid[]         -- PUBLIC = {0} in pg_policy, MEASURED on production ({} was a guess and aborted the apply on the real policy)
+       and pg_get_expr(p.polqual, p.polrelid) = '(auth.uid() IS NOT NULL)';
+    if v_cnt <> 1 then
+      raise exception '0131 A: %.% is not the known open policy (name/cmd/permissive/roles/predicate). Re-scout.', v_tbl, v_pol;
+    end if;
+  end loop;
 
-  -- and no table may carry a SELECT policy this file does not know about
-  select count(*) into v_extra
-  from pg_policy p join pg_class c on c.oid = p.polrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
-    and p.polcmd = 'r'
-    and pg_get_expr(p.polqual, p.polrelid) is distinct from '(auth.uid() IS NOT NULL)';
-  -- 🔴 RLS ENABLED, per table (codex round 2): a table with row security DISABLED passed both
-  -- this pre-check and VERIFY while every row sat open — policies are inert on such a table, so
-  -- counting policies proves nothing about it. The check the drift claim actually needs.
-  select count(*) into v_extra
-  from pg_class c join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
-    and not c.relrowsecurity;
-  if v_extra <> 0 then
-    raise exception '0131 A: % of the four tables have ROW SECURITY DISABLED — policies would be inert. Re-scout.', v_extra;
-  end if;
-
-  if v_extra <> 0 then
-    raise exception '0131 A: % UNEXPECTED select policies on these tables — this file would preserve them. Re-scout.', v_extra;
-  end if;
-
-  -- and no OTHER policy exists on these tables (writes are RLS-denied today; if that changed,
-  -- this file's "SELECT only" reasoning no longer holds)
-  select count(*) into v_extra
-  from pg_policy p join pg_class c on c.oid = p.polrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
-    and p.polcmd <> 'r';
-  if v_extra <> 0 then
-    raise exception '0131 A: % non-SELECT policies appeared on these tables; re-scout.', v_extra;
+  select count(*) into v_rls
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities')
+     and not c.relrowsecurity;
+  if v_rls <> 0 then
+    raise exception '0131 A: % of the four tables have ROW SECURITY DISABLED — policies would be inert. Re-scout.', v_rls;
   end if;
 end $$;
 
@@ -134,7 +117,12 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select p_session is not null and p_uid is not null and (
+  -- [codex round 3] NOT an arbitrary-pair oracle: every authenticated user holds EXECUTE (the
+  -- policies evaluate it as the querying role), so without this bind anyone could probe ANY
+  -- (uid, session) pair. The helper answers only about the CALLER; policies always pass
+  -- auth.uid(), so nothing legitimate changes. service_role never needs it — it bypasses RLS.
+  select p_session is not null and p_uid is not null
+     and p_uid is not distinct from auth.uid() and (
     -- ⓐ the session's named authority. Host and backup host are recorded ON the session, so this
     --   IS the authority rather than a proxy for it.
     --   ⚠ RESIDUAL, NAMED NOT FIXED: `session_runner_withdraw` does not clear
@@ -164,13 +152,19 @@ as $$
     -- ⓓ someone bound to a LIVE dog in this session. The first draft admitted any historical
     --   relationship, so an owner whose delegation was rejected, withdrawn or ended still read all
     --   four tables — and a dog-local custodian was promoted to whole-session access.
+    -- 🔴 [codex round 3, THE CRITICAL] The generic pointers must not carry the OWNER: a real
+    --   `session_delegate_dog` inserts the PENDING row with the owner as responsible_profile_id
+    --   (and axes projects them as custodian), so 「owner AND approved」 was bypassed by the very
+    --   next arm for every pending delegation. Factored as codex proposed: the owner is judged by
+    --   the owner arm ALONE; the pointers admit only people who are NOT the owner.
     or exists (select 1 from session_dogs sd
                where sd.session_id = p_session
                  and sd.service_state is distinct from 'ended'
-                 and (sd.owner_profile_id = p_uid and sd.approval in ('approved', 'auto')
-                   or sd.custodian_profile_id = p_uid
-                   or sd.responsible_profile_id = p_uid
-                   or sd.current_runner_profile_id = p_uid))
+                 and ((sd.owner_profile_id = p_uid and sd.approval in ('approved', 'auto'))
+                   or (p_uid is distinct from sd.owner_profile_id
+                       and p_uid in (sd.custodian_profile_id,
+                                     sd.responsible_profile_id,
+                                     sd.current_runner_profile_id))))
   );
 $$;
 
@@ -293,7 +287,22 @@ begin
     if v_new <> 1 then
       raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not call the helper.', v_tbl, v_pol;
     end if;
+    -- permissive, explicitly — a sole RESTRICTIVE policy admits nobody and passed round 3's D
+    select count(*) into v_new
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+     where c.relname = v_tbl and p.polname = v_pol and p.polpermissive;
+    if v_new <> 1 then raise exception '0131 D: %.% is not PERMISSIVE.', v_tbl, v_pol; end if;
   end loop;
+
+  -- the helper itself: definer, exact overload, and the grants PRESENT (absence was unchecked)
+  if not (select prosecdef from pg_proc
+           where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
+    raise exception '0131 D: helper is not SECURITY DEFINER.';
+  end if;
+  if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute')
+     or not has_function_privilege('service_role', 'public._club_session_member(uuid,uuid)', 'execute') then
+    raise exception '0131 D: helper missing an intended EXECUTE grant.';
+  end if;
 
   -- the helper is NOT public-executable (the whole point of the explicit revoke)
   select has_function_privilege('public', 'public._club_session_member(uuid,uuid)', 'execute')

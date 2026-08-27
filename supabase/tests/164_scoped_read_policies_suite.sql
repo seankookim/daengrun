@@ -1,4 +1,4 @@
--- ═══ 164 scoped read policies — 0131 pins (S1-S4 · R1 · G1-G2) ═══
+-- ═══ 164 scoped read policies — 0131 pins (S1-S5·S5b · R1 · G1-G3) ═══
 -- What this suite pins: that the four club session tables whose only read policy was
 -- `(auth.uid() IS NOT NULL)` now admit exactly the people who belong to that session, that they
 -- still admit those people (a policy admitting nobody is green on every denial arm while four
@@ -16,8 +16,8 @@
 do $$
 declare
   v_host uuid; v_member uuid; v_owner uuid; v_runner uuid; v_runner2 uuid; v_stranger uuid;
-  v_noshow uuid; v_exowner uuid; v_exdog uuid;
-  v_club uuid; v_ses uuid; v_ses2 uuid; v_rt2 uuid; v_dog uuid; v_sp_id uuid;
+  v_noshow uuid; v_exowner uuid; v_exdog uuid; v_pendowner uuid; v_penddog uuid;
+  v_club uuid; v_ses uuid; v_ses2 uuid; v_rt uuid; v_rt2 uuid; v_dog uuid; v_sp_id uuid;
   v_n int; v_pre int; v_bad text; v_msg text;
 begin
   -- ---------- fixtures: one session, four people who belong, one who does not ----------
@@ -29,8 +29,12 @@ begin
 
   insert into clubs (name, district, status, host_profile_id)
     values ('SR클럽', '반포동', 'active', v_host) returning id into v_club;
-  insert into club_sessions (club_id, host_profile_id, scheduled_at, meetup_point)
-    values (v_club, v_host, now() + interval '2 hours', 'SR 집결지') returning id into v_ses;
+  -- format='mixed' + a real delegation capacity: the fixture session must be one the delegate
+  -- RPC would accept, or S5b's real-lifecycle pending row is unreachable (measured: the default
+  -- format made session_delegate_dog raise format_closed — the lifecycle refusing a fixture, again)
+  v_rt := t_route('SR 코스');
+  insert into club_sessions (club_id, host_profile_id, scheduled_at, meetup_point, route_id, format, delegated_dog_capacity)
+    values (v_club, v_host, now() + interval '2 hours', 'SR 집결지', v_rt, 'mixed', 8) returning id into v_ses;
 
   insert into session_people (session_id, profile_id, role, attendance)
     values (v_ses, v_member, 'owner_attending', 'rsvp') returning id into v_sp_id;
@@ -184,6 +188,23 @@ begin
   if v_bad = '' then call _pass('srp','S5 경계 — no_show는 여전히 멤버로 읽고(출석은 주장이지 박탈이 아니다), 위탁이 거절된 보호자는 0행');
   else v_msg := v_bad; call _fail('srp','S5 근접 관계 차단', v_msg); end if;
 
+  -- ---------- [S5b] THE ROUND-3 CRITICAL, pinned via the real RPC ----------
+  -- `session_delegate_dog` makes the OWNER the pending row's responsible_profile_id, so before
+  -- the round-4 factoring, this exact person read all four tables through the pointer arms while
+  -- their delegation sat unapproved. Real lifecycle, no INSERT.
+  v_pendowner := t_user('sr_pend', 'owner'); v_penddog := t_dog(v_pendowner, 'SR-대기견');
+  perform set_config('request.jwt.claim.sub', v_pendowner::text, true);
+  perform session_delegate_dog(v_ses, v_penddog, t_consent());
+  set local role authenticated;
+  v_bad := '';
+  select count(*) into v_n from session_people where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' 대기 위탁 보호자가 session_people을 읽는다=' || v_n; end if;
+  select count(*) into v_n from session_runner_assignments where session_id = v_ses;
+  if v_n <> 0 then v_bad := v_bad || ' 대기 위탁 보호자가 assignments를 읽는다=' || v_n; end if;
+  reset role;
+  if v_bad = '' then call _pass('srp','S5b 대기(pending) 위탁 보호자는 아직 멤버가 아니다 — 실제 delegate RPC로 만든 행, responsible 포인터가 자기 자신인데도');
+  else v_msg := v_bad; call _fail('srp','S5b 대기 위탁 보호자', v_msg); end if;
+
   -- ---------- [S4] anon reads nothing ----------
   -- anon holds table-level SELECT grants on all four (Supabase default); RLS is the only thing
   -- standing between it and these rows, which is exactly why this arm is written down.
@@ -213,11 +234,11 @@ begin
   else v_msg := 'anon이 읽는다:' || v_bad; call _fail('srp','S4 anon 차단', v_msg); end if;
 
   -- ---------- [R1] the one REAL client caller still works ----------
-  -- app/src/lib/api.ts:1629 (fetchStampStats) counts session_people filtered by profile_id.
+  -- app/src/lib/api.ts fetchStampStats (fetchStampStats) counts session_people filtered by profile_id.
   -- Its own comment says the filter is a correctness requirement BECAUSE the RLS was open.
   -- 0131 must not turn that count into 0 — that would silently zero the 도장 벽.
   -- 🔴 [codex REJECT] 이 핀은 `where profile_id = v_member`만 셌다. 진짜 호출자
-  -- (api.ts:1629 fetchStampStats)는 `attendance='checked_in'` 이고 club_sessions에 조인해
+  -- (api.ts fetchStampStats fetchStampStats)는 `attendance='checked_in'` 이고 club_sessions에 조인해
   -- `status='done'`까지 요구한다. 그래서 rsvp 행만 통과시키는 정책 변형이 R1을 초록으로 둔 채
   -- 모든 도장 카운트를 0으로 만들 수 있었다 — 「초록불은 딱 한 문장의 증거」의 교과서 사례.
   -- 이제 호출자의 술어를 그대로 실행하고, 정책 앞뒤를 **비교**한다 (계약이 요구한 pre/post).
@@ -263,6 +284,16 @@ begin
   -- Codex round 2's sharpest finding: a table with RLS DISABLED passed the migration's own checks
   -- while every row sat open, because counting policies proves nothing about a table where
   -- policies are inert. This is the STANDING half; 0131's A/D blocks are the apply-time half.
+  -- a MISSING table would make a not-rowsecurity sweep vacuously green (codex round 3) —
+  -- existence is asserted first, so G3's green means 「all four exist AND all four are RLS-on」
+  select count(*) into v_n
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('session_dogs','session_people','session_runner_assignments','participant_activities');
+  if v_n <> 4 then
+    v_msg := '테이블이 ' || v_n || '/4개만 존재한다';
+    call _fail('srp','G3 RLS 활성 스윕', v_msg); return;
+  end if;
   select count(*), coalesce(string_agg(c.relname, ', ' order by c.relname), '') into v_n, v_list
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public'
