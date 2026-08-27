@@ -210,8 +210,8 @@ export default function DelegateConsentScreen() {
                   <Text style={{ fontSize: 19, lineHeight: 24, fontWeight: '800', color: INK }}>
                     {fare.toLocaleString()}원
                   </Text>
+                  {/* merge: trunk's routeName handling + the sweep's 15; lineHeight 22 clears BUG A's 1.2x */}
                   {board?.session.routeKm != null && (
-                    {/* merge: trunk's routeName handling + the sweep's 15; lineHeight 22 so the raise clears BUG A's 1.2x */}
                     <Text style={{ fontSize: 15, lineHeight: 22, color: '#8a8272', marginTop: 1 }}>
                       {board.session.routeKm}km{board.session.routeName ? ` · ${board.session.routeName}` : ' 코스'}
                     </Text>
