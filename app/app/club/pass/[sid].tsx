@@ -3,21 +3,41 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { checkinClubSession, ClubSessionDetail, fetchClubSession } from '../../../src/lib/api';
-import { LoadGate } from '../../../src/components/club-ui';
+import { ClubCta, LoadGate } from '../../../src/components/club-ui';
 import { useDisplayFont } from '../../../src/lib/displayFont';
+import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
-import { colors } from '../../../src/theme';
+import { colors, layout, paper } from '../../../src/theme';
 
-// 입장권 (D1×D2 하이브리드, Sean 확정) — 집결지에서 호스트에게 '보여주는' 화면.
-// 나이트 스텁 티켓: ADMIT 언어(책임 불변식의 입장권 버전) + 빕 넘버(D1 명부) + 바코드.
-// 체크인 버튼이 티켓 위에 산다 — 보여주면서 그 자리에서 찍는 게 자연스러운 동선.
-// 체크인 창(시작 −2h~+6h)은 서버(session_checkin)가 강제 — 화면은 안내만.
+// 입장권 — the pass you hold up to the host at the meetup point. Night stub ticket (D1xD2,
+// Sean-ratified): ADMIT language + bib count + barcode. The check-in button lives ON the ticket,
+// because showing it and stamping it are one motion. The check-in window (start -2h..+6h) is
+// enforced by the server (session_checkin); this screen only says when it opens.
+//
+// [repaint 2026-08-27] Brought onto the laws ruled this week. Four things moved:
+//  1. CHROME GOES PAPER, THE ARTIFACT STAYS DARK (DESIGN.md §2 paper-migration grammar). The
+//     stage, the back door and the ticket's perforation notches are white; the ticket itself is
+//     still the night world, which §2's table keeps deliberately as a ceremony object. The
+//     notches read as cut-outs only if they are the colour of whatever is BEHIND the ticket, so
+//     they follow the stage.
+//  2. BABY WORK (§7a-bis). One display headline (the club), one structured row set
+//     (DATE/MEET/TEAM), one state line. Three lines of chrome were deleted rather than shrunk —
+//     see the notes at each site. Dim is now the exception: the state line is ink (white here),
+//     because it is the only thing on this screen the holder must actually read to act.
+//  3. PRESS GRAMMAR (§3b). The hand-rolled violet check-in button is retired for ClubCta: violet
+//     was ruled club IDENTITY and not a press surface, and the hand-rolled control carried a neon
+//     glow + an opacity-dim busy state — a shadow cannot have a press state, and an alpha trick
+//     is not a button state. ClubCta brings the 4px lip / translateY(3) key press, the 17/800
+//     label, the busy label swap and the a11y disabled/busy state.
+//  4. FLOOR (§3). Korean detail text at 14 is gone; the display face is spent ONCE (the club
+//     name) and the bib count joins the Oswald wave with an explicit lineHeight (BUG A).
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function ClubPass() {
   const df = useDisplayFont();
+  const nf = useNumFont();
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [sess, setSess] = useState<ClubSessionDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,7 +63,11 @@ export default function ClubPass() {
   }
 
   const me = sess.people.find((p) => p.isMe) ?? null;
-  const teamOf = me?.dogName ? 'TEAM OF 2 (YOU + DOG)' : 'TEAM OF 1';
+  // [0052 §2] `people` is only filled for parties to the session; the roster COUNT that is always
+  // present is `peopleCount` (the idiom club/session/[sid].tsx:260 already uses). Reading the
+  // array length instead printed 0 팀 to a non-participant — a real capacity beside a number the
+  // server never said, which is the fabricated-datum shape, not a rounding detail.
+  const teams = sess.peopleCount ?? sess.people.length;
   const d = new Date(sess.scheduledAt);
   const checked = sess.myAttendance === 'checked_in';
   const startMs = d.getTime();
@@ -62,26 +86,34 @@ export default function ClubPass() {
 
   return (
     <View style={s.stage}>
-      <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 58, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20, color: '#fff' }}>‹</Text></Pressable>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 58, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' }}>
+        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
 
         <View style={s.ticket}>
           <View style={s.neonEdge} />
 
-          {/* 상단 — ADMIT + 빕 */}
+          {/* 상단 — ADMIT + 빕.
+              [baby work] The kicker used to carry the party size too, which the TEAM row two
+              blocks down already spells out by name — the same fact twice, once in latin
+              micro-caps. Kicker keeps the one word that is not repeated anywhere.
+              [honesty] The dim host line under the club name asserted a verification tier that
+              no field on ClubSessionDetail backs (the type carries hostName and nothing about
+              vetting), so it was an unearned badge; and the holder does not need the host's name
+              to hold up a ticket TO the host. Deleted whole rather than trimmed. */}
           <View style={s.top}>
             <View style={{ flex: 1 }}>
-              <Text style={s.kicker}>ADMIT — {teamOf}</Text>
-              <Text style={[{ fontSize: 25, fontWeight: '900', color: '#fff', marginTop: 5 }, df]} numberOfLines={1}>
+              <Text style={s.kicker}>ADMIT</Text>
+              {/* the screen's ONE display face (§3) — lineHeight 31 = 1.24x (BUG A) */}
+              <Text style={[{ fontSize: 25, lineHeight: 31, fontWeight: '900', color: '#fff', marginTop: 5 }, df]} numberOfLines={1}>
                 {clubName || '하이클럽'}
-              </Text>
-              <Text style={{ fontSize: 15, color: colors.nightDim, marginTop: 3 }}>
-                호스트 {sess.hostName ?? '—'} 러너 · HIGH-VERIFIED
               </Text>
             </View>
             <View style={s.bibBox}>
               <Text style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>TEAMS</Text>
-              <Text style={{ fontSize: 21, fontWeight: '900', color: colors.neon, fontVariant: ['tabular-nums'] }}>{sess.people.length}<Text style={{ fontSize: 15, color: colors.nightDim }}>/{sess.capacity}</Text></Text>
+              {/* Oswald + explicit lineHeight 27 = ceil(21x1.24) — BigNumRow's value, same reason */}
+              <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '600', color: colors.neon, fontVariant: ['tabular-nums'] }, nf]}>
+                {teams}<Text style={{ fontSize: 15, color: colors.nightDim }}>/{sess.capacity}</Text>
+              </Text>
             </View>
           </View>
 
@@ -104,33 +136,41 @@ export default function ClubPass() {
             </View>
           </Row>
 
-          {/* 홀더 — 내 팀 */}
+          {/* 홀더 — 내 팀.
+              §3 spends Black Han Sans ONCE per screen and the club name above is the headline, so
+              this row is plain 800. It is a data value, not a title — the weight law reserves 900
+              for numbers and screen titles.
+              The non-participant case is a data dash here: the sentence that says why lives in
+              the state slot below, and printing it in both places was the same words twice. */}
           <View style={{ paddingHorizontal: 16, paddingTop: 13 }}>
             <Text style={s.cellK}>TEAM</Text>
-            <Text style={[{ fontSize: 27, fontWeight: '900', color: '#fff', marginTop: 3 }, df]} numberOfLines={1}>
-              {me ? `${me.name}${me.dogName ? ` + ${me.dogName}` : ''}` : '참가자 아님'}
+            <Text style={{ fontSize: 22, lineHeight: 28, fontWeight: '800', color: '#fff', marginTop: 3 }} numberOfLines={1}>
+              {me ? `${me.name}${me.dogName ? ` + ${me.dogName}` : ''}` : '—'}
             </Text>
           </View>
 
-          {/* 상태 — RSVP / CHECKED 도장 */}
+          {/* 상태 — 도장 / 액션 / 한 줄.
+              §7a-bis: exactly one of these three renders, and each is one thing. The stamp's
+              second line was reassurance under a word that already says it; the pre-window line
+              lost its latin reservation prefix, which restated the fact that you are holding a pass.
+              What survives is ink, not dim — this is the line the holder must read to act, and
+              dim is reserved for the consent class. */}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, minHeight: 74, justifyContent: 'center' }}>
             {checked ? (
               <View style={s.checkedStamp}>
                 <Text style={{ fontSize: 17, fontWeight: '900', letterSpacing: 3, color: colors.volt }}>CHECKED</Text>
-                <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: 'rgba(198,245,66,.75)', marginTop: 2 }}>ARRIVED · GOOD RUN</Text>
               </View>
             ) : me ? (
               inWindow ? (
-                <Pressable onPress={doCheckin} disabled={busy} style={[s.checkinBtn, busy && { opacity: 0.5 }]}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>✓ 집결지 도착 체크인</Text>
-                </Pressable>
+                // ClubCta = §3b's filled-key press (4px lip at rest, translateY(3) + 1px pressed,
+                // no scale, no shadow) + busy label swap. marginTop is zeroed because the slot
+                // already owns the space above it.
+                <ClubCta label="집결지 도착 체크인" onPress={doCheckin} busy={busy} style={{ marginTop: 0 }} />
               ) : (
-                <Text style={{ fontSize: 15, color: colors.nightDim, textAlign: 'center' }}>
-                  RSVP ✓ — 체크인은 시작 2시간 전부터 열려요
-                </Text>
+                <Text style={s.stateLine}>체크인은 시작 2시간 전부터 열려요</Text>
               )
             ) : (
-              <Text style={{ fontSize: 15, color: colors.nightDim, textAlign: 'center' }}>이 세션의 참가자가 아니에요</Text>
+              <Text style={s.stateLine}>이 세션의 참가자가 아니에요</Text>
             )}
           </View>
 
@@ -142,32 +182,39 @@ export default function ClubPass() {
           </Row>
           <Text style={s.serial}>DOGS HIGH · {sess.id.slice(0, 8).toUpperCase()}</Text>
         </View>
-
-        <Text style={{ fontSize: 15, color: colors.nightDim, textAlign: 'center', marginTop: 14 }}>
-          집결지에서 호스트에게 이 화면을 보여주세요
-        </Text>
+        {/* [baby work] A dim instruction line used to sit here, telling the holder to show the
+            ticket to the host. It is the ADMIT ticket's whole form, and the row that opens this
+            screen (club/session/[sid].tsx) already says it in the tap itself — so it was a third
+            statement of a fact stated twice. Deleted, not shrunk. */}
       </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  stage: { flex: 1, backgroundColor: colors.nightBg },
-  backBtn: { position: 'absolute', top: 56, left: 16, width: 40, height: 40, borderRadius: 6, backgroundColor: colors.nightCard, borderWidth: 1, borderColor: colors.nightEdge, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  ticket: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, overflow: 'hidden', paddingBottom: 14 },
+  // §2 paper-migration grammar: the chrome around a dark artifact goes paper. The stage is the
+  // chrome; the ticket below is the artifact and keeps the night world.
+  stage: { flex: 1, backgroundColor: paper.canvas },
+  // The back door is the app's standard square: 40x40, canvas face, 1px coral, radius 0
+  // (runner/meetup circleBtn). It sits on the white stage, so it is a paper control.
+  backBtn: { position: 'absolute', top: 56, left: layout.gutter, width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  // §3b: radius 0 everywhere including the club card — the club's standing exception is its side
+  // margins, never its corners.
+  ticket: { backgroundColor: colors.nightCard, borderRadius: 0, borderWidth: 1, borderColor: colors.nightEdge, overflow: 'hidden', paddingBottom: 14 },
   neonEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.neon, zIndex: 2 },
   top: { flexDirection: 'row', gap: 12, padding: 16, paddingLeft: 19, alignItems: 'flex-start' },
   kicker: { fontSize: 9.5, fontWeight: '700', letterSpacing: 3, color: colors.neon },
-  bibBox: { borderWidth: 1, borderColor: colors.nightEdge, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center', backgroundColor: '#1B1536' },
+  bibBox: { borderWidth: 1, borderColor: colors.nightEdge, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center', backgroundColor: '#1B1536' },
   perf: { flexDirection: 'row', alignItems: 'center', height: 14, marginVertical: 2 },
   dash: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: '#3A3168', marginHorizontal: 10 },
-  notch: { position: 'absolute', width: 14, height: 14, backgroundColor: colors.nightBg, transform: [{ rotate: '45deg' }] },
+  notch: { position: 'absolute', width: 14, height: 14, backgroundColor: paper.canvas, transform: [{ rotate: '45deg' }] },
   grid: { marginHorizontal: 16, borderWidth: 1, borderColor: colors.nightEdge, marginTop: 8 },
   cell: { flex: 1, paddingVertical: 9, paddingHorizontal: 11, borderColor: colors.nightEdge },
   cellK: { fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim },
   cellV: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 3 },
-  checkinBtn: { backgroundColor: colors.club, borderRadius: 6, borderWidth: 1.2, borderColor: colors.neon, alignItems: 'center', paddingVertical: 14, shadowColor: colors.neon, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
-  checkedStamp: { alignSelf: 'center', borderWidth: 2.5, borderColor: colors.volt, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 18, transform: [{ rotate: '-7deg' }], alignItems: 'center', backgroundColor: 'rgba(198,245,66,.06)' },
+  // §3 floor 15 + §7a-bis ink-by-default: white on nightCard measures 18.5:1. lineHeight 21 = 1.31x.
+  stateLine: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  checkedStamp: { alignSelf: 'center', borderWidth: 2.5, borderColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 18, transform: [{ rotate: '-7deg' }], alignItems: 'center', backgroundColor: 'rgba(198,245,66,.06)' },
   bars: { gap: 2, alignItems: 'flex-end', height: 26, marginTop: 10, marginHorizontal: 16, opacity: 0.75 },
   serial: { fontSize: 8.5, letterSpacing: 2.5, fontWeight: '700', color: colors.nightDim, marginTop: 6, marginLeft: 16 },
 });
