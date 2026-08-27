@@ -220,11 +220,22 @@ export default function CaseDetail() {
                           pressed fill and no accessibilityState for its own `disabled` — one
                           component now supplies all three. Label rises 15 -> 17 (the ≥16 button
                           floor) and busy says 처리 중... instead of a bare ellipsis. */}
-                      <ClubCta label="선택" onPress={() => doSettle(k)} busy={busy} style={s.settleBtn} />
+                      {/* [0152] A measured settlement cannot be CHOSEN on a run nobody measured.
+                          The server answers that outcome in-band with basis `incident_unmeasured`
+                          and every money column NULL; offering the button anyway would be a
+                          control whose only outcome is a refusal — the dead-button law. The other
+                          two outcomes stay available, because neither needs a measurement. */}
+                      {quotes[k].basis === 'incident_unmeasured'
+                        ? <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, alignSelf: 'center' }}>거리 미측정</Text>
+                        : <ClubCta label="선택" onPress={() => doSettle(k)} busy={busy} style={s.settleBtn} />}
                     </View>
                   ))}
+                  {/* [0152] 「실측 0km」 was printed for a run that was never measured — a number
+                      nobody took, shown to a host deciding a payout. NULL now says so instead. */}
                   <Text style={{ fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 8 }}>
-                    실측 {quotes.settle_measured.measuredKm}km
+                    {quotes.settle_measured.measuredKm == null
+                      ? '거리가 측정되지 않았어요'
+                      : `실측 ${quotes.settle_measured.measuredKm}km`}
                     {quotes.settle_measured.tookCustody ? ' · 인계 완료' : ' · 인계 전'}
                   </Text>
                 </>

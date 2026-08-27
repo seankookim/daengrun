@@ -4169,7 +4169,11 @@ export interface SettleQuote {
    *  composition is dead. NULL = not your number; the screen omits that piece. */
   refund: number | null;
   runnerGross: number | null; runnerFee: number | null; runnerNet: number | null;
-  measuredKm: number; tookCustody: boolean; basis: string;
+  /** [0152] `number | null` — NULL means the run was NEVER MEASURED, which is not 0 km.
+   *  ⚠ The previous `Number(measured_km ?? 0)` was a SECOND, INDEPENDENT source of the fabricated
+   *  zero the server was also producing: fixing either layer alone changed nothing observable,
+   *  because this one converted the honest NULL straight back into 0 at the boundary. */
+  measuredKm: number | null; tookCustody: boolean; basis: string;
 }
 export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutcome): Promise<SettleQuote> => {
   const raw = await clubRpc('club_incident_settle_quote', { p_booking: bookingId, p_outcome: outcome }) as any;
@@ -4179,7 +4183,7 @@ export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutc
     runnerGross: r?.runner_gross == null ? null : Number(r.runner_gross),
     runnerFee: r?.runner_fee == null ? null : Number(r.runner_fee),
     runnerNet: r?.runner_net == null ? null : Number(r.runner_net),
-    measuredKm: Number(r?.measured_km ?? 0), tookCustody: !!r?.took_custody,
+    measuredKm: r?.measured_km == null ? null : Number(r.measured_km), tookCustody: !!r?.took_custody,
     basis: String(r?.basis ?? ''),
   };
 };

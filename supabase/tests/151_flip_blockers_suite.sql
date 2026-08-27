@@ -340,6 +340,15 @@ begin
     -- ⓐ the host of the booking's own club session
     perform set_config('request.jwt.claim.sub', hh::text, false);
     begin
+    -- ⚠ [0152] MEASURED ON PURPOSE. B5's arms quote `settle_measured`, and until 0152 this
+    --   booking had no `runs` row — the quote's `coalesce(actual_km, 0)` invented a 0 km and so
+    --   supplied the money columns these arms compare. **The pin could only tell an authority
+    --   from a stranger because a fabricated zero gave it numbers at all.** 0152 answers an
+    --   unmeasured run with NULL money and `basis='incident_unmeasured'`, which is correctly
+    --   indistinguishable from redaction to a caller reading only the money columns — so the
+    --   fixture supplies a real measurement and B5 goes back to testing the PARTY GATE.
+    insert into runs (booking_id, actual_km) values (b_pay, 3.0)
+      on conflict (booking_id) do update set actual_km = 3.0;
       select * into q from club_incident_settle_quote(b_pay, 'settle_measured');
       if q.refund is null then v_bad := v_bad || ' 호스트가 빈 답을 받았다'; end if;
     exception when others then v_bad := v_bad || ' 🔴 호스트가 거절당했다=' || sqlerrm;
@@ -372,6 +381,9 @@ begin
     --    a case screen). A marketplace booking with no club session at all is reachable to the
     --    host of the session whose incident NAMES it, and to nobody else.
     b_mkt := t_av_booking(oz, dz, rt, rr, now() - interval '5 hours', 5.0, 'incident_review');
+    -- [0152] same reason as b_pay above.
+    insert into runs (booking_id, actual_km) values (b_mkt, 3.0)
+      on conflict (booking_id) do update set actual_km = 3.0;
     insert into club_incidents (session_id, severity, state, opened_by, summary)
     values (v_s, 'S2', 'open', hh, '견적 게이트 픽스처 — 케이스 팔') returning id into v_inc;
     insert into club_incident_subjects (incident_id, subject_type, subject_id)

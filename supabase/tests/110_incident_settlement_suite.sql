@@ -121,6 +121,16 @@ begin
           -- which is also who reads it in the real settle path. The authority split itself is
           -- 156 P12/P13's property, not this arm's. (This arm's earlier red printed as a BLANK
           -- row: the NULL gross rode a || chain into a NULL _fail detail — coalesce added.)
+          -- 🔴 [0152] MEASURED, and the change is the point. This arm asserted `measured_km = 0`
+          --    on a booking with NO run row — it pinned the FABRICATED ZERO as correct. 0152
+          --    removes the coalesce, so an unmeasured run answers with NULL money and
+          --    `basis='incident_unmeasured'`; a measured settlement cannot be quoted on a run
+          --    nobody measured. ⚠ This arm's own property is arithmetic — 「no custody ⇒ no base
+          --    fare」 — which NEEDS a measurement to exercise, so it now rides a real 0 km
+          --    measurement (a genuine answer, unlike an absent one). The unmeasured case is a
+          --    different proposition and is owned by suite 183.
+          insert into runs (booking_id, actual_km) values (b_nc, 0.0)
+            on conflict (booking_id) do update set actual_km = 0.0;
           perform set_config('request.jwt.claim.sub', '', false);
           select * into q from club_incident_settle_quote(b_nc, 'settle_measured');
           perform set_config('request.jwt.claim.sub', hh::text, false);
