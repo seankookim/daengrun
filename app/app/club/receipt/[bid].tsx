@@ -34,6 +34,12 @@ const EARN_SHORT: Record<string, string> = {
   run_complete: '완주', poop_bonus: '응가', patch_gold: '골드 패치', patch_master: '코스 마스터',
 };
 
+// THE one word this screen uses for "the server has no measurement", and the only one.
+// `actualKm`/`durationSec` are nullable at the source (api.ts): the custody/emergency path ends a
+// run without ever measuring it, and production booking 4f053152 has both columns NULL. They used
+// to arrive as `0`, so this receipt printed 「오늘 0.0km」 under a gold SETTLED seal.
+const UNKNOWN = '기록 없음';
+
 const durStr = (sec: number): string =>
   `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 const paceOf = (secPerKm: number): string =>
@@ -182,7 +188,17 @@ export default function ClubReceipt() {
   // 칸을 두지 않는다 (빈 칸은 캡처된 PNG에 그대로 박힌다). 장수도 이 목록의 길이로 센다.
   const shots = run.photos.filter(Boolean);
   const bestShot = shots[0] ?? null;
-  const pace = run.paceSecPerKm != null ? paceOf(run.paceSecPerKm)
+  // Three pace states, and the `> 0.05` guard only ever separated two of them:
+  //   ① the server computed a pace → print it.
+  //   ② distance and time WERE measured, but the distance is under 50m → the ratio is genuinely
+  //      undefined (and would be nonsense), so `-'--"` stays. It is the right glyph here: it says
+  //      "a pace belongs in this slot and this run has none", which is exactly what happened.
+  //   ③ nothing was measured at all → that is not an undefined ratio, it is an absent record, and
+  //      `-'--"` is shaped like a measurement. `null` here means UNKNOWN: the rule-row cell prints
+  //      the word, the meta line above simply drops the segment.
+  // The old expression collapsed ② and ③ because `null` arrived here as `0`.
+  const pace: string | null = run.paceSecPerKm != null ? paceOf(run.paceSecPerKm)
+    : run.actualKm == null || run.durationSec == null ? null
     : run.actualKm > 0.05 ? paceOf(run.durationSec / run.actualKm) : "-'--\"";
 
   // 카드 캡처 → 시스템 공유 시트 (인증샷 화면 선례 — view-shot 지연 로드, 미탑재 빌드는 정직 안내)
@@ -262,27 +278,56 @@ export default function ClubReceipt() {
               </View>
             </View>
             <View style={{ alignItems: 'center', paddingBottom: 18, paddingHorizontal: 14 }}>
+              {/* Unlike the report's share TEXT (whose entire sentence is a 완주 boast, so it is
+                  withdrawn when the distance is unknown), this card is a settlement receipt: the
+                  seal, the 하이 포인트 ledger and the photos are all still true. So it keeps
+                  printing — with the absence said in words, in coral where the number would be. */}
               <Text style={[{ fontSize: 19, color: L.head, marginTop: 10 }, df]}>
-                {report.dogName}, 오늘 <Text style={{ color: L.coral }}>{run.actualKm.toFixed(1)}km</Text>
+                {report.dogName}, 오늘 <Text style={{ color: L.coral }}>{run.actualKm != null ? `${run.actualKm.toFixed(1)}km` : `거리 ${UNKNOWN}`}</Text>
               </Text>
-              <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>
-                {report.runnerName ? `${report.runnerName}와 · ` : ''}{pace} · {durStr(run.durationSec)}
-              </Text>
+              {/* 러너 · 페이스 · 시간 — each part drops out on its own rather than printing a
+                  placeholder into a meta line (사진법과 같은 규칙: 없는 건 칸도 안 둔다). All three
+                  gone → no empty node either; the rule row below still states every absence. */}
+              {(() => {
+                const meta = [
+                  report.runnerName ? `${report.runnerName}와` : null,
+                  pace,
+                  run.durationSec != null ? durStr(run.durationSec) : null,
+                ].filter(Boolean).join(' · ');
+                return meta ? (
+                  <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>{meta}</Text>
+                ) : null;
+              })()}
               <View style={{ marginTop: 10 }}>
                 <Flap state="SETTLED" />
               </View>
               {/* 수치 룰 행 */}
               <Row style={s.numRow}>
+                {/* 실측 거리 — the label says 실측, so a fabricated 0.0 was the worst cell on the
+                    card. 기록 없음 drops to 15pt (the detail floor): the cell is ~89dp wide and the
+                    phrase does not fit the 18pt numeral face, which carries no Hangul anyway. */}
                 <View style={s.numCell}>
-                  <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text></Text>
+                  {run.actualKm != null ? (
+                    <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text></Text>
+                  ) : (
+                    <Text style={[s.numV, { fontSize: 15 }]}>{UNKNOWN}</Text>
+                  )}
                   <Text style={s.numL}>실측 거리</Text>
                 </View>
                 <View style={s.numCell}>
-                  <Text style={[s.numV, nf]}>{pace}</Text>
+                  {pace != null ? (
+                    <Text style={[s.numV, nf]}>{pace}</Text>
+                  ) : (
+                    <Text style={[s.numV, { fontSize: 15 }]}>{UNKNOWN}</Text>
+                  )}
                   <Text style={s.numL}>페이스</Text>
                 </View>
                 <View style={[s.numCell, { borderRightWidth: 0 }]}>
-                  <Text style={[s.numV, nf]}>{durStr(run.durationSec)}</Text>
+                  {run.durationSec != null ? (
+                    <Text style={[s.numV, nf]}>{durStr(run.durationSec)}</Text>
+                  ) : (
+                    <Text style={[s.numV, { fontSize: 15 }]}>{UNKNOWN}</Text>
+                  )}
                   <Text style={s.numL}>시간</Text>
                 </View>
               </Row>

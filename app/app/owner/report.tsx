@@ -84,6 +84,14 @@ const STATUS_LABEL: Record<string, string> = {
 // 여기 있던 normalizeTrace는 축별 min-max라 종횡비를 늘렸다 — 동서로 긴 경로가
 // 세로로 부푼 실루엣이 되던 버그. 이제 코스·러닝이 같은 투영을 쓴다.
 
+// THE one word this screen uses for "the server has no measurement", and the only one.
+// `actualKm`/`durationSec` are nullable at the source (api.ts) because the custody/emergency path
+// ends a run without ever measuring it — production booking 4f053152 has both columns NULL. Every
+// site below either prints this phrase or draws nothing; none of them prints a number, a dash in
+// the shape of a measurement, or an estimate. Where a sentence needs the noun it reads
+// 「거리 기록 없음」 — the same phrase with its subject, never a second vocabulary.
+const UNKNOWN = '기록 없음';
+
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
 const targetPaceSec = (label: string) => (label.includes('8') ? 480 : label.includes('6') ? 360 : 420);
@@ -319,7 +327,12 @@ export default function Report() {
   // writes a null. Pulled out as its own const so the 1..5 clamp below is a plain number check.
   const myRating = myReview && myReview.rating != null && myReview.rating >= 1 && myReview.rating <= 5
     ? myReview.rating : null;
-  const kmPct = run && report ? Math.min(100, Math.round((run.actualKm / report.plannedKm) * 100)) : 0;
+  // `null`, not 0 — and it takes the same shape as `pacePct` below for the same reason. A goal
+  // bar fed 0 draws an empty track that reads as "your dog achieved none of it"; a distance the
+  // server never measured has no achievement ratio at all, so the bar is withdrawn (see 목표 달성).
+  const kmPct = run && report && run.actualKm != null
+    ? Math.min(100, Math.round((run.actualKm / report.plannedKm) * 100))
+    : null;
   const pacePct = run?.paceSecPerKm && report
     ? Math.min(100, Math.round((targetPaceSec(report.paceLabel) / run.paceSecPerKm) * 100))
     : null;
@@ -398,14 +411,25 @@ export default function Report() {
     });
   };
 
+  // The share sheet's whole payload is a distance claim — 「{dog}의 {N}km 러닝 완주!」 — so when the
+  // server has no distance there is nothing to boast and the door is CLOSED, not reworded: every
+  // rewrite still ships 완주 for a run that may have ended in an incident. The button is removed
+  // rather than disabled (no dead buttons); this predicate is what removes it.
+  const canShare = !!run && run.actualKm != null;
   const share = async () => {
-    if (!report || !run) return;
+    if (!report || !run || run.actualKm == null) return;
     const bLine = bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ');
+    // Duration and pace are independently unknown, and a boast that reads 「기록 없음 · 페이스 —/km」
+    // is a bug report. Each drops out of the line on its own; an empty line drops entirely.
+    const statLine = [
+      run.durationSec != null ? fmtDur(run.durationSec) : null,
+      run.paceSecPerKm != null ? `페이스 ${fmtPace(run.paceSecPerKm)}/km` : null,
+    ].filter(Boolean).join(' · ');
     try {
       await Share.share({
         message:
           `${report.dogName}의 ${run.actualKm}km 러닝 완주!\n` +
-          `${fmtDur(run.durationSec)} · 페이스 ${fmtPace(run.paceSecPerKm)}/km\n` +
+          (statLine ? `${statLine}\n` : '') +
           `${report.routeName}${report.runnerName ? ` · ${report.runnerName} 러너와 함께` : ''}` +
           (bLine ? `\n${bLine}` : '') +
           `\n\n반려견 피트니스, 도그스하이`,
@@ -421,7 +445,7 @@ export default function Report() {
           {/* Chrome title, not the display moment — plain 900 ink, the grammar request.tsx and
               review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}
           <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러닝 리포트</Text>
-          {run ? (
+          {canShare ? (
             <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
         </Row>
@@ -534,14 +558,22 @@ export default function Report() {
               {/* The screen's ONE Black Han Sans. '완주' is a claim, so it is spoken only when the
                   server says the run ended completed — an early-ended run gets the same title
                   without it, and the chip above plus 왜 멈췄는지 below carry the reason. */}
+              {/* An unmeasured run loses the km fragment and keeps the dog's name — the headline is
+                  27.5pt display type, and 「초코, 기록 없음」 set in it reads as a slogan rather than
+                  a gap. The absence is not hidden by that: 거리 = 기록 없음 sits directly below in
+                  the stat row, which is where this screen states measurements. */}
               <Text style={[s.headTitle, df]}>
-                {report.dogName}, {run.actualKm}km{run.endReason === 'completed' ? ' 완주' : ''}
+                {report.dogName}{run.actualKm != null ? `, ${run.actualKm}km` : ''}{run.endReason === 'completed' ? ' 완주' : ''}
               </Text>
               {/* 숫자 셋 — Oswald. [BUG A] 어센더가 잘리므로 lineHeight 명시: 27 × 1.22 = 33 */}
+              {/* `null` = the server has no measurement, and ReportStat draws that as words, not as
+                  a figure. Pace goes through the same door as the two new nulls so the row speaks
+                  ONE vocabulary — fmtPace's '—' is fine inside a sentence but next to two
+                  「기록 없음」 cells it would be a second word for the same fact. */}
               <Row style={{ gap: 22, marginTop: 12, alignItems: 'flex-start' }}>
-                <ReportStat nf={nf} value={String(run.actualKm)} unit="km" label="거리" />
-                <ReportStat nf={nf} value={fmtDur(run.durationSec)} label="러닝 시간" />
-                <ReportStat nf={nf} value={fmtPace(run.paceSecPerKm)} label="평균 페이스 /km" />
+                <ReportStat nf={nf} value={run.actualKm == null ? null : String(run.actualKm)} unit="km" label="거리" />
+                <ReportStat nf={nf} value={run.durationSec == null ? null : fmtDur(run.durationSec)} label="러닝 시간" />
+                <ReportStat nf={nf} value={run.paceSecPerKm == null ? null : fmtPace(run.paceSecPerKm)} label="평균 페이스 /km" />
               </Row>
               {/* 개인 기록 배지 — real standings rows. On the white canvas they reuse the 도장 칩
                   grammar (코랄 워시 · 샤프 코너) instead of the retired hero's volt pill: the
@@ -838,13 +870,29 @@ export default function Report() {
                 <Text style={s.sectionTitle}>기록</Text>
                 <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim }}>
                   {/* [BUG A] Oswald 숫자는 lineHeight 명시 없이 어센더가 잘린다 — 16 × 1.25 = 20 */}
-                  예정 {report.plannedKm}km 중 <Text style={[s.recordNum, nf]}>{run.actualKm}</Text>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.
+                  {/* 「예정 5km 중 0km에서 종료」 was what an unmeasured stop actually printed. 예정 is
+                      a booked figure and is always real; 실제 is the one that can be missing, so it
+                      is the only half that changes shape. */}
+                  {run.actualKm != null ? (
+                    <>예정 {report.plannedKm}km 중 <Text style={[s.recordNum, nf]}>{run.actualKm}</Text>km에서 종료했어요 — 이 러닝은 목표 달성률을 계산하지 않아요.</>
+                  ) : (
+                    <>예정 {report.plannedKm}km — 실제 달린 거리는 {UNKNOWN}이에요. 이 러닝은 목표 달성률을 계산하지 않아요.</>
+                  )}
                 </Text>
               </View>
             ) : (
               <View style={s.section}>
                 <Text style={s.sectionTitle}>목표 달성</Text>
-                <GoalBar label="거리" pct={kmPct} detail={`${run.actualKm} / ${report.plannedKm}km`} />
+                {/* A bar drawn at 0% is a grade; a distance nobody measured has no grade. The bar is
+                    withdrawn and the one fact that IS real (예정) is stated plainly — the same
+                    treatment 페이스 has had since it became nullable, one line down. */}
+                {kmPct != null && run.actualKm != null ? (
+                  <GoalBar label="거리" pct={kmPct} detail={`${run.actualKm} / ${report.plannedKm}km`} />
+                ) : (
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 10 }}>
+                    예정 {report.plannedKm}km — 실제 달린 거리가 {UNKNOWN}이라 달성률을 계산할 수 없어요.
+                  </Text>
+                )}
                 {pacePct != null && (
                   <GoalBar label="페이스" pct={pacePct} detail={`목표 ${fmtPace(targetPaceSec(report.paceLabel))} · 실제 ${fmtPace(run.paceSecPerKm)}`} />
                 )}
@@ -1066,12 +1114,21 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
 // 숫자 셋 (14a). Oswald via nf — [BUG A] lineHeight must be explicit or the ascenders clip.
 // The unit rides inside the value line so '5.1' and 'km' share one baseline, and the label under
 // it holds the 14pt detail floor (it is not a letterspaced kicker, so it gets no exemption).
-function ReportStat({ nf, value, unit, label }: { nf: TextStyle | null; value: string; unit?: string; label: string }) {
+// `value === null` means the server has no measurement for this stat. It is drawn as the word, at
+// the 15pt detail floor, in dim ink — NOT in the 27pt numeral face: Oswald carries no Hangul (nf
+// would fall back mid-row) and 「기록 없음」 at 27pt is ~108px in a ~100px column. The unit is
+// dropped with it, because 「기록 없음km」 is not a sentence. lineHeight stays 33 so the label
+// underneath keeps the same baseline as the stats beside it.
+function ReportStat({ nf, value, unit, label }: { nf: TextStyle | null; value: string | null; unit?: string; label: string }) {
   return (
     <View>
-      <Text style={[s.statValue, nf]}>
-        {value}{unit ? <Text style={s.statUnit}>{unit}</Text> : null}
-      </Text>
+      {value == null ? (
+        <Text style={s.statUnknown}>{UNKNOWN}</Text>
+      ) : (
+        <Text style={[s.statValue, nf]}>
+          {value}{unit ? <Text style={s.statUnit}>{unit}</Text> : null}
+        </Text>
+      )}
       <Text style={s.statLabel}>{label}</Text>
     </View>
   );
@@ -1122,8 +1179,16 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
         </Text>
       )}
 
+      {/* WHERE and HOW LONG are independently unknown, so the line is assembled from the parts that
+          exist rather than printing 「기록 없음」 into slots built for numbers. Both missing → the
+          sentence is replaced outright; 예정 survives either way because it is a booked figure. */}
       <Text style={{ fontSize: 15, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
-        {run.actualKm}km 지점 · {fmtDur(run.durationSec)} 지나 종료했어요 (예정 {plannedKm}km)
+        {run.actualKm != null || run.durationSec != null
+          ? `${[
+              run.actualKm != null ? `${run.actualKm}km 지점` : null,
+              run.durationSec != null ? `${fmtDur(run.durationSec)} 지나` : null,
+            ].filter(Boolean).join(' · ')} 종료했어요 (예정 ${plannedKm}km)`
+          : `종료 지점과 시간이 ${UNKNOWN}이에요 (예정 ${plannedKm}km)`}
       </Text>
       {reason?.note && (
         <Text style={{ fontSize: 15, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
@@ -1134,12 +1199,37 @@ function StopReasonSection({ run, reason, plannedKm }: { run: RunFacts; reason: 
   );
 }
 
-// ---------- 러너 노트 (그 외 사유) ----------
+// The four `end_reason` values a RUNNER may declare, and therefore the only ones whose
+// `condition_note` is provably the runner's own words. `run_freeze_measurement` restricts the
+// declarable set to exactly these (0083:397) and `settle-run` — the sole path that carries a
+// client-supplied note — refuses any caller who is not the booking's assigned runner
+// (functions/settle-run/handler.ts:60, `assigned runner only`). Order and spelling follow 0001:18.
+const RUNNER_DECLARED = ['completed', 'dog_condition', 'owner_request', 'runner_personal'];
+
+// ---------- 종료 시 기록된 메모 (그 외 사유) ----------
+// THE TITLE IS AN ATTRIBUTION, so it may only name an author we can establish. This block was
+// titled 러너 노트 unconditionally, and on an `incident` run that is false: production booking
+// 4f053152 carries a note the OWNER read as their runner's.
+//   · The four in RUNNER_DECLARED — established above. 러너 노트 stays.
+//   · `incident` — NOT establishable, and it has three possible authors. The host force-resolve
+//     path writes `condition_note = trim(p_reason)` and RAISES `self_override` when the caller is
+//     the owner or the runner (0069:154,203 · 0070:212), so that note is a third party's; the
+//     custody-transfer path writes the transfer reason, whose author IS the runner
+//     (`session_transfer_initiate` demands the booking's runner, 0057:318 → 0045:259 · 0058:165);
+//     and both of those fall back to the literal '외부 커스터디 이양', which nobody typed.
+//   · `owner_forced` — no migration writes it at all. settle-run:41 says "by ops", which is a
+//     comment, not a writer, so it backs no role name either.
+// For those two the title names NOBODY and says only what is verifiable: a note exists and it was
+// recorded when the run ended. A neutral title is not a hedge — it is the accurate one.
 function RunnerNoteSection({ run, reason }: { run: RunFacts; reason: ReasonPaint | null }) {
   if (!run.conditionNote && !reason?.note) return null;
+  // A null end_reason is a run that has not ended; nothing establishes a writer there either.
+  const title = run.endReason != null && RUNNER_DECLARED.includes(run.endReason)
+    ? '러너 노트'
+    : '종료 시 기록된 메모';
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>러너 노트</Text>
+      <Text style={s.sectionTitle}>{title}</Text>
       {run.conditionNote && (
         <Text style={{ fontSize: 15, color: paper.text, lineHeight: 20.5 }}>{run.conditionNote}</Text>
       )}
@@ -1188,6 +1278,8 @@ const s = StyleSheet.create({
   headTitle: { fontSize: 27.5, fontWeight: '900', color: paper.ink, marginTop: 6 },
   statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
   statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
+  // 기록 없음 셀 — 숫자 자리를 차지하되 숫자인 척하지 않는다 (15pt 바닥 · dim · lineHeight는 27pt 셀과 동일).
+  statUnknown: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
   statLabel: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 1 },
   reasonChip: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
   // ---------- ④b 별점 행 — 빈 별(☆) + 라벨. 채워진 상태는 이 화면이 알 수 없다 ----------

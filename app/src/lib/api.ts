@@ -4524,7 +4524,15 @@ export interface RunReport {
   // `payments` rows that /payments reads. Do not re-add a price here to "complete" the type —
   // a screen that has the number will eventually print it.
   run: null | {
-    actualKm: number; durationSec: number; paceSecPerKm: number | null;
+    // NULLABLE, and the null is the point. A run row can carry NO measurement at all: production
+    // has an `incident` run (booking 4f053152) with `actual_km` AND `duration_sec` both NULL,
+    // because the custody/emergency path ends the run without ever measuring it (0069:211 ·
+    // 0070:212 · 0045:259 · 0058:165 all `update runs set ended_at, end_reason, condition_note`
+    // and touch neither column). These two were `number` filled by `?? 0`, which redrew "the
+    // server does not know" as a measured zero — the owner was shown 「0km」, a goal bar computed
+    // from it and a share text boasting a 0km 완주. Loading is not 0 and neither is unknown; the
+    // null crosses the boundary and every consumer says so in words.
+    actualKm: number | null; durationSec: number | null; paceSecPerKm: number | null;
     endReason: string | null; conditionNote: string | null; photos: string[];
     events: { kind: string; at: string }[];
     trace: { lat: number; lng: number; t: number }[];
@@ -4566,8 +4574,9 @@ export async function fetchRunReportOrNull(bookingId: string): Promise<RunReport
     status: d.status,
     run: raw
       ? {
-          actualKm: Number(raw.actual_km ?? 0),
-          durationSec: raw.duration_sec ?? 0,
+          // `Number(null)` is 0, so the null has to be tested BEFORE the cast — see the type above.
+          actualKm: raw.actual_km == null ? null : Number(raw.actual_km),
+          durationSec: raw.duration_sec ?? null,
           paceSecPerKm: raw.avg_pace_sec_per_km,
           endReason: raw.end_reason,
           conditionNote: raw.condition_note,
