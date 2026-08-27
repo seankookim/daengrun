@@ -96,6 +96,89 @@
 --
 -- 🔴 **MEASURED 2026-08-27 — RESULTS ARE RECORDED IN THE 「MEASURED」 BLOCK AT THE END OF THIS
 -- HEADER, beside the predictions above, so a later reader sees where the prediction was wrong.**
+--
+-- ── 🔴 MEASURED 2026-08-27. Thirteen runs plus a baseline. Nothing was edited in place: every
+--    mutation was appended as a trailing `0145_mut.sql` to a COPY of `supabase/` outside the
+--    worktree, and `gen.py` ASSERTS the mutated text differs from the original before writing —
+--    a plant that silently fails to land is a run that measures the clean build and reports it
+--    as a red set. ─────────────────────────────────────────────────────────────────────────
+--
+--   M0  the copy, unmutated — **1017 / 0**, identical to the worktree. A control that could
+--       have failed, and the only thing that makes every number below comparable.
+--
+--   #    PREDICTED red set          MEASURED
+--   M1   [P1,P2,P3,P5,P7]           1011/6 = [P1,P3,P4,P5,P7,P11]. Superset. P2 does NOT redden
+--        — with the selector scoped to the caller the host owns no dog, so `ended` is EMPTY and
+--        P2's own precondition (「the two runs hold the same trace」) still holds; P1's `ended≠4`
+--        fires first. P11 joins because the backup host on s2 then ends only their OWN dog.
+--   M2   [P11ⓑ]                     1015/2 = [P11,P12]. P12 rides on P11's tap having frozen s2b,
+--        and its precondition arm says so out loud (「전제 붕괴: 정지 스탬프가 없다」) instead of
+--        scoring a false green on its own first arm.
+--   M3   [P10ⓐ,P10ⓒ]                1016/1 = **[P10]. EXACT.** Message: 「멤버=<no raise>
+--        낯선이=<no raise> 존재 오라클: 없는세션≠남의세션 (not_host vs <no raise>)」 — with
+--        `backup_host_profile_id` NULL, a committed checked-in member AND a total stranger both
+--        walk straight through. The fail-open, reproduced.
+--   M5   [P4]                       1015/2 = [P4,P7]. The finding is P7's arm: `bookings.
+--        run_ended_at` survives (its UPDATE carries its own `and run_ended_at is null`) but
+--        **`runs.ended_at` is rewritten by the second tap** — 「정지 시각이 정산 시각으로
+--        덮였다」. The idempotence re-check is what protects the stop time, and the stop time is
+--        R-3's charging-cutover input.
+--   M6′  [P1,P2,P3,P5]              1005/7 = [BLOCK1,P4,P7,P9,P10,P11,P12]. **Far worse than
+--        predicted, and the shape is the lesson**: the raise escaped the loop, escaped the
+--        function, and hit BLOCK 1's outer handler, which rolled back the whole fixture set —
+--        so P1/P2/P3/P5 never reported at all and every downstream block died on missing
+--        fixtures. That is ARM A at full volume (one dog's open case takes the session down)
+--        AND 0134's savepoint lesson visible in the same run.
+--        ⚠ **M6′'s FIRST attempt was mis-specified and is recorded rather than deleted.** It made
+--        the incident branch raise but left the `when others` arm in place, so the raise was
+--        caught and reclassified as `error`: 1016/1 = [P3], reddening on a reason STRING while
+--        proving nothing about atomicity. A mutation that reddens by accident is not a
+--        measurement (0142's law), and the second, correct form is the one above.
+--   M7   [P3,P5]                    1013/4 = [P1,P3,P4,P5]. P3: 「blocked=0 dCi=∅ dD=∅ dE=∅ dF=∅
+--        incidentId=∅ dogName=∅」 — every remainder reason and the incident id vanish into the
+--        silent list. This is exactly 「silent catch → happy UI」 and four pins see it.
+--   M8   [P1,P7]                    1012/5 = [P1,P4,P7,P11,P12]. 🔴 **R-2 half A, the poisoned
+--        NULL.** P7 dies at `unknown_end_reason`: the handler reads the frozen row, finds a NULL
+--        `end_reason`, and `compute_runner_payout` fails closed BEFORE `settle_run_tx` is
+--        reached. The runner is never paid — the deadlock §0-bis names, arriving one step
+--        earlier than `frozen_measurement_mismatch` and just as terminal.
+--   M9   [P1,P7]                    1013/4 = [P1,P4,P5,P7]. 🔴 **R-2 half B — THE SILENT NO-OP,
+--        AND THE REASON THIS FILE EXISTS.** P7's verbatim message:
+--            distance_pay=29970 서버=9000 · 🔴 원장이 디바이스 km으로 값이 매겨졌다 ·
+--            정산이 actual_km을 덮었다: 9.99 · 디바이스의 end_reason이 이겼다 ·
+--            직접 호출이 거부되지 않았다: <no raise>
+--        The server derived 3.00 km, the phone claimed 9.99, and **the ledger paid 29,970 on the
+--        phone's number while the settle overwrote the server's row with it** — `0083:744`'s
+--        `excluded` arm winning, exactly as the contract predicted, with the SQL belt silent
+--        because it only arms when the stamp exists. Without P7 this mutation is a feature that
+--        looks shipped and does nothing.
+--   M10  [P1,P2]                    1015/2 = **[P1,P2]. EXACT.** P2: 「dB2 km=1.80」 — the dog
+--        handed over twenty minutes late is billed the whole pack's distance.
+--   M11  [P1,P3]                    1013/4 = [P1,P3,P4,P5]. P3: 「dE=active/stamp✓/0.00/completed/
+--        1800/…」 — the dog with no usable GPS gets a FROZEN 0.00 km 'completed' run instead of
+--        being named to the host. A fabricated measurement, frozen, and now unappealable.
+--   M12  [P13]                      1016/1 = **[P13]. EXACT.** 0144's own VERIFY does not fire
+--        (it ran at 0144's apply, before the grant), which is precisely why the standing pin is
+--        not redundant with it.
+--   M15  [NOTHING]                  1016/1 = **[P13], on the SOURCE-TEXT guard alone —
+--        「금지 표면: custody_phase」 — and 13 of 14 pins GREEN.** 🔴 This is the measurement, not
+--        a miss. The function wrote `custody_phase = 'return_pending'` on every ended pairing and
+--        **not one behavioural pin could see it**, because `club_v1_axes_sync` recomputed it away
+--        inside the same statement: no exception, no red gate, nothing dirty. §0-bis R-1
+--        reproduced. The prediction was 「NOTHING」 and the refinement is that a text check is the
+--        ONLY instrument that reaches this class — which is also why 0144's body may not mention
+--        the surfaces it does not touch.
+--   M16  [P1,P12ⓐ]                  1013/4 = [P1,P4,P7,P12]. P12 fails on its PRECONDITION arm
+--        (「전제 붕괴: 정지 스탬프가 없다」) and then on ⓑ, because with `runs.ended_at` NULL the
+--        mint reads `coalesce(r.ended_at, now())` and BOTH cutover directions collapse to the
+--        same answer. A pin that asserts its own precondition is what stops that reading as a
+--        green ⓐ.
+--
+--   **Zero dangerous greens: every mutation reddened at least one pin, and M15's single red is a
+--   text guard by construction rather than by accident.** Three exact hits (M3, M10, M12); the
+--   rest are supersets, all traceable to two fixture dependencies stated here rather than
+--   discovered later — P12 needs P11's tap to have frozen s2b, and P4/P5/P7 all read state P1
+--   establishes.
 set client_min_messages = warning;
 
 -- ── context carried between transactions ───────────────────────────────────────────────────
