@@ -35,6 +35,34 @@
 --   during them **measures clean every time a human checks it by hand** — which is exactly how
 --   this stayed invisible. Two sessions looked at it today and both saw an empty or benign table.
 --
+-- 🔴 EDITED IN PLACE AFTER LANDING ON TRUNK, AND THE EXCEPTION IS NARROW ENOUGH TO STATE.
+--    The house law is 「correct forward, never edit a landed file」 (0129). It does not apply here
+--    and could not: **this file's first apply ABORTED THE DEPLOY**, so every migration after it —
+--    0152 included — is unreachable while it stands. A forward correction in 0153 would never run.
+--    ⚠ The hazard the law exists for is drift between a file and an environment that already ran
+--    it. Measured before editing: `migration list --linked` shows **0151 not applied** anywhere but
+--    a throwaway harness. **There is no environment holding the old version, so there is nothing to
+--    drift from.** That is the whole test, and if it had failed the answer would have been 0153.
+--
+-- 🔴 WHY THE FIRST VERSION ABORTED, AND WHY IT WAS RIGHT TO. Its VERIFY block found the grant
+--    still present after the revoke, and refused to let the migration claim success. It was
+--    correct. The REVOKE is a silent no-op in production:
+--      · `net` is owned by **`supabase_admin`** (measured)
+--      · migrations run as **`postgres`** (measured)
+--      · `pg_has_role('postgres','supabase_admin','member')` → **false**, `rolsuper` → **false**
+--    **REVOKE only removes grants issued by the current role.** `pg_net`'s grants were issued by
+--    `supabase_admin`, so no statement available to a migration can remove them.
+--
+-- ⚠ **THE HARNESS COULD NOT HAVE CAUGHT THIS AND THE REASON IS A FIXTURE LESSON, NOT A GAP.**
+--   The shim grants as `postgres`, so the revoke works there — identical `has_table_privilege`
+--   results, **different revocability**, and no privilege check distinguishes them. A fixture can
+--   match every observable and still not reproduce the defect, because the defect lived in *who
+--   granted it*. This is the same class as the shim originally granting nothing, one layer down.
+--
+-- ⚠ PRECEDENT, and this file now joins it: `0109` records exactly this shape for `storage.objects`
+--   — grants owned by `supabase_storage_admin`, unreachable from a migration, **escalated rather
+--   than pretended away**. The house answer to an out-of-reach grant is a recorded residual.
+--
 -- ⚠ NOTHING OF OURS LOSES ACCESS. Every `net.http_*` caller in this repo is a SECURITY DEFINER
 --   owned by `postgres` (`notify_push` 0024 · `_owner_la_push` 0063 · `dispatch_due_charges` 0080
 --   · `dispatch_billing_key_revocations` 0141), and the cron runs as `postgres`. No client code
@@ -65,14 +93,28 @@ begin
   end;
 end $$;
 
--- ═══ VERIFY — the apply refuses to succeed while a client role can still read the queue ═══
--- Apply-time, deliberately paired with a STANDING pin (182 N1) rather than replacing it: a
--- `create extension … update` can re-grant after this file has run, and an apply-time check
--- cannot see a change made after the apply. Neither is evidence for the other.
+-- ═══ VERIFY — refuses a DEFECT, records a RESIDUAL, and never confuses the two ═══
+--
+-- 🔴 THE DISTINCTION THIS BLOCK EXISTS TO DRAW, and the first version collapsed it:
+--     「I revoked and the grant survived」        → a DEFECT. Abort; something is wrong.
+--     「I am not permitted to revoke at all」     → a FACT about the platform. Record it loudly.
+--   The first version raised on both, so an out-of-reach privilege aborted a deploy it had no
+--   power to fix — and took twenty unrelated migrations down with it. **A guard that cannot
+--   distinguish 「broken」 from 「beyond my authority」 will eventually block work for a reason its
+--   author never intended**, which is precisely what happened.
+--
+-- ⚠ The capability is MEASURED, not assumed: ownership + `rolsuper` + role membership, read from
+--   the catalog at apply time. It is not hardcoded to 「Supabase means postgres」, so a self-hosted
+--   or differently-owned environment where the revoke DOES work still gets the strict arm.
+-- ⚠ Paired with the standing pin in 182, which is the half that can see a re-grant after the apply.
 do $$
-declare v_bad text := '';
+declare v_bad text := ''; v_owner text; v_can boolean;
 begin
   if not exists (select 1 from pg_namespace where nspname = 'net') then return; end if;
+
+  select pg_get_userbyid(nspowner) into v_owner from pg_namespace where nspname = 'net';
+  select coalesce(bool_or(rolsuper), false) into v_can from pg_roles where rolname = current_user;
+  v_can := v_can or v_owner = current_user or pg_has_role(current_user, v_owner, 'member');
 
   if has_schema_privilege('anon', 'net', 'usage')          then v_bad := v_bad || ' anon-USAGE'; end if;
   if has_schema_privilege('authenticated', 'net', 'usage') then v_bad := v_bad || ' authenticated-USAGE'; end if;
@@ -89,7 +131,18 @@ begin
          or has_table_privilege('authenticated', c.oid, 'select'))
   ) then v_bad := v_bad || ' table-SELECT-remains'; end if;
 
-  if v_bad <> '' then
-    raise exception '0151 VERIFY: a client role can still read schema `net` (%). `net.http_request_queue` carries request HEADERS — X-Cron-Key and the push Authorization transit it.', trim(v_bad);
+  if v_bad = '' then return; end if;
+
+  if v_can then
+    raise exception '0151 VERIFY: % can revoke in schema `net` (owner %) and the grant SURVIVED anyway (%). That is a defect, not a permission limit.',
+      current_user, v_owner, trim(v_bad);
   end if;
+
+  -- ⚠ NOT an exception. `%` cannot revoke grants issued by `%` — no statement available to a
+  --   migration removes them. Recorded the way 0109 records `storage`: a residual to escalate,
+  --   not a deploy to block. Reachability is what keeps this off the urgent list — measured
+  --   2026-08-27, `GET /rest/v1/http_request_queue` with `Accept-Profile: net` returns
+  --   `406 PGRST106`, because PostgREST exposes only `public, graphql_public`.
+  raise notice '0151 RESIDUAL — NOT FIXABLE BY A MIGRATION: schema `net` is owned by %, this migration runs as %, and REVOKE only removes grants issued by the current role. Still granted: %. `net.http_request_queue` carries request HEADERS (X-Cron-Key, push Authorization). NOT reachable via PostgREST today (406, schema not exposed). Escalate to Supabase support; 182 N1/N2 watch it standing.',
+    v_owner, current_user, trim(v_bad);
 end $$;

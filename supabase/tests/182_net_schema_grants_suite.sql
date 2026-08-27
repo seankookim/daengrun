@@ -19,6 +19,19 @@
 --   a request is in flight. **It measures clean every time a human looks by hand** — two sessions
 --   checked it today and both saw an empty or benign table. A content check is not available to
 --   this pin; only the GRANT is stable enough to assert.
+-- 🔴 WHAT N1/N2's GREEN DOES **NOT** PROVE, AND WHY THIS IS A HEADER RATHER THAN A PIN.
+--    They pass here **because this harness CAN revoke**: `00_shim.sql` grants as `postgres` and
+--    the migration runs as `postgres`. Production's `net` is owned by `supabase_admin`, `postgres`
+--    is not a member, and REVOKE only removes grants issued by the current role — so **these two
+--    pins would be RED against production, and this suite never runs there.** The sentence their
+--    green licenses is 「the grant is absent HERE」, which must not be read as 「the grant is absent」.
+--
+-- ⚠ I drafted an N4 to assert that distinction and then deleted it: the harness cannot manufacture
+--   a role that owns `net` but cannot revoke in it, so every arm I could write passed
+--   unconditionally. **A pin that cannot fail is not a pin** — it is this file's own law, and
+--   adding one to document a limitation would have been the purest version of the thing the rest
+--   of this repo's ledger is about. The limitation is prose because prose is what it is.
+--   0151's own `raise notice` is the record in the environment where the residual actually exists.
 -- ⚠ `_fail` args pre-computed into v_msg, never a subquery (the 110 header law).
 
 do $$
