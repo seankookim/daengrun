@@ -81,15 +81,9 @@ export default function My() {
   const stampsEarned = stamps ? stamps.filter((x) => x.earned).length : 0;
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('');
-  const [district, setDistrict] = useState('');
-  // [0074 · Sean 2026-08-12] 인스타식 계정 아이디. 서버가 유일한 검증자라 클라는 형식을 흉내내지 않는다.
-  const [handle, setHandle] = useState('');
-  const [bio, setBio] = useState('');
-  const [savedBio, setSavedBio] = useState<string | null>(null);
+  // [2026-08-27] 편집 폼 상태(이름·아이디·동네·소개·저장 중)는 전부 `/profile/edit`으로 옮겨갔다.
+  // 여기 남는 것은 신분면이 **읽어서 보여주는** 값과 아바타 업로드뿐이다.
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   // [plan §6.4] 러너 인증 센터 행의 부제는 이제 상태를 말한다 — /runner/apply가 실퍼널이 됐기 때문에
   // '인증 절차 안내'는 더 이상 그 화면이 하는 일의 전부가 아니다. loaded 플래그가 따로 있는 이유는
@@ -99,7 +93,6 @@ export default function My() {
 
   useFocusEffect(useCallback(() => {
     fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
-    if (isRunner) fetchMyRunnerBio().then(setSavedBio).catch(() => {});
     if (isRunner) {
       fetchMyRunnerApplication()
         .then((a) => { setRunnerApp(a); setRunnerAppLoaded(true); })
@@ -110,14 +103,6 @@ export default function My() {
     // (0/12를 그리지 않는다 — [honesty 2026-08-11] 조용한 섹션 증발도 그만: recErr 모델 복제).
     loadStamps();
   }, [isRunner]));
-
-  const openEdit = () => {
-    setName(profile?.name ?? '');
-    setDistrict(profile?.district ?? '');
-    setHandle(profile?.handle ?? '');
-    setBio(savedBio ?? '');
-    setEditing(true);
-  };
 
   const pickPhoto = async () => {
     // 지연 로드 — 네이티브 모듈이 없는 빌드(구 dev build/Expo Go)에서 앱 전체가 죽지 않게.
@@ -146,27 +131,9 @@ export default function My() {
     }
   };
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await updateMyProfile({ name: name.trim() || undefined, district: district.trim() || undefined });
-      // 아이디는 별도 RPC — profiles 직접 UPDATE로는 못 쓴다 (0074: 컬럼 화이트리스트가 없는 테이블).
-      // 바뀐 경우에만 부른다. 서버가 멱등이라 안 불러도 되지만, 실패 메시지를 아이디 탓으로만 돌리려면
-      // 호출 자체가 아이디를 바꿀 때만 일어나는 편이 명확하다.
-      const h = handle.trim();
-      if (h && h.toLowerCase() !== (profile?.handle ?? '')) await setMyHandle(h);
-      if (isRunner) {
-        await updateRunnerBio(bio.trim());
-        setSavedBio(bio.trim());
-      }
-      setProfile((p) => (p ? { ...p, name: name.trim() || p.name, district: district.trim() || p.district } : p));
-      setEditing(false);
-    } catch (e) {
-      Alert.alert('저장 실패', (e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // [2026-08-27] save() 은퇴 — 아이디 RPC(set_my_handle)·프로필 UPDATE·소개 저장은 전부
+  // `/profile/edit`의 save()로 갔다. 신분면은 이 화면이 포커스를 받을 때마다 다시 읽으므로
+  // (useFocusEffect), 편집기에서 돌아오면 새 이름·동네가 그대로 올라온다.
 
   // 인증 센터 행 부제 — 지원 상태에 따라. 미도착이면 아무 상태도 주장하지 않고 화면 이름만 말한다.
   const certDesc = !runnerAppLoaded ? '내 러너 레코드 · 인증 절차'
@@ -267,16 +234,15 @@ export default function My() {
                 </View>
                 <Pressable
                   style={s.idEdit}
-                  onPress={() => {
-                    // 프로필 편집 단일화 — 러너는 스토어프런트에서, 보호자는 여기 시트에서 (혼선 제거)
-                    if (isRunner) {
-                      if (profile) router.push(`/runner-profile/${profile.id}`);
-                    } else {
-                      openEdit();
-                    }
-                  }}
+                  disabled={!profile}
+                  onPress={() => { if (profile) router.push(`/runner-profile/${profile.id}`); }}
                 >
-                  <Text style={s.idEditTxt}>{isRunner ? '프로필 편집' : '프로필 설정'}</Text>
+                  {/* [2026-08-27] 역할 분기 은퇴 — **두 역할 모두 자기 프로필 화면으로 간다**.
+                      예전엔 러너만 스토어프런트로 가고 보호자는 이 화면의 시트를 열었는데, 그래서
+                      보호자에게는 프로필이라는 것이 아예 없었다 (인스타 모델에서는 누구나 프로필이
+                      있다). 편집은 그 화면의 '프로필 편집' → `/profile/edit`이고, 러너의 갤러리·장비
+                      편집도 거기 그대로 있다 — 이 경로로 잃는 기능은 없다. */}
+                  <Text style={s.idEditTxt}>내 프로필</Text>
                   <Text style={[s.idEditEm, nf]}>EDIT ›</Text>
                 </Pressable>
               </View>
@@ -479,76 +445,9 @@ export default function My() {
       </TabSwipe>
       <BottomNav />
 
-      {/* ---------- 프로필 편집 시트 ---------- */}
-      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
-        <Pressable style={s.backdrop} onPress={() => setEditing(false)} />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>프로필 설정</Text>
-
-          {/* [0074 · Sean 2026-08-12] 아이디가 이름보다 위에 온다 — 인스타에서 사람을 부르는 단위는
-              표시 이름이 아니라 @아이디다. 서버 규칙(3~20자·소문자·[a-z0-9_.])을 라벨이 미리 말해주되
-              **검증은 하지 않는다**: 두 곳에서 자르면 두 규칙이 갈라진다 (0073의 교훈). */}
-          <Text style={s.fieldLabel}>아이디</Text>
-          <Row style={{ alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: paper.dim }}>@</Text>
-            <TextInput
-              value={handle}
-              onChangeText={(t) => setHandle(t.toLowerCase().replace(/\s/g, ''))}
-              placeholder="choco.runner"
-              placeholderTextColor={paper.faint}
-              style={[s.input, { flex: 1 }]}
-              maxLength={20}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </Row>
-          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 5 }}>
-            영문 소문자·숫자·밑줄(_)·점(.) · 3~20자 · 피드에서 이 이름으로 보여요
-          </Text>
-
-          <Text style={s.fieldLabel}>이름</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="이름 또는 닉네임"
-            placeholderTextColor={paper.faint}
-            style={s.input}
-            maxLength={20}
-          />
-          <Text style={s.fieldLabel}>활동 동네</Text>
-          <TextInput
-            value={district}
-            onChangeText={setDistrict}
-            placeholder="예: 반포동"
-            placeholderTextColor={paper.faint}
-            style={s.input}
-            maxLength={20}
-          />
-          {isRunner && (
-            <>
-              <Text style={s.fieldLabel}>자기소개 (스토어프런트)</Text>
-              <TextInput
-                value={bio}
-                onChangeText={setBio}
-                placeholder="보호자에게 보여줄 소개를 적어보세요 — 러닝 경력, 반려견 경험, 나의 강점"
-                placeholderTextColor={paper.faint}
-                style={[s.input, { height: 96, textAlignVertical: 'top', paddingTop: 12 }]}
-                multiline
-                maxLength={300}
-              />
-            </>
-          )}
-          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 17 }}>
-            이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
-          </Text>
-
-          {/* busy = 라벨 스왑 (버튼 매트릭스 법 — 불투명도 트릭 금지) */}
-          <Pressable onPress={save} disabled={saving} style={s.saveBtn}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{saving ? '저장 중...' : '저장'}</Text>
-          </Pressable>
-        </View>
-      </Modal>
+      {/* [2026-08-27] 프로필 편집 시트는 `/profile/edit`로 접혔다 — Sean의 인스타 편집기 모델
+          (라벨 왼쪽/값 오른쪽 행 목록, 아바타 행 없음). 같은 필드를 두 화면에서 고칠 수 있으면
+          규칙도 두 벌이 되고, 한쪽은 반드시 낡는다. 위 신분면의 '내 프로필' 행이 그 문이다. */}
     </View>
   );
 }
