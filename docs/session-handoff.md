@@ -69,8 +69,20 @@ hardening incl. the crash window where a destroyed key could be stored as a live
   `test/tier.test.cjs`. ⚠ **Those four are small pure modules with MUTATION-VERIFIED pins:
   anyone editing them must re-run the batteries, not just the suite.** A green suite after a
   predicate edit means very little on its own — that is what the batteries are for.
-  **Open for b6: only the guest counterpart on the session screen**, waiting on the verified
-  findings already sent. Everything else b6 built is on trunk.
+  **Open for b6: only the guest counterpart on the session screen.** ⚠ **CORRECTED AGAIN — this
+  file said 「waiting on the verified findings already sent」 and they had NOT been sent.** The
+  announcer promised them twice, told Sean they were sent, and recorded that in this file.
+  They were delivered 2026-08-27 after b6 pointed it out. **「Waiting on findings sent」 and
+  「waiting on findings not sent」 are different states for whoever picks this up**, which is the
+  whole reason it is worth a correction rather than a quiet fix.
+  🔴 **And the fifth question — 「does a guest change what the HOST sees」 — was never answered
+  by the agent**, which answered a different fifth of its own. Measured against the DEPLOYED
+  0131 policy instead: **YES, the guest is visible to the host.** `session_people`'s policy is
+  `(auth.uid() IS NOT NULL) AND ((profile_id = auth.uid()) OR _club_session_member(session_id,
+  auth.uid()))`, and the deployed helper carries host and backup-host arms — so a host is a
+  member and a member reads every `session_people` row in the session, dogless or not. ⚠ This
+  only became answerable AFTER the deploy; pre-0131 the table was `auth.uid() IS NOT NULL` and
+  the question was meaningless. Everything else b6 built is on trunk.
   ⚠ **CORRECTED — this file's first version said b6's two `PENDING_DEPLOY` entries 「can come
   out」 and the run-screen obligations were 「still open」. Both were already DONE** (`2b5d1c1`,
   `0714ac8`); b6 landed them while this was being written. Measured on origin: PENDING_DEPLOY
