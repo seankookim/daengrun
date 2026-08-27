@@ -170,8 +170,10 @@ function badges(st: RunStandings | null): string[] {
   if (!st) return [];
   const out: string[] = [`${st.nth}번째 러닝`];
   if (st.total > 1) {
-    if (st.kmRank === 1) out.push('★ 역대 최장 거리');
-    else if (st.kmRank <= 3) out.push(`거리 TOP ${st.kmRank}`);
+    if (st.kmRank === 1) out.push('★ 역대 최장 거리');   // strict ===, null-safe already
+    // [pair] `null <= 3` is TRUE in JS, so an unmeasured run printed `거리 TOP null` at an
+    // owner the moment kmRank became nullable. Same guard paceRank already uses one line down.
+    else if (st.kmRank != null && st.kmRank <= 3) out.push(`거리 TOP ${st.kmRank}`);
     if (st.paceRank === 1) out.push('★ 역대 최고 페이스');
     else if (st.paceRank != null && st.paceRank <= 3) out.push(`페이스 TOP ${st.paceRank}`);
   }

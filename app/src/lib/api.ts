@@ -2425,7 +2425,7 @@ export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
 // — and `null <= 3` is TRUE in JS, so the badge would print the literal 「거리 TOP null」. The
 // guard it needs is already written two lines below it, for `paceRank`. owner/report.tsx is held
 // by another slice; changing this type without it turns a quiet wrong rank into a visible 'null'.
-export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
+export interface RunStandings { nth: number; total: number; kmRank: number | null; paceRank: number | null }
 
 export async function fetchRunStandings(bookingId: string): Promise<RunStandings | null> {
   const { data: user } = await supabase.auth.getUser();
@@ -2438,15 +2438,19 @@ export async function fetchRunStandings(bookingId: string): Promise<RunStandings
   const rows = (data ?? [])
     .map((b: any) => {
       const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
-      // 🔴 `?? 0` — the unfixed site the type comment above describes. Left EXACTLY as it was:
-      // half-fixing it here (nullable row, non-nullable rank) would only move the fabrication.
-      return r ? { id: b.id, km: Number(r.actual_km ?? 0), pace: r.avg_pace_sec_per_km as number | null } : null;
+      // [pair] the `?? 0` is GONE. An unmeasured run no longer enters the ranking as a 0 km
+      // run — it enters as unknown, and is excluded from the km ranking rather than placed last.
+      return r ? { id: b.id, km: r.actual_km == null ? null : Number(r.actual_km), pace: r.avg_pace_sec_per_km as number | null } : null;
     })
-    .filter(Boolean) as { id: string; km: number; pace: number | null }[];
+    .filter(Boolean) as { id: string; km: number | null; pace: number | null }[];
   const idx = rows.findIndex((r) => r.id === bookingId);
   if (idx < 0) return null;
   const me = rows[idx];
-  const kmRank = rows.filter((r) => r.km > me.km).length + 1;
+  // An unmeasured run has NO km rank — it is not last, it is unknown. Mirror of paceRank,
+  // which has worked this way since it was written. Comparators skip unknown rows on both sides.
+  const kmRank = me.km == null
+    ? null
+    : rows.filter((r) => r.km != null && r.km > me.km!).length + 1;
   const paceRank = me.pace != null
     ? rows.filter((r) => r.pace != null && r.pace < me.pace!).length + 1
     : null;
