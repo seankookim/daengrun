@@ -5,7 +5,10 @@
 // when the owner tapped 07:30, and the server agreed with the wrong time because both sides were
 // handed the same shifted instant. The load-bearing property is the last section: on Seoul
 // hardware this arithmetic must be a no-op against plain local construction.
-const { kstCal, kstInstant, kstKey, kstDateLabel, kstMonthDay, kstClock, kstAmPm, KST_MS } = require('./kst.build.cjs');
+const {
+  kstCal, kstInstant, kstKey, kstDateLabel, kstMonthDay, kstClock, kstAmPm,
+  kstYearMonthDay, kstDayIndex, KST_MS,
+} = require('./kst.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -133,6 +136,57 @@ t('KST_MS is +9h', KST_MS === 9 * 3600_000);
   t('afternoon hour is UNPADDED (api.ts kstParts parity)', kstAmPm(afternoon) === '오후 1:30', kstAmPm(afternoon));
   const morning = kstCal(Date.parse('2026-08-25T22:00:00Z'));  // 07:00 KST the 26th
   t('late-UTC evening is a KST MORNING bubble', kstAmPm(morning) === '오전 7:00', kstAmPm(morning));
+}
+
+// ───────────────────────────────────────────── kstYearMonthDay — 결제 관리의 「… 연결됨」 한 줄
+// The only place the product prints a YEAR, and it is a money screen: 「2026년 8월 26일 연결됨」 is
+// the owner's receipt that a card exists and since when. It replaced
+// `Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul', year, month:'long', day})`, whose CATCH
+// branch printed a different vocabulary entirely (「2026. 8. 26」) off the DEVICE clock — so on a
+// build whose Hermes lacks a zone-honouring Intl the screen changed sentence AND date at once.
+// Expected strings cross-checked against ICU with timeZone:'Asia/Seoul' under four zones.
+{
+  const evening = kstCal(Date.parse('2026-08-26T10:00:00Z')); // 19:00 KST Wed the 26th
+  t('year/month/day is KST whatever the device zone', kstYearMonthDay(evening) === '2026년 8월 26일', kstYearMonthDay(evening));
+  // 22:00 UTC is already the next day in Seoul and still the previous evening in New York.
+  const rolled = kstCal(Date.parse('2026-08-25T22:00:00Z')); // 07:00 KST Wed the 26th
+  t('late-UTC evening is the next KST day, year form', kstYearMonthDay(rolled) === '2026년 8월 26일', kstYearMonthDay(rolled));
+  // The case only the YEAR form can get wrong: 16:00 UTC Dec 31 is already NEXT YEAR in Seoul.
+  // Both other zones in the runner are still in the old year, so a device read prints 2025.
+  const newYear = kstCal(Date.parse('2025-12-31T16:00:00Z')); // 01:00 KST Jan 1 2026
+  t('KST new year rolls the YEAR too', kstYearMonthDay(newYear) === '2026년 1월 1일', kstYearMonthDay(newYear));
+  // One function apart, same as kstDateLabel/kstMonthDay — they cannot report different dates.
+  t('kstYearMonthDay is a year plus kstMonthDay',
+     kstYearMonthDay(newYear) === '2026년 ' + kstMonthDay(newYear), kstYearMonthDay(newYear));
+}
+
+// ───────────────────────────────────────────── kstDayIndex — 클럽 티켓의 D-day
+// The label is a SUBTRACTION of two KST calendar days, and the old code got there by formatting
+// both instants to 'YYYY-MM-DD' with Intl and re-parsing them — a round trip that existed only to
+// borrow Intl's calendar. What is pinned here is the property, not the mutation: the index must
+// step at KST midnight and nowhere else, so the difference is the number of KST days between.
+{
+  const justBefore = Date.parse('2026-08-25T14:59:59Z'); // 23:59:59 KST the 25th
+  const atMidnight = Date.parse('2026-08-25T15:00:00Z'); // 00:00:00 KST the 26th
+  const lateOn26th = Date.parse('2026-08-26T14:59:59Z'); // 23:59:59 KST the 26th
+  t('one second across KST midnight advances the day index',
+     kstDayIndex(atMidnight) - kstDayIndex(justBefore) === 1,
+     String(kstDayIndex(atMidnight) - kstDayIndex(justBefore)));
+  t('a whole KST day shares one index',
+     kstDayIndex(atMidnight) === kstDayIndex(lateOn26th),
+     `${kstDayIndex(atMidnight)} vs ${kstDayIndex(lateOn26th)}`);
+  t('n days later is n indices later (21 = the club date strip width)',
+     kstDayIndex(atMidnight + 21 * 86400_000) - kstDayIndex(atMidnight) === 21);
+  // The rendered label, built exactly as club/[id].tsx builds it. The 「오늘」/「D-1」 boundary is the
+  // one a device-local index moves: 22:00 UTC is tomorrow in Seoul and today in New York.
+  const dday = (ms, now) => { const n = kstDayIndex(ms) - kstDayIndex(now); return n <= 0 ? '오늘' : `D-${n}`; };
+  const now = Date.parse('2026-08-26T01:00:00Z');          // 10:00 KST Wed the 26th
+  t('a session later the same KST day is 오늘', dday(Date.parse('2026-08-26T10:00:00Z'), now) === '오늘');
+  t('a session past KST midnight is D-1', dday(Date.parse('2026-08-26T22:00:00Z'), now) === 'D-1',
+     dday(Date.parse('2026-08-26T22:00:00Z'), now));
+  t('an already-past session is 오늘, never D--1', dday(now - 5 * 86400_000, now) === '오늘',
+     dday(now - 5 * 86400_000, now));
+  t('three weeks out is D-21', dday(now + 21 * 86400_000, now) === 'D-21', dday(now + 21 * 86400_000, now));
 }
 
 // ───────────────────────────────────────────── 🔴 the slot round-trip (owner/report 다음 주 같은 시간)

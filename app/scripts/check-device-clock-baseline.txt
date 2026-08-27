@@ -1,44 +1,47 @@
-# check-device-clock.mjs baseline — the 12 device-clock reads that existed when this gate was
-# adopted (2026-08-27), immediately after the KST class fix landed nine other sites.
+# check-device-clock.mjs baseline — known device-clock reads. Opened 2026-08-27 with 12 entries,
+# immediately after the KST class fix landed nine other sites. ONE is left.
 #
-# ⚠ THESE ARE NOT 12 INDEPENDENT BUGS. Ten of them are ONE unresolved question: the Intl-fallback
-#   family. Every `Intl.DateTimeFormat` site in this app passes `timeZone: 'Asia/Seoul'` in its
-#   `try`; these lines are the `catch`, plus two weekday fallbacks that sit INSIDE the try
-#   (`club/[id].tsx:68`, `api.ts:903` — `wk >= 0 ? wk : d.getDay()`), which is a third state
-#   neither branch describes: Intl works, honors the zone, and the English weekday token fails to
-#   match, splicing a device-local weekday onto a KST month/day.
+# ── 2026-08-27, the same day: the Intl-fallback family is GONE (12 → 1) ────────────────────────
+# Eleven of the twelve were ONE thing. Every `Intl.DateTimeFormat` site in this app passed
+# `timeZone: 'Asia/Seoul'` in its `try`; those lines were the `catch` — device-local — plus two
+# weekday fallbacks that sat INSIDE the try (`wk >= 0 ? wk : d.getDay()`), a third state neither
+# branch described: Intl works, honors the zone, and the English weekday token fails to match,
+# splicing a device-local weekday onto a KST month/day.
 #
-#   Whether the catch branches are live code or unreachable turns on one fact SOURCE CANNOT
-#   SETTLE: does this build's Hermes have a `timeZone`-honoring Intl? Settled by reading:
-#   package.json has no `expo-localization`, no `@formatjs/*`, no Intl polyfill, and app.json sets
-#   no jsEngine — so it rests entirely on whatever Expo SDK 57 / RN 0.86 ships. And a `try/catch`
-#   only catches a THROW, so a Hermes that HAS Intl.DateTimeFormat but silently ignores `timeZone`
-#   would take the try, return a device-local label, and never reach the catch at all.
+# ⚠ THE OPEN QUESTION WAS NOT ANSWERED — IT WAS DELETED, AND THAT IS THE POINT. Whether those
+#   branches were live code or unreachable turned on one fact SOURCE CANNOT SETTLE: does this
+#   build's Hermes have a `timeZone`-honoring Intl? (package.json has no `expo-localization`, no
+#   `@formatjs/*`, no polyfill, and app.json sets no jsEngine, so it rested entirely on whatever
+#   Expo SDK 57 / RN 0.86 ships. And a `try/catch` only catches a THROW — a Hermes that HAS
+#   Intl.DateTimeFormat but silently IGNORES `timeZone` would take the try, return a device-local
+#   label, and never reach the catch at all, which is the state no branch was written for.)
+#   `kst.ts` has NO Intl dependency (fixed +9; Korea has no DST), so converging these sites onto it
+#   removed the catch branches and the question together. Nothing here waits on that measurement
+#   any more, and nobody should re-derive it: it only ever mattered if we kept the dependency.
 #
-#   The measurement, which must run in the app bundle and NOT in Node, on a device set to a
-#   non-Seoul zone (a Seoul device cannot fail this check — the same reason the Seoul arm of the
-#   class mutation showed 0 failures):
+#   The converged sites, and what each now calls:
+#     app/club/[id].tsx     ticketParts → kstCal + kstClock · ddayLabel → kstDayIndex (kstYmd gone)
+#     app/payments.tsx      linkedLabel → kstYearMonthDay
+#     src/components/charge-states.tsx  dayLabel → kstMonthDay
+#     src/lib/api.ts        kstParts    → kstDateLabel + kstAmPm (its 28 call sites unchanged)
+#   Every rendered string is byte-identical to the old `try` branch — 284,070 comparisons against
+#   ICU under four zones (UTC · America/New_York · Asia/Seoul · Pacific/Kiritimati), 0 mismatches.
+#   ONE deliberate copy change: payments.tsx's `catch` printed 「2026. 8. 26」 where its `try`
+#   printed 「2026년 8월 26일」 — two different sentences for one field. The try's survives.
+#
+# ⚠ `owner/pay.tsx:90` is the one that stays, and it is a different case: dead by NO CALLER, not
+#   dead by construction. Nothing routes to /owner/pay and nothing supplies its `exp` param, but
+#   Expo Router still registers the URL, so a deep link would reach it. The obligation rides
+#   whichever slice revives the screen — it was deliberately left out of the convergence rather
+#   than overlooked.
+#   ⚠ It is also the LAST executable `Intl.DateTimeFormat` in app/ + src/, so it is the only line
+#   for which the Hermes question above is still open. The cheap discharge is to converge it like
+#   its eleven siblings, NOT to measure. If someone measures anyway, it must run in the app bundle
+#   and NOT in Node, on a device set to a non-Seoul zone (a Seoul device cannot fail this check —
+#   the same reason the Seoul arm of every mutation in this family shows 0 failures):
 #     new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',hour:'2-digit',hour12:false})
 #       .format(new Date('2026-08-25T22:00:00Z'))     // honors zone => "07"; ignores => device hour
 #
-#   `kst.ts` has NO Intl dependency (fixed +9, Korea has no DST), so converging this family onto it
-#   REMOVES the question instead of answering it. That is the next slice, not this one.
-#
-# ⚠ `owner/pay.tsx:90` is a different case: dead by NO CALLER, not dead by construction. Nothing
-#   routes to /owner/pay and nothing supplies its `exp` param, but Expo Router still registers the
-#   URL, so a deep link would reach it. The obligation rides whichever slice revives the screen.
-#
 # Delete a line when its site is fixed — the gate FAILS on a stale entry, so this ledger shrinks
 # honestly and can never silently absorb a regression on a line somebody just fixed.
-app/club/[id].tsx:68
-app/club/[id].tsx:73
-app/club/[id].tsx:74
-app/club/[id].tsx:75
-app/club/[id].tsx:81
 app/owner/pay.tsx:90
-app/payments.tsx:65
-src/components/charge-states.tsx:47
-src/lib/api.ts:903
-src/lib/api.ts:907
-src/lib/api.ts:909
-src/lib/api.ts:910

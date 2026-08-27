@@ -41,9 +41,11 @@ export const kstKey = (c: KstCal): string => `${c.y}-${c.m}-${c.d}`;
 // print the wrong weekday and the wrong time. These take a KstCal so a caller pays for the
 // arithmetic once and both lines are guaranteed to agree.
 //
-// ⚠ api.ts's `kstParts()` builds the same 「8월 26일 (화)」 vocabulary a second way (Intl, with a
-// device-local fallback) and is wired into ~20 call sites; it is the older idiom and unifying it
-// is its own slice. Anything NEW belongs here — this is the copy the .cjs suite can reach.
+// api.ts's `kstParts()` used to build the same 「8월 26일 (화)」 vocabulary a second way — Intl with
+// `timeZone:'Asia/Seoul'` and a device-local `catch` — behind 28 call sites. Since 2026-08-27 it is
+// a two-line wrapper over kstDateLabel + kstAmPm, so there is exactly ONE arithmetic left. Anything
+// NEW belongs here: this is the copy the .cjs suite can reach, and it has no Intl dependency, so a
+// build whose Hermes ignores `timeZone` cannot change a single character it prints.
 const WD_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 「8월 26일」 — month/day with no weekday. Three screens print a bare date (설정·베이스 핀의
@@ -64,3 +66,15 @@ export const kstClock = (c: KstCal): string =>
  *  instant read differently on two screens. */
 export const kstAmPm = (c: KstCal): string =>
   `${c.h < 12 ? '오전' : '오후'} ${c.h % 12 === 0 ? 12 : c.h % 12}:${String(c.min).padStart(2, '0')}`;
+
+/** 「2026년 8월 26일」 — 연도까지 붙는 KST 날짜. 결제 관리의 「… 연결됨」 한 줄이 쓴다.
+ *  kstDateLabel 과 같은 이유로 kstMonthDay **위에** 짓는다: 「n월 n일」의 두 번째 사본은 언젠가
+ *  어긋나는 사본이다. `Intl.DateTimeFormat('ko-KR', {year, month:'long', day})` 의 출력과 바이트
+ *  동일하다 (2026-08-27, 네 개 존에서 ICU 대조 284,070건 · 불일치 0). */
+export const kstYearMonthDay = (c: KstCal): string => `${c.y}년 ${kstMonthDay(c)}`;
+
+/** KST 캘린더 날 일련번호 — 「며칠 차이냐」만 묻는 곳(D-day)을 위한 정수. 두 값의 차가 곧 KST
+ *  달력상 날짜 차다 (한국은 DST 가 없어 하루는 언제나 정확히 86400000ms).
+ *  ⚠ 캘린더를 문자열로 만들었다가 Date.parse 로 되돌리던 왕복(club/[id].tsx 의 옛 kstYmd)을
+ *  대신한다. 그 왕복은 Intl 을 필요로 했고, Intl 을 쓰면 폴백이 필요하고, 폴백은 기기 시계다. */
+export const kstDayIndex = (ms: number): number => Math.floor((ms + KST_MS) / 86_400_000);

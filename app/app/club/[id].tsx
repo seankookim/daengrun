@@ -13,7 +13,7 @@ import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
-import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
+import { kstCal, kstClock, kstDayIndex, kstInstant, kstKey } from '../../src/lib/kst';
 import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
 
 // 하이클럽 홈 — 변형 D (Sean 확정: 3 티켓-퍼스트 골격 × 2 에디토리얼 마스트헤드, home-repaint lab).
@@ -53,35 +53,23 @@ for (let h = TIME_MIN_H; h <= TIME_MAX_H; h += 1) {
   }
 }
 
-// [감사 P2 선례] 티켓 시각 파트 — 기기 로컬이 아니라 Asia/Seoul 고정 (Intl 실패 시 로컬 폴백)
+// [감사 P2 선례] 티켓 시각 파트 — 기기 로컬이 아니라 Asia/Seoul 고정.
+// 2026-08-27: Intl 을 걷어냈다. 옛 판은 `timeZone:'Asia/Seoul'` 을 넘긴 뒤 THROW 하면 기기 로컬로
+// 떨어졌고, 영어 요일 토큰이 안 맞으면 try **안에서도** `d.getDay()` 로 떨어졌다 — KST 월/일 위에
+// 기기 로컬 요일이 접붙는 상태다. 그 분기들이 산 코드인지는 「이 빌드의 Hermes 가 timeZone 을
+// 지키는가」에 달려 있었고 소스로는 답할 수 없었다. kst.ts 는 Intl 을 쓰지 않으므로(고정 +9,
+// 한국은 DST 없음) 질문 자체가 없어진다. hh 의 '24'→'00' 보정도 함께 사라진다: kstCal 의 h 는
+// 언제나 0–23 이라 보정할 값이 나올 수 없다.
 const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const DAYS_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const ticketParts = (iso: string) => {
-  const d = new Date(iso);
-  try {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
-    }).formatToParts(d);
-    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-    const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday'));
-    const i = wk >= 0 ? wk : d.getDay();
-    const hh = g('hour') === '24' ? '00' : g('hour');
-    return { day: DAYS_KO[i], hhmm: `${hh}:${g('minute')}`, code: `${Number(g('month'))}.${Number(g('day'))} ${DAYS_EN[i]}` };
-  } catch {
-    return {
-      day: DAYS_KO[d.getDay()],
-      hhmm: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-      code: `${d.getMonth() + 1}.${d.getDate()} ${DAYS_EN[d.getDay()]}`,
-    };
-  }
+  const c = kstCal(Date.parse(iso));
+  return { day: DAYS_KO[c.wd], hhmm: kstClock(c), code: `${c.m + 1}.${c.d} ${DAYS_EN[c.wd]}` };
 };
-const kstYmd = (d: Date): string => {
-  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d); }
-  catch { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-};
+// D-day = KST 캘린더 날짜 차. 옛 판은 두 시각을 'YYYY-MM-DD' 문자열로 만들었다가 Date.parse 로
+// 되돌려 뺐다 — 그 왕복이 Intl 을 부르던 유일한 이유였다. kstDayIndex 뺄셈이 같은 정수를 준다.
 const ddayLabel = (iso: string): string => {
-  const n = Math.round((Date.parse(kstYmd(new Date(iso))) - Date.parse(kstYmd(new Date()))) / 86400_000);
+  const n = kstDayIndex(Date.parse(iso)) - kstDayIndex(Date.now());
   return n <= 0 ? '오늘' : `D-${n}`;
 };
 

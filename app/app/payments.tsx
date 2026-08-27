@@ -8,6 +8,7 @@ import { Row } from '../src/components/ui';
 import {
   BillingCard, PaymentRecord, cardRegistrationLive, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
+import { kstCal, kstYearMonthDay } from '../src/lib/kst';
 import { goBackOrHome } from '../src/lib/nav';
 import { TOSS_CLIENT_KEY } from '../src/lib/toss';
 import { paper } from '../src/theme';
@@ -55,15 +56,13 @@ function allowedReturn(href: string): string | null {
   return null;                                                  // club/session/[sid].tsx:623
 }
 
+// 카드 연결일 — Asia/Seoul 고정. 2026-08-27: Intl 을 걷어냈다. 옛 판의 `catch` 는 기기 로컬로
+// 「2026. 8. 26」을 그렸는데, 그건 try 가 그리던 「2026년 8월 26일」과 아예 다른 어휘였다 — 한 화면이
+// 두 문장을 말할 수 있었고, 어느 쪽이 나오는지는 이 빌드의 Hermes 가 timeZone 을 지키느냐에 달려
+// 있었다. kst.ts 는 Intl 을 안 쓰므로(고정 +9) 남는 문장은 하나뿐이고, 그건 try 쪽 문자열이다.
 const linkedLabel = (iso: string | null): string => {
   if (!iso) return '';
-  try {
-    return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric' })
-      .format(new Date(iso));
-  } catch {
-    const d = new Date(iso);
-    return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
-  }
+  return kstYearMonthDay(kstCal(Date.parse(iso)));
 };
 
 type LoadState = 'loading' | 'ready' | 'error';

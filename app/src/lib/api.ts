@@ -12,7 +12,7 @@ import { supabase } from './supabase';
 import { isPendingDeploy } from './rpc-skew';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
-import { kstAmPm, kstCal, kstMonthDay } from './kst';
+import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
 // Runner settlement constants — different money from the owner fare (theme.ts:210)
 import { pricing } from '../theme';
 
@@ -868,7 +868,8 @@ export async function retryCollect(bookingId: string): Promise<void> {
 }
 
 // ---------- my bookings → UI Booking ----------
-const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+// 요일 표는 은퇴했다 (2026-08-27): kstParts 의 두 분기가 유일한 사용처였고, 둘 다 kst.ts 의
+// kstDateLabel 로 합쳐지면서 그 파일의 WD_KO 한 벌만 남았다.
 
 // KST 캘린더 주(월요일 00:00 시작) — '이번 주' 창을 리더보드(월요일 리셋)와 통일.
 // 롤링 7일 창은 일요일 러닝이 다음 주 토요일까지 '이번 주'로 남아 랭킹과 어긋났다.
@@ -886,30 +887,18 @@ function kstMonthStartMs(t = Date.now()): number {
 }
 
 // [감사 P2] 기기 로컬 타임존이 아니라 Asia/Seoul 고정 — 서버(club_generate_club_sessions)가 KST 고정이라
-// 기기가 UTC(에뮬레이터)·해외면 세션/홀드/채팅/영수증 시각이 어긋났다. 오프셋 파트를 KST로 계산.
+// 기기가 UTC(에뮬레이터)·해외면 세션/홀드/채팅/영수증 시각이 어긋났다.
+//
+// 2026-08-27: Intl 을 걷어냈다. 옛 판은 `timeZone:'Asia/Seoul'` 을 넘긴 뒤 THROW 하면 기기 로컬로
+// 떨어졌고, 요일 토큰이 안 맞으면 try 안에서도 `d.getDay()` 로 떨어졌다 — 즉 KST 월/일에 기기 로컬
+// 요일이 접붙는 세 번째 상태가 있었다. 그 분기들이 사는 코드인지 죽은 코드인지는 「이 빌드의 Hermes
+// 가 timeZone 을 지키는가」 하나에 달려 있었고, 그건 소스로 답이 안 나오는 질문이다.
+// kst.ts 는 Intl 을 쓰지 않으므로(고정 +9, 한국은 DST 없음) 답하는 대신 질문을 없앤다.
+// 두 라벨은 옛 try 분기와 바이트 동일하다 — kstDateLabel 은 `n월 n일 (요)`, kstAmPm 은 시 UNPADDED
+// · 분 PADDED · 0시/12시 모두 12 로, 옛 문자열과 같은 규칙이다.
 function kstParts(iso: string) {
-  const d = new Date(iso);
-  // en-CA(YYYY-MM-DD) + 24h 파트를 Asia/Seoul로 뽑아 라벨 재조립 (Intl 실패 시 로컬 폴백)
-  try {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
-    }).formatToParts(d);
-    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-    const mon = Number(g('month')); const day = Number(g('day'));
-    let h = Number(g('hour')) % 24; const min = g('minute');
-    // KST 요일 인덱스 (weekday short → DAYS 매핑)
-    const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday'));
-    const dateLabel = `${mon}월 ${day}일 (${DAYS[wk >= 0 ? wk : d.getDay()]})`;
-    const timeLabel = `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${min}`;
-    return { dateLabel, timeLabel };
-  } catch {
-    const h = d.getHours();
-    return {
-      dateLabel: `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`,
-      timeLabel: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`,
-    };
-  }
+  const c = kstCal(Date.parse(iso));
+  return { dateLabel: kstDateLabel(c), timeLabel: kstAmPm(c) };
 }
 
 const STATUS_MAP: Record<string, BookingStatus> = {

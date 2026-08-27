@@ -15,6 +15,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PaymentRecord } from '../lib/api';
 import { useNumFont } from '../lib/fonts';
+import { kstCal, kstMonthDay } from '../lib/kst';
 import { paper } from '../theme';
 
 // payments.status → 보호자가 읽는 말. 'waived'(청구 없음)는 0원짜리 의도된 무청구다 —
@@ -36,16 +37,13 @@ const STATUS_LABEL: Record<string, string> = {
 export const paymentStatusLabel = (status: string, underReview = false): string =>
   underReview && status === 'waived' ? '확인 중 — 지금은 청구된 금액이 없어요' : (STATUS_LABEL[status] ?? status);
 
-// 날짜 — Asia/Seoul 고정 (기기 타임존 금지, api.ts kstParts와 같은 이유)
+// 날짜 — Asia/Seoul 고정 (기기 타임존 금지, api.ts kstParts와 같은 이유).
+// 2026-08-27: Intl 을 걷어냈다. try 와 catch 가 같은 「8월 26일」을 만들었으므로 어느 쪽이 실행되든
+// 화면은 같았지만, catch 쪽은 그걸 **기기 시계로** 만들었다 — 서울 밖 기기에선 하루 어긋난 같은
+// 모양의 문자열이다. kstMonthDay 는 Intl 없이(고정 +9) 같은 바이트를 낸다.
 function dayLabel(iso: string | null): string {
   if (!iso) return '';
-  try {
-    return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' })
-      .format(new Date(iso));
-  } catch {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  }
+  return kstMonthDay(kstCal(Date.parse(iso)));
 }
 
 /** 영수증 한 줄. 숫자는 전부 payments 행에서 온다 — 이 컴포넌트는 계산하지 않는다. */
