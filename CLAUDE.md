@@ -435,6 +435,20 @@ else catalogued here is a green that means LESS than it claims. This is a green 
 OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
 have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
 can still notice; a lying gate closes the gap in everyone's mind.
+🔴 **DO NOT WRITE A PIN TO DOCUMENT A LIMITATION — IF THE HARNESS CANNOT REACH THE STATE, EVERY
+ARM PASSES UNCONDITIONALLY AND YOU HAVE ADDED AN UNFALSIFIABLE GUARD TO PROSE'S JOB** (ui6,
+2026-08-27, caught in their own draft and deleted before committing). They began an `N4` asserting
+the revocability distinction — and stopped on measuring that **the harness cannot manufacture a
+role that owns `net` but cannot revoke in it**, so every arm they could write was green by
+construction. **They were about to add an unfalsifiable pin in order to RECORD A LIMITATION**,
+which is the purest form of the thing this file exists to catch, committed while writing the file
+that catches it.
+**The rule: a limitation is PROSE.** A pin's job is to fail when a property breaks; if the property
+cannot be broken in the harness, a pin cannot do that job and its green will be read by every later
+session as coverage. Write the limitation in the header, name what the harness structurally cannot
+reach, and leave the pin unwritten. ⚠ The tell is worth memorising: **you are writing a pin and
+cannot describe the mutation that would redden it.** Stop there.
+
 🔴 **A FIXTURE THAT OMITS THE DEFECT CANNOT TEST THE FIX — AND THE PIN READS IDENTICALLY IN BOTH
 WORLDS** (ui6, 2026-08-27, on their own guard, hours after writing the neighbouring law). They
 shipped `0151` to revoke a grant, with pins N1/N2 asserting the grant was gone. Green. **But
