@@ -1,4 +1,4 @@
--- ═══ 180: claimed-is-forever + the locks that were never pinned (0148) — W1~W6 ═══
+-- ═══ 180: claimed-is-forever + the locks that were never pinned (0148) — W1~W7 ═══
 --
 -- 🔴 THIS FILE EXISTS BECAUSE MY OWN BATTERY PROVED THE WRONG PROPOSITION, AND THE SHAPE OF THAT
 --    ERROR IS THE REASON TO READ IT. 0143's V1 was written as 「the CRITICAL one」 and its header
@@ -229,6 +229,44 @@ begin
   if v_bad <> '' then call _fail('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)', v_bad || ' | ' || v_msg);
                    else call _pass('rcf','W6 게이트를 읽기 전에 플래그 행을 잠근다 (소스)'); end if;
   end if;
+
+
+  ------------------------------------------------------------------------------------------
+  -- W7: 🔴 EVERY abandon clears the claim token — codex round-5 #6's last live sub-item, and the
+  -- one I first fixed in the wrong place. 0148 added `claim_token = null` to §A, where `attempts`
+  -- is 0 and the token is already NULL: **the site I fixed is the site where the fix is a no-op.**
+  -- The two that abandon rows holding a LIVE token were left alone.
+  --
+  -- Asserted over BOTH remaining sites, because they fail differently and neither implies the
+  -- other: belt 2 loses the RECORD (a late report flips `abandoned → done`, so the ledger says a
+  -- key was revoked that the system deliberately refused to revoke), while the cap sweep loses
+  -- the VISIBILITY 0148 just bought (a late `false` flips it to `failed`, which no state predicate
+  -- excludes from claiming, returning the row to invisible one report after being surfaced).
+  v_bad := '';
+
+  -- belt 2's site: the key is current, so belt 2 must abandon it — with no token left behind.
+  perform billing_key_swap(u1, 'bill_B1', '{"brand":"국민"}'::jsonb);
+  insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts, claim_token, lease_until)
+  values (u1, 'bill_B1', 'replaced', 'processing', 2, gen_random_uuid(), now() + interval '5 minutes')
+  returning id into v_id;
+  perform claim_billing_key_revocations(10);
+  select state, claim_token into v_txt, v_tok from billing_key_revocations where id = v_id;
+  if v_txt is distinct from 'abandoned' then v_bad := v_bad || ' belt2-state(' || coalesce(v_txt,'∅') || ')'; end if;
+  if v_tok is not null                  then v_bad := v_bad || ' belt2-TOKEN-KEPT'; end if;
+
+  -- the cap sweep's site: a crashed worker at the cap, which is exactly where a late report is
+  -- the EXPECTED event rather than a rare one.
+  insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts, claim_token, lease_until)
+  values (u1, 'bill_B2', 'replaced', 'processing', 8, gen_random_uuid(), now() - interval '1 hour')
+  returning id into v_id;
+  perform claim_billing_key_revocations(10);
+  select state, claim_token into v_txt, v_tok from billing_key_revocations where id = v_id;
+  if v_txt is distinct from 'abandoned' then v_bad := v_bad || ' cap-state(' || coalesce(v_txt,'∅') || ')'; end if;
+  if v_tok is not null                  then v_bad := v_bad || ' cap-TOKEN-KEPT'; end if;
+
+  if v_bad <> '' then call _fail('rcf','W7 모든 abandon 은 클레임 토큰을 지운다', v_bad);
+                 else call _pass('rcf','W7 모든 abandon 은 클레임 토큰을 지운다'); end if;
+  v_bad := '';
 
   update ops_flags set card_registration_live_since = null;   -- shipped state is closed (171 R7)
 end $$;

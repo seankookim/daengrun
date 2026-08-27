@@ -112,12 +112,15 @@ begin
     call _fail('rvl','L5 되살아난 키는 폐기되지 않는다',
                'PRECONDITION: bill_R1 not queued (state=' || coalesce(v_txt,'∅') || ')');
   else
-    perform billing_key_swap(u1, 'bill_R1', '{"brand":"국민"}'::jsonb);   -- R1 is current again
+    -- ⚠ `select … into` rather than `perform` (codex round-5 #6): L5 discarded `swapped`, so a
+    --   version that refused the revival while still abandoning the row passed it.
+    select swapped into v_sw from billing_key_swap(u1, 'bill_R1', '{"brand":"국민"}'::jsonb);
     select state into v_txt from billing_key_revocations
      where billing_key = 'bill_R1' and reason = 'replaced' order by created_at desc limit 1;
     select billing_key into v_key from billing_keys where profile_id = u1;
     v_msg := 'queued_state=' || coalesce(v_txt,'∅') || ' current=' || coalesce(v_key,'∅');
-    if v_txt is distinct from 'abandoned' or v_key is distinct from 'bill_R1'
+    v_msg := v_msg || ' swapped=' || coalesce(v_sw::text,'∅');
+    if v_sw is distinct from true or v_txt is distinct from 'abandoned' or v_key is distinct from 'bill_R1'
       then call _fail('rvl','L5 되살아난 키는 폐기되지 않는다', v_msg);
       else call _pass('rvl','L5 되살아난 키는 폐기되지 않는다'); end if;
   end if;

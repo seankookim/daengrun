@@ -13,7 +13,7 @@
 
 do $$
 declare
-  u1 uuid; u2 uuid; v_n int; v_txt text; v_msg text; v_bad text := ''; v_ref text;
+  u1 uuid; u2 uuid; v_n int; v_n2 int; v_txt text; v_msg text; v_bad text := ''; v_ref text;
   v_key text; v_tok uuid; v_sw boolean; v_id uuid;
 begin
   u1 := t_user('rv_live', 'owner');
@@ -57,10 +57,19 @@ begin
   -- why V1 refused — so a duplicate row would mean two workers each issuing a DELETE for it.
   -- 0141 §A's orphan insert is for the tombstone race, where the key is untracked; conflating
   -- the two paths is how a refusal turns into a duplicate.
+  -- ⚠ REWRITTEN (codex round-5 #6). This pin used to read the row count and expect 1 — which is
+  --   satisfied by V1's fixture WHETHER OR NOT the refusal ever ran. **A pin that inherits another
+  --   pin's setup and asserts a fact about that setup is testing the setup.** It now performs the
+  --   refusal itself and compares before to after, so the number it reports is a delta it caused.
   select count(*) into v_n from billing_key_revocations where billing_key = 'bill_P1';
-  v_msg := 'rows_for_P1=' || v_n;
-  if v_n <> 1 then call _fail('rvl','V2 거절은 폐기 주문을 복제하지 않는다', v_msg);
-              else call _pass('rvl','V2 거절은 폐기 주문을 복제하지 않는다'); end if;
+  select swapped into v_sw from billing_key_swap(u1, 'bill_P1', '{"brand":"국민"}'::jsonb);
+  select count(*) into v_n2 from billing_key_revocations where billing_key = 'bill_P1';
+  v_msg := 'before=' || v_n || ' after=' || v_n2 || ' swapped=' || coalesce(v_sw::text,'∅');
+  if v_sw is distinct from false then
+    call _fail('rvl','V2 거절은 폐기 주문을 복제하지 않는다', 'PRECONDITION: not refused | ' || v_msg);
+  elsif v_n2 <> v_n then
+    call _fail('rvl','V2 거절은 폐기 주문을 복제하지 않는다', v_msg);
+  else call _pass('rvl','V2 거절은 폐기 주문을 복제하지 않는다'); end if;
 
   ------------------------------------------------------------------------------------------
   -- V3: 🔴 **REVERSED BY 0148, AND THE REVERSAL IS THE POINT.** This pin used to assert that an
