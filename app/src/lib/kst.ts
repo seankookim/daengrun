@@ -34,3 +34,21 @@ export const kstInstant = (c: KstCal, h: number, min: number): Date =>
 
 /** 날짜 칸 동일성 키 — toDateString() 은 기기 로컬이라 KST 날짜 칸과 어긋난다. */
 export const kstKey = (c: KstCal): string => `${c.y}-${c.m}-${c.d}`;
+
+// ── KST labels ────────────────────────────────────────────────────────────────
+// Rendering helpers, so a screen never reads a server instant through the DEVICE clock.
+// `new Date(iso).getDay()/getHours()` are local-timezone: on a phone that is not Asia/Seoul they
+// print the wrong weekday and the wrong time. These take a KstCal so a caller pays for the
+// arithmetic once and both lines are guaranteed to agree.
+//
+// ⚠ api.ts's `kstParts()` builds the same 「8월 26일 (화)」 vocabulary a second way (Intl, with a
+// device-local fallback) and is wired into ~20 call sites; it is the older idiom and unifying it
+// is its own slice. Anything NEW belongs here — this is the copy the .cjs suite can reach.
+const WD_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** 「8월 26일 (화)」 — the product's standing KST date vocabulary. */
+export const kstDateLabel = (c: KstCal): string => `${c.m + 1}월 ${c.d}일 (${WD_KO[c.wd]})`;
+
+/** 「19:00」 — 24h KST wall clock. Unambiguous at a glance, which a ticket needs more than 오전/오후. */
+export const kstClock = (c: KstCal): string =>
+  `${String(c.h).padStart(2, '0')}:${String(c.min).padStart(2, '0')}`;

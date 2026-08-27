@@ -5,7 +5,7 @@
 // when the owner tapped 07:30, and the server agreed with the wrong time because both sides were
 // handed the same shifted instant. The load-bearing property is the last section: on Seoul
 // hardware this arithmetic must be a no-op against plain local construction.
-const { kstCal, kstInstant, kstKey, KST_MS } = require('./kst.build.cjs');
+const { kstCal, kstInstant, kstKey, kstDateLabel, kstClock, KST_MS } = require('./kst.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -65,6 +65,41 @@ t('KST_MS is +9h', KST_MS === 9 * 3600_000);
   const c = kstCal(Date.parse('2026-08-21T16:00:00Z')); // next KST day
   t('same KST day → same key', kstKey(a) === kstKey(b), `${kstKey(a)} vs ${kstKey(b)}`);
   t('next KST day → different key', kstKey(a) !== kstKey(c), `${kstKey(a)} vs ${kstKey(c)}`);
+}
+
+// ───────────────────────────────────────────── 🔴 labels: the 입장권 DATE cell (club/pass/[sid])
+// The regression this section exists for: that cell rendered WD[d.getDay()] and d.getHours(),
+// which are DEVICE-local. On a phone outside Asia/Seoul the one artifact a holder physically
+// shows a host at the meetup point carried the wrong weekday and a time up to 13h off — measured
+// under TZ=America/New_York, where 2026-08-25T22:00:00Z printed 「화 18:00」 for a 「수 07:00」
+// session. Expected values below were cross-checked against Intl with timeZone:'Asia/Seoul' so
+// they are not the implementation grading its own homework.
+// The whole point is that these are LITERAL strings: the runner executes this file under several
+// zones, and every one of them must produce the same bytes.
+{
+  const evening = kstCal(Date.parse('2026-08-26T10:00:00Z')); // 19:00 KST, Wednesday
+  t('date label is KST whatever the device zone', kstDateLabel(evening) === '8월 26일 (수)', kstDateLabel(evening));
+  t('clock is KST, 24h, zero-padded', kstClock(evening) === '19:00', kstClock(evening));
+}
+// The instant the old code got wrong in BOTH fields at once: 22:00 UTC is already tomorrow in
+// Seoul and still yesterday evening in New York, so a local read moved the weekday as well as
+// the hour. If this pair ever goes red the device clock has crept back in.
+{
+  const morning = kstCal(Date.parse('2026-08-25T22:00:00Z')); // 07:00 KST, Wednesday the 26th
+  t('late-UTC evening labels as the next KST day', kstDateLabel(morning) === '8월 26일 (수)', kstDateLabel(morning));
+  t('…and carries its KST morning hour', kstClock(morning) === '07:00', kstClock(morning));
+}
+// Midnight is the padding case — the cell is tabular, so 0시 prints 00:00 and never 0:00.
+{
+  const midnight = kstCal(Date.parse('2026-08-25T15:00:00Z')); // 00:00 KST, the 26th
+  t('KST midnight pads to 00:00', kstClock(midnight) === '00:00', kstClock(midnight));
+  t('…and sits on the rolled date', kstDateLabel(midnight) === '8월 26일 (수)', kstDateLabel(midnight));
+}
+// The widest realistic value the half-width DATE cell has to hold: two-digit month AND day.
+// The layout decision (two lines) was sized against this string, so it is pinned here.
+{
+  const wide = kstCal(Date.parse('2026-12-28T10:00:00Z')); // 19:00 KST, Monday
+  t('two-digit month/day is the widest label', kstDateLabel(wide) === '12월 28일 (월)', kstDateLabel(wide));
 }
 
 // ───────────────────────────────────────────── ⚠ the regression that matters for the pilot

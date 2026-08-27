@@ -7,6 +7,7 @@ import { ClubCta, LoadGate } from '../../../src/components/club-ui';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
+import { kstCal, kstClock, kstDateLabel } from '../../../src/lib/kst';
 import { goBackOrHome } from '../../../src/lib/nav';
 import { colors, layout, paper } from '../../../src/theme';
 
@@ -32,8 +33,6 @@ import { colors, layout, paper } from '../../../src/theme';
 //     label, the busy label swap and the a11y disabled/busy state.
 //  4. FLOOR (§3). Korean detail text at 14 is gone; the display face is spent ONCE (the club
 //     name) and the bib count joins the Oswald wave with an explicit lineHeight (BUG A).
-
-const WD = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function ClubPass() {
   const df = useDisplayFont();
@@ -72,6 +71,16 @@ export default function ClubPass() {
   const checked = sess.myAttendance === 'checked_in';
   const startMs = d.getTime();
   const inWindow = Date.now() >= startMs - 2 * 3600_000 && Date.now() <= startMs + 6 * 3600_000;
+  // Pay for the KST arithmetic once — both DATE lines then cannot disagree with each other.
+  const cal = kstCal(startMs);
+  // [honesty 2026-08-27] The club name is a ROUTE PARAM the whole way down — the session screen
+  // only has a param itself, and it hands this one `clubName: clubName ?? ''`, so on a deep link
+  // to /club/pass/<sid> it arrives EMPTY, not undefined. The old fallback printed 하이클럽, which
+  // is the PRODUCT's name and not any club's: a brand word standing in a club-name position on
+  // the artifact a host inspects. ClubSessionDetail carries clubId but no name, and the client
+  // has no fetch-club-by-id (club_overview takes a district, club_search takes a query), so the
+  // honest move is to omit the headline. Binding it for real is a server change.
+  const club = clubName?.trim() || null;
 
   const doCheckin = async () => {
     setBusy(true);
@@ -103,10 +112,12 @@ export default function ClubPass() {
           <View style={s.top}>
             <View style={{ flex: 1 }}>
               <Text style={s.kicker}>ADMIT</Text>
-              {/* the screen's ONE display face (§3) — lineHeight 31 = 1.24x (BUG A) */}
-              <Text style={[{ fontSize: 25, lineHeight: 31, fontWeight: '900', color: '#fff', marginTop: 5 }, df]} numberOfLines={1}>
-                {clubName || '하이클럽'}
-              </Text>
+              {club && (
+                /* the screen's ONE display face (§3) — lineHeight 31 = 1.24x (BUG A) */
+                <Text style={[{ fontSize: 25, lineHeight: 31, fontWeight: '900', color: '#fff', marginTop: 5 }, df]} numberOfLines={1}>
+                  {club}
+                </Text>
+              )}
             </View>
             <View style={s.bibBox}>
               <Text style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>TEAMS</Text>
@@ -128,7 +139,23 @@ export default function ClubPass() {
           <Row style={s.grid}>
             <View style={[s.cell, { borderRightWidth: 1 }]}>
               <Text style={s.cellK}>DATE</Text>
-              <Text style={s.cellV}>{WD[d.getDay()]} {String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}</Text>
+              {/* [KST 2026-08-27] This cell read the DEVICE clock — getDay/getHours/getMinutes are
+                  local-timezone, so a phone outside Asia/Seoul printed the wrong weekday AND the
+                  wrong time on the one artifact a holder physically shows a host. Now fixed to +9
+                  via kst.ts. (startMs/inWindow above are epoch math and were already correct.)
+                  TWO lines, not one. The cell is half the grid: ~127pt of content box on a 375pt
+                  screen (375 - 2*15 gutter - 2*16 grid margin - borders, halved, - 2*11 padding).
+                  ESTIMATED from generic glyph advances — there is no fontFamily here, so this
+                  renders in the platform system font and the figure is not a measured layout —
+                  「8월 26일 (화) 19:00」 comes out around 130pt on one line, i.e. NOT safely inside
+                  the box. The estimate does not have to be right for the decision to be: one line
+                  is marginal at the 15pt floor, and the only ways to buy width are dropping the
+                  date or going under the floor. A ticket whose DATE cell omits the date is worse
+                  than one that is a line taller, so it splits. Split, the widest realistic value
+                  「12월 28일 (수)」 is ~96pt and clears with room to spare; it is pinned in
+                  test/kst.test.cjs so the string this was sized against cannot silently grow. */}
+              <Text style={s.cellV}>{kstDateLabel(cal)}</Text>
+              <Text style={s.cellVSub}>{kstClock(cal)}</Text>
             </View>
             <View style={s.cell}>
               <Text style={s.cellK}>MEET</Text>
@@ -208,10 +235,11 @@ const s = StyleSheet.create({
   perf: { flexDirection: 'row', alignItems: 'center', height: 14, marginVertical: 2 },
   dash: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: '#3A3168', marginHorizontal: 10 },
   notch: { position: 'absolute', width: 14, height: 14, backgroundColor: paper.canvas, transform: [{ rotate: '45deg' }] },
-  grid: { marginHorizontal: 16, borderWidth: 1, borderColor: colors.nightEdge, marginTop: 8 },
+  grid: { marginHorizontal: 16, borderWidth: 1, borderColor: colors.nightEdge, marginTop: 8, alignItems: 'stretch' },
   cell: { flex: 1, paddingVertical: 9, paddingHorizontal: 11, borderColor: colors.nightEdge },
   cellK: { fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim },
   cellV: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 3 },
+  cellVSub: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 1, fontVariant: ['tabular-nums'] },
   // §3 floor 15 + §7a-bis ink-by-default: white on nightCard measures 18.5:1. lineHeight 21 = 1.31x.
   stateLine: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: '#fff', textAlign: 'center' },
   checkedStamp: { alignSelf: 'center', borderWidth: 2.5, borderColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 18, transform: [{ rotate: '-7deg' }], alignItems: 'center', backgroundColor: 'rgba(198,245,66,.06)' },
