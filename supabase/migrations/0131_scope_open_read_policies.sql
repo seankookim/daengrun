@@ -382,7 +382,9 @@ create policy "activities scoped read" on public.participant_activities for sele
 do $$
 declare v_open int; v_new int; v_pub boolean; v_sp text; v_tbl text; v_pol text; v_reads text[];   -- [ui6 cold read] the helper's READ set, derived and fenced
         v_qual text; v_got text;                       -- exact-predicate check (round 5, finding 5)
+        v_textok boolean; v_depok boolean;              -- both computed before either is reported (round 6, finding 2)
         v_owner oid; v_ownername text; v_super boolean; v_bypass boolean;  -- RLS-bypass check (round 5, finding 4)
+        v_calls text[]; v_call text; v_tblname text; v_missing text;       -- ORDINARY privileges (round 6, finding 1)
 begin
   -- negative: the open predicate is gone from all four
   select count(*) into v_open
@@ -441,14 +443,23 @@ begin
     --        pg_depend row, which no text can forge. ⚠ Measured: (ii) alone does NOT catch the
     --        dead-arm or wrong-argument cases (the dependency is recorded either way), so it is a
     --        second kind of evidence beside (i), never a replacement for it.
-    -- ⚠ AND THE CONVERSE IS ALSO MEASURED, because an arm nobody can redden is exactly what this
-    -- file keeps being rejected for: **(i) caught every state P-F…P-J could construct, including a
-    -- SHADOW-SCHEMA capture designed specifically to defeat it, so (ii) never fired on its own.**
-    -- (ii) is therefore REDUNDANCY, not an independently load-bearing check, and is kept for two
-    -- named reasons rather than for appearances: it is immune to deparse drift between server
-    -- versions — the single scenario in which (i) could abort a CORRECT apply — and it answers a
-    -- different question, so an operator triaging a got=/want= mismatch has a second, independent
-    -- signal in hand. It is not evidence for (i) and (i) is not evidence for it.
+    -- 🔴 [codex round 6, finding 2] THIS BLOCK USED TO CLAIM (ii) COULD NOT FIRE ON ITS OWN — 「(i)
+    -- caught every state P-F…P-J could construct, so (ii) is REDUNDANCY, not independently
+    -- load-bearing」. **That claim was FALSE, and the counter-example is deterministic.** P-J changed
+    -- ONE policy, which is why (i) always spoke first: with `shadow` in front of `public`, the three
+    -- UNTAMPERED policies deparse QUALIFIED, so an earlier table failed (i) before the tampered one
+    -- was ever reached. Change ALL FOUR calls to the bare name and the whole apply deparses to
+    -- exactly the strings below — (i) passes on every table — while all four pg_depend rows point at
+    -- `shadow._club_session_member`. Measured 2026-08-27 as Q3: the ONLY failing arm is (ii).
+    -- **A mutation that changes one instance of a rule copied four times measures the copies, not
+    -- the rule** — the same shape as this file's own reason for existing.
+    -- So (ii) is independently load-bearing and is written down as such. It is ALSO the arm that is
+    -- immune to deparse drift between server versions — the single scenario in which (i) could abort
+    -- a CORRECT apply — and it answers a different question, so it is kept for both reasons now.
+    -- ⚠ AND THE SECOND SIGNAL WAS PROMISED BUT NOT DELIVERED (same finding): (i) used to `raise`
+    -- immediately, so on an ordinary mismatch (ii) was never evaluated and the operator got one arm's
+    -- answer while the comment advertised two. Both arms are computed FIRST and reported in ONE
+    -- diagnostic below. Neither is evidence for the other, which is the entire reason to hold both.
     -- ⚠ THE SHADOW PLANT ALSO TAUGHT SOMETHING ABOUT (i) THAT A FUTURE READER NEEDS:
     -- **`pg_get_expr` deparses against the SESSION's `search_path`.** A schema in front of `public`
     -- that contains a same-named function makes the LEGITIMATE call render QUALIFIED
@@ -471,23 +482,24 @@ begin
       -- additionally granted to anon would also satisfy (codex round 2)
       and (select array_agg(rolname order by rolname) from pg_roles where oid = any (p.polroles))
           = array['authenticated']::name[];
-    if v_new <> 1 then
-      select pg_get_expr(p.polqual, p.polrelid) into v_got
-      from pg_policy p join pg_class c on c.oid = p.polrelid
-      join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
-      raise exception '0131 D: %.% is missing, not SELECT, not TO authenticated, or does not carry the exact scoped predicate. got=[%] want=[%]',
-        v_tbl, v_pol, coalesce(v_got, '(no such policy)'), v_qual;
-    end if;
-
-    if not exists (select 1
+    v_textok := (v_new = 1);
+    v_depok := exists (select 1
                      from pg_policy p join pg_class c on c.oid = p.polrelid
                      join pg_namespace n on n.oid = c.relnamespace
                      join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = p.oid
                     where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol
                       and d.refclassid = 'pg_proc'::regclass
-                      and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure) then
-      raise exception '0131 D: %.% records no catalog dependency on _club_session_member(uuid,uuid) — whatever its text says, the predicate does not reference THIS function.', v_tbl, v_pol;
+                      and d.refobjid = 'public._club_session_member(uuid,uuid)'::regprocedure);
+    if not (v_textok and v_depok) then
+      select pg_get_expr(p.polqual, p.polrelid) into v_got
+      from pg_policy p join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = v_tbl and p.polname = v_pol;
+      raise exception '0131 D: %.% — exact-predicate arm %, catalog-dependency arm %. (i) covers missing/not-SELECT/not-TO-authenticated/wrong-text; (ii) covers a same-TEXT call that resolves to a DIFFERENT function (a shadow schema in front of public). got=[%] want=[%]',
+        v_tbl, v_pol,
+        case when v_textok then 'PASS' else 'FAIL' end,
+        case when v_depok  then 'PASS' else 'FAIL' end,
+        coalesce(v_got, '(no such policy)'), v_qual;
     end if;
     -- permissive, explicitly — a sole RESTRICTIVE policy admits nobody and passed round 3's D
     -- [codex round 4, finding 4] `pg_namespace` was MISSING here: a same-named policy on
@@ -543,6 +555,13 @@ begin
   --   This is what stops the list going stale — add a table to the helper and the apply fails
   --   loudly instead of the bypass check silently verifying the wrong four. Comments stripped
   --   first (the prosrc-is-source-plus-our-prose law); `sd.` and `auth.` are alias/schema noise.
+  --   ⚠ [codex round 6, finding 3, applied here rather than only where it was raised] THAT
+  --   `regexp_replace` IS NOT A SQL COMMENT PARSER — a string literal containing `--` erases
+  --   executable source after it. It matters in OPPOSITE directions in the two places this house
+  --   uses it: an ABSENCE claim (164's S9 ⓒ) fails OPEN under it, so that arm no longer strips at
+  --   all; this fence asserts an EXACT SET, so under-derivation AND over-derivation both break the
+  --   equality and raise. Honest residual, not smoothed: a body CRAFTED to hide a read behind a
+  --   literal would defeat the fence too — but whoever can rewrite this body does not need to hide.
   select coalesce(array_agg(distinct m[2] order by m[2]), '{}') into v_reads
     from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
             from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
@@ -566,6 +585,49 @@ begin
     raise exception '0131 D: the helper is SECURITY DEFINER but its owner % CANNOT BYPASS RLS (① rolsuper=%, ② rolbypassrls=%, ③ owns-unforced %/% of the READ set %). It would be RLS-filtered on the tables it gates, so the four scoped policies recurse or admit nobody. SECURITY DEFINER is not RLS bypass.',
       v_ownername, coalesce(v_super, false), coalesce(v_bypass, false), v_new, cardinality(v_reads), v_reads;
   end if;
+
+  -- ⓒ 🔴 [codex round 6, finding 1] RLS BYPASS IS NOT EXECUTABILITY, and ⓑ checked only bypass.
+  --   An owner can hold `rolbypassrls` — ⓑ green — and still lack USAGE on `auth`, EXECUTE on
+  --   `auth.uid()`, USAGE on `public`, or SELECT on the tables the body reads. Every one of those
+  --   states raises **42501 on the first client read**, from inside a helper that ⓐ and ⓑ have just
+  --   certified. It is not hypothetical: the round-5 P-F account hit the missing-`auth`-USAGE class
+  --   and recorded it as a plant artefact instead of as a finding. The concrete state, measured
+  --   2026-08-27: a helper pre-created owned by `service_role` — which the shim gives `bypassrls`
+  --   and does NOT give `usage on schema auth` — passes ⓑ and dies at query time (Q1).
+  --   ⚠ ORDINARY privileges are needed for EVERY relation the body reads; RLS BYPASS is needed only
+  --   for the recursively-protected three. ⓑ demands bypass across the whole read set anyway, which
+  --   is conservative for `club_sessions` (`using (true)` today) and fails CLOSED — named so nobody
+  --   later reads ⓑ's 4/4 as a claim that club_sessions needs bypass.
+  --   The CALL set is derived and fenced the same way the read set is: hardcoding `auth.uid` is the
+  --   exact staleness this ladder keeps being rejected for.
+  select coalesce(array_agg(distinct m[1] || '.' || m[2] order by m[1] || '.' || m[2]), '{}') into v_calls
+    from (select regexp_replace(prosrc, '--[^\n]*', '', 'g') as b
+            from pg_proc where oid = 'public._club_session_member(uuid,uuid)'::regprocedure) src,
+         regexp_matches(src.b, '([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)\s*\(', 'g') m;
+  if v_calls is null or cardinality(v_calls) = 0 then
+    raise exception '0131 D: could not derive the helper''s qualified-call set (NULL/empty) — the privilege check would be inert, not passing.';
+  end if;
+  if not (v_calls <@ array['auth.uid'] and v_calls @> array['auth.uid']) then
+    raise exception '0131 D: the helper calls % — not the qualified call this privilege check verifies. Update BOTH or the check verifies the wrong set.', v_calls;
+  end if;
+  v_missing := '';
+  if not has_schema_privilege(v_owner, 'public', 'usage') then
+    v_missing := v_missing || ' USAGE on schema public;'; end if;   -- the body names its tables bare under the pinned search_path
+  foreach v_call in array v_calls loop
+    if not has_schema_privilege(v_owner, split_part(v_call, '.', 1), 'usage') then
+      v_missing := v_missing || ' USAGE on schema ' || split_part(v_call, '.', 1) || ';'; end if;
+    if not has_function_privilege(v_owner, v_call || '()', 'execute') then
+      v_missing := v_missing || ' EXECUTE on ' || v_call || '();'; end if;
+  end loop;
+  foreach v_tblname in array v_reads loop
+    if not has_table_privilege(v_owner, format('public.%I', v_tblname), 'select') then
+      v_missing := v_missing || ' SELECT on public.' || v_tblname || ';'; end if;
+  end loop;
+  if v_missing <> '' then
+    raise exception '0131 D: the helper''s owner % CAN bypass RLS but CANNOT EXECUTE ITS OWN BODY — missing:%. A SECURITY DEFINER runs with the owner''s ordinary privileges too, so this state passes every prosecdef/owner/bypass check and then raises 42501 on the FIRST client read. (schema USAGE is a separate privilege from EXECUTE: measured, service_role holds EXECUTE on auth.uid() and still cannot reach it without USAGE on auth.)',
+      v_ownername, v_missing;
+  end if;
+
   if not has_function_privilege('authenticated', 'public._club_session_member(uuid,uuid)', 'execute')
      or not has_function_privilege('service_role', 'public._club_session_member(uuid,uuid)', 'execute') then
     raise exception '0131 D: helper missing an intended EXECUTE grant.';
