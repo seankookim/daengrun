@@ -33,31 +33,25 @@
 -- these tables ever grow, the fix is an index-backed membership table, not a wider policy.
 
 --
--- ═══ MEASURED, 2026-08-26. Harness 919/0 (baseline 912 + 7 pins). Mutation battery: ═══
--- Three propositions, not one — "the hole is real", "the pin notices", "the fix closes it" are
--- separate claims and a single mutation proves only the middle.
+-- ═══ MEASURED — battery of 2026-08-27, replacing the 08-26 block wholesale. Codex round 2
+-- found the old block's claims STALE (M5's counts predated the near-relation fixtures; M2
+-- described a suite shape that no longer existed; 「three independent guards」 were three reads of
+-- one ACL fact). A corrected number with the stale text left standing invites the next reader to
+-- trust the wrong half, so the old block is GONE, not annotated. Current battery, each plant
+-- asserted-landed before its run was trusted:
 --
---   M5  THE HOLE, UNFIXED (all four policy swaps commented out, VERIFY downgraded to notice so
---       the suite gets to speak):  S1 RED — the stranger reads `session_dogs=1 session_people=1
---       session_runner_assignments=1 participant_activities=1`, and G1 RED naming all four
---       surviving policies. **This is the leak reproducing, not a pin's opinion of it.**
---   M1  `to authenticated` removed (back to PUBLIC): the run ABORTS with
---       `ERROR: permission denied for function _club_session_member`. Caught loudly by
---       ON_ERROR_STOP rather than as a fail count — which is why S4 asserts a count(*), a shape
---       that cannot read a raise as a pass.
---   M2  membership arm deleted from session_dogs (the TOO-NARROW direction):  S2 RED
---       (`참가자가 못 읽는다 (화면이 빈다): session_dogs=0`) and S3 RED (`호스트=0`).
---       ⚠ This is the mutation that justifies the positive controls: S1, S4 and G1 are all GREEN
---       on it. A scoping migration that admits nobody passes every denial arm while four
---       features are silently dead.
---   M4  helper granted to PUBLIC:  G2 RED — **and so are the two pre-existing schema-wide
---       sweeps**, `[hard] H9` and `[sec] S1`. Three independent guards catch it, which is the
---       house-wide definer-ACL invariant demonstrating it still works rather than my own pin
---       marking its own homework.
+--   P1  RLS DISABLED planted post-VERIFY (the round-2 headline hole):  982/5 —
+--       [srp] G3 names the table · S1, S4, S5 red on the leak itself · AND [pcg] G1, a
+--       pre-existing anon whitelist sweep neither round wrote, reds independently. Three
+--       genuinely different guards, unlike the retracted M4 claim.
+--   P2  explicit anon GRANT on the helper planted:  the APPLY ABORTS at 0131 D
+--       (「_club_session_member is anon-executable」) — caught before any pin is needed.
+--   P3  wide dog-arm restored (any binding, no approval/liveness filter):  986/1 —
+--       S5's rejected-owner arm alone still pins the narrowing after the no_show flip.
 --
--- ⚠ M2's run also carried `[axes] X8 부패 — detected=1`, the KNOWN intermittent flake (~1/17),
---   unrelated to this slice. Named rather than absorbed into the count: M2's real result is TWO
---   reds, not three. The clean run used for the landing claim is 919/0.
+--   Clean: 987/0. The suite's srp pins now number NINE (S1-S5, R1, G1-G3); the old
+--   「919/0 = 912 + 7」 arithmetic is void. R1's caller citation: api.ts fetchStampStats — cite
+--   the FUNCTION, not a line number; two of its line references went stale inside one day.
 
 begin;
 
