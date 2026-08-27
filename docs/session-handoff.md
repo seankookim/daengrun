@@ -15,7 +15,7 @@ not carried forward from an earlier note.
 | App tests | **707 PASS / 0 FAIL** (counted across the whole chain, never `tail`) |
 | Money | **OFF.** `payments_live_since` null · `card_registration_live_since` null · 0 billing keys · 0 revocation rows |
 | Security sweep | 0 anon-executable definers · 0 definers missing in-body `search_path` |
-| Stranded work | **NONE.** 0 unpushed commits; 9 spent agent branches, 8 confirmed duplicated on trunk by patch-id, the 9th's target file on trunk is a superset of it |
+| Stranded work | **NONE.** 0 unpushed commits; 9 spent agent branches, **9 of 9 confirmed duplicated on trunk by `patch-id`**. ⚠ The first version of this row said 「8 by patch-id, the 9th's file on trunk is a superset」 and **reported 9 clean having measured 8** — a superset proves the file MOVED ON, which happens for reasons unrelated to that branch. Corrected by b6; the 9th was then settled properly (`patch-id` match at `91c581e`). **Same conclusion, and the evidence for it did not exist when it was written.** |
 
 ## What went live today (0130 → 0152, three sessions)
 
@@ -64,7 +64,22 @@ hardening incl. the crash window where a destroyed key could be stored as a live
 - **announcer** (this session) — coordination, Sean's queue, server/security. Nothing in flight.
 - **b6** — club session/console/run screens, client honesty. Holds `club/session/[sid].tsx`,
   `club/console/[sid].tsx`, `club/run/[sid].tsx`, `club/receipt/[bid].tsx`,
-  `src/components/run-share-card.tsx`, `app/shot/[bid].tsx`.
+  `src/components/run-share-card.tsx`, `app/shot/[bid].tsx`, and — added after this file's first
+  version — `src/lib/rpc-skew.ts` + `test/rpc-skew.test.cjs`, `src/lib/tier.ts` +
+  `test/tier.test.cjs`. ⚠ **Those four are small pure modules with MUTATION-VERIFIED pins:
+  anyone editing them must re-run the batteries, not just the suite.** A green suite after a
+  predicate edit means very little on its own — that is what the batteries are for.
+  **Open for b6: only the guest counterpart on the session screen**, waiting on the verified
+  findings already sent. Everything else b6 built is on trunk.
+  ⚠ **CORRECTED — this file's first version said b6's two `PENDING_DEPLOY` entries 「can come
+  out」 and the run-screen obligations were 「still open」. Both were already DONE** (`2b5d1c1`,
+  `0714ac8`); b6 landed them while this was being written. Measured on origin: PENDING_DEPLOY
+  executable mentions **0**, `runEnded` executable gates **3**, rpc-skew pin **10/0**.
+  🔴 **The reason this was worth correcting rather than shrugging at:** a handoff saying a pin
+  「should be failing until you do it」 sends the next session to run it, watch it PASS, and
+  reasonably conclude **the pin is broken**. That is a false green manufactured by
+  DOCUMENTATION — the same shape we spent two days removing from code, arriving through a file
+  nobody thinks to distrust.
 - **ui6** — design system, board, payments, deploy trigger. Holds `owner/request.tsx` and the
   press-grammar sweep.
 - **Claim before you edit**, in REGISTRY's in-flight table, path-keyed. **Migration numbers are
