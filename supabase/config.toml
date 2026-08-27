@@ -1,3 +1,27 @@
 # 로컬 개발 스택 설정 — supabase start/status용 (원격 db push는 linked-project로 별개 동작)
 # 포트 등 나머지는 CLI 기본값 (API 54321 · DB 54322 · Studio 54323)
 project_id = "daengrun"
+
+# ── Function deployment contract ─────────────────────────────────────────────────────────────
+# 🔴 A cron-driven endpoint's auth model belongs in the REPOSITORY, not in a flag somebody
+#    remembered to type. `revoke-billing-keys` is called by `dispatch_billing_key_revocations`
+#    (0141 §D) over pg_net, which sends `X-Cron-Key` and no JWT — with the platform default the
+#    request is rejected before our code runs, and the failure is INVISIBLE: the dispatcher fires
+#    and never reads the response, so a cron that revokes nothing looks exactly like a cron with
+#    nothing to revoke. That is the 404-read-as-success shape from `_shared/toss.ts` again.
+#
+# ⚠ THE TWO HALVES ARE ONE DECISION AND NEITHER SURVIVES ALONE. `verify_jwt = false` is only safe
+#   because the handler authenticates itself: `functions/revoke-billing-keys/handler.ts` requires
+#   `X-Cron-Key` to equal `CRON_COLLECT_KEY` and answers 503 when that secret is UNSET, so a
+#   half-configured deploy authenticates nobody rather than everybody. Pinned behaviourally in
+#   `functions/_test/revoke_billing_keys_test.ts` (401 with no key · 503 on an unset secret · Toss
+#   never called in either case), and the presence of THIS entry is pinned there too. Remove the
+#   guard and this line becomes an unauthenticated, service-role, credential-destroying endpoint.
+#
+# ⚠ `collect-charges` — the sibling cron endpoint — has NO entry here; its `verify_jwt = false`
+#   lives only in a `--no-verify-jwt` deploy flag (measured 2026-08-27: `functions list` reports it
+#   ACTIVE v3, verify_jwt false). That gap predates this entry and is untouched by it: with or
+#   without this table, a `supabase functions deploy` typed without the flag re-enables JWT
+#   verification on it and stops the charge cron silently. It belongs to the money lane, not here.
+[functions.revoke-billing-keys]
+verify_jwt = false

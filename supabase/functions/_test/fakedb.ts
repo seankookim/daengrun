@@ -25,8 +25,12 @@ export class FakeDb {
   /** jwt string → user id. A jwt absent from this map authenticates as nobody (401). */
   users: Record<string, string> = {};
   rpcs: Record<string, (args: any) => { data?: any; error?: { message: string } }> = {};
-  /** "table:op" → message. Forces that operation to return an error, for the 500 paths. */
-  failures: Record<string, string> = {};
+  /** "table:op" → message. Forces that operation to return an error, for the 500 paths.
+   *  A FUNCTION may be given instead: it receives the payload and returns a message to fail with,
+   *  or null to let that particular call through. That is how a per-ROW failure is expressed —
+   *  register-billing-key's outbox insert retries WITHOUT provenance after an FK violation, and a
+   *  flat string cannot tell the two attempts apart, so the retry would be untestable. */
+  failures: Record<string, string | ((payload: any) => string | null)> = {};
   /** Every mutating operation, in order — the tests assert on this, not on prose. */
   log: string[] = [];
 
@@ -37,9 +41,14 @@ export class FakeDb {
   rows(table: string): Row[] {
     return this.tables[table] ??= [];
   }
-  fail(key: string, message: string) {
+  fail(key: string, message: string | ((payload: any) => string | null)) {
     this.failures[key] = message;
     return this;
+  }
+  /** Resolves a forced failure to its message, or null when this call is allowed through. */
+  forced(key: string, payload?: any): string | null {
+    const f = this.failures[key];
+    return typeof f === "function" ? f(payload) : (f ?? null);
   }
 
   /** bucket → object names. The Storage API's world; `storage.objects` is not reachable by PostgREST. */
@@ -65,7 +74,7 @@ export class FakeDb {
     admin: {
       deleteUser: (uid: string) => {
         this.log.push(`auth:deleteUser:${uid}`);
-        const msg = this.failures["auth:deleteUser"];
+        const msg = this.forced("auth:deleteUser", uid);
         if (msg) return Promise.resolve({ data: null, error: { message: msg } });
         this.deletedUsers.push(uid);
         return Promise.resolve({ data: { user: { id: uid } }, error: null });
@@ -81,7 +90,7 @@ export class FakeDb {
     from: (bucket: string) => ({
       list: (prefix: string, opts?: { limit?: number; offset?: number }) => {
         this.log.push(`storage:list:${bucket}:${prefix}`);
-        const msg = this.failures[`storage:${bucket}:list`];
+        const msg = this.forced(`storage:${bucket}:list`, prefix);
         if (msg) return Promise.resolve({ data: null, error: { message: msg } });
         const base = prefix ? `${prefix}/` : "";
         const seen = new Map<string, { name: string; id: string | null }>();
@@ -103,7 +112,7 @@ export class FakeDb {
       },
       remove: (paths: string[]) => {
         this.log.push(`storage:remove:${bucket}:${paths.length}`);
-        const msg = this.failures[`storage:${bucket}:remove`];
+        const msg = this.forced(`storage:${bucket}:remove`, paths);
         if (msg) return Promise.resolve({ data: null, error: { message: msg } });
         this.removed.push(...paths);
         this.objects[bucket] = (this.objects[bucket] ?? []).filter((n) => !paths.includes(n));
@@ -312,7 +321,8 @@ class Q implements PromiseLike<any> {
 
   private exec() {
     const key = `${this.table}:${this.op}`;
-    if (this.db.failures[key]) return this.wrap(null, { message: this.db.failures[key] });
+    const msg = this.db.forced(key, this.payload);
+    if (msg) return this.wrap(null, { message: msg });
 
     const store = this.db.rows(this.table);
     let out: Row[] = [];
