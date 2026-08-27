@@ -391,40 +391,52 @@ end $$;
 --     Measured on the fixture, not read off the source: S9 ⓐ asserts the ended-ness it found.
 --     S9 therefore carries a source arm as well as a behavioural one, and says why.
 
--- ── MUTATION BATTERY — PREDICTED, THEN MEASURED. Eight runs, 2026-08-27. ───────────────────
--- Each plant is applied ALONE as a trailing migration (`0900_mut_*.sql`) inside a COPY of
--- `supabase/` OUTSIDE the worktree — never by editing 0131, which another session owns and which
--- a copy-modify-restore would silently overwrite. Appending AFTER 0131 also keeps 0131's own
--- VERIFY block from aborting the apply before any pin can run. Every plant is a python edit that
--- asserts `count(anchor) == 1` and then reads the ARTIFACT back, because `sed` exits 0 on no-match
--- and a plant you believe you made may never have been made.
--- ⚠ THE CONTROL WAS OBSERVED CLEAN FIRST: the untouched lab is 1053/0, identical to the worktree.
--- A delta measured against an unobserved control measures the lab, not the code.
+-- ── MUTATION BATTERY for arm ⓓ's propositions — RE-MEASURED IN FULL 2026-08-27 (round 5). ──
+-- ⚠ THIS TABLE REPLACES THE ROUND-4 R0-R7 TABLE RATHER THAN AMENDING IT, and the reason is this
+-- file's own law: a battery record goes stale the moment a pin CHANGES, not only when code does.
+-- Round 5 gave S9 a fourth arm (ⓓ), so every row that touched S9 had to be re-run, and re-running
+-- some rows while inheriting others produces a table nobody can trust. ⚠ It is also NOT a
+-- reproduction of round 4's numbers: N5/N6 below are MY mutation, written out in full, and round
+-- 4's M5 rode arm ⓓ's own liveness conjunct while mine carries its own. Different mutations give
+-- different red sets legitimately; what is not legitimate is presenting one as the other.
+-- Each plant is applied ALONE as an edit to a COPY of `supabase/` OUTSIDE the worktree — never by
+-- editing 0131 in place, which another session owns. Every plant asserts `count(anchor) == 1` AND
+-- reads the ARTIFACT back; `sed` exits 0 on no-match, and the read-back refused two runs here.
+-- ⚠ THE CONTROL WAS OBSERVED CLEAN FIRST: the untouched lab is 1061/0, md5-identical to the
+-- worktree. A delta measured against an unobserved control measures the lab, not the code.
 --
---   R0  control, no plant                              1053/0   RED = []
---   R1  M1 (liveness conjunct deleted) against the      1049/0   RED = []  🔴 CODEX'S CLAIM,
---       PRE-CHANGE suite                                          REPRODUCED — the hole is real
---                                                                 and it was invisible
---   R2  M1 against THIS suite                          1051/2   RED = [S8, S9]. S8 names the
---       damage rather than swapping a token: 「an ended dog's pointer reads session_people=2,
---       assignments=2, participant_activities=3」. S9 reddens too, on its profile-backed external
---       custodian — a second, independent subject for the same conjunct.
---   R3  M2 (whole NOT-owner pointer disjunct deleted)  1050/3   RED = [S6, S7, S8 ⓐ] — all three
+--   N0  control, no plant                              1061/0   RED = []
+--   N1  the LIVENESS conjunct deleted                  1059/2   RED = [S8, S9]. S8 names the
+--       damage rather than swapping a token (「an ended dog's pointer reads session_people=2,
+--       assignments=2, participant_activities=3」); S9 reddens on its PROFILE-BACKED external
+--       custodian — a second, independent subject for the same conjunct. ⓓ does NOT move, and
+--       correctly: ⓓ's dog is alive either way.
+--   N2  the whole NOT-owner pointer disjunct deleted   1058/3   RED = [S6, S7, S8 ⓐ] — all three
 --       report 「cannot read = 0」, i.e. the arm is gone, not that a denial changed shape.
---   R4  M3 (only `custodian_profile_id` deleted)       1053/0   RED = []  ⚠ THE DOCUMENTED
---       LIMITATION, MEASURED RATHER THAN ASSERTED. Reachability fact 2 above: the three pointers
---       move in one UPDATE, so a live non-owner holds all three and dropping one changes nothing
---       any fixture can see. Written down as a gap instead of papered over with an INSERT the
---       product cannot make.
---   R5  M4 (`p_uid is distinct from owner` deleted)    1052/1   RED = [S5b] — the round-3 critical
---       still has exactly one owner, and it is not one of the new pins.
---   R6  M5 (a `custodian_external` name-matching        1052/1   RED = [S9], via ⓒ ONLY. ⓑ stays
---       disjunct ADDED — the property S9 holds is an              green, exactly as S9's own
---       ABSENCE, so its mutation is an addition)                  comment predicts.
---   R7  M6 = M5 + M1 together                          1051/2   RED = [S8, S9 via ⓑ AND ⓒ] — with
---       liveness no longer masking, the name twin really does read all four (session_dogs=1,
---       session_people=2, assignments=2, participant_activities=3). So S9 ⓑ is a LIVE control
---       that this fixture cannot exercise today, not a dead arm.
+--   N3  only `custodian_profile_id` deleted            1061/0   RED = []  ⚠ THE DOCUMENTED
+--       LIMITATION, RE-MEASURED RATHER THAN INHERITED. Reachability fact 2 above: the three
+--       pointers move in one UPDATE, so a live non-owner holds all three and dropping one changes
+--       nothing any fixture can see. Written down as a gap instead of papered over with an INSERT
+--       the product cannot make.
+--   N4  `p_uid is distinct from owner` deleted         1060/1   RED = [S5b] — the round-3 critical
+--       still has exactly one owner, and it is not one of these pins.
+--   N5  a `custodian_external` name-matching disjunct  1060/1   RED = [S9], via **ⓒ AND ⓓ**.
+--       ADDED to the helper, carrying its own liveness             Round 4 measured ⓒ only; ⓓ is
+--       conjunct (the property S9 holds is an ABSENCE,             the arm that shows a LIVE row
+--       so its mutation is an addition)                            really does admit the twin.
+--       ⓑ stays green — it is over-determined by liveness and says so.
+--   N6  N5 + N1 together                               1059/2   RED = [S8, S9 via the ended
+--       external custodian AND ⓒ AND ⓓ].
+--   N7  [round 5, finding 2 — THE ONE THAT MATTERS] the helper's own source stays CLEAN and a
+--       CALLEE reads the column: `or public._lab_ext_member(p_session, p_uid)` is added to the
+--       helper, and that function does the `profiles.name = custodian_external` match.
+--       · against the PRE-round-5 suite:  **1061/0, RED = [] — codex's finding 2 reproduced
+--         exactly.** ⓒ is green by construction (it scans one function's own text); ⓑ is green
+--         because it is over-determined by liveness; nothing else looks. A transitive read of the
+--         column was completely invisible.
+--       · against THIS suite:  **1060/1, S9 alone, entirely via ⓓ** — ⓒ never speaks. ⓓ is an
+--         OBSERVATION on a constructed live row, so it does not care what the predicate reads or
+--         how many functions deep it reads it.
 
 -- ── the fixture factory: one pairing, driven through the real RPC chain to a LIVE custody ────
 -- Each call builds its own club, session, host, runner, owner, dog and route, because
