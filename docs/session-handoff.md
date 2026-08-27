@@ -112,8 +112,27 @@ already records `L.dim` at **4.24:1 — under the body floor — as an open item
 Inking them per-site would be the first half of a product-wide repaint, made by an implementer.
 **Left at the wall, deliberately.**
 
-**Still in flight, isolated worktree, NOT pushed** — the 사고 신고 (incident) client flow, claimed
-in REGISTRY's in-flight table. Its branch is `worktree-agent-*` and needs landing.
+**사고 신고 (incident) client flow LANDED** (`de902e6`) — the biggest missing surface, closed.
+New `app/app/incident/[bid].tsx`, `safety.tsx`'s 「준비 중」 card replaced by a real resolver, and
+push routing for both roles. 707/0, route count 61→62, rpc calls 116→118 (**both deltas are
+positive controls — the checkers demonstrably saw the new code rather than passing by not
+looking**).
+
+⚠ **It found that `0114` SUPERSEDES `0094` for the opener, and reading only 0094 would have
+shipped a wrong client.** The reportable set (0114 §3 ⑥) is the accepted set **plus
+`cancelled_owner` and `refund_pending`**, while `is_booking_party_active` — which gates chat AND
+**`notifications` insert** — is the accepted set only. **So in exactly two states a party may
+REPORT and may not be NOTIFIED.** Collapsing them ships a control that 42501s in the state 0114
+widened the report set to protect.
+
+⚠ **`incident_contact` was deliberately NOT built.** Its privacy prerequisite is met
+(`privacy-policy.md:45-46`), but it returns `profiles.phone`, and `0133_phone_collection`
+**landed the server and left the collection point unwired** on its own ship gate — measured **0
+of 10** rows populated. It would return two blank rows. It stays unbuilt until the lawyer item
+(OPEN #1) clears, which is the same gate.
+⚠ **The runner sees 「보호자」, not a name** — no `profiles` SELECT policy admits 「the owner of my
+booking」 (0002:55-58; 0145's arm is club-board-only). The only route to that name is the definer
+that also hands over a phone number.
 
 ### What a next session should not re-learn
 
