@@ -10,7 +10,8 @@ import { DrainRing } from '../../../src/components/drainring';
 import {
   addMyDogToSession, cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
-  BoardRowLive, fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
+  BoardRowLive, fetchBookingAddress, fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
+  PickupAddress,
   fetchSessionBoard, fetchSessionRoster,
   clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal,
   rsvpClubSession, sendClubChat, sendClubChatPhoto, SessionRoster, ShellAccess, startDelegatedRuns,
@@ -109,6 +110,26 @@ export default function ClubSessionShell() {
   // ⚠ 라운드 3의 addedLocally는 이걸 로컬 플래그로 대신했는데, 그건 경합을 거짓말과 맞바꾼 것이었다:
   //   CTA는 사라지지만 견 목록은 그대로라, 방금 넣은 아이가 없는 화면을 사실처럼 보여줬다.
   const [rosterNonce, setRosterNonce] = useState(0);
+  // ---------- 집 반환 길찾기 (0129가 연 반환 창) ----------
+  // 서버는 이미 다 있었다: `booking_pickup_address`가 0129에서 클럽 반환 창을 여섯 conjunct로 열고
+  // (이 부킹의 클럽 세션 · 위탁견 · return_mode='owner_home' · 미해소 · 보호자가 집에 왔다고 하지
+  // 않음 · 호출자가 지금 데리고 있는 사람), `fetchBookingAddress`는 부재(null)와 진짜 실패(throw)를
+  // 이미 구분한다. 없던 것은 화면뿐이다.
+  // ⚠ 주소가 실제로 돌아왔을 때만 버튼을 그린다. return_mode는 클라이언트 payload에 없으므로
+  //   현장 반환('session_finish') 건은 서버가 not_runner로 답하고 → null → 버튼 없음. 먼저 그리고
+  //   눌러보게 하면 대개 실패하는 문이 된다 (죽은 버튼 법).
+  const [retAddr, setRetAddr] = useState<Record<string, PickupAddress | null>>({});
+  const openReturnDirections = async (a: PickupAddress, dogName: string) => {
+    if (a.lat == null || a.lng == null) return;
+    // runner/meetup.tsx:319의 체인 그대로 (nmap 우선, 웹 폴백). 그 파일은 freeze라 문법만 따른다.
+    const name = `${dogName} 집`;
+    const nmap = `nmap://route/walk?dlat=${a.lat}&dlng=${a.lng}&dname=${encodeURIComponent(name)}&appname=com.seankookim.dogshigh`;
+    const web = `https://map.naver.com/p/directions/-/${a.lng},${a.lat},${encodeURIComponent(name)}/-/walk`;
+    try {
+      if (await Linking.canOpenURL(nmap)) { await Linking.openURL(nmap); return; }
+      await Linking.openURL(web);
+    } catch { Alert.alert('링크를 열 수 없어요'); }
+  };
   // [codex r5 c] 세션 id로 스코프한다 — 화면이 유지된 채 sid가 바뀌면 다른 세션의 CTA를 숨기면 안 된다.
   const [addedSid, setAddedSid] = useState<string | null>(null);
   // [0136 S2] 멤버 보드 — 로스터와 **다른 물건**이다. 로스터는 host/full 에게만 열리는 운영
@@ -180,6 +201,27 @@ export default function ClubSessionShell() {
         .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
   }, [tab, access, sid, board?.me.committed, rosterNonce, applyRoster]);
+
+  // 반환 대기 중이고 내가 지금 데리고 있는 건에 대해서만 주소를 한 번 물어본다.
+  useEffect(() => {
+    for (const d of board?.dogs ?? []) {
+      const bid = d.bookingId;
+      if (!bid || bid in retAddr) continue;
+      if (d.custodyPhase !== 'return_pending' || d.runnerReturnConfirmed) continue;
+      // myRunnerId는 이 아래(가드 뒤)에서 계산되므로 여기서 직접 찾는다 — 훅은 어떤
+      // 이른 return보다도 위에 있어야 한다 (lint rules-of-hooks가 잡았다).
+      const meId = board?.runners.find((r) => r.isMe)?.profileId ?? null;
+      if (!board?.me.committed || !meId || d.runnerId !== meId) continue;
+      // 실패는 '주소 없음'과 다르다: null=부재(창 밖·현장 반환), throw=진짜 실패. 여기서는 버튼을
+      // 그리지 않고 콘솔에만 남긴다 — 러너에게 빨간 스트립을 띄우면 크리티컬 스트립을 무시하도록
+      // 학습시킨다 (api.ts:1276의 적대 리뷰 P2와 같은 이유).
+      fetchBookingAddress(bid)
+        .then((a) => setRetAddr((m) => (bid in m ? m : { ...m, [bid]: a })))
+        .catch((e) => { console.warn('[club-return addr]', (e as Error).message);
+                        setRetAddr((m) => (bid in m ? m : { ...m, [bid]: null })); });
+    }
+  }, [board, retAddr]);
+
 
   // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독.
   // [감사 P2] INSERT마다 전체 재조회라 응답 역순 도착 시 옛 스냅샷이 최신을 덮던 것 — seq 가드로 최신만 반영.
@@ -1329,6 +1371,34 @@ export default function ClubSessionShell() {
                           <ClubCta label="러닝 화면 (트래킹 · 종료) →" tone="secondary"
                             onPress={() => router.push({ pathname: `/club/run/${sess.id}`, params: { clubName: clubName ?? '' } })}
                             style={{ marginTop: 9, paddingVertical: 11 }} />
+                        )}
+                        {/* ---------- 집 반환 길찾기 (0129가 연 창) ---------- */}
+                        {/* ⚠ 「도착」 버튼을 새로 만들지 않는다. 도착은 아래 「반환했어요 →」가 이미
+                            하는 일이고, 그건 양측 확인 인장(session_confirm_return)으로 들어가는
+                            기존 의식이다. 길찾기는 그 앞의 이동일 뿐 아무것도 기록하지 않으므로,
+                            기록한 척하는 낱말을 쓰지 않는다.
+                            ⚠ 전화 버튼은 없다 — 「the phone is NOT unruled. It is ruled, built, and
+                            a phone button was already REFUSED」
+                            (docs/labs/round6-picks-and-live-map.md:77-79). 현장 조율은 이 세션의
+                            채팅으로 한다. 여기에 번호를 노출하는 어떤 것도 추가하지 말 것. */}
+                        {needReturn && d.bookingId && retAddr[d.bookingId] && (
+                          retAddr[d.bookingId]!.lat != null && retAddr[d.bookingId]!.lng != null ? (
+                            <ClubCta label={`${d.dogName} 집으로 — 길찾기`} tone="secondary"
+                              onPress={() => openReturnDirections(retAddr[d.bookingId!]!, d.dogName)}
+                              style={{ marginTop: 9, paddingVertical: 11 }} />
+                          ) : (
+                            /* 주소 행은 있는데 좌표가 없다 = 보호자가 아직 핀을 안 찍었다.
+                               행 없음(부재)과 다른 정직한 어두운 상태 (api.ts:1262). */
+                            <View style={s.custodyNote}>
+                              <Text style={{ fontSize: 15, color: L.text }}>
+                                {retAddr[d.bookingId]!.addr}
+                                {retAddr[d.bookingId]!.detail ? ` · ${retAddr[d.bookingId]!.detail}` : ''}
+                              </Text>
+                              <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>
+                                위치 핀이 없어 길찾기를 열 수 없어요 — 주소로 찾아가 주세요
+                              </Text>
+                            </View>
+                          )
                         )}
                         {needReturn && (
                           <ClubCta label={`${d.dogName} 반환했어요 →`} onPress={() => doRunnerReturn(d)} busy={busy}
