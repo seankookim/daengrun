@@ -232,6 +232,32 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **TREATING A FINDING AS NARROWER THAN ITS OWN SENTENCE IS THE SAME ERROR AS READING A GREEN
+AS BROADER THAN ITS OWN SENTENCE — RUN BACKWARDS** (ui6, 2026-08-27; the exact inverse of this
+file's most-repeated law, and it cost a real defect rather than a pin gap). A reviewer wrote 「a
+token must not outlive its row's decision」. ui6 fixed **the one abandon path they were looking
+at** — which turned out to be the path where the fix is a **NO-OP**, because that path runs at
+`attempts = 0` where the token is already NULL. **The two paths abandoning rows that hold a LIVE
+token were untouched**, and they fail in two different ways that neither implies:
+one loses the RECORD (a crashed worker's late report CAS-matches the surviving token and flips
+`abandoned → done`, so **the ledger states a key was revoked that the system deliberately refused
+to revoke**, and `done` is terminal so the refusal's reason goes with it); the other loses the
+VISIBILITY that the same slice had just bought (a late `false` flips a stranded row to `failed`,
+which no state predicate excludes from claiming — **the sweep that surfaced the row is undone by
+the very worker whose crash created it**).
+**The rule: a finding's SENTENCE is the property; the site the reviewer cited is one place that
+property happens to be observable.** Enumerate every site the sentence covers before calling it
+closed — and be most suspicious when the site you fixed was easy, because a fix that changes
+nothing is indistinguishable from a fix that works.
+
+🔴 **A PIN THAT INHERITS ANOTHER PIN'S SETUP AND ASSERTS A FACT ABOUT THAT SETUP IS TESTING THE
+SETUP** (ui6, same slice). Their `175 V2` read a row count and expected 1 — a number V1's fixture
+produces **whether or not the behaviour under test ever ran**. Rewritten to perform the action
+itself and compare before to after, so its number is a **delta it caused** rather than a state it
+found. ⚠ Neighbour of the fixture-agreement law: there the fixture could not distinguish two
+rules; here the assertion could not distinguish 「the code ran」 from 「the setup already looked like
+this」. **Test: if you deleted the behaviour entirely, would this pin's number change?**
+
 🔴 **A CONTROL THAT READS THE SAME VARIABLE THROUGH THE SAME OPERATOR IS NOT A SECOND
 MEASUREMENT — IT IS THE FIRST ONE PRINTED TWICE** (announcer's S10, named by ui6). S10's oracle arm
 had two CONTROL arms added specifically so a helper hard-wired to one answer could not pass — and
