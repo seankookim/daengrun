@@ -435,6 +435,29 @@ else catalogued here is a green that means LESS than it claims. This is a green 
 OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
 have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
 can still notice; a lying gate closes the gap in everyone's mind.
+🔴 **A FIXTURE THAT OMITS THE DEFECT CANNOT TEST THE FIX — AND THE PIN READS IDENTICALLY IN BOTH
+WORLDS** (ui6, 2026-08-27, on their own guard, hours after writing the neighbouring law). They
+shipped `0151` to revoke a grant, with pins N1/N2 asserting the grant was gone. Green. **But
+`00_shim.sql` created schema `net` and granted NOTHING — so the migration had nothing to revoke,
+and the pins were green because the grant NEVER EXISTED, not because anything removed it.** A
+guard for a defect the fixture did not contain; its green was worth exactly zero.
+**The fix is the general one: make the fixture start where PRODUCTION starts.** The shim now grants
+precisely what production ships, and only then is the two-sided result meaningful — revoke deleted
+⇒ the apply ABORTS naming all three grants; restored ⇒ green.
+**Test to apply anywhere: before trusting a pin that asserts an absence, confirm the thing was
+PRESENT in the fixture first.** An absence pin over an empty world is the purest form of a green
+that licenses nothing.
+
+⚠ **A BATTERY WHOSE CONTROL FAILS MEASURES NOTHING — AND EXHAUSTION FAILS IN THE DIRECTION THAT
+LOOKS LIKE SUCCESS** (ui6, same session). Their first battery returned **four 「APPLY ABORTED」 rows
+including the control**, which reads as four successful mutations. The real cause was **shared-memory
+exhaustion from 11 stale postmasters** left by a day of scratch harnesses. ⚠ Announcer checked on
+being told and had **9 of its own, five older than 12 hours**, and stopped exactly those (leaving
+recent ones that a live agent might hold, and leaving other sessions' entirely) — harness re-run
+clean afterwards. **Scratch labs are not free: they hold shared memory until killed, and the
+failure they cause wears the costume of a working guard.** Stop the lab cluster when a scratch
+harness is done, and when a battery's control fails, suspect the ENVIRONMENT before the code.
+
 🔴 **A GRANT IS NOT A DOOR — CHECK REACHABILITY BEFORE YOU CALL SOMETHING EXPOSED** (announcer
 claimed it, ui6 refuted it, both measured on production, 2026-08-27). Measured and TRUE: `anon`
 holds `USAGE` on `net` and `SELECT` on `net._http_response` **and** on `net.http_request_queue` —
