@@ -309,6 +309,45 @@ Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scri
 `node scripts/check-route-native-imports.mjs`, and `node scripts/check-definer-acl.mjs` — all must pass.
 (`check-embed-fk.mjs` and `check-auth-surface.mjs` run in the same family.)
 
+**`check-device-clock.mjs` (added 2026-08-27)** refuses a client module that reads the DEVICE clock
+for a KST fact — `getDay`/`getHours`/`toDateString`/`toLocaleDateString` without a `timeZone`. It
+exists because **the test suite structurally cannot reach the thing it needs to prove**: `app/test/*.cjs`
+can import `kst.ts` and cannot import a `.tsx` route module, so re-planting a device-local read into
+any of the nine screens the KST slice just fixed reddens **nothing**. The 33 KST pins prove the
+primitives; they say nothing about whether a screen calls them. Same source-vs-runtime division as
+`check-definer-acl` beside 98 H1 — **and the same warning: neither is evidence for the other.**
+
+⚠ **A Seoul-only test run cannot catch this class at all.** Measured on the fix: re-planting the bug
+reddens 25 pins under `America/New_York` and **ZERO under `Asia/Seoul`**, because UTC and KST agree on
+the weekday for an evening session. That is why the whole class shipped unnoticed, and why
+`app/test/run-kst-tests.sh` runs three zones. A green on developer hardware in Seoul is worth nothing here.
+
+⚠ **Two narrowings are load-bearing and a future session must not "simplify" them back.** (a) `getTime()`
+and `getTimezoneOffset()` are not matched — they are epoch-safe, and flagging them cries on correct
+code. (b) `toLocaleString` is not matched: it is ambiguous between `Date` and `Number`, and this repo
+uses it for MONEY — **measured 60 call sites, ZERO passing a date option**, so including it flagged ~30
+correct price renderings on the gate's first run. That is the `check-definer-acl` 147-vs-82 failure
+re-enacted, caught before it shipped. `toLocaleDateString`/`toLocaleTimeString` are Date-only and stay.
+
+🔴 **Its first version had a FALSE NEGATIVE and the way it was caught is the transferable part.** The
+comment-stripper treated a template literal as one opaque string, so `` `${d.getHours()}` `` was blanked
+with the text around it — and this codebase formats nearly every date inside a template. The gate
+reported **3 hits where the raw grep found 12**, while printing a confident list. **A gate with a false
+negative is worse than no gate: it converts 「nobody checked」 into 「something checked and found
+nothing」.** It was caught only by diffing the gate's count against the raw grep's *before* trusting it —
+the same discipline as reading an artifact instead of a tool's report. **Do that for every new detector.**
+
+⚠ Comments are stripped before matching, deliberately: two of the fourteen raw hits were comments
+*documenting this very bug*, including `kst.ts`'s own header. Per the standing comment-quoting law,
+documenting a fix and failing to make it would otherwise look identical. Mutation-verified six ways,
+and the arm that matters is the control: **a comment quoting the removed code does NOT redden it.**
+
+The 12 known sites are frozen in `check-device-clock-baseline.txt`; a stale entry also fails, so the
+ledger shrinks honestly. Ten of the twelve are ONE open question — the Intl-fallback family — which
+source cannot settle and which needs a single Hermes measurement **on a non-Seoul device**; the
+baseline file carries the snippet. Escape hatch: `// device-clock-ok: <reason>` on the line, and a
+bare marker with no reason is refused.
+
 **`check-definer-acl.mjs` (added 2026-08-25)** refuses a SECURITY DEFINER `create or replace` whose
 function was FIRST defined in a different file, in a file that does not itself set the ACL — the
 "relying on grant preservation" class. On an apply where the function is absent, that statement is a
