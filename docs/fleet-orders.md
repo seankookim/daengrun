@@ -54,20 +54,29 @@ Not lines, not files.
 8. Judgment calls (money, privacy, user-facing claims) go to Sean's console — never decided by
    whoever edited last. A relayed decision is evidence, not authority.
 
-## PRIORITY — BACKEND
-1. 0131 verdict → deploy the full stack → verify live (migration list, anon-definer sweep,
-   read-back).
-2. Clear the codex review queue; fix findings same-day.
-3. `participant_activities` writer so 동반 walks (and the host's own) become real records — and
-   delete the companion screen's 「not saved yet」 line in the same change.
-4. Pack run-end slice per the corrected contract (server-derived numbers at the host's tap;
-   charge stays its own gated step).
+## PRIORITY — with an OWNER on every line
+⚠ Sean caught the hazard in v1 of this file: the priorities said WHAT and only the lanes said
+WHO, which invites two sessions building the same thing. **An unowned priority is nobody's task;
+if you want one that names someone else, ask them — never just start.** IN PROGRESS means an
+agent is already writing code for it.
 
-## PRIORITY — UI
-1. Profiles: Instagram-shaped screen + editor (no avatar row), board names tappable.
-2. Finish the small-text sweep, including held files via their owners.
-3. Return legs (집 반환 길찾기→도착; 현장 반환 via chat — no phone affordance).
-4. Pass repaint to the approved lab; companion polish after review findings.
+BACKEND
+1. 0131 verdict → deploy stack → verify live — **announcer** (verdict) then **ui6** (deploy).
+   IN PROGRESS (codex round 3 reading).
+2. Codex review queue, findings fixed same-day — **announcer's review agent** for b6's slices +
+   the honesty sweep + companion; **ui6 itself** for 0136–0138. IN PROGRESS both.
+3. `participant_activities` writer (동반 records) — **announcer**, after the deploy clears.
+4. Pack run-end slice — **announcer**, after ③.
+
+UI
+1. Profiles — SPLIT, negotiated, do not cross it: **announcer's agent** builds the destination
+   screens + editor (IN PROGRESS); **ui6** owns the board tap + 0139 RPC (claimed). Coordinate
+   only the route path.
+2. Small-text sweep — **announcer's agent** on unheld files (IN PROGRESS); **b6** fixes the
+   sub-15 sites reported in its two held files; **ui6** likewise in its lane.
+3. Return legs (집 반환 길찾기→도착; 현장 반환 via chat, no phone affordance) — **UNOWNED. First
+   session with capacity claims it in the in-flight table**, then builds.
+4. Pass repaint — **UNOWNED**, same rule. Companion polish — **announcer**, after review findings.
 
 ## REPORT
 To Sean, in plain user-language: what someone can now do, what stopped lying, what is live vs
