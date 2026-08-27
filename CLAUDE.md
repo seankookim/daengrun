@@ -435,6 +435,31 @@ else catalogued here is a green that means LESS than it claims. This is a green 
 OPPOSITE — it converts 「nobody checked」 into 「something checked and found nothing」, and it would
 have shipped as infrastructure every later session trusted. A missing gate leaves a gap someone
 can still notice; a lying gate closes the gap in everyone's mind.
+🔴 **A GRANT IS NOT A DOOR — CHECK REACHABILITY BEFORE YOU CALL SOMETHING EXPOSED** (announcer
+claimed it, ui6 refuted it, both measured on production, 2026-08-27). Measured and TRUE: `anon`
+holds `USAGE` on `net` and `SELECT` on `net._http_response` **and** on `net.http_request_queue` —
+the request side, whose `headers` carry `X-Cron-Key` and an `Authorization` bearer. From that I
+told the human 「anyone holding your public key can read it」. **False.** The anon key talks to
+PostgREST, and PostgREST's schema allowlist is `public, graphql_public`:
+```
+GET /rest/v1/http_request_queue   Accept-Profile: net   [our own anon key]
+→ HTTP 406  PGRST106  "Only the following schemas are exposed: public, graphql_public"
+```
+⚠ **And run the CONTROL, or the 406 proves nothing** — the same key against `public.clubs` returns
+**200**, which is what makes the refusal attributable to the allowlist rather than to a bad key.
+**The accurate sentence is 「a needless grant sitting behind one config line」, not 「a live
+exposure」 — and the gap between those two sentences is the gap between an incident and a hygiene
+item.** A privilege bit is a fact about the database; reachability is a fact about the deployment,
+and only the second one decides what you tell a human.
+⚠ **It is still worth removing, for the reason that makes it hygiene rather than nothing:** the
+allowlist is a CONFIG, not an invariant. One schema added to the exposed list and it arms with no
+code change and nothing that fails. Removing the grant converts 「protected by a setting」 into
+「protected by not being granted」.
+⚠ **And a transient table measures clean by hand, always** (ui6): `net.http_request_queue` holds
+rows only while a request is in flight, so both of us found it empty and neither emptiness meant
+anything. **A table populated only during an operation cannot be assessed by looking at it between
+operations** — reason about what transits it, not about what is sitting in it.
+
 🔴 **THE NUMBER THAT FLATTERS YOUR FINDING IS THE ONE YOU DON'T AUDIT** (ui6, 2026-08-27,
 self-corrected within the hour — and the two halves happened in ONE message, which is what makes
 it worth its own entry). They reported 「412 dim text elements across 47 screens」 as a design-debt
