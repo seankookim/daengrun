@@ -158,6 +158,12 @@ export default function My() {
     // [D14 2026-08-12] desc 옵셔널 — 부제가 라벨을 되풀이하기만 하는 행에서는 아예 없앤다.
     // 빈 줄을 그리거나 자리를 예약하지 않는다 (없는 부제는 없는 높이다).
     desc?: string;
+    // [DIM 2026-08-27 · DESIGN.md §7a-bis] Most descs are a table of contents ('SOS · 긴급 연락처 ·
+    // 보험') and dim is right for them. certDesc is not — it is live application STATE, and
+    // 「· 지원 결과 확인」 or 「· 심사 중」 in grey tells the applicant to skip the one line that says
+    // whether there is something waiting for them. Split at the row, not at the style, the same way
+    // owner/matching.tsx:85 splits '현재 지명' out of its dim sub. At most one row sets this.
+    descState?: boolean;
     path: '/safety' | '/runner/apply' | '/owner/addresses' | '/owner/dog'
         | '/owner/schedule' | '/cards' | '/alerts' | '/settings';
   };
@@ -166,7 +172,7 @@ export default function My() {
     isRunner
       // [정직 수리 2026-08-05] 부제 교정 — 인증 센터에는 '등급 사다리'가 없다(목업 퍼널과 함께 퇴역).
       // [2026-08-08 / plan §6.4] 그 화면이 실퍼널이 되면서 부제가 상태를 말한다 (certDesc 참조).
-      ? { glyph: '✓', label: '러너 인증 센터', desc: certDesc, path: '/runner/apply', ink: colors.voltDeep, tint: '#EDF5D8' }
+      ? { glyph: '✓', label: '러너 인증 센터', desc: certDesc, descState: true, path: '/runner/apply', ink: colors.voltDeep, tint: '#EDF5D8' }
       : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses', ink: colors.voltDeep, tint: '#EDF5D8' },
     ...(!isRunner ? ([{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog', ink: colors.terra, tint: colors.terraTint }] as MenuRow[]) : []),
     // [죽은 버튼 2026-08-11] 러너에게 이 행은 path: null이라 '준비 중이에요' 얼럿만 띄웠다 — 그런데
@@ -415,7 +421,7 @@ export default function My() {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.drowTitle}>{m.label}</Text>
-                {m.desc ? <Text style={s.drowDesc}>{m.desc}</Text> : null}
+                {m.desc ? <Text style={[s.drowDesc, m.descState === true && s.drowDescState]}>{m.desc}</Text> : null}
               </View>
               <Text style={{ fontSize: 16, color: paper.dim }}>›</Text>
             </Pressable>
@@ -590,6 +596,9 @@ const s = StyleSheet.create({
   drowIcon: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
   drowTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
   drowDesc: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 18 },
+  // [DIM 2026-08-27 · §7a-bis] 본문 잉크 — only for the desc that says a live state (descState).
+  // drowTitle is 700, this is 400, so the row still reads title-then-sub.
+  drowDescState: { color: paper.text },
 
   // ⑤ 큰 버튼 — 역할 전환 = 잉크 면 프라이머리 (15/14 라벨 유지, 섀도 은퇴)
   btnRole: {

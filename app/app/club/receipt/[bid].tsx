@@ -26,6 +26,19 @@ import { lilac, lilacRadius, lilacShadow } from '../../../src/theme';
 // The ceremony is untouched (frozen in the lab): the once-law (sealStampFresh), the capture gate,
 // 「도장 찍는 중…」. The strip forced ONE addition to that gate — see ④ photosReady.
 
+// [DIM 2026-08-27 · DESIGN.md §7a-bis] Ten dim text sites read, ZERO changed, and the reason is
+// structural rather than taste. No action label on this screen is dim — 인증샷 카드로 꾸미기,
+// 상세 리포트 and both ClubCta labels are already accent/ink — and both prose slots (nudgeBody,
+// refuseBody) are already L.text. What is left is exactly the residue the law allows: numeral-cell
+// captions, the consent line under a CTA, and a credit. Two of those are not local decisions:
+//   · numL / earnLead / creditName are the shared club-ui `bignumLabel` recipe byte-for-byte
+//     (15 · lh18 · 700 · ls0.5 · L.dim, club-ui.tsx:437). Inking them here alone diverges from
+//     every other club screen; that call belongs to club-ui, not to this file.
+//   · the 완료된 러닝만… dead end is LoadGate's recipe verbatim (club-ui.tsx:238), and this file
+//     renders the real LoadGate fifteen lines above it. Same reason.
+// And theme.ts:80-86 already records that L.dim measures 4.24:1 on the white ground — under the
+// body floor, flagged FOR SEAN rather than taken, "because it repaints every lilac caption at
+// once". A per-site ink here would be the first half of that repaint made by an implementer.
 const L = lilac;
 
 // 티켓 폭(320dp)에 드는 적립 사유 축약 — 표시 전용이고, 그리는 행은 전부 실원장 행이다.
@@ -176,6 +189,9 @@ export default function ClubReceipt() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          {/* [DIM 2026-08-27 · §7a-bis] Stays dim: this is LoadGate's own recipe (club-ui.tsx:238)
+              open-coded, and the real LoadGate is rendered directly above. Inking it here splits
+              one dead-end grammar in two — the fix, if Sean wants it, is in club-ui. */}
           <Text style={{ fontSize: 15, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
@@ -295,6 +311,9 @@ export default function ClubReceipt() {
                   run.durationSec != null ? durStr(run.durationSec) : null,
                 ].filter(Boolean).join(' · ');
                 return meta ? (
+                  // [DIM 2026-08-27 · §7a-bis] Stays dim: every segment here is restated below —
+                  // pace and duration in the rule row, the runner on the mast — and ink at 15 under
+                  // a 19pt display headline would flatten the card's one moment of hierarchy.
                   <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>{meta}</Text>
                 ) : null;
               })()}
@@ -469,6 +488,9 @@ const s = StyleSheet.create({
   numCell: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRightWidth: 1, borderRightColor: L.hair },
   numV: { fontSize: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
   // [FLOOR15] 수치 라벨은 한글 정보다 — 320dp 셀 가용폭 ~89px 에서 '실측 거리'(≈62px)까지 한 줄로 든다
+  // [DIM 2026-08-27 · §7a-bis] numL · earnLead · creditName stay dim: they are the shared club-ui
+  // `bignumLabel` recipe (club-ui.tsx:437) instantiated locally, and a caption at 700/ls0.5 inked
+  // to 15 would sit level with its own 18pt value. Repainting them is a club-ui decision.
   numL: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 3 },
   // 접촉 인화 스트립 (T①) — 랩과 같은 치수: 6 간격, 높이 56, 칸은 균등(flex:1).
   thumbs: { alignSelf: 'stretch', gap: 6, marginTop: 10 },
@@ -482,6 +504,8 @@ const s = StyleSheet.create({
   nudge: { backgroundColor: L.inset, borderRadius: lilacRadius.inner, padding: 12, marginTop: 16 },
   nudgeHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head },
   nudgeBody: { fontSize: 15, lineHeight: 20, color: L.text, marginTop: 4 },
+  // [DIM 2026-08-27 · §7a-bis] nudgeSub/refuseSub ARE the sanctioned exception — 「the ONE line
+  // under the CTA」. They reassure about a share that has already been explained in ink above.
   nudgeSub: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 6 },
   // 피드 거절 (T②) — 경고가 아니라 사실이라 크리티컬 잉크를 안 쓴다. 종이 한 장, 헤어라인 트림.
   refuse: {

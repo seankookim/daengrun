@@ -54,6 +54,14 @@ import { layout, paper } from '../../src/theme';
 // Not converted on purpose: this screen has no fixed CTA, so it grows no ctaDock. The masthead
 // stays inside the ScrollView with a paddingTop reservation, which is what rewards/earnings/
 // availability do; adding a dock here would move the submit button out of the form it belongs to.
+//
+// [DIM 2026-08-27 · DESIGN.md §7a-bis] Ink is the default; grey marks only what a customer may
+// skip. 20 dim text styles read, 6 inked: the two control labels grey made read as disabled
+// (page tabs, 그만두기), the second line of the two action rows (one of them the consequence of
+// withdrawing), what the form does with what you write, the field hints that ARE the validation
+// rules, and the specialty cap note. Left dim on purpose: every placeholderTextColor (an ink
+// placeholder reads as text already typed), the latin letterspaced kickers, the numeral-cell
+// captions and units, the provenance/footnote lines, and 취소됨's semantic strap tone.
 
 
 // The process, as performed during the pilot. Three steps, because there are three steps —
@@ -987,7 +995,10 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 12, minHeight: 44,
   },
   ctaT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.actionInk },
-  ctaD: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 1 },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크. This is the second line INSIDE the row's Pressable,
+  // and on 지원 취소 it is the consequence of the press (「취소해도 3번까지 다시 지원할 수 있어요」) —
+  // the one line that decides whether the applicant taps. actionInk 16/800 above still leads.
+  ctaD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 1 },
   ctaGo: { fontSize: 17, color: paper.actionInk },
   // PaperBtn 자리 — 색은 매트릭스가 가진다
   ctaBtn: { marginTop: 13 },
@@ -995,10 +1006,18 @@ const s = StyleSheet.create({
   // ── 지원서 폼 ──
   formCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
   formT: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: paper.ink },
-  formD: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 5 },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크: this says the free text becomes the applicant's
+  // public runner profile. Someone who skips it writes a different application.
+  formD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 5 },
   fieldL: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
-  fieldH: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 },
-  fieldNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크. The hints are not decoration, they are the RULES
+  // validateConditions/validatePerson reject on (3분00초~15분00초 · 1~80kg · 0.5~20km · 10~500자),
+  // plus the two disclosures (소개는 보호자에게 보여요 · 카톡으로 연락드려요). fieldNote is the same
+  // job for a live state — it says the cap is reached AND how to change the picks, so a grey one
+  // leaves the remaining chips looking broken. fieldL 16/800 ink still leads; the placeholders
+  // inside the inputs stay faint on purpose.
+  fieldH: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 2 },
+  fieldNote: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 6 },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
     paddingVertical: 11, paddingHorizontal: 12, minHeight: 44,
@@ -1030,11 +1049,17 @@ const s = StyleSheet.create({
   stepRow: { gap: 8, marginTop: 14, marginBottom: 4 },
   stepChip: { flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 11, borderRadius: 0 },
   stepChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
-  stepTxt: { fontSize: 15, fontWeight: '800', color: paper.dim },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 잉크. Selection is carried by the FILL (ink plate + white
+  // label), never by this colour, so dim bought no state — it only made a live tab read as
+  // disabled, and 2장 is reachable (goPerson). Matches owner/request.tsx:1534 prefAction.
+  stepTxt: { fontSize: 15, fontWeight: '800', color: paper.ink },
   stepTxtOn: { color: '#FFFFFF' },
   submit: { marginTop: 16 },
   formCancel: { marginTop: 9, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  formCancelTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 잉크: 그만두기 is an action label inside a Pressable and the
+  // only way out of the form — the owner/home rowAct case. Weight stays 700; the submit PaperBtn
+  // above is a filled surface, so an ink label here cannot outrank it.
+  formCancelTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
 
   // ── 콜로폰 ──
   colophon: {

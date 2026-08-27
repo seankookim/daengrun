@@ -1063,7 +1063,11 @@ const s = StyleSheet.create({
   // ---------- 대기·실패면 ----------
   waitWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   waitTitle: { fontSize: 16, fontWeight: '900', color: paper.ink },
-  waitBody: { fontSize: 15, color: paper.dim, marginTop: 6, textAlign: 'center', lineHeight: 19.5 },
+  // [DIM 2026-08-27 · DESIGN.md §7a-bis] 딤 → 본문 잉크. The map is GONE in all three branches and
+  // this line is the screen's entire content: who may see the position (denied), what to do about
+  // it (error: 네트워크를 확인해주세요), and that nothing is wrong yet (waiting). Grey said "skip
+  // this" on the only sentence a worried owner has. The 16/900 ink title still leads it.
+  waitBody: { fontSize: 15, color: paper.text, marginTop: 6, textAlign: 'center', lineHeight: 19.5 },
   // 라우드 페일(F1.2) — 풀블리드 크리티컬 헤어라인 위아래 + 14pt/700 크리티컬 잉크
   failStrip: {
     alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1104,6 +1108,12 @@ const s = StyleSheet.create({
   signalOn: { backgroundColor: paper.wash, borderColor: paper.line },
   signalOff: { backgroundColor: paper.canvas, borderColor: paper.faint },
   signalTxtOn: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  // [DIM 2026-08-27 · §7a-bis] STAYS DIM, both. signalTxtOff is one of two states that must differ
+  // in 면색·잉크·도트 (the comment at its render site) — inking it erases the distinction the
+  // custody law asks for, and the loud version of "no signal" is the critical staleness strip.
+  // modeNote/geoNote are quiet notices about what MIGHT happen, not about what is on screen now;
+  // the run and the record are fine either way, and geoNote's actionable half (다시 시도) is
+  // already ink. This island is dense — inking its asides would flatten it against the CTA.
   signalTxtOff: { fontSize: 15, fontWeight: '800', color: paper.dim },
   modeNote: { fontSize: 15, color: paper.dim, marginTop: 10, lineHeight: 19 },
   // 잉크 밑줄 — 코랄 강조 예산을 쓰지 않는 어포던스 (실패 스트립의 크리티컬 링크와 역할이 다르다)
@@ -1115,7 +1125,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 9, paddingHorizontal: 12,
   },
   mapNoteTitle: { fontSize: 16, fontWeight: '900', color: paper.ink },
-  mapNoteBody: { fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 19 },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크: this plate exists only so the planned course is not
+  // read as the dog's live position (see the block comment at its render site). A sentence whose
+  // whole job is to prevent a misreading is not one the owner may skip.
+  mapNoteBody: { fontSize: 15, color: paper.text, marginTop: 2, lineHeight: 19 },
   // 범례 — 디테일 텍스트 플로어 15pt (랩의 12.5pt는 이 프로젝트에서 통과하지 않는다)
   legend: {
     position: 'absolute', left: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1198,5 +1211,8 @@ const s = StyleSheet.create({
   stopConfirm: { backgroundColor: paper.critical, alignItems: 'center', paddingVertical: 15, marginTop: 14 },
   stopConfirmOff: { backgroundColor: paper.disabledFill },
   stopConfirmTxt: { fontSize: 16.5, fontWeight: '900', color: '#ffffff' },
-  keepWatchTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 잉크: 계속 지켜볼게요 is an action label inside a Pressable —
+  // the only way out of the stop sheet — which is the owner/home rowAct case verbatim. The
+  // destructive button above is a filled surface, so an ink label here cannot outrank it.
+  keepWatchTxt: { fontSize: 15, fontWeight: '700', color: paper.ink },
 });
