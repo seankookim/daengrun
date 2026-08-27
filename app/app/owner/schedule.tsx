@@ -1075,7 +1075,9 @@ function FeeLine({ label, value, coral, bold }: { label: string; value: string; 
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: 5 }}>
       <Text style={{ fontSize: 15, color: bold ? paper.ink : paper.text, fontWeight: bold ? '800' : '400' }}>{label}</Text>
-      <Text style={{ fontSize: bold ? 16 : 14, fontWeight: bold ? '900' : '600', color: coral ? paper.critical : paper.ink }}>{value}</Text>
+      <Text style={{ fontSize: bold ? 16 : 15,   /* [floor] was 14 — below the 15pt detail floor, inside the
+        cancel-FEE card. Found by the dim-text agent and out of its brief; fixed here because a
+        money line a customer cannot read is the worst place to keep a floor violation. */ fontWeight: bold ? '900' : '600', color: coral ? paper.critical : paper.ink }}>{value}</Text>
     </Row>
   );
 }
