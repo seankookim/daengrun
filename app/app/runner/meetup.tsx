@@ -728,8 +728,10 @@ export default function Meetup() {
 
         {/* [정직 배치 · item 7] 서명된 보험 증권이 없다 — '인계 시점부터 적용' 주장 은퇴, 협의 중 진실로 */}
         <Pressable onPress={() => router.push('/safety')} accessibilityRole="link" accessibilityLabel="안심 센터 열기">
+          {/* [DIM 2026-08-27 · §7a-bis 「delete before shrinking」] 푸터 첫 줄 삭제 — 양측 확인
+              규칙은 확인 n/2 필, 스텝 레일, CTA 힌트가 이미 세 번 말한다. 회색 재진술 대신 삭제. */}
           <Text style={s.foot}>
-            양측 확인 없이는 러닝이 시작되지 않아요{'\n'}펫보험 파트너십 협의 중 — 사고 시 안심 센터에서 바로 도와드려요
+            펫보험 파트너십 협의 중 — 사고 시 안심 센터에서 바로 도와드려요
           </Text>
         </Pressable>
       </ScrollView>
@@ -849,13 +851,16 @@ const s = StyleSheet.create({
     backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
     opacity: 0.4,
   },
-  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄 + dim 14/700)
+  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄).
+  // [DIM 2026-08-27 · DESIGN.md §7a-bis] 잉크만 딤에서 갈라졌다: 이 상자의 유일한 텍스트이고,
+  // 미지정 분기는 러너에게 '보호자와 채팅으로 확인하라'는 지시다 — 이걸 건너뛰면 픽업 장소를
+  // 찾을 방법이 남지 않는다. 실패 분기도 마찬가지로 읽어야 하는 상태다.
   mapPendingWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   mapPending: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, maxWidth: 300,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  mapPendingTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.ink, textAlign: 'center' },
   // 길찾기 overlay chip (DS-2) — circleBtn/chatChip chrome grammar, ≥44pt hit target,
   // anchored inside the plate so it never enters the stage machine's CTA stack
   naviChip: {
@@ -982,7 +987,9 @@ const s = StyleSheet.create({
 
   // ── 프리플라이트 장비 체크 (볼트 은퇴 — 체크 = 잉크 필 + 코랄 워시 행) ──
   gearTitle: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink, marginTop: 3 },
-  gearSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [DIM 2026-08-27 · §7a-bis] 딤 → 본문 잉크: 이건 설명이 아니라 게이트 규칙이다 — 아래 인계
+  // CTA가 왜 잠겨 있는지의 답이고, 러너가 건너뛰어도 되는 문장이 아니다.
+  gearSub: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 6 },
   checkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,

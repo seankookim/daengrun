@@ -82,13 +82,17 @@ function RosterRow({ r, rank, selected, isCurrent, onPress, nf }: {
   r: LiveRunner; rank: number; selected: boolean;
   isCurrent: boolean; onPress: () => void; nf: any;
 }) {
-  const sub = `${rank}순위 · ${r.tier}${isCurrent ? ' · 현재 지명' : ''}`;
+  // [DIM 2026-08-27 · DESIGN.md §7a-bis] 순위·티어는 스킵해도 되는 메타라 딤이 맞다. '현재 지명'은
+  // 아니다 — 러너 변경 모드에서 '지금 누구를 바꾸는 중인지'를 말하는 유일한 줄이라(헤더 아래 주석이
+  // 이 행에 그 일을 맡긴다) 같은 줄 안에서 잉크로 갈라놓는다. 한 화면에 최대 한 개만 뜬다.
+  const sub = `${rank}순위 · ${r.tier}`;
+  const a11ySub = `${sub}${isCurrent ? ' · 현재 지명' : ''}`;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${r.name} 러너 · ${sub}${r.respondRate != null ? ` · 응답률 ${r.respondRate}%` : ' · 응답률 신규'}`}
+      accessibilityLabel={`${r.name} 러너 · ${a11ySub}${r.respondRate != null ? ` · 응답률 ${r.respondRate}%` : ' · 응답률 신규'}`}
       style={[s.row, selected && s.rowSel]}
     >
       {/* 순위 → 선택되면 잉크 체크로 바뀐다 (선택은 링이 아니라 면 + 표식이다) */}
@@ -107,7 +111,9 @@ function RosterRow({ r, rank, selected, isCurrent, onPress, nf }: {
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>{r.name}</Text>
-        <Text numberOfLines={1} style={{ fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim }}>{sub}</Text>
+        <Text numberOfLines={1} style={{ fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim }}>
+          {sub}{isCurrent ? <Text style={{ color: paper.ink, fontWeight: '800' }}> · 현재 지명</Text> : null}
+        </Text>
       </View>
 
       {/* 응답률 — 이 화면에서 가장 큰 숫자. 데이터가 없으면 숫자 대신 '신규' (0을 지어내지 않는다) */}
@@ -306,10 +312,13 @@ export default function Matching() {
             <View style={s.headTag}><Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>재요청</Text></View>
           )}
         </Row>
-        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 8 }}>
+        {/* [DIM 2026-08-27 · DESIGN.md §7a-bis] 지원 줄은 분기당 한 줄, 딤이 아니라 본문 잉크다.
+            지운 줄 둘: 제목('러너 변경')과 재요청 태그가 이미 말하는 재진술 한 줄(rebook), 그리고
+            뒷받침할 데이터가 없는 응답 시간 약속 한 줄(live). 남긴 줄은 제목에서 유추할 수 없는 것. */}
+        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 8 }}>
           {rebook
-            ? '이 예약 그대로 다른 러너에게 다시 요청해요\n새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
-            : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요'
+            ? '새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
+            : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요'
               /* 🔴 [정직 2026-08-27] 이 자리는 「보호자님과 러너의 선호도를 종합 분석했어요」였다.
                  그런데 이건 **예약이 없는 분기**다 (`!live`) — 화면 본문이 바로 아래에서
                  「진행 중인 예약이 없어요」라고 말한다. 분석할 대상이 없는 상태에서 분석을
@@ -373,9 +382,8 @@ export default function Matching() {
               </Text>
             </View>
 
-            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 15, lineHeight: 19, color: paper.dim }}>
-              지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
-            </Text>
+            {/* [DIM 2026-08-27 · §7a-bis 「delete before shrinking」] 오픈 매칭 안내 한 줄 삭제 —
+                헤더의 지원 줄이 같은 사실을 이미 말한다. 재진술을 회색으로 남기느니 지운다. */}
           </>
         )}
 
@@ -538,7 +546,9 @@ export default function Matching() {
               바디캠이 없는 러너에게까지 부정문을 들이밀지 않도록 게이트 (없는 기능을 먼저 광고 금지) */}
           {selGear.length > 0 && (
             <>
-              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 11 }}>
+              {/* [DIM 2026-08-27] 딤 → 본문 잉크. 칩은 '보유'까지만 참이고 그 한계를 말하는 건 이
+                  줄뿐이다 — 칩을 읽고 이 줄을 건너뛰면 보유가 제공으로 읽힌다. */}
+              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 11 }}>
                 {selGear.some((g) => g.kind === 'bodycam')
                   ? '러너가 보유한 장비예요 — 영상 제공은 아직 지원하지 않아요'
                   : '러너가 보유한 장비예요'}
@@ -612,7 +622,9 @@ export default function Matching() {
       {/* 시트가 열리지 않는 상태에도 아래는 비지 않는다 — 왜 비었는지 한 줄로 말한다 (M④) */}
       {live && !sel && (
         <View style={s.sheetQuiet}>
-          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center' }}>
+          {/* [DIM 2026-08-27] 이 밴드의 유일한 텍스트이자 '버튼이 왜 없는지'의 답 — 회색이면
+              화면이 아무 말도 하지 않은 것과 같다. */}
+          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.ink, textAlign: 'center' }}>
             선택한 러너가 없어 지명 시트는 열리지 않아요
           </Text>
         </View>
