@@ -191,6 +191,43 @@ agent catches what actually happens — on 0128 the two disagreed, and the disag
 finding (codex found a leak that arms in the future; execution found three defects reachable today,
 one of them a permanent disclosure by inaction).
 
+🔴 **A RUN THAT NEVER STARTED LOOKS EXACTLY LIKE A RUN STILL WORKING — AND A TWO-STATE
+DETECTOR CANNOT TELL THEM APART** (announcer, measured 2026-08-27, 40 minutes lost and reported
+to the human three times as 「still reading」). `codex exec -C <dir>` where `<dir>` is not a git
+repo returns **immediately** with `Not inside a trusted directory and --skip-git-repo-check was
+not specified` — 115 bytes of stderr, nothing on stdout, exit non-zero, no process. My watcher
+polled for exactly two states, **a verdict value** and **`usage limit`**, so the third state —
+*refused to start* — matched neither and read as 「long read in progress」. I narrated
+`out=0B` out loud on four separate checks without acting on it.
+**Three rules, and the second is the general one:**
+**(a)** A frozen `git archive` export is the right way to stop mid-read drift, but codex will not
+read a non-repo — `git init && git add -A && git commit` inside the export keeps the freeze AND
+satisfies the trust check.
+**(b)** ⚠ **A detector must enumerate the FAILURE states, not the success state plus one known
+failure.** Poll for a verdict, for a quota wall, AND for 「process gone with no verdict」 — the
+last one costs `pgrep` and catches every death cause at once, including ones nobody has met yet.
+**(c)** **Byte count over time is the cheapest liveness signal available and it was on my screen
+the whole time**: genuine runs climbed 384KB → 545KB → 635KB; this one sat at 0. ⚠ Note the
+stream split (§codex v3): the READING lands on stderr and only the ANSWER on stdout, so **watch
+stderr for liveness and stdout for the verdict** — a stalled stderr is the tell, not an empty
+stdout.
+⚠ And the same day, my *refusal* detector false-positived: `grep -qiE "not inside a trusted|
+error:"` matched codex's benign startup warning `ERROR codex_models_manager: failed to load
+models cache`, so a healthy run was declared REFUSED. **Match the specific refusal sentence, never
+a bare `error:`** — third detector-shaped miss of one day, all mine.
+
+🔴 **THE MIGRATION-NUMBER CHECK IS THREE-SIDED, NOT TWO — AND THE THIRD SIDE GROWS AS WE USE MORE
+AGENTS** (ui6, measured 2026-08-27, caught before it cost a rename). REGISTRY row · remote
+branches · **LOCAL WORKTREE BRANCHES**. Measured: `0144`/`0145` and suites `176`/`177` read **FREE
+on every remote branch** while being actively held in two UNPUSHED agent worktrees — `ls-remote`
+structurally cannot see them, only `git branch -a --format='%(refname)'` + `ls-tree` per ref does.
+An agent fleet holds numbers in unpushed trees by design, so this side is now the LIKELIEST
+collision surface, not the rarest.
+**And re-read at COMMIT time, not only at claim time** (ui6's own agent did this and turned a
+40-reference rename into a no-op): claim-time answers 「is this taken now」, the pre-push hook
+answers 「too late」, and the commit-time re-read is the only check that fires while the fix is
+still one command.
+
 ## Three ways a green means nothing (ui6, measured 2026-08-27 — all three in one stretch)
 
 🔴 **① A SUITE NOT LISTED IN `harness.sh`'s MANIFEST SILENTLY DOES NOT RUN.** Five pins added,
