@@ -232,6 +232,31 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **A MUTATION THAT REDDENS NOTHING HAS TWO VERY DIFFERENT CAUSES — AND THE HONEST WORK IS
+TELLING THEM APART** (agent + ui6, 2026-08-27; ui6's phrasing, because it is the clearest anyone
+has managed). Either **the pin is blind**, or **the property is not separately observable through
+this door**. They look identical in a battery table — one green row — and the temptation in both
+cases is to reshape the pin until something reddens, which manufactures coverage.
+Worked example, measured: deleting any ONE of `custodian_profile_id` /
+`responsible_profile_id` / `current_runner_profile_id` from 0131's helper reddens **nothing**
+(1053/0). Not because the pins are weak — because `session_transfer_accept` (`0058:143-149`)
+assigns all three **in one UPDATE**, so no single deletion is observable through any reachable
+fixture. The honest conclusion, written into the suite as a GAP rather than recorded as a pass:
+**S6/S7 prove the disjunction ADMITS, not that each arm is load-bearing.**
+**The rule:** when a mutation reddens nothing, work out WHY before touching the pin. If the answer
+is 「the product cannot produce a state where this arm matters alone」, that is a fact about the
+system and belongs in the suite as a named gap. If the answer is 「nothing looks at this」, the pin
+is blind and owes a repair — and per the mid-battery law, a repair written while staring at the
+mutation must then be re-attacked by a head that never saw it.
+
+⚠ **PIN LABELS COLLIDE THE SAME WAY MIGRATION NUMBERS DO, AND THERE IS NO `ls-tree` FOR THEM**
+(2026-08-27). Two parallel slices both added an `S6` to `164_scoped_read_policies_suite.sql` —
+neither careless, and only the merge could see it. It is **worse than a number collision in one
+respect**: a duplicate number breaks a push loudly, while a duplicate label breaks a **battery
+record nobody reads until they need it**, which is precisely when ambiguity costs most.
+Mitigation that needs no coordination (ui6's): **prefix pin labels by SLICE, not by sequence** —
+`0131-S6` rather than `S6` — so the namespace is owned instead of shared.
+
 🔴 **A GUARD WITH NO PIN IS INVISIBLE FROM BOTH DIRECTIONS, AND THE ONLY DETECTOR IS DELETING IT**
 (announcer's miss, sharpened by ui6 into the form worth keeping, 2026-08-27). Round 3 of 0131
 added `p_uid is not distinct from auth.uid()` to stop a helper being an arbitrary-pair membership
