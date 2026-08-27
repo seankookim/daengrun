@@ -1545,3 +1545,29 @@ underpaid runners rests on a chain of source reads, not one observed run.
 
 **0131 stays on trunk, undeployed, and its REGISTRY row's do-not-deploy hold now has a REJECT
 behind it rather than an absent verdict.**
+
+## 2026-08-27 — Sean back. Four rulings + two questions, from chat.
+
+**Verbatim:** 「is toss the only way to register a card? for the tap for profile, yes make it like
+instagram. attached is the ui that should be modeled (the profile editor without the avatar
+though). 1 dog per person. catch up on database. review the unreviewed work from last night. the
+small text sweep should be done. what safety notice? deploy agents for each task」
+
+### RULED
+1. **Profiles: build them, Instagram-shaped.** Board names become tappable → a profile screen.
+   The model is his attached Instagram screenshots: profile = avatar/name/counts row/bio/
+   Edit-profile button/content grid; editor = the IG row list (Name, Username, Bio, Links…)
+   **minus the avatar row**. ⚠ This REVIVES the PARKED profiles lane and OVERRULES contract R8's
+   「no profile_id on the board」 — exposing the ID is now his explicit decision, not smuggled.
+2. **1 dog per person per session.** b6's button-hides-after-one guess is CONFIRMED as the rule.
+   The undecided DB setting gets set to 1.
+3. **Database catch-up, review backlog, small-text sweep: all GO**, with agents per task.
+
+### ANSWERED (his two questions)
+- **Toss**: the only card path BUILT. Every payment function points at api.tosspayments.com;
+  no other PG exists anywhere in the repo. Alternatives (PortOne, KG이니시스, 나이스) are real but
+  each is a new integration. Not a lock-in by design — a lock-in by what exists.
+- **The safety notice** = the 동반 참가 안내 sheet in the add-my-dog flow, verbatim:
+  「내 강아지의 안전과 행동은 세션 내내 보호자 본인이 책임져요 · 리드줄 착용은 필수예요 · 공격성이
+  보이면 호스트 안내에 따라 거리를 둬요 · 사진 촬영이 있을 수 있어요 (공개는 동의한 사진만)」.
+  The open question remains: record agreement to it, or keep 「확인」-only.
