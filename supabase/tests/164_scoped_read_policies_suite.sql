@@ -1,4 +1,4 @@
--- ═══ 164 scoped read policies — 0131 pins (S1-S5·S5b · R1 · G1-G3) ═══
+-- ═══ 164 scoped read policies — 0131 pins (S1-S5·S5b·S6-S9 · R1 · G1-G3) ═══
 -- What this suite pins: that the four club session tables whose only read policy was
 -- `(auth.uid() IS NOT NULL)` now admit exactly the people who belong to that session, that they
 -- still admit those people (a policy admitting nobody is green on every denial arm while four
@@ -297,6 +297,406 @@ begin
        call _pass('srp','R1 fetchStampStats의 실제 술어가 정책 전후로 같은 수를 센다 — ' || v_msg);
   else v_msg := 'pre=' || v_pre || ' post=' || v_n || ' — 정책이 도장 벽을 깎았다';
        call _fail('srp','R1 실제 호출자 보존', v_msg); end if;
+end $$;
+
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- ROUND-4 BLOCKING FINDING 2 — the LIVE non-owner dog-pointer path, and the liveness conjunct
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- Codex round 4, in substance: 「The live non-owner dog-pointer path and its liveness gate are
+-- unpinned. S3's ⓓ fixture tests only an approved OWNER. It never proves that a dog-only
+-- non-owner custodian_profile_id, responsible_profile_id or current_runner_profile_id is
+-- admitted. Conversely, deleting only `service_state is distinct from 'ended'` also leaves the
+-- suite green: the rejected fixture's owner is denied by the approval test, while its non-owner
+-- pointers are unexercised.」 Both halves were true; both are measured by S6-S9 below.
+--
+-- 0131 arm ⓓ is TWO propositions welded into one exists():
+--     service_state is distinct from 'ended'
+--       AND ( owner AND approval in (approved, auto)   OR   NOT owner AND uid in (three pointers) )
+-- S3 ⓓ and S5b between them cover the OWNER disjunct in both directions. Nothing covered the
+-- NON-OWNER disjunct at all — and nothing could cover the LIVENESS conjunct through an owner,
+-- because on an owner row the approval test decides the same question first and hides it.
+-- S8 is that conjunct's own pin: its subject is admitted by the pointer arm one statement
+-- earlier and refused afterwards with every pointer unchanged, so liveness is the only thing
+-- that can account for the difference.
+--
+-- ── WHY THESE FIXTURES AND NOT SIMPLER ONES — three reachability facts, MEASURED ────────────
+--  1. **A club runner who is assigned a dog ALWAYS holds a `session_runner_assignments` row**, so
+--     the assigned runner can never be a pointer-only subject. `session_proposal_respond`
+--     (0047:169-176) compares the load against `(select delegated_capacity … status='committed')`
+--     wrapped in `coalesce(…, 0)`, so an uncommitted runner has capacity 0 and the accept raises
+--     `runner_cap_full`. The one person the lifecycle hands a dog WITHOUT any session membership
+--     is the **emergency transferee**: `session_transfer_accept` (0058:118-127) checks the tier
+--     cap and the physical load and never asks whether the receiver belongs to the session.
+--     That is why every subject below arrives through `session_transfer_initiate/accept`.
+--  2. **The three pointers cannot be separated for a non-owner.** `session_transfer_accept`
+--     (0058:143-149) assigns `custodian_profile_id`, `responsible_profile_id` and
+--     `current_runner_profile_id` in one UPDATE, and no shipped RPC gives a non-owner one of the
+--     three alone. A pin isolating a single pointer would need a row the product cannot make, so
+--     the reachable shape is pinned instead and the limitation is written here rather than faked
+--     (⚠ consequence, stated so no later reader over-reads a green: S6/S7 prove the DISJUNCTION
+--     admits, not that each of the three arms is separately load-bearing).
+--  3. **There is no reachable state with a non-null `custodian_external` and a LIVE dog.** The
+--     only statement in the schema that writes it non-null is `session_transfer_accept`'s
+--     external branch (0058:193), and both routes into that branch leave the booking
+--     `incident_review` (from picked_up/active, 0058:164) or `completed` — which
+--     `_club_compute_axes` maps to `service_state = 'ended'` on BOTH branches (0048:726-731
+--     completed, 0048:732-741 incident_review).
+--     Measured on the fixture, not read off the source: S9 ⓐ asserts the ended-ness it found.
+--     S9 therefore carries a source arm as well as a behavioural one, and says why.
+
+-- ── MUTATION BATTERY — PREDICTED, THEN MEASURED. Eight runs, 2026-08-27. ───────────────────
+-- Each plant is applied ALONE as a trailing migration (`0900_mut_*.sql`) inside a COPY of
+-- `supabase/` OUTSIDE the worktree — never by editing 0131, which another session owns and which
+-- a copy-modify-restore would silently overwrite. Appending AFTER 0131 also keeps 0131's own
+-- VERIFY block from aborting the apply before any pin can run. Every plant is a python edit that
+-- asserts `count(anchor) == 1` and then reads the ARTIFACT back, because `sed` exits 0 on no-match
+-- and a plant you believe you made may never have been made.
+-- ⚠ THE CONTROL WAS OBSERVED CLEAN FIRST: the untouched lab is 1053/0, identical to the worktree.
+-- A delta measured against an unobserved control measures the lab, not the code.
+--
+--   R0  control, no plant                              1053/0   RED = []
+--   R1  M1 (liveness conjunct deleted) against the      1049/0   RED = []  🔴 CODEX'S CLAIM,
+--       PRE-CHANGE suite                                          REPRODUCED — the hole is real
+--                                                                 and it was invisible
+--   R2  M1 against THIS suite                          1051/2   RED = [S8, S9]. S8 names the
+--       damage rather than swapping a token: 「an ended dog's pointer reads session_people=2,
+--       assignments=2, participant_activities=3」. S9 reddens too, on its profile-backed external
+--       custodian — a second, independent subject for the same conjunct.
+--   R3  M2 (whole NOT-owner pointer disjunct deleted)  1050/3   RED = [S6, S7, S8 ⓐ] — all three
+--       report 「cannot read = 0」, i.e. the arm is gone, not that a denial changed shape.
+--   R4  M3 (only `custodian_profile_id` deleted)       1053/0   RED = []  ⚠ THE DOCUMENTED
+--       LIMITATION, MEASURED RATHER THAN ASSERTED. Reachability fact 2 above: the three pointers
+--       move in one UPDATE, so a live non-owner holds all three and dropping one changes nothing
+--       any fixture can see. Written down as a gap instead of papered over with an INSERT the
+--       product cannot make.
+--   R5  M4 (`p_uid is distinct from owner` deleted)    1052/1   RED = [S5b] — the round-3 critical
+--       still has exactly one owner, and it is not one of the new pins.
+--   R6  M5 (a `custodian_external` name-matching        1052/1   RED = [S9], via ⓒ ONLY. ⓑ stays
+--       disjunct ADDED — the property S9 holds is an              green, exactly as S9's own
+--       ABSENCE, so its mutation is an addition)                  comment predicts.
+--   R7  M6 = M5 + M1 together                          1051/2   RED = [S8, S9 via ⓑ AND ⓒ] — with
+--       liveness no longer masking, the name twin really does read all four (session_dogs=1,
+--       session_people=2, assignments=2, participant_activities=3). So S9 ⓑ is a LIVE control
+--       that this fixture cannot exercise today, not a dead arm.
+
+-- ── the fixture factory: one pairing, driven through the real RPC chain to a LIVE custody ────
+-- Each call builds its own club, session, host, runner, owner, dog and route, because
+-- `_club_runner_load` counts a certified runner's completed pairings forever against a cap of 1
+-- (0037:39, 0047:57) and two fixtures sharing a runner would refuse each other.
+-- Stops at `picked_up` with the run started: `service_state = 'in_service'`, custody with the
+-- runner. Everything the pins need beyond that point they do with the real RPC themselves.
+create or replace function t164_pair(p_tag text) returns jsonb
+language plpgsql as $$
+declare
+  v_host uuid; v_runner uuid; v_owner uuid; v_dog uuid; v_route uuid;
+  v_club uuid; v_sess uuid; v_sd uuid; v_bk uuid; v_km numeric;
+begin
+  v_host   := t_user('t164h_' || p_tag, 'runner');
+  v_runner := t_user('t164r_' || p_tag, 'runner');
+  v_owner  := t_user('t164o_' || p_tag, 'owner');
+  v_dog    := t_dog(v_owner, '위탁견' || p_tag);
+  v_route  := t_route('t164 코스 ' || p_tag);
+  select km into v_km from routes where id = v_route;
+
+  perform set_config('request.jwt.claim.sub', v_host::text, false);
+  v_club := club_request_district('t164' || p_tag);
+  perform club_claim_host(v_club);
+  v_sess := club_create_session(v_club, now() + interval '90 minutes', 't164 집결지', v_route, 8, 'mixed');
+  perform session_runner_commit(v_sess);
+  perform session_checkin(v_sess);
+  perform set_config('request.jwt.claim.sub', v_runner::text, false);
+  perform session_runner_commit(v_sess);
+  perform session_checkin(v_sess);
+
+  perform set_config('request.jwt.claim.sub', v_owner::text, false);
+  v_sd := session_delegate_dog(v_sess, v_dog, t_consent());
+  perform set_config('request.jwt.claim.sub', v_host::text, false);
+  perform session_approve_dog(v_sd, true);
+  perform set_config('request.jwt.claim.sub', v_owner::text, false);
+  v_bk := session_pay_delegation(v_sd, 't164-idem-' || p_tag, true);
+  perform set_config('request.jwt.claim.sub', v_host::text, false);
+  perform session_assign_dog(v_sd, v_runner);
+  perform set_config('request.jwt.claim.sub', v_runner::text, false);
+  perform session_proposal_respond(v_sd, true);
+
+  -- The door handoff. There is no SQL RPC for it: the client calls the `transition-booking` edge
+  -- function, which runs as service_role. `_guard_booking_cols` (0058:143) blocks
+  -- authenticated/anon and lets every server role through, and `enforce_booking_transition`
+  -- (0066:37) still validates confirmed → picked_up — so this UPDATE from the harness's postgres
+  -- session IS that path rather than a way around it. Same write 163 and 107 use.
+  update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
+   where id = v_bk;
+  update bookings set status = 'picked_up' where id = v_bk;
+  perform set_config('request.jwt.claim.sub', v_runner::text, false);
+  perform club_start_delegated_runs(v_sess);
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  return jsonb_build_object('host', v_host, 'runner', v_runner, 'owner', v_owner, 'dog', v_dog,
+    'session', v_sess, 'session_dog', v_sd, 'booking', v_bk, 'km', v_km);
+end $$;
+revoke execute on function t164_pair(text) from public, anon, authenticated;
+
+do $$
+declare
+  f_live jsonb; f_end jsonb; f_ext jsonb;
+  v_t1 uuid; v_t2 uuid; v_e uuid; v_auth uuid; v_twin uuid;
+  v_state text; v_state2 text; v_phase text; v_ext text; v_ctype text;
+  v_cust uuid; v_resp uuid; v_curr uuid; v_cust2 uuid; v_resp2 uuid; v_curr2 uuid;
+  v_n int; v_bad text; v_msg text; v_src boolean;
+begin
+  -- enabled HERE and not inherited from suite 50's side effect (117's precedent, 163's practice)
+  update club_flags set enabled = true where name = 'club_delegation_v2';
+
+  -- ── the LIVE pairing, then the emergency transferee who owns NOTHING but the pointers ──────
+  -- A refusal anywhere in here aborts the suite loudly under ON_ERROR_STOP, and that is the
+  -- correct outcome: a fixture the product refuses to produce is information, not an obstacle.
+  f_live := t164_pair('lv');
+  v_t1 := t_user('sr_xferee', 'runner');   -- certified ⇒ cap 1; never committed, never checked in
+  perform set_config('request.jwt.claim.sub', f_live->>'runner', false);
+  perform session_transfer_initiate((f_live->>'session_dog')::uuid, 'runner', v_t1, null, '주행 중 러너 교대');
+  perform set_config('request.jwt.claim.sub', v_t1::text, false);
+  perform session_transfer_accept((f_live->>'session_dog')::uuid, null);
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  -- ---------- [S6] an accepted runner-only TRANSFEREE is admitted ----------
+  -- PROPOSITION (stated before the assertions and without reference to any mutation): a person
+  -- who holds one of `session_dogs`'s non-owner pointers on a LIVE dog, and who has no session
+  -- membership of any other kind — no session_people row, no runner assignment, not the host and
+  -- not the backup host — is admitted to that session's tables by `_club_session_member`.
+  -- The reader is measured on `session_people` and `session_runner_assignments`, where they hold
+  -- no row and therefore no DIRECT policy arm can admit them: the helper is the only thing that
+  -- can. `session_dogs` is deliberately NOT the evidence table — its policy has its own
+  -- `current_runner_profile_id = auth.uid()` arm (0131:207) and would be admitted without the
+  -- helper ever being consulted, which is the exact mistake codex rejected S3's first draft for.
+  begin
+    v_bad := '';
+    select service_state, custodian_profile_id, responsible_profile_id, current_runner_profile_id
+      into v_state, v_cust, v_resp, v_curr
+      from session_dogs where id = (f_live->>'session_dog')::uuid;
+    if v_state = 'ended' then v_bad := v_bad || ' 전제: 개가 이미 ended(' || v_state || ')'; end if;
+    if v_t1 = (f_live->>'owner')::uuid then v_bad := v_bad || ' 전제: 인수 러너가 보호자와 동일인'; end if;
+    if v_cust is distinct from v_t1 or v_resp is distinct from v_t1 or v_curr is distinct from v_t1 then
+      v_bad := v_bad || ' 전제: 세 포인터가 인수 러너를 가리키지 않는다'; end if;
+    select count(*) into v_n from session_people
+      where session_id = (f_live->>'session')::uuid and profile_id = v_t1;
+    if v_n <> 0 then v_bad := v_bad || ' 전제: 인수 러너에게 session_people 행이 있다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments
+      where session_id = (f_live->>'session')::uuid and runner_profile_id = v_t1;
+    if v_n <> 0 then v_bad := v_bad || ' 전제: 인수 러너에게 배정 행이 있다=' || v_n; end if;
+    if exists (select 1 from club_sessions s where s.id = (f_live->>'session')::uuid
+                 and (s.host_profile_id = v_t1 or s.backup_host_profile_id = v_t1)) then
+      v_bad := v_bad || ' 전제: 인수 러너가 호스트/백업 호스트다'; end if;
+    perform set_config('request.jwt.claim.sub', v_t1::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_live->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' 인수 러너가 session_people을 못 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_live->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' 인수 러너가 assignments를 못 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_live->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' 인수 러너가 participant_activities를 못 읽는다=' || v_n; end if;
+    reset role;
+    if v_bad = '' then call _pass('srp','S6 the live non-owner POINTER arm admits: a real session_transfer_accept (0058:104) hands an emergency transferee the dog and all three pointers while giving them no session_people row, no runner assignment and no host role — and that person reads session_people, session_runner_assignments and participant_activities, none of which has a direct policy arm they could satisfy, so the helper is the only thing that can have admitted them. This is the disjunct S3 ⓓ never tested: its subject was the approved OWNER, who is judged by the owner arm alone');
+    else v_msg := v_bad; call _fail('srp','S6 비소유 포인터 arm 양성', v_msg); end if;
+  exception when others then
+    reset role; perform set_config('request.jwt.claim.sub', '', true);
+    call _fail('srp','S6 비소유 포인터 arm 양성', sqlerrm);
+  end;
+
+  -- ── the same dog, one more real step: a second transfer nobody has accepted yet ────────────
+  v_t2 := t_user('sr_xfer_target', 'runner');
+  perform set_config('request.jwt.claim.sub', v_t1::text, false);
+  perform session_transfer_initiate((f_live->>'session_dog')::uuid, 'runner', v_t2, null, '2차 교대 요청');
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  -- ---------- [S7] the current custodian MID-TRANSFER is still admitted ----------
+  -- PROPOSITION: while a custody transfer is pending, the person the row still names as
+  -- `custodian_profile_id` — who is not the dog's owner — keeps reading the session; and the
+  -- person the transfer is OFFERED to does not, because an offer is not a pointer.
+  -- Why it is worth its own pin next to S6: `transfer_pending` is the phase this repo has already
+  -- been bitten by once (0129's 「a phase list strands a dog」), it is the phase in which somebody
+  -- is physically holding an animal, and a future narrowing of arm ⓓ to a custody-phase list
+  -- would close it while every other pin here stayed green.
+  begin
+    v_bad := '';
+    select service_state, custody_phase, custodian_profile_id
+      into v_state, v_phase, v_cust
+      from session_dogs where id = (f_live->>'session_dog')::uuid;
+    if v_phase <> 'transfer_pending' then v_bad := v_bad || ' 전제: custody_phase=' || v_phase; end if;
+    if v_state = 'ended' then v_bad := v_bad || ' 전제: 개가 ended'; end if;
+    if v_cust is distinct from v_t1 then v_bad := v_bad || ' 전제: custodian_profile_id가 인계 중 러너가 아니다'; end if;
+    if v_cust = (f_live->>'owner')::uuid then v_bad := v_bad || ' 전제: custodian이 보호자다'; end if;
+    perform set_config('request.jwt.claim.sub', v_t1::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_live->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' 인계 중 custodian이 session_people을 못 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_live->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' 인계 중 custodian이 assignments를 못 읽는다=' || v_n; end if;
+    reset role;
+    -- ⓑ the OFFER is not membership: the pending target holds no pointer and must read nothing
+    perform set_config('request.jwt.claim.sub', v_t2::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 이양 대상(수락 전)이 session_people을 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_dogs where session_id = (f_live->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 이양 대상(수락 전)이 session_dogs를 읽는다=' || v_n; end if;
+    reset role;
+    if v_bad = '' then call _pass('srp','S7 transfer_pending ADMITS its custodian — a real session_transfer_initiate (0057:304) leaves the phase at transfer_pending with a NON-OWNER still named as custodian_profile_id, and that person keeps reading the session while they are holding the animal. ⓑ and the person the dog is being OFFERED to reads nothing until they accept: pending_transfer is a proposal, not a pointer. A future rewrite of arm ⓓ into a custody-phase allow-list closes ⓐ and nothing else in this suite would notice');
+    else v_msg := v_bad; call _fail('srp','S7 인계 중 custodian 양성', v_msg); end if;
+  exception when others then
+    reset role; perform set_config('request.jwt.claim.sub', '', true);
+    call _fail('srp','S7 인계 중 custodian 양성', sqlerrm);
+  end;
+
+  -- ── a second pairing, ended for real, so the liveness conjunct has a subject of its own ────
+  f_end := t164_pair('en');
+  v_e := t_user('sr_endxferee', 'runner');
+  perform set_config('request.jwt.claim.sub', f_end->>'runner', false);
+  perform session_transfer_initiate((f_end->>'session_dog')::uuid, 'runner', v_e, null, '주행 중 러너 교대');
+  perform set_config('request.jwt.claim.sub', v_e::text, false);
+  perform session_transfer_accept((f_end->>'session_dog')::uuid, null);
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  -- ---------- [S8] an ENDED dog's non-owner pointer is DENIED — the liveness conjunct's pin ----------
+  -- PROPOSITION: when a dog's service has ENDED, the pointers it still carries stop admitting
+  -- anyone to the session. The subject is the same person in both halves, holding the same three
+  -- pointers in both halves, and the pin asserts that equality — so the only conjunct that can
+  -- account for the difference is `service_state is distinct from 'ended'`. Without that
+  -- attribution the arm would be worthless: a subject who was never admitted proves nothing about
+  -- what refused them.
+  -- The dog is ended by `t_settle(…, 'completed')` — the settlement the run itself performs — not
+  -- by writing an axis. `session_dogs`'s axis columns are DERIVED (club_v1_axes_sync rewrites them
+  -- on every write), so a hand-set service_state would be overwritten by the same statement.
+  begin
+    v_bad := '';
+    -- ⓐ LIVE: the subject IS admitted, by the pointer arm and nothing else
+    select service_state, custodian_profile_id, responsible_profile_id, current_runner_profile_id
+      into v_state, v_cust, v_resp, v_curr
+      from session_dogs where id = (f_end->>'session_dog')::uuid;
+    if v_state = 'ended' then v_bad := v_bad || ' 전제: 정산 전인데 이미 ended'; end if;
+    if v_e = (f_end->>'owner')::uuid then v_bad := v_bad || ' 전제: 인수 러너가 보호자다'; end if;
+    select count(*) into v_n from session_people
+      where session_id = (f_end->>'session')::uuid and profile_id = v_e;
+    if v_n <> 0 then v_bad := v_bad || ' 전제: 인수 러너에게 session_people 행이 있다'; end if;
+    select count(*) into v_n from session_runner_assignments
+      where session_id = (f_end->>'session')::uuid and runner_profile_id = v_e;
+    if v_n <> 0 then v_bad := v_bad || ' 전제: 인수 러너에게 배정 행이 있다'; end if;
+    perform set_config('request.jwt.claim.sub', v_e::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_end->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' ⓐ살아있는 동안 session_people을 못 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_end->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' ⓐ살아있는 동안 assignments를 못 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_end->>'session')::uuid;
+    if v_n <> 2 then v_bad := v_bad || ' ⓐ살아있는 동안 participant_activities를 못 읽는다=' || v_n; end if;
+    reset role;
+    -- the service ends the way the product ends it
+    perform set_config('request.jwt.claim.sub', '', true);
+    perform t_settle((f_end->>'booking')::uuid, 'completed', (f_end->>'km')::numeric, 1800);
+    select service_state, custodian_profile_id, responsible_profile_id, current_runner_profile_id
+      into v_state2, v_cust2, v_resp2, v_curr2
+      from session_dogs where id = (f_end->>'session_dog')::uuid;
+    if v_state2 <> 'ended' then v_bad := v_bad || ' 전제: 정산 후 service_state=' || coalesce(v_state2,'NULL'); end if;
+    -- THE ATTRIBUTION: nothing but liveness moved
+    if v_cust2 is distinct from v_cust or v_resp2 is distinct from v_resp or v_curr2 is distinct from v_curr then
+      v_bad := v_bad || ' 귀속 실패: 포인터도 함께 바뀌었다 (' || coalesce(v_cust::text,'∅') || '→' ||
+        coalesce(v_cust2::text,'∅') || ' / ' || coalesce(v_resp::text,'∅') || '→' || coalesce(v_resp2::text,'∅') ||
+        ' / ' || coalesce(v_curr::text,'∅') || '→' || coalesce(v_curr2::text,'∅') || ')'; end if;
+    if v_cust2 is distinct from v_e then v_bad := v_bad || ' 귀속 실패: 종료 후 custodian이 대상자가 아니다'; end if;
+    -- ⓑ ENDED: the same person, the same pointers, and now nothing
+    perform set_config('request.jwt.claim.sub', v_e::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_end->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓑ종료된 개의 포인터로 session_people을 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_end->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓑ종료된 개의 포인터로 assignments를 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_end->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' ⓑ종료된 개의 포인터로 participant_activities를 읽는다=' || v_n; end if;
+    -- ⓒ and the honest half: the dog ROW itself stays visible, through the POLICY's own direct
+    --   pointer arm (0131:204-207), which is not the helper and is not what S8 is about. Written
+    --   down so a later reader does not take S8's green as 「the ex-custodian sees nothing」.
+    select count(*) into v_n from session_dogs where id = (f_end->>'session_dog')::uuid;
+    if v_n <> 1 then v_bad := v_bad || ' ⓒ자기 담당이었던 개 행마저 사라졌다=' || v_n; end if;
+    reset role;
+    if v_bad = '' then call _pass('srp','S8 THE LIVENESS CONJUNCT, with attribution — the same emergency transferee, holding the same three pointers, reads the session while the dog is in service and reads NOTHING once a real settlement (t_settle completed) ends it. The pin asserts the three pointer values are byte-identical across the transition and that the subject is still not the owner, so `service_state is distinct from ended` is the only conjunct that can explain the change: deleting it alone must redden this pin, which is precisely what round 4 measured as impossible before. ⓒ the dog row itself is still visible to that person through the POLICY (0131:207), not through the helper — what closes is the SESSION-WIDE read');
+    else v_msg := v_bad; call _fail('srp','S8 종료된 개의 포인터 차단', v_msg); end if;
+  exception when others then
+    reset role; perform set_config('request.jwt.claim.sub', '', true);
+    call _fail('srp','S8 종료된 개의 포인터 차단', sqlerrm);
+  end;
+
+  -- ── a third pairing, handed to an EXTERNAL custodian by the real ritual ────────────────────
+  f_ext := t164_pair('ex');
+  v_auth := t_user('sr_authperson', 'owner');          -- profile-backed external custodian
+  v_twin := t_user('반포구청 안전과', 'owner');          -- a profile whose NAME is the external string
+  perform set_config('request.jwt.claim.sub', f_ext->>'runner', false);
+  perform session_transfer_initiate((f_ext->>'session_dog')::uuid, 'authorized_person', v_auth,
+                                    '반포구청 안전과', '현장 인계');
+  perform session_transfer_accept((f_ext->>'session_dog')::uuid,
+                                  jsonb_build_object('attestation', 'ops-164'));
+  perform set_config('request.jwt.claim.sub', '', false);
+
+  -- ---------- [S9] `custodian_external` is a STRING, never an identity ----------
+  -- PROPOSITION: the external custodian a dog is handed to is a name, and nothing about that name
+  -- can become an authenticated identity — a profile that happens to be called the same thing is
+  -- not a member of that session, and the membership predicate never consults the column at all.
+  -- ⚠ HONEST ABOUT WHAT EACH ARM PROVES. ⓐ measures the state the product can actually reach and
+  -- finds it ENDED — every route into the external branch leaves the booking `incident_review` or
+  -- `completed`. So ⓑ's denial is OVER-DETERMINED: liveness alone would refuse the twin even if
+  -- the helper did consult the name. That is why ⓒ is here and why it is the arm that carries the
+  -- proposition: it asserts the shipped predicate's EXECUTABLE source never mentions the column,
+  -- so no state — reachable today or not — can turn that string into a member. Comment lines are
+  -- stripped before matching, because a comment quoting a removed line matches every grep that
+  -- hunts for it; and the match is word-anchored, because a bare `custodian` substring would also
+  -- hit `custodian_profile_id`, which the helper does and must consult.
+  begin
+    v_bad := '';
+    select service_state, custodian_type, custodian_external, custodian_profile_id
+      into v_state, v_ctype, v_ext, v_cust
+      from session_dogs where id = (f_ext->>'session_dog')::uuid;
+    -- ⓐ the reachable external-custody row, described exactly as it came out of the RPC
+    if v_ext is distinct from '반포구청 안전과' then
+      v_bad := v_bad || ' 전제: custodian_external=' || coalesce(v_ext,'NULL'); end if;
+    if v_ctype is distinct from 'authorized_person' then
+      v_bad := v_bad || ' 전제: custodian_type=' || coalesce(v_ctype,'NULL'); end if;
+    if v_cust is distinct from v_auth then
+      v_bad := v_bad || ' 전제: custodian_profile_id가 지정 인수자가 아니다'; end if;
+    if v_state is distinct from 'ended' then
+      v_bad := v_bad || ' 전제 변화: 외부 커스터디 행이 살아있다(' || coalesce(v_state,'NULL') ||
+               ') — S9 ⓑ의 과결정 설명이 더 이상 사실이 아니므로 이 핀을 다시 쓸 것'; end if;
+    -- ⓑ the name twin is nobody
+    perform set_config('request.jwt.claim.sub', v_twin::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_dogs where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 동명이인이 session_dogs를 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_people where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 동명이인이 session_people을 읽는다=' || v_n; end if;
+    select count(*) into v_n from session_runner_assignments where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 동명이인이 assignments를 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 동명이인이 participant_activities를 읽는다=' || v_n; end if;
+    reset role;
+    -- and the profile-backed external custodian: a real pointer on a dead dog reads no session
+    perform set_config('request.jwt.claim.sub', v_auth::text, true);
+    set local role authenticated;
+    select count(*) into v_n from session_people where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 외부 인수자가 session_people을 읽는다=' || v_n; end if;
+    select count(*) into v_n from participant_activities where session_id = (f_ext->>'session')::uuid;
+    if v_n <> 0 then v_bad := v_bad || ' 외부 인수자가 participant_activities를 읽는다=' || v_n; end if;
+    reset role;
+    -- ⓒ the arm that actually carries the proposition
+    select coalesce(bool_or(s.l ~ '\mcustodian_external\M'), false) into v_src
+    from (select unnest(string_to_array(p.prosrc, E'\n')) as l from pg_proc p
+           where p.oid = 'public._club_session_member(uuid,uuid)'::regprocedure) s
+    where btrim(s.l) not like '--%';
+    if v_src then v_bad := v_bad || ' 헬퍼 실행부가 custodian_external을 참조한다'; end if;
+    if v_bad = '' then call _pass('srp','S9 an external custodian is a STRING, not an identity — a real authorized_person transfer lands custodian_external as free text beside a profile-backed custodian_profile_id, and a profile whose NAME is exactly that string reads 0 from all four tables. ⓐ records the state the product can actually reach and it is ENDED (every route into the external branch leaves the booking incident_review or completed), so ⓑ is over-determined and says so; ⓒ is the arm that carries the claim — the shipped predicate has no reference to custodian_external on any EXECUTABLE line (comments stripped, word-anchored so custodian_profile_id is not miscounted), so the string cannot admit anyone in any state, including one no RPC can reach yet');
+    else v_msg := v_bad; call _fail('srp','S9 외부 커스터디언 문자열', v_msg); end if;
+  exception when others then
+    reset role; perform set_config('request.jwt.claim.sub', '', true);
+    call _fail('srp','S9 외부 커스터디언 문자열', sqlerrm);
+  end;
+
+  perform set_config('request.jwt.claim.sub', '', false);
 end $$;
 
 -- ═══ standing guards — schema-wide, outside the fixture block ═══
