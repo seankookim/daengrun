@@ -64,7 +64,15 @@
 --        `[pcg] G1` (a pre-existing anon whitelist sweep neither round wrote) reds independently.
 --   P-D  an explicit `grant execute … to anon` on the helper:  the APPLY ABORTS at 0131 D.
 --
---   Clean at the time of writing: **1050/0**. ⚠ That figure is a measurement of a moving corpus,
+--   P-E  the helper made `security invoker` — THE PRECONDITION, never mutated before round 5:
+--        the APPLY ABORTS at 0131 D. With D's arm also removed: **1054/1, `0131-G4` alone.**
+--        ⚠ Added after ui6 found the same shape in their own work — a battery that attacks only
+--        what a guard DOES will always miss what the guard READS. Honest scope: losing DEFINER
+--        here fails CLOSED (an INVOKER helper reads the very tables it gates), so this is
+--        availability, not disclosure — pinned anyway, because a standing guard should not depend
+--        on which direction a future breakage happens to fall.
+--
+--   Clean at the time of writing: **1055/0**. ⚠ That figure is a measurement of a moving corpus,
 --   not a property of this slice — three sessions land pins hourly. Re-measure; do not cite it.
 --
 -- R1's caller citation: `api.ts` **fetchStampStats** — cite the FUNCTION, never a line number.

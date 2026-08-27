@@ -232,6 +232,25 @@ with the positive checks (`usage limit`, `trusted directory`) and the three-stat
 ⚠ And **re-freeze the export before each round**: an export that predates your own landings is
 reviewing a tree that is not trunk — the staleness problem wearing a freeze's costume.
 
+🔴 **MUTATE THE GUARD'S PRECONDITION, NOT ONLY WHAT THE GUARD DOES** (ui6, 2026-08-27, found by
+a cold reader in code ui6 had written that day and described as closed — then reproduced by the
+announcer in 0131 within the hour by applying it). Their battery mutated a refusal BRANCH and
+never the **lock that makes the branch's input observable**: removing `if v_busy` reddens the pin;
+removing the `for update` that makes `v_busy` true does not. **A battery that only attacks the
+branch will always miss the lock** — and the lock was the thing they had written three paragraphs
+arguing was load-bearing.
+**The same shape, found immediately in 0131 by asking the question of my own battery:** every pin
+in `164` attacked the helper's ARMS (its predicate). The facts that make those arms mean anything
+— `prosecdef`, the in-body `search_path`, the ACL — were checked ONLY by the migration's VERIFY
+block. **A property checked at apply and never pinned is protected exactly until someone recreates
+the function.** New standing pin `0131-G4` covers the helper's own shape; measured: planting
+`security invoker` aborts the apply at VERIFY (so that plant measures the VERIFY, not the suite),
+and the same plant WITH the VERIFY arm removed reddens `0131-G4` alone.
+**The practical question to ask of any battery:** list what the guard READS, not only what it
+DOES, and mutate each of those. Locks, `prosecdef`, `relrowsecurity`, an ACL, a trigger's
+`tgenabled`, a manifest registration — every one is a precondition whose removal silently disarms
+a guard that still looks present.
+
 🔴 **A MUTATION THAT REDDENS NOTHING HAS TWO VERY DIFFERENT CAUSES — AND THE HONEST WORK IS
 TELLING THEM APART** (agent + ui6, 2026-08-27; ui6's phrasing, because it is the clearest anyone
 has managed). Either **the pin is blind**, or **the property is not separately observable through
