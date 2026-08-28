@@ -313,8 +313,13 @@ begin
   select count(*) into v_n from pg_policies
     where schemaname='realtime' and tablename='messages' and policyname in ('run channel read','run channel write');
   if v_n <> 2 then v_bad := v_bad || ' 0103의 정책 2개가 온전하지 않다=' || v_n; end if;
+  -- [0156, 2026-08-28] 3 → 5. `pack channel read` + `pack channel write` landed for Sean's public
+  -- pack map. This pin's PROPERTY is 「아무도 몰래 정책을 하나 더 달지 못한다」, and that property is
+  -- unchanged — only the number it counts moved, because a slice deliberately added two and said so.
+  -- The two new policies are owned by 187 `0156-W1`/`0156-W2`, which assert their cmd, their role
+  -- lists and their topic guards; this arm only owns the TOTAL, so a sixth policy still reddens here.
   select count(*) into v_n from pg_policies where schemaname='realtime' and tablename='messages';
-  if v_n <> 3 then v_bad := v_bad || ' realtime.messages 정책 수가 3이 아니다=' || v_n; end if;
+  if v_n <> 5 then v_bad := v_bad || ' realtime.messages 정책 수가 5가 아니다=' || v_n; end if;
   if not (select p.prosecdef from pg_proc p where p.proname='channel_allowed')
     then v_bad := v_bad || ' channel_allowed가 definer가 아니다'; end if;
   if (select coalesce(array_to_string(p.proconfig,','),'') from pg_proc p where p.proname='channel_allowed') not like '%pg_temp%'
@@ -327,8 +332,17 @@ begin
     then v_bad := v_bad || ' anon이 channel_allowed를 실행할 수 있다'; end if;
   if has_function_privilege('authenticated','channel_allowed(text,uuid,text)','execute')
     then v_bad := v_bad || ' authenticated가 임의 uid로 channel_allowed를 실행할 수 있다(당사자 프로브)'; end if;
-  if has_function_privilege('anon','my_channel_allowed(text,text)','execute')
-    then v_bad := v_bad || ' anon이 my_channel_allowed를 실행할 수 있다'; end if;
+  -- [0156, 2026-08-28] INVERTED, by ruling, and this is the sharper of the two edits.
+  -- 0108 asserted 「anon이 my_channel_allowed를 실행할 수 없다」. That was correct while every family
+  -- needed an identity: an anon caller has `auth.uid()` NULL, so the grant bought nothing and its
+  -- absence cost nothing. 0156 adds `pack-<session>`, whose READ is PUBLIC by Sean's ruling
+  -- (2026-08-28 「total public」), so the anon path must reach the predicate — the grant is now
+  -- LOAD-BEARING and its absence is the feature being dead. Asserting the grant's PRESENCE here
+  -- keeps this arm two-sided rather than deleting it: revoking anon reddens 143 W1 and 187 0156-E2.
+  -- ⚠ What anon can learn through it is still exactly one boolean per session id (「is this map
+  --   live」); every other family denies on the NULL uid, which 187 `0156-W3` pins arm by arm.
+  if not has_function_privilege('anon','my_channel_allowed(text,text)','execute')
+    then v_bad := v_bad || ' anon이 my_channel_allowed를 실행 못 한다(0156 공개 팩 지도가 죽는다)'; end if;
   if not has_function_privilege('authenticated','my_channel_allowed(text,text)','execute')
     then v_bad := v_bad || ' authenticated가 my_channel_allowed를 실행 못 한다(정책이 죽는다)'; end if;
   -- F1: 0103's own predicate was a party/liveness oracle for any logged-in user; 0108 closes it.
@@ -341,7 +355,7 @@ begin
     where schemaname='realtime' and tablename='messages' and policyname in ('run channel read','run channel write')
       and (coalesce(qual,'') || coalesce(with_check,'')) like '%my_channel_allowed%';
   if v_n <> 2 then v_bad := v_bad || ' 0103 정책이 래퍼(my_channel_allowed)를 거치지 않는다=' || v_n; end if;
-  if v_bad = '' then call _pass('rtpc','W1 배선 — party channel read(SELECT/authenticated) 1개 + 0103의 2개 재정의(래퍼 경유), 술어 definer·search_path·grant 봉인, run_channel_allowed 오라클 폐쇄');
+  if v_bad = '' then call _pass('rtpc','W1 배선 — party channel read(SELECT/authenticated) 1개 + 0103의 2개 재정의(래퍼 경유) + 0156의 pack 2개(총 5), 술어 definer·search_path·임의 uid 봉인, my_channel_allowed는 anon에게 열려 있다(0156 공개 읽기), run_channel_allowed 오라클 폐쇄');
   else v_msg := v_bad; call _fail('rtpc','W1 배선', v_msg); end if;
 
   -- ---------- [W2] the probe is closed AT THE ROLE, and the uid-fixed form answers for the caller ----------
