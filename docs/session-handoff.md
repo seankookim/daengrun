@@ -326,7 +326,7 @@ module, so the suite says nothing about this screen either way. Gates that DID m
 `check-rpc-contracts` 118 → **120**, exactly the two new calls — a positive control that the
 checker saw the code rather than passing by not looking.
 
-## 🔴 NEW 2026-08-28 — a LIVE disclosure, confirmed on production, needs one line to close
+## ✅ CLOSED 2026-08-28 — the live board disclosure (was: needs one line). `0153` DEPLOYED
 
 `0147` grants `authenticated` direct EXECUTE on the INNER board function, and that function
 **trusts a caller-supplied access grade instead of deriving it**. Found cold by codex; then
@@ -348,6 +348,21 @@ re-identifying profile IDs, money state and incident references for a stranger's
 
 **Fix is one line:** `revoke execute on function _club_delegation_board_impl(uuid, text) from
 authenticated;`
+
+✅ **DONE — `0153_board_impl_not_for_clients.sql`, deployed and verified TWO-SIDED on production.**
+Live catalog after: `authenticated` EXECUTE on the impl **false** · `anon` false · `service_role`
+**true** · outer `club_delegation_board` still **true**. 🔴 **The exploit, re-run verbatim, now
+returns `42501: permission denied`** where an hour earlier it returned 1 dog / 2,185 B; the control
+confirms the legitimate door still opens. Harness **1086/0** (+5 = exactly the pins added — the
+positive control that suite 184 RAN rather than being skipped from the manifest). Mutation battery,
+4 arms, each `&&`-chained to its plant so an unlanded plant yields no row: revoke removed →
+**APPLY ABORTS**; revoke removed + VERIFY removed → **B1 red alone**; over-reach (service_role also
+revoked) → **B3 red alone**; control → **1086/0 clean**. B1 is blind to over-reach and B3 to
+under-revoke, so they are two genuine controls, not one printed twice.
+⚠ **B2 (anon) does NOT redden under the plant, and that is honest rather than a gap** — `anon` was
+already revoked by `0147:189`, so B2 pins a property 0147 holds, not one 0153 establishes.
+⚠ **NO CODEX PASS. codex was quota-walled until 14:33. This slice is NOT reviewed and nobody may
+say it is.** It is owed one.
 
 ⚠ **My first attempt at this proof measured NOTHING and read as reassuring** — run against the
 first session id in the table, both grades returned identical digests, because that session has 0
@@ -371,6 +386,51 @@ NOT — that rung is a read, not a measurement.
   `actual_km` = **0 of 8**, so this is schema-reachable but **not observable today**. ⚠ One
   transition away: 1 of 9 runs has NULL km AND NULL duration (the `incident` run sitting in
   `incident_review`).
+
+## 2026-08-28 — a third capability that is NOT a client-only slice, and a live product dead end
+
+`session_reconsider_dog` was scouted and **deliberately not built.** The contract was read from
+deployed `pg_proc`: host-only (`not_host` party gate), requires `approval='rejected'`, session
+`open`/`full` and not past, and returns a NEW pending `session_dogs` row (the rejected row is never
+mutated).
+
+🔴 **The blocker is that the only party allowed to call it cannot SEE the rows it operates on.**
+`_club_delegation_board_impl` admits rejected rows only through an **owner-only** arm
+(`d.owner_profile_id = auth.uid() and d.approval in ('rejected','withdrawn')`), and
+`club_session_board` excludes them for everyone. **Measured with a discriminating control** on the
+production session holding the one real rejected dog, at the maximum grade: `auth.uid()` = the dog's
+owner → **1 dog**; `auth.uid()` = a different profile → **0 dogs**. ⚠ That session's host IS its
+owner, so the naive read proves nothing — the non-owner arm is the measurement that decides it.
+
+🔴 **AND THE PRODUCT HAS A LIVE DEAD END THAT THIS RPC EXISTS TO CLOSE.** Deployed
+`session_delegate_dog` refuses re-application after a `host_rejected` attempt, and
+`club/delegate/[sid].tsx:104` renders that as **「이 세션에서 거절된 신청이 있어요 — 호스트에게
+문의해주세요」**, while `club/session/[sid].tsx:1116-1119` deliberately draws no re-apply door
+because the remedy is the host's. **The host's remedy is unbuilt.** The app tells an owner to go ask
+the host, and the host has no button — **a mis-tap on 거절 is permanent for that dog in that
+session.**
+
+**It belongs on `club/console/[sid].tsx`** (b6's, exclusive) — beside the existing `pending` /
+`review` filters, as one sibling section. Flagged, not taken. Whoever owns the console needs: a
+rejected-rows source (a host CAN read them by direct table select today — `authenticated` holds
+SELECT and `_club_session_member`'s arm ⓐ is the host; the cleaner fix is widening the board's
+rejected arm, which is a server slice), an error map for `not_rejected`/`session_closed`/`not_host`/
+`not_found`, and copy that promises only 심사 대기 — **not** a seat, since `session_approve_dog` can
+still fail `no_capacity`.
+
+⚠ **Two more facts worth carrying.** (a) `club_flags.club_delegation_v2` is **`enabled: false`** on
+production, so this RPC and the whole v2 surface raise `feature_disabled` for anyone outside
+`club_test_accounts` — whether that is intentional-for-now or a stale flag is a product question
+nobody has answered. (b) The RPC is **not idempotent**: it never clears the old row's `rejected`, so
+a second call passes all five gates and inserts a second active `(session_id, dog_id)`, violating
+`session_dogs_active_uni` with a raw `23505` no error map would translate. ⚠ Deductive from two
+observed facts, **not executed** — no write was made to production.
+
+**Running total: three of the eight 「server-complete, client-only」 capabilities are not that.**
+`km_claim_welcome` (no km wallet exists at all), `runner_work_gate` (already delivered via the edge
+function's 409), and now `session_reconsider_dog` (the caller cannot see its own rows). The list was
+derived from grants, which is the right method — but **a grant with no caller is not by itself a
+missing capability**, and that distinction has now cost three scouts to learn.
 
 ## Unreviewed
 
