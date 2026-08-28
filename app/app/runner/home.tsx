@@ -846,7 +846,7 @@ export default function RunnerHome() {
                       [2026-08-25] 카운트다운이 위로 올라가면 시계는 여기로 내려온다 — 사라지지는
                       않는다. 러너는 보호자에게 시각을 **말로** 해야 하고, 「5시간 뒤」로는 못 한다
                       (진행 중 티켓이 같은 이유로 시계를 남기는 것과 같은 결정). */}
-                  <Text style={styles.objClock}>
+                  <Text style={[styles.objClock, styles.objClockInk]}>
                     {frontAhead ? `${inbox[0].when} · ` : ''}시작 시각이 지나면 자동 만료돼요
                   </Text>
                   {/* [A② 2026-08-24] 얼굴. `photoUrl`은 요청마다 이미 실려 오고(api.ts OpenRequest)
@@ -1111,7 +1111,12 @@ export default function RunnerHome() {
               return <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim }}>등급을 불러오는 중이에요…</Text>;
             }
             if (rsErr) {
-              return <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim }}>등급을 불러오지 못했어요</Text>;
+              // [dim-text judgment 2026-08-28] a failure is drawn in the failure grammar —
+              // paper.critical/700. The loading line directly above (「등급을 불러오는 중이에요…」)
+              // stays dim on purpose: a customer may skip it. This same file already draws the
+              // equivalent failures this way at :977/:990 (emptyInboxFail) and at :1251; this one
+              // site was the outlier, sitting at 4.24:1.
+              return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>등급을 불러오지 못했어요</Text>;
             }
             if (preCert) {
               return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>인증 러너가 되면 등급이 시작돼요</Text>;
@@ -1523,7 +1528,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
   togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤/크리티컬)
-  togSub: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
+  // [dim-text judgment 2026-08-28] lilac.dim -> lilac.text. This is not the toggle's decoration —
+  // it is the ONLY sentence on the screen that says what the toggle actually does, and the measured
+  // comment at :597-605 records why: runners misread what 오프라인 meant, so the sentence was
+  // corrected. A customer cannot skip it, and lilac.dim is 4.24:1 on the white canvas — under the
+  // body floor (theme.ts:79-86). The token itself is reserved for Sean, so this is painted AT THE
+  // SITE: lilac.text is 8.85:1 and is already this repo's body ink for the lilac world
+  // (community.tsx, cards.tsx, alerts.tsx). This style has exactly one user (:606), so moving the
+  // recipe IS the per-site fix — no other site inherits it.
+  togSub: { fontSize: 15, lineHeight: 20, color: lilac.text, marginTop: 2 },
   // 상태 로드 실패의 재시도 — 아래 recFail과 같은 문법 (크리티컬 잉크 + 밑줄, ≥44pt 타깃)
   togRetry: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   togRetryTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
@@ -1574,6 +1587,14 @@ const styles = StyleSheet.create({
   // A — the demoted clock. 15pt keeps the detail floor (raised from 14 on 2026-08-25); it is a
   // supporting fact, not a datum.
   objClock: { marginTop: 3, fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.dim },
+  // [dim-text judgment 2026-08-28] objClock is a SHARED recipe and the two users are different
+  // kinds of text: :720 is the in-progress ticket's demoted clock (a supporting fact — correctly
+  // dim), while :849 rides the same type for 「시작 시각이 지나면 자동 만료돼요」, a CONSEQUENCE the
+  // runner must read. Repainting the recipe would promote :720 too, so this is a per-site modifier
+  // in the same grammar as emptyInboxFail/emptyInboxLead. Size, weight and margin are untouched —
+  // the hierarchy survives, only legibility changes. NOT paper.critical: expiry is a rule, not a
+  // failure, and loud-fail grammar would render a rule as an error.
+  objClockInk: { color: lilac.text },
   // D — road name quiet, 동·호수 loud. The bold half is the half that finds the door.
   objAddr: { marginTop: 3, fontSize: 15, lineHeight: 20, color: lilac.dim },
   objDetail: { marginTop: 1, fontSize: 15, lineHeight: 19, fontWeight: '800', color: lilac.head },
@@ -1659,7 +1680,13 @@ const styles = StyleSheet.create({
   sumAct: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   sumActTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
   // 닫는 문장은 좌측 정렬 — 두 줄로 접히는 문장을 가운데 정렬하면 읽는 눈이 매 줄 시작점을 다시 찾는다.
-  emptyInboxNote: { marginTop: 11, fontSize: 15, lineHeight: 21, color: lilac.dim },
+  // [dim-text judgment 2026-08-28] lilac.dim -> lilac.text. emptyInboxHead above states THAT the
+  // inbox is empty; this line states WHY, and what online does and does not change. Not a repeat of
+  // the head and not a duplicate of the toggle's own sentence — it is the only place this screen
+  // states the relationship, and the JSX comment above it records the fact as measured (the open
+  // pool does not read `online`). The runner's next action — whether to flip the toggle — turns on
+  // it, so it is not skippable. Single user (:1028), so the recipe move is the per-site fix.
+  emptyInboxNote: { marginTop: 11, fontSize: 15, lineHeight: 21, color: lilac.text },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },
