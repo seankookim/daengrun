@@ -1926,6 +1926,82 @@ export async function updateMyProfile(p: { name?: string; district?: string }): 
   if (error) throw error;
 }
 
+// ---------- 연락처 (0133 서버 · 0154 스위치) ----------
+//
+// Sean 2026-08-28, verbatim: 「guest is a member and needs a phone number enter thing.」 강아지 없이
+// 클럽 산책에 오는 사람도 **멤버**이고(그래서 호스트에게 번호가 보이고), 번호를 넣을 자리가 있어야
+// 한다는 확정이다. 그 자리가 `app/settings.tsx`의 연락처 섹션이고, 이 세 함수가 그 배선이다.
+//
+// 🔴 왜 온보딩이 아니라 설정인가 — 이건 범위 판단이지 편의가 아니다. 계약 §3이 정한 **가입 시점**
+//   수집 지점은 `onboard/owner.tsx` / `onboard/runner.tsx`이고, 그 둘을 건드리는 것이 곧
+//   「전원에게 수집을 켠다」이다. 그건 변호사 검토(계약 §8, `docs/legal/counsel-email.md` — 아직
+//   발송 전)가 게이트다. 설정의 자율 입력은 그와 다른 문이다: 사용자가 스스로 찾아와 스스로 넣는
+//   자리이고, 게스트가 실제로 닿을 수 있는 유일한 화면이며(역할과 무관하게 마이 › 설정), §10 ④
+//   「Editable, but never blank」가 요구하는 **바로 그 화면**이다.
+//
+// 🔴 그리고 그 문조차 서버 플래그 뒤에 있다. `phone_collection_live()`가 false면 화면은 섹션을
+//   아예 그리지 않고, 설령 그린다 해도 `set_my_phone`이 `phone_collection_closed`로 거절한다
+//   (0154 §C). 클라이언트만의 게이트는 게이트가 아니라는 것이 이 저장소의 법이다 —
+//   0138 §D의 문장이 그대로 적용된다: 「a modified client is not bound by either. This column is.」
+
+/** [0154 §B] 서버가 연락처 수집을 열었는가. 실패는 **false**로 읽는다 — 못 읽었을 때 문을 그리면
+ *  그 문이 죽어 있을 수 있고(죽은 버튼 법), 더 나쁘게는 아직 0154가 안 올라간 서버에 붙은 빌드가
+ *  모든 사용자의 설정 화면에 영구히 깨진 줄을 하나 만든다 (0123의 MAJOR-4가 정확히 이 실수였다).
+ *  못 읽음 = 닫힘 = 침묵. */
+export async function phoneCollectionLive(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('phone_collection_live');
+  if (error) return false;
+  return data === true;
+}
+
+/** [0154 §D] 내 번호를 되읽는다. `authenticated`에게는 `profiles.phone` SELECT 그랜트가 아예 없어서
+ *  (0088:135 · 0091:180) definer를 거치는 것 말고는 방법이 없다.
+ *  🔴 이 함수가 없으면 **이미 번호가 있는 사람에게 빈 칸을 보여주게 된다** — 그건 빈 값이 아니라
+ *  자기 데이터에 대한 지어낸 주장이고, 로딩을 0으로 그리는 것과 같은 종류의 거짓말이다.
+ *  반환 null = 「로그인됨 · 행 있음 · 번호 없음」 하나만 뜻한다. 미로그인·툼스톤은 **throw**한다
+ *  (서버가 not_signed_in / no_profile 로 구분해서 던진다) — 세 상태가 한 값으로 뭉개지면 탈퇴한
+ *  계정에게 「번호를 등록해 주세요」라고 말하게 된다. */
+export async function fetchMyPhone(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('my_phone');
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/** [0133 §B · 0154 §C] 내 번호를 저장한다. 서버가 정규화하므로 사람이 친 그대로 보낸다
+ *  (하이픈·공백·+82 전부 받는다). 실패는 전부 throw — void 반환은 「저장했다」와 「아무것도 안 했다」를
+ *  구분해 말할 수 없기 때문에 서버가 raise 하도록 설계돼 있고, 화면은 그걸 문장으로 바꿔야 한다
+ *  (`phoneErrorMessage`). */
+export async function setMyPhone(phone: string): Promise<void> {
+  const { error } = await supabase.rpc('set_my_phone', { p_phone: phone });
+  if (error) throw error;
+}
+
+/** 서버 토큰 → 사람의 문장. 토큰마다 **다른** 말을 하는 것이 요점이다.
+ *  ⚠ `phone_collection_closed`와 `invalid_phone`을 한 문장으로 합치면, 멀쩡한 번호를 친 사람에게
+ *    「번호가 올바르지 않아요」라고 말하게 된다 — 우리 롤아웃에 대한 사실을 그 사람의 데이터에 대한
+ *    거짓으로 바꿔치기하는 것이다. 0154 §C가 게이트를 형식 검사보다 **앞에** 둔 이유가 이것이고,
+ *    185의 0154-G2가 토큰 자체를 핀으로 잡는 이유도 이것이다.
+ *  ⚠ 모르는 오류는 삼키지 않는다 — 원문을 붙여서 보여준다. 조용히 「알 수 없는 오류」로 접으면
+ *    화면은 정직해 보이지만 아무도 원인을 못 찾는다. */
+export function phoneErrorMessage(e: unknown): string {
+  const raw = (e as { message?: string } | null)?.message ?? String(e ?? '');
+  if (raw.includes('phone_collection_closed')) return '지금은 연락처를 등록할 수 없어요';
+  if (raw.includes('invalid_phone')) return '휴대폰 번호를 다시 확인해 주세요 (010으로 시작하는 번호)';
+  if (raw.includes('no_profile')) return '프로필을 찾지 못했어요';
+  if (raw.includes('not_signed_in')) return '로그인이 필요해요';
+  return `저장하지 못했어요 — ${raw}`;
+}
+
+/** 표시용 하이픈. 서버는 숫자만 저장하고(0133 §A의 CHECK), 화면은 읽기 좋게 끊어 보여준다.
+ *  ⚠ 모르는 모양은 **건드리지 않고 그대로** 돌려준다. 저장된 값은 반드시 CHECK를 통과한 10~11자리
+ *    이지만, 여기서 억지로 끼워 맞추면 언젠가 서버가 다른 모양을 허용했을 때 화면이 조용히 잘못된
+ *    번호를 그린다. 모르면 원문이 정답이다. */
+export function formatPhone(digits: string): string {
+  if (/^01[0-9]{9}$/.test(digits)) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (/^01[0-9]{8}$/.test(digits)) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return digits;
+}
+
 // ---------- 공개 프로필 신원 (인스타식 프로필 화면의 머리) ----------
 // `fetchRunnerProfile`은 `runners` 행에서 출발하므로 **러너가 아닌 사람은 아예 못 읽는다**. 프로필
 // 화면은 이제 러너 스토어프런트보다 넓은 것을 그려야 해서(Sean 2026-08-27 「like instagram」),
@@ -3625,8 +3701,21 @@ export interface Addr {
 // ── 프로필 빈칸 (ruling #3, Sean 선택 ②) ──────────────────────────────────────
 // 무엇을 묻는지가 이 기능의 전부다. 세 칸만 묻고, 셋 다 **러너가 실제로 보는 화면**에 나타난다:
 // 사진 → 러너 티켓 · 백신 → 인계 화면 · 현관 상세 → 티켓 주소. 그래서 넛지가 스팸이 아니다.
-// ⚠ 연락처는 묻지 않는다. profiles.phone 은 전원 NULL 이고 읽는 화면이 없다 — 받아두기만 하는
-// 필드를 묻는 건 넛지가 아니라 수집이고, §12 가 전화 버튼을 거부한 것과 같은 이유다.
+// ⚠ 연락처는 **이 넛지에서는** 여전히 묻지 않는다 — 그런데 이유가 바뀌었으므로, 지우지 않고 고쳐
+// 쓴다 (계약 §0). 지워버린 반대 의견은 아무것도 가르치지 않는다.
+//
+// 원래 문장은 이랬다: 「profiles.phone 은 전원 NULL 이고 읽는 화면이 없다 — 받아두기만 하는 필드를
+// 묻는 건 넛지가 아니라 수집이고, §12 가 전화 버튼을 거부한 것과 같은 이유다.」 그 거절의 근거는
+// **「읽는 화면이 없다」** 였고, 그 조건은 이제 거짓이다: 0049 의 `_club_phone_visible` 이 누가 누구
+// 번호를 보는지 정하고, 세션 셸이 `tel:` 칩으로 그리고, 0133 이 쓰기 경로를, 0154 가 스위치를 놨다.
+// Sean 이 목적(안전·연락)을 이름 붙였고, 2026-08-28 에 「guest is a member and needs a phone number
+// enter thing.」 으로 게스트까지 확정했다.
+//
+// 그래도 이 목록에는 안 들어간다. 여기 세 칸은 **러너가 실제로 보는 화면에 나타나는 것**만 묻는다는
+// 규칙이고, 연락처는 그 규칙이 아니라 다른 규칙(계약 §3 의 가입 시점 수집 · §8 의 변호사 게이트)에
+// 속한다. 연락처의 자리는 마이 › 설정의 연락처 섹션이고, 그 문 자체가 서버 플래그
+// (`phone_collection_live()`) 뒤에 있다. 이 줄을 「이제 물어도 된다」로 읽고 여기에 칸을 하나 더
+// 붙이면, 그건 계약 §8 이 막고 있는 **전원 수집**을 우회로로 켜는 것이 된다.
 export type ProfileGap = 'photo' | 'vaccines' | 'doorDetail';
 
 export async function fetchProfileGaps(): Promise<ProfileGap[]> {
