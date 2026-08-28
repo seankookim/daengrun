@@ -974,20 +974,20 @@ export default function RunnerHome() {
             {!rsLoaded ? (
               <Text style={styles.emptyInboxTxt}>내 러너 상태를 불러오는 중이에요…</Text>
             ) : rsErr ? (
-              <Text style={styles.emptyInboxTxt}>내 러너 상태를 불러오지 못했어요</Text>
+              <Text style={[styles.emptyInboxTxt, styles.emptyInboxFail]}>내 러너 상태를 불러오지 못했어요</Text>
             ) : preCert ? (
               <Pressable
                 onPress={() => router.push('/runner/apply')}
                 accessibilityRole="button"
                 accessibilityLabel="인증 센터로 이동해 러너 지원하기"
               >
-                <Text style={styles.emptyInboxTxt}>인증 전에는 요청이 오지 않아요</Text>
+                <Text style={[styles.emptyInboxTxt, styles.emptyInboxLead]}>인증 전에는 요청이 오지 않아요</Text>
                 <Text style={styles.emptyInboxLink}>인증 센터에서 지원할 수 있어요 ›</Text>
               </Pressable>
             ) : inboxErr ? (
               // [honesty 2026-08-11] a failed inbox fetch is not a quiet day — say so, offer retry
               <Pressable onPress={loadInbox} accessibilityRole="button" accessibilityLabel="요청 인박스 다시 불러오기">
-                <Text style={styles.emptyInboxTxt}>요청을 불러오지 못했어요</Text>
+                <Text style={[styles.emptyInboxTxt, styles.emptyInboxFail]}>요청을 불러오지 못했어요</Text>
                 <Text style={styles.emptyInboxLink}>다시 시도 ›</Text>
               </Pressable>
             ) : !inboxLoaded ? (
@@ -1632,6 +1632,18 @@ const styles = StyleSheet.create({
   stubViewTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
   emptyInboxTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim, textAlign: 'center' },
+  // emptyInboxTxt는 로딩·실패·게이트 문장 세 가지를 한 레시피로 그린다. 로딩이 조용한 것은 옳지만
+  // (「불러오는 중」은 건너뛰어도 되는 말이다) 나머지 둘은 아니었다. 토큰을 건드리지 않고 자리마다
+  // 덧칠한다 — lilac.dim은 4.24:1로 본문 플로어 아래이고, 그 토큰 자체는 Sean에게 예약돼 있다
+  // (theme.ts:86). 두 덧칠 모두 이 저장소가 이미 쓰는 문법을 그대로 가져온 것이고, 발명이 아니다.
+  //
+  // 실패: 같은 파일 :1251이 「러닝 가능 시간을 불러오지 못했어요」를 이미 paper.critical/700으로
+  // 그린다. 한 화면에서 한쪽 실패는 라우드-페일이고 다른 쪽은 4.24:1이었다.
+  emptyInboxFail: { color: paper.critical, fontWeight: '700' },
+  // 게이트 문장: runner/requests.tsx:771이 **똑같은 문장**을 16/800/paper.ink로 그린다. 같은 말이
+  // 한 화면에선 헤드라인이고 다른 화면에선 거의 안 보였다 — 인증 전 러너가 빈 인박스를 보고
+  // '왜 아무것도 없지'에 답하는 유일한 문장이라 읽히지 않으면 화면이 이유를 말하지 않은 것이다.
+  emptyInboxLead: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
   emptyInboxLink: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk, textAlign: 'center', marginTop: 5 },
   // [A① 2026-08-24] 조용한 날의 두 줄 요약. 랩의 .sumrow 문법 그대로: 라벨 고정 열 · 값 우측 정렬 ·
   // 문은 행 끝. 이 상태의 코랄 수는 **0개**이고 그건 합법이다 (requests.tsx R2c 선례) — 누를 것이

@@ -1134,7 +1134,12 @@ export default function Request() {
             ) : routesState === 'error' ? (
               <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오지 못했어요 — 위에서 다시 시도할 수 있어요</Text>
             ) : routes.length === 0 ? (
-              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
+              // ⚠ 바로 위 error 가지는 딤으로 남긴다 — :915의 routeFailStrip이 같은 실패와 같은
+              // 결과를 이미 크게 말하고 재시도까지 준다 (:1130 주석이 기록한 그대로). 그건 의도된
+              // 위계다. 이 가지는 다르다: strip은 `routesState === 'error'`에만 걸리므로 **진짜
+              // 0건**은 덮지 않고, 상단 넛지(:725)는 「코스가 없어요」까지만 말하고 「이대로 예약하면
+              // 코스 없이 접수돼요」라는 결과는 말하지 않는다. 진행의 결과를 말하는 유일한 줄이다.
+              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0, color: paper.text }]}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
             ) : (
               <>
                 {/* 제약 칩 — '정보가 아직 없는 코스 N개는 빠졌어요' 정직 줄이 이 컴포넌트 안에 산다 */}
@@ -1271,7 +1276,15 @@ export default function Request() {
                   tonight can read "no fee" and be charged 10% an hour later; that path is open
                   today. Replaced with the same fact, stated with its condition (matches the
                   ladder copy in schedule.tsx). */}
-              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 20 }}>
+              {/* [dim-text pass 2026-08-28] 이 문장은 paper.dim(#666, 5.74:1)이었다 — 대비는
+                  통과하므로 이건 대비 결함이 아니라 **위계** 결함이다. 그래서 critical이 아니라
+                  paper.text(12.6:1)로 올린다: 오류가 아니라 '약관'이고, 라우드 페일 문법을 빌리면
+                  실패처럼 읽힌다.
+                  왜 건너뛸 수 없는 문장인가는 바로 위 주석이 이미 기록하고 있다 — 2026-08-20까지
+                  이 자리는 「취소 수수료 없음」이라고 잘못 말했고, 그건 이 화면에서 실제로 일어난
+                  정확성 사고였다. 사고가 날 만큼 중요한 문장이 그 뒤로도 읽히지 않는 색으로
+                  남아 있었다. 구매 시점에 요금 조건을 말하는 유일한 줄이다. */}
+              <Text style={{ fontSize: 15, color: paper.text, marginTop: 8, lineHeight: 20 }}>
                 시작 24시간 전까지는 취소 수수료가 없어요 — 이후에는{' '}
                 {Math.round(cancelPolicy.feeRate * 100)}%, 러너가 이동을 시작한 뒤에는{' '}
                 {Math.round(cancelPolicy.enrouteFeeRate * 100)}%가 붙어요.
