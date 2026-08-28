@@ -51,6 +51,7 @@ declare
   v_party boolean; v_host boolean; v_owner boolean;   -- S9: 세 판정
   v_freeze boolean; v_prot boolean; v_live boolean;
   v_ins boolean; v_upd boolean; v_legit boolean;
+  v_txt text;                            -- [0156] S1: 이름을 보고하기 위해 (개수만으로는 무엇이 열렸는지 모른다)
   v_t timestamptz := timestamptz '2026-10-01 10:00:00+09';   -- now() 무관 고정 시각 (97/98과 구간 분리)
 begin
   -- ---------- 시드 ----------
@@ -71,13 +72,35 @@ begin
   -- 이후 어떤 마이그레이션이 definer 함수를 anon에 재노출하면(create시 PUBLIC 기본 grant를 안 지우면)
   -- POST /rest/v1/rpc/<fn> 가 앱 번들의 공개 anon 키 소지자에게 그 함수를 다시 연다 — 여기서 터진다.
   begin
-    select count(*) into v_n
+    -- 🔴 [0156, 2026-08-28] TWO NAMED EXCEPTIONS, and the pin got STRONGER rather than weaker.
+    -- Sean ruled the club pack map public (「everyone should see everyone else on the map … total
+    -- public」, `docs/decisions/2026-08-28-sean-rulings.md`), and a public map needs a definer an
+    -- anonymous client can call: `club_pack_map_roster(uuid)` (the ruled surface) and
+    -- `my_channel_allowed(text,text)` (the realtime read predicate an anon subscriber must reach).
+    -- The SAME two names, with the same reasons, are in 98 H9's allowlist — read that block, it
+    -- carries the full argument and names who owns each function's contents now that this sweep
+    -- does not (187 `0156-M3` for the roster's key set, `0156-W3` for the wrapper's blast radius).
+    --
+    -- ⚠ This arm used to be a bare `count = 0`, which H9's own header criticises as reporting a
+    --   COUNT where H9 reports NAMES. Making it a SET assertion fixes that in passing: a third
+    --   anon-executable definer reddens here by name, and an exception that stops being true
+    --   reddens too — so the pin is now two-sided where before it could only fail in one
+    --   direction.
+    select count(*), coalesce(string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text), '')
+      into v_n, v_txt
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute');
+    where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute')
+      and p.oid::regprocedure::text <> all (array[
+        'club_pack_map_roster(uuid)', 'my_channel_allowed(text,text)'   -- 0156, Sean's public map
+      ]::text[]);
+    if not has_function_privilege('anon', 'club_pack_map_roster(uuid)', 'execute')
+      then v_n := v_n + 1; v_txt := v_txt || ' [예외가 죽었다: anon이 club_pack_map_roster를 못 부른다 — 0156 공개 지도가 죽었다]'; end if;
+    if not has_function_privilege('anon', 'my_channel_allowed(text,text)', 'execute')
+      then v_n := v_n + 1; v_txt := v_txt || ' [예외가 죽었다: anon이 my_channel_allowed를 못 부른다]'; end if;
     if v_n = 0
-      then call _pass('sec','S1 anon-execute 봉인 — public security definer 함수 중 anon 실행 가능 0개');
+      then call _pass('sec','S1 anon-execute 봉인 — public security definer 함수 중 anon 실행 가능한 것은 0156이 판결로 연 두 개(club_pack_map_roster · my_channel_allowed)뿐이고, 그 둘은 여전히 열려 있다(양방향)');
     else call _fail('sec','S1 anon-execute 봉인',
-                    'anon 실행 가능 definer 함수 ' || v_n || '개 (0057 §1 sweep 회귀)'); end if;
+                    '예상 밖 anon 실행 가능 definer ' || v_n || '개 (0057 §1 sweep 회귀): ' || left(v_txt, 400)); end if;
   exception when others then call _fail('sec','S1 anon-execute 봉인', sqlerrm);
   end;
 

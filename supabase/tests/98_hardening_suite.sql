@@ -105,13 +105,38 @@ begin
   --   A red H9 and a red S1 are the same finding seen twice. Read S1 for "did it regress", H9 for
   --   "which one". Neither is redundant enough to delete; both being green is one fact, not two.
   --
-  -- THE ALLOWLIST IS EMPTY, AND THAT IS A MEASUREMENT. All 219 `public` definers in the built
-  -- schema on 2026-08-25 were executable by neither PUBLIC nor `anon`; the array below is the
-  -- mechanism for a future justified exception, not a list of current sins. **Do not add a name to
-  -- it to make a red run green.** A red here is a finding. An entry needs a written reason on its
-  -- own line, and "the pin was annoying" is not one. (`anon` is included in the forbidden set
-  -- because an anon-executable definer is the exact shape 0116's note was written about; nothing
-  -- in this schema legitimately needs it today.)
+  -- THE ALLOWLIST WAS EMPTY UNTIL 2026-08-28, AND THAT WAS A MEASUREMENT. All 219 `public`
+  -- definers in the built schema on 2026-08-25 were executable by neither PUBLIC nor `anon`; the
+  -- array below is the mechanism for a justified exception, not a list of current sins. **Do not
+  -- add a name to it to make a red run green.** A red here is a finding. An entry needs a written
+  -- reason on its own line, and "the pin was annoying" is not one. (`anon` is included in the
+  -- forbidden set because an anon-executable definer is the exact shape 0116's note was written
+  -- about.)
+  --
+  -- 🔴 **TWO ENTRIES AS OF 0156 (2026-08-28), AND THEY ARE A RULING, NOT A CONVENIENCE.** Sean,
+  --    verbatim: 「everyone should see everyone else on the map during a club run session with a
+  --    little runner icon. total public; everything that's not their password is public to
+  --    anyone.」 and, on sequencing, 「Build it now anyway」. A public map needs a definer an
+  --    anonymous client can call; there is no shape of this feature that does not.
+  --      · `club_pack_map_roster(uuid)` — the public roster (name + runner/owner role). It is the
+  --        ruled surface itself.
+  --      · `my_channel_allowed(text,text)` — the uid-fixed realtime predicate. `pack-<session>`
+  --        READ is public, so an anonymous subscriber has to reach it. For every other family it
+  --        returns false on the NULL uid.
+  --
+  -- ⚠ **WHAT THIS COSTS, said out loud rather than discovered later: H9 and S1 now watch neither
+  --    function, so a later session that widens `club_pack_map_roster` to return a phone number
+  --    has NO schema-wide guard standing in front of it.** That property is owned by suite 187
+  --    `0156-M3`, which fixes the key set of both the envelope and each person object and greps
+  --    the payload for phone/avatar/booking/coordinates; and the blast radius of the
+  --    `my_channel_allowed` grant is owned by `0156-W3`, which asserts that as `anon` the wrapper
+  --    is true for a live pack topic and FALSE for run2/bk/chat/club-chat. An allowlist entry
+  --    without a named owner elsewhere is a hole; these two have one.
+  --
+  -- ⚠ And the entries are **two-sided**: the arm below the sweep asserts each allowlisted
+  --    function is STILL anon-executable. Without it, revoking the grant would leave the public
+  --    map dead and this suite entirely green — an allowlist that silently becomes dead weight is
+  --    the same false-green shape the header above warns about, one level up.
   begin
     select count(*),
            coalesce(string_agg(p.oid::regprocedure::text || ' [' ||
@@ -122,7 +147,15 @@ begin
     where p.pronamespace = 'public'::regnamespace and p.prosecdef and p.prokind = 'f'
       and (has_function_privilege('public', p.oid, 'execute')
         or has_function_privilege('anon',   p.oid, 'execute'))
-      and p.oid::regprocedure::text <> all (array[]::text[]);   -- ← justified exceptions, with reasons
+      and p.oid::regprocedure::text <> all (array[                -- ← justified exceptions, with reasons
+        'club_pack_map_roster(uuid)',    -- 0156: Sean's public pack map. Owned by 187 0156-M3.
+        'my_channel_allowed(text,text)'  -- 0156: anon must reach the pack read predicate. 187 0156-W3.
+      ]::text[]);
+    -- two-sided: an exception that stops being true is a dead entry, and a dead entry is a hole
+    if not has_function_privilege('anon', 'club_pack_map_roster(uuid)', 'execute')
+      then v_n := v_n + 1; v_bad := v_bad || ' [허용목록이 죽었다: anon이 club_pack_map_roster를 못 부른다 — 0156 공개 지도가 죽었거나 목록이 스스로 낡았다]'; end if;
+    if not has_function_privilege('anon', 'my_channel_allowed(text,text)', 'execute')
+      then v_n := v_n + 1; v_bad := v_bad || ' [허용목록이 죽었다: anon이 my_channel_allowed를 못 부른다]'; end if;
     if v_n = 0
       then call _pass('hard','H9 definer 전수 ACL — public의 security definer 함수 중 PUBLIC이나 anon이 실행할 수 있는 것은 하나도 없다. ⚠ 범위: 이 하네스가 **처음부터 순서대로** 쌓아 만든 스키마의 ACL만 본다. 함수가 이미 있으면 create or replace가 ACL을 보존하므로 이 경로에서는 보존이 항상 성립하고, 따라서 이 핀은 「함수가 없는 DB에 적용될 때」라는 정작 문제인 경로를 구조적으로 볼 수 없다. 그건 마이그레이션 각자의 VERIFY가 닫는다(0127 §D-bis / VERIFY ③-bis가 그 예). 여기서 잡히는 것은 「애초에 잘못된 ACL로 배포된 definer」이고, 그건 그것대로 다른 상시 핀이 없는 실재하는 부류다');
     else call _fail('hard','H9 definer 전수 ACL',
