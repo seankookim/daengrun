@@ -156,6 +156,43 @@ Deno.test("CRON_COLLECT_KEY unset → 503; an unconfigured secret must not authe
   }
 });
 
+// 🔴 [0157 · codex billing #7] The compare is constant-time now (`_shared/cron-auth.ts`), over
+//    SHA-256 digests rather than the raw strings. The TIMING property is not observable from a unit
+//    test and no test here claims it — what these two DO pin is the semantics a digest comparison
+//    could plausibly break: a wrong key of the SAME length as the real one, and a wrong key of a
+//    DIFFERENT length, must both be 401 and must both leave every card untouched. A comparison that
+//    accidentally compared lengths, or truncated, would redden here.
+// ⚠ This endpoint was NOT the site codex cited — `revoke-billing-keys` was. It is fixed and pinned
+//   because it carried the identical `!==` against the SAME `CRON_COLLECT_KEY`, and a finding's
+//   sentence is the property, not the one place the reviewer happened to look.
+Deno.test("🔴 a wrong cron key of the SAME LENGTH as the real one → 401, no charge", async () => {
+  const db = scene();
+  const net = tossOk();
+  const sameLength = "x".repeat(CRON_KEY.length);
+  assertEquals(sameLength.length, CRON_KEY.length);
+  try {
+    const e = await expectHttpError(() => collectCharges(cronReq(sameLength), db as never));
+    assertEquals(e.status, 401);
+    assertEquals(net.calls.length, 0);
+    assertEquals(pay(db).status, "failed");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("🔴 a wrong cron key of a DIFFERENT length → 401, no charge", async () => {
+  const db = scene();
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => collectCharges(cronReq(CRON_KEY + "_and_more"), db as never));
+    assertEquals(e.status, 401);
+    assertEquals(net.calls.length, 0);
+    assertEquals(pay(db).status, "failed");
+  } finally {
+    net.restore();
+  }
+});
+
 Deno.test("the right cron key runs the batch", async () => {
   const db = scene();
   const net = tossOk();

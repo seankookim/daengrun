@@ -21,6 +21,7 @@
 // path still authenticates through `caller()` — the platform gateway is not what is gating it here.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, HttpError } from "../_shared/ctx.ts";
+import { requireCronKey } from "../_shared/cron-auth.ts";
 import { type ChargeOutcome, dispatchCharge, MAX_ATTEMPTS } from "../_shared/charge.ts";
 import { tossGetByOrderId, type TossResult } from "../_shared/toss.ts";
 
@@ -57,11 +58,14 @@ interface VerifyResult {
 export async function collectCharges(req: Request, db: SupabaseClient) {
   const cronKey = req.headers.get("X-Cron-Key");
   if (cronKey !== null) {
-    const expected = Deno.env.get("CRON_COLLECT_KEY");
-    // An unset secret must never authenticate anybody. Without this line, `null === null` (or
-    // ""==="") would turn a misconfigured deploy into an open batch-charging endpoint.
-    if (!expected) throw new HttpError(503, "수금 배치가 설정되지 않았어요");
-    if (cronKey !== expected) throw new HttpError(401, "unauthorized");
+    // An unset secret must never authenticate anybody (503, never 200), and the comparison is
+    // CONSTANT-TIME. ⚠ [0157 · codex billing #7] The finding was raised against
+    // `revoke-billing-keys`, but a finding's SENTENCE is the property and the cited site is one
+    // place it is observable: this endpoint had the identical `!==` **against the same
+    // `CRON_COLLECT_KEY`**, so fixing only the worker would have left the shared secret leaking
+    // through the sibling. The header-present test above still selects batch mode and is
+    // deliberately unchanged — it decides WHICH product this is, not whether the caller is allowed.
+    await requireCronKey(cronKey, "수금 배치가 설정되지 않았어요");
     return await runBatch(db);
   }
   return await runOwner(req, db);

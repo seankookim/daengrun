@@ -434,6 +434,62 @@ Deno.test("the happy path records NOTHING in the outbox — compensation is fail
   } finally { fm.restore(); }
 });
 
+// ═══ [0157 · codex billing #6] the outstanding-uniqueness index, seen from the edge ═══════════
+//
+// 0157 adds a PARTIAL unique index — one OUTSTANDING (pending|processing) row per billing key —
+// because two rows for one key mean two DELETEs at Toss, and a successful first followed by a
+// non-2xx second writes a FALSE `abandoned`, which since 0155 PAGES a human to go hand-delete a key
+// that is already gone. This path is the one enqueue site that stays a raw PostgREST insert (see
+// the handler's comment: PostgREST cannot infer a partial index, and an RPC would couple this
+// compensation to a migration that deploys separately). So it must read the violation correctly.
+Deno.test("🔴 an outstanding row for this key ALREADY EXISTS → recorded, not re-revoked at Toss", async () => {
+  const db = scene();
+  brokenSwap(db);
+  db.fail(
+    "billing_key_revocations:insert",
+    () => 'duplicate key value violates unique constraint "billing_key_revocations_outstanding_uq"',
+  );
+  const fm = new FetchMock()
+    .on(isIssue, () => FetchMock.json(issued()))
+    .on(isRevoke, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    let err: HttpError | null = null;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch (e) { err = e as HttpError; }
+    // Still a failed registration — recognising the conflict never turns a broken write into a
+    // success for the CALLER.
+    assertEquals(err?.status, 500);
+    // 🔴 THE POINT: the obligation is already on the books, so nothing is revoked inline. An inline
+    //    DELETE here would destroy a key the outbox worker is about to settle against
+    //    `billing_keys` (0143 §B) — and that key may be somebody's live card.
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 CONTROL — any OTHER insert error is still a failure, not a claimed record", async () => {
+  // ⚠ Without this arm, `alreadyOutstanding` widened to 「any error」 — or to a bare 23505 — would
+  //   pass the test above perfectly while converting 「nobody recorded it」 into 「something recorded
+  //   it」 on a live charging credential. The blind spots of the two arms are different, which is
+  //   what makes this a control rather than the same claim printed twice.
+  const db = scene();
+  brokenSwap(db);
+  db.fail("billing_key_revocations:insert", "could not connect");
+  const fm = new FetchMock()
+    .on(isIssue, () => FetchMock.json(issued()))
+    .on(isRevoke, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch { /* the 500 is asserted by its own test above */ }
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 1);
+  } finally { fm.restore(); }
+});
+
 Deno.test("🔴 an FK violation costs the PROVENANCE, never the KEY", async () => {
   const db = scene();
   brokenSwap(db);
