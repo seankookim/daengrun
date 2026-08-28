@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchClubSession, type ClubSessionDetail } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
@@ -8,7 +8,8 @@ import { useNumFont } from '../../../src/lib/fonts';
 import { getNaverMap, subscribePack, type LiveLinkState } from '../../../src/lib/geo';
 import { goBackOrHome } from '../../../src/lib/nav';
 import {
-  agoLabel, mergePeer, packCamera, parsePackPos, peerAge, visiblePeers, type PackPeer,
+  agoLabel, mergePeer, packCamera, parsePackPos, peerAge, visiblePeers,
+  type PackCamera, type PackPeer,
 } from '../../../src/lib/pack';
 import { useMyProfileId, usePackShare } from '../../../src/lib/use-pack-share';
 import { paper } from '../../../src/theme';
@@ -127,13 +128,20 @@ export default function ClubPackMap() {
   }, []);
 
   const shown = useMemo(() => visiblePeers(peers, now), [peers, now]);
-  const camera = useMemo(() => packCamera(shown), [shown]);
-  // The camera is taken on the FIRST frame that has one and then held, so an incoming position
-  // does not yank the view out from under a finger mid-pan.
-  const firstCamera = useRef<ReturnType<typeof packCamera>>(null);
-  if (firstCamera.current === null && camera) firstCamera.current = camera;
 
-  const mapReady = !!maps && !!firstCamera.current && shown.length > 0;
+  // The camera is taken on the FIRST frame that has one and then HELD, so an incoming position
+  // does not yank the view out from under a finger mid-pan.
+  // ⚠ State, not a ref. A ref written and read in the same render works only by luck of ordering,
+  // and `react-hooks/refs` flags every read — the value genuinely IS needed for rendering, which
+  // is the definition of state.
+  const [camera, setCamera] = useState<PackCamera | null>(null);
+  useEffect(() => {
+    if (camera !== null) return;
+    const c = packCamera(shown);
+    if (c) setCamera(c);
+  }, [shown, camera]);
+
+  const mapReady = !!maps && !!camera && shown.length > 0;
   // ⚠ 「loading is not 0」. Before the channel has joined we have not measured anything, and a 0
   // here would assert an empty pack we have not observed.
   const measured = link !== 'connecting' && load !== 'loading';
@@ -150,10 +158,10 @@ export default function ClubPackMap() {
     <View style={s.root}>
       <StatusBar style="dark" />
 
-      {mapReady && maps && firstCamera.current ? (
+      {mapReady && maps && camera ? (
         <maps.NaverMapView
           style={StyleSheet.absoluteFill}
-          camera={firstCamera.current}
+          camera={camera}
           isShowLocationButton={false}
           isShowCompass={false}
           isShowScaleBar={false}

@@ -78,31 +78,36 @@ export function usePackShare(
   sessionId: string | null | undefined,
   detail: ClubSessionDetail | null,
 ): PackShareState {
-  const [sharing, setSharing] = useState<PackShareState>(null);
+  // Only the TICK writes this — 「is my GPS actually producing fixes right now」. Everything else
+  // about the answer is DERIVED at the bottom rather than pushed in from an effect, so there is
+  // one writer and no cascading render.
+  const [fixLive, setFixLive] = useState<boolean | null>(null);
   const myId = useMyProfileId();
 
   const myName = detail?.people.find((p) => p.isMe)?.name ?? null;
+  const detailLoaded = detail != null;
   const mayPublish = !!sessionId && !!myId
     && !!detail?.joined && detail?.myAttendance === 'checked_in';
 
-  // The name is read through a ref so that a late-arriving roster does not tear the publisher
-  // down and stand a new one up mid-run — the caption would flicker and the channel would churn.
-  const nameRef = useRef<string | null>(myName);
-  nameRef.current = myName;
+  // The name travels through a ref so a late-arriving roster does not tear the publisher down and
+  // stand a new one up mid-run — the caption would flicker and the channel would churn.
+  // ⚠ Assigned in an EFFECT, not during render: a ref written during render is torn under
+  // concurrent rendering, and `react-hooks/refs` says so. The first draft wrote it during render
+  // and the lint caught it.
+  const nameRef = useRef<string | null>(null);
+  useEffect(() => { nameRef.current = myName; }, [myName]);
 
   useEffect(() => {
-    if (!sessionId || !mayPublish || !myId) {
-      // `detail` still loading ⇒ we do not know yet (null). Loaded and ineligible ⇒ false.
-      setSharing(detail == null ? null : false);
-      return;
-    }
+    // Ineligible: return without touching state. That ANSWER is derived at the bottom — an effect
+    // that pushes it in is a cascading render for a value that was already knowable.
+    if (!sessionId || !mayPublish || !myId) return;
     const pub = createPackPublisher(sessionId);
     const tick = () => {
       const fix = getLiveLastFix();
       // No fix, or one too old to stand behind. Re-broadcasting a ten-minute-old point says
       // "I am here" about a place we have left.
-      if (!fix || Date.now() - fix.t > PACK_PUBLISH_MAX_FIX_AGE_MS) { setSharing(false); return; }
-      setSharing(true);
+      if (!fix || Date.now() - fix.t > PACK_PUBLISH_MAX_FIX_AGE_MS) { setFixLive(false); return; }
+      setFixLive(true);
       const pos: PackPos = {
         profileId: myId,
         name: nameRef.current ?? '참가자',
@@ -115,10 +120,22 @@ export function usePackShare(
       };
       pub.publish(pos);
     };
-    tick();
+    // ⚠ NO immediate tick. It would be a setState in the effect body, and it would buy nothing:
+    // `createPackPublisher` sends nothing until the channel has joined, which is a round trip
+    // away, so the first tick that can actually publish is the one 3 s from now either way.
     const t = setInterval(tick, PACK_PUB_MIN_MS);
-    return () => { clearInterval(t); pub.stop(); };
-  }, [sessionId, mayPublish, myId, detail == null]);
+    return () => {
+      clearInterval(t);
+      pub.stop();
+      // Leaving is not evidence about the GPS. Back to "not measured".
+      setFixLive(null);
+    };
+  }, [sessionId, mayPublish, myId]);
 
-  return sharing;
+  // `null` = NOT MEASURED YET, reached two ways that must not be collapsed into `false`: the
+  // roster has not loaded, or the publisher has not ticked once. `false` is a CLAIM — "you are
+  // not on the map" — and is only made once something was actually checked.
+  if (!detailLoaded) return null;
+  if (!mayPublish) return false;
+  return fixLive;
 }
