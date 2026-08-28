@@ -257,6 +257,75 @@ that also hands over a phone number.
   path exercised on a real refusal, and the ORIGINAL hook returns identical verdicts on both
   arms, so behaviour did not move.
 
+## ui6 session 2026-08-28 — what landed, and two corrections to the brief
+
+**① The card/billing chain now has a codex verdict: REJECT, 7 findings** (5 HIGH, 2 MEDIUM) —
+`docs/reviews/2026-08-28-codex-billing-chain.md`, with the prompt archived beside it. First review
+that chain has ever had. Nothing fires today (both money flags NULL, 0 keys), but **two HIGH
+findings arm on `card_registration_live_since` ALONE** — charging does not have to be on — and both
+put a real card in a wrong state.
+🔴 **The one thing to act on: findings 3 and 4 both bottom out in a single unanswered PROVIDER
+question — can Toss replay or look up a billing-key issuance by a persisted idempotency key, and
+what does a repeated DELETE return?** The fix shape for both is unknown until that is answered, so
+**it is now on the critical path to turning card registration on**, and it is a question for Toss's
+documentation or support, not something to design around by guessing. Nobody owns it yet.
+Closed 3 of codex's 5 open questions against production (all reads): the revocation cron **exists
+and runs** (jobid 23, 110/110 succeeded, latest 00:48Z — which narrows finding 5 from breached to
+latent); base-table ACLs are sealed but **asymmetrically**, a finding codex could not see from
+source — `billing_key_revocations` revoked its client grants AND has RLS, `billing_keys` has **only**
+RLS while carrying `anon`/`authenticated` SELECT **and INSERT**; and `net.http_request_queue` was
+already settled on 2026-08-27.
+
+**② `club_join` / `club_leave` BUILT and landed** (`297139a`). The sharpest of the eight, and the
+gap was total: measured on production, exactly three deployed functions insert into `club_members`
+— `club_claim_host`, `club_join` (unreachable), `session_runner_commit` — and **`session_rsvp` does
+not**, because 0048's R4 abolished auto-join and left the invitation to 「UI/알림 몫」. So an owner
+had **no path to membership by any route that existed**. Live data: 1 club, 14 sessions, 1 distinct
+participant, `club_members` = 1 row (role=host). `club_overview` has been returning `isMember` the
+whole time and the client read it in **exactly one place — the type declaration.**
+🔴 **Server defect found while scouting, still open and unowned:** `club_overview.isHost` reads
+`clubs.host_profile_id`; `club_demand_board.isHost` reads `club_members.role='host'`. Two deployed
+definitions of one word, agreeing only because `club_claim_host` writes both. `club_leave` deletes
+just the member row, so a host who leaves splits them. **The client ships with no leave affordance
+for a host, so it cannot reach that state** — but the fix (refuse a host, or clear
+`clubs.host_profile_id`) is a product call.
+
+### ⚠ Two of the eight are NOT what the list says, and both were measured
+
+The 「eight capabilities the server has and no screen offers」 list is derived from grants, which is
+the right method, but a grant with no caller does not by itself mean a missing capability.
+
+- 🔴 **`km_claim_welcome` is NOT a client-only slice — do not build the button.** The RPC is
+  server-complete, but **the entire km subsystem has zero client callers**: `km_balance`,
+  `km_purchase`, `km_reserve`, `km_settle` — all of them, 0. There is no km wallet anywhere in the
+  app. km is wired into `_resolve_checkin` server-side, so granting the welcome 5km would hand
+  someone an **invisible asset worth ~₩16,700 in runner pay** that they cannot see, spend, or
+  understand. That is a worse defect than the gap. Building it honestly means building the wallet
+  surface first, and deciding whether the km prepaid model is the intended one at all — money-shaped,
+  with a 500-account cohort cap and ~₩8.4M exposure written into the function. **Sean's call, not an
+  implementer's.**
+- ⚠ **`runner_work_gate` is already delivered — the capability is not missing.** It has no client
+  caller because it does not need one: `transition-booking/index.ts:77` calls it and returns
+  **`waiting_on`-differentiated Korean copy** on a 409, so a gated runner is already told exactly
+  why and what unblocks it. A direct client call would be pre-emptive polish (tell them before they
+  tap, not after), which is real but is not a missing capability. ⚠ I nearly reported this one as
+  「the gate is unenforced」 off a SQL-only search that found no caller — the enforcement is in
+  TypeScript. **The measurement licensed 「no deployed SQL function references it」, not 「it is
+  unenforced」**; caught before it was written down.
+
+**`club_assume_host` and `session_set_backup` were deliberately NOT taken** — they belong on
+`club/session/[sid].tsx` and `club/console/[sid].tsx`, which b6 holds exclusively. Flagged, not
+built.
+
+⚠ **Nothing in this session is simulator- or device-verified, and that was a choice.** Metro on
+`:8081` serves `daengrun-redesign-v4-77ea99/app` — **a peer session's worktree** — so the simulator
+cannot show this work, and repointing the shared simulator would have taken it away from that
+session. The club membership card is unverified on a device. App tests are **707/0 UNCHANGED**,
+which is honest rather than reassuring: `app/test/*.cjs` structurally cannot import a `.tsx` route
+module, so the suite says nothing about this screen either way. Gates that DID move:
+`check-rpc-contracts` 118 → **120**, exactly the two new calls — a positive control that the
+checker saw the code rather than passing by not looking.
+
 ## Unreviewed
 
 ~14 of the 21 deployed migrations carry **no codex verdict**, and 0131's seven review rounds
