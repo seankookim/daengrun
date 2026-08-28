@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useRef, useState, useMemo } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Icon, Row } from '../../src/components/ui';
@@ -44,7 +44,12 @@ const memErr = (e: unknown) => {
   const m = (e as Error).message ?? '';
   if (m.includes('not_signed_in')) return '로그인이 필요해요';
   if (m.includes('not_found')) return '클럽을 찾을 수 없어요';
-  return m;
+  // ⚠ 폴백이 원문 그대로였다 — 그건 두 예외만 번역하고 나머지 전부를 사용자에게 기술 문자열로
+  // 던지는 것이었다. 실제로 이 자리에 도착할 수 있는 것들: 만료된 JWT, 권한 오류, 스키마 캐시
+  // 미스, 잘못된 UUID, 문장 타임아웃, PostgREST 5xx, 그리고 **오프라인·fetch 실패** — supabase-js는
+  // 전송 실패도 error.message에 담는다. 「실패를 실패로 보여준다」는 법은 읽을 수 있는 실패를
+  // 뜻한다. 원인은 clubRpc가 이미 cause로 보존하므로 진단은 잃지 않는다.
+  return '지금 처리하지 못했어요 — 잠시 후 다시 시도해 주세요';
 };
 
 const CAP_MIN = 2, CAP_MAX = 30;   // 서버는 2~60 (0030:59); 30은 Sean의 상한
@@ -243,36 +248,51 @@ export default function ClubPage() {
   // 서버는 0048부터 club_join/club_leave를 갖고 있었고 부르는 화면이 없었다. 0048의 R4가 자동
   // 가입을 폐지하면서 가입 권유를 「UI/알림 몫」으로 남겼는데 그 UI가 끝내 안 만들어졌다.
   const [memBusy, setMemBusy] = useState(false);
+  // ⚠ memBusy는 렌더 상태라 잠금이 될 수 없다: 한 틱 안의 두 탭은 둘 다 같은 false 클로저를 본다.
+  // 동기적으로 바뀌는 ref가 실제 잠금이고, memBusy는 그 잠금을 화면에 비추는 역할만 한다.
+  const memLock = useRef(false);
   const join = () => {
-    if (!club || memBusy) return;
+    if (!club || memLock.current) return;
+    memLock.current = true;
     setMemBusy(true);
+    // 🔴 load()를 **반환**한다. 반환하지 않으면 finally가 갱신을 기다리지 않고 잠금을 풀어서,
+    // 가입에 성공한 사람에게 「아직 멤버가 아니에요」 카드와 살아 있는 가입 버튼이 그대로 남는다
+    // — 다시 눌러도 서버는 멱등이라 아무 일도 안 일어난다. 죽은 버튼이고, 상태의 역전이다.
+    // (탈퇴도 대칭으로 같은 결함을 갖고 있었다.) 낙관적 로컬 갱신 대신 권위 있는 갱신을 기다린다:
+    // 서버가 확인하지 않은 상태를 그리지 않는 편이 이 화면의 나머지와 같은 결이다.
     clubJoin(club.id)
-      .then(() => { haptic('light'); load(); })
+      .then(() => { haptic('light'); return load(); })
       .catch((e) => Alert.alert('클럽 가입', memErr(e)))
-      .finally(() => setMemBusy(false));
+      .finally(() => { memLock.current = false; setMemBusy(false); });
   };
   const leave = () => {
-    if (!club || memBusy) return;
+    if (!club || memLock.current) return;
     // ⚠ 정직 요건: 탈퇴는 아무 의무도 취소하지 않는다 (0048 §15 canonical — 위탁·부킹·커스터디는
     // 멤버십이 아니라 세션/부킹에 산다). 탈퇴가 예약까지 지운다고 오해한 사람은 집결지에
     // 나타나지 않고, 그 자리는 아무도 채우지 못한다. 그래서 확인문이 이 사실을 말한다.
+    // 프롬프트 단계도 잠근다 — 알림이 떠 있는 동안 잠금이 풀려 있으면 탭을 연타해 프롬프트를
+    // 여러 개 쌓고 확인 콜백을 여러 번 실행할 수 있다.
+    memLock.current = true;
+    setMemBusy(true);
     Alert.alert(
       '클럽 탈퇴',
       '탈퇴해도 이미 신청한 세션과 위탁·정산은 그대로 남아요. 정기 세션이 열릴 때 알림을 받지 않게 돼요.',
       [
-        { text: '취소', style: 'cancel' },
+        // 취소/닫기에서 잠금을 반드시 되돌린다 — 안 그러면 한 번 취소한 사람이 영영 못 누른다.
+        { text: '취소', style: 'cancel', onPress: () => { memLock.current = false; setMemBusy(false); } },
         {
           text: '탈퇴',
           style: 'destructive',
           onPress: () => {
-            setMemBusy(true);
             clubLeave(club.id)
-              .then(() => { haptic('light'); load(); })
+              .then(() => { haptic('light'); return load(); })
               .catch((e) => Alert.alert('클럽 탈퇴', memErr(e)))
-              .finally(() => setMemBusy(false));
+              .finally(() => { memLock.current = false; setMemBusy(false); });
           },
         },
       ],
+      // 안드로이드 백버튼·바깥 탭으로 닫히는 경로도 같은 해제가 필요하다.
+      { onDismiss: () => { memLock.current = false; setMemBusy(false); } },
     );
   };
 
