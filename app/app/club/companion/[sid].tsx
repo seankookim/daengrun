@@ -5,7 +5,7 @@ import { PaperBtn } from '../../../src/components/paper-btn';
 import { fetchClubSession, recordCompanionRun, type ClubSessionDetail } from '../../../src/lib/api';
 import { useNumFont } from '../../../src/lib/fonts';
 import { getTraceSnapshot, resetTrace, startTracking, type TrackHandle, type TrackMode } from '../../../src/lib/geo';
-import { usePackShare } from '../../../src/lib/use-pack-share';
+import { packIdentity, usePackShare } from '../../../src/lib/use-pack-share';
 import { paper } from '../../../src/theme';
 
 // 동반 러닝 화면 — an owner walking their OWN dog on a club walk.
@@ -126,7 +126,7 @@ export default function CompanionRun() {
   // it was working. The hook reads the buffer this screen's own `startTracking` fills — it starts
   // no tracking of its own (`geo.ts`'s `liveSub` is a singleton and taking it would freeze the km
   // above), and it publishes only while a fix is actually arriving.
-  const packSharing = usePackShare(sid ? String(sid) : null, detail);
+  const packSharing = usePackShare(sid ? String(sid) : null, packIdentity(detail));
 
   // 🔴 CHECK-IN GATED HERE TOO, not only on the CTA that opens this screen. Codex raised it
   // against the session screen's door and it is the destination's problem: a deep link

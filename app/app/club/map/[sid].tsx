@@ -11,7 +11,7 @@ import {
   agoLabel, mergePeer, packCamera, parsePackPos, peerAge, visiblePeers,
   type PackCamera, type PackPeer,
 } from '../../../src/lib/pack';
-import { useMyProfileId, usePackShare } from '../../../src/lib/use-pack-share';
+import { packIdentity, useMyProfileId, usePackShare } from '../../../src/lib/use-pack-share';
 import { paper } from '../../../src/theme';
 
 // 팩 지도 — one club session, everybody on it, a little runner icon each.
@@ -94,7 +94,7 @@ export default function ClubPackMap() {
 
   // Publishing is the hook's job, not this screen's — see the block comment in use-pack-share.ts
   // for why it cannot live here alone.
-  const sharing = usePackShare(sessionId || null, detail);
+  const sharing = usePackShare(sessionId || null, packIdentity(detail));
   // The local user's own id, so their marker can be told from a stranger's. Shared with the hook
   // so one screen makes one `getUser` call, and so 「who am I」 has a single definition.
   const myId = useMyProfileId();

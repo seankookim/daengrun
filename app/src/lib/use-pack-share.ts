@@ -57,26 +57,56 @@ export function useMyProfileId(): string | null {
 }
 
 /**
- * Broadcast the local user's live position on this session's pack channel, if and only if they
- * are a checked-in participant of it whose GPS is producing fixes right now.
+ * Who the local user is on this session's map, as the three screens can each answer it.
  *
- * The three conjuncts, each with its own reason:
+ * ⚠ IT IS A DESCRIPTOR AND NOT A SCREEN TYPE ON PURPOSE. The first draft took a
+ * `ClubSessionDetail`, which the map and 동반 screens both hold — and `club/run/[sid].tsx`, the
+ * screen that matters most, holds a `DelegationBoard` instead and never fetches the other. A hook
+ * whose signature only fits the screens you happened to write is a hook the third screen cannot
+ * adopt in one line, and 「one line」 was the entire reason to extract it.
+ */
+export interface PackIdentity {
+  /** true = a checked-in participant of THIS session · false = not · **null = not known yet**,
+   *  which must never be collapsed into false. */
+  eligible: boolean | null;
+  /** The caption everyone else reads. null falls back to 참가자 — a missing name is a reason not
+   *  to invent one, never a reason to hide someone from the pack. */
+  name: string | null;
+}
+
+/** Derive the descriptor from `club_session_detail`, for the screens that have one.
+ *
+ * The two conjuncts, each with its own reason:
  *   `joined`      a `session_people` row for this session (`0053:358`). A delegated runner gets
  *                 one from `session_runner_commit` (`0037:100`), a 동반 owner from RSVP, the host
  *                 at creation. It is what makes this position belong on THIS session's map.
  *   `checked_in`  a runner cannot receive a dog without it (`0038:42-44`) and the 동반 screen gates
  *                 its own start on it, so every genuine live run in this session has it. It is
  *                 also the closest thing the client can observe to 「is at the meetup」.
- *   a fresh fix   the only observation that says a run is happening NOW rather than earlier today.
+ */
+export function packIdentity(detail: ClubSessionDetail | null): PackIdentity {
+  if (detail == null) return { eligible: null, name: null };
+  return {
+    eligible: !!detail.joined && detail.myAttendance === 'checked_in',
+    name: detail.people.find((p) => p.isMe)?.name ?? null,
+  };
+}
+
+/**
+ * Broadcast the local user's live position on this session's pack channel, if and only if they
+ * are an eligible participant whose GPS is producing fixes right now.
+ *
+ * Eligibility is the caller's to state (see `PackIdentity`); the fresh fix is this hook's, and it
+ * is the only observation that says a run is happening NOW rather than earlier today.
  *
  * ⚠ RESIDUAL, stated rather than hidden: the shared buffer does not record WHICH run filled it.
- * A user who is checked in here and simultaneously mid-marketplace-run would publish that run's
+ * A user who is eligible here and simultaneously mid-marketplace-run would publish that run's
  * position onto this map. Distinguishing them needs a change to `startTracking`'s contract, which
  * lives in a file another session holds tonight.
  */
 export function usePackShare(
   sessionId: string | null | undefined,
-  detail: ClubSessionDetail | null,
+  who: PackIdentity,
 ): PackShareState {
   // Only the TICK writes this — 「is my GPS actually producing fixes right now」. Everything else
   // about the answer is DERIVED at the bottom rather than pushed in from an effect, so there is
@@ -84,10 +114,11 @@ export function usePackShare(
   const [fixLive, setFixLive] = useState<boolean | null>(null);
   const myId = useMyProfileId();
 
-  const myName = detail?.people.find((p) => p.isMe)?.name ?? null;
-  const detailLoaded = detail != null;
-  const mayPublish = !!sessionId && !!myId
-    && !!detail?.joined && detail?.myAttendance === 'checked_in';
+  // Destructured to PRIMITIVES: `packIdentity(detail)` builds a fresh object every render, so an
+  // effect keyed on the object would tear the publisher down and stand a new one up on every
+  // frame. The two fields are what actually change.
+  const { eligible, name: myName } = who;
+  const mayPublish = !!sessionId && !!myId && eligible === true;
 
   // The name travels through a ref so a late-arriving roster does not tear the publisher down and
   // stand a new one up mid-run — the caption would flicker and the channel would churn.
@@ -133,9 +164,9 @@ export function usePackShare(
   }, [sessionId, mayPublish, myId]);
 
   // `null` = NOT MEASURED YET, reached two ways that must not be collapsed into `false`: the
-  // roster has not loaded, or the publisher has not ticked once. `false` is a CLAIM — "you are
-  // not on the map" — and is only made once something was actually checked.
-  if (!detailLoaded) return null;
+  // caller does not know yet whether we are eligible, or the publisher has not ticked once.
+  // `false` is a CLAIM — "you are not on the map" — and is only made once something was checked.
+  if (eligible === null) return null;
   if (!mayPublish) return false;
   return fixLive;
 }
