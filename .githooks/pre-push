@@ -142,9 +142,12 @@ EOF
       awk -F'|' '/^\|/ && /DEPLOYED/ { n=$2; gsub(/[ `]/,"",n); if (n ~ /^[0-9][0-9][0-9][0-9]$/) print n }')
     while read -r dnum; do
       [ -z "${dnum:-}" ] && continue
-      printf '%s\n' "$prev_dep" | GREP -qx "$dnum" && continue      # already DEPLOYED upstream
-      if ! git ls-tree --name-only "$local_sha" "$MIGDIR/" 2>/dev/null |
-             GREP -Eq "^$MIGDIR/${dnum}_.*\.sql$"; then
+      # -c not -q, and $GREP not GREP: see the SIGPIPE note on the ② check below. Both of these
+      # are the same shape and would fail the same way; fixing only the one that bit us would be
+      # fixing the instance instead of the class.
+      [ "$(printf '%s\n' "$prev_dep" | $GREP -cx "$dnum")" != 0 ] && continue   # already DEPLOYED upstream
+      if [ "$(git ls-tree --name-only "$local_sha" "$MIGDIR/" 2>/dev/null |
+             $GREP -cE "^$MIGDIR/${dnum}_.*\.sql$")" = 0 ]; then
         note "❌ REGISTRY marks $dnum DEPLOYED, but no ${dnum}_*.sql is in this push."
         note "   A deployed migration whose file is not on this branch means the live"
         note "   schema has no source here: the harness would test a database that no"
@@ -184,7 +187,24 @@ EOF
     fi
 
     # ② the REGISTRY row must travel with the file, not an hour behind it
-    if [ -n "$registry" ] && ! printf '%s\n' "$registry" | GREP -Eq "^\| *$num *\|"; then
+    #
+    # 🔴 `grep -q` IS FORBIDDEN HERE AND THE REASON IS MEASURED (2026-08-28, after this branch
+    #   falsely refused a THIRD push — the first two were never diagnosed and their state was
+    #   lost). Line 36 sets `-o pipefail`. `grep -q` exits the instant it matches, which closes
+    #   the pipe; `printf` is then killed by SIGPIPE (141); pipefail makes the PIPELINE 141, and
+    #   `! 141` is true — so the guard refuses. **It refuses BECAUSE the row is present.** With
+    #   the row absent, grep reads to EOF, printf finishes, the pipeline is a clean 1, and the
+    #   guard refuses correctly. Both states refuse, and the failing one is the CORRECT push.
+    #
+    #   It reads as intermittent because it is a RACE: it needs the match to land early enough
+    #   that grep exits before printf has finished writing. With a small REGISTRY printf won a
+    #   and the guard behaved; at 340KB and a row ~1/3 of the way in, grep always wins. **So it
+    #   got permanently worse as the file grew, and every earlier "cannot reproduce" was honest.**
+    #
+    #   `-c` is the fix because it must read to EOF to count — there is no early exit, so there
+    #   is no SIGPIPE. Same family as this repo's standing law: a detector whose result is
+    #   anti-correlated with the property it tests is worse than no detector.
+    if [ -n "$registry" ] && [ "$(printf '%s\n' "$registry" | $GREP -cE "^\| *$num *\|")" = 0 ]; then
       note "❌ migration $num has no REGISTRY.md row in this push."
       # 🔴 EVIDENCE, not just a verdict. This branch fired twice on pushes whose row WAS
       #   present, and because it printed only a conclusion, two sessions each burned an hour
