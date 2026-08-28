@@ -2,6 +2,8 @@
 // Native modules are lazy-required everywhere in this file: an old build that lacks
 // expo-location / expo-task-manager degrades to a stated mode instead of crashing.
 import { supabase } from './supabase';
+// 팩 지도 채널의 토픽/이벤트/스로틀 + 와이어 타입 — 순수 모듈이라 핀이 붙는다 (test/pack.test.cjs).
+import { PACK_EVENT, PACK_PUB_MIN_MS, PACK_TOPIC, type PackPos } from './pack';
 
 export interface GeoPoint { lat: number; lng: number; t: number; acc?: number }
 
@@ -485,5 +487,90 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
       }
     },
     stop: () => { for (const c of chs) supabase.removeChannel(c.ch); },
+  };
+}
+
+// ---------- 팩 브로드캐스트 (club-session pack map, 2026-08-28) ----------
+// Sean, verbatim: 「everyone should see everyone else on the map during a club run session with a
+// little runner icon. total public; everything that's not their password is public to anyone.」
+// and, on sequencing, 「Build it now anyway」 (`docs/decisions/2026-08-28-sean-rulings.md`, both
+// rounds). The privacy question was put to him and answered. It is not re-opened here.
+//
+// 🔴 THIS CHANNEL IS **NOT** PRIVATE, AND THAT IS THE ONE PLACE THIS FAMILY DIFFERS FROM `run2-`.
+// The fixed contract says 「Reads are public — assume no auth gate on subscribe」. `realtime.messages`
+// RLS is consulted ONLY for channels the client marks `private` (0103's own §0), so requesting a
+// private channel here would put the pack map behind a policy that does not exist yet and the
+// screen would show an empty map — indistinguishable from 「nobody is running」. A public channel
+// needs no server half to work, which is also why the client can ship before the server does.
+//
+// ⚠ WHAT THAT COSTS, STATED PLAINLY RATHER THAN IMPLIED: on a public channel the WRITE side is
+// ungated too. 「publish only if you are a participant with a live run」 is a rule this client
+// keeps, not a rule the platform enforces — anyone who knows a session id can push an invented
+// runner onto this map. That is the same shape as the hole 0103 closed for `run-`, and it is NOT
+// covered by the ruling, which was about who may READ. It is reported upward rather than fixed
+// here, because closing it means making the channel private and that is the server half's call.
+// If the server half does land a `pack-%` policy, the ONLY change needed on this side is adding
+// `REALTIME_PRIVATE` to the two `supabase.channel(...)` calls below.
+//
+// The topic string lives in `pack.ts` (one definition, pinned) for the same reason `RUN_TOPIC`
+// lives in one place: three scattered copies means the next bump leaves one behind, and the
+// symptom is a silently empty map.
+
+/** The newest accepted fix in the shared live buffer, or null when nothing is being tracked.
+ *
+ *  ⚠ READ-ONLY BY DESIGN. The pack map must NEVER call `startTracking` — `liveSub` is a module
+ *  SINGLETON, and a second caller silently replaces the first. Expo Router keeps the screen you
+ *  pushed FROM mounted, so a map opened on top of `club/run/[sid].tsx` would take that screen's
+ *  callback away, its `km` would stop advancing, and km is what settle-run pays. Polling this
+ *  accessor costs nothing and cannot do that. */
+export function getLiveLastFix(): GeoPoint | null {
+  return liveTrace.length > 0 ? liveTrace[liveTrace.length - 1] : null;
+}
+
+/** Subscribe to one club session's pack channel. Returns the unsubscribe function.
+ *  Link state uses the same three-way vocabulary as `subscribePos`: a refusal and a network
+ *  failure must not be collapsed, because the screen says different things about them. */
+export function subscribePack(
+  sessionId: string,
+  onPos: (raw: unknown) => void,
+  onState?: (s: LiveLinkState) => void,
+): () => void {
+  const ch = supabase
+    .channel(PACK_TOPIC(sessionId))
+    .on('broadcast', { event: PACK_EVENT }, ({ payload }) => onPos(payload));
+  let dropped = false;
+  hookTokenRefresh();
+  onState?.('connecting');
+  void armRealtime().then(() => {
+    if (dropped) return;
+    ch.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') onState?.('live');
+      else if (status === 'CHANNEL_ERROR') onState?.(deniedLike(err) ? 'denied' : 'error');
+      else if (status === 'TIMED_OUT') onState?.('error');
+      else if (status === 'CLOSED') onState?.('error');
+    });
+  });
+  return () => { dropped = true; supabase.removeChannel(ch); };
+}
+
+/** Publisher for one club session. Lifetime belongs to the caller, like `createPosPublisher`.
+ *  Sends nothing before the channel has joined — a pre-join send falls back to REST and warns,
+ *  and the next tick is 3 s away anyway. */
+export function createPackPublisher(sessionId: string): { publish: (p: PackPos) => void; stop: () => void } {
+  hookTokenRefresh();
+  const c = { joined: false, ch: supabase.channel(PACK_TOPIC(sessionId)) };
+  void armRealtime().then(() => {
+    c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
+  });
+  let lastAt = 0;
+  return {
+    publish: (p) => {
+      if (!c.joined) return;
+      const now = Date.now();
+      if (now - lastAt < PACK_PUB_MIN_MS) return;
+      lastAt = now;
+      c.ch.send({ type: 'broadcast', event: PACK_EVENT, payload: p }).catch(() => {});
+    },
+    stop: () => { supabase.removeChannel(c.ch); },
   };
 }

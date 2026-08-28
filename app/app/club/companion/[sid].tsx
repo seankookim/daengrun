@@ -5,6 +5,7 @@ import { PaperBtn } from '../../../src/components/paper-btn';
 import { fetchClubSession, recordCompanionRun, type ClubSessionDetail } from '../../../src/lib/api';
 import { useNumFont } from '../../../src/lib/fonts';
 import { getTraceSnapshot, resetTrace, startTracking, type TrackHandle, type TrackMode } from '../../../src/lib/geo';
+import { usePackShare } from '../../../src/lib/use-pack-share';
 import { paper } from '../../../src/theme';
 
 // 동반 러닝 화면 — an owner walking their OWN dog on a club walk.
@@ -117,6 +118,15 @@ export default function CompanionRun() {
 
   const me = detail?.people.find((p) => p.isMe) ?? null;
   const myDogName: string | null = me?.dogName ?? null;
+
+  // 팩 지도 송신 — 한 줄. Sean, 2026-08-28: 「everyone should see everyone else on the map during a
+  // club run session with a little runner icon.」 **「everyone」 includes the 동반 owner**, and this
+  // screen was the one kind of participant with no publisher at all: it imports `startTracking`
+  // and broadcast nothing, so a pack of self-runners rendered a nearly empty map that looked like
+  // it was working. The hook reads the buffer this screen's own `startTracking` fills — it starts
+  // no tracking of its own (`geo.ts`'s `liveSub` is a singleton and taking it would freeze the km
+  // above), and it publishes only while a fix is actually arriving.
+  const packSharing = usePackShare(sid ? String(sid) : null, detail);
 
   // 🔴 CHECK-IN GATED HERE TOO, not only on the CTA that opens this screen. Codex raised it
   // against the session screen's door and it is the destination's problem: a deep link
@@ -266,6 +276,10 @@ export default function CompanionRun() {
               <Text style={s.stripTxt}>이 빌드에는 위치 기능이 없어요 — 새 빌드에서 기록할 수 있어요</Text>
             </View>
           )}
+
+          {/* 내 위치가 지금 팩 지도에 공개되고 있다는 사실은, 그게 참일 때만 말한다.
+              (아직 확인 전이면 아무 말도 하지 않는다 — null은 「공유 안 함」이 아니다.) */}
+          {packSharing === true && <Text style={s.note}>팩 지도에 내 위치가 공유되고 있어요</Text>}
 
           <PaperBtn label={running ? '러닝 종료' : '러닝 시작'} onPress={running ? finish : begin} style={s.cta} />
 

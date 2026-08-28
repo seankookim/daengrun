@@ -9,6 +9,11 @@ cat > ./supabase-stub.ts <<'STUB'
 export const supabase: any = { channel: () => ({ subscribe: () => {}, send: async () => {}, on: () => ({ subscribe: () => ({}) }) }), removeChannel: () => {} };
 STUB
 sed -i.bak "s|from './supabase'|from './supabase-stub'|" geo.src.ts
+# geo.ts now also imports the pack map's pure module. The copy above moved geo.ts OUT of
+# src/lib, so its sibling-relative import has to be re-pointed at the real file — the same
+# reason the supabase line above is rewritten. Rewriting the path (rather than copying
+# pack.ts here too) keeps the bundle reading the SHIPPING source.
+sed -i.bak "s|from './pack'|from '../src/lib/pack'|" geo.src.ts
 # Native modules are lazy-required inside try/catch at runtime, but esbuild resolves them
 # statically anyway and then chokes on react-native's Flow syntax. Marking them external keeps
 # the bundle to geo.ts's own logic, which is all these cases exercise.
