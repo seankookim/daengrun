@@ -4,7 +4,7 @@ import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet,
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  claimClubHost, ClubOverview, ClubSeries, createClubSession, DelegationBoard, fetchClubHostStats, fetchClubMyStats,
+  claimClubHost, ClubOverview, ClubSeries, clubJoin, clubLeave, createClubSession, DelegationBoard, fetchClubHostStats, fetchClubMyStats,
   fetchClubOverview, fetchClubSeries, fetchDelegationBoard, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -37,6 +37,16 @@ const L = lilac;
 // owner/request.tsx가 [E6]으로 이미 겪고 고친 바로 그 버그다: 서버의 가용·홀드 판정이 KST
 // 고정이라, UTC 시뮬레이터나 해외 기기에서 호스트가 「토 09:00」을 고르면 다른 시각이 저장된다.
 // 산식은 src/lib/kst.ts 한 곳에만 산다 (그 파일이 존재하는 이유이자, run-kst-tests.sh가 지키는 것).
+// club_join/club_leave가 올리는 예외는 두 개뿐이고 둘 다 기술 문자열이다 (not_signed_in ·
+// not_found). 실패는 실패로 보여야 하지만, 읽을 수 없는 실패는 보여준 것이 아니다.
+// 컴포넌트 바깥에 산다 — 닫아 잡는 값이 없는 순수 함수라 렌더마다 다시 만들 이유가 없다.
+const memErr = (e: unknown) => {
+  const m = (e as Error).message ?? '';
+  if (m.includes('not_signed_in')) return '로그인이 필요해요';
+  if (m.includes('not_found')) return '클럽을 찾을 수 없어요';
+  return m;
+};
+
 const CAP_MIN = 2, CAP_MAX = 30;   // 서버는 2~60 (0030:59); 30은 Sean의 상한
 const DATE_DAYS = 21;                       // 3주 — 「more freedom」. 서버 상한은 없다.
 const TIME_MIN_H = 5, TIME_MAX_H = 21;      // 05:00~21:00, 30분 간격 — 그의 「integer times」
@@ -227,6 +237,43 @@ export default function ClubPage() {
     registerClubInterest(club.id)
       .then(() => { haptic('light'); load(); })
       .catch((e) => Alert.alert('관심 등록', (e as Error).message));
+  };
+
+  // ---------- 명시적 멤버십 (0048 F) ----------
+  // 서버는 0048부터 club_join/club_leave를 갖고 있었고 부르는 화면이 없었다. 0048의 R4가 자동
+  // 가입을 폐지하면서 가입 권유를 「UI/알림 몫」으로 남겼는데 그 UI가 끝내 안 만들어졌다.
+  const [memBusy, setMemBusy] = useState(false);
+  const join = () => {
+    if (!club || memBusy) return;
+    setMemBusy(true);
+    clubJoin(club.id)
+      .then(() => { haptic('light'); load(); })
+      .catch((e) => Alert.alert('클럽 가입', memErr(e)))
+      .finally(() => setMemBusy(false));
+  };
+  const leave = () => {
+    if (!club || memBusy) return;
+    // ⚠ 정직 요건: 탈퇴는 아무 의무도 취소하지 않는다 (0048 §15 canonical — 위탁·부킹·커스터디는
+    // 멤버십이 아니라 세션/부킹에 산다). 탈퇴가 예약까지 지운다고 오해한 사람은 집결지에
+    // 나타나지 않고, 그 자리는 아무도 채우지 못한다. 그래서 확인문이 이 사실을 말한다.
+    Alert.alert(
+      '클럽 탈퇴',
+      '탈퇴해도 이미 신청한 세션과 위탁·정산은 그대로 남아요. 정기 세션이 열릴 때 알림을 받지 않게 돼요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: () => {
+            setMemBusy(true);
+            clubLeave(club.id)
+              .then(() => { haptic('light'); load(); })
+              .catch((e) => Alert.alert('클럽 탈퇴', memErr(e)))
+              .finally(() => setMemBusy(false));
+          },
+        },
+      ],
+    );
   };
 
   const ns = club?.nextSession;
@@ -640,6 +687,60 @@ export default function ClubPage() {
                 </View>
               )}
             </Row>
+          )}
+
+          {/* ---------- 멤버십 (0048 F) — 가입/탈퇴 ----------
+              멤버십이 실제로 주는 것만 말한다. 프로덕션 배포본에서 측정한 두 가지:
+              ① club_generate_club_sessions가 정기 세션을 만들 때 club_members 전원(호스트 제외)
+                 에게 notifications 행을 넣는다 — 크론 `club-series-gen` 매시 20분, active.
+              ② club_session_board는 멤버이거나 _club_shell_access ≠ 'none' 이어야 행을 돌려준다.
+              그 외에 멤버십을 읽는 정책은 **하나도 없다** (pg_policies 0건). 그래서 그 이상은
+              쓰지 않는다 — 없는 혜택을 적으면 그게 곧 목업이다.
+              ⚠ 호스트에게는 탈퇴를 그리지 않는다. club_overview.isHost는 clubs.host_profile_id를,
+              club_demand_board.isHost는 club_members.role='host'를 읽는다 — 배포된 두 함수가 같은
+              낱말을 다르게 정의하고 있고, 지금 일치하는 이유는 club_claim_host가 둘 다 쓰기
+              때문이다. club_leave는 멤버 행만 지우므로 호스트가 누르면 그 둘이 갈라진다
+              (오버뷰는 호스트라 하고 디맨드 보드는 아니라 한다). 서버 쪽에 보고했고,
+              클라이언트가 그 상태에 도달하는 문이 되지는 않는다. */}
+          {club?.status === 'active' && !club.isHost && (
+            club.isMember ? (
+              <View style={s.card}>
+                <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>이 클럽의 멤버예요</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.accent }}>✓</Text>
+                </Row>
+                <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 21 }}>
+                  정기 세션이 열리면 알림을 받고, 세션 보드를 볼 수 있어요
+                </Text>
+                <Pressable
+                  onPress={leave}
+                  disabled={memBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="클럽 탈퇴"
+                  accessibilityState={{ disabled: memBusy }}
+                  style={[s.ghostBtn, memBusy && { opacity: 0.5 }]}
+                >
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text }}>클럽 탈퇴</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={s.card}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>아직 멤버가 아니에요</Text>
+                {/* 게스트 RSVP는 1급이다 (0048 R4) — 가입을 참여의 조건처럼 말하면 거짓이 된다. */}
+                <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 21 }}>
+                  세션 참여는 멤버가 아니어도 돼요. 멤버가 되면 정기 세션이 열릴 때 알림을 받고,
+                  세션 보드를 볼 수 있어요
+                </Text>
+                {/* disabled/busy는 ClubCta가 소유한다 — 컴포넌트가 accessibilityState까지 함께
+                    맞춘다 (알파 트릭으로 흉내내면 스크린리더에는 여전히 눌리는 버튼이다). */}
+                <ClubCta
+                  label={memBusy ? '가입하는 중…' : '클럽 가입하기'}
+                  onPress={join}
+                  busy={memBusy}
+                  style={{ paddingVertical: 15, marginTop: 12 }}
+                />
+              </View>
+            )
           )}
 
           {/* ---------- 호스트 도구: 세션 열기 ---------- */}

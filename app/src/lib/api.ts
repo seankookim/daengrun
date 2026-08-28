@@ -3985,6 +3985,16 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
 };
 export const registerClubInterest = (clubId: string) => clubRpc('club_register_interest', { p_club: clubId, p_wants: 'attend' }) as Promise<void>;
 export const claimClubHost = (clubId: string) => clubRpc('club_claim_host', { p_club: clubId }) as Promise<void>;
+// [0048 F] 명시적 멤버십 — 가입/탈퇴. 서버는 0048부터 완성돼 있었고 부르는 화면이 없었다.
+// 0048의 R4가 자동 가입을 폐지하면서 가입 권유를 「UI/알림 몫」으로 남겼는데, 그 UI가 없었다.
+// 프로덕션에서 측정: club_members에 insert 하는 배포 함수는 club_claim_host · club_join ·
+// session_runner_commit 세 개뿐이고 session_rsvp는 하지 않는다 — 즉 보호자가 멤버가 될 길이
+// 아예 없었다.
+// ⚠ club_leave는 아무 의무도 취소하지 않는다 (0048 §15 canonical: 위탁·부킹·커스터디는 멤버십이
+// 아니라 세션/부킹에 산다). 화면은 그 사실을 말해야 한다 — 탈퇴가 예약을 지운다고 오해하면
+// 사람이 나타나지 않는다.
+export const clubJoin = (clubId: string) => clubRpc('club_join', { p_club: clubId }) as Promise<void>;
+export const clubLeave = (clubId: string) => clubRpc('club_leave', { p_club: clubId }) as Promise<void>;
 export const createClubSession = (
   clubId: string, scheduledAtIso: string, meetupPoint: string, capacity = 12,
   routeId: string | null = null, format: 'owner_only' | 'delegated_only' | 'mixed' = 'owner_only',
