@@ -2915,7 +2915,9 @@ export async function ensureThread(bookingId: string): Promise<string> {
 }
 
 export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user.user) throw new Error('not signed in');
   const { data, error } = await supabase
     .from('chat_messages')
     .select('id, sender_id, body, media_path, created_at')
@@ -2923,7 +2925,7 @@ export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
     .order('created_at')
     .limit(100);
   if (error) throw error;
-  return (data ?? []).map((m: any) => mapMsg(m, user.user?.id));
+  return (data ?? []).map((m: any) => mapMsg(m, user.user.id));
 }
 
 export async function sendChatMessage(threadId: string, body: string): Promise<void> {

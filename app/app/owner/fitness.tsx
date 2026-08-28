@@ -81,25 +81,25 @@ export default function FitnessHub() {
   // 두 페치는 서로를 인질로 잡지 않는다 — 하나가 실패해도 나머지는 그려지고, 실패한 쪽은 직전 상태를 유지한다
   // (moments 를 []로 덮으면 '사진이 없어요'라는 거짓말이 된다).
   const [momentsErr, setMomentsErr] = useState(false); // 첫 로드 실패 시 무한 '불러오는 중' 방지 — 정직한 오류 프레임 + 재시도
-  const loadMoments = () => {
+  const loadMoments = useCallback(() => {
     setMomentsErr(false);
     fetchRecentMoments(12)
       .then((ms) => { setMoments(ms); setMomentsErr(false); })
       .catch((e) => { console.warn('[fitness] moments:', e?.message ?? e); setMomentsErr(true); }); // 직전 상태 유지 — []로 덮으면 거짓말
-  };
+  }, []);
   // [정직 배치 2026-08-06 · item 5] 체력 실패는 실패로. 로딩('—')과 구별되는 라우드 페일 + 재시도.
   const [fitErr, setFitErr] = useState(false);
-  const loadFit = () => {
+  const loadFit = useCallback(() => {
     setFitErr(false);
     fetchFitness()
       .then((f) => { setFit(f); setFitErr(false); })
       .catch((e) => { console.warn('[fitness]:', e?.message ?? e); setFitErr(true); }); // 직전 실값 유지
-  };
-  const load = () => {
+  }, []);
+  const load = useCallback(() => {
     loadFit();
     loadMoments();
-  };
-  useFocusEffect(useCallback(() => { load(); }, []));
+  }, [loadFit, loadMoments]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const bumpGoal = async (delta: number) => {
     if (!fit?.dogId || savingGoal) return;

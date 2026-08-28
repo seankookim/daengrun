@@ -254,7 +254,7 @@ export default function Matching() {
       if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
     }
     return arr;
-  }, [liveRunners, gearMap, targetPaceSec]);
+  }, [liveRunners, gearMap, targetPaceSec, rebook]);
   const top = scored[0];
   const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
   // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 AI 1순위로 폴백

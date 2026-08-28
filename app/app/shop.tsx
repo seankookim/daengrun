@@ -30,15 +30,23 @@ export default function Shop() {
   const [drops, setDrops] = useState<DropRow[]>([]);
   const [boostUntil, setBoostUntil] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
   const isRunner = session.role === 'runner';
-  const load = () => Promise.all([
-    fetchMiles().then(setMiles).catch(() => {}), // 미로그인/RPC 미배포 → 잔액 미표시 (가짜 0 금지)
-    fetchGearClaims().then(setClaims).catch(() => {}),
-    isRunner ? fetchDrops().then(setDrops).catch(() => {}) : Promise.resolve(),
-    isRunner ? fetchActiveBoostLabel().then(setBoostUntil).catch(() => {}) : Promise.resolve(),
-  ]);
-  useFocusEffect(useCallback(() => { load(); }, []));
+  const load = useCallback(() => {
+    setLoadErr(false);
+    const failed = (area: string, error: unknown) => {
+      console.warn(`[shop] ${area}:`, (error as Error)?.message ?? error);
+      setLoadErr(true);
+    };
+    return Promise.all([
+      fetchMiles().then(setMiles).catch((e) => failed('miles', e)),
+      fetchGearClaims().then(setClaims).catch((e) => failed('claims', e)),
+      isRunner ? fetchDrops().then(setDrops).catch((e) => failed('drops', e)) : Promise.resolve(),
+      isRunner ? fetchActiveBoostLabel().then(setBoostUntil).catch((e) => failed('boost', e)) : Promise.resolve(),
+    ]);
+  }, [isRunner]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const unopened = drops.filter((d) => !d.openedAt);
@@ -99,6 +107,12 @@ export default function Shop() {
             </Text>
           )}
         </View>
+
+        {loadErr && (
+          <Pressable style={s.errorStrip} onPress={() => { void load(); }} accessibilityRole="button">
+            <Text style={s.errorText}>샵 정보 일부를 불러오지 못했어요 · 다시 시도</Text>
+          </Pressable>
+        )}
 
         {/* 활성 부스트 (픽 드랍 보상, 실데이터) — 활성일 때만 그린다 */}
         {isRunner && boostUntil && (
@@ -207,6 +221,8 @@ const s = StyleSheet.create({
   heroGo: { backgroundColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 13 },
   dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 0, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' }, // 볼트 워시 = 시맨틱 (보상 신호)
   boostStrip: { backgroundColor: '#fff', borderRadius: 0, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' },
+  errorStrip: { backgroundColor: '#FFF4F1', padding: 12, marginTop: 10, borderWidth: 1, borderColor: paper.critical },
+  errorText: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical, textAlign: 'center' },
   section: { fontSize: 17, fontWeight: '900', color: paper.ink },
   countPill: { minWidth: 20, height: 20, borderRadius: 0, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },

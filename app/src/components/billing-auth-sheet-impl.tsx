@@ -15,6 +15,7 @@ import { useCallback, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
+import { safeInlineScriptString } from '../lib/inline-script';
 import { TOSS_CLIENT_KEY } from '../lib/toss';
 import { paper } from '../theme';
 import type { BillingAuthProps } from './billing-auth-sheet';
@@ -88,16 +89,23 @@ export function BillingAuthSheet({ visible, customerKey, nonce, onAuthKey, onFai
 
   // V1 SDK — requestBillingAuth는 위젯 v2 RN SDK에 없다 (그 SDK는 결제위젯 전용). 페이지는
   // 로드 즉시 토스의 카드 입력 UI로 전환되므로 이 HTML 자체는 한 프레임도 보이지 않는다.
+  // Values are JavaScript strings inside HTML, so JSON.stringify alone is not
+  // a complete boundary: a literal </script> closes the element in the HTML
+  // parser. The serializer preserves the values while neutralizing that token.
+  const clientKeyJs = safeInlineScriptString(TOSS_CLIENT_KEY);
+  const customerKeyJs = safeInlineScriptString(customerKey);
+  const successUrlJs = safeInlineScriptString(`${SUCCESS_URL}?nonce=${encodeURIComponent(nonce)}`);
+  const failUrlJs = safeInlineScriptString(`${FAIL_URL}?nonce=${encodeURIComponent(nonce)}`);
   const html = `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://js.tosspayments.com/v1/payment"></script></head>
 <body><script>
-  TossPayments(${JSON.stringify(TOSS_CLIENT_KEY)}).requestBillingAuth('카드', {
-    customerKey: ${JSON.stringify(customerKey)},
-    successUrl: ${JSON.stringify(`${SUCCESS_URL}?nonce=${encodeURIComponent(nonce)}`)},
-    failUrl: ${JSON.stringify(`${FAIL_URL}?nonce=${encodeURIComponent(nonce)}`)},
+  TossPayments(${clientKeyJs}).requestBillingAuth('카드', {
+    customerKey: ${customerKeyJs},
+    successUrl: ${successUrlJs},
+    failUrl: ${failUrlJs},
   }).catch(function (e) {
-    location.href = ${JSON.stringify(`${FAIL_URL}?nonce=${encodeURIComponent(nonce)}`)} + '&message=' + encodeURIComponent(e.message || '카드 등록을 열지 못했어요');
+    location.href = ${failUrlJs} + '&message=' + encodeURIComponent(e.message || '카드 등록을 열지 못했어요');
   });
 </script></body></html>`;
 

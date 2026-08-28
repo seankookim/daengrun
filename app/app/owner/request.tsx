@@ -175,8 +175,11 @@ export default function Request() {
   // 칩은 자동 배정과 **합성된다**: 필터가 배제한 코스를 자동 배정이 골라 버리면, 보호자는
   // 자기가 끈 조건의 코스를 예약하게 된다. 그래서 최근접-km 탐색은 걸러진 집합 안에서만 돈다.
   // 픽업지 좌표 — 거리 랭킹의 기준점. null이면(주소 미등록·좌표 없음) 랭킹은 km-only로 떨어진다.
-  const pickup = pickupAddr?.lat != null && pickupAddr?.lng != null
-    ? { lat: pickupAddr.lat, lng: pickupAddr.lng } : null;
+  const pickup = useMemo(() => (
+    pickupAddr?.lat != null && pickupAddr?.lng != null
+      ? { lat: pickupAddr.lat, lng: pickupAddr.lng }
+      : null
+  ), [pickupAddr?.lat, pickupAddr?.lng]);
 
   const activeRoutes = useMemo(
     () => routes.filter((r) => r.status === 'active' && matchesChipsFn(r)), [routes, matchesChipsFn]);
@@ -186,17 +189,20 @@ export default function Request() {
   // 순서는 D-VIS를 어기지 않는다: 고르는 건 여전히 보호자고, 우리는 맨 앞에 가까운 걸 둘 뿐이다.
   const shownRoutes = useMemo(
     () => orderByProximity(routes.filter(matchesChipsFn), pickup),
-    [routes, matchesChipsFn, pickup?.lat, pickup?.lng],
+    [routes, matchesChipsFn, pickup],
   );
   // 자동 배정 = 칩 → km 밴드 → **픽업지에서 가까운 순** (Sean 2026-08-14). 점수 규칙 자체는
   // `lib/route-pick`이 소유한다 — 화면에 묻어 두면 읽을 수도 고칠 수도 없다.
   // ⚠ 넘기는 집합은 반드시 `activeRoutes`(status 게이트 + 칩 적용) — 원본 목록을 넘기면
   // 사용자가 끈 조건의 코스나 candidate가 배정된다.
-  const autoPick = (target: number): PickResult => pickRoute(activeRoutes, target, pickup);
-  const autoPickFor = (target: number): string | null => autoPick(target).id;
+  const autoPick = useCallback(
+    (target: number): PickResult => pickRoute(activeRoutes, target, pickup),
+    [activeRoutes, pickup],
+  );
+  const autoPickFor = useCallback((target: number): string | null => autoPick(target).id, [autoPick]);
   // 이 거리에서 앱이 골랐을 코스 — 스냅샷의 recommended_route_id. 보호자가 무엇을 덮어썼는지
   // 서버가 알 수 있어야 오버라이드율이 계산된다.
-  const recommended = useMemo(() => autoPick(km), [activeRoutes, km, pickup?.lat, pickup?.lng]);
+  const recommended = useMemo(() => autoPick(km), [autoPick, km]);
   const recommendedRouteId = recommended.id;
 
   const pickRouteForKm = (target: number) => {
