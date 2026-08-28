@@ -326,6 +326,52 @@ module, so the suite says nothing about this screen either way. Gates that DID m
 `check-rpc-contracts` 118 → **120**, exactly the two new calls — a positive control that the
 checker saw the code rather than passing by not looking.
 
+## 🔴 NEW 2026-08-28 — a LIVE disclosure, confirmed on production, needs one line to close
+
+`0147` grants `authenticated` direct EXECUTE on the INNER board function, and that function
+**trusts a caller-supplied access grade instead of deriving it**. Found cold by codex; then
+**reproduced against production**, which is the pairing this file's laws prescribe.
+
+Measured: `_club_delegation_board_impl(p_session uuid, p_access text)` is `prosecdef`,
+`has_function_privilege('authenticated', …, 'EXECUTE')` = **TRUE**, the body references `p_access`
+and — comment-stripped — **never references `_club_shell_access`**. The outer
+`club_delegation_board` derives the grade correctly; nothing makes a caller use it. It lives in
+`public`, which PostgREST **does** expose — so unlike the `net` grant (OPEN #6), the allowlist is
+not standing in front of this one.
+
+Executed as role `authenticated` with **no party relationship** to the session, on a session that
+actually has content: `p_access='host'` returns **1 dog / 2,185 B**, `p_access='none'` returns
+**0 dogs / 663 B**. Different digests. The forged grade hands over `ownerName`, `runnerName`,
+`proposedRunnerName`, `custodianProfileId`, `runnerId`, `bookingStatus`, `chargeState`,
+`refundState`, `payoutState`, `payoutHoldReason`, `openIncidentId`, `dogName`, `collar` — **names,
+re-identifying profile IDs, money state and incident references for a stranger's session.**
+
+**Fix is one line:** `revoke execute on function _club_delegation_board_impl(uuid, text) from
+authenticated;`
+
+⚠ **My first attempt at this proof measured NOTHING and read as reassuring** — run against the
+first session id in the table, both grades returned identical digests, because that session has 0
+dogs and 0 runners. An empty fixture discloses nothing regardless of grade. Same trap as
+`billing_keys`. **Find a fixture with content before believing a negative.**
+⚠ Rung honesty: the DB-level call is OBSERVED; the same call over PostgREST with a real user JWT is
+NOT — that rung is a read, not a measurement.
+
+## Also new 2026-08-28 — the run-end money chain is REJECT, 12 findings
+
+`docs/reviews/2026-08-28-codex-runend-money.md`. Beyond the disclosure above:
+- 🔴 **CRITICAL: a runner can mint arbitrarily inflated earnings** with a future-timestamped GPS
+  trace. Ingest rejects neither future timestamps nor trace duration; the only bound is 100 km. It
+  moves the ledger and runner earnings **today** — no flag involved.
+- **`club_end_pack_runs` has ZERO client callers** (verified independently: no executable reference
+  anywhere in `app/`). The whole 0144 freeze is not in the settlement path; runs settle from the
+  runner's own button, so **the runner's client values price the ledger**. Whether to wire it or
+  retire it is Sean's call, and two other findings fall out of that answer.
+- **0152 is incomplete**: weekly, fitness and leaderboard aggregates still coalesce unknown distance
+  to zero. ✅ Codex's open question answered on production — `completed` bookings with NULL
+  `actual_km` = **0 of 8**, so this is schema-reachable but **not observable today**. ⚠ One
+  transition away: 1 of 9 runs has NULL km AND NULL duration (the `incident` run sitting in
+  `incident_review`).
+
 ## Unreviewed
 
 ~14 of the 21 deployed migrations carry **no codex verdict**, and 0131's seven review rounds

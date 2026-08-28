@@ -18,12 +18,14 @@ re-derive the batch plan, and does not mistake an attempted review for a complet
 
 ⚠ **Nobody may say this slice is 「under codex review」.** It is not. It has had no pass at all.
 
-| Run-end money chain — **0144, 0147, 0152** + client half | 🔴 **UNRESOLVED AT WRITE TIME — treat as NOT REVIEWED until you check.** Launched, read for a long time (1.27 MB stderr), then its stderr **stopped growing** while the process stayed alive, with 0 bytes of stdout. The account was already quota-walled by the run above, so the likeliest outcome is death at the emit step — **which produces a HUGE log and no verdict, the same characteristic failure.** ⚠ **Do not read the log's size as progress.** Settle it the only way that works: `grep -cE '^FINDINGS: [0-9]+'` on its **stdout**, plus `grep -i 'usage limit'` on its **stderr**. If there is no verdict, this batch is owed a fresh run and belongs in the ranked list below, above batch 2. Prompt saved at `2026-08-28-runend-money.prompt.md`. |
+| Run-end money chain — **0144, 0147, 0152** + client half | ✅ **RESOLVED — REJECT · 12 findings** (1 CRITICAL, 6 HIGH). `2026-08-28-codex-runend-money.md`. |
 
-⚠ **Why this row is written this way rather than left out:** a document that reports a review as
-finished when it died is how a false green arrives through the one artifact nobody thinks to
-distrust. The honest state of an in-flight run at write time is 「unresolved」, and the next reader
-owes it a measurement, not a reading of this sentence.
+⚠ **The UNRESOLVED row that stood here predicted this run had died, and that prediction was
+WRONG.** Its stderr had gone flat at 1.27 MB with 0 bytes of stdout while a sibling run had already
+walled the account — the exact signature of death at the emit step. It finished normally. **This is
+the argument for writing 「unresolved」 rather than a guess:** the guess would have been wrong in the
+direction that loses a CRITICAL finding and a confirmed live disclosure. Byte-growth and log size
+are liveness *hints*; only the verdict grep and the process state are evidence.
 
 ## The batches still owed, ranked
 
