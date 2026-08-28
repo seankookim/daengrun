@@ -2,10 +2,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { BookingCharge, fetchBookingCharge } from '../../src/lib/api';
+import { BookingCharge, fetchBookingCharge, fetchBookingPayments } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
+import { kstCal, kstClock } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
-import { derivePayPhase, PayPhase } from '../../src/lib/payphase';
+import { collectionMatters, derivePayPhase, PayPhase, summarizeCollection } from '../../src/lib/payphase';
 import { paper, pricing } from '../../src/theme';
 
 // 청구 표면 `/owner/pay?bid=` — 예약 하나의 청구 상태를 서버 진실로만 말하는 **읽기 전용** 화면.
@@ -43,6 +44,12 @@ const CHIP: Record<PayScreen, string> = {
   failed: 'FAILED',
   cancelled: 'CANCELLED',
   refund_pending: 'REFUND · 환불 중',
+  // [codex #11/#12] 상태만으로는 못 하는 말들 — payphase.ts의 COLLECTION 블록 참조
+  not_charged: 'NO CHARGE · 청구 없음',
+  paid: 'PAID · 결제 완료',
+  collect_pending: 'SETTLED · 결제 대기',
+  collect_failed: 'SETTLED · 결제 실패',
+  charge_unknown: 'UNKNOWN · 확인 불가',
   error: 'ERROR',
 };
 
@@ -55,7 +62,14 @@ const HEAD: Record<PayScreen, string> = {
   disputed: '러닝에 확인이 필요한 일이 있어요',
   failed: '결제가 완료되지 않았어요',
   cancelled: '취소된 예약이에요',
+  // 이제 이 문장은 **확정된 결제가 있는 예약**에서만 나온다 (codex #11).
   refund_pending: '환불이 진행 중이에요',
+  // 0152의 알림이 쓰는 문장과 같은 말을 쓴다 — 두 표면이 갈라지지 않게 (0152:225 「이번 건은 청구되지 않아요」).
+  not_charged: '이번 건은 청구되지 않았어요',
+  paid: '결제가 완료됐어요',
+  collect_pending: '정산은 끝났고, 결제가 아직 처리되지 않았어요',
+  collect_failed: '정산은 끝났고, 결제가 실패했어요',
+  charge_unknown: '결제 상태를 확인하지 못했어요',
   error: '결제 정보를 불러오지 못했어요',
 };
 
@@ -85,10 +99,14 @@ export default function Pay() {
   // 슬롯 홀드 만료 시각(exp)뿐이고, 둘 다 이 화면이 **보여주기만** 하는 값이다.
   const { bid, exp } = useLocalSearchParams<{ bid?: string; exp?: string }>();
   // [리뷰 #5] 실홀드 만료 — 슬롯 홀드(5분)는 조용히 풀린다. 시각을 정직하게 말한다.
-  const holdUntil = exp ? new Date(exp) : null;
-  const holdLabel = holdUntil && !isNaN(holdUntil.getTime())
-    ? `${String(holdUntil.getHours()).padStart(2, '0')}:${String(holdUntil.getMinutes()).padStart(2, '0')}`
-    : null;
+  //
+  // [2026-08-28] 기기 시계 읽기를 kst.ts 로 수렴시킨다 (check-device-clock 기준선의 마지막 한 줄).
+  // 기준선은 이 줄을 「화면을 되살리는 슬라이스가 갚는다」로 남겨 뒀는데, 이 슬라이스는 되살리지는
+  // 않지만 같은 화면의 문장들을 다시 쓰고 있다 — 결제 화면을 정직하게 만드는 작업 옆에 기기
+  // 로컬 시각을 남겨 두는 건 앞뒤가 맞지 않는다. `kstClock` 은 여기 있던 식과 **포맷이 같다**
+  // (시·분 모두 2자리 패딩, 콜론 구분): 달라지는 건 존뿐이고, 서버(홀드 만료)는 KST 고정이다.
+  const holdMs = exp ? Date.parse(exp) : NaN;
+  const holdLabel = Number.isFinite(holdMs) ? kstClock(kstCal(holdMs)) : null;
   const [screen, setScreen] = useState<PayScreen>('loading');
   const [charge, setCharge] = useState<BookingCharge | null>(null);
   const [busy, setBusy] = useState(false);
@@ -97,13 +115,28 @@ export default function Pay() {
   // 청구 로드 — 이 화면이 하는 일의 전부다 (서버를 앞으로 미는 호출은 하나도 남아 있지 않다).
   const load = useCallback(async () => {
     if (!bid) { setScreen('not_found'); return; }
+    let payErr: string | null = null;
     try {
-      const c = await fetchBookingCharge(bid);
+      // [codex #11/#12] 두 읽기를 나란히 보낸다. `bookings.status` 하나로는 '환불 중'도 '결제
+      // 완료'도 말할 수 없기 때문이다 — payphase.ts의 COLLECTION 블록이 그 이유를 다 적어 뒀다.
+      //
+      // ⚠ payments 읽기의 실패는 **청구 화면 전체의 실패가 아니다**: 상태만으로 충분한 페이즈
+      //   (취소·분쟁·홀드 전)는 그대로 말할 수 있어야 한다. 그래서 여기서 throw 하지 않고
+      //   `null`(=모른다)로 접어 넘기고, 그 사실이 실제로 필요한 두 상태에서만
+      //   derivePayPhase 가 `charge_unknown`(라우드 + 다시 불러오기)으로 떨어뜨린다.
+      //   '못 읽었다'를 '청구가 없다'로 바꿔 말하지 않는 것이 이 슬라이스의 전부다.
+      const [c, pays] = await Promise.all([
+        fetchBookingCharge(bid),
+        fetchBookingPayments(bid).then((r) => r, (e) => { payErr = msgOf(e); return null; }),
+      ]);
       if (!c) { setCharge(null); setScreen('not_found'); return; } // 0행·남의 예약 (H3/M5)
       setCharge(c);
+      const collection = summarizeCollection(pays);
+      // 못 읽은 사실이 **이 상태에서 실제로 필요할 때만** 라우드 스트립에 사유를 싣는다.
+      setFailReason(payErr && collectionMatters(c.status) ? payErr : null);
       // attempt 인자는 넘기지 않는다 — 클라이언트가 만드는 PG 시도 레코드가 더 이상 없다.
       // (payphase.ts의 authorizing/failed는 위젯 슬라이스가 돌아올 때 그 인자와 함께 살아난다.)
-      setScreen(derivePayPhase({ status: c.status }));
+      setScreen(derivePayPhase({ status: c.status, collection }));
     } catch (e) {
       setFailReason(msgOf(e));
       setScreen('error'); // 로딩도 0도 아니다 — 못 불러왔다고 말한다
@@ -158,7 +191,10 @@ export interface PayViewProps {
 export function PayView({ screen, charge, busy, failReason, holdLabel, onReload, onBack }: PayViewProps) {
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(총액)
   const dots = useEllipsis(screen === 'authorizing'); // 스피너 연출 금지 — 말줄임표만 움직인다
-  const loud = screen === 'failed' || screen === 'error';
+  // [codex #12] 수금 실패와 '확인 불가'도 라우드다 — 정산이 성공했다는 사실이 결제 실패를
+  // 조용하게 만들어서는 안 된다 (성공 화면 안에 실패를 숨기지 않는다).
+  const loud = screen === 'failed' || screen === 'error'
+    || screen === 'collect_failed' || screen === 'charge_unknown';
   // 로딩('—' 자리)과 청구가 손에 있는 상태에서만 테이블을 그린다. 재로드 실패(error)로 직전 청구가
   // 남아 있으면 그 숫자는 계속 보여준다 — 지웠다가 다시 그리는 쪽이 더 거짓말이다 (라우드 스트립이 함께 뜬다).
   const showTable = screen === 'loading' || charge !== null;
@@ -249,13 +285,44 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
         {screen === 'cancelled' && (
           <Text style={s.body}>이 예약은 취소된 상태예요 — 이 화면에서 진행할 결제가 없어요</Text>
         )}
+        {/* [codex #11 · 2026-08-28] The TODO that used to sit here is DONE, and it was not
+            hypothetical: production carries two `refund_pending` bookings today and BOTH have
+            zero payments rows, so both owners were being shown the sentence below for money that
+            never moved. The predicate is now upstream in payphase.ts, keyed on the same
+            `status='confirmed'` existence test `club_incident_settle` uses for its notification —
+            so this branch is reached ONLY when there is something to refund. */}
         {screen === 'refund_pending' && (
-          /* TODO(widget slice, R3 P3-7): "환불이 진행 중" is only true when money was captured
-             (a confirmed payments row exists). club_incident_settle sets refund_pending
-             regardless of capture; 0080 §J-ⓑ already made the NOTIFICATION conditional —
-             this screen must gain the same predicate (fetchBookingPayments) before the
-             widget slice makes uncaptured refund_pending reachable with real money. */
           <Text style={s.body}>환불이 진행 중이에요 — 완료되면 알려드려요</Text>
+        )}
+        {screen === 'not_charged' && (
+          <Text style={s.body}>
+            이 예약으로 결제된 금액이 없어서, 환불될 것도 없어요{'\n'}
+            자세한 근거는 알림과 케이스에서 볼 수 있어요
+          </Text>
+        )}
+        {screen === 'paid' && (
+          <Text style={s.body}>러닝이 끝나고 결제까지 완료됐어요 — 영수증은 설정 → 결제 관리에 남아요</Text>
+        )}
+        {/* [codex #12] 정산과 수금은 서로 다른 사건이다 (settle-run 순서 법칙: 원장이 먼저 커밋되고,
+            수금 실패는 그것을 되돌리지 않는다). 그래서 두 문장을 한 화면에서 갈라 말한다 — 러너는
+            이미 정산을 받았고, 남은 것은 이 카드뿐이라는 사실이 보호자가 알아야 할 전부다. */}
+        {screen === 'collect_pending' && (
+          <Text style={s.body}>
+            러닝 정산은 끝났어요 — 카드 청구만 아직 처리되지 않았어요{'\n'}
+            결제 관리에서 지금 상태와 다시 시도할 수 있는지 확인할 수 있어요
+          </Text>
+        )}
+        {screen === 'collect_failed' && (
+          <Text style={s.body}>
+            러닝 정산은 정상적으로 끝났어요 — 카드 청구만 실패했어요{'\n'}
+            결제 관리에서 사유를 보고 다시 시도할 수 있어요
+          </Text>
+        )}
+        {screen === 'charge_unknown' && (
+          <Text style={s.body}>
+            이 예약의 결제 내역을 읽지 못해서, 청구·환불 상태를 말씀드릴 수 없어요{'\n'}
+            잠시 뒤 다시 불러와 주세요 — 확인되기 전까지는 아무것도 단정하지 않을게요
+          </Text>
         )}
         {screen === 'not_found' && (
           <Text style={s.body}>
@@ -265,8 +332,13 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
         {loud && (
           // 라우드 페일(F1.2) — 풀블리드 크리티컬 헤어라인 + 서버가 한 말 그대로
           <View style={s.failStrip}>
+            {/* 라우드 스트립은 네 칸이 각자 다른 말을 한다 — 「실패」한 대상이 서로 다르기 때문이다.
+                (catch 가 만드는 문장도 제품 표면이라는 법: 두 갈래가 각각 따로 검수받는다.) */}
             <Text style={s.failTxt}>
-              {screen === 'failed' ? '예약 확정 전이가 실패했어요' : '서버에서 결제 정보를 받지 못했어요'}
+              {screen === 'failed' ? '예약 확정 전이가 실패했어요'
+                : screen === 'collect_failed' ? '카드 청구가 실패했어요 — 러너 정산은 이미 완료됐어요'
+                : screen === 'charge_unknown' ? '결제 내역을 읽지 못했어요'
+                : '서버에서 결제 정보를 받지 못했어요'}
               {failReason ? `\n${failReason}` : ''}
             </Text>
           </View>
@@ -303,7 +375,32 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
         )}
         {/* mock_pending도 여기 들어온다: 접수되지 않은 예약에서 할 수 있는 유일한 정직한 일은
             나가는 것이다 ('내 일정'은 거짓말이 된다 — payment_hold는 그 목록에 없다). */}
-        {(screen === 'mock_pending' || screen === 'cancelled' || screen === 'refund_pending' || screen === 'not_found') && (
+        {/* [codex #12] 수금이 남아 있는 두 칸의 잉크 필은 **결제 관리**로 간다. 재청구 버튼을 여기
+            다시 만들지 않는 이유: /payments 가 이미 그 동작을 갖고 있고(retryCollect + 재연결
+            래더 + 200 이 '수금 완료'가 아니라는 사후 재읽기), 같은 돈 동작이 두 화면에 살면
+            반드시 갈라진다. 이 문은 진짜로 열리고, 그 끝에 진짜 재시도가 있다 (죽은 버튼 아님). */}
+        {(screen === 'collect_failed' || screen === 'collect_pending') && (
+          <>
+            {/* `returnTo` 는 싣지 않는다: /payments 의 allowedReturn 이 허용하는 두 경로
+                (`/owner/report`, `/club/session/<sid>`)는 둘 다 이 화면이 갖고 있지 않은
+                파라미터를 요구한다. 반쯤 채운 href 를 보내면 라벨이 가리키는 곳과 실제
+                도착지가 갈라진다 — /payments 헤더가 이미 그걸 죽은 버튼이라 부른다. */}
+            <PaperBtn label="결제 관리 열기" onPress={() => router.push('/payments')} />
+            <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
+          </>
+        )}
+        {/* '모른다'의 유일한 정직한 액션은 다시 읽는 것이다 — error 칸과 같은 문법. */}
+        {screen === 'charge_unknown' && (
+          <>
+            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중..." busy={busy} onPress={onReload} />
+            <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
+          </>
+        )}
+        {screen === 'paid' && (
+          <PaperBtn label="결제 내역 보기" onPress={() => router.push('/payments')} />
+        )}
+        {(screen === 'mock_pending' || screen === 'cancelled' || screen === 'refund_pending'
+          || screen === 'not_charged' || screen === 'not_found') && (
           <PaperBtn label="홈으로" onPress={goHome} />
         )}
       </View>
