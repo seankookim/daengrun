@@ -420,6 +420,16 @@ begin
   -- dB2 was handed over LATE — twenty minutes into the pack's walk. Its runner's trace is the
   -- same trace; only the window differs, and that is the whole of P2.
   update runs set started_at = now() - interval '10 minutes' where booking_id = t176_bk(dB2);
+  -- ⚠ [0156] dF's run is back-dated FIVE HOURS, alone among the eight. Its fixture is the
+  -- over-band case: 999 × 111 m ≈ 110.89 km, which at the ingest gate's 8 m/s ceiling cannot
+  -- physically happen in 30 minutes. It previously "fit" only because the generated timestamps
+  -- ran ~3.7 HOURS INTO THE FUTURE, which 0156 now refuses at ingest (`trace_future_fix`) and
+  -- excludes at derivation. Re-dating the run is the honest repair: 1000 points × 15 s spans
+  -- ≈4.16 h, so at 7.4 m/s every fix is in the past, inside the window, and inside the 300 s
+  -- coverage gate — and the derived distance is unchanged, which is what P3's `km_out_of_band`
+  -- actually pins. dF is BLOCKED and therefore freezes no km and no duration, so no other pin in
+  -- this suite reads its timing (`v_dur` is `v_at - v_start`, and dF never reaches the freeze).
+  update runs set started_at = now() - interval '5 hours' where booking_id = t176_bk(dF);
 
   -- ── the traces, uploaded through the shipped RPC by the runner who owns them ─────────────
   -- ⚠ `club_save_run_trace` fans ONE batch out over EVERY active run of that runner in that
@@ -432,7 +442,8 @@ begin
   perform set_config('request.jwt.claim.sub', rC::text, false);
   perform club_save_run_trace(v_s1, t176_trace(v_t0, 31, 60, 80));    -- 30 ×  80 m = 2.40 km
   perform set_config('request.jwt.claim.sub', rF::text, false);
-  perform club_save_run_trace(v_s1, t176_trace(v_t0, 1000, 15, 111)); -- 999 × 111 m ≈ 110.89 km
+  -- [0156] built from dF's own back-dated start, not the shared v_t0 — see the note above.
+  perform club_save_run_trace(v_s1, t176_trace(now() - interval '5 hours', 1000, 15, 111)); -- 999 × 111 m ≈ 110.89 km
   perform set_config('request.jwt.claim.sub', rA::text, false);
   perform club_save_run_trace(v_s2, t176_trace(v_t0, 31, 60, 100));
   perform set_config('request.jwt.claim.sub', v_bk_host::text, false);
