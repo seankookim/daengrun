@@ -432,6 +432,43 @@ function's 409), and now `session_reconsider_dog` (the caller cannot see its own
 derived from grants, which is the right method — but **a grant with no caller is not by itself a
 missing capability**, and that distinction has now cost three scouts to learn.
 
+## ✅ 2026-08-28 — the CRITICAL GPS fraud vector is CLOSED on production (`0156`)
+
+A runner supplied every coordinate **and every timestamp**; ingest checked only monotonicity and
+≤8 m/s, and derivation had **no upper bound at all**. A plausible slow trace dated hours ahead froze
+99 km into a 5 km booking and the payout path wrote it to `ledger_items`. **No flag gated it.**
+
+**Proven on production after deploy, read-only, with two controls:** the attack (two real fixes plus
+a DENSE fabricated tail an hour ahead) derives **0.10 km** — identical to the honest trace with no
+tail (**0.10**), so the forged tail contributes nothing — and a densely-sampled stationary dog still
+derives **0.00**, so the fix did not over-reach into refusing honest zeroes.
+
+**The shape worth knowing:** `_club_derive_run_km` is `stable` and is called from exactly one place,
+inside the freeze transaction — so `now()` there IS the host's tap. Bounding on it gave the
+reviewer's `started_at <= t <= v_at` with **no signature change and no 225-line recreation**.
+A 60 s tap grace is deliberate: a fix a second after the tap is jitter, and a strict bound would
+silently UNDER-pay the runner, which is the same class of error pointed the other way.
+
+⚠ **This does NOT close finding 4.** Points arriving after the tap are no longer counted, but the
+stale-trace race still needs a two-phase stop. Do not read 0156 as closing it.
+⚠ **The 300 s coverage threshold is PROVISIONAL and is Sean's call** — codex's own open question is
+「what maximum gap and minimum coverage define a measured run, including a genuinely stationary
+dog?」 and nobody has answered it. It is one named constant.
+⚠ **NO CODEX PASS** — quota-walled until 14:33. 0153 and 0156 are both owed one and neither is
+reviewed.
+
+⚠ **Suite 176 was repaired in the same slice**, per the standing rule. Its over-band fixture
+(999 × 111 m ≈ 110.89 km) only ever fit because its generated timestamps ran **≈3.7 hours into the
+future** — at the 8 m/s ingest ceiling that distance cannot happen in 30 minutes. `dF` is re-dated
+five hours back; it is BLOCKED and freezes no km or duration, so no other pin reads its timing.
+
+⚠ **I also deployed 0154 and 0155, which are another session's**, because `db push` has no per-file
+selection and 0156 was a live money bug. **Verified safe before deploying, not assumed:** 0154 ships
+`phone_collection_live_since` **NULL** (it adds the switch, it does not flip it) and I confirmed
+`phone_still_off = true` on production afterwards; 0155 arms only when card registration goes live
+(0 keys, 0 revocation rows). ⚠ **0155's REGISTRY row still reads 「NOT DEPLOYED, NOT PUSHED」 and is
+now stale twice over** — its owner should correct it.
+
 ## Unreviewed
 
 ~14 of the 21 deployed migrations carry **no codex verdict**, and 0131's seven review rounds

@@ -29,19 +29,28 @@
 #   ONE deliberate copy change: payments.tsx's `catch` printed 「2026. 8. 26」 where its `try`
 #   printed 「2026년 8월 26일」 — two different sentences for one field. The try's survives.
 #
-# ⚠ `owner/pay.tsx:90` is the one that stays, and it is a different case: dead by NO CALLER, not
-#   dead by construction. Nothing routes to /owner/pay and nothing supplies its `exp` param, but
-#   Expo Router still registers the URL, so a deep link would reach it. The obligation rides
-#   whichever slice revives the screen — it was deliberately left out of the convergence rather
-#   than overlooked.
-#   ⚠ It is also the LAST executable `Intl.DateTimeFormat` in app/ + src/, so it is the only line
-#   for which the Hermes question above is still open. The cheap discharge is to converge it like
-#   its eleven siblings, NOT to measure. If someone measures anyway, it must run in the app bundle
-#   and NOT in Node, on a device set to a non-Seoul zone (a Seoul device cannot fail this check —
-#   the same reason the Seoul arm of every mutation in this family shows 0 failures):
+# ⚠ `owner/pay.tsx:90` — CONVERGED AND REMOVED 2026-08-28, so this ledger is now EMPTY.
+#   It was the last entry, and it was left here as "the obligation rides whichever slice revives
+#   the screen". No slice revived it; the codex #11/#12 slice rewrote the sentences on that same
+#   screen instead, and leaving a device-local clock beside a pass rewriting what the payment
+#   surface may honestly claim made no sense. `holdLabel` now reads
+#   `kstClock(kstCal(Date.parse(exp)))`, which is **format-identical** to the expression it
+#   replaced (hour and minute both 2-padded, colon-separated) — only the ZONE changes, and the
+#   server that writes the hold expiry is KST-fixed.
+#   ⚠ Consequence worth writing down: the `Intl.DateTimeFormat` on that same screen (`whenLabel`)
+#   is now the LAST executable one in app/ + src/, and the Hermes question below still hangs on
+#   it alone. It is NOT a device-clock read — it passes `timeZone: 'Asia/Seoul'`, so this gate
+#   does not and should not flag it — but its `catch` falls back to `toLocaleString('ko-KR')`,
+#   which is device-local AND a different sentence from its `try`. The cheap discharge is the
+#   same one: converge it, do not measure it. If someone measures anyway, it must run in the app
+#   bundle and NOT in Node, on a device set to a non-Seoul zone (a Seoul device cannot fail this
+#   check — the same reason the Seoul arm of every mutation in this family shows 0 failures):
 #     new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',hour:'2-digit',hour12:false})
 #       .format(new Date('2026-08-25T22:00:00Z'))     // honors zone => "07"; ignores => device hour
 #
 # Delete a line when its site is fixed — the gate FAILS on a stale entry, so this ledger shrinks
 # honestly and can never silently absorb a regression on a line somebody just fixed.
-app/owner/pay.tsx:90
+#
+# ⚠ THE LEDGER IS EMPTY AND THAT IS NOT THE SAME AS THE GATE BEING OFF. An empty baseline means
+#   every future hit is a NEW hit and fails immediately, which is the strongest state this file
+#   has ever been in — do not add a placeholder line to "keep the format".

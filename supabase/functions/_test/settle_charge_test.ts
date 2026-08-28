@@ -122,6 +122,21 @@ function installMint(db: FakeDb, over: { status?: string; amount?: number; minte
     if (over.notLive) return { data: [] };
     const status = over.status ?? "pending";
     const amount = over.amount ?? CHARGE;
+    // [codex #12] IDEMPOTENT, because the deployed function is — read off `prosrc` 2026-08-28:
+    // `pg_advisory_xact_lock('mint:'||booking)`, then an exists-check that RETURNS the row it
+    // finds with `minted=false` before any insert, over a UNIQUE `order_id`. This matters now
+    // that `afterCollectionThrew` re-attempts the mint: a fake that minted twice would have
+    // modelled a second charge the real function cannot produce, and the pin would have been
+    // measuring the fixture. (Fixture-starts-where-production-starts, CLAUDE.md.)
+    const already = db.rows("payments").find((r) => r.booking_id === args.p_booking);
+    if (already) {
+      return {
+        data: [{
+          payment_id: already.id, order_id: already.order_id, amount: already.amount,
+          status: already.status, minted: false,
+        }],
+      };
+    }
     db.rows("payments").push({
       id: PAY,
       booking_id: args.p_booking,
@@ -349,7 +364,33 @@ Deno.test("a declined card NEVER unwinds the settlement — 200 with the runner'
   }
 });
 
-Deno.test("the mint RPC exploding does not fail the settlement either", async () => {
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// [codex 2026-08-28, finding 12] A caught collection exception is TWO states, not one
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// THE PROPERTY, stated without reference to any mutation: after the ledger has committed, the
+// server must distinguish a collection failure that a machine will come back for from one that
+// nothing will ever come back for — and must never report the second as the first.
+//
+// The two states, and why they are not the same failure:
+//   ⓐ the throw came from DISPATCH → the mint's `payments` row exists, so collect-charges' cron
+//      counts it due on its next wake (`isDue`, collect-charges/handler.ts:228-232) and the owner
+//      sees it on /payments. Recoverable with nobody watching.
+//   ⓑ the throw came from the MINT → there is no row. The sweep reads the `payments` table and
+//      the owner's manual CTA reads the same table, so neither has anything to find. The runner
+//      was paid and the charge is gone permanently, silently.
+// Before this slice both returned `{collection:'failed', detail:'error'}` and one log line.
+//
+// ⚠ NEITHER IS REACHABLE TODAY. `ops_flags.payments_live_since` is NULL on production (measured
+// 2026-08-28) and the `skipped_not_live` branch returns before any of this. These pins exist
+// because the difference stops being visible the moment the flag flips.
+//
+// ⚠ The pin below MOVED in this slice: it used to assert `collection=failed detail=error` and the
+// line "collection branch failed", both of which were the single word this finding is about. The
+// property it was really protecting — a collection explosion never unwinds a settlement — is
+// re-asserted here verbatim (`out.net`, `assertRunnerShape`, `net.calls.length === 0`); what is
+// NEW is that the outcome now names WHICH failure it was.
+
+Deno.test("[#12ⓑ] a mint that stays broken is reported as LOST, not as a failure someone will retry", async () => {
   const db = scene();
   db.rpcs["mint_settle_charge_intent"] = () => ({ error: { message: "unknown end_reason" } });
   const net = tossOk();
@@ -359,14 +400,122 @@ Deno.test("the mint RPC exploding does not fail the settlement either", async ()
     assertEquals(out.net, 15900 - Math.round(15900 * 0.33)); // [0121] net-only response
     assertRunnerShape(out);
     assertEquals(net.calls.length, 0); // nothing was charged against a row that does not exist
+    assertEquals(db.rows("payments").length, 0); // and nothing was written for anyone to find
     assert(
-      cap.lines.some((l) => l.includes("collection branch failed")),
-      `silent swallow: ${cap.lines.join("|")}`,
+      cap.lines.some((l) => l.includes("CHARGE LOST")),
+      `the unrecoverable case was not named: ${cap.lines.join("|")}`,
     );
-    assertStringIncludes(collectionLine(cap.lines), "collection=failed detail=error");
+    assertStringIncludes(collectionLine(cap.lines), "collection=lost detail=error_unminted:");
   } finally {
     cap.restore();
     net.restore();
+  }
+});
+
+Deno.test("[#12ⓐ] a throw AFTER the mint is recoverable — the row exists and the sweep owns it", async () => {
+  const db = scene();
+  installMint(db);
+  // A structural read failure inside `dispatchCharge` — `payments read failed: …`, the same throw
+  // shape the neighbouring cancel-fee test uses. The mint has already written its row by then.
+  db.fail("payments:select", "connection terminated");
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
+    assertRunnerShape(out);
+    assertEquals(net.calls.length, 0);
+    // The row the sweep will find: one row, still pending, never dispatched.
+    assertEquals(db.rows("payments").length, 1);
+    assertEquals(pay(db).status, "pending");
+    assertEquals(pay(db).raw.dispatched_at, undefined);
+    assert(
+      !cap.lines.some((l) => l.includes("CHARGE LOST")),
+      `a recoverable charge was reported as lost: ${cap.lines.join("|")}`,
+    );
+    assertStringIncludes(collectionLine(cap.lines), "collection=failed detail=error_row_pending:");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("[#12] the re-attempt cannot mint a SECOND charge for the same booking", async () => {
+  // The whole recovery rests on the mint being idempotent. If it were not, this branch would turn
+  // one bad night into two charges on one card — the exact opposite of the failure it fixes.
+  const db = scene();
+  installMint(db);
+  db.fail("payments:select", "connection terminated");
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    await settleRun(req(body(), "runner_jwt"), db as never);
+    assertEquals(db.rows("payments").length, 1);
+    assertEquals(db.rows("payments").filter((r) => r.booking_id === BOOKING).length, 1);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("[#12] a throw in front of a NOT-LIVE mint is not a loss — there was nothing to lose", async () => {
+  // The first call explodes; the re-attempt answers honestly that charging is off for this run.
+  // Reporting that as CHARGE LOST would put a false alert in front of ops on every pilot run that
+  // happened to hit a blip — and an alert that cries is an alert nobody reads.
+  const db = scene();
+  let calls = 0;
+  db.rpcs["mint_settle_charge_intent"] = () => {
+    calls += 1;
+    return calls === 1 ? { error: { message: "deadlock detected" } } : { data: [] };
+  };
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
+    assertRunnerShape(out);
+    assertEquals(calls, 2);
+    assert(!cap.lines.some((l) => l.includes("CHARGE LOST")), cap.lines.join("|"));
+    assertStringIncludes(collectionLine(cap.lines), "collection=skipped_not_live");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("[#12] the collection verdict NEVER reaches the runner — on every one of these paths", async () => {
+  // ⚠ This is the pin that the review's own suggested fix would have broken, and it is why that
+  // half was declined. The caller is the ASSIGNED RUNNER; the ordering law pays them whether or
+  // not the owner's card works, so the owner's card state is not theirs to learn. The distinct
+  // 「정산됨 · 결제 실패」 state the finding asks for lives on the OWNER's surface instead
+  // (app/src/lib/payphase.ts → collect_failed / collect_pending).
+  const WORDS = ["collection", "lost", "charge", "unminted", "error_row", "payments", "card"];
+  const scenarios: [string, () => FakeDb][] = [
+    ["mint stays broken", () => {
+      const db = scene();
+      db.rpcs["mint_settle_charge_intent"] = () => ({ error: { message: "unknown end_reason" } });
+      return db;
+    }],
+    ["dispatch throws", () => {
+      const db = scene();
+      installMint(db);
+      db.fail("payments:select", "connection terminated");
+      return db;
+    }],
+  ];
+  for (const [name, make] of scenarios) {
+    const db = make();
+    const net = tossOk();
+    const cap = captureLogs();
+    try {
+      const out = await settleRun(req(body(), "runner_jwt"), db as never) as Row;
+      assertEquals(Object.keys(out).sort(), SETTLE_KEYS, name);
+      const blob = JSON.stringify(out).toLowerCase();
+      for (const w of WORDS) {
+        assert(!blob.includes(w), `${name}: the response leaked "${w}" — ${blob}`);
+      }
+    } finally {
+      cap.restore();
+      net.restore();
+    }
   }
 });
 

@@ -20,9 +20,13 @@ export default function PayLabScreen() {
 }
 
 // M1의 9페이즈 + 통신 실패 한 칸 (error는 PayPhase가 아니라 화면 상태다)
+// [codex #11/#12 · 2026-08-28] +5: 예약 상태만으로는 도달할 수 없고 payments 행을 함께 읽어야
+// 나오는 칸들. 실제로 보려면 카드가 실패해야 하므로 — 청구 예외 탭과 같은 이유로 — 검수 가능한
+// 자리는 여기뿐이다.
 const SCREENS: PayScreen[] = [
   'loading', 'not_found', 'mock_pending', 'authorizing', 'authorized',
-  'disputed', 'failed', 'cancelled', 'refund_pending', 'error',
+  'disputed', 'failed', 'cancelled', 'refund_pending',
+  'not_charged', 'paid', 'collect_pending', 'collect_failed', 'charge_unknown', 'error',
 ];
 
 // 픽스처 — 서버 행 모양 그대로 (addons는 {key,price}, label 없음)
