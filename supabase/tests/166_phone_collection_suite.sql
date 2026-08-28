@@ -20,9 +20,29 @@ declare
   u1 uuid; u2 uuid;
   v_ph text; v_ph2 text; v_msg text; v_bad text := '';
   v_raised boolean; v_sqlstate text; v_n int;
+  v_saved_gate timestamptz;   -- [0154] the shipped collection-gate value, put back at the end
 begin
   u1 := t_user('phc_one', 'owner');
   u2 := t_user('phc_two', 'runner');
+
+  ------------------------------------------------------------------------------------------
+  -- [0154] FIXTURE ONLY — the collection gate is ARMED for this suite and restored at the end.
+  --
+  -- ⚠ NOT A PIN BEING SOFTENED, and the distinction matters enough to state it. 0154 §C added one
+  --   conjunct to `set_my_phone`: it refuses with `phone_collection_closed` while
+  --   `ops_flags.phone_collection_live_since` is null, which is the shipped state (the contract §8
+  --   ship gate, made a database fact instead of a convention). Every proposition P1–P7 below is
+  --   UNCHANGED and none is weakened — they are all about what happens once a person is allowed to
+  --   type a number at all, and arming the flag is what puts the fixture in that world. This is the
+  --   house rule (a suite whose pinned behaviour legitimately changes moves in the same slice)
+  --   applied to a FIXTURE rather than to an assertion.
+  --
+  -- ⚠ The gate itself is NOT pinned here — it is pinned in `185_phone_switch_suite.sql`
+  --   (0154-G1/G2/G3), which owns the closed-by-default property and its control. Splitting them
+  --   keeps each pin's sentence to one proposition: 166 answers 「what does the write path do」,
+  --   185 answers 「may it run at all」.
+  select phone_collection_live_since into v_saved_gate from ops_flags limit 1;
+  update ops_flags set phone_collection_live_since = now() - interval '1 minute';
 
   ------------------------------------------------------------------------------------------
   -- P1: the happy path, and it NORMALISES rather than rejecting what a human actually types.
@@ -158,4 +178,18 @@ begin
   if v_n <> 1 then v_bad := v_bad || ' constraint-missing'; end if;
   if v_bad <> '' then call _fail('phc','P7 CHECK 양방향', v_bad);
                  else call _pass('phc','P7 CHECK 양방향'); end if;
+
+  ------------------------------------------------------------------------------------------
+  -- [0154] RESTORE the collection gate to the shipped state, and PIN that it happened.
+  -- Written as a pin and not as a bare UPDATE for the reason 185's 0154-G4 gives: a failed restore
+  -- arms collection for every suite that runs after this one, and would surface as somebody else's
+  -- unexplained green rather than as this suite's failure.
+  update ops_flags set phone_collection_live_since = v_saved_gate;
+  v_bad := '';
+  if (select phone_collection_live_since from ops_flags limit 1) is distinct from v_saved_gate
+    then v_bad := v_bad || ' not-restored'; end if;
+  if v_saved_gate is null and phone_collection_live() is distinct from false
+    then v_bad := v_bad || ' left-OPEN'; end if;
+  if v_bad <> '' then call _fail('phc','P8 [0154] 수집 게이트 원상복구', v_bad);
+                 else call _pass('phc','P8 [0154] 수집 게이트 원상복구'); end if;
 end $$;

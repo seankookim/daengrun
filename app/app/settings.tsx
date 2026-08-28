@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
+import { PhoneRow } from '../src/components/phone-row';
 import { Row } from '../src/components/ui';
 import { fetchMyProfile, fetchMyRunnerBase, MyProfile } from '../src/lib/api';
 import { kstCal, kstMonthDay } from '../src/lib/kst';
@@ -167,6 +168,15 @@ export default function Settings() {
           </View>
         </>
       )}
+
+      {/* 연락처 — [Sean 2026-08-28] 「guest is a member and needs a phone number enter thing.」
+          섹션 전체(게이트 읽기·상태 기계·문구·실패 처리)는 `src/components/phone-row.tsx`가 가진다.
+          여기서 마운트만 하는 이유가 둘이고 두 번째가 더 중요하다: ① 이 화면은 이미 커서
+          react-doctor 의 `no-giant-component` 에 걸렸다 — **측정했다, 이 슬라이스 전 27건 후 28건이고
+          늘어난 하나가 이 파일이었다**; ② 언젠가 클럽 세션 화면에도 같은 문이 필요해지면 그 화면은
+          이걸 그대로 마운트하면 되고, 게이트와 문구를 두 벌로 만들지 않는다.
+          ⚠ 게이트가 닫혀 있으면(=오늘의 상태) 이 컴포넌트는 **null 을 반환한다** — 섹션 자체가 없다. */}
+      <PhoneRow />
 
       {/* DEV 전용 — 프로덕션 빌드에선 렌더되지 않음 (__DEV__ 게이트, 화면 자체도 이중 게이트) */}
       {__DEV__ && (
