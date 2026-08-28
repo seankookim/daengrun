@@ -9,6 +9,9 @@
 # about. The KST matrix belongs to run-kst-tests.sh, which owns the calendar.
 set -eu
 cd "$(dirname "$0")"
+# Clean up on FAILURE too. The sibling runners `rm` on the last line, which never executes under
+# `set -e` when the suite goes red — and a red run is exactly what a mutation battery produces, so
+# this one would strand a build artifact in the working tree on every mutation arm.
+trap 'rm -f pack.build.cjs' EXIT
 npx esbuild ../src/lib/pack.ts --bundle --platform=node --format=cjs --outfile=pack.build.cjs >/dev/null
 node pack.test.cjs
-rm -f pack.build.cjs
