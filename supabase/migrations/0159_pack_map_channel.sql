@@ -1,4 +1,4 @@
--- ═══ 0156 — 팩 지도: `pack-<sessionId>`, 읽기는 공개, 쓰기는 체크인한 참가자 ════════════════
+-- ═══ 0159 — 팩 지도: `pack-<sessionId>`, 읽기는 공개, 쓰기는 체크인한 참가자 ════════════════
 --
 -- Sean, 2026-08-28, verbatim (`docs/decisions/2026-08-28-sean-rulings.md`):
 --   「everyone should see everyone else on the map during a club run session with a little runner
@@ -156,7 +156,7 @@ as $$
 $$;
 
 comment on function public._club_pack_window(uuid) is
-  '0156 §A — 팩 지도 채널이 열려 있는가. ① 세션이 open/full ② 누군가 실제로 체크인했다 ③ 호스트가 아직 러닝 종료를 누르지 않았다 ④ 체크인 창(예정 -2h ~ +6h) 안이다. ④는 오직 무행동(아무도 세션 종료를 안 누름)에 대한 상한이고, 나머지 셋은 이미 일어난 사실이다. 서버 전용 — 클라이언트는 club_pack_map_roster.windowOpen 으로 같은 답을 받는다.';
+  '0159 §A — 팩 지도 채널이 열려 있는가. ① 세션이 open/full ② 누군가 실제로 체크인했다 ③ 호스트가 아직 러닝 종료를 누르지 않았다 ④ 체크인 창(예정 -2h ~ +6h) 안이다. ④는 오직 무행동(아무도 세션 종료를 안 누름)에 대한 상한이고, 나머지 셋은 이미 일어난 사실이다. 서버 전용 — 클라이언트는 club_pack_map_roster.windowOpen 으로 같은 답을 받는다.';
 
 revoke execute on function public._club_pack_window(uuid) from public, anon, authenticated;
 grant  execute on function public._club_pack_window(uuid) to service_role;
@@ -178,7 +178,7 @@ grant  execute on function public._club_pack_window(uuid) to service_role;
 --     identical statements, in the identical order;
 --   · the two guards that swapped order BOTH return false, so no input can distinguish them.
 -- Suite 143 C2/B2/K2 assert `channel_allowed(<family topic>, null, 'read') is not false` for all
--- three 0108 families and stay green; 187 `0156-N1` re-asserts the same thing for run2 and pins
+-- three 0108 families and stay green; 187 `0159-N1` re-asserts the same thing for run2 and pins
 -- the split explicitly, so 「the uid guard was deleted rather than moved」 is caught.
 create or replace function channel_allowed(p_topic text, p_uid uuid, p_op text)
 returns boolean
@@ -199,7 +199,7 @@ begin
   -- One anchored regex names every family this function answers for. `club-chat` is listed
   -- before nothing that could swallow it: `^chat-` cannot match `club-chat-…` because of the
   -- anchor, and `run-` (0104's retired public namespace) is deliberately absent → false.
-  -- `pack` (0156) cannot be confused with any of them for the same anchoring reason.
+  -- `pack` (0159) cannot be confused with any of them for the same anchoring reason.
   v_m := regexp_match(p_topic,
            '^(run2|chat|bk|club-chat|pack)-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$');
   if v_m is null then return false; end if;
@@ -266,7 +266,7 @@ begin
 end $$;
 
 comment on function channel_allowed(text, uuid, text) is
-  '0156 (was 0108): may this uid read/write the realtime topic? Family switch: run2-* → run_channel_allowed (0103/0104); chat-<thread>/bk-<booking>/club-chat-<session> → read iff the table''s own party predicate, write never (postgres_changes rooms); pack-<session> → READ IS PUBLIC (anon included, Sean 2026-08-28) while _club_pack_window says the walk is happening, WRITE iff a checked-in participant of that session inside the same window. Fails closed on malformed topics and unknown families. Revoked from authenticated (arbitrary-uid = party probe); policies call my_channel_allowed.';
+  '0159 (was 0108): may this uid read/write the realtime topic? Family switch: run2-* → run_channel_allowed (0103/0104); chat-<thread>/bk-<booking>/club-chat-<session> → read iff the table''s own party predicate, write never (postgres_changes rooms); pack-<session> → READ IS PUBLIC (anon included, Sean 2026-08-28) while _club_pack_window says the walk is happening, WRITE iff a checked-in participant of that session inside the same window. Fails closed on malformed topics and unknown families. Revoked from authenticated (arbitrary-uid = party probe); policies call my_channel_allowed.';
 
 -- ⚠ WRITTEN OUT EVERY TIME. `create or replace` preserves an ACL only where the function already
 -- exists; on an apply where it does not (a partial prior apply, a branch that never ran 0108, a
@@ -282,7 +282,7 @@ grant  execute on function channel_allowed(text, uuid, text) to service_role;
 -- anon path has to reach the predicate. What an anonymous caller can now learn from it is exactly
 -- one boolean per session id: 「is this session's map live right now」 — and for every other family
 -- it still returns false, because `auth.uid()` is NULL and §B's identity guard denies.
--- 187 `0156-W3` pins both halves (anon gets true on a live pack, false on all four old families).
+-- 187 `0159-W3` pins both halves (anon gets true on a live pack, false on all four old families).
 create or replace function my_channel_allowed(p_topic text, p_op text)
 returns boolean
 language sql stable security definer
@@ -290,7 +290,7 @@ set search_path = public, pg_temp
 as $$ select public.channel_allowed(p_topic, auth.uid(), p_op) $$;
 
 comment on function my_channel_allowed(text, text) is
-  '0156 (was 0108): channel_allowed(topic, auth.uid(), op) — the only form a client role may execute, so a caller can ask about nobody but themselves. Granted to anon as of 0156 because pack-<session> READ is public and an anonymous subscriber has to reach the predicate; for every other family an anon caller has a NULL uid and is denied.';
+  '0159 (was 0108): channel_allowed(topic, auth.uid(), op) — the only form a client role may execute, so a caller can ask about nobody but themselves. Granted to anon as of 0159 because pack-<session> READ is public and an anonymous subscriber has to reach the predicate; for every other family an anon caller has a NULL uid and is denied.';
 
 revoke execute on function my_channel_allowed(text, text) from public;
 grant  execute on function my_channel_allowed(text, text) to anon, authenticated, service_role;
@@ -380,7 +380,7 @@ begin
 end $$;
 
 comment on function public.club_pack_map_roster(uuid) is
-  '0156 §C — 팩 지도의 사람 목록. Sean 2026-08-28 「everyone should see everyone else on the map … total public」. 공개(anon 포함). 창이 닫혀 있으면 people=[] 이고 windowOpen=false 만 답한다. 반환하지 않는 것: 전화·아바타·개 이름·부킹·돈·인시던트·위치(위치는 realtime 채널에만 있고 postgres 를 지나지 않는다). 브로드캐스트 페이로드의 name/profileId 는 클라이언트 주장이므로, 화면은 이 목록을 진실로 삼고 여기에 없는 profileId 의 브로드캐스트는 버려야 한다.';
+  '0159 §C — 팩 지도의 사람 목록. Sean 2026-08-28 「everyone should see everyone else on the map … total public」. 공개(anon 포함). 창이 닫혀 있으면 people=[] 이고 windowOpen=false 만 답한다. 반환하지 않는 것: 전화·아바타·개 이름·부킹·돈·인시던트·위치(위치는 realtime 채널에만 있고 postgres 를 지나지 않는다). 브로드캐스트 페이로드의 name/profileId 는 클라이언트 주장이므로, 화면은 이 목록을 진실로 삼고 여기에 없는 profileId 의 브로드캐스트는 버려야 한다.';
 
 revoke execute on function public.club_pack_map_roster(uuid) from public;
 grant  execute on function public.club_pack_map_roster(uuid) to anon, authenticated, service_role;
@@ -399,7 +399,7 @@ grant  execute on function public.club_pack_map_roster(uuid) to anon, authentica
 --   entire feature.** `party channel read` has no topic guard, so an AUTHENTICATED user reaches a
 --   `pack-` topic through it too, with the identical answer. What it cannot do is admit `anon` —
 --   it is `to authenticated`. So dropping `pack channel read` leaves every logged-in user working
---   and silently kills the public half of Sean's ruling. 187 `0156-E2` is an anon boundary
+--   and silently kills the public half of Sean's ruling. 187 `0159-E2` is an anon boundary
 --   execution for exactly that reason: the authenticated arm alone cannot see this policy at all.
 --
 -- ⚠ **`run channel write` cannot admit a pack publish** — it is fenced to `run2-%` (0108 §5) — so
@@ -407,7 +407,7 @@ grant  execute on function public.club_pack_map_roster(uuid) to anon, authentica
 do $$
 begin
   if to_regclass('realtime.messages') is null then
-    raise notice '0156: realtime.messages absent — policies skipped (harness without the shim)';
+    raise notice '0159: realtime.messages absent — policies skipped (harness without the shim)';
     return;
   end if;
 
@@ -442,7 +442,7 @@ end $$;
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- ⚠ CLAUDE.md's law: a property checked at apply and never pinned is protected exactly until
 --   someone recreates the function — so every assertion here ALSO has an owner in suite 187
---   (`0156-W1`/`0156-W2`), and neither is evidence for the other. This block exists so a bad
+--   (`0159-W1`/`0159-W2`), and neither is evidence for the other. This block exists so a bad
 --   apply aborts rather than shipping a half-wired public channel.
 do $$
 declare v_n int; v_bad text := '';
@@ -489,6 +489,6 @@ begin
   end if;
 
   if v_bad <> '' then
-    raise exception '0156 VERIFY 실패:%', v_bad;
+    raise exception '0159 VERIFY 실패:%', v_bad;
   end if;
 end $$;
