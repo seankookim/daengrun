@@ -40,7 +40,17 @@ const L = lilac;
 // club_join/club_leave가 올리는 예외는 두 개뿐이고 둘 다 기술 문자열이다 (not_signed_in ·
 // not_found). 실패는 실패로 보여야 하지만, 읽을 수 없는 실패는 보여준 것이 아니다.
 // 컴포넌트 바깥에 산다 — 닫아 잡는 값이 없는 순수 함수라 렌더마다 다시 만들 이유가 없다.
-const memErr = (e: unknown) => {
+// 클럽 화면의 모든 RPC 액션이 쓰는 하나의 번역기 — 가입·탈퇴·관심 등록. 이름이 memErr였던 것은
+// 멤버십에서 처음 필요했기 때문이고, 세 번째 호출자가 멤버십이 아니므로 이름을 넓힌다.
+// ⚠ 배포된 본문에서 확인한 실제 예외 집합 (마이그레이션 파일이 아니라 prosrc):
+//   club_join            → not_signed_in · not_found
+//   club_leave           → not_signed_in
+//   club_register_interest → not_signed_in · bad_wants
+// bad_wants는 이 화면에서 도달 불가능하다 — 래퍼가 p_wants:'attend'를 리터럴로 박는다. 그래서
+// 번역을 쓰지 않는다: 닿을 수 없는 가지의 문안은 검증할 수 없고, 폴백이 이미 그것을 덮는다.
+// not_found는 club_join 전용이다 (관심 등록은 존재 검사를 하지 않고 그냥 insert 하므로, 잘못된
+// club_id는 FK 위반으로 폴백에 떨어진다). 남는 가지가 다른 호출자에게 해롭지 않아 그대로 둔다.
+const clubActionErr = (e: unknown) => {
   const m = (e as Error).message ?? '';
   if (m.includes('not_signed_in')) return '로그인이 필요해요';
   if (m.includes('not_found')) return '클럽을 찾을 수 없어요';
@@ -237,11 +247,25 @@ export default function ClubPage() {
     }
   };
 
+  // 관심 등록도 가입/탈퇴와 똑같은 두 결함을 갖고 있었고, 이쪽이 먼저 있었다.
+  // ⚠ 멤버십 잠금(memLock)을 함께 쓰지 않는다. 두 카드는 화면에서 상호배타적이고
+  // (관심 = status 'collecting' · 멤버십 = 'active') 방금 리뷰를 통과한 코드를 이름 바꾸기로
+  // 흔들 이유가 없다. 상태 두 줄의 중복이 그 churn보다 싸다.
+  const [interestBusy, setInterestBusy] = useState(false);
+  // 렌더 상태는 잠금이 될 수 없다 — 한 틱 안의 두 탭은 같은 false 클로저를 본다. ref가 잠금이고
+  // interestBusy는 그것을 화면에 비출 뿐이다.
+  const interestLock = useRef(false);
   const interest = () => {
-    if (!club) return;
+    if (!club || interestLock.current) return;
+    interestLock.current = true;
+    setInterestBusy(true);
+    // 🔴 load()를 반환한다. 반환하지 않으면 갱신이 도착하기 전에 잠금이 풀려서, 등록에 성공한
+    // 사람에게 「나도 관심 있어요」 문이 그대로 살아 있는 카드가 남는다 — club_register_interest는
+    // upsert라 다시 눌러도 보이는 변화가 없다. 죽은 버튼이다.
     registerClubInterest(club.id)
-      .then(() => { haptic('light'); load(); })
-      .catch((e) => Alert.alert('관심 등록', (e as Error).message));
+      .then(() => { haptic('light'); return load(); })
+      .catch((e) => Alert.alert('관심 등록', clubActionErr(e)))
+      .finally(() => { interestLock.current = false; setInterestBusy(false); });
   };
 
   // ---------- 명시적 멤버십 (0048 F) ----------
@@ -262,7 +286,7 @@ export default function ClubPage() {
     // 서버가 확인하지 않은 상태를 그리지 않는 편이 이 화면의 나머지와 같은 결이다.
     clubJoin(club.id)
       .then(() => { haptic('light'); return load(); })
-      .catch((e) => Alert.alert('클럽 가입', memErr(e)))
+      .catch((e) => Alert.alert('클럽 가입', clubActionErr(e)))
       .finally(() => { memLock.current = false; setMemBusy(false); });
   };
   const leave = () => {
@@ -286,7 +310,7 @@ export default function ClubPage() {
           onPress: () => {
             clubLeave(club.id)
               .then(() => { haptic('light'); return load(); })
-              .catch((e) => Alert.alert('클럽 탈퇴', memErr(e)))
+              .catch((e) => Alert.alert('클럽 탈퇴', clubActionErr(e)))
               .finally(() => { memLock.current = false; setMemBusy(false); });
           },
         },
@@ -420,7 +444,12 @@ export default function ClubPage() {
               {club.myInterest ? (
                 <View style={[s.quietState]}><Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.accent }}>{/* CLUB15 */}✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
               ) : (
-                <ClubCta label="나도 관심 있어요" onPress={interest} style={{ paddingVertical: 15 }} />
+                <ClubCta
+                  label={interestBusy ? '등록하는 중…' : '나도 관심 있어요'}
+                  onPress={interest}
+                  busy={interestBusy}
+                  style={{ paddingVertical: 15 }}
+                />
               )}
               <Pressable
                 onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요', '첫 세션을 열어보세요'); load(); })
