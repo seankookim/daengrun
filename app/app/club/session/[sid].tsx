@@ -1392,6 +1392,22 @@ export default function ClubSessionShell() {
               </Row>
             </LilacCard>
 
+            {/* ---------- 팩 지도 문 (Sean 2026-08-28, 두 라운드 다: 「everyone should see
+                everyone else on the map during a club run session with a little runner icon」 —
+                club/map/[sid]는 만들어져 있었고 어떤 화면도 밀지 않아 도달 불가였다) ---------- */}
+            {/* 문은 체크인 창(checkinOpen)에만 연다 — 며칠 전의 팩 지도는 빈 방으로 가는
+                문이다(아래 :1254 인용의 같은 판정). 창 안의 빈 지도는 목적지가 정직하게
+                말한다(「아직 아무도 달리고 있지 않아요」 — map/[sid]:234). */}
+            {board?.session.checkinOpen && (
+              <View style={{ marginTop: 10 }}>
+                <ClubCta
+                  label="팩 지도 — 모두의 위치 →"
+                  tone="secondary"
+                  onPress={() => router.push({ pathname: `/club/map/${sess.id}`, params: { clubName: clubName ?? '' } })}
+                />
+              </View>
+            )}
+
             {/* ---------- R2 — 나에게 온 배정 제안 (5분 시효, 가장 위) ---------- */}
             {myProposals.map((d) => {
               const left = d.proposalExpiresAt ? new Date(d.proposalExpiresAt).getTime() - now : null;

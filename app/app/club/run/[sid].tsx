@@ -9,6 +9,7 @@ import {
 } from '../../../src/lib/api';
 import { supabase } from '../../../src/lib/supabase';
 import { createPosPublisher, distM, GeoPoint, getNaverMap, getTraceSnapshot, LL, resetTrace, seedTrace, smoothTrace, startTracking, TrackHandle, TrackMode } from '../../../src/lib/geo';
+import { usePackShare } from '../../../src/lib/use-pack-share';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
@@ -124,10 +125,24 @@ export default function ClubRun() {
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const myRunnerId = board?.runners.find((r) => r.isMe)?.profileId ?? null;
+  const meRunner = board?.runners.find((r) => r.isMe) ?? null;
+  const myRunnerId = meRunner?.profileId ?? null;
   const active = board && myRunnerId
     ? board.dogs.filter((d) => d.runnerId === myRunnerId && d.bookingStatus === 'active') : [];
   const activeKey = active.map((d) => d.bookingId).filter(Boolean).sort().join(',');
+
+  // 팩 지도 송신 — 한 줄. Sean 2026-08-28: 「everyone should see everyone else on the map during a
+  // club run session with a little runner icon.」 위탁 러너는 지도가 존재하는 이유인 인구인데,
+  // 이 화면엔 송신자가 없어서 지도를 열어 둔 동안만 팩에 보였다(use-pack-share.ts 헤더가 이 줄
+  // 하나를 기다린다고 적어 둔 그 줄이다). 훅은 이 화면의 startTracking이 채우는 버퍼를 읽기만
+  // 하고(liveSub 싱글턴은 건드리지 않는다 — km은 돈이다), 픽스가 실제로 들어올 때만 송신한다.
+  // ⚠ identity는 이 화면의 데이터로 직접 만든다: 이 화면은 ClubSessionDetail이 아니라
+  // DelegationBoard를 들고 있고, checkedIn 없는 러너는 개를 받을 수 없으므로(0038:42-44)
+  // joined∧checked_in과 같은 술어다. board 미도착 = null(모름) — false로 뭉개지 않는다.
+  const packSharing = usePackShare(sid ? String(sid) : null, {
+    eligible: board == null ? null : meRunner ? meRunner.checkedIn : false,
+    name: meRunner?.name ?? null,
+  });
 
   // 경과 = runs.started_at 실측. [감사 P1] 실패 시 재시도 없던 것 — 틱 안에서 미확보면 재요청
   const fetchingStart = useRef(false);
@@ -392,6 +407,14 @@ export default function ClubRun() {
           <View style={s.lagBanner}>
             <Text style={{ fontSize: 15, color: '#7a5a2a' }}>앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</Text>
           </View>
+        )}
+        {/* 내 위치가 지금 팩 지도에 공개되고 있다는 사실은, 그게 참일 때만 말한다 —
+            companion/[sid].tsx:282와 같은 문법. false/null엔 아무 말도 하지 않는다:
+            「공유 안 되고 있어요」는 측정 전엔 주장이다. */}
+        {packSharing === true && (
+          <Text style={{ fontSize: 15, lineHeight: 19, color: L.dim, marginTop: 6, marginBottom: 2, paddingHorizontal: 4 }}>
+            팩 지도에 내 위치가 공유되고 있어요
+          </Text>
         )}
 
         {/* ---------- 지도 (실지도 or 정직한 대기 패널) ---------- */}
