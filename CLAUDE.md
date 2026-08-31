@@ -652,6 +652,10 @@ either time** (exit 0, zero FAIL), which is exactly why it survives: the number 
 npm test > /tmp/t.log 2>&1; echo $?      # 0 is the claim that matters
 grep -c '^PASS' /tmp/t.log ; grep -c '^FAIL' /tmp/t.log
 ```
+⚠ **And the `^PASS` count itself UNDERCOUNTS this repo's chain (measured 2026-08-31, backend
+0158 agent):** `run-geo-tests.sh` prints ✅ lines, not `PASS` lines — 801 PASS + 38 ✅ = 839 real
+on the tree where it was caught. The exit code plus per-suite summaries are the reliable pair;
+treat any `^PASS` total as a floor, and never compare two trees' health by that number alone.
 ⚠ Same family as filtering a harness run through `tail -3`, which discards **which pin** failed —
 done here the same day. **A filter that truncates output is a filter that can hide the answer; if
 you are about to report a number, do not let a pipe choose which one.**

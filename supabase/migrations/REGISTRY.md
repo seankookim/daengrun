@@ -275,7 +275,21 @@ migration, push its row in the same breath; a row that trails its file by even a
 the window this collision walked through.
 ## In-flight claims for work with NO migration number
 
-⚠ **Four ui6 rows were removed from the table below on 2026-08-27 because they MERGED (that is the rule — remove the row when it lands), but two of them carried lessons that outlive the claim, so they are kept here rather than lost with the row.** ① **A claim protocol cannot protect you when the file it reads is stale, and a stale file is indistinguishable from a true one.** `return legs` was claimed correctly against `fleet-orders.md`, which said UNOWNED — because the real owner had claimed it in a MESSAGE that nobody wrote down. An agent was dispatched and killed at the scouting step. The DECISION existed; it just was not where readers look. ② **A stale TREE does not announce itself either.** An agent was dispatched against a worktree 39 commits behind to raise `clubText` to 15 — work that had landed on trunk hours earlier — and would have returned careful correct work, with a mutation table attached, that was really a conflict. **Cut every new slice's worktree from `origin/redesign-v4`, never from a session's main tree**; that makes freshness structural instead of remembered. Both instances happened the same afternoon, one from each direction.
+> 🔴 **AUDIT 2026-08-31 (announcer, three-scout workflow, every verdict evidence-backed):**
+> live sessions are ONLY the announcer, `master-ui-prompts-docs-6c8c89` (UI), and
+> `daengrun-redesign-v4-77ea99` (backend). **LIVE claims:** 0157/0158 takeovers + 0160/0161 +
+> the pack-map fix-pass re-claim (backend) and the UI session's rows. **The following rows are
+> RETIRED by this audit — claimant dead AND the claimed work verified LANDED on trunk** (row →
+> landing evidence): 0127 gate-removal → `66ed156` · 0130 Slice B → `fb4589a` (its 「NOT PUSHED」
+> annotation is false) · incident flow client → `de902e6` · dim-text wave 3 → `69a926a` ·
+> unknown-is-not-zero wave 2 (announcer's own) → `e6ed11b`+`0bb3913` · press grammar → `91c581e` ·
+> counsel package (announcer sub-agent) → `d3a2ef1` · 0154 phone-collection builder → `4ce27d6`
+> (deployed) · club labs transfer → `50d4023`+`f641ab7` · 0127 client/edge half → landed with
+> 0127 (`dangerous-copy.ts` absent on trunk as planned) · b6 client-honesty ①-⑤ → `528c74a`,
+> `77a9205`, report.tsx REASON map · b6 club/run 0144 obligations → superseded (0147 landed the
+> payload field; U4c `16c758b` built the caller). Rows left in place as historical text; this
+> note is the authority on their status. A future session may physically delete any row named
+> here when next editing this file. because they MERGED (that is the rule — remove the row when it lands), but two of them carried lessons that outlive the claim, so they are kept here rather than lost with the row.** ① **A claim protocol cannot protect you when the file it reads is stale, and a stale file is indistinguishable from a true one.** `return legs` was claimed correctly against `fleet-orders.md`, which said UNOWNED — because the real owner had claimed it in a MESSAGE that nobody wrote down. An agent was dispatched and killed at the scouting step. The DECISION existed; it just was not where readers look. ② **A stale TREE does not announce itself either.** An agent was dispatched against a worktree 39 commits behind to raise `clubText` to 15 — work that had landed on trunk hours earlier — and would have returned careful correct work, with a mutation table attached, that was really a conflict. **Cut every new slice's worktree from `origin/redesign-v4`, never from a session's main tree**; that makes freshness structural instead of remembered. Both instances happened the same afternoon, one from each direction.
 
 Migrations have numbers, a ledger and a pre-push hook. **Client fixes, edge-function changes and
 copy work have none of that** — and on 2026-08-13 two sessions independently built the same

@@ -1,8 +1,10 @@
-# Session handoff — 2026-08-27, announcer session
+# Session handoff — refreshed 2026-08-31 by the announcer (master-session day)
 
 **Read this before doing anything.** `CLAUDE.md` holds the permanent laws; this file holds
-current state, what is open, and who owns what. Everything below was measured at write time,
-not carried forward from an earlier note.
+current state, what is open, and who owns what. The state table below was RE-MEASURED
+2026-08-31 by a three-scout workflow (commands + read-backs in each row's evidence); the
+sections after 「Today, 2026-08-31」 are the 08-27/08-28 record, kept because most of it is
+still true — where a line conflicts with the 08-31 sections, the 08-31 sections win.
 
 > 🔴 **DEPLOY FREEZE (2026-08-31, announcer): NO session runs `supabase db push` until the
 > backend master session announces its 0159+0160+0161 landing and performs the deploy itself.**
@@ -10,10 +12,74 @@ not carried forward from an earlier note.
 > the ONLY pending migration on trunk — `db push` applies every pending file, so any push by any
 > session deploys the rejected slice alone, with its defect list world-readable in the now-public
 > repo. The freeze lifts only via the backend session's announcement to the announcer.
+> ⚠ Related: no HARDWARE build gets cut from trunk before that deploy either — the pack-map
+> doors landed (U2) but production enforces PrivateOnly, so the map cannot connect until the
+> deploy; a pre-deploy build ships a button into an honest-but-dead screen.
 
 ---
 
-## State, measured
+## State, measured 2026-08-31
+
+| | |
+|---|---|
+| Production | **0156 deployed · pending: 0159 only** (`supabase migration list --linked`; 0157/0158 are REGISTRY rows with no files — invisible to migration list by construction) |
+| Trunk | `d9d1451` — moved ~20 commits on 2026-08-31 alone (see Today) |
+| App tests | **exit 0, 804 `^PASS` / 0 `^FAIL`** at `d9d1451` — ⚠ `grep -c '^PASS'` UNDERCOUNTS this chain: `run-geo-tests.sh` prints ✅ lines, not PASS lines (backend measured 801 PASS + 38 ✅ = 839 real on its tree). **Exit code + per-suite summaries are the reliable pair**; the PASS count is a floor, not the total |
+| tsc | clean, exit 0 at `d9d1451` |
+| Money | **OFF.** All three flags null (`payments` · `card_registration` · `phone_collection`), 0 billing keys, 0 revocation rows (measured `db query --linked`) |
+| SQL harness | **1135 / 0 — PROVENANCE: b12b4a7's commit body (2026-08-28), NOT re-run 2026-08-31** (backend's B1 will move it; its tree reports 1150/0 unlanded) |
+| Repo | **PUBLIC since 2026-08-31** (Sean, for free CI). Secrets sweep clean: only designed-public EXPO_PUBLIC values ever committed. CI (gates + React Doctor) green again on free minutes |
+
+## Today, 2026-08-31 — the master-session day
+
+Sean booted two master sessions off `docs/prompts/master-backend.md` / `master-ui.md`
+(announcer-authored, inventory-grounded), coordinated by the announcer. Live sessions:
+**announcer** · **master-ui-prompts-docs-6c8c89** · **daengrun-redesign-v4-77ea99 (backend)**.
+Every other session named in older sections (b6, ui6, ui5, spec-v2, route-depth) is DEAD; their
+claims were audited 2026-08-31 — see the REGISTRY audit note.
+
+**Landed on trunk today (UI session, all codex-gated):** U5 focus-scheme ③ remainder
+(`118c844`) · U2 pack-map doors (`1cccaea`) · U3 pay surface + red-line cap (`65fdab9`) ·
+U4c host 러닝 종료 (`16c758b`) · U4b 백업 호스트 doors (`4f8ecb5`) · chat-rescue landing
+(`2699935`) · runner 예약 규칙 editor (`1e5598b`) · codex wave-1 fixes (`bf0d387`, REJECT/5
+all answered) · codex wave-2 fixes (`b8ce1c8`, REJECT/13 all answered,
+ledger `docs/reviews/2026-08-31-codex-ui-wave2.md`) · floor rulings (`2ea34ec`). Codex round 3
+(re-attack + U4b + rules editor) was running at write time.
+
+**Sean's rulings today — all in `docs/decisions/2026-08-31-sean-rulings.md`, verbatim:**
+club floor 15 everywhere (+ correction: the legacy sweep had already landed 08-27) ·
+wire `club_end_pack_runs` (done, U4c) · avatar initials are glyphs · drop 不變 · leave ClubTag ·
+OPEN-A 20-min hold · OPEN-B three-tier membership (public sees roster+pictures · signed-up
+READS chat · paid participates — refined twice, read the file not a summary) · YES to the
+pack-map viewer counter (folded into backend 0160/0161).
+
+**Backend session (in flight, unlanded):** B1 pack-publish hardening — contract at
+`docs/contracts/pack-publish-hardening-contract.md`, claims 0160/0161 + suites 191/192; design:
+publishing moves to RPC `club_pack_publish` (per-publish gating, server-authored payload,
+publisher channel removed). Measured on production: **PrivateOnly is enforced** — trunk's pack
+map cannot connect until this deploys. B2 = adopt 0157/0158 from the rescue branches (takeover
+annotated in REGISTRY). Then: S2.5 three-tier re-key · board rejected-arm widening (must incl.
+dog-NAME visibility — dogs RLS has no host arm) · §16.7 pickup/return columns — those three
+unblock the UI session's entire U1 fan-out. Announcer holds: 0153/0156 codex reviews + the Toss
+provider memo (`docs/research/2026-08-31-toss-provider-memo.md` when landed).
+
+**Standing sequencing (revised with B2 completion):** backend lands B1 → 0157 → 0158
+sequentially (each re-gated post-rebase) → codex verdicts for all three off ONE frozen trunk
+export → **ONE deploy of 0159+0160+0161+0157+0158** with production probes → freeze lifts at the
+backend's announcement. Fallback if codex quota-walls mid-set: deploy the reviewed B1 set alone
+and KEEP the freeze until 0157/0158 clear — either way the freeze lifts only when
+trunk == production. Then:
+UI removes the dead `clubName` param from `club/session/[sid].tsx` (~:1444) → hardware builds
+allowed. The pocketed-phone pack-publish fade is a NAMED LIMITATION (smoke doc), not a bug; the
+background-task publish fix is a queued backend slice. OPEN-C and OPEN-F stay unruled on Sean's
+console. Smoke list: `docs/design/device-smoke-ui-master-2026-08-31.md` (10 ⬜ rows need
+fixtures no read-only session can produce).
+
+---
+
+## 08-27/08-28 record below — superseded where it conflicts with the sections above
+
+## State, measured (2026-08-27 — HISTORICAL)
 
 | | |
 |---|---|
