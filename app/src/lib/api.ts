@@ -2945,8 +2945,22 @@ export async function fetchMyName(): Promise<string | null> {
  *  real. `runs` and `km` need a SECOND read against `runs`, and that read can fail on its own. It
  *  used to discard its error, which left `km` at its 0 seed and `runCount` unfiltered — so a runner
  *  whose lookup failed saw 「3회 · 0km · 정산 예정 45,000원」: a real count, real money, and a
- *  fabricated zero distance. Null means "not known this fetch", which the screen renders as —. */
-export interface RunnerWeekStats { net: number; runs: number | null; km: number | null }
+ *  fabricated zero distance. Null means "not known this fetch", which the screen renders as —.
+ *
+ *  [0158] `km` NOW HAS A SECOND WAY OF BEING NULL, and the screen must not flatten them: the week
+ *  held runs and the server measured none of them. `unmeasured` is what separates the three states
+ *  a number alone cannot:
+ *      km 0  · unmeasured 0            → nobody ran. A TRUE zero, printed as 0.
+ *      km n  · unmeasured 0            → a complete total.
+ *      km n  · unmeasured k>0          → a LOWER BOUND. k runs carry no distance.
+ *      km null · unmeasured k>0        → runs happened and not one was measured.
+ *  ⚠ `unmeasured` is a RUN COUNT, never a distance.
+ *  ⚠ It is `number | null`, and the null is DEPLOY SKEW, not a value: a client that has shipped
+ *    ahead of 0158 gets a row with no `week_unmeasured` at all, and `?? 0` there would assert
+ *    「nothing was left out」 on the strength of the server not having been asked — allow-by-default,
+ *    which is the exact shape codex finding #7 names. Null means 「the server did not say」 and the
+ *    screen stays silent rather than claiming completeness. */
+export interface RunnerWeekStats { net: number; runs: number | null; km: number | null; unmeasured: number | null }
 
 export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   // [0121] one definer RPC (my_week_stats): KST-Monday window, comp rows in net but not in the
@@ -2956,7 +2970,13 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) throw new Error('[weekStats] empty rpc result');
-  return { net: Number(row.week_net), runs: row.week_runs ?? null, km: row.week_km == null ? null : Number(row.week_km) };
+  return {
+    net: Number(row.week_net),
+    runs: row.week_runs ?? null,
+    km: row.week_km == null ? null : Number(row.week_km),
+    // [0158] `== null` catches both a JSON null and an ABSENT key (a pre-0158 server). No `?? 0`.
+    unmeasured: row.week_unmeasured == null ? null : Number(row.week_unmeasured),
+  };
 }
 
 // 정산 예정 누적 — 서버 집계 RPC (0027). 2000행 클라 합산 상한 은퇴 (초과 시 잔액이 조용히 줄던 거짓)
@@ -2970,9 +2990,15 @@ export interface LiveLedgerItem {
   id: string;
   when: string;
   dogName: string;
-  /** PLANNED km of the booking, and only when a `runs` row proves the run happened.
-   *  null = there is no run to attach a distance to, or we could not establish one — the caller
-   *  omits the km token rather than print a number for a run nobody made. */
+  /** [0158] The MEASURED distance of the run (`runs.actual_km`) — the number this row's `net` was
+   *  priced from. It used to be `bookings.km`, the distance the booking was SOLD at, so a 5km
+   *  booking that ended at 1.8km rendered 「초코 · 5km」 directly beside money computed from 1.8km
+   *  (0101 §A prices completed/dog_condition/incident on the actual km).
+   *  null in three situations, and all three mean "print no distance":
+   *    · there is no run at all (cancellation compensation — `cancelComp` is true then),
+   *    · the booking was reassigned and the run belongs to a different runner (server-nulled),
+   *    · the run was never measured — the 0152 class, e.g. an incident that ended it first.
+   *  The three stay distinguishable to a reader because `reason` on the line below names them. */
   km: number | null;
   /** True ONLY when the `runs` lookup succeeded and found nothing for this booking: cancellation
    *  compensation (0080 record_enroute_cancel_comp · 0085 record_late_cancel_share write a
@@ -4934,7 +4960,29 @@ export async function fetchRewardBeacon(): Promise<BeaconInfo> {
   };
 }
 
-export interface BoardRow { name: string; photoUrl: string | null; km: number; runs: number; delta?: number | null }
+/** [0158] `km` IS NULLABLE and `unmeasured` is a RUN COUNT, never a distance.
+ *  Both boards summed `coalesce(sum(runs.actual_km), 0)`, so a dog whose only completed run this
+ *  week was never measured appeared on the neighbourhood board as having run `0km` — a public
+ *  claim about someone's dog, derived from a measurement that does not exist. The server now
+ *  answers NULL for a group it could measure nothing in, and says how many runs it left out:
+ *      km n  · unmeasured 0   → a complete total
+ *      km n  · unmeasured k>0 → a LOWER BOUND; the row renders 「n km 이상」
+ *      km null                → no distance was recorded; the row renders 「기록 없음」
+ *  ⚠ `unmeasured` is `number | null` and the null is DEPLOY SKEW, not a value — a pre-0158 server
+ *    sends no such key, and `?? 0` there would claim completeness the server never asserted. */
+export interface BoardRow { name: string; photoUrl: string | null; km: number | null; unmeasured: number | null; runs: number; delta?: number | null }
+
+/** [0158] The board's distance, in words, for every one of its four states. It lives beside
+ *  `BoardRow` rather than in a screen because THREE surfaces render this number — the leaderboard
+ *  podium, the leaderboard list, and owner home's ticker — and one vocabulary is the whole point:
+ *  the same fact must not be 「기록 없음」 on one screen and a bare 0 on another.
+ *  ⚠ `unmeasured == null` is the deploy-skew branch and it renders the plain number: the server
+ *    did not answer, so the screen asserts nothing about completeness in either direction. */
+export function boardKmLabel(r: Pick<BoardRow, 'km' | 'unmeasured'>): string {
+  if (r.km == null) return '기록 없음';
+  if (r.unmeasured != null && r.unmeasured > 0) return `${r.km}km 이상`;
+  return `${r.km}km`;
+}
 
 // 홈 티커용 — 지난주 대비 랭크 델타 포함 (0022). 미배포 시 델타 없는 기존 보드로 정직 폴백
 // (▲▼은 실델타가 있을 때만 그린다 — '없는 데이터는 그리지 않는다')
@@ -4944,10 +4992,18 @@ export async function fetchDogBoardDelta(): Promise<BoardRow[]> {
     const { data: fb, error: e2 } = await supabase.rpc('leaderboard_dogs_weekly');
     if (e2) throw e2;
     // delta: undefined = '델타를 모름'(구 RPC) — null('신규 진입')과 구분해 NEW 오표기 방지
-    return (fb ?? []).map((x: any) => ({ name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs) }));
+    return (fb ?? []).map((x: any) => ({
+      name: x.dog_name, photoUrl: x.photo_url, runs: Number(x.runs),
+      km: x.km == null ? null : Number(x.km),
+      unmeasured: x.unmeasured == null ? null : Number(x.unmeasured),
+    }));
   }
   return (data ?? []).map((x: any) => ({
-    name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs),
+    name: x.dog_name, photoUrl: x.photo_url, runs: Number(x.runs),
+    // [0158] `Number(null)` is 0 — the null is tested BEFORE the cast, exactly as fetchFitness
+    // does it. A `?? 0` here would re-fabricate the zero the server just stopped producing.
+    km: x.km == null ? null : Number(x.km),
+    unmeasured: x.unmeasured == null ? null : Number(x.unmeasured),
     delta: x.delta == null ? null : Number(x.delta),
   }));
 }
@@ -4960,8 +5016,16 @@ export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: 
   if (d.error) throw d.error;
   if (r.error) throw r.error;
   return {
-    dogs: (d.data ?? []).map((x: any) => ({ name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs) })),
-    runners: (r.data ?? []).map((x: any) => ({ name: x.runner_name, photoUrl: x.avatar_url, km: Number(x.km), runs: Number(x.runs) })),
+    dogs: (d.data ?? []).map((x: any) => ({
+      name: x.dog_name, photoUrl: x.photo_url, runs: Number(x.runs),
+      km: x.km == null ? null : Number(x.km),
+      unmeasured: x.unmeasured == null ? null : Number(x.unmeasured),
+    })),
+    runners: (r.data ?? []).map((x: any) => ({
+      name: x.runner_name, photoUrl: x.avatar_url, runs: Number(x.runs),
+      km: x.km == null ? null : Number(x.km),
+      unmeasured: x.unmeasured == null ? null : Number(x.unmeasured),
+    })),
   };
 }
 
