@@ -4,6 +4,16 @@ One clone command gets you the code; this file is IN the repo so it arrives with
 below is split by what git carries for you versus what only you can supply. Times assume a fresh
 macOS with Homebrew.
 
+> **2026-08-31 update:** the repo is now PUBLIC (free CI; secrets sweep was clean — only
+> designed-public EXPO_PUBLIC values were ever committed). Cloning works over HTTPS without any
+> key; the SSH key is still needed to PUSH. **Session bootstrap on the new Mac:** open three
+> Claude chats and give each one line — 「Read docs/prompts/master-announcer.md fully and begin.」
+> / 「Read docs/prompts/master-backend.md fully and begin.」 / 「Read docs/prompts/master-ui.md
+> fully and begin.」 (announcer first). Unlanded old-Mac work is snapshotted on
+> `rescue/wip-*-2026-08-31` branches (b1-pack-publish · 0157-adopted · 0158-adopted ·
+> ui-round3); the prompts tell each session how to adopt them. The §"before retiring the old
+> machine" sweep below still applies before any wipe.
+
 ## 0. What git already carries (nothing to do)
 
 - **The default branch is `redesign-v4` and `main` is deleted**, so a fresh clone lands on the
