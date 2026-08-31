@@ -4,6 +4,13 @@
 current state, what is open, and who owns what. Everything below was measured at write time,
 not carried forward from an earlier note.
 
+> 🔴 **DEPLOY FREEZE (2026-08-31, announcer): NO session runs `supabase db push` until the
+> backend master session announces its 0159+0160+0161 landing and performs the deploy itself.**
+> Reason: 0159 (pack channel, codex REJECT/11, `docs/decisions/2026-08-28-codex-verdicts.md`) is
+> the ONLY pending migration on trunk — `db push` applies every pending file, so any push by any
+> session deploys the rejected slice alone, with its defect list world-readable in the now-public
+> repo. The freeze lifts only via the backend session's announcement to the announcer.
+
 ---
 
 ## State, measured
