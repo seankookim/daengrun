@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Monogram, Row } from '../src/components/ui';
+import { mergeMessageSnapshot } from '../src/lib/chat-messages';
 import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
 import {
@@ -33,7 +34,9 @@ export default function Chat() {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const scroller = useRef<ScrollView>(null);
+  const mounted = useRef(false);
   // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
   // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
   // 찍었다: 서버가 프라이빗 채널을 거절하거나 조인이 타임아웃해도 화면은 연결됐다고 말했고,
@@ -43,17 +46,25 @@ export default function Chat() {
   // 채널도 다르다. 아래 헤더가 이 둘을 다른 문장으로 말한다.
   const [pollErr, setPollErr] = useState(false);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
   // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
+        if (!alive) return;
         if (!bookingId) { if (alive) setState('none'); return; }
         const c = await openChatForBooking(bookingId);
         if (!alive) return;
+        const history = await fetchMessages(c.threadId);
+        if (!alive) return;
         setCtx(c);
-        setMsgs(await fetchMessages(c.threadId));
+        setMsgs((current) => mergeMessageSnapshot(current, history));
         setState('ready');
       } catch (e) {
         // [0114 · ui2-2] RLS 거부만 골라낸다. openChatForBooking → ensureThread의 INSERT가
@@ -71,7 +82,7 @@ export default function Chat() {
       }
     })();
     return () => { alive = false; };
-  }, [bid, isRunner]);
+  }, [bid, isRunner, loadAttempt]);
 
   // 실시간 수신 — 내 발신도 서버 에코로 수신 (중복은 id로 방지)
   // [leak 2026-08-20] alive 가드가 없었다. cleanup이 `unsub` 초기값(빈 함수)을 실행한 뒤에
@@ -83,12 +94,25 @@ export default function Chat() {
     if (!ctx) return;
     let alive = true;
     let unsub: (() => void) | null = null;
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data, error }) => {
       if (!alive) return; // 왕복 도중 언마운트 — 구독 자체를 열지 않는다
-      unsub = subscribeMessages(ctx.threadId, data.user?.id ?? null, (m) => {
-        setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+      // UID 없는 구독은 내 에코를 상대 메시지로 그린다. 인증 실패는 폴백 fetch와 똑같이
+      // 라우드하게 두고, 잘못된 발신자 표시는 만들지 않는다.
+      if (error || !data.user) {
+        console.warn('[chat] subscribe auth:', error?.message ?? 'not signed in');
+        setLink('error');
+        setPollErr(true);
+        return;
+      }
+      unsub = subscribeMessages(ctx.threadId, data.user.id, (m) => {
+        setMsgs((prev) => mergeMessageSnapshot([...prev.filter((x) => x.id !== m.id), m], []));
         setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
       }, (s) => { if (alive) setLink(s); });
+    }, (error) => {
+      if (!alive) return;
+      console.warn('[chat] subscribe auth:', (error as Error)?.message ?? error);
+      setLink('error');
+      setPollErr(true);
     });
     return () => { alive = false; unsub?.(); };
   }, [ctx]);
@@ -106,10 +130,9 @@ export default function Chat() {
         const next = await fetchMessages(ctx.threadId);
         if (!alive) return;
         setPollErr(false);
-        // 같은 목록이면 상태를 갈지 않는다 — 매 틱 리렌더는 스크롤을 흔들고 이미지 말풍선을 다시 태운다
-        setMsgs((prev) => (
-          prev.length === next.length && prev[prev.length - 1]?.id === next[next.length - 1]?.id ? prev : next
-        ));
+        // mergeMessageSnapshot은 새 ID가 없으면 같은 배열을 돌려준다 — 매 틱 리렌더는
+        // 스크롤을 흔들고 이미지 말풍선을 다시 태우므로 상태를 갈지 않는다.
+        setMsgs((prev) => mergeMessageSnapshot(prev, next));
       } catch (e) {
         console.warn('[chat] poll:', (e as Error)?.message ?? e);
         if (alive) setPollErr(true); // 조용히 삼키면 헤더가 '받고 있다'고 우긴다
@@ -132,10 +155,12 @@ export default function Chat() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       await sendChatPhoto(ctx.threadId, res.assets[0].base64);
-      setMsgs(await fetchMessages(ctx.threadId));
+      const snapshot = await fetchMessages(ctx.threadId);
+      if (!mounted.current) return;
+      setMsgs((current) => mergeMessageSnapshot(current, snapshot));
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
     } catch (e) {
-      Alert.alert('전송 실패', (e as Error).message);
+      if (mounted.current) Alert.alert('전송 실패', (e as Error).message);
     }
   };
 
@@ -146,14 +171,27 @@ export default function Chat() {
     try {
       await sendChatMessage(ctx.threadId, body.trim());
       // Realtime 에코가 못 오는 경우 대비 — 리페치로 정합
-      setMsgs(await fetchMessages(ctx.threadId));
+      const snapshot = await fetchMessages(ctx.threadId);
+      if (!mounted.current) return;
+      setMsgs((current) => mergeMessageSnapshot(current, snapshot));
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
     } catch (e) {
-      Alert.alert('전송 실패', (e as Error).message);
-      setInput(body);
+      if (mounted.current) {
+        Alert.alert('전송 실패', (e as Error).message);
+        setInput(body);
+      }
     } finally {
-      setSending(false);
+      if (mounted.current) setSending(false);
     }
+  };
+
+  const retryLoad = () => {
+    setCtx(null);
+    setMsgs([]);
+    setLink('connecting');
+    setPollErr(false);
+    setState('loading');
+    setLoadAttempt((attempt) => attempt + 1);
   };
 
   // 보내기가 실제로 할 일이 없는 조건 — send()의 가드와 같은 술어를 버튼이 그대로 입는다.
@@ -219,6 +257,14 @@ export default function Chat() {
       {state === 'error' && (
         <View style={s.emptyWrap}>
           <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
+          <Pressable
+            style={s.retryBtn}
+            onPress={retryLoad}
+            accessibilityRole="button"
+            accessibilityLabel="채팅 다시 시도"
+          >
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+          </Pressable>
         </View>
       )}
 
@@ -308,6 +354,7 @@ const s = StyleSheet.create({
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   contextStrip: { backgroundColor: '#eef4e0', paddingVertical: 8, paddingHorizontal: 18 },
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 30 },
+  retryBtn: { alignSelf: 'center', marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
