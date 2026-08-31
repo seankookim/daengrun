@@ -27,6 +27,26 @@ server-authoritative distances price the ledger. This un-blocks U4c (UI session)
 codex run-end finding as build-the-caller, not won't-fix. The 0144 client obligations noted in
 the handoff (blocked on a payload field) ride along — backend session owns any payload gap.
 
+### ⚠ Correction, same day (announcer): the legacy-sweep half of ruling 1 was ALREADY DONE
+
+The UI session's floor-sweep scout found — and the announcer verified at origin — that the legacy
+club 15pt sweep landed 2026-08-27 (`4f4bbed` 69 files; `aa48f02` 71 club session/console sites;
+`club-ui.tsx` stateStrong/body/dim/vkTitle all read 15 on trunk today). The ruling's premise came
+from a stale CLAUDE.md extract carried into the master prompt. **The live half of ruling 1 stands:
+new club-v2 screens are built at 15pt.** The sweep half is closed as already-landed, not as new
+work. (The stale extract in CLAUDE.md §Design system is the same class as the 「Sean pushes」 line —
+a doc drifting behind the artifact.)
+
+## 3. Floor judgment items (2026-08-31, structured options — the sweep's true remainder)
+
+- **Avatar-dot initials: 「Glyph — exempt」.** A one-letter initial inside a DogDot/Monogram is
+  identification, not prose; computed 7–14.4pt sizes stay. The floor does not apply.
+- **club/delegate:277 「CONSENT · v1 — 不變」: 「Drop 不變」.** The kicker becomes pure latin
+  (「CONSENT · v1」) and rides the exemption cleanly. CJK never rides the kicker exemption — rule
+  unchanged, string fixed. Owner: UI session (one-line copy change).
+- **ClubTag 16/800 beside stateStrong 15/800: 「Leave as is」.** Pre-existing inversion, noted in
+  DESIGN.md rather than fixed. Owner: UI session adds the DESIGN.md note; no code change.
+
 ## Operational note, same day
 
 GitHub Actions is DOWN for this repo on a billing block: push cbe8af7's jobs (deno-edge,
