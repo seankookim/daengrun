@@ -5275,3 +5275,149 @@ export async function deleteMyAccount(): Promise<DeleteAccountResult> {
   }
   return data as DeleteAccountResult;
 }
+
+// ---------- 팩 지도 (club pack map) — 0160 -----------------------------------------------------
+// Contract: `docs/contracts/pack-publish-hardening-contract.md`. Two RPCs, and between them they
+// are the whole pack-map surface this client has: one to PUBLISH (the socket write side no longer
+// exists — the `pack channel write` policy is dropped) and one to say WHO is on the map.
+
+/** Every reason `club_pack_publish` can refuse, plus the one this client adds.
+ *
+ *  🔴 THE VOCABULARY IS A CONTRACT, NOT A LOG STRING. `use-pack-share` renders a different sentence
+ *  for `too_fast` (an ordinary throttle — say nothing, keep the previous answer) than for the rest
+ *  (we are NOT on the map), so a refusal that arrives unrecognised must land in the honest half.
+ *  That is why the mapper below returns `refusal: null` for an unknown string rather than passing
+ *  it through: an unknown refusal is still a refusal, and `ok` is what decides. */
+export type PackPublishRefusal =
+  | 'not_signed_in'   // no JWT reached the RPC
+  | 'not_checked_in'  // not a checked-in participant of this session (missing and foreign sessions answer identically)
+  | 'window_closed'   // the session's pack window is not open
+  | 'bad_position'    // null / out of range / exactly (0,0)
+  | 'too_fast'        // inside the server's 2 s throttle — the ONLY refusal that is not news
+  | 'not_delivered'   // realtime.send swallowed its own failure; the verify-read found no row
+  | 'not_deployed';   // client-side: 0160 is on trunk but not applied yet (see below)
+
+export interface PackPublishResult {
+  ok: boolean;
+  refusal: PackPublishRefusal | null;
+}
+
+/**
+ * Publish the local user's position onto one club session's pack channel.
+ *
+ * ⚠ The caller supplies ONLY a position. `profileId` and `name` are authored by the RPC from
+ * `auth.uid()` and `profiles`, which is what makes identity structural rather than a rule the
+ * client keeps (codex 0159 #4) — there is no argument here that could move it.
+ *
+ * ⚠ `PGRST202` IS A STATE, NOT AN ERROR. PostgREST answers 「function not found」 that way, and it
+ * is exactly what a build sees between 0160 landing on trunk and the migration being deployed. A
+ * throw there would surface to the user as an unexplained failure; `not_deployed` lets the share
+ * line say the honest thing (「not sharing」) for the same reason `fetchRunMeta` tolerates 42703.
+ * Everything else throws — a network failure is not a refusal and must not be dressed as one.
+ *
+ * ⚠ `ageMs` IS HOW OLD THE FIX IS, AND IT CAN ONLY MAKE US LOOK STALER (addendum 1b). The server
+ * stamps `at = now() - least(greatest(p_age_ms,0), 120000)ms`, so the marker's freshness describes
+ * the POSITION rather than the moment the RPC ran — a fix up to two minutes old would otherwise be
+ * drawn at full strength, and the trunk comment arguing that stale positions are refused would
+ * become a comment-vs-code lie. The clamp is PAST-ONLY on both sides of the wire: a caller can
+ * only age themselves, never post-date, so the forged-future-stamp attack stays closed.
+ */
+export async function packPublish(
+  sessionId: string, lat: number, lng: number, ageMs: number,
+): Promise<PackPublishResult> {
+  // ⚠ CLAMPED OUTSIDE THE LITERAL ON PURPOSE. `check-rpc-contracts` reads the argument object with
+  // a regex for `key:`, so a ternary inside it (`… ? ageMs : 0`) is harvested as an argument named
+  // `ageMs` and the gate refuses the call — measured here, on this line. The gate is right to be
+  // naive about an object literal; the expression belongs on its own statement anyway.
+  // `integer` on the server side, and negative is a lie in the one direction that matters.
+  const age = Math.max(0, Math.round(Number.isFinite(ageMs) ? ageMs : 0));
+  const { data, error } = await supabase.rpc('club_pack_publish', {
+    p_session: sessionId, p_lat: lat, p_lng: lng, p_age_ms: age,
+  });
+  if (error) {
+    if ((error as any)?.code === 'PGRST202') return { ok: false, refusal: 'not_deployed' };
+    throw error;
+  }
+  const o = (data ?? {}) as { ok?: unknown; refusal?: unknown };
+  // `ok === true` and nothing looser: a null/absent payload is a refusal we cannot name, never a
+  // success we assume.
+  if (o.ok === true) return { ok: true, refusal: null };
+  return { ok: false, refusal: typeof o.refusal === 'string' ? (o.refusal as PackPublishRefusal) : null };
+}
+
+/** One person `club_pack_map_roster` names for this session. `people` is EMPTY while the window is
+ *  closed, deliberately (0159 §C) — names are disclosed while the walk is happening. */
+export interface PackRosterPerson {
+  profileId: string;
+  name: string | null;
+  /** The raw four-value `session_people.role`, not a re-derivation. */
+  role: string | null;
+  isHost: boolean;
+  isRunner: boolean;
+}
+
+export interface PackRoster {
+  sessionId: string;
+  status: string;
+  scheduledAt: string | null;
+  meetupPoint: string | null;
+  windowOpen: boolean;
+  topic: string;
+  /** `clubs.name` via `club_sessions.club_id` (0160 §D). Present whether or not the window is
+   *  open — the masthead binds it, so a deep link can no longer name the club (codex #10).
+   *  `null` on a build talking to a pre-0160 database: the key is simply absent, and a masthead
+   *  falling back to 팩 지도 is honest while an invented name is not. */
+  clubName: string | null;
+  /** The DATABASE's clock at the moment this answer was built (ISO, 0160 §D / addendum 1c).
+   *
+   *  🔴 IT IS THE ONLY THING THAT MAKES A WRONG PHONE CLOCK SURVIVABLE. Every `at` on this map is
+   *  stamped by that same clock, so a viewer whose device is 20 s behind reads every payload as
+   *  future-skewed and `parsePackPos` refuses the lot — an empty map, no error, nothing to report.
+   *  The screen turns this into an offset (`packClockOffsetMs`) and judges freshness against the
+   *  corrected clock. `null` on a pre-0160 database: the key is absent and the offset is 0, which
+   *  is exactly the old behaviour. */
+  serverNow: string | null;
+  people: PackRosterPerson[];
+}
+
+/**
+ * Who is on this session's map, per the server. The AUTHORITATIVE half: the screen keys and
+ * captions markers from here and drops a broadcast whose id is not in `people`.
+ *
+ * Anon-safe on purpose — the RPC is granted to `anon` (0159 §C) and `club_session_detail` is not,
+ * so this is the only source a signed-out viewer has. Returns null when the session does not
+ * exist (the RPC raises `not_found`), which the screen renders as 「이 세션을 찾을 수 없어요」
+ * rather than as an error.
+ */
+export async function fetchPackRoster(sessionId: string): Promise<PackRoster | null> {
+  const { data, error } = await supabase.rpc('club_pack_map_roster', { p_session: sessionId });
+  if (error) {
+    if (/not_found/.test(String(error.message ?? ''))) return null;
+    // 22P02 = a malformed uuid in the path, which a bad deep link produces. Same 「missing」 answer
+    // as elsewhere in this file (api.ts:639, 854) — it is not a failure worth a retry button.
+    if ((error as any)?.code === '22P02') return null;
+    throw error;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const o = data as Record<string, unknown>;
+  const people = Array.isArray(o.people) ? (o.people as Record<string, unknown>[]) : [];
+  return {
+    sessionId: String(o.sessionId ?? sessionId),
+    status: String(o.status ?? ''),
+    scheduledAt: typeof o.scheduledAt === 'string' ? o.scheduledAt : null,
+    meetupPoint: typeof o.meetupPoint === 'string' ? o.meetupPoint : null,
+    windowOpen: o.windowOpen === true,
+    topic: typeof o.topic === 'string' ? o.topic : '',
+    clubName: typeof o.clubName === 'string' && o.clubName !== '' ? o.clubName : null,
+    serverNow: typeof o.serverNow === 'string' && o.serverNow !== '' ? o.serverNow : null,
+    people: people
+      .filter((p) => typeof p?.profileId === 'string' && p.profileId !== '')
+      .map((p) => ({
+        profileId: String(p.profileId),
+        name: typeof p.name === 'string' ? p.name : null,
+        role: typeof p.role === 'string' ? p.role : null,
+        isHost: p.isHost === true,
+        isRunner: p.isRunner === true,
+      })),
+  };
+}
