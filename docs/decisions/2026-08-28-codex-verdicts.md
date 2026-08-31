@@ -87,7 +87,41 @@ must be cleared before the corresponding ops flags ever flip.
     P1/P2 controls share the `channel_allowed` oracle; ACL pins use bare `IF has_function_privilege`
     (NULL-silent) — the S10 class again.
 
-## Standing consequences
+## 2026-08-31 addendum — the two remaining deployed-unreviewed slices (announcer runs)
+
+Fresh frozen export @ trunk `91431c8`. Same detectors, one refinement measured on this very run:
+**a positive failure-check (`usage limit` / `trusted directory`) that greps the WHOLE stderr
+matches CLAUDE.md's own codex section when codex reads the repo** — 5 false hits here beside a
+genuine verdict. Match failure strings only in the final ERROR lines (`tail -3`), or read the
+stdout digit-detector first; stderr content includes every repo file codex opens.
+
+| slice | verdict | findings |
+|---|---|---|
+| 0153 board-impl-not-for-clients + suite 184 | **REJECT** | 2 |
+| 0156 gps_trace_bounds | walled at 101k tokens (「try again at 6:09 PM」) — retry scheduled; **UNREVIEWED** | — |
+
+### 0153 — REJECT, 2 findings
+
+The slice's own revoke chain is CLEAN (verified through 0159: last inner definition 0147, no
+later regrant; suite 184 pins both directions). Both findings are about the OUTER wrapper:
+
+1. HIGH — the outer definer (`0052:149`) does not own its security envelope: `search_path =
+   public` only (no pg_temp, not in-body-first), grant to authenticated with no PUBLIC/anon
+   revoke — a baselined debt (`check-definer-acl-baseline.txt:51`). Partial-apply/restored
+   environment recreates it PUBLIC-executable and suite 184's outer check still passes
+   (authenticated inherits PUBLIC). Fix shape: forward wrapper redefinition with in-body
+   search_path + same-file revoke/grants; verify PUBLIC/anon/authenticated separately.
+2. MEDIUM — the wrapper computes `p_access = 'none'` and then calls the inner function anyway:
+   any authenticated stranger with a session UUID reads openIncidents/unassignedIncidents
+   (0147:84) and paid-dog/present-runner counts (0048:378). ⚠ **Ruling context:** Sean's
+   2026-08-28 total-public ruling plausibly makes the DISCLOSURE itself acceptable — but the
+   code's own access model says 'none' and then ignores itself, which is an honesty defect
+   either way. Fix direction (minimal whitelist for `none`, or drop the pretense and make
+   public-by-design explicit) is the backend's call within the ruling; no console question
+   needed unless they think the ruling doesn't cover incidents.
+
+Owner: backend session (both findings live in 0052's wrapper — same file family as its queued
+`session_set_backup` gate conversion; natural one-slice bundle).
 
 - **0159 deploy gate:** client private-flag fix (geo.ts:539,561) + findings 2-5 triage BEFORE
   `db push` of 0159. The migration being on trunk is fine; deploying it is not.
