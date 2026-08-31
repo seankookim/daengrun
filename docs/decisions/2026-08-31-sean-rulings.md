@@ -52,11 +52,15 @@ a doc drifting behind the artifact.)
 - **OPEN-A: 「Hold ~20 min」.** An approved-but-unpaid signup holds its slot for 20 minutes
   (the spec's calibrated default — a human just approved and is reaching for their card); after
   that the slot releases to the next dog.
-- **OPEN-B: 「Signed-up gets access」.** Approval alone opens the session's group chat, roster,
-  and safety-case rights — payment is NOT the membership key. ⚠ This REJECTS the spec's proposal
-  to re-key `full` to paid and overrides the 0049 「application is not the door」 principle for
-  club sessions specifically; Sean chose it with the paid-only option and its trade-off (unpaid
-  stranger inside the private space) explicitly presented. Do not re-litigate. Natural corollary
+- **OPEN-B: 「Signed-up gets access」 — REFINED by Sean minutes later, verbatim: 「signed up gets
+  access to read the chat and roster, not participate」.** So: approval alone opens READ access —
+  the unpaid signup sees the group chat and the roster. PARTICIPATION stays paid-keyed: posting
+  in chat is paid-only, and action-shaped rights (opening a safety case) read as participation,
+  i.e. paid-only — if an implementer finds a surface where that derivation looks wrong, it comes
+  back as a console question. This still rejects the spec's re-key-`full`-to-paid proposal in its
+  pure form: the honest model is a two-tier membership (signed-up = observer, paid = participant),
+  not a single `full` gate. Sean chose with the paid-only option and its trade-off explicitly
+  presented. Do not re-litigate. Natural corollary
   left to the implementers: when an OPEN-A hold expires unpaid, the signup releases and access
   ends with it — if any surface makes that corollary ambiguous, it comes back as a new console
   question rather than a silent decision.
