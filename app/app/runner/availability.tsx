@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
-import { AvailRule, fetchMyAvailability, saveMyAvailability } from '../../src/lib/api';
+import { AvailRule, fetchMyAvailability, fetchMyBookingRules, RunnerBookingRules, saveMyAvailability, saveMyBookingRules } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { goBackOrHome } from '../../src/lib/nav';
 import { layout, paper } from '../../src/theme';
@@ -136,6 +136,45 @@ export default function Availability() {
   };
 
   const activeCount = days.filter((d) => d.enabled).length;
+
+  // ═══ [U5 · 예약 규칙 2026-08-31] 가용시간과 독립인 자기 상태 — 그리드의 D② 저장 모델(전체
+  // 교체·스티키 바)과 절대 섞지 않는다: 이 두 숫자는 UPDATE 두 칸이고, 실패·더티·저장이 전부
+  // 따로 논다. 서버가 읽는 두 칸만 편집한다(api.ts 주석 참조). ═══
+  const [rules, setRules] = useState<RunnerBookingRules | null>(null);
+  const [rulesBase, setRulesBase] = useState<RunnerBookingRules | null>(null);
+  const [rulesState, setRulesState] = useState<'loading' | 'ready' | 'absent' | 'error'>('loading');
+  const [rulesSaving, setRulesSaving] = useState(false);
+  const loadRules = useCallback(() => {
+    setRulesState('loading');
+    fetchMyBookingRules()
+      .then((r) => {
+        if (r == null) { setRulesState('absent'); return; }
+        setRules(r);
+        setRulesBase({ ...r });
+        setRulesState('ready');
+      })
+      .catch((e) => { console.warn('[rules] load:', e?.message ?? e); setRulesState('error'); });
+  }, []);
+  useEffect(() => { loadRules(); }, [loadRules]);
+  const rulesDirty = rules != null && rulesBase != null
+    && (rules.restAfterMin !== rulesBase.restAfterMin || rules.maxSessionsPerDay !== rulesBase.maxSessionsPerDay);
+  // 클램프 — 서버엔 CHECK가 없다(0001:108-114는 default뿐): 자기 슬롯 계산에만 먹는 값이라
+  // 타인을 겨냥하진 못하지만, 0분 미만·비상식 상한은 클라가 막는다. 휴식 0..120 · 상한 1..8.
+  const bumpRest = (delta: number) => setRules((r) => (r ? { ...r, restAfterMin: Math.min(Math.max(r.restAfterMin + delta, 0), 120) } : r));
+  const bumpMax = (delta: number) => setRules((r) => (r ? { ...r, maxSessionsPerDay: Math.min(Math.max(r.maxSessionsPerDay + delta, 1), 8) } : r));
+  const saveRules = async () => {
+    if (!rules || !rulesDirty) return;
+    setRulesSaving(true);
+    const written = { ...rules };
+    try {
+      await saveMyBookingRules(written);
+      setRulesBase(written);
+    } catch (e) {
+      Alert.alert('규칙 저장 실패', (e as Error).message);
+    } finally {
+      setRulesSaving(false);
+    }
+  };
 
   // [D② 2026-08-24] 저장이 무엇을 덮어쓰는지. saveMyAvailability는 delete-all-then-insert이므로
   // 저장하기 한 번이 러너의 **주 전체**를 교체한다. 이 절들은 전부 마지막 성공 로드(base)와 현재
@@ -293,6 +332,76 @@ export default function Availability() {
           30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
+
+        {/* ═══ [U5 · 예약 규칙] 서버는 이 두 숫자를 줄곧 집행해 왔다(is_slot_available, 0003) —
+            러너가 보고 바꿀 표면이 없었을 뿐이다. 자기 저장 버튼(세컨더리)을 갖는다: 스티키
+            바의 프라이머리는 가용시간의 것이고, 화면당 프라이머리는 하나다(강조 예산). ═══ */}
+        <View style={s.rulesHead}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>예약 규칙</Text>
+        </View>
+        {rulesState === 'loading' && (
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+        )}
+        {rulesState === 'error' && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>저장된 예약 규칙을 불러오지 못했어요</Text>
+            <Pressable onPress={loadRules} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {rulesState === 'absent' && (
+          /* 행은 러너 등록이 만든다 — 없다는 건 등록 전이거나 데이터 문제. 기본값을 지어내
+             그리지 않고 부재를 부재로 말한다. */
+          <View style={s.card}>
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.text, textAlign: 'center', paddingVertical: 10 }}>
+              예약 규칙이 아직 만들어지지 않았어요 — 러너 등록을 마치면 생겨요
+            </Text>
+          </View>
+        )}
+        {rulesState === 'ready' && rules && (
+          <View style={s.card}>
+            <View style={{ paddingVertical: 11 }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>러닝 사이 휴식</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
+                    확정 예약 앞뒤로 이 시간만큼 새 예약을 막아요
+                  </Text>
+                </View>
+                <Stepper value={`${rules.restAfterMin}분`} nf={nf}
+                  onMinus={() => bumpRest(-10)} onPlus={() => bumpRest(10)}
+                  a11yMinus="휴식 10분 빼기" a11yPlus="휴식 10분 더하기" />
+              </Row>
+            </View>
+            <View style={s.div} />
+            <View style={{ paddingVertical: 11 }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>하루 최대 세션</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
+                    이 횟수를 채우면 그날은 더 받지 않아요
+                  </Text>
+                </View>
+                <Stepper value={`${rules.maxSessionsPerDay}회`} nf={nf}
+                  onMinus={() => bumpMax(-1)} onPlus={() => bumpMax(1)}
+                  a11yMinus="하루 최대 1회 빼기" a11yPlus="하루 최대 1회 더하기" />
+              </Row>
+            </View>
+            {rulesDirty && (
+              <Pressable
+                onPress={saveRules}
+                disabled={rulesSaving}
+                style={({ pressed }) => [s.rulesSaveBtn, pressed && { backgroundColor: paper.wash }]}
+                accessibilityRole="button"
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>
+                  {rulesSaving ? '저장 중...' : `규칙 저장 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </ScrollView>
       {/* 시스템 바 스트립 — 요일 그리드가 시계 뒤로 지나가던 것 */}
       <StatusBarCover />
@@ -323,17 +432,22 @@ export default function Availability() {
   );
 }
 
-function Stepper({ value, nf, onMinus, onPlus }: { value: string; nf: TextStyle | null; onMinus: () => void; onPlus: () => void }) {
+function Stepper({ value, nf, onMinus, onPlus, a11yMinus = '30분 빼기', a11yPlus = '30분 더하기' }: {
+  value: string; nf: TextStyle | null; onMinus: () => void; onPlus: () => void;
+  /* [U5] 예약 규칙 스텝퍼가 재사용하면서 하드코드였던 접근성 라벨이 거짓말이 됐다 — 기본값은
+     기존 호출부(시간 그리드) 그대로, 새 호출부만 자기 라벨을 넘긴다. */
+  a11yMinus?: string; a11yPlus?: string;
+}) {
   return (
     <Row style={s.stepper}>
-      <Pressable onPress={onMinus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel="30분 빼기">
+      <Pressable onPress={onMinus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={a11yMinus}>
         <Text style={s.stepBtnText}>−</Text>
       </Pressable>
       <View style={{ paddingHorizontal: 12, justifyContent: 'center' }}>
         {/* Oswald time value — lineHeight 25 = 1.28× (BUG A) */}
         <Text style={[{ fontSize: 19.5, lineHeight: 25, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{value}</Text>
       </View>
-      <Pressable onPress={onPlus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel="30분 더하기">
+      <Pressable onPress={onPlus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={a11yPlus}>
         <Text style={s.stepBtnText}>＋</Text>
       </Pressable>
     </Row>
@@ -354,6 +468,10 @@ const s = StyleSheet.create({
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   div: { height: 1, backgroundColor: '#EEEEEE' },
+  // [U5 · 예약 규칙] 섹션 머리 + 세컨더리 저장(캔버스 면 + 코랄 보더 — 버튼 매트릭스의 세컨더리;
+  // 프라이머리는 스티키 바 하나뿐이다)
+  rulesHead: { marginTop: 26, marginBottom: 8 },
+  rulesSaveBtn: { marginTop: 6, marginBottom: 10, minHeight: 48, justifyContent: 'center', borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas, paddingHorizontal: 14 },
   // [D①] 관할 표 — 값이 아니라 범위를 인쇄하는 표라 카드 문법을 그대로 쓰되 값 열이 없다.
   juris: { borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 13, marginBottom: 12 },
   jurisRow: { alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 11 },

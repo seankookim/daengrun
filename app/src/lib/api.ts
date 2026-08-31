@@ -2097,6 +2097,34 @@ export async function saveMyAvailability(rules: AvailRule[]): Promise<void> {
   }
 }
 
+// [U5 · 예약 규칙 2026-08-31] runner_booking_rules의 읽기/쓰기 짝 — 이 표면의 클라이언트 호출은
+// 온보딩 insert(위 registerRunner) 하나뿐이었다: 서버는 규칙을 집행하는데 러너는 볼 수도 바꿀 수도
+// 없었다. ⚠ 서버가 실제로 READ하는 두 칸만 노출한다 — rest_after_min · max_sessions_per_day
+// (is_slot_available, 0003:44와 그 범위 산식). min_notice_min과 group_capacity는 어떤 서버 코드도
+// 읽지 않는다(전수 grep: 0001 테이블 정의와 0115 삭제 스윕뿐) — 아무것도 읽지 않는 숫자의 편집기는
+// 효과 없는 컨트롤이다(죽은 버튼 법). 서버가 읽기 시작하는 슬라이스가 그때 노출한다.
+export interface RunnerBookingRules { restAfterMin: number; maxSessionsPerDay: number }
+export async function fetchMyBookingRules(): Promise<RunnerBookingRules | null> {
+  const { data: user, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user.user) throw new Error('not signed in');
+  const { data, error } = await supabase.from('runner_booking_rules')
+    .select('rest_after_min, max_sessions_per_day').eq('runner_id', user.user.id).maybeSingle();
+  if (error) throw error;
+  // 행 없음 = 온보딩 전(등록이 행을 만든다). '기본값 30/4'를 지어내 그리면 저장 안 된 값을
+  // 저장된 것처럼 말하게 된다 — 호출부가 부재를 부재로 그린다.
+  if (!data) return null;
+  return { restAfterMin: (data as any).rest_after_min, maxSessionsPerDay: (data as any).max_sessions_per_day };
+}
+export async function saveMyBookingRules(r: RunnerBookingRules): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('runner_booking_rules')
+    .update({ rest_after_min: r.restAfterMin, max_sessions_per_day: r.maxSessionsPerDay })
+    .eq('runner_id', user.user.id);
+  if (error) throw error;
+}
+
 // 슬롯 충돌 검사 — 서버 함수(규칙+확정예약+홀드+휴식버퍼)가 판정
 export async function checkSlot(runnerId: string, startIso: string, endIso: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_slot_available', {
