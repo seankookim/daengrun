@@ -57,10 +57,18 @@ a doc drifting behind the artifact.)
   the unpaid signup sees the group chat and the roster. PARTICIPATION stays paid-keyed: posting
   in chat is paid-only, and action-shaped rights (opening a safety case) read as participation,
   i.e. paid-only — if an implementer finds a surface where that derivation looks wrong, it comes
-  back as a console question. This still rejects the spec's re-key-`full`-to-paid proposal in its
-  pure form: the honest model is a two-tier membership (signed-up = observer, paid = participant),
-  not a single `full` gate. Sean chose with the paid-only option and its trade-off explicitly
-  presented. Do not re-litigate. Natural corollary
+  back as a console question. **Second refinement, Sean verbatim: 「matter of fact for the roster
+  and pictures, any one should be able to see it signed up or un signed up」** — roster and
+  session pictures are fully PUBLIC, consistent with the standing 2026-08-28 total-public ruling.
+  Final three-tier model:
+  | tier | sees | does |
+  |---|---|---|
+  | anyone (no signup) | roster · pictures | — |
+  | signed-up, unpaid | + reads group chat | — |
+  | paid | everything | posts in chat · opens safety case · participates |
+  This rejects the spec's re-key-`full`-to-paid proposal in its pure form: membership is tiered
+  (public observer / signed-up reader / paid participant), not a single `full` gate. Sean chose
+  with the paid-only option and its trade-offs explicitly presented. Do not re-litigate. Natural corollary
   left to the implementers: when an OPEN-A hold expires unpaid, the signup releases and access
   ends with it — if any surface makes that corollary ambiguous, it comes back as a new console
   question rather than a silent decision.
