@@ -29,10 +29,13 @@
 --   VERIFY cannot, because a property checked only at apply survives exactly until somebody
 --   re-registers or unschedules the job — is that the job exists, is active, runs the right command,
 --   and that the command names a function that EXISTS. **The removal of the `exception when others`
---   is proved by the APPLY, two-sided, in the battery recorded in this slice's REGISTRY row:**
+--   is proved by the APPLY, two-sided, in the battery recorded BELOW as M5/M6** (this sentence
+--   originally promised the battery in the REGISTRY row; the battery was run on 2026-08-31 and is
+--   recorded here, in the file it is about, with the REGISTRY row carrying only a one-liner):
 --   with `cron.schedule` planted to raise, 0138's swallowed form applies GREEN and 0157's form
 --   ABORTS the migration. A suite structurally cannot observe that, because a suite only runs after
---   an apply succeeds.
+--   an apply succeeds. ⚠ That was a PREDICTION when it was written and it is now a MEASUREMENT —
+--   M5 applies green having installed nothing, M6 aborts at 0157:50.
 --
 -- ⚠ **NAMED GAP — §B's duplicate-collapse block is NOT PINNED, deliberately.** The collapse runs
 --   once, at apply, against whatever duplicates an already-running database holds. Production has 0
@@ -50,6 +53,68 @@
 --   an `IF` on a NULL predicate, and every pin in this file exists to notice that something is
 --   MISSING — which is precisely the state where a bare `IF` goes silent.
 -- ⚠ `_fail` args pre-computed into v_msg, never a subquery (the 110 header law).
+--
+-- ═══ THE MUTATION BATTERY, MEASURED 2026-08-31 ═══════════════════════════════════════════════
+-- Baseline **1135 → 1144 (+9 = exactly the pins in this file)** — the positive control that this
+-- suite RAN rather than being silently skipped from `harness.sh`'s manifest. The 1135 is a
+-- MEASUREMENT, not a remembered number: a pristine `git archive` of trunk WITHOUT this slice was
+-- applied and run in its own scratch cluster and returned `1135 pass / 0 fail`; the adopted tree
+-- returns `1144 pass / 0 fail` with 9 `0157-*` rows and 0 red. 1144 − 1135 = 9 = the pins added.
+-- ⚠ Every plant ASSERTS its own occurrence count AND reads the file back, and every harness run is
+--   `&&`-CHAINED to its plant, so a plant that does not land yields NO ROW rather than a plausible
+--   green one. **That guard fired for real**: a parallel agent's battery overwrote the shared
+--   planter mid-run and two mutations produced NO ROW instead of a green one. The entire set was
+--   then re-run from a private toolchain, and that re-run is what the table reports.
+-- ⚠ CONTROL observed clean FIRST (1144/0) and again LAST (1144/0), on a `rsync` copy of the tree —
+--   no mutation ever touched the live worktree.
+--
+-- | # | mutation | result |
+-- |---|---|---|
+-- | CONTROL | none | **1144/0** — observed FIRST, so the deltas below mean something |
+-- | M1  | §B's `create unique index … outstanding_uq` deleted | **APPLY ABORTS** — `0157 VERIFY: NO-OUTSTANDING-UQ` |
+-- | M2  | M1 + VERIFY ①'s arm deleted | the harness **DIES at suite 170** — `there is no unique or exclusion constraint matching the ON CONFLICT specification` (170:122). Loud, but it never reaches 188: the index is gone while §B.1's `on conflict … where` remains, and that clause cannot infer an absent partial index. **So M2 does not measure the finding — M16 does** |
+-- | M16 | 🔴 **THE PRE-0157 WORLD, WHOLE** — index deleted, VERIFY ① deleted, and the primitive reverted to 0138's raw INSERT | **1140/4 = `0157-U1`·`U2`·`U3`·`U4`.** U1 reports `SECOND-OUTSTANDING-ADMITTED OUTSTANDING-COUNT=2 TOTAL-COUNT=3` — **one key carrying two live orders to DELETE it at Toss, which is finding 6 itself, reproduced** |
+-- | M3  | §A's read-back deleted **and** the scheduled command pointed at a function that does not exist | **THE APPLY SUCCEEDS SILENTLY** — that IS finding 5's hole, a migration reporting success having installed a scheduler pointed at nothing — and **1143/1 = `0157-C1` alone**: `COMMAND=select no_such_dispatcher() COMMANDED-FUNCTION-ABSENT(no_such_dispatcher)` |
+-- | M4  | the same broken command, read-back PRESENT | **APPLY ABORTS** — `0157 §A VERIFY: expected exactly 1 active … found 0`. ⚠ Only the SCHEDULE's copy of the command string was moved: rewriting the read-back's copy too would have moved the detector along with the defect, and the pin would have agreed with the bug |
+-- | M5  | 🔴 **finding 5 WHOLE** — `cron.schedule` planted to refuse this one job, §A reverted to 0138:283-291's `exception when others` swallow, read-back deleted | **APPLY GREEN with nothing installed**, and **1143/1 = `0157-C1` alone** (`JOB-COUNT=0`) |
+-- | M6  | the same planted refusal, §A exactly as SHIPPED | **APPLY ABORTS** — `planted: pg_cron unavailable for revoke-billing-keys` at 0157:50. M5+M6 together are the two-sided proof of the swallow removal, which no suite can observe |
+-- | M7  | both `on conflict … do update` arms deleted, index kept | 1141/3 = `0157-U2`·`U3`·`U4`, each on a real 23505 raised out of the RPC |
+-- | M8  | the merge RESURRECTS — `do update` also resets `state`/`attempts`/`claim_token`/`lease_until` | **1143/1 = `0157-U2` alone**: `STATE=pending ATTEMPTS=0 CLAIM-TOKEN-MOVED LEASE-CLEARED`, all four equalities firing |
+-- | M14 | the empty-key RAISE replaced by `return null` | **1143/1 = `0157-U5` alone**: `NULL-KEY-ACCEPTED BLANK-KEY-ACCEPTED` |
+-- | M15 | the FK fallback disarmed (`when foreign_key_violation` → `when division_by_zero`) | **1143/1 = `0157-U6` alone**: `RAISED(23503 …) ROWS=0` — the KEY is lost along with the provenance |
+-- | M9  | the primitive's `revoke … from public, anon, authenticated` deleted | **APPLY ABORTS** — `PRIMITIVE-public-execute PRIMITIVE-anon-execute PRIMITIVE-authenticated-execute` |
+-- | M10 | M9 + VERIFY ②'s three ACL arms deleted | 1141/3 = **`98 H9`** + **`99 S1`** + `0157-S1` — three independent detectors, two of them schema-wide sweeps that catch it without knowing this slice exists |
+-- | M11 | `billing_key_swap`'s revoke deleted | **1144/0 — REDDENS NOTHING.** Diagnosed below; it is NOT a blind pin |
+-- | M12 | `billing_key_swap` actively WIDENED (`grant … to authenticated`) | **APPLY ABORTS** — `0157 VERIFY: SWAP-authenticated-execute` |
+-- | M13 | M12 + VERIFY ③'s two swap arms deleted | **1143/1 = `170 B5` alone** (`authenticated-CAN`) — a shipped pin stands in front, so the widening is still caught with 0157's own VERIFY disarmed |
+-- | CONTROL | none, tree restored | **1144/0** |
+--
+-- 🔴 **M11 REDDENS NOTHING, AND THE TWO CAUSES WERE TOLD APART BY OBSERVATION RATHER THAN BY
+--    REASONING.** Deleting 0157's `revoke execute on function billing_key_swap(…) from public,
+--    anon, authenticated` leaves 1144/0. The pins are not blind — **the property is not observable
+--    through this door**, and that is measured: with M11 applied, the database returns
+--    `billing_key_swap | postgres=X/postgres service_role=X/postgres` and
+--    `has_function_privilege('authenticated', …) = f`, identical to the control. The harness applies
+--    every migration in numeric order from scratch, so `billing_key_swap` ALWAYS already exists
+--    (0137 first defines it) and `create or replace` preserves its ACL — preservation can never fail
+--    here. That is exactly the class CLAUDE.md records the runtime harness as structurally green on.
+--    **The guard that DOES stand in front is the SOURCE gate, and it was run two-sided:**
+--    `MIGRATIONS_DIR=<mutated tree> node app/scripts/check-definer-acl.mjs` → **exit 1**, naming
+--    `0157_billing_cron_and_key_hardening.sql:117  billing_key_swap()  — 최초 정의는
+--    0137_billing_key_swap.sql`; the same gate on the unmutated tree → **exit 0**, baseline 81
+--    unchanged. So M11's null result is a fact about the harness, not a gap in coverage — but it is
+--    only allowed to be that fact BECAUSE the other gate was observed to redden.
+--    ⚠ The contrast with M12/M13 is what makes this a diagnosis rather than an excuse: an ACTUAL
+--      widening of the same function's ACL aborts the apply (M12) and, with 0157's VERIFY arms
+--      removed, reddens `170 B5` (M13). The detectors on that surface are alive. It is specifically
+--      the DELETION OF A REDUNDANT REVOKE that has no observable consequence in a from-scratch apply.
+--
+-- ⚠ **SEVEN MUTATIONS ABORT THE APPLY, WHICH MEASURES 0157's VERIFY AND NOT THIS SUITE.** That is
+--   the three-proposition discipline: 「the hole is real」, 「a pin notices」 and 「the fix closes it」
+--   are three different claims and one mutation proves only the middle. So each apply-aborting plant
+--   was re-run with its own VERIFY arm removed — M1→M16, M4→M3, M6→M5, M9→M10, M12→M13 — so that a
+--   SUITE pin (or a shipped sweep) had to catch it alone. A property checked only at apply is
+--   protected exactly until somebody recreates the function.
 
 do $$
 declare
