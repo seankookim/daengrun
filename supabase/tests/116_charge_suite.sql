@@ -798,12 +798,30 @@ begin
     insert into billing_keys (profile_id, billing_key, card)
     values (o_card, 'bkey_chg_sealed', jsonb_build_object('brand','국민','last4','9999'));
     perform set_config('request.jwt.claim.sub', o_card::text, false);
+    -- 🔴 [0161, 2026-08-31] THE billing_keys ARMS ARE SPLIT OUT, AND THEIR PROPOSITION GOT
+    --    STRONGER RATHER THAN LOOSER. Until 0161 this table carried Supabase's default client
+    --    grants (`00_shim.sql:82-95` mirrors production) and RLS-with-zero-policies was the ONLY
+    --    wall, so 「the card's owner is refused」 was observable as **0 ROWS**. 0161 revokes the
+    --    grant, so the identical probe now raises **42501** — refusal by PRIVILEGE, which is the
+    --    earlier and stricter wall. The old combined arm treated ANY error as 「프로브 오류」, so
+    --    it failed on the improvement.
+    -- ⚠ The two probes had to stop being one statement: `ops_flags` is untouched by 0161 and must
+    --   STILL answer 0 rows through RLS. An arm that accepted 「either 0 rows or an error」 for
+    --   both tables would no longer be able to tell RLS working from RLS gone — which is the
+    --   whole point of this pin. So billing_keys asserts the RAISE by name and ops_flags asserts
+    --   the row count, and neither can stand in for the other.
+    -- ⚠ 0161's own two-sided ACL pins live in suite 192 (`0161-N1`~`N3`); this arm owns the
+    --   BOUNDARY (what a real `authenticated`/`anon` session actually gets), which a catalog
+    --   sweep cannot see. Neither is evidence for the other.
     begin
       set local role authenticated;
-      select count(*) into v_n from billing_keys;
+      begin
+        select count(*) into v_n from billing_keys;
+        v_bad := v_bad || ' 소유자가 billing_keys 를 읽었다(0161 회수 뒤에는 42501 이어야 한다) ' || v_n || '행';
+      exception when insufficient_privilege then null;
+      end;
       select count(*) into v_n2 from ops_flags;
       reset role;
-      if v_n <> 0 then v_bad := v_bad || ' 소유자에게 billing_keys ' || v_n || '행'; end if;
       if v_n2 <> 0 then v_bad := v_bad || ' authenticated에게 ops_flags ' || v_n2 || '행'; end if;
     exception when others then reset role; v_bad := v_bad || ' 읽기 프로브 오류';
     end;
@@ -811,9 +829,12 @@ begin
     begin
       set local role anon;
       perform set_config('request.jwt.claim.sub', '', true);
-      select count(*) into v_n from billing_keys;
+      begin
+        select count(*) into v_n from billing_keys;
+        v_bad := v_bad || ' anon 이 billing_keys 를 읽었다(0161 회수 뒤에는 42501 이어야 한다) ' || v_n || '행';
+      exception when insufficient_privilege then null;
+      end;
       reset role;
-      if v_n <> 0 then v_bad := v_bad || ' anon에게 billing_keys ' || v_n || '행'; end if;
     exception when others then reset role; v_bad := v_bad || ' anon 프로브 오류';
     end;
     reset role;
@@ -848,7 +869,7 @@ begin
       then v_bad := v_bad || ' 컷오버 시점이 클라 쓰기로 움직였다'; end if;
 
     if v_bad = ''
-      then call _pass('chg','C15 봉인 — billing_keys·ops_flags RLS on·정책 0·anon/authenticated/카드 소유자 전부 0행·insert/update/delete 거부');
+      then call _pass('chg','C15 봉인 — billing_keys·ops_flags RLS on·정책 0 · [0161] billing_keys 는 카드 소유자와 anon 둘 다 42501(권한 회수, 0행보다 이른 벽) · ops_flags 는 authenticated 에게 여전히 0행(RLS) · insert/update/delete 거부');
     else v_msg := v_bad; call _fail('chg','C15 봉인', v_msg); end if;
   exception when others then reset role; perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('chg','C15 봉인', v_msg);
