@@ -20,16 +20,31 @@ Sean's console and arbitrates claims. This file was written on the old Mac at tr
 3. **Determine where the previous backend session stopped** — this decides your first move:
    - `supabase migration list --linked`: if production still shows 0156 with 0159 pending, the
      one-deploy never happened and the FREEZE still holds.
-   - Rescue snapshots, all verified on origin 2026-08-31 (announcer read-back):
-     `rescue/wip-b1-pack-publish-2026-08-31` (04f95ab — ⚠ its own commit message warns the
-     /autoplan fix wave was IN PROGRESS at snapshot time: re-run ALL gates, trust no
-     pre-snapshot number; the old session may have updated this branch again after) ·
-     `rescue/wip-0157-adopted-2026-08-31` (fba55f4) · `rescue/wip-0158-adopted-2026-08-31`
-     (a5aa94a) — both exact adopted tips WITH batteries; the 08-28 rescue branches are their
-     ancestors and can be deleted at normal landing. Note: pushing branches that reuse
-     migration numbers 0157/0158 needs `--no-verify` (the pre-push hook correctly refuses
-     duplicated numbers; same slice + same numbers is the one sanctioned case — leave a paper
-     trail when you use it).
+   - Rescue snapshots, all verified on origin at the old session's wrap (announcer read-back):
+     `rescue/wip-b1-pack-publish-2026-08-31` **(c105151 — B1 is COMPLETE and MEASURED, not
+     in-progress: two proper commits, 422e19b 「0160: pack publish is an RPC」 + c105151 「0161:
+     billing_keys client grants revoked」; final harness re-run AFTER the last edit = 1154/0,
+     tsc/npm/rpc-contracts/route-native/device-clock/definer-acl all green, batteries in the
+     suite headers)** · `rescue/wip-0157-adopted-2026-08-31` (fba55f4) ·
+     `rescue/wip-0158-adopted-2026-08-31` (a5aa94a) — adopted tips WITH batteries; the 08-28
+     rescue branches are ancestors, delete at normal landing. `--no-verify` is sanctioned only
+     for pushing branches that reuse 0157/0158's numbers (same slice, paper trail required).
+
+   **The old session's successor crib — follow it in order:**
+   1. Land B1 from the rescue branch: rebase/cherry-pick 422e19b+c105151 onto current trunk,
+      re-run ALL gates + harness POST-rebase, push, read back, and REMOVE the pack-map
+      in-flight claim row (remove-on-land).
+   2. Land 0157, then 0158, from their branches — `harness.sh` conflicts at the post-186
+      manifest anchor each time (keep ALL lines, it's a union); 0158 needs `npm test` re-run
+      post-merge.
+   3. THREE codex verdicts off ONE frozen trunk export (B1 / 0157 / 0158). Point the prompts
+      at: the use-pack-share singleton (ships with ZERO pins — self-flagged by its author),
+      M8/M12's realtime.messages one-table blast radius, and the new anon-reachable counter
+      write.
+   4. ONE deploy of all five migrations + the contract's probe list (cold-start; publish→receive
+      on an anon socket). The freeze lifts only then, and only when trunk == production.
+   5. Then the post-deploy queue in §The queue below (bundle slice → UI-unblockers → GPS-4 →
+      billing → B4 → small items).
    - If B1/0157/0158 are already ON TRUNK, skip their build steps and pick up at the deploy.
 4. Claim in REGISTRY (path-keyed, tree named) before editing; re-verify migration/suite numbers
    three-sided at claim AND commit time (0160/0161 + 191/192 were claimed by the old session —
@@ -83,7 +98,11 @@ from the chat-slice rescue branch (`safeInlineScriptString` — a real WebView s
 verify still absent from trunk first) · background-task pack publish (the pocketed-phone fade,
 flagged-not-taken) · Toss fix design per the memo's §4 branch-independent core (intent row with
 server-minted idempotency key; sandbox experiments E1-E6 are specified and NOT run; the support
-ticket needs Sean).
+ticket needs Sean) · **from the UI session's round 3 (2026-08-31 wrap):** chat idempotency
+schema — `client_key uuid` + partial unique index on `chat_messages(thread_id, client_key)`,
+client maps 23505→success (the client half landed at `2b63484`; the schema half is yours) ·
+the run-screen geo singleton needs a buffer-ownership contract for two mounted instances
+(named, not closed) · `session_set_backup`'s `<>` conversion is already in the B3 bundle above.
 
 ## Laws (distilled — CLAUDE.md wins)
 

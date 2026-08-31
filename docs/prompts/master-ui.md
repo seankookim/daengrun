@@ -23,22 +23,18 @@ floor rulings applied. What remains is below.
    commit gates are non-negotiable.
 2. `git fetch origin`; worktree off `origin/redesign-v4`. Contact the announcer; claim in
    REGISTRY before editing (the 08-31 audit note is authoritative on live vs dead claims).
-3. **Determine where the previous UI session stopped:**
-   - If its codex round-3 fix wave (REJECT/19) is on trunk with final ledger dispositions,
-     continue from the queue below.
-   - If NOT: adopt `origin/rescue/wip-ui-round3-2026-08-31` (commit 551d86b3). ⚠ Its commit says
-     plainly: **gates NOT run, do not merge as-is**. Finish the remaining fixes (chat
-     send-handler guards, api.ts F10/F18, availability F19, charge-states F16, payphase pins),
-     run full gates, land properly. ⚠ The ledger's rows R3-2..R3-19 read 「verifying」 — the
-     verification verdicts died with the old machine; **re-derive dispositions from the fixes
-     themselves in the rescue diff (each carries a `[codex r3-N]` comment naming its finding)
-     rather than trusting the 「verifying」 cells**, and write final dispositions into the ledger
-     in the landing commit.
+3. **Where the previous UI session stopped (final, verified):** the round-3 fix wave LANDED on
+   trunk at `2b63484` — 18 fixed, 1 refuted on production, all dispositions final in the ledger;
+   gates green at landing (chain 822 PASS/0, payphase 83/0). The rescue branch was superseded
+   and DELETED. ⚠ Two honest gaps it left you: the r3 FIXES are NOT codex-reviewed (round 4 was
+   queued, not started), and the installed sim build predates the r3 slice (carries through
+   `b8ce1c8` only — rebuild before any device smoke of r3 behavior).
 
 ## The queue
 
-**U-r3 — finish and land the round-3 fix wave** (see boot step 3). Nothing else lands before it:
-19 confirmed findings across payphase/pay/run/console/chat are known-open until this is on trunk.
+**U-r4 — FIRST MOVE: codex round 4** — re-attack of the 18 r3 fixes off a frozen trunk export
+(the ledger's closing line names the scope; digit detector, per CLAUDE.md §codex). Fix what it
+finds, land, update the ledger. Then rebuild the sim app so device smoke reflects trunk.
 
 **U1 — club delegation spec v2: the mother lode, now partially unblocked.** Spec status was
 「Nothing here is built」. The moment the backend lands each of: S2.5 three-tier re-key · board
