@@ -14,7 +14,6 @@ import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
-import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal } from '../../src/lib/kst';
@@ -129,7 +128,8 @@ type GoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'ac
 
 export default function OwnerHome() {
   const p = SURF;
-  const df = useDisplayFont(); // 디스플레이 서체 — 그리팅 (화면당 1회)
+  // 디스플레이 서체(Black Han Sans)는 이 화면에서 히어로 문구(home-hero.tsx)만 쓴다 —
+  // 워드마크가 본문 900으로 내려가면서(A③(b)) 이 파일엔 df 사용처가 없다.
   const nf = useNumFont();     // [V4] 숫자 = Oswald
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [memberNo, setMemberNo] = useState<number | null>(null);
@@ -440,16 +440,11 @@ export default function OwnerHome() {
             {/* [2026-08-20 Sean] 텍스트 워드마크만 가운데 — **마크는 여기서 내려갔다**.
                 마크는 이제 히어로 문구의 오른쪽 여백에 앉는다(home-hero.tsx의 Phrase). 상단에
                 마크와 워드마크가 같이 있으면 37pt 문구 위에 시선이 앉을 자리가 둘이 된다.
-                ⚠ 워드마크는 **본문 900**이지 디스플레이 서체가 아니다: §3의 '화면당 1회'는
-                히어로 문구가 쓴다. 랩에서 열어 둔 질문을 예산을 지키는 쪽으로 닫은 것이고,
-                Sean이 뒤집으면 여기 `df` 한 줄만 되돌리면 된다. */}
+                ⚠ 워드마크는 **본문 900**이다 — §3의 '화면당 1회'는 히어로 문구가 쓴다
+                (A③(b), Sean 2026-08-24 픽: 워드마크 → 본문 900). 진짜 워드마크는 커스텀
+                레터링이라 파일(app/assets/wordmark.png)이 들어오면 이 Text를 <Image>로 바꾼다. */}
             <View style={s.mastLogo}>
-              {/* ⚠ 임시. Sean이 붙여준 진짜 워드마크는 **커스텀 레터링**(각진 지오메트릭)이고
-                  우리가 가진 어떤 서체도 아니다 — 파일(app/assets/wordmark.png)이 들어오면
-                  이 Text를 <Image>로 바꾸면 되고, 그 순간 디스플레이 서체 사용은 다시 화면당
-                  1회(히어로 문구)로 내려간다. 그때까지는 본문 900보다 브랜드에 가까운
-                  Black Han Sans로 둔다 — 지금은 2회이며, 그 사실을 숨기지 않는다. */}
-              <Text style={[s.wordmark, df]}>도그스하이</Text>
+              <Text style={s.wordmark}>도그스하이</Text>
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
@@ -700,7 +695,7 @@ export default function OwnerHome() {
         <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
           <DrawButton
             title="코스 둘러보기" sub="전체 코스를 가까운 순으로 볼 수 있어요"
-            ground="volt" art="elev" small
+            ground="volt" art="elev" coda
             onPress={() => router.push('/owner/course-map')}
           />
         </View>
@@ -824,7 +819,7 @@ export default function OwnerHome() {
           <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
             <DrawButton
               title="크루 피드에 자랑" sub="지난 러닝 사진을 하이 피드에 올릴 수 있어요"
-              ground="lilac" art="photo" small
+              ground="lilac" art="photo" coda
               onPress={() => router.push('/compose')}
             />
           </View>
@@ -833,7 +828,7 @@ export default function OwnerHome() {
         <View style={{ paddingHorizontal: layout.gutter, marginTop: 10 }}>
           <DrawButton
             title="안심 센터" sub="SOS와 실시간 위치, 보험을 확인해요"
-            ground="blue" art="shield" small
+            ground="blue" art="shield" coda
             onPress={() => router.push('/safety')}
           />
         </View>
@@ -932,7 +927,9 @@ const s = StyleSheet.create({
   mastSpacer: { width: 40 },  // = 벨 폭. 양쪽이 같아야 로고가 화면 정중앙에 온다.
   mastLogo: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // 24pt = 플로어 위. 로고지만 하한 아래로 내려가지 않으므로 §3 로고 예외를 쓰지 않는다.
-  wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: 0.2, fontWeight: '400' },
+  // [A③(b) 2026-08-31] 본문 900 — 디스플레이 서체에서 강등(랩 enh-owner-home-lab §③, Sean 픽).
+  // letterSpacing 0.2는 BHS용 트래킹이었다 — 본문 900은 큰 글자 음수 트래킹 법(§7c)을 따른다.
+  wordmark: { fontSize: 24, lineHeight: 30, color: paper.ink, letterSpacing: -0.4, fontWeight: '900' },
   // [A③(c) 2026-08-24] 헤더에서 '동네' 덩어리로 내려왔다 — marginTop 8(헤더 간격)은 킥커의
   // marginBottom 이 이미 하는 일이라 빠지고, 아래 클럽 행과의 간격만 남는다.
   rankticker: {

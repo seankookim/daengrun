@@ -13,10 +13,14 @@
 // ═══ 라이브 점은 실데이터에만 ═══
 // `dot`은 "지금 온라인인 러너가 있다"는 사실에만 붙는다. 0명이면 점도 맥박도 없다 —
 // 점이 거짓이 되는 순간 나머지 모든 점이 거짓이 되기 때문이다. 호출부가 이 판단을 한다.
+// ═══ [A③ 2026-08-31] 서체와 티어 — 랩 enh-owner-home-lab §③, Sean 2026-08-24 픽 ═══
+// (a) 코다 3단: 유틸리티 행(코스·피드·안심)은 56pt `coda` 티어 — 결정 버튼과 같은 옷을 입으면
+//     히어로가 쓸 고립(Von Restorff)이 남지 않는다. 그림은 유지, 립은 3px.
+// (b) 디스플레이 서체 강등: Black Han Sans는 화면에서 히어로 문구만 쓴다 — 버튼 제목은 본문
+//     800(26/22/17 3단), 워드마크는 본문 900. 이 파일에서 useDisplayFont가 빠진 이유다.
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { useDisplayFont } from '../lib/displayFont';
 import { useReducedMotion } from '../lib/reducedMotion';
 import { lilac, paper } from '../theme';
 
@@ -170,8 +174,11 @@ interface Props {
   meta?: string | null;
   ground?: BtnGround;
   art?: BtnArt;
-  /** 작은 행(78pt) — 나 청크의 코다용. 기본은 큰 결정 버튼(96pt). 제목 크기는 둘이 같다. */
+  /** 작은 행(78pt) — 히어로 안의 보조 결정(채팅 등). 기본은 큰 결정 버튼(96pt). */
   small?: boolean;
+  /** [A③(a)] 유틸리티 코다(56pt) — 결정이 아니라 문(門)인 행. 제목 17/800, 립 3px.
+   *  small과 함께 넘기지 않는다(코다가 이긴다). */
+  coda?: boolean;
   /** 실데이터가 참일 때만 켠다. 거짓이면 호출부가 false를 넘겨야 한다. */
   dot?: boolean;
   /** 포일 스윕 — 코랄 프라이머리 하나에만. */
@@ -180,8 +187,7 @@ interface Props {
   accessibilityLabel?: string;
 }
 
-export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot, sheen, onPress, accessibilityLabel }: Props) {
-  const df = useDisplayFont();
+export function DrawButton({ title, sub, meta, ground = 'paper', art, small, coda, dot, sheen, onPress, accessibilityLabel }: Props) {
   const reduceMotion = useReducedMotion();
   const g = G[ground];
   // 점과 스윕은 값이 **읽히는 곳에서 생성**되므로 lazy useState가 아니라 ref로 충분하다
@@ -209,7 +215,13 @@ export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot
     return () => loop.stop();
   }, [sheen, reduceMotion, sweep]);
 
-  const H = small ? 78 : 96;
+  // 3단 높이 — 96 결정 · 78 보조 결정 · 56 코다(A③(a)). 96:78이 같은 옷을 입던 것이 랩이
+  // 이름 붙인 결함이었다: 코다는 높이만 줄인 결정 버튼이 아니라 자기 티어를 가진다.
+  const H = coda ? 56 : small ? 78 : 96;
+  // 제목 3단 — 본문 800: 26(결정) · 22(보조) · 17(코다). 서브 없는 결정 버튼은 상자를
+  // 채우도록 커진다(36/30 — Sean 2026-08-26의 '빈 판때기' 지시, 서체만 바뀌고 크기 논리는 유지).
+  const tSize = coda ? 17 : sub ? (small ? 22 : 26) : small ? 30 : 36;
+  const tLine = coda ? 22 : sub ? (small ? 28 : 32) : Math.round(tSize * 1.22);
 
   return (
     <Pressable
@@ -220,13 +232,17 @@ export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot
         st.btn,
         { minHeight: H, backgroundColor: g.bg, borderColor: g.border, borderBottomColor: g.edge,
           borderWidth: ground === 'coral' ? 0 : ground === 'paper' ? 1.5 : 1,
-          paddingHorizontal: small ? 16 : 18, paddingVertical: small ? 13 : 16 },
-        // 눌리는 깊이 — 아래 모서리 4px 위로 버튼이 내려앉는다. 물리적 키의 문법이고,
+          paddingHorizontal: coda ? 14 : small ? 16 : 18, paddingVertical: coda ? 11 : small ? 13 : 16 },
+        // 눌리는 깊이 — 아래 모서리 립 위로 버튼이 내려앉는다. 물리적 키의 문법이고,
         // 루프도 배터리도 쓰지 않으며 reduced-motion에서도 살아남는 유일한 '살아있음'이다.
-        pressed ? { transform: [{ translateY: 3 }], borderBottomWidth: 1 } : { borderBottomWidth: 4 },
+        // 코다는 립 3px(랩 §③) — 립이 내주는 픽셀과 transform이 가져가는 픽셀이 같아야
+        // 아래 모서리가 제자리에 남는다(DESIGN.md §3b 등록 법): 3→1 립이면 translateY는 2다.
+        pressed
+          ? { transform: [{ translateY: coda ? 2 : 3 }], borderBottomWidth: 1 }
+          : { borderBottomWidth: coda ? 3 : 4 },
       ]}
     >
-      {art ? <Art kind={art} color={g.ink} big={!small} /> : null}
+      {art ? <Art kind={art} color={g.ink} big={!(small || coda)} /> : null}
       {sheen && !reduceMotion ? (
         <Animated.View
           pointerEvents="none"
@@ -267,13 +283,16 @@ export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot
               ]}
             />
           ) : null}
-          {/* 제목은 **크기가 하나다**. 높이는 티어별로 다르되(96/78) 활자는 28로 통일 —
-              크기가 셋이면 위계가 아니라 잡음으로 읽힌다(Sean 2026-08-20 피드백). */}
+          {/* [A③(b)] 제목은 본문 800, 3단(26/22/17) — '크기 하나' (2026-08-20)를 랩 §③의
+              픽(2026-08-24)이 대체했다: 크기가 위계를 만들지 않던 게 아니라, 같은 크기가
+              결정과 문(門)을 같은 계급으로 읽히게 했다. 트래킹은 크기 비례 음수(§7c —
+              큰 글자일수록 조인다; 고정값 하나는 어딘가에서 틀린다). */}
           <Text
-            style={[st.t, df, {
+            style={[st.t, {
               color: g.ink,
-              fontSize: sub ? 28 : small ? 30 : 36,
-              lineHeight: Math.round((sub ? 28 : small ? 30 : 36) * 1.22),
+              fontSize: tSize,
+              lineHeight: tLine,
+              letterSpacing: -(Math.round(tSize * (coda ? 1 : 2)) / 100),
               flexShrink: 1,
             }]}
             numberOfLines={1}
@@ -284,16 +303,22 @@ export function DrawButton({ title, sub, meta, ground = 'paper', art, small, dot
             <Text style={[st.meta, { color: g.sub }]} numberOfLines={1}>{meta}</Text>
           ) : null}
         </View>
-        {/* 서브라인 15pt(구 13) · 한 줄 — 길면 버튼이 문단이 된다. 짧게 쓰는 건 호출부의 몫이다. */}
-        {sub ? <Text style={[st.d, { color: g.sub }]} numberOfLines={1}>{sub}</Text> : null}
+        {/* 서브라인 15pt(구 13) · 한 줄 — 길면 버튼이 문단이 된다. 짧게 쓰는 건 호출부의 몫이다.
+          ⚠ 랩 §③의 코다 서브는 14였다 — 한글 디테일 플로어 15(DESIGN.md §3)가 목업을 이긴다. */}
+        {sub ? (
+          <Text
+            style={[st.d, { color: g.sub }, coda ? { lineHeight: 19, marginTop: 2 } : null]}
+            numberOfLines={1}
+          >{sub}</Text>
+        ) : null}
       </View>
       {/* 서브가 있으면 화살표는 지금까지처럼 아래 모서리에 앉는다(서브라인 끝을 따라간다).
           서브가 없으면 따라갈 기준선이 없으므로 세로 가운데 — 제목과 눈높이를 맞춘다. */}
       {sub ? (
-        <Text style={[st.arr, { color: g.sub, fontSize: small ? 18 : 21 }]}>›</Text>
+        <Text style={[st.arr, { color: g.sub, fontSize: coda ? 17 : small ? 18 : 21 }, coda ? { bottom: 10 } : null]}>›</Text>
       ) : (
         <View style={st.arrMid} pointerEvents="none">
-          <Text style={{ color: g.sub, fontSize: small ? 18 : 21 }}>›</Text>
+          <Text style={{ color: g.sub, fontSize: coda ? 17 : small ? 18 : 21 }}>›</Text>
         </View>
       )}
     </Pressable>
@@ -311,7 +336,8 @@ const st = StyleSheet.create({
   btn: { position: 'relative', overflow: 'hidden', justifyContent: 'space-between' },
   art: { position: 'absolute', top: '50%', zIndex: 1 },
   sheen: { position: 'absolute', top: -25, bottom: -25, left: 0, width: 46, zIndex: 2 },
-  t: { fontWeight: '400', lineHeight: 33, zIndex: 3 },
+  // [A③(b)] 본문 800 — 서체·크기·행간은 호출 시점의 티어가 정한다(위 tSize/tLine).
+  t: { fontWeight: '800', zIndex: 3 },
   d: { marginTop: 5, fontSize: 15, lineHeight: 21, zIndex: 3 },
   arr: { position: 'absolute', right: 16, bottom: 13, zIndex: 3 },
   arrMid: { position: 'absolute', right: 16, top: 0, bottom: 0, justifyContent: 'center', zIndex: 3 },
