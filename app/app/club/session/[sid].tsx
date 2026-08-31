@@ -1674,9 +1674,12 @@ export default function ClubSessionShell() {
               </Pressable>
             )}
 
-            {/* 호스트 콘솔 문 — 심사·배정·종료는 콘솔에서 */}
-            {sess.isHost && !isDone && (
-              <ClubCta label="호스트 콘솔 →" tone="secondary"
+            {/* 호스트 콘솔 문 — 심사·배정·종료는 콘솔에서.
+                [codex r2-F4] 백업 호스트도 들어간다: 0144(러닝 종료)는 서버가 백업을 명시적으로
+                들이는 유일한 콘솔 액션인데, 문이 엄격 호스트에만 열려 있어 그 권한이 도달
+                불가였다. 콘솔이 백업 모드(러닝 종료만)를 그린다 — 라벨이 그 사실을 미리 말한다. */}
+            {(sess.isHost || backupFacts?.iAmBackup) && !isDone && (
+              <ClubCta label={sess.isHost ? '호스트 콘솔 →' : '호스트 콘솔 — 백업 · 러닝 종료 →'} tone="secondary"
                 onPress={() => router.push({ pathname: `/club/console/${sess.id}`, params: { clubName: clubName ?? '' } })}
                 style={{ marginTop: 16 }} />
             )}

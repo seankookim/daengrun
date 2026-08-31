@@ -84,7 +84,16 @@ export function PaymentRow({ p, showDog = true, onPress }: { p: PaymentRecord; s
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${title} 결제 상세 열기`}
+      // [codex r2-F9] 명시 라벨은 자식 텍스트를 통째로 대체한다 — 금액·상태·환불·거절 사유가
+      // 스크린리더에서 사라지던 것. 행이 말하는 사실 전부를 라벨에 싣는다.
+      accessibilityLabel={[
+        title,
+        `${p.amount.toLocaleString('ko-KR')}원`,
+        paymentStatusLabel(p.status, p.underReview),
+        p.refundedAmount > 0 ? `환불 ${p.refundedAmount.toLocaleString('ko-KR')}원` : null,
+        failed && p.lastError != null ? p.lastError : null,
+        '결제 상세 열기',
+      ].filter(Boolean).join(', ')}
       style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
     >
       {body}

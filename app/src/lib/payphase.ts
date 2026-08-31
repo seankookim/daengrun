@@ -93,13 +93,17 @@ export function derivePayPhase(
       // when there is something to refund. Otherwise this is a no-charge case (0152 §notify).
       return c.captured ? 'refund_pending' : 'not_charged';
     }
-    // `completed` — the ledger committed. Collection is a separate, later, non-unwinding fact.
+    // `completed` (the ledger committed; collection is a separate, later, non-unwinding fact)
+    // AND the cancelled family (cancel fees mint here — codex 2026-08-31 F2) share one fold:
+    // what the screen may say is decided by the payments rows, not by which terminal the
+    // booking reached.
     if (c.captured) return 'paid';
     if (c.outstanding === 'failed') return 'collect_failed';
     if (c.outstanding === 'pending') return 'collect_pending';
     // Rows exist but none of them is a charge: the whole booking priced to 0원 (`waived`).
     if (c.minted) return 'not_charged';
     // Nothing was ever minted — the card-less pilot, and every run before `payments_live_since`.
+    // For the cancelled family this is the ordinary no-fee cancel: base = 'cancelled'.
     return base;
   }
   if (!p.attempt) return base;              // 오늘의 유일한 경로 — attempt는 아직 서버에 없다
@@ -183,7 +187,13 @@ export function summarizeCollection(rows: readonly { status: string }[] | null |
   };
 }
 
-/** The two statuses whose sentence is a lie without the collection fact. Everything else is status-only. */
+/** The statuses whose sentence is a lie without the collection fact. Everything else is status-only.
+ *  [codex 2026-08-31 F2] The cancelled family joined: 0117/0118 mint CANCEL-FEE payments rows on
+ *  cancelled bookings, so a `cancelled_owner` row with a pending/failed fee rendered the quiet
+ *  「취소된 예약이에요」 while the row that opened the screen showed an outstanding charge.
+ *  `no_show`/`incident_review` stay OUT deliberately — `disputed`'s human-review sentence already
+ *  dominates any collection fact there, and the incident settle path owns its own money surface. */
 export function collectionMatters(status: BookingStatus): boolean {
-  return status === 'refund_pending' || status === 'completed';
+  return status === 'refund_pending' || status === 'completed'
+    || status === 'cancelled_owner' || status === 'cancelled_runner' || status === 'expired';
 }

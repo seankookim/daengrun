@@ -54,6 +54,10 @@ export default function Chat() {
   // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
   useEffect(() => {
     let alive = true;
+    // [codex 2026-08-31 r2-F5] bid가 바뀐 채 재실행되면 이전 스레드의 ctx·메시지가 새 스레드에
+    // 합류했다(머지가 합집합이라 A의 말풍선이 B 아래 남는다) — 진입마다 스레드 중립 상태로
+    // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
+    setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -155,12 +159,20 @@ export default function Chat() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       await sendChatPhoto(ctx.threadId, res.assets[0].base64);
+    } catch (e) {
+      if (mounted.current) Alert.alert('전송 실패', (e as Error).message);
+      return;
+    }
+    // [codex r2-F10] 전송과 리페치는 다른 실패다 — 전송이 이미 커밋된 뒤 리페치가 죽으면
+    // 「전송 실패」는 거짓말이고, 다시 보내면 중복이 된다. 리페치 실패는 폴 실패로만 말한다
+    // (헤더가 「받지 못하고 있어요」를 맡는다).
+    try {
       const snapshot = await fetchMessages(ctx.threadId);
       if (!mounted.current) return;
       setMsgs((current) => mergeMessageSnapshot(current, snapshot));
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
-    } catch (e) {
-      if (mounted.current) Alert.alert('전송 실패', (e as Error).message);
+    } catch {
+      if (mounted.current) setPollErr(true);
     }
   };
 
@@ -170,16 +182,24 @@ export default function Chat() {
     setInput('');
     try {
       await sendChatMessage(ctx.threadId, body.trim());
-      // Realtime 에코가 못 오는 경우 대비 — 리페치로 정합
+    } catch (e) {
+      // 전송 자체가 실패했을 때만 「전송 실패」+입력 복원 — 커밋된 메시지에 이 말을 하면
+      // 재시도가 중복 전송이 된다 (codex r2-F10).
+      if (mounted.current) {
+        Alert.alert('전송 실패', (e as Error).message);
+        setInput(body);
+        setSending(false);
+      }
+      return;
+    }
+    try {
+      // Realtime 에코가 못 오는 경우 대비 — 리페치로 정합. 실패는 폴 실패로만.
       const snapshot = await fetchMessages(ctx.threadId);
       if (!mounted.current) return;
       setMsgs((current) => mergeMessageSnapshot(current, snapshot));
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
-    } catch (e) {
-      if (mounted.current) {
-        Alert.alert('전송 실패', (e as Error).message);
-        setInput(body);
-      }
+    } catch {
+      if (mounted.current) setPollErr(true);
     } finally {
       if (mounted.current) setSending(false);
     }

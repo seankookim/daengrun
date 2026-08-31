@@ -118,14 +118,31 @@ export default function ClubRun() {
   // 이전 세션의 것인데 sid만 새것이라, 그 창에서 A 세션의 자격으로 B 세션 채널에 송신할 수
   // 있었다. 자격 판정은 boardFor === sid일 때만 참/거짓을 말하고, 아니면 null(모름)이다.
   const [boardFor, setBoardFor] = useState<string | null>(null);
+  // [codex 2026-08-31 r2-F3] sid 교체는 화면 상태를 즉시 비운다 — A의 보드가 B의 sid 아래에서
+  // 담당 목록·액션을 굴리는 창을 남기지 않는다(송신은 boardFor가 이미 막지만, 화면의 나머지는
+  // 아니었다). ⚠ 잔여: geo.ts의 트레이스 버퍼는 모듈 싱글턴이라 여기서 못 비운다 — 그 절반은
+  // pack/geo 소유 세션의 것으로 전달됨.
+  const liveSid = useRef(sid);
+  useEffect(() => {
+    liveSid.current = sid;
+    setBoard(null); setBoardFor(null); setBoardLoaded(false); setBoardErr(false);
+    hydrated.current = false; startedAtMs.current = null;
+  }, [sid]);
   const load = useCallback(() => {
     if (!sid) return;
+    const requestSid = sid;
     setBoardErr(false);
-    fetchDelegationBoard(sid)
-      .then((b) => { setBoard(b); setBoardFor(sid); setBoardLoaded(true); })
-      .catch(() => { setBoardErr(true); setBoardLoaded(true); });
+    // [r2-F11] 재시도 중엔 '없는 세션'이 아니라 '불러오는 중'이다 — boardLoaded를 되돌린다
+    // (board가 이미 있으면 LoadGate 자체가 안 그려져 무해).
+    setBoardLoaded(false);
+    fetchDelegationBoard(requestSid)
+      // [r2-F3] 뒤늦게 도착한 다른 세션의 응답은 버린다 — A가 B보다 늦게 풀리면 B를 덮던 창.
+      .then((b) => { if (liveSid.current !== requestSid) return; setBoard(b); setBoardFor(requestSid); setBoardLoaded(true); })
+      .catch(() => { if (liveSid.current !== requestSid) return; setBoardErr(true); setBoardLoaded(true); });
     setRosterErr(false);
-    fetchSessionRoster(sid).then(setRoster).catch(() => setRosterErr(true));
+    fetchSessionRoster(requestSid)
+      .then((r) => { if (liveSid.current === requestSid) setRoster(r); })
+      .catch(() => { if (liveSid.current === requestSid) setRosterErr(true); });
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

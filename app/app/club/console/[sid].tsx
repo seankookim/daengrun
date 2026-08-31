@@ -12,6 +12,7 @@ import {
   SessionBackupFacts, sessionSetBackup,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
+import { kstCal, kstClock } from '../../../src/lib/kst';
 import { goBackOrHome } from '../../../src/lib/nav';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
 
@@ -71,7 +72,9 @@ const END_BLOCK_REASON: Record<string, string> = {
   no_trace: 'GPS 기록이 부족해요 — 픽스가 모자라거나 5분 넘게 끊겼어요',
   km_out_of_band: '측정 거리가 정상 범위를 벗어났어요',
   locked: '다른 처리가 진행 중이에요 — 잠시 후 다시 시도해주세요',
-  error: '서버 오류 — 이 아이만 다시 시도해주세요',
+  // [codex r2-F8] 「이 아이만 다시」는 없는 문을 가리켰다 — 재시도는 팩 전체 버튼뿐이고,
+  // 이미 끝난 아이는 다음 결과에 「이미 종료」로 보고된다.
+  error: '서버 오류 — 다시 시도해주세요',
   not_found: '예약 기록을 찾을 수 없어요',
 };
 const END_ALREADY_REASON: Record<string, string> = {
@@ -92,7 +95,9 @@ export default function HostConsole() {
   const [forceDraft, setForceDraft] = useState('');
   // [0144] 마지막 러닝 종료 결과 — 세 개의 이름 붙은 목록. run()의 성공 load()가 보드를 갈아도
   // 이 보고는 남는다: 호스트가 「누가 왜 안 닫혔나」를 읽는 표면이다.
-  const [endResult, setEndResult] = useState<PackRunEndResult | null>(null);
+  // [codex r2-F7] sid와 함께 저장한다 — 세션 A의 보고가 B 아래 그려지던 것. 렌더는 sid 일치
+  // 때만, 카드는 자기 시각(result.at)을 단다: 시점 있는 보고는 최신 보드와 배치돼도 정직하다.
+  const [endResult, setEndResult] = useState<{ sid: string; result: PackRunEndResult } | null>(null);
   // [U4b] 백업 호스트 사실 — null = 아직 모름(그 동안 섹션을 그리지 않는다; 「지정 안 됨」은 주장이다).
   const [backupFacts, setBackupFacts] = useState<SessionBackupFacts | null>(null);
   const [backupErr, setBackupErr] = useState(false);
@@ -149,11 +154,14 @@ export default function HostConsole() {
       />
     );
   }
-  if (!board.session.isHost) {
+  // [codex 2026-08-31 r2-F4] 백업 호스트는 통과한다 — 0144(러닝 종료)는 서버가 백업을 명시적으로
+  // 들이는 유일한 콘솔 액션이고(0144:340-343), 이 튕김이 그 권한을 도달 불가로 만들고 있었다.
+  // 아래 백업 모드 이른 반환이 나머지 섹션(전부 엄격 호스트 게이트 — 죽은 버튼)을 걸러낸다.
+  if (!board.session.isHost && !backupFacts?.iAmBackup) {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 15, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
+          <Text style={{ fontSize: 15, color: L.dim }}>호스트나 백업 호스트만 볼 수 있는 화면이에요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={goBackOrHome} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -290,7 +298,11 @@ export default function HostConsole() {
   // [0144 · Sean 2026-08-31 「Wire it」] 러닝 종료 대상 — active이고 아직 얼지 않은 부킹 전부.
   // ⚠ runStuck을 재사용하지 않는다: 그 필터의 !isMine은 force_resolve의 self_override 규칙인데
   // club_end_pack_runs엔 그 규칙이 없다(0144:354-365 — 호스트 자기 개 포함). 재사용은 과소 보고다.
-  const packRunning = dogs.filter((d) => d.bookingStatus === 'active' && !d.runEnded);
+  // [codex r2-F6] RPC의 루프 모집단은 「부킹 있는 위탁 전부」다 — 미리보기가 running만 말하면
+  // 확인창이 실제로 건드릴 것보다 적게 말한다. 나머지는 이름으로 함께 예고한다.
+  const packDelegated = dogs.filter((d) => d.bookingId != null);
+  const packRunning = packDelegated.filter((d) => d.bookingStatus === 'active' && !d.runEnded);
+  const packOther = packDelegated.filter((d) => !(d.bookingStatus === 'active' && !d.runEnded));
   // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
   const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
   const doOverride = (d: DelegationDog, side: 'owner' | 'runner') => {
@@ -385,21 +397,80 @@ export default function HostConsole() {
   };
   const doEndPack = () => {
     Alert.alert('러닝 종료',
-      `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n각 아이의 거리·시간이 서버 기록으로 확정돼요.`,
+      `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n각 아이의 거리·시간이 서버 기록으로 확정돼요.${
+        packOther.length > 0 ? `\n${packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요.` : ''}`,
       [
         { text: '아직', style: 'cancel' },
         {
           text: '러닝 종료',
           onPress: () => run(
-            () => endPackRuns(sess.id).then((r) => setEndResult(r)),
+            () => endPackRuns(sess.id).then((r) => setEndResult({ sid: sess.id, result: r })),
             '러닝 종료 실패',
             (m) => m.includes('not_host') ? '호스트나 백업 호스트만 종료할 수 있어요'
               : m.includes('session_closed') ? '이미 닫힌 세션이에요'
+              : m.includes('not_signed_in') ? '로그인이 풀렸어요 — 다시 로그인해주세요'
               : null,
           ),
         },
       ]);
   };
+
+  // ---------- 백업 호스트 모드 (codex r2-F4) ----------
+  // 여기 도달 = !isHost ∧ iAmBackup (위 튕김이 나머지를 걸렀다). 콘솔의 다른 액션은 전부
+  // 엄격 호스트 게이트라 백업에겐 눌리면 실패하는 버튼이다 — 서버가 백업을 들이는 하나
+  // (러닝 종료, 0144:340-343)만 그린다. 세션이 닫혔으면 이 모드가 할 일도 없다.
+  if (!sess.isHost) {
+    return (
+      <DawnCanvas>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+          <ClubMast title="호스트 콘솔 — 백업" sub={`${sess.when ?? ''}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />
+          <LilacCard>
+            <Text style={{ fontSize: 15, lineHeight: 20, color: L.text }}>
+              백업 호스트는 러닝 종료만 쓸 수 있어요 — 심사·배정·케이스·세션 종료는 호스트의 것이에요
+            </Text>
+          </LilacCard>
+          {isDone || !['open', 'full'].includes(sess.status ?? '') ? (
+            <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 16 }}>세션이 닫혀 있어요 — 지금 할 수 있는 일이 없어요</Text>
+          ) : packRunning.length > 0 ? (
+            <View style={s.drow}>
+              <Text style={s.dogName}>러닝 중 — {packRunning.map((d) => d.dogName).join(' · ')}</Text>
+              <Text style={s.dogSub}>종료하면 각 아이의 거리·시간이 서버 기록으로 확정돼요</Text>
+              {packOther.length > 0 && (
+                <Text style={s.dogSub}>{packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요</Text>
+              )}
+              <View style={{ marginTop: 9 }}>
+                <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
+              </View>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 16 }}>지금 달리는 러닝이 없어요</Text>
+          )}
+          {endResult && endResult.sid === sess.id && (
+            <LilacCard>
+              <Text style={clubText.vkTitle}>러닝 종료 결과 · {kstClock(kstCal(Date.parse(endResult.result.at)))}</Text>
+              {endResult.result.ended.map((r) => (
+                <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>{r.dogName} — {r.km}km 확정</Text>
+              ))}
+              {endResult.result.already.map((r) => (
+                <Text key={r.sdId} style={{ fontSize: 15, color: L.text, marginTop: 6 }}>{r.dogName} — {END_ALREADY_REASON[r.reason] ?? r.reason}</Text>
+              ))}
+              {endResult.result.blocked.map((r) => (
+                <View key={r.sdId} style={{ marginTop: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: L.tang }}>{r.dogName} — {END_BLOCK_REASON[r.reason] ?? r.reason}</Text>
+                  {r.incidentId != null && (
+                    <Pressable onPress={() => router.push(`/club/case/${r.incidentId}`)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent, textDecorationLine: 'underline' }}>케이스 보기 →</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </LilacCard>
+          )}
+        </ScrollView>
+      </DawnCanvas>
+    );
+  }
 
   // ---------- 결과 화면 (done) — 콘솔의 기계는 세션과 함께 끝난다. 읽기 전용 요약 + 남은 케이스만 ----------
   if (isDone) {
@@ -739,25 +810,30 @@ export default function HostConsole() {
           <View style={s.drow}>
             <Text style={s.dogName}>러닝 중 — {packRunning.map((d) => d.dogName).join(' · ')}</Text>
             <Text style={s.dogSub}>종료하면 각 아이의 거리·시간이 서버 기록으로 확정돼요</Text>
+            {/* [codex r2-F6] 서버는 부킹 있는 위탁 전부를 훑는다 — 달리지 않는 아이도 결과에
+                이름으로 보고된다는 사실을 탭 전에 말한다 (개수 아님, 이름). */}
+            {packOther.length > 0 && (
+              <Text style={s.dogSub}>{packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요</Text>
+            )}
             <View style={{ marginTop: 9 }}>
               <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
             </View>
           </View>
         )}
-        {endResult && (
+        {endResult && endResult.sid === sess.id && (
           <LilacCard>
-            <Text style={clubText.vkTitle}>러닝 종료 결과</Text>
-            {endResult.ended.map((r) => (
+            <Text style={clubText.vkTitle}>러닝 종료 결과 · {kstClock(kstCal(Date.parse(endResult.result.at)))}</Text>
+            {endResult.result.ended.map((r) => (
               <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>
                 {r.dogName} — {r.km}km 확정
               </Text>
             ))}
-            {endResult.already.map((r) => (
+            {endResult.result.already.map((r) => (
               <Text key={r.sdId} style={{ fontSize: 15, color: L.text, marginTop: 6 }}>
                 {r.dogName} — {END_ALREADY_REASON[r.reason] ?? r.reason}
               </Text>
             ))}
-            {endResult.blocked.map((r) => (
+            {endResult.result.blocked.map((r) => (
               <View key={r.sdId} style={{ marginTop: 6 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: L.tang }}>
                   {r.dogName} — {END_BLOCK_REASON[r.reason] ?? r.reason}

@@ -177,11 +177,15 @@ t('P2 — the no-charge sentence is never reached from an unproven absence', () 
 });
 
 // ── P3 · "paid" is a CLAIM and needs proof ──────────────────────────────────────────────────
+// [2026-08-31 · codex r2-F2] The status half widened: a CAPTURED cancel fee on the cancelled
+// family also says 결제 완료 now (successor pins: P7). The load-bearing half is unchanged and
+// still pinned: paid is NEVER reached without captured === true.
 t('P3 — the paid sentence is never reached without a capture', () => {
+  const PAID_STATUSES = ['completed', 'cancelled_owner', 'cancelled_runner', 'expired'];
   for (const status of ALL_STATUSES) {
     for (const collection of COLLECTION_SHAPES) {
       if (derivePayPhase({ status, collection }) !== PAID_CLAIM) continue;
-      eq(status, 'completed', 'paid claimed for status ' + status);
+      eq(PAID_STATUSES.includes(status), true, 'paid claimed for status ' + status);
       eq(collection && collection.captured, true, 'paid claimed without a capture');
     }
   }
@@ -227,11 +231,17 @@ t('completed + NOTHING minted -> authorized (the card-less pilot, unchanged)', (
 // ── P6 · the collection-insensitive statuses are untouched ──────────────────────────────────
 // The 2026-08-06 machine, re-pinned verbatim. If a later slice widens `collectionMatters`, these
 // go red and the widening has to be argued for rather than absorbed.
+// [2026-08-31 · codex r2-F2] That slice arrived and argued: the CANCELLED family
+// (cancelled_owner / cancelled_runner / expired) moved OUT of this table — 0117/0118 mint
+// CANCEL-FEE payments rows on cancelled bookings, so their sentence DOES depend on collection
+// (a pending/failed fee rendered quiet 「취소된 예약이에요」). Their successor pins are the P7
+// block below. `no_show`/`incident_review` stay collection-INSENSITIVE deliberately: `disputed`'s
+// human-review sentence dominates any collection fact, and the incident settle path owns its own
+// money surface.
 const UNCHANGED = {
   draft: 'not_found', quoted: 'not_found', payment_hold: 'mock_pending', matching: 'authorized',
   runner_pending: 'authorized', confirmed: 'authorized', runner_enroute: 'authorized',
-  picked_up: 'authorized', active: 'authorized', cancelled_owner: 'cancelled',
-  cancelled_runner: 'cancelled', expired: 'cancelled', no_show: 'disputed',
+  picked_up: 'authorized', active: 'authorized', no_show: 'disputed',
   incident_review: 'disputed',
 };
 for (const [status, phase] of Object.entries(UNCHANGED)) {
@@ -242,15 +252,37 @@ for (const [status, phase] of Object.entries(UNCHANGED)) {
     }
   });
 }
+// ── P7 · the cancelled family folds collection like `completed` does (codex r2-F2) ──────────
+// A cancel fee is money: captured → paid · failed → collect_failed · pending → collect_pending ·
+// all-waived → not_charged · nothing minted (the ordinary free cancel) → the base 'cancelled' ·
+// unreadable → charge_unknown (never resolved into a quiet terminal).
+for (const status of ['cancelled_owner', 'cancelled_runner', 'expired']) {
+  t('P7 ' + status + ' is collection-sensitive', () => {
+    eq(collectionMatters(status), true);
+  });
+  t('P7 ' + status + ' — fee fold', () => {
+    eq(derivePayPhase({ status, collection: summarizeCollection([]) }), 'cancelled', 'no rows');
+    eq(derivePayPhase({ status, collection: summarizeCollection([{ status: 'pending' }]) }), 'collect_pending', 'pending fee');
+    eq(derivePayPhase({ status, collection: summarizeCollection([{ status: 'failed' }]) }), 'collect_failed', 'failed fee');
+    eq(derivePayPhase({ status, collection: summarizeCollection([{ status: 'confirmed' }]) }), 'paid', 'captured fee');
+    eq(derivePayPhase({ status, collection: summarizeCollection([{ status: 'waived' }]) }), 'not_charged', 'waived');
+    eq(derivePayPhase({ status, collection: null }), 'charge_unknown', 'unread rows must not resolve');
+    eq(derivePayPhase({ status, collection: summarizeCollection([{ status: 'weird_new_word' }]) }), 'charge_unknown', 'unknown vocab');
+  });
+}
+
 t('P6b — the PG attempt record still drives mock_pending, collection or not', () => {
   eq(derivePayPhase({ status: 'payment_hold', attempt: { state: 'declined' } }), 'failed');
   eq(derivePayPhase({ status: 'payment_hold', attempt: { state: 'in_flight' } }), 'authorizing');
   // and it never overrides a status past the hold
   eq(derivePayPhase({ status: 'active', attempt: { state: 'declined' } }), 'authorized');
 });
-t('collectionMatters names exactly the two statuses whose sentence needs money', () => {
+// [2026-08-31 · codex r2-F2] was 「exactly the two」 — the cancelled family joined (cancel fees
+// mint payments rows there, 0117/0118). Still an EXACT-set pin so the next widening also has to
+// argue here rather than be absorbed.
+t('collectionMatters names exactly the five statuses whose sentence needs money', () => {
   const sensitive = ALL_STATUSES.filter(collectionMatters);
-  deq(sensitive.sort(), ['completed', 'refund_pending']);
+  deq(sensitive.sort(), ['cancelled_owner', 'cancelled_runner', 'completed', 'expired', 'refund_pending']);
 });
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

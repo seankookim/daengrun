@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { BookingCharge, fetchBookingCharge, fetchBookingPayments } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
-import { kstCal, kstClock } from '../../src/lib/kst';
+import { kstAmPm, kstCal, kstClock, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { collectionMatters, derivePayPhase, PayPhase, summarizeCollection } from '../../src/lib/payphase';
 import { paper, pricing } from '../../src/theme';
@@ -50,8 +50,10 @@ const CHIP: Record<PayScreen, string> = {
   // [codex #11/#12] 상태만으로는 못 하는 말들 — payphase.ts의 COLLECTION 블록 참조
   not_charged: 'NO CHARGE · 청구 없음',
   paid: 'PAID · 결제 완료',
-  collect_pending: 'SETTLED · 결제 대기',
-  collect_failed: 'SETTLED · 결제 실패',
+  // [codex F2] 취소 수수료도 이 두 페이즈로 들어온다 — SETTLED(정산됨)는 완료 러닝에만 참이라
+  // 상태 불문 참인 CHARGE로 바꿨다.
+  collect_pending: 'CHARGE · 결제 대기',
+  collect_failed: 'CHARGE · 결제 실패',
   charge_unknown: 'UNKNOWN · 확인 불가',
   error: 'ERROR',
 };
@@ -70,8 +72,10 @@ const HEAD: Record<PayScreen, string> = {
   // 0152의 알림이 쓰는 문장과 같은 말을 쓴다 — 두 표면이 갈라지지 않게 (0152:225 「이번 건은 청구되지 않아요」).
   not_charged: '이번 건은 청구되지 않았어요',
   paid: '결제가 완료됐어요',
-  collect_pending: '정산은 끝났고, 결제가 아직 처리되지 않았어요',
-  collect_failed: '정산은 끝났고, 결제가 실패했어요',
+  // [codex F2] 완료 러닝의 수금과 취소 수수료가 같은 페이즈를 쓴다 — 문장은 둘 다에 참인
+  // 것만 말한다(「정산은 끝났고」는 취소엔 거짓이었다).
+  collect_pending: '청구가 아직 처리되지 않았어요',
+  collect_failed: '청구 결제가 실패했어요 — 확인이 필요해요',
   charge_unknown: '결제 상태를 확인하지 못했어요',
   error: '결제 정보를 불러오지 못했어요',
 };
@@ -84,16 +88,12 @@ const addonLabel = (k: string) => ADDON_LABELS[k]?.label ?? k;
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const goHome = () => router.replace('/owner/home');
 
-// 예약 시각 — Asia/Seoul 고정 (기기 로컬 타임존 금지: api.ts kstParts와 같은 이유)
+// 예약 시각 — kst.ts로 수렴 (codex 2026-08-31 F13: Intl try의 catch가 기기 로컬로 떨어져
+// 서울 밖 기기에서 하루 어긋난 날짜를 찍을 수 있었다. 고정 +9는 Intl 없이 같은 사실을 낸다 —
+// 한국은 DST가 없다).
 const whenLabel = (iso: string): string => {
-  try {
-    return new Intl.DateTimeFormat('ko-KR', {
-      timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short',
-      hour: 'numeric', minute: '2-digit',
-    }).format(new Date(iso));
-  } catch {
-    return new Date(iso).toLocaleString('ko-KR');
-  }
+  const c = kstCal(Date.parse(iso));
+  return `${kstDateLabel(c)} ${kstAmPm(c)}`;
 };
 
 export default function Pay() {
@@ -245,7 +245,15 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
             <View style={{ height: 3 }} />
             <View style={s.rule} />
             <View style={s.totalRow}>
-              <Text style={s.totalLabel}>결제 금액</Text>
+              {/* [codex 2026-08-31 F1] 이 표는 bookings 쪽 '계획'의 분해다 — 「결제 금액」은
+                  실수금(captured)이 있는 페이즈에서만 참말이다. waived 0원 행에서 들어온 화면이
+                  계획 요금을 「결제 금액」으로 찍던 것이 발견. 실결제 행 단위의 Ⓒ1 영수증
+                  (실측·실금액) 재구축은 별도 슬라이스로 남아 있다. */}
+              <Text style={s.totalLabel}>
+                {screen === 'paid' ? '결제 금액'
+                  : screen === 'collect_pending' || screen === 'collect_failed' ? '청구 금액'
+                  : '예상 요금'}
+              </Text>
               <View style={s.amtWrap}>
                 <Text style={[s.totalAmt, nf]}>{charge ? charge.totalPrice.toLocaleString('ko-KR') : '—'}</Text>
                 <Text style={s.totalUnit}>원</Text>

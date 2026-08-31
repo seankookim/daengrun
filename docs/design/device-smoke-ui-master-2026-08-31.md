@@ -31,3 +31,10 @@ in it; none of it could be produced read-only against production. The installed 
 ⚠ All club rows (4-8) additionally need `club_flags.club_delegation_v2` or membership in
 `club_test_accounts` — otherwise every new button correctly refuses with the 허용목록 translation,
 which is the flag working, not the slice failing.
+
+⚠ **Known product limitation, not a bug (backend-flagged 2026-08-31):** pack publishing runs on a
+foreground hook timer on every entry point — a pocketed/locked phone stops publishing and that
+runner FADES off the pack map (the 1:1 `run2-` publisher rides the background location task and
+does not). A hardware smoke that pockets the phone mid-run and sees the dot fade is seeing the
+named limitation, not a regression. The fix (pack publish inside the background task callback) is
+a queued backend slice, deliberately not taken in this wave.
