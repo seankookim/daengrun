@@ -797,7 +797,16 @@ export default function Schedule() {
                           아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요
                         </Text>
                       ) : (
-                        payRows.map((p) => <PaymentRow key={p.orderId} p={p} showDog={false} />)
+                        // 예약 상세 → 결제 내역 → 영수증 상세 (pay-rebuild-lab Ⓒ 온디맨드의
+                        // 두 진입로 중 하나). 시트를 닫고 넘어간다 — 다른 액션 행들과 같은 문법.
+                        payRows.map((p) => (
+                          <PaymentRow
+                            key={p.orderId}
+                            p={p}
+                            showDog={false}
+                            onPress={() => { const bid = p.bookingId; close(); router.push({ pathname: '/owner/pay', params: { bid } }); }}
+                          />
+                        ))
                       )}
                     </View>
                   )}

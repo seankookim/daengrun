@@ -265,7 +265,16 @@ export default function Payments() {
       </View>
       {rowsState === 'ready' && rows.length > 0 && (
         <View style={{ paddingHorizontal: 16 }}>
-          {rows.map((p) => <PaymentRow key={p.orderId} p={p} />)}
+          {/* Ⓒ0 → Ⓒ1 (pay-rebuild-lab): 목록 행은 그 예약의 영수증 상세로 가는 문이다.
+              /owner/pay?bid=는 읽기 전용 청구 표면 — 「밀지 않는다」는 법은 지켜진다(찾아 들어가는
+              문이지 푸시가 아니다). 이 문이 이 화면의 첫 프로덕션 진입로다. */}
+          {rows.map((p) => (
+            <PaymentRow
+              key={p.orderId}
+              p={p}
+              onPress={() => router.push({ pathname: '/owner/pay', params: { bid: p.bookingId } })}
+            />
+          ))}
           {/* 목록은 최근 RECEIPT_LIMIT건까지 — 잘렸다는 사실을 말한다 (조용한 절단 금지) */}
           {rows.length >= RECEIPT_LIMIT && (
             <Text style={[s.note, { marginTop: 12 }]}>최근 {RECEIPT_LIMIT}건까지 보여드려요</Text>

@@ -14,7 +14,10 @@ import { paper, pricing } from '../../src/theme';
 // 목업 draft 재계산 총액·'결제하고 리뷰 남기기')을 통째로 은퇴시키고, PG 상태 머신 위에 다시 세웠다.
 // 페이즈 파생은 src/lib/payphase.ts 하나 — PG 실연동(phase ④)은 드라이버만 추가하면 된다(3차 리빌드 없음).
 //
-// ⚠ [O-5 §E.5.1 · 2026-08-19] **이 화면은 파일럿에서 도달할 수 없다.** 결제가 러닝 뒤로 갔고
+// ⚠ [O-5 §E.5.1 · 2026-08-19 → 2026-08-31] ~~이 화면은 파일럿에서 도달할 수 없다~~ — 이제
+//   **온디맨드로만 도달한다** (pay-rebuild-lab Ⓒ: 설정 → 결제 관리(/payments) 행과 예약 상세
+//   시트의 결제 내역 행이 /owner/pay?bid=로 연다. 밀지 않는다 — 푸시·배지·홈 카드 없음).
+//   아래 문단의 나머지는 그대로 참이다: 결제가 러닝 뒤로 갔고
 //   (create-booking-hold v10이 한 요청 안에서 matching까지 닫는다), `payment_ok`는 삭제됐으며
 //   (transition-booking v34 → 400 unknown action), request.tsx는 더 이상 여기로 push하지 않는다.
 //   그래서 이 화면에서 다음 세 가지가 사라졌다:
@@ -455,16 +458,20 @@ const s = StyleSheet.create({
   body: { fontSize: 15, lineHeight: 21, color: paper.text, paddingHorizontal: 18, marginTop: 16 },
   // 청구 테이블 — 행 구분은 풀블리드 헤어라인, 카드도 그림자도 없다
   table: { marginTop: 22 },
+  // [2026-08-31] 코랄 → 뉴트럴: Sean 2026-08-24 「too many horizontal red lines」의 카운트 룰
+  // (enh-owner-booking-lab: 화면당 코랄 풀블리드 2개 상한, 섹션에만; 리스트/테이블 행은 #EEEEEE).
+  // matching·reschedule·addresses는 그날 받았고 이 화면 — 불만이 나온 바로 그 화면 — 만 남아 있었다.
+  // 이 화면의 코랄은 총액 위 이중 룰 하나(장부의 돈 문법, 아래 rule)만 남는다.
   row: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 13,
-    borderTopWidth: 1, borderColor: paper.line,
+    borderTopWidth: 1, borderColor: '#EEEEEE',
   },
   rowLabel: { fontSize: 16, fontWeight: '600', color: paper.text },
   rowSub: { fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 2 },
   amtWrap: { flexDirection: 'row', alignItems: 'baseline' },
   rowAmt: { fontSize: 17, lineHeight: 21, fontWeight: '600', color: paper.text, fontVariant: ['tabular-nums'] },
   rowUnit: { fontSize: 15, fontWeight: '600', color: paper.dim, marginLeft: 2 },
-  rule: { borderTopWidth: 1, borderColor: paper.line }, // 이중 룰의 한 줄
+  rule: { borderTopWidth: 1, borderColor: paper.line }, // 이중 룰의 한 줄 — 이 화면의 코랄 예산 전부 (2개 상한 내 2개)
   totalRow: { flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 18, paddingVertical: 15 },
   totalLabel: { flex: 1, fontSize: 16, fontWeight: '800', color: paper.ink },
   // 큰 Oswald 숫자 — lineHeight ≥ 1.2× (상단 클리핑 방지, BUG A)
@@ -479,5 +486,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 12,
   },
   failTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical },
-  footer: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 34, borderTopWidth: 1, borderColor: paper.line },
+  // 푸터 경계도 뉴트럴 — pay-rebuild-lab Ⓒ0의 판정 그대로(「이 아래에 액션이 없기 때문」),
+  // 그리고 카운트 룰: 이중 룰이 이미 코랄 2개를 쓴다. critical 스트립(failStrip)은 예산 면제
+  // (DESIGN.md §2 — critical 잉크는 라우드 페일의 것, line과 다른 색·다른 역할).
+  footer: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 34, borderTopWidth: 1, borderColor: '#EEEEEE' },
 });

@@ -10,8 +10,11 @@
 //    Exceptions are LOUD. Receipts are quiet. Neither invents a number: `amount` is the server's.
 //  · Honesty — an unknown status renders as itself, never as a friendly guess; a failure names
 //    the decline when the server gave us one.
-//  · Paper world (DESIGN.md §2 — 거래 화면) : sharp corners, coral hairline rows, criticalWash
-//    fail strips, detail text ≥14pt, Oswald numerals with explicit lineHeight (BUG A).
+//  · Paper world (DESIGN.md §2 — 거래 화면) : sharp corners, criticalWash fail strips, detail
+//    text ≥15pt, Oswald numerals with explicit lineHeight (BUG A). Row separators are NEUTRAL
+//    #EEEEEE, not coral — Sean 2026-08-24 「too many horizontal red lines」, codified as a COUNT
+//    rule (enh-owner-booking-lab: two coral full-bleed rules per screen, marking sections; a
+//    ledger list is not a section) and drawn that way in pay-rebuild-lab Ⓒ0 (.listRow).
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PaymentRecord } from '../lib/api';
 import { useNumFont } from '../lib/fonts';
@@ -46,14 +49,17 @@ function dayLabel(iso: string | null): string {
   return kstMonthDay(kstCal(Date.parse(iso)));
 }
 
-/** 영수증 한 줄. 숫자는 전부 payments 행에서 온다 — 이 컴포넌트는 계산하지 않는다. */
-export function PaymentRow({ p, showDog = true }: { p: PaymentRecord; showDog?: boolean }) {
+/** 영수증 한 줄. 숫자는 전부 payments 행에서 온다 — 이 컴포넌트는 계산하지 않는다.
+ *  `onPress`가 오면 행은 영수증 상세(Ⓒ1, /owner/pay?bid=)로 가는 문이 되고, 셰브론으로 그렇게
+ *  보인다 — 「클릭해야 하는 선택은 클릭할 수 있어 보여야 한다」(DESIGN.md §2 amendment). 없으면
+ *  기존 정적 행 그대로다(랩 dev 화면 등, 목적지 없는 행에 문 모양을 입히지 않는다 — 죽은 버튼 법). */
+export function PaymentRow({ p, showDog = true, onPress }: { p: PaymentRecord; showDog?: boolean; onPress?: () => void }) {
   const nf = useNumFont();
   const failed = p.status === 'failed';
   const when = dayLabel(p.scheduledAt ?? p.createdAt);
   const title = [showDog ? p.dogName : null, when].filter(Boolean).join(' · ') || '러닝';
-  return (
-    <View style={s.row}>
+  const body = (
+    <>
       <View style={{ flex: 1, paddingRight: 12 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
         <Text style={s.rowSub}>청구 {dayLabel(p.createdAt)}</Text>
@@ -71,7 +77,19 @@ export function PaymentRow({ p, showDog = true }: { p: PaymentRecord; showDog?: 
         </Text>
         <Text style={[s.status, failed && { color: paper.critical }]}>{paymentStatusLabel(p.status, p.underReview)}</Text>
       </View>
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={s.row}>{body}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title} 결제 상세 열기`}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
+    >
+      {body}
+      <Text style={s.rowChevron}>›</Text>
+    </Pressable>
   );
 }
 
@@ -126,10 +144,13 @@ export function ChargeBanner({ kind, detail, cta, busyCta, busy = false, onPress
 }
 
 const s = StyleSheet.create({
+  // [2026-08-31] 행 구분선 코랄 → 뉴트럴: 목록은 대장(ledger)이지 섹션이 아니다 — Sean의
+  // 「too many horizontal red lines」 카운트 룰 + pay-rebuild-lab Ⓒ0의 .listRow(--neutral) 그대로.
   row: {
     flexDirection: 'row', alignItems: 'flex-start',
-    paddingVertical: 13, borderTopWidth: 1, borderColor: paper.line,
+    paddingVertical: 13, borderTopWidth: 1, borderColor: '#EEEEEE',
   },
+  rowChevron: { fontSize: 18, lineHeight: 22, color: paper.dim, marginLeft: 10, alignSelf: 'center' },
   rowTitle: { fontSize: 15, fontWeight: '800', color: paper.ink },
   rowSub: { fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 2 },
   rowErr: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.critical, marginTop: 3 },
