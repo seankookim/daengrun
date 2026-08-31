@@ -13,7 +13,7 @@ import {
   BoardRowLive, fetchBookingAddress, fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
   PickupAddress,
   fetchSessionBoard, fetchSessionRoster,
-  clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal,
+  clubAssumeHost, clubSos, fetchSessionBackup, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal, SessionBackupFacts,
   rsvpClubSession, sendClubChat, sendClubChatPhoto, SessionRoster, ShellAccess, startDelegatedRuns,
   subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession=콘솔 · settleRun/fetchRunStartedAt=클럽 런 화면
@@ -208,6 +208,8 @@ export default function ClubSessionShell() {
   const [draft, setDraft] = useState('');
   const [hostThread, setHostThread] = useState<string | null>(null); // 열린 1:1 상대 (호스트: 신청자 id · 참가자: 'me')
   const [threadDraft, setThreadDraft] = useState('');
+  // [U4b] 백업 호스트 사실 — null = 모름. 인수 카드는 iAmBackup === true에서만 그린다.
+  const [backupFacts, setBackupFacts] = useState<SessionBackupFacts | null>(null);
 
   // [honesty P1 2026-08-11] 세션 실패가 앱 대표 딥링크에서 영원한 '불러오는 중...'(백 없음)
   // 이던 것 — LoadGate 3상태 + 돌아가기 상시. 직전 실값은 유지.
@@ -220,6 +222,9 @@ export default function ClubSessionShell() {
     // 실패 시 이전 상태 유지 (access='none'은 서버가 실제로 준 값일 때만)
     fetchDelegationBoard(sid).then(setBoard).catch(() => {});
     fetchShellAccess(sid).then(setAccess).catch(() => {});
+    // [U4b] 백업 사실 — 인수 카드는 iAmBackup일 때만 그리므로 실패는 조용히 이전 값 유지
+    // (백업이 아닌 대다수에게 이 읽기는 카드 없음 = 카드 없음이다).
+    fetchSessionBackup(sid).then(setBackupFacts).catch(() => {});
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -345,6 +350,37 @@ export default function ClubSessionShell() {
   const checkinLeftMs = startMs + 6 * 3600_000 - now;
   const isDone = sess.status === 'done';
   const isOpenish = sess.status === 'open' || sess.status === 'full';
+
+  // [U4b · 0047 §6.6 · Sean 「if no one can, the host can take care」] 백업 호스트의 인수 —
+  // 서버 완결(club_assume_host)·클라 0 호출이던 기능의 첫 문. 콘솔이 아니라 여기 있는 이유:
+  // 콘솔은 isHost(엄격 호스트, 0147:81)에서 튕기므로 백업은 콘솔에 못 들어간다. 인수하면
+  // 호스트 권한이 넘어오고 백업 칸은 비워진다(서버 0047:333-337).
+  const doAssumeHost = () => {
+    Alert.alert('호스트 인수',
+      '이 세션의 호스트 권한을 인수할까요?\n기존 호스트와 커밋 러너 전원에게 알림이 가요.',
+      [
+        { text: '아직', style: 'cancel' },
+        {
+          text: '인수',
+          onPress: () => {
+            if (busy) return;
+            setBusy(true);
+            clubAssumeHost(sess.id)
+              .then(() => { haptic('success'); load(); })
+              .catch((e) => {
+                const m = (e as Error).message;
+                Alert.alert('인수 실패',
+                  m.includes('not_backup') ? '백업 호스트만 인수할 수 있어요'
+                  : m.includes('too_early') ? '시작 30분 전부터 인수할 수 있어요'
+                  : m.includes('host_present') ? '호스트가 현장에 체크인해 있어요 — 인수 없이 진행돼요'
+                  : m.includes('session_closed') ? '세션이 열려 있지 않아요'
+                  : m);
+              })
+              .finally(() => setBusy(false));
+          },
+        },
+      ]);
+  };
   const checkedCount = sess.people.filter((p) => p.attendance === 'checked_in').length;
   // [0052 §2] people는 당사자에게만 채워진다 — 인원수는 서버 peopleCount가 정본.
   // (db push 전 원격에선 undefined → 예전대로 명단 길이)
@@ -1408,6 +1444,28 @@ export default function ClubSessionShell() {
                   onPress={() => router.push({ pathname: `/club/map/${sess.id}`, params: { clubName: clubName ?? '' } })}
                 />
               </View>
+            )}
+
+            {/* ---------- 백업 호스트 인수 (0047 §6.6 · U4b) ---------- */}
+            {/* 창 밖에서는 버튼을 그리지 않는다(서버가 too_early로 거절하는 버튼은 죽은 버튼) —
+                대신 백업이라는 사실과 창이 언제 열리는지 알린다. host_present는 서버 판정이
+                남는다(호스트 체크인 여부는 이 화면이 로스터 없이 모른다). */}
+            {backupFacts?.iAmBackup && isOpenish && (
+              now >= startMs - 30 * 60_000 ? (
+                <LilacCard hero>
+                  <Text style={clubText.vkTitle}>백업 호스트</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: L.text, marginTop: 6 }}>
+                    호스트가 체크인하지 않으면 세션을 인수할 수 있어요
+                  </Text>
+                  <View style={{ marginTop: 10 }}>
+                    <ClubCta label="호스트 인수하기" tone="secondary" onPress={doAssumeHost} busy={busy} />
+                  </View>
+                </LilacCard>
+              ) : (
+                <Text style={{ fontSize: 15, lineHeight: 19, color: L.text, marginTop: 10 }}>
+                  이 세션의 백업 호스트예요 — 시작 30분 전부터 인수할 수 있어요
+                </Text>
+              )
             )}
 
             {/* ---------- R2 — 나에게 온 배정 제안 (5분 시효, 가장 위) ---------- */}

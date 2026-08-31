@@ -7,8 +7,9 @@ import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate,
 import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, cancelClubSession, ClubIncident, custodyOverride, DelegationBoard, DelegationDog,
-  DelegationRunner, endPackRuns, fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve,
-  incidentAssign, incidentResolve, PackRunEndResult, proposalRevoke, proposeDog, reviewDelegation,
+  DelegationRunner, endPackRuns, fetchDelegationBoard, fetchSessionBackup, fetchSessionIncidents, finishClubSession,
+  hostForceResolve, incidentAssign, incidentResolve, PackRunEndResult, proposalRevoke, proposeDog, reviewDelegation,
+  SessionBackupFacts, sessionSetBackup,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
@@ -92,6 +93,9 @@ export default function HostConsole() {
   // [0144] 마지막 러닝 종료 결과 — 세 개의 이름 붙은 목록. run()의 성공 load()가 보드를 갈아도
   // 이 보고는 남는다: 호스트가 「누가 왜 안 닫혔나」를 읽는 표면이다.
   const [endResult, setEndResult] = useState<PackRunEndResult | null>(null);
+  // [U4b] 백업 호스트 사실 — null = 아직 모름(그 동안 섹션을 그리지 않는다; 「지정 안 됨」은 주장이다).
+  const [backupFacts, setBackupFacts] = useState<SessionBackupFacts | null>(null);
+  const [backupErr, setBackupErr] = useState(false);
 
   // [honesty 2026-08-11] 보드 실패가 영원한 '불러오는 중...' 골목이던 것 — LoadGate 3상태.
   // 직전 실값은 유지 (리프레시 실패가 화면을 비우지 않는다).
@@ -108,6 +112,9 @@ export default function HostConsole() {
     fetchDelegationBoard(sid).then((b) => { setNow(Date.now()); setBoard(b); }).catch(() => setBoardErr(true));
     // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
     fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
+    // [U4b] 백업 사실 — 보드가 투영하지 않아 별도 읽기. 실패는 실패로(backupErr), 성공은 덮는다.
+    setBackupErr(false);
+    fetchSessionBackup(sid).then(setBackupFacts).catch(() => setBackupErr(true));
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
@@ -360,6 +367,22 @@ export default function HostConsole() {
   // 눌리기 전까지는 러너 클라이언트 값이 장부를 매겼다(run-end 코덱스 리젝트 1번의 클라 절반).
   // 반환값이 본론이라 doCancelSession의 내부-.then 문법을 쓴다. blocked는 보고이지 거절이 아니고
   // (0144:287-289 — 호출은 성공), 목록은 개수가 아니라 이름으로 말한다(0144:281-285).
+  // [U4b] 백업 지정 — 확인 후 지정, 성공 시 load()가 backupFacts까지 다시 읽는다.
+  const doSetBackup = (r: DelegationRunner) => {
+    Alert.alert('백업 호스트 지정',
+      `${r.name} 러너를 백업 호스트로 지정할까요?\n호스트가 시작 30분 전까지 체크인하지 않으면 이 러너가 세션을 인수할 수 있어요.`,
+      [
+        { text: '아직', style: 'cancel' },
+        {
+          text: '지정',
+          onPress: () => run(() => sessionSetBackup(sess.id, r.profileId), '지정 실패', (m) =>
+            m.includes('backup_not_committed') ? '이 세션에 커밋한 러너만 백업이 될 수 있어요'
+            : m.includes('backup_is_host') ? '호스트 본인은 백업이 될 수 없어요'
+            : m.includes('not_host') ? '호스트만 지정할 수 있어요'
+            : null),
+        },
+      ]);
+  };
   const doEndPack = () => {
     Alert.alert('러닝 종료',
       `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n각 아이의 거리·시간이 서버 기록으로 확정돼요.`,
@@ -628,6 +651,43 @@ export default function HostConsole() {
             )}
           </View>
         ))}
+
+        {/* ---------- 백업 호스트 (0047 §6.6 · Sean 「if no one can, the host can take care」) ----------
+            서버 완결·클라 0 호출이던 session_set_backup의 첫 문. 커밋 러너만 지정 가능(서버
+            게이트와 같은 술어로 칩을 그린다 — 눌리지만 실패하는 버튼 금지). 해제 버튼은 없다:
+            서버에 해제 경로가 없다(인수 시 클리어만). 백업이 러너 목록 밖이면(지정 후 철회)
+            그렇게 말한다 — 이름을 지어내지 않는다. */}
+        {backupFacts != null && !backupErr && (
+          <View style={s.drow}>
+            <Text style={s.dogName}>백업 호스트</Text>
+            <Text style={s.dogSub}>
+              {backupFacts.backupProfileId == null
+                ? '지정 안 됨 — 호스트가 못 오면 인수할 사람이 없어요'
+                : `지정됨 — ${board.runners.find((r) => r.profileId === backupFacts.backupProfileId)?.name ?? '현재 커밋 러너 목록 밖'}`}
+            </Text>
+            <Row style={{ gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+              {board.runners.filter((r) => !r.isMe && r.profileId !== backupFacts.backupProfileId).map((r) => (
+                <Pressable
+                  key={r.profileId}
+                  onPress={() => doSetBackup(r)}
+                  style={[s.abtn, s.abtnGhost]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[s.abtnTxt, { color: L.accent }]}>{r.name}{backupFacts.backupProfileId ? '(으)로 교체' : ' 지정'}</Text>
+                </Pressable>
+              ))}
+              {board.runners.filter((r) => !r.isMe).length === 0 && (
+                <Text style={s.dogSub}>커밋한 러너가 없어 지정할 수 없어요</Text>
+              )}
+            </Row>
+          </View>
+        )}
+        {backupErr && (
+          <View style={s.drow}>
+            <Text style={s.dogName}>백업 호스트</Text>
+            <Text style={[s.dogSub, { color: L.tang }]}>백업 정보를 불러오지 못했어요 — 당겨서 새로고침</Text>
+          </View>
+        )}
 
         {/* ---------- 4 케이스 ---------- */}
         {openCases.length > 0 && (

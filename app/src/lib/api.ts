@@ -4252,6 +4252,33 @@ export interface PackRunAlready { sdId: string; dogId: string; dogName: string; 
 export interface PackRunEndResult { session: string; at: string; ended: PackRunEnded[]; blocked: PackRunBlocked[]; already: PackRunAlready[] }
 export const endPackRuns = (sessionId: string) =>
   clubRpc('club_end_pack_runs', { p_session: sessionId }) as Promise<PackRunEndResult>;
+// [0047 §6.6 · U4b] 백업 호스트 지정 — 호스트 전용, 커밋 러너만(서버 backup_not_committed).
+// 해제 경로는 서버에 없다: 0047:314가 유일한 쓰기, club_assume_host:336이 유일한 클리어 —
+// 클라는 해제 버튼을 그리지 않는다(없는 문을 가리키지 않는다).
+export const sessionSetBackup = (sessionId: string, profileId: string) =>
+  clubRpc('session_set_backup', { p_session: sessionId, p_profile: profileId }) as Promise<void>;
+// 백업 호스트의 세션 인수 — 시작 30분 전부터(too_early), 호스트 미체크인일 때만(host_present).
+export const clubAssumeHost = (sessionId: string) =>
+  clubRpc('club_assume_host', { p_session: sessionId }) as Promise<void>;
+// 백업 사실 읽기 — 위임 보드는 backup_host_profile_id를 투영하지 않는다(0147 payload 전체에
+// 없음). club_sessions는 공개 읽기(0030:133 「sessions public read」 using true, 이후 대체 없음
+// — 0131은 이 테이블을 건드리지 않았다)라 직접 읽는다. 이름 해석은 호출부의 board.runners가
+// 한다: 백업은 커밋 러너만 될 수 있으므로(0047:310-313) 그 목록 밖이면 목록 밖이라고 말한다.
+export interface SessionBackupFacts { hostProfileId: string | null; backupProfileId: string | null; iAmBackup: boolean }
+export const fetchSessionBackup = async (sessionId: string): Promise<SessionBackupFacts> => {
+  const [{ data: u }, { data, error }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('club_sessions').select('host_profile_id, backup_host_profile_id').eq('id', sessionId).maybeSingle(),
+  ]);
+  if (error) throw error;
+  const backup = (data as any)?.backup_host_profile_id ?? null;
+  const uid = u?.user?.id ?? null;
+  return {
+    hostProfileId: (data as any)?.host_profile_id ?? null,
+    backupProfileId: backup,
+    iAmBackup: backup != null && uid != null && backup === uid,
+  };
+};
 // [R2] 이양 — 러너→러너(수락 필요) · clinic/authority(즉시·미드런은 원자 인시던트 경로)
 export const transferInitiate = (
   sdId: string, toType: 'runner' | 'clinic' | 'authority',
