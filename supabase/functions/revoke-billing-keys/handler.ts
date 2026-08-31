@@ -9,6 +9,7 @@
 //   경로에서 하면 토스 타임아웃이 성공한 등록을 막거나 조용히 삼켜진다. 그래서 claim → call →
 //   report 로 갈랐다 (charge dispatch 와 같은 내구 작업 패턴).
 import { HttpError } from "../_shared/ctx.ts";
+import { requireCronKey } from "../_shared/cron-auth.ts";
 import { tossBillingRevoke } from "../_shared/toss.ts";
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
@@ -21,10 +22,13 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
   //    있다는 뜻이다. collect-charges 의 게이트를 그대로 가져온다.
   //    ⚠ 미설정 시크릿이 누구도 인증하지 못하게 하는 줄이 핵심이다 (그 파일의 주석 그대로):
   //      이 줄이 없으면 `null === null` 이 잘못된 배포를 열린 문으로 바꾼다.
-  const cronKey = req.headers.get("X-Cron-Key");
-  const expected = Deno.env.get("CRON_COLLECT_KEY");
-  if (!expected) throw new HttpError(503, "폐기 배치가 설정되지 않았어요");
-  if (cronKey !== expected) throw new HttpError(401, "unauthorized");
+  //    🔴 [0157 · codex billing #7] and the comparison is CONSTANT-TIME now. It was `!==`, which
+  //       short-circuits at the first differing byte, on an endpoint deployed with
+  //       `verify_jwt = false` — so the one thing standing between the internet and a service-role
+  //       credential-destroying batch job leaked its own secret through timing. The 503/401 split
+  //       above is unchanged and is pinned; see `_shared/cron-auth.ts` for why the digests are
+  //       compared rather than the strings.
+  await requireCronKey(req.headers.get("X-Cron-Key"), "폐기 배치가 설정되지 않았어요");
 
   const { data: claimed, error: cErr } = await db.rpc("claim_billing_key_revocations", { p_limit: BATCH });
   if (cErr) throw new HttpError(500, `claim failed: ${cErr.message}`);
