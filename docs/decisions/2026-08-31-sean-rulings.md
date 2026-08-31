@@ -76,6 +76,17 @@ a doc drifting behind the artifact.)
 OPEN-C (pack start display) and OPEN-F (runner pay when a leg disappears — money) remain open,
 queued behind these.
 
+## 5. Delegation-board stranger access: 「Narrow it」 (2026-08-31, structured options)
+
+Codex 0153 finding 2: the board wrapper computes a stranger's access as `'none'` and then calls
+the inner function anyway, exposing incident counts, paid-dog counts, and staffing state to any
+authenticated caller holding a session UUID. Sean chose **「Narrow it」** — `'none'` means none:
+strangers get an empty/refused board, members see it; incident and money state stay inside the
+club. Explicitly presented against the alternative (「Public — make it official」 under his 08-28
+「everything that's not their password」 sentence) and he picked the narrow reading — so the
+total-public ruling is hereby SCOPED: map · roster · pictures are public; the delegation board's
+operational/money state is not. Owner: backend session's 0052-wrapper bundle slice.
+
 ## Operational note, same day
 
 GitHub Actions is DOWN for this repo on a billing block: push cbe8af7's jobs (deno-edge,
