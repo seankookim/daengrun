@@ -26,6 +26,7 @@ in it; none of it could be produced read-only against production. The installed 
 | ⬜ 7 | 백업 호스트 지정 (U4b) | host console, ≥1 committed runner besides the host | current backup line (지정 안 됨 honest when null); picker chips; no un-set button exists — deliberate |
 | ⬜ 8 | 호스트 인수 (U4b) | the BACKUP runner's account, T−30min window | info line before the window, card+CTA inside it; host_present refusal copy when host checked in |
 | ⬜ 9 | chat merge/retry (rescue) | any booking chat | error state shows 다시 시도 and it works; no duplicate bubbles when realtime echo + poll race |
+| ⬜ 10 | 예약 규칙 editor (U5) | runner-role account, 가용시간 설정 screen | new section below the grid: 휴식/하루 최대 steppers, save button appears only when dirty and names what it saves, values survive re-entry; availability grid's own save untouched |
 
 ⚠ All club rows (4-8) additionally need `club_flags.club_delegation_v2` or membership in
 `club_test_accounts` — otherwise every new button correctly refuses with the 허용목록 translation,
