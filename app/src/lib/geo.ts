@@ -2,8 +2,8 @@
 // Native modules are lazy-required everywhere in this file: an old build that lacks
 // expo-location / expo-task-manager degrades to a stated mode instead of crashing.
 import { supabase } from './supabase';
-// 팩 지도 채널의 토픽/이벤트/스로틀 + 와이어 타입 — 순수 모듈이라 핀이 붙는다 (test/pack.test.cjs).
-import { PACK_EVENT, PACK_PUB_MIN_MS, PACK_TOPIC, type PackPos } from './pack';
+// 팩 지도 채널의 토픽/이벤트 — 순수 모듈이라 핀이 붙는다 (test/pack.test.cjs).
+import { PACK_EVENT, PACK_TOPIC } from './pack';
 
 export interface GeoPoint { lat: number; lng: number; t: number; acc?: number }
 
@@ -470,8 +470,13 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
   hookTokenRefresh();
   const chs = bookingIds.map((id) => {
     // 같은 결함의 세 번째 자리 — 클럽 러닝은 러너 하나가 보호자 채널 N개로 방송한다.
-    const c = { joined: false, ch: supabase.channel(RUN_TOPIC(id), REALTIME_PRIVATE) };
+    const c = { joined: false, stopped: false, ch: supabase.channel(RUN_TOPIC(id), REALTIME_PRIVATE) };
+    // ⚠ `stopped` is the same generation guard `publishPos` carries as `pubCh !== ch` (codex #8,
+    // second observable site): `stop()` can run while this `armRealtime()` is still in flight, and
+    // subscribing a channel that `removeChannel` has already left re-opens it with nobody to close
+    // it. Behaviour is otherwise unchanged — on the ordinary path the guard is false.
     void armRealtime().then(() => {
+      if (c.stopped) return;
       c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
     });
     return c;
@@ -486,7 +491,7 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
         if (c.joined) c.ch.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
       }
     },
-    stop: () => { for (const c of chs) supabase.removeChannel(c.ch); },
+    stop: () => { for (const c of chs) { c.stopped = true; supabase.removeChannel(c.ch); } },
   };
 }
 
@@ -496,21 +501,31 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
 // and, on sequencing, 「Build it now anyway」 (`docs/decisions/2026-08-28-sean-rulings.md`, both
 // rounds). The privacy question was put to him and answered. It is not re-opened here.
 //
-// 🔴 THIS CHANNEL IS **NOT** PRIVATE, AND THAT IS THE ONE PLACE THIS FAMILY DIFFERS FROM `run2-`.
-// The fixed contract says 「Reads are public — assume no auth gate on subscribe」. `realtime.messages`
-// RLS is consulted ONLY for channels the client marks `private` (0103's own §0), so requesting a
-// private channel here would put the pack map behind a policy that does not exist yet and the
-// screen would show an empty map — indistinguishable from 「nobody is running」. A public channel
-// needs no server half to work, which is also why the client can ship before the server does.
+// 🔴 THIS CHANNEL IS PRIVATE, AND THE COMMENT THAT USED TO SIT HERE SAID THE OPPOSITE.
+// It described a world that ended: it argued the pack channel must be PUBLIC because no server
+// half existed yet, and named 「add REALTIME_PRIVATE to the two supabase.channel(...) calls」 as the
+// handover. Both halves of that are now settled and the note would otherwise read as a live
+// instruction not to do the thing that has been done (codex 0159 #1):
+//   · 0159 landed the `pack-%` policies, so the server half exists.
+//   · Production ENFORCES `PrivateOnly: This project only allows private channels` — measured
+//     2026-08-31. A public join is REFUSED, so the old code could never have joined at all; the
+//     private flag is mandatory, not hygiene.
 //
-// ⚠ WHAT THAT COSTS, STATED PLAINLY RATHER THAN IMPLIED: on a public channel the WRITE side is
-// ungated too. 「publish only if you are a participant with a live run」 is a rule this client
-// keeps, not a rule the platform enforces — anyone who knows a session id can push an invented
-// runner onto this map. That is the same shape as the hole 0103 closed for `run-`, and it is NOT
-// covered by the ruling, which was about who may READ. It is reported upward rather than fixed
-// here, because closing it means making the channel private and that is the server half's call.
-// If the server half does land a `pack-%` policy, the ONLY change needed on this side is adding
-// `REALTIME_PRIVATE` to the two `supabase.channel(...)` calls below.
+// ⚠ AND THERE IS NO PUBLISHER HERE ANY MORE. `createPackPublisher` is deleted: 0160 moved writing
+// to `club_pack_publish`, a SECURITY DEFINER RPC that re-checks membership and the window on every
+// call and takes `profileId` from `auth.uid()`. The `pack channel write` policy is dropped, so a
+// socket write has no policy to admit it — 「only a participant may publish」 stopped being a rule
+// this client keeps and became one the platform enforces (codex #2 write side, #4). What survives
+// on this side is the SUBSCRIBER, and reads are public by Sean's ruling.
+//
+// ⚠ ONE CHANNEL PER TOPIC, REF-COUNTED — not a style choice (codex #3). realtime-js 2.112.4 dedupes
+// by topic: a second `supabase.channel(t)` returns the FIRST channel and DISCARDS the new config,
+// and a second `.subscribe()` on a joining/joined channel registers no status callback. So two
+// call sites on one topic do not get two channels, they get one channel and one of them silently
+// loses its configuration and its status. The registry below is `api.ts`'s `sharedWatchers`
+// (api.ts:3097-3160) narrowed to this one topic family, including the part that is easy to miss:
+// the map row is deleted when the LEAVE RESOLVES, and a subscriber arriving during a teardown
+// waits for it rather than opening a channel on a topic that is still leaving.
 //
 // The topic string lives in `pack.ts` (one definition, pinned) for the same reason `RUN_TOPIC`
 // lives in one place: three scattered copies means the next bump leaves one behind, and the
@@ -527,50 +542,135 @@ export function getLiveLastFix(): GeoPoint | null {
   return liveTrace.length > 0 ? liveTrace[liveTrace.length - 1] : null;
 }
 
+type PackWatcher = {
+  listeners: Set<(raw: unknown) => void>;
+  links: Set<(s: LiveLinkState) => void>;
+  /** The last status said out loud, replayed to a listener that attaches after it fired. */
+  link: LiveLinkState;
+  ch: ReturnType<typeof supabase.channel>;
+  dropped: boolean;
+  teardown: Promise<void> | null;
+  /** True once the FIRST non-denial `CHANNEL_ERROR` has been swallowed. See the cold-start note in
+   *  the subscribe callback: the first one on a cold project is the janitor, not a failure. */
+  graced: boolean;
+};
+const packWatchers = new Map<string, PackWatcher>();
+
+/** Retire one topic. The row is deleted only when the LEAVE RESOLVES — deleting it eagerly is how
+ *  a fresh channel gets opened on a topic that is still leaving, which realtime-js answers by
+ *  handing back the leaving channel (the dedupe in the header). */
+function retirePack(topic: string, w: PackWatcher): void {
+  if (w.teardown) return;
+  w.dropped = true;
+  w.teardown = Promise.resolve(supabase.removeChannel(w.ch))
+    .then(() => undefined, () => undefined)
+    .finally(() => { if (packWatchers.get(topic) === w) packWatchers.delete(topic); });
+}
+
 /** Subscribe to one club session's pack channel. Returns the unsubscribe function.
  *  Link state uses the same three-way vocabulary as `subscribePos`: a refusal and a network
- *  failure must not be collapsed, because the screen says different things about them. */
+ *  failure must not be collapsed, because the screen says different things about them.
+ *
+ *  ⚠ N callers on one session share ONE channel (see the header — realtime-js gives them one
+ *  whether we ask for one or not; the registry is what makes that shared channel the one we
+ *  configured). The channel is left when the LAST listener detaches. */
 export function subscribePack(
   sessionId: string,
   onPos: (raw: unknown) => void,
   onState?: (s: LiveLinkState) => void,
 ): () => void {
-  const ch = supabase
-    .channel(PACK_TOPIC(sessionId))
-    .on('broadcast', { event: PACK_EVENT }, ({ payload }) => onPos(payload));
-  let dropped = false;
+  const topic = PACK_TOPIC(sessionId);
   hookTokenRefresh();
-  onState?.('connecting');
-  void armRealtime().then(() => {
-    if (dropped) return;
-    ch.subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') onState?.('live');
-      else if (status === 'CHANNEL_ERROR') onState?.(deniedLike(err) ? 'denied' : 'error');
-      else if (status === 'TIMED_OUT') onState?.('error');
-      else if (status === 'CLOSED') onState?.('error');
+  const existing = packWatchers.get(topic);
+  // A teardown is in flight: wait for the leave, then join fresh. Re-entering through the public
+  // function (rather than inlining) keeps one definition of what joining means.
+  if (existing && existing.teardown) {
+    let cancelled = false;
+    let inner: (() => void) | null = null;
+    void existing.teardown.then(() => { if (!cancelled) inner = subscribePack(sessionId, onPos, onState); });
+    return () => { cancelled = true; inner?.(); };
+  }
+  let w = existing;
+  if (!w) {
+    const listeners = new Set<(raw: unknown) => void>();
+    const links = new Set<(s: LiveLinkState) => void>();
+    const ch = supabase
+      .channel(topic, REALTIME_PRIVATE)
+      .on('broadcast', { event: PACK_EVENT }, ({ payload }) => {
+        for (const fn of Array.from(listeners)) fn(payload);
+      });
+    w = { listeners, links, link: 'connecting', ch, dropped: false, teardown: null, graced: false };
+    packWatchers.set(topic, w);
+    const mine = w;
+    const say = (s: LiveLinkState) => { mine.link = s; for (const fn of Array.from(mine.links)) fn(s); };
+    void armRealtime().then(() => {
+      if (mine.dropped) return;
+      mine.ch.subscribe((status, err) => {
+        // 🔴 The dropped guard is also what keeps our OWN teardown quiet. `removeChannel` makes the
+        // channel emit CLOSED, and this callback used to translate that into `onState('error')` —
+        // so simply leaving the screen painted 「실시간 위치에 연결하지 못했어요」 on the way out
+        // (codex #8's family: a cleanup racing an async subscribe). A leave we asked for is not a
+        // failure and must not be reported as one.
+        if (mine.dropped) return;
+        if (status === 'SUBSCRIBED') { mine.graced = false; say('live'); }
+        // 거절과 장애를 합치지 않는다: 화면이 둘에 대해 다른 말을 해야 하기 때문이다.
+        else if (status === 'CHANNEL_ERROR') {
+          if (deniedLike(err)) say('denied');
+          // 🔴 COLD-START GRACE (addendum 3e). The FIRST non-denial error on a pack topic is, on a
+          // quiet project, the partition janitor rather than a failure: `realtime.messages` is
+          // daily-partitioned and the janitor wakes on SOCKET CONNECT, so the very join that wakes
+          // it can be refused with `MissingPartition: Realtime was unable to find the expected
+          // messages partition` and then succeed on phoenix's own rejoin seconds later (measured on
+          // production 2026-08-31: one anon socket held ~75 s took 7 partitions to 12). Painting an
+          // error there tells a customer the map is broken while it is in the act of working.
+          //   ⚠ That string does NOT reach `deniedLike` — checked rather than assumed, because a
+          //   partition gap rendered as 「권한이 없어요」 would be a cause we never measured. Lower-
+          //   cased it is 'missingpartition: realtime was unable to find the expected messages
+          //   partition', and `deniedLike` matches only unauthorized · forbidden · policy ·
+          //   permission · not authorized — none of which is a substring of it.
+          //   ⚠ ONE grace, not a retry loop: phoenix reconnects by itself, so this swallows the
+          //   first refusal and leaves the state at 「연결하는 중」. A second one is the real answer
+          //   and is said out loud. A SUBSCRIBED resets the grace, so a socket that drops an hour
+          //   later gets its own first-failure tolerance instead of inheriting a spent one.
+          else if (!mine.graced) mine.graced = true;
+          else say('error');
+        }
+        else if (status === 'TIMED_OUT') say('error');
+        else if (status === 'CLOSED') say('error');
+      });
     });
-  });
-  return () => { dropped = true; supabase.removeChannel(ch); };
-}
-
-/** Publisher for one club session. Lifetime belongs to the caller, like `createPosPublisher`.
- *  Sends nothing before the channel has joined — a pre-join send falls back to REST and warns,
- *  and the next tick is 3 s away anyway. */
-export function createPackPublisher(sessionId: string): { publish: (p: PackPos) => void; stop: () => void } {
-  hookTokenRefresh();
-  const c = { joined: false, ch: supabase.channel(PACK_TOPIC(sessionId)) };
-  void armRealtime().then(() => {
-    c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
-  });
-  let lastAt = 0;
-  return {
-    publish: (p) => {
-      if (!c.joined) return;
-      const now = Date.now();
-      if (now - lastAt < PACK_PUB_MIN_MS) return;
-      lastAt = now;
-      c.ch.send({ type: 'broadcast', event: PACK_EVENT, payload: p }).catch(() => {});
-    },
-    stop: () => { supabase.removeChannel(c.ch); },
+  }
+  const mine = w;
+  mine.listeners.add(onPos);
+  if (onState) {
+    mine.links.add(onState);
+    // Replay the current status. The subscribe callback fires once per CHANNEL, so a second screen
+    // attaching to an already-joined topic would otherwise render 「연결하는 중」 over a live channel
+    // forever (api.ts:3177-3179 records the same trap on the shared registry).
+    onState(mine.link);
+  }
+  return () => {
+    mine.listeners.delete(onPos);
+    if (onState) mine.links.delete(onState);
+    if (mine.listeners.size === 0) retirePack(topic, mine);
   };
 }
+
+// 🔴 THIS REGISTRY DIVERGES FROM `api.ts`'s `sharedWatchers` ON PURPOSE — DO NOT 「UNIFY」 IT BACK
+// (addendum 2a, and the reason is measured rather than stylistic).
+//
+// `sharedWatchers` retires a channel that is `!joined && isConnected()` — a channel that failed
+// while the socket was demonstrably up must be a real refusal, so drop it and let the next mount
+// build a new one. **On a pack topic that heuristic names the healthy case.** `realtime.messages`
+// is daily-partitioned and its janitor wakes on socket connect, so the first join after a quiet
+// period can be refused with `MissingPartition` *by the very connection that fixes it* — and unlike
+// every consumer of `sharedWatchers`, this map has NO POLL FALLBACK. Copying the model verbatim
+// would turn the first wake of the day into a permanently dead map until the user remounts, and it
+// would look exactly like 「nobody is running」.
+//
+// So: no retire-on-error, and one cold-start grace in the subscribe callback above (the first
+// non-denial `CHANNEL_ERROR` is swallowed, phoenix rejoins, a second one is reported). A refused
+// join keeps being retried while the screen stays open, which is also the behaviour we want when
+// the refusal is 「the window has not opened yet」. The entry is retired when the LAST LISTENER
+// leaves, so a remount still builds a fresh channel — the property `sharedWatchers` buys with its
+// heuristic is bought here by lifetime instead.

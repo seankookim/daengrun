@@ -129,6 +129,56 @@ grant select, insert, update on realtime.messages to anon, authenticated;
 create or replace function realtime.topic() returns text
 language sql stable as $$ select current_setting('realtime.topic', true) $$;
 
+-- 🔴 [0160] `realtime.send` — the broadcast-from-postgres entry point. Semantics copied from the
+--    DEPLOYED function on the linked production project, recorded 2026-08-31 in
+--    `docs/contracts/pack-publish-hardening-contract.md` foundations #4/#5/#6:
+--      · it embeds an id into the payload but KEEPS a caller-supplied `payload->>'id'`, while the
+--        ROW's id is always the column default's own `gen_random_uuid()` — so a verify-read must
+--        match on `payload->>'id'` and never on the row id;
+--      · it sets `realtime.topic` LOCALly, which is how the RLS predicate sees the topic;
+--      · 🔴 **it SWALLOWS EVERY ERROR** — `exception when others then raise warning`, returns
+--        void. A send that fails leaves NO caller-visible signal at all.
+--
+-- 🔴 **NOTHING IN THE PRODUCT CALLS THIS ANY MORE, AND IT IS KEPT DELIBERATELY.** 0160 §A's first
+--    design broadcast through `realtime.send` and then verify-read its own row, precisely because
+--    of the swallow above. The /autoplan addendum (item 1) replaced that with a DIRECT INSERT
+--    into `realtime.messages` inside its own `begin/exception` block: an INSERT that fails RAISES,
+--    and an exception is a better detector than any read-back — free, immediate, and it names the
+--    cause. So this mirror is now DOCUMENTATION of what production ships (foundations #4/#5/#6 in
+--    `docs/contracts/pack-publish-hardening-contract.md`), not a dependency of any migration or
+--    pin. Verified 2026-08-31: no suite calls it. Keep it — a future slice reaching for
+--    `realtime.send` needs to meet the swallow here rather than discover it on production.
+-- ⚠ **IF A PIN EVER DOES CALL IT, THE `SET LOCAL realtime.topic` LEAKS TO TRANSACTION END.**
+--    `set local` is scoped to the transaction, not to this function, and each suite file is ONE
+--    transaction — so a later boundary pin in the same file would see a topic it did not set, and
+--    an RLS predicate reading `realtime.topic()` would decide against the wrong string. Reset it
+--    (`perform set_config('realtime.topic', '', true)`) right after any call. Production has the
+--    same behaviour; there the transaction is one PostgREST request, which is why it has never
+--    bitten anyone.
+-- ⚠ **A LIMITATION OF THIS SHIM, STATED HERE RATHER THAN PINNED**: production's
+--    `realtime.messages` is PARTITIONED by day, so a real publish into a cold project can fail
+--    with `MissingPartition` and 0160's `not_delivered` refusal is reachable there. This table is
+--    unpartitioned and the INSERT always succeeds, so `not_delivered` is UNREACHABLE in the
+--    harness. Suite 191 says so in prose and guards the exception handler's EXISTENCE with a
+--    source pin instead — a pin whose arms are green by construction would be an unfalsifiable
+--    guard doing prose's job.
+create or replace function realtime.send(payload jsonb, event text, topic text,
+                                         private boolean default true)
+returns void
+language plpgsql
+as $rtsend$
+begin
+  begin
+    execute format('set local realtime.topic to %L', topic);
+    insert into realtime.messages (topic, extension, payload, event, private)
+    values (topic, 'broadcast',
+            jsonb_build_object('id', gen_random_uuid()) || coalesce(payload, '{}'::jsonb),
+            event, private);
+  exception when others then
+    raise warning 'ErrorSendingBroadcastMessage: %', sqlerrm;
+  end;
+end $rtsend$;
+
 -- 🔴 [0151] MIRROR pg_net's REAL DEFAULT, or 182's pins pass vacuously. Supabase ships pg_net with
 --    `usage` on schema `net` and `select` on its tables granted to `anon` and `authenticated`
 --    (measured on production 2026-08-27). This stub created the schema as postgres and granted

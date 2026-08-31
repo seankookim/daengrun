@@ -313,13 +313,21 @@ begin
   select count(*) into v_n from pg_policies
     where schemaname='realtime' and tablename='messages' and policyname in ('run channel read','run channel write');
   if v_n <> 2 then v_bad := v_bad || ' 0103의 정책 2개가 온전하지 않다=' || v_n; end if;
-  -- [0156, 2026-08-28] 3 → 5. `pack channel read` + `pack channel write` landed for Sean's public
+  -- [0159, 2026-08-28] 3 → 5. `pack channel read` + `pack channel write` landed for Sean's public
   -- pack map. This pin's PROPERTY is 「아무도 몰래 정책을 하나 더 달지 못한다」, and that property is
   -- unchanged — only the number it counts moved, because a slice deliberately added two and said so.
-  -- The two new policies are owned by 187 `0156-W1`/`0156-W2`, which assert their cmd, their role
-  -- lists and their topic guards; this arm only owns the TOTAL, so a sixth policy still reddens here.
+  -- The two new policies are owned by suite 190 `0159-W1`, which asserts their cmd, their role
+  -- lists and their topic guards; this arm only owns the TOTAL, so an extra policy still reddens here.
+  -- ⚠ The slice numbers above read 「0156」 and the pins 「187 0156-W1/W2」 until 2026-08-31 — the
+  --   pack-map slice was renumbered 0156→0159 and its suite 187→190 (b12b4a7) and this comment was
+  --   never updated. Comment-only drift, fixed while the file was open for the count below.
+  -- 🔴 [0160, 2026-08-31] 5 → 4. `pack channel write` is DROPPED: realtime authorization is cached
+  --   per socket, so a policy evaluated once at join can never close a window (codex #2 on 0159).
+  --   Publishing moved to the `club_pack_publish` RPC, which re-gates on every call, and a pack
+  --   topic INSERT now matches NO policy at all. Same reasoning as the 3→5 note: the property is
+  --   untouched, only the number moved, because a slice deliberately removed one and said so.
   select count(*) into v_n from pg_policies where schemaname='realtime' and tablename='messages';
-  if v_n <> 5 then v_bad := v_bad || ' realtime.messages 정책 수가 5가 아니다=' || v_n; end if;
+  if v_n <> 4 then v_bad := v_bad || ' realtime.messages 정책 수가 4가 아니다=' || v_n; end if;
   if not (select p.prosecdef from pg_proc p where p.proname='channel_allowed')
     then v_bad := v_bad || ' channel_allowed가 definer가 아니다'; end if;
   if (select coalesce(array_to_string(p.proconfig,','),'') from pg_proc p where p.proname='channel_allowed') not like '%pg_temp%'
@@ -332,17 +340,19 @@ begin
     then v_bad := v_bad || ' anon이 channel_allowed를 실행할 수 있다'; end if;
   if has_function_privilege('authenticated','channel_allowed(text,uuid,text)','execute')
     then v_bad := v_bad || ' authenticated가 임의 uid로 channel_allowed를 실행할 수 있다(당사자 프로브)'; end if;
-  -- [0156, 2026-08-28] INVERTED, by ruling, and this is the sharper of the two edits.
+  -- [0159, 2026-08-28] INVERTED, by ruling, and this is the sharper of the two edits.
   -- 0108 asserted 「anon이 my_channel_allowed를 실행할 수 없다」. That was correct while every family
   -- needed an identity: an anon caller has `auth.uid()` NULL, so the grant bought nothing and its
-  -- absence cost nothing. 0156 adds `pack-<session>`, whose READ is PUBLIC by Sean's ruling
+  -- absence cost nothing. 0159 adds `pack-<session>`, whose READ is PUBLIC by Sean's ruling
   -- (2026-08-28 「total public」), so the anon path must reach the predicate — the grant is now
   -- LOAD-BEARING and its absence is the feature being dead. Asserting the grant's PRESENCE here
-  -- keeps this arm two-sided rather than deleting it: revoking anon reddens 143 W1 and 187 0156-E2.
+  -- keeps this arm two-sided rather than deleting it: revoking anon reddens 143 W1 and 190 0159-E2.
   -- ⚠ What anon can learn through it is still exactly one boolean per session id (「is this map
-  --   live」); every other family denies on the NULL uid, which 187 `0156-W3` pins arm by arm.
+  --   live」); every other family denies on the NULL uid, which 190 `0159-W3` pins arm by arm.
+  -- ⚠ [0160] The slice/pin numbers in this note read 「0156」/「187」 until 2026-08-31 (the
+  --   0156→0159, 187→190 renumber). Comment-only drift, fixed here.
   if not has_function_privilege('anon','my_channel_allowed(text,text)','execute')
-    then v_bad := v_bad || ' anon이 my_channel_allowed를 실행 못 한다(0156 공개 팩 지도가 죽는다)'; end if;
+    then v_bad := v_bad || ' anon이 my_channel_allowed를 실행 못 한다(0159 공개 팩 지도가 죽는다)'; end if;
   if not has_function_privilege('authenticated','my_channel_allowed(text,text)','execute')
     then v_bad := v_bad || ' authenticated가 my_channel_allowed를 실행 못 한다(정책이 죽는다)'; end if;
   -- F1: 0103's own predicate was a party/liveness oracle for any logged-in user; 0108 closes it.
@@ -355,7 +365,7 @@ begin
     where schemaname='realtime' and tablename='messages' and policyname in ('run channel read','run channel write')
       and (coalesce(qual,'') || coalesce(with_check,'')) like '%my_channel_allowed%';
   if v_n <> 2 then v_bad := v_bad || ' 0103 정책이 래퍼(my_channel_allowed)를 거치지 않는다=' || v_n; end if;
-  if v_bad = '' then call _pass('rtpc','W1 배선 — party channel read(SELECT/authenticated) 1개 + 0103의 2개 재정의(래퍼 경유) + 0156의 pack 2개(총 5), 술어 definer·search_path·임의 uid 봉인, my_channel_allowed는 anon에게 열려 있다(0156 공개 읽기), run_channel_allowed 오라클 폐쇄');
+  if v_bad = '' then call _pass('rtpc','W1 배선 — party channel read(SELECT/authenticated) 1개 + 0103의 2개 재정의(래퍼 경유) + 0159의 pack channel read 1개(0160이 pack channel write를 지웠다 — 총 4), 술어 definer·search_path·임의 uid 봉인, my_channel_allowed는 anon에게 열려 있다(0159 공개 읽기), run_channel_allowed 오라클 폐쇄');
   else v_msg := v_bad; call _fail('rtpc','W1 배선', v_msg); end if;
 
   -- ---------- [W2] the probe is closed AT THE ROLE, and the uid-fixed form answers for the caller ----------

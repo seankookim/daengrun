@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /Users/sean/.gstack/projects/seankookim-daengrun/claude-master-backend-prompts-b398d6-autoplan-restore-20260831-142838.md -->
 # Pack publish hardening — 0160/0161 contract (B1: the 0159 REJECT/11 fix pass)
 
 Backend master session, 2026-08-31. This contract binds the server lane and the client lane of
@@ -267,3 +268,191 @@ digit detector, streams split) BEFORE any deploy; on REJECT, fix and re-freeze. 
 `supabase db push` applying 0159+0160+0161 together, then `supabase migration list --linked`,
 prosrc/policy/ACL read-backs, and the production controls (roster as anon over PostgREST; RPC
 refusal as anon). Announce to the announcer before the push. GitHub CI is informational only.
+
+## /autoplan addendum (2026-08-31) — post-build fix pass, applied before landing
+
+From the review voices; each item lands in the same B1 commit unless marked otherwise.
+
+1. **Delivery path REDESIGNED — direct INSERT, verify-read DELETED (eng blocking-1,
+   supersedes §A.7-8):** the RPC inserts the row itself instead of calling the swallowing
+   wrapper: `insert into realtime.messages (id, payload, event, topic, private, extension)
+   values (v_msg_id, v_payload, 'pos', v_topic, true, 'broadcast')` inside its own
+   `begin/exception` block whose handler `raise warning`s the SQLSTATE and returns the TYPED
+   refusal `not_delivered` (a WHEN OTHERS that converts to a typed refusal + warning is not a
+   silent catch; say so in a comment). postgres BYPASSRLS + INSERT priv are measured
+   (foundation 3); the realtime service tails committed rows regardless of writer; the deploy
+   protocol's end-to-end publish→receive probe is what proves delivery. This removes the
+   per-publish scan of every partition on an unindexed json key (which at 10x exhausts the
+   PostgREST pool and takes chat/bookings down with it), removes the same-statement-snapshot
+   trap from the hot path, and needs no SELECT privilege. The shim's realtime.send mirror can
+   stay (documentation of prod) but the RPC path no longer uses it — and note the shim/prod
+   `SET LOCAL realtime.topic` GUC leaks to transaction end if any pin does use send (reset or
+   note it).
+1a. **Throttle is an ATOMIC conditional upsert taking the row lock BEFORE the send (eng 4,
+   supersedes §A.5/§A.9):** `insert into club_pack_publish_marks as m (profile_id, last_at)
+   values (v_uid, now()) on conflict (profile_id) do update set last_at = excluded.last_at
+   where m.last_at <= now() - interval '2 seconds';` then `if not found → too_fast`. The
+   check-then-write original was bypassable by N concurrent requests (all read the old
+   committed mark, all pass) — the one adversary class the throttle exists for. A
+   `not_delivered` after the mark consumes a 2 s slot; acceptable (next tick is 3 s away),
+   comment it. The serial too_fast pin still works; the concurrency blindness of the harness
+   is PROSE in the suite header.
+1b. **Honest fix age (eng 8):** signature becomes `club_pack_publish(p_session uuid, p_lat
+   double precision, p_lng double precision, p_age_ms integer default 0)`; server stamps
+   `at = now() - make_interval(secs => least(greatest(p_age_ms, 0), 120000) / 1000.0)` —
+   PAST-ONLY clamp, so a liar can only make themselves look staler; the forged-future-stamp
+   attack stays dead. Without this, a fix up to 120 s old renders at full freshness and the
+   trunk comment arguing the opposite becomes a comment-vs-code lie. Client sends
+   `Date.now() - fix.t` clamped ≥0. Pin both clamps.
+1c. **Viewer clock offset (eng 5, supersedes item 4 below):** `club_pack_map_roster` return
+   gains `serverNow` (ISO); the map screen computes `offset = serverNowMs - Date.now()` at
+   each roster fetch and evaluates freshness/future-skew against the ADJUSTED clock. With all
+   payloads now on ONE clock, a viewer 15 s slow would otherwise refuse everything (silent
+   empty map — the silent-feature-loss class). M3 key-set pin updates with it.
+2. **Publish loop is a module-level ref-counted SINGLETON per session (eng blocking-3) + an
+   in-flight guard:** usePackShare on N mounted screens (map pushed over run/companion is the
+   NORMAL topology) must drive ONE tick loop, not N — two 3 s tickers against a 2 s throttle
+   permanently starve one hook (phase analysis in the eng review) and the starved screen
+   shows 「확인 중...」 forever. And `too_fast` maps to **true**, not keep-previous — it is
+   positive evidence this account published within 2 s (also fixes the two-devices case,
+   which no client singleton can). Skip a tick while the previous await is unresolved; wrap
+   the await in try/catch → thrown = `false` (offline mid-run reads as not-sharing; eng 7).
+   Retire the trunk header's 「calling this hook twice is harmless」 claim in the same edit.
+2a. **Pack channel registry DIVERGES from sharedWatchers, explicitly (eng blocking-2):**
+   sharedWatchers retires a channel on `!joined && isConnected()` — which is exactly the
+   documented MissingPartition first-wake refusal, and the pack map has NO poll fallback, so
+   copying the model verbatim makes the first wake a permanently dead map until remount.
+   The pack registry: never retire on the FIRST CHANNEL_ERROR (allow ≥1 phoenix rejoin
+   cycle — the socket connect itself provisions the partition), surface `denied` only on
+   repeated post-rejoin refusals, and write the divergence + reason into the registry header
+   so nobody 「unifies」 it back. Verify `deniedLike` does NOT match the MissingPartition
+   error string (measured text: 'MissingPartition: Realtime was unable to find the expected
+   messages partition').
+2b. **Roster-gating semantics (eng 9), specified:** allowed-set is `null` (allow-all) until
+   the FIRST successful roster fetch; on refresh failure keep the last-good set; a
+   post-check-in peer is invisible for ≤ ~33 s (30 s tick + 3 s publish) — a NAMED accepted
+   property, not a bug; on `windowOpen=false` keep the last non-empty roster for naming while
+   the terminal copy (3a) takes the screen over.
+3. **Refusal→copy honesty (design F8):** the frozen boolean hook cannot distinguish
+   `window_closed` from GPS-acquiring; add an ADDITIVE detail accessor (no signature change to
+   usePackShare — the three boolean call sites stay untouched) exposing the last refusal cause
+   incl. the client-knowable no-fix case, and give the map screen distinct copy per cause:
+   no-fix → 「내 위치 잡히는 중」 · window_closed → 「위치 공유 시간이 끝났어요」 · other
+   refusals keep the honest false line. Also the denied-state copy nit: non-accusatory
+   「아직 이 세션의 실시간 위치를 볼 수 없어요 — 잠시 후 다시 시도해주세요」 (F6 — pre-deploy
+   skew must not read as a personal permission problem).
+
+3a. **Window state must reach the screen (design F4, CRITICAL):** `roster.windowOpen` /
+   `status` / `scheduledAt` are fetched and never read. Bind them: window closed (session
+   done/cancelled or past band) → 「이 세션의 러닝이 끝났어요」, never 「아직/시작되면」;
+   pre-window → a start-time line from `scheduledAt`; window open with zero drawn markers →
+   「지금 신호가 없어요」 (not a promise). The publisher line post-window follows item 3's
+   window_closed copy. This is the terminal state of EVERY session.
+
+3b. **Anon viewer is a first-class viewer (design F5, CRITICAL):** the empty-state error
+   branch must key on the ROSTER fetch alone; `club_session_detail` (authenticated-only)
+   becomes an enhancement — when it terminally fails but the roster loads, share line falls to
+   「보기만 하는 중」, meetup point binds `roster.meetupPoint`, and no dead retry button is
+   shown for a fetch that can never succeed for anon.
+
+3c. **Liveness + denominator (design F1a/F9):** when `link !== 'live'` while markers are
+   drawn, say so in the crew line (「실시간 연결 끊김 — 자동으로 다시 연결 중」) instead of
+   only hiding the 10px dot; add the roster-vs-drawn denominator 「체크인 N명 · 지도에 M명」
+   so a dark runner is a stated fact, not a silent vanish. Runner markers get a caption affix
+   from roster `isRunner` (the data already crosses the wire).
+
+3d. **Camera (design F2):** keep first-fit-then-hold, add a paper-styled recenter control
+   (44pt, canvas ground, 1px line border) that re-runs `packCamera(markers)` — kills the
+   count-with-empty-viewport dishonesty in the single-runner case. No auto re-fit.
+
+3e. **Cold-start grace (design F7):** debounce the FIRST `CHANNEL_ERROR` while `connecting`
+   (one grace rejoin) before painting an error, and never name a cause the client did not
+   measure (no 「네트워크를 확인해주세요」 on a first join that self-heals).
+
+3f. **Deferred, logged not built:** tap-to-find name chips (F3) and full role-distinct marker
+   assets (F1b) — product affordances for a follow-up wave; the roster fields staying
+   partially unbound is deliberate and this note is why.
+4. **SUPERSEDED by 1c** (serverNow offset is the proper fix; the skew constant stays 15 s and
+   is evaluated against the adjusted clock).
+5. **Agreement pin (LOW):** suite 191 asserts the divergence-zone fixture is simultaneously
+   absent from the roster AND refused publish — the roster/write-set equality as a
+   conjunction, not two halves.
+6. **0160 header prose:** (a) the PrivateOnly residual — client-socket-write impossibility
+   rests on a project SETTING; roster keying + private-plane separation are the belts;
+   (b) anon-coarsening (initials/coarse positions for anon viewers) is preserved as a
+   SERVER-ONLY change — do not re-architect to get it; (c) alternatives considered
+   (per-member topics: identity yes but window-cache no; client broadcast + roster filter:
+   cannot stop intra-roster spoofing; edge-function publish: same properties, worse latency);
+   (d) pilot-architecture exit note (batching / per-message auth when platform offers it).
+7. **Deploy protocol additions:** cold-start probe (RPC publish with no socket → expect
+   not_delivered; open socket, wait 90s, publish → ok — converts the n=1 janitor premise to
+   an observation) · END-TO-END publish→receive probe (RPC as a checked-in fixture member,
+   delivery observed on a subscribed ANON private-channel socket — this is also the proof
+   that direct-INSERT rows broadcast, and it deliberately exercises the MissingPartition wake
+   path once) · smoke-list lines: demo-morning map prewarm; pre-window map open transitions
+   to live without user action when the window opens; pocketed-phone fade (known limitation —
+   foreground hook timer, unlike run2's background-task publisher; follow-up slice flagged,
+   not taken).
+8. **Deploy freeze:** requested via announcer 2026-08-31 — no session runs db push until this
+   landing deploys (0159 is the lone pending migration; a stray push ships it alone).
+9-pre. *(numbering note: item 9 below was written before items 1a-3f were inserted; the
+   labels are stable, the order is historical)*
+9. **Viewer counter — RULED YES (Sean 2026-08-31 via announcer console: 「Yes, add counter」;
+   cite the ruling in the migration comment):** goes into 0160. Table
+   `pack_map_roster_reads(session_id uuid, viewer text check (viewer in ('anon','authed')),
+   day date, n bigint not null default 0, primary key (session_id, viewer, day))` — count
+   only, no PII. `club_pack_map_roster` becomes VOLATILE (it now writes) and upserts
+   `n = n + 1` keyed on (p_session, auth.uid() is null → 'anon' else 'authed', current KST
+   day) before building its return; the counter write is NOT exception-swallowed (a failing
+   counter fails loudly — no silent-catch law). RLS on, no policies, client grants revoked
+   (the same hygiene as the marks table). Pin: two roster calls move the right row's n by 2,
+   anon and authed land in different rows; mutation: upsert deleted → pin reds.
+
+## GSTACK REVIEW REPORT (/autoplan, 2026-08-31 — autonomous mode)
+
+Mode: master-prompt session; premises are Sean's standing rulings (map public + build now,
+2026-08-28 both rounds; fix-before-deploy = the codex REJECT gate; viewer counter ruled YES
+2026-08-31) — the premise gate is satisfied by the human's own recorded words, not auto-decided.
+Voices: three independent Claude subagents (CEO / design / eng), full-depth, no shared context.
+Codex voices deliberately NOT run: quota is reserved for the mandatory slice verdict
+(gpt-5.6-sol xhigh) that gates the deploy — tagged [subagent-only]. User challenges: NONE (no
+voice recommended changing Sean's direction).
+
+CONSENSUS (self-analysis vs voices; all disagreements resolved into the addendum):
+- CEO 6/6 confirmed — with findings folded in: deploy freeze (ACTIVE, announcer 8d9c91a),
+  janitor premise n=1 → cold-start probe, RPC-cost priced (verify-read redesign), alternatives
+  + pilot-exit + privacy-hedge header prose, viewer counter (ruled).
+- Design: 2 CRITICAL honesty defects in plan-created states (window-closed false promise F4;
+  anon-viewer error screen F5) → addendum 3a/3b; F1a/F2/F6/F7/F8/F9 → 3/3c/3d/3e; F3+F1b
+  deferred, logged in 3f.
+- Eng 6/6 confirmed after redesigns — blocking-1 verify-read → direct INSERT (item 1),
+  blocking-2 registry divergence (2a), blocking-3 publisher singleton + too_fast→true (2);
+  throttle race → atomic upsert (1a); clock skew → serverNow offset (1c); fix age → p_age_ms
+  past-only clamp (1b); thrown path (in 2); roster semantics (2b); probes (7).
+
+DECISION AUDIT TRAIL (taste decisions, auto-decided per the 6 principles, all logged here):
+| # | Decision | Principle | Rejected alternative |
+|---|---|---|---|
+| 1 | direct INSERT + typed-refusal handler over pruned verify-read | P5 explicit, P3 | keep realtime.send + inserted_at predicate (recurring tax to detect what an exception reports free) |
+| 2 | too_fast → true | P1 (it IS positive evidence of publishing) | keep-previous (starves the second surface) |
+| 3 | p_age_ms past-only clamp added | P1 completeness | stamp now() and rewrite the trunk comment (presents 120s-old fixes as fresh) |
+| 4 | camera: recenter button only, no auto re-fit | P5 | auto re-fit (fights the user's pan) |
+| 5 | F3 name chips + role marker assets deferred | P2 blast radius / P3 | build now (feature work inside a fix pass) |
+| 6 | serverNow offset over widening the skew constant | P1 | 60s constant (masks, doesn't fix) |
+| 7 | counter: per-(session, anon/authed, KST day), volatile roster, loud-fail | P5, honesty law | separate wrapper fn (a second door to the same data) |
+| 8 | registry diverges from sharedWatchers, documented | P5 | verbatim reuse (kills first-wake rejoin; no poll fallback exists) |
+
+NOT in scope (named): background-task pack publishing (pocketed-phone limitation — flagged
+follow-up slice) · tap-to-find chips / role-distinct assets · runner/home 'unmeasured' render
+(0158's Gap C) · Realtime message-quota math beyond pilot (exit-note prose) · any legal
+re-litigation (settled 2026-08-28).
+
+What already exists (leveraged, not rebuilt): sharedWatchers registry pattern (diverged,
+documented) · session_checkin band (window ④) · roster row-set predicate (copied into the
+publish gate, closing the divergence) · packCamera/agoLabel/eviction machinery · 184's
+is-distinct-from ACL pin form · 190's battery table format.
+
+Verdict: APPROVE-WITH-FIXES — the fixes ARE the addendum, applied before landing; the
+adversarial verify workflow + codex slice review then re-attack the result. Review scores:
+CEO strong-with-additions · Design REJECT-until-3a/3b-land (two CRITICALs in plan-created
+states) · Eng APPROVE-WITH-FIXES (3 blocking, all redesigned into the addendum).
