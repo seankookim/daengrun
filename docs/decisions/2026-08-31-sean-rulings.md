@@ -47,6 +47,23 @@ a doc drifting behind the artifact.)
 - **ClubTag 16/800 beside stateStrong 15/800: 「Leave as is」.** Pre-existing inversion, noted in
   DESIGN.md rather than fixed. Owner: UI session adds the DESIGN.md note; no code change.
 
+## 4. Spec v2 §14-OPEN: OPEN-A and OPEN-B (2026-08-31, structured options — unblocks S2.5→S3)
+
+- **OPEN-A: 「Hold ~20 min」.** An approved-but-unpaid signup holds its slot for 20 minutes
+  (the spec's calibrated default — a human just approved and is reaching for their card); after
+  that the slot releases to the next dog.
+- **OPEN-B: 「Signed-up gets access」.** Approval alone opens the session's group chat, roster,
+  and safety-case rights — payment is NOT the membership key. ⚠ This REJECTS the spec's proposal
+  to re-key `full` to paid and overrides the 0049 「application is not the door」 principle for
+  club sessions specifically; Sean chose it with the paid-only option and its trade-off (unpaid
+  stranger inside the private space) explicitly presented. Do not re-litigate. Natural corollary
+  left to the implementers: when an OPEN-A hold expires unpaid, the signup releases and access
+  ends with it — if any surface makes that corollary ambiguous, it comes back as a new console
+  question rather than a silent decision.
+
+OPEN-C (pack start display) and OPEN-F (runner pay when a leg disappears — money) remain open,
+queued behind these.
+
 ## Operational note, same day
 
 GitHub Actions is DOWN for this repo on a billing block: push cbe8af7's jobs (deno-edge,
