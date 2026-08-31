@@ -7,8 +7,8 @@ import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate,
 import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, cancelClubSession, ClubIncident, custodyOverride, DelegationBoard, DelegationDog,
-  DelegationRunner, fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve, incidentAssign,
-  incidentResolve, proposalRevoke, proposeDog, reviewDelegation,
+  DelegationRunner, endPackRuns, fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve,
+  incidentAssign, incidentResolve, PackRunEndResult, proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
@@ -60,6 +60,24 @@ function SecHead({ n, title, sub }: { n: string; title: string; sub?: string }) 
   );
 }
 
+// [0144] 러닝 종료 결과의 사유 어휘 — 서버 소스에서 전수 열거(0144, v_reason 대입 12곳).
+// 미지의 사유는 원문 그대로 보인다(지어내지 않는다). ⚠ not_started는 서버에서 두 원인(인계 후
+// 미시작 :399 · runs 행 없음 :425)이 한 토큰으로 평탄화된 것 — 카피는 그 합집합을 말한다.
+const END_BLOCK_REASON: Record<string, string> = {
+  not_started: '러너가 러닝을 시작하지 않았어요',
+  not_active: '진행 중인 러닝이 아니에요',
+  incident_open: '케이스가 열려 있어요',
+  no_trace: 'GPS 기록이 부족해요 — 픽스가 모자라거나 5분 넘게 끊겼어요',
+  km_out_of_band: '측정 거리가 정상 범위를 벗어났어요',
+  locked: '다른 처리가 진행 중이에요 — 잠시 후 다시 시도해주세요',
+  error: '서버 오류 — 이 아이만 다시 시도해주세요',
+  not_found: '예약 기록을 찾을 수 없어요',
+};
+const END_ALREADY_REASON: Record<string, string> = {
+  already_settled: '러너가 이미 정산을 마쳤어요',
+  already_ended: '이미 종료돼 있었어요',
+};
+
 export default function HostConsole() {
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [board, setBoard] = useState<DelegationBoard | null>(null);
@@ -71,6 +89,9 @@ export default function HostConsole() {
   // 버튼)이라 session/[sid].tsx가 세운 공용 시트 문법을 그대로 쓴다.
   const [forceTarget, setForceTarget] = useState<DelegationDog | null>(null);
   const [forceDraft, setForceDraft] = useState('');
+  // [0144] 마지막 러닝 종료 결과 — 세 개의 이름 붙은 목록. run()의 성공 load()가 보드를 갈아도
+  // 이 보고는 남는다: 호스트가 「누가 왜 안 닫혔나」를 읽는 표면이다.
+  const [endResult, setEndResult] = useState<PackRunEndResult | null>(null);
 
   // [honesty 2026-08-11] 보드 실패가 영원한 '불러오는 중...' 골목이던 것 — LoadGate 3상태.
   // 직전 실값은 유지 (리프레시 실패가 화면을 비우지 않는다).
@@ -259,6 +280,10 @@ export default function HostConsole() {
     && d.custodyPhase !== 'resolved'
     && ['picked_up', 'active'].includes(d.bookingStatus ?? '')
     && !d.isMine);   // isMine = 서버가 판정한 '내가 이 아이의 보호자' (클라가 재구성하지 않는다)
+  // [0144 · Sean 2026-08-31 「Wire it」] 러닝 종료 대상 — active이고 아직 얼지 않은 부킹 전부.
+  // ⚠ runStuck을 재사용하지 않는다: 그 필터의 !isMine은 force_resolve의 self_override 규칙인데
+  // club_end_pack_runs엔 그 규칙이 없다(0144:354-365 — 호스트 자기 개 포함). 재사용은 과소 보고다.
+  const packRunning = dogs.filter((d) => d.bookingStatus === 'active' && !d.runEnded);
   // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
   const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
   const doOverride = (d: DelegationDog, side: 'owner' | 'runner') => {
@@ -330,6 +355,27 @@ export default function HostConsole() {
           : null),
       },
     ]);
+  };
+  // [0144 · Sean 2026-08-31 「Wire it」] 호스트 러닝 종료 — 팩 전체를 서버 실측·한 시계로 얼린다.
+  // 눌리기 전까지는 러너 클라이언트 값이 장부를 매겼다(run-end 코덱스 리젝트 1번의 클라 절반).
+  // 반환값이 본론이라 doCancelSession의 내부-.then 문법을 쓴다. blocked는 보고이지 거절이 아니고
+  // (0144:287-289 — 호출은 성공), 목록은 개수가 아니라 이름으로 말한다(0144:281-285).
+  const doEndPack = () => {
+    Alert.alert('러닝 종료',
+      `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n각 아이의 거리·시간이 서버 기록으로 확정돼요.`,
+      [
+        { text: '아직', style: 'cancel' },
+        {
+          text: '러닝 종료',
+          onPress: () => run(
+            () => endPackRuns(sess.id).then((r) => setEndResult(r)),
+            '러닝 종료 실패',
+            (m) => m.includes('not_host') ? '호스트나 백업 호스트만 종료할 수 있어요'
+              : m.includes('session_closed') ? '이미 닫힌 세션이에요'
+              : null,
+          ),
+        },
+      ]);
   };
 
   // ---------- 결과 화면 (done) — 콘솔의 기계는 세션과 함께 끝난다. 읽기 전용 요약 + 남은 케이스만 ----------
@@ -624,6 +670,45 @@ export default function HostConsole() {
           <LilacCard crit>
             <Text style={{ fontSize: 15, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
             <Text style={{ fontSize: 15, color: L.text, marginTop: 6, lineHeight: 18 }}>{blockers.join(' · ')}</Text>
+          </LilacCard>
+        )}
+        {/* ---------- 러닝 종료 (0144 · Sean 2026-08-31 「Wire it」) ---------- */}
+        {/* 대상이 있을 때만 그린다 — 대상 없는 종료 버튼은 죽은 버튼이다. 호스트 자기 개 포함
+            (packRunning 파생의 주석 참조). */}
+        {packRunning.length > 0 && (
+          <View style={s.drow}>
+            <Text style={s.dogName}>러닝 중 — {packRunning.map((d) => d.dogName).join(' · ')}</Text>
+            <Text style={s.dogSub}>종료하면 각 아이의 거리·시간이 서버 기록으로 확정돼요</Text>
+            <View style={{ marginTop: 9 }}>
+              <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
+            </View>
+          </View>
+        )}
+        {endResult && (
+          <LilacCard>
+            <Text style={clubText.vkTitle}>러닝 종료 결과</Text>
+            {endResult.ended.map((r) => (
+              <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>
+                {r.dogName} — {r.km}km 확정
+              </Text>
+            ))}
+            {endResult.already.map((r) => (
+              <Text key={r.sdId} style={{ fontSize: 15, color: L.text, marginTop: 6 }}>
+                {r.dogName} — {END_ALREADY_REASON[r.reason] ?? r.reason}
+              </Text>
+            ))}
+            {endResult.blocked.map((r) => (
+              <View key={r.sdId} style={{ marginTop: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: L.tang }}>
+                  {r.dogName} — {END_BLOCK_REASON[r.reason] ?? r.reason}
+                </Text>
+                {r.incidentId != null && (
+                  <Pressable onPress={() => router.push(`/club/case/${r.incidentId}`)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.accent, textDecorationLine: 'underline' }}>케이스 보기 →</Text>
+                  </Pressable>
+                )}
+              </View>
+            ))}
           </LilacCard>
         )}
         {/* [클럽 감사 C4] 러닝이 끝나지 않은 개 — 인계까지 갔는데 러너가 시작/종료를 누르지 않으면

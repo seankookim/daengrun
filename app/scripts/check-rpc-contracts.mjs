@@ -50,7 +50,12 @@ const sigs = new Map(); // name -> [ [ {name, hasDefault} ] ]
 // `drop function`, so a dropped overload stays in `sigs` forever and a call matching only the
 // dead signature still passes. That is the pre-existing behaviour the comment below describes,
 // and narrowing it is a separate slice with its own blast radius — not a silent ride-along.
-const RE_FN = /create\s+(?:or\s+replace\s+)?function\s+([a-z_][a-z0-9_]*)\s*\(/gi;
+// [2026-08-31] `(?:public\.)?` — 스키마 한정 정의는 이 하비스터에 보이지 않았다: `public.`의
+// 점이 `\s*\(` 요구를 깨서, `create or replace function public.club_end_pack_runs(...)`(0144:290)가
+// sigs에 안 들어가고 그 호출은 「함수가 마이그레이션에 없음」으로 죽는다 — 게이트가 실제 배포
+// 함수를 못 보는 측정된 거짓 음성. 크루드 대조(수정 전/후 함수명 집합 diff): 정확히 2개 추가
+// (club_end_pack_runs · club_pack_map_roster), 삭제 0 — 둘 다 스키마 한정으로만 정의된 전부다.
+const RE_FN = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
 for (const f of readdirSync(migDir).filter((x) => x.endsWith('.sql')).sort()) {
   const sql = readFileSync(join(migDir, f), 'utf8');
   let m;

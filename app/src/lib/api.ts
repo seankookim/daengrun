@@ -4133,8 +4133,8 @@ export interface DelegationDog {
   // [R2] 커스터디·정산 축
   custodyPhase: string | null; custodianType: string | null; custodianProfileId: string | null; custodianExternal: string | null;
   // [0147] 호스트가 「러닝 종료」를 눌러 이 부킹의 수치가 서버에 얼어붙었는가.
-  // ⚠ OPTIONAL ON PURPOSE. 0147은 아직 배포되지 않았다(프로덕션 0130). 배포 전에는 이 키가 payload에
-  // 없어서 undefined → falsy → 화면은 지금과 똑같이 동작한다. 배포되는 순간 두 분기가 함께 켜진다.
+  // ⚠ OPTIONAL ON PURPOSE — 0147은 이제 배포됐지만(2026-08-31 확인, 프로덕션 ≥0156) 설치된
+  // 구버전 번들은 이 키가 없던 payload를 캐시했을 수 있다: undefined → falsy가 안전한 기본이다.
   // 서버는 boolean으로 투영한다(0147:145, `run_ended_at is not null`) — 타임스탬프가 아니다: 누가
   // 언제 눌렀는지는 보드 독자 전원이 알 필요가 없고, 여기서 묻는 것은 「얼었는가」 하나뿐이다.
   runEnded?: boolean;
@@ -4238,6 +4238,16 @@ export const hostForceResolve = (sdId: string, reason: string, artifact: unknown
   clubRpc('session_host_force_resolve', {
     p_session_dog: sdId, p_reason: reason, p_artifact: artifact,
   }) as Promise<string>;
+// [0144 · Sean 2026-08-31 「Wire it」] 호스트 러닝 종료 — 팩 전체의 거리·시간을 서버 실측으로
+// 한 시계에 얼린다. 반환은 세 개의 '이름 붙은 목록'이지 개수가 아니고(0144:281-285), blocked는
+// 보고이지 거절이 아니다 — 호출 자체는 성공한다(0144:287-289). 게이트는 호스트 OR 백업 호스트
+// (0144:340-343 — 이 패밀리에서 유일하게 백업을 들인다).
+export interface PackRunEnded { sdId: string; bookingId: string; runnerId: string; dogId: string; dogName: string; km: number; durationSec: number }
+export interface PackRunBlocked { sdId: string; dogId: string; dogName: string; reason: string; incidentId: string | null }
+export interface PackRunAlready { sdId: string; dogId: string; dogName: string; reason: string }
+export interface PackRunEndResult { session: string; at: string; ended: PackRunEnded[]; blocked: PackRunBlocked[]; already: PackRunAlready[] }
+export const endPackRuns = (sessionId: string) =>
+  clubRpc('club_end_pack_runs', { p_session: sessionId }) as Promise<PackRunEndResult>;
 // [R2] 이양 — 러너→러너(수락 필요) · clinic/authority(즉시·미드런은 원자 인시던트 경로)
 export const transferInitiate = (
   sdId: string, toType: 'runner' | 'clinic' | 'authority',
