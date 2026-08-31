@@ -19,7 +19,7 @@ import {
 } from '../../../src/lib/api'; // finishClubSession=콘솔 · settleRun/fetchRunStartedAt=클럽 런 화면
 import { ClubBoard } from '../../../src/components/club-board';
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
-import { getTrackPermission, resetTrace, startTracking } from '../../../src/lib/geo';
+import { getNaverMap, getTrackPermission, resetTrace, startTracking } from '../../../src/lib/geo';
 import { MediaImage } from '../../../src/lib/media';
 // useNumFont는 이 화면에서 은퇴했다 — 숫자 서체가 필요한 유일한 자리가 확정 시트의 요금이었고,
 // 그 요금은 승낙서로 옮겨갔다 (가격 비가시성, 재정 ④).
@@ -1397,8 +1397,10 @@ export default function ClubSessionShell() {
                 club/map/[sid]는 만들어져 있었고 어떤 화면도 밀지 않아 도달 불가였다) ---------- */}
             {/* 문은 체크인 창(checkinOpen)에만 연다 — 며칠 전의 팩 지도는 빈 방으로 가는
                 문이다(아래 :1254 인용의 같은 판정). 창 안의 빈 지도는 목적지가 정직하게
-                말한다(「아직 아무도 달리고 있지 않아요」 — map/[sid]:234). */}
-            {board?.session.checkinOpen && (
+                말한다(「아직 아무도 달리고 있지 않아요」 — map/[sid]:234).
+                지도 미탑재 빌드에선 그리지 않는다(codex F3) — 목적지가 「이 빌드에는 지도가
+                없어요」 터미널이면 보이는 CTA는 죽은 버튼이다. */}
+            {board?.session.checkinOpen && getNaverMap() != null && (
               <View style={{ marginTop: 10 }}>
                 <ClubCta
                   label="팩 지도 — 모두의 위치 →"

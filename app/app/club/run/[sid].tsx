@@ -114,11 +114,15 @@ export default function ClubRun() {
   // (api.ts:2511). 그래서 catch가 영영 안 돌고 board는 null인 채 '로딩'으로 읽혔다.
   // null-resolve를 '아직 로딩 중'과 같은 것으로 취급한 게 버그다 — 셋을 구분한다.
   const [boardLoaded, setBoardLoaded] = useState(false);
+  // [codex 2026-08-31 F1] 보드가 어느 세션의 것인지 기록한다 — sid가 바뀌는 순간 board는
+  // 이전 세션의 것인데 sid만 새것이라, 그 창에서 A 세션의 자격으로 B 세션 채널에 송신할 수
+  // 있었다. 자격 판정은 boardFor === sid일 때만 참/거짓을 말하고, 아니면 null(모름)이다.
+  const [boardFor, setBoardFor] = useState<string | null>(null);
   const load = useCallback(() => {
     if (!sid) return;
     setBoardErr(false);
     fetchDelegationBoard(sid)
-      .then((b) => { setBoard(b); setBoardLoaded(true); })
+      .then((b) => { setBoard(b); setBoardFor(sid); setBoardLoaded(true); })
       .catch(() => { setBoardErr(true); setBoardLoaded(true); });
     setRosterErr(false);
     fetchSessionRoster(sid).then(setRoster).catch(() => setRosterErr(true));
@@ -138,10 +142,12 @@ export default function ClubRun() {
   // 하고(liveSub 싱글턴은 건드리지 않는다 — km은 돈이다), 픽스가 실제로 들어올 때만 송신한다.
   // ⚠ identity는 이 화면의 데이터로 직접 만든다: 이 화면은 ClubSessionDetail이 아니라
   // DelegationBoard를 들고 있고, checkedIn 없는 러너는 개를 받을 수 없으므로(0038:42-44)
-  // joined∧checked_in과 같은 술어다. board 미도착 = null(모름) — false로 뭉개지 않는다.
+  // joined∧checked_in과 같은 술어다. board 미도착·타 세션 board = null(모름) — false로
+  // 뭉개지 않고, 참으로도 승격하지 않는다(codex F1: sid가 바뀐 직후의 stale board 창).
+  const boardIsMine = board != null && boardFor === (sid ? String(sid) : null);
   const packSharing = usePackShare(sid ? String(sid) : null, {
-    eligible: board == null ? null : meRunner ? meRunner.checkedIn : false,
-    name: meRunner?.name ?? null,
+    eligible: !boardIsMine ? null : meRunner ? meRunner.checkedIn : false,
+    name: boardIsMine ? meRunner?.name ?? null : null,
   });
 
   // 경과 = runs.started_at 실측. [감사 P1] 실패 시 재시도 없던 것 — 틱 안에서 미확보면 재요청
@@ -408,12 +414,14 @@ export default function ClubRun() {
             <Text style={{ fontSize: 15, color: '#7a5a2a' }}>앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</Text>
           </View>
         )}
-        {/* 내 위치가 지금 팩 지도에 공개되고 있다는 사실은, 그게 참일 때만 말한다 —
-            companion/[sid].tsx:282와 같은 문법. false/null엔 아무 말도 하지 않는다:
-            「공유 안 되고 있어요」는 측정 전엔 주장이다. */}
+        {/* 상태 줄은 이 클라이언트가 실제로 아는 것만 말한다(codex F2): true는 「신선한 픽스가
+            있고 송신을 켰다」까지다 — 채널 조인 전엔 패킷이 버려지고 send 실패는 삼켜지므로
+            「공유되고 있어요」(수신됨)는 주장이 된다. 그래서 카피는 로컬 사실(켜짐)로 말한다.
+            false/null엔 아무 말도 하지 않는다: 「공유 안 되고 있어요」도 측정 전엔 주장이다.
+            잉크는 L.text — L.dim(4.24:1)은 플로어 미달로 새 코드에 쓰지 않는다(theme.ts:80-86). */}
         {packSharing === true && (
-          <Text style={{ fontSize: 15, lineHeight: 19, color: L.dim, marginTop: 6, marginBottom: 2, paddingHorizontal: 4 }}>
-            팩 지도에 내 위치가 공유되고 있어요
+          <Text style={{ fontSize: 15, lineHeight: 19, color: L.text, marginTop: 6, marginBottom: 2, paddingHorizontal: 4 }}>
+            팩 지도 공유가 켜져 있어요
           </Text>
         )}
 
