@@ -117,7 +117,9 @@ export default function DelegateConsentScreen() {
           <View pointerEvents="none" style={s.paperInner} />
           <View style={s.pdHead}>
             <Text style={[{ fontSize: 16, color: INK }, df]}>위탁 승낙서</Text>
-            <Text style={s.pdHeadMono}>CONSENT · v1 — 不變</Text>
+            {/* [Sean 2026-08-31 「Drop 不變」] 순수 라틴 키커만 마이크로캡스 예외를 탄다 —
+                CJK(不變)는 이 크기에서 살아남지 못한다. 규칙은 그대로, 문자열만 고쳤다. */}
+            <Text style={s.pdHeadMono}>CONSENT · v1</Text>
           </View>
 
           {/* 위탁견 선택 */}

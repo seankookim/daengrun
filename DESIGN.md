@@ -247,6 +247,14 @@ had already discovered this locally and fixed only itself).
 16/800, radius 0, tinted fill + no border, and it sits on the **same baseline row
 as the datum it qualifies** (a booking's status belongs beside its date, not
 floating in a corner).
+- ⚠ Known, ruled inversion (Sean 2026-08-31: 「Leave as is」): in the club world,
+  `ClubTag` at 16/800 sits beside `clubText.stateStrong` at 15/800 — the chip is
+  larger than the state line it annotates. Created by the 2026-08-27 floor sweep;
+  recorded here rather than fixed. Do not "fix" it in passing; if it ever moves,
+  it is a director's call across all club screens at once.
+- Avatar-dot initials (DogDot/Monogram one-character Hangul) are ruled GLYPHS
+  (Sean 2026-08-31) — they ride the glyph exemption and may render below the
+  15pt floor at their computed sizes.
 
 ### Cards
 Radius 0 everywhere including the club card — the earlier club exception covered
