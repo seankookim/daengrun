@@ -12,8 +12,10 @@ Sean's signed-in account)** — these rows are ✅ and need no re-check:
 
 **Not verifiable with current fixtures — the smoke list.** Every row below needs the state named
 in it; none of it could be produced read-only against production. The installed sim build
-`com.seankookim.daengrun` (2026-08-31) contains everything up to U4c; U4b needs a rebuild
-(`xcodebuild … -derivedDataPath /tmp/dd-ui-master` then `simctl install booted`).
+`com.seankookim.daengrun` (2026-08-31, second install of the day) now contains EVERYTHING in this
+wave — U2/U3/U4b/U4c/U5, the chat rescue, the 예약 규칙 editor, and all 13 round-2 codex fixes
+(trunk b8ce1c8; bundle freshness proven by the `doAssumeHost` literal before install). No rebuild
+is pending for any row below.
 
 | # | Surface | Needs | What to look at |
 |---|---|---|---|
