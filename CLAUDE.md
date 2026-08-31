@@ -1008,12 +1008,16 @@ decision provenance). The bullets below are the load-bearing extract; on any con
   Exempt only: letterspaced uppercase **latin** kickers, serial/MRZ strings, glyphs — **Korean text
   never rides the kicker exemption** (`DESIGN.md:150`).
   ⚠ **Raising a floor is not a find-and-replace**: on owner home, moving kickers to the bare minimum
-  would have preserved an inverted hierarchy, so they went to 19 (`DESIGN.md:147-152`). And the club
-  world is uniformly still at 14 — `clubText.stateStrong/body/dim/vkTitle` and `mastSub`
-  (`club-ui.tsx:360-377`), plus ~52 sites in `club/session/[sid].tsx`. **A new club screen written
-  at 14 「to match its neighbours」 ships below the floor on day one; written at 15 it is visibly out
-  of step with everything adjacent.** That is a director's call with a blast radius of all eight
-  club screens, not an implementer's.
+  would have preserved an inverted hierarchy, so they went to 19 (`DESIGN.md:147-152`).
+  ⚠ **The club world is AT 15 — corrected 2026-08-31.** The line here previously read 「the club
+  world is uniformly still at 14」; that was swept on 2026-08-27 (`4f4bbed` 69 files, `aa48f02` 71
+  club session/console sites — `clubText.*` reads 15 on trunk) and the stale line then fed a wrong
+  premise into a master prompt, which produced a ruling ordering a sweep that was already done
+  (`docs/decisions/2026-08-31-sean-rulings.md` §correction). Sean's standing ruling, same file:
+  **「15 everywhere」 — new club screens are written at 15.** The two floor exceptions he ruled the
+  same day: avatar-dot initials are glyphs (exempt), and the kicker exemption stays latin-only
+  (不變 dropped from the delegate kicker rather than exempted). Third instance of this file
+  drifting behind the artifact — trust DESIGN.md and the decisions ledger over any extract here.
 - Display fonts: Black Han Sans once per screen (useDisplayFont). Oswald numerals (useNumFont) require explicit lineHeight ≥1.2× ("BUG A" — ascenders clip without it).
 - Holo foil budget: monogram + one ticket edge per surface, no more.
 - Small white text never sits directly on coral/sage — use an ink plate (≥4.5:1).
