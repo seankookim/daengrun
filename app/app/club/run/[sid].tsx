@@ -85,8 +85,13 @@ export default function ClubRun() {
   const hydrateFromServer = useCallback(async (bookingId: string) => {
     if (hydrated.current) return;
     hydrated.current = true;
+    // [codex r3-7 radius] 같은 unscoped-async 클래스: A의 하이드레이션이 sid 교체 뒤에 풀리면
+    // A의 서버 트레이스를 B의 싱글턴에 시드한다 — r3-6의 리셋이 버퍼를 비워 두므로 93행의
+    // 「버퍼가 비어 있으면」 게이트가 stale 응답에 오히려 문을 열어 준다. 응답을 버린다.
+    const requestSid = liveSid.current;
     try {
       const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
+      if (liveSid.current !== requestSid) return;
       const saved: { lat: number; lng: number; t: number }[] = (data as any)?.trace ?? [];
       // [2026-08-08] km 재계산은 seedTrace(=mergeFixes)가 한다 — 라이브와 하이드레이션이
       // 같은 게이트를 쓰지 않으면 두 숫자가 갈라진다. 이미 픽스가 들어온 뒤면 덮지 않는다.
@@ -118,15 +123,27 @@ export default function ClubRun() {
   // 이전 세션의 것인데 sid만 새것이라, 그 창에서 A 세션의 자격으로 B 세션 채널에 송신할 수
   // 있었다. 자격 판정은 boardFor === sid일 때만 참/거짓을 말하고, 아니면 null(모름)이다.
   const [boardFor, setBoardFor] = useState<string | null>(null);
-  // [codex 2026-08-31 r2-F3] sid 교체는 화면 상태를 즉시 비운다 — A의 보드가 B의 sid 아래에서
-  // 담당 목록·액션을 굴리는 창을 남기지 않는다(송신은 boardFor가 이미 막지만, 화면의 나머지는
-  // 아니었다). ⚠ 잔여: geo.ts의 트레이스 버퍼는 모듈 싱글턴이라 여기서 못 비운다 — 그 절반은
-  // pack/geo 소유 세션의 것으로 전달됨.
+  // [codex 2026-08-31 r2-F3 + r3-5/6/7] sid 교체는 화면 상태를 즉시 비운다 — A의 보드가 B의
+  // sid 아래에서 담당 목록·액션을 굴리는 창을 남기지 않는다. r3가 잡은 나머지: ① 종료 모달
+  // (endTarget)이 살아남아 B의 마스트 아래에서 A의 부킹을 정산할 수 있었다 ② 트레이스(모듈
+  // 싱글턴 + 이 파일의 로컬 미러)가 B로 넘어가 saveClubRunTrace(B)가 A의 GPS를 B의 돈 기록에
+  // 쓸 수 있었다 — r2-F3 주석의 「pack/geo 소유 세션 몫」은 절반만 맞았다: resetTrace()는 이
+  // 파일이 이미 부르는 함수고(언마운트 정리), 로컬 미러 다섯 개는 전적으로 이 파일 것이다
+  // ③ roster가 A 것으로 남아 B의 개가 sdId 매칭에 실패, 「비상 연락처 미등록」을 지어냈다(안전
+  // 데이터의 발명 — honesty 법). 순서 안전: saveTrace 인터벌의 cleanup(A의 마지막 저장)이 이
+  // 본문보다 먼저 돌고, build(trace.current)는 첫 await 전에 동기로 스냅샷을 뜬다.
   const liveSid = useRef(sid);
   useEffect(() => {
     liveSid.current = sid;
     setBoard(null); setBoardFor(null); setBoardLoaded(false); setBoardErr(false);
     hydrated.current = false; startedAtMs.current = null;
+    setEndTarget(null); setEndStep('reason'); setConditionNote('');
+    setRoster(null); setSaveLag(false); setElapsed(0);
+    resetTrace();
+    trace.current = []; kmRef.current = 0;
+    setKm(0); setPathLen(0); setLastPos(null);
+    // fetchingStart는 일부러 안 비운다: A의 요청이 살아 있는 동안 B의 중복 요청을 계속 막고,
+    // A의 .finally가 풀면 1초 티커가 B를 다시 요청한다 (응답 자체는 requestSid 가드가 버린다).
   }, [sid]);
   const load = useCallback(() => {
     if (!sid) return;
@@ -173,8 +190,15 @@ export default function ClubRun() {
     const first = active[0]?.bookingId;
     if (!first || startedAtMs.current != null || fetchingStart.current) return;
     fetchingStart.current = true;
+    // [codex r3-7] load()와 같은 stale-drop: A의 응답이 B의 리셋 뒤에 startedAtMs를 쓰면,
+    // 이후 모든 게이트가 non-null을 보고 B의 요청을 영영 안 보낸다 — 경과 시계가 A의 것으로
+    // 굳는다 (흡수 상태). 응답을 버리는 것이 유일한 교정 경로다.
+    const requestSid = liveSid.current;
     fetchRunStartedAt(first)
-      .then((iso) => { if (iso) startedAtMs.current = new Date(iso).getTime(); })
+      .then((iso) => {
+        if (liveSid.current !== requestSid) return;
+        if (iso) startedAtMs.current = new Date(iso).getTime();
+      })
       .catch(() => {})
       .finally(() => { fetchingStart.current = false; });
   }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -267,6 +291,9 @@ export default function ClubRun() {
   // [감사 P1] Math.max(60, elapsed)는 시간을 지어냈다 — 실측 그대로 보낸다 (40초 러닝은 40초다).
   const doSettle = async (d: DelegationDog, endReason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal', note?: string) => {
     if (!d.bookingId || busy) return;
+    // [codex r3-5 belt] 현재 보드의 활성 목록에 없는 대상은 정산하지 않는다 — sid 리셋이 놓친
+    // 어떤 미래 경로에서도 stale 모달이 다른 세션의 부킹을 정산하는 일이 없게 하는 마지막 문.
+    if (!active.some((x) => x.sdId === d.sdId)) return;
     // [0147] 얼어붙은 쌍에서는 GPS 거절이 러너를 가둔다: settle-run:115-118은 frozen 경로에서
     // km·사유·시간·노트를 서버 행에서 읽으므로 여기서 잴 것이 남아 있지 않은데, 거절만 남아 종료를
     // 막는다. 얼지 않았을 때의 거절은 그대로 — 그때는 실측이 유일한 근거이고 이 화면이 마지막 방어선이다.

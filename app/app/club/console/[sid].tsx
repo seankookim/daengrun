@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
@@ -105,8 +105,19 @@ export default function HostConsole() {
   // [honesty 2026-08-11] 보드 실패가 영원한 '불러오는 중...' 골목이던 것 — LoadGate 3상태.
   // 직전 실값은 유지 (리프레시 실패가 화면을 비우지 않는다).
   const [boardErr, setBoardErr] = useState(false);
+  // [codex r3-8] run/[sid]의 r2-F3 관용구 그대로 — 오늘의 진입은 전부 router.push(새 인스턴스)라
+  // 도달 불가지만, 메커니즘은 동일 클래스고(늦은 A 응답이 B를 덮고, endResult의 sid 검사가
+  // stale 짝끼리 통과), navigate/딥링크 하나로 무장한다. 잠재 창을 지금 닫는 값이 한 ref다.
+  const liveSid = useRef(sid);
+  useEffect(() => {
+    liveSid.current = sid;
+    setBoard(null); setBoardErr(false); setIncidents([]);
+    setBackupFacts(null); setBackupErr(false);
+    setEndResult(null); setForceTarget(null); setForceDraft('');
+  }, [sid]);
   const load = useCallback(() => {
     if (!sid) return;
+    const requestSid = sid;
     setBoardErr(false);
     // ⚠ [codex re-review P1] `now` is re-stamped as the board LANDS, not only by the 1s interval.
     // Without it a board that gains a hold via refresh renders its first frame against a MOUNT-ERA
@@ -114,12 +125,18 @@ export default function HostConsole() {
     // until the first tick corrects it. An inflated clock for one second is still a fabricated
     // number. Stamped HERE rather than inside the interval effect on purpose — a synchronous
     // setState in an effect trips the cascading-render rule, and this is the same instant anyway.
-    fetchDelegationBoard(sid).then((b) => { setNow(Date.now()); setBoard(b); }).catch(() => setBoardErr(true));
+    fetchDelegationBoard(requestSid)
+      .then((b) => { if (liveSid.current !== requestSid) return; setNow(Date.now()); setBoard(b); })
+      .catch(() => { if (liveSid.current === requestSid) setBoardErr(true); });
     // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
-    fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
+    fetchSessionIncidents(requestSid)
+      .then((r) => { if (liveSid.current === requestSid) setIncidents(r); })
+      .catch(() => {});
     // [U4b] 백업 사실 — 보드가 투영하지 않아 별도 읽기. 실패는 실패로(backupErr), 성공은 덮는다.
     setBackupErr(false);
-    fetchSessionBackup(sid).then(setBackupFacts).catch(() => setBackupErr(true));
+    fetchSessionBackup(requestSid)
+      .then((f) => { if (liveSid.current === requestSid) setBackupFacts(f); })
+      .catch(() => { if (liveSid.current === requestSid) setBackupErr(true); });
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
@@ -149,6 +166,20 @@ export default function HostConsole() {
       <LoadGate
         mode={boardErr ? 'error' : 'loading'}
         errorLabel="호스트 콘솔을 불러오지 못했어요"
+        onRetry={load}
+        onBack={goBackOrHome}
+      />
+    );
+  }
+  // [codex r3-9] 비호스트의 자격은 backupFacts가 도착해야 말할 수 있다 — 대기 중은 로딩이지
+  // 판정이 아니고, 실패는 라우드 + 재시도다. 이전엔 진짜 백업이 보드/백업 fetch 경합에서
+  // 「호스트나 백업 호스트만」으로 튕겼고, 실패 시엔 영구히 튕겼다(backupErr는 호스트 전용
+  // 본문에만 그려져 정작 당사자는 볼 수 없었다).
+  if (!board.session.isHost && backupFacts == null) {
+    return (
+      <LoadGate
+        mode={backupErr ? 'error' : 'loading'}
+        errorLabel="백업 호스트 정보를 불러오지 못했어요"
         onRetry={load}
         onBack={goBackOrHome}
       />

@@ -37,6 +37,13 @@ export type PayPhase =
   // see the COLLECTION block at the foot of this file for what they are derived from.
   | 'not_charged'      // 환불/정산이 끝났지만 청구된 돈이 없다 — 환불이 아니라 무청구다 (#11)
   | 'paid'             // 정산 + 수금 모두 끝났다 — 실결제가 일어난 예약 (플래그 이후)
+  // [codex 2026-08-31 r3-2] captured 안에서 갈라지는 두 칸. 'canceled'/'partial_canceled'는
+  // 돈이 움직였다는 사실(captured)과 돌아왔다는 사실(refunded)을 동시에 말하는 단어인데,
+  // captured 하나로 접으면 전액 환불된 결제가 「결제 완료」로 렌더된다 — 실측: confirm-payment의
+  // autoCancel(handler.ts:244-250)이 'canceled'+refunded_amount를 쓰고, 그 예약은 0060의
+  // 스윕으로 expired가 되므로 이 조합은 오늘 프로덕션에서 도달 가능하다.
+  | 'refunded'         // 결제됐던 금액이 전액 환불됐다 — 'canceled'만 있는 captured
+  | 'refund_partial'   // 결제 금액 중 일부만 환불됐다 — 'partial_canceled' 또는 혼합
   | 'collect_pending'  // 정산은 끝났고 청구가 아직 처리되지 않았다 (#12)
   | 'collect_failed'   // 정산은 끝났고 청구가 실패했다 — 사람이 움직여야 하는 칸 (#12)
   | 'charge_unknown';  // 결제 상태를 읽지 못했다 — '청구 없음'으로 위장하지 않는다
@@ -97,7 +104,14 @@ export function derivePayPhase(
     // AND the cancelled family (cancel fees mint here — codex 2026-08-31 F2) share one fold:
     // what the screen may say is decided by the payments rows, not by which terminal the
     // booking reached.
-    if (c.captured) return 'paid';
+    // [codex r3-2] captured 안에서 환불을 가른다. 우선순위는 종전과 동일하게 captured가
+    // outstanding을 이긴다(canceled+pending 혼합이 'refunded'로 렌더되는 것은 종전에 'paid'로
+    // 렌더되던 것과 같은 순위 선택이다 — 순위를 바꾸는 것은 별도의 제품 결정).
+    if (c.captured) {
+      if (c.refunded === 'full') return 'refunded';
+      if (c.refunded === 'partial') return 'refund_partial';
+      return 'paid';
+    }
     if (c.outstanding === 'failed') return 'collect_failed';
     if (c.outstanding === 'pending') return 'collect_pending';
     // Rows exist but none of them is a charge: the whole booking priced to 0원 (`waived`).
@@ -155,35 +169,82 @@ export interface Collection {
   outstanding: 'none' | 'pending' | 'failed' | 'unknown';
   /** At least one payments row exists. FALSE is the whole card-less pilot: nothing was ever minted. */
   minted: boolean;
+  /** [codex r3-2] Did captured money come BACK? Word-primary ('canceled' = the PG fully cancelled
+   *  that charge; 'partial_canceled' = part of it), because the server may leave `refunded_amount`
+   *  at its 0 default (autoCancel sets it; nothing guarantees every future writer does). 'full'
+   *  only when every captured row is 'canceled'; any kept money alongside a refund is 'partial'. */
+  refunded: 'none' | 'partial' | 'full';
+  /** [codex r3-3] Server-committed sums off the rows themselves — the ONLY numbers a payment-fact
+   *  label (결제 금액/청구 금액/환불 금액) may bind. `null` = a summed row lacked the field: render
+   *  '—', never the planned fare under a payment-fact label (fail-closed, same as charge_unknown). */
+  capturedGross: number | null;   // Σ amount over captured-word rows
+  refundedTotal: number | null;   // Σ refunded_amount over captured-word rows
+  capturedNet: number | null;     // gross − refunded, clamped ≥ 0
+  outstandingAmount: number | null; // Σ amount over pending+failed rows (the uncollected mint)
 }
 
 /** The answer when the read itself failed. Not a state of the booking — a state of our knowledge. */
-export const COLLECTION_UNKNOWN: Collection = { captured: null, outstanding: 'unknown', minted: false };
+export const COLLECTION_UNKNOWN: Collection = {
+  captured: null, outstanding: 'unknown', minted: false, refunded: 'none',
+  capturedGross: null, refundedTotal: null, capturedNet: null, outstandingAmount: null,
+};
 
 /**
  * Fold this booking's `payments` rows into the facts the screen may state. `null`/`undefined` (the
  * read threw) and a row carrying a word we do not know both land on UNKNOWN.
+ * Amount fields are optional so status-only callers (tests, older fixtures) stay legal — their
+ * sums come back `null` (= not measured), never 0.
  */
-export function summarizeCollection(rows: readonly { status: string }[] | null | undefined): Collection {
+export function summarizeCollection(
+  rows: readonly { status: string; amount?: number | null; refundedAmount?: number | null }[] | null | undefined,
+): Collection {
   if (!rows) return COLLECTION_UNKNOWN;
   let captured = false;
   let unknownWord = false;
   let pending = false;
   let failed = false;
+  let sawConfirmed = false;
+  let sawCanceled = false;
+  let sawPartial = false;
+  // Sums stay numbers only while every contributing row carries a finite field; one gap → null.
+  let gross: number | null = 0;
+  let refundedSum: number | null = 0;
+  let outSum: number | null = 0;
+  const addTo = (acc: number | null, v: number | null | undefined): number | null =>
+    acc === null || typeof v !== 'number' || !Number.isFinite(v) ? null : acc + v;
   for (const r of rows) {
     const st = String(r?.status ?? '');
-    if (CAPTURED_STATUSES.includes(st)) { captured = true; continue; }
+    if (CAPTURED_STATUSES.includes(st)) {
+      captured = true;
+      if (st === 'confirmed') sawConfirmed = true;
+      else if (st === 'canceled') sawCanceled = true;
+      else sawPartial = true;
+      gross = addTo(gross, r.amount);
+      refundedSum = addTo(refundedSum, r.refundedAmount);
+      continue;
+    }
     // A word we do not recognise could be either kind, so it poisons BOTH answers rather than
     // being quietly skipped — a dropped row is exactly how 「nothing was charged」 gets invented.
     if (!UNCAPTURED_STATUSES.includes(st)) { unknownWord = true; continue; }
-    if (st === 'failed') failed = true;
-    else if (st === 'pending') pending = true;
+    if (st === 'failed') { failed = true; outSum = addTo(outSum, r.amount); }
+    else if (st === 'pending') { pending = true; outSum = addTo(outSum, r.amount); }
   }
-  if (unknownWord) return { captured: null, outstanding: 'unknown', minted: rows.length > 0 };
+  if (unknownWord) return { ...COLLECTION_UNKNOWN, minted: rows.length > 0 };
+  // Refund evidence: a refund word, or a kept-word row whose refunded_amount is provably > 0.
+  const refundEvidence = sawCanceled || sawPartial || (refundedSum !== null && refundedSum > 0);
+  const refunded: Collection['refunded'] = !captured || !refundEvidence ? 'none'
+    : sawConfirmed || sawPartial ? 'partial'
+    : 'full';
+  const net = gross !== null && refundedSum !== null ? Math.max(0, gross - refundedSum) : null;
   return {
     captured,
     outstanding: failed ? 'failed' : pending ? 'pending' : 'none',
     minted: rows.length > 0,
+    refunded,
+    capturedGross: captured ? gross : gross === null ? null : 0,
+    refundedTotal: captured ? refundedSum : refundedSum === null ? null : 0,
+    capturedNet: captured ? net : net === null ? null : 0,
+    outstandingAmount: outSum,
   };
 }
 

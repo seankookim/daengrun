@@ -6,7 +6,7 @@ import { BookingCharge, fetchBookingCharge, fetchBookingPayments } from '../../s
 import { useNumFont } from '../../src/lib/fonts';
 import { kstAmPm, kstCal, kstClock, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
-import { collectionMatters, derivePayPhase, PayPhase, summarizeCollection } from '../../src/lib/payphase';
+import { Collection, collectionMatters, derivePayPhase, PayPhase, summarizeCollection } from '../../src/lib/payphase';
 import { paper, pricing } from '../../src/theme';
 
 // 청구 표면 `/owner/pay?bid=` — 예약 하나의 청구 상태를 서버 진실로만 말하는 **읽기 전용** 화면.
@@ -50,6 +50,9 @@ const CHIP: Record<PayScreen, string> = {
   // [codex #11/#12] 상태만으로는 못 하는 말들 — payphase.ts의 COLLECTION 블록 참조
   not_charged: 'NO CHARGE · 청구 없음',
   paid: 'PAID · 결제 완료',
+  // [codex r3-2] 환불된 결제는 '결제 완료'가 아니다 — captured 안의 두 갈래
+  refunded: 'REFUND · 환불 완료',
+  refund_partial: 'REFUND · 일부 환불',
   // [codex F2] 취소 수수료도 이 두 페이즈로 들어온다 — SETTLED(정산됨)는 완료 러닝에만 참이라
   // 상태 불문 참인 CHARGE로 바꿨다.
   collect_pending: 'CHARGE · 결제 대기',
@@ -72,6 +75,9 @@ const HEAD: Record<PayScreen, string> = {
   // 0152의 알림이 쓰는 문장과 같은 말을 쓴다 — 두 표면이 갈라지지 않게 (0152:225 「이번 건은 청구되지 않아요」).
   not_charged: '이번 건은 청구되지 않았어요',
   paid: '결제가 완료됐어요',
+  // [codex r3-2] 환불의 두 사실 — 전액이 돌아왔는가, 일부만 돌아왔는가
+  refunded: '결제 금액이 환불됐어요',
+  refund_partial: '결제 금액 중 일부가 환불됐어요',
   // [codex F2] 완료 러닝의 수금과 취소 수수료가 같은 페이즈를 쓴다 — 문장은 둘 다에 참인
   // 것만 말한다(「정산은 끝났고」는 취소엔 거짓이었다).
   collect_pending: '청구가 아직 처리되지 않았어요',
@@ -112,6 +118,8 @@ export default function Pay() {
   const holdLabel = Number.isFinite(holdMs) ? kstClock(kstCal(holdMs)) : null;
   const [screen, setScreen] = useState<PayScreen>('loading');
   const [charge, setCharge] = useState<BookingCharge | null>(null);
+  // [codex r3-3] 접힌 불리언만 넘기면 화면이 실금액을 렌더할 수 없다 — Collection 자체를 든다.
+  const [collection, setCollection] = useState<Collection | null>(null);
   const [busy, setBusy] = useState(false);
   const [failReason, setFailReason] = useState<string | null>(null);
 
@@ -135,6 +143,7 @@ export default function Pay() {
       if (!c) { setCharge(null); setScreen('not_found'); return; } // 0행·남의 예약 (H3/M5)
       setCharge(c);
       const collection = summarizeCollection(pays);
+      setCollection(collection);
       // 못 읽은 사실이 **이 상태에서 실제로 필요할 때만** 라우드 스트립에 사유를 싣는다.
       setFailReason(payErr && collectionMatters(c.status) ? payErr : null);
       // attempt 인자는 넘기지 않는다 — 클라이언트가 만드는 PG 시도 레코드가 더 이상 없다.
@@ -168,6 +177,7 @@ export default function Pay() {
     <PayView
       screen={screen}
       charge={charge}
+      collection={collection}
       busy={busy}
       failReason={failReason}
       holdLabel={holdLabel}
@@ -180,6 +190,9 @@ export default function Pay() {
 export interface PayViewProps {
   screen: PayScreen;
   charge: BookingCharge | null;
+  /** [codex r3-3] payments 행의 실금액 합 — 결제/청구/환불 라벨이 붙는 칸의 유일한 출처.
+   *  없으면(구 호출자·랩) 그 라벨의 칸은 '—'로 떨어진다 — 계획 요금을 그 자리에 쓰지 않는다. */
+  collection?: Collection | null;
   busy: boolean;
   failReason: string | null;
   holdLabel?: string | null; // [리뷰 #5] 실홀드 만료 HH:MM — mock_pending에서만 표시
@@ -191,9 +204,14 @@ export interface PayViewProps {
 
 // 순수 표현 컴포넌트 — 상태는 위에서만 만든다. dev 페이즈 랩(app/dev/pay-lab.tsx)이 이걸 그대로 쓴다
 // (L2: 프로덕션 화면에 __DEV__ 분기를 만들지 않기 위해 뷰를 밖으로 뽑았다).
-export function PayView({ screen, charge, busy, failReason, holdLabel, onReload, onBack }: PayViewProps) {
+export function PayView({ screen, charge, collection, busy, failReason, holdLabel, onReload, onBack }: PayViewProps) {
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(총액)
   const dots = useEllipsis(screen === 'authorizing'); // 스피너 연출 금지 — 말줄임표만 움직인다
+  // [codex r3-4] rawStatus 법: 표시 어휘(페이즈)가 completed와 취소 가족을 한 칸으로 접었으므로,
+  // '러닝' 문장은 rawStatus로만 게이트한다. expired가 '취소' 어휘를 타는 것은 STATUS_MAP이 이미
+  // 확정한 목록 어휘와 같다.
+  const cancelFamily = charge != null
+    && (charge.status === 'cancelled_owner' || charge.status === 'cancelled_runner' || charge.status === 'expired');
   // [codex #12] 수금 실패와 '확인 불가'도 라우드다 — 정산이 성공했다는 사실이 결제 실패를
   // 조용하게 만들어서는 안 된다 (성공 화면 안에 실패를 숨기지 않는다).
   const loud = screen === 'failed' || screen === 'error'
@@ -245,19 +263,45 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
             <View style={{ height: 3 }} />
             <View style={s.rule} />
             <View style={s.totalRow}>
-              {/* [codex 2026-08-31 F1] 이 표는 bookings 쪽 '계획'의 분해다 — 「결제 금액」은
-                  실수금(captured)이 있는 페이즈에서만 참말이다. waived 0원 행에서 들어온 화면이
-                  계획 요금을 「결제 금액」으로 찍던 것이 발견. 실결제 행 단위의 Ⓒ1 영수증
-                  (실측·실금액) 재구축은 별도 슬라이스로 남아 있다. */}
-              <Text style={s.totalLabel}>
-                {screen === 'paid' ? '결제 금액'
-                  : screen === 'collect_pending' || screen === 'collect_failed' ? '청구 금액'
-                  : '예상 요금'}
-              </Text>
-              <View style={s.amtWrap}>
-                <Text style={[s.totalAmt, nf]}>{charge ? charge.totalPrice.toLocaleString('ko-KR') : '—'}</Text>
-                <Text style={s.totalUnit}>원</Text>
-              </View>
+              {/* [codex 2026-08-31 r3-3] 총액 칸은 라벨과 숫자가 한 몸이다. 위의 표는 여전히
+                  bookings 쪽 '계획'의 분해지만, 돈이 실제로 움직였거나 청구가 서 있는 페이즈의
+                  총액은 payments 행의 합(collection)만 말할 수 있다 — 취소 수수료 30,000원이
+                  계획 요금 100,000원을 「청구 금액」으로 입고 나오던 자리. 합을 모르면 '—'다:
+                  계획 요금을 결제-사실 라벨 아래에 대신 쓰지 않는다 (charge_unknown과 같은
+                  fail-closed 방향). 「예상 요금」은 청구가 아직 올 수 있는 상태에서만 참이라,
+                  더 올 것이 없는 종점은 중립 「예약 요금」으로 말한다. */}
+              {(() => {
+                const planned = charge ? charge.totalPrice : null;
+                const cell: { label: string; amount: number | null } =
+                  screen === 'paid' || screen === 'refund_partial'
+                    ? { label: '결제 금액', amount: collection?.capturedNet ?? null }
+                  : screen === 'refunded'
+                    ? {
+                        label: '환불 금액',
+                        amount: collection != null && collection.refundedTotal != null && collection.refundedTotal > 0
+                          ? collection.refundedTotal
+                          : collection?.capturedGross ?? null,
+                      }
+                  : screen === 'collect_pending' || screen === 'collect_failed'
+                    ? { label: '청구 금액', amount: collection?.outstandingAmount ?? null }
+                  : screen === 'refund_pending'
+                    ? { label: '결제 금액', amount: collection?.capturedGross ?? null }
+                  : screen === 'loading' || screen === 'mock_pending' || screen === 'authorizing'
+                      || screen === 'authorized' || screen === 'failed'
+                    ? { label: '예상 요금', amount: planned }
+                  : { label: '예약 요금', amount: planned };
+                return (
+                  <>
+                    <Text style={s.totalLabel}>{cell.label}</Text>
+                    <View style={s.amtWrap}>
+                      <Text style={[s.totalAmt, nf]}>
+                        {cell.amount != null ? cell.amount.toLocaleString('ko-KR') : '—'}
+                      </Text>
+                      <Text style={s.totalUnit}>원</Text>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           </View>
         )}
@@ -311,21 +355,44 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
             자세한 근거는 알림과 케이스에서 볼 수 있어요
           </Text>
         )}
+        {/* [codex r3-4] 아래 세 칸의 '러닝' 문장은 completed에서만 참이다. 페이즈가 completed와
+            취소 가족을 한 칸으로 접었으므로(F2 확장) 문장은 rawStatus(cancelFamily)로 가른다.
+            취소 수수료 어휘의 근거: 취소 예약에 payments 행을 만드는 유일한 서버 경로가
+            raw.kind='cancel_fee'를 쓴다 (0118:600). */}
         {screen === 'paid' && (
-          <Text style={s.body}>러닝이 끝나고 결제까지 완료됐어요 — 영수증은 설정 → 결제 관리에 남아요</Text>
+          <Text style={s.body}>
+            {cancelFamily
+              ? '예약은 취소됐고, 취소 수수료 결제는 완료됐어요 — 영수증은 설정 → 결제 관리에 남아요'
+              : '러닝이 끝나고 결제까지 완료됐어요 — 영수증은 설정 → 결제 관리에 남아요'}
+          </Text>
+        )}
+        {/* [codex r3-2] captured 안의 환불 두 칸 — 숫자는 payments 행의 합만 말한다(모르면 말 안 함) */}
+        {(screen === 'refunded' || screen === 'refund_partial') && (
+          <Text style={s.body}>
+            {screen === 'refunded'
+              ? '결제됐던 금액이 환불됐어요'
+              : collection != null && collection.refundedTotal != null && collection.refundedTotal > 0
+                ? `결제 금액 중 ${collection.refundedTotal.toLocaleString('ko-KR')}원이 환불됐어요`
+                : '결제 금액 중 일부가 환불됐어요'}
+            {'\n'}자세한 내역은 설정 → 결제 관리에서 볼 수 있어요
+          </Text>
         )}
         {/* [codex #12] 정산과 수금은 서로 다른 사건이다 (settle-run 순서 법칙: 원장이 먼저 커밋되고,
             수금 실패는 그것을 되돌리지 않는다). 그래서 두 문장을 한 화면에서 갈라 말한다 — 러너는
             이미 정산을 받았고, 남은 것은 이 카드뿐이라는 사실이 보호자가 알아야 할 전부다. */}
         {screen === 'collect_pending' && (
           <Text style={s.body}>
-            러닝 정산은 끝났어요 — 카드 청구만 아직 처리되지 않았어요{'\n'}
+            {cancelFamily
+              ? '예약은 취소됐어요 — 취소 수수료 청구가 아직 처리되지 않았어요'
+              : '러닝 정산은 끝났어요 — 카드 청구만 아직 처리되지 않았어요'}{'\n'}
             결제 관리에서 지금 상태와 다시 시도할 수 있는지 확인할 수 있어요
           </Text>
         )}
         {screen === 'collect_failed' && (
           <Text style={s.body}>
-            러닝 정산은 정상적으로 끝났어요 — 카드 청구만 실패했어요{'\n'}
+            {cancelFamily
+              ? '예약은 취소됐어요 — 취소 수수료 청구가 실패했어요'
+              : '러닝 정산은 정상적으로 끝났어요 — 카드 청구만 실패했어요'}{'\n'}
             결제 관리에서 사유를 보고 다시 시도할 수 있어요
           </Text>
         )}
@@ -346,8 +413,11 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
             {/* 라우드 스트립은 네 칸이 각자 다른 말을 한다 — 「실패」한 대상이 서로 다르기 때문이다.
                 (catch 가 만드는 문장도 제품 표면이라는 법: 두 갈래가 각각 따로 검수받는다.) */}
             <Text style={s.failTxt}>
+              {/* [codex r3-4] 「러너 정산은 이미 완료됐어요」는 취소 수수료에서 검증되지 않은
+                  주장이다 — 취소 가족에서는 그 절을 말하지 않는다. */}
               {screen === 'failed' ? '예약 확정 전이가 실패했어요'
-                : screen === 'collect_failed' ? '카드 청구가 실패했어요 — 러너 정산은 이미 완료됐어요'
+                : screen === 'collect_failed'
+                  ? (cancelFamily ? '취소 수수료 청구가 실패했어요' : '카드 청구가 실패했어요 — 러너 정산은 이미 완료됐어요')
                 : screen === 'charge_unknown' ? '결제 내역을 읽지 못했어요'
                 : '서버에서 결제 정보를 받지 못했어요'}
               {failReason ? `\n${failReason}` : ''}
@@ -407,7 +477,8 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onReload,
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}
-        {screen === 'paid' && (
+        {/* [codex r3-2] 환불 두 칸도 같은 문 — 내역(행 단위 환불 금액)은 결제 관리가 렌더한다 */}
+        {(screen === 'paid' || screen === 'refunded' || screen === 'refund_partial') && (
           <PaperBtn label="결제 내역 보기" onPress={() => router.push('/payments')} />
         )}
         {(screen === 'mock_pending' || screen === 'cancelled' || screen === 'refund_pending'

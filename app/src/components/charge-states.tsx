@@ -88,6 +88,9 @@ export function PaymentRow({ p, showDog = true, onPress }: { p: PaymentRecord; s
       // 스크린리더에서 사라지던 것. 행이 말하는 사실 전부를 라벨에 싣는다.
       accessibilityLabel={[
         title,
+        // [codex r3-16] 보이는 「청구 <날짜>」 줄이 라벨에 빠져 있었다 — title의 날짜는
+        // scheduledAt 우선이라, 예약일이 있는 보통의 행에서 청구일은 아예 들리지 않았다.
+        `청구 ${dayLabel(p.createdAt)}`,
         `${p.amount.toLocaleString('ko-KR')}원`,
         paymentStatusLabel(p.status, p.underReview),
         p.refundedAmount > 0 ? `환불 ${p.refundedAmount.toLocaleString('ko-KR')}원` : null,

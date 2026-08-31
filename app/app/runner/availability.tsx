@@ -148,7 +148,16 @@ export default function Availability() {
     setRulesState('loading');
     fetchMyBookingRules()
       .then((r) => {
-        if (r == null) { setRulesState('absent'); return; }
+        if (r == null) {
+          // [codex r3-18] 부재는 막다른 골목이 아니라 편집 가능한 상태다 — 예전 카피(「러너 등록을
+          // 마치면 생겨요」)는 이미 등록된 러너에게 거짓이었다(온보딩 insert가 한 번 실패하면 행이
+          // 영구 부재였다). 서버가 그동안 실제로 판정에 쓰는 값(0003:42-46의 coalesce 30/4)을
+          // 시드로 보여주되 「저장 전」이라고 말하고, 저장(upsert)이 행을 만든다.
+          setRules({ restAfterMin: 30, maxSessionsPerDay: 4 });
+          setRulesBase(null);
+          setRulesState('absent');
+          return;
+        }
         setRules(r);
         setRulesBase({ ...r });
         setRulesState('ready');
@@ -158,17 +167,20 @@ export default function Availability() {
   useEffect(() => { loadRules(); }, [loadRules]);
   const rulesDirty = rules != null && rulesBase != null
     && (rules.restAfterMin !== rulesBase.restAfterMin || rules.maxSessionsPerDay !== rulesBase.maxSessionsPerDay);
+  // 부재 상태의 저장은 값이 안 바뀌어도 의미가 있다 — 아직 아무것도 저장돼 있지 않다.
+  const rulesSavable = rules != null && (rulesState === 'absent' || rulesDirty);
   // 클램프 — 서버엔 CHECK가 없다(0001:108-114는 default뿐): 자기 슬롯 계산에만 먹는 값이라
   // 타인을 겨냥하진 못하지만, 0분 미만·비상식 상한은 클라가 막는다. 휴식 0..120 · 상한 1..8.
   const bumpRest = (delta: number) => setRules((r) => (r ? { ...r, restAfterMin: Math.min(Math.max(r.restAfterMin + delta, 0), 120) } : r));
   const bumpMax = (delta: number) => setRules((r) => (r ? { ...r, maxSessionsPerDay: Math.min(Math.max(r.maxSessionsPerDay + delta, 1), 8) } : r));
   const saveRules = async () => {
-    if (!rules || !rulesDirty) return;
+    if (!rules || !rulesSavable) return;
     setRulesSaving(true);
     const written = { ...rules };
     try {
       await saveMyBookingRules(written);
       setRulesBase(written);
+      setRulesState('ready'); // [r3-18] 부재였다면 upsert가 행을 만들었다 — 이제 저장된 상태다
     } catch (e) {
       Alert.alert('규칙 저장 실패', (e as Error).message);
     } finally {
@@ -350,17 +362,16 @@ export default function Availability() {
             </Pressable>
           </View>
         )}
-        {rulesState === 'absent' && (
-          /* 행은 러너 등록이 만든다 — 없다는 건 등록 전이거나 데이터 문제. 기본값을 지어내
-             그리지 않고 부재를 부재로 말한다. */
+        {(rulesState === 'ready' || rulesState === 'absent') && rules && (
           <View style={s.card}>
-            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.text, textAlign: 'center', paddingVertical: 10 }}>
-              예약 규칙이 아직 만들어지지 않았어요 — 러너 등록을 마치면 생겨요
-            </Text>
-          </View>
-        )}
-        {rulesState === 'ready' && rules && (
-          <View style={s.card}>
+            {rulesState === 'absent' && (
+              /* [codex r3-18] 부재를 부재로 말하되 문은 연다 — 서버는 행이 없으면 coalesce로
+                 30분/4회를 판정에 써 왔다(0003:42-46). 아래 값은 그 사실의 표시일 뿐 저장 전이다. */
+              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, paddingTop: 10, paddingBottom: 2 }}>
+                아직 저장된 규칙이 없어요 — 지금은 기본값(휴식 30분 · 하루 4회)으로 판정되고
+                있어요. 아래에서 저장하면 내 규칙이 만들어져요.
+              </Text>
+            )}
             <View style={{ paddingVertical: 11 }}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
@@ -369,8 +380,10 @@ export default function Availability() {
                     확정 예약 앞뒤로 이 시간만큼 새 예약을 막아요
                   </Text>
                 </View>
+                {/* [codex r3-19] 경계에서 죽은 버튼을 만들지 않는다 — disabled + a11y state */}
                 <Stepper value={`${rules.restAfterMin}분`} nf={nf}
                   onMinus={() => bumpRest(-10)} onPlus={() => bumpRest(10)}
+                  minusDisabled={rules.restAfterMin <= 0} plusDisabled={rules.restAfterMin >= 120}
                   a11yMinus="휴식 10분 빼기" a11yPlus="휴식 10분 더하기" />
               </Row>
             </View>
@@ -385,10 +398,11 @@ export default function Availability() {
                 </View>
                 <Stepper value={`${rules.maxSessionsPerDay}회`} nf={nf}
                   onMinus={() => bumpMax(-1)} onPlus={() => bumpMax(1)}
+                  minusDisabled={rules.maxSessionsPerDay <= 1} plusDisabled={rules.maxSessionsPerDay >= 8}
                   a11yMinus="하루 최대 1회 빼기" a11yPlus="하루 최대 1회 더하기" />
               </Row>
             </View>
-            {rulesDirty && (
+            {rulesSavable && (
               <Pressable
                 onPress={saveRules}
                 disabled={rulesSaving}
@@ -396,7 +410,10 @@ export default function Availability() {
                 accessibilityRole="button"
               >
                 <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>
-                  {rulesSaving ? '저장 중...' : `규칙 저장 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`}
+                  {rulesSaving ? '저장 중...'
+                    : rulesState === 'absent'
+                      ? `규칙 만들기 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`
+                      : `규칙 저장 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`}
                 </Text>
               </Pressable>
             )}
@@ -432,23 +449,30 @@ export default function Availability() {
   );
 }
 
-function Stepper({ value, nf, onMinus, onPlus, a11yMinus = '30분 빼기', a11yPlus = '30분 더하기' }: {
+function Stepper({ value, nf, onMinus, onPlus, a11yMinus = '30분 빼기', a11yPlus = '30분 더하기', minusDisabled = false, plusDisabled = false }: {
   value: string; nf: TextStyle | null; onMinus: () => void; onPlus: () => void;
   /* [U5] 예약 규칙 스텝퍼가 재사용하면서 하드코드였던 접근성 라벨이 거짓말이 됐다 — 기본값은
      기존 호출부(시간 그리드) 그대로, 새 호출부만 자기 라벨을 넘긴다. */
   a11yMinus?: string; a11yPlus?: string;
+  /* [codex r3-19] 경계에서 아나운스되는 버튼이 눌러도 아무 일도 없던 침묵(죽은 버튼 + a11y).
+     기본값 false = 그리드 호출부는 바이트 동일(D② 프리즈: 클램프-인사이드·dirty 무조건은 그
+     기계의 동결된 동작이고, 두 스텝퍼 가족이 경계에서 갈라지는 것은 감독 판단 대기 — 레저 참조).
+     비활성 잉크는 명시적 색(paper.dim)이다 — 불투명도 트릭 금지(charge-states:147 문법). */
+  minusDisabled?: boolean; plusDisabled?: boolean;
 }) {
   return (
     <Row style={s.stepper}>
-      <Pressable onPress={onMinus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={a11yMinus}>
-        <Text style={s.stepBtnText}>−</Text>
+      <Pressable onPress={onMinus} disabled={minusDisabled} style={s.stepBtn} accessibilityRole="button"
+        accessibilityLabel={a11yMinus} accessibilityState={{ disabled: minusDisabled }}>
+        <Text style={[s.stepBtnText, minusDisabled && { color: paper.dim }]}>−</Text>
       </Pressable>
       <View style={{ paddingHorizontal: 12, justifyContent: 'center' }}>
         {/* Oswald time value — lineHeight 25 = 1.28× (BUG A) */}
         <Text style={[{ fontSize: 19.5, lineHeight: 25, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{value}</Text>
       </View>
-      <Pressable onPress={onPlus} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={a11yPlus}>
-        <Text style={s.stepBtnText}>＋</Text>
+      <Pressable onPress={onPlus} disabled={plusDisabled} style={s.stepBtn} accessibilityRole="button"
+        accessibilityLabel={a11yPlus} accessibilityState={{ disabled: plusDisabled }}>
+        <Text style={[s.stepBtnText, plusDisabled && { color: paper.dim }]}>＋</Text>
       </Pressable>
     </Row>
   );

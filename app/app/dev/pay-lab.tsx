@@ -12,6 +12,7 @@ import { Redirect } from 'expo-router';
 import { PayScreen, PayView } from '../owner/pay';
 import { ChargeBanner, PaymentRow } from '../../src/components/charge-states';
 import { BookingCharge, PaymentRecord } from '../../src/lib/api';
+import { Collection, summarizeCollection } from '../../src/lib/payphase';
 import { paper } from '../../src/theme';
 
 export default function PayLabScreen() {
@@ -26,8 +27,23 @@ export default function PayLabScreen() {
 const SCREENS: PayScreen[] = [
   'loading', 'not_found', 'mock_pending', 'authorizing', 'authorized',
   'disputed', 'failed', 'cancelled', 'refund_pending',
-  'not_charged', 'paid', 'collect_pending', 'collect_failed', 'charge_unknown', 'error',
+  'not_charged', 'paid', 'refunded', 'refund_partial',
+  'collect_pending', 'collect_failed', 'charge_unknown', 'error',
 ];
+
+// [codex r3-3] 결제-사실 라벨(결제/청구/환불 금액)이 붙는 칸은 payments 행의 합만 말한다 —
+// 랩도 실제 fold(summarizeCollection)를 그대로 태워 페이즈별 대표 행을 만든다. 수수료 8,400원이
+// 계획 27,900원과 다른 것이 요점이다: 이 괴리를 보여주는 것이 이 슬라이스의 존재 이유다.
+const COLLECTION_FIX: Partial<Record<PayScreen, Collection>> = {
+  paid: summarizeCollection([{ status: 'confirmed', amount: 27900, refundedAmount: 0 }]),
+  refunded: summarizeCollection([{ status: 'canceled', amount: 27900, refundedAmount: 27900 }]),
+  refund_partial: summarizeCollection([{ status: 'partial_canceled', amount: 27900, refundedAmount: 9000 }]),
+  refund_pending: summarizeCollection([{ status: 'confirmed', amount: 27900, refundedAmount: 0 }]),
+  collect_pending: summarizeCollection([{ status: 'pending', amount: 8400 }]),
+  collect_failed: summarizeCollection([{ status: 'failed', amount: 8400 }]),
+  not_charged: summarizeCollection([{ status: 'waived', amount: 0 }]),
+  charge_unknown: summarizeCollection([{ status: 'mystery_word(픽스처)' }]),
+};
 
 // 픽스처 — 서버 행 모양 그대로 (addons는 {key,price}, label 없음)
 // [D2 2026-08-13] baseFare 9,900 → 7,900: 9,900은 이제 러너 정산 기준이고 보호자 기본요금이
@@ -110,6 +126,7 @@ function PayLab() {
           <PayView
             screen={screen}
             charge={charge}
+            collection={COLLECTION_FIX[screen] ?? null}
             busy={busy}
             failReason={failReason}
             /* [O-5 §E.5.1] onConfirm/onRetry는 PayView에서 사라졌다 — 결제 확정 경로가

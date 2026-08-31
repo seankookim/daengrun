@@ -942,10 +942,15 @@ export async function ensureRunner(): Promise<void> {
   });
   if (error) throw error;
   // 기본 가용시간: 매일 06:00–22:00 (편집은 가용시간 설정 화면)
-  await supabase.from('runner_availability_rules').insert(
+  // [codex r3-18] 두 insert의 error를 버리지 않는다 — runners 행이 이미 선 뒤 이 둘이 조용히
+  // 실패하면, 위의 early return 때문에 어떤 재호출도 다시 시도하지 않아 부재가 영구가 된다.
+  // 던지는 것이 부재 제조를 막고, 이미 제조된 부재는 편집기의 upsert(saveMyBookingRules)가 치유한다.
+  const availIns = await supabase.from('runner_availability_rules').insert(
     [0, 1, 2, 3, 4, 5, 6].map((wd) => ({ runner_id: uid, weekday: wd, start_min: 360, end_min: 1320 })),
   );
-  await supabase.from('runner_booking_rules').insert({ runner_id: uid });
+  if (availIns.error) throw availIns.error;
+  const rulesIns = await supabase.from('runner_booking_rules').insert({ runner_id: uid });
+  if (rulesIns.error) throw rulesIns.error;
 }
 
 export interface OpenRequest {
@@ -2119,9 +2124,15 @@ export async function fetchMyBookingRules(): Promise<RunnerBookingRules | null> 
 export async function saveMyBookingRules(r: RunnerBookingRules): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
+  // [codex r3-18] UPDATE → upsert. UPDATE는 행이 없으면 0행 매치로 조용히 '성공'했고, 온보딩
+  // insert가 한 번 실패한 러너는 행이 영영 없다(ensureRunner의 early return이 재시도를 막는다).
+  // upsert는 0002:79 「booking rules self all」(FOR ALL, using runner_id = auth.uid() — WITH CHECK
+  // 부재 시 INSERT에도 USING이 적용된다) 아래 합법이고, PK(runner_id)가 충돌 대상을 정확히 잡는다.
   const { error } = await supabase.from('runner_booking_rules')
-    .update({ rest_after_min: r.restAfterMin, max_sessions_per_day: r.maxSessionsPerDay })
-    .eq('runner_id', user.user.id);
+    .upsert(
+      { runner_id: user.user.id, rest_after_min: r.restAfterMin, max_sessions_per_day: r.maxSessionsPerDay },
+      { onConflict: 'runner_id' },
+    );
   if (error) throw error;
 }
 
@@ -4294,11 +4305,18 @@ export const clubAssumeHost = (sessionId: string) =>
 // 한다: 백업은 커밋 러너만 될 수 있으므로(0047:310-313) 그 목록 밖이면 목록 밖이라고 말한다.
 export interface SessionBackupFacts { hostProfileId: string | null; backupProfileId: string | null; iAmBackup: boolean }
 export const fetchSessionBackup = async (sessionId: string): Promise<SessionBackupFacts> => {
-  const [{ data: u }, { data, error }] = await Promise.all([
+  const [{ data: u, error: authError }, { data, error }] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from('club_sessions').select('host_profile_id, backup_host_profile_id').eq('id', sessionId).maybeSingle(),
   ]);
   if (error) throw error;
+  // [codex r3-10] getUser 실패를 조용히 넘기면 로그인된 백업이 iAmBackup=false — 발명된 사실 —
+  // 로 굳는다. fetchMessages와 같은 법: 실패는 던진다(두 호출부 모두 실패 경로가 있다).
+  // uid가 error 없이 null인 것(진짜 비로그인)은 다르다 — 비로그인은 백업이 아니라는 게 참말이다.
+  if (authError) throw authError;
+  // 0030:133 「sessions public read」 using(true)가 대체 없이 서 있으므로(위 주석) 행 없음은
+  // RLS 은닉이 아니라 진짜 부재다 — '백업 없음'(전부 null 사실)을 지어내는 대신 부재를 던진다.
+  if (!data) throw new Error('session not found');
   const backup = (data as any)?.backup_host_profile_id ?? null;
   const uid = u?.user?.id ?? null;
   return {

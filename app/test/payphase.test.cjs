@@ -49,11 +49,17 @@ const ALL_PHASES = [
   'loading', 'not_found', 'mock_pending', 'authorizing', 'authorized', 'disputed', 'failed',
   'cancelled', 'refund_pending', 'not_charged', 'paid', 'collect_pending', 'collect_failed',
   'charge_unknown',
+  // [codex r3-2 · 2026-08-31] captured split in two: a canceled/partial_canceled payment is money
+  // that moved AND came back — folding it into 'paid' rendered 결제 완료 for a refunded charge
+  // (reachable today: confirm-payment autoCancel + 0060's expired sweep).
+  'refunded', 'refund_partial',
 ];
-// The three phases that make a CLAIM ABOUT MONEY. Each of them is a sentence an owner will act on.
+// The money-claim phases. Each of them is a sentence an owner will act on.
 const REFUND_CLAIM = 'refund_pending';   // "your money is coming back"
 const NO_CHARGE_CLAIM = 'not_charged';   // "you were never charged"
 const PAID_CLAIM = 'paid';               // "your card was charged and it worked"
+const REFUNDED_CLAIM = 'refunded';       // [r3-2] "your money came back, all of it"
+const PARTIAL_CLAIM = 'refund_partial';  // [r3-2] "part of your money came back"
 
 // payments.status — the six words the production CHECK `payments_status_vocab` allows, split by
 // `payments_settled_has_key`: the first three cannot exist without a payment_key (money moved),
@@ -71,7 +77,12 @@ t('summarize(null) — a failed read is UNKNOWN, not "no rows"', () => {
   deq(summarizeCollection(undefined), COLLECTION_UNKNOWN);
 });
 t('summarize([]) — zero rows is a PROVEN absence of capture, and nothing minted', () => {
-  deq(summarizeCollection([]), { captured: false, outstanding: 'none', minted: false });
+  // [r3-2/3 re-pin] The shape grew: refunded (word-derived) + four server-committed sums. Over
+  // zero READABLE rows the sums are a true 0 (not null — null is "a summed row lacked the field").
+  deq(summarizeCollection([]), {
+    captured: false, outstanding: 'none', minted: false, refunded: 'none',
+    capturedGross: 0, refundedTotal: 0, capturedNet: 0, outstandingAmount: 0,
+  });
 });
 for (const st of MOVED) {
   t('summarize([' + st + ']) — captured (payments_settled_has_key forbids it without a key)', () => {
@@ -88,7 +99,12 @@ t('failed outranks pending — the row a human must act on is the one that names
   eq(summarizeCollection(rows('failed', 'pending')).outstanding, 'failed');
 });
 t('waived alone is neither captured nor outstanding — 0원 by policy is settled, not owed', () => {
-  deq(summarizeCollection(rows('waived')), { captured: false, outstanding: 'none', minted: true });
+  // [r3-2/3 re-pin] same shape growth as the []-pin above; a status-only waived row contributes
+  // to no sum, so the sums stay a true 0 over the rows that were summed (none).
+  deq(summarizeCollection(rows('waived')), {
+    captured: false, outstanding: 'none', minted: true, refunded: 'none',
+    capturedGross: 0, refundedTotal: 0, capturedNet: 0, outstandingAmount: 0,
+  });
 });
 t('minted distinguishes "priced to zero" from "never minted" — the pilot lives in the second', () => {
   eq(summarizeCollection([]).minted, false);
@@ -189,6 +205,67 @@ t('P3 — the paid sentence is never reached without a capture', () => {
       eq(collection && collection.captured, true, 'paid claimed without a capture');
     }
   }
+});
+
+// ── P9 · [codex r3-2] the refund split inside captured ──────────────────────────────────────
+// A canceled/partial_canceled payment is money that moved AND came back. Word-primary on purpose:
+// autoCancel sets refunded_amount, but nothing guarantees every future writer does, so the WORD
+// is the fact and the amounts are display refinement.
+const mrow = (status, amount, refundedAmount = 0) => ({ status, amount, refundedAmount });
+for (const status of ['completed', 'cancelled_owner', 'cancelled_runner', 'expired']) {
+  t('P9 — ' + status + ' + canceled-only rows -> 환불 완료, never 결제 완료', () => {
+    eq(derivePayPhase({ status, collection: summarizeCollection(rows('canceled')) }), REFUNDED_CLAIM);
+  });
+  t('P9 — ' + status + ' + partial_canceled -> 일부 환불', () => {
+    eq(derivePayPhase({ status, collection: summarizeCollection(rows('partial_canceled')) }), PARTIAL_CLAIM);
+  });
+  t('P9 — ' + status + ' + confirmed alone still -> 결제 완료 (no refund invented)', () => {
+    eq(derivePayPhase({ status, collection: summarizeCollection(rows('confirmed')) }), PAID_CLAIM);
+  });
+}
+t('P9 — kept money beside a refund is PARTIAL, not full (confirmed + canceled mix)', () => {
+  eq(derivePayPhase({ status: 'completed', collection: summarizeCollection(rows('confirmed', 'canceled')) }), PARTIAL_CLAIM);
+});
+t('P9 — a confirmed row with refunded_amount > 0 is refund evidence (amount-derived arm)', () => {
+  eq(summarizeCollection([mrow('confirmed', 22900, 3000)]).refunded, 'partial');
+  eq(derivePayPhase({ status: 'completed', collection: summarizeCollection([mrow('confirmed', 22900, 3000)]) }), PARTIAL_CLAIM);
+});
+t('P9 — refund_pending + canceled rows keeps the in-progress sentence (server truth lags PG)', () => {
+  eq(derivePayPhase({ status: 'refund_pending', collection: summarizeCollection(rows('canceled')) }), REFUND_CLAIM);
+});
+t('P9b — the refund-done sentences are never reached without captured refund evidence', () => {
+  for (const status of ALL_STATUSES) {
+    for (const collection of COLLECTION_SHAPES) {
+      const p = derivePayPhase({ status, collection });
+      if (p !== REFUNDED_CLAIM && p !== PARTIAL_CLAIM) continue;
+      eq(collection && collection.captured, true, status + ': refund-done claimed without a capture');
+      eq(collection && collection.refunded !== 'none', true, status + ': refund-done claimed without refund evidence');
+    }
+  }
+});
+
+// ── P10 · [codex r3-3] the sums a payment-fact label may bind — server-committed or null ────
+t('P10 — amounts sum only when every contributing row carries the field; one gap -> null', () => {
+  const full = summarizeCollection([mrow('canceled', 15900, 15900)]);
+  eq(full.refunded, 'full');
+  eq(full.capturedGross, 15900); eq(full.refundedTotal, 15900); eq(full.capturedNet, 0);
+  const part = summarizeCollection([mrow('partial_canceled', 27900, 9000)]);
+  eq(part.refunded, 'partial');
+  eq(part.capturedGross, 27900); eq(part.refundedTotal, 9000); eq(part.capturedNet, 18900);
+  const mix = summarizeCollection([mrow('confirmed', 22900, 0), mrow('canceled', 8400, 8400)]);
+  eq(mix.refunded, 'partial');
+  eq(mix.capturedGross, 31300); eq(mix.capturedNet, 22900);
+  // status-only rows (older callers, fixtures): the WORD still classifies, the sums say "not measured"
+  const wordOnly = summarizeCollection(rows('canceled'));
+  eq(wordOnly.refunded, 'full');
+  eq(wordOnly.capturedGross, null); eq(wordOnly.refundedTotal, null); eq(wordOnly.capturedNet, null);
+  eq(summarizeCollection(rows('pending')).outstandingAmount, null);
+  eq(summarizeCollection([mrow('pending', 8400)]).outstandingAmount, 8400);
+  eq(summarizeCollection([mrow('pending', 8400), mrow('failed', 5000)]).outstandingAmount, 13400);
+});
+t('P10 — an unknown word nulls the sums along with everything else (no number survives UNKNOWN)', () => {
+  const c = summarizeCollection([mrow('confirmed', 22900, 0), { status: 'mystery', amount: 999 }]);
+  eq(c.capturedGross, null); eq(c.outstandingAmount, null); eq(c.capturedNet, null); eq(c.refundedTotal, null);
 });
 
 // ── P4 · at the derive layer: unknown never resolves into a money claim ─────────────────────

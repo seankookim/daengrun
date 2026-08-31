@@ -209,7 +209,12 @@ export default function ClubSessionShell() {
   const [hostThread, setHostThread] = useState<string | null>(null); // 열린 1:1 상대 (호스트: 신청자 id · 참가자: 'me')
   const [threadDraft, setThreadDraft] = useState('');
   // [U4b] 백업 호스트 사실 — null = 모름. 인수 카드는 iAmBackup === true에서만 그린다.
-  const [backupFacts, setBackupFacts] = useState<SessionBackupFacts | null>(null);
+  // [codex r3-11] rosterOf 관용구(아래 rosterIssued 주석) 그대로 sid를 태깅한다 — 화면이 유지된
+  // 채 sid가 바뀌면 A의 iAmBackup이 B 위에 인수 카드·콘솔 문을 그렸고(서버는 not_backup으로
+  // 거절 — 죽은 버튼), 늦게 온 A 응답이 B의 사실을 덮을 수 있었다. 파생 읽기가 sid 불일치를
+  // 즉시 null(모름)로 떨어뜨리므로 리셋과 stale-drop이 한 수로 끝난다.
+  const [backupOf, setBackupOf] = useState<{ sid: string; data: SessionBackupFacts } | null>(null);
+  const backupFacts = backupOf && backupOf.sid === sid ? backupOf.data : null;
 
   // [honesty P1 2026-08-11] 세션 실패가 앱 대표 딥링크에서 영원한 '불러오는 중...'(백 없음)
   // 이던 것 — LoadGate 3상태 + 돌아가기 상시. 직전 실값은 유지.
@@ -224,7 +229,8 @@ export default function ClubSessionShell() {
     fetchShellAccess(sid).then(setAccess).catch(() => {});
     // [U4b] 백업 사실 — 인수 카드는 iAmBackup일 때만 그리므로 실패는 조용히 이전 값 유지
     // (백업이 아닌 대다수에게 이 읽기는 카드 없음 = 카드 없음이다).
-    fetchSessionBackup(sid).then(setBackupFacts).catch(() => {});
+    // [r3-11] 응답에 요청 시점의 sid를 태깅한다 — load의 클로저가 그 sid를 들고 있다.
+    fetchSessionBackup(sid).then((f) => setBackupOf({ sid, data: f })).catch(() => {});
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -313,11 +319,17 @@ export default function ClubSessionShell() {
   }, [ticking]);
   // [감사 P2] 체크인 창 판정이 렌더 시점에 얼어 버튼이 제때 안 나타나던 것 — 참여 중이면 30초 저빈도 틱
   const joinedWaiting = sess?.joined === true && sess?.myAttendance === 'rsvp';
+  // [codex r3-12] 인수 카드의 T−30 게이트도 이 `now`를 읽는다 — 백업이 체크인했거나(joinedWaiting
+  // false) 배정만 받은 상태면 어떤 티커도 돌지 않아, 화면을 열어 둔 백업에게 카드가 영영 안
+  // 나타났다(리렌더로도 안 풀린다: 게이트가 Date.now()가 아니라 now 상태를 읽는다). 지정된
+  // 백업 한 명에게만, 세션이 열려 있는 동안만 도는 30초 틱 — 체크인 링과 같은 예산이다.
+  const backupWaiting = backupFacts?.iAmBackup === true
+    && (sess?.status === 'open' || sess?.status === 'full');
   useEffect(() => {
-    if (!joinedWaiting || ticking) return;
+    if ((!joinedWaiting && !backupWaiting) || ticking) return;
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
-  }, [joinedWaiting, ticking]);
+  }, [joinedWaiting, backupWaiting, ticking]);
 
   // [재정 ⑤] 카드 연결하러 결제 관리로 나갔다가 돌아온 보호자 — 하려던 자리 확정 시트를 다시 연다.
   // 한 번만 연다(파라미터를 즉시 비운다): 포커스마다 시트가 튀어나오는 화면은 길잡이가 아니라 덫이다.
@@ -366,7 +378,10 @@ export default function ClubSessionShell() {
             if (busy) return;
             setBusy(true);
             clubAssumeHost(sess.id)
-              .then(() => { haptic('success'); load(); })
+              // [r3-11] 인수 성공은 백업 사실을 즉시 무효화한다 — 재읽기(load)가 실패하면 A의
+              // iAmBackup=true가 남아, 새 호스트에게 서버가 거절할 인수 버튼이 산 채로 보였다.
+              // null = 모름이고 두 소비처 모두 null에 아무것도 안 그린다; 재읽기가 복원한다.
+              .then(() => { haptic('success'); setBackupOf(null); load(); })
               .catch((e) => {
                 const m = (e as Error).message;
                 Alert.alert('인수 실패',
