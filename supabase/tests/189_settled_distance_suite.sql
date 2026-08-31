@@ -24,11 +24,21 @@
 --   become equal, because a later edit to `t_active_booking`'s default km would otherwise turn this
 --   pin back into 156 P2 without anyone noticing.
 --
--- ⚠ 165's `b_reasg` fixture IS AMENDED BY THIS SLICE, in-file, with the reason recorded there:
---   its run carried `actual_km = NULL` and `end_reason = NULL`, so once §A reads `r.actual_km` the
---   disclosure pin 165-P2 would have gone VACUOUSLY GREEN — both projections NULL for reasons that
---   have nothing to do with the attribution gate it exists to hold. (The `end_reason` arm was
---   already vacuous before this slice; that is reported, not hidden.)
+-- 🔴 **THIS SLICE ORIGINALLY AMENDED 165's `b_reasg` FIXTURE, AND THE AMENDMENT WAS A NO-OP.**
+--   The draft added `update runs set actual_km = 9.0, end_reason = 'incident'` immediately after
+--   `b_reasg` is created, on the stated premise that `t_active_booking` leaves both NULL and that
+--   165-P2 would otherwise go VACUOUSLY GREEN once §A reads `r.actual_km`. **The premise is false
+--   and was measured false**: 165 ALREADY sets exactly those two values, four lines further down
+--   (`165:63-64` on trunk, `update runs set ended_at = now(), actual_km = 9.0, end_reason =
+--   'incident'`), and P2 does not read until `165:96`. Both orderings leave the identical state.
+--   Measured rather than argued — battery rows e1/e2 below delete §A's attribution gate and differ
+--   ONLY in whether the added line is present: both return `1148/1` reddening `165 P2` with the
+--   byte-identical detail `reason=incident km=9.00`. The amendment was therefore REVERTED and
+--   `165` is byte-identical to trunk in this slice.
+--   ⚠ Kept as a header note rather than deleted quietly, because this is the file's own law
+--     pointing at the file: **a fix that changes nothing is indistinguishable from a fix that
+--     works**, and the draft's comment asserted a repair confidently enough that no later reader
+--     would have re-derived it. The pin was never vacuous; nothing needed repairing.
 --
 -- ⚠ `_fail` details are pre-computed into v_msg, never a subquery (the 110 header law), and every
 --   arm asserts an EXACT boolean (`is distinct from`) — plpgsql does not take an `IF` on a NULL
@@ -40,6 +50,62 @@
 --   (KST week start − 7 days) out of both windows, builds its own three-dog world, and restores
 --   the parked values verbatim. **0158-B6 pins the restore**, because a failed restore silently
 --   poisons the boards for anything that runs after this file.
+--
+-- ═══ THE MUTATION BATTERY, MEASURED 2026-08-31 (adopting session) ═══════════════════════════
+-- Baseline **1135 → 1149 (+14 = exactly the pins in this file)** — the positive control that this
+-- suite RAN rather than being silently skipped from `harness.sh`'s manifest. Both numbers are
+-- measured: 1135 is trunk exported with `git archive` (no 0158, no 189), 1149 is the merged tree.
+-- ⚠ Every plant was `&&`-CHAINED to its harness run, so a plant that failed its own
+--   `assert count == 1` yields NO ROW rather than a plausible green one. Every row below printed.
+--   CONTROL was observed clean BEFORE any row was read (1149/0) and again after (1149/0).
+--   All mutations ran on an `rsync` COPY of `supabase/`, never on the live tree.
+--
+-- | # | mutation | result |
+-- |---|---|---|
+-- | CONTROL | none | **1149/0** — observed first, so the deltas mean something |
+-- | a1  | §A back to `b.km` (the finding-#9 hole), VERIFY intact | **APPLY ABORTS** — `LEDGER-NOT-ACTUAL LEDGER-STILL-PLANNED` |
+-- | a2  | same, §E ④'s two arms removed | 1146/3 = `0158-L1`+`L2`+`L3`, each detail printing `planned=5.0 returned=5.0` |
+-- | b1  | `my_week_stats` re-coalesced to 0, VERIFY intact | **APPLY ABORTS** — `COALESCED-SUM(my_week_stats)` |
+-- | b2  | same, §E ①'s arm removed | 1148/1 = **`0158-W1` alone** (`net=6633 runs=1 km=0.0 unm=1`) |
+-- | c1  | §D's `nulls last` deleted, VERIFY intact | **APPLY ABORTS** — `MILES-NULLS-FIRST` |
+-- | c2  | same, §E ⑤'s arm removed | 1148/1 = **`0158-M1` alone** — `unmeasured=200` 하이 포인트, i.e. the rank theft reproduced |
+-- | d1  | `revoke` deleted on `leaderboard_dogs_weekly`, VERIFY intact | **APPLY ABORTS** — `PUBLIC-OR-ANON(leaderboard_dogs_weekly)` |
+-- | d2  | `revoke` AND `grant` both deleted, VERIFY intact | **APPLY ABORTS** — `PUBLIC-OR-ANON` again, **not** `DEFAULT-PUBLIC-ACL`. See the gap below |
+-- | d3  | `revoke` deleted, §E ③ removed | 1146/3 = **`0158-B5`** + `98 H9` + `99 S1` — three independent doors, and B5 is the one that names the file |
+-- | e1  | §A's attribution gate deleted **and** the draft's 165 line deleted | 1148/1 = `165 P2` — `reason=incident km=9.00` |
+-- | e2  | §A's attribution gate deleted, draft's 165 line PRESENT | 1148/1 = `165 P2` — **byte-identical detail**; that is the no-op proof above |
+-- | CONTROL | none | **1149/0** |
+--
+-- 🔴 **FIVE MUTATIONS ABORT THE APPLY, WHICH MEASURES §E's VERIFY AND NOT THIS SUITE.** That is
+--   the three-proposition discipline: 「the hole is real」, 「a pin notices」 and 「the fix closes it」
+--   are different claims, and an apply-time abort proves only the first. Each was therefore re-run
+--   with its own VERIFY arm removed (a2, b2, c2, d3) so a SUITE pin had to catch it alone —
+--   because a property checked at apply survives exactly until someone recreates the function.
+--
+-- 🔴 **NAMED GAP — §E ③'s `DEFAULT-PUBLIC-ACL` ARM IS UNMEASURED, AND IT IS NOT BLIND.** d2 deleted
+--   BOTH the revoke and the grant expecting the `proacl IS NULL` branch, and got `PUBLIC-OR-ANON`
+--   instead. Measured directly in the lab: a fresh `create function` in this harness is born with
+--       proacl = {=X/postgres,postgres=X/postgres,service_role=X/postgres}   (NOT NULL)
+--   because default privileges for `service_role` materialise the ACL at creation, so the
+--   `elsif` always wins and the NULL branch cannot be reached from any fixture. Per the standing
+--   law, this is the SECOND cause of a mutation reddening nothing — **the property is not
+--   observable through this door**, not 「the arm is blind」. The arm stays: `aclexplode(NULL)`
+--   returns zero rows, so in an environment WITHOUT those default privileges an `exists` test
+--   alone would be silent on precisely 0116:636's born-PUBLIC state. It is correct defensive
+--   code that this harness structurally cannot exercise, and that is recorded here rather than
+--   counted as a green.
+--
+-- ⚠ **W2/W3/W4, L3 and B1 never redden in any row above, and that is the control working** — every
+--   mutation here attacks a REFUSAL, and a rule that refused both states would have reddened these
+--   positive controls instead. b2 (「always 0」) reddens **`W1` alone**, leaving `W2` (a runless week
+--   is a TRUE 0) and `W3` (a measured 0.00 is 0.0) green, so W1 is genuinely separable from its two
+--   controls under that mutation.
+--   ⚠ **Stated no wider than it was measured:** the header above claims a three-way blind-spot
+--     split (always-NULL reddens W2 · always-0 reddens W1 · NULL-when-the-sum-is-0 reddens W3).
+--     Only the MIDDLE arm of that claim was measured here. The always-NULL and
+--     NULL-when-the-sum-is-0 mutations were NOT run, so W2's and W3's own load-bearingness is
+--     asserted by the original author and not established by this battery. A later slice touching
+--     `my_week_stats` owes those two rows.
 
 set client_min_messages = warning;
 

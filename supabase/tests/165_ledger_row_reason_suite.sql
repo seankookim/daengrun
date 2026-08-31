@@ -54,18 +54,6 @@ begin
   --    handed to r2, who performs it. `runs` has no runner column, so nothing but
   --    `bookings.runner_id` distinguishes whose run this is — which is exactly the hole.
   b_reasg := t_active_booking(o1, r1, d3, rt);
-  -- 🔴 [0158] THE RUN IS NOW MEASURED AND HAS A REASON, and that is a REPAIR, not a decoration.
-  --    P2 asserts that r1's ledger row on this reassigned booking carries NEITHER r2's reason NOR
-  --    r2's distance. `t_active_booking` leaves `actual_km` and `end_reason` NULL, so:
-  --      · the `end_reason` arm was ALREADY vacuous before this slice — the run had no reason to
-  --        leak, and deleting the attribution gate would have changed nothing observable here;
-  --      · the `km` arm was meaningful ONLY because 0132 §A returned `bookings.km` (5.0). 0158 §A
-  --        makes it return `runs.actual_km`, so leaving the fixture alone would have made that arm
-  --        vacuous too — a disclosure pin going green because there was nothing to disclose.
-  --    Giving the run a distance and a reason puts something real behind the gate in both arms.
-  --    (P4's week attribution is unaffected: this run belongs to r2, so it stays out of r1's
-  --    week_km either way, and 7.0 is unchanged.)
-  update runs set actual_km = 9.0, end_reason = 'incident' where booking_id = b_reasg;
   insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay, tip,
                             remaining_guarantee, platform_fee)
   values (r1, b_reasg, 0, 8300, 0, 0, 0, 0);
