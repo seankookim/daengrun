@@ -1510,8 +1510,13 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    `docs/reviews/2026-09-15-deploy-gate-0157-0161.prompt.md`) · ⓑ deploy now, unreviewed.
 2. **Harness diet letters** — `docs/decisions/2026-09-15-harness-diet-proposal.md` options A–E;
    recommendation A+B+C. Nothing is cut until you answer.
-3. **Xcode 26** — Expo SDK 57 needs Swift 6.2; Xcode 16.2 cannot resolve packages. App Store
-   install (Apple ID). Until then: no simulator, no device smoke, the built-in sim tools are idle.
+3. **macOS upgrade (→ 15.6+ or 26), not just Xcode 26.** Measured 09-15: Xcode 26 cannot install on
+   macOS 14.6; the EAS CLOUD simulator build works and the app RUNS on the sim (screenshots only).
+   To let Claude TAP the simulator, `idb-companion` (Meta) also requires Xcode 26 — so the OS
+   upgrade unlocks both the local build and sim driving. Interim alternative, yours to grant: give
+   the terminal app Accessibility permission (System Settings → Privacy) so AppleScript can click the
+   Simulator window — a security setting Claude will not change. Until one of these: smoke rows are
+   screenshot-verified only, and only after you sign in on the sim (Kakao).
 4. **`isHost` split** — `club_overview.isHost` reads `clubs.host_profile_id`,
    `club_demand_board.isHost` reads `club_members.role='host'`; `club_leave` deletes only the
    member row, so a host who leaves splits them (unreachable from the client today — no leave
