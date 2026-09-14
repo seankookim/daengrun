@@ -35,7 +35,8 @@
         "simulator": true,
         "resourceClass": "m-medium"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "environment": "preview"
     }
   },
   "submit": {

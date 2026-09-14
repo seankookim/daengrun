@@ -113,7 +113,7 @@
     },
     "owner": "seankookim",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/0436bc27-2933-4627-a0bf-9527e65c1ad9",
