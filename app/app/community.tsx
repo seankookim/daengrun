@@ -362,7 +362,14 @@ export default function Community() {
         {/* ───────── 섹션 탭 — 피드 | 러너 후기 ───────── */}
         <Row style={{ marginTop: 14, paddingHorizontal: GUTTER + 2, gap: 20, borderBottomWidth: 1, borderBottomColor: paper.line }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px */}
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => {
-            const count = k === 'feed' ? posts.length : reviews?.length;
+            // ⚠ [2026-09-15] 피드 쪽은 `posts.length` 를 그대로 썼다 — posts 는 [] 로 시작하므로
+            // 탭 카운터가 바로 아래 「피드 불러오는 중...」 옆에서, 그리고 실패 스트립 옆에서
+            // 당당한 「00」 을 인쇄했다. 후기 쪽은 이미 이 결함으로 고쳐진 자리이고 그 이유가
+            // :127 에 적혀 있다 (「reviewsErr also keeps the tab counter blank instead of printing
+            // a confident 00」) — 같은 규칙을 같은 줄의 반대편에 적용한다. 모르는 동안은 칸이 빈다.
+            const count = k === 'feed'
+              ? (loaded && feedError == null ? posts.length : null)
+              : reviews?.length;
             return (
               <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2, borderBottomColor: tab === k ? lilac.head : 'transparent', marginBottom: -1, flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: tab === k ? lilac.head : lilac.dim }}>{label}</Text>
@@ -498,9 +505,16 @@ export default function Community() {
                   <Text style={s.recapKick}>HIGH CLUB — RECAP</Text>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', marginTop: 7, letterSpacing: -0.2 }}>{p.meta.club}</Text>
                   <Row style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(207,196,255,.22)', paddingTop: 9 }}>
-                    <View style={s.recapNumCell}><Text style={[s.recapNum, nf]}>{p.meta.teams}</Text><Text style={s.recapK}>TEAMS</Text></View>
-                    {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
-                    <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>✓</Text><Text style={s.recapK}>FINISHED</Text></View>
+                    {/* ⚠ [2026-09-15] TEAMS 칸만 게이트가 없었다 — `teams?: number` 는 옵셔널인데
+                        (api.ts:4024) 바로 옆 DOGS 는 `(p.meta.dogs ?? 0) > 0` 로 가려져 있고 이 칸은
+                        무조건 그려졌다. teams 가 없으면 「TEAMS」 라벨 위에 빈 자리가 남는다 —
+                        수가 있어야 할 곳의 공백은 그 자체로 읽히는 상태이고, 이웃 칸과의 비대칭이
+                        의도가 아니라 누락이라는 증거다. 같은 가드를 붙이고, 구분선은 자기 앞에
+                        실제로 칸이 있을 때만 그린다 (앞이 비었는데 선이 남으면 그 선이 없는 칸을
+                        가리킨다). */}
+                    {(p.meta.teams ?? 0) > 0 && <View style={s.recapNumCell}><Text style={[s.recapNum, nf]}>{p.meta.teams}</Text><Text style={s.recapK}>TEAMS</Text></View>}
+                    {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, (p.meta.teams ?? 0) > 0 && s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
+                    <View style={[s.recapNumCell, ((p.meta.teams ?? 0) > 0 || (p.meta.dogs ?? 0) > 0) && s.recapDiv]}><Text style={[s.recapNum, nf]}>✓</Text><Text style={s.recapK}>FINISHED</Text></View>
                   </Row>
                   <Text style={{ fontSize: 15, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
@@ -763,7 +777,10 @@ export default function Community() {
               {/* 🔴 [2026-08-12] "오늘 N건"이었다 (afd4dcd, 08-03). fetchFeed는 날짜 필터가 없다 —
                   `.order(created_at).limit(30)`, 전체 기간에서 최신 30건. 바로 위 문장을 정직하게
                   고쳐 쓰면서 두 줄 아래 거짓말을 남겨둘 뻔했다. 쿼리가 말하는 그대로 "최근". */}
-              <Text style={s.coloFoot}>최근 <Text style={[{ color: lilac.text }, nf]}>{posts.length}</Text>건</Text>
+              {/* ⚠ [2026-09-15] 이 수도 게이트가 없어 로딩 중과 실패 후에 「최근 0건」 이라고
+                  단언했다 — 앱이 아직 모르는 사실이다. 위 탭 카운터와 같은 게이트를 쓴다
+                  (로딩은 0이 아니다). 모르면 '—'. */}
+              <Text style={s.coloFoot}>최근 <Text style={[{ color: lilac.text }, nf]}>{loaded && feedError == null ? posts.length : '—'}</Text>건</Text>
               <View style={s.coloDot} />
               <Text style={s.coloFoot}>당겨서 새로고침</Text>
             </Row>

@@ -196,8 +196,14 @@ export default function RunnerCalendar() {
             +{j.payout.toLocaleString()}
           </Text>
           {/* 'PAYOUT' latin caption retired — Korean data renders ≥14 (§3 kicker law) */}
+          {/* ⚠ [2026-09-15] 완료 전 티켓의 캡션이 「실수령」이었다. 그 자리의 `j.payout` 은
+              `expectedByBooking` = 서버의 expected_net 이고 (api.ts:1513-1514), 그건 **계획 km 위의
+              견적**이지 받은 돈이 아니다. 러너 홈이 같은 값에서 이 단어를 이미 은퇴시켰다
+              (home.tsx:954-956 — 「'실수령'은 확정 금액을 뜻한다 — 이 값은 추정치다」 → 「예상」).
+              이 파일 자신도 위 출발 보드에서 같은 수들의 합을 「확정 건 예상 정산 합계」라고 부른다 —
+              합은 예상이고 각 항은 실수령이라고 적고 있었다. 같은 어휘로 맞춘다. */}
           <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim, marginTop: 2 }}>
-            {done ? '정산 예정' : '실수령'}
+            {done ? '정산 예정' : '예상'}
           </Text>
         </View>
       </>
@@ -269,11 +275,18 @@ export default function RunnerCalendar() {
           {/* [C②] 확정 0건은 종전 문장 그대로 (진짜 출구가 있는 문장이라 바꿀 이유가 없다).
               nextLabel은 확정 건이 있으면 항상 있고, nextRel은 하루 밖(또는 시각 없음)이면 null —
               그때는 날짜가 제 일을 하므로 카운트다운을 붙이지 않는다. */}
+          {/* ⚠ [2026-09-15 로딩은 0이 아니다] 이 줄에는 게이트가 없었다 — `jobs` 는 [] 로 시작하고
+              `loaded`/`loadErr` 는 아래 티켓 스택에서만 읽히므로, 읽는 중에도 실패한 뒤에도 보드가
+              「확정 0건 — 요청 탭에서 수락해보세요」라고 단언했다. 확정 러닝이 다섯 건 있는 러너에게
+              한 말이고, 실패 때는 바로 아래 자기 화면의 「확정 일정을 불러오지 못했어요」 스트립과
+              한 화면에서 서로를 반박했다. 러너 홈이 같은 결함으로 이미 고쳐진 자리다
+              (home.tsx:802-807 — 「요청함 · 0건 ›」 을 inboxLoaded && !inboxErr 뒤로). */}
           <Text style={{ fontSize: 15, lineHeight: 18, color: '#BBBBBB', marginTop: 3 }}>
-            확정 {upcoming.length}건
-            {upcoming.length > 0 && nextLabel
-              ? ` · 다음 러닝 ${nextLabel}${nextRel ? ` · ${nextRel}` : ''}`
-              : upcoming.length > 0 ? '' : ' — 요청 탭에서 수락해보세요'}
+            {loadErr ? '확정 일정을 불러오지 못했어요'
+              : !loaded ? '불러오는 중…'
+                : `확정 ${upcoming.length}건${upcoming.length > 0 && nextLabel
+                  ? ` · 다음 러닝 ${nextLabel}${nextRel ? ` · ${nextRel}` : ''}`
+                  : upcoming.length > 0 ? '' : ' — 요청 탭에서 수락해보세요'}`}
           </Text>
           {/* [Sean 2026-08-11 "캘린더 탭 수익 숫자 더 크게"] 플랩 20 → 30pt.
               폭 예산 (320dp 기준, 넘치면 스플릿-플랩 행이 잘린다 — Row에 wrap 없음):
@@ -332,11 +345,16 @@ export default function RunnerCalendar() {
 
         {/* [C①] 세 묶음. 머리줄은 §3b 그램마 그대로 (풀블리드 코랄 룰 + 20/800) — 앱의 다른 섹션
             머리줄과 같은 말투다. 비어 있는 묶음은 머리줄째 그리지 않는다.
-            ⚠ 이 그룹핑은 **20건 창을 고치지 않는다**: fetchRunnerJobs는 여전히 scheduled_at DESC
-            limit 20이라, 미래 예약이 스무 건을 넘으면 지난 러닝이 창 밖으로 밀린다. 그래서 지난
-            묶음의 캡션이 「최근 20건 안에서」다 — 이 목록이 러너의 전체 기록이라고 주장하지 않는다.
-            (홈은 같은 창을 fetchInFlightRunnerJobs로 우회했지만 캘린더에는 대응물이 없고,
-             그룹핑이 받지 못한 행을 지어낼 수는 없다.) */}
+            ⚠ [2026-09-15 정정] 이 자리에는 「fetchRunnerJobs는 여전히 scheduled_at DESC limit 20」
+            이라는 문단이 있었고, 지난 묶음의 캡션은 그래서 「최근 20건 안에서」였다. **그 창은 더
+            이상 없다**: api.ts:1477-1486 이 그 `.limit(20)` 을 「that stood here is GONE」 이라고
+            적는다 (Sean 「keep everything」 · 콘솔 #17). 사용자는 존재하지 않는 창에 대한 면책
+            문장을 읽고 있었고, 다음 세션은 삭제된 줄을 설명하는 주석을 읽게 돼 있었다 — 제거된
+            코드를 인용하는 주석이 정확히 그 grep 을 속인다는 이 저장소의 법 그대로다.
+            캡션은 이제 예정 묶음과 같은 말을 한다: 자기가 실제로 들고 있는 건수.
+            ⚠ 남아 있는 진짜 천장은 다른 것이다 — PostgREST 의 서버 기본 상한(보통 1000). api.ts 의
+            같은 주석이 그건 오늘의 문제가 아니라고 적어두었고, 그날의 해법은 페이지네이션이지
+            되살린 창이 아니다. */}
         {todayJobs.length > 0 && (
           <>
             <Row style={s.dayGroup}>
@@ -359,7 +377,7 @@ export default function RunnerCalendar() {
           <>
             <Row style={s.dayGroup}>
               <Text style={s.dayGroupH}>지난 러닝</Text>
-              <Text style={s.dayGroupS}>최근 20건 안에서</Text>
+              <Text style={s.dayGroupS}>{pastJobs.length}건</Text>
             </Row>
             <View style={{ marginTop: 10 }}>{pastJobs.map((j) => renderTicket(j, false))}</View>
           </>

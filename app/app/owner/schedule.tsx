@@ -15,7 +15,7 @@ import { LateNotice } from '../../src/components/late-notice';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelPolicy, draft, runners } from '../../src/store';
+import { Booking, BookingStatus, cancelPolicy, draft } from '../../src/store';
 import { CollarKey, collarColors, colors, paper } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
@@ -284,9 +284,16 @@ export default function Schedule() {
   // 카드는 이제 예약 행이 실제로 들고 있는 값(routeName·km)만 말한다. 실 코스 상세(특징·점검일·
   // 트레이스)는 route_id로 실코스 행을 읽는 헬퍼가 생길 때 복귀한다 (스펙 wave-2).
   // live 예약은 실러너 이름으로 뷰 구성 — 목업 프로필 조회 금지
-  const mockRunner = selected && !selected.live ? runners.find((r) => r.id === selected.runnerId) : undefined;
+  // ⚠ [2026-09-15] The `!selected.live ? runners.find(…)` lookup that stood here is GONE. It fell
+  // back to store.ts's fixture roster, whose rows carry `rating: 4.9`, `reviews: 127`, `runs: 214`
+  // and badges 「신원인증·펫보험」 — and this sheet renders exactly those fields (line ~742). It was
+  // unreachable rather than broken: `all = liveBookings` and every row api.ts builds sets
+  // `live: true` (api.ts:5255). But `Booking.live` is OPTIONAL (store.ts:185), so one booking
+  // constructed without it and an owner reads a stranger's invented 4.9★ on their own 일정 —
+  // the fabricated-data law with no gate standing between it and the screen. The fixture roster
+  // is no longer imported here, so the path cannot come back by accident.
   const runner = selected
-    ? mockRunner ?? {
+    ? {
         id: 'live', name: selected.runnerName, char: selected.runnerName[0] ?? '러', color: '#5a7a3c',
         rating: null as number | null, reviews: null as number | null, runs: null as number | null,
         pace: null as string | null, badges: [] as string[], desc: null as string | null, // [정직] 신원인증 배지 은퇴 — 뒷받침 데이터 없음 (wave-1 meetup P1-6과 동일)
@@ -369,7 +376,15 @@ export default function Schedule() {
                   {b.recurring && (
                     <View style={s.recurPill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                   )}
-                  {LIVE_RAW.includes(b.rawStatus ?? '') && (
+                  {/* ⚠ [2026-09-15] 이 필은 `LIVE_RAW.includes(rawStatus)` 만 보고 `bandCeiling` 을
+                      보지 않았다. 그런데 이 파일이 :224-231 에 적어 둔 측정이 바로 그것이다 —
+                      「THE BAND'S CLAIM IS "지금", AND rawStatus ALONE CANNOT CARRY IT」, 20일 묵은
+                      runner_enroute 행. 천장을 넘긴 그 행들은 밴드에서 빠져 notLive → agenda 의
+                      **past** 버킷으로 내려가는데(6시간 유예, :140), 거기서 이 카드가 「지난 일정」
+                      구분선 아래에 초록 ● LIVE 를 찍었다 — 그것도 STATUS_MAP 이 runner_enroute 를
+                      뭉갠 「예약 확정」 배지 바로 옆에. 밴드가 쓰는 판정을 같은 주장에 그대로 쓴다:
+                      한 파일이 같은 문장을 두 자리에서 다르게 판정하지 않는다. */}
+                  {LIVE_RAW.includes(b.rawStatus ?? '') && bandCeiling(b) && (
                     <View style={s.livePillSm}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                   )}
                 </Row>
@@ -474,8 +489,16 @@ export default function Schedule() {
             {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약
                 [B① 2026-08-24] 「예약 N건」 하나였던 자리 — 목록이 다가오는 순으로 열리는 화면에서
                 가장 쓸모 있는 수는 '앞으로 몇 건인가'다. Oswald 숫자는 명시 lineHeight (BUG A). */}
+            {/* ⚠ [2026-09-15 로딩은 0이 아니다] 이 두 수는 게이트 없이 그려지고 있었다. `liveBookings`
+                는 []로 시작하고 `loaded`/`loadErr`는 아래 목록(:571·:577)에서만 읽히므로, 첫 페인트와
+                실패 후에 「다가오는 0건 · 전체 0건」이 나왔다 — 읽지도 못한 계정에 대해 측정된 사실인
+                척하는 수이고, 실패 때는 바로 아래 「일정을 불러오지 못했어요」 스트립과 한 화면에서
+                서로를 반박했다. 이 파일이 이미 아는 규칙이다 (:983 「확인 중엔 숫자 대신 상태를
+                말하고(로딩은 0이 아니다)」) — 같은 규칙을 이 줄에도 적용한다. */}
             <Text style={[{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 4 }, nf]}>
-              다가오는 {upcomingCount}건 · 전체 {liveBookings.length}건
+              {loadErr ? '일정을 불러오지 못했어요'
+                : !loaded ? '불러오는 중…'
+                  : `다가오는 ${upcomingCount}건 · 전체 ${liveBookings.length}건`}
             </Text>
           </View>
           {/* ＋ = 백버튼 문법의 스퀘어 (40×40 · 캔버스 면 · 1px 코랄 · 잉크 글리프) */}
