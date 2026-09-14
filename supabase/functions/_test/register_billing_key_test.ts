@@ -336,6 +336,47 @@ Deno.test("🔴 codex #7 — the SERVER gate refuses even a well-formed call, an
 });
 
 
+// 🔴 codex deploy-gate #5 (2026-09-15) — PARTY BEFORE STATE, IN THE ONE FIXTURE WHERE THE TWO
+//    ORDERS DISAGREE. The handler read `card_registration_live()` before the profile/tombstone
+//    check, so a tombstoned or non-existent account was answered `503 card_registration_not_live`
+//    — a free read of our rollout state, handed to exactly the callers least entitled to it. The
+//    SQL door next to it has always had the right order and says why (0170:193-199): 「the rollout
+//    state is not a fact that account is entitled to learn, and 「deleted」 is the stronger
+//    refusal」.
+//
+// ⚠ WHY THIS TEST HAD TO BE WRITTEN RATHER THAN INHERITED, and it is the transferable part: the
+//   two orders AGREE everywhere except one cell of a 2×2. Flag OPEN + tombstoned ⇒ 403 either way
+//   (that is the shipped test at the top of this file); flag CLOSED + live owner ⇒ 503 either way
+//   (that is the codex #7 test directly above). **Only flag CLOSED + tombstoned separates them**,
+//   and no shipped test stood there — every one of them sets exactly one of the two conditions.
+//   A suite can be thorough, green, and structurally unable to see a gate-ordering defect, because
+//   ordering is only observable where BOTH gates would fire.
+Deno.test("🔴 deploy-gate #5 — a tombstoned caller gets 403 no_profile even with the flag CLOSED (party gate before state gate)", async () => {
+  const db = scene();
+  db.rpcs["card_registration_live"] = () => ({ data: false });   // Sean has not opened it
+  const fm = new FetchMock().on(isIssue, () => FetchMock.json(issued()));
+  fm.install();
+  try {
+    let issueStatus = 0, issueMsg = "";
+    let prepStatus = 0, prepMsg = "";
+    try { await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce: "n" }, "ghost_jwt"), db as never); }
+    catch (e) { issueStatus = (e as HttpError).status; issueMsg = (e as HttpError).message; }
+    try { await registerBillingKey(req({ action: "prepare" }, "ghost_jwt"), db as never); }
+    catch (e) { prepStatus = (e as HttpError).status; prepMsg = (e as HttpError).message; }
+    // The assertions are two-sided on purpose. 「is 403」 alone would be satisfied by a handler that
+    // had stopped reading the flag at all; 「is not 503」 names the exact leak, so a future reorder
+    // that reintroduces it fails on a line that says what it was.
+    assertEquals(issueStatus, 403);
+    assertEquals(issueMsg, "no_profile");
+    assertEquals(prepStatus, 403);
+    assertEquals(prepMsg, "no_profile");
+    // Nothing downstream is reached either — the refusal is still before Toss and before any write.
+    assertEquals(fm.calls.filter((c) => isIssue(c.url)).length, 0);
+    assertEquals(db.rows("billing_keys").length, 0);
+  } finally { fm.restore(); }
+});
+
+
 // ── the issued-but-unpersisted key (codex: "issuance can still create an untracked provider key")
 //
 // Every test below starts AFTER Toss has issued a real billing key. The question each one asks is

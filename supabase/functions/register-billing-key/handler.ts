@@ -260,26 +260,40 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
   const uid = await caller(req, db);
   const body = (await req.json().catch(() => ({}))) as Body;
 
-  // 🔴 THE SERVER-OWNED GATE (codex #7). The booking gate reads `TOSS_ENABLED`, a CLIENT
-  //    constant, and the settings door reads whether a client key is configured — neither binds
-  //    a modified client, and neither binds a build shipped with a test key. A protection that
-  //    exists only in the client is a convention, not a protection. `card_registration_live()`
-  //    (0138 §D) is the one that can refuse, and it is closed until Sean opens it: a NULL flag
-  //    reads false, because defaulting a money-adjacent capability to ON because nobody set it
-  //    is the 0116:425 fail-open with a different shape.
-  //    Checked AFTER authentication so an unauthenticated caller still learns nothing about our
-  //    rollout state, and BEFORE prepare/issue so neither a nonce nor a Toss call is spent.
-  const { data: live, error: fErr } = await db.rpc("card_registration_live");
-  if (fErr) throw new HttpError(500, `flag read failed: ${fErr.message}`);
-  if (live !== true) throw new HttpError(503, "card_registration_not_live");
-
-  // Party gate before anything else, and the tombstone refusal with it (0123 §5 / 0133 posture:
-  // a deleted account must not be able to re-attach a charging authority).
+  // ── PARTY GATE, and it is FIRST — auth → party → state (codex deploy-gate #5, 2026-09-15).
+  //    The tombstone refusal rides with it (0123 §5 / 0133 posture: a deleted account must not be
+  //    able to re-attach a charging authority), and absent and tombstoned are the SAME answer
+  //    (0137's argument unchanged).
+  //    🔴 THIS BLOCK USED TO SIT BELOW THE FLAG READ, and moving it is the whole of the fix. With
+  //    the flag first, a tombstoned or non-existent profile got `503 card_registration_not_live`
+  //    while an ordinary owner got `403 no_profile` — so the 503 was a free read of **our rollout
+  //    state**, handed to precisely the callers least entitled to it, and the divergence is
+  //    visible only while the flag is CLOSED (with it open both orders answer 403, which is why
+  //    the shipped tests could not see this). Same law 0170:193-199 states at the SQL door:
+  //    「the rollout state is not a fact that account is entitled to learn, and 「deleted」 is the
+  //    stronger refusal」. The handler now matches the RPC it calls instead of contradicting it.
+  //    ⚠ It does not make the handler's read authoritative: a tombstone landing between this read
+  //    and the issue call is caught by `billing_issue_intent_open`'s `for update` (0170:200).
+  //    This gate is about what we DISCLOSE; that one is about what we DO.
   const { data: prof, error: pErr } = await db.from("profiles")
     .select("toss_customer_key, deleted_at").eq("id", uid).maybeSingle();
   if (pErr) throw new HttpError(500, `profile read failed: ${pErr.message}`);
   if (!prof || prof.deleted_at != null) throw new HttpError(403, "no_profile");
   const customerKey = prof.toss_customer_key as string;
+
+  // ── STATE GATE — 🔴 THE SERVER-OWNED GATE (codex #7). The booking gate reads `TOSS_ENABLED`, a
+  //    CLIENT constant, and the settings door reads whether a client key is configured — neither
+  //    binds a modified client, and neither binds a build shipped with a test key. A protection
+  //    that exists only in the client is a convention, not a protection. `card_registration_live()`
+  //    (0138 §D) is the one that can refuse, and it is closed until Sean opens it: a NULL flag
+  //    reads false, because defaulting a money-adjacent capability to ON because nobody set it
+  //    is the 0116:425 fail-open with a different shape.
+  //    Checked AFTER authentication AND after the party gate above, so neither an unauthenticated
+  //    caller nor a tombstoned one learns anything about our rollout state — and still BEFORE
+  //    prepare/issue, so neither a nonce nor a Toss call is spent.
+  const { data: live, error: fErr } = await db.rpc("card_registration_live");
+  if (fErr) throw new HttpError(500, `flag read failed: ${fErr.message}`);
+  if (live !== true) throw new HttpError(503, "card_registration_not_live");
 
   if (body.action === "prepare") {
     return { customer_key: customerKey, nonce: mintNonce(uid) };
