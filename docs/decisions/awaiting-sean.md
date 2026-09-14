@@ -1484,3 +1484,31 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 (rename the token to the measured length: 서리풀–몽마르뜨 종주 4.8km · 한강 반포–잠원 6.7km ·
 그랜드 루프 km-only 5.0→4.8) — the record's own worked example and the natural reading of
 "corrected". Say the word if you meant B (drop the km from the names entirely).
+
+---
+
+## 2026-09-15 — the live queue (new Mac, first night; measured, not relayed)
+
+Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
+
+1. **Deploy 0157–0162 (ONE `db push`).** Production is 0156; trunk carries six pending migrations,
+   all gates green here (harness 1180/0, npm 983/0, deno 277/0). No codex verdict exists on any of
+   them; 0159 was REJECT/11 and 0160 is its unreviewed fix. ⓐ **review first** (recommended — one
+   diff-scoped `gpt-5.6-sol` high run when codex's window reopens at 06:36, prompt archived at
+   `docs/reviews/2026-09-15-deploy-gate-0157-0161.prompt.md`) · ⓑ deploy now, unreviewed.
+2. **Harness diet letters** — `docs/decisions/2026-09-15-harness-diet-proposal.md` options A–E;
+   recommendation A+B+C. Nothing is cut until you answer.
+3. **Xcode 26** — Expo SDK 57 needs Swift 6.2; Xcode 16.2 cannot resolve packages. App Store
+   install (Apple ID). Until then: no simulator, no device smoke, the built-in sim tools are idle.
+4. **`isHost` split** — `club_overview.isHost` reads `clubs.host_profile_id`,
+   `club_demand_board.isHost` reads `club_members.role='host'`; `club_leave` deletes only the
+   member row, so a host who leaves splits them (unreachable from the client today — no leave
+   affordance for hosts). ⓐ refuse `club_leave` for a host · ⓑ clear `clubs.host_profile_id` on
+   host leave · ⓒ leave it, unreachable.
+5. **Phone visibility (0154 #1/#4)** — `_club_phone_visible` is host↔everyone; `incident_contact`
+   returns both parties' phones. Arms the instant phone collection does. ⓐ host-only, one direction
+   · ⓑ keep bidirectional · ⓒ decide later, before the flag (current state).
+6. **OPEN-C** pack start display · **OPEN-F** runner pay when a leg disappears — still unruled
+   since 08-31.
+7. **km wallet** — `km_claim_welcome` grants an invisible ~₩16,700 asset with zero client callers
+   for the whole km subsystem. ⓐ build the wallet surface · ⓑ retire the km model · ⓒ park.
