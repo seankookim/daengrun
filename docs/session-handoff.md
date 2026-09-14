@@ -20,7 +20,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1201 / 0** at 0168's landing (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1205 / 0** at 0169's landing (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
@@ -93,8 +93,16 @@ service_role caller can still settle a `stopping` booking at the client's number
 needs Sean signed in): host tap → console copy · runner 정산 중 · km appears after ~2 min · backgrounded
 runner sees the red banner · owner's pack map stays up through the drain.
 
-**Pending on production is now NINE (0168 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+**0169 settle belt LANDED** — closes 0168's NAMED GAP: `settle_run_tx` refuses a `stopping` booking
+(`raise exception 'run_stopping'` after the existence gate, before any write; base extracted from
+0083's last definition, three-line diff). Harness **1205/0** (+4). ⚠ Flagged: contract §5 named this
+token `run_stop_pending`; `run_stopping` is also what `club_save_run_trace` raises for the late-upload
+event with different copy — the two never meet today (different function/endpoint; settle-run's own
+409 fires first, and its RPC error map has no arm for either), but a future client arm must key on
+the SETTLE path, not the token.
+
+**Pending on production is now TEN (0169 joins):
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
