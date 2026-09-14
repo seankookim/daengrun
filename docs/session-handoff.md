@@ -1,20 +1,41 @@
-# Session handoff — refreshed 2026-08-31 by the announcer (master-session day)
+# Session handoff — refreshed 2026-09-15 (new Mac, first session) — everything below the 09-15 block is the 08-31 record
 
 **Read this before doing anything.** `CLAUDE.md` holds the permanent laws; this file holds
-current state, what is open, and who owns what. The state table below was RE-MEASURED
-2026-08-31 by a three-scout workflow (commands + read-backs in each row's evidence); the
-sections after 「Today, 2026-08-31」 are the 08-27/08-28 record, kept because most of it is
-still true — where a line conflicts with the 08-31 sections, the 08-31 sections win.
+current state. **New since 08-31: `docs/codex-claude-protocol.md` (who does what — Codex astra
+writes, Claude orchestrates/gates/lands) and `docs/prompts/codex-app-master.md` (Sean's paste
+sheet for the Codex app).** Where a line below conflicts with the 09-15 block, the 09-15 block wins.
 
-> 🔴 **DEPLOY FREEZE (2026-08-31, announcer): NO session runs `supabase db push` until the
-> backend master session announces its 0159+0160+0161 landing and performs the deploy itself.**
-> Reason: 0159 (pack channel, codex REJECT/11, `docs/decisions/2026-08-28-codex-verdicts.md`) is
-> the ONLY pending migration on trunk — `db push` applies every pending file, so any push by any
-> session deploys the rejected slice alone, with its defect list world-readable in the now-public
-> repo. The freeze lifts only via the backend session's announcement to the announcer.
-> ⚠ Related: no HARDWARE build gets cut from trunk before that deploy either — the pack-map
-> doors landed (U2) but production enforces PrivateOnly, so the map cannot connect until the
-> deploy; a pre-deploy build ships a button into an honest-but-dead screen.
+> 🔴 **DEPLOY FREEZE — STILL HOLDS, and the reason changed.** Trunk `069459b` now carries ALL
+> FIVE pending migrations (0157 · 0158 · 0159 · 0160 · 0161) — B1/0157/0158 landed from the rescue
+> branches 2026-09-15 with every gate re-run on the new Mac. Production is still `0156` (last
+> measured 08-31; `supabase login` has not been done on this machine, so `migration list --linked`
+> cannot be re-read here). Two things gate the ONE deploy: **(1) `supabase login` (Sean)**, and
+> **(2) the codex verdicts for the five files — NONE EXISTS.** 0159 is REJECT/11 (fixed by 0160,
+> the fix unreviewed); 0160/0161/0157/0158 have no verdict. Per Sean 2026-09-15 codex is for build
+> work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
+> possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
+
+## State, measured 2026-09-15 (new Mac `/Users/seankim/dev/daengrun`)
+
+| | |
+|---|---|
+| Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
+| SQL harness | **1177 / 0** at `df23718` — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| App tests | exit 0, **980 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `df23718`; trunk before B1 was 822 |
+| tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
+| Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
+| Production | UNMEASURED this machine (no supabase login). Last known: 0156 deployed, 0159 pending |
+| Rescue branches | all eight are ancestors of trunk now (`merge-base --is-ancestor`) — deletable at Sean's word |
+| Toolchain | node 20 · pg16 · supabase CLI · cocoapods (needs `LANG=en_US.UTF-8`) · deno · bun · gh · gstack · codex 0.154 (bundled in ChatGPT.app + npm) · Xcode 16.2 + iOS 18.3.1 runtime · `app/ios` regenerated, pods installed |
+| Still Sean-only | `eas login` (→ `.env`, needed before a Release sim build can reach Supabase) · `supabase login` |
+
+**Harness lines the 09-15 merges fixed:** the rescue branches carried `suite 190_…` under its OLD
+`# 0156` comment; a naive union registered 190 twice (double-counted pins). Deduped before landing;
+`awk '/^suite /{print $2}' harness.sh | sort | uniq -d` is empty on trunk.
+
+**In flight (Claude-driven codex astra runs, worktrees under `.claude/worktrees/codex-*`):**
+P1 chat-idempotency schema half · P7 inline-script safety adoption. Results land as `codex/<slice>`
+branches and are re-gated before merge.
 
 ---
 
