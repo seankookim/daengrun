@@ -20,22 +20,36 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1177 / 0** at `df23718` — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
-| App tests | exit 0, **980 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `df23718`; trunk before B1 was 822 |
+| SQL harness | **1180 / 0** at `bb21ccd` (1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
-| Production | UNMEASURED this machine (no supabase login). Last known: 0156 deployed, 0159 pending |
+| Production | **MEASURED 02:00 KST after `supabase login`: 0156 deployed · pending 0157 0158 0159 0160 0161** (+0162 since `bb21ccd`) |
 | Rescue branches | ⚠ corrected minutes after first push (I wrote 「all eight are ancestors」 — false): `merge-base --is-ancestor` says **4 MERGED** (0157-adopted · 0157-billing-hardening · 0158-adopted · 0158-settled-distance) · `wip-b1-pack-publish` is NOT an ancestor but its two commits landed by cherry-pick (`b4bba36`/`9d874a2`, same diff) · **3 hold UNLANDED work**: `routes-basemap-45de013` (4 ahead), `wip-main-clone-chat-slice-2026-08-28` (1 ahead — the inline-script fix, being adopted by P7), `wip-registry-row-ab47081-2026-08-28` (1 ahead, unexamined) |
 | Toolchain | node 20 · pg16 · supabase CLI · cocoapods (needs `LANG=en_US.UTF-8`) · deno · bun · gh · gstack · codex 0.154 (bundled in ChatGPT.app + npm) · Xcode 16.2 + iOS 18.3.1 runtime · `app/ios` regenerated, pods installed |
-| Still Sean-only | `eas login` (→ `.env`, needed before a Release sim build can reach Supabase) · `supabase login` |
+| Still Sean-only | ~~eas login~~ ✅ · ~~supabase login~~ ✅ · **Xcode 26 install** (sim build) · the deploy go/no-go (see freeze note) |
 
 **Harness lines the 09-15 merges fixed:** the rescue branches carried `suite 190_…` under its OLD
 `# 0156` comment; a naive union registered 190 twice (double-counted pins). Deduped before landing;
 `awk '/^suite /{print $2}' harness.sh | sort | uniq -d` is empty on trunk.
 
-**In flight (Claude-driven codex astra runs, worktrees under `.claude/worktrees/codex-*`):**
-P1 chat-idempotency schema half · P7 inline-script safety adoption. Results land as `codex/<slice>`
-branches and are re-gated before merge.
+**Landed later the same night (02:xx KST):** P7 inline-script safety (`5bcc4dc`, codex astra low,
+npm test 983/0) · **0162 chat client_key idempotency, both halves** (`bb21ccd`; client by codex astra
+medium, server by Claude after codex hit a second quota wall; harness **1180/0**, +3 = suite 193;
+mutation plant: index removed → K1 alone reddens 1179/1). Production re-measured after Sean's
+`supabase login`: **0156 deployed, pending exactly 0157–0161** (0162 now joins the pending set).
+`app/.env` pulled from EAS preview (needed `npm i -g eas-cli@latest`).
+
+**Sean's Codex-app sessions in flight at write time (his worktrees, do not touch):**
+`codex/runner-rules-checks` (0163/194) · `codex/board-wrapper-bundle` (0164/195) ·
+`codex/membership-three-tier` (0165) · `codex/board-rejected-arm` (no number yet). They land via
+Claude re-gating each `codex/<slice>` branch; expect REGISTRY.md + harness.sh unions on every one.
+
+**Simulator build BLOCKED on Xcode 26:** Expo SDK 57's `expo-modules-jsi` declares
+`swift-tools-version: 6.2`; Xcode 16.2 fails at package resolution. Sean-only (App Store).
+Everything else for the build is in place (`ios/` regenerated, pods installed, iOS 18.3.1 runtime,
+`.env`). Harness-diet proposal awaiting Sean's letters:
+`docs/decisions/2026-09-15-harness-diet-proposal.md`.
 
 ---
 
