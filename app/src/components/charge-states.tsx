@@ -116,9 +116,16 @@ const BANNER: Record<ChargeBannerKind, { title: string; body: string }> = {
     title: '결제 문제로 새 예약이 잠겼어요',
     body: '지난 러닝의 청구가 아직 처리되지 않았어요 — 정산이 끝나면 다시 예약할 수 있어요.',
   },
+  // ⚠ [2026-09-15] The body used to end 「카드 재연결 화면은 아직 준비 중이라, 문의로 알려주시면
+  // 직접 도와드려요」 — written when there was no card screen. `owner/card-link` shipped
+  // 2026-08-26 and payments.tsx:155 now draws 「카드 다시 연결하기」 straight above this sentence,
+  // so the banner told the owner the door did not exist while the door stood open underneath it.
+  // The body states only the fact (the card cannot be charged); WHICH exit exists is the CTA's
+  // job, and the caller already branches it (door when TOSS_CLIENT_KEY + cardRegistrationLive,
+  // 문의하기 otherwise) — so one sentence is now true in both worlds instead of false in one.
   relink: {
     title: '카드를 다시 연결해야 해요',
-    body: '등록된 카드로 청구할 수 없었어요 (만료·해지·정지). 카드 재연결 화면은 아직 준비 중이라, 문의로 알려주시면 직접 도와드려요.',
+    body: '등록된 카드로 청구할 수 없었어요 (만료·해지·정지) — 카드를 다시 연결해야 결제가 이어져요.',
   },
   declined: {
     title: '이번 청구가 거절됐어요',

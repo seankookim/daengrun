@@ -73,8 +73,19 @@ export default function RoleSelect() {
     if (error) { fail('프로필 저장 실패', error.message); return; }
 
     // 러너 선택 시 runners 행 + 기본 가용시간 확보 (0057 K-3: applicant 민팅)
+    // ⚠ [2026-09-15] 이 단계만 `catch { console.warn }` 로 삼키고 있었다 — 이 함수 :29 가 자기
+    // 규칙을 「실패는 실패로 — 시작 경로의 모든 단계가 재시도 가능한 알림으로 끝난다 (조용한 스킵
+    // 금지)」라고 적어 두었고, 위아래 모든 단계가 fail() 로 끝나는데 여기만 아니었다. 삼킨 결과는
+    // 침묵이 아니다: runners 행도 기본 가용시간도 없는 채로 /runner/home 또는 /onboard/runner 로
+    // **넘어간다** — 만들어지지 않은 것이 만들어진 척하는 경로다. ensureRunner 는 멱등하므로
+    // (없으면 민팅, 있으면 그대로) 재시도가 안전하다.
     if (role === 'runner') {
-      try { await ensureRunner(); } catch (e) { console.warn('ensureRunner:', e); }
+      try {
+        await ensureRunner();
+      } catch (e) {
+        fail('러너 정보를 준비하지 못했어요', (e as Error)?.message ?? '네트워크를 확인하고 다시 시도해주세요');
+        return;
+      }
     }
 
     // First run is DERIVED — there is no `onboarded` flag (and none is needed): an owner with no
