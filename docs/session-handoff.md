@@ -20,7 +20,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1180 / 0** at `bb21ccd` (1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1188 / 0** at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
@@ -50,6 +50,14 @@ Claude re-gating each `codex/<slice>` branch; expect REGISTRY.md + harness.sh un
 Everything else for the build is in place (`ios/` regenerated, pods installed, iOS 18.3.1 runtime,
 `.env`). Harness-diet proposal awaiting Sean's letters:
 `docs/decisions/2026-09-15-harness-diet-proposal.md`.
+
+**Landed 03:xx KST (Claude agents, no codex quota):** GPS finding-4 CONTRACT
+(`docs/contracts/run-end-two-phase-stop-contract.md`, b1ee373 — buildable by astra next; §8 has four
+Sean questions) · 185 suite repairs for codex 0154 #5/#6/#7 (`58166cc`, 1183/0) · **0166 revocation
+findings** (`bc7d59d`, closes codex 0155 REJECT/6 — all six were still open on trunk, 0157 touched
+neither dispatcher nor reporter; suite 196, harness **1188/0**, 8 plants each reddening one pin;
+flag-gated, arms only when card registration goes live). **Pending on production is now SEVEN:
+0157 0158 0159 0160 0161 0162 0166.** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
 
 ---
 
