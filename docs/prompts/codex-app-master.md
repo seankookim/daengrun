@@ -45,7 +45,7 @@ Task follows.
 
 ## Backend tasks (astra medium unless marked)
 
-### P1 — chat idempotency, schema half (astra low)
+### P1 — chat idempotency, BOTH halves (astra medium) — ⚠ the 08-31 prompt said the client half landed at 2b63484; measured 09-15: only a comment did. Use the both-halves prompt Claude ran (scripts/codex runs P1v2); the text below is superseded.
 
 ```
 Slice: chat-idempotency-schema. The client half landed on trunk at 2b63484: app maps a 23505 on chat message insert to success (verify by reading app/src/lib/api.ts and app/app/chat.tsx for the 23505 handling; if it is NOT there, stop and report — do not build the client half). Build the server half as ONE migration:

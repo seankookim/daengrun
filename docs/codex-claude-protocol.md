@@ -54,3 +54,17 @@ supabase/tests/:    PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH" LC_ALL=C ba
 supabase/functions: deno test --allow-all --node-modules-dir=auto _test   # 277/0 at 0157
 ```
 Baselines at `ff6222d` (0157 landed): harness 1163/0 · npm test 980 PASS / 0 FAIL · deno 277/0.
+
+## What an exec-driven write run can and cannot do (measured 2026-09-15, P7)
+
+`codex exec --sandbox workspace-write -C <worktree>` edits files fine, but **cannot commit** — a
+worktree's `.git` is a pointer into the main clone's `.git/worktrees/`, outside the sandbox, so
+`index.lock` creation is denied — and **has no network**, so `npx esbuild`/`npx tsx` in the test
+runners fail and its `npm-test` gate line reads `1` with `PASS=0`. Read those two lines as
+「sandboxed」, not 「broken」. Claude commits with pathspecs and re-runs every gate; that is the
+protocol anyway (Codex's report is a claim). Sean-driven Codex-app sessions have approvals and a
+real shell, so P0's commit/push-branch steps apply there unchanged.
+
+A run that finds its premise false should stop and say so — P1's first run did exactly that
+(the master-backend prompt claimed the chat client half landed; only a comment had) and the
+`CHANGED: 0` + UNVERIFIED lines made the false premise visible in one read.
