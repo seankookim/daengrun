@@ -51,3 +51,4 @@ docs/routes/strava/bench/config.js
 
 # Higgsfield generated frames — picked keepers move to a curated dir; raw batches stay local
 docs/campaigns/higgsfield-out/
+docs/reviews/.codex-runs/
