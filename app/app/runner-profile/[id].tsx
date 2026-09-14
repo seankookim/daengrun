@@ -463,7 +463,14 @@ export default function RunnerProfileScreen() {
                 {/* null = 기록 없음 — 지어낸 7'00" 대신 사실을 말한다 (api.ts pace null-honesty) */}
                 <Stat nf={nf} value={p.paceLabel ?? '기록 전'} label="평균 페이스" />
                 <View style={s.statDiv} />
-                <Stat nf={nf} value={p.respondRate != null ? `${p.respondRate}%` : '신규'} label="응답률" />
+                {/* ⚠ [2026-09-15] 널 토큰이 「신규」였다. 「신규」는 **없음의 표시가 아니라 그 러너에
+                    대한 적극적 주장**이고, `respond_rate_pct` 는 이 제품 어디에서도 쓰이지 않는다 —
+                    0001:74 가 선언하고 0061:49 가 insert 마다 null 로 못 박고 0057:501 이 자가 수정을
+                    막는데, 값을 넣는 마이그레이션도 엣지 함수도 없다. 즉 **모든 러너가** null 이고,
+                    바로 왼쪽 두 칸이 「누적 거리 128km · 러닝 34회」를 말하는 그 화면에서 이 칸만
+                    「신규」라고 적고 있었다. 모르는 것은 모른다고 말한다 — 같은 Row 의 평균 페이스가
+                    이미 쓰는 어휘('기록 전')를 그대로 쓴다. */}
+                <Stat nf={nf} value={p.respondRate != null ? `${p.respondRate}%` : '기록 전'} label="응답률" />
               </Row>
             </View>
 

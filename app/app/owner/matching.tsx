@@ -55,7 +55,14 @@ interface Match { total: number; partial: boolean; reasons: { label: string; pct
 // value is invented. `partial` marks the score so the UI can disclose the two-axis computation.
 function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   const respond = r.respondRate; // number | null — null flows through untouched
-  const exp = Math.min(97, 62 + r.totalRuns * 5);
+  // ⚠ [2026-09-15] `Math.min(97, 62 + r.totalRuns * 5)` 는 **무조건** 수를 냈다 — totalRuns 가 0 인
+  // 신규 러너에게 62 를. 그 62 는 시트에서 응답 신뢰도(진짜 서버 %)와 **똑같은 문법**으로 채워진
+  // 바 + 숫자로 그려지고, 같은 화면의 로스터 행은 그 러너를 「0회」라고 적는다 — 그리고 설명
+  // 블록은 이 축이 「지금까지 완료한 러닝 횟수를 봐요」라고 말한다. 아무도 뛰지 않은 62다.
+  // 이 파일이 :52-56 에서 `?? 88` 을 은퇴시킨 이유와 글자 그대로 같은 것이고, 나머지 두 축
+  // (respond·paceFit)은 이미 null 길을 갖고 있었다 — 축 하나만 예외였다. 없는 축은 빼고 재정규화
+  // 한다(아래 wsum 이 이미 그렇게 한다), Bar 는 「신규 · 데이터 없음」을 그린다.
+  const exp = r.totalRuns > 0 ? Math.min(97, 62 + r.totalRuns * 5) : null;
   // paceSec null = 기록 없는 신규 러너 (api.ts 가 더는 7'00" 를 지어내지 않는다). respondRate 가
   // 이미 밟은 길을 그대로: 없는 축은 0 으로 깔지 않고 **빼고**, 남은 축을 재정규화한다.
   const paceFit = r.paceSec != null
@@ -66,7 +73,10 @@ function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   const weighted = axes.reduce((t, [v, w]) => (v != null ? t + v * w : t), 0) / (wsum || 1);
   return {
     total: Math.min(99, Math.round(weighted) + Math.min(2, gearVerified)),
-    partial: respond == null,
+    // ⚠ 예전엔 `respond == null` 하나였고, 그때도 paceFit 은 이미 null 이 될 수 있었다 — 즉 이
+    // 플래그는 '축이 빠졌다'를 말하려다 한 축만 보고 있었다. exp 까지 null 을 갖게 된 지금은
+    // 더 좁다. 빠진 축이 **무엇이든** 부분 계산이다.
+    partial: respond == null || exp == null || paceFit == null,
     reasons: [
       { label: '응답 신뢰도', pct: respond },
       { label: '러닝 경험', pct: exp },
@@ -378,7 +388,7 @@ export default function Matching() {
                 </Text>
               </View>
               <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEEEEE', fontSize: 15, lineHeight: 19, color: paper.dim }}>
-                세 축을 합쳐 순위를 정해요 — 1순위가 AI 추천이에요. 응답률 데이터가 없는 신규 러너는 나머지 두 축으로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
+                세 축을 합쳐 순위를 정해요 — 1순위가 AI 추천이에요. 아직 데이터가 없는 축이 있는 신규 러너는 그 축을 빼고 나머지로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
               </Text>
             </View>
 
@@ -512,9 +522,12 @@ export default function Matching() {
             {sel.m.reasons.map((reason) => (
               <Bar key={reason.label} label={reason.label} pct={reason.pct} nf={nf} />
             ))}
+            {/* 문장이 어느 축인지 세지 않는다 — 빠질 수 있는 축이 셋이므로 「응답률이 없어
+                경험·페이스 두 축으로」는 경우에 따라 거짓이 된다. 위 Bar 들이 어느 축이
+                비었는지 이미 한 줄씩 말하고 있고, 이 줄의 일은 '부분 계산이다'뿐이다. */}
             {sel.m.partial && (
               <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim }}>
-                아직 응답률 데이터가 없어 경험·페이스 두 축으로만 계산한 순위예요
+                아직 데이터가 없는 축이 있어 나머지 축으로만 계산한 순위예요
               </Text>
             )}
           </View>

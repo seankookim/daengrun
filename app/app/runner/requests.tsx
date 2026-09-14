@@ -478,8 +478,18 @@ export default function Requests() {
           <Row style={{ gap: 12, marginTop: 10 }}>
             <Avatar url={req.photoUrl} char={req.dogName[0]} bg={paper.ink} size={48} />
             <View style={{ flex: 1 }}>
+              {/* ⚠ [2026-09-15] 이 줄은 `{req.breed} {req.weightKg}kg` 를 무조건 그렸다. 두 필드
+                  다 매퍼가 부재를 값으로 바꾼다 — `breed: r.breed ?? ''`, `weightKg: Number(r.weight_kg ?? 0)`
+                  (api.ts:1008-1009) — 그리고 `dogs.breed` · `dogs.weight_kg` 는 둘 다 nullable 이고
+                  (0001_init.sql:41,43) 보호자 폼은 빈칸을 null 로 쓴다 (owner/dog.tsx:195). 그래서
+                  체중을 적지 않은 아이는 「초코 ·  0kg」 로 나왔다 — 아무도 재지 않은 체중이,
+                  러너가 **이 개를 감당할 수 있는지 결정하는** 카드 위에. 같은 두 필드를 러너 홈은
+                  이미 가드하고 있다 (home.tsx:862-863) — 그 가드를 여기에도 맞춘다.
+                  없는 칸은 자리표시자가 아니라 **토큰째로** 빠진다 (이 파일의 「동 미정」 법 그대로). */}
               <Text style={{ fontSize: 18, fontWeight: '800', color: paper.ink }}>
-                {req.dogName} · {req.breed} {req.weightKg}kg
+                {req.dogName}
+                {req.breed ? ` · ${req.breed}` : ''}
+                {req.weightKg > 0 ? ` ${req.weightKg}kg` : ''}
               </Text>
               {/* 결정에 필요한 수는 한 줄에 — 개의 줄 안에서, 사실로. Oswald 숫자 lineHeight 19 = 1.27× (BUG A).
                   [2026-08-24] 「수수료 제외」 삭제. 숫자를 인쇄하진 않았지만 구조를 이름으로 불렀고,

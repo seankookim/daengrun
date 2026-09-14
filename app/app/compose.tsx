@@ -268,9 +268,22 @@ export default function Compose() {
                         )}
                         {/* the underline is the pick's second signal; it hugs the label, so the
                             wrapper shrinks to content rather than ruling the whole row. */}
+                        {/* ⚠ [2026-09-15] 이 줄은 「{c.dogName} · {c.km}km 완주」였고 두 군데가
+                            거짓이었다. ① `c.km` 은 `bookings.km` = **주문한** 거리이지 잰 거리가
+                            아니다 (실측은 runs.actual_km 이고 이 화면에는 오지 않는다).
+                            ② 「완주」는 여기서 `status === 'completed'` 하나로 주장됐는데,
+                            api.ts:1593 이 적어둔 그대로 「status='completed'는 조기 종료 정산도
+                            포함」이다 — 완주의 근거는 거리가 아니라 **끝난 방식**(runs.end_reason)
+                            이고, community.tsx:49-64 가 피드 카드에서 정확히 이 결함을 고치며 그
+                            규칙을 써 뒀다 (0km 조기 종료가 '초코 완주'로 게시된 실측 사례).
+                            5km 를 주문하고 1.2km 에서 dog_condition 으로 멈춘 러닝이 여기서
+                            「초코 · 5km 완주」였다 — 두 번 틀린 한 줄이다.
+                            이 화면은 end_reason 도 actual_km 도 들고 있지 않으므로 그 주장을
+                            **하지 않는다**: 예약이 실제로 들고 있는 값(주문 거리)만, 그 이름으로.
+                            붙인 기록의 진짜 수치는 서버가 붙인다 (0074 feed_claim_gate). */}
                         <View style={[s.slWrap, on && s.slWrapOn]}>
                           <Text style={[s.sl, on && s.slOn]} numberOfLines={1}>
-                            {c.dogName} · <Text style={nf}>{c.km}</Text>km 완주
+                            {c.dogName} · 목표 <Text style={nf}>{c.km}</Text>km
                           </Text>
                         </View>
                       </Row>
