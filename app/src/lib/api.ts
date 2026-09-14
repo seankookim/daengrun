@@ -3146,9 +3146,24 @@ export async function sendChatPhoto(threadId: string, base64: string, clientKey?
   clientKey ??= createChatClientKey();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
-  const path = `${user.user.id}/chat/${threadId}/${Date.now()}.jpg`;
+  // [codex #8, 2026-09-15] The storage path is derived from `clientKey`, NOT from the clock.
+  //
+  // A retry re-sends the SAME clientKey (chat.tsx:182-191 hands the same key to 「다시 시도」).
+  // With a `Date.now()` path each retry wrote a NEW object: if the first INSERT's response was
+  // lost in flight the row already exists, the retry's INSERT is mapped to success on 23505 — and
+  // the second upload stays in the PRIVATE bucket referenced by nothing. Duplicate messages were
+  // prevented while orphan objects were manufactured, one per retry. Keying the path by clientKey
+  // makes a retry re-upload the SAME object, and it always equals the `media_path` written below.
+  //
+  // Why `upsert` is permitted here, read out of 0064_private_media.sql rather than assumed:
+  // storage-api's upsert needs select + insert + update on storage.objects, and all three exist
+  // for the owner's own prefix — 「media owner insert」/「media owner update」 (the update policy
+  // has no WITH CHECK, so its USING doubles as the check) and the first arm of 「media party read」
+  // (`foldername[1] = auth.uid()`). Somebody else's folder is still refused by every one of them;
+  // this change does not move that boundary.
+  const path = `${user.user.id}/chat/${threadId}/${clientKey}.jpg`;
   const { error } = await supabase.storage.from(MEDIA_BUCKET)
-    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg', upsert: true });
   if (error) throw error;
   const { error: e2 } = await supabase.from('chat_messages').insert({
     thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: path, body: null, client_key: clientKey,
