@@ -95,7 +95,26 @@ npx expo prebuild -p ios     # regenerates ios/ from app.json
 cd ios && pod install
 ```
 
-**The build that actually works is the LOCAL simulator build** — three EAS cloud builds died at
+**2026-09-15 — the build that works on a macOS-14 Mac is the EAS CLOUD simulator build**, and the
+cause of the three (then four) 「Configure expo-updates」 failures below was `app.json`
+`runtimeVersion: {policy: 'fingerprint'}` — the fingerprint step is that phase. Trunk now carries
+`{policy: 'appVersion'}` and `eas.json`'s `simulator` profile binds `"environment": "preview"` (where
+the two EXPO_PUBLIC values live). Proven twice (with and without the `expo-widgets` extension):
+
+```bash
+cd ~/dev/daengrun/app
+eas build --profile simulator --platform ios --non-interactive --json > /tmp/b.json   # ~12 min
+curl -sL -o /tmp/app.tar.gz "$(python3 -c "import json;print(json.load(open('/tmp/b.json'))[0]['artifacts']['buildUrl'])")"
+tar -xzf /tmp/app.tar.gz -C /tmp
+xcrun simctl boot <udid>            # create one first: xcrun simctl create "iPhone 16 Pro" com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro com.apple.CoreSimulator.SimRuntime.iOS-18-3
+xcrun simctl install <udid> /tmp/app.app && xcrun simctl launch <udid> com.seankookim.dogshigh
+xcrun simctl io <udid> screenshot /tmp/s.png
+```
+The bundle id is `com.seankookim.dogshigh` (not the old `daengrun`). Prove env binding with
+`/usr/bin/grep -a -c '<project>.supabase.co' app.app/main.jsbundle` — this shell's `grep` is ugrep
+and prints nothing for `-c` on a binary.
+
+**The build that actually worked on the OLD Mac was the LOCAL simulator build** — three EAS cloud builds died at
 the `Configure expo-updates` phase and the local route skips it entirely, needs no Apple signing,
 and produced the first-ever running build on 2026-08-28:
 
@@ -105,7 +124,7 @@ xcodebuild -workspace app.xcworkspace -scheme app -configuration Release \
   -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
   -derivedDataPath /tmp/dd CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 xcrun simctl install booted /tmp/dd/Build/Products/Release-iphonesimulator/app.app
-xcrun simctl launch booted com.seankookim.daengrun
+xcrun simctl launch booted com.seankookim.dogshigh   # bundle id renamed; the old daengrun id is gone
 ```
 
 ⚠ A **Debug** build from a worktree silently loads a peer session's Metro bundle — build
