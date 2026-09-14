@@ -77,3 +77,13 @@ real shell, so P0's commit/push-branch steps apply there unchanged.
 A run that finds its premise false should stop and say so — P1's first run did exactly that
 (the master-backend prompt claimed the chat client half landed; only a comment had) and the
 `CHANGED: 0` + UNVERIFIED lines made the false premise visible in one read.
+
+⚠ **The landing chain must be `&&`-strict THROUGH the read-back, and the read-back comes BEFORE any
+cleanup or docs edit** (measured 2026-09-15 04:5x, my own miss). Landing 0170: `git push origin
+HEAD:redesign-v4` was REJECTED (non-fast-forward — I had pushed a docs commit to trunk after the
+worktree rebased), the chain continued past a `;`, the worktree was removed, and a handoff commit
+saying 「0170 landed, eleven pending」 was pushed to trunk while 0170 was NOT on trunk. The
+read-back (`ls-tree origin/redesign-v4 … | grep -c 0170_` → 0) refuted it one command later; the
+branch was safe on origin and re-landed. Same family as the push-detector law: a document reported
+a landing the artifact denied. Shape that prevents it: `push && fetch && [ "$(read-back)" = 1 ] &&
+worktree remove && docs commit` — nothing after the push runs unless the artifact is on origin.
