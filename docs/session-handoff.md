@@ -20,7 +20,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1188 / 0** at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1193 / 0** at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
@@ -78,8 +78,11 @@ Everything else for the build is in place (`ios/` regenerated, pods installed, i
 Sean questions) · 185 suite repairs for codex 0154 #5/#6/#7 (`58166cc`, 1183/0) · **0166 revocation
 findings** (`bc7d59d`, closes codex 0155 REJECT/6 — all six were still open on trunk, 0157 touched
 neither dispatcher nor reporter; suite 196, harness **1188/0**, 8 plants each reddening one pin;
-flag-gated, arms only when card registration goes live). **Pending on production is now SEVEN:
-0157 0158 0159 0160 0161 0162 0166.** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
+flag-gated, arms only when card registration goes live). **Pending on production is now EIGHT:
+0157 0158 0159 0160 0161 0162 0166 0167** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
+pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
+`club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
 **Client honesty pass, wave 4 (Claude agent, non-club screens)** — 4 commits, 12 files, 15 fixes:
 dead buttons removed (shop cart/search/담기, `pickEarliest` no-op, the iOS-only alert that fired on
 iOS), loading-is-not-0 (schedule/calendar/community counters), fabricated data unbound (fixture
