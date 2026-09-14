@@ -54,7 +54,18 @@ keyed on the client key). **LOW #9** closed-window roster replaces instead of re
 it safely; left. All 0159's 11 findings: 7 measured closed, 4 in excluded `geo.ts` (unverified by this
 run, verified by the 08-31 UI rounds).
 
-**Production is still 0156. Pending on trunk: ELEVEN** — 0157 0158 0159 0160 0161 0162 0166 0167
+**07:2x — FIX WAVE LANDED, RE-ATTACK WALLED.** Client wave `6a03ab6` (findings 4 · 7 · 8 · 9: frozen
+run settles without local GPS state; `trace_future_fix` gets the contract's clock copy; photo retry
+re-uploads the SAME object keyed on the client key with upsert — 0064's policies admit it; closed-window
+roster retained, one pin ×3 zones, npm 986/0) · server wave `44e2e9c` (0171 `is distinct from` in
+`_club_phone_visible` — ⚠ the finding's premise measured FALSE: `custody_phase` is NOT NULL since 0040:47
+under an always-writing trigger, so 0171 is hardening and its P1 manufactures an unreachable state, said
+in both headers; register-billing-key reordered auth → tombstone → flag with the divergence-zone deno
+test, 288/0; harness 1217/0). **The re-attack review hit the quota wall (try again at 11:41 AM) after 1.3 MB of
+reading — the fix wave is UNREVIEWED; REJECT/10 stays the verdict of record with 6 fixed (unreviewed)
++ 4 dispositioned.** Pending on production is now TWELVE (0171 joins).
+
+**Production is still 0156. Pending on trunk: TWELVE** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
 **I did not deploy** (your call, and the harness classifier refused an unattended deploy job).
@@ -84,10 +95,10 @@ the landing chain is now `&&`-strict through the read-back).
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1213 / 0** at 0170's landing (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1217 / 0** at 0171's landing (1213 at 0170's (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
-| Deno edge tests | **287 / 0** at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
+| Deno edge tests | **288 / 0** at the fix wave (287 at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
 | Production | **MEASURED 02:00 KST after `supabase login`: 0156 deployed · pending 0157 0158 0159 0160 0161** (+0162 since `bb21ccd`) |
 | Rescue branches | ⚠ corrected minutes after first push (I wrote 「all eight are ancestors」 — false): `merge-base --is-ancestor` says **4 MERGED** (0157-adopted · 0157-billing-hardening · 0158-adopted · 0158-settled-distance) · `wip-b1-pack-publish` is NOT an ancestor but its two commits landed by cherry-pick (`b4bba36`/`9d874a2`, same diff) · **3 hold UNLANDED work**: `routes-basemap-45de013` (4 ahead), `wip-main-clone-chat-slice-2026-08-28` (1 ahead — the inline-script fix, being adopted by P7), `wip-registry-row-ab47081-2026-08-28` (1 ahead, unexamined) |
 | Toolchain | node 20 · pg16 · supabase CLI · cocoapods (needs `LANG=en_US.UTF-8`) · deno · bun · gh · gstack · codex 0.154 (bundled in ChatGPT.app + npm) · Xcode 16.2 + iOS 18.3.1 runtime · `app/ios` regenerated, pods installed |
@@ -178,7 +189,7 @@ CONTRACT pin caught the unmapped `run_stopping` raise; mapped at `34bd905`, deno
 gate for every migration (protocol updated).
 
 **Pending on production is now ELEVEN (0170 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.

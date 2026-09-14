@@ -1491,13 +1491,14 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0170 (ONE `db push`).** Production is 0156; trunk carries eleven
-   pending migrations, all gates green here (harness 1213/0, npm 983/0, deno 287/0).
+1. **Deploy 0157–0162 + 0166–0171 (ONE `db push`).** Production is 0156; trunk carries twelve
+   pending migrations, all gates green here (harness 1217/0, npm 986/0, deno 288/0).
    **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Two
    HIGHs are behind flags you hold and pre-date this set (#1 lost collection on re-mint failure,
    #2 compensation DELETE of a stored key); one HIGH is the trace-provenance class (#3) that 0168
-   widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) are being fixed overnight
-   as a fix wave, then re-attacked. Your options: ⓐ **wait for the fix wave + re-attack, then
+   widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) were FIXED overnight (`6a03ab6`,
+   `44e2e9c`; 0171 joins the pending set → TWELVE) — but the re-attack review hit the codex wall
+   (try again at 11:41 AM); the fixes are UNREVIEWED. Say 「re-attack」 when the window reopens and I run it first. Your options: ⓐ **wait for the fix wave + re-attack, then
    deploy** (recommended) · ⓑ deploy now (the three standing HIGHs are unreachable with money OFF)
    · ⓒ hold 0168/0169 only (provenance) and deploy the rest. **Provenance (#3), separately:** ⓐ
    accept ≤480 m post-tap exposure until a server-attested trace exists · ⓑ shrink the drain to 30 s
