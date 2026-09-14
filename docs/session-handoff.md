@@ -20,10 +20,10 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1205 / 0** at 0169's landing (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1213 / 0** at 0170's landing (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
-| Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
+| Deno edge tests | **287 / 0** at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
 | Production | **MEASURED 02:00 KST after `supabase login`: 0156 deployed · pending 0157 0158 0159 0160 0161** (+0162 since `bb21ccd`) |
 | Rescue branches | ⚠ corrected minutes after first push (I wrote 「all eight are ancestors」 — false): `merge-base --is-ancestor` says **4 MERGED** (0157-adopted · 0157-billing-hardening · 0158-adopted · 0158-settled-distance) · `wip-b1-pack-publish` is NOT an ancestor but its two commits landed by cherry-pick (`b4bba36`/`9d874a2`, same diff) · **3 hold UNLANDED work**: `routes-basemap-45de013` (4 ahead), `wip-main-clone-chat-slice-2026-08-28` (1 ahead — the inline-script fix, being adopted by P7), `wip-registry-row-ab47081-2026-08-28` (1 ahead, unexamined) |
 | Toolchain | node 20 · pg16 · supabase CLI · cocoapods (needs `LANG=en_US.UTF-8`) · deno · bun · gh · gstack · codex 0.154 (bundled in ChatGPT.app + npm) · Xcode 16.2 + iOS 18.3.1 runtime · `app/ios` regenerated, pods installed |
@@ -101,8 +101,20 @@ event with different copy — the two never meet today (different function/endpo
 409 fires first, and its RPC error map has no arm for either), but a future client arm must key on
 the SETTLE path, not the token.
 
-**Pending on production is now TEN (0169 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168 0169** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+**0170 billing intent row LANDED** (Toss memo §4's branch-independent core, codex billing findings 3/4/6
+local halves): `billing_issue_intents` — one row per issuance attempt, server-minted `Idempotency-Key`
+persisted BEFORE Toss is called, states issuing → issued_persisted | issued_unpersisted | provider_error
+| unresolved, no edge back to issuing; RLS-on zero client policies + explicit revokes; two definers
+(open/close). register-billing-key handler: open → Toss with the persisted key → close(outcome) → swap;
+a thrown Toss call closes `unresolved` and re-throws (no client-visible status changed). Harness
+**1213/0** (+8), deno **287/0** (+6). PROVISIONAL per memo §3: replay_deadline 15 d (U1),
+provider_error terminal (U6). The sweep that RESOLVES `unresolved` rows is NOT built (needs U1/U2 —
+Sean's Toss ticket). ⚠ Also this hour: 0169 landed with trunk deno RED for ~40 min — settle-run's
+CONTRACT pin caught the unmapped `run_stopping` raise; mapped at `34bd905`, deno is now a landing
+gate for every migration (protocol updated).
+
+**Pending on production is now ELEVEN (0170 joins):
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
