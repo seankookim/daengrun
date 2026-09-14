@@ -71,6 +71,11 @@ export default function ClubRun() {
   const [busy, setBusy] = useState(false);
 
   const [saveLag, setSaveLag] = useState(false); // [감사 P1] 트레이스 저장 실패를 침묵시키지 않는다
+  // [0168] `run_stopping` — 배수 창이 닫힌 뒤(또는 이미 동결된 뒤)의 업로드 거절. saveLag 과 **다른
+  // 상태여야 한다**: saveLag 배너는 「신호가 잡히면 자동 재시도해요」라고 말하는데 이 거절은 영구적이고
+  // 재시도는 영원히 실패한다 — 서버가 이름을 붙여 거절하는데 클라가 그것을 재시도 가능한 지연으로
+  // 세탁하면, 정직 법이 금지하는 「조용한 catch → 행복한 UI」가 된다 (계약 §4.1).
+  const [stopLate, setStopLate] = useState(false);
   const trace = useRef<GeoPoint[]>([]);
   const kmRef = useRef(0);
   const hydrated = useRef(false);
@@ -138,7 +143,7 @@ export default function ClubRun() {
     setBoard(null); setBoardFor(null); setBoardLoaded(false); setBoardErr(false);
     hydrated.current = false; startedAtMs.current = null;
     setEndTarget(null); setEndStep('reason'); setConditionNote('');
-    setRoster(null); setSaveLag(false); setElapsed(0);
+    setRoster(null); setSaveLag(false); setStopLate(false); setElapsed(0);
     resetTrace();
     trace.current = []; kmRef.current = 0;
     setKm(0); setPathLen(0); setLastPos(null);
@@ -277,8 +282,16 @@ export default function ClubRun() {
     try {
       await saveClubRunTrace(sid, pts);
       setSaveLag(false);
-    } catch {
-      setSaveLag(true);
+      setStopLate(false);
+    } catch (e) {
+      // 토큰으로 가른다. impossible_speed·trace_out_of_order·네트워크는 진짜로 재시도 가능하고
+      // saveLag 배너가 맞는 말을 한다. run_stopping 만 영구 거절이다.
+      if (String((e as Error)?.message ?? '').includes('run_stopping')) {
+        setStopLate(true);
+        setSaveLag(false);
+      } else {
+        setSaveLag(true);
+      }
     }
   }, [sid]);
   useEffect(() => {
@@ -297,6 +310,13 @@ export default function ClubRun() {
     // [0147] 얼어붙은 쌍에서는 GPS 거절이 러너를 가둔다: settle-run:115-118은 frozen 경로에서
     // km·사유·시간·노트를 서버 행에서 읽으므로 여기서 잴 것이 남아 있지 않은데, 거절만 남아 종료를
     // 막는다. 얼지 않았을 때의 거절은 그대로 — 그때는 실측이 유일한 근거이고 이 화면이 마지막 방어선이다.
+    // [0168] 정지 중에는 정산 문이 닫혀 있다 — 서버가 아직 거리를 모르고, settle-run 은 409로
+    // 거절한다(handler.ts, 계약 §5). 눌러도 실패하는 버튼을 그리지 않기 위해 아래 시트가 CTA 를
+    // 비활성화하지만, 여기서도 막는다: 얼지 않은 러닝을 다른 경로로 정산에 밀어 넣을 수 없다.
+    if (d.runStopping && !d.runEnded) {
+      Alert.alert('기록을 확정하고 있어요', '잠시 뒤 정산할 수 있어요 — 호스트가 러닝을 종료했고 마지막 구간을 모으는 중이에요.');
+      return;
+    }
     if (!d.runEnded && trackMode === 'denied') {
       Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
       return;
@@ -448,7 +468,15 @@ export default function ClubRun() {
           onBack={goBackOrHome}
           right={<LiveDot />}
         />
-        {saveLag && (
+        {/* [0168] 영구 거절은 자기 배너를 갖는다 — 계약 §5. 「자동 재시도해요」와 같은 자리에 같은
+            말투로 놓으면 러너는 곧 반영될 거라고 읽는다. 늦은 꼬리는 반영되지 않고, 그 사실이
+            보이는 것이 (a) 순수 거절 대신 (b) 배수 창을 고른 대가다(§8.2: 운영 수동 조정). */}
+        {stopLate && (
+          <View style={s.lateBanner}>
+            <Text style={{ fontSize: 15, color: '#7a2a2a' }}>업로드가 늦었어요 — 마지막 구간은 반영되지 않아요</Text>
+          </View>
+        )}
+        {saveLag && !stopLate && (
           <View style={s.lagBanner}>
             <Text style={{ fontSize: 15, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
@@ -536,9 +564,17 @@ export default function ClubRun() {
                   <Text style={{ fontSize: 15, color: L.dim, marginTop: 1 }}>비상 연락처 미등록</Text>
                 )}
               </View>
-              <Pressable onPress={() => setEndTarget(d)} style={s.endBtn}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: L.text }}>종료</Text>
-              </Pressable>
+              {/* [0168] 정지 중인 아이는 종료 버튼이 아니라 상태를 보여 준다 — 서버가 이미 「언제」를
+                  받았고 남은 것은 확정뿐이라, 여기 버튼을 그리면 눌러도 거절되는 버튼이 된다. */}
+              {d.runStopping && !d.runEnded ? (
+                <View style={s.stoppingTag}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#7a2a2a' }}>정산 중</Text>
+                </View>
+              ) : (
+                <Pressable onPress={() => setEndTarget(d)} style={s.endBtn}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: L.text }}>종료</Text>
+                </Pressable>
+              )}
             </View>
           );
         })}
@@ -572,16 +608,31 @@ export default function ClubRun() {
           <View style={s.grab} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{endTarget?.dogName} 러닝 종료</Text>
-            <Text style={[{ fontSize: 20, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-              {km.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text>
-            </Text>
+            {/* [0168] 정지 중에는 숫자를 크게 쓰지 않는다. 이 화면의 km 은 **폰의 로컬 측정**이고
+                서버는 자기 트레이스로 다시 잰다 — 확정 전에 큰 글씨로 보여 주면 그 숫자로 정산된다는
+                뜻이 되고, 그건 참이 아니다. 「로딩은 0이 아니다」의 반대 방향이기도 하다: 0을 쓰지
+                않는 것만으로는 부족하고, 모르는 것은 모른다고 써야 한다. */}
+            {endTarget?.runStopping && !endTarget?.runEnded ? (
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#7a2a2a' }}>정산 중</Text>
+            ) : (
+              <Text style={[{ fontSize: 20, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
+                {km.toFixed(1)}<Text style={{ fontSize: 15, color: L.coral }}>km</Text>
+              </Text>
+            )}
           </Row>
           <Text style={{ fontSize: 15, color: L.dim, marginTop: 4 }}>
-            {active.length > 1
+            {endTarget?.runStopping && !endTarget?.runEnded
+              ? '기록을 확정하고 있어요 — 잠시 뒤 정산할 수 있어요'
+              : active.length > 1
               ? `함께 달린 누적 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 정산은 이 아이의 시작 시점부터 실측으로 계산돼요`
               : `실측 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 이 기록으로 정산돼요`}
           </Text>
-          <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
+          <ClubCta
+            label={endTarget?.runStopping && !endTarget?.runEnded ? '기록을 확정하는 중이에요' : '완주로 종료 →'}
+            onPress={() => endTarget && doSettle(endTarget, 'completed')}
+            busy={busy}
+            disabled={busy || (!!endTarget?.runStopping && !endTarget?.runEnded)}
+          />
           {/* [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 9.5 → 14 → 15. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
           {/* ⚠ [0147] 얼어붙은 쌍에서는 조기 사유를 아예 제안하지 않는다. 호스트가 「러닝 종료」를 누른
               순간 서버가 사유까지 확정했고, settle-run:115-118은 frozen 경로에서 body를 버린다 — 러너가
@@ -591,7 +642,11 @@ export default function ClubRun() {
               (handler:91), dog_condition에는 condition_note를 요구한다(:103). 무조건 지우면 평범한 클럽
               정산이 전부 400 — 나중에 켜질 결함을 지금 터지는 결함과 맞바꾸는 것이다.
               배포 전에는 runEnded가 payload에 없어 undefined → 아래 분기는 지금과 동일하게 동작한다. */}
-          {endTarget?.runEnded ? (
+          {endTarget?.runStopping && !endTarget?.runEnded ? (
+            <Text style={{ fontSize: 15, lineHeight: 21, color: L.dim, marginTop: 14 }}>
+              호스트가 러닝을 종료했어요 — 마지막 구간까지 모은 뒤 서버가 거리를 확정해요. 확정되면 이 화면에서 정산할 수 있어요
+            </Text>
+          ) : endTarget?.runEnded ? (
             <Text style={{ fontSize: 15, lineHeight: 21, color: L.dim, marginTop: 14 }}>
               호스트가 러닝을 종료해서 기록이 확정됐어요 — 사유와 거리는 서버 기록을 따라요
             </Text>
@@ -672,6 +727,15 @@ const s = StyleSheet.create({
   lagBanner: {
     backgroundColor: L.amberSoft, borderWidth: 1, borderColor: L.amberEdge,
     borderRadius: lilacRadius.inner, padding: 8, paddingHorizontal: 12, marginTop: 8,
+  },
+  // [0168] a PERMANENT refusal, deliberately not the amber 「it will retry」 plate
+  lateBanner: {
+    backgroundColor: '#FBECE9', borderWidth: 1, borderColor: '#E9C4BC',
+    borderRadius: lilacRadius.inner, padding: 8, paddingHorizontal: 12, marginTop: 8,
+  },
+  stoppingTag: {
+    backgroundColor: '#FBECE9', borderWidth: 1, borderColor: '#E9C4BC',
+    borderRadius: lilacRadius.tag, paddingVertical: 7, paddingHorizontal: 12,
   },
   camBtn: {
     width: 46, height: 46, borderRadius: 23, backgroundColor: L.card,

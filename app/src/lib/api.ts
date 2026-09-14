@@ -4216,6 +4216,13 @@ export interface DelegationDog {
   // 서버는 boolean으로 투영한다(0147:145, `run_ended_at is not null`) — 타임스탬프가 아니다: 누가
   // 언제 눌렀는지는 보드 독자 전원이 알 필요가 없고, 여기서 묻는 것은 「얼었는가」 하나뿐이다.
   runEnded?: boolean;
+  // [0168] 호스트가 러닝 종료를 눌렀지만 **아직 숫자가 얼지 않았다** — 배수 창이 열려 있고 스윕이
+  // 아직 돌지 않았다. ⚠ runEnded 를 넓히지 않고 키를 따로 둔 것은 의도다 (계약 §4.4): 넓히면
+  // club/run/[sid].tsx:300 이 서버 숫자가 없는 상태에서 GPS 거부 정산을 허용하고, :594 가 얼지도 않은
+  // 런의 조기 종료 사유를 숨긴다 — 두 호출자 모두 오늘 옳고 한 줄도 고치지 않은 채 깨진다.
+  // ⚠ OPTIONAL ON PURPOSE, runEnded 와 같은 이유: 0168 배포 전 번들·캐시된 payload 에는 이 키가 없고
+  // undefined → falsy 가 안전한 기본값이다 (그때는 지금과 똑같이 동작한다).
+  runStopping?: boolean;
   ownerReturnConfirmed: boolean; runnerReturnConfirmed: boolean;
   payoutState: string | null; payoutHold: string | null; payoutHoldReason: string | null;
   pendingTransfer: {
@@ -4320,10 +4327,20 @@ export const hostForceResolve = (sdId: string, reason: string, artifact: unknown
 // 한 시계에 얼린다. 반환은 세 개의 '이름 붙은 목록'이지 개수가 아니고(0144:281-285), blocked는
 // 보고이지 거절이 아니다 — 호출 자체는 성공한다(0144:287-289). 게이트는 호스트 OR 백업 호스트
 // (0144:340-343 — 이 패밀리에서 유일하게 백업을 들인다).
-export interface PackRunEnded { sdId: string; bookingId: string; runnerId: string; dogId: string; dogName: string; km: number; durationSec: number }
+// [0168] 1단계 payload. km·durationSec 은 **명시적 null** 이다 — 0 이 아니다: 그 순간 서버는 아직
+// 거리를 모르고, 0 은 소비자가 값으로 읽는다(정직 법: 로딩은 0이 아니다). phase 는 그 상태에 이름을
+// 붙여, 클라가 null 에서 상태를 추론하지 않게 한다.
+export type PackRunPhase = 'stopping' | 'ended';
+export interface PackRunEnded {
+  sdId: string; bookingId: string; runnerId: string; dogId: string; dogName: string;
+  km: number | null; durationSec: number | null; phase?: PackRunPhase;
+}
 export interface PackRunBlocked { sdId: string; dogId: string; dogName: string; reason: string; incidentId: string | null }
 export interface PackRunAlready { sdId: string; dogId: string; dogName: string; reason: string }
-export interface PackRunEndResult { session: string; at: string; ended: PackRunEnded[]; blocked: PackRunBlocked[]; already: PackRunAlready[] }
+export interface PackRunEndResult {
+  session: string; at: string; phase?: PackRunPhase;
+  ended: PackRunEnded[]; blocked: PackRunBlocked[]; already: PackRunAlready[];
+}
 export const endPackRuns = (sessionId: string) =>
   clubRpc('club_end_pack_runs', { p_session: sessionId }) as Promise<PackRunEndResult>;
 // [0047 §6.6 · U4b] 백업 호스트 지정 — 호스트 전용, 커밋 러너만(서버 backup_not_committed).

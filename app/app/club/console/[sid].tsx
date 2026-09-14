@@ -8,7 +8,7 @@ import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, cancelClubSession, ClubIncident, custodyOverride, DelegationBoard, DelegationDog,
   DelegationRunner, endPackRuns, fetchDelegationBoard, fetchSessionBackup, fetchSessionIncidents, finishClubSession,
-  hostForceResolve, incidentAssign, incidentResolve, PackRunEndResult, proposalRevoke, proposeDog, reviewDelegation,
+  hostForceResolve, incidentAssign, incidentResolve, PackRunEnded, PackRunEndResult, proposalRevoke, proposeDog, reviewDelegation,
   SessionBackupFacts, sessionSetBackup,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
@@ -80,7 +80,17 @@ const END_BLOCK_REASON: Record<string, string> = {
 const END_ALREADY_REASON: Record<string, string> = {
   already_settled: '러너가 이미 정산을 마쳤어요',
   already_ended: '이미 종료돼 있었어요',
+  // [0168] 배수 창 안에서의 두 번째 탭. 아무도 할 일이 없으므로 blocked 가 아니라 already 다.
+  already_stopping: '이미 종료를 눌렀어요 — 기록을 모으는 중이에요',
 };
+
+// [0168] 1단계는 거리를 모르고 km 은 **명시적 null** 로 온다. 「0km 확정」은 값을 지어내는 것이고
+// (정직 법: 로딩은 0이 아니다), 「— km 확정」은 빈 칸을 보여 주는 것이다. 계약 §5 의 문장이 이 자리의
+// 정본이다. phase 와 null 을 둘 다 보는 이유: 0168 배포 전 캐시된 payload 에는 phase 가 없다.
+const endedLine = (r: PackRunEnded): string =>
+  r.phase === 'stopping' || r.km == null
+    ? `${r.dogName} — 기록을 모으는 중이에요 · 곧 확정돼요`
+    : `${r.dogName} — ${r.km}km 확정`;
 
 export default function HostConsole() {
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
@@ -332,7 +342,10 @@ export default function HostConsole() {
   // [codex r2-F6] RPC의 루프 모집단은 「부킹 있는 위탁 전부」다 — 미리보기가 running만 말하면
   // 확인창이 실제로 건드릴 것보다 적게 말한다. 나머지는 이름으로 함께 예고한다.
   const packDelegated = dogs.filter((d) => d.bookingId != null);
-  const packRunning = packDelegated.filter((d) => d.bookingStatus === 'active' && !d.runEnded);
+  // [0168] 정지 중(탭은 됐고 아직 안 얼었다)은 「러닝 중」이 아니다. 여기 남겨 두면 종료 버튼이
+  // already_stopping 을 돌려받는 버튼이 되고, 확정 대기 상태가 화면에서 사라진다.
+  const packStopping = packDelegated.filter((d) => d.bookingStatus === 'active' && !d.runEnded && d.runStopping);
+  const packRunning = packDelegated.filter((d) => d.bookingStatus === 'active' && !d.runEnded && !d.runStopping);
   const packOther = packDelegated.filter((d) => !(d.bookingStatus === 'active' && !d.runEnded));
   // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
   const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
@@ -428,7 +441,7 @@ export default function HostConsole() {
   };
   const doEndPack = () => {
     Alert.alert('러닝 종료',
-      `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n각 아이의 거리·시간이 서버 기록으로 확정돼요.${
+      `지금 달리는 ${packRunning.map((d) => d.dogName).join(' · ')}의 러닝을 종료할까요?\n기록을 모은 뒤 각 아이의 거리·시간이 서버 기록으로 확정돼요.${
         packOther.length > 0 ? `\n${packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요.` : ''}`,
       [
         { text: '아직', style: 'cancel' },
@@ -463,16 +476,22 @@ export default function HostConsole() {
           </LilacCard>
           {isDone || !['open', 'full'].includes(sess.status ?? '') ? (
             <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 16 }}>세션이 닫혀 있어요 — 지금 할 수 있는 일이 없어요</Text>
-          ) : packRunning.length > 0 ? (
+          ) : packRunning.length > 0 || packStopping.length > 0 ? (
             <View style={s.drow}>
               <Text style={s.dogName}>러닝 중 — {packRunning.map((d) => d.dogName).join(' · ')}</Text>
-              <Text style={s.dogSub}>종료하면 각 아이의 거리·시간이 서버 기록으로 확정돼요</Text>
+              <Text style={s.dogSub}>종료하면 마지막 기록까지 모은 뒤 거리·시간이 서버 기록으로 확정돼요</Text>
               {packOther.length > 0 && (
                 <Text style={s.dogSub}>{packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요</Text>
               )}
-              <View style={{ marginTop: 9 }}>
-                <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
-              </View>
+              {/* [0168] see the host-mode copy — 확정 대기 is a state, not a missing button */}
+              {packStopping.length > 0 && (
+                <Text style={s.dogSub}>{packStopping.map((d) => d.dogName).join(' · ')} — 기록을 모으는 중이에요 · 곧 확정돼요</Text>
+              )}
+              {packRunning.length > 0 && (
+                <View style={{ marginTop: 9 }}>
+                  <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
+                </View>
+              )}
             </View>
           ) : (
             <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center', marginTop: 16 }}>지금 달리는 러닝이 없어요</Text>
@@ -481,7 +500,7 @@ export default function HostConsole() {
             <LilacCard>
               <Text style={clubText.vkTitle}>러닝 종료 결과 · {kstClock(kstCal(Date.parse(endResult.result.at)))}</Text>
               {endResult.result.ended.map((r) => (
-                <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>{r.dogName} — {r.km}km 확정</Text>
+                <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>{endedLine(r)}</Text>
               ))}
               {endResult.result.already.map((r) => (
                 <Text key={r.sdId} style={{ fontSize: 15, color: L.text, marginTop: 6 }}>{r.dogName} — {END_ALREADY_REASON[r.reason] ?? r.reason}</Text>
@@ -837,18 +856,25 @@ export default function HostConsole() {
         {/* ---------- 러닝 종료 (0144 · Sean 2026-08-31 「Wire it」) ---------- */}
         {/* 대상이 있을 때만 그린다 — 대상 없는 종료 버튼은 죽은 버튼이다. 호스트 자기 개 포함
             (packRunning 파생의 주석 참조). */}
-        {packRunning.length > 0 && (
+        {(packRunning.length > 0 || packStopping.length > 0) && (
           <View style={s.drow}>
             <Text style={s.dogName}>러닝 중 — {packRunning.map((d) => d.dogName).join(' · ')}</Text>
-            <Text style={s.dogSub}>종료하면 각 아이의 거리·시간이 서버 기록으로 확정돼요</Text>
+            <Text style={s.dogSub}>종료하면 마지막 기록까지 모은 뒤 거리·시간이 서버 기록으로 확정돼요</Text>
             {/* [codex r2-F6] 서버는 부킹 있는 위탁 전부를 훑는다 — 달리지 않는 아이도 결과에
                 이름으로 보고된다는 사실을 탭 전에 말한다 (개수 아님, 이름). */}
             {packOther.length > 0 && (
               <Text style={s.dogSub}>{packOther.map((d) => d.dogName).join(' · ')}는 달리고 있지 않아 결과에 보고만 돼요</Text>
             )}
-            <View style={{ marginTop: 9 }}>
-              <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
-            </View>
+            {/* [0168] 확정 대기는 그 자체로 상태다 — 버튼도, 숫자도 아니다. 여기에 아무 말도 하지
+                않으면 호스트는 탭이 먹히지 않았다고 읽는다. */}
+            {packStopping.length > 0 && (
+              <Text style={s.dogSub}>{packStopping.map((d) => d.dogName).join(' · ')} — 기록을 모으는 중이에요 · 곧 확정돼요</Text>
+            )}
+            {packRunning.length > 0 && (
+              <View style={{ marginTop: 9 }}>
+                <ClubCta label="러닝 종료 — 전체 확정" onPress={doEndPack} busy={busy} />
+              </View>
+            )}
           </View>
         )}
         {endResult && endResult.sid === sess.id && (
@@ -856,7 +882,7 @@ export default function HostConsole() {
             <Text style={clubText.vkTitle}>러닝 종료 결과 · {kstClock(kstCal(Date.parse(endResult.result.at)))}</Text>
             {endResult.result.ended.map((r) => (
               <Text key={r.sdId} style={{ fontSize: 15, fontWeight: '800', color: L.head, marginTop: 6 }}>
-                {r.dogName} — {r.km}km 확정
+                {endedLine(r)}
               </Text>
             ))}
             {endResult.result.already.map((r) => (

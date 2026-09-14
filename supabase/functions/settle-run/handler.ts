@@ -72,6 +72,32 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   if (!bk) throw new HttpError(404, "booking not found");
   if (bk.runner_id !== uid) throw new HttpError(403, "assigned runner only");
 
+  // ═══ [0168] THE THIRD STATE — a run that is STOPPING is not settleable ═══════════════════
+  // `run_ended_at` used to have exactly two states here (null → the client's numbers; stamped →
+  // the frozen ones). 0168's two-phase stop adds a third: the host has tapped 러닝 종료, the
+  // runner's last GPS is still draining, and the sweep has not derived anything yet. **Without
+  // this gate that window is settleable — and since `run_ended_at` is still NULL there, it settles
+  // at the CLIENT's numbers, which is the defect moved rather than fixed.**
+  //
+  // ⚠ 409 and not 4xx-retryable, the `return_not_sealed` shape (`:211`): the state is legitimate,
+  // it is simply not settle-time yet, and it resolves on its own within ~90-150 s. Reusing
+  // `run_not_ended` would render 「앱을 최신 버전으로 업데이트해주세요」 (`:216`) and send the runner
+  // chasing a version that changes nothing.
+  //
+  // ⚠ AFTER the party gate above, on purpose and for the reason the block below states: answering
+  // this to a stranger would make the endpoint an oracle for which runs are mid-stop.
+  //
+  // ⚠ NAMED GAP, and it is 0168's header's gap too: the SQL belt inside `settle_run_tx` is NOT
+  // built in this slice. `settle_run_tx` is revoked from `authenticated` (`0083:838`), so this
+  // handler is the only door a client can reach; a direct `service_role` caller can still settle a
+  // stopping booking at the client's numbers. A grant is not a door — but it is not nothing either.
+  if (bk.run_stopping_at && !bk.run_ended_at) {
+    console.log(
+      `[settle-run] refused run_stopping booking=${p.booking_id} stopping_at=${bk.run_stopping_at}`,
+    );
+    throw new HttpError(409, "기록을 확정하고 있어요 — 잠시 뒤 정산할 수 있어요");
+  }
+
   // ═══ [0083 §6-ⓔ] THE FROZEN PATH — the body stops being a financial input ═══════════════
   // If the run went through `end_run_tx`, the money numbers were frozen at the STOP and the
   // client's body is no longer evidence of anything. We read them back and compute the payout
