@@ -179,6 +179,56 @@
 --   rest are supersets, all traceable to two fixture dependencies stated here rather than
 --   discovered later — P12 needs P11's tap to have frozen s2b, and P4/P5/P7 all read state P1
 --   establishes.
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- 🔴 AMENDED BY 0168 — THE TAP IS NOW PHASE 1 OF TWO, AND SIX PINS MOVED WITH IT
+-- ═══════════════════════════════════════════════════════════════════════════════════════════
+-- `docs/contracts/run-end-two-phase-stop-contract.md`, built as `0168`. The host's tap no longer
+-- freezes anything: it stamps `bookings.run_stopping_at`, a 90 s drain window keeps accepting the
+-- runner's last uploaded segment, and `club_finalize_stopped_runs()` — a per-minute cron sweep —
+-- derives km with the TAP as the cutoff and writes the freeze. This file's propositions about the
+-- FREEZE are unchanged and still measured; what changed is that they are measured after phase 2.
+--
+-- ⚠ **EXCEPTION ④ — the fourth write in this file that is not an RPC call**, in the same family as
+--   ② and for the same reason: `now()` is transaction-start time and **the harness cannot make 90
+--   real seconds pass**. `t176_drain()` back-dates `bookings.run_stopping_at` by two minutes and
+--   then calls the SHIPPED sweep exactly as the cron calls it. It supplies the one INPUT the
+--   harness cannot produce — elapsed time — and nothing else.
+-- ⚠ **AND THE FIXTURE CLOCK MOVED BY THE SAME TWO MINUTES** (`v_t0` is `now() - 32 minutes`, dB2's
+--   start `now() - 12 minutes`). The freeze clock is the TAP, so back-dating the tap WITHOUT
+--   shifting the fixture would have moved four km literals and two durations for no reason at all.
+--   Shifting both leaves 3.00 / 1.80 / 0.60 / 2.40 and 1800 / 600 exactly as they were — which is
+--   what makes this an amendment rather than a rewrite.
+--
+--   pin  what changed, and why                                                     owner of the
+--                                                                                  new property
+--   P1   `ended` is 6, not 4 — dE and dF now ENTER the stopping state, because      198 0168-P4
+--        `no_trace`/`km_out_of_band` require a derivation and the whole point of
+--        the drain is that the trace is not final yet. The payload's km/durationSec
+--        are asserted **explicitly NULL** at phase 1 (never 0 — that is the
+--        `Number(null) === 0` class the contract's escalation ② is about), and the
+--        complete freeze is asserted after the sweep, unchanged.
+--   P3   two phase-1 blocked reasons (`incident_open`, `not_started`), not four.
+--        `no_trace` and `km_out_of_band` are phase-2 outcomes and are asserted on
+--        the SWEEP's `pending` list instead — still named, still unstamped.         198 0168-P4
+--   P4   a second tap answers `already_stopping` for the two pairs the sweep         198 0168-P6
+--        deferred, so `already` is 6. The instant arm now compares against the
+--        RAW first tap (`at1tap`), not the back-dated freeze clock, or it would
+--        have become vacuously true.
+--   P5   ended/blocked counts follow P1/P3. The property is unchanged.
+--   P9   🔴 **REVERSED, and the contract says so** (§4.7): it recorded the post-tap
+--        trace window as measured current behaviour, and that window is exactly the
+--        defect 0168 closes. A point arriving after the drain is now refused BY
+--        NAME (`run_stopping`) and the trace does not grow. The OPEN half of the
+--        window — a point INSIDE the drain is accepted and counted — is the control
+--        that a 「refuse everything」 fix cannot pass, and it lives in 198.           198 0168-P3
+--   P11  the backup host's tap is phase 1 too; the drain+sweep follows it.
+--   P13  the derivation helper's signature is now `(jsonb, timestamptz, timestamptz)`.
+--
+-- ⚠ P2 · P6 · P7 · P8 · P10 · P12 are UNTOUCHED, deliberately. Truncation, 「the tap mints no
+--   money」, 「the settle prices from the SERVER's numbers」, derived-axis stability, the party
+--   gate and the charging cutover are all still true word for word — and P12 in particular is
+--   still true only because the freeze clock is the TAP and not the sweep.
+
 set client_min_messages = warning;
 
 -- ── context carried between transactions ───────────────────────────────────────────────────
@@ -237,6 +287,29 @@ end $$;
 
 create or replace function t176_bk(p_sd uuid) returns uuid
 language sql stable as $$ select booking_id from session_dogs where id = p_sd $$;
+
+-- ── ④ [0168] advance past the drain window, then run phase 2 (header exception ④) ──────────
+-- The back-date is the ONLY thing manufactured here. `club_finalize_stopped_runs()` is the
+-- shipped function and is called with no arguments, exactly as `cron.job` calls it — a test-only
+-- parameter on a money function would be a door nobody else uses and everybody would find.
+create or replace function t176_drain(p_session uuid) returns jsonb
+language plpgsql as $$
+declare v_res jsonb;
+begin
+  update bookings set run_stopping_at = run_stopping_at - interval '2 minutes'
+   where club_session_id = p_session
+     and run_stopping_at is not null
+     and run_ended_at is null;
+  v_res := club_finalize_stopped_runs();
+  return v_res;
+end $$;
+
+-- how many of a session's pairings the sweep left in `stopping`, by reason
+create or replace function t176_pending(p_res jsonb, p_sd uuid) returns text
+language sql immutable as $$
+  select e->>'reason' from jsonb_array_elements(p_res->'pending') e
+   where (e->>'sdId')::uuid = p_sd
+$$;
 
 -- ── reading the remainder ──────────────────────────────────────────────────────────────────
 create or replace function t176_reason(p_res jsonb, p_list text, p_sd uuid) returns text
@@ -326,6 +399,7 @@ declare
   dA uuid; dB1 uuid; dB2 uuid; dC uuid; dCi uuid; dD uuid; dE uuid; dF uuid;
   s2a uuid; s2b uuid;
   v_inc uuid; v_res jsonb; v_at timestamptz; v_bad text; v_t0 timestamptz;
+  v_sweep jsonb; v_tap timestamptz; v_pre_frozen int; v_pre_led int;
   n_led int; n_pay int; n_fee int; n_mil int;
   m_led int; m_pay int; m_fee int; m_mil int;
 begin
@@ -413,13 +487,16 @@ begin
   -- 「the run never started」, and the one the host must be told about by name.
 
   -- ── ② back-date the starts (header note ②) ───────────────────────────────────────────────
-  v_t0 := now() - interval '30 minutes';
+  -- [0168] 32, not 30: the freeze clock is the TAP and the harness back-dates the tap by two
+  -- minutes to get past the 90 s drain, so the fixture moves with it and every km and duration
+  -- literal in this file stays exactly what it was. See header exception ④.
+  v_t0 := now() - interval '32 minutes';
   update runs set started_at = v_t0
    where booking_id in (t176_bk(dA), t176_bk(dB1), t176_bk(dC), t176_bk(dCi),
                         t176_bk(dE), t176_bk(dF), t176_bk(s2a), t176_bk(s2b));
   -- dB2 was handed over LATE — twenty minutes into the pack's walk. Its runner's trace is the
   -- same trace; only the window differs, and that is the whole of P2.
-  update runs set started_at = now() - interval '10 minutes' where booking_id = t176_bk(dB2);
+  update runs set started_at = now() - interval '12 minutes' where booking_id = t176_bk(dB2);
   -- ⚠ [0156] dF's run is back-dated FIVE HOURS, alone among the eight. Its fixture is the
   -- over-band case: 999 × 111 m ≈ 110.89 km, which at the ingest gate's 8 m/s ceiling cannot
   -- physically happen in 30 minutes. It previously "fit" only because the generated timestamps
@@ -522,9 +599,31 @@ begin
   perform set_config('request.jwt.claim.sub', v_host::text, false);
   v_res := club_end_pack_runs(v_s1);
   perform set_config('request.jwt.claim.sub', '', false);
-  v_at := (v_res->>'at')::timestamptz;
+  v_tap := (v_res->>'at')::timestamptz;
+
+  -- 🔴 [0168] MEASURED BETWEEN THE PHASES, which is the only moment this is observable: after
+  -- the tap and before the sweep, NOTHING is frozen and no ledger row exists. If phase 1 froze
+  -- anything, every assertion below would still be green — the freeze would simply have happened
+  -- two lines earlier — so this is the one arm that can tell the two designs apart.
+  select count(*) into v_pre_frozen from bookings b
+   where b.id in (t176_bk(dA), t176_bk(dB1), t176_bk(dB2), t176_bk(dC))
+     and (b.run_ended_at is not null
+          or exists (select 1 from runs r where r.booking_id = b.id and r.actual_km is not null));
+  select count(*) into v_pre_led from ledger_items;
+
+  -- ═══ [0168] PHASE 2. The tap above froze nothing; this is where the numbers come from ═════
+  -- Back-date past the 90 s drain (header exception ④) and run the shipped sweep.
+  v_sweep := t176_drain(v_s1);
+  -- 🔴 The freeze clock is the TAP, not the sweep's `now()` — `runs.ended_at` is the charging
+  -- cutover (P12) and duration is measured to the host's tap (Sean ruling ③). The back-date moved
+  -- the recorded tap by exactly two minutes, so this is that instant.
+  v_at := v_tap - interval '2 minutes';
   call t176_put('res1', v_res::text);
+  call t176_put('sweep1', v_sweep::text);
   call t176_put('at1', v_at::text);
+  -- the RAW tap instant, kept separately: P4's 「the two taps are different instants」 arm must
+  -- compare against a real tap or the back-date makes it vacuously true.
+  call t176_put('at1tap', v_tap::text);
 
   select count(*) into m_led from ledger_items;
   select count(*) into m_pay from payments;
@@ -534,12 +633,27 @@ begin
   -- ═══ [P1] ONE TAP ENDS EVERY RUNNER'S RUNS, ON SERVER-DERIVED NUMBERS ═══════════════════
   begin
     v_bad := '';
-    if t176_n(v_res,'ended') <> 4 then v_bad := v_bad || ' ended=' || t176_n(v_res,'ended'); end if;
+    -- [0168] SIX, not four. dE (empty trace) and dF (over-band) enter `stopping` like everyone
+    -- else, because both verdicts need a derivation and the drain exists precisely because the
+    -- trace is not final at the tap — a phone whose uploads have been failing sends its WHOLE
+    -- buffer on the next tick, which is the dE case exactly.
+    if t176_n(v_res,'ended') <> 6 then v_bad := v_bad || ' ended=' || t176_n(v_res,'ended'); end if;
     if t176_n(v_res,'already') <> 0 then v_bad := v_bad || ' already=' || t176_n(v_res,'already'); end if;
-    -- three DISTINCT runners ended, and the host is none of them. A single-runner fixture cannot
-    -- tell 「ends every runner's runs」 from 「ends my own」.
-    if (select count(distinct e->>'runnerId') from jsonb_array_elements(v_res->'ended') e) <> 3
-      then v_bad := v_bad || ' 종료된 러너 수≠3'; end if;
+    -- 🔴 [0168] PHASE 1 DOES NOT KNOW THE NUMBERS AND SAYS SO. `km`/`durationSec` are explicitly
+    -- NULL on every entry — a 0 here is the `Number(null) === 0` class with the sign flipped, and
+    -- it is what a consumer would price. `phase` names the state rather than leaving the client to
+    -- infer it from a null.
+    if (select count(*) from jsonb_array_elements(v_res->'ended') e
+         where e->>'phase' = 'stopping' and e->'km' = 'null'::jsonb
+           and e->'durationSec' = 'null'::jsonb) <> 6
+      then v_bad := v_bad || ' 1단계 payload가 stopping/null/null이 아니다'; end if;
+    -- five DISTINCT runners entered stopping, and the host is none of them. A single-runner
+    -- fixture cannot tell 「ends every runner's runs」 from 「ends my own」.
+    if (select count(distinct e->>'runnerId') from jsonb_array_elements(v_res->'ended') e) <> 5
+      then v_bad := v_bad || ' 정지에 들어간 러너 수≠5'; end if;
+    -- and the sweep's own answer: four frozen, two left stopping because no number could be derived
+    if (v_sweep->>'finalized')::int <> 4 then v_bad := v_bad || ' 스윕 finalized=' || (v_sweep->>'finalized'); end if;
+    if (v_sweep->>'deferred')::int <> 2 then v_bad := v_bad || ' 스윕 deferred=' || (v_sweep->>'deferred'); end if;
     if exists (select 1 from jsonb_array_elements(v_res->'ended') e
                 where (e->>'runnerId')::uuid = v_host)
       then v_bad := v_bad || ' 호스트 자신의 페어가 종료 목록에 있다'; end if;
@@ -561,16 +675,17 @@ begin
          where r.booking_id in (t176_bk(dA), t176_bk(dB1), t176_bk(dB2), t176_bk(dC))
            and r.ended_at = v_at) <> 4
       then v_bad := v_bad || ' runs.ended_at이 at과 다르다'; end if;
-    -- every derived km is > 0 and is the one the caller was told
-    if coalesce(t176_km(v_res, dA), 0) <> 3.00 or coalesce(t176_km(v_res, dB2), 0) <> 0.60
-      then v_bad := v_bad || ' 반환 km이 저장 km과 다르다'; end if;
+    -- 🔴 [0168] and the freeze belongs to PHASE 2: between the tap and the sweep there was no
+    -- stamp, no km, and no ledger row anywhere in the database.
+    if v_pre_frozen <> 0 then v_bad := v_bad || ' 🔴 1단계가 이미 동결했다 (' || v_pre_frozen || '쌍)'; end if;
+    if v_pre_led <> n_led then v_bad := v_bad || ' 🔴 1단계와 2단계 사이에 원장이 움직였다'; end if;
     -- and the booking's STATUS did not move: ARM 1 would have unpaid every runner (0083:720-724)
     if (select count(*) from bookings b
          where b.id in (t176_bk(dA), t176_bk(dB1), t176_bk(dB2), t176_bk(dC))
            and b.status = 'active') <> 4
       then v_bad := v_bad || ' 부킹 상태가 움직였다'; end if;
     if v_bad = ''
-      then call _pass('pke','P1 한 번의 탭이 모든 러너의 런을 끝낸다 — 세 명의 서로 다른 러너(호스트 본인은 아무 개도 맡지 않았다)의 네 페어가 종료되고, 각 개의 km은 그 러너 본인이 업로드한 트레이스에서 서버가 도출했으며(3.00·1.80·0.60·2.40), 시간은 전부 호스트의 탭까지 잰다. 동결은 완전하다: bookings.run_ended_at · runs.ended_at · actual_km · duration_sec · end_reason 다섯이 한 번에, 하나도 NULL이 아닌 채로. 그리고 bookings.status는 움직이지 않는다 — 움직였다면 러너의 자기 정산이 not_active로 거부되어(0083:720-724) 아무도 돈을 못 받는다');
+      then call _pass('pke','P1 [0168 두 단계] 한 번의 탭이 모든 러너의 런을 정지시키고, 배수 창이 지난 뒤 스윕이 서버의 숫자로 동결한다 — 세 명의 서로 다른 러너(호스트 본인은 아무 개도 맡지 않았다)의 네 페어가 종료되고, 각 개의 km은 그 러너 본인이 업로드한 트레이스에서 서버가 도출했으며(3.00·1.80·0.60·2.40), 시간은 전부 호스트의 탭까지 잰다. 동결은 완전하다: bookings.run_ended_at · runs.ended_at · actual_km · duration_sec · end_reason 다섯이 한 번에, 하나도 NULL이 아닌 채로. 그리고 bookings.status는 움직이지 않는다 — 움직였다면 러너의 자기 정산이 not_active로 거부되어(0083:720-724) 아무도 돈을 못 받는다');
       else call _fail('pke','P1 happy fan-out', v_bad); end if;
   exception when others then call _fail('pke','P1 happy fan-out', sqlerrm);
   end;
@@ -598,20 +713,29 @@ begin
   -- ═══ [P3] THE REMAINDER IS NAMED, AND A BLOCKED PAIR IS COMPLETELY UNSTAMPED ════════════
   begin
     v_bad := '';
-    if t176_n(v_res,'blocked') <> 4 then v_bad := v_bad || ' blocked=' || t176_n(v_res,'blocked'); end if;
+    -- [0168] TWO phase-1 reasons, not four: only the verdicts that need no derivation can be
+    -- reached at the tap. `no_trace` and `km_out_of_band` moved to phase 2 and are asserted on the
+    -- sweep's own `pending` list below — named, not silent, and still completely unstamped.
+    if t176_n(v_res,'blocked') <> 2 then v_bad := v_bad || ' blocked=' || t176_n(v_res,'blocked'); end if;
     if t176_reason(v_res,'blocked',dCi) is distinct from 'incident_open'
       then v_bad := v_bad || ' dCi=' || coalesce(t176_reason(v_res,'blocked',dCi),'∅'); end if;
     if t176_reason(v_res,'blocked',dD)  is distinct from 'not_started'
       then v_bad := v_bad || ' dD=' || coalesce(t176_reason(v_res,'blocked',dD),'∅'); end if;
-    if t176_reason(v_res,'blocked',dE)  is distinct from 'no_trace'
-      then v_bad := v_bad || ' dE=' || coalesce(t176_reason(v_res,'blocked',dE),'∅'); end if;
-    if t176_reason(v_res,'blocked',dF)  is distinct from 'km_out_of_band'
-      then v_bad := v_bad || ' dF=' || coalesce(t176_reason(v_res,'blocked',dF),'∅'); end if;
+    if t176_pending(v_sweep, dE) is distinct from 'no_trace'
+      then v_bad := v_bad || ' 스윕 dE=' || coalesce(t176_pending(v_sweep, dE),'∅'); end if;
+    if t176_pending(v_sweep, dF) is distinct from 'km_out_of_band'
+      then v_bad := v_bad || ' 스윕 dF=' || coalesce(t176_pending(v_sweep, dF),'∅'); end if;
+    -- and a deferred pairing is STILL `stopping` — it is not quietly released to settle on the
+    -- runner's own client numbers, which is the option Sean §8.3 rejected
+    if (select count(*) from bookings
+         where id in (t176_bk(dE), t176_bk(dF))
+           and run_stopping_at is not null and run_ended_at is null) <> 2
+      then v_bad := v_bad || ' 도출 실패 페어가 stopping 으로 남지 않았다'; end if;
     -- the incident id is asserted as a VALUE, not as a present key: a body returning constant
     -- NULLs keeps every key and passes a key-set check (0065 W6's recorded near-miss)
     if t176_inc(v_res, dCi) is distinct from v_inc
       then v_bad := v_bad || ' incidentId=' || coalesce(t176_inc(v_res,dCi)::text,'∅'); end if;
-    if t176_inc(v_res, dE) is not null
+    if t176_inc(v_res, dD) is not null
       then v_bad := v_bad || ' 인시던트가 아닌 행에 incidentId가 있다'; end if;
     -- named: the host can point at the dog. A remainder the host cannot name is a bare count.
     if t176_name(v_res,'blocked',dCi) is distinct from 'dCi'
@@ -627,10 +751,10 @@ begin
       then v_bad := v_bad || ' dF=' || t176_state(dF); end if;
     if t176_state(dD)  <> 'picked_up/stamp∅/km∅/reason∅/dur∅/with_custodian/none'
       then v_bad := v_bad || ' dD=' || t176_state(dD); end if;
-    -- blocked is a REPORT, not a refusal: the call succeeded and the other four ended
-    if t176_n(v_res,'ended') <> 4 then v_bad := v_bad || ' 차단이 호출을 실패시켰다'; end if;
+    -- blocked is a REPORT, not a refusal: the call succeeded and the other six entered stopping
+    if t176_n(v_res,'ended') <> 6 then v_bad := v_bad || ' 차단이 호출을 실패시켰다'; end if;
     if v_bad = ''
-      then call _pass('pke','P3 남은 페어는 이름으로 돌아온다 — 네 가지 이유가 각각 구별되어(incident_open·not_started·no_trace·km_out_of_band) sdId·dogName과 함께 오고, 케이스 건에는 실제 incidentId가 값으로 실린다(키 존재가 아니라 값 — 0065 W6). 그리고 차단된 페어는 완전히 무각인이다: 스탬프도, km도, 사유도, 시간도 없다. 반쪽 동결은 0083:744로 무의미해지거나(디바이스 승) 0083:709-717로 영구 미정산이 된다 — 그래서 도출이 실패하면 아무것도 쓰지 않는다');
+      then call _pass('pke','P3 [0168] 남은 페어는 이름으로 돌아온다 — 1단계는 두 가지, 스윕이 두 가지 — 네 가지 이유가 각각 구별되어(incident_open·not_started·no_trace·km_out_of_band) sdId·dogName과 함께 오고, 케이스 건에는 실제 incidentId가 값으로 실린다(키 존재가 아니라 값 — 0065 W6). 그리고 차단된 페어는 완전히 무각인이다: 스탬프도, km도, 사유도, 시간도 없다. 반쪽 동결은 0083:744로 무의미해지거나(디바이스 승) 0083:709-717로 영구 미정산이 된다 — 그래서 도출이 실패하면 아무것도 쓰지 않는다');
       else call _fail('pke','P3 named remainder', v_bad); end if;
   exception when others then call _fail('pke','P3 named remainder', sqlerrm);
   end;
@@ -639,7 +763,7 @@ begin
   begin
     v_bad := '';
     -- stated WITHOUT reference to any mutation: one dog with an open case blocks exactly one dog.
-    if t176_n(v_res,'ended') <> 4 or t176_n(v_res,'blocked') <> 4
+    if t176_n(v_res,'ended') <> 6 or t176_n(v_res,'blocked') <> 2
       then v_bad := v_bad || ' ended/blocked=' || t176_n(v_res,'ended') || '/' || t176_n(v_res,'blocked'); end if;
     if (select run_ended_at from bookings where id = t176_bk(dA)) is null
       then v_bad := v_bad || ' 무관한 페어(dA)가 끝나지 않았다'; end if;
@@ -650,7 +774,7 @@ begin
                 join jsonb_array_elements(v_res->'blocked') b on a->>'sdId' = b->>'sdId')
       then v_bad := v_bad || ' 같은 페어가 두 목록에 있다'; end if;
     if v_bad = ''
-      then call _pass('pke','P5 최선 노력, 원자성 아님 — 케이스가 열린 개 하나가 막는 것은 정확히 그 개 하나다. 나머지 네 페어는 같은 호출에서 끝났고 보호자들은 자기 아이의 기록을 받는다. 원자-아니면-무는 러너 한 명의 미해소 케이스로 세션 전체를 멈추고, 호스트의 유일한 구제책은 현장에서 케이스를 해소하는 것 — 설계상 빠르게 할 수 없는 단 하나의 일이다(club_incident_resolve는 정산을 먼저 요구한다, 0072:276-283). 0118:64가 세션 전체 루프의 raise 한 번으로 세션 한 판의 환불을 잃은 기록이다');
+      then call _pass('pke','P5 [0168] 최선 노력, 원자성 아님 — 케이스가 열린 개 하나가 막는 것은 정확히 그 개 하나다. 나머지 네 페어는 같은 호출에서 끝났고 보호자들은 자기 아이의 기록을 받는다. 원자-아니면-무는 러너 한 명의 미해소 케이스로 세션 전체를 멈추고, 호스트의 유일한 구제책은 현장에서 케이스를 해소하는 것 — 설계상 빠르게 할 수 없는 단 하나의 일이다(club_incident_resolve는 정산을 먼저 요구한다, 0072:276-283). 0118:64가 세션 전체 루프의 raise 한 번으로 세션 한 판의 환불을 잃은 기록이다');
       else call _fail('pke','P5 best-effort', v_bad); end if;
   exception when others then call _fail('pke','P5 best-effort', sqlerrm);
   end;
@@ -686,23 +810,35 @@ end $$;
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 do $$
 declare v_res jsonb; v_at1 timestamptz; v_at2 timestamptz; v_bad text := '';
+        v_tap1 timestamptz;
 begin
-  v_at1 := t176_get('at1')::timestamptz;
+  v_at1  := t176_get('at1')::timestamptz;      -- the FREEZE clock (= the back-dated tap)
+  v_tap1 := t176_get('at1tap')::timestamptz;   -- the RAW first tap, for the instant arm
   perform set_config('request.jwt.claim.sub', t176_get('host'), false);
   v_res := club_end_pack_runs(t176_id('s1'));
   perform set_config('request.jwt.claim.sub', '', false);
   v_at2 := (v_res->>'at')::timestamptz;
 
   begin
-    if v_at2 <= v_at1 then
+    if v_at2 <= v_tap1 then
       -- the pin's own precondition: if the two taps share an instant, the timestamp arm below
       -- is vacuous and would score green while measuring nothing
       v_bad := v_bad || ' 두 탭이 같은 순간이다 (타임스탬프 팔이 무의미해진다)';
     end if;
     if t176_n(v_res,'ended') <> 0 then v_bad := v_bad || ' ended=' || t176_n(v_res,'ended'); end if;
-    if t176_n(v_res,'already') <> 4 then v_bad := v_bad || ' already=' || t176_n(v_res,'already'); end if;
+    -- [0168] SIX: four frozen pairs answer `already_ended`, and the two the sweep could not
+    -- derive answer `already_stopping` — a second tap inside a run's stopping state is not an
+    -- error and nobody must act on it, so it is `already` and not `blocked`.
+    if t176_n(v_res,'already') <> 6 then v_bad := v_bad || ' already=' || t176_n(v_res,'already'); end if;
     if t176_reason(v_res,'already',t176_id('dA')) is distinct from 'already_ended'
       then v_bad := v_bad || ' dA=' || coalesce(t176_reason(v_res,'already',t176_id('dA')),'∅'); end if;
+    if t176_reason(v_res,'already',t176_id('dE')) is distinct from 'already_stopping'
+      then v_bad := v_bad || ' dE=' || coalesce(t176_reason(v_res,'already',t176_id('dE')),'∅'); end if;
+    -- and the second tap did NOT move the first tap's stopping stamp
+    if (select count(*) from bookings
+         where id in (t176_bk(t176_id('dE')), t176_bk(t176_id('dF')))
+           and run_stopping_at = v_at1) <> 2
+      then v_bad := v_bad || ' 두 번째 탭이 stopping 스탬프를 덮었다'; end if;
     -- 🔴 the stamp is the FIRST tap's, not the second's — the idempotency key is
     -- `run_ended_at is null` evaluated under the row lock, not a returned token
     if (select count(*) from bookings b
@@ -715,9 +851,9 @@ begin
            and r.ended_at = v_at1) <> 2
       then v_bad := v_bad || ' runs.ended_at이 덮였다'; end if;
     -- the blocked pairs are still blocked, for the same named reasons
-    if t176_n(v_res,'blocked') <> 4 then v_bad := v_bad || ' blocked=' || t176_n(v_res,'blocked'); end if;
+    if t176_n(v_res,'blocked') <> 2 then v_bad := v_bad || ' blocked=' || t176_n(v_res,'blocked'); end if;
     if v_bad = ''
-      then call _pass('pke','P4 두 번째 탭은 오류가 아니라 같은 탭이다 — ended는 빈 목록, 네 페어 전부 already/already_ended, 예외 없음. 그리고 stamp는 여전히 첫 탭의 시각이다(이 블록은 별도 트랜잭션이라 now()가 실제로 다르다 — 같은 블록이었다면 이 팔은 공허하게 초록이었을 것이다). 멱등 키는 반환 토큰도 클라 논스도 개수도 아니고 행 락 아래에서 읽은 run_ended_at is null이다(0083:386-388과 같은 모양)');
+      then call _pass('pke','P4 [0168] 두 번째 탭은 오류가 아니라 같은 탭이다 — ended는 빈 목록, 네 페어 전부 already/already_ended, 예외 없음. 그리고 stamp는 여전히 첫 탭의 시각이다(이 블록은 별도 트랜잭션이라 now()가 실제로 다르다 — 같은 블록이었다면 이 팔은 공허하게 초록이었을 것이다). 멱등 키는 반환 토큰도 클라 논스도 개수도 아니고 행 락 아래에서 읽은 run_ended_at is null이다(0083:386-388과 같은 모양)');
       else call _fail('pke','P4 idempotence', v_bad); end if;
   end;
 exception when others then call _fail('pke','P4 idempotence', sqlerrm);
@@ -781,22 +917,31 @@ end $$;
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 do $$
 declare v_sd uuid; v_bk uuid; v_before int; v_after int; v_km numeric; v_bad text := '';
-        v_t0 timestamptz;
+        v_t0 timestamptz; v_err text;
 begin
   v_sd := t176_id('dC'); v_bk := t176_bk(v_sd);
   select jsonb_array_length(trace), actual_km, started_at into v_before, v_km, v_t0
     from runs where booking_id = v_bk;
   perform set_config('request.jwt.claim.sub', t176_get('rC'), false);
   -- an append AFTER the freeze, through the shipped RPC, by the runner who owns it
-  perform club_save_run_trace(t176_id('s1'), t176_trace(v_t0 + interval '40 minutes', 5, 60, 80));
+  begin
+    perform club_save_run_trace(t176_id('s1'), t176_trace(v_t0 + interval '40 minutes', 5, 60, 80));
+    v_err := '<no raise>';
+  exception when others then v_err := sqlerrm;
+  end;
   perform set_config('request.jwt.claim.sub', '', false);
   select jsonb_array_length(trace) into v_after from runs where booking_id = v_bk;
 
-  if v_after <= v_before then v_bad := v_bad || ' 추가분이 붙지 않았다 (' || v_before || '→' || v_after || ')'; end if;
+  -- 🔴 [0168] REVERSED. The token is asserted BY NAME, not 「it raised」: answering
+  -- `impossible_speed` or `trace_out_of_order` here would send the runner to a banner that
+  -- promises an automatic retry for a refusal that is permanent.
+  if (v_err ~ 'run_stopping') is not true then v_bad := v_bad || ' 거절 토큰=' || v_err; end if;
+  if v_after is distinct from v_before
+    then v_bad := v_bad || ' 트레이스가 자랐다 (' || v_before || '→' || v_after || ')'; end if;
   if (select actual_km from runs where booking_id = v_bk) is distinct from v_km
     then v_bad := v_bad || ' 🔴 동결된 km이 움직였다'; end if;
   if v_bad = ''
-    then call _pass('pke','P9 측정으로 기록된 잔여 사항 — 탭 이후에도 club_save_run_trace는 추가를 받아들이고 트레이스는 동결선을 넘어 계속 자란다. 돈은 움직이지 않는다(actual_km은 동결되고 0083:744가 이제 그것을 보존한다). 마켓플레이스는 이 창을 닫는다: end_run_tx가 최종 트레이스를 커밋하고 _guard_run_cols의 「종료 후 동결」 팔(0083:295)이 문다. 그 팔은 current_user in (authenticated, anon)일 때만 물고 club_save_run_trace는 SECURITY DEFINER라 보이지 않는다. 한 줄 구제책은 그 함수의 셀렉터에 and b.run_ended_at is null 이며, 이는 이 슬라이스가 만지도록 범위 지정되지 않은 shipped 함수의 재생성이다 — 그래서 의심이 아니라 사실로 넘긴다');
+    then call _pass('pke','P9 [0168 REVERSED] 동결선을 넘은 업로드는 이름을 붙여 거절된다 — 탭 이후에도 club_save_run_trace는 추가를 받아들이고 트레이스는 동결선을 넘어 계속 자란다. 돈은 움직이지 않는다(actual_km은 동결되고 0083:744가 이제 그것을 보존한다). 마켓플레이스는 이 창을 닫는다: end_run_tx가 최종 트레이스를 커밋하고 _guard_run_cols의 「종료 후 동결」 팔(0083:295)이 문다. 그 팔은 current_user in (authenticated, anon)일 때만 물고 club_save_run_trace는 SECURITY DEFINER라 보이지 않는다. 한 줄 구제책은 그 함수의 셀렉터에 and b.run_ended_at is null 이며, 이는 이 슬라이스가 만지도록 범위 지정되지 않은 shipped 함수의 재생성이다 — 그래서 의심이 아니라 사실로 넘긴다');
     else call _fail('pke','P9 trace window residual', v_bad); end if;
 exception when others then call _fail('pke','P9 trace window residual', sqlerrm);
 end $$;
@@ -946,7 +1091,7 @@ end $$;
 -- ⓐ and ⓑ are one fixture used twice, deliberately: ⓑ is the control that ⓐ's refusal came from
 -- the FLAG and not from a fixture that could never have ended anything.
 do $$
-declare v_res jsonb; v_tok text; v_bad text := ''; s2a uuid; s2b uuid;
+declare v_res jsonb; v_tok text; v_bad text := ''; s2a uuid; s2b uuid; v_sweep jsonb;
 begin
   s2a := t176_id('s2a'); s2b := t176_id('s2b');
 
@@ -978,8 +1123,11 @@ begin
   v_res := club_end_pack_runs(t176_id('s2'));
   perform set_config('request.jwt.claim.sub', '', false);
   call t176_put('at2', (v_res->>'at'));
+  -- [0168] the backup host's tap is phase 1 like anyone else's. Drain, then sweep (exception ④).
+  v_sweep := t176_drain(t176_id('s2'));
 
   if t176_n(v_res,'ended') <> 2 then v_bad := v_bad || ' 백업 탭 ended=' || t176_n(v_res,'ended'); end if;
+  if (v_sweep->>'finalized')::int <> 2 then v_bad := v_bad || ' 백업 스윕 finalized=' || (v_sweep->>'finalized'); end if;
   if (select count(*) from runs where booking_id in (t176_bk(s2a), t176_bk(s2b))
         and actual_km = 3.00 and end_reason = 'completed') <> 2
     then v_bad := v_bad || ' 백업 탭이 동결하지 않았다'; end if;
@@ -1087,10 +1235,14 @@ begin
     end loop;
   end if;
 
-  select has_function_privilege('public',        'public._club_derive_run_km(jsonb, timestamptz)', 'execute'),
-         has_function_privilege('anon',          'public._club_derive_run_km(jsonb, timestamptz)', 'execute'),
-         has_function_privilege('authenticated', 'public._club_derive_run_km(jsonb, timestamptz)', 'execute'),
-         has_function_privilege('service_role',  'public._club_derive_run_km(jsonb, timestamptz)', 'execute')
+  -- [0168] the cutoff became a parameter and the 2-arg form was DROPPED, so this is the only
+  -- signature there is. If a later file re-adds the 2-arg overload, `has_function_privilege` on
+  -- the 3-arg one keeps passing while a now()-bounded money door sits beside it — 198's 0168-P5
+  -- owns that proposition, by arity.
+  select has_function_privilege('public',        'public._club_derive_run_km(jsonb, timestamptz, timestamptz)', 'execute'),
+         has_function_privilege('anon',          'public._club_derive_run_km(jsonb, timestamptz, timestamptz)', 'execute'),
+         has_function_privilege('authenticated', 'public._club_derive_run_km(jsonb, timestamptz, timestamptz)', 'execute'),
+         has_function_privilege('service_role',  'public._club_derive_run_km(jsonb, timestamptz, timestamptz)', 'execute')
     into v_pub, v_anon, v_auth, v_svc;
   if v_pub or v_anon or v_auth or v_svc
     then v_bad := v_bad || ' 도출 헬퍼 ACL 누출 ' || v_pub||v_anon||v_auth||v_svc; end if;

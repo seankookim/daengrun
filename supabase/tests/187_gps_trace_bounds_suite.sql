@@ -98,7 +98,13 @@ begin
   -- fraud), so a point at exactly `now + 60` is legitimately INSIDE the window and counted. The
   -- first draft of this fixture put one there and the pin read 0.14 instead of 0.10 — the guard
   -- behaving exactly as specified, and the pin asserting a number that ignored its own spec.
-  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 360));
+  -- ⚠ [0168] THE CUTOFF IS NOW A PARAMETER and these three calls pass `now()` explicitly. That is
+  -- not a widening: 0156's body evaluated `now()` internally and argued that it WAS the host's tap
+  -- (`0156:16-20`), which is exactly what these fixtures mean. Two-phase made that argument false
+  -- for the real caller (the sweep runs 90+ s after the tap), so the cutoff was threaded — and
+  -- leaving a 2-arg overload behind would have left a `now()`-bounded money door with no caller.
+  -- Each pin's proposition is byte-identical; only the call site spells out what it always meant.
+  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 360), now());
   v_msg := 'km with future tail=' || coalesce(v_km::text, 'NULL');
   -- the two in-window fixes are ~100 m apart → 0.10 km, and the tail must contribute nothing
   if v_km is distinct from 0.10 then
@@ -113,7 +119,7 @@ begin
   tr := jsonb_build_array(
           jsonb_build_object('t', v_now - 7200, 'lat', 37.5100, 'lng', 127.0100),
           jsonb_build_object('t', v_now - 60,   'lat', 37.5100, 'lng', 127.0100));
-  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 7260));
+  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 7260), now());
   v_msg := 'km for a 2-point trace with a ~2h hole=' || coalesce(v_km::text, 'NULL');
   if v_km is not null then
     call _fail('gps','0156-G4 샘플링 구멍이 크면 측정 없음(NULL)이지 0 km 가 아니다', v_msg);
@@ -129,7 +135,7 @@ begin
           jsonb_build_object('t', v_now - 180, 'lat', 37.5100, 'lng', 127.0100),
           jsonb_build_object('t', v_now - 120, 'lat', 37.5100, 'lng', 127.0100),
           jsonb_build_object('t', v_now - 60,  'lat', 37.5100, 'lng', 127.0100));
-  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 300));
+  v_km := _club_derive_run_km(tr, to_timestamp(v_now - 300), now());
   v_msg := 'km for a densely-sampled stationary dog=' || coalesce(v_km::text, 'NULL');
   if v_km is distinct from 0.00 then
     call _fail('gps','0156-G5 통제: 촘촘히 찍힌 정지 상태의 개는 여전히 측정된 0.00 이다', v_msg);
@@ -162,7 +168,7 @@ begin
      is distinct from true then v_bad := v_bad || ' ingest-LOST-authenticated'; end if;
   if has_function_privilege('anon','public.club_save_run_trace(uuid, jsonb)','EXECUTE')
      is distinct from false then v_bad := v_bad || ' ingest-anon-executable'; end if;
-  if has_function_privilege('authenticated','public._club_derive_run_km(jsonb, timestamptz)','EXECUTE')
+  if has_function_privilege('authenticated','public._club_derive_run_km(jsonb, timestamptz, timestamptz)','EXECUTE')
      is distinct from false then v_bad := v_bad || ' derive-client-executable'; end if;
   v_msg := 'acl:' || v_bad;
   if v_bad <> '' then call _fail('gps','0156-G7 재생성 후에도 ACL 이 유지된다 (양방향)', v_msg);
