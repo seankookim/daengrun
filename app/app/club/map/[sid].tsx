@@ -11,7 +11,8 @@ import { getNaverMap, subscribePack, type LiveLinkState } from '../../../src/lib
 import { goBackOrHome } from '../../../src/lib/nav';
 import {
   mergePeer, packCamera, packCaption, packClockOffsetMs, packEmptyCopy, packMarkers,
-  packRosterIndex, packShareLine, packWindowPhase, parsePackPos, peerAge, prunePeers,
+  packRetainRoster, packRosterIndex, packShareLine, packWindowPhase, parsePackPos, peerAge,
+  prunePeers,
   visiblePeers, type PackCamera, type PackPeer,
 } from '../../../src/lib/pack';
 import {
@@ -195,7 +196,15 @@ export default function ClubPackMap() {
         if (!may()) return;
         // A null roster is 「no such session」. A refresh that comes back null after a good one is
         // still that — the session cannot un-exist — so the roster is replaced either way.
-        setRoster(r);
+        // ⚠ [codex #9] …with ONE exception, and it is the state every session ends in: the RPC
+        // returns `people = []` once `windowOpen` goes false (0160:548-563), and replacing the
+        // roster with that empty list is what made every marker and the checked-in count vanish
+        // at window close — `packMarkers` drops a peer with no roster row, by design. The contract
+        // (pack-publish-hardening:331-335) asks for the last non-empty roster to be RETAINED for
+        // naming while the terminal copy takes the screen over. `packRetainRoster` owns that rule
+        // (it is pinned; this screen is not reachable by a pin) and touches nothing else — the
+        // window state on the next line still comes from the new answer.
+        setRoster((prev) => packRetainRoster(prev, r));
         setRosterLoad(r ? 'ready' : 'missing');
         // ⚠ THE OFFSET IS TAKEN HERE AND NOWHERE ELSE, because `serverNow` is only meaningful
         // against the device clock AT THE MOMENT THE ANSWER ARRIVED. Computing it later — in a

@@ -21,7 +21,8 @@ const {
   PACK_PUB_MIN_MS, PACK_FUTURE_SKEW_MS, PACK_PEER_EVICT_MS, PACK_WINDOW_TAIL_MS,
   ZOOM_MIN, ZOOM_MAX, ZOOM_POINT,
   parsePackPos, peerAge, agoLabel, mergePeer, prunePeers, visiblePeers, packCamera,
-  packRosterIndex, packMarkers, packCaption, packClockOffsetMs, packWindowPhase, packStartLine,
+  packRosterIndex, packRetainRoster, packMarkers, packCaption, packClockOffsetMs,
+  packWindowPhase, packStartLine,
   packEmptyCopy, packShareLine,
 } = require('./pack.build.cjs');
 
@@ -609,6 +610,39 @@ t('the clock defaults to the real one — the injected clock is a test seam, not
     'a payload stamped NOW was refused by the default clock');
   ok(parsePackPos({ ...good(), at: new Date(now + 3_600_000).toISOString() }) === null,
     'an hour-ahead payload was accepted by the default clock');
+});
+
+// ═══ packRetainRoster — the closed-window roster (pack contract:331-335) ════════════════
+// PROPERTY, stated without reference to any mutation: a roster that arrives EMPTY replaces the one
+// on screen only when the server says the window is still OPEN. Empty-while-closed is the shape
+// `club_pack_map_roster` returns at every session's end, and it must not erase the names the
+// markers and the checked-in count are drawn from; empty-while-open is a real answer (everyone
+// left) and must clear. The window state itself always comes from the NEW answer either way.
+
+t('🔴 an empty roster replaces the old one while OPEN and is retained while CLOSED', () => {
+  const P1 = [{ profileId: 'p-1', name: '민수', isRunner: false }];
+  const prev = { windowOpen: true, status: 'open', people: P1 };
+
+  // a non-empty answer always wins — a live roster is never second-guessed
+  const fresh = { windowOpen: true, status: 'open', people: [{ profileId: 'p-2', name: '지은', isRunner: true }] };
+  eq(packRetainRoster(prev, fresh), fresh, 'a non-empty answer must be taken as-is');
+
+  // empty WHILE OPEN: everyone left. It clears — retaining would draw people the server denies.
+  const emptyOpen = { windowOpen: true, status: 'open', people: [] };
+  eq(packRetainRoster(prev, emptyOpen).people.length, 0, 'empty-while-open must clear');
+
+  // empty WHILE CLOSED: the state every session ends in. Names are retained…
+  const emptyClosed = { windowOpen: false, status: 'done', people: [] };
+  const kept = packRetainRoster(prev, emptyClosed);
+  eq(kept.people.length, 1, 'empty-while-closed must retain the last non-empty roster');
+  eq(kept.people[0].profileId, 'p-1', 'the retained roster must be the previous one');
+  // …while the WINDOW comes from the new answer, so the terminal copy still takes the screen.
+  eq(kept.windowOpen, false, 'a retained roster must not re-open the window');
+  eq(kept.status, 'done', 'a retained roster must not resurrect the old status');
+
+  // nothing to retain, and 「no such session」: both pass the new answer through unchanged.
+  eq(packRetainRoster(null, emptyClosed).people.length, 0, 'no previous roster is nothing to keep');
+  eq(packRetainRoster(prev, null), null, 'a null answer is a fact, not a flaky poll');
 });
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

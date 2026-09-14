@@ -334,6 +334,38 @@ export function packRosterIndex(people: ReadonlyArray<PackRosterEntry>): {
   return { ids, byId };
 }
 
+/**
+ * 🔴 KEEP THE LAST NON-EMPTY ROSTER WHEN THE WINDOW CLOSES (pack contract:331-335, codex #9).
+ *
+ * `club_pack_map_roster` returns `people = []` the moment `windowOpen` goes false, and the screen
+ * replaced its roster unconditionally — so at window close every marker lost its identity (a peer
+ * with no roster row is DROPPED by `packMarkers`, by design) and the checked-in count fell to 0.
+ * The contract asks for the opposite: the last non-empty roster is retained FOR NAMING while the
+ * terminal copy takes the screen over. Nothing here re-opens the window — `windowOpen`, `status`
+ * and `scheduledAt` always come from the new answer, so `packWindowPhase` still says 'closed'.
+ *
+ * The three cases, and the middle one is the whole reason this is a function and not a `??`:
+ *   · a non-empty answer      → always wins; a live roster is never second-guessed.
+ *   · empty while OPEN        → a genuinely empty roster, and it CLEARS. Everyone left; retaining
+ *                               there would draw people the server says are not on this map.
+ *   · empty while CLOSED      → retain the last non-empty `people`, which is the contract's rule.
+ *
+ * `null` (「no such session」) is passed straight through: the session cannot un-exist, so that is a
+ * new fact and not a flaky poll. A refresh FAILURE never reaches here — the screen's `.catch`
+ * already keeps the last good roster.
+ */
+export function packRetainRoster<R extends { windowOpen: boolean; people: ReadonlyArray<unknown> }>(
+  prev: R | null,
+  next: R | null,
+): R | null {
+  if (next == null) return null;
+  if (next.people.length > 0) return next;
+  if (next.windowOpen === true) return next;
+  const keep = prev?.people;
+  if (keep == null || keep.length === 0) return next;
+  return { ...next, people: keep };
+}
+
 /** Join drawable peers to the roster. A peer with no roster row is DROPPED rather than captioned
  *  from the payload: `mergePeer` should already have refused it, and drawing it here would be the
  *  screen quietly re-admitting what the gate refused. A roster row with a null name captions as
