@@ -59,6 +59,7 @@ it, in order of preference:
    ```bash
    npm i -g eas-cli
    eas login          # your Expo account
+   npm i -g eas-cli@latest   # env:pull does not exist on older eas-cli (measured 09-15: the preinstalled one lacked it)
    eas env:pull --environment preview --path .env
    ```
 2. Or copy `app/.env` from the old Mac (it is ~300 bytes, two `EXPO_PUBLIC_*` lines matching
@@ -74,6 +75,14 @@ npx expo export      # bundles clean in ~1 min if .env and deps are right
 ```
 
 ## 3. iOS (the long pole — Xcode download dominates)
+
+> **2026-09-15, measured on the new Mac:** **Expo SDK 57 needs Xcode 26** — `expo-modules-jsi/apple/
+> Package.swift` and `@expo/expo-modules-macros-plugin/apple/Package.swift` declare
+> `swift-tools-version: 6.2`, and Xcode 16.2 (Swift 6.0.3) fails at `Could not resolve package
+> dependencies` before compiling anything. Install Xcode 26 from the App Store (Apple ID — Sean
+> only), then `sudo xcode-select -s /Applications/Xcode.app` and re-run `pod install`. Also:
+> `pod install` on Homebrew Ruby 4 needs `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` or it crashes in
+> `unicode_normalize`; `xcodebuild -downloadPlatform iOS` pulls an 8.7 GB runtime (iOS 18.3.1 here).
 
 `app/ios/` is **gitignored** (1.2 GB of pods and build products) — you regenerate it, not copy it:
 
@@ -127,10 +136,20 @@ supabase migration list --linked   # should show local == remote with nothing pe
 `db push` / `functions deploy` conditions in CLAUDE.md §Operations apply unchanged: gates green
 first, never from a worktree carrying an unfinished migration, verify after by reading back.
 
+## 5b. Edge-function tests
+
+```bash
+brew install deno
+cd ~/dev/daengrun/supabase/functions && deno test --allow-all --node-modules-dir=auto _test   # 277/0 on 2026-09-15
+```
+Without `--node-modules-dir=auto` deno cannot resolve `npm:@supabase/*` and every test errors.
+
 ## 6. Review tooling
 
 ```bash
-npm i -g @openai/codex     # 0.147.0 on the old machine; needs your OpenAI login
+npm i -g @openai/codex     # 0.154.0 on the new Mac; ChatGPT.app also bundles a codex binary at
+                           # /Applications/ChatGPT.app/Contents/Resources/codex sharing ~/.codex/auth.json
+# Then read docs/codex-claude-protocol.md and docs/prompts/codex-app-master.md (2026-09-15).
 ```
 
 The codex invocation and its many measured traps are in CLAUDE.md — read that section before the
