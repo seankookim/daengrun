@@ -1021,7 +1021,17 @@ export default function Request() {
                     <Pressable
                       style={s.dogSelChip}
                       onPress={() => {
-                        Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
+                        // ⚠ [2026-09-15] 이 자리는 `Alert.prompt?.(…) ?? Alert.alert('…', 'iOS에서
+                        // 지원돼요')` 였다. Alert.prompt 는 **void 를 반환한다** — 그래서 iOS 에서도
+                        // 왼쪽 항의 값은 undefined 이고, `undefined ?? X` 는 언제나 X 다: 프롬프트가
+                        // 열린 그 위에 「iOS에서 지원돼요」가 겹쳐 떴다. iOS 에서 iOS 전용이라고
+                        // 말하는 문장이고, 이 앱의 주 플랫폼이 iOS 라 거의 모든 사용자가 그걸 봤다.
+                        // 존재 여부로 가른다 — 반환값은 이 분기의 근거가 될 수 없다.
+                        if (typeof Alert.prompt !== 'function') {
+                          Alert.alert('반려견 추가', '이 기기에서는 여기서 추가할 수 없어요 — 마이 › 반려견 프로필에서 추가해주세요');
+                          return;
+                        }
+                        Alert.prompt('반려견 추가', '이름을 입력해주세요', async (n) => {
                           if (!n?.trim()) return;
                           try {
                             const id = await addDog(n.trim());
@@ -1031,7 +1041,7 @@ export default function Request() {
                             setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
                             router.push({ pathname: '/owner/dog', params: { dogId: id } });
                           } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
-                        }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
+                        });
                       }}
                     >
                       <Text style={{ fontSize: 15, fontWeight: '800', color: paper.text }}>＋ 반려견 추가</Text>
@@ -1336,7 +1346,25 @@ export default function Request() {
             <View style={[s.methodChip, { backgroundColor: paper.ink, borderColor: paper.ink }]}>
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
             </View>
-            <Pressable style={s.methodChip} onPress={pickEarliest}>
+            {/* ⚠ [2026-09-15 죽은 버튼] 여기는 `onPress={pickEarliest}` 였다 — pickEarliest 는
+                boolean 을 돌려주고 `false` = 8일 스트립 안에 slotAllowed 를 통과하는 칸이 하나도
+                없다는 뜻인데(지명 러너의 가용 규칙이 아홉 칸을 전부 막은 경우 — :366-372 가 바로 그
+                상황을 위해 쓰였다), 그 false 가 버려지고 있었다. 사용자에게는 「가장 빠른 시간」을
+                눌렀는데 **아무것도 바뀌지 않는** 버튼이다: 칸도, 라벨도, 알림도 없다. 같은 false 를
+                :385 의 다른 호출부는 이미 다룬다(ISO 를 비우고 다시 묻는다). 없는 결과를 침묵으로
+                말하지 않는다. */}
+            <Pressable
+              style={s.methodChip}
+              onPress={() => {
+                if (pickEarliest()) return;
+                Alert.alert(
+                  '고를 수 있는 시간이 없어요',
+                  preferred
+                    ? `앞으로 8일 안에 ★ ${preferredName ?? '지명'} 러너가 가능한 시간이 없어요 — 날짜·시간을 직접 고르거나 지명을 해제해주세요`
+                    : '앞으로 8일 안에 고를 수 있는 시간이 없어요 — 날짜·시간을 직접 골라주세요',
+                );
+              }}
+            >
               <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>가장 빠른 시간</Text>
             </Pressable>
             {/* [2026-08-10 density audit] dead "반복 예약 (준비 중)" chip cut — the working 매주 반복 toggle lives on this screen */}

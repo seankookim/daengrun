@@ -112,14 +112,24 @@ export default function DogProfileScreen() {
   useEffect(() => { load(); }, []);
 
   // 다견 가구 — 새 아이 추가 후 바로 편집
+  // ⚠ [2026-09-15] `Alert.prompt?.(…) ?? Alert.alert('…', 'iOS에서 지원돼요')` 였다. Alert.prompt 는
+  // **void 를 반환한다** — iOS 에서도 왼쪽 항은 undefined 이고 `undefined ?? X` 는 언제나 X 라,
+  // 프롬프트 위에 「iOS에서 지원돼요」가 겹쳐 떴다: iOS 에서 iOS 전용이라고 말하는 문장이다.
+  // 반환값은 플랫폼의 증거가 아니다 — 함수의 존재 여부로 가른다.
+  // (같은 줄이 owner/request.tsx:1024 에도 있었고 같은 슬라이스에서 함께 고쳤다 — 한 문장이
+  //  덮는 자리를 전부 세는 법.)
   const onAddDog = () => {
-    Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
+    if (typeof Alert.prompt !== 'function') {
+      Alert.alert('반려견 추가', '이 기기에서는 여기서 추가할 수 없어요 — 문의로 알려주시면 도와드려요');
+      return;
+    }
+    Alert.prompt('반려견 추가', '이름을 입력해주세요', async (n) => {
       if (!n?.trim()) return;
       try {
         const id = await addDog(n.trim());
         await load(id);
       } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
-    }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
+    });
   };
 
   const pickPhoto = async () => {

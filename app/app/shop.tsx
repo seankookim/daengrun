@@ -2,7 +2,7 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { TabSwipe } from '../src/components/tabswipe';
 import { Row } from '../src/components/ui';
@@ -15,6 +15,15 @@ import { colors, paper } from '../src/theme';
 // 실데이터: 포인트 잔액(0027 RPC)·최근 적립·기어 교환권·도착한 드랍(러너).
 // 상품 그리드는 실 SKU 전 미리보기 — 섹션 단위로 '오픈 준비 중'을 명시 (정직 폴리시).
 // 은퇴: '멤버는 전 상품 10% 할인' 히어로 — 존재하지 않는 혜택의 확정 약속은 정직 원칙 위반.
+//
+// ⚠ [2026-09-15 죽은 버튼 은퇴] 이 화면에는 「준비 중」 얼럿만 띄우는 컨트롤이 넷 있었다 —
+// 헤더의 장바구니 버튼 · 제품 검색 바 · 카드마다의 담기(+) 버튼 · 카드 탭. 넷 다 뒤에 아무
+// RPC 도 없다 (api.ts 에 장바구니·검색·주문이 존재하지 않는다). 섹션 라벨('오픈 준비 중')이
+// 덮는 것은 **상품이 예정이라는 사실**이지, 누르면 아무 일도 없는 컨트롤이 아니다 — 장바구니
+// 아이콘과 검색 바는 그 자체로 「이 스토어는 지금 거래된다」는 주장이었다. 없는 동작은 얼럿으로
+// 사과하는 게 아니라 그리지 않는다 (CLAUDE.md 정직 법: 죽은 버튼 금지). 미리보기 그리드는
+// 그대로 남는다 — 예정가는 '예정' 라벨을 달고 있고, 그건 참인 문장이다.
+// 되살리는 조건은 하나: 장바구니·검색·주문이 실제로 생기면 그때 컨트롤도 같이 온다.
 
 // [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
 // 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
@@ -56,15 +65,7 @@ export default function Shop() {
           {/* 탭 루트 — 뒤로가기 없음 (표준 탭 헤더) */}
           {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A). 색은 이 화면의 월드 유지 */}
           <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>도그스하이 샵</Text>
-          <Pressable style={s.circleBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 장바구니가 열려요')}>
-            <Text style={{ fontSize: 17, color: paper.ink }}>◱</Text>
-          </Pressable>
         </Row>
-
-        {/* 검색 — 스토어 오픈 전이라 정직하게 안내 */}
-        <Pressable onPress={() => Alert.alert('준비 중', '스토어 오픈 시 검색이 열려요')} style={s.search}>
-          <Text style={{ fontSize: 15, color: '#9a978a' }}>⌕  제품 검색</Text>
-        </Pressable>
 
         {/* 하이 포인트 히어로 — 화면의 다크 앵커 1개. 잔액은 실서버 집계(0027)만 그린다 */}
         <View style={s.hero}>
@@ -169,7 +170,7 @@ export default function Shop() {
         {/* product grid — 예정 상품 미리보기 (가격은 예정가) */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
-            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>{/* [페이퍼 크롬] 카드 = 샤프 1px #EEE (테라 틴트 보더 은퇴) */}
+            <View key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' }]}>{/* [페이퍼 크롬] 카드 = 샤프 1px #EEE (테라 틴트 보더 은퇴) */}
               <Text style={{ fontSize: 15, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
               <Text style={{ fontSize: 15, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
@@ -181,11 +182,8 @@ export default function Shop() {
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: colors.terraInk }}>
                   {p.price.toLocaleString()}원<Text style={{ fontSize: 15, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
                 </Text>
-                <Pressable style={s.addBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 담을 수 있어요')}>
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>+</Text>
-                </Pressable>
               </Row>
-            </Pressable>
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -196,13 +194,11 @@ export default function Shop() {
 }
 
 // [페이퍼 크롬 2026-08-10] 샵 크롬 페이퍼 이행 — 라운드·테라 틴트 보더 은퇴, 카드 = 샤프 1px #EEE.
-// 테라코타(gearTag·addBtn·가격 잉크·활성 카테고리)와 볼트 리워드 스트립 필은 시맨틱으로 생존.
+// 테라코타(gearTag·가격 잉크·활성 카테고리)와 볼트 리워드 스트립 필은 시맨틱으로 생존.
+// (addBtn·circleBtn·search 스타일은 그 컨트롤들과 함께 은퇴 — 위 죽은 버튼 주석 참고.)
 const s = StyleSheet.create({
   // 섹션 헤더 — 풀블리드 코랄 1px 룰 (스크롤 패딩 16을 음수 마진으로 뚫는다)
   secRow: { marginHorizontal: -16, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 },
-  search: { backgroundColor: '#fff', borderRadius: 0, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEEEEE', marginBottom: 12 },
-  // 40×40 스퀘어 · 캔버스 필 · 1px 코랄 보더 — 페이퍼 크롬 버튼 문법 (runner/meetup circleBtn 클래스)
-  circleBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   hero: { backgroundColor: paper.ink, borderRadius: 0, padding: 18 }, // 다크 앵커는 아티팩트 — 코너만 샤프
   heroGo: { backgroundColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 13 },
   dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 0, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' }, // 볼트 워시 = 시맨틱 (보상 신호)
@@ -217,5 +213,4 @@ const s = StyleSheet.create({
   prod: { width: '47.5%', borderRadius: 0, padding: 14, minHeight: 210 },
   prodName: { fontSize: 16.5, fontWeight: '900', color: '#4A2A18', marginTop: 6, lineHeight: 23 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  addBtn: { width: 30, height: 30, borderRadius: 0, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
 });
