@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — 20-Minute Hold Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   HOLD LAB — OPEN-A's 20-minute hold on an approved-but-unpaid signup.
+   Ninth lab in the club-v2 world. The SHARED WORLD block below is byte-identical
+   to the other eight (diffed, md5 784eb7c2…).
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   TWO coupled things, and they are coupled on purpose:
+     (a) **how loud the countdown is** — a hero clock, an inline numeral, or no
+         ticking clock at all (just the deadline instant);
+     (b) **what the expiry screen SAYS** — because the loudness of (a) sets the
+         expectation that (b) either honours or breaks.
+   A 38px ticking clock followed by 「다시 결제할 수 있어요」 reads as a bluff. A
+   quiet deadline followed by 「끝났어요」 reads as a trap. Each column pairs the
+   hold frame with ITS OWN expiry frame so the pair is judged together.
+
+   ── THE RULING IT BINDS TO ─────────────────────────────────────────────────
+   `docs/decisions/2026-08-31-sean-rulings.md` §4, OPEN-A, Sean verbatim:
+     「Hold ~20 min」 — an approved-but-unpaid signup holds its slot for 20
+     minutes; after that the slot releases to the next dog.
+   Spec surface: v2 §5.2 (the ladder), §14-OPEN OPEN-A.
+
+   ⚠ **THE 20 MINUTES WERE ALREADY SHIPPED — THE RULING RATIFIED A NUMBER, IT
+   DID NOT INTRODUCE ONE.** `session_approve_dog` has written
+   `hold_expires_at = now() + interval '20 minutes'` since 0043:278, and
+   `club_expire_delegation_holds()` (0043:386) has been sweeping it. So this lab
+   is drawing an EXISTING mechanism's first honest screen, not proposing one.
+   Everything below is measured against that code.
+
+   🔴 ── THREE MEASURED FACTS THAT THE COPY MUST NOT CONTRADICT ──────────────
+   ① **THE SLOT IS RELEASED BY THE CLOCK, THE LABEL IS WRITTEN BY THE CRON, AND
+      THEY ARE DIFFERENT INSTANTS.** `_club_delegated_reserved` (0043:69-78)
+      counts a hold only while `hold_status = 'active' AND hold_expires_at >
+      now()`, so the seat frees itself the microsecond the deadline passes —
+      before any sweep runs. `hold_status` is still the string `active` in that
+      gap, and `charge_state` (0043:149) has already derived back to `none`.
+      **Consequence for the screen: read `holdExpiresAt`, never `holdStatus`, to
+      decide which frame to render.** A screen keyed on the label shows a live
+      countdown over a seat somebody else can already take.
+   ② **EXPIRY IS NOT TERMINAL.** `session_pay_delegation` (0043:311-321) re-reads
+      the hold under the session lock and, if it is gone, simply re-checks
+      capacity — and proceeds if there is room. The server's own notification
+      says exactly this: 「자리 홀드가 풀렸어요 — 정원이 남아 있으면 다시 결제할
+      수 있어요」 (0043:392-394). **So an expiry screen that says 「끝났어요」 or
+      that removes the pay route is factually wrong**, and ①②③ all keep the
+      route alive with `no_capacity` as the honest refusal when the room is gone.
+   ③ 🔴 **「ACCESS ENDS WITH IT」 IS NOT WHAT THE CODE DOES, AND THIS LAB REFUSES
+      TO DRAW IT.** The ruling's closing line leaves the implementers a corollary:
+      when a hold expires unpaid, 「the signup releases and access ends with it」.
+      Measured: `_club_shell_access` (0049:9-25) grades on
+      `approval = 'approved' AND service_state <> 'ended'` and **never reads
+      `hold_status`**. An expired-unpaid owner keeps the grade they had. Nothing
+      revokes it, and nothing is scheduled to.
+      The ruling anticipated exactly this: 「if any surface makes that corollary
+      ambiguous, it comes back as a new console question rather than a silent
+      decision」. **This surface makes it ambiguous, so it goes back as a
+      question** — printed in the margin, and drawn in each ⓔ frame as an
+      explicit line saying what did NOT change. Drawing an access revocation
+      that no server performs would be the fabrication the house forbids;
+      drawing nothing would let the screen imply it silently.
+
+   ── FIELD BINDINGS (an element with no field is drawn as omitted) ───────────
+   the deadline        `session_dogs.hold_expires_at` timestamptz (0040:30)
+                       · board `holdExpiresAt` (0147 dogs[])
+   the hold's state    `session_dogs.hold_status` ∈ none|active|consumed|
+                       released|expired (0040:28-29) · board `holdStatus`
+   paid or not         `session_dogs.charge_state` ∈ none|hold|paid (0040:26-27)
+                       · board `chargeState`
+   the stage label     `club_dog_ui_state(sd)` → 「승인 — 결제 대기」 when
+                       approved + active hold (0040:375); 「승인 — 결제 필요」
+                       when approved with no live hold (0040:376)
+   the expiry badge    same function, 「결제 기한 만료」 on hold_status='expired'
+                       (0040:388)
+   the amount          `club_fare(km) = 9900 + round(km × 3000)` (0043:14)
+                       · board `fare` (0147 session.fare)
+   the seat count      board `reservedCount` (= `_club_delegated_reserved`,
+                       0043:69) / `delegatedCapacity`
+                       (= `club_sessions.delegated_dog_capacity`, 0030:60)
+   the pay call        `session_pay_delegation(p_session_dog, p_idem_key)`
+                       (0043:288) → returns the new booking id
+   the sweep           `club_expire_delegation_holds()` (0043:386)
+   the two push texts  0043:281-283 「위탁 승인 — 결제 대기」 /「20분 안에 결제하면
+                       자리가 확정돼요 · N원」 and 0043:392-394 「결제 기한 만료」
+                       /「자리 홀드가 풀렸어요 — 정원이 남아 있으면 다시 결제할
+                       수 있어요」. The in-app copy below is kept CONSISTENT with
+                       these, because the same person reads both.
+
+   ── DRAWN AS OMITTED — no field, so no pixel ───────────────────────────────
+   · **A queue position** (「대기 2번」). Nothing ranks unpaid signups; the next
+     dog is whoever calls `session_pay_delegation` first under the session lock.
+   · **「N명이 보고 있어요」 / any scarcity counter.** No such field, and inventing
+     one is exactly the fabricated-urgency shape this house refuses.
+   · **A hold extension.** No RPC extends `hold_expires_at`; the only way back is
+     to pay, and only if capacity remains.
+   · **A refund line on the expiry screen.** Nothing was charged — `charge_state`
+     never reached `paid` — so there is nothing to refund and saying so would
+     imply there had been.
+
+   ── LAWS INHERITED (settled elsewhere, not revisited) ──────────────────────
+   · Pure #FFFFFF ground. #6C5CE7 sparse — one use per frame. Coral is action.
+   · Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor **15** (Sean 2026-08-31 ruling 1). Black Han Sans ≤1 per frame.
+   · Failures are shown as failures. No silent catch → happy UI.
+   · Korean UI strings, English comments.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+
+/* ── FILE-LOCAL — the hold ────────────────────────────────────────────────── */
+.phone{min-height:600px}
+.phone + .phone{margin-top:24px}
+.subcap{margin:18px 0 8px;font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;
+  font-weight:800;color:var(--dim)}
+
+/* the stage record — kicker, ink rule, the fact */
+.stage{margin-top:22px;border-top:2.5px solid var(--docInk);padding-top:13px}
+.stage .sk{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.stage .sv{margin-top:6px;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+
+/* ① the hero clock */
+.clock{margin-top:24px;text-align:center}
+.clock .cn{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n1);line-height:var(--nl1);color:var(--docInk)}
+.clock .ck{margin-top:2px;font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;
+  font-weight:700;color:var(--docDim)}
+.clock .cs{margin-top:9px;font-size:var(--t3);line-height:var(--l3);color:var(--docText)}
+/* the depletion rule — a bar that is a READOUT, so it wears no control marks */
+.dep{height:5px;margin-top:16px;background:var(--docLine)}
+.dep i{display:block;height:100%;background:var(--accent)}
+
+/* ② the inline clock, riding a record line */
+.fline{display:flex;align-items:baseline;gap:10px;padding:12px 0;border-top:1px solid var(--docLine)}
+.fline .fk{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.fline .fv{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+.fline .fu{font-family:var(--fBody);font-size:var(--t3);line-height:var(--l3);
+  font-weight:700;color:var(--docDim)}
+.hero{margin-top:22px}
+.hero .hn{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n1);line-height:var(--nl1);color:var(--docInk)}
+.hero .hu{font-family:var(--fBody);font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.hero .hk{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+
+/* ③ the deadline instant — printed, not ticking */
+.deadline{margin-top:22px;border-top:1.5px solid var(--docInk);border-bottom:1.5px solid var(--docInk);
+  padding:15px 0;display:flex;align-items:baseline;gap:12px}
+.deadline .dk{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.deadline .dv{margin-left:auto;font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.deadline .du{font-family:var(--fBody);font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+
+/* the seat readout — reservedCount / delegatedCapacity */
+.seats{display:flex;align-items:baseline;gap:8px;margin-top:14px}
+.seats .sn{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.seats .sv{margin-left:auto;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--docInk)}
+
+/* expiry — the state is a fact, so it is printed, and the route stays open */
+.expired{margin-top:22px;border:1.5px solid var(--docInk);padding:16px 15px;background:var(--docWhite)}
+.expired .ek{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--critical)}
+.expired .et{margin-top:7px;font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.expired .eb{margin-top:6px;font-size:var(--t3);line-height:var(--l3);color:var(--docText)}
+.kept{margin-top:16px;border-top:1px solid var(--docLine)}
+.kept .kr{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--docLine)}
+.kept .kn{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.kept .kv{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.kept .kv.gone{color:var(--critical)}
+
+.foot{margin-top:auto;padding-top:20px}
+.note{margin-top:12px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 108px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>클럽 v2 — <span class="num">20</span>분 홀드 Lab</h1>
+  <p class="law">Approved · unpaid · holding a seat — countdown loudness and expiry copy, judged as one pair</p>
+</header>
+
+<section class="toc">
+  <h2>Three pairs — pick the one that should ship</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>큰 시계</b> — a <span class="num">38</span>px ticking mm:ss is the screen's hero, with a depletion rule under it. Expiry then has to be generous, because the clock promised drama: it says the seat was let go and offers it straight back if room remains.</span></li>
+    <li><span class="n">②</span><span><b>줄 안의 시계</b> — the <b>amount</b> is the hero and the clock is one inline numeral in a record line. Expiry is the same register: a badge on the record, no ceremony.</span></li>
+    <li><span class="n">③</span><span><b>마감 시각</b> — no ticking at all. It prints the instant the hold ends (from <code>hold_expires_at</code>), which cannot drift or lie while the tab is backgrounded. Expiry names precisely what was lost and what was not.</span></li>
+  </ol>
+  <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b>. Each column is <b>two frames</b>: the live hold on top, its own expiry screen below. Judge the pair, not the clock alone.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ① 큰 시계 -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">큰 시계 — <b>the clock is the screen.</b></span></div>
+    <div class="subcap">Holding</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="stage">
+          <div class="sk">Stage</div>
+          <div class="sv">승인 — 결제 대기</div>
+        </div>
+
+        <div class="clock">
+          <div class="cn">14:32</div>
+          <div class="ck">Seat held</div>
+          <div class="cs">결제하면 초코의 자리가 확정돼요.</div>
+        </div>
+        <div class="dep"><i style="width:73%"></i></div>
+
+        <div class="seats">
+          <span class="sn">위탁 자리</span>
+          <span class="sv">3/4</span>
+        </div>
+
+        <div class="foot">
+          <div class="btnP"><span class="num">24,900</span>원 결제하기</div>
+          <div class="note">지금 결제하지 않으면 자리가 다른 강아지에게 넘어가요.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subcap">ⓔ Expired</div>
+    <div class="phone" style="min-height:520px">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="expired">
+          <div class="ek">Hold released</div>
+          <div class="et">자리 홀드가 풀렸어요</div>
+          <div class="eb">정원이 남아 있으면 지금도 결제할 수 있어요 — 자리가 다 찼다면 결제가 거절돼요.</div>
+        </div>
+
+        <div class="seats">
+          <span class="sn">남은 위탁 자리</span>
+          <span class="sv">1/4</span>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">다시 결제하기 · <span class="num">24,900</span>원</div>
+          <div class="note">승인은 그대로예요. 다시 신청할 필요는 없어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 줄 안의 시계 -->
+  <div class="col">
+    <div class="cap"><span class="n">②</span><span class="d">줄 안의 시계 — <b>the amount is the screen</b>; the clock is one line.</span></div>
+    <div class="subcap">Holding</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:22px">
+          <div class="disp">결제 대기</div>
+          <div class="serial">HOLD · ACTIVE</div>
+        </div>
+
+        <div class="hero">
+          <div class="hk">Amount</div>
+          <div><span class="hn">24,900</span><span class="hu">원</span></div>
+        </div>
+
+        <div style="margin-top:18px">
+          <div class="fline"><span class="fk">남은 시간</span>
+            <span class="fv">14:32</span></div>
+          <div class="fline"><span class="fk">위탁 자리</span>
+            <span class="fv">3<span class="fu">/4</span></span></div>
+          <div class="fline"><span class="fk">코스</span>
+            <span class="fv">5<span class="fu">km · 잠수교</span></span></div>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">결제하기</div>
+          <div class="note">시간이 지나면 자리가 풀려요.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subcap">ⓔ Expired</div>
+    <div class="phone" style="min-height:520px">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:22px">
+          <div class="disp">결제 기한 만료</div>
+          <div class="serial">HOLD · EXPIRED</div>
+        </div>
+
+        <div style="margin-top:18px">
+          <div class="fline"><span class="fk">자리</span><span class="fv"><span class="fu">풀렸어요</span></span></div>
+          <div class="fline"><span class="fk">남은 위탁 자리</span><span class="fv">1<span class="fu">/4</span></span></div>
+          <div class="fline"><span class="fk">결제 금액</span><span class="fv">24,900<span class="fu">원</span></span></div>
+        </div>
+
+        <div class="note" style="margin-top:16px">정원이 남아 있으면 지금도 결제할 수 있어요.</div>
+
+        <div class="foot">
+          <div class="btnP">결제하기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 마감 시각 -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">마감 시각 — <b>no ticking</b>; the deadline is printed.</span></div>
+    <div class="subcap">Holding</div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="stage">
+          <div class="sk">Stage</div>
+          <div class="sv">승인 — 결제 대기</div>
+        </div>
+
+        <div class="deadline">
+          <span class="dk">Pay by</span>
+          <span class="dv">9:55</span><span class="du">까지</span>
+        </div>
+        <div class="note">이 시각이 지나면 초코의 자리가 풀려요.</div>
+
+        <div class="seats">
+          <span class="sn">위탁 자리</span>
+          <span class="sv">3/4</span>
+        </div>
+        <div class="seats">
+          <span class="sn">금액</span>
+          <span class="sv">24,900원</span>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">결제하기</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subcap">ⓔ Expired</div>
+    <div class="phone" style="min-height:520px">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span><div class="dogdot">초</div>
+          <div class="mline">초코 · 반포 새벽런 · 토 <span class="num">09:00</span></div></div>
+        <div class="inkrule"></div>
+
+        <div class="expired">
+          <div class="ek">Hold released</div>
+          <div class="et"><span class="num">9:55</span> 기한이 지났어요</div>
+          <div class="eb">자리 홀드만 풀렸어요. 신청과 승인은 그대로예요.</div>
+        </div>
+
+        <div class="kept">
+          <div class="kr"><span class="kn">호스트 승인</span><span class="kv">그대로</span></div>
+          <div class="kr"><span class="kn">대화 읽기</span><span class="kv">그대로</span></div>
+          <div class="kr"><span class="kn">잡아둔 자리</span><span class="kv gone">풀림</span></div>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">다시 결제하기 · <span class="num">24,900</span>원</div>
+          <div class="note">남은 자리가 없으면 결제가 거절돼요 — 그때는 호스트에게 자리를 물어볼 수 있어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>The three facts the copy is checked against</h3>
+
+    <h4>① Read the timestamp, not the label</h4>
+    <p><code>_club_delegated_reserved</code> (0043:69-78) stops counting a hold the instant <code>hold_expires_at</code> passes, while <code>hold_status</code> stays the string <code>active</code> until <code>club_expire_delegation_holds()</code> next runs. <b>The seat and the label free at different instants.</b> Every frame above is keyed on <code>holdExpiresAt</code>; a screen keyed on <code>holdStatus</code> would run a live countdown over a seat somebody else can already take.</p>
+
+    <h4>② Expiry is not terminal</h4>
+    <p><code>session_pay_delegation</code> (0043:311-321) re-reads the hold under the session lock and, finding none, re-checks capacity and <b>proceeds if there is room</b>. The server's own push says the same sentence: 「자리 홀드가 풀렸어요 — 정원이 남아 있으면 다시 결제할 수 있어요」 (0043:392-394). So no ⓔ frame says 「끝났어요」 and none removes the pay route. When the room is genuinely gone the call raises <code>no_capacity</code>, and <b>that</b> is the refusal a person should meet — a failure shown as a failure, not a button hidden in advance.</p>
+
+    <h4>🔴 ③ The corollary that is not built — a console question, not a silent decision</h4>
+    <p>The ruling's closing line: 「when an OPEN-A hold expires unpaid, the signup releases and access ends with it」. <b>Measured: it does not.</b> <code>_club_shell_access</code> (0049:9-25) grades on <code>approval = 'approved'</code> and <code>service_state &lt;&gt; 'ended'</code> and never reads <code>hold_status</code>, so an expired-unpaid owner keeps exactly the grade they had. Nothing revokes it.</p>
+    <div class="ph"><span class="k">What ③ does</span><span>prints the three-line 그대로/풀림 ledger, so the screen states the true state instead of implying a revocation.</span></div>
+    <div class="ph"><span class="k">What is owed</span><span>Sean's own instruction — 「it comes back as a new console question」. The question is: <b>does an expired hold end read access, or only the seat?</b></span></div>
+    <p>⚠ It is not a free choice either way. Ending access on expiry means a person who was reading the chat two minutes ago is thrown out of it while still approved; keeping access means 「signed-up gets access」 quietly outlives the seat it came with. That trade belongs to Sean, and no lab may settle it by drawing one arm.</p>
+
+    <h4>The amount is derived, not invented</h4>
+    <p><code>club_fare(km) = 9900 + round(km × 3000)</code> (0043:14). A 5&nbsp;km 잠수교 loop is 9,900 + 15,000 = <b><span class="num">24,900</span></b>원. Change the route and every frame's number moves with it.</p>
+
+    <h4>Drawn as omitted</h4>
+    <div class="ph"><span class="k">대기 순번</span><span>nothing ranks unpaid signups — the next seat goes to whoever pays first under the session lock.</span></div>
+    <div class="ph"><span class="k">N명이 보는 중</span><span>no field, and manufactured scarcity is the fabrication law's central case.</span></div>
+    <div class="ph"><span class="k">시간 연장</span><span>no RPC extends <code>hold_expires_at</code>. Drawing the button would be drawing a dead one.</span></div>
+    <div class="ph"><span class="k">환불 안내</span><span>nothing was charged (<code>charge_state</code> never reached <code>paid</code>), so a refund line would imply a payment that never happened.</span></div>
+  </div>
+
+</div>
+
+</div></body></html>

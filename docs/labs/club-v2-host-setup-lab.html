@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Host Session Setup Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   HOST SETUP LAB — the HOST's side of §16.7: what the host sets when a session
+   is created, and what the host only WATCHES because the owner sets it.
+   Tenth lab in the club-v2 world. The SHARED WORLD block below is byte-identical
+   to the other nine (diffed, md5 784eb7c2…).
+
+   🔴 ── READ THIS BEFORE COMPARING IT TO `club-v2-setup-lab.html` ────────────
+   **THIS IS NOT A SECOND DRAFT OF THAT LAB AND MUST NOT REPLACE IT.**
+   `docs/labs/club-v2-setup-lab.html` (r5, 688 lines) is the **OWNER's** sign-up
+   setup flow — Sean's four steps, 직접 달리기 vs 러너 요청 → 픽업 장소 → 세션
+   상세 → 반환 장소, with the ⓐⓑⓒ affordance re-draw folded in. It stands, it is
+   still Sean's to pick from, and nothing here touches it.
+   This lab is the **HOST's** counterpart, which §16.7h explicitly left unbuilt
+   (「§10.2a's monitor is specified, not sequenced」). The two screens meet at one
+   pair of columns — `pickup_mode` / `return_mode` — and the whole point of
+   drawing them together is that **the owner WRITES those two and the host only
+   READS them.** A host control that overrode an owner's return point would
+   rewrite a privacy decision (0129's Critical) from the wrong side of the table.
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   ONE thing: **the control vocabulary of the host's setup screen** — segmented,
+   list, or cards. The fields, their values and their refusals are identical in
+   ①②③; only the shape of the thing you touch changes.
+
+   ── THE SPEC IT BINDS TO ───────────────────────────────────────────────────
+   v2 §16.7 (the model the sign-up screen must support), §16.7a's table, §10.2a
+   (the host's pickup monitor — 🔴 RULED), §6.4 (capacity), §7.2/§7.2a (the two
+   modes). Server: `0037_club_delegation.sql`, `0129_club_return_address_arm_fix.sql`.
+
+   ── FIELD BINDINGS (an element with no field is drawn as omitted) ───────────
+   ▸ THE HOST WRITES — all through ONE shipped RPC:
+     `club_create_session(p_club, p_scheduled_at, p_meetup_point, p_route,
+                          p_capacity, p_format)` (0037:361)
+     시간      `club_sessions.scheduled_at` — refuses `too_soon` if it is less
+               than **1 hour** away (0037:372)
+     집결지    `club_sessions.meetup_point` NOT NULL — refuses `meetup_required`
+               on an empty string (0037:373). This is the ONLY always-present
+               place string: `route_id` is nullable (0030:56).
+     코스      `club_sessions.route_id` → `routes.name` / `routes.km`. **Required
+               whenever 포맷 ≠ owner_only** — refuses `route_required` (0037:376),
+               because the fare is priced off `km`.
+     포맷      `club_sessions.format` ∈ owner_only | delegated_only | mixed
+               (0030:57) — refuses `bad_format`.
+     사람 정원 `club_sessions.people_capacity` — CHECK **between 2 and 60**,
+               default 12 (0030:59). That range is the stepper's real bound.
+   ▸ THE HOST READS ONLY — a control here would be a dead one:
+     🔴 위탁 정원 `club_sessions.delegated_dog_capacity` is **DERIVED**, never
+               typed. `_club_rederive_capacity` (0037:47-57) sums
+               `session_runner_assignments.delegated_capacity` over `committed`
+               rows and writes the column itself; the per-runner cap is itself
+               derived from tier (`certified` 1 · `veteran` 2 · `master` 2,
+               0037:38-45). **`club_create_session` has no argument for it.**
+               So the dog capacity is drawn as a READOUT with its cause printed
+               beside it — a stepper would be a control with no route, and worse,
+               one whose value the next runner commit silently overwrites.
+     픽업/반환 `session_dogs.pickup_mode` ∈ owner_home | session_start ·
+               `session_dogs.return_mode` ∈ owner_home | session_finish
+               (0129:186-191, both NOT NULL default `owner_home`, both
+               CHECK-named). The column comment is explicit: 「Server-authored:
+               session_dogs has a SELECT-only client policy (0030:136), so this
+               is written by the sign-up RPC, never by a client.」
+     자리 현황 board `reservedCount` / `delegatedCapacity` / `approvedCount` /
+               `pendingCount` (0147 session block)
+     체크인 창 board `checkinOpen` — `now()` between `scheduled_at − 2h` and
+               `scheduled_at + 6h` (0147)
+
+   🔴 ── TWO THINGS ARE DRAWN AS OMITTED, AND BOTH ARE THE POINT ─────────────
+   ① **AN EDITABLE 신청 창 (signup window) DOES NOT EXIST.** Every `alter table
+      club_sessions` in the repo was read (0047:14, 0048:76, 0050:241) and there
+      is no `signup_opens_at`, no `signup_closes_at`, no window column of any
+      kind. What EXISTS are three windows the server derives and nobody sets:
+        · 신청·승인 마감 = `scheduled_at` itself — `session_approve_dog` refuses
+          `session_closed` once `s.scheduled_at < now()` (0043:264)
+        · 체크인 창     = `scheduled_at − 2h … + 6h` (board `checkinOpen`, 0147)
+        · 지도 창       = `_club_pack_window` (0159), the same band plus 「someone
+          actually checked in」 and 「the host has not ended the runs」
+      So the 창 block is a **printed readout of three derived instants**, not a
+      form. Drawing a date-range picker would be drawing a control with no
+      column to write and no RPC to call.
+   ② **THE HOST CANNOT WRITE `pickup_mode`/`return_mode`, AND NEITHER CAN THE
+      OWNER YET.** The columns landed in 0129; grepped across every migration and
+      the whole client, the only files that mention them are 0128 and 0129 — i.e.
+      **there is no writer anywhere**, so every row on production is
+      `owner_home`/`owner_home` by the column default. 0129's own header argues
+      that default at length and warns it makes the new privacy conjunct 「TRUE BY
+      DEFAULT, i.e. the new conjunct protects nothing on a row nobody has
+      answered for」. The monitor is therefore drawn with real values and a
+      printed note that the owner's answer is not yet collected — not with an
+      invented spread of 현장/집 that no row can currently hold.
+
+   ── ALSO OMITTED ──────────────────────────────────────────────────────────
+   · **A 반복(시리즈) toggle on this screen.** `club_series_start` (0037:386) is a
+     different RPC with a different shape (weekday + time); folding it in would
+     make one screen call two writers on one tap.
+   · **A 백업 호스트 picker.** `backup_host_profile_id` exists (0047:15) but has
+     no setter RPC — a picker would be a dead control.
+   · **요금 미리보기 beyond `club_fare(km)`.** What a runner earns when a leg
+     disappears is OPEN-F and is Sean's; no number is proposed in either
+     direction.
+
+   ── LAWS INHERITED ────────────────────────────────────────────────────────
+   · Pure #FFFFFF. #6C5CE7 sparse — the selected value, once per frame. Coral is
+     the action fill and nothing else.
+   · Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor **15** (Sean 2026-08-31 ruling 1). Black Han Sans ≤1 per frame.
+   · A control looks choosable; a readout wears none of a control's marks —
+     which on THIS screen is the entire subject, because half the fields are
+     readouts.
+   · Korean UI strings, English comments.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+
+/* ── FILE-LOCAL — host setup ──────────────────────────────────────────────── */
+.phone{min-height:800px}
+.fieldk{margin-top:22px;font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;
+  font-weight:700;color:var(--docDim)}
+.fieldk.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px;display:inline-block}
+
+/* ① SEGMENTED — two or three plates in a row; the pick turns one solid ink */
+.seg{display:flex;margin-top:10px;border:1px solid var(--docInk)}
+.seg div{flex:1;text-align:center;min-height:52px;display:flex;align-items:center;justify-content:center;
+  padding:11px 6px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docInk);
+  background:var(--docWhite)}
+.seg div + div{border-left:1px solid var(--docInk)}
+.seg div.on{background:var(--docInk);color:var(--docWhite);font-weight:800}
+
+/* ② LIST — ink-ruled rows with a stamp square; the pick fills the square */
+.lst{margin-top:10px;border-top:1.5px solid var(--docInk)}
+.lrow{display:flex;align-items:center;gap:12px;min-height:54px;padding:12px 0;
+  border-bottom:1px solid var(--docLine)}
+.lrow .box{flex:0 0 22px;width:22px;height:22px;border:1.5px solid var(--docInk);background:var(--docWhite)}
+.lrow .box.on{background:var(--docInk);position:relative}
+.lrow .box.on::after{content:"";position:absolute;left:6px;top:3px;width:7px;height:12px;
+  border:solid var(--docWhite);border-width:0 2.5px 2.5px 0;transform:rotate(42deg)}
+.lrow .lt{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText)}
+.lrow.on .lt{font-weight:800;color:var(--docInk);box-shadow:inset 0 -2px 0 var(--accent)}
+.lrow .ls{font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* ③ CARDS — a two-up grid of choosable plates with a line of reason inside */
+.cards{display:flex;gap:10px;margin-top:10px}
+.cards .cd{flex:1;border:1px solid var(--docInk);padding:13px 12px;background:var(--docWhite);min-height:96px}
+.cards .cd .ct{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.cards .cd .cb{margin-top:5px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+.cards .cd.on{background:var(--docInk)}
+.cards .cd.on .ct{color:var(--docWhite)}
+.cards .cd.on .cb{color:#D9D6D0}
+
+/* stepper — people_capacity, the one numeric control (CHECK 2..60) */
+.step{display:flex;align-items:center;margin-top:10px;border:1px solid var(--docInk)}
+.step .mn{flex:0 0 58px;min-height:54px;display:flex;align-items:center;justify-content:center;
+  font-size:var(--t1);line-height:var(--l1);font-weight:800;color:var(--docInk);
+  border-right:1px solid var(--docInk)}
+.step .mx{border-right:0;border-left:1px solid var(--docInk)}
+.step .vv{flex:1;text-align:center;font-family:var(--fNum);font-weight:600;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--docInk)}
+.step .uu{font-family:var(--fBody);font-size:var(--t3);font-weight:700;color:var(--docDim)}
+.bound{margin-top:7px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* READOUT — wears none of a control's marks: no border, no fill, no chevron */
+.ro{margin-top:10px;border-top:1px solid var(--docLine)}
+.ro .rr{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--docLine)}
+.ro .rn{flex:1;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.ro .rv{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.ro .rv .num{font-size:var(--n3);line-height:var(--nl3)}
+.ro .cause{padding:9px 0 0;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* the per-dog mode monitor — a table of readouts, never a control */
+.mon{margin-top:10px}
+.mon .hd{display:flex;gap:8px;padding-bottom:7px;border-bottom:1.5px solid var(--docInk)}
+.mon .hd span{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.mon .c1{flex:1}
+.mon .c2{width:92px}
+.mon .c3{width:92px}
+.mon .mr{display:flex;gap:8px;align-items:center;padding:11px 0;border-bottom:1px solid var(--docLine)}
+.mon .mr .dn{flex:1;display:flex;align-items:center;gap:9px;
+  font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.mon .mr .mv{width:92px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText)}
+.dogdot.s{width:26px;height:26px;flex:0 0 26px;font-size:var(--t3)}
+
+.foot{margin-top:auto;padding-top:22px}
+.note{margin-top:11px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* an OWED marker — the ruled thing with no writer yet */
+.owed{margin-top:12px;padding:12px 13px;border:1.5px dashed var(--docDash);background:var(--recess)}
+.owed .ok{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.owed .ov{margin-top:6px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText)}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 108px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>클럽 v2 — 호스트 세션 설정 Lab</h1>
+  <p class="law">Host writes format · time · meetup · route · people cap — host only WATCHES dog cap, pickup and return</p>
+</header>
+
+<section class="toc">
+  <h2>Three control vocabularies for the same fields — pick the one that should ship</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>세그먼트</b> — each choice is a row of plates and the pick turns one solid ink. Fastest to read, and the whole option set is visible at once; it costs vertical space per field and caps a choice at three options.</span></li>
+    <li><span class="n">②</span><span><b>목록</b> — ink-ruled rows with a stamp square. Scales to any number of options and puts the option's <i>reason</i> on the same line; a five-field screen becomes long.</span></li>
+    <li><span class="n">③</span><span><b>카드</b> — two-up plates carrying a line of consequence inside. Best where the choice has a <i>meaning</i> a host may not know (포맷 does); heaviest per field.</span></li>
+  </ol>
+  <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b>. The fields, their values and their refusals are identical in all three; only what you touch changes. The lower half of every frame — 위탁 정원, 창, 픽업·반환 — is <b>readouts in all three</b>, because the host has no writer for them.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ① 세그먼트 -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">세그먼트 — <b>the whole option set at once.</b></span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span>
+          <div class="mline">반포 새벽런 · 세션 설정</div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:20px">
+          <div class="disp">세션 열기</div>
+          <div class="serial">HOST · SETUP</div>
+        </div>
+
+        <div class="fieldk acc">Format</div>
+        <div class="seg"><div>보호자만</div><div class="on">혼합</div><div>위탁만</div></div>
+
+        <div class="fieldk">Time</div>
+        <div class="seg"><div>토 <span class="num">07:00</span></div><div class="on">토 <span class="num">09:00</span></div><div>직접 입력</div></div>
+        <div class="bound">지금부터 <span class="num">1</span>시간 뒤부터 열 수 있어요.</div>
+
+        <div class="fieldk">Meetup</div>
+        <div class="tap"><span class="tt">세빛섬 앞 계단</span><span class="chev">›</span></div>
+
+        <div class="fieldk">Route</div>
+        <div class="tap"><span class="tt">잠수교 루프 · <span class="num">5</span>km</span><span class="chev">›</span></div>
+        <div class="bound">위탁을 받는 세션은 코스가 있어야 요금이 정해져요.</div>
+
+        <div class="fieldk">People cap</div>
+        <div class="step"><span class="mn">−</span><span class="vv">12<span class="uu">명</span></span><span class="mn mx">+</span></div>
+        <div class="bound"><span class="num">2</span>–<span class="num">60</span>명</div>
+
+        <div class="fieldk">Dog cap · read only</div>
+        <div class="ro">
+          <div class="rr"><span class="rn">위탁 정원</span><span class="rv"><span class="num">4</span>마리</span></div>
+          <div class="cause">커밋한 러너들의 캡 합이에요 — 러너가 들어오고 나갈 때마다 자동으로 바뀌어요.</div>
+        </div>
+
+        <div class="fieldk">Windows · read only</div>
+        <div class="ro">
+          <div class="rr"><span class="rn">신청·승인 마감</span><span class="rv">토 <span class="num">09:00</span></span></div>
+          <div class="rr"><span class="rn">체크인</span><span class="rv"><span class="num">07:00</span>–<span class="num">15:00</span></span></div>
+          <div class="rr"><span class="rn">지도</span><span class="rv">첫 체크인부터</span></div>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">세션 열기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 목록 -->
+  <div class="col">
+    <div class="cap"><span class="n">②</span><span class="d">목록 — <b>the reason rides the same line.</b></span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span>
+          <div class="mline">반포 새벽런 · 세션 설정</div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:20px">
+          <div class="disp">세션 열기</div>
+          <div class="serial">HOST · SETUP</div>
+        </div>
+
+        <div class="fieldk">Format</div>
+        <div class="lst">
+          <div class="lrow"><span class="box"></span><span class="lt">보호자만</span><span class="ls">위탁 없음</span></div>
+          <div class="lrow on"><span class="box on"></span><span class="lt">혼합</span><span class="ls">둘 다 받아요</span></div>
+          <div class="lrow"><span class="box"></span><span class="lt">위탁만</span><span class="ls">러너가 맡아요</span></div>
+        </div>
+
+        <div class="fieldk">Time · meetup · route</div>
+        <div class="lst">
+          <div class="lrow"><span class="lt">시간</span><span class="ls">토 <span class="num">09:00</span> ›</span></div>
+          <div class="lrow"><span class="lt">집결지</span><span class="ls">세빛섬 앞 계단 ›</span></div>
+          <div class="lrow"><span class="lt">코스</span><span class="ls">잠수교 <span class="num">5</span>km ›</span></div>
+        </div>
+        <div class="bound">시간은 지금부터 <span class="num">1</span>시간 뒤부터 · 위탁 세션은 코스 필수</div>
+
+        <div class="fieldk">People cap</div>
+        <div class="step"><span class="mn">−</span><span class="vv">12<span class="uu">명</span></span><span class="mn mx">+</span></div>
+        <div class="bound"><span class="num">2</span>–<span class="num">60</span>명</div>
+
+        <div class="fieldk">Dog cap · read only</div>
+        <div class="ro">
+          <div class="rr"><span class="rn">위탁 정원</span><span class="rv"><span class="num">4</span>마리</span></div>
+          <div class="rr"><span class="rn">커밋한 러너</span><span class="rv"><span class="num">2</span>명</span></div>
+          <div class="cause">정원은 러너들의 캡 합에서 나와요. 직접 바꿀 수 없어요.</div>
+        </div>
+
+        <div class="fieldk">Pickup · return · read only</div>
+        <div class="mon">
+          <div class="hd"><span class="c1">Dog</span><span class="c2">Pickup</span><span class="c3">Return</span></div>
+          <div class="mr"><span class="dn"><span class="dogdot s">초</span>초코</span><span class="mv">집</span><span class="mv">집</span></div>
+          <div class="mr"><span class="dn"><span class="dogdot s">보</span>보리</span><span class="mv">집</span><span class="mv">집</span></div>
+          <div class="mr"><span class="dn"><span class="dogdot s">콩</span>콩이</span><span class="mv">집</span><span class="mv">집</span></div>
+        </div>
+        <div class="owed">
+          <div class="ok">Owner-authored · not collected yet</div>
+          <div class="ov">픽업·반환은 보호자가 신청할 때 고르는 값이에요. 아직 묻는 화면이 없어서 전부 기본값(집)이에요.</div>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">세션 열기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 카드 -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">카드 — <b>the consequence is inside the thing you tap.</b></span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr">
+        <div class="mast"><span class="bk">‹</span>
+          <div class="mline">반포 새벽런 · 세션 설정</div></div>
+        <div class="inkrule"></div>
+
+        <div class="headline" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:20px">
+          <div class="disp">세션 열기</div>
+          <div class="serial">HOST · SETUP</div>
+        </div>
+
+        <div class="fieldk acc">Format</div>
+        <div class="cards">
+          <div class="cd"><div class="ct">보호자만</div><div class="cb">각자 자기 개와 달려요. 코스는 없어도 돼요.</div></div>
+          <div class="cd on"><div class="ct">혼합</div><div class="cb">위탁을 받아요. 코스가 있어야 요금이 정해져요.</div></div>
+        </div>
+        <div class="bound">위탁만 받는 세션은 목록에서 고를 수 있어요.</div>
+
+        <div class="fieldk">Time · meetup · route</div>
+        <div class="tap"><span class="tt">토 <span class="num">09:00</span></span><span class="chev">›</span></div>
+        <div class="tap"><span class="tt">세빛섬 앞 계단</span><span class="chev">›</span></div>
+        <div class="tap"><span class="tt">잠수교 루프 · <span class="num">5</span>km</span><span class="chev">›</span></div>
+
+        <div class="fieldk">People cap</div>
+        <div class="step"><span class="mn">−</span><span class="vv">12<span class="uu">명</span></span><span class="mn mx">+</span></div>
+        <div class="bound"><span class="num">2</span>–<span class="num">60</span>명</div>
+
+        <div class="fieldk">Dog cap · read only</div>
+        <div class="ro">
+          <div class="rr"><span class="rn">위탁 정원</span><span class="rv"><span class="num">4</span>마리</span></div>
+          <div class="cause">러너 캡 합에서 나오는 값이에요.</div>
+        </div>
+
+        <div class="fieldk">Windows · read only</div>
+        <div class="ro">
+          <div class="rr"><span class="rn">신청·승인 마감</span><span class="rv">토 <span class="num">09:00</span></span></div>
+          <div class="rr"><span class="rn">체크인</span><span class="rv"><span class="num">07:00</span>–<span class="num">15:00</span></span></div>
+          <div class="cause">세션 시각에서 자동으로 정해져요 — 따로 정하지 않아요.</div>
+        </div>
+
+        <div class="foot">
+          <div class="btnP">세션 열기</div>
+          <div class="note">열고 나서도 시간·집결지·코스는 바꿀 수 있어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>Half of this screen is a readout, and that is the finding</h3>
+    <p>The obvious host setup screen has a dog-capacity stepper, a signup-window picker and a per-dog pickup/return control. <b>All three would be dead.</b> Measured, not assumed:</p>
+
+    <h4>🔴 위탁 정원 — derived, not typed</h4>
+    <p><code>_club_rederive_capacity</code> (0037:47-57) sums <code>delegated_capacity</code> over <code>committed</code> runner assignments and writes <code>club_sessions.delegated_dog_capacity</code> itself; the per-runner cap comes from tier (certified&nbsp;1 · veteran&nbsp;2 · master&nbsp;2, 0037:38-45). <code>club_create_session</code> <b>has no argument for it</b>. A stepper here would not merely be routeless — its value would be silently overwritten by the next runner who commits, which is worse than a dead button because it looks like it worked.</p>
+
+    <h4>🔴 신청 창 — the column does not exist</h4>
+    <p>Every <code>alter table club_sessions</code> in the repo was read (0047:14, 0048:76, 0050:241). There is no <code>signup_opens_at</code>, no <code>signup_closes_at</code>, no window column at all. Three windows are <i>derived</i> and none is set:</p>
+    <div class="ph"><span class="k">신청 마감</span><span><code>scheduled_at</code> itself — <code>session_approve_dog</code> raises <code>session_closed</code> past it (0043:264).</span></div>
+    <div class="ph"><span class="k">체크인</span><span><code>scheduled_at − 2h … + 6h</code>, projected as <code>checkinOpen</code> (0147).</span></div>
+    <div class="ph"><span class="k">지도</span><span><code>_club_pack_window</code> (0159) — the same band <b>and</b> someone actually checked in <b>and</b> the host has not ended the runs.</span></div>
+    <p>So 창 is printed, not picked. If Sean wants a settable signup window, that is a column, a CHECK, a refusal and a pin — a slice, not a control.</p>
+
+    <h4>🔴 픽업·반환 — the owner's to write, and nobody writes it yet</h4>
+    <p>The columns are real: <code>session_dogs.pickup_mode</code> ∈ <code>owner_home|session_start</code>, <code>return_mode</code> ∈ <code>owner_home|session_finish</code> (0129:186-191, NOT NULL, CHECK-named). Grepped across every migration and the whole client: <b>only 0128 and 0129 mention them</b> — there is no writer, so every row is <code>owner_home</code> by default and the monitor honestly shows one value.</p>
+    <p>⚠ A host <i>control</i> over these would be worse than dead. <code>return_mode</code> is the conjunct that stops <code>booking_pickup_address</code> handing an owner's home to a runner standing at the finish line (0128's Critical, fixed in 0129) — <b>it is a privacy decision the owner makes about their own address.</b> The host watches it; the host does not set it.</p>
+
+    <h4>What the host genuinely writes</h4>
+    <div class="ph"><span class="k">포맷</span><span><code>owner_only</code> · <code>mixed</code> · <code>delegated_only</code> — refuses <code>bad_format</code>.</span></div>
+    <div class="ph"><span class="k">시간</span><span>≥ now + 1h, else <code>too_soon</code> (0037:372).</span></div>
+    <div class="ph"><span class="k">집결지</span><span>NOT NULL, else <code>meetup_required</code>. The only always-present place string — <code>route_id</code> is nullable.</span></div>
+    <div class="ph"><span class="k">코스</span><span>required unless 포맷 = 보호자만, else <code>route_required</code> — the fare is priced off <code>km</code>.</span></div>
+    <div class="ph"><span class="k">사람 정원</span><span>CHECK 2–60, default 12. The stepper's bounds are the constraint's, not a guess.</span></div>
+
+    <h4>Where each vocabulary breaks</h4>
+    <div class="ph"><span class="k">①</span><span>세그먼트 caps at three plates. 포맷 fits exactly; a fourth format would force a redesign.</span></div>
+    <div class="ph"><span class="k">②</span><span>목록 is the only one that scales, and the only one where the readouts and the controls share a grammar — which is also its risk: the two must stay visibly different, so controls carry the stamp square and readouts carry none.</span></div>
+    <div class="ph"><span class="k">③</span><span>카드 teaches 포맷 best and costs the most height; it is drawn with 위탁만 pushed into a secondary list rather than a third card.</span></div>
+
+    <h4>Not this lab's screen</h4>
+    <p>The <b>owner's</b> setup flow — 직접 달리기 vs 러너 요청 → 픽업 → 세션 상세 → 반환 — is <code>docs/labs/club-v2-setup-lab.html</code> (r5) and stands unchanged. That screen is where <code>pickup_mode</code>/<code>return_mode</code> get written; this one is where they get watched.</p>
+  </div>
+
+</div>
+
+</div></body></html>

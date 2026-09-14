@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club v2 — Pack Map Masthead Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   PACK MAP LAB — the live pack map's MASTHEAD and ROSTER STRIP: where the
+   viewer counter sits, and how dense the strip of people is.
+   Eleventh lab in the club-v2 world. The SHARED WORLD block below is
+   byte-identical to the other ten (diffed, md5 784eb7c2…).
+
+   ── NOT THE SAME SCREEN AS `club-v2-livemap-lab.html` ──────────────────────
+   That lab (r6+r7) is the **HOST's** live map — its exits, 러닝 종료, the pair
+   list, the return branch. This one is the **PUBLIC PACK MAP** that 0159/0160
+   shipped: an anon-readable channel anybody with the link can open, whose
+   roster is `club_pack_map_roster` and whose dots are `club_pack_publish`
+   payloads. Different gate, different audience, different function. Neither
+   lab supersedes the other.
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   TWO things, and they trade against each other in a 390px width:
+     (a) **where the viewer counter sits** — masthead right, strip header, or a
+         bottom bar;
+     (b) **how dense the roster strip is** — one scrolling line of chips, two
+         rows carrying the role, or a vertical list.
+   The map body itself is identical in ①②③ and is not part of the pick.
+
+   ── THE RULINGS IT BINDS TO ────────────────────────────────────────────────
+   · Sean 2026-08-28: 「everyone should see everyone else on the map … total
+     public」 — quoted in `club_pack_map_roster`'s own comment (0160:563). This
+     is why the function is granted to `anon` (0160:566) and why it carries no
+     `auth.uid() is null` gate — 0160:487-489 states the absence deliberately so
+     a later session does not add one back as 「hardening」.
+   · Sean 2026-08-31 (announcer console): **「Yes, add counter」** — 0160 §D-1.
+   · Sean, the icon: 「a little runner icon」 — implemented as the `isRunner` bit,
+     0160:530-538, and its rule is NOT 「has a runner account」: a person draws a
+     runner icon if their `session_people.role` is one of the three runner roles
+     **or** they are actually `responsible_profile_id` for at least one delegated
+     dog in this session. The icon means **working right now**, not **is a
+     runner**, and copy must not blur the two.
+   · ⚠ SCOPED by ruling §5 the same day: 「map · roster · pictures are public;
+     the delegation board's operational/money state is not」. Nothing on this
+     screen may carry incident counts, staffing state or money.
+
+   ── FIELD BINDINGS — everything here comes from ONE call ────────────────────
+   `club_pack_map_roster(p_session)` → jsonb (0160:486-561), anon-executable,
+   client wrapper `fetchPackRoster` (api.ts:5552):
+     clubName    `clubs.name` — 0160 added it (codex #10) precisely so the
+                 masthead's title is a **server fact** and not a URL parameter a
+                 deep link could spoof. Present whether or not the window is open.
+     meetupPoint `club_sessions.meetup_point` (NOT NULL, already anon-readable
+                 on the table, 0030:133)
+     scheduledAt `club_sessions.scheduled_at`
+     status      `club_sessions.status` ∈ open|full|done|cancelled
+     windowOpen  `_club_pack_window(p_session)` (0159) — status in (open, full)
+                 AND now ∈ [scheduled_at−2h, +6h] AND somebody actually checked
+                 in AND the host has not ended the runs
+     topic       `'pack-' || session_id` — one place owns the namespace string
+     serverNow   ISO-8601 UTC; the screen computes
+                 `offset = serverNowMs − Date.now()` and judges marker freshness
+                 on the corrected clock (0160:455-465). Without it a phone 15 s
+                 slow renders every marker in the future, the freshness rule
+                 refuses them, and **the map is silently empty with nothing on
+                 screen saying why** — the silent-feature-loss class.
+     people[]    profileId · name · role (the raw four-value `session_people.role`,
+                 0030:71) · isHost · **isRunner**
+                 ⚠ `people` is `[]` whenever `windowOpen` is false. That is
+                 0159 §C's decision, not a bug — so the CLOSED masthead is a real
+                 state the strip must survive, and it is drawn in the lower band.
+   the dots    broadcast payload authored by `club_pack_publish` (0160:122+) on
+               topic `pack-<session>`; its refusal vocabulary is CLOSED —
+               not_signed_in · not_checked_in · window_closed · bad_position ·
+               too_fast · not_delivered — because each maps to a sentence a
+               person reads.
+
+   🔴 ── THE COUNTER HAS NO READER, SO ITS VALUE IS DRAWN AS 「—」 ────────────
+   Sean ruled YES and 0160 built it — but built it as an **instrument, not a
+   field**. `pack_map_roster_reads` (0160:436-445) is one integer per
+   (session, anon|authed, KST day), and it is sealed on both sides:
+     `alter table … enable row level security;`  with **zero policies**, and
+     `revoke all on table pack_map_roster_reads from anon, authenticated;`
+   0160's own comment states the consequence in one clause: 「**nothing reads it
+   but a human with a psql prompt**」 (0160:434). Grepped: no RPC returns it, no
+   view exposes it, no client touches it.
+   **So every variant below draws the counter's PLACEMENT with 「—」 in the value
+   slot and the owed server ask printed beside it.** Printing a number would be
+   the fabrication this house forbids, and printing nothing would hide the very
+   decision Sean is being asked to make.
+
+   🔴 ── AND THE COUNTER IS NOT 「HOW MANY ARE WATCHING」 ──────────────────────
+   It counts **roster CALLS per KST day**, bucketed anon/authed. It cannot answer
+   「who」 and cannot answer 「when within the day」 — 0160:423-428 argues that the
+   table is deliberately *unable to be asked* those questions, which is a stronger
+   guarantee than a policy promising nobody will ask. Two consequences for copy:
+     · 「N명이 보고 있어요」 is **false** — it is not concurrency and not people.
+       ①②③ use 「오늘 연 횟수」, which is what the integer means.
+     · the anon/authed split is the pilot's real question (does a shared link
+       bring in people without accounts), so ② prints the two buckets and ①③
+       print the sum. That difference is part of the pick.
+
+   ── DRAWN AS OMITTED — no field, so no pixel ───────────────────────────────
+   · **Avatars in the strip.** 0160:563 enumerates what the function withholds:
+     「전화·아바타·개 이름·부킹·돈·인시던트·위치」. Initials only — and an initial
+     inside a dot is identification, not prose, so it rides the glyph exemption
+     (Sean 2026-08-31 ruling 3).
+   · **Dog names and dog dots on this screen.** Not returned here. The dogs live
+     on the session board, which is a different call with a different gate.
+   · **Pace, distance, ETA, 「N km 남음」.** No such field on this payload.
+   · **The counter's VALUE** — see above. Placement drawn, value 「—」.
+   · **Anything operational or money-shaped** — excluded by ruling §5.
+
+   ── LAWS INHERITED ────────────────────────────────────────────────────────
+   · Pure #FFFFFF ground. #6C5CE7 sparse. Coral is the action fill.
+   · Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor **15** (Sean 2026-08-31 ruling 1). Black Han Sans ≤1 per frame.
+   · Holo foil budget: monogram + one ticket edge per surface. This screen spends
+     neither — a live map is not a ticket.
+   · Korean UI strings, English comments.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHARED WORLD — identical block in all four club-v2 labs ─────────────── */
+:root{
+  /* GROUND — ROUND 4: the canvas is PURE WHITE. The warm paper grounds are
+     retired AS GROUNDS; the document GRAMMAR survives on white. Recessed
+     regions use the NEUTRAL --recess gray — never a warm tint, never lilac. */
+  --docInk:#26231b; --docText:#45413A; --docDim:#6E6A62; --docFaint:#8C8880;
+  --docWhite:#FFFFFF; --docChip:#FFFFFF;
+  --recess:#F7F7F5; --docClause:#F7F7F5;
+  --docLine:#E3E1DC; --docEdge:#D8D6D0; --docDash:#C2BFB7;
+  /* ACCENT — sparse: one kicker underline · the course line · one selected chip */
+  --accent:#6C5CE7;
+  /* ACTION + state inks (round 4: darkened where needed for ≥4.5:1 on white) */
+  --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+  --action:#C6472C; --actionInk:#A83315;
+  --amber:#9A5A0E; --readyDeep:#0E7F49; --critical:#B3261E; --coralText:#C6472C;
+  /* collar palette — theme.ts collarColors */
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --collarRose:#E58BA9; --collarTeal:#3EC6A8;
+  --collarMoss:#8AA84E; --collarGold:#E0B457; --collarBerry:#C25E7F; --collarViolet:#9B8CE8;
+  --dogFill:#C9B89A; --dogInk:#5d5138;
+  /* ONE TYPE SCHEMA — same names, same values, all four labs.
+     Lattice 10 / 15 / 19 / 24 / 30 (+ Oswald 19 / 24 / 38, lh ≥1.2×).
+     Korean floor 15; sub-15 is Latin kickers, serials and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --t1:24px; --l1:30px;      /* display — Black Han Sans, once per screen */
+  --t2:19px; --l2:26px;      /* title */
+  --t3:15px; --l3:21px;      /* body — the one text tier */
+  --t4:15px; --l4:21px;      /* alias of --t3 (detail tier merged up; floor 15) */
+  --tk:10px;                 /* letterspaced LATIN kicker (never Korean) */
+  --ts:10px;                 /* Latin serial */
+  --n1:38px; --nl1:48px;     /* numeral hero   (lh 1.26×) */
+  --n2:24px; --nl2:30px;     /* numeral large  (lh 1.25×) */
+  --n3:19px; --nl3:26px;     /* numeral inline (lh 1.36×) */
+  /* lab chrome only — never inside a frame (round 4: white too, for coherence) */
+  --page:#FFFFFF; --panel:#FFFFFF; --hair:#E4E3DF; --ink:#111111; --dim:#5F5F5C; --faint:#8A8A86;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:900px;margin:0 auto}
+
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:16px}
+h1{font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:10px}
+
+/* table of contents — what am I choosing between, and how do I say my pick */
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:24px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:15px;line-height:1.5;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:32px;font-size:19px;font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:15px;line-height:1.5;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+
+/* variant bands — one column per band, two at most */
+.rail{display:flex;flex-wrap:wrap;gap:56px;margin-top:52px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.cap .n{flex:0 0 auto;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:800}
+.cap .d{font-size:15px;line-height:1.45;font-weight:700;color:var(--dim)}
+.cap .d b{color:var(--ink)}
+
+/* ── SHARED FRAME + DOCUMENT GRAMMAR ── the screen IS the paper, one level ── */
+.phone{width:390px;background:var(--docChip);color:var(--docInk);border:1px solid var(--docEdge);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 28px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--docDim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column;padding:0 20px 28px}
+.disp{font-family:var(--fDisp);font-weight:400;font-size:var(--t1);line-height:var(--l1);
+  color:var(--docInk);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.28}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.kick.acc{color:var(--docInk);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.serial{font-size:var(--ts);letter-spacing:1.8px;font-weight:700;color:var(--docDim)}
+.inkrule{height:2.5px;background:var(--docInk)}
+.thinrule{height:1.5px;background:var(--docInk)}
+.hairrule{height:1px;background:var(--docLine)}
+.mast{display:flex;align-items:center;gap:11px;padding:10px 0 14px}
+/* round 4: the back arrow is a CONTROL, so it gets a control's box + hit area */
+.mast .bk{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);
+  font-size:24px;line-height:24px;color:var(--docInk)}
+.mline{font-size:var(--t4);line-height:var(--l4);font-weight:700;color:var(--docText)}
+.dogdot{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t4);font-weight:800;color:var(--dogInk)}
+
+/* ── SHARED TAP GRAMMAR (round 4) ── tappable things LOOK tappable, and
+   nothing that isn't carries any of these marks: fill + 1px border + ≥52px +
+   a chevron for a row, a filled block for an action. Print rows get none. ── */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px;
+  background:var(--docWhite);border:1px solid var(--docInk);margin-top:12px}
+.tap .tt{flex:1;min-width:0;font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.tap .tsub{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);line-height:var(--l2);font-weight:700;color:var(--docInk)}
+.tap.quietTap{border-color:var(--docDash)}
+.tap.quietTap .tt{color:var(--docText)}
+.tap.quietTap .chev{color:var(--docDim)}
+.btnP{display:flex;align-items:center;justify-content:center;min-height:56px;padding:15px 12px;
+  background:var(--action);color:#fff;font-size:var(--t2);line-height:var(--l2);font-weight:800}
+
+
+/* ── FILE-LOCAL — pack map ────────────────────────────────────────────────── */
+.phone{min-height:700px}
+.scr.flush{padding:0 0 0}
+.pad{padding:0 20px}
+
+/* the masthead — clubName is a SERVER fact, so it carries the display face */
+.pm{padding:12px 20px 13px}
+.pm .row1{display:flex;align-items:baseline;gap:10px}
+.pm .bk2{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--docDash);background:var(--docWhite);font-size:24px;line-height:24px;color:var(--docInk)}
+.pm .ttl{font-family:var(--fDisp);font-weight:400;font-size:var(--t2);line-height:var(--l2);
+  color:var(--docInk);letter-spacing:-.01em}
+.pm .sub{margin-top:5px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+.pm .live{display:inline-flex;align-items:center;gap:6px;font-size:var(--tk);letter-spacing:2.4px;
+  text-transform:uppercase;font-weight:700;color:var(--action)}
+.pm .live i{width:8px;height:8px;border-radius:50%;background:var(--action);display:block}
+.pm .closed{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+
+/* the counter — a READOUT, so no border, no fill, no chevron */
+.ctr{margin-left:auto;text-align:right}
+.ctr .cv{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+.ctr .ck{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.ctr.owedv .cv{color:var(--docFaint)}
+
+/* the map body — identical in ①②③, not part of the pick */
+.map{position:relative;height:250px;border-top:1.5px solid var(--docInk);
+  border-bottom:1.5px solid var(--docInk);background:var(--recess);overflow:hidden}
+.map .course{position:absolute;left:26px;right:26px;top:52px;height:132px;
+  border:2px solid var(--accent);border-radius:66px/48px;opacity:.55}
+.map .anchor{position:absolute;left:50%;top:196px;transform:translateX(-50%);
+  font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.dot{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--docWhite);
+  border:2px solid var(--docInk);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t3);font-weight:800;color:var(--docInk)}
+.dot.run{background:var(--docInk);color:var(--docWhite);border-color:var(--docInk)}
+.dot .rn{position:absolute;right:-6px;bottom:-6px;width:15px;height:15px;border-radius:50%;
+  background:var(--action);color:#fff;font-size:9px;line-height:15px;text-align:center;font-weight:800}
+
+/* the runner glyph — used in the strip too. Sean: 「a little runner icon」 */
+.rico{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
+  border-radius:50%;background:var(--action);color:#fff;font-size:10px;line-height:17px;font-weight:800}
+
+/* ① one-line chip strip — densest per row, scrolls sideways */
+.strip1{display:flex;gap:8px;padding:13px 20px 15px;overflow:hidden}
+.strip1 .chip{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;min-height:38px;
+  padding:6px 11px;border:1px solid var(--docDash);background:var(--docWhite)}
+.strip1 .chip .in{width:24px;height:24px;border-radius:50%;background:var(--recess);
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--t3);font-weight:800;color:var(--docInk)}
+.strip1 .chip .nm{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.strip1 .chip.host{border-color:var(--docInk);border-width:1.5px}
+
+/* ② two-row grid — name + role on every person */
+.strip2{padding:12px 20px 16px}
+.strip2 .sh{display:flex;align-items:baseline;padding-bottom:8px;border-bottom:1.5px solid var(--docInk)}
+.strip2 .sh .shk{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+/* the ② counter — Korean, so it sits on the body tier and gets its own line */
+.ctr2{display:flex;align-items:baseline;gap:9px;padding:10px 0 0;border-bottom:1px solid var(--docLine)}
+.ctr2 .c2k{font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.ctr2 .c2p{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.ctr2 .c2v{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n3);line-height:var(--nl3);color:var(--docFaint)}
+.ctr2 .c2p.pad2{margin-left:8px}
+.grid2{display:flex;flex-wrap:wrap;gap:10px 8px;margin-top:12px}
+.grid2 .pp{flex:0 0 calc(50% - 4px);display:flex;align-items:center;gap:8px}
+.grid2 .pp .in{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:var(--recess);
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--t3);font-weight:800;color:var(--docInk)}
+.grid2 .pp .tx{min-width:0}
+.grid2 .pp .nm{display:flex;align-items:center;gap:5px;
+  font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.grid2 .pp .rl{font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* ③ vertical list — one person per ink-ruled row, plus a bottom bar */
+.list3{padding:4px 20px 0}
+.list3 .lr{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--docLine)}
+.list3 .lr .in{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--recess);
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--t3);font-weight:800;color:var(--docInk)}
+.list3 .lr .nm{flex:1;display:flex;align-items:center;gap:6px;
+  font-size:var(--t3);line-height:var(--l3);font-weight:800;color:var(--docInk)}
+.list3 .lr .rl{font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+.botbar{margin-top:auto;display:flex;align-items:center;gap:12px;padding:13px 20px 16px;
+  border-top:2.5px solid var(--docInk)}
+.botbar .bko{font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docDim)}
+.botbar .bv{font-family:var(--fNum);font-weight:600;font-size:var(--n3);line-height:var(--nl3);color:var(--docInk)}
+
+/* an OWED marker */
+.owed{margin:12px 20px 0;padding:11px 13px;border:1.5px dashed var(--docDash);background:var(--recess)}
+.owed .ok{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--docDim)}
+.owed .ov{margin-top:5px;font-size:var(--t3);line-height:var(--l3);font-weight:700;color:var(--docText)}
+
+.band{width:100%;margin-top:64px;border-top:2.5px solid var(--ink);padding-top:18px}
+.band h2{font-size:24px;line-height:30px;font-weight:800;color:var(--ink)}
+.band p{margin-top:9px;font-size:15px;line-height:1.6;color:var(--dim);max-width:820px}
+.band p b{color:var(--ink);font-weight:800}
+.emptyk{padding:40px 20px;text-align:center}
+.emptyk .e1{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--docInk)}
+.emptyk .e2{margin-top:8px;font-size:var(--t3);line-height:var(--l3);color:var(--docDim)}
+
+/* lab margin */
+.margin{width:390px}
+.margin h3{font-size:19px;line-height:26px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.margin h4{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-top:24px}
+.margin p{font-size:15px;line-height:1.62;color:var(--dim);margin-top:10px}
+.margin p b{color:var(--ink);font-weight:800}
+.margin .ph{display:flex;gap:14px;font-size:15px;line-height:1.55;color:var(--dim);
+  padding:9px 0;border-top:1px solid var(--hair)}
+.margin .ph .k{flex:0 0 108px;font-weight:800;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>클럽 v2 — 팩 지도 머리글 Lab</h1>
+  <p class="law">Total public · one call feeds it all · the counter counts opens, not watchers · the runner icon means working now</p>
+</header>
+
+<section class="toc">
+  <h2>Three placements for the counter, three densities for the strip — pick one</h2>
+  <ol>
+    <li><span class="n">①</span><span><b>머리글 오른쪽 · 한 줄 칩</b> — the counter rides the masthead's right edge; the roster is one sideways-scrolling line of chips. Densest, and the only one where a 12-person pack does not push the map down.</span></li>
+    <li><span class="n">②</span><span><b>스트립 머리 · 2행</b> — the counter labels the roster strip it belongs to, and splits 익명/로그인 (the split the pilot actually asks for). Every person carries their role; two rows of people fit before scrolling.</span></li>
+    <li><span class="n">③</span><span><b>하단 바 · 세로 목록</b> — the counter sits in a bottom bar beside the window state, and the roster is a vertical list. Most legible per person, fewest people visible.</span></li>
+  </ol>
+  <p class="say">Say a number — <b>①</b>, <b>②</b> or <b>③</b> — and one word if something inside it should change. The map body is identical in all three and is not part of the pick. <b>The counter's value is drawn 「—」 in every variant on purpose</b>: the number exists in the database and nothing can read it yet (see the margin).</p>
+</section>
+
+<div class="rail">
+
+  <!-- ① 머리글 오른쪽 · 한 줄 칩 -->
+  <div class="col">
+    <div class="cap"><span class="n">①</span><span class="d">머리글 오른쪽 · 한 줄 칩 — <b>the map keeps its height.</b></span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr flush">
+        <div class="pm">
+          <div class="row1">
+            <span class="bk2">‹</span>
+            <div>
+              <div class="ttl">반포 러닝 클럽</div>
+              <div class="sub">세빛섬 앞 계단 · 토 <span class="num">09:00</span></div>
+            </div>
+            <div class="ctr owedv">
+              <div class="cv">—</div>
+              <div class="ck">Opens today</div>
+            </div>
+          </div>
+          <div style="margin-top:9px"><span class="live"><i></i>Live</span></div>
+        </div>
+
+        <div class="map">
+          <div class="course"></div>
+          <div class="dot run" style="left:64px;top:74px">이<span class="rn">✦</span></div>
+          <div class="dot run" style="left:196px;top:58px">박<span class="rn">✦</span></div>
+          <div class="dot" style="left:272px;top:140px">김</div>
+          <div class="anchor">세빛섬 앞 계단</div>
+        </div>
+
+        <div class="strip1">
+          <span class="chip host"><span class="in">이</span><span class="nm">이서연</span><span class="rico">✦</span></span>
+          <span class="chip"><span class="in">박</span><span class="nm">박지훈</span><span class="rico">✦</span></span>
+          <span class="chip"><span class="in">김</span><span class="nm">김도윤</span></span>
+        </div>
+
+        <div class="owed">
+          <div class="ok">Counter · no reader yet</div>
+          <div class="ov">「오늘 연 횟수」는 서버가 세고 있지만, 아직 읽는 길이 없어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 스트립 머리 · 2행 -->
+  <div class="col">
+    <div class="cap"><span class="n">②</span><span class="d">스트립 머리 · 2행 — <b>the counter labels what it counts</b>, split 익명/로그인.</span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr flush">
+        <div class="pm">
+          <div class="row1">
+            <span class="bk2">‹</span>
+            <div>
+              <div class="ttl">반포 러닝 클럽</div>
+              <div class="sub">세빛섬 앞 계단 · 토 <span class="num">09:00</span></div>
+            </div>
+          </div>
+          <div style="margin-top:9px"><span class="live"><i></i>Live</span></div>
+        </div>
+
+        <div class="map">
+          <div class="course"></div>
+          <div class="dot run" style="left:64px;top:74px">이<span class="rn">✦</span></div>
+          <div class="dot run" style="left:196px;top:58px">박<span class="rn">✦</span></div>
+          <div class="dot" style="left:272px;top:140px">김</div>
+          <div class="anchor">세빛섬 앞 계단</div>
+        </div>
+
+        <div class="strip2">
+          <div class="sh">
+            <span class="shk">In the pack</span>
+          </div>
+          <div class="ctr2">
+            <span class="c2k">오늘 연 횟수</span>
+            <span class="c2p pad2">익명</span><span class="c2v">—</span>
+            <span class="c2p pad2">로그인</span><span class="c2v">—</span>
+          </div>
+          <div class="grid2">
+            <div class="pp"><span class="in">이</span><span class="tx">
+              <span class="nm">이서연 <span class="rico">✦</span></span><span class="rl">호스트 · 러너</span></span></div>
+            <div class="pp"><span class="in">박</span><span class="tx">
+              <span class="nm">박지훈 <span class="rico">✦</span></span><span class="rl">담당 러너</span></span></div>
+            <div class="pp"><span class="in">김</span><span class="tx">
+              <span class="nm">김도윤</span><span class="rl">보호자 동반</span></span></div>
+            <div class="pp"><span class="in">한</span><span class="tx">
+              <span class="nm">한소희</span><span class="rl">보호자 동반</span></span></div>
+          </div>
+        </div>
+
+        <div class="owed">
+          <div class="ok">Counter · no reader yet</div>
+          <div class="ov">두 숫자는 서버에 있어요 — (세션 · 익명/로그인 · KST 하루)당 정수 하나.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 하단 바 · 세로 목록 -->
+  <div class="col">
+    <div class="cap"><span class="n">③</span><span class="d">하단 바 · 세로 목록 — <b>most legible per person.</b></span></div>
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr flush">
+        <div class="pm">
+          <div class="row1">
+            <span class="bk2">‹</span>
+            <div>
+              <div class="ttl">반포 러닝 클럽</div>
+              <div class="sub">세빛섬 앞 계단 · 토 <span class="num">09:00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="map">
+          <div class="course"></div>
+          <div class="dot run" style="left:64px;top:74px">이<span class="rn">✦</span></div>
+          <div class="dot run" style="left:196px;top:58px">박<span class="rn">✦</span></div>
+          <div class="dot" style="left:272px;top:140px">김</div>
+          <div class="anchor">세빛섬 앞 계단</div>
+        </div>
+
+        <div class="list3">
+          <div class="lr"><span class="in">이</span><span class="nm">이서연 <span class="rico">✦</span></span><span class="rl">호스트 · 러너</span></div>
+          <div class="lr"><span class="in">박</span><span class="nm">박지훈 <span class="rico">✦</span></span><span class="rl">담당 러너</span></div>
+          <div class="lr"><span class="in">김</span><span class="nm">김도윤</span><span class="rl">보호자 동반</span></div>
+        </div>
+
+        <div class="botbar">
+          <span class="live"><i></i>Live</span>
+          <span class="bko" style="margin-left:auto">오늘 연 횟수</span>
+          <span class="bv">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ lab margin -->
+  <div class="col margin">
+    <h3>The counter is real and unreadable, and both halves matter</h3>
+    <p>Sean ruled 「Yes, add counter」 and 0160 built it — as an <b>instrument</b>. <code>pack_map_roster_reads</code> (0160:436-445) is RLS-on with <b>zero policies</b> and <code>revoke all … from anon, authenticated</code>. Its own comment: 「nothing reads it but a human with a psql prompt」. No RPC returns it, no view exposes it, no client touches it.</p>
+    <p>So the value slot is <b>「—」</b> in every variant. Printing a number would be the fabrication law's central case; printing nothing would hide the decision Sean is being asked to make. <b>The placement is pickable today; the number needs one small server ask</b> — a definer returning the current session's two integers, with whatever gate Sean wants on it (host-only is the obvious one, and it is a genuine choice: the count is a fact about strangers).</p>
+
+    <h4>🔴 It counts OPENS, not watchers</h4>
+    <p>One integer per <b>(session, anon|authed, KST day)</b>, incremented on every <code>club_pack_map_roster</code> call (0160:509-514). It cannot answer 「who」 or 「when within the day」 — 0160:423-428 argues that inability is the privacy guarantee. Therefore:</p>
+    <div class="ph"><span class="k">거짓</span><span>「<span class="num">7</span>명이 보고 있어요」 — not concurrency, not people, not even distinct devices.</span></div>
+    <div class="ph"><span class="k">참</span><span>「오늘 연 횟수」 — which is the string all three variants use.</span></div>
+    <p>② prints the 익명/로그인 split because that is the question the pilot actually has (does a shared link bring in people without accounts); ①③ print one number and lose it. That trade is part of the pick.</p>
+
+    <h4>The runner icon means WORKING, not IS-A-RUNNER</h4>
+    <p><code>isRunner</code> (0160:530-538) is true when <code>session_people.role</code> ∈ (host_runner, handling_runner, runner_attending) <b>or</b> the person is <code>responsible_profile_id</code> for at least one delegated dog in this session. A certified runner who came along as an owner draws <b>no</b> icon. The strip's role line (「담당 러너」 / 「보호자 동반」) is the raw <code>role</code> value, not a re-derivation — 0160 says so explicitly.</p>
+
+    <h4>The masthead title is a server fact</h4>
+    <p><code>clubName</code> was added by 0160 for exactly this element (codex #10): the map previously titled itself from a <b>URL parameter</b>, so a deep link could put any string above someone else's walk. It is returned whether or not the window is open, because the masthead has to say something before the walk starts.</p>
+
+    <h4>⚠ The clock correction is invisible and load-bearing</h4>
+    <p>Every marker's <code>at</code> is now stamped by the <b>server</b> (0160 §A), so the viewer's own skew is the single point of failure. <code>serverNow</code> exists so the screen can compute <code>offset = serverNowMs − Date.now()</code> and judge freshness on the corrected clock. Without it a phone 15 s slow sees every marker as future-dated, the freshness rule refuses them all, and <b>the map is empty with nothing on screen explaining why</b>. Whichever variant ships, that subtraction ships with it.</p>
+
+    <h4>Drawn as omitted</h4>
+    <div class="ph"><span class="k">아바타</span><span>not returned — 0160:563 lists what it withholds. Initials only; an initial in a dot is a glyph, exempt from the floor (ruling 3).</span></div>
+    <div class="ph"><span class="k">강아지 이름</span><span>not on this payload. Dogs live on the session board, behind a different gate.</span></div>
+    <div class="ph"><span class="k">페이스 · 남은 거리</span><span>no field anywhere on this call.</span></div>
+    <div class="ph"><span class="k">인시던트 · 돈</span><span>excluded by ruling §5 — the map is public, the delegation board's operational state is not.</span></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════ the closed window, which is a real state -->
+<div class="band">
+  <h2>불변 — 창이 닫혀 있을 때 (<code>windowOpen: false</code>)</h2>
+  <p><code>people</code> is <b>empty</b> whenever the window is closed — 0159 §C's decision, kept by 0160. So every variant's strip must survive having nobody in it, and the masthead must still say something: <code>clubName</code>, <code>meetupPoint</code> and <code>scheduledAt</code> are returned regardless. This frame is the same in ①②③ and is not part of the pick.</p>
+</div>
+
+<div class="rail">
+  <div class="col">
+    <div class="cap"><span class="n">ⓦ</span><span class="d">창 닫힘 — <b>a real state, not an error.</b></span></div>
+    <div class="phone" style="min-height:560px">
+      <div class="stbar"><span>9:41</span><span>▮▮▮</span></div>
+      <div class="scr flush">
+        <div class="pm">
+          <div class="row1">
+            <span class="bk2">‹</span>
+            <div>
+              <div class="ttl">반포 러닝 클럽</div>
+              <div class="sub">세빛섬 앞 계단 · 토 <span class="num">09:00</span></div>
+            </div>
+          </div>
+          <div style="margin-top:9px"><span class="closed">Not live</span></div>
+        </div>
+
+        <div class="map" style="background:var(--docWhite)">
+          <div class="course" style="opacity:.2"></div>
+          <div class="anchor">세빛섬 앞 계단</div>
+        </div>
+
+        <div class="emptyk">
+          <div class="e1">아직 시작 전이에요</div>
+          <div class="e2">첫 체크인이 찍히면 지도가 열려요 — 세션 <span class="num">2</span>시간 전부터예요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col margin">
+    <h3>Why 「아직 시작 전이에요」 and not an error</h3>
+    <p><code>_club_pack_window</code> (0159) is a conjunction of four facts, and three of them are ordinary: the session is <code>open</code> or <code>full</code>; now is inside <code>scheduled_at − 2h … + 6h</code>; <b>somebody has actually checked in</b>; and the host has not ended the runs. A closed window is therefore the <i>normal</i> state for most of a session's life, and it has four different causes.</p>
+    <p>The copy names the one a person can act on — 「첫 체크인이 찍히면」 — and the band, which is a fact. It does not say 「불러오지 못했어요」, because nothing failed. ⚠ A genuine failure has its own vocabulary: the publish side's refusals are a <b>closed</b> set (<code>not_signed_in · not_checked_in · window_closed · bad_position · too_fast · not_delivered</code>) precisely so each maps to a sentence a person reads, and <code>not_found</code> is matched by message string in <code>fetchPackRoster</code> — so that token is part of the contract and must not be reworded.</p>
+  </div>
+</div>
+
+</div></body></html>
