@@ -20,7 +20,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1193 / 0** at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1201 / 0** at 0168's landing (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **277 / 0** (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
@@ -78,8 +78,23 @@ Everything else for the build is in place (`ios/` regenerated, pods installed, i
 Sean questions) · 185 suite repairs for codex 0154 #5/#6/#7 (`58166cc`, 1183/0) · **0166 revocation
 findings** (`bc7d59d`, closes codex 0155 REJECT/6 — all six were still open on trunk, 0157 touched
 neither dispatcher nor reporter; suite 196, harness **1188/0**, 8 plants each reddening one pin;
-flag-gated, arms only when card registration goes live). **Pending on production is now EIGHT:
-0157 0158 0159 0160 0161 0162 0166 0167** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+flag-gated, arms only when card registration goes live). **0168 two-phase stop LANDED (money path, codex GPS finding 4, from the contract):** the host tap stamps
+`run_stopping_at` and freezes nothing; trace is accepted 90 s more (PROVISIONAL, Sean §8.1) then refused
+by name (`run_stopping`); `club_finalize_stopped_runs()` (definer, service_role, pg_cron every minute)
+derives km with an EXPLICIT cutoff = the tap and stamps `run_ended_at` = the tap; a derivation that
+fails leaves the run `stopping` with NO ledger row (never a client-priced fallback). `_club_derive_run_km`
+2-arg DROPPED, 3-arg replaces it (sole caller moved to the sweep; suite 187 updated). settle-run edge:
+409 `run_stopping` after the party gate. Client: `runStopping` key on the board (runEnded untouched),
+console 「기록을 모으는 중이에요 · 곧 확정돼요」, runner 정산 중 with settle disabled, late-upload banner
+red 「업로드가 늦었어요」 not the amber retry. Harness **1201/0** (+8, incl. INACTION and control-pair
+pins; M4 「refuse everything」 leaves P2 green), deno **281/0**, npm 983/0. ⚠ NOT codex-reviewed —
+the 06:41 review scope includes it. ⚠ NAMED GAP: no SQL belt inside `settle_run_tx` — a direct
+service_role caller can still settle a `stopping` booking at the client's numbers. Smoke rows (sim,
+needs Sean signed in): host tap → console copy · runner 정산 중 · km appears after ~2 min · backgrounded
+runner sees the red banner · owner's pack map stays up through the drain.
+
+**Pending on production is now NINE (0168 joins):
+0157 0158 0159 0160 0161 0162 0166 0167 0168** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.

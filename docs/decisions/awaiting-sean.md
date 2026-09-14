@@ -1491,8 +1491,10 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166 + 0167 (ONE `db push`).** Production is 0156; trunk carries eight pending
-   migrations, all gates green here (harness 1193/0, npm 983/0, deno 277/0). No codex verdict exists on any of
+1. **Deploy 0157–0162 + 0166 + 0167 + 0168 (ONE `db push`).** Production is 0156; trunk carries nine
+   pending migrations, all gates green here (harness 1201/0, npm 983/0, deno 281/0). ⚠ 0168 is a LIVE
+   MONEY path change (two-phase stop) with PROVISIONAL constants (90 s drain, 1-min sweep) — if you
+   want it held back, say 「hold 0168」 and I move it off trunk before the push. No codex verdict exists on any of
    them; 0159 was REJECT/11 and 0160 is its unreviewed fix. ⓐ **review first** (recommended — one
    diff-scoped `gpt-5.6-sol` high run when codex's window reopens at 06:36, prompt archived at
    `docs/reviews/2026-09-15-deploy-gate-0157-0161.prompt.md`) · ⓑ deploy now, unreviewed.
