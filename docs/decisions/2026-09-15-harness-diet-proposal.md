@@ -10,7 +10,7 @@ becomes unpinned.**
 | thing | size | wall-clock per run | what it proved today |
 |---|---|---|---|
 | SQL harness (`supabase/tests`, 106 suites registered, 109 files, 48,255 lines, 1,177 pins) | 87 MB on disk incl. `.pgtest` | **~2–4 min** (four runs today, log mtimes 01:12 → 01:14 → 01:24 → 01:32) | caught a double-registered suite in the 0157 merge (would have inflated the count); each landing's +19/+9/+14 delta proved the new suites actually ran |
-| app test chain (`app/test`, 30 files, ~3k lines, 15 shell-chained suites, 980 PASS) | small | **~3–5 min** (dominated by `npx esbuild`/`tsx` startup × 15) | nothing today; green throughout |
+| app test chain (`app/test`, 30 files, ~3k lines, 15 shell-chained suites, 983 PASS) | small | **19 s** (measured 05:0x with `/usr/bin/time`; my first draft said 3–5 min — wrong, corrected) | caught the 0169 contract gap? no — that was deno; the app chain was green throughout |
 | edge tests (`supabase/functions/_test`, 277 pins) | small | **2 s** | nothing today; green |
 | six `check-*.mjs` gates + two baselines | small | seconds | nothing today; green |
 | **`CLAUDE.md`** | **100,220 bytes** | loaded into EVERY Claude session, and every Codex session that reads it (the walled sol runs each spent ~5 min reading it) | — |
@@ -47,9 +47,8 @@ money or security invariant the slice creates or changes; no batteries, no contr
 no speculative suites」. This is the calibration the master prompts already call
 「harness-light」; making it the written law stops the corpus growing 1,000 lines per slice.
 
-**C — Merge the app test chain into one runner.** Fifteen `run-*.sh` scripts each boot
-`npx esbuild`/`tsx`; one `node --test`-style runner would take the chain from minutes to seconds
-and remove 15 shell files. Mechanical, astra-low work, no pin lost.
+**C — Merge the app test chain into one runner.** ⚠ Withdrawn on measurement: the chain runs in
+19 s, so the saving is cosmetic (15 shell files). Not worth a slice.
 
 **D — Retire suites that pin vocabulary or UI copy rather than invariants.** Needs a per-suite
 read to name candidates honestly — the walled codex run was going to do this and I will not
@@ -62,7 +61,8 @@ and it caught a real merge defect.
 
 ## Recommendation
 
-A + B + C now (no invariant lost; context and minutes both shrink), D only if you want the
-per-suite read, never E's opposite (deleting money/security pins to save minutes).
+A + B now (no invariant lost; context shrinks ~22k tokens/session — the slim draft is at
+`docs/laws/CLAUDE-slim-draft.md`, 10,240 B, every law kept, every narrative in `docs/laws/incident-ledger.md`),
+D is being prepared as a read-only table (`docs/decisions/2026-09-15-suite-audit.md`) so you can rule on it, never E's opposite (deleting money/security pins to save minutes).
 
 **Your call:** which letters?
