@@ -18,7 +18,7 @@
 //      (secret key, _shared/toss.ts) for the billing key and store it with the card's masked
 //      display fields. `my_billing_card` (the read RPC) shows brand+last4 and nothing else.
 import { caller, HttpError } from "../_shared/ctx.ts";
-import { tossBillingIssue, tossBillingRevoke } from "../_shared/toss.ts";
+import { tossBillingIssue } from "../_shared/toss.ts";
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 interface Body {
@@ -83,10 +83,13 @@ function consumeNonce(n: string | undefined, uid: string): boolean {
  *    `ON CONFLICT (col) DO UPDATE` with no index predicate and so cannot infer a partial index, and
  *    calling the definer by RPC would couple this compensation to a migration that deploys
  *    SEPARATELY from this function — in the window where the function is deployed and the migration
- *    is not, every compensation would fail into `compensateUntrackedKey`'s inline Toss DELETE,
- *    which may destroy a key the swap actually stored. A raw insert is safe in both deploy orders.
- *    The cost is that the second enqueue's REASON is not merged; the row already names the key,
- *    which is the only field the sweep needs.
+ *    is not, every enqueue here would fail and the obligation would degrade to a console line. A
+ *    raw insert is safe in both deploy orders. The cost is that the second enqueue's REASON is not
+ *    merged; the row already names the key, which is the only field the sweep needs.
+ *    ⚠ That sentence used to end 「…would fail into `compensateUntrackedKey`'s inline Toss DELETE,
+ *    which may destroy a key the swap actually stored」. The DELETE is gone (deploy-gate HIGH #2,
+ *    2026-09-15 — see the block above `orderUntrackedKeyRevocation`); the deploy-order argument for
+ *    a raw insert survives it, the consequence it named does not.
  */
 const OUTSTANDING_UQ = "billing_key_revocations_outstanding_uq";
 function alreadyOutstanding(error: { message?: string } | null): boolean {
@@ -126,51 +129,82 @@ async function enqueueUntrackedKey(
   return false;
 }
 
-/** Compensation for a key Toss issued and we could not persist.
+/** 🔴 IS THIS SWAP FAILURE A **DEFINITE REFUSAL BY OUR OWN DATABASE**, OR MERELY AN OUTCOME WE DID
+ *  NOT LEARN? Deploy-gate HIGH #2 (2026-09-15) turns on exactly this distinction, because only the
+ *  first licenses touching the key at all.
  *
- *  ⚠ THE ORDER IS DELIBERATE AND IT IS NOT 「revoke first」. When the swap fails with a TIMEOUT we
- *    do not know whether it committed — the key may already BE somebody's live card — and a blind
- *    DELETE at Toss would destroy it, leaving a `billing_keys` row pointing at nothing and a
- *    decline weeks later with nothing in our data to explain it. The outbox does not have that
- *    problem: `claim_billing_key_revocations` (0143 §B) abandons any row whose key is currently in
- *    `billing_keys`, so ENQUEUEING RESOLVES THE AMBIGUITY against the authoritative table while an
- *    inline DELETE can only guess. Enqueue first; revoke inline only when we cannot enqueue.
+ *  `billing_key_swap` is ONE transaction. When Postgres itself answers with a SQLSTATE — 0157's
+ *  `23505` on the outstanding-revocations index, a `P0001` raise out of
+ *  `enqueue_billing_key_revocation_row`, a check violation — that transaction ABORTED: the
+ *  `billing_keys` upsert did not commit, and neither did the definer's own in-transaction enqueue
+ *  (0141 §A, 0143 §A). So the key is live at Toss, is certainly NOT ours, and no revocation was
+ *  recorded for it. Ordering one is then a fact we are writing down, not a guess.
+ *
+ *  Everything else — a fetch that never answered, a gateway 5xx, a PostgREST-level code, a dropped
+ *  connection — says only that WE did not learn the outcome. The swap may have COMMITTED, in which
+ *  case that key is the owner's live card.
+ *
+ *  ⚠ THE AMBIGUOUS CLASSES ARE ENUMERATED AND THE DEFAULT IS 「UNKNOWN」, which is the direction the
+ *    doubt runs: a connection/shutdown/internal error can arrive AFTER the COMMIT was sent, so its
+ *    SQLSTATE is evidence about the CONNECTION rather than about the TRANSACTION. Anything that is
+ *    not SQLSTATE-shaped at all (`''` from a thrown fetch, `PGRST…` from PostgREST) fails to
+ *    UNKNOWN by construction rather than by remembering to list it.
  */
-async function compensateUntrackedKey(
+const AMBIGUOUS_SQLSTATE_CLASSES = new Set([
+  "08",   // connection_exception — may have been raised after COMMIT was sent
+  "53",   // insufficient_resources — including a disk/memory failure during commit
+  "57",   // operator_intervention — query_canceled, admin_shutdown, crash_shutdown
+  "58",   // system_error — external to Postgres itself
+  "XX",   // internal_error / data_corrupted — the server's own state is in doubt
+]);
+function swapDefinitelyRefused(error: { code?: string } | null | undefined): boolean {
+  const code = String(error?.code ?? "");
+  if (!/^[0-9A-Z]{5}$/.test(code)) return false;
+  return !AMBIGUOUS_SQLSTATE_CLASSES.has(code.slice(0, 2));
+}
+
+/** 🔴 THE ONLY ACTION THIS HANDLER MAY TAKE ON AN ISSUED-BUT-UNSTORED KEY: **ORDER** its revocation
+ *  in the outbox. It may never DELETE at Toss, and that is the whole of deploy-gate HIGH #2.
+ *
+ *  ⚠ WHAT WAS HERE BEFORE, AND WHY IT IS GONE. This function used to try the outbox and then, when
+ *    the outbox was unreachable, call `tossBillingRevoke` inline — a blind DELETE its own comment
+ *    admitted 「may be destroying a key the swap actually stored」. That trade was correct exactly
+ *    once: before 0170, a key we could not record was a credential named in NO table at all, and an
+ *    unnamed live credential is worse than a destroyed one. **0170 ended that.** The intent row is
+ *    written BEFORE Toss is called and is closed `issued_unpersisted` naming the billing key AND
+ *    the idempotency key it was issued under, so the key is named whatever the outbox does. The
+ *    rationale for the DELETE was the namelessness; the namelessness is gone, so the DELETE goes
+ *    with it (memo §4 finding 4, branches A/B: 「delete the inline blind-DELETE arm outright」).
+ *
+ *  ⚠ THE OUTBOX IS ORDERED, RETRIED, AUDITED AND REPORTED, AND AN INLINE DELETE IS NONE OF THOSE.
+ *    `claim_billing_key_revocations` (0143 §B) abandons any outstanding row whose key is currently
+ *    in `billing_keys`, so the queue RESOLVES the question against the authoritative table before
+ *    anything is destroyed; 0157 keeps at most one outstanding order per key; 0166 classifies an
+ *    abandon and notifies. A DELETE from here bypasses every one of those.
+ *
+ *  Called ONLY on the definite-refusal branch (`swapDefinitelyRefused`). A failure to record is a
+ *  confession, not a fallback — there is no longer anything to fall back to.
+ */
+async function orderUntrackedKeyRevocation(
   db: SupabaseClient, uid: string, customerKey: string, billingKey: string, why: string,
+  intentId: string,
 ): Promise<void> {
   if (await enqueueUntrackedKey(db, uid, billingKey, why)) return;
 
-  // Our durable store is unreachable and Toss answered us milliseconds ago, so the provider is the
-  // one party still likely to be reachable — discharge the obligation there instead of recording
-  // it. ⚠ This arm may be destroying a key the swap actually stored; we cannot tell, because the
-  // store that would tell us is the one that is down. We take that over a live credential nobody
-  // can find: the owner is being told registration FAILED, so a key that still charges contradicts
-  // what we told them, while a key that does not is the retry they already expect.
-  let revokeErr = "";
-  try {
-    const res = await tossBillingRevoke(billingKey);
-    if (res.ok) return;
-    revokeErr = `toss ${res.httpStatus}`;
-  } catch (e) {
-    revokeErr = `unreachable: ${(e as Error).message}`;
-  }
-
-  // One more try at the record: the revoke just spent up to BILLING_TIMEOUT_MS, which is plenty of
-  // time for a transient PostgREST failure to clear, and a row is worth more than a log line.
-  if (await enqueueUntrackedKey(db, uid, billingKey, `${why}; revoke failed (${revokeErr})`)) return;
-
-  // 🔴 EVERY DURABLE OPTION IS EXHAUSTED. This is a confession, NOT a record — 0138 already proved
-  //    that a `console.error` about an orphaned key is read by nobody and reconciled by nothing,
-  //    which is why 0141 §A moved that case into the outbox. It is here because the alternative is
-  //    saying nothing at all. The customer key is the coordinate Toss knows this owner by and is
-  //    what a provider-side reconciliation must be keyed on; the billing key itself stays out of
-  //    the log — a live charging credential in a log line is a second copy of it, and
-  //    `tossBillingRevoke`'s own comment already refuses that trade for a smaller benefit.
+  // 🔴 THE OUTBOX IS UNREACHABLE. This is a confession, NOT a record — 0138 already proved that a
+  //    `console.error` about an orphaned key is read by nobody and reconciled by nothing, which is
+  //    why 0141 §A moved that case into the outbox. It is here because the alternative is saying
+  //    nothing at all — and since 0170 it is no longer the only thing left: the intent row closed
+  //    just before this call names the key and the idempotency key, so the sweep has a coordinate
+  //    even when this line is the only thing a human ever sees. The intent id is in the message for
+  //    exactly that reason. The customer key is what a provider-side reconciliation must be keyed
+  //    on; the billing key itself stays out of the log — a live charging credential in a log line
+  //    is a second copy of it, and `tossBillingRevoke`'s own comment refuses that trade.
   console.error(
-    `[register-billing-key] UNTRACKED LIVE KEY — profile ${uid}, customer_key ${customerKey}: ` +
-      `Toss issued a billing key, the swap failed (${why}), revocation failed (${revokeErr}), and ` +
-      `the outbox is unreachable. A live charging credential exists that nothing in our data names.`,
+    `[register-billing-key] intent ${intentId} — UNTRACKED LIVE KEY, profile ${uid}, ` +
+      `customer_key ${customerKey}: Toss issued a billing key, the swap definitively refused ` +
+      `(${why}), and the revocation outbox is unreachable. Nothing was sent to Toss. The intent ` +
+      `row names the key and the idempotency key it was issued under.`,
   );
 }
 
@@ -181,8 +215,8 @@ async function compensateUntrackedKey(
  *  `Idempotency-Key` minted inside `_shared/toss.ts` and persisted NOWHERE. If the response never
  *  came back, Toss could hold a live standing authority to charge a real card and we held no row
  *  naming it — not in `billing_keys` (the write never ran) and not in the outbox (only a FAILED
- *  swap writes there). `compensateUntrackedKey` cannot help: it runs only when the response WAS
- *  received.
+ *  swap writes there). The compensation (now `orderUntrackedKeyRevocation`) cannot help: it runs
+ *  only when the response WAS received.
  *
  *  ⚠ **THIS IS THE SAME MOVE UNDER EVERY ANSWER TO THE TWO OPEN TOSS QUESTIONS** (memo §3), which
  *    is why it may be built while they are open: under 「replay works」 the row is what a recovery
@@ -373,27 +407,69 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
     //    the profile row and makes the check and the write one statement, so deletion and
     //    issuance can no longer interleave. A check-then-act across an external await cannot be
     //    fixed by ordering the two statements more carefully; it has to stop being two.
-    const { data: swapRows, error: wErr } = await db
-      .rpc("billing_key_swap", {
+    type SwapRow = { swapped?: boolean; displaced_key?: string | null; refusal?: string | null };
+    let swapRows: SwapRow | SwapRow[] | null = null;
+    let wErr: { message?: string; code?: string } | null = null;
+    try {
+      const swapRes = await db.rpc("billing_key_swap", {
         p_profile: uid,
         p_billing_key: billingKey,
         p_card: { brand, last4: last4 || null },
       });
+      swapRows = swapRes.data;
+      wErr = swapRes.error;
+    } catch (e) {
+      // 🔴 A THROW IS THE PUREST UNKNOWN. The client never got an answer, so the swap may well have
+      //    COMMITTED — this key may be the owner's live card. The intent is closed
+      //    `issued_unpersisted` because we DO know Toss issued (we are holding the key); what we do
+      //    not know is whether our store took it, and the sweep reconciles that against
+      //    `billing_keys`. Nothing is ordered and nothing is sent to Toss. The original error is
+      //    re-thrown unchanged: this request fails exactly as it did before.
+      const msg = (e as Error).message;
+      await closeIssueIntent(db, intent.id, "issued_unpersisted", billingKey, `billing_key_swap threw: ${msg}`);
+      console.error(
+        `[register-billing-key] intent ${intent.id} — billing_key_swap outcome UNKNOWN (threw: ` +
+          `${msg}). No revocation ordered and nothing sent to Toss: the swap may have committed. ` +
+          `The intent row names the key for the recovery sweep.`,
+      );
+      throw e;
+    }
     if (wErr) {
       // 🔴 TOSS HAS ALREADY ISSUED A REAL, LIVE CHARGING CREDENTIAL BY THIS LINE. Throwing on its
       //    own left that key recorded NOWHERE — not in `billing_keys` (the write is what failed)
       //    and not in the outbox (only the swap writes there) — so a network blip, an RPC error or
       //    a timeout produced a standing authority to charge that we could neither see nor stop.
-      //    The compensation runs BEFORE the throw and cannot change the outcome: this request
+      //    Whatever is done here runs BEFORE the throw and cannot change the outcome: this request
       //    failed, and it still says so.
-      // ⚠ THE INTENT IS CLOSED FIRST, AND THE ORDER IS DELIBERATE. `compensateUntrackedKey`'s last
-      //   arm can call Toss and, when the outbox is unreachable, DELETE a key the swap may actually
-      //   have stored (its own comment says so). Recording what we know before taking an action we
-      //   may not be able to describe afterwards costs one RPC and is the difference between an
-      //   incident with a row and an incident without one.
-      await closeIssueIntent(db, intent.id, "issued_unpersisted", billingKey, `billing_key_swap failed: ${wErr.message}`);
-      await compensateUntrackedKey(db, uid, customerKey, billingKey, `billing_key_swap failed: ${wErr.message}`);
-      throw new HttpError(500, `billing_key_swap failed: ${wErr.message}`);
+      //
+      // ⚠ THE INTENT IS CLOSED FIRST, AND THE ORDER IS DELIBERATE — recording what we know before
+      //   acting on it is the difference between an incident with a row and an incident without
+      //   one. Since 0170 it is also what makes the branch below SAFE to be a no-op: the key is
+      //   named whether or not anything else succeeds.
+      //
+      // 🔴 THEN, AND ONLY THEN, THE TWO OUTCOMES ARE TREATED DIFFERENTLY (deploy-gate HIGH #2):
+      //    · DEFINITE refusal by our own SQL ⇒ the transaction aborted, the key is certainly not
+      //      stored and certainly not yet enqueued ⇒ ORDER its revocation in the outbox.
+      //    · UNKNOWN ⇒ do NOTHING further. Not a DELETE (it could destroy a stored card), and not
+      //      an enqueue either: an order placed on a key the swap actually stored is settled by
+      //      0143 §B's belt only after it has been claimed, and it spends a worker, an outstanding
+      //      slot and an abandon row on a card that is working fine. The intent row already carries
+      //      the key for the sweep and for ops, which is what 0170 bought.
+      //    The client-visible status is the same 500 in both arms — the caller's registration
+      //    failed, and which of our internals knows why is not their business.
+      const why = `billing_key_swap failed: ${wErr.message}`;
+      await closeIssueIntent(db, intent.id, "issued_unpersisted", billingKey, why);
+      if (swapDefinitelyRefused(wErr)) {
+        await orderUntrackedKeyRevocation(db, uid, customerKey, billingKey, why, intent.id);
+      } else {
+        console.error(
+          `[register-billing-key] intent ${intent.id} — billing_key_swap outcome UNKNOWN ` +
+            `(${wErr.code ? `sqlstate ${wErr.code}` : "no sqlstate"}: ${wErr.message}). No ` +
+            `revocation ordered and nothing sent to Toss: the swap may have committed. The intent ` +
+            `row names the key for the recovery sweep.`,
+        );
+      }
+      throw new HttpError(500, why);
     }
     const swap = Array.isArray(swapRows) ? swapRows[0] : swapRows;
 
@@ -426,8 +502,8 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
         throw new HttpError(409, "billing_key_busy");
       }
       console.error(
-        `[register-billing-key] refused for profile ${uid} (${why}); the displaced key is ` +
-          `enqueued for provider-side revocation by the definer`,
+        `[register-billing-key] intent ${intent.id} — refused for profile ${uid} (${why}); the ` +
+          `displaced key is enqueued for provider-side revocation by the definer`,
       );
       throw new HttpError(403, "no_profile");
     }

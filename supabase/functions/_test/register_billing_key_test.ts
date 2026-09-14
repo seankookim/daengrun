@@ -385,8 +385,31 @@ Deno.test("🔴 deploy-gate #5 — a tombstoned caller gets 403 no_profile even 
 // the key existed at the PG, unrecorded, forever.
 const isRevoke = (u: string) => u.includes("/v1/billing/bill_abc123");
 
-/** Toss issues fine; `billing_key_swap` is the thing that breaks. */
-function brokenSwap(db: FakeDb, message = "fetch failed") {
+/** Toss issues fine; `billing_key_swap` is REFUSED BY OUR OWN SQL — a SQLSTATE came back, so the
+ *  transaction aborted, the key is certainly not stored, and the definer's own in-transaction
+ *  enqueue (0141 §A / 0143 §A) rolled back with it. That is the branch on which this handler may
+ *  order a revocation.
+ *
+ *  ⚠ THE `code` IS THE WHOLE FIXTURE and it used to be absent: before deploy-gate HIGH #2 this
+ *    helper failed the swap with a bare `{ message: "fetch failed" }` — the AMBIGUOUS case — and
+ *    the handler enqueued on it anyway, because it could not tell the two apart. Every pin below
+ *    that asserts an enqueue therefore needs a DEFINITE fixture now, and `unknownSwap` covers the
+ *    other side. The cast is because `FakeDb.rpcs` types its error as `{ message: string }`; the
+ *    fake passes the object through untouched, which is what the handler reads.
+ */
+function brokenSwap(
+  db: FakeDb,
+  message = 'duplicate key value violates unique constraint "billing_key_revocations_outstanding_uq"',
+  code = "23505",
+) {
+  db.rpcs["billing_key_swap"] = () => ({ error: { message, code } as unknown as { message: string } });
+  db.seed("billing_key_revocations", []);
+}
+
+/** The other half: the swap's outcome is UNKNOWN. A returned error carrying no SQLSTATE is what a
+ *  dropped fetch, a gateway 5xx or a PostgREST-level refusal looks like — we did not learn whether
+ *  the transaction committed, so the key may be the owner's live card. */
+function unknownSwap(db: FakeDb, message = "fetch failed") {
   db.rpcs["billing_key_swap"] = () => ({ error: { message } });
   db.seed("billing_key_revocations", []);
 }
@@ -415,21 +438,32 @@ Deno.test("🔴 a failed swap ENQUEUES the untracked key — and still fails the
     assertEquals(out[0].profile_id, OWNER);
     assertEquals(out[0].reason, "issued_unpersisted");
 
-    // ⚠ AND TOSS IS NOT CALLED. An inline DELETE here would be a guess: a timed-out swap may have
-    //   COMMITTED, in which case the key is the owner's live card. The outbox worker settles that
-    //   against `billing_keys` (0143 §B) — this pin is what stops a later session "simplifying"
-    //   the enqueue into a straight revoke.
+    // ⚠ AND TOSS IS NOT CALLED — not on this path and, since deploy-gate HIGH #2, not on ANY path
+    //   through this handler. The outbox worker settles the order against `billing_keys` (0143 §B)
+    //   before anything is destroyed; a DELETE from here bypasses that belt entirely. This pin is
+    //   what stops a later session "simplifying" the enqueue into a straight revoke.
     assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
   } finally { fm.restore(); }
 });
 
-Deno.test("🔴 outbox unreachable → the key is revoked at Toss inline, with DELETE on the real URL", async () => {
+// 🔴 A PIN REVERSED ON PURPOSE — deploy-gate HIGH #2, 2026-09-15. This test used to be
+//    「outbox unreachable → the key is revoked at Toss inline, with DELETE on the real URL」 and it
+//    was a correct pin of a behaviour that has since become wrong, which is exactly the case
+//    CLAUDE.md says must be updated in the same slice rather than left red or deleted.
+//
+// ⚠ WHY THE OLD BEHAVIOUR WAS RIGHT AND IS NOT ANY MORE. The inline DELETE bought one thing: a key
+//   we could not record was, before 0170, a live charging credential named in NO table at all —
+//   and an unnamed credential is worse than a destroyed one. 0170 writes the intent row BEFORE
+//   Toss is called and closes it `issued_unpersisted` naming the billing key AND the idempotency
+//   key. The namelessness was the entire rationale; it is gone, so the DELETE goes with it.
+//   The property this pin now owns: **the outbox being down is not a licence to touch the key.**
+Deno.test("🔴 deploy-gate #2 — outbox unreachable → STILL no DELETE at Toss; the intent row is the record", async () => {
   const db = scene();
   brokenSwap(db);
   db.fail("billing_key_revocations:insert", "could not connect");
   const fm = new FetchMock()
     .on(isIssue, () => FetchMock.json(issued()))
-    .on(isRevoke, () => new Response("", { status: 200 }));   // documented empty-200 success shape
+    .on(isRevoke, () => new Response("", { status: 200 }));   // available, and deliberately unused
   fm.install();
   try {
     let err: HttpError | null = null;
@@ -439,26 +473,32 @@ Deno.test("🔴 outbox unreachable → the key is revoked at Toss inline, with D
     } catch (e) { err = e as HttpError; }
     assertEquals(err?.status, 500);
 
-    const call = fm.calls.find((c) => isRevoke(c.url))!;
-    assertEquals(call.method, "DELETE");
-    assertEquals(call.url, "https://api.tosspayments.com/v1/billing/bill_abc123");
-    // Discharged at the provider — nothing left to record, so nothing is recorded.
+    // 🔴 THE REVERSAL, IN ONE LINE. The DELETE that used to be asserted here — on a key the swap
+    //    may have stored — is now asserted ABSENT.
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+    // Nothing landed in the outbox either: it is the thing that is down.
     assertEquals(db.rows("billing_key_revocations").length, 0);
+    // …and this is why that is survivable, which is the half the old pin could not have asserted.
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "issued_unpersisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
+    assert(typeof rows[0].idempotency_key === "string" && rows[0].idempotency_key.length > 0);
   } finally { fm.restore(); }
 });
 
-Deno.test("🔴 revoke fails but the DB comes back → the record is retried AFTER the revoke", async () => {
+// 🔴 REPLACES 「revoke fails but the DB comes back → the record is retried AFTER the revoke」, whose
+//    property no longer exists: there is no inline revoke, so there is no window after it to retry
+//    in, and the second `enqueueUntrackedKey` call that existed only to use that window is gone.
+//    What takes its slot is the arm the old fixture was silently standing in for — `brokenSwap`
+//    used to fail with a bare `{ message: "fetch failed" }`, i.e. the UNKNOWN case, while every
+//    assertion written on it read as if the refusal were definite.
+Deno.test("🔴 deploy-gate #2 — an UNKNOWN swap error (no SQLSTATE) orders NOTHING and sends nothing", async () => {
   const db = scene();
-  brokenSwap(db);
-  db.fail("billing_key_revocations:insert", "could not connect");
+  unknownSwap(db);                       // a returned error with no `code` — a dropped fetch, a 5xx
   const fm = new FetchMock()
     .on(isIssue, () => FetchMock.json(issued()))
-    .on(isRevoke, () => {
-      // The outage clears while we are on the phone to Toss — the whole reason the second attempt
-      // exists. Without it this run ends in a console.error, which is not a record.
-      delete db.failures["billing_key_revocations:insert"];
-      return FetchMock.json({ code: "FORBIDDEN_REQUEST", message: "삭제할 수 없어요" }, 403);
-    });
+    .on(isRevoke, () => new Response("", { status: 200 }));
   fm.install();
   try {
     let err: HttpError | null = null;
@@ -466,14 +506,20 @@ Deno.test("🔴 revoke fails but the DB comes back → the record is retried AFT
     try {
       await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
     } catch (e) { err = e as HttpError; }
+    // The client-visible answer is unchanged — the same 500 with the same sentence.
     assertEquals(err?.status, 500);
+    assertStringIncludes(String(err?.message), "billing_key_swap failed");
 
-    const out = db.rows("billing_key_revocations");
-    assertEquals(out.length, 1);
-    assertEquals(out[0].billing_key, "bill_abc123");
-    // The row carries BOTH failures, so a human reading it knows the key was never revoked.
-    assertStringIncludes(String(out[0].last_error), "billing_key_swap failed");
-    assertStringIncludes(String(out[0].last_error), "revoke failed (toss 403)");
+    // 🔴 BOTH ACTIONS ARE REFUSED, AND FOR THE SAME REASON: the swap may have COMMITTED, so this
+    //    key may be the owner's live card. A DELETE would destroy it; an ORDER would spend a
+    //    worker, an outstanding slot and an abandon row before 0143 §B's belt settles it.
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+    assertEquals(db.rows("billing_key_revocations").length, 0);
+    // The key is not lost by doing nothing — that is precisely what 0170 bought.
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "issued_unpersisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
   } finally { fm.restore(); }
 });
 
@@ -497,6 +543,9 @@ Deno.test("🔴 every durable option down → still a 500, and nothing is fabric
     assertStringIncludes(String(err?.message), "billing_key_swap failed");
     assertEquals(db.rows("billing_keys").length, 0);
     assertEquals(db.rows("billing_key_revocations").length, 0);
+    // And the last resort is a CONFESSION, never a provider call — the arm that used to reach Toss
+    // when everything else was down is gone (deploy-gate HIGH #2).
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
   } finally { fm.restore(); }
 });
 
@@ -524,13 +573,22 @@ Deno.test("the happy path records NOTHING in the outbox — compensation is fail
 // that is already gone. This path is the one enqueue site that stays a raw PostgREST insert (see
 // the handler's comment: PostgREST cannot infer a partial index, and an RPC would couple this
 // compensation to a migration that deploys separately). So it must read the violation correctly.
-Deno.test("🔴 an outstanding row for this key ALREADY EXISTS → recorded, not re-revoked at Toss", async () => {
+// ⚠ THE DISCRIMINATOR MOVED WITH THE FIX, AND SAYING SO IS THE POINT. Both arms below used to be
+//   told apart by the inline Toss DELETE — recognised conflict ⇒ 0 calls, unrecognised error ⇒ 1
+//   call. With no DELETE on any path that difference is gone, and asserting 「0 DELETEs」 in both
+//   would leave two tests that cannot disagree: the same claim printed twice. What still separates
+//   them is what `enqueueUntrackedKey` DOES with the answer — a recognised conflict is 「landed」 and
+//   stops after ONE insert, while any other error drives the provenance-dropping retry and then
+//   gives up. So the arms count INSERT ATTEMPTS, and the zero-DELETE assertion rides along as a
+//   standing check rather than as the thing being measured.
+Deno.test("🔴 an outstanding row for this key ALREADY EXISTS → recorded, and no second attempt", async () => {
   const db = scene();
   brokenSwap(db);
-  db.fail(
-    "billing_key_revocations:insert",
-    () => 'duplicate key value violates unique constraint "billing_key_revocations_outstanding_uq"',
-  );
+  let attempts = 0;
+  db.fail("billing_key_revocations:insert", () => {
+    attempts++;
+    return 'duplicate key value violates unique constraint "billing_key_revocations_outstanding_uq"';
+  });
   const fm = new FetchMock()
     .on(isIssue, () => FetchMock.json(issued()))
     .on(isRevoke, () => new Response("", { status: 200 }));
@@ -544,9 +602,9 @@ Deno.test("🔴 an outstanding row for this key ALREADY EXISTS → recorded, not
     // Still a failed registration — recognising the conflict never turns a broken write into a
     // success for the CALLER.
     assertEquals(err?.status, 500);
-    // 🔴 THE POINT: the obligation is already on the books, so nothing is revoked inline. An inline
-    //    DELETE here would destroy a key the outbox worker is about to settle against
-    //    `billing_keys` (0143 §B) — and that key may be somebody's live card.
+    // 🔴 THE POINT: the obligation is already on the books, so the compensation is DONE — it does
+    //    not retry without provenance and it does not confess.
+    assertEquals(attempts, 1);
     assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
   } finally { fm.restore(); }
 });
@@ -555,10 +613,13 @@ Deno.test("🔴 CONTROL — any OTHER insert error is still a failure, not a cla
   // ⚠ Without this arm, `alreadyOutstanding` widened to 「any error」 — or to a bare 23505 — would
   //   pass the test above perfectly while converting 「nobody recorded it」 into 「something recorded
   //   it」 on a live charging credential. The blind spots of the two arms are different, which is
-  //   what makes this a control rather than the same claim printed twice.
+  //   what makes this a control rather than the same claim printed twice: this one is blind to a
+  //   compensation that never runs at all, and the one above is blind to a compensation that runs
+  //   twice — and the mutation that makes one green makes the other red.
   const db = scene();
   brokenSwap(db);
-  db.fail("billing_key_revocations:insert", "could not connect");
+  let attempts = 0;
+  db.fail("billing_key_revocations:insert", () => { attempts++; return "could not connect"; });
   const fm = new FetchMock()
     .on(isIssue, () => FetchMock.json(issued()))
     .on(isRevoke, () => new Response("", { status: 200 }));
@@ -568,7 +629,10 @@ Deno.test("🔴 CONTROL — any OTHER insert error is still a failure, not a cla
     try {
       await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
     } catch { /* the 500 is asserted by its own test above */ }
-    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 1);
+    // NOT treated as landed: the second attempt (provenance dropped) is made, and only then does
+    // the handler confess. Two, not one — and still not a DELETE.
+    assertEquals(attempts, 2);
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
   } finally { fm.restore(); }
 });
 
@@ -834,4 +898,141 @@ Deno.test("🔴 0170 CONTROL — a refused open is mapped by REASON, and an abse
   assertEquals(await statusOf(refuse("deleted_account")), 403);
   assertEquals(await statusOf(refuse("something_new_in_sql")), 403);
   assertEquals(await statusOf(refuse(null)), 403);
+});
+
+
+// ═══ [deploy-gate HIGH #2 · 2026-09-15] THE COMPENSATION MAY NEVER DELETE AT TOSS ═════════════
+//
+// 🔴 THE FINDING, in the verdict's words: 「a failed/ambiguous `billing_key_swap` closes the intent
+//    and then enters compensation whose final fallback may DELETE the key that the swap actually
+//    stored」 (`docs/reviews/2026-09-15-deploy-gate-verdict.md` HIGH #2). The DELETE was a judgment
+//    call that was CORRECT before 0170 — an unnamed live credential is worse than a destroyed one
+//    — and 0170 removed its premise by naming the credential in the intent row before Toss is even
+//    called. The memo's finding-4 branch A/B fix shape: 「delete the inline blind-DELETE arm
+//    outright」 (`docs/research/2026-08-31-toss-provider-memo.md:272-287`), and it is
+//    branch-independent: it does not need either open provider question answered.
+//
+// THE DECISION TABLE THESE THREE PINS COVER — the intent is closed FIRST in every failing row:
+//   swap succeeded            → `issued_persisted`   · no order, no DELETE          (T3, the control)
+//   swap DEFINITELY refused   → `issued_unpersisted` · ORDER in the outbox, no DELETE (T1)
+//   swap outcome UNKNOWN      → `issued_unpersisted` · nothing at all, no DELETE      (T2)
+// The `swapped=false` refusal rows are a fourth case and are NOT here: the definer already enqueued
+// in the same transaction as the refusal (0141 §A / 0143 §A), and those arms have their own pins.
+
+Deno.test("🔴 deploy-gate #2 T1 — a DEFINITE SQL refusal ORDERS the revocation and never DELETEs", async () => {
+  // Two definite fixtures, because the definiteness must come from the SQLSTATE's SHAPE and not
+  // from one memorised code: 0157's unique index (23505) and a `raise` out of
+  // `enqueue_billing_key_revocation_row` (P0001) are the two this handler can actually meet.
+  for (const [code, message] of [
+    ["23505", 'duplicate key value violates unique constraint "billing_key_revocations_outstanding_uq"'],
+    ["P0001", "0157: enqueue_billing_key_revocation_row called with no billing key (reason replaced)"],
+  ]) {
+    const db = scene();
+    brokenSwap(db, message, code);
+    const fm = new FetchMock()
+      .on(isIssue, () => FetchMock.json(issued()))
+      .on(isRevoke, () => new Response("", { status: 200 }));   // reachable, and never reached
+    fm.install();
+    try {
+      let err: HttpError | null = null;
+      const nonce = await prep(db);
+      try {
+        await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+      } catch (e) { err = e as HttpError; }
+
+      // ① the client-visible answer is the one it has always been
+      assertEquals(err?.status, 500);
+      assertStringIncludes(String(err?.message), "billing_key_swap failed");
+      assertEquals(db.rows("billing_keys").length, 0);
+
+      // ② 🔴 ZERO DELETEs AT TOSS. This is the finding.
+      assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+
+      // ③ the ORDERED path instead — the queue 0138/0157 built, which is retried, audited (0166)
+      //    and settled against `billing_keys` by 0143 §B before anything is destroyed.
+      const out = db.rows("billing_key_revocations");
+      assertEquals(out.length, 1);
+      assertEquals(out[0].billing_key, "bill_abc123");
+      assertEquals(out[0].profile_id, OWNER);
+      assertEquals(out[0].reason, "issued_unpersisted");
+
+      // ④ and the intent is closed naming the key, whatever the outbox did
+      const rows = intents(db);
+      assertEquals(rows.length, 1);
+      assertEquals(rows[0].state, "issued_unpersisted");
+      assertEquals(rows[0].billing_key, "bill_abc123");
+      assertStringIncludes(String(rows[0].note), message);
+    } finally { fm.restore(); }
+  }
+});
+
+Deno.test("🔴 deploy-gate #2 T2 — a THROWN swap is UNKNOWN: no DELETE, no order, and the error survives", async () => {
+  const db = scene();
+  db.seed("billing_key_revocations", []);
+  // The client never got an answer. This is the state in which a DELETE is most tempting (Toss
+  // answered us milliseconds ago) and most dangerous (the swap may have COMMITTED, so the key may
+  // be the owner's live card).
+  db.rpcs["billing_key_swap"] = () => { throw new Error("connection reset"); };
+  const fm = new FetchMock()
+    .on(isIssue, () => FetchMock.json(issued()))
+    .on(isRevoke, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    let caught: unknown = null;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch (e) { caught = e; }
+
+    // ① the status is UNCHANGED from today's: the original error is re-thrown, not re-labelled into
+    //    an HttpError and not swallowed by the bookkeeping write.
+    assert(caught instanceof Error);
+    assert(!(caught instanceof HttpError));
+    assertEquals((caught as Error).message, "connection reset");
+
+    // ② 🔴 NEITHER ACTION IS TAKEN. Zero DELETEs and zero enqueues — and the second half matters as
+    //    much as the first: an order placed on a key the swap actually stored costs a worker, an
+    //    outstanding slot and an abandon row before 0143 §B settles it.
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+    assertEquals(db.rows("billing_key_revocations").length, 0);
+    assertEquals(db.rows("billing_keys").length, 0);
+
+    // ③ and doing nothing is SAFE because the intent row is the record — `issued_unpersisted`, not
+    //    `unresolved`: we know Toss issued (we are holding the key); what we do not know is whether
+    //    our store took it, which is what the sweep reconciles against `billing_keys`.
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "issued_unpersisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
+    assertEquals(rows[0].customer_key, CKEY);
+    assertStringIncludes(String(rows[0].note), "connection reset");
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 deploy-gate #2 T3 CONTROL — the happy path closes `issued_persisted`, orders nothing, deletes nothing", async () => {
+  // ⚠ The control is not decoration here. 「zero DELETEs」 is satisfied by a handler that has
+  //   stopped doing anything at all, and 「an order was placed」 is satisfied by one that orders
+  //   unconditionally — this arm is the one that reddens if either mutation ships, because on a
+  //   SUCCESSFUL swap the key is the owner's card and both actions would be defects.
+  const db = scene();
+  db.seed("billing_key_revocations", []);
+  const fm = new FetchMock()
+    .on(isIssue, () => FetchMock.json(issued()))
+    .on(isRevoke, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    const nonce = await prep(db);
+    const out = await registerBillingKey(
+      req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never,
+    ) as { brand: string; last4: string };
+    assertEquals(out.last4, "1234");
+
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "issued_persisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
+    assertEquals(db.rows("billing_keys").length, 1);
+    assertEquals(db.rows("billing_key_revocations").length, 0);
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+  } finally { fm.restore(); }
 });
