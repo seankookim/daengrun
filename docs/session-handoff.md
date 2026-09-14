@@ -65,6 +65,14 @@ test, 288/0; harness 1217/0). **The re-attack review hit the quota wall (try aga
 reading — the fix wave is UNREVIEWED; REJECT/10 stays the verdict of record with 6 fixed (unreviewed)
 + 4 dispositioned.** Pending on production is now TWELVE (0171 joins).
 
+**08:3x — HIGH #2 half closed (`bf47df7`):** register-billing-key never calls Toss DELETE on a failed or
+unknown swap any more — definite SQL refusal → ORDER the revocation through the 0138/0157 outbox;
+unknown outcome → nothing but the named intent row; thrown RPC → intent closed then the error
+re-thrown unchanged. deno **291/0** (+3), M1/M2/M3 plants reddening the right pins. Still open on #2:
+the production ops roster being empty (recheck before the flag), and the `unresolved` sweep (Toss
+U1/U2). HIGH #1 (0172 reconciliation sweep) in flight. Sim tapping: `idb-companion` needs Xcode 26 →
+macOS upgrade, or Accessibility permission for AppleScript (queue item 3).
+
 **Production is still 0156. Pending on trunk: TWELVE** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
@@ -98,7 +106,7 @@ the landing chain is now `&&`-strict through the read-back).
 | SQL harness | **1217 / 0** at 0171's landing (1213 at 0170's (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
-| Deno edge tests | **288 / 0** at the fix wave (287 at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
+| Deno edge tests | **291 / 0** at bf47df7 (288 at the fix wave (287 at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
 | Production | **MEASURED 02:00 KST after `supabase login`: 0156 deployed · pending 0157 0158 0159 0160 0161** (+0162 since `bb21ccd`) |
 | Rescue branches | ⚠ corrected minutes after first push (I wrote 「all eight are ancestors」 — false): `merge-base --is-ancestor` says **4 MERGED** (0157-adopted · 0157-billing-hardening · 0158-adopted · 0158-settled-distance) · `wip-b1-pack-publish` is NOT an ancestor but its two commits landed by cherry-pick (`b4bba36`/`9d874a2`, same diff) · **3 hold UNLANDED work**: `routes-basemap-45de013` (4 ahead), `wip-main-clone-chat-slice-2026-08-28` (1 ahead — the inline-script fix, being adopted by P7), `wip-registry-row-ab47081-2026-08-28` (1 ahead, unexamined) |
 | Toolchain | node 20 · pg16 · supabase CLI · cocoapods (needs `LANG=en_US.UTF-8`) · deno · bun · gh · gstack · codex 0.154 (bundled in ChatGPT.app + npm) · Xcode 16.2 + iOS 18.3.1 runtime · `app/ios` regenerated, pods installed |
