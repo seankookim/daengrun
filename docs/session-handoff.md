@@ -45,7 +45,29 @@ mutation plant: index removed → K1 alone reddens 1179/1). Production re-measur
 `codex/membership-three-tier` (0165) · `codex/board-rejected-arm` (no number yet). They land via
 Claude re-gating each `codex/<slice>` branch; expect REGISTRY.md + harness.sh unions on every one.
 
-**Simulator build BLOCKED on Xcode 26:** Expo SDK 57's `expo-modules-jsi` declares
+**SIMULATOR IS RUNNING (03:17 KST) — via EAS CLOUD, not local Xcode.** macOS 14.6.1 cannot run
+Xcode 26, so the local route is dead until Sean upgrades macOS. The cloud route works: **the cause of
+all four prior 「Configure expo-updates」 failures was `runtimeVersion: {policy: 'fingerprint'}`** —
+switched to `appVersion` on branch `claude/eas-sim-build` (build `aee5b601` FINISHED; the empty
+`expo-widgets` extension was also removed in that build — build 3 is isolating whether the widget
+removal is needed at all; only the proven minimum lands on trunk). Installed on iPhone 16 Pro sim
+(iOS 18.3.1, UDID `E5591637-…`), bundle id `com.seankookim.dogshigh`, login screen renders, the
+Hermes bundle carries the Supabase host (`/usr/bin/grep -a`, 1 hit — this shell's `grep` is ugrep
+and prints nothing for `-c` on a binary). **Signed out — Kakao login is Sean's; no smoke row past
+the login screen until he signs in.** Recipe in memory + setup guide.
+
+**Club-v2 labs landed (`b56ae34`, four files × 3 variants, Sean picks by number):** chat tiers ·
+20-min hold · HOST setup (§16.7h — `club-v2-setup-lab.html` is the OWNER flow, different surface) ·
+pack map counter. Index `docs/labs/README-club-v2.md`. Three findings the labs report upward:
+① tier ② (signed-up READS) has no server today — `club chat read` admits host/full only and
+`_club_shell_access` grades `full` on APPROVAL not payment, so an approved-unpaid owner can already
+POST and a merely-signed-up one cannot read (0165, Sean's membership session, is the fix — verify it
+narrows the write arm, which is a shipped right); ② 「access ends with the hold」 is unbuilt
+(`_club_shell_access` never reads `hold_status`); ③ the seat frees at `hold_expires_at` while
+`hold_status` stays `active` until the cron — screens must key on the timestamp. The viewer
+counter's VALUE is unreadable by any client role (0160:436, RLS-on zero policies) — drawn as `—`.
+
+**Simulator build BLOCKED on Xcode 26 (LOCAL route only):** Expo SDK 57's `expo-modules-jsi` declares
 `swift-tools-version: 6.2`; Xcode 16.2 fails at package resolution. Sean-only (App Store).
 Everything else for the build is in place (`ios/` regenerated, pods installed, iOS 18.3.1 runtime,
 `.env`). Harness-diet proposal awaiting Sean's letters:
