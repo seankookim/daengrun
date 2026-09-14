@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../src/components/ui';
-import { BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
+import { boardKmLabel, BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
 import { goBackOrHome } from '../src/lib/nav';
 import { colors, paper } from '../src/theme';
 
@@ -136,8 +136,13 @@ export default function Leaderboard() {
                     <Text style={{ fontSize: first ? 15 : 14, fontWeight: '900', color: paper.ink, marginTop: 6 }} numberOfLines={1}>
                       {r.name}
                     </Text>
+                    {/* [0158] The board summed `coalesce(sum(actual_km), 0)`, so a dog whose only
+                        run this week was never measured was published to the neighbourhood as
+                        having run 0km. `boardKmLabel` says the three true things instead: a total,
+                        a lower bound (「n km 이상」), or 「기록 없음」. A run MEASURED at 0.00 still
+                        prints 0km — the honest zero is the thing this must not destroy. */}
                     <Text style={{ fontSize: first ? 19 : 16, fontWeight: '900', color: '#5a7a3c', marginTop: 2 }}>
-                      {tab === 'dogs' ? `${r.km}km` : `${r.runs}회`}
+                      {tab === 'dogs' ? boardKmLabel(r) : `${r.runs}회`}
                     </Text>
                   </View>
                 </View>
@@ -155,13 +160,19 @@ export default function Leaderboard() {
               {r.name}
             </Text>
             <Text style={{ fontSize: 17, fontWeight: '900', color: '#5a7a3c' }}>
-              {tab === 'dogs' ? `${r.km}km` : `${r.runs}회`}
+              {tab === 'dogs' ? boardKmLabel(r) : `${r.runs}회`}
             </Text>
           </View>
         ))}
 
+        {/* [0158] The board-level half of the same honesty: a row's own label says whether ITS
+            total is partial, and this line says the ranking's own rule — an unmeasured total is
+            ordered last (`nulls last`) rather than treated as the smallest number, which is what
+            「모르는 거리는 순위에 넣지 않아요」 tells a reader whose dog is sitting at the bottom. */}
         <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 20 }}>
           주간 TOP 3 시즌 보상은 곧 공개돼요{'\n'}랭킹은 완주한 러닝만 집계해요
+          {tab === 'dogs' && rows.some((r) => r.km == null || (r.unmeasured ?? 0) > 0)
+            ? `\n거리 기록이 없는 러닝은 합계와 순위에 들어가지 않았어요` : ''}
         </Text>
       </ScrollView>
     </View>

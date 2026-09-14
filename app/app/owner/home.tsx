@@ -13,7 +13,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal } from '../../src/lib/kst';
@@ -620,7 +620,15 @@ export default function OwnerHome() {
                     <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={s.tickerItem}>
                         <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 15, lineHeight: 20 }, nf]}>{i + 1}위 </Text>
-                        {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 15, lineHeight: 20 }, nf]}>{d.km}km</Text>
+                        {/* [0158] `d.km` is `number | null` since the board stopped coalescing an
+                            unmeasured group's sum to 0. `{d.km}km` renders NOTHING for the number
+                            and leaves the bare unit — 「초코 km」 — which is the same 값 없는 단위
+                            failure this file already names for `Moment.km` below, except here it
+                            is on the PUBLIC neighbourhood ticker. `boardKmLabel` is the one
+                            vocabulary the three board surfaces share (podium · list · this
+                            ticker), so the same dog cannot read 「기록 없음」 on the leaderboard
+                            and a bare 0 here. A run MEASURED at 0.00 still prints 0km. */}
+                        {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 15, lineHeight: 20 }, nf]}>{boardKmLabel(d)}</Text>
                         {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 15 }}> ▲{d.delta}</Text>}
                         {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 15 }}> ▼{-d.delta}</Text>}
                         {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 15 }}> NEW</Text>}
