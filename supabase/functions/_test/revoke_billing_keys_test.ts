@@ -132,6 +132,75 @@ Deno.test("🔴 an UNSET cron secret authenticates nobody", async () => {
   } finally { Deno.env.set("CRON_COLLECT_KEY", saved); }
 });
 
+// ═══ [0157 · codex billing #7] the cron secret is compared in constant time ═══════════════════
+//
+// 🔴 The finding: `cronKey !== expected` on an endpoint deployed with `verify_jwt = false`.
+//    JS string equality short-circuits at the first differing byte, so the ONE thing standing
+//    between the internet and a service-role, credential-destroying batch job leaked its own secret
+//    through timing — and `CRON_COLLECT_KEY` is SHARED with `collect-charges`, so a compromise
+//    reached here arms the sibling too.
+//
+// ⚠ **THE TIMING PROPERTY ITSELF IS NOT OBSERVABLE FROM A UNIT TEST AND NOTHING BELOW CLAIMS IT.**
+//   A wall-clock assertion on two comparisons would be a coin flip on a loaded machine — a pin that
+//   is a probability, which this repo already has a name for. The two behavioural tests pin the
+//   semantics a digest-based comparison could plausibly break (same-length and different-length
+//   wrong keys must both be 401), and the SOURCE pin below is what actually distinguishes the fixed
+//   code from the unfixed code. Two kinds of evidence; neither is the other.
+Deno.test("🔴 a wrong cron key of the SAME LENGTH as the real one → 401, and Toss is never called", async () => {
+  const { db } = scene();
+  const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    const sameLength = "x".repeat("cron-secret".length);
+    assertEquals(sameLength.length, "cron-secret".length);
+    let status = 0;
+    try { await revokeBillingKeys(cronReq(sameLength), db as never); } catch (e) { status = (e as HttpError).status; }
+    assertEquals(status, 401);
+    assertEquals(fm.calls.filter((c) => isBilling(c.url)).length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 a wrong cron key of a DIFFERENT length → 401, and Toss is never called", async () => {
+  const { db } = scene();
+  const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    let status = 0;
+    try { await revokeBillingKeys(cronReq("cron-secret-plus-tail"), db as never); } catch (e) { status = (e as HttpError).status; }
+    assertEquals(status, 401);
+    assertEquals(fm.calls.filter((c) => isBilling(c.url)).length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 the CORRECT key still passes — the control, without which 401-always would pass everything above", async () => {
+  const { db, reported } = scene();
+  const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    const out = await revokeBillingKeys(cronReq(), db as never) as { revoked: number };
+    assertEquals(out.revoked, 1);
+    assertEquals(reported[0].p_ok, true);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 BOTH cron endpoints go through the shared constant-time gate — no `!==` survives", async () => {
+  // ⚠ COMMENTS ARE STRIPPED BEFORE MATCHING, and here that is load-bearing rather than hygiene:
+  //   the comments this slice added to both handlers QUOTE the removed `!==` in order to explain
+  //   why it went. Un-stripped, "documented the fix" and "did not make the fix" are the same string
+  //   to grep — the standing comment-quoting law, and this file would be its next instance.
+  const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  for (const rel of ["../revoke-billing-keys/handler.ts", "../collect-charges/handler.ts"]) {
+    const raw = await Deno.readTextFile(new URL(rel, import.meta.url));
+    const src = strip(raw);
+    // Fail LOUDLY if the strip ate the file or the file moved — an empty haystack makes every
+    // `assert(!...)` below vacuously true, which is the exact false green this repo keeps meeting.
+    assert(src.includes("X-Cron-Key"), `${rel}: source not found or over-stripped`);
+    assert(src.includes("requireCronKey("), `${rel}: does not call the shared constant-time gate`);
+    assert(!/cronKey\s*!==\s*expected/.test(src), `${rel}: still compares the secret with !==`);
+    assert(!/Deno\.env\.get\("CRON_COLLECT_KEY"\)/.test(src), `${rel}: still reads the secret itself`);
+  }
+});
+
 Deno.test("🔴 the deployment contract is COMMITTED, not typed — config.toml turns JWT verification off", async () => {
   // The tests above prove the handler refuses without `X-Cron-Key`. They are only load-bearing if
   // the request ever REACHES the handler: pg_net sends no JWT, and Supabase verifies JWTs by

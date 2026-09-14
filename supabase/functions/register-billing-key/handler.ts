@@ -61,6 +61,38 @@ function consumeNonce(n: string | undefined, uid: string): boolean {
   return hit.uid === uid && Date.now() - hit.at <= NONCE_TTL_MS;
 }
 
+/** 🔴 [0157 · codex billing #6] The outbox now carries a PARTIAL unique index —
+ *  `billing_key_revocations_outstanding_uq`, one OUTSTANDING (pending|processing) row per billing
+ *  key — because two rows for one key mean two DELETEs at Toss, and a successful first followed by
+ *  a non-2xx second writes a FALSE `abandoned`, which since 0155 pages a human to go delete a key
+ *  by hand that is already gone.
+ *
+ *  A violation of THAT index is not a failure to record: it says an obligation to destroy this key
+ *  is already recorded, which is precisely what this function is trying to achieve. So it counts as
+ *  landed.
+ *
+ *  ⚠ MATCHED BY INDEX NAME, NEVER BY SQLSTATE ALONE, and the direction of the failure is the
+ *    reason. Treating a broad `23505` — or worse, any error — as success would convert 「nobody
+ *    recorded it」 into 「something recorded it」 on a live charging credential: a false green on the
+ *    one path whose entire job is durability. If PostgREST ever stops naming the constraint, this
+ *    returns false and the caller falls back to the inline revoke exactly as it did before 0157 —
+ *    the pre-existing behaviour, not a new hazard.
+ *
+ *  ⚠ THE SQL ENQUEUE SITES DO NOT COME THROUGH HERE. They call `enqueue_billing_key_revocation_row`
+ *    (0157 §B.1), which MERGES provenance via `ON CONFLICT`. This path cannot: PostgREST emits
+ *    `ON CONFLICT (col) DO UPDATE` with no index predicate and so cannot infer a partial index, and
+ *    calling the definer by RPC would couple this compensation to a migration that deploys
+ *    SEPARATELY from this function — in the window where the function is deployed and the migration
+ *    is not, every compensation would fail into `compensateUntrackedKey`'s inline Toss DELETE,
+ *    which may destroy a key the swap actually stored. A raw insert is safe in both deploy orders.
+ *    The cost is that the second enqueue's REASON is not merged; the row already names the key,
+ *    which is the only field the sweep needs.
+ */
+const OUTSTANDING_UQ = "billing_key_revocations_outstanding_uq";
+function alreadyOutstanding(error: { message?: string } | null): boolean {
+  return String(error?.message ?? "").includes(OUTSTANDING_UQ);
+}
+
 /** One durable write into the revocation outbox. Returns whether a row actually landed.
  *
  *  ⚠ PROVENANCE IS DROPPED BEFORE THE KEY IS. `billing_key_revocations.profile_id` references
@@ -84,6 +116,7 @@ async function enqueueUntrackedKey(
     try {
       const { error } = await db.from("billing_key_revocations").insert({ profile_id, ...row });
       if (!error) return true;
+      if (alreadyOutstanding(error)) return true;
     } catch {
       // A THROWN client error is the same fact as a returned one — the row did not land. It is
       // swallowed only to reach the next escalation: this function's `false` is the failure, and

@@ -76,6 +76,47 @@ create table if not exists net._http_response (
 );
 create index if not exists _http_response_created_idx on net._http_response (created);
 
+-- [0157] pg_cron STUB. Production runs pg_cron and every scheduler in this repo registers with
+-- `cron.schedule`; the harness had NO `cron` schema at all, so every one of those registrations
+-- took the `exception when others` fallback and the harness could not distinguish 「the job was
+-- installed」 from 「installing it failed and we swallowed it」. That is precisely codex billing
+-- finding 5, and a fixture that omits the defect cannot test the fix (0151's measured lesson).
+-- ⚠ It is a REGISTRY, not a scheduler: nothing here ever RUNS a command. `cron.schedule` upserts
+--   by (jobname, username) exactly as pg_cron >= 1.4 does, so a re-registration overwrites rather
+--   than duplicating, and `cron.unschedule` deletes. That is the whole contract this repo uses.
+-- ⚠ `cron.job_run_details` is deliberately ABSENT: nothing in the migrations reads it, and a shim
+--   table nobody writes would invite a suite to lean on run history the harness cannot produce.
+create schema if not exists cron;
+create table if not exists cron.job (
+  jobid    bigint generated always as identity primary key,
+  schedule text not null,
+  command  text not null,
+  nodename text not null default 'localhost',
+  nodeport int  not null default 5432,
+  database text not null default current_database(),
+  username text not null default current_user,
+  active   boolean not null default true,
+  jobname  text
+);
+create unique index if not exists cron_job_jobname_username_uq on cron.job (jobname, username);
+create or replace function cron.schedule(job_name text, schedule text, command text)
+returns bigint language plpgsql as $$
+declare v_id bigint;
+begin
+  insert into cron.job (jobname, schedule, command)
+  values (job_name, schedule, command)
+  on conflict (jobname, username) do update
+    set schedule = excluded.schedule, command = excluded.command, active = true
+  returning jobid into v_id;
+  return v_id;
+end $$;
+create or replace function cron.unschedule(job_name text)
+returns boolean language plpgsql as $$
+begin
+  delete from cron.job where jobname = job_name;
+  return found;
+end $$;
+
 -- supabase 기본 권한 모사: 실서비스는 default privileges로 신규 테이블에 authenticated 전권을
 -- 부여한다 — 따라서 '봉인'은 grant 부재가 아니라 RLS(정책 0 = 행 비가시·쓰기 거부)가 담당해야
 -- 하고, leak 테스트도 그 조건에서 돌아야 실환경과 같다.
