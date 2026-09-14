@@ -76,6 +76,13 @@ export default function ClubRun() {
   // 재시도는 영원히 실패한다 — 서버가 이름을 붙여 거절하는데 클라가 그것을 재시도 가능한 지연으로
   // 세탁하면, 정직 법이 금지하는 「조용한 catch → 행복한 UI」가 된다 (계약 §4.1).
   const [stopLate, setStopLate] = useState(false);
+  // [codex #7, 2026-09-15] `trace_future_fix` — 0168:422-427 also refuses an upload whose newest
+  // stamp is far ahead of the server clock. That is not `saveLag`: it will be refused for the same
+  // reason on every 60 s tick no matter how good the signal gets, and the only person who can fix
+  // it is the runner, not the server. Contract §5 gives this name its own copy. Every OTHER
+  // exception (impossible_speed · trace_out_of_order · network) stays on the saveLag banner,
+  // which tells the truth about them.
+  const [clockFix, setClockFix] = useState(false);
   const trace = useRef<GeoPoint[]>([]);
   const kmRef = useRef(0);
   const hydrated = useRef(false);
@@ -143,7 +150,7 @@ export default function ClubRun() {
     setBoard(null); setBoardFor(null); setBoardLoaded(false); setBoardErr(false);
     hydrated.current = false; startedAtMs.current = null;
     setEndTarget(null); setEndStep('reason'); setConditionNote('');
-    setRoster(null); setSaveLag(false); setStopLate(false); setElapsed(0);
+    setRoster(null); setSaveLag(false); setStopLate(false); setClockFix(false); setElapsed(0);
     resetTrace();
     trace.current = []; kmRef.current = 0;
     setKm(0); setPathLen(0); setLastPos(null);
@@ -283,11 +290,22 @@ export default function ClubRun() {
       await saveClubRunTrace(sid, pts);
       setSaveLag(false);
       setStopLate(false);
+      setClockFix(false);
     } catch (e) {
       // 토큰으로 가른다. impossible_speed·trace_out_of_order·네트워크는 진짜로 재시도 가능하고
-      // saveLag 배너가 맞는 말을 한다. run_stopping 만 영구 거절이다.
-      if (String((e as Error)?.message ?? '').includes('run_stopping')) {
+      // saveLag 배너가 맞는 말을 한다. [codex #7] run_stopping and trace_future_fix are the two
+      // that do NOT survive as an automatic retry — contract §5 gives each its own row.
+      const msg = String((e as Error)?.message ?? '');
+      if (msg.includes('run_stopping')) {
         setStopLate(true);
+        setSaveLag(false);
+        setClockFix(false);
+      } else if (msg.includes('trace_future_fix')) {
+        // Every upload is refused for as long as the device clock is wrong, so 「wait for signal」
+        // is false and it hides the one action the runner can take. Unlike stopLate this is not
+        // permanent: correcting the clock lets the next 60 s tick through, which is why it clears
+        // on the first success rather than sticking for the session.
+        setClockFix(true);
         setSaveLag(false);
       } else {
         setSaveLag(true);
@@ -317,17 +335,30 @@ export default function ClubRun() {
       Alert.alert('기록을 확정하고 있어요', '잠시 뒤 정산할 수 있어요 — 호스트가 러닝을 종료했고 마지막 구간을 모으는 중이에요.');
       return;
     }
-    if (!d.runEnded && trackMode === 'denied') {
-      Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
-      return;
-    }
-    if (trackMode === 'unavailable') {
-      Alert.alert('위치 기능이 없는 빌드예요', '이 빌드로는 거리를 잴 수 없어요 — 새 빌드에서 다시 시도해주세요.');
-      return;
-    }
-    if (trackMode == null) {
-      Alert.alert('위치 준비 중이에요', '잠시 후 다시 시도해주세요.');
-      return;
+    // [codex #4, 2026-09-15] On a FROZEN row no local GPS state may block settlement — all three
+    // gates, not just the one that had already been fixed. `settle-run` reads the server row
+    // (actual_km / end_reason / duration / note) on the frozen path and throws the client's body
+    // away (handler.ts:116-157), so there is nothing left here to measure. 'denied' was already
+    // bypassed on `runEnded`; 'unavailable' (a build with no location module) and null (not yet
+    // determined) were unconditional — a permanent refusal to settle a run whose numbers the
+    // server already owns, on a device that could never have measured it in the first place.
+    // Fixing one gate leaves the other two saying the same wrong thing.
+    // ⚠ For a run that is still ACTIVE all three stay exactly as they were: there the client's
+    // measurement is the only evidence and this screen is the last line. `runStopping` already
+    // returns above; it is named here so the condition states the property, not the reachability.
+    if (!d.runEnded && !d.runStopping) {
+      if (trackMode === 'denied') {
+        Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
+        return;
+      }
+      if (trackMode === 'unavailable') {
+        Alert.alert('위치 기능이 없는 빌드예요', '이 빌드로는 거리를 잴 수 없어요 — 새 빌드에서 다시 시도해주세요.');
+        return;
+      }
+      if (trackMode == null) {
+        Alert.alert('위치 준비 중이에요', '잠시 후 다시 시도해주세요.');
+        return;
+      }
     }
     // 'foreground'는 막지 않는다: 이미 진행 중인 클럽 러닝의 정산을 막으면 예약이 좌초된다.
     // 대신 화면 상단 스트립이 러닝 내내 '앱을 켜 둔 동안만 기록된다'고 계속 말하고 있다.
@@ -476,7 +507,15 @@ export default function ClubRun() {
             <Text style={{ fontSize: 15, color: '#7a2a2a' }}>업로드가 늦었어요 — 마지막 구간은 반영되지 않아요</Text>
           </View>
         )}
-        {saveLag && !stopLate && (
+        {/* [codex #7 / contract §5] The clock refusal gets its own sentence. Laundering a named
+            server refusal into 「자동 재시도해요」 leaves the runner waiting for a retry that is
+            guaranteed to fail, with no idea that the fix is on their phone. */}
+        {clockFix && !stopLate && (
+          <View style={s.lateBanner}>
+            <Text style={{ fontSize: 15, color: '#7a2a2a' }}>기기 시각이 맞지 않아요 — 시간을 자동으로 맞춘 뒤 다시 시도해주세요</Text>
+          </View>
+        )}
+        {saveLag && !stopLate && !clockFix && (
           <View style={s.lagBanner}>
             <Text style={{ fontSize: 15, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
