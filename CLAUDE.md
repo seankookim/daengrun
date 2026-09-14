@@ -956,7 +956,7 @@ from pg_trigger where tgrelid = '<table>'::regclass and not tgisinternal;
   migration number already present on any other remote branch, or that introduces one without a
   REGISTRY row. It only inspects numbers the push actually *introduces*, so trunk merges and
   history are unaffected. Enable once per clone:
-  `git config --local core.hooksPath /Users/sean/dev/daengrun/.githooks`
+  `git config --local core.hooksPath "$HOME/dev/daengrun/.githooks"` (⚠ was a hard-coded `/Users/sean/…` until 2026-09-15 — a path that does not exist on the new Mac, which would have silently disarmed the guard; verify with `git config --get core.hooksPath`)
   ⚠ NOT `$(git rev-parse --show-toplevel)` — inside a worktree that resolves to the WORKTREE,
   and worktrees are disposable. Git runs no hooks and says NOTHING when hooksPath names a vanished
   directory, so the old form silently disarmed the guard for every session whose anchor tree got
