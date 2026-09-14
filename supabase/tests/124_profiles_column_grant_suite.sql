@@ -149,6 +149,7 @@ declare
   v_uuid uuid; v_n int;
   v_e1 boolean; v_e2 boolean; v_e3 boolean; v_e4 boolean;
   v_got text[]; v_js jsonb; v_ok boolean;
+  v_phflag timestamptz;   -- [0167] G7's collection-switch snapshot; see G7's own comment
 begin
   -- ---------- seed: a verified runner carrying both secrets, plus an unrelated logged-in owner --
   rr := t_user('pcg_rr', 'runner');            -- t_user makes tier='certified' → the 0002:56 policy
@@ -311,6 +312,19 @@ begin
   --    takes away: `club_session_roster` (0049) returns a phone number, gated by
   --    `_club_phone_visible` (phone rule B: host ↔ everyone) — to the SAME `authenticated` role
   --    that just got `permission denied` reading that column directly in G1.
+  --
+  -- ⚠ [0167, 2026-09-15] ARMS AND RESTORES `ops_flags.phone_collection_live_since`, outside the
+  --   begin…exception below so a failing arm cannot leave the switch on for later suites.
+  --   WHY: arm ② reads a phone number out of `club_session_roster`, and 0167 (codex 0154 #3) puts
+  --   that number behind the collection switch. G5's proposition — 「a definer runs as its OWNER,
+  --   so a revoked column grant does not touch it」 — is unchanged and is the reason the arm must
+  --   keep returning a real number rather than be softened to 「null is fine now」: a definer that
+  --   returned NULL because the SWITCH was shut would pass a relaxed arm while proving nothing
+  --   about the column grant, which is the whole point of G5.
+  --   The switch's own effect on this same call is pinned in
+  --   `197_phone_visibility_gate_suite.sql` (0167-P1 closed / 0167-P2 open).
+  select phone_collection_live_since into v_phflag from ops_flags limit 1;
+  update ops_flags set phone_collection_live_since = now() - interval '1 minute';
   begin
     perform set_config('request.jwt.claim.sub', hh::text, false);
     v_club := club_request_district('컬럼동');
@@ -345,6 +359,8 @@ begin
     else call _fail('pcg','G5 service_role·definer 우회', v_msg); end if;
   exception when others then reset role; v_msg := sqlerrm; call _fail('pcg','G5', v_msg);
   end;
+  -- [0167] the switch goes back to whatever it was, whether G5 passed, failed or raised.
+  update ops_flags set phone_collection_live_since = v_phflag;
 
   -- ---------- [G6] the view bypass stays narrow ----------
   -- Views run with their OWNER's rights unless `security_invoker`, so a view over `profiles` is a
@@ -421,6 +437,20 @@ begin
   -- green forever without ever executing the gates. Five arms, and the last two are the security
   -- property — "not a party" and "no open incident" must be INDISTINGUISHABLE (both zero rows, no
   -- error), or the function becomes an oracle over which bookings have live incidents.
+  --
+  -- ⚠ [0167, 2026-09-15] THIS BLOCK NOW ARMS `ops_flags.phone_collection_live_since` AND PUTS IT
+  --   BACK, with the arm/restore OUTSIDE the begin…exception below so a failing arm cannot leave
+  --   the switch on for every suite that runs after this one.
+  --   WHY: 0167 (codex 0154 #3) gives `incident_contact` a third gate — while the collection
+  --   switch is closed it returns the SAME SHAPE with `phone` NULL. The shipped state is closed,
+  --   so G7's two phone-equality arms would otherwise assert numbers that 0167 correctly refuses
+  --   to disclose.
+  --   G7's proposition is UNCHANGED and nothing is softened: it owns the party gate and the
+  --   open-incident gate — the five row-count arms, including the two that must be
+  --   INDISTINGUISHABLE at zero rows. The switch's own effect on the same call is pinned in
+  --   `197_phone_visibility_gate_suite.sql` (0167-P3 closed / 0167-P4 open).
+  select phone_collection_live_since into v_phflag from ops_flags limit 1;
+  update ops_flags set phone_collection_live_since = now() - interval '1 minute';
   begin
     zz := t_user('pcg_zz', 'owner');                        -- the stranger: party to nothing
     dg := t_dog(oo, '인시던트견');
@@ -476,6 +506,8 @@ begin
     else call _fail('pcg','G7 incident_contact 게이트', v_msg); end if;
   exception when others then reset role; v_msg := sqlerrm; call _fail('pcg','G7', v_msg);
   end;
+  -- [0167] the switch goes back to whatever it was, whether G7 passed, failed or raised.
+  update ops_flags set phone_collection_live_since = v_phflag;
 
   -- ---------- [G8] the door's permission matrix — and that it is the ONLY door ----------
   -- Three arms: anon cannot execute it (99 S1's class, checked for this one function by name);

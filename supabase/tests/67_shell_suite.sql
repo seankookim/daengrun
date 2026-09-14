@@ -8,6 +8,7 @@ declare
   v_club uuid; v_s uuid; sdo uuid; sdq uuid; v_bo uuid;
   v_cnt int; v_msg bigint; v_msg2 bigint; v_js jsonb; v_err boolean; i int;
   v_ack uuid; v_km numeric;
+  v_phflag timestamptz;   -- [0167] H5's collection-switch snapshot; see the block's own comment
 begin
   -- ---------- 시드: 호스트·커밋 러너·승인 보호자(full)·신청만 보호자(limited)·무관자 ----------
   hh := t_user('sh_host', 'runner');
@@ -154,6 +155,20 @@ begin
   end;
 
   -- [H5] 로스터: 전화 규칙 B + 접근 로그 dedup + 능력 필터
+  --
+  -- ⚠ [0167, 2026-09-15] THIS BLOCK NOW ARMS `ops_flags.phone_collection_live_since` AND PUTS IT
+  --   BACK, and the arm/restore sit OUTSIDE the begin…exception below on purpose so a failing arm
+  --   cannot leave the switch on for every suite that runs after this one.
+  --   WHY the fixture moved: 0167 (codex 0154 #3) makes `_club_phone_visible` — and therefore this
+  --   roster and its access log — answer to the collection switch. The shipped state of that
+  --   switch is CLOSED, so without this line every phone arm below would assert numbers that
+  --   0167 correctly refuses to disclose.
+  --   NOTHING in H5's proposition is softened: 규칙 B (호스트↔전원 · 보호자↔수락 러너 · 그 외
+  --   호스트 경유), the access-log dedup and the 능력 filter are all asserted exactly as before.
+  --   The switch's OWN effect on the same call is pinned in `197_phone_visibility_gate_suite.sql`
+  --   (0167-P1 closed / 0167-P2 open), which is where that proposition belongs.
+  select phone_collection_live_since into v_phflag from ops_flags limit 1;
+  update ops_flags set phone_collection_live_since = now() - interval '1 minute';
   begin
     perform set_config('request.jwt.claim.sub', hh::text, false);
     perform session_propose_dog(sdo, rr);
@@ -194,6 +209,8 @@ begin
     else call _fail('shell','H5 규칙 B','전화 노출 불일치'); end if;
   exception when others then call _fail('shell','H5', sqlerrm);
   end;
+  -- [0167] the switch goes back to whatever it was, whether H5 passed, failed or raised.
+  update ops_flags set phone_collection_live_since = v_phflag;
 
   -- [H6] 쓰기 수명: done+24h 경과 = 차단 · 열린 인시던트 = 연장
   begin

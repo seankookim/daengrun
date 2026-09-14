@@ -92,6 +92,7 @@ declare
   bk uuid; b2 uuid; inc uuid; inc2 uuid;
   v_bad text := ''; v_msg text; v_js jsonb; v_n int; v_txt text; v_id uuid;
   v_denied boolean;
+  v_phflag timestamptz;   -- [0167] V3's collection-switch snapshot; see V3's own comment
 begin
   oo := t_user('ivf_oo', 'owner');
   rr := t_user('ivf_rr', 'runner'); rz := t_user('ivf_rz', 'runner');
@@ -245,6 +246,18 @@ begin
   -- write `incidents`. The first arm is therefore not a regression guard, it is the feature.
   -- The THIRD arm is the one that matters most: an UNVERIFIED open incident must already hand
   -- over the numbers, because that is when someone needs to make a phone call.
+  --
+  -- ⚠ [0167, 2026-09-15] ARMS AND RESTORES `ops_flags.phone_collection_live_since`, outside the
+  --   begin…exception below so a failing arm cannot leave the switch on for later suites.
+  --   WHY: 0167 (codex 0154 #3) gives `incident_contact` a third gate — while the collection switch
+  --   is closed the SAME SHAPE comes back with `phone` NULL, so ⓑ's real-number arm would assert
+  --   numbers that 0167 correctly refuses to disclose.
+  --   V3's proposition is UNCHANGED and deliberately not softened to 「NULL is fine now」: the whole
+  --   point of ⓑ is that the door opens on OPEN and not on VERIFIED, and an arm satisfied by NULL
+  --   could not tell 「the door opened」 from 「the door is still shut」. The switch's own effect on
+  --   this call is pinned in `197_phone_visibility_gate_suite.sql` (0167-P3 closed / 0167-P4 open).
+  select phone_collection_live_since into v_phflag from ops_flags limit 1;
+  update ops_flags set phone_collection_live_since = now() - interval '1 minute';
   begin
     v_bad := '';
     b2 := t_ivf_booking(oo, dg, rt, rr);
@@ -285,6 +298,8 @@ begin
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ivf','V3 전화 문', v_msg);
   end;
+  -- [0167] the switch goes back to whatever it was, whether V3 passed, failed or raised.
+  update ops_flags set phone_collection_live_since = v_phflag;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [V4] the ops force inherits 0089's law — no party may force, and a force stamps nobody
