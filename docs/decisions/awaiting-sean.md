@@ -1491,11 +1491,12 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0171 (ONE `db push`).** Production is 0156; trunk carries twelve
-   pending migrations, all gates green here (harness 1217/0, npm 986/0, deno 288/0).
-   **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Two
-   HIGHs are behind flags you hold and pre-date this set (#1 lost collection on re-mint failure,
-   #2 compensation DELETE of a stored key); one HIGH is the trace-provenance class (#3) that 0168
+1. **Deploy 0157–0162 + 0166–0172 (ONE `db push`).** Production is 0156; trunk carries thirteen
+   pending migrations, all gates green here (harness 1220/0, npm 986/0, deno 291/0).
+   **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Of the
+   HIGHs: **#1 is REFUTED** (measured — `sweep_settled_without_payments` already re-mints; 0172 pins
+   that its cron is registered), **#2's DELETE half is FIXED** (`bf47df7`; its roster-empty half is
+   a production recheck before the card flag), one HIGH is the trace-provenance class (#3) that 0168
    widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) were FIXED overnight (`6a03ab6`,
    `44e2e9c`; 0171 joins the pending set → TWELVE) — but the re-attack review hit the codex wall
    (try again at 11:41 AM); the fixes are UNREVIEWED. Say 「re-attack」 when the window reopens and I run it first. Your options: ⓐ **wait for the fix wave + re-attack, then

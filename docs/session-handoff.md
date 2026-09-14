@@ -73,7 +73,23 @@ the production ops roster being empty (recheck before the flag), and the `unreso
 U1/U2). HIGH #1 (0172 reconciliation sweep) in flight. Sim tapping: `idb-companion` needs Xcode 26 →
 macOS upgrade, or Accessibility permission for AppleScript (queue item 3).
 
-**Production is still 0156. Pending on trunk: TWELVE** — 0157 0158 0159 0160 0161 0162 0166 0167
+**09:0x — HIGH #1 REFUTED, measured on the real settle path:** `sweep_settled_without_payments()`
+(0080:569, extended 0116:60; cron `sweep-settled-charges` every 5 min) already re-mints for a settled
+booking with no payments row — after `end_run_tx → confirm_return_tx ×2` with 0 payments rows, one
+sweep minted `pending | 18900 | settle_charge` equal to `compute_owner_charge()`, and a second added
+nothing. The verdict's 「no sweep or owner retry can find it」 was true of the HANDLER (it returns
+`lost`) and false of the SYSTEM. ⚠ The briefed predicate (`status='completed'` + ledger row) was the
+WRONG anchor per 0116:47-52 (settled bookings move to incident_review/refund_pending; 0080 §K writes
+ledger rows for CANCELLED bookings) — the agent stopped on the STOP condition instead of building a
+mis-anchored sweep. What 0172 IS: both recovery cron jobs (`sweep-settled-charges`,
+`dispatch-due-charges`) were installed under the swallowing `exception when others` form and NOTHING
+pinned their registration — 0172 re-registers byte-identically + reads both back in VERIFY; suite 202,
+3 pins incl. a control that reports absent. No new constant. Residual, out of scope and named: a settled
+booking the sweep can never price (NULL end_reason/actual_km or a raising mint) is skipped with a
+`raise notice` and invisible to ops — `payments_reconciliation()` has no `settled_without_payment`
+arm (`_shared/ops.ts:95`); latent today. 0172 joins pending → THIRTEEN.
+
+**Production is still 0156. Pending on trunk: THIRTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
 **I did not deploy** (your call, and the harness classifier refused an unattended deploy job).
@@ -197,7 +213,7 @@ CONTRACT pin caught the unmapped `run_stopping` raise; mapped at `34bd905`, deno
 gate for every migration (protocol updated).
 
 **Pending on production is now ELEVEN (0170 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171 0172** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
