@@ -44,6 +44,47 @@ function scene() {
     else store.push({ profile_id: args.p_profile, billing_key: args.p_billing_key, card: args.p_card });
     return { data: [{ swapped: true, displaced_key: displaced }] };
   };
+  // [0170] the issuance INTENT — the durable record written BEFORE Toss is called (codex billing
+  // finding 3). The fake models the three properties the handler actually depends on: one row per
+  // attempt nonce, a retried open returning the SAME idempotency key, and a terminal intent
+  // refusing to reopen. The LOCK, the ACL and the constraints are pinned by suite 200, which is the
+  // right tool for them; this fake exists so these tests can see what the handler RECORDS.
+  db.seed("billing_issue_intents", []);
+  db.rpcs["billing_issue_intent_open"] = (args: Row) => {
+    const prof = db.rows("profiles").find((r) => r.id === args.p_profile);
+    if (!prof || prof.deleted_at != null) {
+      return { data: [{ intent_id: null, idempotency_key: null, reopened: false, refusal: "deleted_account" }] };
+    }
+    const rows = db.rows("billing_issue_intents");
+    const prev = rows.find((r) => r.attempt_nonce === args.p_nonce);
+    if (prev) {
+      if (prev.state !== "issuing") {
+        return { data: [{ intent_id: null, idempotency_key: null, reopened: false, refusal: "intent_closed" }] };
+      }
+      return { data: [{ intent_id: prev.id, idempotency_key: prev.idempotency_key, reopened: true, refusal: null }] };
+    }
+    const row: Row = {
+      id: crypto.randomUUID(),
+      profile_id: args.p_profile,
+      attempt_nonce: args.p_nonce,
+      customer_key: args.p_customer_key,
+      idempotency_key: crypto.randomUUID(),
+      state: "issuing",
+      billing_key: null,
+      note: null,
+    };
+    rows.push(row);
+    return { data: [{ intent_id: row.id, idempotency_key: row.idempotency_key, reopened: false, refusal: null }] };
+  };
+  db.rpcs["billing_issue_intent_close"] = (args: Row) => {
+    const row = db.rows("billing_issue_intents").find((r) => r.id === args.p_intent);
+    if (!row) return { data: [{ closed: false, refusal: "no_intent" }] };
+    if (row.state !== "issuing") return { data: [{ closed: false, refusal: "already_closed" }] };
+    row.state = args.p_outcome;
+    row.billing_key = args.p_billing_key ?? null;
+    row.note = args.p_note ?? null;
+    return { data: [{ closed: true, refusal: null }] };
+  };
   db.users["owner_jwt"] = OWNER;
   db.users["ghost_jwt"] = GHOST;
   db.seed("profiles", [
@@ -574,4 +615,182 @@ Deno.test("0143 — a refusal with NO reason falls back to 403, never to success
   // Version skew in the other direction: an OLD definer that returns two columns. The absent
   // `refusal` must fail CLOSED to the strictest answer, not open into a 200.
   assertEquals(await statusOfIssue(refusingSwap(null)), 403);
+});
+
+
+// ═══ [0170 · codex billing #3] the issuance INTENT, seen from the edge ════════════════════════
+//
+// 🔴 THE FINDING: issuance had no durable record before Toss was called. The `Idempotency-Key` was
+//    a `crypto.randomUUID()` minted inside `_shared/toss.ts` and persisted nowhere, so a lost
+//    response left a live standing authority to charge a real card named in NO table — not
+//    `billing_keys` (the write never ran) and not the outbox (only a failed SWAP writes there).
+//
+// ⚠ The memo's branch-independent core names three outcomes an attempt can END in, and each one is
+//   a test below: **issued + persisted**, **issued but unpersisted (reconciled by the key)**, and
+//   **a provider error**. Two more arms are here because they are the finding itself rather than a
+//   consequence of it: the open must precede the Toss call and FAIL CLOSED, and a lost response
+//   must land in `unresolved` rather than nowhere.
+const intents = (db: FakeDb) => db.rows("billing_issue_intents");
+/** The `Idempotency-Key` actually put on the wire for the issuance POST. */
+const sentKey = (fm: FetchMock) =>
+  (fm.calls.find((c) => isIssue(c.url))?.headers ?? {})["Idempotency-Key"];
+
+Deno.test("🔴 0170 outcome ① issued + persisted — and the key on the wire is the PERSISTED one", async () => {
+  const db = scene();
+  const fm = new FetchMock().on(isIssue, () => FetchMock.json(issued()));
+  fm.install();
+  try {
+    const nonce = await prep(db);
+    await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].attempt_nonce, nonce);
+    assertEquals(rows[0].customer_key, CKEY);
+    assertEquals(rows[0].state, "issued_persisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
+    // 🔴 THE ASSERTION THE WHOLE SLICE EXISTS FOR. A row that records an idempotency key the request
+    //    was NOT sent under is worse than no row: it names a handle that resolves to nothing at the
+    //    provider. Before 0170 this was structurally impossible to assert, because the key was
+    //    minted inside the Toss client and never left it.
+    assertEquals(sentKey(fm), rows[0].idempotency_key);
+    assert(typeof rows[0].idempotency_key === "string" && rows[0].idempotency_key.length > 0);
+    assert(String(rows[0].idempotency_key).length <= 300);   // memo §2a claim 11
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 0170 outcome ② issued but UNPERSISTED — the row names the key AND the key it was issued under", async () => {
+  const db = scene();
+  brokenSwap(db);
+  const fm = new FetchMock()
+    .on(isIssue, () => FetchMock.json(issued()))
+    .on(isRevoke, () => new Response("", { status: 200 }));
+  fm.install();
+  try {
+    let err: HttpError | null = null;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch (e) { err = e as HttpError; }
+    // the request still fails, and with ITS OWN error — the intent close must not replace it
+    assertEquals(err?.status, 500);
+    assertStringIncludes(String(err?.message), "billing_key_swap failed");
+
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "issued_unpersisted");
+    assertEquals(rows[0].billing_key, "bill_abc123");
+    // "reconciled BY KEY": the pair a recovery needs — the credential Toss issued and the
+    // idempotency key the issuing request carried — is on one row, and that key is the one sent.
+    assertEquals(sentKey(fm), rows[0].idempotency_key);
+    assertStringIncludes(String(rows[0].note), "billing_key_swap failed");
+
+    // the pre-0170 compensation is untouched: enqueued, never revoked inline (0143 §B settles it)
+    assertEquals(db.rows("billing_key_revocations").length, 1);
+    assertEquals(db.rows("billing_key_revocations")[0].billing_key, "bill_abc123");
+    assertEquals(fm.calls.filter((c) => isRevoke(c.url)).length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 0170 outcome ③ a provider error is terminal and names NO key", async () => {
+  const db = scene();
+  const fm = new FetchMock().on(isIssue, () =>
+    FetchMock.json({ code: "INVALID_CARD", message: "정지된 카드예요" }, 400));
+  fm.install();
+  try {
+    let err: HttpError | null = null;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch (e) { err = e as HttpError; }
+    // Toss's own sentence still reaches the owner — the intent close must not swallow or replace it
+    assertEquals(err?.status, 402);
+    assertEquals(err?.message, "정지된 카드예요");
+
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "provider_error");
+    // ⚠ NULL, not the string "null" and not an empty string. Recording a key here would assert that
+    //   a charging credential exists when the whole meaning of this outcome is that none does — and
+    //   the table's own CHECK refuses the row, so a handler that tried would fail loudly.
+    assertEquals(rows[0].billing_key, null);
+    assertStringIncludes(String(rows[0].note), "400");
+    assertEquals(db.rows("billing_keys").length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 0170 — a LOST RESPONSE lands in `unresolved`, which is finding 3's own state", async () => {
+  const db = scene();
+  const fm = new FetchMock().on(isIssue, () => new Error("connection reset"));
+  fm.install();
+  try {
+    let threw = false;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch { threw = true; }
+    // The request fails exactly as it did before 0170 — the original error is re-thrown, not
+    // re-labelled. What changed is what is left behind.
+    assert(threw);
+
+    const rows = intents(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].state, "unresolved");
+    assertEquals(rows[0].billing_key, null);       // we do not know whether one exists — that is the point
+    assertEquals(rows[0].customer_key, CKEY);      // the coordinate Toss knows this owner by
+    assert(typeof rows[0].idempotency_key === "string");
+    assertEquals(db.rows("billing_keys").length, 0);
+    assertEquals(db.rows("billing_key_revocations").length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 0170 CONTROL — the intent is opened BEFORE Toss, and a failed open calls nobody", async () => {
+  // ⚠ Without this arm, an implementation that opened the intent AFTER the Toss call would pass
+  //   every test above — the rows would look identical — while leaving the finding completely open.
+  //   The only observable difference is what happens when the record cannot be written.
+  const db = scene();
+  db.rpcs["billing_issue_intent_open"] = () => ({ error: { message: "could not connect" } });
+  const fm = new FetchMock().on(isIssue, () => FetchMock.json(issued()));
+  fm.install();
+  try {
+    let err: HttpError | null = null;
+    const nonce = await prep(db);
+    try {
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+    } catch (e) { err = e as HttpError; }
+    assertEquals(err?.status, 500);
+    assertStringIncludes(String(err?.message), "billing_issue_intent_open failed");
+    // 🔴 FAIL CLOSED: no record ⇒ no call ⇒ no credential to orphan.
+    assertEquals(fm.calls.filter((c) => isIssue(c.url)).length, 0);
+    assertEquals(db.rows("billing_keys").length, 0);
+  } finally { fm.restore(); }
+});
+
+Deno.test("🔴 0170 CONTROL — a refused open is mapped by REASON, and an absent reason fails closed", async () => {
+  // Same law as the three `swapped=false` arms below: these facts now arrive EARLIER (before Toss
+  // has issued anything) and each still keeps the status that tells the caller what to do —
+  // 503 later, 400 this attempt is spent, 403 never. A refusal we do not recognise must land on the
+  // strictest answer, never open into a 200.
+  const refuse = (reason: string | null) => {
+    const db = scene();
+    db.rpcs["billing_issue_intent_open"] = () => ({
+      data: [{ intent_id: null, idempotency_key: null, reopened: false, refusal: reason }],
+    });
+    return db;
+  };
+  const statusOf = async (db: FakeDb): Promise<number> => {
+    const fm = new FetchMock().on(isIssue, () => FetchMock.json(issued()));
+    fm.install();
+    try {
+      const nonce = await prep(db);
+      await registerBillingKey(req({ action: "issue", auth_key: "ak", nonce }, "owner_jwt"), db as never);
+      return 200;
+    } catch (e) { return (e as HttpError).status; }
+    finally { fm.restore(); }
+  };
+  assertEquals(await statusOf(refuse("gate_closed")), 503);
+  assertEquals(await statusOf(refuse("intent_closed")), 400);
+  assertEquals(await statusOf(refuse("deleted_account")), 403);
+  assertEquals(await statusOf(refuse("something_new_in_sql")), 403);
+  assertEquals(await statusOf(refuse(null)), 403);
 });

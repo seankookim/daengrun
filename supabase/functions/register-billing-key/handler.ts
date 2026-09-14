@@ -174,6 +174,88 @@ async function compensateUntrackedKey(
   );
 }
 
+/** 🔴 THE ISSUANCE INTENT — codex billing finding 3, and the Toss provider memo's
+ *  branch-independent core (`docs/research/2026-08-31-toss-provider-memo.md` §4 core #1).
+ *
+ *  Before 0170 this handler called `tossBillingIssue` with everything before it a READ, under an
+ *  `Idempotency-Key` minted inside `_shared/toss.ts` and persisted NOWHERE. If the response never
+ *  came back, Toss could hold a live standing authority to charge a real card and we held no row
+ *  naming it — not in `billing_keys` (the write never ran) and not in the outbox (only a FAILED
+ *  swap writes there). `compensateUntrackedKey` cannot help: it runs only when the response WAS
+ *  received.
+ *
+ *  ⚠ **THIS IS THE SAME MOVE UNDER EVERY ANSWER TO THE TWO OPEN TOSS QUESTIONS** (memo §3), which
+ *    is why it may be built while they are open: under 「replay works」 the row is what a recovery
+ *    re-POST replays; under 「a lookup API exists」 it is what the lookup is keyed on; under
+ *    「neither」 it IS the durable record, turning 「in no table at all」 into 「named by an
+ *    `unresolved` intent」 with `customer_key` as the coordinate Toss knows this owner by. What is
+ *    NOT built here is the recovery sweep's RESOLUTION arm — re-POST vs query vs escalate — because
+ *    that is exactly the thing the review forbids designing around by guessing.
+ *
+ *  ⚠ **THE ATTEMPT NONCE IS STILL ISOLATE-LOCAL MEMORY AND THIS DOES NOT CHANGE THAT.** `consumeNonce`
+ *    above runs FIRST and is still the belt; this row only uses the nonce's VALUE as the attempt's
+ *    NAME, so the open edge-affinity question (`review:132-134`) is untouched and still open.
+ */
+async function openIssueIntent(
+  db: SupabaseClient, uid: string, attemptNonce: string, customerKey: string,
+): Promise<{ id: string; key: string }> {
+  const { data, error } = await db.rpc("billing_issue_intent_open", {
+    p_profile: uid,
+    p_nonce: attemptNonce,
+    p_customer_key: customerKey,
+  });
+  // 🔴 FAIL CLOSED. If we cannot write the record, we do not make the call — the whole point of the
+  //    row is that it exists BEFORE a credential can. Nothing is issued, so nothing is orphaned.
+  if (error) throw new HttpError(500, `billing_issue_intent_open failed: ${error.message}`);
+  const row = (Array.isArray(data) ? data[0] : data) as
+    { intent_id?: string; idempotency_key?: string; refusal?: string } | null;
+  if (row?.intent_id && row?.idempotency_key) return { id: row.intent_id, key: row.idempotency_key };
+
+  // ⚠ EACH REFUSAL MAPPED, AND AN ABSENT ONE FAILS CLOSED (CLAUDE.md §④). These are the same facts
+  //   `billing_key_swap` reports, arriving EARLIER — before Toss has issued anything — so each one
+  //   keeps the status the caller already knows: 503 says later, 400 says this attempt is spent,
+  //   403 says never.
+  const why = row?.refusal ?? "deleted_account";
+  if (why === "gate_closed") throw new HttpError(503, "card_registration_not_live");
+  // The attempt has already been resolved once. Reusing its key would re-send a request whose
+  // outcome we have written down — and under the replay branch Toss would answer with that recorded
+  // outcome, so the retry would look like a fresh success.
+  if (why === "intent_closed") throw new HttpError(400, "stale_attempt");
+  throw new HttpError(403, "no_profile");
+}
+
+/** Records the outcome and closes the intent. **NEVER THROWS, and that is a decision, not a
+ *  swallow.** On the success path the card IS registered by the time this runs, so failing the
+ *  request because the bookkeeping write failed would tell an owner their registration failed while
+ *  their card charges; on every failure path the handler already has a truer error to throw and
+ *  replacing it with this one would lose it. An intent left `issuing` is exactly the state the
+ *  recovery sweep is built to reconcile against `billing_keys` — which it must do anyway, because a
+ *  replayed 200 is 「what happened then」, never 「state now」 (memo §3 U3).
+ */
+async function closeIssueIntent(
+  db: SupabaseClient, intentId: string, outcome: string, billingKey: string | null, note: string,
+): Promise<void> {
+  try {
+    const { data, error } = await db.rpc("billing_issue_intent_close", {
+      p_intent: intentId,
+      p_outcome: outcome,
+      p_billing_key: billingKey,
+      p_note: note.slice(0, 500),
+    });
+    const row = (Array.isArray(data) ? data[0] : data) as { closed?: boolean; refusal?: string } | null;
+    if (error || row?.closed !== true) {
+      console.error(
+        `[register-billing-key] intent ${intentId} NOT closed as ${outcome} ` +
+          `(${error?.message ?? row?.refusal ?? "unknown"}) — it stays open for the recovery sweep`,
+      );
+    }
+  } catch (e) {
+    console.error(
+      `[register-billing-key] intent ${intentId} close threw (${(e as Error).message}) — it stays open`,
+    );
+  }
+}
+
 export async function registerBillingKey(req: Request, db: SupabaseClient): Promise<unknown> {
   const uid = await caller(req, db);
   const body = (await req.json().catch(() => ({}))) as Body;
@@ -219,8 +301,32 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
       throw new HttpError(400, "customer_key_mismatch");
     }
 
-    const res = await tossBillingIssue({ authKey, customerKey });
+    // 🔴 THE DURABLE RECORD, BEFORE THE PROVIDER CALL. Everything above this line is a read; from
+    //    here on a live charging credential can exist, and from here on one cannot exist unnamed.
+    const attemptNonce = body.nonce as string;      // non-empty: `consumeNonce` above accepted it
+    const intent = await openIssueIntent(db, uid, attemptNonce, customerKey);
+
+    let res: Awaited<ReturnType<typeof tossBillingIssue>>;
+    try {
+      res = await tossBillingIssue({ authKey, customerKey, idempotencyKey: intent.key });
+    } catch (e) {
+      // 🔴 THE FINDING'S OWN STATE. A throw is a timeout, a dead socket, an isolate that never got
+      //    its answer — we do NOT know whether Toss executed. `unresolved` says exactly that, and
+      //    the row names the idempotency key the request was sent under, which is the only handle
+      //    any recovery (replay, lookup, or a support ticket keyed on `customer_key`) can use.
+      //    The original error is re-thrown unchanged: this request fails exactly as it did before.
+      await closeIssueIntent(db, intent.id, "unresolved", null, `no response from Toss: ${(e as Error).message}`);
+      throw e;
+    }
+
     if (!res.ok) {
+      // PROVISIONAL (memo §3 U6) — closing on a provider refusal is terminal here because Toss's
+      // English guide says error responses are REPLAYED for the key's 15-day window, so re-sending
+      // this key can only return this same error. The Korean 멱등키 guide is silent and no
+      // experiment has been run, so if U6 comes back negative this becomes a retryable state
+      // rather than a terminal one — the state value would change, nothing else would.
+      const code = (res.body?.code as string) ?? "";
+      await closeIssueIntent(db, intent.id, "provider_error", null, `toss ${res.httpStatus} ${code}`.trim());
       // Toss's own message verbatim where present — the owner typed their card into Toss's page,
       // so Toss's sentence about it ("한도 초과", "정지된 카드") is the honest one; ours would be
       // a guess. A silent generic here is the funnel's most expensive dead end.
@@ -229,7 +335,14 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
     }
 
     const billingKey = res.body?.billingKey as string | undefined;
-    if (!billingKey) throw new HttpError(502, "toss_no_billing_key");
+    if (!billingKey) {
+      // ⚠ `unresolved`, NOT `provider_error`. Toss answered 2xx, so it may well have issued a key —
+      //   we simply cannot name it. `provider_error` would assert no credential exists, and the
+      //   table refuses to record that outcome with no key precisely so this case cannot be
+      //   mislabelled into it.
+      await closeIssueIntent(db, intent.id, "unresolved", null, `toss ${res.httpStatus} 2xx with no billingKey`);
+      throw new HttpError(502, "toss_no_billing_key");
+    }
 
     // Display fields only. `card.number` from Toss is already masked (e.g. 433012******1234) —
     // we still store ONLY the last4, never the masked string: a jsonb that carries six real
@@ -259,6 +372,12 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
       //    a timeout produced a standing authority to charge that we could neither see nor stop.
       //    The compensation runs BEFORE the throw and cannot change the outcome: this request
       //    failed, and it still says so.
+      // ⚠ THE INTENT IS CLOSED FIRST, AND THE ORDER IS DELIBERATE. `compensateUntrackedKey`'s last
+      //   arm can call Toss and, when the outbox is unreachable, DELETE a key the swap may actually
+      //   have stored (its own comment says so). Recording what we know before taking an action we
+      //   may not be able to describe afterwards costs one RPC and is the difference between an
+      //   incident with a row and an incident without one.
+      await closeIssueIntent(db, intent.id, "issued_unpersisted", billingKey, `billing_key_swap failed: ${wErr.message}`);
       await compensateUntrackedKey(db, uid, customerKey, billingKey, `billing_key_swap failed: ${wErr.message}`);
       throw new HttpError(500, `billing_key_swap failed: ${wErr.message}`);
     }
@@ -276,6 +395,11 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
       //   the previous comment here said "record it so the revocation slice can find it", which
       //   described the code as it stood before 0141 and had quietly become false.
       const why = swap?.refusal ?? "deleted_account";
+      // All three refusals share one physical fact: Toss issued a key and it is NOT in
+      // `billing_keys`. The definer has already enqueued its revocation in the same transaction as
+      // the refusal (0141 §A, 0143 §A), and this row is the other half — it names the key AND the
+      // idempotency key it was issued under, which the outbox row does not carry.
+      await closeIssueIntent(db, intent.id, "issued_unpersisted", billingKey, `swap refused: ${why}`);
       if (why === "gate_closed") {
         // Sean closed registration mid-flight. Retryable if he reopens it; the same 503 the
         // pre-Toss check uses, because it is the same fact arriving later.
@@ -293,6 +417,9 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
       );
       throw new HttpError(403, "no_profile");
     }
+
+    // The attempt is finished and nothing is owed: Toss issued and `billing_key_swap` stored it.
+    await closeIssueIntent(db, intent.id, "issued_persisted", billingKey, "stored by billing_key_swap");
 
     if (swap.displaced_key) {
       // codex #4: replacing a card leaves the PREVIOUS key live at Toss. Narrowed here from

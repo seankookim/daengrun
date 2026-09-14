@@ -159,20 +159,31 @@ export function tossBillingRevoke(billingKey: string): Promise<TossResult> {
 //
 // No Idempotency-Key: this is a read, and reusing the charge's key on a different endpoint is the
 // mistake `tossCancel`'s comment already names.
-// 빌링키 발급 — the authKey→billingKey exchange (register-billing-key's ③). The authKey is
-// ONE-SHOT and expires in minutes, so there is no replay window to manage and no Idempotency-Key
-// semantics to reason about — Toss refuses a spent key on its own. It still goes through call()
-// (which requires a key) with the authKey itself: unique per attempt by construction.
+// 빌링키 발급 — the authKey→billingKey exchange (register-billing-key's ③).
 // BILLING_TIMEOUT_MS applies — unlike confirm, the human is watching a spinner WE drew, not
 // Toss's page, so a hung socket must resolve into a visible failure rather than pin the isolate.
-export function tossBillingIssue(p: { authKey: string; customerKey: string }): Promise<TossResult> {
-  // ⚠ The idempotency key is a DERIVED value, not the authKey itself (codex #3 tail). The authKey
-  // is a bearer credential for this one issuance; copying it into a second header multiplies the
-  // places it can be logged, mirrored by a proxy, or land in an error report — for no benefit,
-  // because issuance has no replay semantics to protect (a spent authKey is refused by Toss on
-  // its own). A per-attempt uuid gives the header a unique value without a second copy of the
-  // secret. It is still unique per call, which is all `call()` needs.
-  return call(`${TOSS_BASE}/billing/authorizations/issue`, crypto.randomUUID(), {
+//
+// 🔴 **THE IDEMPOTENCY KEY IS NOW A PARAMETER, AND IT IS PERSISTED BEFORE THIS FUNCTION IS CALLED
+//    — codex billing finding 3** (`docs/reviews/2026-08-28-codex-billing-chain.md:35`), fixed per
+//    the Toss provider memo's branch-independent core (`docs/research/2026-08-31-toss-provider-memo.md`
+//    §4 core #1). It used to be `crypto.randomUUID()` minted right here, on this line, and written
+//    down NOWHERE: it died with the isolate. The old comment argued that was fine because
+//    「issuance has no replay semantics to protect — a spent authKey is refused by Toss on its own」.
+//    **That argument answers the wrong question.** It is about whether a RETRY can double-issue; the
+//    finding is about a response that never comes back, where a live standing authority to charge
+//    exists at Toss and we hold no row naming it, in any table, for ever. A key that is persisted
+//    before the call is what turns that into a row — and, under the replay branch Toss's docs
+//    support generally (memo §2a claims 1 and 6), what lets a recovery re-POST return the ORIGINAL
+//    response rather than execute a second time.
+//
+// ⚠ The authKey is still NOT used as the key (the original codex #3 tail, and it stands): it is a
+//   bearer credential for this one issuance, and copying it into a second header multiplies the
+//   places it can be logged, proxied, or land in an error report. The caller mints a UUID and
+//   persists it; this function only sends what it is handed.
+export function tossBillingIssue(
+  p: { authKey: string; customerKey: string; idempotencyKey: string },
+): Promise<TossResult> {
+  return call(`${TOSS_BASE}/billing/authorizations/issue`, p.idempotencyKey, {
     authKey: p.authKey,
     customerKey: p.customerKey,
   }, BILLING_TIMEOUT_MS);
