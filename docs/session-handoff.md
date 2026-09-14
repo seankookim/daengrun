@@ -15,6 +15,51 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## ☀️ MORNING READ — 2026-09-15 overnight, everything below measured and read back from origin
+
+**Trunk `83ad0dc` (start of night: `1b9a41f`).** Landed while you slept, each re-gated on the
+combined tree before push (harness delta = pins added every time; deno + tsc + checks + npm):
+
+| slice | what | proof |
+|---|---|---|
+| B1 · 0157 · 0158 | the stranded rescue-branch migrations | 1135 → 1177/0 |
+| P7 inline-script · 0162 chat idempotency (both halves) | codex astra wrote them | 983/0 · 1180/0 |
+| 185 repairs (0154 #5/#6/#7) · **0166** (0155 REJECT/6, all six) · **0167** (0154 #3 CRITICAL, phone visibility gated on the flag) | codex findings closed | 1183 · 1188 · 1193/0 |
+| **0168 two-phase stop** (from its contract) · **0169** settle belt · settle-run `run_stopping` arm | GPS finding 4 — the live money defect — closed, plus the SQL belt | 1201 · 1205/0 · deno 281 |
+| **0170 billing intent row** | Toss memo §4 core (billing findings 3/4/6 local halves) | 1213/0 · deno 287/0 |
+| client honesty wave 4 · `store.ts` −162 lines | 15 fixes, 12 non-club files | 983/0 |
+| club-v2 labs ×4 (3 variants each) · GPS-4 contract · slim CLAUDE.md draft + incident ledger · suite audit · harness-diet proposal | your decision artifacts | — |
+
+**The simulator runs.** EAS cloud build (`runtimeVersion` policy `fingerprint` was the cause of all
+four prior failures — now `appVersion` on trunk; local Xcode is dead on macOS 14.6). iPhone 16 Pro
+sim, iOS 18.3.1, `com.seankookim.dogshigh`, login screen up, Supabase host in the bundle. **It is
+signed out — Kakao login is yours.** Recipe in `docs/setup-new-machine.md` §3.
+
+**Production is still 0156. Pending on trunk: ELEVEN** — 0157 0158 0159 0160 0161 0162 0166 0167
+0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
+`docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
+**I did not deploy** (your call, and the harness classifier refused an unattended deploy job).
+
+**Your queue, one line each (details in `docs/decisions/awaiting-sean.md`):** ① deploy — with the
+verdict in hand, say 「deploy」 or 「hold 0168」 (money path, provisional 90 s/1 min constants) ·
+② harness diet — say 「A」 (slim CLAUDE.md, 10 KB, ready) and/or 「B」; D measured at 2.6% of pins,
+C withdrawn (19 s) · ③ Xcode 26 needs macOS 15.6+ — an OS upgrade, not an install · ④ labs: pick
+numbers in `docs/labs/README-club-v2.md` · ⑤ Toss support ticket (memo §3) unblocks 0170's sweep ·
+⑥ isHost split · phones #1/#4 · OPEN-C/F · km wallet, as before.
+
+**Your four Codex sessions** (runner-rules 0163 · board-wrapper 0164 · membership 0165 ·
+board-rejected-arm) had dirty worktrees and NO pushed branches all night; the heartbeat lands any
+`codex/<slice>` branch the moment it appears. ⚠ 0165 redefines `club_session_roster`, which calls
+0167's gated helper — read the gate back from the DB after both apply.
+
+**Two misses of mine, both caught and recorded in `docs/codex-claude-protocol.md`:** 0169 landed
+with trunk deno RED for ~40 min (the CONTRACT pin caught the unmapped raise; fixed at `34bd905`;
+deno is now a landing gate for every migration) · a docs commit announced 0170 landed while its
+trunk push had been rejected (read-back refuted it one command later; re-landed at `d04f74e`;
+the landing chain is now `&&`-strict through the read-back).
+
+---
+
 ## State, measured 2026-09-15 (new Mac `/Users/seankim/dev/daengrun`)
 
 | | |
