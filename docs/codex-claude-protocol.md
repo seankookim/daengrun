@@ -55,6 +55,15 @@ supabase/functions: deno test --allow-all --node-modules-dir=auto _test   # 277/
 ```
 Baselines at `ff6222d` (0157 landed): harness 1163/0 · npm test 980 PASS / 0 FAIL · deno 277/0.
 
+⚠ **deno is a LANDING gate for every migration, not only for edge-file changes** (measured
+2026-09-15 04:xx): 0169 added a `raise exception 'run_stopping'` inside `settle_run_tx`; the agent
+did not touch `supabase/functions` so it skipped deno, and I landed it on the harness alone. The
+next branch's deno run found trunk RED: `settle_charge_test.ts`'s CONTRACT pin enumerates every
+token `settle_run_tx` raises and asserts the handler maps each — exactly the ④ 「widening a return's
+meaning breaks a correct caller with no edit to the caller」 class, and the repo already had the
+detector. Rule: any migration that touches a function an edge handler calls runs deno before it
+lands; the CONTRACT pins are the reason.
+
 ## What an exec-driven write run can and cannot do (measured 2026-09-15, P7)
 
 `codex exec --sandbox workspace-write -C <worktree>` edits files fine, but **cannot commit** — a
