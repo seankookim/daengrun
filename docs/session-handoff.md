@@ -58,6 +58,16 @@ findings** (`bc7d59d`, closes codex 0155 REJECT/6 — all six were still open on
 neither dispatcher nor reporter; suite 196, harness **1188/0**, 8 plants each reddening one pin;
 flag-gated, arms only when card registration goes live). **Pending on production is now SEVEN:
 0157 0158 0159 0160 0161 0162 0166.** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
+**Client honesty pass, wave 4 (Claude agent, non-club screens)** — 4 commits, 12 files, 15 fixes:
+dead buttons removed (shop cart/search/담기, `pickEarliest` no-op, the iOS-only alert that fired on
+iOS), loading-is-not-0 (schedule/calendar/community counters), fabricated data unbound (fixture
+roster fallback in schedule, `62 + runs×5` 러닝 경험, 「신규」 for a never-written 응답률, 「0kg」),
+`ensureRunner()` no longer swallowed on the entry path. npm 983/0, tsc 0. ⚠ **UNVERIFIED on the
+simulator** (Xcode 26 blocker): shop header now title-only with non-interactive cards · the three
+counters in loading/error states · matching sheet's 러닝 경험 bar for a 0-run runner · 반려견 추가 on
+iOS must show exactly one dialog. Deliberately NOT changed (agent's table, worth reading):
+`store.ts` dead fixtures (zero importers now — a follow-up delete), `login.tsx` naming legal docs
+that do not exist (Sean's), the ~120 sub-15pt sites (director's call).
 
 ---
 
