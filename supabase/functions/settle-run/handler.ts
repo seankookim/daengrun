@@ -225,6 +225,12 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     const msg = txErr.message ?? "";
     if (msg.includes("not_active")) throw new HttpError(409, "이미 정산됐거나 진행 중이 아닌 러닝이에요");
     if (msg.includes("not_found")) throw new HttpError(404, "booking not found");
+    if (msg.includes("run_stopping")) {
+      // [0169] The SQL belt behind the 409 above: a service_role caller (or a race with the sweep
+      // between our read and the tx) reaches settle_run_tx while the run is still `stopping`. Same
+      // status and the migration's own `using detail`, so the two doors say one thing.
+      throw new HttpError(409, "기록을 확정하고 있어요 — 잠시 뒤 정산할 수 있어요");
+    }
     // ── [0083 §6] The three refusals the migration raises, each with its own status and its own
     // sentence. They fell through to the generic 500 below, which reads like OUR bug and invites a
     // retry — and for all three, retrying is exactly the wrong instinct: two of them resolve when a
