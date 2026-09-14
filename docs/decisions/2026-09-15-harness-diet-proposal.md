@@ -59,10 +59,23 @@ per row. Estimated saving: maybe 10–20 suites; money and security suites stay.
 **E — Cut nothing; accept the cost.** Today's runs argue this is defensible: minutes per run,
 and it caught a real merge defect.
 
-## Recommendation
+## What the per-suite audit measured (option D, `docs/decisions/2026-09-15-suite-audit.md`)
 
-A + B now (no invariant lost; context shrinks ~22k tokens/session — the slim draft is at
-`docs/laws/CLAUDE-slim-draft.md`, 10,240 B, every law kept, every narrative in `docs/laws/incident-ledger.md`),
-D is being prepared as a read-only table (`docs/decisions/2026-09-15-suite-audit.md`) so you can rule on it, never E's opposite (deleting money/security pins to save minutes).
+112 registered suites (not 106 — trunk moved) · 1,246 pins · 49,551 lines, of which **16,137 are
+comment lines (32.5%)**. Buckets: SECURITY 50 suites/541 pins · MONEY 37/450 · STATE 11/151 ·
+SHAPE 8/65 · INFRA 4/31 · **COPY/VOCAB 2 suites / 8 pins / 163 lines**. Verdicts: KEEP 88 · MERGE 21
+(into 8 targets) · CUT 3 (168 approve-notification title strings · 136 route-name km data quality ·
+162, fully superseded by 163 — unpinned property: none). Yield: −32 pins (2.6%), −6.7% lines.
+**The mandate's target — speculative and vocabulary pins — barely exists in the corpus**; the
+corpus already obeys the 「a limitation is prose」 law (9 headers refuse to pin one; one exception,
+`148 R2`, is unfalsifiable by its own measurement and should go). 29 rows carry ⚠ for a human read.
+
+## Recommendation (revised after measurement)
+
+**A + B** (the only cuts that move the numbers you feel: ~22k tokens per session, and no growth). The
+slim draft is ready at `docs/laws/CLAUDE-slim-draft.md` (10,240 B, every law kept, every narrative
+verbatim in `docs/laws/incident-ledger.md`) — say 「A」 and it replaces CLAUDE.md. **D is small**: the
+three confident cuts + `148 R2` are worth a 30-minute slice; the 21 merges are an edit to 21 green
+suites for −6.7% lines and are not worth the risk of a dropped pin. C withdrawn (19 s), never E's opposite (deleting money/security pins to save minutes).
 
 **Your call:** which letters?
