@@ -3126,16 +3126,24 @@ export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
   return (data ?? []).map((m: any) => mapMsg(m, user.user.id));
 }
 
-export async function sendChatMessage(threadId: string, body: string): Promise<void> {
+// Expo's installed core provides UUID v4 on native and web; load it only when sending.
+export function createChatClientKey(): string {
+  return (require('expo-modules-core') as typeof import('expo-modules-core')).uuid.v4();
+}
+
+export async function sendChatMessage(threadId: string, body: string, clientKey?: string): Promise<void> {
+  clientKey ??= createChatClientKey();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
-  const { error } = await supabase.from('chat_messages').insert({ thread_id: threadId, sender_id: user.user.id, body });
+  const { error } = await supabase.from('chat_messages').insert({ thread_id: threadId, sender_id: user.user.id, body, client_key: clientKey });
+  if (error?.code === '23505') return;
   if (error) throw error;
 }
 
 // 사진 메시지 — [0064] PRIVATE media 버킷 {uid}/chat/{thread}/* + kind 'photo'
 // media_path엔 경로 저장 — 스토리지 정책이 chat_messages RLS(스레드 당사자)로 읽기를 위임한다.
-export async function sendChatPhoto(threadId: string, base64: string): Promise<void> {
+export async function sendChatPhoto(threadId: string, base64: string, clientKey?: string): Promise<void> {
+  clientKey ??= createChatClientKey();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const path = `${user.user.id}/chat/${threadId}/${Date.now()}.jpg`;
@@ -3143,8 +3151,9 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
   const { error: e2 } = await supabase.from('chat_messages').insert({
-    thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: path, body: null,
+    thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: path, body: null, client_key: clientKey,
   });
+  if (e2?.code === '23505') return;
   if (e2) throw e2;
 }
 

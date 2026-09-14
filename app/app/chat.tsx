@@ -7,7 +7,7 @@ import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
 import {
   ChannelLink, ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
-  fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
+  createChatClientKey, fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -35,6 +35,8 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const pendingText = useRef<{ threadId: string; body: string; key: string } | null>(null);
+  const sendInFlight = useRef<ChatContext | null>(null);
   const scroller = useRef<ScrollView>(null);
   const mounted = useRef(false);
   // [codex r3-14] 이벤트 핸들러(send/sendPhoto)의 await 뒤 쓰기는 mounted만으로 부족하다 —
@@ -46,7 +48,7 @@ export default function Chat() {
   // [codex r3-13] bid 교체는 초안·전송 플래그도 비운다 — A용 초안이 B 스레드로 전송될 수 있었고,
   // A의 진행 중 전송이 B의 보내기를 막았다. 60행의 공유 리셋 목록에 넣지 않는 이유: 그 목록은
   // loadAttempt(같은 스레드 재시도)에도 돌아, 재시도마다 멀쩡한 초안을 지우게 된다.
-  useEffect(() => { setInput(''); setSending(false); }, [bid]);
+  useEffect(() => { setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null; }, [bid]);
   // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
   // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
   // 찍었다: 서버가 프라이빗 채널을 거절하거나 조인이 타임아웃해도 화면은 연결됐다고 말했고,
@@ -169,14 +171,28 @@ export default function Chat() {
       if (!perm.granted) return;
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
       if (res.canceled || !res.assets?.[0]?.base64) return;
-      await sendChatPhoto(opCtx.threadId, res.assets[0].base64);
+      await deliverPhoto(opCtx, res.assets[0].base64, createChatClientKey());
+      return;
     } catch (e) {
       if (mounted.current && ctxRef.current === opCtx) Alert.alert('전송 실패', (e as Error).message);
       return;
     }
-    // [codex r2-F10] 전송과 리페치는 다른 실패다 — 전송이 이미 커밋된 뒤 리페치가 죽으면
-    // 「전송 실패」는 거짓말이고, 다시 보내면 중복이 된다. 리페치 실패는 폴 실패로만 말한다
-    // (헤더가 「받지 못하고 있어요」를 맡는다).
+  };
+
+  const deliverPhoto = async (opCtx: ChatContext, base64: string, clientKey: string): Promise<void> => {
+    if (!mounted.current || ctxRef.current !== opCtx) return;
+    try {
+      await sendChatPhoto(opCtx.threadId, base64, clientKey);
+    } catch (e) {
+      if (mounted.current && ctxRef.current === opCtx) {
+        Alert.alert('전송 실패', (e as Error).message, [
+          { text: '취소', style: 'cancel' },
+          { text: '다시 시도', onPress: () => { void deliverPhoto(opCtx, base64, clientKey); } },
+        ]);
+      }
+      return;
+    }
+    // A refresh failure does not undo a successful send.
     try {
       const snapshot = await fetchMessages(opCtx.threadId);
       if (!mounted.current || ctxRef.current !== opCtx) return;
@@ -188,31 +204,35 @@ export default function Chat() {
   };
 
   const send = async (body: string) => {
-    if (!body.trim() || !ctx || sending) return;
+    if (!body.trim() || !ctx || sending || sendInFlight.current === ctx) return;
     const opCtx = ctx; // [r3-14] 이 작업이 속한 스레드 — 이후의 모든 쓰기는 이 정체로 게이트
+    const trimmed = body.trim();
+    const pending = pendingText.current;
+    const attempt = pending?.threadId === opCtx.threadId && pending.body === trimmed
+      ? pending : { threadId: opCtx.threadId, body: trimmed, key: createChatClientKey() };
+    pendingText.current = attempt;
+    sendInFlight.current = opCtx;
     setSending(true);
     setInput('');
     try {
-      await sendChatMessage(opCtx.threadId, body.trim());
+      await sendChatMessage(opCtx.threadId, trimmed, attempt.key);
+      if (pendingText.current === attempt) pendingText.current = null;
     } catch (e) {
       // 전송 자체가 실패했을 때만 「전송 실패」+입력 복원 — 커밋된 메시지에 이 말을 하면
       // 재시도가 중복 전송이 된다 (codex r2-F10).
       if (mounted.current && ctxRef.current === opCtx) {
-        // [codex r3-15, 클라 절반] INSERT 실패에는 두 종류가 있다: 서버가 거절했다(PostgREST
-        // 코드가 실려 온다 — 확실한 실패)와 응답이 사라졌다(네트워크 — 커밋 여부를 **모른다**).
-        // 모르는 것을 「전송 실패」로 단정하면 재시도가 중복을 만든다. 완결(멱등 키 컬럼 +
-        // unique 인덱스 + 23505→성공 매핑)은 서버 스키마 몫 — 백엔드 큐에 전달됨. 그 전까지
-        // 클라가 정직하게 할 수 있는 일: 불확실을 불확실이라 말하고, 목록을 다시 읽어 커밋된
-        // 메시지가 있으면 보여준다.
+        // Keep this attempt's key with the restored draft, including an uncertain timeout.
+        // Sending a different body starts a new attempt; successful sends retire the key.
         const code = (e as { code?: string })?.code;
         Alert.alert(
           code ? '전송 실패' : '전송이 확인되지 않았어요',
           code
             ? (e as Error).message
-            : '네트워크 문제로 전송 여부를 확인하지 못했어요 — 아래 목록에 방금 메시지가 보이면 다시 보내지 마세요',
+            : '네트워크 문제로 전송 여부를 확인하지 못했어요. 같은 메시지를 다시 보내면 중복 없이 재시도해요.',
         );
         setInput(body);
         setSending(false);
+        if (sendInFlight.current === opCtx) sendInFlight.current = null;
         if (!code) {
           fetchMessages(opCtx.threadId)
             .then((snap) => {
@@ -233,6 +253,7 @@ export default function Chat() {
       if (mounted.current && ctxRef.current === opCtx) setPollErr(true);
     } finally {
       // [r3-14] stale finally가 B의 sending을 풀거나 잠그지 않게 — B의 해제는 bid 효과가 맡는다
+      if (sendInFlight.current === opCtx) sendInFlight.current = null;
       if (mounted.current && ctxRef.current === opCtx) setSending(false);
     }
   };
