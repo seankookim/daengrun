@@ -35,6 +35,25 @@ four prior failures — now `appVersion` on trunk; local Xcode is dead on macOS 
 sim, iOS 18.3.1, `com.seankookim.dogshigh`, login screen up, Supabase host in the bundle. **It is
 signed out — Kakao login is yours.** Recipe in `docs/setup-new-machine.md` §3.
 
+**06:55 — CODEX VERDICT ON THE ELEVEN: REJECT, 10 findings** (`docs/reviews/2026-09-15-deploy-gate-verdict.md`,
+genuine: ANSWERED, digit detector 1). Disposition: **HIGH #1** (collection lost after settlement if the
+re-mint fails — `settle-run` `CHARGE LOST` path) and **HIGH #2** (register-billing-key's compensation can
+DELETE a key the swap stored; 0170's `unresolved` sweep deliberately unbuilt pending Toss U1/U2) are
+STANDING defects behind `payments`/`card_registration` flags Sean holds — not introduced by this set,
+but they must be closed before either flag flips (queue). **HIGH #3** (a runner can push fabricated
+trace inside the 90 s drain) is the pre-existing provenance class — ingest never checked provenance;
+0168 widens the post-tap window by ≤480 m; the real fix is a provenance slice (options in queue).
+**HIGH #4** (frozen run unsettleable when `trackMode` is `unavailable`/null — a build without the
+location module strands a payout) — client bug, FIX WAVE. **MEDIUM #5** register handler reads the
+flag before the profile/tombstone check (party-before-state) — FIX WAVE (edge). **MEDIUM #6**
+`_club_phone_visible` carries 0049's bare `custody_phase <> 'resolved'` on a nullable column — FIX
+WAVE as 0171 (correct-forward). **MEDIUM #7** `trace_future_fix` has no client copy — FIX WAVE.
+**MEDIUM #8** photo retries orphan storage objects (new `Date.now()` path per retry) — FIX WAVE (path
+keyed on the client key). **LOW #9** closed-window roster replaces instead of retaining — FIX WAVE.
+**LOW #10** `run_stopping` vs contract's `run_stop_pending` — recorded in 0169's header, handler maps
+it safely; left. All 0159's 11 findings: 7 measured closed, 4 in excluded `geo.ts` (unverified by this
+run, verified by the 08-31 UI rounds).
+
 **Production is still 0156. Pending on trunk: ELEVEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.

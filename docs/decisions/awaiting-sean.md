@@ -1492,7 +1492,16 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
 1. **Deploy 0157–0162 + 0166–0170 (ONE `db push`).** Production is 0156; trunk carries eleven
-   pending migrations, all gates green here (harness 1213/0, npm 983/0, deno 287/0). ⚠ 0168 is a LIVE
+   pending migrations, all gates green here (harness 1213/0, npm 983/0, deno 287/0).
+   **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Two
+   HIGHs are behind flags you hold and pre-date this set (#1 lost collection on re-mint failure,
+   #2 compensation DELETE of a stored key); one HIGH is the trace-provenance class (#3) that 0168
+   widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) are being fixed overnight
+   as a fix wave, then re-attacked. Your options: ⓐ **wait for the fix wave + re-attack, then
+   deploy** (recommended) · ⓑ deploy now (the three standing HIGHs are unreachable with money OFF)
+   · ⓒ hold 0168/0169 only (provenance) and deploy the rest. **Provenance (#3), separately:** ⓐ
+   accept ≤480 m post-tap exposure until a server-attested trace exists · ⓑ shrink the drain to 30 s
+   · ⓒ refuse any point after the tap (under-pays every runner by one upload interval). ⚠ 0168 is a LIVE
    MONEY path change (two-phase stop) with PROVISIONAL constants (90 s drain, 1-min sweep) — if you
    want it held back, say 「hold 0168」 and I move it off trunk before the push. No codex verdict exists on any of
    them; 0159 was REJECT/11 and 0160 is its unreviewed fix. ⓐ **review first** (recommended — one
