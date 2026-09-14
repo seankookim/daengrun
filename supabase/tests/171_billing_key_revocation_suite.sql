@@ -100,15 +100,30 @@ begin
   ------------------------------------------------------------------------------------------
   -- R6: a failure keeps the row PENDING (the next tick retries) until attempts exhaust, then
   -- `abandoned`. A key Toss will not delete is a fact to escalate, not a row to spin on forever.
-  declare v_id2 uuid; begin
+  -- ⚠ FIXTURE AMENDED 2026-09-15 (0166, codex 0155 finding **3**) — the pinned property is
+  --   unchanged, the way it is reached is not. This pin used to report on a row NOBODY HAD
+  --   CLAIMED, through the three-argument (`p_token` defaulted to NULL) shape: `p_token is null and
+  --   claim_token is null` matched, and the report landed. That is precisely the hole codex found —
+  --   the same predicate also matches every TERMINAL row, so a late token-less report could flip an
+  --   `abandoned` row to `done` while the key was live at Toss. 0166 adds `state = 'processing'`,
+  --   so a report now requires a row that is genuinely out with a worker. The fixture therefore
+  --   manufactures the claim it always implied. The new property (a terminal row cannot be
+  --   rewritten) is owned by `0166-F3` in suite 196.
+  declare v_id2 uuid; v_tok2 uuid := gen_random_uuid(); begin
     insert into billing_key_revocations (profile_id, billing_key, reason)
     values (u1, 'bill_stubborn', 'replaced') returning id into v_id2;
-    update billing_key_revocations set attempts = 3 where id = v_id2;
-    perform report_billing_key_revocation(v_id2, false, 'toss 500');
+    update billing_key_revocations
+       set attempts = 3, state = 'processing', claim_token = v_tok2,
+           lease_until = now() + interval '5 minutes'
+     where id = v_id2;
+    perform report_billing_key_revocation(v_id2, false, 'toss 500', v_tok2);
     select state into v_txt from billing_key_revocations where id = v_id2;
     if v_txt is distinct from 'pending' then v_bad := v_bad || ' mid-fail-state(' || coalesce(v_txt,'∅') || ')'; end if;
-    update billing_key_revocations set attempts = 8 where id = v_id2;
-    perform report_billing_key_revocation(v_id2, false, 'toss 500');
+    update billing_key_revocations
+       set attempts = 8, state = 'processing', claim_token = v_tok2,
+           lease_until = now() + interval '5 minutes'
+     where id = v_id2;
+    perform report_billing_key_revocation(v_id2, false, 'toss 500', v_tok2);
     select state into v_txt from billing_key_revocations where id = v_id2;
     if v_txt is distinct from 'abandoned' then v_bad := v_bad || ' exhausted-state(' || coalesce(v_txt,'∅') || ')'; end if;
     if v_bad <> '' then call _fail('bkr','R6 실패는 재시도, 소진되면 포기', v_bad);

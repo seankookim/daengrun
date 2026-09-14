@@ -48,6 +48,7 @@ do $$
 declare
   u1 uuid; u2 uuid; ops uuid; v_n int; v_n2 int; v_txt text; v_msg text; v_bad text := '';
   v_id uuid; v_tok uuid; v_ret int; v_ok boolean; v_at timestamptz;
+  v_id2 uuid; v_tok2 uuid; v_txt2 text; v_at2 timestamptz;   -- [0166] findings 5 + 6
   v_sec boolean; v_cfg text[]; v_pub boolean; v_anon boolean; v_auth boolean; v_svc boolean;
   n_before int; n_after int;
   d_due0 bigint; d_due1 bigint; d_fail0 bigint; d_fail1 bigint;
@@ -119,17 +120,26 @@ begin
   returning id into v_id;
   select count(*)::int into n_before from notifications where profile_id = ops and ref_id = v_id;
   select report_billing_key_revocation(v_id, false, 'toss 500', v_tok) into v_ok;
-  select state, alerted_at into v_txt, v_at from billing_key_revocations where id = v_id;
+  select state, alerted_at, claim_token into v_txt, v_at, v_tok2
+    from billing_key_revocations where id = v_id;
   select count(*)::int into n_after from notifications where profile_id = ops and ref_id = v_id;
   select count(*)::int into v_n2 from notifications
    where profile_id = ops and ref_id = v_id and kind = 'system'
      and title = '카드 해지 실패 — 확인 필요';
   v_msg := 'ok=' || coalesce(v_ok::text,'∅') || ' state=' || coalesce(v_txt,'∅')
-           || ' alerted=' || coalesce(v_at::text,'∅')
+           || ' alerted=' || coalesce(v_at::text,'∅') || ' token=' || coalesce(v_tok2::text,'∅')
            || ' noti ' || n_before || '→' || n_after || ' titled=' || v_n2;
   if v_ok is not true                        then v_bad := v_bad || ' report-returned-false'; end if;
   if v_txt is distinct from 'abandoned'      then v_bad := v_bad || ' not-abandoned'; end if;
   if v_at is null                            then v_bad := v_bad || ' NOT-stamped'; end if;
+  -- ⚠ ARM ADDED 2026-09-15 (0166, codex 0155 finding **5**). This pin read state, the stamp and
+  --   the notification and never the TOKEN — so deleting `claim_token = null` from the reporter's
+  --   SET list left the entire suite green, and a terminal row would keep a live claim token that
+  --   a late worker could still CAS against. 0149 cleared the token ON PURPOSE; nothing was
+  --   watching that it still does. The token is read here rather than replayed, deliberately: a
+  --   replay is also refused by 0166's new `state = 'processing'` gate, so a replay arm would be
+  --   satisfied by the WRONG guard and could not see this one.
+  if v_tok2 is not null                      then v_bad := v_bad || ' TOKEN-NOT-CLEARED'; end if;
   if (n_after - n_before) <> 1               then v_bad := v_bad || ' noti-delta<>1'; end if;
   if v_n2 <> 1                               then v_bad := v_bad || ' wrong-notification'; end if;
   if v_bad <> '' then call _fail('rab', a1, v_bad || ' | ' || v_msg); else call _pass('rab', a1); end if;
@@ -202,16 +212,37 @@ begin
   if v_n <> 0 then
     call _fail('rab', b1, 'PRECONDITION: rab_B1 is in billing_keys — belt 2 would claim this row');
   else
+    -- ⚠ CONTROL ROW ADDED 2026-09-15 (0166, codex 0155 finding **6**). The sweep's predicate is
+    --   three conjuncts and only two of them had a fixture that could see them: deleting
+    --   `lease_until < now()` reddened NOTHING, because every row this pin planted had an expired
+    --   lease, i.e. the fixture never sat where the two predicates DISAGREE. This row is identical
+    --   to the one above in every respect except the one under test — same state, same attempts,
+    --   same absence from `billing_keys` — and its lease is LIVE. A sweep without the guard eats
+    --   it, which is a worker's row stolen mid-flight and a page for a revocation still in
+    --   progress.
+    insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts,
+                                         claim_token, lease_until)
+    values (u1, 'rab_B1_live', 'account_deleted', 'processing', 8, gen_random_uuid(),
+            now() + interval '5 minutes')
+    returning id into v_id2;
     select count(*)::int into n_before from notifications where profile_id = ops and ref_id = v_id;
     perform claim_billing_key_revocations(20);
     select state, alerted_at into v_txt, v_at from billing_key_revocations where id = v_id;
+    select state, alerted_at into v_txt2, v_at2 from billing_key_revocations where id = v_id2;
     select count(*)::int into n_after from notifications where profile_id = ops and ref_id = v_id;
     v_msg := 'state=' || coalesce(v_txt,'∅') || ' alerted=' || coalesce(v_at::text,'∅')
-             || ' noti ' || n_before || '→' || n_after;
+             || ' noti ' || n_before || '→' || n_after
+             || ' | live-lease state=' || coalesce(v_txt2,'∅')
+             || ' alerted=' || coalesce(v_at2::text,'∅');
     if v_txt is distinct from 'abandoned' then v_bad := v_bad || ' not-abandoned'; end if;
     if v_at is null                       then v_bad := v_bad || ' NOT-stamped'; end if;
     if (n_after - n_before) <> 1          then v_bad := v_bad || ' noti-delta<>1'; end if;
+    if v_txt2 is distinct from 'processing' then v_bad := v_bad || ' LIVE-LEASE-SWEPT(' || coalesce(v_txt2,'∅') || ')'; end if;
+    if v_at2 is not null                    then v_bad := v_bad || ' PAGED-a-live-lease'; end if;
     if v_bad <> '' then call _fail('rab', b1, v_bad || ' | ' || v_msg); else call _pass('rab', b1); end if;
+    -- leave nothing claimable behind: this control row is deliberately still `processing`.
+    update billing_key_revocations set state = 'done', claim_token = null, lease_until = null
+     where id = v_id2;
   end if;
   v_bad := '';
 
@@ -377,8 +408,15 @@ begin
   insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts)
   values (u1, 'rab_D1f', 'account_deleted', 'abandoned', 8) returning id into v_id;
   perform _note_revocation_abandoned(array[v_id]);
-  insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts)
-  values (u1, 'rab_D1b', 'replaced', 'abandoned', 0);
+  -- ⚠ FIXTURE AMENDED 2026-09-15 (0166, codex 0155 finding **4**), and this is the pinned-behaviour
+  --   -legitimately-changed case rather than a drive-by edit. 0155's view read 「benign」 off
+  --   `alerted_at is null`, which is ALSO what a row abandoned before the column existed carries —
+  --   so unclassifiable history counted itself healthy forever. `abandon_class` now carries the
+  --   classification and the abandoning site writes it, so a benign FIXTURE has to write it too.
+  --   The new property — an unclassified row is NOT benign — is owned by `0166-F4` in suite 196.
+  insert into billing_key_revocations (profile_id, billing_key, reason, state, attempts,
+                                       abandon_class)
+  values (u1, 'rab_D1b', 'replaced', 'abandoned', 0, 'benign');
   select due_now, abandoned_failures, abandoned_benign
     into d_due1, d_fail1, d_ben1 from billing_key_dispatch_health;
   v_msg := 'due ' || d_due0 || '→' || d_due1 || ' fail ' || d_fail0 || '→' || d_fail1
@@ -407,7 +445,9 @@ begin
   if (d_due1 - d_due0) <> 1 then
     v_bad := v_bad || ' pending-row-not-due(' || d_due0 || '→' || d_due1 || ')';
   end if;
-  update billing_key_revocations set state = 'abandoned' where id = v_id;
+  -- [0166 finding 4] the class is written here for the same reason as D1's fixture above: benign
+  -- is now a positive statement a site makes, not an absence the view guesses at.
+  update billing_key_revocations set state = 'abandoned', abandon_class = 'benign' where id = v_id;
   select due_now, abandoned_benign into d_due1, d_ben1 from billing_key_dispatch_health;
   v_msg := 'due ' || d_due0 || '→' || d_due1 || ' benign ' || d_ben0 || '→' || d_ben1;
   if (d_due1 - d_due0) <> 0 then v_bad := v_bad || ' abandoned-counted-as-due'; end if;
