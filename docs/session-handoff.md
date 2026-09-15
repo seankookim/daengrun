@@ -89,6 +89,16 @@ booking the sweep can never price (NULL end_reason/actual_km or a raising mint) 
 `raise notice` and invisible to ops — `payments_reconciliation()` has no `settled_without_payment`
 arm (`_shared/ops.ts:95`); latent today. 0172 joins pending → THIRTEEN.
 
+**12:04 — RE-ATTACK VERDICT: REJECT/2 on the fix wave** (`docs/reviews/2026-09-15-fixwave-reattack-verdict.md`,
+genuine). Findings 4·5·6·7·8 CLOSED (6 as hardening — codex agrees the premise was false); HIGH #2
+half-fix CLOSED as scoped; **HIGH #1 refutation ACCEPTED** (0116:73/121 + suite 151). Two remain, both
+mine: **R1 MEDIUM** — finding 9's `packRetainRoster` ignores `sessionId` and the map never resets
+roster/peers/camera on a sid change, so session A's people can render under a closed session B on route
+reuse (a regression the fix introduced); **R2 MEDIUM** — the residual the 0172 agent named: a settled
+booking the sweep cannot price is skipped with `raise notice` and `payments_reconciliation()` (0118:1392,
+seven arms) has no `settled_without_payment` arm — silent revenue loss once payments open. Both in a
+second fix wave now (client + 0173/203).
+
 **Production is still 0156. Pending on trunk: THIRTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.

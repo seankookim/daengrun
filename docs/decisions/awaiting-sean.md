@@ -1498,8 +1498,10 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    that its cron is registered), **#2's DELETE half is FIXED** (`bf47df7`; its roster-empty half is
    a production recheck before the card flag), one HIGH is the trace-provenance class (#3) that 0168
    widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) were FIXED overnight (`6a03ab6`,
-   `44e2e9c`; 0171 joins the pending set → TWELVE) — but the re-attack review hit the codex wall
-   (try again at 11:41 AM); the fixes are UNREVIEWED. Say 「re-attack」 when the window reopens and I run it first. Your options: ⓐ **wait for the fix wave + re-attack, then
+   `44e2e9c`; 0171 joins the pending set → TWELVE) — but the re-attack ran at 12:04: **REJECT/2** — five fixes CLOSED, HIGH #1 refutation ACCEPTED,
+   HIGH #2 half-fix CLOSED as scoped; two MEDIUMs remain (a cross-session roster regression from
+   fix #9, and the ops-invisible unpriceable-settlement residual) and are being fixed as wave 2, then
+   re-reviewed. See `docs/reviews/2026-09-15-fixwave-reattack-verdict.md`. Your options: ⓐ **wait for the fix wave + re-attack, then
    deploy** (recommended) · ⓑ deploy now (the three standing HIGHs are unreachable with money OFF)
    · ⓒ hold 0168/0169 only (provenance) and deploy the rest. **Provenance (#3), separately:** ⓐ
    accept ≤480 m post-tap exposure until a server-attested trace exists · ⓑ shrink the drain to 30 s
