@@ -117,6 +117,14 @@ old C11/J4 could not see this defect and cannot demonstrate the fix (no fixture 
 their point in the chain) — suite 204 K1 manufactures the collision first, and plant iii proves the
 re-keyed pins still catch a real duplicate. Re-review of 0174 running. Pending: FIFTEEN.
 
+**13:02 — 0174 re-review: APPROVE, 0 findings** (`docs/reviews/2026-09-15-fixwave3-reattack-verdict.md`).
+**The review chain on the pending set is CLOSED:** deploy-gate REJECT/10 → 6 fixed + 4 dispositioned →
+re-attack REJECT/2 → both fixed → wave-2 REJECT/1 → fixed (0174) → APPROVE/0. Every actionable finding
+has a reviewed fix on trunk. Still open by disposition, none of them code: HIGH #3 trace provenance
+(Sean's option in the queue; 0168 widens a pre-existing class by ≤480 m), HIGH #2's production
+recheck that the ops roster is non-empty (before the card flag), HIGH #1 refuted. The deploy of the
+FIFTEEN is Sean's call — recommendation ⓐ deploy.
+
 **Production is still 0156. Pending on trunk: FIFTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.

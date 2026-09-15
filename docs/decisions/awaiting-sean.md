@@ -1502,9 +1502,11 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    HIGH #2 half-fix CLOSED as scoped; wave 2 landed and was re-reviewed at 12:34: the roster regression is CLOSED; the reconciliation arm
    (0173) is correct but shares a NULL `payment_id` group key with arm seven — 0174 fixed the invariant's
    key (`3dcae46`, harness 1229/0; its own re-review is running). Pending is FIFTEEN (0157–0162,
-   0166–0174), all gates green (harness 1229/0, npm 989/0, deno 292/0). See `docs/reviews/2026-09-15-fixwave-reattack-verdict.md`. Your options: ⓐ **wait for the fix wave + re-attack, then
-   deploy** (recommended) · ⓑ deploy now (the three standing HIGHs are unreachable with money OFF)
-   · ⓒ hold 0168/0169 only (provenance) and deploy the rest. **Provenance (#3), separately:** ⓐ
+   0166–0174), all gates green (harness 1229/0, npm 989/0, deno 292/0). See `docs/reviews/2026-09-15-fixwave-reattack-verdict.md`. **13:02 — the review chain is CLOSED (0174 re-review APPROVE/0; every actionable finding has a
+   reviewed fix on trunk).** Your options: ⓐ **deploy the fifteen now** (recommended — the only open
+   HIGHs are provenance, your separate option below, and a production roster recheck that matters
+   only when the card flag flips) · ⓒ hold 0168/0169 (provenance) and deploy the rest · ⓓ hold
+   everything. Say a letter and I run the one `db push` with read-back and probes. **Provenance (#3), separately:** ⓐ
    accept ≤480 m post-tap exposure until a server-attested trace exists · ⓑ shrink the drain to 30 s
    · ⓒ refuse any point after the tap (under-pays every runner by one upload interval). ⚠ 0168 is a LIVE
    MONEY path change (two-phase stop) with PROVISIONAL constants (90 s drain, 1-min sweep) — if you
