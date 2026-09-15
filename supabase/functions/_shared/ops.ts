@@ -92,9 +92,15 @@ const RECONCILIATION_ARM: Partial<Record<OpsEventClass, string>> = {
   charge_dispatch_stale: "stale_dispatched",
   payment_manual_cancel: "orphan_capture",
   incident_waive_pending: "incident_waive_pending",
-  // settled_without_payment has NO arm: `sweep_settled_without_payments` mints the missing row
-  // rather than leaving one to reconcile, so a firing here means the MINT failed. The evidence
-  // is the sweep's own `raise notice` in the postgres log, not a payments row.
+  // [0173] settled_without_payment NOW HAS AN ARM, and this line is the fix rather than a tidy-up.
+  // It used to read 「no arm: the sweep mints the missing row rather than leaving one to
+  // reconcile」 — true of the rows the sweep CAN price, and false of exactly the rows this event
+  // fires for. A firing means the mint failed; `sweep_settled_without_payments` then SKIPS that
+  // booking with a bare `raise notice` (0116:100/112/125) and, before 0173, nothing an operator
+  // could query named it at all — so this copy sent them to the server log for a row the
+  // reconciliation query could have shown them. 0173's eighth arm is bookings-anchored on
+  // `runs.settled_at` and carries the skip reason, so the operator now has somewhere to look.
+  settled_without_payment: "settled_without_payment",
   // enroute_comp_failed / late_comp_failed carry bespoke copy above and never reach here.
 };
 

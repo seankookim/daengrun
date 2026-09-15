@@ -247,18 +247,56 @@ Deno.test("a class with no bespoke copy still says WHICH class it is", async () 
 // ⑩'s shipped defect in miniature — an alert whose remedy cannot deliver, so the operator finds
 // nothing and closes the queue item. Reverting `generic()` to interpolate the class reddens this.
 Deno.test("generic ops copy names a real reconciliation arm (or says there isn't one)", async () => {
-  const ARMS = ["orphan_capture", "stale_pending", "stale_dispatched", "ladder_exhausted", "incident_waive_pending"];
-  for (const cls of ["charge_ladder_exhausted", "charge_dispatch_stale", "incident_waive_pending"] as const) {
+  // [0173] `settled_without_payment` JOINS this list, and the two assertions that used to sit
+  // below the loop â "must not point at the query", "must point at the log instead" â are GONE
+  // rather than relaxed. They pinned a true fact about the old world: `payments_reconciliation()`
+  // had no arm for this class, so the copy correctly sent the operator to the postgres log. 0173
+  // adds the eighth arm, bookings-anchored on `runs.settled_at`, which is now where an operator
+  // should look, so leaving those assertions would make this suite red for a TRUE reason. This is
+  // the "a suite whose pinned behaviour legitimately changes moves in the same slice" rule; the
+  // new property is owned by the test directly below.
+  const ARMS = [
+    "orphan_capture",
+    "stale_pending",
+    "stale_dispatched",
+    "ladder_exhausted",
+    "incident_waive_pending",
+    "settled_without_payment",
+  ];
+  for (
+    const cls of [
+      "charge_ladder_exhausted",
+      "charge_dispatch_stale",
+      "incident_waive_pending",
+      "settled_without_payment",
+    ] as const
+  ) {
     const db = scene([{ profile_id: MONEY_OPS, event_class: cls, active: true }]);
     await notifyOps(db as never, cls, { refId: BOOKING });
     const body = String(notes(db)[0].body);
     const named = ARMS.filter((a) => body.includes(a));
     assert(named.length === 1, `${cls}: body must name exactly one real arm, named ${JSON.stringify(named)} — ${body}`);
   }
-  // No arm exists for this one; the copy must not send the operator to the query at all.
+});
+
+// [0173] The class that used to have no arm now has one, and this test keeps the two halves of
+// that change from drifting apart: `ops.ts`'s `RECONCILIATION_ARM` map is a SECOND copy of a fact
+// whose first copy is 0173's SQL. Delete the map entry and the copy silently reverts to
+// "조정 질의에는 남지 않는 이벤트" — sending an operator to the server log for a booking the
+// reconciliation query can now show them, so they close the queue item having found nothing,
+// which is ⑩'s shipped defect and the reason this file exists. The SQL half is pinned by suite
+// 203 `0173-A1`…`A5`; source and runtime are different artifacts and neither is evidence for the
+// other.
+Deno.test("[0173] settled_without_payment routes to the reconciliation query, not the log", async () => {
   const db = scene([{ profile_id: MONEY_OPS, event_class: "settled_without_payment", active: true }]);
   await notifyOps(db as never, "settled_without_payment", { refId: BOOKING });
   const body = String(notes(db)[0].body);
-  assert(!body.includes("payments_reconciliation"), `settled_without_payment must not point at the query: ${body}`);
-  assert(body.includes("로그"), `settled_without_payment must point at the log instead: ${body}`);
+  assert(
+    body.includes("payments_reconciliation") && body.includes("settled_without_payment"),
+    `the copy must name the query AND the arm: ${body}`,
+  );
+  // and it still carries no financial detail — having an arm does not relax the redaction rule
+  for (const secret of [BOOKING, "24900", "dr_order_1"]) {
+    assert(!body.includes(secret), `settled_without_payment copy leaked ${secret}: ${body}`);
+  }
 });
