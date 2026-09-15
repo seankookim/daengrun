@@ -99,7 +99,15 @@ booking the sweep cannot price is skipped with `raise notice` and `payments_reco
 seven arms) has no `settled_without_payment` arm — silent revenue loss once payments open. Both in a
 second fix wave now (client + 0173/203).
 
-**Production is still 0156. Pending on trunk: THIRTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
+**12:34 — WAVE 2 LANDED (`e78f678` R1 roster fix, npm 989/0 · `f180d10` 0173 reconciliation arm, harness
+1225/0, deno 292/0) and RE-REVIEWED: R1 CLOSED; R2 WRONG** (`docs/reviews/2026-09-15-fixwave2-reattack-verdict.md`)
+— arms seven and eight of `payments_reconciliation()` both emit `payment_id = NULL`, and the group-by
+invariant pinned by 116 C11 / 120 J4 groups all NULLs together, exactly as 0118:1382-1385 warned; the 0173
+agent had named it 「green because disjoint in this fixture chain」. Fix as 0174 (correct-forward): the
+invariant's grouping key becomes arm-aware (`coalesce(payment_id, booking_id)` per arm), 116/120 pins
+updated in the same slice per the suite-update law. Pending on production: FOURTEEN → will be FIFTEEN.
+
+**Production is still 0156. Pending on trunk: FOURTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
 **I did not deploy** (your call, and the harness classifier refused an unattended deploy job).
@@ -223,7 +231,7 @@ CONTRACT pin caught the unmapped `run_stopping` raise; mapped at `34bd905`, deno
 gate for every migration (protocol updated).
 
 **Pending on production is now ELEVEN (0170 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171 0172** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171 0172 0173** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.

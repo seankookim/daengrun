@@ -1491,17 +1491,18 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0172 (ONE `db push`).** Production is 0156; trunk carries thirteen
-   pending migrations, all gates green here (harness 1220/0, npm 986/0, deno 291/0).
+1. **Deploy 0157–0162 + 0166–0173 (ONE `db push`).** Production is 0156; trunk carries fourteen
+   pending migrations, all gates green here (harness 1225/0, npm 989/0, deno 292/0).
    **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Of the
    HIGHs: **#1 is REFUTED** (measured — `sweep_settled_without_payments` already re-mints; 0172 pins
    that its cron is registered), **#2's DELETE half is FIXED** (`bf47df7`; its roster-empty half is
    a production recheck before the card flag), one HIGH is the trace-provenance class (#3) that 0168
    widens by ≤480 m; the rest (one HIGH client bug, four MEDIUM, one LOW) were FIXED overnight (`6a03ab6`,
    `44e2e9c`; 0171 joins the pending set → TWELVE) — but the re-attack ran at 12:04: **REJECT/2** — five fixes CLOSED, HIGH #1 refutation ACCEPTED,
-   HIGH #2 half-fix CLOSED as scoped; two MEDIUMs remain (a cross-session roster regression from
-   fix #9, and the ops-invisible unpriceable-settlement residual) and are being fixed as wave 2, then
-   re-reviewed. See `docs/reviews/2026-09-15-fixwave-reattack-verdict.md`. Your options: ⓐ **wait for the fix wave + re-attack, then
+   HIGH #2 half-fix CLOSED as scoped; wave 2 landed and was re-reviewed at 12:34: the roster regression is CLOSED; the reconciliation arm
+   (0173) is correct but shares a NULL `payment_id` group key with arm seven — 0174 fixes the invariant's
+   key (wave 3, in flight). Pending is FOURTEEN (0157–0162, 0166–0173), all gates green (harness 1225/0,
+   npm 989/0, deno 292/0). See `docs/reviews/2026-09-15-fixwave-reattack-verdict.md`. Your options: ⓐ **wait for the fix wave + re-attack, then
    deploy** (recommended) · ⓑ deploy now (the three standing HIGHs are unreachable with money OFF)
    · ⓒ hold 0168/0169 only (provenance) and deploy the rest. **Provenance (#3), separately:** ⓐ
    accept ≤480 m post-tap exposure until a server-attested trace exists · ⓑ shrink the drain to 30 s
