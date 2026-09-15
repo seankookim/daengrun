@@ -413,8 +413,15 @@ begin
         then v_bad := v_bad || ' 경과 시간=' || coalesce(v_age::text,'∅') || ' (검토 시작 기준 약 3시간)'; end if;
 
       -- five arms, still disjoint, measured across the whole query (116 C11's idiom)
+      -- ⚠ RE-KEYED onto `row_key` by 0174, for the reason written at 116 C11's copy of this idiom
+      -- and in 0174's header: grouping by `payment_id` flattens every NULL into one group, so the
+      -- two bookings-anchored arms (`club_fee_unminted`, `settled_without_payment`) made two
+      -- CORRECT rows on two different bookings read as one row claimed twice. `row_key` is a
+      -- SUBJECT identity, never NULL, and equal to `payment_id::text` on every arm this pin's own
+      -- fixture touches — so what J4 asserts is unchanged here, only the key is. 0174 owns the new
+      -- property; 204 `0174-K1…K4` are its pins.
       select count(*) into v_n from (
-        select payment_id from payments_reconciliation() group by payment_id having count(*) > 1
+        select row_key from payments_reconciliation() group by row_key having count(*) > 1
       ) d;
       if v_n <> 0 then v_bad := v_bad || ' 두 팔에 동시 등장하는 행 ' || v_n || '개'; end if;
 

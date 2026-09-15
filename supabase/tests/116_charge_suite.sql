@@ -659,8 +659,21 @@ begin
 
     -- DISJOINT, measured across the whole query rather than per fixture: an ops board that lists
     -- one row under two names is a board people stop reading.
+    -- ⚠ RE-KEYED onto `row_key` by 0174 (suite-update law — the pinned behaviour legitimately
+    -- moved, and leaving the old key would make this pin red for a TRUE reason). WHY: this line
+    -- grouped by `payment_id`, and `0118:1372-1376` warned that a second NULL-emitting arm would
+    -- break it — SQL groups every NULL into ONE group, so two CORRECT rows from the
+    -- bookings-anchored arms (seven `club_fee_unminted`, eight `settled_without_payment`), on two
+    -- DIFFERENT bookings, read here as 「one row in two arms」. That is a false duplicate, in the
+    -- worst direction for an ops board. 0174 is the owner of the new property: `row_key` is a
+    -- SUBJECT identity that is never NULL — `payment_id::text` on the payment-bearing arms, so
+    -- what this pin asserts about them is byte-identical to before, and `booking:<id>` on the two
+    -- arms that exist precisely because no payments row does. NOT weakened: the key is
+    -- deliberately not prefixed with the arm name, so a row claimed by two arms still shares one
+    -- key and still reddens this pin (C11's mutation map, 「widen any arm so two arms claim one
+    -- row」 — measured under 0174's battery). 204 `0174-K1…K4` pin the key itself.
     select count(*) into v_n from (
-      select payment_id from payments_reconciliation() group by payment_id having count(*) > 1
+      select row_key from payments_reconciliation() group by row_key having count(*) > 1
     ) d;
     if v_n <> 0 then v_bad := v_bad || ' 두 팔에 동시 등장하는 행 ' || v_n || '개'; end if;
 
