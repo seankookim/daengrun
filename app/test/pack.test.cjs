@@ -621,18 +621,18 @@ t('the clock defaults to the real one — the injected clock is a test seam, not
 
 t('🔴 an empty roster replaces the old one while OPEN and is retained while CLOSED', () => {
   const P1 = [{ profileId: 'p-1', name: '민수', isRunner: false }];
-  const prev = { windowOpen: true, status: 'open', people: P1 };
+  const prev = { sessionId: 's-A', windowOpen: true, status: 'open', people: P1 };
 
   // a non-empty answer always wins — a live roster is never second-guessed
-  const fresh = { windowOpen: true, status: 'open', people: [{ profileId: 'p-2', name: '지은', isRunner: true }] };
+  const fresh = { sessionId: 's-A', windowOpen: true, status: 'open', people: [{ profileId: 'p-2', name: '지은', isRunner: true }] };
   eq(packRetainRoster(prev, fresh), fresh, 'a non-empty answer must be taken as-is');
 
   // empty WHILE OPEN: everyone left. It clears — retaining would draw people the server denies.
-  const emptyOpen = { windowOpen: true, status: 'open', people: [] };
+  const emptyOpen = { sessionId: 's-A', windowOpen: true, status: 'open', people: [] };
   eq(packRetainRoster(prev, emptyOpen).people.length, 0, 'empty-while-open must clear');
 
   // empty WHILE CLOSED: the state every session ends in. Names are retained…
-  const emptyClosed = { windowOpen: false, status: 'done', people: [] };
+  const emptyClosed = { sessionId: 's-A', windowOpen: false, status: 'done', people: [] };
   const kept = packRetainRoster(prev, emptyClosed);
   eq(kept.people.length, 1, 'empty-while-closed must retain the last non-empty roster');
   eq(kept.people[0].profileId, 'p-1', 'the retained roster must be the previous one');
@@ -643,6 +643,27 @@ t('🔴 an empty roster replaces the old one while OPEN and is retained while CL
   // nothing to retain, and 「no such session」: both pass the new answer through unchanged.
   eq(packRetainRoster(null, emptyClosed).people.length, 0, 'no previous roster is nothing to keep');
   eq(packRetainRoster(prev, null), null, 'a null answer is a fact, not a flaky poll');
+});
+
+// PROPERTY, stated without reference to the mutation that reddens it: retention is bounded by the
+// SESSION as well as by the window. `/club/map/[sid]` is one route, so A → B reuses the screen and
+// `prev` can belong to a session the new answer has nothing to do with. Retaining there would
+// caption B's map with A's people — the exact contamination the first version of this helper
+// introduced (re-attack R1).
+t('🔴 a closed, empty roster from ANOTHER session keeps nothing from the previous one', () => {
+  const prevA = {
+    sessionId: 's-A',
+    windowOpen: true,
+    status: 'open',
+    people: [{ profileId: 'p-1', name: '민수', isRunner: false }],
+  };
+  // B is closed and empty — the one shape that triggers retention within a session.
+  const closedB = { sessionId: 's-B', windowOpen: false, status: 'done', people: [] };
+
+  const out = packRetainRoster(prevA, closedB);
+  eq(out, closedB, "another session's answer must be passed straight through, unchanged");
+  eq(out.people.length, 0, "A's people must not ride across into B");
+  eq(out.sessionId, 's-B', 'the answer on screen must be the session that was asked for');
 });
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

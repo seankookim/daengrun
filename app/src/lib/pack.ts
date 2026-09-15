@@ -353,16 +353,29 @@ export function packRosterIndex(people: ReadonlyArray<PackRosterEntry>): {
  * `null` (「no such session」) is passed straight through: the session cannot un-exist, so that is a
  * new fact and not a flaky poll. A refresh FAILURE never reaches here — the screen's `.catch`
  * already keeps the last good roster.
+ *
+ * 🔴 RETENTION IS SCOPED TO ONE SESSION (re-attack R1, 2026-09-15). The rule above is about time
+ * — the roster this session had a moment ago — and the first version expressed it as 「whatever
+ * `prev` happens to hold」, which is a different thing the instant `prev` belongs to ANOTHER
+ * session. `/club/map/[sid]` is one route: navigating A → B reuses the mounted screen, so a
+ * closed-and-empty B would have inherited A's people and captioned B's map with A's identities.
+ * `sessionId` is the discriminator and it is already on every answer, so the guard costs one
+ * comparison: retain only when `prev` and `next` are the SAME session. The screen's own sid reset
+ * is the other half and neither makes the other unnecessary — this one holds for any caller, that
+ * one also clears peers and the camera, which this function has no view of.
  */
-export function packRetainRoster<R extends { windowOpen: boolean; people: ReadonlyArray<unknown> }>(
+export function packRetainRoster<
+  R extends { sessionId: string; windowOpen: boolean; people: ReadonlyArray<unknown> },
+>(
   prev: R | null,
   next: R | null,
 ): R | null {
   if (next == null) return null;
   if (next.people.length > 0) return next;
   if (next.windowOpen === true) return next;
-  const keep = prev?.people;
-  if (keep == null || keep.length === 0) return next;
+  if (prev == null || prev.sessionId !== next.sessionId) return next;
+  const keep = prev.people;
+  if (keep.length === 0) return next;
   return { ...next, people: keep };
 }
 

@@ -129,6 +129,15 @@ export default function ClubPackMap() {
   const [load, setLoad] = useState<Load>('loading');
   const [link, setLink] = useState<LiveLinkState>('connecting');
   const [peers, setPeers] = useState<Map<string, PackPeer>>(() => new Map());
+  // The camera is taken on the FIRST frame that has one and then HELD, so an incoming position
+  // does not yank the view out from under a finger mid-pan.
+  // ⚠ State, not a ref. A ref written and read in the same render works only by luck of ordering,
+  // and `react-hooks/refs` flags every read — the value genuinely IS needed for rendering, which
+  // is the definition of state.
+  // ⚠ Declared HERE, beside the other sid-owned state, rather than beside the effect that fills it:
+  // the sid reset below must be able to clear it, and that reset has to be declared ahead of the
+  // subscription (see its comment). Its deriving effect is unchanged, further down.
+  const [camera, setCamera] = useState<PackCamera | null>(null);
   // 🔴 `now` IS THE SERVER'S CLOCK, NOT THE DEVICE'S. Every `at` on this map is stamped by the
   // database (0160), so a phone that is 20 s slow reads every payload as future-skewed,
   // `parsePackPos` refuses the lot, and the screen says 「아직 아무도 달리고 있지 않아요」 over a
@@ -241,6 +250,37 @@ export default function ClubPackMap() {
   const offsetRef = useRef(0);
   useEffect(() => { offsetRef.current = offsetMs; }, [offsetMs]);
 
+  // 🔴 A CHANGED `sid` EMPTIES EVERY SESSION-OWNED THING ON THIS SCREEN (re-attack R1, 2026-09-15).
+  // `/club/map/[sid]` is ONE route: navigating A → B reuses this mounted component, so without this
+  // the screen kept A's roster, A's peer positions and A's camera while the masthead already said B
+  // — and `packRetainRoster` would then hand A's people to a closed-and-empty B as 「the last
+  // non-empty roster」. The run screen has needed exactly this since codex r2-F3 (run/[sid].tsx:147);
+  // this is the same pattern on the map.
+  //
+  // What is cleared, and why each one is session-owned:
+  //   · `roster`   — A's identities; the only thing that captions a marker.
+  //   · `peers`    — A's positions, still inside PACK_FRESH_MS, so they would DRAW.
+  //   · `camera`   — framed on A's markers; held for the life of the screen once taken.
+  //   · `detail`   — A's session, and `packIdentity(detail)` is what `usePackShare(B)` publishes.
+  //   · `link`     — A's channel state; `subscribePack` replays the true one for B immediately
+  //                  below, which is exactly why this reset must be declared BEFORE it.
+  //   · `allowedRef` — the gate `mergePeer` reads. It otherwise trails `roster` by one render.
+  // NOT cleared, deliberately: `offsetMs`/`now` are the DEVICE-vs-DATABASE clock offset, which is a
+  // fact about the two clocks and not about a session — zeroing it would re-introduce the skew the
+  // map was just corrected for. `loadGen`/`rosterGen` are monotonic staleness guards and must not
+  // rewind. `rosterLoad`/`load` are already re-set by their own loaders on the same change.
+  //
+  // ⚠ Declared ahead of the subscription effect on purpose: effects run in declaration order, so
+  // this body has emptied the table before `subscribePack(B)` can hand anything to `mergePeer`.
+  useEffect(() => {
+    setRoster(null);
+    setPeers(new Map());
+    setCamera(null);
+    setDetail(null);
+    setLink('connecting');
+    allowedRef.current = new Set<string>();
+  }, [sessionId]);
+
   // Subscribe ALWAYS: reads are public by Sean's ruling, so this runs whether or not the local user
   // is running, checked in, or a member at all. The channel is PRIVATE at the transport (production
   // refuses a public join) and ref-counted per topic inside `subscribePack`.
@@ -280,12 +320,6 @@ export default function ClubPackMap() {
   // as well as at the merge — the screen must not re-admit what the gate refused.
   const markers = useMemo(() => packMarkers(shown, rosterById), [shown, rosterById]);
 
-  // The camera is taken on the FIRST frame that has one and then HELD, so an incoming position
-  // does not yank the view out from under a finger mid-pan.
-  // ⚠ State, not a ref. A ref written and read in the same render works only by luck of ordering,
-  // and `react-hooks/refs` flags every read — the value genuinely IS needed for rendering, which
-  // is the definition of state.
-  const [camera, setCamera] = useState<PackCamera | null>(null);
   useEffect(() => {
     if (camera !== null) return;
     const c = packCamera(markers);
