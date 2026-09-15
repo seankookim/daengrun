@@ -107,7 +107,17 @@ agent had named it 「green because disjoint in this fixture chain」. Fix as 01
 invariant's grouping key becomes arm-aware (`coalesce(payment_id, booking_id)` per arm), 116/120 pins
 updated in the same slice per the suite-update law. Pending on production: FOURTEEN → will be FIFTEEN.
 
-**Production is still 0156. Pending on trunk: FOURTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
+**13:1x — 0174 LANDED (`3dcae46`):** `payments_reconciliation()` gains a ninth column `row_key`
+(`payment_id::text` for arms one–six, `'booking:'||booking_id` for seven and eight — a SUBJECT key,
+deliberately not arm-prefixed because that would defeat C11's duplicate detection; measured by plant ii);
+the function is DROPPED and recreated (a `returns table` cannot widen in place — measured on a scratch
+cluster, exactly as 0173's header ⑥ predicted), ACL restated; C11/J4 moved to group by `row_key`, same
+assertion, same counts (chg 25, goc 10). Harness **1229/0** (+4), deno 292/0. ⚠ Recorded honestly: the
+old C11/J4 could not see this defect and cannot demonstrate the fix (no fixture reaches two NULL rows at
+their point in the chain) — suite 204 K1 manufactures the collision first, and plant iii proves the
+re-keyed pins still catch a real duplicate. Re-review of 0174 running. Pending: FIFTEEN.
+
+**Production is still 0156. Pending on trunk: FIFTEEN** — 0157 0158 0159 0160 0161 0162 0166 0167
 0168 0169 0170. The 06:41 codex review (diff-scoped, sol high) writes its verdict into
 `docs/reviews/2026-09-15-deploy-gate-verdict.md` and item 1 of `docs/decisions/awaiting-sean.md`.
 **I did not deploy** (your call, and the harness classifier refused an unattended deploy job).
@@ -137,7 +147,7 @@ the landing chain is now `&&`-strict through the read-back).
 | | |
 |---|---|
 | Trunk | `069459b` — B1 (`b4bba36`+`9d874a2`, from rescue c105151) · 0157 (`ff6222d`, merge of rescue fba55f4) · 0158 (`df23718`, merge of rescue a5aa94a) · protocol docs (`069459b`) |
-| SQL harness | **1217 / 0** at 0171's landing (1213 at 0170's (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
+| SQL harness | **1229 / 0** at 0174's landing (1217 at 0171's (1213 at 0170's (1205 at 0169's (1201 at 0168's (1193 at `aa72341` (1188 at `bc7d59d` (1180 at `bb21ccd`, 1177 at `df23718`) — deltas 1135 → 1154 (+19, suites 191/192) → 1163 (+9, suite 188) → 1177 (+14, suite 189): each delta equals the pins added, so each suite demonstrably RAN |
 | App tests | exit 0, **983 `^PASS` / 0 `^FAIL`** (+38 ✅ lines from run-geo) at `5bcc4dc`+ (980 at `df23718`); trunk before B1 was 822 |
 | tsc · check-rpc-contracts · check-route-native-imports · check-definer-acl · check-device-clock | all exit 0 at `df23718` |
 | Deno edge tests | **291 / 0** at bf47df7 (288 at the fix wave (287 at 0170 (277 at 0157 (`deno test --allow-all --node-modules-dir=auto _test` from `supabase/functions`) |
@@ -231,7 +241,7 @@ CONTRACT pin caught the unmapped `run_stopping` raise; mapped at `34bd905`, deno
 gate for every migration (protocol updated).
 
 **Pending on production is now ELEVEN (0170 joins):
-0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171 0172 0173** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
+0157 0158 0159 0160 0161 0162 0166 0167 0168 0169 0170 0171 0172 0173 0174** (0167 = codex 0154 #3 CRITICAL closed: `_club_phone_visible`
 and `incident_contact` consult `phone_collection_live()`; `aa72341`, harness 1193/0, +5; four shipped
 pins in 67/124/130 re-fixtured with the switch armed — ⚠ 0165 (Sean's session) redefines
 `club_session_roster`, which calls this helper: after both land, read the gate back from the DB).** 0154 #1–#4 remain Sean's; 0154 stays a REJECT until then.
