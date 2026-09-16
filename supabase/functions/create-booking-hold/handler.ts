@@ -65,11 +65,20 @@
 // (0111:369-376) has inserted straight at `matching`/`runner_pending` since 0026. C.1 does not
 // invent a shape — it makes this function CONSISTENT with the one the product already had.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { caller, HttpError, PRICING } from "../_shared/ctx.ts";
+// [backend audit 2026-09-17 · L1] `internalError` keeps raw Postgres text out of the response
+// body at the eight 500s below. The text still reaches the server log, where it was always the
+// only audience that could use it; a constraint name in a Korean alert helps nobody and
+// describes our schema to anyone who asks for it.
+import { caller, HttpError, internalError, PRICING } from "../_shared/ctx.ts";
 
 export async function createBookingHold(req: Request, db: SupabaseClient) {
   const uid = await caller(req, db);
-  const b = await req.json();
+  // A malformed or absent body is the CALLER's mistake, so it must not wear our 500 (backend audit
+  // 2026-09-17 · M1). Unguarded, `req.json()` threw a SyntaxError straight past this function into
+  // `handle()`'s catch-all and answered `500 internal` — a sentence that says our server broke when
+  // nothing did, and one that sends the caller retrying a request that can never succeed. Same
+  // guarded-parse idiom as `collect-charges/handler.ts:79` and `register-billing-key/handler.ts:295`.
+  const b = await req.json().catch(() => { throw new HttpError(400, "bad_body"); }) ?? {};
 
   // ── [0111] the body may not nominate a runner — REFUSED, not stripped ────────────────────────
   // Refused at the validation head, before any DB work, so this can never pass by accident through
@@ -137,7 +146,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   if (b.route_id) {
     const { data: route, error: rtErr } = await db.from("routes")
       .select("id, status").eq("id", b.route_id).maybeSingle();
-    if (rtErr) throw new HttpError(500, rtErr.message);
+    if (rtErr) throw internalError(rtErr, "route_read");
     if (!route) throw new HttpError(400, "unknown route");
     routeStatus = route.status;
 
@@ -176,7 +185,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   // a money gate that fails open is not a gate. (Deploy order therefore matters — 0080 lands
   // before this function does.)
   const { data: locked, error: lockErr } = await db.rpc("owner_has_unsettled_charge", { p_owner: uid });
-  if (lockErr) throw new HttpError(500, lockErr.message);
+  if (lockErr) throw internalError(lockErr, "debt_lock");
   if (locked) {
     throw new HttpError(
       409,
@@ -190,7 +199,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   // The key itself is never read — only its existence. (billing_keys is server-only, RLS-sealed.)
   const { data: card, error: cardErr } = await db.from("billing_keys")
     .select("profile_id").eq("profile_id", uid).maybeSingle();
-  if (cardErr) throw new HttpError(500, cardErr.message);
+  if (cardErr) throw internalError(cardErr, "card_read");
   const paidPath: "card" | "widget" = card ? "card" : "widget";
 
   // ── [O-5 §C.1] the cutover flag — asked HERE, beside the billing key, before any write ────────
@@ -209,7 +218,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   // standing there — the same shape as 0111's R5 finding on `slot_holds`. Nothing in this slice
   // changes that, and nothing in this slice may claim credit for it.
   const { data: flags, error: fErr } = await db.from("ops_flags").select("payments_live_since").maybeSingle();
-  if (fErr) throw new HttpError(500, fErr.message);
+  if (fErr) throw internalError(fErr, "flag_read");
   const chargingLive = !!flags?.payments_live_since;
 
   // ── [O-5 §C.3] post-flip, a card-less owner is REFUSED — never silently held ──────────────────
@@ -266,7 +275,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     .eq("dog_id", b.dog_id).in("status", LIVE)
     .gte("scheduled_at", new Date(start.getTime() - 6 * 3600_000).toISOString())
     .lte("scheduled_at", new Date(end.getTime() + 6 * 3600_000).toISOString());
-  if (nearErr) throw new HttpError(500, nearErr.message);
+  if (nearErr) throw internalError(nearErr, "clash_read");
   const clash = (near ?? []).some((c) => {
     const cs = new Date(c.scheduled_at).getTime();
     const ce = cs + (Number(c.km) * 8 + 25) * 60_000; // 동일 실소요 공식
@@ -307,11 +316,11 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     route_status_at_booking: routeStatus,
     route_chips: b.route_chips ?? {},
   }).select("id").single();
-  if (bErr) throw new HttpError(500, bErr.message);
+  if (bErr) throw internalError(bErr, "booking_insert");
 
   for (const s of ["quoted", "payment_hold"]) {
     const { error } = await db.from("bookings").update({ status: s }).eq("id", booking.id);
-    if (error) throw new HttpError(500, error.message);
+    if (error) throw internalError(error, "booking_status");
   }
 
   const expires = new Date(Date.now() + 5 * 60_000);
@@ -320,7 +329,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     starts_at: start.toISOString(), ends_at: end.toISOString(),
     expires_at: expires.toISOString(), booking_id: booking.id,
   });
-  if (hErr) throw new HttpError(500, hErr.message);
+  if (hErr) throw internalError(hErr, "hold_insert");
 
   // What the row IS when we return. Derived from what actually happened below, never asserted:
   // if the CAS is skipped the answer is the truth (`payment_hold`), and the client is told so

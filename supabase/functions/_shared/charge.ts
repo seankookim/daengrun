@@ -425,8 +425,17 @@ async function settleOk(
         const { error: dErr } = await db.from("payments")
           .update({ raw: mergedRaw, updated_at: now.toISOString() }).eq("id", row.id);
         if (dErr) console.error(`[charge] double-capture marker failed payment=${row.id}: ${dErr.message}`);
+        // [backend audit 2026-09-17 · L2] The log carries only the LAST 6 characters of each key.
+        // A Toss `paymentKey` is a refund handle: whoever holds it can cancel that payment, so a
+        // full pair in a log line is two live credentials sitting in whatever reads our logs. The
+        // full pair is already durable in `raw.double_capture` (written immediately above), which is
+        // where the operator performing the refund gets it — behind the database's own access
+        // control. Six characters is enough to match a log line to that row and to tell the two
+        // keys apart, which is all this line is for.
         console.error(
-          `[charge] DOUBLE CAPTURE payment=${row.id} order=${row.order_id} recorded=${fresh.payment_key} ours=${paymentKey} — one of these needs a refund`,
+          `[charge] DOUBLE CAPTURE payment=${row.id} order=${row.order_id} ` +
+            `recorded=…${String(fresh.payment_key).slice(-6)} ours=…${String(paymentKey).slice(-6)} ` +
+            `— one of these needs a refund; the full keys are in raw.double_capture on this row`,
         );
         return {
           ...base,

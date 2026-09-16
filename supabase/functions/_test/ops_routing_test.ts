@@ -199,6 +199,10 @@ Deno.test("no recipient is ever told a financial detail, however the event was r
     "payment_manual_cancel",
     "enroute_comp_failed",
     "charge_ladder_exhausted", // no bespoke copy → the generic line, held to the same rule
+    // [backend audit 2026-09-17 · M8] The new class joins the sweep rather than getting its own
+    // test: the rule it must obey is this one, and a bespoke copy written in a hurry beside a money
+    // path is exactly where an order number would get interpolated "so the operator can act".
+    "payment_marker_lost",
   ];
   for (const cls of classes) {
     for (const routed of [true, false]) {

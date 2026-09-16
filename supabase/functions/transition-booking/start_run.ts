@@ -30,8 +30,16 @@ import { HttpError } from "../_shared/ctx.ts";
 
 // deno-lint-ignore no-explicit-any
 type Booking = Record<string, any>;
-/** index.ts's `notify` helper, passed in so the copy and the insert stay in one place. */
-type Notify = (profileId: string, title: string, body: string) => PromiseLike<unknown>;
+/** index.ts's `notify` helper, passed in so the copy and the insert stay in one place.
+ *
+ *  [backend audit 2026-09-17 · M2] It now RESOLVES TO THE INSERT'S ERROR (or null). The helper has
+ *  already logged it — `[transition-booking] notify failed booking=… title="…"` — so a lost
+ *  notification is never silent, and nothing here needs a second copy of that log line. The value
+ *  is returned so a call site in this file can branch on a lost notification if it ever must;
+ *  today none does, deliberately: notification failure is non-fatal by construction on these
+ *  paths (`_shared/charge.ts:491-493` states the reason), and throwing would report a transition
+ *  that genuinely committed as a 500. */
+type Notify = (profileId: string, title: string, body: string) => PromiseLike<{ message: string } | null>;
 
 export async function startRun(
   db: SupabaseClient,

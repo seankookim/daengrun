@@ -65,7 +65,12 @@ type Collection =
 
 export async function settleRun(req: Request, db: SupabaseClient) {
   const uid = await caller(req, db);
-  const p = await req.json();
+  // A malformed or absent body is the CALLER's mistake, so it must not wear our 500 (backend audit
+  // 2026-09-17 · M1). Unguarded, `req.json()` threw a SyntaxError straight past this function into
+  // `handle()`'s catch-all and answered `500 internal` — a sentence that says our server broke when
+  // nothing did, and one that sends the caller retrying a request that can never succeed. Same
+  // guarded-parse idiom as `collect-charges/handler.ts:79` and `register-billing-key/handler.ts:295`.
+  const p = await req.json().catch(() => { throw new HttpError(400, "bad_body"); }) ?? {};
   if (!p.booking_id || !p.end_reason || p.actual_km == null) throw new HttpError(400, "missing fields");
 
   const { data: bk } = await db.from("bookings").select("*").eq("id", p.booking_id).single();

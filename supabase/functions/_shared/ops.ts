@@ -41,7 +41,14 @@ export type OpsEventClass =
   | "settled_without_payment"
   | "enroute_comp_failed"
   | "late_comp_failed"
-  | "incident_waive_pending";
+  | "incident_waive_pending"
+  // [backend audit 2026-09-17 · M8] Distinct from `payment_manual_cancel` on purpose, and the
+  // difference is WHERE THE OPERATOR SHOULD LOOK. `payment_manual_cancel` means "an uncancelled
+  // capture exists and `payments_reconciliation()` can show it to you"; this means the write that
+  // would have made it showable did not land, so the query has nothing and the server log is the
+  // only record. Routing both to one class would send an operator to a query that answers "no rows"
+  // for the worse of the two events — ⑩'s shipped defect, which is what this file exists to prevent.
+  | "payment_marker_lost";
 
 interface OpsCopy {
   title: string;
@@ -68,6 +75,11 @@ const COPY: Partial<Record<OpsEventClass, OpsCopy>> = {
   // 'owner_cancel_enroute'), so an operator told to re-run the en-route function against a
   // LATE-tier booking runs a no-op, the alert reads as handled, and the runner is never paid.
   // A remedy that refuses by design is worse than no remedy: it closes the queue item.
+  payment_marker_lost: {
+    title: "결제 취소 실패 기록이 남지 않았어요 — 즉시 확인 필요",
+    body:
+      "자동 취소에 실패한 결제가 있는데 표식 쓰기까지 실패해서 조정 질의에는 나타나지 않아요 — 서버 로그에서 needs_manual_cancel MARKER LOST 를 찾아 주문을 확인해주세요",
+  },
   late_comp_failed: {
     title: "취소 보상 기록 실패 (24시간 이내 취소) — 수동 확인 필요",
     body:
@@ -101,7 +113,9 @@ const RECONCILIATION_ARM: Partial<Record<OpsEventClass, string>> = {
   // reconciliation query could have shown them. 0173's eighth arm is bookings-anchored on
   // `runs.settled_at` and carries the skip reason, so the operator now has somewhere to look.
   settled_without_payment: "settled_without_payment",
-  // enroute_comp_failed / late_comp_failed carry bespoke copy above and never reach here.
+  // enroute_comp_failed / late_comp_failed / payment_marker_lost carry bespoke copy above and never
+  // reach here. payment_marker_lost deliberately has NO arm: the whole event is that the row the
+  // reconciliation query keys on was never written, so naming an arm would be the lie ⑩ warns about.
 };
 
 function generic(eventClass: OpsEventClass): OpsCopy {

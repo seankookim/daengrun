@@ -148,10 +148,21 @@ export async function deleteAccount(req: Request, db: SupabaseClient): Promise<u
   // 6. ONLY HERE is `auth_deleted` written (F15). The transaction in step 3 committed before this
   //    call was even attempted, so a value it wrote would have been a claim about the future.
   if (logId) {
-    await db.from("account_deletions").update({
+    const { error: logErr } = await db.from("account_deletions").update({
       auth_deleted: !authError,
       storage_removed: storageRemoved,
     }).eq("id", logId);
+    // [backend audit 2026-09-17 · M8] Non-fatal by design — the account IS deleted and an audit row
+    // that failed to update must not turn that into a 500 the user reads as "deletion failed". But
+    // this row is the ONLY durable statement of whether the credential actually went and how much
+    // storage went with it (5.1.1(v) evidence), and an unbound error left it silently stale: the row
+    // would read `auth_deleted: null` forever and nobody could tell that from "never reached".
+    if (logErr) {
+      console.error(
+        `delete-account: audit row update failed log=${logId} auth_deleted=${!authError} ` +
+          `storage_removed=${storageRemoved}: ${logErr.message}`,
+      );
+    }
   }
 
   if (authError) {

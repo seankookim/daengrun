@@ -36,7 +36,43 @@ export async function caller(req: Request, db: SupabaseClient): Promise<string> 
 }
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  /**
+   * `code` is set ONLY by `internalError()` below. It rides beside a stable `error` token so a 500
+   * can be told apart from another 500 in a log or a support thread without the body ever carrying
+   * the underlying database sentence.
+   */
+  constructor(public status: number, message: string, public code?: string) { super(message); }
+}
+
+/**
+ * A 500 whose body says nothing about the database (backend audit 2026-09-17 · L1).
+ *
+ * The sites this replaces did `throw new HttpError(500, pgErr.message)`, which put raw Postgres
+ * text — column names, constraint names, occasionally a row's own values — into a Korean app's
+ * alert box. The operator needs that text; the customer cannot act on it and should never see it.
+ * So the full message goes to the server log (where an operator already reads every other failure
+ * on these paths) and the caller gets `{ error: "internal", code }`.
+ *
+ * ⚠ `error` is deliberately the SAME token `handle()`'s catch-all already returns for an
+ * unhandled throw, so this introduces no new vocabulary to the client: `api.ts`'s `fnError`
+ * surfaces `data.error` verbatim and has always been able to receive `internal`. `code` is the
+ * only new field, it is additive, and no client reads it today — it exists so two different 500s
+ * in one function are distinguishable in a log line and in a bug report.
+ *
+ * ⚠ This is for 500s ONLY. A 4xx whose text a client keys copy on (`confirm_required`,
+ * `auth_delete_pending`, the delete-account state tokens, settle-run's Korean raise map) must
+ * never be routed through here — those tokens ARE the contract.
+ */
+export function internalError(e: unknown, code: string): HttpError {
+  // A PostgrestError is a plain object, not an Error — read both shapes rather than printing
+  // `[object Object]` into the one place the cause was supposed to survive.
+  const msg = e instanceof Error
+    ? e.message
+    : (e && typeof e === "object" && "message" in e)
+    ? String((e as { message: unknown }).message)
+    : String(e);
+  console.error(`[internal:${code}] ${msg}`);
+  return new HttpError(500, "internal", code);
 }
 
 export function handle(fn: (req: Request) => Promise<unknown>) {
@@ -45,7 +81,12 @@ export function handle(fn: (req: Request) => Promise<unknown>) {
       const body = await fn(req);
       return Response.json(body ?? { ok: true });
     } catch (e) {
-      if (e instanceof HttpError) return Response.json({ error: e.message }, { status: e.status });
+      if (e instanceof HttpError) {
+        return Response.json(
+          e.code ? { error: e.message, code: e.code } : { error: e.message },
+          { status: e.status },
+        );
+      }
       console.error(e);
       return Response.json({ error: "internal" }, { status: 500 });
     }
