@@ -223,6 +223,22 @@ const fmtMonthDay = (iso: string): string | null => {
   return Number.isNaN(t) ? null : kstMonthDay(kstCal(t));
 };
 
+// [honesty 2026-09-17 · loading-state-audit #17] One shape for every secondary section on this
+// screen whose read can fail. It sits in the section rhythm the rest of the screen uses (full
+// bleed, paddingHorizontal 12, hairline底) so a failure occupies the slot the section would have,
+// rather than floating. The SCREEN-level failure at the top keeps its boxed PaperBtn — that one is
+// the whole screen and deserves the bigger door; these are one section each.
+function SectionFail({ text, onRetry, a11y }: { text: string; onRetry: () => void; a11y: string }) {
+  return (
+    <View style={s.secFail}>
+      <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>{text}</Text>
+      <Pressable onPress={onRetry} style={s.secFailRetry} accessibilityRole="button" accessibilityLabel={a11y}>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function Report() {
   const insets = useSafeAreaInsets();
   // 디스플레이 서체 — 화면에 **한 번**. [2026-08-19] 그 한 번은 이제 헤더 크롬이 아니라 러닝
@@ -269,30 +285,58 @@ export default function Report() {
   const [profileGaps, setProfileGaps] = useState<ProfileGap[] | null>(null);
   // Extracted into a callback so the failure state's 다시 시도 has something real to call —
   // a retry button wired to nothing is a dead button.
+  // [honesty 2026-09-17 · loading-state-audit #17] The three secondary reads below each ended in
+  // `.catch(() => {})` with a comment defending the SILENCE — 「섹션은 조용히 없는 채로 남는다」,
+  // 「known을 세우지 않는다(=모름)」. Every one of those comments is right about what the screen must
+  // not ASSERT and wrong about what it must not SAY. Withholding a claim is necessary; staying
+  // quiet about the withholding is the silent-catch→happy-UI shape the honesty law forbids, because
+  // 「이 러닝엔 배지가 없다 / 적립이 없다 / 후기를 아직 안 남겼다」 and 「못 읽었다」 arrive as the
+  // same picture. Each read keeps its existing gate (nothing is fabricated) and gains a flag whose
+  // only job is to put a sentence where the section would have been.
+  // ⚠ The two celebration pops (:300-306) deliberately get NO flag — see their own note below.
+  const [standingsErr, setStandingsErr] = useState(false);
+  const [earningErr, setEarningErr] = useState(false);
+  const [reviewErr, setReviewErr] = useState(false);
   const load = useCallback(() => {
     // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
     // same remedy — leave. Never a retry that would run the same early return again.
     if (!bid) { setNotFound(true); return; }
     setErr(false);
     setNotFound(false);
+    setStandingsErr(false);
+    setEarningErr(false);
+    setReviewErr(false);
     fetchRunReportOrNull(bid)
       .then((r) => { if (r) setReport(r); else setNotFound(true); })
       .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); setErr(true); });
-    fetchRunStandings(bid).then(setStandings).catch(() => {});
-    // 실패 시 loaded 를 세우지 않는다 — 섹션은 조용히 없는 채로 남는다 (거짓 0 금지)
+    // 실패해도 직전 실값은 지우지 않는다 — 세터는 성공에서만 돈다.
+    fetchRunStandings(bid).then(setStandings)
+      .catch((e) => { console.warn('[o-report] standings:', e?.message ?? e); setStandingsErr(true); });
+    // 실패 시 loaded 를 세우지 않는다 — 섹션은 그리지 않되, 아래 스트립이 왜 없는지 말한다 (거짓 0 금지)
     setEarning(null);
     setEarningLoaded(false);
-    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
+    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); })
+      .catch((e) => { console.warn('[o-report] earning:', e?.message ?? e); setEarningErr(true); });
     // 내가 이 러닝에 남긴 후기 — 없으면 null(=사실), 못 읽으면 known을 세우지 않는다(=모름).
     setMyReview(null);
     setMyReviewKnown(false);
-    readMyReview(bid).then((r) => { if (r !== undefined) { setMyReview(r); setMyReviewKnown(true); } }).catch(() => {});
+    readMyReview(bid).then((r) => { if (r !== undefined) { setMyReview(r); setMyReviewKnown(true); } })
+      .catch((e) => { console.warn('[o-report] review:', e?.message ?? e); setReviewErr(true); });
   }, [bid]);
   useEffect(() => { load(); }, [load]);
   // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
   // 소비하므로, 재방문 때 둘 다 조용해진다 — 한쪽만 소비된 어정쩡한 상태가 생기지 않는다.
   // 코스가 없는 러닝(routeId null)도 완주 도장은 찍힌다 → 패치 팝만 건너뛴다.
   // 실패는 조용한 부재로: 축하가 못 뜨는 편이 화면이 거짓을 말하는 것보다 낫다 (벽에는 남는다).
+  // [honesty 2026-09-17 · #17] These two reads are the ONE pair in the cluster that keeps its
+  // silence, and deliberately. A pop is not a section: its absence claims nothing — 「아무 일도
+  // 축하하지 않았다」 is not a statement about the run, and every patch and stamp it would have
+  // celebrated is still on the wall (/cards) and in 러닝 순간 스탬프 below. A fail strip here would
+  // be a notice that a CELEBRATION failed, which is noise on a receipt screen, and there is nothing
+  // for the person to do about it. ⚠ Do not "finish the job" by adding one — and do not touch the
+  // once-per-entity gates either: `fetchPatchPop`/`fetchStampPop` consume module-level Sets
+  // (_patchPopSeen / sealStampFresh in api.ts), so an extra call on a retry path would burn the
+  // token and the pop would never play.
   useEffect(() => {
     if (!bid || !report || report.run?.endReason !== 'completed') return;
     const routeId = report.routeId;
@@ -312,11 +356,18 @@ export default function Report() {
   // (api.ts fetchRunStandings). 그래서 새 판정용 읽기를 만들지 않았고, nth 가 1일 때만
   // 빈칸 읽기가 나간다 — 나머지 모든 리포트 진입에서는 요청 자체가 없다.
   // standings 가 못 왔으면(=null) 아무것도 하지 않는다: 첫 러닝인지 **모르는** 상태에서 물을 수 없다.
+  // [honesty 2026-09-17 · #17] 「실패 = null 유지 = 블록 없음」 — and a complete profile is ALSO
+  // 블록 없음. The nudge slot now says which one it is, and the retry re-runs this read alone.
+  const [gapsErr, setGapsErr] = useState(false);
+  const loadGaps = useCallback(() => {
+    setGapsErr(false);
+    fetchProfileGaps().then(setProfileGaps)
+      .catch((e) => { console.warn('[o-report] gaps:', e?.message ?? e); setGapsErr(true); });
+  }, []);
   useEffect(() => {
     if (standings?.nth !== 1) return;
-    fetchProfileGaps().then(setProfileGaps)
-      .catch((e) => console.warn('[o-report] gaps:', e?.message ?? e)); // 실패 = null 유지 = 블록 없음
-  }, [standings]);
+    loadGaps();
+  }, [standings, loadGaps]);
 
   // 인증샷은 전용 스튜디오(/shot/[bid])로 — 리포트 상단 인라인 카드 은퇴 (2026-07-28)
   const shotAuto = useRef(false);
@@ -367,11 +418,19 @@ export default function Report() {
   //   null = not answered yet (or the check failed) — the panel falls back to the timeless copy
   //   rather than promise a time we could not verify. Unknown is not yes.
   const [slotOk, setSlotOk] = useState<boolean | null>(null);
+  // [honesty 2026-09-17 · #17] `slotOk === null` was carrying two facts at once — 「아직 안 물어봤다」
+  // and 「물어봤는데 못 읽었다」 — and both landed on the same panel copy as 「러너가 그 시간에 안
+  // 된다」 (slotOk === false). The panel's fallback is correct and STAYS (unknown is not yes, and
+  // the timeless copy is true in every case); what it could not do is tell the person that the
+  // named-time offer is missing because a check failed rather than because the runner is busy.
+  const [slotErr, setSlotErr] = useState(false);
+  const [slotNonce, setSlotNonce] = useState(0);
   const candIso = nextWeekCand?.iso ?? null;
   const runnerId = report?.runnerProfileId ?? null;
   const plannedKm = report?.plannedKm ?? null;
   useEffect(() => {
     setSlotOk(null);
+    setSlotErr(false);
     if (!candIso || !runnerId || plannedKm == null) return;
     let alive = true;
     // Same duration the hold will ask for (request.tsx slotAllowed: km × 8 + 25 min buffer) —
@@ -379,9 +438,12 @@ export default function Report() {
     const end = new Date(Date.parse(candIso) + (plannedKm * 8 + 25) * 60_000).toISOString();
     checkSlot(runnerId, candIso, end)
       .then((ok) => { if (alive) setSlotOk(ok); })
-      .catch(() => { if (alive) setSlotOk(null); }); // failure stays unknown, never a yes
+      .catch((e) => { // failure stays unknown, never a yes — and now it also SAYS so
+        console.warn('[o-report] slot:', (e as Error)?.message ?? e);
+        if (alive) { setSlotOk(null); setSlotErr(true); }
+      });
     return () => { alive = false; };
-  }, [candIso, runnerId, plannedKm]);
+  }, [candIso, runnerId, plannedKm, slotNonce]);
 
   // What the panel is allowed to say. No runner → the display rules are the whole contract.
   // A stopped run never names a time: B② demotes 재예약 to a quiet row whose copy is the timeless
@@ -600,6 +662,18 @@ export default function Report() {
               )}
             </View>
 
+            {/* [honesty #17] 순위 읽기 실패 — 배지가 없는 것은 「이 러닝은 기록을 못 세웠다」는
+                뜻이고, 그건 대부분의 러닝에서 참이라 실패가 그 얼굴을 완벽하게 빌려 갔다.
+                ⚠ standings 는 배지만 먹이지 않는다: 아래 프로필 빈칸 넛지가 `standings.nth === 1`
+                일 때만 읽히므로, 이 읽기가 죽으면 그 블록도 통째로 안 나온다. 한 문장이 둘 다 덮는다. */}
+            {standingsErr && (
+              <SectionFail
+                text="이 러닝의 기록 순위를 불러오지 못했어요"
+                onRetry={load}
+                a11y="기록 순위 다시 불러오기"
+              />
+            )}
+
             {/* ══════ ③b 멈춘 이유는 숫자 바로 아래 (lab B②) ══════
                 Under G1 the owner pays for a welfare stop, which makes the owner the auditor of
                 the abort — so the audit material is not allowed to be the last block on a very
@@ -639,6 +713,16 @@ export default function Report() {
                 target_kind)` refuses a second one. Row absent → today's affordance, unchanged:
                 tapping star n opens /owner/review with n pre-selected and the write still happens
                 there behind 후기 등록. */}
+            {/* [honesty #17] 후기 읽기 실패 — 위 주석이 옳게 말한 대로 빈 별을 그리면 「아직 안
+                남겼다」를 주장하게 된다. 그래서 별은 여전히 안 그리고, 대신 못 읽었다고 말한다.
+                (성공했는데 후기가 없으면 myReviewKnown 이 서고 빈 별 어포던스가 그대로 나온다.) */}
+            {report.status === 'completed' && report.runnerProfileId && reviewErr && (
+              <SectionFail
+                text="내가 남긴 후기를 불러오지 못했어요"
+                onRetry={load}
+                a11y="내 후기 다시 불러오기"
+              />
+            )}
             {report.status === 'completed' && report.runnerProfileId && myReviewKnown && (
               myReview ? (
                 <View style={s.writtenReview}>
@@ -764,6 +848,18 @@ export default function Report() {
               </Pressable>
             )}
 
+            {/* [honesty #17] 슬롯 확인 실패 — 위 패널이 시간을 안 부르는 이유가 「러너가 그때 안
+                된다」인지 「확인을 못 했다」인지 갈린다. 패널 자체는 건드리지 않는다(시간 없는 문장은
+                어느 쪽이든 참이다) — 한 줄만 덧붙이고 재시도는 이 확인만 다시 돌린다.
+                멈춘 러닝에는 애초에 시간 제안이 없으므로(nextWeek 강제 null) 그리지 않는다. */}
+            {!stopped && slotErr && (
+              <SectionFail
+                text={`${report.runnerName ? `${report.runnerName} 러너의 ` : ''}다음 주 같은 시간이 비어 있는지 확인하지 못했어요`}
+                onRetry={() => setSlotNonce((n) => n + 1)}
+                a11y="다음 주 같은 시간 다시 확인하기"
+              />
+            )}
+
             {/* ══════ ⑥ 공유 넛지 (RULING #12) — 샷 스튜디오가 넛지의 얼굴 ══════
                 /shot/[bid] is the studio that renders the real card (4 skins) and hands it to the
                 OS share sheet / Instagram Stories / the photo library. The header ↗ stays as the
@@ -821,6 +917,16 @@ export default function Report() {
                 원장 행이 0이면 fetchRunEarning 이 null 을 주고 섹션 자체가 사라진다 —
                 조기 종료 러닝은 서버가 한 줄도 안 쓰므로 '적립 0원'이 아니라 '없는 이야기'다.
                 endReason 게이트는 서버 게이트(v_is_full)의 클라 거울. */}
+            {/* [honesty #17] 적립 읽기 실패 — 「적립 0원이 아니라 없는 이야기」와 「못 읽었다」가
+                같은 빈자리였다. 완주한 러닝에서만 그린다: 조기 종료 러닝은 애초에 원장 행이
+                없으므로 실패해도 그릴 섹션이 없고, 스트립만 서면 그게 새로운 거짓이 된다. */}
+            {earningErr && run.endReason === 'completed' && (
+              <SectionFail
+                text="하이 포인트 적립을 불러오지 못했어요"
+                onRetry={load}
+                a11y="하이 포인트 적립 다시 불러오기"
+              />
+            )}
             {earningLoaded && earning && run.endReason === 'completed' && (
               <View style={s.earnSection}>
                 <Text style={s.earnKicker}>하이 포인트 적립</Text>
@@ -952,6 +1058,15 @@ export default function Report() {
                    그 화면에 있다), 현관 상세 → /owner/addresses(기본 주소의 픽업 메모 편집기).
                    죽은 버튼 없음.
                 ⚠ 코랄은 위의 재예약 패널이 갖는다 — 이 블록은 잉크다 (화면당 코랄 하나). */}
+            {/* [honesty #17] 빈칸 읽기 실패 — 「프로필이 다 채워져 있다」와 같은 빈자리였다.
+                재시도는 이 읽기 하나만 다시 돌린다 (standings 는 이미 답했다). */}
+            {gapsErr && !profileGaps && (
+              <SectionFail
+                text="프로필에서 채울 곳이 있는지 확인하지 못했어요"
+                onRetry={loadGaps}
+                a11y="프로필 빈칸 다시 확인하기"
+              />
+            )}
             {profileGaps && (
               <ProfileGaps
                 gaps={profileGaps}
@@ -1392,5 +1507,12 @@ const s = StyleSheet.create({
   haulCtaText: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head },
   haulHint: { fontSize: 15, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
   emptyBox: { margin: 20, backgroundColor: paper.wash, borderRadius: 0, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: paper.line },
+  // [honesty #17] 섹션 단위 라우드-페일 — s.section과 같은 리듬(풀블리드 · 좌우 12 · 하단 헤어라인)
+  // 위에 criticalWash 바닥. 재시도는 밑줄 텍스트(박스 은퇴 문법), 탭 높이 44.
+  secFail: {
+    backgroundColor: paper.criticalWash, paddingHorizontal: 12, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: paper.line,
+  },
+  secFailRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   emptyText: { fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 },
 });
