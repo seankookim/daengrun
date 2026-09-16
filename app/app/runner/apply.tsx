@@ -636,8 +636,8 @@ export default function Apply() {
                     <Pressable
                       key={sp} onPress={() => toggleSpecialty(sp)}
                       style={[s.chip, on && s.chipOn, full && s.chipFull]}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on, disabled: full }}
                       accessibilityLabel={`전문 분야 ${sp}${on ? ' 선택 해제' : ' 선택'}`}
                     >
                       {/* full = 명시 fill/잉크로 (불투명도 트릭 금지 — F2.1) */}

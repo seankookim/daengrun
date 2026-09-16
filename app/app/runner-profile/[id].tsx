@@ -383,7 +383,7 @@ export default function RunnerProfileScreen() {
                     key={t}
                     onPress={() => setTab(t)}
                     style={[s.tab, activeTab === t && s.tabOn]}
-                    accessibilityRole="button"
+                    accessibilityRole="tab"
                     accessibilityState={{ selected: activeTab === t }}
                   >
                     <Text style={[s.tabTxt, activeTab === t && s.tabTxtOn]}>{t === 'posts' ? '게시물' : '갤러리'}</Text>
