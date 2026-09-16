@@ -124,6 +124,23 @@ function ModH({ title, link, onLink }: { title: string; link?: string; onLink?: 
   );
 }
 
+// ── [honesty 2026-09-17 · loading-state-audit #18] 주변 섹션 한 줄 실패 ──
+// 이 화면에서 가장 조용한 실패 문법이다. 위쪽 두 실패(예약 · 체력)는 이 화면의 **주제**라서
+// paper.critical 잉크와 크리티컬 헤어라인을 쓰고(s.fitFail), 여기 넷은 주변부라서 같은 행 모양에
+// 딤 잉크 + 뉴트럴 헤어라인이다 — 색이 아니라 **위계**로 구분한다. 워시는 쓰지 않는다: 홈은 하루에
+// 스무 번 열리는 화면이고, 네트워크가 흔들리는 아침에 색면 네 개가 홈을 다시 칠하게 두지 않는다.
+// 재시도 잉크만 paper.ink — 누를 것은 읽혀야 한다.
+function QuietFail({ text, onRetry, a11y }: { text: string; onRetry: () => void; a11y: string }) {
+  return (
+    <View style={s.quietFail}>
+      <Text style={s.quietFailTxt}>{text}</Text>
+      <Pressable onPress={onRetry} hitSlop={10} accessibilityRole="button" accessibilityLabel={a11y}>
+        <Text style={s.quietFailRetry}>다시 시도</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 type GoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
 
 export default function OwnerHome() {
@@ -242,25 +259,65 @@ export default function OwnerHome() {
         if (bkAgain.current) { bkAgain.current = false; run(); }
       });
   }, []);
+  // [honesty 2026-09-17 · loading-state-audit #18] Five reads here were console-only, and a console
+  // line is not a product surface. Each one's section simply did not render, which on this screen
+  // means 「이번 주 순간이 없어요 / 동네 리그가 아직 안 열렸어요 / 대기 중인 러너가 없어요 /
+  // 포인트가 없어요」 — four statements the screen was not entitled to make. Each ambient read now
+  // owns a flag and a ONE-LINE strip at the section's slot.
+  // ⚠ The strips are deliberately the quietest failure grammar in the app: canvas ground (never a
+  // wash — this is the screen a person opens twenty times a day and a coloured band four sections
+  // deep would repaint the whole home on a flaky morning), dim ink, one sentence, ink retry. The
+  // two loud ones above (bookings, fitness) keep paper.critical: they are the screen's subject.
+  // ⚠ Each retry calls its OWN loader, never loadAll — loadAll also fires registerPushToken(),
+  // and a retry tap is not a login event.
+  const [momentsErr, setMomentsErr] = useState(false);
+  const [tickerErr, setTickerErr] = useState(false);
+  const [runnersErr, setRunnersErr] = useState(false);
+  const [beaconErr, setBeaconErr] = useState(false);
+  const loadMoments = useCallback(() => {
+    setMomentsErr(false);
+    fetchRecentMoments().then(setMoments)
+      .catch((e) => { console.warn('[home] moments:', e?.message ?? e); setMomentsErr(true); });
+  }, []);
+  const loadTicker = useCallback(() => {
+    setTickerErr(false);
+    fetchDogBoardDelta().then(setTicker)
+      .catch((e) => { console.warn('[home] ticker:', e?.message ?? e); setTickerErr(true); });
+  }, []);
+  const loadRunners = useCallback(() => {
+    setRunnersErr(false);
+    fetchCertifiedRunners().then(setLocalRunners)
+      .catch((e) => { console.warn('[home] runners:', e?.message ?? e); setRunnersErr(true); });
+  }, []);
+  const loadBeacon = useCallback(() => {
+    // 리워드 비컨 — 독립 체인. 잔액+패치 집계는 ≤1000행 스캔이라 다른 홈 데이터와 Promise.all로
+    // 묶으면 히어로가 이 스캔을 기다린다. 실패해도 홈은 멀쩡해야 하므로 자체 .catch로 끝낸다:
+    // 에러 = loaded 유지 안 함 → 모듈이 안 그려진다 (거짓 0 금지) + 아래 한 줄이 그 이유를 말한다.
+    setBeaconErr(false);
+    fetchRewardBeacon()
+      .then((b) => { setBeacon(b); setBeaconLoaded(true); })
+      .catch((e) => { console.warn('[home] beacon:', e?.message ?? e); setBeaconErr(true); });
+  }, []);
   // 포커스 로드 묶음. 포커스와 **앱 복귀**가 같은 목록을 돌아야 하므로 한 자리에 둔다 —
   // 두 벌로 갈라 두면 한쪽에만 새 로드가 붙는 날 조용히 어긋난다.
   const loadAll = useCallback(() => {
     loadBookings();
     loadFitness();
+    // ⚠ [honesty #18] unread is the ONE read on this screen that stays console-only, and it is not
+    // an oversight. Its whole surface is `{unread > 0 && <View style={s.bellDot} />}` — a dot. A
+    // badge that could not be read is simply NOT DRAWN, which is the honest rendering of 「모른다」:
+    // there is no count to be wrong about and nothing for the person to act on. A strip would be a
+    // sentence about a dot, four times louder than the thing it describes. The bell itself is the
+    // retry — tapping it opens /alerts, which reads the real rows.
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
     fetchMemberMeta().then((m) => { setMemberSince(m.since); setMemberNo(m.no); })
       .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
-    fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
-    fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
+    loadMoments();
+    loadTicker();
     registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
-    fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
-    // 리워드 비컨 — 독립 체인. 잔액+패치 집계는 ≤1000행 스캔이라 다른 홈 데이터와 Promise.all로
-    // 묶으면 히어로가 이 스캔을 기다린다. 실패해도 홈은 멀쩡해야 하므로 자체 .catch로 끝낸다:
-    // 에러 = loaded 유지 안 함 → 모듈 자체가 안 그려진다 (거짓 0 대신 침묵).
-    fetchRewardBeacon()
-      .then((b) => { setBeacon(b); setBeaconLoaded(true); })
-      .catch((e) => console.warn('[home] beacon:', e?.message ?? e));
-  }, [loadBookings, loadFitness]);
+    loadRunners();
+    loadBeacon();
+  }, [loadBookings, loadFitness, loadMoments, loadTicker, loadRunners, loadBeacon]);
 
   // 홈이 포커스를 쥐고 있는가 — 아래 AppState 리스너의 게이트. Expo Router는 이전 화면을 마운트한
   // 채로 두므로 이 화면의 리스너는 유저가 미트업/라이브에 있는 동안에도 살아 있다. 이 ref가 없으면
@@ -604,6 +661,11 @@ export default function OwnerHome() {
             결정(히어로) **위**에 있었다 — 루프 애니메이션 하나가 폴드에서 가장 비싼 자리를 쥐고
             있었던 셈이다. 내용은 원래 동네 데이터이므로 자기 덩어리로 내려온다. 바뀐 것은 자리뿐:
             같은 실집계, 같은 마퀴, 같은 목적지, 빈 주엔 여전히 렌더 안 함, reduceMotion 정지도 그대로. */}
+        {/* [honesty #18] 티커 읽기 실패 — 「빈 주엔 렌더 안 함」이 원래 설계라, 못 읽은 주와
+            아무도 안 뛴 주가 정확히 같은 화면이었다. 한 줄로 갈라 준다. */}
+        {tickerErr && (
+          <QuietFail text="동네 리그를 불러오지 못했어요" onRetry={loadTicker} a11y="동네 리그 다시 불러오기" />
+        )}
         {ticker.length > 0 && (
           <Pressable onPress={() => router.push('/leaderboard')} style={s.rankticker}>
             <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
@@ -658,6 +720,13 @@ export default function OwnerHome() {
               없다 — onboard/runner.tsx 가 같은 사실을 적어 두고 있다). 그래서 지금은 **목록이
               실제로 무엇인지**를 제목으로 말한다: `.eq('online', true)` 로 걸러진 = 지금 대기 중인
               러너. 히어로 버튼의 「n명 대기」와 같은 어휘이고, 같은 수를 센다. */}
+        {/* [honesty #18] 러너 목록 읽기 실패 — 섹션이 통째로 사라지면 「지금 대기 중인 러너가
+            없다」로 읽힌다. 그리고 이 읽기는 섹션 하나가 아니다: 히어로의 「n명 대기」도 같은
+            localRunners 를 센다(:486). 실패하면 그쪽은 null(=모름)로 남아 수를 주장하지 않고,
+            이유는 여기 한 줄이 맡는다. */}
+        {runnersErr && (
+          <QuietFail text="대기 중인 러너를 불러오지 못했어요" onRetry={loadRunners} a11y="대기 중인 러너 다시 불러오기" />
+        )}
         {(localRunners?.length ?? 0) > 0 && (
           <View>
             <ModH title="대기 중인 러너" link="주간 랭킹 ›" onLink={() => router.push('/leaderboard')} />
@@ -714,6 +783,11 @@ export default function OwnerHome() {
         {/* 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos).
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙).
             '전체 ›' 링크는 없다: 목적지 화면이 없는 링크는 데드 버튼이다 (타일이 각자 리포트로 간다). */}
+        {/* [honesty #18] 순간 읽기 실패 — 「사진 0장이면 섹션 자체 숨김」이 위의 규칙이라,
+            실패가 그 규칙 뒤에 숨어 「러너가 아직 사진을 안 담았다」로 읽혔다. */}
+        {momentsErr && (
+          <QuietFail text="최근 순간을 불러오지 못했어요" onRetry={loadMoments} a11y="최근 순간 다시 불러오기" />
+        )}
         {moments.length > 0 && (
           <View>
             <ModH title="최근 순간" />
@@ -769,6 +843,12 @@ export default function OwnerHome() {
 
         {/* 하이 포인트 비컨 — 실 잔액 + 다음 승급 진도. 게이트: 로드 완료 AND (잔액>0 OR 승급 있음).
             둘 다 없는 계정엔 아무것도 안 그린다 (0 포인트를 들이미는 건 죄책감이지 정보가 아니다). */}
+        {/* [honesty #18] 비컨 읽기 실패 — 「둘 다 없는 계정엔 아무것도 안 그린다」와 못 읽은 것이
+            같은 빈자리였다. 잔액을 주장하지 않는 것은 그대로 두고(거짓 0 금지), 왜 비었는지만
+            한 줄로 말한다. */}
+        {beaconErr && !beaconLoaded && (
+          <QuietFail text="하이 포인트를 불러오지 못했어요" onRetry={loadBeacon} a11y="하이 포인트 다시 불러오기" />
+        )}
         {beaconLoaded && beacon && (beacon.balance > 0 || nextGradeName !== null) && (
           <View style={[s.beacon, { backgroundColor: p.card, borderColor: p.line2 }]}>
             <Pressable onPress={() => router.push('/shop')} style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
@@ -983,6 +1063,15 @@ const s = StyleSheet.create({
   },
   fitFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical, flex: 1 },
   fitFailRetry: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // [honesty #18] 주변 섹션 한 줄 실패 — fitFail과 같은 행 치수, 잉크만 딤/뉴트럴 (위계 구분).
+  // 탭 타깃은 hitSlop 10이 책임진다 (fitFail의 재시도와 같은 방식).
+  quietFail: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.line,
+    paddingVertical: 11, paddingHorizontal: layout.gutter,
+  },
+  quietFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.dim, flex: 1 },
+  quietFailRetry: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink, textDecorationLine: 'underline' },
   // 로스터 미니 카드 — 전원 동일 (피처드 나이트 카드 은퇴 2026-08-19).
   // [2026-08-25] 폭 146 → 164: 안의 두 줄(이름 · 「등급 · 동네」)이 14 → 15 로 올라갔고 둘 다
   // numberOfLines={1} 이라, 상자를 그대로 두면 커진 만큼 말줄임이 늘어난다.

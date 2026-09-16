@@ -94,6 +94,13 @@ export default function AddressPin() {
 
   // Center priority chain — runs once per address id. The map is already mounted
   // at BANPO; a better center animates in only if the user hasn't panned yet.
+  // [honesty 2026-09-17 · loading-state-audit #21] The BANPO fallback STAYS — a map has to have a
+  // centre, and :213-223 already names it out loud. What was missing is the door back: the banner
+  // said 「주소를 불러오지 못했어요」 and offered nothing, so a transient network failure ended the
+  // screen. Bumping this nonce re-runs the whole chain (row read → geocode → one-shot GPS), which
+  // is the only thing that could change the answer.
+  const [resolveNonce, setResolveNonce] = useState(0);
+  const retryResolve = () => { setResolving(true); setResolveNonce((n) => n + 1); };
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -129,7 +136,7 @@ export default function AddressPin() {
       }
     })();
     return () => { alive = false; };
-  }, [id]);
+  }, [id, resolveNonce]);
 
   const onCameraChanged = (p: { latitude: number; longitude: number; reason: string }) => {
     centerRef.current = { lat: p.latitude, lng: p.longitude };
@@ -222,6 +229,14 @@ export default function AddressPin() {
             <Text style={s.bannerStatus}>지도를 움직여 픽업 위치에 핀을 맞춰주세요</Text>
           </>
         ) : null}
+        {/* [honesty #21] 주소 행 자체를 못 읽었을 때만 — 여기가 이 화면에서 유일하게 '다시 해볼
+            수 있는' 실패다. bottomed(지오코딩·GPS가 조용히 비운 경우)는 위 두 줄이 이미 기본
+            위치를 이름으로 말하고 있고, 사용자가 할 일은 지도를 움직이는 것이라 문을 겹치지 않는다. */}
+        {!row && !resolving && (
+          <Pressable onPress={retryResolve} style={s.bannerRetry} accessibilityRole="button" accessibilityLabel="주소 다시 불러오기">
+            <Text style={s.bannerRetryTxt}>다시 시도</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* full-bleed map + fixed center crosshair */}
@@ -360,6 +375,10 @@ const s = StyleSheet.create({
   },
   bannerAddr: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.ink },
   bannerStatus: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 4 },
+  // [honesty #21] 배너 안의 재시도 — 이 화면의 failStrip은 CTA 옆 전폭 띠라 배너에는 안 맞는다.
+  // 같은 크리티컬 잉크, 밑줄 텍스트 문법(runner/rewards.tsx retryBtn), 탭 높이 44.
+  bannerRetry: { alignSelf: 'flex-start', marginTop: 6, minHeight: 44, justifyContent: 'center' },
+  bannerRetryTxt: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // crosshair pin — the glyph column is 30pt tall; translate up by half so the
   // bar's bottom tip sits exactly on the camera center.

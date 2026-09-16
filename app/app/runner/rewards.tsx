@@ -50,18 +50,31 @@ export default function Rewards() {
   const [refreshing, setRefreshing] = useState(false);
 
   // [honesty 2026-08-11] drops 실패가 "대기 중인 드랍이 없어요 + N번 더 완주"라는
-  // 지어낸 빈 상태로 굳던 것 — 3상태 분리. miles/claims/rs는 이미 null→'—'/생략 처리라 soft 유지.
+  // 지어낸 빈 상태로 굳던 것 — 3상태 분리.
   const [dropsLoaded, setDropsLoaded] = useState(false);
   const [dropsErr, setDropsErr] = useState(false);
+  // [honesty 2026-09-17 · loading-state-audit #19] The line above used to end 「miles/claims/rs는
+  // 이미 null→'—'/생략 처리라 soft 유지」. '—' and 생략 are honest about the VALUE and say nothing
+  // about the READ: a person looking at '—' cannot tell a slow network from a dead call, and an
+  // absent 교환권 section says 「you own none」 in exactly the voice a failure borrowed. Each of the
+  // three now owns a flag and gets the treatment `drops` has had since 2026-08-11.
+  // ⚠ Setters only run on success, so a failed refresh keeps every last-known row on screen —
+  // the strip says the READ failed, never that the value is 0.
+  const [milesErr, setMilesErr] = useState(false);
+  const [claimsErr, setClaimsErr] = useState(false);
+  const [rsErr, setRsErr] = useState(false);
   const load = () => {
-    setDropsErr(false);
+    setDropsErr(false); setMilesErr(false); setClaimsErr(false); setRsErr(false);
     return Promise.all([
-      fetchMiles().then(setMiles).catch(() => {}),
+      fetchMiles().then(setMiles)
+        .catch((e) => { console.warn('[rewards] miles:', e?.message ?? e); setMilesErr(true); }),
       fetchDrops()
         .then((d) => { setDrops(d); setDropsLoaded(true); })
         .catch((e) => { console.warn('[rewards] drops:', e?.message ?? e); setDropsErr(true); }),
-      fetchGearClaims().then(setClaims).catch(() => {}),
-      fetchMyRunnerStatus().then(setRs).catch(() => {}),
+      fetchGearClaims().then(setClaims)
+        .catch((e) => { console.warn('[rewards] claims:', e?.message ?? e); setClaimsErr(true); }),
+      fetchMyRunnerStatus().then(setRs)
+        .catch((e) => { console.warn('[rewards] status:', e?.message ?? e); setRsErr(true); }),
     ]);
   };
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -120,8 +133,26 @@ export default function Rewards() {
           {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#BBBBBB' }}> 포인트</Text>
         </Text>
         {/* [B①] 잔액 아래는 그 잔액이 어떻게 만들어졌는지 — miles_ledger 실행들.
-            부호는 delta가 진다: shop_spend는 음수이고, '+'를 붙여 그리면 쓴 돈이 번 돈이 된다. */}
-        {recent.length > 0 ? (
+            부호는 delta가 진다: shop_spend는 음수이고, '+'를 붙여 그리면 쓴 돈이 번 돈이 된다.
+            [honesty #19] 네 얼굴이지 하나가 아니다. 적립 규칙 줄은 **정착된** 얼굴이다 —
+            「응답이 왔고 최근 내역이 없다」는 뜻이라, 실패와 대기는 그 줄을 그리면 안 된다.
+            위 잔액의 '—'도 같은 이유로 남는다: 잔액을 모를 때 0을 그리면 거짓말이다.
+            어두운 면 위 잉크는 이 카드의 어휘(tang · volt)를 쓴다 — paper.critical이 아니다.
+            ⚠ 실패 스트립은 내역을 **대체하지 않고 그 위에 선다**. 직전에 받아둔 내역은 여전히
+            참이고(세터는 성공에서만 돈다), 재조회가 실패했다고 화면에서 지워 버리면 실패가
+            데이터를 먹는다. 아래 「최근 10건까지 보여요」 캡션이 내역과 같은 게이트를 쓰는 이유도
+            이것이다 — 스트립이 내역을 가리면 그 캡션만 홀로 남는다. */}
+        {milesErr && (
+          <View style={s.milesLedger}>
+            <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: colors.tang }}>하이 포인트를 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="하이 포인트 다시 불러오기">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.volt, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {milesErr && recent.length === 0 ? null : miles == null ? (
+          <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>불러오는 중...</Text>
+        ) : recent.length > 0 ? (
           <View style={s.milesLedger}>
             {recent.map((m, i) => (
               <Row key={`${m.when}-${m.reason}-${i}`} style={s.mileRow}>
@@ -186,6 +217,18 @@ export default function Rewards() {
               픽 드랍은 부스트 · 5,000 포인트 · 기어 중 하나를 직접 골라요
             </Text>
           )}
+          {/* [honesty #19] rs 실패 — 위 게이트(rs != null)는 숫자를 지어내지 않는 데까지만 정직했고,
+              「다음 드랍 안내가 원래 없는 화면」과 구분되지 않았다. 못 읽었다고 말하고 문을 연다. */}
+          {rsErr && (
+            <>
+              <Text style={{ fontSize: 15, color: paper.critical, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>
+                다음 드랍까지 남은 완주 수를 불러오지 못했어요
+              </Text>
+              <Pressable onPress={load} style={[s.retryBtn, { alignSelf: 'center' }]} accessibilityRole="button" accessibilityLabel="완주 기록 다시 불러오기">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       )}
       {unopened.map((d) => (
@@ -227,12 +270,25 @@ export default function Rewards() {
         </View>
       ))}
 
-      {/* 기어 교환권 */}
-      {claims.length > 0 && (
+      {/* 기어 교환권
+          [honesty #19] 섹션이 통째로 사라지면 「가진 교환권이 없다」로 읽힌다 — 실패면 제목까지
+          세워야 그 자리가 원래 무엇이었는지 알 수 있다. 제목은 두 경우가 **하나로** 쓴다:
+          갱신이 실패했는데 직전 목록이 남아 있으면 제목이 두 번 서기 때문이다. 스트립은 목록을
+          대체하지 않고 그 위에 선다 — 직전에 받아둔 교환권은 여전히 참이다. */}
+      {(claimsErr || claims.length > 0) && (
         <>
           <Row style={s.secWrap}>
             <Text style={s.secTitle}>기어 교환권</Text>
           </Row>
+          {claimsErr && (
+            <View style={s.failStrip}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>교환권을 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="기어 교환권 다시 불러오기">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+              </Pressable>
+            </View>
+          )}
+          {claims.length > 0 && (
           <View style={s.card}>
             {claims.map((g, i) => (
               <View key={g.id}>
@@ -255,6 +311,7 @@ export default function Rewards() {
               </View>
             ))}
           </View>
+          )}
         </>
       )}
 

@@ -136,8 +136,22 @@ export default function ClubPage() {
   // [홈 = 루트] 내 진행 스레드 감지 — 보드 한 번으로 세 역할 전부 (dogs.isMine=보호자 위탁 · me.committed=러너 · isHost)
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   // [honesty 2026-08-11] overview 로드 실패가 무지 셸(빈 마스트헤드)로 침묵하던 것 —
-  // 실패는 스트립으로 말하고 재시도 문을 연다. 서브 집계(myStats 등)는 장식이라 soft 유지.
+  // 실패는 스트립으로 말하고 재시도 문을 연다.
   const [clubErr, setClubErr] = useState(false);
+  // [honesty 2026-09-17 · loading-state-audit #16] The line above used to end 「서브 집계(myStats
+  // 등)는 장식이라 soft 유지」 and the four sub-reads at :152-155 were bare `.catch(() => {})`.
+  // 「장식」 was wrong twice over. (a) `board` is not decoration at all — it decides which CORAL
+  // DOOR the ticket draws: with it the door says 내 위탁 and routes into the running thread,
+  // without it the door says 위탁하기, so a failed read tells a 보호자 whose dog is already
+  // delegated that they have delegated nothing. Same for 참여 중 vs 함께 뛰기 (`iRun`).
+  // (b) Even for the genuinely secondary sections, an absent section and a failed read are the
+  // same picture, and the person cannot tell 「there is nothing」 from 「we could not load it」.
+  // One flag per read, one strip per SECTION (the two stats reads feed one section ⑥, so they
+  // share a strip whose copy names which of them failed).
+  const [myStatsErr, setMyStatsErr] = useState(false);
+  const [hostStatsErr, setHostStatsErr] = useState(false);
+  const [seriesErr, setSeriesErr] = useState(false);
+  const [boardErr, setBoardErr] = useState(false);
   // [감사 H3 2026-08-11] fetchClubOverview는 '로딩 중'과 '이 동네에 클럽이 없다'를 **똑같이 null**로
   // 돌려준다. 그래서 마스트헤드가 두 경우 모두 하이클럽 / DISTRICT — / HOST 모집 중을 그렸다 —
   // 없는 클럽의 이름과 '모집 중'이라는 진행 상태를 지어낸 것이다 (정직 법: 로딩 ≠ 빈 값 ≠ 실패).
@@ -145,15 +159,31 @@ export default function ClubPage() {
   const [clubLoaded, setClubLoaded] = useState(false);
   const load = () => {
     setClubErr(false);
+    setMyStatsErr(false); setHostStatsErr(false); setSeriesErr(false); setBoardErr(false);
     return fetchClubOverview().then((c) => {
       setClub(c);
       setClubLoaded(true);
       if (c && c.status === 'active') {
-        fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
-        fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
-        fetchClubSeries(c.id).then(setSeries).catch(() => {}); // ⟳ 정기 시리즈 (0035)
-        if (c.nextSession) fetchDelegationBoard(c.nextSession.id).then(setBoard).catch(() => setBoard(null));
-        else setBoard(null);
+        // Last-known rows stay on screen beside each strip — the setters only run on success, so a
+        // failed refresh never erases a section that did arrive once.
+        fetchClubMyStats(c.id).then(setMyStats)
+          .catch((e) => { console.warn('[club] myStats:', (e as Error)?.message ?? e); setMyStatsErr(true); });
+        fetchClubHostStats(c.id).then(setHostStats)
+          .catch((e) => { console.warn('[club] hostStats:', (e as Error)?.message ?? e); setHostStatsErr(true); });
+        fetchClubSeries(c.id).then(setSeries) // ⟳ 정기 시리즈 (0035)
+          .catch((e) => { console.warn('[club] series:', (e as Error)?.message ?? e); setSeriesErr(true); });
+        if (c.nextSession) {
+          const sid = c.nextSession.id;
+          fetchDelegationBoard(sid).then(setBoard).catch((e) => {
+            console.warn('[club] board:', (e as Error)?.message ?? e);
+            setBoardErr(true);
+            // ⚠ The one place a last-known value is DROPPED, and deliberately: a board belongs to
+            // ONE session. Keeping it across a session change would draw the previous session's
+            // dogs on this session's ticket — a fabricated claim about the person's own state,
+            // which is worse than the strip's 「모르겠다」. Same session ⇒ keep what we had.
+            setBoard((prev) => (prev && prev.session.id === sid ? prev : null));
+          });
+        } else setBoard(null);
       }
     }).catch(() => setClubErr(true));
   };
@@ -640,6 +670,18 @@ export default function ClubPage() {
                   </>
                 }
               />
+              {/* [honesty #16] 위탁 보드 읽기 실패 — 위 두 문이 그리는 「위탁하기 / 함께 뛰기」는
+                  **내가 아직 아무것도 안 했다**는 주장이다. 보드를 못 읽었으면 그 주장을 할 수
+                  없으므로, 문 바로 아래에서 모른다고 말하고 재시도를 연다. */}
+              {boardErr && (
+                <View style={s.failStrip}>
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>{/* CLUB15 */}내 참여·위탁 상태를 불러오지 못했어요</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: L.text, marginTop: 4 }}>{/* CLUB15 */}위 두 문은 아직 확인되지 않은 상태예요</Text>
+                  <Pressable onPress={load} style={s.failRetry} accessibilityRole="button" accessibilityLabel="내 참여·위탁 상태 다시 불러오기">
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
+                  </Pressable>
+                </View>
+              )}
               {/* 호스트 콘솔 진입 — 홈 = 루트: 운영은 콘솔에서, 문은 여기서 하나로 */}
               {club.isHost && (
                 <Pressable
@@ -659,6 +701,17 @@ export default function ClubPage() {
                 </Text>
               </View>
             )
+          )}
+
+          {/* [honesty #16] 시리즈 읽기 실패 — 리듬 줄이 없는 것과 못 읽은 것은 같은 그림이었다.
+              (정기 세션이 없으면 원래 아무것도 안 그리는 자리라, 실패일 때만 이 줄이 선다.) */}
+          {club?.status === 'active' && seriesErr && (
+            <View style={s.failStrip}>
+              <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>{/* CLUB15 */}정기 세션 정보를 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.failRetry} accessibilityRole="button" accessibilityLabel="정기 세션 정보 다시 불러오기">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
+              </Pressable>
+            </View>
           )}
 
           {/* ---------- ④ ⟳ 정기 시리즈 리듬 — 멤버에겐 리듬 안내, 호스트에겐 해지 ---------- */}
@@ -683,6 +736,22 @@ export default function ClubPage() {
                   <Text style={s.stopLink}>호스트 해지</Text>
                 </Pressable>
               )}
+            </View>
+          )}
+
+          {/* [honesty #16] ⑥ 타일 읽기 실패 — 타일이 없는 것은 「기록이 아직 없다」는 뜻이었고,
+              못 읽었을 때도 똑같이 없었다. 두 읽기가 한 섹션을 먹이므로 스트립은 하나이고,
+              문장이 둘 중 무엇이 실패했는지 말한다. */}
+          {club?.status === 'active' && (myStatsErr || hostStatsErr) && (
+            <View style={s.failStrip}>
+              <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>{/* CLUB15 */}
+                {myStatsErr && hostStatsErr ? '클럽 기록을 불러오지 못했어요'
+                  : myStatsErr ? '내 출석 기록을 불러오지 못했어요'
+                  : '호스트 기록을 불러오지 못했어요'}
+              </Text>
+              <Pressable onPress={load} style={s.failRetry} accessibilityRole="button" accessibilityLabel="클럽 기록 다시 불러오기">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
+              </Pressable>
             </View>
           )}
 

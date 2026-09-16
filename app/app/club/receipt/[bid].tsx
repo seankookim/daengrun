@@ -80,14 +80,25 @@ export default function ClubReceipt() {
     fetchRunReport(bid).then(setReport).catch(() => setReportErr(true));
   }, [bid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  useEffect(() => {
+  // [honesty 2026-09-17 · loading-state-audit #20] The read was `.catch(() => {})` and the block at
+  // :382 「그냥 없는 채로」 — which is the SAME picture as 「이 러닝엔 적립 행이 없다」 (early-stop
+  // runs genuinely get no ledger row). Two different facts, one face. The read now owns a flag.
+  // ⚠ The strip is deliberately OUTSIDE the card: the card is the shared PNG and the law above
+  // (카드 안엔 스켈레톤·스피너 금지) still holds — a failure notice must not be baked into what
+  // the person sends to their friends. Inside the card the line simply stays absent; outside it,
+  // this screen says why and opens the door back.
+  const [earningErr, setEarningErr] = useState(false);
+  const loadEarning = useCallback(() => {
     if (!bid) return;
-    // 정산 원장은 불변이라 포커스마다 다시 읽지 않는다. 실패하면 loaded 를 세우지 않는다 —
-    // 카드 안엔 스켈레톤·스피너를 두지 않는 게 법이라(공유 캡처), 이 줄은 그냥 없는 채로 남는다.
+    // 정산 원장은 불변이라 포커스마다 다시 읽지 않는다.
     setEarning(null);
     setEarningLoaded(false);
-    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
+    setEarningErr(false);
+    fetchRunEarning(bid)
+      .then((e) => { setEarning(e); setEarningLoaded(true); })
+      .catch((e) => { console.warn('[club-receipt] earning:', (e as Error)?.message ?? e); setEarningErr(true); });
   }, [bid]);
+  useEffect(() => { loadEarning(); }, [loadEarning]);
 
   // ---------- ② 실 스탬프 (정본: docs/labs/choreography-lab.html ②) ----------
   // 이 예약의 첫 진입에서만 도장이 내려온다. 재진입(포커스 재로드 포함)은 전부 정지값 — opacity 1 · scale 1 · -8deg.
@@ -400,6 +411,18 @@ export default function ClubReceipt() {
           </View>
         </Animated.View>
 
+        {/* [honesty #20] 적립 읽기 실패 — 카드 밖이라 공유 PNG 에는 들어가지 않는다.
+            카드 안의 침묵이 「적립이 없다」로 읽히지 않게, 여기서 못 읽었다고 말한다. */}
+        {earningErr && (
+          <View style={s.earnFail}>
+            <Text style={s.earnFailHead}>하이 포인트 적립을 불러오지 못했어요</Text>
+            <Text style={s.earnFailBody}>위 카드에 적립 줄이 빠져 있어요 — 적립이 없는 게 아니라 아직 확인을 못 했어요</Text>
+            <Pressable onPress={loadEarning} style={s.earnFailRetry} accessibilityRole="button" accessibilityLabel="하이 포인트 적립 다시 불러오기">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* ---------- 공유 = 성장 루프 (카드 밖 — 캡처에 안 들어간다). [Sean 규칙] 여백 화면 = 큰 버튼 ----------
             [Sean 2026-08-24] "should have the shareable card thing nudge and social media share nudge."
             문 두 개는 이미 있었지만 아무 말도 하지 않았다 — 넛지는 그 문이 무엇을 하는지 누르기
@@ -524,6 +547,18 @@ const s = StyleSheet.create({
   // [BUG A] Oswald 는 lineHeight 명시가 없으면 어센더가 잘린다 — 18 × 1.22
   earnV: { fontSize: 18, lineHeight: 22, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
   earnSub: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 3 },
+  // [honesty #20] 적립 실패 — refuse 카드와 같은 종이 한 장이되, 머리글만 크리티컬 잉크(tang)다.
+  // refuse 는 '사실'이라 크리티컬을 안 쓰지만 이건 실패이므로 반대 결정이 맞다.
+  earnFail: {
+    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
+    padding: 13, marginTop: 16,
+  },
+  earnFailHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.tang },
+  earnFailBody: { fontSize: 15, lineHeight: 20, color: L.text, marginTop: 6 },
+  earnFailRetry: {
+    alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14,
+    borderWidth: 1, borderColor: L.head, borderRadius: lilacRadius.btn, backgroundColor: '#fff',
+  },
   creditName: { fontSize: 15, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 14 },
   credit: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 2 },
   detailLink: { textAlign: 'center', marginTop: 12, fontSize: 15, fontWeight: '800', color: L.accent },
