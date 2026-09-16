@@ -256,7 +256,7 @@ export default function Addresses() {
 
         {adding ? (
           <View style={[s.card, { paddingBottom: 14 }]}>
-            <TextInput value={label} onChangeText={setLabel} placeholder="라벨 (예: 우리집, 서울숲 입구)" placeholderTextColor={paper.faint} style={s.input} maxLength={16} />
+            <TextInput value={label} onChangeText={setLabel} placeholder="라벨 (예: 우리집, 서울숲 입구)" placeholderTextColor={paper.faint} style={s.input} maxLength={16} autoCorrect={false} />
             {/* [A②] 주소 + 확인. 확인은 저장의 전제가 아니다 — 세 갈래 모두 저장은 열려 있다 */}
             <Row style={{ gap: 8, marginTop: 8, alignItems: 'stretch' }}>
               <TextInput
@@ -266,6 +266,8 @@ export default function Addresses() {
                 placeholderTextColor={paper.faint}
                 style={[s.input, { flex: 1 }]}
                 maxLength={60}
+                textContentType="fullStreetAddress"
+                autoComplete="postal-address"
               />
               <Pressable
                 onPress={runVerify}
@@ -303,7 +305,7 @@ export default function Addresses() {
             {verify && verify !== 'checking' && verify.kind === 'unavailable' && (
               <Text style={s.verifyQuiet}>지금은 주소 확인을 할 수 없어요 — 저장 뒤 지도에서 맞춰주세요</Text>
             )}
-            <TextInput value={detail} onChangeText={setDetail} placeholder="상세 (동·호, 만날 지점 메모 — 선택)" placeholderTextColor={paper.faint} style={[s.input, { marginTop: 8 }]} maxLength={60} />
+            <TextInput value={detail} onChangeText={setDetail} placeholder="상세 (동·호, 만날 지점 메모 — 선택)" placeholderTextColor={paper.faint} style={[s.input, { marginTop: 8 }]} maxLength={60} textContentType="streetAddressLine2" autoComplete="postal-address" />
             <Row style={{ gap: 8, marginTop: 12 }}>
               <PaperBtn label="저장" onPress={save} style={{ flex: 1.4 }} />
               <PaperBtn label="취소" variant="secondary" onPress={() => { setAdding(false); setVerify(null); }} style={{ flex: 1 }} />

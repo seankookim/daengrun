@@ -136,6 +136,8 @@ export function PhoneRow() {
               placeholderTextColor={paper.faint}
               keyboardType="phone-pad"
               maxLength={20}
+              textContentType="telephoneNumber"
+              autoComplete="tel"
               autoFocus
               accessibilityLabel="휴대폰 번호 입력"
             />

@@ -151,6 +151,7 @@ export default function DelegateConsentScreen() {
             <Text style={s.pdKey}>비상 연락처 *</Text>
             <TextInput
               value={emergency} onChangeText={setEmergency} keyboardType="phone-pad"
+              textContentType="telephoneNumber" autoComplete="tel"
               placeholder="010-0000-0000" placeholderTextColor="#c9c2b2" style={s.pdInput}
             />
           </View>
@@ -158,6 +159,7 @@ export default function DelegateConsentScreen() {
             <Text style={s.pdKey}>픽업 지정인</Text>
             <TextInput
               value={pickup} onChangeText={setPickup}
+              textContentType="name" autoComplete="name" autoCorrect={false}
               placeholder="본인 (미지정 시)" placeholderTextColor="#c9c2b2" style={s.pdInput}
             />
           </View>

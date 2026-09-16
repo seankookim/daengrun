@@ -106,6 +106,9 @@ export default function OnboardRunner() {
           placeholderTextColor={paper.faint}
           maxLength={20}
           returnKeyType="next"
+          textContentType="name"
+          autoComplete="name"
+          autoCorrect={false}
           accessibilityLabel="러너 이름"
         />
 
@@ -118,6 +121,7 @@ export default function OnboardRunner() {
           placeholderTextColor={paper.faint}
           maxLength={40}
           returnKeyType="done"
+          autoCorrect={false}
           accessibilityLabel="홈 베이스 동네"
         />
         <Text style={s.hint}>주로 뛰는 동네 · 동네 코스를 먼저 보여드려요</Text>

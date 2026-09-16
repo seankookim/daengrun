@@ -857,7 +857,7 @@ export default function ClubPage() {
             ))}
           </ScrollView>
           <TextInput
-            value={meetup} onChangeText={setMeetup}
+            value={meetup} onChangeText={setMeetup} autoCorrect={false}
             placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor={L.dim} style={s.input}
           />
           {/* 코스 — mixed 필수 (요금 기준).

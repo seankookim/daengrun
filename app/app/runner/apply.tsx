@@ -585,7 +585,7 @@ export default function Apply() {
             {page === 1 && (<View>
             <Field label="활동 지역" hint="주로 뛰는 동네를 적어주세요 (예: 성수동)">
               <TextInput
-                value={district} onChangeText={setDistrict} maxLength={40}
+                value={district} onChangeText={setDistrict} maxLength={40} autoCorrect={false}
                 placeholder="성수동" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>
@@ -689,7 +689,7 @@ export default function Apply() {
 
             <Field label="카카오톡 ID" hint="운영자가 여기로 연락드려요">
               <TextInput
-                value={kakao} onChangeText={setKakao} maxLength={60} autoCapitalize="none"
+                value={kakao} onChangeText={setKakao} maxLength={60} autoCapitalize="none" autoCorrect={false}
                 placeholder="kakao_id" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>

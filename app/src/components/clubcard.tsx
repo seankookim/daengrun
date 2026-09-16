@@ -153,7 +153,7 @@ function ClubSearchBar() {
       <View style={s.searchWrap}>
         <Text style={{ fontSize: 19, color: lilac.dim }}>⌕</Text>
         <TextInput
-          value={q} onChangeText={onChange}
+          value={q} onChangeText={onChange} returnKeyType="search" autoCorrect={false}
           placeholder="동네 하이클럽 검색 — 예: 반포동"
           placeholderTextColor={lilac.dim} style={s.searchInput}
         />
