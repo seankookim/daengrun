@@ -1,6 +1,7 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../../src/components/ui';
 import { ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, LoadGate } from '../../../src/components/club-ui';
 import {
@@ -22,6 +23,7 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export default function CaseDetail() {
+  const insets = useSafeAreaInsets();
   const { cid } = useLocalSearchParams<{ cid: string }>();
   const [inc, setInc] = useState<IncidentDetail | null>(null);
   const [denied, setDenied] = useState(false);
@@ -132,7 +134,7 @@ export default function CaseDetail() {
   return (
     <DawnCanvas>
       <ScrollView
-        contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         keyboardShouldPersistTaps="handled"
       >

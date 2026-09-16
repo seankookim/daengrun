@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, useMemo } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Icon, Row } from '../../src/components/ui';
 import {
@@ -125,6 +126,7 @@ const routeLabel = (r: { name: string; km: number }) =>
   KM_TOKEN.test(r.name) ? r.name : `${r.name} ${r.km}km`;
 
 export default function ClubPage() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont();
   const [club, setClub] = useState<ClubOverview | null>(null);
@@ -347,7 +349,7 @@ export default function ClubPage() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
         {/* ---------- ① 초박형 내비 — 클럽명은 아래 마스트헤드가 가진다 ---------- */}
-        <Row style={s.nav}>
+        <Row style={[s.nav, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} hitSlop={8} style={s.navBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 17, color: L.head, marginTop: -2 }}>‹</Text>
           </Pressable>
@@ -942,7 +944,7 @@ export default function ClubPage() {
 
 const s = StyleSheet.create({
   // ① 내비
-  nav: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 54, paddingBottom: 9 },
+  nav: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 9 },
   navBtn: {
     width: 30, height: 30, borderRadius: 7, borderWidth: 1, borderColor: L.hair, backgroundColor: L.card,
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.06,

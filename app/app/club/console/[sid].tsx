@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate, clubText } from '../../../src/components/club-ui';
@@ -93,6 +94,7 @@ const endedLine = (r: PackRunEnded): string =>
     : `${r.dogName} — ${r.km}km 확정`;
 
 export default function HostConsole() {
+  const insets = useSafeAreaInsets();
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [incidents, setIncidents] = useState<ClubIncident[]>([]);
@@ -466,7 +468,7 @@ export default function HostConsole() {
   if (!sess.isHost) {
     return (
       <DawnCanvas>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <ClubMast title="호스트 콘솔 — 백업" sub={`${sess.when ?? ''}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />
           <LilacCard>
@@ -529,7 +531,7 @@ export default function HostConsole() {
     return (
       <DawnCanvas>
         <ScrollView
-          contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+          contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           <ClubMast title="세션 결과" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome}
@@ -567,7 +569,7 @@ export default function HostConsole() {
     <DawnCanvas>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <ClubMast title="호스트 콘솔" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />

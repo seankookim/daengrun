@@ -1,6 +1,7 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../../src/components/ui';
 import { checkinClubSession, ClubSessionDetail, fetchClubSession } from '../../../src/lib/api';
 import { ClubCta, LoadGate } from '../../../src/components/club-ui';
@@ -35,6 +36,7 @@ import { colors, layout, paper } from '../../../src/theme';
 //     name) and the bib count joins the Oswald wave with an explicit lineHeight (BUG A).
 
 export default function ClubPass() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont();
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
@@ -95,7 +97,7 @@ export default function ClubPass() {
 
   return (
     <View style={s.stage}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 58, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 2, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' }}>
         <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
 
         <View style={s.ticket}>

@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { StatusBarCover } from '../src/components/status-bar-cover';
 import { Row } from '../src/components/ui';
@@ -59,6 +60,7 @@ const stampOf = (dateLabel: string): string => {
 };
 
 export default function Alerts() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont(); // Oswald — 시각·소인·카운트 (안내판 문법)
   const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
@@ -111,7 +113,7 @@ export default function Alerts() {
     <View style={{ flex: 1, backgroundColor: lilac.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 56, paddingBottom: 28 }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 28 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* ---------- 글래스 마스트 ---------- */}

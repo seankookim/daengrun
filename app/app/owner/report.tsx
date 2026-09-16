@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { homePath } from '../../src/components/bottomnav';
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
@@ -223,6 +224,7 @@ const fmtMonthDay = (iso: string): string | null => {
 };
 
 export default function Report() {
+  const insets = useSafeAreaInsets();
   // 디스플레이 서체 — 화면에 **한 번**. [2026-08-19] 그 한 번은 이제 헤더 크롬이 아니라 러닝
   // 타이틀이다 (헤더는 request/review와 같은 평 900 잉크로 내렸다). 종전 주석의 '숫자 금지'는
   // 여기서 완화된다: 랩 14a의 타이틀이 '초코, 5.1km 완주'로 숫자를 문장 안에 품고 있고, Sean이
@@ -449,7 +451,7 @@ export default function Report() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: insets.top }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           {/* Chrome title, not the display moment — plain 900 ink, the grammar request.tsx and
               review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}

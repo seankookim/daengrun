@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
 import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
@@ -168,6 +169,7 @@ function Bar({ label, pct, nf }: { label: string; pct: number | null; nf: any })
 }
 
 export default function Matching() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // Black Han Sans — 화면에서 딱 한 번(시트의 러너 이름)
   const nf = useNumFont();     // Oswald — 응답률·러닝·페이스 등 모든 숫자
   // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
@@ -310,7 +312,7 @@ export default function Matching() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* ── ① 헤더 — 로스터/시트와 분리된 고정 크롬 ── */}
-      <View style={s.head}>
+      <View style={[s.head, { paddingTop: insets.top }]}>
         <Row style={{ gap: 10 }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
@@ -648,7 +650,7 @@ export default function Matching() {
 
 const s = StyleSheet.create({
   // ── 헤더 크롬 (페이퍼 리페인트) ──
-  head: { paddingTop: 56, paddingHorizontal: 15, paddingBottom: 11, backgroundColor: paper.canvas },
+  head: { paddingHorizontal: 15, paddingBottom: 11, backgroundColor: paper.canvas },
   // 40×40 스퀘어 백 버튼 — request.tsx circleBtn 문법
   backBtn: {
     width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',

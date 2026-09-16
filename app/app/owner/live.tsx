@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -112,6 +113,7 @@ function StreamSlot({ session }: { session: LiveStreamSession | null }) {
 }
 
 export default function Live() {
+  const insets = useSafeAreaInsets();
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(km)
   // 회전·분할 대응 — Dimensions.get은 구독이 없어 stale (fitness.tsx:74와 같은 이유)
   const { width: winW, height: winH } = useWindowDimensions();
@@ -798,7 +800,7 @@ export default function Live() {
       </Row>
 
       {/* ---------- 하단 아일랜드 카드 (풀블리드 · 샤프 · 1px 코랄 프레임) ---------- */}
-      <View style={s.island} onLayout={(e) => setIslandH(e.nativeEvent.layout.height)}>
+      <View style={[s.island, { paddingBottom: Math.max(insets.bottom, 30) }]} onLayout={(e) => setIslandH(e.nativeEvent.layout.height)}>
         {/* runner row */}
         <Row style={{ gap: 11, alignItems: 'center' }}>
           <Avatar url={null} char={runnerName[0]} bg={paper.ink} size={44} />
@@ -1099,7 +1101,7 @@ const s = StyleSheet.create({
   island: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderColor: paper.line,
-    padding: 18, paddingBottom: 30,
+    padding: 18,
   },
   runnerName: { fontSize: 17, fontWeight: '900', color: paper.ink },
   runnerMeta: { fontSize: 15, color: paper.dim, marginTop: 2 },

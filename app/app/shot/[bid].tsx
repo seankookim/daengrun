@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchRunReportOrNull, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
 import { homePath } from '../../src/components/bottomnav';
@@ -230,6 +231,7 @@ const josaGa = (w: string): string => {
 // 둘 다 여유롭게 통과한다. 하지만 **neon 채움 위 흰 글씨는 2.68:1 로 떨어진다**: volt 는 워낙 밝아
 // 아무 색이나 얹혀도 됐지만 neon 은 아니다. 채움 위 잉크는 반드시 어두운 색을 유지한다.
 export default function ShotStudio() {
+  const insets = useSafeAreaInsets();
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const df = useDisplayFont();
   const nf = useNumFont();
@@ -811,7 +813,7 @@ export default function ShotStudio() {
   return (
     <View style={{ flex: 1, backgroundColor: '#0C130E' }}>
       {/* 헤더 */}
-      <View style={s.head}>
+      <View style={[s.head, { paddingTop: insets.top + 2 }]}>
         {/* ⚠ Guarded, because a bare router.back() is a NO-OP here. This screen is reachable by
             deep link and from a share sheet, both of which can give it a single-entry stack — and
             the root Stack is headerShown:false + gestureEnabled:false, so with a dead ✕ there is
@@ -1081,7 +1083,7 @@ const s = StyleSheet.create({
     backgroundColor: paper.action, borderRadius: 0,
   },
   // [2026-08-12] iTiny/iGiant/iRow 삭제 — 볼트 블록 조판이 RunShareCard로 이사하며 사용처 0이 됐다.
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 58, paddingHorizontal: 16, paddingBottom: 6 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 6 },
   x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
   errBox: { margin: 20, backgroundColor: '#121b14', borderRadius: 16, padding: 24 },
   errTxt: { fontSize: 15, color: '#8fa093', textAlign: 'center' },

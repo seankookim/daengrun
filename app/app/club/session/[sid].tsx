@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
@@ -107,6 +108,7 @@ function DogDot({ name, collar, size = 36 }: { name: string; collar: string | nu
 }
 
 export default function ClubSessionShell() {
+  const insets = useSafeAreaInsets();
   // resumeSd = 카드 연결하러 /payments로 나갔다가 돌아온 보호자의 '하려던 일' (재정 ⑤).
   // 이 값이 있으면 그 위탁의 확정 시트를 다시 열어준다 — 돌아와서 길을 잃지 않는다.
   const { sid, clubName, resumeSd } = useLocalSearchParams<{ sid: string; clubName?: string; resumeSd?: string }>();
@@ -1325,7 +1327,7 @@ export default function ClubSessionShell() {
     <DawnCanvas>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         keyboardShouldPersistTaps="handled"
       >

@@ -2,6 +2,7 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Row } from '../src/components/ui';
 import { boardKmLabel, BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
 import { goBackOrHome } from '../src/lib/nav';
@@ -17,6 +18,7 @@ import { colors, paper } from '../src/theme';
 const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브론즈 파스텔 밴드 — 메달 이모지 은퇴, 밴드 색이 순위를 말한다
 
 export default function Leaderboard() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [tab, setTab] = useState<'dogs' | 'runners'>('dogs');
   const [boards, setBoards] = useState<{ dogs: BoardRow[]; runners: BoardRow[] }>({ dogs: [], runners: [] });
@@ -46,7 +48,7 @@ export default function Leaderboard() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>

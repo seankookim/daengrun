@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { homePath } from '../src/components/bottomnav';
 import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
 import { PaperBtn } from '../src/components/paper-btn';
@@ -68,6 +69,7 @@ const linkedLabel = (iso: string | null): string => {
 type LoadState = 'loading' | 'ready' | 'error';
 
 export default function Payments() {
+  const insets = useSafeAreaInsets();
   const { returnTo, returnLabel } = useLocalSearchParams<{ returnTo?: string; returnLabel?: string }>();
   // null = a return was carried in but it is not an address we can vouch for; the door goes home.
   const backHref = returnTo ? allowedReturn(returnTo) : null;
@@ -136,7 +138,7 @@ export default function Payments() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: paper.canvas }}
-      contentContainerStyle={{ paddingTop: 56, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
     >
       <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
         <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { BookingCharge, fetchBookingCharge, fetchBookingPayments } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
@@ -205,6 +206,7 @@ export interface PayViewProps {
 // 순수 표현 컴포넌트 — 상태는 위에서만 만든다. dev 페이즈 랩(app/dev/pay-lab.tsx)이 이걸 그대로 쓴다
 // (L2: 프로덕션 화면에 __DEV__ 분기를 만들지 않기 위해 뷰를 밖으로 뽑았다).
 export function PayView({ screen, charge, collection, busy, failReason, holdLabel, onReload, onBack }: PayViewProps) {
+  const insets = useSafeAreaInsets();
   const nf = useNumFont(); // 숫자 = Oswald — 이 화면의 단 하나의 타입 점프(총액)
   const dots = useEllipsis(screen === 'authorizing'); // 스피너 연출 금지 — 말줄임표만 움직인다
   // [codex r3-4] rawStatus 법: 표시 어휘(페이즈)가 completed와 취소 가족을 한 칸으로 접었으므로,
@@ -222,7 +224,7 @@ export function PayView({ screen, charge, collection, busy, failReason, holdLabe
 
   return (
     <View style={s.root}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 60, paddingBottom: 28 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 28 }}>
         {/* kicker + 페이즈 칩 — 승인 중에는 뒤로가기 어포던스 자체가 없다 (취소 불가 화면) */}
         <View style={s.headRow}>
           <View style={{ flex: 1 }}>
@@ -429,7 +431,7 @@ export function PayView({ screen, charge, collection, busy, failReason, holdLabe
       {/* ── CTA — 페이즈당 잉크-필 하나 (승인 중에는 아예 없다) ──
           [O-5 §E.5.1] 확정 버튼은 삭제됐다. 이 화면의 모든 액션은 읽기(다시 불러오기)이거나
           다른 화면으로 나가는 문이다 — 예약을 앞으로 미는 버튼은 하나도 없다. */}
-      <View style={s.footer}>
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 34) }]}>
         {screen === 'failed' && (
           <>
             {/* 취소 CTA 없음 (C1) — 0047 전이표상 payment_hold → cancelled_owner는 불허다.
@@ -568,5 +570,5 @@ const s = StyleSheet.create({
   // 푸터 경계도 뉴트럴 — pay-rebuild-lab Ⓒ0의 판정 그대로(「이 아래에 액션이 없기 때문」),
   // 그리고 카운트 룰: 이중 룰이 이미 코랄 2개를 쓴다. critical 스트립(failStrip)은 예산 면제
   // (DESIGN.md §2 — critical 잉크는 라우드 페일의 것, line과 다른 색·다른 역할).
-  footer: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 34, borderTopWidth: 1, borderColor: '#EEEEEE' },
+  footer: { paddingHorizontal: 18, paddingTop: 14, borderTopWidth: 1, borderColor: '#EEEEEE' },
 });

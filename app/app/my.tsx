@@ -3,6 +3,7 @@ import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
@@ -43,6 +44,7 @@ function HoloEdge({ height = 3, opacity = 1 }: { height?: number; opacity?: numb
 // 잉크 법·폭 예산·기울기 정본은 전부 그 파일에 산다. 여기는 소비만.
 
 export default function My() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀 (화면당 1회)
   const nf = useNumFont();     // [V4] Oswald — 숫자·마이크로캡 라벨
   const isRunner = session.role === 'runner';
@@ -204,7 +206,7 @@ export default function My() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <TabSwipe>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: insets.top + 8, paddingBottom: 24 }}>
 
         {/* ————— 마스트헤드 (에디토리얼 키커 + Black Han Sans 타이틀) ————— */}
         <Row style={s.kicker}>

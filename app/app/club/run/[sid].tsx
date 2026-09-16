@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot, LoadGate } from '../../../src/components/club-ui';
 import {
@@ -52,6 +53,7 @@ const END_REASONS = [
 ] as const;
 
 export default function ClubRun() {
+  const insets = useSafeAreaInsets();
   const nf = useNumFont();
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [board, setBoard] = useState<DelegationBoard | null>(null);
@@ -492,7 +494,7 @@ export default function ClubRun() {
 
   return (
     <DawnCanvas>
-      <View style={{ flex: 1, padding: 12, paddingTop: 56 }}>
+      <View style={{ flex: 1, padding: 12, paddingTop: insets.top }}>
         <ClubMast
           title="러닝 중"
           sub={`${active.map((d) => d.dogName).join(' · ')}${clubName ? ` — ${clubName}` : ''}`}

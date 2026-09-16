@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { StatusBarCover } from '../src/components/status-bar-cover';
 import { TabSwipe } from '../src/components/tabswipe';
@@ -113,6 +114,7 @@ function PawBurst({ trigger }: { trigger: number }) {
 }
 
 export default function Community() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont(); // [V4] 스탯 = Oswald
   const [club] = useClubOverview(); // 하이클럽 스트립 (P-A S1)
@@ -270,7 +272,7 @@ export default function Community() {
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={lilac.accent} />}
       >
         {/* ───────── 마스트헤드 ───────── */}

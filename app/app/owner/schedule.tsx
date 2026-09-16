@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
@@ -155,6 +156,7 @@ function agenda(rows: Booking[], now: number = Date.now()): { future: Grp[]; pas
 }
 
 export default function Schedule() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont(); // [V4] 시간 = Oswald // 표준 탭 헤더 — 좌측 BHS 30
 
@@ -477,7 +479,7 @@ export default function Schedule() {
       <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={{ paddingHorizontal: 16 }}>

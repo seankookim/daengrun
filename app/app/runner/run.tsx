@@ -3,6 +3,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
 import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
@@ -122,6 +123,7 @@ const paceWindowPairs = (nowMs: number): { t: number; km: number }[] => {
 };
 
 export default function ActiveRun() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 러닝 시작/종료 CTA
   const [info, setInfo] = useState<MeetupInfo | null>(null);
   // Booking context is the ONLY source of dog name and target distance — the runRequests
@@ -1121,7 +1123,7 @@ export default function ActiveRun() {
           자문은 wash 면 + coral 헤어라인 + 읽는 잉크). meetup·done·review가 이미 쓰는 그 문법이고
           신규 헥스는 0개다. 심각도 체인(coralOwner)도 그대로 — 맨 위 하나만 코랄. */}
       {/* 스크롤 인디케이터는 **끄지 않는다**: 레인이 잘렸다는 사실 자체가 러너가 알아야 할 정보다 */}
-      <ScrollView style={[s.lane, { maxHeight: laneMax }]} contentContainerStyle={s.laneContent}>
+      <ScrollView style={[s.lane, { maxHeight: laneMax }]} contentContainerStyle={[s.laneContent, { paddingTop: insets.top }]}>
         {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지) */}
         {strip && (
           <View style={s.pStrip}>
@@ -1725,7 +1727,7 @@ const s = StyleSheet.create({
   // ── 스트립 레인 (지도 위 종이 지면) ──
   // flexShrink: 스트립이 많으면 레인이 먼저 줄고(내부 스크롤), 지도는 바닥 아래로 내려가지 않는다.
   lane: { flexGrow: 0, flexShrink: 1, backgroundColor: paper.canvas },
-  laneContent: { paddingTop: 56, paddingHorizontal: 16, paddingBottom: 4 },
+  laneContent: { paddingHorizontal: 16, paddingBottom: 4 },
   // 종이 라우드-페일 (F1.2) — criticalWash 면 + critical 1px + critical 잉크. meetup·done·review와
   // 같은 문법이고 신규 헥스 0개. 자문 변형은 wash 면 + 코랄 헤어라인 + 읽는 잉크.
   pStrip: {

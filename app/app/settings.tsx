@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { PhoneRow } from '../src/components/phone-row';
@@ -32,6 +33,7 @@ const lockSuffix = (iso: string | null): string => {
 };
 
 export default function Settings() {
+  const insets = useSafeAreaInsets();
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -77,7 +79,7 @@ export default function Settings() {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingHorizontal: 11, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>설정</Text>

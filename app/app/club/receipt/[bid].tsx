@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../../src/components/ui';
 import { MediaImage, resolveMediaUrl } from '../../../src/lib/media';
 import { ClubCta, ClubMast, DawnCanvas, Flap, LoadGate } from '../../../src/components/club-ui';
@@ -59,6 +60,7 @@ const paceOf = (secPerKm: number): string =>
   `${Math.floor(secPerKm / 60)}'${String(Math.round(secPerKm % 60)).padStart(2, '0')}"`;
 
 export default function ClubReceipt() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const nf = useNumFont();
   const { bid, clubName } = useLocalSearchParams<{ bid: string; clubName?: string }>();
@@ -258,7 +260,7 @@ export default function ClubReceipt() {
 
   return (
     <DawnCanvas>
-      <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 40 }}>
         <ClubMast title="완료" sub={`${report.when}${clubName ? ` · ${clubName}` : ''}`} onBack={goBackOrHome} />
 
         {/* ---------- 영수증 카드 (캡처 대상) ---------- */}

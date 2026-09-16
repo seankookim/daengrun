@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../src/components/ui';
 import { DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, GearClaim, MilesInfo, MyRunnerStatus, openDrop } from '../../src/lib/api';
 import { claimStatusLabel } from '../../src/lib/claim-status';
@@ -38,6 +39,7 @@ import { colors, layout, paper } from '../../src/theme';
 // screen at all — points are not currency and the 2026-08-24 margin rule does not reach here.
 
 export default function Rewards() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — screen title (1/screen budget)
   const nf = useNumFont();     // Oswald — points balance
   const [miles, setMiles] = useState<MilesInfo | null>(null);
@@ -99,7 +101,7 @@ export default function Rewards() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: paper.canvas }}
-      contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 56, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Row style={{ justifyContent: 'space-between' }}>

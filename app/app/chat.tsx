@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { mergeMessageSnapshot } from '../src/lib/chat-messages';
 import { MediaImage } from '../src/lib/media';
@@ -24,6 +25,7 @@ import { colors, paper } from '../src/theme';
 const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디쯤이세요?', '사진 부탁드려요'];
 
 export default function Chat() {
+  const insets = useSafeAreaInsets();
   const { bid } = useLocalSearchParams<{ bid?: string }>();
   const isRunner = session.role === 'runner';
   const [ctx, setCtx] = useState<ChatContext | null>(null);
@@ -289,7 +291,7 @@ export default function Chat() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
-      <Row style={s.header}>
+      <Row style={[s.header, { paddingTop: insets.top }]}>
         <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
@@ -423,7 +425,7 @@ export default function Chat() {
 }
 
 const s = StyleSheet.create({
-  header: { paddingTop: 56, paddingHorizontal: 18, paddingBottom: 12, gap: 10, backgroundColor: colors.cream, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
+  header: { paddingHorizontal: 18, paddingBottom: 12, gap: 10, backgroundColor: colors.cream, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   contextStrip: { backgroundColor: '#eef4e0', paddingVertical: 8, paddingHorizontal: 18 },
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 30 },

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav, homePath } from '../src/components/bottomnav';
 import { PatchBadge, worldOf } from '../src/components/patch';
 import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
@@ -43,6 +44,7 @@ function withA(hex: string, a: number): string {
 }
 
 export default function Cards() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 화면당 1회 — 타이틀 '컬렉션'
   const nf = useNumFont();     // Oswald — 숫자·라틴 키커
 
@@ -67,7 +69,7 @@ export default function Cards() {
 
   return (
     <View style={{ flex: 1, backgroundColor: lilac.bg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 30 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 30 }}>
 
         {/* ————— 마스트헤드 — 부속서 표지 ————— */}
         {/* 뒤로: 여기로 오는 길은 전부 push다(마이 · 오너 홈 비컨 · 러너 홈 · 리포트 오버레이) →

@@ -173,7 +173,7 @@ export default function RunnerBasePin() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <Row style={s.header}>
+      <Row style={[s.header, { paddingTop: insets.top }]}>
         <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
@@ -298,7 +298,7 @@ export default function RunnerBasePin() {
 const PAD = 16;
 
 const s = StyleSheet.create({
-  header: { paddingTop: 56, paddingHorizontal: PAD },
+  header: { paddingHorizontal: PAD },
   circleBtn: {
     width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: paper.line,

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../src/components/ui';
 import { CourseDetailBody, traceKind } from '../../src/components/course-detail';
 import { PaperBtn } from '../../src/components/paper-btn';
@@ -187,6 +188,7 @@ function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<Re
 }
 
 export default function CourseScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const df = useDisplayFont();
   const [route, setRoute] = useState<RouteInfo | null>(null);
@@ -214,7 +216,7 @@ export default function CourseScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isOwner ? 120 : 40 }}>
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: insets.top }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>코스 미리보기</Text>
           <View style={{ width: 40 }} />

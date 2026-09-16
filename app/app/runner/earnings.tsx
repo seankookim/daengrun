@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
@@ -62,6 +63,7 @@ import { layout, paper } from '../../src/theme';
 // 형태로 남은 거짓 약속이다.
 
 export default function Earnings() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — screen title (1/screen budget)
   const nf = useNumFont();     // Oswald — settlement sum, per-run nets
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
@@ -104,7 +106,7 @@ export default function Earnings() {
       <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 4, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
