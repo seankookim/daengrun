@@ -167,6 +167,19 @@ Peer session `daengrun-b6` (Sean's react-doctor session) is now on backend-audit
 (be/edge owns it), not to run codex or the Supabase CLI. Numbers 0175/205 (be/0175, unpushed) and
 0176/206 (b6, unpushed) are both claimed — the three-sided check cannot see either yet.
 
+**06:2x — `c7f207d` premium labs LANDED** (docs only): `docs/design/PRODUCT.md` (impeccable format, real
+facts only), `docs/design/premium-taste-brief.md` (both skills distilled against DESIGN.md — 12
+tensions, incl. a 🔴 finding that the GO law's waiting-blue ships as the accent violet), four labs
+`docs/labs/premium-{owner-home,request-flow,live-run,run-report}-lab.html` (①② paper, ③ labelled
+departure, English prose, Korean only inside the frames, verified complete from origin) and the
+README with Q1–Q5 → queue item 19. Files sent to Sean to pick by number.
+🔴 **Migration-number collision caught before any push** (b6's per-worktree scan + my re-check): Sean's
+uncommitted Codex worktrees hold **0175/206** (`board-rejected-arm`) and **0165/205**
+(`membership-three-tier`); the three-sided check cannot see uncommitted files. Reassigned: my cron
+slice → **0177 / 208**, b6's open_drop_tx → **0176 / 207**, Sean's stay as they are. New fourth side
+of the check: `ls .claude/worktrees/*/supabase/migrations | grep -E '^01'` (and tests) before
+claiming.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 

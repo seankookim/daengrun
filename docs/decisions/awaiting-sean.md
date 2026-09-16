@@ -1526,6 +1526,17 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+19. **Premium labs — pick by number** (`docs/labs/premium-labs-README.md`, trunk `c7f207d`; four labs,
+    three variants each; ①② paper, ③ a labelled departure). The README's own questions Q1–Q5 are the
+    letters; the agent recommends ② in all four and flags that ② is structurally the middle of its own
+    construction, not four independent votes. Three things surfaced while building them: (a) 🔴 the GO
+    state law's 「blue = waiting」 is SHIPPED as the accent violet — `DESIGN.md` §5's `#5B82E8`/`#4468CC`
+    have zero occurrences in `app/`, `home-hero.tsx:102 WAIT_BLUE = '#6C5CE7'`; either the law or the
+    code is wrong, and the accent-only rule says the code — ⓐ restore a real waiting blue · ⓑ amend
+    DESIGN.md to say violet; (b) the Latin kicker seam (§2 keeps one, §3b retires it) — proposed rule
+    「a latin kicker may label an artifact, never announce a heading」 — a DESIGN.md edit, so yours;
+    (c) photo slots: the skills say 「real images or it is slop」, our law says 「bind a real field or
+    omit」 — the labs draw labelled empty frames; README Q5 asks which you want.
 18. **VoiceOver vocabulary ruling** (cold review of the A2 slice, measured in RN 0.86 source): on iOS
     under the New Architecture `accessibilityRole="tab"` maps to no trait (only `checkbox`/`radio` get a
     spoken role word), and `accessibilityState.selected` speaks only when TRUE while `checked` speaks
