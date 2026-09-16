@@ -1561,7 +1561,14 @@ grep counted. Recorded so nobody builds it twice.
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** Production is 0156; trunk carries fifteen
+1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 07:1x: SIXTEEN now —
+   `0177` (cron readback for four money/ops jobs + a job lock on `owner_la_sweep_stale`, harness
+   1236/0, codex-unreviewed until the wall lifts) landed on trunk, and the edge functions changed on
+   trunk too (`f6ed478`: `400 bad_body`, open-drop honesty, notify/payments error surfacing) — so the
+   letter now covers `db push` AND `supabase functions deploy`, in that order, because the functions
+   assume 0157+ semantics. 0177's VERIFY will ABORT the apply if any of the four jobs is missing in
+   production `cron.job` — that abort would be the first evidence either way (nobody has read the
+   production table). Original text follows.** Production is 0156; trunk carries fifteen
    pending migrations, all gates green here (harness 1229/0, npm 989/0, deno 292/0).
    **Codex verdict 06:55: REJECT/10** — see `docs/reviews/2026-09-15-deploy-gate-verdict.md`. Of the
    HIGHs: **#1 is REFUTED** (measured — `sweep_settled_without_payments` already re-mints; 0172 pins
