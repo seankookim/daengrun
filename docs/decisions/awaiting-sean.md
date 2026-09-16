@@ -1526,6 +1526,11 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+16. **Owner home still clears the status bar with a constant** — `owner/home.tsx:101` `PAD_TOP = 56`
+    carries a written decision (lines 96–101: the masthead mark starts at 56+9 = 65, which clears a
+    ~59 inset *on that phone*). Every other route now uses `insets.top` (`d3d56ea`). Owner home is
+    the highest-traffic screen and the checklist's #1 names it. ⓐ `PAD_TOP` → `insets.top` (mark at
+    `insets.top + 9`, identical on your phone, correct on SE/iPad) · ⓑ keep the constant.
 15. **Tensions kept as-is (no letter needed unless you disagree):** tab labels stay off (②), light-only
     stays (③ — write the reason into DESIGN.md), palette over system colors (④), custom body font
     question stays open (⑤), emoji rule stays (⑧).

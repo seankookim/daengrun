@@ -49,6 +49,27 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
   Each lands only on green gates with the read-back chain; if this section is not followed by a
   landing note, check `git branch -r | grep hig/` — an unlanded branch there is where they stopped.
 
+**02:5x — both HIG slices LANDED, each re-gated on the combined tree (tsc · 4 checks · npm 989/0):**
+- `095666d` AutoFill: 18 of 48 product `TextInput`s got `textContentType` / `autoComplete` /
+  `autoCorrect` / `returnKeyType` (name ×3, phone ×3, address ×3, labels, search); 26 prose/numeric
+  fields correctly untouched; `6f23499` adds the 이름 row on profile edit via a `Field` pass-through.
+  Facts, not gaps: zero OTP/email/password fields exist (Kakao-only login), so zero `secureTextEntry`
+  is correct. Open: `owner/dog.tsx:324` 생일 needs `numbers-and-punctuation` (hyphens).
+- `d3d56ea` safe areas: 49 literal `paddingTop: 54–78` → `insets.top + (literal − 56)` across 49
+  route files (relative spacing preserved; content moves out from under the Dynamic Island; correct
+  on SE/iPad); `bottomnav` dock and 7 fixed CTA docks pad with `Math.max(insets.bottom, literal)`.
+  Left alone on purpose: `owner/fitness.tsx` (DO-NOT-REFACTOR, `RIBBON_H` arithmetic),
+  `owner/home.tsx` `PAD_TOP` (written product decision → queue item 16), `owner/request.tsx:1388`
+  (modal body), dev labs. Post-edit crude grep = exactly those 4.
+- ⚠ **Neither slice has a codex verdict** — the wall (06:44) refused both attempts (0 B stdout,
+  `usage limit` on stderr, read from the tail, not re-run). They are on trunk on green gates; the
+  06:52 cron's first job is a diff-scoped `review` of `b1b8ba0..d3d56ea` before any new build slice.
+- Device-visual: UNVERIFIED at time of writing — an incremental Xcode 27 rebuild is running so the
+  signed-out routes (`daengrun:///settings`, `/safety`, `/onboard/runner`, `/my`) can be screenshotted;
+  the login screen is untouched by both slices. Smoke list for Sean on hardware: first text line clear
+  of the island on every screen · dock above the home indicator · QuickType offers name/phone/address
+  on 온보딩·안전 연락처·주소 추가 · 생일 still accepts hyphens.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
