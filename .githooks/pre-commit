@@ -1,6 +1,22 @@
 #!/bin/sh
 
 # react-doctor hook start
+#
+# Git exports GIT_DIR to hooks only when the tree's `.git` is a gitfile — every `git worktree add`
+# tree — and never when it is the ordinary `.git` directory (measured 2026-09-17: a plain clone's
+# pre-commit environment carries no GIT_DIR; a linked worktree's carries
+# GIT_DIR=<clone>/.git/worktrees/<name>). react-doctor resolves this repo's project to app/ and
+# spawns `git status` from there. With GIT_DIR set and no GIT_WORK_TREE, git regards the cwd as
+# the top of the working tree (git-config(1), core.worktree), so from app/ every app/*.json in the
+# index reads as deleted and every app/*.json on disk reads as an untracked root-level file: eight
+# clean config files reported as "configuration differs between the index and worktree", the scan
+# aborted, and this hook then announced regressions for a commit it never checked. Unsetting
+# GIT_DIR restores ordinary discovery — git walks up from app/, finds the gitfile, and resolves the
+# same gitdir. GIT_INDEX_FILE is kept on purpose: for `git commit -- <paths>` it names the
+# temporary index, which is exactly the content being committed. (Exporting GIT_WORK_TREE alongside
+# GIT_DIR also measured clean; unsetting is the smaller change and needs no path.)
+unset GIT_DIR
+
 react_doctor_scan_staged_files() {
   if [ -x "./node_modules/.bin/react-doctor" ]; then
     "./node_modules/.bin/react-doctor" --staged --blocking warning
@@ -30,7 +46,14 @@ if react_doctor_scan_staged_files > "$react_doctor_output" 2>&1; then
   rm -f "$react_doctor_output"
 else
   cat "$react_doctor_output" >&2
+  # A completed scan prints "✔ Scanned N file(s)"; react-doctor exits 1 both for findings and
+  # for a scan that never ran (quota or network failure, a git error, the divergence abort above).
+  # Without that line nothing was checked, and "found staged regressions" would be a false claim.
+  if grep -qE 'Scanned [0-9]+ file' "$react_doctor_output"; then
+    printf '%s\n' "React Doctor found staged regressions." "Run react-doctor --staged --blocking warning to inspect." "Want them fixed? Ask your agent to run that command and resolve the findings." >&2
+  else
+    printf '%s\n' "react-doctor: the staged scan did NOT run (see above) — nothing in this commit was checked." "Fix the cause, then run react-doctor --staged --blocking warning to check it by hand." >&2
+  fi
   rm -f "$react_doctor_output"
-  printf '%s\n' "React Doctor found staged regressions." "Run react-doctor --staged --blocking warning to inspect." "Want them fixed? Ask your agent to run that command and resolve the findings." >&2
 fi
 # react-doctor hook end

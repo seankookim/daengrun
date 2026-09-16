@@ -104,6 +104,22 @@ purpose: Tier 2 #13/#14 (icon-only send buttons need a design call), Tier 3, and
 `shot/[bid].tsx:1103` uses a **disabled** alpha (DESIGN.md forbids that too) — follow-up. Device
 smoke list (9 items, airplane-mode based) is in the agent's report; the money-path one is #3.
 
+**05:0x — `.githooks/pre-commit` (react-doctor) now scans in linked worktrees.** Before: every
+commit from a `.claude/worktrees/*` tree printed 「configuration differs between the index and
+worktree」 for eight CLEAN config files, then 「found staged regressions」, then landed unchecked.
+Measured cause, three parts: git exports `GIT_DIR` to hooks only when `.git` is a gitfile (a plain
+clone's hook env has none); react-doctor resolves the project to `app/` and runs `git status` from
+there; and `GIT_DIR` without `GIT_WORK_TREE` makes git treat the cwd (`app/`) as the worktree root
+(`git-config(1)` core.worktree), so `app/*.json` read as deleted + untracked. Fix, in the commit carrying this note:
+`unset GIT_DIR` in the hook (`GIT_INDEX_FILE` kept — it names the temporary index of a
+`git commit -- <paths>`), and the failure message now separates 「scan did NOT run」 from 「found
+regressions」 (a `Scanned N file` line is the marker; react-doctor exits 1 for both). Verified through
+REAL commits in a scratch worktree, then removed: docs-only → silent, exit 0; a staged `.tsx` → genuine
+scan (Score 76, 5 pre-existing `my.tsx` warnings), commit still lands. ⚠ The hook was and remains
+ADVISORY (no `exit 1` on findings) — making it blocking is Sean's call, queue it if wanted. Also
+noted, not changed: the repo root has no `node_modules`, so the hook's local-binary branch is dead and
+it runs `pnpm dlx react-doctor@latest` (0.9.14 cached; `app/` pins 0.9.12). No codex verdict (wall).
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
