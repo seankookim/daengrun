@@ -972,7 +972,8 @@ export default function HostConsole() {
 
       {/* 강제 종결 사유 시트 — 적은 내용이 그대로 케이스 증빙(document)이 된다. 빈 채로는 못 넘긴다. */}
       <Modal visible={!!forceTarget} transparent animationType="slide" onRequestClose={() => setForceTarget(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setForceTarget(null)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setForceTarget(null)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.grab} />
           <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{forceTarget?.dogName} 강제 종결</Text>

@@ -390,7 +390,14 @@ export default function Chat() {
 
       {/* input bar */}
       <Row style={s.inputBar}>
-        <Pressable style={s.attach} onPress={sendPhoto} disabled={state !== 'ready'}>
+        <Pressable
+          style={s.attach}
+          onPress={sendPhoto}
+          disabled={state !== 'ready'}
+          accessibilityRole="button"
+          accessibilityLabel="사진 보내기"
+          accessibilityState={{ disabled: state !== 'ready' }}
+        >
           <Text style={{ fontSize: 17, color: state === 'ready' ? '#5a7a3c' : colors.dim }}>▣</Text>
         </Pressable>
         <TextInput

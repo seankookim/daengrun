@@ -627,7 +627,7 @@ export default function ClubRun() {
           <Pressable onPress={doSosPress} style={s.sos}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>SOS</Text>
           </Pressable>
-          <Pressable onPress={doPhoto} style={s.camBtn}>
+          <Pressable onPress={doPhoto} style={s.camBtn} accessibilityRole="button" accessibilityLabel="사진 보내기">
             <Icon name="Camera" glyph="◉" size={20} color={L.head} />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -644,7 +644,8 @@ export default function ClubRun() {
 
       {/* ---------- 종료 시트 — 완주가 기본, 조기 사유는 정직하게 ---------- */}
       <Modal visible={!!endTarget} transparent animationType="slide" onRequestClose={() => { setEndTarget(null); setEndStep('reason'); }}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { setEndTarget(null); setEndStep('reason'); }} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { setEndTarget(null); setEndStep('reason'); }}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.grab} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>

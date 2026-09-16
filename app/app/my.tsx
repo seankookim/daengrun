@@ -231,7 +231,14 @@ export default function My() {
 
             <Row style={{ alignItems: 'flex-start', gap: 12 }}>
               {/* 사진 창 — 탭하면 프로필 사진 변경 (uploadAvatar) */}
-              <Pressable onPress={pickPhoto} disabled={uploading} style={s.photoWin}>
+              <Pressable
+                onPress={pickPhoto}
+                disabled={uploading}
+                style={s.photoWin}
+                accessibilityRole="button"
+                accessibilityLabel="프로필 사진 바꾸기"
+                accessibilityState={{ disabled: uploading, busy: uploading }}
+              >
                 <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={lilac.accent} size={56} />
                 <View style={s.cam}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
               </Pressable>

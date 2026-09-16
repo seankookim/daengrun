@@ -457,7 +457,7 @@ export default function Report() {
               review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}
           <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러닝 리포트</Text>
           {canShare ? (
-            <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
+            <Pressable onPress={share} style={s.backBtn} accessibilityRole="button" accessibilityLabel="공유하기"><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
         </Row>
 

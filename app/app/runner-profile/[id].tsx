@@ -438,7 +438,13 @@ export default function RunnerProfileScreen() {
               <View style={s.gridBlock}>
                 <View style={s.grid}>
                   {p.photos.map((url) => (
-                    <Pressable key={url} onLongPress={canEdit ? () => removePhoto(url) : undefined}>
+                    <Pressable
+                      key={url}
+                      onLongPress={canEdit ? () => removePhoto(url) : undefined}
+                      accessibilityRole={canEdit ? 'imagebutton' : 'image'}
+                      accessibilityLabel="러너 사진"
+                      accessibilityHint={canEdit ? '길게 누르면 삭제해요' : undefined}
+                    >
                       <Image source={{ uri: url }} style={[s.tile, { backgroundColor: '#ECEAE2' }]} />
                     </Pressable>
                   ))}

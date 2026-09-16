@@ -1332,7 +1332,8 @@ export default function Request() {
 
       {/* ---------- time-slot bottom sheet ---------- */}
       <Modal visible={slotSheet} transparent animationType="slide" onRequestClose={() => setSlotSheet(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => setSlotSheet(false)} />
+        <Pressable style={s.sheetBackdrop} onPress={() => setSlotSheet(false)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: paper.ink }}>언제 달릴까요?</Text>

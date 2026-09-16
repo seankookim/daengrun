@@ -314,7 +314,7 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={close}>
-      <Pressable style={s.backdrop} onPress={close} accessibilityLabel="닫기" />
+      <Pressable style={s.backdrop} onPress={close} accessibilityRole="button" accessibilityLabel="닫기" />
       <View style={s.sheet}>
         <View style={s.handle} />
         <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
