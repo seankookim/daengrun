@@ -2446,6 +2446,16 @@ export async function deleteRunnerPhoto(url: string): Promise<string[]> {
 
 // 러닝 사진 업로드 (러너, 종료 후) — runs.photos + [0064] PRIVATE media 버킷 {uid}/runs/{booking}/*
 // runs.photos에는 경로가 들어간다 (레거시 행은 공개 URL 그대로) — 화면이 서명 URL로 푼다.
+// 0083 turned two silent no-ops into raises and the client never mapped them (backend audit
+// 2026-09-17 M5, measured: 0 hits for either token in app/). PostgREST puts the token in `message`
+// and the migration's own Korean sentence in `details`; prefer the sentence, fall back to ours.
+function runEventError(e: any, fallbackEnded: string): Error {
+  const msg = String(e?.message ?? '');
+  if (msg.includes('run_ended')) return new Error(String(e?.details || fallbackEnded));
+  if (msg.includes('not_run_runner')) return new Error('이 러닝의 러너만 기록할 수 있어요');
+  return e instanceof Error ? e : new Error(msg || '기록하지 못했어요');
+}
+
 export async function uploadRunPhoto(bookingId: string, base64: string): Promise<string[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
@@ -2457,7 +2467,7 @@ export async function uploadRunPhoto(bookingId: string, base64: string): Promise
   const { data: photos, error: e2 } = await supabase.rpc('append_run_photo', {
     p_booking: bookingId, p_url: path,
   });
-  if (e2) throw e2;
+  if (e2) throw runEventError(e2, '러닝이 끝난 뒤에는 사진을 추가할 수 없어요 — 귀가 구간이에요');
   return (photos as string[] | null) ?? [];
 }
 
@@ -2476,7 +2486,7 @@ export async function addRunEvent(bookingId: string, kind: RunEventKind): Promis
   const { error } = await supabase.rpc('append_run_event', {
     p_booking: bookingId, p_event: { kind, at: new Date().toISOString() },
   });
-  if (error) throw error;
+  if (error) throw runEventError(error, '러닝이 끝난 뒤에는 기록을 추가할 수 없어요 — 귀가 구간이에요');
   const { data: bk } = await supabase.from('bookings').select('owner_id, dogs(name)').eq('id', bookingId).single();
   if (bk) {
     const [title, body] = EVENT_NOTI[kind]((bk as any).dogs?.name ?? '반려견');
@@ -3758,7 +3768,10 @@ export async function fetchDrops(): Promise<DropRow[]> {
 export async function openDrop(dropId: string, pickChoice?: string): Promise<Record<string, unknown>> {
   const { data, error } = await supabase.functions.invoke('open-drop', { body: { drop_id: dropId, pick_choice: pickChoice } });
   if (error || data?.error) throw await fnError(error, data);
-  return data;
+  // The edge answers `{ applied: {...} }` (open-drop/index.ts). Returning the envelope made every
+  // caller read `applied.miles` off the wrong level — always undefined, so the person was never
+  // told what they won (backend audit 2026-09-17 M4). Unwrap here, once.
+  return ((data as any)?.applied ?? {}) as Record<string, unknown>;
 }
 
 // 활성 부스트 (픽 드랍 보상, 24h) — 표시용 라벨. 없으면 null (없는 데이터는 그리지 않는다)
