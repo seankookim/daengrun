@@ -51,27 +51,19 @@ begin
   v_bo := session_pay_delegation(sdo, 'idem-ag1', true);
   update session_people set attendance = 'no_show' where session_id = v_s and profile_id = ns;
 
-  -- ---------- [G1] 보드 등급별 페이로드 필터 (0052 §1 rev2 P1 / 발견 1) ----------
-  -- rev2: not_party 이분법 폐기 → 등급별 필터. 무관자(none)도 session+me(집결지·시각·요금·runnerCap =
-  -- 클럽 공개 정보급 + 확약 CTA 원천)는 받되, dogs·runners(타 보호자·러너 실명 등 사적 정보)는 []이다.
+  -- Ruling 5 (2026-08-31), migration 0164: none receives no operational board.
   begin
     perform set_config('request.jwt.claim.sub', zz::text, false);
-    v_js := club_delegation_board(v_s);                            -- 예외 아님 (rev2)
+    v_js := club_delegation_board(v_s);
     perform set_config('request.jwt.claim.sub', hh::text, false);
     v_js2 := club_delegation_board(v_s);
-    if v_js is not null
-       and (v_js->'session'->>'id')::uuid = v_s                    -- 무관자도 session 받음
-       and v_js ? 'me'                                             -- me도
-       and v_js->'dogs' = '[]'::jsonb                              -- dogs 비공개
-       and v_js->'runners' = '[]'::jsonb                           -- runners 비공개
+    if v_js is null
        and v_js2 is not null and (v_js2->'session'->>'id')::uuid = v_s
        and (v_js2->'session'->>'isHost')::boolean
-       and jsonb_array_length(v_js2->'dogs') > 0                   -- 호스트는 전체 dogs
-       and jsonb_array_length(v_js2->'runners') > 0                -- 호스트는 전체 runners
-      then call _pass('audit','G1 보드 등급 필터 — 무관자 session/me 존재·dogs=[]·runners=[]·호스트 전체');
-    else call _fail('audit','G1 등급 필터','zz dogs=' || coalesce((v_js->'dogs')::text,'∅')
-                    || ' runners=' || coalesce((v_js->'runners')::text,'∅')
-                    || ' hostDogs=' || jsonb_array_length(coalesce(v_js2->'dogs','[]'::jsonb))); end if;
+       and jsonb_array_length(v_js2->'dogs') > 0
+       and jsonb_array_length(v_js2->'runners') > 0
+      then call _pass('audit','G1 stranger receives NULL; host keeps dog and runner rows');
+    else call _fail('audit','G1 access grades',coalesce(v_js::text,'NULL')); end if;
   exception when others then call _fail('audit','G1', sqlerrm);
   end;
 
@@ -95,19 +87,13 @@ begin
   exception when others then call _fail('audit','G2 limited 보드', sqlerrm);
   end;
 
-  -- ---------- [G2b] 미확약 인증 러너(none)의 board.me.runnerCap>0 (0052 §1 rev2 P1 / 리뷰어 A) ----------
-  -- 이분법 게이트는 미확약 인증 러너까지 not_party로 막아 세션 셸의 러너 확약 CTA(me.runnerCap이
-  -- 그 사람 위한 필드)를 지웠다. 등급 필터는 none이라도 me를 준다 — cap은 세션 무관 파생이라 유효하다.
+  -- Ruling 5 also applies to a certified runner who has not committed.
   begin
     perform set_config('request.jwt.claim.sub', cc::text, false);
     v_js := club_delegation_board(v_s);
-    if v_js is not null and (v_js->'session'->>'id')::uuid = v_s
-       and (v_js->'me'->>'runnerCap')::int > 0                              -- certified = 1
-       and not (v_js->'me'->>'committed')::boolean
-       and v_js->'dogs' = '[]'::jsonb and v_js->'runners' = '[]'::jsonb     -- 그래도 사적 정보는 닫힘
-      then call _pass('audit','G2b 미확약 인증 러너(none) — board.me.runnerCap>0 (확약 CTA 원천)·dogs/runners=[]');
-    else call _fail('audit','G2b runnerCap','cap=' || coalesce(v_js->'me'->>'runnerCap','∅')
-                    || ' committed=' || coalesce(v_js->'me'->>'committed','∅')); end if;
+    if _club_shell_access(v_s, cc) is not distinct from 'none' and v_js is null then
+      call _pass('audit','G2b uncommitted certified runner receives NULL board');
+    else call _fail('audit','G2b uncommitted runner',coalesce(v_js::text,'NULL with wrong grade')); end if;
   exception when others then call _fail('audit','G2b', sqlerrm);
   end;
 
