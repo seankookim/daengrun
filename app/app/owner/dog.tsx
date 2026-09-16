@@ -323,7 +323,7 @@ export default function DogProfileScreen() {
                 {/* 라벨에서 (YYYY-MM-DD)를 뺀다 — 형식은 플레이스홀더가 가르치고, 틀리면 save()가
                     같은 문장으로 되돌려준다. 라벨 줄은 옆 칸의 '중성화'와 한 줄로 읽혀야 한다. */}
                 <Text style={s.label}>생일</Text>
-                <TextInput value={birth} onChangeText={setBirth} style={s.input} maxLength={10} placeholder="2021-03-15" placeholderTextColor={paper.faint} />
+                <TextInput value={birth} onChangeText={setBirth} style={s.input} maxLength={10} placeholder="2021-03-15" placeholderTextColor={paper.faint} keyboardType="numbers-and-punctuation" autoCorrect={false} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>중성화</Text>

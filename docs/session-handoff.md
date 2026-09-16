@@ -64,9 +64,12 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 - ⚠ **Neither slice has a codex verdict** — the wall (06:44) refused both attempts (0 B stdout,
   `usage limit` on stderr, read from the tail, not re-run). They are on trunk on green gates; the
   06:52 cron's first job is a diff-scoped `review` of `b1b8ba0..d3d56ea` before any new build slice.
-- Device-visual: UNVERIFIED at time of writing — an incremental Xcode 27 rebuild is running so the
-  signed-out routes (`daengrun:///settings`, `/safety`, `/onboard/runner`, `/my`) can be screenshotted;
-  the login screen is untouched by both slices. Smoke list for Sean on hardware: first text line clear
+- Device-visual: **UNVERIFIED, and blocked.** The incremental rebuild succeeded and installs, but
+  `xcrun simctl openurl daengrun:///settings` stops at iOS's own 「Open in 도그스하이?」 dialog, which
+  needs a tap — the native Claude sim tool still refuses (`attach`/`tap`: 「Xcode … not selected」) and
+  AppleScript UI scripting hung on the accessibility permission (Sean may find a TCC prompt). Two ways
+  out, both Sean's: a fresh Claude Code session (the tool re-checks Xcode) or granting Accessibility to
+  the Claude app. The login screen is untouched by both slices. Smoke list for Sean on hardware: first text line clear
   of the island on every screen · dock above the home indicator · QuickType offers name/phone/address
   on 온보딩·안전 연락처·주소 추가 · 생일 still accepts hyphens.
 
