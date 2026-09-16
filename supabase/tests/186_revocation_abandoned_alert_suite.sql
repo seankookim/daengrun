@@ -119,7 +119,7 @@ begin
   values (u1, 'rab_A1', 'replaced', 'processing', 8, v_tok, now() + interval '5 minutes')
   returning id into v_id;
   select count(*)::int into n_before from notifications where profile_id = ops and ref_id = v_id;
-  select report_billing_key_revocation(v_id, false, 'toss 500', v_tok) into v_ok;
+  select applied into v_ok from report_billing_key_revocation(v_id, false, 'toss 500', v_tok);   -- [0178] reads `applied`; property unchanged
   select state, alerted_at, claim_token into v_txt, v_at, v_tok2
     from billing_key_revocations where id = v_id;
   select count(*)::int into n_after from notifications where profile_id = ops and ref_id = v_id;
@@ -155,7 +155,7 @@ begin
   values (u1, 'rab_A2', 'replaced', 'processing', 8, v_tok, now() + interval '5 minutes')
   returning id into v_id;
   select count(*)::int into n_before from notifications where profile_id = ops and ref_id = v_id;
-  select report_billing_key_revocation(v_id, true, null, v_tok) into v_ok;
+  select applied into v_ok from report_billing_key_revocation(v_id, true, null, v_tok);         -- [0178] reads `applied`
   select state, alerted_at into v_txt, v_at from billing_key_revocations where id = v_id;
   select count(*)::int into n_after from notifications where profile_id = ops and ref_id = v_id;
   v_msg := 'ok=' || coalesce(v_ok::text,'∅') || ' state=' || coalesce(v_txt,'∅')
@@ -179,7 +179,7 @@ begin
   values (u1, 'rab_A3', 'replaced', 'processing', 4, v_tok, now() + interval '5 minutes')
   returning id into v_id;
   select count(*)::int into n_before from notifications where profile_id = ops and ref_id = v_id;
-  select report_billing_key_revocation(v_id, false, 'timeout', v_tok) into v_ok;
+  select applied into v_ok from report_billing_key_revocation(v_id, false, 'timeout', v_tok);    -- [0178] reads `applied`
   select state, alerted_at into v_txt, v_at from billing_key_revocations where id = v_id;
   select count(*)::int into n_after from notifications where profile_id = ops and ref_id = v_id;
   v_msg := 'ok=' || coalesce(v_ok::text,'∅') || ' state=' || coalesce(v_txt,'∅')

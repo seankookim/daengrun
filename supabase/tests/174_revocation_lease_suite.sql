@@ -62,9 +62,11 @@ begin
   update billing_key_revocations set lease_until = now() - interval '1 minute' where id = v_id;
   declare v_tok2 uuid; begin
     select claim_token into v_tok2 from claim_billing_key_revocations(10) limit 1;
-    v_ok := report_billing_key_revocation(v_id, true, null, v_tok2);     -- the new holder wins
+    -- [0178] the function returns (applied, refusal) now; this pin's property — a late report is
+    -- NOT applied — is unchanged and reads `applied`. The token vocabulary is suite 209's.
+    select applied into v_ok from report_billing_key_revocation(v_id, true, null, v_tok2);     -- the new holder wins
     if v_ok is distinct from true then v_bad := v_bad || ' new-holder-refused'; end if;
-    v_ok := report_billing_key_revocation(v_id, false, 'stale', v_tok);  -- the old one is late
+    select applied into v_ok from report_billing_key_revocation(v_id, false, 'stale', v_tok);  -- the old one is late
     if v_ok is distinct from false then v_bad := v_bad || ' STALE-APPLIED'; end if;
   end;
   select state into v_txt from billing_key_revocations where id = v_id;

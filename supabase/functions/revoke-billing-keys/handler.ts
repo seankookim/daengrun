@@ -33,9 +33,11 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
   const { data: claimed, error: cErr } = await db.rpc("claim_billing_key_revocations", { p_limit: BATCH });
   if (cErr) throw new HttpError(500, `claim failed: ${cErr.message}`);
   const rows = (claimed ?? []) as { id: string; billing_key: string; claim_token: string }[];
-  if (rows.length === 0) return { claimed: 0, revoked: 0, failed: 0, stale: 0 };
+  if (rows.length === 0) {
+    return { claimed: 0, revoked: 0, failed: 0, stale: 0, not_processing: 0, absent: 0, unreported: 0 };
+  }
 
-  let revoked = 0, failed = 0, stale = 0, unreported = 0;
+  let revoked = 0, failed = 0, stale = 0, notProcessing = 0, absent = 0, unreported = 0;
   for (const r of rows) {
     let ok = false;
     let err: string | null = null;
@@ -66,8 +68,8 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
     }
     // [0141 §C] The claim token is a compare-and-set: if our lease expired and another worker
     // took the row, our report is DISCARDED rather than applied late over a newer result. A
-    // false return is not an error — it means we lost the row, and saying so is the honest read.
-    const { data: applied, error: rErr } = await db.rpc("report_billing_key_revocation",
+    // refusal is not an error — and since 0178 it SAYS WHY (see the token map below).
+    const { data: rep, error: rErr } = await db.rpc("report_billing_key_revocation",
       { p_id: r.id, p_ok: ok, p_error: err, p_token: r.claim_token });
     // ═══ [backend audit 2026-09-17 · M6] A REPORT FAILURE COUNTS, LOGS, AND CONTINUES ══════════
     // This used to `throw`, which ABANDONED EVERY REMAINING ROW IN THE CLAIMED BATCH — rows whose
@@ -90,10 +92,48 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
       );
       continue;
     }
-    if (applied === false) { stale++; continue; }
-    if (ok) revoked++; else failed++;
+    // ═══ [backend audit 2026-09-17 · M7] A REFUSAL NAMES ITS CAUSE, AND EACH CAUSE HAS ITS OWN COUNT ══
+    // The function's `false` was widened twice (0155: lost lease → 0166: also a terminal or unclaimed
+    // row) while this line kept reading it as one thing, so every refusal became `stale` — the ④
+    // class: the caller was correct, the return's MEANING moved, and nothing greps for that. 0178
+    // returns `(applied, refusal)` (the `billing_key_swap` shape); a table function's rows arrive as
+    // an array, so the first row is the answer.
+    //   applied=true            the report landed; count by the Toss result as before.
+    //   lease_lost              0141 §C exactly — someone else holds the row; `stale`.
+    //   not_processing          the row was already closed (or never claimed) — a LATE report, not
+    //                           a lost lease; nothing will re-claim it, so it must not read as stale.
+    //   absent                  the row is gone (ops removed it); same reasoning.
+    //   anything else           FAIL CLOSED: a missing or unknown token — including the OLD boolean
+    //                           shape during a mixed deploy window (new handler, old function) — is
+    //                           「we could not record what happened」, i.e. `unreported`, never a
+    //                           revoked or a stale. The log line names the row and the shape.
+    const row = (Array.isArray(rep) ? rep[0] : rep) as
+      { applied?: unknown; refusal?: unknown } | boolean | null | undefined;
+    if (row !== null && typeof row === "object" && row.applied === true && row.refusal == null) {
+      if (ok) revoked++; else failed++;
+      continue;
+    }
+    const refusal = row !== null && typeof row === "object" && row.applied === false ? row.refusal : undefined;
+    if (refusal === "lease_lost") { stale++; continue; }
+    if (refusal === "not_processing") {
+      notProcessing++;
+      console.error(`[revoke-billing-keys] report refused id=${r.id} toss_ok=${ok}: not_processing — the row was already closed or never claimed; a late report, not a lost lease`);
+      continue;
+    }
+    if (refusal === "absent") {
+      absent++;
+      console.error(`[revoke-billing-keys] report refused id=${r.id} toss_ok=${ok}: absent — the row no longer exists`);
+      continue;
+    }
+    unreported++;
+    console.error(
+      `[revoke-billing-keys] report UNREADABLE id=${r.id} toss_ok=${ok}: ${JSON.stringify(rep)} — no known ` +
+        `refusal token (old boolean shape? unknown token?) — failing closed: counted as unreported, ` +
+        `the row keeps whatever state the function left it in`,
+    );
   }
   // `unreported` is additive: the cron discards this return (`select f()`), and it is the one number
-  // that distinguishes "nothing to do" from "we could not write down what we did".
-  return { claimed: rows.length, revoked, failed, stale, unreported };
+  // that distinguishes "nothing to do" from "we could not write down what we did". `not_processing`
+  // and `absent` are the two refusals that used to hide inside `stale` (M7).
+  return { claimed: rows.length, revoked, failed, stale, not_processing: notProcessing, absent, unreported };
 }

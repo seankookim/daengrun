@@ -32,9 +32,12 @@ function scene(rows: Row[] = [{ id: "rev-1", billing_key: "bill_X", claim_token:
   const db = new FakeDb();
   const reported: Row[] = [];
   db.rpcs["claim_billing_key_revocations"] = () => ({ data: rows });
-  db.rpcs["report_billing_key_revocation"] = (a: Row) => { reported.push(a); return { data: true }; };
+  // 0178: the report answers `(applied, refusal)` as a table function — an ARRAY of one row.
+  db.rpcs["report_billing_key_revocation"] = (a: Row) => { reported.push(a); return { data: [APPLIED] }; };
   return { db, reported };
 }
+const APPLIED = { applied: true, refusal: null };
+const refused = (refusal: unknown) => ({ data: [{ applied: false, refusal }] });
 
 Deno.test("🔴 calls DELETE on the REAL endpoint — no /delete suffix, no POST", async () => {
   const { db, reported } = scene();
@@ -94,7 +97,7 @@ Deno.test("the claim token is carried into the report (compare-and-set)", async 
 
 Deno.test("a lost lease (report refused) counts as stale, not as revoked", async () => {
   const { db, reported } = scene();
-  db.rpcs["report_billing_key_revocation"] = () => ({ data: false });   // someone else owns it now
+  db.rpcs["report_billing_key_revocation"] = () => refused("lease_lost");   // someone else owns it now
   void reported;
   const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
   fm.install();
@@ -232,7 +235,7 @@ Deno.test("🔴 [M6] a report failure counts and CONTINUES — the rest of the c
   db.rpcs["report_billing_key_revocation"] = (a: Row) => {
     if (a.p_id === "rev-1") return { error: { message: "could not connect" } };
     reported.push(a);
-    return { data: true };
+    return { data: [APPLIED] };
   };
   const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
   fm.install();
@@ -300,5 +303,98 @@ Deno.test("🔴 [M6] the failed row keeps its lease — nothing here writes to i
   } finally {
     console.error = original;
     fm.restore();
+  }
+});
+
+// ═══ [backend audit 2026-09-17 · M7] A REFUSAL NAMES ITS CAUSE — AND EACH CAUSE IS ITS OWN NUMBER ═══
+// `report_billing_key_revocation`'s `false` was widened twice (0155: lost lease → 0166: also a
+// terminal or unclaimed row, and a row that is gone) while this handler kept reading every `false`
+// as `stale++` citing 0141 §C — the ④ class: a correct caller broken by a return whose MEANING moved.
+// 0178 returns `(applied, refusal)`; the tests below pin that each token lands in its own counter and
+// that anything the handler cannot read fails CLOSED.
+const tickShape = (out: Row) => Object.keys(out).sort();
+const EMPTY_TICK = ["absent", "claimed", "failed", "not_processing", "revoked", "stale", "unreported"];
+
+Deno.test("🔴 [M7] each refusal token has its own counter — a closed row is not a lost lease", async () => {
+  for (const [token, counter] of [["lease_lost", "stale"], ["not_processing", "not_processing"], ["absent", "absent"]] as const) {
+    const { db } = scene();
+    db.rpcs["report_billing_key_revocation"] = () => refused(token);
+    const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+    fm.install();
+    const original = console.error;
+    const logs: string[] = [];
+    console.error = (...x: unknown[]) => void logs.push(x.map(String).join(" "));
+    try {
+      const out = await revokeBillingKeys(cronReq(), db as never) as Row;
+      assertEquals(tickShape(out), EMPTY_TICK, `${token}: the tick row's shape`);
+      // exactly ONE counter moves, and it is the token's own — Toss said 200, and that must not
+      // make the row `revoked`: a report that did not land is not a revocation we can prove.
+      for (const k of EMPTY_TICK) {
+        const want = k === "claimed" ? 1 : k === counter ? 1 : 0;
+        assertEquals(out[k], want, `${token}: counter ${k}`);
+      }
+      // the two refusals that used to hide inside `stale` are said out loud, with the row id
+      if (token !== "lease_lost") {
+        assert(logs.some((l) => l.includes("rev-1") && l.includes(token)), `${token}: no log line names the row: ${logs.join("|")}`);
+      }
+    } finally {
+      console.error = original;
+      fm.restore();
+    }
+  }
+});
+
+Deno.test("🔴 [M7] an absent or unknown token — and the OLD boolean shape — FAILS CLOSED as unreported", async () => {
+  // The mixed-deploy window is real: functions deploy is a separate step from db push. A handler
+  // that read the old `true` as success would count revocations it cannot prove; one that read the
+  // old `false` as stale would wait for a lease that may not exist. Neither is knowledge.
+  const shapes: [string, unknown][] = [
+    ["old boolean true", { data: true }],
+    ["old boolean false", { data: false }],
+    ["null data", { data: null }],
+    ["empty array", { data: [] }],
+    ["refused with no token", { data: [{ applied: false, refusal: null }] }],
+    ["refused with an unknown token", { data: [{ applied: false, refusal: "something_new" }] }],
+    ["applied WITH a token (a contradiction the function never produces)", { data: [{ applied: true, refusal: "lease_lost" }] }],
+  ];
+  for (const [name, answer] of shapes) {
+    const { db } = scene();
+    db.rpcs["report_billing_key_revocation"] = () => answer as { data: unknown };
+    const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+    fm.install();
+    const original = console.error;
+    const logs: string[] = [];
+    console.error = (...x: unknown[]) => void logs.push(x.map(String).join(" "));
+    try {
+      const out = await revokeBillingKeys(cronReq(), db as never) as Row;
+      assertEquals(out.unreported, 1, `${name}: must fail closed`);
+      assertEquals(out.revoked, 0, `${name}: counted a revocation it cannot prove`);
+      assertEquals(out.stale, 0, `${name}: counted a lost lease it cannot prove`);
+      assertEquals(out.not_processing, 0, name);
+      assertEquals(out.absent, 0, name);
+      assert(logs.some((l) => l.includes("rev-1") && l.includes("UNREADABLE")), `${name}: no log line: ${logs.join("|")}`);
+    } finally {
+      console.error = original;
+      fm.restore();
+    }
+  }
+});
+
+Deno.test("[M7] an applied report still counts by the Toss result, and the empty tick carries every counter", async () => {
+  {
+    const { db } = scene();                                   // Toss 500 → failed, report applied
+    const fm = new FetchMock().on(isBilling, () => FetchMock.json({ code: "X", message: "nope" }, 500));
+    fm.install();
+    try {
+      const out = await revokeBillingKeys(cronReq(), db as never) as Row;
+      assertEquals(tickShape(out), EMPTY_TICK);
+      assertEquals([out.revoked, out.failed, out.stale, out.not_processing, out.absent, out.unreported], [0, 1, 0, 0, 0, 0]);
+    } finally { fm.restore(); }
+  }
+  {
+    const { db } = scene([]);                                 // nothing claimed
+    const out = await revokeBillingKeys(cronReq(), db as never) as Row;
+    assertEquals(tickShape(out), EMPTY_TICK);
+    assertEquals(Object.values(out).every((v) => v === 0), true);
   }
 });

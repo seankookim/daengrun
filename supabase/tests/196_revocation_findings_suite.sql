@@ -176,7 +176,7 @@ begin
   values (u1, 'rvf_F2', 'replaced', 'processing', 8, v_tok, now() + interval '5 minutes')
   returning id into v_id;
   select count(*)::int into n_before from notifications where ref_id = v_id;
-  select report_billing_key_revocation(v_id, false, 'toss 500', v_tok) into v_ok;
+  select applied into v_ok from report_billing_key_revocation(v_id, false, 'toss 500', v_tok);   -- [0178] reads `applied`; property unchanged
   select r.state, r.abandon_class, r.alerted_at into v_txt, v_cls, v_at
     from billing_key_revocations r where r.id = v_id;
   select count(*)::int into n_after from notifications where ref_id = v_id;
@@ -239,7 +239,7 @@ begin
   update billing_key_revocations set updated_at = now() - interval '1 hour' where id = v_id;
   select r.updated_at into v_upd from billing_key_revocations r where r.id = v_id;
   select count(*)::int into n_before from notifications where ref_id = v_id;
-  select report_billing_key_revocation(v_id, true, null) into v_ok;          -- the 3-arg shape
+  select applied into v_ok from report_billing_key_revocation(v_id, true, null);   -- the 3-arg shape; [0178] reads `applied` (the token here is not_processing — 209-R2/R4 own that)
   select r.state, r.last_error, r.updated_at into v_txt, v_err, v_upd
     from billing_key_revocations r where r.id = v_id;
   select count(*)::int into n_after from notifications where ref_id = v_id;
@@ -260,7 +260,7 @@ begin
                                        claim_token, lease_until)
   values (u1, 'rvf_F3c', 'replaced', 'processing', 2, v_tok, now() + interval '5 minutes')
   returning id into v_id2;
-  select report_billing_key_revocation(v_id2, true, null, v_tok) into v_ok2;
+  select applied into v_ok2 from report_billing_key_revocation(v_id2, true, null, v_tok);   -- [0178] reads `applied`
   select r.state into v_txt from billing_key_revocations r where r.id = v_id2;
   v_msg := v_msg || ' | A2 ok=' || coalesce(v_ok2::text,'∅') || ' state=' || coalesce(v_txt,'∅');
   if v_ok2 is not true              then v_bad := v_bad || ' LIVE-CLAIM-REFUSED'; end if;
