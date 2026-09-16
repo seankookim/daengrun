@@ -120,6 +120,25 @@ ADVISORY (no `exit 1` on findings) — making it blocking is Sean's call, queue 
 noted, not changed: the repo root has no `node_modules`, so the hook's local-binary branch is dead and
 it runs `pnpm dlx react-doctor@latest` (0.9.14 cached; `app/` pins 0.9.12). No codex verdict (wall).
 
+**05:0x — Sean awake (「keep going… mocks… premium taste / impeccable… backend where necessary」):**
+- `26c9bcd` `docs/reviews/2026-09-17-backend-honesty-audit.md` — 11 edge functions, 22 crons, RPC
+  surface: **3 HIGH** (open-drop reports rewards it never checked were written; open-drop consumes the
+  drop before it can pay it → needs an `open_drop_tx` definer; four money/ops crons have no readback),
+  **10 MED**, 6 LOW. `c99babb` closed M4 (openDrop unwrapped the wrong level — the runner was never
+  told what they won) and M5 (0083's `not_run_runner`/`run_ended` raises now map to Korean).
+- Sean's react-doctor chip landed on trunk as `2fab448` (pre-commit now scans linked worktrees).
+- **Five agents in flight**, each in its own worktree, each lands only on green gates with read-back:
+  `labs/premium` (PRODUCT.md + premium-taste brief + four impeccable/taste labs: owner home, request
+  flow, live run, run report — Sean picks by number) · `hig/tier3` (secondary sections say when a read
+  failed) · `hig/a2` (roles + selected state on every chip/segmented control) · `be/edge` (M1 H1 M3 M2
+  M8 M9 M6 L2 L1 + an open-drop deno suite) · `be/0175` (cron readback for the four unswept jobs + a
+  job lock on `owner_la_sweep_stale`, suite 205, harness-gated). Codex still owes every slice a review
+  once the wall lifts (06:44); H2 (`open_drop_tx`) and M7 (revocation refusal token) are Codex-sized
+  migrations queued behind it.
+- A macOS keychain prompt for 「Supabase CLI」 surfaced on Sean's screen ~05:00 — not from this session
+  (no CLI running here); it wants the Mac login password; Deny is safe; alt route is a personal access
+  token in his own shell.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
