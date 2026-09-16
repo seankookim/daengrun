@@ -194,6 +194,23 @@ were rewritten to assert `err.code === "billing_key_swap"` instead of raw SQL te
 reverting `:472` reddens all four. ⚠ **Edge functions are NOT deployed** — `functions deploy` waits
 for the same letter as `db push` (they assume 0157+ semantics). Codex still owes a verdict.
 
+**07:1x — `ca6fbe9` migration 0177 LANDED** (renumbered from 0175 after the collision; combined tree:
+harness **1236/0** = 1229 + exactly the 7 pins `0177-S1…S7` · deno 312/0 · tsc · check-rpc ·
+check-definer-acl baseline unchanged): the four money/ops cron jobs `club-payout-release`,
+`run-end-recovery`, `cancel-money-gaps`, `sweep-club-cancel-fees` are re-registered byte-identically
+without the swallowing handler and read back at apply (schedule asserted too — a deliberate divergence
+from 0172, reasoned in the file); `owner_la_sweep_stale` takes a job-level advisory lock with the
+unlock on every exit path, ACL re-stated explicitly. Battery: A0 proved a single-site plant is a no-op
+(0083's swallowed registration still succeeds locally), A1 aborts the apply at VERIFY, A2 reddens
+S2+S5 alone, B/B3/C redden S6 alone (comment-strip control and NO-SOURCE arm measured). Named gaps in
+the suite header: the harness cannot make `cron.schedule` fail, and a session-scoped lock is
+re-entrant so M10's duplicate push is un-pinnable single-connection. ⚠ **Sixteen migrations are now
+pending** (0157–0162, 0166–0174, 0177); production `cron.job` was never read — if the production
+apply aborts at 0177's VERIFY, that abort is the first evidence either way. Codex owes this slice a
+cold read (five named questions in the agent report). ⚠ Harness trap on this Mac: without
+`LANG/LC_ALL=en_US.UTF-8` the postmaster dies at start (「became multithreaded」) and the run prints
+`SHIM FAILED` — an environment fault wearing a failed control's costume; set the locale first.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
