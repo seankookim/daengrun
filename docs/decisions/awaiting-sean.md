@@ -1526,6 +1526,22 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+20. **Your Codex branch `codex/board-wrapper-bundle` (0164/195) was NOT landed — it removes the
+    runner-commit door.** Every gate is green (harness 1247/0, deno, tsc, npm) and the slice's two real
+    fixes are good (`session_set_backup`'s party gate no longer goes silent on a NULL caller; in-body
+    `pg_temp`). But 0164 makes `_club_delegation_board` return NULL for a `none`-graded caller, and an
+    UNCOMMITTED certified runner is graded `none` by design (`_club_shell_access`, 0049) — so
+    `board === null` on the session screen and the 「이 세션 맡기」 CTA (`club/session/[sid].tsx:1677`,
+    gated on `board && runnerCap > 0`) never renders; `commitAsHandler` has no other call site. The
+    repo's own pin `95 G2b` was written for exactly this regression last time; 0164 rewrites it to
+    assert the opposite. Your ruling 5 narrows incident/paid-dog/staffing state for STRANGERS; whether
+    an uncommitted certified runner is a stranger is your call. ⓐ **return the `session` + `me` envelope
+    for `none` (dogs/runners/incidents stay `[]`) and restore G2b** (recommended — keeps ruling 5 and the
+    door) · ⓑ grade an uncommitted certified runner above `none` · ⓒ land as is and drop the CTA.
+    Paste into that Codex session: 「0164: for p_access = 'none' return the session+me envelope with
+    dogs/runners/incidents = [] instead of NULL, restore 95 G2b to its original sentence, add a 195 pin
+    whose fixture is an uncommitted CERTIFIED runner (runnerCap > 0) asserting the board is non-null and
+    the roster is empty; re-run harness.」 The branch is untouched at `bf53c3b`.
 19. **Premium labs — pick by number** (`docs/labs/premium-labs-README.md`, trunk `c7f207d`; four labs,
     three variants each; ①② paper, ③ a labelled departure). The README's own questions Q1–Q5 are the
     letters; the agent recommends ② in all four and flags that ② is structurally the middle of its own
@@ -1561,7 +1577,7 @@ grep counted. Recorded so nobody builds it twice.
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 07:1x: SIXTEEN now —
+1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 07:5x: SEVENTEEN now (0163 landed from your Codex session's branch, `ee8845c`; earlier 07:1x text: SIXTEEN —
    `0177` (cron readback for four money/ops jobs + a job lock on `owner_la_sweep_stale`, harness
    1236/0, codex-unreviewed until the wall lifts) landed on trunk, and the edge functions changed on
    trunk too (`f6ed478`: `400 bad_body`, open-drop honesty, notify/payments error surfacing) — so the
