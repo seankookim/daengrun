@@ -17,6 +17,10 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
+> ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
+> four hours ahead of the wall clock (「08:3x」 was written at 04:25). Rewritten from each commit's
+> `git log --date` timestamp; the Codex quota wall (06:44) has NOT lifted yet as of this line.
+
 **Supersedes the 01:2x block below where they conflict.** Sean installed **Xcode 27.0 (27A266a, Swift
 6.4)** and it is selected (`xcode-select -p` = `/Applications/Xcode.app/Contents/Developer`). Measured:
 - **Local Release simulator build SUCCEEDED** under Xcode 27 (`npx expo prebuild` → `pod install` with
@@ -84,7 +88,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
   `owner/live.tsx` (reserved for the 06:52 Codex VoiceOver slice). If this note is not followed by a
   landing line, `git branch -r | grep hig/` shows where they stopped.
 
-**03:4x — `f8ab905` a11y LANDED** (re-gated on the combined tree: tsc · 4 checks · npm 989/0): VoiceOver
+**02:46 — `f8ab905` a11y LANDED** (re-gated on the combined tree: tsc · 4 checks · npm 989/0): VoiceOver
 names + roles on 32 icon-only controls across 18 files (sheet scrims 「닫기」, camera chips 「사진 보내기」,
 bell 「알림」, 112/119 「…에 전화 걸기」, star rating as `radio` with `selected`, photo tiles as
 `imagebutton`); 564 controls enumerated, parser diffed against the crude grep both ways (484/484).
@@ -94,7 +98,7 @@ chips with a name but no role/state (A2 follow-up). Spoken output UNVERIFIED —
 owner home bell + moment strip · a club session sheet scrim · safety 112/119 · runner review stars ·
 shot photo tile selected state.
 
-**04:2x — `f38d809` honesty slice LANDED** (combined tree: tsc · 4 checks · npm 989/0 — ⚠ that suite
+**02:59 — `f38d809` honesty slice LANDED** (combined tree: tsc · 4 checks · npm 989/0 — ⚠ that suite
 cannot import a route module, so its green means 「nothing regressed」, not 「this slice was checked」):
 Tier 1 #1–8 of `loading-state-audit.md` closed — session roster failure now says so + retry (was
 「불러오는 중」 forever); shop/card-link/settings/my surface failed reads instead of the happy face
@@ -120,7 +124,7 @@ ADVISORY (no `exit 1` on findings) — making it blocking is Sean's call, queue 
 noted, not changed: the repo root has no `node_modules`, so the hook's local-binary branch is dead and
 it runs `pnpm dlx react-doctor@latest` (0.9.14 cached; `app/` pins 0.9.12). No codex verdict (wall).
 
-**05:0x — Sean awake (「keep going… mocks… premium taste / impeccable… backend where necessary」):**
+**03:14 — Sean awake (「keep going… mocks… premium taste / impeccable… backend where necessary」):**
 - `26c9bcd` `docs/reviews/2026-09-17-backend-honesty-audit.md` — 11 edge functions, 22 crons, RPC
   surface: **3 HIGH** (open-drop reports rewards it never checked were written; open-drop consumes the
   drop before it can pay it → needs an `open_drop_tx` definer; four money/ops crons have no readback),
@@ -135,11 +139,11 @@ it runs `pnpm dlx react-doctor@latest` (0.9.14 cached; `app/` pins 0.9.12). No c
   job lock on `owner_la_sweep_stale`, suite 205, harness-gated). Codex still owes every slice a review
   once the wall lifts (06:44); H2 (`open_drop_tx`) and M7 (revocation refusal token) are Codex-sized
   migrations queued behind it.
-- A macOS keychain prompt for 「Supabase CLI」 surfaced on Sean's screen ~05:00 — not from this session
+- A macOS keychain prompt for 「Supabase CLI」 surfaced on Sean's screen ~03:10 — not from this session
   (no CLI running here); it wants the Mac login password; Deny is safe; alt route is a personal access
   token in his own shell.
 
-**05:3x — `8ab703a` Tier 3 LANDED** (combined tree: tsc · 4 checks · npm 989/0): every secondary
+**03:22 — `8ab703a` Tier 3 LANDED** (combined tree: tsc · 4 checks · npm 989/0): every secondary
 section whose read failed now says so with a retry that re-issues exactly that read — club page
 (board / series / stats), owner report (standings, review, slot, earning, gaps — the two celebration
 pops stay silent on purpose: a retry would burn the once-per-entity token), owner home (a new
@@ -149,7 +153,7 @@ the shareable PNG), address pin (retry re-runs the whole resolve chain). Airplan
 in the agent report (10 items). Loading-state audit Tiers 1–3 are now closed except #13/#14
 (queue item 17).
 
-**05:5x — `13d3658` A2 LANDED** (combined tree: tsc · 4 checks · npm 989/0): roles + selected/checked
+**03:28 — `13d3658` A2 LANDED** (combined tree: tsc · 4 checks · npm 989/0): roles + selected/checked
 state on 23 selection sets across 12 files (date strip, slot grid, dog picker, pace, add-ons, weekly
 repeat, course carousel, neutered yes/no, schedule filter, weekday availability as `switch`, review
 tags, gear checklist, community/leaderboard/club-session tabs, consent checkboxes). Props-only proven
@@ -158,7 +162,7 @@ two ways (char stream + AST) with control plants. Two pre-existing wrong roles f
 multi-select carries `selected` (should be `checked`) — small follow-up. VoiceOver output UNVERIFIED;
 smoke list in the agent report (8 items).
 
-**06:0x — cold review of A2 (APPROVE-WITH-FIXES/6) applied: `332e21b` two wrong roles, `bf4ff99` spot
+**03:33 — cold review of A2 (APPROVE-WITH-FIXES/6) applied: `332e21b` two wrong roles, `bf4ff99` spot
 chips get radio+state and the booked slot is now DRAWN selected (ink plate, 「선택됨」) so the eye and
 VoiceOver agree — a small visible change on the booking sheet, reversible. Queue item 18 asks for one
 VoiceOver vocabulary ruling (`checked` vs `selected`, `tab` inert on iOS Fabric — measured in RN 0.86).
@@ -167,7 +171,7 @@ Peer session `daengrun-b6` (Sean's react-doctor session) is now on backend-audit
 (be/edge owns it), not to run codex or the Supabase CLI. Numbers 0175/205 (be/0175, unpushed) and
 0176/206 (b6, unpushed) are both claimed — the three-sided check cannot see either yet.
 
-**06:2x — `c7f207d` premium labs LANDED** (docs only): `docs/design/PRODUCT.md` (impeccable format, real
+**03:35 — `c7f207d` premium labs LANDED** (docs only): `docs/design/PRODUCT.md` (impeccable format, real
 facts only), `docs/design/premium-taste-brief.md` (both skills distilled against DESIGN.md — 12
 tensions, incl. a 🔴 finding that the GO law's waiting-blue ships as the accent violet), four labs
 `docs/labs/premium-{owner-home,request-flow,live-run,run-report}-lab.html` (①② paper, ③ labelled
@@ -180,7 +184,7 @@ slice → **0177 / 208**, b6's open_drop_tx → **0176 / 207**, Sean's stay as t
 of the check: `ls .claude/worktrees/*/supabase/migrations | grep -E '^01'` (and tests) before
 claiming.
 
-**06:5x — `f6ed478` edge slice LANDED** (combined tree: deno **312/0** = 292 + exactly the 20 tests
+**03:40 — `f6ed478` edge slice LANDED** (combined tree: deno **312/0** = 292 + exactly the 20 tests
 added · tsc · check-rpc): malformed bodies are `400 bad_body` in all six functions (M1); open-drop
 validates before the consuming CAS (M3) and reports only rewards it actually wrote — a partial write
 returns `{applied, failed, error:<Korean>}` so the existing client shows 「오픈 실패」 instead of a
@@ -194,7 +198,7 @@ were rewritten to assert `err.code === "billing_key_swap"` instead of raw SQL te
 reverting `:472` reddens all four. ⚠ **Edge functions are NOT deployed** — `functions deploy` waits
 for the same letter as `db push` (they assume 0157+ semantics). Codex still owes a verdict.
 
-**07:1x — `ca6fbe9` migration 0177 LANDED** (renumbered from 0175 after the collision; combined tree:
+**03:48 — `ca6fbe9` migration 0177 LANDED** (renumbered from 0175 after the collision; combined tree:
 harness **1236/0** = 1229 + exactly the 7 pins `0177-S1…S7` · deno 312/0 · tsc · check-rpc ·
 check-definer-acl baseline unchanged): the four money/ops cron jobs `club-payout-release`,
 `run-end-recovery`, `cancel-money-gaps`, `sweep-club-cancel-fees` are re-registered byte-identically
@@ -302,7 +306,7 @@ landing worktree and `land/board-wrapper-bundle` are removed. To redo the rebase
 is `harness.sh`, resolved by keeping trunk's `suite 208_` line where it is and inserting
 `suite 195_…` immediately after `suite 194_`.
 
-**08:3x — `04d73a9` migration 0176 LANDED** (b6's slice, backend-audit H2; combined tree: harness
+**04:25 — `04d73a9` migration 0176 LANDED** (b6's slice, backend-audit H2; combined tree: harness
 **1246/0** = 1239 + exactly the 7 pins `O1…O7` · deno 312/0 · tsc · check-rpc · check-definer-acl
 baseline unchanged): `open_drop_tx(uuid, text)` SECURITY DEFINER, authenticated only (service_role
 revoked in-file), gate order not_signed_in → drop_not_found → not_drop_owner (under `for update`) →
