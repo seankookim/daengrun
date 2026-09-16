@@ -84,6 +84,16 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
   `owner/live.tsx` (reserved for the 06:52 Codex VoiceOver slice). If this note is not followed by a
   landing line, `git branch -r | grep hig/` shows where they stopped.
 
+**03:4x — `f8ab905` a11y LANDED** (re-gated on the combined tree: tsc · 4 checks · npm 989/0): VoiceOver
+names + roles on 32 icon-only controls across 18 files (sheet scrims 「닫기」, camera chips 「사진 보내기」,
+bell 「알림」, 112/119 「…에 전화 걸기」, star rating as `radio` with `selected`, photo tiles as
+`imagebutton`); 564 controls enumerated, parser diffed against the crude grep both ways (484/484).
+Props-only, proven by stripping the a11y attributes from both diff sides (control arm reddened). Not
+done on purpose: two image-dominant tiles (a container label would silence their children), selection
+chips with a name but no role/state (A2 follow-up). Spoken output UNVERIFIED — VoiceOver smoke list:
+owner home bell + moment strip · a club session sheet scrim · safety 112/119 · runner review stars ·
+shot photo tile selected state.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
