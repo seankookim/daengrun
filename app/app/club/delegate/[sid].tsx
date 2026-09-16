@@ -140,6 +140,7 @@ export default function DelegateConsentScreen() {
               {dogsLoaded && dogs.length === 0 && <Text style={{ fontSize: 15, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
               {dogsLoaded && dogs.map((d, i) => (
                 <Pressable key={d.id} onPress={() => setDogIdx(i)}
+                  accessibilityRole="radio" accessibilityState={{ selected: i === dogIdx }}
                   style={[s.dogChip, i === dogIdx && { backgroundColor: INK, borderColor: INK }]}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
                     {d.name}{d.weightKg ? ` · ${d.weightKg}kg` : ''}
@@ -176,7 +177,8 @@ export default function DelegateConsentScreen() {
               <Text style={{ fontSize: 15, color: '#8a8272' }}>까지 사전 승인</Text>
             </View>
           </View>
-          <Pressable onPress={() => setPhotoOk((v) => !v)} style={s.pdRow}>
+          <Pressable onPress={() => setPhotoOk((v) => !v)} style={s.pdRow}
+            accessibilityRole="checkbox" accessibilityState={{ checked: photoOk }}>
             <Text style={s.pdKey}>사진 동의</Text>
             <View style={[s.checkBox, photoOk && { backgroundColor: INK, borderColor: INK }]}>
               {photoOk && <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>✓</Text>}

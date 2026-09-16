@@ -568,7 +568,9 @@ export default function RunnerProfileScreen() {
                   <Text style={{ fontSize: 15, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
-                      <Pressable key={kstKey(d.cal)} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}>
+                      <Pressable key={kstKey(d.cal)} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}
+                        accessibilityRole="radio" accessibilityState={{ selected: dayIdx === i }}
+                        accessibilityLabel={`${d.label ? `${d.label} ` : ''}${d.d}일 ${d.w}요일`}>
                         <Text style={{ fontSize: 15, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                         <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
                         {d.label && <Text style={{ fontSize: 9, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
@@ -591,6 +593,8 @@ export default function RunnerProfileScreen() {
                               if (ok !== true) return; // still verifying — selectable only once confirmed
                               setSelected(sel ? null : sl);
                             }}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: sel, disabled: ok === false }}
                             style={[
                               s.slotChip,
                               ok === false && { opacity: 0.35 },

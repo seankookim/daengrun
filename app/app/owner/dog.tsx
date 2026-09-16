@@ -291,7 +291,8 @@ export default function DogProfileScreen() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Row style={{ gap: 8, flexWrap: 'wrap' }}>
                   {dogs.map((d) => (
-                    <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                    <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                      accessibilityRole="radio" accessibilityState={{ selected: dog.id === d.id }}>
                       <Text style={{ fontSize: 15, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
                     </Pressable>
                   ))}
@@ -329,7 +330,8 @@ export default function DogProfileScreen() {
                 <Text style={s.label}>중성화</Text>
                 <Row style={{ gap: 8 }}>
                   {([[true, '했어요'], [false, '안 했어요']] as const).map(([v, label]) => (
-                    <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                    <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                      accessibilityRole="radio" accessibilityState={{ selected: neutered === v }} accessibilityLabel={`중성화 ${label}`}>
                       <Text style={{ fontSize: 15, fontWeight: '800', color: neutered === v ? '#fff' : paper.ink }}>{label}</Text>
                     </Pressable>
                   ))}

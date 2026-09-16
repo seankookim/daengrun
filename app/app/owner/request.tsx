@@ -763,7 +763,9 @@ export default function Request() {
   const renderDateStrip = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
       {DATES.map((d, i) => (
-        <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+        <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+          accessibilityRole="radio" accessibilityState={{ selected: dateIdx === i }}
+          accessibilityLabel={`${d.label ? `${d.label} ` : ''}${d.d}일 ${d.w}요일`}>
           <Text style={{ fontSize: 15, color: dateIdx === i ? '#B8B8B8' : paper.dim }}>{d.w}</Text>
           <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
           {/* 오늘·내일 마커 — 볼트/그린 은퇴, 양 상태 모두 코랄 (잉크 면 위에서도 4.5:1 근처 확보) */}
@@ -786,6 +788,8 @@ export default function Request() {
               key={t}
               disabled={!ok}
               onPress={() => pickSlot(t)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: draft.scheduledAtIso === toDate(dateIdx, t).toISOString(), disabled: !ok }}
               // 불투명도 트릭 금지 법 — disabled는 명시 색으로 (disabledFill + faint 시각, F2.1)
               style={[s.slot, !ok && { backgroundColor: paper.disabledFill }]}
             >
@@ -1014,7 +1018,8 @@ export default function Request() {
                   {/* 다견 선택 + 추가 */}
                   <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     {myDogs.length > 1 && myDogs.map((d, i) => (
-                      <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                      <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                        accessibilityRole="radio" accessibilityState={{ selected: dogIdx === i }}>
                         <Text style={{ fontSize: 15, fontWeight: '800', color: dogIdx === i ? '#fff' : paper.text }}>{d.name}</Text>
                       </Pressable>
                     ))}
@@ -1082,7 +1087,8 @@ export default function Request() {
               {PACES.map((pc) => {
                 const sel = pace === pc;
                 return (
-                  <Pressable key={pc} onPress={() => setPace(pc)} style={[s.paceChip, sel && s.paceChipSel]}>
+                  <Pressable key={pc} onPress={() => setPace(pc)} style={[s.paceChip, sel && s.paceChipSel]}
+                    accessibilityRole="radio" accessibilityState={{ selected: sel }} accessibilityLabel={`페이스 ${pc}`}>
                     <Row style={{ gap: 2.5, alignItems: 'flex-end', marginBottom: 7 }}>
                       {[7, 10, 13].map((h, bi) => (
                         <View key={bi} style={{
@@ -1105,7 +1111,8 @@ export default function Request() {
                 const sel = addons.includes(k);
                 // 선택 = 코랄 보더 + 코랄 체크 (볼트 필 은퇴) — 잉크 필은 칩 전용, 카드는 보더로 말한다
                 return (
-                  <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: paper.line }]}>
+                  <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: paper.line }]}
+                    accessibilityRole="checkbox" accessibilityState={{ checked: sel }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <View style={s.addonIcon}><Icon name={ADDON_ICONS[k] ?? 'Plus'} glyph="●" size={16} color={paper.dim} /></View>
                       <View style={[s.checkCircle, sel && { borderColor: paper.line }]}>
@@ -1124,6 +1131,8 @@ export default function Request() {
             {/* 매주 반복 (0026) — 구독형 동의: 가격·주기·해지 자유를 토글 안에 전부 명시 (다크패턴 금지) */}
             <Pressable
               onPress={() => setRecurringOn((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: recurringOn }}
               style={[s.recurRow, recurringOn && { borderColor: paper.line }]}
             >
               <View style={{ flex: 1 }}>
@@ -1211,6 +1220,8 @@ export default function Request() {
                           setRouteId(r.id);
                           setPickSource({ mode: 'manual', origin: 'carousel' });
                         }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: sel }}
                         style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
                       >
                         {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}

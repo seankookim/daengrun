@@ -1391,7 +1391,8 @@ export default function ClubSessionShell() {
         {!isDone && (
           <View style={s.shell}>
             {(['개요', '참가자', '채팅'] as const).map((t) => (
-              <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}>
+              <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}
+                accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
                 <Text style={[s.shellTxt, tab === t && { color: L.head }]}>
                   {t}{tabCounts[t] != null ? <Text style={{ fontSize: 15, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
                 </Text>
@@ -1882,7 +1883,8 @@ export default function ClubSessionShell() {
             <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 자리 확정</Text>
           </Row>
           {/* 규칙 7이 카드에서 옮겨온 두 문장 — 법적으로 묶이는 순간에만 등장 */}
-          <Pressable onPress={() => setMethodOk((v) => !v)} style={s.legal}>
+          <Pressable onPress={() => setMethodOk((v) => !v)} style={s.legal}
+            accessibilityRole="checkbox" accessibilityState={{ checked: methodOk }}>
             <View style={[s.chk, methodOk && { backgroundColor: L.coral }]}>
               {methodOk && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>

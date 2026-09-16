@@ -998,7 +998,8 @@ export default function ClubPage() {
             <Text style={s.capHint}>{cap >= CAP_MAX ? `최대 ${CAP_MAX}팀` : `최대 ${CAP_MAX}팀까지`}</Text>
           </Row>
           {/* ⟳ 매주 반복 (0035) — 다음 주부턴 크론이 같은 요일·시각으로 자동 개설 */}
-          <Pressable onPress={() => setWeekly((w) => !w)} style={s.weeklyRow}>
+          <Pressable onPress={() => setWeekly((w) => !w)} style={s.weeklyRow}
+            accessibilityRole="checkbox" accessibilityState={{ checked: weekly }}>
             <View style={[s.weeklyBox, weekly && { backgroundColor: L.accent, borderColor: L.accent }]}>
               {weekly && <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>
