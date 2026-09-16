@@ -108,7 +108,7 @@ purpose: Tier 2 #13/#14 (icon-only send buttons need a design call), Tier 3, and
 `shot/[bid].tsx:1103` uses a **disabled** alpha (DESIGN.md forbids that too) — follow-up. Device
 smoke list (9 items, airplane-mode based) is in the agent's report; the money-path one is #3.
 
-**05:0x — `.githooks/pre-commit` (react-doctor) now scans in linked worktrees.** Before: every
+**03:11 — `.githooks/pre-commit` (react-doctor) now scans in linked worktrees.** Before: every
 commit from a `.claude/worktrees/*` tree printed 「configuration differs between the index and
 worktree」 for eight CLEAN config files, then 「found staged regressions」, then landed unchecked.
 Measured cause, three parts: git exports `GIT_DIR` to hooks only when `.git` is a gitfile (a plain
@@ -215,7 +215,7 @@ cold read (five named questions in the agent report). ⚠ Harness trap on this M
 `LANG/LC_ALL=en_US.UTF-8` the postmaster dies at start (「became multithreaded」) and the run prints
 `SHIM FAILED` — an environment fault wearing a failed control's costume; set the locale first.
 
-**07:5x — `ee8845c` Codex branch `codex/runner-rules-checks` LANDED (0163 + suite 194).** The first
+**03:58 — `ee8845c` Codex branch `codex/runner-rules-checks` LANDED (0163 + suite 194).** The first
 Codex-written slice to reach trunk. Rebased `4dc0608` onto `4f6a8a5`; REGISTRY.md auto-merged (row
 0163 sits between 0162 and 0166, every trunk row 0166–0177 preserved), `harness.sh` was the one
 conflict and was resolved by UNION with `suite 194_` inserted at its numeric position after
@@ -244,7 +244,7 @@ touches the table, so nothing else could break; ⑤ the one real residual — a 
 no Korean client mapping, unreachable from the shipped client because the stepper clamps, so it is a
 note and not a defect. ⚠ NOT codex-reviewed (this was a cold Claude read), NOT DEPLOYED.
 
-🔴 **08:0x — Codex branch `board-wrapper-bundle` NOT landed: 0164 removes the only route by which a
+🔴 **04:07 — Codex branch `board-wrapper-bundle` NOT landed: 0164 removes the only route by which a
 certified runner commits to a session, and rewrites the pin that exists to prevent exactly that.**
 Every gate is GREEN — rebased `bf53c3b` onto `7d4db60` cleanly (harness.sh the one conflict, unioned
 with `suite 195_` at its numeric position after 194; REGISTRY auto-merged; 0 markers in three shapes)
