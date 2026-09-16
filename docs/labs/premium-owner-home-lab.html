@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium Owner Home Lab — 보호자 홈 히어로 3안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   PREMIUM OWNER HOME LAB — the hero + action zone of `app/app/owner/home.tsx`.
+   First of four labs from `docs/design/premium-taste-brief.md`. The SHARED PAPER
+   WORLD block below is byte-identical in all four (built from one file).
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   ONE thing: how much of the screen the CURRENT STATE gets, and what shape it
+   takes. The masthead, the three chunks (오늘 · 동네 · 나) and the dock are the
+   same in ①②③ and are not part of the pick.
+
+   ── WHAT IS FROZEN AND THEREFORE NOT ON THE TABLE ──────────────────────────
+   `CLAUDE.md` § DO-NOT-REFACTOR and `DESIGN.md` §9: owner home's collapsing
+   hero is a PERF architecture (pinned absolute overlay + ScrollView paddingTop
+   reservation, transform/opacity native-driver only). Sean removed owner-home's
+   hero from that freeze on 2026-08-19 when he picked home lab ⑧ v2, which
+   retired the GO disc. So the DISC is gone and its composition is open; the
+   scroll machinery underneath is not. Nothing here animates layout.
+
+   ── FIELD BINDINGS — everything drawn here exists in the code ───────────────
+   `home.tsx:127`  GoState = none | searching | directed | confirmed | handoff | active
+   `home.tsx:354-362` derivation from STATUS_MAP display status + `matched`
+   `home-hero.tsx` the chip, the 43pt Phrase (2 lines, lineHeight 50), the subline
+   `draw-button.tsx:96-105` the seven grounds and the 4px lip
+   `home.tsx:492-509` the dark LIVE widget (ground lilac.head #221E3D)
+   `home.tsx:548` the 다음 일정 rail dots — sage = confirmed, violet = pending
+   `bottomnav.tsx:38-42` the five owner tabs, icons only, no labels
+
+   🔴 ── DRAWN AGAINST THE CODE, NOT AGAINST DESIGN.md §5 ────────────────────
+   `DESIGN.md` §5 still describes a GO disc, a `GO_TINT` hero wash, and a
+   periwinkle waiting blue (#5B82E8 / #4468CC 「deliberately green-shifted so it
+   can never be confused with accent violet #6C5CE7」). Measured on trunk:
+   `GO_TINT` has ZERO occurrences in app/, and the shipped waiting colour is
+   `home-hero.tsx:102  const WAIT_BLUE = '#6C5CE7'` — the accent violet itself.
+   These frames use the SHIPPED values. The disagreement is Tension ⑫ in
+   `docs/design/premium-taste-brief.md` and is Sean's to settle; it is not
+   settled here by drawing one of them.
+
+   ── MOTION, STATED RATHER THAN IMPLIED ─────────────────────────────────────
+   The only motion in this lab is the button lip: rest = 4px bottom border in the
+   pressed fill, press = translateY(3px) + 1px border, 120ms. One authored moment
+   (impeccable craft-floor). No entrance choreography, no idle loop: `DESIGN.md`
+   §6 licenses motion only when the system knows something, and a home screen at
+   rest knows nothing new. A `prefers-reduced-motion` block collapses even the
+   lip's transition.
+   ═════════════════════════════════════════════════════════════════════════ */
+/* ── SHARED PAPER WORLD ── byte-identical in all four premium-* labs ─────────
+   Every token below is READ FROM `app/src/theme.ts`, not invented. Where the
+   shipped value and DESIGN.md disagree the SHIPPED value is used and the
+   disagreement is named in docs/design/premium-taste-brief.md § Tension ⑫.   */
+:root{
+  /* GROUND — paper world. White, per Sean 2026-08-25 「white backgrounds」. */
+  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
+  --ink:#111111;    /* paper.ink   — head, 18.9:1 */
+  --text:#333333;   /* paper.text  — body, 12.6:1 */
+  --dim:#666666;    /* paper.dim   — detail, 5.7:1, AA with the 15pt floor */
+  --faint:#999999;  /* paper.faint — DECORATION CLASS ONLY (latin kickers) */
+  /* THE BRAND IS THE LINE — solid coral 1px, full bleed, no opacity */
+  --line:#E8552F;   /* paper.line */
+  --wash:#FFF6F4;   /* paper.wash — coral 95% white */
+  /* ACTION SYSTEM — Sean 2026-08-11 「검정은 제일 지루하다」 */
+  --action:#C6472C;        /* paper.action        white label 4.84:1 */
+  --actionPressed:#A83315; /* paper.actionPressed white label 6.67:1 = the lip */
+  --actionInk:#A83315;     /* paper.actionInk     on wash 5.99:1 */
+  --draw:#A63A20;          /* draw-button.tsx:96 coral ground (console #18) */
+  --drawSub:#FFD9CE;
+  /* STATE INKS */
+  --ready:#119B58;     /* paper.ready     large white label only, 3.59:1 */
+  --readyDeep:#0E7F49; /* paper.readyDeep 5.06:1 */
+  --wait:#6C5CE7;      /* home-hero.tsx:102 WAIT_BLUE = lilac.accent (Tension ⑫) */
+  --pending:#C77414;   /* paper.pending */
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --paceGoodWash:#E7F5EE; --paceGoodInk:#0E7F49;
+  --paceSlowWash:#FBEED9; --paceSlowInk:#9D580A;
+  --disabledFill:#F2F2F2; --neutral:#EEEEEE;
+  --head:#221E3D;      /* lilac.head — the live widget's dark ground */
+  --headDim:#B9B3D9; --headFaint:#8F88B8;
+  --voltDeep:#5E7F0E; --goldTint:#F4EBD3; --goldEdge:#C9AE6A; --goldInk:#5F4E1C;
+  --blueBg:#EDF2F8; --blueEdge:#A9BDD2; --blueInk:#2E4F70; --blueSub:#456079;
+  --amberBg:#FBEED9; --amberEdge:#DCBE86; --amberInk:#6E4708;
+  --voltBg:#EAF6C8; --voltEdge:#A8C46A; --voltInk:#3F5A08;
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --dogFill:#C9B89A; --dogInk:#5D5138;
+  /* TYPE — labs run the app's system Korean stack (DESIGN.md §2, 2026-08-25).
+     Lattice 11 / 15 / 17 / 19 / 20 / 24 / 30 + Oswald 23 / 27 / 34.5 (lh ≥1.2x).
+     Korean floor is 15. Sub-15 is LATIN letterspaced caps and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --tk:11px;                   /* latin kicker — never Korean */
+  --t5:15px; --l5:21px;        /* detail floor */
+  --t4:17px; --l4:24px;        /* supporting */
+  --t3:19px; --l3:26px;        /* chunk kicker (DESIGN.md §3: they went to 19) */
+  --t2:20px; --l2:27px;        /* section title (DESIGN.md §3b: 20/800) */
+  --t1:24px; --l1:30px;
+  --tD:30px; --lD:37px;        /* screen title 30/900 lh37 (DESIGN.md §3b) */
+  --n3:23px; --nl3:29px;       /* numeral inline  1.26x */
+  --n2:27px; --nl2:33px;       /* numeral large   1.22x */
+  --n1:34.5px; --nl1:44px;     /* numeral hero    1.28x */
+  /* lab chrome only — never inside a phone frame */
+  --page:#FFFFFF; --hair:#E4E3DF;
+  /* MOTION — impeccable operate.md: 150-250ms. Ceiling here is 240ms.
+     Curve is exponential ease-out, which craft-floor.md asks for by name. */
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:1420px;margin:0 auto}
+
+/* ── LAB CHROME ─────────────────────────────────────────────────────────── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:18px}
+header.top h1{font-size:var(--tD);line-height:var(--lD);font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);
+  font-weight:700;margin-bottom:10px}
+.samplebar{margin-top:16px;border:1.5px solid var(--line);background:var(--wash);
+  padding:12px 14px;font-size:var(--t5);line-height:var(--l5);color:var(--text);max-width:88ch}
+.samplebar b{color:var(--actionInk);font-weight:800}
+ul.brief{margin:20px 0 0;padding-left:20px;font-size:var(--t5);line-height:1.8;max-width:88ch}
+ul.brief b{font-weight:800}
+ul.brief code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--neutral);padding:1px 4px}
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:22px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:var(--t5);
+  line-height:1.55;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:34px;font-size:var(--t3);font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:var(--t5);line-height:1.55;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+.rail{display:flex;flex-wrap:wrap;gap:40px;margin-top:48px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.cap .n{flex:0 0 auto;width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:var(--t1);font-weight:800}
+.cap .d{font-size:var(--t5);line-height:1.45;font-weight:700;color:var(--dim);padding-top:3px}
+.cap .d b{color:var(--ink);display:block;font-size:var(--t4);line-height:1.35;margin-bottom:3px}
+.dials{display:flex;gap:0;border:1px solid var(--ink);margin-bottom:16px}
+.dials div{flex:1;padding:7px 8px;border-right:1px solid var(--ink);text-align:center}
+.dials div:last-child{border-right:0}
+.dials span{display:block;font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--dim);font-weight:700}
+.dials b{display:block;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--ink)}
+.why{margin-top:16px;font-size:var(--t5);line-height:1.7;color:var(--text)}
+.why b{font-weight:800;color:var(--ink)}
+.why .rule{display:block;margin-top:9px;padding-left:12px;border-left:1px solid var(--neutral);
+  color:var(--dim);font-size:var(--t5)}
+.states{margin-top:16px;border-top:1.5px solid var(--ink);font-size:var(--t5);line-height:var(--l5)}
+.states .r{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--neutral);align-items:baseline}
+.states .r .s{flex:0 0 86px;font-weight:800;color:var(--ink)}
+.states .r .v{flex:1;color:var(--text)}
+.states .r .v em{font-style:normal;color:var(--dim)}
+
+/* ── PHONE FRAME ─────────────────────────────────────────────────────────── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 30px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--dim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column}
+.pad{padding:0 15px}                      /* layout.gutter = 15 */
+.disp{font-family:var(--fDisp);font-weight:400;color:var(--ink);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--faint)}
+.chunk{font-size:var(--t3);line-height:var(--l3);letter-spacing:1px;font-weight:800;color:var(--dim)}
+.rule{height:1px;background:var(--line)}          /* full-bleed coral hairline */
+.hair{height:1px;background:var(--neutral)}
+.inkrule{height:2px;background:var(--ink)}
+/* module header — DESIGN.md §3b: one grammar, title + optional right link */
+.modh{display:flex;align-items:baseline;justify-content:space-between;padding:14px 0 8px}
+.modh .t{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.modh .l{font-size:var(--t5);font-weight:700;color:var(--dim)}
+/* status chip — 16/800, radius 0, tinted fill, same baseline row as its datum */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:16px;line-height:22px;font-weight:800;
+  padding:3px 9px}
+.chip i{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:currentColor;font-style:normal}
+.chip.ready{color:var(--readyDeep);background:var(--paceGoodWash)}
+.chip.wait{color:var(--wait);background:#F0EDFD}
+.chip.turn{color:var(--actionInk);background:var(--wash)}
+.chip.none{color:var(--dim);background:var(--disabledFill)}
+/* buttons — DESIGN.md §3b matrix. Filled = 4px lip, press = translateY(3)+1px.
+   Unfilled = scale(.96). Disabled is FLAT and painted, never alpha.          */
+.btnP{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;
+  background:var(--action);color:#fff;border:0;border-bottom:4px solid var(--actionPressed);
+  padding:15px 12px 13px;font-family:var(--fBody);font-size:var(--t4);line-height:var(--l4);
+  font-weight:800;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.btnP:active{transform:translateY(3px);border-bottom-width:1px}
+.btnP .sub{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--drawSub);margin-top:2px}
+.btnS{display:flex;align-items:center;justify-content:center;width:100%;background:var(--canvas);
+  color:var(--ink);border:1px solid var(--line);padding:15px 12px;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:800;cursor:pointer;transition:transform .12s var(--ease)}
+.btnS:active{transform:scale(.96)}
+.btnD{border-color:var(--critical);color:var(--critical)}
+.btnOff{background:var(--disabledFill);color:var(--faint);border:0;border-bottom:0}
+/* draw-button — the home action block. Ground palette is draw-button.tsx:96-105 */
+.draw{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:0 15px;
+  height:96px;border:0;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.draw:active{transform:translateY(3px);border-bottom-width:1px}
+.draw.sm{height:78px}
+.draw.coda{height:56px}
+.draw .tx{flex:1;min-width:0}
+.draw .tt{font-size:var(--t4);line-height:var(--l4);font-weight:800}
+.draw .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;margin-top:2px}
+.draw .gl{flex:0 0 34px;font-size:22px;line-height:1;text-align:center}
+.draw.coral{background:var(--draw);border-bottom:4px solid var(--actionPressed);color:#fff}
+.draw.coral .ts{color:var(--drawSub)}
+.draw.paper{background:var(--canvas);border:1.5px solid var(--ink);border-bottom:4px solid var(--ink);color:var(--ink)}
+.draw.paper .ts{color:var(--dim)}
+.draw.gold{background:var(--goldTint);border:1px solid #E7DAB6;border-bottom:4px solid var(--goldEdge);color:var(--goldInk)}
+.draw.gold .ts{color:#6B5720}
+.draw.blue{background:var(--blueBg);border:1px solid #D8E3EF;border-bottom:4px solid var(--blueEdge);color:var(--blueInk)}
+.draw.blue .ts{color:var(--blueSub)}
+.draw.lilac{background:var(--canvas);border:1px solid var(--wait);border-bottom:4px solid #3B3170;color:#3B3170}
+.draw.lilac .ts{color:#6A5FA8}
+.draw.amber{background:var(--amberBg);border:1px solid #F2DFC2;border-bottom:4px solid var(--amberEdge);color:var(--amberInk)}
+.draw.amber .ts{color:#7A4F0A}
+.draw.volt{background:var(--voltBg);border:1px solid #D7E8B0;border-bottom:4px solid var(--voltEdge);color:var(--voltInk)}
+.draw.volt .ts{color:#4F6717}
+/* tappable row — Sean 2026-08-25: every clickable choice must LOOK clickable */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:12px 13px;
+  background:var(--canvas);border:1px solid var(--ink);width:100%;text-align:left;cursor:pointer}
+.tap .tt{flex:1;min-width:0;font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.tap .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--dim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);font-weight:700;color:var(--ink)}
+.tap.quiet{border-color:#D8D6D0}
+.tap.quiet .tt{color:var(--text);font-weight:700}
+/* print row — carries NO tap marks, so it cannot be mistaken for a control */
+.kv{display:flex;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--neutral)}
+.kv .k{flex:0 0 56px;font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.kv .v{flex:1;font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.kv .a{font-size:var(--t5);font-weight:800;color:var(--dim)}
+/* loud-fail strip — DESIGN.md §7: failures render as failures */
+.fail{background:var(--criticalWash);border-left:0;padding:11px 13px;font-size:var(--t5);
+  line-height:var(--l5);color:var(--critical);font-weight:700;display:flex;gap:10px;align-items:baseline}
+.fail u{margin-left:auto;font-weight:800;white-space:nowrap}
+.note{font-size:var(--t5);line-height:var(--l5);color:var(--dim);padding:10px 0}
+/* photo slot — NEVER a stock image. See brief § Tension ⑦. */
+.slot{background:repeating-linear-gradient(135deg,#FAFAF8 0 7px,#F2F2F0 7px 14px);
+  border:1px dashed #C2BFB7;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;text-align:center;padding:10px}
+.slot b{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--dim)}
+.slot span{font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);font-weight:700}
+/* dock — solid white, coral hairline on top, icons only (Sean 2026-08-12) */
+.dock{display:flex;border-top:1px solid var(--line);background:var(--canvas)}
+.dock a{flex:1;padding:12px 0 16px;text-align:center;font-size:24px;color:var(--dim);
+  position:relative;text-decoration:none}
+.dock a.on{color:var(--ink)}
+.dock a.on::before{content:'';position:absolute;top:0;left:50%;margin-left:-17px;width:34px;height:2.5px;background:var(--ink)}
+.dogdot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t5);font-weight:800;color:var(--dogInk)}
+@media (prefers-reduced-motion: reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+
+/* ── DEPARTURE WORLD ── used ONLY by variant ③ in each lab ────────────────────
+   🔴 THIS BLOCK DELIBERATELY BREAKS DESIGN.md. It exists so Sean can see what
+   the impeccable / taste-skill rules actually produce when the paper world's
+   constraints are relaxed, instead of reading a description of it. Variants ①
+   and ② in every lab stay inside the paper world; ③ never does.
+
+   What it breaks, named so the pick is made with eyes open:
+     · DESIGN.md §2/§3b  "Cards: radius 0" / "Radius 0 everywhere"      -> 16px
+     · DESIGN.md §2      "Soft shadows retire with the rounded corners"  -> ambient shadow
+     · DESIGN.md §2      "Hairline = solid coral #E8552F 1px, full-bleed.
+                          The line is the brand."                        -> no coral divider
+     · DESIGN.md §3b     button matrix "All: radius 0" + the 4px lip      -> pill + shadow
+     · DESIGN.md §3b     "A drop shadow and a lip are two different depth
+                          languages and must not sit on one control."    -> shadow replaces lip
+     · DESIGN.md §4      "Section division by full-bleed hairline, not by cards" -> cards
+     · DESIGN.md header  the style freeze: "no NEW aesthetics until 50 paying dogs"
+
+   What it still obeys, because these are not stylistic and do not get relaxed:
+     white ground · Korean detail floor 15pt · real fields only · no gradient
+     text · no glassmorphism or blur · no emoji as icons · no AI-beige ground ·
+     transitions <= 240ms · prefers-reduced-motion honoured · WCAG AA contrast.  */
+.dep{--depR:16px;--depShadow:0 1px 2px rgba(17,17,17,.04),0 8px 24px rgba(17,17,17,.07);
+  background:var(--canvasSoft)}
+.dep .card{background:var(--canvas);border-radius:var(--depR);box-shadow:var(--depShadow);
+  overflow:hidden}
+.dep .card+.card{margin-top:14px}
+.dep .pill{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border:0;border-radius:999px;background:var(--action);color:#fff;font-family:var(--fBody);
+  font-size:var(--t4);line-height:var(--l4);font-weight:800;padding:15px 18px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(198,71,44,.22);transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+.dep .pill:active{transform:scale(.98);box-shadow:0 1px 4px rgba(198,71,44,.22)}
+.dep .pill.ghost{background:var(--canvas);color:var(--ink);box-shadow:none;
+  border:1px solid #DCDAD4}
+.dep .seg{display:flex;background:#EFEEEA;border-radius:10px;padding:3px}
+.dep .seg button{flex:1;border:0;border-radius:8px;background:transparent;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:700;color:var(--text);padding:8px 4px;cursor:pointer}
+.dep .seg button.on{background:var(--canvas);color:var(--ink);font-weight:800;
+  box-shadow:0 1px 3px rgba(17,17,17,.10)}
+.dep .tagpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:5px 12px;font-size:16px;line-height:22px;font-weight:800}
+.dep .quietrow{display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid #F0EFEB}
+.dep .quietrow:last-child{border-bottom:0}
+.dep .quietrow .t{flex:1;font-size:var(--t5);line-height:var(--l5);font-weight:700;color:var(--ink)}
+.dep .quietrow .v{font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+/* the departure banner that sits above every ③ frame, so nobody mistakes it */
+.depflag{border:2px solid var(--ink);background:var(--ink);color:#fff;padding:10px 12px;
+  font-size:var(--t5);line-height:var(--l5);font-weight:700;margin-bottom:14px}
+.depflag b{display:block;font-size:16px;font-weight:800;margin-bottom:3px}
+.breaks{margin-top:14px;border:1px solid var(--critical);background:var(--criticalWash);
+  padding:12px 13px;font-size:var(--t5);line-height:1.65;color:var(--text)}
+.breaks b{color:var(--critical);font-weight:800;display:block;margin-bottom:5px}
+.breaks ul{margin:0;padding-left:18px}
+.breaks li{margin-top:3px}
+.breaks code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;padding:1px 4px}
+/* ── FILE-LOCAL ─────────────────────────────────────────────────────────── */
+.phone{min-height:812px}
+/* masthead — home has no text title; the wordmark IS the title (DESIGN.md §3b) */
+.mast{display:flex;align-items:center;justify-content:space-between;padding:8px 15px 12px}
+.mast .sp{width:40px;flex:0 0 40px}
+.mast .wm{font-size:var(--t1);line-height:var(--l1);font-weight:900;letter-spacing:-.4px;color:var(--ink)}
+.mast .bell{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--ink);position:relative}
+.mast .bell i{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;
+  background:var(--action);font-style:normal}
+/* hero */
+.hero{padding:6px 15px 18px}
+.phrase{font-size:43px;line-height:50px;padding-right:104px}  /* MARK_W = 104 */
+.phrase.wide{padding-right:0}
+.subline{font-size:var(--t4);line-height:var(--l4);color:var(--dim);margin-top:10px}
+.subline b{color:var(--text);font-weight:700}
+.acts{display:flex;flex-direction:column;gap:10px;padding:0 0 18px}
+/* ② the decision card */
+.dcard{margin:6px 15px 18px;border:1.5px solid var(--ink)}
+.dcard .top{padding:14px 15px 15px}
+.dcard .one{font-size:26px;line-height:33px;margin-top:9px}
+.dcard .meta{font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:8px}
+.dcard .meta b{color:var(--text);font-weight:700}
+.dcard .btn{border-top:1.5px solid var(--ink)}
+/* ③ the stub */
+.stub{margin:6px 15px 18px;background:var(--canvas);border:1px solid var(--ink);position:relative}
+.stub .band{background:var(--head);color:#fff;padding:12px 15px 13px;display:flex;
+  align-items:baseline;justify-content:space-between}
+.stub .band .k{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;
+  color:var(--headFaint);font-weight:700}
+.stub .band .d{font-family:var(--fNum);font-weight:600;font-size:var(--t3);line-height:var(--l3);color:#fff}
+.stub .core{padding:15px 15px 14px}
+.stub .core .ttl{font-size:32px;line-height:39px}
+.stub .core .sub{font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:8px}
+.stub .grid{display:flex;border-top:1px solid var(--neutral)}
+.stub .grid div{flex:1;padding:10px 12px;border-right:1px solid var(--neutral)}
+.stub .grid div:last-child{border-right:0}
+.stub .grid span{display:block;font-size:var(--tk);letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--faint);font-weight:700}
+.stub .grid b{display:block;font-size:16px;line-height:22px;font-weight:800;color:var(--ink);margin-top:3px}
+.stub .perf{height:1px;background:repeating-linear-gradient(90deg,var(--ink) 0 4px,transparent 4px 9px)}
+.stub .acts2{display:flex}
+.stub .acts2 .btnP{border-right:1px solid var(--actionPressed)}
+.stub .acts2 .btnP:last-child{border-right:0}
+/* rail */
+.rail2 .row{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--neutral)}
+.rail2 .dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;margin-top:7px}
+.rail2 .dot.rd{background:var(--ready)}
+.rail2 .dot.pd{background:var(--wait)}
+.rail2 .dt{flex:0 0 66px;font-family:var(--fNum);font-weight:600;font-size:var(--t5);
+  line-height:var(--l5);color:var(--ink)}
+.rail2 .bd{flex:1;min-width:0}
+.rail2 .l1{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.rail2 .l2{font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:2px}
+.rail2 .rl{flex:0 0 auto;font-family:var(--fNum);font-weight:600;font-size:var(--t5);color:var(--dim)}
+/* live widget */
+.live{background:var(--head);padding:18px 15px;margin:0 0 18px}
+.live .k{font-size:var(--tk);letter-spacing:2px;font-weight:800;color:var(--headFaint)}
+.live .s{font-size:var(--t5);line-height:var(--l5);color:var(--headDim);margin-top:6px}
+.live .s b{color:#fff;font-weight:700}
+/* ③ departure — the stub becomes a soft card. Dark band survives (DESIGN.md §1
+   sanctions dark artifacts); the corners, the shadow and the pills do not. */
+.dep .card .band{background:var(--head);color:#fff;padding:13px 16px;display:flex;
+  align-items:baseline;justify-content:space-between}
+.dep .card .band .k{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;
+  color:var(--headFaint);font-weight:700}
+.dep .card .band .d{font-family:var(--fNum);font-weight:600;font-size:var(--t3);line-height:var(--l3);color:#fff}
+.dep .card .core{padding:16px}
+.dep .card .core .ttl{font-size:30px;line-height:37px}
+.dep .card .core .sub{font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:9px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <p class="law">Dogs High &middot; Premium Lab 1 of 4 &middot; owner home</p>
+  <h1>Owner home &mdash; how much of the screen does the current state get?</h1>
+  <div class="samplebar">
+    <b>Every number, name and time on this page is SAMPLE data.</b> None of it comes from a server
+    and none of it ships. Every element is bound to a field that actually exists in
+    <code>owner/home.tsx</code> and <code>home-hero.tsx</code>. Photo positions are drawn as labelled
+    empty slots rather than stock images, for the reason in
+    <code>docs/design/premium-taste-brief.md</code> &sect; Tension &#9319;.
+    <b>Korean is the only language inside the phone frames</b>, because that is the copy a user reads;
+    everything outside a frame is English, per <code>CLAUDE.md</code> &sect; Language.
+  </div>
+  <ul class="brief">
+    <li><b>The pick</b>: what SHAPE the current state takes at the top of the screen. The masthead,
+        the three chunks (<span lang="ko">오늘 &middot; 동네 &middot; 나</span>) and the dock are
+        identical in &#9312;&#9313;&#9314; and are not part of the pick.</li>
+    <li><b>Reference state</b>: <code>confirmed</code> &mdash; a runner is booked, the run has not
+        started. Each variant carries a state table showing how the same grammar handles
+        <code>none &middot; searching &middot; handoff &middot; active</code>. A variant that cannot
+        carry all five is out.</li>
+    <li><b>&#9312; and &#9313; stay inside the paper world. &#9314; deliberately leaves it</b> and is
+        flagged as a departure, with the exact <code>DESIGN.md</code> rules it breaks printed beside
+        it. Sean's question was "are you continuing the paper style?" &mdash; the answer is yes for
+        &#9312;&#9313;, no for &#9314;, on purpose.</li>
+    <li><b>Dials</b>: <code>DESIGN_VARIANCE / MOTION_INTENSITY / VISUAL_DENSITY</code>. The brief's
+        &sect;(d) recommendation for owner home is <b>4 / 3 / 5</b>.</li>
+  </ul>
+</header>
+
+<section class="toc">
+  <h2>How to choose</h2>
+  <ol>
+    <li><span class="n">&#9312;</span><b>Refine what ships</b> &middot; 3 / 2 / 5 &middot; paper world.
+        Chip, 43pt phrase over two lines, subline, three action blocks. Same structure as trunk;
+        only spacing and hierarchy move.</li>
+    <li><span class="n">&#9313;</span><b>One decision card</b> &middot; 4 / 3 / 4 &middot; paper world.
+        State and action bind into one ink-bordered card that says one thing, then acts. Secondary
+        actions demote to rows.</li>
+    <li><span class="n">&#9314;</span><b>DEPARTURE &mdash; editorial soft card</b> &middot; 6 / 3 / 3
+        &middot; <b>outside the paper world</b>. 16px radii, ambient shadow, pill buttons, no coral
+        hairline. This is what impeccable's craft floor plus soft-skill's premium grammar actually
+        produce when <code>DESIGN.md</code>'s paper constraints are relaxed.</li>
+  </ol>
+  <p class="say"><b>How to answer</b>: by number. Mixing is fine &mdash; "&#9313;, but the dark band
+    from &#9314;". A disagreement in one line is the most useful reply.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ═══════════════════ ① ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9312;</span><span class="d"><b>Refine what ships &middot; paper world</b>
+      The shipped composition with the spacing and hierarchy cleaned up. Nothing structural moves.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>3</b></div>
+      <div><span>Motion</span><b>2</b></div>
+      <div><span>Density</span><b>5</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="mast">
+          <span class="sp"></span>
+          <span class="wm">도그스하이</span>
+          <span class="bell">&#9684;<i></i></span>
+        </div>
+        <div class="rule"></div>
+
+        <div class="hero">
+          <span class="chip ready"><i></i>확정됨</span>
+          <div class="disp phrase" style="margin-top:12px">오늘<br><span class="phrase wide">보리가 달려요</span></div>
+          <p class="subline">8월 26일 (화) 오후 7:30 &middot; <b>s4kim2025 러너</b> 확정</p>
+        </div>
+
+        <div class="acts pad">
+          <button class="draw gold"><span class="gl">&#9636;</span><span class="tx">
+            <span class="tt">티켓 보기</span><span class="ts">시간과 장소를 확인해요</span></span></button>
+          <button class="draw lilac sm"><span class="gl">&#9993;</span><span class="tx">
+            <span class="tt">채팅</span><span class="ts">러너에게 물어보세요</span></span></button>
+          <button class="draw paper sm"><span class="gl">&#9638;</span><span class="tx">
+            <span class="tt">미리 예약</span><span class="ts">다음 러닝을 잡아둬요</span></span></button>
+        </div>
+
+        <div class="rule"></div>
+        <div class="pad">
+          <div class="modh"><span class="t">다음 일정</span><span class="l">전체 &rsaquo;</span></div>
+          <div class="rail2">
+            <div class="row"><span class="dot rd"></span><span class="dt">8/29 (금)</span>
+              <span class="bd"><span class="l1">오후 7:30 &middot; 보리 &middot; s4kim2025 러너</span>
+              <span class="l2">반포 한강 루프 &middot; 예약 4km</span></span><span class="rl">D-3</span></div>
+            <div class="row"><span class="dot pd"></span><span class="dt">9/2 (화)</span>
+              <span class="bd"><span class="l1">오전 7:30 &middot; 보리 &middot; 러너 찾는 중</span>
+              <span class="l2">서래섬 코스 &middot; 예약 3km</span></span><span class="rl">D-7</span></div>
+          </div>
+          <p class="chunk" style="margin-top:22px">동네</p>
+          <div class="modh"><span class="t">대기 중인 러너</span><span class="l">주간 랭킹 &rsaquo;</span></div>
+          <div class="note" style="padding-top:0">러너 카드 스트립</div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="dock">
+          <a class="on" href="#">&#8962;</a><a href="#">&#9638;</a><a href="#">&#9678;</a><a href="#">&#9672;</a><a href="#">&#9776;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> Some screens are worth not changing. Home is opened daily, and moving
+      its furniture costs the people who already know where things are.
+      <span class="rule">impeccable <code>operate.md</code>: "The bar is <b>earned familiarity</b>.
+        The tool should disappear into the task." Product UI's failure mode is not flatness but
+        "strangeness without purpose" &mdash; that sentence is this variant's whole argument.</span>
+      <span class="rule">redesign-skill &sect; Fix Priority runs typography &rarr; spacing &rarr;
+        states &rarr; layout. This variant does 1&ndash;3 and stops before 4.</span>
+      <span class="rule">impeccable <code>craft-floor.md</code>: "tight groups, generous separation,
+        more space above a heading than below it." Chip to phrase is 12px; phrase to action block
+        is 18px.</span>
+      <b>Weakness.</b> Three action blocks eat 96 + 78 + 78 = 252px. In the confirmed state a third
+      of the screen asks "what next?", and the honest answer for a confirmed booking is <b>nothing,
+      until the runner arrives</b>.
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">none</span><span class="v">chip <b lang="ko">비어 있음</b> &middot;
+        <span lang="ko">오늘은 아직 / 비어 있어요</span> &middot;
+        <em><span lang="ko">지금 찾기</span> (coral) + <span lang="ko">미리 예약</span></em></span></div>
+      <div class="r"><span class="s">searching</span><span class="v">chip <b lang="ko">찾는 중</b> (violet) &middot;
+        <span lang="ko">러너를 / 찾고 있어요</span> &middot; <em><span lang="ko">레이더 보기</span> (blue)</em></span></div>
+      <div class="r"><span class="s">handoff</span><span class="v">chip <b lang="ko">내 차례</b> (coral) &middot;
+        <span lang="ko">지금 만나요 / 보리 인계할 시간</span> &middot;
+        <em><span lang="ko">인계하기</span> + <span lang="ko">채팅</span>; no <span lang="ko">미리 예약</span></em></span></div>
+      <div class="r"><span class="s">active</span><span class="v">the hero is replaced wholesale by the
+        dark LIVE widget &middot; <em>no buttons</em></span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ② ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9313;</span><span class="d"><b>One decision card &middot; paper world</b>
+      State and action bind into one ink-bordered card. Secondary actions demote to rows.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>4</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>4</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="mast">
+          <span class="sp"></span>
+          <span class="wm">도그스하이</span>
+          <span class="bell">&#9684;<i></i></span>
+        </div>
+        <div class="rule"></div>
+
+        <div class="dcard">
+          <div class="top">
+            <span class="chip ready"><i></i>확정됨</span>
+            <div class="disp one">오늘 보리가 달려요</div>
+            <p class="meta">8월 26일 (화) 오후 7:30 &middot; <b>s4kim2025 러너</b> &middot; 반포 한강 루프 예약 4km</p>
+          </div>
+          <div class="btn">
+            <button class="btnP">티켓 보기<span class="sub">시간과 장소를 확인해요</span></button>
+          </div>
+        </div>
+
+        <div class="pad" style="padding-bottom:18px">
+          <button class="tap quiet"><span class="tt">러너와 채팅</span><span class="chev">&rsaquo;</span></button>
+          <button class="tap quiet" style="margin-top:9px"><span class="tt">다음 러닝 미리 예약</span><span class="chev">&rsaquo;</span></button>
+        </div>
+
+        <div class="rule"></div>
+        <div class="pad">
+          <div class="modh"><span class="t">다음 일정</span><span class="l">전체 &rsaquo;</span></div>
+          <div class="rail2">
+            <div class="row"><span class="dot rd"></span><span class="dt">8/29 (금)</span>
+              <span class="bd"><span class="l1">오후 7:30 &middot; 보리 &middot; s4kim2025 러너</span>
+              <span class="l2">반포 한강 루프 &middot; 예약 4km</span></span><span class="rl">D-3</span></div>
+            <div class="row"><span class="dot pd"></span><span class="dt">9/2 (화)</span>
+              <span class="bd"><span class="l1">오전 7:30 &middot; 보리 &middot; 러너 찾는 중</span>
+              <span class="l2">서래섬 코스 &middot; 예약 3km</span></span><span class="rl">D-7</span></div>
+          </div>
+          <p class="chunk" style="margin-top:22px">동네</p>
+          <div class="modh"><span class="t">대기 중인 러너</span><span class="l">주간 랭킹 &rsaquo;</span></div>
+          <div class="note" style="padding-top:0">러너 카드 스트립</div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="dock">
+          <a class="on" href="#">&#8962;</a><a href="#">&#9638;</a><a href="#">&#9678;</a><a href="#">&#9672;</a><a href="#">&#9776;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> In the confirmed state there is exactly <b>one real action</b>: check
+      the ticket. Chat and pre-book are things the owner <i>may</i> do, not things they need to do,
+      so giving all three an equal block makes them cancel each other out.
+      <span class="rule"><code>DESIGN.md</code> &sect;7b: "Von Restorff + the emphasis budget:
+        exactly one isolated emphasis per screen. <b>Two ink CTAs cancel each other out.</b>"</span>
+      <span class="rule">taste-skill &sect;4.5: "<b>NO DUPLICATE CTA INTENT</b> (mandatory)". All
+        three of &#9312;'s buttons carry one intent &mdash; "do something about this booking". One
+        keeps the block; the rest become rows.</span>
+      <span class="rule">imagegen-frontend-mobile &sect;12: "use one primary focal point &hellip; do
+        not fill it with extra stats, chips, tags, or pills &hellip; do not bury the main CTA."</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;7a-bis word budget: one display line under six
+        words, one supporting line under twelve, <b>zero body paragraphs</b>, one primary action.
+        This frame is exactly that shape.</span>
+      <b>Weakness.</b> A 26pt line is quieter than a 43pt one; the visual punch that
+      <span lang="ko">오늘</span> delivered is gone. And a 52px row is a smaller target than a 78px
+      block &mdash; measurably worse under Fitts, on a screen used one-handed.
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">none</span><span class="v">one line inside the card
+        &middot; <em>button <span lang="ko">지금 찾기</span>, row <span lang="ko">미리 예약</span></em></span></div>
+      <div class="r"><span class="s">searching</span><span class="v">chip violet &middot;
+        <em>button <span lang="ko">레이더 보기</span></em></span></div>
+      <div class="r"><span class="s">handoff</span><span class="v">card border turns coral &middot;
+        <em>button <span lang="ko">인계하기</span>, chat row only</em></span></div>
+      <div class="r"><span class="s">active</span><span class="v">the dark LIVE widget takes the card's
+        position &middot; <em>no rows</em></span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ③ DEPARTURE ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9314;</span><span class="d"><b>DEPARTURE &middot; editorial soft card</b>
+      Not the paper world. Rounded surfaces, ambient shadow, pill actions, no coral hairline.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>6</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>3</b></div>
+    </div>
+    <div class="depflag"><b>This variant leaves the paper world on purpose.</b>
+      It is here so the alternative can be judged by looking at it rather than by reading a
+      description of it. It is not freeze-compliant and cannot ship without Sean lifting the freeze.</div>
+
+    <div class="phone dep">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko" style="padding:0 16px 18px">
+        <div class="mast" style="padding:10px 0 14px">
+          <span class="sp"></span>
+          <span class="wm">도그스하이</span>
+          <span class="bell">&#9684;<i></i></span>
+        </div>
+
+        <div class="card">
+          <div class="band">
+            <span class="k">Next Run &middot; Banpo</span>
+            <span class="d">D-0</span>
+          </div>
+          <div class="core">
+            <span class="tagpill" style="background:var(--paceGoodWash);color:var(--readyDeep)">확정됨</span>
+            <div class="disp ttl" style="margin-top:11px">보리가<br>오늘 달려요</div>
+            <p class="sub">8월 26일 (화) 오후 7:30 &middot; s4kim2025 러너</p>
+            <div class="quietrow" style="padding-left:0;padding-right:0;margin-top:12px;border-top:1px solid #F0EFEB">
+              <span class="t">반포 한강 루프</span><span class="v">예약 4.0km</span></div>
+            <div style="margin-top:14px">
+              <button class="pill">티켓 보기</button>
+              <button class="pill ghost" style="margin-top:9px">러너와 채팅</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="quietrow"><span class="t" style="font-weight:800">다음 일정</span>
+            <span class="v">전체 &rsaquo;</span></div>
+          <div class="quietrow"><span class="t">8/29 (금) 오후 7:30 &middot; 보리<br>
+            <span style="font-weight:400;color:var(--dim)">반포 한강 루프 &middot; 예약 4km</span></span>
+            <span class="v num">D-3</span></div>
+          <div class="quietrow"><span class="t">9/2 (화) 오전 7:30 &middot; 보리<br>
+            <span style="font-weight:400;color:var(--dim)">러너 찾는 중 &middot; 예약 3km</span></span>
+            <span class="v num">D-7</span></div>
+        </div>
+
+        <div class="card">
+          <div class="quietrow"><span class="t" style="font-weight:800">대기 중인 러너</span>
+            <span class="v">주간 랭킹 &rsaquo;</span></div>
+          <div class="quietrow"><span class="t">러너 카드 스트립</span></div>
+        </div>
+
+        <div style="flex:1"></div>
+        <div class="dock" style="border-top:0;margin:0 -16px -18px">
+          <a class="on" href="#">&#8962;</a><a href="#">&#9638;</a><a href="#">&#9678;</a><a href="#">&#9672;</a><a href="#">&#9776;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="breaks"><b>What this variant breaks, named</b>
+      <ul>
+        <li><code>DESIGN.md</code> &sect;2 / &sect;3b &mdash; "Cards: radius 0" and "Radius 0
+          everywhere including the club card". Here every surface is 16px.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; "Soft shadows retire with the rounded corners
+          (shadow only where a floating surface genuinely floats)". Here every card floats.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; "Hairline = <b>solid coral #E8552F 1px,
+          full-bleed</b> &hellip; <b>The line is the brand.</b>" There is no coral line on this
+          screen at all. This is the largest single loss.</li>
+        <li><code>DESIGN.md</code> &sect;3b &mdash; the button matrix ("All: radius 0") and the 4px
+          pressed-fill lip, replaced by a pill with a tinted shadow. &sect;3b also says "a drop
+          shadow and a lip are two different depth languages and must not sit on one control";
+          this variant chooses the shadow and drops the lip entirely.</li>
+        <li><code>DESIGN.md</code> &sect;4 &mdash; "Section division by full-bleed hairline, not by
+          cards. Card-soup and rounded card grids are retired". This is three rounded cards.</li>
+        <li><code>DESIGN.md</code> header &mdash; the style freeze: "no NEW aesthetics until 50
+          paying dogs". This is a new aesthetic.</li>
+      </ul>
+    </div>
+
+    <div class="why">
+      <b>What it still obeys, and why that matters.</b> White ground, Korean at 15pt or above,
+      real fields only, no gradient text, no glass or blur, no emoji as icons, no AI-beige, every
+      transition under 240ms, reduced motion honoured, WCAG AA contrast. <b>A departure from the
+      paper world is not a departure from the house laws</b>, and the difference is the whole point
+      of drawing it.
+      <span class="rule">soft-skill &sect;4: "Never place a premium card, image, or container flatly
+        on the background &hellip; nested enclosures", plus "exaggerated squircle radii
+        (<code>rounded-[2rem]</code>)" and "Primary interactive buttons must be fully rounded pills".
+        This variant takes the <b>intent</b> (concentric physical hierarchy) at half the prescribed
+        radius, and refuses the double-bezel outright &mdash; Sean's "clean look without cards
+        within cards" survives even here.</span>
+      <span class="rule">taste-skill &sect;4.4 "SHAPE CONSISTENCY LOCK (mandatory): Pick ONE
+        corner-radius scale for the page and stick to it." One scale: 16px surfaces, 999px controls,
+        and a documented rule rather than a mixture.</span>
+      <b>The honest argument against it.</b> The coral hairline is the one mark that makes a
+      daengrun screen recognisable at a glance; every competitor's app already looks like this
+      variant. taste-skill's own &sect;4.2 warns that when a brand reaches for the category default
+      "the brand becomes invisible". Removing the line to gain softness trades identity for
+      familiarity, and this product's identity is doing real work.
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">none</span><span class="v">one card, one pill; the band goes
+        away since there is nothing to date</span></div>
+      <div class="r"><span class="s">searching</span><span class="v">band violet, pill becomes
+        <b lang="ko">레이더 보기</b></span></div>
+      <div class="r"><span class="s">handoff</span><span class="v">band coral, one pill
+        <b lang="ko">인계하기</b></span></div>
+      <div class="r"><span class="s">active</span><span class="v">the card's inside is replaced by the
+        LIVE widget; the rounded frame survives</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ shared obligations ═══════════ -->
+<h2 class="chunk" style="margin-top:56px;padding-bottom:8px;border-bottom:2px solid var(--ink)">
+  What all three variants must carry</h2>
+
+<div class="rail" style="margin-top:28px">
+  <div class="col">
+    <p class="cap"><span class="d"><b>active &mdash; the dark LIVE widget</b>
+      It takes the hero's whole position. Identical in &#9312;&#9313;&#9314; and not part of the pick.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="mast"><span class="sp"></span><span class="wm">도그스하이</span><span class="bell">&#9684;<i></i></span></div>
+        <div class="rule"></div>
+        <div class="live">
+          <p class="k">&#9679; LIVE</p>
+          <p class="s"><b>s4kim2025 러너</b> &middot; 보리가 <b>12분</b>째 달리는 중이에요 &mdash; 지도 보기 &rsaquo;</p>
+        </div>
+        <div class="rule"></div>
+        <div class="pad"><div class="modh"><span class="t">다음 일정</span><span class="l">전체 &rsaquo;</span></div>
+          <div class="note" style="padding-top:0">&hellip;</div></div>
+      </div>
+    </div>
+    <p class="why"><b>The part that must not change.</b> The
+      <span lang="ko">12분째</span> fragment <b>disappears from the sentence entirely</b> when
+      <code>runs.started_at</code> is null or under a minute. It never renders as zero.
+      <span class="rule"><code>CLAUDE.md</code> &sect; Honesty laws: "Loading is not 0." &middot;
+        <code>DESIGN.md</code> &sect;7: "bind real fields or omit the element".</span>
+      <span class="rule">Note also that this widget is a <b>dark surface on a white screen</b> and is
+        legal in the paper world, because <code>DESIGN.md</code> &sect;1 reserves dark for artifacts
+        rather than banning it. That is why it is not part of &#9314;'s departure.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>Loading, failure and empty are three different faces</b>
+      Collapsing them into one grey dash is an honesty-law violation, not a style choice.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="mast"><span class="sp"></span><span class="wm">도그스하이</span><span class="bell">&#9684;</span></div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:14px">
+          <div class="fail">예약을 불러오지 못했어요<u>다시 시도</u></div>
+        </div>
+        <div class="hero" style="padding-top:14px">
+          <div class="disp" style="font-size:var(--t1);line-height:var(--l1)">보리, 오늘은?</div>
+          <p class="subline">예약을 확인하는 중이에요</p>
+        </div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:12px">
+          <p class="note" style="padding-top:0">빈 상태는 실패가 아닙니다 &mdash;
+            <b style="color:var(--ink)">오늘은 아직 비어 있어요</b> +
+            보리와 달릴 시간을 잡아보세요 + <b style="color:var(--ink)">지금 찾기</b>.</p>
+        </div>
+      </div>
+    </div>
+    <p class="why"><b>Three faces.</b> Loading is a named Korean sentence, failure is the critical
+      strip with a working retry, empty is a sentence with the next action attached. The moment any
+      two of them look the same, this house calls it a defect.
+      <span class="rule">impeccable <code>operate.md</code>: "Empty states that teach the interface,
+        not 'nothing here.'" &middot; taste-skill &sect;4.5 requires the full cycle: loading, empty,
+        error.</span>
+      <span class="rule"><code>docs/design/loading-state-audit.md</code> measured 46 of 59 routes
+        naming their loading state in a Korean sentence and <b>zero production spinners</b>. The
+        house idiom is a sentence, so these labs use sentences.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>What this lab deliberately did not do</b></span></p>
+    <div class="why" style="margin-top:0">
+      <b>1. Not one photograph.</b> taste-skill &sect;4.8 calls a text-only page "slop" and asks for
+      at least a <code>picsum.photos</code> placeholder. This lab refuses. The product's whole claim
+      is that a particular run really happened; putting a stranger's dog into the mock breaks that
+      claim in the mock itself.
+      <span class="rule">The conflict and its real cost are written up as &sect; Tension &#9319; in
+        the brief. The cost is genuine: a lab with no photographs cannot answer "does this
+        composition survive a real photo", and only a device smoke can.</span>
+      <b style="display:block;margin-top:12px">2. Every dial sits below taste-skill's baseline.</b>
+      Its default is 8 / 6 / 4; the highest value here is 6 / 3 / 5.
+      <span class="rule">taste-skill &sect;0.A: "Quiet constraints &hellip; <b>OVERRIDE aesthetic
+        preference</b>." A product where a stranger takes your dog is trust-first, and the style
+        freeze is the outer gate. To go bolder the lever is the freeze, not the dial.</span>
+      <b style="display:block;margin-top:12px">3. Zero side-stripe borders.</b>
+      That is the exact rule (<code>side-tab</code>) impeccable's own detector fired on in seven of
+      this repo's existing labs.
+      <span class="rule">Check it: <code>grep -cE "border-(left|right): *[2-9]"</code> against this
+        file should return 0.</span>
+      <b style="display:block;margin-top:12px">4. A paper-world artifact stub was drawn and dropped.</b>
+      A boarding-pass stub for the confirmed booking fits <code>DESIGN.md</code> &sect;1's artifact
+      grammar and &sect;4's "a card must BE the interaction". It was cut because &sect;8 budgets the
+      artifact: <code>owner/meetup</code> already owns the ticket and <code>shot/[bid]</code> owns
+      the card, and a third screen using the same metaphor makes one of them a costume.
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
