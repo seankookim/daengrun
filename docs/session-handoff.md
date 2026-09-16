@@ -94,6 +94,16 @@ chips with a name but no role/state (A2 follow-up). Spoken output UNVERIFIED —
 owner home bell + moment strip · a club session sheet scrim · safety 112/119 · runner review stars ·
 shot photo tile selected state.
 
+**04:2x — `f38d809` honesty slice LANDED** (combined tree: tsc · 4 checks · npm 989/0 — ⚠ that suite
+cannot import a route module, so its green means 「nothing regressed」, not 「this slice was checked」):
+Tier 1 #1–8 of `loading-state-audit.md` closed — session roster failure now says so + retry (was
+「불러오는 중」 forever); shop/card-link/settings/my surface failed reads instead of the happy face
+(card-link keeps `locked` null on a failed read — money path, smoke it); course/shot/cards name their
+loading state — and 5 opacity-busy buttons became label swaps (`shot` ×3, club 탈퇴, login). Left on
+purpose: Tier 2 #13/#14 (icon-only send buttons need a design call), Tier 3, and a NEW note:
+`shot/[bid].tsx:1103` uses a **disabled** alpha (DESIGN.md forbids that too) — follow-up. Device
+smoke list (9 items, airplane-mode based) is in the agent's report; the money-path one is #3.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
