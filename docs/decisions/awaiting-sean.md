@@ -1577,7 +1577,7 @@ grep counted. Recorded so nobody builds it twice.
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 04:25: EIGHTEEN now (0176 `open_drop_tx` landed `04d73a9`; 03:58: seventeen — 0163 landed from your Codex session's branch, `ee8845c`; earlier 03:48 text: SIXTEEN —
+1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 05:42: NINETEEN now (0178 `f67babf`), and the order is now a SEQUENCE, not a pair: (1) `functions deploy revoke-billing-keys` (0178's worker must precede its function — old worker + new function silently counts refused reports as revoked), (2) `db push` (all nineteen), (3) `functions deploy` the rest (open-drop needs 0176 in place first). 04:25: EIGHTEEN (0176 `open_drop_tx` landed `04d73a9`; 03:58: seventeen — 0163 landed from your Codex session's branch, `ee8845c`; earlier 03:48 text: SIXTEEN —
    `0177` (cron readback for four money/ops jobs + a job lock on `owner_la_sweep_stale`, harness
    1236/0, codex-unreviewed until the wall lifts) landed on trunk, and the edge functions changed on
    trunk too (`f6ed478`: `400 bad_body`, open-drop honesty, notify/payments error surfacing) — so the

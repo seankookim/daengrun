@@ -330,6 +330,21 @@ bare. H1/H2/M3 are now closed end to end. ⚠ **Deploy ORDER matters and is in t
 (0176 in production) BEFORE `functions deploy`, or every open fails 500; `SUPABASE_ANON_KEY` must be
 in the function env (confirm-payment already depends on it).
 
+**05:42 — `f67babf` migration 0178 LANDED** (b6's slice, backend-audit M7 — the server-side ④ instance;
+combined tree: harness **1252/0** = 1246 + exactly the 6 pins `0178-R1…R6` · deno **314/0** = 311 + 3
+· tsc · check-rpc · check-definer-acl baseline unchanged): `report_billing_key_revocation` returns
+`(applied, refusal)` with the row locked FIRST and diagnosed from its pre-image (`absent` ·
+`not_processing` outranks `lease_lost`); the revoke-billing-keys worker maps each token, fails CLOSED
+on any other shape (incl. the old boolean), and the tick row carries seven counters. Race measured by
+hand: draft 52–243/2000 false `lease_lost`, shipped body 0/2000, lock deleted 453/2000 (named gap, two
+connections). Cold review APPROVE-WITH-FIXES/8, fixes applied. Suite-update law: 174 L3, 186 A1–A3,
+196 F2/F3 rewritten to the tuple. 🔴 **DEPLOY ORDER FOR 0178 IS THE REVERSE OF 0176's**: `functions
+deploy` FIRST, then `db push` — new handler + old function fails closed and loud; old handler + new
+function silently counts a REFUSED report as revoked (an array is never `=== false`). Both orders
+are in the queue's deploy item. **Nineteen pending** (0157–0163, 0166–0174, 0176–0178) + edge.
+⚠ b6's first push put an EMPTY `be/0178` on origin (a zsh pathspec made the commit fail while the push
+went out) — caught by its own read-back; the CLAUDE.md push law working as written.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
