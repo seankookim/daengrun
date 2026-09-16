@@ -1,44 +1,48 @@
-// open-drop unit tests — the suite the 2026-09-17 backend audit's L5 says did not exist.
+// open-drop unit tests — the WIRING of `open_drop_tx` (0176), and only the wiring.
 //
 //   deno test -A supabase/functions/_test/
 //
-// ⚠ WHY THE ABSENCE MATTERED, stated rather than implied: H1 (a receipt for rewards nobody checked
-// were written), H2 (the drop is consumed before anything can pay it) and M3 (the choice whitelist
-// ran AFTER the consuming write) all lived in one 68-line file with no gate of any kind behind it.
-// Three defects, one file, zero tests — and two of the three are invisible to every other gate in
-// the repo, because they are about what the function REPORTS rather than about what it writes.
-//
-// What this file can and cannot see, said plainly so nobody reads a green here as broader than it
-// is: `FakeDb` has no CHECK constraints, so `drops_pick_opened_has_choice` — the constraint whose
-// raw name M3 was printing into a Korean alert — cannot fire here. The M3 pin therefore asserts the
-// property that makes the constraint unreachable (the whitelist runs BEFORE the CAS, and nothing is
-// written when it refuses) rather than the constraint's own message. And H2 is NOT pinned at all:
-// the loss it describes is that a consumed drop cannot be un-consumed, which is a statement about
-// what the system will never do, and the fix for it is a SQL transaction this suite cannot reach.
-import { assert, assertEquals } from "jsr:@std/assert@1";
+// ⚠ WHAT THIS SUITE CAN AND CANNOT SEE, said plainly so nobody reads a green here as broader than
+// it is. Everything the old handler decided itself — party before state, the choice before the
+// consuming CAS, one stamp, every reward in one transaction, a failing writer rolling the stamp
+// back — now happens inside `open_drop_tx`, and is pinned by SQL suite 207 (0176-O1…O7) against a
+// real database. `FakeDb` cannot reach any of it. What THIS file pins is the part only an edge can
+// get wrong: that the RPC is called through the CALLER's client and never the service client, with
+// exactly the argument names the migration declares; that each raise token becomes the status and
+// sentence the client already keys on; that anything else is a hygienic 500; and — the pin this
+// suite exists for — that the response body WRAPS the RPC's bare object as `{ applied }`, because
+// `api.ts`'s openDrop unwraps one level and a bare wiring would re-open audit M4 with no gate able
+// to see it. The old H1/H2 tests are gone with the handler arms they tested; H2's 「this line must
+// flip」 flipped in SQL (207 0176-O5), not here.
+import { assert, assertEquals, assertNotEquals } from "jsr:@std/assert@1";
 import { HttpError } from "../_shared/ctx.ts";
-import { openDrop } from "../open-drop/handler.ts";
+import { openDrop, RPC_TOKEN_MAP } from "../open-drop/handler.ts";
 import { FakeDb, req, type Row } from "./fakedb.ts";
 
 const RUNNER = "33333333-3333-3333-3333-333333333333";
-const STRANGER = "22222222-2222-2222-2222-222222222222";
 const DROP = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+const RECEIPT = { miles: 300, card: "레어 카드", gear: "러닝 조끼" };
 
-function scene(over: Row = {}) {
+/**
+ * Two clients, as in production: `db` is the service client (only `caller()` may use it here) and
+ * `udb` is the caller-bound client the RPC must go through. `mkUserDb` is what the handler is handed
+ * instead of `callerBoundClient`; it records the request it was built from.
+ */
+function scene(rpc: (args: Row) => { data?: unknown; error?: { message: string } } = () => ({ data: RECEIPT })) {
   const db = new FakeDb();
   db.users["runner_jwt"] = RUNNER;
-  db.users["stranger_jwt"] = STRANGER;
-  db.seed("drops", [{
-    id: DROP,
-    runner_id: RUNNER,
-    kind: "mini",
-    run_count_at: 5,
-    opened_at: null,
-    pick_choice: null,
-    contents: { miles: 300 },
-    ...over,
-  }]);
-  return db;
+  const udb = new FakeDb();
+  const calls: Row[] = [];
+  udb.rpcs["open_drop_tx"] = (args: Row) => {
+    calls.push(args);
+    return rpc(args);
+  };
+  const builtFrom: Request[] = [];
+  const mkUserDb = (r: Request) => {
+    builtFrom.push(r);
+    return udb as never;
+  };
+  return { db, udb, calls, builtFrom, mkUserDb };
 }
 
 /** A request whose body is NOT json — `req()` cannot express this, because it stringifies. */
@@ -68,232 +72,153 @@ function captureErrors() {
   return { lines, restore: () => void (console.error = original) };
 }
 
-const drop = (db: FakeDb) => db.rows("drops")[0];
+const writes = (db: FakeDb) => db.log.filter((l) => /insert|update|upsert|delete/.test(l));
 
-// ═══ M1 — a malformed body is the CALLER's 400, never our 500 ═══════════════════════════════════
-Deno.test("[M1] a malformed body is 400 bad_body, not 500 internal — and the drop is untouched", async () => {
-  for (const body of ["", "not json at all", "{", '{"drop_id":']) {
-    const db = scene();
-    const err = await expectHttpError(() => openDrop(rawReq(body), db as never));
-    assertEquals(err.status, 400, `body ${JSON.stringify(body)} must be a 400`);
-    assertEquals(err.message, "bad_body");
-    // 🔴 The refusal is ABOVE every write, and on this function that is not a nicety: `opened_at`
-    //    is frozen by 0106 §3, so anything that stamps it before deciding the request is valid has
-    //    spent a reward on a request it was about to refuse.
-    assertEquals(drop(db).opened_at, null);
-    assertEquals(db.log.length, 0, `a refused body wrote something: ${JSON.stringify(db.log)}`);
+// ═══ THE ENVELOPE — the pin this suite exists for ═══════════════════════════════════════════
+Deno.test("[envelope] the body is { applied: <the RPC's object> } — wrapped, never bare", async () => {
+  const s = scene();
+  const out = await openDrop(req({ drop_id: DROP }, "runner_jwt"), s.db as never, s.mkUserDb) as Row;
+
+  // The whole body, by value: one key, and that key holds the RPC's object unchanged.
+  assertEquals(out, { applied: RECEIPT });
+  assertEquals(Object.keys(out), ["applied"]);
+  // The regression this guards, stated as its own assertion: a bare wiring returns the RPC's object
+  // itself, `api.ts:3774` reads `.applied` off it, finds nothing, and every alert reads
+  // 「보상이 적용됐어요」 again (audit M4). tsc cannot see that shape; this line can.
+  assertNotEquals(out, RECEIPT as Row);
+  assertEquals((out as Row).applied.miles, 300);
+  // `failed` / `error` are gone with the arms that produced them — ABSENT, not empty, because
+  // `api.ts` throws on a truthy `data.error`.
+  assertEquals(out.failed, undefined);
+  assertEquals(out.error, undefined);
+});
+
+// ═══ THE CALLER'S CLIENT, with the migration's own argument names ══════════════════════════
+Deno.test("[caller client] the RPC goes through the caller-bound client with p_drop_id/p_pick_choice; the service client is never asked", async () => {
+  const s = scene();
+  const request = req({ drop_id: DROP }, "runner_jwt");
+  await openDrop(request, s.db as never, s.mkUserDb);
+
+  assertEquals(s.udb.log, ["rpc:open_drop_tx"], "exactly one call, on the user client");
+  assert(!s.db.log.some((l) => l.startsWith("rpc:")), `the service client made an rpc call: ${JSON.stringify(s.db.log)}`);
+  // The client was built from THIS request — the one carrying the runner's Authorization header.
+  assertEquals(s.builtFrom.length, 1);
+  assertEquals(s.builtFrom[0].headers.get("Authorization"), "Bearer runner_jwt");
+  // Argument NAMES are the contract `check-rpc-contracts` checks statically; here they are checked
+  // dynamically, with the values: a mini sends no choice, and "no choice" is NULL, not undefined.
+  assertEquals(s.calls, [{ p_drop_id: DROP, p_pick_choice: null }]);
+});
+
+Deno.test("[caller client] a pick choice passes through unchanged", async () => {
+  for (const pick of ["boost", "miles", "gear"]) {
+    const s = scene(() => ({ data: { [pick === "boost" ? "boost_until" : pick]: 1 } }));
+    await openDrop(req({ drop_id: DROP, pick_choice: pick }, "runner_jwt"), s.db as never, s.mkUserDb);
+    assertEquals(s.calls, [{ p_drop_id: DROP, p_pick_choice: pick }]);
   }
 });
 
-// ═══ M3 — the whitelist stands above the consuming CAS ══════════════════════════════════════════
-Deno.test("[M3] a pick drop with a missing or bogus choice is refused BEFORE the consuming CAS", async () => {
-  // `undefined` (the field absent), an explicit null, and a value that is not in the whitelist —
-  // the three shapes `rewards.tsx` can actually produce, and all three used to reach the CAS.
-  for (const pick of [undefined, null, "", "miles ", "MILES", "cash"]) {
-    const db = scene({ kind: "pick", contents: {} });
+// ═══ THE TOKEN MAP — each raise becomes the sentence the client already keys on ═════════════
+Deno.test("[tokens] every raise token maps to its status and sentence, and the handler writes nothing", async () => {
+  const expected: Record<string, [number, string]> = {
+    not_signed_in: [401, "unauthorized"],
+    drop_not_found: [404, "drop not found"],
+    not_drop_owner: [403, "not yours"],
+    already_opened: [409, "already opened"],
+    bad_pick_choice: [400, "pick_choice required"],
+    drop_pays_nothing: [409, "이 드랍에는 보상이 없어요 — 관리자 확인이 필요해요"],
+  };
+  // The map under test and the table above must name the same tokens — a token added to the
+  // migration and to the map but not here would otherwise pass silently.
+  assertEquals(Object.keys(RPC_TOKEN_MAP).sort(), Object.keys(expected).sort());
+
+  for (const [token, [status, message]] of Object.entries(expected)) {
+    const s = scene(() => ({ data: null, error: { message: token } }));
     const err = await expectHttpError(() =>
-      openDrop(req({ drop_id: DROP, pick_choice: pick }, "runner_jwt"), db as never)
+      openDrop(req({ drop_id: DROP, pick_choice: "boost" }, "runner_jwt"), s.db as never, s.mkUserDb)
     );
-    assertEquals(err.status, 400, `pick_choice ${JSON.stringify(pick)} must be a 400`);
-    assertEquals(err.message, "pick_choice required");
-
-    // 🔴 THE ORDER IS THE FINDING, so the assertion is about the WRITE and not about the status.
-    //    With the whitelist below the CAS, this same call stamped `opened_at`, wrote
-    //    `pick_choice: null`, and was refused by the database — surfacing
-    //    「violates check constraint "drops_pick_opened_has_choice"」 in a Korean alert while the
-    //    drop was already spent. Nothing may be written on this path.
-    assertEquals(drop(db).opened_at, null, `pick_choice ${JSON.stringify(pick)} consumed the drop`);
-    assertEquals(db.log.length, 0, `a refused choice wrote: ${JSON.stringify(db.log)}`);
+    assertEquals(err.status, status, `${token} must be ${status}`);
+    assertEquals(err.message, message, `${token} must say ${message}`);
+    assertEquals(err.code, undefined, `${token} is a 4xx contract token, not an internal error`);
+    assertEquals(s.udb.log, ["rpc:open_drop_tx"], `${token}: exactly one rpc call`);
+    assertEquals(writes(s.db), [], `${token}: the handler wrote through the service client`);
+    assertEquals(writes(s.udb), [], `${token}: the handler wrote through the user client`);
   }
 });
 
-Deno.test("[M3 control] the same whitelist does NOT refuse a mini drop, which has no choice", async () => {
-  // Without this arm the pin above is satisfied by a handler that refuses everything, and the
-  // entire mini path — the common case — would be dead with the suite still green.
-  const db = scene();
-  const out = await openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never) as Row;
-  assertEquals(out.applied, { miles: 300 });
-  assert(drop(db).opened_at !== null, "a valid mini open must consume the drop");
-});
-
-// ═══ H1 — a key reaches `applied` only when its write landed ════════════════════════════════════
-Deno.test("[H1] a writer that fails is named in `failed` and never appears in `applied`", async () => {
-  // One case per writer, because each was a SEPARATE unbound `error` and a fix to one says nothing
-  // about the other three (the finding's sentence covers all of them; the audit cited :34/:41/:51/:58).
-  const cases: { name: string; drop: Row; failKey: string; appliedKey: string }[] = [
-    { name: "mini card", drop: { kind: "mini", contents: { card: "레어 카드" } }, failKey: "cards_owned:upsert", appliedKey: "card" },
-    { name: "mini gear", drop: { kind: "mini", contents: { gear: "러닝 조끼" } }, failKey: "gear_claims:insert", appliedKey: "gear" },
-    { name: "mini miles", drop: { kind: "mini", contents: { miles: 300 } }, failKey: "miles_ledger:insert", appliedKey: "miles" },
-  ];
-  for (const c of cases) {
-    const db = scene(c.drop).fail(c.failKey, "could not connect");
-    const cap = captureErrors();
-    let out: Row;
-    try {
-      out = await openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never) as Row;
-    } finally {
-      cap.restore();
-    }
-
-    assertEquals(out.applied, {}, `${c.name}: a write that failed must not appear in the receipt`);
-    assertEquals(out.failed, [c.appliedKey], `${c.name}: the failure must be named`);
-    // The honest sentence rides in `error`, which `api.ts:3770` already checks at every invoke
-    // site — so the existing client says 「오픈 실패」 instead of celebrating an empty receipt.
-    assert(String(out.error).includes("적용되지 않았어요"), `${c.name}: no honest sentence: ${out.error}`);
-
-    // 🔴 The drop IS consumed and stays consumed — this is H2, unfixed and deliberately pinned as
-    //    the true current behaviour rather than as an aspiration. When `open_drop_tx` lands, this
-    //    line is the one that must flip, and flipping it is the proof the transaction works.
-    assert(drop(db).opened_at !== null, `${c.name}: the CAS ran, so the drop is spent`);
-
-    // An operator is told, with the drop id — there is no sweep for a stamped drop with no reward,
-    // so a log line that omits the id is a log line nobody can act on.
-    assert(
-      cap.lines.some((l) => l.includes(DROP) && l.includes("FAILED")),
-      `${c.name}: no log line names the drop: ${JSON.stringify(cap.lines)}`,
-    );
-    assert(
-      cap.lines.some((l) => l.includes("CONSUMED")),
-      `${c.name}: the log never says the drop was spent: ${JSON.stringify(cap.lines)}`,
-    );
-  }
-});
-
-Deno.test("[H1] a pick drop's single writer is reported the same way", async () => {
-  for (
-    const [pick, failKey, key] of [
-      ["boost", "boosts:insert", "boost_until"],
-      ["miles", "miles_ledger:insert", "miles"],
-      ["gear", "gear_claims:insert", "gear"],
-    ] as const
-  ) {
-    const db = scene({ kind: "pick", contents: {} }).fail(failKey, "could not connect");
-    const cap = captureErrors();
-    let out: Row;
-    try {
-      out = await openDrop(req({ drop_id: DROP, pick_choice: pick }, "runner_jwt"), db as never) as Row;
-    } finally {
-      cap.restore();
-    }
-    assertEquals(out.applied, {}, `${pick}: nothing landed, so nothing may be claimed`);
-    assertEquals(out.failed, [key]);
-    assert(drop(db).opened_at !== null, `${pick}: the drop is spent (H2, unfixed)`);
-  }
-});
-
-Deno.test("[H1] a PARTIAL mini drop reports what landed AND what did not, in one answer", async () => {
-  // The case a thrown 500 cannot express and the old code could not see: two rewards written, one
-  // lost. Throwing would have denied the runner the two they won; the old code would have claimed
-  // all three.
-  const db = scene({ contents: { miles: 300, card: "레어 카드", gear: "러닝 조끼" } })
-    .fail("gear_claims:insert", "could not connect");
+// ═══ EVERYTHING ELSE IS OURS — a hygienic 500 that keeps the database's sentence in the log ══
+Deno.test("[500] an unmapped RPC error is `internal` with a code; the raw text reaches the log, never the client", async () => {
+  // The exact shape a mis-wired service key produces (0176 revokes service_role): the caller must
+  // not be told to "check permissions", and must not see Postgres text; the operator must.
+  const raw = 'permission denied for function open_drop_tx';
+  const s = scene(() => ({ data: null, error: { message: raw } }));
   const cap = captureErrors();
-  let out: Row;
+  let err: HttpError;
   try {
-    out = await openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never) as Row;
+    err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "runner_jwt"), s.db as never, s.mkUserDb));
   } finally {
     cap.restore();
   }
-
-  assertEquals(out.applied, { miles: 300, card: "레어 카드" });
-  assertEquals(out.failed, ["gear"]);
-  assert(String(out.error).includes("기어"), `the sentence must name the reward: ${out.error}`);
-  // and the two that DID land are really in the database, not just in the receipt
-  assertEquals(db.rows("miles_ledger").length, 1);
-  assertEquals(db.rows("cards_owned").length, 1);
-  assertEquals(db.rows("gear_claims").length, 0);
+  assertEquals(err.status, 500);
+  assertEquals(err.message, "internal");
+  assertEquals(err.code, "open_drop_tx");
+  assert(!err.message.includes(raw));
+  assert(cap.lines.some((l) => l.includes(raw) && l.includes(DROP) && l.includes(RUNNER)), `the log must carry the cause and the ids: ${JSON.stringify(cap.lines)}`);
 });
 
-// ═══ happy paths — the receipt is complete and carries no failure vocabulary ════════════════════
-Deno.test("happy path — a mini drop's receipt names every reward and omits `failed` entirely", async () => {
-  const db = scene({ contents: { miles: 300, card: "레어 카드", gear: "러닝 조끼" } });
-  const out = await openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never) as Row;
-
-  assertEquals(out.applied, { miles: 300, card: "레어 카드", gear: "러닝 조끼" });
-  // `failed` and `error` are ABSENT, not empty — `api.ts` throws on a truthy `data.error`, so an
-  // empty-string `error` on a success would turn every successful open into 「오픈 실패」.
-  assertEquals(out.failed, undefined);
-  assertEquals(out.error, undefined);
-
-  assertEquals(db.rows("miles_ledger")[0].delta, 300);
-  assertEquals(db.rows("miles_ledger")[0].ref_id, DROP);
-  assertEquals(db.rows("cards_owned")[0].card_key, "drop-5");
-  assertEquals(db.rows("gear_claims")[0].status, "claimable");
-  assert(drop(db).opened_at !== null);
-});
-
-Deno.test("happy path — each pick choice applies exactly its own reward and is recorded on the row", async () => {
-  for (const pick of ["boost", "miles", "gear"] as const) {
-    const db = scene({ kind: "pick", contents: {} });
-    const out = await openDrop(req({ drop_id: DROP, pick_choice: pick }, "runner_jwt"), db as never) as Row;
-    const applied = out.applied as Row;
-
-    assertEquals(out.failed, undefined);
-    assertEquals(Object.keys(applied).length, 1, `${pick} applied ${JSON.stringify(applied)}`);
-    assertEquals(db.rows("boosts").length, pick === "boost" ? 1 : 0);
-    assertEquals(db.rows("miles_ledger").length, pick === "miles" ? 1 : 0);
-    assertEquals(db.rows("gear_claims").length, pick === "gear" ? 1 : 0);
-    if (pick === "boost") {
-      // the receipt's value is the row's value, not a second computation of "now + 24h"
-      assertEquals(applied.boost_until, db.rows("boosts")[0].ends_at);
+Deno.test("[500] a success with no object is refused, not rendered as an empty receipt", async () => {
+  // The RPC always returns a jsonb object. If it ever answers null (a broken wiring, a changed
+  // return type), a `{ applied: {} }` would be a receipt for nothing — the honesty law says fail.
+  for (const data of [null, undefined, "miles", [1]]) {
+    const s = scene(() => ({ data }));
+    const cap = captureErrors();
+    let err: HttpError;
+    try {
+      err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "runner_jwt"), s.db as never, s.mkUserDb));
+    } finally {
+      cap.restore();
     }
-    if (pick === "miles") assertEquals(applied.miles, 5000);
-    // the choice is on the drop row — it is the runner-motivation signal the pick drop exists for
-    assertEquals(drop(db).pick_choice, pick);
+    assertEquals(err.status, 500, `data=${JSON.stringify(data)}`);
+    assertEquals(err.code, "open_drop_tx:shape");
   }
 });
 
-// ═══ the gates above the CAS — party and state, in that order ═══════════════════════════════════
-Deno.test("the party, state and id gates all stand above the CAS and write nothing", async () => {
-  // A stranger
-  {
-    const db = scene();
-    const err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "stranger_jwt"), db as never));
-    assertEquals(err.status, 403);
-    assertEquals(db.log.length, 0);
+// ═══ THE GATES THAT STAY IN THE EDGE — token, body, id — all refuse BEFORE any rpc ═══════════
+Deno.test("[M1] a malformed body is 400 bad_body, not 500 — and no rpc is made", async () => {
+  for (const body of ["", "not json at all", "{", '{"drop_id":']) {
+    const s = scene();
+    const err = await expectHttpError(() => openDrop(rawReq(body), s.db as never, s.mkUserDb));
+    assertEquals(err.status, 400, `body ${JSON.stringify(body)} must be a 400`);
+    assertEquals(err.message, "bad_body");
+    assertEquals(s.udb.log, [], `a refused body reached the rpc: ${JSON.stringify(s.udb.log)}`);
+    assertEquals(s.builtFrom, [], "a refused body must not even build the user client");
   }
-  // A drop that is already open — the second tap, which is the race the CAS exists for
+});
+
+Deno.test("[gates] a missing drop_id is 400, and an unknown token is 401 — neither reaches the rpc", async () => {
   {
-    const db = scene({ opened_at: "2026-09-17T00:00:00.000Z" });
-    const err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never));
-    assertEquals(err.status, 409);
-    assertEquals(db.log.length, 0);
-  }
-  // No id at all
-  {
-    const db = scene();
-    const err = await expectHttpError(() => openDrop(req({}, "runner_jwt"), db as never));
+    const s = scene();
+    const err = await expectHttpError(() => openDrop(req({}, "runner_jwt"), s.db as never, s.mkUserDb));
     assertEquals(err.status, 400);
     assertEquals(err.message, "missing drop_id");
-    assertEquals(db.log.length, 0);
+    assertEquals(s.udb.log, []);
   }
-  // A drop that is not ours to find
   {
-    const db = scene();
-    const err = await expectHttpError(() =>
-      openDrop(req({ drop_id: "00000000-0000-0000-0000-000000000000" }, "runner_jwt"), db as never)
-    );
-    assertEquals(err.status, 404);
+    const s = scene();
+    const err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "stranger_jwt"), s.db as never, s.mkUserDb));
+    assertEquals(err.status, 401);
+    assertEquals(err.message, "unauthorized");
+    assertEquals(s.udb.log, [], "an unauthenticated request must never reach the rpc");
+    assertEquals(s.builtFrom, []);
   }
 });
 
-Deno.test("the CAS is the only thing that may stamp the drop — a lost race writes no reward", async () => {
-  // The concurrent-open race the CAS was added for: the read said `opened_at` was null, and by the
-  // time the update ran it was not. Modelled by a `drops:update` that matches zero rows.
-  const db = scene();
-  db.triggers["drops"] = () => {};
-  db.rows("drops")[0].opened_at = null;
-  // Make the CAS match nothing by moving the row out from under its `.eq("id", …)` filter after the
-  // read — the fake resolves filters at exec time, which is exactly the window under test.
-  const original = db.from.bind(db);
-  let reads = 0;
-  // deno-lint-ignore no-explicit-any
-  (db as any).from = (table: string) => {
-    if (table === "drops" && reads++ === 1) db.rows("drops")[0].opened_at = "2026-09-17T00:00:00.000Z";
-    return original(table);
-  };
-  const err = await expectHttpError(() => openDrop(req({ drop_id: DROP }, "runner_jwt"), db as never));
-  assertEquals(err.status, 409);
-  assertEquals(err.message, "already opened");
-  assertEquals(db.rows("miles_ledger").length, 0, "a lost race must not pay the reward twice");
+// ═══ NO ARM LEFT — the handler itself never touches a table ═════════════════════════════════
+Deno.test("[no arms] on a full success the handler writes nothing through either client", async () => {
+  const s = scene();
+  await openDrop(req({ drop_id: DROP, pick_choice: "gear" }, "runner_jwt"), s.db as never, s.mkUserDb);
+  assertEquals(writes(s.db), []);
+  assertEquals(writes(s.udb), []);
+  // and it never read the drop either — the RPC is the reader; a pre-read here would be a second
+  // party/state gate judged by different code.
+  assert(!s.db.log.some((l) => l.includes("drops")), `the handler read or wrote drops itself: ${JSON.stringify(s.db.log)}`);
 });

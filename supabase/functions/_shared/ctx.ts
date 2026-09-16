@@ -35,6 +35,25 @@ export async function caller(req: Request, db: SupabaseClient): Promise<string> 
   return data.user.id;
 }
 
+/**
+ * A client bound to the CALLER's JWT — the 0077 caller doctrine (`0077_recurring_guard.sql`'s
+ * header is the law; `confirm-payment/handler.ts` carried the first copy and keeps it). A
+ * client-gated RPC — one whose party gate is `auth.uid()` — is called through THIS client and
+ * never through `admin()`: with the service key `auth.uid()` is NULL, so the RPC's `not_signed_in`
+ * gate fires, or — where the migration revoked service_role outright, as 0176 does — the call is
+ * refused 42501 before the body runs. Either way the wiring is wrong, and neither is the caller's
+ * fault; this helper is how a handler makes it right.
+ */
+export function callerBoundClient(req: Request): SupabaseClient {
+  const authz = req.headers.get("Authorization");
+  if (!authz) throw new HttpError(401, "no caller token"); // caller() should have said 401 first
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authz } } },
+  );
+}
+
 export class HttpError extends Error {
   /**
    * `code` is set ONLY by `internalError()` below. It rides beside a stable `error` token so a 500
