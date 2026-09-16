@@ -302,6 +302,20 @@ landing worktree and `land/board-wrapper-bundle` are removed. To redo the rebase
 is `harness.sh`, resolved by keeping trunk's `suite 208_` line where it is and inserting
 `suite 195_…` immediately after `suite 194_`.
 
+**08:3x — `04d73a9` migration 0176 LANDED** (b6's slice, backend-audit H2; combined tree: harness
+**1246/0** = 1239 + exactly the 7 pins `O1…O7` · deno 312/0 · tsc · check-rpc · check-definer-acl
+baseline unchanged): `open_drop_tx(uuid, text)` SECURITY DEFINER, authenticated only (service_role
+revoked in-file), gate order not_signed_in → drop_not_found → not_drop_owner (under `for update`) →
+bad_pick_choice → already_opened → one CAS → reward arms → `drop_pays_nothing` when a mini paid
+nothing; VERIFY asserts ACL by value and comment-stripped source order. Cold-reader review
+APPROVE-WITH-FIXES/9, fixes applied before push; named gaps: the two-connection race is belt not pin,
+`not_drop_owner`/`drop_not_found` is a uuid-existence oracle. Suite-update law honoured: `141 D19`'s
+sweep now excludes exactly `open_drop_tx(uuid,text)` with a liveness arm. ⚠ **Not wired yet** —
+`open-drop/handler.ts` still does the writes itself; the follow-up must call the RPC with the runner's
+JWT and RE-WRAP `{applied}` (the RPC returns the bare object; `api.ts` unwraps one level — wiring it
+bare silently reverts every alert to the M4 shape). **Eighteen pending** (0157–0163, 0166–0174,
+0176, 0177) + edge functions; codex owes 0176 and 0177 a verdict.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
