@@ -10,7 +10,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
-import { fetchMyPayments, fetchUnsettledCharge, PaymentRecord, retryCollect } from '../../src/lib/api';
+import { fetchMyPayments, fetchUnsettledCharge, retryCollect } from '../../src/lib/api';
 import { paper } from '../../src/theme';
 
 export default function CardLink() {
@@ -20,27 +20,44 @@ export default function CardLink() {
   const [locked, setLocked] = useState<boolean | null>(null);
   const [dueAmount, setDueAmount] = useState<number | null>(null);
   const [failedIds, setFailedIds] = useState<string[]>([]);
+  const [readFailed, setReadFailed] = useState(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  useEffect(() => {
-    // ⚠ A read failure is NOT 「not locked」. The first draft caught both to null/[] and rendered
-    //   the clean settings face, so a flaky network hid an arrears lock behind a screen that
-    //   promises nothing is owed (codex REJECT #1). `locked` stays null on failure and the panel
-    //   keeps the promise face, which is true in every state; what must never happen is claiming
-    //   the DEBT face or the SETTLED result without having read them.
+  // ⚠ A read failure is NOT 「not locked」. The first draft caught both to null/[] and rendered
+  //   the clean settings face, so a flaky network hid an arrears lock behind a screen that
+  //   promises nothing is owed (codex REJECT #1). `locked` stays null on failure and the panel
+  //   keeps the promise face, which is true in every state; what must never happen is claiming
+  //   the DEBT face or the SETTLED result without having read them.
+  //
+  // 🔴 [honesty 2026-09-17] THE COMMENT ABOVE WAS THE PROMISE AND THE CODE BELOW BROKE IT.
+  //   `.catch(() => null)` + `setLocked(lk === true)` collapsed an UNREAD lock to `false`, and
+  //   `.catch(() => [])` collapsed an UNREAD ledger to 「no failed charges」 — so after a failed
+  //   read the arrears face could never appear and the screen said, silently, 「nothing owed」.
+  //   Same fix the onLinked path already uses 40 lines down: a 'read_failed' sentinel, so
+  //   unknown stays unknown. Nothing is written from a read that did not happen.
+  const loadState = useCallback(() => {
+    setReadFailed(false);
     Promise.all([
-      fetchUnsettledCharge().catch(() => null),
-      fetchMyPayments(30).catch(() => [] as PaymentRecord[]),
+      fetchUnsettledCharge().catch(() => 'read_failed' as const),
+      fetchMyPayments(30).catch(() => 'read_failed' as const),
     ]).then(([lk, rows]) => {
       if (!alive.current) return;
-      setLocked(lk === true);
-      const failed = rows.filter((r) => r.status === 'failed');
-      setFailedIds(Array.from(new Set(failed.map((r) => r.bookingId))));
-      // 합계는 실패 행의 실제 amount 합 — 화면의 유일한 숫자이고, 서버 행에서 온다.
-      setDueAmount(failed.length > 0 ? failed.reduce((a, r) => a + r.amount, 0) : null);
+      if (lk === 'read_failed' || rows === 'read_failed') {
+        console.warn('[card-link] arrears state read failed');
+        setReadFailed(true);
+      }
+      // `lk` can legitimately be null (no unsettled charge) — only the sentinel means unread.
+      if (lk !== 'read_failed') setLocked(lk === true);
+      if (rows !== 'read_failed') {
+        const failed = rows.filter((r) => r.status === 'failed');
+        setFailedIds(Array.from(new Set(failed.map((r) => r.bookingId))));
+        // 합계는 실패 행의 실제 amount 합 — 화면의 유일한 숫자이고, 서버 행에서 온다.
+        setDueAmount(failed.length > 0 ? failed.reduce((a, r) => a + r.amount, 0) : null);
+      }
     });
   }, []);
+  useEffect(() => { loadState(); }, [loadState]);
 
   const arrears = locked === true && failedIds.length > 0;
 
@@ -102,6 +119,28 @@ export default function CardLink() {
         </Text>
       </View>
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16 }}>
+        {/* A failed read is now SAID, not swallowed. The panel below still renders — the promise
+            is true in every state and the card can still be linked — but the screen no longer
+            implies that nothing is owed on the strength of a read that never landed. */}
+        {readFailed && (
+          <View style={{ backgroundColor: paper.criticalWash, padding: 13, marginBottom: 14 }}>
+            <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical }}>
+              미납 여부를 확인하지 못했어요
+            </Text>
+            <Text style={{ fontSize: 15, lineHeight: 21, color: paper.critical, marginTop: 4 }}>
+              밀린 결제가 있는지 아직 몰라요 — 카드 연결은 지금 해도 돼요
+            </Text>
+            <Pressable
+              onPress={loadState}
+              accessibilityRole="button"
+              style={{ alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+                다시 확인
+              </Text>
+            </Pressable>
+          </View>
+        )}
         {/* locked를 읽는 동안 clean 얼굴을 그린다 — 로딩 스피너로 잠금 여부를 기다리게 할 만큼
             두 얼굴이 다르지 않고, 잘못 그려도 clean 쪽이 항상 참인 문장이다 (약속은 동일하다). */}
         <CardLinkPanel

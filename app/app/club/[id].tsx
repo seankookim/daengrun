@@ -763,15 +763,20 @@ export default function ClubPage() {
                 <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 21 }}>
                   정기 세션이 열리면 알림을 받고, 세션 보드를 볼 수 있어요
                 </Text>
+                {/* [honesty 2026-09-17] busy was an alpha with a fixed label — one screen, two
+                    grammars, since the join CTA 12 lines down already swaps its label. The alpha
+                    is gone; the label carries busy, and a11y reports busy as well as disabled. */}
                 <Pressable
                   onPress={leave}
                   disabled={memBusy}
                   accessibilityRole="button"
                   accessibilityLabel="클럽 탈퇴"
-                  accessibilityState={{ disabled: memBusy }}
-                  style={[s.ghostBtn, memBusy && { opacity: 0.5 }]}
+                  accessibilityState={{ disabled: memBusy, busy: memBusy }}
+                  style={s.ghostBtn}
                 >
-                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text }}>클럽 탈퇴</Text>
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text }}>
+                    {memBusy ? '탈퇴하는 중…' : '클럽 탈퇴'}
+                  </Text>
                 </Pressable>
               </View>
             ) : (

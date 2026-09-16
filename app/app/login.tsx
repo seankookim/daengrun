@@ -75,8 +75,12 @@ export default function Login() {
         <Text style={[s.logo, df]}>도그스<Text style={{ color: colors.volt }}>하이</Text></Text>
         <Text style={s.tagline}>러너스 하이를, 우리 아이에게</Text>
 
+        {/* [honesty 2026-09-17] busy alpha retired — the label below is the whole busy affordance
+            (DESIGN.md button matrix: busy = label swap, never alpha). The pressed alpha stays:
+            that is touch feedback, not state. This is the app's only door, so the one thing it
+            must never look like is broken. */}
         <Pressable
-          style={({ pressed }) => [s.kakao, busy && { opacity: 0.6 }, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [s.kakao, pressed && { opacity: 0.9 }]}
           onPress={kakao}
           disabled={busy}
           accessibilityRole="button"

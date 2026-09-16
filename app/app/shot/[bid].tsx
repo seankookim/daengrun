@@ -809,6 +809,12 @@ export default function ShotStudio() {
           : activeKey === 'G' && photos.G
             ? ['사진 변경', () => openSheet('G')] as const
             : ['이미지 저장', savePng] as const;
+  // [honesty 2026-09-17] `busy` is ONE screen-wide capture flag — savePng, shareNow and
+  // shareToInstagram all raise it — so a busy label on the ghost or the IG button must not name
+  // an action that may not be the one running. 「처리 중」 is true whichever of the three is in
+  // flight; only the main button, which owns the capture the person just pressed, says 만드는 중
+  // (mainLabel, above). Before today all three said nothing and went translucent instead.
+  const busyLabel = '처리 중...';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0C130E' }}>
@@ -828,6 +834,14 @@ export default function ShotStudio() {
         <View style={{ width: 34 }} />
       </View>
 
+      {/* [honesty 2026-09-17] 로딩 문장. While the first read is in flight err·notFound·report are
+          ALL false, so this screen was a header over an empty dark panel — the same face as a
+          failure and as 「this run has no card yet」. Loading is not nothing. */}
+      {!err && !notFound && !report && (
+        <View style={s.errBox}>
+          <Text style={{ fontSize: 15, color: '#8fa093', textAlign: 'center' }}>기록을 불러오는 중...</Text>
+        </View>
+      )}
       {err && (
         <View style={s.errBox}>
           <Text style={s.errTxt}>기록을 불러오지 못했어요</Text>
@@ -1002,10 +1016,25 @@ export default function ShotStudio() {
 
           {/* 액션 바 — outside the scroller, so it is reachable on every screen size. */}
           <View style={s.actRow}>
-            <Pressable onPress={onGhost} disabled={busy} style={[s.actGhost, busy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
+            {/* Busy is a LABEL swap on both, never an alpha (DESIGN.md button matrix). The ghost
+                had no busy branch at all — it went translucent and kept saying 사진 넣기, which to
+                a screen reader was an ordinary enabled-looking button reporting only `disabled`. */}
+            <Pressable
+              onPress={onGhost}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityState={{ busy, disabled: busy }}
+              style={s.actGhost}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>{busy ? busyLabel : ghostLabel}</Text>
             </Pressable>
-            <Pressable onPress={onMain} disabled={busy} style={[s.actMain, busy && { opacity: 0.6 }]}>
+            <Pressable
+              onPress={onMain}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityState={{ busy, disabled: busy }}
+              style={s.actMain}
+            >
               <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{mainLabel}</Text>
             </Pressable>
           </View>
@@ -1020,18 +1049,23 @@ export default function ShotStudio() {
               disabled={busy}
               /* [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at
                  rest, translateY(3) + 1px pressed. Busy keeps the lip and loses only the travel
-                 (PaperBtn's predicate) — the button is mid-send, not dead. */
+                 (PaperBtn's predicate) — the button is mid-send, not dead.
+                 🔴 [honesty 2026-09-17] That sentence was TRUE OF THE COMMENT AND FALSE OF THE
+                 SCREEN: a `busy && { opacity: 0.6 }` sat in this same array, so what actually
+                 rendered was a dimmed button — the dead face the paragraph denies. The alpha is
+                 gone; busy is the label swap below, and the lip/travel rule here is now the whole
+                 of the visual change, which is what this comment always claimed. */
               style={({ pressed }) => [
                 s.igBtn,
-                busy && { opacity: 0.6 },
                 pressed && !busy
                   ? { backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed }
                   : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
               ]}
               accessibilityRole="button"
+              accessibilityState={{ busy, disabled: busy }}
               accessibilityLabel="인스타그램 스토리로 공유"
             >
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>인스타 스토리로 ›</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{busy ? busyLabel : '인스타 스토리로 ›'}</Text>
             </Pressable>
           )}
         </>

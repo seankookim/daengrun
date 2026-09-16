@@ -120,7 +120,21 @@ export default function Cards() {
           </View>
         )}
 
-        {/* ————— § 도장 — 잉크 페이지 (my.tsx §③과 같은 칸, 조금 더 넉넉한 행간) ————— */}
+        {/* ————— § 도장 — 잉크 페이지 (my.tsx §③과 같은 칸, 조금 더 넉넉한 행간) —————
+            [honesty 2026-09-17] 로딩 문장 추가. 두 읽기가 다 도착 전이면 이 화면은 마스트헤드
+            아래가 통째로 백지였다 — 아무 섹션 조건도 참이 아니라서. 빈 수집함과 구별되지 않는
+            얼굴이다. 실패 노트와 같은 문법·같은 자리에 두어, 섹션마다 로딩·실패·실값이 갈린다. */}
+        {!stamps && !stampErr && (
+          <>
+            <Row style={s.sec}>
+              <Text style={[s.secNo, nf]}>§</Text>
+              <Text style={[s.secT, nf]}>STAMPS</Text>
+              <Text style={s.secKo}>도장</Text>
+              <View style={s.rule} />
+            </Row>
+            <View style={s.failNote}><Text style={s.loadTxt}>도장을 불러오는 중...</Text></View>
+          </>
+        )}
         {!stamps && stampErr && !bothFailed && (
           <>
             <Row style={s.sec}>
@@ -164,6 +178,17 @@ export default function Cards() {
         )}
 
         {/* ————— § 코스 패치 — 나이트 라일락 웰 (어두운 디스크에는 어두운 바닥이 필요하다) ————— */}
+        {!patches && !patchErr && (
+          <>
+            <Row style={s.sec}>
+              <Text style={[s.secNo, nf]}>§</Text>
+              <Text style={[s.secT, nf]}>PATCHES</Text>
+              <Text style={s.secKo}>코스 패치</Text>
+              <View style={s.rule} />
+            </Row>
+            <View style={s.failNote}><Text style={s.loadTxt}>코스 패치를 불러오는 중...</Text></View>
+          </>
+        )}
         {!patches && patchErr && !bothFailed && (
           <>
             <Row style={s.sec}>
@@ -263,6 +288,8 @@ const s = StyleSheet.create({
   errD: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   failNote: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 12 },
   failTxt: { fontSize: 15, lineHeight: 20, color: lilac.text },
+  // 로딩 문장 — 실패 노트와 같은 상자, 더 조용한 잉크 (실패가 아니라 아직인 것)
+  loadTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim },
 
   // 섹션 라벨 (마이와 같은 문법 — § · LATIN · 한글 · 룰)
   sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
