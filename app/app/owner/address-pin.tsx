@@ -283,7 +283,8 @@ export default function AddressPin() {
                   key={sp.label}
                   onPress={() => jumpToSpot(i)}
                   style={[s.chip, selSpot === i && s.chipOn]}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: selSpot === i }}
                   accessibilityLabel={sp.label}
                 >
                   <Text style={[s.chipTxt, selSpot === i && s.chipTxtOn]}>{sp.label}</Text>

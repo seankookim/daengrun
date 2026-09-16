@@ -1526,6 +1526,13 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+18. **VoiceOver vocabulary ruling** (cold review of the A2 slice, measured in RN 0.86 source): on iOS
+    under the New Architecture `accessibilityRole="tab"` maps to no trait (only `checkbox`/`radio` get a
+    spoken role word), and `accessibilityState.selected` speaks only when TRUE while `checked` speaks
+    both ways. Today: 11 radio+selected sets, 8 checkbox+checked, 3 tab sets, plus three older
+    `button`+selected sets (dog collar dots, course-map rows). ⓐ **radios move to `checked`** (both
+    states audible) and tabs keep `tab` for Android with `selected` for iOS — one small sweep ·
+    ⓑ leave the per-screen mix.
 17. **Icon-only send buttons dim while sending** (`chat.tsx:413`, `community.tsx:755`, loading-state
     audit Tier 2 #13/#14) — the ↑ button has no label to swap, so 「busy = label swap」 has no answer
     here. ⓐ swap the glyph (↑ → … or a small ring) at full opacity · ⓑ keep the arrow, add a

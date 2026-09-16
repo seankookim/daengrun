@@ -783,19 +783,23 @@ export default function Request() {
       <Row style={{ gap: 8, marginTop: 8 }}>
         {g.times.map((t) => {
           const ok = slotAllowed(dateIdx, t);
+          // The booked slot is drawn as selected (ink plate) so the eye and VoiceOver agree — the
+          // a11y state below announced 「selected」 on a chip that looked like every other one
+          // (cold review of 13d3658). Same plate the runner-profile picker uses.
+          const sel = draft.scheduledAtIso === toDate(dateIdx, t).toISOString();
           return (
             <Pressable
               key={t}
               disabled={!ok}
               onPress={() => pickSlot(t)}
               accessibilityRole="radio"
-              accessibilityState={{ selected: draft.scheduledAtIso === toDate(dateIdx, t).toISOString(), disabled: !ok }}
-              // 불투명도 트릭 금지 법 — disabled는 명시 색으로 (disabledFill + faint 시각, F2.1)
-              style={[s.slot, !ok && { backgroundColor: paper.disabledFill }]}
+              accessibilityState={{ selected: sel, disabled: !ok }}
+              // No opacity trick — disabled is an explicit fill (disabledFill + faint, F2.1)
+              style={[s.slot, !ok && { backgroundColor: paper.disabledFill }, sel && ok && { backgroundColor: paper.ink, borderColor: paper.ink }]}
             >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: ok ? paper.ink : paper.faint }}>{t}</Text>
-              <Text style={{ fontSize: 15, color: ok ? paper.text : paper.dim, marginTop: 2 }}>
-                {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
+              <Text style={{ fontSize: 16, fontWeight: '800', color: sel && ok ? '#FFFFFF' : ok ? paper.ink : paper.faint }}>{t}</Text>
+              <Text style={{ fontSize: 15, color: sel && ok ? '#FFFFFF' : ok ? paper.text : paper.dim, marginTop: 2 }}>
+                {ok ? (sel ? '선택됨' : '가능') : prefRules ? '러너 불가' : '마감'}
               </Text>
             </Pressable>
           );
