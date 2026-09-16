@@ -149,6 +149,15 @@ the shareable PNG), address pin (retry re-runs the whole resolve chain). Airplan
 in the agent report (10 items). Loading-state audit Tiers 1–3 are now closed except #13/#14
 (queue item 17).
 
+**05:5x — `13d3658` A2 LANDED** (combined tree: tsc · 4 checks · npm 989/0): roles + selected/checked
+state on 23 selection sets across 12 files (date strip, slot grid, dog picker, pace, add-ons, weekly
+repeat, course carousel, neutered yes/no, schedule filter, weekday availability as `switch`, review
+tags, gear checklist, community/leaderboard/club-session tabs, consent checkboxes). Props-only proven
+two ways (char stream + AST) with control plants. Two pre-existing wrong roles flagged, not changed:
+`runner-profile/[id].tsx:382` segmented tab carries `button` (should be `tab`); `runner/apply.tsx:636`
+multi-select carries `selected` (should be `checked`) — small follow-up. VoiceOver output UNVERIFIED;
+smoke list in the agent report (8 items).
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
