@@ -142,7 +142,7 @@ export default function ProfileEdit() {
         {ready && (
           <>
             <View style={s.list}>
-              <Field label="이름" value={name} onChange={setName} placeholder="이름 또는 닉네임" maxLength={20} />
+              <Field label="이름" value={name} onChange={setName} placeholder="이름 또는 닉네임" maxLength={20} textContentType="name" autoComplete="name" />
               {/* 소문자·공백 제거는 **정규화**이지 검증이 아니다 — 서버가 하는 것과 같은 접기라서
                   규칙이 두 벌이 되지 않는다 (0074의 교훈). 길이·문자셋·예약어 판정은 전부 서버 몫이고,
                   실패하면 그 문장이 그대로 실패 스트립에 올라온다. 은퇴한 마이 시트의 동작 그대로. */}
@@ -193,6 +193,7 @@ export default function ProfileEdit() {
 // 인스타 편집기의 한 행: 라벨 왼쪽 · 값 오른쪽 · 아래 헤어라인 하나.
 function Field({
   label, value, onChange, placeholder, maxLength, prefix, multiline, autoCapitalize, last,
+  textContentType, autoComplete,
 }: {
   label: string;
   value: string;
@@ -203,6 +204,10 @@ function Field({
   multiline?: boolean;
   autoCapitalize?: 'none' | 'sentences';
   last?: boolean;
+  // AutoFill semantics (HIG row E1). Only the 이름 row sets them — the helper serves four roles
+  // and a type on the helper itself would mislabel the other three.
+  textContentType?: React.ComponentProps<typeof TextInput>['textContentType'];
+  autoComplete?: React.ComponentProps<typeof TextInput>['autoComplete'];
 }) {
   return (
     <View style={[s.row, last && { borderBottomWidth: 0 }]}>
@@ -217,6 +222,8 @@ function Field({
           maxLength={maxLength}
           multiline={multiline}
           autoCapitalize={autoCapitalize}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
           autoCorrect={false}
           style={[s.input, multiline && { minHeight: 66, textAlignVertical: 'top' }]}
         />
