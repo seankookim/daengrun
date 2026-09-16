@@ -211,6 +211,35 @@ cold read (five named questions in the agent report). ⚠ Harness trap on this M
 `LANG/LC_ALL=en_US.UTF-8` the postmaster dies at start (「became multithreaded」) and the run prints
 `SHIM FAILED` — an environment fault wearing a failed control's costume; set the locale first.
 
+**07:5x — `ee8845c` Codex branch `codex/runner-rules-checks` LANDED (0163 + suite 194).** The first
+Codex-written slice to reach trunk. Rebased `4dc0608` onto `4f6a8a5`; REGISTRY.md auto-merged (row
+0163 sits between 0162 and 0166, every trunk row 0166–0177 preserved), `harness.sh` was the one
+conflict and was resolved by UNION with `suite 194_` inserted at its numeric position after
+`suite 193_` (208 kept where it was; `uniq -d` on the manifest empty, 0 conflict markers in all three
+shapes on all four files, verified again from origin after the push). **Harness 1236 → 1239/0, delta
+EXACTLY the 3 pins the suite adds** (`0163-R1/R2/R3` each read back BY LABEL from the log) · deno
+**312/0** · tsc · check-rpc · check-route-native · check-definer-acl (baseline 81 unchanged) ·
+check-device-clock · npm test exit 0, **989 `^PASS` / 0 `^FAIL`** (+38 ✅). **What it does:** two
+`not valid` CHECKs on `runner_booking_rules` bounding the only two columns any server code READS
+(`is_slot_available`, 0003:42) to the shipped editor's own ranges — rest 0..120, daily 1..8. ⚠ **The
+suite shipped with no mutation battery in its header, so I ran one before landing** (the slice's
+central claim was reasoned, not measured): plant M1 removes both constraints, `&&`-chained to the
+run with the plant re-read from disk and asserted, ⇒ **1237/2 = `0163-R1` + `0163-R2` alone**, and
+the failure detail IS the hole (`accepted rest=-1 accepted rest=121`, `accepted daily=0 accepted
+daily=9`) rather than a pin's opinion of it. R3 stays green, which is the control-pair point:
+accept-everything reddens R1/R2 only and refuse-everything would redden R3 only, so no single
+hard-wired answer satisfies the set. Restored byte-identical against a pristine copy, 0 `PLANT`
+occurrences. **Review findings, all LOW, none blocking:** ① no SECURITY DEFINER, no function, no RPC
+in the diff — the definer/`search_path`/ACL and party-before-state laws have no surface here; ② both
+columns are `int not null` with defaults 30 and 4 (0001:110-112), both inside the new bounds, so
+there is no nullable-predicate collapse and no `<>`/bare-`IF` to correct; ③ every writer enumerated
+and each is safe — `registerRunner` inserts `runner_id` alone (defaults), `saveMyBookingRules`
+upserts values the editor clamps to exactly 0..120 / 1..8 (`availability.tsx:176-177`), and **no
+migration and no edge function writes these columns at all**; ④ no harness fixture outside 194
+touches the table, so nothing else could break; ⑤ the one real residual — a 23514 from the upsert has
+no Korean client mapping, unreachable from the shipped client because the stepper clamps, so it is a
+note and not a defect. ⚠ NOT codex-reviewed (this was a cold Claude read), NOT DEPLOYED.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
