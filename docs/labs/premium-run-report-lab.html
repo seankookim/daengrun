@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium Run Report Lab — 러닝 리포트 3안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   PREMIUM RUN REPORT LAB — `app/app/owner/report.tsx` and the card it hands to
+   `app/app/shot/[bid].tsx`. The surface the PMF gate actually rides on.
+   Fourth of four labs from `docs/design/premium-taste-brief.md`.
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   The ORDER of the report's first screenful, and what shape the run's three
+   numbers take. The lower two thirds (review, points, care stamps, goal, runner
+   and course, profile nudge) keep their shipped order in all three and are not
+   part of the pick.
+
+   ── WHY THIS ONE GETS THE EXPRESSION BUDGET ────────────────────────────────
+   `CLAUDE.md`'s first line sets the PMF gate at M1 rebooking 60%. This screen
+   is where a first booking becomes a second one, and `DESIGN.md` §7b exempts it
+   by name: 「Peak-End protection: the GO press, the handoff seal, and run
+   completion are peak moments — they are exempt from minimization; polish them
+   instead.」 So the brief's §(d) dial for this surface is 6 / 3 / 3, the highest
+   variance in the set.
+
+   ── FIELD BINDINGS ─────────────────────────────────────────────────────────
+   REASON (6 values, all mapped — report.tsx:62-84)
+     completed 완주 완료 · dog_condition 반려견 컨디션으로 조기 종료 ·
+     owner_request 보호자 요청으로 종료 · runner_personal 러너 사정으로 종료 ·
+     owner_forced 보호자 요청으로 중단 · incident 사고로 중단
+   UNKNOWN            '기록 없음'  — the ONE word for 「the server has no measurement」
+   REQUEST_SLOTS      the nine times the rebook panel resolves run+7d against
+   title              27.5pt Black Han Sans, the screen's ONE display use
+   stats              거리 (km) · 러닝 시간 (M:SS) · 평균 페이스 /km (M'SS")
+   badges             {n}번째 러닝 · ★ 역대 최장 거리 · 거리 TOP {n}
+   rebook             completed + slot resolves → 다음 주 같은 시간 예약
+                      otherwise                 → 이대로 다시 예약
+                      stopped run               → 안심 센터 열기 (coral panel is
+                                                  REPLACED, not recoloured)
+   care stamps        응가 · 간식 · 물 · 사진 — never gated on state
+
+   🔴 ── A NULL MEASUREMENT IS A WORD, NOT A DASH ────────────────────────────
+   `report.tsx` renders 「기록 없음」 where a measurement is missing, and the title
+   drops its own 「, {km}km」 fragment rather than print a unit with no number.
+   ⚠ This is the correct half of the brief's Tension ⑪: elsewhere in the app a
+   bare '—' stands in for a missing value, and `loading-state-audit.md` already
+   flags two of those as honesty defects because a dash cannot tell 「loading」
+   from 「failed」 from 「genuinely absent」. This screen is the worked example of
+   doing it right, so every variant here keeps the word.
+
+   ── PHOTOS ARE EMPTY LABELLED SLOTS, ON PURPOSE ────────────────────────────
+   taste-skill §4.8 calls a photo-less mock 「slop」 and asks for picsum. Refused.
+   This screen's entire claim is that ONE PARTICULAR RUN happened; a stranger's
+   dog in the mock breaks the claim inside the mock. The cost is real and is
+   written up in the brief (§ Tension ⑦): a lab with no photograph cannot answer
+   「does this composition survive a real photo」. Only a device smoke can.
+
+   ── MOTION ────────────────────────────────────────────────────────────────
+   One ceremony, and it plays ONCE PER ENTITY: the 오늘의 수확 patch overlay,
+   which `CLAUDE.md` § Honesty laws pins to the module-level Set idiom
+   (`sealStampFresh` / `_patchPopSeen`) so it never replays on re-entry
+   hydration. Everything else is the button lip at 120ms.
+   ═════════════════════════════════════════════════════════════════════════ */
+/* ── SHARED PAPER WORLD ── byte-identical in all four premium-* labs ─────────
+   Every token below is READ FROM `app/src/theme.ts`, not invented. Where the
+   shipped value and DESIGN.md disagree the SHIPPED value is used and the
+   disagreement is named in docs/design/premium-taste-brief.md § Tension ⑫.   */
+:root{
+  /* GROUND — paper world. White, per Sean 2026-08-25 「white backgrounds」. */
+  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
+  --ink:#111111;    /* paper.ink   — head, 18.9:1 */
+  --text:#333333;   /* paper.text  — body, 12.6:1 */
+  --dim:#666666;    /* paper.dim   — detail, 5.7:1, AA with the 15pt floor */
+  --faint:#999999;  /* paper.faint — DECORATION CLASS ONLY (latin kickers) */
+  /* THE BRAND IS THE LINE — solid coral 1px, full bleed, no opacity */
+  --line:#E8552F;   /* paper.line */
+  --wash:#FFF6F4;   /* paper.wash — coral 95% white */
+  /* ACTION SYSTEM — Sean 2026-08-11 「검정은 제일 지루하다」 */
+  --action:#C6472C;        /* paper.action        white label 4.84:1 */
+  --actionPressed:#A83315; /* paper.actionPressed white label 6.67:1 = the lip */
+  --actionInk:#A83315;     /* paper.actionInk     on wash 5.99:1 */
+  --draw:#A63A20;          /* draw-button.tsx:96 coral ground (console #18) */
+  --drawSub:#FFD9CE;
+  /* STATE INKS */
+  --ready:#119B58;     /* paper.ready     large white label only, 3.59:1 */
+  --readyDeep:#0E7F49; /* paper.readyDeep 5.06:1 */
+  --wait:#6C5CE7;      /* home-hero.tsx:102 WAIT_BLUE = lilac.accent (Tension ⑫) */
+  --pending:#C77414;   /* paper.pending */
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --paceGoodWash:#E7F5EE; --paceGoodInk:#0E7F49;
+  --paceSlowWash:#FBEED9; --paceSlowInk:#9D580A;
+  --disabledFill:#F2F2F2; --neutral:#EEEEEE;
+  --head:#221E3D;      /* lilac.head — the live widget's dark ground */
+  --headDim:#B9B3D9; --headFaint:#8F88B8;
+  --voltDeep:#5E7F0E; --goldTint:#F4EBD3; --goldEdge:#C9AE6A; --goldInk:#5F4E1C;
+  --blueBg:#EDF2F8; --blueEdge:#A9BDD2; --blueInk:#2E4F70; --blueSub:#456079;
+  --amberBg:#FBEED9; --amberEdge:#DCBE86; --amberInk:#6E4708;
+  --voltBg:#EAF6C8; --voltEdge:#A8C46A; --voltInk:#3F5A08;
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --dogFill:#C9B89A; --dogInk:#5D5138;
+  /* TYPE — labs run the app's system Korean stack (DESIGN.md §2, 2026-08-25).
+     Lattice 11 / 15 / 17 / 19 / 20 / 24 / 30 + Oswald 23 / 27 / 34.5 (lh ≥1.2x).
+     Korean floor is 15. Sub-15 is LATIN letterspaced caps and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --tk:11px;                   /* latin kicker — never Korean */
+  --t5:15px; --l5:21px;        /* detail floor */
+  --t4:17px; --l4:24px;        /* supporting */
+  --t3:19px; --l3:26px;        /* chunk kicker (DESIGN.md §3: they went to 19) */
+  --t2:20px; --l2:27px;        /* section title (DESIGN.md §3b: 20/800) */
+  --t1:24px; --l1:30px;
+  --tD:30px; --lD:37px;        /* screen title 30/900 lh37 (DESIGN.md §3b) */
+  --n3:23px; --nl3:29px;       /* numeral inline  1.26x */
+  --n2:27px; --nl2:33px;       /* numeral large   1.22x */
+  --n1:34.5px; --nl1:44px;     /* numeral hero    1.28x */
+  /* lab chrome only — never inside a phone frame */
+  --page:#FFFFFF; --hair:#E4E3DF;
+  /* MOTION — impeccable operate.md: 150-250ms. Ceiling here is 240ms.
+     Curve is exponential ease-out, which craft-floor.md asks for by name. */
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:1420px;margin:0 auto}
+
+/* ── LAB CHROME ─────────────────────────────────────────────────────────── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:18px}
+header.top h1{font-size:var(--tD);line-height:var(--lD);font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);
+  font-weight:700;margin-bottom:10px}
+.samplebar{margin-top:16px;border:1.5px solid var(--line);background:var(--wash);
+  padding:12px 14px;font-size:var(--t5);line-height:var(--l5);color:var(--text);max-width:88ch}
+.samplebar b{color:var(--actionInk);font-weight:800}
+ul.brief{margin:20px 0 0;padding-left:20px;font-size:var(--t5);line-height:1.8;max-width:88ch}
+ul.brief b{font-weight:800}
+ul.brief code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--neutral);padding:1px 4px}
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:22px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:var(--t5);
+  line-height:1.55;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:34px;font-size:var(--t3);font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:var(--t5);line-height:1.55;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+.rail{display:flex;flex-wrap:wrap;gap:40px;margin-top:48px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.cap .n{flex:0 0 auto;width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:var(--t1);font-weight:800}
+.cap .d{font-size:var(--t5);line-height:1.45;font-weight:700;color:var(--dim);padding-top:3px}
+.cap .d b{color:var(--ink);display:block;font-size:var(--t4);line-height:1.35;margin-bottom:3px}
+.dials{display:flex;gap:0;border:1px solid var(--ink);margin-bottom:16px}
+.dials div{flex:1;padding:7px 8px;border-right:1px solid var(--ink);text-align:center}
+.dials div:last-child{border-right:0}
+.dials span{display:block;font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--dim);font-weight:700}
+.dials b{display:block;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--ink)}
+.why{margin-top:16px;font-size:var(--t5);line-height:1.7;color:var(--text)}
+.why b{font-weight:800;color:var(--ink)}
+.why .rule{display:block;margin-top:9px;padding-left:12px;border-left:1px solid var(--neutral);
+  color:var(--dim);font-size:var(--t5)}
+.states{margin-top:16px;border-top:1.5px solid var(--ink);font-size:var(--t5);line-height:var(--l5)}
+.states .r{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--neutral);align-items:baseline}
+.states .r .s{flex:0 0 86px;font-weight:800;color:var(--ink)}
+.states .r .v{flex:1;color:var(--text)}
+.states .r .v em{font-style:normal;color:var(--dim)}
+
+/* ── PHONE FRAME ─────────────────────────────────────────────────────────── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 30px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--dim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column}
+.pad{padding:0 15px}                      /* layout.gutter = 15 */
+.disp{font-family:var(--fDisp);font-weight:400;color:var(--ink);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--faint)}
+.chunk{font-size:var(--t3);line-height:var(--l3);letter-spacing:1px;font-weight:800;color:var(--dim)}
+.rule{height:1px;background:var(--line)}          /* full-bleed coral hairline */
+.hair{height:1px;background:var(--neutral)}
+.inkrule{height:2px;background:var(--ink)}
+/* module header — DESIGN.md §3b: one grammar, title + optional right link */
+.modh{display:flex;align-items:baseline;justify-content:space-between;padding:14px 0 8px}
+.modh .t{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.modh .l{font-size:var(--t5);font-weight:700;color:var(--dim)}
+/* status chip — 16/800, radius 0, tinted fill, same baseline row as its datum */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:16px;line-height:22px;font-weight:800;
+  padding:3px 9px}
+.chip i{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:currentColor;font-style:normal}
+.chip.ready{color:var(--readyDeep);background:var(--paceGoodWash)}
+.chip.wait{color:var(--wait);background:#F0EDFD}
+.chip.turn{color:var(--actionInk);background:var(--wash)}
+.chip.none{color:var(--dim);background:var(--disabledFill)}
+/* buttons — DESIGN.md §3b matrix. Filled = 4px lip, press = translateY(3)+1px.
+   Unfilled = scale(.96). Disabled is FLAT and painted, never alpha.          */
+.btnP{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;
+  background:var(--action);color:#fff;border:0;border-bottom:4px solid var(--actionPressed);
+  padding:15px 12px 13px;font-family:var(--fBody);font-size:var(--t4);line-height:var(--l4);
+  font-weight:800;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.btnP:active{transform:translateY(3px);border-bottom-width:1px}
+.btnP .sub{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--drawSub);margin-top:2px}
+.btnS{display:flex;align-items:center;justify-content:center;width:100%;background:var(--canvas);
+  color:var(--ink);border:1px solid var(--line);padding:15px 12px;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:800;cursor:pointer;transition:transform .12s var(--ease)}
+.btnS:active{transform:scale(.96)}
+.btnD{border-color:var(--critical);color:var(--critical)}
+.btnOff{background:var(--disabledFill);color:var(--faint);border:0;border-bottom:0}
+/* draw-button — the home action block. Ground palette is draw-button.tsx:96-105 */
+.draw{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:0 15px;
+  height:96px;border:0;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.draw:active{transform:translateY(3px);border-bottom-width:1px}
+.draw.sm{height:78px}
+.draw.coda{height:56px}
+.draw .tx{flex:1;min-width:0}
+.draw .tt{font-size:var(--t4);line-height:var(--l4);font-weight:800}
+.draw .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;margin-top:2px}
+.draw .gl{flex:0 0 34px;font-size:22px;line-height:1;text-align:center}
+.draw.coral{background:var(--draw);border-bottom:4px solid var(--actionPressed);color:#fff}
+.draw.coral .ts{color:var(--drawSub)}
+.draw.paper{background:var(--canvas);border:1.5px solid var(--ink);border-bottom:4px solid var(--ink);color:var(--ink)}
+.draw.paper .ts{color:var(--dim)}
+.draw.gold{background:var(--goldTint);border:1px solid #E7DAB6;border-bottom:4px solid var(--goldEdge);color:var(--goldInk)}
+.draw.gold .ts{color:#6B5720}
+.draw.blue{background:var(--blueBg);border:1px solid #D8E3EF;border-bottom:4px solid var(--blueEdge);color:var(--blueInk)}
+.draw.blue .ts{color:var(--blueSub)}
+.draw.lilac{background:var(--canvas);border:1px solid var(--wait);border-bottom:4px solid #3B3170;color:#3B3170}
+.draw.lilac .ts{color:#6A5FA8}
+.draw.amber{background:var(--amberBg);border:1px solid #F2DFC2;border-bottom:4px solid var(--amberEdge);color:var(--amberInk)}
+.draw.amber .ts{color:#7A4F0A}
+.draw.volt{background:var(--voltBg);border:1px solid #D7E8B0;border-bottom:4px solid var(--voltEdge);color:var(--voltInk)}
+.draw.volt .ts{color:#4F6717}
+/* tappable row — Sean 2026-08-25: every clickable choice must LOOK clickable */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:12px 13px;
+  background:var(--canvas);border:1px solid var(--ink);width:100%;text-align:left;cursor:pointer}
+.tap .tt{flex:1;min-width:0;font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.tap .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--dim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);font-weight:700;color:var(--ink)}
+.tap.quiet{border-color:#D8D6D0}
+.tap.quiet .tt{color:var(--text);font-weight:700}
+/* print row — carries NO tap marks, so it cannot be mistaken for a control */
+.kv{display:flex;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--neutral)}
+.kv .k{flex:0 0 56px;font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.kv .v{flex:1;font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.kv .a{font-size:var(--t5);font-weight:800;color:var(--dim)}
+/* loud-fail strip — DESIGN.md §7: failures render as failures */
+.fail{background:var(--criticalWash);border-left:0;padding:11px 13px;font-size:var(--t5);
+  line-height:var(--l5);color:var(--critical);font-weight:700;display:flex;gap:10px;align-items:baseline}
+.fail u{margin-left:auto;font-weight:800;white-space:nowrap}
+.note{font-size:var(--t5);line-height:var(--l5);color:var(--dim);padding:10px 0}
+/* photo slot — NEVER a stock image. See brief § Tension ⑦. */
+.slot{background:repeating-linear-gradient(135deg,#FAFAF8 0 7px,#F2F2F0 7px 14px);
+  border:1px dashed #C2BFB7;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;text-align:center;padding:10px}
+.slot b{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--dim)}
+.slot span{font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);font-weight:700}
+/* dock — solid white, coral hairline on top, icons only (Sean 2026-08-12) */
+.dock{display:flex;border-top:1px solid var(--line);background:var(--canvas)}
+.dock a{flex:1;padding:12px 0 16px;text-align:center;font-size:24px;color:var(--dim);
+  position:relative;text-decoration:none}
+.dock a.on{color:var(--ink)}
+.dock a.on::before{content:'';position:absolute;top:0;left:50%;margin-left:-17px;width:34px;height:2.5px;background:var(--ink)}
+.dogdot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t5);font-weight:800;color:var(--dogInk)}
+@media (prefers-reduced-motion: reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+
+/* ── DEPARTURE WORLD ── used ONLY by variant ③ in each lab ────────────────────
+   🔴 THIS BLOCK DELIBERATELY BREAKS DESIGN.md. It exists so Sean can see what
+   the impeccable / taste-skill rules actually produce when the paper world's
+   constraints are relaxed, instead of reading a description of it. Variants ①
+   and ② in every lab stay inside the paper world; ③ never does.
+
+   What it breaks, named so the pick is made with eyes open:
+     · DESIGN.md §2/§3b  "Cards: radius 0" / "Radius 0 everywhere"      -> 16px
+     · DESIGN.md §2      "Soft shadows retire with the rounded corners"  -> ambient shadow
+     · DESIGN.md §2      "Hairline = solid coral #E8552F 1px, full-bleed.
+                          The line is the brand."                        -> no coral divider
+     · DESIGN.md §3b     button matrix "All: radius 0" + the 4px lip      -> pill + shadow
+     · DESIGN.md §3b     "A drop shadow and a lip are two different depth
+                          languages and must not sit on one control."    -> shadow replaces lip
+     · DESIGN.md §4      "Section division by full-bleed hairline, not by cards" -> cards
+     · DESIGN.md header  the style freeze: "no NEW aesthetics until 50 paying dogs"
+
+   What it still obeys, because these are not stylistic and do not get relaxed:
+     white ground · Korean detail floor 15pt · real fields only · no gradient
+     text · no glassmorphism or blur · no emoji as icons · no AI-beige ground ·
+     transitions <= 240ms · prefers-reduced-motion honoured · WCAG AA contrast.  */
+.dep{--depR:16px;--depShadow:0 1px 2px rgba(17,17,17,.04),0 8px 24px rgba(17,17,17,.07);
+  background:var(--canvasSoft)}
+.dep .card{background:var(--canvas);border-radius:var(--depR);box-shadow:var(--depShadow);
+  overflow:hidden}
+.dep .card+.card{margin-top:14px}
+.dep .pill{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border:0;border-radius:999px;background:var(--action);color:#fff;font-family:var(--fBody);
+  font-size:var(--t4);line-height:var(--l4);font-weight:800;padding:15px 18px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(198,71,44,.22);transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+.dep .pill:active{transform:scale(.98);box-shadow:0 1px 4px rgba(198,71,44,.22)}
+.dep .pill.ghost{background:var(--canvas);color:var(--ink);box-shadow:none;
+  border:1px solid #DCDAD4}
+.dep .seg{display:flex;background:#EFEEEA;border-radius:10px;padding:3px}
+.dep .seg button{flex:1;border:0;border-radius:8px;background:transparent;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:700;color:var(--text);padding:8px 4px;cursor:pointer}
+.dep .seg button.on{background:var(--canvas);color:var(--ink);font-weight:800;
+  box-shadow:0 1px 3px rgba(17,17,17,.10)}
+.dep .tagpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:5px 12px;font-size:16px;line-height:22px;font-weight:800}
+.dep .quietrow{display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid #F0EFEB}
+.dep .quietrow:last-child{border-bottom:0}
+.dep .quietrow .t{flex:1;font-size:var(--t5);line-height:var(--l5);font-weight:700;color:var(--ink)}
+.dep .quietrow .v{font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+/* the departure banner that sits above every ③ frame, so nobody mistakes it */
+.depflag{border:2px solid var(--ink);background:var(--ink);color:#fff;padding:10px 12px;
+  font-size:var(--t5);line-height:var(--l5);font-weight:700;margin-bottom:14px}
+.depflag b{display:block;font-size:16px;font-weight:800;margin-bottom:3px}
+.breaks{margin-top:14px;border:1px solid var(--critical);background:var(--criticalWash);
+  padding:12px 13px;font-size:var(--t5);line-height:1.65;color:var(--text)}
+.breaks b{color:var(--critical);font-weight:800;display:block;margin-bottom:5px}
+.breaks ul{margin:0;padding-left:18px}
+.breaks li{margin-top:3px}
+.breaks code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;padding:1px 4px}
+/* ── FILE-LOCAL ─────────────────────────────────────────────────────────── */
+.phone{min-height:880px}
+.hd{display:flex;align-items:center;gap:11px;padding:9px 15px 12px}
+.hd .bk{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--canvas);font-size:20.5px;color:var(--ink)}
+.hd .ti{font-size:23px;line-height:29px;font-weight:900;color:var(--ink)}
+.hd .sh{margin-left:auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--canvas);font-size:19px;color:var(--ink)}
+/* trace plate — drawn, never a stock map */
+.trace{position:relative;height:186px;background:#F3F4F1;overflow:hidden}
+.trace .grid{position:absolute;inset:0;
+  background-image:linear-gradient(0deg,rgba(17,17,17,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(17,17,17,.045) 1px,transparent 1px);
+  background-size:44px 44px}
+.trace svg{position:absolute;inset:0;width:100%;height:100%}
+.trace .cp{position:absolute;right:10px;bottom:9px;font-size:var(--tk);letter-spacing:1.6px;
+  text-transform:uppercase;color:var(--faint);font-weight:700}
+/* reason chip */
+.reason{display:inline-flex;font-size:var(--t5);line-height:var(--l5);font-weight:900;padding:4px 9px}
+.reason.done{background:#e3f0c4;color:#3d5a2b}
+.reason.stop{background:#fde8e3;color:#d84a2f}
+/* the three stats */
+.rstats{display:flex;padding:14px 0 6px}
+.rstats div{flex:1;border-right:1px solid var(--neutral);padding-right:10px}
+.rstats div+div{padding-left:12px}
+.rstats div:last-child{border-right:0;padding-right:0}
+.rstats .lb{font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.rstats .vl{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--ink)}
+.rstats .un{font-size:var(--t5);font-weight:700;color:var(--dim);margin-left:3px;font-family:var(--fBody)}
+.rstats .none{font-size:var(--t5);line-height:var(--nl2);color:var(--dim);font-weight:700}
+/* badges */
+.badges{display:flex;gap:7px;flex-wrap:wrap;padding:10px 0 2px}
+.badges span{background:var(--wash);color:var(--actionInk);font-size:var(--t5);line-height:var(--l5);
+  font-weight:900;padding:4px 9px}
+/* photo grid — labelled empty slots, never stock */
+.pgrid{display:flex;gap:2px;margin-top:12px}
+.pgrid .slot{flex:1;height:128px}
+/* rebook panel — the frame's one saturated element */
+.rebook{background:var(--action);color:#fff;padding:16px 15px}
+.rebook .t{font-size:var(--t3);line-height:var(--l3);font-weight:900}
+.rebook .s{font-size:var(--t5);line-height:var(--l5);color:var(--drawSub);margin-top:5px}
+.rebook .go{margin-top:12px;background:var(--canvas);color:var(--action);border:0;width:100%;
+  font-family:var(--fBody);font-size:var(--t4);line-height:var(--l4);font-weight:800;padding:13px 10px;
+  border-bottom:4px solid #E0D8D4;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.rebook .go:active{transform:translateY(3px);border-bottom-width:1px}
+/* care stamps */
+.stamps{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 0}
+.stamps span{border:1px solid #D8D6D0;padding:5px 10px;font-size:var(--t5);line-height:var(--l5);
+  font-weight:700;color:var(--text)}
+/* record face — ② paper-world artifact, dark like a passport page */
+.face{background:var(--head);color:#fff;padding:18px 15px 16px}
+.face .k{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--headFaint);font-weight:700}
+.face .ttl{font-size:30px;line-height:37px;margin-top:8px;color:#fff}
+.face .row{display:flex;border-top:1px solid #35305C;margin-top:14px;padding-top:12px}
+.face .row div{flex:1;border-right:1px solid #35305C;padding-right:10px}
+.face .row div+div{padding-left:12px}
+.face .row div:last-child{border-right:0;padding-right:0}
+.face .row .lb{font-size:var(--t5);line-height:var(--l5);color:var(--headDim)}
+.face .row .vl{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:#fff}
+.face .row .un{font-size:var(--t5);font-weight:700;color:var(--headDim);margin-left:3px;font-family:var(--fBody)}
+.face .seal{display:inline-flex;align-items:center;gap:7px;margin-top:14px;border:1.5px solid #9F8FFF;
+  color:#C9BEFF;font-size:var(--t5);line-height:var(--l5);font-weight:800;padding:5px 11px}
+/* ③ departure — editorial spread */
+.dep .spread .lead{font-size:38px;line-height:45px;letter-spacing:-.02em}
+.dep .hero{border-radius:var(--depR);overflow:hidden;box-shadow:var(--depShadow)}
+.dep .numblock{display:flex;gap:0;background:var(--canvas);border-radius:var(--depR);
+  box-shadow:var(--depShadow);margin-top:-34px;position:relative;padding:14px 4px}
+.dep .numblock div{flex:1;text-align:center;border-right:1px solid #F0EFEB}
+.dep .numblock div:last-child{border-right:0}
+.dep .numblock .lb{display:block;font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.dep .numblock .vl{display:block;font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:var(--n2);line-height:var(--nl2);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <p class="law">Dogs High &middot; Premium Lab 4 of 4 &middot; owner report &amp; shot</p>
+  <h1>Run report &mdash; the screen the rebooking gate rides on</h1>
+  <div class="samplebar">
+    <b>Every distance, time, pace, name and count on this page is SAMPLE data.</b> The trace is a
+    <b>drawn plate</b>, not a real GPS path. Photo positions are <b>labelled empty slots</b>, never
+    stock images. Every element binds to a field that exists in <code>owner/report.tsx</code> or
+    <code>shot/[bid].tsx</code>. <b>Korean appears only inside the phone frames</b>; everything
+    outside a frame is English, per <code>CLAUDE.md</code> &sect; Language.
+  </div>
+  <ul class="brief">
+    <li><b>The pick</b>: the <b>order of the first screenful</b>, and what shape the run's three
+        numbers take. The lower two thirds keep their shipped order in all three variants.</li>
+    <li><b>Why this screen gets the expression budget</b>: <code>CLAUDE.md</code> sets the PMF gate
+        at M1 rebooking 60%, and <code>DESIGN.md</code> &sect;7b exempts run completion by name
+        &mdash; "peak moments &hellip; are exempt from minimization; polish them instead."</li>
+    <li><b>&#9312; and &#9313; stay inside the paper world. &#9314; is a labelled departure.</b>
+        Note that &#9313;'s dark record face is <b>not</b> a departure: <code>DESIGN.md</code>
+        &sect;1 reserves dark for artifacts rather than banning it.</li>
+    <li><b>Dials</b>: the brief's &sect;(d) recommendation is <b>6 / 3 / 3</b> &mdash; the highest
+        variance and the lowest density in the set.</li>
+    <li><b>The hard rule on this screen</b>: a missing measurement renders the words
+        <span lang="ko">기록 없음</span>, never a zero and never a dash.</li>
+  </ul>
+</header>
+
+<section class="toc">
+  <h2>How to choose</h2>
+  <ol>
+    <li><span class="n">&#9312;</span><b>Refine the shipped order</b> &middot; 3 / 2 / 5 &middot;
+        paper world. Trace, eyebrow, reason chip, title, three stats, badges. Spacing only.</li>
+    <li><span class="n">&#9313;</span><b>Record face first</b> &middot; 6 / 3 / 3 &middot; paper
+        world. The run's numbers become a dark passport-style record face at the top, photos
+        immediately after, administration below a coral hairline.</li>
+    <li><span class="n">&#9314;</span><b>DEPARTURE &mdash; editorial spread</b> &middot; 8 / 3 / 2
+        &middot; <b>outside the paper world</b>. A rounded photo hero, an overlapping number block
+        with a negative margin, a pill share control, no coral hairline.</li>
+  </ol>
+  <p class="say"><b>How to answer</b>: by number. This is the screen where an argument for
+    &#9314; is most defensible, and the breakage list beside it is what that argument costs.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ═══════════════════ ① ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9312;</span><span class="d"><b>Refine the shipped order &middot; paper world</b>
+      Same sequence as trunk, with the numbers given room and the badges given a line of their own.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>3</b></div>
+      <div><span>Motion</span><b>2</b></div>
+      <div><span>Density</span><b>5</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&lsaquo;</span><span class="ti">러닝 리포트</span>
+          <span class="sh" aria-label="공유하기">&#8599;</span></div>
+        <div class="rule"></div>
+        <div class="trace">
+          <div class="grid"></div>
+          <svg viewBox="0 0 390 186" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M40 152 C86 132 112 96 148 72 C186 46 238 44 276 62 C312 80 330 118 356 132"
+              stroke="#5E7F0E" stroke-width="4" fill="none"/>
+            <circle cx="40" cy="152" r="5" fill="#111111"/><circle cx="356" cy="132" r="5" fill="#C6472C"/>
+          </svg>
+          <span class="cp">실제 GPS 경로</span>
+        </div>
+        <div class="pad" style="padding-top:13px">
+          <p class="note" style="padding:0">8월 26일 (화) 오후 7:30 &middot; 반포 한강 루프</p>
+          <p style="margin-top:8px"><span class="reason done">완주 완료</span></p>
+          <div class="disp" style="font-size:27.5px;line-height:34px;margin-top:11px">보리, 4.12km 완주</div>
+          <div class="rstats">
+            <div><span class="lb">거리</span><span class="vl">4.12<span class="un">km</span></span></div>
+            <div><span class="lb">러닝 시간</span><span class="vl">28:14</span></div>
+            <div><span class="lb">평균 페이스</span><span class="vl">6'51"<span class="un">/km</span></span></div>
+          </div>
+          <div class="badges"><span>7번째 러닝</span><span>&#9733; 역대 최장 거리</span></div>
+          <div class="pgrid">
+            <span class="slot"><b>사진 슬롯</b><span>runner photo 1</span></span>
+            <span class="slot"><b>사진 슬롯</b><span>runner photo 2</span></span>
+            <span class="slot"><b>사진 슬롯</b><span>runner photo 3</span></span>
+          </div>
+          <div class="modh"><span class="t">후기</span></div>
+          <p class="note" style="padding-top:0">&#9733;&#9733;&#9733;&#9733;&#9734; 별점 남기기 &rsaquo;</p>
+        </div>
+        <div class="rebook" style="margin-top:8px">
+          <p class="t">다음 주 같은 시간 예약</p>
+          <p class="s">s4kim2025 러너 &middot; 4km &middot; 화 19:30</p>
+          <button class="go">예약하기</button>
+        </div>
+        <div class="pad">
+          <button class="tap quiet" style="margin-top:14px"><span class="tt">이 러닝 카드 공유하기</span><span class="chev">&rsaquo;</span></button>
+          <div class="modh"><span class="t">러너가 기록한 순간</span></div>
+          <div class="stamps" style="padding-top:0">
+            <span>응가 &times;2</span><span>간식 &times;1</span><span>물 &times;3</span><span>사진 &times;3</span></div>
+          <p class="note">러너가 러닝 중 실시간으로 기록한 순간들이에요</p>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> The shipped order is already close to right: the trace proves the run,
+      the reason chip qualifies it, the title celebrates it, the numbers back it up. Nothing here is
+      out of sequence &mdash; it is just tight.
+      <span class="rule">redesign-skill &sect; Fix Priority: typography, then spacing, then states.
+        This variant is levers 1&ndash;2 and no further.</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;3: 27.5pt Black Han Sans is this screen's
+        <b>one</b> display use (&sect;8: "Black Han Sans &mdash; 1 use per screen"). Oswald numerals
+        at 27/33 = 1.22&times;, over the "BUG A" floor.</span>
+      <span class="rule">impeccable <code>craft-floor.md</code> refuses "the hero-metric template:
+        big number, small label, supporting stats, accent". &#9312; escapes that because the numbers
+        are the <b>content</b> of a run report, not a decorative stat row &mdash; but the distinction
+        is thin, and it is the reason &#9313; exists.</span>
+      <b>Weakness.</b> Everything is the same size and the same weight, so the screen reads as a
+      list of facts rather than as a record of something that happened. For a peak moment that is a
+      real loss, and density 5 is the mechanism.
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">stopped run</span><span class="v">reason chip goes red, the
+        <span lang="ko">왜 멈췄는지</span> block is <b>hoisted above the photos</b>, and the coral
+        panel becomes <em lang="ko">안심 센터 열기</em></span></div>
+      <div class="r"><span class="s">no measurement</span><span class="v">stat reads
+        <b lang="ko">기록 없음</b>; the title drops its <em lang="ko">, 4.12km</em> fragment entirely</span></div>
+      <div class="r"><span class="s">no photos</span><span class="v"><b lang="ko">이번 러닝은 사진이 없어요</b>
+        + <em lang="ko">러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요</em></span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ② ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9313;</span><span class="d"><b>Record face first &middot; paper world</b>
+      The numbers become a dark record face. Photos follow immediately; administration goes below.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>6</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>3</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&lsaquo;</span><span class="ti">러닝 리포트</span>
+          <span class="sh" aria-label="공유하기">&#8599;</span></div>
+        <div class="rule"></div>
+        <div class="face">
+          <p class="k">Record &middot; Banpo Han River Loop</p>
+          <div class="disp ttl">보리, 4.12km 완주</div>
+          <div class="row">
+            <div><span class="lb">거리</span><span class="vl">4.12<span class="un">km</span></span></div>
+            <div><span class="lb">러닝 시간</span><span class="vl">28:14</span></div>
+            <div><span class="lb">페이스</span><span class="vl">6'51"</span></div>
+          </div>
+          <span class="seal">&#9733; 역대 최장 거리 &middot; 7번째 러닝</span>
+        </div>
+        <div class="trace">
+          <div class="grid"></div>
+          <svg viewBox="0 0 390 186" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M40 152 C86 132 112 96 148 72 C186 46 238 44 276 62 C312 80 330 118 356 132"
+              stroke="#5E7F0E" stroke-width="4" fill="none"/>
+            <circle cx="40" cy="152" r="5" fill="#111111"/><circle cx="356" cy="132" r="5" fill="#C6472C"/>
+          </svg>
+          <span class="cp">실제 GPS 경로</span>
+        </div>
+        <div class="pgrid" style="margin-top:0">
+          <span class="slot"><b>사진 슬롯</b><span>runner photo 1</span></span>
+          <span class="slot"><b>사진 슬롯</b><span>runner photo 2</span></span>
+          <span class="slot"><b>사진 슬롯</b><span>runner photo 3</span></span>
+        </div>
+        <div class="rebook">
+          <p class="t">다음 주 같은 시간 예약</p>
+          <p class="s">s4kim2025 러너 &middot; 4km &middot; 화 19:30</p>
+          <button class="go">예약하기</button>
+        </div>
+        <div class="rule"></div>
+        <div class="pad">
+          <p class="note" style="padding-bottom:2px">8월 26일 (화) 오후 7:30 &middot;
+            <span class="reason done" style="vertical-align:middle">완주 완료</span></p>
+          <button class="tap quiet" style="margin-top:10px"><span class="tt">이 러닝 카드 공유하기</span><span class="chev">&rsaquo;</span></button>
+          <div class="modh"><span class="t">후기</span></div>
+          <p class="note" style="padding-top:0">&#9733;&#9733;&#9733;&#9733;&#9734; 별점 남기기 &rsaquo;</p>
+          <div class="modh"><span class="t">러너가 기록한 순간</span></div>
+          <div class="stamps" style="padding-top:0">
+            <span>응가 &times;2</span><span>간식 &times;1</span><span>물 &times;3</span><span>사진 &times;3</span></div>
+          <div class="modh"><span class="t">결제</span><span class="l">내역 &rsaquo;</span></div>
+          <p class="note" style="padding-top:0">실제 청구된 금액과 영수증은 결제 내역에 있어요</p>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> A completed run is an object in this brand's own vocabulary, and the
+      record face is the object it already owns.
+      <span class="rule"><code>DESIGN.md</code> &sect;1: "The brand grammar is <b>artifacts</b>:
+        passport, seal/soin, race bib, boarding pass, ticket stub, receipt &hellip; Screens are
+        paper; <b>ceremonies are artifacts</b>." And "<b>Dark is the artifact, light is the
+        screen</b>" &mdash; the dark face is the passport record page, which &sect;1 names, so this
+        is inside the paper world rather than a departure from it.</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;7b Peak-End protection: run completion is
+        exempt from minimization. This is the one screen in the set where "polish it instead" is the
+        instruction.</span>
+      <span class="rule">impeccable <code>craft-floor.md</code> &sect; Motion: "<b>one authored
+        moment</b>, not scattered effects." The face is the authored moment; everything under the
+        coral rule is deliberately flat.</span>
+      <span class="rule">taste-skill &sect;4.4: "Use cards ONLY when elevation communicates real
+        hierarchy." One surface is elevated on this screen and it is the record.</span>
+      <b>Weakness, and it is an arithmetic one.</b> &sect;8 budgets the artifact, and the report now
+      makes <b>three</b> screens carrying a ceremony object (<code>owner/meetup</code>'s ticket,
+      <code>shot/[bid]</code>'s card, this face). If the same metaphor appears three times, one of
+      them is a costume. Picking &#9313; means deciding which one that is.
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">stopped run</span><span class="v">the dark face <b>does not
+        render</b> &mdash; there is no record to celebrate. &#9313; falls back to &#9312;'s order
+        with the <em lang="ko">왜 멈췄는지</em> block first</span></div>
+      <div class="r"><span class="s">no measurement</span><span class="v">the face's stat reads
+        <b lang="ko">기록 없음</b> in <em>the same 15pt as its label</em>, never a dash</span></div>
+      <div class="r"><span class="s">no trace</span><span class="v">the plate is omitted; the face and
+        the photos close up. <em>An empty grey rectangle is not drawn</em></span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ③ DEPARTURE ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9314;</span><span class="d"><b>DEPARTURE &middot; editorial spread</b>
+      Not the paper world. Rounded photo hero, an overlapping number block, pill controls.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>8</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>2</b></div>
+    </div>
+    <div class="depflag"><b>This variant leaves the paper world on purpose.</b>
+      It is the most aggressive of the four departures, and it is here because this is the one screen
+      where the argument for leaving is strongest &mdash; a peak moment, exempt from minimization,
+      and the surface the rebooking gate depends on.</div>
+
+    <div class="phone dep">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr spread" lang="ko" style="padding:0 16px 20px">
+        <div class="hd" style="padding:10px 0 14px">
+          <span class="bk" style="border-radius:999px">&lsaquo;</span>
+          <span class="ti" style="font-size:var(--t2);line-height:var(--l2);font-weight:800">러닝 리포트</span>
+          <span class="sh" style="border-radius:999px;border:0;box-shadow:0 2px 10px rgba(17,17,17,.10)"
+            aria-label="공유하기">&#8599;</span></div>
+
+        <div class="hero">
+          <span class="slot" style="height:250px;border:0"><b>사진 슬롯</b><span>runner photo &middot; 4:5</span></span>
+        </div>
+
+        <div class="numblock">
+          <div><span class="lb">거리</span><span class="vl">4.12</span></div>
+          <div><span class="lb">시간</span><span class="vl">28:14</span></div>
+          <div><span class="lb">페이스</span><span class="vl">6'51"</span></div>
+        </div>
+
+        <div style="padding:20px 2px 0">
+          <span class="tagpill" style="background:#e3f0c4;color:#3d5a2b">완주 완료</span>
+          <div class="disp lead" style="margin-top:12px">보리,<br>4.12km 완주</div>
+          <p style="font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:11px">
+            8월 26일 (화) 오후 7:30 &middot; 반포 한강 루프 &middot; s4kim2025 러너</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+            <span class="tagpill" style="background:var(--wash);color:var(--actionInk)">7번째 러닝</span>
+            <span class="tagpill" style="background:var(--wash);color:var(--actionInk)">&#9733; 역대 최장 거리</span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:22px;background:var(--action);color:#fff;box-shadow:0 6px 20px rgba(198,71,44,.26)">
+          <div style="padding:18px 16px">
+            <p style="font-size:var(--t3);line-height:var(--l3);font-weight:900">다음 주 같은 시간 예약</p>
+            <p style="font-size:var(--t5);line-height:var(--l5);color:var(--drawSub);margin-top:6px">
+              s4kim2025 러너 &middot; 4km &middot; 화 19:30</p>
+            <button class="pill" style="background:#fff;color:var(--action);margin-top:13px;box-shadow:none">예약하기</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="quietrow"><span class="t">이 러닝 카드 공유하기</span><span class="v">&rsaquo;</span></div>
+          <div class="quietrow"><span class="t">후기 남기기</span><span class="v">&#9733;&#9733;&#9733;&#9733;&#9734; &rsaquo;</span></div>
+          <div class="quietrow"><span class="t">결제 내역</span><span class="v">&rsaquo;</span></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="quietrow"><span class="t" style="font-weight:800">러너가 기록한 순간</span></div>
+          <div class="quietrow"><span class="t" style="font-weight:400">응가 &times;2 &middot; 간식 &times;1 &middot; 물 &times;3 &middot; 사진 &times;3</span></div>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+
+    <div class="breaks"><b>What this variant breaks, named</b>
+      <ul>
+        <li><code>DESIGN.md</code> &sect;2 / &sect;3b &mdash; "Cards: radius 0" and the button
+          matrix's "All: radius 0". Every surface is 16px and every control is a pill.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; "Soft shadows retire with the rounded corners."
+          Four shadowed surfaces, including a tinted coral shadow under the rebook panel.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; no full-bleed coral hairline anywhere. &sect;4's
+          "Section division by full-bleed hairline, <b>not by cards</b>" is inverted: this screen is
+          divided entirely by cards.</li>
+        <li><code>DESIGN.md</code> &sect;3b &mdash; the 4px lip is gone from every control.</li>
+        <li><code>DESIGN.md</code> &sect;3b &mdash; the status chip spec ("16/800, radius 0, tinted
+          fill, sits on the <b>same baseline row as the datum it qualifies</b>"). Here the reason chip
+          is a rounded pill sitting above its title rather than beside its datum.</li>
+        <li><b>The negative-margin overlap</b> (the number block rides &minus;34px into the photo) is
+          taste-skill &sect;7's DESIGN_VARIANCE 4&ndash;7 band by name &mdash;
+          "<code>margin-top: -2rem</code> overlaps". Nothing in <code>DESIGN.md</code> permits
+          overlapping surfaces; the paper world has one plane.</li>
+        <li><code>DESIGN.md</code> header &mdash; the style freeze.</li>
+      </ul>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> This is the screen a person screenshots and sends to their partner.
+      taste-skill's dial table puts "premium consumer / Apple-y / luxury / brand" at 7&ndash;8
+      variance, and this is the one surface in the product where that read is honest rather than
+      borrowed.
+      <span class="rule">taste-skill &sect;4.8: "Landing pages and portfolios are <b>visual
+        products</b>." A run report is closer to that than to a form, and the photograph is the
+        content rather than the decoration &mdash; which is exactly why the empty slot hurts most
+        here.</span>
+      <span class="rule">soft-skill &sect;4 "Macro-Whitespace: Double your standard padding &hellip;
+        Allow the design to breathe heavily", executed at mobile scale rather than at its prescribed
+        <code>py-24</code>&ndash;<code>py-40</code>.</span>
+      <span class="rule">It still obeys what does not get relaxed: white ground, Korean at 15pt and
+        above, real fields only, no gradient text, no glass, no emoji as icons, no AI-beige, every
+        transition under 240ms, reduced motion honoured.</span>
+      <b>The honest argument against it, in one sentence.</b> The dark record face in &#9313; is
+      <b>ours</b> and this spread is <b>everyone's</b> &mdash; and taste-skill's own &sect;4.2 says
+      what happens when a brand reaches for the category default: "the brand becomes invisible."
+    </div>
+
+    <div class="states">
+      <div class="r"><span class="s">no photos</span><span class="v">&#9314; <b>collapses</b>. With no
+        hero image the overlap has nothing to overlap and the composition has no subject. This is
+        the variant's structural weakness, not a styling detail</span></div>
+      <div class="r"><span class="s">stopped run</span><span class="v">the celebratory composition is
+        wrong; the coral card is replaced by <em lang="ko">안심 센터 열기</em> and the lead line loses
+        <em lang="ko">완주</em></span></div>
+      <div class="r"><span class="s">no measurement</span><span class="v">the number block prints
+        <b lang="ko">기록 없음</b> at 15pt inside a slot sized for 27pt Oswald &mdash;
+        <em>visually awkward, and the honest option anyway</em></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ shared obligations ═══════════ -->
+<h2 class="chunk" style="margin-top:56px;padding-bottom:8px;border-bottom:2px solid var(--ink)">
+  What all three variants must carry</h2>
+
+<div class="rail" style="margin-top:28px">
+  <div class="col">
+    <p class="cap"><span class="d"><b>A stopped run is a different screen, not a red version of this one</b>
+      Six end reasons, all six mapped, two of them not celebratory at all.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&lsaquo;</span><span class="ti">러닝 리포트</span>
+          <span class="sh" aria-label="공유하기">&#8599;</span></div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:13px">
+          <p class="note" style="padding:0">8월 26일 (화) 오후 7:30 &middot; 반포 한강 루프</p>
+          <p style="margin-top:8px"><span class="reason stop">반려견 컨디션으로 조기 종료</span></p>
+          <div class="disp" style="font-size:27.5px;line-height:34px;margin-top:11px">보리, 1.30km</div>
+          <div class="modh"><span class="t">왜 멈췄는지</span></div>
+          <p class="note" style="padding-top:0">아이가 힘들어 보이면 멈추는 게 맞아요.<br>
+            러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.</p>
+          <p class="note" style="padding-top:2px"><b style="color:var(--ink)">러너가 본 것</b><br>
+            10분쯤부터 헥헥거림이 심해져서 그늘에서 쉬게 했어요. 물 마시고 안정된 뒤 천천히 복귀했어요.</p>
+          <p class="note">1.30km 지점 &middot; 11:42 지나 종료했어요 (예정 4km)</p>
+        </div>
+        <div class="rebook" style="margin-top:6px">
+          <p class="t">안심 센터 열기</p>
+          <p class="s">아이 상태가 이상하면 여기서 바로 도와드려요</p>
+          <button class="go">열기</button>
+        </div>
+        <div class="pad">
+          <button class="tap quiet" style="margin-top:14px"><span class="tt">이대로 다시 예약</span><span class="chev">&rsaquo;</span></button>
+        </div>
+      </div>
+    </div>
+    <p class="why"><b>What must hold in every variant.</b> The coral panel is <b>replaced</b>, not
+      recoloured: on a stopped run the one saturated element on the screen becomes
+      <span lang="ko">안심 센터 열기</span>, and rebooking demotes to a quiet row.
+      <span class="rule"><code>DESIGN.md</code> &sect;7: "dark/empty states name their real cause and
+        carry a fix path when the viewer can fix it."</span>
+      <span class="rule">The copy takes the runner's side before it takes the owner's, which is a
+        product decision rather than a design one. taste-skill &sect;4.9 COPY SELF-AUDIT would flag a
+        cheerful string here; this one is not cheerful.</span>
+      <span class="rule">&#9314; <b>fails this state</b> and says so above: a celebratory editorial
+        spread has nothing to celebrate.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>The share card is a separate screen with five skins</b>
+      <code>shot/[bid].tsx</code>. Not part of this pick, shown so the report's end is visible.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&times;</span>
+          <span class="ti" style="font-size:19px;line-height:26px">인증샷</span></div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:12px">
+          <span class="slot" style="height:250px;display:flex"><b>카드 미리보기</b><span>story 9:16</span></span>
+          <p class="note">스토리 &middot; 핀치로 크기 &middot; 드래그로 위치 &middot; 더블탭 원위치</p>
+          <div class="kv"><span class="k" style="flex:1">경로 모양 넣기</span><span class="a">꺼짐</span></div>
+          <p class="note" style="padding-top:4px">꺼짐 &mdash; 지금은 경로가 안 들어가요 &middot;
+            켜도 좌표는 빠지고 모양만 들어가요.</p>
+          <div class="kv"><span class="k" style="flex:1">코스 이름 넣기</span><span class="a">켜짐</span></div>
+          <p class="note" style="padding-top:4px">켜짐 &mdash; 카드에 「반포 한강 루프」가 들어가요.</p>
+          <p class="note">내 기기에서만 저장&middot;전송돼요 &mdash; 앱이 대신 올리지 않아요.</p>
+          <button class="btnP">공유하기 &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+    <p class="why"><b>Why this screen is quietly the best-written one in the app.</b> Both switches
+      default <b>off</b>, and each one states in plain Korean what it will and will not add. The
+      route switch says the coordinates are stripped and only the shape goes in; the privacy line
+      says the app never posts on the owner's behalf.
+      <span class="rule">impeccable <code>craft-floor.md</code> &sect; Copy: "errors name the problem
+        and the recovery" has a positive twin &mdash; a control names what it will do <b>before</b>
+        it does it.</span>
+      <span class="rule">The card's date is deliberately date-only: the full
+        <span lang="ko">when</span> carries a time, and a shared image should not publish when a dog
+        is out of the house. That is a privacy decision already in the code, and no variant may
+        undo it.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>What this lab deliberately did not do</b></span></p>
+    <div class="why" style="margin-top:0">
+      <b>1. Not one photograph, on the screen that most needs one.</b> This is where
+      &sect; Tension &#9319; costs the most, and pretending otherwise would be dishonest: a report
+      lab with empty slots cannot answer whether the composition survives a real photo, and
+      &#9314; in particular is untested for that reason.
+      <span class="rule">The alternative was a <code>picsum.photos</code> dog, which would put a
+        stranger's animal on the surface whose only claim is that <b>this</b> run happened. Sean may
+        reasonably overrule this for labs specifically; the question is in the README.</span>
+      <b style="display:block;margin-top:12px">2. No fabricated points, ranks or streaks.</b>
+      <span lang="ko">하이 포인트 적립</span> renders only when a ledger row exists, and the badges
+      come from real standings. Nothing was added because the layout looked empty.
+      <span class="rule"><code>CLAUDE.md</code>: a session once read <code>count(*) = 11</code> and
+        shipped it as "11 accounts"; the real user count was zero. No number here is load-bearing for
+        any decision.</span>
+      <b style="display:block;margin-top:12px">3. No celebration that replays.</b>
+      The <span lang="ko">오늘의 수확</span> patch overlay is drawn in none of the three frames
+      because it plays <b>once per entity</b> and a lab frame is a re-entry.
+      <span class="rule"><code>CLAUDE.md</code> &sect; Honesty laws: the module-level Set idiom
+        (<code>sealStampFresh</code> / <code>_patchPopSeen</code>) exists precisely so it never
+        replays on hydration.</span>
+      <b style="display:block;margin-top:12px">4. No amount on this screen.</b>
+      The payment row links out and prints no figure, which is shipped behaviour and deliberate.
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

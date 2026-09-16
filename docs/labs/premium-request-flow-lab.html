@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium Request Flow Lab — 러닝 요청 3안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   PREMIUM REQUEST FLOW LAB — `app/app/owner/request.tsx`, the step that decides
+   whether a booking happens: slot pick → pace → confirm.
+   Second of four labs from `docs/design/premium-taste-brief.md`.
+
+   ── WHAT THIS LAB DECIDES ──────────────────────────────────────────────────
+   Sean's words for this one: 「ease of click in flow to a live run」. So the
+   question is literally TAP COUNT to a sent request, and the three variants
+   differ in where the FIRST tap lands:
+     ① on a row that opens the slot sheet   (today's shipped shape)
+     ② on a slot, inline, with everything else already decided below it
+     ③ on 「가장 빠른 시간」, with the whole pick as the fallback
+   The header, the km dial's mechanics, the fee ladder and the hold timer are
+   identical in ①②③ and are not part of the pick.
+
+   ⚠ ── THE SKILL SAYS IT CANNOT HELP HERE, AND THAT IS USEFUL ───────────────
+   taste-skill §13 OUT OF SCOPE, verbatim: 「Multi-step forms / wizards (use
+   Form-specific patterns; this skill won't make them better)」 and 「Native
+   mobile (use Apple HIG / Material directly)」. This screen is both. So this lab
+   takes only its state discipline (§4.5), its copy audit (§4.9) and its dials,
+   and leans on impeccable's `operate.md` + `ios.md` for the rest.
+
+   ── FIELD BINDINGS — every constant here is module-level in request.tsx ─────
+   PACES            ["가볍게 8'+", "보통 7'", "신나게 6'"]
+   SLOT_GROUPS      오전 06:30 07:30 09:00 · 오후 13:00 15:30 17:00
+                    저녁 18:30 19:30 21:00
+   DATE_STRIP_DAYS  8  (today .. today+7)
+   KM_MIN 1 · KM_MAX 10 · KM_STEP 0.5 · TICK_W 26px per detent
+   fare             ownerBaseFare 7900 + km × perKm 3000 + addonSum
+   cancel ladder    10% under 24h · 50% once the runner is en route
+   notice floor     2 hours · hold 5 minutes
+   slot status      가능 · 러너 불가 · 마감  (disabled is PAINTED with
+                    paper.disabledFill + paper.faint, never an opacity trick)
+   ctaLabel ladder  결제 문제부터 → 반려견 확인 다시 → 반려견 확인 중 →
+                    반려견부터 → 시간부터 → 러너 찾기      (request.tsx:740-745)
+
+   🔴 ── THE CTA IS NEVER DISABLED, IT RENAMES ITSELF ────────────────────────
+   That ladder is the screen's best idea and all three variants keep it. The
+   button always says what is missing, so there is no dead control and no
+   greyed-out mystery. `DESIGN.md` §3b: 「busy = label swap, never disabled-paint.
+   No opacity tricks anywhere.」 The disabled SLOT chips are a different case and
+   are painted, because a taken slot is a fact and not a state of this screen.
+
+   ── MOTION ────────────────────────────────────────────────────────────────
+   Selection only: a chip's fill swaps discretely (`DESIGN.md` §6 모프 법 — no
+   backgroundColor animation), and the CTA carries the 4px lip. The hold
+   countdown is the one number that moves, and it moves because a real server
+   hold is really expiring. Nothing else animates.
+   ═════════════════════════════════════════════════════════════════════════ */
+/* ── SHARED PAPER WORLD ── byte-identical in all four premium-* labs ─────────
+   Every token below is READ FROM `app/src/theme.ts`, not invented. Where the
+   shipped value and DESIGN.md disagree the SHIPPED value is used and the
+   disagreement is named in docs/design/premium-taste-brief.md § Tension ⑫.   */
+:root{
+  /* GROUND — paper world. White, per Sean 2026-08-25 「white backgrounds」. */
+  --canvas:#FFFFFF; --canvasSoft:#FBFAF7;
+  --ink:#111111;    /* paper.ink   — head, 18.9:1 */
+  --text:#333333;   /* paper.text  — body, 12.6:1 */
+  --dim:#666666;    /* paper.dim   — detail, 5.7:1, AA with the 15pt floor */
+  --faint:#999999;  /* paper.faint — DECORATION CLASS ONLY (latin kickers) */
+  /* THE BRAND IS THE LINE — solid coral 1px, full bleed, no opacity */
+  --line:#E8552F;   /* paper.line */
+  --wash:#FFF6F4;   /* paper.wash — coral 95% white */
+  /* ACTION SYSTEM — Sean 2026-08-11 「검정은 제일 지루하다」 */
+  --action:#C6472C;        /* paper.action        white label 4.84:1 */
+  --actionPressed:#A83315; /* paper.actionPressed white label 6.67:1 = the lip */
+  --actionInk:#A83315;     /* paper.actionInk     on wash 5.99:1 */
+  --draw:#A63A20;          /* draw-button.tsx:96 coral ground (console #18) */
+  --drawSub:#FFD9CE;
+  /* STATE INKS */
+  --ready:#119B58;     /* paper.ready     large white label only, 3.59:1 */
+  --readyDeep:#0E7F49; /* paper.readyDeep 5.06:1 */
+  --wait:#6C5CE7;      /* home-hero.tsx:102 WAIT_BLUE = lilac.accent (Tension ⑫) */
+  --pending:#C77414;   /* paper.pending */
+  --critical:#B3261E; --criticalWash:#FBEAE7;
+  --paceGoodWash:#E7F5EE; --paceGoodInk:#0E7F49;
+  --paceSlowWash:#FBEED9; --paceSlowInk:#9D580A;
+  --disabledFill:#F2F2F2; --neutral:#EEEEEE;
+  --head:#221E3D;      /* lilac.head — the live widget's dark ground */
+  --headDim:#B9B3D9; --headFaint:#8F88B8;
+  --voltDeep:#5E7F0E; --goldTint:#F4EBD3; --goldEdge:#C9AE6A; --goldInk:#5F4E1C;
+  --blueBg:#EDF2F8; --blueEdge:#A9BDD2; --blueInk:#2E4F70; --blueSub:#456079;
+  --amberBg:#FBEED9; --amberEdge:#DCBE86; --amberInk:#6E4708;
+  --voltBg:#EAF6C8; --voltEdge:#A8C46A; --voltInk:#3F5A08;
+  --collarTang:#FF8A5C; --collarSky:#5BB8D4; --dogFill:#C9B89A; --dogInk:#5D5138;
+  /* TYPE — labs run the app's system Korean stack (DESIGN.md §2, 2026-08-25).
+     Lattice 11 / 15 / 17 / 19 / 20 / 24 / 30 + Oswald 23 / 27 / 34.5 (lh ≥1.2x).
+     Korean floor is 15. Sub-15 is LATIN letterspaced caps and glyphs only. */
+  --fBody:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fDisp:'Black Han Sans','Apple SD Gothic Neo',sans-serif;
+  --fNum:'Oswald','Roboto Condensed','Helvetica Neue',sans-serif;
+  --tk:11px;                   /* latin kicker — never Korean */
+  --t5:15px; --l5:21px;        /* detail floor */
+  --t4:17px; --l4:24px;        /* supporting */
+  --t3:19px; --l3:26px;        /* chunk kicker (DESIGN.md §3: they went to 19) */
+  --t2:20px; --l2:27px;        /* section title (DESIGN.md §3b: 20/800) */
+  --t1:24px; --l1:30px;
+  --tD:30px; --lD:37px;        /* screen title 30/900 lh37 (DESIGN.md §3b) */
+  --n3:23px; --nl3:29px;       /* numeral inline  1.26x */
+  --n2:27px; --nl2:33px;       /* numeral large   1.22x */
+  --n1:34.5px; --nl1:44px;     /* numeral hero    1.28x */
+  /* lab chrome only — never inside a phone frame */
+  --page:#FFFFFF; --hair:#E4E3DF;
+  /* MOTION — impeccable operate.md: 150-250ms. Ceiling here is 240ms.
+     Curve is exponential ease-out, which craft-floor.md asks for by name. */
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.6 var(--fBody);
+  -webkit-font-smoothing:antialiased;padding:40px 24px 120px}
+.wrap{max-width:1420px;margin:0 auto}
+
+/* ── LAB CHROME ─────────────────────────────────────────────────────────── */
+header.top{border-bottom:2.5px solid var(--ink);padding-bottom:18px}
+header.top h1{font-size:var(--tD);line-height:var(--lD);font-weight:800;letter-spacing:-.02em}
+.law{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);
+  font-weight:700;margin-bottom:10px}
+.samplebar{margin-top:16px;border:1.5px solid var(--line);background:var(--wash);
+  padding:12px 14px;font-size:var(--t5);line-height:var(--l5);color:var(--text);max-width:88ch}
+.samplebar b{color:var(--actionInk);font-weight:800}
+ul.brief{margin:20px 0 0;padding-left:20px;font-size:var(--t5);line-height:1.8;max-width:88ch}
+ul.brief b{font-weight:800}
+ul.brief code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--neutral);padding:1px 4px}
+.toc{margin-top:30px;border-bottom:1px solid var(--hair);padding-bottom:22px}
+.toc h2{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.toc ol{list-style:none;margin-top:14px}
+.toc li{display:flex;gap:16px;align-items:baseline;padding:8px 0;font-size:var(--t5);
+  line-height:1.55;color:var(--dim)}
+.toc .n{flex:0 0 auto;min-width:34px;font-size:var(--t3);font-weight:800;color:var(--ink)}
+.toc b{color:var(--ink);font-weight:800}
+.say{margin-top:18px;font-size:var(--t5);line-height:1.55;color:var(--dim)}
+.say b{color:var(--ink);font-weight:800}
+.rail{display:flex;flex-wrap:wrap;gap:40px;margin-top:48px;align-items:flex-start}
+.col{width:390px}
+.cap{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.cap .n{flex:0 0 auto;width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  background:var(--ink);color:#fff;font-size:var(--t1);font-weight:800}
+.cap .d{font-size:var(--t5);line-height:1.45;font-weight:700;color:var(--dim);padding-top:3px}
+.cap .d b{color:var(--ink);display:block;font-size:var(--t4);line-height:1.35;margin-bottom:3px}
+.dials{display:flex;gap:0;border:1px solid var(--ink);margin-bottom:16px}
+.dials div{flex:1;padding:7px 8px;border-right:1px solid var(--ink);text-align:center}
+.dials div:last-child{border-right:0}
+.dials span{display:block;font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--dim);font-weight:700}
+.dials b{display:block;font-family:var(--fNum);font-weight:600;font-size:var(--n3);
+  line-height:var(--nl3);color:var(--ink)}
+.why{margin-top:16px;font-size:var(--t5);line-height:1.7;color:var(--text)}
+.why b{font-weight:800;color:var(--ink)}
+.why .rule{display:block;margin-top:9px;padding-left:12px;border-left:1px solid var(--neutral);
+  color:var(--dim);font-size:var(--t5)}
+.states{margin-top:16px;border-top:1.5px solid var(--ink);font-size:var(--t5);line-height:var(--l5)}
+.states .r{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--neutral);align-items:baseline}
+.states .r .s{flex:0 0 86px;font-weight:800;color:var(--ink)}
+.states .r .v{flex:1;color:var(--text)}
+.states .r .v em{font-style:normal;color:var(--dim)}
+
+/* ── PHONE FRAME ─────────────────────────────────────────────────────────── */
+.phone{width:390px;background:var(--canvas);color:var(--ink);border:1px solid var(--hair);
+  box-shadow:0 18px 44px rgba(28,24,55,.13);overflow:hidden;display:flex;flex-direction:column}
+.stbar{flex:0 0 30px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;
+  font-size:var(--tk);letter-spacing:.6px;color:var(--dim);font-weight:700}
+.scr{flex:1;display:flex;flex-direction:column}
+.pad{padding:0 15px}                      /* layout.gutter = 15 */
+.disp{font-family:var(--fDisp);font-weight:400;color:var(--ink);letter-spacing:-.01em}
+.num{font-family:var(--fNum);font-weight:600;font-variant-numeric:tabular-nums}
+.kick{font-size:var(--tk);letter-spacing:2.4px;text-transform:uppercase;font-weight:700;color:var(--faint)}
+.chunk{font-size:var(--t3);line-height:var(--l3);letter-spacing:1px;font-weight:800;color:var(--dim)}
+.rule{height:1px;background:var(--line)}          /* full-bleed coral hairline */
+.hair{height:1px;background:var(--neutral)}
+.inkrule{height:2px;background:var(--ink)}
+/* module header — DESIGN.md §3b: one grammar, title + optional right link */
+.modh{display:flex;align-items:baseline;justify-content:space-between;padding:14px 0 8px}
+.modh .t{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.modh .l{font-size:var(--t5);font-weight:700;color:var(--dim)}
+/* status chip — 16/800, radius 0, tinted fill, same baseline row as its datum */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:16px;line-height:22px;font-weight:800;
+  padding:3px 9px}
+.chip i{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:currentColor;font-style:normal}
+.chip.ready{color:var(--readyDeep);background:var(--paceGoodWash)}
+.chip.wait{color:var(--wait);background:#F0EDFD}
+.chip.turn{color:var(--actionInk);background:var(--wash)}
+.chip.none{color:var(--dim);background:var(--disabledFill)}
+/* buttons — DESIGN.md §3b matrix. Filled = 4px lip, press = translateY(3)+1px.
+   Unfilled = scale(.96). Disabled is FLAT and painted, never alpha.          */
+.btnP{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;
+  background:var(--action);color:#fff;border:0;border-bottom:4px solid var(--actionPressed);
+  padding:15px 12px 13px;font-family:var(--fBody);font-size:var(--t4);line-height:var(--l4);
+  font-weight:800;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.btnP:active{transform:translateY(3px);border-bottom-width:1px}
+.btnP .sub{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--drawSub);margin-top:2px}
+.btnS{display:flex;align-items:center;justify-content:center;width:100%;background:var(--canvas);
+  color:var(--ink);border:1px solid var(--line);padding:15px 12px;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:800;cursor:pointer;transition:transform .12s var(--ease)}
+.btnS:active{transform:scale(.96)}
+.btnD{border-color:var(--critical);color:var(--critical)}
+.btnOff{background:var(--disabledFill);color:var(--faint);border:0;border-bottom:0}
+/* draw-button — the home action block. Ground palette is draw-button.tsx:96-105 */
+.draw{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:0 15px;
+  height:96px;border:0;cursor:pointer;transition:transform .12s var(--ease),border-bottom-width .12s var(--ease)}
+.draw:active{transform:translateY(3px);border-bottom-width:1px}
+.draw.sm{height:78px}
+.draw.coda{height:56px}
+.draw .tx{flex:1;min-width:0}
+.draw .tt{font-size:var(--t4);line-height:var(--l4);font-weight:800}
+.draw .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;margin-top:2px}
+.draw .gl{flex:0 0 34px;font-size:22px;line-height:1;text-align:center}
+.draw.coral{background:var(--draw);border-bottom:4px solid var(--actionPressed);color:#fff}
+.draw.coral .ts{color:var(--drawSub)}
+.draw.paper{background:var(--canvas);border:1.5px solid var(--ink);border-bottom:4px solid var(--ink);color:var(--ink)}
+.draw.paper .ts{color:var(--dim)}
+.draw.gold{background:var(--goldTint);border:1px solid #E7DAB6;border-bottom:4px solid var(--goldEdge);color:var(--goldInk)}
+.draw.gold .ts{color:#6B5720}
+.draw.blue{background:var(--blueBg);border:1px solid #D8E3EF;border-bottom:4px solid var(--blueEdge);color:var(--blueInk)}
+.draw.blue .ts{color:var(--blueSub)}
+.draw.lilac{background:var(--canvas);border:1px solid var(--wait);border-bottom:4px solid #3B3170;color:#3B3170}
+.draw.lilac .ts{color:#6A5FA8}
+.draw.amber{background:var(--amberBg);border:1px solid #F2DFC2;border-bottom:4px solid var(--amberEdge);color:var(--amberInk)}
+.draw.amber .ts{color:#7A4F0A}
+.draw.volt{background:var(--voltBg);border:1px solid #D7E8B0;border-bottom:4px solid var(--voltEdge);color:var(--voltInk)}
+.draw.volt .ts{color:#4F6717}
+/* tappable row — Sean 2026-08-25: every clickable choice must LOOK clickable */
+.tap{display:flex;align-items:center;gap:10px;min-height:52px;padding:12px 13px;
+  background:var(--canvas);border:1px solid var(--ink);width:100%;text-align:left;cursor:pointer}
+.tap .tt{flex:1;min-width:0;font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--ink)}
+.tap .ts{font-size:var(--t5);line-height:var(--l5);font-weight:600;color:var(--dim)}
+.tap .chev{flex:0 0 auto;font-size:var(--t2);font-weight:700;color:var(--ink)}
+.tap.quiet{border-color:#D8D6D0}
+.tap.quiet .tt{color:var(--text);font-weight:700}
+/* print row — carries NO tap marks, so it cannot be mistaken for a control */
+.kv{display:flex;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--neutral)}
+.kv .k{flex:0 0 56px;font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.kv .v{flex:1;font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.kv .a{font-size:var(--t5);font-weight:800;color:var(--dim)}
+/* loud-fail strip — DESIGN.md §7: failures render as failures */
+.fail{background:var(--criticalWash);border-left:0;padding:11px 13px;font-size:var(--t5);
+  line-height:var(--l5);color:var(--critical);font-weight:700;display:flex;gap:10px;align-items:baseline}
+.fail u{margin-left:auto;font-weight:800;white-space:nowrap}
+.note{font-size:var(--t5);line-height:var(--l5);color:var(--dim);padding:10px 0}
+/* photo slot — NEVER a stock image. See brief § Tension ⑦. */
+.slot{background:repeating-linear-gradient(135deg,#FAFAF8 0 7px,#F2F2F0 7px 14px);
+  border:1px dashed #C2BFB7;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;text-align:center;padding:10px}
+.slot b{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--dim)}
+.slot span{font-size:var(--tk);letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);font-weight:700}
+/* dock — solid white, coral hairline on top, icons only (Sean 2026-08-12) */
+.dock{display:flex;border-top:1px solid var(--line);background:var(--canvas)}
+.dock a{flex:1;padding:12px 0 16px;text-align:center;font-size:24px;color:var(--dim);
+  position:relative;text-decoration:none}
+.dock a.on{color:var(--ink)}
+.dock a.on::before{content:'';position:absolute;top:0;left:50%;margin-left:-17px;width:34px;height:2.5px;background:var(--ink)}
+.dogdot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--dogFill);
+  border:2px solid var(--collarTang);display:flex;align-items:center;justify-content:center;
+  font-size:var(--t5);font-weight:800;color:var(--dogInk)}
+@media (prefers-reduced-motion: reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+
+/* ── DEPARTURE WORLD ── used ONLY by variant ③ in each lab ────────────────────
+   🔴 THIS BLOCK DELIBERATELY BREAKS DESIGN.md. It exists so Sean can see what
+   the impeccable / taste-skill rules actually produce when the paper world's
+   constraints are relaxed, instead of reading a description of it. Variants ①
+   and ② in every lab stay inside the paper world; ③ never does.
+
+   What it breaks, named so the pick is made with eyes open:
+     · DESIGN.md §2/§3b  "Cards: radius 0" / "Radius 0 everywhere"      -> 16px
+     · DESIGN.md §2      "Soft shadows retire with the rounded corners"  -> ambient shadow
+     · DESIGN.md §2      "Hairline = solid coral #E8552F 1px, full-bleed.
+                          The line is the brand."                        -> no coral divider
+     · DESIGN.md §3b     button matrix "All: radius 0" + the 4px lip      -> pill + shadow
+     · DESIGN.md §3b     "A drop shadow and a lip are two different depth
+                          languages and must not sit on one control."    -> shadow replaces lip
+     · DESIGN.md §4      "Section division by full-bleed hairline, not by cards" -> cards
+     · DESIGN.md header  the style freeze: "no NEW aesthetics until 50 paying dogs"
+
+   What it still obeys, because these are not stylistic and do not get relaxed:
+     white ground · Korean detail floor 15pt · real fields only · no gradient
+     text · no glassmorphism or blur · no emoji as icons · no AI-beige ground ·
+     transitions <= 240ms · prefers-reduced-motion honoured · WCAG AA contrast.  */
+.dep{--depR:16px;--depShadow:0 1px 2px rgba(17,17,17,.04),0 8px 24px rgba(17,17,17,.07);
+  background:var(--canvasSoft)}
+.dep .card{background:var(--canvas);border-radius:var(--depR);box-shadow:var(--depShadow);
+  overflow:hidden}
+.dep .card+.card{margin-top:14px}
+.dep .pill{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border:0;border-radius:999px;background:var(--action);color:#fff;font-family:var(--fBody);
+  font-size:var(--t4);line-height:var(--l4);font-weight:800;padding:15px 18px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(198,71,44,.22);transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+.dep .pill:active{transform:scale(.98);box-shadow:0 1px 4px rgba(198,71,44,.22)}
+.dep .pill.ghost{background:var(--canvas);color:var(--ink);box-shadow:none;
+  border:1px solid #DCDAD4}
+.dep .seg{display:flex;background:#EFEEEA;border-radius:10px;padding:3px}
+.dep .seg button{flex:1;border:0;border-radius:8px;background:transparent;font-family:var(--fBody);
+  font-size:16px;line-height:22px;font-weight:700;color:var(--text);padding:8px 4px;cursor:pointer}
+.dep .seg button.on{background:var(--canvas);color:var(--ink);font-weight:800;
+  box-shadow:0 1px 3px rgba(17,17,17,.10)}
+.dep .tagpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:5px 12px;font-size:16px;line-height:22px;font-weight:800}
+.dep .quietrow{display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid #F0EFEB}
+.dep .quietrow:last-child{border-bottom:0}
+.dep .quietrow .t{flex:1;font-size:var(--t5);line-height:var(--l5);font-weight:700;color:var(--ink)}
+.dep .quietrow .v{font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+/* the departure banner that sits above every ③ frame, so nobody mistakes it */
+.depflag{border:2px solid var(--ink);background:var(--ink);color:#fff;padding:10px 12px;
+  font-size:var(--t5);line-height:var(--l5);font-weight:700;margin-bottom:14px}
+.depflag b{display:block;font-size:16px;font-weight:800;margin-bottom:3px}
+.breaks{margin-top:14px;border:1px solid var(--critical);background:var(--criticalWash);
+  padding:12px 13px;font-size:var(--t5);line-height:1.65;color:var(--text)}
+.breaks b{color:var(--critical);font-weight:800;display:block;margin-bottom:5px}
+.breaks ul{margin:0;padding-left:18px}
+.breaks li{margin-top:3px}
+.breaks code{font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;padding:1px 4px}
+/* ── FILE-LOCAL ─────────────────────────────────────────────────────────── */
+.phone{min-height:812px}
+.hd{display:flex;align-items:center;gap:11px;padding:9px 15px 12px}
+.hd .bk{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--canvas);font-size:20.5px;color:var(--ink)}
+.hd .ti{font-size:var(--t2);line-height:var(--l2);font-weight:800;color:var(--ink)}
+.hd .pf{margin-left:auto;font-size:16px;line-height:22px;font-weight:800;color:var(--actionInk);
+  background:var(--wash);padding:3px 9px}
+/* date strip + slot grid */
+.dstrip{display:flex;gap:7px;overflow:hidden;padding:2px 0 12px}
+.dcell{flex:0 0 52px;border:1px solid #D8D6D0;background:var(--canvas);padding:7px 0 8px;text-align:center}
+.dcell .w{font-size:var(--t5);line-height:var(--l5);color:var(--dim);font-weight:700}
+.dcell .d{font-family:var(--fNum);font-weight:600;font-size:var(--t3);line-height:var(--l3);color:var(--ink)}
+.dcell.on{background:var(--ink);border-color:var(--ink)}
+.dcell.on .w,.dcell.on .d{color:#fff}
+.sgroup{font-size:var(--t5);line-height:var(--l5);font-weight:800;color:var(--dim);margin:12px 0 7px}
+.sgrid{display:flex;gap:8px}
+.scell{flex:1;border:1px solid var(--ink);background:var(--canvas);padding:9px 4px 10px;text-align:center}
+.scell .t{font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.scell .s{font-size:var(--t5);line-height:var(--l5);color:var(--dim)}
+.scell.on{background:var(--ink)}
+.scell.on .t{color:#fff}.scell.on .s{color:#D8D6D0}
+.scell.off{background:var(--disabledFill);border-color:var(--disabledFill)}
+.scell.off .t,.scell.off .s{color:var(--faint)}
+/* km dial */
+.dial{padding:14px 0 4px}
+.dial .v{display:flex;align-items:baseline;gap:6px}
+.dial .v b{font-family:var(--fNum);font-weight:600;font-size:var(--n1);line-height:var(--nl1);color:var(--ink)}
+.dial .v span{font-size:var(--t4);font-weight:700;color:var(--dim)}
+.dial .track{display:flex;align-items:flex-end;gap:0;height:30px;margin-top:6px;overflow:hidden}
+.dial .track i{flex:0 0 26px;height:10px;background:linear-gradient(90deg,#D8D6D0 0 1px,transparent 1px)}
+.dial .track i:nth-child(2n+1){height:18px}
+.dial .track i.now{height:30px;background:linear-gradient(90deg,var(--action) 0 2px,transparent 2px)}
+.dial .steps{display:flex;gap:8px;margin-top:10px}
+.dial .steps button{flex:1;border:1px solid var(--line);background:var(--canvas);
+  font-family:var(--fBody);font-size:16px;font-weight:800;padding:10px 0;color:var(--ink);cursor:pointer}
+/* pace */
+.pace{display:flex;gap:8px;margin-top:8px}
+.pace button{flex:1;border:1px solid var(--ink);background:var(--canvas);padding:11px 4px;
+  font-family:var(--fBody);font-size:16px;line-height:22px;font-weight:800;color:var(--ink);cursor:pointer}
+.pace button.on{background:var(--ink);color:#fff}
+/* receipt */
+.rcpt{border-top:2px solid var(--ink);margin-top:14px}
+.rcpt .r{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;
+  border-bottom:1px solid var(--neutral);font-size:var(--t5);line-height:var(--l5)}
+.rcpt .r .k{color:var(--dim)}
+.rcpt .r .v{font-weight:800;color:var(--ink)}
+.rcpt .r.tot{border-bottom:2px solid var(--ink)}
+.rcpt .r.tot .v{font-family:var(--fNum);font-weight:600;font-size:var(--t3);line-height:var(--l3)}
+/* fold */
+.fold{display:flex;align-items:center;gap:10px;padding:14px 0;border-top:1px solid var(--neutral);
+  border-bottom:1px solid var(--neutral)}
+.fold .t{flex:1;font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.fold .s{font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:2px;font-weight:400}
+.fold .a{font-size:var(--t5);font-weight:800;color:var(--dim)}
+/* fixed CTA dock */
+.ctadock{border-top:1px solid var(--line);padding:11px 15px 16px;background:var(--canvas)}
+.ctadock .hint{font-size:var(--t5);line-height:var(--l5);color:var(--dim);text-align:center;margin-top:8px}
+/* hold modal */
+.hold{background:var(--canvas);border:1.5px solid var(--ink);padding:20px 16px;text-align:center}
+.hold .k{font-size:16px;line-height:22px;font-weight:800;color:var(--ink)}
+.hold .c{font-family:var(--fNum);font-weight:600;font-size:34.5px;line-height:44px;color:var(--action);margin-top:6px}
+.hold .p{font-size:var(--t5);line-height:var(--l5);color:var(--text);margin-top:8px}
+.hold .st{font-size:var(--t5);line-height:var(--l5);color:var(--readyDeep);font-weight:700;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <p class="law">Dogs High &middot; Premium Lab 2 of 4 &middot; owner request</p>
+  <h1>Booking request &mdash; how many taps to a runner?</h1>
+  <div class="samplebar">
+    <b>Every time, distance, price and name on this page is SAMPLE data.</b> The prices are computed
+    with the code's real formula (<code>7,900 + km &times; 3,000 + add-ons</code>) but they are
+    nobody's actual charge. Every element binds to a field or module constant that exists in
+    <code>owner/request.tsx</code>. <b>Korean appears only inside the phone frames</b>, because that
+    is the copy a user reads; everything outside a frame is English, per <code>CLAUDE.md</code>
+    &sect; Language.
+  </div>
+  <ul class="brief">
+    <li><b>The pick</b>: <b>where the first tap lands</b>. The header, the km dial's mechanics, the
+        fee ladder and the hold timer are identical in &#9312;&#9313;&#9314;.</li>
+    <li><b>How it is counted</b>: each variant states the minimum taps to a sent request. The
+        baseline user is a <b>returning owner whose address, dog and card are already registered</b>
+        &mdash; the person the M1 rebooking gate is about.</li>
+    <li><b>Never negotiable</b>: the CTA is <b>never disabled; it renames itself</b>.
+        <span lang="ko">시간부터</span> &rarr; <span lang="ko">러너 찾기</span>. No dead buttons
+        (<code>DESIGN.md</code> &sect;7).</li>
+    <li><b>&#9312; and &#9313; stay inside the paper world. &#9314; is a labelled departure</b> with
+        the broken <code>DESIGN.md</code> rules printed beside it.</li>
+    <li><b>Dials</b>: the brief's &sect;(d) recommendation for this flow is <b>3 / 3 / 4</b>.</li>
+  </ul>
+</header>
+
+<section class="toc">
+  <h2>How to choose</h2>
+  <ol>
+    <li><span class="n">&#9312;</span><b>Keep the row grammar</b> &middot; 2 / 2 / 5 &middot; paper
+        world. Seven rows; the time is picked in a sheet. What ships today.</li>
+    <li><span class="n">&#9313;</span><b>Open the slots on the screen</b> &middot; 3 / 3 / 4 &middot;
+        paper world. The date strip and nine slots are visible from the first frame; everything
+        already decided drops below them as a receipt.</li>
+    <li><span class="n">&#9314;</span><b>DEPARTURE &mdash; earliest-first, soft sheet</b> &middot;
+        4 / 3 / 3 &middot; <b>outside the paper world</b>. One proposal, a segmented control, pill
+        actions, rounded surfaces. The <i>strategy</i> (earliest-first) is separable from the
+        <i>look</i> and could be lifted into &#9313; on its own.</li>
+  </ol>
+  <p class="say"><b>How to answer</b>: by number. "&#9313;, but open on the earliest slot" is a valid
+    and probably the most interesting answer.</p>
+</section>
+
+<div class="rail">
+
+  <!-- ═══════════════════ ① ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9312;</span><span class="d"><b>Keep the row grammar &middot; paper world</b>
+      Seven rows; the time opens a sheet. Spacing and target discipline only.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>2</b></div>
+      <div><span>Motion</span><b>2</b></div>
+      <div><span>Density</span><b>5</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&lsaquo;</span><span class="ti">러닝 요청</span></div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:6px">
+          <div class="kv"><span class="k">언제</span><span class="v" style="color:var(--dim);font-weight:400">시간을 선택해주세요</span><span class="a">변경 &rsaquo;</span></div>
+
+          <div class="dial">
+            <div class="v"><b class="num">4.0</b><span>km</span></div>
+            <div class="track"><i></i><i></i><i></i><i></i><i></i><i class="now"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="steps"><button>&minus;0.5</button><button>+0.5</button></div>
+          </div>
+          <div class="kv" style="border-top:1px solid var(--neutral);margin-top:12px">
+            <span class="k" style="flex:1">예상 금액</span><span class="v num" style="flex:0 0 auto;font-size:var(--t3)">19,900원</span></div>
+
+          <button class="tap" style="margin-top:14px;align-items:flex-start;flex-direction:column;gap:3px">
+            <span class="tt">코스를 골라볼까요?</span>
+            <span class="ts">픽업 위치에서 가장 가까운 코스 &middot; 안 고르면 코스 없이 접수돼요</span>
+            <span class="ts" style="color:var(--ink);font-weight:800;margin-top:5px">지도에서 고르기 &rsaquo;</span>
+          </button>
+
+          <div class="kv" style="margin-top:14px"><span class="k">러너</span><span class="v">자동 매칭</span><span class="a">직접 고르기 &rsaquo;</span></div>
+          <div class="kv"><span class="k">어디서</span><span class="v">반포동 30-1 &middot; 101동 1204호</span><span class="a">변경 &rsaquo;</span></div>
+          <div class="kv"><span class="k">누가</span><span class="v">보리 &middot; 포메라니안 3.4kg</span><span class="a">변경 &#9662;</span></div>
+
+          <p class="note">코스&middot;러너&middot;주소는 지금 안 정해도 돼요 &mdash; 위에 보이는 그대로 접수돼요</p>
+
+          <div class="fold">
+            <span class="t">페이스 &middot; 옵션 &middot; 매주 반복 &middot; 코스 목록
+              <span class="s">보통 7' &middot; 옵션 없음 &middot; 매주 반복 꺼짐</span></span>
+            <span class="a">열기 &#9662;</span>
+          </div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="ctadock">
+          <button class="btnP">시간부터 &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> A row list is the best shape for <b>scanning</b>. All seven facts are
+      on one screen and what is missing is visible at once. A returning owner has six of them
+      pre-filled, so in practice they read one line.
+      <span class="rule">impeccable <code>operate.md</code> &sect; Product permissions: "<b>Density.</b>
+        Tables with many rows, panels with many labels, dense information when users need it."
+        Density 5 is a permission here, not a defect.</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;2/&sect;3b: print rows (<code>.kv</code>) carry
+        no tap marks at all, and only tappable things (<code>.tap</code>) get a border, a chevron
+        and 52px. Both halves of Sean's 2026-08-25 ruling that "every clickable choice must LOOK
+        clickable" &mdash; the converse matters just as much.</span>
+      <b>Minimum taps to send: 4</b> &mdash; change, date, time, find a runner.
+      <b>Weakness.</b> The first tap is a <b>meta action</b>. The owner came to pick a time and must
+      first press a button that opens the screen where times are picked.
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ② ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9313;</span><span class="d"><b>Open the slots on the screen &middot; paper world</b>
+      The date strip and nine slots are visible immediately; settled facts drop into a receipt.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>3</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>4</b></div>
+    </div>
+
+    <div class="phone">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko">
+        <div class="hd"><span class="bk">&lsaquo;</span><span class="ti">러닝 요청</span></div>
+        <div class="rule"></div>
+        <div class="pad" style="padding-top:12px">
+          <div class="dstrip">
+            <span class="dcell on"><span class="w">오늘</span><span class="d num">26</span></span>
+            <span class="dcell"><span class="w">수</span><span class="d num">27</span></span>
+            <span class="dcell"><span class="w">목</span><span class="d num">28</span></span>
+            <span class="dcell"><span class="w">금</span><span class="d num">29</span></span>
+            <span class="dcell"><span class="w">토</span><span class="d num">30</span></span>
+            <span class="dcell"><span class="w">일</span><span class="d num">31</span></span>
+          </div>
+          <p class="sgroup">저녁</p>
+          <div class="sgrid">
+            <span class="scell on"><span class="t num">18:30</span><span class="s">가능</span></span>
+            <span class="scell"><span class="t num">19:30</span><span class="s">가능</span></span>
+            <span class="scell off"><span class="t num">21:00</span><span class="s">마감</span></span>
+          </div>
+          <p class="sgroup">오후</p>
+          <div class="sgrid">
+            <span class="scell"><span class="t num">13:00</span><span class="s">가능</span></span>
+            <span class="scell off"><span class="t num">15:30</span><span class="s">러너 불가</span></span>
+            <span class="scell"><span class="t num">17:00</span><span class="s">가능</span></span>
+          </div>
+
+          <div class="rcpt">
+            <div class="r"><span class="k">누가</span><span class="v">보리</span></div>
+            <div class="r"><span class="k">어디서</span><span class="v">반포동 30-1</span></div>
+            <div class="r"><span class="k">코스 &middot; 거리</span><span class="v">반포 한강 루프 &middot; 4.0km</span></div>
+            <div class="r"><span class="k">러너</span><span class="v">자동 매칭</span></div>
+            <div class="r tot"><span class="k">예상 금액</span><span class="v num">19,900원</span></div>
+          </div>
+          <div class="fold">
+            <span class="t">페이스 &middot; 옵션 &middot; 매주 반복 &middot; 코스 목록
+              <span class="s">보통 7' &middot; 옵션 없음 &middot; 매주 반복 꺼짐</span></span>
+            <span class="a">열기 &#9662;</span>
+          </div>
+          <p class="note">시작 24시간 전까지는 취소 수수료가 없어요.</p>
+        </div>
+        <div style="flex:1"></div>
+        <div class="ctadock">
+          <button class="btnP">러너 찾기 &rsaquo;</button>
+          <p class="hint">18:30 슬롯을 5분간 잡아둬요</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="why">
+      <b>The case for it.</b> There is one decision on this screen and &#9312; hides it behind a
+      sheet. Here the nine slots are visible from the first frame, and the five already-settled facts
+      move into a receipt where they read as <b>things to confirm</b> rather than things to decide.
+      <span class="rule">impeccable <code>craft-floor.md</code> puts "a modal for a task that needs
+        neither interruption nor protected focus" on the refuse list, and <code>operate.md</code>
+        adds "Modals are usually laziness. Exhaust inline / progressive alternatives first."
+        Picking a time needs neither interruption nor protected focus.</span>
+      <span class="rule">taste-skill &sect;4.6: "No placeholder-as-label. Ever." The receipt's labels
+        sit beside their values rather than inside them.</span>
+      <span class="rule">imagegen-frontend-mobile &sect;12 "one clear next action" and &sect;31
+        "avoid one screen feeling cramped while the next is empty" &mdash; the slot block is dense
+        and everything below it opens up.</span>
+      <b>Minimum taps to send: 2</b> &mdash; a slot, then find a runner.
+      <b>Weakness.</b> Nine slots cost about 220px of height, which pushes the fold further from
+      anyone who changes add-ons often. And choosing <b>any day after tomorrow</b> still costs one
+      more tap on the strip.
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ③ DEPARTURE ═══════════════════ -->
+  <div class="col">
+    <div class="cap"><span class="n">&#9314;</span><span class="d"><b>DEPARTURE &middot; earliest-first, soft sheet</b>
+      Not the paper world. One proposal, a segmented control, pill actions, rounded surfaces.</span></div>
+    <div class="dials">
+      <div><span>Variance</span><b>4</b></div>
+      <div><span>Motion</span><b>3</b></div>
+      <div><span>Density</span><b>3</b></div>
+    </div>
+    <div class="depflag"><b>This variant leaves the paper world on purpose.</b>
+      Its <i>strategy</i> (open on the earliest bookable slot) is separable from its <i>look</i> and
+      can be taken into &#9313; without any of the breakages listed below.</div>
+
+    <div class="phone dep">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko" style="padding:0 16px 18px">
+        <div class="hd" style="padding:10px 0 14px">
+          <span class="bk" style="border-radius:999px">&lsaquo;</span>
+          <span class="ti">러닝 요청</span></div>
+
+        <div class="card">
+          <div style="padding:18px 16px 16px">
+            <span class="tagpill" style="background:var(--wash);color:var(--actionInk)">가장 빠른 시간</span>
+            <div class="disp" style="font-size:30px;line-height:37px;margin-top:11px">오늘 저녁<br>6시 30분</div>
+            <p style="font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:9px">
+              보리 &middot; 반포 한강 루프 4.0km &middot; 자동 매칭</p>
+            <div class="quietrow" style="padding-left:0;padding-right:0;margin-top:12px;border-top:1px solid #F0EFEB">
+              <span class="t">예상 금액</span>
+              <span class="v num" style="font-size:var(--t3);color:var(--ink);font-weight:600">19,900원</span></div>
+            <div style="margin-top:14px">
+              <button class="pill">이 시간으로 러너 찾기</button>
+              <p style="font-size:var(--t5);line-height:var(--l5);color:var(--dim);text-align:center;margin-top:9px">
+                18:30 슬롯을 5분간 잡아둬요</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="padding:14px 16px 16px">
+            <p style="font-size:var(--t5);line-height:var(--l5);font-weight:800;margin-bottom:10px">다른 시간 고르기</p>
+            <div class="seg">
+              <button class="on">오늘</button><button>내일</button><button>이번 주</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <span class="tagpill" style="background:var(--ink);color:#fff">18:30</span>
+              <span class="tagpill" style="background:#F1F0EC;color:var(--ink)">19:30</span>
+              <span class="tagpill" style="background:var(--disabledFill);color:var(--faint)">21:00 마감</span>
+              <span class="tagpill" style="background:#F1F0EC;color:var(--ink)">13:00</span>
+              <span class="tagpill" style="background:var(--disabledFill);color:var(--faint)">15:30 러너 불가</span>
+              <span class="tagpill" style="background:#F1F0EC;color:var(--ink)">17:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="quietrow"><span class="t">누가</span><span class="v">보리</span></div>
+          <div class="quietrow"><span class="t">어디서</span><span class="v">반포동 30-1</span></div>
+          <div class="quietrow"><span class="t">페이스</span><span class="v">보통 7'</span></div>
+          <div class="quietrow"><span class="t">옵션 &middot; 매주 반복</span><span class="v">옵션 없음 &middot; 꺼짐 &rsaquo;</span></div>
+        </div>
+
+        <p style="font-size:var(--t5);line-height:var(--l5);color:var(--dim);margin-top:14px">
+          시작 24시간 전까지는 취소 수수료가 없어요.</p>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+
+    <div class="breaks"><b>What this variant breaks, named</b>
+      <ul>
+        <li><code>DESIGN.md</code> &sect;2 / &sect;3b &mdash; "Cards: radius 0". Surfaces are 16px
+          and controls are full pills.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; "Soft shadows retire with the rounded corners."
+          Every card carries an ambient shadow.</li>
+        <li><code>DESIGN.md</code> &sect;2 &mdash; the full-bleed coral hairline is gone; sections are
+          divided by cards instead, which &sect;4 retires by name ("Card-soup and rounded card grids
+          are retired").</li>
+        <li><code>DESIGN.md</code> &sect;3b &mdash; the button matrix and its 4px lip, replaced by a
+          pill with a tinted shadow.</li>
+        <li><code>DESIGN.md</code> &sect;3b &mdash; the status chip is specified at "16/800,
+          radius 0, tinted fill". Here it is a rounded pill.</li>
+        <li><b>The segmented control is a new component</b> this app does not have. impeccable's
+          <code>ios.md</code> approves of it ("Platform controls &hellip; segmented control") but
+          &sect;3b says "Buttons &mdash; four kinds, nothing else", so adding a fifth is a system
+          change, not a screen change.</li>
+        <li><code>DESIGN.md</code> header &mdash; the style freeze.</li>
+      </ul>
+    </div>
+
+    <div class="why">
+      <b>The case for the strategy, which is the part worth keeping either way.</b> This path
+      <b>already exists in the code</b>: home's <span lang="ko">지금 찾기</span> sets
+      <code>draft.autoEarliest = true</code> and routes here. &#9312; and &#9313; both throw that
+      intent away and present an empty form, so the tap the owner just made says nothing.
+      <span class="rule">impeccable <code>operate.md</code>: "Motion conveys state, not decoration"
+        has an information-architecture twin &mdash; a screen should reflect the intent that opened
+        it.</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;7a-bis: one display line, one supporting line,
+        one primary action, one quiet alternative. This frame is exactly that budget.</span>
+      <span class="rule">taste-skill &sect;4.5 "CTA BUTTON WRAP BAN":
+        <span lang="ko">이 시간으로 러너 찾기</span> fits one line at 390px. Korean wraps sooner than
+        Latin, so this needs re-checking on every copy edit.</span>
+      <b>Minimum taps to send: 1.</b>
+      <b>The real risk, and it is not stylistic.</b> "Earliest" can be <b>two hours away</b>
+      (<code>NOTICE_MS = 2h</code>). That is perfect for someone who wants tonight and wrong for
+      someone booking the weekend. The code already carries the failure string &mdash;
+      <span lang="ko" style="color:var(--critical);font-weight:700">앞으로 8일 안에 고를 수 있는
+      시간이 없어요 &mdash; 날짜&middot;시간을 직접 골라주세요</span> &mdash; and the existence of
+      that sentence proves the proposal can fail. When it does, this variant has to fall back to
+      &#9313;'s shape.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ shared obligations ═══════════ -->
+<h2 class="chunk" style="margin-top:56px;padding-bottom:8px;border-bottom:2px solid var(--ink)">
+  What all three variants must carry</h2>
+
+<div class="rail" style="margin-top:28px">
+  <div class="col">
+    <p class="cap"><span class="d"><b>The CTA ladder &mdash; it renames itself instead of going dead</b>
+      <code>request.tsx:740-745</code>. All three variants keep it unchanged.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko"><div class="pad" style="padding:16px 15px">
+        <button class="btnP" style="margin-bottom:9px">결제 문제부터 &rsaquo;</button>
+        <button class="btnP" style="margin-bottom:9px">반려견부터 &rsaquo;</button>
+        <button class="btnP" style="margin-bottom:9px">시간부터 &rsaquo;</button>
+        <button class="btnP">러너 찾기 &rsaquo;</button>
+        <p class="note" lang="en" style="color:var(--dim)">The button never greys out. It states what
+          is missing, in its own label.</p>
+      </div></div>
+    </div>
+    <p class="why"><span class="rule"><code>DESIGN.md</code> &sect;3b: "busy = <b>label swap</b>
+      ('<span lang="ko">저장 중...</span>'), never disabled-paint. <b>No opacity tricks anywhere</b>
+      &mdash; every state is an explicit color."</span>
+      <span class="rule"><code>DESIGN.md</code> &sect;7: "no dead buttons &mdash; render an action
+      only when its effect exists in this state." HIG checklist G6: "Make it clear why an
+      unavailable gesture doesn't work."</span>
+      <span class="rule">taste-skill &sect;4.5 BUTTON CONTRAST CHECK: white on <code>#C6472C</code>
+      measures <b>4.84:1</b>, AA at every size. The measurement is recorded in
+      <code>theme.ts:215</code>, not eyeballed here.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>Three slot faces, and the five-minute hold</b>
+      <span lang="ko">가능 &middot; 러너 불가 &middot; 마감</span> are three different facts.</span></p>
+    <div class="phone" style="min-height:0">
+      <div class="stbar"><span>9:41</span><span>&#9679;&#9679;&#9679; &#8961; &#9646;</span></div>
+      <div class="scr" lang="ko"><div class="pad" style="padding:16px 15px">
+        <div class="sgrid">
+          <span class="scell on"><span class="t num">18:30</span><span class="s">가능</span></span>
+          <span class="scell off"><span class="t num">19:30</span><span class="s">러너 불가</span></span>
+          <span class="scell off"><span class="t num">21:00</span><span class="s">마감</span></span>
+        </div>
+        <p class="note" lang="en" style="color:var(--dim)">"No runner" and "full" share a grey but not
+          a sentence: one means nobody is available, the other means it is already taken. A greyed
+          slot is a fact about the world, so it is <b>painted</b> with
+          <code>paper.disabledFill</code> + <code>paper.faint</code>, never faded with opacity.</p>
+        <div class="hold" style="margin-top:12px">
+          <p class="k">슬롯을 잡아두고 있어요</p>
+          <p class="c num">4:52</p>
+          <p class="p">18:30 슬롯이 5분간<br>다른 보호자에게 보이지 않아요</p>
+          <p class="st">&#9679; 서버 홀드 확보 &mdash; 예약이 생성됐어요</p>
+        </div>
+      </div></div>
+    </div>
+    <p class="why"><b>Why the countdown is allowed to move.</b> It is the only moving number in this
+      lab, and it moves because a real server hold is really expiring.
+      <span class="rule"><code>DESIGN.md</code> &sect;6: "<b>Honest motion:</b> an animation may only
+        claim what the system knows &hellip; No idle loops, <b>no fake progress</b>."</span>
+      <span class="rule">The green line appears only after the server answers; before that the copy
+        is <span lang="ko">서버 연결 중...</span>. Merging the two would be claiming knowledge the
+        app does not have.</span></p>
+  </div>
+
+  <div class="col">
+    <p class="cap"><span class="d"><b>What this lab deliberately did not do</b></span></p>
+    <div class="why" style="margin-top:0">
+      <b>1. The three-step stepper was not revived.</b> It is already retired in the code, and
+      taste-skill &sect;13 says of itself: "Multi-step forms / wizards &hellip; <b>this skill won't
+      make them better</b>." So the answer was to delete steps rather than decorate them.
+      <span class="rule">impeccable <code>craft-floor.md</code>: "Section numbers (01 / 02 / 03)
+        unless the sequence itself carries information the reader needs." taste-skill &sect;9.F:
+        "<b>NO generic step labels.</b> 'Stage 1 / Stage 2 / Stage 3' &hellip; Banned. The actual
+        step content is the label."</span>
+      <b style="display:block;margin-top:12px">2. The <code>livecam</code> add-on is not drawn.</b>
+      Its data exists in <code>theme.ts</code> but <code>UNBUILT_ADDONS</code> keeps it off the
+      screen. Drawing an unbuilt feature into a mock is how a mock becomes a lie.
+      <span class="rule"><code>CLAUDE.md</code> &sect; Honesty laws: "bind real fields or omit the
+        element" &mdash; labs get the same rule.</span>
+      <b style="display:block;margin-top:12px">3. The price is not rounded to look nice.</b>
+      19,900 is <code>7,900 + 4.0 &times; 3,000</code>.
+      <span class="rule">taste-skill &sect;9.D: "<b>NO fake-perfect numbers.</b> Avoid 99.99%, 50%,
+        1234567." &sect;4.9 allows mock numbers when "explicitly labeled as mock" &mdash; the band at
+        the top of this page is that label.</span>
+      <b style="display:block;margin-top:12px">4. No progress bar across the top.</b>
+      taste-skill &sect;9.F bans "scoring/progress bars with filled background tracks" as decoration,
+      and a wizard progress bar on a one-screen form would be exactly that.
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
