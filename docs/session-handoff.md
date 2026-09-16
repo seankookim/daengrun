@@ -15,6 +15,43 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
+
+**Supersedes the 01:2x block below where they conflict.** Sean installed **Xcode 27.0 (27A266a, Swift
+6.4)** and it is selected (`xcode-select -p` = `/Applications/Xcode.app/Contents/Developer`). Measured:
+- **Local Release simulator build SUCCEEDED** under Xcode 27 (`npx expo prebuild` → `pod install` with
+  `LANG=en_US.UTF-8` → `xcodebuild … -sdk iphonesimulator`, ~1 h; artifact
+  `/tmp/dd27/Build/Products/Release-iphonesimulator/app.app`). Installed on the iPhone 16 Pro sim
+  (iOS 18.3.1, UDID `E5591637-…`) and launched — login screen, screenshot in the session scratchpad.
+  The EAS cloud recipe in `docs/setup-new-machine.md` §3 still works and stays the fallback.
+- **Native Claude simulator tool still refuses** (「Xcode is installed but not selected」) even though
+  the selection is correct — its MCP server cached the check at session start. A fresh Claude Code
+  session should clear it; until then `xcrun simctl install/launch/io screenshot` is the door.
+- iOS 27 simulator runtime download failed twice (exit 70); not needed — 18.3.1 runs the app.
+- **Codex is quota-walled until 06:44 KST** (measured 02:00 via the plugin: 「You've hit your usage
+  limit … try again at 6:44 AM」) despite 「credits renewed」 — Sean's four Codex-app sessions share
+  the pool. ⚠ The plugin's `task` verb has no `--help`; `task --help` opens a real thread. A one-shot
+  cron (06:52) retries ONE astra-medium slice. Until then HIG fixes are Claude agents.
+
+**HIG conformance (Sean 2026-09-17: 「make sure the app ui is streamlined to ios」):**
+- `docs/design/hig-conformance-checklist.md` on trunk (`b1b8ba0`) — 99 rows from 61 HIG pages
+  (read from Apple's page JSON; the rendered site is empty JS), 8 tensions for Sean, 10 likely
+  violations. ⚠ #6 (runners unprimed for location) is refuted — `onboard/runner.tsx` primes inline.
+- Landed `9e702c2`: location primer button 「위치 사용 허용」→「계속」 (HIG names 허용 as the forbidden
+  word on a pre-alert screen) and `push.ts` reads permission status before asking, never re-asks.
+  Gates: tsc · checks · npm test exit 0, 989/0 (= trunk).
+- Queue `docs/decisions/awaiting-sean.md` §2026-09-17 items **8–15** (`7eb7506`): Dynamic Type
+  ruling, back-swipe, notification-ask placement, action sheets, `pageSheet` modals, `app.json`
+  iPad/icon/splash, the primer copy change (reversible in one word), tensions kept as-is.
+- In flight at time of writing, two Claude agents in their own worktrees: `hig/autofill` (AutoFill /
+  keyboard semantics on all 51 product `TextInput`s) and `hig/safearea` (device insets replace the
+  53 literal `paddingTop: 5x` status-bar clearances; `bottomnav` dock pads with `insets.bottom`).
+  Each lands only on green gates with the read-back chain; if this section is not followed by a
+  landing note, check `git branch -r | grep hig/` — an unlanded branch there is where they stopped.
+
+**Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
+Sean's four Codex worktrees: nothing pushed.
+
 ## 2026-09-17 01:2x — environment changed, trunk did not
 
 **macOS is now 27.0** (Sean upgraded) but **Xcode is still 16.2** — the iOS 18.3.1 simulator no longer
