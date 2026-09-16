@@ -73,6 +73,17 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
   of the island on every screen · dock above the home indicator · QuickType offers name/phone/address
   on 온보딩·안전 연락처·주소 추가 · 생일 still accepts hyphens.
 
+**03:1x — audit landed, two more Claude agents in flight (Codex still walled):**
+- `571017f` `docs/design/loading-state-audit.md` — all 59 routes read: F1 settled (46 routes name their
+  loading state; zero spinners is the house idiom, not a gap), **8 Tier-1 honesty defects** (a failed
+  roster read shows 「불러오는 중」 forever; shop/card-link/settings/my swallow failures into the happy
+  face; course/shot/cards render nothing while loading), **7 opacity-busy buttons**, 6 silent-catch
+  clusters (Tier 3, recorded, not fixed).
+- In flight: `hig/a11y` (VoiceOver names + roles on every icon-only control) and `hig/honesty` (Tier 1
+  #1–8 and the text-labelled Tier 2 buttons). Both avoid `runner/run.tsx`, `owner/radar.tsx`,
+  `owner/live.tsx` (reserved for the 06:52 Codex VoiceOver slice). If this note is not followed by a
+  landing line, `git branch -r | grep hig/` shows where they stopped.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
