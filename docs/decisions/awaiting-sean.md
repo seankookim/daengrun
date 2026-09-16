@@ -1516,7 +1516,8 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    `docs/reviews/2026-09-15-deploy-gate-0157-0161.prompt.md`) · ⓑ deploy now, unreviewed.
 2. **Harness diet letters** — `docs/decisions/2026-09-15-harness-diet-proposal.md` options A–E;
    recommendation A+B+C. Nothing is cut until you answer.
-3. **macOS upgrade (→ 15.6+ or 26), not just Xcode 26.** Measured 09-15: Xcode 26 cannot install on
+3. **Install Xcode 26 (macOS is now 27 — done 09-16/17), then `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.** Until then the iOS simulator does not boot (Xcode 16.2 runtime on macOS 27) and the native sim tool refuses. Original note kept below for provenance:
+   ~~**macOS upgrade (→ 15.6+ or 26), not just Xcode 26.**~~ Measured 09-15: Xcode 26 cannot install on
    macOS 14.6; the EAS CLOUD simulator build works and the app RUNS on the sim (screenshots only).
    To let Claude TAP the simulator, `idb-companion` (Meta) also requires Xcode 26 — so the OS
    upgrade unlocks both the local build and sim driving. Interim alternative, yours to grant: give

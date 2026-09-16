@@ -15,6 +15,20 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## 2026-09-17 01:2x — environment changed, trunk did not
+
+**macOS is now 27.0** (Sean upgraded) but **Xcode is still 16.2** — the iOS 18.3.1 simulator no longer
+finishes booting (stuck on the Apple logo across two attempts) and the native Claude simulator tool
+refuses with 「Xcode is installed but not selected」. Both resolve with **Xcode 26 from the App Store,
+then `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`** (sudo = Sean). That also
+unlocks the LOCAL simulator build (Expo 57 / Swift 6.2) and sim tapping — item 3 in the queue is now
+「install Xcode 26」, not 「upgrade macOS」.
+**Supabase login is present** (`supabase migration list --linked` answers): **production tip 0156;
+PENDING = exactly the fifteen on trunk (0157–0162, 0166–0174)** — measured 01:20, matches the record.
+Production table reads (`db query`) are blocked for Claude by the harness classifier; migration listing
+is not. Trunk `fd0f7d8`, unchanged since 09-15 13:02; Sean's four Codex worktrees unchanged, nothing
+pushed; the deploy is still his letter (queue item 1, recommendation ⓐ).
+
 ## ☀️ MORNING READ — 2026-09-15 overnight, everything below measured and read back from origin
 
 **Trunk `83ad0dc` (start of night: `1b9a41f`).** Landed while you slept, each re-gated on the
