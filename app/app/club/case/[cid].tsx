@@ -175,7 +175,13 @@ export default function CaseDetail() {
           <Row style={s.inputbar}>
             <TextInput value={note} onChangeText={setNote} placeholder="상황 기록 추가..." placeholderTextColor={L.dim}
               style={s.inputField} multiline />
-            <Pressable onPress={addNote} style={s.sendBtn}>
+            <Pressable
+              onPress={addNote}
+              style={s.sendBtn}
+              accessibilityRole="button"
+              accessibilityLabel="기록 추가"
+              accessibilityState={{ busy }}
+            >
               <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{busy ? '...' : '기록'}</Text>
             </Pressable>
           </Row>

@@ -1211,7 +1211,11 @@ export default function ClubSessionShell() {
               {/* [감사 P1] HOST 태그가 전화 칩 자리를 먹어 규칙 B가 열어준 호스트 번호가 안 보이던 것 — 함께 그린다 */}
               {p.isHost && <ClubTag label="HOST" tone="lilac" />}
               {p.phone ? (
-                <Pressable onPress={() => Linking.openURL(`tel:${p.phone!.replace(/[^0-9+]/g, '')}`).catch(() => {})}>
+                <Pressable
+                  onPress={() => Linking.openURL(`tel:${p.phone!.replace(/[^0-9+]/g, '')}`).catch(() => {})}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${p.name} 전화 걸기`}
+                >
                   <View style={s.phoneChip}><Text style={s.phoneChipTxt}>{p.phone}</Text></View>
                 </Pressable>
               ) : !p.isMe && !p.isHost ? (
@@ -1747,7 +1751,8 @@ export default function ClubSessionShell() {
             </LilacCard>
             {writable ? (
               <Row style={s.inputbar}>
-                <Pressable onPress={() => doSendPhoto({ audience: 'host_channel' })} style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
+                <Pressable onPress={() => doSendPhoto({ audience: 'host_channel' })} style={s.camChip}
+                  accessibilityRole="button" accessibilityLabel="사진 보내기"><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="호스트에게 문의..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft, { audience: 'host_channel' })} style={s.sendBtn}>
@@ -1807,7 +1812,8 @@ export default function ClubSessionShell() {
             </View>
             {writable ? (
               <Row style={s.inputbar}>
-                <Pressable onPress={() => doSendPhoto()} style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
+                <Pressable onPress={() => doSendPhoto()} style={s.camChip}
+                  accessibilityRole="button" accessibilityLabel="사진 보내기"><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft)} style={s.sendBtn}>
@@ -1823,7 +1829,8 @@ export default function ClubSessionShell() {
 
       {/* ---------- O5 — 결제 시트 (법적 문장의 자리) ---------- */}
       <Modal visible={!!payTarget} transparent animationType="slide" onRequestClose={() => setPayTarget(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setPayTarget(null)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setPayTarget(null)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.grab} />
           {/* 시트 머리에 있던 요금 숫자는 승낙서로 갔다 (재정 ④). 남는 것은 '무엇을 확정하는가'다 —
@@ -1873,7 +1880,8 @@ export default function ClubSessionShell() {
       <Modal visible={addSheet != null} transparent animationType="slide" onRequestClose={() => { if (!busy) setAddSheet(null); }}>
         {/* [codex r4] RPC가 날아가는 중에는 스크림/뒤로가기로 닫히지 않는다 — 닫혀도 요청은 계속되므로
             결과를 못 보여주는 화면만 남는다. */}
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { if (!busy) setAddSheet(null); }} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { if (!busy) setAddSheet(null); }}
+          accessibilityRole="button" accessibilityLabel="닫기" accessibilityState={{ disabled: busy }} />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
           <View style={s.grab} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이를 데려가나요?</Text>
@@ -1900,7 +1908,8 @@ export default function ClubSessionShell() {
       {/* No waiver text here: the '참여 전 확인' alert immediately before this sheet already took it.
           Repeating it would read as a second, different consent. */}
       <Modal visible={rsvpSheet != null} transparent animationType="slide" onRequestClose={() => setRsvpSheet(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setRsvpSheet(null)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setRsvpSheet(null)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
           <View style={s.grab} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이와 뛰나요?</Text>
@@ -1922,7 +1931,8 @@ export default function ClubSessionShell() {
       </Modal>
 
       <Modal visible={hostThread != null} transparent animationType="slide" onRequestClose={() => setHostThread(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={[s.sheet, { maxHeight: '75%' }]}>
           <View style={s.grab} />
           <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>
@@ -1936,6 +1946,8 @@ export default function ClubSessionShell() {
             <Row style={s.inputbar}>
               <Pressable
                 onPress={() => doSendPhoto({ audience: 'host_channel', recipient: isHostView && hostThread !== 'me' ? hostThread : undefined })}
+                accessibilityRole="button"
+                accessibilityLabel="사진 보내기"
                 style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
               <TextInput value={threadDraft} onChangeText={setThreadDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                 style={s.inputField} multiline />
@@ -1953,7 +1965,8 @@ export default function ClubSessionShell() {
 
       {/* ---------- 공용 사유 입력 시트 (Alert.prompt 대체 — iOS 전용 API의 안드로이드 죽은 버튼 해소) ---------- */}
       <Modal visible={!!askText} transparent animationType="slide" onRequestClose={() => setAskText(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAskText(null)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAskText(null)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.grab} />
           <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{askText?.title}</Text>

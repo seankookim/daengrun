@@ -127,11 +127,13 @@ export default function Safety() {
           </View>
         </Pressable>
         <Row style={{ gap: 10, marginTop: 10 }}>
-          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:112')}>
+          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:112')}
+            accessibilityRole="button" accessibilityLabel="112에 전화 걸기">
             <Icon name="Phone" glyph="●" size={14} color="#d84a2f" />
             <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>112</Text>
           </Pressable>
-          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:119')}>
+          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:119')}
+            accessibilityRole="button" accessibilityLabel="119에 전화 걸기">
             <Icon name="Phone" glyph="●" size={14} color="#d84a2f" />
             <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>119</Text>
           </Pressable>

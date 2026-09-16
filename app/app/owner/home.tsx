@@ -448,7 +448,8 @@ export default function OwnerHome() {
             </View>
             {/* [Sean 2026-08-11] 나이트 라일락 토글 제거 — mode는 영구 light.
                 벨은 테두리 없이 아이콘 + 미읽음 도트만: 40×40 타깃은 유지해 Fitts를 지킨다. */}
-            <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.bellBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+            <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.bellBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              accessibilityRole="button" accessibilityLabel="알림">
               {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호였다 */}
               {unread > 0 && <View style={s.bellDot} />}
               <Icon name="Bell" glyph="◔" size={20} color={lilac.head} />
@@ -722,6 +723,8 @@ export default function OwnerHome() {
                   key={`${m.bookingId}-${mi}`}
                   onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
                   style={[s.momentCard, mi === 0 && { width: 162 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${m.when} 러닝 리포트 보기`}
                 >
                   {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
                   <MediaImage source={m.url} style={{ width: '100%', height: '100%' }} />

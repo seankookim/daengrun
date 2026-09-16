@@ -158,7 +158,8 @@ function ClubSearchBar() {
           placeholderTextColor={lilac.dim} style={s.searchInput}
         />
         {q.length > 0 && (
-          <Pressable onPress={() => { setQ(''); setHits(null); }} hitSlop={8}>
+          <Pressable onPress={() => { setQ(''); setHits(null); }} hitSlop={8}
+            accessibilityRole="button" accessibilityLabel="검색어 지우기">
             <Text style={{ fontSize: 16, color: lilac.dim }}>✕</Text>
           </Pressable>
         )}

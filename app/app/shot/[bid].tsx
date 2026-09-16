@@ -1039,7 +1039,8 @@ export default function ShotStudio() {
 
       {/* ── 사진 시트 — 러너 사진 월 + 갤러리 폴백 ── */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.grab} />
           <Text style={[{ fontSize: 19, fontWeight: '900', color: paper.ink }, df]}>사진 고르기</Text>
@@ -1049,7 +1050,14 @@ export default function ShotStudio() {
           {runPhotos.length > 0 && (
             <View style={s.wallGrid}>
               {runPhotos.slice(0, 9).map((url) => (
-                <Pressable key={url} onPress={() => setPhotos((p) => ({ ...p, [sheetKey]: url }))} style={[s.wph, photos[sheetKey] === url && s.wphSel]}>
+                <Pressable
+                  key={url}
+                  onPress={() => setPhotos((p) => ({ ...p, [sheetKey]: url }))}
+                  style={[s.wph, photos[sheetKey] === url && s.wphSel]}
+                  accessibilityRole="imagebutton"
+                  accessibilityLabel="이 사진 고르기"
+                  accessibilityState={{ selected: photos[sheetKey] === url }}
+                >
                   <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} />
                   {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: paper.ink }}>✓</Text></View>}
                 </Pressable>

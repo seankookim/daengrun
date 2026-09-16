@@ -504,7 +504,8 @@ export default function Schedule() {
             </Text>
           </View>
           {/* ＋ = 백버튼 문법의 스퀘어 (40×40 · 캔버스 면 · 1px 코랄 · 잉크 글리프) */}
-          <Pressable onPress={() => router.push('/owner/request')} style={s.circleBtn}>
+          <Pressable onPress={() => router.push('/owner/request')} style={s.circleBtn}
+            accessibilityRole="button" accessibilityLabel="러닝 예약하기">
             <Text style={{ fontSize: 19.5, color: paper.ink }}>＋</Text>
           </Pressable>
         </Row>
@@ -640,7 +641,7 @@ export default function Schedule() {
 
       {/* ---------- booking management sheet ---------- */}
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={close}>
-        <Pressable style={s.backdrop} onPress={close} />
+        <Pressable style={s.backdrop} onPress={close} accessibilityRole="button" accessibilityLabel="닫기" />
         {selected && runner && (
           <View style={s.sheet}>
             <View style={s.handle} />

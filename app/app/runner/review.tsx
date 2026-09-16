@@ -169,7 +169,14 @@ export default function RunnerReview() {
         </Row>
         <Row style={{ gap: 10 }}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <Pressable key={n} onPress={() => setStars(n)} hitSlop={4}>
+            <Pressable
+              key={n}
+              onPress={() => setStars(n)}
+              hitSlop={4}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: n === stars }}
+              accessibilityLabel={`별점 ${n}점`}
+            >
               <Text style={[s.star, n <= stars && s.starOn]}>★</Text>
             </Pressable>
           ))}

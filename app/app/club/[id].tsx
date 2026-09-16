@@ -821,7 +821,8 @@ export default function ClubPage() {
 
       {/* ---------- 세션 개설 시트 (호스트, S1 프리셋 — 라일락 재도장) ---------- */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.5)' }} onPress={() => setSheetOpen(false)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.5)' }} onPress={() => setSheetOpen(false)}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         {/* ⚠ [2026-08-26 Sean] 이 시트는 스크롤이 없었고, 그래서 두 가지가 동시에 깨졌다:
             내용이 길어지면 백드롭(flex:1)이 0으로 눌려 시트가 노치 밑까지 올라가 제목이 잘렸고
             (「세션 열기」가 다이내믹 아일랜드에 겹쳐 렌더된 스크린샷), 화면을 넘긴 아래쪽 —

@@ -530,7 +530,7 @@ export default function RunnerHome() {
           <BrandMark height={24} />
           <Text style={[styles.wordmark, df]}>도그스하이</Text>
         </View>
-        <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
+        <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityRole="button" accessibilityLabel="알림">
           {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호다 */}
           {unread > 0 && <View style={styles.bellDot} />}
           <Icon name="Bell" glyph="◔" size={20} color={paper.ink} />
@@ -1331,7 +1331,7 @@ export default function RunnerHome() {
                 <Row key={j.bookingId} style={[styles.drow, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}>
                   <View style={{ alignSelf: 'center' }}>
                     {j.routeId && patchMap[j.routeId] ? (
-                      <Pressable onPress={() => router.push('/cards')}>
+                      <Pressable onPress={() => router.push('/cards')} accessibilityRole="button" accessibilityLabel="컬렉션 열기">
                         <PatchBadge km={patchMap[j.routeId].km} grade={patchMap[j.routeId].grade} size={34} />
                       </Pressable>
                     ) : (
