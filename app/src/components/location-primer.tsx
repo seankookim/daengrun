@@ -64,10 +64,13 @@ export function LocationPrimer({ role, onDone }: { role: PrimerRole; onDone: () 
         style={[s.cta, asking && s.ctaBusy]}
         accessibilityRole="button"
         accessibilityState={{ disabled: asking }}
-        accessibilityLabel="위치 사용 허용"
+        accessibilityLabel="계속"
       >
+        {/* 「계속」, never 「허용」: HIG (Privacy → pre-alert screens) — a custom screen whose button
+            says Allow makes the person think they already granted, then the real system alert asks
+            again. The system alert owns the word 허용. (HIG conformance row O4, 2026-09-17.) */}
         {/* busy = label swap, never an opacity trick (DESIGN.md button matrix) */}
-        <Text style={[s.ctaTxt, asking && s.ctaTxtBusy]}>{asking ? '확인 중...' : '위치 사용 허용'}</Text>
+        <Text style={[s.ctaTxt, asking && s.ctaTxtBusy]}>{asking ? '확인 중...' : '계속'}</Text>
       </Pressable>
     </View>
   );

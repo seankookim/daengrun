@@ -215,7 +215,15 @@ export async function registerPushToken(): Promise<void> {
         shouldPlaySound: true, shouldSetBadge: false,
       }),
     });
-    const { status } = await Notifications.requestPermissionsAsync();
+    // HIG (Notifications, Privacy): never re-ask. Read the current status first — a person who
+    // already granted is registered without a prompt, a person who already denied is not prompted
+    // again (iOS would refuse silently anyway, but the read makes the no-prompt path explicit and
+    // measurable), and only `undetermined` reaches the system alert. Row S1/O3, 2026-09-17.
+    const current = await Notifications.getPermissionsAsync();
+    let status: string = current?.status;
+    if (status !== 'granted' && current?.canAskAgain !== false) {
+      status = (await Notifications.requestPermissionsAsync())?.status;
+    }
     if (status !== 'granted') return;
     const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
