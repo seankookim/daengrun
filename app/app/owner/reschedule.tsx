@@ -235,7 +235,7 @@ export default function Reschedule() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* ── 고정 헤더 + 코랄 풀블리드 룰 ① (이 화면의 코랄 가로선은 여기와 도크 둘뿐) ── */}
-      <View style={s.head}>
+      <View style={[s.head, { paddingTop: insets.top }]}>
         <Row style={{ gap: 12 }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
@@ -452,7 +452,7 @@ export default function Reschedule() {
 }
 
 const s = StyleSheet.create({
-  head: { paddingTop: 56, paddingHorizontal: 15, paddingBottom: 12, backgroundColor: paper.canvas },
+  head: { paddingHorizontal: 15, paddingBottom: 12, backgroundColor: paper.canvas },
   // 40×40 스퀘어 백 버튼 — request.tsx circleBtn 문법 (이름만 서클, 실체는 스퀘어)
   backBtn: {
     width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',

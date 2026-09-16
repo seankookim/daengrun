@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
@@ -41,6 +42,7 @@ const nearestPaceOption = (sec: number | null): number => {
 };
 
 export default function DogProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { dogId } = useLocalSearchParams<{ dogId?: string }>();
   const [dogs, setDogs] = useState<DogProfile[]>([]);
   const [dog, setDog] = useState<DogProfile | null>(null);
@@ -239,7 +241,7 @@ export default function DogProfileScreen() {
             페이퍼 크롬: 흰 캔버스 · 40×40 스퀘어 백 버튼 · 풀블리드 코랄 헤어라인.
             칼라 컬러 링도 제거: 아바타는 사각인데 링만 radius 22라 뒤에서 삐져나와 겹쳐 보였다.
             링은 컬러 프리뷰였을 뿐이고, 아래 칼라 피커 자체가 이미 그 색을 보여준다 (정보 손실 0). */}
-        <View style={s.topBar}>
+        <View style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
@@ -441,7 +443,7 @@ export default function DogProfileScreen() {
       </ScrollView>
 
       {dog && (
-        <View style={s.saveBar}>
+        <View style={[s.saveBar, { paddingBottom: Math.max(insets.bottom, 30) }]}>
           {/* §3b primary. [Sean 2026-08-26 press behaviour] handed to PaperBtn so the 4px lip and
               the translateY(3) travel come from the one place that defines them. Same action
               fill, same 17/800 white, same busy label swap. */}
@@ -456,7 +458,7 @@ const s = StyleSheet.create({
   // 페이퍼 크롬 상단 — 풀블리드 코랄 헤어라인 + 40×40 스퀘어 백 (runner/meetup circleBtn 문법)
   topBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingTop: 56, paddingBottom: 12, paddingHorizontal: layout.gutter,
+    paddingBottom: 12, paddingHorizontal: layout.gutter,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   topTitle: { fontSize: 20, fontWeight: '800', color: paper.ink },
@@ -502,6 +504,6 @@ const s = StyleSheet.create({
   paceChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
-    paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,
+    paddingHorizontal: layout.gutter, paddingTop: 10, borderTopWidth: 1, borderTopColor: paper.line,
   },
 });

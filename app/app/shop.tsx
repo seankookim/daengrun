@@ -3,6 +3,7 @@ import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { TabSwipe } from '../src/components/tabswipe';
 import { Row } from '../src/components/ui';
@@ -32,6 +33,7 @@ import { colors, paper } from '../src/theme';
 const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
 export default function Shop() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const nf = useNumFont(); // [V4] 포인트 잔액 = Oswald
   const [miles, setMiles] = useState<MilesInfo | null>(null);
@@ -58,7 +60,7 @@ export default function Shop() {
       <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 56 }}
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>

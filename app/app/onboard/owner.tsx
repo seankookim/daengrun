@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { LocationPrimer, shouldShowPrimer } from '../../src/components/location-primer';
 import { addAddress, addDog, fetchAddresses, updateMyDog } from '../../src/lib/api';
@@ -49,6 +50,7 @@ type Hint =
 type Pin = 'unknown' | 'pinned' | 'unpinned' | 'error';
 
 export default function OnboardOwner() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const [dogName, setDogName] = useState('');
   const [addr, setAddr] = useState('');
@@ -182,7 +184,7 @@ export default function OnboardOwner() {
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[s.body, { paddingTop: insets.top + 22 }]} keyboardShouldPersistTaps="handled">
         {/* Escape hatch. index.tsx pushes (never replaces) into onboarding precisely so this can
             exist: the root stack has no header and no back-swipe, so a runner who mistapped
             보호자예요 previously had no in-app way out. Rendered only when there IS somewhere to go
@@ -273,7 +275,7 @@ export default function OnboardOwner() {
         )}
       </ScrollView>
 
-      <View style={s.ctaBar}>
+      <View style={[s.ctaBar, { paddingBottom: Math.max(insets.bottom, 30) }]}>
         {err != null && (
           <Pressable onPress={retry} style={s.failStrip} accessibilityRole="button" accessibilityLabel="저장 다시 시도">
             <Text style={s.failTxt}>저장하지 못했어요 — {err}</Text>
@@ -306,7 +308,7 @@ export default function OnboardOwner() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
-  body: { paddingHorizontal: layout.gutter, paddingTop: 78, paddingBottom: 190 },
+  body: { paddingHorizontal: layout.gutter, paddingBottom: 190 },
   back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
   backTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
   step: { fontSize: 15, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
@@ -330,7 +332,7 @@ const s = StyleSheet.create({
   quietLink: { color: paper.ink, fontWeight: '800' },
   ctaBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
-    paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30,
+    paddingHorizontal: layout.gutter, paddingTop: 10,
     borderTopWidth: 1, borderTopColor: paper.line,
   },
   later: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 2 },

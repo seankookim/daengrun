@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
@@ -275,6 +276,7 @@ const availSummary = (rules: AvailRule[]): string => {
 };
 
 export default function Requests() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — screen title (1/screen budget)
   const nf = useNumFont();     // Oswald — request times, payouts
   const [live, setLive] = useState<OpenRequest[]>([]);
@@ -598,7 +600,7 @@ export default function Requests() {
       <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 4, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>

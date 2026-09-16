@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
@@ -80,6 +81,7 @@ const relWhen = (iso: string | null): string | null => {
 };
 
 export default function RunnerCalendar() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — screen title only (1/screen budget)
   const nf = useNumFont();     // Oswald — flap digits, ticket times, payouts
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
@@ -253,7 +255,7 @@ export default function RunnerCalendar() {
       <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 4, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>

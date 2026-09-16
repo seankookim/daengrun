@@ -2,6 +2,7 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { Icon, Row } from '../src/components/ui';
 import {
@@ -22,6 +23,7 @@ import { colors, paper } from '../src/theme';
 // 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 
 export default function Safety() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [adding, setAdding] = useState(false);
   const [cName, setCName] = useState('');
@@ -96,7 +98,7 @@ export default function Safety() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 24 }}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Pressable onPress={goBackOrHome} style={[s.bell, { marginRight: 12 }]} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>

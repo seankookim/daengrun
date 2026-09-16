@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../src/components/ui';
 import { fetchRunReport, RunReport } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -36,6 +37,7 @@ const STAR_WORD: Record<number, string> = {
 };
 
 export default function RunnerReview() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 이 화면의 유일한 사용처는 제목이다 (§3b)
   // 마운트 시점의 예약 id를 고정 — 제출 실패 시에도 이 값은 살아 있어야 재시도가 된다
   const [bookingId] = useState<string | null>(runResult.bookingId);
@@ -100,7 +102,7 @@ export default function RunnerReview() {
   if (!bookingId) {
     return (
       <View style={s.root}>
-        <View style={s.head}>
+        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
           <Text style={[s.title, df]}>리뷰를 남길 예약을 찾지 못했어요</Text>
           <Text style={s.helper}>러닝을 마치면 이 화면이 다시 열려요</Text>
         </View>
@@ -129,7 +131,7 @@ export default function RunnerReview() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={s.head}>
+      <View style={[s.head, { paddingTop: insets.top + 4 }]}>
         <Text style={[s.title, df]}>오늘 러닝 어땠나요?</Text>
         <Text style={s.helper}>러너의 리뷰가 다음 러너를 지켜요</Text>
       </View>
@@ -242,7 +244,7 @@ const s = StyleSheet.create({
   // 풀블리드 — 사이드 마진 0, 섹션은 코랄 헤어라인이 화면 끝까지 그어 나눈다
   root: { flex: 1, backgroundColor: paper.canvas },
   rule: { height: 1, backgroundColor: paper.line, alignSelf: 'stretch' },
-  head: { paddingHorizontal: 18, paddingTop: 60, paddingBottom: 20 },
+  head: { paddingHorizontal: 18, paddingBottom: 20 },
   // ⑪(a) §3b 화면 제목 규격: 30/900 · lineHeight 37 (1.23×) · Black Han Sans.
   // 라틴 키커 REVIEW는 은퇴 — §3b가 앱 전체에서 내린 장식이다. [BUG A]는 Black Han Sans에도
   // 적용되므로 lineHeight는 명시값이다.

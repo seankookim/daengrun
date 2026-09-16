@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import {
@@ -64,6 +65,7 @@ const verifyFailMessage = (m: string): string =>
   : m;
 
 export default function IncidentScreen() {
+  const insets = useSafeAreaInsets();
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const [ctx, setCtx] = useState<IncidentRunContext | null>(null);
   const [inc, setInc] = useState<OpenIncident | null>(null);
@@ -249,7 +251,7 @@ export default function IncidentScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* §2 종이 크롬 — 헤더는 거터 밖에 서서 코랄 헤어라인이 화면 끝까지 간다 */}
-        <Row style={s.topBar}>
+        <Row style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
@@ -280,7 +282,7 @@ function StampRow({ label, done }: { label: string; done: boolean }) {
 
 const s = StyleSheet.create({
   topBar: {
-    justifyContent: 'space-between', paddingTop: 56, paddingBottom: 12, paddingHorizontal: 15,
+    justifyContent: 'space-between', paddingBottom: 12, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   backBtn: {

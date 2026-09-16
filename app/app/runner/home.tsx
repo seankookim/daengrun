@@ -3,6 +3,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Avatar } from '../../src/components/ui';
 import { BrandMark } from '../../src/components/brandmark';
@@ -224,6 +225,7 @@ function SectionHead({ title, link, onPress }: { title: string; link?: string; o
 }
 
 export default function RunnerHome() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 (빕 네임)
   const nf = useNumFont();     // 숫자 서체 — Oswald tabular
   const [inbox, setInbox] = useState<OpenRequest[]>([]);
@@ -519,7 +521,7 @@ export default function RunnerHome() {
           DESIGN.md §3 예산은 화면당 1회이므로 이건 초과다 — 로고 예외(§3 :112)는 14pt 하한에
           관한 것이지 이 예산에 관한 것이 아니다. Sean의 "같은 로고를 러너에도"가 명시적 지시라
           그대로 넣되, 둘 중 무엇이 df를 양보할지는 그의 판단으로 남긴다. 조용히 고르지 않는다. */}
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: insets.top }]}>
         {/* 좌측 스페이서 = 벨 폭. 벨을 absolute로 빼면 행에서 빠져 높이가 콘텐츠(24pt 마크)로
             주저앉고, 로고가 다이내믹 아일랜드 위로 올라탄다 — 시뮬레이터에서 실제로 그렇게 됐다.
             대칭 스페이서는 벨을 흐름에 남겨 40pt 행 높이를 지키면서 로고를 화면 정중앙에 놓는다. */}
@@ -1464,7 +1466,7 @@ const styles = StyleSheet.create({
     // [2026-08-20] 가운데 로고 — 좌 스페이서(40) · 로고(flex 1, 가운데) · 벨(40)의 대칭 3열.
     // 거터는 그대로 두 끝에 남고, 양쪽 40이 같으므로 로고는 화면 정중앙에 온다.
     flexDirection: 'row', alignItems: 'center',
-    paddingTop: 48, paddingBottom: 9, paddingHorizontal: layout.gutter,
+    paddingBottom: 9, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   topSpacer: { width: 40 },

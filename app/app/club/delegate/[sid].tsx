@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClubMast, ClubTag, DawnCanvas, SealSlide, clubText } from '../../../src/components/club-ui';
 import {
   DelegationBoard, DelegationConsent, DogProfile, delegateDog, fetchDelegationBoard, fetchMyDogs,
@@ -29,6 +30,7 @@ const INK = '#26231b';
 const VET_DEFAULT = 200000; // club_config vet_limit_krw 기본값 — 서버가 최종 판정
 
 export default function DelegateConsentScreen() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont();
   const { sid, clubName, when } = useLocalSearchParams<{ sid: string; clubName?: string; when?: string }>();
   const { width } = useWindowDimensions();
@@ -109,7 +111,7 @@ export default function DelegateConsentScreen() {
 
   return (
     <DawnCanvas>
-      <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 44 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 12, paddingTop: insets.top, paddingBottom: 44 }} keyboardShouldPersistTaps="handled">
         <ClubMast title={`${dog?.name ?? '우리 아이'} 위탁 신청`} sub={(clubName || 'HIGH CLUB') + (when ? ` · ${when}` : '')} onBack={goBackOrHome} />
 
         {/* ---------- 종이 서식 ---------- */}

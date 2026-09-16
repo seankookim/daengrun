@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
@@ -70,6 +71,7 @@ const paceStr = (sec: number, km: number) => {
 const realName = (n: string | null | undefined) => (n && n !== '반려견' ? n : null);
 
 export default function RunDone() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — the run headline (1/screen budget)
   const nf = useNumFont();     // Oswald — the three run numbers + the payout
   const [dogName, setDogName] = useState<string | null>(() => realName(runResult.dogName));
@@ -179,7 +181,7 @@ export default function RunDone() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: paper.canvas }}
-      contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 70, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 14, paddingBottom: 40 }}
     >
       {/* ══════ ① 실측 경로 — dark plate (HeatTrace is built for a dark face) ══════ */}
       {traceLoading && (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
@@ -58,6 +59,7 @@ const DEFAULT_DAY: DayState = { enabled: false, startMin: 360, endMin: 1320 };
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 export default function Availability() {
+  const insets = useSafeAreaInsets();
   const nf = useNumFont(); // Oswald — stepper time values
   const [days, setDays] = useState<DayState[]>(Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY })));
   const [loaded, setLoaded] = useState(false);
@@ -219,7 +221,7 @@ export default function Availability() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 56, paddingBottom: 120 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 120 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
@@ -426,7 +428,7 @@ export default function Availability() {
       {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill.
           Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
       {loaded && (
-        <View style={s.saveBar}>
+        <View style={[s.saveBar, { paddingBottom: Math.max(insets.bottom, 30) }]}>
           {/* [D②] 저장 전 한 줄. 바뀐 게 없으면(그리고 저장됨 ✓ 상태면) 그리지 않는다 — 30분
               클램프에 걸려 값이 제자리인 조작도 dirty를 세우므로, 절이 0개인 dirty가 실제로 있다.
               그때 「바뀌는 것 · 」만 남기면 없는 변경을 있다고 말하는 셈이다. */}
@@ -521,7 +523,7 @@ const s = StyleSheet.create({
   applyOff: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
-    paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30,
+    paddingHorizontal: layout.gutter, paddingTop: 10,
     borderTopWidth: 1, borderTopColor: paper.line,
   },
 });

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -32,6 +33,7 @@ import { colors, paper } from '../../src/theme';
 const TAGS = ['시간 약속 철저', '사진 잘 찍어줘요', '소통이 빨라요', '아이를 잘 다뤄요', '페이스 조절 굿', '또 부르고 싶어요'];
 
 export default function OwnerReview() {
+  const insets = useSafeAreaInsets();
   const { bid, rid, rname, stars: starsParam } = useLocalSearchParams<{ bid: string; rid: string; rname?: string; stars?: string }>();
   // The report's star row is an AFFORDANCE, not a submission — it carries the star the owner
   // tapped over here and pre-selects it. Nothing is written until 후기 등록. The param is a URL
@@ -83,7 +85,7 @@ export default function OwnerReview() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* §2 종이 크롬 — 헤더는 거터 밖에 서서 코랄 헤어라인이 화면 끝까지 간다 (사이드 마진 금지) */}
-        <Row style={s.topBar}>
+        <Row style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
@@ -177,7 +179,7 @@ export default function OwnerReview() {
 const s = StyleSheet.create({
   // 페이퍼 크롬 상단 — 풀블리드 코랄 헤어라인 + 40×40 스퀘어 백 (report/dog 와 같은 문법)
   topBar: {
-    justifyContent: 'space-between', paddingTop: 56, paddingBottom: 12, paddingHorizontal: 15,
+    justifyContent: 'space-between', paddingBottom: 12, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   backBtn: {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -34,6 +35,7 @@ const STEP_FAIL: Record<Step, string> = {
 };
 
 export default function ProfileEdit() {
+  const insets = useSafeAreaInsets();
   // 'loading' / 'error' / 실데이터 — 세 상태를 서로 다르게 그린다 (로딩은 빈 값이 아니다)
   const [loaded, setLoaded] = useState<MyProfile | null>(null);
   const [loadErr, setLoadErr] = useState(false);
@@ -119,7 +121,7 @@ export default function ProfileEdit() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Row style={s.topBar}>
+        <Row style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 21, color: paper.ink }}>‹</Text>
           </Pressable>
@@ -234,7 +236,7 @@ function Field({
 
 const s = StyleSheet.create({
   // 페이퍼 월드 — 흰 캔버스 · 솔리드 코랄 헤어라인 · 샤프 코너
-  topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56, paddingBottom: 12 },
+  topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   topName: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: paper.ink },
   list: { borderTopWidth: 1, borderTopColor: paper.line },

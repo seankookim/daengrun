@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
@@ -58,6 +59,7 @@ function availabilitySummary(rules: RunnerPublicProfile['availability']): string
 }
 
 export default function RunnerProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const nf = useNumFont(); // Oswald — 카운트 숫자 (lineHeight는 스타일에서 명시, ≥1.2× BUG A)
   const [p, setP] = useState<RunnerPublicProfile | null>(null);
@@ -294,7 +296,7 @@ export default function RunnerProfileScreen() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
         {/* ---------- ① 아이디 바 — 인스타의 상단은 이름이 아니라 **계정 아이디**다 ---------- */}
-        <Row style={s.topBar}>
+        <Row style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 21, color: paper.ink }}>‹</Text>
           </Pressable>
@@ -692,7 +694,7 @@ export default function RunnerProfileScreen() {
 
       {/* ---------- 슬롯 확인 바 — 결제 바와 같은 확인 패턴 ---------- */}
       {selected && p && canBook && (
-        <Animated.View style={[s.confirmBar, { transform: [{ translateY: barY }] }]}>
+        <Animated.View style={[s.confirmBar, { paddingBottom: Math.max(insets.bottom, 30), transform: [{ translateY: barY }] }]}>
           <View style={{ flex: 1 }}>
             {/* ⚠ [2026-08-27] KST 로 읽는다. start 는 위에서 kstInstant 로 **옳게** 지어졌는데 이 줄만
                 기기 로컬 getter 로 되읽고 있었다 — 예약은 맞고 확인 바의 라벨만 틀리는 모양이라,
@@ -736,7 +738,7 @@ function Stat({ nf, value, label }: { nf: TextStyle | null; value: string; label
 
 const s = StyleSheet.create({
   // ── 페이퍼 월드: 흰 캔버스 · 솔리드 코랄 헤어라인 · 샤프 코너 (DESIGN.md §2/§4) ──
-  topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56, paddingBottom: 12 },
+  topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   topName: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: paper.ink },
   headBlock: { paddingHorizontal: 15, paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
@@ -804,7 +806,7 @@ const s = StyleSheet.create({
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: paper.ink, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 30,
+    backgroundColor: paper.ink, paddingHorizontal: 15, paddingTop: 14,
   },
   confirmBtn: { backgroundColor: paper.action, paddingVertical: 13, paddingHorizontal: 16 },
   emptyBox: { margin: 20, padding: 26, alignItems: 'center' },

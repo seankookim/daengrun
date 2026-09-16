@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
@@ -92,6 +93,7 @@ function kstDay(iso: string): string | null {
 }
 
 export default function Apply() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display face — screen title, once
   const nf = useNumFont();     // Oswald — numerals / latin kickers (explicit lineHeight required, BUG A)
 
@@ -295,7 +297,7 @@ export default function Apply() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 58, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 2, paddingBottom: 40 }}>
 
         {/* ————— 마스트헤드 ————— */}
         <Row style={{ gap: 10 }}>

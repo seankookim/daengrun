@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../src/components/paper-btn';
 import { Row } from '../src/components/ui';
 import { createFreePost, fetchMyBookings, fetchMySharedBookingIds, fetchRunnerJobs, shareRunToFeed } from '../src/lib/api';
@@ -37,6 +38,7 @@ interface Cand {
 }
 
 export default function Compose() {
+  const insets = useSafeAreaInsets();
   const nf = useNumFont();
   const [cands, setCands] = useState<Cand[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -135,7 +137,7 @@ export default function Compose() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: paper.canvas }}
-      contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
       <Row style={{ justifyContent: 'space-between' }}>

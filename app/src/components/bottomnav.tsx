@@ -1,5 +1,6 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { session } from '../store';
 import { paper } from '../theme';
 import { Icon } from './ui';
@@ -64,6 +65,7 @@ export function tabNeighbors(pathname: string): [string | null, string | null] {
 }
 
 export function BottomNav({ dark }: { dark?: boolean }) {
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
   // 다크(나이트 클럽) 변형은 아티팩트 — 기존 바이올렛 액티브 유지. 라이트 = 페이퍼: ink/dim.
@@ -72,7 +74,7 @@ export function BottomNav({ dark }: { dark?: boolean }) {
   const indColor = dark ? '#6C5CE7' : paper.line;
 
   return (
-    <View style={[s.bar, dark && s.barDark]}>
+    <View style={[s.bar, dark && s.barDark, { paddingBottom: Math.max(insets.bottom, 22) }]}>
       {tabs.map((t) => {
         const active = t.path === pathname;
         return (
@@ -99,7 +101,7 @@ const s = StyleSheet.create({
   bar: {
     // 톱 헤어라인 = 솔리드 코랄 1px 풀블리드 (페이퍼 섹션 법의 도크 적용) · 순백 면
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: paper.line,
-    backgroundColor: paper.canvas, paddingBottom: 22,
+    backgroundColor: paper.canvas,
   },
   barDark: { backgroundColor: '#1C1837', borderTopColor: '#2A2350' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 18 },

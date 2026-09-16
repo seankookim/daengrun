@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import { addAddress, Addr, deleteAddress, fetchAddresses, setDefaultAddress, updateAddressDetail } from '../../src/lib/api';
@@ -44,6 +45,7 @@ type VerifyState =
   | { kind: 'unavailable' };
 
 export default function Addresses() {
+  const insets = useSafeAreaInsets();
   const [list, setList] = useState<Addr[]>([]);
   // [honesty 2026-08-11] loading ≠ 0 ≠ empty: a failed load used to render
   // "등록된 주소가 없어요" (and the list showed the same in flight). Three states now.
@@ -131,7 +133,7 @@ export default function Addresses() {
     router.push({ pathname: '/owner/address-pin', params: { id: a.id } });
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: paper.canvas }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: paper.canvas }} contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>

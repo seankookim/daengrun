@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { markRolePicked, useAuth } from '../src/auth-context';
 import { ensureRunner } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
@@ -12,6 +13,7 @@ type Role = 'owner' | 'runner';
 // 순백/코랄 1호 화면 (2026-08-06) — 볼트 월드 은퇴 시작점.
 // Sean 지시: 풀스크린·풀블리드 큰 버튼 둘뿐 — 보호자 위, 러너 아래. 탭 한 번 = 역할 확정 + 시작.
 export default function RoleSelect() {
+  const insets = useSafeAreaInsets();
   const { session: auth, loading } = useAuth();
   const [busy, setBusy] = useState<Role | null>(null);
 
@@ -140,7 +142,7 @@ export default function RoleSelect() {
       <Text
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={s.brand}
+        style={[s.brand, { paddingTop: insets.top + 8 }]}
       >도그스하이 · DOGS HIGH</Text>
 
       <Pressable
@@ -178,7 +180,7 @@ const s = StyleSheet.create({
   // 풀블리드 — 사이드 마진 0, 코랄 라인이 화면 끝까지
   root: { flex: 1, backgroundColor: paper.canvas },
   brand: {
-    paddingTop: 64, paddingBottom: 14, textAlign: 'center',
+    paddingBottom: 14, textAlign: 'center',
     fontSize: 12, letterSpacing: 3, color: paper.faint, // 장식 클래스 (15pt 플로어 면제 유일 지점)
   },
   half: { flex: 1, justifyContent: 'center', paddingHorizontal: 26 },
