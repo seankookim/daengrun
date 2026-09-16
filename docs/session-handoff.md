@@ -180,6 +180,20 @@ slice → **0177 / 208**, b6's open_drop_tx → **0176 / 207**, Sean's stay as t
 of the check: `ls .claude/worktrees/*/supabase/migrations | grep -E '^01'` (and tests) before
 claiming.
 
+**06:5x — `f6ed478` edge slice LANDED** (combined tree: deno **312/0** = 292 + exactly the 20 tests
+added · tsc · check-rpc): malformed bodies are `400 bad_body` in all six functions (M1); open-drop
+validates before the consuming CAS (M3) and reports only rewards it actually wrote — a partial write
+returns `{applied, failed, error:<Korean>}` so the existing client shows 「오픈 실패」 instead of a
+happy receipt (H1; H2 `open_drop_tx` is b6's 0176); `notify()` logs its error (M2); the three
+payments bookkeeping writes and the account-deletion row bind their errors, a lost
+`needs_manual_cancel` marker pages ops as a new `payment_marker_lost` class (M8); 10 s ceiling on
+`invokeTransition` (M9); revoke-billing-keys `continue`s past a report failure, lease untouched (M6);
+paymentKeys logged as last-6 (L2); `internalError(e, code)` at the 14 raw-Postgres sites (L1);
+open-drop split into handler+index with its own suite (L5). Four shipped register-billing-key pins
+were rewritten to assert `err.code === "billing_key_swap"` instead of raw SQL text — deliberate,
+reverting `:472` reddens all four. ⚠ **Edge functions are NOT deployed** — `functions deploy` waits
+for the same letter as `db push` (they assume 0157+ semantics). Codex still owes a verdict.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
