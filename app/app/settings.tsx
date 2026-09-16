@@ -55,9 +55,19 @@ export default function Settings() {
   // 잠금 해제 시각 (0123 §4b). 서버가 준 결과값이고, 여기서는 한 줄 덧붙이는 데만 쓴다.
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchMyProfile().then(setProfile).catch(() => {});
+  // [honesty 2026-09-17] The profile read was `.catch(() => {})`, so the 이름 row printed '—'
+  // identically while the read was in flight and after it had failed. '—' now means LOADING
+  // only; a failure gets a strip with a retry, and 계정 is the one card on this screen whose
+  // rows are server truth rather than local state.
+  const [profileErr, setProfileErr] = useState(false);
+  const loadProfile = useCallback(() => {
+    setProfileErr(false);
+    fetchMyProfile().then(setProfile).catch((e) => {
+      console.warn('[settings] profile:', (e as Error)?.message ?? e);
+      setProfileErr(true);
+    });
   }, []);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
   // 화면에 돌아올 때마다 다시 읽는다 — 핀 화면에서 저장/삭제하고 back으로 오면 이 줄이 낡는다.
   useFocusEffect(
@@ -95,6 +105,20 @@ export default function Settings() {
         <View style={s.div} />
         <InfoRow label="현재 모드" value={session.role === 'runner' ? '러너' : '보호자'} />
       </View>
+
+      {/* 이메일·현재 모드는 로컬에서 오고 이름만 서버에서 온다 — 그래서 실패는 카드 밖 한 줄이다. */}
+      {profileErr && (
+        <View style={s.failStrip}>
+          <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical }}>
+            내 정보를 불러오지 못했어요
+          </Text>
+          <Pressable onPress={loadProfile} accessibilityRole="button" style={s.retryBtn}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+              다시 시도
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* 실동작 */}
       <View style={[s.card, { marginTop: 10 }]}>
@@ -232,4 +256,7 @@ const s = StyleSheet.create({
   // 15pt 플로어 + paper.dim(5.7:1) — 디테일 텍스트 법 (theme.ts)
   actionHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 3 },
   baseValue: { fontSize: 15.5, fontWeight: '700', color: paper.ink },
+  // loud-fail strip — criticalWash ground, critical ink, underlined retry ≥44pt (house grammar)
+  failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13, marginTop: 10 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
 });

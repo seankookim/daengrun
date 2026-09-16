@@ -126,12 +126,29 @@ export default function ClubSessionShell() {
   // What the screen reads is the roster of the session it is CURRENTLY showing, or nothing.
   // This also covers the window before the new session's response arrives — never a stranger's list.
   const roster = rosterOf && rosterOf.sid === sid ? rosterOf.data : null;
+  // [honesty 2026-09-17] A failed roster read left `roster` null, and renderRoster's null branch
+  // prints 명단을 불러오는 중... — so a failure wore the LOADING face, forever, with no retry.
+  // Same three-state split the board already has (boardFailed, ~55 lines down), and tagged by
+  // sid exactly like rosterOf so a dead session's failure never lands on the screen now showing.
+  const [rosterFailOf, setRosterFailOf] = useState<string | null>(null);
+  const rosterFailed = rosterFailOf != null && rosterFailOf === sid;
   const applyRoster = useCallback((forSid: string, seq: number, r: SessionRoster) => {
     if (forSid !== sid) return;                // another session's response — comparing seq is meaningless
     const last = rosterApplied.current;
     if (last.sid === forSid && seq < last.seq) return;   // stale response
     rosterApplied.current = { sid: forSid, seq };
+    setRosterFailOf(null);
     setRosterOf({ sid: forSid, data: r });
+  }, [sid]);
+  // The failure arm carries the SAME sid and seq guards as the success arm — a late failure from
+  // a superseded request must not redden a roster that has already arrived.
+  const failRoster = useCallback((forSid: string, seq: number, e: unknown) => {
+    if (forSid !== sid) return;
+    const last = rosterApplied.current;
+    if (last.sid === forSid && seq < last.seq) return;
+    rosterApplied.current = { sid: forSid, seq };
+    console.warn('[roster]', (e as Error)?.message ?? e);
+    setRosterFailOf(forSid);
   }, [sid]);
   // [codex r3] 시트 자체가 락이다. 라운드 2는 Alert 사슬(승낙서→조회→피커) 위에 ref 락을 얹었는데,
   // 코덱스가 릴리스되지 않는 경로를 넷 찾았다(조회 실패 · 다견 '닫기' · 무견 두 버튼 · 백그라운드).
@@ -157,6 +174,9 @@ export default function ClubSessionShell() {
   // ⚠ 라운드 3의 addedLocally는 이걸 로컬 플래그로 대신했는데, 그건 경합을 거짓말과 맞바꾼 것이었다:
   //   CTA는 사라지지만 견 목록은 그대로라, 방금 넣은 아이가 없는 화면을 사실처럼 보여줬다.
   const [rosterNonce, setRosterNonce] = useState(0);
+  // Retry for the roster fail strip: clear the flag so the loading sentence is honest again, then
+  // bump the nonce the fetching effect depends on. Nothing else re-issues that read on demand.
+  const retryRoster = useCallback(() => { setRosterFailOf(null); setRosterNonce((n) => n + 1); }, []);
   // ---------- 집 반환 길찾기 (0129가 연 반환 창) ----------
   // 서버는 이미 다 있었다: `booking_pickup_address`가 0129에서 클럽 반환 창을 여섯 conjunct로 열고
   // (이 부킹의 클럽 세션 · 위탁견 · return_mode='owner_home' · 미해소 · 보호자가 집에 왔다고 하지
@@ -248,7 +268,7 @@ export default function ClubSessionShell() {
       // [review #4] A new sid restarts the count — responses from different sessions are never ordered against each other.
       if (rosterIssued.current.sid !== sid) rosterIssued.current = { sid, seq: 0 };
       const rseq = ++rosterIssued.current.seq;
-      fetchSessionRoster(sid).then((r) => applyRoster(sid, rseq, r)).catch(() => {});
+      fetchSessionRoster(sid).then((r) => applyRoster(sid, rseq, r)).catch((e) => failRoster(sid, rseq, e));
     }
     // 보드는 로스터와 게이트가 다르므로 access 조건에 걸리지 않는다 — 탭이 열리면 부른다.
     // 실패는 '빈 보드'가 아니다: null=로딩 · failed=던졌다 · []=서버가 정말 0행을 줬다.
@@ -260,7 +280,7 @@ export default function ClubSessionShell() {
         .then((rows) => { setBoardRows(rows); setBoardFailed(false); })
         .catch((e) => { console.warn('[board]', (e as Error)?.message ?? e); setBoardFailed(true); });
     }
-  }, [tab, access, sid, board?.me.committed, rosterNonce, applyRoster]);
+  }, [tab, access, sid, board?.me.committed, rosterNonce, applyRoster, failRoster]);
 
   // 반환 대기 중이고 내가 지금 데리고 있는 건에 대해서만 주소를 한 번 물어본다.
   useEffect(() => {
@@ -1184,12 +1204,35 @@ export default function ClubSessionShell() {
     // [감사 P1] 거절·철회된 신청자도 limited로 남는다 — 사람 명단은 host/full에게만.
     // none/limited 폴백은 인원수까지만 (실명·강아지 이름을 클라이언트가 그리지 않는다).
     if (access === 'none' || access === 'limited' || !roster) {
+      // The count line is real (it comes from `sess`), so it stays in every arm. What splits is
+      // the sentence under it: a permission answer · a FAILURE · or genuine loading. Before
+      // 2026-09-17 the last two were one sentence, and the failure never stopped saying 중....
+      const gated = access === 'none' || access === 'limited';
       return (
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <Text style={{ fontSize: 15, color: L.text }}>참가 {peopleCount}팀 · 정원 {sess.capacity}</Text>
-          <Text style={{ fontSize: 15, color: L.dim, marginTop: 6 }}>
-            {access === 'limited' ? '자리를 확정하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
-          </Text>
+          {gated ? (
+            <Text style={{ fontSize: 15, color: L.dim, marginTop: 6 }}>
+              {access === 'limited' ? '자리를 확정하면 참가자 명단이 열려요' : '세션 참가자만 볼 수 있어요'}
+            </Text>
+          ) : rosterFailed ? (
+            <>
+              <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '700', color: L.tang, marginTop: 6 }}>
+                명단을 불러오지 못했어요
+              </Text>
+              <Pressable
+                onPress={retryRoster}
+                accessibilityRole="button"
+                style={{ minHeight: 44, justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: L.head, textDecorationLine: 'underline' }}>
+                  다시 시도
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={{ fontSize: 15, color: L.dim, marginTop: 6 }}>명단을 불러오는 중...</Text>
+          )}
         </View>
       );
     }

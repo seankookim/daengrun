@@ -192,18 +192,26 @@ export default function CourseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const df = useDisplayFont();
   const [route, setRoute] = useState<RouteInfo | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  // [honesty 2026-09-17] `retry` rides with the message because the two dead ends are different
+  // facts: 「없는 코스」 is settled and a retry button on it would be a dead button, while a failed
+  // READ is exactly the case where trying again is the right door. Both now also get an exit —
+  // the box used to be terminal, with the back arrow the only way out and nothing saying so.
+  const [err, setErr] = useState<{ msg: string; retry: boolean } | null>(null);
 
-  useEffect(() => {
-    if (!id) { setErr('코스 정보가 없어요'); return; }
+  const load = useCallback(() => {
+    if (!id) { setErr({ msg: '코스 정보가 없어요', retry: false }); return; }
+    setErr(null);
     // fetchRouteById — 디스커버리 목록에서 find하지 않는다. 그러면 예약된 candidate가 다른
     // 코스의 활성화와 동시에 브리핑 페이지를 잃고, 정지된 코스는 어제 예약해 놓고도 '찾을 수
     // 없음'으로 뜬다. 없는 코스(null)와 불러오기 실패(throw)는 다른 사실이라 분기도 다르다.
     fetchRouteById(id)
-      .then((r) => { if (r) setRoute(r); else setErr('코스를 찾을 수 없어요'); })
-      .catch((e) => setErr(e?.message ?? '불러오기 실패'));
+      .then((r) => { if (r) setRoute(r); else setErr({ msg: '코스를 찾을 수 없어요', retry: false }); })
+      .catch((e) => setErr({ msg: e?.message ?? '코스를 불러오지 못했어요', retry: true }));
     // 사진은 CourseDetailBody가 소유한다 (실패해도 코스는 뜬다)
   }, [id]);
+  useEffect(() => { load(); }, [load]);
+  // 본문 전체가 `route`에 게이트돼 있어(아래), 첫 읽기 동안 화면은 헤더 하나짜리 빈 판이었다.
+  const loading = route == null && err == null;
 
   // 실좌표 → 박스 좌표 한 번만. 세 소비처(HeatTrace·시작 핀·LiveDot)가 같은 투영을 공유해야
   // 점이 선 위에 앉는다. 예전엔 route.trace가 이미 {x,y}라 그냥 읽었지만 이제 실좌표다.
@@ -222,7 +230,27 @@ export default function CourseScreen() {
           <View style={{ width: 40 }} />
         </Row>
 
-        {err && <View style={s.emptyBox}><Text style={{ fontSize: 15, color: paper.dim }}>{err}</Text></View>}
+        {loading && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: paper.dim }}>코스를 불러오는 중...</Text>
+          </View>
+        )}
+
+        {err && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>{err.msg}</Text>
+            <Row style={{ gap: 18, marginTop: 8 }}>
+              {err.retry && (
+                <Pressable onPress={load} accessibilityRole="button" style={s.errBtn}>
+                  <Text style={s.errBtnTxt}>다시 시도</Text>
+                </Pressable>
+              )}
+              <Pressable onPress={goBackOrHome} accessibilityRole="button" style={s.errBtn}>
+                <Text style={s.errBtnTxt}>돌아가기</Text>
+              </Pressable>
+            </Row>
+          </View>
+        )}
 
         {route && (
           <View style={{ paddingHorizontal: 12 }}>
@@ -295,6 +323,9 @@ export default function CourseScreen() {
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   emptyBox: { margin: 16, backgroundColor: paper.canvas, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#EDEBE6' },
+  // 실패 상자의 문들 — 밑줄 텍스트 문법 (라우드-페일 스트립은 박스 버튼을 쓰지 않는다), ≥44pt
+  errBtn: { minHeight: 44, justifyContent: 'center' },
+  errBtnTxt: { fontSize: 16, fontWeight: '800', color: paper.ink, textDecorationLine: 'underline' },
   // 다크 히어로는 남는다 — 코스 실루엣은 이 앱의 다크 아티팩트 계열(정산 티켓·캘린더 보드)이다.
   // 바뀐 것은 라운드뿐: 샤프 코너 + 잉크 프레임.
   hero: { backgroundColor: paper.ink, padding: 15, marginTop: 14, overflow: 'hidden' },

@@ -43,12 +43,34 @@ export default function Shop() {
   const [refreshing, setRefreshing] = useState(false);
 
   const isRunner = session.role === 'runner';
-  const load = () => Promise.all([
-    fetchMiles().then(setMiles).catch(() => {}), // 미로그인/RPC 미배포 → 잔액 미표시 (가짜 0 금지)
-    fetchGearClaims().then(setClaims).catch(() => {}),
-    isRunner ? fetchDrops().then(setDrops).catch(() => {}) : Promise.resolve(),
-    isRunner ? fetchActiveBoostLabel().then(setBoostUntil).catch(() => {}) : Promise.resolve(),
-  ]);
+  // [honesty 2026-09-17] All four reads were `.catch(() => {})` — no state, no console, no retry —
+  // so a FAILED read rendered as the settled face: the earn-rate blurb ("you have no recent
+  // points"), the 교환권 section absent ("you own none"), the drop and boost strips absent
+  // ("nothing arrived"). Loading, failure and empty were one face. Each read now owns a flag and
+  // a failed one renders a strip with a retry, the runner/rewards.tsx drops grammar.
+  // ⚠ Last-known rows stay on screen beside the strip — setters only run on success, so a failed
+  // refresh never erases data that did arrive. The strip says the READ failed, not that it is 0.
+  const [milesErr, setMilesErr] = useState(false);
+  const [claimsErr, setClaimsErr] = useState(false);
+  const [dropsErr, setDropsErr] = useState(false);
+  const [boostErr, setBoostErr] = useState(false);
+  const load = () => {
+    setMilesErr(false); setClaimsErr(false); setDropsErr(false); setBoostErr(false);
+    return Promise.all([
+      fetchMiles().then(setMiles)
+        .catch((e) => { console.warn('[shop] miles:', (e as Error)?.message ?? e); setMilesErr(true); }),
+      fetchGearClaims().then(setClaims)
+        .catch((e) => { console.warn('[shop] claims:', (e as Error)?.message ?? e); setClaimsErr(true); }),
+      isRunner
+        ? fetchDrops().then(setDrops)
+            .catch((e) => { console.warn('[shop] drops:', (e as Error)?.message ?? e); setDropsErr(true); })
+        : Promise.resolve(),
+      isRunner
+        ? fetchActiveBoostLabel().then(setBoostUntil)
+            .catch((e) => { console.warn('[shop] boost:', (e as Error)?.message ?? e); setBoostErr(true); })
+        : Promise.resolve(),
+    ]);
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
@@ -85,7 +107,20 @@ export default function Shop() {
               </Pressable>
             )}
           </Row>
-          {miles && miles.recent.length > 0 ? (
+          {/* Four faces, never one. The earn-rate blurb is the SETTLED face — it means "the read
+              arrived and there is no recent activity" — so a failure and a pending read must never
+              print it. 잔액 above stays — while the balance is unknown; a 0 would be a lie.
+              Ink on this dark anchor uses the hero's own vocabulary (tang · volt), not paper.critical. */}
+          {milesErr ? (
+            <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#24382a', paddingTop: 9 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.tang }}>하이 포인트를 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: colors.volt, textDecorationLine: 'underline' }}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : miles == null ? (
+            <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8 }}>불러오는 중...</Text>
+          ) : miles.recent.length > 0 ? (
             <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#24382a', paddingTop: 9, gap: 4 }}>
               {miles.recent.slice(0, 2).map((r, i) => (
                 <Row key={i} style={{ justifyContent: 'space-between' }}>
@@ -103,10 +138,32 @@ export default function Shop() {
           )}
         </View>
 
+        {/* A failed boost read used to be indistinguishable from "no boost is active" — the strip
+            simply did not render. Say which one it is. */}
+        {isRunner && boostErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>매칭 부스트를 확인하지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* 활성 부스트 (픽 드랍 보상, 실데이터) — 활성일 때만 그린다 */}
         {isRunner && boostUntil && (
           <View style={s.boostStrip}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#4a6d1f' }}>매칭 부스트 활성 · {boostUntil}까지</Text>
+          </View>
+        )}
+
+        {/* Same for drops: an absent strip meant "nothing arrived", and a failed read said exactly
+            that. Strip sits above the real one, so a stale-but-true count still shows beside it. */}
+        {isRunner && dropsErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>드랍을 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
           </View>
         )}
 
@@ -117,6 +174,21 @@ export default function Shop() {
               도착한 드랍 {unopened.length}개 — 열어보세요 ›
             </Text>
           </Pressable>
+        )}
+
+        {/* 기어 교환권 — a failed read used to render as "you own none" (the section vanished). */}
+        {claimsErr && (
+          <>
+            <Row style={[s.secRow, { gap: 7, marginTop: 18, marginBottom: 8 }]}>
+              <Text style={s.section}>내 기어 교환권</Text>
+            </Row>
+            <View style={s.failStrip}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>교환권을 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+              </Pressable>
+            </View>
+          </>
         )}
 
         {/* 기어 교환권 (실데이터) — 있을 때만 */}
@@ -208,6 +280,10 @@ const s = StyleSheet.create({
   section: { fontSize: 17, fontWeight: '900', color: paper.ink },
   countPill: { minWidth: 20, height: 20, borderRadius: 0, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
+  // loud-fail strip — runner/rewards.tsx grammar (criticalWash ground, critical ink, underlined
+  // retry at ≥44pt). No ink border: it fights the critical ink inside the wash.
+  failStrip: { backgroundColor: paper.criticalWash, borderRadius: 0, padding: 13, marginTop: 10 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   div: { height: 1, backgroundColor: '#EEEEEE' },
   claimPill: { backgroundColor: '#eaf7c8', borderRadius: 0, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
   cat: { borderRadius: 0, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' },

@@ -100,8 +100,21 @@ export default function My() {
   const [runnerApp, setRunnerApp] = useState<RunnerApplication | null>(null);
   const [runnerAppLoaded, setRunnerAppLoaded] = useState(false);
 
+  // [honesty 2026-09-17] The profile read was console-only, so the 신분면 fell to '—'/'나' with
+  // no way to tell a slow network from a dead read — while its two siblings on this same screen
+  // (recErr :62→:343, stampErr :84→:356) had had loud-fail + retry since 2026-08-11. Same model,
+  // third read: previous real values are kept, and the strip says the READ failed.
+  const [profileErr, setProfileErr] = useState(false);
+  const loadProfile = useCallback(() => {
+    setProfileErr(false);
+    fetchMyProfile().then(setProfile).catch((e) => {
+      console.warn('[my] profile:', e?.message ?? e);
+      setProfileErr(true);
+    });
+  }, []);
+
   useFocusEffect(useCallback(() => {
-    fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
+    loadProfile();
     if (isRunner) {
       fetchMyRunnerApplication()
         .then((a) => { setRunnerApp(a); setRunnerAppLoaded(true); })
@@ -111,7 +124,7 @@ export default function My() {
     // 실패는 실패로: 이전 실값이 있으면 그대로 두고, 없으면 실패 스트립이 말한다
     // (0/12를 그리지 않는다 — [honesty 2026-08-11] 조용한 섹션 증발도 그만: recErr 모델 복제).
     loadStamps();
-  }, [isRunner]));
+  }, [isRunner, loadProfile]));
 
   const pickPhoto = async () => {
     // 지연 로드 — 네이티브 모듈이 없는 빌드(구 dev build/Expo Go)에서 앱 전체가 죽지 않게.
@@ -291,6 +304,16 @@ export default function My() {
         </View>
         {/* [2026-08-10 density audit] photo-change hint row cut — the ✎ badge on the photo and the
             edit-sheet hint already cover it (this was the 3rd copy of the same instruction) */}
+
+        {/* 프로필 로드 실패 — 신분면의 '—'와 '나' 이니셜이 로딩인지 실패인지 여기서 갈린다 */}
+        {profileErr && (
+          <View style={s.recFail}>
+            <Text style={s.recFailTxt}>내 정보를 불러오지 못했어요</Text>
+            <Pressable onPress={loadProfile} hitSlop={8} accessibilityRole="button" accessibilityLabel="내 정보 다시 불러오기">
+              <Text style={s.recFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* ————— ② 기록면 — 나이트 라일락 앵커 (실데이터) —————
              [E7 승인 2026-08-12 · Sean] **러너에게는 여기 없다** — 러너 홈의 '내 기록' 섹션으로
