@@ -1108,8 +1108,15 @@ export default function ShotStudio() {
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: colors.dim }}>내 갤러리에서 선택</Text>
           </Pressable>
-          <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: colors.neon }}>이 사진으로 만들기 ›</Text>
+          {/* disabled = disabledFill + faint, never an alpha (DESIGN.md button matrix, 2026-09-17). */}
+          <Pressable
+            onPress={confirmPhoto}
+            disabled={!photos[sheetKey]}
+            style={[s.sheetCta, !photos[sheetKey] && { backgroundColor: paper.disabledFill }]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !photos[sheetKey] }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '900', color: photos[sheetKey] ? colors.neon : paper.faint }}>이 사진으로 만들기 ›</Text>
           </Pressable>
         </View>
       </Modal>

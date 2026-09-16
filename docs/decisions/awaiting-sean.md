@@ -1526,6 +1526,10 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+17. **Icon-only send buttons dim while sending** (`chat.tsx:413`, `community.tsx:755`, loading-state
+    audit Tier 2 #13/#14) — the ↑ button has no label to swap, so 「busy = label swap」 has no answer
+    here. ⓐ swap the glyph (↑ → … or a small ring) at full opacity · ⓑ keep the arrow, add a
+    「보내는 중」 line under the composer · ⓒ leave the dim.
 16. **Owner home still clears the status bar with a constant** — `owner/home.tsx:101` `PAD_TOP = 56`
     carries a written decision (lines 96–101: the masthead mark starts at 56+9 = 65, which clears a
     ~59 inset *on that phone*). Every other route now uses `insets.top` (`d3d56ea`). Owner home is
