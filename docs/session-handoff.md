@@ -240,6 +240,68 @@ touches the table, so nothing else could break; ⑤ the one real residual — a 
 no Korean client mapping, unreachable from the shipped client because the stepper clamps, so it is a
 note and not a defect. ⚠ NOT codex-reviewed (this was a cold Claude read), NOT DEPLOYED.
 
+🔴 **08:0x — Codex branch `board-wrapper-bundle` NOT landed: 0164 removes the only route by which a
+certified runner commits to a session, and rewrites the pin that exists to prevent exactly that.**
+Every gate is GREEN — rebased `bf53c3b` onto `7d4db60` cleanly (harness.sh the one conflict, unioned
+with `suite 195_` at its numeric position after 194; REGISTRY auto-merged; 0 markers in three shapes)
+and measured: harness **1247/0 = 1239 + exactly the 8 pins suite 195 adds**, all 8 read back by
+label · deno **312/0** · tsc · check-rpc · check-route-native · check-definer-acl (baseline 81
+unchanged) · check-device-clock · npm test exit 0, **989/0**. **The greens are not the question.**
+**The defect, every rung READ at source, none inferred:** ① `club_session_detail` (0052, last def)
+returns a full row to a `none` caller by design (「문 앞 정직」), so the session screen **renders** for
+a non-member runner · ② `_club_shell_access` (0049) grades a runner with no assignment, no RSVP and
+no delegated dog as **`none`** — `'full'` requires `status = 'committed'`, and `session_runner_commit`
+is a SELF-commit, so the runner about to commit has no row at all · ③ `_club_delegation_board_impl`
+(last def `0168:724`) computes `'runnerCap', coalesce(_club_runner_cap(auth.uid()), 0)` **ungated by
+`p_access`**, and `_club_runner_cap` (0037) returns 1–2 for any certified/veteran/master runner
+independently of the session — so a `none` certified runner has `runnerCap > 0` today · ④ 0052's
+wrapper passed `none` to the impl **on purpose**, its own comment naming this exact use:
+「none도 session+me는 받는다 … me.runnerCap은 미확약 러너의 확약 CTA에 필요」 · ⑤ 0164 returns SQL NULL
+for `none` → `fetchDelegationBoard` (`api.ts:4312`, `if (!data) return null`) → `board === null` ·
+⑥ the CTA guard is `isOpenish && board && … && board.me.runnerCap > 0`
+(`club/session/[sid].tsx:1677`) → **never renders** · ⑦ `commitAsHandler` → `session_runner_commit`
+has **no other product call site** (only `dev/club-lab.tsx`, itself gated on `board`).
+🔴 **The decisive evidence is the repo's own:** `95_audit_gates_suite.sql`'s **`G2b` was written for
+precisely this regression the last time it happened** — its comment reads 「이분법 게이트는 미확약
+인증 러너까지 not_party로 막아 세션 셸의 러너 확약 CTA(me.runnerCap이 그 사람 위한 필드)를 지웠다」,
+a reviewer caught it, rev2 P1 fixed it, and G2b became the standing pin. **0164 reintroduces it and
+closes the pin by rewriting it to assert the opposite** — the log now reads
+`✅ G2b uncommitted certified runner receives NULL board`. A green pin whose sentence IS the defect,
+which is why all four gate suites are green and none of them can see this. Its fixture also proves
+rung ③ empirically: `(v_js->'me'->>'runnerCap')::int > 0` was a PASSING assertion for a `none`-graded
+certified runner. And suite 195's own stranger is `t_user('bwb_stranger','owner')` — an owner, whose
+`_club_runner_cap` is 0 — so B1 sits exactly in the zone where the old and new rules agree on
+anything that matters (the fixture-cannot-distinguish-two-rules law).
+**Why this is not what Sean ruled.** Ruling 5 (`docs/decisions/2026-08-31-sean-rulings.md:79`, read
+verbatim) narrows 「incident counts, paid-dog counts, and staffing state」 for 「strangers」. The `me`
+block is the caller's **own state about themselves**, not club operational data; 0164's suite header
+extends the ruling by inference (「Ruling 5 also applies to a certified runner who has not
+committed」) and that inference costs a shipped, reachable feature. **Whether an invited/uncommitted
+runner is a 「stranger」 is Sean's product call, not mine** — hence not landed rather than edited.
+**Fix shape, small either way:** return the `session`+`me` envelope for `none` (dogs/runners/incidents
+still `[]`, which is the whole ruling) instead of SQL NULL, and restore G2b; **or** grade an
+uncommitted certified runner above `none`. Either one keeps the rest of the slice, which is worth
+keeping.
+**What 0164 gets RIGHT and must survive the fix** — ⓐ a real defect closed: `session_set_backup`'s
+party gate was `s.host_profile_id <> auth.uid()` on a **bare `IF`**, so a NULL-uid caller made the
+predicate NULL, the gate stayed **silent**, and execution fell through to the write; `is distinct
+from` closes it and 195's N1/N2 pin both halves (N2 has to `drop not null` to reach the host-NULL
+arm, and restores it inside the same atomic DO) · ⓑ `set search_path = public` → `public, pg_temp`
+in-body on both functions — a genuine repair, since 0055 §2's ALTER-applied config is discarded by
+`create or replace` · ⓒ same-file explicit revoke+grant on both, which is the `check-definer-acl`
+「never rely on grant preservation」 law. ⚠ **Corrected before it reached this file:** I first wrote
+that ⓒ fixed a live PUBLIC-executable definer. **False, and the check is one line** — 98 **H9**
+(schema-wide, PUBLIC and anon arms stated separately) is green on the slice-1 run that does **not**
+contain 0164, so the built schema already had it revoked. ⓒ is same-file explicitness against the
+absent-function apply path, not a breach fix. A grant is not a door.
+**Suite 195 is otherwise good work** and should not be re-litigated when this is fixed: 8 pins, a
+7-plant mutation battery in its header each naming which pins redden, comment-stripped `prosrc`
+matching, `set local role authenticated` so the ACLs are actually exercised, and real control arms
+(B3 host, N3 authorized). **Branch left intact at `origin/codex/board-wrapper-bundle` `bf53c3b`;** my
+landing worktree and `land/board-wrapper-bundle` are removed. To redo the rebase: the only conflict
+is `harness.sh`, resolved by keeping trunk's `suite 208_` line where it is and inserting
+`suite 195_…` immediately after `suite 194_`.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
