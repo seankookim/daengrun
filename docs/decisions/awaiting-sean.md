@@ -1487,6 +1487,49 @@ Also riding this entry: the route-name correction (console #18) is being landed 
 
 ---
 
+## 2026-09-17 — Apple HIG conformance: what was built, what is yours (measured on trunk)
+
+Source: `docs/design/hig-conformance-checklist.md` (99 rows, 61 HIG pages read from Apple's own
+page JSON — the rendered site is client-side JS and returns an empty body; the HIG side of every
+row is a paraphrase, the DESIGN.md side is verbatim). Sean 2026-09-17: 「make sure the app ui is
+streamlined to ios」. Built tonight without asking (mechanical, no design change): AutoFill /
+keyboard semantics on every product `TextInput` (`hig/autofill`), device safe-area insets replacing
+the literal `paddingTop: 56` status-bar clearance on every route (`hig/safearea`), the location
+primer's button (`9e702c2`), and a read-before-ask on notification permission (`9e702c2`).
+⚠ Checklist #6 「runners are never primed for location」 is **refuted**: `onboard/runner.tsx:23`
+carries its own in-page primer (RULING 2); it does not use the shared component, which is what the
+grep counted. Recorded so nobody builds it twice.
+
+8. **Dynamic Type** (Tension ①, HIGH) — the app has zero font scaling; iOS Larger Text does nothing.
+   Your 15pt floor and Dynamic Type are not opposed: a floor is a minimum, Dynamic Type a multiplier.
+   The blocker is the fixed `lineHeight` literals (BUG A). Letter: ⓐ **15 is the floor at the DEFAULT
+   size; allow scaling with `maxFontSizeMultiplier` capped at 1.3 app-wide** (recommended — one
+   provider prop, line heights become `fontSize × 1.4` where they are literal today) · ⓑ 15 is absolute,
+   no scaling — then the reason gets written into DESIGN.md so nobody 「adds Dynamic Type」 later.
+9. **Back-swipe** (#4) — `_layout.tsx:22` `gestureEnabled: false` app-wide because ONE slider
+   conflicted. Three screens' code now REASONS about there being no system back (`index.tsx:117`,
+   `owner/live.tsx:190`, `shot/[bid].tsx:817`), so flipping it is a navigation-model change, not a
+   flag. ⓐ enable by default, opt OUT on the SealSlide screens only, re-audit those three · ⓑ keep.
+10. **Where to ask for notifications** (#7) — today: first home entry, now pre-checked so it is never
+    re-asked, still unprimed. HIG: prime, and ask where the value is obvious. ⓐ build a
+    `NotificationPrimer` (sibling of `location-primer.tsx`) and move the ask to the first request
+    sent (owner) / application accepted (runner) · ⓑ primer, keep it on home entry · ⓒ leave as is.
+11. **284 `Alert.alert`, 0 action sheets** (#9) — multi-choice and destructive choices belong in an
+    action sheet on iOS. ⓐ convert destructive confirmations only (measured list first) · ⓑ hold.
+12. **18 hand-rolled modals** (#10) — `transparent slide`, no grabber/detent/swipe-dismiss; iOS
+    `pageSheet` gives all three and picks up Liquid Glass on iOS 26+ (Tension ⑥: mixed chrome
+    nobody chose). ⓐ convert to `pageSheet` · ⓑ keep the paper world's sheets — DESIGN.md wins.
+13. **`app.json`**: `ios.supportsTablet: true` under `orientation: "portrait"` with no iPad layout
+    is an App Review risk; no `ios.icon` dark/tinted variants; no `splash` block. ⓐ set
+    `supportsTablet: false` now (honest) · ⓑ keep. Icon variants need your assets either way.
+14. 🔵 **Primer copy changed without you**: 「위치 사용 허용」 → 「계속」 on the location primer's
+    button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
+    thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
+    if you preferred it, one word flips it back.
+15. **Tensions kept as-is (no letter needed unless you disagree):** tab labels stay off (②), light-only
+    stays (③ — write the reason into DESIGN.md), palette over system colors (④), custom body font
+    question stays open (⑤), emoji rule stays (⑧).
+
 ## 2026-09-15 — the live queue (new Mac, first night; measured, not relayed)
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
