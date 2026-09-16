@@ -201,3 +201,111 @@ Deno.test("the ACCEPT ARM itself consults runner_work_gate (arm-scoped source pi
   assert(/rpc\(\s*["']runner_work_gate["']/.test(arm),
     "the runner_accept arm no longer calls rpc('runner_work_gate') — the ⑫ gate is unenforced exactly where acceptance happens");
 });
+
+// ═══ [backend audit 2026-09-17 · M1] a malformed body is the CALLER's 400, never our 500 ════════
+// This arm lives HERE rather than in `_test/bad-body.test.ts`, where the other five functions of
+// the M1 class are pinned, for a mechanical reason: `transition-booking`'s handler is only reachable
+// through the `Deno.serve` capture at the head of this file, and a second `await import` of the same
+// module in another test file gets the CACHED module and captures nothing — a pin that would pass by
+// never running. One rail, one file.
+Deno.test("[M1] a malformed body is 400 bad_body — not the 500 the catch-all used to answer", async () => {
+  for (const body of ["", "{", "not json at all"]) {
+    const fm = wire(OWNER);
+    try {
+      const res = await handler(
+        new Request("https://proj.functions.supabase.co/transition-booking", {
+          method: "POST",
+          headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+          body,
+        }),
+      );
+      const parsed = await res.json();
+      assertEquals(res.status, 400, `body ${JSON.stringify(body)} must be a 400, not a 5xx`);
+      assertEquals(parsed.error, "bad_body");
+      // Unparseable in, nothing out: the refusal is above the booking read and above every write.
+      assertEquals(writes(fm.calls).length, 0, "a refused body wrote to the database");
+    } finally {
+      fm.restore();
+    }
+  }
+});
+
+Deno.test("[M1 control] a parseable body still reaches the action switch — the guard is not a blanket 400", async () => {
+  // Without this, `throw new HttpError(400, "bad_body")` as the function's first line satisfies the
+  // pin above while every action in the product is dead.
+  const r = await post(OWNER, { booking_id: BOOKING, action: "not_a_real_action" });
+  assertEquals(r.status, 400);
+  assertEquals(r.body.error, "unknown action not_a_real_action", "the body was read, and the action was the problem");
+});
+
+// ═══ [backend audit 2026-09-17 · M2] A LOST NOTIFICATION IS A LOG LINE, NOT SILENCE ═════════════
+// `notify` was fire-and-forget at 15 call sites: the insert's `error` was never bound, so a
+// notification that failed to write was indistinguishable from one that was delivered. The worst of
+// the 15 is 「인계 확인 요청」 — the only thing that asks the second party to confirm the handoff. A
+// lost insert there means nobody is ever asked, nobody transitions, and the booking sits in a state
+// no transition list can reach (the attack-INACTION shape), with the runner's next job blocked
+// behind the same unconfirmed handoff. `request_reschedule` is used here only because it is the
+// cheapest arm that reaches the shared helper; the helper is the subject, not the action.
+Deno.test("[M2] a notification insert that fails is logged with the site that lost it", async () => {
+  const soon = new Date(Date.now() + 72 * 3600_000).toISOString();
+  const fm = wire(OWNER, { status: "confirmed", scheduled_at: soon });
+  // `/rest/v1/notifications` is deliberately left UNMOCKED — the rejected fetch is how postgrest-js
+  // produces a `{ error }` without a live database, and it is the same shape a real outage gives.
+  const original = console.error;
+  const logs: string[] = [];
+  console.error = (...a: unknown[]) => void logs.push(a.map(String).join(" "));
+  try {
+    const res = await handler(
+      new Request("https://proj.functions.supabase.co/transition-booking", {
+        method: "POST",
+        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id: BOOKING,
+          action: "request_reschedule",
+          meta: { new_time: new Date(Date.now() + 48 * 3600_000).toISOString() },
+        }),
+      }),
+    );
+    // ① NON-FATAL BY CONSTRUCTION, and that half matters as much as the log: the reschedule was
+    //    written, so throwing here would report a transition that genuinely committed as a 500.
+    assertEquals(res.status, 200);
+    // ② …but it is not silent. The log names the booking AND the title, because the title is the
+    //    only thing that says WHICH of the 15 sites lost its notification.
+    const line = logs.find((l) => l.includes("notify failed"));
+    assert(line, `a lost notification was silent: ${JSON.stringify(logs)}`);
+    assert(line.includes(BOOKING), `the log cannot be resolved to a booking: ${line}`);
+    assert(line.includes("일정 변경 요청"), `the log does not say which site lost it: ${line}`);
+  } finally {
+    console.error = original;
+    fm.restore();
+  }
+});
+
+Deno.test("[M2 control] a notification that SUCCEEDS logs nothing — the helper is not just noisy", async () => {
+  // Without this arm, a `console.error` on every notification satisfies the pin above while burying
+  // every real failure in a log nobody can read. The control is what makes the log line evidence.
+  const soon = new Date(Date.now() + 72 * 3600_000).toISOString();
+  const fm = wire(OWNER, { status: "confirmed", scheduled_at: soon });
+  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+  const original = console.error;
+  const logs: string[] = [];
+  console.error = (...a: unknown[]) => void logs.push(a.map(String).join(" "));
+  try {
+    const res = await handler(
+      new Request("https://proj.functions.supabase.co/transition-booking", {
+        method: "POST",
+        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id: BOOKING,
+          action: "request_reschedule",
+          meta: { new_time: new Date(Date.now() + 48 * 3600_000).toISOString() },
+        }),
+      }),
+    );
+    assertEquals(res.status, 200);
+    assertEquals(logs.filter((l) => l.includes("notify failed")), []);
+  } finally {
+    console.error = original;
+    fm.restore();
+  }
+});

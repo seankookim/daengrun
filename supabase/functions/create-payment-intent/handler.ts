@@ -11,16 +11,24 @@
 // The handler is exported separately from `index.ts` so `handler_test.ts` can drive it with an
 // injected db — explicit over clever (toss-plan §4-1: this is the repo's first edge-fn test rail).
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { caller, HttpError } from "../_shared/ctx.ts";
+// [backend audit 2026-09-17 · L1] `internalError` at the five raw-Postgres-text 500s. The two
+// other 500s here ("booking has no price", "profile not found") are OUR OWN sentences about a
+// state, not database text, and are deliberately left alone.
+import { caller, HttpError, internalError } from "../_shared/ctx.ts";
 
 export async function createPaymentIntent(req: Request, db: SupabaseClient) {
   const uid = await caller(req, db);
-  const { booking_id } = await req.json();
+  // A malformed or absent body is the CALLER's mistake, so it must not wear our 500 (backend audit
+  // 2026-09-17 · M1). Unguarded, `req.json()` threw a SyntaxError straight past this function into
+  // `handle()`'s catch-all and answered `500 internal` — a sentence that says our server broke when
+  // nothing did, and one that sends the caller retrying a request that can never succeed. Same
+  // guarded-parse idiom as `collect-charges/handler.ts:79` and `register-billing-key/handler.ts:295`.
+  const { booking_id } = await req.json().catch(() => { throw new HttpError(400, "bad_body"); }) ?? {};
   if (!booking_id) throw new HttpError(400, "missing fields");
 
   const { data: bk, error: bErr } = await db.from("bookings")
     .select("id, owner_id, status, total_price").eq("id", booking_id).maybeSingle();
-  if (bErr) throw new HttpError(500, bErr.message);
+  if (bErr) throw internalError(bErr, "booking_read");
   if (!bk) throw new HttpError(404, "booking not found");
 
   // ── 파티 게이트가 상태 게이트보다 먼저 (CLAUDE.md 법). 순서가 뒤집히면 "지금은 결제할 수
@@ -37,7 +45,7 @@ export async function createPaymentIntent(req: Request, db: SupabaseClient) {
 
   const { data: prof, error: pErr } = await db.from("profiles")
     .select("toss_customer_key").eq("id", uid).maybeSingle();
-  if (pErr) throw new HttpError(500, pErr.message);
+  if (pErr) throw internalError(pErr, "profile_read");
   if (!prof?.toss_customer_key) throw new HttpError(500, "profile not found");
 
   // ── 살아있는 인텐트 재사용 (멱등 친화) ────────────────────────────────────────────────
@@ -48,7 +56,7 @@ export async function createPaymentIntent(req: Request, db: SupabaseClient) {
     .select("id, order_id, amount")
     .eq("booking_id", booking_id).eq("status", "pending")
     .order("created_at", { ascending: false }).limit(1);
-  if (lErr) throw new HttpError(500, lErr.message);
+  if (lErr) throw internalError(lErr, "intent_read");
   const open = live?.[0];
   if (open) {
     if (open.amount === bk.total_price) {
@@ -60,7 +68,7 @@ export async function createPaymentIntent(req: Request, db: SupabaseClient) {
     const { error: cErr } = await db.from("payments")
       .update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("id", open.id).eq("status", "pending");
-    if (cErr) throw new HttpError(500, cErr.message);
+    if (cErr) throw internalError(cErr, "intent_close");
   }
 
   // order_id는 **우리가** 만든다. 클라가 만든 주문번호는 우리 쪽 멱등(0071의 order_id unique)을
@@ -73,7 +81,7 @@ export async function createPaymentIntent(req: Request, db: SupabaseClient) {
     amount: bk.total_price,
     order_id,
   }).select("order_id, amount").single();
-  if (iErr) throw new HttpError(500, iErr.message);
+  if (iErr) throw internalError(iErr, "intent_insert");
 
   return { order_id: row.order_id, amount: row.amount, customer_key: prof.toss_customer_key, reused: false };
 }

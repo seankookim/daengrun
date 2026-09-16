@@ -39,7 +39,13 @@ import { startRun } from "./start_run.ts";
 Deno.serve(handle(async (req) => {
   const db = admin();
   const uid = await caller(req, db);
-  const { booking_id, action, meta } = await req.json();
+  // A malformed or absent body is the CALLER's mistake, so it must not wear our 500 (backend audit
+  // 2026-09-17 · M1). Unguarded, `req.json()` threw a SyntaxError straight past this function into
+  // `handle()`'s catch-all and answered `500 internal` — a sentence that says our server broke when
+  // nothing did, and one that sends the caller retrying a request that can never succeed. Same
+  // guarded-parse idiom as `collect-charges/handler.ts:79` and `register-billing-key/handler.ts:295`.
+  const body = await req.json().catch(() => { throw new HttpError(400, "bad_body"); }) ?? {};
+  const { booking_id, action, meta } = body;
   if (!booking_id || !action) throw new HttpError(400, "missing fields");
 
   const { data: bk, error } = await db.from("bookings").select("*").eq("id", booking_id).single();
@@ -52,8 +58,35 @@ Deno.serve(handle(async (req) => {
     const { error: e } = await db.from("bookings").update(patch).eq("id", booking_id);
     if (e) throw new HttpError(409, e.message); // 트리거가 잘못된 전이 거부
   };
-  const notify = (profile_id: string, title: string, body: string) =>
-    db.from("notifications").insert({ profile_id, kind: "booking", title, body, ref_id: booking_id });
+  // ═══ [M2] A LOST NOTIFICATION IS NOW A LOG LINE, NOT SILENCE ═════════════════════════════════
+  // This helper was fire-and-forget at 15 call sites (13 here, one in `start_run.ts`, one in
+  // `cancel_owner.ts`): the insert's `error` was never bound, so a notification that failed to write
+  // was indistinguishable from one that was delivered. The worst of the 15 is `:329`
+  // 「인계 확인 요청」 — the ONLY thing that asks the second party to confirm the handoff. If that
+  // insert is lost, nobody is ever asked, nobody transitions, and the booking sits in a state no
+  // transition list can reach; this repo's attack-INACTION law is about exactly that shape, and
+  // the runner's next booking is blocked behind the same unconfirmed handoff (⑫'s work gate).
+  //
+  // Shape copied verbatim from `_shared/charge.ts:494-498`, including its reason: NON-FATAL BY
+  // CONSTRUCTION. Throwing here would turn a transition that genuinely committed into a 500 and
+  // hand the caller a sentence that is not true. The error is returned as well as logged so a call
+  // site that wants to branch on it can, and `start_run.ts` / `cancel_owner.ts` inherit both halves
+  // because they are handed THIS function — one helper, one log line per lost notification, no
+  // second copy of the shape to drift.
+  //
+  // The title is in the log on purpose: it is what identifies WHICH of the 15 sites lost its
+  // notification, and 「인계 확인 요청」 is the one an operator has to act on.
+  const notify = async (profile_id: string, title: string, body: string) => {
+    const { error: nErr } = await db.from("notifications")
+      .insert({ profile_id, kind: "booking", title, body, ref_id: booking_id });
+    if (nErr) {
+      console.error(
+        `[transition-booking] notify failed booking=${booking_id} action=${action} ` +
+          `to=${profile_id} title="${title}": ${nErr.message}`,
+      );
+    }
+    return nErr ?? null;
+  };
 
   switch (action) {
     // [O-5 §C.2] `case "payment_ok"` stood HERE and is deleted — see the file header. The CAS

@@ -215,3 +215,90 @@ Deno.test("🔴 the deployment contract is COMMITTED, not typed — config.toml 
   assert(section, "supabase/config.toml has no [functions.revoke-billing-keys] table");
   assertMatch(section, /^\s*verify_jwt\s*=\s*false\s*$/m);
 });
+
+// ═══ [backend audit 2026-09-17 · M6] ONE ROW'S BOOKKEEPING FAILURE MUST NOT COST THE BATCH ══════
+// `report_billing_key_revocation` erroring used to `throw` straight out of the loop, abandoning
+// every row claimed after it — including rows whose Toss DELETE had not been sent yet. Those rows
+// sat holding a lease, expired, and were re-claimed; a key we had ALREADY revoked then got a SECOND
+// DELETE, whose response Toss does not document (`_shared/toss.ts:129-146` — and 404 is exactly the
+// shape that produced the original 「drained clean, deleted nothing」 bug). The outbox reads that as
+// a failure, retries to exhaustion, and pages an operator about a key that is already gone.
+Deno.test("🔴 [M6] a report failure counts and CONTINUES — the rest of the claimed batch still runs", async () => {
+  const { db, reported } = scene([
+    { id: "rev-1", billing_key: "bill_A", claim_token: "tok-1" },
+    { id: "rev-2", billing_key: "bill_B", claim_token: "tok-2" },
+  ]);
+  // The FIRST row's report fails; the second must be untouched by that.
+  db.rpcs["report_billing_key_revocation"] = (a: Row) => {
+    if (a.p_id === "rev-1") return { error: { message: "could not connect" } };
+    reported.push(a);
+    return { data: true };
+  };
+  const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+  fm.install();
+  const original = console.error;
+  const logs: string[] = [];
+  console.error = (...x: unknown[]) => void logs.push(x.map(String).join(" "));
+  try {
+    const out = await revokeBillingKeys(cronReq(), db as never) as {
+      claimed: number; revoked: number; failed: number; stale: number; unreported: number;
+    };
+
+    // ① 🔴 THE FINDING: row two's DELETE was sent. Under the old throw this list had ONE entry.
+    const keys = fm.calls.filter((c) => isBilling(c.url)).map((c) => c.url.split("/billing/")[1]);
+    assertEquals(keys, ["bill_A", "bill_B"], "the batch was abandoned at the first report failure");
+    // ② …and row two's report landed, so the outbox actually moves.
+    assertEquals(reported.map((r) => r.p_id), ["rev-2"]);
+    assertEquals(reported[0].p_ok, true);
+
+    // ③ The failure is COUNTED, not swallowed — `revoked` must not absorb it. A row we could not
+    //    write down is not a row we revoked, however well the Toss call went.
+    assertEquals(out.unreported, 1);
+    assertEquals(out.revoked, 1);
+    assertEquals(out.failed, 0);
+    assertEquals(out.stale, 0);
+    assertEquals(out.claimed, 2);
+
+    // ④ …and logged, with the row id: `unreported` is a number, and a number nobody can resolve to
+    //    a row is not an operational fact.
+    assert(
+      logs.some((l) => l.includes("rev-1") && l.includes("report failed")),
+      `the unreported row was silent: ${logs.join("|")}`,
+    );
+  } finally {
+    console.error = original;
+    fm.restore();
+  }
+});
+
+Deno.test("🔴 [M6] the failed row keeps its lease — nothing here writes to it, so the next tick re-claims it", async () => {
+  // The lease semantics are the half a "just continue past it" fix could quietly break. The row must
+  // be left EXACTLY as the throw left it: still `processing`, still holding its claim token, settled
+  // by lease expiry and not by anything this worker does. Any write here — a status flip, a token
+  // clear, a second report — would be a new behaviour wearing a bug fix's clothes.
+  const { db } = scene([{ id: "rev-1", billing_key: "bill_A", claim_token: "tok-1" }]);
+  const seen: Row[] = [];
+  db.rpcs["report_billing_key_revocation"] = (a: Row) => {
+    seen.push(a);
+    return { error: { message: "could not connect" } };
+  };
+  const fm = new FetchMock().on(isBilling, () => new Response("", { status: 200 }));
+  fm.install();
+  const original = console.error;
+  console.error = () => {};
+  try {
+    const out = await revokeBillingKeys(cronReq(), db as never) as { unreported: number };
+    assertEquals(out.unreported, 1);
+    // Reported exactly ONCE — a retry here would double-report against a lease we may no longer hold.
+    assertEquals(seen.length, 1);
+    // And no table write of any kind: the only RPCs are the claim and the one report.
+    assertEquals(db.log.filter((l) => l.startsWith("update:") || l.startsWith("insert:")), []);
+    assertEquals(db.log.filter((l) => l.startsWith("rpc:")), [
+      "rpc:claim_billing_key_revocations",
+      "rpc:report_billing_key_revocation",
+    ]);
+  } finally {
+    console.error = original;
+    fm.restore();
+  }
+});

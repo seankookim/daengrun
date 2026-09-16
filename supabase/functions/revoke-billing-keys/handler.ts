@@ -35,7 +35,7 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
   const rows = (claimed ?? []) as { id: string; billing_key: string; claim_token: string }[];
   if (rows.length === 0) return { claimed: 0, revoked: 0, failed: 0, stale: 0 };
 
-  let revoked = 0, failed = 0, stale = 0;
+  let revoked = 0, failed = 0, stale = 0, unreported = 0;
   for (const r of rows) {
     let ok = false;
     let err: string | null = null;
@@ -69,9 +69,31 @@ export async function revokeBillingKeys(req: Request, db: SupabaseClient): Promi
     // false return is not an error — it means we lost the row, and saying so is the honest read.
     const { data: applied, error: rErr } = await db.rpc("report_billing_key_revocation",
       { p_id: r.id, p_ok: ok, p_error: err, p_token: r.claim_token });
-    if (rErr) throw new HttpError(500, `report failed: ${rErr.message}`);
+    // ═══ [backend audit 2026-09-17 · M6] A REPORT FAILURE COUNTS, LOGS, AND CONTINUES ══════════
+    // This used to `throw`, which ABANDONED EVERY REMAINING ROW IN THE CLAIMED BATCH — rows whose
+    // Toss DELETE had not been sent yet, and rows whose lease we were holding. They then sat until
+    // the lease expired and were re-claimed, so a key we had ALREADY successfully revoked got a
+    // second DELETE whose response Toss does not document (`_shared/toss.ts:129-146`); the outbox
+    // reads that as a failure, retries to exhaustion, and pages an operator about a key that is
+    // already gone. One row's bookkeeping failure was costing the whole batch.
+    //
+    // Same judgement as the Toss catch at `:62`: a call that did not complete is not a refusal.
+    // ⚠ THE LEASE SEMANTICS ARE UNCHANGED AND THAT IS DELIBERATE — nothing here touches the row.
+    // It stays `processing` holding `claim_token`, its lease expires on its own schedule, and the
+    // next tick re-claims it exactly as it would have after the throw. The only thing that changes
+    // is that the rows AFTER it in this batch still get their turn.
+    if (rErr) {
+      unreported++;
+      console.error(
+        `[revoke-billing-keys] report failed id=${r.id} toss_ok=${ok}: ${rErr.message} — the row ` +
+          `keeps its lease and the next tick re-claims it; the batch continues`,
+      );
+      continue;
+    }
     if (applied === false) { stale++; continue; }
     if (ok) revoked++; else failed++;
   }
-  return { claimed: rows.length, revoked, failed, stale };
+  // `unreported` is additive: the cron discards this return (`select f()`), and it is the one number
+  // that distinguishes "nothing to do" from "we could not write down what we did".
+  return { claimed: rows.length, revoked, failed, stale, unreported };
 }

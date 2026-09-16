@@ -17,7 +17,7 @@
 //   ③ Toss redirects with a one-shot `authKey` → client `issue` → WE exchange it server-side
 //      (secret key, _shared/toss.ts) for the billing key and store it with the card's masked
 //      display fields. `my_billing_card` (the read RPC) shows brand+last4 and nothing else.
-import { caller, HttpError } from "../_shared/ctx.ts";
+import { caller, HttpError, internalError } from "../_shared/ctx.ts";
 import { tossBillingIssue } from "../_shared/toss.ts";
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
@@ -469,7 +469,11 @@ export async function registerBillingKey(req: Request, db: SupabaseClient): Prom
             `row names the key for the recovery sweep.`,
         );
       }
-      throw new HttpError(500, why);
+      // [backend audit 2026-09-17 · L1] `why` still carries the full SQL text everywhere it is
+      // DURABLE — the intent close above (`:461`) and the outbox order (`:463`) — because that is
+      // where an operator reads it. Only the client's copy is sanitised, which is exactly what the
+      // paragraph above already promised: "which of our internals knows why is not their business".
+      throw internalError(wErr, "billing_key_swap");
     }
     const swap = Array.isArray(swapRows) ? swapRows[0] : swapRows;
 

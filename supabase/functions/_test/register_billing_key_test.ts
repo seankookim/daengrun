@@ -508,7 +508,18 @@ Deno.test("🔴 deploy-gate #2 — an UNKNOWN swap error (no SQLSTATE) orders NO
     } catch (e) { err = e as HttpError; }
     // The client-visible answer is unchanged — the same 500 with the same sentence.
     assertEquals(err?.status, 500);
-    assertStringIncludes(String(err?.message), "billing_key_swap failed");
+    // ⚠ [backend audit 2026-09-17 · L1] THIS PIN MOVED, AND ONLY ITS HANDLE MOVED. It read
+    //    `assertStringIncludes(err.message, "billing_key_swap failed")` — i.e. it asserted that the
+    //    raw Postgres sentence reaches the CLIENT, which is the thing L1 removes. The property it
+    //    exists for is unchanged and is asserted below on a stronger handle: the 500 must be
+    //    attributable to the SWAP and not to the compensation that runs after it (the intent close,
+    //    the outbox order, the Toss call). `code` is produced by exactly one `throw` in this handler
+    //    and by nothing else, so it pins that better than a substring of a database's prose did.
+    //    The full text is still pinned where it is DURABLE — see the `note` assertion on the intent
+    //    row, which is where an operator reads it.
+    assertEquals(err?.code, "billing_key_swap");
+    // and the raw Postgres text is GONE from the body — the L1 property itself, pinned
+    assertEquals(err?.message, "internal");
 
     // 🔴 BOTH ACTIONS ARE REFUSED, AND FOR THE SAME REASON: the swap may have COMMITTED, so this
     //    key may be the owner's live card. A DELETE would destroy it; an ORDER would spend a
@@ -540,7 +551,18 @@ Deno.test("🔴 every durable option down → still a 500, and nothing is fabric
     // The worst case is the one most likely to be papered over. It must stay a failure, and the
     // handler's own message must survive the compensation rather than be replaced by it.
     assertEquals(err?.status, 500);
-    assertStringIncludes(String(err?.message), "billing_key_swap failed");
+    // ⚠ [backend audit 2026-09-17 · L1] THIS PIN MOVED, AND ONLY ITS HANDLE MOVED. It read
+    //    `assertStringIncludes(err.message, "billing_key_swap failed")` — i.e. it asserted that the
+    //    raw Postgres sentence reaches the CLIENT, which is the thing L1 removes. The property it
+    //    exists for is unchanged and is asserted below on a stronger handle: the 500 must be
+    //    attributable to the SWAP and not to the compensation that runs after it (the intent close,
+    //    the outbox order, the Toss call). `code` is produced by exactly one `throw` in this handler
+    //    and by nothing else, so it pins that better than a substring of a database's prose did.
+    //    The full text is still pinned where it is DURABLE — see the `note` assertion on the intent
+    //    row, which is where an operator reads it.
+    assertEquals(err?.code, "billing_key_swap");
+    // and the raw Postgres text is GONE from the body — the L1 property itself, pinned
+    assertEquals(err?.message, "internal");
     assertEquals(db.rows("billing_keys").length, 0);
     assertEquals(db.rows("billing_key_revocations").length, 0);
     // And the last resort is a CONFESSION, never a provider call — the arm that used to reach Toss
@@ -779,7 +801,18 @@ Deno.test("🔴 0170 outcome ② issued but UNPERSISTED — the row names the ke
     } catch (e) { err = e as HttpError; }
     // the request still fails, and with ITS OWN error — the intent close must not replace it
     assertEquals(err?.status, 500);
-    assertStringIncludes(String(err?.message), "billing_key_swap failed");
+    // ⚠ [backend audit 2026-09-17 · L1] THIS PIN MOVED, AND ONLY ITS HANDLE MOVED. It read
+    //    `assertStringIncludes(err.message, "billing_key_swap failed")` — i.e. it asserted that the
+    //    raw Postgres sentence reaches the CLIENT, which is the thing L1 removes. The property it
+    //    exists for is unchanged and is asserted below on a stronger handle: the 500 must be
+    //    attributable to the SWAP and not to the compensation that runs after it (the intent close,
+    //    the outbox order, the Toss call). `code` is produced by exactly one `throw` in this handler
+    //    and by nothing else, so it pins that better than a substring of a database's prose did.
+    //    The full text is still pinned where it is DURABLE — see the `note` assertion on the intent
+    //    row, which is where an operator reads it.
+    assertEquals(err?.code, "billing_key_swap");
+    // and the raw Postgres text is GONE from the body — the L1 property itself, pinned
+    assertEquals(err?.message, "internal");
 
     const rows = intents(db);
     assertEquals(rows.length, 1);
@@ -942,7 +975,19 @@ Deno.test("🔴 deploy-gate #2 T1 — a DEFINITE SQL refusal ORDERS the revocati
 
       // ① the client-visible answer is the one it has always been
       assertEquals(err?.status, 500);
-      assertStringIncludes(String(err?.message), "billing_key_swap failed");
+      // ⚠ [backend audit 2026-09-17 · L1] THIS PIN MOVED, AND ONLY ITS HANDLE MOVED. It read
+      //    `assertStringIncludes(err.message, "billing_key_swap failed")` — i.e. it asserted that the
+      //    raw Postgres sentence reaches the CLIENT, which is the thing L1 removes. The property it
+      //    exists for is unchanged and is asserted below on a stronger handle: the 500 must be
+      //    attributable to the SWAP and not to the compensation that runs after it (the intent close,
+      //    the outbox order, the Toss call). `code` is produced by exactly one `throw` in this handler
+      //    and by nothing else, so it pins that better than a substring of a database's prose did.
+      //    The full text is still pinned where it is DURABLE — see the `note` assertion on the intent
+      //    row, which is where an operator reads it.
+      assertEquals(err?.code, "billing_key_swap");
+      // and the raw text is GONE — `message` above was the literal constraint sentence from :927
+      assertEquals(err?.message, "internal");
+      assert(!String(err?.message).includes(message), "the client body must not carry SQL text");
       assertEquals(db.rows("billing_keys").length, 0);
 
       // ② 🔴 ZERO DELETEs AT TOSS. This is the finding.

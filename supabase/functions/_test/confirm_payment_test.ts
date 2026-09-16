@@ -517,6 +517,51 @@ Deno.test("no OPS_PROFILE_ID → loud log instead of a notification, and no cras
   }
 });
 
+// [backend audit 2026-09-17 · M8] The marker write's error used to be discarded entirely, which is
+// the worst place in this function to be silent: `payments_reconciliation()`'s `orphan_capture` arm
+// finds this row BY that marker, so a lost write leaves a captured, uncancelled payment that the one
+// query an operator is told to run cannot see. The `payment_manual_cancel` ping still fires — it
+// always did — but its copy sends them to `orphan_capture`, where they now find nothing and close
+// the queue item. That is `_shared/ops.ts:66-70`'s "a remedy that refuses by design" defect, so the
+// lost anchor gets its own class whose copy points at the log instead.
+Deno.test("[M8] a LOST needs_manual_cancel marker is escalated as its own class, not hidden", async () => {
+  const db = scene({ booking: { status: "expired" } });
+  // Fail ONLY the marker write. A flat `db.fail("payments:update", …)` would also break the confirm
+  // flip far upstream and this test would pass for a reason that has nothing to do with the marker.
+  db.fail("payments:update", (payload: Row) =>
+    (payload?.raw as Row)?.needs_manual_cancel ? "could not connect" : null);
+  const classes: string[] = [];
+  db.rpcs["ops_recipients_for"] = (args: Row) => {
+    classes.push(String(args.p_event_class));
+    return { data: [] };  // fall through to OPS_PROFILE_ID, as production would with no routing row
+  };
+  const net = tossOk({ cancel: () => FetchMock.json({}, 500) });
+  const original = console.error;
+  const logs: string[] = [];
+  console.error = (...a: unknown[]) => void logs.push(a.map(String).join(" "));
+  try {
+    const e = await expectHttpError(() =>
+      confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never)
+    );
+    // ① The customer's answer is unchanged. Their money is at Toss either way and the sentence they
+    //    get is about that, not about our bookkeeping.
+    assertEquals(e.status, 409);
+    assertStringIncludes(e.message, "담당자가 확인 중");
+    // ② The marker really did not land — otherwise this test is measuring the happy path.
+    assertEquals(pay(db).raw.needs_manual_cancel, undefined);
+    // ③ BOTH classes are emitted, and the new one is what makes the event findable.
+    assertEquals(classes, ["payment_marker_lost", "payment_manual_cancel"]);
+    // ④ The log is the only durable trace left, so it must carry the identifiers.
+    const lost = logs.find((l) => l.includes("MARKER LOST"));
+    assert(lost, `the lost anchor was silent: ${logs.join("|")}`);
+    assertStringIncludes(lost, ORDER);
+    assertStringIncludes(lost, "could not connect");
+  } finally {
+    console.error = original;
+    net.restore();
+  }
+});
+
 // ═══ §2-5b post-confirm — server-side and NON-FATAL ════════════════════════════════════════
 Deno.test("postConfirm — recurring + nomination both run server-side after a successful CAS", async () => {
   const db = scene();
@@ -539,6 +584,13 @@ Deno.test("postConfirm — recurring + nomination both run server-side after a s
     assertEquals(t.body.meta.runner_id, RUNNER);
     // The caller's own token is forwarded — transition-booking re-runs its own party gate.
     assertEquals(t.headers["Authorization"], "Bearer owner_jwt");
+    // [backend audit 2026-09-17 · M9] …and it has a CEILING. This call sits after the capture, on a
+    // path whose failure is already non-fatal, so hanging buys nothing and holds the isolate until
+    // the runtime kills the whole request — turning a completed, captured, transitioned booking into
+    // a 500 for the person who paid. (`tossConfirm`/`tossCancel` deliberately have none: a hung
+    // payment call is an outcome we must not guess at. The two are different judgements, not an
+    // inconsistency.)
+    assert(t.signal instanceof AbortSignal, "invokeTransition was given no abort signal — it can hang forever");
     assertEquals(db.rows("notifications").length, 0);
   } finally {
     net.restore();

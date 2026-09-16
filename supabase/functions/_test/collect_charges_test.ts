@@ -858,7 +858,15 @@ Deno.test("losing the flip to a DIFFERENT payment_key is a double capture, never
     assertEquals((pay(db).raw.charge as Row).paymentKey, "tviva_theirs");
     assertEquals((pay(db).raw.double_capture as Row).ours, "tviva_ours");
     assertEquals(pay(db).payment_key, "tviva_theirs"); // never overwritten behind ops' back
-    assert(cap.lines.some((l) => l.includes("DOUBLE CAPTURE")), `silent double capture: ${cap.lines.join("|")}`);
+    const line = cap.lines.find((l) => l.includes("DOUBLE CAPTURE"));
+    assert(line, `silent double capture: ${cap.lines.join("|")}`);
+    // [backend audit 2026-09-17 · L2] A Toss `paymentKey` is a REFUND HANDLE — whoever holds it can
+    // cancel that payment — so two of them in a log line are two live credentials in whatever reads
+    // our logs. The pair stays where it is useful and access-controlled (`raw.double_capture`, the
+    // assertion three lines up); the log carries only enough to match the line to the row.
+    assert(!line.includes("tviva_ours"), `the log leaked our full paymentKey: ${line}`);
+    assert(!line.includes("tviva_theirs"), `the log leaked the recorded paymentKey: ${line}`);
+    assert(line.includes("a_ours") && line.includes("theirs"), `the log cannot be matched to the row: ${line}`);
   } finally {
     cap.restore();
     net.restore();

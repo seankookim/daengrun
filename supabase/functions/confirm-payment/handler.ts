@@ -69,7 +69,12 @@ export async function confirmPayment(
 ) {
   // ── 1. 호출자 (익명 401) ──────────────────────────────────────────────────────────────
   const uid = await caller(req, db);
-  const body = await req.json();
+  // A malformed or absent body is the CALLER's mistake, so it must not wear our 500 (backend audit
+  // 2026-09-17 · M1). Unguarded, `req.json()` threw a SyntaxError straight past this function into
+  // `handle()`'s catch-all and answered `500 internal` — a sentence that says our server broke when
+  // nothing did, and one that sends the caller retrying a request that can never succeed. Same
+  // guarded-parse idiom as `collect-charges/handler.ts:79` and `register-billing-key/handler.ts:295`.
+  const body = await req.json().catch(() => { throw new HttpError(400, "bad_body"); }) ?? {};
   const orderId: string | undefined = body.order_id ?? body.orderId;
   const paymentKey: string | undefined = body.payment_key ?? body.paymentKey;
   const meta = body.meta ?? {};
@@ -136,11 +141,21 @@ export async function confirmPayment(
     // 인텐트는 failed로 닫는다 (payment_key는 붙이지 않는다 — 0076의 settled_has_key 참고).
     // raw는 **병합**한다. 통째로 덮으면 그 행이 이미 들고 있던 사실(민팅 표식, 조정 마커,
     // 이전 시도의 기록)이 실패 한 번에 사라진다 — 장부에서 지워진 사실은 복구할 방법이 없다.
-    await db.from("payments").update({
+    // [M8] The error is bound and logged. Non-fatal — the 402 below is the true answer either way
+    // (no money moved) — but a lost close leaves the intent `pending`, and `sweep_stale_payment_intents`
+    // will later present it to a person as an unresolved order that in fact resolved here. The log
+    // line is what lets that operator tell "stale" from "we failed to write the close".
+    const { error: fErr } = await db.from("payments").update({
       status: "failed",
       raw: { ...(intent.raw ?? {}), confirm_error: confirmed.body, http_status: confirmed.httpStatus },
       updated_at: new Date().toISOString(),
     }).eq("id", intent.id).eq("status", "pending");
+    if (fErr) {
+      console.error(
+        `[payments] intent close FAILED after a refused confirm order=${intent.order_id} ` +
+          `payment=${intent.id}: ${fErr.message} — the row stays pending`,
+      );
+    }
     const msg = typeof confirmed.body?.message === "string"
       ? confirmed.body.message
       : "결제가 승인되지 않았어요 — 다시 시도해주세요";
@@ -241,13 +256,24 @@ async function autoCancel(
       // 0071은 "이번 슬라이스는 refunded_amount를 쓰지 않는다"고 적었지만, 그건 **환불 기능**
       // 이야기였다. 자동 취소는 전액이 실제로 돌아간 사건이고, 그걸 0으로 두면 장부가
       // "24,900원을 받고 0원을 돌려줬다"고 말하게 된다. 정확한 숫자가 이긴다.
-      await db.from("payments").update({
+      const { error: cancErr } = await db.from("payments").update({
         status: "canceled",
         payment_key: paymentKey,
         refunded_amount: intent.amount,
         raw: { confirm: confirmRaw, cancel: res.body, auto_cancel_reason: why },
         updated_at: new Date().toISOString(),
       }).eq("id", intent.id);
+      // [M8] Toss HAS refunded the money; only our record of it failed to write. The customer's
+      // answer does not change (the 409 below is true), but the ledger now disagrees with Toss and
+      // nothing else will notice — the reconciliation query reads our row, not theirs. This line is
+      // the only place that disagreement is recorded.
+      if (cancErr) {
+        console.error(
+          `[payments] auto-cancel SUCCEEDED at Toss but the row write FAILED ` +
+            `order=${intent.order_id} payment=${intent.id} amount=${intent.amount}: ${cancErr.message} ` +
+            `— the ledger still says confirmed while the money is refunded`,
+        );
+      }
       throw new HttpError(409, HONEST_AUTOCANCELED);
     }
     lastError = `attempt${attempt}:${res.httpStatus}:${JSON.stringify(res.body)}`;
@@ -256,7 +282,7 @@ async function autoCancel(
   // 두 번 다 실패 — 돈은 Toss에 남아 있다. 행을 canceled로 적으면 장부가 거짓말을 한다.
   // confirmed 그대로 두고 마커를 남긴다: 0076 §D의 조정 질의가 orphan_capture로 이 행을 집는다
   // (부킹은 payment_hold/expired에 머물러 있으므로).
-  await db.from("payments").update({
+  const { error: markErr } = await db.from("payments").update({
     status: "confirmed",
     payment_key: paymentKey,
     raw: {
@@ -278,6 +304,23 @@ async function autoCancel(
   console.error(
     `[payments] auto-cancel FAILED order=${intent.order_id} payment=${intent.id} amount=${intent.amount} why=${why} err=${lastError}`,
   );
+  // ═══ [M8] THE MARKER IS THE RECONCILIATION ANCHOR, SO LOSING IT IS ITS OWN EVENT ════════════
+  // `payments_reconciliation()`'s `orphan_capture` arm finds this row BY the `needs_manual_cancel`
+  // marker the update above writes. If that write failed, the row is a plain `confirmed` payment
+  // against a booking nobody completed — money captured, not cancelled, and invisible to the one
+  // query an operator is told to run. The `payment_manual_cancel` ping below still fires (it always
+  // did, unconditionally), but its copy sends the operator to `orphan_capture`, where they would
+  // now find nothing and close the queue item — which is precisely the "a remedy that refuses by
+  // design is worse than no remedy" defect `_shared/ops.ts:66-70` exists to prevent. So the lost
+  // anchor gets its own class, whose copy points at this log line instead of at the query.
+  if (markErr) {
+    console.error(
+      `[payments] needs_manual_cancel MARKER LOST order=${intent.order_id} payment=${intent.id} ` +
+        `amount=${intent.amount} key=${paymentKey} why=${why}: ${markErr.message} — the money is ` +
+        `captured at Toss, uncancelled, and payments_reconciliation() cannot see this row`,
+    );
+    await notifyOps(db, "payment_marker_lost", { refId: intent.booking_id });
+  }
   await notifyOps(db, "payment_manual_cancel", { refId: intent.booking_id });
   throw new HttpError(409, honestNeedsManual(intent.order_id));
 }
@@ -349,8 +392,14 @@ async function invokeTransition(req: Request, payload: unknown) {
   const headers: Record<string, string> = { "Authorization": authz, "Content-Type": "application/json" };
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   if (anon) headers["apikey"] = anon;
+  // [M9] 10 s ceiling — and this one HAS a ceiling while `tossConfirm`/`tossCancel` deliberately do
+  // not (`_shared/toss.ts:31-37`): a hung Toss call is a payment whose outcome we must not guess, so
+  // waiting is the correct behaviour there. This is our own function, called AFTER the capture, on a
+  // path whose failure is already non-fatal (`:332-338` notifies the owner and returns), so hanging
+  // buys nothing and holds the isolate — and the edge runtime would eventually kill the whole
+  // request, turning a completed, captured, transitioned booking into a 500 for the person who paid.
   const res = await fetch(`${base}/functions/v1/transition-booking`, {
-    method: "POST", headers, body: JSON.stringify(payload),
+    method: "POST", headers, body: JSON.stringify(payload), signal: AbortSignal.timeout(10_000),
   });
   const body = await res.json().catch(() => ({}));
   // transition-booking은 200 본문에 { error } 를 실어 보내지 않지만(handle이 상태코드를 쓴다),
