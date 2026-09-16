@@ -139,6 +139,16 @@ it runs `pnpm dlx react-doctor@latest` (0.9.14 cached; `app/` pins 0.9.12). No c
   (no CLI running here); it wants the Mac login password; Deny is safe; alt route is a personal access
   token in his own shell.
 
+**05:3x — `8ab703a` Tier 3 LANDED** (combined tree: tsc · 4 checks · npm 989/0): every secondary
+section whose read failed now says so with a retry that re-issues exactly that read — club page
+(board / series / stats), owner report (standings, review, slot, earning, gaps — the two celebration
+pops stay silent on purpose: a retry would burn the once-per-entity token), owner home (a new
+`QuietFail` one-liner on canvas, never a wash; the unread dot stays undrawn on purpose), runner
+rewards (miles / status / claims, last-known rows kept under the strip), club receipt (strip outside
+the shareable PNG), address pin (retry re-runs the whole resolve chain). Airplane-mode smoke list is
+in the agent report (10 items). Loading-state audit Tiers 1–3 are now closed except #13/#14
+(queue item 17).
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
