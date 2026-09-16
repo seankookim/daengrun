@@ -1582,7 +1582,10 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    1236/0, codex-unreviewed until the wall lifts) landed on trunk, and the edge functions changed on
    trunk too (`f6ed478`: `400 bad_body`, open-drop honesty, notify/payments error surfacing) — so the
    letter now covers `db push` AND `supabase functions deploy`, in that order, because the functions
-   assume 0157+ semantics. 0177's VERIFY will ABORT the apply if any of the four jobs is missing in
+   assume 0157+ semantics — and since `47b4113` **open-drop calls `open_drop_tx` (0176)**: deploy the
+   edge first and every drop open fails 500 until the migration lands; `SUPABASE_ANON_KEY` must be set
+   in the functions' env (confirm-payment already relies on it — verify with `supabase secrets list`,
+   yours). 0177's VERIFY will ABORT the apply if any of the four jobs is missing in
    production `cron.job` — that abort would be the first evidence either way (nobody has read the
    production table). Original text follows.** Production is 0156; trunk carries fifteen
    pending migrations, all gates green here (harness 1229/0, npm 989/0, deno 292/0).

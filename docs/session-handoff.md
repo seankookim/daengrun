@@ -320,6 +320,16 @@ JWT and RE-WRAP `{applied}` (the RPC returns the bare object; `api.ts` unwraps o
 bare silently reverts every alert to the M4 shape). **Eighteen pending** (0157–0163, 0166–0174,
 0176, 0177) + edge functions; codex owes 0176 and 0177 a verdict.
 
+**04:33 — `47b4113` open-drop WIRED to `open_drop_tx`** (b6's slice; combined tree: deno **311/0** = 312 − 10
+old arm tests + 9 new, explained · tsc · check-rpc now 133 calls / 214 signatures): the handler is one
+RPC through a caller-bound client (`_shared/ctx.ts` gains `callerBoundClient`; confirm-payment keeps
+its own copy for now), a token map (`not_drop_owner` 403 · `already_opened` 409 · `bad_pick_choice`
+400 · `drop_not_found` 404 · `drop_pays_nothing` 409 with a new Korean sentence), `internalError` for
+the rest, and the response re-wrapped as `{ applied }` with a pin that fails if it is ever wired
+bare. H1/H2/M3 are now closed end to end. ⚠ **Deploy ORDER matters and is in the queue:** `db push`
+(0176 in production) BEFORE `functions deploy`, or every open fails 500; `SUPABASE_ANON_KEY` must be
+in the function env (confirm-payment already depends on it).
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
