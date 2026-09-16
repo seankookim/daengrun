@@ -158,6 +158,15 @@ two ways (char stream + AST) with control plants. Two pre-existing wrong roles f
 multi-select carries `selected` (should be `checked`) — small follow-up. VoiceOver output UNVERIFIED;
 smoke list in the agent report (8 items).
 
+**06:0x — cold review of A2 (APPROVE-WITH-FIXES/6) applied: `332e21b` two wrong roles, `bf4ff99` spot
+chips get radio+state and the booked slot is now DRAWN selected (ink plate, 「선택됨」) so the eye and
+VoiceOver agree — a small visible change on the booking sheet, reversible. Queue item 18 asks for one
+VoiceOver vocabulary ruling (`checked` vs `selected`, `tab` inert on iOS Fabric — measured in RN 0.86).
+Peer session `daengrun-b6` (Sean's react-doctor session) is now on backend-audit **H2**: migration
+**0176 + suite 206** `open_drop_tx` definer in its own worktree; told not to touch `open-drop/index.ts`
+(be/edge owns it), not to run codex or the Supabase CLI. Numbers 0175/205 (be/0175, unpushed) and
+0176/206 (b6, unpushed) are both claimed — the three-sided check cannot see either yet.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
