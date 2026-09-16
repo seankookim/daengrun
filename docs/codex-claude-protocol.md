@@ -87,3 +87,29 @@ read-back (`ls-tree origin/redesign-v4 … | grep -c 0170_` → 0) refuted it on
 branch was safe on origin and re-landed. Same family as the push-detector law: a document reported
 a landing the artifact denied. Shape that prevents it: `push && fetch && [ "$(read-back)" = 1 ] &&
 worktree remove && docs commit` — nothing after the push runs unless the artifact is on origin.
+
+## 2026-09-17 — OpenAI's Codex plugin for Claude Code is now the standard door (Sean: 「use this codex plugin」)
+
+Installed at user scope: `claude plugin marketplace add openai/codex-plugin-cc` +
+`claude plugin install codex@openai-codex` (v1.0.6, `~/.claude/plugins/cache/openai-codex/codex/1.0.6`).
+In an interactive session it adds `/codex:review`, `/codex:adversarial-review`, `/codex:rescue`,
+`/codex:transfer`, `/codex:status`, `/codex:result`, `/codex:cancel`, `/codex:setup`. Under the hood every
+one of them calls `node <plugin>/scripts/codex-companion.mjs <verb> …`, which a non-interactive session
+(or a subagent) can call directly:
+
+```
+C=~/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs
+node $C review --wait --base origin/redesign-v4 --scope branch          # read-only review of a branch diff
+node $C adversarial-review --wait --base origin/redesign-v4 "<focus>"   # steerable, adversarial
+node $C task --write --model gpt-6-astra --effort medium "<prompt>"     # delegated BUILD (writes in cwd)
+node $C task --background … · status · result <job-id> · cancel <job-id>
+```
+Run it from the worktree the slice owns (cwd = repo state Codex sees). `--write` is required for a build;
+leave `--model`/`--effort` unset for reviews (config.toml default = gpt-5.6-sol high) and set
+`--model gpt-6-astra --effort low|medium` for builds, sparingly (Sean 2026-09-17: 「astra low and medium
+sparingly for code build and work with it continuously」). The plugin's **review gate** (a Stop hook that
+runs a review every time Claude stops) stays DISABLED — it would spend credits on every turn.
+`scripts/codex/run.sh` remains for scripted runs that need the digit detector and split streams; the plugin's
+`result` output is the artifact for interactive use. House laws unchanged: a review is DONE when a
+verdict/finding count exists in the output, never on exit status; every build slice re-runs the gates
+before landing; codex cannot `git commit` from a worktree sandbox — Claude commits with pathspecs.
