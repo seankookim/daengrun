@@ -177,8 +177,8 @@ export default function Safety() {
           ))}
           {adding ? (
             <View style={{ marginTop: 8, gap: 8 }}>
-              <TextInput value={cName} onChangeText={setCName} placeholder="이름 (예: 엄마)" placeholderTextColor="#b0ada0" style={s.input} maxLength={12} />
-              <TextInput value={cPhone} onChangeText={setCPhone} placeholder="전화번호" placeholderTextColor="#b0ada0" style={s.input} keyboardType="phone-pad" maxLength={15} />
+              <TextInput value={cName} onChangeText={setCName} placeholder="이름 (예: 엄마)" placeholderTextColor="#b0ada0" style={s.input} maxLength={12} textContentType="name" autoComplete="name" autoCorrect={false} />
+              <TextInput value={cPhone} onChangeText={setCPhone} placeholder="전화번호" placeholderTextColor="#b0ada0" style={s.input} keyboardType="phone-pad" maxLength={15} textContentType="telephoneNumber" autoComplete="tel" />
               <Row style={{ gap: 8 }}>
                 <Pressable onPress={saveContact} style={[s.saveBtn, { flex: 1.4 }]}>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>저장</Text>

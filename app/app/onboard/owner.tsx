@@ -209,6 +209,7 @@ export default function OnboardOwner() {
           placeholderTextColor={paper.faint}
           maxLength={20}
           returnKeyType="next"
+          autoCorrect={false}
           accessibilityLabel="반려견 이름"
         />
 
@@ -222,6 +223,8 @@ export default function OnboardOwner() {
           placeholderTextColor={paper.faint}
           maxLength={100}
           returnKeyType="done"
+          textContentType="fullStreetAddress"
+          autoComplete="postal-address"
           accessibilityLabel="시작 주소"
         />
 

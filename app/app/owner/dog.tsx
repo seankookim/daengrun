@@ -305,11 +305,11 @@ export default function DogProfileScreen() {
             <View style={s.secRule} />
             <Text style={[s.secH, { marginBottom: 4 }]}>기본 정보</Text>
             <Text style={[s.label, { marginTop: 8 }]}>이름</Text>
-            <TextInput value={name} onChangeText={setName} style={s.input} maxLength={12} placeholder="초코" placeholderTextColor={paper.faint} />
+            <TextInput value={name} onChangeText={setName} style={s.input} maxLength={12} autoCorrect={false} placeholder="초코" placeholderTextColor={paper.faint} />
             <Row style={{ gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>견종</Text>
-                <TextInput value={breed} onChangeText={setBreed} style={s.input} maxLength={20} placeholder="웰시코기" placeholderTextColor={paper.faint} />
+                <TextInput value={breed} onChangeText={setBreed} style={s.input} maxLength={20} autoCorrect={false} placeholder="웰시코기" placeholderTextColor={paper.faint} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>몸무게 (kg)</Text>
