@@ -373,7 +373,7 @@ export default function Community() {
               ? (loaded && feedError == null ? posts.length : null)
               : reviews?.length;
             return (
-              <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2, borderBottomColor: tab === k ? lilac.head : 'transparent', marginBottom: -1, flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+              <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} style={{ paddingBottom: 9, borderBottomWidth: 2, borderBottomColor: tab === k ? lilac.head : 'transparent', marginBottom: -1, flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: tab === k ? lilac.head : lilac.dim }}>{label}</Text>
                 {count != null && (
                   <Text style={[s.tabCount, nf, { color: tab === k ? lilac.accent : lilac.dim }]}>{String(count).padStart(2, '0')}</Text>

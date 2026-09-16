@@ -792,7 +792,8 @@ function SealSlot({ caps, name, state, sealed, tilt, anim, pulse }: {
 // 인계 전 장비 체크 행 — 탭 토글, 완료 시 잉크 틱 (프리플라이트는 잉크, 의식은 골드)
 function CheckRow({ icon, label, on, onPress }: { icon: string; label: string; on: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.checkRow, on && s.checkRowOn, pressed && { transform: [{ scale: 0.99 }] }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [s.checkRow, on && s.checkRowOn, pressed && { transform: [{ scale: 0.99 }] }]}
+      accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
       <Icon name={icon} glyph="●" size={17} color={on ? paper.ink : paper.text} />
       <Text style={[s.checkLabel, on && s.checkLabelOn]}>{label}</Text>
       <View style={[s.checkBox, on && s.checkBoxOn]}>

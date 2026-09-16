@@ -1303,7 +1303,8 @@ export default function RunnerHome() {
                       const rule = avail.find((r) => r.weekday === wd);
                       const on = !!rule;
                       return (
-                        <Pressable key={wd} onPress={() => toggleDay(wd)} style={[styles.day, on && styles.dayOn]}>
+                        <Pressable key={wd} onPress={() => toggleDay(wd)} style={[styles.day, on && styles.dayOn]}
+                          accessibilityRole="switch" accessibilityState={{ checked: on }}>
                           <Text style={[styles.dayD, { color: on ? lilac.head : lilac.dim }]}>{DAY_NAME[wd]}</Text>
                           <Text style={[styles.dayH, { color: on ? lilac.accent : lilac.dim }]}>
                             {rule ? `${hh(rule.startMin)}–${hh(rule.endMin)}` : '쉼'}

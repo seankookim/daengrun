@@ -189,7 +189,8 @@ export default function RunnerReview() {
         <Text style={s.label}>{dogName ? `${dogName}는 어땠나요?` : '강아지는 어땠나요?'}</Text>
         <Row style={{ flexWrap: 'wrap', gap: 8 }}>
           {dogReviewTags.map((t) => (
-            <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}>
+            <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}
+              accessibilityRole="checkbox" accessibilityState={{ checked: tags.includes(t) }}>
               <Text style={[s.tagText, tags.includes(t) && s.tagTextSel]}>{t}</Text>
             </Pressable>
           ))}
@@ -198,7 +199,8 @@ export default function RunnerReview() {
       <View style={s.rule} />
 
       {/* private flag — 다음 러너를 지키는 신고 어포던스라 critical 계열이 정색(正色) */}
-      <Pressable onPress={() => setPrivateFlag((v) => !v)} style={[s.band, s.flagBand, privateFlag && s.flagBandOn]}>
+      <Pressable onPress={() => setPrivateFlag((v) => !v)} style={[s.band, s.flagBand, privateFlag && s.flagBandOn]}
+        accessibilityRole="checkbox" accessibilityState={{ checked: privateFlag }}>
         <View style={[s.flagCheck, privateFlag && s.flagCheckOn]}>
           {privateFlag && <Text style={s.flagTick}>✓</Text>}
         </View>

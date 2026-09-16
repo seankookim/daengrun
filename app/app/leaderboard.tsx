@@ -90,7 +90,8 @@ export default function Leaderboard() {
         {/* tabs */}
         <View style={s.tabWrap}>
           {([['dogs', '강아지 (거리)'], ['runners', '러너 (러닝 수)']] as const).map(([k, label]) => (
-            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: paper.ink }]}>
+            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: paper.ink }]}
+              accessibilityRole="tab" accessibilityState={{ selected: tab === k }}>
               <Text style={{ fontSize: 15, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
             </Pressable>
           ))}

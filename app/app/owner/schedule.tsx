@@ -577,6 +577,8 @@ export default function Schedule() {
             <Pressable
               key={f.label}
               onPress={() => setFilterIdx(i)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: filterIdx === i }}
               style={[s.filter, { backgroundColor: filterIdx === i ? f.sel : f.tint, borderColor: filterIdx === i ? f.sel : '#EEE' }]}
             >
               <Text style={{ fontSize: 15, fontWeight: filterIdx === i ? '800' : '700', color: filterIdx === i ? f.selFg : f.tintFg }}>{f.label}</Text>
