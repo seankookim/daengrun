@@ -405,10 +405,21 @@ declare
   --    relax it to a substring. Re-read the two values from the catalog, paste them here, and say
   --    in the commit WHY the body moved. That round trip is the entire point — the previous version
   --    of P4 would have stayed green through a rewrite that gutted the function.
-  c_gen_src_md5 constant text := '050c0b3ea18e5481db59fa28e90773c9';
-  c_gen_src_len constant int  := 5335;
-  c_gen_cmt_md5 constant text := '12dda5539af7bbcc8b68b1641493df36';
-  c_gen_cmt_len constant int  := 333;
+  -- ⚠ [0180] RE-READ FROM THE CATALOG on 2026-09-18 after 0180 applied, exactly as the note above
+  --    asks. The body moved ON PURPOSE and by exactly three marked lines: the per-dog advisory lock
+  --    `create_booking_hold_tx` (0179) takes, `order by dog_id, id` on the series loop, and a
+  --    transaction-local `lock_timeout` of 2 s — so the hourly sweep and an edge hold for one dog
+  --    serialize (cold review 0179 #10) and a stuck holder cannot stall the sweep (cold review
+  --    0180 #7). The comment moved with it. Everything 0127 restored is still there byte-for-byte
+  --    outside those three lines (0180's header says so and 211 A1 pins the lock; this arm keeps
+  --    pinning the WHOLE body). Re-read twice in the slice: 95c738e8…/6453 after the lock, then
+  --    2bc92cc3…/6792 after the lock_timeout line the cold review asked for.
+  --    Previous values, for the record: src 050c0b3ea18e5481db59fa28e90773c9 / 5335, comment
+  --    12dda5539af7bbcc8b68b1641493df36 / 333.
+  c_gen_src_md5 constant text := '2bc92cc3ef2ff9aa47d1273a0475aef6';
+  c_gen_src_len constant int  := 6792;
+  c_gen_cmt_md5 constant text := '7de4ee29b01f78a8469bf650cd276985';
+  c_gen_cmt_len constant int  := 457;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have

@@ -2,7 +2,7 @@
 # ═══ 2커넥션 레이스 검사 (R6) — 실 위탁 파일럿 전 필수 차단기 ═══
 # 하네스 말미에 같은 DB로 실행 (harness.sh가 호출 — env 상속). 진짜 두 psql 프로세스가
 # 동시에 경합한다: RA 마지막 슬롯 pay · RB 취소 vs 결제 정합 · RC 릴리스 vs 인시던트 ·
-# [0078] RD 동시 민팅 · RE 동시 인루트 보상.
+# [0078] RD 동시 민팅 · RE 동시 인루트 보상 · [0180] RG 반복 스윕 vs 같은 강아지 엣지 홀드.
 # RC/RD/RE는 타이밍 기반이지만 결정적으로 설계: 선행 tx가 락을 2초 점유 → 후행은 대기 →
 # 커밋 후 재평가로 이미 쓰인 행을 보고 물러서야 한다.
 #
@@ -364,3 +364,49 @@ else
   psql -qc "call _fail('race','RK 같은 로트 동시 종결','deadlock=$K_DEAD err=$K_ERR no_show=$K_ST 연장된로트=$K_EXP (0·0·2·0 기대)')"
 fi
 psql -qc "update ops_flags set late_protocol_live_since = null, updated_at = now()"
+
+# ---------- [0180] RG: the recurring sweep vs an edge hold for the same dog — one row, not two ----------
+# 0179 made the clash guard atomic with the insert for every caller of create_booking_hold_tx;
+# 0180 makes the hourly sweep take the SAME per-dog xact lock before it reads that dog's bookings,
+# held to commit. 211 A2 is one session and cannot tell a lock held to commit from one released
+# right after the insert (it answers dog_slot_clash either way — measured); two processes can.
+# Mutations (211's header): the lock deleted, or a session lock unlocked after the insert → the
+# hold's clash guard cannot see the sweep's uncommitted row → both land → rows=2 → RED.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RG 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_g() returns text
+language plpgsql as $$
+declare og uuid; dg uuid; rt uuid; bg uuid; sg uuid; due timestamptz;
+begin
+  og := t_user('race_g_owner', 'owner'); dg := t_dog(og, '레이스G'); rt := t_route('레이스G 코스');
+  due := date_trunc('hour', now()) + interval '26 hours';
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (og, dg, null, rt, 'confirmed', due, 5.0, 9900, 15000, 0, 24900, 9900)
+  returning id into bg;
+  perform set_config('request.jwt.claim.sub', og::text, true);
+  sg := create_recurring_series(bg);
+  perform set_config('request.jwt.claim.sub', '', true);
+  -- the original a week back (20 G2's trick): this week's occurrence is due and not deduped
+  update bookings set scheduled_at = due - interval '7 days' where id = bg;
+  return og::text || '|' || dg::text || '|' || replace(due::text, ' ', 'T');
+end $$;
+SQL
+IDS=$(psql -qt -c "select race_setup_g()" | xargs)
+OG=${IDS%%|*}; R=${IDS#*|}; DG=${R%%|*}; DUE=${R#*|}
+psql -q > .pgtest/race_g1.out 2>&1 <<SQL &
+begin;
+select generate_recurring_bookings();
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select (create_booking_hold_tx('$OG','$DG','$DUE'::timestamptz,5.0,'[]'::jsonb,9900,15000,0,24900,9900,true,gen_random_uuid()))->>'booking_id';" > .pgtest/race_g2.out 2>&1
+wait
+G_ROWS=$(psql -qt -c "select count(*) from bookings where dog_id = '$DG' and scheduled_at = '$DUE'::timestamptz and status in ('matching','runner_pending','confirmed')" | xargs)
+G_CLASH=$(grep -c dog_slot_clash .pgtest/race_g2.out || true)
+G1_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_g1.out || true)
+if [ "$G_ROWS" = "1" ] && [ "$G_CLASH" = "1" ] && [ "$G1_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RG 반복 스윕 vs 같은 강아지 엣지 홀드 — 스윕 tx가 열린 동안 홀드는 강아지 락에서 기다리고, 커밋 뒤 dog_slot_clash; 그 슬롯의 행 1개 (0180의 xact 락이 두 쓰기를 직렬화한다)')"
+else
+  psql -qc "call _fail('race','RG 반복 스윕 vs 엣지 홀드','rows=$G_ROWS clash=$G_CLASH sweep_err=$G1_ERR (1·1·0 기대 — 행 2개 = 스윕과 홀드가 같은 슬롯에 둘 다 앉았다)')"
+fi
