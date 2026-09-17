@@ -457,8 +457,9 @@ club-route slice moved the title tables into `src/lib/notification-route.ts` (pu
 functional is wrong). My landing chain ran tsc · checks · npm and NOT deno because the slice was
 client-only — wrong: the deno drift pins READ app files, so **deno is a landing gate for any slice
 touching `push.ts` / `notification-route.ts` / transition titles, not only for migrations** (the 0169 law,
-one file wider). Fix is being split out by b6 as its own commit (`be/deno-chat-contract`) and lands
-first; 0182 follows on the green trunk.
+one file wider). **Fixed `69cf477` at 2026-09-18 05:56 — trunk deno 327/0 again** (the contract test now reads the declaration
+from `notification-route.ts` and requires the comparison in both the resolver and push.ts's fast path,
+mutation-checked). 0182 follows on the green trunk.
 
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
