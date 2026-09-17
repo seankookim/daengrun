@@ -354,6 +354,23 @@ so a diff-scoped plugin REVIEW of the two HIG slices (AutoFill + safe-area, `b1b
 from a detached worktree so the diff is exactly those two) is in progress — verdict lands in
 `docs/reviews/2026-09-17-hig-slices-verdict.md` only if a `FINDINGS: <digit>` line exists.
 
+**2026-09-18 02:59 — `3681e73` migration 0179 LANDED** (b6's slice, backend-audit §(a)#3 booking-hold idempotency;
+combined tree: harness **1260/0** = 1252 + exactly the 8 pins `0179-K1…K8` · deno **320/0** = 314 + 6
+· tsc · check-rpc 134/215 · check-definer-acl baseline unchanged · npm 989/0): `bookings.client_request_id`
++ partial unique index (owner, key); `create_booking_hold_tx(...)` SECURITY DEFINER service_role-only,
+one transaction — party gate before any state read, advisory locks key→dog in fixed order, replay ⇒ the
+same row with `unchanged:true` and its CURRENT status, reused key with a different payload ⇒
+`request_mismatch`, clash guard atomic under the dog lock, any raise rolls everything back
+(`compensate()` deleted). Edge: one `db.rpc`, token map (403 / `dog_slot_clash` 409 / `request_mismatch`
+409 / `hold_close_failed` 500). App: `api.ts createHoldRequestKey()`; `request.tsx` mints one key per
+submit attempt, keeps it across a retry of the same payload, replaces it when the payload changes. Races
+measured by hand (two connections): both locks load-bearing; the unique index alone still prevents the
+double booking when the key lock is deleted. Cold review APPROVE-WITH-FIXES/15, two recorded:
+`generate_recurring_bookings` (0111) takes no dog lock (its own slice); suite 210 aborts namelessly if
+an expected-success call raises. 🔴 Key is OPTIONAL server-side (NULL = pre-slice behaviour, K3 pins
+it) so installed builds keep working — queue item 21 dates the 400. Deploy order for 0179 is the 0176
+order (db push, then functions). **Twenty pending** (0157–0163, 0166–0174, 0176–0179) + edge.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 

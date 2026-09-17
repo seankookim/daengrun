@@ -1526,6 +1526,11 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+21. **Dated obligation — make the booking idempotency key REQUIRED once every installed build sends
+    it.** 0179 (`3681e73`) accepts an absent `client_request_id` (NULL = the pre-slice behaviour) so
+    deploy day breaks no installed build; the day the store build carrying the client half
+    (`request.tsx` mints it) is the OLDEST in use, the edge should answer `400 bad_body` to an absent
+    key and 0179-K3 gets rewritten. ⓐ set the date when you ship that build · ⓑ never require it.
 20. **Your Codex branch `codex/board-wrapper-bundle` (0164/195) was NOT landed — it removes the
     runner-commit door.** Every gate is green (harness 1247/0, deno, tsc, npm) and the slice's two real
     fixes are good (`session_set_backup`'s party gate no longer goes silent on a NULL caller; in-body
@@ -1577,7 +1582,7 @@ grep counted. Recorded so nobody builds it twice.
 
 Answer with the item number and a letter/word. Everything below is blocked on YOU, not on code.
 
-1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-17 05:42: NINETEEN now (0178 `f67babf`), and the order is now a SEQUENCE, not a pair: (1) `functions deploy revoke-billing-keys` (0178's worker must precede its function — old worker + new function silently counts refused reports as revoked), (2) `db push` (all nineteen), (3) `functions deploy` the rest (open-drop needs 0176 in place first). 04:25: EIGHTEEN (0176 `open_drop_tx` landed `04d73a9`; 03:58: seventeen — 0163 landed from your Codex session's branch, `ee8845c`; earlier 03:48 text: SIXTEEN —
+1. **Deploy 0157–0162 + 0166–0174 (ONE `db push`).** ⚠ **Updated 2026-09-18 02:59: TWENTY now (0179 `3681e73` booking-hold idempotency — same order as 0176: db push before the functions). 09-17 05:42: NINETEEN (0178 `f67babf`), and the order is now a SEQUENCE, not a pair: (1) `functions deploy revoke-billing-keys` (0178's worker must precede its function — old worker + new function silently counts refused reports as revoked), (2) `db push` (all nineteen), (3) `functions deploy` the rest (open-drop needs 0176 in place first). 04:25: EIGHTEEN (0176 `open_drop_tx` landed `04d73a9`; 03:58: seventeen — 0163 landed from your Codex session's branch, `ee8845c`; earlier 03:48 text: SIXTEEN —
    `0177` (cron readback for four money/ops jobs + a job lock on `owner_la_sweep_stale`, harness
    1236/0, codex-unreviewed until the wall lifts) landed on trunk, and the edge functions changed on
    trunk too (`f6ed478`: `400 bad_body`, open-drop honesty, notify/payments error surfacing) — so the
