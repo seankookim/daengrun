@@ -403,6 +403,18 @@ be said on this trunk. 0180 (b6, in progress) will carry a `pg_advisory_xact_loc
 session lock released early — that would reopen the race) and updates suite 161 P4's md5 pins under the
 suite-update law.
 
+**2026-09-18 04:30 — `a89b8ba` migration 0180 LANDED** (b6; fast-forward; combined tree: harness **1269/0** = 1260 +
+exactly the 9 pins `0180-A1…B6` + race `RG` · deno 326/0 · tsc · check-rpc · check-definer-acl baseline
+unchanged): `generate_recurring_bookings` takes 0179's dog lock as `pg_advisory_xact_lock` held to
+commit (a session lock released early lands a second booking beside the sweep's — measured 2 rows vs
+1; `90_race_check.sh RG` is the two-process pin, 211 A1 pins the absence of a session unlock),
+`lock_timeout` 2 s on the sweep (measured: holder at 8 s ⇒ raise at 2 s); `billing_key_dispatch_ticks`
+carries the 0178 three-way split durably and the reconciler reads all seven counters through one
+guarded cast (a JSON `1.5` used to abort the whole call and leave every later tick `sent` for 6 h —
+measured, fixed, pinned). Suite 161 P4's digests moved under the suite-update law. Cold review
+APPROVE-WITH-FIXES/14, all fixed. **Twenty-one pending** (0157–0163, 0166–0174, 0176–0180) + edge;
+0180 is db-push-only (the worker already writes the seven counters since 0178).
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
