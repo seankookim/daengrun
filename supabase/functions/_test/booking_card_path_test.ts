@@ -32,6 +32,7 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { HttpError } from "../_shared/ctx.ts";
 import { createBookingHold } from "../create-booking-hold/handler.ts";
 import { FakeDb, req, type Row } from "./fakedb.ts";
+import { installHoldTx } from "./hold_tx_fake.ts";
 
 const OWNER = "11111111-1111-1111-1111-111111111111";
 const STRANGER = "22222222-2222-2222-2222-222222222222";
@@ -62,8 +63,13 @@ function scene(over: { card?: boolean; locked?: boolean; chargingSince?: string 
   // why the handler reads it with a bare `.maybeSingle()` and no filter.
   db.seed("ops_flags", [{ id: true, payments_live_since: over.chargingSince ?? null }]);
   db.rpcs["owner_has_unsettled_charge"] = () => ({ data: over.locked ?? false });
+  // [0179] the writes are one SQL transaction now; the fake replays its contract onto this db so
+  // the row assertions below keep meaning what they meant. `txCalls` is what the edge SENT.
+  txCalls.set(db, installHoldTx(db));
   return db;
 }
+const txCalls = new WeakMap<FakeDb, Row[]>();
+const sent = (db: FakeDb) => txCalls.get(db) ?? [];
 
 /** A stand-in for "Sean flipped the cutover". Any non-null value turns charging on. */
 const FLIPPED = "2026-09-01T00:00:00.000Z";
@@ -74,30 +80,10 @@ const body = (over: Record<string, unknown> = {}) => ({
 
 const bookings = (db: FakeDb) => db.rows("bookings");
 const holds = (db: FakeDb) => db.rows("slot_holds");
-const updatesToBookings = (db: FakeDb) => db.log.filter((l) => l.startsWith("update:bookings"));
-
-/**
- * Fire `mutate()` at the instant the handler asks to insert the slot hold — i.e. in the window
- * between the hold and the CAS. That is the real race (0060's expiry sweep, or a trigger changing
- * its mind), and it is the only way to make the CAS return 0 rows from the outside.
- */
-function raceAfterHold(db: FakeDb, mutate: () => void) {
-  const orig = db.from.bind(db);
-  // deno-lint-ignore no-explicit-any
-  (db as any).from = (table: string) => {
-    const q = orig(table);
-    if (table !== "slot_holds") return q;
-    return {
-      ...q,
-      // deno-lint-ignore no-explicit-any
-      insert: (payload: any) => {
-        const built = q.insert(payload);
-        mutate();
-        return built;
-      },
-    };
-  };
-}
+// [0179] the edge itself writes NOTHING any more — every insert/update below this line is the
+// transaction's, and the fake does not log them. A non-empty list here is the edge writing
+// outside the transaction, which is the four-statements defect coming back.
+const edgeWrites = (db: FakeDb) => db.log.filter((l) => /^(insert|update|delete):/.test(l));
 
 function captureLogs() {
   const lines: string[] = [];
@@ -139,8 +125,9 @@ Deno.test("debt gate — false lets the booking through, and the gate precedes e
   const out = await createBookingHold(req(body(), "owner_jwt"), db as never) as Row;
   assertEquals(typeof out.booking_id, "string");
   const gate = db.log.indexOf("rpc:owner_has_unsettled_charge");
-  const firstWrite = db.log.findIndex((l) => l.startsWith("insert:") || l.startsWith("update:"));
-  assert(gate >= 0 && gate < firstWrite, `the lock was checked after a write: ${db.log.join(" ")}`);
+  const firstWrite = db.log.indexOf("rpc:create_booking_hold_tx");   // [0179] the only write there is
+  assert(gate >= 0 && firstWrite >= 0 && gate < firstWrite, `the lock was checked after the write: ${db.log.join(" ")}`);
+  assertEquals(edgeWrites(db), []);
 });
 
 Deno.test("ownership is validated BEFORE the lock — a stranger's dog learns nothing about debt", async () => {
@@ -185,9 +172,12 @@ Deno.test("[O-5 P1] no billing key, charging OFF → `matching` in THIS request,
   assertEquals(bookings(db)[0].status, "matching");
   assertEquals(bookings(db)[0].total_price, TOTAL);
   assertEquals(bookings(db)[0].runner_id, null); // the hold still nominates nobody (0111)
-  // draft → quoted → payment_hold → matching. The ladder is UNCHANGED (no migration, no new edge);
-  // `payment_hold` is simply transient for everyone now, as it already was for card owners.
-  assertEquals(updatesToBookings(db), ["update:bookings:1", "update:bookings:1", "update:bookings:1"]);
+  // draft → quoted → payment_hold → matching. The ladder is UNCHANGED, but since 0179 it runs INSIDE
+  // `create_booking_hold_tx` (SQL suite 210 K7 pins it); from here the observable is that the edge
+  // asked the transaction to close, and wrote nothing itself.
+  assertEquals(sent(db).length, 1);
+  assertEquals(sent(db)[0].p_close_to_matching, true);
+  assertEquals(edgeWrites(db), []);
   assertEquals(holds(db).length, 1);
   assertEquals(holds(db)[0].booking_id, bookings(db)[0].id);
   assertEquals(typeof out.hold_expires_at, "string");
@@ -221,7 +211,7 @@ Deno.test("[O-5 §C.1] the card path is unaffected by the flag — it CASed befo
     assertEquals(out.paid_path, "card", `flag=${chargingSince}`);
     assertEquals(out.booking_status, "matching", `flag=${chargingSince}`);
     assertEquals(bookings(db)[0].status, "matching", `flag=${chargingSince}`);
-    assertEquals(updatesToBookings(db).length, 3, `flag=${chargingSince}`);
+    assertEquals(sent(db)[0].p_close_to_matching, true, `flag=${chargingSince}`);
     assertEquals(db.rows("payments").length, 0, `flag=${chargingSince}`);
   }
 });
@@ -252,9 +242,10 @@ Deno.test("[O-5 N10] ...and the flag is read BEFORE the first write, not after i
   assertEquals(typeof out.booking_id, "string");
   // FakeDb only logs MUTATIONS, so the read itself leaves no marker — assert the negative that
   // matters instead: with the read failing, no mutation happens at all (the test above), and here
-  // that the first mutation is the draft insert rather than anything earlier.
-  const firstWrite = db.log.findIndex((l) => l.startsWith("insert:") || l.startsWith("update:"));
-  assertEquals(db.log[firstWrite], "insert:bookings");
+  // that the only mutation is the transaction call, after the debt lock, with nothing written by
+  // the edge around it (0179).
+  const mutations = db.log.filter((l) => /^(insert|update|delete|rpc:create_booking_hold_tx)/.test(l));
+  assertEquals(mutations, ["rpc:create_booking_hold_tx"]);
 });
 
 Deno.test("[O-5 P8] the same-dog DOUBLE HOLD hole closes for free — the second is refused", async () => {
@@ -277,6 +268,8 @@ Deno.test("[O-5 P8] the same-dog DOUBLE HOLD hole closes for free — the second
   assertEquals(e.status, 409);
   assertStringIncludes(e.message, "같은 아이의 예약");
   // Refused at the guard, i.e. before any write: the second booking and its hold never exist.
+  // [0179] the guard now lives INSIDE the transaction (atomic with the insert, under a per-dog
+  // lock — SQL 210 K4); what this file pins is that the edge still says the same sentence.
   assertEquals(bookings(db).length, 1);
   assertEquals(holds(db).length, 1);
 });
@@ -314,103 +307,58 @@ Deno.test("billing key → the same request CASes payment_hold → matching, aft
   assertEquals(out.total_price, TOTAL); // the price is the same money; only the collection differs
   assertEquals(bookings(db).length, 1);
   assertEquals(bookings(db)[0].status, "matching");
-  // Order is the contract (§0-ter #7): the slot is held FIRST, the CAS is last, so a failure has
-  // something to compensate rather than a booking already announced to the matching pool.
-  const hold = db.log.indexOf("insert:slot_holds");
-  const cas = db.log.lastIndexOf("update:bookings:1");
-  assert(hold >= 0 && cas > hold, `CAS did not follow the hold: ${db.log.join(" ")}`);
-  assertEquals(updatesToBookings(db).length, 3); // quoted, payment_hold, matching
+  // [0179] hold-then-CAS ordering and the ladder are the transaction's (SQL 210 K7); here the edge
+  // asked for the close and wrote nothing around the call.
+  assertEquals(sent(db).length, 1);
+  assertEquals(sent(db)[0].p_close_to_matching, true);
+  assertEquals(edgeWrites(db), []);
   assertEquals(holds(db).length, 1); // the hold stays — 0060 reaps it, matching is live
   // Nothing was charged and no payments row exists: booking is free under post-pay.
   assertEquals(db.rows("payments").length, 0);
 });
 
-Deno.test("card path, CAS finds 0 rows → compensating DELETE of the hold AND the booking (§0-ter #7)", async () => {
+// ═══ [0179] the closing CAS cannot lose inside the transaction — and when the transaction refuses, nothing is left ═══
+// The four tests that used to sit here (a CAS finding 0 rows → compensating deletes, the CAS
+// statement erroring, a compensation that itself fails, a clean compensation's sentence) tested
+// `compensate()`, which is DELETED: a raise anywhere in `create_booking_hold_tx` rolls the whole
+// hold back, so there is never a half-made booking to clean up. SQL suite 210 K6 owns that
+// atomicity against a real database; what the edge owns is the honest sentence and doing nothing
+// of its own.
+Deno.test("[0179] hold_close_failed from the transaction → 500 with the flat 'nothing is left' sentence, and NO compensating writes", async () => {
   const db = scene({ card: true });
-  // The booking expires in the window between the hold insert and the CAS.
-  raceAfterHold(db, () => {
-    bookings(db)[0].status = "expired";
-  });
-  const cap = captureLogs();
-  try {
-    const e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
-    assertEquals(e.status, 500);
-    // Honest: no charge happened (none ever does here) and no booking survives.
-    assertStringIncludes(e.message, "예약을 만들지 못했어요");
-    assertEquals(bookings(db).length, 0);
-    assertEquals(holds(db).length, 0);
-    // The hold goes first — it references the booking row.
-    const dh = db.log.indexOf("delete:slot_holds:1");
-    const dbk = db.log.indexOf("delete:bookings:1");
-    assert(dh >= 0 && dbk > dh, `compensation order wrong: ${db.log.join(" ")}`);
-    assert(
-      cap.lines.some((l) => l.includes("card-path CAS failed") && l.includes("cas_zero_rows")),
-      `the compensation was silent: ${cap.lines.join("|")}`,
-    );
-  } finally {
-    cap.restore();
-  }
+  db.rpcs["create_booking_hold_tx"] = () => ({ error: { message: "hold_close_failed" } });
+  const e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
+  assertEquals(e.status, 500);
+  assertStringIncludes(e.message, "예약을 만들지 못했어요");
+  assertStringIncludes(e.message, "남은 예약도 없어요");   // TRUE on every path now: the transaction rolled back
+  assert(!e.message.includes("남을 수 있어요"), `the two-sentence compensate() copy is back: ${e.message}`);
+  assertEquals(edgeWrites(db), [], "the edge tried to compensate a transaction that never committed");
+  assertEquals(bookings(db).length, 0);
+  assertEquals(holds(db).length, 0);
 });
 
-Deno.test("card path, the CAS statement itself erroring → same compensation, same honest error", async () => {
+Deno.test("[0179] an unmapped transaction error is a hygienic 500 — raw Postgres text stays out of the body", async () => {
   const db = scene({ card: true });
-  // A trigger refusal / connection error at the last statement, injected only for the CAS: the
-  // three earlier booking updates have already run by the time the hold is inserted.
-  raceAfterHold(db, () => db.fail("bookings:update", "enforce_booking_transition refused"));
+  db.rpcs["create_booking_hold_tx"] = () => ({ error: { message: 'null value in column "km" violates not-null constraint' } });
   const cap = captureLogs();
+  let e: HttpError;
   try {
-    const e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
-    assertEquals(e.status, 500);
-    assertEquals(bookings(db).length, 0);
-    assertEquals(holds(db).length, 0);
-    assert(
-      cap.lines.some((l) => l.includes("enforce_booking_transition refused")),
-      `the CAS error never reached the log: ${cap.lines.join("|")}`,
-    );
-  } finally {
-    cap.restore();
-  }
+    e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
+  } finally { cap.restore(); }
+  assertEquals(e.status, 500);
+  assertEquals(e.message, "internal");
+  assertEquals(e.code, "hold_tx");
+  assert(cap.lines.some((l) => l.includes("violates not-null")), "the cause never reached the log");
+  assertEquals(bookings(db).length, 0);
 });
 
-Deno.test("card path never strands: a compensating delete that itself fails is LOUD, not silent", async () => {
-  const db = scene({ card: true });
-  raceAfterHold(db, () => {
-    bookings(db)[0].status = "expired";
-    db.fail("bookings:delete", "deadlock detected");
-  });
-  const cap = captureLogs();
-  try {
+Deno.test("[0179] a success with no booking id is refused, never rendered as a booking", async () => {
+  for (const data of [null, {}, { booking_status: "matching" }, "abc"]) {
+    const db = scene();
+    db.rpcs["create_booking_hold_tx"] = () => ({ data });
     const e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
-    assertEquals(e.status, 500); // the caller still hears the truth about their request
-    assertEquals(holds(db).length, 0); // the hold half did get released
-    assert(
-      cap.lines.some((l) => l.includes("booking cleanup failed") && l.includes("deadlock detected")),
-      `a failed cleanup was swallowed: ${cap.lines.join("|")}`,
-    );
-    // ...and the SENTENCE tells the truth about what survived. The booking row is still there —
-    // saying "남은 예약도 없어요" would be a lie the owner discovers on their own schedule screen.
-    assertEquals(bookings(db).length, 1);
-    assert(!e.message.includes("남은 예약도 없어요"), `the copy denied a booking that exists: ${e.message}`);
-    assertStringIncludes(e.message, "청구된 금액은 없어요"); // still true, and still worth saying
-    assertStringIncludes(e.message, "남을 수 있어요");
-    assertStringIncludes(e.message, "자동 정리");
-  } finally {
-    cap.restore();
-  }
-});
-
-Deno.test("...while a clean compensation keeps the flat 'nothing is left' sentence", async () => {
-  const db = scene({ card: true });
-  raceAfterHold(db, () => {
-    bookings(db)[0].status = "expired";
-  });
-  const cap = captureLogs();
-  try {
-    const e = await expectHttpError(() => createBookingHold(req(body(), "owner_jwt"), db as never));
-    assertEquals(bookings(db).length, 0);
-    assertStringIncludes(e.message, "남은 예약도 없어요");
-  } finally {
-    cap.restore();
+    assertEquals(e.status, 500, `data=${JSON.stringify(data)}`);
+    assertEquals(e.code, "hold_tx:shape");
   }
 });
 
@@ -423,4 +371,5 @@ Deno.test("a failed billing_keys read refuses BEFORE any write (nothing to compe
   assertEquals(e.status, 500);
   assertEquals(bookings(db).length, 0);
   assertEquals(holds(db).length, 0);
+  assertEquals(sent(db), [], "the transaction was asked before the card read answered");
 });
