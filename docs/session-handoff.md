@@ -476,6 +476,17 @@ APPROVE-WITH-FIXES/13, fixed or recorded. ⚠ **This slice touches the CLIENT** 
 — it needs the app build alongside `db push`; no functions deploy. **Twenty-three pending**
 (0157–0163, 0166–0174, 0176–0182). Codex re-review of 0182 running now; the letter waits for it.
 
+**2026-09-18 06:51 — Codex re-review of 0182: REJECT / 3** (`docs/reviews/2026-09-18-migration-0182-codex-verdict.md`;
+static for SQL, client tests executed). Closed: lock-then-look (#3) and club routing (#5). Open: HIGH —
+a delayed old-cycle ask inserted after reassignment (the edge stamps and notifies in separate calls) and
+pre-0182 NULL-cycle rows still suppress the current cycle's re-send; HIGH — arm ⓓ consumes the
+escalation even when the ops roster is EMPTY (213 pins it as intended), so a later-subscribed operator
+never hears of it; MED — the transient SQLSTATE list omits classes 53/58, so an out-of-memory in a tick
+becomes a permanent `failed`. Fix shape: **correct-forward 0183 + suite 214** (explicit cycle id on
+booking AND notification validated transactionally at ask creation, edge + sweep; legacy-NULL rule; ops
+delivery tracked apart from party delivery with a durable pending state; deterministic-only failure
+conversion). Routed to b6. 🔴 **Deploy letter stays parked** until 0183 lands and clears.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
