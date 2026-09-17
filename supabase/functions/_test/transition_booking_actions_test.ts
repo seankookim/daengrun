@@ -325,10 +325,96 @@ Deno.test("[0181] the edge's confirm_handoff ask and the sweep's re-send spell t
   assert(armStart >= 0, "no confirm_handoff arm in transition-booking");
   const armEnd = edge.indexOf("\n    case ", armStart + 1);
   const arm = edge.slice(armStart, armEnd < 0 ? undefined : armEnd);
-  const ask = arm.match(/notify\(target, "([^"]+)", "([^"]+)"\)/);
+  // [0183] the ask gained a fourth argument (`{ handoff_cycle_id }`); the regex admits it
+  const ask = arm.match(/notify\(target, "([^"]+)", "([^"]+)"(?:, \{[^}]*\})?\)/);
   assert(ask, "the edge's confirm_handoff arm no longer asks the counterparty with notify(target, title, body)");
   const [, title, body] = ask;
   assertEquals(title, "인계 확인 요청", "the edge's ask title moved — 0181's sweep matches on it and push.ts routes on it");
   assert(sql.includes(`c_ask_title constant text := '${title}'`), `0181's sweep does not spell the edge's title: ${title}`);
   assert(sql.includes(`c_ask_body  constant text := '${body}'`), `0181's sweep does not spell the edge's body: ${body}`);
+});
+
+// ═══ [0183] THE ASK NAMES ITS CYCLE ═════════════════════════════════════════════════════════════
+// A timestamp cannot tell handoff cycles apart (codex on 0182, #1): this handler stamps and asks in
+// two calls, so a re-match committing between them dates the OLD cycle's ask inside the NEW one's
+// window. 0183 gives the cycle an identity: the database mints `bookings.handoff_cycle_id`, this
+// arm reads it in the same request that stamped and writes it onto the ask, and a guard on
+// `notifications` refuses an ask whose id is no longer the booking's. These pins hold the edge's
+// half of that contract.
+const CYCLE = "c0000000-0000-0000-0000-00000000c1c1";
+Deno.test("[0183] confirm_handoff's ask carries the booking's handoff_cycle_id, read after the stamp", async () => {
+  // the runner confirms; the owner has not — so the ask goes to the OWNER and must name the cycle.
+  // ⚠ The fixture must leave the agreement zone (cold review 0183 #5): a shared bookings mock made
+  // the pre-stamp snapshot and the post-stamp re-read identical, so sourcing the id from the STALE
+  // snapshot passed. Here the snapshot carries NULL (a pre-0183 booking whose first stamp mints the
+  // id in the trigger) and only the re-read that selects `handoff_cycle_id` carries CYCLE.
+  const fm = new FetchMock().install();
+  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: RUNNER, aud: "authenticated", role: "authenticated" }));
+  const base = { id: BOOKING, owner_id: OWNER, runner_id: RUNNER, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
+  fm.on((u) => u.includes("/rest/v1/bookings") && u.includes("handoff_cycle_id"), () => FetchMock.json({ ...base, handoff_cycle_id: CYCLE }));
+  fm.on((u) => u.includes("/rest/v1/bookings"), () => FetchMock.json({ ...base, handoff_cycle_id: null }));
+  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+  try {
+    const res = await handler(
+      new Request("https://proj.functions.supabase.co/transition-booking", {
+        method: "POST",
+        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
+      }),
+    );
+    assertEquals(res.status, 200);
+    // the re-read after the stamp selects the id (a stale snapshot must not be the source)
+    const reread = fm.calls.find((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() === "GET" && c.url.includes("handoff_cycle_id"));
+    assert(reread, "the post-stamp re-read no longer selects handoff_cycle_id");
+    const asks = fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST");
+    assertEquals(asks.length, 1, "exactly one notification is written by a one-sided confirm");
+    const row = asks[0].body;
+    assertEquals(row.title, "인계 확인 요청");
+    assertEquals(row.profile_id, OWNER, "the ask goes to the party who has NOT stamped");
+    assertEquals(row.ref_id, BOOKING);
+    assertEquals(row.handoff_cycle_id, CYCLE, "the ask does not carry the cycle identity read AFTER the stamp (a stale snapshot would carry null)");
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0183 control] a notification from another arm carries NO handoff_cycle_id — the column is the ask's alone", async () => {
+  const soon = new Date(Date.now() + 72 * 3600_000).toISOString();
+  const fm = wire(OWNER, { status: "confirmed", scheduled_at: soon, handoff_cycle_id: CYCLE });
+  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+  try {
+    const res = await handler(
+      new Request("https://proj.functions.supabase.co/transition-booking", {
+        method: "POST",
+        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: BOOKING, action: "request_reschedule", meta: { new_time: new Date(Date.now() + 48 * 3600_000).toISOString() } }),
+      }),
+    );
+    assertEquals(res.status, 200);
+    const rows = fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST").map((c) => c.body);
+    assert(rows.length >= 1, "the reschedule wrote no notification");
+    for (const row of rows) assert(!("handoff_cycle_id" in row), `a non-ask notification carries handoff_cycle_id: ${JSON.stringify(row)}`);
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0183] a booking the database has not identified yet: the ask carries null, never a made-up id", async () => {
+  const fm = wire(RUNNER, { status: "confirmed", runner_id: RUNNER, owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, handoff_cycle_id: null });
+  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+  try {
+    const res = await handler(
+      new Request("https://proj.functions.supabase.co/transition-booking", {
+        method: "POST",
+        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
+      }),
+    );
+    assertEquals(res.status, 200);
+    const ask = fm.calls.find((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST")?.body;
+    assert(ask, "no ask written");
+    assert("handoff_cycle_id" in ask && ask.handoff_cycle_id === null, `expected an explicit null, got ${JSON.stringify(ask.handoff_cycle_id)}`);
+  } finally {
+    fm.restore();
+  }
 });

@@ -79,9 +79,13 @@ Deno.serve(handle(async (req) => {
   //
   // The title is in the log on purpose: it is what identifies WHICH of the 15 sites lost its
   // notification, and 「인계 확인 요청」 is the one an operator has to act on.
-  const notify = async (profile_id: string, title: string, body: string) => {
+  // [0183] `extra` rides onto the row for the one notification that needs it: the handoff ask
+  // carries the booking's `handoff_cycle_id` so `_notification_cycle_guard` can refuse an ask a
+  // re-match has overtaken and `sweep_run_end_recovery` can tell this cycle's ask from an earlier
+  // pairing's. Every other call passes nothing and the column stays NULL.
+  const notify = async (profile_id: string, title: string, body: string, extra: Record<string, unknown> = {}) => {
     const { error: nErr } = await db.from("notifications")
-      .insert({ profile_id, kind: "booking", title, body, ref_id: booking_id });
+      .insert({ profile_id, kind: "booking", title, body, ref_id: booking_id, ...extra });
     if (nErr) {
       console.error(
         `[transition-booking] notify failed booking=${booking_id} action=${action} ` +
@@ -351,7 +355,7 @@ Deno.serve(handle(async (req) => {
         : { runner_confirmed_handoff_at: new Date().toISOString() });
       // 재조회 후 판정 — 처음 읽은 bk 스냅샷은 stale (양측이 거의 동시에 눌러도 안전)
       const { data: fresh } = await db.from("bookings")
-        .select("status, owner_confirmed_handoff_at, runner_confirmed_handoff_at")
+        .select("status, owner_confirmed_handoff_at, runner_confirmed_handoff_at, handoff_cycle_id")
         .eq("id", booking_id).single();
       if (fresh?.owner_confirmed_handoff_at && fresh?.runner_confirmed_handoff_at) {
         if (fresh.status !== "picked_up" && fresh.status !== "active") {
@@ -362,7 +366,13 @@ Deno.serve(handle(async (req) => {
         }
       } else {
         const target = side === "owner" ? bk.runner_id : bk.owner_id;
-        if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요");
+        // [0183] the ask names the cycle it belongs to — read in the SAME request that stamped, from
+        // the row the stamp landed on. A re-match committing between that read and this insert makes
+        // the id stale, and the database refuses the row (`stale_handoff_cycle`, logged by `notify`);
+        // the recovery sweep then asks for the current cycle. NULL only on a row the database has
+        // not identified yet (a pre-0183 booking touched for the first time by this very stamp
+        // gets its id from the trigger, so `fresh` already carries it).
+        if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요", { handoff_cycle_id: fresh?.handoff_cycle_id ?? null });
       }
       break;
     }

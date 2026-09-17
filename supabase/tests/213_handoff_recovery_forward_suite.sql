@@ -122,8 +122,10 @@ begin
   values (o, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk1b, now() - interval '9 minutes');
   update bookings set runner_id = r2, owner_confirmed_handoff_at = null, runner_confirmed_handoff_at = null where id = bk1b;
   update bookings set runner_confirmed_handoff_at = now() - interval '6 minutes' where id = bk1b;
-  insert into notifications (profile_id, kind, title, body, ref_id)                            -- the new pairing's edge ask (created_at = now() ≥ cycle_at)
-  values (o, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk1b);
+  -- [0183] the new pairing's edge ask carries the NEW cycle's id (what makes it this cycle's since
+  -- 0183; the timestamp no longer decides) — suite-update law, 214 E1 owns the identity rule
+  insert into notifications (profile_id, kind, title, body, ref_id, handoff_cycle_id)           -- the new pairing's edge ask
+  values (o, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk1b, (select handoff_cycle_id from bookings where id = bk1b));
   perform sweep_run_end_recovery();
   if t_asks(bk1b, o) <> 2 then v_bad := v_bad || ' control: owner-asks=' || t_asks(bk1b, o) || ' (expected 2: old + the new pairing''s own; 3 = re-sent despite the new ask)'; end if;
   if v_bad = '' then call _pass('cyc','0182-D1 같은 보호자 수신자·새 러너: 이전 짝의 요청 행(스큐 안)은 이 짝의 요청이 아니다 → 다시 보냄(1회); 새 짝의 요청이 사이클 경계 뒤에 있으면 안 보냄');
@@ -181,11 +183,13 @@ begin
   select regexp_replace(prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src from pg_proc where proname = 'sweep_run_end_recovery';
   if v_src is null then v_bad := ' NO-SOURCE';
   else
+    -- [0183] arm ⓔ locks too; ≥ 2 keeps this file's property (ⓒ and ⓓ lock before they write) — 214 E6 pins 3
     select count(*) into v_n from regexp_matches(v_src, 'for update skip locked', 'g');
-    if v_n <> 2 then v_bad := v_bad || ' row-locks=' || v_n || '(ⓒ·ⓓ 2개여야)'; end if;
+    if v_n < 2 then v_bad := v_bad || ' row-locks=' || v_n || '(ⓒ·ⓓ 최소 2개)'; end if;
     if (v_src ~ 'if not found then') is distinct from true then v_bad := v_bad || ' 잠긴 행 건너뛰기 없음'; end if;
     if (v_src ~ 'v_b\.status = any\(c_dead\)') is distinct from true then v_bad := v_bad || ' 잠근 행 재평가 없음'; end if;
-    if (v_src ~ 'nt\.created_at >= greatest\(coalesce\(v_b\.handoff_cycle_at') is distinct from true then v_bad := v_bad || ' 재평가에 사이클 경계 없음'; end if;
+    -- [0183] the re-check matches the ask by the cycle IDENTITY (`v_cid`), not by a timestamp bound
+    if (v_src ~ 'nt\.handoff_cycle_id = v_cid\)') is distinct from true then v_bad := v_bad || ' 재평가에 사이클 정체성 매칭 없음'; end if;
     if (v_src ~ 'values \(v_cp, ''booking'', c_ask_title') is distinct from true then v_bad := v_bad || ' 삽입이 잠근 행의 상대가 아니다'; end if;
   end if;
   if v_bad = '' then call _pass('cyc','0182-D3 ⓒ는 후보를 잠그고(skip locked) 잠근 행에서 스탬프·러너·상태·나이·요청 행을 다시 본 뒤 그 행의 상대에게만 보낸다 (두 커넥션 행동은 RL2)');
@@ -229,12 +233,15 @@ begin
   exception when others then v_bad := v_bad || ' new-cycle fixture/sweep RAISED [' || sqlerrm || '] (did the sweep move the status?)'; end;
   if t_esc(bk4, o) <> 2 then v_bad := v_bad || ' new-cycle: owner-told=' || t_esc(bk4, o) || ' (expected 2)'; end if;
   if t_esc(bk4, r2) <> 1 then v_bad := v_bad || ' new-cycle: new-runner-told=' || t_esc(bk4, r2); end if;
-  -- an EMPTY roster: the parties are still told, the record is still set (zero ops rows is the honest count)
+  -- an EMPTY roster: the parties are still told and THEIR record is set; [0183] the OPS record stays
+  -- NULL (a pending ops escalation — 214 E4 owns the retry after provisioning). Suite-update law:
+  -- 0182's version of this arm pinned the consumed escalation codex called out.
   delete from ops_recipients where profile_id = opsp;
   bk4d := t_ask_bk(o, d, rt, r1, 'confirmed', 'runner', interval '40 minutes');
   perform sweep_run_end_recovery();
   if t_esc(bk4d, o) <> 1 or t_esc(bk4d, r1) <> 1 then v_bad := v_bad || ' empty-roster: parties-told=' || t_esc(bk4d, o) || '/' || t_esc(bk4d, r1); end if;
   if (select handoff_escalated_at from bookings where id = bk4d) is null then v_bad := v_bad || ' empty-roster: record-not-set'; end if;
+  if (select handoff_ops_alerted_at from bookings where id = bk4d) is not null then v_bad := v_bad || ' empty-roster: ops-record-set-with-nobody-told'; end if;
   -- ⓓ never touches a status in which no handoff is underway — the enum walked, 212 C6's shape for
   -- ⓒ; the cold review found ⓓ's deny-list deletable with a green suite (an owner who stamped and
   -- then CANCELLED would have been told the handoff was stuck). And no runner ⇒ nothing, no raise.
@@ -296,7 +303,10 @@ begin
   perform set_config('cyc.fault_tick', t5::text, true); perform set_config('cyc.fault_kind', 'transient', true);
   v_err := null;
   begin perform reconcile_billing_key_dispatch_ticks(); exception when others then v_err := sqlerrm; end;
-  if v_err is null then v_bad := v_bad || ' transient: the call did NOT re-raise (the fault would be a permanent verdict)'; end if;
+  -- [0183] a transient fault no longer ABORTS the call (an abort killed the siblings' verdicts, the
+  -- stale sweep and the prune) — it leaves the tick `sent` and the loop goes on. The property this
+  -- arm holds (「not a permanent verdict; retried next tick」) is unchanged; 214 E5 owns the shape.
+  if v_err is not null then v_bad := v_bad || ' transient: the call RAISED [' || v_err || '] (an abort is 0182''s shape; 0183 leaves the tick and continues)'; end if;
   if (select outcome from billing_key_dispatch_ticks where id = t5) is distinct from 'sent' then v_bad := v_bad || ' transient: tick=' || (select outcome from billing_key_dispatch_ticks where id = t5) || ' (expected sent — left for the next tick)'; end if;
   perform set_config('cyc.fault_tick', '', true);                                               -- the cause is gone
   begin perform reconcile_billing_key_dispatch_ticks(); exception when others then v_bad := v_bad || ' after-transient RAISED [' || sqlerrm || ']'; end;
@@ -318,12 +328,15 @@ begin
   if v_src is null then v_bad := v_bad || ' NO-SOURCE(reconciler)';
   else
     if (v_src ~ 'v_claimed::bigint <> v_revoked::bigint \+') is distinct from true then v_bad := v_bad || ' 합이 bigint가 아니다'; end if;
-    if (v_src ~ 'left\(sqlstate, 2\) in \(''40'', ''55'', ''57'', ''08''\) then raise;') is distinct from true then v_bad := v_bad || ' 일시적 오류를 다시 던지지 않는다'; end if;
+    -- [0183] the filter is INVERTED — a verdict only for named deterministic classes (22 · 23 · P0),
+    -- everything else re-raised — so this arm now pins that inversion; 214 E5 owns the class rule.
+    -- Suite-update law: the property (a transient fault must not become a verdict) is unchanged.
+    if (v_src ~ 'left\(sqlstate, 2\) not in \(''22'', ''23'', ''P0''\) then') is distinct from true then v_bad := v_bad || ' 판정을 22·23·P0에만 한정하는 필터 없음'; end if;
     select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
     if v_n <> 2 then v_bad := v_bad || ' 틱 단위 예외 팔 수=' || v_n || '(본문 파싱 + 틱 2개여야)'; end if;
     if (v_src ~ 'reconciler could not read this answer') is distinct from true then v_bad := v_bad || ' 읽지 못한 답을 이름 짓지 않는다'; end if;
   end if;
-  if v_bad = '' then call _pass('cyc','0182-D5 각각은 유효하지만 합이 int4를 넘는 본문 — 호출은 살아 있고, 그 틱은 accepted + 「counters do not balance」, 옆의 건강한 틱도 정리됨; 합은 bigint; 틱 단위 경계 양면 — 일시적 오류(40P01)는 다시 던져 틱이 sent로 남고 다음 호출에 accepted, 결정적 오류(P0001)는 failed + 사유이고 옆 틱은 정리됨');
+  if v_bad = '' then call _pass('cyc','0182-D5 각각은 유효하지만 합이 int4를 넘는 본문 — 호출은 살아 있고, 그 틱은 accepted + 「counters do not balance」, 옆의 건강한 틱도 정리됨; 합은 bigint; 틱 단위 경계 양면 — 일시적 오류(40P01)는 틱을 sent로 두고 다음 호출에 accepted[0183: 호출은 죽지 않는다], 결정적 오류(P0001)는 failed + 사유이고 옆 틱은 정리됨');
   else v_msg := v_bad; call _fail('cyc','0182-D5 overflow', v_msg); end if;
 
   -- ---------- [0182-D6] a club re-send carries the EDGE'S shape: booking ref + family title, never a session ref (codex #5, sweep half) ----------
@@ -352,7 +365,8 @@ begin
     select regexp_replace(prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src from pg_proc where oid = v_oid;
     if v_src is null then v_bad := v_bad || ' NO-SOURCE(sweep)';
     else
-      if (v_src ~ 'nt\.created_at >= greatest\(coalesce\(b\.handoff_cycle_at') is distinct from true then v_bad := v_bad || ' 후보 질의에 사이클 경계 없음'; end if;
+      -- [0183] the candidate matches the ask by the cycle IDENTITY, not by a timestamp bound
+      if (v_src ~ 'nt\.handoff_cycle_id = b\.handoff_cycle_id\)') is distinct from true then v_bad := v_bad || ' 후보 질의에 사이클 정체성 매칭 없음'; end if;
       if (v_src ~ 'handoff_escalated_at = now\(\)') is distinct from true then v_bad := v_bad || ' 승격 기록 없음'; end if;
       if (v_src ~ 'ops_recipients_for\(c_ops_class\)') is distinct from true then v_bad := v_bad || ' ops 로스터 안 부름'; end if;
       if (v_src ~ 'c_ops_class constant text := ''handoff_unanswered''') is distinct from true then v_bad := v_bad || ' ops 클래스 텍스트 다름'; end if;
@@ -361,16 +375,20 @@ begin
       if v_n <> 1 then v_bad := v_bad || ' 상태 이동 문장 수=' || v_n || '(ⓑ의 1개여야 — ⓒ/ⓓ는 상태를 옮기지 않는다)'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'club_session_id is null', 'g');
       if v_n <> 2 then v_bad := v_bad || ' club 범위 조건 수=' || v_n || '(ⓐ/ⓑ 2개여야)'; end if;
+      -- [0183] arm ⓔ (the pending ops escalation) adds a handler and a c_dead use; ≥ 3 keeps this
+      -- file's property (ⓑ·ⓒ·ⓓ each catch their row and screen dead statuses) — 214 E6 pins 4
       select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
-      if v_n <> 3 then v_bad := v_bad || ' 행 단위 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ 3개여야)'; end if;
+      if v_n < 3 then v_bad := v_bad || ' 행 단위 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ 최소 3개)'; end if;
       select count(*) into v_n from regexp_matches(v_src, '= any\(c_dead\)', 'g');
-      if v_n <> 3 then v_bad := v_bad || ' c_dead 사용 수=' || v_n || '(ⓒ 재평가·ⓓ 후보·ⓓ 재평가 3개여야)'; end if;
+      if v_n < 3 then v_bad := v_bad || ' c_dead 사용 수=' || v_n || '(ⓒ 재평가·ⓓ 후보·ⓓ 재평가 최소 3개)'; end if;
+      -- [0183] arm ⓔ's candidate carries the runner conjunct too; ≥ 2 keeps this file's property, 214 E6 pins 3
       select count(*) into v_n from regexp_matches(v_src, 'b\.runner_id is not null', 'g');
-      if v_n <> 2 then v_bad := v_bad || ' runner 조건 수=' || v_n || '(ⓒ·ⓓ 후보 2개여야)'; end if;
+      if v_n < 2 then v_bad := v_bad || ' runner 조건 수=' || v_n || '(ⓒ·ⓓ 후보 최소 2개)'; end if;
+      -- [0183] arm ⓔ re-checks the runner too; ≥ 2 keeps this file's property — 214 E6 pins 3
       select count(*) into v_n from regexp_matches(v_src, 'v_b\.runner_id is null', 'g');
-      if v_n <> 2 then v_bad := v_bad || ' runner 재평가 수=' || v_n || '(2개여야)'; end if;
+      if v_n < 2 then v_bad := v_bad || ' runner 재평가 수=' || v_n || '(최소 2개)'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'limit c_batch', 'g');
-      if v_n <> 2 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓒ·ⓓ 2개여야)'; end if;
+      if v_n < 2 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓒ·ⓓ 최소 2개; [0183] ⓔ가 하나 더)'; end if;
       if (v_src ~ 'set_config\(''lock_timeout'', ''2000'', true\)') is distinct from true then v_bad := v_bad || ' lock_timeout 없음'; end if;
       v_lit := regexp_replace((regexp_match(v_src, 'b\.status not in \(([^)]*)\)'))[1], '\s+', '', 'g');
       v_arr := regexp_replace((regexp_match(v_src, 'array\[([^\]]*)\]::booking_status\[\]'))[1], '\s+', '', 'g');

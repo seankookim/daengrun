@@ -4,9 +4,10 @@
 --   · a handoff one side confirmed, whose ask to the OTHER side never existed, gets that ask from
 --     `sweep_run_end_recovery` after five minutes — once, to the counterparty (never the party
 --     who stamped), with the edge's exact title/body/kind, counted in the return.
---   · an ask that exists is not re-sent; an ask from an EARLIER cycle (older than the stamp by
---     more than the skew) does not count as this stamp's; an ask addressed to the OTHER party
---     does not count as this party's (C9 — the conjunct the cold review found unpinned).
+--   · an ask that exists is not re-sent; an ask from an EARLIER cycle does not count as this
+--     stamp's ([0183] cycles are told apart by `handoff_cycle_id`, not by age — the fixtures here
+--     carry the id where they model the new edge, and none where they model an earlier cycle);
+--     an ask addressed to the OTHER party does not count as this party's (C9).
 --   · a booking in any status but the two where a handoff is underway (`confirmed` ·
 --     `runner_enroute`) is never touched — every other status in the enum is walked, so a status
 --     added to the enum and to neither side reddens C6 instead of being decided by omission;
@@ -141,8 +142,11 @@ begin
   -- ---------- [0181-C3] a present ask is NOT re-sent ----------
   v_bad := '';
   bk3 := t_ask_bk(o, d, rt, rr, 'confirmed', 'owner', interval '10 minutes');
-  insert into notifications (profile_id, kind, title, body, ref_id)                       -- ③ the edge's row
-  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk3);
+  -- [0183] the edge's row names the booking's cycle (bookings.handoff_cycle_id, minted on insert by
+  -- the cycle trigger); an ask without it is LEGACY and no longer counts as this cycle's — 214 E2
+  -- owns that rule. Suite-update law: this fixture models the new edge.
+  insert into notifications (profile_id, kind, title, body, ref_id, handoff_cycle_id)      -- ③ the edge's row
+  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk3, (select handoff_cycle_id from bookings where id = bk3));
   perform sweep_run_end_recovery();
   if t_asks(bk3, rr) <> 1 then v_bad := v_bad || ' asks-to-runner=' || t_asks(bk3, rr) || ' (the edge''s row was there; expected exactly 1)'; end if;
   if v_bad = '' then call _pass('ask','0181-C3 엣지의 알림 행이 이미 있으면 다시 보내지 않는다 (1행 그대로)');
@@ -154,12 +158,14 @@ begin
   insert into notifications (profile_id, kind, title, body, ref_id, created_at)              -- a previous cycle: 20 min before this stamp
   values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk4, now() - interval '30 minutes');
   bk4b := t_ask_bk(o, d, rt, rr, 'confirmed', 'owner', interval '10 minutes');
-  insert into notifications (profile_id, kind, title, body, ref_id, created_at)              -- clock skew: 4 min before this stamp
-  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk4b, now() - interval '14 minutes');
+  -- [0183] this cycle's own ask (it carries the cycle id); the 30-min-old row above carries NONE —
+  -- since 0183 that, not its age, is what makes it another cycle's
+  insert into notifications (profile_id, kind, title, body, ref_id, created_at, handoff_cycle_id)   -- clock skew: 4 min before this stamp, THIS cycle
+  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk4b, now() - interval '14 minutes', (select handoff_cycle_id from bookings where id = bk4b));
   perform sweep_run_end_recovery();
   if t_asks(bk4, rr) <> 2 then v_bad := v_bad || ' previous-cycle: asks=' || t_asks(bk4, rr) || ' (expected 2 — the old ask does not answer this stamp)'; end if;
   if t_asks(bk4b, rr) <> 1 then v_bad := v_bad || ' within-skew: asks=' || t_asks(bk4b, rr) || ' (expected 1 — a slightly earlier row is this stamp''s ask)'; end if;
-  if v_bad = '' then call _pass('ask','0181-C4 스탬프보다 20분 앞선(이전 사이클) 알림 행은 이 스탬프의 요청이 아니다 → 다시 보냄; 4분 앞선(시계 오차) 행은 요청으로 친다 → 안 보냄');
+  if v_bad = '' then call _pass('ask','0181-C4 이전 사이클의 알림 행(사이클 id 없음)은 이 스탬프의 요청이 아니다 → 다시 보냄; 이 사이클의 id를 지닌 행은 요청으로 친다 → 안 보냄 [0183: 시각이 아니라 id로 가른다]');
   else v_msg := v_bad; call _fail('ask','0181-C4 earlier-cycle', v_msg); end if;
 
   -- ---------- [0181-C5] the timing gate: not before five minutes ----------
@@ -222,11 +228,13 @@ begin
   -- not the owner's ask. Without the conjunct the owner is never asked (measured: 0 candidates).
   v_bad := '';
   bk9 := t_ask_bk(o2, d2, rt, rr, 'confirmed', 'runner', interval '10 minutes');           -- the runner stamped: the OWNER is owed the ask
-  insert into notifications (profile_id, kind, title, body, ref_id, created_at)
-  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk9, now() - interval '8 minutes');   -- an ask to the RUNNER, inside the skew
+  -- [0183] both wrong-party rows carry THIS cycle's id, so the only thing that makes them not the
+  -- counterparty's ask is the recipient — the property this pin exists for
+  insert into notifications (profile_id, kind, title, body, ref_id, created_at, handoff_cycle_id)
+  values (rr, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk9, now() - interval '8 minutes', (select handoff_cycle_id from bookings where id = bk9));   -- an ask to the RUNNER, this cycle
   bk9b := t_ask_bk(o, d, rt, rr, 'confirmed', 'owner', interval '10 minutes');            -- the mirror: the owner stamped, an ask to the OWNER exists
-  insert into notifications (profile_id, kind, title, body, ref_id, created_at)
-  values (o, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk9b, now() - interval '8 minutes');
+  insert into notifications (profile_id, kind, title, body, ref_id, created_at, handoff_cycle_id)
+  values (o, 'booking', '인계 확인 요청', '상대방이 인계를 확인했어요 — 확인해주세요', bk9b, now() - interval '8 minutes', (select handoff_cycle_id from bookings where id = bk9b));
   perform sweep_run_end_recovery();
   if t_asks(bk9, o2) <> 1 then v_bad := v_bad || ' runner-stamped: owner-asks=' || t_asks(bk9, o2) || ' (an ask to the runner is not the owner''s ask)'; end if;
   if t_asks(bk9b, rr) <> 1 then v_bad := v_bad || ' owner-stamped: runner-asks=' || t_asks(bk9b, rr) || ' (an ask to the owner is not the runner''s ask)'; end if;
