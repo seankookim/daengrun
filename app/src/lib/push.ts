@@ -1,6 +1,9 @@
 import { router } from 'expo-router';
 import { session } from '../store';
 import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
+import {
+  CHAT_TITLE, destinationForBookingRef, needsClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES,
+} from './notification-route';
 import { supabase } from './supabase';
 
 // APNs 푸시 등록 (Expo Push 경유, 0024) — 홈 진입 시 1회 호출 (양 역할).
@@ -11,47 +14,10 @@ let _registered = false;
 let _armed = false;
 const _handledTaps = new Set<string>();
 
-// 라이브 미트업 제목 — 서버↔클라이언트 계약 쌍이다. 이 두 문자열은 transition-booking의
-// enroute 케이스(:186 '러너 이동 중')와 arrived 케이스('러너 도착')가 보내는 제목 그대로이고,
-// 한쪽을 바꾸면 반드시 다른 쪽도 같이 바꿔야 한다.
-// 완전 일치만 쓴다 — includes로 부분 일치를 잡으면 '새 사진 도착'·'위탁 배정 도착'·
-// '위탁 신청 도착'이 '도착'에 걸려 리포트 대신 인계 화면으로 잘못 새어 나간다.
-const LIVE_TITLES = ['러너 도착', '러너 이동 중'];
-// 보호자 → 러너 중단 요청 (api.ts RUN_STOP_TITLE와 같은 문자열 — 한쪽을 바꾸면 둘 다 바꾼다).
-// 러너의 기본 booking 도착지는 캘린더인데, 진행 중인 러닝을 멈춰달라는 요청이 캘린더에 떨어지면
-// 그건 도달이 아니다. 이 제목만 러닝 화면으로 보낸다.
-const RUN_STOP_TITLE = '러닝 중단 요청';
-
-// [0090 ⑬] 채팅 알림의 제목이자 라우팅 키. RUN_STOP_TITLE과 같은 종류의 문자열 계약이고,
-// 같은 위험(한쪽만 바뀌면 조용히 어긋난다)을 가진다 — 그래서 이 리터럴은 0090 마이그레이션을
-// 테스트 시점에 읽어 양방향으로 대조한다(_test/chat_notify_contract_test.ts).
-// 채팅은 양쪽 역할 모두 채팅 화면으로 간다: 메시지가 도착한 곳이 곧 목적지다.
-const CHAT_TITLE = '새 메시지';
-
-// ── Runner destinations, by EXACT title ────────────────────────────────────────────────
-// Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
-// screen at the one moment that matters most: the owner taps 인계하기, the server sends
-// 「인계 확인 요청」, and `.includes('요청')` dropped the runner on the OPEN-REQUEST INBOX — a list
-// that contains nothing about this booking — while the only screen with the 인계 받았어요 button
-// sat two taps away with no hint. The bug was invisible because the other 요청 titles
-// (일정 변경 요청 · 변경 요청 철회 · 지명 러닝 요청) happen to belong in that inbox.
-// Same discipline as LIVE_TITLES above: exact match, and a title that is not listed falls to the
-// calendar, which is the honest "here is your schedule" default rather than a guess.
-// ⚠ Server contract — these strings are the titles `transition-booking` actually sends. Changing
-// one side without the other silently misroutes; grep the notify() calls before editing.
-const RUNNER_ROUTES: Record<string, string> = {
-  '인계 확인 요청': '/runner/meetup',   // the handoff CTA lives here
-  '인계 완료': '/runner/run',           // both sides sealed — the run is what happens next
-  '러닝 시작': '/runner/run',
-  '지명 러닝 요청': '/runner/requests',
-  '일정 변경 요청': '/runner/requests',
-  '변경 요청 철회': '/runner/requests',
-};
-
-// Owner titles that mean "the meetup is happening NOW". Same self-restore caveat as LIVE_TITLES:
-// /owner/meetup takes no bid, so these only route there when the notification IS the current
-// booking; otherwise they fall to the bid-scoped report.
-const OWNER_MEETUP_TITLES = [...LIVE_TITLES, '인계 확인 요청', '인계 완료'];
+// The title tables (LIVE_TITLES · RUN_STOP_TITLE · CHAT_TITLE · HANDOFF_TITLES · RUNNER_ROUTES ·
+// OWNER_MEETUP_TITLES) and the destination decision for a booking ref live in
+// `notification-route.ts` — pure, so `test/notification-route.test.cjs` pins the table against the
+// real compiled source. This file keeps what needs the world: the router, the store, the probes.
 
 // ── Where a ref_id actually points ─────────────────────────────────────────────────────────────
 // `notifications` has exactly ONE pointer column and it is an UNTYPED uuid — the whole table is
@@ -77,49 +43,43 @@ async function refIsClubSession(refId: string): Promise<boolean> {
   return !!data;
 }
 
+// A booking ref's club membership. `bookings` is readable by its parties ("bookings party read",
+// 0002:92) and the tapping user IS a party — the notification was addressed to them. Asked ONLY
+// for the handoff family (needsClubProbe): every other booking title lands on the same screen in
+// both worlds. `undefined` = not known — the caller then takes the 1:1 routes, the pre-slice
+// behaviour, which fails LOUDLY for a club party (a screen with no CTA) rather than stalling.
+async function bookingClubSessionId(refId: string): Promise<string | null | undefined> {
+  try {
+    const { data, error } = await supabase.from('bookings').select('club_session_id').eq('id', refId).maybeSingle();
+    if (error) return undefined;
+    const sid = (data as { club_session_id?: string | null } | null)?.club_session_id;
+    return sid ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
 // The destination set for a ref_id that is a BOOKING. Split out so a safety row whose ref turns
 // out to be a booking (0117:793) reuses this exact logic rather than a parallel copy that drifts.
+// The decision itself is `destinationForBookingRef` (notification-route.ts, pure, pinned); this
+// function only gathers the facts it needs — at most one probe each, only on the taps that need
+// them — and pushes. Async by necessity — deep links are best-effort, so a probe failing folds
+// to the honest fallback inside the pure table rather than to a screen that guesses.
 function routeForBookingRef(refId: string, title: string): void {
-  try {
-    // [0090 ⑬] 역할과 무관하게 채팅으로 — 러너든 보호자든 온 메시지는 같은 스레드에 있다.
-    if (title === CHAT_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
-    // [0094 ⑪] 사고 신고 — 채팅과 같은 이유로 역할 분기가 없다: 확인 도장은 양쪽이 각자 찍어야
-    // 하고(verified_at 은 둘 다여야 채워진다), 그 화면은 예약 id 하나로 열린다. 상수는 api.ts 에서
-    // import 한다 — RUN_STOP_TITLE 처럼 사본을 두면 한쪽만 바뀌어 조용히 어긋나는 부류다.
-    // 템플릿 리터럴 — `/club/session/${refId}` 와 같은 형태다 (이 리포에서 동적 세그먼트가
-    // 실제로 그렇게 푸시되고 있는 유일한 증명된 형태).
-    if (title === INCIDENT_NOTI_TITLE) { router.push(`/incident/${refId}`); return; }
-    if (session.role === 'runner') {
-      // [적대 리뷰 2026-08-11] 처음엔 /runner/run으로 보냈는데, 콜드 스타트에서 그 화면은 refId를
-      // 버리고 running=false로 마운트한다 — 이미 진행 중인 러닝을 두고 '러닝 시작' 버튼을 내미는
-      // 화면이 뜬다. 게다가 **중단 사유는 채팅에 있다**. 채팅은 bid로 스코프되므로 정확한 예약의
-      // 정확한 내용으로 착지한다 — 러너가 알아야 할 것이 실제로 있는 곳.
-      if (title === RUN_STOP_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
-      router.push(RUNNER_ROUTES[title] ?? '/runner/calendar');
-    } else if (OWNER_MEETUP_TITLES.includes(title)) {
-      // /owner/meetup takes no bid — it self-restores to whatever booking is CURRENTLY in
-      // flight. Fine for a live push tapped in the moment; wrong for the historical inbox
-      // (alerts.tsx shares this router): a months-old "러너 이동 중" row would open today's
-      // unrelated booking, or dead-end on "진행 중인 예약이 없어요". Route to the meetup screen
-      // only when this notification IS the current booking; otherwise keep the report route.
-      // Async by necessity — deep links are best-effort, so the fetch failing folds to report
-      // (still bid-scoped and honest) rather than to a screen that guesses.
-      fetchCurrentOwnerBookingId()
-        .then((cur) => {
-          try {
-            if (cur && cur === refId) router.push('/owner/meetup');
-            else router.push({ pathname: '/owner/report', params: { bid: refId } });
-          } catch { /* navigation not ready — deep link is best-effort */ }
-        })
-        .catch(() => {
-          try { router.push({ pathname: '/owner/report', params: { bid: refId } }); } catch { /* */ }
-        });
-    } else {
-      router.push({ pathname: '/owner/report', params: { bid: refId } });
-    }
-  } catch {
-    // 내비게이션 미준비 등 — 딥링크는 부가 기능, 실패해도 앱은 살아있다
-  }
+  const role = session.role;
+  const club = needsClubProbe(title) ? bookingClubSessionId(refId) : Promise.resolve<string | null | undefined>(null);
+  const current = needsCurrentBookingProbe(role, title)
+    ? fetchCurrentOwnerBookingId().then((cur) => !!cur && cur === refId).catch((): boolean | null => null)
+    : Promise.resolve<boolean | null>(null);
+  Promise.all([club, current])
+    .then(([clubSessionId, isCurrentOwnerBooking]) => {
+      const dest = destinationForBookingRef(
+        { refId, title, role, clubSessionId, isCurrentOwnerBooking },
+        { incident: INCIDENT_NOTI_TITLE },
+      );
+      try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready — best-effort */ }
+    })
+    .catch(() => { /* unreachable: both probes fold their own failures; a deep link never throws */ });
 }
 
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
