@@ -415,6 +415,19 @@ measured, fixed, pinned). Suite 161 P4's digests moved under the suite-update la
 APPROVE-WITH-FIXES/14, all fixed. **Twenty-one pending** (0157–0163, 0166–0174, 0176–0180) + edge;
 0180 is db-push-only (the worker already writes the seven counters since 0178).
 
+**2026-09-18 05:22 — `a3ecfb4` migration 0181 LANDED** (b6; fast-forward; combined tree: harness **1279/0** = 1269 +
+exactly the 10 pins `0181-C1…C9` + race `RL` · deno 327/0 · tsc · check-rpc · check-definer-acl baseline
+unchanged): `sweep_run_end_recovery` gains a try-xact job lock and arm ⓒ — a booking with exactly one
+handoff stamp, a runner, a handoff-underway status (deny-list of the other fourteen; C6 walks the enum so
+a new status reddens until placed), the stamp older than 5 min and NO 「인계 확인 요청」 row for the
+counterparty since the stamp (10-min skew allowance) ⇒ the ask is inserted once, counted, named in a
+notice; per-row exception arm; a deno drift pin ties the sweep's match text to the edge's. Cold review
+APPROVE-WITH-FIXES/9 — the HIGH (the counterparty conjunct was load-bearing and unpinned) fixed and
+pinned both ways (C9). Named gaps: a solo-test booking asks itself (as the edge does); no escalation
+after the one re-send; club parties' push lands on the 1:1 meetup screens (client slice). **Twenty-two
+pending** (0157–0163, 0166–0174, 0176–0181) + edge; 0181 is db-push-only. **Every backend-audit item
+with a code fix is now closed** (H1 H2 H3 · M1–M10 · L1 L2 L5); L3/L4/L6 are recorded hygiene.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
