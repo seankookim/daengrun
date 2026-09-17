@@ -487,6 +487,24 @@ booking AND notification validated transactionally at ask creation, edge + sweep
 delivery tracked apart from party delivery with a durable pending state; deterministic-only failure
 conversion). Routed to b6. 🔴 **Deploy letter stays parked** until 0183 lands and clears.
 
+**2026-09-18 07:59 — `b615af4` migration 0183 LANDED** (b6; correct-forward for Codex's REJECT/3 on 0182; fast-forward;
+combined tree: harness **1294/0** = 1288 + exactly the 6 pins `0183-E1…E6` · deno **330/0** = 327 + 3 ·
+tsc · checks · npm 1023/0): `bookings.handoff_cycle_id` minted by the database on birth-with-stamp /
+first stamp / runner change / stamp reset, carried on `notifications.handoff_cycle_id` by the edge
+(read in the same request that stamped) and by the sweep, validated at insert by
+`_notification_cycle_guard` (`stale_handoff_cycle`), matched by id alone in arm ⓒ; legacy rule: an id-less
+ask never proves the current cycle (asked once more, a duplicate over a stall), a missed row gets an id
+on first contact. Party delivery and ops delivery are two records; an empty roster leaves the ops
+escalation PENDING and arm ⓔ delivers it once after provisioning. Reconciler marks `failed` only for
+classes 22/23/P0, no longer aborts on an unnamed class. Cold review REJECT/13 → all fixed before push;
+the one that mattered: the apply-time backfill had no status filter and the `updated_at` bump re-armed
+`sweep_cancel_money_gaps` on old cancelled rows (measured: a 90-day-old cancelled row grew a ₩1,245
+ledger row) — now scoped to `confirmed`/`runner_enroute`. **Twenty-four pending** (0157–0163,
+0166–0174, 0176–0183). ⚠ Deploy order for 0183: `db push` FIRST, then `functions deploy
+transition-booking` promptly (inverted, the new edge's ask insert dies on `undefined_column`, logged
+non-fatally, and arm ⓒ catches up after). The ops half still needs a `handoff_unanswered` subscriber.
+Codex re-review running; the letter waits for it.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
