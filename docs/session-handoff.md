@@ -527,6 +527,17 @@ with a `stuck_unreadable` health column. Both findings measured real; deno pins 
 interleaving. **Twenty-five pending** (0157–0163, 0166–0174, 0176–0184); order for 0184: `db push`, then
 `functions deploy transition-booking`; no client build. Codex re-review running; the letter waits for it.
 
+**2026-09-18 08:57 — Codex re-review of 0184: REJECT / 2** (`docs/reviews/2026-09-18-migration-0184-codex-verdict.md`).
+HIGH, **executed**: the stamp is atomic now, but the `picked_up` promotion is a SEPARATE id-only UPDATE
+authorized by the stamp's returned confirmations — a reassignment committed in between promotes the NEW
+pairing, notifies the OLD runner, and the custody trigger records the new runner as custodian with
+neither confirmation. MED: a delayed answer on a row already `no_response` plus an unnamed fault keeps it
+`no_response`, outside every health count after 24 h. Fix shape: **correct-forward 0185 + suite 216** —
+stamp and promote inside ONE locked definer RPC, edge calls it and notifies only from a returned row;
+the unreadable-answer arm conditionally moves `no_response` back to `sent`. Routed to b6. Convergence:
+5 → 3 → 2 → 2 findings over four rounds, each round adjacent to the last; the remaining HIGH is
+custody-without-confirmation, so the loop continues. 🔴 **Deploy letter stays parked.**
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
