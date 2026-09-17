@@ -2,7 +2,7 @@ import { bookingKmLabel } from '../../src/lib/route-label';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
@@ -248,6 +248,19 @@ export default function ActiveRun() {
   const [starting, setStarting] = useState(false);
   const [saveLag, setSaveLag] = useState(false);     // 트레이스 저장 실패를 침묵시키지 않는다
   const [ceilingHit, setCeilingHit] = useState(false); // 정산 밴드 상한 근접 → 기록 정지
+  const runSentence = infoStatus !== 'ready' ? null
+    : ceilingHit ? '기록이 멈췄어요'
+      : running ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
+        : dogName ? `${dogName}와 러닝 준비` : '러닝 준비';
+  const lastAnnouncedSentence = useRef<string | null>(null);
+  // HIG A3/A6: announce status changes after hydration.
+  useEffect(() => {
+    if (runSentence === null) return;
+    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== runSentence) {
+      AccessibilityInfo.announceForAccessibility(runSentence);
+    }
+    lastAnnouncedSentence.current = runSentence;
+  }, [runSentence]);
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 배경 폴백
   const trace = useRef<GeoPoint[]>([]);
   const lastMilestone = useRef(0);
@@ -1309,7 +1322,7 @@ export default function ActiveRun() {
           <View style={s.statusBadge}>
             {/* ⑥ 천장 프레임 — 배지가 **참인 문장**을 말한다: 같은 effect가 handle.stop()을 불렀으므로
                 기록은 실제로 멈췄고, 지금까지의 트레이스는 그대로 남아 정산에 실린다. */}
-            <Text style={{ fontSize: 15, fontWeight: '700', color: ceilingHit ? '#FFFFFF' : colors.volt }}>
+            <Text accessibilityLiveRegion="polite" style={{ fontSize: 15, fontWeight: '700', color: ceilingHit ? '#FFFFFF' : colors.volt }}>
               {ceilingHit
                 ? '기록이 멈췄어요'
                 : running

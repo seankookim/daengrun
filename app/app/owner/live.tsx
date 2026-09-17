@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
@@ -499,6 +499,19 @@ export default function Live() {
   const heldCopy = held ? HELD_COPY[held] ?? null : null;
   // 90초 넘게 갱신이 없으면 지도의 점은 더 이상 '지금'이 아니다 — 그렇다고 말한다.
   const stale = hasFix && staleSec >= 90;
+  const liveSentence = resolve !== 'ready' || info === null ? null
+    : held && HELD_COPY[held] ? ` ${dogName} · ${HELD_COPY[held].pill}`
+      : !hasFix ? ` ${dogName} · 위치 수신 대기`
+        : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`;
+  const lastAnnouncedSentence = useRef<string | null>(null);
+  // HIG A3/A6: announce status changes after hydration.
+  useEffect(() => {
+    if (liveSentence === null) return;
+    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== liveSentence) {
+      AccessibilityInfo.announceForAccessibility(liveSentence);
+    }
+    lastAnnouncedSentence.current = liveSentence;
+  }, [liveSentence]);
   const staleMin = Math.max(1, Math.floor(staleSec / 60));
   const km = pos?.km ?? 0;
   // 경과는 runs.started_at에서만 온다 — 모르면 모른다고 말한다 (숫자를 지어내지 않는다).
@@ -787,7 +800,7 @@ export default function Live() {
             can keep receiving fixes, and 「LIVE · {dog}가 달리는 중」 is then a claim the server
             contradicts. The booking status is the older fact, so it is tested first. */}
         <View style={s.livePill}>
-          <Text style={s.livePillTxt}>
+          <Text accessibilityLiveRegion="polite" style={s.livePillTxt}>
             <Text style={{ color: hasFix && !stale && !heldCopy ? paper.line : paper.faint }}>●</Text>
             {heldCopy ? ` ${dogName} · ${heldCopy.pill}`
               : !hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
