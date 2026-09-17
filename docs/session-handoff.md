@@ -505,6 +505,17 @@ transition-booking` promptly (inverted, the new edge's ask insert dies on `undef
 non-fatally, and arm ⓒ catches up after). The ops half still needs a `handoff_unanswered` subscriber.
 Codex re-review running; the letter waits for it.
 
+**2026-09-18 08:03 — Codex re-review of 0183: REJECT / 2** (`docs/reviews/2026-09-18-migration-0183-codex-verdict.md`).
+HIGH, **executed** through the real handler with mocked HTTP: the edge stamps in one transaction and
+reads `handoff_cycle_id` in a second, so a reassignment between them makes the old runner's ask carry the
+NEW cycle's id — the guard accepts it and the sweep's id match is then suppressed by that premature ask.
+MED, static: an unnamed reconciliation error leaves the tick `sent` with only a NOTICE; once pg_net's
+six-hour retention deletes the response, the `no_response` predicate turns true and an answered tick is
+blamed on transport. Fix shape: **correct-forward 0184 + suite 215** — the stamping UPDATE (or one atomic
+RPC) returns the cycle id and the edge carries exactly that id; the reconciler persists that a response
+was observed and excludes observed ticks from `no_response` regardless of retention. Routed to b6.
+🔴 **Deploy letter stays parked.**
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
