@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addDog, Addr, AvailRule, createBookingHold, createRecurringSeries, DogProfile, fetchAddresses, fetchMyBillingCard, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, createHoldRequestKey, createRecurringSeries, DogProfile, fetchAddresses, fetchMyBillingCard, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { TOSS_ENABLED } from '../../src/lib/toss';
@@ -559,8 +559,16 @@ export default function Request() {
 
     // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching, 한 요청 안에서)
     let res: HoldResult;
+    // [0179] the key rides with the exact payload it was minted for
+    const holdPayloadFp = JSON.stringify([
+      chosen.id, routesLive && routeId ? routeId : undefined, pickupAddr?.id, draft.scheduledAtIso, km, pace, addons,
+    ]);
+    if (!holdKey.current || holdKey.current.fp !== holdPayloadFp) {
+      holdKey.current = { id: createHoldRequestKey(), fp: holdPayloadFp };
+    }
     try {
       res = await createBookingHold({
+        client_request_id: holdKey.current.id,
         dog_id: chosen.id, // 선택한 아이로 예약 (다견 가구) — 위 게이트가 존재를 보증
         route_id: routesLive && routeId ? routeId : undefined, // 목업 코스 id는 uuid가 아님
         // 선택 스냅샷 (0082 §C) — 분석 등급, 절대 금액에 닿지 않는다. 오버라이드는 서버가
@@ -598,13 +606,26 @@ export default function Request() {
     //    이 값을 읽고, 없으면 레이더가 아니라 홈으로 튄다.
     const bookingId = res.booking_id;
     draft.bookingId = bookingId;
+    holdKey.current = null;   // [0179] the attempt landed; the next tap is a new attempt
     setHoldLive(true);
 
     // 서버가 matching이라고 말하지 않았으면 그런 척하지 않는다. payment_hold로 남았다는 건
     // 이 빌드가 밀 수 없는 상태라는 뜻이다 (그 문을 여는 payment_ok가 삭제됐다).
-    if (res.booking_status !== 'matching') {
+    // [0179] a REPLAY (`unchanged`) answers with the row the first attempt made, which may already
+    // be past matching (a runner accepted in between). That is still this attempt succeeding.
+    const LIVE_AFTER_HOLD = ['matching', 'runner_pending', 'confirmed', 'runner_enroute', 'picked_up', 'active'];
+    const landedLive = res.booking_status === 'matching' || (res.unchanged === true && LIVE_AFTER_HOLD.includes(res.booking_status));
+    if (!landedLive) {
       setHoldVisible(false);
-      Alert.alert('예약 확인 필요', '예약이 결제 대기 상태로 만들어졌어요 — 앱을 업데이트하거나 문의해주세요');
+      // [cold review #6] say what the row IS. `payment_hold` keeps the sentence that was always true
+      // for it; a replay of a row that has since ended (cancelled / expired / completed) must not be
+      // told it was 「made in a payment-pending state」 — that would be false on the screen that
+      // just took the tap.
+      if (res.booking_status === 'payment_hold') {
+        Alert.alert('예약 확인 필요', '예약이 결제 대기 상태로 만들어졌어요 — 앱을 업데이트하거나 문의해주세요');
+      } else {
+        Alert.alert('예약 확인 필요', '이 요청의 예약은 이미 끝났어요 — 일정에서 확인해주세요');
+      }
       router.replace('/owner/schedule');
       return;
     }
@@ -657,6 +678,12 @@ export default function Request() {
   // dogsState === 'ready' 경로는 첫 await 전에 모달을 세우므로 스스로 막히지만, 그렇지 않은
   // 경로는 `await fetchMyDogs()` 동안 모달도 스피너도 없이 CTA가 살아 있었다: 느린 회선에서
   // 두 번 누르면 createBookingHold가 두 번 나가고 실예약이 둘 생긴다.
+  // [0179] the idempotency key for the hold: one per SUBMIT ATTEMPT. Minted on the tap, kept across
+  // a retry of the SAME payload (a lost response must not cost a second booking — the server
+  // answers the same key with the same row), replaced the moment the payload changes (the server
+  // refuses a reused key with a different slot or price as request_mismatch), cleared on success.
+  const holdKey = useRef<{ id: string; fp: string } | null>(null);
+
   const payOnce = () => {
     if (payBusy.current) return;
     payBusy.current = true;

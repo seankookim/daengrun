@@ -34,6 +34,7 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { HttpError } from "../_shared/ctx.ts";
 import { createBookingHold } from "../create-booking-hold/handler.ts";
 import { FakeDb, req } from "./fakedb.ts";
+import { installHoldTx } from "./hold_tx_fake.ts";
 
 const OWNER = "11111111-1111-1111-1111-111111111111";
 const DOG = "dddddddd-dddd-dddd-dddd-dddddddddddd";
@@ -53,6 +54,7 @@ function scene() {
   db.seed("billing_keys", []);                    // card-less: today's pilot owner (widget path)
   db.seed("routes", []);
   db.rpcs["owner_has_unsettled_charge"] = () => ({ data: false });
+  installHoldTx(db);   // [0179] the writes are the transaction's; the fake replays its contract
   // If the handler ever asks this again, the nomination branch is back.
   db.rpcs["is_slot_available"] = () => ({ data: true });
   return db;

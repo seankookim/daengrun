@@ -498,10 +498,24 @@ export async function answerCheckin(
 // a row that stopped short. A caller therefore BRANCHES on `booking_status`; it never assumes it.
 export interface HoldResult {
   booking_id: string;
-  hold_expires_at: string;
+  // null only on a REPLAY whose hold has since been reaped (0179) — a fresh hold always has one
+  hold_expires_at: string | null;
   total_price: number;
   paid_path: 'card' | 'widget';
-  booking_status: 'matching' | 'payment_hold';
+  // 'matching' | 'payment_hold' on a fresh hold. On a replay (`unchanged`) it is whatever the row
+  // has BECOME since the first attempt landed (it may be past matching, or terminal) — the truth,
+  // not a guess. The union keeps tsc's typo check at the one consumer; the tail admits the rest.
+  booking_status: 'matching' | 'payment_hold' | (string & {});
+  // [0179] present only when the server answered a replayed `client_request_id` with the row the
+  // first attempt made: nothing new was created.
+  unchanged?: boolean;
+}
+
+// [0179] one key per SUBMIT ATTEMPT: minted when the owner taps, reused on a retry of the same
+// payload, replaced when the payload changes. The server answers the same key with the same
+// booking, so a lost response no longer costs a second booking. Same generator as the chat key.
+export function createHoldRequestKey(): string {
+  return (require('expo-modules-core') as typeof import('expo-modules-core')).uuid.v4();
 }
 
 export async function createBookingHold(p: {
@@ -523,6 +537,9 @@ export async function createBookingHold(p: {
   // 켜져 있던 제약 칩. 자동 배정이 '걸러진 집합 안에서' 골랐다면 origin은 auto지만 보호자는
   // 선호를 표현한 것이므로, 오버라이드율과 따로 읽혀야 한다.
   route_chips?: Record<string, boolean>;
+  // [0179] idempotency key — see createHoldRequestKey(). Optional on the wire until every
+  // installed build sends one; the request screen always does.
+  client_request_id?: string;
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
   if (error || data?.error) throw await fnError(error, data);

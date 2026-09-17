@@ -59,7 +59,8 @@
 //
 // ⚠ `e_hold` therefore has no pilot input any more. Its pin stays green because 100 W7 inserts its
 // fixtures directly in SQL; the reaper is still correct, the product just stopped producing rows
-// for it (a lost card CAS whose `compensate()` fails is the one residual that still can).
+// for it. (Before 0179 one residual remained — a lost card CAS whose `compensate()` failed. The
+// CAS now runs inside `create_booking_hold_tx` and cannot lose, so that residual is gone too.)
 //
 // ⚠ This is NOT the only entry that skips the hold, and it never was: `generate_recurring_bookings`
 // (0111:369-376) has inserted straight at `matching`/`runner_pending` since 0026. C.1 does not
@@ -97,6 +98,24 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   }
 
   if (!b.dog_id || !b.scheduled_at || !b.km) throw new HttpError(400, "missing fields");
+
+  // ── [0179] the idempotency key — OPTIONAL server-side, validated when present ─────────────────
+  // A double-submit used to make two bookings (backend audit 2026-09-17 §(a) #3). The client now
+  // mints a v4 uuid per submit attempt and reuses it on a retry of the same payload; the
+  // transaction below answers a replayed key with the SAME row. ⚠ Absent is allowed on purpose:
+  // installed builds do not update on our schedule, and a 400 here would break every one of them
+  // the day this deploys. NULL means 「no idempotency」 — the pre-slice behaviour, exactly. The 400
+  // is owed the day the build carrying the client half is the oldest build in use (0179 header).
+  // Present-but-garbage IS refused: a key we cannot store is a key we cannot replay, and saying so
+  // beats silently creating an unreplayable booking.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let clientRequestId: string | null = null;
+  if (b.client_request_id !== undefined && b.client_request_id !== null) {
+    if (typeof b.client_request_id !== "string" || !UUID_RE.test(b.client_request_id)) {
+      throw new HttpError(400, "bad client_request_id");
+    }
+    clientRequestId = b.client_request_id;
+  }
 
   // ── km bounds (0082 review) ───────────────────────────────────────────────────────────────────
   // `km` was truthy-checked and then multiplied straight into money (`PRICING.perKm` below) and
@@ -139,9 +158,10 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   // 2am suspension advisory rather than real), and the candidate ceremony the plan specifies lived
   // only in the client, where it is a suggestion.
   //
-  // Placed with the ownership checks, i.e. long before the insert and the card CAS at the bottom:
-  // a route refusal must never be the thing that strands a card-linked booking in `payment_hold`
-  // (§0-ter #7 — the failure mode `compensate()` exists to clean up after).
+  // Placed with the ownership checks, i.e. long before the transaction at the bottom: a route
+  // refusal must never be the thing that strands a card-linked booking in `payment_hold`
+  // (§0-ter #7 — since 0179 the transaction rolls back rather than strands, but a refusal that
+  // never reaches it is still the cheaper and the clearer answer).
   let routeStatus: string | null = null;
   if (b.route_id) {
     const { data: route, error: rtErr } = await db.from("routes")
@@ -257,37 +277,20 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   const durMin = km * 8 + 25; // 러닝 + 픽업·인계 버퍼 (validated km — b.km may be a string)
   const end = new Date(start.getTime() + durMin * 60_000);
 
-  // 같은 강아지 중복 예약 가드 — 겹치는 시간대의 살아있는 예약이 있으면 거절.
-  // (라이브 커밋 상태만 검사 — draft/payment_hold 잔재나 종결 상태는 차단 사유가 아니다)
+  // ── [0179] THE WRITES ARE ONE TRANSACTION NOW: `create_booking_hold_tx` ══════════════════════
+  // Everything from here down used to be this file's: the same-dog clash guard, the booking
+  // insert, the draft → quoted → payment_hold ladder, the hold insert, the closing CAS, and a
+  // `compensate()` that deleted what it could when the CAS lost — four statements plus a CAS, no
+  // transaction, no idempotency key. Now the function does all of it in ONE transaction, keyed by
+  // (owner, client_request_id): the same key names the same row (`unchanged: true`), a reused key
+  // with a different slot or price is `request_mismatch`, the clash guard is atomic with the
+  // insert it guards (an advisory lock per dog), and a raise anywhere rolls the whole hold back —
+  // so there is nothing left to compensate, and the honest 500 below can say 「nothing is left」
+  // and be right every time. The gates ABOVE this line stay here, in their pinned order.
   //
-  // [O-5 §C.1b] The LIVE list still deliberately excludes `payment_hold`, and that is still
-  // correct: a stale hold must never block a retry. But it had a consequence nobody designed —
-  // TWO overlapping holds for the same dog could both be created, because neither was `matching`
-  // yet when the other ran this guard, and the second only failed later, if at all.
-  // After §C.1 the first booking is ALREADY `matching` when the second request reaches this line,
-  // so the second is refused below with the sentence that was always there. An undesigned
-  // improvement is exactly the kind a later refactor removes without noticing it existed, so it is
-  // pinned as a POSITIVE (contract P8) rather than left as a footnote. Do not "tidy" the list by
-  // adding `payment_hold` to it — that would re-block the retry this exclusion exists to allow.
-  const LIVE = ["matching", "runner_pending", "confirmed", "runner_enroute", "picked_up", "active"];
-  const { data: near, error: nearErr } = await db.from("bookings")
-    .select("id, scheduled_at, km")
-    .eq("dog_id", b.dog_id).in("status", LIVE)
-    .gte("scheduled_at", new Date(start.getTime() - 6 * 3600_000).toISOString())
-    .lte("scheduled_at", new Date(end.getTime() + 6 * 3600_000).toISOString());
-  if (nearErr) throw internalError(nearErr, "clash_read");
-  const clash = (near ?? []).some((c) => {
-    const cs = new Date(c.scheduled_at).getTime();
-    const ce = cs + (Number(c.km) * 8 + 25) * 60_000; // 동일 실소요 공식
-    return cs < end.getTime() && ce > start.getTime();
-  });
-  if (clash) throw new HttpError(409, "이 시간대에 같은 아이의 예약이 이미 있어요");
-
-  // [0111] the body's 지정 러너 availability check lived here and is GONE, together with the
-  // `runner_id` it read — see the file header. Nomination is `request_runner`'s job, and it runs
-  // its own availability/clash gate at the moment it actually assigns.
-
-  // 서버 가격 — 클라이언트 금액은 신뢰하지 않음
+  // The function is service_role-only and takes the OWNER from us (the settle_run_tx shape): the
+  // JWT was validated at the top of this function, and the body can never name the owner.
+  // 서버 가격 — 클라이언트 금액은 신뢰하지 않음 (unchanged; the transaction stores what we hand it)
   const addons: string[] = Array.isArray(b.addons) ? b.addons : [];
   const addonFare = addons.reduce((s, k) => {
     if (!(k in PRICING.addons)) throw new HttpError(400, `unknown addon ${k}`);
@@ -296,120 +299,84 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   const distanceFare = Math.round(km * PRICING.perKm);
   const total = PRICING.ownerBaseFare + distanceFare + addonFare;
 
-  // booking(draft→quoted→payment_hold) + hold, 한 흐름으로
-  const { data: booking, error: bErr } = await db.from("bookings").insert({
-    // [0111] runner_id is a LITERAL null, never `b.runner_id ?? null` — the body cannot reach this
-    // column, and writing the expression would leave the field one careless edit from returning.
-    owner_id: uid, dog_id: b.dog_id, runner_id: null,
-    route_id: b.route_id ?? null, address_id: b.address_id ?? null,
-    status: "draft", scheduled_at: start.toISOString(), km,
-    pace_label: b.pace_label ?? null,
-    addons: addons.map((k) => ({ key: k, price: PRICING.addons[k] })),
-    base_fare: PRICING.ownerBaseFare, distance_fare: distanceFare,
-    addon_fare: addonFare, total_price: total, min_fare: PRICING.minFare,
-    // selection snapshot (0082 §C) — recommended_route_id is what the app would have picked on
-    // its own, so override is DERIVED later as `route_id is distinct from recommended_route_id`
-    // rather than asserted by the client. route_status_at_booking is written from the row we
-    // just read, never from the body.
-    recommended_route_id: b.recommended_route_id ?? null,
-    selection_origin: b.selection_origin ?? null,
-    route_status_at_booking: routeStatus,
-    route_chips: b.route_chips ?? {},
-  }).select("id").single();
-  if (bErr) throw internalError(bErr, "booking_insert");
+  const addonRows = addons.map((k) => ({ key: k, price: PRICING.addons[k] }));
+  const routeChips = b.route_chips ?? {};
+  // WHO closes payment_hold → matching: a card owner always, and — while charging is off — everyone
+  // else too (O-5 §C.1). Two named conditions rather than `true`, for the reason the old CAS gave:
+  // the day Sean answers §F.1 the card_required gate above is deleted and `!chargingLive` becomes
+  // the load-bearing half; collapsing this to `true` now would book card-less owners for free
+  // post-flip with nothing in the code saying a decision had been made.
+  const closeToMatching = paidPath === "card" || !chargingLive;
 
-  for (const s of ["quoted", "payment_hold"]) {
-    const { error } = await db.from("bookings").update({ status: s }).eq("id", booking.id);
-    if (error) throw internalError(error, "booking_status");
-  }
-
-  const expires = new Date(Date.now() + 5 * 60_000);
-  const { error: hErr } = await db.from("slot_holds").insert({
-    runner_id: null, owner_id: uid,   // [0111] the hold names no runner — see the file header
-    starts_at: start.toISOString(), ends_at: end.toISOString(),
-    expires_at: expires.toISOString(), booking_id: booking.id,
+  const { data: tx, error: txErr } = await db.rpc("create_booking_hold_tx", {
+    p_owner: uid,
+    p_dog: b.dog_id,
+    p_scheduled_at: start.toISOString(),
+    p_km: km,
+    p_addons: addonRows,
+    p_base_fare: PRICING.ownerBaseFare,
+    p_distance_fare: distanceFare,
+    p_addon_fare: addonFare,
+    p_total_price: total,
+    p_min_fare: PRICING.minFare,
+    p_close_to_matching: closeToMatching,
+    p_client_request_id: clientRequestId,
+    p_route: b.route_id ?? null,
+    p_address: b.address_id ?? null,
+    p_pace_label: b.pace_label ?? null,
+    p_recommended_route: b.recommended_route_id ?? null,
+    p_selection_origin: b.selection_origin ?? null,
+    p_route_status: routeStatus,
+    p_route_chips: routeChips,
   });
-  if (hErr) throw internalError(hErr, "hold_insert");
-
-  // What the row IS when we return. Derived from what actually happened below, never asserted:
-  // if the CAS is skipped the answer is the truth (`payment_hold`), and the client is told so
-  // instead of being left to infer it from `paid_path`.
-  let bookingStatus: "matching" | "payment_hold" = "payment_hold";
-
-  // ── the hold is in place, so close the (non-)payment step in this same request ────────────────
-  // [O-5 §E.6a] This CAS is the statement `payment_ok` USED to share — `payment_ok` is deleted
-  // (§C.2) and this is now the only writer of `payment_hold → matching` on this path. **The
-  // statement outlived its other caller**; the edge itself is untouched and still pinned by
-  // 109 P6. It is a CAS rather than a plain write for the same reason it always was: only a row
-  // still sitting in `payment_hold` may move, so a lost race (0060's expiry sweep, a concurrent
-  // sweep) shows up as 0 rows instead of quietly reviving a dead booking.
-  //
-  // WHO takes it: a card owner always, and — while charging is off — everyone else too (§C.1).
-  // Written as two named conditions rather than `true` on purpose. Today the §C.3 gate above makes
-  // `chargingLive && widget` unreachable, so this branch is in fact always taken; the day Sean
-  // answers §F.1 with "let them book, the debt lock handles it" that gate is deleted and
-  // `!chargingLive` becomes the load-bearing half. Collapsing this to an unconditional CAS now
-  // would silently book card-less owners for free post-flip (contract Alt-3, rejected for this
-  // slice) and there would be nothing left in the code saying a decision had ever been made.
-  if (paidPath === "card" || !chargingLive) {
-    const { data: matched, error: casErr } = await db.from("bookings")
-      .update({ status: "matching" })
-      .eq("id", booking.id).eq("status", "payment_hold").select("id");
-    if (casErr || !matched || matched.length === 0) {
-      // §0-ter #7/#15. A booking that takes this branch may NEVER be left in `payment_hold` — the
-      // row would expire unspoken 30 minutes from now (e_hold, 0060/0080:948-955) with a slot held
-      // against it. The reason used to be "a card owner has no widget to come back to"; after O-5
-      // §C.1 it is stronger and simpler: **NOBODY has a widget to come back to**, `payment_ok` is
-      // deleted and no client screen moves that row any more. So undo what this request made: the
-      // hold first (it references the booking), then the booking. Then say so, out loud, instead of
-      // returning a booking id that is about to rot.
-      //
-      // This is also the one residual that still feeds `e_hold` at all: a lost CAS whose
-      // `compensate()` itself fails leaves a genuine stuck `payment_hold` row for the reaper.
-      const cleaned = await compensate(db, booking.id, casErr?.message ?? "cas_zero_rows");
-      // Two different truths, two different sentences. Claiming "남은 예약도 없어요" after a
-      // compensating delete that ERRORED is a lie told on a money screen (honesty law) — and the
-      // owner would then find a booking they were told does not exist. Nothing was charged either
-      // way (nothing ever is here); the difference is whether anything survived.
-      throw new HttpError(
-        500,
-        cleaned
-          ? "예약을 만들지 못했어요 — 청구된 금액도, 남은 예약도 없어요. 잠시 후 다시 시도해주세요"
-          : "예약을 만들지 못했어요 — 청구된 금액은 없어요. 다만 만들다 만 예약이 목록에 잠시 남을 수 있어요 (결제되지 않은 상태로 자동 정리돼요). 그대로 두고 다시 시도해주세요",
-      );
+  if (txErr) {
+    // The function's raise tokens → the sentences the client already keys on (the clash sentence
+    // is the one that was always here; `forbidden` is the ownership belt's word, above).
+    switch (txErr.message) {
+      case "forbidden":
+        throw new HttpError(403, "forbidden");
+      case "dog_slot_clash":
+        throw new HttpError(409, "이 시간대에 같은 아이의 예약이 이미 있어요");
+      case "request_mismatch":
+        // The same key with a different slot or price: the client changed the request without
+        // minting a new key. Not retryable as-is — the token first so a client can branch, the
+        // sentence so an older one still says something true.
+        throw new HttpError(409, "request_mismatch — 같은 요청으로 다른 내용의 예약을 만들 수 없어요. 처음부터 다시 시도해주세요");
+      case "hold_close_failed":
+        // The closing CAS moved 0 rows inside the transaction — unreachable on a row the same
+        // transaction inserted, kept as the loud belt it always was. The whole hold rolled back,
+        // so the flat sentence is TRUE now on every path: no charge (there never is here) and no
+        // row survives. The old two-sentence split (「남을 수 있어요」) died with compensate().
+        throw new HttpError(500, "예약을 만들지 못했어요 — 청구된 금액도, 남은 예약도 없어요. 잠시 후 다시 시도해주세요");
+      case "not_signed_in":
+        throw new HttpError(401, "unauthorized");
+      case "missing_fields":
+      case "km_out_of_range":
+        throw new HttpError(400, txErr.message);
+      default:
+        throw internalError(txErr, "hold_tx");
     }
-    bookingStatus = "matching";
+  }
+  const row = tx as {
+    booking_id?: unknown; hold_expires_at?: unknown; total_price?: unknown;
+    booking_status?: unknown; unchanged?: unknown;
+  } | null;
+  if (!row || typeof row !== "object" || typeof row.booking_id !== "string" || typeof row.booking_status !== "string") {
+    // A success with no booking id is not a receipt anyone may render (the honesty law).
+    throw internalError({ message: `create_booking_hold_tx returned ${JSON.stringify(tx)}` }, "hold_tx:shape");
   }
 
   return {
-    booking_id: booking.id,
-    hold_expires_at: expires.toISOString(),
-    total_price: total,
+    booking_id: row.booking_id,
+    hold_expires_at: typeof row.hold_expires_at === "string" ? row.hold_expires_at : null,
+    total_price: typeof row.total_price === "number" ? row.total_price : total,
     paid_path: paidPath,
     // [O-5 §C.1] Which path the owner is on (`paid_path`) and what the row IS (`booking_status`)
-    // are two different questions, and the client used to be able to ask neither — it dropped
-    // `paid_path` entirely and inferred the rest. A client must never have to GUESS whether a
-    // further call is required, so the server states it.
-    booking_status: bookingStatus,
+    // are two different questions; the server states both. On a REPLAY the status is whatever
+    // the row has become since (it may be past `matching`), which is the truth the client needs.
+    booking_status: row.booking_status,
+    // [0179] present ONLY on a replay — absent, not false, so `Object.keys` of a fresh hold is
+    // unchanged and no client learns a new field it did not ask about.
+    ...(row.unchanged === true ? { unchanged: true } : {}),
   };
-}
-
-/**
- * Undo a half-made booking whose closing CAS did not land. (Named "card-path" before O-5 §C.1,
- * when the card path was the only one that CASed; the widget path takes this branch too now.)
- * Best-effort on each statement and loud on failure: the
- * caller is already about to throw, and turning a failed cleanup into a different exception would
- * only replace an honest error with a confusing one. A leftover row here is visible (a
- * `payment_hold` booking with no owner-facing id) and 0060's sweep still reaps it.
- *
- * Returns whether BOTH deletes succeeded — the caller's sentence is a claim about what is left,
- * and it may only make that claim when this function actually left nothing.
- */
-async function compensate(db: SupabaseClient, bookingId: string, why: string): Promise<boolean> {
-  console.error(`[create-booking-hold] card-path CAS failed booking=${bookingId} why=${why} — compensating`);
-  const { error: hErr } = await db.from("slot_holds").delete().eq("booking_id", bookingId);
-  if (hErr) console.error(`[create-booking-hold] hold cleanup failed booking=${bookingId}: ${hErr.message}`);
-  const { error: bErr } = await db.from("bookings").delete().eq("id", bookingId);
-  if (bErr) console.error(`[create-booking-hold] booking cleanup failed booking=${bookingId}: ${bErr.message}`);
-  return !hErr && !bErr;
 }
