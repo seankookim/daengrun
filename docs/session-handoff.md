@@ -371,6 +371,16 @@ an expected-success call raises. 🔴 Key is OPTIONAL server-side (NULL = pre-sl
 it) so installed builds keep working — queue item 21 dates the 400. Deploy order for 0179 is the 0176
 order (db push, then functions). **Twenty pending** (0157–0163, 0166–0174, 0176–0179) + edge.
 
+**2026-09-18 03:02 — VoiceOver live-region slice LANDED — the first Codex-plugin BUILD of the night** (gpt-6-astra
+medium, one task, `CHANGED: 3` digit detector hit, 0 usage-limit lines): `runner/run.tsx`,
+`owner/radar.tsx`, `owner/live.tsx` get `accessibilityLiveRegion="polite"` on the status sentence and
+one effect each that announces a state transition (never on hydration, never the same sentence twice),
+every sentence pre-existing copy. Reviewed by hand: rules-of-hooks 0 errors on all three, declaration
+order checked, no visual change. Gates: tsc · route-native-imports · npm 989/0 · combined tsc. Codex
+also answered the HIG review (`docs/reviews/2026-09-17-hig-slices-verdict.md`, 0 actionable). The
+`review` and `task` verbs both answer in prose — detect on their own completion lines / the `CHANGED`
+digit, never on the prompt.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
