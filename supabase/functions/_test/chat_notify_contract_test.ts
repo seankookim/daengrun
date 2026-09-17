@@ -2,8 +2,12 @@
 //
 // The title is not decoration: `routeForNotification` (app/src/lib/push.ts) sends a tapped
 // `booking` notification to the role's default screen EXCEPT for titles it recognises. So
-// 0090 writes '새 메시지' and push.ts matches on '새 메시지' — the same shape as the existing
+// 0090 writes '새 메시지' and the client matches on '새 메시지' — the same shape as the existing
 // RUN_STOP_TITLE, whose own comment warns "한쪽을 바꾸면 둘 다 바꾼다".
+// [hig/club-handoff-route, 1081a33] the title tables and the destination decision moved from
+// push.ts into the PURE `app/src/lib/notification-route.ts` (so app/test can pin them); push.ts
+// imports CHAT_TITLE from there and still compares on it in its fast path. This test reads BOTH
+// files: the declaration where it lives, the comparison wherever it happens.
 //
 // Rename it on one side only and NOTHING fails: the trigger keeps writing rows, push keeps
 // delivering them, and every tap silently lands on the wrong screen — a runner who taps an
@@ -20,10 +24,12 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 const read = (rel: string) => Deno.readTextFile(new URL(rel, import.meta.url));
 
 Deno.test("[0090 ⑬] the chat notification title is ONE contract, verified against the migration", async () => {
-  const [sql, ts] = await Promise.all([
+  const [sql, route, push] = await Promise.all([
     read("../../migrations/0090_chat_notify.sql"),
+    read("../../../app/src/lib/notification-route.ts"),
     read("../../../app/src/lib/push.ts"),
   ]);
+  const ts = route + "\n" + push;
 
   // The literal the trigger actually inserts — taken from the INSERT, not from a comment,
   // so a stale comment cannot satisfy this test.
@@ -31,19 +37,20 @@ Deno.test("[0090 ⑬] the chat notification title is ONE contract, verified agai
   assert(insertMatch, "0090 no longer inserts a notification with a literal title — contract moved");
   const sqlTitle = insertMatch![1];
 
-  // → forward: push.ts must route on exactly that string
-  const tsMatch = ts.match(/const CHAT_TITLE = '([^']+)'/);
-  assert(tsMatch, "push.ts no longer declares CHAT_TITLE");
+  // → forward: the client must route on exactly that string (declared once, in notification-route.ts)
+  const tsMatch = route.match(/export const CHAT_TITLE = '([^']+)'/);
+  assert(tsMatch, "notification-route.ts no longer declares CHAT_TITLE");
   assertEquals(
     tsMatch![1],
     sqlTitle,
-    `push.ts routes on '${tsMatch![1]}' but 0090 writes '${sqlTitle}' — every tap lands on the wrong screen`,
+    `the client routes on '${tsMatch![1]}' but 0090 writes '${sqlTitle}' — every tap lands on the wrong screen`,
   );
+  assert(/import \{[^}]*\bCHAT_TITLE\b[^}]*\} from '\.\/notification-route'/.test(push), "push.ts no longer imports CHAT_TITLE from notification-route.ts");
 
   // ← reverse: the constant must actually be USED in the router, or the route is dead code
   assert(
-    /title === CHAT_TITLE/.test(ts),
-    "CHAT_TITLE is declared but never compared in routeForNotification — the chat route is unreachable",
+    /title === CHAT_TITLE/.test(route) && /title === CHAT_TITLE/.test(push),
+    "CHAT_TITLE is declared but not compared in BOTH the pure resolver and push.ts's fast path — the chat route is unreachable",
   );
 
   // and the anti-storm guard must key on the SAME literal the insert uses; if those two drift,
