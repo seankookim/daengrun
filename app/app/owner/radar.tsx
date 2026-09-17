@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar } from '../../src/components/ui';
@@ -330,6 +330,20 @@ export default function Radar() {
       : rawStatus === 'matching' ? '가까운 러너에게 요청을 보냈어요'
         : null;
 
+  const matchingSentence = rawStatus === 'runner_pending' ? '지명 요청을 보냈어요'
+    : rawStatus === 'matching' ? '가까운 러너에게 요청을 보냈어요'
+      : rawStatus !== null && ['confirmed', 'runner_enroute', 'picked_up', 'active'].includes(rawStatus)
+        ? '일정 화면으로 이동할게요' : null;
+  const lastAnnouncedSentence = useRef<string | null>(null);
+  // HIG A3/A6: announce status changes after hydration.
+  useEffect(() => {
+    if (matchingSentence === null) return;
+    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== matchingSentence) {
+      AccessibilityInfo.announceForAccessibility(matchingSentence);
+    }
+    lastAnnouncedSentence.current = matchingSentence;
+  }, [matchingSentence]);
+
   const dockPadBottom = insets.bottom + 12;
   const dockH = 12 + 54 + dockPadBottom;
   // contentContainerStyle을 인라인 객체로 두면 매 렌더마다 새 참조 — ScrollView가 통째로 다시 잰다
@@ -371,7 +385,7 @@ export default function Radar() {
             <View style={[s.dot, { backgroundColor: matchedName ? paper.ready : lilac.accent }]} />
             <View style={{ flex: 1 }}>
               {alertMain !== '' && <Text style={s.alertMain}>{alertMain}</Text>}
-              {alertSub && <Text style={s.alertSub}>{alertSub}</Text>}
+              {alertSub && <Text accessibilityLiveRegion="polite" style={s.alertSub}>{alertSub}</Text>}
             </View>
           </View>
         ) : null}
