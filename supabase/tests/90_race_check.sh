@@ -3,7 +3,8 @@
 # 하네스 말미에 같은 DB로 실행 (harness.sh가 호출 — env 상속). 진짜 두 psql 프로세스가
 # 동시에 경합한다: RA 마지막 슬롯 pay · RB 취소 vs 결제 정합 · RC 릴리스 vs 인시던트 ·
 # [0078] RD 동시 민팅 · RE 동시 인루트 보상 · [0180] RG 반복 스윕 vs 같은 강아지 엣지 홀드 ·
-# [0181] RL 귀가 스윕 두 틱 — 둘째는 건너뛰고, 아무도 두 번 보내지 않는다.
+# [0181] RL 귀가 스윕 두 틱 — 둘째는 건너뛰고, 아무도 두 번 보내지 않는다 ·
+# [0182] RL2 상대가 확인을 커밋하는 동안 스윕이 돈다 — 잠긴 행은 건너뛰고, 낡은 요청은 안 간다.
 # RC/RD/RE는 타이밍 기반이지만 결정적으로 설계: 선행 tx가 락을 2초 점유 → 후행은 대기 →
 # 커밋 후 재평가로 이미 쓰인 행을 보고 물러서야 한다.
 #
@@ -454,4 +455,56 @@ if [ "$L_RET" = "0" ] && [ "$L_DURING" = "0" ] && [ "$L_AFTER" = "1" ] && [ "$L_
   psql -qc "call _pass('race','RL 귀가 스윕 두 틱 — 잡 락을 쥔 틱이 있으면 둘째 틱은 0을 돌려주고 아무것도 쓰지 않는다; 락이 풀린 뒤의 틱이 「인계 확인 요청」을 1회 보낸다 (try xact 잡 락 = 겹치면 건너뜀)')"
 else
   psql -qc "call _fail('race','RL 귀가 스윕 두 틱','ret=$L_RET during=$L_DURING after=$L_AFTER err=$L_ERR (0·0·1·0 기대 — during=1 = 둘째 틱이 락을 무시하고 썼다)')"
+fi
+
+# ---------- [0182] RL2: the counterparty commits a confirmation while the sweep runs — no obsolete ask ----------
+# Codex 0181 #3: arm ⓒ read a snapshot and inserted without looking again, so a confirmation
+# committed between the candidate read and the insert still got the (now obsolete) ask. 0182 locks
+# each candidate with `for update skip locked` and re-evaluates it: a row a writer holds is left
+# for the next tick; a row it gets is judged on its locked, current version. Here A holds BM's row
+# (the runner's confirm, uncommitted for 2 s) while B's sweep runs: BM must get NO ask (skipped),
+# its sibling BMb — not locked — must still get its ask in the same tick, and after A commits BM
+# carries both stamps and gets nothing ever. Mutation (213's header): the lock deleted → the sweep
+# reads the old snapshot and asks BM while A holds it → during=1 → RED.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RL2 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_m() returns text
+language plpgsql as $$
+declare om uuid; rm uuid; dm uuid; rt uuid; bm uuid; bmb uuid;
+begin
+  om := t_user('race_m_owner', 'owner'); rm := t_user('race_m_runner', 'runner');
+  dm := t_dog(om, '레이스M'); rt := t_route('레이스M 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare, owner_confirmed_handoff_at)
+  values (om, dm, rm, rt, 'confirmed', now() + interval '1 hour', 5.0, 9900, 15000, 0, 24900, 9900,
+          now() - interval '10 minutes')
+  returning id into bm;
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare, owner_confirmed_handoff_at)
+  values (om, dm, rm, rt, 'confirmed', now() + interval '2 hours', 5.0, 9900, 15000, 0, 24900, 9900,
+          now() - interval '10 minutes')
+  returning id into bmb;
+  return bm::text || '|' || bmb::text || '|' || rm::text;
+end $$;
+SQL
+IDS=$(psql -qt -c "select race_setup_m()" | xargs)
+BM=${IDS%%|*}; R=${IDS#*|}; BMB=${R%%|*}; RM_RUNNER=${R#*|}
+psql -q > .pgtest/race_m1.out 2>&1 <<SQL &
+begin;
+update bookings set runner_confirmed_handoff_at = now() where id = '$BM';
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select sweep_run_end_recovery();" > .pgtest/race_m2.out 2>&1
+M_DURING=$(psql -qt -c "select count(*) from notifications where ref_id = '$BM' and profile_id = '$RM_RUNNER' and title = '인계 확인 요청'" | xargs)
+M_SIBLING=$(psql -qt -c "select count(*) from notifications where ref_id = '$BMB' and profile_id = '$RM_RUNNER' and title = '인계 확인 요청'" | xargs)
+wait
+psql -qt -c "select sweep_run_end_recovery();" > .pgtest/race_m3.out 2>&1
+M_AFTER=$(psql -qt -c "select count(*) from notifications where ref_id = '$BM' and profile_id = '$RM_RUNNER' and title = '인계 확인 요청'" | xargs)
+M_STAMPS=$(psql -qt -c "select (owner_confirmed_handoff_at is not null)::int + (runner_confirmed_handoff_at is not null)::int from bookings where id = '$BM'" | xargs)
+M_ERR=$(cat .pgtest/race_m1.out .pgtest/race_m2.out .pgtest/race_m3.out | grep -ciE "^ERROR|FATAL" || true)
+if [ "$M_DURING" = "0" ] && [ "$M_SIBLING" = "1" ] && [ "$M_AFTER" = "0" ] && [ "$M_STAMPS" = "2" ] && [ "$M_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RL2 상대가 확인을 커밋하는 동안 스윕 — 잠긴 행은 건너뛰고(요청 0), 옆의 행은 같은 틱에 받고(1), 커밋 뒤엔 양쪽 스탬프라 영원히 0 (행 락 + 재평가)')"
+else
+  psql -qc "call _fail('race','RL2 확인 커밋 vs 스윕','during=$M_DURING sibling=$M_SIBLING after=$M_AFTER stamps=$M_STAMPS err=$M_ERR (0·1·0·2·0 기대 — during=1 = 낡은 스냅샷으로 보냈다)')"
 fi

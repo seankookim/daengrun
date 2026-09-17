@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   destinationForBookingRef, needsClubProbe, needsCurrentBookingProbe, HANDOFF_TITLES, RUNNER_ROUTES,
-  OWNER_MEETUP_TITLES, CHAT_TITLE, RUN_STOP_TITLE,
+  OWNER_MEETUP_TITLES, CHAT_TITLE, RUN_STOP_TITLE, ESCALATION_TITLE, CLUB_PROBE_TITLES,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -81,8 +81,30 @@ t('club · an unlisted title · owner → the report (untouched)',
   isReport(dest({ title: '무슨 제목', role: 'owner', clubSessionId: SID, isCurrentOwnerBooking: null })));
 
 // ── the probes are asked only where the answer can change the destination ──
-t('needsClubProbe: the two handoff titles, and nothing else',
-  HANDOFF_TITLES.every(needsClubProbe) && !needsClubProbe(CHAT_TITLE) && !needsClubProbe('지명 러닝 요청') && !needsClubProbe('러너 도착'));
+t('needsClubProbe: the two handoff titles and the sweep\'s escalation title, and nothing else',
+  HANDOFF_TITLES.every(needsClubProbe) && needsClubProbe(ESCALATION_TITLE)
+  && !needsClubProbe(CHAT_TITLE) && !needsClubProbe('지명 러닝 요청') && !needsClubProbe('러너 도착'));
+
+// ── [0182] the sweep's escalation: a club party lands on the club screen; a 1:1 party on report / calendar, never a CTA ──
+for (const role of ['runner', 'owner']) {
+  t(`club · ${ESCALATION_TITLE} · ${role} → the club session screen`,
+    dest({ title: ESCALATION_TITLE, role, clubSessionId: SID, isCurrentOwnerBooking: true }) === `/club/session/${SID}`);
+}
+t(`1:1 · ${ESCALATION_TITLE} · owner, even the CURRENT booking → the report (not /owner/meetup: it is not a CTA)`,
+  isReport(dest({ title: ESCALATION_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true })));
+t(`1:1 · ${ESCALATION_TITLE} · runner → /runner/calendar`,
+  dest({ title: ESCALATION_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/calendar');
+t('ESCALATION_TITLE is NOT in HANDOFF_TITLES nor OWNER_MEETUP_TITLES (the club set is the superset, not the handoff family)',
+  !HANDOFF_TITLES.includes(ESCALATION_TITLE) && !OWNER_MEETUP_TITLES.includes(ESCALATION_TITLE)
+  && CLUB_PROBE_TITLES.includes(ESCALATION_TITLE) && HANDOFF_TITLES.every((x) => CLUB_PROBE_TITLES.includes(x)));
+{
+  // the title the sweep writes lives in migration 0182 — read it (comment lines stripped) so the two cannot drift
+  const sqlPath = path.resolve(__dirname, '../../supabase/migrations/0182_handoff_recovery_forward.sql');
+  const sql = fs.readFileSync(sqlPath, 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const m = sql.match(/c_esc_title constant text := '([^']+)'/);
+  t('migration 0182 declares the escalation title the client routes on', !!m, 'no c_esc_title in 0182');
+  t('the client\'s ESCALATION_TITLE equals the sweep\'s c_esc_title', !!m && m[1] === ESCALATION_TITLE, m ? `sweep: ${m[1]} client: ${ESCALATION_TITLE}` : '');
+}
 t('needsCurrentBookingProbe: owner meetup titles only, never for the runner',
   OWNER_MEETUP_TITLES.every((x) => needsCurrentBookingProbe('owner', x)) && !needsCurrentBookingProbe('runner', '인계 확인 요청')
   && !needsCurrentBookingProbe('owner', CHAT_TITLE));

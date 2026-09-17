@@ -428,9 +428,12 @@ declare
   -- and if the column comes back ⓐ reds first.
   -- exact trigger NAME sets, not counts. Measured two ways at 0127's authoring (the whole migration
   -- chain including `create constraint trigger`, and the linked project's live pg_trigger) and read
-  -- back out of the harness catalog here. A count cannot tell "the right 14" from "any 14".
+  -- back out of the harness catalog here. A count cannot tell "the right 15" from "any 15" (14 until 0182).
+  -- [0182] `_handoff_cycle` joined the set (the handoff-cycle boundary trigger, 213 D2/D7 own it):
+  -- the inventory grew by exactly the one trigger that slice added, so this set pin moves in the
+  -- same slice under the suite-update law — the proposition (「the right N, by name」) is unchanged.
   c_trg_bookings constant text[] := array[
-    '_guard_booking_cols','_guard_booking_insert','booking_cancel_custody_guard',
+    '_guard_booking_cols','_guard_booking_insert','_handoff_cycle','booking_cancel_custody_guard',
     'booking_cancel_fee_truth','booking_handoff_stamp_guard','booking_transition',
     'bookings_club_fee_provenance','club_close_segments','club_custody_transition_v2',
     'club_v2_axes_poke','km_release_on_terminal_gate','owner_la_booking','owner_la_run_end',

@@ -51,6 +51,15 @@ export const CHAT_TITLE = '새 메시지';
 // first of). For a CLUB booking both belong to the club session screen; `test/notification-route
 // .test.cjs` reads that arm and refuses a title it writes that is missing here.
 export const HANDOFF_TITLES = ['인계 확인 요청', '인계 완료'];
+// [0182 arm ⓓ] The title the run-end recovery SWEEP alone writes to both parties when a handoff
+// stayed one-sided for 30 minutes. Not a CTA and deliberately NOT in HANDOFF_TITLES — that would
+// put it in OWNER_MEETUP_TITLES and send the owner to /owner/meetup — but a CLUB party must still
+// land on the club screen, where the handoff is confirmed; hence CLUB_PROBE_TITLES. A 1:1 party
+// lands on the report / calendar. `test/notification-route.test.cjs` reads migration 0182 for the
+// constant, so the two spellings cannot part (cold review 0182 #4).
+export const ESCALATION_TITLE = '인계 확인이 멈춰 있어요';
+/** The titles whose destination depends on whether the booking is a club delegation. */
+export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE];
 
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
@@ -75,11 +84,11 @@ export const RUNNER_ROUTES: Record<string, string> = {
 // report.
 export const OWNER_MEETUP_TITLES = [...LIVE_TITLES, ...HANDOFF_TITLES];
 
-/** Does resolving this tap need `bookings.club_session_id`? Only the handoff family — every other
- *  booking title has the same destination in both worlds, and a probe on those would slow a tap
- *  for nothing. */
+/** Does resolving this tap need `bookings.club_session_id`? Only the handoff family and the
+ *  sweep's escalation — every other booking title has the same destination in both worlds, and a
+ *  probe on those would slow a tap for nothing. */
 export function needsClubProbe(title: string): boolean {
-  return HANDOFF_TITLES.includes(title);
+  return CLUB_PROBE_TITLES.includes(title);
 }
 
 /** Does resolving this tap need to know whether the ref is the owner's current booking? */
@@ -103,7 +112,7 @@ export function destinationForBookingRef(f: BookingRefFacts, titles: { incident:
   }
   // THE CLUB BRANCH — before either role's 1:1 table, for both roles: the club session screen is
   // where a club handoff is confirmed, and it is keyed by the session, not the booking.
-  if (HANDOFF_TITLES.includes(title) && typeof f.clubSessionId === 'string' && f.clubSessionId !== '') {
+  if (CLUB_PROBE_TITLES.includes(title) && typeof f.clubSessionId === 'string' && f.clubSessionId !== '') {
     return `/club/session/${f.clubSessionId}`;
   }
   if (role === 'runner') return RUNNER_ROUTES[title] ?? '/runner/calendar';

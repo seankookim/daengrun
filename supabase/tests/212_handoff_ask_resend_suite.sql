@@ -256,7 +256,9 @@ begin
       if (v_src ~ 'nt\.title = c_ask_title') is distinct from true then v_bad := v_bad || ' 제목으로 매칭하지 않는다'; end if;
       if (v_src ~ 'nt\.profile_id = x\.counterparty') is distinct from true then v_bad := v_bad || ' 상대 profile_id로 매칭하지 않는다'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
-      if v_n is distinct from 2 then v_bad := v_bad || ' 행 단위 예외 팔 수=' || v_n || '(ⓑ·ⓒ의 2개여야)'; end if;
+      -- [0182] arm ⓓ adds a third handler; ≥ 2 keeps THIS file's property (ⓑ and ⓒ each catch their
+      -- own row) — 213 D7 pins the exact count. Suite-update law: the pin moved with the behaviour.
+      if v_n < 2 then v_bad := v_bad || ' 행 단위 예외 팔 수=' || v_n || '(ⓑ·ⓒ 최소 2개)'; end if;
       if (v_src ~ '\(b\.owner_confirmed_handoff_at is null\) <> \(b\.runner_confirmed_handoff_at is null\)') is distinct from true then v_bad := v_bad || ' 정확히-한쪽 술어 없음'; end if;
       if (v_src ~ 'b\.status not in \(''draft''' and v_src ~ '''matching''' and v_src ~ '''runner_pending''' and v_src ~ '''picked_up''' and v_src ~ '''completed''' and v_src ~ '''incident_review''' and v_src ~ '''refund_pending''' and v_src ~ '''no_show''') is distinct from true then v_bad := v_bad || ' deny-list에 빠진 상태 있음'; end if;
       if (v_src ~ 'b\.status in \(''confirmed''') is distinct from false then v_bad := v_bad || ' 라이브 allow-list 있음'; end if;
