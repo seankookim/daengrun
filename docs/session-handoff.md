@@ -461,6 +461,21 @@ one file wider). **Fixed `69cf477` at 2026-09-18 05:56 — trunk deno 327/0 agai
 from `notification-route.ts` and requires the comparison in both the resolver and push.ts's fast path,
 mutation-checked). 0182 follows on the green trunk.
 
+**2026-09-18 06:47 — `8e7c392` migration 0182 LANDED** (b6; correct-forward for Codex's REJECT/5 on 0180/0181;
+fast-forward; combined tree: harness **1288/0** = 1279 + exactly the 9 pins `0182-D1…D8` + race `RL2` ·
+deno 327/0 · tsc · checks · **npm 1023/0** = 1016 + 7 client pins): #1 `bookings.handoff_cycle_at`
+stamped by trigger on a runner change or stamp reset, the ask match keyed to the cycle; #3 arm ⓒ locks
+each candidate (`for update skip locked`, batch 50, `lock_timeout` 2 s) and re-evaluates on the locked
+row (RL2 + an EvalPlanQual measurement); #2 arm ⓓ: 30 min one-sided ⇒ both parties told (「인계 확인이
+멈춰 있어요」), ops roster told (`handoff_unanswered`, redacted — a no-op until someone subscribes a
+recipient: ops-roster owner's item), `handoff_escalated_at` once per cycle, club + marketplace, no flag,
+no status move; #4 bigint balance sum + a per-tick boundary that marks an unreadable answer failed while
+transient SQLSTATE classes stay `sent`; #5 pinned: the club re-send keeps the edge's shape, and the
+escalation title is routed by the client resolver (cjs drift pin reads 0182). Cold review
+APPROVE-WITH-FIXES/13, fixed or recorded. ⚠ **This slice touches the CLIENT** (`notification-route.ts`)
+— it needs the app build alongside `db push`; no functions deploy. **Twenty-three pending**
+(0157–0163, 0166–0174, 0176–0182). Codex re-review of 0182 running now; the letter waits for it.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
