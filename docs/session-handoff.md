@@ -345,6 +345,15 @@ are in the queue's deploy item. **Nineteen pending** (0157–0163, 0166–0174, 
 ⚠ b6's first push put an EMPTY `be/0178` on origin (a zsh pathspec made the commit fail while the push
 went out) — caught by its own read-back; the CLAUDE.md push law working as written.
 
+**2026-09-18 02:53 — session resumed after a ~20 h gap** (last heartbeat 09-17 06:25; the machine or the session
+slept). Trunk untouched since `0a090b4` (09-17 05:42); no Codex-session branch moved; b6's `be/0179`
+(booking-hold idempotency) was never pushed — its worktree `.claude/worktrees/be-0179` and a postmaster
+are still there, so that session may have died mid-slice: check `git -C .claude/worktrees/be-0179 status`
+before assuming anything landed. The 06:52 Codex one-shot fired only now; `status` shows no current wall,
+so a diff-scoped plugin REVIEW of the two HIG slices (AutoFill + safe-area, `b1b8ba0..d3d56ea`, run
+from a detached worktree so the diff is exactly those two) is in progress — verdict lands in
+`docs/reviews/2026-09-17-hig-slices-verdict.md` only if a `FINDINGS: <digit>` line exists.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
