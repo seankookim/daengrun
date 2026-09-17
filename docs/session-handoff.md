@@ -381,6 +381,16 @@ also answered the HIG review (`docs/reviews/2026-09-17-hig-slices-verdict.md`, 0
 `review` and `task` verbs both answer in prose — detect on their own completion lines / the `CHANGED`
 digit, never on the prompt.
 
+**2026-09-18 03:13 — Codex adversarial review of 0176 / 0178 / 0179 (+ wiring): APPROVE-WITH-FIXES / 1**
+(`docs/reviews/2026-09-18-migrations-0176-0178-0179-codex-verdict.md`, `8ccd4d2`). The one finding is
+real and EXECUTED (FakeDb): 0179's edge reaches the idempotent replay only AFTER the route / debt / card
+gates, so a lost response followed by a gate change turns the retry into a 409 while the live booking
+stays acceptable — the key protects the write, not the person. Routed to b6 (slice author) ahead of
+0180: resolve the owner-scoped key right after the party check and return the existing booking before
+any creation-only gate, plus the three lost-response tests. 🔴 **Say the deploy letter only after that
+fix lands.** 0176 and 0178 drew no finding. Detector note in the verdict doc: the reviewer bulleted its
+closing lines, so anchor the digit detector on the word, not on the line start.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
