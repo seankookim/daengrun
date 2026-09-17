@@ -428,6 +428,17 @@ after the one re-send; club parties' push lands on the 1:1 meetup screens (clien
 pending** (0157–0163, 0166–0174, 0176–0181) + edge; 0181 is db-push-only. **Every backend-audit item
 with a code fix is now closed** (H1 H2 H3 · M1–M10 · L1 L2 L5); L3/L4/L6 are recorded hygiene.
 
+**2026-09-18 05:26 — Codex adversarial review of 0180 / 0181: REJECT / 5** (static; suites not executed by the
+reviewer; `docs/reviews/2026-09-18-migrations-0180-0181-codex-verdict.md`). HIGH: a re-matched booking's
+OLD ask (same owner recipient, inside the 10-min skew) suppresses the new runner's re-send forever; HIGH:
+after the one re-send there is no recovery deadline (attack-INACTION; clubs are outside
+`late_booking_sweep`); MED: arm ⓒ inserts without locking/re-checking the booking, so it can send after
+the counterparty acted (RL cannot see this); MED: 0180's balance check can overflow int4 on individually
+valid counters and roll back the whole reconciliation; MED: club recipients are routed to the 1:1
+meetup screens (client half = b6's in-flight slice; sweep half = resolve `club_session_id`). Fix shape:
+**correct-forward 0182 + suite 213** (never edit 0180/0181), routed to b6. 🔴 **Deploy letter WAITS
+again** until 0182 lands and is re-reviewed.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
