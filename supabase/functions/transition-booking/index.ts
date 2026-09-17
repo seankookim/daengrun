@@ -65,7 +65,10 @@ Deno.serve(handle(async (req) => {
   // 「인계 확인 요청」 — the ONLY thing that asks the second party to confirm the handoff. If that
   // insert is lost, nobody is ever asked, nobody transitions, and the booking sits in a state no
   // transition list can reach; this repo's attack-INACTION law is about exactly that shape, and
-  // the runner's next booking is blocked behind the same unconfirmed handoff (⑫'s work gate).
+  // both live screens stay pointed at it (api.ts IN_FLIGHT). ⚠ NOT through ⑫'s work gate, as this
+  // comment once said: `_runner_work_gate_blocking` (0092) reads the RETURN stamps, never a pickup
+  // stamp (cold review 0181 #8). Since 0181, `sweep_run_end_recovery` arm ⓒ re-sends this ask when
+  // the row is missing — the retry this log line could not be.
   //
   // Shape copied verbatim from `_shared/charge.ts:494-498`, including its reason: NON-FATAL BY
   // CONSTRUCTION. Throwing here would turn a transition that genuinely committed into a 500 and

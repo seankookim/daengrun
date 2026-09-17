@@ -2,7 +2,8 @@
 # ═══ 2커넥션 레이스 검사 (R6) — 실 위탁 파일럿 전 필수 차단기 ═══
 # 하네스 말미에 같은 DB로 실행 (harness.sh가 호출 — env 상속). 진짜 두 psql 프로세스가
 # 동시에 경합한다: RA 마지막 슬롯 pay · RB 취소 vs 결제 정합 · RC 릴리스 vs 인시던트 ·
-# [0078] RD 동시 민팅 · RE 동시 인루트 보상 · [0180] RG 반복 스윕 vs 같은 강아지 엣지 홀드.
+# [0078] RD 동시 민팅 · RE 동시 인루트 보상 · [0180] RG 반복 스윕 vs 같은 강아지 엣지 홀드 ·
+# [0181] RL 귀가 스윕 두 틱 — 둘째는 건너뛰고, 아무도 두 번 보내지 않는다.
 # RC/RD/RE는 타이밍 기반이지만 결정적으로 설계: 선행 tx가 락을 2초 점유 → 후행은 대기 →
 # 커밋 후 재평가로 이미 쓰인 행을 보고 물러서야 한다.
 #
@@ -409,4 +410,48 @@ if [ "$G_ROWS" = "1" ] && [ "$G_CLASH" = "1" ] && [ "$G1_ERR" = "0" ]; then
   psql -qc "call _pass('race','RG 반복 스윕 vs 같은 강아지 엣지 홀드 — 스윕 tx가 열린 동안 홀드는 강아지 락에서 기다리고, 커밋 뒤 dog_slot_clash; 그 슬롯의 행 1개 (0180의 xact 락이 두 쓰기를 직렬화한다)')"
 else
   psql -qc "call _fail('race','RG 반복 스윕 vs 엣지 홀드','rows=$G_ROWS clash=$G_CLASH sweep_err=$G1_ERR (1·1·0 기대 — 행 2개 = 스윕과 홀드가 같은 슬롯에 둘 다 앉았다)')"
+fi
+
+# ---------- [0181] RL: two ticks of sweep_run_end_recovery — the second SKIPS, nobody double-sends ----------
+# Arm ⓒ (and arm ⓐ before it) is read-then-write on `notifications`: two overlapping ticks would
+# each see no ask row and each insert one. 0181 puts a TRY xact job lock before any arm. 212 C8
+# can see the lock held in its own session; only two processes can see the SKIP. Mutation (212's
+# header): the try-lock deleted → the second tick runs beside the first — here the follower sends
+# the ask while the leader (which sent nothing: it only holds the lock) sleeps, so rows=1 either
+# way; what the plant changes is L_RET (0 → 1) and L_DURING (0 → 1): the follower WROTE while the
+# leader held the lock. Both are asserted.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RL 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_l() returns text
+language plpgsql as $$
+declare ol uuid; rl uuid; dl uuid; rt uuid; bl uuid;
+begin
+  ol := t_user('race_l_owner', 'owner'); rl := t_user('race_l_runner', 'runner');
+  dl := t_dog(ol, '레이스L'); rt := t_route('레이스L 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare, owner_confirmed_handoff_at)
+  values (ol, dl, rl, rt, 'confirmed', now() + interval '1 hour', 5.0, 9900, 15000, 0, 24900, 9900,
+          now() - interval '10 minutes')
+  returning id into bl;
+  return bl::text || '|' || rl::text;
+end $$;
+SQL
+IDS=$(psql -qt -c "select race_setup_l()" | xargs)
+BL=${IDS%%|*}; RL_RUNNER=${IDS#*|}
+psql -q > .pgtest/race_l1.out 2>&1 <<SQL &
+begin;
+select pg_advisory_xact_lock(hashtextextended('sweep_run_end_recovery', 0));
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+L_RET=$(psql -qt -c "select sweep_run_end_recovery();" 2> .pgtest/race_l2.err | xargs)
+L_DURING=$(psql -qt -c "select count(*) from notifications where ref_id = '$BL' and profile_id = '$RL_RUNNER' and title = '인계 확인 요청'" | xargs)
+wait
+psql -qt -c "select sweep_run_end_recovery();" > .pgtest/race_l3.out 2>&1
+L_AFTER=$(psql -qt -c "select count(*) from notifications where ref_id = '$BL' and profile_id = '$RL_RUNNER' and title = '인계 확인 요청'" | xargs)
+L_ERR=$(cat .pgtest/race_l1.out .pgtest/race_l2.err .pgtest/race_l3.out | grep -ciE "^ERROR|FATAL" || true)
+if [ "$L_RET" = "0" ] && [ "$L_DURING" = "0" ] && [ "$L_AFTER" = "1" ] && [ "$L_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RL 귀가 스윕 두 틱 — 잡 락을 쥔 틱이 있으면 둘째 틱은 0을 돌려주고 아무것도 쓰지 않는다; 락이 풀린 뒤의 틱이 「인계 확인 요청」을 1회 보낸다 (try xact 잡 락 = 겹치면 건너뜀)')"
+else
+  psql -qc "call _fail('race','RL 귀가 스윕 두 틱','ret=$L_RET during=$L_DURING after=$L_AFTER err=$L_ERR (0·0·1·0 기대 — during=1 = 둘째 틱이 락을 무시하고 썼다)')"
 fi

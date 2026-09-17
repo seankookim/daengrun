@@ -243,8 +243,8 @@ Deno.test("[M1 control] a parseable body still reaches the action switch — the
 // notification that failed to write was indistinguishable from one that was delivered. The worst of
 // the 15 is 「인계 확인 요청」 — the only thing that asks the second party to confirm the handoff. A
 // lost insert there means nobody is ever asked, nobody transitions, and the booking sits in a state
-// no transition list can reach (the attack-INACTION shape), with the runner's next job blocked
-// behind the same unconfirmed handoff. `request_reschedule` is used here only because it is the
+// no transition list can reach (the attack-INACTION shape), with both live screens still pointed
+// at it (0181's sweep now re-sends the ask when the row is missing). `request_reschedule` is used here only because it is the
 // cheapest arm that reaches the shared helper; the helper is the subject, not the action.
 Deno.test("[M2] a notification insert that fails is logged with the site that lost it", async () => {
   const soon = new Date(Date.now() + 72 * 3600_000).toISOString();
@@ -308,4 +308,27 @@ Deno.test("[M2 control] a notification that SUCCEEDS logs nothing — the helper
     console.error = original;
     fm.restore();
   }
+});
+
+// ═══ [0181] THE SWEEP RE-SENDS THE ASK UNDER THE EDGE'S EXACT STRINGS ═══════════════════════════
+// `sweep_run_end_recovery` arm ⓒ (0181) matches a lost 「인계 확인 요청」 by TITLE and re-sends it
+// with the same title and body, and `push.ts` routes the runner by exact title. Three files, one
+// string, no shared constant they can import — so this pin reads the two server files and
+// reddens if the spellings part. Comment lines are stripped first: a comment quoting the string
+// must not satisfy a check for the code that writes it (the comment-quoting law).
+Deno.test("[0181] the edge's confirm_handoff ask and the sweep's re-send spell the same title and body", async () => {
+  const strip = (s: string, comment: RegExp) => s.split("\n").filter((l) => !comment.test(l.trim())).join("\n");
+  const edge = strip(await Deno.readTextFile(new URL("../transition-booking/index.ts", import.meta.url)), /^\/\//);
+  const sql = strip(await Deno.readTextFile(new URL("../../migrations/0181_handoff_ask_resend.sql", import.meta.url)), /^--/);
+  // scoped to the confirm_handoff arm — `notify(target, …)` also appears in request_runner (지명)
+  const armStart = edge.indexOf('case "confirm_handoff":');
+  assert(armStart >= 0, "no confirm_handoff arm in transition-booking");
+  const armEnd = edge.indexOf("\n    case ", armStart + 1);
+  const arm = edge.slice(armStart, armEnd < 0 ? undefined : armEnd);
+  const ask = arm.match(/notify\(target, "([^"]+)", "([^"]+)"\)/);
+  assert(ask, "the edge's confirm_handoff arm no longer asks the counterparty with notify(target, title, body)");
+  const [, title, body] = ask;
+  assertEquals(title, "인계 확인 요청", "the edge's ask title moved — 0181's sweep matches on it and push.ts routes on it");
+  assert(sql.includes(`c_ask_title constant text := '${title}'`), `0181's sweep does not spell the edge's title: ${title}`);
+  assert(sql.includes(`c_ask_body  constant text := '${body}'`), `0181's sweep does not spell the edge's body: ${body}`);
 });
