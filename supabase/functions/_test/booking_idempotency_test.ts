@@ -53,9 +53,12 @@ Deno.test("🔴 [0179] a replayed key returns the SAME booking id with unchanged
   assertEquals(Object.keys(first).sort(), ["booking_id", "booking_status", "hold_expires_at", "paid_path", "total_price"]);
   assertEquals(db.rows("bookings").length, 1);
   assertEquals(db.rows("slot_holds").length, 1);
-  assertEquals(sent.length, 2);
+  // [codex 2026-09-18] the replay is answered at the EDGE now, before the creation gates, so the
+  // transaction is asked exactly once — by the attempt that created the row. (This line asserted
+  // `2` while the replay lived only in the transaction; the property it pins — one row, same id —
+  // is unchanged, the door moved.)
+  assertEquals(sent.length, 1);
   assertEquals(sent[0].p_client_request_id, KEY);
-  assertEquals(sent[1].p_client_request_id, KEY);
 });
 
 Deno.test("🔴 [0179] the same key with a different payload is 409 request_mismatch, and nothing new is written", async () => {
@@ -144,4 +147,88 @@ Deno.test("[0179] a replay reports the row's CURRENT status, not the status of t
   assertEquals(again.booking_id, first.booking_id);
   assertEquals(again.unchanged, true);
   assertEquals(again.booking_status, "confirmed");
+});
+
+// ═══ [codex 2026-09-18 · medium] a LOST-RESPONSE RETRY is answered BEFORE any creation-only gate ═══
+// The replay used to be reached only through the transaction, which sits below the route / debt /
+// card / flag gates. Three things can move between a request that committed and its retry — the
+// route, the owner's debt, the charging flag — and each turned the retry into a 409 while the
+// booking lived. The five tests below are the three retries plus the two properties that make the
+// early answer safe: it compares the payload, and it never answers for a `payment_hold` row.
+const RT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+function sceneWithRoute() {
+  const s = scene();
+  s.db.seed("routes", [{ id: RT, status: "active" }]);
+  return s;
+}
+const debtCalls = (db: FakeDb) => db.log.filter((l) => l === "rpc:owner_has_unsettled_charge").length;
+
+Deno.test("🔴 [codex] the route is SUSPENDED between a committed request and its retry → the same booking, not a 409", async () => {
+  const { db, sent } = sceneWithRoute();
+  const first = await createBookingHold(req(body({ client_request_id: KEY, route_id: RT }), "owner_jwt"), db as never) as Row;
+  db.rows("routes")[0].status = "suspended";           // the operator acts in the window
+  const again = await createBookingHold(req(body({ client_request_id: KEY, route_id: RT }), "owner_jwt"), db as never) as Row;
+  assertEquals(again.booking_id, first.booking_id);
+  assertEquals(again.unchanged, true);
+  assertEquals(again.booking_status, "matching");
+  assertEquals(sent.length, 1, "the retry must not reach the transaction at all");
+  assertEquals(db.rows("bookings").length, 1);
+});
+
+Deno.test("🔴 [codex] the DEBT LOCK activates between the request and its retry → the same booking; the lock is not even asked", async () => {
+  const { db, sent } = scene();
+  const first = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  assertEquals(debtCalls(db), 1);
+  db.rpcs["owner_has_unsettled_charge"] = () => ({ data: true });   // a charge failed in the window
+  const again = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  assertEquals(again.booking_id, first.booking_id);
+  assertEquals(again.unchanged, true);
+  assertEquals(debtCalls(db), 1, "a replay is not a new booking, so the debt gate has no say");
+  assertEquals(sent.length, 1);
+});
+
+Deno.test("🔴 [codex] CHARGING FLIPS between the request and its retry (card-less owner) → the same booking, not card_required", async () => {
+  const { db, sent } = scene();
+  db.seed("ops_flags", [{ id: true, payments_live_since: null }]);
+  const first = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  db.rows("ops_flags")[0].payments_live_since = "2026-09-18T00:00:00.000Z";   // Sean flips the cutover
+  const again = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  assertEquals(again.booking_id, first.booking_id);
+  assertEquals(again.unchanged, true);
+  assertEquals(again.paid_path, "widget");   // still truthfully card-less
+  assertEquals(sent.length, 1);
+});
+
+Deno.test("[codex] the early answer compares the payload the way the transaction does — a changed km is request_mismatch before any gate", async () => {
+  const { db, sent } = scene();
+  await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never);
+  db.rpcs["owner_has_unsettled_charge"] = () => ({ data: true });   // and this gate must not be what refuses it
+  const e = await expectHttpError(() =>
+    createBookingHold(req(body({ client_request_id: KEY, km: 2.5 }), "owner_jwt"), db as never)
+  );
+  assertEquals(e.status, 409);
+  assertStringIncludes(e.message, "request_mismatch");
+  assertEquals(debtCalls(db), 1);
+  assertEquals(sent.length, 1);
+});
+
+Deno.test("[codex] a payment_hold prior is NOT answered early — it falls through to the transaction, the only place that may close it", async () => {
+  const { db, sent } = scene();
+  const first = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  db.rows("bookings")[0].status = "payment_hold";      // the shape a post-flip widget hold would leave
+  const again = await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never) as Row;
+  assertEquals(again.booking_id, first.booking_id);
+  assertEquals(again.unchanged, true);
+  assertEquals(sent.length, 2, "the transaction must be asked, so it can close the row");
+});
+
+Deno.test("[codex] ownership still stands in front of the early replay — a stranger's dog with my key is 403, not my booking", async () => {
+  const { db, sent } = scene();
+  db.seed("dogs", [{ id: DOG, owner_id: OWNER }, { id: "d0d0d0d0-d0d0-4d0d-8d0d-d0d0d0d0d0d0", owner_id: "22222222-2222-2222-2222-222222222222" }]);
+  await createBookingHold(req(body({ client_request_id: KEY }), "owner_jwt"), db as never);
+  const e = await expectHttpError(() =>
+    createBookingHold(req(body({ client_request_id: KEY, dog_id: "d0d0d0d0-d0d0-4d0d-8d0d-d0d0d0d0d0d0" }), "owner_jwt"), db as never)
+  );
+  assertEquals(e.status, 403);
+  assertEquals(sent.length, 1);
 });

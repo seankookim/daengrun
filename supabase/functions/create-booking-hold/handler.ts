@@ -150,6 +150,70 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     if (!myAddr) throw new HttpError(403, "forbidden");
   }
 
+  const start = new Date(b.scheduled_at);
+  // An unparseable date became `Invalid Date`, whose toISOString() throws a RangeError — a 500
+  // with a stack instead of a 400 with a reason. Same class as the km bounds above.
+  if (Number.isNaN(start.getTime())) throw new HttpError(400, "bad scheduled_at");
+
+  // 서버 가격 — 클라이언트 금액은 신뢰하지 않음 (unchanged; the transaction stores what we hand it)
+  const addons: string[] = Array.isArray(b.addons) ? b.addons : [];
+  const addonFare = addons.reduce((s, k) => {
+    if (!(k in PRICING.addons)) throw new HttpError(400, `unknown addon ${k}`);
+    return s + PRICING.addons[k];
+  }, 0);
+  const distanceFare = Math.round(km * PRICING.perKm);
+  const total = PRICING.ownerBaseFare + distanceFare + addonFare;
+  const addonRows = addons.map((k) => ({ key: k, price: PRICING.addons[k] }));
+
+  // ═══ [codex 2026-09-18 · medium] A LOST-RESPONSE RETRY IS ANSWERED BEFORE ANY CREATION-ONLY GATE ═══
+  // 0179's transaction replays a key — but the transaction sits BELOW the route / debt / card / flag
+  // gates, which exist to decide whether a NEW booking may be made. A retry of a request that has
+  // already made one could therefore be refused by a gate that moved in between (the route was
+  // suspended, the debt lock activated, charging flipped), and the client then cleared
+  // `bookingId` and showed failure (request.tsx) while the live booking could still be accepted.
+  // So the key is resolved HERE: after the party checks (a stranger learns nothing), before every
+  // creation-only gate, with the service client's own owner-scoped read, compared exactly as the
+  // transaction compares (0179's nine slot/money fields — the analytics snapshot is not one), and
+  // answered WITHOUT a write. A `payment_hold` prior is NOT answered here: the transaction is the
+  // only place that may close it (0179 K7's close-on-replay), so it falls through to the gates
+  // and the transaction — the one case where a creation gate still stands between a retry and its
+  // row, and it is unreachable today (every hold lands `matching` while charging is off).
+  if (clientRequestId) {
+    const { data: prior, error: priorErr } = await db.from("bookings")
+      .select("id, status, dog_id, route_id, address_id, scheduled_at, km, pace_label, addons, total_price, min_fare")
+      .eq("owner_id", uid).eq("client_request_id", clientRequestId).maybeSingle();
+    if (priorErr) throw internalError(priorErr, "replay_read");
+    if (prior) {
+      const same = prior.dog_id === b.dog_id &&
+        (prior.route_id ?? null) === (b.route_id ?? null) &&
+        (prior.address_id ?? null) === (b.address_id ?? null) &&
+        new Date(prior.scheduled_at).getTime() === start.getTime() &&
+        Number(prior.km) === km &&
+        (prior.pace_label ?? null) === (b.pace_label ?? null) &&
+        JSON.stringify(prior.addons) === JSON.stringify(addonRows) &&
+        prior.total_price === total &&
+        prior.min_fare === PRICING.minFare;
+      if (!same) {
+        throw new HttpError(409, "request_mismatch — 같은 요청으로 다른 내용의 예약을 만들 수 없어요. 처음부터 다시 시도해주세요");
+      }
+      if (prior.status !== "payment_hold") {
+        const { data: hold } = await db.from("slot_holds").select("expires_at").eq("booking_id", prior.id).maybeSingle();
+        // `paid_path` is a READ of who is paying, not a gate; asked the same way the fresh path asks it
+        const { data: card, error: cardErr } = await db.from("billing_keys")
+          .select("profile_id").eq("profile_id", uid).maybeSingle();
+        if (cardErr) throw internalError(cardErr, "card_read");
+        return {
+          booking_id: prior.id,
+          hold_expires_at: hold?.expires_at ? new Date(hold.expires_at).toISOString() : null,
+          total_price: prior.total_price,
+          paid_path: (card ? "card" : "widget") as "card" | "widget",
+          booking_status: prior.status,
+          unchanged: true,
+        };
+      }
+    }
+  }
+
   // ── the route gate (0082) ─────────────────────────────────────────────────────────────────────
   // `route_id` was the last client-supplied FK this function inserted RAW, while its siblings above
   // are all checked — and the comment at :27 already says why that matters here: service role, so
@@ -270,10 +334,6 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     );
   }
 
-  const start = new Date(b.scheduled_at);
-  // An unparseable date became `Invalid Date`, whose toISOString() throws a RangeError — a 500
-  // with a stack instead of a 400 with a reason. Same class as the km bounds above.
-  if (Number.isNaN(start.getTime())) throw new HttpError(400, "bad scheduled_at");
   const durMin = km * 8 + 25; // 러닝 + 픽업·인계 버퍼 (validated km — b.km may be a string)
   const end = new Date(start.getTime() + durMin * 60_000);
 
@@ -290,16 +350,9 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   //
   // The function is service_role-only and takes the OWNER from us (the settle_run_tx shape): the
   // JWT was validated at the top of this function, and the body can never name the owner.
-  // 서버 가격 — 클라이언트 금액은 신뢰하지 않음 (unchanged; the transaction stores what we hand it)
-  const addons: string[] = Array.isArray(b.addons) ? b.addons : [];
-  const addonFare = addons.reduce((s, k) => {
-    if (!(k in PRICING.addons)) throw new HttpError(400, `unknown addon ${k}`);
-    return s + PRICING.addons[k];
-  }, 0);
-  const distanceFare = Math.round(km * PRICING.perKm);
-  const total = PRICING.ownerBaseFare + distanceFare + addonFare;
+  // A replayed key normally never reaches here — it is answered above, before the creation gates
+  // (codex 2026-09-18) — except a `payment_hold` prior, which the transaction alone may close.
 
-  const addonRows = addons.map((k) => ({ key: k, price: PRICING.addons[k] }));
   const routeChips = b.route_chips ?? {};
   // WHO closes payment_hold → matching: a card owner always, and — while charging is off — everyone
   // else too (O-5 §C.1). Two named conditions rather than `true`, for the reason the old CAS gave:
