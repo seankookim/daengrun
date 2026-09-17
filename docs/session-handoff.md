@@ -439,6 +439,18 @@ meetup screens (client half = b6's in-flight slice; sweep half = resolve `club_s
 **correct-forward 0182 + suite 213** (never edit 0180/0181), routed to b6. 🔴 **Deploy letter WAITS
 again** until 0182 lands and is re-reviewed.
 
+**2026-09-18 05:34 — `1081a33` club handoff push ROUTE LANDED** (b6, client-only; fast-forward; combined tree: tsc ·
+checks · **npm 1016/0** — new baseline: 989 + 27 pins in `app/test/notification-route.test.cjs`, registered
+in the chain): the destination decision moved into a pure module `src/lib/notification-route.ts`; a
+club booking's handoff-family push (인계 확인 요청 · 인계 완료) now lands on `/club/session/{sid}` for
+both roles (the screen that owns both club confirmations), 1:1 bookings keep the meetup screens, unknown
+club membership folds to the pre-slice route (loud, not a stall); `alerts.tsx`'s inbox shares the entry.
+No arrival stage invented; the DO-NOT-REFACTOR meetup machines untouched. A drift pin reads
+transition-booking's confirm_handoff arm (comments stripped) so a new edge title cannot part from the
+family silently. Device-visual UNVERIFIED; smoke list in the commit message. Codex #5's sweep half:
+b6 will PIN that 0181's re-send carries the edge's exact shape (booking ref + family title), which is
+what the new resolver routes — a session-ref'd row would break it; accepted.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
