@@ -451,6 +451,15 @@ family silently. Device-visual UNVERIFIED; smoke list in the commit message. Cod
 b6 will PIN that 0181's re-send carries the edge's exact shape (booking ref + family title), which is
 what the new resolver routes — a session-ref'd row would break it; accepted.
 
+**2026-09-18 05:54 — 🔴 TRUNK DENO RED since `1081a33`: 326/1**, `chat_notify_contract_test.ts` (measured on trunk by
+me after b6's heads-up): the contract test reads `app/src/lib/push.ts` for `const CHAT_TITLE`, and the
+club-route slice moved the title tables into `src/lib/notification-route.ts` (push.ts imports it — nothing
+functional is wrong). My landing chain ran tsc · checks · npm and NOT deno because the slice was
+client-only — wrong: the deno drift pins READ app files, so **deno is a landing gate for any slice
+touching `push.ts` / `notification-route.ts` / transition titles, not only for migrations** (the 0169 law,
+one file wider). Fix is being split out by b6 as its own commit (`be/deno-chat-contract`) and lands
+first; 0182 follows on the green trunk.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
