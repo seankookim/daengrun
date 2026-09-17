@@ -350,13 +350,38 @@ Deno.serve(handle(async (req) => {
       } else {
         side = isOwner ? "owner" : "runner";
       }
-      await set(side === "owner"
-        ? { owner_confirmed_handoff_at: new Date().toISOString() }
-        : { runner_confirmed_handoff_at: new Date().toISOString() });
-      // 재조회 후 판정 — 처음 읽은 bk 스냅샷은 stale (양측이 거의 동시에 눌러도 안전)
-      const { data: fresh } = await db.from("bookings")
-        .select("status, owner_confirmed_handoff_at, runner_confirmed_handoff_at, handoff_cycle_id")
-        .eq("id", booking_id).single();
+      // [0184] THE STAMP AND ITS CYCLE ARE ONE STATEMENT. 0183 stamped in one PostgREST call and
+      // read `handoff_cycle_id` in a second; Codex drove the real handler with a reassignment
+      // between the two: the old runner's stamp was cleared and cycle B minted, the read returned
+      // B, and the old request's ask carried B — which the cycle guard accepts and which then
+      // SUPPRESSED the new runner's genuine lost ask. `update … returning` closes the window: the
+      // id below is the cycle the stamp landed in, and if a reassignment follows, the ask carrying
+      // it is refused (`stale_handoff_cycle`) and the recovery sweep asks for the current cycle.
+      // The row returned also replaces the old post-stamp re-read for the picked_up decision — it is
+      // the row as the stamp left it, counterparty's stamp included if it was already there.
+      // ⚠ AND THE STAMP IS PARTY-SCOPED (cold review 0184 #1, the MIRROR order): if the re-match
+      // commits BEFORE this stamp, the party gate above — read off the pre-request snapshot — has
+      // already passed, and a bare `.eq("id")` would land the OLD runner's stamp on the NEW
+      // pairing, returning cycle B, which the guard accepts — and picked_up could then be reached
+      // with the assigned runner never confirming. The conjunct makes that stamp hit zero rows,
+      // which is the 409 below: 「you are no longer this booking's party」. Inherited from `set()`;
+      // closed here because it is the same sentence as the race this slice closes.
+      const { data: fresh, error: se } = await db.from("bookings")
+        .update(side === "owner"
+          ? { owner_confirmed_handoff_at: new Date().toISOString() }
+          : { runner_confirmed_handoff_at: new Date().toISOString() })
+        .eq("id", booking_id)
+        .eq(side === "owner" ? "owner_id" : "runner_id", uid)
+        .select("status, owner_id, runner_id, owner_confirmed_handoff_at, runner_confirmed_handoff_at, handoff_cycle_id")
+        .single();
+      if (se) {
+        // PGRST116 = the party-scoped stamp matched no row: the caller is no longer this booking's
+        // owner/runner (a re-match beat them) or the booking is gone. The club screens print this
+        // sentence verbatim (club/session/[sid].tsx), so it is Korean, not PostgREST's English.
+        throw new HttpError(409, se.code === "PGRST116"
+          ? "이 예약의 인계를 더 이상 확인할 수 없어요 — 배정이 바뀌었을 수 있어요, 화면을 새로고침해주세요"
+          : se.message);
+      }
       if (fresh?.owner_confirmed_handoff_at && fresh?.runner_confirmed_handoff_at) {
         if (fresh.status !== "picked_up" && fresh.status !== "active") {
           await set({ status: "picked_up" });
@@ -365,13 +390,15 @@ Deno.serve(handle(async (req) => {
           if (bk.runner_id) await notify(bk.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
         }
       } else {
-        const target = side === "owner" ? bk.runner_id : bk.owner_id;
-        // [0183] the ask names the cycle it belongs to — read in the SAME request that stamped, from
-        // the row the stamp landed on. A re-match committing between that read and this insert makes
-        // the id stale, and the database refuses the row (`stale_handoff_cycle`, logged by `notify`);
-        // the recovery sweep then asks for the current cycle. NULL only on a row the database has
-        // not identified yet (a pre-0183 booking touched for the first time by this very stamp
-        // gets its id from the trigger, so `fresh` already carries it).
+        // [0184] the recipient comes from the ROW THE STAMP RETURNED, not the pre-request snapshot
+        // (cold review 0184 #5): in the same reassignment window the snapshot's runner is the one
+        // who just left, and the ask would have chased them.
+        const target = side === "owner" ? fresh?.runner_id : fresh?.owner_id;
+        // [0183/0184] the ask names the cycle it belongs to — the one the stamp itself returned. A
+        // re-match committing after the stamp makes the id stale, and the database refuses the row
+        // (`stale_handoff_cycle`, logged by `notify`); the recovery sweep then asks for the current
+        // cycle. NULL only on a row the database has not identified yet (a pre-0183 booking touched
+        // for the first time by this very stamp gets its id from the trigger, so `fresh` carries it).
         if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요", { handoff_cycle_id: fresh?.handoff_cycle_id ?? null });
       }
       break;
