@@ -391,6 +391,18 @@ any creation-only gate, plus the three lost-response tests. 🔴 **Say the deplo
 fix lands.** 0176 and 0178 drew no finding. Detector note in the verdict doc: the reviewer bulleted its
 closing lines, so anchor the digit detector on the word, not on the line start.
 
+**2026-09-18 03:35 — Codex's 0179 finding FIXED and LANDED** (b6, `d4f5560` fast-forwarded; edge-only, no SQL, no
+number; combined tree: deno **326/0** = 320 + 6 · tsc · check-rpc): the edge resolves the owner-scoped
+`client_request_id` right after the party checks and BEFORE every creation-only gate, compares the
+nine slot/money fields exactly as the transaction does, and answers the existing booking with
+`unchanged:true` without a write — reproduced first (the three gate sentences on a retry), then the
+three lost-response tests + mismatch-before-gates + `payment_hold` prior falls through (the transaction
+alone may close it, K7) + a stranger's dog with my key still 403. Gate order kept: ownership → replay →
+route → debt → card → flag → transaction. **The deploy-wait is lifted** — the letter (queue item 1) can
+be said on this trunk. 0180 (b6, in progress) will carry a `pg_advisory_xact_lock` held to commit (not a
+session lock released early — that would reopen the race) and updates suite 161 P4's md5 pins under the
+suite-update law.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
