@@ -538,6 +538,22 @@ the unreadable-answer arm conditionally moves `no_response` back to `sent`. Rout
 5 → 3 → 2 → 2 findings over four rounds, each round adjacent to the last; the remaining HIGH is
 custody-without-confirmation, so the loop continues. 🔴 **Deploy letter stays parked.**
 
+**2026-09-18 10:15 — `e0b3414` migration 0185 LANDED** (b6; correct-forward for Codex's REJECT/2 on 0184; fast-forward;
+combined tree: harness **1307/0** = 1297 + 7 pins `0185-…` + race arms RV×2/RW · deno **336/0** = 333 + 3 ·
+tsc · checks · npm 1023/0): `confirm_handoff_tx(p_booking, p_uid, p_side)` SECURITY DEFINER,
+service_role only, `auth.uid()` overrides a spoofed argument — `for update` → party gate on the LOCKED
+row (a re-match that committed first ⇒ `not_party`, nothing written) → status gate → stamp AND
+promotion in ONE UPDATE decided on the locked row (both stamps, both this cycle's, a runner); a
+counterparty stamp older than the cycle boundary never promotes and is re-asked; a re-tap keeps the
+first stamp. The edge calls it once, writes nothing to bookings, notifies only from the returned row.
+Two-connection RW arm measures the finding itself (lock deleted ⇒ the old runner's stamp AND
+`picked_up` land on the re-matched pairing). The unreadable-answer arm moves an unresolved `no_response`
+back to `sent` under a CAS; RV arms measure the concurrent-verdict guard. Suite-update law: 125 F5 ⓒ
+exempts the new routine by name. Cold review APPROVE-WITH-FIXES/8, no code defect. Structural note
+(measured): the property is carried by the LOCK, not the one-statement form — the shape pin is text-only
+and says so. **Twenty-six pending** (0157–0163, 0166–0174, 0176–0185); order for 0185: `db push`, then
+`functions deploy transition-booking`; no client build. Codex re-review running; the letter waits for it.
+
 **Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
