@@ -350,57 +350,51 @@ Deno.serve(handle(async (req) => {
       } else {
         side = isOwner ? "owner" : "runner";
       }
-      // [0184] THE STAMP AND ITS CYCLE ARE ONE STATEMENT. 0183 stamped in one PostgREST call and
-      // read `handoff_cycle_id` in a second; Codex drove the real handler with a reassignment
-      // between the two: the old runner's stamp was cleared and cycle B minted, the read returned
-      // B, and the old request's ask carried B — which the cycle guard accepts and which then
-      // SUPPRESSED the new runner's genuine lost ask. `update … returning` closes the window: the
-      // id below is the cycle the stamp landed in, and if a reassignment follows, the ask carrying
-      // it is refused (`stale_handoff_cycle`) and the recovery sweep asks for the current cycle.
-      // The row returned also replaces the old post-stamp re-read for the picked_up decision — it is
-      // the row as the stamp left it, counterparty's stamp included if it was already there.
-      // ⚠ AND THE STAMP IS PARTY-SCOPED (cold review 0184 #1, the MIRROR order): if the re-match
-      // commits BEFORE this stamp, the party gate above — read off the pre-request snapshot — has
-      // already passed, and a bare `.eq("id")` would land the OLD runner's stamp on the NEW
-      // pairing, returning cycle B, which the guard accepts — and picked_up could then be reached
-      // with the assigned runner never confirming. The conjunct makes that stamp hit zero rows,
-      // which is the 409 below: 「you are no longer this booking's party」. Inherited from `set()`;
-      // closed here because it is the same sentence as the race this slice closes.
-      const { data: fresh, error: se } = await db.from("bookings")
-        .update(side === "owner"
-          ? { owner_confirmed_handoff_at: new Date().toISOString() }
-          : { runner_confirmed_handoff_at: new Date().toISOString() })
-        .eq("id", booking_id)
-        .eq(side === "owner" ? "owner_id" : "runner_id", uid)
-        .select("status, owner_id, runner_id, owner_confirmed_handoff_at, runner_confirmed_handoff_at, handoff_cycle_id")
-        .single();
-      if (se) {
-        // PGRST116 = the party-scoped stamp matched no row: the caller is no longer this booking's
-        // owner/runner (a re-match beat them) or the booking is gone. The club screens print this
-        // sentence verbatim (club/session/[sid].tsx), so it is Korean, not PostgREST's English.
-        throw new HttpError(409, se.code === "PGRST116"
-          ? "이 예약의 인계를 더 이상 확인할 수 없어요 — 배정이 바뀌었을 수 있어요, 화면을 새로고침해주세요"
-          : se.message);
+      // [0185] THE STAMP AND THE PROMOTION ARE ONE LOCKED TRANSACTION (codex 0184 #1, HIGH, executed
+      // against this handler). 0184 made the stamp one party-scoped statement that returned its cycle —
+      // and then promoted `picked_up` in a SECOND id-only statement authorised by the stamps that row
+      // had shown. A reassignment committing between the two (`session_propose_dog`) voided both
+      // stamps and minted cycle B; this arm then marked the NEW pairing picked_up and told the OLD
+      // runner, and the custody trigger recorded the new runner as custodian with neither
+      // confirmation. `confirm_handoff_tx` now locks the row, takes the party gate on the LOCKED row
+      // (the mirror order — a re-match that committed first makes this caller a stranger:
+      // `not_party`), gates the status, and stamps AND promotes in one UPDATE whose condition is
+      // decided on that row. Everything this arm tells anyone comes from the row the RPC returns: no
+      // pre-request snapshot, no second statement, no read after the fact. A refusal is a 409 in
+      // Korean (the club screens print it verbatim); an unknown refusal or a missing row fails
+      // CLOSED — nobody is told about a handoff the database did not confirm.
+      const { data: hx, error: he } = await db.rpc("confirm_handoff_tx", { p_booking: booking_id, p_uid: uid, p_side: side });
+      if (he) {
+        const m = he.message ?? "";
+        if (m.includes("not_party")) throw new HttpError(409, "이 예약의 인계를 더 이상 확인할 수 없어요 — 배정이 바뀌었을 수 있어요, 화면을 새로고침해주세요");
+        if (m.includes("wrong_status")) throw new HttpError(409, "지금은 인계를 확인할 수 없는 상태예요 — 화면을 새로고침해주세요");
+        if (m.includes("not_found")) throw new HttpError(404, "booking not found");
+        console.error(`[transition-booking] confirm_handoff_tx failed booking=${booking_id} side=${side}: ${m}`);
+        throw new HttpError(409, "인계 확인을 처리하지 못했어요 — 잠시 후 다시 시도해주세요");
       }
-      if (fresh?.owner_confirmed_handoff_at && fresh?.runner_confirmed_handoff_at) {
-        if (fresh.status !== "picked_up" && fresh.status !== "active") {
-          await set({ status: "picked_up" });
-          // [정직 배치 2.5] 서명된 보험 증권이 없다 — '지금부터 적용' 은퇴. 앱 카피(owner/meetup.tsx 인계 완료 카드)와 동일 문장
-          await notify(bk.owner_id, "인계 완료", "양측 확인이 끝났어요 — 러너가 곧 러닝을 시작해요");
-          if (bk.runner_id) await notify(bk.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
-        }
-      } else {
-        // [0184] the recipient comes from the ROW THE STAMP RETURNED, not the pre-request snapshot
-        // (cold review 0184 #5): in the same reassignment window the snapshot's runner is the one
-        // who just left, and the ask would have chased them.
-        const target = side === "owner" ? fresh?.runner_id : fresh?.owner_id;
-        // [0183/0184] the ask names the cycle it belongs to — the one the stamp itself returned. A
-        // re-match committing after the stamp makes the id stale, and the database refuses the row
+      const row = hx && typeof hx === "object" && !Array.isArray(hx)
+        ? hx as { unchanged?: boolean; promoted?: boolean; both?: boolean; ask_to?: string | null; owner_id?: string | null; runner_id?: string | null; handoff_cycle_id?: string | null }
+        : null;
+      if (!row) {
+        console.error(`[transition-booking] confirm_handoff_tx returned no row booking=${booking_id} side=${side}`);
+        throw new HttpError(409, "인계 확인을 처리하지 못했어요 — 잠시 후 다시 시도해주세요");
+      }
+      if (row.promoted === true) {
+        // [honesty batch 2.5] there is no signed insurance policy — 「applies from now」 retired; the
+        // same sentence as the app copy (owner/meetup.tsx handoff-complete card). Recipients are the
+        // parties ON THE RETURNED ROW: the snapshot's runner may be the one who just left.
+        if (row.owner_id) await notify(row.owner_id, "인계 완료", "양측 확인이 끝났어요 — 러너가 곧 러닝을 시작해요");
+        if (row.runner_id) await notify(row.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
+      } else if (row.both !== true) {
+        // [0183/0184/0185] the ask goes to the party the RPC says has not confirmed THIS cycle, and
+        // names the cycle the row is in as the statement left it; a re-match committing after this
+        // transaction makes the id stale and `_notification_cycle_guard` refuses the row
         // (`stale_handoff_cycle`, logged by `notify`); the recovery sweep then asks for the current
-        // cycle. NULL only on a row the database has not identified yet (a pre-0183 booking touched
-        // for the first time by this very stamp gets its id from the trigger, so `fresh` carries it).
-        if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요", { handoff_cycle_id: fresh?.handoff_cycle_id ?? null });
+        // cycle. NULL only on a row the database has not identified (a legacy row).
+        const target = row.ask_to ?? null;
+        if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요", { handoff_cycle_id: row.handoff_cycle_id ?? null });
       }
+      // both stamps and no promotion = already handed off: a re-tap, silent by design
       break;
     }
 

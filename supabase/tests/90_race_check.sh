@@ -5,6 +5,8 @@
 # [0078] RD 동시 민팅 · RE 동시 인루트 보상 · [0180] RG 반복 스윕 vs 같은 강아지 엣지 홀드 ·
 # [0181] RL 귀가 스윕 두 틱 — 둘째는 건너뛰고, 아무도 두 번 보내지 않는다 ·
 # [0182] RL2 상대가 확인을 커밋하는 동안 스윕이 돈다 — 잠긴 행은 건너뛰고, 낡은 요청은 안 간다.
+# [0185] RV a verdict another tick completed is never overwritten by either exception arm (CAS on the outcome) ·
+# [0185] RW a re-match holding the row while the old runner's confirm arrives — the lock refuses it; without the lock the promotion lands on the new pairing.
 # RC/RD/RE는 타이밍 기반이지만 결정적으로 설계: 선행 tx가 락을 2초 점유 → 후행은 대기 →
 # 커밋 후 재평가로 이미 쓰인 행을 보고 물러서야 한다.
 #
@@ -507,4 +509,123 @@ if [ "$M_DURING" = "0" ] && [ "$M_SIBLING" = "1" ] && [ "$M_AFTER" = "0" ] && [ 
   psql -qc "call _pass('race','RL2 상대가 확인을 커밋하는 동안 스윕 — 잠긴 행은 건너뛰고(요청 0), 옆의 행은 같은 틱에 받고(1), 커밋 뒤엔 양쪽 스탬프라 영원히 0 (행 락 + 재평가)')"
 else
   psql -qc "call _fail('race','RL2 확인 커밋 vs 스윕','during=$M_DURING sibling=$M_SIBLING after=$M_AFTER stamps=$M_STAMPS err=$M_ERR (0·1·0·2·0 기대 — during=1 = 낡은 스냅샷으로 보냈다)')"
+fi
+
+# ---------- [0185] RV: a verdict another tick completed is never overwritten by the unreadable-answer arm ----------
+# Codex 0184 #2's guard. The reconciler's exception arm that records an unreadable answer (and, since
+# 0185, wakes a `no_response` row back to `sent`) writes `where id = … and outcome in ('sent',
+# 'no_response')`. One session cannot see that CAS — the row it loops over is the row it writes — so
+# 216 H1 measures the wake and S1 the text; only two processes can see the guard HOLD. B holds tick
+# T's row with an uncommitted `accepted` verdict for 2 s; A's reconciler reads T as `no_response`
+# (B's write is invisible), its own verdict UPDATE waits on B's row lock, B commits, A re-evaluates
+# and its write meets the stand-in fault (42883 — an unnamed class), so A's exception arm now runs
+# against a row that is `accepted`. With the CAS it writes nothing and T stays accepted/3/resolved
+# with no error. Mutation (216's header): the conjunct deleted → A turns T back to `sent` and
+# clears nothing else — a completed verdict lost — → RED.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RV 셋업','world builder 실패')"; exit 0; }
+create or replace function race_rv_fault() returns trigger language plpgsql as $$
+begin
+  if new.id::text = current_setting('race.rv_fault_tick', true) and new.outcome = 'accepted' then
+    raise exception 'stand-in fault %', current_setting('race.rv_fault_code', true) using errcode = current_setting('race.rv_fault_code', true);
+  end if;
+  return new;
+end $$;
+drop trigger if exists race_rv_fault on billing_key_dispatch_ticks;
+create trigger race_rv_fault before update on billing_key_dispatch_ticks for each row execute function race_rv_fault();
+create or replace function race_setup_v() returns text
+language plpgsql as $$
+declare v_req int; t uuid;
+begin
+  select 817000 + count(*) into v_req from billing_key_dispatch_ticks where request_id >= 817000;
+  insert into billing_key_dispatch_ticks (outcome, due_count, request_id, sent_at, detail, resolved_at)
+  values ('no_response', 3, v_req, now() - interval '5 minutes',
+          'no pg_net response within 00:02:00 — the worker may be down, or the request never left', now())
+  returning id into t;
+  insert into net._http_response (id, status_code, content, timed_out, created)
+  values (v_req, 200, '{"claimed":3,"revoked":3,"failed":0,"stale":0,"not_processing":0,"absent":0,"unreported":0}', false, now());
+  return t::text;
+end $$;
+SQL
+# Both exception arms carry the CAS: 42883 (unnamed → the record-and-wake arm) and 22003 (named → the
+# `failed` write). Same choreography, one tick each; the plant that deletes either conjunct reddens
+# its own code's row (216's header).
+for CODE in 42883 22003; do
+TV=$(psql -qt -c "select race_setup_v()" | xargs)
+psql -q > .pgtest/race_v1.out 2>&1 <<SQL &
+begin;
+update billing_key_dispatch_ticks
+   set outcome = 'accepted', claimed_count = 3, revoked_count = 3, failed_count = 0, stale_count = 0,
+       not_processing_count = 0, absent_count = 0, unreported_count = 0, detail = null, resolved_at = now(),
+       response_observed_at = now(), reconcile_error = null
+ where id = '$TV';
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+V_T0=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
+psql -qt -c "select set_config('race.rv_fault_tick', '$TV', false); select set_config('race.rv_fault_code', '${CODE}', false); select reconcile_billing_key_dispatch_ticks();" > .pgtest/race_v2.out 2>&1
+V_T1=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
+wait
+# A must have WAITED on B's row lock (B holds it 2 s; A starts at 0.6 s): a run where A finished
+# before B took the lock would pass the state check without ever meeting the CAS — a false green.
+V_WAITED=$(awk "BEGIN{printf \"%.2f\", $V_T1 - $V_T0}")
+V_WAIT_OK=$(awk "BEGIN{print (($V_T1 - $V_T0) >= 1.0) ? 1 : 0}")
+V_STATE=$(psql -qt -c "select outcome || '/' || coalesce(claimed_count::text, '∅') || '/' || (resolved_at is not null)::text || '/' || (reconcile_error is null)::text from billing_key_dispatch_ticks where id = '$TV'" | xargs)
+V_ERR=$(cat .pgtest/race_v1.out .pgtest/race_v2.out | grep -ciE "^ERROR|FATAL" || true)
+if [ "$V_STATE" = "accepted/3/true/true" ] && [ "$V_ERR" = "0" ] && [ "$V_WAIT_OK" = "1" ]; then
+  psql -qc "call _pass('race','RV/${CODE} 다른 틱이 완료한 판정 위에 예외 팔이 덮어쓰지 않는다 — B가 accepted를 커밋하는 동안 A의 읽기가 ${CODE}를 만나도 T는 accepted/3/해소/오류 없음 그대로 (outcome CAS; A가 락을 ${V_WAITED}s 기다렸다)')"
+else
+  psql -qc "call _fail('race','RV/${CODE} 판정 vs 예외 팔','state=$V_STATE err=$V_ERR waited=${V_WAITED}s (accepted/3/true/true·0·≥1.0s 기대 — sent/failed = 완료된 판정이 덮였다; waited<1 = A가 B보다 먼저 달려 CAS를 만난 적이 없다)')"
+fi
+done
+psql -qc "drop trigger if exists race_rv_fault on billing_key_dispatch_ticks; drop function if exists race_rv_fault(); drop function if exists race_setup_v();" > /dev/null
+
+# ---------- [0185] RW: a re-match holds the row while the old runner's confirm arrives — the lock decides ----------
+# Codex 0184 #1, measured with two processes and deterministically: B is the host's re-match
+# (0048's exact shape: runner replaced, both stamps void), uncommitted for 2 s; A is the OLD
+# runner's `confirm_handoff_tx`, arriving while B holds the row. With the lock, A's read waits, sees
+# the new pairing, and is refused `not_party` — the row ends confirmed / r2 / no stamps. Mutation
+# (216's header): the `for update` deleted → A's read sees the OLD row (owner stamped, r1 the
+# runner), decides to promote, its UPDATE waits on B's lock, B commits, the UPDATE re-evaluates on
+# the NEW row and lands r1's stamp AND `picked_up` on the r2 pairing — the finding itself, an
+# unconfirmed pairing in custody — → status=picked_up → RED. One session cannot see this (216 G2
+# runs the re-match to completion first); two can.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RW 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_w() returns text
+language plpgsql as $$
+declare ow uuid; r1 uuid; r2 uuid; dw uuid; rt uuid; bw uuid;
+begin
+  ow := t_user('race_w_owner', 'owner'); r1 := t_user('race_w_runner1', 'runner'); r2 := t_user('race_w_runner2', 'runner');
+  dw := t_dog(ow, '레이스W'); rt := t_route('레이스W 코스');
+  -- born with the owner's stamp AT the cycle boundary (both now()): r1's confirm alone would promote
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare, owner_confirmed_handoff_at)
+  values (ow, dw, r1, rt, 'confirmed', now() + interval '1 hour', 5.0, 9900, 15000, 0, 24900, 9900, now())
+  returning id into bw;
+  return bw::text || '|' || r1::text || '|' || r2::text;
+end $$;
+SQL
+IDS=$(psql -qt -c "select race_setup_w()" | xargs)
+BW=${IDS%%|*}; R=${IDS#*|}; RW1=${R%%|*}; RW2=${R#*|}
+psql -q > .pgtest/race_w1.out 2>&1 <<SQL &
+begin;
+update bookings set runner_id = '$RW2', owner_confirmed_handoff_at = null, runner_confirmed_handoff_at = null where id = '$BW';
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+W_T0=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
+psql -qt -c "select confirm_handoff_tx('$BW', '$RW1', 'runner');" > .pgtest/race_w2.out 2>&1
+W_T1=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
+wait
+W_WAITED=$(awk "BEGIN{printf \"%.2f\", $W_T1 - $W_T0}")
+W_WAIT_OK=$(awk "BEGIN{print (($W_T1 - $W_T0) >= 1.0) ? 1 : 0}")
+W_STATE=$(psql -qt -c "select status || '/' || (runner_id = '$RW2')::text || '/' || ((owner_confirmed_handoff_at is not null)::int + (runner_confirmed_handoff_at is not null)::int) from bookings where id = '$BW'" | xargs)
+W_REFUSED=$(grep -c not_party .pgtest/race_w2.out || true)
+W_ERR=$(grep -ciE "^ERROR|FATAL" .pgtest/race_w1.out || true)
+psql -qc "drop function if exists race_setup_w();" > /dev/null
+if [ "$W_STATE" = "confirmed/true/0" ] && [ "$W_REFUSED" = "1" ] && [ "$W_ERR" = "0" ] && [ "$W_WAIT_OK" = "1" ]; then
+  psql -qc "call _pass('race','RW 재배정이 행을 쥔 동안 옛 러너의 확인이 온다 — 락 뒤의 읽기가 새 짝을 보고 not_party; 행은 confirmed/새 러너/도장 0 (락 없이는 옛 러너의 도장과 picked_up이 새 짝 위에 착지 = 확인 없는 커스터디; A가 락을 ${W_WAITED}s 기다렸다)')"
+else
+  psql -qc "call _fail('race','RW 재배정 vs 확인','state=$W_STATE refused=$W_REFUSED errB=$W_ERR waited=${W_WAITED}s (confirmed/true/0·1·0·≥1.0s 기대 — picked_up = 아무도 확인 안 한 짝이 커스터디로 갔다; waited<1 = 재배정과 겹치지 않았다)')"
 fi

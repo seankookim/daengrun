@@ -334,93 +334,172 @@ Deno.test("[0181] the edge's confirm_handoff ask and the sweep's re-send spell t
   assert(sql.includes(`c_ask_body  constant text := '${body}'`), `0181's sweep does not spell the edge's body: ${body}`);
 });
 
-// ═══ [0183] THE ASK NAMES ITS CYCLE ═════════════════════════════════════════════════════════════
-// A timestamp cannot tell handoff cycles apart (codex on 0182, #1): this handler stamps and asks in
-// two calls, so a re-match committing between them dates the OLD cycle's ask inside the NEW one's
-// window. 0183 gives the cycle an identity: the database mints `bookings.handoff_cycle_id`, this
-// arm reads it in the same request that stamped and writes it onto the ask, and a guard on
-// `notifications` refuses an ask whose id is no longer the booking's. These pins hold the edge's
-// half of that contract.
+// ═══ [0185] THE STAMP AND THE PROMOTION ARE ONE LOCKED RPC ══════════════════════════════════════
+// 0184 stamped atomically and then promoted `picked_up` in a SECOND id-only PATCH authorised by the
+// stamps the first had returned. Codex drove this handler with a reassignment between the two:
+// runner A's stamp returned both stamps → the re-match voided them and minted cycle B → the handler
+// marked the NEW pairing picked_up and told the OLD runner → the custody trigger recorded the new
+// runner as custodian with neither confirmation. Suite-update law: the four `[0184]` pins that
+// assumed the stamp-then-promote shape (a stamping PATCH carrying `select=…handoff_cycle_id` and a
+// party filter; a picked_up PATCH after a two-sided returned row; the recipient from the PATCH's
+// row; PGRST116 → 409) and the `[0183]` null-id pin are REPLACED by these: the edge makes ONE call,
+// `rpc("confirm_handoff_tx")`, and every notification is decided by the row it returns. What SQL
+// owns — the lock, the party and status gates on the locked row, the promotion condition, the
+// cycle-boundary rule — is suite 216; the two-connection order is `90_race_check.sh`.
 const CYCLE = "c0000000-0000-0000-0000-00000000c1c1";
-// ═══ [0184] THE STAMP RETURNS ITS OWN CYCLE ══════════════════════════════════════════════════════
-// 0183's pin required a separate GET after the stamp. Codex drove this handler with a reassignment
-// between that PATCH and that GET (runner A stamps cycle A → both stamps cleared, cycle B minted →
-// the GET reads B → A's request asks the owner with B → the guard accepts → runner B's genuine
-// lost ask is later suppressed). The suite-update law: the old arm ("the re-read selects the id")
-// is replaced by its opposite — the id comes from the stamping UPDATE's returned row and NO read
-// after the stamp is the source. CYCLE_A is what the stamp returns; CYCLE_B is what any read after
-// it would say; the ask must carry A.
 const CYCLE_B = "c0000000-0000-0000-0000-00000000c2c2";
-Deno.test("[0184] confirm_handoff's ask carries the cycle the STAMP returned — a reassignment between the stamp and any later read cannot leak the new cycle into the old request", async () => {
+const RUNNER2 = "44444444-4444-4444-4444-444444444444";
+const RPC = "/rest/v1/rpc/confirm_handoff_tx";
+const confirmReq = (side: "owner" | "runner") =>
+  new Request("https://proj.functions.supabase.co/transition-booking", {
+    method: "POST",
+    headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
+    body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side } }),
+  });
+/** The auth lookup, the pre-request booking read (GET only), the RPC's answer, and the notifications sink. */
+function wireRpc(uid: string, answer: () => Response, snapshot: Record<string, unknown> = {}) {
   const fm = new FetchMock().install();
-  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: RUNNER, aud: "authenticated", role: "authenticated" }));
-  const base = { id: BOOKING, owner_id: OWNER, runner_id: RUNNER, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
-  // the stamping UPDATE returns the row as the stamp left it: cycle A
+  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: uid, aud: "authenticated", role: "authenticated" }));
+  fm.on((u) => u.includes(RPC), () => answer());
   fm.on((u) => u.includes("/rest/v1/bookings"), (call) =>
-    FetchMock.json(call.method.toUpperCase() === "PATCH" ? { ...base, handoff_cycle_id: CYCLE } : { ...base, handoff_cycle_id: CYCLE_B }));
+    call.method.toUpperCase() === "GET"
+      ? FetchMock.json({ id: BOOKING, owner_id: OWNER, runner_id: RUNNER, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, handoff_cycle_id: CYCLE, ...snapshot })
+      : new Error(`the confirm_handoff arm wrote bookings directly: ${call.method} ${call.url}`));
   fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+  return fm;
+}
+const posts = (fm: FetchMock) => fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST").map((c) => c.body);
+const bookingWrites = (fm: FetchMock) => fm.calls.filter((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() !== "GET").map((c) => `${c.method} ${c.url}`);
+const returned = (over: Record<string, unknown>) => ({ unchanged: false, promoted: false, both: false, ask_to: OWNER, status: "confirmed", owner_id: OWNER, runner_id: RUNNER, handoff_cycle_id: CYCLE, ...over });
+const refused = (name: string) => FetchMock.json({ code: "P0001", message: name, details: null, hint: null }, 400);
+
+Deno.test("[0185] confirm_handoff is ONE rpc — confirm_handoff_tx carries the verified caller and the side; no PATCH to bookings, no promotion statement, no read after it", async () => {
+  const fm = wireRpc(RUNNER, () => FetchMock.json(returned({})));
   try {
-    const res = await handler(
-      new Request("https://proj.functions.supabase.co/transition-booking", {
-        method: "POST",
-        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
-      }),
-    );
+    const res = await handler(confirmReq("runner"));
     assertEquals(res.status, 200);
-    // the stamp itself asks for the id back (one statement: UPDATE … RETURNING)
-    const stamp = fm.calls.find((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() === "PATCH");
-    assert(stamp, "no stamping PATCH");
-    assert(stamp.url.includes("handoff_cycle_id"), "the stamping UPDATE does not return handoff_cycle_id — the id would come from a second transaction");
-    // and it is PARTY-SCOPED: the mirror order (a re-match committing BEFORE this stamp) must hit
-    // zero rows instead of stamping the new pairing (cold review 0184 #1)
-    assert(stamp.url.includes(`runner_id=eq.${RUNNER}`), `the runner's stamp is not scoped to the runner: ${stamp.url}`);
-    // and nothing reads the id after the stamp
-    const idx = fm.calls.indexOf(stamp);
-    const laterRead = fm.calls.slice(idx + 1).find((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() === "GET");
-    assertEquals(laterRead, undefined, `a read after the stamp is the two-transaction window: ${laterRead?.url}`);
-    const asks = fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST");
-    assertEquals(asks.length, 1, "exactly one notification is written by a one-sided confirm");
-    const row = asks[0].body;
-    assertEquals(row.title, "인계 확인 요청");
-    assertEquals(row.profile_id, OWNER, "the ask goes to the party who has NOT stamped");
-    assertEquals(row.ref_id, BOOKING);
-    assertEquals(row.handoff_cycle_id, CYCLE, "the ask carries a cycle a later read reported, not the one the stamp landed in");
+    const rpcs = fm.calls.filter((c) => c.url.includes(RPC));
+    assertEquals(rpcs.length, 1, "exactly one confirm_handoff_tx call");
+    assertEquals(rpcs[0].method.toUpperCase(), "POST");
+    assertEquals(rpcs[0].body, { p_booking: BOOKING, p_uid: RUNNER, p_side: "runner" }, "the RPC must get the caller the edge verified and the side it resolved");
+    assertEquals(bookingWrites(fm), [], "the edge wrote bookings itself — the stamp or the promotion left the locked transaction");
+    const idx = fm.calls.indexOf(rpcs[0]);
+    assertEquals(fm.calls.slice(idx + 1).filter((c) => c.url.includes("/rest/v1/bookings")).map((c) => c.url), [], "a bookings read after the RPC — a decision resting on a second transaction");
+    const asks = posts(fm);
+    assertEquals(asks.length, 1, "a one-sided confirm writes exactly one notification");
+    assertEquals(asks[0].title, "인계 확인 요청");
+    assertEquals(asks[0].profile_id, OWNER);
+    assertEquals(asks[0].ref_id, BOOKING);
+    assertEquals(asks[0].handoff_cycle_id, CYCLE);
   } finally {
     fm.restore();
   }
 });
 
-Deno.test("[0184] the row the stamp returns decides picked_up — no re-read, and the other side's stamp already there completes the handoff", async () => {
-  const fm = new FetchMock().install();
-  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: RUNNER, aud: "authenticated", role: "authenticated" }));
-  const base = { id: BOOKING, owner_id: OWNER, runner_id: RUNNER, status: "confirmed", handoff_cycle_id: CYCLE };
-  let patches = 0;
-  fm.on((u) => u.includes("/rest/v1/bookings"), (call) => {
-    if (call.method.toUpperCase() === "PATCH") {
-      patches++;
-      // the FIRST patch is the stamp: the owner had already stamped, so the returned row is two-sided
-      return FetchMock.json(patches === 1 ? { ...base, owner_confirmed_handoff_at: "2026-09-18T00:00:00Z", runner_confirmed_handoff_at: "2026-09-18T00:00:01Z" } : { ...base, status: "picked_up" });
-    }
-    return FetchMock.json({ ...base, owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
-  });
-  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
+Deno.test("[0185] the reassignment that beat the lock: `not_party` → 409 in Korean, no promotion, no ask to the old runner, nothing written", async () => {
+  // the snapshot still names RUNNER as the runner (the party gate above the switch passes); the
+  // locked row does not — the re-match committed first. This is the regression the verdict asked
+  // for: a reassignment between the stamp and the promotion cannot happen inside one statement, so
+  // the only orders left are 「before the lock」 (this: refused by name) and 「after the commit」
+  // (0048's already_handed_off on a picked_up row — SQL, suite 216 G2/G5).
+  const fm = wireRpc(RUNNER, () => refused("not_party"));
   try {
-    const res = await handler(
-      new Request("https://proj.functions.supabase.co/transition-booking", {
-        method: "POST",
-        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
-      }),
-    );
-    assertEquals(res.status, 200);
-    const statusPatch = fm.calls.find((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() === "PATCH" && c.body?.status === "picked_up");
-    assert(statusPatch, "both stamps present on the returned row, yet no picked_up move");
-    const titles = fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST").map((c) => c.body.title);
-    assert(titles.includes("인계 완료") && !titles.includes("인계 확인 요청"), `a completed handoff must not ask again: ${JSON.stringify(titles)}`);
+    const res = await handler(confirmReq("runner"));
+    assertEquals(res.status, 409);
+    const body = await res.json();
+    assert(typeof body.error === "string" && /[가-힣]/.test(body.error) && !body.error.includes("not_party"), `a raw refusal name reached the client: ${body.error}`);
+    assertEquals(posts(fm), [], "somebody was notified about a confirmation the database refused");
+    assertEquals(bookingWrites(fm), []);
   } finally {
     fm.restore();
   }
+});
+
+Deno.test("[0185] promoted: 「인계 완료」 goes to the owner and the runner ON THE RETURNED ROW — the snapshot's runner is stale — and nobody is asked", async () => {
+  const fm = wireRpc(OWNER, () => FetchMock.json(returned({ promoted: true, both: true, ask_to: null, status: "picked_up", runner_id: RUNNER2 })));
+  try {
+    const res = await handler(confirmReq("owner"));
+    assertEquals(res.status, 200);
+    const rows = posts(fm);
+    assertEquals(rows.map((r) => r.title), ["인계 완료", "인계 완료"], `a completed handoff tells both parties and asks nobody: ${JSON.stringify(rows.map((r) => r.title))}`);
+    assertEquals(new Set(rows.map((r) => r.profile_id)), new Set([OWNER, RUNNER2]), "the runner told is the one on the row the RPC returned, not the pre-request snapshot's");
+    assertEquals(bookingWrites(fm), [], "the promotion must not be a PATCH from the edge");
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0185] one-sided: the ask goes to `ask_to` on the returned row, carrying the returned cycle — not the snapshot's counterparty, not a later read's cycle", async () => {
+  const fm = wireRpc(OWNER, () => FetchMock.json(returned({ ask_to: RUNNER2, runner_id: RUNNER2, handoff_cycle_id: CYCLE_B })));
+  try {
+    const res = await handler(confirmReq("owner"));
+    assertEquals(res.status, 200);
+    const rows = posts(fm);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].title, "인계 확인 요청");
+    assertEquals(rows[0].profile_id, RUNNER2, "the ask chased the runner the stale snapshot named");
+    assertEquals(rows[0].handoff_cycle_id, CYCLE_B, "the ask carries a cycle other than the one the RPC returned");
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0185] already handed off (both stamps, no promotion): 200 and silence — no ask, no 인계 완료", async () => {
+  const fm = wireRpc(RUNNER, () => FetchMock.json(returned({ unchanged: true, both: true, ask_to: null, status: "picked_up" })));
+  try {
+    const res = await handler(confirmReq("runner"));
+    assertEquals(res.status, 200);
+    assertEquals(posts(fm), [], "a re-tap on a handed-off booking notified somebody");
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0185] wrong_status is a Korean 409 with no ask; a refusal the edge does not know, or no row at all, FAILS CLOSED the same way", async () => {
+  for (const [label, answer] of [
+    ["wrong_status", () => refused("wrong_status")],
+    ["an unknown refusal", () => refused("something_new")],
+    ["no row", () => FetchMock.json(null)],
+    ["a list instead of a row", () => FetchMock.json([])],
+  ] as Array<[string, () => Response]>) {
+    const fm = wireRpc(RUNNER, answer);
+    try {
+      const res = await handler(confirmReq("runner"));
+      assertEquals(res.status, 409, `${label}: expected 409`);
+      const body = await res.json();
+      assert(typeof body.error === "string" && /[가-힣]/.test(body.error), `${label}: the client got a non-Korean sentence: ${body.error}`);
+      assertEquals(posts(fm), [], `${label}: somebody was notified about a confirmation the database did not confirm`);
+      assertEquals(bookingWrites(fm), []);
+    } finally {
+      fm.restore();
+    }
+  }
+});
+
+Deno.test("[0185] a booking the database has not identified yet: the ask carries null, never a made-up id", async () => {
+  const fm = wireRpc(RUNNER, () => FetchMock.json(returned({ handoff_cycle_id: null })));
+  try {
+    const res = await handler(confirmReq("runner"));
+    assertEquals(res.status, 200);
+    const ask = posts(fm)[0];
+    assert(ask, "no ask written");
+    assert("handoff_cycle_id" in ask && ask.handoff_cycle_id === null, `expected an explicit null, got ${JSON.stringify(ask.handoff_cycle_id)}`);
+  } finally {
+    fm.restore();
+  }
+});
+
+Deno.test("[0185] the confirm_handoff arm touches bookings only through confirm_handoff_tx (arm-scoped source pin, comments stripped)", async () => {
+  const src = await Deno.readTextFile(new URL("../transition-booking/index.ts", import.meta.url));
+  const armStart = src.indexOf('case "confirm_handoff":');
+  assert(armStart >= 0, "no confirm_handoff arm in transition-booking");
+  const armEnd = src.indexOf("\n    case ", armStart + 1);
+  const arm = src.slice(armStart, armEnd < 0 ? undefined : armEnd);
+  const code = arm.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+  assert(/rpc\(\s*["']confirm_handoff_tx["']/.test(code), "the arm no longer calls rpc('confirm_handoff_tx')");
+  assert(!/from\(\s*["']bookings["']\)/.test(code), "the arm reads or writes bookings directly — a decision outside the locked transaction");
+  assert(!/\bset\(\s*\{/.test(code), "the arm calls set() — a promotion outside the locked transaction");
+  assert(!/picked_up/.test(code), "the arm decides picked_up itself");
 });
 
 Deno.test("[0183 control] a notification from another arm carries NO handoff_cycle_id — the column is the ask's alone", async () => {
@@ -444,77 +523,3 @@ Deno.test("[0183 control] a notification from another arm carries NO handoff_cyc
   }
 });
 
-Deno.test("[0183] a booking the database has not identified yet: the ask carries null, never a made-up id", async () => {
-  const fm = wire(RUNNER, { status: "confirmed", runner_id: RUNNER, owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, handoff_cycle_id: null });
-  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
-  try {
-    const res = await handler(
-      new Request("https://proj.functions.supabase.co/transition-booking", {
-        method: "POST",
-        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
-      }),
-    );
-    assertEquals(res.status, 200);
-    const ask = fm.calls.find((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST")?.body;
-    assert(ask, "no ask written");
-    assert("handoff_cycle_id" in ask && ask.handoff_cycle_id === null, `expected an explicit null, got ${JSON.stringify(ask.handoff_cycle_id)}`);
-  } finally {
-    fm.restore();
-  }
-});
-
-Deno.test("[0184] the owner's stamp is scoped to the owner, and the ask's recipient is the runner the STAMP returned, not the snapshot's", async () => {
-  const RUNNER2 = "44444444-4444-4444-4444-444444444444";
-  const fm = new FetchMock().install();
-  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: OWNER, aud: "authenticated", role: "authenticated" }));
-  const base = { id: BOOKING, owner_id: OWNER, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, handoff_cycle_id: CYCLE };
-  // the snapshot still names RUNNER; the row the stamp lands on has been re-matched to RUNNER2
-  fm.on((u) => u.includes("/rest/v1/bookings"), (call) =>
-    FetchMock.json(call.method.toUpperCase() === "PATCH" ? { ...base, runner_id: RUNNER2 } : { ...base, runner_id: RUNNER }));
-  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
-  try {
-    const res = await handler(
-      new Request("https://proj.functions.supabase.co/transition-booking", {
-        method: "POST",
-        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "owner" } }),
-      }),
-    );
-    assertEquals(res.status, 200);
-    const stamp = fm.calls.find((c) => c.url.includes("/rest/v1/bookings") && c.method.toUpperCase() === "PATCH");
-    assert(stamp && stamp.url.includes(`owner_id=eq.${OWNER}`), `the owner's stamp is not scoped to the owner: ${stamp?.url}`);
-    const ask = fm.calls.find((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST")?.body;
-    assert(ask, "no ask written");
-    assertEquals(ask.profile_id, RUNNER2, "the ask chased the runner the stale snapshot named, not the one on the row the stamp landed on");
-  } finally {
-    fm.restore();
-  }
-});
-
-Deno.test("[0184] a party-scoped stamp that matches no row (the caller is no longer the party) is a Korean 409 and writes no ask", async () => {
-  const fm = new FetchMock().install();
-  fm.on((u) => u.includes("/auth/v1/user"), () => FetchMock.json({ id: RUNNER, aud: "authenticated", role: "authenticated" }));
-  const base = { id: BOOKING, owner_id: OWNER, runner_id: RUNNER, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, handoff_cycle_id: CYCLE };
-  // the snapshot still passes the party gate; the stamp, scoped to runner_id = RUNNER, matches nothing (re-matched away)
-  fm.on((u) => u.includes("/rest/v1/bookings"), (call) =>
-    call.method.toUpperCase() === "PATCH"
-      ? FetchMock.json({ code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned", details: "The result contains 0 rows", hint: null }, 406)
-      : FetchMock.json(base));
-  fm.on((u) => u.includes("/rest/v1/notifications"), () => FetchMock.json([{ id: "n1" }], 201));
-  try {
-    const res = await handler(
-      new Request("https://proj.functions.supabase.co/transition-booking", {
-        method: "POST",
-        headers: { Authorization: "Bearer test_jwt", "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: BOOKING, action: "confirm_handoff", meta: { side: "runner" } }),
-      }),
-    );
-    assertEquals(res.status, 409);
-    const body = await res.json();
-    assert(typeof body.error === "string" && /[가-힣]/.test(body.error) && !body.error.includes("JSON object requested"), `a raw PostgREST sentence reached the client: ${body.error}`);
-    assertEquals(fm.calls.filter((c) => c.url.includes("/rest/v1/notifications") && c.method.toUpperCase() === "POST").length, 0, "an ask was written for a stamp that landed nowhere");
-  } finally {
-    fm.restore();
-  }
-});

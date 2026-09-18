@@ -471,6 +471,17 @@ begin
     --    ⚠ harness fixtures are excluded by name: `race_setup_*` builds a two-sided pickup state
     --    directly because it is simulating the edge function, and `t_*` are this repo's suite
     --    helpers. Product code has no such licence.
+    --    ⚠ UPDATED 2026-09-18 by 0185 (suite-update law) — the ONE routine this arm predicted has
+    --    arrived, and it is exempted BY NAME with the reason: `confirm_handoff_tx` is the party's
+    --    own confirmation moved under a row lock (codex 0184 #1 — the edge's stamp-then-promote
+    --    let a re-match between the two statements put an unconfirmed pairing into custody). It
+    --    writes a stamp only for the caller the edge verified, only when that caller IS the
+    --    booking's owner/runner on the LOCKED row (216 G2 — the mirror order refused `not_party`,
+    --    nothing written; G5 — no custody without this pairing's two confirmations), and it is
+    --    service_role-only with `auth.uid()` overriding its caller argument (216 S1). The property
+    --    this arm holds — a stamp is a PARTY's act, never a routine's — is unchanged; the sweep is
+    --    still the guard against any OTHER routine (a sweep, an ops path, a `finish pickup` RPC
+    --    that stamps for somebody). The positive control below is untouched.
     select coalesce(string_agg(distinct s.proname || '←' || s.rhs, ', '), '') into v_txt
       from (
         select p.proname::text as proname,
@@ -479,6 +490,7 @@ begin
           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public' and p.prokind = 'f'
            and p.proname !~ '^(t_|race_setup|_t)'
+           and p.proname <> 'confirm_handoff_tx'   -- [0185] the party's own confirmation, under the lock — 216 G2/G5/S1
       ) s
      where lower(s.rhs) <> 'null';
     if v_txt <> '' then v_bad := v_bad || ' SQL 루틴이 인계 스탬프를 찍는다: ' || v_txt; end if;
@@ -497,7 +509,7 @@ begin
     if v_n = 0 then v_bad := v_bad || ' 스캔이 아무것도 못 찾았다 (리셋 경로조차 — 정규식이 죽었다)'; end if;
 
     if v_bad = ''
-      then call _pass('frc','F5 인계도 양측이다 — 픽업 인계 스탬프는 두 컬럼으로 남아 있고(합쳐지지 않았다), 보호자도 러너도 자기 쪽·상대 쪽 어느 스탬프도 UPDATE로든 초안 INSERT로든 못 쓰며(정상 초안은 통과), 어떤 DB 루틴도 인계 스탬프에 non-null을 쓰지 않는다 — 승격은 양쪽을 재조회하는 엣지 함수에만 있다 (Sean: "also handoff")');
+      then call _pass('frc','F5 인계도 양측이다 — 픽업 인계 스탬프는 두 컬럼으로 남아 있고(합쳐지지 않았다), 보호자도 러너도 자기 쪽·상대 쪽 어느 스탬프도 UPDATE로든 초안 INSERT로든 못 쓰며(정상 초안은 통과), confirm_handoff_tx(0185 — 파티의 확인을 행 락 아래로 옮긴 그 한 루틴, 이름으로 예외, 216 G2·G5·S1)를 빼면 어떤 DB 루틴도 인계 스탬프에 non-null을 쓰지 않는다 — 승격은 그 루틴의 도장 문장 안에서 잠긴 행을 보고 결정된다 (Sean: "also handoff")');
     else v_msg := v_bad; call _fail('frc','F5 인계도 양측이다', v_msg); end if;
   exception when others then reset role; perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('frc','F5 인계도 양측이다', v_msg);
