@@ -554,7 +554,15 @@ exempts the new routine by name. Cold review APPROVE-WITH-FIXES/8, no code defec
 and says so. **Twenty-six pending** (0157–0163, 0166–0174, 0176–0185); order for 0185: `db push`, then
 `functions deploy transition-booking`; no client build. Codex re-review running; the letter waits for it.
 
-**Unchanged:** production tip 0156, fifteen pending = trunk, deploy is Sean's letter (queue item 1).
+**2026-09-18 10:20 — Codex re-review of 0185: APPROVE / 0** (`docs/reviews/2026-09-18-migration-0185-codex-verdict.md`).
+The handoff-recovery chain is CLOSED: 0181 → REJECT/5 → 0182 → REJECT/3 → 0183 → REJECT/2 → 0184 →
+REJECT/2 → 0185 → APPROVE/0, every round adjacent to the last, the final HIGH (custody without
+confirmation under a reassignment race) closed by one locked RPC and measured by the RW race arm.
+**The deploy letter is UNPARKED.** Twenty-six migrations (0157–0163, 0166–0174, 0176–0185) + edge
+functions + the client build, in the sequence in queue item 1. Nothing deployed. Every gate on trunk
+is green at this line: harness 1307/0 · deno 336/0 · npm 1023/0 · tsc · the checks.
+
+**Unchanged:** production tip 0156; TWENTY-SIX pending = trunk (was fifteen when this line was first written); deploy is Sean's letter (queue item 1).
 Sean's four Codex worktrees: nothing pushed.
 
 ## 2026-09-17 01:2x — environment changed, trunk did not
