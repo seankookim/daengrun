@@ -79,7 +79,9 @@ row disabled + reason), loading sentence, fail strip + retry, optimistic toggle 
 switch roles. Battery 12 plants; the builder's own S1 was found blind by N5 during (xii) and repaired.
 Named residual: a tombstoned account keeps its four booleans (0115 ④ deletes `push_tokens`, so nothing
 can be sent). Deploy: `db push` only (no edge change) + the client build. **Twenty-seven pending.**
-Codex review owed (batched with 0186).
+**Device-verified 02:26** on the rebuilt sim app: signed out + RPC undeployed ⇒ the screen draws the fail
+strip 「알림 설정을 불러오지 못했어요 · 다시 시도」 and NO switches (loading/failed are not default states),
+header clear of the island. Codex review running.
 
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
