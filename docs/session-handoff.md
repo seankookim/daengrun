@@ -234,6 +234,19 @@ EVERY re-entry of the seal screen; pinned. Doctrine kept: settlement never waits
 outcome never enters the response (the owner's 「결제 실패」 lives in `payphase.ts`). Deploy: rides with
 `functions deploy transition-booking` + `settle-run`.
 
+**2026-09-21 03:04 — `c680d5e` migration 0189 LANDED** (correct-forward for Codex's REJECT/2 on 0187; clean merge;
+combined tree: harness **1335/0** = 1330 + 5 pins `0189-U1 U2 T1 T2 S1` · deno 359/0 · tsc · checks incl.
+babel · **npm 1086/0** = 1068 + 18 drift-gate pins): the three urgent client writers (SOS · 사고 신고 접수 ·
+러닝 중단 요청 — the whole set, enumerated past the reviewer's three sites; 응가/간식/km milestones stay
+disableable) are always-on by exact title equality, decided above every disableable arm, kind unchanged
+for deployed binaries; `notify_push` requires `profiles.deleted_at is null` on the token lookup taken
+FIRST; a BEFORE trigger refuses a tombstoned owner's token INSERT/UPDATE by name. Three copies of each
+title now exist (api.ts · notification-route.ts · the migration) — an 18-pin cjs drift gate reads all
+three, comments stripped, both directions. Battery 13 plants; two false-coverage traps caught by the
+builder itself ((v) vs (vb): only the plant that moves the lookup INSIDE the non-safety branch attacks the
+behaviour). **0187's deploy block is lifted** — 0187 and 0189 ship together, db push only. **Thirty
+pending.** Codex re-review at 06:41 with the others.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
