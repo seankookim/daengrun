@@ -247,6 +247,43 @@ builder itself ((v) vs (vb): only the plant that moves the lookup INSIDE the non
 behaviour). **0187's deploy block is lifted** — 0187 and 0189 ship together, db push only. **Thirty
 pending.** Codex re-review at 06:41 with the others.
 
+**2026-09-21 03:10 — `ba18098` migration 0190 LANDED** (correct-forward for Codex's REJECT/2 on 0186; union-merged
+manifest 210–221 in order, 0 markers; combined tree: harness **1342/0** = 1335 + 7 pins `0190-L1 R1…R4 S1`
++ race `RP` · deno 359/0 · tsc · checks incl. babel): the stuck sweep takes
+`pg_try_advisory_xact_lock` before reading a candidate (RP is the two-process arm); `delete_my_account_tx`
+recreated from 0138 §F's catalog copy (NOT 0115's text — 0138 had rewritten it in place, and a paste would
+have silently dropped the billing-key revocation enqueue; plant (ix) reddens 0138's own R4) with the
+retention predicate reading `paid_payout_id is null`; a tombstoned runner's retained `bank_accounts` row
+is released when the last unpaid row clears, serialised on the `profiles` row lock. Named gaps: the
+profile-lock interleaving is source-pinned only; 150 P9 was green through the whole defect because both
+its fixtures sat where old and new predicates agree (sentence corrected). **0186's block is lifted —
+0186 and 0190 ship together, db push only. Thirty-one pending. Every slice of the night is on trunk.**
+
+## ☀️ MORNING READ — 2026-09-21, everything below measured and read back from origin
+
+**Trunk `ba18098` (start of night: `ed65c3c`). Nothing deployed; production still 0156.** Built and
+landed tonight, each on the combined tree with tsc · the checks (incl. the new `check-babel-routes`) ·
+npm · deno · the harness:
+
+| slice | what | proof |
+|---|---|---|
+| `6cf7453` Korean copy (Codex astra) | 12 money/safety failure paths mapped; `invokeTransition` folds English; ④-1 weekly km 「이상」 | deno 336/0 · npm 1023/0 |
+| `a5635a9` + `c680d5e` 0187/0189 | notification preferences screen + prefs table + push-trigger enforcement; SOS/accident/stop always-on; tombstoned accounts get no push | harness 1335/0 · npm 1086/0 |
+| `a842fe8` + `ba18098` 0186/0190 | ops manual payout journal (`payouts` has a writer), stuck sweep with lock, bank-detail retention ends on final payment | harness 1342/0 |
+| `e13c61a` + `e710ef1` + `1474b71` 0188 | the 1:1 run-end RETURN CEREMONY (end_run → both seals → the second seal settles), R6 seal screen, ⑫ on the report, R1c strip; Metro import fix + babel gate; collection parity | harness 1330/0 · deno 359/0 · npm 1068/0 |
+
+Codex verdicts so far: 0176–0185 chain APPROVE/0 (09-18); 0187 REJECT/2 → 0189; 0186 REJECT/2 → 0190;
+0188 review died twice (once mid-run, once on the quota wall) — **06:41 one-shot re-runs 0188, 0189, 0190**.
+Device-verified on the sim (signed out): safe areas on settings + runner onboarding, the notification
+settings screen's failure state, the seal screen's not-found state.
+
+**Your letters (queue):** item 1 the deploy — thirty-one migrations (0157–0163, 0166–0174, 0176–0190) in
+ONE sequence: `functions deploy revoke-billing-keys` → `db push` → `functions deploy` the rest
+(transition-booking · settle-run · open-drop · confirm-payment · create-booking-hold · …) → the client
+build → then set `ops_flags.return_seal_since` and subscribe an ops recipient for `payout_due`;
+item 19 the premium labs by number; items 8–18, 20–23 (HIG rulings, board-wrapper-bundle fix, the
+idempotency-key date, six gated build items, the one-stamp strand deadline).
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
