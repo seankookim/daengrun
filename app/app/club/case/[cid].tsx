@@ -84,6 +84,8 @@ export default function CaseDetail() {
                   m.includes('already_settled') ? '이미 정산된 예약이에요'
                   : m.includes('not_case_owner') ? '케이스 오너나 호스트만 정산할 수 있어요'
                   : m.includes('not_in_review') ? '이 예약은 정산 대상 상태가 아니에요'
+                  : m.includes('not_measured') ? '이 러닝은 거리가 기록되지 않아 실측 정산을 할 수 없어요'
+                  : m.includes('quote_redacted') ? '이 금액은 볼 수 없어요'
                   : m.includes('case_closed') ? '이미 해소된 케이스예요' : m);
               })
               .finally(() => setBusy(false));

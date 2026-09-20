@@ -42,6 +42,19 @@ import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme'
 // (청구 잠금·결제수단 미등록 알럿은 그대로 크게 말하고 해결 경로를 준다).
 // 요금을 다시 봐야 하는 보호자의 길 = 설정 › 결제 관리 (온디맨드 반쪽).
 
+function returnConfirmError(error: Error): string {
+  const messages: Record<string, string> = {
+    not_return_pending: '아직 반환 확인 단계가 아니에요',
+    not_your_side: '내 쪽 확인만 할 수 있어요',
+    not_party: '이 아이의 당사자만 확인할 수 있어요',
+    bad_side: '반환을 확인하지 못했어요 — 다시 시도해주세요',
+    not_found: '반환을 확인하지 못했어요 — 다시 시도해주세요',
+    not_signed_in: '반환을 확인하지 못했어요 — 다시 시도해주세요',
+  };
+  const token = Object.keys(messages).find((key) => error.message.includes(key));
+  return token ? messages[token] : error.message;
+}
+
 const L = lilac;
 
 // 플랩별 한 줄 힌트 (규칙 7: 최대 1힌트) — 상태명이 아니라 "다음에 무슨 일이 일어나는지"만
@@ -669,7 +682,7 @@ export default function ClubSessionShell() {
   };
   const doReturnConfirm = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'owner').then(() => { haptic('success'); load(); })
-      .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+      .catch((e) => Alert.alert('반환 확인 실패', returnConfirmError(e as Error)));
   };
 
   // ---------- 러너 액션 (R2/R3) ----------
@@ -710,7 +723,7 @@ export default function ClubSessionShell() {
   };
   const doRunnerReturn = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
-      .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+      .catch((e) => Alert.alert('반환 확인 실패', returnConfirmError(e as Error)));
   };
   // 러닝 시작 = 러너 액션 (서버: 내 픽업 부킹만) — 시작 즉시 러닝 화면으로 (GPS·트레이스·종료는 거기서)
   // Background-GPS start gate — the SAME hard block as the 1:1 run screen (runner/run.tsx
@@ -990,10 +1003,13 @@ export default function ClubSessionShell() {
       Alert.alert('자리 확정 실패',
         m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 확정되지 않았어요'
         : m.includes('dog_slot_clash') ? '같은 시간대에 이 아이의 다른 러닝 예약이 있어요'
-        : m.includes('method_consent_required') ? '배정 방식에 동의해야 자리를 확정할 수 있어요' // [0053 §1] 서버 백스톱 (CTA는 이미 게이트)
+        : m.includes('method_consent_required') ? '결제 방식 동의가 필요해요' // Server backstop; the CTA already gates consent.
         : m.includes('not_payable') ? '승인 상태가 바뀌었어요 — 새로고침해 주세요'
         : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
-        : m.includes('route_required') ? '세션 코스가 아직 없어요 — 호스트에게 문의해주세요'
+        : m.includes('idem_key_required') || m.includes('not_signed_in') ? '결제를 시작하지 못했어요 — 다시 시도해주세요'
+        : m.includes('not_owner') ? '내 예약만 결제할 수 있어요'
+        : m.includes('not_found') ? '이 세션을 찾을 수 없어요'
+        : m.includes('route_required') ? '코스를 먼저 골라 주세요'
         : m);
     } finally { setBusy(false); }
   };

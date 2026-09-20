@@ -648,7 +648,7 @@ export default function RunnerHome() {
                 it succeeded and only the runs lookup failed (runs/km null while net is real). The
                 second used to render a fabricated 0km beside a real count — see RunnerWeekStats. */}
             <Text style={[styles.weekNum, nf]}>{stats?.runs == null ? '—' : String(stats.runs)}</Text>회 ·{' '}
-            <Text style={[styles.weekNum, nf]}>{stats?.km == null ? '—' : String(stats.km)}</Text>km ·{' '}
+            <Text style={[styles.weekNum, nf]}>{stats?.km == null ? '—' : `${stats.km}${(stats.unmeasured ?? 0) > 0 ? ' 이상' : ''}`}</Text>km ·{' '}
             {/* 🔴 [정직 2026-08-27] 「0회 · 0km · 정산 예정 12,450원」이 한 줄에 같이 떴다.
                 모순처럼 읽히지만 둘 다 참이다 — `my_week_stats` 는 취소 보상 행을 net 에는
                 넣고 run 카운트에는 넣지 않는다 (0121 §B, 156 P3 가 그 의미를 핀으로 잡고 있다).
@@ -746,7 +746,7 @@ export default function RunnerHome() {
                         Quiet green, never coral — the decision is already made, so this is
                         confirmation and must not compete with the action for weight. */}
                     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginTop: 9 }}>
-                      <Text style={[styles.objPay, nf]}>+{current.payout.toLocaleString()}원</Text>
+                      <Text style={[styles.objPay, nf]}>+{current.payout.toLocaleString()}원{current.ledgerRead === false ? <Text style={{ fontSize: 15, color: paper.dim }}> 추정</Text> : null}</Text>
                       <Text style={styles.objQuiet}>완주 기준</Text>
                     </Row>
                   </View>
@@ -1081,7 +1081,7 @@ export default function RunnerHome() {
                         <Text style={styles.stopInfoB}>{st.job.dogName} · {st.job.km}km</Text>
                         {stageLabel ? <Text style={styles.stopInfoS}>{stageLabel}</Text> : null}
                       </View>
-                      <Text style={[styles.stopPay, nf]}>+{st.job.payout.toLocaleString()}</Text>
+                      <Text style={[styles.stopPay, nf]}>+{st.job.payout.toLocaleString()}{st.job.ledgerRead === false ? <Text style={{ fontSize: 15, color: paper.dim }}> 추정</Text> : null}</Text>
                     </Pressable>
                   );
                 })}
@@ -1350,7 +1350,7 @@ export default function RunnerHome() {
                     <Text style={styles.drowS}>{j.when} · <Text style={{ color: lilac.voltDeep, fontWeight: '700' }}>✓ 완료</Text></Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                    <Text style={[styles.drowPay, nf]}>+{j.payout.toLocaleString()}</Text>
+                    <Text style={[styles.drowPay, nf]}>+{j.payout.toLocaleString()}{j.ledgerRead === false ? <Text style={{ fontSize: 15, color: paper.dim }}> 추정</Text> : null}</Text>
                     <Pressable onPress={() => router.push(`/shot/${j.bookingId}`)} style={styles.shot}>
                       <Text style={styles.shotTxt}>인증샷</Text>
                     </Pressable>

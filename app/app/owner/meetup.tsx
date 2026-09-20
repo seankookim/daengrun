@@ -275,7 +275,10 @@ export default function OwnerMeetup() {
       q = await quoteCancelFee(bookingId);
     } catch (e) {
       console.warn('[o-meetup] cancel quote:', (e as Error)?.message ?? e);
-      Alert.alert('수수료를 확인하지 못했어요', '네트워크를 확인하고 다시 시도해주세요 — 수수료를 보여드린 뒤에만 취소를 진행할 수 있어요');
+      Alert.alert('수수료를 확인하지 못했어요',
+        (e as Error)?.message?.includes('club_out_of_scope')
+          ? '이 예약은 여기서 취소할 수 없어요 — 클럽 화면에서 진행해주세요'
+          : '네트워크를 확인하고 다시 시도해주세요 — 수수료를 보여드린 뒤에만 취소를 진행할 수 있어요');
       return;
     }
     const enroute = q.status === 'runner_enroute'; // 견적의 status — stage 추정 은퇴
