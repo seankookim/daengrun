@@ -15,6 +15,81 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## 2026-09-21 — ⑪ + ⑫ THE RUN-END CEREMONY IS BUILT (branch `feat/run-end-ceremony`, 0188 + suite 219)
+
+**The largest unbuilt piece of the 1:1 journey now has product callers.** Ruled and ASSIGNED
+2026-08-13 (`docs/decisions/awaiting-sean.md` §5) to a session that ended; the server half has been
+shipped and INERT since August — `end_run_tx` (0083 §3) had **zero callers**, `settle-run` flipped
+`active → completed` at the stop with the dog still on the leash, and `runner_work_gate` (0092)
+could only block on states the marketplace path never produced.
+
+**The sequence as built (1:1 only — the club path is 0168's and is untouched):**
+runner stops → edge `transition-booking { action: 'end_run' }` → `end_run_tx` freezes
+km/duration/reason/trace and stamps `run_ended_at`, status STAYS `active` (「끝났지만 아직 안
+돌려줬다」 — the state ⑫'s work gate reads) → the owner is asked 「반환 확인 요청」 and the runner is
+work-gated from that instant → both parties stamp via `{ action: 'confirm_return' }` → **the SECOND
+stamp seals AND settles inside the same locked transaction**, because the edge (service_role) brings
+a price. That is 0083 §6's own designed shape (`p_quote`), used for the first time, and it is why a
+client that dies after its tap cannot strand a settlement: the stamp and the settlement are ONE
+statement on the server.
+
+**Client:** new route `runner/return-seal.tsx` (lab R6a/b/c — 내 봉인 · 보호자 대기 · 양측 봉인, seals
+drawn from server columns only, poll until the pair completes, celebration once per booking) ·
+`runner/run.tsx`'s stop path calls `end_run` and routes to the seal instead of settling ·
+`runner/home.tsx` gains the R1c work-gate strip (WHY + the exit; the accept door is replaced by a
+SENTENCE while the gate is shut, never a coral that fails after the tap) · `owner/report.tsx` gains
+the ⑫ 반환 확인 gate above the record.
+
+🔴 **The defect this slice ARMED and had to fix, because arm ⓑ had never seen a real row:**
+`sweep_run_end_recovery` escalated a stranded return `active → incident_review` unconditionally at
+2h. On a row where a party has ALREADY said the dog is home that is **permanent unpayability** —
+`_settle_sealed_run` is `active`-only and `enforce_booking_transition` gives `incident_review`
+exactly one edge, `refund_pending` (`0066:56`) — and since 0096 made a late stamp possible, the
+runner walks the dog, brings it home, both parties confirm, and the money can never move. **And the
+escalation frees nobody**: 0092's gate reads the two stamp columns and ALSO catches
+`incident_review` (pinned, `0188-B3`). 0188 narrows it to ZERO-stamp returns and alarms the rest
+without moving state — arm ⓓ's own principle three arms down.
+
+⚠ **Sean-only follow-up, and it is what actually closes the old-client hole:** set
+`ops_flags.return_seal_since` AFTER this client build reaches devices. Until then a pre-build binary
+can still settle a run it never ended — 0083's deliberate grandfathering arm, not a regression.
+⚠ **NAMED RESIDUE, deliberately not closed:** a return NOBODY confirms still escalates at 2h and is
+still a dead end if both parties stamp afterwards. Narrowing that means deciding what a clock may do
+with money, which is Sean's (`awaiting-sean.md` §4).
+
+**A COLD EXECUTING REVIEWER RETURNED `REJECT` WITH 12 FINDINGS, AND ALL 12 WERE FIXED BEFORE THE
+COMMIT.** Two were serious and neither was visible from inside the slice:
+
+🔴 **`active` stopped meaning 「running」 and five live surfaces were never told.** `owner/live.tsx`
+had NO exit — its 1 s tick kept an elapsed clock climbing off `runs.started_at` forever, the island
+printed `● LIVE · 달리는 중` over a dog being walked home, and its 5 s `updateOwnerActivity` kept
+OVERWRITING the server's `homeward` Live Activity banner (0083 §8-ⓑ): two channels, contradictory,
+client wins. The same widening hit owner home's hero, `owner/schedule`, and runner home's
+`STAGE.active` — which contradicted THIS SLICE'S OWN work-gate strip on the same screen. Fixed by
+carrying `run_ended_at` on every in-flight projection and adding a seventh hero state `returning`
+(not folded into `handoff`, whose copy is the PICKUP). This is CLAUDE.md §④ — the defect is the
+UNCHANGED line — one status level up, and nothing failed to compile.
+
+🔴 **`confirm_return_tx` was granted to `authenticated`, and this slice ARMED it.** It is in
+`public`, PostgREST exposes `public`, so a signed-in party could POST the RPC directly — and a
+client may not bring a price, so a direct SECOND stamp sealed with no settlement and no in-app
+repair (both stamps ⇒ every confirm CTA disappears by construction). 0188 §B revokes it; the
+tempting alternative (raise on `v_both and p_quote is null`) was refused because it would delete
+0083 §6's designed seal-now-settle-later capability that suite 133 exists to detect.
+⚠ **My own suite header and the edge's §2 had BOTH argued that hole was 「unreachable through every
+product surface this slice ships」** — a claim about our BUTTONS used to license a conclusion about
+a PRIVILEGE. Both paragraphs are kept and CORRECTED rather than deleted.
+
+**Gates, all re-run after the LAST edit:** harness **1307 → 1316 / 0**, delta exactly the 9 pins
+added, each present by label · deno **336 → 354 / 0** · `npm test` exit 0, **1042 PASS + 38 ✅ / 0
+FAIL** (1023 → +19) · tsc + all six check scripts exit 0. Battery in a lab COPY, control observed
+clean first, every run `&&`-chained to its plant. ⚠ **The battery found two defects in ITSELF**: a
+plant that landed in a definition `0169` had superseded (green for the wrong reason), and a pin
+whose lock arm matched a string three other arms also carry — uninformative in both states, inside
+a pin written to enforce rigour. Both recorded in the REGISTRY row rather than quietly fixed.
+**NOT reviewed by codex** (this session was forbidden codex/CLI/deploy — the cold reviewer is an
+Opus subagent, not codex) and **NOT deployed**.
+
 ## 2026-09-21 01:40 — session resumed (three-day gap); Sean: 「focus on building what's not there yet」
 
 **Trunk unchanged at `ed65c3c` since 09-18 10:20; nothing deployed; no queue letter answered.** The

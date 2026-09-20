@@ -58,6 +58,34 @@ export const HANDOFF_TITLES = ['인계 확인 요청', '인계 완료'];
 // lands on the report / calendar. `test/notification-route.test.cjs` reads migration 0182 for the
 // constant, so the two spellings cannot part (cold review 0182 #4).
 export const ESCALATION_TITLE = '인계 확인이 멈춰 있어요';
+
+// ── [0188] THE RETURN FAMILY — ⑪'s two-stamp return, which is NOT the pickup handoff ──
+// `transition-booking`'s `end_run` and `confirm_return` arms write the first two; the run-end
+// sweep's arm ⓑ-② writes the third. `test/notification-route.test.cjs` reads all three out of
+// their own sources (the edge modules and migration 0188) so the spellings cannot drift.
+//
+// 🔴 DELIBERATELY NOT IN `HANDOFF_TITLES`, and this is the load-bearing decision. That array is
+// the PICKUP family, and membership in it does two things: it puts a title in
+// `OWNER_MEETUP_TITLES` (→ /owner/meetup, a screen whose CTA gates on `stage === 'arrived'` and
+// has no return control) and it puts it in `CLUB_PROBE_TITLES` (→ the club session screen). A
+// return ask sent there would land on a screen with no button — the exact defect cold review
+// 0181 #4 found for the club handoff, re-created in the other direction.
+// A club booking can never carry one of these: `end_run_tx` and `confirm_return_tx` both raise
+// `club_out_of_scope`, so no club probe is needed and none is done.
+export const RETURN_ASK_TITLE = '반환 확인 요청';
+export const RETURN_SEALED_TITLE = '반환 확인 완료';
+/** The run-end sweep's one-shot alarm when a return has stayed one-sided past its deadline. Not a
+ *  CTA for the party who already stamped, but the runner's destination is still the seal screen —
+ *  that is where BOTH the action and the waiting state are drawn. */
+export const RETURN_STUCK_TITLE = '반환 확인이 멈춰 있어요';
+/** The 0083 arm-ⓑ escalation title, which survives 0188 for the zero-stamp case. Routed here for
+ *  the same reason as the three above: it is about the RETURN, so the runner belongs on the seal
+ *  screen rather than on the calendar default. */
+export const RETURN_ESCALATION_TITLE = '귀가 확인이 필요해요';
+export const RETURN_TITLES = [
+  RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
+];
+
 /** The titles whose destination depends on whether the booking is a club delegation. */
 export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE];
 
@@ -73,6 +101,14 @@ export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE];
 export const RUNNER_ROUTES: Record<string, string> = {
   '인계 확인 요청': '/runner/meetup',   // the 1:1 handoff CTA lives here (a club booking goes to its session — see below)
   '인계 완료': '/runner/run',           // both sides sealed — the run is what happens next
+  // [0188] the RETURN family — all four land on the seal screen, which draws the action (R6a),
+  // the waiting state (R6b) and the completed pair (R6c) from server truth. The calendar default
+  // would be the `.includes('요청') → requests` mistake in a new costume: a list with nothing
+  // about this booking in it, while the only screen with the 봉인 button sits two taps away.
+  '반환 확인 요청': '/runner/return-seal',
+  '반환 확인 완료': '/runner/return-seal',
+  '반환 확인이 멈춰 있어요': '/runner/return-seal',
+  '귀가 확인이 필요해요': '/runner/return-seal',
   '러닝 시작': '/runner/run',
   '지명 러닝 요청': '/runner/requests',
   '일정 변경 요청': '/runner/requests',

@@ -134,6 +134,14 @@ export interface Booking {
    *  필드를 싣지 않는 리더는 커스터디에 기대는 문장을 그리면 안 된다 (§13 C2). */
   ownerHandoffAt?: string | null;
   runnerHandoffAt?: string | null;
+  /** [0188] `bookings.run_ended_at` — THE SERVICE STOP. Null while the run is live; stamped the
+   *  moment `end_run_tx` freezes the measurement, and it stays stamped through the return
+   *  ceremony while the booking is STILL `active`.
+   *  🔴 A reader that has this field and ignores it will draw 「러닝 진행 중」 over a dog that is
+   *  already home: before the run-end ceremony `active` meant 「running」 because the stop settled
+   *  immediately, and it now means 「running OR coming home」. `status` did not change; its
+   *  MEANING did, which is why nothing failed to compile. */
+  runEndedAt?: string | null;
   clubSessionId?: string | null; // 클럽 위탁 예약 (0037 bookings.club_session_id). 마켓플레이스
   // 취소 사다리가 적용되지 않는 예약 — 취소는 클럽 세션 화면의 전용 출구로 가야 한다
   // (서버도 cancel_owner에서 거부한다; 이 필드는 화면이 죽은 버튼을 그리지 않기 위한 것)

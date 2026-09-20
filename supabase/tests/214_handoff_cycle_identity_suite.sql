@@ -339,11 +339,27 @@ begin
       if v_n <> 4 then v_bad := v_bad || ' 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, '= any\(c_dead\)', 'g');
       if v_n <> 5 then v_bad := v_bad || ' c_dead 사용 수=' || v_n || '(5개여야 — ⓒ 재평가, ⓓ 후보·재평가, ⓔ 후보·재평가)'; end if;
+      -- [0188] 3 → 4. Arm ⓑ (the run-end strand) is now BOUNDED and LOCKED like ⓒ/ⓓ/ⓔ: 0188
+      -- narrowed its escalation to zero-stamp rows, and since that branch is destructive the
+      -- candidate read can no longer be trusted un-locked (a stamp committing between the read
+      -- and the UPDATE would escalate a row that had just become settleable — the exact defect
+      -- 0188 exists to close). Updated rather than left stale per the house law: the pinned
+      -- behaviour legitimately changed. THE NEW PROPERTY ITSELF is owned by 219 `0188-B4`
+      -- (the lock and re-check are present and arm ⓑ moves no row that carries a stamp); what
+      -- these two lines own is unchanged — "every arm that writes is bounded and locked".
       select count(*) into v_n from regexp_matches(v_src, 'limit c_batch', 'g');
-      if v_n <> 3 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(3개여야)'; end if;
+      if v_n <> 4 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'for update skip locked', 'g');
-      if v_n <> 3 then v_bad := v_bad || ' 행 락 수=' || v_n || '(ⓒ·ⓓ·ⓔ 3개여야)'; end if;
-      select count(*) into v_n from regexp_matches(v_src, 'b\.runner_id is not null', 'g');
+      if v_n <> 4 then v_bad := v_bad || ' 행 락 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
+      -- ⚠ [0188] ANCHORED, and the anchor is the fix rather than the count. `b\.runner_id` is a
+      -- SUBSTRING of `v_b\.runner_id`, so this arm silently counted the re-evaluation lines too
+      -- and read 5 the moment 0188 added an arm that re-checks `v_b.runner_id` twice. `\m` is a
+      -- word boundary and `_` is a word character, so `v_b.` can no longer satisfy it — the
+      -- `[^_]custody[^_]` law (CLAUDE.md), applied to the pin that met it. The count stays 3
+      -- because the CANDIDATE queries are still ⓒ/ⓓ/ⓔ's three: arm ⓑ carries no runner
+      -- conjunct in its candidate (a 1:1 booking at `active` always has a runner) and re-checks
+      -- `v_b.runner_id` only to decide whether to notify.
+      select count(*) into v_n from regexp_matches(v_src, '\mb\.runner_id is not null', 'g');
       if v_n <> 3 then v_bad := v_bad || ' runner 조건 수=' || v_n || '(ⓒ·ⓓ·ⓔ 후보 3개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'v_b\.runner_id is null', 'g');
       if v_n <> 3 then v_bad := v_bad || ' runner 재평가 수=' || v_n || '(ⓒ·ⓓ·ⓔ 3개여야)'; end if;
@@ -354,6 +370,6 @@ begin
   if v_n <> 0 then v_bad := v_bad || ' 라이브 한쪽 스탬프인데 id 없는 행=' || v_n; end if;
   select count(*) into v_n from pg_attribute where attrelid = 'public.bookings'::regclass and not attisdropped and attname in ('handoff_cycle_id', 'handoff_ops_alerted_at') and (atthasdef or attnotnull);
   if v_n <> 0 then v_bad := v_bad || ' 새 열에 기본값/not null=' || v_n; end if;
-  if v_bad = '' then call _pass('hcy','0183-E6 배포 형태 — 후보·재평가 모두 사이클 id로 매칭(시각 매칭 없음), 레거시 행 발급, 재전송이 id를 지님, ops 기록은 전달 조건부, pending 팔, 예외 팔 4·c_dead 5·배치 3·행 락 3·runner 3; 라이브 한쪽 스탬프면 id 있음; 새 열 기본값 없음');
+  if v_bad = '' then call _pass('hcy','0183-E6 배포 형태 — 후보·재평가 모두 사이클 id로 매칭(시각 매칭 없음), 레거시 행 발급, 재전송이 id를 지님, ops 기록은 전달 조건부, pending 팔, 예외 팔 4·c_dead 5·배치 4·행 락 4·runner 3 [0188: ⓑ도 경계·락을 갖춘다]; 라이브 한쪽 스탬프면 id 있음; 새 열 기본값 없음');
   else v_msg := v_bad; call _fail('hcy','0183-E6 shape', v_msg); end if;
 end $$;

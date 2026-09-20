@@ -1420,6 +1420,22 @@ export async function fetchBookingStatus(id: string): Promise<string> {
   return data.status;
 }
 
+/** [0188] `status` PLUS the fact that widened its meaning.
+ *
+ *  🔴 A SECOND FUNCTION RATHER THAN A WIDER RETURN FROM THE ONE ABOVE, on purpose. `status` used
+ *  to answer 「is this run live?」 outright, because the stop settled and the booking reached
+ *  `completed` in the same call. It now answers 「live OR coming home」, and a caller that keeps
+ *  asking the old question gets a true value to a question it is no longer asking — which is how
+ *  `owner/live.tsx` kept a run's elapsed clock climbing off `runs.started_at` for a dog that was
+ *  already home. Widening `fetchBookingStatus`'s return would have propagated the same
+ *  ambiguity to every existing caller silently; a new name makes the callers that need the
+ *  distinction say so. */
+export async function fetchRunPhase(id: string): Promise<{ status: string; runEndedAt: string | null }> {
+  const { data, error } = await supabase.from('bookings').select('status, run_ended_at').eq('id', id).single();
+  if (error) throw error;
+  return { status: (data as any).status, runEndedAt: (data as any).run_ended_at ?? null };
+}
+
 // [0121] net only — gross/fee/guarantee left the settle wire (fee÷gross was the exact rate).
 export interface SettleResult { net: number; total_runs: number; drop: string | null }
 
@@ -1433,6 +1449,160 @@ export async function settleRun(p: {
   const { data, error } = await supabase.functions.invoke('settle-run', { body: p });
   if (error || data?.error) throw await fnError(error, data);
   return data as SettleResult;
+}
+
+// ═══════════ [0188] THE RUN-END CEREMONY — ⑪ 반환 봉인 + ⑫ 작업 게이트 ═══════════
+//
+// The 1:1 sequence, and why `settleRun` above is no longer the runner's stop:
+//   러너 정지 → `endRun`  (freezes km/duration/reason; the booking STAYS `active`)
+//   → 양측 반환 스탬프 → `confirmRunReturn` × 2 → **두 번째 스탬프가 서버에서 정산까지 한다**
+// `settleRun` survives for the CLUB run screen (`club/run/[sid].tsx`, a different door entirely)
+// and for builds that predate this one. A marketplace run that went through `endRun` cannot be
+// settled by it at all: `settle_run_tx` raises `return_not_sealed` until the seal exists.
+
+/** 「반환 확인」 — the two return-stamp columns as the screens read them. Every field is a SERVER
+ *  fact; nothing here is derived from a local clock or an optimistic tap. Seals fill on server
+ *  truth only (DESIGN.md), so R6a/b/c and the owner's ⑫ gate all draw from exactly this. */
+export interface ReturnSeal {
+  bookingId: string;
+  dogName: string | null;
+  /** null = the run has not been stopped yet — the whole ceremony is not open. */
+  runEndedAt: string | null;
+  runnerConfirmedAt: string | null;
+  ownerConfirmedAt: string | null;
+  /** the DURABLE seal (both stamps, or a recorded force). `settlement_ready_at`, not a derivation
+   *  of the two columns above: from `incident_review` both stamps can exist while nothing is
+   *  sealed (0096), and a screen that computed `both ⇒ sealed` would tell a runner money is
+   *  moving when it is not. */
+  sealedAt: string | null;
+  /** server vocabulary, for gate logic — never for display (STATUS_MAP owns display). */
+  rawStatus: string;
+  actualKm: number | null;
+  durationSec: number | null;
+  endReason: string | null;
+}
+
+export async function fetchReturnSeal(bookingId: string): Promise<ReturnSeal | null> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, status, run_ended_at, runner_confirmed_return_at, owner_confirmed_return_at, settlement_ready_at, dogs(name), runs(actual_km, duration_sec, end_reason)')
+    .eq('id', bookingId)
+    // ZERO ROWS IS A FACT, NOT A FAILURE (the maybeSingle law, api.ts §RunReport): a foreign or
+    // deleted booking is `null` here, while a transport/RLS failure still throws — two facts,
+    // two shapes, so a screen never prints PostgREST's English at a Korean user.
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r: any = Array.isArray((data as any).runs) ? (data as any).runs[0] : (data as any).runs;
+  return {
+    bookingId: (data as any).id,
+    dogName: (data as any).dogs?.name ?? null,
+    runEndedAt: (data as any).run_ended_at ?? null,
+    runnerConfirmedAt: (data as any).runner_confirmed_return_at ?? null,
+    ownerConfirmedAt: (data as any).owner_confirmed_return_at ?? null,
+    sealedAt: (data as any).settlement_ready_at ?? null,
+    rawStatus: String((data as any).status),
+    // null is a real answer and stays one — an early-ended run can carry no measurement at all
+    // (the `?? 0` here is what drew 「0km 완주」 on the report card).
+    actualKm: r?.actual_km == null ? null : Number(r.actual_km),
+    durationSec: r?.duration_sec ?? null,
+    endReason: r?.end_reason ?? null,
+  };
+}
+
+/** THE STOP. Freezes the measurement and stamps `run_ended_at`; settles nothing. */
+export async function endRun(p: {
+  bookingId: string;
+  endReason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal';
+  actualKm: number;
+  durationSec: number;
+  conditionNote?: string;
+  trace?: { lat: number; lng: number; t: number }[];
+}): Promise<{ unchanged: boolean; runEndedAt: string | null }> {
+  const data = await invokeTransition(p.bookingId, 'end_run', {
+    end_reason: p.endReason,
+    actual_km: p.actualKm,
+    duration_sec: p.durationSec,
+    condition_note: p.conditionNote,
+    trace: p.trace,
+  });
+  return { unchanged: !!data?.unchanged, runEndedAt: data?.run_ended_at ?? null };
+}
+
+export interface ConfirmReturnResult {
+  stamped: boolean;
+  sealed: boolean;
+  settled: boolean;
+  unchanged: boolean;
+  bothConfirmed: boolean;
+  caseOpen: boolean;
+  side: 'runner' | 'owner';
+}
+
+/** 「반환 확인」 — MY stamp. The side is not a parameter and must never become one: the server
+ *  derives it from the caller (`confirm_return.ts` §1), which is the only thing stopping one
+ *  party producing both stamps and sealing alone (Sean 2026-08-13, 0089). */
+export async function confirmRunReturn(bookingId: string): Promise<ConfirmReturnResult> {
+  const data = await invokeTransition(bookingId, 'confirm_return');
+  return {
+    stamped: !!data?.stamped,
+    sealed: !!data?.sealed,
+    settled: !!data?.settled,
+    unchanged: !!data?.unchanged,
+    bothConfirmed: !!data?.both_confirmed,
+    caseOpen: !!data?.case_open,
+    side: data?.side === 'owner' ? 'owner' : 'runner',
+  };
+}
+
+/** ⑫ 작업 게이트 — may I take new work? The R1c strip's entire input.
+ *
+ *  Sean 2026-08-13: "pay the runner but dont let them make new runs until the dog is confirmed by
+ *  both sides." The ENFORCEMENT is the accept path's (`transition-booking`), never this call —
+ *  this exists so the runner can be told WHY and WHAT CLEARS IT, because a gate a runner cannot
+ *  read is an unexplained suspension (⑫ memo). `waiting_on` is what keeps the sentence honest:
+ *  「확인해주세요」 to someone who already stamped is a lie about their own action. */
+export interface RunnerWorkGate {
+  gated: boolean;
+  bookingId: string | null;
+  rawStatus: string | null;
+  runEndedAt: string | null;
+  runnerConfirmed: boolean;
+  ownerConfirmed: boolean;
+  waitingOn: 'both' | 'runner' | 'owner' | null;
+  exit: 'runner_confirm_return' | 'owner_confirm_return' | 'both_confirm_return' | null;
+}
+
+export async function fetchRunnerWorkGate(): Promise<RunnerWorkGate | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  // 0116 §D ⓑ put a party gate on this definer: a signed-in caller may ask only about themselves.
+  // Passing our own id is therefore the only legal call, and a `not_party` here would mean a bug
+  // in this line rather than a permission the user could obtain.
+  const { data, error } = await supabase.rpc('runner_work_gate', { p_runner: user.user.id });
+  if (error) throw error;
+  const g: any = data ?? {};
+  return {
+    gated: !!g.gated,
+    bookingId: g.booking_id ?? null,
+    rawStatus: g.status ?? null,
+    runEndedAt: g.run_ended_at ?? null,
+    runnerConfirmed: !!g.runner_confirmed,
+    ownerConfirmed: !!g.owner_confirmed,
+    waitingOn: g.waiting_on ?? null,
+    exit: g.exit ?? null,
+  };
+}
+
+// ③ 반환 봉인 세리머니 — 양측 도장이 채워지는 순간은 한 번뿐이다. 앱 세션당 예약별 1회
+// (인메모리 — `sealStampFresh`/`_patchPopSeen`과 같은 문법). Re-entering the screen after the
+// seal hydrates the FILLED state with no animation, which is the honesty law's own case: a
+// celebration that replays on hydration is a celebration of nothing.
+const _returnSealSeen = new Set<string>();
+export function returnSealFresh(bookingId: string): boolean {
+  if (_returnSealSeen.has(bookingId)) return false;
+  _returnSealSeen.add(bookingId);
+  return true;
 }
 
 // 러너의 확정/진행/완료 작업 목록 (캘린더 = 내 커밋먼트 뷰)
@@ -1455,6 +1625,12 @@ export interface RunnerJob {
   /** 양측 인계 소인 — 커스터디(D3 선) 판정 입력. [F7] 보호자 쪽 Booking 과 같은 두 컬럼이다. */
   ownerHandoffAt?: string | null;
   runnerHandoffAt?: string | null;
+  /** [0188] `bookings.run_ended_at`. Carried for the same reason the owner's `Booking` carries it:
+   *  `rawStatus === 'active'` used to mean 「러닝 중 · LIVE」 and now means 「running OR returning」.
+   *  A runner's home screen that ignores it prints 「러닝 중 · LIVE」 with a 러닝 화면으로 CTA
+   *  directly under the work-gate strip saying the return is outstanding — one screen, two
+   *  contradictory claims about the same booking. */
+  runEndedAt?: string | null;
   /** The dog's face for the in-flight ticket. A runner may be collecting an animal they have never
    *  met, and until now the ticket named it without showing it. Null is a real answer (no photo on
    *  file) and renders as a monogram — never an empty frame. */
@@ -1487,7 +1663,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     // arrived_at · runs(started_at): 보호자 쪽 fetchMyBookings 와 **같은 사실**을 읽어야 한다.
     // 한쪽만 실어오면 같은 예약을 두고 두 화면이 서로 다른 지각 판정을 낸다 — 이 코드베이스가
     // 가장 싫어하는 종류의 버그다. runs 임베드가 안전한 이유는 R1 과 동일 (unique 단일 FK).
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
     .order('scheduled_at', { ascending: false });
@@ -1537,6 +1713,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
       ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
       runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
+      runEndedAt: r.run_ended_at ?? null,   // [0188] the 귀가 phase — see the type's note
     };
   });
 }
@@ -1552,7 +1729,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', IN_FLIGHT)
     .gte('scheduled_at', since)
@@ -1584,6 +1761,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
       startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,
       ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
       runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
+      runEndedAt: r.run_ended_at ?? null,   // [0188] the 귀가 phase — see the type's note
     } as RunnerJob;
   });
 }
@@ -5282,7 +5460,7 @@ const MY_BOOKING_SELECT =
   // runs(started_at): 러닝이 **실제로** 시작된 시각. 예약 시각으로 초과를 재면 20분 늦게 출발한
   // 러닝을 20분 일찍 '초과'라고 부른다. runs.booking_id 는 unique 단일 FK(0001_init.sql:236)라
   // 임베드가 모호하지 않다 — E1(PGRST201)이 여기서는 발생할 수 없다.
-  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
+  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
 
 function mapMyBooking(r: any): Booking {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
@@ -5309,6 +5487,14 @@ function mapMyBooking(r: any): Booking {
     // 한 예약을 두고 두 화면이 D3 선을 다른 자리에 긋는다.
     ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,
     runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
+    // [0188] THE RETURN PHASE, and it is a fact every in-flight reader now has to carry for the
+    // same reason the two handoff stamps above do. `status` alone stopped being enough the day
+    // the stop stopped settling: `active` used to mean 「running」 because `settle-run` flipped the
+    // booking to `completed` at the stop, and it now means 「running OR coming home」. A screen
+    // reading only `status` therefore asserts 「러닝 진행 중」, with a ticking elapsed clock, about
+    // a run the server knows ended — the unchanged line that breaks when a value's MEANING widens
+    // (CLAUDE.md ④). Nothing here decides what to draw; it only stops the screens from guessing.
+    runEndedAt: r.run_ended_at ?? null,
     // runs 는 예약당 0~1행(unique). 배열로 오면 첫 행, 객체로 오면 그대로 — PostgREST 가 관계
     // 카디널리티를 어떻게 접든 같은 값을 읽게 한다. 없으면 null = '아직 시작 안 함'.
     startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,

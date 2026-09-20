@@ -7,7 +7,7 @@ import { bookingKmLabel } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
-import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
+import { ensureThread, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, fetchRunPhase, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
@@ -252,7 +252,29 @@ export default function Live() {
     }, setLink);
     const done = async () => {
       try {
-        const st = await fetchBookingStatus(bid);
+        const { status: st, runEndedAt } = await fetchRunPhase(bid);
+        // ═══ [0188] THE RUN IS OVER BUT THE BOOKING IS STILL `active` ═══════════════════════
+        // 🔴 Found by a cold reviewer. `LIVE_STATUS` contains `active`, and before the run-end
+        // ceremony that was airtight: the stop CALLED `settle-run`, so a finished run reached
+        // `completed` within the same tap and this branch fired. The ceremony leaves the booking
+        // `active` for the whole return — so without this arm, every normal run end left this
+        // screen live forever: the 1s tick kept `elapsedSec` climbing off `runs.started_at`, the
+        // island printed 「● LIVE · {dog}가 달리는 중」 over a dog being walked home, the publisher
+        // had stopped so at 90 s the strip accused the network of a fault that did not exist —
+        // and worst, the 5 s `updateOwnerActivity` kept OVERWRITING the `homeward` Live Activity
+        // banner the server had just pushed (0083 §8-ⓑ, on the same `run_ended_at` UPDATE). Two
+        // channels, contradictory, client wins. That is verbatim the defect the 2026-08-20
+        // comment above was written to fix, re-created on the happy path of every run.
+        //
+        // The owner goes to the report, which is the same destination as `completed` and is where
+        // the ⑫ 반환 확인 gate lives — this screen's job (watching a run in progress) is finished.
+        // ⚠ AND THE LIVE ACTIVITY IS NOT ENDED HERE, unlike the `completed` branch: the server's
+        // homeward banner is the correct artifact for this phase and ending it would delete the
+        // one surface telling the owner their dog is on the way back.
+        if (st === 'active' && runEndedAt) {
+          router.replace({ pathname: '/owner/report', params: { bid } });
+          return;
+        }
         if (st === 'completed') {
           // [0063] local end fallback — the completion push (settled numbers) also ends the LA
           // server-side; whichever lands first wins, the other is a no-op. Uses the last drawn

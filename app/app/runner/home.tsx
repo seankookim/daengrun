@@ -13,7 +13,7 @@ import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
   acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
-  fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
+  fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
@@ -175,7 +175,17 @@ const STAGE: Record<string, { label: string; action: string; color: string }> = 
   runner_enroute: { label: '픽업 이동 중', action: '인계 화면으로 ›', color: lilac.amber },
   picked_up: { label: '인계 완료 · 시작 대기', action: '러닝 시작하기 ›', color: lilac.voltDeep }, // 확인/성공 볼트만 기능적
   active: { label: '러닝 중 · LIVE', action: '러닝 화면으로 ›', color: CORAL_INK },
+  // [0188] `active` is TWO phases since the run-end ceremony. `run_ended_at` stamped means the run
+  // is over and the two-stamp return is open — 「러닝 중 · LIVE」 there is false, and its CTA sends
+  // the runner back to a run screen that has nothing left to do. Keyed separately rather than by
+  // rawStatus, because rawStatus cannot tell them apart (`stageFor` below does the pick).
+  returning: { label: '반환 확인 중', action: '반환 봉인 화면으로 ›', color: CORAL_INK },
 };
+
+/** The stage a job is really in. `rawStatus` alone stopped being enough the day the stop stopped
+ *  settling: gate on the FACT (`runEndedAt`), never on the flattened vocabulary (house law). */
+const stageFor = (j: { rawStatus: string; runEndedAt?: string | null }) =>
+  j.rawStatus === 'active' && j.runEndedAt ? 'returning' : j.rawStatus;
 
 // [정직 배치 2026-08-06 · item 4 wave-1] 픽업 지도 숏컷 은퇴 — 목업 좌표로 길을 안내하던 버튼이었다.
 // 실주소는 wave 3(러너용 definer RPC)에서 오고, 그 전까진 버튼 자리 자체가 없다 (죽은 버튼 금지법).
@@ -362,9 +372,26 @@ export default function RunnerHome() {
       .catch((e) => { console.warn('[rhome] avail:', e?.message ?? e); setAvailErr(true); });
   }, []);
 
+  // ⑫ [0188] R1c — THE WORK GATE. Sean 2026-08-13: "pay the runner but dont let them make new
+  // runs until the dog is confirmed by both sides." The ENFORCEMENT is the accept path's
+  // (`transition-booking` refuses with the three `waiting_on` sentences); this read exists so the
+  // screen can say WHY and offer THE EXIT instead of drawing a door that fails after the tap —
+  // spec `screen-functionality-spec.md:123`: "show WHY and the action, not a dead accept button".
+  // ⚠ `null` = not known yet, or the read failed. It is NOT "not gated": drawing a live accept
+  // door on a failed gate read is exactly the silent-catch→happy-UI shape, and it would send the
+  // runner into a 409 they cannot explain. Unknown keeps the door but says the check is pending.
+  const [gate, setGate] = useState<RunnerWorkGate | null>(null);
+  const [gateKnown, setGateKnown] = useState(false);
+  const loadGate = useCallback(() => {
+    fetchRunnerWorkGate()
+      .then((g) => { setGate(g); setGateKnown(true); })
+      .catch((e) => { console.warn('[rhome] gate:', e?.message ?? e); setGate(null); setGateKnown(false); });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     loadAvail();
     loadInbox();
+    loadGate();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
@@ -374,7 +401,7 @@ export default function RunnerHome() {
       .catch(() => {});
     registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
     reloadStatus();
-  }, [loadAvail, loadInbox, loadJobs, reloadStatus]));
+  }, [loadAvail, loadInbox, loadJobs, loadGate, reloadStatus]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·대기 중인 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,
@@ -431,7 +458,14 @@ export default function RunnerHome() {
 
   const openJob = (j: RunnerJob) => {
     runnerJob.bookingId = j.bookingId;
-    router.push(j.rawStatus === 'active' ? '/runner/run' : '/runner/meetup');
+    // [0188] three destinations, not two. A job whose run has ENDED belongs on the return-seal
+    // screen — sending it to /runner/run offers a stop button for a run that already stopped.
+    const st = stageFor(j);
+    router.push(
+      st === 'returning'
+        ? { pathname: '/runner/return-seal', params: { bid: j.bookingId } }
+        : st === 'active' ? '/runner/run' : '/runner/meetup',
+    );
   };
 
   // 드랍 트레일 — 실카운트 (runners.total_runs, settle-run이 증가시키는 값)
@@ -674,7 +708,7 @@ export default function RunnerHome() {
              '오늘의 루트'가 정차역마다 인쇄한다 (한 사실은 한 화면에 한 번). ————— */}
         {current && (() => {
           const { wd, wt } = parseWhen(current.when);
-          const st = STAGE[current.rawStatus];
+          const st = STAGE[stageFor(current)];   // [0188] the FACT, not the flattened status
           const rel = relWhen(current.scheduledAt);
           return (
             <>
@@ -804,6 +838,50 @@ export default function RunnerHome() {
         {/* [honesty 2026-08-19 · runner review #4] 'N건'은 로드가 성공한 뒤에만. 종전엔 로딩 중과
             인박스 실패 후에 '요청함 · 0건 ›'을 인쇄했는데, 같은 프레임 아래 박스는 '요청을 불러오지
             못했어요'라고 말하고 있었다 (한 화면이 스스로와 모순). 문 자체는 그대로 살아 있다. */}
+        {/* ————— ⑫ R1c WORK-GATE STRIP — 이유 + 행동, 죽은 수락 없음 —————
+            Lab `journey-v4-runner.html` §R1c. The gate's real reason is 「지난 러닝의 반환 봉인이
+            아직」 (`waiting_on: runner | owner | both`) or `incident_review` — NOT availability.
+            앰버 줄이 WHY, 코랄이 **그 출구**.
+            ⚠ `waiting_on === 'owner'`이면 출구가 없다 — 러너는 이미 찍었고, 그 줄은 라일락(대기)에
+            행동 없음이다. 「반환 봉인 찍기」를 거기 그리면 자기 행동에 대한 거짓말이 된다 (0092 §6이
+            `waiting_on`을 나눠 돌려주는 이유 그 자체). */}
+        {gate?.gated && (
+          <Pressable
+            onPress={() => {
+              // The exit is a real route in every state it is drawn in — and it is only drawn
+              // when the runner has something to do.
+              if (gate.waitingOn === 'owner' || !gate.bookingId) return;
+              router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
+            }}
+            disabled={gate.waitingOn === 'owner' || !gate.bookingId}
+            style={({ pressed }) => [
+              styles.gateStrip,
+              pressed && gate.waitingOn !== 'owner' && styles.pressed96,
+            ]}
+          >
+            <View style={[styles.gateDot, { backgroundColor: gate.waitingOn === 'owner' ? lilac.accent : paper.pending }]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.gateWhy}>
+                {gate.rawStatus === 'incident_review'
+                  ? '지난 러닝이 담당자 확인 중이에요'
+                  : gate.waitingOn === 'owner'
+                    ? '보호자 확인 대기 중이에요'
+                    : '지난 러닝의 반환 확인이 아직이에요'}
+              </Text>
+              <Text style={styles.gateSub}>
+                {gate.waitingOn === 'owner'
+                  ? '내 봉인은 끝났어요 — 보호자가 찍으면 새 요청을 받을 수 있어요'
+                  : gate.waitingOn === 'runner'
+                    ? '내 봉인 전 — 찍으면 보호자 확인만 남아요'
+                    : '둘 다 찍혀야 새 요청을 받아요'}
+              </Text>
+            </View>
+            {gate.waitingOn !== 'owner' && !!gate.bookingId && (
+              <Text style={styles.gateExit}>반환 봉인 찍기 ›</Text>
+            )}
+          </Pressable>
+        )}
+
         <SectionHead
           title="요청 대기열"
           link={inboxLoaded && !inboxErr ? `요청함 · ${inbox.length}건 ›` : '요청함 ›'}
@@ -907,6 +985,35 @@ export default function RunnerHome() {
                       [§3b] busy = 라벨 스왑만 (opacity 트릭 은퇴) · pressed = scale 0.96 · 수락 라벨 17/800
                       [v4] liveOwnsCoral: 러닝이 LIVE인 동안 '지금 내 차례'는 러닝 화면이지 새 요청이 아니다 —
                       그때만 이 문이 잉크 아웃라인 고스트로 내려간다 (화면당 코랄 1개 법). 동작은 동일. */}
+                  {/* ⑫ [0188] THE DOOR IS NOT DRAWN WHILE THE GATE IS SHUT — the lab's R1c:
+                      「요청 카드는 남되 수락 문 자리는 문장 한 줄 — 누를 수 없는 코랄을 그리지
+                      않습니다」. The server refuses this accept (`transition-booking`'s work-gate
+                      arm, 409 with the matching sentence), so a coral door here is a dead button
+                      that fails AFTER the tap — the honesty law's own named case. The request
+                      itself stays: it has not expired and the runner should still see it.
+                      ⚠ `gate === null` (unknown / read failed) keeps the door. An unknown must not
+                      hide a working affordance, and the tap's own 409 still carries the reason. */}
+                  {gate?.gated ? (
+                    <View style={[styles.door, styles.doorBlocked]}>
+                      <Text style={styles.doorBlockedTxt}>
+                        반환 확인이 끝나면 여기서 수락할 수 있어요
+                      </Text>
+                      <Text style={styles.doorBlockedSub}>응답 기한 전까지 요청은 남아 있어요</Text>
+                    </View>
+                  ) : !gateKnown ? (
+                    // 🔴 [cold review #9] THE GATE READ FAILED, and silence here is the
+                    // silent-catch→happy-UI shape. The door stays live (an unknown must not hide a
+                    // working affordance, and the server refuses for real if the gate is in fact
+                    // shut), but the screen SAYS the check did not answer — otherwise the only
+                    // feedback is a 409 the runner cannot account for. This is the sentence the
+                    // state's own comment promised and the first version never rendered.
+                    <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
+                      <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
+                      <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
+                        인계 확인 상태를 못 읽었어요
+                      </Text>
+                    </Pressable>
+                  ) : (
                   <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
                     <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
                     {/* [2026-08-10 filler cull] ' · 바로 확정돼요' dropped — the confirm Alert states the consequence */}
@@ -914,6 +1021,7 @@ export default function RunnerHome() {
                       <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원
                     </Text>
                   </Pressable>
+                  )}
                   <Pressable onPress={declineFront} disabled={busyReq} style={({ pressed }) => [styles.door, styles.doorQuiet, pressed && styles.pressed96]}>
                     <Text style={[styles.doorName, { color: lilac.head }]}>{inbox[0].directed ? '거절' : '자세히'}</Text>
                     <Text style={[styles.doorSub, { color: lilac.dim }]}>
@@ -1059,7 +1167,7 @@ export default function RunnerHome() {
                   //    찍혔다 (실측). 진행 중이라는 사실은 바로 옆 stageLabel('러닝 중 · LIVE')이
                   //    이미 말하므로, 이 칸은 **언제**를 말한다 — 오늘이 아니면 그 날짜를.
                   const started = on && st.job.rawStatus !== 'confirmed' && isTodayKst(st.job.scheduledAt);
-                  const stageLabel = on ? STAGE[st.job.rawStatus]?.label ?? null : null;
+                  const stageLabel = on ? STAGE[stageFor(st.job)]?.label ?? null : null;   // [0188]
                   return (
                     <Pressable
                       key={st.job.bookingId}
@@ -1627,6 +1735,23 @@ const styles = StyleSheet.create({
   // 치수(pv 15 · 라벨 17/800)라 '내려간 것은 색이지 문이 아니다'가 읽힌다.
   doorGhost: { backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head },
   doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
+  // ⑫ [0188] the shut gate's door position — a SENTENCE, not a disabled button. Explicit fill,
+  // never an opacity trick on the coral one (the button-matrix law): a greyed coral still reads as
+  // "press me", and this one is not pressable because the server will refuse it.
+  doorBlocked: { backgroundColor: paper.disabledFill, borderWidth: 1, borderColor: '#EEEEEE', justifyContent: 'center' },
+  doorBlockedTxt: { fontSize: 15, fontWeight: '700', color: paper.text, lineHeight: 20 },
+  doorBlockedSub: { fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 20 },
+  // ⑫ [0188] R1c strip — the WHY row. Amber = a state the runner must clear (paper.pending is the
+  // semantic 대기 token); lilac when the wait is the OWNER's, because that is not the runner's turn.
+  gateStrip: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14,
+    backgroundColor: paper.canvasSoft, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 12, paddingHorizontal: 12,
+  },
+  gateDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
+  gateWhy: { fontSize: 16, fontWeight: '800', color: paper.ink, lineHeight: 21 },
+  gateSub: { fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 20 },
+  gateExit: { fontSize: 15, fontWeight: '800', color: paper.actionInk, marginLeft: 8 },
   doorName: { fontSize: 16, lineHeight: 22, fontWeight: '800' }, // 수락 문은 인라인 17로 승격 (프라이머리급) · 거절/자세히 16/800
   doorSub: { marginTop: 4, fontSize: 15, lineHeight: 20 },
   doorSubNum: { fontSize: 15, lineHeight: 20 },

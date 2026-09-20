@@ -6,7 +6,7 @@ import { AccessibilityInfo, Alert, AppState, Dimensions, KeyboardAvoidingView, L
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, endRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
@@ -799,49 +799,63 @@ export default function ActiveRun() {
       return;
     }
     if (bid) {
-      // 트레이스는 정산 '전에' 저장한다 — settle_run_tx가 부킹을 completed로 만드는 순간
-      // _guard_run_cols가 클라이언트 쓰기를 전부 거부한다 (저장 창이 닫힌다).
+      // 트레이스는 종료 '전에' 저장한다 — _guard_run_cols가 얼어붙은 run 행에 대한 클라이언트
+      // 쓰기를 거부하므로(저장 창이 닫힌다), 이 순서는 종료가 정산이 아니게 된 뒤에도 그대로다.
       await saveTrace();
-      // 정산 재시도 루프 (2026-07-29) — 실패 시 예약이 active로 남아 좌초되던 문제.
-      // 서버 트랜잭션은 전체 롤백이라 재시도 안전. 네트워크 블립('Failed to send a request')도 여기서 회복.
-      const trySettle = async (): Promise<boolean> => {
+      // ═══ [0188] 종료는 더 이상 정산이 아니다 — ⑪/⑫ 반환 의식의 첫 단계다 ═══════════════
+      // 예전엔 여기서 `settleRun`을 불러 예약이 `active → completed`로 갔다. 개는 아직 러너의
+      // 손에 있는데 돈이 먼저 끝났다는 뜻이었고, 그래서 0083의 `end_run_tx`·0092의 work-gate·
+      // 0096의 늦은 스탬프가 전부 호출자 0명으로 출하돼 있었다.
+      // 이제: 종료는 **얼리기만** 한다(km·시간·사유·트레이스, 그리고 `run_ended_at`). 상태는
+      // `active` 그대로 — 「끝났지만 아직 안 돌려줬다」가 work-gate가 읽는 바로 그 상태다.
+      // 정산은 양측 반환 스탬프의 **두 번째** 것이 서버에서 같은 트랜잭션으로 수행한다.
+      //
+      // ⚠ 이 경로에서 `settleRun`을 부르면 서버가 `return_not_sealed`로 거절한다 — 폴백이
+      // 아니라 죽은 문이다. 클럽 러닝 화면(`club/run/[sid].tsx`)은 다른 문이고 그대로 둔다.
+      const tryEnd = async (): Promise<boolean> => {
         try {
-          const res = await settleRun({
-            booking_id: bid,
-            end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
-            actual_km: Number(km.toFixed(2)),
-            duration_sec: sec,
+          await endRun({
+            bookingId: bid,
+            endReason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
+            actualKm: Number(km.toFixed(2)),
+            durationSec: sec,
             // The runner's OWN sentence, typed in the end sheet's 기록 step — never a canned
             // fallback. The old constant ('러너 판단: 컨디션 저하 관찰') shipped the same
             // fabricated observation to every owner's report card and propped up the
             // dog_condition charge waiver with a value no human ever wrote. If it is empty the
-            // server's 400 must surface (settle retry alert) — an invented sentence is worse
-            // than a visible failure.
-            condition_note: reason === 'dog' ? conditionNote.trim() : undefined,
+            // server's 400 must surface — an invented sentence is worse than a visible failure.
+            conditionNote: reason === 'dog' ? conditionNote.trim() : undefined,
           });
-          runResult.payout = res.net; // 서버가 계산한 실지급액
-          runResult.settled = true;  // 이제서야 '수익'이라고 부를 수 있다
-          runnerJob.bookingId = null;
-          if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
+          // ⚠ `runnerJob.bookingId` is NOT cleared here, and that is the re-sequencing in one
+          // line: the job is not finished at the stop. The return-seal screen restores from it,
+          // and the work gate will keep this runner off new work until both stamps land.
           return true;
         } catch (e) {
           return new Promise((resolve) => {
             Alert.alert(
-              '정산 실패',
-              // [적대 리뷰 2026-08-11] 예전 카피는 '아무것도 반영되지 않았어요'라고 단정했다. 서버
-              // 트랜잭션은 전체 롤백이지만, **응답이 유실된 경우**(네트워크 끊김·앱 종료)는 서버에서
-              // 이미 커밋됐는데 클라만 실패로 본다 — 그때 이 문장은 거짓이고, 재시도는 '이미 정산'으로
-              // 거절된다. 아는 것만 말한다: 대개는 반영되지 않았고, 재시도가 안전하며, 확인 경로가 있다.
-              `${(e as Error).message}\n\n대부분의 경우 아무것도 반영되지 않았어요 — 재시도는 안전해요.\n재시도가 '이미 정산됐다'고 하면 정산은 끝난 거예요. 수익 화면에서 확인해주세요.`,
+              '러닝 종료 실패',
+              // Says only what is known. The server transaction rolls back whole, but a LOST
+              // RESPONSE (network drop, app kill) commits server-side while the client sees a
+              // failure — and `end_run_tx` answers a retry with `{unchanged:true}`, so retrying
+              // is safe in both worlds and never double-freezes.
+              `${(e as Error).message}\n\n기록은 아직 서버에 확정되지 않았을 수 있어요 — 재시도는 안전해요.\n재시도가 성공하면 그대로 인계 확인으로 넘어가요.`,
               [
-                { text: '나중에 (추정치 표시)', style: 'cancel', onPress: () => resolve(false) },
-                { text: '다시 시도', onPress: () => resolve(trySettle()) },
+                { text: '나중에', style: 'cancel', onPress: () => resolve(false) },
+                { text: '다시 시도', onPress: () => resolve(tryEnd()) },
               ],
             );
           });
         }
       };
-      await trySettle();
+      if (await tryEnd()) {
+        // ⑪ R6a. The seal screen is the next thing the runner sees, which is what makes the
+        // runner's own stamp land seconds after the stop instead of hours later.
+        router.replace({ pathname: '/runner/return-seal', params: { bid } });
+        return;
+      }
+      // The freeze did not land and the runner chose 나중에. `runner/done` still renders the
+      // honest 「정산 미완료」 shape (runResult.settled stays false) and the run is recoverable —
+      // the booking is still `active`, so re-entering the run screen re-offers the end sheet.
     }
     router.replace('/runner/done');
   };

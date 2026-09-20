@@ -10,7 +10,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { ProfileGaps } from '../../src/components/profile-gaps';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { checkSlot, CoursePatch, fetchPatchPop, fetchProfileGaps, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { checkSlot, confirmRunReturn, CoursePatch, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -297,6 +297,15 @@ export default function Report() {
   const [standingsErr, setStandingsErr] = useState(false);
   const [earningErr, setEarningErr] = useState(false);
   const [reviewErr, setReviewErr] = useState(false);
+  // ⑫ [0188] the return seal. THREE states, and the third is why there are two variables:
+  //   null + !sealErr → not read yet          → draw nothing (a spinner would be noise here)
+  //   null + sealErr  → the read FAILED       → say so; never a hollow seal, which would claim
+  //                                             「you have not confirmed」 on no evidence
+  //   a row           → the two server stamps → the gate draws itself from them
+  const [seal, setSeal] = useState<ReturnSeal | null>(null);
+  const [sealErr, setSealErr] = useState(false);
+  const [sealBusy, setSealBusy] = useState(false);
+  const [sealActionErr, setSealActionErr] = useState<string | null>(null);
   const load = useCallback(() => {
     // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
     // same remedy — leave. Never a retry that would run the same early return again.
@@ -322,6 +331,13 @@ export default function Report() {
     setMyReviewKnown(false);
     readMyReview(bid).then((r) => { if (r !== undefined) { setMyReview(r); setMyReviewKnown(true); } })
       .catch((e) => { console.warn('[o-report] review:', e?.message ?? e); setReviewErr(true); });
+    // ⑫ [0188] 반환 확인 — the owner's half of the two-stamp return. `null` is UNKNOWN here (not
+    // read yet, or the read failed) and the section then says so rather than drawing a hollow
+    // seal, which would assert 「you have not confirmed」 — a fact we do not have.
+    setSeal(null);
+    setSealErr(false);
+    fetchReturnSeal(bid).then((s) => { if (s) setSeal(s); })
+      .catch((e) => { console.warn('[o-report] seal:', e?.message ?? e); setSealErr(true); });
   }, [bid]);
   useEffect(() => { load(); }, [load]);
   // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
@@ -557,6 +573,114 @@ export default function Report() {
               onPress={() => router.replace('/owner/schedule')} />
           </View>
         )}
+
+        {/* ══════ ⑫ [0188] 반환 확인 — THE GATE, and it sits ABOVE the record ══════
+            spec `screen-functionality-spec.md:86-91`: 「return confirmation (both stamps — the ⑫
+            gate; the owner's confirm button lives here or in the run-end sheet)」. It is placed
+            first because while it is open it is the only thing on this screen the owner can DO —
+            the record below is finished reading matter, and the money line is not final until the
+            pair completes.
+
+            ⚠ It renders ONLY once the runner has stopped (`runEndedAt`). Before that there is
+            nothing to confirm and a disabled button would be a promise with no state behind it —
+            "disabled until the runner ended" is achieved by not existing, which is stronger.
+            ⚠ It disappears once the booking settles: a completed run has no gate, and leaving a
+            filled-in ceremony on a historical report turns a receipt into a control panel.
+            ⚠ THE SEALS ARE SERVER FACTS. No optimistic fill — after the tap the row is re-read,
+            because these two circles are a claim about what the SERVER holds (DESIGN.md).
+            ⚠ `sealed` is `settlement_ready_at`, never `both stamps ⇒ sealed`: from
+            `incident_review` 0096 lets both stamps exist while nothing is sealed. */}
+        {sealErr && !seal && (
+          <View style={{ marginHorizontal: 12, marginTop: 14, backgroundColor: paper.criticalWash, padding: 12 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical, lineHeight: 21 }}>
+              인계 확인 상태를 불러오지 못했어요 — 아래 기록은 그대로예요
+            </Text>
+            <PaperBtn label="다시 시도" variant="secondary" style={{ alignSelf: 'flex-start', marginTop: 10 }} onPress={load} />
+          </View>
+        )}
+        {/* 🔴 [cold review #4] AN ALLOW-LIST, not `!== 'completed'`. `confirm_return_tx` accepts
+            `active` and `incident_review` and raises `not_active` for everything else (0096 §2),
+            and a stranded return really does reach `refund_pending` — arm ⓑ-① escalates to
+            `incident_review` and 0072:179 moves it on, legal via 0066:56's `else` arm. The old
+            predicate drew a full-coral 인계받았어요 button there whose every tap 409s. `no_show`
+            and the two `cancelled_*` behave the same way. */}
+        {!!seal?.runEndedAt && (seal.rawStatus === 'active' || seal.rawStatus === 'incident_review') && (() => {
+          const mine = !!seal.ownerConfirmedAt;
+          const theirs = !!seal.runnerConfirmedAt;
+          const done = mine && theirs;
+          return (
+            <View style={{ marginHorizontal: 12, marginTop: 14, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1 }}>
+                반환 확인 · {(mine ? 1 : 0) + (theirs ? 1 : 0)}/2
+              </Text>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 6, lineHeight: 23 }}>
+                {done
+                  ? `${report?.dogName ?? '반려견'}가 집에 돌아왔어요`
+                  : mine
+                    ? '러너 확인을 기다리고 있어요'
+                    : `${report?.dogName ?? '반려견'}를 받으셨나요?`}
+              </Text>
+              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>
+                {done
+                  // 🔴 [cold review #5] `sealedAt` is `settlement_ready_at` — 「money MAY move」 —
+                  // and a settlement moves the row to `completed` in the same transaction. So a
+                  // visible `sealedAt` on a row still `active` means SEALED AND NOT SETTLED, the
+                  // stranded state exactly; claiming 「정산이 기록됐어요」 there paints a failure as
+                  // the happy path. This block only renders for non-`completed` rows, so the
+                  // settled sentence is unreachable here and the honest one is the only one left.
+                  ? '양측 확인이 끝났어요 — 정산은 담당자 확인 뒤에 진행돼요'
+                  : mine
+                    ? '내 확인은 끝났어요 — 러너가 찍으면 러닝이 마무리돼요'
+                    : '러닝이 끝났어요. 반려견을 인계받으셨으면 확인해주세요 — 둘 다 확인해야 러닝이 마무리돼요'}
+              </Text>
+              <Row style={{ gap: 14, marginTop: 12 }}>
+                {([['보호자', mine], ['러너', theirs]] as const).map(([label, on]) => (
+                  <View
+                    key={label}
+                    style={{
+                      flex: 1, alignItems: 'center', paddingVertical: 12,
+                      borderWidth: 1.5, borderColor: on ? paper.ready : '#D8D3E6',
+                      backgroundColor: on ? paper.ready : paper.canvas,
+                    }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: on ? '#FFFFFF' : paper.faint }}>{label}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: on ? '#FFFFFF' : paper.faint, marginTop: 2 }}>
+                      {on ? '확인 완료' : '확인 대기'}
+                    </Text>
+                  </View>
+                ))}
+              </Row>
+              {!mine && (
+                <PaperBtn
+                  label="인계받았어요 — 확인"
+                  busyLabel="확인하는 중..."
+                  busy={sealBusy}
+                  disabled={sealBusy}
+                  style={{ alignSelf: 'stretch', marginTop: 14 }}
+                  onPress={async () => {
+                    if (!bid || sealBusy) return;
+                    setSealBusy(true);
+                    setSealActionErr(null);
+                    try {
+                      await confirmRunReturn(bid);
+                      // Re-read rather than trust the response's optimism — and reload the whole
+                      // report, because the settlement the second stamp triggers changes the
+                      // money line below too.
+                      load();
+                    } catch (e) {
+                      setSealActionErr((e as Error).message || '확인에 실패했어요 — 다시 시도해주세요');
+                    } finally { setSealBusy(false); }
+                  }}
+                />
+              )}
+              {!!sealActionErr && (
+                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical, marginTop: 10, lineHeight: 21 }}>
+                  {sealActionErr}{'\n'}다시 시도해도 안전해요 — 같은 확인은 한 번만 기록돼요.
+                </Text>
+              )}
+            </View>
+          );
+        })()}
 
         {report && run && (
           <>
