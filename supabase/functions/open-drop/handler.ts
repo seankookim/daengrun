@@ -20,18 +20,15 @@ import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, callerBoundClient, HttpError, internalError } from "../_shared/ctx.ts";
 
 /**
- * The RPC's raise tokens → the vocabulary the client already keys on (`rewards.tsx` shows the
- * message verbatim in an alert, `api.ts` surfaces `error` as-is). Four of these are the sentences
- * the old handler threw, so nothing the client sees changes for them; `drop_pays_nothing` is new —
- * 0176's arm 8 refuses a drop that would pay `{}` instead of consuming it for a success alert — and
- * it carries the honest Korean sentence because no existing token means that.
+ * Preserve the RPC's user-facing detail and keep its token separately for diagnostics.
+ * These sentences are fallbacks for mapped refusals without a detail.
  */
 export const RPC_TOKEN_MAP: Record<string, { status: number; message: string }> = {
-  not_signed_in: { status: 401, message: "unauthorized" },
-  drop_not_found: { status: 404, message: "drop not found" },
-  not_drop_owner: { status: 403, message: "not yours" },
-  already_opened: { status: 409, message: "already opened" },
-  bad_pick_choice: { status: 400, message: "pick_choice required" },
+  not_signed_in: { status: 401, message: "로그인이 필요해요" },
+  drop_not_found: { status: 404, message: "드랍을 찾을 수 없어요" },
+  not_drop_owner: { status: 403, message: "내 드랍만 열 수 있어요" },
+  already_opened: { status: 409, message: "이미 열린 드랍이에요" },
+  bad_pick_choice: { status: 400, message: "보상을 하나 골라 주세요" },
   drop_pays_nothing: { status: 409, message: "이 드랍에는 보상이 없어요 — 관리자 확인이 필요해요" },
 };
 
@@ -63,7 +60,7 @@ export async function openDrop(
 
   if (error) {
     const mapped = RPC_TOKEN_MAP[error.message];
-    if (mapped) throw new HttpError(mapped.status, mapped.message);
+    if (mapped) throw new HttpError(mapped.status, error.details || mapped.message, error.message);
     // Anything else — a permission error from a mis-wired key, a network failure, a Postgres text
     // no token covers — is OURS, and its sentence stays in the log (audit · L1).
     throw internalError(

@@ -765,13 +765,28 @@ export async function cardRegistrationLive(): Promise<boolean> {
   return data === true;
 }
 
+function billingAuthError(error: Error): Error {
+  const messages: Record<string, string> = {
+    card_registration_not_live: '지금은 카드를 등록할 수 없어요',
+    billing_key_busy: '등록이 진행 중이에요 — 잠시 후 다시 시도해주세요',
+    stale_attempt: '연결 창이 만료됐어요 — 다시 시작해주세요',
+    no_profile: '프로필을 찾지 못했어요',
+    auth_key_required: '카드 연결에 실패했어요 — 다시 시도해주세요',
+    customer_key_mismatch: '카드 연결에 실패했어요 — 다시 시도해주세요',
+    toss_no_billing_key: '카드 연결에 실패했어요 — 다시 시도해주세요',
+    'unknown action': '카드 연결에 실패했어요 — 다시 시도해주세요',
+  };
+  const message = messages[error.message];
+  return message ? new Error(message, { cause: error }) : error;
+}
+
 export interface BillingAttempt { customerKey: string; nonce: string }
 
 export async function prepareBillingAuth(): Promise<BillingAttempt> {
   const { data, error } = await supabase.functions.invoke('register-billing-key', {
     body: { action: 'prepare' },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  if (error || data?.error) throw billingAuthError(await fnError(error, data));
   return { customerKey: data.customer_key as string, nonce: data.nonce as string };
 }
 
@@ -781,7 +796,7 @@ export async function issueBillingKey(
   const { data, error } = await supabase.functions.invoke('register-billing-key', {
     body: { action: 'issue', auth_key: authKey, nonce, customer_key: customerKeyEcho },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  if (error || data?.error) throw billingAuthError(await fnError(error, data));
   return { brand: data.brand ?? null, last4: data.last4 ?? null };
 }
 
@@ -881,7 +896,17 @@ export async function retryCollect(bookingId: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('collect-charges', {
     body: { booking_id: bookingId },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  if (error || data?.error) {
+    const original = await fnError(error, data);
+    const messages: Record<string, string> = {
+      forbidden: '이 예약의 청구가 아니에요',
+      'missing fields': '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
+      internal: '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
+      bad_body: '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
+    };
+    const message = messages[original.message];
+    throw message ? new Error(message, { cause: original }) : original;
+  }
 }
 
 // ---------- my bookings → UI Booking ----------
@@ -1133,7 +1158,13 @@ async function invokeTransition(bookingId: string, action: string, meta?: Record
   const { data, error } = await supabase.functions.invoke('transition-booking', {
     body: { booking_id: bookingId, action, meta },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  if (error || data?.error) {
+    const original = await fnError(error, data);
+    const msg = original.message;
+    throw !/[가-힣]/.test(msg)
+      ? new Error('요청을 처리하지 못했어요 — 다시 시도해주세요', { cause: original })
+      : original;
+  }
   return data;
 }
 
@@ -1431,12 +1462,27 @@ export async function settleRun(p: {
   condition_note?: string;
 }): Promise<SettleResult> {
   const { data, error } = await supabase.functions.invoke('settle-run', { body: p });
-  if (error || data?.error) throw await fnError(error, data);
+  if (error || data?.error) {
+    const original = await fnError(error, data);
+    if (/[가-힣]/.test(original.message)) throw original;
+    const messages: Record<string, string> = {
+      'assigned runner only': '이 러닝에 배정된 러너만 정산할 수 있어요',
+      'condition_note required': '무슨 일이 있었는지 적어주세요',
+      'booking not found': '이 예약을 찾을 수 없어요',
+      'duration_sec invalid': '정산하지 못했어요 — 다시 시도해주세요',
+      'missing fields': '정산하지 못했어요 — 다시 시도해주세요',
+      bad_body: '정산하지 못했어요 — 다시 시도해주세요',
+      internal: '정산하지 못했어요 — 다시 시도해주세요',
+    };
+    const message = messages[original.message];
+    throw message ? new Error(message, { cause: original }) : original;
+  }
   return data as SettleResult;
 }
 
 // 러너의 확정/진행/완료 작업 목록 (캘린더 = 내 커밋먼트 뷰)
 export interface RunnerJob {
+  ledgerRead: boolean;
   bookingId: string;
   when: string;
   /** 예정 시각 원본 (bookings.scheduled_at, ISO). `when`은 이미 조판된 라벨이라 '오늘인가'를
@@ -1506,6 +1552,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
   // 구성 요소가 wire에 오르지 않는다. 이 쿼리의 모든 행은 runner_id = 나이므로 coeffs RPC의
   // 파티 생략이 여기서 빈칸을 만들 수 없다 — 만들면 그건 서버 결함이고 아래서 크게 던진다.
   const ids = (data ?? []).map((r: any) => r.id);
+  let ledgerRead = true;
   const netByBooking: Record<string, number> = {};
   const expectedByBooking: Record<string, number> = {};
   if (ids.length > 0) {
@@ -1513,7 +1560,10 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       supabase.rpc('my_booking_nets', { p_bookings: ids }),
       supabase.rpc('my_run_net_coeffs', { p_bookings: ids }),
     ]);
-    if (nets.error) console.warn('[jobs] nets:', nets.error.message);
+    if (nets.error) {
+      console.warn('[jobs] nets:', nets.error.message);
+      ledgerRead = false;
+    }
     (nets.data ?? []).forEach((l: any) => { netByBooking[l.booking_id] = l.net; });
     if (coeffs.error) throw coeffs.error;
     (coeffs.data ?? []).forEach((c: any) => { expectedByBooking[c.booking_id] = c.expected_net; });
@@ -1523,6 +1573,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
       bookingId: r.id,
+      ledgerRead: ledgerRead || netByBooking[r.id] != null,
       when: `${dateLabel} ${timeLabel}`,
       scheduledAt: r.scheduled_at ?? null,
       dogName: r.dogs?.name ?? '반려견',

@@ -120,11 +120,11 @@ Deno.test("[caller client] a pick choice passes through unchanged", async () => 
 // ═══ THE TOKEN MAP — each raise becomes the sentence the client already keys on ═════════════
 Deno.test("[tokens] every raise token maps to its status and sentence, and the handler writes nothing", async () => {
   const expected: Record<string, [number, string]> = {
-    not_signed_in: [401, "unauthorized"],
-    drop_not_found: [404, "drop not found"],
-    not_drop_owner: [403, "not yours"],
-    already_opened: [409, "already opened"],
-    bad_pick_choice: [400, "pick_choice required"],
+    not_signed_in: [401, "로그인이 필요해요"],
+    drop_not_found: [404, "드랍을 찾을 수 없어요"],
+    not_drop_owner: [403, "내 드랍만 열 수 있어요"],
+    already_opened: [409, "이미 열린 드랍이에요"],
+    bad_pick_choice: [400, "보상을 하나 골라 주세요"],
     drop_pays_nothing: [409, "이 드랍에는 보상이 없어요 — 관리자 확인이 필요해요"],
   };
   // The map under test and the table above must name the same tokens — a token added to the
@@ -138,7 +138,7 @@ Deno.test("[tokens] every raise token maps to its status and sentence, and the h
     );
     assertEquals(err.status, status, `${token} must be ${status}`);
     assertEquals(err.message, message, `${token} must say ${message}`);
-    assertEquals(err.code, undefined, `${token} is a 4xx contract token, not an internal error`);
+    assertEquals(err.code, token, `${token} remains available as a separate code`);
     assertEquals(s.udb.log, ["rpc:open_drop_tx"], `${token}: exactly one rpc call`);
     assertEquals(writes(s.db), [], `${token}: the handler wrote through the service client`);
     assertEquals(writes(s.udb), [], `${token}: the handler wrote through the user client`);
