@@ -188,6 +188,27 @@ the new `paid_payout_id` and the writer never releases it. Correct-forward **019
 to the 0186 builder (try-lock + race arm; retention reads the unpaid marker; release on the final
 payment; both orders pinned). The letter should carry 0190 with 0186.
 
+**2026-09-21 02:49 — `e13c61a` THE RUN-END RETURN CEREMONY LANDED** (0188 + suite 219 + edge actions `end_run` /
+`confirm_return` in transition-booking + `runner/return-seal.tsx` + ⑫ on the owner report + the R1c
+work-gate strip on runner home; union-merged REGISTRY/manifest, 0 markers; combined tree: harness
+**1330/0** = 1321 + 9 pins `0188-A1…D1` · deno **354/0** = 336 + 18 · tsc · checks (65 routes) ·
+**npm 1068/0** = 1049 + 19). The 1:1 sequence is now: stop → `end_run_tx` freezes the numbers and
+stamps `run_ended_at` (status stays `active` — the state the work gate reads) → 「반환 확인 요청」 to the
+owner, runner gated → both stamp via `confirm_return_tx` → **the second stamp seals AND settles in one
+locked transaction** using 0083 §6's `p_quote` (never used before), so a phone that dies after its tap
+cannot strand a settlement. `settle_run_tx`'s existing `return_not_sealed` guard is now ARMED.
+Two defects the slice armed and fixed: sweep arm ⓑ escalated a one-stamp strand to `incident_review`
+(permanently unpayable — 0066 gives that state one edge) and now only escalates zero-stamp returns;
+`confirm_return_tx` was granted to `authenticated` (a direct second stamp via PostgREST would seal with
+no settlement) and is revoked. Cold executing review REJECT/12 → all fixed before push, notably five
+live surfaces that read `active` as 「running」 (owner/live never exited, its 5 s tick overwrote the
+server's `homeward` Live Activity banner; hero gains a seventh state `returning`). **Twenty-nine
+pending.** Deploy: `db push` → `functions deploy transition-booking` → client build; then Sean sets
+`ops_flags.return_seal_since` AFTER the build reaches devices (closes 0083's old-client arm). Open, for
+Sean (queue item 23): a one-stamp strand is preserved but UNBOUNDED after one alarm at 2 h, and
+`force_return_tx` — the named remedy — has no caller anywhere. Device-visual UNVERIFIED (rebuilding);
+Codex review running.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
