@@ -372,9 +372,12 @@ export default function Meetup() {
               onPress={() => openDirections(pickup.a!.lat!, pickup.a!.lng!, pickup.a!.label)}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel="길찾기"
+              accessibilityLabel="네이버 지도에서 길찾기 — 앱 밖으로 이동해요"
             >
-              <Text style={s.naviChipTxt}>길찾기</Text>
+              {/* HIG (spec: a Naver deep link is a third-party hand-off — say so): the chip names the
+                  app it opens and the arrow says the person is leaving. Copy only; the frozen stage
+                  machine and the handler are untouched. */}
+              <Text style={s.naviChipTxt}>네이버 지도로 길찾기 ↗</Text>
             </Pressable>
           </>
         ) : (
