@@ -11,6 +11,7 @@ const path = require('path');
 const {
   destinationForBookingRef, needsClubProbe, needsCurrentBookingProbe, HANDOFF_TITLES, RUNNER_ROUTES,
   OWNER_MEETUP_TITLES, CHAT_TITLE, RUN_STOP_TITLE, ESCALATION_TITLE, CLUB_PROBE_TITLES,
+  RETURN_TITLES, RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -126,6 +127,60 @@ t('needsCurrentBookingProbe: owner meetup titles only, never for the runner',
     missing.length === 0, 'missing: ' + JSON.stringify(missing));
   t('every HANDOFF_TITLE has a 1:1 runner route (the club branch replaces a real destination, it does not fill a hole)',
     HANDOFF_TITLES.every((x) => typeof RUNNER_ROUTES[x] === 'string'));
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0188] THE RETURN FAMILY — ⑪'s two-stamp return is NOT the pickup handoff
+// ══════════════════════════════════════════════════════════════════════════════════════════
+for (const title of RETURN_TITLES) {
+  t(`1:1 · ${title} · runner → /runner/return-seal (the only screen with the 봉인 control)`,
+    dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/return-seal',
+    show(dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })));
+  t(`1:1 · ${title} · owner → the bid-scoped report, even when it IS the current booking`,
+    isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }))
+    && isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: false })),
+    show(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true })));
+}
+// 🔴 The membership test, and it is the one that would have caught the club defect in reverse:
+// a return title in HANDOFF_TITLES would be in OWNER_MEETUP_TITLES (→ /owner/meetup, whose CTA
+// gates on an arrival stage and has no return control) AND in CLUB_PROBE_TITLES (→ the club
+// session screen). Both are screens with no button for this action.
+t('the return family is in NEITHER the handoff family NOR the club probe set (a return is not a pickup)',
+  RETURN_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !OWNER_MEETUP_TITLES.includes(x) && !CLUB_PROBE_TITLES.includes(x)),
+  JSON.stringify(RETURN_TITLES.filter((x) => HANDOFF_TITLES.includes(x) || OWNER_MEETUP_TITLES.includes(x) || CLUB_PROBE_TITLES.includes(x))));
+t('no return title needs a club probe (end_run_tx / confirm_return_tx both raise club_out_of_scope, so one can never exist)',
+  RETURN_TITLES.every((x) => !needsClubProbe(x)));
+t('no return title needs the current-booking probe (the report is bid-scoped and always right)',
+  RETURN_TITLES.every((x) => !needsCurrentBookingProbe('owner', x) && !needsCurrentBookingProbe('runner', x)));
+t('every return title has a runner route (the family is complete — a missing one falls to the calendar silently)',
+  RETURN_TITLES.every((x) => RUNNER_ROUTES[x] === '/runner/return-seal'));
+
+// ── the titles are the SERVER's, not this file's opinion: read them out of the real sources ──
+// (comment lines stripped first — a comment quoting a title must not satisfy a check for the code
+// that writes it; the standing comment-matching law.)
+{
+  const edgeDir = path.resolve(__dirname, '../../supabase/functions/transition-booking');
+  const strip = (f) => fs.readFileSync(f, 'utf8').split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+  const endRunSrc = strip(path.join(edgeDir, 'end_run.ts'));
+  const confirmSrc = strip(path.join(edgeDir, 'confirm_return.ts'));
+  const ask = endRunSrc.match(/RETURN_ASK_TITLE = "([^"]+)"/);
+  const sealed = confirmSrc.match(/RETURN_SEALED_TITLE = "([^"]+)"/);
+  t('the edge declares the return ask title', !!ask, 'no RETURN_ASK_TITLE in end_run.ts');
+  t('the edge declares the return sealed title', !!sealed, 'no RETURN_SEALED_TITLE in confirm_return.ts');
+  t("the client's RETURN_ASK_TITLE equals the edge's", !!ask && ask[1] === RETURN_ASK_TITLE, ask ? `edge: ${ask[1]} client: ${RETURN_ASK_TITLE}` : '');
+  t("the client's RETURN_SEALED_TITLE equals the edge's", !!sealed && sealed[1] === RETURN_SEALED_TITLE, sealed ? `edge: ${sealed[1]} client: ${RETURN_SEALED_TITLE}` : '');
+
+  const sqlPath = path.resolve(__dirname, '../../supabase/migrations/0188_run_end_ceremony_wiring.sql');
+  const sql = fs.readFileSync(sqlPath, 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const stuck = sql.match(/c_ret_title\s+constant text := '([^']+)'/);
+  t('migration 0188 declares the stuck-return title the client routes on', !!stuck, 'no c_ret_title in 0188');
+  t("the client's RETURN_STUCK_TITLE equals the sweep's c_ret_title",
+    !!stuck && stuck[1] === RETURN_STUCK_TITLE, stuck ? `sweep: ${stuck[1]} client: ${RETURN_STUCK_TITLE}` : '');
+  // the 0083 escalation title survives 0188's narrowing for the zero-stamp case, and 0188
+  // reproduces it verbatim — so it must still be present in the recreated body.
+  t("0188's arm ⓑ still writes the 0083 escalation title (the zero-stamp case is unchanged)",
+    sql.includes(`'${RETURN_ESCALATION_TITLE}'`), RETURN_ESCALATION_TITLE);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

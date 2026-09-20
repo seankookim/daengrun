@@ -1268,15 +1268,24 @@ begin
     -- positive control: the three client-facing RPCs ARE callable (else the pin proves nothing —
     -- and in particular, `force_return_tx` above is not passing because the whole §6 family got
     -- revoked by accident)
-    foreach f in array array['confirm_return_tx(uuid,text,jsonb)',
-                             'custody_ping(uuid)', 'append_run_event(uuid,jsonb)'] loop
+    -- ⚠ [0188] `confirm_return_tx` LEFT this positive control, and the change is the point of
+    -- 0188 §B rather than a relaxation. It was granted to `authenticated` and lives in `public`,
+    -- which PostgREST exposes — so once the run-end ceremony gave marketplace bookings a
+    -- `run_ended_at`, any signed-in party could POST the RPC directly, and a client may not bring
+    -- a price (`quote_from_client`): their stamp, if it was the SECOND, sealed the row and settled
+    -- nothing, with no product repair afterwards. Every party stamp now goes through
+    -- `transition-booking { action: 'confirm_return' }` (service_role, always priced), so the
+    -- behaviour 0096 documents is unchanged in substance. THE NEW PROPERTY IS OWNED BY
+    -- `219 0188-D1`, which asserts the revoke AND that service_role still holds it (a revoke that
+    -- took the server's grant with it would strand every settlement instead of one).
+    foreach f in array array['custody_ping(uuid)', 'append_run_event(uuid,jsonb)'] loop
       if not has_function_privilege('authenticated', f, 'execute')
         then v_bad := v_bad || ' ' || f || ':authenticated 불가'; end if;
       if has_function_privilege('anon', f, 'execute') then v_bad := v_bad || ' ' || f || ':anon 가능'; end if;
     end loop;
 
     if v_bad = ''
-      then call _pass('ren','R13 권한 매트릭스 — 동결·정산·스윕에 더해 강제까지 service_role 전용(0089: 강제는 운영 판정이므로 폰은 실행 권한 자체를 갖지 않는다), 인계 확인·하트비트·append만 authenticated (양성 대조 포함)');
+      then call _pass('ren','R13 권한 매트릭스 — 동결·정산·스윕에 더해 강제까지 service_role 전용(0089: 강제는 운영 판정이므로 폰은 실행 권한 자체를 갖지 않는다), 하트비트·append만 authenticated (양성 대조 포함). [0188 §B] confirm_return_tx는 authenticated에서 회수됐다 — 폰이 두 번째 스탬프가 되면 가격 없이 봉인만 남고(quote_from_client) 앱에서 고칠 길이 없다; 모든 당사자 스탬프는 이제 transition-booking(service_role, 항상 가격 동반)을 지난다. 새 성질은 219 0188-D1이 소유한다');
     else v_msg := v_bad; call _fail('ren','R13 권한 매트릭스', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('ren','R13 권한 매트릭스', v_msg);
   end;

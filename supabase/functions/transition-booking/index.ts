@@ -1,7 +1,7 @@
 // 예약 상태 전이 — 액션 기반. DB 트리거가 최종 검증하고, 여기서 부수효과(알림·양측 인계) 처리.
 // input: { booking_id, action, meta? }
 // actions: runner_accept | runner_decline | request_runner | enroute | arrived | confirm_handoff
-//        | start_run | cancel_owner
+//        | start_run | end_run | confirm_return | cancel_owner
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 //
 // ═══ [O-5 §C.2] `payment_ok` IS DELETED — there is no pre-run payment step ════════════════════
@@ -35,6 +35,8 @@
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 import { cancelOwner } from "./cancel_owner.ts";
 import { startRun } from "./start_run.ts";
+import { endRun } from "./end_run.ts";
+import { confirmReturn } from "./confirm_return.ts";
 
 Deno.serve(handle(async (req) => {
   const db = admin();
@@ -406,6 +408,26 @@ Deno.serve(handle(async (req) => {
       if (!isRunner) throw new HttpError(403, "runner only");
       await startRun(db, { bookingId: booking_id, uid, bk, notify });
       break;
+
+    // ═══ [0188] THE RUN-END CEREMONY — the run's closing bookend, in two actions ═════════════
+    // `end_run` FREEZES and stops there; `confirm_return` carries the stamps and, on the second
+    // one, the settlement. Before this slice `runner/run.tsx` called `settle-run` at the stop and
+    // the booking went `active → completed` with the dog still on the leash — `end_run_tx` (0083)
+    // and `runner_work_gate` (0092) had been shipped and INERT since August with zero callers.
+    //
+    // Both return their result rather than falling through to the switch's tail: the client needs
+    // the seal state to draw R6a/b/c, and a boolean the screen has to re-derive from a second
+    // fetch is how two surfaces start disagreeing about one booking.
+    case "end_run":
+      return await endRun(db, { bookingId: booking_id, uid, bk, meta, notify });
+
+    // ⚠ NO `isRunner`/`isOwner` BRANCH HERE, and that is deliberate rather than an omission: the
+    // side is DERIVED inside `confirm_return.ts` from the verified `uid`, never read from `meta`.
+    // This function calls the RPC as service_role, so `confirm_return_tx`'s own party gate is the
+    // server-caller branch and cannot see who asked — which makes that derivation the only thing
+    // standing between a runner and both stamps. See that file's §1.
+    case "confirm_return":
+      return await confirmReturn(db, { bookingId: booking_id, uid, bk, notify });
 
     // 0066's fee ladder + the charge slice's collection half (§0-ter #5) — see cancel_owner.ts.
     // This one case lives in its own file because `Deno.serve` at this module's top level makes

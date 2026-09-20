@@ -32,7 +32,16 @@ import { layout, paper } from '../theme';
 import { sinceLabel, type Lateness } from '../lib/lateness';
 import { DrawButton } from './draw-button';
 
-export type HomeGoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
+// [0188] `returning` is the SEVENTH state, and it exists because `active` stopped being one thing.
+// Before the run-end ceremony the stop settled, so `active` meant 「running」 and the hero's live
+// widget was always true. The ceremony leaves the booking `active` through the whole two-stamp
+// return, so without a separate state the hero says 「N분째 달리는 중 — 지도 보기 ›」 about a dog
+// that is home, and offers a live map instead of the one action the owner actually owes.
+// ⚠ It is NOT folded into `handoff`: that state's copy is the PICKUP ("러너가 도착했어요 · 만나서
+// 인계해주세요", "아이를 넘기고 봉인해요") and routes to /owner/meetup, so reusing it would trade
+// one false sentence for another. Coral, because by the GO law coral is the user's turn and
+// confirming the return IS the owner's turn (DESIGN.md §GO).
+export type HomeGoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'returning' | 'active';
 
 export interface HomeHeroNext {
   id: string;
@@ -164,6 +173,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
     //      CTA 를 연다. 즉 이 버튼이 **16일 된 예약을 되살리는 경로**였다 — 천장 규칙이 막으려던 바로 그것.
     if (isLate) { router.push('/owner/schedule'); return; }
     if (state === 'active') router.push('/owner/live');
+    // [0188] the ⑫ gate lives on the report, and the report is bid-scoped — /owner/live would
+    // bounce straight back here now that it routes a returning run to the report itself.
+    else if (state === 'returning') router.push(next?.id ? { pathname: '/owner/report', params: { bid: next.id } } : '/owner/schedule');
     else if (state === 'handoff' || state === 'confirmed') router.push('/owner/meetup');
     else router.push('/owner/radar');
   };
@@ -253,6 +265,31 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           <DrawButton title="인계하기" sub="아이를 넘기고 봉인해요" ground="coral" art="leash"
             dot onPress={openNext} accessibilityLabel="인계하기" />
           <DrawButton title="채팅" sub="늦으면 알려주세요" ground="lilac" art="chat"
+            small onPress={openChat} />
+        </View>
+      </View>
+    );
+  }
+
+  // ── [0188] returning: 내 차례 — the run is over and the dog is coming home ─────
+  // Same grammar as `handoff` (coral chip, one primary), different sentence: nothing has arrived,
+  // the run has ENDED, and what is owed is a confirmation rather than a meeting. No live widget
+  // and no elapsed clock: both would be claims about a run in progress.
+  if (state === 'returning') {
+    return (
+      <View style={s.wrapTight}>
+        {errRow}
+        {lateStrip}
+        <View style={s.chipRow}>
+          <View style={[s.chipDot, { backgroundColor: paper.action }]} />
+          <Text style={[s.chipTx, { color: paper.action }]}>내 차례</Text>
+        </View>
+        <Phrase top="러닝이 끝났어요" bottom={`${name} 인계 확인`} df={df} />
+        <Text style={s.sub}>{runner}가 {name}를 돌려주고 있어요 · 받으셨으면 확인해주세요</Text>
+        <View style={s.opts}>
+          <DrawButton title="인계 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
+            dot onPress={openNext} accessibilityLabel="인계 확인하기" />
+          <DrawButton title="채팅" sub="만나는 곳을 정해요" ground="lilac" art="chat"
             small onPress={openChat} />
         </View>
       </View>
