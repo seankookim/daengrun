@@ -505,3 +505,180 @@ async function notifyOwner(db: SupabaseClient, ownerId: string, bookingId: strin
     .insert({ profile_id: ownerId, kind: "booking", title, body, ref_id: bookingId });
   if (error) console.error(`[charge] owner notify failed booking=${bookingId}: ${error.message}`);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// SETTLE-TIME COLLECTION — moved here from `settle-run/handler.ts` 2026-09-21, UNCHANGED
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Why it moved: THE SETTLE DOOR IS NO LONGER ONE DOOR. Since the run-end ceremony (0188) a 1:1
+// booking settles inside `confirm_return_tx`, driven by `transition-booking`'s `confirm_return`
+// action — and that path ran the settlement without ever running this. Nothing was LOST (the
+// 5-minute `sweep_settled_without_payments` covers a settled booking with no `payments` row), but
+// the two doors had different post-settle behaviour, and once charging flips the difference is
+// visible to the owner as `collect_pending` for up to five minutes.
+//
+// 🔴 The bodies below are the handler's, byte-for-byte, and that is deliberate rather than lazy:
+// a second copy of a money branch is the thing this repo's laws are most consistent about
+// refusing ("the moment money logic exists in two languages, it drifts" — the comment is three
+// lines down, and it applies just as well to two copies of one language). `settle-run` now
+// imports this instead of owning it, so both doors run the SAME collection or neither does.
+//
+// ⚠ The doctrine rides along with the code and is not re-litigated at the new call site:
+//   · settlement NEVER waits on collection — the ledger has already committed when this runs;
+//   · nothing in here can throw upward — every path returns a `{collection, detail}`;
+//   · and the outcome NEVER reaches the HTTP response. For `settle-run` the reason is that the
+//     caller is the assigned runner and the owner's card is not theirs to learn. For
+//     `confirm_return` the caller may be EITHER party, and it still does not: the owner's
+//     「정산됨 · 결제 실패」 state belongs to the owner's own surface (`app/src/lib/payphase.ts`
+//     and /payments), which reads the `payments` row directly and is the one place that can say
+//     it at the right moment rather than only in the second that a stamp happened to land.
+export type Collection =
+  | "confirmed" | "failed" | "waived" | "skipped_no_card" | "prepaid" | "skipped_not_live" | "lost";
+
+// `collection` is the coarse answer to "was this collected?" — 'failed' there means *not
+// collected*, and `collection_detail` says which kind of not-collected it was.
+const COARSE: Record<ChargeOutcome, Collection> = {
+  confirmed: "confirmed",
+  waived: "waived",
+  skipped_no_card: "skipped_no_card",
+  needs_card_relink: "failed",
+  unresolved: "failed",
+  failed: "failed",
+  noop: "failed",
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Collection branch — everything in here is best-effort and nothing in here can throw upward
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// The mint is a single SQL truth (`mint_settle_charge_intent`): it decides the amount from the
+// booking's FROZEN numbers (§0-ter #6), decides waive vs charge (G1), decides whether charging is
+// live at all (`ops_flags.payments_live_since`), and is idempotent, so a second call can never
+// produce a second row. This function passes the end_reason and the actual km and computes NO
+// money of its own — the moment money logic exists in two languages, it drifts.
+export async function collectAfterSettle(
+  db: SupabaseClient,
+  bookingId: string,
+  endReason: string,
+  actualKm: number,
+): Promise<{ collection: Collection; detail: string }> {
+  try {
+    const { data, error } = await db.rpc("mint_settle_charge_intent", {
+      p_booking: bookingId,
+      p_end_reason: endReason,
+      p_actual_km: actualKm,
+    });
+    if (error) throw new Error(error.message);
+
+    // ZERO ROWS = charging is not live for this run (`ops_flags.payments_live_since` null, or the
+    // run ended before the cutover instant). Not an error, not a debt, not a pending row waiting
+    // to be swept: the mint deliberately wrote NOTHING, so there is nothing here to dispatch and
+    // nothing left behind. Every pre-cutover run in the card-less pilot lands here.
+    if (Array.isArray(data) && data.length === 0) {
+      return { collection: "skipped_not_live", detail: "not_live" };
+    }
+
+    // `returns table(...)` comes back as an array through PostgREST; tolerate both shapes.
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { payment_id: string; order_id: string; amount: number; status: string; minted: boolean }
+      | null
+      | undefined;
+    if (!row) throw new Error("mint_settle_charge_intent returned no row");
+
+    if (row.status === "waived") return { collection: "waived", detail: "waived" };
+    if (row.status === "confirmed") return { collection: "prepaid", detail: "prepaid" };
+    if (row.status !== "pending") return { collection: COARSE.failed, detail: `existing_${row.status}` };
+
+    // Pending — ours to attempt now. (Also when `minted` is false: a pre-existing pending settle
+    // intent carries the SAME order_id, so re-dispatching it is idempotent by construction, and
+    // reporting it as uncollected while never trying would be the worse of the two.)
+    const res = await dispatchCharge(db, row.payment_id);
+    return { collection: COARSE[res.outcome], detail: res.error ? `${res.outcome}:${res.error}` : res.outcome };
+  } catch (e) {
+    // The settlement stands. But "the collection branch threw" was ONE word for two outcomes with
+    // opposite consequences, so the next line works out which one this was.
+    return await afterCollectionThrew(db, bookingId, endReason, actualKm, e);
+  }
+}
+
+/**
+ * ═══ [codex 2026-08-28, finding 12] The catch above used to end here, at `{collection:"failed"}`
+ * and one `console.error`. That single word covered two states that are NOT the same failure:
+ *
+ *   ⓐ the exception came from `dispatchCharge` — the mint had already committed a `payments` row,
+ *      so the charge is RECOVERABLE WITHOUT A HUMAN. `collect-charges`' cron sweep selects
+ *      `status in (pending, failed)` with a `raw.kind`, and `isDue` (collect-charges/handler.ts:228)
+ *      counts a never-dispatched pending as due on its very next wake. The owner also sees the row
+ *      on /payments, with its retry.
+ *   ⓑ the exception came from the MINT itself — and then there is no `payments` row at all. The
+ *      sweep queries the `payments` table, so it has nothing to find; the manual owner CTA reads
+ *      the same table, so it has nothing to retry. **The ledger paid the runner and the charge is
+ *      gone, permanently, with nothing anywhere that will ever notice.**
+ *
+ * Neither is reachable today — the `skipped_not_live` branch above returns first while
+ * `ops_flags.payments_live_since` is NULL (verified NULL on production 2026-08-28), and the
+ * deployed mint's own first two statements return empty in exactly that case. This arms with the
+ * flag; it is written now because the difference is invisible afterwards.
+ *
+ * So: ONE re-attempt at the mint, then say which state we are in.
+ *
+ * ⚠ Safe by CONSTRUCTION, not by hope, and the construction was read off the deployed `prosrc`
+ * rather than a migration file: `mint_settle_charge_intent` takes
+ * `pg_advisory_xact_lock('mint:'||booking)`, looks for an existing row first and returns it with
+ * `minted=false`, and `payments.order_id` is UNIQUE. A second call cannot produce a second charge.
+ * It also does NOT re-dispatch — if ⓐ left a row carrying `raw.dispatched_at`, this probe reads it
+ * and stops, because blind-refiring a dispatched pending is the one thing §0-ter #2 forbids.
+ *
+ * ⚠ AND THIS DELIBERATELY DOES NOT REACH THE RESPONSE. The review's suggested fix was to return
+ * the collection status, and that is refused here: the caller of `settle-run` is the ASSIGNED
+ * RUNNER (`assigned runner only`, :60), the ordering law pays them either way, and whether the
+ * owner's card worked is not theirs to learn — see this file's header and the warning at the top
+ * of `_test/settle_charge_test.ts`. The distinct 「정산됨 · 결제 실패」 state belongs to the OWNER,
+ * and it is built on the owner's own surface (`app/src/lib/payphase.ts`, same slice).
+ */
+async function afterCollectionThrew(
+  db: SupabaseClient,
+  bookingId: string,
+  endReason: string,
+  actualKm: number,
+  cause: unknown,
+): Promise<{ collection: Collection; detail: string }> {
+  const why = cause instanceof Error ? cause.message : String(cause);
+  let rowStatus: string | null = null;
+  let probeErr: string | null = null;
+  try {
+    const { data, error } = await db.rpc("mint_settle_charge_intent", {
+      p_booking: bookingId,
+      p_end_reason: endReason,
+      p_actual_km: actualKm,
+    });
+    if (error) throw new Error(error.message);
+    if (Array.isArray(data) && data.length === 0) {
+      // The mint answered, and its answer is that charging is not live for this run. Whatever the
+      // first exception was, there is no debt behind it — nothing was ever going to be written.
+      console.log(`[settle-run] collection threw before a not-live mint booking=${bookingId}: ${why}`);
+      return { collection: "skipped_not_live", detail: `not_live_after_error:${why}` };
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as { status?: string } | null | undefined;
+    rowStatus = row && typeof row.status === "string" ? row.status : null;
+  } catch (e2) {
+    probeErr = e2 instanceof Error ? e2.message : String(e2);
+  }
+
+  if (rowStatus) {
+    // ⓐ RECOVERABLE. A machine will come back for this one; nobody has to notice it tonight.
+    console.error(
+      `[settle-run] collection threw, charge row EXISTS booking=${bookingId} status=${rowStatus} ` +
+        `— collect-charges will pick it up; owner sees it on /payments. cause=${why}`,
+    );
+    return { collection: "failed", detail: `error_row_${rowStatus}:${why}` };
+  }
+  // ⓑ NOT RECOVERABLE BY ANY MACHINE WE HAVE. The ledger committed and there is no charge row for
+  // the sweep or the owner's CTA to find. This is the one line in this function worth alerting on,
+  // so it is greppable on its own and names the booking.
+  console.error(
+    `[settle-run] CHARGE LOST booking=${bookingId} — settlement COMMITTED and no payments row ` +
+      `exists after a re-mint; nothing will retry this. cause=${why}` +
+      (probeErr ? ` remint_error=${probeErr}` : " remint_returned_no_row"),
+  );
+  return { collection: "lost", detail: `error_unminted:${why}` };
+}
