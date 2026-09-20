@@ -34,7 +34,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  confirmRunReturn, ensureThread, fetchReturnSeal, returnSealFresh, ReturnSeal,
+  confirmRunReturn, ensureThread, fetchReturnSeal, returnSealFresh, type ReturnSeal as ReturnSealRow,
 } from '../../src/lib/api';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -106,7 +106,7 @@ export default function ReturnSeal() {
   // is an honest empty state, not a crash.
   const bookingId = (typeof bid === 'string' && bid) || runnerJob.bookingId || null;
 
-  const [seal, setSeal] = useState<ReturnSeal | null>(null);
+  const [seal, setSeal] = useState<ReturnSealRow | null>(null);
   // THREE STATES, NEVER TWO: loading · loaded-and-absent · failed. Merging the last two tells a
   // runner on flaky LTE that a run they just finished does not exist (the report screen's law).
   const [state, setState] = useState<'loading' | 'ready' | 'notfound' | 'err'>(bookingId ? 'loading' : 'notfound');
