@@ -33,6 +33,7 @@ function scene(over: {
   endRunTx?: (args: Row) => { data?: unknown; error?: { message: string } };
   confirmTx?: (args: Row) => { data?: unknown; error?: { message: string } };
   payout?: (args: Row) => { data?: unknown; error?: { message: string } };
+  mint?: (args: Row) => { data?: unknown; error?: { message: string } };
 } = {}) {
   const db = new FakeDb();
   db.seed("bookings", [{
@@ -58,6 +59,13 @@ function scene(over: {
     (() => ({ data: { stamped: true, sealed: false, settled: false, unchanged: false, both_confirmed: false, case_open: false } }));
   db.rpcs["compute_runner_payout"] = over.payout ??
     (() => ({ data: [{ base: 9900, distance: 15000, addon: 0, guarantee: 0, fee: 4980 }] }));
+  // Stand-in for 0080's `mint_settle_charge_intent` — the thing that CREATES a charge, and
+  // therefore the observable for "was a charge dispatched". `waived` by default so the happy path
+  // never reaches `dispatchCharge`'s HTTP: these pins are about WHETHER collection runs from this
+  // door and with which numbers, not about how a charge is taken (settle_charge_test.ts owns
+  // that, and duplicating it here would be a second copy of a money assertion).
+  db.rpcs["mint_settle_charge_intent"] = over.mint ??
+    (() => ({ data: [{ payment_id: "p1", order_id: "o1", amount: 12000, status: "waived", minted: true }] }));
   return db;
 }
 
@@ -415,4 +423,98 @@ Deno.test("confirm_return: refusals keep their own status, and `not_party` says 
     assertEquals((err as HttpError).status, status, `${raise} → ${(err as HttpError).status}`);
     assertEquals(db.rows("notifications").length, 0);
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [2026-09-21] COLLECTION — the second half of a settle, which this door used to skip
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// `settle-run` runs `collectAfterSettle` right after its tx; `confirm_return` settles inside the
+// stamp's tx and ran nothing. The 5-minute `sweep_settled_without_payments` covered it, so nothing
+// was lost — but the two settle doors behaved differently after the money moved, and once charging
+// flips that shows to the owner as `collect_pending` for up to five minutes.
+
+const sealing = (db: FakeDb) => ({
+  bookingId: BOOKING,
+  uid: OWNER,
+  bk: { ...bk(db), runner_confirmed_return_at: "2026-09-21T10:01:00.000Z" },
+  notify: notifier(db),
+});
+const mintCalls = (db: FakeDb) => db.log.filter((l) => l.startsWith("rpc:mint_settle_charge_intent")).length;
+
+Deno.test("confirm_return: a SETTLING second stamp collects exactly once, from the FROZEN numbers", async () => {
+  const db = scene({
+    run: { actual_km: "4.20", end_reason: "owner_request" },
+    confirmTx: () => ({ data: { stamped: true, sealed: true, settled: true, unchanged: false } }),
+  });
+  let mintArgs: Row | null = null;
+  db.rpcs["mint_settle_charge_intent"] = (args: Row) => {
+    mintArgs = args;
+    return { data: [{ payment_id: "p1", order_id: "o1", amount: 12000, status: "waived", minted: true }] };
+  };
+  const res = await confirmReturn(db as never, sealing(db));
+
+  assertEquals(res.settled, true);
+  assertEquals(mintCalls(db), 1, `expected exactly one mint, got ${mintCalls(db)}`);
+  // The mint prices from the STOP's frozen row — the same numbers the settlement was priced from,
+  // read once before the tx rather than re-read after it, where a second read could disagree with
+  // the row the money actually moved on.
+  assertEquals(mintArgs!.p_booking, BOOKING);
+  assertEquals(mintArgs!.p_end_reason, "owner_request");
+  assertEquals(mintArgs!.p_actual_km, 4.2);
+});
+
+Deno.test("confirm_return: a NON-settling first stamp collects nothing", async () => {
+  const db = scene();   // default confirmTx: stamped, not sealed, not settled
+  const res = await confirmReturn(db as never, { bookingId: BOOKING, uid: RUNNER, bk: bk(db), notify: notifier(db) });
+  assert(res.stamped);
+  assertEquals(res.settled, false);
+  assertEquals(mintCalls(db), 0, "a first stamp minted a charge");
+});
+
+Deno.test("confirm_return: 🔴 a RE-TAP on a settled booking collects nothing — `settled` alone is not the gate", async () => {
+  // 0083 §6's idempotence arm answers a completed booking `{stamped:false, settled:true,
+  // unchanged:true}`. Gating the collection on `settled` alone would therefore re-enter the branch
+  // on EVERY re-entry of the seal screen — and that branch dispatches a pending row. `unchanged`
+  // is what separates "this call moved the money" from "the money was already moved".
+  const db = scene({
+    confirmTx: () => ({ data: { stamped: false, sealed: false, settled: true, unchanged: true } }),
+  });
+  const res = await confirmReturn(db as never, sealing(db));
+  assertEquals(res.settled, true);
+  assertEquals(res.unchanged, true);
+  assertEquals(mintCalls(db), 0, "a re-tap re-entered the collection branch");
+  assertEquals(db.rows("notifications").length, 0, "a re-tap notified someone");
+});
+
+Deno.test("confirm_return: a collection failure NEVER changes the answer — settlement does not wait on it", async () => {
+  // The ordering law, at the new door: the ledger has already committed when collection runs, so
+  // a mint that errors must not turn a stamp that landed into a failed tap. `collectAfterSettle`
+  // returns a verdict rather than throwing; this pin is that the caller is told nothing different.
+  const db = scene({
+    confirmTx: () => ({ data: { stamped: true, sealed: true, settled: true, unchanged: false } }),
+    mint: () => ({ error: { message: "unknown end_reason" } }),
+  });
+  const res = await confirmReturn(db as never, sealing(db));
+  assertEquals(res.stamped, true);
+  assertEquals(res.sealed, true);
+  assertEquals(res.settled, true);
+  // …and the counterparty was still told the pair completed — the collection is invisible here
+  assertEquals(db.rows("notifications").length, 1);
+  assertEquals(db.rows("notifications")[0].title, RETURN_SEALED_TITLE);
+});
+
+Deno.test("confirm_return: the collection outcome NEVER reaches the response", async () => {
+  // Same doctrine as `settle-run`, and it matters more here because the caller may be the OWNER:
+  // the 「정산됨 · 결제 실패」 state belongs to the owner's own surface (`payphase.ts` / /payments),
+  // which reads the `payments` row and can say it at the right moment rather than only in the
+  // second a stamp happened to land.
+  const db = scene({
+    confirmTx: () => ({ data: { stamped: true, sealed: true, settled: true, unchanged: false } }),
+    mint: () => ({ data: [{ payment_id: "p1", order_id: "o1", amount: 12000, status: "waived", minted: true }] }),
+  });
+  const res = await confirmReturn(db as never, sealing(db));
+  assertEquals(
+    Object.keys(res as unknown as Row).sort(),
+    ["sealed", "settled", "side", "stamped", "unchanged"],
+  );
 });

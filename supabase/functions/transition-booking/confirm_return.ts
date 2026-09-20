@@ -47,6 +47,7 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HttpError } from "../_shared/ctx.ts";
 import { RETURN_ASK_TITLE } from "./end_run.ts";
+import { collectAfterSettle } from "../_shared/charge.ts";
 
 // deno-lint-ignore no-explicit-any
 type Booking = Record<string, any>;
@@ -100,7 +101,7 @@ async function quoteFor(
   db: SupabaseClient,
   bookingId: string,
   runnerId: string | null,
-): Promise<Record<string, number> | null> {
+): Promise<{ quote: Record<string, number>; endReason: string; actualKm: number } | null> {
   const { data: run } = await db.from("runs").select("actual_km, end_reason").eq("booking_id", bookingId).maybeSingle();
   if (!run || run.actual_km == null || run.end_reason == null) return null;
   const { data: runner } = runnerId
@@ -126,11 +127,18 @@ async function quoteFor(
   // otherwise; PostgREST can hand an int back as a string, so they are coerced HERE rather than
   // discovered inside the transaction.
   return {
-    base: Number(row.base),
-    distance_pay: Number(row.distance),
-    addon_pay: Number(row.addon),
-    guarantee: Number(row.guarantee),
-    fee: Number(row.fee),
+    quote: {
+      base: Number(row.base),
+      distance_pay: Number(row.distance),
+      addon_pay: Number(row.addon),
+      guarantee: Number(row.guarantee),
+      fee: Number(row.fee),
+    },
+    // The FROZEN pair, handed back so the collection step below mints from the same numbers this
+    // settlement was priced from — read once here rather than re-read after the tx, where a
+    // second read could disagree with the row the money actually moved on.
+    endReason: String(run.end_reason),
+    actualKm: Number(run.actual_km),
   };
 }
 
@@ -167,8 +175,9 @@ export async function confirmReturn(
   // So: if the run is frozen (`run_ended_at`), a missing price is a refusal, full stop. The cost
   // is that a FIRST stamp is also refused during a pricing outage — which is the right trade:
   // a refused stamp is a retry, and a sealed-unsettled row is unrepairable from inside the app.
-  const quote = await quoteFor(db, bookingId, bk.runner_id ?? null);
-  if (bk.run_ended_at && !quote) {
+  const priced = await quoteFor(db, bookingId, bk.runner_id ?? null);
+  const quote = priced?.quote ?? null;
+  if (bk.run_ended_at && !priced) {
     throw new HttpError(503, "정산 금액을 계산하지 못했어요 — 잠시 뒤 다시 확인해주세요 (기록은 그대로예요)");
   }
 
@@ -179,6 +188,50 @@ export async function confirmReturn(
   });
   if (error) throw mapConfirmError(error.message ?? "");
   const res = { ...((data ?? {}) as Record<string, unknown>), side } as unknown as ConfirmReturnResult;
+
+  // ═══ [2026-09-21] COLLECTION — the second half of a settle, and this door was missing it ═══
+  // `confirm_return_tx` settles inside the stamp's transaction, which is the whole point of the
+  // run-end ceremony — but settlement is only HALF of what `settle-run` does. That handler runs
+  // `collectAfterSettle` immediately after its tx (handler.ts, right after `settle_run_tx`), and
+  // this path never did: the owner's charge was left entirely to the 5-minute
+  // `sweep_settled_without_payments`. Nothing was lost — the sweep is real and it finds exactly
+  // this shape — but the two settle doors behaved differently after the money moved, and once
+  // charging flips that difference is visible to the OWNER as `collect_pending` for up to five
+  // minutes after a run they just watched finish.
+  //
+  // The branch itself is NOT reimplemented here; it moved to `_shared/charge.ts` and both doors
+  // call the same function, so they cannot drift.
+  //
+  // 🔴 THE GATE IS `settled && !unchanged`, and `settled` ALONE WOULD BE WRONG. A re-tap on an
+  // already-completed booking answers `{stamped:false, settled:true, unchanged:true}` (0083 §6's
+  // idempotence arm), so gating on `settled` would re-enter the collection branch on every
+  // re-entry of the seal screen — and that branch DISPATCHES a `pending` row. `unchanged` is what
+  // distinguishes "this call moved the money" from "the money was already moved"; only the first
+  // owes a collection.
+  //
+  // ⚠ NOTHING HERE CAN CHANGE THE RESPONSE, and nothing here can throw upward. The ordering law
+  // is the same one `settle-run` states: settlement NEVER waits on collection, and the runner —
+  // or the owner — is told their stamp landed either way. `collectAfterSettle` returns a verdict
+  // instead of throwing, and the `catch` below is the belt for anything it cannot (a transport
+  // failure reaching past it), because a committed settlement must never be reported as a failed
+  // tap. The outcome goes to the log, as it does in `settle-run`; the owner's own
+  // 「정산됨 · 결제 실패」 state is `payphase.ts`'s, derived from the `payments` row.
+  if (res.settled && !res.unchanged && priced) {
+    try {
+      const collected = await collectAfterSettle(db, bookingId, priced.endReason, priced.actualKm);
+      console.log(
+        `[transition-booking] confirm_return collection booking=${bookingId} ` +
+          `collection=${collected.collection} detail=${collected.detail}`,
+      );
+    } catch (e) {
+      // Unreachable by construction (`collectAfterSettle` swallows its own), and logged rather
+      // than rethrown for the reason above: the settlement has already committed.
+      console.error(
+        `[transition-booking] confirm_return collection threw past its own catch booking=${bookingId}: ` +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+  }
 
   // ── §3 TELL THE OTHER SIDE ──────────────────────────────────────────────────────────────
   // Only on a stamp that actually landed: `stamped:false` is a re-tap, and a re-tap must not push.
