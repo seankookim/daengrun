@@ -66,6 +66,21 @@ ledger read marks the runner's amounts 「추정」; runner home's weekly km say
 `week_unmeasured` > 0 (④-1: 0158 widened `my_week_stats` and this was the one reader left behind).
 Deploy: `functions deploy open-drop` + the client build.
 
+**2026-09-21 02:25 — `a5635a9` NOTIFICATION PREFERENCES LANDED** (0187 + suite 218 + `app/notification-settings.tsx`;
+combined tree: harness **1314/0** = 1307 + 7 pins `0187-N1…N6, S1` · deno 336/0 · tsc · checks (64
+routes now) · **npm 1049/0** = 1023 + 26): `notification_prefs` one row per profile, four categories
+derived from the real writers (`booking` 118 sites · `chat` = 0090's title discriminator · `community`
+52 · `reward` 3; `marketing` has ZERO writers so no column), `safety` + `system` always-on; enforcement in
+0024's `notify_push` trigger — the safety decision is taken BEFORE the prefs table is read (0024's
+`when others → return new` would otherwise be a second way to silence SOS), only an explicit `false`
+suppresses, every NULL path sends; own-row RLS; `get_/set_notification_prefs` definers with ACL
+restated. Client: the 준비 중 row is gone, 알림 설정 is a live row → a paper screen with switches (safety
+row disabled + reason), loading sentence, fail strip + retry, optimistic toggle with rollback, VoiceOver
+switch roles. Battery 12 plants; the builder's own S1 was found blind by N5 during (xii) and repaired.
+Named residual: a tombstoned account keeps its four booleans (0115 ④ deletes `push_tokens`, so nothing
+can be sent). Deploy: `db push` only (no edge change) + the client build. **Twenty-seven pending.**
+Codex review owed (batched with 0186).
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
