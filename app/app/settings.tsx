@@ -134,6 +134,16 @@ export default function Settings() {
           <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
         </Pressable>
         <View style={s.div} />
+        {/* [0187] 준비 중 카드의 '알림 설정 — 푸시 도입 후' InfoRow가 여기로 승격.
+            그 라벨은 2026-08-13에 쓰인 뒤로 계속 거짓이었다: 푸시는 0024부터 나가고 있었고
+            (push_tokens + notifications_push 트리거 → Expo), 없던 것은 끄는 문 하나뿐이었다.
+            이제 카테고리별 스위치가 서버의 notification_prefs를 쓰고, 그 값이 발송 경로
+            (notify_push)를 실제로 가른다 — 화면만 있는 설정이 아니다. */}
+        <Pressable onPress={() => router.push('/notification-settings')} style={s.actionRow}>
+          <Text style={s.actionText}>알림 설정</Text>
+          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+        </Pressable>
+        <View style={s.div} />
         <Pressable
           onPress={() => Linking.openURL('mailto:seankookim@uchicago.edu?subject=도그스하이 문의')}
           style={s.actionRow}
@@ -214,17 +224,11 @@ export default function Settings() {
         </View>
       )}
 
-      {/* 준비 중 — 정직 라벨. 계정 삭제는 실동작이 되어 위 카드로 떠났다 (O-6). */}
-      {/* [2026-08-20] The card was painted `opacity: 0.55`, the alpha trick theme.ts:205-207
-          bans for disabled surfaces. Measured, that alpha put the label at 2.99:1 and the value
-          at 4.06:1 over white — both under the 4.5 floor, i.e. the "준비 중" signal was being
-          paid for in legibility. Explicit disabled paint instead: disabledFill面 + dim ink,
-          measured 5.13:1. The row is not pressable, so nothing else changes. */}
-      <Text style={s.section}>준비 중</Text>
-      <View style={[s.card, s.cardPending]}>
-        <InfoRow label="알림 설정" value="푸시 도입 후" muted />
-      </View>
-
+      {/* [0187] 준비 중 섹션 삭제. 계정 삭제가 O-6에서 떠난 뒤 남아 있던 단 한 줄이
+          「알림 설정 · 푸시 도입 후」였고, 그것이 실동작 카드로 승격하면서 카드가 비었다.
+          빈 준비 중 카드는 아무것도 말하지 않으면서 자리를 차지한다 — 섹션째 뺀다.
+          다시 준비 중인 것이 생기면 s.cardPending 과 InfoRow 의 muted 가 그대로 기다리고 있다
+          (두 스타일은 다음 승격 대기열의 문법이므로 남겨둔다). */}
       <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>

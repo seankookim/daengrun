@@ -5,6 +5,8 @@ import { AddonKey, Booking, BookingStatus, GeoRoutePoint, RouteInfo } from '../s
 // bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
 import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
+// [0187] push-preference categories — pure table + copy, pinned by `test/notification-prefs.test.cjs`
+import { NotiPrefs, PrefKey, toPrefs } from './notification-prefs';
 // 0117 지각 체크인 — 파싱은 순수 모듈에 산다 (.cjs 스위트가 번들할 수 있어야 하므로). 아래
 // fetchCheckin/answerCheckin 참조.
 import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
@@ -5642,4 +5644,46 @@ export async function fetchPackRoster(sessionId: string): Promise<PackRoster | n
         isRunner: p.isRunner === true,
       })),
   };
+}
+
+// ── [0187] 푸시 알림 카테고리 설정 ────────────────────────────────────────────────────────────
+// The category table and its copy live in `notification-prefs.ts` (pure, pinned by
+// `test/notification-prefs.test.cjs`); these two functions are the wire.
+//
+// ⚠ The screen must not draw an OPTIMISTIC value as if it were saved truth on a failure. The
+// setter returns the row AS STORED, so `saveNotificationPrefs` hands that back and the caller
+// replaces its optimistic state with the server's answer — a rollback then restores a value the
+// server actually holds rather than one the client guessed.
+// ⚠ A preference silences the DEVICE PUSH only. `notifications` rows are written either way and
+// `alerts.tsx` keeps showing them (0187 §C); `PREFS_NOTE` is where the screen says so.
+
+/** The caller's own push preferences — the server's defaults (all on) when nothing is saved. */
+export async function fetchNotificationPrefs(): Promise<NotiPrefs> {
+  const { data, error } = await supabase.rpc('get_notification_prefs');
+  if (error) throw notiPrefsError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return toPrefs(row as Partial<Record<PrefKey, unknown>> | null);
+}
+
+/** Save a PARTIAL change — an omitted category is sent as null, which the server reads as
+ *  「leave that one alone」 (0187 §B), so one switch never rewrites the other three. Returns the
+ *  row as STORED, which is what the screen shows afterwards. */
+export async function saveNotificationPrefs(partial: Partial<NotiPrefs>): Promise<NotiPrefs> {
+  const { data, error } = await supabase.rpc('set_notification_prefs', {
+    p_booking: partial.booking ?? null,
+    p_chat: partial.chat ?? null,
+    p_community: partial.community ?? null,
+    p_reward: partial.reward ?? null,
+  });
+  if (error) throw notiPrefsError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return toPrefs(row as Partial<Record<PrefKey, unknown>> | null);
+}
+
+/** `not_signed_in` is the only refusal either RPC raises by name; everything else keeps its own
+ *  message so a real fault is never dressed up as a session problem. */
+function notiPrefsError(e: unknown): Error {
+  const raw = String((e as { message?: string })?.message ?? e ?? '');
+  if (raw.includes('not_signed_in')) return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
+  return e instanceof Error ? e : new Error(raw || '알림 설정을 처리하지 못했어요');
 }
