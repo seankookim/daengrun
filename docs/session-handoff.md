@@ -209,6 +209,22 @@ Sean (queue item 23): a one-stamp strand is preserved but UNBOUNDED after one al
 `force_return_tx` — the named remedy — has no caller anywhere. Device-visual UNVERIFIED (rebuilding);
 Codex review running.
 
+**2026-09-21 02:55 — 🔴 a green that meant nothing, caught by the simulator build, fixed `e710ef1`:** the ceremony's
+`runner/return-seal.tsx` imported its data interface `ReturnSeal` as a VALUE import beside its own
+`export default function ReturnSeal`. tsc accepts a type/value name collision; Metro's Babel refuses it
+(「Duplicate declaration」) — so tsc, four checks, npm 1068/0 and deno 354/0 were ALL green on a trunk
+whose JS bundle could not build. New gate **`app/scripts/check-babel-routes.mjs`** (babel-preset-expo over
+all 140 modules under `app/` + `src/`, ~10 s) — control-tested: the pre-fix file is refused with the exact
+Metro error, the fixed tree passes. **Run it with the other checks before every commit.** The rebuilt
+app installs; `/runner/return-seal` renders its honest not-found state on device (「확인할 인계가 없어요」 +
+「일정으로」, header clear of the island). Codex: the ceremony review died mid-run once, then hit the
+quota wall (「try again at 6:31 AM」) — a 06:41 one-shot re-runs it (SQL+edge halves) plus 0189/0190 if
+landed. Its partial message flagged what I then measured: `confirm_return.ts` never calls settle-run's
+`collectAfterSettle` after the sealing settle (the 5-min `sweep_settled_without_payments` covers it;
+parity fix routed to the ceremony builder as `fix/confirm-return-collect`). Correct-forwards 0189
+(SOS always-on + tombstone at the send boundary) and 0190 (sweep lock + bank-detail release) are being
+built. Trunk `e710ef1`; twenty-nine pending; nothing deployed.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
