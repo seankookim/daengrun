@@ -83,6 +83,15 @@ can be sent). Deploy: `db push` only (no edge change) + the client build. **Twen
 strip 「알림 설정을 불러오지 못했어요 · 다시 시도」 and NO switches (loading/failed are not default states),
 header clear of the island. Codex review running.
 
+**2026-09-21 02:30 — Codex review of 0187: REJECT / 2, both HIGH** (`docs/reviews/2026-09-21-migration-0187-codex-verdict.md`):
+the client writes SOS / accident / run-stop notifications with `kind='booking'` (0114's INSERT policy
+admits only `booking` from a party), so `booking=false` silences SOS — suite 218 pinned synthetic
+`safety` kinds, not the real writers; and the send boundary never checks `profiles.deleted_at`, so a
+tombstoned account that re-registers a token keeps receiving pushes. Correct-forward **0189 + suite 220**
+assigned to the 0187 builder (title-family always-on classification before the prefs read; non-tombstoned
+recipient at the send boundary; pins with the writers' real payloads). 🔴 **0187 must not deploy without
+0189** — the queue says so.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
