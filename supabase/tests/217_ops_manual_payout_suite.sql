@@ -409,9 +409,15 @@ begin
   -- fire on its own (runner C) nor be needed to.
   v_n := ops_payouts_stuck_sweep();
   if v_n is distinct from 2 then v_bad := v_bad || ' first-sweep returned ' || coalesce(v_n::text, 'NULL') || ' (expected exactly 2 runners: A and E)'; end if;
-  select count(*)::int into v_n from notifications where ref_id = rA and kind = 'system';
+  -- ⚠ [0190] SCOPED TO THIS SUITE'S OWN RECIPIENTS, for the reason fixture note ⑥ already gives
+  -- about `payouts` and `ledger_items` and this pin did not apply to `ops_recipients`: the roster
+  -- is a shared table, so a global 「how many were told」 measures the harness. Measured when
+  -- 90_race_check.sh's RP arm (0190) seeded two more `payout_due` recipients: this read 4.
+  select count(*)::int into v_n from notifications
+   where ref_id = rA and kind = 'system' and profile_id in (ops1, ops2);
   if v_n is distinct from 2 then v_bad := v_bad || ' A: recipients told = ' || v_n || ' (expected 2 active: ops1, ops2)'; end if;
-  select count(*)::int into v_n from notifications where ref_id = rE and kind = 'system';
+  select count(*)::int into v_n from notifications
+   where ref_id = rE and kind = 'system' and profile_id in (ops1, ops2);
   if v_n is distinct from 2 then v_bad := v_bad || ' E: recipients told = ' || v_n || ' (expected 2 — the settled row alone is enough)'; end if;
   if exists (select 1 from notifications where ref_id in (rA, rE) and profile_id in (opsoff, opsx)) then v_bad := v_bad || ' an inactive or wrong-class recipient was told'; end if;
   select * into nrec from notifications where ref_id = rA and profile_id = ops1;
@@ -442,20 +448,21 @@ begin
   -- battery plant xiv shrinks the window to 1 second and both of those arms stay green, because
   -- `now()` is frozen inside this transaction). 10 hours is inside the window and outside the
   -- 「immediately」 case, which is where the two rules disagree.
-  update notifications set created_at = now() - interval '10 hours' where ref_id = rA;
+  update notifications set created_at = now() - interval '10 hours' where ref_id = rA and profile_id in (ops1, ops2);
   v_n := ops_payouts_stuck_sweep();
   if v_n is distinct from 0 then v_bad := v_bad || ' ten-hours-later sweep returned ' || coalesce(v_n::text, 'NULL') || ' (expected 0 — the second tick of the same day is silent)'; end if;
-  select count(*)::int into v_n from notifications where ref_id = rA;
+  select count(*)::int into v_n from notifications where ref_id = rA and profile_id in (ops1, ops2);
   if v_n is distinct from 2 then v_bad := v_bad || ' ten-hours-later wrote ' || (v_n - 2) || ' extra notification(s)'; end if;
 
   -- ONLY A's rows are moved back, so the sweep must wake for A and stay silent for E: the window
   -- is per (recipient, runner), not a global clock.
-  update notifications set created_at = now() - interval '21 hours' where ref_id = rA;
+  update notifications set created_at = now() - interval '21 hours' where ref_id = rA and profile_id in (ops1, ops2);
   v_n := ops_payouts_stuck_sweep();
   if v_n is distinct from 1 then v_bad := v_bad || ' past-window sweep returned ' || coalesce(v_n::text, 'NULL') || ' (expected 1: A only)'; end if;
-  select count(*)::int into v_n from notifications where ref_id = rA and created_at > now() - interval '1 hour';
+  select count(*)::int into v_n from notifications
+   where ref_id = rA and profile_id in (ops1, ops2) and created_at > now() - interval '1 hour';
   if v_n is distinct from 2 then v_bad := v_bad || ' past-window told ' || v_n || ' recipient(s) for A (expected 2)'; end if;
-  select count(*)::int into v_n from notifications where ref_id = rE;
+  select count(*)::int into v_n from notifications where ref_id = rE and profile_id in (ops1, ops2);
   if v_n is distinct from 2 then v_bad := v_bad || ' E was re-notified inside its own window (' || v_n || ')'; end if;
 
   if v_bad = '' then call _pass('mpj','0186-P6 막힌 지급 스윕: 7일을 넘긴 미지급 정산이 있는 러너마다(A와 E — E는 살아 있는 run 행과 정산된 행을 함께 갖고 있고 정산된 쪽만으로 울린다) payout_due의 활성 수신자 전원에게 1회(system, ref_id=러너, 본문에 숫자도 id도 없다); 비활성·다른 클래스 수신자는 안 받는다; 곧바로 다시 돌리면 아무것도 안 쓴다(20시간 창); 6일짜리·지급 완료·순액 0·살아 있는 run만 가진 러너는 한 번도 안 울린다; A의 행만 창 밖으로 옮기면 A에게만 다시 알린다(창은 러너별이고 원샷이 아니다)');

@@ -629,3 +629,64 @@ if [ "$W_STATE" = "confirmed/true/0" ] && [ "$W_REFUSED" = "1" ] && [ "$W_ERR" =
 else
   psql -qc "call _fail('race','RW 재배정 vs 확인','state=$W_STATE refused=$W_REFUSED errB=$W_ERR waited=${W_WAITED}s (confirmed/true/0·1·0·≥1.0s 기대 — picked_up = 아무도 확인 안 한 짝이 커스터디로 갔다; waited<1 = 재배정과 겹치지 않았다)')"
 fi
+
+# ---------- [0190] RP: two ticks of ops_payouts_stuck_sweep — the second SKIPS, nobody is told twice ----------
+# The 20-hour dedupe in `ops_payouts_stuck_sweep` is read-then-write on `notifications`, and there
+# is no uniqueness constraint that could catch a duplicate (the same (profile_id, kind, title,
+# ref_id) tuple is CORRECT to insert again tomorrow — that is what the window is for). So two
+# overlapping ticks both observe 「nobody told for this runner in 20 h」 and both insert. 0190 §A
+# puts a TRY xact job lock before any candidate is read. 221 L1 can see the lock HELD in its own
+# session; only two processes can see the SKIP — an advisory lock is re-entrant within a session,
+# so a second call from one connection would acquire it again and run.
+#
+# Shape is 0181's RL, and so is the mutation story: the leader holds the lock and sends nothing,
+# so the notification count is 1 either way. What the plant (deleting the try-lock from 0190 §A)
+# changes is P_RET (0 → 1) and P_DURING (0 → 2): the follower RAN and WROTE while the leader held
+# the lock. Both are asserted, and the count-only assertion alone would be green on the defect.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RP 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_p() returns text
+language plpgsql as $$
+declare op1 uuid; op2 uuid; ow uuid; rp uuid; dg uuid; rt uuid; bk uuid;
+begin
+  op1 := t_user('race_p_ops1', 'owner');
+  op2 := t_user('race_p_ops2', 'owner');
+  insert into ops_recipients (profile_id, event_class, active)
+  values (op1, 'payout_due', true), (op2, 'payout_due', true);
+  ow := t_user('race_p_owner', 'owner'); rp := t_user('race_p_runner', 'runner');
+  dg := t_dog(ow, '레이스P'); rt := t_route('레이스P 코스');
+  -- a settled booking whose earning is 9 days old and unpaid: exactly one stuck runner
+  bk := t_active_booking(ow, rp, dg, rt, now() - interval '9 days');
+  perform t_settle(bk, 'dog_condition');
+  update ledger_items set created_at = now() - interval '9 days' where booking_id = bk;
+  return rp::text;
+end $$;
+SQL
+RP_RUNNER=$(psql -qt -c "select race_setup_p()" | xargs)
+psql -q > .pgtest/race_p1.out 2>&1 <<SQL &
+begin;
+select pg_try_advisory_xact_lock(hashtextextended('ops_payouts_stuck_sweep', 0));
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+P_RET=$(psql -qt -c "select ops_payouts_stuck_sweep();" 2> .pgtest/race_p2.err | xargs)
+P_DURING=$(psql -qt -c "select count(*) from notifications where ref_id = '$RP_RUNNER' and title = '지급 대기 — 확인 필요'" | xargs)
+wait
+psql -qt -c "select ops_payouts_stuck_sweep();" > .pgtest/race_p3.out 2>&1
+P_AFTER=$(psql -qt -c "select count(*) from notifications where ref_id = '$RP_RUNNER' and title = '지급 대기 — 확인 필요'" | xargs)
+P_ERR=$(cat .pgtest/race_p1.out .pgtest/race_p2.err .pgtest/race_p3.out | grep -ciE "^ERROR|FATAL" || true)
+psql -qc "drop function if exists race_setup_p();" > /dev/null
+# ⚠ PUT THE WORLD BACK. `90_race_check.sh` runs BEFORE every suite from 95 on, and this arm is the
+# first race fixture that seeds `ops_recipients` and a STUCK payout — both of which are global
+# inputs to `ops_payouts_stuck_sweep`. Left behind, they made 217 P6 read 「3 runners, 4 recipients
+# told」 instead of 「2 and 2」: measured, not predicted, on this arm's first run. So the two
+# recipient rows go, and the race runner's earning is made young again (7-day threshold) so it is
+# no longer a candidate. The notifications stay — they are evidence this arm ran, and every later
+# assertion is keyed on its own ref_id.
+psql -qc "delete from ops_recipients where profile_id in (select id from profiles where name in ('race_p_ops1','race_p_ops2'));" > /dev/null
+psql -qc "update ledger_items set created_at = now() where runner_id = '$RP_RUNNER';" > /dev/null
+if [ "$P_RET" = "0" ] && [ "$P_DURING" = "0" ] && [ "$P_AFTER" = "2" ] && [ "$P_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RP 지급 스윕 두 틱 — 잡 락을 쥔 틱이 있으면 둘째 틱은 0을 돌려주고 아무것도 쓰지 않는다; 락이 풀린 뒤의 틱이 활성 수신자 2명에게 1회씩 알린다 (try xact 잡 락 = 겹치면 건너뜀. 락이 없으면 겹친 두 틱이 각각 「20시간 안에 알림 없음」을 보고 각각 넣는다 — notifications에는 이를 막을 유니크 키가 없다)')"
+else
+  psql -qc "call _fail('race','RP 지급 스윕 두 틱','ret=$P_RET during=$P_DURING after=$P_AFTER err=$P_ERR (0·0·2·0 기대 — during>0 = 둘째 틱이 락을 무시하고 썼다)')"
+fi

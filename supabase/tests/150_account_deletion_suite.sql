@@ -1337,6 +1337,21 @@ end;
 --   no ledger_items   → nothing is owed, so the payment instrument and the real person's name on
 --                       it go, exactly as F9 argued.
 --
+-- 🔴 **[0190, suite-update law] THE PREDICATE THIS PIN DESCRIBES IS NO LONGER 「any ledger row」 —
+-- IT IS 「any UNPAID ledger row」, AND BOTH ARMS BELOW STILL PASS UNCHANGED.** That is not a
+-- coincidence to tidy away, it is the fixture-agreement law in the open: arm A's rows are unpaid
+-- and arm B has no rows at all, so **both fixtures sit where the old and new predicates AGREE**
+-- and this pin is structurally incapable of telling them apart. It was green through the whole
+-- defect (codex REJECT/2 on 0186: a tombstoned runner's account number and legal name retained
+-- for an obligation that no longer existed, in both operation orders).
+-- What was genuinely STALE was this pin's pass SENTENCE, which told every later reader that
+-- `payouts` has no writer — `0186` is that writer, and `0186 §A`'s `ledger_items.paid_payout_id`
+-- is the marker that finally makes 「unpaid balance」 computable, which `0115:541-548` recorded as
+-- impossible. The sentence is corrected below.
+-- **The arms that CAN separate the two predicates are `221 0190-R2`/`R3`** (a fully-paid runner
+-- deleting, and a partial payment), plus `R1` for the delete-then-pay order and `R4` for the live
+-- runner control. They are new because no fixture in this file could have carried them.
+--
 -- ⚠ Both arms assert the FLAT RESULT's `bank_kept` too, because the confirm sheet has to be able
 -- to say this truthfully and a boolean the client cannot see is a boolean the client will guess.
 -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -1378,7 +1393,7 @@ begin
     v_bad := v_bad || ' / B deleted.bank_accounts=' || coalesce(res#>>'{deleted,bank_accounts}','∅') || ' (기대 1)'; end if;
 
   if v_bad = '' then
-    call _pass('acd','P9 🔵 bank_accounts 양방향 (A-intact-when-owed) — 정산 의무(ledger_items)가 있으면 계좌는 가리지 않고 그대로 보관되고 bank_kept=true, 없으면 계좌도 실명도 사라지고 bank_kept=false. payouts에 기록자가 없어 unpaid_payout은 오늘 발화하지 않고, 평생 수익으로 게이트를 걸면 러너는 영영 못 나간다 (5.1.1(v))');
+    call _pass('acd','P9 🔵 bank_accounts 양방향 (A-intact-when-owed) — 갚을 것이 남았으면 계좌는 가리지 않고 그대로 보관되고 bank_kept=true, 아무것도 안 남았으면 계좌도 실명도 사라지고 bank_kept=false. 평생 수익으로 게이트를 걸면 러너는 영영 못 나간다 (5.1.1(v)). ⚠ [0190] 보관 술어는 이제 「원장 행이 있는가」가 아니라 「미지급 원장 행이 있는가」(paid_payout_id IS NULL)다 — 이 핀의 두 팔은 옛 술어와 새 술어가 일치하는 자리에 있어서 바뀌지 않았고, 그래서 결함 내내 초록이었다. 두 술어를 갈라내는 팔은 221 0190-R2/R3이고, 삭제↔지급 순서와 살아 있는 러너 대조는 221 0190-R1/R4가 갖는다');
   else call _fail('acd','P9 bank_accounts 양방향 (A-intact-when-owed)', v_bad); end if;
 exception when others then call _fail('acd','P9 bank_accounts 양방향 (A-intact-when-owed)', sqlerrm);
 end;
