@@ -32,6 +32,28 @@ reskin, A3 private media, A4 riders are all BUILT since; the confirmed unbuilt i
 manual payout journal (`payouts` has no writer — building now as 0186), notification preferences,
 and whatever the spec gap finder returns. Sean's redirect: no more audits/harnesses; builders only.
 
+**2026-09-21 01:47 — the build map (spec gap finder: 77 spec sentences judged, 68 built, 4 partial, 2 missing; plus
+6 plan/queue items).** Building NOW, four builders in their own worktrees + one Codex task:
+- **Run-end ceremony (⑪+⑫, R6a/b/c, R1c)** — `feat/run-end-ceremony`: `end_run_tx` and `confirm_return_tx`
+  (0083) have ZERO product callers; `run.tsx:690` settles directly, so the work gate (0092) can never fire
+  and the runner's return seal / owner's ⑫ confirm never existed. Ruled + assigned 2026-08-13 (queue §5),
+  orphaned when that session ended. Server re-sequencing (settle follows the second stamp), an `end-run`
+  edge action, `runner/return-seal.tsx`, ⑫ on the owner report, the R1c strip on runner home. Migration
+  0188/219 if needed. Cold executing review before push; Codex review after landing.
+- **Ops manual payout journal** — `be/0186`: `payouts` has no writer; `ops_record_manual_payout`,
+  `ops_payouts_due`, a twice-daily stuck sweep with cron readback. Server only.
+- **Notification preferences** — `be/0187` + `app/notification-settings.tsx`: the 준비 중 row goes live;
+  per-category push prefs, safety always-on, enforcement on the send path.
+- **Missing Korean copy on money/safety paths** — `fix/tokens`, ONE Codex astra-medium task from the
+  token audit (107 client-reachable SQL functions, 350 (function, token) pairs; 46 tokens have no Korean
+  anywhere): open-drop forwards the RPC's own `using detail`; arrears retry, card link, settle, incident
+  settle, club return confirmation, delegation pay, `invokeTransition`'s English fold, the cancel-quote
+  club remedy, the silent ledger read, and ④-1 (runner home's weekly km ignores `week_unmeasured` since
+  0158 — a partial total shown as complete).
+Gated on Sean, not built (queue item 22): the owner-home live strip for `runner_enroute`/`picked_up` (spec
+vs `api.ts:927`'s rule), `/shop` in the 5-tab bar of a TestFlight build, decline history for owners
+(privacy), `no_show` set by nothing (needs a rule), crash reporting (native dep), pre-accept distance.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to

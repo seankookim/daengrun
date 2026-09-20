@@ -1526,6 +1526,16 @@ grep counted. Recorded so nobody builds it twice.
     button (`9e702c2`). HIG names 「허용」 as the one word a pre-alert screen must not use (the person
     thinks they already granted, then the system asks again). Lab ① fixed the layout, not this word;
     if you preferred it, one word flips it back.
+22. **Six build items the spec gap finder (2026-09-21 01:47) found GATED on you** — each is one word: (a) the
+    owner-home live strip: the spec says draw it for `runner_enroute`/`picked_up`/`active`, the code draws
+    it for `active` only by a written rule (`api.ts:927` 「인계 완료 ≠ 러닝 중」) — ⓐ the code's rule stands,
+    amend the spec · ⓑ the spec stands, add the two arms; (b) `/shop` is tab 4 of 5 in a TestFlight
+    build's main nav while the spec says demo zones never sit in main nav — ⓐ drop it (4-tab bar) · ⓑ keep;
+    (c) decline history on owner/matching needs a privacy ruling (what an owner may learn about who
+    declined) — ⓐ nothing · ⓑ count only · ⓒ names; (d) `no_show` is set by nothing — who declares it and
+    after how long? (e) crash reporting (Sentry) before the first TestFlight — ⓐ add · ⓑ not yet;
+    (f) pre-accept distance-to-start (queue :1419) still open. Everything else the finder listed is being
+    built tonight (run-end ceremony ⑪+⑫/R6/R1c, payout journal, notification prefs, the Korean copy).
 21. **Dated obligation — make the booking idempotency key REQUIRED once every installed build sends
     it.** 0179 (`3681e73`) accepts an absent `client_request_id` (NULL = the pre-slice behaviour) so
     deploy day breaks no installed build; the day the store build carrying the client half
