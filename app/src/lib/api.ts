@@ -3707,6 +3707,14 @@ export async function deleteEmergencyContact(id: string): Promise<void> {
 // on whichever booking was tapped, so the alert could have named a different one. The counterparty
 // derivation, the notification shape and the 0009 policy path stay in ONE place; only the "which
 // booking" question moves to the caller that actually knows the answer.
+/** [0189 §A] SOS 알림의 제목. **상수여야 한다**: 0114:273-281 의 INSERT 정책이 당사자에게
+ *  `kind = 'booking'` 만 허용하므로 이 행은 서버에서 평범한 booking 알림과 구별되지 않는다.
+ *  구별하는 것은 제목 하나뿐이고(`_noti_urgent_noti_titles()`), 그래서 이 문자열이 바뀌면 SOS 가
+ *  **조용히** 「알림 설정」의 예약·러닝 스위치로 꺼질 수 있는 대상이 된다 — 아무도 받은 적 없는
+ *  푸시에 대해 버그를 올리지 않으므로 그 실패는 영영 보고되지 않는다.
+ *  `test/notification-prefs.test.cjs` 가 이 값과 0189 의 SQL 배열을 양방향으로 대조한다. */
+export const SOS_TITLE = 'SOS';
+
 export async function sendSOS(role: 'owner' | 'runner', forBooking?: string): Promise<string | null> {
   const bookingId = forBooking ?? await (async () => {
     const [ownerBid, runnerBid] = await Promise.all([
@@ -3725,7 +3733,7 @@ export async function sendSOS(role: 'owner' | 'runner', forBooking?: string): Pr
   if (!target || target === uid) return null;
   const { error } = await supabase.from('notifications').insert({
     profile_id: target, kind: 'booking',
-    title: 'SOS', body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',
+    title: SOS_TITLE, body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',
     ref_id: bookingId,
   });
   if (error) throw error;

@@ -13,8 +13,10 @@
 // column-less and always-on) · drop `alwaysOn`/`reason` from the safety row · rewrite a
 // description to say 알림이 오지 않아요 / 알림함 … 사라 · empty PREFS_NOTE · make `toPrefs`
 // default a missing value to false.
+const fs = require('fs');
+const path = require('path');
 const {
-  PREF_ROWS, PREF_KEYS, PREFS_NOTE, DEFAULT_PREFS, toPrefs,
+  PREF_ROWS, PREF_KEYS, PREFS_NOTE, DEFAULT_PREFS, toPrefs, ALWAYS_ON_TITLES,
 } = require('./notification-prefs.build.cjs');
 
 let pass = 0, fail = 0;
@@ -86,6 +88,110 @@ t('toPrefs treats null as unset, not as off (a NULL column must not silence anyt
   toPrefs({ chat: null }).chat === true);
 t('toPrefs ignores extra server columns',
   JSON.stringify(toPrefs({ updated_at: '2026-09-21', profile_id: 'x' })) === JSON.stringify(DEFAULT_PREFS));
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0189] THE DRIFT GATE — three artifacts, read as TEXT, compared in BOTH directions
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Codex REJECT/2 #1: 0114:273-281 admits only `kind = 'booking'` from a booking party, so SOS, a
+// filed accident and a run-stop request all reach the server as ordinary booking notifications.
+// The ONLY thing that keeps them from being silenced by the 예약·러닝 switch is their TITLE, matched
+// exactly against `_noti_urgent_noti_titles()` in migration 0189.
+//
+// So three copies of each string exist and must never disagree:
+//   ① the WRITER in api.ts          (SOS_TITLE · INCIDENT_NOTI_TITLE · RUN_STOP_TITLE)
+//   ② this module's ALWAYS_ON_TITLES (what the client believes is always-on)
+//   ③ the SQL array in 0189          (what actually decides, on the server)
+// A rename that reaches ① but not ③ does not throw, does not fail a type check and does not log:
+// the push just stops arriving, for the most urgent message this product sends. Nobody files a bug
+// about a push they never saw. That is why this is a gate.
+//
+// ⚠ COMMENTS ARE STRIPPED FROM BOTH FILES BEFORE MATCHING. Both of them document this very
+// mechanism, so an un-stripped read would be satisfied by the prose explaining the guard rather
+// than by the guard — the standing comment-quoting law, and the reason it is mechanical here
+// instead of a note asking the next reader to be careful.
+const stripTs = (src) => src
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')      // block comments (the JSDoc above each constant)
+  .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+const stripSql = (src) => src.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n');
+
+const apiSrc = stripTs(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'api.ts'), 'utf8'));
+const routeSrc = stripTs(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'notification-route.ts'), 'utf8'));
+const migDir = path.join(__dirname, '..', '..', 'supabase', 'migrations');
+const migName = fs.readdirSync(migDir).find((f) => /^0189_.*\.sql$/.test(f));
+t('migration 0189 is on disk (a missing file must fail LOUDLY, never read as "nothing to compare")',
+  typeof migName === 'string', String(migName));
+const migSrc = migName ? stripSql(fs.readFileSync(path.join(migDir, migName), 'utf8')) : '';
+
+// ① the writers' constants, read out of api.ts by name
+const constOf = (src, name) => {
+  const m = src.match(new RegExp(`export const ${name}\\s*=\\s*'([^']*)'`));
+  return m ? m[1] : null;
+};
+const WRITERS = {
+  SOS_TITLE: 'api.ts:sendSOS',
+  INCIDENT_NOTI_TITLE: 'api.ts:openBookingIncident',
+  RUN_STOP_TITLE: 'api.ts:notifyRunStop',
+};
+const fromApi = [];
+for (const [name, where] of Object.entries(WRITERS)) {
+  const v = constOf(apiSrc, name);
+  t(`${name} is an exported string constant in api.ts (${where})`, typeof v === 'string' && v.length > 0, String(v));
+  if (v) fromApi.push(v);
+}
+
+// the writers must USE the constant — an inline literal is what renames silently, and `sendSOS`
+// wrote a bare 'SOS' until 0189
+for (const name of Object.keys(WRITERS)) {
+  t(`the writer passes ${name} rather than an inline literal`,
+    new RegExp(`title:\\s*${name}\\b`).test(apiSrc));
+}
+
+// ② ①  ⇄  ALWAYS_ON_TITLES
+t('ALWAYS_ON_TITLES holds exactly the three writer constants, and nothing else',
+  JSON.stringify([...ALWAYS_ON_TITLES].sort()) === JSON.stringify([...fromApi].sort()),
+  `client=${JSON.stringify(ALWAYS_ON_TITLES)} api=${JSON.stringify(fromApi)}`);
+
+// ③ ②  ⇄  the SQL array in 0189 — both directions, so neither a rename nor an addition can hide
+const sqlArray = (() => {
+  const m = migSrc.match(/_noti_urgent_noti_titles\(\)[\s\S]*?select\s+array\[([^\]]*)\]/);
+  if (!m) return null;
+  return m[1].split(',').map((x) => x.trim().replace(/^'/, '').replace(/'$/, '')).filter(Boolean);
+})();
+t('0189 declares the urgent-title array and it is parseable', Array.isArray(sqlArray), String(sqlArray));
+if (Array.isArray(sqlArray)) {
+  t('every client title is in the SQL array (a rename on the client that did not reach the server would SILENTLY make an SOS disableable)',
+    ALWAYS_ON_TITLES.every((x) => sqlArray.includes(x)),
+    `sql=${JSON.stringify(sqlArray)}`);
+  t('every SQL title is on the client (the other direction: a server-only entry is a title nothing writes)',
+    sqlArray.every((x) => ALWAYS_ON_TITLES.includes(x)),
+    `sql=${JSON.stringify(sqlArray)}`);
+  t('the SQL array has exactly three entries — widening it to get a green is how this guard dies',
+    sqlArray.length === 3, String(sqlArray.length));
+}
+
+// ④ the mapper must consult the array ABOVE the disableable arms, in EXECUTABLE sql
+t('0189 consults the urgent family inside _noti_push_category',
+  /when\s+p_title\s*=\s*any\s*\(\s*_noti_urgent_noti_titles\(\)\s*\)\s*then\s*'safety'/.test(migSrc));
+t('the urgent arm sits ABOVE the chat/booking arms (below them it would never be reached for a booking row)',
+  migSrc.indexOf('_noti_urgent_noti_titles()') > 0
+  && migSrc.indexOf('_noti_urgent_noti_titles()') < migSrc.indexOf("then 'chat'"));
+
+// ⑤ RUN_STOP_TITLE exists TWICE on the client (api.ts and notification-route.ts, whose own comment
+//    says "change one, change both"). That comment is not a mechanism; this is.
+t('notification-route.ts RUN_STOP_TITLE matches api.ts RUN_STOP_TITLE',
+  constOf(routeSrc, 'RUN_STOP_TITLE') === constOf(apiSrc, 'RUN_STOP_TITLE'),
+  `route=${constOf(routeSrc, 'RUN_STOP_TITLE')} api=${constOf(apiSrc, 'RUN_STOP_TITLE')}`);
+
+// ⑥ the crude check beside the careful one (the standing rule for a new detector): the three
+//    strings must be present in the raw, UNSTRIPPED migration too. If the stripped read finds them
+//    and the raw read does not, the stripper is eating source; if the raw finds them and the
+//    stripped does not, they live only in a comment — which is exactly the false green this
+//    file's stripping exists to prevent.
+const migRaw = migName ? fs.readFileSync(path.join(migDir, migName), 'utf8') : '';
+for (const title of ALWAYS_ON_TITLES) {
+  t(`「${title}」 is present in 0189 both raw and comment-stripped (a title that survives only in prose is not a rule)`,
+    migRaw.includes(title) && migSrc.includes(title));
+}
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

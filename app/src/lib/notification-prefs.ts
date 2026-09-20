@@ -74,6 +74,25 @@ export const PREF_ROWS: PrefRow[] = [
   },
 ];
 
+// ── [0189] THE URGENT TITLE FAMILY ────────────────────────────────────────────────────────────
+// These three are NOT preferences and never appear on the settings screen. They are here because
+// this is the module the drift pin can bundle, and the pin's whole job is to notice when one of
+// them is renamed.
+//
+// 🔴 WHY A TITLE AND NOT A `kind`: 0114's INSERT policy (0114:273-281) admits only
+// `kind = 'booking'` from a booking party, so the three urgent things a CLIENT can send — SOS, a
+// filed accident, a run-stop request — arrive at the server indistinguishable from 응가 도장.
+// 0187 filed every non-chat booking row as disableable, which meant `booking = false` silenced an
+// SOS; 0189 §A fixes that with a title family, and `_noti_urgent_noti_titles()` in that migration
+// is the AUTHORITY. This array is the client-side mirror, and
+// `test/notification-prefs.test.cjs` reads BOTH artifacts as text (comments stripped) and asserts
+// they agree in both directions.
+//
+// ⚠ A rename that reached only one side fails SILENTLY and in the worst direction: the push simply
+// stops arriving, and nobody files a bug about a push they never saw. That asymmetry is the entire
+// reason this is a gate rather than a comment.
+export const ALWAYS_ON_TITLES: string[] = ['SOS', '사고 신고 접수', '러닝 중단 요청'];
+
 /** The one sentence that keeps this screen honest: a preference silences the DEVICE push only. */
 export const PREFS_NOTE = '끄면 휴대폰 알림만 오지 않아요 · 알림함에는 그대로 쌓입니다';
 
