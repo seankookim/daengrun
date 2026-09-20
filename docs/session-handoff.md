@@ -15,6 +15,23 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## 2026-09-21 01:40 — session resumed (three-day gap); Sean: 「focus on building what's not there yet」
+
+**Trunk unchanged at `ed65c3c` since 09-18 10:20; nothing deployed; no queue letter answered.** The
+native Claude simulator tool now WORKS (`attach`/`launch`/`tap`/`screenshot` — the stale 「Xcode not
+selected」 state cleared on the session restart), so device-visual checks are no longer blocked: an
+incremental Xcode 27 Release build of `ed65c3c` is installed on the iPhone 16 Pro sim, and the
+safe-area slice (`d3d56ea`) is **verified on device** on `/settings` (back button + title clear of the
+Dynamic Island) and `/onboard/runner` (header clear, CTA dock above the home indicator, the
+permission plate asks on a TAP, not on mount). The iOS 「Open in」 dialog on a cold deep link is
+dismissed by a native tap at device points (269, 482); a second deep link while the app is foregrounded
+shows no dialog. Seen while there: `/settings` still lists 「알림 설정 · 푸시 도입 후」 under 준비 중 —
+push exists, so notification preferences are an UNBUILT surface (candidate build).
+Old plan check (`docs/plans/finish-the-app-plan.md`, 08-10): A1 owner Live Activity, A2 runner LA
+reskin, A3 private media, A4 riders are all BUILT since; the confirmed unbuilt items are the ops
+manual payout journal (`payouts` has no writer — building now as 0186), notification preferences,
+and whatever the spec gap finder returns. Sean's redirect: no more audits/harnesses; builders only.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
