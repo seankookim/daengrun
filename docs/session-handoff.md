@@ -106,6 +106,13 @@ Battery 14 plants; two blind arms found and repaired; the row lock is a NAMED GA
 `90_race_check.sh` arm). Deploy: `db push` only; no client (nothing in `app/` reads `payouts`).
 **Twenty-eight pending.** Codex review running.
 
+**2026-09-21 02:38 — Codex review of 0186: REJECT / 2, both MED** (`docs/reviews/2026-09-21-migration-0186-codex-verdict.md`):
+the stuck sweep has no job lock (two overlapping ticks double-notify — the 0177/0180 shape not applied),
+and 0115's bank-detail retention for tombstoned runners never ends because its predicate does not read
+the new `paid_payout_id` and the writer never releases it. Correct-forward **0190 + suite 221** assigned
+to the 0186 builder (try-lock + race arm; retention reads the unpaid marker; release on the final
+payment; both orders pinned). The letter should carry 0190 with 0186.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
