@@ -225,6 +225,15 @@ parity fix routed to the ceremony builder as `fix/confirm-return-collect`). Corr
 (SOS always-on + tombstone at the send boundary) and 0190 (sweep lock + bank-detail release) are being
 built. Trunk `e710ef1`; twenty-nine pending; nothing deployed.
 
+**2026-09-21 03:01 — `1474b71` collection parity LANDED** (edge-only; combined tree: deno **359/0** = 354 + 5 · tsc ·
+check-rpc · check-babel-routes): `collectAfterSettle` + `afterCollectionThrew` MOVED (byte-identical) from
+`settle-run/handler.ts` into `_shared/charge.ts`; both settle doors now run the same post-settle branch.
+The gate is `settled && !unchanged` — 0083 §6's idempotence arm answers a completed booking
+`{settled:true, unchanged:true}`, so gating on `settled` alone would have dispatched a pending charge on
+EVERY re-entry of the seal screen; pinned. Doctrine kept: settlement never waits on collection, the
+outcome never enters the response (the owner's 「결제 실패」 lives in `payphase.ts`). Deploy: rides with
+`functions deploy transition-booking` + `settle-run`.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
