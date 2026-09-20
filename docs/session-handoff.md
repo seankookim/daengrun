@@ -92,6 +92,20 @@ assigned to the 0187 builder (title-family always-on classification before the p
 recipient at the send boundary; pins with the writers' real payloads). 🔴 **0187 must not deploy without
 0189** — the queue says so.
 
+**2026-09-21 02:35 — `a842fe8` OPS MANUAL PAYOUT JOURNAL LANDED** (0186 + suite 217; union-merged REGISTRY/manifest
+with 0187, 0 markers; combined tree: harness **1321/0** = 1314 + 7 pins `0186-P1…P6, S1` · deno 336/0 ·
+tsc · check-rpc 135/219 · check-definer-acl baseline unchanged): `payouts` finally has a writer —
+`ops_record_manual_payout(runner, ledger_ids[], amount, memo)` (ops gate before any read, rows locked,
+amount must EQUAL the locked rows' sum — no rounding, `already_paid` idempotent, `tax_withheld = 0` as a
+statement of fact because no 사업자등록 withholds), `ops_payouts_due()` (per-runner unpaid settled
+total / oldest age / count), `ledger_items.paid_payout_id`, and a twice-daily `ops-payouts-stuck` cron
+(7 days, once per runner per 20 h) registered strictly with readback. The 「settled」 predicate is
+「no run still in progress on the booking」, NOT `runs.settled_at` — 0072's incident settlement never
+stamps it, so that anchor would refuse exactly the stranded runners this journal exists to pay.
+Battery 14 plants; two blind arms found and repaired; the row lock is a NAMED GAP (a later slice owes a
+`90_race_check.sh` arm). Deploy: `db push` only; no client (nothing in `app/` reads `payouts`).
+**Twenty-eight pending.** Codex review running.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
