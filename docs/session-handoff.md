@@ -54,6 +54,18 @@ Gated on Sean, not built (queue item 22): the owner-home live strip for `runner_
 vs `api.ts:927`'s rule), `/shop` in the 5-tab bar of a TestFlight build, decline history for owners
 (privacy), `no_show` set by nothing (needs a rule), crash reporting (native dep), pre-accept distance.
 
+**2026-09-21 01:56 — `6cf7453` Korean copy slice LANDED** (Codex gpt-6-astra medium, second attempt — the first stopped
+to ask a question the prompt had left open; reviewed by hand; combined tree: deno 336/0 with the open-drop
+assertions turned Korean · tsc · check-rpc · route-native-imports · npm 1023/0): open-drop forwards the
+RPC's own `using detail` (token kept in `code`); arrears retry (collect-charges), card link
+(register-billing-key, the Toss 402 sentence kept verbatim), settle-run, club incident settle
+(`not_measured` / `quote_redacted`), club return confirmation (6 tokens), delegation pay (5 more tokens)
+all map to Korean; `invokeTransition` folds any non-Hangul message to one honest line (nine screens at
+once); the cancel-quote catch names the club remedy instead of a retry that cannot work; a failed
+ledger read marks the runner's amounts 「추정」; runner home's weekly km says 「이상」 when
+`week_unmeasured` > 0 (④-1: 0158 widened `my_week_stats` and this was the one reader left behind).
+Deploy: `functions deploy open-drop` + the client build.
+
 ## 2026-09-17 02:1x — Xcode 27 is in, the app builds locally again, HIG work is on trunk
 
 > ⚠ Clock correction 04:26: the section labels below were first written as ESTIMATES that drifted up to
