@@ -117,6 +117,28 @@ batch brief is at `docs/prompts/2026-09-22-codex-batch-brief.md` (0165→0196, 0
 was deleted by another's cleanup; both chain-gates produced NO row rather than a false green (the `&&` law working),
 and both re-ran under unique names. Briefs now say: unique scratch names per slice.
 
+**Landed 05:11:**
+- `8af5760` **HIG N8 owner sheets**: the only four `Modal`s across ten owner/runner-profile files were inventoried;
+  the time-slot picker (`owner/request.tsx`) and the booking manager (`owner/schedule.tsx`) are native `pageSheet`s via
+  a new `paper-sheet.tsx` (leading 닫기, centred title, `onRequestClose` so swipe-down dismisses, `SafeAreaView` not
+  the insets hook — a pageSheet measures its own frame); the card gate and the slot-hold countdown were LEFT because
+  a swipe-dismiss would add an exit that skips `payOnce()` / a blocking overlay — product changes, not presentation.
+  `runner-profile/[id].tsx` react-doctor 14 → 8 (three strips virtualized with hoisted cells; the review list stays a
+  map on purpose — nested vertical virtualization). npm 1267/0 · babel 148. No `onDone` arm: neither sheet has a
+  commit action, and a branch with no caller is a branch no pin can fail.
+- `ff6e077` **0195 gear claim** (+ suite 226): `claim_gear_tx` (party BEFORE state on the locked row, `claimable →
+  claimed`, idempotent second claim returns `already_claimed` flat), a jsonb `delivery` SNAPSHOT — **`shipped_to` is
+  `uuid references addresses` (0001:333) and `addresses` has no recipient, phone or postal code**, so a courier
+  payload could not ride it and an address edited later must not move a box already sent; `ops_gear_claims_pending()`
+  + `ops_mark_gear_shipped()` ops-gated; 141 D19's allowlist widened 1 → 4 with the hole reproduced first (1341/1,
+  D19 the only red). Client: the 리워드 chip is a 「수령 신청」 button opening a five-field form (AutoFill types, numeric
+  keyboards, 5-digit postal, hyphenated phone accepted), busy = 「신청 중…」, the row re-renders from the SERVER
+  response; 배송 준비 중 / 배송 중 (+ carrier·tracking only when both exist). Nine-plant battery; two rows recorded
+  as gaps (order inversion is source-only observable; C5 is a cascade of `gear self read`). harness 1362 → 1371/0 (+9)
+  · deno 369/0 · npm 1282/0 · babel 149. Deploy: db push only. Not Codex-reviewed (07:41 one-shot).
+  ⚠ The builder stopped with its worktree LOCKED (background work of its own); the landing chain pushed and read back
+  first and only the cleanup step failed — removed with `--force --force` afterwards; no cluster was left running.
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
