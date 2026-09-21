@@ -88,6 +88,35 @@ landed since, per-slice grouping). Heartbeat every 30 min (:19/:49) lands Codex 
 **Still building:** `be/0193-ceremony-correct-forward`, `be/0194-bank-account`, `be/0195-gear-claim`. Sean's Codex
 batch brief is at `docs/prompts/2026-09-22-codex-batch-brief.md` (0165→0196, 0175→0197 rebuilt on 0168, sheets/lists).
 
+**Landed 04:48:**
+- `5ba8c02` **geo perf pin, the peer's version replaces mine.** Sean's spun-off session measured my 500 ms wall-clock
+  budget against two O(n²) plants of `smoothTrace` at n=1000: **green 3/3 on both** — a quadratic term costs 0.2–6 ms
+  there and only dominates near n=16000, so the comment I wrote (「still fails on any O(n²) regression by an order of
+  magnitude」) was an unmeasured claim and wrong. Theirs reads `process.cpuUsage()` and pins LINEARITY (16×n=1000 vs
+  1×n=16000, min-of-5 interleaved, ratio ≤ 3; clean 0.52–1.78, plants 5.3–17.0) with the old 50 ms kept only as a CPU
+  ceiling; the EXIT trap from my commit is kept. npm 1254/0 · geo 39 ✅. Lesson, mine: a detector's claim about the
+  failure it catches is itself a measurement owed — plant the failure it names before writing the sentence.
+- `075863b` **0193 ceremony strand resolution** (+ suite 224; the correct-forward for the REJECT/9): A3
+  `confirm_return_tx` raises `quote_required` when a caller with no identity of its own would seal (the `v_uid is
+  null` conjunct is the whole narrowing — without it 119 R15/R16 and 133 U2 redden, 0083's client seal-and-stop
+  capability), the edge re-prices and retries once; A1/A2 `ops_resolve_return_tx` (service_role, ops-gated on
+  `ops_recipients_for('return_strand')` BEFORE any read, takes `active` <2 stamps or `incident_review` by facts, never
+  forges a party stamp — 0089 marker + a sealed `return_resolutions` journal — settles through `_settle_sealed_run` +
+  `collectAfterSettle`), new edge action `resolve_return`, `enforce_booking_transition` gains `incident_review →
+  active` with `if ok is not true` (the new disjunct is nullable); sweep arm ⓕ reads `ops_flags.return_strand_minutes`
+  — **NULL = off; the number is item 23, Sean's**; B5 the escalation is written `kind='safety'` AND its title joins
+  `_noti_urgent_noti_titles()`; C9 `_release_orphan_bank_rows()` (vacuous here, pinnable); A4/A6/A7 client (return
+  routes carry `bid`, 「반환 확인 요청」 probes club membership — 0069 writes it with a club id, the old header's claim
+  was false — and the receipt reloads settlement from the server). B8 (tombstone vs a queued push) stays a recorded
+  gap. Three plants, each reddening distinct pins, apply-time VERIFY aborts by name; two pins repaired mid-battery
+  (string-matching a guard's NAME is satisfied by a dead `raise`; a borrowed fixture rolled back under a neighbour's
+  caught exception). harness 1353 → 1362/0 (+9) · deno 369/0 · npm 1267/0 · babel 147.
+  Deploy: `db push` BEFORE `functions deploy transition-booking`; then Sean sets `ops_flags.return_strand_minutes` and
+  subscribes an `ops_recipients` row for `return_strand`.
+⚠ **Shared scratchpad collisions, twice tonight:** two builders both wrote `scratchpad/plant.py` and one's battery lab
+was deleted by another's cleanup; both chain-gates produced NO row rather than a false green (the `&&` law working),
+and both re-ran under unique names. Briefs now say: unique scratch names per slice.
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
