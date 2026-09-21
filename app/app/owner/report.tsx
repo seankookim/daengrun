@@ -16,6 +16,8 @@ import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
+import { motionPolicy } from '../../src/lib/motion-policy';
+import { useReducedMotionState } from '../../src/lib/reducedMotion';
 import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { draft, TracePoint } from '../../src/store';
@@ -1270,24 +1272,60 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
   const s2 = useRef(new Animated.Value(0)).current;
   const copy = useRef(new Animated.Value(0)).current;
   const slams = [s0, s1, s2];
+
+  // ═══ REDUCE MOTION (HIG A7 · DESIGN.md §7c) ═══
+  // Every arm of this overlay is 'feedback', not decoration: the patch and the stamps ARE the
+  // state change this screen exists to report, so under Reduce Motion they still LAND — as a
+  // ≤200ms opacity cross-fade to the same end state (motion-policy.ts FEEDBACK_ALWAYS). What
+  // goes away is `travel`: the spring, the scale-from-2.2 slam, the rotate-in and the 8px lift
+  // are pinned at their END values in the render below, because a 180ms lunge is still a lunge.
+  // The 80ms stagger collapses to 0 and the three phases run in parallel rather than in
+  // sequence, so the whole ceremony resolves inside one cross-fade instead of three.
+  // ⚠ The once-per-entity gate is NOT here and must not move here: `fetchPatchPop`/`fetchStampPop`
+  // consumed `_patchPopSeen`/`_stampPopSeen` at fetch time (see the load effect above), before
+  // this component existed. A reduced-motion cross-fade therefore burns the Set entry exactly as
+  // the full ceremony does — one celebration per booking in BOTH modes, and re-entry hydrates
+  // nothing in either.
+  const { reduce, settled } = useReducedMotionState();
+  const pKick = motionPolicy({ reduceMotion: reduce, kind: 'feedback', fullMs: 300 });
+  const pStamp = motionPolicy({ reduceMotion: reduce, kind: 'feedback', fullMs: 340, fullStaggerMs: 80 });
+  const pCopy = motionPolicy({ reduceMotion: reduce, kind: 'feedback', fullMs: 320 });
+  const started = useRef(false);
+
   useEffect(() => {
+    // Wait for the OS to answer, then start exactly once. Both halves are load-bearing: without
+    // the wait the reduced path could never run (the native read cannot resolve before this
+    // effect), and without the once-guard a mid-flight Reduce Motion toggle would REPLAY the
+    // celebration, which the honesty law forbids.
+    if (!settled || started.current) return;
+    started.current = true;
     const steps: Animated.CompositeAnimation[] = [];
-    // ① 패치가 먼저 스프링으로 박힌다 (오늘 쓰던 값 그대로 — friction 5 · tension 90)
-    if (patch) steps.push(Animated.spring(pa, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }));
-    // ② 도장이 차례로 내려찍힌다 — 영수증 실 스탬프의 커브 그대로, 80ms 간격
-    if (shown.length > 0) {
-      steps.push(Animated.stagger(80, shown.map((_, i) => Animated.timing(slams[i], {
-        toValue: 1, duration: 340, easing: Easing.bezier(0.5, 0, 0.7, 0.35), useNativeDriver: true,
-      }))));
+    // ① 패치가 먼저 스프링으로 박힌다 (오늘 쓰던 값 그대로 — friction 5 · tension 90).
+    //    feedback · reduce → 스프링 대신 크로스페이드, 착지 각도·크기는 그대로.
+    if (patch) {
+      steps.push(pStamp.travel
+        ? Animated.spring(pa, { toValue: 1, friction: 5, tension: 90, useNativeDriver: pStamp.useNativeDriver })
+        : Animated.timing(pa, { toValue: 1, duration: pStamp.durationMs, useNativeDriver: pStamp.useNativeDriver }));
     }
-    // ③ 카피와 CTA가 마지막에 올라온다
-    steps.push(Animated.timing(copy, { toValue: 1, duration: 320, useNativeDriver: true }));
+    // ② 도장이 차례로 내려찍힌다 — 영수증 실 스탬프의 커브 그대로, 80ms 간격.
+    //    feedback · reduce → 간격 0, 슬램 커브 대신 ease-out, 도장은 제 자리에서 떠오른다.
+    if (shown.length > 0) {
+      const lands = shown.map((_, i) => Animated.timing(slams[i], {
+        toValue: 1,
+        duration: pStamp.durationMs,
+        easing: pStamp.travel ? Easing.bezier(0.5, 0, 0.7, 0.35) : Easing.out(Easing.quad),
+        useNativeDriver: pStamp.useNativeDriver,
+      }));
+      steps.push(pStamp.staggerMs > 0 ? Animated.stagger(pStamp.staggerMs, lands) : Animated.parallel(lands));
+    }
+    // ③ 카피와 CTA가 마지막에 올라온다. feedback · reduce → 8px 리프트 없이 페이드만.
+    steps.push(Animated.timing(copy, { toValue: 1, duration: pCopy.durationMs, useNativeDriver: pCopy.useNativeDriver }));
     Animated.parallel([
-      Animated.timing(kick, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.sequence(steps),
+      Animated.timing(kick, { toValue: 1, duration: pKick.durationMs, useNativeDriver: pKick.useNativeDriver }),
+      pStamp.travel ? Animated.sequence(steps) : Animated.parallel(steps),
     ]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [settled]);
 
   return (
     <Pressable onPress={onClose} style={s.haulBack}>
@@ -1296,13 +1334,16 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
       {patch && (
         <>
           {/* 패치는 자기 색(자수 오브젝트)을 그대로 지킨 채 여권의 나이트 배경 위에 앉는다 */}
+          {/* feedback · reduce → 0.4→1 확대와 -18°→-4° 회전을 지우고 착지 값(-4°, 1배)에 고정 */}
           <Animated.View style={{
             alignItems: 'center',
             opacity: pa,
-            transform: [
-              { scale: pa.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
-              { rotate: pa.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '-4deg'] }) },
-            ],
+            transform: pStamp.travel
+              ? [
+                { scale: pa.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+                { rotate: pa.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '-4deg'] }) },
+              ]
+              : [{ scale: 1 }, { rotate: '-4deg' }],
           }}>
             <PatchBadge km={patch.km} name={patch.name} grade={patch.grade} size={132} />
           </Animated.View>
@@ -1323,11 +1364,15 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
                 // 셀 100 + gap 12 → 3칸 324 / 2칸 212. 오버레이 가용폭 = W − 좌우 패딩 52
                 alignItems: 'center', width: 100,
                 opacity: slams[i],
-                transform: [
-                  { scale: slams[i].interpolate({ inputRange: [0, 1], outputRange: [2.2, 1] }) },
-                  // 착지 각도는 그 도장의 고정 기울기(api.ts angle) — 벽과 세리머니가 같은 손도장이어야 한다
-                  { rotate: slams[i].interpolate({ inputRange: [0, 1], outputRange: ['-12deg', `${st.angle}deg`] }) },
-                ],
+                // feedback · reduce → 2.2배에서 내려찍는 슬램을 지우고 착지 값에 고정. 도장은
+                // 여전히 '찍힌다' — 크기와 각도가 처음부터 최종값이고 잉크만 떠오를 뿐이다.
+                transform: pStamp.travel
+                  ? [
+                    { scale: slams[i].interpolate({ inputRange: [0, 1], outputRange: [2.2, 1] }) },
+                    // 착지 각도는 그 도장의 고정 기울기(api.ts angle) — 벽과 세리머니가 같은 손도장이어야 한다
+                    { rotate: slams[i].interpolate({ inputRange: [0, 1], outputRange: ['-12deg', `${st.angle}deg`] }) },
+                  ]
+                  : [{ scale: 1 }, { rotate: `${st.angle}deg` }],
               }}
             >
               <StampDisc info={st} nf={nf} />
@@ -1337,10 +1382,13 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
         </View>
       )}
 
+      {/* feedback · reduce → 8px 리프트 없이 페이드만 (도착 위치는 동일) */}
       <Animated.View style={{
         alignItems: 'center',
         opacity: copy,
-        transform: [{ translateY: copy.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+        transform: pCopy.travel
+          ? [{ translateY: copy.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }]
+          : [{ translateY: 0 }],
       }}>
         {more > 0 && <Text style={s.haulMore}>외 {more}개</Text>}
         {shown.length > 0 ? (
@@ -1495,10 +1543,24 @@ function RunnerNoteSection({ run, reason }: { run: RunFacts; reason: ReasonPaint
 function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: string }) {
   // 채워지는 모션 — 진행이 '벌어들인 것'처럼 (motion = meaning)
   const w = useRef(new Animated.Value(0)).current;
+  // feedback · reduce → 700ms 채움(travel)을 지우고 최종 길이에서 잉크만 떠오른다. 숫자가 아니라
+  // 막대가 상태이므로 건너뛸 수 없다 — '덜 움직인다'이지 '안 보인다'가 아니다 (DESIGN.md §7c).
+  const fade = useRef(new Animated.Value(0)).current;
+  const { reduce, settled } = useReducedMotionState();
+  // layoutProp: `width` cannot ride the native driver — and the policy keeps that answer the same
+  // in both modes on purpose, so this one node never gets two drivers.
+  const p = motionPolicy({ reduceMotion: reduce, kind: 'feedback', fullMs: 700, layoutProp: true });
   useEffect(() => {
-    Animated.timing(w, { toValue: pct, duration: 700, useNativeDriver: false }).start();
+    if (!settled) return; // see reducedMotion.ts — starting before the OS answers always means full motion
+    if (p.travel) {
+      fade.setValue(1);
+      Animated.timing(w, { toValue: pct, duration: p.durationMs, useNativeDriver: p.useNativeDriver }).start();
+    } else {
+      w.setValue(pct);
+      Animated.timing(fade, { toValue: 1, duration: p.durationMs, useNativeDriver: p.useNativeDriver }).start();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pct]);
+  }, [pct, settled, p.travel]);
   return (
     <View style={{ marginTop: 10 }}>
       <Row style={{ justifyContent: 'space-between' }}>
@@ -1509,7 +1571,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
         <Animated.View
           style={[
             s.barFill,
-            { width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) },
+            { width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }), opacity: fade },
             pct >= 100 && { backgroundColor: '#7FA818' },
           ]}
         />
