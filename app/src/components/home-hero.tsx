@@ -24,6 +24,7 @@
 // 로딩 중엔 두 옵션을 그리지 않는다 — 모르는 상태 위에 결정을 얹지 않는다. 실패는 실패로.
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAnnounceOnChange } from '../lib/a11y-announce';
 import { useDisplayFont } from '../lib/displayFont';
 import { useNumFont } from '../lib/fonts';
 import { haptic } from '../lib/haptics';
@@ -123,14 +124,24 @@ function Phrase({ top, bottom, df, topNum }: { top: string; bottom: string; df: 
   // ⚠ 그때 lineHeight 는 43×1.2 = 51.6 위여야 한다 (BUG A: 어센더 잘림은 활자가 클수록 크게 보인다).
   const nf = useNumFont();
   return (
-    <View style={s.phw}>
-      <View style={{ position: 'absolute', right: -2, top: -4, zIndex: 1 }} pointerEvents="none">
+    // [HIG A3/A6] One element, one header. These two Texts are a single sentence split across two
+    // lines for the mark's sake (MARK_W above), so exposing them separately made a screen reader
+    // read 「오늘」 and 「초코가 달려요」 as two unrelated items. `accessible` merges them and
+    // `header` says what the hero IS, which is also what lets rotor navigation land on it.
+    <View style={s.phw} accessible accessibilityRole="header" accessibilityLabel={`${top} ${bottom}`}>
+      {/* ⚠ Hidden from accessibility on purpose. The mark is decoration here — merging a parent
+          swallows its children's labels, so leaving it exposed appended 「도그스하이」 to the end of
+          the headline on every single state. The brand is named by the screen, not by this hero. */}
+      <View
+        style={{ position: 'absolute', right: -2, top: -4, zIndex: 1 }}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <Image
           source={require('../../assets/logo-alpha.png')}
           style={{ width: 66 * (1619 / 971), height: 66 }}
           resizeMode="contain"
-          accessibilityRole="image"
-          accessibilityLabel="도그스하이"
         />
       </View>
       <Text
@@ -179,6 +190,73 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
     else if (state === 'handoff' || state === 'confirmed') router.push('/owner/meetup');
     else router.push('/owner/radar');
   };
+
+  // 상태별 문구·칩·버튼. 1행은 항상 짧게(마크 자리) — 이름·시각처럼 길이를 모르는 값은
+  // 2행이나 서브라인으로 내려보낸다.
+  // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
+  // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
+  // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
+  const chip =
+    state === 'confirmed' ? (isLate
+      // [T6] '지난 예약'만으로는 어제인지 16일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
+      ? { c: paper.dim, t: late?.late ? `지난 예약 · ${sinceLabel(late.sinceMs)}` : '지난 예약' }
+      : { c: GO_SAGE, t: '확정됨' })
+      : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
+        : state === 'searching' ? { c: WAIT_BLUE, t: '찾는 중' }
+          // handoff·returning 은 아래에서 일찍 빠져나가지만 칩·문구는 여기서 같이 산다 —
+          // 두 자리에 같은 문자열을 적어 두면 VoiceOver 가 읽는 문장과 화면의 문장이 조용히
+          // 갈라진다 (announce 가 이 값들을 그대로 읽는다).
+          : state === 'handoff' || state === 'returning' ? { c: paper.action, t: '내 차례' }
+            : { c: paper.dim, t: '비어 있음' };
+  // ⚠ 「지난 예약이 하나 있어요」는 Sean이 "무슨 뜻이냐"고 물은 문장이었다 — 맞는 지적이었고,
+  // 사실은 "예약 시각이 지났는데 아직 확정으로 남아 있다"이다. 그래서 문구가 그걸 그대로 말하고
+  // 정확한 날짜·시각은 서브라인이 든다.
+  //
+  // ⚠⚠ 그리고 **1행에는 길이를 모르는 값을 절대 넣지 않는다.** 방금 `dateLabel + ' 예약'`을
+  // 1행에 넣었다가 「8월 4일 (화) 예약」이 마크 자리에 부딪혀 「8월 4일 (화)…」로 잘리는 걸
+  // 시뮬레이터에서 봤다 — 내가 세운 드롭 법을 내가 어긴 것이다. dateLabel은 '오늘'(2자)일 수도
+  // '8월 4일 (화)'(10자)일 수도 있으므로 1행에 올 수 없다. 짧을 때만 쓰고 아니면 '곧'으로
+  // 접는다: 정확한 날짜는 어차피 바로 아래 17pt 서브라인이 말한다.
+  //
+  // ⚠⚠⚠ [A① 2026-08-24 Sean] 위 문단이 정확히 진단해 놓고도 고치지 못한 결함이 여기 있었다:
+  // dateLabel 은 서버 행에서 **항상** kstParts 산출물(「8월 26일 (화)」, 10자)이라 ≤4 분기가
+  // 실행되는 경우가 없다. 즉 확정 히어로의 1행은 언제나 「곧」이었고, 엿새 뒤 예약도 「곧」이라고
+  // 말했다. 화면이 필요로 한 짧고 참인 값은 이미 한 층 위에 있었다 — kstDayDiff 로 계산되어
+  // 서브라인 꼬리표로만 쓰이던 상대 라벨이다. 그 값을 1행으로 올린다 (relLabel).
+  // shortDate 는 폴백으로만 남는다: relLabel 이 null 인 경우 = scheduled_at 자체가 없는 행.
+  const shortDate = next?.dateLabel && next.dateLabel.length <= 4 ? next.dateLabel : '곧';
+  const topLine = relLabel ?? shortDate;
+  // D-n 만 숫자다 (오늘 · 내일 · 곧 은 한글). 서체 전환의 근거는 라벨의 **모양**이지 상태가 아니다.
+  const topIsNum = state === 'confirmed' && !isLate && /^D-\d+$/.test(topLine);
+  const phrase =
+    state === 'confirmed'
+      // ⚠ [codex 2026-08-21] 헤드라인만 nextIsPast 로 남아 있었다 — 칩·서브라인·버튼은 isLate 로
+      // 옮겼는데 여기를 빠뜨렸다. 그 결과 10:00 예약을 10:31 에 보면 칩은 「지난 예약」, 서브라인은
+      // 「러너가 도착하지 않았어요」, 헤드라인은 「오늘 초코가 달려요」였다. 한 화면이 자기를 반박했다.
+      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${name}가 달려요` })
+      : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
+        : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
+          : state === 'handoff' ? { top: '지금 만나요', bottom: `${name} 인계할 시간` }
+            : state === 'returning' ? { top: '러닝이 끝났어요', bottom: `${name} 인계 확인` }
+              : { top: '오늘은 아직', bottom: '비어 있어요' };
+
+  // ── HIG A3/A6 — the hero, out loud ───────────────────────────────────────────────────────────
+  // This block moved ABOVE the early returns for one reason: the announcement must read the exact
+  // strings the screen renders, and `handoff`/`returning` used to hard-code their chip and phrase
+  // inside their own branches. Two copies of a sentence drift, and the copy that drifts silently
+  // is the one nobody can see. Nothing about the rendered output changed — the branches below now
+  // read `chip`/`phrase` instead of repeating them.
+  //
+  // The owner's home flips under them: `bk-<id>` realtime, the focus refetch, the app-resume
+  // refetch. What a sighted owner takes from a glance is the chip plus the two headline lines, so
+  // that is the sentence — not the subline, which is detail VoiceOver reads on focus.
+  // ⚠ `active` announces NOTHING here. Its hero is `liveWidget`, which home.tsx owns and
+  // announces, so a sentence built here would either duplicate it or describe a frame this
+  // component does not draw.
+  const heroSentence = loadState !== 'ready' || state === 'active'
+    ? null
+    : `${chip.t} · ${phrase.top} ${phrase.bottom}`;
+  useAnnounceOnChange(heroSentence);
 
   // ── 로딩·실패: 결정을 얹지 않는다 ─────────────────────────────────────────
   if (loadState === 'loading') {
@@ -256,10 +334,10 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         {errRow}
         {lateStrip}
         <View style={s.chipRow}>
-          <View style={[s.chipDot, { backgroundColor: paper.action }]} />
-          <Text style={[s.chipTx, { color: paper.action }]}>내 차례</Text>
+          <View style={[s.chipDot, { backgroundColor: chip.c }]} />
+          <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
         </View>
-        <Phrase top="지금 만나요" bottom={`${name} 인계할 시간`} df={df} />
+        <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
         <Text style={s.sub}>{runner}가 도착했어요 · 만나서 인계해주세요</Text>
         <View style={s.opts}>
           <DrawButton title="인계하기" sub="아이를 넘기고 봉인해요" ground="coral" art="leash"
@@ -281,10 +359,10 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         {errRow}
         {lateStrip}
         <View style={s.chipRow}>
-          <View style={[s.chipDot, { backgroundColor: paper.action }]} />
-          <Text style={[s.chipTx, { color: paper.action }]}>내 차례</Text>
+          <View style={[s.chipDot, { backgroundColor: chip.c }]} />
+          <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
         </View>
-        <Phrase top="러닝이 끝났어요" bottom={`${name} 인계 확인`} df={df} />
+        <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
         <Text style={s.sub}>{runner}가 {name}를 돌려주고 있어요 · 받으셨으면 확인해주세요</Text>
         <View style={s.opts}>
           <DrawButton title="인계 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
@@ -298,48 +376,6 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
 
   const inFlight = state === 'searching' || state === 'directed' || state === 'confirmed';
 
-  // 상태별 문구·칩·버튼. 1행은 항상 짧게(마크 자리) — 이름·시각처럼 길이를 모르는 값은
-  // 2행이나 서브라인으로 내려보낸다.
-  // ⚠ 지난 예약에 '확정됨'을 찍지 않는다. 시뮬레이터에서 초록 확정 칩 위에 「지난 예약이 하나
-  // 있어요」가 같이 뜬 걸 보고 잡았다 — 칩과 문구가 서로를 반박하면 둘 다 못 믿게 된다.
-  // 상태색 법의 초록은 '준비됨'이지 '지나갔음'이 아니므로, 지난 건은 중립 딤으로 내려간다.
-  const chip =
-    state === 'confirmed' ? (isLate
-      // [T6] '지난 예약'만으로는 어제인지 16일 전인지 알 수 없다. 기간은 사실이고, 사실은 공짜다.
-      ? { c: paper.dim, t: late?.late ? `지난 예약 · ${sinceLabel(late.sinceMs)}` : '지난 예약' }
-      : { c: GO_SAGE, t: '확정됨' })
-      : state === 'directed' ? { c: WAIT_BLUE, t: '응답 대기' }
-        : state === 'searching' ? { c: WAIT_BLUE, t: '찾는 중' }
-          : { c: paper.dim, t: '비어 있음' };
-  // ⚠ 「지난 예약이 하나 있어요」는 Sean이 "무슨 뜻이냐"고 물은 문장이었다 — 맞는 지적이었고,
-  // 사실은 "예약 시각이 지났는데 아직 확정으로 남아 있다"이다. 그래서 문구가 그걸 그대로 말하고
-  // 정확한 날짜·시각은 서브라인이 든다.
-  //
-  // ⚠⚠ 그리고 **1행에는 길이를 모르는 값을 절대 넣지 않는다.** 방금 `dateLabel + ' 예약'`을
-  // 1행에 넣었다가 「8월 4일 (화) 예약」이 마크 자리에 부딪혀 「8월 4일 (화)…」로 잘리는 걸
-  // 시뮬레이터에서 봤다 — 내가 세운 드롭 법을 내가 어긴 것이다. dateLabel은 '오늘'(2자)일 수도
-  // '8월 4일 (화)'(10자)일 수도 있으므로 1행에 올 수 없다. 짧을 때만 쓰고 아니면 '곧'으로
-  // 접는다: 정확한 날짜는 어차피 바로 아래 17pt 서브라인이 말한다.
-  //
-  // ⚠⚠⚠ [A① 2026-08-24 Sean] 위 문단이 정확히 진단해 놓고도 고치지 못한 결함이 여기 있었다:
-  // dateLabel 은 서버 행에서 **항상** kstParts 산출물(「8월 26일 (화)」, 10자)이라 ≤4 분기가
-  // 실행되는 경우가 없다. 즉 확정 히어로의 1행은 언제나 「곧」이었고, 엿새 뒤 예약도 「곧」이라고
-  // 말했다. 화면이 필요로 한 짧고 참인 값은 이미 한 층 위에 있었다 — kstDayDiff 로 계산되어
-  // 서브라인 꼬리표로만 쓰이던 상대 라벨이다. 그 값을 1행으로 올린다 (relLabel).
-  // shortDate 는 폴백으로만 남는다: relLabel 이 null 인 경우 = scheduled_at 자체가 없는 행.
-  const shortDate = next?.dateLabel && next.dateLabel.length <= 4 ? next.dateLabel : '곧';
-  const topLine = relLabel ?? shortDate;
-  // D-n 만 숫자다 (오늘 · 내일 · 곧 은 한글). 서체 전환의 근거는 라벨의 **모양**이지 상태가 아니다.
-  const topIsNum = state === 'confirmed' && !isLate && /^D-\d+$/.test(topLine);
-  const phrase =
-    state === 'confirmed'
-      // ⚠ [codex 2026-08-21] 헤드라인만 nextIsPast 로 남아 있었다 — 칩·서브라인·버튼은 isLate 로
-      // 옮겼는데 여기를 빠뜨렸다. 그 결과 10:00 예약을 10:31 에 보면 칩은 「지난 예약」, 서브라인은
-      // 「러너가 도착하지 않았어요」, 헤드라인은 「오늘 초코가 달려요」였다. 한 화면이 자기를 반박했다.
-      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${name}가 달려요` })
-      : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
-        : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
-          : { top: '오늘은 아직', bottom: '비어 있어요' };
   const subline =
     state === 'confirmed'
       ? (isLate ? (
@@ -382,9 +418,13 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   return (
     <View style={s.wrap}>
       {errRow}
+      {/* [HIG A3] Android's live region for the state chip — the iOS side is `heroSentence`
+          above. polite, and on the CHIP rather than the headline: the chip is the one word that
+          changes when the booking moves, and a live region on the two-line headline would re-read
+          the dog's name every time. */}
       <View style={s.chipRow}>
         <View style={[s.chipDot, { backgroundColor: chip.c }]} />
-        <Text style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
+        <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
       </View>
       <Phrase top={phrase.top} bottom={phrase.bottom} df={df} topNum={topIsNum} />
       <Text style={s.sub}>{subline}</Text>

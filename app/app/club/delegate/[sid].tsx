@@ -245,7 +245,18 @@ export default function DelegateConsentScreen() {
           </View>
 
           {/* ② 봉인 스트립 — 코랄 소프트 필 */}
-          <SealSlide width={width - 24 - 26 - 8} onSeal={submit} disabled={!ready || busy} />
+          {/* [HIG A6] The confirm copy for the accessibility path — this screen is the only caller,
+              and it is the only place that knows what sealing actually DOES. Both sentences are
+              recomposed from copy this flow already shows (the thumb's 「위탁 승낙」 and submit()'s
+              own 「신청이 전송됐어요 · 호스트가 확인하면 알려드릴게요」), so the dialog promises
+              exactly what happens and nothing beyond it. */}
+          <SealSlide
+            width={width - 24 - 26 - 8}
+            onSeal={submit}
+            disabled={!ready || busy}
+            confirmTitle="위탁을 승낙할까요?"
+            confirmBody="봉인하면 신청이 전송되고, 호스트가 확인하면 알려드려요"
+          />
           {!ready && (
             <Text style={{ fontSize: 15, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
               {!dogsLoaded

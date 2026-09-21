@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, fetchRunPhase, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
+import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
@@ -525,15 +526,10 @@ export default function Live() {
     : held && HELD_COPY[held] ? ` ${dogName} · ${HELD_COPY[held].pill}`
       : !hasFix ? ` ${dogName} · 위치 수신 대기`
         : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`;
-  const lastAnnouncedSentence = useRef<string | null>(null);
-  // HIG A3/A6: announce status changes after hydration.
-  useEffect(() => {
-    if (liveSentence === null) return;
-    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== liveSentence) {
-      AccessibilityInfo.announceForAccessibility(liveSentence);
-    }
-    lastAnnouncedSentence.current = liveSentence;
-  }, [liveSentence]);
+  // HIG A3/A6: the hero pill is the one thing a sighted owner reads at a glance, and it changes
+  // on its own — the runner's position stream, the 90-second staleness clock, an incident hold.
+  // Rate-limited in the helper: a GPS fix and a status row landing together used to announce twice.
+  useAnnounceOnChange(liveSentence);
   const staleMin = Math.max(1, Math.floor(staleSec / 60));
   const km = pos?.km ?? 0;
   // 경과는 runs.started_at에서만 온다 — 모르면 모른다고 말한다 (숫자를 지어내지 않는다).

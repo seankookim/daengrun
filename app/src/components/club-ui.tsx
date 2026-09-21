@@ -1,5 +1,5 @@
 import { ReactNode, useRef } from 'react';
-import { Animated, PanResponder, Pressable, StyleProp as RNStyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Alert, Animated, PanResponder, Pressable, StyleProp as RNStyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinear, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useNumFont } from '../lib/fonts';
 import { FlapState } from '../lib/api';
@@ -298,9 +298,28 @@ export function Ticket({ top, stub, notchColor = L.bg, holoEdge = true, style }:
 // ---------- 끌어서 봉인 (② 확정 — 코랄 소프트 필) — 완주해야 전송, 실수 탭 구조적 불가 ----------
 // 함정 주의: PanResponder는 ref로 1회 생성 → props를 클로저로 굳히면 스테일 (disabled가 첫 렌더 값으로 박제).
 // 최신 props는 stateRef 경유로 읽는다. ScrollView 제스처 강탈 방지 = capture 클레임 + termination 거부.
+// Module scope on purpose: a fresh array literal each render makes React Native re-register
+// the action list on every commit, and this control re-renders on every frame of the drag.
+const SEAL_A11Y_ACTIONS = [{ name: 'activate', label: '봉인 확인' }];
+
 // 접근성 대체 경로: 봉인 길게 누르기(700ms)도 전송.
-export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width: trackW = 292 }: {
-  label?: string; onSeal: () => void; disabled?: boolean; width?: number;
+//
+// 🔴 [HIG A6 2026-09-22] 그 길게 누르기만으로는 **부족했다**, 그리고 이유가 이 컨트롤의 설계 자체다.
+// 이 트랙에는 accessibilityRole 도 Label 도 Hint 도 없었다 — 즉 스크린 리더에게 이것은 이름 없는
+// 뷰였고, 「끌어서 봉인」은 옆에 떠 있는 글자 한 줄이었다. 드래그는 스크린 리더가 가로채고,
+// 700ms 길게 누르기는 **그것이 존재한다는 사실을 말해 주는 곳이 화면 어디에도 없다.** 동의 서명
+// 컨트롤이 한 무리의 사용자에게 죽은 버튼이었다는 뜻이고, 그건 이 앱이 금지한 바로 그것이다.
+// 그래서 (a) 트랙이 이름과 역할을 갖고, (b) 두 번 탭 = 시스템 확인 창 → 같은 complete() 로
+// 가는 길을 명시한다. 제스처 로직(PanResponder · 700ms)은 한 줄도 건드리지 않았다.
+export function SealSlide({
+  label = '끌어서 봉인', confirmTitle = '봉인할까요?', confirmBody, onSeal, disabled, width: trackW = 292,
+}: {
+  label?: string;
+  /** 접근성 경로의 확인 창 제목. 기본값은 이 컨트롤이 하는 일만 말한다 — 호출부가 자기 화면의
+   *  실제 결과를 아는 경우에만 그 문장으로 갈아 끼운다 (없는 결과를 약속하지 않는다). */
+  confirmTitle?: string;
+  confirmBody?: string;
+  onSeal: () => void; disabled?: boolean; width?: number;
 }) {
   const SEAL = 44;
   const max = Math.max(40, trackW - SEAL - 8);
@@ -317,6 +336,18 @@ export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width:
       .start(() => stateRef.current.onSeal());
   };
   const reset = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, friction: 6 }).start();
+
+  // The accessibility path to the SAME complete(). A confirm dialog stands in for the drag: the
+  // drag's whole purpose is that an accidental tap cannot seal, and a bare activate would throw
+  // that away for the people using this path. Alert IS the system confirm, so the friction is
+  // preserved rather than simulated.
+  const confirmViaA11y = () => {
+    if (stateRef.current.disabled || sealed.current) return;
+    Alert.alert(confirmTitle, confirmBody, [
+      { text: '취소', style: 'cancel' },
+      { text: '봉인', onPress: complete },
+    ]);
+  };
 
   const armed = (g: { dx: number; dy: number }) =>
     !stateRef.current.disabled && !sealed.current && Math.abs(g.dx) > 5 && Math.abs(g.dx) > Math.abs(g.dy);
@@ -335,7 +366,19 @@ export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width:
   // Every disabled state is now an explicit color. Gesture logic below is untouched (frozen:
   // PanResponder + the 700ms long-press accessibility path).
   return (
-    <View style={[s.sealTrack, { width: trackW }, disabled && s.sealTrackOff]}>
+    <View
+      style={[s.sealTrack, { width: trackW }, disabled && s.sealTrackOff]}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      // Says what the alternative IS, and claims nothing about how a screen reader routes a
+      // long-press — that is a device fact nobody here has measured. The drag is already named by
+      // the visible label ('끌어서 봉인'), which is this element's accessibilityLabel.
+      accessibilityHint="두 번 탭하면 확인 창이 열려요 — 끌지 않아도 봉인할 수 있어요"
+      accessibilityState={{ disabled: !!disabled }}
+      accessibilityActions={SEAL_A11Y_ACTIONS}
+      onAccessibilityAction={confirmViaA11y}
+    >
       <Animated.View style={[s.sealFill, { width: fillW }, disabled && { backgroundColor: L.inset }]} />
       <Text style={[s.sealLabel, disabled && { color: L.dim }]}>{label}</Text>
       <Text style={[s.sealArrows, disabled && { color: L.hair }]}>›››</Text>

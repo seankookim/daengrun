@@ -1,4 +1,5 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -443,6 +444,14 @@ export default function RunnerHome() {
   const upcoming = jobs.filter((j) => j.status === 'confirmed' && j.bookingId !== current?.bookingId).slice(0, 3);
   const past = jobs.filter((j) => j.status === 'completed').slice(0, 3);
 
+  // HIG A3/A6 — the in-flight ticket's stage label, announced when it flips. This is the word the
+  // whole ticket is organised around and it moves without the runner touching anything (the job
+  // poll, the owner stamping a handoff), typically while they are walking to a door.
+  // `STAGE[stageFor(current)]` and not `current.rawStatus`: the fallback the ticket renders is the
+  // RAW SERVER TOKEN (`runner_enroute`), which is fine as a visible last resort and is not
+  // something to read to a person — a stage with no label announces nothing at all.
+  useAnnounceOnChange(current ? STAGE[stageFor(current)]?.label ?? null : null);
+
   // 진행 중 잡의 픽업 주소 — 키는 RunnerJob.bookingId (이 타입에 id 필드는 없다). 20행 잡 목록 전체를
   // 훑지 않고 지금 진행 중인 한 건만 부른다. 실패는 여기서 조용하다: 홈 카드는 지나가는 요약이고,
   // 라우드한 실패 표면(재시도 스트립)은 미트업 화면의 픽업 카드가 진다 — 두 곳에서 소리치지 않는다.
@@ -747,7 +756,13 @@ export default function RunnerHome() {
                       <Text style={[styles.tBig, nf, rel?.late ? { color: paper.critical } : null]}>
                         {rel ? rel.text : wt}
                       </Text>
-                      <Text style={[styles.objStage, { color: rel?.late ? paper.critical : st?.color ?? CORAL_INK }]}>
+                      {/* [HIG A3] Android's live region for the stage word — the iOS side of the
+                          same fact is the `useAnnounceOnChange` above. polite: a runner walking to
+                          a door should hear the stage flip, not be interrupted mid-sentence. */}
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={[styles.objStage, { color: rel?.late ? paper.critical : st?.color ?? CORAL_INK }]}
+                      >
                         {st?.label ?? current.rawStatus}
                       </Text>
                     </Row>

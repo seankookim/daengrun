@@ -14,6 +14,7 @@ import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal } from '../../src/lib/kst';
@@ -422,6 +423,19 @@ export default function OwnerHome() {
           : fnDirected ? 'directed'
             : fnSearching ? 'searching'
               : 'none';
+
+  // HIG A3 — `active` is the one hero state `home-hero.tsx` deliberately stays silent on, because
+  // its hero is the live widget below rather than the chip/phrase pair the hero announces. Same
+  // words the widget renders, with two clauses dropped on purpose:
+  //   · the elapsed clause (`N분째`) ticks, and a sentence that changes every minute would
+  //     announce a CHANGE on a state that has not changed — the exact noise the gate exists for;
+  //   · 「— 지도 보기 ›」 is the affordance, and VoiceOver already says 「버튼」 for it.
+  // The widget itself is only mounted on this same condition, so the sentence cannot describe a
+  // frame that is not on screen.
+  const liveHeroSentence = goState !== 'active' || !liveNext
+    ? null
+    : `LIVE · ${liveNext.runnerName ?? '러너'} 러너 · ${liveNext.dogName ?? dogName ?? '아이'}가 달리는 중이에요`;
+  useAnnounceOnChange(liveHeroSentence);
 
   // ── 리워드 비컨 (rewards ①, Sean 승인 2026-08-05) — 실데이터만 ──────────────────────────
   // 구 비컨은 `claimable = null` 상수 + 절대 안 도는 펄스 루프 + 목업 '수령하기' Alert 였다 (ui-audit P0:
