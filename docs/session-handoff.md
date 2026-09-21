@@ -139,6 +139,26 @@ and both re-ran under unique names. Briefs now say: unique scratch names per sli
   ⚠ The builder stopped with its worktree LOCKED (background work of its own); the landing chain pushed and read back
   first and only the cleanup step failed — removed with `--force --force` afterwards; no cluster was left running.
 
+**Landed 05:19:**
+- `5de824b` **0194 정산 계좌 registration** (+ suite 225): `set_my_bank_account` / `my_bank_account` (masked last-4 only)
+  / `ops_bank_account` (ops-gated BEFORE any read, every decrypt journaled in `bank_account_reads`, an unreadable
+  ciphertext reports `account = NULL` and STILL journals) / `delete_my_bank_account` refused `payout_owed` on exactly
+  0190 §B's retention predicate (the builder first borrowed 0186's payout-ELIGIBILITY clause — same ruling, two doors,
+  opposite answers on a runner with an open run; fixed, and 0192 reached the same rule independently). Encryption is
+  pgcrypto `pgp_sym_encrypt` with a 32-byte key the migration MINTS ITSELF into a sealed one-row table — vault was
+  rejected on a measurement (the harness has no vault and suites 116/151/181 stand on that absence). ⚠ **Deploy
+  shape a later session must not 「simplify」:** the four definers set `search_path = public, extensions, pg_temp`
+  because pgcrypto lives in `extensions` on Supabase and in `public` in the harness — the house literal would be green
+  here and dead in production (pinned by 0194-S1). `service_role` is revoked from the two key helpers — the shim
+  grants it EXECUTE by default modelling production, so without that word `_bank_account_key()` was a PostgREST RPC
+  returning the key (found by a cold executing reviewer's REJECT/13, eight real, all answered in the commit). Client:
+  `runner/bank-account.tsx` (bank chips, number pad with AutoFill suppressed, masked card, 변경 never redisplays the
+  number, 계좌 삭제 behind a native confirm), earnings shows the masked account or 「정산 계좌 등록하기」. 15-plant
+  battery, control clean first. Merge needed a hand union in `earnings.tsx` (0192's totals block + 0194's account
+  block; 0194's superseded `sumKnown` lines dropped — the five remaining mentions are comments). harness 1371 →
+  1378/0 (+7) · deno 369/0 · npm 1328/0 · babel 151 · routes 66. Deploy: db push only + client build. Not
+  Codex-reviewed (07:41 one-shot).
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
