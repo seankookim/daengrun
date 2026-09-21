@@ -17,7 +17,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 
 ## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
 
-**Trunk `6cc7ff1`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
+**Trunk `3c522fd`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
 Landed tonight (each merged on the combined tree with harness · deno · npm · tsc · checks, pushed, read back):
 
 | slice | what a user gets | proof |
@@ -36,9 +36,10 @@ Landed tonight (each merged on the combined tree with harness · deno · npm · 
 | `9454182` push routes + alerts cycle | cancel-comp push → 수익; 「체크인 지연」 + two club auto-refund pushes reach the session screen (the runner fast path skipped the club probe — 7 runner-addressed session-ref titles enumerated); alerts collapse handoff resends `×N 재요청` | +65 pins, 14 plants |
 | `da684d6` custody ping · review bid · replay notice | **`custody_ping` had zero callers since 0083 — every 귀가 made the owner's LA count 「N분째 위치 신호가 없어요」**; a 60 s foreground loop on 반환 봉인 + 기록 (real refusal tokens are `not_run_runner`/`not_in_custody` — the brief's guesses would have looped against a shut door); the runner review takes a `bid` + a 캘린더 door; a replayed 예약하기 says so | +93 pins, 12 plants |
 | `6cc7ff1` home custody ping | the runner home 「반환 확인 중」 ticket sends the heartbeat too; the label, the routing and the ping gate are ONE rule (`homewardReturnOpen`: `rawStatus==='active' && run_ended_at`) | +19 pins |
+| `3c522fd` 0198 ops console | `/ops`: 지급 대기 → pick rows → 계좌 보기 (fetched ON TAP only, every read journaled) → 지급 기록; 배송 대기 → 발송 처리; `ops_me()` hides the settings row for non-ops (the SERVER stays the gate) | harness 1384/0 · 17 plants · +36 pins |
 | `2bcfea1` Reduce Motion A7 | the ⑫ report ceremony cross-fades under Reduce Motion; **the reduced path could never run before** (async permission read answered after `.start()`) — fixed with a settled-aware hook | +25 pins, 9 plants |
 
-Still building when this was written: `be/0198-ops-console`, `be/0199-resolution-visibility` (home custody ping landed `6cc7ff1`). Landed from WAVE 3 already: routes/alerts `9454182`, ping/review/replay `da684d6`. WAVE 3 from a code-verified gap finder (05:35): `fix/homeward-ping-review-bid` (🔴 `custody_ping` has ZERO client callers since 0083, so every normal 귀가 makes the owner's Live Activity count 「N분째 위치 신호가 없어요」 forever — a ping loop on the runner's homeward screen; the runner review takes a `bid` and gets a second entry point — a stale store could write it onto the wrong booking, 0193 A4's class; the 0179 replay flag is rendered), `fix/push-routes-alerts-cycle` (cancel-comp push → earnings not calendar; 「체크인 지연」 and the two club auto-refund pushes carry a session id the router discards; alerts collapse `handoff_cycle_id` resends), `be/0199-resolution-visibility` (`my_return_resolution(bid)` so an ops-resolved return is not a silent settle; `handoff_escalated_at` on the booking read + a read-only strip on the meetup screens). Deferred to a later batch: manual-payout method label for runners (needs a sanitised projection), availability exceptions (schema slice), `session_reconsider_dog` (club surface — Sean's Codex batch owns club). (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
+Still building when this was written: `be/0199-resolution-visibility` (0198 landed `3c522fd`, home custody ping `6cc7ff1`). Landed from WAVE 3 already: routes/alerts `9454182`, ping/review/replay `da684d6`. WAVE 3 from a code-verified gap finder (05:35): `fix/homeward-ping-review-bid` (🔴 `custody_ping` has ZERO client callers since 0083, so every normal 귀가 makes the owner's Live Activity count 「N분째 위치 신호가 없어요」 forever — a ping loop on the runner's homeward screen; the runner review takes a `bid` and gets a second entry point — a stale store could write it onto the wrong booking, 0193 A4's class; the 0179 replay flag is rendered), `fix/push-routes-alerts-cycle` (cancel-comp push → earnings not calendar; 「체크인 지연」 and the two club auto-refund pushes carry a session id the router discards; alerts collapse `handoff_cycle_id` resends), `be/0199-resolution-visibility` (`my_return_resolution(bid)` so an ops-resolved return is not a silent settle; `handoff_escalated_at` on the booking read + a read-only strip on the meetup screens). Deferred to a later batch: manual-payout method label for runners (needs a sanitised projection), availability exceptions (schema slice), `session_reconsider_dog` (club surface — Sean's Codex batch owns club). (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
 기록; 배송 대기 → 발송 처리; entry row in settings only when `ops_me().is_ops`). The heartbeat (:19/:49) lands them
 if they finish green. Simulator: a Release build of `67236dc` is installed on the iPhone 16 Pro sim (`/tmp/dd27/…/app.app`),
 boots to login; signed-in smoke lists are in each builder's report (summarised in the sections below).
@@ -217,6 +218,24 @@ replaces to `/runner/return-seal` after end_run, so the hook lives on 반환 봉
 VERIFIED before a submit button is drawn, `absent` ≠ `failed`; the 「● 서버 홀드 확보 — 예약이 생성됐어요」 line was the
 false celebration on a replay) · npm 1511/0 · babel 157. Remaining gap named by the builder: `runner/home.tsx`'s
 「귀가 중」 strip — a runner idling on home during custody sends nothing (follow-up builder spawned).
+
+**Landed 06:18:** `3c522fd` **0198 ops console** (+ suite 229): `ops_me()` (answers about the CALLER only) and
+`ops_runner_payout_detail()`; client `/ops` (`_layout` refuses non-ops with a real 「운영자 전용 화면이에요」 face,
+never blank), `/ops/payout/[runner]` (checkbox rows, the checked total is SENT as `p_amount_won` and the server's
+`amount_mismatch`/`already_paid` refusals are mapped to Korean; 계좌 보기 calls `ops_bank_account` from one `onPress`
+— never on mount, because 0194 journals every gated call and a load-time read would make the journal useless as
+evidence), `/ops/gear/[claim]`, and a 운영 콘솔 row in settings only when `is_ops`. 17-plant battery; the battery
+found a defect in the builder's own pin (a subquery returning >1 row killed the whole suite silently → counts) and
+corrected 9 of 17 of its own predictions. harness 1378 → 1384/0 (+6) · deno 369/0 · npm 1566/0 · babel 162 ·
+routes 70. ⚠ Two things for Sean: (a) an operator does not exist until YOU insert your `ops_recipients` row
+(`payout_due`, active) — 0198 deliberately does not grant itself one; (b) 계좌 복사 uses RN's core `Clipboard`
+(deprecated) because `expo-clipboard` is not a dependency and adding one needs a pod install — a dependency decision
+that is yours. ⚠ Landing note, mine: the merge conflicted in `api.ts` (two blocks appended at EOF — kept both) and my
+first resolution dropped a closing brace; tsc caught it BEFORE the push (the `&&` chain worked). But an earlier
+`;` before `git worktree unlock` in the same chain ran the cleanup step on the FAILED chain and deleted the remote
+branch `be/0198-ops-console` before the landing — the content was safe in the local merge commit and is now on trunk
+(read back: 0198 in ls-tree, 4 ops routes, the brace present), but the shape is wrong and is recorded in memory.
+Simulator rebuild of `3c522fd` started for the morning smoke.
 
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
