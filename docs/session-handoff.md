@@ -15,6 +15,42 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
+
+**Trunk `5bab5e1`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
+Landed tonight (each merged on the combined tree with harness · deno · npm · tsc · checks, pushed, read back):
+
+| slice | what a user gets | proof |
+|---|---|---|
+| `80818ef` busy sweep (Codex astra) | 7 buttons stop lying `disabled` while busy | npm 1086/0 |
+| `41e443b` cards retry | /cards failure faces have 다시 시도 (7 other audit rows were already fixed on 09-17) | device-verified |
+| `893e870` HIG S1/N3/AutoFill | push permission asked only from the primer's 「계속」; parent tab lit on /alerts /cards /safety; 16 AutoFill fields | +61 pins; dock device-verified |
+| `da72c1f` 0191 refusal ids | delete-account refusals carry the blocking id; club refusals deep-link | harness 1348/0 · deno 369/0 |
+| `f2d88de` live regions | VoiceOver hears state flips; **SealSlide consent is now operable by VoiceOver** | +45 pins, 7-plant battery |
+| `1a535ab` 0192 payout read | earnings shows 지급 완료/지급 대기 per row, 미지급 vs 누적, 지급 내역 | harness 1353/0 |
+| `5ba8c02` geo pin (peer) | CPU-linearity pin replaces my wall-clock budget (mine was blind to O(n²) at n=1000 — measured) | geo 39 ✅ |
+| `075863b` 0193 strand resolution | the REJECT/9 answered: `quote_required`, `ops_resolve_return_tx`, `resolve_return` edge action, strand arm behind `ops_flags.return_strand_minutes` (NULL = off) | harness 1362/0 · 3 plants |
+| `8af5760` owner sheets | slot picker + booking manager are native pageSheets (swipe-down); runner-profile virtualized | npm 1267/0 |
+| `ff6e077` 0195 gear claim | 「수령 신청」 with a delivery snapshot; ops ship + tracking | harness 1371/0 · 9 plants |
+| `5de824b` 0194 bank account | 정산 계좌 register/mask/delete; ops decrypt journaled; key minted by the migration | harness 1378/0 · 15 plants |
+
+Still building when this was written: `hig/reduce-motion-ceremony` (A7 on report / return-seal / done / home-hero) and
+`be/0198-ops-console` (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
+기록; 배송 대기 → 발송 처리; entry row in settings only when `ops_me().is_ops`). The heartbeat (:19/:49) lands them
+if they finish green. Simulator: a Release build of `67236dc` is installed on the iPhone 16 Pro sim (`/tmp/dd27/…/app.app`),
+boots to login; signed-in smoke lists are in each builder's report (summarised in the sections below).
+
+**Your letters, in order:**
+1. **Codex review** — the 07:41 one-shot runs ONE combined adversarial review of everything since `623a36b`; its verdict
+   doc will be `docs/reviews/2026-09-22-post-reset-codex-verdict.md`. If it rejects, correct-forwards start at **0198+**
+   (0196/0197 are reserved for your Codex batch — brief at `docs/prompts/2026-09-22-codex-batch-brief.md`).
+2. **Deploy (queue item 1)** — THIRTY-SIX migrations in one `db push` after the review passes; sequence in the queue.
+   New production writes afterwards, yours: `ops_flags.return_strand_minutes` (item 23's number), `ops_recipients` rows
+   for `return_strand` and `payout_due`, and your own `ops_recipients` row so the ops console shows for you.
+3. **Item 20** (0164 ⓐ/ⓑ/ⓒ), **item 23** (the strand deadline), **item 7** (km wallet), **item 22** (six gated builds).
+4. Two observations to look at signed in: /cards shows no 코스 패치 section at all when signed out (no failure, no empty
+   state); and the earnings screen's per-section failure strips can only be provoked with one endpoint failing.
+
 ## 2026-09-22 02:50 — Codex reset; REJECT/9 on 0188/0189/0190; a seven-builder wave (Sean: 「focus on shipping and building」)
 
 **Trunk `ed562cd` (docs only over `92518b0`). Nothing deployed; production 0156. Deploy letter PARKED again.**
