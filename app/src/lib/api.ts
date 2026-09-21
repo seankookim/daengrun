@@ -7,6 +7,8 @@ import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
 // [0187] push-preference categories — pure table + copy, pinned by `test/notification-prefs.test.cjs`
 import { NotiPrefs, PrefKey, toPrefs } from './notification-prefs';
+// [0194] 정산 계좌 — the refusal copy, drift-pinned against the migration by `test/bank-account.test.cjs`
+import { BANK_ERROR_KO, type BankAccountRefusal } from './bank-account';
 // 0117 지각 체크인 — 파싱은 순수 모듈에 산다 (.cjs 스위트가 번들할 수 있어야 하므로). 아래
 // fetchCheckin/answerCheckin 참조.
 import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
@@ -5931,4 +5933,82 @@ function notiPrefsError(e: unknown): Error {
   const raw = String((e as { message?: string })?.message ?? e ?? '');
   if (raw.includes('not_signed_in')) return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
   return e instanceof Error ? e : new Error(raw || '알림 설정을 처리하지 못했어요');
+}
+
+// ── [0194] 정산 계좌 ──────────────────────────────────────────────────────────────────────────
+// The list, the validations and the refusal copy live in `bank-account.ts` (pure, pinned against
+// the migration itself by `test/bank-account.test.cjs`); these three functions are the wire.
+//
+// ⚠ THE ACCOUNT NUMBER NEVER COMES BACK. `my_bank_account()` returns `account_masked` — `••••`
+// plus the last four digits, composed on the server after decrypting there. The client has no
+// path to the full number and no path to the ciphertext (0194 §C revokes the column), which is
+// why nothing here tries to mask anything: the masking is the server's, and a client that masked
+// a value it had received would be drawing a privacy property it does not have.
+// ⚠ `verifiedAt` is NULL on every row and 0194 never writes it — there is no 예금주 조회. It is
+// carried here rather than dropped so the day a verifier lands the wire already has the field.
+
+export type MyBankAccount = {
+  bank: string;              // 금융결제원 code — `bankLabel()` turns it into words
+  bankLabel: string | null;  // resolved server-side; null if the code left the list
+  holder: string;
+  accountMasked: string | null;  // null = the stored row could not be decrypted (re-register)
+  verifiedAt: string | null;
+  updatedAt: string | null;
+};
+
+function toBankAccount(row: Record<string, unknown> | null | undefined): MyBankAccount | null {
+  if (!row) return null;
+  const bank = typeof row.bank === 'string' ? row.bank : '';
+  if (bank === '') return null;
+  return {
+    bank,
+    bankLabel: typeof row.bank_label === 'string' ? row.bank_label : null,
+    holder: typeof row.holder === 'string' ? row.holder : '',
+    accountMasked: typeof row.account_masked === 'string' ? row.account_masked : null,
+    verifiedAt: typeof row.verified_at === 'string' ? row.verified_at : null,
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+  };
+}
+
+/** The caller's own 정산 계좌, or null when none is on file. Null is the honest empty state, not
+ *  an error — the screen offers registration rather than a failure strip. */
+export async function fetchMyBankAccount(): Promise<MyBankAccount | null> {
+  const { data, error } = await supabase.rpc('my_bank_account');
+  if (error) throw bankAccountError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return toBankAccount(row as Record<string, unknown> | null);
+}
+
+/** Register or replace the account. Returns the row AS STORED (0194 §F② returns it for the same
+ *  reason `set_notification_prefs` does), so the screen draws what the server kept rather than
+ *  what it sent — and for a money destination that difference is the whole point. */
+export async function setMyBankAccount(input: {
+  bank: string; account: string; holder: string;
+}): Promise<MyBankAccount | null> {
+  const { data, error } = await supabase.rpc('set_my_bank_account', {
+    p_bank: input.bank,
+    p_account: input.account,
+    p_holder: input.holder,
+  });
+  if (error) throw bankAccountError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return toBankAccount(row as Record<string, unknown> | null);
+}
+
+/** Remove the account. Refused with `payout_owed` while any settled earning is still unpaid — the
+ *  money must keep a destination (Sean's A-intact-when-owed, 0115:537-563). */
+export async function deleteMyBankAccount(): Promise<void> {
+  const { error } = await supabase.rpc('delete_my_bank_account');
+  if (error) throw bankAccountError(error);
+}
+
+/** Map 0194's named refusals to Korean. ⚠ An UNRECOGNISED error keeps its own message rather than
+ *  being dressed as one of these — a real fault reported as 「계좌번호를 다시 확인해주세요」 sends
+ *  the person to edit a field that was never the problem. */
+function bankAccountError(e: unknown): Error {
+  const raw = String((e as { message?: string })?.message ?? e ?? '');
+  for (const token of Object.keys(BANK_ERROR_KO) as BankAccountRefusal[]) {
+    if (raw.includes(token)) return new Error(BANK_ERROR_KO[token]);
+  }
+  return e instanceof Error ? e : new Error(raw || '정산 계좌를 처리하지 못했어요');
 }

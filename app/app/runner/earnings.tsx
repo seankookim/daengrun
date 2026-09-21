@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
-import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
+import { fetchLedger, fetchLedgerTotal, fetchMyBankAccount, LiveLedgerItem, MyBankAccount } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { layout, paper } from '../../src/theme';
@@ -96,6 +96,25 @@ export default function Earnings() {
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
+  // [0194] 정산 계좌 — 이 화면은 0001 부터 있던 `bank_accounts` 에 행을 만들 방법이 없다는 사실을
+  // 「계좌 등록은 오픈뱅킹 연동과 함께 제공돼요」라는 문장으로 정직하게 적어 두고 있었다. 이제
+  // 등록하는 화면(`runner/bank-account`)이 있으므로 그 문장은 거짓이 됐고, 자리에는 실상태가 온다.
+  // ⚠ 원장 로드와 **일부러 분리**돼 있다: 계좌를 못 읽는 것과 정산 내역을 못 읽는 것은 다른 실패이고,
+  //   하나가 다른 하나의 스트립을 띄우면 러너는 고칠 수 없는 것을 고치려 든다.
+  const [bankAcct, setBankAcct] = useState<MyBankAccount | null>(null);
+  const [bankPhase, setBankPhase] = useState<'loading' | 'error' | 'ready'>('loading');
+  const loadBank = useCallback(() => {
+    setBankPhase('loading');
+    fetchMyBankAccount()
+      .then((row) => { setBankAcct(row); setBankPhase('ready'); })
+      .catch((e) => {
+        console.warn('[earnings] bank:', (e as Error)?.message ?? e);
+        setBankAcct(null);
+        setBankPhase('error');
+      });
+  }, []);
+  useFocusEffect(useCallback(() => { loadBank(); }, [loadBank]));
+
   // 정산 예정 = 원장 전체 누적 (30행 캡 합계가 31번째 러닝부터 오히려 줄어들던 버그 — 로드 전엔 표시 리스트 합으로 폴백)
   // [honesty 2026-08-11] sumKnown 전에는 '—' — 로딩/실패를 0원으로 위장하지 않는다.
   const sumKnown = loaded || total != null;
@@ -153,12 +172,60 @@ export default function Earnings() {
           지급 일정 미정 · 지급 시 사업소득 3.3% 원천징수
         </Text>
 
-        {/* bank account — honest info row, not a door: registration ships with open banking */}
+        {/* bank account — [0194] a real door now. Four states, all different: loading is not
+            「없어요」, a failure is a failure with a retry, a registered account shows the SERVER's
+            mask (the full number never reaches this app), and no account is an invitation. */}
         <View style={s.rule} />
         <Text style={s.secTitle}>정산 계좌</Text>
-        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
-          아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요
-        </Text>
+        {bankPhase === 'loading' && (
+          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
+            계좌 정보를 불러오는 중...
+          </Text>
+        )}
+        {bankPhase === 'error' && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>정산 계좌를 불러오지 못했어요</Text>
+            <Pressable onPress={loadBank} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {bankPhase === 'ready' && bankAcct !== null && (
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 5 }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: paper.ink, lineHeight: 22 }}>
+                {bankAcct.accountMasked === null
+                  ? (bankAcct.bankLabel ?? bankAcct.bank)
+                  : `${bankAcct.bankLabel ?? bankAcct.bank} ${bankAcct.accountMasked}`}
+              </Text>
+              {/* 복호화가 안 되는 행은 실패다 — dim 으로 적으면 그냥 정보처럼 읽힌다. */}
+              <Text style={{
+                fontSize: 15, marginTop: 2, lineHeight: 20,
+                color: bankAcct.accountMasked === null ? paper.critical : paper.dim,
+                fontWeight: bankAcct.accountMasked === null ? '700' : '400',
+              }}>
+                {bankAcct.accountMasked === null ? '계좌를 읽지 못했어요 — 다시 등록해주세요' : bankAcct.holder}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/runner/bank-account')}
+              style={s.bankChange}
+              accessibilityRole="button"
+              accessibilityLabel="정산 계좌 변경"
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.actionInk }}>변경</Text>
+            </Pressable>
+          </Row>
+        )}
+        {bankPhase === 'ready' && bankAcct === null && (
+          <Pressable
+            onPress={() => router.push('/runner/bank-account')}
+            style={({ pressed }) => [s.bankRegister, pressed && s.bankRegisterPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' }}>정산 계좌 등록하기</Text>
+          </Pressable>
+        )}
 
         {/* ledger — §3b section header: full-bleed coral rule + 20/800 ink */}
         <View style={s.rule} />
@@ -275,6 +342,13 @@ const s = StyleSheet.create({
   // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
+  // [0194] 정산 계좌 두 문, DESIGN.md:203-206 의 버튼 표 그대로. 「변경」은 이미 목적지가 있는
+  // 사람의 조용한 문 = Secondary(canvas 면 + 1px line 보더 + actionInk 라벨 — 첫 초안은 보더를
+  // 빠뜨려 wash 만 떠 있었다), 「등록하기」는 아직 받을 곳이 없는 사람의 Primary(ink 면 + 4px 립,
+  // radius 0) — 러너가 이 화면에서 할 수 있는 가장 중요한 한 가지다.
+  bankChange: { paddingHorizontal: 14, minHeight: 44, justifyContent: 'center', borderRadius: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line },
+  bankRegister: { marginTop: 9, minHeight: 52, borderRadius: 0, backgroundColor: paper.ink, borderBottomWidth: 4, borderBottomColor: paper.inkPressed, alignItems: 'center', justifyContent: 'center' },
+  bankRegisterPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크 (s.rule이 그 위의 코랄 선을 긋는다).
   // 정산 계좌도 이제 같은 헤더다 — 종전 15.5/800 카드 제목은 이 화면만의 크기였다.
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
