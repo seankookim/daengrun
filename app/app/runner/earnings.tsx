@@ -6,9 +6,16 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
-import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
+import {
+  fetchLedger, fetchLedgerTotal, fetchLedgerUnpaidTotal, fetchMyPayouts,
+  LiveLedgerItem, MyPayout,
+} from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import {
+  ledgerPaymentLabel, ledgerPaymentState, payoutPeriodLabel, payoutStatusLabel,
+  sortPayoutsNewestFirst,
+} from '../../src/lib/payout-status';
 import { layout, paper } from '../../src/theme';
 
 // 수익 — 실원장(ledger_items)만 표시. 정산·계좌는 백엔드 후속.
@@ -78,28 +85,65 @@ export default function Earnings() {
   // '정산 내역을 불러오지 못했어요' 스트립 **바로 아래**에 이전 합계와 이전 행들을 그대로 인쇄했고,
   // 그 낡은 합계가 원천징수 추정치까지 몰았다. sumKnown 게이트는 0원 위장을 막는 장치이지,
   // 옛 숫자를 지금 숫자로 파는 것을 막는 장치가 아니다.
-  const load = () => {
+  // [0192] 미지급 합계 — my_ledger_unpaid_total. 평생 누계(total)와 **다른 문장**이고, 0186이
+  // payouts에 쓰는 쪽을 만들기 전까지는 둘이 항상 같았다. 이제 갈라진다.
+  const [unpaid, setUnpaid] = useState<number | null>(null);
+
+  // [0192] 지급 내역은 **자기 로드 그룹**이다. 원장과 한 Promise.all에 묶으면 payouts 한 번의
+  // 실패가 멀쩡히 읽힌 원장까지 지운다 — 그건 실패를 실패로 보이게 하는 게 아니라 성공을
+  // 실패로 지우는 것이다. 행별 「지급 완료」 배지는 원장 읽기(paid_payout_id)에서 나오므로 이
+  // 그룹이 죽어도 정확하게 유지된다.
+  const [payouts, setPayouts] = useState<MyPayout[]>([]);
+  const [poLoaded, setPoLoaded] = useState(false);
+  const [poErr, setPoErr] = useState(false);
+
+  const loadLedger = () => {
     setLoadErr(false);
     return Promise.all([
       fetchLedger().then(setLedger),
       fetchLedgerTotal().then(setTotal),
+      fetchLedgerUnpaidTotal().then(setUnpaid),
     ]).then(() => setLoaded(true))
       .catch((e) => {
         console.warn('[earnings] ledger:', e?.message ?? e);
         setLoaded(false);
         setTotal(null);
+        setUnpaid(null);
         setLedger([]);
         setLoadErr(true);
       });
   };
+  const loadPayouts = () => {
+    setPoErr(false);
+    return fetchMyPayouts()
+      .then((rows) => { setPayouts(sortPayoutsNewestFirst(rows)); setPoLoaded(true); })
+      .catch((e) => {
+        // 같은 법(requests.tsx:99-106): 실패하면 **값을 버린다**. 실패 스트립 아래에 지난번
+        // 지급 목록을 그대로 두면, 방금 들어온 지급이 없는 것처럼 읽힌다.
+        console.warn('[earnings] payouts:', e?.message ?? e);
+        setPoLoaded(false);
+        setPayouts([]);
+        setPoErr(true);
+      });
+  };
+  const load = () => Promise.all([loadLedger(), loadPayouts()]);
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
-  // 정산 예정 = 원장 전체 누적 (30행 캡 합계가 31번째 러닝부터 오히려 줄어들던 버그 — 로드 전엔 표시 리스트 합으로 폴백)
-  // [honesty 2026-08-11] sumKnown 전에는 '—' — 로딩/실패를 0원으로 위장하지 않는다.
-  const sumKnown = loaded || total != null;
-  const pendingSum = total ?? ledger.reduce((sum, l) => sum + l.net, 0);
+  // [0192] 합계 줄의 주어가 바뀐다 — 그리고 **이것이 이 슬라이스의 클라이언트 쪽 결함이다.**
+  // 종전 라벨은 「정산 예정 · 원장 합계」였고, my_ledger_total은 평생 누계다. 0186 이전에는
+  // payouts에 쓰는 쪽이 없어 지급된 행이 존재할 수 없었으므로 그 라벨은 참이었다. 첫 수기 지급이
+  // 들어오는 순간, 그 줄은 **이미 통장에 들어간 돈을 아직 올 돈이라고** 말한다. 코드는 한 글자도
+  // 바뀌지 않았고 게이트도 하나 안 빨개진다(§④ 부류: 결함은 바뀌지 않은 줄이다).
+  // 이제 미지급 합계가 주 숫자이고, 평생 누계는 그 아래 한 줄로 사실로서 남는다 — 지우면 러너가
+  // 자기가 이 앱에서 얼마를 벌었는지 볼 곳이 없어진다.
+  // [honesty 2026-08-11, 그대로] sumKnown 전에는 '—' — 로딩/실패를 0원으로 위장하지 않는다.
+  // ⚠ 30행 캡 합산 폴백은 **미지급 합계에 쓰지 않는다**: 캡 안의 미지급 행 합은 31번째부터
+  //   실제보다 작고, 「덜 받을 돈」을 발명하는 쪽이 「모른다」보다 나쁘다.
+  const unpaidKnown = unpaid != null;
+  const lifetimeKnown = loaded || total != null;
+  const lifetimeSum = total ?? ledger.reduce((sum, l) => sum + l.net, 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -115,15 +159,28 @@ export default function Earnings() {
         {/* 합계 — 한 줄. sumKnown 게이트는 그대로: 로딩·실패를 0원으로 위장하지 않는다 ('—'). */}
         <View style={[s.rule, { marginTop: 14 }]} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Text style={s.sumLabel}>정산 예정 · 원장 합계</Text>
-          {sumKnown ? (
+          <Text style={s.sumLabel}>아직 받지 않은 금액</Text>
+          {unpaidKnown ? (
             <Row style={{ alignItems: 'baseline' }}>
               {/* Oswald sum — lineHeight 24 = 1.26× (BUG A) */}
-              <Text style={[s.sumNum, nf]}>{pendingSum.toLocaleString()}</Text>
+              <Text style={[s.sumNum, nf]}>{unpaid.toLocaleString()}</Text>
               <Text style={s.sumUnit}>원</Text>
             </Row>
           ) : (
             <Text style={s.sumUnknown}>—</Text>
+          )}
+        </Row>
+        {/* 평생 누계는 사라지지 않는다 — 주어만 양보한다. 두 숫자가 같으면 아직 한 번도 지급이
+            없었다는 뜻이고, 그건 오늘 모든 러너의 상태다. */}
+        <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
+          <Text style={s.subLabel}>지금까지 번 금액 (누적)</Text>
+          {lifetimeKnown ? (
+            <Row style={{ alignItems: 'baseline' }}>
+              <Text style={[s.subNum, nf]}>{lifetimeSum.toLocaleString()}</Text>
+              <Text style={s.subUnit}>원</Text>
+            </Row>
+          ) : (
+            <Text style={s.subUnknown}>—</Text>
           )}
         </Row>
         {/* [2026-08-11] '다음 정산일 <수요일>'은 존재하지 않는 지급 운영의 날짜를 못박았다.
@@ -227,15 +284,90 @@ export default function Earnings() {
                 <Text style={s.netUnit}>원</Text>
               </Row>
               <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim }}>실수령</Text>
+              {/* [0192] 이 행이 실제로 지급됐는지 — 서버의 paid_payout_id·paid_at·settled에서만
+                  나온다. 세 상태이고 셋째(아직 정산 전)는 **아무 말도 하지 않는다**: 그 행은
+                  금액이 아직 움직일 수 있고, 서버가 지급을 이름으로 거절하는(not_settled) 행이라
+                  「지급 대기」라고 쓰면 우리가 옮기지 않을 돈을 약속하게 된다.
+                  ⚠ 지급 예정일은 없다 — 서버에 일정이 없고, 없는 날짜를 그리는 것이 이 화면이
+                    2026-08-11에 nextWednesday()를 지운 이유다. */}
+              {(() => {
+                const pay = ledgerPaymentLabel(l);
+                if (pay == null) return null;
+                const paid = ledgerPaymentState(l) === 'paid';
+                return (
+                  <Text style={[s.payLine, { color: paid ? paper.readyDeep : paper.dim }]}>
+                    {pay}
+                  </Text>
+                );
+              })()}
             </View>
           </Row>
         ))}
 
+        {/* ---------- [0192] 지급 내역 — payouts 자기 행 (RLS + 0186의 열 제한 그랜트) ---------- */}
+        {/* 0186이 payouts에 쓰는 쪽(ops_record_manual_payout)을 만들기 전까지 이 표는 영원히 비어
+            있었고, 그래서 이 화면에 없었다. 이제 실제로 채워진다.
+            ⚠ 한 행에 숫자는 **하나**다. payouts.gross와 tax_withheld는 그랜트돼 있지만 읽지
+              않는다 — gross−net이 곧 플랫폼 수수료이고, 그 뺄셈을 막으려고 2026-08-24에 행별
+              내역 여섯 토큰을 지웠다. 그때 서른 줄에서 없앤 것을 여기서 한 줄로 돌려줄 수는 없다.
+            ⚠ memo는 없다. 0186:192-195가 memo·method·recorded_by를 authenticated에게서 회수했고
+              (그건 운영자끼리 보는 절반이다), 이 화면은 그 봉인을 존중한다 — 없는 필드를 그리는
+              대신 요소를 뺀다. */}
+        <View style={s.rule} />
+        <Text style={[s.secTitle, { marginBottom: 10 }]}>지급 내역</Text>
+        {!poLoaded && !poErr && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          </View>
+        )}
+        {poErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>지급 내역을 불러오지 못했어요</Text>
+            <Pressable onPress={loadPayouts} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {poLoaded && !poErr && payouts.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+              아직 지급된 내역이 없어요
+            </Text>
+          </View>
+        )}
+        {poLoaded && payouts.map((p) => {
+          const when = payoutStatusLabel(p);
+          const period = payoutPeriodLabel(p);
+          return (
+            <Row key={p.id} style={s.row}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                {/* 상태 낱말은 payouts.status를 매핑한 것이고, 모르는 값은 **아무 말도 하지
+                    않는다**(END_REASON_LABEL과 같은 법 — 원문 토큰을 한국어 UI에 찍지 않는다). */}
+                {when != null && (
+                  <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>{when}</Text>
+                )}
+                {period != null && (
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 2 }}>{period}</Text>
+                )}
+              </View>
+              <Row style={{ alignItems: 'baseline' }}>
+                {/* Oswald — lineHeight 24 = 1.26× (BUG A) */}
+                <Text style={[s.netNum, nf]}>{p.netWon.toLocaleString()}</Text>
+                <Text style={s.netUnit}>원</Text>
+              </Row>
+            </Row>
+          );
+        })}
+
         <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
           {/* 같은 이유: 주기·지급을 약속하지 않는다. 일정은 아직 우리가 못 지킨다.
               원천징수 문장은 합계 줄이 이제 낱말로 지고 있으므로 여기서는 겹쳐 말하지 않는다.
-              (Q7 "show once only" — 이 침묵이 그 법을 지키는 자리다. 여기 한 줄 더하면 두 번이 된다.) */}
-          기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요
+              (Q7 "show once only" — 이 침묵이 그 법을 지키는 자리다. 여기 한 줄 더하면 두 번이 된다.)
+              [0192] 「기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요」였다. 앞 절은 이제
+              위의 「지급 완료」 행들과 **모순된다**(기록만 된 게 아니라 실제로 옮겨진 돈이 있다).
+              뒤 절은 여전히 참이라 그대로 두고, 앞 절을 지급이 남는 곳을 가리키는 문장으로 바꾼다.
+              일정을 약속하지 않는다는 원래의 법은 그대로다. */}
+          지급 일정은 아직 정해지지 않았어요 — 지급되면 위 지급 내역에 남아요
         </Text>
       </ScrollView>
       {/* 시스템 바 스트립 — 정산 티켓과 주간 표가 시계 뒤로 지나가던 것 */}
@@ -264,10 +396,20 @@ const s = StyleSheet.create({
   sumUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
   sumUnknown: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink },
   sumNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [0192] 평생 누계 — 미지급 합계에 주어를 넘겼으므로 한 단계 조용하다. 15pt 디테일 플로어
+  // (DESIGN.md §3: 한국어는 kicker 면제를 타지 않는다), Oswald에는 명시 lineHeight (BUG A).
+  subLabel: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
+  subNum: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.dim, fontVariant: ['tabular-nums'] as const },
+  subUnit: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.dim },
+  subUnknown: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.dim },
   // ---------- 원장 행 ----------
   row: { alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
   netNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
   netUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
+  // [0192] 행별 지급 상태 한 줄. 색은 두 가지뿐이다 — readyDeep(#0E7F49, 5.06:1)은 「끝났다」,
+  // dim은 「아직」. pending 앰버를 쓰지 않는 이유: 이 화면의 대기는 러너가 할 수 있는 일이 없는
+  // 대기라서, 주의를 끄는 색은 행동을 요구하는 것처럼 읽힌다.
+  payLine: { fontSize: 15, lineHeight: 20, fontWeight: '700', marginTop: 2, textAlign: 'right' },
   emptyBox: { backgroundColor: paper.canvas, paddingVertical: 26, alignItems: 'center' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },

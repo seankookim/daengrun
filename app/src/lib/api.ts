@@ -3315,6 +3315,22 @@ export interface LiveLedgerItem {
    *  after the booking was reassigned (the server nulls it — see 0132 §A), or an enum member
    *  nobody has written copy for yet. */
   reason: string | null;
+  /** [0192 §A] The `payouts` row this ledger row's money was actually transferred in, or null
+   *  while nobody has been paid for it. This is the field that DECIDES paid vs unpaid — never
+   *  `paidAtMs`, which only supplies the date. Before 0186 nothing could write `payouts` at all,
+   *  so every row in the product's history is null here and the earnings screen was right to say
+   *  nothing; 0186 gave it a writer and this is the first client read of the marker. */
+  paidPayoutId: string | null;
+  /** [0192 §A] The payout row's own `paid_at`, in epoch ms. NULLABLE UNDER A NON-NULL
+   *  `paidPayoutId` on purpose: `payouts.status` has four members and a future writer may record
+   *  a row before the money lands. A missing date does not unmake a payment, so the label says
+   *  「지급 완료」 with no date rather than demoting the row to 「지급 대기」. */
+  paidAtMs: number | null;
+  /** [0192 §A] 0186 §0d ⓒ's conjunct: no run on this booking is still open, so the AMOUNT IS
+   *  FINAL. False is a third state and not a synonym for unpaid — the server refuses to pay a
+   *  row while it is false (`not_settled`), so calling it 「지급 대기」 would promise money the
+   *  server will not move. `payout-status.ts` is where that distinction is made and pinned. */
+  settled: boolean;
 }
 
 /** [0132] The `end_reason` enum's SIX members (0001:18), every one mapped.
@@ -3358,8 +3374,90 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
       reason: l.end_reason
         ? (END_REASON_LABEL[l.end_reason as string] ?? null)
         : (l.cancel_comp ? '취소 보상' : null),
+      // [0192] `?? null` on both, never a default that asserts something: an ABSENT key means a
+      // client running ahead of 0192's deploy, and `paidPayoutId: ''` or `settled: true` there
+      // would state a fact the server was never asked for. `settled` is the one that must fail
+      // CLOSED — an absent key becomes false, which renders NO payment line at all rather than a
+      // 「지급 대기」 promise derived from a column that does not exist yet.
+      paidPayoutId: l.paid_payout_id ?? null,
+      paidAtMs: msOrNull(l.paid_at),
+      settled: l.settled === true,
     };
   });
+}
+
+/** An instant from the server as epoch ms, or null when there is nothing parseable.
+ *  ⚠ `Date.parse` returns **NaN**, not null, on anything it cannot read — and NaN flows straight
+ *  through `kstCal`'s arithmetic into 「NaN월 NaN일」 on a money screen. An unreadable instant is a
+ *  date we do not have, and the honest rendering of that is silence (the label functions already
+ *  take null to mean "print no date"), never a placeholder that looks like a value. */
+function msOrNull(iso: string | null | undefined): number | null {
+  if (iso == null) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : t;
+}
+
+/** One `payouts` row, as the runner may read it. See `payout-status.ts` for why `gross` and
+ *  `tax_withheld` are NOT read despite being granted. */
+export interface MyPayout {
+  id: string;
+  netWon: number;
+  paidAtMs: number | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  status: string | null;
+}
+
+/** 지급 내역 — the runner's own payout rows.
+ *
+ *  ⚠ THIS IS A TABLE READ AND NOT AN RPC, WHICH IS UNUSUAL ON THIS SURFACE AND DELIBERATE.
+ *  Every other runner money read goes through a definer because `ledger_items` and `runners` are
+ *  table-sealed (0121 §G). `payouts` is not: it carries RLS `payouts self read` (0002:126,
+ *  `runner_id = auth.uid()`) AND a COLUMN-LIMITED grant to `authenticated` (0186:192-195), so the
+ *  row scope and the column scope are both already decided by the server. Adding a `my_payouts()`
+ *  definer would have created a second surface whose column list could drift from 0186's seal
+ *  without anyone touching 0186 — and the ops half of that row (`memo` · `method` · `recorded_by`)
+ *  is exactly what must never follow the runner home. Suite 223 `0192-R4` pins both halves by
+ *  executing as `authenticated`.
+ *
+ *  ⚠ The `select` list is 0186's grant MINUS `gross` and `tax_withheld`. Both are granted and
+ *  neither is asked for: `gross − net` IS the platform fee and `fee ÷ gross` IS the commission
+ *  rate, which is the subtraction the 2026-08-24 margin-secrecy ruling deleted the per-row
+ *  breakdown to prevent. One payout row, one figure.
+ *
+ *  ⚠ `runner_id` is not selected either — a runner filtering their own rows by their own id would
+ *  be re-deriving what RLS already decided, and an `.eq()` there reads like the security boundary
+ *  when it is only a hint. The policy is the boundary. */
+export async function fetchMyPayouts(): Promise<MyPayout[]> {
+  const { data, error } = await supabase
+    .from('payouts')
+    .select('id, net, paid_at, period_start, period_end, status')
+    // newest money first. `sortPayoutsNewestFirst` applies the same order client-side, and the
+    // two agreeing is the point: this order is a decision, not whichever index postgres picked.
+    .order('paid_at', { ascending: false, nullsFirst: false })
+    .order('period_end', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((p) => ({
+    id: p.id,
+    netWon: Number(p.net),
+    paidAtMs: msOrNull(p.paid_at),
+    periodStart: p.period_start ?? null,
+    periodEnd: p.period_end ?? null,
+    status: p.status ?? null,
+  }));
+}
+
+/** 미지급 합계 — what this runner has earned and NOT yet been paid (0192 §B).
+ *  Distinct from `fetchLedgerTotal`, which is the LIFETIME sum and includes money already
+ *  transferred. Before 0186 the two were always equal because nothing could write `payouts`;
+ *  they diverge the moment a runner is paid, and the earnings screen's heading depends on the
+ *  difference — a lifetime total labelled 「정산 예정」 tells a runner that money already in their
+ *  bank is still coming. */
+export async function fetchLedgerUnpaidTotal(): Promise<number> {
+  const { data, error } = await supabase.rpc('my_ledger_unpaid_total');
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
 // ---------- chat (Realtime) ----------
