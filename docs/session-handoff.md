@@ -17,7 +17,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 
 ## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
 
-**Trunk `2bcfea1`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
+**Trunk `da684d6`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
 Landed tonight (each merged on the combined tree with harness · deno · npm · tsc · checks, pushed, read back):
 
 | slice | what a user gets | proof |
@@ -33,9 +33,11 @@ Landed tonight (each merged on the combined tree with harness · deno · npm · 
 | `8af5760` owner sheets | slot picker + booking manager are native pageSheets (swipe-down); runner-profile virtualized | npm 1267/0 |
 | `ff6e077` 0195 gear claim | 「수령 신청」 with a delivery snapshot; ops ship + tracking | harness 1371/0 · 9 plants |
 | `5de824b` 0194 bank account | 정산 계좌 register/mask/delete; ops decrypt journaled; key minted by the migration | harness 1378/0 · 15 plants |
+| `9454182` push routes + alerts cycle | cancel-comp push → 수익; 「체크인 지연」 + two club auto-refund pushes reach the session screen (the runner fast path skipped the club probe — 7 runner-addressed session-ref titles enumerated); alerts collapse handoff resends `×N 재요청` | +65 pins, 14 plants |
+| `da684d6` custody ping · review bid · replay notice | **`custody_ping` had zero callers since 0083 — every 귀가 made the owner's LA count 「N분째 위치 신호가 없어요」**; a 60 s foreground loop on 반환 봉인 + 기록 (real refusal tokens are `not_run_runner`/`not_in_custody` — the brief's guesses would have looped against a shut door); the runner review takes a `bid` + a 캘린더 door; a replayed 예약하기 says so | +93 pins, 12 plants |
 | `2bcfea1` Reduce Motion A7 | the ⑫ report ceremony cross-fades under Reduce Motion; **the reduced path could never run before** (async permission read answered after `.start()`) — fixed with a settled-aware hook | +25 pins, 9 plants |
 
-Still building when this was written: `be/0198-ops-console`, and WAVE 3 from a code-verified gap finder (05:35): `fix/homeward-ping-review-bid` (🔴 `custody_ping` has ZERO client callers since 0083, so every normal 귀가 makes the owner's Live Activity count 「N분째 위치 신호가 없어요」 forever — a ping loop on the runner's homeward screen; the runner review takes a `bid` and gets a second entry point — a stale store could write it onto the wrong booking, 0193 A4's class; the 0179 replay flag is rendered), `fix/push-routes-alerts-cycle` (cancel-comp push → earnings not calendar; 「체크인 지연」 and the two club auto-refund pushes carry a session id the router discards; alerts collapse `handoff_cycle_id` resends), `be/0199-resolution-visibility` (`my_return_resolution(bid)` so an ops-resolved return is not a silent settle; `handoff_escalated_at` on the booking read + a read-only strip on the meetup screens). Deferred to a later batch: manual-payout method label for runners (needs a sanitised projection), availability exceptions (schema slice), `session_reconsider_dog` (club surface — Sean's Codex batch owns club). (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
+Still building when this was written: `be/0198-ops-console`, `be/0199-resolution-visibility`, and a follow-up `fix/home-custody-ping` (runner home's 「귀가 중」 strip also owes the heartbeat). Landed from WAVE 3 already: routes/alerts `9454182`, ping/review/replay `da684d6`. WAVE 3 from a code-verified gap finder (05:35): `fix/homeward-ping-review-bid` (🔴 `custody_ping` has ZERO client callers since 0083, so every normal 귀가 makes the owner's Live Activity count 「N분째 위치 신호가 없어요」 forever — a ping loop on the runner's homeward screen; the runner review takes a `bid` and gets a second entry point — a stale store could write it onto the wrong booking, 0193 A4's class; the 0179 replay flag is rendered), `fix/push-routes-alerts-cycle` (cancel-comp push → earnings not calendar; 「체크인 지연」 and the two club auto-refund pushes carry a session id the router discards; alerts collapse `handoff_cycle_id` resends), `be/0199-resolution-visibility` (`my_return_resolution(bid)` so an ops-resolved return is not a silent settle; `handoff_escalated_at` on the booking read + a read-only strip on the meetup screens). Deferred to a later batch: manual-payout method label for runners (needs a sanitised projection), availability exceptions (schema slice), `session_reconsider_dog` (club surface — Sean's Codex batch owns club). (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
 기록; 배송 대기 → 발송 처리; entry row in settings only when `ops_me().is_ops`). The heartbeat (:19/:49) lands them
 if they finish green. Simulator: a Release build of `67236dc` is installed on the iPhone 16 Pro sim (`/tmp/dd27/…/app.app`),
 boots to login; signed-in smoke lists are in each builder's report (summarised in the sections below).
@@ -205,6 +207,15 @@ ref makes a mid-flight toggle a no-op). Policy in `motion-policy.ts` (`travel` i
 scale-from-2.2 is the same lunge, faster; `useNativeDriver` deliberately does not track the setting). Once-per-entity
 Sets untouched. npm 1328 → 1353/0 (+25, 9 plants) · babel 152 · deno 369/0. Device-visual unverified (smoke list in
 the builder's report: Reduce Motion ON → the overlay fades in as one piece, bars at full length, no sweep).
+
+**Landed 05:59:** `9454182` push routing + alerts grouping (every community-kind writer passes a SESSION id — none a post id;
+the 리캡 title is matched by suffix because the server composes it; `notifications` has no column grants so
+`handoff_cycle_id` needed no migration; `unreadCount` now counts unread CYCLES) · npm 1418/0 · deno 369/0. `da684d6`
+custody ping + review bid + replay disclosure (the scout's pointer at a `run.tsx` returning state was wrong — `run.tsx`
+replaces to `/runner/return-seal` after end_run, so the hook lives on 반환 봉인 and 기록; a store-sourced review id is
+VERIFIED before a submit button is drawn, `absent` ≠ `failed`; the 「● 서버 홀드 확보 — 예약이 생성됐어요」 line was the
+false celebration on a replay) · npm 1511/0 · babel 157. Remaining gap named by the builder: `runner/home.tsx`'s
+「귀가 중」 strip — a runner idling on home during custody sends nothing (follow-up builder spawned).
 
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
