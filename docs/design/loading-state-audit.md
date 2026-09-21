@@ -32,26 +32,53 @@ fail all 44 sentences. The real gap is the Tier 1 list below, not the absence of
    roster read leaves `roster` null, so `renderRoster()` (`:1186`) falls to `:1191` and prints
    `명단을 불러오는 중...` **forever**. The board call 8 lines down (`:259–261`) does it right with
    `setBoardFailed`. Fix: give the roster the `boardFailed` treatment.
+   **✅ FIXED `0d9e909`** — `rosterFailOf` (sid-tagged like `rosterOf`, so a dead session's failure
+   never lands on the screen now showing) + a 명단을 불러오지 못했어요 arm with 다시 시도; `retryRoster`
+   bumps `rosterNonce`, which re-fires the roster effect alone. Verified 2026-09-22.
 2. `app/app/shop.tsx:47–50` — four `.catch(() => {})`, no state, no console, no retry. `claims`/`drops`
    stay `[]` so a failed read renders as "you own none" (`:114`, `:123` vanish) and a failed `fetchMiles`
    renders the earn-rate blurb (`:100–103`). Loading, failure and empty are one face. Fix: per-section
    `err` flag + fail strip, the `runner/rewards.tsx:162` shape.
+   **✅ FIXED `0d9e909`** — four flags (`milesErr`/`claimsErr`/`dropsErr`/`boostErr`), each with its
+   own fail strip + 다시 시도 calling `load`; the earn-rate blurb is now the SETTLED face only, so a
+   failed or pending miles read can never print it. Verified 2026-09-22.
 3. `app/app/owner/card-link.tsx:33–37` — `fetchUnsettledCharge().catch(() => null)` then
    `setLocked(lk === true)` turns an unread lock into "nothing owed"; `:34 fetchMyPayments(30).catch(() => [])`
    turns an unread ledger into "no failed charges", so the arrears face can never appear after a failed
    read. The comment at `:27–31` says `locked` stays null on failure — `:37` contradicts it. Fix: keep
    `locked` null on failure and gate `arrears` on a known value.
+   **✅ FIXED `0d9e909`** — both reads catch to a `'read_failed'` sentinel, so nothing is written from
+   a read that did not happen and `locked` stays null; a 미납 여부를 확인하지 못했어요 strip + 다시 확인
+   (`loadState`) stands above the panel, which still renders because its promise is true in every
+   state. Verified 2026-09-22.
 4. `app/app/settings.tsx:59` — `fetchMyProfile().then(setProfile).catch(() => {})`; `:94` renders `'—'`
    identically while loading and after failure.
+   **✅ FIXED `0d9e909`** — `profileErr` + a 내 정보를 불러오지 못했어요 strip with 다시 시도
+   (`loadProfile`) outside the 계정 card; `'—'` now means LOADING only. Verified 2026-09-22.
 5. `app/app/my.tsx:104` — profile read is console-only; `:201–202` falls to `'—'`, avatar to `'나'`. The
    two sibling reads on the same screen (`recErr :62→:343`, `stampErr :84→:356`) do loud-fail + retry.
+   **✅ FIXED `0d9e909`** — `profileErr` + `loadProfile`, rendering the same `recFail` strip its two
+   siblings use, with 다시 시도. Verified 2026-09-22.
 6. `app/app/course/[id].tsx:194–204` — no loading state (body gated at `:227`, only the back bar
    renders); error at `:225` is a dim box with **no retry and no exit**.
+   **✅ FIXED `0d9e909`** — a 코스를 불러오는 중... arm on `route == null && err == null`, and `err`
+   now carries `{ msg, retry }` so 찾을 수 없어요 (settled) gets 돌아가기 alone while a failed READ
+   gets 다시 시도 beside it — no dead button on either. Verified 2026-09-22.
 7. `app/app/shot/[bid].tsx:238–244` — no loading state: while the first fetch is in flight `:831`,
    `:839`, `:849`, `:853` are all false, so the screen is a header over nothing.
+   **✅ FIXED `0d9e909`** — a 기록을 불러오는 중... arm on `!err && !notFound && !report`; the existing
+   `err`/`notFound` split keeps 다시 시도 on the retryable read and 홈으로 on the settled one (the ✕ is
+   `router.back()`, which does nothing on a cold deep link). Verified 2026-09-22.
 8. `app/app/cards.tsx:62–65` — no loading state: `patches`/`stampStats` null means `:97`, `:124`,
    `:167`, `:178` are all false and the masthead renders over an empty page (failure handling at
    `:116/:124/:167` is fine).
+   **✅ FIXED `0d9e909`** — per-section 불러오는 중... arms, so loading, failure and a genuinely empty
+   collection are three faces.
+   **✅ FOLLOW-UP `cb61c3b`** — the audit called the failure handling 「fine」 and it was honest but
+   dead-ended: all three faces said 다시 열면 다시 시도해요 / 화면을 다시 열어주세요, because the reads sat
+   inline in a `[]` effect with nothing a button could call. Split into `loadStamps`/`loadPatches` so
+   each 다시 시도 re-runs exactly the read that failed (the both-failed box fires both, since there
+   both are the failed ones); retry chrome is alerts.tsx's lilac grammar at 44pt (HIG G1).
 
 **Tier 2 — busy rendered as opacity (DESIGN.md button matrix: busy = label swap, never alpha)**
 
