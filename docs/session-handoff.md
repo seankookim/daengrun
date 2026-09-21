@@ -54,6 +54,40 @@ structural marker, worktree + branch removed), 03:09:**
 Device-visual: UNVERIFIED for all three — smoke lists are in the builders' reports (primer first-entry paths,
 dock highlight per role, /cards offline retry).
 
+**Landed 04:41 (all on the combined tree, pushed, read back from origin, builder worktrees + branches removed):**
+- `da72c1f` **0191 refusal detail ids** (+ suite 222): `HttpError.detail`, `ctx.ts`'s error body spreads `code`/`detail`
+  only when present (deno pins now assert the one-key contract of 24 functions), `delete_my_account_tx` re-declared
+  from 0190's body with `using detail = coalesce(id,'')` on nine refusal arms, `FnError` + 「해당 화면으로 이동」 ONLY
+  for the three club tokens (the other routes take no id — measured, not assumed; `open_incident` is a named gap: one
+  token, two entities). harness 1348/0 · deno 369/0 · npm 1178/0. ⚠ Honesty: my landing chain had a `;` between the
+  client gates and the push, so the PUSH RAN BEFORE tsc/npm — tsc was red only because an interrupted geo test had
+  left `app/test/geo.src.ts` in the main clone; after removing the artifacts every gate measured green on the pushed
+  tree. Chain fixed (push is now `&&`-gated on every gate). Deploy note: `db push` + `functions deploy delete-account`
+  TOGETHER — either half alone is a field nothing produces or a field the edge drops.
+- `666585b` geo test hygiene: `run-geo-tests.sh` gets an EXIT trap so a failing case cannot strand its bundle inputs
+  (that is what reddened tsc above), and the `smoothTrace` budget is 500 ms not 50 (it read 236–369 ms on a clean
+  trunk under six parallel builders; the pin exists to catch an O(n²) blowup, not this laptop's latency). Sean's
+  spun-off session for the same flake was told the fix is on trunk.
+- `f2d88de` **HIG A3/A6 live regions**: one `a11y-announce.ts` (de-dupe + 1.5 s window, 45 pins, 7-plant battery)
+  replaces three hand-rolled announcers; owner live / runner run (every km) / radar / chat (「새 메시지: <name>」,
+  never the body) / both homes announce state flips from the copy already rendered; **SealSlide (club 위탁 consent)
+  had no role, label or hint at all** — a consent signature VoiceOver users could not operate — now an `activate`
+  action through an Alert confirm to the same `complete()`. npm 1223/0 · deno 369/0 · babel 146.
+- `1a535ab` **0192 runner payout read** (+ suite 223): `my_ledger_rows` returns `paid_payout_id`/`paid_at`/`settled`
+  (three states — a row with an open run is neither), `my_ledger_unpaid_total()` beside the lifetime total (the old
+  「정산 예정 · 원장 합계」 becomes a lie the moment the first payout lands), `fetchMyPayouts()` is a plain table read
+  under 0186's column seal (pin 0192-R4 guards it from the runner side); earnings shows 지급 완료 · <date> / 지급
+  대기 per row and a 지급 내역 section with real empty/failure states. harness 1353/0 · deno 369/0 · npm 1254/0.
+  Not Codex-reviewed yet (money surface — in the 07:41 one-shot).
+**Device (iPhone 16 Pro sim, Release build of the tree at ~04:36, signed out):** `/cards` renders the 도장 failure
+face with 다시 시도; the retry flashes and returns to the failure (no stuck loading); the dock highlights 마이 on
+`/cards` and `/alerts` (N3 verified). Observation for Sean: signed out, the 코스 패치 section does not render at all
+(no failure, no empty state) — worth one look when signed in. The primer and live regions need a signed-in session.
+**Codex:** Sean 04:40 — the quota resets at **07:35 KST**; one-shot review scheduled 07:41 (base `623a36b`, everything
+landed since, per-slice grouping). Heartbeat every 30 min (:19/:49) lands Codex batch branches from their report files.
+**Still building:** `be/0193-ceremony-correct-forward`, `be/0194-bank-account`, `be/0195-gear-claim`. Sean's Codex
+batch brief is at `docs/prompts/2026-09-22-codex-batch-brief.md` (0165→0196, 0175→0197 rebuilt on 0168, sheets/lists).
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
