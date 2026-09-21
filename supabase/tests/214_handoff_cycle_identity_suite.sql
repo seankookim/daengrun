@@ -335,8 +335,11 @@ begin
       if (v_src ~ 'values \(v_cp, ''booking'', c_ask_title, c_ask_body, v_b\.id, v_cid\)') is distinct from true then v_bad := v_bad || ' 재전송이 id를 안 지닌다'; end if;
       if (v_src ~ 'handoff_ops_alerted_at = case when v_ops > 0 then now\(\) end') is distinct from true then v_bad := v_bad || ' ops 기록이 전달에 조건부가 아니다'; end if;
       if (v_src ~ 'and b\.handoff_ops_alerted_at is null') is distinct from true then v_bad := v_bad || ' pending ops 팔 없음'; end if;
+      -- ⚠ [0193] 4 → 5. Arm ⓕ (0193 §D) catches its own row the same way: one poisoned booking
+      -- must not silence the bell for every other stranded one (0116 B3 / 0182's shape). The
+      -- property this line owns — 「every arm that writes catches its own row」 — is unchanged.
       select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
-      if v_n <> 4 then v_bad := v_bad || ' 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
+      if v_n <> 5 then v_bad := v_bad || ' 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ·ⓕ 5개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, '= any\(c_dead\)', 'g');
       if v_n <> 5 then v_bad := v_bad || ' c_dead 사용 수=' || v_n || '(5개여야 — ⓒ 재평가, ⓓ 후보·재평가, ⓔ 후보·재평가)'; end if;
       -- [0188] 3 → 4. Arm ⓑ (the run-end strand) is now BOUNDED and LOCKED like ⓒ/ⓓ/ⓔ: 0188
@@ -347,10 +350,16 @@ begin
       -- behaviour legitimately changed. THE NEW PROPERTY ITSELF is owned by 219 `0188-B4`
       -- (the lock and re-check are present and arm ⓑ moves no row that carries a stamp); what
       -- these two lines own is unchanged — "every arm that writes is bounded and locked".
+      -- ⚠ [0193] 4 → 5 on both counts. Arm ⓕ (0193 §D — an unfinished return past
+      -- `ops_flags.return_strand_minutes` is reported to the `return_strand` ops roster) is the
+      -- fifth arm that writes, and it is bounded and locked exactly like the other four. Updated
+      -- in that slice rather than left stale, per the house law; THE NEW ARM ITSELF is owned by
+      -- 224 `0193-R4`, and what these two lines own is unchanged — 「every arm that writes is
+      -- bounded and locked」.
       select count(*) into v_n from regexp_matches(v_src, 'limit c_batch', 'g');
-      if v_n <> 4 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
+      if v_n <> 5 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ·ⓕ 5개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'for update skip locked', 'g');
-      if v_n <> 4 then v_bad := v_bad || ' 행 락 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ 4개여야)'; end if;
+      if v_n <> 5 then v_bad := v_bad || ' 행 락 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ·ⓕ 5개여야)'; end if;
       -- ⚠ [0188] ANCHORED, and the anchor is the fix rather than the count. `b\.runner_id` is a
       -- SUBSTRING of `v_b\.runner_id`, so this arm silently counted the re-evaluation lines too
       -- and read 5 the moment 0188 added an arm that re-checks `v_b.runner_id` twice. `\m` is a

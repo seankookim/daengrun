@@ -3257,6 +3257,11 @@ export async function fetchLedgerTotal(): Promise<number> {
 
 export interface LiveLedgerItem {
   id: string;
+  /** [0193] the booking this row was written for. `my_ledger_rows` has always returned it (0121 §A
+   *  and every version since); the mapper dropped it, so no caller could ask 「what did THIS run
+   *  earn」 and the completion receipt printed a client estimate instead (codex A7). Additive: the
+   *  earnings list ignores it. */
+  bookingId: string;
   when: string;
   dogName: string;
   /** [0158] The MEASURED distance of the run (`runs.actual_km`) — the number this row's `net` was
@@ -3317,6 +3322,7 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
     const { dateLabel } = kstParts(l.created_at);
     return {
       id: l.id,
+      bookingId: String(l.booking_id),
       when: dateLabel,
       dogName: l.dog_name ?? '반려견',
       km: l.km == null ? null : Number(l.km),

@@ -1,16 +1,16 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
-import { DropRow, fetchDrops, fetchMeetupInfo, fetchRunPhotos, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
+import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchReturnSeal, fetchRunPhotos, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
 import { GeoRoutePoint, traceToBox } from '../../src/lib/trace';
-import { runResult } from '../../src/store';
+import { EndReason, runResult } from '../../src/store';
 import { colors, layout, paper } from '../../src/theme';
 
 // 러닝 완료 — the completion Peak (§7b Peak-End: exempt from minimization).
@@ -70,14 +70,95 @@ const paceStr = (sec: number, km: number) => {
 // Pure, so it lives at module scope (react-doctor prefer-module-scope-pure-function).
 const realName = (n: string | null | undefined) => (n && n !== '반려견' ? n : null);
 
+// ═══ [0193 · codex A7] THE BOOKING-SCOPED RECEIPT ═══════════════════════════════════════════
+// `runResult` is run.tsx's in-memory snapshot of the STOP: `settled:false` and a client-side
+// payout ESTIMATE, written at the moment the freeze landed (run.tsx:789). Before 0188 that was
+// true — the stop settled — and afterwards it is not: settlement happens later, inside the second
+// return stamp's transaction. So a runner who completed the whole ceremony and tapped 「러닝 기록
+// 보기」 from the seal screen arrived here and was told 「정산이 아직 서버에 반영되지 않았어요 …
+// 러닝 화면에서 다시 정산하면」 about a run the server had already settled and paid — a real
+// failure face on a successful run, pointing at a door that answers `return_not_sealed`.
+// Re-entry was worse: the store still held the PREVIOUS run, so the screen showed another
+// booking's numbers under this booking's heading.
+//
+// The fix is the one codex named: when the screen is opened with a booking id, every number on it
+// comes from the server for THAT booking, and nothing is drawn until it does.
+//   · measurements + settlement state ← `fetchReturnSeal` (`runs.actual_km` / `duration_sec` /
+//     `end_reason`, and `rawStatus === 'completed'` — the same discriminator return-seal.tsx uses,
+//     never `sealedAt`, because a sealed row that has not settled is precisely the stranded one)
+//   · the money ← the LEDGER row for this booking (`my_ledger_rows`), which is the runner's actual
+//     net. `null` when no row exists yet, and null renders as 「—」, never as 0.
+// Without a `bid` the screen keeps the in-memory path byte for byte: that is the freeze-failed
+// route (run.tsx:860), where the estimate IS the honest thing to show and says so.
+type Receipt = {
+  km: number | null;
+  sec: number | null;
+  payout: number | null;
+  settled: boolean;
+  completed: boolean;
+  reason: EndReason;
+};
+
+/** server `runs.end_reason` → this screen's three-word vocabulary. `completed` and `incident` map
+ *  to null deliberately: the first is not an early end, and the second has no runner-facing
+ *  sentence on this screen (owner/report.tsx owns that one). An unmapped value also returns null —
+ *  a screen that does not know why a run ended says nothing rather than guessing. */
+const RECEIPT_REASON: Record<string, EndReason> = {
+  dog_condition: 'dog',
+  owner_request: 'owner',
+  owner_forced: 'owner',
+  runner_personal: 'runner',
+};
+
 export default function RunDone() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display font — the run headline (1/screen budget)
   const nf = useNumFont();     // Oswald — the three run numbers + the payout
-  const [dogName, setDogName] = useState<string | null>(() => realName(runResult.dogName));
+  // [0193] the booking this receipt is FOR. A param wins over the store: the store is whatever run
+  // ended last in this process, which on a re-entry or a cold start is a different booking or none.
+  const { bid } = useLocalSearchParams<{ bid?: string }>();
+  const paramBid = typeof bid === 'string' && bid ? bid : null;
+  const bookingId = paramBid ?? runResult.bookingId;
+
+  // THREE STATES, NEVER TWO (the report screen's law): loading · loaded · failed. `off` is the
+  // fourth and it is not a state of the fetch — it means 「no booking id, so there is nothing to
+  // load and the in-memory estimate is the honest thing to show」.
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receiptState, setReceiptState] = useState<'off' | 'loading' | 'ready' | 'err'>(paramBid ? 'loading' : 'off');
+  const loadReceipt = useCallback(() => {
+    if (!paramBid) return;
+    setReceiptState('loading');
+    Promise.all([fetchReturnSeal(paramBid), fetchLedger().catch(() => null)])
+      .then(([seal, ledger]) => {
+        if (!seal) { setReceiptState('err'); return; }
+        const row = ledger?.find((l) => l.bookingId === paramBid) ?? null;
+        setReceipt({
+          km: seal.actualKm,
+          sec: seal.durationSec,
+          // a ledger read that FAILED and a booking with no ledger row are both `null` here, and
+          // both render 「—」. Neither is 0, and neither is the client's estimate.
+          payout: row ? row.net : null,
+          // `rawStatus`, never `sealedAt`: a sealed row that has not settled is the stranded state,
+          // and calling it settled is the exact lie return-seal.tsx:223-229 refuses to tell.
+          settled: seal.rawStatus === 'completed',
+          completed: seal.endReason === 'completed',
+          reason: seal.endReason ? (RECEIPT_REASON[seal.endReason] ?? null) : null,
+        });
+        setReceiptState('ready');
+      })
+      .catch((e) => { console.warn('[done] receipt:', (e as Error)?.message); setReceiptState('err'); });
+  }, [paramBid]);
+  useEffect(() => { loadReceipt(); }, [loadReceipt]);
+
+  // [0193] …and the NAME is part of the same defect. `runResult.dogName` belongs to whatever run
+  // ended last in this process, so on a receipt opened for a DIFFERENT booking it is another dog's
+  // name printed in this dog's headline. When the param names a booking the store does not, the
+  // store's name is not evidence about it and the screen reads the booking instead.
+  const storeName = paramBid && paramBid !== runResult.bookingId ? null : realName(runResult.dogName);
+  const [dogName, setDogName] = useState<string | null>(storeName);
   useEffect(() => {
-    if (!realName(runResult.dogName) && runResult.bookingId) {
-      fetchMeetupInfo(runResult.bookingId)
+    if (!storeName && bookingId) {
+      fetchMeetupInfo(bookingId)
         .then((i) => setDogName(realName(i.dogName)))
         .catch((e) => console.warn('[done] dogName:', (e as Error)?.message)); // unknown → generic wording stays
     }
@@ -88,11 +169,12 @@ export default function RunDone() {
   // says it failed, an in-flight read says so, and a run with no stored points draws no plate.
   const [trace, setTrace] = useState<GeoRoutePoint[] | null>(null);
   const [traceErr, setTraceErr] = useState(false);
-  const [traceLoading, setTraceLoading] = useState(!!runResult.bookingId);
+  const [traceLoading, setTraceLoading] = useState(!!bookingId);
   useEffect(() => {
-    const bid = runResult.bookingId;
-    if (!bid) return;
-    fetchRunTrace(bid)
+    // [0193] the RECEIPT's booking, not the store's — on a re-entry the store holds a different
+    // run and this plate drew that run's route under this run's heading.
+    if (!bookingId) return;
+    fetchRunTrace(bookingId)
       .then(setTrace)
       .catch((e) => { setTraceErr(true); console.warn('[done] trace:', (e as Error)?.message); })
       .finally(() => setTraceLoading(false));
@@ -110,12 +192,11 @@ export default function RunDone() {
   // '6장까지' 캡도 0부터 다시 셌다. 마운트에서 실제 배열을 읽고 3상태로 그린다:
   // 로딩은 로딩이라 말하고, 실패는 재시도를 주고, 개수에 의존하는 분기는 실사진만 센다.
   const [photos, setPhotos] = useState<string[]>([]);
-  const [photoState, setPhotoState] = useState<'loading' | 'ready' | 'err'>(runResult.bookingId ? 'loading' : 'ready');
+  const [photoState, setPhotoState] = useState<'loading' | 'ready' | 'err'>(bookingId ? 'loading' : 'ready');
   const loadPhotos = useCallback(() => {
-    const bid = runResult.bookingId;
-    if (!bid) return;
+    if (!bookingId) return;
     setPhotoState('loading');
-    fetchRunPhotos(bid)
+    fetchRunPhotos(bookingId)
       .then((p) => { setPhotos(p); setPhotoState('ready'); })
       .catch((e) => { console.warn('[done] photos:', (e as Error)?.message); setPhotoState('err'); });
   }, []);
@@ -124,7 +205,7 @@ export default function RunDone() {
 
   // 오늘의 순간 — 러닝 사진이 보호자 리포트(공유 페이지)에 실린다
   const addPhoto = async () => {
-    if (!runResult.bookingId) return;
+    if (!bookingId) return;
     let ImagePicker: any;
     try { ImagePicker = require('expo-image-picker'); } catch {
       Alert.alert('개발 빌드 업데이트 필요', '사진 기능은 새 빌드에 포함돼요'); return;
@@ -136,7 +217,7 @@ export default function RunDone() {
       if (res.canceled || !res.assets?.[0]?.base64) return;
       setUploading(true);
       // 서버가 append 후 최신 배열 전체를 돌려준다 — 읽기가 실패했던 경우도 여기서 정합된다
-      const next = await uploadRunPhoto(runResult.bookingId, res.assets[0].base64);
+      const next = await uploadRunPhoto(bookingId, res.assets[0].base64);
       setPhotos(next);
       setPhotoState('ready');
     } catch (e) {
@@ -168,15 +249,47 @@ export default function RunDone() {
   //
   // 서버는 예나 지금이나 사진 없이 끝난 러닝을 정산한다 — Q3이 그걸 **의도**로 확정했다(서버 강제 없음).
   // 잊지 않게 만드는 일은 이제 세 화면이 나눠 진다: meetup(러닝 전) · run(라이브) · 이 화면(완료).
-  const photoAskable = !!runResult.bookingId;
+  const photoAskable = !!bookingId;
   const photoMissing = photoAskable && photoState === 'ready' && photos.length === 0;
 
-  const km = runResult.km;
+  // [0193] ONE source for every number on this screen, chosen ONCE. With a `bid` it is the
+  // server's answer for that booking; without one it is run.tsx's in-memory snapshot, which is
+  // exactly the freeze-failed route where the estimate is the honest thing to show.
+  const v: Receipt = receipt ?? {
+    km: runResult.km, sec: runResult.sec, payout: runResult.payout,
+    settled: runResult.settled, completed: runResult.completed, reason: runResult.reason,
+  };
+  const km = v.km;
+  const sec = v.sec;
   // '완주' is a claim — spoken only when the server-recorded end was a completed run, exactly as
   // owner/report.tsx gates the same word on run.endReason.
-  const headline = dogName
-    ? `${dogName}, ${km.toFixed(2)}km${runResult.completed ? ' 완주' : ''}`
-    : `${km.toFixed(2)}km${runResult.completed ? ' 완주' : ''}`;
+  const dist = km == null ? null : km.toFixed(2);
+  const headline = dist == null
+    ? (dogName ?? '오늘의 러닝')
+    : dogName
+      ? `${dogName}, ${dist}km${v.completed ? ' 완주' : ''}`
+      : `${dist}km${v.completed ? ' 완주' : ''}`;
+
+  // THE RECEIPT IS NOT DRAWN FROM A GUESS. While the server read is in flight the screen says so;
+  // if it failed it says that and offers the retry. Rendering `runResult` here instead would print
+  // the stop's estimate under this booking's heading — codex A7's exact defect wearing a
+  // loading-state costume.
+  if (receiptState === 'loading' || receiptState === 'err') {
+    const failed = receiptState === 'err';
+    return (
+      <View style={{ flex: 1, backgroundColor: paper.canvas, paddingTop: insets.top + 16, paddingHorizontal: layout.gutter }}>
+        <Text style={[s.headline, df, { marginTop: 24 }]}>
+          {failed ? '기록을 불러오지 못했어요' : '기록을 불러오는 중이에요'}
+        </Text>
+        <Text style={s.sub}>
+          {failed
+            ? '연결을 확인하고 다시 시도해주세요 — 러닝 기록과 정산은 서버에 그대로 있어요.'
+            : '서버에서 이 러닝의 실측·정산 상태를 확인하고 있어요.'}
+        </Text>
+        {failed && <PaperBtn label="다시 시도" onPress={loadReceipt} style={{ marginTop: 20 }} />}
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -209,9 +322,11 @@ export default function RunDone() {
         {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
       </Text>
       <Row style={{ gap: 22, marginTop: 14, alignItems: 'flex-start' }}>
-        <DoneStat nf={nf} value={km.toFixed(2)} unit="km" label="거리" />
-        <DoneStat nf={nf} value={fmtDur(runResult.sec)} label="러닝 시간" />
-        <DoneStat nf={nf} value={paceStr(runResult.sec, km)} label="평균 페이스 /km" />
+        {/* [0193] null is a real answer and stays one — an early-ended run can carry no
+            measurement at all, and `?? 0` here is what drew 「0km 완주」 on the report card. */}
+        <DoneStat nf={nf} value={dist ?? '—'} unit="km" label="거리" />
+        <DoneStat nf={nf} value={sec == null ? '—' : fmtDur(sec)} label="러닝 시간" />
+        <DoneStat nf={nf} value={sec == null || km == null ? "-'--\"" : paceStr(sec, km)} label="평균 페이스 /km" />
       </Row>
 
       {/* ══════ ④ 돈 — 한 줄. 절대 히어로가 아니다 ══════
@@ -220,17 +335,17 @@ export default function RunDone() {
           그걸 확정된 돈이라 부르는 순간 앱이 못 지킬 돈을 약속한 것이 된다. */}
       <View style={s.rule} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={s.moneyLabel}>{runResult.settled ? '적립 예정' : '예상 수익 (정산 미완료)'}</Text>
+        <Text style={s.moneyLabel}>{v.settled ? '적립 예정' : '예상 수익 (정산 미완료)'}</Text>
         <Row style={{ alignItems: 'baseline' }}>
           {/* Oswald — [BUG A] lineHeight 24 = 1.26× */}
-          <Text style={[s.moneyNum, nf]}>{runResult.payout == null ? '—' : runResult.payout.toLocaleString()}</Text>
+          <Text style={[s.moneyNum, nf]}>{v.payout == null ? '—' : v.payout.toLocaleString()}</Text>
           <Text style={s.moneyUnit}>원</Text>
         </Row>
       </Row>
       {/* [2026-08-11, kept] '수익은 매주 수요일 정산됩니다'는 존재하지 않는 지급 운영이었다.
           기록은 진짜다(ledger_items). 지급 일정은 진짜가 아니었다. 아는 것만 말한다. */}
       <Text style={s.moneyNote}>
-        {runResult.settled
+        {v.settled
           ? '정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요 · 지급 일정은 결제 연동 후 안내드려요'
           : '정산이 확정되면 수익 화면에 반영돼요'}
       </Text>
@@ -238,7 +353,7 @@ export default function RunDone() {
       {/* 정산 미완료 = 진짜 실패. 라우드-페일 스트립 문법(criticalWash + critical) — 이 화면의
           앰버 장식이 아니라 earnings.tsx가 이미 쓰는 실패의 얼굴이다. 재시도 문은 러닝
           화면에 있고(여기엔 없다), 문장이 그 경로를 가리킨다 — 죽은 버튼을 만들지 않는다. */}
-      {!runResult.settled && (
+      {!v.settled && (
         <View style={s.failStrip}>
           <Text style={s.failText}>
             정산이 아직 서버에 반영되지 않았어요 — 이 숫자는 앱이 계산한 추정치예요.{'\n'}
@@ -248,17 +363,17 @@ export default function RunDone() {
       )}
 
       {/* 조기 종료 사유 — 사실이지 경고가 아니다. 문장은 그대로, 색만 읽는 잉크로. */}
-      {!runResult.completed && (
+      {!v.completed && (
         <Text style={s.reasonLine}>
-          {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
-          {runResult.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
-          {runResult.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
-          {!runResult.reason && '조기 종료 — 실제 뛴 거리만큼 정산됩니다'}
+          {v.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
+          {v.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
+          {v.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
+          {!v.reason && '조기 종료 — 실제 뛴 거리만큼 정산됩니다'}
         </Text>
       )}
 
       {/* ══════ ⑤ 오늘의 순간 — 사진이 보호자의 러닝 리포트에 실려요 (실예약만) ══════ */}
-      {runResult.bookingId && (
+      {bookingId && (
         <>
           <View style={s.rule} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -358,7 +473,7 @@ export default function RunDone() {
           [2026-08-25 · Sean, 지금 유효] "let the runner review, dont trap them from anything" —
           두 문 다 **무조건** 열린다. 우회로 걱정은 그가 값을 치르기로 한 쪽이고(Q3: 사진 없는 러닝도
           받는다), 리뷰는 재예약 지표에 가장 가까운 입력이라 마찰을 얹을 자리가 아니었다. */}
-      {runResult.bookingId && (
+      {bookingId && (
         <PaperBtn
           label={dogName ? `${dogName} 리뷰 남기기 ›` : '반려견 리뷰 남기기 ›'}
           variant="secondary"
@@ -368,7 +483,7 @@ export default function RunDone() {
       )}
       <PaperBtn
         label="다음 요청 보기 ›"
-        style={{ marginTop: runResult.bookingId ? 8 : photoMissing ? 14 : 22 }}
+        style={{ marginTop: bookingId ? 8 : photoMissing ? 14 : 22 }}
         onPress={() => router.replace('/runner/requests')}
       />
       <PaperBtn label="홈으로" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />

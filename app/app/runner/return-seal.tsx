@@ -362,14 +362,26 @@ export default function ReturnSeal() {
             이 예약은 담당자가 확인하고 있어요 — 지금은 인계를 확인할 수 없어요
           </Text>
         )}
+        {/* 🔴 [0193 · codex A7] BOTH ROUTES CARRY THE BOOKING ID, and the bare path was the defect.
+            `/runner/done` read `runResult` — run.tsx's in-memory snapshot of the STOP, which since
+            0188 carries `settled:false` and a client-side payout estimate because settlement now
+            happens later, inside the second stamp's transaction. So the runner who had just
+            completed the whole ceremony was shown 「정산이 아직 서버에 반영되지 않았어요 … 러닝
+            화면에서 다시 정산하면」 about a run the server had already settled — and re-entry drew
+            the PREVIOUS run's numbers. With a `bid` the receipt reloads measurements, the ledger
+            amount and the settlement state from the server before it renders anything. */}
         {frame === 'b' && (
-          <PaperBtn label="기록 먼저 보기 ›" variant="secondary" onPress={() => router.push('/runner/done')} />
+          <PaperBtn
+            label="기록 먼저 보기 ›"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/runner/done', params: { bid: bookingId } })}
+          />
         )}
         {frame === 'c' && (
           <PaperBtn
             label="러닝 기록 보기 ›"
             style={{ backgroundColor: paper.ready }}
-            onPress={() => router.replace('/runner/done')}
+            onPress={() => router.replace({ pathname: '/runner/done', params: { bid: bookingId } })}
           />
         )}
       </View>

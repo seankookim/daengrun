@@ -70,8 +70,19 @@ export const ESCALATION_TITLE = '인계 확인이 멈춰 있어요';
 // has no return control) and it puts it in `CLUB_PROBE_TITLES` (→ the club session screen). A
 // return ask sent there would land on a screen with no button — the exact defect cold review
 // 0181 #4 found for the club handoff, re-created in the other direction.
-// A club booking can never carry one of these: `end_run_tx` and `confirm_return_tx` both raise
-// `club_out_of_scope`, so no club probe is needed and none is done.
+//
+// 🔴 [0193, codex A6] THE PARAGRAPH THAT STOOD HERE WAS FALSE, AND IT WAS FALSE ABOUT THE ONE
+// TITLE THAT IS SHARED. It read: 「a club booking can never carry one of these: `end_run_tx` and
+// `confirm_return_tx` both raise `club_out_of_scope`, so no club probe is needed and none is
+// done.」 That is true of the 1:1 DOOR and says nothing about who else writes the STRING —
+// `session_confirm_return` writes 「반환 확인 요청」 with the CLUB booking id (0069:124-126, and
+// 0045:117 / 0046:66 before it), and `club/session/[sid].tsx` still calls it. So the club party's
+// own return ask was being routed to `/runner/return-seal`, whose `confirmRunReturn` answers
+// `club_out_of_scope` — a screen whose only button cannot work, which is exactly the defect
+// 0181 #4 found for the pickup handoff. 「반환 확인 요청」 now probes club membership like every
+// other shared title; the three 1:1-only titles below do not, because nothing else writes them.
+// The paragraph is kept and corrected rather than deleted: a header that quietly stops claiming
+// something is how the next session inherits the belief.
 export const RETURN_ASK_TITLE = '반환 확인 요청';
 export const RETURN_SEALED_TITLE = '반환 확인 완료';
 /** The run-end sweep's one-shot alarm when a return has stayed one-sided past its deadline. Not a
@@ -86,8 +97,12 @@ export const RETURN_TITLES = [
   RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
 ];
 
-/** The titles whose destination depends on whether the booking is a club delegation. */
-export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE];
+/** The titles whose destination depends on whether the booking is a club delegation.
+ *  [0193 · codex A6] `RETURN_ASK_TITLE` joins them: `session_confirm_return` (0069:124-126) writes
+ *  that exact string for a club delegation, so it is a SHARED title and not a 1:1-only one. The
+ *  other three return titles are written only by the 1:1 door (`transition-booking`'s end_run /
+ *  confirm_return arms and migration 0188's sweep), so they need no probe and pay for none. */
+export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE, RETURN_ASK_TITLE];
 
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
@@ -151,7 +166,21 @@ export function destinationForBookingRef(f: BookingRefFacts, titles: { incident:
   if (CLUB_PROBE_TITLES.includes(title) && typeof f.clubSessionId === 'string' && f.clubSessionId !== '') {
     return `/club/session/${f.clubSessionId}`;
   }
-  if (role === 'runner') return RUNNER_ROUTES[title] ?? '/runner/calendar';
+  if (role === 'runner') {
+    const pathname = RUNNER_ROUTES[title];
+    if (!pathname) return '/runner/calendar';
+    // 🔴 [0193 · codex A4] THE RETURN FAMILY CARRIES ITS BOOKING ID, and the bare pathname was a
+    // real defect rather than an omission. `/runner/return-seal` resolves the booking from `bid`
+    // OR from the in-memory `runnerJob.bookingId` (return-seal.tsx:107), and `push.ts` never sets
+    // that store — it only forwards what this table returns. So on a COLD START (the notification
+    // that wakes the app, which is the common case for a return ask) the store is empty and the
+    // screen opened 「확인할 인계가 없어요」 for a booking the runner was being asked to confirm;
+    // and with a STALE store it opened a DIFFERENT booking, whose seal button would then stamp
+    // that one. Two failures, and the second writes to the wrong row.
+    // Only this family is wrapped: the other runner destinations are list screens that take no
+    // bid, and handing them one would be a param nothing reads.
+    return RETURN_TITLES.includes(title) ? { pathname, params: { bid: refId } } : pathname;
+  }
   if (OWNER_MEETUP_TITLES.includes(title)) {
     // /owner/meetup self-restores to whatever booking is CURRENTLY in flight. Fine for a live push
     // tapped in the moment; wrong for the historical inbox (a months-old "러너 이동 중" row would

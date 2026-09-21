@@ -1,7 +1,7 @@
 // 예약 상태 전이 — 액션 기반. DB 트리거가 최종 검증하고, 여기서 부수효과(알림·양측 인계) 처리.
 // input: { booking_id, action, meta? }
 // actions: runner_accept | runner_decline | request_runner | enroute | arrived | confirm_handoff
-//        | start_run | end_run | confirm_return | cancel_owner
+//        | start_run | end_run | confirm_return | resolve_return (ops-only, 0193) | cancel_owner
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 //
 // ═══ [O-5 §C.2] `payment_ok` IS DELETED — there is no pre-run payment step ════════════════════
@@ -37,6 +37,7 @@ import { cancelOwner } from "./cancel_owner.ts";
 import { startRun } from "./start_run.ts";
 import { endRun } from "./end_run.ts";
 import { confirmReturn } from "./confirm_return.ts";
+import { resolveReturn } from "./resolve_return.ts";
 
 Deno.serve(handle(async (req) => {
   const db = admin();
@@ -54,7 +55,15 @@ Deno.serve(handle(async (req) => {
   if (error || !bk) throw new HttpError(404, "booking not found");
   const isOwner = bk.owner_id === uid;
   const isRunner = bk.runner_id === uid;
-  if (!isOwner && !isRunner && action !== "runner_accept") throw new HttpError(403, "not a party");
+  // ⚠ [0193] `resolve_return` JOINS `runner_accept` IN THIS EXCEPTION, and it is a narrowing rather
+  // than a widening. An operator resolving a stranded return is by definition NOT a party to the
+  // booking, so this gate could only ever refuse them — and what it is traded for is stricter:
+  // `ops_resolve_return_tx` refuses anyone who is not an active `return_strand` recipient
+  // (`not_ops`) BEFORE it reads a single field of the booking, so a stranger who reaches this
+  // action still learns nothing about which bookings exist. See `resolve_return.ts` §4.
+  if (!isOwner && !isRunner && action !== "runner_accept" && action !== "resolve_return") {
+    throw new HttpError(403, "not a party");
+  }
 
   const set = async (patch: Record<string, unknown>) => {
     const { error: e } = await db.from("bookings").update(patch).eq("id", booking_id);
@@ -428,6 +437,16 @@ Deno.serve(handle(async (req) => {
     // standing between a runner and both stamps. See that file's §1.
     case "confirm_return":
       return await confirmReturn(db, { bookingId: booking_id, uid, bk, notify });
+
+    // ═══ [0193] THE OPS EXIT — codex A1/A2 on 0188 ═══════════════════════════════════════════
+    // A return one party never finished leaves the booking `active` forever; a return NOBODY
+    // finished is escalated to `incident_review`, which 0066:56 gives one exit and which
+    // `_settle_sealed_run` refuses. Both leave a runner who walked the dog unpayable, and the
+    // remedy 0096 §7 named (`force_return_tx`) has never had a caller. This is the caller.
+    // No `isOwner`/`isRunner` branch, for the reason above the switch: the gate is the ops roster
+    // in SQL, taken on the id this function VERIFIED, never on anything in `meta`.
+    case "resolve_return":
+      return await resolveReturn(db, { bookingId: booking_id, uid, bk, meta });
 
     // 0066's fee ladder + the charge slice's collection half (§0-ter #5) — see cancel_owner.ts.
     // This one case lives in its own file because `Deno.serve` at this module's top level makes

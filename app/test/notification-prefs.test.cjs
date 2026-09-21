@@ -114,6 +114,10 @@ const stripTs = (src) => src
   .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
 const stripSql = (src) => src.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n');
 
+const constOf = (src, name) => {
+  const m = src.match(new RegExp(`export const ${name}\\s*=\\s*'([^']*)'`));
+  return m ? m[1] : null;
+};
 const apiSrc = stripTs(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'api.ts'), 'utf8'));
 const routeSrc = stripTs(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'notification-route.ts'), 'utf8'));
 const migDir = path.join(__dirname, '..', '..', 'supabase', 'migrations');
@@ -122,11 +126,31 @@ t('migration 0189 is on disk (a missing file must fail LOUDLY, never read as "no
   typeof migName === 'string', String(migName));
 const migSrc = migName ? stripSql(fs.readFileSync(path.join(migDir, migName), 'utf8')) : '';
 
-// ① the writers' constants, read out of api.ts by name
-const constOf = (src, name) => {
-  const m = src.match(new RegExp(`export const ${name}\\s*=\\s*'([^']*)'`));
-  return m ? m[1] : null;
-};
+// 🔴 [0193] THE ARRAY IS READ FROM THE **LATEST** MIGRATION THAT DECLARES IT, NEVER FROM 0189 BY
+// NAME. 0193 §E re-declares `_noti_urgent_noti_titles()` to add the ONE server-written member
+// (0188 arm ⓑ-①'s 「귀가 확인이 필요해요」, which 0187 filed as a disableable booking row — codex
+// B5). A gate pinned to 0189's filename would have kept comparing a file that no longer decides
+// anything: green, confident, and measuring a superseded declaration. So: find every migration
+// that declares the function, take the highest-numbered one, and say which one it was.
+const urgentDecls = fs.readdirSync(migDir)
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+  .filter((f) => /create or replace function _noti_urgent_noti_titles/.test(
+    stripSql(fs.readFileSync(path.join(migDir, f), 'utf8'))))
+  .sort();
+t('at least one migration declares the urgent-title array (absence must fail LOUDLY)',
+  urgentDecls.length > 0, JSON.stringify(urgentDecls));
+const urgentFile = urgentDecls[urgentDecls.length - 1];
+const urgentSrc = urgentFile ? stripSql(fs.readFileSync(path.join(migDir, urgentFile), 'utf8')) : '';
+const urgentRaw = urgentFile ? fs.readFileSync(path.join(migDir, urgentFile), 'utf8') : '';
+console.log(`  (urgent-title array read from ${urgentFile}; declared in ${JSON.stringify(urgentDecls)})`);
+
+// The server-written member's client-side constant. It is NOT in ALWAYS_ON_TITLES and must not be:
+// that array is 「what a CLIENT writer sends」, and nothing in the app writes this title. Its client
+// copy lives in notification-route.ts, which routes it — so a rename that reaches routing and not
+// the always-on family is caught here, in the direction that would silence the push.
+const SERVER_URGENT = constOf(routeSrc, 'RETURN_ESCALATION_TITLE');
+
+// ① the writers' constants, read out of api.ts by name (constOf is declared above)
 const WRITERS = {
   SOS_TITLE: 'api.ts:sendSOS',
   INCIDENT_NOTI_TITLE: 'api.ts:openBookingIncident',
@@ -153,20 +177,29 @@ t('ALWAYS_ON_TITLES holds exactly the three writer constants, and nothing else',
 
 // ③ ②  ⇄  the SQL array in 0189 — both directions, so neither a rename nor an addition can hide
 const sqlArray = (() => {
-  const m = migSrc.match(/_noti_urgent_noti_titles\(\)[\s\S]*?select\s+array\[([^\]]*)\]/);
+  const m = urgentSrc.match(/_noti_urgent_noti_titles\(\)[\s\S]*?select\s+array\[([^\]]*)\]/);
   if (!m) return null;
   return m[1].split(',').map((x) => x.trim().replace(/^'/, '').replace(/'$/, '')).filter(Boolean);
 })();
-t('0189 declares the urgent-title array and it is parseable', Array.isArray(sqlArray), String(sqlArray));
+t(`${urgentFile} declares the urgent-title array and it is parseable`, Array.isArray(sqlArray), String(sqlArray));
+t('notification-route.ts declares the server-written escalation title', typeof SERVER_URGENT === 'string' && SERVER_URGENT.length > 0, String(SERVER_URGENT));
+// [0193] the family is now CLIENT writers + exactly one SERVER writer. Both directions still hold,
+// and the count is still pinned — widening it to get a green is how this guard dies.
+const URGENT_FAMILY = SERVER_URGENT ? [...ALWAYS_ON_TITLES, SERVER_URGENT] : [...ALWAYS_ON_TITLES];
 if (Array.isArray(sqlArray)) {
-  t('every client title is in the SQL array (a rename on the client that did not reach the server would SILENTLY make an SOS disableable)',
+  t('every client-written title is in the SQL array (a rename on the client that did not reach the server would SILENTLY make an SOS disableable)',
     ALWAYS_ON_TITLES.every((x) => sqlArray.includes(x)),
     `sql=${JSON.stringify(sqlArray)}`);
-  t('every SQL title is on the client (the other direction: a server-only entry is a title nothing writes)',
-    sqlArray.every((x) => ALWAYS_ON_TITLES.includes(x)),
-    `sql=${JSON.stringify(sqlArray)}`);
-  t('the SQL array has exactly three entries — widening it to get a green is how this guard dies',
-    sqlArray.length === 3, String(sqlArray.length));
+  t('the SERVER-written escalation title is in the SQL array (0188 ⓑ-①; without it 예약 알림 off silences 「the dog is unaccounted for」 — codex B5)',
+    !!SERVER_URGENT && sqlArray.includes(SERVER_URGENT),
+    `sql=${JSON.stringify(sqlArray)} server=${SERVER_URGENT}`);
+  t('every SQL title is accounted for on the client (the other direction: an entry nothing writes is a title nobody can rename safely)',
+    sqlArray.every((x) => URGENT_FAMILY.includes(x)),
+    `sql=${JSON.stringify(sqlArray)} expected=${JSON.stringify(URGENT_FAMILY)}`);
+  t('the SQL array holds exactly the expected family and nothing more',
+    sqlArray.length === URGENT_FAMILY.length, `${sqlArray.length} vs ${URGENT_FAMILY.length}`);
+  t('the server-written title is NOT in ALWAYS_ON_TITLES (that array is what a CLIENT writer sends; nothing in the app writes this one)',
+    !!SERVER_URGENT && !ALWAYS_ON_TITLES.includes(SERVER_URGENT));
 }
 
 // ④ the mapper must consult the array ABOVE the disableable arms, in EXECUTABLE sql
@@ -187,10 +220,9 @@ t('notification-route.ts RUN_STOP_TITLE matches api.ts RUN_STOP_TITLE',
 //    and the raw read does not, the stripper is eating source; if the raw finds them and the
 //    stripped does not, they live only in a comment — which is exactly the false green this
 //    file's stripping exists to prevent.
-const migRaw = migName ? fs.readFileSync(path.join(migDir, migName), 'utf8') : '';
-for (const title of ALWAYS_ON_TITLES) {
-  t(`「${title}」 is present in 0189 both raw and comment-stripped (a title that survives only in prose is not a rule)`,
-    migRaw.includes(title) && migSrc.includes(title));
+for (const title of URGENT_FAMILY) {
+  t(`「${title}」 is present in ${urgentFile} both raw and comment-stripped (a title that survives only in prose is not a rule)`,
+    urgentRaw.includes(title) && urgentSrc.includes(title));
 }
 
 console.log(`\n${pass} pass / ${fail} fail`);

@@ -202,14 +202,21 @@ begin
       then v_bad := v_bad || ' near-miss [' || t || '] was treated as urgent (pushes='
                           || coalesce(v->>'pushes', 'NULL') || ') — the match must be exact'; end if;
     end loop;
-    -- and the array is the three, not a set someone widened to get a green
-    if array_length(_noti_urgent_noti_titles(), 1) is distinct from 3
-    then v_bad := v_bad || ' the urgent family no longer holds exactly 3 titles (n='
+    -- and the array is the family, not a set someone widened to get a green
+    -- ⚠ [0193 §E] 3 → 4. The fourth member is 「귀가 확인이 필요해요」, 0188 arm ⓑ-①'s zero-stamp
+    -- escalation — a SERVER-written title, which is why 0189 could describe this array as 「the
+    -- three titles a CLIENT writes」 and 0193 cannot. Codex B5: 0187 filed it as a disableable
+    -- booking row, so 예약 알림 off silenced 「the dog is unaccounted for」. 0193 classifies it at
+    -- the WRITER (kind='safety') and this entry is the belt for rows already written as `booking`.
+    -- Updated here rather than left to fail for a true reason (the house law); the NEW property —
+    -- the real escalation pushes with 예약 알림 off — is owned by 224 `0193-B5`.
+    if array_length(_noti_urgent_noti_titles(), 1) is distinct from 4
+    then v_bad := v_bad || ' the urgent family no longer holds exactly 4 titles (n='
                         || coalesce(array_length(_noti_urgent_noti_titles(), 1)::text, 'NULL') || ')'; end if;
     perform set_config('request.jwt.claim.sub', o::text, true);
     perform set_notification_prefs(true, true, true, true);
     perform set_config('request.jwt.claim.sub', '', true);
-    if v_bad = '' then call _pass('urg','0189-U2 완전 일치만 긴급이다 — 뒤 공백·앞 공백·긴 제목·접두사·부분 문자열·소문자 여섯 가지 근접 실패는 전부 평범한 booking 행이고 booking=false 에 꺼진다 (부분 일치는 「도착」 사고의 원인, notification-route.ts:44); 목록은 정확히 3개');
+    if v_bad = '' then call _pass('urg','0189-U2 완전 일치만 긴급이다 — 뒤 공백·앞 공백·긴 제목·접두사·부분 문자열·소문자 여섯 가지 근접 실패는 전부 평범한 booking 행이고 booking=false 에 꺼진다 (부분 일치는 「도착」 사고의 원인, notification-route.ts:44); 목록은 정확히 4개 — 0193 §E가 0188 ⓑ-①의 서버 발신 제목 「귀가 확인이 필요해요」를 더했다(그 제목의 새 성질은 224 0193-B5가 소유)');
     else v_msg := v_bad; call _fail('urg','0189-U2 exact match', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', true);
     call _fail('urg','0189-U2 exact match', sqlerrm); end;
