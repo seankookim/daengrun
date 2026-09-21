@@ -9,6 +9,9 @@ import { Row } from '../../../src/components/ui';
 import { fetchOpsGearClaimsPending, OpsGearClaim, opsMarkGearShipped } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { kstCal, kstMonthDay } from '../../../src/lib/kst';
+// RAW server text for the log; `e.message` is the mapped Korean the screen renders. Same
+// import and same reason as `ops/payout/[runner].tsx`.
+import { rpcRaw } from '../../../src/lib/rpc-error';
 import { goBackOrHome } from '../../../src/lib/nav';
 import { colors, paper } from '../../../src/theme';
 
@@ -56,7 +59,7 @@ export default function OpsGearClaimScreen() {
         setPhase(found === null ? 'missing' : 'ready');
       })
       .catch((e) => {
-        console.warn('[ops/gear] load:', (e as Error)?.message ?? e);
+        console.warn('[ops/gear] load:', rpcRaw(e));
         setLoadErr((e as Error)?.message || '수령 신청을 불러오지 못했어요');
         setPhase('error');
       });

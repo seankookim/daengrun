@@ -11,6 +11,8 @@ import {
 } from '../../src/lib/bank-account';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
+// RAW server text for the log; `e.message` is the mapped Korean the form renders.
+import { rpcRaw } from '../../src/lib/rpc-error';
 import { colors, paper } from '../../src/theme';
 
 // 정산 계좌 — 0194. `earnings.tsx:158` 이 「계좌 등록은 오픈뱅킹 연동과 함께 제공돼요」라고 적어 둔
@@ -58,7 +60,7 @@ export default function BankAccountScreen() {
         setPhase('ready');
       })
       .catch((e) => {
-        console.warn('[bank-account] load:', (e as Error)?.message ?? e);
+        console.warn('[bank-account] load:', rpcRaw(e));
         setPhase('error');
       });
   }, []);
