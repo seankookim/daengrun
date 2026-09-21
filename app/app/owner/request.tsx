@@ -5,6 +5,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDog, Addr, AvailRule, createBookingHold, createHoldRequestKey, createRecurringSeries, DogProfile, fetchAddresses, fetchMyBillingCard, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
+import { PaperSheet } from '../../src/components/paper-sheet';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { TOSS_ENABLED } from '../../src/lib/toss';
 import { HeatTrace } from '../../src/components/runcard';
@@ -1372,13 +1373,14 @@ export default function Request() {
         </Pressable>
       </View>
 
-      {/* ---------- time-slot bottom sheet ---------- */}
-      <Modal visible={slotSheet} transparent animationType="slide" onRequestClose={() => setSlotSheet(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => setSlotSheet(false)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
+      {/* ---------- time-slot sheet [HIG N8] ----------
+          hand-rolled transparent slide modal + tap-only backdrop + fake grabber → PaperSheet
+          (presentationStyle="pageSheet"). The title moved from the body's first line into the
+          sheet HEADER — same words, and the header is where a sheet says what it is. Every
+          handler is untouched: a chip still calls pickSlot, which closes the sheet itself, so
+          this sheet has no commit action and the header carries 닫기 alone (no 완료 to add). */}
+      <PaperSheet visible={slotSheet} title="언제 달릴까요?" onClose={() => setSlotSheet(false)}>
         <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 19.5, fontWeight: '900', color: paper.ink }}>언제 달릴까요?</Text>
           {preferred && (
             <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, fontWeight: '700' }}>
               ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
@@ -1416,12 +1418,15 @@ export default function Request() {
           {/* date strip */}
           <View style={{ marginTop: 16 }}>{renderDateStrip()}</View>
 
-          {/* slot groups — 지명 러너면 가용시간 밖 비활성, 과거/2시간 내 비활성 */}
-          <ScrollView style={{ marginTop: 6, maxHeight: 300 }}>
+          {/* slot groups — 지명 러너면 가용시간 밖 비활성, 과거/2시간 내 비활성
+              maxHeight 300 → flex: 1. That cap existed because the old bottom sheet sized itself
+              to its content; a pageSheet is a fixed tall card, so a 300pt list would sit above a
+              band of empty white. The list still scrolls, it just uses the sheet it was given. */}
+          <ScrollView style={{ marginTop: 6, flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
             {renderSlotGroups()}
           </ScrollView>
         </View>
-      </Modal>
+      </PaperSheet>
 
       {/* ---------- slot-hold countdown ---------- */}
       {/* ── 카드 게이트 (Sean 2026-08-26 배치 판정) — 요청이 나가기 직전의 마지막 한 장.
@@ -1698,10 +1703,9 @@ const s = StyleSheet.create({
   checkCircle: { width: 22, height: 22, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', justifyContent: 'center' },
   // [2026-08-19 §C] 다크 티켓 푸터(ticket/tickDash/notch/timeChip/payBtn)는 은퇴했다 —
   // 확인 스텝이 사라지면서 그 자리가 없어졌고, 총액은 다이얼 아래 예상 금액 한 줄이 진다.
-  // slot sheet — 화이트 샤프 시트
-  sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, backgroundColor: '#DDDDDD', marginBottom: 14 },
+  // slot sheet — 화이트 샤프 시트. [HIG N8] 딤 면과 44×5 바 스타일은 은퇴했다: 배경 딤과
+  // 드래그는 이제 pageSheet 가 시스템으로 그린다 (가짜 grabber 금지 — paper-sheet.tsx 헤더).
+  sheet: { flex: 1, backgroundColor: paper.canvas, padding: 16 },
   methodChip: { backgroundColor: paper.canvas, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#EEEEEE' },
   dateChip: { width: 52, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 9, gap: 1 },
   slot: { flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 11 },

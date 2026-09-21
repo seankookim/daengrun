@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Alert, Animated, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
@@ -42,6 +42,13 @@ const TILE = (W - 6) / 3;
 
 // [HIG A6] Module scope so the array identity is stable across the grid's re-renders.
 const PHOTO_A11Y_ACTIONS = [{ name: 'longpress', label: '사진 삭제' }];
+// Same idiom, same reason, for the day strip's two accessibilityState values — a FlatList cell
+// that is handed a freshly built object every render has nothing to compare against.
+const A11Y_SELECTED = { selected: true };
+const A11Y_UNSELECTED = { selected: false };
+
+type GearSlotRow = { kind: GearKind; item: GearItem | null };
+type DayCell = { cal: ReturnType<typeof kstCal>; label: string | undefined; d: number; w: string };
 
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
@@ -91,8 +98,13 @@ export default function RunnerProfileScreen() {
   const [tab, setTab] = useState<'posts' | 'gallery'>('posts');
   // 선택 → 하단 확인 바 → 진행 (즉시 이동 없음 — 결제 바와 같은 확인 패턴)
   const [selected, setSelected] = useState<{ key: string; label: string; start: Date } | null>(null);
-  // 확인 바 스프링 등장 — 선택이라는 상태 변화를 모션으로
-  const barY = useRef(new Animated.Value(90)).current;
+  // 확인 바 스프링 등장 — 선택이라는 상태 변화를 모션으로.
+  // ⚠ [react-doctor · lazy ref init] `useRef(new Animated.Value(90))` 였다 — useRef 의 인자는
+  // **매 렌더마다** 평가되므로 첫 렌더 이후 버려질 Animated.Value 를 렌더 횟수만큼 만들고
+  // 있었다 (값 자체는 첫 개가 계속 쓰이니 화면은 멀쩡하다 — 그래서 아무도 못 본다).
+  const barYRef = useRef<Animated.Value | null>(null);
+  if (barYRef.current === null) barYRef.current = new Animated.Value(90);
+  const barY = barYRef.current;
   useEffect(() => {
     if (!selected) return;
     barY.setValue(90);
@@ -290,6 +302,37 @@ export default function RunnerProfileScreen() {
     ]);
   };
 
+  // 장비 스트립의 데이터. 「없는 데이터는 그리지 않는다」는 필터가 예전에는 renderItem 안에
+  // 있었는데(`if (!item && !canEdit) return null`), FlatList 에서는 그 자리가 빈 셀을 만든다 —
+  // 필터가 데이터 쪽으로 올라온 이유다. 결과 집합은 동일하다.
+  const gearSlots = useMemo(
+    () => GEAR_KINDS
+      .map((kind) => ({ kind, item: gear.find((g) => g.kind === kind) ?? null }))
+      .filter((g) => g.item !== null || canEdit),
+    [gear, canEdit],
+  );
+
+  // ── 세 가로 스트립의 renderItem (react-doctor: rn-no-inline-flatlist-renderitem) ──
+  // ⚠ renderGear 는 일부러 useCallback 이 아니다. onGearSlot 은 `gear` 를 읽는 평범한 함수라
+  // 매 렌더 새로 만들어지고, 그걸 deps 에서 빼고 메모이제이션하면 셀이 **낡은 gear** 를 보고
+  // 「사진 교체」와 「신규 등록」을 갈라버린다 — 눈에 안 보이는 동작 변경이다. 이름 붙은 참조라는
+  // 점만으로 규칙은 만족하고, 다시 그리는 빈도는 예전 ScrollView + map 과 정확히 같다.
+  const renderGear = ({ item: g }: { item: GearSlotRow }) => (
+    <GearCell slot={g} disabled={!canEdit || gearBusy !== null} busy={gearBusy === g.kind} onPress={onGearSlot} />
+  );
+  // 이 둘은 진짜로 안정적이다 — setState 와 router 는 아이덴티티가 변하지 않는다.
+  const onOpenCourse = useCallback((routeId: string) => { router.push(`/course/${routeId}`); }, []);
+  const onPickDay = useCallback((i: number) => { setDayIdx(i); setSelected(null); }, []);
+  const renderCourse = useCallback(
+    ({ item: c }: { item: CoursePatch }) => <PatchCell course={c} onPress={onOpenCourse} />,
+    [onOpenCourse],
+  );
+  const renderDay = useCallback(
+    ({ item: d, index: i }: { item: DayCell; index: number }) =>
+      <DayChip day={d} index={i} selected={dayIdx === i} onPress={onPickDay} />,
+    [dayIdx, onPickDay],
+  );
+
   // 갤러리 탭이 존재하는 조건 = 그 소스가 존재하는 조건. 없는 탭은 안 그린다 (죽은 버튼 금지).
   const hasGallery = !!p && (p.photos.length > 0 || canEdit);
   const activeTab = hasGallery ? tab : 'posts'; // 탭이 사라져도 상태가 유령 탭을 가리키지 않게
@@ -297,7 +340,11 @@ export default function RunnerProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
+      {/* ⚠ [react-doctor · dynamic contentContainerStyle] paddingBottom 이 `selected ? 140 : 40`
+          이었다 — 새 스타일 오브젝트가 매 렌더 새 아이덴티티로 내려가 ScrollView 의 콘텐츠
+          컨테이너가 매번 다시 계산됐다. 패딩은 정적으로 고정하고, 확인 바가 가리는 100pt 는
+          **콘텐츠 끝의 스페이서**가 진다. 합은 예전과 같은 140/40 이다. */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollPad}>
         {/* ---------- ① 아이디 바 — 인스타의 상단은 이름이 아니라 **계정 아이디**다 ---------- */}
         <Row style={[s.topBar, { paddingTop: insets.top }]}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
@@ -498,39 +545,18 @@ export default function RunnerProfileScreen() {
                   <Text style={s.sectionTitle}>러닝 장비</Text>
                   <Text style={{ fontSize: 15, color: colors.dim }}>사진으로 인증된 장비예요</Text>
                 </Row>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 2 }}>
-                  {GEAR_KINDS.map((kind) => {
-                    const item = gear.find((g) => g.kind === kind);
-                    if (!item && !canEdit) return null; // 없는 데이터는 그리지 않는다
-                    const meta = GEAR_META[kind];
-                    return (
-                      <Pressable
-                        key={kind}
-                        disabled={!canEdit || gearBusy !== null}
-                        onPress={() => onGearSlot(kind)}
-                        style={[s.gearSlot, !item && s.gearSlotEmpty]}
-                      >
-                        {item?.photoUrl ? (
-                          <Image source={{ uri: item.photoUrl }} style={s.gearPhoto} />
-                        ) : (
-                          <View style={[s.gearPhoto, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1eee3' }]}>
-                            {gearBusy === kind || !item
-                              ? <Text style={{ fontSize: 27 }}>{gearBusy === kind ? '…' : '＋'}</Text>
-                              : <Icon name={meta.icon} glyph="●" size={24} color="#8a8672" />}
-                          </View>
-                        )}
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: item ? paper.ink : colors.dim, marginTop: 6 }}>
-                          {meta.name}
-                        </Text>
-                        {item?.verified ? (
-                          <View style={s.gearBadge}><Text style={{ fontSize: 15, fontWeight: '900', color: '#3d5a2b' }}>✓ 인증</Text></View>
-                        ) : (
-                          <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>{meta.hint}</Text>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                {/* [react-doctor · list virtualization] 가로 스트립은 FlatList 다. 필터는 이제
+                    **데이터 쪽**에서 한다 (gearSlots) — renderItem 이 null 을 돌려주면 FlatList 는
+                    높이 0 짜리 빈 셀을 만들고 gap 은 그대로 먹는다. 그리는 결과는 같다. */}
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.strip8}
+                  data={gearSlots}
+                  extraData={gearBusy}
+                  keyExtractor={gearKey}
+                  renderItem={renderGear}
+                />
                 {canEdit && (
                   <Text style={{ fontSize: 15, color: colors.dim, marginTop: 8 }}>
                     슬롯을 눌러 장비 사진을 올리면 매칭 카드에 인증 배지로 보여요
@@ -546,15 +572,16 @@ export default function RunnerProfileScreen() {
                   <Text style={s.sectionTitle}>달린 코스</Text>
                   <Text style={{ fontSize: 15, color: colors.dim }}>완주 기록으로 자동 집계돼요</Text>
                 </Row>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingTop: 2 }}>
-                  {courseHist.map((c) => (
-                    <Pressable key={c.routeId} onPress={() => router.push(`/course/${c.routeId}`)} style={{ alignItems: 'center', width: 76 }}>
-                      <PatchBadge km={c.km} name={c.name} grade={c.grade} size={64} />
-                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 6 }}>{c.name}</Text>
-                      <Text style={{ fontSize: 15, color: colors.dim, marginTop: 1 }}>×{c.count} 완주</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
+                {/* [react-doctor · list virtualization] 이 스트립은 길이에 상한이 없다 (완주한
+                    코스 수만큼 자란다) — 세 리스트 중 가상화가 실제로 일을 하는 유일한 곳이다. */}
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.strip12}
+                  data={courseHist}
+                  keyExtractor={courseKey}
+                  renderItem={renderCourse}
+                />
               </View>
             )}
 
@@ -575,17 +602,18 @@ export default function RunnerProfileScreen() {
               ) : (
                 <>
                   <Text style={{ fontSize: 15, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {days.map((d, i) => (
-                      <Pressable key={kstKey(d.cal)} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}
-                        accessibilityRole="radio" accessibilityState={{ selected: dayIdx === i }}
-                        accessibilityLabel={`${d.label ? `${d.label} ` : ''}${d.d}일 ${d.w}요일`}>
-                        <Text style={{ fontSize: 15, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
-                        <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
-                        {d.label && <Text style={{ fontSize: 9, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                  {/* [react-doctor · list virtualization] extraData={dayIdx} 는 장식이 아니다 —
+                      FlatList 의 셀은 props 가 그대로면 다시 그리지 않으므로, 선택 표시가 바뀌는
+                      값을 여기로 넘기지 않으면 칩이 예전 선택을 그린 채로 남는다. */}
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.strip8flat}
+                    data={days}
+                    extraData={dayIdx}
+                    keyExtractor={dayKey}
+                    renderItem={renderDay}
+                  />
                   {daySlots.length === 0 ? (
                     <Text style={{ fontSize: 15, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
                   ) : (
@@ -635,8 +663,14 @@ export default function RunnerProfileScreen() {
               {p.reviews.length === 0 && (
                 <Text style={{ fontSize: 15, color: colors.dim }}>아직 후기가 없어요 — 첫 러닝의 주인공이 되어보세요</Text>
               )}
+              {/* ⚠ [react-doctor · index key] key={i} 였다. 행 ID 를 쓰고 싶지만 이 payload 에는
+                  없다 — `fetchRunnerProfile` 의 reviews select 가 `rating, note, tags, created_at`
+                  만 읽고 `id` 를 싣지 않는다 (api.ts:2910, 이번 슬라이스의 소유 파일이 아니다).
+                  그래서 내용에서 키를 짓는다: 같은 날·같은 별점·같은 본문이면 같은 후기다.
+                  ⚠ 이 리스트는 FlatList 로 바꾸지 않는다 — 세로 ScrollView 안의 세로 FlatList 는
+                  가상화 중첩 경고를 만들고, 서버가 limit(5) 로 상한을 이미 걸어둔다. */}
               {p.reviews.map((v, i) => (
-                <View key={i} style={[s.reviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#f0eee3' }]}>
+                <View key={`${v.when}|${v.rating ?? '-'}|${v.note ?? ''}`} style={[s.reviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#f0eee3' }]}>
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 15, fontWeight: '800', color: '#5a7a3c' }}>
                       {v.rating != null ? '★'.repeat(v.rating) : '후기'}
@@ -703,6 +737,8 @@ export default function RunnerProfileScreen() {
             {/* 러너 행이 없는 사람의 프로필은 여기서 끝난다 — 없는 스토어프런트를 만들지 않는다. */}
           </>
         )}
+        {/* 확인 바 자리. 바가 떠 있을 때만 높이를 갖는다 — s.scrollPad 의 40 과 합쳐 140. */}
+        <View style={{ height: selected ? 100 : 0 }} />
       </ScrollView>
 
       {/* 스크롤 화면이므로 ScrollView 뒤에 — 그래야 스트립이 콘텐츠 위에 그려진다 (status-bar-cover.tsx 배치법) */}
@@ -735,6 +771,70 @@ export default function RunnerProfileScreen() {
   );
 }
 
+// ── 세 가로 스트립의 행 컴포넌트 (react-doctor: rn-list-callback-per-row /
+//    rn-no-inline-object-in-list-item) ──
+// renderItem **안에서** 만들던 onPress 클로저와 스타일 오브젝트가 여기로 내려왔다. ScrollView +
+// map 시절에도 같은 할당이 있었지만(규칙이 리스트 밖에서는 안 켜질 뿐이다), FlatList 의 셀은
+// props 아이덴티티로 다시 그릴지를 정하므로 여기서는 실제로 값을 한다. 그리는 결과는 동일 —
+// 조건부 스타일은 인라인 오브젝트 대신 **정적 스타일 두 개 중 하나**를 고르는 형태로만 바뀌었다.
+const gearKey = (g: GearSlotRow) => g.kind;
+const courseKey = (c: CoursePatch) => c.routeId;
+const dayKey = (d: DayCell) => kstKey(d.cal);
+
+function GearCell({ slot, disabled, busy, onPress }: {
+  slot: GearSlotRow; disabled: boolean; busy: boolean; onPress: (kind: GearKind) => void;
+}) {
+  const meta = GEAR_META[slot.kind];
+  const press = useCallback(() => onPress(slot.kind), [onPress, slot.kind]);
+  return (
+    <Pressable disabled={disabled} onPress={press} style={[s.gearSlot, !slot.item && s.gearSlotEmpty]}>
+      {slot.item?.photoUrl ? (
+        /* `source={{ uri }}` 는 그대로 둔다 — Image 의 계약이 오브젝트이고, MediaImage 로
+           바꾸는 것은 프레젠테이션이 아니라 로딩 경로를 바꾸는 일이다 */
+        <Image source={{ uri: slot.item.photoUrl }} style={s.gearPhoto} />
+      ) : (
+        <View style={s.gearPhotoEmpty}>
+          {busy || !slot.item
+            ? <Text style={s.gearGlyph}>{busy ? '…' : '＋'}</Text>
+            : <Icon name={meta.icon} glyph="●" size={24} color="#8a8672" />}
+        </View>
+      )}
+      <Text style={[s.gearName, slot.item ? s.gearNameOn : s.gearNameOff]}>{meta.name}</Text>
+      {slot.item?.verified ? (
+        <View style={s.gearBadge}><Text style={s.gearBadgeText}>✓ 인증</Text></View>
+      ) : (
+        <Text style={s.gearHint}>{meta.hint}</Text>
+      )}
+    </Pressable>
+  );
+}
+
+function PatchCell({ course, onPress }: { course: CoursePatch; onPress: (routeId: string) => void }) {
+  const press = useCallback(() => onPress(course.routeId), [onPress, course.routeId]);
+  return (
+    <Pressable onPress={press} style={s.patchCell}>
+      <PatchBadge km={course.km} name={course.name} grade={course.grade} size={64} />
+      <Text numberOfLines={1} style={s.patchName}>{course.name}</Text>
+      <Text style={s.patchCount}>×{course.count} 완주</Text>
+    </Pressable>
+  );
+}
+
+function DayChip({ day, index, selected, onPress }: {
+  day: DayCell; index: number; selected: boolean; onPress: (i: number) => void;
+}) {
+  const press = useCallback(() => onPress(index), [onPress, index]);
+  return (
+    <Pressable onPress={press} style={[s.dayChip, selected && s.dayChipOn]}
+      accessibilityRole="radio" accessibilityState={selected ? A11Y_SELECTED : A11Y_UNSELECTED}
+      accessibilityLabel={`${day.label ? `${day.label} ` : ''}${day.d}일 ${day.w}요일`}>
+      <Text style={selected ? s.dayWOn : s.dayW}>{day.w}</Text>
+      <Text style={selected ? s.dayDOn : s.dayD}>{day.d}</Text>
+      {day.label && <Text style={selected ? s.dayTagOn : s.dayTag}>{day.label}</Text>}
+    </Pressable>
+  );
+}
+
 // 인스타 카운트 한 칸. value가 null = **아직 모른다** — 0을 그리지 않는다 (로딩 ≠ 0 ≠ 빈 값).
 function Count({ nf, value, label }: { nf: TextStyle | null; value: number | null; label: string }) {
   return (
@@ -756,6 +856,13 @@ function Stat({ nf, value, label }: { nf: TextStyle | null; value: string; label
 }
 
 const s = StyleSheet.create({
+  // ── 정적 리스트 스타일 (react-doctor) — 인라인 오브젝트는 매 렌더 새 아이덴티티다 ──
+  // scrollPad 의 40 + 확인 바 스페이서 100 = 예전의 140. 값은 바뀌지 않았고 주인만 바뀌었다.
+  scrollPad: { paddingBottom: 40 },
+  strip8: { gap: 8, paddingTop: 2 },
+  strip12: { gap: 12, paddingTop: 2 },
+  strip8flat: { gap: 8 },
+  patchCell: { alignItems: 'center', width: 76 },
   // ── 페이퍼 월드: 흰 캔버스 · 솔리드 코랄 헤어라인 · 샤프 코너 (DESIGN.md §2/§4) ──
   topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
@@ -801,6 +908,26 @@ const s = StyleSheet.create({
   specChipTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: '#3d5a2b' },
   // 장비 로드아웃 슬롯 (0019)
   gearSlot: { width: 104, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', padding: 8, alignItems: 'center' },
+  // 아래 열두 개는 예전에 renderItem 안의 인라인 오브젝트였다 — 값은 한 글자도 바뀌지 않았고
+  // 조건부였던 것만 정적 스타일 쌍(On/Off)으로 갈라졌다.
+  gearPhotoEmpty: { width: 88, height: 66, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1eee3' },
+  gearGlyph: { fontSize: 27 },
+  gearName: { fontSize: 15, fontWeight: '800', marginTop: 6 },
+  gearNameOn: { color: paper.ink },
+  gearNameOff: { color: colors.dim },
+  gearBadgeText: { fontSize: 15, fontWeight: '900', color: '#3d5a2b' },
+  gearHint: { fontSize: 15, color: colors.dim, marginTop: 3 },
+  patchName: { fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 6 },
+  patchCount: { fontSize: 15, color: colors.dim, marginTop: 1 },
+  dayChipOn: { backgroundColor: paper.ink },
+  dayW: { fontSize: 15, color: colors.dim },
+  dayWOn: { fontSize: 15, color: '#b8c4ae' },
+  dayD: { fontSize: 17, fontWeight: '900', color: paper.ink },
+  dayDOn: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  // 9pt 는 이 스트립의 기존 값이다 — 이 슬라이스는 프레젠테이션 이관만 하고 타이포 플로어는
+  // 건드리지 않는다 (DESIGN.md §3 의 한글 15pt 플로어에 대한 별건 항목).
+  dayTag: { fontSize: 9, fontWeight: '700', color: '#5a7a3c' },
+  dayTagOn: { fontSize: 9, fontWeight: '700', color: colors.volt },
   gearSlotEmpty: { borderStyle: 'dashed', backgroundColor: '#faf8f1' },
   gearPhoto: { width: 88, height: 66, borderRadius: 10, backgroundColor: '#DCD6C4' },
   gearBadge: { backgroundColor: '#DDF0A6', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8, marginTop: 3 },

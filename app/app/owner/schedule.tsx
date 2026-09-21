@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
@@ -10,6 +10,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { kstCal } from '../../src/lib/kst';
 import { lateness, sinceLabel, LATENESS_CEILING_MS } from '../../src/lib/lateness';
 import { BottomNav } from '../../src/components/bottomnav';
+import { PaperSheet } from '../../src/components/paper-sheet';
 import { PaymentRow } from '../../src/components/charge-states';
 import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
@@ -641,13 +642,20 @@ export default function Schedule() {
       </TabSwipe>
       <BottomNav />
 
-      {/* ---------- booking management sheet ---------- */}
-      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={close}>
-        <Pressable style={s.backdrop} onPress={close} accessibilityRole="button" accessibilityLabel="닫기" />
+      {/* ---------- booking management sheet [HIG N8] ----------
+          hand-rolled transparent slide modal + tap-only backdrop + fake grabber → PaperSheet
+          (presentationStyle="pageSheet"): swipe-down dismiss, and the dismiss control on the
+          LEADING edge instead of only a backdrop tap VoiceOver could not name.
+          ⚠ No 완료 on the trailing edge and that is the honest reading of this sheet, not an
+          omission: detail mode is a hub with several exits (취소 · 러너 변경 · 다시 예약) and
+          cancel mode's commit is the destructive button below, whose label carries the server's
+          fee quote. Neither is a Done. The header title names the mode so the two are not one
+          screen that silently changed under you; every handler below is untouched — the leading
+          닫기 and the swipe both call the same `close` that `onRequestClose` already called. */}
+      <PaperSheet visible={!!selected} title={sheetMode === 'detail' ? '예약 상세' : '일정 취소'} onClose={close}>
         {selected && runner && (
           <View style={s.sheet}>
-            <View style={s.handle} />
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12, paddingBottom: 36 }}>
               {sheetMode === 'detail' ? (
                 <>
                   {/* header */}
@@ -1093,7 +1101,7 @@ export default function Schedule() {
             </ScrollView>
           </View>
         )}
-      </Modal>
+      </PaperSheet>
     </View>
   );
 }
@@ -1214,9 +1222,9 @@ const s = StyleSheet.create({
     alignItems: 'center', paddingVertical: 14, backgroundColor: paper.canvas,
   },
   // sheet — 순백·샤프. 카드 수프 → 코랄 1px 풀블리드 섹션 분리 (meetup 섹션 문법)
-  backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 36 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#EEE', marginBottom: 14 },
+  // [HIG N8] 배경 딤과 드래그는 이제 pageSheet 가 시스템으로 그린다 — 손으로 그린 두 스타일
+  // (딤 면 · 44×5 바)은 은퇴했다. 그 바는 이 시트가 할 수 없는 드래그를 약속하고 있었다.
+  sheet: { flex: 1, backgroundColor: paper.canvas, paddingHorizontal: 16 },
   sheetCard: { marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 15, borderTopWidth: 1, borderTopColor: paper.line, marginTop: 14 },
   // 취소 수수료 카드 — 크리티컬 문법 (canvas 면 + 1px critical, line과 절대 공유 금지)
   feeCard: { backgroundColor: paper.canvas, padding: 15, borderWidth: 1, borderColor: paper.critical, marginTop: 14 },
