@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { StatusBarCover } from '../src/components/status-bar-cover';
 import { Row } from '../src/components/ui';
+import { CycleGroup, groupByHandoffCycle, resendBadge } from '../src/lib/alerts-group';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
@@ -96,18 +97,26 @@ export default function Alerts() {
     }
   };
 
-  const unreadCount = liveNotis.filter((n) => n.unread).length;
-  const latestUnread = liveNotis.find((n) => n.unread) ?? null;
-  // 날짜 그룹 (fetchNotifications가 최신순 정렬 — 그룹 순서 보존)
+  // [0183 alerts cycle] 인계 확인 요청은 다시 물을 때마다 행이 하나씩 쌓였다 — 같은 질문 하나가
+  // 동일한 카드 서너 장으로 읽혔다. 0183의 handoff_cycle_id 가 그 질문의 정체성이라, 같은
+  // 사이클은 최신 1행 + 「×3 재요청」 배지로 접는다. 판정은 alerts-group.ts (순수 · 핀됨).
+  // ⚠ 날짜 그룹보다 먼저 접는다: 재요청은 자정을 넘길 수 있고, 날짜 그룹 안에서 접으면 같은
+  // 사이클이 두 날짜로 갈라져 배지가 실제보다 작은 수를 말한다.
+  const cycles = useMemo(() => groupByHandoffCycle(liveNotis), [liveNotis]);
+  // 안 읽음 수는 화면에 그려진 것과 같은 말을 해야 한다 — 접힌 재요청 3건을 3으로 세면
+  // NEW 배지 하나 옆에 「안 읽음 3」이 서서 고장처럼 읽힌다. 사이클 하나가 하나.
+  const unreadCount = cycles.filter((g) => g.unread).length;
+  const latestUnread = cycles.find((g) => g.unread)?.newest ?? null;
+  // 날짜 그룹 (fetchNotifications가 최신순 정렬 · groupByHandoffCycle이 최신순 보존)
   const groups = useMemo(() => {
-    const out: { date: string; items: LiveNoti[] }[] = [];
-    for (const n of liveNotis) {
+    const out: { date: string; items: CycleGroup<LiveNoti>[] }[] = [];
+    for (const c of cycles) {
       const last = out[out.length - 1];
-      if (last && last.date === n.dateLabel) last.items.push(n);
-      else out.push({ date: n.dateLabel, items: [n] });
+      if (last && last.date === c.newest.dateLabel) last.items.push(c);
+      else out.push({ date: c.newest.dateLabel, items: [c] });
     }
     return out;
-  }, [liveNotis]);
+  }, [cycles]);
 
   return (
     <View style={{ flex: 1, backgroundColor: lilac.bg }}>
@@ -215,7 +224,11 @@ export default function Alerts() {
 
               <View style={s.rail}>
                 <View style={s.railLine} />
-                {g.items.map((n) => {
+                {g.items.map((c) => {
+                  // 행이 말하는 건 사이클이다 — 카드는 최신 행이 그리고, 안 읽음은 사이클 전체가
+                  // 판단한다 (접힌 오래된 재요청 중 하나만 안 읽어도 이 질문은 안 읽은 것이다).
+                  const n = c.newest;
+                  const unread = c.unread;
                   const ink = inkFor(n.kind, n.title);
                   // 행 내용은 어느 쪽이든 같다 — 달라지는 건 '누를 수 있는가' 뿐이라, 껍데기만 고른다
                   const cell = (
@@ -225,18 +238,22 @@ export default function Alerts() {
                         style={[
                           s.dot,
                           { borderColor: ink.fg },
-                          n.unread && { backgroundColor: lilac.coral, borderColor: lilac.coralDeep },
+                          unread && { backgroundColor: lilac.coral, borderColor: lilac.coralDeep },
                         ]}
                       />
                       {/* 좌측 코랄 틱 — 미읽음 엣지 (텍스트 아님) */}
-                      <View style={[s.evtTick, n.unread && { backgroundColor: lilac.coral }]} />
+                      <View style={[s.evtTick, unread && { backgroundColor: lilac.coral }]} />
                       <View style={s.evtCell}>
                         <Row style={{ alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                          <Text style={[s.evtTime, nf, !n.unread && { color: lilac.text }]}>{n.timeLabel}</Text>
+                          <Text style={[s.evtTime, nf, !unread && { color: lilac.text }]}>{n.timeLabel}</Text>
                           <View style={[s.typeTag, { backgroundColor: ink.bg }]}>
                             <Text style={[s.typeTagTxt, nf]}>{tagFor(n.kind, n.title)}</Text>
                           </View>
-                          {n.unread && (
+                          {/* 재요청 배지 — 접힌 행 수는 실 데이터(같은 handoff_cycle_id 행 수)에서만 온다 */}
+                          {c.count > 1 && (
+                            <View style={s.resend}><Text style={[s.resendTxt, nf]}>{resendBadge(c.count)}</Text></View>
+                          )}
+                          {unread && (
                             <View style={s.seal}><Text style={[s.sealTxt, nf]}>NEW</Text></View>
                           )}
                         </Row>
@@ -253,9 +270,9 @@ export default function Alerts() {
                     </>
                   );
                   return isRoutable(n) ? (
-                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, n.unread && s.evtNew]}>{cell}</Pressable>
+                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, unread && s.evtNew]}>{cell}</Pressable>
                   ) : (
-                    <View key={n.id} style={[s.evt, n.unread && s.evtNew]}>{cell}</View>
+                    <View key={n.id} style={[s.evt, unread && s.evtNew]}>{cell}</View>
                   );
                 })}
               </View>
@@ -355,6 +372,13 @@ const s = StyleSheet.create({
   },
   // [D13 FLOOR14 2026-08-12 · FLOOR15 2026-08-27] 12 → 14 → 15. tagFor()는 순수 한글을 돌려준다 (기록·클럽·취소·반복·변경·확정·완료).
   typeTagTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 0.4, color: lilac.head },
+  // [0183 alerts cycle] 재요청 배지 — 접힌 재요청이 있을 때만. 앰버(변경/대기 버킷)로, NEW 코랄과
+  // 다른 말을 하게 둔다: 하나는 「안 읽음」, 하나는 「같은 요청이 n번 왔다」.
+  resend: {
+    backgroundColor: lilac.amberSoft, borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)',
+    borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
+  },
+  resendTxt: { fontSize: 15, lineHeight: 18, letterSpacing: 0.4, color: lilac.amber },
   seal: {
     marginLeft: 'auto', backgroundColor: lilac.coralSoft, borderWidth: 1, borderColor: lilac.coral,
     borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,

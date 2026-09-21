@@ -12,6 +12,8 @@ const {
   destinationForBookingRef, needsClubProbe, needsCurrentBookingProbe, HANDOFF_TITLES, RUNNER_ROUTES,
   OWNER_MEETUP_TITLES, CHAT_TITLE, RUN_STOP_TITLE, ESCALATION_TITLE, CLUB_PROBE_TITLES,
   RETURN_TITLES, RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
+  LIVE_TITLES, CANCEL_COMP_TITLE, CLUB_SESSION_REF_TITLES, refMayBeClubSession,
+  COMMUNITY_FEED_TITLE_MARK, isCommunityFeedTitle, needsCommunityClubProbe, destinationForCommunityRef,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -234,6 +236,166 @@ t('the three 1:1-only return titles are NOT diverted by a club session id (nothi
   t('migration 0069 declares the club return ask title', !!m, 'no club return ask insert in 0069');
   t("the client's RETURN_ASK_TITLE equals the CLUB writer's title (this equality IS codex A6)",
     !!m && m[1] === RETURN_ASK_TITLE, m ? `club: ${m[1]} client: ${RETURN_ASK_TITLE}` : '');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [routing sweep ①] THE CANCEL-COMPENSATION RECEIPT LANDS ON THE LEDGER, NOT ON A CALENDAR
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// Two writers, both runner-addressed and both with a BOOKING ref: `cancel_owner.ts`'s late tier
+// and 0117's `sweep_cancel_money_gaps`. The title was in no table, so it fell to the runner
+// default `/runner/calendar` — a schedule, for a push whose entire sentence is 「보상이
+// 기록됐어요」. The record is a `ledger_items` row and `/runner/earnings` is the screen that draws
+// those rows.
+t(`① ${CANCEL_COMP_TITLE} · runner → /runner/earnings (the screen that draws the ledger row the push names)`,
+  dest({ title: CANCEL_COMP_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/earnings',
+  show(dest({ title: CANCEL_COMP_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })));
+t('① it is a BARE pathname, not a bid-scoped object: /runner/earnings takes no booking and the ledger is the whole list (unlike the return family, whose screen resolves one booking)',
+  typeof RUNNER_ROUTES[CANCEL_COMP_TITLE] === 'string');
+t('① the compensation title is NOT in the club, handoff, return or meetup families (both writers emit a booking id and neither has a club arm)',
+  !CLUB_PROBE_TITLES.includes(CANCEL_COMP_TITLE) && !HANDOFF_TITLES.includes(CANCEL_COMP_TITLE)
+  && !RETURN_TITLES.includes(CANCEL_COMP_TITLE) && !OWNER_MEETUP_TITLES.includes(CANCEL_COMP_TITLE)
+  && !refMayBeClubSession(CANCEL_COMP_TITLE));
+{
+  // the string is the SERVER's, in both writers — read them (comments stripped) so the three
+  // spellings cannot part. The SQL arm is the sweep that re-mounts a record a dying worker never
+  // wrote; the edge arm is the live late-cancel tier, spoken only when the ledger row exists.
+  const strip = (p, mark) => fs.readFileSync(p, 'utf8').split('\n').filter((l) => !l.trim().startsWith(mark)).join('\n');
+  const sql = strip(path.resolve(__dirname, '../../supabase/migrations/0117_late_booking_protocol.sql'), '--');
+  const sweep = sql.match(/select b\.runner_id, 'booking', '([^']+)'/);
+  t('① migration 0117 still writes the compensation push to the RUNNER', !!sweep, 'no runner-addressed booking insert in 0117');
+  t("① the client's CANCEL_COMP_TITLE equals 0117's",
+    !!sweep && sweep[1] === CANCEL_COMP_TITLE, sweep ? `0117: ${sweep[1]} client: ${CANCEL_COMP_TITLE}` : '');
+  t('① 0117 passes a BOOKING id as ref_id — which is what makes /runner/earnings reachable without a club probe',
+    /'취소 보상 기록이 지연됐다가 방금 반영됐어요', b\.id/.test(sql));
+  const edge = strip(path.resolve(__dirname, '../../supabase/functions/transition-booking/cancel_owner.ts'), '//');
+  const live = edge.match(/lateShare > 0 \? "([^"]+)" : "예약 취소됨"/);
+  t('① cancel_owner.ts still chooses the compensation title on the late tier', !!live, 'no lateShare title choice in cancel_owner.ts');
+  t("① the client's CANCEL_COMP_TITLE equals the edge's",
+    !!live && live[1] === CANCEL_COMP_TITLE, live ? `edge: ${live[1]} client: ${CANCEL_COMP_TITLE}` : '');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [routing sweep ②] THE RUNNER FAST PATH MAY NOT SKIP THE PROBE FOR A SESSION-REF TITLE
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// push.ts skips `refIsClubSession` whenever the app is in runner mode, on the stated ground that
+// every writer in the runner's booking set emits a booking id. False for the club writers: 0068's
+// `club_assignment_recovery` sends the runner 「체크인 지연」 — 「지금 체크인하세요」 — with a
+// `club_sessions.id`. The skip resolved it as a booking id, so `/club/session/[sid]` was
+// unreachable for a runner BY CONSTRUCTION and the tap fell to `/runner/calendar`.
+t('② every enumerated session-ref title answers refMayBeClubSession',
+  CLUB_SESSION_REF_TITLES.length > 0 && CLUB_SESSION_REF_TITLES.every(refMayBeClubSession));
+t('② 체크인 지연 is on the list — the title this slice exists for',
+  refMayBeClubSession('체크인 지연'));
+t('② the titles the fast path KEEPS are not on it: chat · incident · the meetup family · the return family · the stop request · the compensation receipt (every one of their writers emits a booking id)',
+  ![CHAT_TITLE, INCIDENT, RUN_STOP_TITLE, CANCEL_COMP_TITLE, ...OWNER_MEETUP_TITLES, ...LIVE_TITLES, ...RETURN_TITLES].some(refMayBeClubSession),
+  JSON.stringify([CHAT_TITLE, INCIDENT, RUN_STOP_TITLE, CANCEL_COMP_TITLE, ...OWNER_MEETUP_TITLES, ...LIVE_TITLES, ...RETURN_TITLES].filter(refMayBeClubSession)));
+t('② an unlisted title is not on it (the list is closed — membership is a measured fact about a writer, never a default)',
+  !refMayBeClubSession('무슨 제목'));
+// 🔴 The two club mechanisms are DIFFERENT and must not be confused: CLUB_PROBE_TITLES carry a
+// BOOKING ref whose club-ness comes from `bookings.club_session_id`, while these carry the session
+// id ITSELF. A title in both would mean two probes answering one question.
+t('② the session-ref list is disjoint from CLUB_PROBE_TITLES (booking ref + club_session_id lookup) — two different mechanisms, never both',
+  !CLUB_SESSION_REF_TITLES.some((x) => CLUB_PROBE_TITLES.includes(x)),
+  JSON.stringify(CLUB_SESSION_REF_TITLES.filter((x) => CLUB_PROBE_TITLES.includes(x))));
+t('② no session-ref title has a 1:1 runner route (a listed title must reach the probe, never a table entry that would answer first)',
+  !CLUB_SESSION_REF_TITLES.some((x) => RUNNER_ROUTES[x] !== undefined),
+  JSON.stringify(CLUB_SESSION_REF_TITLES.filter((x) => RUNNER_ROUTES[x] !== undefined)));
+{
+  // the writer is the SERVER's: read 0068's runner-addressed insert (comments stripped) and check
+  // both halves — the title, and that its ref is the session loop variable rather than a booking.
+  const sqlPath = path.resolve(__dirname, '../../supabase/migrations/0068_retire_t10_hard_stop.sql');
+  const sql = fs.readFileSync(sqlPath, 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const m = sql.match(/select r\.runner_profile_id, 'booking', '([^']+)',\s*\n?\s*'([^']*)', r\.id/);
+  t('② 0068 still writes a runner-addressed booking row whose ref_id is the SESSION (r.id, the club_sessions loop row)',
+    !!m, 'no runner-addressed session-ref insert in 0068');
+  t('② the client lists exactly the title 0068 writes', !!m && CLUB_SESSION_REF_TITLES.includes(m[1]),
+    m ? `0068: ${m[1]}` : '');
+  t('② and its body is the one that makes the destination load-bearing — it tells the runner to CHECK IN, which only the session screen can do',
+    !!m && m[2].includes('체크인하세요'), m ? m[2] : '');
+}
+{
+  // 🔴 THE PURE TABLE CANNOT SEE THE FAST PATH, so a correct list and a push.ts that never
+  // consults it are indistinguishable here — the same structural gap `check-device-clock.mjs`
+  // exists for. Read push.ts with comment lines stripped: a comment quoting the guard must not
+  // satisfy a check for the guard (the standing comment-matching law).
+  const push = fs.readFileSync(path.resolve(__dirname, '../src/lib/push.ts'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  t("② push.ts imports refMayBeClubSession from notification-route",
+    /import \{[^}]*\brefMayBeClubSession\b[^}]*\} from '\.\/notification-route'/s.test(push));
+  t('② push.ts GUARDS its booking fast path with it (declared-but-unused would leave the runner skip exactly as it was)',
+    /kind === 'booking' && !refMayBeClubSession\(title\)/.test(push),
+    'push.ts no longer guards the booking fast path with !refMayBeClubSession(title)');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [routing sweep ③] `community` ASKS THE ID — THE FEED IS THE EXCEPTION, NOT THE RULE
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// Every community writer in the migrations passes a club SESSION id, so an unconditional
+// `/community` dead-ended the pushes whose point is a control on the session screen — 0047's
+// 「배정 불발 자동 환불」 and 0070's 「미진행 위탁 자동 환불」, the latter's body literally
+// 「세션 종료를 눌러주세요」. The recap keeps the feed because its own body says 피드에서.
+const REFUND_TITLES = ['배정 불발 자동 환불', '미진행 위탁 자동 환불'];
+for (const title of REFUND_TITLES) {
+  t(`③ ${title} · a session ref → the club session screen (its 세션 종료 control is not on the feed)`,
+    destinationForCommunityRef({ refId: SID, title, isClubSession: true }) === `/club/session/${SID}`,
+    show(destinationForCommunityRef({ refId: SID, title, isClubSession: true })));
+  t(`③ ${title} · needs the probe`, needsCommunityClubProbe(SID, title));
+  t(`③ ${title} · the probe says NOT a session → the feed, the pre-slice destination (a failed probe is never a guess)`,
+    destinationForCommunityRef({ refId: SID, title, isClubSession: false }) === '/community'
+    && destinationForCommunityRef({ refId: SID, title, isClubSession: null }) === '/community'
+    && destinationForCommunityRef({ refId: SID, title, isClubSession: undefined }) === '/community');
+}
+// the other direction — a feed push still reaches the feed, and pays for no probe
+t('③ the recap keeps the feed even with a session ref (its body says 피드에서 확인하세요)',
+  destinationForCommunityRef({ refId: SID, title: '반포 러닝크루 리캡 도착', isClubSession: true }) === '/community');
+t('③ the recap needs NO probe — the tap stays instant',
+  !needsCommunityClubProbe(SID, '반포 러닝크루 리캡 도착') && isCommunityFeedTitle('반포 러닝크루 리캡 도착'));
+t('③ a community row with NO ref → the feed, no probe (nothing to ask about)',
+  destinationForCommunityRef({ refId: null, title: '위탁 신청 도착', isClubSession: true }) === '/community'
+  && !needsCommunityClubProbe(null, '위탁 신청 도착') && !needsCommunityClubProbe(undefined, '위탁 신청 도착'));
+t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server composes the title as `v_name || \' 리캡 도착\'`, and a club whose name merely contains 리캡 도착 in the middle is not a recap',
+  isCommunityFeedTitle(`반포 ${COMMUNITY_FEED_TITLE_MARK}`) && !isCommunityFeedTitle(`${COMMUNITY_FEED_TITLE_MARK} 예고`)
+  && !isCommunityFeedTitle('배정 불발 자동 환불'));
+{
+  // the two refund writers are the SERVER's — read both (comments stripped), confirm the kind is
+  // `community` and the ref is the session, and that the client does NOT treat them as feed rows.
+  const strip = (p) => fs.readFileSync(p, 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const a = strip(path.resolve(__dirname, '../../supabase/migrations/0047_assignment_loop.sql'));
+  const b = strip(path.resolve(__dirname, '../../supabase/migrations/0070_incident_accountability.sql'));
+  // the body is a `coalesce(…, 1), 0) || '…'` concat, so it carries commas — the ref is matched by
+  // running to the statement's own `, sess.id`, never by a comma-free window.
+  const refInsert = /select sess\.host_profile_id, 'community', '([^']+)',[^;]*?, sess\.id/;
+  const ma = a.match(refInsert);
+  const mb = b.match(refInsert);
+  t('③ 0047 still writes an auto-refund community row with the SESSION as ref', !!ma, 'no session-ref community insert in 0047');
+  t('③ 0070 still writes an auto-refund community row with the SESSION as ref', !!mb, 'no session-ref community insert in 0070');
+  t('③ 0070\'s body is what makes the destination load-bearing — it asks the host to press 세션 종료, a control the feed does not have',
+    b.includes('세션 종료를 눌러주세요'));
+  t('③ the client routes on exactly the titles 0047 and 0070 write',
+    !!ma && !!mb && REFUND_TITLES.includes(ma[1]) && REFUND_TITLES.includes(mb[1]),
+    `0047: ${ma && ma[1]} 0070: ${mb && mb[1]}`);
+  t('③ neither is treated as a feed title (a feed exemption on these would restore the dead end)',
+    !!ma && !!mb && !isCommunityFeedTitle(ma[1]) && !isCommunityFeedTitle(mb[1]));
+  // and the recap's composed title, read out of its latest writer
+  const c = strip(path.resolve(__dirname, '../../supabase/migrations/0118_club_cancel_fee_collection.sql'));
+  const mc = c.match(/'community', v_name \|\| '([^']+)',\s*\n?\s*v_teams \|\| '([^']*)'/);
+  t('③ 0118 still composes the recap title by concatenation', !!mc, 'no recap concat in 0118');
+  t("③ the client's feed mark is exactly the recap's composed suffix, trimmed of the leading space the server supplies",
+    !!mc && mc[1].trim() === COMMUNITY_FEED_TITLE_MARK, mc ? `0118: '${mc[1]}' client: '${COMMUNITY_FEED_TITLE_MARK}'` : '');
+  t('③ …and the recap body is what justifies keeping it on the feed', !!mc && mc[2].includes('피드에서'), mc ? mc[2] : '');
+}
+{
+  // push.ts must actually consult the community decision — a pure function nobody calls leaves
+  // every pin above green over an unconditional `/community`. Comments stripped.
+  const push = fs.readFileSync(path.resolve(__dirname, '../src/lib/push.ts'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  t('③ push.ts consults needsCommunityClubProbe and destinationForCommunityRef',
+    /needsCommunityClubProbe\(refId, title\)/.test(push) && /destinationForCommunityRef\(/.test(push));
+  t('③ push.ts no longer returns /community for the kind unconditionally',
+    !/if \(kind === 'community'\) \{ try \{ router\.push\('\/community'\)/.test(push));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

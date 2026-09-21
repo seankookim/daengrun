@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { session } from '../store';
 import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
 import {
-  CHAT_TITLE, destinationForBookingRef, needsClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES,
+  CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, needsClubProbe,
+  needsCommunityClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES, refMayBeClubSession,
 } from './notification-route';
 import { supabase } from './supabase';
 
@@ -85,7 +86,23 @@ function routeForBookingRef(refId: string, title: string): void {
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
 // 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
-  if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
+  // [routing sweep ③] `community` asks the id, like every other kind with a ref. This line used to
+  // be an unconditional `/community`, and every community writer in the migrations passes a club
+  // SESSION id — so 0047's 「배정 불발 자동 환불」 and 0070's 「미진행 위탁 자동 환불」 (whose body
+  // says 「세션 종료를 눌러주세요」) landed a host on the feed, which has no such control. The recap
+  // family keeps the feed: its body says 「피드에서 확인하세요」, and `needsCommunityClubProbe`
+  // exempts it so it stays instant and pays for no probe. See notification-route.ts §③.
+  if (kind === 'community') {
+    if (!needsCommunityClubProbe(refId, title)) {
+      try { router.push('/community'); } catch { /* navigation not ready — best-effort */ }
+      return;
+    }
+    refIsClubSession(refId as string)
+      .then((isSession) => destinationForCommunityRef({ refId, title, isClubSession: isSession }))
+      .catch(() => destinationForCommunityRef({ refId, title, isClubSession: null }))
+      .then((dest) => { try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready */ } });
+    return;
+  }
   if (kind === 'reward') { // 기록·마일스톤 (0034) — ref_id = booking → 리포트로
     try { router.push(refId ? { pathname: '/owner/report', params: { bid: refId } } : '/cards'); } catch { /* */ }
     return;
@@ -110,7 +127,19 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   // (`needsClubProbe`), which is what sends a club 「반환 확인 요청」 to its session screen.
   // [0094 ⑪] 사고 접수 알림도 이 빠른 경로에 든다 — 그 행의 유일한 writer 가 api.ts 의
   // openBookingIncident 이고, `ref_id` 에 예약 id 를 넣는다. 아는 것을 프로브로 되묻지 않는다.
-  if (kind === 'booking' && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE
+  // 🔴 [routing sweep ②] `!refMayBeClubSession(title)` IS THE FAST PATH'S MISSING PRECONDITION.
+  // The paragraph above says the fast path answers 「is this row's ref_id a BOOKING id」 and that
+  // every writer in the runner's booking set emits one. The second half was false: 0068's
+  // `club_assignment_recovery` sends the runner 「체크인 지연」 — 「지금 체크인하세요」 — with a
+  // `club_sessions.id`, and six more club writers address a runner the same way (the list is
+  // `CLUB_SESSION_REF_TITLES`, enumerated from the migrations). For those titles the skip was
+  // resolving a session id as a booking id: the probe never ran, `/club/session/[sid]` was
+  // unreachable for a runner by construction, and the tap fell to `/runner/calendar`.
+  // The titles on that list now fall through to the probe below, which asks the id itself — so a
+  // session ref reaches the session screen and a booking ref still takes the 1:1 route. The skip
+  // is unchanged for every other title, including the two named ones and the meetup family.
+  if (kind === 'booking' && !refMayBeClubSession(title)
+      && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE
       || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title))) {
     routeForBookingRef(refId, title);
     return;

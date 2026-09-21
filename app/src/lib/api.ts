@@ -5571,21 +5571,30 @@ export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: 
 }
 
 // ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
-export interface LiveNoti { id: string; title: string; body: string | null; when: string; dateLabel: string; timeLabel: string; unread: boolean; kind: string; refId: string | null }
+// ── [0183 alerts cycle] additive only: two raw columns, no change to any existing field ───────
+// `createdAt` is the raw `created_at` behind `when`/`dateLabel`, which are KST DISPLAY labels and
+// cannot be compared. `handoffCycleId` is 0183's ask identity — NULL on every notification except
+// 「인계 확인 요청」. `src/lib/alerts-group.ts` needs both to collapse a re-asked handoff into one
+// row and to back its claim about which of them is the newest.
+// Readable: `notifications` has no column-level grants anywhere in the migrations, and its RLS is
+// row-level only (`noti self`, 0002:138 — `profile_id = auth.uid()`), so a column added by
+// `alter table` inherits the table's privileges. Verified against the migration set, 2026-09-22.
+export interface LiveNoti { id: string; title: string; body: string | null; when: string; dateLabel: string; timeLabel: string; unread: boolean; kind: string; refId: string | null; createdAt: string; handoffCycleId: string | null }
 
 export async function fetchNotifications(): Promise<LiveNoti[]> {
   const { data, error } = await supabase
     .from('notifications')
-    .select('id, title, body, created_at, read_at, kind, ref_id')
+    .select('id, title, body, created_at, read_at, kind, ref_id, handoff_cycle_id')
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) throw error;
   return (data ?? []).map((n: any) => {
     const { dateLabel, timeLabel } = kstParts(n.created_at);
     // dateLabel/timeLabel 분리 노출 (2026-07-29) — 알림 타임라인의 날짜 그룹핑용
-    return { id: n.id, title: n.title, body: n.body, when: `${dateLabel} ${timeLabel}`, dateLabel, timeLabel, unread: !n.read_at, kind: n.kind, refId: n.ref_id };
+    return { id: n.id, title: n.title, body: n.body, when: `${dateLabel} ${timeLabel}`, dateLabel, timeLabel, unread: !n.read_at, kind: n.kind, refId: n.ref_id, createdAt: n.created_at, handoffCycleId: n.handoff_cycle_id ?? null };
   });
 }
+// ── end [0183 alerts cycle] ───────────────────────────────────────────────────────────────────
 
 // ---------- 러닝 리포트 (보호자) ----------
 export interface RunReport {
