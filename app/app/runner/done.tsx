@@ -5,11 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
-import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchReturnSeal, fetchRunPhotos, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
+import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchMyReturnResolution, fetchReturnSeal, fetchRunPhotos, fetchRunTrace, type ReturnResolution as ReturnResolutionRow, uploadRunPhoto } from '../../src/lib/api';
 import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
+import { RESOLUTION_KICKER_SHORT, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { GeoRoutePoint, traceToBox } from '../../src/lib/trace';
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { EndReason, runResult } from '../../src/store';
@@ -157,6 +158,25 @@ export default function RunDone() {
       .catch((e) => { console.warn('[done] receipt:', (e as Error)?.message); setReceiptState('err'); });
   }, [paramBid]);
   useEffect(() => { loadReceipt(); }, [loadReceipt]);
+
+  // [0199 · client half landed 0200] 운영팀 판정 — a row exists ONLY when `ops_resolve_return_tx`
+  // (0193 §A) rescued this booking. It is read for ONE sentence on this screen, and it is the
+  // sentence that stops the receipt telling a runner to hand back a dog that is already home.
+  // ⚠ ONE state and no error flag, on purpose: `null` means 「ops never touched this run」 OR
+  //   「not read yet」, and the two are not separated because a resolution is ADDITIVE information
+  //   rather than a gate — the overwhelmingly common case is the first, and a failure strip on
+  //   every healthy receipt is noise that trains people to ignore strips. A failed read logs and
+  //   draws nothing; the receipt's own three states still own the 「I could not read this」 face.
+  // ⚠ Keyed on `bookingId`, not `paramBid`: this sentence replaces the 인계 line, which is drawn
+  //   from the store-only path too (a receipt reached straight off the stop).
+  const [resolution, setResolution] = useState<ReturnResolutionRow | null>(null);
+  useEffect(() => {
+    if (!bookingId) return;
+    fetchMyReturnResolution(bookingId)
+      .then(setResolution)
+      .catch((e) => console.warn('[done] resolution:', (e as Error)?.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // [0193] …and the NAME is part of the same defect. `runResult.dogName` belongs to whatever run
   // ended last in this process, so on a receipt opened for a DIFFERENT booking it is another dog's
@@ -340,10 +360,31 @@ export default function RunDone() {
       {/* ══════ ② 헤드라인 + ③ 숫자 셋 (14a 문법) ══════ */}
       <Text style={[s.headline, df]}>{headline}</Text>
       {/* R6 (반환 봉인) does not exist on the client — this sentence is the only place the app
-          tells the runner to hand the dog back. It stays until that server slice ships. */}
-      <Text style={s.sub}>
-        {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
-      </Text>
+          tells the runner to hand the dog back. It stays until that server slice ships.
+          ══════ [0199/0200] …EXCEPT WHEN 운영팀 ALREADY CLOSED THE RETURN ══════
+          🔴 NEVER BOTH. `ops_resolve_return_tx` (0193 §A) ends a stranded return by sealing and
+          settling, so the dog is home and the handoff is over — and this line would still be
+          asking the runner to perform it. The strip replaces it with what actually happened: the
+          SERVER's fixed sentence (`note_public`, 0199 §0b — never the operator's memo, never the
+          raw `rescuedFrom` word) and the KST instant of the decision. A missing date costs the
+          DATE and never the sentence; no resolution, no strip, and the 인계 line is untouched. */}
+      {(() => {
+        const strip = returnResolutionStrip(resolution);
+        if (!strip) {
+          return (
+            <Text style={s.sub}>
+              {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
+            </Text>
+          );
+        }
+        return (
+          <View style={s.resolutionStrip}>
+            <Text style={s.resolutionKicker}>{RESOLUTION_KICKER_SHORT}</Text>
+            <Text style={s.resolutionText}>{strip.text}</Text>
+            {!!strip.when && <Text style={s.resolutionWhen}>{strip.when}</Text>}
+          </View>
+        );
+      })()}
       {/* [0083 §5] The heartbeat's only runner-facing consequence — three consecutive misses, and
           it clears on the next success. It sits under the 인계 sentence because that sentence is
           the custody claim this strip qualifies. Quiet, not criticalWash: nothing the runner did
@@ -564,6 +605,12 @@ const s = StyleSheet.create({
   moneyNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, // [BUG A] 19 × 1.26
   moneyUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
   moneyNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [0199/0200] 운영팀 판정 — a FACT, not a failure, so the quiet secondary grammar (hairline box)
+  // rather than criticalWash. It stands where the 인계 sentence was, directly under the headline.
+  resolutionStrip: { borderWidth: 1, borderColor: paper.line, padding: 13, marginTop: 10 },
+  resolutionKicker: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.dim, letterSpacing: 1 },
+  resolutionText: { fontSize: 17, lineHeight: 23, fontWeight: '900', color: paper.ink, marginTop: 5 },
+  resolutionWhen: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 3 },
   // [0083 §5] 귀가 하트비트 스트립 — 실패가 아니라 사실 한 줄이라 wash + 헤어라인 (세컨더리 문법)
   pingStrip: { backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, padding: 13, marginTop: 12 },
   pingTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
