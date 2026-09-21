@@ -104,6 +104,13 @@ export const RETURN_TITLES = [
  *  confirm_return arms and migration 0188's sweep), so they need no probe and pay for none. */
 export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE, RETURN_ASK_TITLE];
 
+// [routing sweep ①] The runner's cancel-compensation receipt. Written by
+// `transition-booking/cancel_owner.ts` (the late tier, only when `lateShare > 0` — the amount is
+// spoken only when the ledger row exists) and by 0117's `sweep_cancel_money_gaps`. Both pass a
+// BOOKING id as `ref_id` and both address the RUNNER. `test/notification-route.test.cjs` reads the
+// string out of both writers, so the three spellings cannot part.
+export const CANCEL_COMP_TITLE = '시간을 비워둔 보상이 기록됐어요';
+
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
 // screen at the one moment that matters most: the owner taps 인계하기, the server sends
@@ -128,12 +135,122 @@ export const RUNNER_ROUTES: Record<string, string> = {
   '지명 러닝 요청': '/runner/requests',
   '일정 변경 요청': '/runner/requests',
   '변경 요청 철회': '/runner/requests',
+  // [routing sweep ①] The cancel-compensation receipt. Two writers, both with a BOOKING ref and a
+  // RUNNER recipient: `cancel_owner.ts`'s late tier (`lateShare > 0`) and 0117's
+  // `sweep_cancel_money_gaps`, which re-mounts the record a dying worker never wrote. Before this
+  // entry the title was unlisted, so it fell to `/runner/calendar` — a schedule, for a push whose
+  // whole sentence is 「보상이 기록됐어요」. The record it names is a `ledger_items` row
+  // (`record_enroute_cancel_comp` 0080 · `record_late_cancel_share` 0085) and `/runner/earnings`
+  // is the screen that draws those rows; the calendar draws none of them.
+  [CANCEL_COMP_TITLE]: '/runner/earnings',
 };
 
 // Owner titles that mean "the meetup is happening NOW". /owner/meetup takes no bid, so these only
 // route there when the notification IS the current booking; otherwise they fall to the bid-scoped
 // report.
 export const OWNER_MEETUP_TITLES = [...LIVE_TITLES, ...HANDOFF_TITLES];
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [routing sweep ②] THE `booking`-KIND TITLES WHOSE `ref_id` IS A CLUB SESSION, NOT A BOOKING
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// `notifications` has ONE untyped uuid pointer and `kind` classifies the MESSAGE, never the
+// target — push.ts's header records that, and records why the honest answer is to ask the id.
+// push.ts DOES ask, except on a fast path it takes whenever the tapping user is in RUNNER mode.
+// That skip was justified by 「every writer in the runner's booking set emits a booking id」, and
+// that sentence was FALSE for the club writers: 0068's `club_assignment_recovery` sends the
+// runner 「체크인 지연」 with `club_sessions.id`, so the one push that says 「지금 체크인하세요」
+// could never reach the screen with the check-in button. It resolved as a booking id, missed, and
+// fell to `/runner/calendar`.
+//
+// This is the list of `booking`-kind titles whose writers put a `club_sessions.id` in `ref_id`,
+// enumerated from the migrations rather than guessed. Membership means ONE thing: the fast path
+// may not skip the probe for this title. It does NOT decide the destination — `push.ts`'s
+// `refIsClubSession` still asks the id itself, so a title that is on this list and happens to
+// carry a booking id (several writers send BOTH shapes — the owner gets `sd.booking_id`, the host
+// `sd.session_id`, in one statement) still lands on the 1:1 route. The list can only cost a round
+// trip; it can never send a tap somewhere the id does not point.
+//
+// ⚠ It is deliberately WIDER than 「the runner's own rows」. The fast path keys on the app's
+// current ROLE mode, not on who the row was addressed to, so a club host reading their inbox in
+// runner mode trips the same skip on a host-addressed row. The property that matters is 「can this
+// title's ref be a session」, which is a fact about the writer; who reads it is not.
+//
+// Sources (file:line of the insert, latest version of each function):
+//   체크인 지연 0068:77 · 배정 취소 0124:144 · 배정 철회 0057:182 · 배정 변경 0047:293 ·
+//   위탁 배정 제안 0048:509 · 비상 이양 요청 0057:336 · 이양 요청 취소 0058:229  ← runner recipient
+//   위탁 승인 — 결제 대기 0084:641 · 위탁 승인 — 20분 안에 자리 확정 0135:88 · 결제 완료 — 자리 확정 0053:105 ·
+//   결제 기한 만료 0043:394 · 홀드 해제 0043:448 · 담당 러너 배정 0057:138 · 담당 러너 변경 0058:151 ·
+//   재검토 대기 0048:247 · 재검토 통과 0048:272 · 재검토 거절 — 전액 환불 0048:282 ·
+//   위탁 취소 접수 0057:247 · 이의 접수 — 전액 환불 0047:285 · 자리 확정 0081:219
+export const CLUB_SESSION_REF_TITLES: string[] = [
+  '체크인 지연',
+  '배정 취소',
+  '배정 철회',
+  '배정 변경',
+  '위탁 배정 제안',
+  '비상 이양 요청',
+  '이양 요청 취소',
+  '위탁 승인 — 결제 대기',
+  '위탁 승인 — 20분 안에 자리 확정',
+  '결제 완료 — 자리 확정',
+  '결제 기한 만료',
+  '홀드 해제',
+  '담당 러너 배정',
+  '담당 러너 변경',
+  '재검토 대기',
+  '재검토 통과',
+  '재검토 거절 — 전액 환불',
+  '위탁 취소 접수',
+  '이의 접수 — 전액 환불',
+  '자리 확정',
+];
+
+/** Can this `booking`-kind title's `ref_id` be a `club_sessions.id`? True ⇒ push.ts must ask the
+ *  id instead of taking the fast path. Never a destination on its own. */
+export function refMayBeClubSession(title: string): boolean {
+  return CLUB_SESSION_REF_TITLES.includes(title);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [routing sweep ③] THE `community` KIND IS, IN PRACTICE, THE CLUB KIND
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// `kind === 'community'` used to return `/community` unconditionally, with no look at `ref_id`.
+// Measured against every community writer in the migrations: EVERY one of them passes a club
+// session id (`sd.session_id` · `p_session` · `sess.id` · `v_sid` · `r.session_id`) — there is no
+// community writer whose ref is a club id, a post id, or anything else. So the feed was the
+// destination for pushes whose whole point is a button on the session screen: 0047's
+// 「배정 불발 자동 환불」 and 0070's 「미진행 위탁 자동 환불」 both tell a host what happened to their
+// session, and 0070's body even says 「세션 종료를 눌러주세요」 — a control the feed does not have.
+//
+// The exception is the RECAP, and it is a real one rather than a carve-out: its body says
+// 「피드에서 확인하세요」, so the feed IS where it points. Its title is built by concatenation
+// (`v_name || ' 리캡 도착'`, 0118:1142), which is why this is a suffix and not an equality — an
+// exact-match list structurally cannot hold a title the server composes at write time.
+//
+// Everything else asks the id, exactly like the `booking`/`safety` taps, and a ref that turns out
+// NOT to be a session falls back to the feed — the pre-slice destination, which is honest rather
+// than a guess.
+export const COMMUNITY_FEED_TITLE_MARK = '리캡 도착';
+
+/** Does this community title point at the FEED regardless of its ref? */
+export function isCommunityFeedTitle(title: string): boolean {
+  return title.endsWith(COMMUNITY_FEED_TITLE_MARK);
+}
+
+/** Does resolving this community tap need the `club_sessions` probe? */
+export function needsCommunityClubProbe(refId: string | null | undefined, title: string): boolean {
+  return !!refId && !isCommunityFeedTitle(title);
+}
+
+/** Where a `community` tap lands. `isClubSession` is the probe's answer: `true` ⇒ the ref is a
+ *  session · `false`/`null`/`undefined` ⇒ it is not, or the probe was not made / failed, and the
+ *  feed is the honest fallback. */
+export function destinationForCommunityRef(
+  f: { refId: string | null | undefined; title: string; isClubSession: boolean | null | undefined },
+): Destination {
+  if (!needsCommunityClubProbe(f.refId, f.title)) return '/community';
+  return f.isClubSession === true ? `/club/session/${f.refId}` : '/community';
+}
 
 /** Does resolving this tap need `bookings.club_session_id`? Only the handoff family and the
  *  sweep's escalation — every other booking title has the same destination in both worlds, and a
