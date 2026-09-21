@@ -15,6 +15,13 @@
 // booking. SEALS FILL ON SERVER TRUTH ONLY (DESIGN.md) — an optimistic stamp here would be a
 // drawn claim about the other party, which is the one thing this ceremony exists to make real.
 //
+// ⚠ [0200] THERE IS A FOURTH STATE AND IT IS NOT A FRAME — 운영팀 판정 (0199 `my_return_resolution`).
+// When ops resolved a stranded return, the ceremony did not complete: `ops_resolve_return_tx`
+// sealed and settled WITHOUT forging the missing party stamp (0089), so no combination of the
+// three frames is true. The strip REPLACES the whole apparatus (`!strip` gates every piece of it)
+// rather than joining it — the two-seal copy asserts 「양측 확인」, which is exactly what did not
+// happen. Same law, same shape and the same one helper as owner/report.tsx ⑫-bis.
+//
 // ⚠ `sealedAt` is read, not derived from "both stamps present". From `incident_review` 0096 lets
 // both stamps exist while NOTHING is sealed, and a screen that computed `both ⇒ sealed` would
 // tell the runner their money is moving when it is not.
@@ -34,13 +41,15 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  confirmRunReturn, ensureThread, fetchReturnSeal, returnSealFresh, type ReturnSeal as ReturnSealRow,
+  confirmRunReturn, ensureThread, fetchMyReturnResolution, fetchReturnSeal, returnSealFresh,
+  type ReturnResolution as ReturnResolutionRow, type ReturnSeal as ReturnSealRow,
 } from '../../src/lib/api';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
 import { paper } from '../../src/theme';
@@ -121,6 +130,18 @@ export default function ReturnSeal() {
   // gated a haptic and read as coverage for a celebration that did not exist.
   const popRef = useRef<boolean | null>(null);
   const [popped, setPopped] = useState(false);
+  // ⑪-bis [0199 · client half landed 0200] 운영팀 판정. A row exists ONLY when
+  // `ops_resolve_return_tx` (0193 §A) actually rescued this booking — it seals, settles and moves
+  // the row to `completed` **without forging the missing party stamp** (0089). So the ceremony
+  // below stops being a thing the runner can do, and this screen's last word would otherwise be
+  // 「담당자가 확인하고 있어요」 forever.
+  // ⚠ ONE state and no error flag, deliberately. `null` means 「ops never touched this run」 OR
+  //   「not read yet」 and the two are NOT separated: the overwhelmingly common case is the first,
+  //   and a 「판정 기록을 불러오지 못했어요」 strip on every healthy ceremony is noise that trains
+  //   people to ignore strips. A resolution is ADDITIVE information, not a gate — so a failed read
+  //   logs and draws nothing, and the seal read above already owns the 「I could not read this
+  //   booking」 face for the whole screen.
+  const [resolution, setResolution] = useState<ReturnResolutionRow | null>(null);
 
   const load = useCallback(() => {
     if (!bookingId) return;
@@ -134,6 +155,13 @@ export default function ReturnSeal() {
         console.warn('[return-seal] load:', (e as Error)?.message);
         setState('err');
       });
+    // Read on the same tick as the seal, so a runner SITTING on this screen when an operator
+    // resolves the strand watches the ask turn into the answer instead of staring at a button
+    // that has quietly stopped being pressable. 세터는 성공에서만 돈다 — a failed read never
+    // erases a resolution already on screen.
+    fetchMyReturnResolution(bookingId)
+      .then(setResolution)
+      .catch((e) => console.warn('[return-seal] resolution:', (e as Error)?.message));
   }, [bookingId]);
 
   useEffect(() => { load(); }, [load]);
@@ -142,11 +170,14 @@ export default function ReturnSeal() {
 
   // Poll only while there is something to wait for. A timer that keeps running after the pair
   // completes is a battery cost with no question behind it.
+  // ⚠ [0200] `resolution` is the SECOND way there is nothing left to wait for, and without it the
+  //   poll would run forever on exactly the bookings ops had to rescue: the missing stamp is never
+  //   forged (0089), so `bothIn` never becomes true on a resolved strand.
   useEffect(() => {
-    if (state !== 'ready' || bothIn || !bookingId) return;
+    if (state !== 'ready' || bothIn || !!resolution || !bookingId) return;
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
-  }, [state, bothIn, bookingId, load]);
+  }, [state, bothIn, resolution, bookingId, load]);
 
   // ═══ [0083 §5] THE 귀가 HEARTBEAT ══════════════════════════════════════════════════════════
   // This screen IS the homeward window: run.tsx routes here the moment `end_run_tx` lands, and
@@ -252,6 +283,13 @@ export default function ReturnSeal() {
   // aimed a runner at a full-coral button whose every tap 409s. Gate on the raw status, never on
   // display vocabulary (house law).
   const canStamp = s.rawStatus === 'active' || s.rawStatus === 'incident_review';
+  // [0199/0200] THE CEREMONY IS OVER AND SOMEBODY ELSE ENDED IT. When this is non-null the whole
+  // three-frame apparatus below is replaced — never joined — for the reason owner/report.tsx's
+  // ⑫-bis records: the two-seal copy asserts 「양측 확인」, and an ops adjudication is precisely the
+  // case where that did NOT happen. `canStamp` is already false here (the row is `completed`), so
+  // the frame-a branch would otherwise leave the runner on 「담당자가 확인하고 있어요」 forever —
+  // true when it was written and now stale by exactly the fact this strip carries.
+  const strip = returnResolutionStrip(resolution);
   // R6a = neither/mine-missing · R6b = mine in, theirs out · R6c = both
   const frame: 'a' | 'b' | 'c' = bothIn ? 'c' : mine ? 'b' : 'a';
   const dog = s.dogName ?? '반려견';
@@ -288,35 +326,63 @@ export default function ReturnSeal() {
       </View>
 
       <ScrollView contentContainerStyle={[pad, { paddingBottom: insets.bottom + 120 }]}>
-        {/* the state line — the lab's alert row, coloured by the GO law */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: paper.canvasSoft, padding: 12, borderRadius: 8 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alertTone, marginTop: 5 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{alertText}</Text>
-            {!!alertSub && <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 21 }}>{alertSub}</Text>}
+        {/* ══════ [0199/0200] 운영팀 판정 — it REPLACES the ceremony, it never joins it ══════
+            🔴 NEVER BOTH, and the gate is structural rather than lucky: everything below is inside
+            `!strip`. The two-seal block asserts 「양측 확인」 and the missing stamp is deliberately
+            never forged (0089), so drawing both would contradict the record the server kept.
+            ⚠ The sentence is the SERVER's `note_public` (0199 §0b chose it server-side so an
+            un-rebuilt phone cannot meet an unmapped key); `rescuedFrom` is raw server vocabulary
+            and is never printed. A missing date costs the DATE, never the sentence. */}
+        {strip ? (
+          <View style={{ borderWidth: 1, borderColor: '#EEEEEE', padding: 14 }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1 }}>
+              {RESOLUTION_KICKER}
+            </Text>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 6, lineHeight: 23 }}>
+              {strip.text}
+            </Text>
+            {!!strip.when && (
+              <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>{strip.when}</Text>
+            )}
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 8, lineHeight: 21 }}>
+              이 예약은 마무리됐어요 — 따로 확인할 것은 없어요
+            </Text>
           </View>
-        </View>
+        ) : (
+          /* the state line — the lab's alert row, coloured by the GO law */
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: paper.canvasSoft, padding: 12, borderRadius: 8 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alertTone, marginTop: 5 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{alertText}</Text>
+              {!!alertSub && <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 21 }}>{alertSub}</Text>}
+            </View>
+          </View>
+        )}
 
         {/* the two seals — the only thing on this screen that is a claim, and both are server facts */}
-        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1, marginTop: 22 }}>
-          반환 확인 · {(mine ? 1 : 0) + (theirs ? 1 : 0)}/2
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 14, justifyContent: 'center', marginTop: 12 }}>
-          <Seal label="RUNNER" sub={mine ? '확인 완료' : '나'} on={mine} tone={frame === 'c' ? 'sage' : 'coral'} />
-          <Seal label="OWNER" sub={theirs ? '확인 완료' : '확인 대기'} on={theirs} tone="sage" />
-        </View>
-        {popped && frame === 'c' && (
-          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.readyDeep, textAlign: 'center', marginTop: 10 }}>
-            방금 양쪽 확인이 맞춰졌어요
-          </Text>
+        {!strip && (
+          <>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1, marginTop: 22 }}>
+              반환 확인 · {(mine ? 1 : 0) + (theirs ? 1 : 0)}/2
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 14, justifyContent: 'center', marginTop: 12 }}>
+              <Seal label="RUNNER" sub={mine ? '확인 완료' : '나'} on={mine} tone={frame === 'c' ? 'sage' : 'coral'} />
+              <Seal label="OWNER" sub={theirs ? '확인 완료' : '확인 대기'} on={theirs} tone="sage" />
+            </View>
+            {popped && frame === 'c' && (
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.readyDeep, textAlign: 'center', marginTop: 10 }}>
+                방금 양쪽 확인이 맞춰졌어요
+              </Text>
+            )}
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 21 }}>
+              {frame === 'c'
+                ? (settled ? '정산이 확정됐어요 — 새 요청을 받을 수 있어요' : '양측 확인이 끝났어요 — 정산은 담당자 확인 뒤에 진행돼요')
+                : frame === 'b'
+                  ? '보호자가 찍으면 정산이 확정되고 다음 요청을 받을 수 있어요'
+                  : '둘 다 찍히면 정산이 확정돼요\n그 전엔 새 요청을 받을 수 없어요'}
+            </Text>
+          </>
         )}
-        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 21 }}>
-          {frame === 'c'
-            ? (settled ? '정산이 확정됐어요 — 새 요청을 받을 수 있어요' : '양측 확인이 끝났어요 — 정산은 담당자 확인 뒤에 진행돼요')
-            : frame === 'b'
-              ? '보호자가 찍으면 정산이 확정되고 다음 요청을 받을 수 있어요'
-              : '둘 다 찍히면 정산이 확정돼요\n그 전엔 새 요청을 받을 수 없어요'}
-        </Text>
 
         {/* 이번 러닝 — frozen facts only. Every row omits itself when the server has no value;
             none of them is a `?? 0`, because an early-ended run can carry no measurement at all. */}
@@ -339,7 +405,10 @@ export default function ReturnSeal() {
           정산 금액은 서버가 실측 기록으로 확정해요 — 수익 화면에서 확인할 수 있어요.
         </Text>
 
-        {frame === 'b' && (
+        {/* ⚠ [0200] `!strip` — 「보호자가 오지 않거나 연락이 안 되면 … 운영자가 함께 확인해요」 is an
+            offer, and on a resolved strand the operator has already done it. Leaving it would
+            point the runner at a door for a problem that is closed. */}
+        {frame === 'b' && !strip && (
           <Text style={{ fontSize: 15, color: paper.dim, marginTop: 18, lineHeight: 21 }}>
             보호자가 오지 않거나 연락이 안 되면{' '}
             <Text
@@ -379,7 +448,19 @@ export default function ReturnSeal() {
 
       {/* THE CTA. R6a coral (my turn) · R6b NOTHING (waiting — the lab's 「코랄 0」) · R6c sage. */}
       <View style={[pad, { paddingBottom: insets.bottom + 14, paddingTop: 10, backgroundColor: paper.canvas }]}>
-        {frame === 'a' && canStamp && (
+        {/* [0199/0200] A RESOLVED STRAND HAS EXACTLY ONE DOOR, and it is not the seal. The stamp
+            button is not drawn (`confirm_return_tx` answers `not_active` on a `completed` row, so
+            every tap would 409 — the dead-button class cold review #4 closed for `refund_pending`),
+            and neither is the frame-a sentence it would otherwise fall through to, which says the
+            operator is STILL looking. The receipt is the real next screen and it carries the bid. */}
+        {strip && (
+          <PaperBtn
+            label="러닝 기록 보기 ›"
+            style={{ backgroundColor: paper.ready }}
+            onPress={() => router.replace({ pathname: '/runner/done', params: { bid: bookingId } })}
+          />
+        )}
+        {!strip && frame === 'a' && canStamp && (
           <PaperBtn
             label={`${dog}를 돌려줬어요 — 봉인`}
             busyLabel="확인하는 중..."
@@ -388,7 +469,7 @@ export default function ReturnSeal() {
             onPress={stamp}
           />
         )}
-        {frame === 'a' && !canStamp && (
+        {!strip && frame === 'a' && !canStamp && (
           // No button at all, and a sentence instead — a disabled coral is still a drawn promise.
           <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 21 }}>
             이 예약은 담당자가 확인하고 있어요 — 지금은 인계를 확인할 수 없어요
@@ -402,14 +483,14 @@ export default function ReturnSeal() {
             화면에서 다시 정산하면」 about a run the server had already settled — and re-entry drew
             the PREVIOUS run's numbers. With a `bid` the receipt reloads measurements, the ledger
             amount and the settlement state from the server before it renders anything. */}
-        {frame === 'b' && (
+        {!strip && frame === 'b' && (
           <PaperBtn
             label="기록 먼저 보기 ›"
             variant="secondary"
             onPress={() => router.push({ pathname: '/runner/done', params: { bid: bookingId } })}
           />
         )}
-        {frame === 'c' && (
+        {!strip && frame === 'c' && (
           <PaperBtn
             label="러닝 기록 보기 ›"
             style={{ backgroundColor: paper.ready }}

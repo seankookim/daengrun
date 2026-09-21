@@ -3530,6 +3530,39 @@ export async function fetchMyPayouts(): Promise<MyPayout[]> {
   }));
 }
 
+// ═══════════ [0200] 지급 수단 — HOW the money arrived, as a label and never a token ═══════════
+//
+// 0186 §A gave `payouts` its `method` / `memo` / `recorded_by` triple and SEALED all three away
+// from the runner in the same breath (the column grant at 0186:192-195, pinned from the runner's
+// side by 223 `0192-R4`). So `fetchMyPayouts` above reads six columns and structurally cannot read
+// a seventh: a runner paid by a person at a bank saw 「지급 완료 · 2026년 9월 22일」 and nothing
+// about where to look for the money.
+//
+// 🔴 THE LABEL IS THE SERVER'S, AND THE RAW `method` TOKEN NEVER ARRIVES HERE. 0200 §A returns a
+//    fixed Korean label chosen by a `case` — same reasoning as 0199's `note_public`: a phone that
+//    has not been rebuilt would map a NEW token to nothing and draw nothing, while a label chosen
+//    server-side is correct on every installed build the day it changes. The operator's memo is
+//    not in the return at all and 231 `0200-P3` asserts that by value against a sentinel.
+// ⚠ NULL is a real answer: a method this server has no label for yields no entry, and the screen
+//   omits the element rather than printing a guessed word.
+export async function fetchMyPayoutMethodLabels(ids: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  // 묻지 않으면 답도 없다 — and the round trip is skipped rather than sent with an empty array.
+  if (ids.length === 0) return out;
+  // 인자는 반드시 `p_payout_ids: [...]` 형태 — 축약형은 check-rpc 계약 검사의 키 정규식(콜론 필수)에
+  // 잡히지 않아 게이트를 조용히 통과한다.
+  const { data, error } = await supabase.rpc('my_payout_method_labels', { p_payout_ids: [...ids] });
+  if (error) throw foldRpcError(error, { fn: 'my_payout_method_labels', empty: '지급 수단을 불러오지 못했어요' });
+  for (const row of (data as any[] | null) ?? []) {
+    // Only a real label enters the map. A row with a null label is a row we have nothing to say
+    // about, and an entry holding `null` would make every caller re-check what absence already
+    // tells them.
+    const label = row?.method_label;
+    if (typeof label === 'string' && label.trim() !== '') out.set(String(row.payout_id), label);
+  }
+  return out;
+}
+
 /** 미지급 합계 — what this runner has earned and NOT yet been paid (0192 §B).
  *  Distinct from `fetchLedgerTotal`, which is the LIFETIME sum and includes money already
  *  transferred. Before 0186 the two were always equal because nothing could write `payouts`;

@@ -13,6 +13,7 @@ import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
+import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
@@ -626,23 +627,26 @@ export default function Report() {
             ⚠ The sentence is the SERVER's `notePublic`. The operator's memo never leaves the
             server (0199 §0b) and `rescuedFrom` is raw server vocabulary — gate on it, never
             print it (STATUS_MAP law). */}
-        {!!resolution && (() => {
-          const ms = new Date(resolution.resolvedAt).getTime();
-          // kst.ts (fixed +9, no Intl) — never the device clock, which would print a time the
-          // owner cannot reconcile with the push they received.
-          const when = Number.isNaN(ms) ? null : `${kstMonthDay(kstCal(ms))} ${kstClock(kstCal(ms))}`;
+        {/* ⚠ [0200] THE COMPOSITION MOVED OUT, BYTE-IDENTICAL. The sentence + KST date used to be
+            four lines here; `runner/return-seal.tsx` and `runner/done.tsx` now draw the same strip,
+            and a rule written three times is a rule that can only ever be two-thirds fixed
+            (`kst.ts`'s own header). `returnResolutionStrip` is that one copy, and it is the only
+            part of this block a `.cjs` suite can reach — no `.tsx` route module is importable from
+            `app/test/`. A missing date still costs the DATE, never the sentence, and 「Invalid
+            Date」 is still never rendered. */}
+        {(() => {
+          const strip = returnResolutionStrip(resolution);
+          if (!strip) return null;
           return (
             <View style={{ marginHorizontal: 12, marginTop: 14, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 }}>
               <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1 }}>
-                반환 확인 · 운영팀 처리
+                {RESOLUTION_KICKER}
               </Text>
               <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 6, lineHeight: 23 }}>
-                {resolution.notePublic}
+                {strip.text}
               </Text>
-              {/* A missing date costs the DATE, never the sentence — and 「Invalid Date」 is never
-                  rendered. Same rule as the meetup strip (`handoff-escalation.ts`). */}
-              {!!when && (
-                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>{when}</Text>
+              {!!strip.when && (
+                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>{strip.when}</Text>
               )}
             </View>
           );
