@@ -15,6 +15,31 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## 2026-09-22 02:50 — Codex reset; REJECT/9 on 0188/0189/0190; a seven-builder wave (Sean: 「focus on shipping and building」)
+
+**Trunk `ed562cd` (docs only over `92518b0`). Nothing deployed; production 0156. Deploy letter PARKED again.**
+The one-shot's owed review ran as ONE combined `adversarial-review --base e21dfd7` from a detached worktree at
+`92518b0` (diff 31 files): **FINDINGS 9 · REJECT** · 0 quota lines · verdict doc
+`docs/reviews/2026-09-22-0188-0189-0190-codex-verdict.md` with the routing table. Highs: a one-stamp strand
+blocks earnings with no reachable resolution (A1), the zero-stamp timeout makes a real run unpayable (A2),
+a stop racing a confirm can seal without settling (A3), return notifications drop the booking id (A4), the
+0188 custody escalation push is disableable (B5). B8 (tombstone vs an already-queued push) is a recorded
+gap, not built — pg_net has no dispatch-time recheck; an outbox is its own slice.
+
+**Building NOW, each in its own worktree, each pushes only its branch; I land on the combined tree:**
+| branch | what | number |
+|---|---|---|
+| `be/0193-ceremony-correct-forward` | A1/A2/A3/B5/C9 in SQL (`ops_resolve_return_tx`, `resolve-return` edge action, strand arm behind `ops_flags.return_strand_minutes` NULL=off — the NUMBER is item 23, Sean's), A4/A6/A7 client | 0193 / 224 |
+| `be/0191-refusal-id` | queue §0-unvicies: `HttpError.detail`, `using detail = <id>` on the delete-account refusals, `FnError` + deep-link buttons where a route exists | 0191 / 222 |
+| `feat/runner-payout-status` | runner earnings: 지급 완료/지급 대기 from `paid_payout_id`, 지급 내역 from `payouts` (self read) | 0192 / 223 only if the ledger read needs it |
+| `be/0194-bank-account` | 정산 계좌: server-side encryption (vault key created by the migration), masked read, ops decrypt journaled, delete refused while owed (O-7) | 0194 / 225 |
+| `fix/loading-honesty-tier1` | eight silent-catch routes from the loading audit's Tier 1 | — |
+| `hig/primer-dock-autofill` | notification pre-permission primer (S1), parent-tab highlight on alerts/cards/safety (N3), AutoFill sweep | — |
+| `codex/busy-label-swap` (Codex astra medium) | seven busy-as-opacity buttons → label swap + `accessibilityState.busy` | — |
+Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
+regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
+bank slice). Candidates for wave 2 once the numbers above land.
+
 ## 2026-09-21 — ⑪ + ⑫ THE RUN-END CEREMONY IS BUILT (branch `feat/run-end-ceremony`, 0188 + suite 219)
 
 **The largest unbuilt piece of the 1:1 journey now has product callers.** Ruled and ASSIGNED
