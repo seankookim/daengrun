@@ -108,25 +108,19 @@ begin
   exception when others then call _fail('af','F2', sqlerrm);
   end;
 
-  -- ---------- [F3] club_run_photo_allowed — 당사자 게이트 + 미동의 견 false (§3a / 감사 11a / rev2 P2) ----------
-  -- [rev2 P2] 무관자(zz)는 not_party(임의 booking 프로빙 오라클 차단). 당사자(보호자 oo)는 bool 반환:
-  -- t_consent()가 photoConsent를 안 켜므로 미동의 위탁 = false, 동의 켜면 true.
+  -- F3: ruling 4 opens club pictures publicly, but does not waive photo consent.
   begin
     perform set_config('request.jwt.claim.sub', zz::text, false);
-    v_err := false;
-    begin
-      perform club_run_photo_allowed(v_bo);                                 -- 무관자 호출
-    exception when others then
-      if sqlerrm like '%not_party%' then v_err := true;
-      else call _fail('af','F3 무관자 예외', sqlerrm); end if;
-    end;
-    if not v_err then call _fail('af','F3 무관자 not_party','통과됨 (프로빙 오라클)');
+    -- 0165 ruling 4: club pictures are public, latest consent still seals them.
+    -- Suite 205 P3/P4 owns anonymous object signing and consent withdrawal.
+    v_err := club_run_photo_allowed(v_bo) is false;
+    if not v_err then call _fail('af','F3 public consent','unconsented picture allowed');
     else
       perform set_config('request.jwt.claim.sub', oo::text, false);         -- 당사자(보호자)
       if club_run_photo_allowed(v_bo) = false then                          -- 미동의 위탁 = false
         update delegation_consents set photo_consent = true where session_dog_id = sdo;
         if club_run_photo_allowed(v_bo) = true                              -- 동의 후 허용
-          then call _pass('af','F3 run_photo_allowed — 무관자 not_party·당사자 bool(미동의 false·동의 후 true)');
+          then call _pass('af','F3 public club photos require consent for stranger and party');
         else call _fail('af','F3 동의후','동의 켜도 false'); end if;
       else call _fail('af','F3 미동의','당사자 미동의=' || coalesce(club_run_photo_allowed(v_bo)::text,'∅')); end if;
     end if;
@@ -159,9 +153,7 @@ begin
   exception when others then call _fail('af','F4', sqlerrm);
   end;
 
-  -- ---------- [F5] 거절 후 그룹 채팅 쓰기 판정 (§5 상호작용 결론) ----------
-  -- 결론: _club_chat_writable·_club_shell_access 변경 없음. pp(거절/limited)는 그룹 채팅 쓰기 불가
-  -- (그룹 insert가 shell in host/full 추가 요구) — 하지만 자기 host_channel 스레드(정직한 마지막 말)는 열림.
+  -- F5: ruling 4 restricts all chat sends to participants, including host correspondence.
   begin
     v_err := false;
     begin
@@ -179,20 +171,16 @@ begin
         insert into club_chat_messages (session_id, sender_id, audience, recipient_profile_id, body)
         values (v_s, pp, 'host_channel', pp, '거절 통보 잘 받았어요 — 다음 기회에');   -- 자기 스레드
         reset role;
-        if exists (select 1 from club_chat_messages where session_id = v_s and audience = 'host_channel'
-                   and sender_id = pp and recipient_profile_id = pp)
-          then call _pass('af','F5 거절 후 채팅 — 그룹 쓰기 차단(등급)·자기 host_channel 스레드는 열림(마지막 말)');
-        else call _fail('af','F5 자기 스레드','행 없음'); end if;
-      exception when others then reset role; call _fail('af','F5 자기 스레드', sqlerrm);
+        call _fail('af','F5 nonparticipant host send','write admitted');
+      exception when insufficient_privilege then
+        reset role; call _pass('af','F5 group and host-channel send require participation (0165 ruling 4; suite 205 W2)');
+      when others then reset role; call _fail('af','F5 host-channel refusal',sqlerrm);
       end;
     end if;
   exception when others then reset role; call _fail('af','F5', sqlerrm);
   end;
 
-  -- ---------- [F6] session_detail·roster people 게이트 host/full 축소 (§6·§7 / rev2 P1) ----------
-  -- 거절(pp)·철회·pending limited 신청자는 담당 러너 실명·역할·출결을 더는 못 본다: detail.people=[]·
-  -- roster.people=[]. 단 peopleCount는 공개 카운트로 실측과 일치(문 앞 정직). 당사자(host hh / full rr)는
-  -- people가 채워진다. 이것이 리뷰가 재검토로 잡은 §5 누수(board.runners와 동일 클래스)의 폐쇄다.
+  -- F6: ruling 4 opens roster people while the detail endpoint retains its old contract.
   begin
     select count(*) into v_n from session_people where session_id = v_s and attendance <> 'no_show';
     -- limited(pp 거절): detail.people=[] · roster.people=[] · access=limited(not_party 아님) · peopleCount 정확
@@ -201,7 +189,9 @@ begin
     v_js2 := club_session_roster(v_s);
     if (v_js->'people') = '[]'::jsonb
        and (v_js->>'peopleCount')::int = v_n and v_n > 0
-       and (v_js2->'people') = '[]'::jsonb
+       -- 0165 ruling 4: roster is public; detail endpoint retains its separate gate.
+       and jsonb_array_length(v_js2->'people') > 0
+       and not exists (select 1 from jsonb_array_elements(v_js2->'people') e where e->>'phone' is not null)
        and (v_js2->>'access') = 'limited' then
       -- host(hh) 당사자: detail.people·roster.people 둘 다 채워짐 · peopleCount 동일
       perform set_config('request.jwt.claim.sub', hh::text, false);
@@ -213,7 +203,7 @@ begin
          and jsonb_array_length(v_js2->'people') > 0
          and (v_js->>'peopleCount')::int = v_n
          and jsonb_array_length(club_session_detail(v_s)->'people') > 0
-        then call _pass('af','F6 people 게이트 — limited(pp) detail/roster people=[]·peopleCount 정확·당사자(host/full) 채워짐');
+        then call _pass('af','F6 roster public; detail gate and private phone filtering retained');
       else call _fail('af','F6 당사자 채움','detail=' || coalesce(jsonb_array_length(v_js->'people')::text,'∅')
                       || ' roster=' || coalesce(jsonb_array_length(v_js2->'people')::text,'∅')); end if;
     else call _fail('af','F6 limited []','detailPeople=' || coalesce((v_js->'people')::text,'∅')

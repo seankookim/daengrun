@@ -148,6 +148,7 @@ begin
       and (has_function_privilege('public', p.oid, 'execute')
         or has_function_privilege('anon',   p.oid, 'execute'))
       and p.oid::regprocedure::text <> all (array[                -- ← justified exceptions, with reasons
+        'club_session_roster(uuid)', 'club_run_photo_allowed(uuid)', 'club_public_photo_path(text)', -- 0165 ruling 4, suite 205 pins public projection and consent.
         'club_pack_map_roster(uuid)',    -- 0156: Sean's public pack map. Owned by 187 0156-M3.
         'my_channel_allowed(text,text)'  -- 0156: anon must reach the pack read predicate. 187 0156-W3.
       ]::text[]);

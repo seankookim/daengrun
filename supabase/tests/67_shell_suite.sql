@@ -47,14 +47,17 @@ begin
     execute 'select count(*) from club_chat_messages where session_id = $1' into v_cnt using v_s;
     perform set_config('request.jwt.claim.sub', qq::text, true);
     execute 'select count(*) from club_chat_messages where session_id = $1 and audience = ''group''' into v_msg using v_s;
+    -- 0165 ruling 4: pending users can read addressed host correspondence, but cannot send.
+    -- Suite 205 W1/W2 owns the nonparticipant write refusal.
+    perform set_config('request.jwt.claim.sub', hh::text, true);
     insert into club_chat_messages (session_id, sender_id, audience, recipient_profile_id, body)
-    values (v_s, qq, 'host_channel', qq, '승인 언제쯤 될까요?');
+    values (v_s, hh, 'host_channel', qq, '신청을 확인했어요');
     perform set_config('request.jwt.claim.sub', zz::text, true);
     execute 'select count(*) from club_chat_messages where session_id = $1' into v_msg2 using v_s;
     reset role;
     if v_cnt >= 1 and v_msg = 0 and v_msg2 = 0
        and exists (select 1 from club_chat_messages where session_id = v_s and audience = 'host_channel'
-                   and sender_id = qq)
+                   and sender_id = hh and recipient_profile_id = qq)
       then call _pass('shell','H1 접근 등급 — full 가시·limited 그룹 0·무관자 0·호스트 채널 성립');
     else call _fail('shell','H1 등급','full=' || v_cnt || ' lim=' || v_msg || ' zz=' || v_msg2); end if;
   exception when others then reset role; call _fail('shell','H1', sqlerrm);
@@ -201,8 +204,10 @@ begin
         perform set_config('request.jwt.claim.sub', qq::text, false);
         v_js := club_session_roster(v_s);
         if v_js->>'access' = 'limited'
-           and jsonb_array_length(v_js->'dogs') = 1
-           and (v_js->'dogs'->0->>'isMine')::boolean
+           -- 0165 ruling 4 makes the roster public; private detail still belongs to its party.
+           and jsonb_array_length(v_js->'dogs') = 2
+           and exists (select 1 from jsonb_array_elements(v_js->'dogs') e where (e->>'isMine')::boolean)
+           and not exists (select 1 from jsonb_array_elements(v_js->'dogs') e where not (e->>'isMine')::boolean and e->'detail' is distinct from 'null'::jsonb)
           then call _pass('shell','H5 로스터 — 규칙 B(수락 러너·호스트만 직통)·로그 dedup·능력 필터');
         else call _fail('shell','H5 limited','dogs=' || (v_js->'dogs')::text); end if;
       else call _fail('shell','H5 호스트','미터/라벨 불일치'); end if;
