@@ -10,7 +10,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { ProfileGaps } from '../../src/components/profile-gaps';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { checkSlot, confirmRunReturn, CoursePatch, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -308,6 +308,12 @@ export default function Report() {
   const [sealErr, setSealErr] = useState(false);
   const [sealBusy, setSealBusy] = useState(false);
   const [sealActionErr, setSealActionErr] = useState<string | null>(null);
+  // ⑫-bis [0199] 운영팀 판정. `null` means 「no adjudication」 OR 「not read yet」 — and the two are
+  // deliberately NOT separated, because unlike the seal there is nothing to say about an absence:
+  // the overwhelmingly common case is that ops never touched this run, and a 「판정 기록을 불러오지
+  // 못했어요」 strip on every healthy receipt would be noise that trains people to ignore strips.
+  // The seal block's own error strip already covers the ⑫ area when the READ side is broken.
+  const [resolution, setResolution] = useState<ReturnResolution | null>(null);
   const load = useCallback(() => {
     // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
     // same remedy — leave. Never a retry that would run the same early return again.
@@ -340,6 +346,11 @@ export default function Report() {
     setSealErr(false);
     fetchReturnSeal(bid).then((s) => { if (s) setSeal(s); })
       .catch((e) => { console.warn('[o-report] seal:', e?.message ?? e); setSealErr(true); });
+    // ⑫-bis [0199] 운영팀 판정 — the row exists only when ops actually resolved a stranded return.
+    // No error flag by design; see the state's own note above.
+    setResolution(null);
+    fetchMyReturnResolution(bid).then(setResolution)
+      .catch((e) => { console.warn('[o-report] resolution:', e?.message ?? e); });
   }, [bid]);
   useEffect(() => { load(); }, [load]);
   // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
@@ -600,13 +611,51 @@ export default function Report() {
             <PaperBtn label="다시 시도" variant="secondary" style={{ alignSelf: 'flex-start', marginTop: 10 }} onPress={load} />
           </View>
         )}
+        {/* ══════ ⑫-bis [0199] 운영팀 판정 — the ops adjudication, in the ⑫ slot ══════
+            WHY IT SITS HERE AND WHY IT REPLACES RATHER THAN JOINS THE SEAL BLOCK:
+            `ops_resolve_return_tx` (0193 §A) ends a stranded return by sealing and settling, so
+            the booking leaves `active`/`incident_review` and the gate above stops rendering. The
+            owner's last word from this app was 「반려견을 받으셨나요?」 and the next was nothing —
+            a question that vanished and a settled money line that appeared. This is the sentence
+            that was missing, and it is bound to a real row: no resolution, no strip.
+            🔴 NEVER BOTH. The two-stamp copy asserts 「양측 확인」, and an ops adjudication is
+            precisely the case where that did NOT happen — 0089's ruling is that the missing party
+            stamp is never forged, so printing both would contradict the record. Hence the
+            `&& !resolution` conjunct on the gate below; the two are mutually exclusive by
+            construction, not by luck.
+            ⚠ The sentence is the SERVER's `notePublic`. The operator's memo never leaves the
+            server (0199 §0b) and `rescuedFrom` is raw server vocabulary — gate on it, never
+            print it (STATUS_MAP law). */}
+        {!!resolution && (() => {
+          const ms = new Date(resolution.resolvedAt).getTime();
+          // kst.ts (fixed +9, no Intl) — never the device clock, which would print a time the
+          // owner cannot reconcile with the push they received.
+          const when = Number.isNaN(ms) ? null : `${kstMonthDay(kstCal(ms))} ${kstClock(kstCal(ms))}`;
+          return (
+            <View style={{ marginHorizontal: 12, marginTop: 14, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1 }}>
+                반환 확인 · 운영팀 처리
+              </Text>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 6, lineHeight: 23 }}>
+                {resolution.notePublic}
+              </Text>
+              {/* A missing date costs the DATE, never the sentence — and 「Invalid Date」 is never
+                  rendered. Same rule as the meetup strip (`handoff-escalation.ts`). */}
+              {!!when && (
+                <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>{when}</Text>
+              )}
+            </View>
+          );
+        })()}
         {/* 🔴 [cold review #4] AN ALLOW-LIST, not `!== 'completed'`. `confirm_return_tx` accepts
             `active` and `incident_review` and raises `not_active` for everything else (0096 §2),
             and a stranded return really does reach `refund_pending` — arm ⓑ-① escalates to
             `incident_review` and 0072:179 moves it on, legal via 0066:56's `else` arm. The old
             predicate drew a full-coral 인계받았어요 button there whose every tap 409s. `no_show`
-            and the two `cancelled_*` behave the same way. */}
-        {!!seal?.runEndedAt && (seal.rawStatus === 'active' || seal.rawStatus === 'incident_review') && (() => {
+            and the two `cancelled_*` behave the same way.
+            ⚠ [0199] `!resolution` — see ⑫-bis directly above: never the two-stamp copy and an ops
+            adjudication on one screen. */}
+        {!resolution && !!seal?.runEndedAt && (seal.rawStatus === 'active' || seal.rawStatus === 'incident_review') && (() => {
           const mine = !!seal.ownerConfirmedAt;
           const theirs = !!seal.runnerConfirmedAt;
           const done = mine && theirs;

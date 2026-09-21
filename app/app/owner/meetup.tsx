@@ -7,6 +7,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
 import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, quoteCancelFee, subscribeBooking } from '../../src/lib/api';
+import { handoffEscalationStrip, HandoffEscalationStrip } from '../../src/lib/handoff-escalation';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
@@ -134,6 +135,13 @@ export default function OwnerMeetup() {
   // Appended at the END of the bundle per the hook-placement freeze above.
   const [hold, setHold] = useState(false);
   const holdRef = useRef(false);
+  // [0199] 인계 지연 에스컬레이션 — READ-ONLY, and appended at the END of the bundle per the
+  // hook-placement freeze above. Exactly the posture `arrivedAt` has: a display condition derived
+  // from server truth, never an input to the stage machine, the polling or confirmHandoff (all
+  // three are DO-NOT-REFACTOR). `null` = draw nothing; the decision itself lives in
+  // `src/lib/handoff-escalation.ts` so that both meetup screens cannot drift and so that a
+  // .cjs suite can reach copy a .tsx route module can never expose.
+  const [escalation, setEscalation] = useState<HandoffEscalationStrip | null>(null);
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -208,6 +216,10 @@ export default function OwnerMeetup() {
       }
       setPeerConfirmed(sync.runnerConfirmed);
       setArrivedAt(sync.arrivedAt); // 러너 도착 — 표시 조건일 뿐, 스테이지 머신은 건드리지 않는다
+      // [0199] 같은 성격의 한 줄: 표시 조건일 뿐 스테이지 머신·폴링·confirmHandoff 어디에도 닿지
+      // 않는다. 서버가 이미 30분 전에 양측에 푸시한 사실을, 그 푸시가 도착하는 화면이 말한다.
+      setEscalation(handoffEscalationStrip(sync.escalatedAt, sync.opsAlertedAt,
+        sync.ownerConfirmed && sync.runnerConfirmed));
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
       // [2026-08-20 incident hold] The new arm. Server truth above still lands (the runner may
       // confirm while a case is open), then the stage chain is SKIPPED so the ceremony holds exactly
@@ -655,6 +667,22 @@ export default function OwnerMeetup() {
           </View>
         </View>
 
+        {/* ══════ [0199] 인계 지연 — the escalation the server already sent, on the screen it
+            lands on. READ-ONLY: no handler, no route, nothing to tap. 0182 arm ⓓ pushes both
+            parties once a cycle has been one-sided for 30 minutes, and until this strip existed
+            the screen that push opened still read as a fresh ask — the person had no way to tell
+            「아직 안 눌렀네」 from 「이건 이미 밀린 건이야」.
+            ⚠ The sentence is chosen in `handoff-escalation.ts`, not here, and which of the two
+            it is turns on whether the ops ROSTER actually got it (0183:86) — 「운영팀에 알렸어요」
+            is bound to `handoff_ops_alerted_at` alone. Writing it against `handoff_escalated_at`
+            would tell a waiting owner the ops team is on it when in production nobody is
+            subscribed to that roster yet (0155). */}
+        {!!escalation && (
+          <View style={s.escalate}>
+            <Text style={s.escalateText}>{escalation.text}</Text>
+          </View>
+        )}
+
         {/* action
             [2026-08-20 incident hold] All four arms are gated on !hold, and each for a reason the
             hold makes true. Two of them carry a transition the server now refuses: cancel() quotes
@@ -993,6 +1021,14 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
     paddingVertical: 16, paddingHorizontal: PAD, alignItems: 'center',
   },
+  // [0199] 인계 지연 스트립. A quiet full-bleed band in the paper world — white ground per the
+  // DESIGN.md §2 amendment, the same coral hairline the sections are divided by, and INK text at
+  // the 15pt floor: this sentence is not skippable metadata, so it does not ride the grey ramp.
+  escalate: {
+    backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
+    paddingVertical: 12, paddingHorizontal: PAD,
+  },
+  escalateText: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.ink },
   statusKick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint },
   statusText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 7, textAlign: 'center' },
   statusSub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },

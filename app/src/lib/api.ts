@@ -1319,11 +1319,28 @@ export interface BookingSync {
   // 러너 도착 = 서버 진실 (0060 bookings.arrived_at). 로컬 스테이지가 아니라 이 값이 정본이라
   // 리마운트해도 양측 화면이 '도착 이전'으로 되돌아가지 않는다. null = 아직 도착 보고 없음.
   arrivedAt: string | null;
+  // ── [0199] THE STALLED HANDOFF, which the parties could not see ────────────────────────────
+  // 0182 §A / 0183 §A. Both are display-only and touch NOTHING in the stage machine — the same
+  // posture `arrivedAt` has carried since 0060, and the meetup screens are frozen
+  // (DO-NOT-REFACTOR: stage machine · polling · confirmHandoff).
+  //   escalatedAt  = `handoff_escalated_at` — arm ⓓ told BOTH PARTIES this cycle's handoff has
+  //                  been one-sided past 30 minutes.
+  //   opsAlertedAt = `handoff_ops_alerted_at` — the ops ROSTER actually received it. 🔴 NULL here
+  //                  while `escalatedAt` is set means the roster was EMPTY and the ops escalation
+  //                  is still PENDING (0183:86), which is the state production is in today
+  //                  (0155: nobody is subscribed). The two are NOT interchangeable, and
+  //                  `handoff-escalation.ts` is where that distinction becomes copy.
+  escalatedAt: string | null;
+  opsAlertedAt: string | null;
 }
 export async function fetchBookingSync(id: string): Promise<BookingSync> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('status, owner_confirmed_handoff_at, runner_confirmed_handoff_at, arrived_at')
+    // [0199] no server change was needed for the two escalation columns: `authenticated` holds
+    // table-level SELECT on `bookings` and `bookings party read` (0002:92) scopes it by row, so a
+    // column added later is already party-scoped. Measured and pinned — 230 `0199-H1` executes
+    // this read as `authenticated` from both sides and from a stranger.
+    .select('status, owner_confirmed_handoff_at, runner_confirmed_handoff_at, arrived_at, handoff_escalated_at, handoff_ops_alerted_at')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -1332,6 +1349,8 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
     ownerConfirmed: !!data.owner_confirmed_handoff_at,
     runnerConfirmed: !!data.runner_confirmed_handoff_at,
     arrivedAt: data.arrived_at ?? null,
+    escalatedAt: (data as any).handoff_escalated_at ?? null,
+    opsAlertedAt: (data as any).handoff_ops_alerted_at ?? null,
   };
 }
 
@@ -1585,6 +1604,51 @@ export async function fetchReturnSeal(bookingId: string): Promise<ReturnSeal | n
     actualKm: r?.actual_km == null ? null : Number(r.actual_km),
     durationSec: r?.duration_sec ?? null,
     endReason: r?.end_reason ?? null,
+  };
+}
+
+// ═══════════ [0199] 운영팀 판정 — the ops adjudication the parties could not see ═══════════
+//
+// 0193 §A built the exit for a stranded return (`ops_resolve_return_tx`: seal, settle, and one
+// row in the `return_resolutions` journal). The journal is SEALED — RLS on, zero policies, no
+// grant to `authenticated` — so until 0199 the parties' only experience of an adjudication was
+// the ⑫ gate silently disappearing and a settled money line appearing in its place.
+//
+// 🔴 `notePublic` is a FIXED sentence the SERVER chooses from `rescuedFrom`, not the operator's
+//    memo. The memo is an internal audit note (0193:446) and never reaches a phone; 230
+//    `0199-V5` asserts that by value against a sentinel. Render `notePublic` verbatim.
+// ⚠ `rescuedFrom` is server vocabulary (`active` | `incident_review`) and is NOT display
+//    copy — the standing STATUS_MAP law: gate on the raw word, print the mapped sentence.
+export interface ReturnResolution {
+  /** when the operator decided — the journal row's own instant, not a read time. */
+  resolvedAt: string;
+  /** raw server word. Never rendered. */
+  rescuedFrom: string;
+  /** final Korean copy, chosen server-side. */
+  notePublic: string;
+}
+
+/** The adjudication for ONE booking, or `null` when there is none.
+ *  THREE STATES, deliberately (the `fetchBookingAddress` law): a row is a resolution, `null` is
+ *  「운영팀이 개입한 적 없음」 — the ordinary state of every healthy run — and a throw is a real
+ *  failure. Collapsing the middle into a throw would make the caller's `catch` the normal path. */
+export async function fetchMyReturnResolution(bookingId: string): Promise<ReturnResolution | null> {
+  // 인자는 반드시 `p_booking: bookingId` 형태 — 축약형 { p_booking }은 check-rpc 계약 검사의
+  // 키 정규식(콜론 필수)에 잡히지 않아 게이트를 조용히 통과한다.
+  const { data, error } = await supabase.rpc('my_return_resolution', { p_booking: bookingId });
+  if (error) {
+    // `not_party` is 「아직/여기선 볼 수 없다」, not 「전송 실패」 — a booking whose party set moved
+    // on (a transfer, a stale id in a push) must not paint a red failure strip on a working
+    // screen. Absence is null; a real failure still throws.
+    if (/not_party|not_authenticated/.test(error.message ?? '')) return null;
+    throw error;
+  }
+  const row = (data as any[] | null)?.[0];
+  if (!row) return null;
+  return {
+    resolvedAt: row.resolved_at,
+    rescuedFrom: String(row.rescued_from),
+    notePublic: row.note_public,
   };
 }
 
