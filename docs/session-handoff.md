@@ -36,6 +36,24 @@ gap, not built — pg_net has no dispatch-time recheck; an outbox is its own sli
 | `fix/loading-honesty-tier1` | eight silent-catch routes from the loading audit's Tier 1 | — |
 | `hig/primer-dock-autofill` | notification pre-permission primer (S1), parent-tab highlight on alerts/cards/safety (N3), AutoFill sweep | — |
 | `codex/busy-label-swap` (Codex astra medium) | seven busy-as-opacity buttons → label swap + `accessibilityState.busy` | — |
+**Landed so far (each merged on the combined tree, gates run there, pushed, read back from origin by a
+structural marker, worktree + branch removed), 03:09:**
+- `80818ef` Codex astra busy-button sweep — chat/community 보내기 no longer fold `sending` into disabled; club 탈퇴,
+  login 카카오 and the shot studio's three actions report `busy` without lying `disabled`; provenance comments kept.
+  tsc · babel 140 · npm 1086/0.
+- `41e443b` loading honesty — SEVEN of the audit's eight Tier-1 rows were already fixed by `0d9e909` (09-17) and the
+  audit doc never said so (a doc asserting live defects the artifact had left — the false-state hazard in reverse);
+  the one real gap, `/cards` (every failure face said 「다시 열어주세요」 with no retry), now has per-read 다시 시도.
+  Audit doc's Tier-1 rows corrected; its Counts/Per-route tables are STILL stale (docs follow-up).
+- `893e870` HIG S1/N3/AutoFill — notification pre-permission primer (the system alert is now reachable ONLY from the
+  primer's 「계속」; `registerPushToken` registers only when already granted — structural, pinned), parent-tab
+  highlight on /alerts /safety (마이) and /cards (마이 owner · 홈 runner, because the runner has no 마이 row) with
+  `here` split from `active` so the lit tab is not a dead button, AutoFill 11 → 16 fields (동 = sublocality, never
+  city; 카카오톡 ID suppressed so iOS stops offering the password manager). npm 1086 → 1147 (+61 = 16 + 45 pins,
+  delta measured) · deno 359/0 · babel 143.
+Device-visual: UNVERIFIED for all three — smoke lists are in the builders' reports (primer first-entry paths,
+dock highlight per role, /cards offline retry).
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
