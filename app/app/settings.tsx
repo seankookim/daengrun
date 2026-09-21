@@ -6,7 +6,7 @@ import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { PhoneRow } from '../src/components/phone-row';
 import { Row } from '../src/components/ui';
-import { fetchMyProfile, fetchMyRunnerBase, MyProfile } from '../src/lib/api';
+import { fetchMyProfile, fetchMyRunnerBase, MyProfile, opsMe } from '../src/lib/api';
 import { kstCal, kstMonthDay } from '../src/lib/kst';
 import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
@@ -60,12 +60,35 @@ export default function Settings() {
   // only; a failure gets a strip with a retry, and 계정 is the one card on this screen whose
   // rows are server truth rather than local state.
   const [profileErr, setProfileErr] = useState(false);
+  // [0198] 운영 콘솔 입구. `ops_me()` is the only way a client can learn its own membership —
+  // `ops_recipients` is SEALED (0084 §E: RLS on, zero policies), so there is no table read.
+  //
+  // ⚠ **FALSE MEANS THE ROW IS NOT DRAWN AT ALL — no disabled placeholder, no 「준비 중」 label.**
+  //   An operator console is not a feature an ordinary person is waiting for, so a greyed row
+  //   telling every runner and owner about a screen they can never open would be an advertisement
+  //   for a door rather than a door. The 「없는 문을 만들지 않는다」 rule the 러너 활동 section
+  //   below already follows.
+  // ⚠ **AND A FAILED CHECK IS ALSO 「NOT DRAWN」, DELIBERATELY, WHICH IS THE ONE PLACE THIS FILE
+  //   DEPARTS FROM ITS OWN LOUD-FAIL HABIT.** The reason is deploy order and it is the identical
+  //   argument the 러너 활동 comment above makes: a build that reaches a server without 0198 gets
+  //   a missing-function error from `ops_me()` for EVERY user, and a failure strip here would put
+  //   a permanent broken line on the settings screen of every 보호자 in the product about a
+  //   feature that is not theirs. The console is reachable at `/ops` regardless — this row is a
+  //   shortcut, not the only path — and the gate behind it is the server's, so silence costs an
+  //   operator one retry and costs everyone else nothing.
+  const [isOps, setIsOps] = useState(false);
   const loadProfile = useCallback(() => {
     setProfileErr(false);
     fetchMyProfile().then(setProfile).catch((e) => {
       console.warn('[settings] profile:', (e as Error)?.message ?? e);
       setProfileErr(true);
     });
+    opsMe()
+      .then((me) => setIsOps(me.isOps))
+      .catch((e) => {
+        console.warn('[settings] ops_me:', (e as Error)?.message ?? e);
+        setIsOps(false);
+      });
   }, []);
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
@@ -168,6 +191,28 @@ export default function Settings() {
           <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
         </Pressable>
       </View>
+
+      {/* 운영 — [0198] 운영 담당자에게만. is_ops가 false이거나 확인에 실패하면 섹션째로 없다
+          (위의 isOps 주석에 그 둘을 같게 처리하는 이유가 적혀 있다). */}
+      {isOps && (
+        <>
+          <Text style={s.section}>운영</Text>
+          <View style={s.card}>
+            <Pressable
+              onPress={() => router.push('/ops')}
+              style={s.actionRow}
+              accessibilityRole="button"
+              accessibilityLabel="운영 콘솔"
+            >
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.actionText}>운영 콘솔</Text>
+                <Text style={s.actionHint}>지급 대기 러너와 배송 대기 굿즈를 여기서 처리해요</Text>
+              </View>
+              <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
 
       {/* 러너 활동 — 러너 계정에서만. 「없는 문을 만들지 않는다」: 러너가 아니면 섹션째로 없다.
           [0123 · Sean's Q6 ruling B 2026-08-25, verbatim: 「go with B for distance, and the runner
