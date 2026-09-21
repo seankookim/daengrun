@@ -40,6 +40,9 @@ const W = Dimensions.get('window').width;
 // 3열 그리드: 좌우 1px 패딩 + 2px 갭 2개 = 6px를 빼야 딱 맞는다 (3·TILE + 4 + 2 = W).
 const TILE = (W - 6) / 3;
 
+// [HIG A6] Module scope so the array identity is stable across the grid's re-renders.
+const PHOTO_A11Y_ACTIONS = [{ name: 'longpress', label: '사진 삭제' }];
+
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 // [E6] 슬롯 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다 — 서버 가용 규칙과 홀드 검증이
@@ -441,6 +444,12 @@ export default function RunnerProfileScreen() {
                     <Pressable
                       key={url}
                       onLongPress={canEdit ? () => removePhoto(url) : undefined}
+                      // [HIG A6] The hint was already here and was already honest — what was
+                      // missing is the ACTION, so the hint described a gesture with no accessible
+                      // route to it. `removePhoto` opens its own 사진 삭제 confirm, so the rotor
+                      // entry lands on the same two-step path a long press does.
+                      onAccessibilityAction={canEdit ? () => removePhoto(url) : undefined}
+                      accessibilityActions={canEdit ? PHOTO_A11Y_ACTIONS : undefined}
                       accessibilityRole={canEdit ? 'imagebutton' : 'image'}
                       accessibilityLabel="러너 사진"
                       accessibilityHint={canEdit ? '길게 누르면 삭제해요' : undefined}

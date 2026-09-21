@@ -2,7 +2,7 @@ import { bookingKmLabel } from '../../src/lib/route-label';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
@@ -13,6 +13,7 @@ import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
+import { announce, useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { EndReason, RouteInfo, runnerJob, runResult } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
@@ -252,15 +253,10 @@ export default function ActiveRun() {
     : ceilingHit ? '기록이 멈췄어요'
       : running ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
         : dogName ? `${dogName}와 러닝 준비` : '러닝 준비';
-  const lastAnnouncedSentence = useRef<string | null>(null);
-  // HIG A3/A6: announce status changes after hydration.
-  useEffect(() => {
-    if (runSentence === null) return;
-    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== runSentence) {
-      AccessibilityInfo.announceForAccessibility(runSentence);
-    }
-    lastAnnouncedSentence.current = runSentence;
-  }, [runSentence]);
+  // HIG A3/A6: the state strip flips on its own — the run starts, the settlement ceiling stops
+  // the recording. The runner is moving and not looking at the screen, so this is the one screen
+  // where the announcement is the ONLY channel for a change they must act on.
+  useAnnounceOnChange(runSentence);
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 배경 폴백
   const trace = useRef<GeoPoint[]>([]);
   const lastMilestone = useRef(0);
@@ -343,6 +339,10 @@ export default function ActiveRun() {
       lastMilestone.current = crossed;
       notifyKmMilestone(runnerJob.bookingId, crossed).catch(() => {});
       haptic('success');
+      // HIG A3: the haptic is the sighted runner's milestone cue and it is not a substitute —
+      // a buzz says 「something」, not 「which kilometre」. Same words the owner's notification
+      // carries (`notifyKmMilestone`'s title), so the two sides of the run say the same thing.
+      announce(`${crossed}km 돌파`);
     }
     if (runnerJob.bookingId) {
       publishPos(runnerJob.bookingId, {
@@ -875,6 +875,13 @@ export default function ActiveRun() {
       // (The fabricated "nearby vet" line was already retired; the fabricated condition_note
       // and the "상태 사진과 메모를 남겨주세요" alert — a promise with no field — go here.)
       setEndStep('note');
+      // HIG A6 — the stop confirmation's second step. One Modal holds BOTH steps and swaps its
+      // content in place, so this move fires no new-screen event: VoiceOver stays on a sheet whose
+      // heading changed under it, and the runner hears nothing between picking a reason and being
+      // asked to type. Announced HERE rather than through `useAnnounceOnChange` on purpose — the
+      // hook's first non-null value is treated as hydration (correct for the state strips above,
+      // wrong here, where the first arrival IS the change). The step's own rendered heading.
+      announce('무엇을 보고 멈췄나요?');
       return;
     }
     setEndSheet(false);

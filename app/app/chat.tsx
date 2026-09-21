@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
+import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import { mergeMessageSnapshot } from '../src/lib/chat-messages';
 import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
+import { CHAT_TITLE } from '../src/lib/notification-route';
 import {
   ChannelLink, ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
   createChatClientKey, fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
@@ -47,10 +49,14 @@ export default function Chat() {
   // 시점의 ctx를 붙들고, 현재 ctx와 다르면 버린다.
   const ctxRef = useRef<ChatContext | null>(null);
   useEffect(() => { ctxRef.current = ctx; }, [ctx]);
+  // HIG A3 — the highest PEER message id this screen has already accounted for. `null` = the
+  // thread's history has not landed yet, so the first snapshot primes instead of announcing 300
+  // old messages at once. Reset with the thread below, or a new thread's history announces.
+  const seenPeerMsgId = useRef<number | null>(null);
   // [codex r3-13] bid 교체는 초안·전송 플래그도 비운다 — A용 초안이 B 스레드로 전송될 수 있었고,
   // A의 진행 중 전송이 B의 보내기를 막았다. 60행의 공유 리셋 목록에 넣지 않는 이유: 그 목록은
   // loadAttempt(같은 스레드 재시도)에도 돌아, 재시도마다 멀쩡한 초안을 지우게 된다.
-  useEffect(() => { setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null; }, [bid]);
+  useEffect(() => { setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null; seenPeerMsgId.current = null; }, [bid]);
   // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
   // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
   // 찍었다: 서버가 프라이빗 채널을 거절하거나 조인이 타임아웃해도 화면은 연결됐다고 말했고,
@@ -288,6 +294,37 @@ export default function Chat() {
             : link === 'connecting' ? { tx: '연결 중...', bad: false }
               : { tx: '실시간 끊김 — 새로고침 중', bad: false };
 
+  // ── HIG A3/A6 — the two things this screen changes on its own ────────────────────────────────
+  // The header line above is the whole reason the channel distinction exists: a sighted user sees
+  // 「메시지를 못 받고 있어요」 go critical-red and knows the 「5분 늦어요」 they are waiting for may
+  // never arrive. Without this the same fact was invisible to a screen-reader user, which turns a
+  // deliberately honest line back into a silent lie.
+  // ⚠ 연결 중 announces nothing and primes nothing — it is the UNSETTLED state, not an answer, so
+  // it gets the same treatment as a null state strip on the run and radar screens (the first
+  // settled sentence is this screen's content, and only a later flip is a change). The ● is
+  // decoration; it is dropped rather than spelled out.
+  const linkSentence = linkLine === null || linkLine.tx === '연결 중...'
+    ? null
+    : linkLine.tx.replace('●', '').trim();
+  useAnnounceOnChange(linkSentence);
+
+  // A message arriving is the other one. ⚠ Only that one ARRIVED, and from whom — never the body.
+  // A screen reader is a loudspeaker in whatever room its owner is standing in, and nobody chose
+  // to play this conversation out loud; the message itself is read when they navigate to it.
+  // `새 메시지` is the product's own chat vocabulary (notification-route's CHAT_TITLE, the title
+  // the push carries), not a sentence written for this announcement.
+  useEffect(() => {
+    let newest: number | null = null;
+    for (const m of msgs) if (!m.mine && (newest === null || m.id > newest)) newest = m.id;
+    if (newest === null) return;
+    if (seenPeerMsgId.current === null) { seenPeerMsgId.current = newest; return; } // history
+    if (newest <= seenPeerMsgId.current) return;
+    seenPeerMsgId.current = newest;
+    // No peer name yet (the header reads 「채팅」) — say that one arrived and stop. A placeholder
+    // name would be a fabricated field read aloud as if it were real.
+    announce(ctx?.peerName ? `${CHAT_TITLE}: ${ctx.peerName}` : CHAT_TITLE);
+  }, [msgs, ctx?.peerName]);
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
@@ -295,8 +332,14 @@ export default function Chat() {
         <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{ctx?.peerName ?? '채팅'}</Text>
-          <Text style={{ fontSize: 15, color: linkLine?.bad ? paper.critical : colors.dim, fontWeight: linkLine?.bad ? '700' : '400', marginTop: 1 }}>
+          <Text accessibilityRole="header" style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{ctx?.peerName ?? '채팅'}</Text>
+          {/* [HIG A3] Android's live region for the same line iOS gets through `announce` above.
+              polite, never assertive: the connection line is a fact worth hearing, not one worth
+              cutting off whatever the user is reading to say. */}
+          <Text
+            accessibilityLiveRegion="polite"
+            style={{ fontSize: 15, color: linkLine?.bad ? paper.critical : colors.dim, fontWeight: linkLine?.bad ? '700' : '400', marginTop: 1 }}
+          >
             {linkLine?.tx ?? ''}
           </Text>
         </View>

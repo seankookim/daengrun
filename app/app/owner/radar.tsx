@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar } from '../../src/components/ui';
@@ -8,6 +8,7 @@ import {
   cancelBooking, fetchAvailableRunnersFor, fetchBookingBrief, fetchBookingCard,
   LiveRunner, requestRunner, subscribeBooking,
 } from '../../src/lib/api';
+import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
@@ -334,15 +335,10 @@ export default function Radar() {
     : rawStatus === 'matching' ? '가까운 러너에게 요청을 보냈어요'
       : rawStatus !== null && ['confirmed', 'runner_enroute', 'picked_up', 'active'].includes(rawStatus)
         ? '일정 화면으로 이동할게요' : null;
-  const lastAnnouncedSentence = useRef<string | null>(null);
-  // HIG A3/A6: announce status changes after hydration.
-  useEffect(() => {
-    if (matchingSentence === null) return;
-    if (lastAnnouncedSentence.current !== null && lastAnnouncedSentence.current !== matchingSentence) {
-      AccessibilityInfo.announceForAccessibility(matchingSentence);
-    }
-    lastAnnouncedSentence.current = matchingSentence;
-  }, [matchingSentence]);
+  // HIG A3/A6: the matching stage flips under the user (10s poll + `bk-<id>` realtime) and this
+  // screen's whole job is that flip. The hand-rolled last-sentence ref this replaces had no
+  // rate limit — a poll and a realtime row landing together announced twice.
+  useAnnounceOnChange(matchingSentence);
 
   const dockPadBottom = insets.bottom + 12;
   const dockH = 12 + 54 + dockPadBottom;

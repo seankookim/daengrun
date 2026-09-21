@@ -77,6 +77,12 @@ const WAIVER =
   '동반 참가 안내\n\n· 내 강아지의 안전과 행동은 세션 내내 보호자 본인이 책임져요\n· 리드줄 착용은 필수예요\n· 다른 참가자·강아지에게 공격성이 보이면 호스트 안내에 따라 거리를 둬요\n· 사진 촬영이 있을 수 있어요 (공개는 동의한 사진만)';
 
 // ④ 링 드레인 창 길이 — 전부 서버 정본이다 (지어낸 창은 그리지 않는다)
+// [HIG A6] Module scope, and the two lists are separate because the action a message offers
+// depends on whose it is — a rotor entry labelled 신고 on your own message would be a lie
+// about what the control does. Constant identity also stops a re-registration per render.
+const MSG_A11Y_MINE = [{ name: 'longpress', label: '메시지 삭제' }];
+const MSG_A11Y_PEER = [{ name: 'longpress', label: '메시지 신고' }];
+
 const PROPOSAL_MS = 5 * 60_000;    // 0047/0048 propose: proposal_expires_at = now() + 5 minutes
 const HOLD_MS = 20 * 60_000;       // 0043 approve: hold_expires_at = now() + 20 minutes
 const CHECKIN_MS = 8 * 3600_000;   // 0030 session_checkin 창 = 시작 −2h ~ +6h (총 8시간)
@@ -933,7 +939,23 @@ export default function ClubSessionShell() {
   const renderMsg = (m: ClubChatMsg) => m.kind === 'system' ? (
     <Text key={m.id} style={s.sysMsg}>{m.body} · {m.when}</Text>
   ) : (
-    <Pressable key={m.id} onLongPress={() => msgActions(m)} style={[s.msgRow, m.mine && { alignItems: 'flex-end' }]}>
+    /* [HIG A6] The long press was the ONLY way to reach delete (mine) or report (theirs), and a
+       long press is not something a screen reader can be told about — there was no hint, no role
+       and no action, so both of those doors were shut for those users. `accessibilityActions`
+       surfaces the same `msgActions` in the rotor; it already opens an Alert / prompt, so the
+       confirmation step is the one that shipped rather than a second one invented here. */
+    <Pressable
+      key={m.id}
+      onLongPress={() => msgActions(m)}
+      onAccessibilityAction={() => msgActions(m)}
+      // `kind === 'system'` is NOT re-tested here: the branch above already excluded it, and
+      // repeating the check is what tsc flagged. `deleted` still matters — msgActions refuses a
+      // deleted message, so advertising an action on one would be a hint for a door that is shut.
+      accessibilityActions={m.deleted ? undefined : m.mine ? MSG_A11Y_MINE : MSG_A11Y_PEER}
+      accessibilityHint={m.deleted ? undefined
+        : m.mine ? '길게 누르면 삭제할 수 있어요' : '길게 누르면 신고할 수 있어요'}
+      style={[s.msgRow, m.mine && { alignItems: 'flex-end' }]}
+    >
       {!m.mine && <Text style={s.msgWho}>{m.senderName}</Text>}
       {m.kind === 'photo' && !m.deleted && m.mediaPath ? (
         /* [0064] media_path is a private-bucket path, not a URL — MediaImage signs it and
