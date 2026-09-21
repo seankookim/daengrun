@@ -33,6 +33,10 @@ import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { useAuth } from '../auth-context';
 import { haptic } from '../lib/haptics';
 import { DeleteAccountError, deleteMyAccount, fetchLedger } from '../lib/api';
+// [0191] token + blocking row id → a real screen, or null. Pure and dependency-free so
+// `app/test/refusal-routes.test.cjs` can bundle it; see its header for why only three of the
+// nine id-carrying tokens get a route.
+import { REFUSAL_ROUTE_LABEL, refusalRoute } from '../lib/refusal-routes';
 import { session } from '../store';
 import { paper } from '../theme';
 import { PaperBtn } from './paper-btn';
@@ -68,10 +72,12 @@ const REFUSALS: Record<string, Refusal> = {
     action: { label: '예약에서 정기 러닝 일시정지', href: '/owner/schedule' },
   },
   // You are holding someone else's dog right now.
+  // [0191] also deep-links to the exact session; `/community` stays as the wider door beneath it.
   club_custody: {
     body: '지금 맡고 있는 강아지가 있어요. 인계를 마친 뒤 다시 시도해주세요.',
     action: { label: '클럽 보기', href: '/community' },
   },
+  // [0191] also deep-links to the session the assignment is on.
   club_assignment: {
     body: '확정된 클럽 러닝 배정이 있어요. 배정을 철회한 뒤 다시 시도해주세요.',
     action: { label: '클럽 보기', href: '/community' },
@@ -80,12 +86,17 @@ const REFUSALS: Record<string, Refusal> = {
   // 🔴 The mirror of club_custody: YOUR dog is out with a runner, and the return confirm is
   // TWO-SIDED — the owner's own half may be the outstanding one, so the copy names the screen
   // instead of commanding the runner.
-  // ⚠ NO ACTION BUTTON, and this is deliberate rather than unfinished: the 409 body carries no
-  // session id, so the client cannot deep-link to the right session and cannot know whether the
-  // owner's half is the one still open. The control lives at
-  // `app/club/session/[sid].tsx:344` (`confirmReturn(sdId, 'owner')`, rendered :827-843 as
-  // 「인계받았어요 — 반환 확인 →」) — NOT on /owner/schedule, which touches no `session_dogs`
-  // row. Naming the screen without linking is the honest maximum until the token carries an id.
+  // ⚠ [0191] THIS ENTRY'S COMMENT USED TO SAY 「NO ACTION BUTTON … until the token carries an id」,
+  // and that is now stale in the dangerous direction: a comment explaining why something is
+  // missing reads as proof to every later grep, long after it was supplied. The token DOES carry
+  // the club session id now (migration 0191), and `refusalRoute()` turns it into a real push to
+  // `app/club/session/[sid].tsx` — where the control actually lives (`confirmReturn(sdId,
+  // 'owner')`, rendered as 「인계받았어요 — 반환 확인 →」), and which is NOT `/owner/schedule`,
+  // a screen that touches no `session_dogs` row.
+  // ⚠ It keeps no `action` of its own: the deep link is the destination, and a second static
+  // button to `/community` would be a vaguer route to the same place. The copy still only says
+  // what it can prove — it does not claim WHICH half of the two-sided confirm is outstanding,
+  // because the refusal carries a session, not a stamp.
   club_custody_owner: {
     body: '지금 러너가 우리 아이와 함께 있어요. 반환 확인이 끝나면 탈퇴할 수 있어요 — 클럽 세션 화면에서 내 확인이 남아 있는지 볼 수 있어요.',
   },
@@ -195,7 +206,7 @@ function HoldToConfirm({ armed, onArm, disabled }: {
 
 type Phase =
   | { k: 'confirm' }
-  | { k: 'refused'; token: string }
+  | { k: 'refused'; token: string; detail?: string }
   | { k: 'pending' }
   | { k: 'expired' }
   | { k: 'unknown'; token: string };
@@ -294,7 +305,10 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
       } else if (token === 'auth_delete_pending') {
         setPhase({ k: 'pending' });
       } else if (Object.prototype.hasOwnProperty.call(REFUSALS, token)) {
-        setPhase({ k: 'refused', token });
+        // [0191] the blocking row's id, when the server could name one. It is carried into the
+        // phase rather than resolved here so the destination is computed at RENDER time by the
+        // one function that owns that claim — and so an unroutable token simply yields null.
+        setPhase({ k: 'refused', token, detail: e instanceof DeleteAccountError ? e.detail : undefined });
       } else {
         setPhase({ k: 'unknown', token });
       }
@@ -311,6 +325,11 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   }, [onClose, signOut]);
 
   const refusal = phase.k === 'refused' ? REFUSALS[phase.token] : undefined;
+  // ⚠ null unless BOTH a real id arrived and this token's entity has a screen that takes one.
+  // That is the honesty law in one expression: no id, no route, no button — never a button
+  // whose destination we guessed. The static `refusal.action` below is unaffected and still
+  // renders; this is an additional, more specific door, not a replacement for it.
+  const deepLink = phase.k === 'refused' ? refusalRoute(phase.token, phase.detail) : null;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={close}>
@@ -382,15 +401,23 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               <View style={s.refuse}>
                 <Text style={s.refuseText}>{refusal.body}</Text>
               </View>
-              {refusal.action && (
+              {deepLink && (
                 <PaperBtn
-                  label={refusal.action.label}
+                  label={REFUSAL_ROUTE_LABEL}
                   variant="secondary"
-                  onPress={() => go(refusal.action!.href)}
+                  onPress={() => go(deepLink)}
                   style={{ marginTop: 16 }}
                 />
               )}
-              <PaperBtn label="닫기" variant="quiet" onPress={close} style={{ marginTop: refusal.action ? 8 : 16 }} />
+              {refusal.action && (
+                <PaperBtn
+                  label={refusal.action.label}
+                  variant={deepLink ? 'quiet' : 'secondary'}
+                  onPress={() => go(refusal.action!.href)}
+                  style={{ marginTop: deepLink ? 8 : 16 }}
+                />
+              )}
+              <PaperBtn label="닫기" variant="quiet" onPress={close} style={{ marginTop: deepLink || refusal.action ? 8 : 16 }} />
             </>
           )}
 

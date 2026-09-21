@@ -116,10 +116,24 @@ export async function deleteAccount(req: Request, db: SupabaseClient): Promise<u
   //    any future token that merely mentions the word downgrade a real account-state refusal into
   //    a sign-out. Everything that is not literally `not_authenticated` stays a 409 with the token
   //    verbatim — including tokens that do not exist yet, which is the correct default.
+  //
+  //    🔵 0191 — THE REFUSAL NOW NAMES THE ROW. The RPC attaches the blocking record's id as a
+  //    Postgres errdetail (`raise exception '<token>' using detail = …`), and PostgREST surfaces
+  //    an errdetail as `error.details` — the same field `open-drop/handler.ts:63` already threads.
+  //    It is forwarded as `HttpError`'s 4th argument, which `handle()` spreads into the body ONLY
+  //    when it is non-empty, so a refusal the RPC could not name still arrives as the one-key body
+  //    this function has always returned. The MESSAGE is untouched: the token stays bare, because
+  //    that string is what the client's `REFUSALS` lookup matches on.
+  //    ⚠ `details` is forwarded VERBATIM and is a uuid by construction on this path — nothing
+  //    here parses it or decides what it means. Three tokens carry none by design (`km_balance`
+  //    is a sum, `unpaid_payout` has no writer, `active_recurring` has no route), and
+  //    `open_incident` carries one that the client deliberately does not link (one token, two
+  //    incident families, no discriminator — 0191 §0d).
+  //    The 401 arm gets no detail: a party-gate refusal is about the session, not about a row.
   const { data: tx, error: txError } = await db.rpc("delete_my_account_tx", { p_uid: uid });
   if (txError) {
     if (txError.message === "not_authenticated") throw new HttpError(401, "not_authenticated");
-    throw new HttpError(409, txError.message);
+    throw new HttpError(409, txError.message, undefined, txError.details ?? undefined);
   }
   const result = (tx ?? {}) as Record<string, unknown>;
   const logId = (result.log_id as string | null) ?? null;

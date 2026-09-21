@@ -59,8 +59,25 @@ export class HttpError extends Error {
    * `code` is set ONLY by `internalError()` below. It rides beside a stable `error` token so a 500
    * can be told apart from another 500 in a log or a support thread without the body ever carrying
    * the underlying database sentence.
+   *
+   * `detail` (0191) is the id of the ROW a refusal is about — the club session a dog is out on,
+   * the booking that is still live. It exists because a token alone makes a client describe a
+   * destination in prose instead of linking to it (`awaiting-sean.md` §0-unvicies, and
+   * `0115:388-392`, which records the measurement that stopped it being added then: this class's
+   * error arm built the body with exactly ONE key and is imported by 24 edge functions).
+   *
+   * ⚠ IT IS AN ID, NEVER A SENTENCE. The token stays in `message` and stays bare, because that is
+   * what clients match on; `detail` is additive, optional, and read by nobody who does not ask
+   * for it. A Postgres error sentence must never be routed here — that is what `internalError()`
+   * is for, and the reason is the same one it states: the operator needs that text and the
+   * customer cannot act on it.
    */
-  constructor(public status: number, message: string, public code?: string) { super(message); }
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    public detail?: string,
+  ) { super(message); }
 }
 
 /**
@@ -101,8 +118,22 @@ export function handle(fn: (req: Request) => Promise<unknown>) {
       return Response.json(body ?? { ok: true });
     } catch (e) {
       if (e instanceof HttpError) {
+        // 🔴 CONDITIONAL, KEY BY KEY — this is the error contract of 24 edge functions and every
+        // caller that set neither `code` nor `detail` keeps the body it has always had, byte for
+        // byte. A body that grew an `detail: undefined` (or a `null`) would be a new shape on
+        // every one of those functions in exchange for nothing.
+        // ⚠ The spread is TRUTHINESS-gated, not `!== undefined`, and that is load-bearing rather
+        // than idiomatic: `delete_my_account_tx` emits `''` when it refuses and could not name
+        // the blocking row (plpgsql refuses a null RAISE option, and the id is read by a second
+        // statement that a concurrent commit can outrun — 0191 §0c). An empty detail means "there
+        // is a blocker and I cannot name it", so it must arrive as NO KEY rather than as an empty
+        // string the client would have to special-case into a dead button.
         return Response.json(
-          e.code ? { error: e.message, code: e.code } : { error: e.message },
+          {
+            error: e.message,
+            ...(e.code ? { code: e.code } : {}),
+            ...(e.detail ? { detail: e.detail } : {}),
+          },
           { status: e.status },
         );
       }

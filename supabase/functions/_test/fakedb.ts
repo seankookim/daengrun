@@ -24,7 +24,14 @@ export class FakeDb {
   tables: Record<string, Row[]> = {};
   /** jwt string → user id. A jwt absent from this map authenticates as nobody (401). */
   users: Record<string, string> = {};
-  rpcs: Record<string, (args: any) => { data?: any; error?: { message: string } }> = {};
+  // [0191] `details` is part of a real PostgrestError and is how an errdetail reaches a handler
+  // (`raise exception '<token>' using detail = …` → `error.details`). The fake could not produce
+  // one before, so no test could reach the branch that forwards it — a fake that cannot express a
+  // field is a fake that silently exempts it.
+  rpcs: Record<string, (args: any) => {
+    data?: any;
+    error?: { message: string; details?: string; hint?: string; code?: string };
+  }> = {};
   /** "table:op" → message. Forces that operation to return an error, for the 500 paths.
    *  A FUNCTION may be given instead: it receives the payload and returns a message to fail with,
    *  or null to let that particular call through. That is how a per-ROW failure is expressed —
