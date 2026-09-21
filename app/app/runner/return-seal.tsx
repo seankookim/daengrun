@@ -37,9 +37,11 @@ import {
   confirmRunReturn, ensureThread, fetchReturnSeal, returnSealFresh, type ReturnSeal as ReturnSealRow,
 } from '../../src/lib/api';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
 import { paper } from '../../src/theme';
 
@@ -145,6 +147,21 @@ export default function ReturnSeal() {
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [state, bothIn, bookingId, load]);
+
+  // ═══ [0083 §5] THE 귀가 HEARTBEAT ══════════════════════════════════════════════════════════
+  // This screen IS the homeward window: run.tsx routes here the moment `end_run_tx` lands, and
+  // the runner sits on it until the owner stamps. The owner's Live Activity reads
+  // `coalesce(custody_last_seen_at, run_ended_at)` and, with nobody writing the first column,
+  // told every owner 「N분째 위치 신호가 없어요」 ~90 s after EVERY normal stop.
+  //
+  // The gate is SERVER TRUTH, not local state: `rawStatus` comes back from the poll above, and
+  // `custody_ping` refuses anything outside `picked_up`/`active` with `not_in_custody` — so the
+  // loop closes itself the moment the settlement flips this row, whether or not this screen
+  // noticed. `runEndedAt` keeps it off a run that has not been stopped (the frame below).
+  const ping = useCustodyPing(
+    bookingId,
+    inCustodyPhase(seal?.rawStatus) && !!seal?.runEndedAt,
+  );
 
   // The celebration, exactly once per entity.
   useEffect(() => {
@@ -333,6 +350,21 @@ export default function ReturnSeal() {
             </Text>{' '}
             — 운영자가 함께 확인해요
           </Text>
+        )}
+
+        {/* The heartbeat's ONLY runner-facing consequence, and only after three consecutive
+            misses (custody-ping-policy.ts). One dropped ping is not news; a strip that flickers on
+            every lift-tunnel is noise. It clears on the next success, and it is a QUIET strip, not
+            criticalWash — nothing has failed for the runner here, and the ceremony below is
+            unaffected. A ping refused outright (`not_run_runner` / `not_in_custody`) draws
+            NOTHING: that is not a signal problem and must not be reported to the runner as one. */}
+        {ping.failing && (
+          <View style={{ marginTop: 16, backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, padding: 12 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text, lineHeight: 21 }}>{PING_FAIL_LINE}</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>
+              보호자 화면에 위치가 오래된 것으로 보일 수 있어요 — 연결이 돌아오면 저절로 맞춰져요.
+            </Text>
+          </View>
         )}
 
         {!!actionErr && (

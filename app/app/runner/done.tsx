@@ -6,10 +6,12 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
 import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchReturnSeal, fetchRunPhotos, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
+import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
 import { GeoRoutePoint, traceToBox } from '../../src/lib/trace';
+import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { EndReason, runResult } from '../../src/store';
 import { colors, layout, paper } from '../../src/theme';
 
@@ -97,6 +99,11 @@ type Receipt = {
   settled: boolean;
   completed: boolean;
   reason: EndReason;
+  /** `bookings.status`, raw. Carried for the 귀가 heartbeat below: this screen is reachable from
+   *  the seal screen's frame b (「기록 먼저 보기」) while the dog is STILL WITH THE RUNNER, so it
+   *  is a custody screen too and owes the same ping. Never used for the settled claim — that stays
+   *  `rawStatus === 'completed'`, computed once above. */
+  rawStatus: string | null;
 };
 
 /** server `runs.end_reason` → this screen's three-word vocabulary. `completed` and `incident` map
@@ -143,6 +150,7 @@ export default function RunDone() {
           settled: seal.rawStatus === 'completed',
           completed: seal.endReason === 'completed',
           reason: seal.endReason ? (RECEIPT_REASON[seal.endReason] ?? null) : null,
+          rawStatus: seal.rawStatus ?? null,
         });
         setReceiptState('ready');
       })
@@ -258,7 +266,22 @@ export default function RunDone() {
   const v: Receipt = receipt ?? {
     km: runResult.km, sec: runResult.sec, payout: runResult.payout,
     settled: runResult.settled, completed: runResult.completed, reason: runResult.reason,
+    // No server read ⇒ no claim about the booking's state, so no heartbeat either. A null here
+    // cannot pass `inCustodyPhase`, which is exactly right: the in-memory path is the
+    // freeze-FAILED route (run.tsx:860), where there may be no custody at all.
+    rawStatus: null,
   };
+
+  // ═══ [0083 §5] THE 귀가 HEARTBEAT, second site ═════════════════════════════════════════════
+  // `return-seal.tsx` frame b draws 「기록 먼저 보기 ›」 into this screen (return-seal.tsx:377) —
+  // the runner's own stamp is in, the owner's is not, and the dog is still with the runner. So
+  // this is a custody screen and the owner's homeward LA is reading a column nobody writes while
+  // it is open. One hook, shared with the seal screen, so the two cannot drift apart.
+  //
+  // ⚠ This screen reads its status ONCE and never polls. That is safe because the SERVER closes
+  // the loop, not this gate: `custody_ping` answers a booking that has left custody with
+  // `not_in_custody`, which `custody-ping-policy.ts` treats as permanent and stops on.
+  const ping = useCustodyPing(paramBid, inCustodyPhase(v.rawStatus));
   const km = v.km;
   const sec = v.sec;
   // '완주' is a claim — spoken only when the server-recorded end was a completed run, exactly as
@@ -321,6 +344,16 @@ export default function RunDone() {
       <Text style={s.sub}>
         {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
       </Text>
+      {/* [0083 §5] The heartbeat's only runner-facing consequence — three consecutive misses, and
+          it clears on the next success. It sits under the 인계 sentence because that sentence is
+          the custody claim this strip qualifies. Quiet, not criticalWash: nothing the runner did
+          has failed, and no door on this screen is affected. */}
+      {ping.failing && (
+        <View style={s.pingStrip}>
+          <Text style={s.pingTitle}>{PING_FAIL_LINE}</Text>
+          <Text style={s.pingBody}>보호자 화면에 위치가 오래된 것으로 보일 수 있어요 — 연결이 돌아오면 저절로 맞춰져요.</Text>
+        </View>
+      )}
       <Row style={{ gap: 22, marginTop: 14, alignItems: 'flex-start' }}>
         {/* [0193] null is a real answer and stays one — an early-ended run can carry no
             measurement at all, and `?? 0` here is what drew 「0km 완주」 on the report card. */}
@@ -473,12 +506,19 @@ export default function RunDone() {
           [2026-08-25 · Sean, 지금 유효] "let the runner review, dont trap them from anything" —
           두 문 다 **무조건** 열린다. 우회로 걱정은 그가 값을 치르기로 한 쪽이고(Q3: 사진 없는 러닝도
           받는다), 리뷰는 재예약 지표에 가장 가까운 입력이라 마찰을 얹을 자리가 아니었다. */}
+      {/* 🔴 THE BOOKING ID RIDES THE ROUTE, and the bare path was the defect — the same class
+          0193 A4 closed for `/runner/done` and `/runner/return-seal`, left open on this one door.
+          `runner/review.tsx` resolved its booking from `runResult.bookingId` alone, so (a) a
+          runner who left this screen could never review that run again, there being no other
+          door, and (b) a STALE store filed the review against the WRONG booking — the insert
+          writes `booking_id: bookingId` verbatim, so yesterday's run collects today's stars.
+          With a param the review screen names the run it is actually reviewing. */}
       {bookingId && (
         <PaperBtn
           label={dogName ? `${dogName} 리뷰 남기기 ›` : '반려견 리뷰 남기기 ›'}
           variant="secondary"
           style={{ marginTop: photoMissing ? 14 : 22 }}
-          onPress={() => router.push('/runner/review')}
+          onPress={() => router.push({ pathname: '/runner/review', params: { bid: bookingId } })}
         />
       )}
       <PaperBtn
@@ -524,6 +564,10 @@ const s = StyleSheet.create({
   moneyNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, // [BUG A] 19 × 1.26
   moneyUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
   moneyNote: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [0083 §5] 귀가 하트비트 스트립 — 실패가 아니라 사실 한 줄이라 wash + 헤어라인 (세컨더리 문법)
+  pingStrip: { backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, padding: 13, marginTop: 12 },
+  pingTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  pingBody: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 4 },
   // 라우드-페일 스트립 — earnings.tsx/community.tsx와 같은 문법 (criticalWash + critical ink)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 12 },
   failText: { fontSize: 15, lineHeight: 19.5, fontWeight: '700', color: paper.critical },

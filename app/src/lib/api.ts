@@ -6228,3 +6228,63 @@ function bankAccountError(e: unknown): Error {
   }
   return e instanceof Error ? e : new Error(raw || '정산 계좌를 처리하지 못했어요');
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// [fix/homeward-ping-review-bid] Two wrappers, appended as one delimited block so a parallel
+// slice merges cleanly. Neither adds a server surface — both bind functions and tables that have
+// already shipped and had zero client callers.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The 귀가 heartbeat (0083 §5). Writes `bookings.custody_last_seen_at` and NOTHING else — the
+ * function is structurally incapable of touching `runs`, of moving a number money is computed
+ * from, or of resurrecting a frozen run. Returns the server's `now()`.
+ *
+ * WHY IT MATTERS: the owner's homeward Live Activity computes signal age from
+ * `coalesce(custody_last_seen_at, run_ended_at)` (0177:~264) and pushes
+ * 「N분째 위치 신호가 없어요」 past 90 s. Until this wrapper existed `grep -rn custody_ping app/`
+ * returned ZERO, so the coalesce always fell through to `run_ended_at` and the alarm fired on
+ * every normal 귀가 and then climbed for its whole duration.
+ *
+ * ⚠ THE ERROR IS RETHROWN UNTOUCHED, and the caller reads the TOKEN rather than the sentence.
+ * `custody_ping` raises `not_run_runner` (0083:541) and `not_in_custody` (0083:547) — note that
+ * neither is spelled the way a reader guesses. `custody-ping-policy.ts` owns that list and treats
+ * both as permanent; everything else is transient and retried.
+ *
+ * ⚠ Callers: `use-custody-ping.ts` only. A heartbeat is not a user action — it is never wired to
+ * a button, and a failure is logged, never alerted (a failed ping must not interrupt the return
+ * ceremony).
+ */
+export async function custodyPing(bookingId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('custody_ping', { p_booking: bookingId });
+  if (error) throw error;
+  return data as string;
+}
+
+/**
+ * Which of these bookings this runner has ALREADY reviewed. The `reviews author read` policy
+ * (0002:118, `author_id = auth.uid()`) is what makes these rows readable; the explicit
+ * `eq('author_id')` below is belt, so a future policy widening cannot silently widen what the
+ * returned set MEANS.
+ *
+ * `target_kind: 'dog'` matches exactly what `runner/review.tsx` inserts — a review of the OWNER
+ * would be a different row and must not hide the dog-review door.
+ *
+ * ⚠ Returns a Set, and THROWS on a failed read. The caller must keep 「no review」 and 「could not
+ * find out」 apart: `review-gate.ts`'s `reviewDoor` hides the door on `err`, because drawing it
+ * would assert a fact this read did not deliver.
+ */
+export async function fetchMyReviewedBookingIds(bookingIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(bookingIds.filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return new Set();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('booking_id')
+    .eq('author_id', user.user.id)
+    .eq('target_kind', 'dog')
+    .in('booking_id', ids);
+  if (error) throw error;
+  return new Set((data ?? []).map((r: { booking_id: string }) => r.booking_id));
+}

@@ -1,10 +1,11 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../src/components/ui';
-import { fetchRunReport, RunReport } from '../../src/lib/api';
+import { fetchRunReportOrNull, RunReport } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { resolveReviewBooking, reviewSurface, type ReportRead } from '../../src/lib/review-gate';
 import { supabase } from '../../src/lib/supabase';
 import { dogReviewTags, runResult } from '../../src/store';
 import { paper } from '../../src/theme';
@@ -39,10 +40,28 @@ const STAR_WORD: Record<number, string> = {
 export default function RunnerReview() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 이 화면의 유일한 사용처는 제목이다 (§3b)
-  // 마운트 시점의 예약 id를 고정 — 제출 실패 시에도 이 값은 살아 있어야 재시도가 된다
-  const [bookingId] = useState<string | null>(runResult.bookingId);
+  // ═══ WHICH BOOKING IS BEING REVIEWED ═══════════════════════════════════════════════════════
+  // 🔴 This screen used to answer that with `runResult.bookingId` and nothing else — run.tsx's
+  // in-memory snapshot of whatever run ended last in this process. Two costs, and the second is
+  // the dangerous one: a runner who left `runner/done` could NEVER review that run again (the
+  // store was the only door), and a STALE store wrote the review onto the WRONG booking, because
+  // the insert below uses `booking_id: bookingId` verbatim. Same class 0193 A4 closed for
+  // `runner/return-seal` and `runner/done`, left open on this screen.
+  //
+  // A param now names the run. The store survives only as the fallback for the one route that
+  // has no param (a build mid-upgrade), and — see `review-gate.ts` — a store-sourced id is not
+  // trusted until the booking has actually been READ.
+  //
+  // Resolved ONCE at mount, like the id it replaces: the submit's retry path must not change
+  // booking underneath a runner who is already typing.
+  const { bid } = useLocalSearchParams<{ bid?: string }>();
+  const [resolved] = useState(() => resolveReviewBooking(bid, runResult.bookingId));
+  const bookingId = resolved.bookingId;
   const [report, setReport] = useState<RunReport | null>(null);
-  const [reportErr, setReportErr] = useState(false);
+  // THREE ANSWERS, NEVER TWO (api.ts's maybeSingle law): `absent` = zero rows, which for a runner
+  // means 「not a booking I can read」; `failed` = a transport/RLS throw, which means 「I do not
+  // know」. `fetchRunReportOrNull` is what keeps them apart — the throwing form collapses both.
+  const [read, setRead] = useState<ReportRead>('loading');
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [privateFlag, setPrivateFlag] = useState(false);
@@ -53,13 +72,18 @@ export default function RunnerReview() {
   const toggleTag = (t: string) =>
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  // 방금 끝난 러닝의 실컨텍스트 — 강아지 실명 + runs.actual_km (없으면 km 문구 자체를 생략)
-  useEffect(() => {
+  // 방금 끝난 러닝의 실컨텍스트 — 강아지 실명 + runs.actual_km (없으면 km 문구 자체를 생략).
+  // It is ALSO the verification of a store-sourced id: a booking this runner cannot read comes
+  // back as `absent`, and `reviewSurface` refuses to draw a submit button over it.
+  const loadReport = useCallback(() => {
     if (!bookingId) return;
-    fetchRunReport(bookingId)
-      .then(setReport)
-      .catch((e) => { setReportErr(true); console.warn('[r-review] report:', e?.message ?? e); });
+    setRead('loading');
+    fetchRunReportOrNull(bookingId)
+      .then((r) => { setReport(r); setRead(r ? 'ok' : 'absent'); })
+      .catch((e) => { setRead('failed'); console.warn('[r-review] report:', e?.message ?? e); });
   }, [bookingId]);
+  useEffect(() => { loadReport(); }, [loadReport]);
+  const surface = reviewSurface({ source: resolved.source, read });
 
   const submit = async () => {
     if (!bookingId || stars === 0 || busy) return;
@@ -94,17 +118,41 @@ export default function RunnerReview() {
       '리뷰 완료',
       '리뷰가 서버에 저장됐어요.' + (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : ''),
     );
-    runResult.bookingId = null;
+    // ⚠ Clear the store ONLY when it is this booking. With a param the screen can be opened for a
+    // run the store knows nothing about (the calendar's second door), and blanking it there would
+    // discard another run's in-flight pointer — the same wrong-booking class one step over.
+    if (runResult.bookingId === bookingId) runResult.bookingId = null;
     router.dismissTo('/runner/home');
   };
 
-  // 남길 예약이 없으면 폼을 그리지 않는다 — '저장될 것처럼' 보이는 화면이 곧 거짓말이었다
-  if (!bookingId) {
+  // 남길 예약이 없으면 폼을 그리지 않는다 — '저장될 것처럼' 보이는 화면이 곧 거짓말이었다.
+  // 이제 세 얼굴이다 (review-gate.ts): 불러오는 중 · 예약 없음 · 읽기 실패.
+  if (surface === 'loading') {
     return (
       <View style={s.root}>
         <View style={[s.head, { paddingTop: insets.top + 4 }]}>
-          <Text style={[s.title, df]}>리뷰를 남길 예약을 찾지 못했어요</Text>
-          <Text style={s.helper}>러닝을 마치면 이 화면이 다시 열려요</Text>
+          <Text style={[s.title, df]}>러닝 기록을 불러오는 중이에요</Text>
+          <Text style={s.helper}>어떤 러닝의 리뷰인지 확인하고 있어요</Text>
+        </View>
+        <View style={s.rule} />
+      </View>
+    );
+  }
+
+  if (surface === 'no-booking') {
+    // 두 가지 사실이 있고 둘은 같은 말이 아니다: 아예 예약을 못 받은 진입과, 받은 id가 이 러너가
+    // 읽을 수 있는 예약이 아닌 경우(끝났거나 내 예약이 아니거나). 후자를 「러닝을 마치면 다시
+    // 열려요」라고 말하면 이미 마친 러너에게 거짓말이 된다.
+    const unreadable = resolved.source !== 'none';
+    return (
+      <View style={s.root}>
+        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
+          <Text style={[s.title, df]}>
+            {unreadable ? '이 러닝을 찾을 수 없어요' : '리뷰를 남길 예약을 찾지 못했어요'}
+          </Text>
+          <Text style={s.helper}>
+            {unreadable ? '이미 마무리됐거나 내 예약이 아니에요' : '러닝을 마치면 이 화면이 다시 열려요'}
+          </Text>
         </View>
         <View style={s.rule} />
         <View style={s.actions}>
@@ -113,6 +161,29 @@ export default function RunnerReview() {
             onPress={() => router.dismissTo('/runner/home')}
           >
             <Text style={s.ctaText}>홈으로 돌아가기</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (surface === 'read-failed') {
+    // 저장소에서 온 예약 id인데 그 예약을 읽지 못했다 — 「이 러닝이 맞다」를 확인해 줄 유일한
+    // 읽기가 답하지 않은 상태다. 폼을 그리면 확인되지 않은 예약 위에 제출 버튼을 그리는 것이고,
+    // 그게 이 슬라이스가 닫는 결함 그 자체다. 실패는 실패로 말하고 재시도를 준다.
+    return (
+      <View style={s.root}>
+        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
+          <Text style={[s.title, df]}>러닝 기록을 불러오지 못했어요</Text>
+          <Text style={s.helper}>어떤 러닝의 리뷰인지 확인하지 못해서 아직 열 수 없어요 — 기록은 서버에 그대로 있어요</Text>
+        </View>
+        <View style={s.rule} />
+        <View style={s.actions}>
+          <Pressable style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]} onPress={loadReport}>
+            <Text style={s.ctaText}>다시 시도</Text>
+          </Pressable>
+          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+            <Text style={s.quietText}>홈으로 돌아가기</Text>
           </Pressable>
         </View>
       </View>
@@ -144,13 +215,15 @@ export default function RunnerReview() {
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={s.dogName}>{dogName ?? '—'}</Text>
-          {reportErr ? (
+          {read === 'failed' ? (
+            // Only a PARAM booking reaches the form with a failed read (review-gate.ts) — the
+            // caller named this run from a server row, so the form stands and the failure is
+            // stated here rather than hidden. A 로딩 branch is not needed: `surface === 'loading'`
+            // gates the whole screen above, so the form never renders mid-read.
             <Text style={s.dogErr}>강아지 정보를 불러오지 못했어요</Text>
-          ) : !report ? (
-            <Text style={s.dogMeta}>러닝 기록 불러오는 중...</Text>
           ) : actualKm != null && actualKm > 0 ? (
             <Text style={s.dogMeta}>{actualKm.toFixed(2)}km 완주</Text>
-          ) : report.run && actualKm == null ? (
+          ) : report?.run && actualKm == null ? (
             // 러닝은 있는데 거리를 모른다 — owner/report.tsx·club/receipt과 같은 낱말.
             // 0km도 '—'도 아니다: 둘 다 잰 값처럼 읽힌다.
             <Text style={s.dogMeta}>거리 기록 없음</Text>
