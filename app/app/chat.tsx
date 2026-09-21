@@ -269,8 +269,8 @@ export default function Chat() {
     setLoadAttempt((attempt) => attempt + 1);
   };
 
-  // 보내기가 실제로 할 일이 없는 조건 — send()의 가드와 같은 술어를 버튼이 그대로 입는다.
-  const sendBlocked = sending || state !== 'ready' || input.trim().length === 0;
+  // Sending clears the draft; keep busy distinct from an unavailable or empty draft.
+  const sendBlocked = !sending && (state !== 'ready' || input.trim().length === 0);
 
   // 헤더 상태 줄. 세 사실을 뭉개지 않는다:
   //   실시간 조인 성공 = 「● 실시간 연결됨」 (이제 이 문장의 유일한 근거는 SUBSCRIBED다)
@@ -415,16 +415,19 @@ export default function Chat() {
         {/* [dead button 2026-08-19] 예전엔 opacity 0.5만 걸려 있었다 — 흐릿해 보이지만 여전히
             눌렸고, 수락 전이나 빈 입력에서도 send()를 호출했다 (send가 안에서 return하므로
             **아무 일도 안 일어나는 버튼**). 상태를 명시 disabled로 말한다: 불투명도는 표현이지
-            상태가 아니다 (theme.ts:206 매트릭스). */}
+            상태가 아니다 (theme.ts:206 매트릭스).
+            [busy 2026-09-22] Busy is a label swap that keeps its fill and reports only
+            accessibilityState.busy; an unavailable or empty draft is the DISABLED state
+            (disabledFill + faint). The two are no longer one predicate. */}
         <Pressable
-          style={[s.sendBtn, sendBlocked && { opacity: 0.5 }]}
-          onPress={() => send(input)}
+          style={[s.sendBtn, sending && { width: 'auto', paddingHorizontal: 12 }, sendBlocked && { backgroundColor: paper.disabledFill }]}
+          onPress={() => { if (!sending && !sendBlocked) send(input); }}
           disabled={sendBlocked}
           accessibilityRole="button"
-          accessibilityLabel="보내기"
-          accessibilityState={{ disabled: sendBlocked }}
+          accessibilityLabel={sending ? '보내는 중…' : '보내기'}
+          accessibilityState={{ busy: sending, disabled: sendBlocked }}
         >
-          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>↑</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: sendBlocked ? paper.faint : paper.ink }}>{sending ? '보내는 중…' : '↑'}</Text>
         </Pressable>
       </Row>
     </KeyboardAvoidingView>
