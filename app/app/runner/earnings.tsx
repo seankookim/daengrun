@@ -16,6 +16,9 @@ import {
   ledgerPaymentLabel, ledgerPaymentState, payoutPeriodLabel, payoutStatusLabel,
   sortPayoutsNewestFirst,
 } from '../../src/lib/payout-status';
+// RAW server text for the log. These three strips render Korean of their own and never a
+// message, so the log is the ONLY place the server's own words survive.
+import { rpcRaw } from '../../src/lib/rpc-error';
 import { layout, paper } from '../../src/theme';
 
 // 수익 — 실원장(ledger_items)만 표시. 정산·계좌는 백엔드 후속.
@@ -105,7 +108,7 @@ export default function Earnings() {
       fetchLedgerUnpaidTotal().then(setUnpaid),
     ]).then(() => setLoaded(true))
       .catch((e) => {
-        console.warn('[earnings] ledger:', e?.message ?? e);
+        console.warn('[earnings] ledger:', rpcRaw(e));
         setLoaded(false);
         setTotal(null);
         setUnpaid(null);
@@ -120,7 +123,7 @@ export default function Earnings() {
       .catch((e) => {
         // 같은 법(requests.tsx:99-106): 실패하면 **값을 버린다**. 실패 스트립 아래에 지난번
         // 지급 목록을 그대로 두면, 방금 들어온 지급이 없는 것처럼 읽힌다.
-        console.warn('[earnings] payouts:', e?.message ?? e);
+        console.warn('[earnings] payouts:', rpcRaw(e));
         setPoLoaded(false);
         setPayouts([]);
         setPoErr(true);
@@ -157,7 +160,7 @@ export default function Earnings() {
     fetchMyBankAccount()
       .then((row) => { setBankAcct(row); setBankPhase('ready'); })
       .catch((e) => {
-        console.warn('[earnings] bank:', (e as Error)?.message ?? e);
+        console.warn('[earnings] bank:', rpcRaw(e));
         setBankAcct(null);
         setBankPhase('error');
       });

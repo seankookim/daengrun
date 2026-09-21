@@ -14,6 +14,11 @@ import { BANK_ERROR_KO, type BankAccountRefusal } from './bank-account';
 import { parseCheckin, type CheckinAnswerValue, type CheckinSide, type CheckinState } from './checkin';
 import { supabase } from './supabase';
 import { isPendingDeploy } from './rpc-skew';
+// The boundary rule for RPC failures: deploy skew → 배포 문장, known token → its Korean, anything
+// else with no Hangul → the fold. Pure, pinned by `test/rpc-error-fold.test.cjs`. See its header
+// for the measurement that produced it (a Release build printed a PostgREST sentence at
+// `daengrun://ops`). ⚠ `custodyPing` below is the ONE deliberate exception and says why.
+import { foldRpcError, PENDING_DEPLOY_KO } from './rpc-error';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
@@ -3509,7 +3514,10 @@ export async function fetchMyPayouts(): Promise<MyPayout[]> {
     .order('paid_at', { ascending: false, nullsFirst: false })
     .order('period_end', { ascending: false })
     .limit(50);
-  if (error) throw error;
+  // ⚠ No `fn` — this is a TABLE read, and PGRST202 is a function-not-found code. Naming a table
+  // there would ask the skew check a question it cannot answer true. A missing column on a client
+  // that ran ahead of 0192 arrives as 42703 in English and reaches the fold, which is correct.
+  if (error) throw foldRpcError(error, { empty: '정산 내역을 불러오지 못했어요' });
   return ((data ?? []) as any[]).map((p) => ({
     id: p.id,
     netWon: Number(p.net),
@@ -3528,7 +3536,7 @@ export async function fetchMyPayouts(): Promise<MyPayout[]> {
  *  bank is still coming. */
 export async function fetchLedgerUnpaidTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_ledger_unpaid_total');
-  if (error) throw error;
+  if (error) throw foldRpcError(error, { fn: 'my_ledger_unpaid_total', empty: '미지급 합계를 불러오지 못했어요' });
   return Number(data ?? 0);
 }
 
@@ -4288,7 +4296,7 @@ export async function claimGear(
     p_address2: form.address2,
     p_postal: form.postal,
   });
-  if (error) throw gearClaimError(error);
+  if (error) throw gearClaimError(error, 'claim_gear_tx');
   const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
   // A definer returning `setof` can answer zero rows, and a silent `{}` here would render as a
   // claim that succeeded with no status — the honesty law's 「failures are shown as failures」.
@@ -4304,26 +4312,35 @@ export async function claimGear(
 }
 
 /** Every token `claim_gear_tx` raises by name, and nothing else dressed up as one.
- *  ⚠ An unknown error keeps its own text appended — folding it into 「알 수 없는 오류」 makes the
- *  screen look tidy and makes the cause unfindable (the standing rule beside `phoneErrorMessage`).
  *  ⚠ `not_claim_owner` is deliberately vague about the OTHER party's claim: the server refuses
  *  before it reads that row's state (0195 §0e), so the app must not invent a reason it was not
- *  told. */
-export function gearClaimError(e: unknown): Error {
-  const raw = String((e as { message?: string } | null)?.message ?? e ?? '');
-  if (raw.includes('not_signed_in'))    return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
-  if (raw.includes('not_claim_owner'))  return new Error('이 교환권은 회원님의 것이 아니에요');
-  if (raw.includes('claim_not_found'))  return new Error('교환권을 찾지 못했어요 — 새로고침 후 다시 시도해 주세요');
-  if (raw.includes('not_claimable'))    return new Error('아직 수령할 수 없는 교환권이에요');
-  if (raw.includes('bad_recipient'))    return new Error('받는 분 이름을 입력해 주세요');
-  if (raw.includes('bad_phone'))        return new Error('연락처를 다시 확인해 주세요 (숫자 10~11자리)');
-  if (raw.includes('bad_address'))      return new Error('주소를 입력해 주세요');
-  if (raw.includes('bad_postal'))       return new Error('우편번호는 숫자 5자리예요');
+ *  told.
+ *  ⚠ An unrecognised error is NO LONGER returned with its own text. That rule — 「keep the raw
+ *  message so the cause stays findable」 — was right about the cause and wrong about the surface:
+ *  the raw message is a PostgREST sentence in English, and `rewards.tsx` renders it verbatim in a
+ *  Korean form. `foldRpcError` keeps the original on `cause` AND on `raw` (log `rpcRaw(e)`), so
+ *  nothing is lost and nothing English is drawn. */
+export const GEAR_CLAIM_ERROR_KO: Record<string, string> = {
+  not_signed_in: '세션이 만료된 것 같아요 — 다시 로그인해주세요',
+  not_claim_owner: '이 교환권은 회원님의 것이 아니에요',
+  claim_not_found: '교환권을 찾지 못했어요 — 새로고침 후 다시 시도해 주세요',
+  not_claimable: '아직 수령할 수 없는 교환권이에요',
+  bad_recipient: '받는 분 이름을 입력해 주세요',
+  bad_phone: '연락처를 다시 확인해 주세요 (숫자 10~11자리)',
+  bad_address: '주소를 입력해 주세요',
+  bad_postal: '우편번호는 숫자 5자리예요',
   // `claim_race` is the server's own "cannot happen under the lock" assertion (0195 §B ⑦). If it
   // ever arrives it means the row moved between the lock and the write, and a retry is the honest
   // instruction — not a reassurance that it worked.
-  if (raw.includes('claim_race'))       return new Error('교환권 상태가 바뀌었어요 — 새로고침 후 다시 시도해 주세요');
-  return e instanceof Error ? e : new Error(raw || '수령 신청을 처리하지 못했어요');
+  claim_race: '교환권 상태가 바뀌었어요 — 새로고침 후 다시 시도해 주세요',
+};
+
+export function gearClaimError(e: unknown, fn?: string): Error {
+  return foldRpcError(e, {
+    fn,
+    tokens: GEAR_CLAIM_ERROR_KO,
+    empty: '수령 신청을 처리하지 못했어요',
+  });
 }
 
 // ---------- 주소 (픽업 장소) ----------
@@ -4702,10 +4719,13 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
     // 배포 스큐 — 판정은 src/lib/rpc-skew.ts (순수 모듈, 테스트가 붙어 있다). 좁은 이유와
     // 목록이 줄어야 하는 이유는 그 파일에.
     if (isPendingDeploy(fn, error)) {
-      // 원인을 보존한다 — 번역이 진단을 삼키면 다음 사람이 원인을 못 본다. `cause`로 code/details/
-      // hint/stack이 함께 따라간다 (codex: console.warn만으로는 유실된다).
-      throw new Error('앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해 주세요',
-        { cause: error });
+      // Keep the cause — a translation that swallows the diagnosis leaves the next person with
+      // nothing to read. `cause` carries code/details/hint/stack along (codex: a `console.warn`
+      // alone loses them).
+      // ⚠ The sentence now comes from `rpc-error.ts` rather than being typed here. This path's
+      // wording and every new wrapper's must stay ONE string, or the same state acquires two
+      // phrasings and becomes two products (the `payments.tsx` two-date-formats law).
+      throw new Error(PENDING_DEPLOY_KO, { cause: error });
     }
     throw error;
   }
@@ -6196,7 +6216,7 @@ export async function fetchPackRoster(sessionId: string): Promise<PackRoster | n
 /** The caller's own push preferences — the server's defaults (all on) when nothing is saved. */
 export async function fetchNotificationPrefs(): Promise<NotiPrefs> {
   const { data, error } = await supabase.rpc('get_notification_prefs');
-  if (error) throw notiPrefsError(error);
+  if (error) throw notiPrefsError(error, 'get_notification_prefs');
   const row = Array.isArray(data) ? data[0] : data;
   return toPrefs(row as Partial<Record<PrefKey, unknown>> | null);
 }
@@ -6211,17 +6231,20 @@ export async function saveNotificationPrefs(partial: Partial<NotiPrefs>): Promis
     p_community: partial.community ?? null,
     p_reward: partial.reward ?? null,
   });
-  if (error) throw notiPrefsError(error);
+  if (error) throw notiPrefsError(error, 'set_notification_prefs');
   const row = Array.isArray(data) ? data[0] : data;
   return toPrefs(row as Partial<Record<PrefKey, unknown>> | null);
 }
 
-/** `not_signed_in` is the only refusal either RPC raises by name; everything else keeps its own
- *  message so a real fault is never dressed up as a session problem. */
-function notiPrefsError(e: unknown): Error {
-  const raw = String((e as { message?: string })?.message ?? e ?? '');
-  if (raw.includes('not_signed_in')) return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
-  return e instanceof Error ? e : new Error(raw || '알림 설정을 처리하지 못했어요');
+/** `not_signed_in` is the only refusal either RPC raises by name; everything else falls to the
+ *  generic fold so a real fault is never dressed up as a session problem — and never shown as an
+ *  English database sentence either. */
+function notiPrefsError(e: unknown, fn?: string): Error {
+  return foldRpcError(e, {
+    fn,
+    tokens: { not_signed_in: '세션이 만료된 것 같아요 — 다시 로그인해주세요' },
+    empty: '알림 설정을 처리하지 못했어요',
+  });
 }
 
 // ── [0194] 정산 계좌 ──────────────────────────────────────────────────────────────────────────
@@ -6263,7 +6286,7 @@ function toBankAccount(row: Record<string, unknown> | null | undefined): MyBankA
  *  an error — the screen offers registration rather than a failure strip. */
 export async function fetchMyBankAccount(): Promise<MyBankAccount | null> {
   const { data, error } = await supabase.rpc('my_bank_account');
-  if (error) throw bankAccountError(error);
+  if (error) throw bankAccountError(error, 'my_bank_account');
   const row = Array.isArray(data) ? data[0] : data;
   return toBankAccount(row as Record<string, unknown> | null);
 }
@@ -6279,7 +6302,7 @@ export async function setMyBankAccount(input: {
     p_account: input.account,
     p_holder: input.holder,
   });
-  if (error) throw bankAccountError(error);
+  if (error) throw bankAccountError(error, 'set_my_bank_account');
   const row = Array.isArray(data) ? data[0] : data;
   return toBankAccount(row as Record<string, unknown> | null);
 }
@@ -6288,18 +6311,20 @@ export async function setMyBankAccount(input: {
  *  money must keep a destination (Sean's A-intact-when-owed, 0115:537-563). */
 export async function deleteMyBankAccount(): Promise<void> {
   const { error } = await supabase.rpc('delete_my_bank_account');
-  if (error) throw bankAccountError(error);
+  if (error) throw bankAccountError(error, 'delete_my_bank_account');
 }
 
-/** Map 0194's named refusals to Korean. ⚠ An UNRECOGNISED error keeps its own message rather than
- *  being dressed as one of these — a real fault reported as 「계좌번호를 다시 확인해주세요」 sends
- *  the person to edit a field that was never the problem. */
-function bankAccountError(e: unknown): Error {
-  const raw = String((e as { message?: string })?.message ?? e ?? '');
-  for (const token of Object.keys(BANK_ERROR_KO) as BankAccountRefusal[]) {
-    if (raw.includes(token)) return new Error(BANK_ERROR_KO[token]);
-  }
-  return e instanceof Error ? e : new Error(raw || '정산 계좌를 처리하지 못했어요');
+/** Map 0194's named refusals to Korean. ⚠ An UNRECOGNISED error is never dressed as one of these —
+ *  a real fault reported as 「계좌번호를 다시 확인해주세요」 sends the person to edit a field that
+ *  was never the problem. It reaches `foldRpcError`'s generic sentence instead, with the original
+ *  on `cause`/`raw`: 「I could not do it」 is true of every fault, 「your account number is wrong」
+ *  is true of one. */
+function bankAccountError(e: unknown, fn?: string): Error {
+  return foldRpcError(e, {
+    fn,
+    tokens: BANK_ERROR_KO as Record<BankAccountRefusal, string>,
+    empty: '정산 계좌를 처리하지 못했어요',
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -6330,6 +6355,14 @@ function bankAccountError(e: unknown): Error {
  */
 export async function custodyPing(bookingId: string): Promise<string> {
   const { data, error } = await supabase.rpc('custody_ping', { p_booking: bookingId });
+  // 🔴 THE ONE WRAPPER IN THIS FILE THAT IS DELIBERATELY NOT FOLDED THROUGH `foldRpcError`, and it
+  //    is not an oversight. The 2026-09-22 pending-deploy slice folded every other new wrapper
+  //    because a raw PostgREST sentence was reaching Korean screens; this error reaches NO screen.
+  //    `use-custody-ping.ts` is the only caller, it renders `PING_FAIL_LINE` and never a message,
+  //    and `custody-ping-policy.ts`'s `isFatalPingRefusal` reads the TOKEN out of this very string
+  //    (`not_run_runner` / `not_in_custody`, 0083:541/547) to decide whether the heartbeat stops.
+  //    Folding it would replace the token with Korean copy and the loop would retry forever
+  //    against a door the server has shut — a copy fix silently breaking a state machine.
   if (error) throw error;
   return data as string;
 }
@@ -6358,7 +6391,11 @@ export async function fetchMyReviewedBookingIds(bookingIds: string[]): Promise<S
     .eq('author_id', user.user.id)
     .eq('target_kind', 'dog')
     .in('booking_id', ids);
-  if (error) throw error;
+  // Folded for the same reason as every other wrapper here, even though `reviewDoor` reads only
+  // the presence of an error and never its text: a wrapper whose failure is not foldable today is
+  // one screen away from being rendered tomorrow, and the fold is identity-preserving for the
+  // caller (an Error is still an Error, `raw` still carries the original).
+  if (error) throw foldRpcError(error, { empty: '리뷰 기록을 확인하지 못했어요' });
   return new Set((data ?? []).map((r: { booking_id: string }) => r.booking_id));
 }
 
@@ -6388,7 +6425,7 @@ export interface OpsMe { isOps: boolean; kinds: string[] }
 
 export async function opsMe(): Promise<OpsMe> {
   const { data, error } = await supabase.rpc('ops_me');
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_me');
   const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
   // ⚠ Absent row ⇒ NOT an operator. `ops_me` always returns exactly one row, so an empty answer is
   // a shape we do not understand, and the safe direction for a privileged surface is closed.
@@ -6409,7 +6446,7 @@ export interface OpsPayoutDue {
 
 export async function fetchOpsPayoutsDue(): Promise<OpsPayoutDue[]> {
   const { data, error } = await supabase.rpc('ops_payouts_due');
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_payouts_due');
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     runnerProfileId: String(r.runner_profile_id),
     unpaidNetWon: Number(r.unpaid_net_won),
@@ -6433,7 +6470,7 @@ export interface OpsPayoutRowDetail {
 
 export async function fetchOpsRunnerPayoutDetail(runnerId: string): Promise<OpsPayoutRowDetail[]> {
   const { data, error } = await supabase.rpc('ops_runner_payout_detail', { p_runner: runnerId });
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_runner_payout_detail');
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     id: String(r.ledger_item_id),
     bookingId: String(r.booking_id),
@@ -6458,7 +6495,7 @@ export async function opsRecordManualPayout(input: {
     p_amount_won: input.amountWon,
     p_memo: input.memo,
   });
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_record_manual_payout');
   return String(data);
 }
 
@@ -6478,7 +6515,7 @@ export interface OpsBankAccount {
 
 export async function fetchOpsBankAccount(runnerId: string): Promise<OpsBankAccount | null> {
   const { data, error } = await supabase.rpc('ops_bank_account', { p_runner: runnerId });
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_bank_account');
   const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
   if (!row || typeof row.bank !== 'string') return null;
   return {
@@ -6508,7 +6545,7 @@ export interface OpsGearClaim {
 
 export async function fetchOpsGearClaimsPending(): Promise<OpsGearClaim[]> {
   const { data, error } = await supabase.rpc('ops_gear_claims_pending');
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_gear_claims_pending');
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     claimId: String(r.claim_id),
     profileId: String(r.profile_id),
@@ -6533,7 +6570,7 @@ export async function opsMarkGearShipped(input: {
   const { data, error } = await supabase.rpc('ops_mark_gear_shipped', {
     p_claim_id: input.claimId, p_carrier: input.carrier, p_tracking: input.tracking,
   });
-  if (error) throw opsError(error);
+  if (error) throw opsError(error, 'ops_mark_gear_shipped');
   const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
   return {
     status: typeof row?.status === 'string' ? row.status : 'shipped',
@@ -6578,12 +6615,20 @@ export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
   ship_race: '다른 곳에서 먼저 처리된 것 같아요 — 새로고침해주세요',
 };
 
-/** ⚠ An UNRECOGNISED error keeps its own message rather than being dressed as one of these. A real
- *  fault reported as 「운영자 권한이 없어요」 sends an operator to ask for a permission they already
- *  have, which is the most expensive possible wrong sentence on this surface. */
-function opsError(e: unknown): Error {
-  const raw = String((e as { message?: string })?.message ?? e ?? '');
-  const tokens = (Object.keys(OPS_ERROR_KO) as OpsRefusal[]).sort((a, b) => b.length - a.length);
-  for (const token of tokens) if (raw.includes(token)) return new Error(OPS_ERROR_KO[token]);
-  return e instanceof Error ? e : new Error(raw || '요청을 처리하지 못했어요');
+/** ⚠ An UNRECOGNISED error is never dressed as one of these. A real fault reported as
+ *  「운영자 권한이 없어요」 sends an operator to ask for a permission they already have, which is
+ *  the most expensive possible wrong sentence on this surface.
+ *
+ *  🔴 IT NO LONGER KEEPS THE SERVER'S OWN MESSAGE EITHER, AND THAT IS THIS SLICE. Measured
+ *  2026-09-22 on a Release build against production (0156, so `ops_me` does not exist there):
+ *  `daengrun://ops` drew the refusal face with the sentence
+ *  「Could not find the function public.ops_me without parameters in the schema cache」. The
+ *  fallback was written to protect the DIAGNOSIS and it was right to — but the diagnosis belongs
+ *  in a log, not in a Korean product. `foldRpcError` keeps it on `cause` and on `raw`
+ *  (`rpcRaw(e)`) and renders 「요청을 처리하지 못했어요 — 다시 시도해주세요」.
+ *
+ *  ⚠ Longest-token-first now lives in `matchToken`; the reason it matters is unchanged and is
+ *  recorded there. */
+function opsError(e: unknown, fn?: string): Error {
+  return foldRpcError(e, { fn, tokens: OPS_ERROR_KO, empty: '요청을 처리하지 못했어요' });
 }

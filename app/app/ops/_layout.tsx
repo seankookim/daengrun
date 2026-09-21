@@ -4,6 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { opsMe } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
+// ⚠ The pure module, NOT api.ts's mapper. `opsMe` already folds through `opsError`, so this is a
+// second, idempotent pass: a Korean message comes back unchanged and only an English one is
+// replaced. It is belt rather than duplication — the policy (which token means what) stays in
+// api.ts, and this screen only asserts the OUTPUT is Korean, which is the one thing the 2026-09-22
+// measurement proved nobody was asserting.
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { colors, paper } from '../../src/theme';
 
 // 운영 콘솔 — the gate screen for `app/ops/*`. 0198 §A.
@@ -50,7 +56,16 @@ export default function OpsLayout() {
         if (!alive) return;
         // ⚠ The message is shown, never swallowed — and never mapped to 'refused'. A failure to
         // ASK is a different fact from an answer of no.
-        setErrMsg((e as Error)?.message || '권한을 확인하지 못했어요');
+        //
+        // 🔴 MEASURED 2026-09-22, and this line is the defect the slice is named for. On a Release
+        //    build against production (migration 0156, where `ops_me` does not exist) this strip
+        //    rendered 「Could not find the function public.ops_me without parameters in the schema
+        //    cache」 — an English database sentence, in the 운영 콘솔's refusal face, in a Korean
+        //    product. The four-state machine above was already correct; what was wrong was that
+        //    `e.message` was whatever PostgREST said. It is now the mapped Korean
+        //    (`foldRpcError`), and the RAW text goes to the log instead.
+        console.warn('[ops] ops_me:', rpcRaw(e));
+        setErrMsg(foldRpcError(e, { empty: '권한을 확인하지 못했어요' }).message);
         setPhase('error');
       });
     return () => { alive = false; };

@@ -10,6 +10,9 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
+// RAW server text for the log; `e.message` on a claim failure is the mapped Korean
+// (api.ts `gearClaimError` -> `foldRpcError`) that `claimErr` renders.
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { colors, layout, paper } from '../../src/theme';
 
 // 리워드 센터 — 실화: 하이 포인트 잔액·드랍 오픈(open-drop)·기어 교환권. 목업 사다리 은퇴.
@@ -80,7 +83,7 @@ export default function Rewards() {
         .then((d) => { setDrops(d); setDropsLoaded(true); })
         .catch((e) => { console.warn('[rewards] drops:', e?.message ?? e); setDropsErr(true); }),
       fetchGearClaims().then(setClaims)
-        .catch((e) => { console.warn('[rewards] claims:', e?.message ?? e); setClaimsErr(true); }),
+        .catch((e) => { console.warn('[rewards] claims:', rpcRaw(e)); setClaimsErr(true); }),
       fetchMyRunnerStatus().then(setRs)
         .catch((e) => { console.warn('[rewards] status:', e?.message ?? e); setRsErr(true); }),
     ]);
@@ -101,7 +104,15 @@ export default function Rewards() {
       Alert.alert('드랍 오픈!', parts.join('\n') || '보상이 적용됐어요');
       load();
     } catch (e) {
-      Alert.alert('오픈 실패', (e as Error).message);
+      // ⚠ SCOPE NOTE — this one is NOT one of tonight's RPC wrappers; it is the `open-drop` EDGE
+      // function, and it was already capable of putting a non-Korean word in this alert. Its
+      // mapped refusals are Korean (`RPC_TOKEN_MAP`: 「이미 열린 드랍이에요」 …) and pass through
+      // `foldRpcError` untouched, but its UNMAPPED path throws `HttpError(500, 'internal')`
+      // (`_shared/ctx.ts:112`), so the alert body read the literal English word `internal`.
+      // Folding here rather than in `openDrop` keeps the `FnError` (with its `code`/`detail`)
+      // intact for any future caller — this screen is the only one today.
+      console.warn('[rewards] open:', rpcRaw(e));
+      Alert.alert('오픈 실패', foldRpcError(e, { empty: '드랍을 열지 못했어요' }).message);
     } finally {
       setBusy(null);
     }

@@ -10,6 +10,9 @@ import {
 import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { wonLabel } from '../../src/lib/ops-payout';
+// RAW server text for the log. Both strips render `e.message`, which is now the mapped Korean
+// (api.ts `opsError` → `foldRpcError`), so the log is the only place the server's own words live.
+import { rpcRaw } from '../../src/lib/rpc-error';
 import { colors, paper } from '../../src/theme';
 
 // 운영 콘솔 홈 — 두 대기열. 0186 §B + 0195 §C.
@@ -42,7 +45,11 @@ export default function OpsHome() {
     setDueErr(null);
     fetchOpsPayoutsDue()
       .then((rows) => { setDue(rows); setDuePhase('ready'); })
-      .catch((e) => { setDueErr((e as Error)?.message || '지급 대기를 불러오지 못했어요'); setDuePhase('error'); });
+      .catch((e) => {
+        console.warn('[ops] payouts_due:', rpcRaw(e));
+        setDueErr((e as Error)?.message || '지급 대기를 불러오지 못했어요');
+        setDuePhase('error');
+      });
   }, []);
 
   const loadGear = useCallback(() => {
@@ -50,7 +57,11 @@ export default function OpsHome() {
     setGearErr(null);
     fetchOpsGearClaimsPending()
       .then((rows) => { setGear(rows); setGearPhase('ready'); })
-      .catch((e) => { setGearErr((e as Error)?.message || '배송 대기를 불러오지 못했어요'); setGearPhase('error'); });
+      .catch((e) => {
+        console.warn('[ops] gear_claims_pending:', rpcRaw(e));
+        setGearErr((e as Error)?.message || '배송 대기를 불러오지 못했어요');
+        setGearPhase('error');
+      });
   }, []);
 
   // Re-read on every return: paying a runner or posting a box on a detail screen changes exactly

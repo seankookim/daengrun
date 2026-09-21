@@ -13,6 +13,11 @@ import {
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { kstCal, kstMonthDay } from '../../../src/lib/kst';
+// The RAW server text, for the log only. `e.message` is now the MAPPED Korean sentence
+// (api.ts `opsError` -> `foldRpcError`), which is what the screen must render and the last
+// thing a log should carry: a `console.warn` printing the folded copy has thrown the
+// diagnosis away, which is the cost the fold exists to avoid paying.
+import { rpcRaw } from '../../../src/lib/rpc-error';
 import { goBackOrHome } from '../../../src/lib/nav';
 import {
   batchRefusal, batchSummary, BATCH_REFUSAL_KO, checkedTotalWon, selectedIds, wonLabel,
@@ -80,7 +85,7 @@ export default function OpsPayoutRunner() {
         setPhase('ready');
       })
       .catch((e) => {
-        console.warn('[ops/payout] load:', (e as Error)?.message ?? e);
+        console.warn('[ops/payout] load:', rpcRaw(e));
         setLoadErr((e as Error)?.message || '지급 대기 행을 불러오지 못했어요');
         setPhase('error');
       });
@@ -122,7 +127,7 @@ export default function OpsPayoutRunner() {
       })
       .catch((e) => {
         // ⚠ The MESSAGE only. Nothing that could carry an account number reaches a log.
-        console.warn('[ops/payout] bank:', (e as Error)?.message ?? e);
+        console.warn('[ops/payout] bank:', rpcRaw(e));
         setBankErr((e as Error)?.message || '계좌를 불러오지 못했어요');
         setBankPhase('error');
       });
