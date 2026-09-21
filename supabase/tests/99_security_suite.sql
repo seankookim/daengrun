@@ -91,6 +91,7 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute')
       and p.oid::regprocedure::text <> all (array[
+        'club_session_roster(uuid)', 'club_run_photo_allowed(uuid)', 'club_public_photo_path(text)', -- 0165 ruling 4, suite 205 pins public projection and consent.
         'club_pack_map_roster(uuid)', 'my_channel_allowed(text,text)'   -- 0156, Sean's public map
       ]::text[]);
     if not has_function_privilege('anon', 'club_pack_map_roster(uuid)', 'execute')
