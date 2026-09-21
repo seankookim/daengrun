@@ -17,7 +17,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 
 ## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
 
-**Trunk `5bab5e1`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
+**Trunk `2bcfea1`. Nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
 Landed tonight (each merged on the combined tree with harness · deno · npm · tsc · checks, pushed, read back):
 
 | slice | what a user gets | proof |
@@ -33,9 +33,9 @@ Landed tonight (each merged on the combined tree with harness · deno · npm · 
 | `8af5760` owner sheets | slot picker + booking manager are native pageSheets (swipe-down); runner-profile virtualized | npm 1267/0 |
 | `ff6e077` 0195 gear claim | 「수령 신청」 with a delivery snapshot; ops ship + tracking | harness 1371/0 · 9 plants |
 | `5de824b` 0194 bank account | 정산 계좌 register/mask/delete; ops decrypt journaled; key minted by the migration | harness 1378/0 · 15 plants |
+| `2bcfea1` Reduce Motion A7 | the ⑫ report ceremony cross-fades under Reduce Motion; **the reduced path could never run before** (async permission read answered after `.start()`) — fixed with a settled-aware hook | +25 pins, 9 plants |
 
-Still building when this was written: `hig/reduce-motion-ceremony` (A7 on report / return-seal / done / home-hero) and
-`be/0198-ops-console` (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
+Still building when this was written: `be/0198-ops-console` (an in-app ops console over 0186/0194/0195: 지급 대기 → pick rows → 계좌 보기 (journaled) → 지급
 기록; 배송 대기 → 발송 처리; entry row in settings only when `ops_me().is_ops`). The heartbeat (:19/:49) lands them
 if they finish green. Simulator: a Release build of `67236dc` is installed on the iPhone 16 Pro sim (`/tmp/dd27/…/app.app`),
 boots to login; signed-in smoke lists are in each builder's report (summarised in the sections below).
@@ -194,6 +194,17 @@ and both re-ran under unique names. Briefs now say: unique scratch names per sli
   block; 0194's superseded `sumKnown` lines dropped — the five remaining mentions are comments). harness 1371 →
   1378/0 (+7) · deno 369/0 · npm 1328/0 · babel 151 · routes 66. Deploy: db push only + client build. Not
   Codex-reviewed (07:41 one-shot).
+
+**Landed 05:28:** `2bcfea1` **HIG A7 Reduce Motion on the ceremony** — measured: three of the four named screens
+(return-seal, done, home-hero) carry NO motion, so they were left unwired (a `useReducedMotion()` on a motionless
+screen is a dead hook that reads as coverage); all real motion is the ⑫ report's haul overlay and goal bars. The
+finding: `isReduceMotionEnabled()` is async, the boolean hook is `false` on first render, and the overlay calls
+`.start()` in the same commit — **the reduced path could never have run**, every gate green. `reducedMotion.ts`
+gained `useReducedMotionState()` → `{reduce, settled}` (settled on resolve, reject, or a 400 ms timeout; a `started`
+ref makes a mid-flight toggle a no-op). Policy in `motion-policy.ts` (`travel` is the load-bearing field: a 180 ms
+scale-from-2.2 is the same lunge, faster; `useNativeDriver` deliberately does not track the setting). Once-per-entity
+Sets untouched. npm 1328 → 1353/0 (+25, 9 plants) · babel 152 · deno 369/0. Device-visual unverified (smoke list in
+the builder's report: Reduce Motion ON → the overlay fades in as one piece, bars at full length, no sweep).
 
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
