@@ -13,21 +13,23 @@
 // the word for that exact enum value, or a neutral word that claims no fulfilment state at all.
 // No input may produce a fulfilment word it does not name, and no input may be echoed back as
 // its own raw token.
-const { claimStatusLabel } = require('./claim-status.build.cjs');
+const { claimStatusLabel, claimCarrierLine } = require('./claim-status.build.cjs');
 
-// The four enum words. Each of these ASSERTS something about a physical object — it is locked,
-// it is redeemable, it was redeemed, it was dispatched — so none of them may be reached by an
-// input that does not name it.
+// [0195] THREE OF THE FOUR WORDS MOVED, and the reason is in claim-status.ts's own header: the
+// fulfilment door shipped, so 「배송 연동 준비 중」 became false and 「수령 완료」 started claiming
+// possession of a box that has not moved. The PROPERTIES below are unchanged — that is the point
+// of writing them without reference to the copy. Only this table and OVERSTATING are edited.
 const KNOWN = {
   locked: '잠김',
-  claimable: '수령 가능 · 배송 연동 준비 중',
-  claimed: '수령 완료',
-  shipped: '발송 완료',
+  claimable: '수령 가능',
+  claimed: '배송 준비 중',
+  shipped: '배송 중',
 };
 const STATE_WORDS = Object.values(KNOWN);
-// The two that overstate hardest: they assert a hand-over / a dispatch that ops must have
-// recorded. An unknown value reaching either of these is the failure this helper exists to stop.
-const OVERSTATING = ['수령 완료', '발송 완료'];
+// The two that overstate hardest: they assert that ops has begun or completed a dispatch, which
+// only a server row can establish. An unknown value reaching either is the failure this helper
+// exists to stop.
+const OVERSTATING = ['배송 준비 중', '배송 중'];
 
 let pass = 0, fail = 0;
 const t = (name, fn) => { try { fn(); console.log('PASS ' + name); pass++; } catch (e) { console.log('FAIL ' + name + ' — ' + e.message); fail++; } };
@@ -45,7 +47,9 @@ const OUTSIDERS = [
   'pending', 'cancelled', 'refunded', 'returned', 'delivered', 'expired', 'void',
   'Locked', 'SHIPPED', 'Claimed', 'shipped ', ' claimable', 'claimed\n',
   '', null, undefined, 0, 1, true, false, [], {},
-  '잠김', '수령 완료', '발송 완료',
+  // the four current words AND the three 0195 retired — a mapping that echoes a display word
+  // back is as broken as one that echoes the enum token
+  '잠김', '수령 가능', '배송 준비 중', '배송 중', '수령 완료', '발송 완료', '수령 가능 · 배송 연동 준비 중',
   // prefix/substring neighbours of each of the four values
   'lock', 'locke', 'locked_out', 'lockedx', 'l',
   'claim', 'claima', 'claimable_soon', 'claimablex', 'c',
@@ -122,6 +126,59 @@ t('case and whitespace variants do not sneak into a state word', () => {
     const out = claimStatusLabel(v);
     if (STATE_WORDS.includes(out)) throw new Error(JSON.stringify(v) + ' -> ' + out);
   }
+});
+
+// ── [0195] the properties the copy change is allowed to move, and the ones it is not ──────────
+
+t('NO label ever asserts an ARRIVAL — the enum has no `delivered` value', () => {
+  // The original file's strongest argument, and it survives the copy change verbatim: nothing
+  // records that a box was received, so no word may say it was. ⚠ `배송 완료` is the exact string
+  // to refuse; `배송 중` and `배송 준비 중` are transit and preparation, which ARE recorded.
+  for (const v of [...Object.keys(KNOWN), ...OUTSIDERS.filter((x) => typeof x === 'string')]) {
+    const out = claimStatusLabel(v);
+    for (const banned of ['배송 완료', '도착', '수령 완료']) {
+      if (out.includes(banned)) throw new Error(JSON.stringify(v) + ' -> ' + out + ' asserts arrival via ' + banned);
+    }
+  }
+});
+
+t('the claimable word makes NO claim about shipping — there is a door beside it now', () => {
+  // The retired clause 「· 배송 연동 준비 중」 was honest while the chip was a dead label. Next to
+  // a working 수령 신청 button it is the mirror of the original defect: copy describing a state
+  // the product has left. A runner who has not claimed yet is told nothing about dispatch.
+  const out = claimStatusLabel('claimable');
+  for (const banned of ['배송', '연동', '준비']) {
+    if (out.includes(banned)) throw new Error('claimable label still talks about shipping: ' + out);
+  }
+});
+
+t('claimed and shipped are DIFFERENT words — the two ops steps must be distinguishable', () => {
+  // `ops_gear_claims_pending()` is exactly the `claimed` population and `ops_mark_gear_shipped`
+  // moves a row out of it. If the screen rendered one word for both, a runner could not tell
+  // "we have your address" from "your box is moving", which is the whole value of the ops write.
+  if (claimStatusLabel('claimed') === claimStatusLabel('shipped')) throw new Error('claimed and shipped share a word');
+});
+
+// ── claimCarrierLine — an absent shipment draws nothing ───────────────────────────────────────
+// THE PROPERTY: a carrier line is rendered only when the server holds BOTH halves. A half-filled
+// pair is not a partial truth worth printing — a carrier with no number cannot be looked up, and
+// a number with no carrier cannot be looked up either.
+t('both halves required — any missing or blank half yields null', () => {
+  const halves = [null, undefined, '', '   ', '\n'];
+  for (const c of halves) {
+    if (claimCarrierLine(c, 'TRK-1') !== null) throw new Error('carrier ' + JSON.stringify(c) + ' rendered');
+    if (claimCarrierLine('CJ대한통운', c) !== null) throw new Error('tracking ' + JSON.stringify(c) + ' rendered');
+    for (const c2 of halves) {
+      if (claimCarrierLine(c, c2) !== null) throw new Error('both missing rendered');
+    }
+  }
+});
+
+t('a complete pair renders both halves, trimmed, with nothing invented', () => {
+  eq(claimCarrierLine('CJ대한통운', 'TRK-0195-B'), 'CJ대한통운 TRK-0195-B');
+  eq(claimCarrierLine('  롯데택배 ', ' 1234567890 '), '롯데택배 1234567890');
+  // the control: a real pair must NOT be null, or the arm above passes by rendering nothing ever
+  if (claimCarrierLine('한진택배', 'X') === null) throw new Error('a complete pair was suppressed');
 });
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

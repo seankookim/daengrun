@@ -28,20 +28,58 @@
 // never read as '수령 완료' or '발송 완료' — those are claims about a physical object having
 // been handed over or dispatched, and the app must not assert a fulfilment step nobody recorded.
 // The safe direction for a claim state is always "less than we know", never "more".
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// 🔴 [0195] THE ARM THIS FILE PREDICTED HAS FIRED. The line above says 「When fulfilment ships,
+// this arm is the one line that changes」 — 0195_gear_claim_tx.sql is that shipment, and three of
+// the four words move. The old words are NOT deleted, they are corrected, because a removed
+// dissent teaches nothing:
+//
+//   · `claimable` was 「수령 가능 · 배송 연동 준비 중」. The second clause was the honest thing to
+//     say while the chip was a label with no route. **It is now false**: there is a door, the
+//     button beside this word opens it, and telling a runner 준비 중 next to a working button is
+//     the mirror image of the original defect — copy that describes a state the product left.
+//   · `claimed` was 「수령 완료」 and is now 「배송 준비 중」. The old word was written when
+//     `claimed` could only be reached by an ops hand-edit and meant nothing more than 「redeemed」.
+//     Under 0195 it has a precise meaning: the runner submitted an address, the row holds it, and
+//     an operator has not yet posted the box (`ops_gear_claims_pending()` is exactly this
+//     population). 수령 완료 reads to a runner as 「I have it」, which is the one thing that is
+//     certainly not true yet — the box has not moved.
+//   · `shipped` was 「발송 완료」 and is now 「배송 중」. Same fact, better tense for the person
+//     waiting: 0195 §D stamps a carrier and a tracking number, so the box is in transit and the
+//     runner can act on that. ⚠ The original reasoning is UNCHANGED and still binding: the enum's
+//     last value is `shipped` and there is **no `delivered`**, so neither word may claim arrival.
+//     배송 중 asserts transit, which is what was recorded; 배송 완료 would assert an arrival
+//     nobody wrote down.
+//   · `locked` is untouched, and so is the unknown-value direction below.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
 export const claimStatusLabel = (s: string | null | undefined): string =>
-  // Verbatim from BOTH screens — they already agreed on this one and it is right: the claim is
-  // redeemable, and there is genuinely no shipping integration yet (the honesty law: say the
-  // state we are actually in). When fulfilment ships, this arm is the one line that changes.
-  s === 'claimable' ? '수령 가능 · 배송 연동 준비 중'
+  // The claim is redeemable and the button next to this word is real (rewards.tsx). No clause
+  // about integration readiness — the integration is the operator, and that is not a caveat.
+  s === 'claimable' ? '수령 가능'
     // shop.tsx's word, kept; rewards.tsx had none and printed the token `locked`.
     : s === 'locked' ? '잠김'
-      // New — neither screen had a word. 'claimed' means the runner redeemed it; it says nothing
-      // about dispatch, so the word stops at 수령 and does not reach 배송.
-      : s === 'claimed' ? '수령 완료'
-        // New. '발송 완료' (dispatched), NOT '배송 완료' (delivered) — the enum's last value is
-        // `shipped`, and there is no `delivered`, so 배송 완료 would assert an arrival the server
-        // never recorded.
-        : s === 'shipped' ? '발송 완료'
+      // 0195: the address is on the row and an operator has not posted it yet. It claims a
+      // PREPARATION, which is exactly what the server recorded, and stops short of possession.
+      : s === 'claimed' ? '배송 준비 중'
+        // 0195: a carrier and a tracking number exist. 배송 중 (in transit), NOT 배송 완료
+        // (delivered) — the enum has no `delivered` value and nothing records an arrival.
+        : s === 'shipped' ? '배송 중'
           // Unreachable while the enum has four values; reached by null/undefined/'' from a
           // partial fetch, or by a fifth value added server-side ahead of an app build.
           : '확인 중';
+
+/** The carrier line, when ops has actually stamped one. Returns null otherwise — an absent
+ *  shipment renders NOTHING rather than 「배송 정보 없음」, because a runner whose box has not left
+ *  does not need a sentence about the absence of a tracking number they were never promised.
+ *  ⚠ BOTH halves are required before anything is drawn. A carrier with no tracking number is not
+ *  actionable and a tracking number with no carrier cannot be looked up, so a half-filled pair is
+ *  treated as no pair rather than rendered as a partial truth. */
+export const claimCarrierLine = (
+  carrier: string | null | undefined,
+  tracking: string | null | undefined,
+): string | null => {
+  const c = (carrier ?? '').trim();
+  const t = (tracking ?? '').trim();
+  if (c === '' || t === '') return null;
+  return `${c} ${t}`;
+};

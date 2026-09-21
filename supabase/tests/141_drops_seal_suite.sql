@@ -450,38 +450,67 @@ begin
   -- unrelated definers' comments (incident_contact, _club_incident_can_open — measured), and a
   -- sweep that reads prose is a sweep nobody trusts. The regex is proven non-vacuous on
   -- settle_run_tx (owner-only, the minter) in the same pin.
-  -- ⚠ [0176] ONE ALLOWLISTED ENTRY, and it is the door F1 designed the service tier FOR, not an
-  -- exception to it: `open_drop_tx(uuid, text)` (0176, backend audit H2) is a definer granted to
-  -- authenticated whose body reads and CAS-stamps `drops` and inserts `gear_claims`. Called
-  -- through PostgREST it is judged at the service tier (D19b): it can stamp opened_at ONCE, write
-  -- pick_choice in that same statement, and nothing else — which is what the trigger exists to
-  -- allow. What the function may DO is pinned by suite 207 (0176-O1…O6); this sweep keeps
-  -- asserting that NOTHING ELSE of that shape exists, and the arm below asserts the entry is
-  -- alive (exists · authenticated-executable · touches drops) so it cannot rot into dead weight
-  -- (98 H9's two-sided rule). Adding a second name here is a finding, not a fix.
+  -- ⚠ [0176] THE FIRST ALLOWLISTED ENTRY, and it is the door F1 designed the service tier FOR,
+  -- not an exception to it: `open_drop_tx(uuid, text)` (0176, backend audit H2) is a definer
+  -- granted to authenticated whose body reads and CAS-stamps `drops` and inserts `gear_claims`.
+  -- Called through PostgREST it is judged at the service tier (D19b): it can stamp opened_at
+  -- ONCE, write pick_choice in that same statement, and nothing else — which is what the trigger
+  -- exists to allow. What the function may DO is pinned by suite 207 (0176-O1…O6).
+  --
+  -- ⚠ [0195] THREE MORE ENTRIES, and this is a pinned behaviour that LEGITIMATELY CHANGED — not
+  -- a drive-by widening. 0106 §4's own comment says `status`/`shipped_to`/`claimed_at` stay
+  -- writable "because a future ops flow will need them"; 0195 is that flow, so the fulfilment
+  -- door finally exists and this sweep must name it rather than go red for a true reason:
+  --   · `claim_gear_tx(...)`          — the runner redeems their OWN claim (party gate on the
+  --                                     locked row, before any state is read)
+  --   · `ops_gear_claims_pending()`   — the ops read of claimed-not-shipped rows
+  --   · `ops_mark_gear_shipped(...)`  — the ops write, claimed → shipped
+  -- All three are `authenticated`-granted because the gate is INSIDE (the runner's own-row gate,
+  -- and 0084 §E's ops roster) — the same shape 0186 §F uses. **What each may DO is pinned by
+  -- suite 226 (0195-C1…C5 · P1…P3 · S1); this sweep's own property is unchanged** — it still
+  -- asserts that NOTHING OUTSIDE this list of four has that shape.
+  --
+  -- ⚠ Every entry carries a LIVENESS arm below (exists · authenticated-executable · anon-refused ·
+  -- actually touches the tables), because a dead allowlist entry is a false green: it silently
+  -- absorbs the day someone drops the function and recreates it with a different ACL (98 H9's
+  -- two-sided rule). Adding a fifth name here is a finding, not a fix.
   v_bad := '';
   select count(*) into v_n
     from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
    where ns.nspname = 'public'
-     and not (p.proname = 'open_drop_tx'
-              and pg_get_function_identity_arguments(p.oid) = 'p_drop_id uuid, p_pick_choice text')
+     and not exists (select 1 from (values
+            ('open_drop_tx',            'p_drop_id uuid, p_pick_choice text'),
+            ('claim_gear_tx',           'p_claim_id uuid, p_recipient text, p_phone text, p_address1 text, p_address2 text, p_postal text'),
+            ('ops_gear_claims_pending', ''),
+            ('ops_mark_gear_shipped',   'p_claim_id uuid, p_carrier text, p_tracking text')
+          ) as a(nm, args)
+          where a.nm = p.proname and a.args = pg_get_function_identity_arguments(p.oid))
      and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') ~* ('\m(public\.)?(drops|gear_claims)\M')
      and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'));
-  if v_n <> 0 then v_bad := ' 클라가 실행할 수 있는 함수 ' || v_n || '개가 drops/gear_claims를 만진다 (D18의 문이 API가 된다; 허용 항목은 open_drop_tx 하나뿐)'; end if;
+  if v_n <> 0 then v_bad := ' 클라가 실행할 수 있는 함수 ' || v_n || '개가 drops/gear_claims를 만진다 (D18의 문이 API가 된다; 허용 항목은 open_drop_tx(0176) + 0195의 세 문뿐)'; end if;
+  -- liveness: EVERY allowlist entry must be alive, and the count must be the WHOLE list — an
+  -- entry that stopped existing, lost its authenticated grant, gained an anon grant, or stopped
+  -- touching these tables is a dead entry, and a dead entry is a false green.
   select count(*) into v_n
-    from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
-   where ns.nspname = 'public' and p.proname = 'open_drop_tx'
-     and pg_get_function_identity_arguments(p.oid) = 'p_drop_id uuid, p_pick_choice text'
-     and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+    from (values
+           ('open_drop_tx',            'p_drop_id uuid, p_pick_choice text'),
+           ('claim_gear_tx',           'p_claim_id uuid, p_recipient text, p_phone text, p_address1 text, p_address2 text, p_postal text'),
+           ('ops_gear_claims_pending', ''),
+           ('ops_mark_gear_shipped',   'p_claim_id uuid, p_carrier text, p_tracking text')
+         ) as a(nm, args)
+    join pg_proc p on p.proname = a.nm
+                  and pg_get_function_identity_arguments(p.oid) = a.args
+    join pg_namespace ns on ns.oid = p.pronamespace and ns.nspname = 'public'
+   where has_function_privilege('authenticated', p.oid, 'EXECUTE')
      and not has_function_privilege('anon', p.oid, 'EXECUTE')
      and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') ~* ('\m(public\.)?(drops|gear_claims)\M');
-  if v_n <> 1 then v_bad := v_bad || ' [0176] 허용 항목 open_drop_tx가 살아 있지 않다 (없거나·authenticated 실행 불가·anon 실행 가능·drops를 안 만짐) — 죽은 허용 항목은 거짓 초록이다'; end if;
+  if v_n <> 4 then v_bad := v_bad || ' 허용 항목 4개 중 살아 있는 것이 ' || v_n || '개 (없거나·authenticated 실행 불가·anon 실행 가능·drops/gear_claims를 안 만짐) — 죽은 허용 항목은 거짓 초록이다'; end if;
   select count(*) into v_n
     from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
    where ns.nspname = 'public' and p.proname = 'settle_run_tx'
      and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') ~* ('\m(public\.)?(drops|gear_claims)\M');
   if v_n <> 1 then v_bad := v_bad || ' 스윕 정규식이 settle_run_tx(민터)를 못 본다 — 스윕이 공허하다'; end if;
-  if v_bad = '' then call _pass('dseal','D19 카탈로그 스윕 — anon/authenticated가 실행 가능한 public 함수 중 drops/gear_claims를 참조하는 것은 허용 항목 open_drop_tx(0176) 하나뿐이고 그 항목은 살아 있다 (민터 settle_run_tx는 보이되 owner-only)');
+  if v_bad = '' then call _pass('dseal','D19 카탈로그 스윕 — anon/authenticated가 실행 가능한 public 함수 중 drops/gear_claims를 참조하는 것은 허용 항목 네 개(open_drop_tx 0176 · claim_gear_tx · ops_gear_claims_pending · ops_mark_gear_shipped 0195)뿐이고 넷 다 살아 있다 (민터 settle_run_tx는 보이되 owner-only)');
   else v_msg := v_bad; call _fail('dseal','D19 카탈로그 스윕', v_msg); end if;
 
   -- ---------- [D19b] (review F1) owner + client JWT = service_role tier ----------
