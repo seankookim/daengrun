@@ -59,16 +59,49 @@ const zig = Array.from({ length: 20 }, (_, i) => ({ latitude: 37.5 + (i % 2) * 0
 const sz = smoothTrace(zig);
 const inBounds = sz.every((p) => p.latitude > 37.5 - 0.0003 && p.latitude < 37.501 + 0.0003);
 t('smoothTrace: 지그재그 오버슈트 한도', inBounds);
-// 성능: 1000픽스(약 1h 러닝) 스무딩 < 50ms
-const big = line(1000);
-const t0 = Date.now();
-smoothTrace(big);
-const ms = Date.now() - t0;
-// Budget raised 50 → 500 ms on 2026-09-22: the pin exists to catch an algorithmic blowup (a quadratic
-// pass over an hour of fixes would take seconds), not to measure this laptop's latency — it read
-// 236–369 ms on a clean trunk while six builders ran, and a pin that cries on correct code is
-// `--no-verify`'d within a day. 500 ms still fails on any O(n²) regression by an order of magnitude.
-t('smoothTrace: 1000픽스 성능 < 500ms', ms < 500, ms + 'ms');
+// ── smoothTrace cost ──
+// This block replaced a single Date.now() wall-clock sample of n=1000 against a 50 ms budget
+// (72d8976, 2026-07-29). Measured 2026-09-22: the function's CPU cost is 6–14 ms cold and
+// ~0.05–0.2 ms once optimised, and the emitted function is byte-identical to the 2026-07-29
+// bundle — yet WALL time on that same call read 25–630 ms at load averages of 113–443, and the
+// old pin failed on 10 of 15 fresh processes of UNMODIFIED code. It was measuring the scheduler,
+// so it turned `npm test`'s exit code into noise on a clean trunk. Neither pin below reads the
+// wall clock; both read process.cpuUsage(), which counts only time this process was on-CPU.
+//
+// An interim fix on trunk (666585b) raised the same wall-clock pin to 500 ms, saying it would still
+// fail on any O(n²) regression by an order of magnitude. Measured against the plants below: the
+// 500 ms pin was GREEN 3/3 on BOTH quadratic bundles — at n=1000 their cost is 0.2–6 ms, because a
+// quadratic term on a thousand points is small and only dominates by 16,000 — and wall time on
+// clean code had already read 632 ms once at load 443. No wall-clock budget can be set where it
+// both catches the shape and stays quiet under load; comparing two sizes on CPU time can.
+//
+// (1) Linearity, equal-work form: R calls at n=1000 against one call at n=R*1000. Both sides
+//     produce the same number of output points and allocate the same number of objects, so a
+//     linear algorithm reads ≈1 (measured 0.52–1.78 over 20 runs) and a quadratic one reads ≈R
+//     (two O(n²) plants measured 6.5–7.6 with R=16). The JIT tier is a property of the function,
+//     not of the call, so warming both sides together and interleaving the samples keeps the tier
+//     the same on both sides; min-of-K drops GC pauses. Threshold 3: a quadratic term must be
+//     ≥ ~15 % of the linear cost at n=1000 (2.5× it at n=16000) to redden it.
+// (2) Ceiling: the original 50 ms figure, kept as a CPU-time ceiling on the n=1000 call. It is
+//     ~40× above the measured cost and catches only an order-of-magnitude blow-up — the `steps`
+//     constant is pinned by the length pin above, the algorithm's shape by (1).
+const cpuMs = (fn) => { const c0 = process.cpuUsage(); fn(); const c = process.cpuUsage(c0); return (c.user + c.system) / 1000; };
+const R = 16;
+const small = line(1000);
+const large = line(1000 * R);
+const manySmall = () => { for (let i = 0; i < R; i++) smoothTrace(small); };
+const oneLarge = () => { smoothTrace(large); };
+for (let i = 0; i < 3; i++) { manySmall(); oneLarge(); }
+let cpuMany = Infinity, cpuOne = Infinity, cpuSmall = Infinity;
+for (let i = 0; i < 5; i++) {
+  cpuMany = Math.min(cpuMany, cpuMs(manySmall));
+  cpuOne = Math.min(cpuOne, cpuMs(oneLarge));
+  cpuSmall = Math.min(cpuSmall, cpuMs(() => smoothTrace(small)));
+}
+const linearity = cpuOne / cpuMany;
+t('smoothTrace: cost is linear in fixes (1×16000 / 16×1000 CPU ≤ 3)', linearity <= 3,
+  linearity.toFixed(2) + '× (' + cpuMany.toFixed(2) + 'ms vs ' + cpuOne.toFixed(2) + 'ms)');
+t('smoothTrace: 1000 fixes (≈1h run) < 50ms CPU', cpuSmall < 50, cpuSmall.toFixed(2) + 'ms');
 
 // ── mergeFixes (백그라운드 배치 병합 — 2026-08-08) ──
 // 이 함수가 km을 만든다. km은 곧 돈이다 (settle-run: km * 3000). 배달 방식이 숫자를 바꾸면 안 된다.
