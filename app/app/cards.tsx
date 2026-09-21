@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav, homePath } from '../src/components/bottomnav';
@@ -59,10 +59,23 @@ export default function Cards() {
   // (섹션이 조용히 사라지면 '아직 아무것도 없어요'로 읽힌다 = 조용한 catch → 행복한 UI)
   const [stampErr, setStampErr] = useState(false);
   const [patchErr, setPatchErr] = useState(false);
-  useEffect(() => {
-    fetchCoursePatches().then(setPatches).catch((e) => { setPatchErr(true); console.warn('[cards] patches:', e?.message ?? e); });
+  // [honesty 2026-09-22 · loading-state-audit #8 follow-up] The three failure faces on this screen
+  // said 「다시 열면 다시 시도해요」 / 「화면을 다시 열어주세요」 — honest about the failure and then
+  // handing the person a chore the screen could do itself. The read lived inline in a `[]` effect,
+  // so there was nothing a button could call; that absence is what wrote the copy. One loader per
+  // READ, so 도장's 다시 시도 re-runs `fetchStampStats` alone and 패치's re-runs `fetchCoursePatches`
+  // alone — a retry that re-fires the healthy sibling would spend a call to prove nothing.
+  // ⚠ Setters run on success only, so a failed retry keeps whatever had already arrived: the strip
+  // says the READ failed, never that the collection is empty.
+  const loadStamps = useCallback(() => {
+    setStampErr(false);
     fetchStampStats().then(setStampStats).catch((e) => { setStampErr(true); console.warn('[cards] stamps:', e?.message ?? e); });
   }, []);
+  const loadPatches = useCallback(() => {
+    setPatchErr(false);
+    fetchCoursePatches().then(setPatches).catch((e) => { setPatchErr(true); console.warn('[cards] patches:', e?.message ?? e); });
+  }, []);
+  useEffect(() => { loadPatches(); loadStamps(); }, [loadPatches, loadStamps]);
 
   const patchTotal = patches ? patches.earned.length + patches.locked.length : 0;
   const bothFailed = stampErr && patchErr && !stamps && !patches;
@@ -116,7 +129,17 @@ export default function Cards() {
         {bothFailed && (
           <View style={s.errBox}>
             <Text style={s.errT}>수집함을 불러오지 못했어요</Text>
-            <Text style={s.errD}>네트워크를 확인하고 화면을 다시 열어주세요</Text>
+            <Text style={s.errD}>네트워크를 확인하고 다시 시도해주세요</Text>
+            {/* Both reads died, so this one button re-runs both — the only place on this screen
+                where a retry may fire two calls, because here both of them are the failed ones. */}
+            <Pressable
+              onPress={() => { loadStamps(); loadPatches(); }}
+              style={s.retryBtn}
+              accessibilityRole="button"
+              accessibilityLabel="수집함 다시 불러오기"
+            >
+              <Text style={s.retryTxt}>다시 시도</Text>
+            </Pressable>
           </View>
         )}
 
@@ -143,7 +166,12 @@ export default function Cards() {
               <Text style={s.secKo}>도장</Text>
               <View style={s.rule} />
             </Row>
-            <View style={s.failNote}><Text style={s.failTxt}>도장을 불러오지 못했어요 — 다시 열면 다시 시도해요</Text></View>
+            <View style={s.failNote}>
+              <Text style={s.failTxt}>도장을 불러오지 못했어요</Text>
+              <Pressable onPress={loadStamps} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="도장 다시 불러오기">
+                <Text style={s.retryTxt}>다시 시도</Text>
+              </Pressable>
+            </View>
           </>
         )}
         {stamps && (
@@ -197,7 +225,12 @@ export default function Cards() {
               <Text style={s.secKo}>코스 패치</Text>
               <View style={s.rule} />
             </Row>
-            <View style={s.failNote}><Text style={s.failTxt}>코스 패치를 불러오지 못했어요 — 다시 열면 다시 시도해요</Text></View>
+            <View style={s.failNote}>
+              <Text style={s.failTxt}>코스 패치를 불러오지 못했어요</Text>
+              <Pressable onPress={loadPatches} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="코스 패치 다시 불러오기">
+                <Text style={s.retryTxt}>다시 시도</Text>
+              </Pressable>
+            </View>
           </>
         )}
         {patches && patchTotal > 0 && (
@@ -288,6 +321,16 @@ const s = StyleSheet.create({
   errD: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   failNote: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 12 },
   failTxt: { fontSize: 15, lineHeight: 20, color: lilac.text },
+  // Retry — alerts.tsx:317's lilac-world grammar (bordered white box, head ink, 다시 시도) rather
+  // than the paper world's underlined text, because this screen is the passport ANNEX and its
+  // chrome is lilac. ⚠ 44 and not that neighbour's 40: HIG G1 is a 44pt minimum hit region, and a
+  // bordered box has no hitSlop to make up the difference.
+  retryBtn: {
+    alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center',
+    paddingHorizontal: 14, borderWidth: 1, borderColor: lilac.head,
+    borderRadius: lilacRadius.btn, backgroundColor: '#fff',
+  },
+  retryTxt: { fontSize: 16, fontWeight: '800', color: lilac.head },
   // 로딩 문장 — 실패 노트와 같은 상자, 더 조용한 잉크 (실패가 아니라 아직인 것)
   loadTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim },
 
