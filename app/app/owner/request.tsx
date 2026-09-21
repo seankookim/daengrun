@@ -14,6 +14,7 @@ import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
+import { holdReplayNotice, holdStatusLine } from '../../src/lib/hold-replay-copy';
 import { goBackOrHome } from '../../src/lib/nav';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -296,6 +297,10 @@ export default function Request() {
   // 아니라 Alert다. [O-5] holdBid/holdExp ref는 삭제됐다: 예약 id는 이제 pay() 안에서 그대로
   // 쓰이고(다음 화면으로 넘기는 파라미터가 아니다), 만료 ISO는 그것을 표시하던 화면과 함께 갔다.
   const [holdLive, setHoldLive] = useState<null | boolean>(null);
+  // [0179] 서버가 「같은 client_request_id — 새로 만들지 않았다」(`unchanged`)라고 답했는가.
+  // 이 값이 없던 동안 모달은 재요청에도 「예약이 생성됐어요」라고 단언했다 — 그 문장이 인쇄되는
+  // 순간 거짓인 유일한 경우다. 카피 선택은 `hold-replay-copy.ts`가 갖는다.
+  const [holdReplayed, setHoldReplayed] = useState(false);
   const [dateIdx, setDateIdx] = useState(0);
 
   // 지명 러너 컨텍스트 — 그 러너의 가용시간 밖 슬롯은 비활성.
@@ -556,6 +561,7 @@ export default function Request() {
     Object.assign(draft, { km, pace, addons, routeId, timeLabel });
     setHoldSec(300);
     setHoldLive(null);
+    setHoldReplayed(false); // 이번 시도에 대한 사실이다 — 지난 시도의 답을 물려받지 않는다
     setHoldVisible(true);
 
     // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching, 한 요청 안에서)
@@ -608,6 +614,12 @@ export default function Request() {
     const bookingId = res.booking_id;
     draft.bookingId = bookingId;
     holdKey.current = null;   // [0179] the attempt landed; the next tap is a new attempt
+    // [0179] 🔴 서버가 이 요청을 **재생**으로 답했다면 이 탭은 아무것도 만들지 않았다. 그 사실이
+    // 화면에 없었던 것이 결함이다: 같은 요청이 두 번 눌린 보호자는 첫 예약을 보면서 그것이 이미
+    // 자기 것이었다는 말을 듣지 못했고, 홀드 모달은 「예약이 생성됐어요」라는, 그 순간 거짓인
+    // 문장으로 축하를 한 번 더 했다. 값은 새 필드가 아니라 0179부터 wire에 있던 `unchanged`다.
+    const replayed = res.unchanged === true;
+    setHoldReplayed(replayed);
     setHoldLive(true);
 
     // 서버가 matching이라고 말하지 않았으면 그런 척하지 않는다. payment_hold로 남았다는 건
@@ -664,12 +676,19 @@ export default function Request() {
     // ④ 라우팅. replace인 이유: 예약은 이미 실재한다 — 뒤로가기로 이 폼에 돌아오면 같은 값으로
     //    두 번째 예약을 만들 수 있다. 예전엔 /owner/pay가 사이에 있어서 push가 안전했다.
     setHoldVisible(false);
+    // [0179] 재생이면 정직한 한 줄이 확정 화면으로 넘어가기 전에 선다. 알럿은 **한 번만** —
+    // 지명 분기에서는 같은 알럿 안에 합친다 (두 알럿이 줄 서면 보호자가 첫 줄을 못 읽는다).
+    const notice = holdReplayNotice(replayed);
     if (nominated) {
       // 지명을 보냈으면 레이더에서 볼 것이 없다 — 내 일정에서 수락을 기다린다
-      Alert.alert('지명 요청 전송', `${nominated} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+      Alert.alert(
+        notice ? notice.title : '지명 요청 전송',
+        `${notice ? `${notice.body}\n\n` : ''}${nominated} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`,
+      );
       router.replace('/owner/schedule');
       return;
     }
+    if (notice) Alert.alert(notice.title, notice.body);
     // bid를 파라미터로도 넘긴다 — 레이더는 draft.bookingId 없이 홈으로 튀는 화면이고, 둘 중
     // 하나만 믿을 이유가 없다 (matching.tsx는 draft만 읽으므로 draft 설정은 위에서 이미 끝냈다).
     router.replace({ pathname: '/owner/radar', params: { bid: bookingId } });
@@ -1456,8 +1475,10 @@ export default function Request() {
                 {timeLabel} 슬롯이 5분간{'\n'}다른 보호자에게 보이지 않아요
               </Text>
             </View>
+            {/* [0179] 재생이면 「예약이 생성됐어요」는 그 순간 거짓이다 — 이 탭은 아무것도 만들지
+                않았다. 문장 선택은 `hold-replay-copy.ts`가 갖고 핀이 걸려 있다. */}
             <Text style={{ fontSize: 15, fontWeight: '800', marginTop: 10, color: holdLive === true ? paper.ink : paper.dim }}>
-              {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
+              {holdStatusLine({ live: holdLive, replayed: holdReplayed })}
             </Text>
           </View>
         </View>

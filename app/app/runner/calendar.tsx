@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
-import { fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
+import { fetchMyReviewedBookingIds, fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import { reviewDoor, type ReviewedRead } from '../../src/lib/review-gate';
 import { runnerJob } from '../../src/store';
 import { colors, layout, paper } from '../../src/theme';
 
@@ -90,10 +91,29 @@ export default function RunnerCalendar() {
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
 
+  // ═══ THE SECOND DOOR TO THE REVIEW ════════════════════════════════════════════════════════
+  // `runner/done` is reachable once per run in practice, so 「리뷰 남기기」 has been a
+  // use-it-or-lose-it door: a runner who backed out of that screen could never review the run
+  // again. The completed ticket is the second door, and it is drawn from the `reviews` table
+  // rather than from anything local — a door onto a duplicate insert is a dead button with extra
+  // steps. THREE STATES (review-gate.ts): `err` and `loading` both HIDE the door, because neither
+  // licenses the sentence 「you have not reviewed this run」. Pull-to-refresh is the retry.
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [reviewedRead, setReviewedRead] = useState<ReviewedRead>('loading');
+
+  const loadReviewed = (list: RunnerJob[]) => {
+    const done = list.filter((j) => j.rawStatus === 'completed').map((j) => j.bookingId);
+    if (done.length === 0) { setReviewed(new Set()); setReviewedRead('ready'); return; }
+    setReviewedRead('loading');
+    return fetchMyReviewedBookingIds(done)
+      .then((ids) => { setReviewed(ids); setReviewedRead('ready'); })
+      .catch((e) => { console.warn('[calendar] reviews:', e?.message ?? e); setReviewedRead('err'); });
+  };
+
   const load = () => {
     setLoadErr(false);
     return fetchRunnerJobs()
-      .then((j) => { setJobs(j); setLoaded(true); })
+      .then((j) => { setJobs(j); setLoaded(true); return loadReviewed(j); })
       .catch((e) => { console.warn('[calendar] jobs:', e?.message ?? e); setLoadErr(true); });
   };
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -225,6 +245,10 @@ export default function RunnerCalendar() {
     // [C③] 완료 티켓은 문이 둘이므로 티켓 전체 누르기를 내려놓는다 — 한 번의 누름이 두 가지를
     // 뜻할 수는 없다. 두 문 다 이미 존재하는 라우트이고 홈이 같은 행에서 쓰는 목적지다.
     // 도장은 이 행 안에 있으므로 문 줄을 물지 않는다 (position은 아래 행 래퍼 기준).
+    // ⚠ 세 번째 문(리뷰)은 **조건부**다. `rawStatus === 'completed'`(정산됨)이고, `reviews`에서
+    // 아직 내 리뷰가 없다고 **확인된** 경우에만 그린다 — 이미 쓴 러너에게 중복 insert로 가는
+    // 문을 보여 주지 않고, 읽지 못한 상태를 '안 썼다'로 읽지도 않는다 (review-gate.ts).
+    const door = reviewDoor({ rawStatus: j.rawStatus, read: reviewedRead, reviewed: reviewed.has(j.bookingId) });
     return (
       <View key={j.bookingId} style={[s.ticket, s.ticketDone, todayGroup && s.ticketToday]}>
         <View style={s.ticketRow}>{body}</View>
@@ -246,6 +270,19 @@ export default function RunnerCalendar() {
             <Text style={s.doneDoorTxt}>수익 상세 ›</Text>
           </Pressable>
         </Row>
+        {/* 리뷰 문은 제 줄을 갖는다 — 셋째 `flex: 1` 칸에 넣으면 320dp에서 「리뷰 남기기 ›」가
+            84pt 칸에 들어가지 않아 두 줄로 접힌다 (16/800 한글 5자 ≈ 93pt). 위 두 문은 참조고
+            이건 행동이라 같은 무게가 아니기도 하다. */}
+        {door.show && (
+          <Pressable
+            onPress={() => router.push({ pathname: '/runner/review', params: { bid: j.bookingId } })}
+            style={({ pressed }) => [s.reviewDoor, pressed && { backgroundColor: paper.wash }]}
+            accessibilityRole="button"
+            accessibilityLabel={`${j.dogName} 리뷰 남기기`}
+          >
+            <Text style={s.doneDoorTxt}>{j.dogName} 리뷰 남기기 ›</Text>
+          </Pressable>
+        )}
       </View>
     );
   };
@@ -413,6 +450,12 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
   },
   doneDoorTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  // 리뷰 문 — 같은 뉴트럴 문법, 제 줄 전폭. 문 줄의 paddingBottom 안쪽에 들어가므로 위 여백만 준다.
+  reviewDoor: {
+    marginHorizontal: 10, marginBottom: 10, marginTop: -2,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 14,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+  },
   // [C①] 묶음 머리줄 — §3b 그램마 (거터를 뚫는 풀블리드 코랄 룰 + 타이틀 20/800 + 우측 캡션 14/700)
   dayGroup: {
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
