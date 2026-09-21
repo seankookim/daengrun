@@ -82,8 +82,13 @@ t('club · an unlisted title · owner → the report (untouched)',
   isReport(dest({ title: '무슨 제목', role: 'owner', clubSessionId: SID, isCurrentOwnerBooking: null })));
 
 // ── the probes are asked only where the answer can change the destination ──
-t('needsClubProbe: the two handoff titles and the sweep\'s escalation title, and nothing else',
-  HANDOFF_TITLES.every(needsClubProbe) && needsClubProbe(ESCALATION_TITLE)
+// ⚠ [0193 · codex A6] `RETURN_ASK_TITLE` JOINED THIS SET, and it is the one title in the return
+// family a club can also write (`session_confirm_return`, 0069:124-126). The other three are
+// written only by the 1:1 door and still pay for no probe.
+t('needsClubProbe: the two handoff titles, the sweep\'s escalation title and the SHARED return ask — and nothing else',
+  HANDOFF_TITLES.every(needsClubProbe) && needsClubProbe(ESCALATION_TITLE) && needsClubProbe(RETURN_ASK_TITLE)
+  && !needsClubProbe(RETURN_SEALED_TITLE) && !needsClubProbe(RETURN_STUCK_TITLE)
+  && !needsClubProbe(RETURN_ESCALATION_TITLE)
   && !needsClubProbe(CHAT_TITLE) && !needsClubProbe('지명 러닝 요청') && !needsClubProbe('러너 도착'));
 
 // ── [0182] the sweep's escalation: a club party lands on the club screen; a 1:1 party on report / calendar, never a CTA ──
@@ -133,9 +138,16 @@ t('needsCurrentBookingProbe: owner meetup titles only, never for the runner',
 // ══════════════════════════════════════════════════════════════════════════════════════════
 // [0188] THE RETURN FAMILY — ⑪'s two-stamp return is NOT the pickup handoff
 // ══════════════════════════════════════════════════════════════════════════════════════════
+// 🔴 [0193 · codex A4] THE RUNNER'S RETURN DESTINATION CARRIES ITS BOOKING ID. A bare pathname
+// was a real defect: return-seal.tsx resolves the booking from `bid` OR from the in-memory
+// `runnerJob.bookingId`, and push.ts sets neither — it only forwards what this table returns. So a
+// COLD START (the notification that wakes the app, i.e. the common case) opened 「확인할 인계가
+// 없어요」 for the booking the runner was being asked to confirm, and a STALE store opened a
+// DIFFERENT booking whose seal button would then stamp that one.
+const isSeal = (d) => d && d.pathname === '/runner/return-seal' && d.params && d.params.bid === BID;
 for (const title of RETURN_TITLES) {
-  t(`1:1 · ${title} · runner → /runner/return-seal (the only screen with the 봉인 control)`,
-    dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/return-seal',
+  t(`1:1 · ${title} · runner → /runner/return-seal WITH params.bid (a cold start has no store to fall back on)`,
+    isSeal(dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })),
     show(dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })));
   t(`1:1 · ${title} · owner → the bid-scoped report, even when it IS the current booking`,
     isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }))
@@ -146,11 +158,19 @@ for (const title of RETURN_TITLES) {
 // a return title in HANDOFF_TITLES would be in OWNER_MEETUP_TITLES (→ /owner/meetup, whose CTA
 // gates on an arrival stage and has no return control) AND in CLUB_PROBE_TITLES (→ the club
 // session screen). Both are screens with no button for this action.
-t('the return family is in NEITHER the handoff family NOR the club probe set (a return is not a pickup)',
-  RETURN_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !OWNER_MEETUP_TITLES.includes(x) && !CLUB_PROBE_TITLES.includes(x)),
-  JSON.stringify(RETURN_TITLES.filter((x) => HANDOFF_TITLES.includes(x) || OWNER_MEETUP_TITLES.includes(x) || CLUB_PROBE_TITLES.includes(x))));
-t('no return title needs a club probe (end_run_tx / confirm_return_tx both raise club_out_of_scope, so one can never exist)',
-  RETURN_TITLES.every((x) => !needsClubProbe(x)));
+t('the return family is in NEITHER the handoff family NOR OWNER_MEETUP_TITLES (a return is not a pickup)',
+  RETURN_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !OWNER_MEETUP_TITLES.includes(x)),
+  JSON.stringify(RETURN_TITLES.filter((x) => HANDOFF_TITLES.includes(x) || OWNER_MEETUP_TITLES.includes(x))));
+// 🔴 [0193 · codex A6] THE CLAIM THAT STOOD HERE WAS FALSE, AND IT WAS FALSE ABOUT THE SHARED
+// TITLE. It read: 「no return title needs a club probe — end_run_tx / confirm_return_tx both raise
+// club_out_of_scope, so one can never exist」. That is a fact about the 1:1 DOOR and says nothing
+// about who else writes the STRING: `session_confirm_return` writes 「반환 확인 요청」 with the CLUB
+// booking id. The club party was therefore routed to /runner/return-seal, whose confirm RPC
+// answers `club_out_of_scope` — a screen whose only button cannot work.
+t('exactly ONE return title needs a club probe — the ask, which a club also writes (0069)',
+  needsClubProbe(RETURN_ASK_TITLE) && CLUB_PROBE_TITLES.includes(RETURN_ASK_TITLE)
+  && RETURN_TITLES.filter((x) => x !== RETURN_ASK_TITLE).every((x) => !needsClubProbe(x) && !CLUB_PROBE_TITLES.includes(x)),
+  JSON.stringify(RETURN_TITLES.filter(needsClubProbe)));
 t('no return title needs the current-booking probe (the report is bid-scoped and always right)',
   RETURN_TITLES.every((x) => !needsCurrentBookingProbe('owner', x) && !needsCurrentBookingProbe('runner', x)));
 t('every return title has a runner route (the family is complete — a missing one falls to the calendar silently)',
@@ -181,6 +201,39 @@ t('every return title has a runner route (the family is complete — a missing o
   // reproduces it verbatim — so it must still be present in the recreated body.
   t("0188's arm ⓑ still writes the 0083 escalation title (the zero-stamp case is unchanged)",
     sql.includes(`'${RETURN_ESCALATION_TITLE}'`), RETURN_ESCALATION_TITLE);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0193 · codex A6] THE CLUB RETURN ASK — the real 0069 payload, not an invented one
+// `session_confirm_return` (0069:124-126, and 0045:117 / 0046:66 before it) inserts
+// `(profile_id = the counterparty, kind='booking', title='반환 확인 요청', ref_id = sd.booking_id)`.
+// So the ref is a CLUB BOOKING id and push.ts's probe answers with that booking's
+// `club_session_id` — which is exactly the shape asserted here.
+// ══════════════════════════════════════════════════════════════════════════════════════════
+for (const role of ['runner', 'owner']) {
+  t(`club · ${RETURN_ASK_TITLE} · ${role} → the club session screen (its confirm lives there; the 1:1 seal screen's RPC answers club_out_of_scope)`,
+    dest({ title: RETURN_ASK_TITLE, role, clubSessionId: SID, isCurrentOwnerBooking: true }) === `/club/session/${SID}`,
+    show(dest({ title: RETURN_ASK_TITLE, role, clubSessionId: SID, isCurrentOwnerBooking: true })));
+}
+t('1:1 · the return ask is UNCHANGED by the probe: a marketplace booking still lands on the seal screen with its bid',
+  isSeal(dest({ title: RETURN_ASK_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })));
+t('unknown club (the probe failed) · the return ask falls to the 1:1 seal screen — loud, never a stall',
+  isSeal(dest({ title: RETURN_ASK_TITLE, role: 'runner', clubSessionId: undefined, isCurrentOwnerBooking: null })));
+t('an EMPTY club session id is not a club for the return ask either',
+  isSeal(dest({ title: RETURN_ASK_TITLE, role: 'runner', clubSessionId: '', isCurrentOwnerBooking: null })));
+t('the three 1:1-only return titles are NOT diverted by a club session id (nothing club-side writes them)',
+  RETURN_TITLES.filter((x) => x !== RETURN_ASK_TITLE)
+    .every((x) => isSeal(dest({ title: x, role: 'runner', clubSessionId: SID, isCurrentOwnerBooking: null }))));
+{
+  // the club writer's title, read out of migration 0069 (comments stripped) so the two spellings
+  // cannot drift — the same discipline every other title in this file gets.
+  const sqlPath = path.resolve(__dirname, '../../supabase/migrations/0069_host_force_resolve.sql');
+  const sql = fs.readFileSync(sqlPath, 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const m = sql.match(/'booking', '([^']+)', '상대방이 반환을 확인했어요/);
+  t('migration 0069 declares the club return ask title', !!m, 'no club return ask insert in 0069');
+  t("the client's RETURN_ASK_TITLE equals the CLUB writer's title (this equality IS codex A6)",
+    !!m && m[1] === RETURN_ASK_TITLE, m ? `club: ${m[1]} client: ${RETURN_ASK_TITLE}` : '');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

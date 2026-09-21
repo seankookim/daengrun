@@ -99,8 +99,15 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   if ((kind !== 'booking' && kind !== 'safety') || !refId) return;
 
   // Fast path — titles whose writer is KNOWN to emit a booking id skip the probe and stay instant.
-  // The runner's whole booking set qualifies: RUNNER_ROUTES and the calendar default take no id at
-  // all, and its two id-consuming titles (새 메시지 · 러닝 중단 요청) are both booking-scoped.
+  // ⚠ [0193] THIS SENTENCE USED TO READ 「RUNNER_ROUTES and the calendar default take no id at
+  // all」, and that stopped being true when the return family started carrying `params: { bid }`
+  // (codex A4). The fast path is UNCHANGED and is if anything better justified: the question it
+  // answers is 「is this row's `ref_id` a BOOKING id」, and every writer in the runner's booking set
+  // emits one — so the destinations that now consume it are handed the right id, and the ones that
+  // ignore it are unaffected. Corrected rather than deleted: a header that quietly stops claiming
+  // something is how the next session inherits the belief.
+  // The club probe is NOT skipped here — `routeForBookingRef` decides that per title
+  // (`needsClubProbe`), which is what sends a club 「반환 확인 요청」 to its session screen.
   // [0094 ⑪] 사고 접수 알림도 이 빠른 경로에 든다 — 그 행의 유일한 writer 가 api.ts 의
   // openBookingIncident 이고, `ref_id` 에 예약 id 를 넣는다. 아는 것을 프로브로 되묻지 않는다.
   if (kind === 'booking' && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE

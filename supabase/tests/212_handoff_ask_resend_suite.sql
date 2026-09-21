@@ -271,8 +271,13 @@ begin
       if (v_src ~ 'b\.status not in \(''draft''' and v_src ~ '''matching''' and v_src ~ '''runner_pending''' and v_src ~ '''picked_up''' and v_src ~ '''completed''' and v_src ~ '''incident_review''' and v_src ~ '''refund_pending''' and v_src ~ '''no_show''') is distinct from true then v_bad := v_bad || ' deny-list에 빠진 상태 있음'; end if;
       if (v_src ~ 'b\.status in \(''confirmed''') is distinct from false then v_bad := v_bad || ' 라이브 allow-list 있음'; end if;
       if (v_src ~ 'b\.runner_id is not null') is distinct from true then v_bad := v_bad || ' runner 조건 없음'; end if;
+      -- ⚠ [0193] 2 → 3. Arm ⓕ (0193 §D, the strand's ops bell) is marketplace-scoped for arms
+      -- ⓐ/ⓑ's reason — a club run ends by the host's stop, not by `end_run_tx` (0144:94) — so it
+      -- carries the conjunct too. What this line owns is unchanged: 「the run-end arms are
+      -- marketplace-only and arm ⓒ deliberately is not」. Updated in 0193 rather than left to fail
+      -- for a true reason (the house law); 224 `0193-R4` owns the new arm's own property.
       select count(*) into v_n from regexp_matches(v_src, 'club_session_id is null', 'g');
-      if v_n is distinct from 2 then v_bad := v_bad || ' club 범위 조건 수=' || v_n || '(ⓐ/ⓑ의 2개여야)'; end if;
+      if v_n is distinct from 3 then v_bad := v_bad || ' club 범위 조건 수=' || v_n || '(ⓐ/ⓑ/ⓕ의 3개여야)'; end if;
     end if;
   end if;
   -- the job lock is a TRANSACTION lock and this block is one transaction: still held after the calls above

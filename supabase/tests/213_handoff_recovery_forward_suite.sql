@@ -373,8 +373,10 @@ begin
       if (v_src ~ 'late_protocol_live_since') is distinct from false then v_bad := v_bad || ' late 플래그를 읽는다'; end if;
       select count(*) into v_n from regexp_matches(v_src, 'set status', 'g');   -- exactly ⓑ's escalation; ⓒ/ⓓ move no status
       if v_n <> 1 then v_bad := v_bad || ' 상태 이동 문장 수=' || v_n || '(ⓑ의 1개여야 — ⓒ/ⓓ는 상태를 옮기지 않는다)'; end if;
+      -- ⚠ [0193] 2 → 3 (arm ⓕ, the strand's ops bell, is marketplace-scoped like ⓐ/ⓑ — 0144:94's
+      -- reason). The property this line owns is unchanged; 224 `0193-R4` owns the new arm's.
       select count(*) into v_n from regexp_matches(v_src, 'club_session_id is null', 'g');
-      if v_n <> 2 then v_bad := v_bad || ' club 범위 조건 수=' || v_n || '(ⓐ/ⓑ 2개여야)'; end if;
+      if v_n <> 3 then v_bad := v_bad || ' club 범위 조건 수=' || v_n || '(ⓐ/ⓑ/ⓕ 3개여야)'; end if;
       -- [0183] arm ⓔ (the pending ops escalation) adds a handler and a c_dead use; ≥ 3 keeps this
       -- file's property (ⓑ·ⓒ·ⓓ each catch their row and screen dead statuses) — 214 E6 pins 4
       select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
@@ -390,7 +392,15 @@ begin
       select count(*) into v_n from regexp_matches(v_src, 'limit c_batch', 'g');
       if v_n < 2 then v_bad := v_bad || ' 배치 상한 수=' || v_n || '(ⓒ·ⓓ 최소 2개; [0183] ⓔ가 하나 더)'; end if;
       if (v_src ~ 'set_config\(''lock_timeout'', ''2000'', true\)') is distinct from true then v_bad := v_bad || ' lock_timeout 없음'; end if;
-      v_lit := regexp_replace((regexp_match(v_src, 'b\.status not in \(([^)]*)\)'))[1], '\s+', '', 'g');
+      -- ⚠ [0193] ANCHORED, and the anchor is the fix rather than the pattern. `b\.status` is a
+      -- SUBSTRING of `v_b\.status`, so this extraction took the FIRST match in the body — and arm
+      -- ⓕ (0193 §D) sits ahead of arm ⓒ and re-checks `v_b.status not in ('active',
+      -- 'incident_review')` on its locked row. The pin then compared arm ⓕ's two-status re-check
+      -- against `c_dead`'s fourteen and reported 「deny-list 두 철자가 다르다」 on a correct
+      -- function. `\m` is a word boundary and `_` is a word character, so `v_b.` can no longer
+      -- satisfy it — the `[^_]custody[^_]` law (CLAUDE.md), the same correction 214 `0183-E6`
+      -- already had to make to its `b\.runner_id` arm, in the same function, for the same reason.
+      v_lit := regexp_replace((regexp_match(v_src, '\mb\.status not in \(([^)]*)\)'))[1], '\s+', '', 'g');
       v_arr := regexp_replace((regexp_match(v_src, 'array\[([^\]]*)\]::booking_status\[\]'))[1], '\s+', '', 'g');
       if v_lit is null or v_arr is null or v_lit is distinct from v_arr then v_bad := v_bad || ' deny-list 두 철자가 다르다(' || coalesce(v_lit,'∅') || ' vs ' || coalesce(v_arr,'∅') || ')'; end if;
       if (v_src ~ '정산을 확인하고 있어요' and v_src ~ '귀가 확인이 필요해요') is distinct from true then v_bad := v_bad || ' 0083 팔 없음'; end if;

@@ -65,6 +65,10 @@ function mapConfirmError(msg: string): HttpError {
   if (msg.includes("run_not_ended")) return new HttpError(409, "아직 러닝이 끝나지 않았어요 — 러너가 종료하면 확인할 수 있어요");
   if (msg.includes("not_active")) return new HttpError(409, "지금은 인계를 확인할 수 없는 예약이에요");
   if (msg.includes("quote_from_client")) return new HttpError(500, "정산 가격 전달 경로가 잘못됐어요 — 담당자에게 알려주세요");
+  // [0193 §B] Reaching the CALLER means the re-price below also failed to produce a quote twice in
+  // a row, which is a pricing outage rather than a bad request. 503, the same sentence the outage
+  // guard uses, because the honest instruction is identical: nothing was written, try again.
+  if (msg.includes("quote_required")) return new HttpError(503, "정산 금액을 계산하지 못했어요 — 잠시 뒤 다시 확인해주세요 (기록은 그대로예요)");
   if (msg.includes("settle_quote_malformed")) return new HttpError(500, "정산 금액을 계산하지 못했어요 — 잠시 뒤 다시 시도해주세요");
   if (msg.includes("run_freeze_incomplete") || msg.includes("run_stop_not_recorded")) {
     return new HttpError(409, "러닝 종료 기록이 온전하지 않아요 — 담당자가 확인해야 해요");
@@ -97,7 +101,7 @@ export interface ConfirmReturnResult {
  * turns a null into a 503 whenever `run_ended_at` is set — see the refusal below, and read its
  * comment before "optimising" it back to only-when-sealing.
  */
-async function quoteFor(
+export async function quoteFor(
   db: SupabaseClient,
   bookingId: string,
   runnerId: string | null,
@@ -159,9 +163,13 @@ export async function confirmReturn(
   // ── §2 THE PRICE ────────────────────────────────────────────────────────────────────────
   // Read the CURRENT stamps to know whether this call can seal. This is a hint, not a gate: the
   // authority is `confirm_return_tx`'s `v_both` under the row lock. It is used for one thing —
-  // refusing to seal without a price — and it is deliberately conservative: a stale read that says
-  // "not sealing" when it will seal is caught by the migration ignoring a null quote, and the row
-  // is then reported by arm ⓐ rather than silently settled at a guessed number.
+  // refusing to seal without a price.
+  // ⚠ [0193 · codex A3] THE SECOND HALF OF THIS PARAGRAPH WAS WRONG AND IS CORRECTED. It said a
+  // stale read that says 「not sealing」 when it will seal 「is caught by the migration ignoring a
+  // null quote, and the row is then reported by arm ⓐ」. The migration ignoring a null quote is
+  // exactly what SEALS WITHOUT SETTLING, and arm ⓐ can only raise an alarm — 0083 §0f's pricing
+  // re-drive does not exist. So the stale-read case was not caught by anything; it was the
+  // defect. It is caught NOW, in SQL, by `quote_required`, and repaired by the retry below.
   // 🔴 [cold review #6] THE REFUSAL IS UNCONDITIONAL ON A FROZEN RUN, and the first version's
   // `sealsNow` guard was the bug. It read the counterparty's stamp from `bk` — a SNAPSHOT taken by
   // `index.ts` before this function ran — and refused only when that snapshot already said this
@@ -175,17 +183,59 @@ export async function confirmReturn(
   // So: if the run is frozen (`run_ended_at`), a missing price is a refusal, full stop. The cost
   // is that a FIRST stamp is also refused during a pricing outage — which is the right trade:
   // a refused stamp is a retry, and a sealed-unsettled row is unrepairable from inside the app.
-  const priced = await quoteFor(db, bookingId, bk.runner_id ?? null);
+  let priced = await quoteFor(db, bookingId, bk.runner_id ?? null);
   const quote = priced?.quote ?? null;
   if (bk.run_ended_at && !priced) {
     throw new HttpError(503, "정산 금액을 계산하지 못했어요 — 잠시 뒤 다시 확인해주세요 (기록은 그대로예요)");
   }
 
-  const { data, error } = await db.rpc("confirm_return_tx", {
+  let { data, error } = await db.rpc("confirm_return_tx", {
     p_booking: bookingId,
     p_side: side,
     p_quote: quote,
   });
+
+  // ═══ [0193, codex A3] THE RETRY — and the 503 above could not have covered this ═══════════
+  // The guard above is conditioned on `bk.run_ended_at`, a field of the snapshot `index.ts` read
+  // BEFORE this function ran. In the direction that costs money that snapshot is stale the other
+  // way: the run had NOT been stopped when we read it, so `quoteFor` found no `runs.actual_km` and
+  // returned null WITHOUT the 503 firing (the guard saw no `run_ended_at` either); the stop then
+  // committed, the counterparty stamped, and this request became the SECOND stamp — which 0096
+  // seals and, with `p_quote` null, does not settle. Both stamps then exist, so every confirm CTA
+  // in the app is gone by construction and nothing in the product can repair the row.
+  //
+  // 0193 §B makes the RPC refuse that call by name instead of performing it. Nothing was written,
+  // so this is a fresh attempt rather than a repair: re-read the booking under its CURRENT state,
+  // re-price from the run row the stop has now frozen, and call again.
+  //
+  // 🔴 EXACTLY ONCE, and the bound is structural rather than a counter. A second `quote_required`
+  // would mean the pair completed and un-completed between two round trips, which cannot happen —
+  // stamps are only reset by a re-match, which needs the booking to leave `active`. Looping here
+  // would turn an impossible state into a hot retry loop against the database.
+  // ⚠ `priced` is REASSIGNED, not just used: the collection step below mints from the numbers the
+  // settlement was actually priced from, and the first (null) read is not those numbers.
+  if (error && (error.message ?? "").includes("quote_required")) {
+    const { data: fresh } = await db
+      .from("bookings")
+      .select("runner_id, run_ended_at")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const freshRunner = (fresh as { runner_id?: string | null } | null)?.runner_id ?? bk.runner_id ?? null;
+    const repriced = await quoteFor(db, bookingId, freshRunner);
+    if (!repriced) {
+      // FAIL CLOSED, loudly, exactly as the 503 above does. The stamp is refused and the record is
+      // untouched; a retry is safe and the sentence says so.
+      console.error(`[transition-booking] confirm_return reprice failed booking=${bookingId}`);
+      throw new HttpError(503, "정산 금액을 계산하지 못했어요 — 잠시 뒤 다시 확인해주세요 (기록은 그대로예요)");
+    }
+    priced = repriced;
+    console.log(`[transition-booking] confirm_return re-priced after quote_required booking=${bookingId}`);
+    ({ data, error } = await db.rpc("confirm_return_tx", {
+      p_booking: bookingId,
+      p_side: side,
+      p_quote: repriced.quote,
+    }));
+  }
   if (error) throw mapConfirmError(error.message ?? "");
   const res = { ...((data ?? {}) as Record<string, unknown>), side } as unknown as ConfirmReturnResult;
 

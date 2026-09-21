@@ -369,9 +369,13 @@ begin
       -- the uninformative-detector class (CLAUDE.md), inside a pin written to enforce rigour.
       -- Measured: removing arm ⓑ's lock left this arm silent and reddened only 214's count pin.
       -- Two arms that CAN tell the states apart:
-      --   ① the COUNT — four arms write, so four locks (the count is a thing the mutation moves);
-      if (select count(*) from regexp_matches(v_src, 'for update skip locked', 'g')) <> 4
-        then v_bad := v_bad || ' 행 락 수가 4가 아니다(ⓑ·ⓒ·ⓓ·ⓔ)'; end if;
+      --   ① the COUNT — every arm that writes locks first, so the count is a thing the mutation
+      --      moves. ⚠ [0193] 4 → 5: arm ⓕ (the strand's ops bell) is the fifth arm that writes and
+      --      it locks like the rest. Updated here rather than left to fail for a true reason (the
+      --      house law); THE NEW ARM'S OWN PROPERTY is owned by 224 `0193-R4`, and what this line
+      --      owns is unchanged — 「every arm that writes is locked」.
+      if (select count(*) from regexp_matches(v_src, 'for update skip locked', 'g')) <> 5
+        then v_bad := v_bad || ' 행 락 수가 5가 아니다(ⓑ·ⓒ·ⓓ·ⓔ·ⓕ)'; end if;
       --   ② and arm ⓑ's OWN skip notice, a string no other arm contains, which is only reachable
       --      from the `if not found` that a `skip locked` lock makes possible at all.
       if (v_src ~ 'strand % — row locked by a writer, left for the next tick') is not true
