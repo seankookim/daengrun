@@ -111,6 +111,25 @@ export function payoutStatusLabel(p: PayoutRow): string | null {
   return word;
 }
 
+/** The same headline with the TRANSFER METHOD appended — 「지급 완료 · 2026년 9월 22일 · 계좌 이체」.
+ *
+ *  The label comes from `my_payout_method_labels` (0200 §A) and is a FIXED sentence the server
+ *  chose from `payouts.method`; the raw token never reaches this client and the operator's memo
+ *  never leaves the server at all (0186's column seal, 231 `0200-P3`). Absent ⇒ the element is
+ *  omitted and the line is byte-identical to `payoutStatusLabel`'s — never a guessed word.
+ *
+ *  ⚠ **A NULL STATE WORD SWALLOWS THE METHOD TOO, and that is the decision rather than an
+ *    oversight.** `payoutStatusLabel` returns null when `status` is a value this build cannot
+ *    name, and the row then says nothing at all on purpose (the `END_REASON_LABEL` law). Printing
+ *    a lone 「계좌 이체」 there would describe HOW a transfer we refuse to describe moved — a
+ *    fragment that reads as a completed payment on a row we deliberately went quiet about. */
+export function payoutStatusWithMethod(p: PayoutRow, methodLabel: string | null | undefined): string | null {
+  const word = payoutStatusLabel(p);
+  if (word == null) return null;
+  const m = methodLabel == null ? null : (methodLabel.trim() || null);
+  return m == null ? word : `${word} · ${m}`;
+}
+
 /** 「9월 15일~9월 21일 정산분」 — which earnings this transfer covered. Null unless BOTH ends are
  *  present: half a period is not a period, and printing one end would read as the whole. */
 export function payoutPeriodLabel(p: PayoutRow): string | null {

@@ -8,12 +8,12 @@ import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import {
   fetchLedger, fetchLedgerTotal, fetchLedgerUnpaidTotal, fetchMyBankAccount, fetchMyPayouts,
-  LiveLedgerItem, MyBankAccount, MyPayout,
+  fetchMyPayoutMethodLabels, LiveLedgerItem, MyBankAccount, MyPayout,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import {
-  ledgerPaymentLabel, ledgerPaymentState, payoutPeriodLabel, payoutStatusLabel,
+  ledgerPaymentLabel, ledgerPaymentState, payoutPeriodLabel, payoutStatusWithMethod,
   sortPayoutsNewestFirst,
 } from '../../src/lib/payout-status';
 // RAW server text for the log. These three strips render Korean of their own and never a
@@ -99,6 +99,15 @@ export default function Earnings() {
   const [payouts, setPayouts] = useState<MyPayout[]>([]);
   const [poLoaded, setPoLoaded] = useState(false);
   const [poErr, setPoErr] = useState(false);
+  // [0200] 지급 수단 라벨 — payout id → 「계좌 이체」. `payouts.method` is sealed away from the
+  // runner by 0186:192-195 (and that seal stays), so the LABEL comes from its own definer.
+  // ⚠ NO error flag and no loading state, deliberately: this is ADDITIVE information on a row
+  //   that is already complete and correct without it. An empty map is 「we have nothing to add」
+  //   and a failed read is the same — the element is omitted, exactly as it is for a method this
+  //   server has no label for. A failure strip here would report a missing *adjective* on a money
+  //   row whose noun and number are right, which is noise the 지급 내역 strip above already owns
+  //   for the failure that actually matters.
+  const [methodLabels, setMethodLabels] = useState<Map<string, string>>(new Map());
 
   const loadLedger = () => {
     setLoadErr(false);
@@ -119,13 +128,25 @@ export default function Earnings() {
   const loadPayouts = () => {
     setPoErr(false);
     return fetchMyPayouts()
-      .then((rows) => { setPayouts(sortPayoutsNewestFirst(rows)); setPoLoaded(true); })
+      .then((rows) => {
+        setPayouts(sortPayoutsNewestFirst(rows));
+        setPoLoaded(true);
+        // [0200] the labels, AFTER the rows and never instead of them. Chained rather than run in
+        // a `Promise.all` beside `fetchMyPayouts` for the reason this whole group exists: one
+        // read's failure must not erase the other's success, and here the dependency runs one way
+        // — there is nothing to label until the ids are in hand. 세터는 성공에서만 돈다.
+        setMethodLabels(new Map());
+        fetchMyPayoutMethodLabels(rows.map((r) => r.id))
+          .then(setMethodLabels)
+          .catch((e2) => console.warn('[earnings] payout methods:', rpcRaw(e2)));
+      })
       .catch((e) => {
         // 같은 법(requests.tsx:99-106): 실패하면 **값을 버린다**. 실패 스트립 아래에 지난번
         // 지급 목록을 그대로 두면, 방금 들어온 지급이 없는 것처럼 읽힌다.
         console.warn('[earnings] payouts:', rpcRaw(e));
         setPoLoaded(false);
         setPayouts([]);
+        setMethodLabels(new Map());
         setPoErr(true);
       });
   };
@@ -383,7 +404,11 @@ export default function Earnings() {
               내역 여섯 토큰을 지웠다. 그때 서른 줄에서 없앤 것을 여기서 한 줄로 돌려줄 수는 없다.
             ⚠ memo는 없다. 0186:192-195가 memo·method·recorded_by를 authenticated에게서 회수했고
               (그건 운영자끼리 보는 절반이다), 이 화면은 그 봉인을 존중한다 — 없는 필드를 그리는
-              대신 요소를 뺀다. */}
+              대신 요소를 뺀다.
+            ⚠ [0200] **수단**은 예외가 아니라 그 봉인을 지키는 방법이다. method 열을 그랜트에
+              더하면 memo의 이웃이 한 낱말 차이가 되므로, 열을 넓히는 대신 definer
+              (`my_payout_method_labels`)가 고정 라벨 「계좌 이체」만 만들어 준다 — 넓힐 열 목록이
+              없으니 메모 쪽으로 자랄 수 없다. 라벨이 없으면 요소를 뺀다(여기 법 그대로). */}
         <View style={s.rule} />
         <Text style={[s.secTitle, { marginBottom: 10 }]}>지급 내역</Text>
         {!poLoaded && !poErr && (
@@ -407,13 +432,18 @@ export default function Earnings() {
           </View>
         )}
         {poLoaded && payouts.map((p) => {
-          const when = payoutStatusLabel(p);
+          // [0200] 날짜 옆에 **수단**이 붙는다 — 라벨이 있을 때만. 없으면(아직 못 읽었든, 서버가
+          // 이름을 모르는 수단이든) 줄은 종전과 바이트 그대로이고, 추측한 낱말도 매달린 구분점도
+          // 생기지 않는다. 합성은 payout-status.ts가 하고 app/test/payout-status.test.cjs가 핀.
+          const when = payoutStatusWithMethod(p, methodLabels.get(p.id));
           const period = payoutPeriodLabel(p);
           return (
             <Row key={p.id} style={s.row}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 {/* 상태 낱말은 payouts.status를 매핑한 것이고, 모르는 값은 **아무 말도 하지
-                    않는다**(END_REASON_LABEL과 같은 법 — 원문 토큰을 한국어 UI에 찍지 않는다). */}
+                    않는다**(END_REASON_LABEL과 같은 법 — 원문 토큰을 한국어 UI에 찍지 않는다).
+                    ⚠ [0200] 수단 라벨도 서버가 고른 고정 문장이다 — raw method 토큰은 클라이언트에
+                    오지 않고, 운영 메모(0186의 봉인)는 서버를 떠나지 않는다. */}
                 {when != null && (
                   <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>{when}</Text>
                 )}

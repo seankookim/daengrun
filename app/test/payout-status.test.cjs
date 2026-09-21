@@ -20,7 +20,7 @@
 // put a null-`paid_at` payout at the TOP · print a period from one end alone.
 const {
   ledgerPaymentState, ledgerPaymentLabel,
-  payoutStatusLabel, payoutPeriodLabel, sortPayoutsNewestFirst,
+  payoutStatusLabel, payoutStatusWithMethod, payoutPeriodLabel, sortPayoutsNewestFirst,
 } = require('./payout-status.build.cjs');
 
 let pass = 0, fail = 0;
@@ -107,6 +107,36 @@ t('an unknown status renders null, never the raw token',
   payoutStatusLabel(po({ status: 'clawed_back' })) === null,
   String(payoutStatusLabel(po({ status: 'clawed_back' }))));
 t('a null status renders null', payoutStatusLabel(po({ status: null })) === null);
+
+// ── [0200] the transfer method rides the same line, or nothing rides it ───────────────────────
+// `my_payout_method_labels` (0200 §A) returns a FIXED Korean label chosen server-side from
+// `payouts.method`; the raw token never reaches this client and the operator's memo never leaves
+// the server (0186's column seal, 231 `0200-P3`). What this pins is the COMPOSITION:
+//   · a label appends and never replaces the state word
+//   · ABSENT means the line is byte-identical to the one without the method — not a guessed word,
+//     and not a dangling separator
+//   · a state word this build cannot name swallows the method too, rather than printing a lone
+//     fragment that reads as a completed transfer on a row we deliberately went quiet about
+const PAID_LINE = `지급 완료 · ${PAID_LABEL_FULL}`;
+t('[0200] a method label appends to the state line',
+  payoutStatusWithMethod(po({ paidAtMs: PAID_MS }), '계좌 이체') === `${PAID_LINE} · 계좌 이체`,
+  String(payoutStatusWithMethod(po({ paidAtMs: PAID_MS }), '계좌 이체')));
+for (const [label, v] of [['null', null], ['undefined', undefined], ['empty', ''], ['blank', '  ']]) {
+  t(`[0200] no method (${label}) leaves the line exactly as it was — no word, no dangling separator`,
+    payoutStatusWithMethod(po({ paidAtMs: PAID_MS }), v) === PAID_LINE,
+    String(payoutStatusWithMethod(po({ paidAtMs: PAID_MS }), v)));
+}
+t('[0200] the method never replaces the state word',
+  String(payoutStatusWithMethod(po({ paidAtMs: PAID_MS }), '계좌 이체')).startsWith('지급 완료'));
+t('[0200] a non-paid state keeps its own word and still takes the method',
+  payoutStatusWithMethod(po({ status: 'failed' }), '계좌 이체') === '지급 실패 · 계좌 이체',
+  String(payoutStatusWithMethod(po({ status: 'failed' }), '계좌 이체')));
+t('🔴 [0200] an unknown status stays silent even WITH a method label',
+  payoutStatusWithMethod(po({ status: 'clawed_back' }), '계좌 이체') === null,
+  String(payoutStatusWithMethod(po({ status: 'clawed_back' }), '계좌 이체')));
+t('🔴 [0200] a null status stays silent even WITH a method label',
+  payoutStatusWithMethod(po({ status: null }), '계좌 이체') === null,
+  String(payoutStatusWithMethod(po({ status: null }), '계좌 이체')));
 
 t('a period prints both ends',
   payoutPeriodLabel(po({ periodStart: '2026-09-15', periodEnd: '2026-09-21' })) === '9월 15일~9월 21일 정산분',
