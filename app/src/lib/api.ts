@@ -30,12 +30,41 @@ import { armRealtime, hookTokenRefresh, REALTIME_PRIVATE } from './geo';
  *  token rather than a message match, for the same reason the delete-account refusals use one. */
 export const NOT_FOUND = 'not_found';
 
+/** An edge-function refusal, with the two fields the body may carry beside the token.
+ *
+ *  🔴 IT IS STILL AN `Error`, AND THAT IS THE WHOLE COMPATIBILITY STORY. `fnError` has thirteen
+ *  call sites here, every one of which uses the result as `Error` (`throw`, `.message`,
+ *  `instanceof Error`). Widening the CLASS changes nothing for any of them; adding a top-level
+ *  field would have. `message` is still the server token verbatim, because that string is what
+ *  screens match on.
+ *
+ *  `code` is `internalError()`'s 500 discriminator (`_shared/ctx.ts`) — no screen reads it today,
+ *  it exists so two 500s from one function are distinguishable in a bug report.
+ *  `detail` (0191) is the id of the ROW a refusal is about. It is present only where the server
+ *  can honestly name one, so `undefined` is an ordinary answer and never an error. */
+export class FnError extends Error {
+  code?: string;
+  detail?: string;
+  constructor(message: string, code?: string, detail?: string) {
+    super(message);
+    this.name = 'FnError';
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+/** Narrow an unknown throw to a `FnError`. ⚠ A plain `Error` from a network failure is NOT one —
+ *  that distinction is the point, because only a FnError's `message` is a server token. */
+export function isFnError(e: unknown): e is FnError {
+  return e instanceof FnError;
+}
+
 async function fnError(error: unknown, data?: any): Promise<Error> {
-  if (data?.error) return new Error(data.error);
+  if (data?.error) return new FnError(data.error, data.code, data.detail);
   if (error instanceof FunctionsHttpError) {
     try {
       const body = await error.context.json();
-      if (body?.error) return new Error(body.error);
+      if (body?.error) return new FnError(body.error, body.code, body.detail);
     } catch { /* fallthrough */ }
   }
   return error instanceof Error ? error : new Error(String(error));
@@ -5724,7 +5753,12 @@ export interface DeleteAccountResult {
 }
 
 export class DeleteAccountError extends Error {
-  constructor(public token: string, public status: number | null) {
+  /** [0191] The blocking ROW's id, when the server could name one. `undefined` is an ordinary,
+   *  expected answer — three tokens carry no id by design and `open_incident` carries one the
+   *  client deliberately does not route on (one token, two incident families, no discriminator).
+   *  A screen turns this into a destination ONLY through `refusalRoute()`, which returns null for
+   *  every token without a real route: no dead buttons. */
+  constructor(public token: string, public status: number | null, public detail?: string) {
     super(token);
     this.name = 'DeleteAccountError';
   }
@@ -5740,7 +5774,7 @@ export async function deleteMyAccount(): Promise<DeleteAccountResult> {
   if (error || data?.error) {
     const e = await fnError(error, data);
     const status = error instanceof FunctionsHttpError ? error.context.status : null;
-    throw new DeleteAccountError(e.message, status);
+    throw new DeleteAccountError(e.message, status, isFnError(e) ? e.detail : undefined);
   }
   return data as DeleteAccountResult;
 }

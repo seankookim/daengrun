@@ -30,7 +30,13 @@ const VICTIM = "99999999-9999-9999-9999-999999999999";
 const JWT = "jwt-uid";
 const LOG = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
-function scene(over: { rpc?: (args: Record<string, unknown>) => { data?: unknown; error?: { message: string } } } = {}) {
+function scene(
+  over: {
+    rpc?: (
+      args: Record<string, unknown>,
+    ) => { data?: unknown; error?: { message: string; details?: string } };
+  } = {},
+) {
   const db = new FakeDb();
   db.users[JWT] = UID;
   db.seed("account_deletions", [{ id: LOG, profile_id: UID, auth_deleted: null, storage_removed: null }]);
@@ -155,6 +161,54 @@ Deno.test("delete-account: the 401 arm is an EXACT match — a state token that 
     assertEquals(e.status, 409, `${token} is not the party-gate token and must stay a 409`);
     assertEquals(e.message, token);
   }
+});
+
+// ═══ 0191 — a refusal carries an ID, not just a token ═══════════════════════════════════════
+// `awaiting-sean.md` §0-unvicies. The RPC attaches the blocking row's id as a Postgres errdetail;
+// PostgREST hands it to a handler as `error.details`; this function forwards it as `HttpError`'s
+// 4th argument and `handle()` spreads it into the body. Three separate claims, three tests —
+// because "the id is produced", "the id survives the handler" and "the body grows a key" fail
+// independently, and the middle one is the only thing this file can see.
+const SESSION = "5e551011-0000-4000-8000-00000000cafe";
+
+Deno.test("delete-account: a refusal's errdetail rides through as `detail`, and the token stays bare", async () => {
+  // 🔴 THE MESSAGE IS THE CONTRACT AND THE DETAIL IS THE ADDITION. `api.ts`'s `REFUSALS` lookup is
+  // an exact-string match on the token, so a slice that "helpfully" appended the id to the message
+  // would break all twelve Korean refusal lines at once — and it would do it while this detail
+  // assertion stayed green. Both halves are asserted here, on purpose.
+  const db = scene({ rpc: () => ({ error: { message: "club_custody_owner", details: SESSION } }) });
+  const e = await assertRejects(() => deleteAccount(req({ confirm: "DELETE" }, JWT), db as never), HttpError);
+  assertEquals(e.status, 409);
+  assertEquals(e.message, "club_custody_owner", "the token must stay bare — the client matches on it");
+  assertEquals(e.detail, SESSION, "the blocking club session's id must survive the handler");
+  assertEquals(e.code, undefined, "`code` belongs to internalError() and must not be invented here");
+  assertEquals(db.deletedUsers.length, 0, "a refusal must not delete the credential");
+});
+
+Deno.test("delete-account: a refusal with NO errdetail carries no detail — the old body, unchanged", async () => {
+  // The control, and it is the reason the spread in `handle()` is conditional rather than always
+  // present. Three tokens carry no id by design (`km_balance` is a sum over lots, `unpaid_payout`
+  // has no writer, `active_recurring` has no route that takes one), and an empty string is what
+  // the RPC emits when it refuses and could not name the row — plpgsql will not take a null RAISE
+  // option, so `''` is the honest value. BOTH must arrive as "no detail", never as a key holding
+  // an empty string that a client would have to special-case into a dead button.
+  for (const details of [undefined, ""]) {
+    const db = scene({ rpc: () => ({ error: { message: "km_balance", details } }) });
+    const e = await assertRejects(() => deleteAccount(req({ confirm: "DELETE" }, JWT), db as never), HttpError);
+    assertEquals(e.status, 409);
+    assertEquals(e.message, "km_balance");
+    assert(!e.detail, `details=${JSON.stringify(details)} must not become a rendered detail`);
+  }
+});
+
+Deno.test("delete-account: the 401 party gate gets no detail — it is about the session, not a row", async () => {
+  // Even if the database ever attached one. `not_authenticated` means there is no account state to
+  // describe, so there is nothing to link to and a detail would be a handle on nothing.
+  const db = scene({ rpc: () => ({ error: { message: "not_authenticated", details: SESSION } }) });
+  const e = await assertRejects(() => deleteAccount(req({ confirm: "DELETE" }, JWT), db as never), HttpError);
+  assertEquals(e.status, 401);
+  assertEquals(e.message, "not_authenticated");
+  assertEquals(e.detail, undefined);
 });
 
 Deno.test("delete-account: Deno deletes no application row — every delete goes through the tx", async () => {
