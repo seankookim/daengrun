@@ -5,6 +5,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { handoffEscalationStrip, HandoffEscalationStrip } from '../../src/lib/handoff-escalation';
 import { lateness } from '../../src/lib/lateness';
 import { LateNotice } from '../../src/components/late-notice';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -98,6 +99,13 @@ export default function Meetup() {
   // 영원히 머물렀다 — 로딩으로 위장한 실패다. pickup 삼상태와 같은 문법으로 로드 상태를 한 값에 묶고
   // (불가능한 조합 차단), try는 재시도 트리거일 뿐 값 자체는 읽지 않는다 (addrTry와 같은 규약).
   const [infoLoad, setInfoLoad] = useState<{ s: 'loading' | 'ready' | 'err'; try: number }>({ s: 'loading', try: 0 });
+  // [0199] 인계 지연 에스컬레이션 — READ-ONLY, appended at the END of this bundle per the
+  // hook-placement freeze directly above. Same posture as `arrived`: a display condition derived
+  // from server truth that touches neither the stage machine, nor the polling, nor
+  // confirmHandoff (DO-NOT-REFACTOR). The decision and the copy live in
+  // `src/lib/handoff-escalation.ts`, shared with `owner/meetup.tsx` so the two sides of one
+  // stalled handoff cannot come to disagree about it.
+  const [escalation, setEscalation] = useState<HandoffEscalationStrip | null>(null);
   const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   // [2026-08-25 defect] Once-latch for the terminal exit below — owner/meetup's closingRef idiom,
@@ -190,6 +198,9 @@ export default function Meetup() {
       }
       setPeerConfirmed(s2.ownerConfirmed);
       setArrived(!!s2.arrivedAt); // 도착도 서버 진실 — 로컬 낙관값을 서버 값에 정렬시킨다
+      // [0199] 같은 성격의 한 줄 — 표시 조건일 뿐, 아래 스테이지 분기 어디에도 들어가지 않는다.
+      setEscalation(handoffEscalationStrip(s2.escalatedAt, s2.opsAlertedAt,
+        s2.ownerConfirmed && s2.runnerConfirmed));
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
       if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
       else if (s2.runnerConfirmed) setStage('waiting');
@@ -596,6 +607,20 @@ export default function Meetup() {
           </View>
         </View>
 
+        {/* ══════ [0199] 인계 지연 — the runner's half of the same strip ══════
+            READ-ONLY: no handler, no route, nothing to tap. 0182 arm ⓓ pushes BOTH parties once
+            a cycle has been one-sided past 30 minutes, so both screens owe the same sentence; it
+            is produced by `handoff-escalation.ts` rather than written here, because a rule spelled
+            twice in two frozen files is a rule only ever half-fixed.
+            ⚠ 「운영팀에 알렸어요」 is bound to `handoff_ops_alerted_at`, NOT to
+            `handoff_escalated_at` — 0183:86's distinction, and 0155 records that the roster has
+            no subscribers yet, so the other sentence is what a runner will actually see today. */}
+        {!!escalation && (
+          <View style={s.escalate}>
+            <Text style={s.escalateText}>{escalation.text}</Text>
+          </View>
+        )}
+
         {/* 인계 전 장비 체크 — 도착 후에만 노출, 전부 체크해야 인계 가능 */}
         {/* 천장을 넘기면 이 블록도 같이 닫는다: 아래 CTA 만 감추면 「세 가지를 확인해야 인계를 받을
             수 있어요」가 아무 데도 닿지 않는 문장으로 남는다 (죽은 버튼 금지법의 같은 얼굴). */}
@@ -887,6 +912,14 @@ const s = StyleSheet.create({
 
   // ── 섹션 (풀블리드 — 카드·라운드·섀도·이중 프레임 은퇴, 코랄 1px만이 면을 나눈다) ──
   section: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
+  // [0199] 인계 지연 스트립 — the paper world's existing grammar, nothing new: white ground, the
+  // same coral hairline every section is divided by, ink at the 15pt floor (this sentence is not
+  // skippable metadata, so it does not ride the grey ramp). Byte-identical in owner/meetup.tsx.
+  escalate: {
+    backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
+    paddingVertical: 12, paddingHorizontal: PAD,
+  },
+  escalateText: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.ink },
   cardTitle: { flexShrink: 1, fontSize: 17, fontWeight: '800', color: paper.ink },
   cardBody: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 6 },
   // 주소 로드 실패 = 라우드 페일 (owner/request.tsx dogFailStrip과 같은 문법:
