@@ -1,10 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Row } from '../../src/components/ui';
-import { DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, GearClaim, MilesInfo, MyRunnerStatus, openDrop } from '../../src/lib/api';
-import { claimStatusLabel } from '../../src/lib/claim-status';
+import { claimGear, DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, GearClaim, MilesInfo, MyRunnerStatus, openDrop } from '../../src/lib/api';
+import { claimCarrierLine, claimStatusLabel } from '../../src/lib/claim-status';
+import { EMPTY_GEAR_CLAIM_FORM, GEAR_CLAIM_PROBLEM_TEXT, gearClaimProblem, GearClaimForm } from '../../src/lib/gear-claim-form';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -63,6 +64,13 @@ export default function Rewards() {
   const [milesErr, setMilesErr] = useState(false);
   const [claimsErr, setClaimsErr] = useState(false);
   const [rsErr, setRsErr] = useState(false);
+  // [0195] 굿즈 수령 — which claim's form is open, what is in it, whether it is in flight, and the
+  // server's own refusal. `claimErr` holds the MAPPED Korean message (api.ts `gearClaimError`)
+  // and is rendered, never swallowed.
+  const [claimOpen, setClaimOpen] = useState<string | null>(null);
+  const [form, setForm] = useState<GearClaimForm>(EMPTY_GEAR_CLAIM_FORM);
+  const [claimBusy, setClaimBusy] = useState<string | null>(null);
+  const [claimErr, setClaimErr] = useState<string | null>(null);
   const load = () => {
     setDropsErr(false); setMilesErr(false); setClaimsErr(false); setRsErr(false);
     return Promise.all([
@@ -96,6 +104,54 @@ export default function Rewards() {
       Alert.alert('오픈 실패', (e as Error).message);
     } finally {
       setBusy(null);
+    }
+  };
+
+  // ── [0195] 굿즈 수령 ────────────────────────────────────────────────────────────────────────
+  // One form at a time, keyed by claim id: two open forms would share `form` state and a runner
+  // could submit hoodie A's address against cap B without anything looking wrong.
+  const openClaimForm = (id: string) => {
+    setClaimOpen(id);
+    setForm(EMPTY_GEAR_CLAIM_FORM);
+    setClaimErr(null);
+  };
+  const closeClaimForm = () => { setClaimOpen(null); setClaimErr(null); };
+
+  const submitClaim = async (id: string) => {
+    // The client check is a COURTESY and says so in gear-claim-form.ts — it points at the topmost
+    // unfillable field instead of making a person wait for a round trip to learn a postal code is
+    // five digits. The SERVER is still the authority and its refusal is rendered below verbatim.
+    const problem = gearClaimProblem(form);
+    if (problem !== null) { setClaimErr(GEAR_CLAIM_PROBLEM_TEXT[problem]); return; }
+    setClaimBusy(id);
+    setClaimErr(null);
+    try {
+      const res = await claimGear(id, form);
+      // 🔴 The row re-renders from the SERVER's answer, never from an optimistic flip. `res.status`
+      // is read back out of the written row (0195 §B ⑧), so what the chip says after this is what
+      // the table holds — and `alreadyClaimed` is a SUCCESS, not a failure: a dropped response on
+      // a first tap looks exactly like a second tap, and telling that person their claim failed
+      // would be a lie about a claim that landed.
+      setClaims((prev) => prev.map((c) => (
+        c.id === res.claimId
+          ? { ...c, status: res.status, carrier: res.carrier, tracking: res.tracking }
+          : c
+      )));
+      haptic('success');
+      setClaimOpen(null);
+      Alert.alert(
+        res.alreadyClaimed ? '이미 신청된 교환권이에요' : '수령 신청 완료',
+        res.alreadyClaimed
+          ? '먼저 접수된 배송지로 보내드릴게요.'
+          : '배송 준비가 시작되면 상태가 바뀌어요.',
+      );
+      // Re-read rather than trust the patch above to be the whole truth: another surface may have
+      // moved this row, and the list is cheap.
+      load();
+    } catch (e) {
+      setClaimErr((e as Error).message);
+    } finally {
+      setClaimBusy(null);
     }
   };
 
@@ -298,16 +354,131 @@ export default function Rewards() {
                     <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>{g.item}</Text>
                     <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                   </View>
-                  <View style={[s.claimChip, g.status !== 'claimable' && { backgroundColor: '#F5F5F5' }]}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: g.status === 'claimable' ? '#3D6B1F' : paper.dim }}>
-                      {/* claim_status is a closed pg enum of four (0001_init.sql:21) and this line
-                          covered ONE of them — locked/claimed/shipped printed the raw English
-                          token on a Korean screen. Single source now: src/lib/claim-status.ts,
-                          shared with shop.tsx, which covered a different two. */}
-                      {claimStatusLabel(g.status)}
-                    </Text>
-                  </View>
+                  {/* [0195] The chip was a `View` — a word with no route and no effect, which is
+                      exactly what the no-dead-buttons law forbids once a door exists. On a
+                      `claimable` row it is now the button that opens the form; on every other
+                      row it stays the label it always was, because there is nothing to press. */}
+                  {g.status === 'claimable' ? (
+                    <Pressable
+                      onPress={() => openClaimForm(g.id)}
+                      style={s.claimBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${g.item} 수령 신청`}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#2F5417' }}>수령 신청</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={[s.claimChip, { backgroundColor: '#F5F5F5' }]}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim }}>
+                        {/* claim_status is a closed pg enum of four (0001_init.sql:21) and this
+                            line covered ONE of them — locked/claimed/shipped printed the raw
+                            English token on a Korean screen. Single source now:
+                            src/lib/claim-status.ts, shared with shop.tsx. */}
+                        {claimStatusLabel(g.status)}
+                      </Text>
+                    </View>
+                  )}
                 </Row>
+                {/* The carrier line renders ONLY when ops stamped both halves — an absent
+                    shipment draws nothing rather than a sentence about its absence. */}
+                {claimCarrierLine(g.carrier, g.tracking) !== null && (
+                  <Text style={{ fontSize: 15, color: paper.dim, marginTop: -4, marginBottom: 8 }}>
+                    {claimCarrierLine(g.carrier, g.tracking)}
+                  </Text>
+                )}
+
+                {/* ── the form, inline under its own row ───────────────────────────────── */}
+                {claimOpen === g.id && (
+                  <View style={s.claimForm}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, marginBottom: 2 }}>
+                      배송지를 알려주세요
+                    </Text>
+                    <Text style={{ fontSize: 15, color: paper.dim, marginBottom: 4 }}>
+                      신청 후에는 주소를 바꿀 수 없어요 — 한 번만 확인해 주세요
+                    </Text>
+                    <TextInput
+                      value={form.recipient}
+                      onChangeText={(t) => setForm({ ...form, recipient: t })}
+                      placeholder="받는 분 이름" placeholderTextColor="#b0ada0" style={s.input}
+                      maxLength={20} textContentType="name" autoComplete="name" autoCorrect={false}
+                      editable={claimBusy !== g.id}
+                    />
+                    <TextInput
+                      value={form.phone}
+                      onChangeText={(t) => setForm({ ...form, phone: t })}
+                      placeholder="연락처" placeholderTextColor="#b0ada0" style={s.input}
+                      keyboardType="phone-pad" maxLength={15}
+                      textContentType="telephoneNumber" autoComplete="tel"
+                      editable={claimBusy !== g.id}
+                    />
+                    <TextInput
+                      value={form.address1}
+                      onChangeText={(t) => setForm({ ...form, address1: t })}
+                      placeholder="주소" placeholderTextColor="#b0ada0" style={s.input}
+                      maxLength={80} textContentType="fullStreetAddress" autoComplete="street-address"
+                      editable={claimBusy !== g.id}
+                    />
+                    <TextInput
+                      value={form.address2}
+                      onChangeText={(t) => setForm({ ...form, address2: t })}
+                      placeholder="상세 주소 (선택)" placeholderTextColor="#b0ada0" style={s.input}
+                      maxLength={60} textContentType="streetAddressLine2" autoComplete="postal-address-extended"
+                      editable={claimBusy !== g.id}
+                    />
+                    <TextInput
+                      value={form.postal}
+                      onChangeText={(t) => setForm({ ...form, postal: t })}
+                      placeholder="우편번호 (5자리)" placeholderTextColor="#b0ada0" style={s.input}
+                      keyboardType="number-pad" maxLength={5}
+                      textContentType="postalCode" autoComplete="postal-code"
+                      editable={claimBusy !== g.id}
+                    />
+
+                    {/* The server's own refusal word, mapped to Korean. It is shown INSTEAD of
+                        being swallowed, and the retry is a real second attempt — the honesty
+                        law's 「failures are shown as failures」. */}
+                    {claimErr !== null && (
+                      <View style={s.failStrip}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>{claimErr}</Text>
+                        <Pressable
+                          onPress={() => submitClaim(g.id)}
+                          style={s.retryBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel="수령 신청 다시 시도"
+                        >
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+                            다시 시도
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+
+                    <Row style={{ gap: 8, marginTop: 4 }}>
+                      {/* busy = LABEL SWAP, never a spinner replacing the label (button matrix) */}
+                      <Pressable
+                        onPress={() => submitClaim(g.id)}
+                        disabled={claimBusy === g.id}
+                        style={[s.claimSubmit, claimBusy === g.id && { opacity: 0.6 }]}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: claimBusy === g.id, busy: claimBusy === g.id }}
+                        accessibilityLabel="신청하기"
+                      >
+                        <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>
+                          {claimBusy === g.id ? '신청 중…' : '신청하기'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={closeClaimForm}
+                        disabled={claimBusy === g.id}
+                        style={s.claimCancel}
+                        accessibilityRole="button"
+                        accessibilityLabel="수령 신청 취소"
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: paper.dim }}>취소</Text>
+                      </Pressable>
+                    </Row>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -377,5 +548,21 @@ const s = StyleSheet.create({
   card: { backgroundColor: paper.canvas, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
   div: { height: 1, backgroundColor: '#EEEEEE' },
   claimChip: { backgroundColor: '#E8F3D2', borderRadius: 0, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
+  // [0195] The claimable row's chip is now a BUTTON, so it carries a real hit area (≥44pt) and
+  // the sage plate it always had. Roomy screen, so the label sits at 16 rather than the 15 floor.
+  claimBtn: {
+    backgroundColor: '#E8F3D2', paddingVertical: 11, paddingHorizontal: 16,
+    minHeight: 44, justifyContent: 'center', alignSelf: 'center',
+  },
+  claimForm: { paddingBottom: 12, gap: 8 },
+  input: {
+    borderWidth: 1, borderColor: '#E3E1DA', backgroundColor: paper.canvas,
+    paddingHorizontal: 12, paddingVertical: 11, fontSize: 16, color: paper.ink, minHeight: 44,
+  },
+  claimSubmit: {
+    flex: 1.5, backgroundColor: '#E8F3D2', minHeight: 48,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  claimCancel: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   rankLink: { alignItems: 'center', marginTop: 18, padding: 10 },
 });

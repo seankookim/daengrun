@@ -4174,12 +4174,90 @@ export async function fetchActiveBoostLabel(): Promise<string | null> {
   return `${dateLabel} ${timeLabel}`;
 }
 
-export interface GearClaim { id: string; item: string; milestone: number; status: string }
+// ---------- 기어 교환권 (굿즈 수령) ----------
+// [0195] `delivery_carrier` / `delivery_tracking` join the read. They are NOT a new permission:
+// `authenticated` has held table SELECT on `gear_claims` since 0106:135 and the row policy
+// `gear self read` (0002:133) scopes it to `profile_id = auth.uid()`, so a runner sees only
+// their own — and a table grant covers columns added later, which is why no server read RPC was
+// written for this. `delivery` itself is deliberately NOT selected: no screen renders the address
+// back, and a field nothing draws is a field nothing should fetch.
+export interface GearClaim {
+  id: string; item: string; milestone: number; status: string;
+  carrier: string | null; tracking: string | null;
+}
 
 export async function fetchGearClaims(): Promise<GearClaim[]> {
-  const { data, error } = await supabase.from('gear_claims').select('id, item, milestone, status').order('milestone');
+  const { data, error } = await supabase.from('gear_claims')
+    .select('id, item, milestone, status, delivery_carrier, delivery_tracking').order('milestone');
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id), item: String(r.item), milestone: Number(r.milestone), status: String(r.status),
+    carrier: (r.delivery_carrier as string | null) ?? null,
+    tracking: (r.delivery_tracking as string | null) ?? null,
+  }));
+}
+
+/** What `claim_gear_tx` (0195 §B) answers. `alreadyClaimed` is a FLAT FIELD and not an error, and
+ *  that is the idempotency contract rather than a style choice: a second tap — or a first tap
+ *  whose response was dropped on a bad connection — is a SUCCESS that wrote nothing, so it must
+ *  not reach the screen's failure state. The status here is the server's, read back from the
+ *  written row; the screen re-renders from it and never flips optimistically. */
+export interface GearClaimResult {
+  claimId: string; status: string; claimedAt: string | null;
+  alreadyClaimed: boolean; carrier: string | null; tracking: string | null;
+}
+
+/** 굿즈 수령 신청. Sends what the person typed; the server is the one authority on shape
+ *  (0195 §B ⑥ strips the phone to digits) — see `gear-claim-form.ts` on why the client does not
+ *  normalise a second time. */
+export async function claimGear(
+  claimId: string,
+  form: { recipient: string; phone: string; address1: string; address2: string; postal: string },
+): Promise<GearClaimResult> {
+  const { data, error } = await supabase.rpc('claim_gear_tx', {
+    p_claim_id: claimId,
+    p_recipient: form.recipient,
+    p_phone: form.phone,
+    p_address1: form.address1,
+    p_address2: form.address2,
+    p_postal: form.postal,
+  });
+  if (error) throw gearClaimError(error);
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  // A definer returning `setof` can answer zero rows, and a silent `{}` here would render as a
+  // claim that succeeded with no status — the honesty law's 「failures are shown as failures」.
+  if (!row) throw new Error('수령 신청 결과를 받지 못했어요 — 잠시 후 다시 시도해 주세요');
+  return {
+    claimId: String(row.claim_id ?? claimId),
+    status: String(row.status ?? ''),
+    claimedAt: (row.claimed_at as string | null) ?? null,
+    alreadyClaimed: row.already_claimed === true,
+    carrier: (row.carrier as string | null) ?? null,
+    tracking: (row.tracking as string | null) ?? null,
+  };
+}
+
+/** Every token `claim_gear_tx` raises by name, and nothing else dressed up as one.
+ *  ⚠ An unknown error keeps its own text appended — folding it into 「알 수 없는 오류」 makes the
+ *  screen look tidy and makes the cause unfindable (the standing rule beside `phoneErrorMessage`).
+ *  ⚠ `not_claim_owner` is deliberately vague about the OTHER party's claim: the server refuses
+ *  before it reads that row's state (0195 §0e), so the app must not invent a reason it was not
+ *  told. */
+export function gearClaimError(e: unknown): Error {
+  const raw = String((e as { message?: string } | null)?.message ?? e ?? '');
+  if (raw.includes('not_signed_in'))    return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
+  if (raw.includes('not_claim_owner'))  return new Error('이 교환권은 회원님의 것이 아니에요');
+  if (raw.includes('claim_not_found'))  return new Error('교환권을 찾지 못했어요 — 새로고침 후 다시 시도해 주세요');
+  if (raw.includes('not_claimable'))    return new Error('아직 수령할 수 없는 교환권이에요');
+  if (raw.includes('bad_recipient'))    return new Error('받는 분 이름을 입력해 주세요');
+  if (raw.includes('bad_phone'))        return new Error('연락처를 다시 확인해 주세요 (숫자 10~11자리)');
+  if (raw.includes('bad_address'))      return new Error('주소를 입력해 주세요');
+  if (raw.includes('bad_postal'))       return new Error('우편번호는 숫자 5자리예요');
+  // `claim_race` is the server's own "cannot happen under the lock" assertion (0195 §B ⑦). If it
+  // ever arrives it means the row moved between the lock and the write, and a retry is the honest
+  // instruction — not a reassurance that it worked.
+  if (raw.includes('claim_race'))       return new Error('교환권 상태가 바뀌었어요 — 새로고침 후 다시 시도해 주세요');
+  return e instanceof Error ? e : new Error(raw || '수령 신청을 처리하지 못했어요');
 }
 
 // ---------- 주소 (픽업 장소) ----------
