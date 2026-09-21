@@ -156,6 +156,44 @@ function armDeepLinks(Notifications: any): void {
   }
 }
 
+// ── Permission, split out of registration (HIG row S1, 2026-09-22) ─────────────────────────────
+// 🔴 `registerPushToken` NO LONGER ASKS. That is structural, not a convention to remember: the
+// only code path in this app that can reach the system alert is `requestPushPermission` below, and
+// its only caller is `notification-primer.tsx`'s 계속 button. Previously this function asked on
+// mount from both homes — which for a signed-in user IS launch — so the single question iOS grants
+// was spent before the person had been told what arrives. Removing the ask from here means a
+// future session cannot reintroduce the unprimed prompt by editing a call site; it would have to
+// call the request function by name, which is documented as the primer's.
+
+/** The current permission, or null when it cannot be read (old build, throwing module). */
+export async function readPushPermission(): Promise<{ status?: string; canAskAgain?: boolean } | null> {
+  let Notifications: any;
+  try { Notifications = require('expo-notifications'); } catch { return null; } // 구 빌드
+  try {
+    const cur = await Notifications.getPermissionsAsync();
+    if (!cur) return null;
+    return { status: cur.status, canAskAgain: cur.canAskAgain };
+  } catch (e) {
+    console.warn('[push] permission read:', (e as Error)?.message);
+    return null;
+  }
+}
+
+/**
+ * Fire the system alert. THE PRIMER'S BUTTON IS THE ONLY CALLER — see the block above.
+ * Returns the resulting status, or null when it could not be asked at all.
+ */
+export async function requestPushPermission(): Promise<string | null> {
+  let Notifications: any;
+  try { Notifications = require('expo-notifications'); } catch { return null; }
+  try {
+    return (await Notifications.requestPermissionsAsync())?.status ?? null;
+  } catch (e) {
+    console.warn('[push] permission request:', (e as Error)?.message);
+    return null;
+  }
+}
+
 export async function registerPushToken(): Promise<void> {
   let Notifications: any;
   let Constants: any;
@@ -175,16 +213,12 @@ export async function registerPushToken(): Promise<void> {
         shouldPlaySound: true, shouldSetBadge: false,
       }),
     });
-    // HIG (Notifications, Privacy): never re-ask. Read the current status first — a person who
-    // already granted is registered without a prompt, a person who already denied is not prompted
-    // again (iOS would refuse silently anyway, but the read makes the no-prompt path explicit and
-    // measurable), and only `undetermined` reaches the system alert. Row S1/O3, 2026-09-17.
+    // Read only. Not granted ⇒ there is no token to get, so return — WITHOUT prompting. Calling
+    // this on an `undetermined` account is a no-op by design: the primer asks first, then calls
+    // back in here. (Deep links are armed above regardless, which is why that line sits before
+    // this return: taps are delivered by the OS and do not depend on our token.)
     const current = await Notifications.getPermissionsAsync();
-    let status: string = current?.status;
-    if (status !== 'granted' && current?.canAskAgain !== false) {
-      status = (await Notifications.requestPermissionsAsync())?.status;
-    }
-    if (status !== 'granted') return;
+    if (current?.status !== 'granted') return;
     const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
       console.warn('[push] EAS projectId 없음 — `eas init` 후 토큰 발급 가능');

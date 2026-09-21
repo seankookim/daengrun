@@ -588,6 +588,8 @@ export default function Apply() {
             <Field label="활동 지역" hint="주로 뛰는 동네를 적어주세요 (예: 성수동)">
               <TextInput
                 value={district} onChangeText={setDistrict} maxLength={40} autoCorrect={false}
+                // AutoFill (HIG row E1) — a 동 is a sublocality; see onboard/runner.tsx.
+                textContentType="sublocality" autoComplete="postal-address-extended"
                 placeholder="성수동" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>
@@ -692,6 +694,12 @@ export default function Apply() {
             <Field label="카카오톡 ID" hint="운영자가 여기로 연락드려요">
               <TextInput
                 value={kakao} onChangeText={setKakao} maxLength={60} autoCapitalize="none" autoCorrect={false}
+                // 🔴 AutoFill is SUPPRESSED here on purpose, not forgotten (HIG row E1/E3). This is
+                // a handle for a THIRD-PARTY service and not a credential for anything — leaving it
+                // untyped lets iOS heuristically read 「ID」 as a username field and offer the
+                // password manager, which invites someone to paste a login into a field an operator
+                // reads. `none`/`off` is the honest type for a field that is not our account.
+                textContentType="none" autoComplete="off"
                 placeholder="kakao_id" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>

@@ -16,6 +16,7 @@ import {
   fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
+import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
 import { lateness } from '../../src/lib/lateness';
@@ -399,9 +400,29 @@ export default function RunnerHome() {
     fetchCoursePatches()
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
-    registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
     reloadStatus();
   }, [loadAvail, loadInbox, loadJobs, loadGate, reloadStatus]));
+
+  // ── 알림 프라이머 (HIG S1/O3, 2026-09-22) ─────────────────────────────────────────────────────
+  // registerPushToken() USED TO SIT IN THIS useFocusEffect, so the system alert could fire on any
+  // return to home rather than only at first launch. It no longer asks at all (push.ts); the alert
+  // now belongs to the primer's 계속 button. A runner is the role this matters most for — a push
+  // they never see is a job they never take — which is exactly why the question deserves a
+  // sentence first instead of a cold OS alert over a logo.
+  // 'primer' → draw it. 'register' / 'skip' → registerPushToken(), which arms the deep-link
+  // listeners either way and registers only when permission is already granted.
+  const [notiPrimer, setNotiPrimer] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    decideNotificationPrimer()
+      .then((action) => {
+        if (!alive) return;
+        if (action === 'primer') setNotiPrimer(true);
+        else registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
+      })
+      .catch((e) => console.warn('[rhome] noti primer:', e?.message ?? e));
+    return () => { alive = false; };
+  }, []);
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·대기 중인 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,
@@ -536,6 +557,10 @@ export default function RunnerHome() {
     ...(current && isTodayKst(current.scheduledAt) ? [{ job: current, kind: 'on' as const }] : []),
     ...upcoming.map((j) => ({ job: j, kind: 'next' as const })),
   ];
+
+  // The primer comes BEFORE the home body and before any system alert. Home's loaders are already
+  // in flight behind it, so dismissing it lands on a loaded screen rather than on spinners.
+  if (notiPrimer) return <NotificationPrimer role="runner" onDone={() => setNotiPrimer(false)} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬] 라일락 캔버스 은퇴 → 백지 */}

@@ -123,6 +123,11 @@ export default function OnboardRunner() {
           placeholderTextColor={paper.faint}
           maxLength={40}
           returnKeyType="done"
+          // AutoFill (HIG row E1). A Korean 동 is a SUBLOCALITY, not a city — iOS has the exact
+          // type, and `postal-address-extended` is Android's nearest hint for the same part of an
+          // address. addressCity would offer 서울특별시, which is never what this field wants.
+          textContentType="sublocality"
+          autoComplete="postal-address-extended"
           autoCorrect={false}
           accessibilityLabel="홈 베이스 동네"
         />
