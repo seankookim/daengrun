@@ -2,6 +2,7 @@ import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { session } from '../store';
+import { parentTabPath } from '../lib/tab-parent';
 import { paper } from '../theme';
 import { Icon } from './ui';
 
@@ -57,6 +58,13 @@ export function homePath(): '/owner/home' | '/runner/home' {
 // [2026-08-12] 탭 순서를 밖으로 낸다 — 좌우 스와이프(TabSwipe)가 '이웃 탭'을 알아야 하고,
 // 그 순서의 정본은 이 배열 하나여야 한다. 두 벌이 되는 순간 도크와 제스처가 다른 곳으로 간다.
 // 반환: [왼쪽 이웃, 오른쪽 이웃] — 양끝은 null (없는 이웃으로는 넘어가지 않는다).
+// 🔴 THIS FUNCTION MUST NOT CONSULT `parentTabPath` — the dock's highlight and the swipe's
+// neighbours are deliberately different questions (HIG N3 ruling, 2026-09-22). /alerts, /cards and
+// /safety now HIGHLIGHT a parent tab, and a swipe on them must still go NOWHERE: borrowing the
+// parent's neighbours would send a left-swipe on 알림 to 수익 or 샵 — a tab the person never chose,
+// reached by a gesture they cannot reverse (the arriving screen's neighbours are different again).
+// The exact-path match is what makes `TabSwipe` see [null, null] and attach no PanResponder at all
+// (`tabswipe.tsx`'s `isTab` early return). `test/tab-parent.test.cjs` pins that this stays true.
 export function tabNeighbors(pathname: string): [string | null, string | null] {
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
   const i = tabs.findIndex((t) => t.path === pathname);
@@ -68,6 +76,11 @@ export function BottomNav({ dark }: { dark?: boolean }) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
+  // [HIG N3 2026-09-22] alerts·cards·safety draw this dock and are in neither array, so nothing was
+  // selected on them — the dock said 「you are nowhere」 on three real screens. They now light their
+  // PARENT tab (tab-parent.ts owns the mapping and the evidence). null for every real tab, so the
+  // exact match below still wins and nothing is ever selected twice.
+  const parent = parentTabPath(pathname, session.role === 'runner' ? 'runner' : 'owner');
   // 다크(나이트 클럽) 변형은 아티팩트 — 기존 바이올렛 액티브 유지. 라이트 = 페이퍼: ink/dim.
   const activeColor = dark ? '#6C5CE7' : paper.ink;
   const idleColor = dark ? '#8F86C2' : paper.dim;
@@ -76,12 +89,19 @@ export function BottomNav({ dark }: { dark?: boolean }) {
   return (
     <View style={[s.bar, dark && s.barDark, { paddingBottom: Math.max(insets.bottom, 22) }]}>
       {tabs.map((t) => {
-        const active = t.path === pathname;
+        // 🔴 TWO DIFFERENT QUESTIONS, and collapsing them back into one produces a DEAD BUTTON.
+        // `here` = this tab IS the screen, and it is what gates navigation. `active` = what the
+        // dock DRAWS, which now includes the parent of a non-tab screen. On /alerts the 마이 tab is
+        // active but not here, so tapping it must still go to /my — gating on `active` would make
+        // the one highlighted control on the screen do nothing, which is exactly the shape the
+        // house law forbids.
+        const here = t.path === pathname;
+        const active = here || t.path === parent;
         return (
           <Pressable
             key={t.label}
             style={s.tab}
-            onPress={() => { if (t.path && !active) router.replace(t.path); }}
+            onPress={() => { if (t.path && !here) router.replace(t.path); }}
             // 라벨이 화면에서 사라졌으니 접근성 이름은 여기서만 나온다 — 지우지 말 것.
             accessibilityRole="tab"
             accessibilityLabel={t.label}

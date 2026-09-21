@@ -307,7 +307,7 @@ export default function Addresses() {
             {verify && verify !== 'checking' && verify.kind === 'unavailable' && (
               <Text style={s.verifyQuiet}>지금은 주소 확인을 할 수 없어요 — 저장 뒤 지도에서 맞춰주세요</Text>
             )}
-            <TextInput value={detail} onChangeText={setDetail} placeholder="상세 (동·호, 만날 지점 메모 — 선택)" placeholderTextColor={paper.faint} style={[s.input, { marginTop: 8 }]} maxLength={60} textContentType="streetAddressLine2" autoComplete="postal-address" />
+            <TextInput value={detail} onChangeText={setDetail} placeholder="상세 (동·호, 만날 지점 메모 — 선택)" placeholderTextColor={paper.faint} style={[s.input, { marginTop: 8 }]} maxLength={60} textContentType="streetAddressLine2" autoComplete="postal-address-extended" />
             <Row style={{ gap: 8, marginTop: 12 }}>
               <PaperBtn label="저장" onPress={save} style={{ flex: 1.4 }} />
               <PaperBtn label="취소" variant="secondary" onPress={() => { setAdding(false); setVerify(null); }} style={{ flex: 1 }} />

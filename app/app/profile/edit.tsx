@@ -156,8 +156,14 @@ export default function ProfileEdit() {
                 maxLength={20}
                 prefix="@"
                 autoCapitalize="none"
+                // AutoFill (HIG row E1): a public @handle is a NICKNAME, never `username` —
+                // username would summon the password manager for a field that is not a credential.
+                textContentType="nickname"
+                autoComplete="nickname"
               />
-              <Field label="동네" value={district} onChange={setDistrict} placeholder="예: 반포동" maxLength={20} />
+              {/* AutoFill: a 동 is a sublocality — see onboard/runner.tsx for why not addressCity. */}
+              <Field label="동네" value={district} onChange={setDistrict} placeholder="예: 반포동" maxLength={20}
+                textContentType="sublocality" autoComplete="postal-address-extended" />
               {runner === 'yes' && (
                 <Field label="소개" value={bio} onChange={setBio} placeholder="러닝 경력 · 반려견 경험 · 나의 강점" maxLength={300} multiline last />
               )}

@@ -9,6 +9,7 @@ import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { DrawButton } from '../../src/components/draw-button';
 import { HomeHero, elapsedLabel } from '../../src/components/home-hero';
+import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
@@ -314,7 +315,6 @@ export default function OwnerHome() {
       .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
     loadMoments();
     loadTicker();
-    registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
     loadRunners();
     loadBeacon();
   }, [loadBookings, loadFitness, loadMoments, loadTicker, loadRunners, loadBeacon]);
@@ -458,6 +458,27 @@ export default function OwnerHome() {
     router.push('/owner/request');
   };
 
+  // ── 알림 프라이머 (HIG S1/O3, 2026-09-22) ─────────────────────────────────────────────────────
+  // registerPushToken() USED TO SIT IN loadAll, and loadAll runs on focus AND on AppState active —
+  // so the system alert could fire on a resume, not only at first launch. It no longer asks at all
+  // (push.ts); the alert now belongs to the primer's 계속 button. This effect is [] rather than in
+  // loadAll on purpose: the decision is an install-lifetime fact, not a per-focus one, and a
+  // permission re-read on every resume would only earn a flicker.
+  // 'primer' → draw it. 'register' / 'skip' → registerPushToken(), which arms the deep-link
+  // listeners either way and registers only when permission is already granted.
+  const [notiPrimer, setNotiPrimer] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    decideNotificationPrimer()
+      .then((action) => {
+        if (!alive) return;
+        if (action === 'primer') setNotiPrimer(true);
+        else registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
+      })
+      .catch((e) => console.warn('[home] noti primer:', e?.message ?? e));
+    return () => { alive = false; };
+  }, []);
+
   // ── 체력 한 줄 (나) — 실 fit 값만. 로딩엔 아무것도, 실패엔 페일 스트립. ──────
   // ⚠ 체력나이 델타는 목업 파생이라 여기 오지 않는다 (리포트 화면이 게이트와 함께 전담).
   const fitRow = fit != null && fit.goalKm > 0
@@ -467,6 +488,10 @@ export default function OwnerHome() {
         streak: fit.streakDays,
       }
     : null;
+
+  // The primer comes BEFORE the home body and before any system alert. Home's loaders are already
+  // in flight behind it, so dismissing it lands on a loaded screen rather than on spinners.
+  if (notiPrimer) return <NotificationPrimer role="owner" onDone={() => setNotiPrimer(false)} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
