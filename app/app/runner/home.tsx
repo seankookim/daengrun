@@ -23,6 +23,8 @@ import { haptic } from '../../src/lib/haptics';
 import { lateness } from '../../src/lib/lateness';
 import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
+import { homewardReturnOpen, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
+import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
 import { colors, layout, lilac, paper } from '../../src/theme';
 
@@ -185,9 +187,12 @@ const STAGE: Record<string, { label: string; action: string; color: string }> = 
 };
 
 /** The stage a job is really in. `rawStatus` alone stopped being enough the day the stop stopped
- *  settling: gate on the FACT (`runEndedAt`), never on the flattened vocabulary (house law). */
+ *  settling: gate on the FACT (`runEndedAt`), never on the flattened vocabulary (house law).
+ *  [0083 §5] The predicate moved to `custody-ping-policy.ts` unchanged (`active` + a stamped
+ *  `run_ended_at`) so that the heartbeat's gate below and this stage word are the SAME rule —
+ *  a screen that pings must not be able to disagree with the screen's own label about why. */
 const stageFor = (j: { rawStatus: string; runEndedAt?: string | null }) =>
-  j.rawStatus === 'active' && j.runEndedAt ? 'returning' : j.rawStatus;
+  homewardReturnOpen(j) ? 'returning' : j.rawStatus;
 
 // [정직 배치 2026-08-06 · item 4 wave-1] 픽업 지도 숏컷 은퇴 — 목업 좌표로 길을 안내하던 버튼이었다.
 // 실주소는 wave 3(러너용 definer RPC)에서 오고, 그 전까진 버튼 자리 자체가 없다 (죽은 버튼 금지법).
@@ -464,6 +469,22 @@ export default function RunnerHome() {
     ?? jobs.find((j) => j.rawStatus === 'confirmed');
   const upcoming = jobs.filter((j) => j.status === 'confirmed' && j.bookingId !== current?.bookingId).slice(0, 3);
   const past = jobs.filter((j) => j.status === 'completed').slice(0, 3);
+
+  // ═══ [0083 §5] THE 귀가 HEARTBEAT, third site — and the one a runner actually idles on ═══════
+  // `return-seal.tsx` and `done.tsx` ping, but neither is where a runner necessarily WAITS. Home
+  // is: the ticket below already prints 반환 확인 중 for a job whose run has ended and whose
+  // return is unsealed, and a runner sitting on this screen sent nothing — so the owner's Live
+  // Activity fell through to `coalesce(custody_last_seen_at, run_ended_at)` (0177:263-265) and
+  // alarmed 「N분째 위치 신호가 없어요」 90 s later on a perfectly normal 귀가.
+  //
+  // The gate is the STAGE ITSELF (`homewardReturnOpen` — the same call `stageFor` makes), never
+  // the display word: enabled exactly when this ticket says 반환 확인 중, off in every other
+  // stage. No loop logic lives here — the hook owns the cadence, the foreground rule and the
+  // fatal refusals, and the server closes the loop from its side (`not_in_custody`) the moment
+  // this booking leaves custody, whether or not this screen has re-fetched.
+  const homewardBid = current && homewardReturnOpen(current) ? current.bookingId : null;
+  const homeward = homewardBid != null;
+  const ping = useCustodyPing(homewardBid, homeward);
 
   // HIG A3/A6 — the in-flight ticket's stage label, announced when it flips. This is the word the
   // whole ticket is organised around and it moves without the runner touching anything (the job
@@ -838,6 +859,21 @@ export default function RunnerHome() {
                   <Text style={styles.objStubTxt}>{current.dogName}와 함께</Text>
                 </View>
               </Pressable>
+
+              {/* [0083 §5] The heartbeat's only runner-facing consequence, same copy and same
+                  quiet grammar as return-seal.tsx and done.tsx — three consecutive misses, cleared
+                  by the next success, nothing at all for a refused loop (that is not a signal
+                  problem). It sits directly under the ticket because the ticket's 반환 확인 중 is
+                  the custody claim this strip qualifies, and above the CTA so a runner reads it
+                  without scrolling past the door. `homeward` is re-checked here: the hook keeps
+                  its last `failing` when its gate closes, and a stale strip under a ticket that
+                  has moved on would be a claim about a loop no longer running. */}
+              {homeward && ping.failing && (
+                <View style={styles.pingStrip}>
+                  <Text style={styles.pingTitle}>{PING_FAIL_LINE}</Text>
+                  <Text style={styles.pingBody}>보호자 화면에 위치가 오래된 것으로 보일 수 있어요 — 연결이 돌아오면 저절로 맞춰져요.</Text>
+                </View>
+              )}
 
               {/* ① — THE COLOUR RULE, FLIPPED. The screen's single coral used to belong to the
                   수락 door, which means an EMPTY inbox rendered no coral at all: in that state the
@@ -1752,6 +1788,11 @@ const styles = StyleSheet.create({
   // C — confirmation, not a call to action. Green reads as money without spending the coral budget.
   objPay: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: '#2F7D4F' },
   objStubTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.dim },
+  // [0083 §5] the 귀가 heartbeat strip — one fact, not a failure, so wash + hairline (the
+  // secondary grammar), identical to done.tsx:568-570 so the two screens say it the same way.
+  pingStrip: { backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, padding: 13, marginTop: 10 },
+  pingTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink },
+  pingBody: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 4 },
   // ① the coral action. 4px depth edge = the same drawn-button grammar the owner home uses, so a
   // dual-role user meets one language. Solid coral: title white is 4.84:1 on paper.action (the
   // ground's ceiling), sub is paper.wash at 4.55:1 — both measured, both above the 4.5 floor.
