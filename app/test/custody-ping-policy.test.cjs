@@ -19,8 +19,15 @@
 // The mutations that redden it: add a status to CUSTODY_STATUSES · misspell either fatal token ·
 // make `nextPingState` accumulate across a success · let `pingStripVisible` ignore `stopped` ·
 // let `pingDelayMs` grow unbounded · start the strip at 1 failure.
+//
+// [0083 §5, home wiring] `homewardReturnOpen` is the ENABLED decision for the third ping site,
+// `runner/home.tsx`. It is pinned here and not there for the reason above — a `.cjs` cannot import
+// a route — so what these arms prove is the RULE, not that the screen asks it. The screen side is
+// one line (`stageFor` and the hook's gate are the same call, home.tsx:189/468) plus a smoke step.
+// The mutations that redden it: drop the `runEndedAt` conjunct · widen the status to the whole
+// custody window · drop the null guard · let a settled booking through.
 const {
-  CUSTODY_STATUSES, inCustodyPhase,
+  CUSTODY_STATUSES, inCustodyPhase, homewardReturnOpen,
   PING_PERIOD_MS, PING_MAX_MS, PING_STRIP_AFTER,
   PING_FATAL_TOKENS, isFatalPingRefusal,
   PING_START, nextPingState, pingDelayMs, pingStripVisible, shouldPing,
@@ -45,6 +52,57 @@ for (const out of ['completed', 'incident_review', 'matching', 'confirmed', 'can
 t('null is not in custody (no read ⇒ no claim)', inCustodyPhase(null) === false);
 t('undefined is not in custody', inCustodyPhase(undefined) === false);
 t('the empty string is not in custody', inCustodyPhase('') === false);
+
+// ── homewardReturnOpen — the ENABLED/DISABLED decision runner/home.tsx binds the loop to ───────
+// The homeward window on a job row: `end_run_tx` stamps `run_ended_at` and LEAVES the status
+// `active` (0188:14), so both halves are required and neither alone is the phase.
+const ENDED = '2026-09-22T04:00:00.000Z';
+t('run ended + still active ⇒ the loop is ON (this is 반환 확인 중)',
+  homewardReturnOpen({ rawStatus: 'active', runEndedAt: ENDED }) === true);
+t('a LIVE run is NOT the homeward window — no run_ended_at, no heartbeat here',
+  homewardReturnOpen({ rawStatus: 'active', runEndedAt: null }) === false);
+t('a missing runEndedAt field is not a stamped one',
+  homewardReturnOpen({ rawStatus: 'active' }) === false);
+t('an empty-string stamp is not a stamp', homewardReturnOpen({ rawStatus: 'active', runEndedAt: '' }) === false);
+// picked_up is inside the SERVER's window and outside THIS one: that is the pre-run handoff, which
+// the meetup screen owns. A gate widened to `inCustodyPhase` would turn the home ticket's
+// 인계 완료 · 시작 대기 stage into a pinging one while the label says nothing about a return.
+t('picked_up is NOT the homeward window even with a stamp',
+  homewardReturnOpen({ rawStatus: 'picked_up', runEndedAt: ENDED }) === false);
+t('picked_up with no stamp is not the homeward window',
+  homewardReturnOpen({ rawStatus: 'picked_up', runEndedAt: null }) === false);
+for (const out of ['completed', 'confirmed', 'runner_enroute', 'incident_review', 'cancelled']) {
+  t(`${out} is not the homeward window, stamp or no stamp`,
+    homewardReturnOpen({ rawStatus: out, runEndedAt: ENDED }) === false
+    && homewardReturnOpen({ rawStatus: out, runEndedAt: null }) === false);
+}
+t('no job ⇒ the loop is OFF (null)', homewardReturnOpen(null) === false);
+t('no job ⇒ the loop is OFF (undefined)', homewardReturnOpen(undefined) === false);
+t('a job with no status ⇒ OFF (no read is not a claim)',
+  homewardReturnOpen({ runEndedAt: ENDED }) === false);
+t('a null status ⇒ OFF', homewardReturnOpen({ rawStatus: null, runEndedAt: ENDED }) === false);
+// The cross-check that makes the narrowing safe rather than merely narrower: every row this gate
+// OPENS is one `custody_ping` accepts, so the home loop can never be opened onto a booking the
+// server will refuse with `not_in_custody`.
+t('every row this gate opens is inside the server\'s custody window', (() => {
+  for (const s of ['picked_up', 'active', 'completed', 'confirmed', 'runner_enroute', 'matching', '', 'cancelled']) {
+    for (const e of [ENDED, null, undefined, '']) {
+      if (homewardReturnOpen({ rawStatus: s, runEndedAt: e }) && !inCustodyPhase(s)) return false;
+    }
+  }
+  return true;
+})());
+// …and it is genuinely NARROWER, not a second spelling of the same predicate — otherwise the two
+// names would be one rule wearing two labels and the pin above would be free.
+t('the gate is strictly narrower than the server window (picked_up is the witness)',
+  inCustodyPhase('picked_up') === true && homewardReturnOpen({ rawStatus: 'picked_up', runEndedAt: ENDED }) === false);
+// The hand-off to the scheduler: a closed gate is exactly `shouldPing`'s `inCustody: false` arm.
+t('a closed gate stops the loop even on a foregrounded screen with a booking',
+  shouldPing({ bookingId: 'b1', appState: 'active', state: PING_START,
+    inCustody: homewardReturnOpen({ rawStatus: 'active', runEndedAt: null }) }) === false);
+t('an open gate runs the loop on a foregrounded screen',
+  shouldPing({ bookingId: 'b1', appState: 'active', state: PING_START,
+    inCustody: homewardReturnOpen({ rawStatus: 'active', runEndedAt: ENDED }) }) === true);
 
 // ── the refusal tokens are the server's SPELLINGS, not the guessable ones ──────────────────────
 t('the fatal tokens are exactly the two custody_ping raises',

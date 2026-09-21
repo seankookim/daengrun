@@ -25,6 +25,29 @@ export function inCustodyPhase(rawStatus: string | null | undefined): boolean {
   return typeof rawStatus === 'string' && CUSTODY_STATUSES.includes(rawStatus);
 }
 
+/**
+ * The 반환 확인 중 window read off a JOB ROW: `end_run_tx` has stamped `run_ended_at` and the
+ * booking is still `active`, so the run is over, the two-stamp return is open, and the dog is
+ * still with the runner. (`0188:14`, read from the migration: 「Status STAYS `active`」.)
+ *
+ * ⚠ It is NOT `inCustodyPhase(rawStatus)`, and the difference is the point. That one answers
+ * 「may this booking be pinged at all」 — the server's window, `picked_up` included. This one
+ * answers 「is this row in the phase the runner's home ticket calls 반환 확인 중」, which is the
+ * run-ended half of that window alone.
+ *
+ * `runner/home.tsx` derives THREE things from this single call — the stage label, the ticket's
+ * destination, and whether the 귀가 heartbeat runs — so the strip a runner reads and the loop
+ * that feeds the owner's 「N분째 위치 신호가 없어요」 alarm cannot disagree about which phase the
+ * job is in. A row that satisfies this also satisfies `inCustodyPhase`, so the loop it opens is
+ * one `custody_ping` accepts.
+ */
+export function homewardReturnOpen(
+  j: { rawStatus?: string | null; runEndedAt?: string | null } | null | undefined,
+): boolean {
+  if (!j) return false;
+  return j.rawStatus === 'active' && !!j.runEndedAt;
+}
+
 /** Base period. One miss of headroom under the server's 90 s staleness threshold. */
 export const PING_PERIOD_MS = 60_000;
 /** The backoff ceiling. Deliberately near the threshold, not far above it — see the header. */
