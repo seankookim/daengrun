@@ -135,6 +135,13 @@ export default function RunnerReview() {
           <Text style={s.helper}>어떤 러닝의 리뷰인지 확인하고 있어요</Text>
         </View>
         <View style={s.rule} />
+        {/* ⚠ 이 화면은 push로 열리고 자체 헤더가 없다 — 출구 하나는 로딩 얼굴에도 있어야 한다.
+            (종전에는 로딩 중에도 폼이 떠 있어서 '다음에 할게요'가 그 일을 했다.) */}
+        <View style={s.actions}>
+          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+            <Text style={s.quietText}>다음에 할게요</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
