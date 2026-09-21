@@ -1646,7 +1646,9 @@ export async function fetchMyReturnResolution(bookingId: string): Promise<Return
     // on (a transfer, a stale id in a push) must not paint a red failure strip on a working
     // screen. Absence is null; a real failure still throws.
     if (/not_party|not_authenticated/.test(error.message ?? '')) return null;
-    throw error;
+    // [fix/pending-deploy-copy follow-up] the 17th new-RPC wrapper of the night, folded like the
+    // other sixteen so a server-behind-client device never prints an English sentence.
+    throw foldRpcError(error, { fn: 'my_return_resolution' });
   }
   const row = (data as any[] | null)?.[0];
   if (!row) return null;
