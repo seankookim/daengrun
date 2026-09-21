@@ -6228,3 +6228,229 @@ function bankAccountError(e: unknown): Error {
   }
   return e instanceof Error ? e : new Error(raw || '정산 계좌를 처리하지 못했어요');
 }
+
+// ── [0198] OPS CONSOLE ────────────────────────────────────────────────────────────────────────
+// The wire for the five shipped ops doors plus 0198's two new reads. Everything here is gated
+// SERVER-side by `ops_recipients_for('payout_due')` (0084 §E) — `opsMe()` exists so the console
+// ENTRY can be hidden, never so the client can decide who is an operator. A build that ignored
+// `isOps` and pushed the route anyway would reach a screen that refuses every call by name, which
+// is the honest failure and the reason these wrappers map `not_ops` to real Korean.
+//
+// 🔴 **THE ACCOUNT NUMBER IS FETCHED ON TAP AND NEVER ON MOUNT, AND THAT RULE LIVES AT THE CALL
+//    SITE.** `ops_bank_account` (0194 §F④) journals EVERY gated call to `bank_account_access_log`,
+//    found or not — probing for existence is access. A screen that read it during load would write
+//    a row saying an operator looked at a runner's bank details every time they opened the payout
+//    page, which makes the journal useless as evidence precisely when it matters. Nothing in this
+//    file calls it; `app/ops/payout/[runner].tsx` calls it from one `onPress`.
+// 🔴 **AND THE DECRYPTED NUMBER IS NEVER LOGGED.** No `console.log`, no error message carrying it,
+//    no analytics. It travels from this function into one piece of component state and onto one
+//    screen, and that is the whole of its life in the client.
+
+/** What `ops_me()` (0198 §A) answers about the CALLER. It takes no argument and can answer about
+ *  nobody else — see 0198 §0d. `isOps` means 「can you use the console」, computed server-side
+ *  through the same roster window the doors gate on, NOT 「holds any ops row」: an operator
+ *  subscribed only to another class gets `isOps === false` with that class in `kinds`, which is
+ *  what lets the refusal screen say so instead of a flat no. */
+export interface OpsMe { isOps: boolean; kinds: string[] }
+
+export async function opsMe(): Promise<OpsMe> {
+  const { data, error } = await supabase.rpc('ops_me');
+  if (error) throw opsError(error);
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  // ⚠ Absent row ⇒ NOT an operator. `ops_me` always returns exactly one row, so an empty answer is
+  // a shape we do not understand, and the safe direction for a privileged surface is closed.
+  return {
+    isOps: row?.is_ops === true,
+    kinds: Array.isArray(row?.kinds) ? (row.kinds as unknown[]).map(String) : [],
+  };
+}
+
+/** One runner's unpaid total, from `ops_payouts_due()` (0186 §B). Ids and numbers only — no name,
+ *  no phone, no bank row, by that function's deliberate design. */
+export interface OpsPayoutDue {
+  runnerProfileId: string;
+  unpaidNetWon: number;
+  unpaidItems: number;
+  oldestUnpaidAt: string | null;
+}
+
+export async function fetchOpsPayoutsDue(): Promise<OpsPayoutDue[]> {
+  const { data, error } = await supabase.rpc('ops_payouts_due');
+  if (error) throw opsError(error);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    runnerProfileId: String(r.runner_profile_id),
+    unpaidNetWon: Number(r.unpaid_net_won),
+    unpaidItems: Number(r.unpaid_items),
+    oldestUnpaidAt: typeof r.oldest_unpaid_at === 'string' ? r.oldest_unpaid_at : null,
+  }));
+}
+
+/** One tickable ledger row, from `ops_runner_payout_detail()` (0198 §B).
+ *  ⚠ `netWon` may be ZERO or NEGATIVE and is carried with its sign — the aggregate above already
+ *  counted it, so dropping it would make the screen's total exceed the server's. */
+export interface OpsPayoutRowDetail {
+  id: string;
+  bookingId: string;
+  netWon: number;
+  dogName: string | null;
+  cancelComp: boolean;
+  createdAt: string | null;
+  settledAt: string | null;
+}
+
+export async function fetchOpsRunnerPayoutDetail(runnerId: string): Promise<OpsPayoutRowDetail[]> {
+  const { data, error } = await supabase.rpc('ops_runner_payout_detail', { p_runner: runnerId });
+  if (error) throw opsError(error);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.ledger_item_id),
+    bookingId: String(r.booking_id),
+    netWon: Number(r.net_won),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    cancelComp: r.cancel_comp === true,
+    createdAt: typeof r.created_at === 'string' ? r.created_at : null,
+    settledAt: typeof r.settled_at === 'string' ? r.settled_at : null,
+  }));
+}
+
+/** Record a transfer that already happened at a bank (`ops_record_manual_payout`, 0186 §C).
+ *  ⚠ `amountWon` is the operator's own number and the server compares it for EQUALITY against the
+ *  rows it locks. It is not a hint and it is not rounded: a mismatch means the screen is stale and
+ *  `amount_mismatch` is the correct outcome. Returns the new `payouts.id`. */
+export async function opsRecordManualPayout(input: {
+  runnerId: string; ledgerItemIds: string[]; amountWon: number; memo: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('ops_record_manual_payout', {
+    p_runner: input.runnerId,
+    p_ledger_item_ids: input.ledgerItemIds,
+    p_amount_won: input.amountWon,
+    p_memo: input.memo,
+  });
+  if (error) throw opsError(error);
+  return String(data);
+}
+
+/** A runner's 정산 계좌, decrypted, from `ops_bank_account()` (0194 §F④).
+ *  🔴 **CALLING THIS WRITES A JOURNAL ROW** (`bank_account_access_log`) whether or not an account
+ *     is found. Call it from a deliberate tap, never from a mount or a focus effect.
+ *  ⚠ `account === null` on a returned row means the stored row could NOT be decrypted — absent,
+ *     never partial. `null` from this function altogether means no account is on file. */
+export interface OpsBankAccount {
+  bank: string;
+  bankLabel: string | null;
+  holder: string;
+  account: string | null;
+  verifiedAt: string | null;
+  updatedAt: string | null;
+}
+
+export async function fetchOpsBankAccount(runnerId: string): Promise<OpsBankAccount | null> {
+  const { data, error } = await supabase.rpc('ops_bank_account', { p_runner: runnerId });
+  if (error) throw opsError(error);
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  if (!row || typeof row.bank !== 'string') return null;
+  return {
+    bank: row.bank,
+    bankLabel: typeof row.bank_label === 'string' ? row.bank_label : null,
+    holder: typeof row.holder === 'string' ? row.holder : '',
+    account: typeof row.account === 'string' ? row.account : null,
+    verifiedAt: typeof row.verified_at === 'string' ? row.verified_at : null,
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+  };
+}
+
+/** A claimed-and-not-yet-shipped gear claim, from `ops_gear_claims_pending()` (0195 §C). Carries
+ *  the delivery snapshot because posting a box IS the act — 0195 §C states that exception. */
+export interface OpsGearClaim {
+  claimId: string;
+  profileId: string;
+  item: string;
+  milestone: number;
+  claimedAt: string | null;
+  recipient: string | null;
+  phone: string | null;
+  address1: string | null;
+  address2: string | null;
+  postal: string | null;
+}
+
+export async function fetchOpsGearClaimsPending(): Promise<OpsGearClaim[]> {
+  const { data, error } = await supabase.rpc('ops_gear_claims_pending');
+  if (error) throw opsError(error);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    claimId: String(r.claim_id),
+    profileId: String(r.profile_id),
+    item: String(r.item),
+    milestone: Number(r.milestone),
+    claimedAt: typeof r.claimed_at === 'string' ? r.claimed_at : null,
+    recipient: typeof r.recipient === 'string' ? r.recipient : null,
+    phone: typeof r.phone === 'string' ? r.phone : null,
+    address1: typeof r.address1 === 'string' ? r.address1 : null,
+    address2: typeof r.address2 === 'string' ? r.address2 : null,
+    postal: typeof r.postal === 'string' ? r.postal : null,
+  }));
+}
+
+/** `claimed` → `shipped` with a carrier and a tracking number (`ops_mark_gear_shipped`, 0195 §D).
+ *  ⚠ A second call is `already_shipped` and does NOT overwrite the first number — deliberately
+ *  unlike the runner's idempotent claim, because an operator stamping a second tracking number
+ *  over the first destroys the number the box actually went under. */
+export async function opsMarkGearShipped(input: {
+  claimId: string; carrier: string; tracking: string;
+}): Promise<{ status: string; carrier: string | null; tracking: string | null }> {
+  const { data, error } = await supabase.rpc('ops_mark_gear_shipped', {
+    p_claim_id: input.claimId, p_carrier: input.carrier, p_tracking: input.tracking,
+  });
+  if (error) throw opsError(error);
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  return {
+    status: typeof row?.status === 'string' ? row.status : 'shipped',
+    carrier: typeof row?.carrier === 'string' ? row.carrier : null,
+    tracking: typeof row?.tracking === 'string' ? row.tracking : null,
+  };
+}
+
+/** Every refusal the seven ops functions raise BY NAME, read out of the migrations rather than
+ *  guessed: 0186 §B/§C (`not_signed_in` · `not_ops` · `no_runner` · `no_items` · `bad_amount` ·
+ *  `not_runner_item` · `already_paid` · `not_settled` · `amount_mismatch` · `mark_lost`),
+ *  0194 §F④ (`not_signed_in` · `not_ops` · `no_runner`) and 0195 §C/§D (`claim_not_found` ·
+ *  `bad_carrier` · `bad_tracking` · `already_shipped` · `not_claimed` · `ship_race`).
+ *
+ *  ⚠ The lookup below matches each token as a SUBSTRING of the server's message, so it runs
+ *  LONGEST-FIRST. Today no token contains another; the sort is what keeps that from mattering the
+ *  day one does — a `not_ops_admin` added later would otherwise be reported as `not_ops`, which is
+ *  the same substring-detector class this house has been bitten by four times. */
+export type OpsRefusal =
+  | 'not_signed_in' | 'not_ops' | 'no_runner' | 'no_items' | 'bad_amount'
+  | 'not_runner_item' | 'already_paid' | 'not_settled' | 'amount_mismatch' | 'mark_lost'
+  | 'claim_not_found' | 'bad_carrier' | 'bad_tracking' | 'already_shipped' | 'not_claimed'
+  | 'ship_race';
+
+export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
+  not_signed_in: '세션이 만료된 것 같아요 — 다시 로그인해주세요',
+  not_ops: '운영자 권한이 없어요 — 이 작업은 운영 담당자만 할 수 있어요',
+  no_runner: '러너를 찾을 수 없어요',
+  no_items: '지급할 행을 하나 이상 선택해주세요',
+  bad_amount: '이체 금액은 0원보다 커야 해요',
+  not_runner_item: '선택한 행 중에 이 러너의 것이 아닌 행이 있어요 — 새로고침하고 다시 골라주세요',
+  already_paid: '선택한 행 중에 이미 지급된 행이 있어요 — 새로고침하면 목록에서 빠져요',
+  not_settled: '아직 끝나지 않은 러닝의 행이 있어요 — 금액이 더 바뀔 수 있어서 지금은 지급할 수 없어요',
+  // 🔴 the one an operator will actually meet, so it says what to DO rather than what went wrong.
+  amount_mismatch: '입력한 금액과 선택한 행의 합계가 달라요 — 다른 기기에서 먼저 지급됐을 수 있어요. 새로고침하고 다시 확인해주세요',
+  mark_lost: '지급 기록을 마치지 못했어요 — 아무것도 저장되지 않았어요. 다시 시도해주세요',
+  claim_not_found: '해당 수령 신청을 찾을 수 없어요',
+  bad_carrier: '택배사를 입력해주세요',
+  bad_tracking: '송장번호를 입력해주세요',
+  already_shipped: '이미 발송 처리된 신청이에요 — 송장번호는 덮어쓰지 않아요',
+  not_claimed: '아직 수령 신청이 접수되지 않은 항목이에요',
+  ship_race: '다른 곳에서 먼저 처리된 것 같아요 — 새로고침해주세요',
+};
+
+/** ⚠ An UNRECOGNISED error keeps its own message rather than being dressed as one of these. A real
+ *  fault reported as 「운영자 권한이 없어요」 sends an operator to ask for a permission they already
+ *  have, which is the most expensive possible wrong sentence on this surface. */
+function opsError(e: unknown): Error {
+  const raw = String((e as { message?: string })?.message ?? e ?? '');
+  const tokens = (Object.keys(OPS_ERROR_KO) as OpsRefusal[]).sort((a, b) => b.length - a.length);
+  for (const token of tokens) if (raw.includes(token)) return new Error(OPS_ERROR_KO[token]);
+  return e instanceof Error ? e : new Error(raw || '요청을 처리하지 못했어요');
+}
