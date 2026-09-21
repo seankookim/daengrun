@@ -243,8 +243,22 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   //     whether the line APPEARED; neither asked whether it was TRUE. The `some` branch is now the
   //     indicative twin of `unknown`'s conditional: both say the same true thing, at two
   //     confidences. ⚠ Never restore an amount claim here — nothing client-side can compute one.
-  // We never assert a bank account is on file: no client reader for `bank_accounts` exists and
-  // registration ships with open banking (earnings.tsx:116).
+  // We never assert a bank account is on file. ⚠ **The two reasons this line used to give are both
+  // FALSE as of 0194** and are corrected here rather than in a conversation, per the standing law
+  // that a stale comment is a false green arriving through the one artifact nobody distrusts:
+  //   · 「no client reader for `bank_accounts` exists」 — `fetchMyBankAccount()` (api.ts) is one.
+  //   · 「registration ships with open banking (earnings.tsx:116)」 — it shipped in 0194, as
+  //     `app/app/runner/bank-account.tsx`, and the line number was stale anyway.
+  // The BEHAVIOUR is unchanged and still right: this sheet asks one pre-call question and a bank
+  // row is not it, so adding a second read here would buy a claim nobody needs at the moment of
+  // deletion. What changed is only that the reasons had to stop being untrue.
+  // ⚠ ③'s premise below is ALSO overtaken: `0186 §A` added `ledger_items.paid_payout_id`, so
+  // 「no migration adds one」 is no longer true and unpaid IS computable. The `some` branch is
+  // therefore now WIDER than `0190 §B`'s retention rule — it fires on any ledger row while the
+  // server keeps the bank row only while an UNPAID one exists, so a fully-paid runner is told the
+  // conditional thing about a row that will in fact be deleted. That over-discloses rather than
+  // under-discloses, which is the safe direction, and narrowing it is a client slice with its own
+  // copy decision — named here so the next reader inherits the fact and not the stale reason.
   const [ledger, setLedger] = useState<'unknown' | 'none' | 'some'>('unknown');
   useEffect(() => {
     let alive = true;
