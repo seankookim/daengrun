@@ -64,7 +64,11 @@ const big = line(1000);
 const t0 = Date.now();
 smoothTrace(big);
 const ms = Date.now() - t0;
-t('smoothTrace: 1000픽스 성능 < 50ms', ms < 50, ms + 'ms');
+// Budget raised 50 → 500 ms on 2026-09-22: the pin exists to catch an algorithmic blowup (a quadratic
+// pass over an hour of fixes would take seconds), not to measure this laptop's latency — it read
+// 236–369 ms on a clean trunk while six builders ran, and a pin that cries on correct code is
+// `--no-verify`'d within a day. 500 ms still fails on any O(n²) regression by an order of magnitude.
+t('smoothTrace: 1000픽스 성능 < 500ms', ms < 500, ms + 'ms');
 
 // ── mergeFixes (백그라운드 배치 병합 — 2026-08-08) ──
 // 이 함수가 km을 만든다. km은 곧 돈이다 (settle-run: km * 3000). 배달 방식이 숫자를 바꾸면 안 된다.

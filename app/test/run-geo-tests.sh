@@ -4,6 +4,10 @@
 # (settle-run pays km * 3000), so this runner must never be left red.
 set -eu
 cd "$(dirname "$0")"
+# Always remove the generated bundle inputs, even when a case fails: an interrupted run used to leave
+# geo.src.ts behind, and tsc then type-checked a file that is not in the repo and went red for a
+# reason no diff could explain (measured 2026-09-22 under six parallel builders).
+trap 'rm -f geo.src.ts geo.src.ts.bak supabase-stub.ts geo.build.cjs' EXIT
 cp ../src/lib/geo.ts ./geo.src.ts
 cat > ./supabase-stub.ts <<'STUB'
 export const supabase: any = { channel: () => ({ subscribe: () => {}, send: async () => {}, on: () => ({ subscribe: () => ({}) }) }), removeChannel: () => {} };
