@@ -1020,19 +1020,17 @@ export default function ShotStudio() {
                 had no busy branch at all — it went translucent and kept saying 사진 넣기, which to
                 a screen reader was an ordinary enabled-looking button reporting only `disabled`. */}
             <Pressable
-              onPress={onGhost}
-              disabled={busy}
+              onPress={() => { if (!busy) onGhost(); }}
               accessibilityRole="button"
-              accessibilityState={{ busy, disabled: busy }}
+              accessibilityState={{ busy }}
               style={s.actGhost}
             >
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>{busy ? busyLabel : ghostLabel}</Text>
             </Pressable>
             <Pressable
-              onPress={onMain}
-              disabled={busy}
+              onPress={() => { if (!busy) onMain(); }}
               accessibilityRole="button"
-              accessibilityState={{ busy, disabled: busy }}
+              accessibilityState={{ busy }}
               style={s.actMain}
             >
               <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{mainLabel}</Text>
@@ -1045,8 +1043,7 @@ export default function ShotStudio() {
               igOk가 false인 경우는 둘 다 포함한다: 앱 미설치 · 이 빌드에 네이티브 모듈 없음. */}
           {igOk && (
             <Pressable
-              onPress={shareToInstagram}
-              disabled={busy}
+              onPress={() => { if (!busy) shareToInstagram(); }}
               /* [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at
                  rest, translateY(3) + 1px pressed. Busy keeps the lip and loses only the travel
                  (PaperBtn's predicate) — the button is mid-send, not dead.
@@ -1062,7 +1059,7 @@ export default function ShotStudio() {
                   : { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
               ]}
               accessibilityRole="button"
-              accessibilityState={{ busy, disabled: busy }}
+              accessibilityState={{ busy }}
               accessibilityLabel="인스타그램 스토리로 공유"
             >
               <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{busy ? busyLabel : '인스타 스토리로 ›'}</Text>

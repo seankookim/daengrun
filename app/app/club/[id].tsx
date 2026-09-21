@@ -834,13 +834,12 @@ export default function ClubPage() {
                 </Text>
                 {/* [honesty 2026-09-17] busy was an alpha with a fixed label — one screen, two
                     grammars, since the join CTA 12 lines down already swaps its label. The alpha
-                    is gone; the label carries busy, and a11y reports busy as well as disabled. */}
+                    is gone; the label carries busy, and a11y reports busy without marking it disabled. */}
                 <Pressable
-                  onPress={leave}
-                  disabled={memBusy}
+                  onPress={() => { if (!memBusy) leave(); }}
                   accessibilityRole="button"
                   accessibilityLabel="클럽 탈퇴"
-                  accessibilityState={{ disabled: memBusy, busy: memBusy }}
+                  accessibilityState={{ busy: memBusy }}
                   style={s.ghostBtn}
                 >
                   <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text }}>

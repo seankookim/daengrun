@@ -80,11 +80,10 @@ export default function Login() {
             that is touch feedback, not state. This is the app's only door, so the one thing it
             must never look like is broken. */}
         <Pressable
-          style={({ pressed }) => [s.kakao, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [s.kakao, pressed && !busy && { opacity: 0.9 }]}
           onPress={kakao}
-          disabled={busy}
           accessibilityRole="button"
-          accessibilityState={{ disabled: busy, busy }}
+          accessibilityState={{ busy }}
           accessibilityLabel="카카오로 시작하기"
         >
           <Text style={s.kakaoText}>{busy ? '카카오로 연결 중…' : '카카오로 3초 만에 시작하기'}</Text>

@@ -235,8 +235,8 @@ export default function Community() {
     loadComments(p.id);
   };
 
-  // The send button's single source of truth — literally the guard submitComment returns on.
-  const sendBlocked = sending || commentInput.trim().length === 0;
+  // Sending clears the draft; keep busy distinct from an empty draft.
+  const sendBlocked = !sending && commentInput.trim().length === 0;
 
   const submitComment = async (postId: string) => {
     const body = commentInput.trim();
@@ -746,18 +746,19 @@ export default function Community() {
                       else: with an empty input the button stayed fully opaque and did nothing on
                       tap (submitComment returns on `!body || sending`, :225), and while sending it
                       looked dim but was still pressable. Opacity is presentation, not state —
-                      app/chat.tsx fixed the identical bug on its 보내기 button ([dead button
-                      2026-08-19]: "불투명도는 표현이지 상태가 아니다").
-                      One predicate now drives disabled · a11y · the dim. */}
+                      app/chat.tsx fixed the identical bug on its 보내기 button.
+                      [busy 2026-09-22] Busy is a label swap that keeps its fill and reports only
+                      accessibilityState.busy; an empty draft is the DISABLED state (disabledFill
+                      + faint). The two are no longer one predicate. */}
                   <Pressable
-                    onPress={() => submitComment(p.id)}
+                    onPress={() => { if (!sending && !sendBlocked) submitComment(p.id); }}
                     disabled={sendBlocked}
-                    style={[s.commentSend, sendBlocked && { opacity: 0.5 }]}
+                    style={[s.commentSend, sending && { width: 'auto', paddingHorizontal: 12 }, sendBlocked && { backgroundColor: paper.disabledFill }]}
                     accessibilityRole="button"
-                    accessibilityLabel="댓글 보내기"
-                    accessibilityState={{ disabled: sendBlocked }}
+                    accessibilityLabel={sending ? '댓글 보내는 중…' : '댓글 보내기'}
+                    accessibilityState={{ busy: sending, disabled: sendBlocked }}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>↑</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: sendBlocked ? paper.faint : '#fff' }}>{sending ? '보내는 중…' : '↑'}</Text>
                   </Pressable>
                 </Row>
               </View>
