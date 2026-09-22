@@ -338,6 +338,17 @@ Trunk: npm 2774/0 · deno 377/0 · babel 178 · harness 1444/0 (unchanged since 
 0202 (0204 held): harness 1451 pass / 0 fail · deno 377/0 · npm 2903/0 · babel 179 · routes 74. Migrations on origin: 201.
 Second `db push` letter now covers SIX migrations. Sim rebuild of this tree running.
 
+**WAVE 7 (2026-09-23 04:57, gap finder v5 — live honesty defects with the fix already on the server):** `fix/edge-token-maps` (the
+owner's 예약하기 Alert prints twelve raw edge tokens incl. `unauthorized`; pay-path and open-drop envelope tokens; the
+schedule runner card's 「상세 프로필 준비 중」 over a live profile screen), `fix/live-activity-chat` (the owner's Live
+Activity has no `homeward`/`stopping` face — the server has pushed them since 0083/0168 and the widget falls through to
+ENDED · 「위치 수신 대기 중」 while the dog walks home; chat keeps the OLDEST 100 messages; `chat_messages.kind` is never
+selected so a `location` row is an empty bubble), `be/0210-ops-category-payout-stuck` (ops titles are filed as
+undisableable 안전·긴급; the classifier's unknown-kind arm fails OPEN into always-on; the runner is never told a payout
+is stuck), `be/0211-owner-proximity` (`runners.base_lat/lng` exist since 0123 but the owner still ranks by `total_runs`
+and prints `district || '근처'` — an owner-direction band through 0123's own anti-probing discipline; the dog gap nudge
+omits breed/weight, the two fields the runner's ticket shows). Sim: Release build of `6d02769` installed.
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
