@@ -22,6 +22,10 @@ import { foldRpcError, PENDING_DEPLOY_KO } from './rpc-error';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
+// Star arithmetic — pure, pinned by `test/rating.test.cjs`. It lives outside this file because the
+// average it computes is printed beside a count computed here, and the two must not drift again;
+// see the [reviews-surfaced] block at the end of this file for what drifting cost.
+import { firstLine, meanRating, ratedOnly } from './rating';
 // Runner settlement constants — different money from the owner fare (theme.ts:210)
 import { pricing } from '../theme';
 
@@ -3122,16 +3126,22 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
   if (!r) throw new Error(NOT_FOUND);
   const rr = r as any;
   // 가용시간·리뷰는 실패해도 프로필은 뜬다
-  const [availRes, revRes] = await Promise.all([
+  // 🔴 THE THIRD READ IS THE 2026-09-23 FIX AND IT IS NOT A DUPLICATE OF THE SECOND. The `.limit(5)`
+  // read below is the review LIST — the five newest, which is what the storefront shows. `avgRating`
+  // used to be reduced from that same array, so the star number was the mean of five while
+  // `fetchRunnerReviewCount` printed the count of all of them one line away. The average now comes
+  // from `fetchRunnerRatingSummary`, which reads every rated public review under the count's own
+  // predicate. It soft-fails to `null` like its neighbours — unknown draws no star, never a 0.
+  const [availRes, revRes, sumRes] = await Promise.all([
     supabase.from('runner_availability_rules').select('weekday, start_min, end_min').eq('runner_id', profileId).then((x) => x, () => ({ data: null } as any)),
     supabase.from('reviews').select('rating, note, tags, created_at').eq('target_id', profileId).eq('target_kind', 'runner').eq('visibility', 'public').order('created_at', { ascending: false }).limit(5).then((x) => x, () => ({ data: null } as any)),
+    fetchRunnerRatingSummary(profileId).then((s) => s, () => null),
   ]);
   const pace: number | null = rr.avg_pace_sec_per_km ?? null;   // null = no record; not invented
   const reviews = (revRes.data ?? []).map((v: any) => {
     const { dateLabel } = kstParts(v.created_at);
     return { rating: v.rating, note: v.note, tags: v.tags ?? [], when: dateLabel };
   });
-  const rated = reviews.filter((v: any) => v.rating != null);
   return {
     profileId: rr.profile_id,
     name: rr.profiles?.name ?? '러너',
@@ -3150,7 +3160,10 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     photos: rr.photos ?? [],
     availability: (availRes.data ?? []).map((a: any) => ({ weekday: a.weekday, startMin: a.start_min, endMin: a.end_min })),
     reviews,
-    avgRating: rated.length > 0 ? Math.round(rated.reduce((s: number, v: any) => s + v.rating, 0) / rated.length * 10) / 10 : null,
+    // The mean of EVERY rated public review, not of the five above. `null` when the summary read
+    // failed or when nobody has scored this runner yet — both draw no star (`★ ${p.avgRating}` is
+    // rendered only when this is non-null), and neither is a 0.
+    avgRating: sumRes ? sumRes.avg : null,
   };
 }
 
@@ -7105,4 +7118,206 @@ export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
  *  recorded there. */
 function opsError(e: unknown, fn?: string): Error {
   return foldRpcError(e, { fn, tokens: OPS_ERROR_KO, empty: '요청을 처리하지 못했어요' });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [2026-09-23 · reviews-surfaced] THE THREE REVIEW READS
+//
+// One block, appended rather than threaded through the file, because sibling slices are in flight
+// against api.ts this session and a union merge is worth more here than proximity.
+//
+// 🔴 WHAT WAS WRONG, AND IT WAS A PRINTED NUMBER RATHER THAN A CRASH. `fetchRunnerReviewCount`
+// (above) counts EVERY public review of a runner — correctly, and its header explains at length
+// why that count is viewer-independent. `fetchRunnerProfile` then printed an average computed over
+// the `.limit(5)` window it had fetched for the review LIST. Both numbers land on one line of
+// `runner-profile/[id].tsx` (`★ ${p.avgRating}` at :339 and :661, the 후기 count at :379), so a
+// runner with forty reviews was shown the mean of five under a label naming forty. Nothing failed,
+// no gate could see it, and every digit was real — which is exactly the shape the honesty law
+// names: a true number inside a false sentence.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A runner's public review standing, over ALL of them.
+ *
+ *  `count` is every public review; `ratedCount` is the subset carrying a score. They are two
+ *  different numbers and both are reported, because a review with `rating = null` is a real review
+ *  (it belongs in 「N개의 후기」) that cannot be averaged. `avg` is `null` — never 0 — when nothing
+ *  can be averaged; `rating.ts` carries the note on why 0 is a claim and not a placeholder. */
+export interface RunnerRatingSummary { count: number; ratedCount: number; avg: number | null }
+
+/** PostgREST caps a page server-side (`max-rows`). The loop below advances by the number of rows
+ *  ACTUALLY returned rather than by this number, so a server cap smaller than this one costs extra
+ *  round trips and never truncates the mean. */
+const RATING_PAGE = 1000;
+/** A hard stop, so a pathological read cannot loop forever. Reaching it THROWS rather than
+ *  returning a partial mean — a mean over 「as much as we managed to read」 is the very defect this
+ *  function exists to remove, and it would come back wearing a correct-looking number. */
+const RATING_PAGE_CAP = 50;
+
+/**
+ * Every public rating this runner holds, reduced to a count and a mean.
+ *
+ * ⚠ THE PREDICATE IS `fetchRunnerReviewCount`'s, EXACTLY — `target_id` / `target_kind = 'runner'` /
+ * `visibility = 'public'`. That is deliberate and load-bearing: the count and the average are
+ * printed on the same line, so any divergence in the filters re-creates the original defect in a
+ * subtler form. It is also the same set `reviews storefront read` (0011:4-5) exposes to every
+ * signed-in viewer, which is what makes this number viewer-independent and the label 「후기」 true.
+ *
+ * ⚠ IT PAGES, AND THE PAGING IS CHECKED AGAINST AN EXACT COUNT rather than against 「a short page
+ * means the end」. A short page is ambiguous — it is also what a server-side `max-rows` smaller
+ * than `RATING_PAGE` produces — and reading it as the end is how a windowed mean gets reintroduced
+ * by an infrastructure setting nobody changed in this repo. `count: 'exact'` gives the
+ * authoritative total on the first response; the loop stops only when it holds that many rows, and
+ * throws if it cannot get them. Unknown is a failure here, never a number.
+ */
+export async function fetchRunnerRatingSummary(profileId: string): Promise<RunnerRatingSummary> {
+  const ratings: unknown[] = [];
+  let total: number | null = null;
+  let from = 0;
+  for (let page = 0; page < RATING_PAGE_CAP; page++) {
+    const { data, error, count } = await supabase
+      .from('reviews')
+      .select('rating', { count: 'exact' })
+      .eq('target_id', profileId)
+      .eq('target_kind', 'runner')
+      .eq('visibility', 'public')
+      // Ordered by the primary key, not by `created_at`: paging needs a total order a concurrent
+      // insert cannot shuffle, and `created_at` is neither unique nor stable against a row landing
+      // between two pages.
+      .order('id', { ascending: true })
+      .range(from, from + RATING_PAGE - 1);
+    if (error) throw foldRpcError(error, { empty: '후기 평점을 불러오지 못했어요' });
+    // ⚠ A MISSING `count` IS NOT A ZERO. `count: 'exact'` comes back on the Content-Range header,
+    // and a response that fails to carry one leaves 「this runner has no reviews」 and 「we could not
+    // learn how many」 indistinguishable. `count ?? 0` would resolve that ambiguity in the flattering
+    // direction and — worse — would end the loop immediately, so a runner with reviews could be
+    // printed as 「0개의 후기」 beside a star computed from rows this function did read. Unknown is a
+    // failure here, exactly as the header says.
+    if (total == null) {
+      if (count == null) throw new Error('후기 평점을 불러오지 못했어요');
+      total = count;
+    }
+    const rows = (data ?? []) as { rating: number | null }[];
+    for (const r of rows) ratings.push(r.rating);
+    from += rows.length;
+    if (ratings.length >= total || rows.length === 0) {
+      return { count: total, ratedCount: ratedOnly(ratings).length, avg: meanRating(ratings) };
+    }
+  }
+  throw new Error('후기 평점을 불러오지 못했어요');
+}
+
+/** The signed-in runner's own standing, plus the newest public review, for the 받은 후기 row on
+ *  `runner/home.tsx`. `profileId` rides along so the row's tap target (`/runner-profile/{me}`)
+ *  costs no second auth read — it is `auth.uid()`, nothing more. */
+export interface MyRunnerReviews extends RunnerRatingSummary {
+  profileId: string;
+  /** The newest PUBLIC review, or null when there is none. `line` is null for a review with no
+   *  prose (stars and tags only) — a caller must draw no quote rather than an empty one. */
+  latest: { rating: number | null; line: string | null; when: string } | null;
+  /** 🔴 DID THE NEWEST-REVIEW READ ANSWER AT ALL. `latest === null` has two causes — there is no
+   *  review, or the read failed — and they are not the same fact. Without this flag a caller
+   *  renders 「가장 최근 후기에는 남긴 글이 없어요」 over a failed read, which is the silent-catch →
+   *  happy-UI shape the honesty law forbids: a sentence asserting something the read never said.
+   *  `false` means say NOTHING about the newest review; the count and the average still stand,
+   *  because they come from a different read that succeeded. */
+  latestKnown: boolean;
+}
+
+/**
+ * 받은 후기 — the runner's own received reviews, read as the runner.
+ *
+ * ⚠ PUBLIC ONLY, and that is a consistency choice rather than a privacy one: the row's tap target
+ * is `/runner-profile/{me}`, which renders the public storefront list. A count here that included
+ * `platform_only` rows would name a number the destination screen cannot show, and the runner
+ * would land on a page that looks like it lost reviews.
+ */
+export async function fetchMyRunnerReviews(): Promise<MyRunnerReviews> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id;
+  if (!uid) throw new Error('로그인 정보를 확인하지 못했어요');
+  const [summary, latestRes] = await Promise.all([
+    fetchRunnerRatingSummary(uid),
+    supabase
+      .from('reviews')
+      .select('rating, note, created_at')
+      .eq('target_id', uid)
+      .eq('target_kind', 'runner')
+      .eq('visibility', 'public')
+      .order('created_at', { ascending: false })
+      .limit(1),
+  ]);
+  // ⚠ The newest-review read may fail on its own without taking the row down: the count and the
+  // average are the row's subject and they arrived. But a failed preview must not read as an
+  // ABSENT preview — hence `latestKnown`, which is the difference between 「there is no quote」 and
+  // 「we did not find out whether there is a quote」.
+  const latestKnown = !latestRes.error;
+  const row = (latestKnown ? (latestRes.data ?? [])[0] : null) as
+    { rating: number | null; note: string | null; created_at: string } | undefined | null;
+  return {
+    ...summary,
+    profileId: uid,
+    latestKnown,
+    latest: row
+      ? { rating: row.rating ?? null, line: firstLine(row.note), when: kstMonthDay(kstCal(Date.parse(row.created_at))) }
+      : null,
+  };
+}
+
+/** The runner's review OF THE DOG, as the owner of that booking sees it. */
+export interface DogReview { rating: number | null; note: string | null; tags: string[]; createdAt: string }
+
+/**
+ * 러너의 한마디 — the other half of the two-sided review, which until now nobody could read.
+ *
+ * `runner/review.tsx:97-107` has always inserted `reviews(target_kind: 'dog', target_id: dog_id)`.
+ * The only reader of that row was `fetchMyReviewedBookingIds` above, which is author-gated and
+ * exists to hide a door the RUNNER has already used. The owner's own report read
+ * (`owner/report.tsx`'s `readMyReview`) filters `target_kind = 'runner'` — the owner's OUTBOUND
+ * review. So the runner wrote, and the row was never rendered to anyone.
+ *
+ * 🔴 THE POLICY THIS READ STANDS ON, named because an absent row and a refused row make the same
+ * picture and this function converts one of them into 「아직 러너의 후기가 없어요」:
+ *   `reviews public read` (0002_rls.sql:115-117) — `visibility = 'public' and
+ *   is_booking_party(booking_id)`, where `is_booking_party` (0002_rls.sql:15-22) is
+ *   `b.owner_id = auth.uid() or b.runner_id = auth.uid()`.
+ * The owner of the booking is a booking party, so a PUBLIC dog review on their own booking is
+ * readable. No migration is needed and none was written. (The other two policies do not reach it:
+ * `reviews author read` (0002:118) is `author_id = auth.uid()` and the owner is not the author;
+ * `reviews storefront read` (0011:4-5) is `target_kind = 'runner'`. Policies are permissive and
+ * OR'd, so one grant is enough. `0114:257` moves only the INSERT policy and its own header at
+ * `0114:403` says all three reads stay; `0114:457` asserts `reviews public read` still exists by
+ * name. `is_booking_party` itself is never revoked anywhere — `0114:176` says so explicitly.)
+ *
+ * ⚠ `platform_only` IS EXCLUDED AND THE OWNER IS NOT TOLD IT EXISTS. A runner reporting a welfare
+ * or safety concern chooses 비공개, which `runner/review.tsx:107` writes as `platform_only` —
+ * 도그스하이 운영팀 only. RLS refuses it here anyway (the policy requires `visibility = 'public'`),
+ * but the filter is written explicitly so the empty state cannot drift into meaning 「hidden」: an
+ * owner shown 「아직 러너의 후기가 없어요」 while a private report exists is the CORRECT product
+ * behaviour, and a caller must never render a 「비공개 후기가 있어요」 hint from a null — that would
+ * leak the report's existence, which is the whole thing 비공개 buys.
+ *
+ * Returns `null` for 「read succeeded, no review」. THROWS for 「could not find out」 — the caller
+ * owes those two states different pictures, exactly as `readMyReview` does one screen over.
+ */
+export async function fetchDogReviewForBooking(bookingId: string): Promise<DogReview | null> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('rating, note, tags, created_at')
+    .eq('booking_id', bookingId)
+    .eq('target_kind', 'dog')
+    .eq('visibility', 'public')
+    // `unique (booking_id, author_id, target_kind)` (0001_init.sql:260) plus one runner per booking
+    // makes this at most one row. `maybeSingle` is the discipline `readMyReview` uses one screen
+    // over: 0 rows is null, and 2+ rows is a FAILURE rather than a silent 「newest wins」, because
+    // two dog reviews on one booking means something upstream is not what this comment claims.
+    .maybeSingle();
+  if (error) throw foldRpcError(error, { empty: '러너의 후기를 불러오지 못했어요' });
+  if (!data) return null;
+  const d = data as { rating: number | null; note: string | null; tags: string[] | null; created_at: string };
+  return {
+    rating: d.rating ?? null,
+    note: d.note ?? null,
+    tags: Array.isArray(d.tags) ? d.tags : [],
+    createdAt: d.created_at,
+  };
 }
