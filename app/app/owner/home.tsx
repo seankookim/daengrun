@@ -10,6 +10,7 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { DrawButton } from '../../src/components/draw-button';
 import { HomeHero, elapsedLabel } from '../../src/components/home-hero';
 import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
+import { RecurringCta } from '../../src/components/recurring-cta';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
@@ -692,6 +693,15 @@ export default function OwnerHome() {
                 <Text style={s.rowAct}>시간만 고르기 ›</Text>
               </Pressable>
             )}
+            {/* ⟳ 매주 반복 — the SAME last run, offered as a standing arrangement instead of one
+                more single booking. The row above is the one-off (prefill · 시간만 고르기); this
+                one calls `create_recurring_series` on that booking and then shows the series the
+                cron will act on. Both stay: 「한 번 더」 and 「계속」 are different intents, and the
+                PMF gate (M1 rebooking 60%) is the second one.
+                `lastDone` is a real completed booking, so the series rule derives from a real
+                KST weekday+time (`0077:53`) — the cron's next occurrence is computed from the
+                rule, never from the old date, so a past booking is a valid template. */}
+            {lastDone && <RecurringCta bookingId={lastDone.id} seriesId={lastDone.seriesId ?? null} />}
           </View>
         )}
 

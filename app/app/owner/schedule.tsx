@@ -15,6 +15,7 @@ import { PaperSheet } from '../../src/components/paper-sheet';
 import { PaymentRow } from '../../src/components/charge-states';
 import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
+import { RecurringCta } from '../../src/components/recurring-cta';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
@@ -1066,6 +1067,21 @@ export default function Schedule() {
                       )}
                     </>
                   )}
+                  {/* ⟳ 매주 반복 — 상태 · 만들기 · 다시 시작 (0026 · 0077 · 0111)
+                      THE DOOR WAS ONE-WAY UNTIL NOW. `0111:193` grants the client exactly one
+                      column on `recurring_series` — `update (paused)` — and the only client writer
+                      of it wrote `true` (해지). `false` was a capability the server had shipped and
+                      nothing in the app could reach, so an owner who stopped their weekly run had
+                      to rebuild the series from a new booking. `RecurringCta` draws whichever of
+                      the three states is true: no series → 매주 반복으로 바꾸기 · running → the
+                      state line the cron will act on · paused → the line plus 반복 다시 시작.
+                      `onChanged` re-reads this screen's list so the ⟳ 매주 pill on the row agrees
+                      with the sheet. */}
+                  <RecurringCta
+                    bookingId={selected.id}
+                    seriesId={selected.seriesId ?? null}
+                    onChanged={load}
+                  />
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
                   {selected.seriesId && (
                     <Pressable style={s.cancelLink} onPress={pauseSeries}>

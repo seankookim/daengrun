@@ -8,6 +8,9 @@ import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { ProfileGaps } from '../../src/components/profile-gaps';
+// 매주 반복 — see the delimited block further down; the import sits alone so the feature's whole
+// footprint in this shared file is one import line plus one fenced block.
+import { RecurringCta } from '../../src/components/recurring-cta';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
@@ -1026,6 +1029,25 @@ export default function Report() {
                 <Text style={s.rebookChev}>›</Text>
               </Pressable>
             )}
+
+            {/* ══════ 매주 반복 — THE LOOP, WHERE THE INTENT ACTUALLY FORMS ══════
+                One delimited block, deliberately: `owner/report.tsx` is shared with a parallel
+                slice this session, so everything this feature adds here is inside these two
+                comment fences and nothing above or below moves.
+
+                Why HERE. The 다음 주 같은 시간 panel directly above is the one-off: it prefills
+                `owner/request.tsx` with next week's slot and the owner books ONE run. It stays —
+                this is an addition, not a replacement, and the two are different intents (「한 번
+                더」 vs 「계속」). But the weekly loop is what the PMF gate measures, and until this
+                slice its only door in the entire app was a collapsed fold on the owner's FIRST
+                booking (`owner/request.tsx:~646`) — asked at the one moment nobody can answer it.
+                Right after a run they liked is when 「매주」 is a real thought.
+
+                The block reads the server's own state back and renders THAT, so a booking already
+                in a series shows 「매주 수 19:30 · 다음 예약 …」 instead of a button that would
+                re-confirm something idempotently and claim it made it (`0077:44`). */}
+            {bid && <RecurringCta bookingId={bid} />}
+            {/* ══════ 매주 반복 끝 ══════ */}
 
             {/* [honesty #17] 슬롯 확인 실패 — 위 패널이 시간을 안 부르는 이유가 「러너가 그때 안
                 된다」인지 「확인을 못 했다」인지 갈린다. 패널 자체는 건드리지 않는다(시간 없는 문장은

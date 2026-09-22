@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import { session } from '../store';
 import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
 import {
-  CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, destinationForSystemRef,
-  needsClubProbe, needsCommunityClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES,
-  refMayBeClubSession,
+  CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, destinationForRefLessBookingTitle,
+  destinationForSystemRef, needsClubProbe, needsCommunityClubProbe, needsCurrentBookingProbe,
+  OWNER_MEETUP_TITLES, refMayBeClubSession,
 } from './notification-route';
 import { supabase } from './supabase';
 
@@ -130,6 +130,17 @@ export function routeForNotification(kind: string | null | undefined, refId: str
     try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready */ }
     return;
   }
+  // 반복 러닝 ② — a `booking` row with NO ref. `generate_recurring_bookings` writes
+  // 「반복 예약 일시 중지」 with `ref_id` NULL (`0180:177`): it is about the money gate, not about a
+  // booking, so there is no id to carry. The `!refId` guard on the next line returned early for it,
+  // which is right for every OTHER ref-less booking title and wrong for this one — its destination
+  // does not need a ref. The table decides (`destinationForRefLessBookingTitle`), so an unlisted
+  // ref-less title still returns here and still draws as a plain inbox line.
+  if (kind === 'booking' && !refId) {
+    const dest = destinationForRefLessBookingTitle(title);
+    if (dest) { try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready */ } }
+    return;
+  }
   // `safety` joins `booking` here. It used to fall off the end of this function and route NOWHERE,
   // so 「외부 커스터디 이양 … 즉시 확인하세요」 — the most urgent thing this product can say — was a
   // tap that did nothing, in the inbox AND on the OS push.
@@ -188,7 +199,11 @@ export function hasNotificationRoute(
 ): boolean {
   if (kind === 'community') return true;              // /community — no ref needed
   if (kind === 'reward') return true;                 // 리포트(ref 있음) 또는 /cards(없음)
-  if (kind === 'booking' || kind === 'safety') return !!refId;
+  // 반복 러닝 ②: a `booking` row with a ref is routable as before; one WITHOUT a ref is routable
+  // only when its title has a static destination. `safety` keeps the bare `!!refId` — every safety
+  // writer passes an id, and inventing a ref-less safety destination would be a guess.
+  if (kind === 'booking') return !!refId || destinationForRefLessBookingTitle(title) !== null;
+  if (kind === 'safety') return !!refId;
   // [0206] `system` is the OPS roster's kind (0183 · 0186 · 0193 · 0206 §C). Routable only when
   // its title has a console screen — the table decides, not the kind, so an ops writer that adds
   // a title without adding a destination gets an honest inbox LINE rather than a dead button.
