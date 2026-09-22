@@ -16,6 +16,8 @@ const {
   COMMUNITY_FEED_TITLE_MARK, isCommunityFeedTitle, needsCommunityClubProbe, destinationForCommunityRef,
   OPS_SYSTEM_TITLES, OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE,
   OPS_GEAR_CLAIM_TITLE, destinationForSystemRef,
+  RECURRING_CREATED_TITLE, RECURRING_PAUSED_TITLE, REFLESS_BOOKING_DESTINATIONS,
+  destinationForRefLessBookingTitle,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -488,6 +490,81 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
   //    returning a blanket false. The corrected prose is PROSE — it belongs in the file, not in an
   //    assertion, and an arm that could only ever measure its wording would be a pin nobody could
   //    trust in either direction.
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// 반복 러닝 — THE WEEKLY CRON'S TWO TITLES
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// Two different dead ends, closed together, and each one is pinned against the MIGRATION that
+// writes it (comments stripped first — a comment quoting a title must not satisfy a check for the
+// statement that inserts it).
+//
+//  ① 「반복 러닝 예약 생성」 has a good ref and landed on `/owner/report` — the POST-RUN report for
+//     a booking the cron created seconds ago at `matching`. Nothing crashed, which is why it
+//     survived: the screen simply had nothing about the booking the push announced.
+//  ② 「반복 예약 일시 중지」 has NO ref by construction (it is about the money gate, not a booking),
+//     and every route in this table keys off a ref — so it was an untappable inbox line and a push
+//     that did nothing.
+{
+  const stripped = (f) => fs.readFileSync(path.resolve(__dirname, '../../supabase/migrations/' + f), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  // 0180 holds the LATEST definition of generate_recurring_bookings (0026 → 0080 → 0111 → 0119 →
+  // 0127 → 0180). Pinning the newest writer is the point: an older copy carrying the same string
+  // would make this pass while the deployed function had moved on.
+  const s0180 = stripped('0180_cron_dog_lock_and_tick_split.sql');
+  t('0180 still holds the latest generate_recurring_bookings (the function this table routes for)',
+    /create or replace function generate_recurring_bookings\(\)/.test(s0180));
+  t("the client's RECURRING_CREATED_TITLE is the string 0180 inserts for a generated booking",
+    s0180.includes("'booking', '" + RECURRING_CREATED_TITLE + "'"),
+    'not found as a booking insert in 0180: ' + RECURRING_CREATED_TITLE);
+  t("the client's RECURRING_PAUSED_TITLE is the string 0180's money gate inserts",
+    s0180.includes("'booking', '" + RECURRING_PAUSED_TITLE + "'"),
+    'not found as a booking insert in 0180: ' + RECURRING_PAUSED_TITLE);
+  // The REASON ② needs a ref-less route at all: the writer passes `null`. If a future migration
+  // gives that insert a ref, this arm reddens and the ref-less entry should be revisited rather
+  // than silently kept — a static destination for a row that now carries an id is a lost id.
+  t('0180 writes 반복 예약 일시 중지 with a NULL ref (which is why it needs a ref-LESS destination)',
+    new RegExp("'booking', '" + RECURRING_PAUSED_TITLE + "',[\\s\\S]{0,240}?, null\\);").test(s0180),
+    'the paused insert no longer passes null as ref_id');
+
+  // ── ① the destination ──
+  {
+    const d = dest({ title: RECURRING_CREATED_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null });
+    t('반복 러닝 예약 생성 · owner → /owner/radar carrying the bid (the PRE-run screen: 러너 찾는 중 + the nominate list), not the post-run report',
+      !!d && d.pathname === '/owner/radar' && d.params && d.params.bid === BID, show(d));
+    t('… and it is NOT the report (the default it used to fall into)', !isReport(d));
+  }
+  t('반복 러닝 예약 생성 · owner whose booking IS the current one → still radar (the meetup arm must not swallow it)',
+    dest({ title: RECURRING_CREATED_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }).pathname === '/owner/radar');
+  t('반복 러닝 예약 생성 needs NO club probe and NO current-booking probe (the cron is marketplace-only; radar takes the bid)',
+    !needsClubProbe(RECURRING_CREATED_TITLE) && !needsCurrentBookingProbe('owner', RECURRING_CREATED_TITLE));
+  t('반복 러닝 예약 생성 is not on the club-session-ref list (generate_recurring_bookings inserts a BOOKING id)',
+    !refMayBeClubSession(RECURRING_CREATED_TITLE));
+
+  // ── ② the ref-less destination ──
+  t('반복 예약 일시 중지 → /payments, where the 미수금 banner and the card row are — the body says 결제 문제를 해결하면',
+    destinationForRefLessBookingTitle(RECURRING_PAUSED_TITLE) === '/payments');
+  t('the ref-less table answers null for a title that is not in it (an unlisted ref-less row stays an honest inbox LINE)',
+    destinationForRefLessBookingTitle('러너 도착') === null
+    && destinationForRefLessBookingTitle('어떤 새 제목') === null);
+  t('… and for no title at all (null/undefined/empty are all "nowhere", never a crash)',
+    destinationForRefLessBookingTitle(null) === null
+    && destinationForRefLessBookingTitle(undefined) === null
+    && destinationForRefLessBookingTitle('') === null);
+  t('the ref-less destination is STATIC — it interpolates no id (that is what lets a ref-less row have one at all)',
+    Object.values(REFLESS_BOOKING_DESTINATIONS).every((v) => typeof v === 'string' && !v.includes('${') && !v.includes(BID)));
+
+  // ── push.ts must CONSULT the table in BOTH directions, or the pins above are green over an
+  //    inbox that still draws text and a push that still does nothing. The two sites are the
+  //    synchronous/asynchronous twins push.ts's own header says must be edited together.
+  const push = fs.readFileSync(path.resolve(__dirname, '../src/lib/push.ts'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  t('routeForNotification handles a ref-LESS booking row through the table (before the !refId early return that used to swallow it)',
+    /kind === 'booking' && !refId/.test(push) && /destinationForRefLessBookingTitle\(title\)/.test(push));
+  t('hasNotificationRoute no longer answers a bare !!refId for the booking kind',
+    /if \(kind === 'booking'\) return !!refId \|\| destinationForRefLessBookingTitle\(title\) !== null;/.test(push));
+  t('safety KEEPS the bare !!refId (every safety writer passes an id; a ref-less safety destination would be a guess)',
+    /if \(kind === 'safety'\) return !!refId;/.test(push));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

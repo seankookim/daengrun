@@ -172,6 +172,53 @@ export function destinationForSystemRef(
 // string out of both writers, so the three spellings cannot part.
 export const CANCEL_COMP_TITLE = '시간을 비워둔 보상이 기록됐어요';
 
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// 반복 러닝 — THE TWO TITLES THE WEEKLY CRON WRITES, AND WHY NEITHER LANDED ANYWHERE USEFUL
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// `generate_recurring_bookings()` (latest definition `0180_cron_dog_lock_and_tick_split.sql:82`)
+// is the only writer of both. They fail in two DIFFERENT ways, which is why they are two entries
+// and not one:
+//
+//  ① 「반복 러닝 예약 생성」 (`0180:208`) — ref = the booking the cron JUST INSERTED, at status
+//     `matching` (no runner yet) or `runner_pending` (the same runner was re-nominated and the
+//     slot re-validated). It is a title with a perfectly good ref that fell off the end of this
+//     table into the owner default, `/owner/report?bid=` — **the POST-RUN report, for a run that
+//     has not happened.** report.tsx opens on a booking with no `run` row and says so; nothing
+//     crashes, and nothing about the booking the push is announcing is reachable from there.
+//     `/owner/radar` is the screen for exactly this state: it takes `bid`
+//     (`owner/radar.tsx:100`), renders header and rows from `rawStatus` — 「러너 찾는 중」 for
+//     `matching`, 「{러너} 러너 응답 대기」 for `runner_pending` — and carries the nominate list,
+//     which is the one useful action on a booking that has no runner yet. It also handles arriving
+//     LATE honestly: `confirmed`+ moves on to 내 일정 and its `TERMINAL_ON_RADAR` table names
+//     completed/expired/refund rows rather than pretending, so a months-old inbox row is safe.
+//
+//  ② 「반복 예약 일시 중지」 (`0180:177`) — written with `ref_id` **NULL** by construction: it is
+//     not about a booking, it is about the money gate that stopped one being made
+//     (`owner_has_unsettled_charge`, or no card once `payments_live_since` is set). Every route in
+//     this file keys off a ref, and `hasNotificationRoute` answered `!!refId` for the `booking`
+//     kind — so this row was drawn in the inbox as plain text with no tap, and the OS push did
+//     nothing at all. Its body says 「결제 문제를 해결하면 다시 시작돼요」 and `/payments` is where
+//     that is done: the 미수금 banner (`fetchUnsettledCharge`) and the card row live there.
+//     ⚠ The destination is STATIC — it does not depend on a ref, which is precisely why it can
+//     exist for a ref-less title. That is a new shape for this table, so it is a named map rather
+//     than an `if`: a future ref-less title gets a destination by being added here or gets an
+//     honest inbox LINE, never a tap that goes nowhere.
+export const RECURRING_CREATED_TITLE = '반복 러닝 예약 생성';
+export const RECURRING_PAUSED_TITLE = '반복 예약 일시 중지';
+
+/** `booking`-kind titles that carry NO `ref_id` and still have somewhere true to go. The value is
+ *  a complete destination on its own — nothing here may interpolate a ref. */
+export const REFLESS_BOOKING_DESTINATIONS: Record<string, string> = {
+  [RECURRING_PAUSED_TITLE]: '/payments',
+};
+
+/** Where a ref-less `booking` notification lands, or `null` when there is nowhere — in which case
+ *  `hasNotificationRoute` draws the row as text (the no-dead-buttons law). */
+export function destinationForRefLessBookingTitle(title: string | null | undefined): string | null {
+  if (!title) return null;
+  return REFLESS_BOOKING_DESTINATIONS[title] ?? null;
+}
+
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
 // screen at the one moment that matters most: the owner taps 인계하기, the server sends
@@ -358,6 +405,13 @@ export function destinationForBookingRef(f: BookingRefFacts, titles: { incident:
     // Only this family is wrapped: the other runner destinations are list screens that take no
     // bid, and handing them one would be a param nothing reads.
     return RETURN_TITLES.includes(title) ? { pathname, params: { bid: refId } } : pathname;
+  }
+  // 반복 러닝 ① — the cron's freshly inserted booking, which is PRE-run. The owner default below
+  // is the post-run report, so this arm is the difference between 「러너 찾는 중 · 지명하기」 and a
+  // report screen for a run that has not happened. Owner-only by position: the row is written to
+  // `s.owner_id` (`0180:208`) and a runner reading their own inbox can never hold one.
+  if (title === RECURRING_CREATED_TITLE) {
+    return { pathname: '/owner/radar', params: { bid: refId } };
   }
   if (OWNER_MEETUP_TITLES.includes(title)) {
     // /owner/meetup self-restores to whatever booking is CURRENTLY in flight. Fine for a live push

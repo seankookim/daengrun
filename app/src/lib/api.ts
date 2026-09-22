@@ -18,7 +18,10 @@ import { isPendingDeploy } from './rpc-skew';
 // else with no Hangul → the fold. Pure, pinned by `test/rpc-error-fold.test.cjs`. See its header
 // for the measurement that produced it (a Release build printed a PostgREST sentence at
 // `daengrun://ops`). ⚠ `custodyPing` below is the ONE deliberate exception and says why.
-import { foldRpcError, PENDING_DEPLOY_KO } from './rpc-error';
+import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
+// 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
+// screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
+import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
@@ -591,16 +594,108 @@ export async function createBookingHold(p: {
 // ---------- 반복 예약 (0026) ----------
 // 결제 완료된 첫 예약의 스냅샷으로 시리즈 생성 (서버 RPC — 멱등).
 // 이후 매시 크론이 72h 창에서 다음 주 예약을 자동 생성 (같은 러너 우선, 가용성 재검증).
+//
+// ⚠ IDEMPOTENT IS NOT THE SAME AS 「CREATED」. `create_recurring_series` returns `b.series_id`
+// unchanged when the booking already belongs to a series (`0077:45`), so a second tap answers 200
+// with the SAME id and nothing was made. Screens must therefore read the series back before they
+// claim anything — `fetchSeriesForBooking` below is that read, and `RecurringCta` draws the state
+// line rather than a success toast for exactly this reason.
 export async function createRecurringSeries(bookingId: string): Promise<string> {
   const { data, error } = await supabase.rpc('create_recurring_series', { p_booking: bookingId });
-  if (error) throw error;
+  // 0077 raises `not_signed_in` (`:38`), `not_found` (`:42`) and `forbidden` (`:43`). Before this
+  // the raw Postgres sentence reached the Alert.
+  if (error) throw foldRpcError(error, { fn: 'create_recurring_series', tokens: CREATE_SERIES_TOKENS });
   return data as string;
 }
 
 // 해지 = paused (go-backable — 시리즈 이력 보존, 이미 생성된 예약은 그대로)
 export async function pauseRecurringSeries(seriesId: string): Promise<void> {
   const { error } = await supabase.from('recurring_series').update({ paused: true }).eq('id', seriesId);
-  if (error) throw error;
+  // No `fn`: this is a TABLE write, and PGRST202 is a function-not-found code (rpc-error.ts).
+  if (error) throw foldRpcError(error, { empty: '매주 반복을 해지하지 못했어요' });
+}
+
+// 다시 시작 = paused:false — the INVERSE of the write above, through the same one-column grant
+// (`0111:193` grants the client `update (paused)` and nothing else; the `series owner pause`
+// policy at `0111:200` carries an explicit `with check (owner_id = auth.uid())`). It existed as a
+// server capability from the day the column grant landed and had no client caller: 해지 was a
+// one-way door in a product whose PMF gate is rebooking.
+export async function resumeRecurringSeries(seriesId: string): Promise<void> {
+  const { error } = await supabase.from('recurring_series').update({ paused: false }).eq('id', seriesId);
+  if (error) throw foldRpcError(error, { empty: '반복을 다시 시작하지 못했어요' });
+}
+
+export interface SeriesRow {
+  id: string;
+  paused: boolean;
+  /** `rule.weekdays[0]` — the only weekday the cron reads (`0180:109`). */
+  weekday: number | null;
+  /** `rule.time`, 'HH:MM'. */
+  time: string | null;
+  /** Earliest upcoming booking in this series, ISO. null = none exists yet (the 72h window). */
+  nextBookingAt: string | null;
+  /** `my_unsettled_charge()` — the cron's own debt gate for MY series. null = the read failed. */
+  unsettledCharge: boolean | null;
+}
+
+/**
+ * The series this booking belongs to, or `null` when it belongs to none. Two plain reads rather
+ * than one embed: `recurring_series` has a single FK from `bookings` today, but an embed there is
+ * exactly what `check-embed-fk.mjs` exists to police, and the saving is one round trip.
+ *
+ * `unsettledCharge` is folded in here because the debt gate is a fact ABOUT this series' next
+ * generation (`0180:169`): the cron blocks on `owner_has_unsettled_charge(s.owner_id)` and
+ * `my_unsettled_charge()` is that same predicate for `auth.uid()`. Its failure is caught and
+ * returned as `null` — 「not known」 — because a series read must not die on a money read, and
+ * `describeSeries` renders `null` as silence rather than as a problem.
+ */
+export async function fetchSeriesForBooking(bookingId: string): Promise<SeriesRow | null> {
+  const { data: b, error: bErr } = await supabase
+    .from('bookings').select('series_id').eq('id', bookingId).maybeSingle();
+  if (bErr) throw foldRpcError(bErr, { empty: '반복 정보를 불러오지 못했어요' });
+  const seriesId = (b as { series_id?: string | null } | null)?.series_id ?? null;
+  if (!seriesId) return null;
+  return fetchSeries(seriesId);
+}
+
+/** The same read keyed by the series itself — the schedule sheet already knows `seriesId`. */
+export async function fetchSeries(seriesId: string): Promise<SeriesRow | null> {
+  const { data, error } = await supabase
+    .from('recurring_series').select('id, paused, rule').eq('id', seriesId).maybeSingle();
+  if (error) throw foldRpcError(error, { empty: '반복 정보를 불러오지 못했어요' });
+  if (!data) return null;                       // 0 rows is a FACT (the maybeSingle law), not a failure
+  const row = data as { id: string; paused: boolean; rule: unknown };
+  const { weekday, time } = ruleWeekdayAndTime(row.rule);
+
+  // Non-terminal statuses — what 「다음 예약」 may legitimately name. Wider than `IN_FLIGHT`
+  // (declared further down this file) on purpose: the cron inserts at `matching`/`runner_pending`
+  // (`0180:208`), which is exactly the state a just-generated weekly booking is in, while
+  // `IN_FLIGHT` starts at `confirmed`. A cancelled/expired/completed row must never be called the
+  // next one. ⚠ Built HERE rather than at module scope: `IN_FLIGHT` is a `const` declared later in
+  // the file, so a module-scope spread of it would evaluate inside its temporal dead zone and
+  // throw at import — which in an Expo Router app means a blank launch, not a caught error.
+  const SERIES_UPCOMING = ['matching', 'runner_pending', ...IN_FLIGHT];
+
+  const [nextRes, debtRes] = await Promise.all([
+    supabase.from('bookings').select('scheduled_at')
+      .eq('series_id', seriesId)
+      .in('status', SERIES_UPCOMING)
+      .gte('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(1),
+    fetchUnsettledCharge().catch((e) => { console.warn('[series] debt:', rpcRaw(e)); return null; }),
+  ]);
+  if (nextRes.error) throw foldRpcError(nextRes.error, { empty: '반복 정보를 불러오지 못했어요' });
+  const next = (nextRes.data ?? [])[0] as { scheduled_at?: string } | undefined;
+
+  return {
+    id: row.id,
+    paused: row.paused === true,
+    weekday,
+    time,
+    nextBookingAt: next?.scheduled_at ?? null,
+    unsettledCharge: debtRes,
+  };
 }
 
 // [O-5 §C.2] `confirmPayment` is DELETED, with the server action it called. `payment_ok` verified
