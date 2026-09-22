@@ -309,12 +309,14 @@ export default function ReturnSeal() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <View style={[pad, { paddingTop: insets.top + 10, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 22, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>인계 · 반환</Text>
         <Pressable
           hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="보호자 채팅"
           onPress={async () => {
             if (!bookingId) return;
             try { await ensureThread(bookingId); } catch (e) { console.warn('[return-seal] thread:', (e as Error)?.message); }

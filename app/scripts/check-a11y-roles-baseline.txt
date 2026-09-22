@@ -1,0 +1,83 @@
+# check-a11y-roles.mjs baseline — `<Pressable>` elements under app/ + src/ that carry no
+# `accessibilityRole`. Opened 2026-09-23 with 163 across 33 files, immediately after the HIG
+# a11y sweep gave roles to 28 taps on seven screens (alerts · owner/home · runner/home ·
+# runner/return-seal · cards · runner/requests · owner/live). Format: `<path> <count>`.
+# A file not listed here must be at ZERO. The ledger can only shrink: a count above its line is
+# new debt and fails, a count below it is a stale line and also fails.
+#
+# ── THE CONTROL TEST, run before this gate was trusted ────────────────────────────────────────
+# The standing rule is that a new detector's first obligation is to disagree with the crudest
+# version of itself and to explain every difference in BOTH directions. Measured 2026-09-23:
+#
+#   population   `grep -ro '<Pressable' app src --include=*.tsx`  →  641 occurrences
+#                Babel-parsed JSX elements                        →  641 elements
+#                exact agreement, so the gate is looking at the same population the eye sees.
+#                Also measured, and each is why a whole class of miss is absent rather than
+#                merely unobserved: `<Pressable` inside a comment → 0 · `<Pressable` in a `.ts`
+#                file (the walk only reads `.tsx`) → 0 · the legal-but-unused spaced form
+#                `< Pressable` → 0 · `<Touchable*` anywhere → 0 · elements carrying a
+#                `{...spread}` (which this gate exempts, since the role could be inside it) → 0.
+#
+#   answer       crude `grep -n '<Pressable' | grep -v accessibilityRole`   →  440
+#                this gate                                                  →  163
+#
+#   the 277 the crude version ADDS are every one of them a multi-line element whose
+#   `accessibilityRole` sits on a LATER line — 641 elements, 478 with a role, of which 201 write
+#   it on the opening line and 277 on a line of their own. This codebase formats nearly every
+#   Pressable with more than two props across lines, so the crude version is wrong about 63% of
+#   its own hits. Worked per-file, both directions:
+#       app/club/session/[sid].tsx   35 elements · crude 35 · gate 23 · +12 all later-line roles
+#       app/runner/home.tsx          31 elements · crude 21 · gate  3 · +18 all later-line roles
+#   the crude version DROPS nothing at all: 0 of the gate's 163 are invisible to it, because a
+#   role-less element has no `accessibilityRole` anywhere to accidentally match. That asymmetry
+#   is the whole reason this is parsed rather than grepped — a gate that cried 277 times on
+#   correctly-labelled buttons would be `--no-verify`'d within a day and then protect nothing
+#   while everyone believes it is on.
+#
+# ── WHAT A LINE HERE IS AND IS NOT ────────────────────────────────────────────────────────────
+# It is debt, not amnesty, and it is NOT a claim that these 163 all need a role. Some genuinely
+# should not have one — a decorative press-scale wrapper, a gesture catcher. Those want the
+# escape hatch (`// a11y-role-ok: <reason>` on the element's opening line, reason required), which
+# removes them from the count permanently and says why. Nobody has triaged these 163 yet; a line
+# here means only "this file had N role-less taps on the day the gate opened."
+#
+# ⚠ The one thing a per-file COUNT cannot see, and it is not closed: fixing one Pressable while
+#   adding a bare one in the same file nets to zero and this gate stays silent. `path:line` keys
+#   would catch it and would also go red on every unrelated edit that shifted a line in these
+#   churning screens — the noisy-gate failure above, paid daily. Counts were chosen deliberately.
+#
+# The 33 files below, biggest first in debt. The club world and owner/schedule carry a third of it.
+
+app/chat.tsx 1
+app/club/[id].tsx 6
+app/club/console/[sid].tsx 16
+app/club/receipt/[bid].tsx 1
+app/club/run/[sid].tsx 5
+app/club/session/[sid].tsx 23
+app/community.tsx 5
+app/dev/club-lab.tsx 1
+app/dev/pay-lab.tsx 5
+app/my.tsx 6
+app/owner/course-map.tsx 1
+app/owner/fitness.tsx 1
+app/owner/report.tsx 2
+app/owner/request.tsx 4
+app/owner/schedule.tsx 17
+app/runner-profile/[id].tsx 5
+app/runner/calendar.tsx 3
+app/runner/home.tsx 3
+app/runner/meetup.tsx 1
+app/runner/requests.tsx 6
+app/runner/review.tsx 6
+app/runner/rewards.tsx 3
+app/runner/run.tsx 11
+app/safety.tsx 7
+app/settings.tsx 6
+app/shop.tsx 2
+app/shot/[bid].tsx 1
+src/components/CourseStrip.tsx 1
+src/components/checkin-answer.tsx 3
+src/components/club-acks.tsx 1
+src/components/club-ui.tsx 1
+src/components/clubcard.tsx 8
+src/lib/media.tsx 1

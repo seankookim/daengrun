@@ -654,7 +654,7 @@ export default function Live() {
       <View style={s.root}>
         <StatusBar style="dark" />
         <Row style={s.topBar}>
-          <Pressable onPress={goBack} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
+          <Pressable onPress={goBack} style={s.squareBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={s.backGlyph}>‹</Text></Pressable>
         </Row>
         <View style={s.waitWrap}>
           {resolve === 'error' ? (
@@ -811,7 +811,7 @@ export default function Live() {
 
       {/* ---------- 상단 오버레이 ---------- */}
       <Row style={s.topBar}>
-        <Pressable onPress={goBack} style={s.squareBtn}><Text style={s.backGlyph}>‹</Text></Pressable>
+        <Pressable onPress={goBack} style={s.squareBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={s.backGlyph}>‹</Text></Pressable>
         {/* LIVE는 근거가 있을 때만 — 위치 픽스 전에는 '달리는 중'이라고 말하지 않는다.
             (진행 중 예약에는 confirmed·인계 대기도 포함된다 — 아직 러닝이 아니다)
             [2026-08-20] Fix freshness alone is not enough evidence. A run stopped by an incident
@@ -1002,7 +1002,15 @@ export default function Live() {
 
       {/* ---------- stop confirmation sheet ---------- */}
       <Modal visible={stopSheet} transparent animationType="slide" onRequestClose={() => setStopSheet(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => setStopSheet(false)} />
+        {/* 백드롭도 닫기 버튼이다 — 보이는 글자가 없으니 라벨은 목적을 말하는 한 마디로.
+            ⚠ 시트에 accessibilityViewIsModal 을 걸지 않는다: 형제인 이 백드롭까지 스크린리더에서
+            사라져 버려, 방금 이름을 준 닫기 문을 다시 없애는 셈이 된다. */}
+        <Pressable
+          style={s.sheetBackdrop}
+          onPress={() => setStopSheet(false)}
+          accessibilityRole="button"
+          accessibilityLabel="닫기"
+        />
         <View style={s.stopSheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>정말 러닝을 종료할까요?</Text>
@@ -1077,13 +1085,20 @@ export default function Live() {
           <Pressable
             style={[s.stopConfirm, !stopReason && s.stopConfirmOff]}
             disabled={!stopReason || stopBusy}
+            accessibilityRole="button"
+            accessibilityState={{ busy: stopBusy, disabled: !stopReason || stopBusy }}
             onPress={confirmStop}
           >
             <Text style={[s.stopConfirmTxt, !stopReason && { color: paper.faint }]}>
               {stopBusy ? '전송 중...' : '종료 요청 보내기'}
             </Text>
           </Pressable>
-          <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => setStopSheet(false)}>
+          <Pressable
+            style={{ alignItems: 'center', paddingVertical: 13 }}
+            onPress={() => setStopSheet(false)}
+            accessibilityRole="button"
+            accessibilityLabel="계속 지켜볼게요"
+          >
             <Text style={s.keepWatchTxt}>계속 지켜볼게요</Text>
           </Pressable>
         </View>

@@ -103,6 +103,8 @@ export default function Cards() {
             back()이 항상 맞다. 스택이 없을 때만(딥링크·리스타트) 홈으로 떨어진다. */}
         <Pressable
           style={s.cbar}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로"
           onPress={() => (router.canGoBack() ? router.back() : router.replace(homePath()))}
         >
           <Text style={s.cbarGlyph}>‹</Text>
@@ -286,7 +288,13 @@ export default function Cards() {
               </Text>
               <View style={s.pgrid}>
                 {patches.earned.map((pt) => (
-                  <Pressable key={pt.routeId} onPress={() => router.push(`/course/${pt.routeId}`)} style={s.pcell}>
+                  <Pressable
+                    key={pt.routeId}
+                    onPress={() => router.push(`/course/${pt.routeId}`)}
+                    style={s.pcell}
+                    accessibilityRole="button"
+                    accessibilityHint="코스 상세 열기"
+                  >
                     {/* name을 넘기지 않는다 — PatchBadge 안의 이름은 ~6.5px(플로어 미달)이고 아래 14pt 라벨과 중복이었다 */}
                     <PatchBadge km={pt.km} grade={pt.grade} size={BADGE} />
                     <Text numberOfLines={1} style={s.pName}>{pt.name}</Text>
@@ -297,7 +305,13 @@ export default function Cards() {
                 {patches.locked.map((pt) => {
                   const w = worldOf(pt.km);
                   return (
-                    <Pressable key={pt.routeId} onPress={() => router.push(`/course/${pt.routeId}`)} style={s.pcell}>
+                    <Pressable
+                      key={pt.routeId}
+                      onPress={() => router.push(`/course/${pt.routeId}`)}
+                      style={s.pcell}
+                      accessibilityRole="button"
+                      accessibilityHint="코스 상세 열기"
+                    >
                       {/* 잠긴 패치도 월드색 힌트 — '저 색을 갖고 싶다' (P2).
                           나이트 바닥에서 dim(월드색 55%)은 2.7~4.9:1로 얕아 링은 70%, 숫자는 80%로 올렸다. */}
                       <View style={[s.pLock, { borderColor: withA(w.tone, 0.7) }]}>

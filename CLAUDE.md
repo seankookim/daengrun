@@ -663,8 +663,43 @@ you are about to report a number, do not let a pipe choose which one.**
 
 
 Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
-`node scripts/check-route-native-imports.mjs`, and `node scripts/check-definer-acl.mjs` — all must pass.
+`node scripts/check-route-native-imports.mjs`, `node scripts/check-definer-acl.mjs`, and
+`node scripts/check-a11y-roles.mjs` — all must pass.
 (`check-embed-fk.mjs` and `check-auth-surface.mjs` run in the same family.)
+
+**`check-a11y-roles.mjs` (added 2026-09-23)** refuses a new `<Pressable>` with no
+`accessibilityRole` — an element VoiceOver announces as plain text, so the owner cannot find
+「종료 요청」 and the runner cannot find 「수락」. Babel-parsed, 0.44 s over 116 files.
+It exists for the same reason `check-device-clock` does: **the test chain cannot reach the
+proposition — planted, not reasoned.** ⚠ The tidy version of this claim ("no test can reach a
+route file") is **false and was caught before it shipped**: 48 test files mention `.tsx` and
+`tab-parent.test.cjs` READS `alerts.tsx`/`cards.tsx`/`bottomnav.tsx` as TEXT for a tab-parent
+drift gate. The chain does touch these files; it just never asks them anything about
+accessibility — and only a plant can tell those two apart. Measured 2026-09-23 on `alerts.tsx`,
+chosen because `tab-parent` reads it (the hardest case for the claim): restoring the bare
+`<Pressable>` left `npm test` at **3153 PASS / 0 FAIL / 39 ✅, exit 0 — identical to the clean
+run**, while this gate went **exit 1 naming `app/alerts.tsx:138`**. Source gate and test chain
+prove different things; **neither is evidence for the other**, and neither proves VoiceOver reads
+the result well — only a device does that.
+⚠ **It asks for the ROLE and deliberately not a LABEL.** RN's `Pressable` defaults `accessible`
+to true and composes its label from its `Text` children, so a button whose child reads 「다시 시도」
+already announces that; a required label would duplicate the copy and the two would drift. A label
+is owed only where the visible content is a glyph (`‹`, `↻`) or absent (a dismiss backdrop) — a
+copy judgment no parser can make. Demanding one would have cried on ~478 correct buttons: the
+`check-definer-acl` 147-vs-82 failure, avoided before the fact rather than after.
+The 163 known sites across 33 files are frozen in `check-a11y-roles-baseline.txt` as **per-file
+counts, not `file:line`** — these are the churning screens, and a line-keyed ledger would go red on
+every unrelated edit that shifted a line, which is how a gate earns `--no-verify`. A count above
+its line fails (new debt); a count below it also fails (stale ledger, delete or lower the line), so
+the ledger can only shrink. ⚠ The blind spot is named rather than papered over: **fix one and add
+one bare in the SAME file and the count nets to zero and the gate is silent.** Escape hatch
+`// a11y-role-ok: <reason>` on the element's opening line; a bare marker is refused.
+Control-tested against the crudest version before being trusted (the standing rule): parsed
+elements 641 = raw `grep -o '<Pressable'` 641, and the crude same-line grep's 440 vs this gate's
+163 is **277 multi-line elements whose role sits on a later line** — every delta accounted for in
+both directions, with the crude version dropping nothing. Mutation-verified ten ways in an
+isolated lab, and the arms that matter are the controls: **a comment QUOTING a bare `<Pressable>`
+does NOT redden it**, and a file the parser cannot read FAILS LOUDLY rather than being skipped.
 
 **`check-device-clock.mjs` (added 2026-08-27)** refuses a client module that reads the DEVICE clock
 for a KST fact — `getDay`/`getHours`/`toDateString`/`toLocaleDateString` without a `timeZone`. It

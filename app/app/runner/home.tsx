@@ -954,7 +954,12 @@ export default function RunnerHome() {
                 rawStatus={current.rawStatus}
                 onAnswered={loadJobs}
               />
-              <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}>
+              <Pressable
+                onPress={() => openJob(current)}
+                accessibilityRole="button"
+                accessibilityHint="오늘 일정 상세 열기"
+                style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}
+              >
                 <View style={styles.tMain}>
                   <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
                     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -1244,14 +1249,26 @@ export default function RunnerHome() {
                     // shut), but the screen SAYS the check did not answer — otherwise the only
                     // feedback is a 409 the runner cannot account for. This is the sentence the
                     // state's own comment promised and the first version never rendered.
-                    <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
+                    <Pressable
+                      onPress={acceptFront}
+                      disabled={busyReq}
+                      accessibilityRole="button"
+                      accessibilityState={{ busy: busyReq, disabled: busyReq }}
+                      style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}
+                    >
                       <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
                       <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
                         인계 확인 상태를 못 읽었어요
                       </Text>
                     </Pressable>
                   ) : (
-                  <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
+                  <Pressable
+                    onPress={acceptFront}
+                    disabled={busyReq}
+                    accessibilityRole="button"
+                    accessibilityState={{ busy: busyReq, disabled: busyReq }}
+                    style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}
+                  >
                     <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
                     {/* [2026-08-10 filler cull] ' · 바로 확정돼요' dropped — the confirm Alert states the consequence */}
                     <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
@@ -1259,7 +1276,13 @@ export default function RunnerHome() {
                     </Text>
                   </Pressable>
                   )}
-                  <Pressable onPress={declineFront} disabled={busyReq} style={({ pressed }) => [styles.door, styles.doorQuiet, pressed && styles.pressed96]}>
+                  <Pressable
+                    onPress={declineFront}
+                    disabled={busyReq}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: busyReq }}
+                    style={({ pressed }) => [styles.door, styles.doorQuiet, pressed && styles.pressed96]}
+                  >
                     <Text style={[styles.doorName, { color: lilac.head }]}>{inbox[0].directed ? '거절' : '자세히'}</Text>
                     <Text style={[styles.doorSub, { color: lilac.dim }]}>
                       {inbox[0].directed ? '다른 러너에게 넘겨요' : '메모 · 사진 · 성향 보기 →'}
@@ -1302,7 +1325,12 @@ export default function RunnerHome() {
                           (서버가 실거리·수수료율로 확정). 앞 티켓의 조용한 줄과 같은 어휘로 맞춘다. */}
                       <Text style={styles.stubFareCap}>예상</Text>
                     </View>
-                    <Pressable onPress={() => router.push('/runner/requests')} style={({ pressed }) => [styles.stubView, pressed && styles.pressed96]}>
+                    <Pressable
+                      onPress={() => router.push('/runner/requests')}
+                      accessibilityRole="button"
+                      accessibilityLabel="요청함에서 보기"
+                      style={({ pressed }) => [styles.stubView, pressed && styles.pressed96]}
+                    >
                       <Text style={styles.stubViewTxt}>보기 ›</Text>
                     </Pressable>
                   </View>
@@ -1448,7 +1476,12 @@ export default function RunnerHome() {
         {/* ————— 리워드 — 티어 사다리 + 보급 드랍 트레일 (실카운트).
              [Ⓑ① 예외, Sean 2026-08-11] 카드 레이아웃은 현행 동결 — 랩의 3중 진행계 통합안 미적용 ————— */}
         <SectionHead title="리워드" link="리워드 센터 ›" onPress={() => router.push('/runner/rewards')} />
-        <Pressable onPress={() => router.push('/runner/rewards')} style={styles.card}>
+        <Pressable
+          onPress={() => router.push('/runner/rewards')}
+          accessibilityRole="button"
+          accessibilityHint="리워드 센터 열기"
+          style={styles.card}
+        >
           {(() => {
             // [honesty repair 2026-08-08 / plan §6.3, §7.3] The ladder is progress toward the rung
             // ABOVE 인증 러너. Drawing "베테랑까지 30회" for someone who has not reached 인증 러너 yet
@@ -1696,7 +1729,12 @@ export default function RunnerHome() {
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 5 }}>
                     <Text style={[styles.drowPay, nf]}>+{j.payout.toLocaleString()}{j.ledgerRead === false ? <Text style={{ fontSize: 15, color: paper.dim }}> 추정</Text> : null}</Text>
-                    <Pressable onPress={() => router.push(`/shot/${j.bookingId}`)} style={styles.shot}>
+                    <Pressable
+                      onPress={() => router.push(`/shot/${j.bookingId}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel="인증샷 보기"
+                      style={styles.shot}
+                    >
                       <Text style={styles.shotTxt}>인증샷</Text>
                     </Pressable>
                   </View>
@@ -1784,13 +1822,13 @@ export default function RunnerHome() {
 
         {/* ————— 퀵 링크 ————— */}
         <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
-          <Pressable onPress={() => router.push('/leaderboard')} style={styles.qlink}>
+          <Pressable onPress={() => router.push('/leaderboard')} style={styles.qlink} accessibilityRole="button" accessibilityLabel="랭킹">
             <Text style={styles.qlinkB}>랭킹</Text><Text style={styles.qlinkChev}>›</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/community')} style={styles.qlink}>
+          <Pressable onPress={() => router.push('/community')} style={styles.qlink} accessibilityRole="button" accessibilityLabel="커뮤니티">
             <Text style={styles.qlinkB}>커뮤니티</Text><Text style={styles.qlinkChev}>›</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/safety')} style={styles.qlink}>
+          <Pressable onPress={() => router.push('/safety')} style={styles.qlink} accessibilityRole="button" accessibilityLabel="안심 센터">
             <Text style={styles.qlinkB}>안심 센터</Text><Text style={styles.qlinkChev}>›</Text>
           </Pressable>
           {/* [2026-08-11] '마이 카드 ›' 칩 은퇴 — 위 '내 기록' 섹션이 같은 목적지(/cards)로 가는
