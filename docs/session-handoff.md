@@ -23,7 +23,7 @@ babel 185 · a11y ledger 162 (the gate landed tonight) · 204 migrations.** Two 
 rulings (queue item 0): **0204** push outbox (ⓐ urgent bypass · ⓑ accept the tick of latency · ⓒ drop) and **0211**
 owner-direction distance band (ⓐ land · ⓑ hold for counsel Q3 · ⓒ keep only the breed/weight nudge).
 
-**Your letters, in order:** (1) 0204 and 0211 rulings; (2) the SECOND `db push` (queue item 0b: nine migrations, then
+**Executing review of the nine (07:27): APPROVE-WITH-FIXES / 6, none blocking** — 0214 (ops-category title audit, two oracles) and 0215 (offered slots incl. 추가 근무) building; F3 (`payout_due` is root by construction) is a letter. **Your letters, in order:** (1) 0204, 0211 and the F3 roster rulings; (2) the SECOND `db push` (queue item 0b: nine migrations, then
 a client build — the Codex review of the wave hit the quota wall twice; it reopens 2026-09-24 01:44 and a one-shot
 re-runs it then, session permitting — pushing before it is the same call you made yesterday); (3) the EAS preview build
 for your phone was left at the ad-hoc profile step after device registration; (4) `return_seal_since` once your phone
