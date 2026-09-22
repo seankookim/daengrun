@@ -357,6 +357,20 @@ omits breed/weight, the two fields the runner's ticket shows). Sim: Release buil
 0211 HELD (privacy letter). Trunk carries 0203, 0205–0210 above the deployed 0202. Sim rebuild of this tree running.
 Next wave: chat read state (0212) + a gap finder v6 (a11y/HIG on the screens built since 09-22, home-screen reads).
 
+**WAVE 8 (2026-09-23 06:05, gap finder v6 — the screens built since 09-22, audited by the house checks):** `be/0212-chat-read-state`
+(`chat_reads` + `chat_mark_read` monotonic + `my_chat_unread` counting only the counterpart's newer messages + a
+party-scoped read receipt; unread badges on the existing chat entry points, never a client estimate),
+`hig/a11y-roles-sweep` (alerts' notification row, owner home's four bare Pressables, the runner accept/decline doors
+with no role and no busy state, return-seal's two unlabeled buttons, cards, requests, owner/live's unnamed backdrop —
+plus a `check-a11y-roles.mjs` gate with a frozen baseline like `check-device-clock`; dead code: `memberNo` that can
+never carry a value, three wrappers with zero call sites), `fix/copy-normalise` (`...` vs `…` 168/145 app-wide,
+「불러올 수 없어요」 ×4 → the house form, 「재시도」 chips → 「다시 시도」; a source-scan pin so the forms cannot drift back),
+`be/0213-payout-stuck-aggregate` (🔴 the 0210 strip reads `my_ledger_rows` with `limit 30`, so the busiest runners —
+the ones the stuck-payout notice exists for — get a short number or no strip; `my_ledger_stuck_state()` over ALL rows
+with a 35-row pin; `ops_me` fetched twice per console open → one context). Two angles came back clean: every
+`router.push` target resolves to a real file, and every title written by 0203–0210 has a route and a category.
+Sim: Release build of `0776c11` installed.
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
