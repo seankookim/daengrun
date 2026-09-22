@@ -670,10 +670,15 @@ Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scri
 **`check-a11y-roles.mjs` (added 2026-09-23)** refuses a new `<Pressable>` with no
 `accessibilityRole` — an element VoiceOver announces as plain text, so the owner cannot find
 「종료 요청」 and the runner cannot find 「수락」. Babel-parsed, 0.44 s over 116 files.
-It exists for the same reason `check-device-clock` does: **the test chain structurally cannot
-reach the proposition.** `app/test/*.cjs` esbuilds a `src/lib/*.ts` module and runs it in node —
-it cannot import a `.tsx` route, so re-planting a bare `<Pressable>` into any of the seven screens
-the a11y sweep just fixed reddens **nothing** across the 3153 pins. Source gate and test chain
+It exists for the same reason `check-device-clock` does: **the test chain cannot reach the
+proposition — planted, not reasoned.** ⚠ The tidy version of this claim ("no test can reach a
+route file") is **false and was caught before it shipped**: 48 test files mention `.tsx` and
+`tab-parent.test.cjs` READS `alerts.tsx`/`cards.tsx`/`bottomnav.tsx` as TEXT for a tab-parent
+drift gate. The chain does touch these files; it just never asks them anything about
+accessibility — and only a plant can tell those two apart. Measured 2026-09-23 on `alerts.tsx`,
+chosen because `tab-parent` reads it (the hardest case for the claim): restoring the bare
+`<Pressable>` left `npm test` at **3153 PASS / 0 FAIL / 39 ✅, exit 0 — identical to the clean
+run**, while this gate went **exit 1 naming `app/alerts.tsx:138`**. Source gate and test chain
 prove different things; **neither is evidence for the other**, and neither proves VoiceOver reads
 the result well — only a device does that.
 ⚠ **It asks for the ROLE and deliberately not a LABEL.** RN's `Pressable` defaults `accessible`

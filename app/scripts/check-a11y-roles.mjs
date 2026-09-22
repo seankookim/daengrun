@@ -5,11 +5,20 @@
 // out with a stranger and the owner cannot find the 「종료 요청」 door; the runner cannot find
 // 「수락」. Nothing looks broken on a screenshot, which is why this class ships and stays.
 //
-// 🔴 WHY THIS IS A GATE AND NOT A TEST. `app/test/*.cjs` compiles a `src/lib/*.ts` module with
-//    esbuild and runs it in node. It cannot import a `.tsx` route module, cannot render one, and
-//    therefore cannot see a single prop on a single Pressable. Re-planting a bare `<Pressable>`
-//    into any of the seven screens this slice just fixed reddens NOTHING in `npm test` — measured,
-//    not assumed, because the whole chain is 3153 pins that never touch a route file.
+// 🔴 WHY THIS IS A GATE AND NOT A TEST — MEASURED, and the measurement is the entry, because the
+//    structural argument alone would have been WRONG IN ITS FIRST DRAFT. `app/test/*.cjs`
+//    esbuilds a `src/lib/*.ts` module and runs it in node, so it cannot IMPORT or RENDER a `.tsx`
+//    route. But that is not the whole picture and "no test can reach a route file" is false:
+//    48 test files mention `.tsx`, and `tab-parent.test.cjs` genuinely READS `alerts.tsx`,
+//    `cards.tsx`, `bottomnav.tsx` and others AS TEXT, for a drift gate on tab parents. So the
+//    chain does touch these files — it just never asks them anything about accessibility.
+//    Reasoning stops there; the plant settles it. Measured 2026-09-23 on `alerts.tsx` — chosen
+//    precisely BECAUSE it is one of the files `tab-parent` reads, i.e. the hardest case for the
+//    claim:
+//        markAll's role removed, bare `<Pressable>` restored  →  npm test exit 0,
+//                                    3153 PASS / 0 FAIL / 39 ✅ — IDENTICAL to the clean run
+//        the same tree through this gate                      →  exit 1, `app/alerts.tsx:138`
+//    So the chain is blind to the whole class, and this gate is the only thing that sees it.
 //    Same source-vs-runtime division as `check-device-clock` beside the KST suite, and the same
 //    warning: **neither is evidence for the other.** This gate proves a prop is written in the
 //    source. It does not prove VoiceOver reads it well; only a device does that.
