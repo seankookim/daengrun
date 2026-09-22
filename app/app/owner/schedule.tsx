@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
-import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchChatUnread, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
 import { PAYMENT_STATES_THAT_SPEAK, paymentFace } from '../../src/lib/payment-state';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -217,7 +218,15 @@ export default function Schedule() {
       .then((b) => { setLiveBookings(b); setLoaded(true); })
       .catch((e) => { console.warn('[schedule] bookings:', e?.message ?? e); setLoadErr(true); });
   };
-  useFocusEffect(useCallback(() => { load(); }, []));
+  // [0212] 채팅 미확인 — 관리 시트의 채팅 칩에 붙는 배지. 별도 상태·별도 실패: 목록 로드가
+  // 실패해도 배지는 그 얘기를 하지 않고, 배지 로드가 실패하면 **배지가 없을 뿐** 0이 아니다.
+  const [chatUnread, setChatUnread] = useState<ChatUnreadState>({ status: 'loading' });
+  const loadChatUnread = useCallback(() => {
+    fetchChatUnread()
+      .then((rows) => setChatUnread({ status: 'ready', rows }))
+      .catch((e) => { console.warn('[schedule] chat unread:', e?.message ?? e); setChatUnread({ status: 'error' }); });
+  }, []);
+  useFocusEffect(useCallback(() => { load(); loadChatUnread(); }, [loadChatUnread]));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
@@ -877,8 +886,19 @@ export default function Schedule() {
                         <Pressable
                           style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                           onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
+                          accessibilityRole="button"
+                          accessibilityLabel={unreadBadgeLabel(chatUnread, selected.id)
+                            ? `채팅 — ${unreadBadgeLabel(chatUnread, selected.id)}`
+                            : '채팅'}
                         >
-                          <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>채팅</Text>
+                          {/* [0212] 배지는 서버가 센 행 수다. 모르면(로딩·실패·이 예약이 답에 없음)
+                              칩은 예전 그대로 — 0을 그리면 갖고 있지 않은 수를 주장하는 것이다. */}
+                          <Row style={{ gap: 6, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>채팅</Text>
+                            {unreadBadge(chatUnread, selected.id) ? (
+                              <Text style={s.chatChipBadge}>{unreadBadge(chatUnread, selected.id)}</Text>
+                            ) : null}
+                          </Row>
                         </Pressable>
                       )}
                     </Row>
@@ -1375,6 +1395,10 @@ const s = StyleSheet.create({
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
   // 비활성 칩 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint, 불투명도 트릭 금지)
   chatChipOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
+  // [0212] 미확인 배지 — 잉크 면 위 종이 글자. 수치이므로 색이 아니라 대비로 말한다.
+  chatChipBadge: { minWidth: 22, textAlign: 'center', overflow: 'hidden', borderRadius: 10,
+    paddingHorizontal: 6, paddingVertical: 1, backgroundColor: paper.ink, color: '#FFFFFF',
+    fontSize: 15, lineHeight: 19, fontWeight: '800' },
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.

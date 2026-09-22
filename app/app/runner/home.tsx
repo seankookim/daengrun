@@ -13,10 +13,11 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchLedger, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedger, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { payoutStuckDays, payoutStuckLine } from '../../src/lib/payout-status';
+import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
 import { PatchBadge } from '../../src/components/patch';
 import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
 import { registerPushToken } from '../../src/lib/push';
@@ -533,10 +534,20 @@ export default function RunnerHome() {
       .catch((e) => { console.warn('[rhome] gate:', e?.message ?? e); setGate(null); setGateKnown(false); });
   }, []);
 
+  // [0212] 채팅 미확인 — 아래 진행 중 잡의 채팅 행에 붙는 배지. 자체 상태이고 실패는 **배지 없음**
+  // 이지 배지 0이 아니다; 판정은 chat-read.ts 가 소유한다.
+  const [chatUnread, setChatUnread] = useState<ChatUnreadState>({ status: 'loading' });
+  const loadChatUnread = useCallback(() => {
+    fetchChatUnread()
+      .then((rows) => setChatUnread({ status: 'ready', rows }))
+      .catch((e) => { console.warn('[rhome] chat unread:', e?.message ?? e); setChatUnread({ status: 'error' }); });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     loadAvail();
     loadInbox();
     loadGate();
+    loadChatUnread();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     // [0210 §E] 실패하면 null 로 남긴다 — 줄이 안 그려질 뿐, 「이상 없음」을 그리지는 않는다.
@@ -549,7 +560,7 @@ export default function RunnerHome() {
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
     reloadStatus();
-  }, [loadAvail, loadInbox, loadJobs, loadGate, reloadStatus]));
+  }, [loadAvail, loadInbox, loadJobs, loadGate, loadChatUnread, reloadStatus]));
 
   // ── 알림 프라이머 (HIG S1/O3, 2026-09-22) ─────────────────────────────────────────────────────
   // registerPushToken() USED TO SIT IN THIS useFocusEffect, so the system alert could fire on any
@@ -1058,13 +1069,22 @@ export default function RunnerHome() {
                   right underneath"). Two corals in one frame is exactly how the half-second glance
                   breaks — chat earns a full row, not equal weight with the thing the dog is
                   waiting on. */}
+              {/* [0212] 배지는 **서버가 센 행 수**이고, 모를 때는(로딩·실패·이 예약이 답에 없음)
+                  아무것도 그리지 않는다 — 0을 그리면 화면이 갖고 있지 않은 수를 주장하게 된다. */}
               <Pressable
                 onPress={() => router.push({ pathname: '/chat', params: { bid: current.bookingId } })}
                 style={({ pressed }) => [styles.jobChat, pressed && styles.pressed96]}
                 accessibilityRole="button"
-                accessibilityLabel="보호자와 채팅"
+                accessibilityLabel={unreadBadgeLabel(chatUnread, current.bookingId)
+                  ? `보호자와 채팅 — ${unreadBadgeLabel(chatUnread, current.bookingId)}`
+                  : '보호자와 채팅'}
               >
-                <Text style={styles.jobChatT}>채팅</Text>
+                <Row style={{ gap: 8, alignItems: 'center' }}>
+                  <Text style={styles.jobChatT}>채팅</Text>
+                  {unreadBadge(chatUnread, current.bookingId) ? (
+                    <Text style={styles.jobChatBadge}>{unreadBadge(chatUnread, current.bookingId)}</Text>
+                  ) : null}
+                </Row>
                 <Text style={styles.jobChatS}>늦으면 미리 알려주세요</Text>
               </Pressable>
             </>
@@ -1977,6 +1997,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11 },
   jobChatT: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: lilac.head },
   jobChatS: { marginTop: 1, fontSize: 15, lineHeight: 20, color: lilac.dim },
+  // [0212] 미확인 배지 — 한글 디테일 플로어와 무관한 숫자 글리프지만 제목 옆에 앉으므로 같은 행의
+  // 17pt 를 따른다. 잉크 면 위의 종이 글자: 배지는 상태가 아니라 **수치**라서 색이 아니라 대비로 말한다.
+  jobChatBadge: { minWidth: 24, textAlign: 'center', overflow: 'hidden', borderRadius: 11,
+    paddingHorizontal: 7, paddingVertical: 1, backgroundColor: lilac.head, color: '#FFFFFF',
+    fontSize: 15, lineHeight: 21, fontWeight: '800' },
   objNum: { fontSize: 15, lineHeight: 20, color: lilac.head }, // Oswald 숫자 — lineHeight 1.33× (BUG A)
   objQuiet: { marginTop: 3, fontSize: 15, lineHeight: 20, color: lilac.dim },
   // 스텁의 액션 줄 — 코랄 면(nowBar) 은퇴 후의 자리. 카드 전체가 탭 타깃이라 이 줄은 라벨이지 버튼이 아니다.

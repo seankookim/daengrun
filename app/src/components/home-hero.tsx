@@ -31,6 +31,7 @@ import { haptic } from '../lib/haptics';
 import { draft } from '../store';
 import { layout, paper } from '../theme';
 import { sinceLabel, type Lateness } from '../lib/lateness';
+import { totalUnreadBadge, unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../lib/chat-read';
 import { DrawButton } from './draw-button';
 
 // [0188] `returning` is the SEVENTH state, and it exists because `active` stopped being one thing.
@@ -106,6 +107,10 @@ interface Props {
    *  '10명 이상'으로 말한다 (모르는 수를 아는 척하지 않는다). */
   /** null = not yet read (or the read failed) — render as silence, never as zero. */
   onlineRunners?: number | null;
+  /** [0212] 채팅 미확인 — **상태 그대로** 받는다 (숫자가 아니라). 로딩·실패·「이 예약은 답에 없음」이
+   *  전부 다른 사실이고 셋 다 배지를 그리지 않아야 하는데, 숫자 하나로 접으면 그 구분이 호출부에서
+   *  사라지고 0이 배지가 될 길이 생긴다. 판정은 chat-read.ts 가 소유한다. */
+  chatUnread?: ChatUnreadState;
 }
 
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
@@ -153,7 +158,7 @@ function Phrase({ top, bottom, df, topNum }: { top: string; bottom: string; df: 
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null, chatUnread = { status: 'loading' } }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -324,6 +329,14 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
     if (next) router.push(`/chat?bid=${next.id}`);
     else router.push('/chat');
   };
+  // [0212] 채팅 버튼의 배지. `meta` 슬롯은 「버튼이 여는 것에 대한 실측 사실」 전용이고(draw-button
+  // Props), 이 값이 정확히 그것이다 — 서버가 센 행 수다. 모르면(로딩·실패·이 예약이 답에 없음)
+  // null 이 와서 슬롯이 통째로 빠진다: 이 자리는 문장이 아니라 수치라서, 빈 값을 0으로 채우면
+  // 읽지 못한 것을 읽은 것처럼 말하게 된다.
+  // ⚠ 이 버튼이 여는 화면을 따라간다 — 예약이 있으면 그 스레드, 없으면 bare /chat 이라 전체 합계.
+  const chatBadge = next ? unreadBadge(chatUnread, next.id) : totalUnreadBadge(chatUnread);
+  const chatBadgeA11y = next ? unreadBadgeLabel(chatUnread, next.id) : null;
+  const chatLabel = (sub: string) => (chatBadge ? `채팅 — ${chatBadgeA11y ?? `읽지 않은 메시지 ${chatBadge}`}` : `채팅 — ${sub}`);
 
   // ── handoff: 내 차례 — 화면에서 유일하게 급한 순간이라 코랄 면을 쓴다 ─────
   // 미리 예약은 여기서 **사라진다**. 러너가 문 앞에 서 있는데 다음 예약을 권하는 건
@@ -342,8 +355,8 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         <View style={s.opts}>
           <DrawButton title="인계하기" sub="아이를 넘기고 봉인해요" ground="coral" art="leash"
             dot onPress={openNext} accessibilityLabel="인계하기" />
-          <DrawButton title="채팅" sub="늦으면 알려주세요" ground="lilac" art="chat"
-            small onPress={openChat} />
+          <DrawButton title="채팅" sub="늦으면 알려주세요" meta={chatBadge} ground="lilac" art="chat"
+            small onPress={openChat} accessibilityLabel={chatLabel('늦으면 알려주세요')} />
         </View>
       </View>
     );
@@ -367,8 +380,8 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         <View style={s.opts}>
           <DrawButton title="인계 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
             dot onPress={openNext} accessibilityLabel="인계 확인하기" />
-          <DrawButton title="채팅" sub="만나는 곳을 정해요" ground="lilac" art="chat"
-            small onPress={openChat} />
+          <DrawButton title="채팅" sub="만나는 곳을 정해요" meta={chatBadge} ground="lilac" art="chat"
+            small onPress={openChat} accessibilityLabel={chatLabel('만나는 곳을 정해요')} />
         </View>
       </View>
     );
@@ -459,8 +472,8 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
             ground={isLate ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
-          <DrawButton title="채팅" sub="러너에게 물어보세요"
-            ground="lilac" art="chat" small onPress={openChat} />
+          <DrawButton title="채팅" sub="러너에게 물어보세요" meta={chatBadge}
+            ground="lilac" art="chat" small onPress={openChat} accessibilityLabel={chatLabel('러너에게 물어보세요')} />
         )}
         {/* 서브 「날짜와 시간을 골라요」 은퇴 (Sean 2026-08-26) — 제목이 이미 그 말이다. */}
         <DrawButton title="미리 예약" ground="paper" art="calendar"

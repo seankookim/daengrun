@@ -1,10 +1,13 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, AppState, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import { mergeMessageSnapshot } from '../src/lib/chat-messages';
+import {
+  MarkReadReason, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
+} from '../src/lib/chat-read';
 import {
   CHAT_PAGE_SIZE, chatBubble, olderCursor, olderDoorLabel, olderDoorState, pageIsLast,
 } from '../src/lib/chat-window';
@@ -12,9 +15,9 @@ import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
 import { CHAT_TITLE } from '../src/lib/notification-route';
 import {
-  ChannelLink, ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
-  createChatClientKey, fetchMessages, fetchOlderMessages, openChatForBooking, sendChatMessage,
-  sendChatPhoto, subscribeMessages,
+  ChannelLink, ChatContext, ChatMsg, fetchChatReadState, fetchCurrentOwnerBookingId,
+  fetchCurrentRunnerJobId, createChatClientKey, fetchMessages, fetchOlderMessages, markChatRead,
+  openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -64,14 +67,32 @@ export default function Chat() {
   // 시점의 ctx를 붙들고, 현재 ctx와 다르면 버린다.
   const ctxRef = useRef<ChatContext | null>(null);
   useEffect(() => { ctxRef.current = ctx; }, [ctx]);
+  // [0212] 같은 이유의 거울 — 포커스/앱 복귀 핸들러는 마운트 시점 클로저를 들고 살아 있으므로,
+  // `state` 를 값으로 읽으면 언제나 'loading' 을 본다.
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
   // HIG A3 — the highest PEER message id this screen has already accounted for. `null` = the
   // thread's history has not landed yet, so the first snapshot primes instead of announcing 300
   // old messages at once. Reset with the thread below, or a new thread's history announces.
   const seenPeerMsgId = useRef<number | null>(null);
+  // ── [0212] 읽음 상태 ─────────────────────────────────────────────────────────────────────
+  // `peerReadAt` = 상대가 이 스레드를 마지막으로 읽은 시각 (chat_thread_read_state). null 이면
+  // 「아직 안 읽었다」이고 그때는 영수증을 **그리지 않는다** — 서버가 말한 적 없는 걸 화면이
+  // 말하는 게 이 앱이 금지하는 바로 그것이다. 배치 규칙은 chat-read.ts 가 소유한다.
+  const [peerReadAt, setPeerReadAt] = useState<string | null>(null);
+  // 이 화면이 이미 읽음 표시를 보낸 가장 높은 **상대** 메시지 id. 조용한 스레드에서 폴 틱마다
+  // RPC 를 부르지 않게 하는 게이트이고, 「열었다」와 「새 메시지가 왔다」를 가르는 기준이다.
+  const markedOpen = useRef(false);
+  const lastMarkedPeer = useRef<number | null>(null);
   // [codex r3-13] bid 교체는 초안·전송 플래그도 비운다 — A용 초안이 B 스레드로 전송될 수 있었고,
   // A의 진행 중 전송이 B의 보내기를 막았다. 60행의 공유 리셋 목록에 넣지 않는 이유: 그 목록은
   // loadAttempt(같은 스레드 재시도)에도 돌아, 재시도마다 멀쩡한 초안을 지우게 된다.
-  useEffect(() => { setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null; seenPeerMsgId.current = null; }, [bid]);
+  // ⚠ 읽음 표시 ref 둘도 **스레드 정체**의 사실이므로 seenPeerMsgId 와 같은 자리에 있어야 한다 —
+  //   A 스레드에서 표시한 id 를 B 에 들고 가면 B 의 첫 읽음 표시가 조용히 건너뛰어진다.
+  useEffect(() => {
+    setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null;
+    seenPeerMsgId.current = null; markedOpen.current = false; lastMarkedPeer.current = null;
+  }, [bid]);
   // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
   // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
   // 찍었다: 서버가 프라이빗 채널을 거절하거나 조인이 타임아웃해도 화면은 연결됐다고 말했고,
@@ -93,7 +114,7 @@ export default function Chat() {
     // 합류했다(머지가 합집합이라 A의 말풍선이 B 아래 남는다) — 진입마다 스레드 중립 상태로
     // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
-    setOlderBusy(false); setOlderExhausted(false);
+    setOlderBusy(false); setOlderExhausted(false); setPeerReadAt(null);
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -109,6 +130,12 @@ export default function Chat() {
         // exists. A short page = the whole thread is on screen and the door never appears.
         setOlderExhausted(pageIsLast(history.length, CHAT_PAGE_SIZE));
         setState('ready');
+        // [0212] 첫 영수증. 아래 폴 틱이 같은 값을 계속 갱신하지만 그 첫 틱은 5~15초 뒤이고,
+        // 그때까지 영수증이 없는 것과 상대가 안 읽은 것이 화면에서 같아 보인다. 실패는 로그로만 —
+        // 영수증은 작동하는 화면의 장식이지 화면의 주제가 아니다.
+        fetchChatReadState(c.threadId)
+          .then((at) => { if (alive) setPeerReadAt(at); })
+          .catch((e) => console.warn('[chat] read state:', (e as Error)?.message ?? e));
       } catch (e) {
         // [0114 · ui2-2] RLS 거부만 골라낸다. openChatForBooking → ensureThread의 INSERT가
         // is_booking_party_active에 걸리면 PostgREST가 42501 / "row-level security" 를 올린다
@@ -184,6 +211,81 @@ export default function Chat() {
     const t = setInterval(tick, link === 'live' ? 15_000 : 5_000);
     return () => { alive = false; clearInterval(t); };
   }, [ctx, state, link]);
+
+  // ── [0212] 상대의 읽음 시각 — 기존 폴 케이던스를 그대로 탄다 ─────────────────────────────
+  // 새 채널을 열지 않는다. `chat-<thread>` 는 chat_messages INSERT 만 싣는 postgres_changes 방이고
+  // (0108 §1), 읽음 위치는 chat_reads 의 사실이라 그 방으로는 오지 않는다. 방을 하나 더 여는 대신
+  // 이미 도는 폴에 한 번의 읽기를 얹는다 — 위 tick 과 같은 간격(실시간 15초 / 끊김 5초).
+  // ⚠ 실패는 pollErr 를 켜지 않는다: 헤더의 「메시지를 못 받고 있어요」는 **메시지**에 대한 문장이고,
+  //   영수증을 못 읽은 것과 메시지를 못 받는 것은 다른 사실이라 한 채널에 뭉개면 둘 다 못 믿게 된다.
+  useEffect(() => {
+    if (!ctx || state !== 'ready') return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const at = await fetchChatReadState(ctx.threadId);
+        if (alive) setPeerReadAt(at);
+      } catch (e) {
+        console.warn('[chat] read state:', (e as Error)?.message ?? e);
+      }
+    };
+    const t = setInterval(tick, link === 'live' ? 15_000 : 5_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [ctx, state, link]);
+
+  // ── [0212] 내가 읽었다는 사실을 기록한다 — 열었을 때 · 새 메시지가 왔을 때 ──────────────
+  // 판정은 전부 chat-read.ts 의 `shouldMarkRead` 가 한다 (테스트가 닿는 유일한 자리).
+  // ⚠ **백그라운드면 아무것도 기록하지 않는다.** Expo Router 는 이전 화면을 마운트한 채로 두고
+  //   위 폴러도 계속 도므로, 잠금 화면 뒤의 채팅 화면에도 메시지는 계속 들어온다. 그걸 읽음으로
+  //   표시하면 상대에게 **아무도 보지 않은 메시지**를 「읽음」이라고 말하게 된다 — 일어나지 않은
+  //   사람의 행동을 앱이 주장하는 것이고, 주머니 속 전화기는 아무것도 읽지 않는다.
+  const recordRead = useCallback((threadId: string) => {
+    markChatRead(threadId).catch((e) => console.warn('[chat] mark read:', (e as Error)?.message ?? e));
+  }, []);
+
+  useEffect(() => {
+    if (!ctx || state !== 'ready') return;
+    let newestPeer: number | null = null;
+    for (const m of msgs) if (!m.mine && (newestPeer === null || m.id > newestPeer)) newestPeer = m.id;
+    const reason: MarkReadReason = markedOpen.current ? 'message' : 'open';
+    if (!shouldMarkRead({
+      reason,
+      ready: true,
+      appActive: AppState.currentState === 'active',
+      newestPeerMessageId: newestPeer,
+      lastMarkedPeerMessageId: lastMarkedPeer.current,
+    })) return;
+    markedOpen.current = true;
+    if (newestPeer !== null) lastMarkedPeer.current = newestPeer;
+    recordRead(ctx.threadId);
+  }, [ctx, state, msgs, recordRead]);
+
+  // 화면이 다시 앞으로 왔을 때. 내비게이션 포커스(useFocusEffect)와 **앱 복귀**(AppState)는 서로를
+  // 대신하지 못한다 — 백그라운드는 포커스된 화면을 블러하지 않으므로, 앱을 내렸다 올리는 동안
+  // 도착한 메시지는 포커스 이벤트를 만들지 않는다 (owner/home.tsx:334 가 같은 이유로 둘 다 둔다).
+  const screenFocused = useRef(false);
+  useFocusEffect(useCallback(() => {
+    screenFocused.current = true;
+    const c = ctxRef.current;
+    if (c && stateRef.current === 'ready' && shouldMarkRead({
+      reason: 'focus', ready: true, appActive: AppState.currentState === 'active',
+      newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
+    })) recordRead(c.threadId);
+    return () => { screenFocused.current = false; };
+  }, [recordRead]));
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      const c = ctxRef.current;
+      if (!screenFocused.current || !c) return;
+      if (!shouldMarkRead({
+        reason: 'focus', ready: stateRef.current === 'ready', appActive: st === 'active',
+        newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
+      })) return;
+      recordRead(c.threadId);
+    });
+    return () => sub.remove();
+  }, [recordRead]);
 
   // 사진 메시지 — 픽업 장소·아이 상태 공유의 핵심 수단
   const sendPhoto = async () => {
@@ -332,6 +434,10 @@ export default function Chat() {
 
   // Sending clears the draft; keep busy distinct from an unavailable or empty draft.
   const sendBlocked = !sending && (state !== 'ready' || input.trim().length === 0);
+
+  // [0212] 「읽음」이 붙는 메시지 — 내 것 중, 상대의 읽음 시각 이하의 가장 최신 하나. 상대가 한 번도
+  // 안 읽었으면(`peerReadAt === null`) null 이고 아무것도 안 그린다.
+  const receiptId = readReceiptMessageId(msgs, peerReadAt);
 
   // 헤더 상태 줄. 세 사실을 뭉개지 않는다:
   //   실시간 조인 성공 = 「● 실시간 연결됨」 (이제 이 문장의 유일한 근거는 SUBSCRIBED다)
@@ -485,7 +591,8 @@ export default function Chat() {
             // plain text nor a photo drew an EMPTY bubble — visible, unreadable, unexplained.
             const bubble = chatBubble({ kind: m.kind, body: m.body, mediaUrl: m.mediaUrl });
             return (
-              <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
+              <View key={m.id}>
+              <View style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
                 {m.mine && <Text style={s.time}>{m.when}</Text>}
                 <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer, bubble.shape === 'photo' && { padding: 4 }]}>
                   {bubble.shape === 'photo' ? (
@@ -506,6 +613,15 @@ export default function Chat() {
                   )}
                 </View>
                 {!m.mine && <Text style={s.time}>{m.when}</Text>}
+              </View>
+              {/* [0212] 영수증은 **한 줄뿐이다** — 상대가 본 마지막 내 메시지 아래에만. 말풍선마다
+                  붙이면 대화가 라벨 밭이 되고, 보내는 사람이 실제로 묻는 것(「그 5분 늦어요가
+                  닿았나」)에는 한 줄이면 답이 된다. 상대가 한 번도 안 읽었으면 이 줄은 없다. */}
+              {m.id === receiptId && (
+                <Text style={s.receipt} accessibilityLabel={`${READ_RECEIPT_LABEL} — 상대가 확인했어요`}>
+                  {READ_RECEIPT_LABEL}
+                </Text>
+              )}
               </View>
             );
           })}
@@ -585,6 +701,9 @@ const s = StyleSheet.create({
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
   time: { fontSize: 15, color: colors.dim, marginBottom: 3 },
+  // [0212] 「읽음」 — 한글 디테일 플로어 15pt (DESIGN.md §3; 한글은 키커 예외를 타지 않는다).
+  // 내 말풍선은 오른쪽 정렬이므로 영수증도 그 끝을 따라간다.
+  receipt: { fontSize: 15, color: colors.dim, alignSelf: 'flex-end', marginTop: 2, marginRight: 2 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   // The 「이전 메시지 더 보기」 door — the quick-reply chip grammar, centred at the top of the thread.
   olderDoor: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center', marginBottom: 4 },
