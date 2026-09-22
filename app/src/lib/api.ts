@@ -2719,6 +2719,61 @@ export async function deleteAvailabilityException(id: string, tokens: Record<str
   }
 }
 
+// ── [0215] 후보 슬롯의 달력 — 보호자 화면이 어떤 창에서 칸을 만들지 ────────────────────────────
+// 0215 §0의 결함: 두 슬롯 시트가 `runner_availability_rules`만 열거해서, 서버가 true라고 답하는
+// 추가 근무(extra) 창을 **아무도 물어볼 수 없었다**. 이 래퍼가 그 독자다.
+//
+// 🔴 이 목록은 달력 층(주간 그리드 ∪ extra − blackout)이고, 확정 예약·홀드·일일 상한은 여전히
+// 슬롯별 `checkSlot`이 마지막 문으로 본다. 목록을 「가능」의 증거로 읽으면 안 된다 — 후보의
+// 출처일 뿐이다.
+export const OFFERED_SLOTS_TOKENS: Record<string, string> = {
+  not_authenticated: '로그인이 필요해요',
+  bad_runner: '러너를 찾지 못했어요',
+  range_too_long: '한 번에 90일까지만 볼 수 있어요',
+  bad_range: '날짜 범위가 올바르지 않아요',
+};
+
+export interface OfferedSlotRow { day: string; startMin: number; endMin: number; source: 'grid' | 'extra' }
+
+/**
+ * ⚠ RETURNS `null` FOR EXACTLY ONE CASE: this build is ahead of migration 0215, so the function
+ * does not exist on the server yet. The caller then falls back to the weekly grid — which is what
+ * both screens did before 0215, so the fallback is the OLD behaviour and not a guess: 추가 근무 is
+ * not offered, a 휴가 is still honoured because `checkSlot` refuses each candidate one by one.
+ *
+ * Every other failure THROWS, folded. `isPendingDeploy` is narrow by construction (`rpc-skew.ts`):
+ * it refuses any function not on its allowlist, so a typo or a signature mismatch still reaches
+ * the fold and a developer can still find it by its `raw`. A broad 「PGRST202 ⇒ fall back」 would
+ * turn a real bug into a silently degraded screen.
+ *
+ * `fromDay`/`toDay` are KST calendar dates (`YYYY-MM-DD`) — build them with
+ * `kstDayKey(kstCal(ms))` from `offered-slots.ts`, never from a device-local `Date` getter.
+ */
+export async function fetchOfferedSlots(
+  runnerId: string, fromDay: string, toDay: string,
+): Promise<OfferedSlotRow[] | null> {
+  const { data, error } = await supabase.rpc('runner_offered_slots', {
+    p_runner: runnerId, p_from: fromDay, p_to: toDay,
+  });
+  if (error) {
+    if (isPendingDeploy('runner_offered_slots', error)) return null;
+    throw foldRpcError(error, {
+      fn: 'runner_offered_slots',
+      tokens: OFFERED_SLOTS_TOKENS,
+      empty: '가능한 시간을 불러오지 못했어요',
+    });
+  }
+  return (data ?? []).map((r: any) => ({
+    day: String(r.day),
+    startMin: r.start_min,
+    endMin: r.end_min,
+    // ⚠ an unrecognised source falls to 'grid', which is the CONSERVATIVE direction and not a
+    // shrug: the window is still offered (the server said it is open) and it gets NO 추가 근무
+    // chip, because a chip we cannot justify is a fabricated badge.
+    source: r.source === 'extra' ? 'extra' : 'grid',
+  }));
+}
+
 // 슬롯 충돌 검사 — 서버 함수(규칙+확정예약+홀드+휴식버퍼)가 판정
 export async function checkSlot(runnerId: string, startIso: string, endIso: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_slot_available', {

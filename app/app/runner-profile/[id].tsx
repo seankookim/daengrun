@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
-import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
+import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchOfferedSlots, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, OfferedSlotRow, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { MediaImage } from '../../src/lib/media';
@@ -15,6 +15,10 @@ import { draft, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 import { kstCal, kstDateLabel, kstInstant, kstKey } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
+// [0215] 후보 슬롯 규칙은 순수 모듈 한 벌 — 이 화면과 owner/reschedule 이 같은 것을 읽는다.
+// 예전에는 이 루프가 두 파일에 글자 그대로 복제돼 있었고(그래서 한 번 드리프트했다) .cjs 스위트가
+// 닿을 수 없었다. `test/offered-slots.test.cjs` 가 세 시간대에서 고정한다.
+import { EXTRA_CHIP_KO, kstDayKey, OfferedSource, slotStartsForDay, windowsFromRules } from '../../src/lib/offered-slots';
 
 // 공개 프로필 — **인스타 모양**(Sean 2026-08-27: 「for the tap for profile, yes make it like
 // instagram」, 스크린샷이 모델). 머리 = 아이디 바 · 아바타 · 카운트 행 · 소개 · 편집 버튼,
@@ -84,6 +88,10 @@ export default function RunnerProfileScreen() {
   const [dayIdx, setDayIdx] = useState(0);
   // null = 확인 중 · 'error' = check failed (availability UNKNOWN — never painted 가능)
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null | 'error'>>({});
+  // [0215] 후보 슬롯의 달력. 네 상태를 구별한다 — 확인 중 · 서버 달력 · 그리드 폴백(0215 미배포)
+  //        · 실패. 실패를 '시간 없음'으로 접으면 화면은 멀쩡해 보이고 아무도 원인을 못 찾는다.
+  const [offered, setOffered] = useState<OfferedSlotRow[]>([]);
+  const [offeredState, setOfferedState] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // 러너 장비 로드아웃 (0019) — kind당 1슬롯, 사진이 곧 인증
   const [gear, setGear] = useState<GearItem[]>([]);
@@ -167,24 +175,44 @@ export default function RunnerProfileScreen() {
   }), []);
 
   const durMin = expectedDurationMs(draft.km ?? 5) / 60_000; // 한 벌: src/lib/lateness.ts
+
+  // [0215] 서버의 달력을 읽는다 — 주간 그리드 ∪ 추가 근무 − 휴가. 0215 이전에는 이 화면이
+  // `p.availability`(주간 그리드)만 열거했고, 그래서 러너가 연 **추가 근무 창을 보호자에게 내줄
+  // 방법이 아예 없었다** (판정은 이미 true를 주고 있었는데 아무도 묻지 않았다 — review F2 ④).
+  const runnerId = p?.profileId;
+  const loadOffered = useCallback(() => {
+    if (!runnerId || !canBook) return;
+    setOfferedState('loading');
+    fetchOfferedSlots(runnerId, kstDayKey(days[0].cal), kstDayKey(days[days.length - 1].cal))
+      .then((rows) => {
+        // null = 이 빌드가 0215보다 앞서 나갔다. 그때만 주간 그리드로 접는다 (0215 이전 동작 그대로).
+        if (rows === null) { setOffered([]); setOfferedState('fallback'); return; }
+        setOffered(rows); setOfferedState('ready');
+      })
+      .catch(() => { setOffered([]); setOfferedState('error'); });
+  }, [runnerId, canBook, days]);
+  useEffect(loadOffered, [loadOffered]);
+
   const daySlots = useMemo(() => {
-    if (!p) return [] as { key: string; label: string; start: Date }[];
+    if (!p) return [] as { key: string; label: string; start: Date; source: OfferedSource }[];
     const day = days[dayIdx];
-    const wd = day.cal.wd; // KST 요일 — availability.weekday가 KST 고정이다
-    const rules = p.availability.filter((r) => r.weekday === wd);
-    const out: { key: string; label: string; start: Date }[] = [];
+    const dayKey = kstDayKey(day.cal);
+    // 확인 중·실패에는 후보를 만들지 않는다 — 아래 렌더가 그 셋을 '시간 없음'과 구별해서 말한다.
+    const windows = offeredState === 'ready' ? offered
+      : offeredState === 'fallback' ? windowsFromRules(p.availability, day.cal)
+      : [];
+    const out: { key: string; label: string; start: Date; source: OfferedSource }[] = [];
     const minStart = Date.now() + 2 * 3600_000;
-    rules.forEach((r) => {
-      // ⚠ [codex 2026-08-21] 여기만 60분 고정이었다 — reschedule 에서 고친 드리프트가 세 번째
-      // 예약 입구에 그대로 남아 있었다. 서버 수락 검증은 km×8+25 를 본다.
-      for (let m = r.startMin; m + durMin <= r.endMin; m += 60) {
-        const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
-        if (start.getTime() < minStart) continue;
-        out.push({ key: start.toISOString(), label: fmtMin(m), start });
-      }
+    // ⚠ [codex 2026-08-21] 여기만 60분 고정이었다 — reschedule 에서 고친 드리프트가 세 번째
+    // 예약 입구에 그대로 남아 있었다. 서버 수락 검증은 km×8+25 를 본다. 이제 두 화면이 같은
+    // 순수 모듈을 부르므로 그 드리프트가 다시 생길 자리가 없다.
+    slotStartsForDay(windows, dayKey, durMin).forEach((sl) => {
+      const start = kstInstant(day.cal, Math.floor(sl.startMin / 60), sl.startMin % 60);
+      if (start.getTime() < minStart) return;
+      out.push({ key: start.toISOString(), label: fmtMin(sl.startMin), start, source: sl.source });
     });
     return out;
-  }, [p, dayIdx, days, durMin]);
+  }, [p, dayIdx, days, durMin, offered, offeredState]);
 
   useEffect(() => {
     if (!p || daySlots.length === 0) return;
@@ -614,7 +642,18 @@ export default function RunnerProfileScreen() {
                     keyExtractor={dayKey}
                     renderItem={renderDay}
                   />
-                  {daySlots.length === 0 ? (
+                  {/* [0215] 네 상태를 구별해서 말한다. '확인 중'과 '불러오지 못함'을 '시간이
+                      없어요'로 접으면 화면은 멀쩡해 보이고 보호자는 러너가 쉬는 줄 안다. */}
+                  {offeredState === 'loading' ? (
+                    <Text style={{ fontSize: 15, color: colors.dim, marginTop: 12 }}>가능한 시간을 확인하고 있어요…</Text>
+                  ) : offeredState === 'error' ? (
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>가능한 시간을 불러오지 못했어요</Text>
+                      <Pressable onPress={loadOffered} accessibilityRole="button" style={{ paddingVertical: 8 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+                      </Pressable>
+                    </View>
+                  ) : daySlots.length === 0 ? (
                     <Text style={{ fontSize: 15, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
                   ) : (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
@@ -643,6 +682,13 @@ export default function RunnerProfileScreen() {
                             <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
                               {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === null ? '확인 중' : '가능'}
                             </Text>
+                            {/* [0215] 추가 근무 칩 — 서버의 source 를 그대로 묶는다, 추측하지 않는다.
+                                주간 그리드가 덮지 않는 시간일 때만 뜬다 (offered-slots.ts 의 라벨 규칙). */}
+                            {sl.source === 'extra' && (
+                              <Text style={{ fontSize: 15, marginTop: 1, fontWeight: '700', color: sel ? colors.volt : paper.ink }}>
+                                {EXTRA_CHIP_KO}
+                              </Text>
+                            )}
                           </Pressable>
                         );
                       })}
