@@ -911,7 +911,61 @@ export async function fetchMyPayments(limit = 30): Promise<PaymentRecord[]> {
   return (data ?? []).map(toPaymentRecord);
 }
 
-// 예약 상세의 결제 내역 — 한 예약의 행만. 0행은 '아직 청구가 없다'는 사실이지 실패가 아니다.
+// ═══════════ [0207] 한 예약의 결제 상태 — 행 수가 아니라 서버가 말하는 상태 ═══════════
+//
+// 🔴 이 래퍼가 생긴 이유는 바로 아래 `fetchBookingPayments` 의 0행이 **두 가지 뜻**이기 때문이다.
+//    0173 이 `payments_reconciliation()` 에 여덟째 팔(settled_without_payment)을 더했지만 그 질의는
+//    `revoke execute … from authenticated` 라 화면에서 부를 수 없고, `owner/schedule.tsx` 는 0행을
+//    「아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요」로 그렸다. 정산 중인 예약에는 참이고,
+//    바로 그 여덟째 팔이 보고하는 모집단(정산은 끝났는데 가격을 못 매겼거나 민트가 터진 건)에는
+//    **거짓**이다 — 그 화면은 「청구가 없었다」, 즉 무료라고 읽힌다.
+//
+// ⚠ `state`·`reason` 은 서버 어휘다 — 절대 렌더하지 않는다(STATUS_MAP 법: 원시 낱말로 판정하고
+//   매핑된 문장을 찍는다). 문장은 `src/lib/payment-state.ts` 하나가 만든다.
+// ⚠ 결제행이 없는 상태에서는 `amountWon` 이 null 이고 그대로 둔다 — 0173:100-101, 아무도 계산하지
+//   못한 행에 숫자를 적으면 그건 지어낸 숫자다.
+export interface BookingPaymentState {
+  /** 서버 어휘. 표시용이 아니다 — payment-state.ts 만 읽는다. */
+  state: string;
+  /** 실제 payments 행이 답한 경우에만 숫자. 그 외에는 null이고 추정하지 않는다. */
+  amountWon: number | null;
+  /** confirmed 행이 된 시각. 그 외 상태에서는 null. */
+  chargedAt: string | null;
+  /** 청구서(인텐트)가 만들어진 시각 = payments 행의 created_at. */
+  intentAt: string | null;
+  /** 서버 토큰(missing_end_reason · card_relink · incident_review …). 표시용이 아니다. */
+  reason: string | null;
+}
+
+/** 한 예약의 결제 상태. 서버는 **항상 정확히 한 행**을 돌려준다 — 0행이었다면 이 슬라이스가
+ *  없애려는 「뜻이 둘인 부재」가 그대로 돌아온다. `not_party`/`not_authenticated` 는 「여기선 볼 수
+ *  없다」이지 「전송 실패」가 아니므로 null 로 접고(작동하는 화면에 붉은 실패 줄을 그리지 않는다),
+ *  진짜 실패는 그대로 던진다 — `fetchMyReturnResolution` 과 같은 법. */
+export async function fetchBookingPaymentState(
+  bookingId: string,
+): Promise<BookingPaymentState | null> {
+  // 인자는 반드시 `p_booking: bookingId` 형태 — 축약형 { p_booking }은 check-rpc 계약 검사의
+  // 키 정규식(콜론 필수)에 잡히지 않아 게이트를 조용히 통과한다.
+  const { data, error } = await supabase.rpc('my_booking_payment_state', { p_booking: bookingId });
+  if (error) {
+    if (/not_party|not_authenticated/.test(error.message ?? '')) return null;
+    // 비정형 bid(uuid 아님)는 22P02 — 통신 실패가 아니라 '부재' (fetchBookingCharge 리뷰 #3과 같은 법)
+    if ((error as any).code === '22P02') return null;
+    throw foldRpcError(error, { fn: 'my_booking_payment_state' });
+  }
+  const row = (data as any[] | null)?.[0];
+  if (!row) return null;
+  return {
+    state: String(row.state ?? ''),
+    amountWon: row.amount_won == null ? null : Number(row.amount_won),
+    chargedAt: row.charged_at ?? null,
+    intentAt: row.intent_at ?? null,
+    reason: row.reason ?? null,
+  };
+}
+
+// 예약 상세의 결제 내역 — 한 예약의 행만. ⚠ [0207] 0행은 더 이상 화면의 **문장**을 결정하지 않는다:
+// 부재의 뜻은 `fetchBookingPaymentState` 가 말하고, 이 목록은 영수증 행 그 자체만 담당한다.
 export async function fetchBookingPayments(bookingId: string): Promise<PaymentRecord[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];

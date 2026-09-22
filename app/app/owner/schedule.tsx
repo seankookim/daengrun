@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
-import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { PAYMENT_STATES_THAT_SPEAK, paymentFace } from '../../src/lib/payment-state';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -321,8 +322,7 @@ export default function Schedule() {
   // 한 수수료에 대해 세 가지 다른 말을 하는 화면이 됐다 (codex 지적).
   // 이 변경은 **0117 배포와 같은 창에서** 다시 온다. 그때는 미러가 아니라 quote_cancel_fee 읽기다.
 
-  // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 정산 전에는 행이 없는 것이
-  // 정직한 상태(가격 비가시성)라, 없는 동안에는 섹션 자체가 렌더되지 않는다.
+  // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 이 목록은 **영수증 행**만 담당한다.
   const [payRows, setPayRows] = useState<PaymentRecord[]>([]);
   const [payErr, setPayErr] = useState(false);
   const loadPayments = useCallback((bid: string) => {
@@ -331,15 +331,53 @@ export default function Schedule() {
       .then(setPayRows)
       .catch((e) => { console.warn('[schedule] payments:', e?.message ?? e); setPayErr(true); });
   }, []);
+
+  // 🔴 [0207] 결제 **상태**는 서버가 말한다 — 행 수가 아니다.
+  //    여기 있던 판정은 `payRows.length === 0`이면 「아직 청구 내역이 없어요 — 정산이 끝나면
+  //    여기에 표시돼요」였다. 정산 중인 예약에는 참이고, 0173의 여덟째 팔이 보고하는 모집단
+  //    (정산은 끝났는데 가격을 못 매겼거나 민트가 터져서 다섯 분마다 도는 스윕이 한 시간 동안
+  //    아무것도 못 만든 건)에는 **거짓**이다 — 그 문장은 「청구가 없었다」로 읽힌다. 부재의 뜻이
+  //    둘이었고, 서버는 내내 그 차이를 알고 있었다.
+  // ⚠ 실패해도 **이미 보여 준 상태를 지우지 않는다**: 재시도가 실패했다고 화면에 있던 참인 문장이
+  //   사라지면, 사라진 자리가 다시 「아무 일도 없었다」로 읽힌다.
+  const [payState, setPayState] = useState<BookingPaymentState | null>(null);
+  const [payStateLoading, setPayStateLoading] = useState(false);
+  const [payStateErr, setPayStateErr] = useState(false);
+  const loadPayState = useCallback((bid: string) => {
+    setPayStateErr(false);
+    setPayStateLoading(true);
+    fetchBookingPaymentState(bid)
+      .then((v) => { setPayState(v); setPayStateErr(false); })
+      .catch((e) => { console.warn('[schedule] payment state:', e?.message ?? e); setPayStateErr(true); })
+      .finally(() => setPayStateLoading(false));
+  }, []);
+
   useEffect(() => {
-    if (!selected) { setPayRows([]); setPayErr(false); return; }
+    if (!selected) {
+      setPayRows([]); setPayErr(false);
+      setPayState(null); setPayStateErr(false); setPayStateLoading(false);
+      return;
+    }
     setPayRows([]);
+    setPayState(null);            // 다른 예약의 상태가 한 프레임이라도 남으면 남의 돈 이야기다
     loadPayments(selected.id);
-  }, [selected, loadPayments]);
-  // 완료 = 정산이 끝났어야 하는 예약. 그때는 행이 0건이어도 '아직 없다'고 말해야 한다
-  // (침묵하면 청구가 없었던 것처럼 읽힌다). 그 전에는 부재가 곧 사실이다.
+    loadPayState(selected.id);
+  }, [selected, loadPayments, loadPayState]);
+
+  const payFace = paymentFace(payState);
+  // ⚠ 완료(display status)는 더 이상 **유일한** 트리거가 아니다 — 0116:47-52가 이름으로 거절하는
+  //   앵커라서다: 정산된 예약은 incident_review/refund_pending으로 합법적으로 옮겨 가고, 그때
+  //   display status로 판정하면 이 슬라이스가 드러내려는 바로 그 부류가 숨는다.
   const settled = selected?.status === 'completed';
-  const showPayments = payRows.length > 0 || settled;
+  const stateSpeaks = !!payState && PAYMENT_STATES_THAT_SPEAK.includes(payState.state);
+  const payBusy = payStateLoading && !payFace;
+  const payFailed = payStateErr || payErr;
+  // ⚠ 매 갈래가 **본문을 보장한다** — 제목만 있는 빈 카드는 「여기 뭔가 있었다」고 말하면서
+  //   아무것도 말하지 않는다. 완료 예약은 서버가 조용한 상태(awaiting_settlement)여도 참인
+  //   문장이 있으므로 그때는 연다; 아직 뛰지도 않은 예약은 열지 않는다(정산 전 '내역 없음'은 소음).
+  const showPayments = payRows.length > 0
+    || stateSpeaks
+    || (!!settled && (!!payFace || payBusy || payFailed));
 
   // 그룹 하나 = 날짜 라벨 + 그 날의 카드들. 미래 그룹은 상대 앵커(오늘 · 내일 · D-n)를 달고,
   // 지난 그룹은 날짜만 단다. 키에 접두사를 붙이는 이유: 유예 안의 늦은 건은 라벨이 날짜뿐이라
@@ -814,36 +852,72 @@ export default function Schedule() {
                   </View>
                   )}
 
-                  {/* 결제 내역 (charge slice) — 청구는 러닝이 끝난 뒤에 생긴다. 행이 있거나 정산이
-                      끝난 예약에서만 렌더한다: 정산 전 '결제 내역 없음'은 알림이 아니라 소음이고,
-                      §0-bis의 비가시성은 청구가 생긴 뒤에는 반드시 보여주는 것으로만 정직해진다. */}
+                  {/* 결제 내역 (charge slice) — 청구는 러닝이 끝난 뒤에 생긴다. 섹션은 영수증 행이
+                      있거나, 예약이 완료됐거나, **서버가 할 말이 있을 때** 렌더한다. 정산 전
+                      '결제 내역 없음'은 알림이 아니라 소음이라 awaiting_settlement는 스스로
+                      말하지 않는다 (PAYMENT_STATES_THAT_SPEAK). */}
                   {showPayments && (
                     <View style={s.sheetCard}>
                       <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>결제 내역</Text>
-                      {payErr ? (
-                        // 실패는 실패로 — 다만 정산된 예약에서만 말한다 (그 전에는 섹션 자체가 없다)
+
+                      {/* 🔴 [0207] 한 줄의 진실 — 서버가 말한 상태. 행 수로 추론하지 않는다.
+                          로딩은 0이 아니다: 값이 없을 때는 골격을 그리고, 값이 한 번 그려진 뒤에는
+                          재시도가 실패해도 지우지 않는다. */}
+                      {payFace ? (
                         <View style={{ marginTop: 8 }}>
-                          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>결제 내역을 불러오지 못했어요</Text>
-                          <Pressable onPress={() => loadPayments(selected.id)} style={s.payRetry} accessibilityRole="button">
+                          <Text style={{ fontSize: 16, fontWeight: '800', lineHeight: 21,
+                                         color: payFace.tone === 'alert' ? paper.critical : paper.ink }}>
+                            {payFace.text}
+                          </Text>
+                          {payFace.sub && (
+                            <Text style={{ fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 3 }}>
+                              {payFace.sub}
+                            </Text>
+                          )}
+                          {/* 죽은 버튼 금지 — 이 문은 진짜로 열리고 그 끝에 진짜 재청구가 있다.
+                              재청구 동작 자체는 /payments 하나가 갖는다 (owner/pay.tsx가 같은
+                              이유로 같은 결정을 했다: 한 돈 동작이 두 화면에 살면 갈라진다). */}
+                          {payFace.canRetry && (
+                            <Pressable onPress={() => { close(); router.push('/payments'); }}
+                                       style={s.payRetry} accessibilityRole="button">
+                              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+                                결제 관리에서 다시 시도
+                              </Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      ) : payStateLoading ? (
+                        <View style={{ marginTop: 10 }} accessibilityLabel="결제 상태를 불러오는 중">
+                          <View style={s.paySkelWide} />
+                          <View style={s.paySkelNarrow} />
+                        </View>
+                      ) : null}
+
+                      {/* 실패는 실패로. ⚠ payFace가 이미 있으면 그 아래에 붙는다 — 참인 문장을
+                          실패 줄로 갈아 끼우면 사라진 자리가 다시 '아무 일도 없었다'로 읽힌다. */}
+                      {(payStateErr || payErr) && (
+                        <View style={{ marginTop: 10 }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>
+                            {payFace ? '결제 정보를 새로 불러오지 못했어요' : '결제 내역을 불러오지 못했어요'}
+                          </Text>
+                          <Pressable
+                            onPress={() => { loadPayments(selected.id); loadPayState(selected.id); }}
+                            style={s.payRetry} accessibilityRole="button">
                             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
                           </Pressable>
                         </View>
-                      ) : payRows.length === 0 ? (
-                        <Text style={{ fontSize: 15, lineHeight: 20, color: paper.ink, marginTop: 6 }}>
-                          아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요
-                        </Text>
-                      ) : (
-                        // 예약 상세 → 결제 내역 → 영수증 상세 (pay-rebuild-lab Ⓒ 온디맨드의
-                        // 두 진입로 중 하나). 시트를 닫고 넘어간다 — 다른 액션 행들과 같은 문법.
-                        payRows.map((p) => (
-                          <PaymentRow
-                            key={p.orderId}
-                            p={p}
-                            showDog={false}
-                            onPress={() => { const bid = p.bookingId; close(); router.push({ pathname: '/owner/pay', params: { bid } }); }}
-                          />
-                        ))
                       )}
+
+                      {/* 예약 상세 → 결제 내역 → 영수증 상세 (pay-rebuild-lab Ⓒ 온디맨드의
+                          두 진입로 중 하나). 시트를 닫고 넘어간다 — 다른 액션 행들과 같은 문법. */}
+                      {payRows.map((p) => (
+                        <PaymentRow
+                          key={p.orderId}
+                          p={p}
+                          showDog={false}
+                          onPress={() => { const bid = p.bookingId; close(); router.push({ pathname: '/owner/pay', params: { bid } }); }}
+                        />
+                      ))}
                     </View>
                   )}
 
@@ -1237,6 +1311,10 @@ const s = StyleSheet.create({
   vDiv: { width: 1, backgroundColor: '#EEE' },
   // 결제 내역 실패 스트립의 재시도 — schedule의 밑줄 텍스트 문법 (박스 없음, ≥44pt 타깃)
   payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
+  // [0207] 결제 상태 로딩 골격 — 「로딩은 0이 아니다」. 두 줄인 이유: 한 줄짜리 골격은 그 자리에
+  // 값이 하나만 온다고 약속하는데, 이 줄은 헤드라인 + 보조 문장 두 줄이다.
+  paySkelWide: { height: 15, borderRadius: 3, backgroundColor: paper.disabledFill, width: '62%' },
+  paySkelNarrow: { height: 13, borderRadius: 3, backgroundColor: paper.disabledFill, width: '44%', marginTop: 7 },
   badgePill: { backgroundColor: '#e3f0c4', paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }, // 목업 러너 전용 배지 — 확정 틴트 시맨틱 유지, 스퀘어만
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
   // 비활성 칩 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint, 불투명도 트릭 금지)
