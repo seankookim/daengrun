@@ -51,6 +51,38 @@ Deno.serve(handle(async (req) => {
   const { booking_id, action, meta } = body;
   if (!booking_id || !action) throw new HttpError(400, "missing fields");
 
+  // ═══ [0201 §C] `resolve_return` IS AUTHORIZED BEFORE ANY BOOKING IS READ (codex 2026-09-22 #5) ═
+  // Every other action here is party-gated, and the party gate below is the reason the booking read
+  // is safe: the row belongs to the caller or they are refused. `resolve_return` is the ONE action
+  // that is deliberately exempt from that gate (an operator is not a party), so for it — and only
+  // for it — the read at the next line had no authorization in front of it at all. Measured by the
+  // reviewer with a targeted probe: one stranger identity got **503** for an unpriceable run and
+  // **403 not_ops** for a priceable one, which makes this endpoint an oracle for any booking id's
+  // pricing/frozen-run state, and got privileged pricing work done on the way.
+  //
+  // 🔴 SO THE ROSTER CHECK MOVES AHEAD OF THE READ. `ops_is_member` (0201 §C) is granted to
+  // `service_role` alone and takes the `uid` this function VERIFIED through `caller()` — never a
+  // value from `meta`, for `resolve_return.ts` §2's reason. A non-operator now gets the SAME
+  // sentence and the SAME status for a priceable booking, an unpriceable one, and a booking id
+  // that does not exist, because none of those three is ever looked at.
+  //
+  // ⚠ IT DOES NOT REPLACE THE SQL GATE. `ops_resolve_return_tx` still refuses a non-operator
+  // (`not_ops`) before it reads a field, and that remains the rule — this is an earlier refusal,
+  // and one of them being an edge check is exactly why the other must stay.
+  // ⚠ FAIL CLOSED. An RPC error (the function missing on a database that predates 0201, a transport
+  // failure) is refused with the same 403 rather than allowed through: the failure direction here is
+  // 「an operator retries」, never 「a stranger is priced」.
+  if (action === "resolve_return") {
+    const { data: isOps, error: opsErr } = await db.rpc("ops_is_member", {
+      p_kind: "return_strand",
+      p_actor: uid,
+    });
+    if (opsErr) {
+      console.error(`[transition-booking] resolve_return ops check failed by=${uid}: ${opsErr.message}`);
+    }
+    if (isOps !== true) throw new HttpError(403, "담당자만 반환을 대신 정리할 수 있어요");
+  }
+
   const { data: bk, error } = await db.from("bookings").select("*").eq("id", booking_id).single();
   if (error || !bk) throw new HttpError(404, "booking not found");
   const isOwner = bk.owner_id === uid;

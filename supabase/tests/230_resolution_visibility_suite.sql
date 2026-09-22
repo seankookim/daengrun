@@ -22,11 +22,19 @@
 --        passes on the same id in the same block, so 「refused」 cannot come from a broken session.
 --   · V5 **THE OPS MEMO NEVER LEAVES THE SERVER.** The operator's sentence is written through the
 --        REAL door with a sentinel in it, is genuinely present in the database afterwards
---        (`return_resolutions.memo` AND `bookings.return_force_reason` — the control that makes
---        「absent」 mean something), and appears in NO value of the party's row. The row has
---        exactly three columns and `memo` is not one of them, asserted by NAME off the catalog.
+--        (`return_resolutions.memo` — the control that makes 「absent」 mean something), and appears
+--        in NO value of the party's row. The row has exactly three columns and `memo` is not one of
+--        them, asserted by NAME off the catalog.
 --        ⚠ An absence pin over a fixture that never contained the thing is worth zero (ui6's
 --        `0151` N1/N2). The sentinel is the fixture containing the defect.
+--        ⚠ **AMENDED BY 0201 §A (codex 2026-09-22 #1).** This pin's SECOND control used to assert
+--        the sentinel was in `bookings.return_force_reason` too — and it was, which is the finding:
+--        that column is party-readable (table SELECT on `bookings` + `0002:92`), so the memo was one
+--        PostgREST call from both parties while this pin, which tests the RPC, stayed green. The
+--        arm is now its opposite — the rescued-from TOKEN is there and the memo is not — and the
+--        journal control above still keeps the absence arms off an empty world. **232 `0201-M1`
+--        owns the new property**: both tokens, both parties, a direct `bookings` read as
+--        `authenticated`.
 --   · V6 A party of a booking ops never touched gets ZERO ROWS and NO RAISE. 「운영팀이 개입한 적
 --        없음」 is the ordinary state of every healthy run, and a raise there would make the
 --        client's `catch` the normal path and teach the screen to read a transport failure as
@@ -315,8 +323,19 @@ begin
     -- the three arms below mean anything.
     if (select r.memo from return_resolutions r where r.booking_id = bA) is distinct from c_memo
       then v_bad := v_bad || ' 대조 실패: 저널에 운영 메모가 없다'; end if;
-    if (select b.return_force_reason from bookings b where b.id = bA) is distinct from c_memo
-      then v_bad := v_bad || ' 대조 실패: 예약에 판정 사유가 없다'; end if;
+    -- ⚠ [0201 §A] THIS ARM IS NOW ITS OWN OPPOSITE, AND THAT IS THE FIX RATHER THAN A WEAKENING.
+    --   It was the SECOND of two controls — 「the sentinel really is in
+    --   `bookings.return_force_reason`」 — and it was true, which is what codex's 2026-09-22 finding
+    --   #1 is about: that column is party-readable (table SELECT on `bookings` + 0002:92), so the
+    --   memo was one PostgREST call away from both parties the whole time. V5 tested the RPC and
+    --   could not see it. 0201 §A writes a fixed rescued-from token there instead. The JOURNAL
+    --   control one line above is untouched and still does the job this one used to do — it is what
+    --   keeps V5's absence arms from standing over an empty world. **232 `0201-M1` owns the new
+    --   property** (both tokens, both parties, a direct `bookings` read as `authenticated`).
+    if (select b.return_force_reason from bookings b where b.id = bA) is distinct from 'ops_resolved:strand'
+      then v_bad := v_bad || ' 예약의 판정 토큰이 0201 §A의 값이 아니다=' || coalesce((select b.return_force_reason from bookings b where b.id = bA), '(null)'); end if;
+    if (select position(c_memo in coalesce(b.return_force_reason, '')) > 0 from bookings b where b.id = bA) is not false
+      then v_bad := v_bad || ' 🔴 운영 메모가 당사자가 읽는 예약 칸에 실렸다'; end if;
 
     v_js := t_rvz_read_as(oo, bA);
     if v_js->>'raised' is not null then v_bad := v_bad || ' 읽기가 거절됨: ' || (v_js->>'raised');
@@ -340,7 +359,7 @@ begin
                  and ('memo' = any(coalesce(p.proargnames, '{}'))
                       or 'return_force_reason' = any(coalesce(p.proargnames, '{}'))))
       then v_bad := v_bad || ' 🔴 시그니처에 memo/판정사유 칸이 있다'; end if;
-    if v_bad = '' then call _pass('rvz','0199-V5 운영 메모는 서버를 떠나지 않는다 — 실제 문(ops_resolve_return_tx)으로 쓴 센티넬 메모가 저널과 예약에는 분명히 있고(대조 2개: 부재 핀이 빈 세계 위에 서지 않도록) 당사자 행의 어떤 값에도 없다; 출력은 resolved_at·rescued_from·note_public 정확히 셋이고 memo는 시그니처에도 없다');
+    if v_bad = '' then call _pass('rvz','0199-V5 운영 메모는 서버를 떠나지 않는다 — 실제 문(ops_resolve_return_tx)으로 쓴 센티넬 메모가 **봉인된 저널에는** 분명히 있고(대조: 부재 핀이 빈 세계 위에 서지 않도록) 당사자 행의 어떤 값에도 없다; 출력은 resolved_at·rescued_from·note_public 정확히 셋이고 memo는 시그니처에도 없다. ⚠ 0201 §A 이후 두 번째 대조는 뒤집혔다 — 당사자가 직접 읽는 bookings.return_force_reason에는 메모가 아니라 구조된 상태가 고르는 고정 토큰(ops_resolved:strand)만 있어야 한다. 예전 버전은 「메모가 거기 있다」를 대조로 단언했고, 그게 바로 codex 2026-09-22 #1이 찾은 결함이었다(232 0201-M1이 새 성질을 소유)');
     else v_msg := v_bad; call _fail('rvz','0199-V5 운영 메모 비노출', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('rvz','0199-V5 운영 메모 비노출', v_msg);

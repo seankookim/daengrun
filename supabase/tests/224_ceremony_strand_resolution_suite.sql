@@ -339,8 +339,17 @@ begin
       then v_bad := v_bad || ' 🔴 ops가 보호자의 스탬프를 위조했다'; end if;
     if (select b.return_forced_by from bookings b where b.id = b3) is distinct from 'ops'
       then v_bad := v_bad || ' ops 마커가 없다'; end if;
-    if (select b.return_force_reason from bookings b where b.id = b3) is distinct from '보호자와 통화 — 개는 집에 있다고 확인'
-      then v_bad := v_bad || ' 판정 사유가 기록되지 않았다'; end if;
+    -- ⚠ [0201 §A] THIS ARM MOVED, AND IT MOVED FOR A TRUE REASON (codex 2026-09-22 #1). It used to
+    --   assert that `return_force_reason` held the operator's MEMO — which was exactly the defect:
+    --   `authenticated` has table SELECT on `bookings` and 0002:92 scopes it to the two parties, so
+    --   a private ops note in this column is read by both of them through PostgREST. 0201 §A writes
+    --   a fixed token keyed by the rescued-from state instead, and the memo stays in the sealed
+    --   journal (asserted two lines below, unchanged). **232 `0201-M1` owns the new property** —
+    --   the memo absent from every party-readable value, both tokens, both parties.
+    if (select b.return_force_reason from bookings b where b.id = b3) is distinct from 'ops_resolved:strand'
+      then v_bad := v_bad || ' 판정 토큰이 기록되지 않았다=' || coalesce((select b.return_force_reason from bookings b where b.id = b3), '(null)'); end if;
+    if (select position('보호자와 통화' in coalesce(b.return_force_reason, '')) > 0 from bookings b where b.id = b3) is not false
+      then v_bad := v_bad || ' 🔴 운영 메모가 당사자가 읽는 칸에 실렸다'; end if;
     -- the journal, with the facts the resolving UPDATE destroys
     select count(*) into v_n from return_resolutions where booking_id = b3;
     if v_n <> 1 then v_bad := v_bad || ' 저널 행 수=' || v_n; end if;
@@ -361,7 +370,7 @@ begin
     if v_n <> 1 then v_bad := v_bad || ' 재호출 뒤 저널 행 수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('crs','0193-R1 한쪽만 찍힌 좌초에 도달 가능한 출구가 생겼다 — ops가 해결하면 completed·settled_at·원장 1행이 되고 러너가 풀리며, **빠진 당사자 스탬프는 절대 위조되지 않고**(0089) return_forced_by=ops 마커와 return_resolutions 저널(누가·어느 상태에서·어느 스탬프가 빠졌는지)만 남는다; 재호출은 unchanged로 원장도 저널도 늘리지 않는다');
+      then call _pass('crs','0193-R1 한쪽만 찍힌 좌초에 도달 가능한 출구가 생겼다 — ops가 해결하면 completed·settled_at·원장 1행이 되고 러너가 풀리며, **빠진 당사자 스탬프는 절대 위조되지 않고**(0089) return_forced_by=ops 마커와 return_resolutions 저널(누가·어느 상태에서·어느 스탬프가 빠졌는지)만 남는다; 재호출은 unchanged로 원장도 저널도 늘리지 않는다. ⚠ 0201 §A 이후 return_force_reason은 운영 메모가 아니라 구조된 상태가 고르는 고정 토큰(ops_resolved:strand)이다 — 그 칸은 당사자가 직접 읽으므로(0002:92) 메모를 쓰면 곧 유출이었다(codex 2026-09-22 #1; 232 0201-M1이 새 성질을 소유)');
     else v_msg := v_bad; call _fail('crs','0193-R1 한쪽 좌초의 출구', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('crs','0193-R1 한쪽 좌초의 출구', v_msg);

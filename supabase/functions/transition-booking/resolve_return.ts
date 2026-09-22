@@ -31,6 +31,16 @@
 // the gate it trades for is STRICTER, not looser: the SQL refuses everyone who is not on the
 // `return_strand` roster (`not_ops`), before it reads a single field of the booking, so a stranger
 // cannot even learn that the booking exists.
+//
+// 🔴 [0201 §C, codex 2026-09-22 #5] THAT ARGUMENT WAS TRUE OF THE SQL AND FALSE OF THE EDGE, and
+// the gap was worth a real probe: `index.ts` read the booking and this file priced it, both ahead
+// of the only membership check there was, so one stranger identity got **503** for an unpriceable
+// run and **403 not_ops** for a priceable one — an oracle for any booking id, plus free privileged
+// pricing. `index.ts` now calls `ops_is_member('return_strand', uid)` BEFORE the booking read, so
+// a non-operator never reaches this file at all and every booking id answers identically.
+// ⚠ NOTHING HERE WAS REMOVED. The SQL gate inside `ops_resolve_return_tx` is still the rule and
+// `mapResolveError`'s `not_ops` arm still stands: the edge check is an earlier refusal, and an
+// earlier refusal that replaced the real one would be the same mistake wearing a fix's costume.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HttpError } from "../_shared/ctx.ts";
 import { quoteFor } from "./confirm_return.ts";
