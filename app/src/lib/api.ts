@@ -2486,6 +2486,96 @@ export async function saveMyBookingRules(r: RunnerBookingRules): Promise<void> {
   if (error) throw error;
 }
 
+// ═══════════ [0203] 예외 일정 — 휴가(blackout) · 다구간(extra) ═══════════
+//
+// The table has existed since 0001:99 with self-scoped RLS since 0002:78, and `is_slot_available`
+// §2 has read it as a blackout since 0003:35. What never existed is a DOOR: measured on trunk
+// `fde88a1`, `grep -rn runner_availability_exceptions app/` returned **0**, so the screen said
+// 「예외 일정은 준비 중」 over a mechanism the server was already honouring.
+//
+// 🔴 WRITES GO THROUGH THE TWO RPCs AND NOWHERE ELSE, and that is a server fact rather than a
+//    convention here: 0203 §B REVOKES insert/update/delete from `authenticated`. A policy can say
+//    whose row it is; it cannot say 「90 days」, 「one window inside one day」 or 「at most 20 live」.
+//    A PostgREST write from this file would now fail with 42501, loudly, which is the point.
+// ⚠ The READ is a plain table select on purpose — the row scope is `runner_id = auth.uid()` in
+//    0203 §B's policy, so a third definer would add a surface and buy nothing. It is folded
+//    anyway: a 42501 or a missing column is an English database sentence either way.
+
+export interface AvailExceptionRow {
+  id: string;
+  kind: 'blackout' | 'extra';
+  startsOn: string;
+  endsOn: string;
+  startMin: number | null;
+  endMin: number | null;
+  note: string | null;
+}
+
+export async function fetchMyAvailabilityExceptions(): Promise<AvailExceptionRow[]> {
+  const { data: user, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user.user) throw new Error('not signed in');
+  const { data, error } = await supabase
+    .from('runner_availability_exceptions')
+    .select('id, kind, starts_on, ends_on, start_min, end_min, note')
+    .eq('runner_id', user.user.id)
+    .order('starts_on');
+  if (error) throw foldRpcError(error, { empty: '예외 일정을 불러오지 못했어요' });
+  return ((data ?? []) as any[]).map((r) => ({
+    id: String(r.id),
+    kind: r.kind === 'extra' ? 'extra' : 'blackout',
+    startsOn: String(r.starts_on),
+    endsOn: String(r.ends_on),
+    startMin: r.start_min == null ? null : Number(r.start_min),
+    endMin: r.end_min == null ? null : Number(r.end_min),
+    note: r.note ?? null,
+  }));
+}
+
+/** 0203 §C. Refusals arrive as the tokens `EXCEPTION_REFUSAL_KO` maps — the caller passes that
+ *  table in as `tokens` so the vocabulary lives beside its Korean in ONE place. */
+export async function setAvailabilityException(
+  draft: {
+    kind: 'blackout' | 'extra';
+    startsOn: string;
+    endsOn: string;
+    startMin: number | null;
+    endMin: number | null;
+    note: string | null;
+  },
+  tokens: Record<string, string>,
+): Promise<string> {
+  // 인자는 반드시 `p_kind: …` 형태 — 축약형은 check-rpc 계약 검사의 키 정규식(콜론 필수)에 잡히지
+  // 않아 게이트를 조용히 통과한다.
+  const { data, error } = await supabase.rpc('set_availability_exception', {
+    p_kind: draft.kind,
+    p_starts_on: draft.startsOn,
+    p_ends_on: draft.endsOn,
+    p_start_min: draft.startMin,
+    p_end_min: draft.endMin,
+    p_note: draft.note,
+  });
+  if (error) {
+    throw foldRpcError(error, {
+      fn: 'set_availability_exception',
+      tokens,
+      empty: '예외 일정을 저장하지 못했어요',
+    });
+  }
+  return String(data);
+}
+
+export async function deleteAvailabilityException(id: string, tokens: Record<string, string>): Promise<void> {
+  const { error } = await supabase.rpc('delete_availability_exception', { p_id: id });
+  if (error) {
+    throw foldRpcError(error, {
+      fn: 'delete_availability_exception',
+      tokens,
+      empty: '예외 일정을 지우지 못했어요',
+    });
+  }
+}
+
 // 슬롯 충돌 검사 — 서버 함수(규칙+확정예약+홀드+휴식버퍼)가 판정
 export async function checkSlot(runnerId: string, startIso: string, endIso: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_slot_available', {
