@@ -155,7 +155,7 @@ export default function Safety() {
             </Row>
           )}
           {!loadErr && contacts === null && (
-            <Text style={{ fontSize: 15, color: colors.dim, paddingVertical: 6 }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: colors.dim, paddingVertical: 6 }}>불러오는 중…</Text>
           )}
           {contacts?.length === 0 && !adding && (
             <Text style={{ fontSize: 15, color: colors.dim, paddingVertical: 6 }}>
@@ -247,7 +247,7 @@ export default function Safety() {
             <View style={[s.card, { flex: 1, marginTop: 0 }]}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>사고 신고</Text>
               <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
-                {runState === 'loading' ? '불러오는 중...' : '접수할 수 있는 러닝이 없어요'}
+                {runState === 'loading' ? '불러오는 중…' : '접수할 수 있는 러닝이 없어요'}
               </Text>
             </View>
           )}

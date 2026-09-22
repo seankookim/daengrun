@@ -195,7 +195,7 @@ export default function Alerts() {
 
           {/* 로딩 — 빈 상태와 절대 겹치지 않는다 (loading ≠ 0 ≠ empty) */}
           {!loaded && !loadErr && (
-            <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 26 }}>알림 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: lilac.dim, textAlign: 'center', marginTop: 26 }}>알림 불러오는 중…</Text>
           )}
 
           {/* 라우드-페일 스트립 — criticalWash + critical 잉크 + 재시도 */}

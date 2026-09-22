@@ -1200,7 +1200,7 @@ export default function Request() {
             {/* ── 코스 목록 ── 로딩 ≠ 실패 ≠ 진짜 0건. 실패는 위 라우드 페일 스트립이 이미 말했다 */}
             <Text style={s.foldHead}>코스 목록</Text>
             {routesState === 'loading' ? (
-              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오는 중...</Text>
+              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오는 중…</Text>
             ) : routesState === 'error' ? (
               <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오지 못했어요 — 위에서 다시 시도할 수 있어요</Text>
             ) : routes.length === 0 ? (

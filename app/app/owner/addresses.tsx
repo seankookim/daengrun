@@ -148,7 +148,7 @@ export default function Addresses() {
       <View style={{ marginTop: 16, gap: 10 }}>
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
@@ -227,7 +227,7 @@ export default function Addresses() {
                 {/* 60자는 서버 상한과 같은 수 — 여기 maxLength는 막는 장치가 아니라 미리 알려주는 장치다 */}
                 <Text style={s.noteCount}>{noteVal.length}/60 · 러너가 이 문장을 봐요</Text>
                 <Row style={{ gap: 8, marginTop: 10, marginBottom: 12 }}>
-                  <PaperBtn label="저장" busyLabel="저장 중..." busy={noteBusy} onPress={saveNote} style={{ flex: 1.4 }} />
+                  <PaperBtn label="저장" busyLabel="저장 중…" busy={noteBusy} onPress={saveNote} style={{ flex: 1.4 }} />
                   <PaperBtn label="취소" variant="secondary" onPress={() => setNoteId(null)} style={{ flex: 1 }} />
                 </Row>
               </View>
@@ -280,7 +280,7 @@ export default function Addresses() {
                 accessibilityState={{ disabled: !addr.trim() || verify === 'checking' }}
               >
                 <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: addr.trim() ? paper.actionInk : paper.faint }}>
-                  {verify === 'checking' ? '확인 중...' : '확인'}
+                  {verify === 'checking' ? '확인 중…' : '확인'}
                 </Text>
               </Pressable>
             </Row>

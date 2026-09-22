@@ -70,7 +70,7 @@ export function LocationPrimer({ role, onDone }: { role: PrimerRole; onDone: () 
             says Allow makes the person think they already granted, then the real system alert asks
             again. The system alert owns the word 허용. (HIG conformance row O4, 2026-09-17.) */}
         {/* busy = label swap, never an opacity trick (DESIGN.md button matrix) */}
-        <Text style={[s.ctaTxt, asking && s.ctaTxtBusy]}>{asking ? '확인 중...' : '계속'}</Text>
+        <Text style={[s.ctaTxt, asking && s.ctaTxtBusy]}>{asking ? '확인 중…' : '계속'}</Text>
       </Pressable>
     </View>
   );

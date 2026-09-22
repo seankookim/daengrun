@@ -100,7 +100,7 @@ export default function Leaderboard() {
         {/* board — loading / error+retry / honest empty (never a fake fresh week) */}
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>랭킹 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>랭킹 불러오는 중…</Text>
           </View>
         )}
         {loadErr && (

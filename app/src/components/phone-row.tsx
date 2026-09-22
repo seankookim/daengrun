@@ -154,7 +154,7 @@ export function PhoneRow() {
                 {/* 바쁨은 라벨 스왑이 집안 문법이다 (DESIGN.md F2.1) — 알파로 흐리게 만들지 않는다.
                     비활성은 disabledFill + faint 라는 명시 페인트 쌍 (theme.ts:239). 흰 글씨를 회색
                     면 위에 그대로 두면 읽히지 않으므로 잉크도 같이 바뀐다. */}
-                <Text style={[s.saveTxt, saveOff && s.saveTxtOff]}>{saving ? '저장 중...' : '저장'}</Text>
+                <Text style={[s.saveTxt, saveOff && s.saveTxtOff]}>{saving ? '저장 중…' : '저장'}</Text>
               </Pressable>
               <Pressable
                 onPress={() => { setEditing(false); setDraft(''); setSaveErr(null); }}

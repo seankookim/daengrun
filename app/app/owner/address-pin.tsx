@@ -7,6 +7,7 @@ import { Row } from '../../src/components/ui';
 import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BANPO, getNaverMap, getOneShotPosition } from '../../src/lib/geo';
+import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
@@ -212,7 +213,7 @@ export default function AddressPin() {
       {/* address banner — what am I pinning */}
       <View style={s.banner}>
         <Text style={s.bannerAddr} numberOfLines={2}>
-          {row ? `${row.label} · ${row.addr}` : resolving ? '주소 확인 중...' : '주소를 불러오지 못했어요'}
+          {row ? `${row.label} · ${row.addr}` : resolving ? '주소 확인 중…' : '주소를 불러오지 못했어요'}
         </Text>
         {resolving ? (
           <Text style={s.bannerStatus}>주소 위치 찾는 중…</Text>
@@ -267,7 +268,7 @@ export default function AddressPin() {
           /* SDK unavailable — house placeholder idiom; confirm hidden (dead-button law) */
           <View style={s.mapFallbackWrap}>
             <View style={s.mapFallback}>
-              <Text style={s.mapFallbackTxt}>지도를 불러올 수 없어요</Text>
+              <Text style={s.mapFallbackTxt}>{MAP_LOAD_FAIL_KO}</Text>
             </View>
           </View>
         )}
@@ -326,7 +327,7 @@ export default function AddressPin() {
           <Text style={s.noteCount}>{noteVal.length}/60 · 러너가 이 문장을 봐요</Text>
           <Row style={{ gap: 8, marginTop: 10 }}>
             {/* 이 화면의 코랄 프라이머리는 '이 위치로 지정' 하나다 — 메모 저장은 세컨더리 */}
-            <PaperBtn label="메모 저장" busyLabel="저장 중..." busy={noteBusy} variant="secondary" onPress={saveNote} style={{ flex: 1.4 }} />
+            <PaperBtn label="메모 저장" busyLabel="저장 중…" busy={noteBusy} variant="secondary" onPress={saveNote} style={{ flex: 1.4 }} />
             <PaperBtn label="취소" variant="quiet" onPress={() => setNoteOpen(false)} style={{ flex: 1 }} />
           </Row>
         </View>
@@ -351,7 +352,7 @@ export default function AddressPin() {
         <View style={[s.confirmBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
           <PaperBtn
             label="이 위치로 지정"
-            busyLabel="저장 중..."
+            busyLabel="저장 중…"
             busy={busy}
             onPress={confirm}
           />

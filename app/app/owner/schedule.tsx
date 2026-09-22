@@ -636,7 +636,7 @@ export default function Schedule() {
         {/* agenda — 풀와이드 밴드 (모던 패스: 카드 수프 → 엣지-투-엣지) */}
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center' }}>일정 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center' }}>일정 불러오는 중…</Text>
           </View>
         )}
         {/* 라우드-페일 스트립 — 실패는 빈 일정으로 분장하지 않는다 */}

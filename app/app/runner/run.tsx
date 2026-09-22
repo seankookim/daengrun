@@ -1343,7 +1343,7 @@ export default function ActiveRun() {
         {maps && !lastPos && running && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
             {/* sits on the white map canvas, not the dark panel — dim ink for the ≥4.5:1 floor */}
-            <Text style={{ fontSize: 15, color: paper.dim }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
+            <Text style={{ fontSize: 15, color: paper.dim }}>GPS 신호 잡는 중… (실외에서 몇 초 걸려요)</Text>
           </View>
         )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
@@ -1399,7 +1399,7 @@ export default function ActiveRun() {
               </View>
             </>
           ) : infoStatus === 'loading' ? (
-            <Text style={{ fontSize: 15, color: paper.dim }}>코스 정보 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim }}>코스 정보 불러오는 중…</Text>
           ) : null}
         </View>
       </View>
@@ -1427,7 +1427,7 @@ export default function ActiveRun() {
           </View>
         )}
         {layout === 'island' && targetKm == null && infoStatus === 'loading' && (
-          <Text style={{ fontSize: 15, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중...</Text>
+          <Text style={{ fontSize: 15, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중…</Text>
         )}
         {/* 스트립 스택은 이 패널을 떠나 지도 위 종이 레인으로 갔다 (Sean 2026-08-24 — 지도는
             항상 보여야 한다). 지워진 것은 없다: 같은 문장·같은 순서·같은 재시도 액션이
@@ -1628,7 +1628,7 @@ export default function ActiveRun() {
             }}
           >
             <Text style={[{ fontSize: 19.5, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
-              {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중...' : '러닝 시작'}
+              {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중…' : '러닝 시작'}
             </Text>
           </Pressable>
         </View>
@@ -1743,7 +1743,7 @@ export default function ActiveRun() {
                 accessibilityState={{ disabled: !canSubmitNote || endBusy }}
               >
                 <Text style={{ fontSize: 17, fontWeight: '800', color: canSubmitNote ? colors.ink : paper.faint }}>
-                  {endBusy ? '기록 중...' : '종료하고 기록 남기기'}
+                  {endBusy ? '기록 중…' : '종료하고 기록 남기기'}
                 </Text>
               </Pressable>
               <Pressable style={s.sheetCancel} onPress={() => setEndStep('reason')} disabled={endBusy}>

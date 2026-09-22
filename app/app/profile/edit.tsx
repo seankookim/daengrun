@@ -138,7 +138,7 @@ export default function ProfileEdit() {
         {/* 러너 판정이 끝나기 전에는 폼을 안 그린다 — '소개' 행이 뒤늦게 튀어나오면 그 사이에
             저장한 러너는 자기 소개 칸이 있는 줄도 모른 채 화면을 떠난다. */}
         {!loadErr && !ready && (
-          <View style={s.state}><Text style={s.stateTxt}>불러오는 중...</Text></View>
+          <View style={s.state}><Text style={s.stateTxt}>불러오는 중…</Text></View>
         )}
 
         {ready && (
@@ -172,7 +172,7 @@ export default function ProfileEdit() {
             {/* 러너 여부를 못 읽었을 때: 조용히 행을 빼면 '소개 같은 건 없다'로 읽힌다.
                 왜 없는지를 말하고, 저장은 소개를 건드리지 않는다 (빈 칸으로 덮어쓰지 않는다). */}
             {runner === 'error' && (
-              <Text style={s.note}>소개는 지금 불러올 수 없어요 — 저장해도 기존 소개는 그대로예요</Text>
+              <Text style={s.note}>소개는 지금 불러오지 못했어요 — 저장해도 기존 소개는 그대로예요</Text>
             )}
 
             {/* 아이디 규칙은 서버(0074)가 정본이다 — 클라는 형식을 흉내내지 않고 규칙만 옮겨 적는다 */}
@@ -188,7 +188,7 @@ export default function ProfileEdit() {
             {/* busy = label swap (button matrix — no opacity tricks).
                 [Sean 2026-08-26 press behaviour] PaperBtn now owns the fill and the 4px lip;
                 this file keeps only the layout margins. */}
-            <PaperBtn label="저장" busyLabel="저장 중..." onPress={save} busy={saving} style={s.save} />
+            <PaperBtn label="저장" busyLabel="저장 중…" onPress={save} busy={saving} style={s.save} />
           </>
         )}
       </ScrollView>

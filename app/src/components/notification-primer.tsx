@@ -124,7 +124,7 @@ export function NotificationPrimer({ role, onDone }: { role: PrimerRole; onDone:
             says Allow makes the person think they already granted, then the real system alert asks
             again. The system alert owns the word 허용. (Row O4, and the same word the location
             primer was corrected to.) busy = label swap, never an opacity trick (DESIGN.md matrix). */}
-        <PaperBtn label="계속" busyLabel="확인 중..." busy={asking} onPress={ask} />
+        <PaperBtn label="계속" busyLabel="확인 중…" busy={asking} onPress={ask} />
         {/* quiet, not secondary: 나중에 is the genuinely low-involvement move and must not read as
             a second action of equal weight. It is a real route with a real effect — the flag is
             written and the homes stop asking — so it is not a dead button. */}

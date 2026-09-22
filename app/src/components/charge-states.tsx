@@ -155,7 +155,7 @@ export function ChargeBanner({ kind, detail, cta, busyCta, busy = false, onPress
       {cta && onPress && (
         <Pressable onPress={busy ? undefined : onPress} style={s.bannerBtn} accessibilityRole="button" accessibilityState={{ busy }}>
           {/* busy = 라벨 스왑 (버튼 매트릭스 법) — disabled 페인트도 불투명도 트릭도 없다 */}
-          <Text style={s.bannerBtnTxt}>{busy ? (busyCta ?? '처리 중...') : cta}</Text>
+          <Text style={s.bannerBtnTxt}>{busy ? (busyCta ?? '처리 중…') : cta}</Text>
         </Pressable>
       )}
     </View>

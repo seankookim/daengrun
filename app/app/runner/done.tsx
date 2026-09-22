@@ -342,7 +342,7 @@ export default function RunDone() {
       {/* ══════ ① 실측 경로 — dark plate (HeatTrace is built for a dark face) ══════ */}
       {traceLoading && (
         <View style={s.tracePlate}>
-          <Text style={s.traceNote}>경로 불러오는 중...</Text>
+          <Text style={s.traceNote}>경로 불러오는 중…</Text>
         </View>
       )}
       {!traceLoading && traceErr && (

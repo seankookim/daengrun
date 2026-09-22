@@ -23,9 +23,9 @@ const CREATED = '생성됐어요';
 
 // ── the modal's line ──────────────────────────────────────────────────────────────────────────
 t('in flight says so, and claims nothing',
-  holdStatusLine({ live: null, replayed: false }) === '서버 연결 중...');
+  holdStatusLine({ live: null, replayed: false }) === '서버 연결 중…');
 t('in flight says the same thing even if a previous attempt was a replay',
-  holdStatusLine({ live: null, replayed: true }) === '서버 연결 중...');
+  holdStatusLine({ live: null, replayed: true }) === '서버 연결 중…');
 t('a FRESH hold keeps the sentence that was always true for it',
   holdStatusLine({ live: true, replayed: false }) === '● 서버 홀드 확보 — 예약이 생성됐어요');
 t('🔴 a REPLAY never claims a booking was created',

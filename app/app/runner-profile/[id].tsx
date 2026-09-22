@@ -358,7 +358,7 @@ export default function RunnerProfileScreen() {
         </Row>
 
         {err && <View style={s.failStrip}><Text style={s.failText}>{err}</Text></View>}
-        {!err && !who && <View style={s.emptyBox}><Text style={s.emptyText}>불러오는 중...</Text></View>}
+        {!err && !who && <View style={s.emptyBox}><Text style={s.emptyText}>불러오는 중…</Text></View>}
 
         {who && (
           <>
@@ -445,7 +445,7 @@ export default function RunnerProfileScreen() {
             {activeTab === 'posts' && (
               <View style={s.gridBlock}>
                 {/* 로딩 ≠ 실패 ≠ 진짜 0 — 세 문장이 서로 다르다 */}
-                {posts === 'loading' && <View style={s.gridState}><Text style={s.emptyText}>게시물을 불러오는 중...</Text></View>}
+                {posts === 'loading' && <View style={s.gridState}><Text style={s.emptyText}>게시물을 불러오는 중…</Text></View>}
                 {posts === 'error' && (
                   <Pressable onPress={loadPosts} style={s.failStrip} accessibilityRole="button">
                     <Text style={s.failText}>게시물을 불러오지 못했어요</Text>
@@ -641,7 +641,7 @@ export default function RunnerProfileScreen() {
                           >
                             <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : paper.ink }}>{sl.label}</Text>
                             <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
-                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 재시도' : ok === null ? '확인 중' : '가능'}
+                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === null ? '확인 중' : '가능'}
                             </Text>
                           </Pressable>
                         );

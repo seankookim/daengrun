@@ -187,7 +187,7 @@ export default function OnboardRunner() {
             <Text style={s.failAction}>다시 시도 ›</Text>
           </Pressable>
         )}
-        <PaperBtn label="시작하기 ›" busyLabel="저장 중..." onPress={finish} disabled={!ready} busy={busy} />
+        <PaperBtn label="시작하기 ›" busyLabel="저장 중…" onPress={finish} disabled={!ready} busy={busy} />
       </View>
     </KeyboardAvoidingView>
   );

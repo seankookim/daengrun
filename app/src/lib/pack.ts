@@ -604,7 +604,7 @@ export function packShareLine(
   viewerOnly: boolean,
 ): string {
   if (viewerOnly) return '보기만 하는 중';
-  if (sharing === null) return '내 위치 확인 중...';
+  if (sharing === null) return '내 위치 확인 중…';
   if (sharing) return '내 위치 공유 중';
   if (cause === 'no_fix') return '내 위치 잡히는 중';
   if (cause === 'window_closed') return '위치 공유 시간이 끝났어요';

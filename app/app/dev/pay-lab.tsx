@@ -153,7 +153,7 @@ function ChargeLab({ busy, onBusy, stub }: { busy: boolean; onBusy: () => void; 
       <ChargeBanner
         kind="debt"
         cta="다시 시도"
-        busyCta="다시 청구하는 중..."
+        busyCta="다시 청구하는 중…"
         busy={busy}
         onPress={() => stub('다시 시도')}
       />
@@ -172,7 +172,7 @@ function ChargeLab({ busy, onBusy, stub }: { busy: boolean; onBusy: () => void; 
         kind="declined"
         detail="REJECT_CARD_COMPANY · 카드사 승인 거절 (픽스처)"
         cta="다시 시도"
-        busyCta="다시 청구하는 중..."
+        busyCta="다시 청구하는 중…"
         busy={busy}
         onPress={() => stub('다시 시도')}
       />

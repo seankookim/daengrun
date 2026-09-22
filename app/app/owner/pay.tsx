@@ -436,13 +436,13 @@ export function PayView({ screen, charge, collection, busy, failReason, holdLabe
           <>
             {/* 취소 CTA 없음 (C1) — 0047 전이표상 payment_hold → cancelled_owner는 불허다.
                 재시도도 '다시 확정'이 아니라 '다시 읽기'다: 확정하는 문이 서버에 없다. */}
-            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중..." busy={busy} onPress={onReload} />
+            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중…" busy={busy} onPress={onReload} />
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}
         {screen === 'error' && (
           <>
-            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중..." busy={busy} onPress={onReload} />
+            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중…" busy={busy} onPress={onReload} />
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}
@@ -475,7 +475,7 @@ export function PayView({ screen, charge, collection, busy, failReason, holdLabe
         {/* '모른다'의 유일한 정직한 액션은 다시 읽는 것이다 — error 칸과 같은 문법. */}
         {screen === 'charge_unknown' && (
           <>
-            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중..." busy={busy} onPress={onReload} />
+            <PaperBtn label="다시 불러오기" busyLabel="불러오는 중…" busy={busy} onPress={onReload} />
             <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 10 }} onPress={goHome} />
           </>
         )}

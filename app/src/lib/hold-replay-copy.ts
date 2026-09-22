@@ -16,7 +16,7 @@
 
 /** The modal's live line, once the server has answered. `live === null` is 「still asking」. */
 export function holdStatusLine(i: { live: boolean | null; replayed: boolean }): string {
-  if (i.live !== true) return '서버 연결 중...';
+  if (i.live !== true) return '서버 연결 중…';
   return i.replayed ? '● 이미 접수된 예약이에요 — 새로 만들지 않았어요' : '● 서버 홀드 확보 — 예약이 생성됐어요';
 }
 

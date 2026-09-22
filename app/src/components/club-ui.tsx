@@ -216,7 +216,7 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
         tone === 'quiet' && { color: L.dim, fontSize: 16 },
         off && { color: L.dim },
       ]}>
-        {busy ? '처리 중...' : label}
+        {busy ? '처리 중…' : label}
       </Text>
     </Pressable>
   );
@@ -238,7 +238,7 @@ export function LoadGate({ mode, errorLabel, deniedLabel, onRetry, onBack }: {
         <Text style={{ fontSize: 15, color: L.dim, textAlign: 'center' }}>
           {mode === 'denied' ? (deniedLabel ?? '열람 권한이 없어요')
             : mode === 'error' ? (errorLabel ?? '불러오지 못했어요')
-            : '불러오는 중...'}
+            : '불러오는 중…'}
         </Text>
         {mode === 'error' && onRetry && (
           <ClubCta label="다시 시도" onPress={onRetry} style={{ alignSelf: 'stretch', paddingVertical: 17 }} />

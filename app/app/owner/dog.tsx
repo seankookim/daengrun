@@ -250,7 +250,7 @@ export default function DogProfileScreen() {
         {/* [2026-08-24 · lab D①] 사진 블록이 여기서 dog 게이트 안으로 내려갔다. 두 가지가 같이
             해결된다: 프레임이 요구하는 '사진 + 스위처 한 줄'이 되고, 아이가 없거나 로딩 중일 때
             아무 일도 하지 않는 Pressable(= pickPhoto 의 `if (!dog) return`)이 사라진다. */}
-        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 15, color: paper.dim }}>불러오는 중...</Text>}
+        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 15, color: paper.dim }}>불러오는 중…</Text>}
         {/* loud-fail strip — failure is never dressed as the empty state */}
         {!loaded && loadErr && (
           <View style={s.failStrip}>
@@ -449,7 +449,7 @@ export default function DogProfileScreen() {
           {/* §3b primary. [Sean 2026-08-26 press behaviour] handed to PaperBtn so the 4px lip and
               the translateY(3) travel come from the one place that defines them. Same action
               fill, same 17/800 white, same busy label swap. */}
-          <PaperBtn label="저장하기" busyLabel="저장 중..." onPress={save} busy={saving} />
+          <PaperBtn label="저장하기" busyLabel="저장 중…" onPress={save} busy={saving} />
         </View>
       )}
     </View>

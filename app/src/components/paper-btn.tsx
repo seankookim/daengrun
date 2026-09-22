@@ -64,7 +64,7 @@ export function PaperBtn({
       onPressIn={blocked || !climax ? undefined : () => haptic('success')}
       disabled={blocked}
       accessibilityRole="button"
-      accessibilityLabel={busy ? (busyLabel ?? '처리 중...') : label}
+      accessibilityLabel={busy ? (busyLabel ?? '처리 중…') : label}
       accessibilityState={{ disabled, busy }}
       style={({ pressed }) => [
         // [리뷰 수정] 호출자 style을 variant 앞으로 옮겼다. 뒤에 있을 때 caller가 backgroundColor를
@@ -101,7 +101,7 @@ export function PaperBtn({
         fontWeight: '800',
         color: labelColor,
       }}>
-        {busy ? (busyLabel ?? '처리 중...') : label}
+        {busy ? (busyLabel ?? '처리 중…') : label}
       </Text>
     </Pressable>
   );

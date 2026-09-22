@@ -232,7 +232,7 @@ export default function CourseScreen() {
 
         {loading && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim }}>코스를 불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim }}>코스를 불러오는 중…</Text>
           </View>
         )}
 

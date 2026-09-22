@@ -120,7 +120,7 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
         <>
           <PaperBtn
             label={arrears ? '카드 연결하고 결제하기' : '카드 연결하기'}
-            busyLabel="여는 중..."
+            busyLabel="여는 중…"
             busy={busy}
             onPress={start}
           />

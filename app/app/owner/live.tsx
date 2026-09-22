@@ -29,7 +29,7 @@ export type StreamState = 'connecting' | 'live' | 'degraded' | 'lost';
 export interface LiveStreamSession { state: StreamState; startedAt: number | null; }
 
 const STREAM_COPY: Record<StreamState, string> = {
-  connecting: '영상 연결 중...',
+  connecting: '영상 연결 중…',
   live: '영상 수신 중',
   degraded: '영상 품질 낮음',
   lost: '영상 연결이 끊겼어요',
@@ -665,7 +665,7 @@ export default function Live() {
               </Pressable>
             </View>
           ) : resolve === 'resolving' ? (
-            <Text style={s.waitTitle}>예약 확인 중...</Text>
+            <Text style={s.waitTitle}>예약 확인 중…</Text>
           ) : null}
         </View>
       </View>
@@ -771,7 +771,7 @@ export default function Live() {
             </>
           ) : (
             <>
-              <Text style={s.waitTitle}>러너 위치 수신 대기 중...</Text>
+              <Text style={s.waitTitle}>러너 위치 수신 대기 중…</Text>
               <Text style={s.waitBody}>
                 러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
               </Text>
@@ -786,7 +786,7 @@ export default function Live() {
           지금 위치처럼 읽힌다. (denied/error는 위에서 이미 지도를 가져갔다) */}
       {maps && camera && planOnly && (
         <View style={s.mapNote}>
-          <Text style={s.mapNoteTitle}>러너 위치 수신 대기 중...</Text>
+          <Text style={s.mapNoteTitle}>러너 위치 수신 대기 중…</Text>
           <Text style={s.mapNoteBody}>지금은 계획된 코스만 보여요 — 러너가 달리기 시작하면 실시간 경로가 그려져요</Text>
         </View>
       )}
@@ -1090,7 +1090,7 @@ export default function Live() {
             onPress={confirmStop}
           >
             <Text style={[s.stopConfirmTxt, !stopReason && { color: paper.faint }]}>
-              {stopBusy ? '전송 중...' : '종료 요청 보내기'}
+              {stopBusy ? '전송 중…' : '종료 요청 보내기'}
             </Text>
           </Pressable>
           <Pressable
