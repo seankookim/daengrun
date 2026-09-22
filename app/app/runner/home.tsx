@@ -13,9 +13,10 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchLedger, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
+import { payoutStuckDays, payoutStuckLine } from '../../src/lib/payout-status';
 import { PatchBadge } from '../../src/components/patch';
 import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
 import { registerPushToken } from '../../src/lib/push';
@@ -383,6 +384,14 @@ export default function RunnerHome() {
   // [honesty 2026-08-11] weekly stats used to seed {net: 0} → the money hero printed
   // ₩0 in flight and on failure. null = not known yet → '—' (0원 위장 금지).
   const [stats, setStats] = useState<RunnerWeekStats | null>(null);
+  // [0210 §E] 내 정산이 막혀 있는지 — 서버의 ops_payouts_stuck_sweep 이 같은 판정으로 러너에게
+  // 알림을 쓴다. 이 줄은 그 알림을 안 눌러본 러너도 홈에서 알게 하려는 **메아리**지 근거가
+  // 아니다. null 은 「할 말 없음」이고(막히지 않았거나, 못 읽었거나, 읽기가 실패했거나) 그때는
+  // 아무것도 그리지 않는다 — 안 읽힌 값을 「이상 없음」으로 그리는 건 0 을 로딩으로 그리는 것과
+  // 같은 거짓말이다. ⚠ my_ledger_rows 의 limit 30 때문에 이 값은 **아래로만 틀린다**(가장 많이
+  // 일한 러너에게 침묵할 수 있다) — payout-status.ts 헤더에 적혀 있고, 그래서 서버 알림이
+  // 딜리버러블이고 이 줄은 아니다.
+  const [stuckDays, setStuckDays] = useState<number | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   // [B9 · codex 2026-08-21] fetchRunnerJobs 도 scheduled_at DESC + limit 20 이다 — 보호자 홈에서
@@ -530,6 +539,10 @@ export default function RunnerHome() {
     loadGate();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
+    // [0210 §E] 실패하면 null 로 남긴다 — 줄이 안 그려질 뿐, 「이상 없음」을 그리지는 않는다.
+    fetchLedger()
+      .then((rows) => setStuckDays(payoutStuckDays(rows, Date.now())))
+      .catch((e) => { console.warn('[rhome] stuck:', e?.message ?? e); setStuckDays(null); });
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
     loadJobs();
     fetchCoursePatches()
@@ -879,6 +892,25 @@ export default function RunnerHome() {
             <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>원
           </Text>
         </Row>
+
+        {/* ————— [0210 §E] 막힌 정산 한 줄. 바로 위 줄이 「정산 예정 N원」이라고 말하는데 그 돈이
+             일주일 넘게 안 나갔다면, 위 줄만으로는 러너가 영영 모른다 — 0190 까지는 운영 명부만
+             알았다. 서버가 같은 판정으로 알림을 쓰고(kind=booking · 「정산 지급이 늦어지고
+             있어요」 → /runner/earnings), 이 줄은 그 알림을 못 본 사람을 위한 화면 쪽 메아리다.
+             🔴 **날짜를 말하지 않는다.** 지급 일정 테이블도, 주기도, 지급하는 크론도 없으므로
+                「~에 지급돼요」는 지킬 수 없는 약속이다 (payout-status.ts 의 같은 이유).
+             🔴 죽은 버튼이 아니다 — 누르면 원장이 있는 화면으로 간다. null 이면 줄 자체가 없다. */}
+        {payoutStuckLine(stuckDays) !== null && (
+          <Pressable
+            onPress={() => { haptic('light'); router.push('/runner/earnings'); }}
+            accessibilityRole="button"
+            accessibilityLabel={`${payoutStuckLine(stuckDays)} · 수익 화면으로 이동`}
+            style={styles.stuckStrip}
+          >
+            <Text style={styles.stuckText}>{payoutStuckLine(stuckDays)}</Text>
+            <Text style={styles.stuckLink}>수익 보기 ›</Text>
+          </Pressable>
+        )}
 
 
         {/* ————— 진행 중 — [v4 R1a] 카드에서 **티켓 오브젝트**로. 랩의 법: 러너가 실제로 들고
@@ -1878,6 +1910,13 @@ const styles = StyleSheet.create({
   weekK: { fontSize: 15, lineHeight: 20, color: lilac.dim, fontWeight: '600', flexShrink: 0 },
   weekV: { flex: 1, textAlign: 'right', fontSize: 15, lineHeight: 20, color: lilac.head, fontWeight: '600' },
   weekNum: { fontSize: 15, lineHeight: 19, color: lilac.head },
+  // [0210 §E] 15pt 플로어 (DESIGN.md:145) — 한국어는 kicker 면제를 타지 않는다. 코랄 계열이 아니라
+  // critical 계열: 이건 「네 차례」가 아니라 「뭔가 잘못됐다」이고, 러너 홈의 코랄 하나는 수락 문이
+  // 이미 가져갔다. 탭 타깃 44pt 는 paddingVertical 12 + 두 줄로 확보된다.
+  stuckStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                gap: 10, minHeight: 44, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  stuckText: { flex: 1, fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
+  stuckLink: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // [§3b status chip] 16/800 · 보더 없는 틴트 필 · 샤프 (앰버 = 시맨틱 지명 신호)
   monoTagStar: { backgroundColor: lilac.amberSoft, borderRadius: 0, paddingHorizontal: 7, paddingVertical: 2 },

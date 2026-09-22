@@ -3,28 +3,46 @@
 // It knows no RN, no router, no supabase, so `test/notification-prefs.test.cjs` pins this table
 // against the REAL compiled source (the `notification-route.ts` idiom) rather than a retyped copy.
 //
-// ⚠ THE FOUR KEYS ARE SERVER COLUMN NAMES. `notification_prefs` (0187 §A) has exactly
-// `booking · chat · community · reward`, and `set_notification_prefs` takes `p_<key>` for each.
-// A key added here without its column is a switch that saves nothing; a column added there
+// ⚠ THE FIVE KEYS ARE SERVER COLUMN NAMES. `notification_prefs` (0187 §A + 0210 §A) has exactly
+// `booking · chat · community · reward · ops`, and `set_notification_prefs` takes `p_<key>` for
+// each. A key added here without its column is a switch that saves nothing; a column added there
 // without a row here is a preference nobody can reach.
 //
-// ⚠ `safety` IS NOT A COLUMN AND MUST NOT BECOME ONE. 0187 §C files `kind in ('safety','system')`
-// — SOS, S1/S2 인시던트, 외부 커스터디 이양, 반환 지연 경보, ops escalations — as always-on, and
-// `notify_push` returns before it even reads the preferences table for those. The row below is
-// rendered with a disabled switch and a reason, never as a control that does nothing.
+// ⚠ `safety` IS NOT A COLUMN AND MUST NOT BECOME ONE. 0187 §C files `kind = 'safety'` and the
+// `_noti_urgent_noti_titles()` family — SOS, S1/S2 인시던트, 외부 커스터디 이양, 반환 지연 경보,
+// 귀가 확인 — as always-on, and `notify_push` returns before it even reads the preferences table
+// for those. The safety row below is rendered with a disabled switch and a reason, never as a
+// control that does nothing.
+//
+// 🔴 [0210] `ops` IS THE ROW THAT MADE THE SAFETY ROW HONEST AGAIN. Until 0210 the mapper opened
+// `p_kind in ('safety','system') then 'safety'`, so every ops escalation — 지급 대기 · 인계 확인
+// 멈춤 · 반환 좌초 · **굿즈 수령 신청** — was undisableable, and the safety row's reason line
+// 「개와 사람이 걸린 일이라서예요」 was the sentence this screen used to explain that to an
+// operator. It is true of an SOS and it is not true of a goods-shipping desk ping. 0210 §B moved
+// `system` to its own category and the safety row's description no longer claims it.
+//
+// 🔴 AND THE OPS ROW IS OPERATOR-ONLY, which is why `PREF_ROWS` is not what the screen renders.
+// A `system` push can only reach somebody on `ops_recipients` (0084 §E), so for everybody else
+// this would be a switch for a notification they can never receive — a dead control wearing a
+// switch's costume (the no-dead-buttons law). `visiblePrefRows(isOps)` is the list to render, and
+// `isOps` comes from `ops_me()` (0198 §A) — the server's own answer, computed through the same
+// roster window the console doors gate on, never a guess from the client.
 //
 // ⚠ AND `marketing` IS ABSENT ON PURPOSE. Nothing in the product sends a campaign notification
 // (measured across every migration, 2026-09-21: zero writers), and a toggle for a push nobody
 // sends is a dead button. It arrives with its first writer, in the same slice.
 
-/** The four columns `notification_prefs` actually has. */
-export type PrefKey = 'booking' | 'chat' | 'community' | 'reward';
+/** The five columns `notification_prefs` actually has. */
+export type PrefKey = 'booking' | 'chat' | 'community' | 'reward' | 'ops';
 
 export interface NotiPrefs {
   booking: boolean;
   chat: boolean;
   community: boolean;
   reward: boolean;
+  /** [0210 §A] the ops roster's own escalations (`kind = 'system'`). Present for every caller —
+   *  the server returns it to everybody — but only rendered for an operator. */
+  ops: boolean;
 }
 
 export interface PrefRow {
@@ -35,11 +53,17 @@ export interface PrefRow {
   /** true ⇒ rendered as a disabled switch with `reason` shown instead of a promise. */
   alwaysOn?: boolean;
   reason?: string;
+  /** [0210] true ⇒ shown ONLY to a caller `ops_me()` reports as an operator. The column exists for
+   *  everyone server-side; what is operator-only is the ability to ever RECEIVE the push, and a
+   *  switch for a notification you cannot receive is a dead control. */
+  opsOnly?: boolean;
 }
 
-export const DEFAULT_PREFS: NotiPrefs = { booking: true, chat: true, community: true, reward: true };
+export const DEFAULT_PREFS: NotiPrefs = {
+  booking: true, chat: true, community: true, reward: true, ops: true,
+};
 
-export const PREF_KEYS: PrefKey[] = ['booking', 'chat', 'community', 'reward'];
+export const PREF_KEYS: PrefKey[] = ['booking', 'chat', 'community', 'reward', 'ops'];
 
 // The descriptions name WHAT ARRIVES, never what the person "will miss" — and none of them may
 // claim the record disappears, because it does not (see PREFS_NOTE). `notification-prefs.test.cjs`
@@ -66,13 +90,35 @@ export const PREF_ROWS: PrefRow[] = [
     desc: '최고 페이스 경신, 누적 거리 달성, 완주 횟수 같은 기록 알림',
   },
   {
+    // [0210] 운영 알림 — the `system` kind. Operator-only: see `visiblePrefRows`. The description
+    // names the four escalations that actually exist (0186/0190 · 0183/0201 · 0193/0201 · 0206 §C)
+    // and it says what stays, because turning this off changes the phone and nothing else.
+    key: 'ops',
+    label: '운영 알림',
+    desc: '지급 대기, 인계 확인 멈춤, 반환 좌초, 굿즈 수령 신청 — 운영 콘솔은 그대로예요',
+    opsOnly: true,
+  },
+  {
     key: null,
     label: '안전·긴급',
-    desc: 'SOS, 사고 접수와 처리, 반환 지연 경보, 운영팀 확인 요청',
+    // [0210] 「운영팀 확인 요청」 left this line with `system`. What remains is what is genuinely
+    // undisableable: kind=safety plus the four `_noti_urgent_noti_titles()` members.
+    desc: 'SOS, 사고 접수와 처리, 반환 지연 경보, 귀가 확인 요청',
     alwaysOn: true,
     reason: '안전 알림은 끌 수 없어요 — 개와 사람이 걸린 일이라서예요',
   },
 ];
+
+/** What the screen renders. The ops row is dropped for a non-operator, because a `system` push
+ *  can only reach somebody on `ops_recipients` — a switch for a notification you can never
+ *  receive is a dead control, not a courtesy.
+ *  ⚠ `isOps` is `ops_me().is_ops` (0198 §A). `null`/`undefined` means NOT KNOWN — the probe failed
+ *  or has not answered — and the row is HIDDEN, which is the safe direction in both senses: a
+ *  non-operator never sees a switch they cannot use, and an operator whose probe failed keeps
+ *  getting the pushes (the column is untouched by a row that is not drawn). */
+export function visiblePrefRows(isOps: boolean | null | undefined): PrefRow[] {
+  return PREF_ROWS.filter((r) => r.opsOnly !== true || isOps === true);
+}
 
 // ── [0189] THE URGENT TITLE FAMILY ────────────────────────────────────────────────────────────
 // These three are NOT preferences and never appear on the settings screen. They are here because
@@ -100,5 +146,13 @@ export const PREFS_NOTE = '끄면 휴대폰 알림만 오지 않아요 · 알림
  *  the same direction the server takes: a preference nobody set never silences anything. */
 export function toPrefs(row: Partial<Record<PrefKey, unknown>> | null | undefined): NotiPrefs {
   const one = (k: PrefKey): boolean => (row?.[k] === false ? false : true);
-  return { booking: one('booking'), chat: one('chat'), community: one('community'), reward: one('reward') };
+  return {
+    booking: one('booking'), chat: one('chat'), community: one('community'),
+    reward: one('reward'),
+    // [0210] An ABSENT `ops` key is a pre-0210 SERVER, not an operator who switched it off — and
+    // the same rule answers both: only an explicit false is off. A `?? false` here would silence
+    // an operator's ops pushes for the whole window between the client shipping and the migration
+    // landing, which is the deployment order this slice actually has.
+    ops: one('ops'),
+  };
 }

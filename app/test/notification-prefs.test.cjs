@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  PREF_ROWS, PREF_KEYS, PREFS_NOTE, DEFAULT_PREFS, toPrefs, ALWAYS_ON_TITLES,
+  PREF_ROWS, PREF_KEYS, PREFS_NOTE, DEFAULT_PREFS, toPrefs, ALWAYS_ON_TITLES, visiblePrefRows,
 } = require('./notification-prefs.build.cjs');
 
 let pass = 0, fail = 0;
@@ -26,11 +26,11 @@ const t = (name, cond, detail = '') => {
 };
 
 // ── the key set IS a server contract ───────────────────────────────────────────────────────────
-// `notification_prefs` (0187 §A) has exactly these four boolean columns, and
-// `set_notification_prefs` takes `p_booking / p_chat / p_community / p_reward`. A fifth key here
-// is a switch that saves nothing.
-const EXPECTED = ['booking', 'chat', 'community', 'reward'];
-t('the four keys are exactly the server columns',
+// `notification_prefs` (0187 §A + 0210 §A) has exactly these five boolean columns, and
+// `set_notification_prefs` takes `p_booking / p_chat / p_community / p_reward / p_ops`. A sixth key
+// here is a switch that saves nothing.
+const EXPECTED = ['booking', 'chat', 'community', 'reward', 'ops'];
+t('the five keys are exactly the server columns',
   JSON.stringify(PREF_KEYS) === JSON.stringify(EXPECTED), JSON.stringify(PREF_KEYS));
 t('the defaults are all ON (opt-out, never opt-in — a person who never opened this screen keeps getting everything)',
   EXPECTED.every((k) => DEFAULT_PREFS[k] === true), JSON.stringify(DEFAULT_PREFS));
@@ -56,6 +56,51 @@ t('no toggleable row claims to be always-on',
   toggleable.every((r) => r.alwaysOn !== true));
 t('"safety" never becomes a key (it is not a column, in either direction)',
   !PREF_KEYS.includes('safety') && !PREF_ROWS.some((r) => r.key === 'safety'));
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0210] THE OPS ROW IS OPERATOR-ONLY, AND THE SAFETY ROW STOPPED CLAIMING IT
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Until 0210 the mapper opened `p_kind in ('safety','system') then 'safety'`, so every ops
+// escalation — including 「굿즈 수령 신청 — 확인 필요」, a goods-shipping desk ping — was
+// undisableable, and THIS SCREEN explained that with 「개와 사람이 걸린 일이라서예요」. The two
+// arms below are the honesty half of the fix: the ops row exists, and the safety row no longer
+// says the words that made the old state look justified.
+//
+// And the visibility arm is the no-dead-buttons half: a `system` push can only reach somebody on
+// `ops_recipients` (0084 §E), so for everybody else this would be a switch for a notification they
+// can never receive. `ops_me()` (0198 §A) is the server's own answer and UNKNOWN hides the row —
+// which is safe in both directions, because a row that is not drawn cannot write its column.
+const opsRow = PREF_ROWS.find((r) => r.key === 'ops');
+t('there is an ops row and it is operator-only', !!opsRow && opsRow.opsOnly === true,
+  JSON.stringify(opsRow));
+t('the ops row is a REAL toggle (a key, no alwaysOn) — the point of the slice is that it can be turned off',
+  !!opsRow && opsRow.alwaysOn !== true && typeof opsRow.key === 'string');
+t('exactly one row is opsOnly (a second one would be an unreviewed operator surface)',
+  PREF_ROWS.filter((r) => r.opsOnly === true).length === 1);
+t('the always-on row is NOT opsOnly (safety must be visible to everyone)',
+  always.length === 1 && always[0].opsOnly !== true);
+t('🔴 the safety row no longer claims the ops escalations — that sentence is what made an undisableable goods ping look like a safety matter',
+  always.length === 1 && !always[0].desc.includes('운영'), always[0].desc);
+t('the ops row names what it actually covers (the four shipped system titles), not a category word',
+  !!opsRow && opsRow.desc.includes('지급 대기') && opsRow.desc.includes('굿즈'), opsRow && opsRow.desc);
+t('🔴 the ops row says what STAYS — turning it off changes the phone and not the console',
+  !!opsRow && opsRow.desc.includes('콘솔'), opsRow && opsRow.desc);
+
+t('visiblePrefRows(true) is every row — an operator sees the ops switch',
+  visiblePrefRows(true).length === PREF_ROWS.length
+  && visiblePrefRows(true).some((r) => r.key === 'ops'));
+t('visiblePrefRows(false) drops the ops row and NOTHING else',
+  visiblePrefRows(false).length === PREF_ROWS.length - 1
+  && !visiblePrefRows(false).some((r) => r.key === 'ops'),
+  JSON.stringify(visiblePrefRows(false).map((r) => r.key)));
+for (const unknown of [null, undefined]) {
+  t(`visiblePrefRows(${String(unknown)}) hides the ops row — UNKNOWN is not an operator, and a row that is not drawn cannot write its column`,
+    !visiblePrefRows(unknown).some((r) => r.key === 'ops'));
+}
+t('visiblePrefRows never invents a row',
+  [true, false, null, undefined].every((v) => visiblePrefRows(v).every((r) => PREF_ROWS.includes(r))));
+t('the always-on safety row survives every visibility answer (it is not operator-gated)',
+  [true, false, null, undefined].every((v) => visiblePrefRows(v).some((r) => r.alwaysOn === true)));
 
 // ── the honesty arms ───────────────────────────────────────────────────────────────────────────
 // The note is the one sentence that keeps this screen true, and no description may contradict it.
@@ -88,6 +133,14 @@ t('toPrefs treats null as unset, not as off (a NULL column must not silence anyt
   toPrefs({ chat: null }).chat === true);
 t('toPrefs ignores extra server columns',
   JSON.stringify(toPrefs({ updated_at: '2026-09-21', profile_id: 'x' })) === JSON.stringify(DEFAULT_PREFS));
+// [0210] The deployment order is client-then-migration, so an ABSENT `ops` key is a pre-0210
+// SERVER and not an operator who switched it off. `?? false` here would silence an operator's ops
+// pushes for the whole window between the two landings — the same direction the server refuses to
+// take, and for the same reason.
+t('toPrefs reads an explicit ops:false through',
+  toPrefs({ ops: false }).ops === false && toPrefs({ ops: false }).booking === true);
+t('🔴 an ABSENT ops key is ON, not OFF — a pre-0210 server must not read as "the operator turned it off"',
+  toPrefs({ booking: false }).ops === true && toPrefs({}).ops === true);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // [0189] THE DRIFT GATE — three artifacts, read as TEXT, compared in BOTH directions
@@ -203,11 +256,54 @@ if (Array.isArray(sqlArray)) {
 }
 
 // ④ the mapper must consult the array ABOVE the disableable arms, in EXECUTABLE sql
-t('0189 consults the urgent family inside _noti_push_category',
-  /when\s+p_title\s*=\s*any\s*\(\s*_noti_urgent_noti_titles\(\)\s*\)\s*then\s*'safety'/.test(migSrc));
+// 🔴 [0210] THESE TWO ARMS USED TO READ `migSrc` — migration 0189 BY NAME — and that was the same
+// staleness the block above fixed for `_noti_urgent_noti_titles`, one function over. 0210 §B
+// re-declares `_noti_push_category` (it moves `system` to its own category and the fallthrough to
+// `booking`), so 0189's file stopped deciding anything the moment 0210 landed, and a gate pinned
+// to it would have kept comparing a superseded declaration: green, confident, and measuring
+// nothing. Same rule as before — find every migration that declares the function, take the
+// highest-numbered one, and say which one it was.
+const mapperDecls = fs.readdirSync(migDir)
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+  .filter((f) => /create or replace function _noti_push_category/.test(
+    stripSql(fs.readFileSync(path.join(migDir, f), 'utf8'))))
+  .sort();
+t('at least one migration declares the category mapper (absence must fail LOUDLY)',
+  mapperDecls.length > 0, JSON.stringify(mapperDecls));
+const mapperFile = mapperDecls[mapperDecls.length - 1];
+const mapperSrc = mapperFile ? stripSql(fs.readFileSync(path.join(migDir, mapperFile), 'utf8')) : '';
+console.log(`  (category mapper read from ${mapperFile}; declared in ${JSON.stringify(mapperDecls)})`);
+
+t(`${mapperFile} consults the urgent family inside _noti_push_category`,
+  /when\s+p_title\s*=\s*any\s*\(\s*_noti_urgent_noti_titles\(\)\s*\)\s*then\s*'safety'/.test(mapperSrc));
 t('the urgent arm sits ABOVE the chat/booking arms (below them it would never be reached for a booking row)',
-  migSrc.indexOf('_noti_urgent_noti_titles()') > 0
-  && migSrc.indexOf('_noti_urgent_noti_titles()') < migSrc.indexOf("then 'chat'"));
+  mapperSrc.indexOf('_noti_urgent_noti_titles()') > 0
+  && mapperSrc.indexOf('_noti_urgent_noti_titles()') < mapperSrc.indexOf("then 'chat'"));
+
+// ④b [0210] THE FALLTHROUGH IS A DISABLEABLE CATEGORY. `else 'safety'` made a kind nobody has
+// thought about yet undisableable — the highest privilege in the system, handed out by default to
+// whatever arrives next (`shop` is the member with zero writers, and it is the one that would).
+// Read in EXECUTABLE sql, off the latest declaration, because a comment explaining the change
+// satisfies any check for the change (the standing comment-quoting law; this migration's own
+// header says the words `else 'safety'` three times).
+const elseArm = /\belse\s+'([a-z]+)'\s*\n?\s*end/.exec(mapperSrc);
+t('the mapper has a parseable fallthrough arm', !!elseArm, String(elseArm && elseArm[0]));
+t("🔴 the unknown-kind fallthrough is NOT 'safety' — an uncategorised push must be sent by default AND stoppable by the person receiving it",
+  !!elseArm && elseArm[1] !== 'safety', elseArm ? elseArm[1] : 'none');
+t("the fallthrough is a real preference column (it must be a key this screen can offer)",
+  !!elseArm && PREF_KEYS.includes(elseArm[1]), elseArm ? elseArm[1] : 'none');
+
+// ④c [0210] AND `system` MUST HAVE ITS OWN ARM, mapping to a column this screen renders. Without
+// one it falls through to ④b's default and an ops escalation is silenced by the 예약·러닝 switch.
+const systemArm = /when\s+p_kind\s*=\s*'system'\s*then\s*'([a-z]+)'/.exec(mapperSrc);
+t('the mapper has an explicit `system` arm', !!systemArm, String(systemArm && systemArm[0]));
+t('the `system` arm maps to a column PREF_KEYS offers (a category with no column would be silently always-on again)',
+  !!systemArm && PREF_KEYS.includes(systemArm[1]), systemArm ? systemArm[1] : 'none');
+t('the ops ROW binds the same key the `system` arm answers — a row whose key the server never produces is a switch that saves nothing',
+  !!systemArm && !!opsRow && opsRow.key === systemArm[1],
+  `row=${opsRow && opsRow.key} sql=${systemArm && systemArm[1]}`);
+t('the urgent family is consulted ABOVE the `system` arm (below it, a system row carrying an urgent title would become disableable)',
+  !!systemArm && mapperSrc.indexOf('_noti_urgent_noti_titles()') < mapperSrc.indexOf(systemArm[0]));
 
 // ⑤ RUN_STOP_TITLE exists TWICE on the client (api.ts and notification-route.ts, whose own comment
 //    says "change one, change both"). That comment is not a mechanism; this is.

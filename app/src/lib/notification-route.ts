@@ -206,10 +206,34 @@ export const CANCEL_COMP_TITLE = '시간을 비워둔 보상이 기록됐어요'
 export const RECURRING_CREATED_TITLE = '반복 러닝 예약 생성';
 export const RECURRING_PAUSED_TITLE = '반복 예약 일시 중지';
 
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0210 §E] THE RUNNER'S OWN STUCK PAYOUT — the third ref-less `booking` title, and the first
+// one that exists because somebody was NOT being told
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// `ops_payouts_stuck_sweep` (0186 §D → 0190 §A) has always found the runners whose oldest unpaid
+// ledger row is past seven days — and told `ops_recipients_for('payout_due')` and nobody else. The
+// runner whose money it is, who may be the reason it is stuck (no `bank_accounts` row means there
+// is nowhere to send it), learned nothing. 0210 §E writes them a row of their own.
+//
+// ⚠ `kind` IS `booking`, and that is not a fallback. `noti_kind` has no `payment` member (0001:23),
+//   `system` is now the OPERATOR's category (0210 §B maps it to 'ops'), and 예약·러닝 is the column
+//   whose own description ends 「… 결제 안내」 — the same category the runner's other money receipt
+//   (`CANCEL_COMP_TITLE`) already rides.
+// ⚠ NO `ref_id`, so this belongs in the ref-less table rather than in `RUNNER_ROUTES`.
+//   `/runner/earnings` is the whole ledger and takes no booking; a ref would be a param nothing
+//   reads, which is the defect 0193 codex A4 found in the other direction. `hasNotificationRoute`
+//   consults this table, so the inbox row is a real tap instead of a dead button or a line of text.
+export const PAYOUT_STUCK_TITLE = '정산 지급이 늦어지고 있어요';
+
 /** `booking`-kind titles that carry NO `ref_id` and still have somewhere true to go. The value is
- *  a complete destination on its own — nothing here may interpolate a ref. */
+ *  a complete destination on its own — nothing here may interpolate a ref.
+ *  ⚠ The map is role-agnostic and the two entries belong to different roles, which is safe because
+ *  only the addressed party ever holds the row: `0180:177` writes 「반복 예약 일시 중지」 to
+ *  `s.owner_id` and `0210 §E` writes 「정산 지급이 늦어지고 있어요」 to `l.runner_id`. A title that
+ *  both roles could receive would need a role branch, and neither of these is one. */
 export const REFLESS_BOOKING_DESTINATIONS: Record<string, string> = {
   [RECURRING_PAUSED_TITLE]: '/payments',
+  [PAYOUT_STUCK_TITLE]: '/runner/earnings',
 };
 
 /** Where a ref-less `booking` notification lands, or `null` when there is nowhere — in which case

@@ -16,9 +16,15 @@
 --         a `notify_push` that threw would give 0 everywhere and read as 「suppressed」).
 --       ‣ each of booking · chat · community · reward is silenced by ITS OWN column and by no
 --         other column (the cross arms are what stop a one-flag implementation passing).
---       ‣ safety and system push with ALL FOUR columns false — not disableable.
---       ‣ `shop`, the enum value nothing writes, also pushes with all four false: an uncategorised
---         kind is never silently muted.
+--       ‣ safety pushes with ALL FOUR columns false — it has no column and is not disableable.
+--         ⚠ [0210] So does `system`, and this suite can no longer say WHY: 0210 §B moved it to a
+--         fifth category `ops`, and `t_npf_set` sets four columns, so the one that would silence
+--         it is simply not among them. 241 `0210-O1` owns 「the ops column gates system」 and its
+--         cross arms; what survives here is only 「these four columns do not」.
+--       ‣ `shop`, the enum value nothing writes, is SILENCED by `booking = false` — ⚠ [0210] it
+--         used to push here, because the fallthrough was `'safety'`. 0210 §B moved it to
+--         `'booking'`: still SENT by default (only an explicit false suppresses), no longer born
+--         undisableable. 241 `0210-F1` owns both halves.
 --       ‣ and in EVERY arm the `notifications` row is written — preferences gate the PUSH, never
 --         the record, so the inbox is unchanged.
 --   · N6 the chat discriminator is the SHIPPED one, measured through 0090's real trigger: a
@@ -66,6 +72,13 @@
 --          load-bearing for somebody else's pin too, not only for this slice's.
 --   (vi)   the uncategorised fallback muted (`else 'booking'`)
 --                                                        → N5 (`shop` silenced with all four off).
+--          🔴 [0210] THIS ROW IS NOW HISTORY, NOT A MUTATION. `else 'booking'` is the SHIPPED
+--          fallthrough as of 0210 §B — deliberately, because `'safety'` made a kind nobody has
+--          thought about yet undisableable. The row is kept rather than deleted so the next reader
+--          can see that the thing this battery once called a mutation is the current code; the
+--          measurement it records was true of 0187/0189 and is not re-run here. The live pins for
+--          the new direction are 241 `0210-F1` (fail-open kept, silenceable by `booking`) and
+--          `0210-C1` (the answer by value).
 --   (vii)  the RLS policy widened to `using (true)`      → 1312/2: N2 (the other profile's row
 --          visible and writable) + S1; un-demoted ABORTS (POLICY-NOT-SELF).
 --   (viii) `not_signed_in` deleted from the setter       → N4. ⚠ The refusal does not disappear —
@@ -78,6 +91,11 @@
 --                                                        → S1 alone. Behaviourally a NO-OP, because
 --          the `else` already answers 'safety'; the arm is defence in depth against a later session
 --          changing that fallback, and S1 is honestly its only possible witness.
+--          🔴 [0210] AND THAT IS EXACTLY WHAT HAPPENED — the fallback DID change, to `'booking'`.
+--          Removing the `system` arm is no longer a no-op: an ops escalation would fall through to
+--          the 예약·러닝 column and be silenced by a switch that says nothing about operations.
+--          The row is left as the record of a prediction that came true; the property is now
+--          measured behaviourally by 241 `0210-O1`/`0210-C1` as well as by S1's value arm.
 --   (xii)  the guard deleted AND a `'safety'` arm added to the `case` — the shape a session adding
 --          a safety column would actually produce
 --                                                        → 1312/2: N5 (safety AND system silenced)
@@ -330,12 +348,30 @@ begin
     v := t_npf_probe(o, 'booking'::noti_kind, '새 메시지');
     if (v->>'pushes')::int is distinct from 0 then v_bad := v_bad || ' all-off chat STILL PUSHED'; end if;
     if (v->>'row')::int is distinct from 1 then v_bad := v_bad || ' all-off chat lost the notifications ROW'; end if;
-    -- …and the always-on ones are untouched by all four being false
-    foreach k in array array['safety','system','shop'] loop
+    -- …and the always-on one is untouched by all four being false.
+    -- 🔴 [0210] THIS ARM USED TO READ `array['safety','system','shop']` AND ITS SENTENCE WAS
+    -- 「safety/system are not disableable and an uncategorised kind is never muted」. 0210 moved two
+    -- of those three and the pin is updated here rather than left stale (the standing law: a suite
+    -- whose pinned behaviour legitimately changes is updated in the same slice):
+    --   · `system` → the new 'ops' category, disableable by the FIFTH column. It still pushes on
+    --     this line and now for a DIFFERENT reason — `t_npf_set` sets four columns and `ops` is not
+    --     one of them, so it keeps its default of true. That is a weaker claim than this arm used
+    --     to make, and 241 `0210-O1` owns the new one (ops off ⇒ silent, cross arms both ways).
+    --   · `shop` → the fallthrough moved from 'safety' to 'booking', so an uncategorised kind is
+    --     now SILENCED by `booking = false`. It is still SENT by default, which is 0187 §C's
+    --     fail-open rule and is what 241 `0210-F1`'s control arm holds. Moved out of this loop and
+    --     asserted below in its new direction, so this suite still notices if the fallthrough
+    --     changes again.
+    foreach k in array array['safety','system'] loop
       v := t_npf_probe(o, k::noti_kind, '즉시 확인하세요');
       if (v->>'pushes')::int is distinct from 1
-      then v_bad := v_bad || ' all-off ' || k || ' was SILENCED (' || coalesce(v->>'pushes','NULL') || ') — safety/system are not disableable and an uncategorised kind is never muted'; end if;
+      then v_bad := v_bad || ' all-off ' || k || ' was SILENCED (' || coalesce(v->>'pushes','NULL') || ') — safety is not disableable, and `system` is gated by the `ops` column which these four arguments do not touch'; end if;
     end loop;
+    v := t_npf_probe(o, 'shop'::noti_kind, '즉시 확인하세요');
+    if (v->>'pushes')::int is distinct from 0
+    then v_bad := v_bad || ' all-off shop still pushed (' || coalesce(v->>'pushes','NULL')
+                        || ') — [0210] the uncategorised fallthrough is `booking`, the least-privileged DISABLEABLE category, not `safety`'; end if;
+    if (v->>'row')::int is distinct from 1 then v_bad := v_bad || ' all-off shop lost the notifications ROW'; end if;
 
     -- THE CROSS ARMS: each column silences its OWN category and no other. A one-flag
     -- implementation (or a mapper that collapses two categories) passes the all-off arm above and
@@ -386,7 +422,7 @@ begin
     then v_bad := v_bad || ' the OTHER profile was silenced by MY preferences (' || coalesce(v->>'pushes','NULL') || ')'; end if;
 
     delete from notification_prefs where profile_id = o;
-    if v_bad = '' then call _pass('npf','0187-N5 발송 경로 — 행이 없으면 전부 발송(컨트롤), 네 칸을 끄면 booking·chat·community·reward 만 조용해지고 safety·system·미분류 kind 는 그대로 나간다; 각 칸은 자기 카테고리만 끈다(교차 팔); 모든 팔에서 notifications 행은 남는다(선호는 푸시만 막는다); 남의 선호는 내 푸시를 막지 않는다');
+    if v_bad = '' then call _pass('npf','0187-N5 발송 경로 — 행이 없으면 전부 발송(컨트롤), 네 칸을 끄면 booking·chat·community·reward 만 조용해지고 safety 와 system 은 그대로 나간다([0210] system 이 나가는 이유는 이제 「끌 수 없어서」가 아니라 「이 네 인자가 ops 칸을 건드리지 않아서」다 — 241 0210-O1 이 새 성질을 가진다); [0210] 미분류 kind(shop)는 booking 칸이 꺼지면 조용해진다(폴스루가 safety 에서 booking 으로 내려갔다 — 기본은 여전히 발송, 241 0210-F1); 각 칸은 자기 카테고리만 끈다(교차 팔); 모든 팔에서 notifications 행은 남는다(선호는 푸시만 막는다); 남의 선호는 내 푸시를 막지 않는다');
     else v_msg := v_bad; call _fail('npf','0187-N5 send path', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', true);
     call _fail('npf','0187-N5 send path', sqlerrm); end;
@@ -453,7 +489,12 @@ begin
     if v_txt is not null then v_bad := v_bad || ' PUBLIC/anon can execute: ' || v_txt; end if;
     if has_function_privilege('authenticated', 'get_notification_prefs()', 'execute') is not true
     then v_bad := v_bad || ' authenticated cannot call get_notification_prefs'; end if;
-    if has_function_privilege('authenticated', 'set_notification_prefs(boolean, boolean, boolean, boolean)', 'execute') is not true
+    -- [0210 §D] FIVE booleans. The setter gained `p_ops` and the four-argument arity was DROPPED
+    -- (a surviving one would make every positional call ambiguous); `to_regprocedure` on a
+    -- signature that no longer exists answers NULL, and `has_function_privilege` on it RAISES —
+    -- which the block's `exception when others` would have turned into a S1 failure with a
+    -- database sentence instead of a name. 241 `0210-S1` also asserts the old arity is gone.
+    if has_function_privilege('authenticated', 'set_notification_prefs(boolean, boolean, boolean, boolean, boolean)', 'execute') is not true
     then v_bad := v_bad || ' authenticated cannot call set_notification_prefs'; end if;
     if has_function_privilege('authenticated', '_noti_push_category(noti_kind, text)', 'execute') is not false
     then v_bad := v_bad || ' authenticated can call the internal mapper'; end if;
@@ -501,8 +542,17 @@ begin
       from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = '_noti_push_category';
     if v_src is null then v_bad := v_bad || ' NO-SOURCE(_noti_push_category)';
     else
+      -- 🔴 [0210] THIS ARM USED TO SAY 「the mapper no longer files ops escalations (system) under
+      -- safety」 and that sentence is now the OPPOSITE of what is wanted: 0210 §B moved `system` to
+      -- its own disableable 'ops' category on purpose. The arm is kept because the property it
+      -- actually measures is still worth holding — `system` must have an EXPLICIT arm rather than
+      -- falling through — but it is re-stated by VALUE, because a source match cannot tell which
+      -- category the arm answers. The full answer table is 241 `0210-C1`.
       if position('''system''' in v_src) = 0
-      then v_bad := v_bad || ' the mapper no longer files ops escalations (system) under safety'; end if;
+      then v_bad := v_bad || ' the mapper has no explicit `system` arm — ops escalations would fall through to the unknown-kind default'; end if;
+      if _noti_push_category('system'::noti_kind, '지급 대기 — 확인 필요') is distinct from 'ops'
+      then v_bad := v_bad || ' a system row no longer maps to the ops category ('
+                          || coalesce(_noti_push_category('system'::noti_kind, '지급 대기 — 확인 필요'),'NULL') || ')'; end if;
     end if;
 
     if v_bad = '' then call _pass('npf','0187-S1 배포 형상 — 세 definer 는 prosecdef + 본문 search_path=public, pg_temp 이고 PUBLIC/anon 실행 불가, authenticated 는 두 RPC 만 부를 수 있으며 내부 매퍼는 못 부른다; notifications_push 트리거는 tgenabled=O(정의가 아니라 상태); 테이블은 RLS 켜짐 + 정책 1개(USING·WITH CHECK 양쪽 auth.uid()); notify_push 소스(주석 제거)는 매퍼를 부르고 prefs 를 읽으며 safety 판정이 그 읽기보다 앞선다');
