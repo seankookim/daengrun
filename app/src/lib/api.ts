@@ -20,6 +20,10 @@ import { isPendingDeploy } from './rpc-skew';
 // `daengrun://ops`). ⚠ `custodyPing` below is the ONE deliberate exception and says why.
 import type { MonthTotal } from './earnings-month';
 import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
+// The same law for the OTHER door — `functions.invoke` refusals, whose tokens are English by
+// construction (`_shared/ctx.ts` raises `HttpError(400, "bad_body")`). See edge-errors.ts's header
+// for what reached an owner's 「예약 실패」 Alert before this existed.
+import { bookingHoldError, dropError, payError } from './edge-errors';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
 import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
@@ -588,7 +592,11 @@ export async function createBookingHold(p: {
   client_request_id?: string;
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
-  if (error || data?.error) throw await fnError(error, data);
+  // ⚠ `owner/request.tsx:~602` prints this message straight into `Alert.alert('예약 실패', …)` —
+  // the product's PRIMARY TAP. Unmapped, this wrapper answered a Korean owner with
+  // `km out of range` / `candidate_ack_required` / `bad_body`. `bookingHoldError` is the map plus
+  // the fold; the Alert keeps its title and needs no change (edge-errors.ts).
+  if (error || data?.error) throw bookingHoldError(await fnError(error, data));
   return data as HoldResult;
 }
 
@@ -728,7 +736,10 @@ export async function createPaymentIntent(bookingId: string): Promise<PaymentInt
   const { data, error } = await supabase.functions.invoke('create-payment-intent', {
     body: { booking_id: bookingId },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  // `owner/pay.tsx` renders this in the loud fail strip verbatim (`failReason`), so an unmapped
+  // `booking not found` / `owner only` / `profile not found` was an English sentence on a money
+  // screen. The handler's own Korean states pass through untouched (edge-errors.ts).
+  if (error || data?.error) throw payError(await fnError(error, data));
   return data as PaymentIntent;
 }
 
@@ -757,7 +768,11 @@ export async function confirmToss(
   const { data, error } = await supabase.functions.invoke('confirm-payment', {
     body: { order_id: orderId, payment_key: paymentKey, amount, meta },
   });
-  if (error || data?.error) throw await fnError(error, data);
+  // ⚠ The comment above still holds — `confirm-payment` writes its OWN honest Korean for every
+  // post-capture state (자동취소 · needs-manual · 승인 거절) and `payError` passes Hangul through
+  // UNCHANGED, identity included. What it maps is only the envelope and the two 「없는 기록」 404s,
+  // which were never re-worded copy — they were English.
+  if (error || data?.error) throw payError(await fnError(error, data));
 }
 
 // ---------- 결제 표면 (owner/pay) ----------
@@ -4627,7 +4642,9 @@ export async function fetchDrops(): Promise<DropRow[]> {
 
 export async function openDrop(dropId: string, pickChoice?: string): Promise<Record<string, unknown>> {
   const { data, error } = await supabase.functions.invoke('open-drop', { body: { drop_id: dropId, pick_choice: pickChoice } });
-  if (error || data?.error) throw await fnError(error, data);
+  // The handler already maps `open_drop_tx`'s raise tokens to Korean itself (`:62-63`); only the
+  // ENVELOPE was English — the guarded parse, the absent id, and `caller()`'s 401 (edge-errors.ts).
+  if (error || data?.error) throw dropError(await fnError(error, data));
   // The edge answers `{ applied: {...} }` (open-drop/index.ts). Returning the envelope made every
   // caller read `applied.miles` off the wrong level — always undefined, so the person was never
   // told what they won (backend audit 2026-09-17 M4). Unwrap here, once.
