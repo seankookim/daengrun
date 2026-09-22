@@ -16,7 +16,11 @@
 import { ownerLaRegister, ownerLaUnregister } from './api';
 
 export interface OwnerLAProps {
-  phase: 'pre' | 'running' | 'stale' | 'done' | 'ended';
+  // Mirrors OwnerRunActivityProps['phase'] (and src/lib/live-activity-face.ts's OwnerRunPhase).
+  // This union is the LOCAL update path only — the server's pushes never pass through here — but
+  // it must stay a superset of what the widget draws, or a locally-drawn phase the widget knows
+  // becomes untypeable here.
+  phase: 'pre' | 'running' | 'stale' | 'homeward' | 'stopping' | 'done' | 'ended';
   dogName: string;
   runnerName: string;
   km: string;
