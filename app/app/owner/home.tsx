@@ -15,7 +15,8 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { bandChipKo, bandFullKo, compareByBand } from '../../src/lib/distance-band';
+import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchRunnerDistanceBands, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -289,8 +290,12 @@ export default function OwnerHome() {
   }, []);
   const loadRunners = useCallback(() => {
     setRunnersErr(false);
-    fetchCertifiedRunners().then(setLocalRunners)
-      .catch((e) => { console.warn('[home] runners:', e?.message ?? e); setRunnersErr(true); });
+    fetchCertifiedRunners().then((rs) => {
+      setLocalRunners(rs);
+      // [0211] 거리는 **두 번째 읽기**다. 체인이 아니라 뒤따르는 읽기라서, 이게 죽어도 위의
+      // setLocalRunners는 이미 일어났다 — 목록이 거리 때문에 사라지지 않는다.
+      fetchRunnerDistanceBands(rs.map((r) => r.profileId)).then(setBands);
+    }).catch((e) => { console.warn('[home] runners:', e?.message ?? e); setRunnersErr(true); });
   }, []);
   const loadBeacon = useCallback(() => {
     // 리워드 비컨 — 독립 체인. 잔액+패치 집계는 ≤1000행 스캔이라 다른 홈 데이터와 Promise.all로
@@ -389,6 +394,10 @@ export default function OwnerHome() {
   // The hero's primary CTA prints a sentence about runner availability, and "nobody is available"
   // is a claim we may only make from a successful read (see the onlineRunners prop below).
   const [localRunners, setLocalRunners] = useState<LiveRunner[] | null>(null);
+  // [0211] 러너별 거리 밴드 — 러너 목록과 **별개의 다리**다. 실패해도 목록은 그대로 그리고
+  // 칩만 빠진다 (fetchRunnerDistanceBands가 빈 Map으로 접는다). 빈 Map = 「아무도 밴드가 없다」와
+  // 「못 읽었다」가 같은 모습인데, 화면 위 결과가 둘 다 **칩 없음**이라 구분할 필요가 없다.
+  const [bands, setBands] = useState<Map<string, string>>(new Map());
   // 보호자 pfp — 헤더 좌측 (마이 프로필 사진과 동일 소스)
   // [2026-08-20] `me` 상태 제거 — 유일한 소비자가 마스트헤드의 pfp 아바타였고 그게 나갔다.
   // 소비자 없는 fetch를 포커스마다 돌리는 건 조용한 낭비라 호출도 같이 뺐다. 아바타를 되살리려면
@@ -783,9 +792,20 @@ export default function OwnerHome() {
         )}
         {(localRunners?.length ?? 0) > 0 && (
           <View>
+            {/* [0211] 제목은 그대로 「대기 중인 러너」다 — 이 목록은 여전히 `online = true`로 걸러진
+                것이고, 밴드가 붙었다고 「동네 러너」로 되돌리면 2026-08-26에 Sean이 잡은 그 거짓말이
+                다시 선다 (아래 주석). 가까운 순은 **정렬**로 말하고 제목으로 주장하지 않는다. */}
             <ModH title="대기 중인 러너" link="주간 랭킹 ›" onLink={() => router.push('/leaderboard')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
-              {(localRunners ?? []).map((r) => (
+              {/* [0211] 가까운 순 — 밴드를 **아는** 러너가 먼저이고, 그 안에서는 가까운 순,
+                  밴드를 모르는 러너끼리는 서버가 준 순서(`total_runs` 내림차순)가 그대로 남는다.
+                  ⚠ 모르는 값을 「가장 멀다」로 밀지 않는다: compareByBand는 아는 쪽을 앞세울 뿐
+                    모르는 둘의 상대 거리에 대해서는 아무 말도 하지 않는다 (distance-band.ts).
+                  ⚠ `slice()` 먼저 — `sort`는 제자리 정렬이라 state 배열을 직접 뒤집는다. */}
+              {(localRunners ?? []).slice()
+                .sort((a, b) => compareByBand(bands.get(a.profileId), bands.get(b.profileId))
+                                || b.totalRuns - a.totalRuns)
+                .map((r) => (
                 <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={30} />
@@ -795,9 +815,25 @@ export default function OwnerHome() {
                       {/* tier는 배지를 탄 데이터다 — 한글 플로어 적용 (지어낸 '인증' 문구는 없다).
                           [2026-08-25 Sean] 14 → 15; 카드 폭도 146 → 164 로 함께 넓혔다(아래 rosterCard) —
                           글자만 키우고 상자를 그대로 두면 이 두 줄이 말줄임으로 잘린다. */}
+                      {/* ⚠ [0211] `r.district || '근처'` 였다. `district`는 **그 러너 자신의** 동네
+                          문자열이고(0001:32), 비었을 때 「근처」로 떨어지는 건 거리 정보를 하나도
+                          갖지 않은 채 근접성을 주장하는 문장이었다 — 이 슬라이스가 고치는 바로 그
+                          결함이다. 없으면 토큰이 통째로 빠진다 (자리표시자 금지). */}
                       <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>
-                        {r.tier} · {r.district || '근처'}
+                        {r.tier}{r.district ? ` · ${r.district}` : ''}
                       </Text>
+                      {/* [0211] 거리 밴드 — 보호자의 **기본 주소**에서 잰 값이다 (0211 §2).
+                          없으면 아무것도 안 그린다: 밴드 없음 · 기준 주소 없음 · 다리 실패가
+                          화면 위에서 같은 모습인 것은 의도다 (api.ts의 래퍼 주석). */}
+                      {bandChipKo(bands.get(r.profileId)) != null && (
+                        <Text
+                          style={{ fontSize: 15, lineHeight: 19, color: lilac.head, fontWeight: '800', marginTop: 1 }}
+                          numberOfLines={1}
+                          accessibilityLabel={bandFullKo(bands.get(r.profileId)) ?? undefined}
+                        >
+                          {bandChipKo(bands.get(r.profileId))}
+                        </Text>
+                      )}
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8 }}>

@@ -4,8 +4,10 @@ import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar } from '../../src/components/ui';
+import { bandFullKo, compareByBand } from '../../src/lib/distance-band';
 import {
   cancelBooking, fetchAvailableRunnersFor, fetchBookingBrief, fetchBookingCard,
+  fetchRunnerDistanceBands,
   LiveRunner, requestRunner, subscribeBooking,
 } from '../../src/lib/api';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
@@ -105,6 +107,8 @@ export default function Radar() {
   const [card, setCard] = useState<Card | null>(null);
   const [cardErr, setCardErr] = useState(false);
   const [avail, setAvail] = useState<LiveRunner[] | null>(null);
+  // [0211] 러너별 거리 밴드 (0211 §2). 보호자의 기본 주소 기준이고, 없으면 칩을 안 그린다.
+  const [bands, setBands] = useState<Map<string, string>>(new Map());
   // 문장을 그대로 쥔다 (불리언 아님). fetchAvailableRunnersFor는 서버 토큰을 **행동 지시**로
   // 옮겨 준다 — not_owner → '세션이 만료된 것 같아요 — 다시 로그인해주세요'. 그걸 버리고
   // '확인 실패 — 30초 내 재시도'로 뭉개면 세션 만료가 일시 오류처럼 보이고, 절대 성공할 수 없는
@@ -192,7 +196,14 @@ export default function Radar() {
   const loadAvail = useCallback(() => {
     if (!bookingId) return;
     fetchAvailableRunnersFor(bookingId)
-      .then((a) => { if (aliveRef.current) { setAvail(a); setAvailErr(null); } })
+      .then((a) => {
+        if (!aliveRef.current) return;
+        setAvail(a); setAvailErr(null);
+        // [0211] 거리는 **뒤따르는 두 번째 읽기**다 — 위의 setAvail은 이미 일어났으므로 이게
+        // 죽어도 목록은 그대로 서고 칩만 빠진다 (래퍼가 빈 Map으로 접는다).
+        fetchRunnerDistanceBands(a.map((r) => r.profileId))
+          .then((m) => { if (aliveRef.current) setBands(m); });
+      })
       .catch((e) => { if (aliveRef.current) setAvailErr((e as Error)?.message ?? '러너 목록을 불러오지 못했어요'); });
   }, [bookingId]);
   useEffect(() => {
@@ -443,7 +454,13 @@ export default function Radar() {
               <Text style={s.state}>지금 지명할 수 있는 러너가 없어요 — 응답을 기다려요</Text>
             )}
 
-            {(avail ?? []).map((r) => {
+            {/* [0211] 가까운 순 — 밴드를 아는 러너가 먼저, 그 안에서 가까운 순, 모르는 쪽은
+                러닝 횟수가 뒤를 잇는다. 모르는 값을 「가장 멀다」로 밀지 않는다 (distance-band.ts).
+                ⚠ `slice()` 먼저: sort는 제자리라 state 배열을 직접 뒤집는다. */}
+            {(avail ?? []).slice()
+              .sort((a, b) => compareByBand(bands.get(a.profileId), bands.get(b.profileId))
+                              || b.totalRuns - a.totalRuns)
+              .map((r) => {
               const isNominated = r.profileId === nominatedId;
               const busy = nominating === r.profileId;
               return (
@@ -461,6 +478,7 @@ export default function Radar() {
                     accessibilityLabel={[
                       `${r.name} 러너`,
                       [r.tier, r.district].filter(Boolean).join(' '),
+                      bandFullKo(bands.get(r.profileId)) ?? '',   // 없으면 조각 생략 (respondRate와 같은 법)
                       `러닝 ${r.totalRuns}회`,
                       r.paceLabel != null ? `평균 페이스 ${r.paceLabel}` : '',   // null → 조각 생략 (respondRate 와 동일)
                       r.respondRate != null ? `응답률 ${r.respondRate}%` : '',
@@ -470,7 +488,9 @@ export default function Radar() {
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={paper.ink} size={38} />
                     <View style={{ flex: 1, marginLeft: 11 }}>
                       <Text style={s.rowName}>{r.name}</Text>
-                      <Text style={s.rowSub}>{[r.tier, r.district].filter(Boolean).join(' · ')}</Text>
+                      <Text style={s.rowSub}>
+                        {[r.tier, r.district, bandFullKo(bands.get(r.profileId))].filter(Boolean).join(' · ')}
+                      </Text>
                       {/* R① — 지명은 동전 던지기가 아니라 결정이다. 세 사실은 전부 이미
                           fetchAvailableRunnersFor의 payload에 실려 오고, 이 화면은 그동안
                           바닥에 흘리고 있었다 (두 줄만 그렸다).

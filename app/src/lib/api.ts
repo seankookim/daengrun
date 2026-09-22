@@ -20,6 +20,7 @@ import { isPendingDeploy } from './rpc-skew';
 // `daengrun://ops`). ⚠ `custodyPing` below is the ONE deliberate exception and says why.
 import type { MonthTotal } from './earnings-month';
 import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
+import { computeProfileGaps, type ProfileGap } from './profile-gaps';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
 import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
@@ -1403,9 +1404,19 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
     //   is free to return any ten and to return a different ten next time. The shelf that renders
     //   this is read as a ranking (it sits beside 주간 랭킹), so an unordered cut is a silent claim
     //   nobody makes on purpose. Ordering by experience is the honest reading of "who should I see
-    //   first" with the columns that exist; it is NOT proximity, which is why the header no longer
-    //   says 동네 (owner/home.tsx). Real nearest-first needs a runner home-base coordinate, which
-    //   the schema does not have.
+    //   first" with the columns that exist.
+    // ⚠⚠ [0211 · 2026-09-23] THIS COMMENT ENDED WITH A SENTENCE THAT HAD BEEN FALSE FOR A MONTH:
+    //   「Real nearest-first needs a runner home-base coordinate, which the schema does not have.」
+    //   `runners.base_lat/base_lng` landed in **0123 §1** (2026-08-25), `runner/base-pin.tsx`
+    //   writes them through `set_runner_base`, and the RUNNER has been shown a band from them
+    //   since the same day (`open_request_distance`, 0123 §8). The owner was the only party left
+    //   with a proximity WORD and no proximity FACT. It is corrected here rather than deleted,
+    //   because a stale sentence that reads as a reason is what kept it unbuilt.
+    //   The ORDER BELOW IS STILL `total_runs`, deliberately: the coordinate is not on this table
+    //   for a client to read (0123 §2 seals those four columns from every client role), so
+    //   proximity arrives separately through `fetchRunnerDistanceBands` and the SCREEN re-sorts
+    //   with `compareByBand` — band first, this order as the tiebreak. Sorting here would need a
+    //   join the grant does not permit.
     .order('total_runs', { ascending: false })
     .limit(10);
   if (error) throw error;
@@ -1424,6 +1435,44 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       bio: r.bio ?? null,
     };
   });
+}
+
+// ── [0211] 러너까지의 거리 밴드 — 보호자 방향 ────────────────────────────────────────────────
+// 0123 §8이 러너에게 주던 것의 거울이고, **밴드만** 온다: 미터도 좌표도 주소도 동도 없다.
+// 기준점은 보호자의 **기본 주소**이고 서버가 0.01° 칸으로 고정한다 — 쿨다운 안에서 기본 주소를
+// 옮기면 서버는 새 밴드 대신 **0행**을 준다 (0211 §0b의 다변측량 방어). 그 경우와 「기본 주소가
+// 없다」와 「러너가 기준 위치를 안 정했다」가 화면 위에서 같은 모습(칩 없음)인 것은 의도다.
+//
+// ⚠ 던지지 않고 **빈 Map**으로 접는다. 이 값은 선반의 장식 한 조각이지 선반 자체가 아니다 —
+//   거리 다리가 죽었다고 러너 목록이 통째로 사라지면, 읽기 실패가 「대기 중인 러너가 없다」로
+//   둔갑한다 (honesty #18이 고친 바로 그 모양). 대신 콘솔에 이유를 남기고 칩을 안 그린다.
+//   ⚠ `foldRpcError`는 **그래도 통과시킨다**: 접기 전에 한국어 문장을 만들어 두면 나중에 이
+//   값을 화면에 띄우기로 결정했을 때 이미 접혀 있다 (집 규칙: 모든 rpc 래퍼는 fold를 탄다).
+export async function fetchRunnerDistanceBands(
+  runnerIds: readonly string[],
+): Promise<Map<string, string>> {
+  const ids = [...new Set(runnerIds.filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  // 서버 상한은 50 (0211 §2 `too_many_runners`) — 화면이 그보다 많이 묻는 일은 없지만, 자르는
+  // 쪽이 거절보다 정직하다고 착각하지 않도록 **여기서도 자르지 않고** 상한을 넘기면 묻지 않는다.
+  if (ids.length > 50) {
+    console.warn(`[distance] ${ids.length} runners asked; server cap is 50 — skipping the band read`);
+    return new Map();
+  }
+  // 인자는 반드시 `p_runner_ids: ids` 형태 — 축약형은 check-rpc 계약 검사의 키 정규식에 안 잡힌다.
+  const { data, error } = await supabase.rpc('owner_runner_distance_bands', { p_runner_ids: ids });
+  if (error) {
+    const folded = foldRpcError(error, { fn: 'owner_runner_distance_bands' });
+    console.warn('[distance] band read:', folded.message);
+    return new Map();
+  }
+  const out = new Map<string, string>();
+  for (const row of (data as any[] | null) ?? []) {
+    const band = row?.band;
+    // NULL 밴드 = 「얼마나 먼지 모른다」 — Map에 안 넣는다. 없는 값은 없는 대로 (0122/0123의 문법).
+    if (typeof band === 'string' && band !== '') out.set(String(row.runner_id), band);
+  }
+  return out;
 }
 
 // 이 예약에 실제로 갈 수 있는 러너만 (0054 RPC — 수락 게이트의 표시측 거울).
@@ -4769,30 +4818,27 @@ export interface Addr {
 // 속한다. 연락처의 자리는 마이 › 설정의 연락처 섹션이고, 그 문 자체가 서버 플래그
 // (`phone_collection_live()`) 뒤에 있다. 이 줄을 「이제 물어도 된다」로 읽고 여기에 칸을 하나 더
 // 붙이면, 그건 계약 §8 이 막고 있는 **전원 수집**을 우회로로 켜는 것이 된다.
-export type ProfileGap = 'photo' | 'vaccines' | 'doorDetail';
+// [0211] 계산은 `src/lib/profile-gaps.ts`로 나갔다 — 이 파일은 supabase를 import해서 이 리포의
+// esbuild 테스트 idiom으로 묶을 수 없고, 「러너가 실제로 보는 것만 묻는다」는 규칙은 주석이 아니라
+// 핀이 지켜야 한다. 여기 남는 것은 **두 개의 좁은 읽기**뿐이다.
+export type { ProfileGap };
 
 export async function fetchProfileGaps(): Promise<ProfileGap[]> {
   const { data: user } = await supabase.auth.getUser();
   const uid = user.user?.id;
   if (!uid) return [];
-  // 두 개의 좁은 읽기. 실패는 삼키지 않되 '빈칸 없음'으로 위장하지도 않는다 — 던져서 호출부가
-  // 줄을 아예 그리지 않게 한다. 모르는 것을 '다 채워졌다'로 그리는 게 이 화면의 유일한 거짓말이다.
+  // 실패는 삼키지 않되 '빈칸 없음'으로 위장하지도 않는다 — 던져서 호출부가 줄을 아예 그리지 않게
+  // 한다. 모르는 것을 '다 채워졌다'로 그리는 게 이 화면의 유일한 거짓말이다.
+  // ⚠ [0211] `breed`, `weight_kg`가 select에 들어왔다. 둘 다 0001부터 있던 컬럼이고
+  //   `owner/dog.tsx`가 쓰는데, 러너의 **수락 티켓**(runner/home.tsx:1147-1148)이 이름 옆에
+  //   그리는 두 값이면서 넛지는 묻지 않았다 — 빈칸인 줄 알 방법이 보호자에게 없었다.
   const [dogs, addrs] = await Promise.all([
-    supabase.from('dogs').select('photo_url, vaccinations').eq('owner_id', uid),
+    supabase.from('dogs').select('photo_url, vaccinations, breed, weight_kg').eq('owner_id', uid),
     supabase.from('addresses').select('detail').eq('owner_id', uid).eq('is_default', true).limit(1),
   ]);
   if (dogs.error) throw dogs.error;
   if (addrs.error) throw addrs.error;
-  const rows = dogs.data ?? [];
-  if (rows.length === 0) return []; // 아이가 없으면 물을 것도 없다
-
-  const gaps: ProfileGap[] = [];
-  // 한 마리라도 비어 있으면 빈칸이다 — 다견 가구에서 '한 마리는 채웠으니 됐다'는 러너에게 거짓이다.
-  if (rows.some((d: any) => !d.photo_url)) gaps.push('photo');
-  if (rows.some((d: any) => !Array.isArray(d.vaccinations) || d.vaccinations.length === 0)) gaps.push('vaccines');
-  const detail = (addrs.data ?? [])[0]?.detail;
-  if (!detail || !String(detail).trim()) gaps.push('doorDetail');
-  return gaps;
+  return computeProfileGaps(dogs.data ?? [], (addrs.data ?? [])[0]?.detail);
 }
 
 export async function fetchAddresses(): Promise<Addr[]> {

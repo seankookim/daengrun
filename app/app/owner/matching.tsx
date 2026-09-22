@@ -4,7 +4,8 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
-import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
+import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerDistanceBands, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
+import { bandChipKo, bandFullKo } from '../../src/lib/distance-band';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -89,15 +90,22 @@ function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
 // ── 로스터 행 — 한 명 = 한 줄. 탭 = 선택, 이동 없음 ──
 // Sean 정제 1: 행은 60-64pt로 숨을 쉰다(48 압축 금지). 정제 2: 아바타 40pt.
 // [M②] 오른쪽 세 칸은 이제 전부 **원값**이다 — 응답률·누적 러닝·페이스. 순위는 이름 아래 한 줄.
-function RosterRow({ r, rank, selected, isCurrent, onPress, nf }: {
+function RosterRow({ r, rank, selected, isCurrent, onPress, nf, band }: {
   r: LiveRunner; rank: number; selected: boolean;
   isCurrent: boolean; onPress: () => void; nf: any;
+  /** [0211] 보호자의 기본 주소에서 이 러너의 활동 기준 위치까지의 밴드. 모르면 undefined. */
+  band?: string;
 }) {
   // [DIM 2026-08-27 · DESIGN.md §7a-bis] 순위·티어는 스킵해도 되는 메타라 딤이 맞다. '현재 지명'은
   // 아니다 — 러너 변경 모드에서 '지금 누구를 바꾸는 중인지'를 말하는 유일한 줄이라(헤더 아래 주석이
   // 이 행에 그 일을 맡긴다) 같은 줄 안에서 잉크로 갈라놓는다. 한 화면에 최대 한 개만 뜬다.
-  const sub = `${rank}순위 · ${r.tier}`;
-  const a11ySub = `${sub}${isCurrent ? ' · 현재 지명' : ''}`;
+  // [0211] 밴드가 있으면 붙고, 없으면 토큰이 통째로 빠진다 — 「근처」도 「—」도 쓰지 않는다.
+  // ⚠ 행에는 **짧은 꼴**(「1km 이내」)이 들어간다. 이 행은 고정 폭 세 칼럼 왼쪽의 좁은 자리라
+  //   온전한 문장이 말줄임으로 잘리고, 잘린 거리 문장은 없느니만 못하다. 기준점은 a11y 라벨이
+  //   온전히 말한다 (bandFullKo).
+  const bandShort = bandChipKo(band);
+  const sub = [`${rank}순위`, r.tier, bandShort].filter(Boolean).join(' · ');
+  const a11ySub = `${[`${rank}순위`, r.tier, bandFullKo(band)].filter(Boolean).join(' · ')}${isCurrent ? ' · 현재 지명' : ''}`;
   return (
     <Pressable
       onPress={onPress}
@@ -203,12 +211,17 @@ export default function Matching() {
   // 로딩·오류를 상태로 분리 — 실패나 로딩 중을 '가용 러너 없음'으로 위장하지 않는다 (정직 원칙)
   const [rosterLoading, setRosterLoading] = useState(!!draft.bookingId); // 첫 페인트에 '없어요' 오표시 방지
   const [rosterError, setRosterError] = useState<string | null>(null);
+  // [0211] 러너별 거리 밴드 — 목록과 별개의 다리. 실패하면 빈 Map이고 칩만 빠진다.
+  const [bands, setBands] = useState<Map<string, string>>(new Map());
   const loadRoster = () => {
     if (!live || !draft.bookingId) return;
     setRosterLoading(true);
     setRosterError(null); // 재시도 중엔 '찾는 중'이 보여야 한다 — 오류 박스가 낡은 채 남지 않게
     fetchAvailableRunnersFor(draft.bookingId)
-      .then((rs) => { setLiveRunners(rs); setRosterError(null); })
+      .then((rs) => {
+        setLiveRunners(rs); setRosterError(null);
+        fetchRunnerDistanceBands(rs.map((r) => r.profileId)).then(setBands);
+      })
       .catch((e) => {
         console.warn('[matching] runners:', e?.message ?? e);
         setRosterError(e?.message ?? '러너 목록을 불러오지 못했어요');
@@ -361,9 +374,15 @@ export default function Matching() {
               <Text style={[s.railCol, { width: COL.pace }]}>페이스</Text>
             </Row>
 
+            {/* ⚠ [0211] 거리 밴드는 **행에만** 붙고 이 목록의 ORDER는 건드리지 않는다. 바로 위
+                레일이 「AI 추천 순」이라고 말하고 있고 아래에 「이 순서는 어떻게 나왔나요」가 세 축을
+                열거한다 — 거리를 순서에 조용히 섞으면 그 두 개가 동시에 거짓이 된다. 홈 선반과
+                레이더는 공개된 근거가 없는 목록이라 가까운 순으로 다시 세우지만, 여기서 같은 일을
+                하려면 matchFor에 축을 하나 더 넣고 설명 블록을 고쳐야 하고 그건 M②(Sean 2026-08-24)
+                가 정한 랭킹을 바꾸는 제품 결정이다. 사실은 보이고, 주장은 안 바꾼다. */}
             {scored.map(({ r }, i) => (
               <RosterRow
-                key={r.profileId}
+                key={r.profileId} band={bands.get(r.profileId)}
                 r={r} rank={i + 1} nf={nf}
                 selected={!!sel && sel.r.profileId === r.profileId}
                 isCurrent={r.profileId === currentRunnerId}

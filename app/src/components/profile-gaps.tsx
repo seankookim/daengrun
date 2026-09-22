@@ -44,7 +44,7 @@
 // ─── ②의 도장 끝 ───
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { ProfileGap } from '../lib/api';
+import type { ProfileGap } from '../lib/profile-gaps';
 import { paper } from '../theme';
 import { haptic } from '../lib/haptics';
 
@@ -53,8 +53,17 @@ import { haptic } from '../lib/haptics';
  *  사진 → 러너 티켓 B · 백신 → MeetupInfo · 현관 상세 → 티켓 D(door-level address).
  *  ⚠ 연락처는 넣지 않는다: `profiles.phone` 은 전원 NULL 이고 읽는 화면이 없다. 받아두고
  *  아무 데도 안 쓰면 넛지가 아니라 수집이다 (랩의 공통 노트). */
+/** ⚠ [0211 · 2026-09-23] 견종과 몸무게가 들어왔다. 이 목록의 규칙은 바뀌지 않았다 — **러너가
+ *  실제로 보는 화면에 나타나는 것만** 묻는다 — 오히려 그 규칙을 두 칸 덜 지키고 있었다:
+ *  러너의 **수락 티켓**은 개 이름 옆에 견종과 몸무게를 그리는데(`runner/home.tsx:1147-1148`,
+ *  그 파일의 주석이 「견종·체중·이름은 남는다: 러너가 실제로 결정에 쓰는 정보다」라고 적고 있다)
+ *  넛지는 그 둘을 묻지 않았고, 보호자에게는 비어 있다는 사실을 알 길이 없었다.
+ *  ⚠ 두 줄의 effect 문장이 **같다**. 같은 화면의 같은 순간에 나타나는 두 값이라 그게 참이고,
+ *    서로 다르게 들리라고 문장을 지어내면 그게 이 파일이 금지하는 바로 그 일이다. */
 const GAP: Record<ProfileGap, { label: string; effect: string }> = {
   photo: { label: '사진', effect: '러너 티켓에 얼굴이 떠요' },
+  breed: { label: '견종', effect: '러너가 수락할 때 보는 정보예요' },
+  weight: { label: '몸무게', effect: '러너가 수락할 때 보는 정보예요' },
   vaccines: { label: '백신 정보', effect: '인계할 때 러너가 확인해요' },
   doorDetail: { label: '현관 상세', effect: '문 앞에서 헤매지 않아요' },
 };
