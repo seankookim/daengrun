@@ -6617,8 +6617,9 @@ export async function opsMarkGearShipped(input: {
 /** Every refusal the seven ops functions raise BY NAME, read out of the migrations rather than
  *  guessed: 0186 §B/§C (`not_signed_in` · `not_ops` · `no_runner` · `no_items` · `bad_amount` ·
  *  `not_runner_item` · `already_paid` · `not_settled` · `amount_mismatch` · `mark_lost`),
- *  0194 §F④ (`not_signed_in` · `not_ops` · `no_runner`) and 0195 §C/§D (`claim_not_found` ·
- *  `bad_carrier` · `bad_tracking` · `already_shipped` · `not_claimed` · `ship_race`).
+ *  0194 §F④ (`not_signed_in` · `not_ops` · `no_runner`), 0195 §C/§D (`claim_not_found` ·
+ *  `bad_carrier` · `bad_tracking` · `already_shipped` · `not_claimed` · `ship_race`) and
+ *  0202 §B④ (`claim_redacted`).
  *
  *  ⚠ The lookup below matches each token as a SUBSTRING of the server's message, so it runs
  *  LONGEST-FIRST. Today no token contains another; the sort is what keeps that from mattering the
@@ -6628,7 +6629,7 @@ export type OpsRefusal =
   | 'not_signed_in' | 'not_ops' | 'no_runner' | 'no_items' | 'bad_amount'
   | 'not_runner_item' | 'already_paid' | 'not_settled' | 'amount_mismatch' | 'mark_lost'
   | 'claim_not_found' | 'bad_carrier' | 'bad_tracking' | 'already_shipped' | 'not_claimed'
-  | 'ship_race';
+  | 'ship_race' | 'claim_redacted';
 
 export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
   not_signed_in: '세션이 만료된 것 같아요 — 다시 로그인해주세요',
@@ -6648,6 +6649,11 @@ export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
   already_shipped: '이미 발송 처리된 신청이에요 — 송장번호는 덮어쓰지 않아요',
   not_claimed: '아직 수령 신청이 접수되지 않은 항목이에요',
   ship_race: '다른 곳에서 먼저 처리된 것 같아요 — 새로고침해주세요',
+  // 0202 §B④. The operator is told what to DO, because there is no recovery: the address was
+  // redacted when the account was deleted and no route brings it back (0115:455-467 — 「the ops
+  // answer is to cancel the claim, not to chase the address」). A redacted claim is also excluded
+  // from `ops_gear_claims_pending`, so this is reachable only from a stale screen or a typed id.
+  claim_redacted: '탈퇴한 회원의 신청이에요 — 배송지가 삭제돼서 발송할 수 없어요. 신청을 취소해주세요',
 };
 
 /** ⚠ An UNRECOGNISED error is never dressed as one of these. A real fault reported as
