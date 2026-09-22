@@ -278,6 +278,17 @@ the money is stuck, the worse version because the one visible symptom is absent.
 `functions deploy transition-booking` (0201's pre-flight calls a function that does not exist until the push) and
 `functions deploy delete-account` (0202 re-declares the function 0191 tied its handler to).
 
+**WAVE 5 (21:42, after the deploy):** `be/0203-availability-exceptions` (the last 「준비 중」 in the runner flow — blackout/extra
+rows honoured by the same predicate matching uses, three predicates left distinct), `be/0204-push-outbox` (Codex B8: a
+recipient-aware outbox with a dispatch-time tombstone recheck and cancel-on-delete — the gap two reviews recorded),
+`be/0205-force-return-token-cards` (`force_return_tx` writes a token like 0201; /cards 코스 패치 section gets a real empty
+state), `be/0206-ops-console-v2` (gap finder v3: `resolve_return` had ZERO client — the strand alert summoned an
+operator to psql; `ops_stranded_returns()` + `ops_stalled_handoffs()` + a gear-claim ops notification + the `system`
+notification kind finally routed — push.ts's header claimed nothing writes it, false since 0186 — + an 「운영 알림」 inbox
+on /ops). Queued for when a cluster frees: an `ops_recipients` roster surface (Sean's rows exist; nobody else can be
+added without SQL) and the owner's `settled_without_payment` distinction (0173's arm has no party-scoped read, so a
+booking the server knows is unpaid reads as free in schedule.tsx).
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
