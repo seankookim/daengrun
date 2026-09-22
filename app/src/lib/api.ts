@@ -3962,6 +3962,73 @@ export async function fetchOlderMessages(threadId: string, beforeCreatedAt: stri
   return toDisplayOrder((data ?? []).map((m: any) => mapMsg(m, user.user.id)));
 }
 
+// ═══════════ [0212] chat READ STATE — the unread count and the 「읽음」 receipt ═══════════
+//
+// `chat_threads` was id/booking_id/created_at and nothing recorded who had read what, so no unread
+// count and no read receipt were computable — while `notification_prefs.chat` (0187) already
+// offered a 채팅 switch for a category no surface could show a count for. 0212 adds `chat_reads`
+// plus the three RPCs below; the rules the SCREENS apply to these answers live in the pure
+// `chat-read.ts` (badge states, receipt placement, when a read may be recorded).
+//
+// ⚠ NONE of these three is registered in `rpc-skew.ts`'s `PENDING_DEPLOY`, and that is a decision
+//   rather than an omission. That list exists so a PostgREST sentence never reaches a Korean
+//   screen — and every failure surface here is SILENT by design (no badge, no receipt). There is
+//   no message to replace, so a list entry would buy nothing and the list is meant to shrink.
+
+/** One row of `my_chat_unread()`. Shape mirrored by `chat-read.ts`'s `ChatUnreadRow`. */
+export interface ChatUnread {
+  threadId: string;
+  bookingId: string;
+  /** A count of ROWS from the server. The client never derives this — it holds one thread's
+   *  newest 100 messages and has never seen the others, so any device-side figure is a guess. */
+  unreadCount: number;
+  lastMessageAt: string | null;
+}
+
+/** Every live thread of the caller's, with its unread count. Threads with 0 ARE returned — the
+ *  client needs 「listed with zero」 and 「not listed」 to stay different facts (chat-read.ts). */
+export async function fetchChatUnread(): Promise<ChatUnread[]> {
+  const { data, error } = await supabase.rpc('my_chat_unread');
+  if (error) throw foldRpcError(error, { fn: 'my_chat_unread', empty: '읽지 않은 메시지를 불러오지 못했어요' });
+  return ((data ?? []) as any[]).map((r) => ({
+    threadId: String(r.thread_id ?? ''),
+    bookingId: String(r.booking_id ?? ''),
+    unreadCount: Number(r.unread_count ?? 0),
+    lastMessageAt: r.last_message_at ?? null,
+  }));
+}
+
+/** Record that the caller has read this thread up to now; returns the STORED position.
+ *
+ *  ⚠ The server's write is monotonic (`greatest` in 0212 §B's on-conflict arm), so a late or
+ *  duplicated call can never move the position backwards and the caller does not have to order
+ *  its calls. The returned value is what is stored, not what the call tried to write. */
+export async function markChatRead(threadId: string): Promise<string | null> {
+  // ⚠ `p_thread: threadId`, never the shorthand — `check-rpc-contracts`'s key regex requires the
+  // colon, and a shorthand key slips past the gate unchecked (the same note as elsewhere here).
+  const { data, error } = await supabase.rpc('chat_mark_read', { p_thread: threadId });
+  if (error) throw foldRpcError(error, { fn: 'chat_mark_read', empty: '읽음 표시를 하지 못했어요' });
+  const row = (data as any[] | null)?.[0];
+  return row?.last_read_at ?? null;
+}
+
+/** The COUNTERPART's `last_read_at` for this thread — the one number 「읽음」 rests on.
+ *
+ *  `null` means 「do not draw a receipt」 and covers both server answers that mean exactly that:
+ *  the counterpart has never read, and the booking has no runner yet. `not_party` /
+ *  `not_authenticated` also fold to null rather than throwing: a receipt is an ornament on a
+ *  working screen, and a red failure line about one would be louder than the fact it describes
+ *  (the same law as `fetchBookingPaymentState`). A transport failure still throws. */
+export async function fetchChatReadState(threadId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('chat_thread_read_state', { p_thread: threadId });
+  if (error) {
+    if (/not_party|not_authenticated/.test(error.message ?? '')) return null;
+    throw foldRpcError(error, { fn: 'chat_thread_read_state', empty: '읽음 상태를 불러오지 못했어요' });
+  }
+  const row = (data as any[] | null)?.[0];
+  return row?.last_read_at ?? null;
+}
+
 // Expo's installed core provides UUID v4 on native and web; load it only when sending.
 export function createChatClientKey(): string {
   return (require('expo-modules-core') as typeof import('expo-modules-core')).uuid.v4();

@@ -15,7 +15,8 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { BeaconInfo, boardKmLabel, BoardRow, fetchCertifiedRunners, fetchChatUnread, fetchDogBoardDelta, fetchFitness, fetchInFlightOwnerBookings, fetchMemberMeta, fetchMyBookings, fetchRecentMoments, fetchRewardBeacon, fetchUnreadCount, Fitness, LiveRunner, Moment, subscribeBooking } from '../../src/lib/api';
+import { type ChatUnreadState } from '../../src/lib/chat-read';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -291,6 +292,15 @@ export default function OwnerHome() {
     fetchCertifiedRunners().then(setLocalRunners)
       .catch((e) => { console.warn('[home] runners:', e?.message ?? e); setRunnersErr(true); });
   }, []);
+  // [0212] 채팅 미확인 — 히어로의 채팅 버튼 배지. 자체 로더 + 자체 상태다: 실패해도 홈의 다른
+  // 어떤 것도 흔들지 않아야 하고, **실패는 배지 없음**이지 배지 0이 아니다 (chat-read.ts 가 그
+  // 판정을 소유한다 — 여기서는 상태를 그대로 넘긴다).
+  const [chatUnread, setChatUnread] = useState<ChatUnreadState>({ status: 'loading' });
+  const loadChatUnread = useCallback(() => {
+    fetchChatUnread()
+      .then((rows) => setChatUnread({ status: 'ready', rows }))
+      .catch((e) => { console.warn('[home] chat unread:', e?.message ?? e); setChatUnread({ status: 'error' }); });
+  }, []);
   const loadBeacon = useCallback(() => {
     // 리워드 비컨 — 독립 체인. 잔액+패치 집계는 ≤1000행 스캔이라 다른 홈 데이터와 Promise.all로
     // 묶으면 히어로가 이 스캔을 기다린다. 실패해도 홈은 멀쩡해야 하므로 자체 .catch로 끝낸다:
@@ -318,7 +328,8 @@ export default function OwnerHome() {
     loadTicker();
     loadRunners();
     loadBeacon();
-  }, [loadBookings, loadFitness, loadMoments, loadTicker, loadRunners, loadBeacon]);
+    loadChatUnread();
+  }, [loadBookings, loadFitness, loadMoments, loadTicker, loadRunners, loadBeacon, loadChatUnread]);
 
   // 홈이 포커스를 쥐고 있는가 — 아래 AppState 리스너의 게이트. Expo Router는 이전 화면을 마운트한
   // 채로 두므로 이 화면의 리스너는 유저가 미트업/라이브에 있는 동안에도 살아 있다. 이 ref가 없으면
@@ -585,6 +596,7 @@ export default function OwnerHome() {
             // it printed 「지금은 대기 중인 러너가 없어요」 — an affirmative negative — on the
             // primary CTA whenever this fetch simply failed or had not returned yet.
             onlineRunners={localRunners === null ? null : localRunners.length}
+            chatUnread={chatUnread}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             relLabel={relLabel}
