@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { PaperSheet } from '../../src/components/paper-sheet';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
-import { AvailRule, fetchMyAvailability, fetchMyBookingRules, RunnerBookingRules, saveMyAvailability, saveMyBookingRules } from '../../src/lib/api';
+import { AvailExceptionRow, AvailRule, deleteAvailabilityException, fetchMyAvailability, fetchMyAvailabilityExceptions, fetchMyBookingRules, RunnerBookingRules, saveMyAvailability, saveMyBookingRules, setAvailabilityException } from '../../src/lib/api';
+import {
+  addDaysYmd, atExceptionCap, calOfYmd, deleteConfirmMessage, EXCEPTION_REFUSAL_KO,
+  ExceptionKind, exceptionDateLabel, exceptionEffectLabel, extraIsShadowed, hhmm, kindLabel,
+  MAX_NOTE_CHARS, MAX_RANGE_DAYS, sortExceptions, validateDraft, ymdOfCal,
+} from '../../src/lib/availability-exceptions';
 import { useNumFont } from '../../src/lib/fonts';
+import { kstCal, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { layout, paper } from '../../src/theme';
 
@@ -56,7 +63,9 @@ const DAY_NAME = '일월화수목금토';
 interface DayState { enabled: boolean; startMin: number; endMin: number }
 const DEFAULT_DAY: DayState = { enabled: false, startMin: 360, endMin: 1320 };
 
-const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+// [0203] 한 화면이 시각을 두 가지로 찍지 않도록 `availability-exceptions.ts`의 `hhmm` 하나를 쓴다
+// (이 줄에 있던 두 번째 사본은 예외 섹션의 것과 글자 그대로 같았다 — kst.ts가 경고하는 복제).
+const fmtMin = (m: number) => hhmm(m);
 
 export default function Availability() {
   const insets = useSafeAreaInsets();
@@ -188,6 +197,131 @@ export default function Availability() {
     } finally {
       setRulesSaving(false);
     }
+  };
+
+  // ═══ [0203 · 예외 일정] 그리드와 **독립인** 자기 상태다. 그리드의 D② 저장 모델(전체 교체 ·
+  //     스티키 바)과 절대 섞지 않는다: 예외는 행 단위 추가/삭제이고 dirty도 저장 버튼도 없다.
+  //     서버가 쓰기를 RPC 둘로 좁혀 놨으므로(0203 §B의 revoke) 여기서 테이블에 직접 쓰는 길은
+  //     아예 없다 — 검증이 요청이 아니라 제약이다. ═══
+  const [exceptions, setExceptions] = useState<AvailExceptionRow[]>([]);
+  const [excState, setExcState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [excBusy, setExcBusy] = useState(false);
+  // 시트 상태. kind가 null이면 닫힌 것 — 두 버튼이 같은 시트를 서로 다른 제목으로 연다.
+  const [sheetKind, setSheetKind] = useState<ExceptionKind | null>(null);
+  const [draftStart, setDraftStart] = useState('');
+  const [draftEnd, setDraftEnd] = useState('');
+  const [draftStartMin, setDraftStartMin] = useState(540);
+  const [draftEndMin, setDraftEndMin] = useState(660);
+  const [draftNote, setDraftNote] = useState('');
+  const [sheetErr, setSheetErr] = useState<string | null>(null);
+
+  // ⚠ Date.now()는 epoch 안전하다(기기 시계의 '읽기'가 아니라 절대 시각) — KST 달력 조각은 kst.ts가
+  //   만든다. 여기서 기기 로컬 getter를 쓰면 서울이 아닌 폰에서 「오늘」이 하루 어긋난다.
+  const todayYmd = useMemo(() => ymdOfCal(kstCal(Date.now())), []);
+  const excAtCap = atExceptionCap(exceptions, todayYmd);
+
+  const loadExceptions = useCallback(() => {
+    setExcState('loading');
+    fetchMyAvailabilityExceptions()
+      .then((rows) => { setExceptions(sortExceptions(rows)); setExcState('ready'); })
+      .catch((e) => { console.warn('[avail-exc] load:', (e as Error)?.message ?? e); setExcState('error'); });
+  }, []);
+  useEffect(() => { loadExceptions(); }, [loadExceptions]);
+
+  const openSheet = (kind: ExceptionKind) => {
+    const tomorrow = addDaysYmd(todayYmd, 1) ?? todayYmd;
+    setSheetKind(kind);
+    setDraftStart(tomorrow);
+    setDraftEnd(tomorrow);
+    setDraftStartMin(540);
+    setDraftEndMin(660);
+    setDraftNote('');
+    setSheetErr(null);
+  };
+
+  // 날짜 스테퍼 — 이 화면이 이미 쓰는 입력 문법 그대로(− 값 ＋). 새 날짜 라이브러리는 들이지 않는다.
+  // 하한은 오늘(지난 날에 휴가를 넣는 것은 아무 판정도 바꾸지 않는다), 상한은 1년.
+  const shiftStart = (delta: number) => {
+    const next = addDaysYmd(draftStart, delta);
+    if (next == null) return;
+    if (next < todayYmd) return;
+    const cap = addDaysYmd(todayYmd, 365);
+    if (cap != null && next > cap) return;
+    setDraftStart(next);
+    // 끝이 시작보다 앞서거나 90일을 넘기면 끌고 간다 — 사용자가 못 고치는 상태로 두지 않는다
+    const maxEnd = addDaysYmd(next, MAX_RANGE_DAYS - 1);
+    if (draftEnd < next) setDraftEnd(next);
+    else if (maxEnd != null && draftEnd > maxEnd) setDraftEnd(maxEnd);
+    setSheetErr(null);
+  };
+  const shiftEnd = (delta: number) => {
+    const next = addDaysYmd(draftEnd, delta);
+    if (next == null) return;
+    if (next < draftStart) return;
+    const maxEnd = addDaysYmd(draftStart, MAX_RANGE_DAYS - 1);
+    if (maxEnd != null && next > maxEnd) return;
+    setDraftEnd(next);
+    setSheetErr(null);
+  };
+  const shiftStartMin = (delta: number) => {
+    const next = draftStartMin + delta;
+    if (next < 0 || next >= draftEndMin) return;
+    setDraftStartMin(next);
+    setSheetErr(null);
+  };
+  const shiftEndMin = (delta: number) => {
+    const next = draftEndMin + delta;
+    if (next > 1440 || next <= draftStartMin) return;
+    setDraftEndMin(next);
+    setSheetErr(null);
+  };
+
+  const draft = sheetKind == null ? null : {
+    kind: sheetKind,
+    startsOn: draftStart,
+    endsOn: sheetKind === 'extra' ? draftStart : draftEnd,
+    startMin: sheetKind === 'extra' ? draftStartMin : null,
+    endMin: sheetKind === 'extra' ? draftEndMin : null,
+    note: draftNote.trim() === '' ? null : draftNote.trim(),
+  };
+  // 로컬 검증은 서버 규칙의 **거울**이다 — 서버가 여전히 권위이고, 어긋나면 서버의 문장이 이긴다.
+  const draftCheck = draft == null ? null : validateDraft(draft);
+
+  const submitException = async () => {
+    if (draft == null || draftCheck == null || !draftCheck.ok) return;
+    setExcBusy(true);
+    setSheetErr(null);
+    try {
+      await setAvailabilityException(draft, EXCEPTION_REFUSAL_KO);
+      setSheetKind(null);
+      loadExceptions();
+    } catch (e) {
+      // 실패는 실패로 — 시트를 닫고 아무 일도 없던 것처럼 굴지 않는다
+      setSheetErr((e as Error).message);
+    } finally {
+      setExcBusy(false);
+    }
+  };
+
+  const confirmDeleteException = (row: AvailExceptionRow) => {
+    Alert.alert('예외 일정을 지울까요?', deleteConfirmMessage(row), [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '지우기',
+        style: 'destructive',
+        onPress: async () => {
+          setExcBusy(true);
+          try {
+            await deleteAvailabilityException(row.id, EXCEPTION_REFUSAL_KO);
+            loadExceptions();
+          } catch (e) {
+            Alert.alert('지우지 못했어요', (e as Error).message);
+          } finally {
+            setExcBusy(false);
+          }
+        },
+      },
+    ]);
   };
 
   // [D② 2026-08-24] 저장이 무엇을 덮어쓰는지. saveMyAvailability는 delete-all-then-insert이므로
@@ -342,10 +476,120 @@ export default function Availability() {
           <Text style={s.applyOff}>월요일을 ‘가능’으로 켜면 그 시간을 나머지 요일에 한 번에 적용할 수 있어요</Text>
         ))}
 
+        {/* [0203] 「다구간·휴가 등 예외 일정은 준비 중」이 이 자리에 있었다. 그 문장은 클라에
+            대해서는 참이었고 서버에 대해서는 거짓이었다 — 예외 테이블은 0001부터 있었고
+            is_slot_available §2가 0003부터 휴가로 읽어 왔다. 이제 아래 섹션이 그 문이다. */}
         <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 14, lineHeight: 19 }}>
-          30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
+          30분 단위 · 요일당 1구간 — 하루만 다르게 하려면 아래 예외 일정에 추가하세요{'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
+
+        {/* ═══ [0203 · 예외 일정] 휴가는 주간 그리드에서 빼고, 추가 근무는 하루에 더한다.
+            둘 다 0003 is_slot_available이 판정에 쓰는 같은 행이다 — 그리드와 같은 관할이라
+            이 화면에 있고, 지명(0054)·즉시 요청(0015)은 여기 없다(위 관할 표 참조). ═══ */}
+        <View style={s.rulesHead}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>예외 일정</Text>
+        </View>
+        <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 8 }}>
+          휴가는 그 기간의 예약을 막고, 추가 근무는 그날 그 시간만 엽니다
+        </Text>
+
+        {excState === 'loading' && (
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+        )}
+        {excState === 'error' && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>예외 일정을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.critical, marginTop: 3 }}>
+              불러오기 전에는 추가와 삭제를 열지 않아요 — 이미 넣어 둔 일정을 모른 채로 바꾸지 않기 위해서예요
+            </Text>
+            <Pressable onPress={loadExceptions} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {excState === 'ready' && exceptions.length === 0 && (
+          <View style={s.card}>
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', paddingVertical: 14 }}>
+              예외 일정이 없어요
+            </Text>
+          </View>
+        )}
+        {excState === 'ready' && exceptions.length > 0 && (
+          <View style={s.card}>
+            {exceptions.map((e, i) => {
+              const dateLine = exceptionDateLabel(e);
+              const shadowed = extraIsShadowed(e, exceptions);
+              return (
+                <View key={e.id}>
+                  {i > 0 && <View style={s.div} />}
+                  <View style={{ paddingVertical: 11 }}>
+                    <Row style={{ gap: 10, alignItems: 'flex-start' }}>
+                      <View style={[s.kindChip, e.kind === 'blackout' ? s.kindChipOut : s.kindChipIn]}>
+                        <Text style={[s.kindChipTxt, e.kind === 'blackout' ? s.kindChipTxtOut : s.kindChipTxtIn]}>
+                          {kindLabel(e.kind)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        {/* 날짜를 읽을 수 없으면 줄 자체를 그리지 않는다 — 「NaN월」을 찍느니 비운다 */}
+                        {dateLine !== '' && (
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{dateLine}</Text>
+                        )}
+                        <Text style={{ fontSize: 15, lineHeight: 19, color: shadowed ? paper.critical : paper.dim, marginTop: 2 }}>
+                          {exceptionEffectLabel(e, exceptions)}
+                        </Text>
+                        {e.note != null && e.note.trim() !== '' && (
+                          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>{e.note}</Text>
+                        )}
+                      </View>
+                      <Pressable
+                        onPress={() => confirmDeleteException(e)}
+                        disabled={excBusy}
+                        hitSlop={8}
+                        style={s.excDelBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${deleteConfirmMessage(e)} 삭제`}
+                        accessibilityState={{ disabled: excBusy }}
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: excBusy ? paper.dim : paper.ink, textDecorationLine: 'underline' }}>삭제</Text>
+                      </Pressable>
+                    </Row>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        {excState === 'ready' && (
+          <>
+            <Row style={{ gap: 10, marginTop: 10 }}>
+              <Pressable
+                onPress={() => openSheet('blackout')}
+                disabled={excAtCap || excBusy}
+                style={({ pressed }) => [s.excAddBtn, pressed && { backgroundColor: paper.wash }]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: excAtCap || excBusy }}
+              >
+                <Text style={[s.excAddTxt, (excAtCap || excBusy) && { color: paper.dim }]}>휴가 추가</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => openSheet('extra')}
+                disabled={excAtCap || excBusy}
+                style={({ pressed }) => [s.excAddBtn, pressed && { backgroundColor: paper.wash }]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: excAtCap || excBusy }}
+              >
+                <Text style={[s.excAddTxt, (excAtCap || excBusy) && { color: paper.dim }]}>추가 근무 추가</Text>
+              </Pressable>
+            </Row>
+            {/* 상한은 버튼을 죽이기 전에 말한다 — 눌러서 409를 받는 것이 죽은 버튼이다 */}
+            {excAtCap && (
+              <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 }}>
+                {EXCEPTION_REFUSAL_KO.too_many}
+              </Text>
+            )}
+          </>
+        )}
 
         {/* ═══ [U5 · 예약 규칙] 서버는 이 두 숫자를 줄곧 집행해 왔다(is_slot_available, 0003) —
             러너가 보고 바꿀 표면이 없었을 뿐이다. 자기 저장 버튼(세컨더리)을 갖는다: 스티키
@@ -425,6 +669,123 @@ export default function Availability() {
       {/* 시스템 바 스트립 — 요일 그리드가 시계 뒤로 지나가던 것 */}
       <StatusBarCover />
 
+      {/* ═══ [0203] 예외 일정 추가 시트 — 집 문법(PaperSheet, pageSheet). 날짜/시간 입력은 이
+          화면이 이미 쓰는 스테퍼 그대로다: 새 날짜 라이브러리를 들이면 이 화면에 두 가지 입력
+          문법이 생기고, 라벨은 kst.ts가 만든다(기기 시계 금지). ═══ */}
+      <PaperSheet
+        visible={sheetKind != null}
+        title={sheetKind === 'extra' ? '추가 근무 추가' : '휴가 추가'}
+        onClose={() => { if (!excBusy) setSheetKind(null); }}
+      >
+        <ScrollView contentContainerStyle={{ padding: layout.gutter, paddingBottom: 40 }}>
+          <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 12 }}>
+            {sheetKind === 'extra'
+              ? '그날 그 시간에만 예약을 더 받아요 — 주간 설정은 그대로예요'
+              : `이 기간에는 예약을 받지 않아요 — 한 번에 ${MAX_RANGE_DAYS}일까지 정할 수 있어요`}
+          </Text>
+          {/* [D① 관할] 휴가는 **예약 슬롯**을 막는다. 열린 요청은 0056이 이 표를 읽지 않으므로
+              그대로 도착하고, 그쪽은 홈의 온라인 스위치가 정한다 — 한 사실은 한 집에서만. */}
+          {sheetKind === 'blackout' && (
+            <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 12 }}>
+              휴가 중에도 ‘열린 요청’은 도착해요 — 그건 홈의 온라인 스위치가 정해요
+            </Text>
+          )}
+
+          <View style={s.card}>
+            <View style={{ paddingVertical: 11 }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <Text style={s.sheetLbl}>{sheetKind === 'extra' ? '날짜' : '시작 날짜'}</Text>
+                <Stepper
+                  value={calOfYmd(draftStart) ? kstDateLabel(calOfYmd(draftStart)!) : '—'}
+                  nf={null}
+                  onMinus={() => shiftStart(-1)} onPlus={() => shiftStart(1)}
+                  minusDisabled={draftStart <= todayYmd}
+                  a11yMinus="하루 앞으로" a11yPlus="하루 뒤로"
+                />
+              </Row>
+            </View>
+            {sheetKind === 'blackout' && (
+              <>
+                <View style={s.div} />
+                <View style={{ paddingVertical: 11 }}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <Text style={s.sheetLbl}>끝나는 날짜</Text>
+                    <Stepper
+                      value={calOfYmd(draftEnd) ? kstDateLabel(calOfYmd(draftEnd)!) : '—'}
+                      nf={null}
+                      onMinus={() => shiftEnd(-1)} onPlus={() => shiftEnd(1)}
+                      minusDisabled={draftEnd <= draftStart}
+                      plusDisabled={draftEnd >= (addDaysYmd(draftStart, MAX_RANGE_DAYS - 1) ?? draftEnd)}
+                      a11yMinus="하루 앞으로" a11yPlus="하루 뒤로"
+                    />
+                  </Row>
+                </View>
+              </>
+            )}
+            {sheetKind === 'extra' && (
+              <>
+                <View style={s.div} />
+                <View style={{ paddingVertical: 11 }}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <Text style={s.sheetLbl}>시작 시간</Text>
+                    <Stepper value={hhmm(draftStartMin)} nf={nf}
+                      onMinus={() => shiftStartMin(-30)} onPlus={() => shiftStartMin(30)}
+                      minusDisabled={draftStartMin <= 0} plusDisabled={draftStartMin + 30 >= draftEndMin}
+                      a11yMinus="시작 30분 앞당기기" a11yPlus="시작 30분 미루기" />
+                  </Row>
+                </View>
+                <View style={s.div} />
+                <View style={{ paddingVertical: 11 }}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <Text style={s.sheetLbl}>끝나는 시간</Text>
+                    <Stepper value={hhmm(draftEndMin)} nf={nf}
+                      onMinus={() => shiftEndMin(-30)} onPlus={() => shiftEndMin(30)}
+                      minusDisabled={draftEndMin - 30 <= draftStartMin} plusDisabled={draftEndMin >= 1440}
+                      a11yMinus="종료 30분 앞당기기" a11yPlus="종료 30분 미루기" />
+                  </Row>
+                </View>
+              </>
+            )}
+          </View>
+
+          <Text style={[s.sheetLbl, { marginTop: 16, marginBottom: 6 }]}>메모 (선택)</Text>
+          <TextInput
+            value={draftNote}
+            onChangeText={(v) => { setDraftNote(v); setSheetErr(null); }}
+            placeholder={sheetKind === 'extra' ? '예: 오전만 가능' : '예: 가족 여행'}
+            placeholderTextColor={paper.dim}
+            maxLength={MAX_NOTE_CHARS}
+            style={s.sheetInput}
+            accessibilityLabel="예외 일정 메모"
+          />
+          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4 }}>
+            {draftNote.trim().length}/{MAX_NOTE_CHARS}자 · 나만 봐요
+          </Text>
+
+          {/* 로컬 거절은 버튼을 죽이기 전에 이유를 말한다. 서버 거절은 자기 문장을 그대로 싣는다. */}
+          {draftCheck != null && !draftCheck.ok && (
+            <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 12 }}>
+              {draftCheck.ko}
+            </Text>
+          )}
+          {sheetErr != null && (
+            <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 12 }}>
+              {sheetErr}
+            </Text>
+          )}
+
+          <View style={{ marginTop: 18 }}>
+            <PaperBtn
+              label={sheetKind === 'extra' ? '추가 근무 추가' : '휴가 추가'}
+              busyLabel="추가 중..."
+              busy={excBusy}
+              disabled={draftCheck == null || !draftCheck.ok}
+              onPress={submitException}
+            />
+          </View>
+        </ScrollView>
+      </PaperSheet>
+
       {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill.
           Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
       {loaded && (
@@ -498,6 +859,22 @@ const s = StyleSheet.create({
   // 프라이머리는 스티키 바 하나뿐이다)
   rulesHead: { marginTop: 26, marginBottom: 8 },
   rulesSaveBtn: { marginTop: 6, marginBottom: 10, minHeight: 48, justifyContent: 'center', borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas, paddingHorizontal: 14 },
+  // [0203 · 예외 일정] 종류 칩 — 토글 칩과 같은 각진 문법, 색은 방향을 말한다(휴가 = 빼기,
+  // 추가 근무 = 더하기). 코랄은 이 화면에서 저장하기 하나뿐이라 칩은 잉크/캔버스로만 간다.
+  kindChip: { paddingVertical: 5, paddingHorizontal: 10, minWidth: 66, alignItems: 'center' },
+  kindChipOut: { backgroundColor: paper.ink },
+  kindChipIn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.ink },
+  kindChipTxt: { fontSize: 15, fontWeight: '800' },
+  kindChipTxtOut: { color: paper.canvas },
+  kindChipTxtIn: { color: paper.ink },
+  excDelBtn: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  // 두 추가 버튼은 세컨더리다 — 프라이머리는 스티키 바의 저장하기 하나 (강조 예산)
+  excAddBtn: { flex: 1, minHeight: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas, paddingHorizontal: 10 },
+  excAddTxt: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  // flex + minWidth:0 so a long KST date label (「10월 5일 (월)」 at the stepper's 19.5pt) makes the
+  // LABEL wrap instead of pushing the ＋ button off the sheet — jurisLbl's grammar.
+  sheetLbl: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '800', color: paper.ink },
+  sheetInput: { borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas, paddingHorizontal: 13, minHeight: 48, fontSize: 16, color: paper.ink },
   // [D①] 관할 표 — 값이 아니라 범위를 인쇄하는 표라 카드 문법을 그대로 쓰되 값 열이 없다.
   juris: { borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 13, marginBottom: 12 },
   jurisRow: { alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 11 },
