@@ -242,6 +242,113 @@ function SectionFail({ text, onRetry, a11y }: { text: string; onRetry: () => voi
   );
 }
 
+// ══════ [2026-09-23 · reviews-surfaced] ④c 러너의 한마디 — THE HALF NOBODY COULD READ ═══════════
+// Deliberately ONE self-contained block (state, read, styles, render) with a single call site
+// below, because parallel slices are editing this file's ⑤ 재예약 panel in the same session and a
+// union merge is worth more than proximity to ④b.
+//
+// 🔴 WHAT THIS FIXES. `runner/review.tsx:97-107` has inserted `reviews(target_kind: 'dog')` since
+// the beginning — the runner's review OF THE DOG, the second half of a product that calls itself
+// 양방향 신뢰. Nothing rendered it. `readMyReview` above reads `target_kind = 'runner'` (the owner's
+// OUTBOUND review) and `fetchMyReviewedBookingIds` (api.ts) is author-gated, so the only two
+// readers in the app both structurally exclude it. The owner was asked for stars on a screen that
+// never showed them the stars they had been given.
+//
+// ⚠ THE READ IS A PLAIN TABLE READ UNDER EXISTING RLS — no migration. `reviews public read`
+// (0002_rls.sql:115-117) is `visibility = 'public' and is_booking_party(booking_id)`, and
+// `is_booking_party` (0002_rls.sql:15-22) admits `b.owner_id = auth.uid()`. See
+// `fetchDogReviewForBooking`'s header for why the other two policies do not reach this row and why
+// `platform_only` is excluded without the empty state ever hinting that a private report exists.
+//
+// THREE STATES, NEVER TWO — the same discipline `readMyReview` documents above:
+//   'loading' → draw NOTHING. A 「아직 …없어요」 while the read is in flight asserts a fact we do
+//               not have yet, and it is the fact the runner would be most annoyed to see denied.
+//   'failed'  → say so, with a retry. Not the empty state: 「못 읽었다」 and 「없다」 are different.
+//   'ok'      → the row, or the honest empty line.
+// The parent renders this only on `status === 'completed'` — a review of a run that has not
+// finished is not a state this product has.
+import { DogReview, fetchDogReviewForBooking } from '../../src/lib/api';
+
+function RunnerWordSection({ bookingId }: { bookingId: string }) {
+  const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  const [review, setReview] = useState<DogReview | null>(null);
+  const load = useCallback(() => {
+    if (!bookingId) return;
+    setState('loading');
+    fetchDogReviewForBooking(bookingId)
+      .then((r) => { setReview(r); setState('ok'); })
+      .catch((e) => { setState('failed'); console.warn('[report] dog review:', (e as Error)?.message ?? e); });
+  }, [bookingId]);
+  useEffect(() => { load(); }, [load]);
+
+  if (state === 'loading') return null;
+  if (state === 'failed') {
+    return <SectionFail text="러너의 후기를 불러오지 못했어요" onRetry={load} a11y="러너의 후기 다시 불러오기" />;
+  }
+  const stars = review && review.rating != null && review.rating >= 1 && review.rating <= 5 ? review.rating : null;
+  const when = review ? fmtMonthDay(review.createdAt) : null;
+  return (
+    <View style={rw.box}>
+      <Text style={rw.head}>러너의 한마디</Text>
+      {review ? (
+        <>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
+            {stars != null ? (
+              <Text style={rw.stars} accessibilityLabel={`러너가 남긴 별점 ${stars}점`}>
+                {'★'.repeat(stars)}
+                <Text style={rw.starsOff}>{'★'.repeat(5 - stars)}</Text>
+              </Text>
+            ) : (
+              /* `rating` is nullable in the table. A review with no score is a review with no
+                 score — not a zero-star review, and not a reason to hide the words. */
+              <Text style={rw.noRating}>별점 없이 남긴 후기예요</Text>
+            )}
+            {when && <Text style={rw.when}>{when} 등록</Text>}
+          </Row>
+          {review.tags.length > 0 && (
+            <Row style={{ gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+              {review.tags.map((t) => (
+                <View key={t} style={rw.tag}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: paper.actionInk }}>{t}</Text>
+                </View>
+              ))}
+            </Row>
+          )}
+          {/* The note is printed only when there is one — an empty quote block asserts 「they wrote
+              something」, and a runner who left stars and tags did not. */}
+          {review.note && review.note.trim().length > 0 && (
+            <Text style={rw.note}>{review.note.trim()}</Text>
+          )}
+        </>
+      ) : (
+        /* ⚠ 「아직」 is doing real work: it says the door is open, not that it is closed. It is also
+           the sentence an owner sees when the runner filed a 비공개 report, and that is correct —
+           naming a private report's existence here would undo the only thing 비공개 buys. */
+        <Text style={rw.empty}>아직 러너의 후기가 없어요</Text>
+      )}
+    </View>
+  );
+}
+
+// Local to the block above rather than added to `s` below, for the same merge reason. Values are
+// copied from ④b's `writtenReview` family so the two review surfaces on this screen read as one
+// object; the 15pt floor (DESIGN.md §2) holds for every Korean line here.
+const rw = StyleSheet.create({
+  box: {
+    backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: paper.line,
+  },
+  head: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  stars: { fontSize: 32, lineHeight: 38, letterSpacing: 2, color: colors.gold },
+  starsOff: { color: '#EEEEEE' },
+  noRating: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  when: { fontSize: 15, color: paper.dim },
+  tag: { backgroundColor: paper.wash, borderRadius: 0, borderWidth: 1, borderColor: paper.line, paddingVertical: 7, paddingHorizontal: 13 },
+  note: { fontSize: 15, lineHeight: 21, color: paper.ink, marginTop: 9 },
+  empty: { fontSize: 15, lineHeight: 21, color: paper.ink, marginTop: 5 },
+});
+// ══════ end ④c ════════════════════════════════════════════════════════════════════════════════
+
 export default function Report() {
   const insets = useSafeAreaInsets();
   // 디스플레이 서체 — 화면에 **한 번**. [2026-08-19] 그 한 번은 이제 헤더 크롬이 아니라 러닝
@@ -959,6 +1066,13 @@ export default function Report() {
                 </View>
               )
             )}
+
+            {/* ══════ ④c 러너의 한마디 — the other half of the two-sided review ══════
+                Beside the stars the owner is ASKED for, because that is the moment the exchange is
+                legible: 「here is what they said about 초코, and here is where you answer」. Gated on
+                `completed` only — every other status is a run whose review cannot exist yet. See the
+                RunnerWordSection block above for the three states and the RLS policy it stands on. */}
+            {report.status === 'completed' && bid && <RunnerWordSection bookingId={bid} />}
 
             {/* ══════ ⑤ 재예약 넛지 (RULING #11) — the frame's ONE saturated element ══════
                 Two shapes, and which one you get is a fact, not a style choice. resolveNextWeek()

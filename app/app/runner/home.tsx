@@ -241,6 +241,135 @@ function SectionHead({ title, link, onPress }: { title: string; link?: string; o
   );
 }
 
+// ══════ [2026-09-23 · reviews-surfaced] 받은 후기 — A RUNNER'S OWN REVIEWS, ON THEIR OWN SCREEN ══
+// One self-contained block (state, read, styles, render) with a single call site below.
+//
+// 🔴 WHY IT DID NOT EXIST. A runner's received reviews had exactly one path in this app:
+// `my.tsx:273` → `/runner-profile/{self}` — the STOREFRONT, the page an owner browsing for a
+// runner sees. Nothing on the runner's own home said a review had arrived, so the one artifact
+// that decides whether a stranger books them was invisible from the inside.
+//
+// 🔴 HIDING IT AT ZERO IS NOT ALLOWED, and that is the whole design of the empty state. A row that
+// appears only once reviews exist teaches nothing, and its absence is indistinguishable from a
+// failed read. 「아직 받은 후기가 없어요」 is a fact and it is also the useful sentence: it names a
+// thing that arrives after a run rather than a thing that is broken.
+//
+// FOUR STATES, and the count is never a 0 that means 「loading」:
+//   in flight → '—' beside the label (this screen's own idiom, see 내 기록's totalKm);
+//   failed    → a loud strip with 다시 시도, outside the row, never the empty sentence;
+//   count 0   → 「아직 받은 후기가 없어요」;
+//   count > 0 → 「N개의 후기」 + ★ over ALL rated reviews (fetchRunnerRatingSummary), plus the
+//               newest review's first line when it has one.
+// ⚠ The average is the number item 2 of this slice exists to fix. It must never again be computed
+// from a window — see api.ts's [reviews-surfaced] block.
+import { fetchMyRunnerReviews, MyRunnerReviews } from '../../src/lib/api';
+import { reviewCountText, starText } from '../../src/lib/rating';
+
+/** The newest review's one-line preview — 🔴 THREE CASES, AND THE THIRD IS THE ONE THAT MATTERS.
+ *  A quote when there is prose; the 「남긴 글이 없어요」 sentence ONLY when the read answered AND a
+ *  review came back carrying none; and NOTHING AT ALL when the newest-review read failed. Saying
+ *  「글이 없어요」 in that third case asserts a fact the read never delivered — the silent-catch →
+ *  happy-UI shape. The count and the star are unaffected either way: they come from a different
+ *  read, which succeeded. */
+function LatestQuote({ rev }: { rev: MyRunnerReviews }) {
+  if (rev.latest?.line) return <Text numberOfLines={1} style={rv.quote}>{`“${rev.latest.line}”`}</Text>;
+  if (rev.latestKnown && rev.latest) return <Text style={rv.quoteNone}>가장 최근 후기에는 남긴 글이 없어요</Text>;
+  return null;
+}
+
+/** The row's contents once the read has ANSWERED — count + star, or the honest empty pair. Split
+ *  out so the state machine above stays a state machine; nothing branches here on loading or
+ *  failure, because neither reaches this component. */
+function ReceivedBody({ rev }: { rev: MyRunnerReviews }) {
+  if (rev.count === 0) {
+    return (
+      <>
+        <Text style={rv.count}>아직 받은 후기가 없어요</Text>
+        <Text style={rv.quoteNone}>러닝을 마치면 보호자가 후기를 남길 수 있어요</Text>
+      </>
+    );
+  }
+  const star = starText(rev.avg);
+  return (
+    <>
+      <Row style={{ alignItems: 'center', gap: 8 }}>
+        <Text style={rv.count}>{reviewCountText(rev.count)}</Text>
+        {/* No average → no star at all. `avg` is null when nobody has SCORED this runner yet, which
+            a runner reaches with tags-only reviews — and 0.0 would be a lie in the one direction
+            that costs them work. */}
+        {star && <Text style={rv.star}>{star}</Text>}
+      </Row>
+      <LatestQuote rev={rev} />
+      {rev.latest?.when && <Text style={rv.when}>{rev.latest.when} 등록</Text>}
+    </>
+  );
+}
+
+function ReceivedReviews() {
+  const [rev, setRev] = useState<MyRunnerReviews | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState(false);
+  const load = useCallback(() => {
+    setErr(false);
+    fetchMyRunnerReviews()
+      .then((r) => { setRev(r); setLoaded(true); })
+      .catch((e) => { setErr(true); console.warn('[r-home] reviews:', (e as Error)?.message ?? e); });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  // `data` is the read's ANSWER, or null for 「no answer yet / the answer was a failure」. Every
+  // branch below keys on it, so 「unknown」 can never fall through into a sentence about reviews.
+  const data = loaded && !err ? rev : null;
+  const open = () => { if (rev?.profileId) router.push(`/runner-profile/${rev.profileId}`); };
+  return (
+    <>
+      <SectionHead title="받은 후기" link={data && data.count > 0 ? '전체 보기 ›' : undefined} onPress={open} />
+      <Pressable
+        onPress={open}
+        disabled={!rev?.profileId}
+        style={({ pressed }) => [rv.row, pressed && rv.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="내 프로필에서 받은 후기 보기"
+      >
+        {data ? <ReceivedBody rev={data} /> : (
+          /* Loading, and loading is not 0 — the em dash is this screen's own unknown marker. */
+          <Text style={rv.count}>—<Text style={rv.countU}>개의 후기</Text></Text>
+        )}
+      </Pressable>
+      {err && (
+        <Row style={rv.fail}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>받은 후기를 불러오지 못했어요</Text>
+          <Pressable onPress={load} hitSlop={8} accessibilityRole="button" accessibilityLabel="받은 후기 다시 불러오기">
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+          </Pressable>
+        </Row>
+      )}
+    </>
+  );
+}
+
+// Local to the block above rather than added to `styles` below, so the whole surface merges as one
+// union. Korean lines sit at the 15pt floor (DESIGN.md §2); `rv.count` is larger because it is the
+// row's subject, and carries no Oswald (no display/num font is spent here — this screen's single
+// display budget belongs to the bib name).
+const rv = StyleSheet.create({
+  row: {
+    backgroundColor: paper.canvas, marginHorizontal: layout.gutter, paddingVertical: 12,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE',
+  },
+  pressed: { opacity: 0.96 },
+  count: { fontSize: 17, fontWeight: '800', color: paper.ink },
+  countU: { fontSize: 15, fontWeight: '800', color: paper.dim },
+  star: { fontSize: 17, fontWeight: '800', color: colors.gold },
+  quote: { fontSize: 15, lineHeight: 20, color: paper.ink, marginTop: 5 },
+  quoteNone: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 5 },
+  when: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 3 },
+  fail: {
+    marginHorizontal: layout.gutter, marginTop: 8, justifyContent: 'space-between', alignItems: 'center',
+  },
+});
+// ══════ end 받은 후기 ══════════════════════════════════════════════════════════════════════════
+
 export default function RunnerHome() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 (빕 네임)
@@ -1611,6 +1740,10 @@ export default function RunnerHome() {
             </Pressable>
           </Row>
         )}
+
+        {/* ————— 받은 후기 — see the ReceivedReviews block above. Never hidden at zero, and the ★
+             beside the count is the mean of every rated public review, not of a five-row window. ————— */}
+        <ReceivedReviews />
 
         {/* ————— 동네 코스 — 헤더는 컴포넌트가 §3b 그램마로 그린다 (bleed = 패딩 컨테이너에서 풀블리드 룰) ————— */}
         <View style={{ marginTop: 8 }}>
