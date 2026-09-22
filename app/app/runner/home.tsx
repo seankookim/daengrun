@@ -1245,14 +1245,14 @@ export default function RunnerHome() {
                     // feedback is a 409 the runner cannot account for. This is the sentence the
                     // state's own comment promised and the first version never rendered.
                     <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
-                      <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
+                      <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중…' : '수락 ›'}</Text>
                       <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
                         인계 확인 상태를 못 읽었어요
                       </Text>
                     </Pressable>
                   ) : (
                   <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
-                    <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
+                    <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중…' : '수락 ›'}</Text>
                     {/* [2026-08-10 filler cull] ' · 바로 확정돼요' dropped — the confirm Alert states the consequence */}
                     <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
                       <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원
@@ -1608,7 +1608,7 @@ export default function RunnerHome() {
               </Pressable>
             </Row>
           ) : !avail ? (
-            <Text style={{ fontSize: 15, color: lilac.dim }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: lilac.dim }}>불러오는 중…</Text>
           ) : (
             <>
               <Pressable

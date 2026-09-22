@@ -493,7 +493,7 @@ export default function Radar() {
                       accessibilityState={{ disabled: busy, busy }}
                     >
                       <Text style={[s.rowAct, { color: busy ? paper.dim : paper.action }]}>
-                        {busy ? '지명 중...' : '지명 ›'}
+                        {busy ? '지명 중…' : '지명 ›'}
                       </Text>
                     </Pressable>
                   )}
@@ -507,7 +507,7 @@ export default function Radar() {
       {/* ── 고정 CTA 도크 — 고스트 취소 ── */}
       {!matchedName && (
         <View style={[s.ctaDock, { paddingBottom: dockPadBottom }]}>
-          <PaperBtn label="요청 취소" busyLabel="취소 중..." busy={cancelling} variant="quiet" onPress={cancel} />
+          <PaperBtn label="요청 취소" busyLabel="취소 중…" busy={cancelling} variant="quiet" onPress={cancel} />
         </View>
       )}
     </View>

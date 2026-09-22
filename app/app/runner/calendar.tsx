@@ -356,7 +356,7 @@ export default function RunnerCalendar() {
         {/* ---------- 티켓 스택 (C2) ---------- */}
         {!loaded && !loadErr && (
           <View style={s.emptyJobs}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}

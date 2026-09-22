@@ -318,7 +318,7 @@ export default function RunnerReview() {
           disabled={blocked}
           onPress={submit}
         >
-          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
+          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중…' : '리뷰 남기기'}</Text>
         </Pressable>
         {guardOff && <Text style={s.ctaHint}>별점을 선택하면 리뷰를 남길 수 있어요</Text>}
         <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>

@@ -32,7 +32,7 @@ import { expectedDurationMs } from '../../src/lib/lateness';
 //     is_slot_available이 따로 판정한다. 그래서 표식은 점이고 범례는 '운영 요일'이다.
 //     rules가 null('확인 중')이나 'error'면 점을 **하나도** 찍지 않는다 — 없는 점이 '쉬는 날'로
 //     읽히면 안 된다.
-//   S③ 확인 중·확인 실패 요약 한 줄. 아홉 칸짜리 하루는 「확인 실패 · 재시도」를 아홉 번
+//   S③ 확인 중·확인 실패 요약 한 줄. 아홉 칸짜리 하루는 「확인 실패 · 다시 시도」를 아홉 번
 //     따로 눌러야 했다. 칸별 진실은 그대로 두고, 위에 요약 + 전체 다시 확인(오늘 고른 날의
 //     칸만 — recheckSlot 루프)을 놓는다. 모든 칸이 답을 받으면 줄은 사라진다: 가구가 아니라 상태다.
 // 코랄 가로선은 헤더와 도크 둘뿐이다 (Sean: "too many horizontal red lines"). 칸·칩·행의
@@ -356,7 +356,7 @@ export default function Reschedule() {
                 </Pressable>
               </View>
             ) : rules === null ? (
-              <Text style={[s.noticeText, { marginTop: 16, textAlign: 'left' }]}>가능 시간을 불러오는 중...</Text>
+              <Text style={[s.noticeText, { marginTop: 16, textAlign: 'left' }]}>가능 시간을 불러오는 중…</Text>
             ) : daySlots.length === 0 ? (
               <Text style={[s.noticeText, { marginTop: 16, textAlign: 'left' }]}>이 날은 {info.runnerName ?? '러너'} 러너의 가능 시간이 없어요</Text>
             ) : (
@@ -418,7 +418,7 @@ export default function Reschedule() {
                             : ok === null || ok === undefined ? paper.dim
                             : paper.readyDeep,
                         }}>
-                          {isCur ? '현재' : ok === null || ok === undefined ? '확인 중' : ok === 'error' ? '확인 실패 · 재시도' : ok === false ? '마감' : '가능'}
+                          {isCur ? '현재' : ok === null || ok === undefined ? '확인 중' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === false ? '마감' : '가능'}
                         </Text>
                       </Pressable>
                     );
@@ -440,7 +440,7 @@ export default function Reschedule() {
             {fmtIso(picked.start.toISOString())}로 변경 요청
           </Text>
           <View style={{ marginTop: 10 }}>
-            <PaperBtn label="러너에게 변경 요청 ›" busyLabel="보내는 중..." busy={busy} onPress={send} />
+            <PaperBtn label="러너에게 변경 요청 ›" busyLabel="보내는 중…" busy={busy} onPress={send} />
           </View>
           <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 8 }}>
             러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료

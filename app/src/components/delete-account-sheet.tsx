@@ -395,7 +395,7 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               <HoldToConfirm armed={armed} onArm={() => setArmed(true)} disabled={busy} />
               <PaperBtn
                 label="계정 삭제"
-                busyLabel="삭제 중..."
+                busyLabel="삭제 중…"
                 busy={busy}
                 disabled={!armed}
                 variant="destructive"
@@ -447,7 +447,7 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
               </Text>
               <PaperBtn
                 label="다시 시도"
-                busyLabel="처리 중..."
+                busyLabel="처리 중…"
                 busy={busy}
                 variant="destructive"
                 onPress={invoke}

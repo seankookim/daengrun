@@ -188,7 +188,7 @@ export default function Compose() {
 
       <PaperBtn
         label="올리기"
-        busyLabel="올리는 중..."
+        busyLabel="올리는 중…"
         busy={busy}
         disabled={!caption.trim() && !photo && !sel}
         onPress={submit}
@@ -197,7 +197,7 @@ export default function Compose() {
 
       {/* 3 honest states: loading ≠ error ≠ empty */}
       {!loaded && (
-        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 36 }}>완료된 러닝 불러오는 중...</Text>
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 36 }}>완료된 러닝 불러오는 중…</Text>
       )}
 
       {loaded && error != null && (

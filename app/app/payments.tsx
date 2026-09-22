@@ -170,7 +170,7 @@ export default function Payments() {
           detail={retryNote}
           // 카드가 죽은 상태(relink)에서는 재시도가 성공할 수 없다 — 그때는 위 배너의 문의가 유일한 길.
           cta={!needsRelink && retryTargets.length > 0 ? '다시 시도' : undefined}
-          busyCta="다시 청구하는 중..."
+          busyCta="다시 청구하는 중…"
           busy={busy}
           onPress={onRetry}
           style={{ marginTop: needsRelink ? 10 : 18 }}
@@ -182,7 +182,7 @@ export default function Payments() {
           kind="declined"
           detail={retryNote}
           cta="다시 시도"
-          busyCta="다시 청구하는 중..."
+          busyCta="다시 청구하는 중…"
           busy={busy}
           onPress={onRetry}
           style={{ marginTop: 18 }}
@@ -192,7 +192,7 @@ export default function Payments() {
       {/* ── 결제 수단 ── */}
       <SectionHead title="결제 수단" />
       <View style={s.section}>
-        {cardState === 'loading' && <Text style={s.note}>불러오는 중...</Text>}
+        {cardState === 'loading' && <Text style={s.note}>불러오는 중…</Text>}
         {cardState === 'error' && (
           <View style={s.failStrip}>
             <Text style={s.failTxt}>결제 수단을 불러오지 못했어요</Text>
@@ -249,7 +249,7 @@ export default function Payments() {
       {/* ── 결제 내역 ── */}
       <SectionHead title="결제 내역" />
       <View style={s.section}>
-        {rowsState === 'loading' && <Text style={s.note}>불러오는 중...</Text>}
+        {rowsState === 'loading' && <Text style={s.note}>불러오는 중…</Text>}
         {rowsState === 'error' && (
           <View style={s.failStrip}>
             <Text style={s.failTxt}>결제 내역을 불러오지 못했어요</Text>

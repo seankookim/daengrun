@@ -163,7 +163,7 @@ export default function OwnerReview() {
           {/* §3b primary. [Sean 2026-08-26 press behaviour] the hand-rolled copy of this button
               could not carry the 4px lip, so it is now the component that owns the grammar —
               same action fill, same 17/800 white, same busy label swap, plus the key travel. */}
-          <PaperBtn label="후기 등록" busyLabel="등록 중..." onPress={submit} busy={busy} style={s.cta} />
+          <PaperBtn label="후기 등록" busyLabel="등록 중…" onPress={submit} busy={busy} style={s.cta} />
           {/* 이 줄은 체크박스가 실제로 무엇을 바꾸는지 말한다 — visibility 는 두 값이므로 문장도 둘. */}
           <Text style={s.ctaNote}>
             {privateFlag

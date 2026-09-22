@@ -392,7 +392,7 @@ export default function Availability() {
         </View>
 
         {!loaded && !loadErr && (
-          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중…</Text></View>
         )}
 
         {/* loud-fail strip — criticalWash bg + critical ink (never shares paper.line) + retry */}
@@ -495,7 +495,7 @@ export default function Availability() {
         </Text>
 
         {excState === 'loading' && (
-          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중…</Text></View>
         )}
         {excState === 'error' && (
           <View style={s.failStrip}>
@@ -598,7 +598,7 @@ export default function Availability() {
           <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>예약 규칙</Text>
         </View>
         {rulesState === 'loading' && (
-          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+          <View style={s.card}><Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중…</Text></View>
         )}
         {rulesState === 'error' && (
           <View style={s.failStrip}>
@@ -656,7 +656,7 @@ export default function Availability() {
                 accessibilityRole="button"
               >
                 <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>
-                  {rulesSaving ? '저장 중...'
+                  {rulesSaving ? '저장 중…'
                     : rulesState === 'absent'
                       ? `규칙 만들기 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`
                       : `규칙 저장 — 휴식 ${rules.restAfterMin}분 · 하루 ${rules.maxSessionsPerDay}회`}
@@ -777,7 +777,7 @@ export default function Availability() {
           <View style={{ marginTop: 18 }}>
             <PaperBtn
               label={sheetKind === 'extra' ? '추가 근무 추가' : '휴가 추가'}
-              busyLabel="추가 중..."
+              busyLabel="추가 중…"
               busy={excBusy}
               disabled={draftCheck == null || !draftCheck.ok}
               onPress={submitException}
@@ -801,7 +801,7 @@ export default function Availability() {
           )}
           <PaperBtn
             label={dirty ? '저장하기' : '저장됨 ✓'}
-            busyLabel="저장 중..."
+            busyLabel="저장 중…"
             busy={saving}
             disabled={!dirty}
             onPress={save}

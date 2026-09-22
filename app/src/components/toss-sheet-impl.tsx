@@ -168,7 +168,7 @@ function SheetBody({
       <View style={s.footer}>
         <PaperBtn
           label="결제하기"
-          busyLabel="결제창 여는 중..."
+          busyLabel="결제창 여는 중…"
           busy={busy}
           disabled={!ready.methods}
           onPress={pay}

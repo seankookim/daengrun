@@ -606,7 +606,7 @@ export default function Requests() {
             onPress={() => accept(req)}
           >
             <Text style={{ fontSize: 17, fontWeight: '800', color: inert ? paper.faint : coral ? '#FFFFFF' : paper.ink }}>
-              {accepting === req.bookingId ? '수락 중...' : '수락하기 ›'}
+              {accepting === req.bookingId ? '수락 중…' : '수락하기 ›'}
             </Text>
           </Pressable>
         </View>
@@ -629,7 +629,7 @@ export default function Requests() {
             <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3 }}>
               {/* count only after a real load — never "0건" in flight or on failure */}
               {!loaded
-                ? loadErr ? '요청을 불러오지 못했어요' : '요청 확인 중...'
+                ? loadErr ? '요청을 불러오지 못했어요' : '요청 확인 중…'
                 : `새 요청 ${live.length}건${resched.length > 0 ? ` · 변경 요청 ${resched.length}건` : ''}`}
             </Text>
           </View>
@@ -723,7 +723,7 @@ export default function Requests() {
                   }}
                 >
                   <Text style={{ fontSize: 17, fontWeight: '800', color: declineOff ? paper.faint : paper.ink }}>
-                    {busyHere && reschedAct === 'decline' ? '처리 중...' : '거절 (기존 유지)'}
+                    {busyHere && reschedAct === 'decline' ? '처리 중…' : '거절 (기존 유지)'}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -764,7 +764,7 @@ export default function Requests() {
                   }}
                 >
                   <Text style={{ fontSize: 17, fontWeight: '800', color: acceptOff ? paper.faint : coral ? '#FFFFFF' : paper.ink }}>
-                    {busyHere && reschedAct === 'accept' ? '처리 중...' : '새 시간 수락 ›'}
+                    {busyHere && reschedAct === 'accept' ? '처리 중…' : '새 시간 수락 ›'}
                   </Text>
                 </Pressable>
               </View>
@@ -778,7 +778,7 @@ export default function Requests() {
 
         {!loaded && !loadErr && (
           <View style={s.stateBlock}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}

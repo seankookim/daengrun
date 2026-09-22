@@ -154,7 +154,7 @@ export default function OnboardOwner() {
   // One CTA, four phases. `홈으로` appears only once the server says the pin is written.
   const cta = !step2
     ? { label: `${withParticle(dog.length > 0 ? dog : '우리 아이', '와/과')} 시작하기 ›`, onPress: openPin, disabled: !ready }
-    : pin === 'unknown' ? { label: '픽업 위치 확인 중...', onPress: () => {}, disabled: true }
+    : pin === 'unknown' ? { label: '픽업 위치 확인 중…', onPress: () => {}, disabled: true }
       : pin === 'pinned' ? { label: '홈으로 ›', onPress: goHome, disabled: !ready }
         : { label: '지도에서 찍기 ›', onPress: openPin, disabled: !ready };
 
@@ -284,7 +284,7 @@ export default function OnboardOwner() {
         )}
         <PaperBtn
           label={cta.label}
-          busyLabel="저장 중..."
+          busyLabel="저장 중…"
           onPress={cta.onPress}
           disabled={cta.disabled}
           busy={busy}

@@ -410,7 +410,7 @@ export default function Meetup() {
                 instead of blaming the app (DF-3). */}
             <View pointerEvents="none" style={s.mapPendingWrap}>
               <View style={s.mapPending}><Text style={s.mapPendingTxt}>
-                {pickup.s === 'loading' ? '주소 확인 중...'
+                {pickup.s === 'loading' ? '주소 확인 중…'
                   : pickup.s === 'err' ? '지도를 불러오지 못했어요'
                   : '픽업 위치가 아직 지정되지 않았어요\n보호자와 채팅으로 확인해주세요'}
               </Text></View>
@@ -452,7 +452,7 @@ export default function Meetup() {
           ) : (
             <>
               <Text style={s.cardBody}>
-                {pickup.s === 'loading' ? '주소 확인 중...'
+                {pickup.s === 'loading' ? '주소 확인 중…'
                   : pickup.s === 'ok' && pickup.a ? `${pickup.a.addr}${pickup.a.detail ? ` · ${pickup.a.detail}` : ''}`
                   : '픽업 장소는 보호자와 채팅으로 확인해주세요'}
               </Text>
@@ -512,7 +512,7 @@ export default function Meetup() {
                   </Text>
                 </Pressable>
               ) : (
-                <Text style={s.peerMeta} numberOfLines={2}>예약 정보 불러오는 중...</Text>
+                <Text style={s.peerMeta} numberOfLines={2}>예약 정보 불러오는 중…</Text>
               )}
             </View>
             {/* [0114 · ui2-3, verify-only] 수락 전에는 이 문에 닿을 수 없다 — 확인된 게이트 사슬:
@@ -663,7 +663,7 @@ export default function Meetup() {
                 이건 서버 계약 행동이다 — 탭이 arrived_at을 찍고 보호자에게 알림이 정확히 1회 나간다.
                 코랄 예산도 깨지 않는다: 스테이지가 배타적이라 enroute 프레임에는 문이 이것 하나뿐이고,
                 인계 CTA는 arrived부터 나온다 (화면당 primary 1개 = PaperBtn 호출자의 책임). */}
-            <PaperBtn label="픽업 장소 도착 확인 ›" busy={arriveBusy} busyLabel="전송 중..." onPress={reportArrived} />
+            <PaperBtn label="픽업 장소 도착 확인 ›" busy={arriveBusy} busyLabel="전송 중…" onPress={reportArrived} />
             {/* [wave 3 · 감사 #29 해소] 도착은 더 이상 로컬 스테이지가 아니다 — bookings.arrived_at이
                 정본이고 전송이 실패하면 스테이지는 그대로 남아 재시도 경로가 산다. */}
             {arriveFail
@@ -708,7 +708,7 @@ export default function Meetup() {
               </View>
               <Text style={s.statusKick}>WAITING</Text>
             </Row>
-            <Text style={s.statusText}>보호자 확인 대기 중...</Text>
+            <Text style={s.statusText}>보호자 확인 대기 중…</Text>
             <Text style={s.statusSub}>보호자 앱에 확인 요청을 보냈어요</Text>
           </View>
         )}

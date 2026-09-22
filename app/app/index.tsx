@@ -132,7 +132,7 @@ export default function RoleSelect() {
   // 라벨 스왑, opacity tricks retired).
   const notReady = loading || !auth;
   const label = (role: Role, normal: string) =>
-    busy === role ? '저장 중...' : notReady ? '시작하는 중...' : normal;
+    busy === role ? '저장 중…' : notReady ? '시작하는 중…' : normal;
 
   return (
     <View style={s.root}>

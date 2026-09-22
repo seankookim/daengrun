@@ -119,7 +119,7 @@ export default function Shop() {
               </Pressable>
             </View>
           ) : miles == null ? (
-            <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8 }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8 }}>불러오는 중…</Text>
           ) : miles.recent.length > 0 ? (
             <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#24382a', paddingTop: 9, gap: 4 }}>
               {miles.recent.slice(0, 2).map((r, i) => (

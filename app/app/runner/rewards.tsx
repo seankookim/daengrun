@@ -225,7 +225,7 @@ export default function Rewards() {
           </View>
         )}
         {milesErr && recent.length === 0 ? null : miles == null ? (
-          <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 6 }}>불러오는 중…</Text>
         ) : recent.length > 0 ? (
           <View style={s.milesLedger}>
             {recent.map((m, i) => (
@@ -260,7 +260,7 @@ export default function Rewards() {
       </Row>
       {!dropsLoaded && !dropsErr && (
         <View style={s.emptyBox}>
-          <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
         </View>
       )}
       {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
@@ -317,7 +317,7 @@ export default function Rewards() {
             <>
               {/* busy = hint-line label swap (the tapped choice is the card's action) */}
               <Text style={{ fontSize: 15, lineHeight: 19, color: '#BBBBBB', marginTop: 8 }}>
-                {busy === d.id ? '적용 중...' : '셋 중 하나를 선택하세요 — 되돌릴 수 없어요'}
+                {busy === d.id ? '적용 중…' : '셋 중 하나를 선택하세요 — 되돌릴 수 없어요'}
               </Text>
               <Row style={{ gap: 8, marginTop: 10 }}>
                 {([['boost', '부스트'], ['miles', '5,000포인트'], ['gear', '기어']] as const).map(([k, label]) => (
@@ -338,7 +338,7 @@ export default function Rewards() {
               onPress={() => open(d)}
               style={({ pressed }) => [s.openBtn, pressed && { backgroundColor: colors.voltDeep, transform: [{ scale: 0.96 }] }]}
             >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#111111' }}>{busy === d.id ? '여는 중...' : '상자 열기'}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#111111' }}>{busy === d.id ? '여는 중…' : '상자 열기'}</Text>
             </Pressable>
           )}
         </View>

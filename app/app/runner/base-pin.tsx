@@ -7,6 +7,7 @@ import { Row } from '../../src/components/ui';
 import { fetchMyRunnerBase, isBaseCooldownError, setRunnerBase } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BANPO, getNaverMap } from '../../src/lib/geo';
+import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -222,7 +223,7 @@ export default function RunnerBasePin() {
           /* SDK 없음 — 하우스 플레이스홀더. 확정 버튼도 숨는다 (죽은 버튼 금지법) */
           <View style={s.mapFallbackWrap}>
             <View style={s.mapFallback}>
-              <Text style={s.mapFallbackTxt}>지도를 불러올 수 없어요</Text>
+              <Text style={s.mapFallbackTxt}>{MAP_LOAD_FAIL_KO}</Text>
             </View>
           </View>
         )}
@@ -262,7 +263,7 @@ export default function RunnerBasePin() {
           accessibilityLabel="기준 위치 삭제"
         >
           <Text style={s.clearTxt}>
-            {clearing ? '삭제 중...' : '기준 위치 삭제 › '}
+            {clearing ? '삭제 중…' : '기준 위치 삭제 › '}
             {/* 잠겨 있을 때 삭제는 함정이 될 수 있다: 지우는 건 언제나 되지만 다시 지정하는 건
                 잠금이 풀린 뒤다 (서버가 해제로 시계를 되돌리지 않는다 — 그게 우회를 막는 이유).
                 그래서 잠긴 동안에는 그 사실을 여기서 먼저 말한다. */}
@@ -287,7 +288,7 @@ export default function RunnerBasePin() {
               <Text style={s.lockHint}>{lockLine(lockedUntil as string)}</Text>
             </View>
           ) : (
-            <PaperBtn label="이 위치로 지정" busyLabel="저장 중..." busy={busy} onPress={confirm} />
+            <PaperBtn label="이 위치로 지정" busyLabel="저장 중…" busy={busy} onPress={confirm} />
           )}
         </View>
       )}

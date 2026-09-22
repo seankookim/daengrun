@@ -463,7 +463,7 @@ export default function ReturnSeal() {
         {!strip && frame === 'a' && canStamp && (
           <PaperBtn
             label={`${dog}를 돌려줬어요 — 봉인`}
-            busyLabel="확인하는 중..."
+            busyLabel="확인하는 중…"
             busy={busy}
             disabled={busy}
             onPress={stamp}

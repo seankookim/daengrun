@@ -169,7 +169,7 @@ export default function Cards() {
               <Text style={s.secKo}>도장</Text>
               <View style={s.rule} />
             </Row>
-            <View style={s.failNote}><Text style={s.loadTxt}>도장을 불러오는 중...</Text></View>
+            <View style={s.failNote}><Text style={s.loadTxt}>도장을 불러오는 중…</Text></View>
           </>
         )}
         {stampFace === 'failed' && (
@@ -230,7 +230,7 @@ export default function Cards() {
               <Text style={s.secKo}>코스 패치</Text>
               <View style={s.rule} />
             </Row>
-            <View style={s.failNote}><Text style={s.loadTxt}>코스 패치를 불러오는 중...</Text></View>
+            <View style={s.failNote}><Text style={s.loadTxt}>코스 패치를 불러오는 중…</Text></View>
           </>
         )}
         {patchFace === 'failed' && (

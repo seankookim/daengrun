@@ -485,7 +485,7 @@ export default function OwnerMeetup() {
                     <Text style={s.mapPendingLink}>위치 지정하기 ›</Text>
                   </Pressable>
                 ) : (
-                  <Text style={s.mapPendingTxt}>주소 확인 중...</Text>
+                  <Text style={s.mapPendingTxt}>주소 확인 중…</Text>
                 )}
               </View>
             </View>
@@ -562,7 +562,7 @@ export default function OwnerMeetup() {
               {/* [320dp] 긴 이름은 잘리지 않고 두 줄로 접힌다 (신뢰 화면에서 말줄임 금지) */}
               <Text style={s.peerName} numberOfLines={2}>{runnerName} 러너</Text>
               <Text style={s.peerMeta} numberOfLines={2}>
-                {info ? `${info.when} · ${info.routeName} · ${bookingKmLabel(info.km)}` : '예약 정보 불러오는 중...'}
+                {info ? `${info.when} · ${info.routeName} · ${bookingKmLabel(info.km)}` : '예약 정보 불러오는 중…'}
               </Text>
             </View>
           </Row>
@@ -702,7 +702,7 @@ export default function OwnerMeetup() {
               <View style={s.pulseStage}><View style={[s.pulseCore, { backgroundColor: paper.pending }]} /></View>
               <Text style={s.statusKick}>WAITING</Text>
             </Row>
-            <Text style={s.statusText}>러너의 출발을 기다리는 중...</Text>
+            <Text style={s.statusText}>러너의 출발을 기다리는 중…</Text>
             {/* [wave 3] 도착이 서버 진실이 됐다 (bookings.arrived_at + '러너 도착' 알림) — 옛 주석의
                 '도착 상태는 서버에 없다'와 '도착은 채팅으로' 카피는 이제 거짓이라 은퇴한다.
                 이 카드는 출발 전에만 뜨므로 arrivedAt 분기는 사실상 안 닿지만, 상태가 앞서 도착해도
@@ -713,7 +713,7 @@ export default function OwnerMeetup() {
                 PaperBtn. Pre-departure tier: free >=24h out, else 10%. (0066: the en-route
                 stage below now carries its own cancel at the 50% tier.) */}
             <PaperBtn
-              label="예약 취소" busyLabel="취소 처리 중..." variant="destructive"
+              label="예약 취소" busyLabel="취소 처리 중…" variant="destructive"
               onPress={cancel} busy={cancelling} style={{ alignSelf: 'stretch', marginTop: 14 }}
             />
           </View>
@@ -729,7 +729,7 @@ export default function OwnerMeetup() {
                 hint keeps the number visible before the tap, same 50% framing as
                 schedule.tsx's management sheet. */}
             <PaperBtn
-              label="예약 취소" busyLabel="취소 처리 중..." variant="destructive"
+              label="예약 취소" busyLabel="취소 처리 중…" variant="destructive"
               onPress={cancel} busy={cancelling} style={{ alignSelf: 'stretch', marginTop: 0 }}
             />
             {/* [2026-08-19 정직 교정] '차감' → '청구'. 러닝 전에는 잡아둔 돈이 없으므로 차감할 것이
@@ -753,7 +753,7 @@ export default function OwnerMeetup() {
               </View>
               <Text style={s.statusKick}>WAITING</Text>
             </Row>
-            <Text style={s.statusText}>러너 확인 대기 중...</Text>
+            <Text style={s.statusText}>러너 확인 대기 중…</Text>
           </View>
         )}
         {stage === 'confirmed' && !hold && (

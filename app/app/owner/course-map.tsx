@@ -29,6 +29,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
+import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { goBackOrHome } from '../../src/lib/nav';
 import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
@@ -251,7 +252,7 @@ export default function CourseMap() {
 
   const mapNode = !maps ? (
     <View style={[StyleSheet.absoluteFill, s.center]}>
-      <View style={s.infoCard}><Text style={s.infoTitle}>지도를 불러올 수 없어요</Text>
+      <View style={s.infoCard}><Text style={s.infoTitle}>{MAP_LOAD_FAIL_KO}</Text>
         <Text style={s.infoBody}>앱을 업데이트하면 지도가 표시돼요. 코스 목록은 아래에서 그대로 볼 수 있어요.</Text></View>
     </View>
   ) : (

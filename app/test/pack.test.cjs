@@ -560,7 +560,7 @@ t('a missing or unparseable scheduled time yields no line rather than an invente
 // honest neutral branch rather than being guessed at.
 
 t('the three measured answers, before any cause is consulted', () => {
-  eq(packShareLine(null, null, false), '내 위치 확인 중...', 'not measured');
+  eq(packShareLine(null, null, false), '내 위치 확인 중…', 'not measured');
   eq(packShareLine(true, null, false), '내 위치 공유 중', 'on the map');
   eq(packShareLine(false, null, false), '아직 지도에 안 올라갔어요', 'refused, cause unknown');
 });

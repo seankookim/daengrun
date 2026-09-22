@@ -287,7 +287,7 @@ export default function Earnings() {
         <Text style={s.secTitle}>정산 계좌</Text>
         {bankPhase === 'loading' && (
           <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
-            계좌 정보를 불러오는 중...
+            계좌 정보를 불러오는 중…
           </Text>
         )}
         {bankPhase === 'error' && (
@@ -414,7 +414,7 @@ export default function Earnings() {
         <Text style={[s.secTitle, { marginBottom: 10 }]}>러닝별 내역</Text>
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
           </View>
         )}
         {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
@@ -544,7 +544,7 @@ export default function Earnings() {
         <Text style={[s.secTitle, { marginBottom: 10 }]}>지급 내역</Text>
         {!poLoaded && !poErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>불러오는 중…</Text>
           </View>
         )}
         {poErr && (

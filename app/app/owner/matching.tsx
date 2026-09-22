@@ -615,7 +615,7 @@ export default function Matching() {
             >
               <Row style={{ gap: 10 }}>
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
-                  {nominating === sel.r.profileId ? '전송 중...' : '지명 요청'}
+                  {nominating === sel.r.profileId ? '전송 중…' : '지명 요청'}
                 </Text>
                 <View style={{ flex: 1 }} />
                 {/* 플레이트 = 원값 두 개(점수 아님). 작은 흰 글씨는 코랄 위에 직접 앉지 않는다 —

@@ -151,7 +151,7 @@ export default function IncidentScreen() {
   };
 
   const body = () => {
-    if (state === 'loading') return <Text style={s.plain}>불러오는 중...</Text>;
+    if (state === 'loading') return <Text style={s.plain}>불러오는 중…</Text>;
     if (state === 'gone') return <Text style={s.plain}>이 러닝을 찾을 수 없어요</Text>;
     if (state === 'error') {
       return (
@@ -195,7 +195,7 @@ export default function IncidentScreen() {
           ) : null}
 
           {myStamp == null && (
-            <PaperBtn label="사고를 확인했어요" busyLabel="확인 중..." onPress={verify} busy={busy} style={s.cta} />
+            <PaperBtn label="사고를 확인했어요" busyLabel="확인 중…" onPress={verify} busy={busy} style={s.cta} />
           )}
           {/* 0114 §1 — accepted 집합에서만 스레드·메시지 INSERT 가 열린다. 닫힌 상태에서는
               문을 그리지 않는다 (채팅 화면의 '수락 전' 문구는 cancelled_owner 에서 거짓이다). */}
@@ -309,7 +309,7 @@ export default function IncidentScreen() {
         {/* 종류를 고르기 전에는 눌러도 서버가 bad_kind 로 거절할 뿐이다 — 죽은 키는 여행이 없다
             (§3b disabled = 평평한 명시 fill, 알파 트릭 금지). */}
         <PaperBtn
-          label="사고 접수하기" busyLabel="접수 중..." onPress={submit}
+          label="사고 접수하기" busyLabel="접수 중…" onPress={submit}
           disabled={kind == null} busy={busy} style={s.cta}
         />
         {ctx.contactable && <Text style={s.ctaNote}>접수하면 {counterLabel}에게 바로 알려요</Text>}

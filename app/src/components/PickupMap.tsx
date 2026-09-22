@@ -13,6 +13,7 @@
 // live — the marker caption grounds it ("픽업"), no motion claims (DS-3).
 import { memo, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { MAP_LOAD_FAIL_KO } from '../lib/copy';
 import { getNaverMap } from '../lib/geo';
 import { paper } from '../theme';
 
@@ -41,7 +42,7 @@ export const PickupMap = memo(function PickupMap({ lat, lng, caption = '픽업' 
     // SDK unavailable — honest placeholder, same grammar as the plates' pending box
     return (
       <View style={[StyleSheet.absoluteFill, st.center]}>
-        <View style={st.pendingBox}><Text style={st.pendingTxt}>지도를 불러올 수 없어요</Text></View>
+        <View style={st.pendingBox}><Text style={st.pendingTxt}>{MAP_LOAD_FAIL_KO}</Text></View>
       </View>
     );
   }
@@ -70,7 +71,7 @@ export const PickupMap = memo(function PickupMap({ lat, lng, caption = '픽업' 
       </maps.NaverMapView>
       {covered && (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, st.center, { opacity: fade, backgroundColor: paper.canvas }]}>
-          <View style={st.pendingBox}><Text style={st.pendingTxt}>지도 여는 중...</Text></View>
+          <View style={st.pendingBox}><Text style={st.pendingTxt}>지도 여는 중…</Text></View>
         </Animated.View>
       )}
     </View>

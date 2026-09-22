@@ -818,7 +818,7 @@ export default function Report() {
               {!mine && (
                 <PaperBtn
                   label="인계받았어요 — 확인"
-                  busyLabel="확인하는 중..."
+                  busyLabel="확인하는 중…"
                   busy={sealBusy}
                   disabled={sealBusy}
                   style={{ alignSelf: 'stretch', marginTop: 14 }}

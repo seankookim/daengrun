@@ -305,7 +305,7 @@ export const TRIAGE = {
   callSub: '전화 앱이 열려요 — 앱이 대신 신고하지는 않아요',
   sosLabel: '상대방에게 긴급 알림',
   sosSub: '상대방에게 알림 하나가 바로 가요',
-  sosSending: '보내는 중...',
+  sosSending: '보내는 중…',
   sosSent: '상대방에게 긴급 알림을 보냈어요.',
   // 실패는 실패로 그린다 — 조용히 삼키면 화면이 '보냈다'고 읽힌다.
   sosFailed: '긴급 알림을 보내지 못했어요. 119 또는 직접 연락을 이용해 주세요.',
@@ -326,7 +326,7 @@ export const REASON_STEP = {
   skip: TRIAGE.skip,
   back: '이유 다시 고르기',
   submit: '중단 알리기',
-  submitting: '보내는 중...',
+  submitting: '보내는 중…',
 } as const;
 
 export function noteStepFor(key: StopReasonKey): { head: string; label: string; placeholder: string } {
