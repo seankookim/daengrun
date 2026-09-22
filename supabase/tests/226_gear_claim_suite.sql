@@ -296,13 +296,22 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   v := t_gcl_claim_as(null, cOps, '무명', '01000000000', 'x 1', null, '00000');
   if v->>'raised' is distinct from 'not_signed_in' then v_bad := v_bad || ' 무기명: ' || coalesce(v->>'raised','ACCEPTED'); end if;
-  -- an id that does not exist is not an oracle either: the same word a real stranger's row gives
-  -- would leak existence, so a missing row gets its own word and a signed-in caller gets it too
+  -- 🔴 [0214 §C] THESE TWO ARMS ARE REVERSED, AND THE COMMENT THEY REPLACE HAD THE REASONING
+  -- BACKWARDS. It read 「a missing row gets its own word ... the same word a real stranger's row
+  -- gives would leak existence」 — but 「its own word」 IS the leak: a stranger who gets
+  -- `not_claim_owner` for one uuid and `claim_not_found` for another has been told which of the
+  -- two is a gear claim. An executing reviewer measured exactly that on 2026-09-23 (F5), and 0214
+  -- §C scopes the locking select to `auth.uid()` so both worlds raise the SAME word.
+  -- `not_claim_owner` is the honest merge rather than `claim_not_found`: 「이 교환권은 회원님의
+  -- 것이 아니에요」 is TRUE of a claim that does not exist, while 「찾지 못했어요」 is FALSE of one
+  -- that exists and belongs to someone else. The pin is updated here rather than left stale (the
+  -- standing law); 245 `0214-C1` owns the new property in full — a real id, a random uuid, a NULL
+  -- and a row in a DIFFERENT state all answering one word, with the owner passing as the control.
   v := t_gcl_claim_as(rn, gen_random_uuid(), '김러너', '01012345678', 'x 1', null, '06578');
-  if v->>'raised' is distinct from 'claim_not_found' then v_bad := v_bad || ' 없는 id: ' || coalesce(v->>'raised','ACCEPTED'); end if;
+  if v->>'raised' is distinct from 'not_claim_owner' then v_bad := v_bad || ' 없는 id: ' || coalesce(v->>'raised','ACCEPTED'); end if;
   v := t_gcl_claim_as(rn, null, '김러너', '01012345678', 'x 1', null, '06578');
-  if v->>'raised' is distinct from 'claim_not_found' then v_bad := v_bad || ' NULL id: ' || coalesce(v->>'raised','ACCEPTED'); end if;
-  if v_bad = '' then call _pass('gcl','0195-C2 파티 게이트가 상태보다 먼저 — 세 가지 상태의 남의 행이 전부 not_claim_owner 한 단어, 아무것도 안 바뀜; 자기 행은 통과(대조); 무기명/없는 id/NULL id는 각자의 단어');
+  if v->>'raised' is distinct from 'not_claim_owner' then v_bad := v_bad || ' NULL id: ' || coalesce(v->>'raised','ACCEPTED'); end if;
+  if v_bad = '' then call _pass('gcl','0195-C2 파티 게이트가 상태보다 먼저 — 세 가지 상태의 남의 행이 전부 not_claim_owner 한 단어, 아무것도 안 바뀜; 자기 행은 통과(대조); 무기명은 not_signed_in; [0214 §C] **없는 id와 NULL id도 같은 한 단어** — 예전에는 claim_not_found라는 자기 단어를 받았고 그게 바로 존재 오라클이었다(실행 리뷰 2026-09-23 F5), 245 0214-C1이 새 성질을 가진다');
   else v_msg := v_bad; call _fail('gcl','0195-C2 파티 게이트', v_msg); end if;
 
   -- ═══════════════════════════════════════════════════════════════════════════════════════
@@ -559,12 +568,27 @@ begin
     if (position('raise exception ''not_claim_owner''' in v_src) > 0) is not true
     then v_bad := v_bad || ' 파티 게이트 없음'; end if;
     if (position('into v_status' in v_src) > 0) is not true then v_bad := v_bad || ' 상태 읽기 없음'; end if;
-    if (position('for update' in v_src)
-        < position('raise exception ''not_claim_owner''' in v_src)) is not true
-    then v_bad := v_bad || ' 파티 게이트가 잠금보다 앞'; end if;
+    -- 🔴 [0214 §C] THE LOCK AND THE PARTY GATE ARE NOW ONE STATEMENT, so 「the lock precedes the
+    -- party gate」 stopped being expressible as two positions. It used to read
+    -- `position('for update') < position('not_claim_owner')`, which is now FALSE for a correct
+    -- function: the first `not_claim_owner` is the NULL-id guard above the select (a NULL id
+    -- cannot be yours), and the select itself carries the party scope in its WHERE. The property
+    -- did not change — the caller is never told anything about a row that is not theirs — but its
+    -- shape did, so the arms are rewritten rather than left stale (the standing law). The
+    -- behavioural half is 226 `0195-C2` and 245 `0214-C1`.
+    if (position('g.profile_id = v_uid' in v_src) > 0) is not true
+    then v_bad := v_bad || ' 잠금 select가 호출자로 좁혀져 있지 않다 (존재 오라클)'; end if;
+    if (position('g.profile_id = v_uid' in v_src) < position('for update' in v_src)) is not true
+    then v_bad := v_bad || ' 파티 스코프가 잠금 뒤에 있다'; end if;
+    if (position('for update' in v_src) < position('into v_status' in v_src)) is not true
+    then v_bad := v_bad || ' 상태를 잠금보다 먼저 읽는다'; end if;
     if (position('raise exception ''not_claim_owner''' in v_src)
         < position('into v_status' in v_src)) is not true
     then v_bad := v_bad || ' 상태를 파티 게이트보다 먼저 읽는다'; end if;
+    -- …and the word that used to distinguish the two worlds is gone from this body entirely.
+    -- (It is still live elsewhere: `ops_mark_gear_shipped` raises it, api.ts:7392 maps it.)
+    if (position('claim_not_found' in v_src) > 0)
+    then v_bad := v_bad || ' claim_not_found가 돌아왔다 — 없는 id와 남의 id가 다시 구별된다'; end if;
     -- `already_claimed` must never be a raise: it is a flat return field (0195 §0e)
     if (position('already_claimed' in v_src) > 0) then v_bad := v_bad || ' already_claimed가 예외로 바뀌었다'; end if;
     if (position('raise exception ''not_claimable''' in v_src) > 0) is not true
@@ -617,6 +641,6 @@ begin
        where table_schema = 'public' and table_name = 'gear_claims' and column_name = 'shipped_to')
      is distinct from 'uuid'
   then v_bad := v_bad || ' shipped_to가 더 이상 uuid가 아니다'; end if;
-  if v_bad = '' then call _pass('gcl','0195-S1 배포 형상 — 세 definer·in-body search_path·유효 권한으로 본 ACL·주석 제거한 소스 순서(잠금→파티→상태)·already_claimed는 예외가 아님·대기 목록은 긍정 매칭·delivery 제약이 실제로 문다·shipped_to는 그대로 uuid');
+  if v_bad = '' then call _pass('gcl','0195-S1 배포 형상 — 세 definer·in-body search_path·유효 권한으로 본 ACL·주석 제거한 소스 순서([0214 §C] 파티 스코프→잠금→상태, 그리고 claim_not_found는 이 본문에서 사라졌다 — 잠금과 파티 게이트가 한 문장이 되면서 예전의 「잠금이 파티보다 앞」 위치 비교는 올바른 함수에서 거짓이 된다)·already_claimed는 예외가 아님·대기 목록은 긍정 매칭·delivery 제약이 실제로 문다·shipped_to는 그대로 uuid');
   else v_msg := v_bad; call _fail('gcl','0195-S1 배포 형상', v_msg); end if;
 end $$;
