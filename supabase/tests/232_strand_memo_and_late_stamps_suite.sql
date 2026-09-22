@@ -20,9 +20,11 @@
 --        the PRE-0201 data shape by hand (the memo planted back into `return_force_reason` after a
 --        real resolution — the fixture must contain the defect or the repair is untestable), one
 --        from each rescued-from state. A THIRD booking is forced through `force_return_tx`, which
---        writes free text to the same column and leaves NO journal row. One call: both planted rows
---        carry their token, the memo is gone from both, `force_return_tx`'s reason is untouched,
---        and every journal memo survives. A second call changes nothing (idempotent, returns 0).
+--        since 0205 §B writes its OWN token (`ops_forced`) to that column and its own journal row
+--        (`source = 'force_return_tx'`) — so it is inside the join and stays out of the scrub's
+--        target set only because 0205 §C filters on `source`. One call: both planted rows carry
+--        their token, the memo is gone from both, the forced row's token is untouched, and every
+--        journal memo survives. A second call changes nothing (idempotent, returns 0).
 --   · L1 **AN UNSEALED `incident_review` RETURN IS A STRAND WHATEVER ITS STAMP COUNT.** The REAL
 --        sweep escalates a zero-stamp return; both parties then stamp LATE and 0096 lets the stamps
 --        land while refusing to seal (asserted, because that is the state the finding is about);
@@ -59,10 +61,16 @@
 --    on an `active` row seals it (0096 §6) and a server-class one without a price is refused
 --    (0193 §B). So L1 proves the `incident_review` arm ADMITS and that a sealed row is still
 --    excluded; it does not prove the `active` arm is load-bearing. `0201-S1` holds it by source.
---  · 🔴 **NAMED GAP.** `force_return_tx` writes free text to the same party-readable column and
---    0201 deliberately leaves it (zero callers — measured; see 0201 §0b). M2 pins that the SCRUB
---    does not touch such a row; nothing here pins that writing free text there is fine, because it
---    is not — a pin over that function's current shape would fix the bug in place.
+--  · ~~NAMED GAP~~ **CLOSED BY 0205 — and the note is rewritten rather than deleted, because a gap
+--    note left standing after the gap is closed is a document manufacturing a false green.** It
+--    used to read: «`force_return_tx` writes free text to the same party-readable column and 0201
+--    deliberately leaves it (zero callers — measured; see 0201 §0b). M2 pins that the SCRUB does
+--    not touch such a row; nothing here pins that writing free text there is fine, because it is
+--    not.» 0205 §B paid that bill: the force writes the fixed token `ops_forced` and journals its
+--    sentence. Two consequences for THIS file: M2's arm ⓒ changed discriminator (see the comment
+--    at the arm — the force row is now INSIDE the journal join and stays out of the scrub's set
+--    only because 0205 §C filters on `source`), and the property itself is owned by
+--    `236 0205-F1·F2·F3`, not here.
 --
 -- ─── FIXTURE NOTES ───
 --  ① This suite builds its OWN world (`t_sml_*`, `sml_` profiles) rather than borrowing 224's.
@@ -208,6 +216,8 @@ declare
   c_tok_s constant text := 'ops_resolved:strand';
   c_tok_r constant text := 'ops_resolved:review';
   c_free  constant text := '강제 종료 사유 SML-FORCE-5150 — 손으로 적은 문장';
+  c_tok_f constant text := 'ops_forced';    -- [0205 §B] the force's own token
+
   c_bell  constant text := '반환 좌초 — 확인 필요';
   v_bad text := ''; v_msg text; v_js jsonb; v_js2 jsonb; v_n int; v_src text; v_raw text;
   v_oid oid; v_txt text;
@@ -336,8 +346,19 @@ begin
     perform ops_resolve_return_tx(pI, t_sml_quote(3.0), c_memo2, ops);
     update bookings set return_force_reason = c_memo2 where id = pI;
 
-    -- ⓒ a `force_return_tx` row: `return_forced_by = 'ops'`, free text, and NO journal row. This is
-    --    the arm that separates 「scrubbed the 0193 copies」 from 「overwrote every ops reason」.
+    -- ⓒ a `force_return_tx` row: `return_forced_by = 'ops'` and a reason this scrub must not touch.
+    --    This is the arm that separates 「scrubbed the 0193 copies」 from 「overwrote every ops
+    --    reason」.
+    -- 🔴 [0205] THIS ARM MOVED, AND ITS DISCRIMINATOR MOVED WITH IT. When 0201 wrote it, a force
+    --    row carried FREE TEXT and NO journal row, and 0201 §B's comment called it outside the
+    --    scrub's set «BY CONSTRUCTION rather than by a filter someone has to remember». 0205 §B
+    --    falsified both halves: the force now writes the fixed token `ops_forced` into the column
+    --    AND a `source = 'force_return_tx'` row into the journal — so it is INSIDE the join and
+    --    stays out only because 0205 §C added the filter that 0201 did not need. The arm keeps its
+    --    job and gets a stronger control: it now asserts the journal row EXISTS, because a missing
+    --    row would put ⓒ outside the join for the old reason and this arm would be green while
+    --    testing nothing. `236 0205-F3` owns the property in full (measured as a delta from a
+    --    baseline of 0) and is the pin that reddens if §C is deleted.
     pF := t_sml_live(oo, dg, rt, rr);
     perform set_config('request.jwt.claim.sub', rr::text, false);
     perform end_run_tx(pF, 3.0, 900, 'completed', null, null);
@@ -350,12 +371,16 @@ begin
       then v_bad := v_bad || ' 대조: ⓐ의 옛 사본이 심기지 않았다'; end if;
     if (select b.return_force_reason from bookings b where b.id = pI) is distinct from c_memo2
       then v_bad := v_bad || ' 대조: ⓑ의 옛 사본이 심기지 않았다'; end if;
-    if (select b.return_force_reason from bookings b where b.id = pF) is distinct from c_free
-      then v_bad := v_bad || ' 대조: ⓒ의 force_return_tx 사유가 없다'; end if;
+    if (select b.return_force_reason from bookings b where b.id = pF) is distinct from c_tok_f
+      then v_bad := v_bad || ' 대조: ⓒ에 [0205] 강제 토큰이 없다'; end if;
     if (select b.return_forced_by from bookings b where b.id = pF) is distinct from 'ops'
       then v_bad := v_bad || ' 대조: ⓒ에 ops 마커가 없다 (조인 밖이라서가 아니라 마커가 없어서 남는다면 이 팔은 무의미)'; end if;
-    if exists (select 1 from return_resolutions where booking_id = pF)
-      then v_bad := v_bad || ' 대조: ⓒ에 저널 행이 있다 (force_return_tx가 저널을 쓰게 됐다)'; end if;
+    -- [0205] the force row is INSIDE the journal now, which is what makes §C's `source` filter the
+    -- thing being tested below. Green because it is absent would be a green over an empty world.
+    if (select r.source from return_resolutions r where r.booking_id = pF) is distinct from 'force_return_tx'
+      then v_bad := v_bad || ' 대조: ⓒ에 강제 저널 행이 없다 (조인 안에 있지 않으면 source 조건은 시험되지 않는다)'; end if;
+    if (select r.memo from return_resolutions r where r.booking_id = pF) is distinct from c_free
+      then v_bad := v_bad || ' 대조: ⓒ의 운영자 문장이 저널에 없다'; end if;
 
     -- THE REPAIR
     select _scrub_ops_return_reasons() into v_n;
@@ -364,8 +389,8 @@ begin
       then v_bad := v_bad || ' ⓐ 스크럽 뒤 값=' || coalesce((select b.return_force_reason from bookings b where b.id = pA),'(null)'); end if;
     if (select b.return_force_reason from bookings b where b.id = pI) is distinct from c_tok_r
       then v_bad := v_bad || ' ⓑ 스크럽 뒤 값=' || coalesce((select b.return_force_reason from bookings b where b.id = pI),'(null)'); end if;
-    if (select b.return_force_reason from bookings b where b.id = pF) is distinct from c_free
-      then v_bad := v_bad || ' 🔴 ⓒ force_return_tx의 사유가 덮였다'; end if;
+    if (select b.return_force_reason from bookings b where b.id = pF) is distinct from c_tok_f
+      then v_bad := v_bad || ' 🔴 ⓒ force_return_tx의 토큰이 해결기 토큰으로 덮였다 (0205 §C의 source 조건)'; end if;
     -- the operator's audit trail survives — a repair that deleted the memo everywhere would pass
     -- both arms above and destroy the only record there is
     if (select r.memo from return_resolutions r where r.booking_id = pA) is distinct from c_memo
@@ -381,7 +406,7 @@ begin
       then v_bad := v_bad || ' 두 번째 호출이 ⓐ를 바꿨다'; end if;
 
     if v_bad = ''
-      then call _pass('sml','0201-M2 0193이 이미 쓴 사본만 스크럽된다 — 실제 해결 뒤 손으로 되심은 옛 데이터 모양 두 개(active·incident_review)가 각자의 토큰으로 바뀌고, 저널 조인 밖에 있는 force_return_tx의 사유는 그대로 남으며(덮어쓰기가 아니라 대상 식별이라는 증거), 저널의 운영 메모는 두 건 모두 살아 있다; 두 번째 호출은 0행이다(멱등 — 그리고 이 데이터베이스에 남은 사본이 더 없다는 전역 팔)');
+      then call _pass('sml','0201-M2 0193이 이미 쓴 사본만 스크럽된다 — 실제 해결 뒤 손으로 되심은 옛 데이터 모양 두 개(active·incident_review)가 각자의 토큰으로 바뀌고, [0205] 이제 저널 조인 **안에** 있는 force_return_tx 행의 토큰(ops_forced)은 그대로 남으며(덮어쓰기가 아니라 source 판별자에 의한 대상 식별이라는 증거 — 0205 §C), 저널의 운영자 텍스트는 세 건 모두 살아 있다; 두 번째 호출은 0행이다(멱등 — 그리고 이 데이터베이스에 남은 사본이 더 없다는 전역 팔)');
     else v_msg := v_bad; call _fail('sml','0201-M2 스크럽', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('sml','0201-M2 스크럽', v_msg);

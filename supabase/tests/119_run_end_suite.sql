@@ -679,7 +679,13 @@ begin
     if v_txt is distinct from 'ops' then v_bad := v_bad || ' 행위자=' || coalesce(v_txt,'∅'); end if;
     if v_ts is null then v_bad := v_bad || ' 강제 시각 미기록'; end if;
     if v_ts2 is not null then v_bad := v_bad || ' 자격 시각이 기록됐다 (파생값 캐시)'; end if;
-    if coalesce(v_msg,'') = '' then v_bad := v_bad || ' 사유 미기록'; end if;
+    -- [0205] the column carries the fixed token, and the operator's sentence is in the sealed
+    -- journal. `= ''` would have been satisfied by either world; the token is not.
+    if v_msg is distinct from 'ops_forced'
+      then v_bad := v_bad || ' 판정 토큰 미기록=' || coalesce(v_msg,'∅'); end if;
+    if (select r.memo from return_resolutions r where r.booking_id = b_a)
+         is distinct from '보호자 연락 두절 — 운영이 인계를 판정'
+      then v_bad := v_bad || ' 저널에 운영자 문장이 없다'; end if;
     if (select b.return_force_evidence->>'kind' from bookings b where b.id = b_a) is distinct from 'ops_review'
       then v_bad := v_bad || ' 증거 미기록'; end if;
 
@@ -700,9 +706,27 @@ begin
     if (select r.settled_at from runs r where r.booking_id = b_a) is null
       then v_bad := v_bad || ' settled_at 미기록'; end if;
     -- and the force is IMMUTABLE — the first resolution is the one that stands
+    -- 🔴 [0205] THIS ARM MOVED, AND IT MOVED BECAUSE THE PROPERTY MOVED, NOT BECAUSE IT WAS WEAK.
+    --    It used to read `return_force_reason` and compare it to the FIRST call's free text. 0205
+    --    §B stops that column receiving free text at all (it is party-readable — codex 2026-09-22
+    --    #1, whose sentence covered this site as well as the resolver 0201 §A fixed), so the
+    --    column now holds the constant `ops_forced` after EVERY force. Comparing two calls'
+    --    column values can no longer tell 「the second force was refused」 from 「the second force
+    --    overwrote with the same word」 — the old assertion would pass in both worlds, which is
+    --    precisely the uninformative-detector shape this repo keeps paying for.
+    --    Immutability is now observable in the JOURNAL, so that is where it is read: exactly one
+    --    row, carrying the FIRST operator's sentence. `236 0205-F2` owns the property in full
+    --    (shape, the NULL actor, the CHECKs); this arm keeps R6's own job — that a second force
+    --    on a settled booking changes nothing.
     v_js := force_return_tx(b_a, 'ops', '내가 다시 쓴다', jsonb_build_object('kind','ops_rewrite'));
     select b.return_force_reason into v_msg from bookings b where b.id = b_a;
-    if v_msg <> '보호자 연락 두절 — 운영이 인계를 판정'
+    if v_msg is distinct from 'ops_forced'
+      then v_bad := v_bad || ' 판정 토큰이 아니다=' || coalesce(v_msg,'∅'); end if;
+    select count(*)::int into v_n from return_resolutions where booking_id = b_a;
+    if v_n is distinct from 1
+      then v_bad := v_bad || ' 저널 행 수=' || v_n || ' (첫 강제 1건이어야 — 두 번째가 또 썼다)'; end if;
+    select r.memo into v_msg from return_resolutions r where r.booking_id = b_a;
+    if v_msg is distinct from '보호자 연락 두절 — 운영이 인계를 판정'
       then v_bad := v_bad || ' 두 번째 강제가 첫 기록을 덮어썼다=' || coalesce(v_msg,'∅'); end if;
     -- …and the party refusal comes BEFORE the completed early-return: a runner cannot even reach
     -- a settled row's idempotent success by claiming a side.
@@ -718,7 +742,7 @@ begin
     if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('ren','R6 강제 기록 — ops 강제는 행위자=ops·강제 시각·사유·증거를 남기되 자격 시각은 남기지 않고(파생 캐시 금지) 같은 트랜잭션에서 동결값으로 정산하되, 🔴 어느 쪽의 확인 스탬프도 찍지 않는다(씰만 찍힌다 — "아무도 확인 안 함, 운영이 판정함"이 읽히는 모양), 두 번째 강제는 첫 결론을 덮지 않고, 정산된 뒤에도 당사자 강제는 force_party_forbidden (원장 1행)');
+      then call _pass('ren','R6 강제 기록 — ops 강제는 행위자=ops·강제 시각·증거를 남기고 사유 칸에는 [0205] 고정 토큰 ops_forced만 남기며(운영자 문장은 봉인된 return_resolutions로) 자격 시각은 남기지 않고(파생 캐시 금지) 같은 트랜잭션에서 동결값으로 정산하되, 🔴 어느 쪽의 확인 스탬프도 찍지 않는다(씰만 찍힌다 — "아무도 확인 안 함, 운영이 판정함"이 읽히는 모양), 두 번째 강제는 저널 행을 더 쓰지도 첫 문장을 덮지도 않고, 정산된 뒤에도 당사자 강제는 force_party_forbidden (원장 1행)');
     else v_msg := v_bad; call _fail('ren','R6 강제 기록', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R6 강제 기록', v_msg);
@@ -773,9 +797,22 @@ begin
     select count(*) into v_n from ledger_items where booking_id = b_a;
     if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
     -- 첫 결론은 그대로다 (기록 불변 — R6의 법이 재진입에서도 유지된다)
+    -- 🔴 [0205] SAME MOVE AS R6's, SAME REASON, AND THIS IS THE BRANCH THAT MATTERS MORE: the
+    --    re-entry path (`return_forced_by is not null`) is the one a real ops resolution uses,
+    --    and it is where a second journal row would appear if the insert were placed above the
+    --    early return instead of below it. The column is a constant from 0205 §B onward, so the
+    --    old comparison could not separate 「re-entry left the record alone」 from 「re-entry
+    --    rewrote it with the same word」. Read the journal: one row, the FIRST sentence.
+    --    `236 0205-F2` owns the property; this arm keeps R17's own job.
     select b.return_forced_by, b.return_force_reason into v_txt, v_msg from bookings b where b.id = b_a;
-    if v_txt <> 'ops' or v_msg <> '보호자 연락 두절 — 운영 판정'
+    if v_txt is distinct from 'ops' or v_msg is distinct from 'ops_forced'
       then v_bad := v_bad || ' 재진입이 첫 강제 기록을 덮었다=' || coalesce(v_txt,'∅') || '/' || coalesce(v_msg,'∅'); end if;
+    select count(*)::int into v_n from return_resolutions where booking_id = b_a;
+    if v_n is distinct from 1
+      then v_bad := v_bad || ' 재진입이 저널 행을 더 썼다 (행 수=' || v_n || ')'; end if;
+    if (select r.memo from return_resolutions r where r.booking_id = b_a)
+         is distinct from '보호자 연락 두절 — 운영 판정'
+      then v_bad := v_bad || ' 재진입이 저널의 첫 문장을 덮었다'; end if;
     -- 정산이 일어난 뒤에도 확인 스탬프는 여전히 양쪽 다 비어 있다
     if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null
        or (select b.owner_confirmed_return_at from bookings b where b.id = b_a) is not null
@@ -788,7 +825,7 @@ begin
     if v_n <> 1 then v_bad := v_bad || ' 3회차 뒤 원장 행수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('ren','R17 강제 재진입 — 가격 없는 ops 강제는 씰만 찍고 settled=false를 정직하게 답하며(확인 스탬프는 양쪽 다 비어 있다), 같은 예약에 가격을 들고 재진입하면 첫 강제 기록은 그대로 둔 채 그때 정산된다(원장 1행·스탬프는 여전히 비어 있다), 정산이 끝난 뒤에야 settled·unchanged가 참이 된다');
+      then call _pass('ren','R17 강제 재진입 — 가격 없는 ops 강제는 씰만 찍고 settled=false를 정직하게 답하며(확인 스탬프는 양쪽 다 비어 있다), 같은 예약에 가격을 들고 재진입하면 첫 강제 기록은 그대로 둔 채([0205] 사유 칸은 토큰 ops_forced 그대로, 저널은 여전히 1행이고 첫 문장 그대로) 그때 정산된다(원장 1행·스탬프는 여전히 비어 있다), 정산이 끝난 뒤에야 settled·unchanged가 참이 된다');
     else v_msg := v_bad; call _fail('ren','R17 강제 재진입', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R17 강제 재진입', v_msg);

@@ -9,6 +9,7 @@ import { Row } from '../src/components/ui';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { CoursePatch, deriveStamps, fetchCoursePatches, fetchStampStats, StampStats } from '../src/lib/api';
+import { collectionFace } from '../src/lib/collection-face';
 import { lilac, lilacRadius, lilacShadow } from '../src/theme';
 
 // 컬렉션 — 여권의 부속서(ANNEX). 리워드 ② 랩 Ⓑ① 채택.
@@ -80,6 +81,19 @@ export default function Cards() {
   const patchTotal = patches ? patches.earned.length + patches.locked.length : 0;
   const bothFailed = stampErr && patchErr && !stamps && !patches;
 
+  // [honesty 2026-09-22] 섹션마다 얼굴은 하나 — 그리고 **아무 얼굴도 아닌 상태는 없다.**
+  // 측정: 로그아웃 상태의 /cards에 § 코스 패치가 통째로 없었다(헤더도 실패도 빈 상태도 아닌 無).
+  // 원인은 RLS도 에러도 아니다 — `fetchCoursePatches`는 세션이 없으면 `{ earned: [], locked: [] }`를
+  // 던지지 않고 **성공적으로** 돌려준다(api.ts). 그래서 patches는 non-null, patchErr는 false,
+  // patchTotal은 0이 되고, 예전 게이트 `patches && patchTotal > 0`에서 모든 가지가 동시에 거짓이 됐다.
+  // (형제인 `fetchStampStats`는 같은 상황에서 throw하므로 § 도장만 실패 얼굴을 썼다 — 한 화면에서
+  //  두 읽기가 로그아웃을 다르게 취급하는 것이 증상의 비대칭을 만들었다.)
+  // 🔴 빈 컬렉션은 신규 사용자의 기본 상태다. 화면이 가장 말해야 할 상태에서 침묵하고 있었고,
+  // 아무것도 안 그리는 섹션은 존재하지 않는 섹션과 구별되지 않는다. 다섯 얼굴을 이름으로 열거해
+  // 「어느 가지도 안 맞음」이 값이 되게 한다 — 순수 함수라 test/collection-face.test.cjs가 전 입력을 돈다.
+  const stampFace = collectionFace({ loaded: !!stamps, count: stamps ? stamps.length : 0, failed: stampErr, bothFailed });
+  const patchFace = collectionFace({ loaded: !!patches, count: patchTotal, failed: patchErr, bothFailed });
+
   return (
     <View style={{ flex: 1, backgroundColor: lilac.bg }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 30 }}>
@@ -107,16 +121,16 @@ export default function Cards() {
         <Text style={s.subNote}>여권의 부속서예요 — 도장과 코스 패치가 한 수집함에 있어요</Text>
 
         {/* ————— 요약 — 두 숫자 모두 실파생. 안 온 쪽은 칸 자체가 없다 ————— */}
-        {(stamps || patchTotal > 0) && (
+        {(stampFace === 'list' || patchFace === 'list') && (
           <Row style={s.sum}>
-            {stamps && (
+            {stampFace === 'list' && stamps && (
               <View style={s.sumC}>
                 <Text style={[s.sumK, nf]}>STAMPS</Text>
                 <Text style={[s.sumV, nf]}>{stampsEarned}<Text style={s.sumVU}> / {stamps.length}</Text></Text>
                 <Text style={s.sumL}>받은 도장</Text>
               </View>
             )}
-            {patches && patchTotal > 0 && (
+            {patchFace === 'list' && patches && (
               <View style={[s.sumC, !!stamps && s.sumDiv]}>
                 <Text style={[s.sumK, nf]}>COURSES</Text>
                 <Text style={[s.sumV, nf]}>{patches.earned.length}<Text style={s.sumVU}> / {patchTotal}</Text></Text>
@@ -147,7 +161,7 @@ export default function Cards() {
             [honesty 2026-09-17] 로딩 문장 추가. 두 읽기가 다 도착 전이면 이 화면은 마스트헤드
             아래가 통째로 백지였다 — 아무 섹션 조건도 참이 아니라서. 빈 수집함과 구별되지 않는
             얼굴이다. 실패 노트와 같은 문법·같은 자리에 두어, 섹션마다 로딩·실패·실값이 갈린다. */}
-        {!stamps && !stampErr && (
+        {stampFace === 'loading' && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
@@ -158,7 +172,7 @@ export default function Cards() {
             <View style={s.failNote}><Text style={s.loadTxt}>도장을 불러오는 중...</Text></View>
           </>
         )}
-        {!stamps && stampErr && !bothFailed && (
+        {stampFace === 'failed' && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
@@ -174,7 +188,9 @@ export default function Cards() {
             </View>
           </>
         )}
-        {stamps && (
+        {/* 도장은 `deriveStamps`가 항상 12칸을 돌려주므로 'empty' 얼굴에 도달하지 않는다 — 빈 도장면은
+            섹션의 부재가 아니라 칸 안의 '아직 비어 있어요' 문장으로 말한다(아래 stampsEarned === 0). */}
+        {stampFace === 'list' && stamps && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
@@ -206,7 +222,7 @@ export default function Cards() {
         )}
 
         {/* ————— § 코스 패치 — 나이트 라일락 웰 (어두운 디스크에는 어두운 바닥이 필요하다) ————— */}
-        {!patches && !patchErr && (
+        {patchFace === 'loading' && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
@@ -217,7 +233,7 @@ export default function Cards() {
             <View style={s.failNote}><Text style={s.loadTxt}>코스 패치를 불러오는 중...</Text></View>
           </>
         )}
-        {!patches && patchErr && !bothFailed && (
+        {patchFace === 'failed' && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
@@ -233,7 +249,26 @@ export default function Cards() {
             </View>
           </>
         )}
-        {patches && patchTotal > 0 && (
+        {/* 🔴 읽기는 성공했는데 아무것도 없는 상태 — 이 화면에서 통째로 빠져 있던 얼굴.
+            로그아웃(`fetchCoursePatches`가 빈 배열을 **성공으로** 돌려준다) 또는 활성 코스가 하나도
+            없을 때 여기로 온다. 웰(나이트 바닥)이 아니라 페이지 바닥의 inset 박스인 이유: 잠긴 패치가
+            0개면 웰 안에 그릴 자수가 없고, 빈 웰은 '로딩 중'과 구별되지 않는다. §도장의 빈 상태와 같은
+            문법·같은 재질이다. 영속성('영구')은 약속하지 않는다 — 코스 비활성화가 실제 감소 벡터다. */}
+        {patchFace === 'empty' && (
+          <>
+            <Row style={s.sec}>
+              <Text style={[s.secNo, nf]}>§</Text>
+              <Text style={[s.secT, nf]}>PATCHES</Text>
+              <Text style={s.secKo}>코스 패치</Text>
+              <View style={s.rule} />
+            </Row>
+            <View style={s.empt}>
+              <Text style={s.emptT}>아직 모은 코스 패치가 없어요</Text>
+              <Text style={s.emptD}>코스를 완주하면 그 코스의 패치가 여기에 남아요.</Text>
+            </View>
+          </>
+        )}
+        {patchFace === 'list' && patches && (
           <>
             <Row style={s.sec}>
               <Text style={[s.secNo, nf]}>§</Text>
