@@ -17,7 +17,7 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 
 ## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
 
-**🚀 DEPLOYED 16:03: production is at 0202 (forty-one migrations + eleven functions, read back via `migration list --linked`); Sean's letters left: client build, five production writes, the anon-definer runtime query (queue item 1). Trunk `adf36df`+docs. Before this line the night's record said 「nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
+**Item 23 RULED 16:15: `return_strand_minutes = 180` (Sean's own command). 🚀 DEPLOYED 16:03: production is at 0202 (forty-one migrations + eleven functions, read back via `migration list --linked`); Sean's letters left: client build, five production writes, the anon-definer runtime query (queue item 1). Trunk `adf36df`+docs. Before this line the night's record said 「nothing deployed; production still 0156. Deploy letter PARKED on the 07:41 Codex re-review.**
 Landed tonight (each merged on the combined tree with harness · deno · npm · tsc · checks, pushed, read back):
 
 | slice | what a user gets | proof |
